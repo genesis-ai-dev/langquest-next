@@ -1,5 +1,5 @@
 import { t } from '../src/i18n';
-import { listingFailure, looksLikeEmail, sendFailure, signInFailure } from '../src/org/model';
+import { liveRoles, listingFailure, looksLikeEmail, sendFailure, signInFailure } from '../src/org/model';
 
 describe('the organization screens\' refusals, in words', () => {
   it('the Explore listing: refused, or no connection', () => {
@@ -24,5 +24,18 @@ describe('the organization screens\' refusals, in words', () => {
     expect(looksLikeEmail(' ana@x.org ')).toBe(true);
     expect(looksLikeEmail('ana@x')).toBe(false);
     expect(looksLikeEmail('ana')).toBe(false);
+  });
+
+  it('lists the roles still in use, the most privileged first, then by name, and none for an organization not yet read', () => {
+    const role = (name: string, privileges: number, retired = false) =>
+      ({ retired, name: { value: name }, privileges: { value: Array.from({ length: privileges }, (_, i) => i) } });
+    expect(liveRoles(undefined)).toEqual([]);
+    expect(liveRoles({ b: role('Beta', 2), a: role('Alpha', 2), gone: role('Old', 9, true), top: role('Top', 5), bare: { name: { value: '' }, privileges: { value: null } } }))
+      .toEqual([
+        { id: 'top', name: 'Top', privileges: 5 },
+        { id: 'a', name: 'Alpha', privileges: 2 },
+        { id: 'b', name: 'Beta', privileges: 2 },
+        { id: 'bare', name: 'bare', privileges: 0 }
+      ]);
   });
 });

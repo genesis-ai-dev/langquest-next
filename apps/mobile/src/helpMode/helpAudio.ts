@@ -7,6 +7,8 @@
 // helpAudio.ts) and `npm run help-audio` puts them there. A line nobody has
 // recorded yet is only shown as words, and the browser reads it aloud on the
 // web.
+import { ORG_STREAM } from '@langquest-next/core';
+import { classifyTransferFailure } from '@langquest-next/sync';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CryptoDigestAlgorithm, digestStringAsync } from 'expo-crypto';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
@@ -15,6 +17,7 @@ import { Platform } from 'react-native';
 import { currentLanguage } from '../i18n';
 import { registerPlayback } from '../audio/audioSession';
 import { noteExpected } from '../diagnostics/report';
+import { timedTransfer } from '../diagnostics/diagnostics';
 
 const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || (Platform.OS === 'web' ? '' : null);
 
@@ -25,6 +28,17 @@ export async function lineHash(language: string, words: string): Promise<string>
 }
 
 const lists = new Map<string, Promise<Set<string>>>();
+
+/**
+ * The organization open on this phone, so a line's download is tallied
+ * under it for field diagnostics (`help` transfers). Help is the app's,
+ * not an organization's; with none open, downloads are not tallied rather
+ * than tallied under a made-up one.
+ */
+let tallyOrg: string | null = null;
+export function setHelpAudioOrg(orgId: string | null | undefined): void {
+  tallyOrg = orgId || null;
+}
 
 /** The lines recorded for a language, asked once per run and kept for offline; empty when none are known. */
 function recorded(language: string): Promise<Set<string>> {
@@ -143,9 +157,11 @@ async function localCopy(language: string, hash: string): Promise<string> {
     const file = new File(dir, `${hash}.m4a`);
     if (file.exists) return file.uri;
     if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
-    return (await File.downloadFileAsync(url, file)).uri;
+    const fetchLine = async () => { const got = await File.downloadFileAsync(url, file); return { bytes: got.size, uri: got.uri }; };
+    const orgId = tallyOrg;
+    return (await (orgId ? timedTransfer('down', { orgId, streamId: ORG_STREAM, src: 'help' }, fetchLine) : fetchLine())).uri;
   } catch (e) {
-    noteExpected('help audio download', e);
+    noteExpected('help audio download', e, classifyTransferFailure(e));
     return url;
   }
 }

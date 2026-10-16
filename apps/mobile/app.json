@@ -124,6 +124,13 @@
             "my"
           ]
         }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": false
+        }
       ]
     ],
     "scheme": "langquestnext",

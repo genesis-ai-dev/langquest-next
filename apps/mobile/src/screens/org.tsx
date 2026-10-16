@@ -47,7 +47,7 @@ import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
 import { appendToLanguage } from '../sync/languageWriter';
 import { createLanguages, newLanguageParts, type Making, type NewOne, type Offer } from '../org/newLanguage';
 import { emailInvite } from '../org/emailInvite';
-import { looksLikeEmail, signInFailure } from '../org/model';
+import { liveRoles, looksLikeEmail, signInFailure } from '../org/model';
 import { usePublicListing } from '../org/usePublicListing';
 import { contractsFor } from '../shell/screenContracts';
 import { languageFigures } from '../org/orgFigures';
@@ -126,13 +126,6 @@ function useOrgView(ctx: Ctx) {
 function roleName(ctx: Ctx, roleId: string): string {
   return ctx.org.state?.roles[roleId]?.name.value || SEED_ROLES.find((r) => r.roleId === roleId)?.name || roleId;
 }
-
-function liveRoles(ctx: Ctx): { id: string; name: string; privileges: number }[] {
-  return Object.entries(ctx.org.state?.roles ?? {}).filter(([, r]) => !r.retired)
-    .map(([id, r]) => ({ id, name: r.name.value || id, privileges: r.privileges.value?.length ?? 0 }))
-    .sort((a, b) => b.privileges - a.privileges || a.name.localeCompare(b.name));
-}
-
 
 // ---- level home building blocks ----------------------------------------------------------------
 
@@ -230,7 +223,7 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
         {reference ? <Row icon="book" label={t('org.setup.reference')} help={t('org.setup.referenceHelp')} onPress={() => ctx.go('reference_home', params)}
           sub={t('org.setup.referenceSub', { study: formatNumber(counts.study), questions: formatNumber(counts.questions), terms: formatNumber(counts.terms) })} /> : null}
         {flows ? <Row icon="flow" label={t('org.setup.flows')} sub={applied(counts.flow)} help={t('org.setup.flowsHelp')} onPress={() => ctx.go('flows_home', params)} /> : null}
-        <Row icon="star" label={t('org.setup.roles')} sub={t('org.setup.rolesSub', { count: liveRoles(ctx).length })} help={t('org.setup.rolesHelp')} onPress={() => ctx.go('roles_home', params)}
+        <Row icon="star" label={t('org.setup.roles')} sub={t('org.setup.rolesSub', { count: liveRoles(ctx.org.state?.roles).length })} help={t('org.setup.rolesHelp')} onPress={() => ctx.go('roles_home', params)}
           last={!props.extra} />
         {props.extra?.rows}
       </Disclosure>
@@ -652,7 +645,7 @@ export function LanguageHome(ctx: Ctx) {
       <Row icon="people" label={t('org.people.members')} sub={t('org.more.membersSub', { count: membersAt(memberEntries(v.org), 'language', languageId).length, language: name })}
         help={t('org.people.membersHelp')} onPress={() => ctx.go('members_list', params)} />
       {/* Roles are the organization's: whoever may change them opens them there (decision 63). */}
-      <Row icon="star" label={t('org.setup.roles')} sub={t('org.more.rolesSub', { count: liveRoles(ctx).length })} help={t('org.setup.rolesHelp')}
+      <Row icon="star" label={t('org.setup.roles')} sub={t('org.more.rolesSub', { count: liveRoles(ctx.org.state?.roles).length })} help={t('org.setup.rolesHelp')}
         onPress={() => ctx.go('roles_home', v.org && privilegesFor(v.org, ctx.session.actorId).has('manage_roles') ? { level: 'org' } : params)} />
       {can('manage_templates') ? <Row icon="template" label={t('org.more.templates')} sub={t('org.more.templatesSub')} onPress={() => ctx.go('templates_home', { level: 'language', languageId })} /> : null}
       {can('manage_reference') ? <Row icon="layers" label={t('org.more.reference')} sub={t('org.more.referenceSub')} onPress={() => ctx.go('reference_home', params)} /> : null}
@@ -1083,7 +1076,7 @@ function MemberEditor(ctx: Ctx) {
   const onlyManager = !pending && entry?.scope.level === 'org' && leavesNoRoleManager(v.org, memberId, undefined);
   const keepsManager = !onlyManager || !leavesNoRoleManager(v.org, memberId, scope?.level === 'org' ? form.roleId : undefined);
   // Only roles they could grant at the chosen scope, and the one held now.
-  const roles = liveRoles(ctx).filter((r) => r.id === entry?.roleId || (!!scope && mayGrantRole(v.org, ctx.session.actorId, r.id, scope)));
+  const roles = liveRoles(ctx.org.state?.roles).filter((r) => r.id === entry?.roleId || (!!scope && mayGrantRole(v.org, ctx.session.actorId, r.id, scope)));
   // A requester's name comes with the request (decisions.md 65), not from the members' names.
   const requesterName = pending ? ctx.params['name'] : undefined;
   const who = requesterName ?? ctx.name(memberId);
@@ -1249,7 +1242,7 @@ export function InviteQr(ctx: Ctx) {
   /** Where the code applies, by name, so a wrong language shows. */
   const where = scope.level === 'org' ? ctx.org.state?.org?.value.name || levelLabel('org') : languageName(ctx.org.state, scope.languageId);
   // Only roles this person may grant there: nobody invites to more than they hold (decisions.md 75).
-  const roles = liveRoles(ctx).filter((r) => mayGrantRole(ctx.org.state, me, r.id, scope));
+  const roles = liveRoles(ctx.org.state?.roles).filter((r) => mayGrantRole(ctx.org.state, me, r.id, scope));
   // Started from a role ("Invite someone as …"), the role is already chosen: start at the name.
   const preferred = ctx.params['roleId'];
   const [step, setStep] = useState(preferred && roles.some((r) => r.id === preferred) ? 1 : 0);

@@ -5,11 +5,11 @@ import type { AnyEvent, EventType } from '../src/events';
 import { encodeHlc } from '../src/hlc';
 import { addedTo, approvedVersion, derivePassage, madeGrid, recordTimeline } from '../src/passage';
 import { foldLanguage } from '../src/reducer';
-import { validateEvent } from '../src/validate';
+import { EVENT_PAYLOAD_MAX_BYTES, eventSizeError, jsonbTextBytes, validateEvent } from '../src/validate';
 import { defaultResult, isWrittenPart, mediaAllowed, partsMedium, resultAllowed, sha256Hex, writtenPartId, writtenText } from '../src/writing';
 
 /**
- * Writing beside recording, and steps that make something (decisions.md 112).
+ * Writing beside recording, and steps that make something (decisions.md 124).
  */
 
 const env = (type: EventType, payload: unknown, n = 1): AnyEvent =>
@@ -203,6 +203,21 @@ describe('commands', () => {
     expect((specs[0]!.payload as { parts: unknown[] }).parts).toEqual([words[1]]);
     const many = Array.from({ length: 150 }, (_, i) => ({ id: writtenPartId(`v${i}`), text: `v${i}` }));
     expect(commands(state).addWriting({ commandId: 'c', unitId: 'u', parts: many }).map((x) => (x.payload as { parts: unknown[] }).parts.length)).toEqual([100, 50]);
+  });
+
+  it('keep each writing event within 64 KB (decisions.md 115)', () => {
+    const { state } = world();
+    // Long verses in a script of three-byte letters: 100 of them would be about 600 KB.
+    const long = Array.from({ length: 100 }, (_, i) => `${i} ${'ሀ'.repeat(1990)}`).map((text) => ({ id: writtenPartId(text), text }));
+    const specs = commands(state).addWriting({ commandId: 'c', unitId: 'u', parts: long });
+    expect(specs.length).toBeGreaterThan(1);
+    for (const spec of specs) {
+      const e = env('v1.WritingAdded', spec.payload);
+      expect(eventSizeError(e)).toBeNull();
+      expect(validateEvent(e)).toBeNull();
+    }
+    expect(specs.flatMap((x) => (x.payload as { parts: { id: string }[] }).parts.map((p) => p.id))).toEqual(long.map((x) => x.id));
+    expect(jsonbTextBytes(specs[0]!.payload)).toBeGreaterThan(EVENT_PAYLOAD_MAX_BYTES - 7000);
   });
 
   it('make a version from a step, saying which step made it', () => {

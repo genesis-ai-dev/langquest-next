@@ -210,7 +210,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const group = isGroupKind(kind.id);
   const here = all.find((p) => p.unitId === v.unitId);
   const asker = request?.by ? ctx.name(request.by) : undefined;
-  // What this check reads (decision 112): what an earlier step made from this version, or the version; writing is read.
+  // What this check reads (decision 124): what an earlier step made from this version, or the version; writing is read.
   const reads = readsFor(v.p, kind, version);
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes, reads: reads.medium === 'writing' });
   const at = stageAt(stages, stageId);
@@ -368,7 +368,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       )}
       {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
       {!reads.made && reads.medium === 'recording' ? <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered /> : null}
-      {/* What a step added to the version is part of it: a check hears and reads them together (decision 112). */}
+      {/* What a step added to the version is part of it: a check hears and reads them together (decision 124). */}
       {!reads.made ? addedTo(v.p, version).map((a) => (
         <View key={a.medium} style={{ gap: space.sm }}>
           <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
@@ -441,7 +441,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
                 <AgainBtn label={t('review.screen.recordAgain')} onPress={() => setVoice((x) => { const { [q.q.id]: _gone, ...rest } = x; return rest; })} />
               </>
             ) : (
-              <BigMic label={t('review.screen.tapRecordAnswer')} size={96} onClip={(clip) => setVoice((x) => ({ ...x, [q.q.id]: clip }))} />
+              <BigMic language={ctx.language} label={t('review.screen.tapRecordAnswer')} size={96} onClip={(clip) => setVoice((x) => ({ ...x, [q.q.id]: clip }))} />
             )}
             {makes || typing[q.q.id] || answers[q.q.id] ? (
               <View style={{ alignSelf: 'stretch' }}>
@@ -464,7 +464,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         <Text style={[txt.smMuted, styles.center]}>{t('review.screen.recordTheWhy')}</Text>
       </View>
       <View style={styles.answer}>
-        <BigMic label={made.length ? t('review.screen.recordAnotherPart') : t('review.screen.tapAndSpeak')} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
+        <BigMic language={ctx.language} label={made.length ? t('review.screen.recordAnotherPart') : t('review.screen.tapAndSpeak')} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
       </View>
       {made.map((c, i) => (
         <View key={c.hash} style={styles.partRow}>
@@ -514,7 +514,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             <PlayChip ctx={ctx} clip={feedback} label={t('review.screen.yourFeedback')} tone="amber" />
             <AgainBtn label={t('review.screen.recordAgain')} onPress={() => setFeedback(null)} />
           </View>
-        ) : <BigMic label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
+        ) : <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
         {typeFeedback || comment ? (
           <Field value={comment} onChangeText={setComment} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline testID="feedback-text" />
         ) : <LinkBtn label={t('common.orTypeIt')} help={t('review.screen.orTypeHelp')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
@@ -602,7 +602,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {sheet === 'retell' ? (
         <Sheet visible title={t('review.screen.recordListenerRetelling')} sub={t('review.screen.retellSub')} onClose={() => setSheet(null)}>
           <View style={{ paddingVertical: space.lg }}>
-            <BigMic label={t('review.screen.tapRecordRetelling')} size={96} onClip={(clip) => { setEvidence(clip); setSheet(null); }} />
+            <BigMic language={ctx.language} label={t('review.screen.tapRecordRetelling')} size={96} onClip={(clip) => { setEvidence(clip); setSheet(null); }} />
           </View>
         </Sheet>
       ) : null}
@@ -612,7 +612,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           sub={mine ? t('review.screen.noteAtSubMine') : t('review.screen.noteAtSub', { name: translator })}
           onClose={() => setMomentAt(null)}>
           <View style={{ paddingVertical: space.lg }}>
-            <BigMic label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
+            <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
           </View>
         </Sheet>
       ) : null}

@@ -8,7 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Card } from '@langquest-next/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '../i18n';
-import { reportError } from '../diagnostics/report';
+import { noteExpected, reportError } from '../diagnostics/report';
+import { recorderFaultCode } from './recorderFaultModel';
 import { parseBackTranslationDraft, withoutPart, withPart, type BackTranslationDraft } from './workspaceModel';
 
 /** A draft that could not be read is never overwritten: writes refuse until it can be. */
@@ -50,7 +51,11 @@ export function useBackTranslationDraft(key: string, fromTakeId: string) {
       if (mounted.current) setDraft(current.current);
     });
     // A failed write leaves the chain usable; an unreadable draft keeps refusing.
-    chain.current = run.catch((e: unknown) => { if (e instanceof DraftUnreadable) throw e; });
+    // The caller says it failed (a part's save is the recorder's); it is counted here, a full phone apart.
+    chain.current = run.catch((e: unknown) => {
+      if (e instanceof DraftUnreadable) throw e;
+      noteExpected('back translation draft: write', e, recorderFaultCode(e) === 'nospace' ? 'nospace' : 'write');
+    });
     return run;
   }, [key]);
 

@@ -52,7 +52,7 @@ import { VoiceNote } from '../audio/voiceNote';
 
 export function BackTranslationBody({ ctx, v, kind, of, make }: {
   ctx: Ctx; v: PassageView; kind: KindDef; of: Version;
-  /** A step that makes recording (decisions.md 112): what it says it into, and the language it is in when not the team's own. */
+  /** A step that makes recording (decisions.md 124): what it says it into, and the language it is in when not the team's own. */
   make?: { into: string; language?: string; added?: boolean };
 }) {
   const { state, unitId, languageId, p } = v;
@@ -93,7 +93,7 @@ export function BackTranslationBody({ ctx, v, kind, of, make }: {
     const piece = { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format };
     await add(at ? pieceFor(at, piece) : piece);
   }, [add]);
-  const rec = useRecorder(persist);
+  const rec = useRecorder(persist, undefined, ctx.language);
   // A piece too short to keep is said (decisions.md 106).
   useOnTooShort(rec.tooShort, () => ctx.toast(t('recording.vad.tooShort')));
   const loop = useListenLoop(rec);

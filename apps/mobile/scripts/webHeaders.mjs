@@ -10,7 +10,9 @@
 // - No cross-origin isolation headers: the app uses expo-sqlite's async API
 //   only, which needs no SharedArrayBuffer, and isolation would block study
 //   images from other sites and is not the same in Safari.
-// - Hashed bundles never change, so they are cached for good; the page and
+// - Hashed bundles never change, so they are cached for good, and so are the
+//   word catalogs in /i18n, which the app asks for with the build's id
+//   (?v=, catalogs.web.ts) so a new build fetches new words; the page and
 //   version.json are always checked.
 
 export function headersFor({ supabaseUrl }) {
@@ -44,6 +46,9 @@ export function headersFor({ supabaseUrl }) {
   Cache-Control: public, max-age=31536000, immutable
 
 /assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/i18n/*
   Cache-Control: public, max-age=31536000, immutable
 
 /index.html

@@ -7,35 +7,10 @@ import { t } from '../i18n';
 import { cachedDoc, hashOf, keepNewDoc, loadDocs } from '../library/docStore';
 import type { SharedItem } from '../library/model';
 import type { useLibrary } from '../library/useLibrary';
-import { failureMessage } from '../diagnostics/report';
 import * as server from '../server/reference';
 import { BibleError } from '../sources/bibleBrainAdmin';
-import type { Level } from './model';
+import { referenceFailure, serverRefusal } from './failureModel';
 import { timingPublication, type TimingPublication, type TimingResultRow } from '@langquest-next/core';
-
-/** The level a screen is at: the language in its params (when it is the open language), else the organization. */
-export function levelOf(ctx: Ctx): Level {
-  const languageId = ctx.params['languageId'];
-  return languageId && ctx.language.languageId === languageId ? { kind: 'language', languageId } : { kind: 'org' };
-}
-
-export const NETWORK = /network|fetch|offline|timed? ?out|not connected/i;
-
-/** Say "not connected" plainly for a server action, else the fault with a code. */
-export function referenceFailure(where: string, e: unknown): string {
-  if (e instanceof Error && !(e instanceof CommandError) && !(e instanceof BibleError) && NETWORK.test(e.message)) return t('common.notConnected');
-  if (e instanceof CommandError) return commandErrorText(e);
-  // Bible Brain's errors are worded in the language showing (sources/bibleBrain.ts).
-  if (e instanceof BibleError) return e.message;
-  return failureMessage(where, e);
-}
-
-/** A refusal from the server (Supabase), in the person's words: not connected, not allowed, or a general one. Its own message is English. */
-export function serverRefusal(error: { message: string; code?: string }): CommandError {
-  if (NETWORK.test(error.message)) return new CommandError(t('common.notConnected'));
-  if (error.code === '42501') return new CommandError(t('reference.errors.notAllowed'));
-  return new CommandError(t('reference.errors.serverRefused'));
-}
 
 /**
  * The hash of this organization's versification with `code` ("eng"): one

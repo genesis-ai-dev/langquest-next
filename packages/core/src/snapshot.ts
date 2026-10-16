@@ -35,13 +35,18 @@ export function takeSnapshot(
 }
 
 /** Resume from a snapshot: only events after its sequence are applied. */
-export function resume(snapshot: Snapshot, tail: Iterable<AnyEvent>): LanguageState {
+export function resume(
+  snapshot: Snapshot,
+  tail: Iterable<AnyEvent>,
+  /** `clone: false` folds onto `snapshot.state` in place, for a caller that holds the only copy. */
+  opts: { clone?: boolean } = {}
+): LanguageState {
   if (snapshot.reducerVersion !== REDUCER_VERSION) {
     throw new Error(
       `Snapshot reducer version ${snapshot.reducerVersion} does not match ${REDUCER_VERSION}`
     );
   }
-  const state = structuredClone(snapshot.state);
+  const state = opts.clone === false ? snapshot.state : structuredClone(snapshot.state);
   const newer = [...tail].filter((e) => e.serverSeq === undefined || e.serverSeq > snapshot.serverSeq);
   return foldLanguage(newer, state);
 }

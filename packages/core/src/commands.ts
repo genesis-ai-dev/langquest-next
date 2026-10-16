@@ -5,6 +5,7 @@ import type { FlowSelection, LanguageState } from './state';
 import { derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
 import { cardVerseEvents, type PartMark } from './verses';
+import { EVENT_PAYLOAD_MAX_BYTES, jsonbTextBytes } from './validate';
 import { isWrittenPart, partsMedium, resultAllowed, WRITTEN_PARTS_PER_EVENT, type MakesSpec, type MediaAllowed, type WrittenPart } from './writing';
 import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type KindDef, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
 
@@ -124,7 +125,7 @@ export interface Commands {
    */
   restoreFlow(c: { commandId: string; previous: { flow: FlowSelection | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
 
-  // ---- writing, and steps that make something (writing.ts, decisions.md 112) ----
+  // ---- writing, and steps that make something (writing.ts, decisions.md 124) ----
 
   /** Written parts the log lacks, at most 100 an event. Ids are the caller's `writtenPartId` of NFC text. */
   addWriting(c: { commandId: string; unitId: string; parts: readonly WrittenPart[] }): EventSpec[];
@@ -462,10 +463,23 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
         return true;
       });
       const out: EventSpec[] = [];
-      for (let i = 0; i < fresh.length; i += WRITTEN_PARTS_PER_EVENT) {
-        const n = out.length;
-        out.push({ id: `${c.commandId}:${n}`, type: 'v1.WritingAdded', payload: { writingId: `writing:${c.commandId}:${n}`, unitId: c.unitId, parts: fresh.slice(i, i + WRITTEN_PARTS_PER_EVENT).map((x) => ({ id: x.id, text: x.text })) } });
+      const payload = (parts: WrittenPart[]) => ({ writingId: `writing:${c.commandId}:${out.length}`, unitId: c.unitId, parts });
+      let parts: WrittenPart[] = [];
+      let bytes = 0;
+      const flush = () => {
+        if (parts.length) out.push({ id: `${c.commandId}:${out.length}`, type: 'v1.WritingAdded', payload: payload(parts) });
+        parts = [];
+      };
+      // At most WRITTEN_PARTS_PER_EVENT parts and 64 KB an event (decisions.md 115):
+      // a part adds its own bytes, and a comma and a space after the first.
+      for (const x of fresh) {
+        const part = { id: x.id, text: x.text };
+        const size = jsonbTextBytes(part);
+        if (parts.length === WRITTEN_PARTS_PER_EVENT || (parts.length && bytes + 2 + size > EVENT_PAYLOAD_MAX_BYTES)) flush();
+        bytes = parts.length ? bytes + 2 + size : jsonbTextBytes(payload([])) + size;
+        parts.push(part);
       }
+      flush();
       return out;
     },
 

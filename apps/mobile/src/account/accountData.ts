@@ -2,12 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { DurableOutbox, type AccountAction } from '@langquest-next/sync';
 import * as server from '../server/account';
+import { noteOutboxFailure } from '../auth/authDiag';
+import { RpcError } from '../auth/authOutcome';
 
 const outboxes = new Map<string, DurableOutbox>();
 export function accountOutbox(actorId: string): DurableOutbox {
   let outbox = outboxes.get(actorId);
   if (!outbox) {
-    outbox = new DurableOutbox(actorId, AsyncStorage, (action) => server.deliverAccountAction(actorId, action));
+    // A change that keeps failing is told to diagnostics by its kind and code, never its contents.
+    outbox = new DurableOutbox(actorId, AsyncStorage, (action) => server.deliverAccountAction(actorId, action), { onFailure: noteOutboxFailure });
     outboxes.set(actorId, outbox);
   }
   return outbox;
@@ -35,7 +38,7 @@ export interface PublicLanguage {
 }
 export async function publicLanguages(): Promise<PublicLanguage[]> {
   const { data, error } = await server.publicLanguages();
-  if (error) throw new Error(error.message);
+  if (error) throw new RpcError(error);
   await AsyncStorage.setItem('public-languages', JSON.stringify(data));
   return data as PublicLanguage[];
 }
@@ -48,7 +51,7 @@ export interface ListedOrganization {
 }
 export async function listedOrganizations(): Promise<ListedOrganization[]> {
   const { data, error } = await server.listedOrganizations();
-  if (error) throw new Error(error.message);
+  if (error) throw new RpcError(error);
   await AsyncStorage.setItem('listed-organizations', JSON.stringify(data));
   return data as ListedOrganization[];
 }
@@ -58,7 +61,7 @@ export async function listedOrganizations(): Promise<ListedOrganization[]> {
  */
 export async function searchListedOrganizations(query: string): Promise<ListedOrganization[]> {
   const { data, error } = await server.searchListedOrganizations(query);
-  if (error) throw new Error(error.message);
+  if (error) throw new RpcError(error);
   return data as ListedOrganization[];
 }
 export async function cachedListedOrganizations(): Promise<ListedOrganization[]> {

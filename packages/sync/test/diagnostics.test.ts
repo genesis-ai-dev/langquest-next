@@ -69,8 +69,26 @@ describe('classifyTransferFailure', () => {
     expect(classifyTransferFailure(new Error('Network request failed'))).toBe('offline');
     expect(classifyTransferFailure(new Error('hash mismatch for abc: got def'))).toBe('hash');
     expect(classifyTransferFailure(new Error('Upload failed (503): gateway'))).toBe('http5xx');
-    expect(classifyTransferFailure(new Error('Upload failed (403): denied'))).toBe('http4xx');
+    expect(classifyTransferFailure(new Error('Upload failed (409): conflict'))).toBe('http4xx');
     expect(classifyTransferFailure('x')).toBe('other');
+  });
+
+  it("gives the Worker's refusals their meaning, and reads the platform's own failures", () => {
+    // Why: one "4xx" hid a session that ended, a file too large to ever
+    // upload and a server-side hash mismatch (apps/web/worker/blobs.ts).
+    expect(classifyTransferFailure(new Error('Upload failed (401): sign in again'))).toBe('auth');
+    expect(classifyTransferFailure(new Error('Upload failed (403): denied'))).toBe('auth');
+    expect(classifyTransferFailure(new Error('Not signed in.'))).toBe('auth');
+    expect(classifyTransferFailure(new Error('Download failed (404)'))).toBe('notFound');
+    expect(classifyTransferFailure(new Error('Upload failed (413): too large'))).toBe('tooLarge');
+    expect(classifyTransferFailure(new Error('Upload failed (422): BadDigest'))).toBe('badDigest');
+    expect(classifyTransferFailure(new Error('response has status 502'))).toBe('http5xx');
+    expect(classifyTransferFailure(new Error('file abc123 is gone from this device'))).toBe('gone');
+    expect(classifyTransferFailure(new Error("There isn't enough space to save the file"))).toBe('disk');
+    expect(classifyTransferFailure(new Error('A server with the specified hostname could not be found.'))).toBe('offline');
+    expect(classifyTransferFailure(new Error('Failed to connect to /10.0.2.2'))).toBe('offline');
+    // A hash in the text is not a status.
+    expect(classifyTransferFailure(new Error('hash mismatch for 413abc: got 404def'))).toBe('hash');
   });
 });
 
@@ -83,8 +101,10 @@ for (const [name, make] of [
       // Why: weeks offline must not fill the phone, and a crash is the one record we cannot do without.
       const store = await make();
       await store.addDiag(rec('e', 1, 'error'), 3);
-      for (let i = 2; i <= 6; i++) await store.addDiag(rec(`s${i}`, i), 3);
+      let dropped = 0;
+      for (let i = 2; i <= 6; i++) dropped += await store.addDiag(rec(`s${i}`, i), 3);
       expect((await store.diagBatch(10)).map((r) => r.id)).toEqual(['e', 's5', 's6']);
+      expect(dropped).toBe(3);
       expect(await store.diagCount()).toBe(3);
     });
 
@@ -144,9 +164,52 @@ describe('Diagnostics', () => {
     expect(store.records).toHaveLength(0);
   });
 
+  it('keeps transfers from different sources in different tallies', async () => {
+    // Why: guide media, hand-over and source audio failing must not hide inside the language's own downloads.
+    const { store, diag } = make();
+    diag.transfer('down', { orgId: 'o', streamId: 'p', bytes: 10, ms: 1 });
+    diag.transfer('down', { orgId: 'o', streamId: 'p', bytes: 0, ms: 1, src: 'source', failure: 'notFound' });
+    diag.closeTallies();
+    await diag.settle();
+    expect(store.records.map((r) => [r.t.src, r.n.count, r.n.failNotFound])).toEqual([['lang', 1, undefined], ['source', 1, 1]]);
+  });
+
+  it('tallies audio and expected failures per hour, one record per key', async () => {
+    // Why: a refused microphone or a failing invite check on every tap must
+    // show as a count, not as thousands of records.
+    const { store, diag, now } = make();
+    for (let i = 0; i < 5; i++) diag.expected('held invite', 'Error', '42501');
+    diag.expected('held invite', 'Error', 'PGRST301');
+    diag.audio({ orgId: 'o', streamId: 'p' }, 'takes');
+    diag.audio({ orgId: 'o', streamId: 'p' }, 'takeMs', 4200);
+    diag.audio({ orgId: 'o', streamId: 'p' }, 'micRefused');
+    await diag.settle();
+    expect(store.records).toHaveLength(0);
+    now.t += 3_600_000;
+    diag.expected('held invite', 'Error', '42501');
+    await diag.settle();
+    expect(store.records).toHaveLength(1);
+    expect(store.records[0]).toMatchObject({ kind: 'expected', t: { where: 'held invite', name: 'Error', code: '42501' }, n: { count: 6 } });
+    diag.closeTallies();
+    await diag.settle();
+    expect(store.records.find((r) => r.kind === 'audio')).toMatchObject({ orgId: 'o', streamId: 'p', n: { takes: 1, takeMs: 4200, micRefused: 1 } });
+    expect(store.records.find((r) => r.kind === 'expected' && r.t.code === 'PGRST301')?.n.count).toBe(1);
+  });
+
+  it('counts records dropped to stay in bounds, once', async () => {
+    // Why: weeks offline past 3000 records lost history silently.
+    const store = new MemoryDiagStore();
+    let n = 0;
+    const diag = new Diagnostics({ store, newId: () => `d${++n}`, maxRecords: 2 });
+    for (let i = 0; i < 5; i++) diag.record('load', { n: { ms: i } });
+    await diag.settle();
+    expect(diag.takeDropped()).toBe(3);
+    expect(diag.takeDropped()).toBe(0);
+  });
+
   it('survives a store that fails', async () => {
     class FullDisk extends MemoryDiagStore {
-      override async addDiag(): Promise<void> { throw new Error('disk full'); }
+      override async addDiag(): Promise<number> { throw new Error('disk full'); }
     }
     const diag = new Diagnostics({ store: new FullDisk(), newId: () => 'x' });
     expect(() => diag.record('load', {})).not.toThrow();

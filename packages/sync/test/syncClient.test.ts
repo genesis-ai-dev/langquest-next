@@ -4,7 +4,7 @@ import { MemoryStore } from '../src/memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { FakeServer } from '../src/testing/fakeServer';
-import { rejectCodeOf, type Transport } from '../src/types';
+import { EventTooLargeError, rejectCodeOf, type Transport } from '../src/types';
 
 /** The organization stream's fold, as the app wires it (apps/mobile useOrg). */
 const unit = (i: number | string, label = `P${i}`) =>
@@ -33,6 +33,20 @@ describe('SyncClient', () => {
     await client.load();
     await client.append('v1.UnitAdded', unit(1, 'Luke 1'));
     expect(client.getState().units['u1']?.label).toBe('Luke 1');
+    expect(await client.pendingCount()).toBe(1);
+  });
+
+  it('refuses an event bigger than the server takes before recording it', async () => {
+    // Why: the server refuses a payload over 64 KB (decisions.md 115); kept,
+    // it would sit rejected in the log, a write the person thinks was saved.
+    const server = new FakeServer();
+    const { client } = device(server, 'dA', 'lead', { t: 0 });
+    await client.load();
+    const cardHashes = Array.from({ length: 1200 }, (_, i) => `${i}`.padStart(64, 'a'));
+    await expect(client.append('v1.TakeComposed', { takeId: 'big', unitId: 'u1', cardHashes, parentTakeId: null })).rejects.toThrow(EventTooLargeError);
+    expect(await client.pendingCount()).toBe(0);
+    expect(client.getState().takes['big']).toBeUndefined();
+    await client.append('v1.TakeComposed', { takeId: 'ok', unitId: 'u1', cardHashes: cardHashes.slice(0, 500), parentTakeId: null });
     expect(await client.pendingCount()).toBe(1);
   });
 
@@ -667,6 +681,59 @@ describe('SyncClient snapshots (PLAN.md invariant 10, cutover gate 4)', () => {
     await b.client.pull();
     expect(b.client.getState().units['u1']).toBeUndefined();
     expect(Object.keys(b.client.getState().units).sort()).toEqual(['u0', 'u2']);
+  });
+});
+
+describe('SyncClient adopting a server snapshot (performance-audit-app.md C2)', () => {
+  it('gives the state a relaunch would, parsing the language once and never stringifying it', async () => {
+    // Why: at 14 MB the old path parsed the snapshot, stringified it for the
+    // checkpoint, then read it back and parsed it again.
+    const server = new FakeServer();
+    const wall = { t: 0 };
+    const a = device(server, 'dA', 'lead', wall);
+    await a.client.load();
+    for (let i = 0; i < 30; i++) await a.client.append('v1.UnitAdded', unit(i));
+    await a.client.sync();
+    server.makeSnapshot('org1', 'p1');
+    await a.client.append('v1.UnitHidden', { unitId: 'u0', hidden: true });
+    await a.client.sync();
+
+    const b = device(server, 'dB', 'r1', wall);
+    await b.client.load();
+    // Unsent work on the new phone, among it a redaction of an event the snapshot covers.
+    await b.client.append('v1.UnitAdded', unit('local'));
+    const covered = server.log.find((e) => e.type === 'v1.UnitAdded' && e.payload.unitId === 'u3')!;
+    await b.client.append('v1.Redacted', { eventId: covered.id });
+
+    const parse = vi.spyOn(JSON, 'parse');
+    const stringify = vi.spyOn(JSON, 'stringify');
+    let states = 0;
+    let parsedStates = 0;
+    try {
+      await b.client.pull();
+      parsedStates = parse.mock.calls.filter(([t]) => typeof t === 'string' && t.includes('"units"')).length;
+      // The fake server stringifies its own copy to serve pieces; that is the server's work, not the phone's.
+      const served = server.snapshots.get('org1/p1')!.state;
+      states = stringify.mock.calls.filter(([v]) => v !== served && v !== null && typeof v === 'object' && 'units' in (v as object)).length;
+      states += stringify.mock.calls.filter(([v]) => v !== null && typeof v === 'object' && 'state' in (v as object) && 'serverSeq' in (v as object)).length;
+    } finally {
+      parse.mockRestore();
+      stringify.mockRestore();
+    }
+    expect(parsedStates).toBe(1);
+    expect(states).toBe(0);
+
+    const adopted = structuredClone(b.client.getState());
+    expect(adopted.units['ulocal']).toBeDefined();
+    // The stored checkpoint is the one `JSON.stringify` of a snapshot would write.
+    const raw = JSON.parse((await b.store.meta('snapshot:org1/p1'))!);
+    expect(Object.keys(raw)).toEqual(['orgId', 'streamId', 'reducerVersion', 'serverSeq', 'state']);
+    // A relaunch on the same store (load() from the checkpoint) agrees.
+    const again = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'r1', deviceId: 'dB', store: b.store,
+      transport: server.transportFor(), clock: new HlcClock('dB', () => (wall.t += 1))
+    });
+    expect(await again.load()).toEqual(adopted);
   });
 });
 

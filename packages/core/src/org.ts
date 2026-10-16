@@ -113,9 +113,12 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.RoleRetired': 'manage_roles',
   'v1.MemberAdded': 'invite_members',
   'v1.MemberRemoved': 'invite_members',
-  'v1.InviteIssued': 'invite_members',
+  // Server-only, like a redemption: issue_invite_v3 and decide_join_request
+  // append these after their own checks. A client's copy would be believed
+  // as consent by may_help_sign_in (decisions.md 114).
+  'v1.InviteIssued': null,
   'v1.InviteRedeemed': null,
-  'v1.JoinDecided': 'invite_members',
+  'v1.JoinDecided': null,
   // The owner's decision, and it cannot be taken back: only Organization
   // Admin holds manage_roles among the seed roles.
   'v1.LicenseSet': 'manage_roles',
@@ -157,7 +160,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.TakeArchived': 'translate',
   'v1.CardVerseSet': 'translate',
   'v1.TakeSubmitted': 'translate',
-  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 112).
+  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 124).
   'v1.WritingAdded': ['translate', 'review'],
   // What the team makes is part of what it records, like its template.
   'v1.MediaAllowedSet': 'manage_templates',

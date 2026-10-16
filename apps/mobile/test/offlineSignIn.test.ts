@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/auth/authState';
-import { answerAtOnceWhileOffline, NOT_RENEWED, sessionSafeFetch, type RenewalWatch } from '../src/server/sessionSafeFetch';
+import { answerAtOnceWhileOffline, NOT_RENEWED, renewalChanges, sessionSafeFetch, type RenewalChange, type RenewalWatch } from '../src/server/sessionSafeFetch';
 import { signOutThisDevice } from '../src/server/signOut';
+import { signOutChosen, takeRefusal } from '../src/auth/signOutCause';
 
 // Decision 87: someone offline for months, online for a second, then
 // offline again, keeps their sign-in and their work. These run the app's own
@@ -213,5 +214,56 @@ describe('signing out of this device only (server/signOut.ts)', () => {
     expect(p.requests).toEqual([]);
     expect(p.stored.has(KEY)).toBe(false);
     expect(p.events).toContain('SIGNED_OUT');
+  });
+});
+
+describe('what field diagnostics hear about the sign-in (signOutCause.ts, renewalChanges)', () => {
+  it('a sign-out the person chose is heard while it is under way; one the server made is not, and carries its code', async () => {
+    // Why: a sign-out nobody asked for looked, in the field, exactly like one they chose.
+    const chosen = phone(now() + 3600, offline);
+    const heard: boolean[] = [];
+    chosen.client.auth.onAuthStateChange((e) => { if (e === 'SIGNED_OUT') heard.push(signOutChosen()); });
+    await settle(signOutThisDevice(chosen.client, chosen.storage, KEY));
+    expect(heard).toEqual([true]);
+    expect(signOutChosen()).toBe(false);
+
+    const ended = phone(now() - 60 * DAY, async () => json(400, { code: 400, error_code: 'refresh_token_not_found', msg: 'Invalid Refresh Token' }));
+    const why: unknown[] = [];
+    ended.client.auth.onAuthStateChange((e) => { if (e === 'SIGNED_OUT') why.push({ chosen: signOutChosen(), refusal: takeRefusal() }); });
+    await settle(ended.client.auth.getSession());
+    expect(why).toEqual([{ chosen: false, refusal: { code: 'refresh_token_not_found', status: 400 } }]);
+  });
+
+  it('renewal is told once when it starts failing, once when the kind changes, and once when it works again', async () => {
+    const changes: RenewalChange[] = [];
+    const listen = (c: RenewalChange) => { changes.push(c); };
+    renewalChanges.add(listen);
+    try {
+      let answer: () => Response = () => json(429, { code: 'over_request_rate_limit' });
+      const p = phone(now() - 60 * DAY, async () => answer());
+      // supabase-js tries several times in these 30 seconds: one change, not one per try.
+      await settle(p.client.auth.getSession());
+      expect(changes).toEqual([{ outcome: 'http', status: 429 }]);
+      answer = () => { throw new TypeError('Network request failed'); };
+      // Past answerAtOnceWhileOffline's window, so the next call renews again.
+      await vi.advanceTimersByTimeAsync(130_000);
+      await settle(p.client.auth.getSession());
+      expect(changes.slice(1)).toEqual([{ outcome: 'offline' }]);
+      answer = () => json(200, { ...sessionAt(now() + 3600), access_token: 'new', refresh_token: 'new-refresh' });
+      await vi.advanceTimersByTimeAsync(130_000);
+      await settle(p.client.auth.getSession());
+      expect(changes.slice(2)).toEqual([{ outcome: 'ok', ms: expect.any(Number) }]);
+      expect((changes[2] as { ms: number }).ms).toBeGreaterThan(0);
+      // Failing again after one worked: its recovery says how long since the last good renewal.
+      answer = () => page(511);
+      await vi.advanceTimersByTimeAsync(3_600_000);
+      await settle(p.client.auth.getSession());
+      answer = () => json(200, { ...sessionAt(now() + 3600), access_token: 'newer', refresh_token: 'newer-refresh' });
+      await vi.advanceTimersByTimeAsync(130_000);
+      await settle(p.client.auth.getSession());
+      expect(changes.slice(3)).toEqual([{ outcome: 'http', status: 511 }, { outcome: 'ok', ms: expect.any(Number), sinceOkMs: expect.any(Number) }]);
+    } finally {
+      renewalChanges.delete(listen);
+    }
   });
 });

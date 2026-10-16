@@ -1,4 +1,5 @@
-// Expo's defaults, with one change: the app's env files are not bundled.
+// Expo's defaults, with two changes: the app's env files are not bundled, and
+// modules are required where they are first used (inline requires).
 //
 // `npm start` and `npm run ios` decrypt the committed dotenvx files into
 // process.env and turn off Expo's own .env loading (EXPO_NO_DOTENV=1). In a
@@ -15,6 +16,20 @@
 const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
+
+// Expo sets inlineRequires to false. With it, every module App.tsx imports
+// ran before the first frame, whether or not the person ever opened its
+// screen. On, a module's top-level code runs the first time something in it
+// is used. Imports written as a bare `import './x'` (the i18n boot in
+// index.ts) still run in order, so side effects that must run at launch
+// are written that way (docs/performance-audit-app.md S1). Not on web: a
+// browser downloads and parses the whole entry file either way, and the
+// `_r(_d[n]).name` that inlining writes at every use added 110 KB to it.
+const expoTransformOptions = config.transformer.getTransformOptions;
+config.transformer.getTransformOptions = async (entryPoints, options, getDependenciesOf) => {
+  const expo = await expoTransformOptions(entryPoints, options, getDependenciesOf);
+  return { ...expo, transform: { ...expo.transform, inlineRequires: options.platform !== 'web' } };
+};
 const envExts = new Set(['env', 'local', 'development']);
 config.watcher = {
   ...config.watcher,

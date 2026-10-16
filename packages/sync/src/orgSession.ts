@@ -39,6 +39,13 @@ export interface OrgSessionOptions {
   client?: Pick<SyncClientOptions<OrgState>, 'newId' | 'diag' | 'clock' | 'now'>;
   /** Wraps every `client.sync()`, for a test-state probe. */
   aroundSync?: (run: () => Promise<SyncResult>) => Promise<SyncResult>;
+  /**
+   * A moment to send diagnostics, as a language session has one: a sync the
+   * server answered left nothing of this person's to send, or the server
+   * refused this person or this build. A phone that never opens a language
+   * still delivers through this.
+   */
+  onSettled?: () => void;
 }
 
 /**
@@ -68,7 +75,8 @@ export class OrgSession {
       transport: o.transport,
       onMembershipChanged: () => session?.set({ membershipEpoch: session.current.membershipEpoch + 1 })
     });
-    await client.load();
+    await client.trackOpen();
+    await client.load('open');
     session = new OrgSession(o, client);
     return session;
   }
@@ -123,6 +131,11 @@ export class OrgSession {
       this.online = !r.offline;
       if (!r.offline && !r.refused && !r.more) this.set({ pulled: true });
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
+      const settled = this.o.onSettled;
+      if (!r.offline && !r.more && settled) {
+        if (r.refused !== null || r.tooOld) settled();
+        else void this.client.pendingCount().then((n) => { if (n === 0) settled(); }).catch(() => {});
+      }
     } catch {
       // Offline or refused: state is whatever the local log says. Honest and quiet.
     }

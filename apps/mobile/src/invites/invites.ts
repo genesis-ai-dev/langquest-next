@@ -2,6 +2,8 @@ import type { Scope } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { functionRefusal, type InvitePreview } from './heldInvite';
 import { parseInvite } from './inviteCode';
+import { RpcError } from '../auth/authOutcome';
+import { noteExpected } from '../diagnostics/report';
 import { profileNames } from '../server/account';
 import * as server from '../server/invites';
 
@@ -75,7 +77,7 @@ export async function issueInvite(
     label: options.label?.trim() || null,
     maxUses: options.maxUses ?? 1
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new RpcError(error);
   return { inviteId, token, expiresAt };
 }
 
@@ -87,8 +89,8 @@ export async function issueInvite(
 export async function redeemInvite(input: string): Promise<{ orgId: string }> {
   const parsed = parseInvite(input);
   if (!parsed) throw new Error('That does not look like an invite code.');
-  const { data, error } = await server.redeemInvite(parsed.token);
-  if (error) throw new Error(error.message);
+  const { data, error, status } = await server.redeemInvite(parsed.token);
+  if (error) throw new RpcError(error, status);
   const orgId = data as string | null;
   if (!orgId) throw new Error('invite not found');
   return { orgId };
@@ -100,6 +102,8 @@ export async function redeemInvite(input: string): Promise<{ orgId: string }> {
  */
 export async function previewInvite(token: string): Promise<InvitePreview | null> {
   const { data, error } = await server.previewInvite(token);
+  // Counted by its code, so a pattern (every check refused, every one offline) reaches support.
+  if (error) noteExpected('invite preview', error);
   if (error || !data) return null;
   return data as InvitePreview;
 }
@@ -113,7 +117,7 @@ export async function previewInvite(token: string): Promise<InvitePreview | null
 export async function issueSignInCode(profileId: string, lost = false): Promise<{ code: string; signInName: string }> {
   const code = newToken();
   const { data, error } = await server.issueSignInCode(profileId, await sha256Hex(code), lost);
-  if (error) throw new Error(error.message);
+  if (error) throw new RpcError(error);
   return { code, signInName: data as string };
 }
 
@@ -126,14 +130,22 @@ export async function canHelpSignIn(profileId: string): Promise<boolean> {
 /** What `join` and `sign-in-code` hand back: the session the phone signs in with. */
 interface Tokens { access_token: string; refresh_token: string }
 
-/** An Edge Function's refusal, in the function's own words (they are in the response body). */
+/**
+ * An Edge Function's refusal, in the function's own words (they are in the
+ * response body). `status`: the reply's HTTP status; `code` is `offline`
+ * when the function was never reached. For diagnostics, never shown.
+ */
 export class FunctionError extends Error {
-  constructor(message: string, readonly needsName = false) { super(message); }
+  constructor(message: string, readonly needsName = false, readonly status?: number, readonly code?: string) { super(message); }
 }
 
 async function invoke<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await server.invokeFunction(name, body);
-  if (error) throw new FunctionError(...await functionRefusal(error));
+  if (error) {
+    const status = (error as { context?: { status?: unknown } }).context?.status;
+    const unreached = (error as { name?: string }).name === 'FunctionsFetchError';
+    throw new FunctionError(...await functionRefusal(error), typeof status === 'number' ? status : undefined, unreached ? 'offline' : undefined);
+  }
   return data as T;
 }
 
@@ -159,13 +171,13 @@ export async function redeemSignInCode(code: string): Promise<{ session: Tokens;
 /** Ask to join an org. One row per (org, requester); asking twice is not an error. */
 export async function requestAccess(orgId: string, message: string): Promise<void> {
   const { error } = await server.createJoinRequest(orgId, Crypto.randomUUID(), message);
-  if (error) throw new Error(error.message);
+  if (error) throw new RpcError(error);
 }
 
 /** Pending requests an admin may act on. Empty for everyone else, by RLS. */
 export async function pendingRequests(orgId: string): Promise<PendingRequest[]> {
   const { data, error } = await server.joinRequests(orgId);
-  if (error) throw new Error(error.message);
+  if (error) throw new RpcError(error);
   const ids = (data ?? []).map((r) => r.profile_id as string);
   // Without names the requests still show, under placeholders.
   const { data: profiles } = ids.length
@@ -189,7 +201,7 @@ export async function pendingRequests(orgId: string): Promise<PendingRequest[]> 
 export async function decideRequest(id: string, accepted: boolean, roleId?: string, scope: Scope = { level: 'org' }): Promise<void> {
   if (accepted && !roleId) throw new Error('Pick a role before admitting someone.');
   const { error } = await server.decideJoinRequest(id, accepted, accepted ? roleId ?? null : null, scope);
-  if (error) throw new Error(error.message);
+  if (error) throw new RpcError(error);
   for (const listener of requestListeners) listener();
 }
 
