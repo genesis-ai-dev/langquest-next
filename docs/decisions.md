@@ -4252,7 +4252,9 @@ Amends 83: the workspace's Save, which only said the draft was kept, is
 gone; the mark says it. What stays as it was: a draft's events still reach
 the server and teammates' phones (they see "Recording in progress" and
 cannot play it); making a draft private in the sync itself would move it to
-the person's stream, which this does not do.
+the person's stream, which this does not do. Caleb chose to keep it so
+(2026-10-16): teammates cannot play a draft, and the server copy is its
+backup.
 Reverse if: people lose work because a draft lives on one phone (then
 drafts move to the person's own stream, which only they can read), or
 teams want to look a version over before anyone is asked (then Done
