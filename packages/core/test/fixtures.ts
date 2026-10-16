@@ -198,6 +198,14 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n2', unitId: 'luke1', anchor: { kind: 'study', guideId: 'fia:luke1', stepId: 'hear', at: '1:02' }, blobHash: 'c9' });
   emit('dB', 't1', 'v1.StudyStepMarked', { unitId: 'luke1', guideId: 'fia:luke1', stepId: 'hear', done: true });
   emit('dG', 't2', 'v1.StudyStepMarked', { unitId: 'luke1', guideId: 'fia:luke1', stepId: 'hear', done: false });
+  // Taking back (decisions.md 111): a reviewer withdraws their own verdict, someone else's withdrawal
+  // of a review and of a note count for nothing, and the author takes back a note.
+  emit('dF', 'r1', 'v1.ReviewRecorded', { reviewId: 'rv3', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' });
+  emit('dF', 'r1', 'v1.ReviewWithdrawn', { reviewId: 'rv3' });
+  emit('dA', 'lead', 'v1.ReviewWithdrawn', { reviewId: 'rv2' });
+  emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n3', unitId: 'luke1', anchor: { kind: 'passage' }, text: 'Wrong passage, sorry.' });
+  emit('dB', 't1', 'v1.NoteWithdrawn', { noteId: 'n3' });
+  emit('dA', 'lead', 'v1.NoteWithdrawn', { noteId: 'n1' });
   // The library (decision 36): the language moves to another template
   // version from two devices, hides a part the new version dropped (and
   // another device brings it back), and follows a library flow from one

@@ -173,7 +173,7 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
   );
 }
 
-/** The footer (a-wsHalf): the part next, the big red button, and Done beside it (decision 111; it was Publish). */
+/** The footer (a-wsHalf): the part next, the big red button, and Done beside it (decision 112; it was Publish). */
 export function RecorderFooter(props: { count: number; phase: LoopPhase; recordDisabled: boolean; publishDisabled: boolean; onRecord: () => void; onPublish: () => void }) {
   const lines = recorderLines(props.count);
   const recording = props.phase !== 'off';

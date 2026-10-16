@@ -18,11 +18,13 @@
 // "Add details".
 //
 // Everything is read from the record (core derivePassage, questionsForKind,
-// keyTermLinksFor) and written with core recordReview / produceContent. A
-// review is grow-only, so sending it offers no Undo.
+// keyTermLinksFor) and written with core recordReview / produceContent.
+// Sending it offers Undo, which takes the review back (decisions.md 111):
+// the check is open again, and its author can still take it back later from
+// the check on the record or from the history.
 //
 // What is said, answered or chosen here is kept on this phone as it is made,
-// a draft only its maker sees (decision 111, reviewing/reviewDraft.ts), with
+// a draft only its maker sees (decision 112, reviewing/reviewDraft.ts), with
 // the saved mark in the header. Back and ✕ leave and keep it; opening the
 // same review again brings it back where it was left; sending it drops it.
 import {
@@ -47,6 +49,7 @@ import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, passageView as passageViewOf, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
+import { undoReviews } from '../passage/recordInputsModel';
 import { failureMessage } from '../diagnostics/report';
 import {
   canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, loggedTargets, nextLabel,
@@ -152,7 +155,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const version = v ? versionFor(v.p, takeId) : undefined;
 
   // Everything said, answered, chosen or recorded here is a draft only you see, kept as you go
-  // (decision 111): Back and ✕ leave it, opening this review again brings it back, sending drops it.
+  // (decision 112): Back and ✕ leave it, opening this review again brings it back, sending drops it.
   const opened = ctx.params['takeId'];
   const draft = useDraft<ReviewDraft | null>(v ? draftKey('review', actorId, v.languageId, v.unitId, kindId, logged ? 'logged' : 'live') : null, null, isStoredReview);
   const setDraft = draft.set;
@@ -314,7 +317,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     }
     setBusy(true);
     try {
-      await ctx.act(specs, message);
+      const sent = specs;
+      await ctx.act(specs, message, () => undoReviews(sent)(commands(state)));
     } catch {
       setBusy(false);
       return;

@@ -721,7 +721,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   // flow's steps under a name given (New language's "I'll choose the steps", `from` and `name`).
   const [seed] = useState(() => flowEditorSeed(state, isNew, { languageId: ctx.params['languageId'], name: ctx.params['name'] }, isNew ? cachedDoc(ctx.params['from']) : null));
   const base = useMemo(() => flowEditorBase(isNew, seed, doc), [isNew, seed, doc]);
-  // What is changed is kept on this phone as it changes, there when the editor opens again (decision 111); Done publishes it.
+  // What is changed is kept on this phone as it changes, there when the editor opens again (decision 112); Done publishes it.
   // A new flow's draft is the one begun from the same start (`languageId`, `from`).
   const draft = useDraft<FlowDraft | null>(
     draftKey('editor', ctx.session.actorId, lib.orgId, 'flow', requested, ...(isNew ? [ctx.params['languageId'], ctx.params['from']] : [])), null, isFlowDraft);
@@ -1006,7 +1006,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   const existing = useMemo(() => (state && materialId ? materialView(state, materialId) : null), [state, materialId]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const canManage = ctx.session.can('manage_reference');
-  // What is changed is kept on this phone as it changes, there when the editor opens again (decision 111); Done writes it.
+  // What is changed is kept on this phone as it changes, there when the editor opens again (decision 112); Done writes it.
   const draft = useDraft<MaterialDraft | null>(
     draftKey('editor', ctx.session.actorId, lib.orgId, 'material', ctx.language.languageId, materialId ?? 'new', ...(isNew ? [ctx.params['languageId'] ? 'language' : 'org'] : [])),
     null, isMaterialDraft);
@@ -1285,7 +1285,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const canManage = lib.canWrite('material');
   const editable = canManage && it?.source !== 'subscription' && (isNew || material !== null);
   const sharedV = useSharedItems('versification', lib.orgId, editable);
-  // What is changed is kept on this phone as it changes, there when the editor opens again (decision 111); Done publishes it.
+  // What is changed is kept on this phone as it changes, there when the editor opens again (decision 112); Done publishes it.
   const draft = useDraft<LibraryMaterialDraft | null>(draftKey('editor', ctx.session.actorId, lib.orgId, 'library-material', requested), null, isLibraryMaterialDraft);
   // Null is "as the library has it". The language it is written in (decision 84): a new one starts in the writer's own.
   const { kind, title, body, refsText, parts, v11n, language } = draft.value?.form ?? NO_LIBRARY_MATERIAL_EDITS;
@@ -1507,7 +1507,7 @@ export function KeyTerms(ctx: Ctx) {
   const takeId = ctx.params['takeId'];
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
-  // A new term is kept on this phone as it is typed, there when the sheet opens again (decision 111); Add Term adds it.
+  // A new term is kept on this phone as it is typed, there when the sheet opens again (decision 112); Add Term adds it.
   const termDraft = useDraft<TermDraft>(languageId ? draftKey('word', ctx.session.actorId, languageId, 'new-term', unitId) : null, EMPTY_TERM_DRAFT, isTermDraft);
   const draft = termDraft.value;
   const setDraft = termDraft.set;
@@ -1580,7 +1580,7 @@ export function KeyTermDetail(ctx: Ctx) {
   const passage = useMemo(() => (state && unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null), [state, unitId]);
   const usedIn = useMemo(() => (state ? termUsedIn(state, termId) : []), [state, termId]);
   const [adjusting, setAdjusting] = useState(false);
-  // A new rendering, or a change and why, is kept on this phone as it is made, there when the sheet opens again (decision 111).
+  // A new rendering, or a change and why, is kept on this phone as it is made, there when the sheet opens again (decision 112).
   const adjust = useDraft<RenderingDraft>(languageId ? draftKey('word', ctx.session.actorId, languageId, 'adjust', termId) : null, EMPTY_RENDERING, isRenderingDraft);
   const { rendering, context, note, hash } = adjust.value;
   const change = (patch: Partial<RenderingDraft>) => adjust.set((d) => ({ ...d, ...patch }));

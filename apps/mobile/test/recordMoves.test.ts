@@ -165,6 +165,33 @@ describe('the history', () => {
     expect(historyAction(withWords, { can, me: asker, assigns: false })).toMatchObject({ id: 'withdraw' });
   });
 
+  it('offers Undo on your own review and note only, and none on a review already taken back (LAN-84)', () => {
+    const { r, entries } = timeline('COORD', 'P-DONE');
+    const review = entries.find((e) => e.type === 'review')!;
+    const by = (review as { review: { by: string; id: string } }).review;
+    expect(historyAction(review, { can: r.can, me: by.by, assigns: false })).toEqual({ id: 'undoReview', reviewId: by.id });
+    expect(historyAction(review, { can: r.can, me: 'someone', assigns: true })).toBeUndefined();
+    const taken = { ...review, review: { ...by, withdrawn: { by: by.by, hlc: '1' } } } as never;
+    expect(historyAction(taken, { can: r.can, me: by.by, assigns: false })).toBeUndefined();
+    expect(historyAction({ type: 'note', hlc: '1', by: 'a', note: { id: 'n1', by: 'a' } as never }, { can: r.can, me: 'a', assigns: false }))
+      .toEqual({ id: 'undoNote', noteId: 'n1' });
+  });
+
+  it('a check whose last review is yours offers Undo in its sheet, done or not', () => {
+    const r = record('REV', 'P-DONE');
+    const step = r.p.steps.find((st) => st.kinds.some((k) => k.kindId === 'peer'))!;
+    const sheet = stepSheet({ p: r.p, kinds: r.kinds, kind: r.v.kind, step, can: r.can, isAuthor: r.isAuthor, me: r.me, mine: requestIsMine(w.state, r.me),
+      name: w.nameFor('REV'), teamName: teamNameIn(w.state), targets: r.targets });
+    const peer = sheet.rows.find((row) => row.status.kindId === 'peer')!;
+    expect(peer.status.state).toBe('approved');
+    expect(peer.acts.undo).toMatchObject({ id: 'undo' });
+    expect(rowMove(peer.acts.undo!, peer.status, { produces: false, stepId: step.step.id, askedMe: false })).toEqual({ id: 'undoReview', reviewId: peer.status.review!.id });
+    const other = record('COORD', 'P-DONE');
+    const theirs = stepSheet({ p: other.p, kinds: other.kinds, kind: other.v.kind, step, can: other.can, isAuthor: other.isAuthor, me: other.me,
+      mine: requestIsMine(w.state, other.me), name: w.nameFor('COORD'), teamName: teamNameIn(w.state), targets: other.targets });
+    expect(theirs.rows.find((row) => row.status.kindId === 'peer')!.acts.undo).toBeUndefined();
+  });
+
   it('flags a note on the whole passage', () => {
     expect(historyAction({ type: 'note', hlc: '1', by: 'a', note: { id: 'n1' } as never }, { can: record('TRANS', 'P-NEW').can, me: 'b', assigns: false }))
       .toEqual({ id: 'reportNote', noteId: 'n1', by: 'a' });
@@ -221,7 +248,7 @@ describe('the ask page and its words', () => {
   });
 });
 
-describe('Done asks for the check that comes next (decision 111, recordModel.ts nextAfterDone)', () => {
+describe('Done asks for the check that comes next (decision 112, recordModel.ts nextAfterDone)', () => {
   const kindsOf = (k: WorldPassage, o: Parameters<typeof nextAfterDone>[1]) => nextAfterDone(record('TRANS', k).p, o)?.kinds.map((x) => x.kindId);
   it('offers the first step for a first version, before anything is published', () => {
     expect(kindsOf('P-DRAFT', { publishing: true })).toEqual(['peer', 'bt']);

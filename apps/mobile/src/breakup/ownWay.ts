@@ -3,7 +3,7 @@
 // section at a verse adds a start; joining one with the one before removes
 // it. A ready-made way, or the book as the language has it now, gives the
 // starts to begin from. What is drawn is kept as a private draft until Done
-// (decision 111), which makes a way with just this book in it, applied like
+// (decision 112), which makes a way with just this book in it, applied like
 // any other way (core withBookBrokenUp). Pure.
 import {
   bookParts, formatRef, parseRef, refId, renumberedParts,
@@ -113,7 +113,7 @@ export interface Drawn {
   names: Readonly<Record<At, string>>;
 }
 
-/** What is drawn, kept on this phone until Done (useDraft, decision 111). Empty: nothing changed. */
+/** What is drawn, kept on this phone until Done (useDraft, decision 112). Empty: nothing changed. */
 export interface OwnWayDraft {
   starts: At[];
   names: Record<At, string>;

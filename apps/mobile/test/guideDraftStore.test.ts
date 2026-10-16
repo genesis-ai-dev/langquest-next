@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuideDraft } from '../src/guides/draft';
 
-// Guide drafts on the device (guides/draftStore.ts, decision 111): each is its
+// Guide drafts on the device (guides/draftStore.ts, decision 112): each is its
 // writer's, so another person on the same phone or browser never opens it and
 // deleting the account removes it; a draft kept before keys named the writer
 // is not lost.

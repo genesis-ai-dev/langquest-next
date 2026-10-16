@@ -3577,6 +3577,7 @@
       "passageDock": "Le passage · {{title}}",
       "adaptGuideHelp": "Crée votre propre copie de ce guide pour la modifier.",
       "doneWithStepHelp": "Marque cette étape comme terminée pour l’équipe, puis ouvre la suivante.",
+      "undoDoneHelp": "Marque de nouveau cette étape comme non terminée.",
       "editGuideHelp": "L’ouvre dans l’éditeur de guide.",
       "nextStepHelp": "Passe à cette étape."
     },
@@ -3751,6 +3752,8 @@
         "assigned": "Attribué",
         "broughtBack": "rétabli {{when}}",
         "broughtBackJustNow": "rétabli à l’instant",
+        "undone": "annulé {{when}}",
+        "undoneJustNow": "annulé à l’instant",
         "movedPast": "Point de contrôle franchi",
         "setAside": "{{kind}} : mis de côté",
         "note": "Note · {{anchor}}",
@@ -3981,6 +3984,7 @@
       "reviewsByVersion": "Révisions par version",
       "historyTitle": "Historique",
       "undo": "Annuler",
+      "undoNoteHelp": "Retire votre note. Plus personne ne la voit.",
       "withdraw": "Retirer",
       "playNote": "Écouter la note de {{name}}",
       "whoseNote": "Note de {{name}}",
@@ -4011,7 +4015,8 @@
         "send": "L’envoie à la personne qui le fait d’habitude. Annuler le reprend.",
         "ask": "Choisissez une personne, une équipe, ou quelqu’un sans l’application.",
         "log": "Cela s’est fait hors de l’application : notez-le dans l’historique.",
-        "skip": "Laissez cette vérification de côté. Vous dites pourquoi."
+        "skip": "Laissez cette vérification de côté. Vous dites pourquoi.",
+        "undo": "Retire votre avis. La vérification est de nouveau ouverte."
       },
       "moreHelp": "Affiche toutes les options pour cette étape.",
       "movePastHelp": "Continuez sans cette vérification. Vous dites pourquoi, et cela va dans l’historique.",

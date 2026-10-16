@@ -9,7 +9,7 @@
 //
 // The parts are kept on this device until Done (decision 30): each
 // recorded piece goes to a local draft with the moment in the version its
-// part starts (`atMs`), and so do the notes at moments (decision 111). Done
+// part starts (`atMs`), and so do the notes at moments (decision 112). Done
 // (it was Publish) puts them in one core produceContent, in part order, and
 // in the same tap asks whoever usually does the check that comes next.
 import { checkPeople, commands, DEFAULT_KINDS, type EventSpec, type KindDef, type KindStatus, type Version } from '@langquest-next/core';
@@ -32,6 +32,7 @@ import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, QuietLinks, Screen, Se
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, type PassageView } from '../passage/passageView';
+import { undoReviews } from '../passage/recordInputsModel';
 import { useBackTranslationDraft } from './useBackTranslationDraft';
 import { checkName } from '../admin/adminModel';
 import { backParts, EMPTY_BACK_NOTES, isBackNotesDraft, nextPart, noteText, partAfter, pieceFor, piecesInOrder, saidLine, sourceParts, type BackPart, type MomentNote } from './backTranslationParts';
@@ -133,7 +134,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   }
 
   // ---- notes at moments, and Done ----
-  // Kept as they are said or typed, only for whoever is making it, until it is done (decision 111).
+  // Kept as they are said or typed, only for whoever is making it, until it is done (decision 112).
   const said = useDraft(draftKey('bt', me, languageId, unitId, kind.id), EMPTY_BACK_NOTES, isBackNotesDraft);
   const { notes, noteHash, voiceInMoment } = said.value;
   const setNoteHash = (h: string | null) => said.set((d) => ({ ...d, noteHash: h }));
@@ -141,7 +142,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const pieces = piecesInOrder(parts);
-  // The check that comes next once this one is recorded, and who usually does it (decision 111).
+  // The check that comes next once this one is recorded, and who usually does it (decision 112).
   const askCan = recordCan(ctx.session).ask;
   const orgState = ctx.org.state;
   const nextUp = useMemo(() => (askCan ? nextAfterDone(p, { recordedKindId: kind.id }) : undefined), [p, askCan, kind.id]);
@@ -170,8 +171,13 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     }
     setSaving(true);
     try {
-      const undo = requestId ? () => { const now = ctx.language.state ?? state; return commands(now, indexesFor(now)).withdrawRequest({ commandId: Crypto.randomUUID(), requestId: requestId! }); } : undefined;
-      await ctx.act(specs, message, undo);
+      // Undo takes it back (decisions.md 111): the back translation, and the asking that went with it.
+      const sent = specs;
+      await ctx.act(specs, message, () => {
+        const now = ctx.language.state ?? state;
+        const c = commands(now, indexesFor(now));
+        return [...undoReviews(sent)(c), ...(requestId ? c.withdrawRequest({ commandId: Crypto.randomUUID(), requestId }) : [])];
+      });
     } catch {
       setSaving(false); // ctx.act said what went wrong
       return;
@@ -384,7 +390,7 @@ function MomentSheet(props: {
 /**
  * Done is a real step, so it shows what goes (ADR-028): what is said, what is
  * missing, and a last word; then who listens to it next, asked in the same
- * tap (decision 111). The last word is kept as it is typed.
+ * tap (decision 112). The last word is kept as it is typed.
  */
 function PublishSheet(props: {
   ctx: Ctx; v: PassageView; what: string; of: Version; parts: BackPart[]; notes: MomentNote[]; busy: boolean;

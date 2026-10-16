@@ -628,7 +628,7 @@ export function TemplateEditor(ctx: Ctx) {
   );
 }
 
-/** The changes this person has not finished to a template (`itemId`) or a new one, kept on this phone (decision 111). */
+/** The changes this person has not finished to a template (`itemId`) or a new one, kept on this phone (decision 112). */
 function useTemplateDraft(ctx: Ctx, lib: Lib, itemId: string | null): Draft<TemplateDraft | null> {
   return useDraft<TemplateDraft | null>(draftKey('editor', ctx.session.actorId, lib.orgId, 'template', itemId ?? 'new'), null, isTemplateDraft);
 }

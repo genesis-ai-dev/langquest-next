@@ -21,7 +21,7 @@
 //
 // Every change persists: each part is kept as the draft on the record, so
 // nothing is lost if you leave; the saved mark in the header turns from a
-// spinner to a check as each part is kept (decision 111). Done (it was
+// spinner to a check as each part is kept (decision 112). Done (it was
 // Publish) opens a last look that sends the version to the people who do its
 // next check in the same tap. A person may keep several
 // drafts of a passage (decisions.md 83): the workspace opens one of them, a
@@ -380,7 +380,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // ---- microphone: offered when parts keep coming out clipped (demo ADR-037) ----
   useEffect(() => { if (session) sessionLengths.current = []; }, [session]);
 
-  // ---- Done: publishing, and asking for the next check in the same tap (REC-W3, REC-W4; decision 111) ----
+  // ---- Done: publishing, and asking for the next check in the same tap (REC-W3, REC-W4; decision 112) ----
   const [publishing, setPublishing] = useState(false);
   // Who it goes to next: the step that will be open once this version is on the record, and each check's usual people.
   const can = recordCan(ctx.session);
