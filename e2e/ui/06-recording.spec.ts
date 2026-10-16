@@ -68,10 +68,10 @@ test('REC-001 Record opens the workspace for a passage nobody has recorded', asy
   for (const c of ['Bible', 'Key words', 'Notes']) await expect(chip(page, new RegExp(`^${c}`))).toBeVisible();
   await expect(chip(page, /^Earlier/)).toHaveCount(0);
   await expect(chip(page, /^Bible/)).toHaveAttribute('aria-selected', 'true');
-  // The recorder: Part 1 lit, the hint, the quiet microphone link.
+  // The recorder: Part 1 lit, the hint. Nothing about the microphone to set (LAN-82).
   await expect(page.getByLabel('Part 1. Recording next')).toBeVisible();
   await expect(text(page, 'Tap the red button and speak. Pause between parts: each part is kept by itself.')).toBeVisible();
-  await expect(button(page, 'Set up the microphone')).toBeVisible();
+  await expect(button(page, 'Set up the microphone')).toHaveCount(0);
   // The footer: Part 1, the red button, Publish disabled.
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
   await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
@@ -993,143 +993,6 @@ async function sayTry(page: Page, n: number): Promise<void> {
   await say(page, 1500, 1800);
   await recordButton(page).click();
 }
-
-test('REC-045 Set up the microphone by ear', async ({ page }) => {
-  const w = world();
-  await openAs(page, w, 'TRANS');
-  await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  await mic(page).mode('tone');
-  await button(page, 'Set up the microphone').click();
-  await expect(text(page, 'Set up your microphone')).toBeVisible();
-  await expect(text(page, 'Takes about a minute')).toBeVisible();
-  await expect(text(page, 'First, the room')).toBeVisible();
-  await expect(text(page, 'First, a few seconds of quiet')).toBeVisible();
-  await expect(text(page, 'Go where you usually record. Stay quiet while the device listens to the room.')).toBeVisible();
-  await expect(text(page, 'Tap to start')).toBeVisible();
-  await expect(text(page, 'Then you\'ll say one sentence three times.')).toBeVisible();
-  await expect(button(page, 'Adjust by hand')).toBeVisible();
-  expect(Math.round((await recordButton(page).boundingBox())!.width)).toBe(120);
-  await recordButton(page).click();
-  await expect(text(page, /^Listening to the room… 0:0[0-3]$/)).toBeVisible();
-  for (const n of [1, 2, 3]) {
-    await expect(text(page, `Try ${n} of 3`)).toBeVisible({ timeout: 10_000 });
-    await expect(text(page, 'Say this, then pause, then say it again')).toBeVisible();
-    await expect(text(page, '“The shepherd went to look for the lost sheep.”')).toBeVisible();
-    await expect(button(page, 'Hear it')).toBeVisible();
-    await sayTry(page, n);
-  }
-  await expect(text(page, 'Which sounds best?')).toBeVisible();
-  await expect(text(page, 'Listen to each. Pick the one where every word is clear and nothing is cut off.')).toBeVisible();
-  for (const id of ['A', 'B', 'C']) {
-    await expect(page.getByRole('radio', { name: new RegExp(`^Try ${id}, 0:0\\d$`) })).toBeVisible();
-    await expect(button(page, `Play Try ${id}`)).toBeVisible();
-  }
-  await expect(page.getByRole('radio', { name: /^Try B,/ })).toHaveAttribute('aria-checked', 'true');
-  await button(page, 'Play Try A').click();
-  await page.getByRole('radio', { name: /^Try A,/ }).click();
-  await expect(primary(page)).toHaveText('Use Try A');
-  await primary(page).click();
-  await expectToast(page, 'Microphone set up. Recording now uses Try A.');
-  await expect(workspaceSub(page)).toBeVisible();
-  expect(JSON.parse((await micStored(page))!)).toMatchObject({ pauseMs: 700 });
-  // A pause of about 0.9 s now ends a part (Try A's 0.7 s; the default 1 s would not).
-  const before = await draftParts(page);
-  await recordButton(page).click();
-  await say(page, 1500, 900);
-  await say(page, 1500, 2000);
-  await recordButton(page).click();
-  await expectIdle(page);
-  await expectParts(page, before + 2);
-  // Kept on this device after the app starts again.
-  await page.reload();
-  await waitForApp(page);
-  expect(JSON.parse((await micStored(page))!)).toMatchObject({ pauseMs: 700 });
-  await expectUploaded(page, w);
-});
-
-test('REC-046 Microphone setup when nothing is heard, or every try sounds bad', async ({ page }) => {
-  const w = world();
-  await openAs(page, w, 'TRANS');
-  await mic(page).mode('tone');
-  const saved = await micStored(page);
-  await tab(page, 'me').click();
-  await button(page, /^Set up the microphone/).click();
-  await recordButton(page).click();
-  await expect(text(page, 'Try 1 of 3')).toBeVisible({ timeout: 10_000 });
-  // A silent try does not count.
-  await recordButton(page).click();
-  await page.waitForTimeout(2000); // sleep: seconds of silence, the product's own threshold for a try
-  await recordButton(page).click();
-  await expect(text(page, 'Nothing was heard. Say it a little louder, or hold the device closer.')).toBeVisible();
-  await expect(text(page, 'Try 1 of 3')).toBeVisible();
-  for (const n of [1, 2, 3]) await sayTry(page, n);
-  await button(page, 'They all sound bad. Try again somewhere quieter.').click();
-  await expect(text(page, 'First, the room')).toBeVisible();
-  await back(page).click();
-  await expect(tab(page, 'me')).toBeVisible();
-  expect(await micStored(page), 'the saved settings are unchanged').toBe(saved);
-});
-
-test('REC-047 Adjust the microphone by hand', async ({ page }) => {
-  const w = world();
-  await openAs(page, w, 'TRANS');
-  await mic(page).mode('tone');
-  await tab(page, 'me').click();
-  await button(page, /^Set up the microphone/).click();
-  await button(page, 'Adjust by hand').click();
-  await expect(text(page, 'Speak, and watch the bars. Drag the line so your voice goes above it and the room\'s noise stays below.')).toBeVisible();
-  const line = page.getByRole('slider', { name: 'Sensitivity line' });
-  await expect(line).toHaveAttribute('aria-valuemin', '4');
-  await expect(line).toHaveAttribute('aria-valuemax', '92');
-  for (const p of ['Short pause', 'Normal pause', 'Long pause']) await expect(page.getByRole('radio', { name: p })).toBeVisible();
-  await page.getByRole('radio', { name: 'Long pause' }).click();
-  // The device cannot store the settings: the screen says so and stays.
-  await page.evaluate(() => {
-    const real = Storage.prototype.setItem;
-    (window as unknown as { __realSetItem: typeof real }).__realSetItem = real;
-    Storage.prototype.setItem = function (k: string, v: string) { if (k === 'mic-setup:v1') throw new Error('QuotaExceededError'); return real.call(this, k, v); };
-  });
-  await primary(page).click();
-  await expectToast(page, 'Not saved on this device. Try again.');
-  await expect(text(page, 'Adjust by hand')).toBeVisible();
-  await page.evaluate(() => { Storage.prototype.setItem = (window as unknown as { __realSetItem: Storage['setItem'] }).__realSetItem; });
-  await primary(page).click();
-  await expectToast(page, 'Microphone settings saved on this device.');
-  await expect(tab(page, 'me')).toBeVisible();
-  expect(JSON.parse((await micStored(page))!)).toMatchObject({ pauseMs: 2000 });
-  // A 1.5-second pause no longer ends a part.
-  await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  const before = await draftParts(page);
-  await recordButton(page).click();
-  await say(page, 1500, 1500);
-  await say(page, 1500, 2600);
-  await recordButton(page).click();
-  await expectIdle(page);
-  await expectParts(page, before + 1);
-  await expectUploaded(page, w);
-});
-
-test('REC-049 Very short parts suggest setting up the microphone', async ({ page }) => {
-  const w = world();
-  await openAs(page, w, 'TRANS');
-  await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  const before = await draftParts(page);
-  await mic(page).mode('tone');
-  await recordButton(page).click();
-  for (const _ of [1, 2, 3]) await say(page, 350, 2000);
-  await recordButton(page).click();
-  await expectIdle(page);
-  await expectParts(page, before + 3);
-  await expect(text(page, 'Parts are coming out very short. Words may be cut off.')).toBeVisible();
-  // The quiet link gives way to the box's button.
-  await expect(page.getByRole('button', { name: 'Set up the microphone' })).toHaveCount(1);
-  await button(page, 'Set up the microphone').click();
-  await expect(text(page, 'Set up your microphone')).toBeVisible();
-  await back(page).click();
-  await expect(workspaceSub(page)).toBeVisible();
-  await expectParts(page, before + 3);
-  await expectUploaded(page, w);
-});
 
 // ---- Who may record -----------------------------------------------------------------
 

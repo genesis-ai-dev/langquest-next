@@ -28,7 +28,7 @@ const heading = (page: Page, name: string | RegExp) => page.getByRole('heading',
 /** A sheet's ✕ (the last Close on screen: the sheet is drawn over the screen). */
 const closeSheet = (page: Page) => button(page, 'Close');
 
-const ME_ROWS = ['Name and photo', 'Ready for offline', 'Set up the microphone', 'Say a sentence, pick what sounds best', 'How LangQuest works',
+const ME_ROWS = ['Name and photo', 'Ready for offline', 'How LangQuest works',
   'Listen to a short tour', 'Language', 'English', 'More settings', 'Password, notifications, sync, account', 'Sign out'];
 
 /** Each of `words` appears in `whole`, in this order. */
@@ -124,7 +124,6 @@ test('ACCT-003 Each row on Me opens its screen, and Back returns', async ({ page
   };
   await opens(world().accounts.TRANS.name, 'Edit Profile');
   await opens('Ready for offline', 'Sync');
-  await opens('Set up the microphone', 'Set up your microphone');
   await row(page, 'How LangQuest works').click();
   await expect(heading(page, 'What is LangQuest?')).toBeVisible();
   await expect(text(page, /^1 of \d+$/)).toBeVisible();
@@ -826,11 +825,6 @@ test('ACCT-050 The tour and the microphone open from Me', async ({ page }) => {
   await expect(text(page, '2 of 3')).toBeVisible();
   await back(page).click();
   await expect(text(page, '1 of 3')).toBeVisible();
-  await back(page).click();
-  await expect(heading(page, 'Me')).toBeVisible();
-  await row(page, 'Set up the microphone').click();
-  await expect(heading(page, 'Set up your microphone')).toBeVisible();
-  await expect(tab(page, 'me')).toBeHidden();
   await back(page).click();
   await expect(heading(page, 'Me')).toBeVisible();
 });

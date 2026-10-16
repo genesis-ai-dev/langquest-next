@@ -1,38 +1,33 @@
 import { NativeModule, requireNativeModule } from 'expo-modules-core';
+import type { HeardLevels } from './splitter';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 type VADResult = {
   energy: number;
   timestamp: number;
-  /** The room's quiet level when this frame was heard, dB (LAN-82's splitter); absent from this detector. */
+  /** The room's quiet level when this frame was heard, dB (splitter.ts, LAN-82); absent from main's detector. */
   quiet?: number;
 };
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type VADConfig = {
-  threshold?: number;
-  silenceDuration?: number;
-  onsetMultiplier?: number;
-  confirmMultiplier?: number;
-  minSegmentDuration?: number;
-  maxOnsetDuration?: number;
-  rewindHalfPause?: boolean;
-  minActiveAudioDuration?: number;
-  /** While a part is open, the share of `threshold` that still counts as voice. */
-  sustainMultiplier?: number;
+  /** What this device heard last time (splitter.ts, LAN-82): parts split by the room and the voice, with no setting. */
+  heard?: HeardLevels;
 };
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type MicrophoneEnergyModuleEvents = {
   onEnergyResult: (result: VADResult) => void;
   onError: (error: { message: string }) => void;
-  /** `headMs`: how far back the part's head reaches (LAN-82's splitter); absent from this detector. */
-  onSegmentStart: (e?: { headMs?: number }) => void;
+  /** `headMs`: how far back the part's head reaches, the frame that started it included (splitter.ts). */
+  onSegmentStart: (e: { headMs?: number }) => void;
   onSegmentComplete: (payload: {
     uri: string;
     startTime: number;
     endTime: number;
     duration: number;
+    /** The room, the voice and the pause as they stood when this part ended, for next time (LAN-82). */
+    heard?: HeardLevels;
   }) => void;
 };
 
