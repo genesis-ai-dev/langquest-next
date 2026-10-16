@@ -46,6 +46,13 @@ class MicrophoneEnergyModule : Module() {
   private var segmentWriter: SegmentWriter? = null
   /** A session's parts and the room around them (Chunks.kt, LAN-82): the open chunk's file streams to disk as it is heard. */
   private var chunks: Chunks? = null
+  /** Is this sound speech? (Speech.kt, decision 135): loaded once, before the microphone opens; null where it cannot load. */
+  @Volatile private var speechModel: SpeechModel? = null
+  private var speechTried = false
+  private val speechLock = Any()
+  private var resampler: Resampler? = null
+  private val speechChunks = SpeechChunks()
+  private var lastScore = 0.0
   private var chunkWriter: SegmentWriter? = null
   
   private var vadEnabled = false
@@ -60,6 +67,7 @@ class MicrophoneEnergyModule : Module() {
     Name("MicrophoneEnergy")
     Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete")
     
+    AsyncFunction("prepareSpeech") { promise: Promise -> CoroutineScope(Dispatchers.IO).launch { speech() }; promise.resolve(null) }
     AsyncFunction("startEnergyDetection") { promise: Promise -> startEnergyDetection(promise) }
     AsyncFunction("stopEnergyDetection") { promise: Promise -> stopEnergyDetection(promise) }
     AsyncFunction("configureVAD") { config: Map<String, Any?>, promise: Promise ->
@@ -89,6 +97,9 @@ class MicrophoneEnergyModule : Module() {
     synchronized(ringBuffer) { ringBuffer.clear() }
     segmentWriter?.discard(); segmentWriter = null; isRecordingSegment = false
     chunkWriter?.discard(); chunkWriter = null
+    // The speech model loads before the microphone opens (prepareSpeech usually has it ready), so the
+    // microphone's buffer never fills while it loads, and every frame of a session is judged the same way.
+    speech()
     try {
       val channelConfig = AudioFormat.CHANNEL_IN_MONO
       val audioFormat = AudioFormat.ENCODING_PCM_16BIT
@@ -174,6 +185,8 @@ class MicrophoneEnergyModule : Module() {
       val sp = splitter ?: Splitter(FRAME_MS, remembered).also { splitter = it }
       if (chunks == null) chunks = Chunks(FRAME_MS, sampleRate)
       sp.pauseListening()
+      // What the model heard before (a source playing) is not this stretch's.
+      resampler = null; speechChunks.reset(); speechModel?.reset(); lastScore = 0.0
       // What the microphone heard while the detector was off (a source playing) never heads a part.
       synchronized(ringBuffer) { ringBuffer.clear() }
     }
@@ -223,7 +236,7 @@ class MicrophoneEnergyModule : Module() {
       val sp = splitter
       val ch = chunks
       if (vadEnabled && sp != null && ch != null) {
-        val action = sp.step(normalizedAmplitude.toDouble(), clockMs)
+        val action = sp.step(normalizedAmplitude.toDouble(), clockMs, scoreSpeech(dataCopy, bytesRead))
         handleSplit(sp, action)
         keep(ch.step(bytesRead, action, clockMs))
         quiet = sp.levels().quiet
@@ -234,6 +247,30 @@ class MicrophoneEnergyModule : Module() {
       sendEvent("onEnergyResult", if (q != null) mapOf("energy" to normalizedAmplitude.toDouble(), "timestamp" to now.toDouble(), "quiet" to q)
         else mapOf("energy" to normalizedAmplitude.toDouble(), "timestamp" to now.toDouble()))
     }
+  }
+
+  /** The speech model, loaded once by whichever thread asks first (prepareSpeech, or the microphone opening); null where it cannot load. */
+  private fun speech(): SpeechModel? = synchronized(speechLock) {
+    if (!speechTried) { speechTried = true; speechModel = appContext.reactContext?.let { SpeechModel.load(it) } }
+    speechModel
+  }
+
+  /** Called with configLock held: the speech model's score for one frame (Speech.kt), or null without a model. */
+  private fun scoreSpeech(samples: ShortArray, count: Int): Double? {
+    val model = speechModel ?: return null
+    val r = resampler ?: Resampler(sampleRate.toDouble()).also { resampler = it }
+    val floats = FloatArray(count) { samples[it] / 32768f }
+    val scores = ArrayList<Double>(2)
+    try {
+      r.push(floats, count) { x -> speechChunks.push(x)?.let { scores.add(model.score(it)) } }
+    } catch (e: Exception) {
+      // The model failed mid-session: from here parts split by levels alone.
+      android.util.Log.w("MicrophoneEnergy", "speech model failed; parts split by levels alone", e)
+      speechModel = null
+      return null
+    }
+    lastScore = frameScore(scores, lastScore)
+    return lastScore
   }
 
   /**

@@ -13,6 +13,7 @@
 // The Worker in apps/web serves dist/ (its wrangler.jsonc).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { headersFor } from './webHeaders.mjs';
@@ -50,6 +51,21 @@ execFileSync('npx', ['dotenvx', 'run', '-f', `.env.${env}`, '--strict', '--', 'n
 });
 
 fs.writeFileSync(path.join(dist, 'version.json'), `${JSON.stringify({ build })}\n`);
+
+// The speech model and the runtime it needs (modules/microphone-energy/src/speechModel.web.ts,
+// decision 135): served as files, loaded when the microphone first opens, so
+// they are in neither JavaScript budget below. NO_SPEECH_MODEL=1 leaves them
+// out, for the UI tests, whose microphones are tones: their parts are timed
+// by level, as without a model (e2e/ui-web.sh, e2e/web-smoke.sh).
+if (process.env.NO_SPEECH_MODEL !== '1') {
+  const ortDist = path.dirname(createRequire(import.meta.url).resolve('onnxruntime-web'));
+  fs.mkdirSync(path.join(dist, 'ort'), { recursive: true });
+  for (const name of ['ort.wasm.min.js', 'ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) {
+    fs.copyFileSync(path.join(ortDist, name), path.join(dist, 'ort', name));
+  }
+  fs.mkdirSync(path.join(dist, 'models'), { recursive: true });
+  fs.copyFileSync(path.join(app, 'modules/microphone-energy/models/silero_vad_16k_op15.onnx'), path.join(dist, 'models', 'silero_vad_16k_op15.onnx'));
+}
 
 // The other languages' words, fetched by a browser when someone picks one
 // (src/i18n/catalogs.web.ts), so a first visit downloads English only.

@@ -1,18 +1,28 @@
 // Where one part ends and the next begins, decided from what the microphone
 // itself hears (LAN-82). Nothing said is dropped: the detector only chooses
-// where parts split. It learns two levels as it listens, the room (the
-// quietest the microphone has been in the last few seconds) and the voice
-// (how loud this person usually is here), and needs no setting from anyone.
+// where parts split. It learns two levels as it listens, the room (how loud
+// it usually is here when this person is not speaking above it: the quieter
+// fifth of the last few seconds) and the voice (how loud this person usually
+// is here), and needs no setting from anyone. Where a speech model scores
+// each frame (speech.ts, decision 135), a part is only sound that is both out
+// of the room and speech, so a fan, a clink or a car is never a part, while
+// other people talking further off stay under the room's level.
 //
 // - A part starts when a frame gets halfway from the room to the voice, or
-//   when sound stays out of the room for a moment (a soft start). Its head
+//   when sound stays out of the room for a moment (a soft start); with the
+//   model, two of the last three frames must also be speech. Its head
 //   reaches back to where the sound first rose out of the room.
-// - A part ends after a pause: the sound back at the room's level for the
-//   pause length. Its tail keeps the fall back into the room.
+// - A part ends after a pause: the sound back at the room's level (judged on
+//   the median of the last five frames, so one clink or laugh does not hold
+//   it open), or no longer speech, for the pause length. Its tail keeps the
+//   fall back into the room.
 // - Only a tap or a bump is dropped: less sound out of the room than a syllable.
 // - The pause is one second to start with and grows to fit this person's own
 //   pauses inside what they say, so a speaker who thinks mid-sentence is not
 //   split there.
+// - The room starts from what this device heard last time, and in the first
+//   moments of listening gives way at once to a louder room heard now, when
+//   the model says what is heard is not speech.
 //
 // Pure, like vadCore.ts: the web module drives it frame by frame and the
 // tests feed it levels. The phones' modules must follow the same rules.
@@ -23,8 +33,18 @@ export function levelDb(energy: number): number {
 }
 
 export const SPLIT = {
-  /** The room is the quietest stretch of the last this many ms. */
+  /** The room is the quietest 3-frame median of the last this many ms; with a speech model, the level only `roomPercentile` of them fall under. */
   roomWindowMs: 8000,
+  roomPercentile: 0.2,
+  /** With a speech model: inside a part the room stays at least this far under the part's own loud end (dB), so a reader who never pauses is not the room. */
+  roomUnderPartDb: 10,
+  /** With a speech model: in the first this many ms of listening, a room louder than the remembered one, and not speech, is taken at once. */
+  trustNowMs: 600,
+  /** With a speech model: inside a part, back in the room is judged on the median of this many frames. */
+  endMedianFrames: 5,
+  /** A speech model's score (speech.ts): at least `speechOn` is speech; under `speechOff` it is not speech any more. */
+  speechOn: 0.5,
+  speechOff: 0.35,
   /** The room before anything is heard, when no earlier session left one (dB). */
   roomGuess: -50,
   /** Before a part has been said, the voice is taken to be this far over the room (dB). */
@@ -73,7 +93,8 @@ export type SplitAction =
   /** A part ends; `trimMs` of what was recorded after its last sound goes. `discard`: it was only a tap or a bump. */
   | { type: 'stop'; discard: boolean; trimMs: number };
 
-interface Frame { t: number; db: number }
+/** A frame heard: when (ms), its level (dB), and how sure a speech model is that it is speech (null: no model). */
+interface Frame { t: number; db: number; s: number | null }
 
 /** The p-th quantile of numbers (0..1), or undefined for none. */
 function quantile(values: number[], p: number): number | undefined {
@@ -86,7 +107,7 @@ export class Splitter {
   /** The frames of the last few seconds, for the room and a part's head. */
   private history: Frame[] = [];
   /** 3-frame medians in the room window, oldest first. */
-  private calm: Frame[] = [];
+  private calm: { t: number; db: number }[] = [];
   private roomDb: number;
   private voiceDb: number | null;
   private pause: number;
@@ -101,6 +122,8 @@ export class Splitter {
   private lastEnd = -Infinity;
   /** How long the 3-frame median has been exact silence (-60 dB). */
   private zeroMs = 0;
+  /** How long this has listened since it last started (for trusting the room heard now). */
+  private listenedMs = 0;
   private frameMs: number;
 
   constructor(frameMs: number, remembered?: HeardLevels | null) {
@@ -138,23 +161,33 @@ export class Splitter {
     this.history = [];
     this.quietSince = null;
     this.zeroMs = 0;
+    this.listenedMs = 0;
   }
 
-  /** One frame's energy (peakEnergy) at time `now` (ms, the frame's end). */
-  step(energy: number, now: number): SplitAction | null {
+  /**
+   * One frame's energy (peakEnergy) at time `now` (ms, the frame's end), and
+   * a speech model's score for it (0..1), or null where there is no model.
+   */
+  step(energy: number, now: number, speech: number | null = null): SplitAction | null {
     const db = levelDb(energy);
-    this.history.push({ t: now, db });
+    this.history.push({ t: now, db, s: speech });
     const keepFrom = now - SPLIT.maxHeadMs - SPLIT.headMarginMs - this.frameMs;
     while (this.history.length > 0 && this.history[0]!.t < keepFrom) this.history.shift();
     this.trackRoom(now);
+    this.listenedMs += this.frameMs;
     const { quiet, start } = this.levels();
-    const out = db > quiet;
 
     if (!this.open) {
-      if (db > start || this.softRun(quiet) >= SPLIT.softStartMs) return this.begin(now, quiet);
+      if ((db > start || this.softRun(quiet) >= SPLIT.softStartMs) && this.speaking()) return this.begin(now, quiet);
       return null;
     }
 
+    // With a model: back in the room on the median of the last few frames, so one clink or laugh is not sound, or no longer speech.
+    let out = db > quiet;
+    if (speech !== null) {
+      const recent = this.history.slice(-SPLIT.endMedianFrames).map((f) => f.db).sort((a, b) => a - b);
+      out = recent[Math.floor((recent.length - 1) / 2)]! > quiet && speech >= SPLIT.speechOff;
+    }
     if (out) {
       if (this.quietSince !== null) {
         const gap = now - this.frameMs - this.quietSince;
@@ -176,6 +209,18 @@ export class Splitter {
     return this.open ? this.end(now) : null;
   }
 
+  /** Where a model scores frames, two of the last three are speech; with none, any sound may start a part. */
+  private speaking(): boolean {
+    const last = this.history.slice(-3);
+    if (last[last.length - 1]!.s === null) return true;
+    return last.filter((f) => (f.s ?? 0) >= SPLIT.speechOn).length >= 2;
+  }
+
+  /** Out of the room, and speech where a model says. */
+  private heard(f: Frame, quiet: number): boolean {
+    return f.db > quiet && (f.s === null || f.s >= SPLIT.speechOff);
+  }
+
   private begin(now: number, quiet: number): SplitAction {
     // Walk back over the sound that led up to this frame: through short dips, never into the last part.
     const h = this.history;
@@ -185,7 +230,7 @@ export class Splitter {
     for (let i = h.length - 2; i >= 0; i--) {
       const f = h[i]!;
       if (f.t <= this.lastEnd || now - f.t > SPLIT.maxHeadMs) break;
-      if (f.db > quiet) { firstOut = i; dip = 0; }
+      if (this.heard(f, quiet)) { firstOut = i; dip = 0; }
       else if ((dip += this.frameMs) > SPLIT.headGapMs) break;
     }
     head = firstOut;
@@ -198,7 +243,7 @@ export class Splitter {
     this.partDbs = [];
     this.soundMs = 0;
     for (let i = head; i < h.length; i++) {
-      if (h[i]!.db > quiet) { this.soundMs += this.frameMs; this.partDbs.push(h[i]!.db); }
+      if (this.heard(h[i]!, quiet)) { this.soundMs += this.frameMs; this.partDbs.push(h[i]!.db); }
     }
     return { type: 'start', headFrames: h.length - head };
   }
@@ -220,14 +265,15 @@ export class Splitter {
     for (let i = this.history.length - 1; i >= 0; i--) {
       const f = this.history[i]!;
       if (f.t <= this.lastEnd) break;
-      if (f.db > quiet) { run += this.frameMs; dip = 0; }
+      if (this.heard(f, quiet)) { run += this.frameMs; dip = 0; }
       else if ((dip += this.frameMs) > SPLIT.headGapMs / 2) break;
     }
     return run;
   }
 
   /**
-   * The room: the quietest 3-frame median of the last few seconds. Exact
+   * The room, from the 3-frame medians of the last few seconds: the quietest
+   * of them, or with a speech model the level only a fifth fall under. Exact
    * silence (-60 dB) is the room only once it has lasted zeroRoomMs; a
    * microphone starting gives a few frames of it, and they are not the room.
    */
@@ -240,11 +286,23 @@ export class Splitter {
     }
     while (this.calm.length > 0 && now - this.calm[0]!.t > SPLIT.roomWindowMs) this.calm.shift();
     if (this.calm.length === 0) return;
-    let min = Infinity;
-    for (const c of this.calm) min = Math.min(min, c.db);
-    // Between parts the room follows the quietest stretch heard; inside one it only creeps up.
+    const last = h[h.length - 1];
+    if (!last || last.s === null) {
+      // No model: the quietest stretch heard. Between parts the room follows it; inside one it only creeps up.
+      let min = Infinity;
+      for (const c of this.calm) min = Math.min(min, c.db);
+      const rise = this.open ? SPLIT.roomRisePerSec * this.frameMs / 1000 : 3;
+      this.roomDb = Math.min(min, this.roomDb + rise);
+      return;
+    }
+    // With a model: how loud it usually is here (the quietest instant sits under a cafe's chatter, which never falls back to it).
+    const usual = quantile(this.calm.map((c) => c.db), SPLIT.roomPercentile)!;
+    // A room remembered from a quieter place gives way at once to the one heard now, when that is not speech.
+    if (last.s < SPLIT.speechOff && this.listenedMs < SPLIT.trustNowMs && usual > this.roomDb) { this.roomDb = usual; return; }
     const rise = this.open ? SPLIT.roomRisePerSec * this.frameMs / 1000 : 3;
-    this.roomDb = Math.min(min, this.roomDb + rise);
+    this.roomDb = Math.min(usual, this.roomDb + rise);
+    // A reader who never pauses for long does not become the room.
+    if (this.open && this.partDbs.length >= 10) this.roomDb = Math.min(this.roomDb, quantile(this.partDbs, 0.75)! - SPLIT.roomUnderPartDb);
   }
 
   private learnVoice(): void {
