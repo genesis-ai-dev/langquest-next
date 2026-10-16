@@ -46,6 +46,7 @@ import type { Ctx } from '../shell/ctx';
 import { screenTitle } from '../shell/flow';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
+import { HelpRow } from '../helpMode/helpBadge';
 import { indexesFor } from '../sync/indexes';
 import { Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, SectionLabel } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -64,7 +65,7 @@ import {
 import { contractsFor } from '../shell/screenContracts';
 import { AgainBtn, BigMic, DashedRow, PlayChip, SpeakBtn } from '../reviewing/reviewVoice';
 import { checkName } from '../admin/adminModel';
-import { useCheckHelpRows, type HelpRow } from '../checks/useCheckHelpRows';
+import { useCheckHelpRows, type HelpRow as CheckHelpRow } from '../checks/useCheckHelpRows';
 import { BackgroundSheet, BigChoices, Centre, DecideCard, MomentList, OutcomePill, QuestionCard, QuestionDots, SkipBtn, StepStrip } from '../reviewing/review';
 import { backgroundLine } from '../reviewing/reviewText';
 import { useOfferedSources } from '../sources/useSourceChoice';
@@ -147,7 +148,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
-  const openHelp = (h: HelpRow) => {
+  const openHelp = (h: CheckHelpRow) => {
     if ('bible' in h.open) { setBible(h.open.bible); setSheet('background'); return; }
     if (h.open.screen === 'study_guide') return ctx.go('study_guide', { unitId: v!.unitId, languageId: v!.languageId });
     ctx.go('material_editor', h.open.params);
@@ -392,17 +393,19 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {!reads.made && reads.medium === 'recording' ? <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered /> : null}
       {/* What a step added to the version is part of it: a check hears and reads them together (decision 135). */}
       {!reads.made ? addedTo(v.p, version).map((a) => (
-        <View key={a.medium} style={{ gap: space.sm }}>
-          <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
-            {!a.made.kindId ? (a.medium === 'writing' ? t('writing.version.itsWords') : t('writing.version.itsRecording'))
-              : a.medium === 'writing' ? t('writing.review.itsWords', { version: versionTitle(version.n), step: v.kind(a.made.kindId).name })
-              : t('writing.review.itsRecording', { version: versionTitle(version.n), step: v.kind(a.made.kindId).name })}
-          </Text>
-          {a.medium === 'writing' ? (
-            <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={a.made.parts.map((c) => c.hash)} verseKeys={verseKeys}
-              {...(version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
-          ) : <AudioClip language={ctx.language} hashes={a.made.parts.map((c) => c.hash)} label={t('writing.version.itsRecording')} />}
-        </View>
+        <HelpRow key={a.medium} of="review.added">
+          <View style={{ gap: space.sm }}>
+            <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
+              {!a.made.kindId ? (a.medium === 'writing' ? t('writing.version.itsWords') : t('writing.version.itsRecording'))
+                : a.medium === 'writing' ? t('writing.review.itsWords', { version: versionTitle(version.n), step: v.kind(a.made.kindId).name })
+                : t('writing.review.itsRecording', { version: versionTitle(version.n), step: v.kind(a.made.kindId).name })}
+            </Text>
+            {a.medium === 'writing' ? (
+              <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={a.made.parts.map((c) => c.hash)} verseKeys={verseKeys}
+                {...(version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
+            ) : <AudioClip language={ctx.language} hashes={a.made.parts.map((c) => c.hash)} label={t('writing.version.itsRecording')} />}
+          </View>
+        </HelpRow>
       )) : null}
       <MomentList ctx={ctx} moments={moments} onRemove={(h) => setMoments((m) => m.filter((x) => x.hash !== h))} />
       {changed ? (
@@ -417,7 +420,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           <SectionLabel label={t('checks.forCheck', { check })} />
           <Group>
             {helps.map((h, i) => (
-              <Row key={h.key} icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last={i === helps.length - 1} />
+              <HelpRow key={h.key} of="review.checkHelp">
+                <Row icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last={i === helps.length - 1} />
+              </HelpRow>
             ))}
           </Group>
         </>
@@ -488,10 +493,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         <BigMic language={ctx.language} label={made.length ? t('review.screen.recordAnotherPart') : t('review.screen.tapAndSpeak')} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
       </View>
       {made.map((c, i) => (
-        <View key={c.hash} style={styles.partRow}>
-          <PlayChip ctx={ctx} clip={{ hash: c.hash, durationMs: c.durationMs, format: c.format ?? 'm4a' }} label={t('review.screen.part', { n: i + 1 })} tone="brand" />
-          <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.screen.removePartHelp')} accessibilityLabel={t('review.screen.removePart', { n: i + 1 })} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
-        </View>
+        <HelpRow key={c.hash} of="review.madePart">
+          <View style={styles.partRow}>
+            <PlayChip ctx={ctx} clip={{ hash: c.hash, durationMs: c.durationMs, format: c.format ?? 'm4a' }} label={t('review.screen.part', { n: i + 1 })} tone="brand" />
+            <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.screen.removePartHelp')} accessibilityLabel={t('review.screen.removePart', { n: i + 1 })} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
+          </View>
+        </HelpRow>
       ))}
       <DashedRow icon="chatDots" label={t('review.screen.whatHappened')} sub={comment.trim() || (feedback ? t('review.screen.saidInVoiceNoteCap') : t('review.screen.whatWasHard'))}
         right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} help={t('review.screen.whatHappenedHelp')}
@@ -596,7 +603,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             <Block label={t('review.screen.whichVersion')}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
                 {[...v.p.versions].reverse().map((x) => (
-                  <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} help={t('review.screen.whichVersionHelp')} onPress={() => setTakeId(x.takeId)} />
+                  <HelpRow key={x.takeId} of="review.version">
+                    <Chip label={versionTitle(x.n)} on={x.takeId === version.takeId} help={t('review.screen.whichVersionHelp')} onPress={() => setTakeId(x.takeId)} />
+                  </HelpRow>
                 ))}
               </View>
             </Block>
@@ -649,7 +658,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 }
 
 /** What opening one of the check's helps does (decision 91), as help mode says it. */
-function helpRowHelp(h: HelpRow): string {
+function helpRowHelp(h: CheckHelpRow): string {
   if ('bible' in h.open) return t('review.screen.helpBibleHelp');
   return h.open.screen === 'study_guide' ? t('review.screen.helpGuideHelp') : t('review.screen.helpNoteHelp');
 }
@@ -747,10 +756,12 @@ export function GuestReview(ctx: Ctx) {
         </Card>
       ) : <EmptyState icon="mic" title={t('review.guest.noRecording')} />}
       {questions.map((q) => (
-        <Card key={q.q.id}>
-          <Text style={[txt.body, { fontWeight: '600' }]}>{q.q.text}</Text>
-          <AnswerInput type={q.q.type} value={answers[q.q.id]} onChange={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} />
-        </Card>
+        <HelpRow key={q.q.id} of={`guest.${q.q.type}Question`}>
+          <Card>
+            <Text style={[txt.body, { fontWeight: '600' }]}>{q.q.text}</Text>
+            <AnswerInput type={q.q.type} value={answers[q.q.id]} onChange={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} />
+          </Card>
+        </HelpRow>
       ))}
       <Block label={t('review.guest.tellUs')}>
         {/* A voice reply would be saved to the language's record; a preview must not write, so it is shown, not live. */}

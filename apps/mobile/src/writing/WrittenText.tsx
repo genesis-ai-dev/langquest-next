@@ -8,6 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
+import { HelpRow } from '../helpMode/helpBadge';
 import { txt } from '../ui/textStyles';
 import { PlayBtn } from '../recording/blocks';
 import { useClip } from '../audio/useClip';
@@ -51,11 +52,13 @@ export function WrittenReader({ ctx, state, unitId, parts, verseKeys, heard, hig
         const label = isPartKey(w.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(w.key));
         const hashes = byVerse?.get(w.key);
         return (
-          <View key={w.key} style={[styles.readRow, highlight?.(w.key) && styles.rowLit]}>
-            <Tile label={label} />
-            <Text style={[txt.body, { flex: 1 }]}>{w.text}</Text>
-            {hashes ? <VersePlay ctx={ctx} hashes={hashes} label={label} /> : null}
-          </View>
+          <HelpRow key={w.key} of="written.verse">
+            <View style={[styles.readRow, highlight?.(w.key) && styles.rowLit]}>
+              <Tile label={label} />
+              <Text style={[txt.body, { flex: 1 }]}>{w.text}</Text>
+              {hashes ? <VersePlay ctx={ctx} hashes={hashes} label={label} /> : null}
+            </View>
+          </HelpRow>
         );
       })}
       {words.length === 0 ? <Text style={txt.smMuted}>{t('writing.notHereYet')}</Text> : null}

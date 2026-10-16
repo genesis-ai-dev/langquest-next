@@ -53,7 +53,7 @@ import { Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, G
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { mayWriteLibrary, sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { failureMessage } from '../diagnostics/report';
@@ -171,28 +171,30 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
     const users = usersOf(state, ctx.org.state, ctx.language.languageId, it.itemId);
     const update = it.source === 'subscription' ? pendingUpdate(it, updates) : undefined;
     return (
-      <Card key={it.itemId} current={beside?.screen === 'template_editor' && beside.params['itemId'] === it.itemId}>
-        <View style={styles.head}>
-          <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={txt.h3}>{it.name}</Text>
-            <Text style={[txt.sm, { fontWeight: '600', color: C.primary }]}>{sourceLine(it)}</Text>
-            {it.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{it.description}</Text> : null}
+      <HelpRow key={it.itemId} of="content.template">
+        <Card current={beside?.screen === 'template_editor' && beside.params['itemId'] === it.itemId}>
+          <View style={styles.head}>
+            <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={txt.h3}>{it.name}</Text>
+              <Text style={[txt.sm, { fontWeight: '600', color: C.primary }]}>{sourceLine(it)}</Text>
+              {it.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{it.description}</Text> : null}
+            </View>
           </View>
-        </View>
-        {doc ? <LevelsLine levels={docLevels(doc)} explain /> : <LoadingLine />}
-        <Text style={[txt.sm, { fontWeight: '600', color: users.length ? C.primary : C.muted }]}>
-          {users.length ? t('content.library.usedBy', { names: joinNames(users) }) : t('content.library.notUsedHere')}
-        </Text>
-        {update ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('content.newerVersion', { org: it.subscription!.sourceOrgName })}</Text> : null}
-        <View style={styles.cardActions}>
-          {canManage ? <SmallBtn label={t('content.library.options')} icon="settings" onPress={() => setOptions(it.itemId)}
-            help={it.subscription ? t('content.library.optionsFollowedHelp') : t('content.library.optionsHelp')} /> : null}
-          <View style={{ flex: 1 }} />
-          <SmallBtn label={canManage && it.source !== 'subscription' ? t('common.edit') : t('content.library.view')} icon="right" onPress={() => ctx.go('template_editor', { itemId: it.itemId })}
-            help={canManage && it.source !== 'subscription' ? t('content.library.editHelp') : t('content.library.viewHelp')} />
-        </View>
-      </Card>
+          {doc ? <LevelsLine levels={docLevels(doc)} explain /> : <LoadingLine />}
+          <Text style={[txt.sm, { fontWeight: '600', color: users.length ? C.primary : C.muted }]}>
+            {users.length ? t('content.library.usedBy', { names: joinNames(users) }) : t('content.library.notUsedHere')}
+          </Text>
+          {update ? <Text style={[txt.sm, { color: TINT.amberText }]}>{t('content.newerVersion', { org: it.subscription!.sourceOrgName })}</Text> : null}
+          <View style={styles.cardActions}>
+            {canManage ? <SmallBtn label={t('content.library.options')} icon="settings" onPress={() => setOptions(it.itemId)}
+              help={it.subscription ? t('content.library.optionsFollowedHelp') : t('content.library.optionsHelp')} /> : null}
+            <View style={{ flex: 1 }} />
+            <SmallBtn label={canManage && it.source !== 'subscription' ? t('common.edit') : t('content.library.view')} icon="right" onPress={() => ctx.go('template_editor', { itemId: it.itemId })}
+              help={canManage && it.source !== 'subscription' ? t('content.library.editHelp') : t('content.library.viewHelp')} />
+          </View>
+        </Card>
+      </HelpRow>
     );
   };
 
@@ -213,9 +215,11 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
         <Disclosure icon="history" title={t('content.library.archived')} summary={t('content.library.archivedSummary', { count: archived.length })}
           open={archivedOpen.open} onToggle={archivedOpen.onToggle} {...(archivedOpen.open ? {} : { help: t('content.library.archivedHelp') })}>
           {archived.map((it, i) => (
-            <Row key={it.itemId} icon="template" iconColor={C.muted} iconBg={C.bg} label={it.name} sub={sourceLine(it)} muted
-              help={canManage ? t('content.library.archivedRowHelp') : t('content.library.viewHelp')}
-              onPress={canManage ? () => setOptions(it.itemId) : () => ctx.go('template_editor', { itemId: it.itemId })} last={i === archived.length - 1} />
+            <HelpRow key={it.itemId} of="content.archivedTemplate">
+              <Row icon="template" iconColor={C.muted} iconBg={C.bg} label={it.name} sub={sourceLine(it)} muted
+                help={canManage ? t('content.library.archivedRowHelp') : t('content.library.viewHelp')}
+                onPress={canManage ? () => setOptions(it.itemId) : () => ctx.go('template_editor', { itemId: it.itemId })} last={i === archived.length - 1} />
+            </HelpRow>
           ))}
         </Disclosure>
       ) : null}
@@ -229,19 +233,21 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
         if (c.source !== 'shared') return null;
         const doc = docs.get<TemplateDoc>(c.hash);
         return (
-          <Card key={c.key} onPress={() => setBrowsing(c.shared)} accessibilityLabel={t('content.library.sharedLabel', { name: c.name, org: c.shared.org_name })}
-            help={canManage ? t('content.library.sharedHelp') : t('content.library.sharedViewHelp')}>
-            <View style={styles.head}>
-              <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={txt.h3}>{c.name}</Text>
-                <Text style={[txt.sm, { color: C.muted }]}>{choiceLine(c, sourceLine)}</Text>
-                {c.shared.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{c.shared.description}</Text> : null}
+          <HelpRow key={c.key} of="content.sharedTemplate">
+            <Card onPress={() => setBrowsing(c.shared)} accessibilityLabel={t('content.library.sharedLabel', { name: c.name, org: c.shared.org_name })}
+              help={canManage ? t('content.library.sharedHelp') : t('content.library.sharedViewHelp')}>
+              <View style={styles.head}>
+                <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={txt.h3}>{c.name}</Text>
+                  <Text style={[txt.sm, { color: C.muted }]}>{choiceLine(c, sourceLine)}</Text>
+                  {c.shared.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{c.shared.description}</Text> : null}
+                </View>
+                <Ico name="right" size={22} color={C.muted} />
               </View>
-              <Ico name="right" size={22} color={C.muted} />
-            </View>
-            {doc ? <LevelsLine levels={docLevels(doc)} /> : null}
-          </Card>
+              {doc ? <LevelsLine levels={docLevels(doc)} /> : null}
+            </Card>
+          </HelpRow>
         );
       })}
       <ShowMore remaining={others.length - sharedLimit} step={5} onMore={() => setSharedLimit((l) => l + 5)} />
@@ -253,9 +259,11 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
         <>
           <Group>
             {languages.slice(0, languageLimit).map((l, i, shown) => (
-              <Row key={l.languageId} icon="globe" iconColor={C.muted} iconBg={C.bg} label={l.name}
-                sub={state && isOpen(ctx, l.languageId) ? templateLine(state, lib.item) : t('content.library.openToSee')} help={t('content.library.languageHelp')}
-                onPress={() => ctx.go('templates_home', { level: 'language', languageId: l.languageId })} last={i === shown.length - 1} />
+              <HelpRow key={l.languageId} of="content.language">
+                <Row icon="globe" iconColor={C.muted} iconBg={C.bg} label={l.name}
+                  sub={state && isOpen(ctx, l.languageId) ? templateLine(state, lib.item) : t('content.library.openToSee')} help={t('content.library.languageHelp')}
+                  onPress={() => ctx.go('templates_home', { level: 'language', languageId: l.languageId })} last={i === shown.length - 1} />
+              </HelpRow>
             ))}
           </Group>
           <ShowMore remaining={languages.length - languageLimit} step={8} onMore={() => setLanguageLimit((l) => l + 8)} />
@@ -498,9 +506,11 @@ function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: strin
           ) : (
             <Group>
               {books.slice(0, limit).map((b, i, shown) => (
-                <Row key={b.book.itemId} icon="book" label={b.label} sub={b.waiting ? t('map.waiting') : partsCount(b.parts, words)}
-                  help={b.waiting ? t('content.language.bookWaitingHelp') : t('content.language.bookHelp', { part: lower(words.one) })}
-                  onPress={() => ctx.go('book_structure', { languageId, bookId: b.book.itemId })} last={i === shown.length - 1} />
+                <HelpRow key={b.book.itemId} of="content.book">
+                  <Row icon="book" label={b.label} sub={b.waiting ? t('map.waiting') : partsCount(b.parts, words)}
+                    help={b.waiting ? t('content.language.bookWaitingHelp') : t('content.language.bookHelp', { part: lower(words.one) })}
+                    onPress={() => ctx.go('book_structure', { languageId, bookId: b.book.itemId })} last={i === shown.length - 1} />
+                </HelpRow>
               ))}
             </Group>
           )}
@@ -555,22 +565,24 @@ export function TemplatePicker(ctx: Ctx) {
     const doc = on ? docs.get<TemplateDoc>(c.hash) : null;
     const description = c.source === 'ours' ? c.item.description : c.shared.description;
     return (
-      <Card key={c.key} onPress={() => setPicked(on ? null : c.key)} accessibilityLabel={used ? t('content.picker.inUseLabel', { name: c.name }) : c.name}
-        help={on ? t('content.picker.pickedHelp') : used ? t('content.picker.inUseHelp', { language }) : t('content.picker.cardHelp')}
-        style={on ? { borderWidth: 2, borderColor: C.primary } : null}>
-        <View style={styles.head}>
-          <View style={[styles.tile, on ? { backgroundColor: C.primary } : null]}>
-            <Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={on ? C.white : C.primary} />
+      <HelpRow key={c.key} of="content.choice">
+        <Card onPress={() => setPicked(on ? null : c.key)} accessibilityLabel={used ? t('content.picker.inUseLabel', { name: c.name }) : c.name}
+          help={on ? t('content.picker.pickedHelp') : used ? t('content.picker.inUseHelp', { language }) : t('content.picker.cardHelp')}
+          style={on ? { borderWidth: 2, borderColor: C.primary } : null}>
+          <View style={styles.head}>
+            <View style={[styles.tile, on ? { backgroundColor: C.primary } : null]}>
+              <Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={on ? C.white : C.primary} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={txt.h3}>{used ? t('content.picker.inUseTitle', { name: c.name }) : c.name}</Text>
+              <Text style={[txt.sm, { fontWeight: '600', color: C.primary }]}>{choiceLine(c, sourceLine)}</Text>
+              {description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{description}</Text> : null}
+            </View>
+            {on ? <Ico name="check" size={22} color={C.primary} /> : null}
           </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={txt.h3}>{used ? t('content.picker.inUseTitle', { name: c.name }) : c.name}</Text>
-            <Text style={[txt.sm, { fontWeight: '600', color: C.primary }]}>{choiceLine(c, sourceLine)}</Text>
-            {description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{description}</Text> : null}
-          </View>
-          {on ? <Ico name="check" size={22} color={C.primary} /> : null}
-        </View>
-        {on ? (doc ? <LevelsLine levels={docLevels(doc)} /> : <LoadingLine />) : null}
-      </Card>
+          {on ? (doc ? <LevelsLine levels={docLevels(doc)} /> : <LoadingLine />) : null}
+        </Card>
+      </HelpRow>
     );
   };
 
@@ -809,11 +821,13 @@ function TemplateEditorForm({ ctx, lib, item, initial, draft }: { ctx: Ctx; lib:
       <SectionLabel label={t('content.editor.levels')} />
       <Group>
         {f.levels.map((l, i) => (
-          <Row key={`${l.name}-${i}`} icon={i === f.levels.length - 1 ? 'media' : 'folder'} label={l.name}
-            sub={levelSub(i, f.levels.length, defaultDisplay(l, bible))}
-            help={bible && i === f.levels.length - 1 ? t('content.editor.lastLevelHelp') : t('content.editor.levelHelp')}
-            onPress={readOnly ? undefined : () => setEditingLevel(i)} right={readOnly ? undefined : <Ico name="edit" size={20} color={C.muted} />}
-            last={i === f.levels.length - 1} />
+          <HelpRow key={`${l.name}-${i}`} of="content.level">
+            <Row icon={i === f.levels.length - 1 ? 'media' : 'folder'} label={l.name}
+              sub={levelSub(i, f.levels.length, defaultDisplay(l, bible))}
+              help={bible && i === f.levels.length - 1 ? t('content.editor.lastLevelHelp') : t('content.editor.levelHelp')}
+              onPress={readOnly ? undefined : () => setEditingLevel(i)} right={readOnly ? undefined : <Ico name="edit" size={20} color={C.muted} />}
+              last={i === f.levels.length - 1} />
+          </HelpRow>
         ))}
       </Group>
 
@@ -855,11 +869,13 @@ function TemplateEditorForm({ ctx, lib, item, initial, draft }: { ctx: Ctx; lib:
                 // How it is divided: the ready-made way it matches, its own way, or waiting (decision 107).
                 const way = perBook ? wayNow(ways.rows, (r) => ways.docOf(r.choice), doc, b.book, item?.itemId ?? null) : null;
                 return (
-                  <Row key={b.book} icon="book" label={b.name}
-                    sub={perBook ? [...(known !== b.name ? [known] : []), divisionLine(doc, b.book, way?.choice.name ?? null, v11n)].join(' · ') : bookRowSub(b.book, b.name, known, chapters)}
-                    help={t('content.editor.bookHelp')}
-                    onPress={readOnly ? undefined : () => setDividing(b.book)} right={readOnly ? undefined : <Ico name="right" size={20} color={C.muted} />}
-                    last={i === shownBooks.length - 1} />
+                  <HelpRow key={b.book} of="content.editorBook">
+                    <Row icon="book" label={b.name}
+                      sub={perBook ? [...(known !== b.name ? [known] : []), divisionLine(doc, b.book, way?.choice.name ?? null, v11n)].join(' · ') : bookRowSub(b.book, b.name, known, chapters)}
+                      help={t('content.editor.bookHelp')}
+                      onPress={readOnly ? undefined : () => setDividing(b.book)} right={readOnly ? undefined : <Ico name="right" size={20} color={C.muted} />}
+                      last={i === shownBooks.length - 1} />
+                  </HelpRow>
                 );
               })}
             </Group>
@@ -890,9 +906,11 @@ function TemplateEditorForm({ ctx, lib, item, initial, draft }: { ctx: Ctx; lib:
           <SharedOffline error={v.error} empty={v.choices.length === 0} />
           <Group>
             {v.choices.map((c, i) => (
-              <Row key={c.key} label={c.name} sub={choiceLine(c, sourceLine)} role="radio" selected={c.hash === f.versification} help={t('content.editor.versificationChoiceHelp')}
-                onPress={() => { set({ versification: c.hash }); setChoosingV11n(false); }} last={i === v.choices.length - 1}
-                right={c.hash === f.versification ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+              <HelpRow key={c.key} of="content.versification">
+                <Row label={c.name} sub={choiceLine(c, sourceLine)} role="radio" selected={c.hash === f.versification} help={t('content.editor.versificationChoiceHelp')}
+                  onPress={() => { set({ versification: c.hash }); setChoosingV11n(false); }} last={i === v.choices.length - 1}
+                  right={c.hash === f.versification ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+              </HelpRow>
             ))}
           </Group>
         </Sheet>
@@ -966,7 +984,9 @@ function AddBookSheet(props: { books: string[]; onClose: () => void; onAdd: (boo
       {left.length === 0 ? <Text style={txt.smMuted}>{t('content.addBook.allIn')}</Text> : (
         <Group>
           {left.slice(0, limit).map((b, i, shown) => (
-            <Row key={b} icon="plus" label={bookNameOf(b)} sub={b} help={t('content.addBook.bookHelp')} onPress={() => { props.onAdd(b); setAdded((a) => [...a, b]); }} last={i === shown.length - 1} />
+            <HelpRow key={b} of="content.addBook">
+              <Row icon="plus" label={bookNameOf(b)} sub={b} help={t('content.addBook.bookHelp')} onPress={() => { props.onAdd(b); setAdded((a) => [...a, b]); }} last={i === shown.length - 1} />
+            </HelpRow>
           ))}
         </Group>
       )}
@@ -997,12 +1017,17 @@ function OutlineScroll(props: {
     return (
       <View style={depth ? styles.outlineIndent : null}>
         {list.map((n) => n.children ? (
-          <View key={n.id}>
-            <OutlineFolder title={n.title} summary={outlineSummary(n.children)} depth={depth} readOnly={props.readOnly} onEdit={() => props.onEdit(n.id)} />
-            {render(n.children, depth + 1, n.id)}
-          </View>
+          // Each depth is its own kind of row, so a folder inside the first folder speaks too.
+          <HelpRow key={n.id} of={`content.outlineFolder${depth}`}>
+            <View>
+              <OutlineFolder title={n.title} summary={outlineSummary(n.children)} depth={depth} readOnly={props.readOnly} onEdit={() => props.onEdit(n.id)} />
+              {render(n.children, depth + 1, n.id)}
+            </View>
+          </HelpRow>
         ) : (
-          <OutlineItem key={n.id} title={n.title} level={levelName(depth)} readOnly={props.readOnly} onEdit={() => props.onEdit(n.id)} />
+          <HelpRow key={n.id} of="content.outlineItem">
+            <OutlineItem title={n.title} level={levelName(depth)} readOnly={props.readOnly} onEdit={() => props.onEdit(n.id)} />
+          </HelpRow>
         ))}
         {!props.readOnly ? (
           <View style={styles.addRow}>
@@ -1147,7 +1172,9 @@ export function BookStructure(ctx: Ctx) {
         <ChipRow>
           <Chip label={t('content.book.chapterChip')} icon="down" on help={t('content.book.chapterChipHelp')} onPress={() => setPicking(true)} />
           {data.segments.map((s) => (
-            <Chip key={s.unitId} label={chipLabel(book, s)} on={false} help={t('content.book.segmentHelp', { part: lower(part) })} onPress={() => jump(s.from.c)} />
+            <HelpRow key={s.unitId} of="content.segment">
+              <Chip label={chipLabel(book, s)} on={false} help={t('content.book.segmentHelp', { part: lower(part) })} onPress={() => jump(s.from.c)} />
+            </HelpRow>
           ))}
         </ChipRow>
       </View>
@@ -1181,7 +1208,9 @@ export function BookStructure(ctx: Ctx) {
       <Sheet visible={picking} title={data.label} sub={t('content.book.jump')} onClose={() => setPicking(false)}>
         <View style={styles.grid}>
           {chapters.map((c) => (
-            <ChapterTile key={c} c={c} n={partsStartingIn(data.segments, c)} part={part} parts={parts} onPress={() => { setPicking(false); jump(c); }} />
+            <HelpRow key={c} of="content.chapterTile">
+              <ChapterTile c={c} n={partsStartingIn(data.segments, c)} part={part} parts={parts} onPress={() => { setPicking(false); jump(c); }} />
+            </HelpRow>
           ))}
         </View>
       </Sheet>

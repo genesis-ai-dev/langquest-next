@@ -65,6 +65,7 @@ export function NavChrome(props: {
         </View>
         {/* Only the tabs are in the tab list; the account chip beside them is a button of its own. */}
         <View accessibilityRole="tablist" style={{ gap: 2 }}>
+        {/* help-each: each tab holds a different part of the app */}
         {props.tabs.map((tab) => <SideTab key={tab.id} tab={tab} active={tab.id === props.active} onSelect={props.onSelect} />)}
         </View>
         {/* The web app only: the language explorer, a page of its own (docs/languoids.md). */}
@@ -75,6 +76,7 @@ export function NavChrome(props: {
   const rail = props.variant === 'rail';
   return (
     <View style={rail ? styles.rail : styles.tabs} accessibilityRole="tablist">
+      {/* help-each: each tab holds a different part of the app */}
       {props.tabs.map((tab) => <BarTab key={tab.id} tab={tab} active={tab.id === props.active} rail={rail} onSelect={props.onSelect} />)}
     </View>
   );

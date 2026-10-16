@@ -45,12 +45,22 @@ export interface HelpMode {
 export type HelpMark = 'corner' | 'inset';
 
 /**
+ * One of a list's same-shaped rows that a part is drawn in (HelpRow): `of`
+ * names the kind of row, `row` is this one.
+ */
+export interface HelpRowAt {
+  of: string;
+  row: string;
+}
+
+/**
  * What a lit place is: a part, with where its number sits; the ? that turns
  * help off; or the area a part scrolls in (kit's Screen body), which nothing
- * lit inside it is drawn past. `clip` names that area.
+ * lit inside it is drawn past. `clip` names that area. `rows` are the rows
+ * of lists the part is in, the outermost first.
  */
 export type HelpLit =
-  | { kind: 'part'; part: string; mark: HelpMark; clip?: string }
+  | { kind: 'part'; part: string; mark: HelpMark; clip?: string; rows?: readonly HelpRowAt[] }
   | { kind: 'lit'; clip?: string }
   | { kind: 'clip' };
 
@@ -84,6 +94,57 @@ export function numberParts(first: ReadonlyMap<string, FirstSeen>, rtl = false):
     return rtl ? b.rect.x + b.rect.width - (a.rect.x + a.rect.width) : a.rect.x - b.rect.x;
   });
   return new Map(parts.map(([key], i) => [key, i + 1]));
+}
+
+/** A part in rows of lists, where it is drawn, and how much of it is in sight (null: none). */
+export interface RowPart {
+  rows?: readonly HelpRowAt[];
+  rect: HelpRect;
+  visible: HelpRect | null;
+}
+
+/**
+ * Whether a part speaks for its list: it is in no list, or in the row chosen
+ * for its kind. In a list in a list, the inner row decides, so the first
+ * inner row in sight speaks whichever outer row it is in.
+ */
+export function speaks(rows: readonly HelpRowAt[] | undefined, chosen: ReadonlyMap<string, string>): boolean {
+  const at = rows?.[rows.length - 1];
+  return !at || chosen.get(at.of) === at.row;
+}
+
+/**
+ * Rows of the same shape (passages, people, parts) say the same things, so
+ * one row speaks for each kind (decision 71 as amended 2026-10-16): the first
+ * in sight, a row wholly in sight before one cut off at an edge, then top to
+ * bottom and along a line. Its parts are numbered; the other rows stay dim
+ * and still explain when tapped. A kind already spoken for keeps its row.
+ */
+export function chooseRows(parts: readonly RowPart[], chosen: ReadonlyMap<string, string>, rtl = false): Map<string, string> {
+  const next = new Map(chosen);
+  const rows = new Map<string, { of: string; whole: boolean; seen: boolean; top: HelpRect }>();
+  for (const p of parts) {
+    const whole = !!p.visible && p.visible.width >= p.rect.width - 0.5 && p.visible.height >= p.rect.height - 0.5;
+    for (const at of p.rows ?? []) {
+      if (next.has(at.of)) continue;
+      const was = rows.get(at.row);
+      if (!was) { rows.set(at.row, { of: at.of, whole, seen: !!p.visible, top: p.rect }); continue; }
+      was.whole &&= whole;
+      was.seen ||= !!p.visible;
+      if (p.rect.y < was.top.y) was.top = p.rect;
+    }
+  }
+  const first = new Map<string, { row: string; whole: boolean; top: HelpRect }>();
+  for (const [row, r] of rows) {
+    if (!r.seen) continue;
+    const best = first.get(r.of);
+    const before = !best || (r.whole !== best.whole ? r.whole
+      : Math.abs(r.top.y - best.top.y) > SAME_LINE ? r.top.y < best.top.y
+      : rtl ? r.top.x + r.top.width > best.top.x + best.top.width : r.top.x < best.top.x);
+    if (before) first.set(r.of, { row, whole: r.whole, top: r.top });
+  }
+  for (const [of, r] of first) next.set(of, r.row);
+  return next;
 }
 
 /** The part of `r` inside `clip`, or null when none of it is. */

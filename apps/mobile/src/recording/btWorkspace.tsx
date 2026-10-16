@@ -29,7 +29,7 @@ import { localKind } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { screenTitle } from '../shell/flow';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
+import { HelpBadge, HelpClip, HelpRow } from '../helpMode/helpBadge';
 import { currentLocale, t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
@@ -379,8 +379,10 @@ export function BackTranslationBody({ ctx, v, kind, of, make }: {
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} accessibilityLabel={t('backTranslation.yourWhat', { what: produces.what, said: saidLine(parts) })}>
               {problem}
               {!drafts.loaded ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('backTranslation.loadingParts')}</Text> : parts.map((x) => (
-                <PartCard key={x.index} ctx={ctx} part={x} verse={verseOf(x.index)} into={produces.into} focused={x.index === focus} disabled={blocked} fresh={justSaid.has(x.index)}
-                  onPick={() => setPicked(x.index)} onDelete={() => void clearPart(x)} />
+                <HelpRow key={x.index} of="bt.part">
+                  <PartCard ctx={ctx} part={x} verse={verseOf(x.index)} into={produces.into} focused={x.index === focus} disabled={blocked} fresh={justSaid.has(x.index)}
+                    onPick={() => setPicked(x.index)} onDelete={() => void clearPart(x)} />
+                </HelpRow>
               ))}
               {notes.length ? (
                 <Text style={[txt.xs, { textAlign: 'center' }]}>
@@ -562,8 +564,10 @@ function PublishSheet(props: {
         <View style={{ gap: space.sm }}>
           <SectionLabel label={t('recording.publish.nextCheck')} />
           {kinds.map((k) => (
-            <AskCheckCard key={k.kindId} ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, v.kinds)} on={k.kindId === next.kindId} radio={kinds.length > 1}
-              people={checkPeople(v.state, k.kindId).filter((id) => id !== ctx.session.actorId)} onPress={() => setKindId(k.kindId)} />
+            <HelpRow key={k.kindId} of="ask.check">
+              <AskCheckCard ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, v.kinds)} on={k.kindId === next.kindId} radio={kinds.length > 1}
+                people={checkPeople(v.state, k.kindId).filter((id) => id !== ctx.session.actorId)} onPress={() => setKindId(k.kindId)} />
+            </HelpRow>
           ))}
         </View>
       ) : null}

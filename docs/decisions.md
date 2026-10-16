@@ -2306,6 +2306,29 @@ Reverse if: people stop using help because the extra numbers crowd a screen
 (then number only the parts in reach of the ? first), or a line per part
 costs more to translate and record than field tests show it saves.
 
+Amended (2026-10-16, Caleb Koster): one row speaks for a list. Caleb, with a
+screenshot of the recording screen in help mode ("Holy help references
+batman"): every row of the parts list had its own bubbles, 51 numbers on one
+screen, and having them "on just one row would be sufficient". The crowding
+the entry above warned of had come from lists, where every row repeats the
+same parts. Now each row a list draws is a `HelpRow` (`helpBadge.tsx`) naming
+its kind (`of`). While help is on, the first row of each kind in sight speaks
+for the list (`helpContext.ts` `chooseRows`: a row wholly in sight before one
+cut off at an edge, then top to bottom): its parts light and take numbers.
+The other rows stay dim and unnumbered, and a tap on one of their parts still
+explains it, lighting it with its tooltip, so nothing acts in help mode. The
+row keeps speaking while it is on the screen; when a list that draws only
+what shows scrolls it away, the next row in sight takes over. In a list in
+a list (a guide's sections and their pictures), the first inner row in sight
+speaks for its kind, whichever outer row holds it. Lists whose items
+each do something different (tabs, filters, crumbs, a menu of actions) keep
+a number on every item and say why with a `help-each:` comment.
+`apps/mobile/test/helpParts.ts` fails on a list whose rows hold parts with
+neither. The recording screen went from 51 numbers to 27.
+Reverse if: people miss what a row does because the row that speaks for its
+list is not the one they look at (then let the row last tapped speak), or
+same-shaped rows turn out to need different explanations.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79

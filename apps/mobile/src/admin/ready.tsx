@@ -6,6 +6,7 @@
 import { View } from 'react-native';
 import type { Ctx } from '../shell/ctx';
 import { space } from '../ui/theme';
+import { HelpRow } from '../helpMode/helpBadge';
 import { ChecklistRow } from './admin';
 import { QUESTIONS, questionLabel } from './adminModel';
 import type { ReadySummary } from './useReadySummary';
@@ -16,9 +17,11 @@ export function ReadyChecklist(props: { ctx: Ctx; s: ReadySummary }) {
   return (
     <View style={{ gap: space.md }}>
       {QUESTIONS.map((q, i) => (
-        <ChecklistRow key={q.id} icon={q.icon} label={questionLabel(q.id)} sub={s.lines[i]}
-          state={s.readiness.done[i] ? 'done' : i === s.readiness.current ? 'now' : 'later'}
-          onPress={() => ctx.go('get_ready', { languageId: s.languageId, step: String(i + 1) })} />
+        <HelpRow key={q.id} of="ready.question">
+          <ChecklistRow icon={q.icon} label={questionLabel(q.id)} sub={s.lines[i]}
+            state={s.readiness.done[i] ? 'done' : i === s.readiness.current ? 'now' : 'later'}
+            onPress={() => ctx.go('get_ready', { languageId: s.languageId, step: String(i + 1) })} />
+        </HelpRow>
       ))}
     </View>
   );

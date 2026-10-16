@@ -11,7 +11,7 @@ import { Dimensions, I18nManager, Platform, Pressable, StyleSheet, View } from '
 import Svg, { Circle, Defs, Mask, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../ui/text';
-import { clipRect, helpLine, litShape, MARK_SIZE, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
+import { chooseRows, clipRect, helpLine, litShape, MARK_SIZE, markAt, numberParts, speaks, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
 import { HelpContext, HelpLayerContext } from './useHelpMode';
 import { currentLocale, isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -77,6 +77,8 @@ interface LitStore {
   lit: Map<string, { rect: HelpRect; what: HelpLit }>;
   /** Where and when each part was first seen, which its number follows. */
   first: Map<string, FirstSeen>;
+  /** The row that speaks for each kind of row in a list (HelpRow), by kind. */
+  rows: Map<string, string>;
   /** Frames since help came on. */
   frame: number;
   /** The frame that parts seen together (within BURST frames of each other) count from. */
@@ -87,6 +89,7 @@ interface LitStore {
 }
 
 const partOf = (what: HelpLit) => (what.kind === 'part' ? what.part : null);
+const rowsOf = (what: HelpLit) => (what.kind === 'part' ? what.rows : undefined);
 
 /** Parts first seen within this many frames of each other (a screen drawing in, a scroll) are numbered together, in reading order. */
 const BURST = 10;
@@ -101,7 +104,7 @@ export function HelpModeProvider(props: { children: ReactNode }) {
   /** Sheets showing over the screen, the last on top. */
   const [hosts, setHosts] = useState<readonly string[]>([]);
   const top = hosts[hosts.length - 1] ?? null;
-  const store = useRef<LitStore>({ lit: new Map(), first: new Map(), frame: 0, burst: 0, lastSeen: -Infinity, version: 0, listeners: new Set() }).current;
+  const store = useRef<LitStore>({ lit: new Map(), first: new Map(), rows: new Map(), frame: 0, burst: 0, lastSeen: -Infinity, version: 0, listeners: new Set() }).current;
   const measures = useRef(new Set<() => void>()).current;
   const pending = useRef(false);
 
@@ -129,6 +132,11 @@ export function HelpModeProvider(props: { children: ReactNode }) {
       store.lit.delete(id);
       const gone = !!part && ![...store.lit.values()].some((l) => partOf(l.what) === part);
       if (gone) store.first.delete(part);
+      // A row that speaks for its kind and has left the screen (a list that
+      // draws only what shows) hands over to the next one in sight.
+      for (const r of rowsOf(what) ?? []) {
+        if (store.rows.get(r.of) === r.row && ![...store.lit.values()].some((l) => rowsOf(l.what)?.some((x) => x.row === r.row))) store.rows.delete(r.of);
+      }
       changed(gone);
       return;
     }
@@ -143,13 +151,21 @@ export function HelpModeProvider(props: { children: ReactNode }) {
   const see = useCallback(() => {
     const window = Dimensions.get('window');
     const screen = { x: 0, y: 0, width: window.width, height: window.height };
+    const inSight = (l: { rect: HelpRect; what: HelpLit }) => {
+      const clip = l.what.kind === 'part' && l.what.clip ? store.lit.get(l.what.clip)?.rect : undefined;
+      if (l.what.kind === 'part' && l.what.clip && !clip) return null;
+      const within = clipRect(l.rect, clip);
+      return within && clipRect(within, screen);
+    };
+    // A kind of row not spoken for yet takes the first of its rows in sight.
+    const listed = [...store.lit.values()].filter((l) => rowsOf(l.what));
+    if (listed.some((l) => rowsOf(l.what)!.some((r) => !store.rows.has(r.of)))) {
+      store.rows = chooseRows(listed.map((l) => ({ rows: rowsOf(l.what), rect: l.rect, visible: inSight(l) })), store.rows, isRtl());
+    }
     let seen = false;
     for (const l of store.lit.values()) {
-      if (l.what.kind !== 'part' || store.first.has(l.what.part)) continue;
-      const clip = l.what.clip ? store.lit.get(l.what.clip)?.rect : undefined;
-      if (l.what.clip && !clip) continue;
-      const visible = clipRect(l.rect, clip);
-      if (!visible || !clipRect(visible, screen)) continue;
+      if (l.what.kind !== 'part' || store.first.has(l.what.part) || !speaks(l.what.rows, store.rows)) continue;
+      if (!inSight(l)) continue;
       if (!seen && store.frame - store.lastSeen > BURST) store.burst = store.frame;
       store.first.set(l.what.part, { seen: store.burst, rect: l.rect });
       seen = true;
@@ -181,7 +197,7 @@ export function HelpModeProvider(props: { children: ReactNode }) {
     setCurrent(null);
     setTold(null);
     stopSpeaking();
-    if (!v) { setParts(new Map()); store.first.clear(); store.frame = 0; store.lastSeen = -Infinity; renumber(); }
+    if (!v) { setParts(new Map()); store.first.clear(); store.rows.clear(); store.frame = 0; store.lastSeen = -Infinity; renumber(); }
   }, [store, renumber]);
   const explain = useCallback((key: string) => { setTold(null); setCurrent((was) => (was === key ? null : key)); }, []);
   const tell = useCallback((label: string, detail?: string) => {
@@ -271,12 +287,15 @@ function HelpLayer(props: {
   const local = (r: HelpRect): HelpRect => ({ ...r, x: r.x - origin.x, y: r.y - origin.y });
   const clips = new Map<string, HelpRect>();
   for (const [id, l] of store.lit) if (l.what.kind === 'clip') clips.set(id, local(l.rect));
-  const lit: { rect: HelpRect; part: string | null; mark: HelpMark | null }[] = [];
+  // A row that does not speak for its list stays dim and unnumbered; tapped, its part lights.
+  const lit: { rect: HelpRect; part: string | null; mark: HelpMark | null; quiet: boolean }[] = [];
   for (const l of store.lit.values()) {
     if (l.what.kind === 'clip') continue;
     const within = l.what.clip ? clips.get(l.what.clip) : undefined;
     const rect = clipRect(local(l.rect), within);
-    if (rect) lit.push({ rect, part: partOf(l.what), mark: l.what.kind === 'part' ? l.what.mark : null });
+    const part = partOf(l.what);
+    const quiet = !speaks(rowsOf(l.what), store.rows) && part !== props.current;
+    if (rect) lit.push({ rect, part, mark: l.what.kind === 'part' ? l.what.mark : null, quiet });
   }
   const at = props.current ? lit.find((l) => l.part === props.current)?.rect ?? null : null;
   const tip = frame ? tooltipPlace(at, frame, { height: tipHeight }, { margin: space.lg, gap: space.sm, maxWidth: 420, top: insets.top + space.sm, bottom: insets.bottom + space.sm }) : null;
@@ -293,7 +312,7 @@ function HelpLayer(props: {
             <Defs>
               <Mask id="help-lit" maskUnits="userSpaceOnUse" x={0} y={0} width={frame.width} height={frame.height}>
                 <Rect x={0} y={0} width={frame.width} height={frame.height} fill="#fff" />
-                {lit.map((l, i) => <LitShape key={i} rect={l.rect} tight={l.mark === 'inset'} fill="#000" />)}
+                {lit.map((l, i) => (l.quiet ? null : <LitShape key={i} rect={l.rect} tight={l.mark === 'inset'} fill="#000" />))}
               </Mask>
             </Defs>
             <Rect x={0} y={0} width={frame.width} height={frame.height} fill={DIM} mask="url(#help-lit)" />
@@ -302,12 +321,12 @@ function HelpLayer(props: {
         ) : null}
         {lit.map((l, i) => {
           const num = l.part ? props.numbers.get(l.part) : undefined;
-          if (num === undefined || !l.mark) return null;
+          if (num === undefined || !l.mark || l.quiet) return null;
           // A part as wide as the window (a divider, a bar) keeps its number on screen.
           const at = markAt(l.rect, l.mark, rtl);
           const p = { x: Math.max(2, Math.min(frame ? frame.width - MARK_SIZE - 2 : at.x, at.x)), y: Math.max(2, at.y) };
           return (
-            <View key={i} style={[styles.mark, fromLeft(p.x), { top: p.y }, l.part === props.current && styles.markCurrent]}>
+            <View key={i} testID="help-number" style={[styles.mark, fromLeft(p.x), { top: p.y }, l.part === props.current && styles.markCurrent]}>
               <Text style={styles.markText}>{formatNumber(num)}</Text>
             </View>
           );

@@ -16,7 +16,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Chip, ChipRow, Field, Group, Ico, PrimaryBtn, Row, SectionLabel, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -58,9 +58,11 @@ export function MakingPresets(props: { taken: string[]; own: string; reference: 
       <SectionLabel label={t('writing.step.makeSomething')} />
       <Group>
         {left.map((p, i) => (
-          <Row key={p.id} leading={<MakesLine makes={p.makes} language={p.makes.language === 'same' ? props.own : languageLabel(props.reference)} />}
-            label={presetName(p.id)} sub={p.makes.language === 'same' ? t('writing.step.ownLanguage') : t('writing.step.referenceLanguage')}
-            onPress={() => props.onPick({ id: p.id, name: presetName(p.id), description: '', usualReviewer: '' }, { ...p.makes })} last={i === left.length - 1} />
+          <HelpRow key={p.id} of="making.preset">
+            <Row leading={<MakesLine makes={p.makes} language={p.makes.language === 'same' ? props.own : languageLabel(props.reference)} />}
+              label={presetName(p.id)} sub={p.makes.language === 'same' ? t('writing.step.ownLanguage') : t('writing.step.referenceLanguage')}
+              onPress={() => props.onPick({ id: p.id, name: presetName(p.id), description: '', usualReviewer: '' }, { ...p.makes })} last={i === left.length - 1} />
+          </HelpRow>
         ))}
       </Group>
       <OwnButton onPress={props.onOwn} />

@@ -9,7 +9,7 @@ import { Text } from '../ui/text';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
@@ -160,14 +160,16 @@ function CheckList(props: {
   const card = (i: number) => {
     const r = rows[i]!;
     return (
-      <CheckCard key={`${r.kindId}#${i}`} ctx={props.ctx} row={r} i={i} n={numbers[i]!} count={rows.length} kinds={props.kinds}
-        people={props.peopleOf ? props.peopleOf(r.kindId) : null} questions={props.questionsOf?.(r.kindId) ?? 0} helps={props.helpsOf?.(r.kindId) ?? 0}
-        readOnly={props.readOnly} height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
-        {...(props.hiddenOf ? { hidden: props.hiddenOf(r.kindId) } : {})}
-        {...(props.checkedAtOf?.(r.kindId) ? { checkedAt: props.checkedAtOf(r.kindId)! } : {})}
-        onMove={(to) => props.onChange(moveRow(rows, i, to))}
-        onLock={() => props.onChange(setCheckpoint(rows, i, !r.checkpoint))}
-        {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} {...(props.openHelp ? { openHelp: props.openHelp } : {})} />
+      <HelpRow key={`${r.kindId}#${i}`} of="checks.check">
+        <CheckCard ctx={props.ctx} row={r} i={i} n={numbers[i]!} count={rows.length} kinds={props.kinds}
+          people={props.peopleOf ? props.peopleOf(r.kindId) : null} questions={props.questionsOf?.(r.kindId) ?? 0} helps={props.helpsOf?.(r.kindId) ?? 0}
+          readOnly={props.readOnly} height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
+          {...(props.hiddenOf ? { hidden: props.hiddenOf(r.kindId) } : {})}
+          {...(props.checkedAtOf?.(r.kindId) ? { checkedAt: props.checkedAtOf(r.kindId)! } : {})}
+          onMove={(to) => props.onChange(moveRow(rows, i, to))}
+          onLock={() => props.onChange(setCheckpoint(rows, i, !r.checkpoint))}
+          {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} {...(props.openHelp ? { openHelp: props.openHelp } : {})} />
+      </HelpRow>
     );
   };
   return (
@@ -219,7 +221,9 @@ function AddCheckSheet(props: {
       {left.length ? (
         <Group>
           {left.map((k, i) => (
-            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={checkName(k.id, props.kinds)} help={t('checks.addThisHelp')} onPress={() => props.onPick(k, false)} last={i === left.length - 1} />
+            <HelpRow key={k.id} of="checks.addKind">
+              <Row leading={<KindIcon kindId={k.id} size={40} />} label={checkName(k.id, props.kinds)} help={t('checks.addThisHelp')} onPress={() => props.onPick(k, false)} last={i === left.length - 1} />
+            </HelpRow>
           ))}
         </Group>
       ) : null}
@@ -244,7 +248,9 @@ function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; langu
       footer={on ? <PrimaryBtn label={t('checks.flows.use', { name: on.c.name })} help={t('checks.flows.useHelp', { language: props.language })} onPress={() => props.onUse(on, chk.kindsOf(on.doc))} /> : undefined}>
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
       {chk.entries.map((e) => (
-        <ChoiceCard key={e.c.key} on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
+        <HelpRow key={e.c.key} of="checks.flow">
+          <ChoiceCard on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
+        </HelpRow>
       ))}
     </Sheet>
   );

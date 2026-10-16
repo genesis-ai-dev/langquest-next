@@ -465,8 +465,12 @@ short:
   everything a person can tap, type in or switch lights up and says what
   tapping it does instead of doing it, sheets included, and a mark that means
   something without words (a coloured dot, a tick, a bar) says what it means.
-  A new control gets its line (`help`, or a Row's `sub`) when it is built;
-  `apps/mobile/test/helpParts.ts` holds it.
+  In a list, one row speaks for the rest: only the first row in sight takes
+  numbers, the others stay dim and still explain when tapped (`HelpRow`), so
+  a list of twenty never shows twenty sets; items that each do something
+  different (tabs, filters) keep a number each. A new control gets its line
+  (`help`, or a Row's `sub`) and a new list its `HelpRow` when it is built;
+  `apps/mobile/test/helpParts.ts` holds both.
 - **What you make needs no saving** (decision 127): nothing asks "Leave
   without saving?". What someone makes (a recording, a review, a
   note, an editor's changes) is kept as they go, only for them, and a small

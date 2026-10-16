@@ -23,7 +23,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputProps, type TextInputSelectionChangeEventData } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
+import { HelpBadge, HelpClip, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
@@ -246,16 +246,18 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
           <HelpClip style={{ flex: 1 }}>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.writeBody} keyboardShouldPersistTaps="handled" accessibilityLabel={t('writing.yourWriting')}>
               {shown.map((b, i) => (
-                <View key={b.key} style={styles.verseRow}>
-                  <VerseTile label={isPartKey(b.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(b.key))} empty={!b.text.trim()} />
-                  {/* No spell check or autocorrect: a phone's dictionary would "fix" the language into another one. */}
-                  <VerseBox label={isPartKey(b.key) ? t('writing.partBox', { n: i + 1 }) : t('writing.verseBox', { verse: verseName(verseKeys, verseKeys.indexOf(b.key)) })} value={b.text} multiline spellCheck={false} autoCorrect={false} onChangeText={(x) => setText(i, x)}
-                    onFocus={() => setFocus(i)} onBlur={() => setFocus((f) => (f === i ? null : f))}
-                    onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => selections.current.set(i, e.nativeEvent.selection)}
-                    onContentSizeChange={(e) => { const h = Math.ceil(e.nativeEvent.contentSize.height); setHeights((cur) => (cur[b.key] === h ? cur : { ...cur, [b.key]: h })); }}
-                    placeholder={t('writing.tapToWrite')} placeholderTextColor={C.faint}
-                    style={[styles.box, heights[b.key] ? { height: Math.max(target.min, heights[b.key]! + 2) } : null, focus === i && styles.boxOn, !b.text.trim() && focus !== i && styles.boxEmpty]} />
-                </View>
+                <HelpRow key={b.key} of="writing.verse">
+                  <View style={styles.verseRow}>
+                    <VerseTile label={isPartKey(b.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(b.key))} empty={!b.text.trim()} />
+                    {/* No spell check or autocorrect: a phone's dictionary would "fix" the language into another one. */}
+                    <VerseBox label={isPartKey(b.key) ? t('writing.partBox', { n: i + 1 }) : t('writing.verseBox', { verse: verseName(verseKeys, verseKeys.indexOf(b.key)) })} value={b.text} multiline spellCheck={false} autoCorrect={false} onChangeText={(x) => setText(i, x)}
+                      onFocus={() => setFocus(i)} onBlur={() => setFocus((f) => (f === i ? null : f))}
+                      onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => selections.current.set(i, e.nativeEvent.selection)}
+                      onContentSizeChange={(e) => { const h = Math.ceil(e.nativeEvent.contentSize.height); setHeights((cur) => (cur[b.key] === h ? cur : { ...cur, [b.key]: h })); }}
+                      placeholder={t('writing.tapToWrite')} placeholderTextColor={C.faint}
+                      style={[styles.box, heights[b.key] ? { height: Math.max(target.min, heights[b.key]! + 2) } : null, focus === i && styles.boxOn, !b.text.trim() && focus !== i && styles.boxEmpty]} />
+                  </View>
+                </HelpRow>
               ))}
               {verseKeys.length === 0 ? <SmallBtn label={t('writing.addPart')} icon="plus" help={t('writing.help.addPart')} onPress={addPart} /> : null}
             </ScrollView>
@@ -272,10 +274,12 @@ function WordsPreview({ boxes, verseKeys, sub }: { boxes: VerseText[]; verseKeys
     <View style={styles.preview} accessibilityLabel={sub}>
       <Text style={txt.smMuted}>{sub}</Text>
       {boxes.map((b, i) => (
-        <View key={b.key} style={styles.previewRow}>
-          <VerseTile label={isPartKey(b.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(b.key))} />
-          <Text style={[txt.body, { flex: 1 }]}>{b.text.trim()}</Text>
-        </View>
+        <HelpRow key={b.key} of="writing.preview">
+          <View style={styles.previewRow}>
+            <VerseTile label={isPartKey(b.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(b.key))} />
+            <Text style={[txt.body, { flex: 1 }]}>{b.text.trim()}</Text>
+          </View>
+        </HelpRow>
       ))}
     </View>
   );
@@ -290,10 +294,12 @@ function SourcePane({ ctx, v, source, verseKeys, lit }: { ctx: Ctx; v: PassageVi
     return (
       <View style={{ gap: space.sm }}>
         {words.map((w, i) => (
-          <View key={w.key} style={[styles.readRow, lit === w.key && styles.readRowLit]}>
-            <VerseTile label={isPartKey(w.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(w.key))} />
-            <Text style={[txt.body, { flex: 1 }]}>{w.text}</Text>
-          </View>
+          <HelpRow key={w.key} of="writing.source">
+            <View style={[styles.readRow, lit === w.key && styles.readRowLit]}>
+              <VerseTile label={isPartKey(w.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(w.key))} />
+              <Text style={[txt.body, { flex: 1 }]}>{w.text}</Text>
+            </View>
+          </HelpRow>
         ))}
       </View>
     );
@@ -302,8 +308,10 @@ function SourcePane({ ctx, v, source, verseKeys, lit }: { ctx: Ctx; v: PassageVi
   return (
     <View style={{ gap: space.sm }}>
       {heard.map((h, i) => (
-        <VersePlayRow key={h.key} ctx={ctx} hashes={h.hashes} lit={lit === h.key}
-          label={isPartKey(h.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(h.key))} />
+        <HelpRow key={h.key} of="writing.sourcePlay">
+          <VersePlayRow ctx={ctx} hashes={h.hashes} lit={lit === h.key}
+            label={isPartKey(h.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(h.key))} />
+        </HelpRow>
       ))}
       <Text style={[txt.xs, { textAlign: 'center' }]}>{t('writing.sourceHelp')}</Text>
     </View>
@@ -360,7 +368,7 @@ const NOTHING = () => undefined;
 function LetterStrip({ letters, onLetter }: { letters: string[]; onLetter: (l: string) => void }) {
   return (
     <View style={styles.strip} accessibilityLabel={t('writing.letters')}>
-      {letters.map((l) => <LetterKey key={l} letter={l} onLetter={onLetter} />)}
+      {letters.map((l) => <HelpRow key={l} of="writing.letter"><LetterKey letter={l} onLetter={onLetter} /></HelpRow>)}
     </View>
   );
 }

@@ -12,7 +12,7 @@ import { Field, Group, Ico, IconBtn, Row, SectionLabel, SmallBtn } from '../ui/k
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { PeopleLine } from '../checks/parts';
 import { nextQuestionType, questionTypeLabel } from './record';
 import { C, radius, space } from '../ui/theme';
@@ -61,12 +61,16 @@ export function TheyAnswer(props: {
       {props.asked.length > 0 || props.questions.length > 0 ? (
         <Group>
           {props.asked.map((sq) => (
-            <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')}
-              {...(props.check ? { onPress: props.check.open, help: t('passage.ask.openCheckHelp', { check: props.check.name }) } : {})} />
+            <HelpRow key={sq.q.id} of="ask.question">
+              <Row icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')}
+                {...(props.check ? { onPress: props.check.open, help: t('passage.ask.openCheckHelp', { check: props.check.name }) } : {})} />
+            </HelpRow>
           ))}
           {props.questions.map((q, i) => (
-            <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === props.questions.length - 1}
-              right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} help={t('passage.ask.removeQuestionHelp')} onPress={() => props.setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
+            <HelpRow key={q.id} of="ask.addedQuestion">
+              <Row label={q.text} sub={questionTypeLabel(q.type)} last={i === props.questions.length - 1}
+                right={<IconBtn name="close" label={t('passage.ask.removeQuestion')} help={t('passage.ask.removeQuestionHelp')} onPress={() => props.setQuestions((qs) => qs.filter((x) => x.id !== q.id))} bg="transparent" color={C.muted} />} />
+            </HelpRow>
           ))}
         </Group>
       ) : null}

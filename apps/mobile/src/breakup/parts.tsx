@@ -9,7 +9,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { bookNameOf } from '../templates/contentTemplates';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Chip, GhostBtn, HelpInfo, Ico, LinkBtn, PrimaryBtn, Sheet } from '../ui/kit';
@@ -110,7 +110,11 @@ export function PreviewSheet(props: {
       footer={props.onUse ? <PrimaryBtn label={t('breakup.preview.useThis')} icon="check" help={t('breakup.preview.useThisHelp')} onPress={props.onUse} /> : undefined}>
       {props.book ? null : (
         <Pills>
-          {PREVIEW_BOOKS.map((b) => <Chip key={b} label={bookNameOf(b)} on={shown === b} help={t('breakup.preview.bookHelp')} onPress={() => setBook(b)} />)}
+          {PREVIEW_BOOKS.map((b) => (
+            <HelpRow key={b} of="breakup.previewBook">
+              <Chip label={bookNameOf(b)} on={shown === b} help={t('breakup.preview.bookHelp')} onPress={() => setBook(b)} />
+            </HelpRow>
+          ))}
         </Pills>
       )}
       <PieceBar doc={props.doc} v11n={props.v11n} book={shown} explain />
@@ -175,10 +179,12 @@ export function LessonSheet(props: { visible: boolean; onClose: () => void; wayD
         </View>
       ) : null}
       {slide.ways ? slide.ways.map((w) => (
-        <View key={w.item} style={{ gap: space.xs }}>
-          <Text style={txt.h3}>{w.label}</Text>
-          <PieceBar doc={props.wayDoc(w.item)} v11n={props.v11n} explain />
-        </View>
+        <HelpRow key={w.item} of="breakup.lessonWay">
+          <View style={{ gap: space.xs }}>
+            <Text style={txt.h3}>{w.label}</Text>
+            <PieceBar doc={props.wayDoc(w.item)} v11n={props.v11n} explain />
+          </View>
+        </HelpRow>
       )) : null}
       {slide.rows ? (
         <View style={styles.list}>
@@ -227,10 +233,12 @@ export function ApplySheet(props: {
         <CheckRow label={props.users.find((u) => u.languageId === props.here)?.name ?? t('breakup.apply.thisLanguage')} sub={t('breakup.apply.hereSub')} checked onToggle={() => undefined} disabled
           detail={t('breakup.apply.hereDetail')} />
         {others.map((u, i) => (
-          <CheckRow key={u.languageId} label={u.name} sub={u.mayChange ? undefined : t('breakup.apply.cannotChange')} checked={chosen.has(u.languageId)} disabled={!u.mayChange}
-            detail={t('breakup.apply.otherDetail', { language: u.name })}
-            last={i === others.length - 1}
-            onToggle={() => setChosen((cur) => { const next = new Set(cur); if (next.has(u.languageId)) next.delete(u.languageId); else next.add(u.languageId); return next; })} />
+          <HelpRow key={u.languageId} of="breakup.applyLanguage">
+            <CheckRow label={u.name} sub={u.mayChange ? undefined : t('breakup.apply.cannotChange')} checked={chosen.has(u.languageId)} disabled={!u.mayChange}
+              detail={t('breakup.apply.otherDetail', { language: u.name })}
+              last={i === others.length - 1}
+              onToggle={() => setChosen((cur) => { const next = new Set(cur); if (next.has(u.languageId)) next.delete(u.languageId); else next.add(u.languageId); return next; })} />
+          </HelpRow>
         ))}
       </View>
       <Text style={txt.smMuted}>

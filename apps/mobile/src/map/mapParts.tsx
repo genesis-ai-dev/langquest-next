@@ -9,7 +9,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { ChapterStage } from '../reference/canon';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico, type IconName } from '../ui/kit';
@@ -45,7 +45,11 @@ export function NextLink(props: { title: string; icon: IconName; onPress: () => 
 export function Pills<K extends string>(props: { items: { id: K; label: string }[]; on: K; onPick: (id: K) => void }) {
   return (
     <View style={styles.pills}>
-      {props.items.map((it) => <Pill key={it.id} label={it.label} on={it.id === props.on} onPress={() => props.onPick(it.id)} />)}
+      {props.items.map((it) => (
+        <HelpRow key={it.id} of="map.testament">
+          <Pill label={it.label} on={it.id === props.on} onPress={() => props.onPick(it.id)} />
+        </HelpRow>
+      ))}
     </View>
   );
 }

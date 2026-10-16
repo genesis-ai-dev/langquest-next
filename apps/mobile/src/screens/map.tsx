@@ -37,6 +37,7 @@ import { useVerseNumbering } from '../breakup/useBreakup';
 import { ChangedMark } from '../breakup/earlier';
 import { useEarlierSections } from '../breakup/useEarlierSections';
 import { BookBar, ChapterTileView, FullKey, NextLink, Pills, QuietIconLink, ShortKey } from '../map/mapParts';
+import { HelpRow } from '../helpMode/helpBadge';
 import { chapterColumns } from '../ui/layout';
 import type { ClusterFilter } from '../clusters/model';
 import { contractsFor } from '../shell/screenContracts';
@@ -163,6 +164,7 @@ function FilterSheet(props: {
     <Sheet visible={props.visible} title={t('map.filter.title')} sub={t('map.filter.sub')} onClose={props.onClose}>
       {props.summary?.length ? <View style={{ gap: 2 }}>{props.summary.map((line) => <Text key={line} style={txt.smMuted}>{line}</Text>)}</View> : null}
       <View style={styles.filterChoices}>
+        {/* help-each: each filter shows different passages */}
         {MAP_FILTERS.filter((f) => f.id === 'all' || f.id === props.filter || props.counts[f.id] > 0).map((f) => (
           <Chip key={f.id} label={filterLabel(f.id)} on={props.filter === f.id} onPress={() => { props.onFilter(f.id); props.onClose(); }}
             help={f.id === 'all' ? filterHelp(f.id) : `${filterHelp(f.id)} ${t('map.filter.countHelp')}`}
@@ -279,8 +281,10 @@ export function StatusHome(ctx: Ctx) {
         <ChipRow>
           <Chip label={t('clusters.status.all')} count={languages.length} on={filter.kind === 'all'} help={t('map.status.allChipHelp')} onPress={() => { setCluster({ kind: 'all' }); setLimit(PAGE); }} />
           {clusters.map((c) => (
-            <Chip key={c.clusterId} label={c.name} icon="layers" count={c.languageIds.length} on={filter.kind === 'cluster' && filter.clusterId === c.clusterId}
-              help={t('map.status.clusterChipHelp')} onPress={() => { setCluster({ kind: 'cluster', clusterId: c.clusterId }); setLimit(PAGE); }} />
+            <HelpRow key={c.clusterId} of="map.cluster">
+              <Chip label={c.name} icon="layers" count={c.languageIds.length} on={filter.kind === 'cluster' && filter.clusterId === c.clusterId}
+                help={t('map.status.clusterChipHelp')} onPress={() => { setCluster({ kind: 'cluster', clusterId: c.clusterId }); setLimit(PAGE); }} />
+            </HelpRow>
           ))}
           {outside ? <Chip label={t('clusters.status.none')} count={outside} on={filter.kind === 'none'} help={t('map.status.noClusterChipHelp')} onPress={() => { setCluster({ kind: 'none' }); setLimit(PAGE); }} /> : null}
         </ChipRow>
@@ -315,40 +319,44 @@ export function StatusHome(ctx: Ctx) {
       {languages.length > 5 ? <SearchField value={query} onChangeText={(t) => { setQuery(t); setLimit(PAGE); }} placeholder={t('map.status.find')} testID="map-search" /> : null}
       {shown.length > 0 ? <SectionLabel label={t('map.status.languages')} /> : null}
       {shown.slice(0, limit).map((l) => l.progress && l.here ? (
-        <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)} accessibilityLabel={t('map.status.languageLabel', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total) })}
-          help={languageHelp(true, l.progress)}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-            <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
-              <Text style={txt.smMuted} numberOfLines={1}>{t('map.passages', { count: l.progress.total })} · {l.flow}</Text>
+        <HelpRow key={l.languageId} of="map.language">
+          <Card current={isOpen(l.languageId)} onPress={() => open(l.languageId)} accessibilityLabel={t('map.status.languageLabel', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total) })}
+            help={languageHelp(true, l.progress)}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+              <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
+                <Text style={txt.smMuted} numberOfLines={1}>{t('map.passages', { count: l.progress.total })} · {l.flow}</Text>
+              </View>
+              {l.progress.waiting > 0 ? <IconCount icon="clock" n={l.progress.waiting} tone="brand" /> : null}
+              <Ico name="right" size={24} color={C.muted} />
             </View>
-            {l.progress.waiting > 0 ? <IconCount icon="clock" n={l.progress.waiting} tone="brand" /> : null}
-            <Ico name="right" size={24} color={C.muted} />
-          </View>
-          <FunnelRows progress={l.progress} {...(l.stepNames ? { stepNames: l.stepNames } : {})} />
-        </Card>
+            <FunnelRows progress={l.progress} {...(l.stepNames ? { stepNames: l.stepNames } : {})} />
+          </Card>
+        </HelpRow>
       ) : (
         // Not open on this phone: opening it brings it down (decision 63).
         // The server's figures, when it has them, show what it holds meanwhile.
-        <Card key={l.languageId} current={isOpen(l.languageId)} onPress={() => open(l.languageId)}
-          accessibilityLabel={l.progress
-            ? t('map.status.languageLabelAsOf', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total), ago: agoWords(l.asOf!) })
-            : t('map.status.languageLabelAway', { name: l.name })}
-          help={languageHelp(false, l.progress)}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-            <View style={styles.code}><Ico name="download" size={20} color={C.primary} /></View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
-              <Text style={txt.smMuted} numberOfLines={1}>
-                {l.progress ? t('map.status.passagesAsOf', { count: l.progress.total, ago: agoWords(l.asOf!) }) : t('map.status.openToBring')}
-              </Text>
+        <HelpRow key={l.languageId} of="map.language">
+          <Card current={isOpen(l.languageId)} onPress={() => open(l.languageId)}
+            accessibilityLabel={l.progress
+              ? t('map.status.languageLabelAsOf', { name: l.name, recorded: fmt(l.progress.recorded), total: fmt(l.progress.total), ago: agoWords(l.asOf!) })
+              : t('map.status.languageLabelAway', { name: l.name })}
+            help={languageHelp(false, l.progress)}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+              <View style={styles.code}><Ico name="download" size={20} color={C.primary} /></View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
+                <Text style={txt.smMuted} numberOfLines={1}>
+                  {l.progress ? t('map.status.passagesAsOf', { count: l.progress.total, ago: agoWords(l.asOf!) }) : t('map.status.openToBring')}
+                </Text>
+              </View>
+              {l.progress && l.progress.waiting > 0 ? <IconCount icon="clock" n={l.progress.waiting} tone="brand" /> : null}
+              <Ico name="right" size={24} color={C.muted} />
             </View>
-            {l.progress && l.progress.waiting > 0 ? <IconCount icon="clock" n={l.progress.waiting} tone="brand" /> : null}
-            <Ico name="right" size={24} color={C.muted} />
-          </View>
-          {l.progress ? <FunnelRows progress={l.progress} /> : null}
-        </Card>
+            {l.progress ? <FunnelRows progress={l.progress} /> : null}
+          </Card>
+        </HelpRow>
       ))}
       <ShowMore remaining={shown.length - limit} step={PAGE} onMore={() => setLimit((n) => n + PAGE)} />
       {q && shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.status.noMatch', { query })}</Text> : null}
@@ -384,16 +392,20 @@ function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; l
         const limit = limits[name] ?? PAGE;
         const shown = list.slice(0, limit);
         return (
-          <View key={name} style={{ gap: space.sm }}>
-            <SectionLabel label={name} />
-            <Group>
-              {shown.map((e, i) => (
-                <PassageRow key={e.unitId} ctx={props.ctx} state={props.state} kinds={props.kinds} e={e} mine={props.forYou.has(e.unitId)}
-                  last={i === shown.length - 1} onPress={() => props.ctx.openPassage(e.unitId, props.languageId)} />
-              ))}
-            </Group>
-            <ShowMore remaining={list.length - limit} step={PAGE} onMore={() => setLimits((l) => ({ ...l, [name]: limit + PAGE }))} />
-          </View>
+          <HelpRow key={name} of="map.section">
+            <View style={{ gap: space.sm }}>
+              <SectionLabel label={name} />
+              <Group>
+                {shown.map((e, i) => (
+                  <HelpRow key={e.unitId} of="map.passage">
+                    <PassageRow ctx={props.ctx} state={props.state} kinds={props.kinds} e={e} mine={props.forYou.has(e.unitId)}
+                      last={i === shown.length - 1} onPress={() => props.ctx.openPassage(e.unitId, props.languageId)} />
+                  </HelpRow>
+                ))}
+              </Group>
+              <ShowMore remaining={list.length - limit} step={PAGE} onMore={() => setLimits((l) => ({ ...l, [name]: limit + PAGE }))} />
+            </View>
+          </HelpRow>
         );
       })}
     </>
@@ -472,7 +484,11 @@ export function MapHome(ctx: Ctx) {
   const openBook = (key: string) => ctx.go('book_map', { languageId, bookId: key, ...(filter !== 'all' ? { filter } : {}) });
   const languageChips = choices.length > 1 ? (
     <ChipRow>
-      {choices.map((l) => <Chip key={l.languageId} label={l.name} on={l.languageId === languageId} help={t('map.home.languageChipHelp')} onPress={() => switchLanguage(l.languageId)} />)}
+      {choices.map((l) => (
+        <HelpRow key={l.languageId} of="map.languageChip">
+          <Chip label={l.name} on={l.languageId === languageId} help={t('map.home.languageChipHelp')} onPress={() => switchLanguage(l.languageId)} />
+        </HelpRow>
+      ))}
     </ChipRow>
   ) : null;
 
@@ -518,7 +534,11 @@ export function MapHome(ctx: Ctx) {
             </Text>
             {bookHits.length > 0 ? (
               <Group>
-                {bookHits.map((b, i) => <BookRow key={b.key} b={b} filter="all" last={i === bookHits.length - 1} onPress={() => openBook(b.key)} />)}
+                {bookHits.map((b, i) => (
+                  <HelpRow key={b.key} of="map.book">
+                    <BookRow b={b} filter="all" last={i === bookHits.length - 1} onPress={() => openBook(b.key)} />
+                  </HelpRow>
+                ))}
               </Group>
             ) : null}
           </>
@@ -530,8 +550,10 @@ export function MapHome(ctx: Ctx) {
             {passageHits.length > 0 ? (
               <Group>
                 {passageHits.slice(0, limit).map((e, i, shown) => (
-                  <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === shown.length - 1} changed={earlier.over.has(e.unitId)}
-                    onPress={() => ctx.openPassage(e.unitId, languageId)} />
+                  <HelpRow key={e.unitId} of="map.passage">
+                    <PassageRow ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === shown.length - 1} changed={earlier.over.has(e.unitId)}
+                      onPress={() => ctx.openPassage(e.unitId, languageId)} />
+                  </HelpRow>
                 ))}
               </Group>
             ) : null}
@@ -554,7 +576,11 @@ export function MapHome(ctx: Ctx) {
           ) : null}
           {visible.length > 0 ? (
             <Group>
-              {visible.map((b, i) => <BookRow key={b.key} b={b} filter={filter} last={i === visible.length - 1} onPress={() => openBook(b.key)} />)}
+              {visible.map((b, i) => (
+                <HelpRow key={b.key} of="map.book">
+                  <BookRow b={b} filter={filter} last={i === visible.length - 1} onPress={() => openBook(b.key)} />
+                </HelpRow>
+              ))}
             </Group>
           ) : null}
           {other ? (
@@ -674,7 +700,9 @@ export function BookMap(ctx: Ctx) {
         {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.nothingMatches')}</Text> : (
           <Group>
             {shown.slice(0, limit).map((e, i, list) => (
-              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} changed={earlier.over.has(e.unitId)} />
+              <HelpRow key={e.unitId} of="map.passage">
+                <PassageRow ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} changed={earlier.over.has(e.unitId)} />
+              </HelpRow>
             ))}
           </Group>
         )}
@@ -696,10 +724,12 @@ export function BookMap(ctx: Ctx) {
         {rows.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
             {row.map((c) => (
-              <Tile key={c.n} testID={`row-${bookId}-${c.n}`} c={c} offline={offline} changed={c.list.some((e) => earlier.over.has(e.unitId))} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
-                if (c.list.length === 1) open(c.list[0]!);
-                else if (c.list.length > 1) setOpenChapter(c.n);
-              }} />
+              <HelpRow key={c.n} of="map.chapter">
+                <Tile testID={`row-${bookId}-${c.n}`} c={c} offline={offline} changed={c.list.some((e) => earlier.over.has(e.unitId))} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
+                  if (c.list.length === 1) open(c.list[0]!);
+                  else if (c.list.length > 1) setOpenChapter(c.n);
+                }} />
+              </HelpRow>
             ))}
             {Array.from({ length: cols - row.length }, (_, i) => <View key={`pad-${i}`} style={{ flex: 1 }} />)}
           </View>
@@ -712,8 +742,10 @@ export function BookMap(ctx: Ctx) {
         {sheet ? (
           <Group>
             {sheet.list.map((e, i) => (
-              <PassageRow key={e.unitId} ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === sheet.list.length - 1} changed={earlier.over.has(e.unitId)}
-                onPress={() => { setOpenChapter(null); open(e); }} />
+              <HelpRow key={e.unitId} of="map.passage">
+                <PassageRow ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === sheet.list.length - 1} changed={earlier.over.has(e.unitId)}
+                  onPress={() => { setOpenChapter(null); open(e); }} />
+              </HelpRow>
             ))}
           </Group>
         ) : null}
