@@ -71,26 +71,6 @@ export function isJustNow(hlc: string, now = Date.now()): boolean {
   return !!hlc && now - decodeHlc(hlc).wallMs < 60_000;
 }
 
-function dueDay(due: string, now: number): { day: string; overdue: boolean } | null {
-  const d = new Date(`${due}T12:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return { day: formatDay(d), overdue: d.getTime() < now - 86_400_000 };
-}
-
-/** A due date ("2026-10-01") as people say it: "due Oct 1", "overdue since Sep 20". */
-export function dueText(due: string, now = Date.now()): string {
-  const d = dueDay(due, now);
-  if (!d) return due;
-  return d.overdue ? t('passage.view.overdueSince', { day: d.day }) : t('passage.view.due', { day: d.day });
-}
-
-/** The same at the start of a line: "Due Oct 1", "Overdue since Sep 20". */
-export function dueTitle(due: string, now = Date.now()): string {
-  const d = dueDay(due, now);
-  if (!d) return due;
-  return d.overdue ? t('passage.view.overdueSinceStart', { day: d.day }) : t('passage.view.dueStart', { day: d.day });
-}
-
 /** "looks good" / "needs changes", or "recorded" for a kind that makes content (ADR-015). */
 export function outcomeText(kind: KindDef | undefined, outcome: ReviewView['outcome']): string {
   if (kind?.produces || outcome === 'recorded') return t('passage.view.outcome.recorded');

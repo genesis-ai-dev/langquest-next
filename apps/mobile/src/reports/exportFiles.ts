@@ -43,13 +43,13 @@ export function languagesCsv(rows: LanguageRow[], now = Date.now(), clustersOf: 
       t('reports.csv.recorded'), t('reports.csv.done'), t('reports.csv.recordedShare'), t('reports.csv.doneShare'),
       t('reports.csv.gospelsRecorded'), t('reports.csv.ntRecorded'), t('reports.csv.otRecorded'), t('reports.csv.recordingsOnServer'),
       t('reports.csv.lastUpload'), t('reports.csv.uploadStatus'), t('reports.csv.feedbackToAnswer'), t('reports.csv.openRequests'),
-      t('reports.csv.overdueRequests'), t('reports.csv.atCheckpoint'), t('reports.csv.bottleneck'), t('reports.csv.lastActivity'), t('reports.csv.reportUpdated')],
+      t('reports.csv.atCheckpoint'), t('reports.csv.bottleneck'), t('reports.csv.lastActivity'), t('reports.csv.reportUpdated')],
     ...rows.map(({ languageId, report: r, updatedAt }) => [
       r.name, r.code, r.country, clustersOf(languageId).join('; '), r.flowName, r.progress.total, r.progress.recorded, r.progress.done,
       percent(r.progress.recorded, r.progress.total), percent(r.progress.done, r.progress.total),
       r.coverage.recorded.gospels, r.coverage.recorded.nt, r.coverage.recorded.ot, r.uploads.cards, r.uploads.lastAt,
       recencyOf(r, now).band,
-      r.attention.feedback, r.attention.openRequests, r.attention.overdueRequests, r.attention.atCheckpoint,
+      r.attention.feedback, r.attention.openRequests, r.attention.atCheckpoint,
       bottleneckText(r), r.lastActivity, updatedAt
     ])
   ]);

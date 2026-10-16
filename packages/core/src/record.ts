@@ -61,6 +61,7 @@ interface RequestPayload {
   teamId?: string;
   /** Someone without the app, reached by a link. */
   guest?: { name: string; channel: 'whatsapp' | 'sms'; contact: string };
+  /** Requests made before due dates were removed (decision 126) may carry one; nothing sets or shows it. */
   dueDate?: string;
   note?: string;
   noteBlobHash?: string;
@@ -155,7 +156,7 @@ export type RecordEvents = {
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
   /**
-   * A kind that makes something (decisions.md 126): it turns recording or
+   * A kind that makes something (decisions.md 127): it turns recording or
    * writing into recording or writing, in the same language or another, and
    * may make the passage's next version. `null` makes it an ordinary check
    * again. Register per kind.
@@ -169,7 +170,7 @@ export type RecordEvents = {
   'v1.CheckLooksAtSet': { kindId: string; makerKindId: string | null };
   /**
    * Something made from a version, or from something made from one
-   * (decisions.md 126): exactly one of `fromTakeId` and `fromMadeId`, and
+   * (decisions.md 127): exactly one of `fromTakeId` and `fromMadeId`, and
    * exactly one of `parts` (recorded cards or written parts, one kind) and
    * `takeId` (it became the passage's next version). `kindId` is the step
    * that made it, absent when none did (brought over from LangQuest v2);
@@ -203,7 +204,7 @@ export interface KindDef {
   usualReviewer: string;
   withholdsContext?: boolean;
   produces?: ProducesSpec;
-  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 126); read from the fold, never a field of ReviewKindDefined. */
+  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 127); read from the fold, never a field of ReviewKindDefined. */
   makes?: MakesSpec;
   /** The making kind whose output it reads, when it checks one (v1.CheckLooksAtSet). */
   looksAt?: string;

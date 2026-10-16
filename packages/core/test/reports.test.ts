@@ -92,14 +92,13 @@ describe('language report', () => {
     expect(r.attention.feedback).toBe(1);
   });
 
-  it('a request is overdue only when its due date is before the report day', () => {
+  it('counts open requests, with nothing overdue: an older request\'s due date counts for nothing', () => {
     const p = language();
     publish(p, 'john3', ['c1']);
     p.run('lead', (c) => c.ask({ commandId: 'late', unitId: 'john3', what: 'review', kindId: 'community', profileId: 'ayen', dueDate: '2026-08-15' }));
-    p.run('lead', (c) => c.ask({ commandId: 'soon', unitId: 'john4', what: 'record', profileId: 'akol', dueDate: '2026-12-01' }));
+    p.run('lead', (c) => c.ask({ commandId: 'soon', unitId: 'john4', what: 'record', profileId: 'akol' }));
     const r = report(p.state(), Date.UTC(2026, 8, 2));
-    expect(r.attention.openRequests).toBe(2);
-    expect(r.attention.overdueRequests).toBe(1);
+    expect(r.attention).toEqual({ feedback: 0, openRequests: 2, atCheckpoint: expect.any(Number) });
   });
 
   it('with no review steps a recorded passage is done and nothing is a bottleneck', () => {

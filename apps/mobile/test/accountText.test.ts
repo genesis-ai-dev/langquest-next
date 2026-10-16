@@ -13,15 +13,14 @@ const words = {
   passage: 'John 3:1-21',
   language: 'Dinka',
   kindName: (id: string | undefined) => (id === 'community' ? 'Community Check' : id === 'bt' ? 'Back Translation' : 'review'),
-  produces: (id: string) => id === 'bt',
-  due: (d: string) => `due ${d}`
+  produces: (id: string) => id === 'bt'
 };
 const base = { unitId: 'john3', hlc: '0' } as const;
 
 describe('inbox words', () => {
-  it('says who asked for what, where, and when it is due', () => {
+  it('says who asked for what and where, never a due date', () => {
     const u = { ...base, id: 'request:1', kind: 'request', by: 'sarah', request: { what: 'record', dueDate: 'Sep 1' } } as unknown as Update;
-    expect(updateText(u, words)).toEqual({ icon: 'assign', title: 'Sarah asked you to record', body: 'John 3:1-21 (Dinka) — due Sep 1' });
+    expect(updateText(u, words)).toEqual({ icon: 'assign', title: 'Sarah asked you to record', body: 'John 3:1-21 (Dinka)' });
     const r = { ...base, id: 'request:2', kind: 'request', by: 'sarah', request: { what: 'review', kindId: 'community' } } as unknown as Update;
     expect(updateText(r, words).title).toBe('Sarah asked you to do a Community Check');
   });

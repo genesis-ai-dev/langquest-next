@@ -213,12 +213,10 @@ Steps:
 
 Expected:
 - The card is labelled "Next for you". Its title is the newest request:
-  requests lead newest first, whatever their due dates (core `highlightsFor`).
-  With the fixture that is P-Q4, Luke 13:31–35, asked after P-NEW.
-- The sub reads "Record it · asked by {COORD}" and, when the request has a
-  due date, " · due {Mon d}". P-NEW, the only request with a due date, is
-  further down the list (NAV-012) as "Record · due {Mon d}", 14 days after
-  the fixture was made.
+  requests lead newest first (core `highlightsFor`). With the fixture that
+  is P-Q4, Luke 13:31–35, asked after P-NEW.
+- The sub reads "Record it · asked by {COORD}". No due date shows
+  (decision 126).
 - "Start" opens that passage's record, with "Record" as its main button
   (PASS-001).
 - Back on the record returns to My Work.
@@ -239,8 +237,7 @@ Expected:
   requests, the P-DRAFT draft and P-NEEDS feedback. One leads and 6 are
   listed.
 - Requests come first, then drafts, then feedback.
-- Record rows have a mic icon and the sub "Record · due {Mon d}" or
-  "Record · asked by {COORD}".
+- Record rows have a mic icon and the sub "Record · asked by {COORD}".
 - The P-DRAFT row's sub reads "Finish recording".
 - The P-NEEDS row has an amber chat icon and reads only "Feedback to hear".
 - After "3 more for you", all 6 show and the toggle reads "Fewer". "Fewer"
@@ -308,10 +305,10 @@ Expected:
   team request.
 - It expands under itself. No new screen opens.
 - Each row has a clock icon, the passage title, and the sub "Recording ·
-  {TRANS} · due {Mon d}" or "Recording · {TRANS} · asked {when}".
+  {TRANS} · asked {when}".
 - The team request reads "Peer check · the Peer check team · asked {when}":
   the check by its one name, and the team, never "someone".
-- Rows with a due date come first, earliest first.
+- Rows are newest first. No due date shows (decision 126).
 - Tapping P-NEW opens its record. Back returns to My Work with the list
   still open.
 - Fixed (2026-10-12): a request made to a check's team named "someone"
@@ -507,7 +504,7 @@ Expected:
   shows on a phone, with "Work" lit.
 - The first section is "Unread ({n})". It includes "{COORD's first name}
   asked you to record" ("Cora asked you to record"), with the body "Luke
-  13:1–9 (Alpha) — due {Mon d}", and "Feedback on Luke 14:15–24" with
+  13:1–9 (Alpha)", and "Feedback on Luke 14:15–24" with
   "{REV}: Peer Review suggests changes — revise, or keep it and say why."
 - None of the rows is TRANS's own act.
 - Back returns to My Work.

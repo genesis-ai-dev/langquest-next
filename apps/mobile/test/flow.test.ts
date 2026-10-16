@@ -24,7 +24,7 @@ describe('UX flow coverage', () => {
       'settings_more',
       // One of a language's checks, with its people, questions and helps (decision 91).
       'check_editor',
-      // Something made from a version (decision 126).
+      // Something made from a version (decision 127).
       'made_detail',
       // A cluster of languages: a name on some of them (decision 108).
       'cluster_home'] as const;

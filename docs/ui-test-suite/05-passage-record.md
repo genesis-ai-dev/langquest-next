@@ -70,10 +70,10 @@ Steps:
 Expected:
 - The header has the title "Luke 13:1-9", the sub "Alpha", and a Back arrow.
 - The path shows "Record" lit. Its sub reads:
-  - TRANS: "{COORD} asked you · due {Mon d}. Tell it in your language. The
-    Bible, key words and notes are beside you while you record."
-  - COORD: "You asked {TRANS} · due {Mon d}. Tell it…"
-  - Everyone else: "{COORD} asked {TRANS} · due {Mon d}. Tell it…"
+  - TRANS: "{COORD} asked you. Tell it in your language. The Bible, key
+    words and notes are beside you while you record."
+  - COORD: "You asked {TRANS}. Tell it…"
+  - Everyone else: "{COORD} asked {TRANS}. Tell it…"
 - Then "Publish", with the sub "Then ask for the peer check".
 - "Then the team" lists one row per check (decision 91): "Peer check" "after
   you publish", "Back translation" "same time", "Community check" "after the
@@ -887,7 +887,7 @@ Expected:
   more.
 - The footer reads "Ask the Peer check team".
 
-### PASS-038 Ask a person, with directions, a question and a due date
+### PASS-038 Ask a person, with directions and a question, and no due date
 Roles: TRANS, TREV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
@@ -900,7 +900,7 @@ Steps:
    "Or type them".
 3. Under "They'll answer", type "Is the host's anger clear?" in "Ask
    something specific". Tap "Add question".
-4. Under "By when · optional", tap "In a week".
+4. Check that there is no "By when" section and no date field.
 5. Tap "Ask {TREV first name}".
 6. TREV: Sync now, then open My Work.
 
@@ -908,13 +908,14 @@ Expected:
 - The footer changes to "Ask {first name}" once TREV is picked.
 - The question shows under "They'll answer", after the check's own
   questions, with "Yes/No" and ✕ ("Remove question").
-- The date line reads "Due {day}".
+- There is no "By when · optional", no date chip, no date field and no
+  "Due {day}" line (decision 126).
 - After sending, the toast reads "{TREV} will see it on their My Work", with
   "Undo". The app returns to P-DRAFT's record.
 - The "Peer check" row reads "asked {TREV}".
-- History shows "Asked {TREV} for Peer Review", "You · {when} — due {Mon d}",
-  with "Withdraw".
-- TREV's My Work lists "Luke 14:1-14", "… asked by {TRANS} · due {Mon d}". In
+- History shows "Asked {TREV} for Peer Review", "You · {when} — open", with
+  "Withdraw".
+- TREV's My Work lists "Luke 14:1-14", "… asked by {TRANS}". In
   the review the directions and the question appear (07 REV).
 
 ### PASS-039 Ask someone to record, then Undo
@@ -923,39 +924,21 @@ Roles: COORD, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Aut
 Steps:
 1. Open an unstarted Luke passage nobody was asked to record. Tap "Something
    else?", then "Someone else should do this".
-2. Pick KEPT ("Kept Person"). Tap "In 2 weeks". Tap "Ask Kept".
+2. Pick KEPT ("Kept Person"). Tap "Ask Kept".
 3. Within 7 seconds, tap "Undo".
 
 Expected:
 - The toast reads "Kept Person will see it on their My Work" with "Undo".
   The app returns to the record's path, where "Record" reads "You asked Kept
-  Person · due {Mon d}. Tell it…".
+  Person. Tell it…".
 - "Undo" shows "Undone.". The Record step loses the "asked" line, and
   History shows the request as withdrawn.
 - LADMIN can do the same in Alpha (Assign work, Send to reviewers).
 - Fixed (2026-10-12): asking from "Something else?" came back to "Something
   else?", not the path (`passage_record` now takes an `asked` param).
 
-### PASS-040 Typing a due date
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
-
-Steps:
-1. On Ask someone (any), type "12/10/2026" in "Or a date, like
-   {today+10}".
-2. Type "2026-02-30".
-3. Type yesterday's date as YYYY-MM-DD.
-4. Type a date 10 days ahead.
-5. Clear the field and tap "Today".
-6. Tap "No date".
-
-Expected:
-- Step 1: "Write the date as YYYY-MM-DD, like 2026-10-07." in red. The
-  footer stays disabled.
-- Step 2: "That date does not exist."
-- Step 3: "Pick today or a later day."
-- Step 4: no error. The line reads "Due {day}", and no chip is lit.
-- Step 5: "Today" is lit, and the line reads "Due {today}".
-- Step 6: "No date" removes the due date.
+### PASS-040 Typing a due date (retired)
+Removed with due dates (decision 126). The number is not reused.
 
 ### PASS-041 Your own questions
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -1364,7 +1347,7 @@ Expected:
 - The summary reads "{n} entries since {when}" (or "{n} entries · just
   now"). 20 entries show, then "Show 20 more · {left} left".
 - The entries include "Version 1 published", "Asked {who} for {kind}" (with
-  open, due, done or withdrawn), "{Kind} · looks good" and "Community Check
+  open, done or withdrawn), "{Kind} · looks good" and "Community Check
   set aside".
 - Each sub reads "{who} · {when} — {detail}".
 - A version entry opens the version. A review entry opens the review.

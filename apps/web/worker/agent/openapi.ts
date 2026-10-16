@@ -180,8 +180,8 @@ function schemas(): Record<string, Schema> {
     }),
     Request: obj({
       requestId: text(), what: text(undefined, { enum: ['record', 'review'] }), kindId: text('A review of this kind answers it.'), kind: text(),
-      forYou: bool('Asked of the token\'s person, or a team they are in.'), team: text(), dueDate: text(), note: text(), askedAt: time()
-    }, ['kindId', 'kind', 'team', 'dueDate', 'note']),
+      forYou: bool('Asked of the token\'s person, or a team they are in.'), team: text(), note: text(), askedAt: time()
+    }, ['kindId', 'kind', 'team', 'note']),
     Medium: text('A version, or something made, is recorded (audio) or written (text).', { enum: [...MEDIA] }),
     MadeBy: obj({
       kindId: text('The step that made it.'), kind: text('The step\'s name, such as "Final recording".'),
