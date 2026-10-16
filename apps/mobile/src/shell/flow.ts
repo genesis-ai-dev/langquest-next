@@ -41,7 +41,7 @@ export const SCREEN_IDS = [
   // App only: exploring Bibles beside a passage (docs/reference-material.md)
   'bible_explore',
   // App only: the simple redesign (decision 71): microphone setup by ear, and getting a language ready
-  'mic_setup', 'get_ready',
+  'get_ready',
   // App only: the simple redesign's Me keeps five rows; everything else Settings had is one tap deeper (decision 71)
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
@@ -355,10 +355,6 @@ export const EDGES: Edge[] = [
   e('invite_member', 'role_editor'),
   e('edit_member', 'role_editor'),
   // App only: the simple redesign (decision 71)
-  e('settings_home', 'mic_setup'),
-  e('mic_setup', 'settings_home', 'back'),
-  e('workspace', 'mic_setup'),
-  e('mic_setup', 'workspace', 'back'),
   // The study is one reader for both nodes (decision 71, demo ADR-035): its key words and glossary open a key term from either,
   // and the guide editor is offered from either (the steps sheet).
   e('study_guide', 'key_term_detail'),

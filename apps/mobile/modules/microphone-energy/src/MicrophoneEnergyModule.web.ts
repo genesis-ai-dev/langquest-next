@@ -1,12 +1,12 @@
 // Web is a test target (see metro.config.js). Same contract as the native
-// module: 44.1 kHz mono frames of 2048 samples, the vadCore state machine,
-// and 16-bit WAV segments delivered as blob: URIs. renderAudio (export and
+// module: 44.1 kHz mono frames of 2048 samples, parts split by splitter.ts
+// (LAN-82), and 16-bit WAV segments delivered as blob: URIs. renderAudio (export and
 // editing) is native-only and fails loudly.
 import type { MicrophoneEnergyModuleEvents, VADConfig } from './MicrophoneEnergyModule';
 import {
-  assemble, DEFAULT_PREROLL_MS, encodeWav, FRAME_SAMPLES, peakEnergy, prerollFrames,
-  RING_FRAMES, SAMPLE_RATE, Vad
+  assemble, DEFAULT_PREROLL_MS, encodeWav, FRAME_SAMPLES, peakEnergy, prerollFrames, SAMPLE_RATE
 } from './vadCore';
+import { SPLIT, Splitter, type HeardLevels } from './splitter';
 
 export type { VADConfig, MicrophoneEnergyModuleEvents } from './MicrophoneEnergyModule';
 
@@ -32,32 +32,41 @@ const TAP = `registerProcessor('lq-tap', class extends AudioWorkletProcessor {
 let capture: { ctx: AudioContext; stream: MediaStream } | null = null;
 /** The capture's sample rate: the phones' 44.1 kHz unless the browser insists on the device's own. */
 let rate = SAMPLE_RATE;
+/** Long enough for a part's head to reach back as far as the splitter lets it. */
+const RING_FRAMES = Math.ceil((SPLIT.maxHeadMs + SPLIT.headMarginMs) / (FRAME_SAMPLES / (SAMPLE_RATE / 1000))) + 2;
 const ring: Float32Array[] = [];
 let segment: { frames: Float32Array[]; startTime: number } | null = null;
 let vadEnabled = false;
-const vad = new Vad();
+/** What this device heard last time, until a session's splitter hears for itself. */
+let remembered: HeardLevels | null = null;
+let splitter: Splitter | null = null;
+/** The splitter's clock: frames heard, as time. The page's clock jumps when frames arrive in bursts. */
+let clock = 0;
+const frameMs = () => FRAME_SAMPLES / (rate / 1000);
 
 function onFrame(frame: Float32Array) {
   const now = Date.now();
   const energy = peakEnergy(frame);
-  // Native order: ring, then open segment, then VAD, then the meter event.
+  // Native order: ring, then open segment, then the splitter, then the meter event.
   ring.push(frame);
   if (ring.length > RING_FRAMES) ring.shift();
   segment?.frames.push(frame);
-  if (vadEnabled) {
-    const action = vad.step(energy, now);
-    if (action?.type === 'start') { emit('onSegmentStart'); open(action.prerollMs); }
+  clock += frameMs();
+  if (vadEnabled && splitter) {
+    const action = splitter.step(energy, clock);
+    if (action?.type === 'start') { emit('onSegmentStart', { headMs: action.headFrames * frameMs() }); open(action.headFrames); }
     else if (action?.type === 'stop') {
-      if (action.discard) { segment = null; emit('onSegmentComplete', { uri: '', startTime: 0, endTime: 0, duration: 0 }); }
-      else finish(Date.now() - action.rewindMs, rate * action.rewindMs / 1000);
+      remembered = splitter.remember();
+      if (action.discard) { segment = null; emit('onSegmentComplete', { uri: '', startTime: 0, endTime: 0, duration: 0, heard: remembered }); }
+      else finish(Date.now() - action.trimMs, rate * action.trimMs / 1000);
     }
   }
-  emit('onEnergyResult', { energy, timestamp: now });
+  emit('onEnergyResult', { energy, timestamp: now, ...(vadEnabled && splitter ? { quiet: splitter.levels().quiet } : {}) });
 }
 
-function open(prerollMs: number) {
+function open(frames: number) {
   if (segment) return;
-  const n = Math.min(ring.length, prerollFrames(prerollMs));
+  const n = Math.min(ring.length, frames);
   // Frames are appended after this call; the current frame is already in the ring.
   segment = { frames: n ? ring.slice(-n) : [], startTime: Date.now() };
 }
@@ -66,9 +75,12 @@ function finish(endTime: number, trimSamples: number): string | null {
   const done = segment;
   segment = null;
   if (!done) return null;
-  const blob = new Blob([encodeWav(assemble(done.frames, Math.trunc(trimSamples)), rate) as Uint8Array<ArrayBuffer>], { type: 'audio/wav' });
+  const pcm = assemble(done.frames, Math.trunc(trimSamples));
+  const blob = new Blob([encodeWav(pcm, rate) as Uint8Array<ArrayBuffer>], { type: 'audio/wav' });
   const uri = URL.createObjectURL(blob);
-  emit('onSegmentComplete', { uri, startTime: done.startTime, endTime, duration: endTime - done.startTime });
+  // The length is what the file holds, head and tail included.
+  const duration = pcm.length / (rate / 1000);
+  emit('onSegmentComplete', { uri, startTime: endTime - duration, endTime, duration, ...(remembered ? { heard: remembered } : {}) });
   return uri;
 }
 
@@ -129,7 +141,8 @@ export default {
   /** Mid-segment, the segment is kept as a manual stop (no trim), as on the phone. */
   async stopEnergyDetection() {
     vadEnabled = false;
-    vad.state = 'IDLE';
+    if (splitter) remembered = splitter.remember();
+    splitter?.pauseListening();
     finish(Date.now(), 0);
     const c = capture;
     capture = null;
@@ -137,19 +150,30 @@ export default {
     c?.stream.getTracks().forEach((t) => t.stop());
     await c?.ctx.close();
   },
-  async configureVAD(config: VADConfig) { vad.configure(config); },
+  /** Only what the device heard last time is read; the splitter needs no setting (LAN-82). */
+  async configureVAD(config: VADConfig) { if (config.heard) remembered = config.heard; },
   /** As on the phones, what was heard while the detector was off never heads a part. */
-  async enableVAD() { vadEnabled = true; vad.reset(); ring.length = 0; },
-  async disableVAD() { vadEnabled = false; vad.state = 'IDLE'; finish(Date.now(), 0); },
+  async enableVAD() {
+    vadEnabled = true;
+    ring.length = 0;
+    if (!splitter) splitter = new Splitter(frameMs(), remembered);
+    splitter.pauseListening();
+  },
+  async disableVAD() {
+    vadEnabled = false;
+    if (splitter) remembered = splitter.remember();
+    splitter?.pauseListening();
+    finish(Date.now(), 0);
+  },
   async startSegment(options?: { prerollMs?: number }) {
     if (!capture) {
       emit('onError', { message: 'Energy detection not active' });
       throw new Error('Energy detection not active');
     }
-    open(options?.prerollMs ?? DEFAULT_PREROLL_MS);
+    open(prerollFrames(options?.prerollMs ?? DEFAULT_PREROLL_MS));
   },
   async stopSegment(): Promise<string | null> {
-    if (vad.state === 'RECORDING') vad.state = 'IDLE';
+    splitter?.pauseListening();
     return finish(Date.now(), 0);
   },
   /** The web keeps its WAV (decisions.md 106): there is no encoder to hand. */
