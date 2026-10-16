@@ -14,7 +14,6 @@
     "tryAgain": "እንደገና ይሞክሩ",
     "pause": "ለአፍታ ያቁሙ",
     "record": "ይቅረጹ",
-    "publish": "ያትሙ",
     "remove": "ያስወግዱ",
     "edit": "ያርትዑ",
     "copy": "ይቅዱ",
@@ -446,12 +445,7 @@
       "itemDescription": "የጥናት መመሪያ",
       "itemDescriptionPattern": "የጥናት መመሪያ · {{pattern}}",
       "published": "{{title}} ታትሟል። መሣሪያዎች በሚቀጥለው ጊዜ ሲያመሳስሉ ያገኙታል።",
-      "notPublished": "{{reason}} ረቂቅዎ ተቀምጧል።",
-      "savedAt": "ረቂቁ በዚህ መሣሪያ ላይ {{time}} ላይ ተቀምጧል። አንድን መመሪያ በአንድ ጊዜ የሚያርትዕ አንድ ሰው ብቻ ነው።",
-      "savedAsYouWrite": "ረቂቆች ሲጽፉ በዚህ መሣሪያ ላይ ይቀመጣሉ። አንድን መመሪያ በአንድ ጊዜ የሚያርትዕ አንድ ሰው ብቻ ነው።",
-      "publishNewVersion": "አዲስ ስሪት ያትሙ",
-      "restored": "ከ{{time}} ጀምሮ ያለው ረቂቅዎ ተከፍቷል።",
-      "restoredBody": "ያትሙት፣ ወይም መጻፍዎን ይቀጥሉ። እርስዎ እስኪያትሙ ድረስ ምንም አይታተምም።",
+      "notPublished": "አልታተመም፦ {{reason}}",
       "newer": "ይህን ረቂቅ ከጀመሩ በኋላ አዲስ ስሪት ታትሟል።",
       "newerBody": "የእርስዎን ማተም ቀጣዩ ስሪት ያደርገዋል፣ የእነሱ ለውጦች ግን አይካተቱም።",
       "ready": "ለማተም ዝግጁ ነው።",
@@ -1571,7 +1565,6 @@
       "subTemplate": "አብነት · {{source}}",
       "untitled": "አዲስ አብነት",
       "create": "አብነት ይፍጠሩ",
-      "saveChanges": "ለውጦቹን ያስቀምጡ",
       "follows": "{{org}}ን ይከተላል",
       "followsBody": "ስሪቶቹ የሚመጡት ከዚያ ነው። ለመለወጥ ይቅዱት።",
       "copiedFind": "{{name}} ተቀድቷል። ቅጂውን በ«የእርስዎ ድርጅት» ሥር ያግኙት።",
@@ -1598,13 +1591,7 @@
       "chapterCount_other": "{{count, number}} ምዕራፎች",
       "addBook": "መጽሐፍ ያክሉ",
       "outline": "አወቃቀር",
-      "leaveTitle": "ሳያስቀምጡ ይወጣሉ?",
-      "leaveSub": "በዚህ አብነት ላይ ያደረጓቸው ለውጦች አልተቀመጡም።",
-      "keepEditing": "ማርትዕዎን ይቀጥሉ",
-      "leave": "ይውጡ",
-      "leaveNote": "ማስቀመጥ እንደ ቀጣዩ ስሪት ያትማቸዋል።",
       "createHelp": "ቋንቋዎች እንዲጠቀሙበት ዝግጁ አድርጎ ወደ ድርጅትዎ ቤተ መጻሕፍት ያክለዋል።",
-      "saveChangesHelp": "እንደ ቀጣዩ ስሪት ያስቀምጠዋል። የሚጠቀሙበት ቋንቋዎች ወደ እሱ ይሸጋገራሉ።",
       "nameHelp": "አብነቱ በቤተ መጻሕፍቱ ውስጥ የሚጠራበት ስም።",
       "levelHelp": "ስሙን ይቀይራል። ሁሉም ሰው ይህን ቃል በመተግበሪያው ውስጥ ያያል።",
       "lastLevelHelp": "ስሙን ይቀይራል፣ እያንዳንዱም እንዴት እንደሚታይ ይመርጣል።",
@@ -1613,7 +1600,7 @@
       "bookHelp": "እንዴት እንደሚከፋፈል ይምረጡ። ከዚያው እንደገና ይሰይሙት ወይም ያስወግዱት።",
       "addBookHelp": "አብነቱ ገና የሌሉትን መጻሕፍት ያክላል።",
       "versificationChoiceHelp": "የአብነቱን ምዕራፎችና ቁጥሮች በዚህ መንገድ ይቆጥራል።",
-      "leaveHelp": "ለውጦችዎን ሳያስቀምጥ ይመለሳል።"
+      "doneHelp": "ለውጦችዎን እንደ ቀጣዩ ስሪት ያትማል። የሚጠቀሙበት ቋንቋዎች ወደ እሱ ይሸጋገራሉ።"
     },
     "newTemplate": {
       "title": "አዲስ አብነት",
@@ -1710,7 +1697,7 @@
       "versePlaceholder": "ቁጥር {{verse}}"
     },
     "divide": {
-      "done": "{{book}} ተከፋፍሏል። እንዲቆይ አብነቱን ያስቀምጡ።",
+      "done": "{{book}} ተከፋፍሏል።",
       "tapBook": "እንዴት እንደሚከፋፈል ለመምረጥ መጽሐፍ ይንኩ።",
       "nameOrRemove": "{{book}}ን እንደገና ይሰይሙ ወይም ያስወግዱ",
       "nameOrRemoveHelp": "ለመቀየር ወይም መጽሐፉን ለማውጣት የመጽሐፉን ስም በቋንቋው ይከፍታል።"
@@ -2092,9 +2079,6 @@
       "namePlaceholder": "ቡድኑ የሚጠራው",
       "joinSub": "የዚህ ክፍል ቁጥሮች ወደ ቀደመው ይሄዳሉ",
       "firstCantJoin": "የመጀመሪያው ክፍል ሊዋሃድ አይችልም",
-      "leaveTitle": "ሳያስቀምጡ ይውጡ?",
-      "leaveSub": "የ{{book}} ክፍሎችዎ ገና አልተቀመጡም።",
-      "leaveAnyway": "ሳያስቀምጡ ይውጡ",
       "helpsTitle": "ለ{{book}} እገዛዎች",
       "closeHelps": "እገዛዎቹን ዝጋ",
       "tabOutline": "ዝርዝር",
@@ -2113,8 +2097,6 @@
       "headerSub_other": "የራስዎ መንገድ · {{count, number}} ክፍሎች",
       "verses_one": "{{count, number}} ቁጥር",
       "verses_other": "{{count, number}} ቁጥሮች",
-      "save_one": "አስቀምጥ · {{count, number}} ክፍል",
-      "save_other": "አስቀምጥ · {{count, number}} ክፍሎች",
       "jumpLabel_one": "ምዕራፍ {{chapter}}፦ {{count, number}} ክፍል እዚህ ይጀምራል",
       "jumpLabel_other": "ምዕራፍ {{chapter}}፦ {{count, number}} ክፍሎች እዚህ ይጀምራሉ",
       "sections_one": "{{count, number}} ክፍል",
@@ -2147,7 +2129,8 @@
       "guideRowHelp": "በጽሑፉ ውስጥ ወደሚሸፍነው የመጀመሪያ ቦታ ይሄዳል።",
       "undoHelp": "ክፍሎቹን ከመጨረሻው ለውጥዎ በፊት እንደነበሩ ይመልሳል።",
       "startFromHelp": "ከዚያ ለመጀመር ክፍሎችዎን በተዘጋጀ መንገድ ክፍሎች ይተካል።",
-      "leaveAnywayHelp": "ይመለሳል። ለዚህ መጽሐፍ ያዘጋጇቸው ክፍሎች አይቀመጡም።"
+      "done_one": "ተከናውኗል · {{count, number}} ክፍል",
+      "done_other": "ተከናውኗል · {{count, number}} ክፍሎች"
     },
     "division": {
       "way_one": "{{way}} · {{count, number}} ቁራጭ",
@@ -2432,7 +2415,6 @@
       "version": "ስሪት {{n, number}}",
       "movingToNewest": "ወደ አዲሱ በመሸጋገር ላይ",
       "openFlow": "ሂደቱን ይክፈቱ",
-      "saveAsFlow": "እንደ ሂደት ያስቀምጡ",
       "yourOrganization": "የእርስዎ ድርጅት",
       "noFlows": "እስካሁን እዚህ ሂደቶች የሉም። ሌላ ድርጅት የሚያጋራውን ይከተሉ ወይም ይቅዱ፣ ወይም የራስዎን ይሥሩ።",
       "openNamed": "{{name}}ን ይክፈቱ",
@@ -2446,7 +2428,8 @@
       "inUseHelp": "ይህ ቋንቋ አሁን ክፍሎቹን በዚህ መንገድ ይፈትሻል።",
       "useHelp": "ፍተሻዎቹ የ{{language}} የራሱ ይሆናሉ። ከዚያ በኋላ መቀየር ይችላሉ።",
       "stepsLabel": "ደረጃዎች",
-      "stepsHelp": "ፍተሻዎቹ፣ ከግራ ወደ ቀኝ። ተደራርበው ያሉት አብረው ይከናወናሉ። መቆለፊያ፦ ያ ደረጃ መጀመሪያ ማለፍ አለበት።"
+      "stepsHelp": "ፍተሻዎቹ፣ ከግራ ወደ ቀኝ። ተደራርበው ያሉት አብረው ይከናወናሉ። መቆለፊያ፦ ያ ደረጃ መጀመሪያ ማለፍ አለበት።",
+      "addToFlows": "ወደ ሂደቶችዎ ያክሉ"
     },
     "flowEditor": {
       "anyoneTeamAsks": "ቡድኑ የሚጠይቀው ማንኛውም ሰው",
@@ -2465,8 +2448,6 @@
       "addThisCheck": "ይህን ፍተሻ ያክሉ",
       "newKindDescription": "በድርጅትዎ የተወሰነ።",
       "newKindReviewer": "ቡድኑ የሚመርጠው ማንኛውም ሰው",
-      "leaveTitle": "ሳያስቀምጡ ይወጣሉ?",
-      "discard": "ለውጦቹን ይጣሉ",
       "reviewFlow": "የግምገማ ሂደት",
       "gone": "ይህ ሂደት ከአሁን በኋላ እዚህ የለም",
       "savedMoves": "{{name}} ተቀምጧል። {{language}} ወደ እሱ ይሸጋገራል።",
@@ -2480,23 +2461,21 @@
       "descriptionPlaceholder": "ለምን እንደሆነ፣ በአንድ መስመር",
       "noChecks": "ፍተሻ የለም፦ ከተቀረጸ በኋላ ተከናውኗል",
       "usedHere": "{{language}} ይጠቀምበታል። ለውጦች በክፍሎቹ ላይ ወዲያውኑ ይሠራሉ፤ አስቀድሞ የተቀረጸ ምንም ነገር አይጠፋም።",
-      "usedNote": "የሚጠቀሙበት ቋንቋዎች ወደሚያስቀምጡት እያንዳንዱ ስሪት ይሸጋገራሉ። ደረጃዎች የተጠቆመ ቅደም ተከተል ናቸው፤ መጀመሪያ ማለፍ ያለበት የተቆለፈ ደረጃ ብቻ ነው።",
+      "usedNote": "የሚጠቀሙበት ቋንቋዎች ወደ እያንዳንዱ አዲስ ስሪት ይሸጋገራሉ። ደረጃዎች የተጠቆመ ቅደም ተከተል ናቸው፤ መጀመሪያ ማለፍ ያለበት የተቆለፈ ደረጃ ብቻ ነው።",
       "kindsSub": "ዓይነቶቹ የድርጅትዎ መጠሪያዎች ናቸው። እነዚህ የማይስማሙ ከሆነ የራስዎን ያክሉ።",
       "newKindLabel": "አዲስ ዓይነት",
       "newKindPlaceholder": "አዲስ ዓይነት፣ ለምሳሌ የሽማግሌዎች ግምገማ",
       "addThisKind": "ይህን ዓይነት ያክሉ",
-      "leaveSubFlow": "በዚህ ሂደት ላይ ያደረጓቸው ለውጦች አልተቀመጡም።",
       "removeCheckHelp": "ከዚህ ደረጃ ያወጣዋል። ሌሎቹ ፍተሻዎች ይቆያሉ።",
       "moveUpHelp": "ይህ ደረጃ አንድ ደረጃ ቀደም ብሎ ይከናወናል።",
       "moveDownHelp": "ይህ ደረጃ አንድ ደረጃ ዘግይቶ ይከናወናል።",
-      "removeStepHelp": "ይህን ደረጃና ፍተሻዎቹን ያወጣል። እስኪያስቀምጡ ድረስ ምንም አይለወጥም።",
+      "removeStepHelp": "ይህን ደረጃና ፍተሻዎቹን ያወጣል።",
       "saveHelp": "ይህን ስሪት ወደ ቤተ መጻሕፍትዎ ያትማል። ሂደቱን የሚጠቀሙ ቋንቋዎች ወደ እሱ ይሸጋገራሉ።",
       "noChecksHelp": "ሁሉንም ደረጃዎች ያወጣል፦ አንድ ክፍል እንደተቀረጸ ወዲያውኑ ይጠናቀቃል።",
       "pickNewHelp": "ከሌሎቹ በኋላ ይህን ፍተሻ የያዘ ደረጃ ያክላል።",
       "pickAlongsideHelp": "ይህን ፍተሻ እዚያ ካሉት ጎን ወደ ደረጃው ያክላል።",
       "newKindHelp": "ይህ ዝርዝር የሌለውን የፍተሻ ዓይነት ይሰይሙ።",
-      "addThisKindHelp": "የሰየሙትን ዓይነት ያክላል፣ በደረጃውም ውስጥ ያስገባዋል።",
-      "discardHelp": "ሳያስቀምጥ ይወጣል። ለውጦችዎ ይጠፋሉ።"
+      "addThisKindHelp": "የሰየሙትን ዓይነት ያክላል፣ በደረጃውም ውስጥ ያስገባዋል።"
     },
     "reference": {
       "languageTeam": "የ{{language}} ቡድን",
@@ -2557,7 +2536,6 @@
       "newMaterial": "አዲስ ጽሑፍ",
       "locked": "ተቆልፏል",
       "unlocked": "ተከፍቷል",
-      "saveChanges": "ለውጦቹን ያስቀምጡ",
       "byWhom": "በ{{name}}",
       "questionsFor": "ለ{{kind}} ጥያቄዎች",
       "unfilledBlanks_one": "{{count, number}} ያልተሞላ ባዶ ቦታ",
@@ -2569,7 +2547,7 @@
       "titlePlaceholder": "ለምሳሌ የዲንካ የትርጉም መመሪያዎች",
       "whereItApplies": "የሚሠራበት ቦታ",
       "allLanguages": "ሁሉም ቋንቋዎች",
-      "toLibraryNote": "በቤተ መጻሕፍትዎ ውስጥ ተቀምጦ ለሁሉም ቋንቋዎች ይመከራል።",
+      "toLibraryNote": "ለሁሉም ቋንቋዎች ተመክሮ ወደ ቤተ መጻሕፍትዎ ይገባል።",
       "setsNeedLanguage": "የጥያቄ ስብስቦች የአንድ ቋንቋ ናቸው። መጀመሪያ ቋንቋ ያክሉ።",
       "addLanguageFirst": "መጀመሪያ ቋንቋ ያክሉ።",
       "forWhichKind": "ለየትኛው የግምገማ ዓይነት",
@@ -2587,11 +2565,10 @@
       "addSection": "ክፍል ያክሉ",
       "addSectionPlaceholder": "ለምሳሌ ስሞች",
       "add": "ያክሉ",
-      "inLibrary": "በቤተ መጻሕፍትዎ ውስጥ · {{source}}። እንደገና ማተም እዚህ ከተቀመጠው አዲስ ስሪት ያክላል።",
+      "inLibrary": "በቤተ መጻሕፍትዎ ውስጥ · {{source}}።",
       "notInLibrary": "ከሌሎች ድርጅቶች ጋር ለማጋራት ወይም ስሪቶቹን ለማቆየት ወደ ቤተ መጻሕፍትዎ ያትሙት።",
       "publishNewVersion": "አዲስ ስሪት ያትሙ",
       "publishToLibrary": "ወደ ቤተ መጻሕፍት ያትሙ",
-      "saveFirst": "መጀመሪያ ለውጦችዎን ያስቀምጡ።",
       "lockedHelp": "ሊቀይሩት የሚችሉት የማጣቀሻ ጽሑፎችን የሚያስተዳድሩ ሰዎች ብቻ ናቸው። ለመክፈት ይንኩ።",
       "unlockedHelp": "የማጣቀሻ ይዘት የሚሞላ ማንኛውም ሰው ሊቀይረው ይችላል። ለመቆለፍ ይንኩ።",
       "saveNewHelp": "ያክለዋል። ተርጓሚዎችና ገምጋሚዎች በሚመለከተው ቦታ ያገኙታል።",
@@ -2604,13 +2581,14 @@
       "typeYesNoHelp": "ገምጋሚዎች አዎ ወይም አይ ብለው ይመልሳሉ።",
       "typeRatingHelp": "ገምጋሚዎች በዚህ መለኪያ ላይ ባለ ቁጥር ይመልሳሉ።",
       "requiredSwitchHelp": "በርቷል፦ ገምጋሚዎች መመለስ፣ ወይም ለምን እንዳልመለሱ መናገር አለባቸው። ጠፍቷል፦ ሊዘሉት ይችላሉ።",
-      "removeQuestionHelp": "ይህን ጥያቄ ያወጣል። እስኪያስቀምጡ ድረስ ምንም አይለወጥም።",
+      "removeQuestionHelp": "ይህን ጥያቄ ያወጣል።",
       "addQuestionHelp": "በመጨረሻ ባዶ ጥያቄ ያክላል።",
       "sectionHelp": "ተርጓሚዎች ለዚህ ክፍል ማወቅ ያለባቸውን ይጻፉ።",
       "sectionNameHelp": "የአዲስ ክፍል ስም ይጻፉ፣ ከዚያ ያክሉት።",
       "addSectionHelp": "የሰየሙትን ክፍል የሚሞላ ባዶ ክፍል አድርጎ ያክላል።",
-      "publishHelp": "ለማጋራት ወይም ስሪቶችን ለማቆየት እዚህ የተቀመጠውን በቤተ መጻሕፍትዎ ውስጥ ያስቀምጣል።",
-      "publishVersionHelp": "እዚህ የተቀመጠውን እንደ አዲስ ስሪት ወደ ቤተ መጻሕፍትዎ ያክላል።"
+      "publishHelp": "ለማጋራት ወይም ስሪቶችን ለማቆየት ወደ ቤተ መጻሕፍትዎ ያስገባዋል።",
+      "publishVersionHelp": "እንደ አዲስ ስሪት ወደ ቤተ መጻሕፍትዎ ያክለዋል።",
+      "doneHelp": "ለሚያነቡት ሁሉ ለውጦችዎን በጽሑፉ ውስጥ ያስገባል።"
     },
     "libraryMaterial": {
       "eachLanguagesOwn": "የእያንዳንዱ ቋንቋ የራሱ",
@@ -2620,7 +2598,6 @@
       "reviewersSee": "{{kind}} የሚያደርጉ ገምጋሚዎች አሁን እነዚህን ጥያቄዎች ያያሉ።",
       "newTitle": "አዲስ የቤተ መጻሕፍት ጽሑፍ",
       "newSub": "ቤተ መጻሕፍት · የእርስዎ ድርጅት",
-      "publishNewVersion": "አዲስ ስሪት ያትሙ",
       "passages": "ክፍሎች",
       "titlePlaceholder": "ለምሳሌ በሩት ውስጥ ያሉ ስሞች",
       "textLabel": "ጽሑፍ",
@@ -2638,12 +2615,12 @@
       "searchParts": "ክፍሎችን ይፈልጉ",
       "noTemplates": "እስካሁን የቤተ መጻሕፍት አብነት የሚጠቀም ቋንቋ የለም።",
       "publishHelp": "ለቋንቋዎች ለመምከር ወይም ለማጋራት በቤተ መጻሕፍትዎ ውስጥ ያስቀምጠዋል።",
-      "publishVersionHelp": "ለውጦችዎን በቤተ መጻሕፍትዎ ውስጥ እንደ አዲስ ስሪት ያስቀምጣል።",
+      "publishVersionHelp": "ለውጦችዎን በቤተ መጻሕፍትዎ ውስጥ እንደ አዲስ ስሪት ያትማል።",
       "kindHelp": "የዚህ ዓይነት ጽሑፍ ያደርገዋል።",
       "textHelp": "ተርጓሚዎች የሚያነቡት፦ ጽሑፉ ራሱ።",
       "versesHelp": "ተርጓሚዎች በእነዚህ ቁጥሮች ላይ ያገኙታል። እያንዳንዱን እንደ {{example}} አድርገው ይጻፉ።",
       "numberingHelp": "መጽሐፍ ቅዱሶች አንዳንድ ቁጥሮችን በተለያየ መንገድ ይቆጥራሉ። ከላይ ያሉትን ቁጥሮች በዚህ መንገድ ያነባል።",
-      "removePartHelp": "ያላቅቀዋል። እስኪያትሙ ድረስ ምንም አይለወጥም።",
+      "removePartHelp": "ያላቅቀዋል።",
       "linkPartHelp": "የአብነት ክፍል ይምረጡ፦ ተርጓሚዎች አብነቱን በሚጠቀም በእያንዳንዱ ቋንቋ እዚያ ያገኙታል።",
       "useInReviewsHelp": "በዚህ ቋንቋ {{kind}} የሚያደርጉ ገምጋሚዎች እነዚህን ጥያቄዎች ያገኛሉ።",
       "pickPartHelp": "ይህን ክፍል ያገናኛል፦ ተርጓሚዎች እዚያ ያገኙታል።"
@@ -3417,7 +3394,8 @@
     "contribute": {
       "sub": "ከክፍሉ ጋር ይቆያል፣ ገምጋሚዎችም ከጥናቱ ጋር ያዩታል።",
       "record": "ቡድኑ የተናገረውን ይቅረጹ",
-      "typeHelp": "ከመቅረጽ ይልቅ ወይም በተጨማሪ እዚህ ይጻፉት።"
+      "typeHelp": "ከመቅረጽ ይልቅ ወይም በተጨማሪ እዚህ ይጻፉት።",
+      "addAnswer": "መልስዎን ያክሉ"
     },
     "media": {
       "map": "ካርታ",
@@ -3725,12 +3703,10 @@
         "askedName": "{{by}} {{name}}ን ጠይቋል",
         "askedSomeone": "{{by}} አንድ ሰው ጠይቋል"
       },
-      "publish": "ያትሙ",
       "publishedWhen": "{{when}} ታትሟል",
       "publishedJustNow": "አሁን ታትሟል",
       "someoneInSentence": "አንድ ሰው",
       "thenAskFor": "ከዚያ {{check}} ይጠይቁ",
-      "saveForTeam": "ቡድኑ እንዲሰማው ያስቀምጡት",
       "hearFeedback": "አስተያየቱን ይስሙ",
       "feedbackSub": "{{kind}} · ለውጥ ያስፈልገዋል",
       "fix": "ያስተካክሉት፣ ወይም እንዳለ አቆይተው ለምን እንደሆነ ይናገሩ",
@@ -3745,13 +3721,13 @@
         "after": "ከ{{check}} በኋላ",
         "askedWho": "{{who}} ተጠይቋል",
         "asked": "ተጠይቋል",
-        "afterPublish": "ካተሙ በኋላ",
-        "next": "ቀጣይ"
+        "next": "ቀጣይ",
+        "afterDone": "ከጨረሱ በኋላ"
       },
       "help": {
         "study": "ከመቅረጽዎ በፊት የጥናት መመሪያውን በአንድነት ይለፉ። ምንም ነገር እሱን አይጠብቅም።",
         "record": "ክፍሉን በቋንቋዎ ይቅረጹ። የፈለጉትን ያህል ጊዜ መሞከር ይችላሉ።",
-        "publish": "ማተም ቡድኑ እንዲሰማው ስሪትዎን ያስቀምጣል፣ ከዚያ ፍተሻ ይጠይቃሉ።",
+        "publish": "እያንዳንዱ ቁራጭ ሲቀረጽ «ተከናውኗል»ን ይንኩ፦ ቡድኑ ሊሰማው ይችላል፣ ወደ ቀጣዩ ፍተሻውም ይሄዳል።",
         "feedback": "አንድ ሰው አዳምጦ ለውጦችን ጠይቋል። የተናገሩትን ይስሙ።",
         "fix": "ለውጡ ያለበት አዲስ ስሪት ይቅረጹ፣ ወይም ይህን አቆይተው ለምን እንደሆነ ይናገሩ።",
         "team": "በቡድኑ የሚደረግ ፍተሻ፦ {{status}}። ማንና አማራጮቹን ለማየት ይንኩ።",
@@ -3765,7 +3741,8 @@
         "teamView": "በቡድኑ የሚደረግ ፍተሻ፦ {{status}}።",
         "checkpoint": "መቆለፊያው፦ ከእሱ በኋላ ካሉት ደረጃዎች በፊት ማለፍ አለበት።"
       },
-      "thenTheTeam": "ከዚያ ቡድኑ"
+      "thenTheTeam": "ከዚያ ቡድኑ",
+      "teamHears": "ከዚያ ቡድኑ ሊሰማው ይችላል"
     },
     "quote": "«{{text}}»",
     "journey": {
@@ -3941,12 +3918,6 @@
       "askTitle": "ፍተሻ ይጠይቁ",
       "askTarget": "{{target}}ን ይጠይቁ",
       "someoneElse": "ሌላ ሰው",
-      "backTranslation": "ተመላሽ ትርጉም ታትሟል",
-      "version": "ስሪት {{n, number}} ታትሟል",
-      "versionNoNumber": "ስሪቱ ታትሟል",
-      "savedHere": "{{title}} · በዚህ መሣሪያ ላይ ተቀምጧል · መስመር ላይ ሲሆኑ ይላካል",
-      "sent": "{{title}} · ለቡድኑ ተልኳል",
-      "sending": "{{title}} · አሁን እየተላከ ነው",
       "nextAsk": "ቀጥሎ ፍተሻ ይጠይቁ",
       "allDone": "ሁሉም ፍተሻዎች ተከናውነዋል።",
       "alreadyAsked": "ቀጣዩ ፍተሻ አስቀድሞ ተጠይቋል።",
@@ -4091,7 +4062,6 @@
       "latest": "የቅርብ ጊዜው",
       "saved": "{{when}} ተቀምጧል",
       "savedJustNow": "አሁን ተቀምጧል",
-      "savedToast": "{{name}} ተቀምጧል።",
       "notDeleted": "አልተሰረዘም። {{reason}}",
       "deleted": "{{name}} ተሰርዟል።",
       "delete": "{{name}}ን ይሰርዙ",
@@ -4104,10 +4074,10 @@
       "newVersionHelp": "አዲስ ስሪት ከመጀመሪያው ይጀምራል። ረቂቆችዎ ይቆያሉ።",
       "deleteHelp": "ይህን ረቂቅ ይሰርዛል።",
       "editDraftHelp": "መሥራትዎን ለመቀጠል ይህን ረቂቅ በመቅረጫው ውስጥ ይከፍታል።",
-      "publishHelp": "ቡድኑ እንዲሰማው ለማተም ይህን ረቂቅ ይከፍታል።",
       "editVersionHelp": "ከዚህ ስሪት አዲስ ረቂቅ ይጀምራል። ስሪቱ ራሱ እንዳለ ይቆያል።",
       "partHelp": "ይህን ቁራጭ ብቻውን ያጫውታል።",
-      "deleteVersionHelp": "ይህን ስሪት ለሁሉም ይሰርዛል። ቀድሞ የተደረጉ ፍተሻዎች በታሪክ ውስጥ ይቆያሉ፣ ግን ከእንግዲህ አይቆጠሩም።"
+      "deleteVersionHelp": "ይህን ስሪት ለሁሉም ይሰርዛል። ቀድሞ የተደረጉ ፍተሻዎች በታሪክ ውስጥ ይቆያሉ፣ ግን ከእንግዲህ አይቆጠሩም።",
+      "doneHelp": "ለመጨረስና ወደ ቀጣዩ ፍተሻው ለመላክ የዚህን ረቂቅ የመጨረሻ እይታ ይከፍታል።"
     }
   },
   "work": {
@@ -4704,7 +4674,6 @@
       "yourRecording": "የእርስዎ ቀረጻ",
       "openHelp": "ቁራጮችዎን ለማየት መለያያውን ወደ ላይ ይጎትቱ፣ ወይም እዚህ ይንኩ።",
       "barLabel": "የእርስዎ ቀረጻ። {{next}}። {{progress}}። ይክፈቱ",
-      "publishHelp": "እያንዳንዱ ቁራጭ ሲቀረጽ፦ ይህን ስሪት ለቡድኑ ያስቀምጡ።",
       "nextRecording": "{{part}}…",
       "deletePartHelp": "ይህን ቁራጭ ይሰርዛል። ወዲያውኑ መቀልበስ ይችላሉ።",
       "nextCardHelp": "ቀጥሎ የሚቀርጹት ቁራጭ። ለመጀመር ቀዩን አዝራር ይንኩ።",
@@ -4720,7 +4689,8 @@
       "gapHelp": "ቀጥሎ የሚቀርጹት በዚህ ክፍተት ውስጥ ይገባል።",
       "recordAtEnd": "{{part}}ን መጨረሻ ላይ ይቅረጹ",
       "endHelp": "ቀጥሎ የሚቀርጹት መጨረሻ ላይ ይገባል።",
-      "deleteAllAsk": "ሁሉንም ቁራጮች ይሰርዙ?"
+      "deleteAllAsk": "ሁሉንም ቁራጮች ይሰርዙ?",
+      "doneHelp": "እያንዳንዱ ቁራጭ ሲቀረጽ፦ ይህን ስሪት ይጨርሱና ወደ ቀጣዩ ፍተሻው ይላኩት።"
     },
     "quoted": "«{{text}}»",
     "listening": "በማዳመጥ ላይ… {{time}}",
@@ -4779,9 +4749,7 @@
       "parts_one": "{{count, number}} ቁራጭ",
       "parts_other": "{{count, number}} ቁራጮች",
       "withBible": "ከ{{bible}} መጽሐፍ ቅዱስ ጋር የተቀረጸ",
-      "publishVersion": "{{version}}ን ያትሙ",
       "atMoment": "በ{{time}}፦",
-      "explain": "ማተም {{version}}ን በክፍሉ ላይ ያስቀምጣል። በቡድኑ ውስጥ ያለ ሁሉም ሰው ሊሰማው ይችላል። መሣሪያው ኢንተርኔት ሲያገኝ ይላካል።",
       "answers": "ከ{{from}} ለመጣው የ{{kind}} አስተያየት ምላሽ ይሰጣል",
       "tied_one": "ከዚህ ስሪት ጋር የተያያዘ {{count, number}} ዋና ቃል",
       "tied_other": "ከዚህ ስሪት ጋር የተያያዙ {{count, number}} ዋና ቃላት",
@@ -4796,7 +4764,14 @@
       "optional": "ካስፈለገ · ቡድኑ ከዚህ ስሪት ጋር ይሰማዋል",
       "sayHelp": "በድምፅ ወይም በጽሑፍ። ቡድኑ ከዚህ ስሪት ጋር ይሰማዋል።",
       "rowLabel": "{{label}}። {{sub}}",
-      "doneHelp": "የተናገሩትን ያስቀምጣል፣ ይህንንም ይዘጋል።"
+      "doneHelp": "የተናገሩትን ያስቀምጣል፣ ይህንንም ይዘጋል።",
+      "finish": "{{version}}ን ይጨርሱ",
+      "finishHelp": "{{version}}ን ይጨርሳል፦ ቡድኑ ሊሰማው ይችላል።",
+      "sendHelp": "{{version}}ን ይጨርሳል፣ ለዚህ ፍተሻም ወደ እነሱ ይልከዋል። በ«ሥራዬ» ላይ ያገኙታል።",
+      "askHelp": "{{version}}ን ይጨርሳል፣ ከዚያ ማንን እንደሚጠይቁ ይመርጣሉ።",
+      "sendLater": "በኋላ ይላኩ",
+      "sendLaterHelp": "ማንንም ገና ሳይጠይቁ {{version}}ን ይጨርሳል። ቡድኑ ሊሰማው ይችላል።",
+      "nextCheck": "ቀጣዩ ፍተሻ"
     },
     "tray": {
       "help": "እገዛ",
@@ -5924,7 +5899,6 @@
       "nextQuestion": "ቀጣዩ ጥያቄ",
       "savesTo_one": "ወደ {{count, number}} ክፍል ይቀመጣል",
       "savesTo_other": "ወደ {{count, number}} ክፍሎች ይቀመጣል",
-      "saveToRecord": "በመዝገቡ ላይ ያስቀምጡ",
       "loggedIntro": "ከመተግበሪያው ውጭ ለተከናወነ {{kind}} — በአካል፣ በስልክ ጥሪ፣ በቤተ ክርስቲያን። ለሰጠው ሰው ተሰጥቶ በመዝገቡ ላይ ይሰፍራል።",
       "versionByYou": "ስሪት {{n}} · በእርስዎ የተቀረጸ",
       "versionBy": "ስሪት {{n}} · በ{{name}} የተቀረጸ",
@@ -5994,10 +5968,6 @@
       "skipSub": "የግድ የሆኑ ጥያቄዎችን መዝለል ይቻላል — ምክንያቱ ከግምገማዎ ጋር ይቀመጣል።",
       "skipConfirm": "ጥያቄውን ይዝለሉ",
       "skipFootnote": "ምክንያቱ ከግምገማዎ ጋር ይቀመጣል።",
-      "leaveTitle": "ሳያስቀምጡ ይወጣሉ?",
-      "leaveSub": "እዚህ የተናገሩትና የመለሱት ግምገማውን እስኪልኩ ድረስ አልተቀመጠም።",
-      "keepReviewing": "መገምገምዎን ይቀጥሉ",
-      "leave": "ይውጡ",
       "backgroundHelp": "ለመገምገም የሚረዳዎትን ይከፍታል፦ መጽሐፍ ቅዱሱን፣ ማስታወሻዎችን፣ ዋና ቃላትንና ሌሎችንም።",
       "whoHelp": "ምን ያህል ሰዎች እንዳዳመጡና የት እንደሆነ ይናገሩ። ካስፈለገ።",
       "whoReviewedHelp": "ይህን ግምገማ ማን እንደሰጠ ይናገሩ። ካስፈለገ።",
@@ -6013,12 +5983,11 @@
       "sheetDoneHelp": "እዚህ የሰጡትን ያስቀምጣል፣ ይህንንም ይዘጋል።",
       "whereHelp": "የት እንዳዳመጡ። ከግምገማው ጋር በመዝገቡ ላይ ይሰፍራል።",
       "whichVersionHelp": "ለእነሱ የተጫወተውን ስሪት ይመርጣል።",
-      "keepReviewingHelp": "እዚህ ይቆያል። ምንም አይጠፋም።",
-      "leaveHelp": "ሳይልክ ይወጣል። እዚህ የተናገሩት አይቀመጥም።",
       "helpBibleHelp": "ይህን መጽሐፍ ቅዱስ በ«ዳራ» ውስጥ፣ ከክፍሉ ጎን ይከፍታል።",
       "helpGuideHelp": "ለዚህ ክፍል የጥናት መመሪያውን ይከፍታል።",
       "helpNoteHelp": "ለማንበብ ይከፍተዋል።",
-      "howManyHelp": "ምን ያህል ሰዎች እንዳዳመጡ ይናገሩ። ካስፈለገ።"
+      "howManyHelp": "ምን ያህል ሰዎች እንዳዳመጡ ይናገሩ። ካስፈለገ።",
+      "doneRecordedHelp": "{{what}}ን በክፍሉ መዝገብ ላይ ያሰፍራል።"
     },
     "guest": {
       "previewSub": "ቅድመ እይታ · መተግበሪያው የሌለው ሰው የሚያየው",
@@ -6114,7 +6083,6 @@
       "noteAdded": "ማስታወሻ ታክሏል — ይህን ክፍል ይከተላል",
       "noteOnVerse": "በቁጥር {{verse}} ላይ ማስታወሻ",
       "noteOnVerseAt": "በቁጥር {{verse}} ላይ ማስታወሻ · በ{{time}}",
-      "saveNote": "ማስታወሻውን ያስቀምጡ",
       "playYourNoteAt": "በ{{time}} ያለውን ማስታወሻዎን ያጫውቱ",
       "yourNoteAt": "በ{{time}} ያለው ማስታወሻዎ",
       "goesWithReview": "{{length}} · ከግምገማዎ ጋር ይሄዳል",
@@ -6132,7 +6100,8 @@
       "verseHelpPlay": "ክፍሉን ከዚህ ቁጥር ጀምሮ ያጫውታል።",
       "verseHelpPick": "ይህን ቁጥር ይመርጣል። ከዚያ «ማስታወሻ» በእሱ ላይ ማስታወሻ ይተዋል።",
       "notesByHelp": "በዚህ ቁጥር ላይ የ{{names}} ማስታወሻዎች።",
-      "removeNoteHelp": "ይህን ማስታወሻ ይሰርዛል።"
+      "removeNoteHelp": "ይህን ማስታወሻ ይሰርዛል።",
+      "closeNoteHelp": "ማስታወሻውን ይዘጋል። በዚህ ቁጥር ላይ እንደገና ማስታወሻ ሲተዉ የተናገሩት ወይም የጻፉት ይመለሳል።"
     },
     "voice": {
       "hearIt": "ይስሙት",
@@ -6195,10 +6164,6 @@
     "openYour": "የእርስዎን {{what}} ይክፈቱ",
     "yourWhat": "የእርስዎ {{what}}፣ {{said}}",
     "loadingParts": "ቁራጮችዎን በመጫን ላይ…",
-    "notesFor_one": "ለ{{check}} {{count, number}} ማስታወሻ · ሲያትሙ አብሮ ይሄዳል",
-    "notesFor_other": "ለ{{check}} {{count, number}} ማስታወሻዎች · ሲያትሙ አብረው ይሄዳሉ",
-    "notesForNext_one": "ለቀጣዩ ፍተሻ {{count, number}} ማስታወሻ · ሲያትሙ አብሮ ይሄዳል",
-    "notesForNext_other": "ለቀጣዩ ፍተሻ {{count, number}} ማስታወሻዎች · ሲያትሙ አብረው ይሄዳሉ",
     "saidInMore": "{{length}} በ{{into}} · ተጨማሪ ለማከል ይቅረጹ",
     "sayingNext": "ቀጥሎ የሚነገረው",
     "saidIn": "{{length}} በ{{into}}",
@@ -6211,17 +6176,12 @@
     "recordHelp": "ቁራጭ {{n}}ን በራስዎ አባባል ይናገሩ። በሐሳቦች መካከል ቆም ይበሉ፤ ሲጨርሱ «ያቁሙ»ን ይንኩ።",
     "recordPart": "ቁራጭ {{n}}ን ይቅረጹ",
     "recordHint": "በቁራጮች መካከል ቆም እያሉ ይናገሩ። ሲጨርሱ «ያቁሙ»ን ይንኩ።",
-    "publishHelp": "ተመላሽ ትርጉሙን ለቡድኑ ያስቀምጣል፣ ከዚያ ቀጣዩን ፍተሻ ይጠይቃል።",
     "noteAtPart": "በቁራጭ {{part}} በ{{time}} ያለ ማስታወሻ",
     "noteSub": "እዚህ ለመናገር የከበደው ምንድን ነው? {{check}} ከተመላሽ ትርጉምዎ ጋር ይሰማዋል።",
     "noteSubNext": "እዚህ ለመናገር የከበደው ምንድን ነው? ቀጣዩ ፍተሻ ከተመላሽ ትርጉምዎ ጋር ይሰማዋል።",
     "addNote": "ማስታወሻ ያክሉ",
     "typeNoMatch": "ወይም ይጻፉት — ለምሳሌ በእንግሊዝኛ አቻ የሌለው ቃል",
     "oneSpokenNote": "ለአሁን ለእያንዳንዱ የመመለሻ ትርጉም አንድ የድምፅ ማስታወሻ ብቻ ነው፤ ይህን ይጻፉት።",
-    "publishThe": "{{what}}ን ያትማሉ?",
-    "publishSubCheck": "የስሪት {{n}}። ቀጥሎ {{check}} ያዳምጠዋል።",
-    "publishSub": "የስሪት {{n}}። በክፍሉ መዝገብ ላይ ይሰፍራል።",
-    "publishWhat": "{{what}}ን ያትሙ",
     "nothingYet_one": "ለቁራጭ {{parts}} እስካሁን ምንም የለም",
     "nothingYet_other": "ለቁራጮች {{parts}} እስካሁን ምንም የለም",
     "notesAtMoments_one": "በቅጽበቶች ላይ {{count, number}} ማስታወሻ",
@@ -6231,7 +6191,15 @@
     "noRecording": "እስካሁን ተመላሽ ትርጉም የሚሠራለት ቀረጻ የለም።",
     "openVersionHelp": "የስሪቱን ማጫወቻ ወደ ግማሽ ገጽ ይመልሳል።",
     "openPartsHelp": "ቁራጮችዎን ወደ ግማሽ ገጽ ይመልሳል።",
-    "deletePartHelp": "ለዚህ ቁራጭ የተናገሩትን ይሰርዛል። ወዲያውኑ መቀልበስ ይችላሉ።"
+    "deletePartHelp": "ለዚህ ቁራጭ የተናገሩትን ይሰርዛል። ወዲያውኑ መቀልበስ ይችላሉ።",
+    "ofVersion": "የስሪት {{n, number}}",
+    "sendHelp": "{{what}}ን ይጨርሳል፣ ለዚህ ፍተሻም ወደ እነሱ ይልከዋል። በ«ሥራዬ» ላይ ያገኙታል።",
+    "askHelp": "{{what}}ን ይጨርሳል፣ ከዚያ ማንን እንደሚጠይቁ ይመርጣሉ።",
+    "notesForCheck_one": "ለ{{check}} {{count, number}} ማስታወሻ",
+    "finishWhat": "{{what}}ን ይጨርሱ",
+    "doneHelp": "እያንዳንዱ ቁራጭ ሲነገር፦ ይጨርሱትና ቀጥሎ ወደሚያዳምጠው ፍተሻ ይላኩት።",
+    "notesForCheck_other": "ለ{{check}} {{count, number}} ማስታወሻዎች",
+    "sendLaterHelp": "ማንንም ገና ሳይጠይቁ {{what}}ን ይጨርሳል። ቡድኑ ሊሰማው ይችላል።"
   },
   "translate": {
     "missing": "ይህ ክፍል ገና በዚህ መሣሪያ ላይ የለም።",
@@ -6261,7 +6229,6 @@
     "dragDown": "መመሪያውን፣ ዋና ቃላትን፣ ማስታወሻዎችንና ቀደም ያሉ ቀረጻዎችን ለማየት ወደ ታች ይጎትቱ",
     "openStudy": "ጥናቱን ይክፈቱ",
     "yourRecording": "የእርስዎ ቀረጻ",
-    "saveHelp": "ቁራጮችዎ ሲቀርጹ ቀድሞውኑ ይቀመጣሉ። ይህ ወደ ኋላ ይመለሳል።",
     "openReferenceHelp": "ማጣቀሻውን ወደ ግማሽ ገጽ ይመልሳል።",
     "openStudyHelp": "ይህን ደረጃ በሙሉው ጥናት ውስጥ ይከፍታል።",
     "partReplaced": "{{part}} እንደገና ተቀርጿል።"
@@ -6597,7 +6564,6 @@
       "sayTitle": "ለ«{{term}}» ያለዎት ቃል",
       "saySub": "{{language}} እንዴት እንደሚለው ይናገሩ። ይህ ቃል በመጣ ቁጥር ቡድንዎ ይሰማዋል።",
       "saySubGloss": "{{gloss}}። {{language}} እንዴት እንደሚለው ይናገሩ። ይህ ቃል በመጣ ቁጥር ቡድንዎ ይሰማዋል።",
-      "saveWord": "ቃልዎን ያስቀምጡ",
       "added": "{{term}} ታክሏል።",
       "addSub": "ቡድኑ ሁልጊዜ በአንድ ዓይነት መንገድ ሊናገረው የሚገባ ቃል። ወደ {{language}} ዋና ቃላት ይታከላል።",
       "addWord": "ቃሉን ያክሉ",
@@ -6605,7 +6571,8 @@
       "meaningPlaceholder": "ምን ማለት እንደሆነ (ካስፈለገ)",
       "sayItIn": "በ{{language}} ይናገሩት",
       "allHelp": "በዚህ ቋንቋ ያሉትን ዋና ቃላት ሁሉ ዝርዝር ይከፍታል።",
-      "typeHelp": "{{language}} እንዴት እንደሚለው ይጻፉ።"
+      "typeHelp": "{{language}} እንዴት እንደሚለው ይጻፉ።",
+      "addYourWord": "ቃልዎን ያክሉ"
     },
     "notes": {
       "noteOnRef": "በ{{verse}} ላይ ማስታወሻ",
@@ -6628,7 +6595,6 @@
       "madeWith": "ከ{{version}} ጋር የተሠራ",
       "addHint": "በዚህ ክፍል ላይ በድምፅ ወይም በጽሑፍ ማስታወሻ ይተዉ።",
       "sheetSub": "ከክፍሉ ጋር ይቆያል። ገምጋሚዎችና ቀጣዩ ተርጓሚ ያዩታል።",
-      "save": "ማስታወሻውን ያስቀምጡ",
       "added": "ማስታወሻ ታክሏል።",
       "typeHelp": "ማስታወሻዎን ይጻፉ። በድምፅም መናገር ይችላሉ።"
     },
@@ -7143,5 +7109,13 @@
       "all": "ሁሉም",
       "none": "በቡድን ውስጥ የሌሉ"
     }
+  },
+  "saved": {
+    "draftHelp": "ሲሠሩ በዚህ መሣሪያ ላይ ይቀመጣል፣ እስኪጨርሱም ድረስ እርስዎ ብቻ ያዩታል። እየተቀመጠ ሳለ የሚሽከረከር ክብ፣ ከዚያ ምልክት።",
+    "saving": "በማስቀመጥ ላይ",
+    "failedHelp": "ይህ አልተቀመጠም። እንደገና ይሞክሩ፦ የሠሩት አሁንም በገጹ ላይ አለ።",
+    "help": "ሲሠሩ ይቀመጣል፦ እየተቀመጠ ሳለ የሚሽከረከር ክብ፣ ከዚያ ምልክት። ማስቀመጥ አያስፈልግዎትም።",
+    "failed": "አልተቀመጠም",
+    "saved": "ተቀምጧል"
   }
 }

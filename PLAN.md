@@ -452,6 +452,15 @@ short:
   something without words (a coloured dot, a tick, a bar) says what it means.
   A new control gets its line (`help`, or a Row's `sub`) when it is built;
   `apps/mobile/test/helpParts.ts` holds it.
+- **What you make needs no saving** (decision 127): nothing asks "Leave
+  without saving?". What someone makes (a recording, a review, a
+  note, an editor's changes) is kept as they go, only for them, and a small
+  mark in the header turns from a spinner to a check as it is kept. One
+  button finishes it and shares it, named for what it does for others
+  (Done, Add note, Looks good), and Done offers the next step in the same
+  tap: send it to whoever usually does the next check. A shared setting (a
+  name, permissions, someone's role) keeps its Save button, since it changes
+  things for everyone.
 
 Tokens are `apps/mobile/src/ui/theme.ts` (the demo's `C` and `TINT`);
 primitives are `apps/mobile/src/ui/kit.tsx`. `docs/ux/one-next-action.html`

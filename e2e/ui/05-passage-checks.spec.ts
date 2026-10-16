@@ -34,17 +34,16 @@ async function history(page: Page): Promise<string> {
   return screenText(page);
 }
 
-/** The back translation screen: say one part with the fake microphone, then publish it. */
+/** The back translation screen: say one part with the fake microphone, then Done, whose sheet shows who listens next (decision 127). */
 async function backTranslateOnePart(page: Page): Promise<void> {
   await button(page, 'Record part 1').click();
   await expect(button(page, 'Stop recording')).toBeVisible();
   // The microphone's voice file speaks 1.5 s in every 4 s; the takeover covers the parts while it records.
   await page.waitForTimeout(10_000); // sleep: the recorder shows no part until it stops, so only the voice file's loop length says when one was said
   await button(page, 'Stop recording').click();
-  await expect(button(page, 'Publish'), 'a part was said').toBeEnabled({ timeout: 45_000 });
-  await button(page, 'Publish').click();
-  await button(page, 'Publish back translation').click();
-  await expect(text(page, 'Back translation published')).toBeVisible({ timeout: 30_000 });
+  await expect(button(page, 'Done'), 'a part was said').toBeEnabled({ timeout: 45_000 });
+  await button(page, 'Done').click();
+  await expect(byId(page, 'sheet')).toBeVisible();
 }
 
 /** Spare passages for this file, set up once. */
@@ -112,10 +111,11 @@ test('PASS-017 REV Back-translate it, and the record afterwards', async ({ brows
   expect(await screenText(page)).toContain('Back translation · into English');
   await backTranslateOnePart(page);
   const all = await screenText(page);
-  // Fixed (2026-10-12): REV cannot ask, so the page offers no check to ask for, only Done.
-  expect(all.toLowerCase()).not.toContain('next, ask for a check');
-  await expect(byId(page, 'primary-action')).toHaveText('Done');
+  // Fixed (2026-10-12): REV cannot ask, so Done offers no check to ask for: it just finishes.
+  expect(all.toLowerCase()).not.toContain('next check');
+  await expect(byId(page, 'primary-action')).toHaveText('Finish the back translation');
   await byId(page, 'primary-action').click();
+  await toast(page, 'Back translation published.');
   await expect(header(page)).toHaveText(L);
   expect((await teamRows(page)).slice(0, 2)).toEqual(['Peer check, looks good', 'Back translation, looks good']);
 });
@@ -130,7 +130,7 @@ test('PASS-017 TREV Back-translate it, and is offered the next check', async ({ 
   expect(await mainButton(t)).toBe('Back-translate it');
   await byId(t, 'primary-action').click();
   await backTranslateOnePart(t);
-  expect((await screenText(t)).toLowerCase()).toContain('next, ask for a check community check');
+  expect((await screenText(t)).toLowerCase()).toContain('next check community check');
   await expect(byId(t, 'primary-action')).toHaveText(/^Ask /);
 });
 
@@ -161,13 +161,11 @@ test('PASS-019 Record a fix', async ({ browser }) => {
   await expect(byId(page, 'record-button')).toBeVisible();
   await recordOnePart(page);
   await byId(page, 'publish-button').click();
-  await expect(byId(page, 'primary-action')).toHaveText('Publish Version 2');
-  await byId(page, 'primary-action').click();
-  await expect(text(page, 'Version 2 published')).toBeVisible({ timeout: 30_000 });
-  // Answered feedback keeps the check open (decisions.md 96): the peer check is the one asked for again.
-  expect((await screenText(page)).toLowerCase()).toContain('next, ask for a check peer check');
-  await expect(button(page, 'Ask the Peer check team')).toBeVisible();
-  await button(page, 'Not now').click();
+  // Answered feedback keeps the check open (decisions.md 96): Done offers the peer check again.
+  expect((await screenText(page)).toLowerCase()).toContain('next check peer check');
+  await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team');
+  await button(page, 'Send later').click();
+  await toast(page, 'Version 2 published.');
   await expect(header(page)).toHaveText(L);
   const path = await screenText(page);
   expect(path).not.toContain('Hear the feedback');

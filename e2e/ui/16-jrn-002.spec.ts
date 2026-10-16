@@ -51,29 +51,27 @@ test('JRN-002 A translator answers feedback: one fix, one kept with a reason @p0
   await expect.poll(() => partsCount(page)).toBe(before);
   await byId(page, 'publish-button').click();
 
-  // The Publish screen: the change note is needed, and the check it answers is named.
+  // The Done screen: the change note is needed, and the check it answers is named.
   await expect(text(page, 'Version 2')).toBeVisible();
   expect.soft(await screenText(page), 'decision 91: the check is named as the record names it').toMatch(new RegExp(`Answers the peer check feedback from ${rev.name}`, 'i'));
   await expect(text(page, new RegExp(`Answers the .* feedback from ${rev.name}`))).toBeVisible();
-  // It starts from a first draft ("Revised after the … feedback."); emptied, Publish waits for something said.
+  // It starts from a first draft ("Revised after the … feedback."); emptied, Done waits for something said.
   await page.getByRole('button', { name: /^What changed\./ }).locator('visible=true').first().click();
   const note = page.getByPlaceholder('Or type it').locator('visible=true').first();
   await note.fill('');
   await button(page, 'Done').click();
-  await expect(button(page, 'Publish Version 2')).toBeDisabled();
+  await expect(primary(page)).toBeDisabled();
   await page.getByRole('button', { name: /^Say what changed\./ }).locator('visible=true').first().click();
   await page.getByPlaceholder('Or type it').locator('visible=true').first().fill('Slowed verse 18');
   await button(page, 'Done').click();
-  await expect(button(page, 'Publish Version 2')).toBeEnabled();
+  await expect(primary(page)).toBeEnabled();
 
-  // Step 7: published; the record moves on.
-  await button(page, 'Publish Version 2').click();
+  // Step 7: published (Send later: nobody asked yet); the record moves on.
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 2 published.');
-  await expect(text(page, 'Version 2 published')).toBeVisible();
-  await button(page, 'Not now').click();
   await expect(button(page, /^1\. Record\. Version 2/)).toBeVisible();
   await expect(button(page, 'Hear the feedback')).toHaveCount(0);
-  await expect(button(page, /^Peer check, (answered|asked|after you publish)/).or(button(page, /^Peer check, /))).toBeVisible();
+  await expect(button(page, /^Peer check, (answered|asked|once you're done)/).or(button(page, /^Peer check, /))).toBeVisible();
   expect(await screenText(page)).not.toMatch(/Fix it, or keep it and say why/);
 
   // Steps 8-9: the feedback on P-SUBMITTED, kept with a reason.

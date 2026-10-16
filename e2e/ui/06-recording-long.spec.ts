@@ -71,7 +71,7 @@ test('REC-030 A five-minute part, and a five-minute session of many parts', asyn
   await button(page, 'Pause Part 1').click();
   // Published, and REV can play the whole version from the server.
   await publishButton(page).click();
-  await primary(page).click();
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 1 published.');
   await expectUploaded(page, w);
   const rev = await clientAs(w, 'REV', 'A');

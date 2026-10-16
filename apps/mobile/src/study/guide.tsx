@@ -73,6 +73,7 @@ export function GuideStep(props: {
   const { uri: audioUri } = useStudyFileUri(ctx.language.orgId, step.audio.file, step.audio.url);
   const audio = useStudyAudio(audioUri, step.audio.seconds);
   const [selected, setSelected] = useState<string | null>(null);
+  // A note or answer being added. Its draft is kept per part of the step, and one for the step's moments (whichever moment it is noted at).
   const [adding, setAdding] = useState<{ sectionId?: string; at?: string; quote: string; answer: boolean } | null>(null);
   const [resource, setResource] = useState<StudyResource | null>(null);
   useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps -- it reads only refs, so the first draw's copy is enough on unmount
@@ -121,7 +122,8 @@ export function GuideStep(props: {
 
       {adding ? (
         <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={adding.answer ? t('study.guide.yourAnswer') : t('common.addNote')}
-          where={`${step.title} · ${adding.quote}`}
+          where={`${step.title} · ${adding.quote}`} answer={adding.answer}
+          draftAt={`study:${guide.id}:${step.id}:${adding.sectionId ?? (adding.at ? 'moment' : 'step')}`}
           onClose={() => { setAdding(null); setSelected(null); }}
           onSave={(c) => saveNote(ctx, v, {
             kind: 'study', guideId: guide.id, stepId: step.id,

@@ -14,7 +14,6 @@
     "tryAgain": "Réessayer",
     "pause": "Pause",
     "record": "Enregistrer",
-    "publish": "Publier",
     "remove": "Retirer",
     "edit": "Modifier",
     "copy": "Copier",
@@ -449,12 +448,7 @@
       "itemDescription": "Guide d’étude",
       "itemDescriptionPattern": "Guide d’étude · {{pattern}}",
       "published": "{{title}} est publié. Les appareils le recevront à leur prochaine synchronisation.",
-      "notPublished": "{{reason}} Votre brouillon est gardé.",
-      "savedAt": "Brouillon sauvegardé sur cet appareil à {{time}}. Une seule personne à la fois modifie un guide.",
-      "savedAsYouWrite": "Les brouillons sont sauvegardés sur cet appareil pendant que vous écrivez. Une seule personne à la fois modifie un guide.",
-      "publishNewVersion": "Publier une nouvelle version",
-      "restored": "Votre brouillon de {{time}} est ouvert.",
-      "restoredBody": "Publiez-le, ou continuez à écrire. Rien n’est publié tant que vous ne le faites pas.",
+      "notPublished": "Non publié : {{reason}}",
       "newer": "Une version plus récente a été publiée après que vous avez commencé ce brouillon.",
       "newerBody": "Si vous publiez le vôtre, il deviendra la version suivante, sans leurs modifications.",
       "ready": "Prêt à publier.",
@@ -1613,7 +1607,6 @@
       "subTemplate": "Modèle · {{source}}",
       "untitled": "Nouveau modèle",
       "create": "Créer le modèle",
-      "saveChanges": "Sauvegarder les modifications",
       "follows": "Il suit {{org}}",
       "followsBody": "Ses versions viennent de là-bas. Copiez-le pour le modifier.",
       "copiedFind": "{{name}} copié. Trouvez la copie sous Votre organisation.",
@@ -1643,13 +1636,7 @@
       "chapterCount_other": "{{count, number}} chapitres",
       "addBook": "Ajouter un livre",
       "outline": "Plan",
-      "leaveTitle": "Quitter sans sauvegarder ?",
-      "leaveSub": "Vos modifications de ce modèle ne sont pas sauvegardées.",
-      "keepEditing": "Continuer à modifier",
-      "leave": "Quitter",
-      "leaveNote": "Sauvegarder les publie comme version suivante.",
       "createHelp": "L’ajoute à la bibliothèque de votre organisation, prêt à être utilisé par les langues.",
-      "saveChangesHelp": "Le sauvegarde comme version suivante. Les langues qui l’utilisent y passent.",
       "nameHelp": "Le nom du modèle dans la bibliothèque.",
       "levelHelp": "Le renomme. Tout le monde voit ce mot dans l’application.",
       "lastLevelHelp": "Le renomme, et choisit comment chacun est affiché.",
@@ -1658,7 +1645,7 @@
       "bookHelp": "Choisissez comment il est découpé. Renommez-le ou retirez-le depuis là.",
       "addBookHelp": "Ajoute des livres que le modèle n’a pas encore.",
       "versificationChoiceHelp": "Numérote les chapitres et versets du modèle de cette façon.",
-      "leaveHelp": "Revient en arrière sans sauvegarder vos modifications."
+      "doneHelp": "Publie vos modifications comme version suivante. Les langues qui l’utilisent y passent."
     },
     "newTemplate": {
       "title": "Nouveau modèle",
@@ -1758,7 +1745,7 @@
       "versePlaceholder": "verset {{verse}}"
     },
     "divide": {
-      "done": "{{book}} est découpé. Sauvegardez le modèle pour le garder.",
+      "done": "{{book}} est découpé.",
       "tapBook": "Touchez un livre pour choisir son découpage.",
       "nameOrRemove": "Renommer ou retirer {{book}}",
       "nameOrRemoveHelp": "Ouvre le nom du livre dans la langue, pour le changer ou retirer le livre."
@@ -2158,9 +2145,6 @@
       "namePlaceholder": "Comment l’équipe l’appelle",
       "joinSub": "Les versets de cette section vont à la précédente",
       "firstCantJoin": "La première section ne peut pas être jointe",
-      "leaveTitle": "Partir sans enregistrer ?",
-      "leaveSub": "Vos sections de {{book}} ne sont pas encore enregistrées.",
-      "leaveAnyway": "Partir sans enregistrer",
       "helpsTitle": "Aides pour {{book}}",
       "closeHelps": "Fermer les aides",
       "tabOutline": "Plan",
@@ -2181,9 +2165,6 @@
       "verses_one": "{{count, number}} verset",
       "verses_other": "{{count, number}} versets",
       "verses_many": "{{count, number}} versets",
-      "save_one": "Enregistrer · {{count, number}} section",
-      "save_other": "Enregistrer · {{count, number}} sections",
-      "save_many": "Enregistrer · {{count, number}} sections",
       "jumpLabel_one": "Chapitre {{chapter}} : {{count, number}} section commence ici",
       "jumpLabel_other": "Chapitre {{chapter}} : {{count, number}} sections commencent ici",
       "jumpLabel_many": "Chapitre {{chapter}} : {{count, number}} sections commencent ici",
@@ -2219,7 +2200,9 @@
       "guideRowHelp": "Va au premier endroit qu’il couvre dans le texte.",
       "undoHelp": "Remet les sections comme elles étaient avant votre dernière modification.",
       "startFromHelp": "Remplace vos sections par celles d’une façon toute prête, pour partir de là.",
-      "leaveAnywayHelp": "Revient en arrière. Vos sections pour ce livre ne sont pas gardées."
+      "done_many": "Terminé · {{count, number}} sections",
+      "done_one": "Terminé · {{count, number}} section",
+      "done_other": "Terminé · {{count, number}} sections"
     },
     "division": {
       "way_one": "{{way}} · {{count, number}} morceau",
@@ -2514,7 +2497,6 @@
       "version": "Version {{n, number}}",
       "movingToNewest": "passe à la plus récente",
       "openFlow": "Ouvrir le circuit",
-      "saveAsFlow": "Sauvegarder comme circuit",
       "yourOrganization": "Votre organisation",
       "noFlows": "Pas encore de circuits ici. Suivez ou copiez-en un qu’une autre organisation partage, ou créez le vôtre.",
       "openNamed": "Ouvrir {{name}}",
@@ -2528,7 +2510,8 @@
       "inUseHelp": "Cette langue vérifie maintenant ses passages de cette façon.",
       "useHelp": "Ses vérifications deviennent celles de {{language}}. Vous pourrez les changer ensuite.",
       "stepsLabel": "Étapes",
-      "stepsHelp": "Les vérifications, de gauche à droite. Celles qui sont empilées se font ensemble. Un cadenas : cette étape doit être validée d’abord."
+      "stepsHelp": "Les vérifications, de gauche à droite. Celles qui sont empilées se font ensemble. Un cadenas : cette étape doit être validée d’abord.",
+      "addToFlows": "Ajouter à vos circuits"
     },
     "flowEditor": {
       "anyoneTeamAsks": "Toute personne à qui l’équipe demande",
@@ -2547,8 +2530,6 @@
       "addThisCheck": "Ajouter cette vérification",
       "newKindDescription": "Défini par votre organisation.",
       "newKindReviewer": "Toute personne choisie par l’équipe",
-      "leaveTitle": "Quitter sans sauvegarder ?",
-      "discard": "Abandonner les modifications",
       "reviewFlow": "Circuit de révision",
       "gone": "Ce circuit n’existe plus ici",
       "savedMoves": "{{name}} sauvegardé. {{language}} y passe.",
@@ -2562,23 +2543,21 @@
       "descriptionPlaceholder": "À quoi il sert, en une ligne",
       "noChecks": "Aucune vérification : terminé dès qu’il est enregistré",
       "usedHere": "{{language}} l’utilise. Les modifications s’appliquent tout de suite à ses passages ; rien de ce qui est déjà enregistré n’est perdu.",
-      "usedNote": "Les langues qui l’utilisent passent à chaque version que vous sauvegardez. Les étapes sont un ordre suggéré ; seule une étape verrouillée doit être validée d’abord.",
+      "usedNote": "Les langues qui l’utilisent passent à chaque nouvelle version. Les étapes sont un ordre suggéré ; seule une étape verrouillée doit être validée d’abord.",
       "kindsSub": "Les types sont le vocabulaire de votre organisation. Ajoutez les vôtres si ceux-ci ne conviennent pas.",
       "newKindLabel": "Un nouveau type",
       "newKindPlaceholder": "Nouveau type, ex. : Révision par les anciens",
       "addThisKind": "Ajouter ce type",
-      "leaveSubFlow": "Vos modifications de ce circuit n’ont pas été sauvegardées.",
       "removeCheckHelp": "La retire de cette étape. Les autres vérifications restent.",
       "moveUpHelp": "Cette étape se fait une étape plus tôt.",
       "moveDownHelp": "Cette étape se fait une étape plus tard.",
-      "removeStepHelp": "Retire cette étape et ses vérifications. Rien ne change tant que vous ne sauvegardez pas.",
+      "removeStepHelp": "Retire cette étape et ses vérifications.",
       "saveHelp": "Publie cette version dans votre bibliothèque. Les langues qui utilisent le circuit y passent.",
       "noChecksHelp": "Retire toutes les étapes : un passage est terminé dès qu’il est enregistré.",
       "pickNewHelp": "Ajoute une étape avec cette vérification, après les autres.",
       "pickAlongsideHelp": "Ajoute cette vérification à l’étape, en parallèle de celles qui y sont.",
       "newKindHelp": "Nommez un type de vérification qui manque dans cette liste.",
-      "addThisKindHelp": "Ajoute le type que vous avez nommé, et le met dans l’étape.",
-      "discardHelp": "Quitte sans sauvegarder. Vos modifications sont perdues."
+      "addThisKindHelp": "Ajoute le type que vous avez nommé, et le met dans l’étape."
     },
     "reference": {
       "languageTeam": "Équipe {{language}}",
@@ -2644,7 +2623,6 @@
       "newMaterial": "Nouveau document",
       "locked": "Verrouillé",
       "unlocked": "Déverrouillé",
-      "saveChanges": "Sauvegarder les modifications",
       "byWhom": "par {{name}}",
       "questionsFor": "questions pour {{kind}}",
       "unfilledBlanks_one": "{{count, number}} champ non rempli",
@@ -2657,7 +2635,7 @@
       "titlePlaceholder": "ex. : Directives de traduction dinka",
       "whereItApplies": "Où il s’applique",
       "allLanguages": "Toutes les langues",
-      "toLibraryNote": "Sauvegardé dans votre bibliothèque et recommandé à toutes les langues.",
+      "toLibraryNote": "Il va dans votre bibliothèque, recommandé à toutes les langues.",
       "setsNeedLanguage": "Les séries de questions appartiennent à une langue. Ajoutez d’abord une langue.",
       "addLanguageFirst": "Ajoutez d’abord une langue.",
       "forWhichKind": "Pour quel type de révision",
@@ -2675,11 +2653,10 @@
       "addSection": "Ajouter une section",
       "addSectionPlaceholder": "ex. : Noms propres",
       "add": "Ajouter",
-      "inLibrary": "Dans votre bibliothèque · {{source}}. Publier à nouveau ajoute une version à partir de ce qui est sauvegardé ici.",
+      "inLibrary": "Dans votre bibliothèque · {{source}}.",
       "notInLibrary": "Publiez-le dans votre bibliothèque pour le partager avec d’autres organisations ou en garder des versions.",
       "publishNewVersion": "Publier une nouvelle version",
       "publishToLibrary": "Publier dans la bibliothèque",
-      "saveFirst": "Sauvegardez d’abord vos modifications.",
       "lockedHelp": "Seules les personnes qui gèrent les documents de référence peuvent le changer. Touchez pour déverrouiller.",
       "unlockedHelp": "Toute personne qui remplit le contenu de référence peut le changer. Touchez pour verrouiller.",
       "saveNewHelp": "L’ajoute. Les traducteurs et les réviseurs le reçoivent là où il s’applique.",
@@ -2692,13 +2669,14 @@
       "typeYesNoHelp": "Les réviseurs répondent par oui ou non.",
       "typeRatingHelp": "Les réviseurs répondent par un nombre sur cette échelle.",
       "requiredSwitchHelp": "Activé : les réviseurs doivent y répondre, ou dire pourquoi ils ne le font pas. Désactivé : ils peuvent la passer.",
-      "removeQuestionHelp": "Retire cette question. Rien ne change tant que vous ne sauvegardez pas.",
+      "removeQuestionHelp": "Retire cette question.",
       "addQuestionHelp": "Ajoute une question vide à la fin.",
       "sectionHelp": "Tapez ce que les traducteurs doivent savoir pour cette section.",
       "sectionNameHelp": "Tapez le nom d’une nouvelle section, puis ajoutez-la.",
       "addSectionHelp": "Ajoute la section que vous avez nommée, vide, à remplir.",
-      "publishHelp": "Met ce qui est sauvegardé ici dans votre bibliothèque, pour le partager ou en garder des versions.",
-      "publishVersionHelp": "Ajoute ce qui est sauvegardé ici à votre bibliothèque comme nouvelle version."
+      "publishHelp": "Le met dans votre bibliothèque, pour le partager ou en garder des versions.",
+      "publishVersionHelp": "L’ajoute à votre bibliothèque comme nouvelle version.",
+      "doneHelp": "Met vos modifications dans le document, pour tous ceux qui le lisent."
     },
     "libraryMaterial": {
       "eachLanguagesOwn": "Propre à chaque langue",
@@ -2708,7 +2686,6 @@
       "reviewersSee": "Les réviseurs qui font {{kind}} voient maintenant ces questions.",
       "newTitle": "Nouveau document de bibliothèque",
       "newSub": "Bibliothèque · votre organisation",
-      "publishNewVersion": "Publier une nouvelle version",
       "passages": "Passages",
       "titlePlaceholder": "ex. : Les noms dans Ruth",
       "textLabel": "Texte",
@@ -2726,12 +2703,12 @@
       "searchParts": "Chercher des parties",
       "noTemplates": "Aucune langue n’utilise encore de modèle de la bibliothèque.",
       "publishHelp": "Le met dans votre bibliothèque, pour le recommander aux langues ou le partager.",
-      "publishVersionHelp": "Sauvegarde vos modifications comme nouvelle version dans votre bibliothèque.",
+      "publishVersionHelp": "Publie vos modifications comme nouvelle version dans votre bibliothèque.",
       "kindHelp": "En fait ce type de document.",
       "textHelp": "Ce que lisent les traducteurs : le document lui-même.",
       "versesHelp": "Les traducteurs le reçoivent sur ces versets. Écrivez chacun comme {{example}}.",
       "numberingHelp": "Les Bibles numérotent certains versets différemment. Lit les versets ci-dessus de cette façon.",
-      "removePartHelp": "Retire le lien. Rien ne change tant que vous ne publiez pas.",
+      "removePartHelp": "Retire le lien.",
       "linkPartHelp": "Choisissez une partie d’un modèle : les traducteurs le reçoivent là, dans chaque langue qui l’utilise.",
       "useInReviewsHelp": "Les réviseurs qui font {{kind}} dans cette langue reçoivent ces questions.",
       "pickPartHelp": "Lie cette partie : les traducteurs le reçoivent là."
@@ -3522,7 +3499,8 @@
     "contribute": {
       "sub": "Elle reste avec le passage, et les réviseurs la voient avec l’étude.",
       "record": "Enregistrer ce que le groupe a dit",
-      "typeHelp": "Tapez-le ici, au lieu de l’enregistrer ou en plus."
+      "typeHelp": "Tapez-le ici, au lieu de l’enregistrer ou en plus.",
+      "addAnswer": "Ajouter votre réponse"
     },
     "media": {
       "map": "Carte",
@@ -3843,12 +3821,10 @@
         "askedName": "{{by}} l’a demandé à {{name}}",
         "askedSomeone": "{{by}} l’a demandé à quelqu’un"
       },
-      "publish": "Publier",
       "publishedWhen": "Publié {{when}}",
       "publishedJustNow": "Publié à l'instant",
       "someoneInSentence": "quelqu’un",
       "thenAskFor": "Puis demandez la {{check}}",
-      "saveForTeam": "Le garder pour que l’équipe l’écoute",
       "hearFeedback": "Écouter les remarques",
       "feedbackSub": "{{kind}} · à modifier",
       "fix": "Corrigez-le, ou gardez-le et dites pourquoi",
@@ -3863,13 +3839,13 @@
         "after": "après la {{check}}",
         "askedWho": "demandé à {{who}}",
         "asked": "demandé",
-        "afterPublish": "après publication",
-        "next": "ensuite"
+        "next": "ensuite",
+        "afterDone": "quand vous aurez terminé"
       },
       "help": {
         "study": "Parcourez le guide d’étude ensemble avant d’enregistrer. Rien n’attend cette étape.",
         "record": "Enregistrez le passage dans votre langue. Autant d’essais que vous voulez.",
-        "publish": "Publier garde votre version pour que l’équipe l’écoute, puis vous demandez une vérification.",
+        "publish": "Quand toutes les parties sont enregistrées, touchez Terminé : l’équipe peut l’écouter, et elle passe à sa prochaine vérification.",
         "feedback": "Quelqu’un a écouté et a demandé des modifications. Écoutez ce qu’il a dit.",
         "fix": "Enregistrez une nouvelle version avec la modification, ou gardez celle-ci et dites pourquoi.",
         "team": "Une vérification par l’équipe : {{status}}. Touchez pour voir qui et les options.",
@@ -3883,7 +3859,8 @@
         "teamView": "Une vérification par l’équipe : {{status}}.",
         "checkpoint": "Le cadenas : elle doit être validée avant les étapes suivantes."
       },
-      "thenTheTeam": "Puis l’équipe"
+      "thenTheTeam": "Puis l’équipe",
+      "teamHears": "Puis l’équipe peut l’écouter"
     },
     "quote": "« {{text}} »",
     "journey": {
@@ -4060,12 +4037,6 @@
       "askTitle": "Demander une vérification",
       "askTarget": "Demander à {{target}}",
       "someoneElse": "Quelqu’un d’autre",
-      "backTranslation": "Rétrotraduction publiée",
-      "version": "Version {{n, number}} publiée",
-      "versionNoNumber": "Version publiée",
-      "savedHere": "{{title}} · gardé sur cet appareil · sera envoyé quand vous serez en ligne",
-      "sent": "{{title}} · envoyé à l'équipe",
-      "sending": "{{title}} · envoi en cours",
       "nextAsk": "Ensuite, demandez une vérification",
       "allDone": "Toutes les vérifications sont terminées.",
       "alreadyAsked": "La vérification suivante est déjà demandée.",
@@ -4217,7 +4188,6 @@
       "latest": "La plus récente",
       "saved": "Enregistré {{when}}",
       "savedJustNow": "Enregistré à l’instant",
-      "savedToast": "{{name}} enregistré.",
       "notDeleted": "Non supprimé. {{reason}}",
       "deleted": "{{name}} supprimé.",
       "delete": "Supprimer {{name}}",
@@ -4230,10 +4200,10 @@
       "newVersionHelp": "Commence une nouvelle version depuis le début. Vos brouillons restent.",
       "deleteHelp": "Supprime ce brouillon.",
       "editDraftHelp": "Ouvre ce brouillon dans l’espace d’enregistrement, pour continuer à y travailler.",
-      "publishHelp": "Ouvre ce brouillon pour le publier, afin que l’équipe l’écoute.",
       "editVersionHelp": "Commence un nouveau brouillon à partir de cette version. La version elle-même reste telle quelle.",
       "partHelp": "Fait entendre cette partie seule.",
-      "deleteVersionHelp": "Supprime cette version pour tous. Les vérifications déjà faites restent dans l’historique mais ne comptent plus."
+      "deleteVersionHelp": "Supprime cette version pour tous. Les vérifications déjà faites restent dans l’historique mais ne comptent plus.",
+      "doneHelp": "Ouvre ce brouillon une dernière fois, pour le terminer et l’envoyer à sa prochaine vérification."
     }
   },
   "work": {
@@ -4858,7 +4828,6 @@
       "yourRecording": "Votre enregistrement",
       "openHelp": "Tirez le séparateur vers le haut, ou touchez ici, pour voir vos parties.",
       "barLabel": "Votre enregistrement. {{next}}. {{progress}}. Ouvrir",
-      "publishHelp": "Quand toutes les parties sont enregistrées : gardez cette version pour l’équipe.",
       "nextRecording": "{{part}}…",
       "deletePartHelp": "Supprime cette partie. Vous pouvez annuler juste après.",
       "nextCardHelp": "La partie que vous enregistrez ensuite. Touchez le bouton rouge pour commencer.",
@@ -4874,7 +4843,8 @@
       "gapHelp": "Ce que vous enregistrez ensuite va dans ce vide.",
       "recordAtEnd": "Enregistrer {{part}} à la fin",
       "endHelp": "Ce que vous enregistrez ensuite va à la fin.",
-      "deleteAllAsk": "Supprimer toutes les parties ?"
+      "deleteAllAsk": "Supprimer toutes les parties ?",
+      "doneHelp": "Quand toutes les parties sont enregistrées : terminez cette version et envoyez-la à sa prochaine vérification."
     },
     "quoted": "« {{text}} »",
     "listening": "Écoute… {{time}}",
@@ -4936,9 +4906,7 @@
       "parts_many": "{{count, number}} parties",
       "parts_other": "{{count, number}} parties",
       "withBible": "enregistré avec la Bible {{bible}}",
-      "publishVersion": "Publier {{version}}",
       "atMoment": "À {{time}} :",
-      "explain": "Publier ajoute {{version}} au passage. Toute l’équipe peut l’écouter. Elle part quand l’appareil a Internet.",
       "answers": "Répond aux remarques de {{from}} ({{kind}})",
       "tied_one": "{{count, number}} mot clé lié à cette version",
       "tied_many": "{{count, number}} mots clés liés à cette version",
@@ -4954,7 +4922,14 @@
       "optional": "Facultatif · l’équipe l’entend avec cette version",
       "sayHelp": "À voix haute ou par écrit. L’équipe l’entend avec cette version.",
       "rowLabel": "{{label}}. {{sub}}",
-      "doneHelp": "Garde ce que vous avez dit et ferme ceci."
+      "doneHelp": "Garde ce que vous avez dit et ferme ceci.",
+      "finish": "Terminer {{version}}",
+      "finishHelp": "Termine {{version}} : l’équipe peut l’écouter.",
+      "sendHelp": "Termine {{version}} et la leur envoie pour cette vérification. Ils la trouvent dans Mon travail.",
+      "askHelp": "Termine {{version}}, puis vous choisissez à qui demander.",
+      "sendLater": "Envoyer plus tard",
+      "sendLaterHelp": "Termine {{version}} sans rien demander à personne pour l’instant. L’équipe peut l’écouter.",
+      "nextCheck": "Prochaine vérification"
     },
     "tray": {
       "help": "Aide",
@@ -6177,7 +6152,6 @@
       "savesTo_one": "Sauvegarde dans {{count, number}} passage",
       "savesTo_many": "Sauvegarde dans {{count, number}} passages",
       "savesTo_other": "Sauvegarde dans {{count, number}} passages",
-      "saveToRecord": "Sauvegarder dans l’historique",
       "loggedIntro": "Pour une révision « {{kind}} » faite hors de l’application — en personne, par téléphone, à l’église. Elle va dans l’historique au nom de la personne qui l’a faite.",
       "versionByYou": "Version {{n}} · enregistrée par vous",
       "versionBy": "Version {{n}} · enregistrée par {{name}}",
@@ -6248,10 +6222,6 @@
       "skipSub": "Les questions obligatoires peuvent être passées — la raison est sauvegardée avec votre révision.",
       "skipConfirm": "Passer la question",
       "skipFootnote": "La raison est sauvegardée avec votre révision.",
-      "leaveTitle": "Quitter sans sauvegarder ?",
-      "leaveSub": "Ce que vous avez dit et répondu ici n'est pas enregistré tant que vous n'envoyez pas la relecture.",
-      "keepReviewing": "Continuer la relecture",
-      "leave": "Quitter",
       "backgroundHelp": "Ouvre ce qui vous aide à juger : la Bible, les notes, les mots clés et plus.",
       "whoHelp": "Dites combien de personnes ont écouté, et où. Facultatif.",
       "whoReviewedHelp": "Dites qui a fait cette révision. Facultatif.",
@@ -6267,12 +6237,11 @@
       "sheetDoneHelp": "Garde ce que vous avez indiqué ici et ferme ceci.",
       "whereHelp": "Où ils ont écouté. Cela va dans l’historique avec la révision.",
       "whichVersionHelp": "Choisit la version qui leur a été jouée.",
-      "keepReviewingHelp": "Reste ici. Rien n’est perdu.",
-      "leaveHelp": "Quitte sans envoyer. Ce que vous avez dit ici n’est pas gardé.",
       "helpBibleHelp": "Ouvre cette Bible dans Contexte, à côté du passage.",
       "helpGuideHelp": "Ouvre le guide d’étude de ce passage.",
       "helpNoteHelp": "L’ouvre pour la lire.",
-      "howManyHelp": "Dites combien de personnes ont écouté. Facultatif."
+      "howManyHelp": "Dites combien de personnes ont écouté. Facultatif.",
+      "doneRecordedHelp": "Met la {{what}} dans l’historique du passage."
     },
     "guest": {
       "previewSub": "Aperçu · ce que voit quelqu’un sans l’application",
@@ -6371,7 +6340,6 @@
       "noteAdded": "Note ajoutée — elle suit ce passage",
       "noteOnVerse": "Note sur le verset {{verse}}",
       "noteOnVerseAt": "Note sur le verset {{verse}} · à {{time}}",
-      "saveNote": "Sauvegarder la note",
       "playYourNoteAt": "Écouter votre note à {{time}}",
       "yourNoteAt": "Votre note à {{time}}",
       "goesWithReview": "{{length}} · accompagne votre révision",
@@ -6389,7 +6357,8 @@
       "verseHelpPlay": "Lit le passage à partir de ce verset.",
       "verseHelpPick": "Choisit ce verset. Ensuite, Note y ajoute une note.",
       "notesByHelp": "Notes de {{names}} sur ce verset.",
-      "removeNoteHelp": "Supprime cette note."
+      "removeNoteHelp": "Supprime cette note.",
+      "closeNoteHelp": "Ferme la note. Ce que vous avez dit ou écrit revient quand vous laissez à nouveau une note sur ce verset."
     },
     "voice": {
       "hearIt": "L’écouter",
@@ -6452,12 +6421,6 @@
     "openYour": "Ouvrir votre {{what}}",
     "yourWhat": "Votre {{what}}, {{said}}",
     "loadingParts": "Chargement de vos parties…",
-    "notesFor_one": "{{count, number}} note pour « {{check}} » · elle part avec quand vous publiez",
-    "notesFor_many": "{{count, number}} notes pour « {{check}} » · elles partent avec quand vous publiez",
-    "notesFor_other": "{{count, number}} notes pour « {{check}} » · elles partent avec quand vous publiez",
-    "notesForNext_one": "{{count, number}} note pour la prochaine vérification · elle part avec quand vous publiez",
-    "notesForNext_many": "{{count, number}} notes pour la prochaine vérification · elles partent avec quand vous publiez",
-    "notesForNext_other": "{{count, number}} notes pour la prochaine vérification · elles partent avec quand vous publiez",
     "saidInMore": "{{length}} en {{into}} · enregistrez pour en ajouter",
     "sayingNext": "À dire ensuite",
     "saidIn": "{{length}} en {{into}}",
@@ -6470,17 +6433,12 @@
     "recordHelp": "Dites la partie {{n}} avec vos propres mots. Faites une pause entre les idées ; touchez Arrêter quand vous avez fini.",
     "recordPart": "Enregistrer la partie {{n}}",
     "recordHint": "Parlez, en faisant une pause entre les parties. Touchez Arrêter quand vous avez fini.",
-    "publishHelp": "Garde la rétrotraduction pour l’équipe, puis demande la vérification suivante.",
     "noteAtPart": "Une note à {{time}} dans la partie {{part}}",
     "noteSub": "Qu’est-ce qui a été difficile à dire ici ? Elle sera entendue lors de « {{check}} » avec votre rétrotraduction.",
     "noteSubNext": "Qu’est-ce qui a été difficile à dire ici ? La vérification suivante l’entendra avec votre rétrotraduction.",
     "addNote": "Ajouter la note",
     "typeNoMatch": "Ou écrivez-le — ex. : un mot sans équivalent en anglais",
     "oneSpokenNote": "Pour l’instant, une seule note orale par rétrotraduction : écrivez celle-ci.",
-    "publishThe": "Publier la {{what}} ?",
-    "publishSubCheck": "De la version {{n}}. Prochaine écoute : {{check}}.",
-    "publishSub": "De la version {{n}}. Elle va dans l’historique du passage.",
-    "publishWhat": "Publier : {{what}}",
     "nothingYet_one": "Rien pour l’instant pour la partie {{parts}}",
     "nothingYet_many": "Rien pour l’instant pour les parties {{parts}}",
     "nothingYet_other": "Rien pour l’instant pour les parties {{parts}}",
@@ -6492,7 +6450,16 @@
     "noRecording": "Il n’y a pas encore d’enregistrement à rétrotraduire.",
     "openVersionHelp": "Ramène le lecteur de la version sur la moitié de l’écran.",
     "openPartsHelp": "Ramène vos parties sur la moitié de l’écran.",
-    "deletePartHelp": "Supprime ce que vous avez dit pour cette partie. Vous pouvez annuler juste après."
+    "deletePartHelp": "Supprime ce que vous avez dit pour cette partie. Vous pouvez annuler juste après.",
+    "ofVersion": "De la version {{n, number}}",
+    "notesForCheck_many": "{{count, number}} notes pour la {{check}}",
+    "sendHelp": "Termine la {{what}} et la leur envoie pour cette vérification. Ils la trouvent dans Mon travail.",
+    "askHelp": "Termine la {{what}}, puis vous choisissez à qui demander.",
+    "notesForCheck_one": "{{count, number}} note pour la {{check}}",
+    "finishWhat": "Terminer la {{what}}",
+    "doneHelp": "Quand toutes les parties sont dites : terminez-la et envoyez-la à la vérification qui l’écoute ensuite.",
+    "notesForCheck_other": "{{count, number}} notes pour la {{check}}",
+    "sendLaterHelp": "Termine la {{what}} sans rien demander à personne pour l’instant. L’équipe peut l’écouter."
   },
   "translate": {
     "missing": "Ce passage n’est pas encore sur cet appareil.",
@@ -6522,7 +6489,6 @@
     "dragDown": "Tirez vers le bas pour le guide, les mots clés, les notes et les enregistrements précédents",
     "openStudy": "Ouvrir l’étude",
     "yourRecording": "Votre enregistrement",
-    "saveHelp": "Vos parties sont déjà gardées pendant que vous enregistrez. Ceci revient en arrière.",
     "openReferenceHelp": "Ramène la référence sur la moitié de l’écran.",
     "openStudyHelp": "Ouvre cette étape dans l’étude complète.",
     "partReplaced": "{{part}} réenregistrée."
@@ -6877,7 +6843,6 @@
       "sayTitle": "Votre mot pour « {{term}} »",
       "saySub": "Dites comment on le dit en {{language}}. Votre équipe l’entend chaque fois que ce mot apparaît.",
       "saySubGloss": "{{gloss}}. Dites comment on le dit en {{language}}. Votre équipe l’entend chaque fois que ce mot apparaît.",
-      "saveWord": "Sauvegarder votre mot",
       "added": "{{term}} ajouté.",
       "addSub": "Un mot que l’équipe devrait dire toujours de la même façon. Il est ajouté aux mots clés de {{language}}.",
       "addWord": "Ajouter le mot",
@@ -6885,7 +6850,8 @@
       "meaningPlaceholder": "Ce qu’il veut dire (facultatif)",
       "sayItIn": "Le dire en {{language}}",
       "allHelp": "Ouvre la liste de tous les mots clés dans cette langue.",
-      "typeHelp": "Tapez comment on le dit en {{language}}."
+      "typeHelp": "Tapez comment on le dit en {{language}}.",
+      "addYourWord": "Ajouter votre mot"
     },
     "notes": {
       "noteOnRef": "Note sur {{verse}}",
@@ -6908,7 +6874,6 @@
       "madeWith": "faite avec {{version}}",
       "addHint": "Laissez une note sur ce passage, à voix haute ou par écrit.",
       "sheetSub": "Elle reste avec le passage. Les réviseurs et le traducteur suivant la voient.",
-      "save": "Sauvegarder la note",
       "added": "Note ajoutée.",
       "typeHelp": "Tapez votre note. Vous pouvez aussi la dire."
     },
@@ -7453,5 +7418,13 @@
       "all": "Toutes",
       "none": "Sans groupe"
     }
+  },
+  "saved": {
+    "draftHelp": "Gardé sur cet appareil au fur et à mesure, et vous seul pouvez le voir jusqu’à ce que vous ayez terminé. Un cercle qui tourne pendant la sauvegarde, puis une coche.",
+    "saving": "Sauvegarde en cours",
+    "failedHelp": "Ceci n’a pas été gardé. Réessayez : ce que vous avez fait est toujours à l’écran.",
+    "help": "Gardé au fur et à mesure : un cercle qui tourne pendant la sauvegarde, puis une coche. Vous n’avez rien à sauvegarder.",
+    "failed": "Non sauvegardé",
+    "saved": "Sauvegardé"
   }
 }

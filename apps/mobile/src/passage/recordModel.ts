@@ -377,6 +377,30 @@ export function studyLine(study: StudyProgress): string {
   return study.doneCount || study.noteCount ? studySummary(study) : t('passage.page.studyNotStarted');
 }
 
+/**
+ * The checks to ask for once this is done (decision 127), worked out before
+ * it is: Done offers "Ask Rebecca" on the same screen, so the next step is
+ * one tap. A new version answers the feedback on the latest one (so that
+ * check reads as addressed, as derivePassage will say once it is
+ * published); a check that makes content (a back translation) is recorded,
+ * so it is approved. Then, as on the record, the first step still open and
+ * not locked behind a checkpoint, and of it the checks nobody is asked for yet.
+ */
+export function nextAfterDone(p: Pick<PassageState, 'steps'>, o: { publishing?: boolean; recordedKindId?: string }): { step: FlowStepStatus; kinds: KindStatus[] } | undefined {
+  for (const s of p.steps) {
+    if (s.override) continue;
+    const kinds: KindStatus[] = s.kinds.map((k) => {
+      const state = k.state === 'locked' ? 'todo' : k.state;
+      return { ...k, state: o.publishing && state === 'suggestions' ? 'addressed' : state };
+    });
+    const cleared = (k: KindStatus) => k.kindId === o.recordedKindId || kindCleared(k, s);
+    if (kinds.every(cleared)) continue;
+    const open = kinds.filter((k) => !cleared(k) && !k.request && k.state !== 'suggestions');
+    return open.length ? { step: { ...s, kinds, complete: false }, kinds: open } : undefined;
+  }
+  return undefined;
+}
+
 /** The toast after sending a check on with one tap: to the team or to the person. */
 export function sentText(target: UsualTarget, label: string): string {
   return 'teamId' in target ? t('passage.page.sentToTeam', { target: label }) : t('passage.page.sentToPerson', { target: label });
@@ -391,18 +415,6 @@ export function askButtonLabel(o: { target: UsualTarget | undefined; kindId: str
 /** The Versions page's "Ask for the …" button label. */
 export function askForLabel(kindId: string, kinds: KindDef[]): string {
   return t('passage.page.askFor', { check: kindInSentence(checkName(kindId, kinds)) });
-}
-
-/** "Version 3 published": what the ask page celebrates (or the back translation just published). */
-export function publishedHeadline(o: { backTranslation: boolean; latest: Pick<Version, 'n'> | undefined }): string {
-  return o.backTranslation ? t('passage.published.backTranslation') : o.latest ? t('passage.published.version', { n: o.latest.n }) : t('passage.published.versionNoNumber');
-}
-
-/** Where the new version is: sent, sending, or kept here until there is a connection. */
-export function publishedLine(o: { pending: number; pendingUp: number; online: boolean | null | undefined; title: string }): string {
-  const waiting = o.pending > 0 || o.pendingUp > 0;
-  return !waiting ? t('passage.published.sent', { title: o.title })
-    : o.online === false ? t('passage.published.savedHere', { title: o.title }) : t('passage.published.sending', { title: o.title });
 }
 
 /** What the ask page says when there is no next check to ask for. */
