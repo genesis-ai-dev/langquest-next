@@ -7,12 +7,24 @@ import {
   button, byId, expect, expectNothingRefused, expectSent, leaveScreen, primary, openAs, screenChanged, screenText, syncNow, tab, test, text, type AccountKey, type PassageKey, type UiWorld
 } from './support';
 
-/** The parts card's count ("Parts 1–3 · 3 parts"), or 0 before the first part. */
+/**
+ * The parts card's count ("Parts 1–3, 3 parts", or "Version 1, 5 parts"
+ * while they are still the version's), or 0 before the first part. While
+ * recording the card gives way to the recording view, whose title is the
+ * part being said ("Part 4. Recording…"): three are kept.
+ */
 export async function partsCount(page: Page): Promise<number> {
-  const label = await page.getByRole('button', { name: /^Parts 1–\d+, \d+ parts?/ }).locator('visible=true').first()
-    .getAttribute('aria-label', { timeout: 1_000 }).catch(() => null);
-  const m = label?.match(/(\d+) parts?/);
-  return m ? Number(m[1]) : 0;
+  // Only what is on screen now: a lookup that waits for an absent card makes a recording overrun its stop.
+  const card = page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts?/ }).locator('visible=true').first();
+  if (await card.count()) {
+    const m = (await card.getAttribute('aria-label').catch(() => null))?.match(/, (\d+) parts?/);
+    return m ? Number(m[1]) : 0;
+  }
+  if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
+  const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+  if (!(await live.count())) return 0;
+  const n = (await live.getAttribute('aria-label').catch(() => null))?.match(/^Part (\d+)\. /);
+  return n ? Number(n[1]) - 1 : 0;
 }
 
 /**
@@ -51,7 +63,7 @@ export async function sayEachPart(page: Page, parts: number): Promise<void> {
 
 /**
  * The workspace's Done, then on its last look either "Send later" (published,
- * nobody asked) or, with no check next, "Finish Version N" (decision 124).
+ * nobody asked) or, with no check next, "Finish Version N" (decision 125).
  */
 export async function publishVersion(page: Page, n: number): Promise<void> {
   await byId(page, 'publish-button').click();

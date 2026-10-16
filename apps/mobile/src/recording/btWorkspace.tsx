@@ -9,7 +9,7 @@
 //
 // The parts are kept on this device until Done (decision 30): each
 // recorded piece goes to a local draft with the moment in the version its
-// part starts (`atMs`), and so do the notes at moments (decision 124). Done
+// part starts (`atMs`), and so do the notes at moments (decision 125). Done
 // (it was Publish) puts them in one core produceContent, in part order, and
 // in the same tap asks whoever usually does the check that comes next.
 import { checkPeople, commands, DEFAULT_KINDS, type EventSpec, type KindDef, type KindStatus, type Version } from '@langquest-next/core';
@@ -45,11 +45,11 @@ import { sendTargetLabel } from '../passage/record';
 import { sendToInput, type UsualTarget } from '../passage/sendTarget';
 import { AskCheckCard } from '../passage/askParts';
 import type { DoneAsk } from './publish';
-import { SaveProblem } from './parts';
+import { RecordButton, SaveProblem } from './parts';
 import { SplitPane } from './SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
 import { useListenLoop } from './useListenLoop';
-import { VadControls, VadPanel } from './VadTakeover';
+import { RecordingView } from './RecordingView';
 import { backTranslationDraftKey, cardDurations, unsavedParts } from './workspaceModel';
 import { failureMessage, reportError } from '../diagnostics/report';
 import { RequestBanner } from '../reviewing/parts';
@@ -134,7 +134,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   }
 
   // ---- notes at moments, and Done ----
-  // Kept as they are said or typed, only for whoever is making it, until it is done (decision 124).
+  // Kept as they are said or typed, only for whoever is making it, until it is done (decision 125).
   const said = useDraft(draftKey('bt', me, languageId, unitId, kind.id), EMPTY_BACK_NOTES, isBackNotesDraft);
   const { notes, noteHash, voiceInMoment } = said.value;
   const setNoteHash = (h: string | null) => said.set((d) => ({ ...d, noteHash: h }));
@@ -142,7 +142,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const pieces = piecesInOrder(parts);
-  // The check that comes next once this one is recorded, and who usually does it (decision 124).
+  // The check that comes next once this one is recorded, and who usually does it (decision 125).
   const askCan = recordCan(ctx.session).ask;
   const orgState = ctx.org.state;
   const nextUp = useMemo(() => (askCan ? nextAfterDone(p, { recordedKindId: kind.id }) : undefined), [p, askCan, kind.id]);
@@ -210,7 +210,13 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
           crumbs={passageCrumbs(ctx, v, screenTitle('back_translation'))} onBack={ctx.back} close action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />
         : <Header title={v.title} sub={shipped ? t('backTranslation.subInto', { into: produces.into }) : t('backTranslation.whatInto', { what: capitalize(produces.what), into: produces.into })}
           onBack={ctx.back} close action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
-      footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
+      footer={session ? (
+        <View style={styles.footer}>
+          <Text style={[txt.sm, styles.footLabel, { color: TINT.redText }]} numberOfLines={2}>{partLabel}…</Text>
+          <RecordButton recording onPress={() => void loop.toggle()} />
+          <View style={styles.footSide} />
+        </View>
+      ) : (
         <View style={styles.footer}>
           <Text style={[txt.sm, styles.footLabel]} numberOfLines={2}>{partLabel}</Text>
           <BigRecord disabled={blocked || rec.failureCount > 0 || !part} part={partN} onPress={() => void loop.toggle()} />
@@ -245,7 +251,9 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
             </ScrollView>
           </HelpClip>
         )}
-        bottom={({ compact, open }) => session ? <VadPanel rec={rec} phase={loop.phase} count={part?.cards.length ?? 0} noun="piece" onResume={loop.resumeNow} /> : compact ? (
+        bottom={({ compact, open }) => session ? (
+          <RecordingView rec={rec} phase={loop.phase} title={partLabel} partNumber={partN ?? 1} count={part?.cards.length ?? 0} noun="piece" onLeave={() => void loop.toggle()} onResume={loop.resumeNow} />
+        ) : compact ? (
           <PaneBar icon="mic" onPress={open} text={<>{partLabel} · {saidLine(parts)}</>} label={t('backTranslation.openYour', { what: produces.what })}
             help={t('backTranslation.openPartsHelp')} />
         ) : (
@@ -390,7 +398,7 @@ function MomentSheet(props: {
 /**
  * Done is a real step, so it shows what goes (ADR-028): what is said, what is
  * missing, and a last word; then who listens to it next, asked in the same
- * tap (decision 124). The last word is kept as it is typed.
+ * tap (decision 125). The last word is kept as it is typed.
  */
 function PublishSheet(props: {
   ctx: Ctx; v: PassageView; what: string; of: Version; parts: BackPart[]; notes: MomentNote[]; busy: boolean;

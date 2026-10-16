@@ -2,6 +2,7 @@
   "common": {
     "loading": "正在加载……",
     "done": "完成",
+    "save": "保存",
     "saving": "正在保存……",
     "cancel": "取消",
     "close": "关闭",
@@ -37,7 +38,7 @@
     "addNote": "添加备注",
     "orTypeIt": "或者打字输入",
     "sayIt": "说出来",
-    "save": "保存"
+    "deleteAsk": "删除{{name}}？"
   },
   "time": {
     "justNow": "刚刚",
@@ -709,6 +710,7 @@
     "rename": {
       "done": "已重命名为{{name}}。",
       "row": "名称",
+      "save": "保存名称",
       "taken": "这里已经有这个名称了",
       "failed": "未重命名",
       "orgTitle": "重命名机构",
@@ -716,8 +718,7 @@
       "languageTitle": "重命名{{name}}",
       "languageSub": "{{org}}中的所有人都会看到新名称。它的代码 {{code}} 保持不变。",
       "takenBody": "{{languages}}已经用了这个名称。两个语言同名，很难区分。",
-      "rowHelp": "更改这里所有人看到的名称。",
-      "save": "保存名称"
+      "rowHelp": "更改这里所有人看到的名称。"
     },
     "link": {
       "done": "{{name}}已关联到{{linked}}。",
@@ -864,6 +865,7 @@
       "notMemberSub": "这个人在这个机构中已经没有角色了。",
       "awaiting": "等待批准",
       "assignRole": "分配角色",
+      "saveAssignment": "保存分配",
       "decline": "拒绝",
       "introPending": "这个人创建了账号并申请加入。为他分配角色和范围，就能让他访问。",
       "intro": "选择一个角色，然后选择这项分配适用的范围。范围可以是这一级或更低的级别。",
@@ -875,8 +877,7 @@
       "removeFromOrg": "从机构中移除",
       "removeFromLanguage": "从语言中移除",
       "declineHelp": "拒绝对方的加入申请。",
-      "removeHelp": "取消他在这里的角色。之后会短暂显示“撤销”。",
-      "saveAssignment": "保存分配"
+      "removeHelp": "取消他在这里的角色。之后会短暂显示“撤销”。"
     },
     "signIn": {
       "notAllowed": "你不能帮这个人登录。",
@@ -1816,9 +1817,9 @@
       "fromLanguages": "这里的其他语言怎么称呼",
       "use": "使用",
       "useLabel": "使用{{name}}（{{from}}）",
+      "saveHelp": "保留这个名称：从现在起译者会看到它。",
       "useHelp": "把这个名称填到上面的框里。“保存”会保留它。",
-      "inBoxHelp": "勾表示这个名称已经在上面的框里。",
-      "saveHelp": "保留这个名称：从现在起译者会看到它。"
+      "inBoxHelp": "勾表示这个名称已经在上面的框里。"
     },
     "translate": {
       "question": "{{language}}要翻译什么？",
@@ -2248,6 +2249,7 @@
       "itsName": "名称",
       "itsNamePlaceholder": "角色名称",
       "scopeNote": "角色适用的范围是为每个人单独选择的：整个机构或某一个语言，在邀请他们或让他们加入时选择。",
+      "saveHelp": "保留名称和各项开关。所有拥有这个角色的人都会得到这项更改。",
       "inviteHelp": "出示邀请码供扫码。用它加入的人都会得到这个角色。",
       "personHelp": "打开他的角色及各自的适用范围，可以更改。",
       "renameHelp": "为所有人重命名这个角色。",
@@ -2262,8 +2264,7 @@
       "chooseWhoChecksHelp": "已开启：拥有这个角色的人可以选择经段要做哪些检查，以及由谁检查。",
       "assignWorkHelp": "已开启：拥有这个角色的人可以请任何人录制或检查经段。",
       "overrideChecksHelp": "已开启：拥有这个角色的人可以说明原因，让经段越过已锁定的检查。",
-      "manageRolesHelp": "已开启：拥有这个角色的人可以创建角色，并更改每个角色允许做的事。",
-      "saveHelp": "保留名称和各项开关。所有拥有这个角色的人都会得到这项更改。"
+      "manageRolesHelp": "已开启：拥有这个角色的人可以创建角色，并更改每个角色允许做的事。"
     },
     "library": {
       "followingAuto": "正在关注{{name}}。它会自动更新。",
@@ -3152,10 +3153,13 @@
     },
     "profile": {
       "title": "编辑个人资料",
+      "save": "保存个人资料",
       "nameLabel": "全名",
       "shortPassword": "请设置至少 6 个字符的密码。",
       "passwordNeedsConnection": "设置密码需要联网。",
       "passwordFailed": "无法设置密码。请重试。",
+      "savedWithPassword": "已保存。你可以用你的登录名和这个密码登录。",
+      "saved": "个人资料已保存。联网后会同步。",
       "newPassword": "新密码（选填）",
       "password": "密码（选填）",
       "passwordPlaceholder": "至少 6 个字符",
@@ -3165,10 +3169,7 @@
       "lastChangeRefused": "你上一次的更改没有被接受",
       "savedBody": "联网后会发送。",
       "nameHelp": "你的团队看到的你的名字。联网后会发送。",
-      "passwordHelp": "别人用过这台设备后，你可以用它重新登录。",
-      "savedWithPassword": "已保存。你可以用你的登录名和这个密码登录。",
-      "saved": "个人资料已保存。联网后会同步。",
-      "save": "保存个人资料"
+      "passwordHelp": "别人用过这台设备后，你可以用它重新登录。"
     },
     "orgs": {
       "stale": "无法刷新。已保存的机构仍然可以使用。",
@@ -3539,7 +3540,8 @@
         "studyStepDone": "{{pattern}}第 {{n, number}} 步已完成 · {{step}}",
         "studyDone": "学习步骤已完成",
         "keptAfter": "{{kind}}后保持原样",
-        "keptAfterFeedback": "收到反馈后保持原样"
+        "keptAfterFeedback": "收到反馈后保持原样",
+        "versionDeleted": "第 {{n, number}} 版已删除"
       },
       "counts": {
         "versions_other": "{{count, number}} 个版本",
@@ -3955,7 +3957,6 @@
       "newVersion": "新版本",
       "yourDraft": "你的草稿",
       "yourDrafts": "你的草稿",
-      "noDrafts": "没有草稿。编辑下面的某个版本，或开始一个新版本。",
       "published": "已发布",
       "latest": "最新",
       "saved": "{{when}}保存",
@@ -3970,10 +3971,11 @@
       "draft": "草稿",
       "draftN": "草稿 {{n, number}}",
       "newVersionHelp": "从头开始一个新版本。你的草稿会保留。",
-      "deleteHelp": "删除这份草稿。“撤销”可以恢复。",
+      "deleteHelp": "删除这份草稿。",
       "editDraftHelp": "在录音页面打开这份草稿，继续完成它。",
       "editVersionHelp": "根据这个版本开始一份新草稿。这个版本本身保持不变。",
       "partHelp": "单独播放这一段。",
+      "deleteVersionHelp": "为所有人删除这个版本。已经做过的检查仍留在记录里，但不再计算。",
       "doneHelp": "打开这份草稿最后看一遍，完成它并送去下一项检查。"
     }
   },
@@ -4263,11 +4265,11 @@
       "switchOff": "已关闭。点按可以开启。",
       "person": "显示这是谁：名字和 ID。",
       "cancel": "关闭，不做任何更改。",
+      "save": "保存你的更改。",
       "done": "这里完成了：返回。",
       "undo": "恢复之前的内容。",
       "tryAgain": "再试一次。",
-      "quickReason": "用这个作为你的理由。你仍然可以修改文字。",
-      "save": "保存你的更改。"
+      "quickReason": "用这个作为你的理由。你仍然可以修改文字。"
     },
     "tabs": {
       "work": "接下来要做什么：你的下一个经段，以及等着你处理的事。",
@@ -4524,7 +4526,6 @@
     },
     "recorder": {
       "permissionNeeded": "需要麦克风权限。",
-      "dragUp": "{{recorded}} · 向上拖动查看",
       "hidePartsHelp": "隐藏各段。",
       "showPartsHelp": "显示每一段，可以听或删除。",
       "playAllHelp": "按顺序一段一段地听目前录下的所有内容。",
@@ -4549,6 +4550,17 @@
       "nextCardHelp": "你接下来要录的一段。点按红色按钮开始。",
       "nextRecordingHelp": "正在录音。实心的条是正在保存的你的声音；浅色的条是安静的部分。",
       "nextPausedHelp": "播放圣经时已暂停。圣经停止后会继续录音。",
+      "deleteAll": "删除所有段",
+      "deleteAllHelp": "删除所有段，从头再来。",
+      "leave": "完成",
+      "leaveHelp": "停止录音，保留所有段。",
+      "recordOver": "重录{{part}}",
+      "recordOverHelp": "你接下来录的内容会替换这一段。",
+      "recordInGap": "在这里录{{part}}",
+      "gapHelp": "你接下来录的内容放进这个空位。",
+      "recordAtEnd": "在末尾录{{part}}",
+      "endHelp": "你接下来录的内容放在末尾。",
+      "deleteAllAsk": "删除所有段？",
       "doneHelp": "每一段都录好后：完成这个版本，并把它送去下一项检查。"
     },
     "quoted": "“{{text}}”",
@@ -4591,6 +4603,7 @@
       "chooseThis": "选择这一个。",
       "tryLabel": "尝试 {{id}}，{{length}}",
       "settingsSaved": "麦克风设置已保存在本设备上。",
+      "saveSettings": "保存这些设置",
       "byHandLead": "说话，同时看着音量条。拖动那条线，让你的声音高过它，房间的噪音低于它。",
       "sensitivityLine": "灵敏度线",
       "pauseEndsPart": "结束一段的停顿",
@@ -4601,8 +4614,7 @@
       "listenRoomHelp": "听几秒钟房间里的声音。这期间请保持安静。",
       "tryHelp": "开始这次尝试：说这句话，停顿一下，再说一遍，然后点按停止。",
       "tryStopHelp": "结束这次尝试并保存，用来和其他几次比较。",
-      "sensitivityHelp": "这些条是麦克风听到的声音。拖动这条线：高于它的声音会被录下来。",
-      "saveSettings": "保存这些设置"
+      "sensitivityHelp": "这些条是麦克风听到的声音。拖动这条线：高于它的声音会被录下来。"
     },
     "bigVoice": {
       "toggleHelp": "点按开始说话，再点一次停止。",
@@ -4671,13 +4683,13 @@
       "sayHelp": "可以说，也可以打字。团队会和这个版本一起听到。",
       "rowLabel": "{{label}}。{{sub}}",
       "doneHelp": "保存你说的话并关闭。",
-      "nextCheck": "下一项检查",
-      "sendHelp": "完成{{version}}，并发送给他们做这项检查。他们会在“我的工作”中看到。",
       "askHelp": "完成{{version}}，然后由你选择请谁。",
+      "finishHelp": "完成{{version}}：团队就能听到。",
+      "finish": "完成{{version}}",
       "sendLater": "以后再发送",
       "sendLaterHelp": "完成{{version}}，暂时不请任何人。团队可以听到。",
-      "finish": "完成{{version}}",
-      "finishHelp": "完成{{version}}：团队就能听到。"
+      "nextCheck": "下一项检查",
+      "sendHelp": "完成{{version}}，并发送给他们做这项检查。他们会在“我的工作”中看到。"
     },
     "tray": {
       "help": "帮助",
@@ -4730,16 +4742,9 @@
     },
     "vad": {
       "recordedFor": "已录 {{time}}",
-      "pausedForSource": "播放源音频时已暂停",
-      "startsAgain": "源音频停止后会重新开始录音。",
-      "cutoff": "声音门限",
-      "pauseBetween": "段与段之间的停顿",
       "tooShort": "太短了，没有保存。如果您刚才在说话，请再说一遍。",
-      "statusHelp": "闪动的圆点：正在保存你的声音。数字：目前录了几段。时钟：已录的时间。",
       "statusPausedHelp": "播放源音频时已暂停。数字：目前录了几段。时钟：已录的时间。",
-      "resumeHelp": "停止正在播放的内容，继续录音。",
-      "cutoffHelp": "这些条是麦克风听到的声音。拖动这条线：高于它的声音会被录下来。",
-      "pauseHelp": "停顿多久算一段结束。更改后立即生效。"
+      "resumeHelp": "停止正在播放的内容，继续录音。"
     },
     "split": {
       "referenceOneLine": "参考资料缩成一行",
@@ -4765,7 +4770,6 @@
       "moreOfOne": "{{part}}接着第 {{verse}} 节。",
       "moreOfRange": "{{part}}接着第 {{first}}–{{last}} 节。",
       "numbered_other": "已为 {{count, number}} 段编号。",
-      "leftForLater": "{{verses}} · 留待以后",
       "follows": "{{part}}按顺序编号。",
       "none": "{{part}}没有经节。",
       "giveNext": "给{{part}}下一节",
@@ -4778,8 +4782,6 @@
       "hintLabelled": "轻点给它与上面一段相同的经节。长按选择。",
       "hintEmpty": "轻点给它下一节。长按选择。",
       "choose": "选择经节",
-      "recordHere": "在这里录音",
-      "recordHereHelp": "录下你留待以后的经节；它会放在原来的位置。",
       "verseSame": "{{verse}}，与上面一段相同",
       "auto": "自动",
       "noVerse": "无",
@@ -5539,6 +5541,7 @@
       "bar": "{{name}}：已通过 {{share}}"
     },
     "settings": {
+      "saved": "已保存。",
       "notSaved": "未保存。",
       "offline": "没有网络连接。什么都没有保存；请在重新联网后重试。",
       "refused": "未保存：服务器拒绝了。",
@@ -5550,23 +5553,22 @@
       "countryButton": "国家：{{country}}。点按可更改。",
       "countryButtonNone": "国家：未选择。点按可更改。",
       "chooseCountry": "选择国家",
+      "saveCountry": "保存国家",
       "target": "目标",
       "start": "开始日期（YYYY-MM-DD）",
       "finishBy": "完成日期（YYYY-MM-DD）",
       "datesInvalid": "两个日期都请写成 YYYY-MM-DD 格式，完成日期要在开始日期之后。",
+      "saveTarget": "保存目标",
       "findCountry": "查找国家",
       "typeToFind_other": "输入文字查找其他 {{count, number}} 个国家。",
       "countryHelp": "打开国家列表，选择这个语言的工作在哪里进行。",
+      "saveCountryHelp": "立即把国家保存到服务器。需要联网。",
       "scopeHelp": "目标涵盖的范围。然后设置日期并保存。",
       "startHelp": "为这个目标开始工作的日期。",
       "finishByHelp": "应该达成目标的日期。",
+      "saveTargetHelp": "立即把目标及其日期保存到服务器。需要联网。",
       "pickCountryHelp": "选择这个国家。然后点按“保存国家”来保存。",
-      "chosenCountryHelp": "当前选择的国家，以粗体显示。点按另一个可以更改。",
-      "saved": "已保存。",
-      "saveCountry": "保存国家",
-      "saveCountryHelp": "立即把国家保存到服务器。需要联网。",
-      "saveTarget": "保存目标",
-      "saveTargetHelp": "立即把目标及其日期保存到服务器。需要联网。"
+      "chosenCountryHelp": "当前选择的国家，以粗体显示。点按另一个可以更改。"
     },
     "clusters": {
       "title": "语言群",
@@ -6011,13 +6013,13 @@
     "openVersionHelp": "把版本的播放器恢复到半个屏幕。",
     "openPartsHelp": "把你的各段恢复到半个屏幕。",
     "deletePartHelp": "删除你为这一段说的内容。删除后可以马上撤销。",
-    "notesForCheck_other": "{{count, number}} 条给{{check}}的备注",
-    "doneHelp": "每一段都说完后：完成它，并把它送去接下来要听它的检查。",
     "sendHelp": "完成{{what}}，并发送给他们做这项检查。他们会在“我的工作”中看到。",
-    "askHelp": "完成{{what}}，然后由你选择请谁。",
     "sendLaterHelp": "完成{{what}}，暂时不请任何人。团队可以听到。",
+    "ofVersion": "针对第 {{n, number}} 版",
+    "askHelp": "完成{{what}}，然后由你选择请谁。",
     "finishWhat": "完成{{what}}",
-    "ofVersion": "针对第 {{n, number}} 版"
+    "doneHelp": "每一段都说完后：完成它，并把它送去接下来要听它的检查。",
+    "notesForCheck_other": "{{count, number}} 条给{{check}}的备注"
   },
   "translate": {
     "missing": "这个经段还不在本设备上。",
@@ -6047,13 +6049,12 @@
     "dragDown": "向下拖动，查看指南、关键词、备注和之前的录音",
     "openStudy": "打开学习",
     "yourRecording": "你的录音",
-    "tapRed": "点按红色按钮开始说话。每段之间停顿一下：每一段都会单独保存。",
-    "latestParts": "这些是第 {{n}} 版的片段。录一个新片段或删除一个片段，就可以发布新版本。",
     "clipped": "录下的片段非常短，可能有字词被截掉了。",
     "micSetup": "设置麦克风",
     "micSetupHint": "调整设备听你说话的方式：灵敏度和停顿。",
     "openReferenceHelp": "把参考资料恢复到半个屏幕。",
-    "openStudyHelp": "在完整的学习内容中打开这一步。"
+    "openStudyHelp": "在完整的学习内容中打开这一步。",
+    "partReplaced": "已重录{{part}}。"
   },
   "reference": {
     "organization": "机构",
@@ -6809,8 +6810,8 @@
     "rename": {
       "title": "重命名 {{cluster}}",
       "label": "名称",
-      "done": "已重命名为 {{name}}。",
-      "save": "保存"
+      "save": "保存",
+      "done": "已重命名为 {{name}}。"
     },
     "ungroup": {
       "title": "解散 {{cluster}}？",
@@ -6830,12 +6831,12 @@
       "firstLabel": "放入一个新语言群",
       "note": "一种语言可以在多个语言群中，也可以不在任何语言群中。语言本身不会有任何改变。",
       "done": "完成",
+      "saved": "已保存 {{language}} 的语言群。",
       "rowHelp": "选择它属于哪些语言群，或者把它放入一个新语言群。",
       "inHelp": "在这个语言群中。点按可以移出。",
       "outHelp": "不在这个语言群中。点按可以加入。",
       "newHelp": "输入一个名称：它会放入以这个名称命名的新语言群。",
-      "doneHelp": "保存它所属的语言群。",
-      "saved": "已保存 {{language}} 的语言群。"
+      "doneHelp": "保存它所属的语言群。"
     },
     "newLanguage": {
       "what": "你要添加什么？",
@@ -6884,11 +6885,11 @@
     }
   },
   "saved": {
-    "saving": "正在保存",
-    "saved": "已保存",
-    "failed": "未保存",
-    "help": "边做边自动保存：保存时显示转动的圆圈，保存好后显示勾。不用另外保存。",
     "draftHelp": "边做边保存在本设备上，在你完成之前只有你能看到。保存时显示转动的圆圈，保存好后显示勾。",
-    "failedHelp": "这没有保存下来。请重试：你做的内容还在屏幕上。"
+    "failed": "未保存",
+    "saved": "已保存",
+    "saving": "正在保存",
+    "failedHelp": "这没有保存下来。请重试：你做的内容还在屏幕上。",
+    "help": "边做边自动保存：保存时显示转动的圆圈，保存好后显示勾。不用另外保存。"
   }
 }

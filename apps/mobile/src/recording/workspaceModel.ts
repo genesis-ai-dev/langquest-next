@@ -3,8 +3,8 @@
 // are tied, and the events a change to the list means. No React, no I/O,
 // so the rules are tested in test/workspace.test.ts.
 import {
-  commands, recordingsOf,
-  type Card, type DraftView, type EventSpec, type Indexes, type KeyTermView, type LanguageState
+  commands, derivePartVerses, recordingsOf,
+  type Card, type DraftView, type EventSpec, type Indexes, type KeyTermView, type LanguageState, type PartLabel, type PartMark
 } from '@langquest-next/core';
 import { formatClock } from '../i18n/format';
 
@@ -167,6 +167,24 @@ export function removeCardSpecs(state: LanguageState, idx: Indexes, c: {
 }
 
 /**
+ * Taking every card off the list at once, to start over (LAN-83): the
+ * draft is set aside, as when its last card goes, and cards never composed
+ * are discarded so recovery does not bring them back.
+ */
+export function clearListSpecs(state: LanguageState, idx: Indexes, c: {
+  commandId: string; unitId: string; list: readonly string[]; draftTakeId?: string; parentTakeId?: string | null; pending: ReadonlySet<string>;
+}): EventSpec[] {
+  const specs: EventSpec[] = [];
+  if (c.draftTakeId) specs.push({ id: `${c.commandId}:archive`, type: 'v1.TakeArchived', payload: { takeId: c.draftTakeId } });
+  const unsaved = c.list.filter((h) => c.pending.has(h));
+  if (unsaved.length > 0) {
+    const parent = c.parentTakeId !== undefined ? { parentTakeId: c.parentTakeId } : {};
+    specs.push(...commands(state, idx).discardCards({ commandId: `${c.commandId}:discard`, unitId: c.unitId, cardHashes: unsaved, ...parent }));
+  }
+  return specs;
+}
+
+/**
  * Carry the tied key terms onto the version being published, so the
  * version's detail and its reviewers see them (REC-9, TERM-4). Uses core
  * `linkKeyTerms` under its own command id, so its event ids never collide
@@ -241,4 +259,53 @@ export function unsavedParts(state: LanguageState, d: BackTranslationDraft | nul
   const named = new Set<string>();
   for (const r of Object.values(state.kindReviews ?? {})) for (const c of r.artifacts ?? []) named.add(c.hash);
   return d.cards.filter((c) => !named.has(c.hash));
+}
+
+// ---- where the next part goes (LAN-83) -------------------------------------------------
+
+/**
+ * Where what is said next goes: the end, a gap (before the part at
+ * `before`), or over a part, which it replaces. The person chooses by
+ * tapping the end, a gap or a part; deleting a part chooses its gap.
+ */
+export type RecordTarget = { kind: 'end' } | { kind: 'gap'; before: number } | { kind: 'over'; index: number };
+
+/** One row of the parts card: a part, or a gap a part can be recorded into, numbered as the parts will be. */
+export type SlotRow =
+  | { kind: 'part'; index: number; n: number }
+  | { kind: 'gap'; before: number; n: number; hole: boolean; label: PartLabel | null };
+
+/**
+ * The parts card's rows: every part, and before a part each gap: verses
+ * left out between labelled parts, or the place of a part just deleted (the
+ * hole). A gap takes a part's number, so the parts after it keep theirs.
+ */
+export function slotRows(count: number, gaps: readonly { before: number; label: PartLabel | null }[],
+  hole: { before: number; label: PartLabel | null } | null): SlotRow[] {
+  const at = new Map<number, { label: PartLabel | null; hole: boolean }>();
+  for (const g of gaps) if (g.before >= 0 && g.before < count) at.set(g.before, { label: g.label, hole: false });
+  if (hole && hole.before >= 0 && hole.before < count) at.set(hole.before, { label: hole.label ?? at.get(hole.before)?.label ?? null, hole: true });
+  const rows: SlotRow[] = [];
+  for (let i = 0; i < count; i++) {
+    const g = at.get(i);
+    if (g) rows.push({ kind: 'gap', before: i, n: rows.length + 1, hole: g.hole, label: g.label });
+    rows.push({ kind: 'part', index: i, n: rows.length + 1 });
+  }
+  return rows;
+}
+
+/** The number the part recorded next will have, where the target puts it. */
+export function targetNumber(rows: readonly SlotRow[], target: RecordTarget): number {
+  if (target.kind === 'end') return rows.length + 1;
+  const at = (index: number) => rows.find((r) => r.kind === 'part' && r.index === index);
+  if (target.kind === 'over') return at(target.index)?.n ?? rows.length + 1;
+  // A gap with no row of its own any more (its first part is said): the next goes before the part after it.
+  return (rows.find((r) => r.kind === 'gap' && r.before === target.before) ?? at(target.before))?.n ?? rows.length + 1;
+}
+
+/** The verses a part recorded at `at` with `mark` would have, read with it in the list. */
+export function labelAt(marks: readonly PartMark[], at: number, mark: PartMark | undefined, count: number, replacing = false): PartLabel | null {
+  if (!mark || count === 0) return null;
+  const withIt = [...marks.slice(0, at), mark, ...marks.slice(at + (replacing ? 1 : 0))];
+  return derivePartVerses(withIt, count).labels[at] ?? null;
 }

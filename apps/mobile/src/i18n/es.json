@@ -2,6 +2,7 @@
   "common": {
     "loading": "Cargando…",
     "done": "Listo",
+    "save": "Guardar",
     "saving": "Guardando…",
     "cancel": "Cancelar",
     "close": "Cerrar",
@@ -37,7 +38,7 @@
     "addNote": "Agregar una nota",
     "orTypeIt": "O escríbelo",
     "sayIt": "Dilo",
-    "save": "Guardar"
+    "deleteAsk": "¿Borrar {{name}}?"
   },
   "time": {
     "justNow": "Ahora mismo",
@@ -729,6 +730,7 @@
     "rename": {
       "done": "Se cambió el nombre a {{name}}.",
       "row": "Nombre",
+      "save": "Guardar el nombre",
       "taken": "Ese nombre ya se usa aquí",
       "failed": "No se cambió el nombre",
       "orgTitle": "Cambiar el nombre de la organización",
@@ -736,8 +738,7 @@
       "languageTitle": "Cambiar el nombre de {{name}}",
       "languageSub": "Todos en {{org}} ven el nombre nuevo. Su código, {{code}}, no cambia.",
       "takenBody": "{{languages}} ya tiene este nombre. Es difícil distinguir dos idiomas con el mismo nombre.",
-      "rowHelp": "Cambia el nombre que ven todos aquí.",
-      "save": "Guardar el nombre"
+      "rowHelp": "Cambia el nombre que ven todos aquí."
     },
     "link": {
       "done": "{{name}} está vinculado a {{linked}}.",
@@ -896,6 +897,7 @@
       "notMemberSub": "Esta persona ya no tiene ningún rol en esta organización.",
       "awaiting": "Esperando aprobación",
       "assignRole": "Asignar rol",
+      "saveAssignment": "Guardar asignación",
       "decline": "Rechazar",
       "introPending": "Esta persona creó una cuenta y pidió unirse. Asígnale un rol y un alcance para darle acceso.",
       "intro": "Elige un rol y luego el alcance de esta asignación. El alcance puede ser este nivel o uno inferior.",
@@ -907,8 +909,7 @@
       "removeFromOrg": "Quitar de la organización",
       "removeFromLanguage": "Quitar del idioma",
       "declineHelp": "Le dice que no a su solicitud para unirse.",
-      "removeHelp": "Le quita su rol aquí. Después, Deshacer aparece por un momento.",
-      "saveAssignment": "Guardar asignación"
+      "removeHelp": "Le quita su rol aquí. Después, Deshacer aparece por un momento."
     },
     "signIn": {
       "notAllowed": "No puedes ayudar a esta persona a iniciar sesión.",
@@ -1932,9 +1933,9 @@
       "fromLanguages": "Cómo lo llaman otros idiomas de aquí",
       "use": "Usar",
       "useLabel": "Usar {{name}} ({{from}})",
+      "saveHelp": "Guarda este nombre: los traductores lo ven a partir de ahora.",
       "useHelp": "Pone este nombre en la casilla de arriba. Guardar lo conserva.",
-      "inBoxHelp": "La marca significa que este nombre está en la casilla de arriba.",
-      "saveHelp": "Guarda este nombre: los traductores lo ven a partir de ahora."
+      "inBoxHelp": "La marca significa que este nombre está en la casilla de arriba."
     },
     "translate": {
       "question": "¿Qué traducirá {{language}}?",
@@ -2200,8 +2201,8 @@
       "guideRowHelp": "Va al primer lugar del texto que trata.",
       "undoHelp": "Deja las secciones como estaban antes de tu último cambio.",
       "startFromHelp": "Reemplaza tus secciones por las de una forma ya hecha, para empezar desde ahí.",
-      "done_one": "Listo · {{count, number}} sección",
       "done_many": "Listo · {{count, number}} secciones",
+      "done_one": "Listo · {{count, number}} sección",
       "done_other": "Listo · {{count, number}} secciones"
     },
     "division": {
@@ -2410,6 +2411,7 @@
       "itsName": "Su nombre",
       "itsNamePlaceholder": "Nombre del rol",
       "scopeNote": "Dónde se aplica un rol se elige para cada persona: toda la organización o un idioma, cuando se la invita o se la deja entrar.",
+      "saveHelp": "Guarda el nombre y las opciones. Todos los que tienen este rol reciben el cambio.",
       "inviteHelp": "Muestra un código para escanear. Quien se una con él recibe este rol.",
       "personHelp": "Abre sus roles y dónde se aplica cada uno, para cambiarlos.",
       "renameHelp": "Cambia el nombre de este rol para todos.",
@@ -2424,8 +2426,7 @@
       "chooseWhoChecksHelp": "Activado: las personas con este rol pueden elegir qué verificaciones recibe un pasaje, y quién las hace.",
       "assignWorkHelp": "Activado: las personas con este rol pueden pedir a cualquiera que grabe o revise un pasaje.",
       "overrideChecksHelp": "Activado: las personas con este rol pueden hacer que un pasaje pase una verificación bloqueada, dando una razón.",
-      "manageRolesHelp": "Activado: las personas con este rol pueden crear roles y cambiar lo que permite cada uno.",
-      "saveHelp": "Guarda el nombre y las opciones. Todos los que tienen este rol reciben el cambio."
+      "manageRolesHelp": "Activado: las personas con este rol pueden crear roles y cambiar lo que permite cada uno."
     },
     "library": {
       "followingAuto": "Sigues {{name}}. Se actualiza automáticamente.",
@@ -3342,10 +3343,13 @@
     },
     "profile": {
       "title": "Editar perfil",
+      "save": "Guardar perfil",
       "nameLabel": "Nombre completo",
       "shortPassword": "Elige una contraseña de 6 caracteres o más.",
       "passwordNeedsConnection": "Para poner una contraseña necesitas conexión.",
       "passwordFailed": "No se pudo poner la contraseña. Inténtalo de nuevo.",
+      "savedWithPassword": "Guardado. Puedes iniciar sesión con tu nombre de usuario y esta contraseña.",
+      "saved": "Perfil guardado. Se sincroniza cuando tengas conexión.",
       "newPassword": "Contraseña nueva (opcional)",
       "password": "Contraseña (opcional)",
       "passwordPlaceholder": "6 caracteres o más",
@@ -3355,10 +3359,7 @@
       "lastChangeRefused": "Tu último cambio no se aceptó",
       "savedBody": "Se envía cuando tengas conexión.",
       "nameHelp": "El nombre con el que te ve tu equipo. Se envía cuando tengas conexión.",
-      "passwordHelp": "Te permite volver a entrar después de que otra persona use este dispositivo.",
-      "savedWithPassword": "Guardado. Puedes iniciar sesión con tu nombre de usuario y esta contraseña.",
-      "saved": "Perfil guardado. Se sincroniza cuando tengas conexión.",
-      "save": "Guardar perfil"
+      "passwordHelp": "Te permite volver a entrar después de que otra persona use este dispositivo."
     },
     "orgs": {
       "stale": "No se pudo actualizar. Las organizaciones guardadas siguen disponibles.",
@@ -3761,7 +3762,8 @@
         "studyStepDone": "Paso {{n, number}} de {{pattern}} listo · {{step}}",
         "studyDone": "Paso del estudio listo",
         "keptAfter": "Se dejó igual después de {{kind}}",
-        "keptAfterFeedback": "Se dejó igual después de los comentarios"
+        "keptAfterFeedback": "Se dejó igual después de los comentarios",
+        "versionDeleted": "Versión {{n, number}} borrada"
       },
       "counts": {
         "versions_one": "{{count, number}} versión",
@@ -4207,7 +4209,6 @@
       "newVersion": "Versión nueva",
       "yourDraft": "Tu borrador",
       "yourDrafts": "Tus borradores",
-      "noDrafts": "No hay borradores. Edita una versión de abajo o empieza una nueva.",
       "published": "Publicadas",
       "latest": "La más reciente",
       "saved": "Guardado {{when}}",
@@ -4222,10 +4223,11 @@
       "draft": "Borrador",
       "draftN": "Borrador {{n, number}}",
       "newVersionHelp": "Empieza una versión nueva desde el principio. Tus borradores se quedan.",
-      "deleteHelp": "Borra este borrador. Deshacer lo recupera.",
+      "deleteHelp": "Borra este borrador.",
       "editDraftHelp": "Abre este borrador en la grabadora, para seguir trabajando en él.",
       "editVersionHelp": "Empieza un borrador nuevo a partir de esta versión. La versión se queda como está.",
       "partHelp": "Reproduce solo esta parte.",
+      "deleteVersionHelp": "Borra esta versión para todos. Las revisiones que ya se hicieron quedan en el historial, pero ya no cuentan.",
       "doneHelp": "Abre este borrador para darle un último vistazo, terminarlo y enviarlo a su siguiente verificación."
     }
   },
@@ -4537,11 +4539,11 @@
       "switchOff": "Desactivado. Toca para activarlo.",
       "person": "Muestra quién es: su nombre y su ID.",
       "cancel": "Cierra esto sin cambiar nada.",
+      "save": "Guarda lo que cambiaste.",
       "done": "Terminado aquí: vuelve atrás.",
       "undo": "Vuelve a poner lo que había antes.",
       "tryAgain": "Lo intenta una vez más.",
-      "quickReason": "Usa esto como tu razón. Igual puedes cambiar las palabras.",
-      "save": "Guarda lo que cambiaste."
+      "quickReason": "Usa esto como tu razón. Igual puedes cambiar las palabras."
     },
     "tabs": {
       "work": "Lo que sigue: tu próximo pasaje y lo que espera por ti.",
@@ -4832,7 +4834,6 @@
     },
     "recorder": {
       "permissionNeeded": "Se necesita permiso para usar el micrófono.",
-      "dragUp": "{{recorded}} · desliza hacia arriba para verlas",
       "hidePartsHelp": "Ocultar las partes.",
       "showPartsHelp": "Muestra cada parte, para escucharla o eliminarla.",
       "playAllHelp": "Escucha todo lo grabado hasta ahora, una parte tras otra.",
@@ -4857,6 +4858,17 @@
       "nextCardHelp": "La parte que grabas a continuación. Toca el botón rojo para empezar.",
       "nextRecordingHelp": "Grabando. Las barras sólidas son tu voz que se guarda; las tenues son silencio.",
       "nextPausedHelp": "En pausa mientras suena la Biblia. La grabación sigue cuando se detiene.",
+      "deleteAll": "Borrar todas las partes",
+      "deleteAllHelp": "Borra todas las partes, para empezar de nuevo.",
+      "leave": "Listo",
+      "leaveHelp": "Detiene la grabación y guarda todas las partes.",
+      "recordOver": "Grabar {{part}} de nuevo",
+      "recordOverHelp": "Lo que grabes a continuación reemplaza esta parte.",
+      "recordInGap": "Grabar {{part}} aquí",
+      "gapHelp": "Lo que grabes a continuación va en este hueco.",
+      "recordAtEnd": "Grabar {{part}} al final",
+      "endHelp": "Lo que grabes a continuación va al final.",
+      "deleteAllAsk": "¿Borrar todas las partes?",
       "doneHelp": "Cuando todas las partes estén grabadas: termina esta versión y envíala a su siguiente verificación."
     },
     "quoted": "“{{text}}”",
@@ -4899,6 +4911,7 @@
       "chooseThis": "Elegir esta.",
       "tryLabel": "Prueba {{id}}, {{length}}",
       "settingsSaved": "Ajustes del micrófono guardados en este dispositivo.",
+      "saveSettings": "Guardar estos ajustes",
       "byHandLead": "Habla y mira las barras. Mueve la línea para que tu voz quede por encima y el ruido del lugar quede por debajo.",
       "sensitivityLine": "Línea de sensibilidad",
       "pauseEndsPart": "Pausa que termina una parte",
@@ -4909,8 +4922,7 @@
       "listenRoomHelp": "Escucha el lugar durante unos segundos. Quédate en silencio mientras tanto.",
       "tryHelp": "Empieza esta prueba: di la frase, haz una pausa, dila otra vez y luego toca detener.",
       "tryStopHelp": "Termina esta prueba y la guarda, para compararla con las demás.",
-      "sensitivityHelp": "Las barras son lo que oye el micrófono. Mueve la línea: se graba el sonido que queda por encima.",
-      "saveSettings": "Guardar estos ajustes"
+      "sensitivityHelp": "Las barras son lo que oye el micrófono. Mueve la línea: se graba el sonido que queda por encima."
     },
     "bigVoice": {
       "toggleHelp": "Toca para empezar a hablar y vuelve a tocar para detener.",
@@ -4987,13 +4999,13 @@
       "sayHelp": "Por voz o por escrito. El equipo lo escucha con esta versión.",
       "rowLabel": "{{label}}. {{sub}}",
       "doneHelp": "Guarda lo que dijiste y cierra esto.",
-      "nextCheck": "Siguiente verificación",
-      "sendHelp": "Termina la {{version}} y se la envía para esta verificación. La encuentran en Mi trabajo.",
       "askHelp": "Termina la {{version}} y luego eliges a quién pedírselo.",
+      "finishHelp": "Termina la {{version}}: el equipo puede escucharla.",
+      "finish": "Terminar {{version}}",
       "sendLater": "Enviar más tarde",
       "sendLaterHelp": "Termina la {{version}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
-      "finish": "Terminar {{version}}",
-      "finishHelp": "Termina la {{version}}: el equipo puede escucharla."
+      "nextCheck": "Siguiente verificación",
+      "sendHelp": "Termina la {{version}} y se la envía para esta verificación. La encuentran en Mi trabajo."
     },
     "tray": {
       "help": "Ayuda",
@@ -5046,16 +5058,9 @@
     },
     "vad": {
       "recordedFor": "Grabado durante {{time}}",
-      "pausedForSource": "En pausa mientras suena la fuente",
-      "startsAgain": "La grabación vuelve a empezar cuando la fuente se detiene.",
-      "cutoff": "Corte de sonido",
-      "pauseBetween": "Pausa entre partes",
       "tooShort": "Fue demasiado corto para guardarlo. Si estabas hablando, dilo otra vez.",
-      "statusHelp": "Punto que late: tu voz se está guardando. El número: cuántas partes van. El reloj: tiempo grabado.",
       "statusPausedHelp": "En pausa mientras suena la fuente. El número: cuántas partes van. El reloj: tiempo grabado.",
-      "resumeHelp": "Detiene lo que suena y sigue grabando.",
-      "cutoffHelp": "Las barras son lo que oye el micrófono. Mueve la línea: se graba el sonido que queda por encima.",
-      "pauseHelp": "Cuánto dura la pausa que termina una parte. Cambia de inmediato."
+      "resumeHelp": "Detiene lo que suena y sigue grabando."
     },
     "split": {
       "referenceOneLine": "Referencia en una línea",
@@ -5085,7 +5090,6 @@
       "numbered_one": "{{count, number}} parte numerada.",
       "numbered_many": "{{count, number}} de partes numeradas.",
       "numbered_other": "{{count, number}} partes numeradas.",
-      "leftForLater": "{{verses}} · para después",
       "follows": "{{part}} sigue el orden.",
       "none": "{{part}} no tiene versículo.",
       "giveNext": "Dar a {{part}} el versículo siguiente",
@@ -5098,8 +5102,6 @@
       "hintLabelled": "Toca para darle el mismo versículo que la parte de arriba. Mantén pulsado para elegir.",
       "hintEmpty": "Toca para darle el versículo siguiente. Mantén pulsado para elegir.",
       "choose": "Elegir versículos",
-      "recordHere": "Grabar aquí",
-      "recordHereHelp": "Graba el versículo que dejaste para después; queda en su lugar.",
       "verseSame": "{{verse}}, igual que la parte de arriba",
       "auto": "Auto",
       "noVerse": "Ninguno",
@@ -6025,6 +6027,7 @@
       "bar": "{{name}}: {{share}} pasaron"
     },
     "settings": {
+      "saved": "Guardado.",
       "notSaved": "No se guardó.",
       "offline": "Sin conexión. No se guardó nada; inténtalo de nuevo cuando vuelvas a tener conexión.",
       "refused": "No se guardó: el servidor lo rechazó.",
@@ -6036,25 +6039,24 @@
       "countryButton": "País: {{country}}. Cambiarlo.",
       "countryButtonNone": "País: sin elegir. Cambiarlo.",
       "chooseCountry": "Elige un país",
+      "saveCountry": "Guardar país",
       "target": "Meta",
       "start": "Inicio (AAAA-MM-DD)",
       "finishBy": "Terminar para (AAAA-MM-DD)",
       "datesInvalid": "Escribe las dos fechas como AAAA-MM-DD, con el final después del inicio.",
+      "saveTarget": "Guardar meta",
       "findCountry": "Buscar un país",
       "typeToFind_one": "Escribe para buscar el otro.",
       "typeToFind_many": "Escribe para buscar los otros {{count, number}}.",
       "typeToFind_other": "Escribe para buscar los otros {{count, number}}.",
       "countryHelp": "Abre la lista de países, para elegir dónde se hace el trabajo de este idioma.",
+      "saveCountryHelp": "Guarda el país en el servidor ahora. Necesita conexión.",
       "scopeHelp": "Lo que cubre la meta. Luego pon las fechas y guarda.",
       "startHelp": "El día en que empezó el trabajo hacia la meta.",
       "finishByHelp": "El día en que se debería alcanzar la meta.",
+      "saveTargetHelp": "Guarda la meta y sus fechas en el servidor ahora. Necesita conexión.",
       "pickCountryHelp": "Elige este país. Luego, Guardar país lo conserva.",
-      "chosenCountryHelp": "El país elegido ahora, en negrita. Toca otro para cambiarlo.",
-      "saved": "Guardado.",
-      "saveCountry": "Guardar país",
-      "saveCountryHelp": "Guarda el país en el servidor ahora. Necesita conexión.",
-      "saveTarget": "Guardar meta",
-      "saveTargetHelp": "Guarda la meta y sus fechas en el servidor ahora. Necesita conexión."
+      "chosenCountryHelp": "El país elegido ahora, en negrita. Toca otro para cambiarlo."
     },
     "clusters": {
       "title": "Grupos",
@@ -6531,15 +6533,15 @@
     "openVersionHelp": "Vuelve a poner el reproductor de la versión en media pantalla.",
     "openPartsHelp": "Vuelve a poner tus partes en media pantalla.",
     "deletePartHelp": "Elimina lo que dijiste para esta parte. Puedes deshacerlo justo después.",
-    "notesForCheck_one": "{{count, number}} nota para la {{check}}",
-    "notesForCheck_many": "{{count, number}} notas para la {{check}}",
-    "notesForCheck_other": "{{count, number}} notas para la {{check}}",
-    "doneHelp": "Cuando todas las partes estén dichas: termínala y envíala a la verificación que la escucha después.",
     "sendHelp": "Termina la {{what}} y se la envía para esta verificación. La encuentran en Mi trabajo.",
-    "askHelp": "Termina la {{what}} y luego eliges a quién pedírselo.",
     "sendLaterHelp": "Termina la {{what}} sin pedírselo a nadie todavía. El equipo puede escucharla.",
+    "ofVersion": "De la versión {{n, number}}",
+    "notesForCheck_one": "{{count, number}} nota para la {{check}}",
+    "askHelp": "Termina la {{what}} y luego eliges a quién pedírselo.",
     "finishWhat": "Terminar la {{what}}",
-    "ofVersion": "De la versión {{n, number}}"
+    "notesForCheck_many": "{{count, number}} notas para la {{check}}",
+    "doneHelp": "Cuando todas las partes estén dichas: termínala y envíala a la verificación que la escucha después.",
+    "notesForCheck_other": "{{count, number}} notas para la {{check}}"
   },
   "translate": {
     "missing": "Este pasaje todavía no está en este dispositivo.",
@@ -6569,13 +6571,12 @@
     "dragDown": "Desliza hacia abajo para ver la guía, las palabras clave, las notas y las grabaciones anteriores",
     "openStudy": "Abrir el estudio",
     "yourRecording": "Tu grabación",
-    "tapRed": "Toca el botón rojo y habla. Haz una pausa entre partes: cada parte se guarda por separado.",
-    "latestParts": "Estas son las partes de la versión {{n}}. Graba una parte nueva o elimina una para publicar una versión nueva.",
     "clipped": "Las partes están saliendo muy cortas. Puede que se corten palabras.",
     "micSetup": "Configurar el micrófono",
     "micSetupHint": "Ajusta cómo te escucha el dispositivo: sensibilidad y pausas.",
     "openReferenceHelp": "Vuelve a poner la referencia en media pantalla.",
-    "openStudyHelp": "Abre este paso en el estudio completo."
+    "openStudyHelp": "Abre este paso en el estudio completo.",
+    "partReplaced": "{{part}} grabada de nuevo."
   },
   "reference": {
     "organization": "Organización",
@@ -7415,8 +7416,8 @@
     "rename": {
       "title": "Cambiar el nombre de {{cluster}}",
       "label": "Su nombre",
-      "done": "Ahora se llama {{name}}.",
-      "save": "Guardar"
+      "save": "Guardar",
+      "done": "Ahora se llama {{name}}."
     },
     "ungroup": {
       "title": "¿Desagrupar {{cluster}}?",
@@ -7440,12 +7441,12 @@
       "firstLabel": "Ponerlo en un grupo nuevo",
       "note": "Un idioma puede estar en más de un grupo, o en ninguno. Nada del idioma cambia.",
       "done": "Listo",
+      "saved": "Grupos de {{language}} guardados.",
       "rowHelp": "Elige en qué grupos está, o ponlo en uno nuevo.",
       "inHelp": "En este grupo. Toca para sacarlo.",
       "outHelp": "No está en este grupo. Toca para ponerlo.",
       "newHelp": "Escribe un nombre: va a un grupo nuevo con ese nombre.",
-      "doneHelp": "Guarda en qué grupos está.",
-      "saved": "Grupos de {{language}} guardados."
+      "doneHelp": "Guarda en qué grupos está."
     },
     "newLanguage": {
       "what": "¿Qué vas a añadir?",
@@ -7504,11 +7505,11 @@
     }
   },
   "saved": {
-    "saving": "Guardando",
-    "saved": "Guardado",
-    "failed": "No guardado",
-    "help": "Se guarda mientras trabajas: un círculo que gira mientras se guarda, y luego una marca. No hace falta guardar nada.",
     "draftHelp": "Se guarda en este dispositivo mientras trabajas, y solo tú puedes verlo hasta que termines. Un círculo que gira mientras se guarda, y luego una marca.",
-    "failedHelp": "Esto no se guardó. Inténtalo de nuevo: lo que hiciste sigue en la pantalla."
+    "failed": "No guardado",
+    "saved": "Guardado",
+    "saving": "Guardando",
+    "failedHelp": "Esto no se guardó. Inténtalo de nuevo: lo que hiciste sigue en la pantalla.",
+    "help": "Se guarda mientras trabajas: un círculo que gira mientras se guarda, y luego una marca. No hace falta guardar nada."
   }
 }

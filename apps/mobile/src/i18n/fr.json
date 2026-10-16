@@ -2,6 +2,7 @@
   "common": {
     "loading": "Chargement…",
     "done": "Terminé",
+    "save": "Sauvegarder",
     "saving": "Sauvegarde…",
     "cancel": "Annuler",
     "close": "Fermer",
@@ -37,7 +38,7 @@
     "addNote": "Ajouter une note",
     "orTypeIt": "Ou écrivez-la",
     "sayIt": "Dites-la",
-    "save": "Sauvegarder"
+    "deleteAsk": "Supprimer {{name}} ?"
   },
   "time": {
     "justNow": "À l’instant",
@@ -729,6 +730,7 @@
     "rename": {
       "done": "Renommé en {{name}}.",
       "row": "Nom",
+      "save": "Sauvegarder le nom",
       "taken": "Ce nom est déjà pris ici",
       "failed": "Non renommé",
       "orgTitle": "Renommer l’organisation",
@@ -736,8 +738,7 @@
       "languageTitle": "Renommer {{name}}",
       "languageSub": "Tout le monde dans {{org}} voit le nouveau nom. Son code, {{code}}, ne change pas.",
       "takenBody": "{{languages}} a déjà ce nom. Deux langues avec le même nom sont difficiles à distinguer.",
-      "rowHelp": "Changez le nom que tout le monde voit ici.",
-      "save": "Sauvegarder le nom"
+      "rowHelp": "Changez le nom que tout le monde voit ici."
     },
     "link": {
       "done": "{{name}} est lié à {{linked}}.",
@@ -896,6 +897,7 @@
       "notMemberSub": "Cette personne n’a plus de rôle dans cette organisation.",
       "awaiting": "En attente d’approbation",
       "assignRole": "Attribuer un rôle",
+      "saveAssignment": "Sauvegarder l’attribution",
       "decline": "Refuser",
       "introPending": "Cette personne a créé un compte et demande à rejoindre. Attribuez-lui un rôle et un périmètre pour lui donner accès.",
       "intro": "Choisissez un rôle, puis le périmètre auquel cette attribution s’applique. Le périmètre peut être ce niveau ou un niveau en dessous.",
@@ -907,8 +909,7 @@
       "removeFromOrg": "Retirer de l’organisation",
       "removeFromLanguage": "Retirer de la langue",
       "declineHelp": "Refuse sa demande pour rejoindre.",
-      "removeHelp": "Lui retire son rôle ici. Annuler s’affiche un moment après.",
-      "saveAssignment": "Sauvegarder l’attribution"
+      "removeHelp": "Lui retire son rôle ici. Annuler s’affiche un moment après."
     },
     "signIn": {
       "notAllowed": "Vous ne pouvez pas aider cette personne à se connecter.",
@@ -1932,9 +1933,9 @@
       "fromLanguages": "Comment d’autres langues d’ici l’appellent",
       "use": "Utiliser",
       "useLabel": "Utiliser {{name}} ({{from}})",
+      "saveHelp": "Garde ce nom : les traducteurs le voient désormais.",
       "useHelp": "Met ce nom dans la case ci-dessus. Sauvegarder le garde.",
-      "inBoxHelp": "La coche signifie que ce nom est dans la case ci-dessus.",
-      "saveHelp": "Garde ce nom : les traducteurs le voient désormais."
+      "inBoxHelp": "La coche signifie que ce nom est dans la case ci-dessus."
     },
     "translate": {
       "question": "Que va traduire {{language}} ?",
@@ -2200,8 +2201,8 @@
       "guideRowHelp": "Va au premier endroit qu’il couvre dans le texte.",
       "undoHelp": "Remet les sections comme elles étaient avant votre dernière modification.",
       "startFromHelp": "Remplace vos sections par celles d’une façon toute prête, pour partir de là.",
-      "done_one": "Terminé · {{count, number}} section",
       "done_many": "Terminé · {{count, number}} sections",
+      "done_one": "Terminé · {{count, number}} section",
       "done_other": "Terminé · {{count, number}} sections"
     },
     "division": {
@@ -2410,6 +2411,7 @@
       "itsName": "Son nom",
       "itsNamePlaceholder": "Nom du rôle",
       "scopeNote": "L’endroit où un rôle s’applique est choisi pour chaque personne : toute l’organisation ou une langue, quand on l’invite ou qu’on l’accepte.",
+      "saveHelp": "Garde le nom et les options. Toutes les personnes qui ont ce rôle reçoivent la modification.",
       "inviteHelp": "Affiche un code à scanner. Quiconque rejoint avec ce code reçoit ce rôle.",
       "personHelp": "Ouvre ses rôles et où chacun s’applique, pour les changer.",
       "renameHelp": "Renomme ce rôle pour tout le monde.",
@@ -2424,8 +2426,7 @@
       "chooseWhoChecksHelp": "Activé : les personnes qui ont ce rôle peuvent choisir les vérifications d’un passage, et qui les fait.",
       "assignWorkHelp": "Activé : les personnes qui ont ce rôle peuvent demander à n’importe qui d’enregistrer ou de vérifier un passage.",
       "overrideChecksHelp": "Activé : les personnes qui ont ce rôle peuvent faire avancer un passage au-delà d’un point de contrôle, avec une raison.",
-      "manageRolesHelp": "Activé : les personnes qui ont ce rôle peuvent créer des rôles et changer ce que chacun permet.",
-      "saveHelp": "Garde le nom et les options. Toutes les personnes qui ont ce rôle reçoivent la modification."
+      "manageRolesHelp": "Activé : les personnes qui ont ce rôle peuvent créer des rôles et changer ce que chacun permet."
     },
     "library": {
       "followingAuto": "Vous suivez {{name}}. Il se met à jour automatiquement.",
@@ -3342,10 +3343,13 @@
     },
     "profile": {
       "title": "Modifier le profil",
+      "save": "Sauvegarder le profil",
       "nameLabel": "Nom complet",
       "shortPassword": "Choisissez un mot de passe de 6 caractères ou plus.",
       "passwordNeedsConnection": "Pour définir un mot de passe, il faut une connexion.",
       "passwordFailed": "Le mot de passe n’a pas pu être défini. Réessayez.",
+      "savedWithPassword": "Sauvegardé. Vous pouvez vous connecter avec votre nom de connexion et ce mot de passe.",
+      "saved": "Profil sauvegardé. Il se synchronise quand vous êtes connecté.",
       "newPassword": "Nouveau mot de passe (facultatif)",
       "password": "Mot de passe (facultatif)",
       "passwordPlaceholder": "6 caractères ou plus",
@@ -3355,10 +3359,7 @@
       "lastChangeRefused": "Votre dernière modification n’a pas été acceptée",
       "savedBody": "Elle partira quand vous serez connecté.",
       "nameHelp": "Le nom sous lequel votre équipe vous voit. Il part quand vous êtes connecté.",
-      "passwordHelp": "Vous permet de vous reconnecter après que quelqu’un d’autre a utilisé cet appareil.",
-      "savedWithPassword": "Sauvegardé. Vous pouvez vous connecter avec votre nom de connexion et ce mot de passe.",
-      "saved": "Profil sauvegardé. Il se synchronise quand vous êtes connecté.",
-      "save": "Sauvegarder le profil"
+      "passwordHelp": "Vous permet de vous reconnecter après que quelqu’un d’autre a utilisé cet appareil."
     },
     "orgs": {
       "stale": "Impossible d’actualiser. Les organisations gardées restent disponibles.",
@@ -3761,7 +3762,8 @@
         "studyStepDone": "Étape {{n, number}} {{pattern}} terminée · {{step}}",
         "studyDone": "Étape d’étude terminée",
         "keptAfter": "Gardé après : {{kind}}",
-        "keptAfterFeedback": "Gardé après les remarques"
+        "keptAfterFeedback": "Gardé après les remarques",
+        "versionDeleted": "Version {{n, number}} supprimée"
       },
       "counts": {
         "versions_one": "{{count, number}} version",
@@ -4207,7 +4209,6 @@
       "newVersion": "Nouvelle version",
       "yourDraft": "Votre brouillon",
       "yourDrafts": "Vos brouillons",
-      "noDrafts": "Aucun brouillon. Modifiez une version ci-dessous ou commencez-en une nouvelle.",
       "published": "Publiées",
       "latest": "La plus récente",
       "saved": "Enregistré {{when}}",
@@ -4222,10 +4223,11 @@
       "draft": "Brouillon",
       "draftN": "Brouillon {{n, number}}",
       "newVersionHelp": "Commence une nouvelle version depuis le début. Vos brouillons restent.",
-      "deleteHelp": "Supprime ce brouillon. Annuler le rétablit.",
+      "deleteHelp": "Supprime ce brouillon.",
       "editDraftHelp": "Ouvre ce brouillon dans l’espace d’enregistrement, pour continuer à y travailler.",
       "editVersionHelp": "Commence un nouveau brouillon à partir de cette version. La version elle-même reste telle quelle.",
       "partHelp": "Fait entendre cette partie seule.",
+      "deleteVersionHelp": "Supprime cette version pour tous. Les vérifications déjà faites restent dans l’historique mais ne comptent plus.",
       "doneHelp": "Ouvre ce brouillon une dernière fois, pour le terminer et l’envoyer à sa prochaine vérification."
     }
   },
@@ -4537,11 +4539,11 @@
       "switchOff": "Désactivé. Touchez pour l’activer.",
       "person": "Montre qui c’est : son nom et son identifiant.",
       "cancel": "Ferme ceci sans rien changer.",
+      "save": "Garde ce que vous avez changé.",
       "done": "Terminé ici : revient en arrière.",
       "undo": "Remet ce qui était là avant.",
       "tryAgain": "Essaie encore une fois.",
-      "quickReason": "Utilise ceci comme raison. Vous pouvez encore changer les mots.",
-      "save": "Garde ce que vous avez changé."
+      "quickReason": "Utilise ceci comme raison. Vous pouvez encore changer les mots."
     },
     "tabs": {
       "work": "Ce qu’il y a à faire ensuite : votre prochain passage, et ce qui vous attend.",
@@ -4832,7 +4834,6 @@
     },
     "recorder": {
       "permissionNeeded": "L’autorisation du microphone est nécessaire.",
-      "dragUp": "{{recorded}} · tirez vers le haut pour les voir",
       "hidePartsHelp": "Masquer les parties.",
       "showPartsHelp": "Afficher chaque partie, pour l’écouter ou la supprimer.",
       "playAllHelp": "Écouter tout ce qui a été enregistré jusqu’ici, une partie après l’autre.",
@@ -4857,6 +4858,17 @@
       "nextCardHelp": "La partie que vous enregistrez ensuite. Touchez le bouton rouge pour commencer.",
       "nextRecordingHelp": "Enregistrement en cours. Les barres pleines sont votre voix gardée ; les barres pâles sont le silence.",
       "nextPausedHelp": "En pause pendant que la Bible joue. L’enregistrement reprend quand elle s’arrête.",
+      "deleteAll": "Supprimer toutes les parties",
+      "deleteAllHelp": "Supprime toutes les parties, pour tout recommencer.",
+      "leave": "Terminé",
+      "leaveHelp": "Arrête l’enregistrement et garde toutes les parties.",
+      "recordOver": "Réenregistrer {{part}}",
+      "recordOverHelp": "Ce que vous enregistrez ensuite remplace cette partie.",
+      "recordInGap": "Enregistrer {{part}} ici",
+      "gapHelp": "Ce que vous enregistrez ensuite va dans ce vide.",
+      "recordAtEnd": "Enregistrer {{part}} à la fin",
+      "endHelp": "Ce que vous enregistrez ensuite va à la fin.",
+      "deleteAllAsk": "Supprimer toutes les parties ?",
       "doneHelp": "Quand toutes les parties sont enregistrées : terminez cette version et envoyez-la à sa prochaine vérification."
     },
     "quoted": "« {{text}} »",
@@ -4899,6 +4911,7 @@
       "chooseThis": "Choisir celui-ci.",
       "tryLabel": "Essai {{id}}, {{length}}",
       "settingsSaved": "Réglages du microphone sauvegardés sur cet appareil.",
+      "saveSettings": "Sauvegarder ces réglages",
       "byHandLead": "Parlez, et regardez les barres. Déplacez la ligne pour que votre voix passe au-dessus et que le bruit de la pièce reste en dessous.",
       "sensitivityLine": "Ligne de sensibilité",
       "pauseEndsPart": "Pause qui termine une partie",
@@ -4909,8 +4922,7 @@
       "listenRoomHelp": "Écoute la pièce pendant quelques secondes. Restez silencieux pendant ce temps.",
       "tryHelp": "Commence cet essai : dites la phrase, faites une pause, redites-la, puis touchez Arrêter.",
       "tryStopHelp": "Termine cet essai et le garde, pour le comparer aux autres.",
-      "sensitivityHelp": "Les barres montrent ce que le microphone entend. Faites glisser la ligne : le son au-dessus est enregistré.",
-      "saveSettings": "Sauvegarder ces réglages"
+      "sensitivityHelp": "Les barres montrent ce que le microphone entend. Faites glisser la ligne : le son au-dessus est enregistré."
     },
     "bigVoice": {
       "toggleHelp": "Touchez pour commencer à parler, touchez à nouveau pour arrêter.",
@@ -4987,13 +4999,13 @@
       "sayHelp": "À voix haute ou par écrit. L’équipe l’entend avec cette version.",
       "rowLabel": "{{label}}. {{sub}}",
       "doneHelp": "Garde ce que vous avez dit et ferme ceci.",
-      "nextCheck": "Prochaine vérification",
-      "sendHelp": "Termine {{version}} et la leur envoie pour cette vérification. Ils la trouvent dans Mon travail.",
       "askHelp": "Termine {{version}}, puis vous choisissez à qui demander.",
+      "finishHelp": "Termine {{version}} : l’équipe peut l’écouter.",
+      "finish": "Terminer {{version}}",
       "sendLater": "Envoyer plus tard",
       "sendLaterHelp": "Termine {{version}} sans rien demander à personne pour l’instant. L’équipe peut l’écouter.",
-      "finish": "Terminer {{version}}",
-      "finishHelp": "Termine {{version}} : l’équipe peut l’écouter."
+      "nextCheck": "Prochaine vérification",
+      "sendHelp": "Termine {{version}} et la leur envoie pour cette vérification. Ils la trouvent dans Mon travail."
     },
     "tray": {
       "help": "Aide",
@@ -5046,16 +5058,9 @@
     },
     "vad": {
       "recordedFor": "Enregistré pendant {{time}}",
-      "pausedForSource": "En pause pendant que la source joue",
-      "startsAgain": "L’enregistrement reprend quand la source s’arrête.",
-      "cutoff": "Seuil du son",
-      "pauseBetween": "Pause entre les parties",
       "tooShort": "Trop court pour être gardé. Si vous parliez, redites-le.",
-      "statusHelp": "Point qui pulse : votre voix est gardée. Le nombre : combien jusqu’ici. L’horloge : temps enregistré.",
       "statusPausedHelp": "En pause pendant que la source joue. Le nombre : combien jusqu’ici. L’horloge : temps enregistré.",
-      "resumeHelp": "Arrête ce qui joue et continue l’enregistrement.",
-      "cutoffHelp": "Les barres montrent ce que le microphone entend. Faites glisser la ligne : le son au-dessus est enregistré.",
-      "pauseHelp": "La durée de pause qui termine une partie. Elle change tout de suite."
+      "resumeHelp": "Arrête ce qui joue et continue l’enregistrement."
     },
     "split": {
       "referenceOneLine": "Référence sur une ligne",
@@ -5085,7 +5090,6 @@
       "numbered_one": "{{count, number}} partie numérotée.",
       "numbered_many": "{{count, number}} de parties numérotées.",
       "numbered_other": "{{count, number}} parties numérotées.",
-      "leftForLater": "{{verses}} · pour plus tard",
       "follows": "{{part}} suit l’ordre.",
       "none": "{{part}} n’a pas de verset.",
       "giveNext": "Donner à {{part}} le verset suivant",
@@ -5098,8 +5102,6 @@
       "hintLabelled": "Touchez pour lui donner le même verset que la partie du dessus. Maintenez pour choisir.",
       "hintEmpty": "Touchez pour lui donner le verset suivant. Maintenez pour choisir.",
       "choose": "Choisir les versets",
-      "recordHere": "Enregistrer ici",
-      "recordHereHelp": "Enregistrez le verset laissé pour plus tard ; il se place au bon endroit.",
       "verseSame": "{{verse}}, comme la partie du dessus",
       "auto": "Auto",
       "noVerse": "Aucun",
@@ -6025,6 +6027,7 @@
       "bar": "{{name}} : {{share}} passés"
     },
     "settings": {
+      "saved": "Sauvegardé.",
       "notSaved": "Non sauvegardé.",
       "offline": "Pas de connexion. Rien n’a été sauvegardé ; réessayez quand vous serez de nouveau en ligne.",
       "refused": "Non sauvegardé : le serveur l’a refusé.",
@@ -6036,25 +6039,24 @@
       "countryButton": "Pays : {{country}}. Le changer.",
       "countryButtonNone": "Pays : non choisi. Le changer.",
       "chooseCountry": "Choisir un pays",
+      "saveCountry": "Sauvegarder le pays",
       "target": "Objectif",
       "start": "Début (AAAA-MM-JJ)",
       "finishBy": "Fin au plus tard (AAAA-MM-JJ)",
       "datesInvalid": "Écrivez les deux dates sous la forme AAAA-MM-JJ, la fin après le début.",
+      "saveTarget": "Sauvegarder l’objectif",
       "findCountry": "Trouver un pays",
       "typeToFind_one": "Tapez pour trouver l’autre ({{count, number}}).",
       "typeToFind_many": "Tapez pour trouver les {{count, number}} autres.",
       "typeToFind_other": "Tapez pour trouver les {{count, number}} autres.",
       "countryHelp": "Ouvre la liste des pays, pour choisir où se fait le travail de cette langue.",
+      "saveCountryHelp": "Sauvegarde le pays sur le serveur maintenant. Il faut une connexion.",
       "scopeHelp": "Ce que couvre l’objectif. Ensuite, fixez les dates et sauvegardez.",
       "startHelp": "Le jour où le travail vers l’objectif a commencé.",
       "finishByHelp": "Le jour où l’objectif doit être atteint.",
+      "saveTargetHelp": "Sauvegarde l’objectif et ses dates sur le serveur maintenant. Il faut une connexion.",
       "pickCountryHelp": "Choisit ce pays. Sauvegarder le pays le garde ensuite.",
-      "chosenCountryHelp": "Le pays choisi maintenant, en gras. Touchez-en un autre pour le changer.",
-      "saved": "Sauvegardé.",
-      "saveCountry": "Sauvegarder le pays",
-      "saveCountryHelp": "Sauvegarde le pays sur le serveur maintenant. Il faut une connexion.",
-      "saveTarget": "Sauvegarder l’objectif",
-      "saveTargetHelp": "Sauvegarde l’objectif et ses dates sur le serveur maintenant. Il faut une connexion."
+      "chosenCountryHelp": "Le pays choisi maintenant, en gras. Touchez-en un autre pour le changer."
     },
     "clusters": {
       "title": "Groupes",
@@ -6531,15 +6533,15 @@
     "openVersionHelp": "Ramène le lecteur de la version sur la moitié de l’écran.",
     "openPartsHelp": "Ramène vos parties sur la moitié de l’écran.",
     "deletePartHelp": "Supprime ce que vous avez dit pour cette partie. Vous pouvez annuler juste après.",
-    "notesForCheck_one": "{{count, number}} note pour la {{check}}",
-    "notesForCheck_many": "{{count, number}} notes pour la {{check}}",
-    "notesForCheck_other": "{{count, number}} notes pour la {{check}}",
-    "doneHelp": "Quand toutes les parties sont dites : terminez-la et envoyez-la à la vérification qui l’écoute ensuite.",
     "sendHelp": "Termine la {{what}} et la leur envoie pour cette vérification. Ils la trouvent dans Mon travail.",
-    "askHelp": "Termine la {{what}}, puis vous choisissez à qui demander.",
     "sendLaterHelp": "Termine la {{what}} sans rien demander à personne pour l’instant. L’équipe peut l’écouter.",
+    "ofVersion": "De la version {{n, number}}",
+    "notesForCheck_one": "{{count, number}} note pour la {{check}}",
+    "askHelp": "Termine la {{what}}, puis vous choisissez à qui demander.",
     "finishWhat": "Terminer la {{what}}",
-    "ofVersion": "De la version {{n, number}}"
+    "notesForCheck_many": "{{count, number}} notes pour la {{check}}",
+    "doneHelp": "Quand toutes les parties sont dites : terminez-la et envoyez-la à la vérification qui l’écoute ensuite.",
+    "notesForCheck_other": "{{count, number}} notes pour la {{check}}"
   },
   "translate": {
     "missing": "Ce passage n’est pas encore sur cet appareil.",
@@ -6569,13 +6571,12 @@
     "dragDown": "Tirez vers le bas pour le guide, les mots clés, les notes et les enregistrements précédents",
     "openStudy": "Ouvrir l’étude",
     "yourRecording": "Votre enregistrement",
-    "tapRed": "Touchez le bouton rouge et parlez. Faites une pause entre les parties : chaque partie est gardée séparément.",
-    "latestParts": "Voici les parties de la version {{n}}. Enregistrez une nouvelle partie ou supprimez-en une pour publier une nouvelle version.",
     "clipped": "Les parties sont très courtes. Des mots risquent d’être coupés.",
     "micSetup": "Régler le microphone",
     "micSetupHint": "Réglez la façon dont l’appareil vous entend : sensibilité et pauses.",
     "openReferenceHelp": "Ramène la référence sur la moitié de l’écran.",
-    "openStudyHelp": "Ouvre cette étape dans l’étude complète."
+    "openStudyHelp": "Ouvre cette étape dans l’étude complète.",
+    "partReplaced": "{{part}} réenregistrée."
   },
   "reference": {
     "organization": "Organisation",
@@ -7415,8 +7416,8 @@
     "rename": {
       "title": "Renommer {{cluster}}",
       "label": "Son nom",
-      "done": "Renommé en {{name}}.",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "done": "Renommé en {{name}}."
     },
     "ungroup": {
       "title": "Dégrouper {{cluster}} ?",
@@ -7440,12 +7441,12 @@
       "firstLabel": "La mettre dans un nouveau groupe",
       "note": "Une langue peut être dans plusieurs groupes, ou dans aucun. Rien ne change pour la langue.",
       "done": "Terminé",
+      "saved": "Groupes de {{language}} enregistrés.",
       "rowHelp": "Choisissez dans quels groupes elle est, ou mettez-la dans un nouveau groupe.",
       "inHelp": "Dans ce groupe. Touchez pour l’en retirer.",
       "outHelp": "Pas dans ce groupe. Touchez pour l’y mettre.",
       "newHelp": "Tapez un nom : elle va dans un nouveau groupe de ce nom.",
-      "doneHelp": "Enregistre les groupes dont elle fait partie.",
-      "saved": "Groupes de {{language}} enregistrés."
+      "doneHelp": "Enregistre les groupes dont elle fait partie."
     },
     "newLanguage": {
       "what": "Que voulez-vous ajouter ?",
@@ -7504,11 +7505,11 @@
     }
   },
   "saved": {
-    "saving": "Sauvegarde en cours",
-    "saved": "Sauvegardé",
-    "failed": "Non sauvegardé",
-    "help": "Gardé au fur et à mesure : un cercle qui tourne pendant la sauvegarde, puis une coche. Vous n’avez rien à sauvegarder.",
     "draftHelp": "Gardé sur cet appareil au fur et à mesure, et vous seul pouvez le voir jusqu’à ce que vous ayez terminé. Un cercle qui tourne pendant la sauvegarde, puis une coche.",
-    "failedHelp": "Ceci n’a pas été gardé. Réessayez : ce que vous avez fait est toujours à l’écran."
+    "failed": "Non sauvegardé",
+    "saved": "Sauvegardé",
+    "saving": "Sauvegarde en cours",
+    "failedHelp": "Ceci n’a pas été gardé. Réessayez : ce que vous avez fait est toujours à l’écran.",
+    "help": "Gardé au fur et à mesure : un cercle qui tourne pendant la sauvegarde, puis une coche. Vous n’avez rien à sauvegarder."
   }
 }

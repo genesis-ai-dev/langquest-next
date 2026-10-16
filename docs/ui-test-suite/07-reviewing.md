@@ -126,7 +126,7 @@ Expected:
 - The sheet's sub reads "Say what you noticed here. {TRANS first name} hears it with your review."
 - After step 3 the list under the player shows "Your note at 0:04" with "0:05 · goes with your review", a play button ("Play your note at 0:04") and "Remove".
 - Step 4 removes it with no toast.
-- Notes at moments are kept on this device as a draft only REV sees (decision 124), and go on the record only when the review is sent; REV-005 sends this one.
+- Notes at moments are kept on this device as a draft only REV sees (decision 125), and go on the record only when the review is sent; REV-005 sends this one.
 
 ### REV-005 Needs changes, said and typed
 Roles: REV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
@@ -209,7 +209,7 @@ Expected:
 - Step 5 should return to Decide, as the header's back arrow does.
 - Steps 1 to 4 run in Playwright; step 5 is the Maestro flow `flows/REV-008.yaml` (on iOS it uses the header's arrow).
 
-Fixed (2026-10-12): `review.tsx` now handles the phone's Back on "What should change?" (back to Decide). Since decision 124 a Back or ✕ that leaves keeps the review as a draft instead of asking first (REV-024); the Maestro flow ends by leaving and opening it again.
+Fixed (2026-10-12): `review.tsx` now handles the phone's Back on "What should change?" (back to Decide). Since decision 125 a Back or ✕ that leaves keeps the review as a draft instead of asking first (REV-024); the Maestro flow ends by leaving and opening it again.
 
 ### REV-009 Who is listening
 Roles: REV · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -498,14 +498,14 @@ Steps:
 4. Tap "Needs changes", then go back to Listen.
 
 Expected:
-- While it is made, the header's saved mark turns from a spinner into a check: what is said, typed or answered is kept on this device as a draft only REV sees (decision 124).
+- While it is made, the header's saved mark turns from a spinner into a check: what is said, typed or answered is kept on this device as a draft only REV sees (decision 125).
 - Step 2 leaves at once, with nothing to answer first; nothing is sent (the device's log is unchanged). A phone's Back does the same.
 - Step 3 opens the review where it was left, on Decide.
 - Step 4: the typed words are back in the field, and the note at a moment is listed under the player.
 - Sending the review drops the draft; a draft about a version that is gone is dropped and the review starts fresh.
 - The phone steps are in the Maestro flow `flows/REV-008.yaml` (after REV-008's Back).
 
-Changed (2026-10-15, decision 124): "Leave without saving?" with "Keep reviewing" and "Leave" is gone; leaving keeps the review instead (`reviewing/reviewDraft.ts`). Still open: if the app is killed, voice notes and big-mic recordings are not resumed, because the recording journal only resumes parts that have a passage target (`src/recording/`, REC-023).
+Changed (2026-10-15, decision 125): "Leave without saving?" with "Keep reviewing" and "Leave" is gone; leaving keeps the review instead (`reviewing/reviewDraft.ts`). Still open: if the app is killed, voice notes and big-mic recordings are not resumed, because the recording journal only resumes parts that have a passage target (`src/recording/`, REC-023).
 
 ### REV-025 A phone call while recording feedback
 Roles: REV · Priority: P2 · Platforms: iOS, Android · Run: Device
@@ -631,7 +631,7 @@ Expected:
 - The footer has a big red record button (accessibility label "Record part 1") and "Done", disabled.
 - No notes, earlier reviews or study are shown anywhere on this screen.
 
-Known issue (2026-10-12): `docs/ux/screen-path.md` calls the secondary action "Save back translation", and `flow.ts`'s edge comment says "tap Save back translation". The screen's button reads "Done" (it was "Publish" until decision 124), and its sheet's "Finish the back translation" or, for someone who may ask, "Ask …" for the next check. The test passes on "Done"; the doc is the issue.
+Known issue (2026-10-12): `docs/ux/screen-path.md` calls the secondary action "Save back translation", and `flow.ts`'s edge comment says "tap Save back translation". The screen's button reads "Done" (it was "Publish" until decision 125), and its sheet's "Finish the back translation" or, for someone who may ask, "Ask …" for the next check. The test passes on "Done"; the doc is the issue.
 
 ### REV-032 Say each part, then finish the back translation
 Roles: REV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
@@ -649,9 +649,9 @@ Steps:
 7. Tap "Finish the back translation".
 
 Expected:
-- While recording, the bottom shows the red recording panel: a pulsing dot, the elapsed time (accessibility label "Recorded for 0:07"), a level meter and a dashed "Sound cutoff" line. Its status (the panel's accessibility label; on screen the count of pieces) reads "Recording what you say" while speaking and "Listening for you. 2 pieces so far" while silent.
+- While recording, the bottom shows the red recording view (decision 124, the workspace's too): "Part 1", a pulsing dot and its status, the elapsed time (accessibility label "Recorded for 0:07"), a check "Done", and the live waveform. Its label reads "Part 1. Recording…" while speaking and "Part 1. Listening for you · pause between parts" while silent.
 - Every piece said in one recording goes to the part it started on, however many pauses it has.
-- The footer shows "Stop recording" and the pause choices "Short pause", "Normal pause" and "Long pause".
+- The footer shows "Stop recording". (The sensitivity line and the pause choices went in decision 124, with the recording thread's levels learned as you speak.)
 - After step 3 Part 1 reads "0:07 in English · record to add more", with "Play your part 1", "Hear what you said" and a trash button "Delete part 1 to say it again". Focus moves to Part 2 ("Saying it next").
 - Said parts that are not open read "0:07 in English".
 - "Done" is enabled after the first part is said.
@@ -673,9 +673,9 @@ Steps:
 1. Tap "Done" and read the sheet.
 
 Expected:
-- A reviewer without Send to reviewers or Assign work is not invited to ask: the sheet has no "Next check", and its only button is "Finish the back translation". Someone who may ask gets "Ask {usual people}" (or "Ask for the {check}") with "Send later" under it (decision 124).
+- A reviewer without Send to reviewers or Assign work is not invited to ask: the sheet has no "Next check", and its only button is "Finish the back translation". Someone who may ask gets "Ask {usual people}" (or "Ask for the {check}") with "Send later" under it (decision 125).
 
-Changed (2026-10-15, decision 124): the published page after publishing is gone; asking for the next check is on Done itself.
+Changed (2026-10-15, decision 125): the published page after publishing is gone; asking for the next check is on Done itself.
 
 Fixed (2026-10-13): the page shows "Next, ask for a check" and the Community check card ("Choose who checks it" or its usual team) even though REV cannot ask; the only button is "Done". The section is shown whenever there is a next check (`passage.tsx`, `page === 'ask'`), without checking `can.ask`.
 
@@ -711,7 +711,7 @@ Steps:
 
 Expected:
 - The sheet's sub reads "What was hard to say here? The Consultant check hears it with your back translation." and its field "Or type it — e.g. a word with no English match". "Add note" is disabled until something is said or typed.
-- Under the parts: "2 notes for the Consultant check". They are kept on this device as they are added (decision 124), and go with the back translation when it is finished.
+- Under the parts: "2 notes for the Consultant check". They are kept on this device as they are added (decision 125), and go with the back translation when it is finished.
 - Done's sheet shows "✓ 2 notes at moments".
 - The published note lists each note with its part and time ("Part 2 · 0:07: No word for 'disciple'").
 - The second note's sheet, and Done's "Anything hard to say back?", read "One spoken note per back translation for now: type this one." and offer no "Say it".

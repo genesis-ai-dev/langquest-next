@@ -1,4 +1,4 @@
-// The state of the saved mark (SavedMark.tsx, decision 124): a spinner while
+// The state of the saved mark (SavedMark.tsx, decision 125): a spinner while
 // something is being kept, then a check. A save that takes no time still
 // shows the spinner for a moment, so the check reads as "kept", not as a
 // mark that was always there.

@@ -3,10 +3,14 @@
 // hear, edit, publish or delete (with Undo); then the published versions,
 // newest first, each to hear, open, or edit into a new draft (a published
 // version never changes), and the latest one asked for its next check. The
-// footer starts a new version from nothing. The record's history follows.
-import { commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
+// published ones are deleted by whoever published them (LAN-83). Deleting
+// a draft or a version asks first (ConfirmDelete). The footer starts a new
+// version from nothing. The record's history follows.
+import { canDeleteVersion, commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
+import { deleteVersion } from './deleteVersion';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
 import * as Crypto from 'expo-crypto';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { Ctx } from '../shell/ctx';
 import type { ScreenId } from '../shell/flow';
@@ -49,6 +53,8 @@ export function VersionsPage(props: {
     return w === t('time.justNow') ? t('passage.versions.savedJustNow') : t('passage.versions.saved', { when: w });
   };
 
+  // What is being deleted, once its bin is tapped: the sheet asks first.
+  const [asking, setAsking] = useState<{ name: string; sub: string; go: () => void } | null>(null);
   const remove = (d: DraftView, name: string) => {
     let specs;
     try {
@@ -57,11 +63,7 @@ export function VersionsPage(props: {
       ctx.toast(t('passage.versions.notDeleted', { reason: failureMessage('versions: delete draft', e) }));
       return;
     }
-    // Undo continues the deleted take with the same parts, so it is the same draft again.
-    void ctx.act(specs, t('passage.versions.deleted', { name }), () => {
-      const s = ctx.language.state ?? state;
-      return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: d.cardHashes, actorId: me, parentTakeId: d.takeId });
-    }).catch(() => { /* ctx.act said what went wrong */ });
+    void ctx.act(specs, t('passage.versions.deleted', { name })).catch(() => { /* ctx.act said what went wrong */ });
   };
 
   return (
@@ -75,7 +77,8 @@ export function VersionsPage(props: {
         return (
           <ItemCard key={d.takeId} ctx={ctx} hashes={d.cardHashes} title={name}
             lines={[from && from !== p.latest?.n ? t('passage.versions.lengthFrom', { length: length(d.cardHashes), version: versionTitle(from) }) : length(d.cardHashes), saved(d.hlc)]}
-            trailing={<IconBtn name="trash" label={t('passage.versions.delete', { name })} help={t('passage.versions.deleteHelp')} bg="transparent" color={C.muted} size={44} onPress={() => remove(d, name)} />}>
+            trailing={<IconBtn name="trash" label={t('passage.versions.delete', { name })} help={t('passage.versions.deleteHelp')} bg="transparent" color={C.muted} size={44}
+              onPress={() => setAsking({ name, sub: length(d.cardHashes), go: () => remove(d, name) })} />}>
             {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editDraftHelp')} onPress={() => props.go('workspace', { draftId: d.rootTakeId })} /> : null}
             {props.canRecord ? (
               <SmallBtn label={t('common.done')} icon="send" tone="primary" disabled={unchanged} help={t('passage.versions.doneHelp')}
@@ -84,23 +87,23 @@ export function VersionsPage(props: {
           </ItemCard>
         );
       })}
-      {mine.length === 0 && props.canRecord ? (
-        <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('passage.versions.noDrafts')}</Text>
-      ) : null}
       {p.versions.length > 0 ? <SectionLabel label={t('passage.versions.published')} /> : null}
       {[...p.versions].reverse().map((ver) => (
         <VersionCard key={ver.takeId} ctx={ctx} v={v} ver={ver} latest={ver.takeId === p.latest?.takeId} length={length(ver.cardHashes)}
           canRecord={props.canRecord} {...(ver.takeId === p.latest?.takeId && props.ask ? { ask: props.ask } : {})}
+          {...(props.canRecord && canDeleteVersion(p, ver.takeId, me) ? { onDelete: () => setAsking({ name: versionTitle(ver.n), sub: length(ver.cardHashes), go: () => deleteVersion(ctx, v, ver) }) } : {})}
           onOpen={() => props.go('version_detail', { takeId: ver.takeId })} onEdit={() => props.go('workspace', { from: ver.takeId })} />
       ))}
       {props.history}
+      <ConfirmDelete visible={!!asking} name={asking?.name ?? ''} {...(asking?.sub ? { sub: asking.sub } : {})}
+        onClose={() => setAsking(null)} onConfirm={() => { const go = asking?.go; setAsking(null); go?.(); }} />
     </Screen>
   );
 }
 
 function VersionCard(props: {
   ctx: Ctx; v: PassageView; ver: Version; latest: boolean; length: string; canRecord: boolean;
-  ask?: { label: string; onPress: () => void }; onOpen: () => void; onEdit: () => void;
+  ask?: { label: string; onPress: () => void }; onOpen: () => void; onEdit: () => void; onDelete?: () => void;
 }) {
   const { ctx, v, ver } = props;
   const reviews = v.p.reviews.filter((r) => r.versionN === ver.n);
@@ -111,6 +114,11 @@ function VersionCard(props: {
       trailing={<Ico name="right" size={22} color={C.muted} />}>
       {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editVersionHelp')} onPress={props.onEdit} /> : null}
       {props.ask ? <SmallBtn label={props.ask.label} icon="send" tone="primary" help={t('passage.page.mainHelp.ask')} onPress={props.ask.onPress} /> : null}
+      {props.onDelete ? (
+        <View style={{ marginLeft: 'auto' }}>
+          <IconBtn name="trash" label={t('passage.versions.delete', { name: title })} help={t('passage.versions.deleteVersionHelp')} bg="transparent" color={C.muted} size={44} onPress={props.onDelete} />
+        </View>
+      ) : null}
     </ItemCard>
   );
 }

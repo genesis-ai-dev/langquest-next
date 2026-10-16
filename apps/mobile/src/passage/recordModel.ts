@@ -378,7 +378,7 @@ export function studyLine(study: StudyProgress): string {
 }
 
 /**
- * The checks to ask for once this is done (decision 124), worked out before
+ * The checks to ask for once this is done (decision 125), worked out before
  * it is: Done offers "Ask Rebecca" on the same screen, so the next step is
  * one tap. A new version answers the feedback on the latest one (so that
  * check reads as addressed, as derivePassage will say once it is

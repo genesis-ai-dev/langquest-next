@@ -248,7 +248,7 @@ describe('the ask page and its words', () => {
   });
 });
 
-describe('Done asks for the check that comes next (decision 124, recordModel.ts nextAfterDone)', () => {
+describe('Done asks for the check that comes next (decision 125, recordModel.ts nextAfterDone)', () => {
   const kindsOf = (k: WorldPassage, o: Parameters<typeof nextAfterDone>[1]) => nextAfterDone(record('TRANS', k).p, o)?.kinds.map((x) => x.kindId);
   it('offers the first step for a first version, before anything is published', () => {
     expect(kindsOf('P-DRAFT', { publishing: true })).toEqual(['peer', 'bt']);

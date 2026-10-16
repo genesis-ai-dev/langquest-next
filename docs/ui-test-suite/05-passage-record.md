@@ -21,10 +21,10 @@ fixture world and the role matrix hold for every test here.
   library's kind names ("Peer Review", "Back Translation"); see PASS-062.
 - "Then the team" lists each check as a card, with the people on it
   (decision 91): a round state tile, the check's name, its status on its
-  own line, then its people, with space between the cards (decision 124).
+  own line, then its people, with space between the cards (decision 125).
   A card is still spoken "{name}, {status}". The Peer check and Back
   translation have {REV} and {TREV}.
-- Since decision 124 the recorder's "Publish" is "Done". Done opens a last
+- Since decision 125 the recorder's "Publish" is "Done". Done opens a last
   look at the version whose main button asks the next check's usual people
   and publishes in the same tap ("Ask the Peer check team"); "Someone else"
   and "Send later" finish it too. There is no "Version N published" page:
@@ -311,7 +311,7 @@ Expected:
 - "Record" opens the recording workspace for Luke 13:10-17.
 - "Send later" publishes Version 1 and asks nobody: the toast reads
   "Version 1 published.", and the app returns to the record's path. There
-  is no "Version 1 published" page (decision 124).
+  is no "Version 1 published" page (decision 125).
 - The path's "Record" is done ("Version 1 · {m:ss}"), and so is "Done"
   ("Published just now").
 - My Work no longer lists Luke 13:10-17 for TRANS. COORD's "Waiting on
@@ -347,7 +347,7 @@ Expected:
 - "Undo" takes back the asking, not the version: it shows "Undone.", the
   card goes back to "next", Version 1 stays published, and REV's My Work
   (after Sync now) does not list Luke 14:1-14.
-- Changed (2026-10-15, decision 124): the page after publishing (a big
+- Changed (2026-10-15, decision 125): the page after publishing (a big
   green ✓, "Version 1 published", its upload line, fixed 2026-10-12 in
   REC-034, and "Next, ask for a check") is gone. Asking happens on Done.
 
@@ -1157,7 +1157,7 @@ Expected:
   "Part {n}" and "Remove part {n}".
 - "Done" shows "Back Translation added to the record". Back Translation is
   marked done on the record.
-- Changed (2026-10-15, decision 124): the button read "Save to the record".
+- Changed (2026-10-15, decision 125): the button read "Save to the record".
 
 ## Checkpoints
 
@@ -1289,8 +1289,9 @@ Steps:
 
 Expected:
 - The header is "Versions", with the sub "Luke 14:15-24" and ✕.
-- TRANS, with no draft: "No drafts. Edit a version below, or start a new
-  one." and the footer "New version".
+- TRANS, with no draft: no drafts section, and the footer "New version"
+  (the line "No drafts. Edit a version below, or start a new one." went in
+  decision 124).
 - "Published" lists the versions newest first. The latest has the badge
   "Latest". Each shows "{name} · {when}", its length, and a summary of its
   reviews. Each has "Edit" for anyone who can record.
@@ -1335,20 +1336,24 @@ Expected:
 
 Resets: delete the unstarted passage's drafts.
 
-### PASS-060 Delete a draft, and Undo
+### PASS-060 Delete a draft, asked first
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. On P-DONE's Versions page (PASS-059), tap the trash on "Draft 1".
-2. Tap "Undo".
-3. Delete it again and let the toast pass.
+2. Tap "Cancel".
+3. Tap the trash again, then "Delete Draft 1" in the sheet.
 
 Expected:
-- The trash is spoken "Delete Draft 1". Tapping it shows "Draft 1 deleted."
-  with "Undo", and the draft goes away. "Draft 2" is now the only draft,
-  named "Draft".
-- "Undo" brings back the same draft, with the same parts.
+- The trash is spoken "Delete Draft 1". Tapping it opens the sheet
+  "Delete Draft 1?" with what it holds, "Delete Draft 1" and "Cancel".
+- "Cancel" keeps both drafts.
+- Step 3 shows "Draft 1 deleted." with no Undo, and the draft goes away.
+  "Draft 2" is now the only draft, named "Draft".
 - Only TRANS's own drafts have a trash button.
+
+Changed (2026-10-16, decision 124): a whole draft, a whole version or every
+part asks first instead of offering Undo.
 
 Resets: delete both drafts.
 

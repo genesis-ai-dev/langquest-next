@@ -86,12 +86,11 @@ Preconditions: The screen reader is on.
 Steps:
 1. As TRANS, in the workspace, focus the divider.
 2. Swipe up, and then down, on the divider.
-3. As REV, start a back translation recording session. Focus the "Sound cutoff" line and adjust it.
 
 Expected:
 - Step 1: the divider speaks "Divider between reference and your recording", is adjustable, and gives the hint "Drag up or down to give either one more room".
 - Step 2: each swipe moves one snap. The value is spoken: "Source 35%", "Reference as one line" or "Recorder as one line".
-- Step 3: the line moves by 2 for each step, within 4–92, and its value is spoken.
+- (The "Sound cutoff" line went in decision 124; there is nothing to adjust while recording.)
 
 ### A11Y-005 Recording state is never only visual
 Roles: TRANS, REV · Priority: P0 · Platforms: iOS, Android · Run: Manual
@@ -105,7 +104,7 @@ Steps:
 Expected:
 - Step 1: the record button changes its spoken name from "Record" to "Stop recording" and back.
 - Step 2:
-  - The status is read politely: "Recording what you say", then "Listening for you. 2 pieces so far".
+  - The status is read politely: "Part 1. Recording…", then "Part 1. Listening for you · pause between parts" (decision 124).
   - The elapsed time is readable, for example "Recorded for 0:12".
 - The reader's own speech is not recorded into the take. Check by playing the take.
 

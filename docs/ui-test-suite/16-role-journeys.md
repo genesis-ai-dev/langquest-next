@@ -20,7 +20,7 @@ TREV, and "Ask the Peer check team" reaches both. The Review Teams screens
 are gone. "Ask someone" on the record is now "Something else?" → "Someone
 else should do this".
 
-**Done since decision 124.** The recorder's and back translation's
+**Done since decision 125.** The recorder's and back translation's
 "Publish" is "Done". Done's main button asks the next check's usual people
 and publishes in the same tap ("Ask the Peer check team"); "Someone else"
 publishes and opens Ask someone, and "Send later" publishes and asks nobody

@@ -121,7 +121,7 @@ tags:
 - tapOn:
     id: "publish-button"
 - assertVisible: "(?i)Next check"
-# Step 13: Done asks the check's team in the same tap (decision 91: "Ask the Peer check team"; decision 124).
+# Step 13: Done asks the check's team in the same tap (decision 91: "Ask the Peer check team"; decision 125).
 - tapOn: "Ask the Peer check team"
 - extendedWaitUntil:
     visible: "Sent to the Peer check team.*"

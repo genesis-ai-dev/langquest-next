@@ -2,6 +2,7 @@
   "common": {
     "loading": "Ana lodawa…",
     "done": "An gama",
+    "save": "Ajiye",
     "saving": "Ana ajiyewa…",
     "cancel": "Soke",
     "close": "Rufe",
@@ -37,7 +38,7 @@
     "addNote": "Ƙara bayani",
     "orTypeIt": "Ko ku rubuta shi",
     "sayIt": "Faɗe shi",
-    "save": "Ajiye"
+    "deleteAsk": "A goge {{name}}?"
   },
   "time": {
     "justNow": "Yanzu nan",
@@ -719,6 +720,7 @@
     "rename": {
       "done": "An sake suna zuwa {{name}}.",
       "row": "Suna",
+      "save": "Ajiye sunan",
       "taken": "An riga an ɗauki wannan suna a nan",
       "failed": "Ba a sake suna ba",
       "orgTitle": "Sake sunan ƙungiyar",
@@ -726,8 +728,7 @@
       "languageTitle": "Sake sunan {{name}}",
       "languageSub": "Kowa a {{org}} yana ganin sabon sunan. Lambarsa, {{code}}, ba ta canja ba.",
       "takenBody": "{{languages}} tuni yana da wannan suna. Harsuna biyu masu suna ɗaya suna da wuyar bambancewa.",
-      "rowHelp": "Ku canja sunan da kowa a nan yake gani.",
-      "save": "Ajiye sunan"
+      "rowHelp": "Ku canja sunan da kowa a nan yake gani."
     },
     "link": {
       "done": "An haɗa {{name}} da {{linked}}.",
@@ -880,6 +881,7 @@
       "notMemberSub": "Wannan mutum ba shi da matsayi a wannan ƙungiya yanzu.",
       "awaiting": "Yana jiran amincewa",
       "assignRole": "Ba da Matsayi",
+      "saveAssignment": "Ajiye Sanyawa",
       "decline": "Ƙi",
       "introPending": "Wannan mutum ya buɗe asusu ya nemi shiga. Ku ba da matsayi da iyaka don ba su izinin shiga.",
       "intro": "Ku zaɓi matsayi, sannan ku zaɓi iyakar da wannan sanyawa ta shafa. Iyaka za ta iya zama wannan mataki ko ƙasa da shi.",
@@ -891,8 +893,7 @@
       "removeFromOrg": "Cire daga ƙungiya",
       "removeFromLanguage": "Cire daga harshe",
       "declineHelp": "Yana ƙin buƙatarsu ta shiga.",
-      "removeHelp": "Yana cire matsayinsu a nan. Janye yana bayyana na ɗan lokaci bayan haka.",
-      "saveAssignment": "Ajiye Sanyawa"
+      "removeHelp": "Yana cire matsayinsu a nan. Janye yana bayyana na ɗan lokaci bayan haka."
     },
     "signIn": {
       "notAllowed": "Ba ku da izinin taimaka wa wannan mutum shiga.",
@@ -1874,9 +1875,9 @@
       "fromLanguages": "Abin da sauran harsuna a nan suke kiransa",
       "use": "Yi amfani",
       "useLabel": "Yi amfani da {{name}} ({{from}})",
+      "saveHelp": "Yana riƙe wannan suna: masu fassara za su gan shi daga yanzu.",
       "useHelp": "Yana sa wannan suna a akwatin da ke sama. Ajiye yana riƙe shi.",
-      "inBoxHelp": "Alamar ✓ tana nufin wannan suna yana cikin akwatin da ke sama.",
-      "saveHelp": "Yana riƙe wannan suna: masu fassara za su gan shi daga yanzu."
+      "inBoxHelp": "Alamar ✓ tana nufin wannan suna yana cikin akwatin da ke sama."
     },
     "translate": {
       "question": "Me {{language}} zai fassara?",
@@ -2329,6 +2330,7 @@
       "itsName": "Sunansa",
       "itsNamePlaceholder": "Sunan matsayi",
       "scopeNote": "Ana zaɓar inda matsayi yake aiki ga kowane mutum: dukan ƙungiya ko harshe ɗaya, lokacin da aka gayyace su ko aka shigar da su.",
+      "saveHelp": "Yana riƙe sunan da abubuwan da aka kunna. Duk mai wannan matsayi zai sami canjin.",
       "inviteHelp": "Yana nuna lambar da za a karanta. Duk wanda ya shiga da ita zai sami wannan matsayi.",
       "personHelp": "Yana buɗe matsayansu da inda kowanne yake aiki, don canja su.",
       "renameHelp": "Yana canja sunan wannan matsayi ga kowa.",
@@ -2343,8 +2345,7 @@
       "chooseWhoChecksHelp": "A kunne: mutanen da ke da wannan matsayi za su iya zaɓar dubawar da nassi zai samu, da wanda zai yi.",
       "assignWorkHelp": "A kunne: mutanen da ke da wannan matsayi za su iya roƙon kowa ya naɗa ko ya duba nassi.",
       "overrideChecksHelp": "A kunne: mutanen da ke da wannan matsayi za su iya sa nassi ya wuce dubawar da aka kulle, tare da dalili.",
-      "manageRolesHelp": "A kunne: mutanen da ke da wannan matsayi za su iya yin matsayai da canja abin da kowanne yake bari.",
-      "saveHelp": "Yana riƙe sunan da abubuwan da aka kunna. Duk mai wannan matsayi zai sami canjin."
+      "manageRolesHelp": "A kunne: mutanen da ke da wannan matsayi za su iya yin matsayai da canja abin da kowanne yake bari."
     },
     "library": {
       "followingAuto": "Ana bin {{name}}. Yana sabuntawa da kansa.",
@@ -3247,10 +3248,13 @@
     },
     "profile": {
       "title": "Gyara Bayanan Kai",
+      "save": "Ajiye Bayanan Kai",
       "nameLabel": "Cikakken Suna",
       "shortPassword": "Ku zaɓi kalmar sirri mai haruffa 6 ko fiye.",
       "passwordNeedsConnection": "Sa kalmar sirri yana buƙatar haɗi.",
       "passwordFailed": "An kasa sa kalmar sirri. Ku sake gwadawa.",
+      "savedWithPassword": "An ajiye. Kuna iya shiga da sunan shigarku da wannan kalmar sirri.",
+      "saved": "An ajiye bayanan kai. Za a daidaita idan an haɗa.",
       "newPassword": "Sabuwar kalmar sirri (ba dole ba)",
       "password": "Kalmar sirri (ba dole ba)",
       "passwordPlaceholder": "Haruffa 6 ko fiye",
@@ -3260,10 +3264,7 @@
       "lastChangeRefused": "Ba a karɓi canjinku na ƙarshe ba",
       "savedBody": "Za a aika idan an haɗa.",
       "nameHelp": "Sunan da tawagarku take ganin ku da shi. Za a aika shi idan an haɗa.",
-      "passwordHelp": "Yana ba ku damar sake shiga bayan wani ya yi amfani da wannan na'ura.",
-      "savedWithPassword": "An ajiye. Kuna iya shiga da sunan shigarku da wannan kalmar sirri.",
-      "saved": "An ajiye bayanan kai. Za a daidaita idan an haɗa.",
-      "save": "Ajiye Bayanan Kai"
+      "passwordHelp": "Yana ba ku damar sake shiga bayan wani ya yi amfani da wannan na'ura."
     },
     "orgs": {
       "stale": "An kasa sabuntawa. Ƙungiyoyin da aka ajiye suna nan.",
@@ -3650,7 +3651,8 @@
         "studyStepDone": "An gama mataki na {{n, number}} na {{pattern}} · {{step}}",
         "studyDone": "An gama matakin nazari",
         "keptAfter": "An bar shi bayan {{kind}}",
-        "keptAfterFeedback": "An bar shi bayan sharhi"
+        "keptAfterFeedback": "An bar shi bayan sharhi",
+        "versionDeleted": "An goge Siga ta {{n, number}}"
       },
       "counts": {
         "versions_one": "siga {{count, number}}",
@@ -4081,7 +4083,6 @@
       "newVersion": "Sabuwar siga",
       "yourDraft": "Daftarinka",
       "yourDrafts": "Daftarorinka",
-      "noDrafts": "Babu daftari. Gyara wata siga a ƙasa, ko fara sabuwa.",
       "published": "Waɗanda aka wallafa",
       "latest": "Mafi sabo",
       "saved": "An ajiye {{when}}",
@@ -4096,10 +4097,11 @@
       "draft": "Daftari",
       "draftN": "Daftari na {{n, number}}",
       "newVersionHelp": "Yana fara sabuwar siga daga farko. Daftarorinku suna nan.",
-      "deleteHelp": "Yana goge wannan daftari. Janye yana dawo da shi.",
+      "deleteHelp": "Yana goge wannan daftari.",
       "editDraftHelp": "Yana buɗe wannan daftari a wurin naɗawa, don ci gaba da aiki a kansa.",
       "editVersionHelp": "Yana fara sabon daftari daga wannan siga. Sigar kanta tana zama yadda take.",
       "partHelp": "Yana kunna wannan sashe shi kaɗai.",
+      "deleteVersionHelp": "Yana goge wannan siga ga kowa. Binciken da aka riga aka yi a kanta yana nan a tarihi amma ba a ƙirga shi kuma.",
       "doneHelp": "Yana buɗe kallo na ƙarshe na wannan daftari, don ku gama shi ku aika shi zuwa dubawarsa ta gaba."
     }
   },
@@ -4400,11 +4402,11 @@
       "switchOff": "A kashe. Taɓa don kunna shi.",
       "person": "Yana nuna ko wane ne wannan: sunansu da ID ɗinsu.",
       "cancel": "Yana rufe wannan ba tare da canja komai ba.",
+      "save": "Yana riƙe abin da kuka canja.",
       "done": "An gama a nan: yana komawa.",
       "undo": "Yana mayar da abin da yake nan a da.",
       "tryAgain": "Yana sake gwadawa sau ɗaya.",
-      "quickReason": "Yana amfani da wannan a matsayin dalilinku. Har yanzu kuna iya canja kalmomin.",
-      "save": "Yana riƙe abin da kuka canja."
+      "quickReason": "Yana amfani da wannan a matsayin dalilinku. Har yanzu kuna iya canja kalmomin."
     },
     "tabs": {
       "work": "Abin da za ku yi na gaba: nassinku na gaba, da abin da ke jiran ku.",
@@ -4678,7 +4680,6 @@
     },
     "recorder": {
       "permissionNeeded": "Ana buƙatar izinin makirufo.",
-      "dragUp": "{{recorded}} · ja sama don ganinsu",
       "hidePartsHelp": "Ɓoye sassan.",
       "showPartsHelp": "Nuna kowane sashe, don ji ko goge shi.",
       "playAllHelp": "Ji duk abin da aka naɗa zuwa yanzu, sashe bayan sashe.",
@@ -4703,6 +4704,17 @@
       "nextCardHelp": "Sashen da za ku naɗa na gaba. Taɓa maɓalli ja don farawa.",
       "nextRecordingHelp": "Ana naɗawa yanzu. Sanduna masu cikakken launi muryarku ce da ake ajiyewa; sanduna masu dushewa shiru ne.",
       "nextPausedHelp": "An dakata yayin da Littafi Mai Tsarki yake kunnawa. Naɗawa za ta ci gaba idan ya tsaya.",
+      "deleteAll": "Goge dukkan sassa",
+      "deleteAllHelp": "Yana goge dukkan sassa, don ku sake farawa.",
+      "leave": "An gama",
+      "leaveHelp": "Yana tsayar da naɗi kuma yana ajiye dukkan sassa.",
+      "recordOver": "Sake naɗa {{part}}",
+      "recordOverHelp": "Abin da za ku naɗa na gaba zai maye gurbin wannan sashe.",
+      "recordInGap": "Naɗa {{part}} a nan",
+      "gapHelp": "Abin da za ku naɗa na gaba zai shiga wannan gibi.",
+      "recordAtEnd": "Naɗa {{part}} a ƙarshe",
+      "endHelp": "Abin da za ku naɗa na gaba zai tafi ƙarshe.",
+      "deleteAllAsk": "A goge dukkan sassa?",
       "doneHelp": "Idan an naɗa kowane sashe: ku gama wannan siga, ku aika ta zuwa dubawarta ta gaba."
     },
     "quoted": "“{{text}}”",
@@ -4745,6 +4757,7 @@
       "chooseThis": "Zaɓi wannan.",
       "tryLabel": "Gwaji {{id}}, {{length}}",
       "settingsSaved": "An ajiye saitunan makirufo a wannan na'ura.",
+      "saveSettings": "Ajiye waɗannan saituna",
       "byHandLead": "Ku yi magana, ku kalli sandunan. Ku ja layin don muryarku ta wuce shi, hayaniyar ɗakin kuma ta kasance a ƙasansa.",
       "sensitivityLine": "Layin ƙarfin ji",
       "pauseEndsPart": "Tsayawar da ke kammala sashe",
@@ -4755,8 +4768,7 @@
       "listenRoomHelp": "Yana sauraron ɗakin na 'yan daƙiƙu. Ku yi shiru yayin da yake yi.",
       "tryHelp": "Yana fara wannan gwaji: ku faɗi jumlar, ku dakata, ku sake faɗinta, sannan ku taɓa tsaya.",
       "tryStopHelp": "Yana kammala wannan gwaji ya ajiye shi, don kwatanta shi da sauran.",
-      "sensitivityHelp": "Sandunan su ne abin da makirufo yake ji. Ku ja layin: sautin da ke samansa ana naɗa shi.",
-      "saveSettings": "Ajiye waɗannan saituna"
+      "sensitivityHelp": "Sandunan su ne abin da makirufo yake ji. Ku ja layin: sautin da ke samansa ana naɗa shi."
     },
     "bigVoice": {
       "toggleHelp": "Taɓa don fara magana, sake taɓawa don tsayawa.",
@@ -4829,13 +4841,13 @@
       "sayHelp": "Da murya ko rubutu. Tawagar za ta ji shi tare da wannan siga.",
       "rowLabel": "{{label}}. {{sub}}",
       "doneHelp": "Yana riƙe abin da kuka faɗa, ya rufe wannan.",
-      "nextCheck": "Duba na gaba",
-      "sendHelp": "Yana gama {{version}}, ya aika musu ita don wannan dubawa. Za su same ta a Aikina.",
       "askHelp": "Yana gama {{version}}, sannan ku zaɓi wanda za ku roƙa.",
+      "finishHelp": "Yana gama {{version}}: tawagar za ta iya jin ta.",
+      "finish": "Gama {{version}}",
       "sendLater": "Aika daga baya",
       "sendLaterHelp": "Yana gama {{version}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin ta.",
-      "finish": "Gama {{version}}",
-      "finishHelp": "Yana gama {{version}}: tawagar za ta iya jin ta."
+      "nextCheck": "Duba na gaba",
+      "sendHelp": "Yana gama {{version}}, ya aika musu ita don wannan dubawa. Za su same ta a Aikina."
     },
     "tray": {
       "help": "Taimako",
@@ -4888,16 +4900,9 @@
     },
     "vad": {
       "recordedFor": "An naɗa na tsawon {{time}}",
-      "pausedForSource": "An dakata yayin da asalin yake kunnawa",
-      "startsAgain": "Naɗawa za ta sake farawa idan asalin ya tsaya.",
-      "cutoff": "Iyakar sauti",
-      "pauseBetween": "Tsayawa tsakanin sassa",
       "tooShort": "Ya yi gajere sosai, ba a ajiye shi ba. Idan kuna magana, ku sake faɗa.",
-      "statusHelp": "Ɗigo mai bugawa: ana ajiye muryarku. Lambar: nawa aka naɗa zuwa yanzu. Agogon: lokacin da aka naɗa.",
       "statusPausedHelp": "An dakata yayin da asalin yake kunnawa. Lambar: nawa aka naɗa zuwa yanzu. Agogon: lokacin da aka naɗa.",
-      "resumeHelp": "Yana tsayar da abin da ke kunnawa, ya ci gaba da naɗawa.",
-      "cutoffHelp": "Sandunan su ne abin da makirufo yake ji. Ku ja layin: sautin da ke samansa ana naɗa shi.",
-      "pauseHelp": "Tsawon tsayawar da ke kammala sashe. Yana canjawa nan take."
+      "resumeHelp": "Yana tsayar da abin da ke kunnawa, ya ci gaba da naɗawa."
     },
     "split": {
       "referenceOneLine": "Kayan bincike a layi ɗaya",
@@ -4925,7 +4930,6 @@
       "moreOfRange": "{{part}} ci gaban ayoyi {{first}}–{{last}} ce.",
       "numbered_one": "An sa lamba ga sashe {{count, number}}.",
       "numbered_other": "An sa lamba ga sassa {{count, number}}.",
-      "leftForLater": "{{verses}} · an bari sai anjima",
       "follows": "{{part}} tana bin jeri.",
       "none": "{{part}} ba ta da aya.",
       "giveNext": "Ba {{part}} aya ta gaba",
@@ -4938,8 +4942,6 @@
       "hintLabelled": "Taɓa don ba ta ayar sashen da ke sama. Riƙe don zaɓa.",
       "hintEmpty": "Taɓa don ba ta aya ta gaba. Riƙe don zaɓa.",
       "choose": "Zaɓi ayoyi",
-      "recordHere": "Naɗa a nan",
-      "recordHereHelp": "Naɗa ayar da ka bari sai anjima; za ta shiga wurinta.",
       "verseSame": "{{verse}}, daidai da sashen da ke sama",
       "auto": "Kai-tsaye",
       "noVerse": "Babu",
@@ -5782,6 +5784,7 @@
       "bar": "{{name}}: {{share}} sun wuce"
     },
     "settings": {
+      "saved": "An ajiye.",
       "notSaved": "Ba a ajiye ba.",
       "offline": "Babu haɗi. Ba a ajiye komai ba; ku sake gwadawa idan kun dawo kan intanet.",
       "refused": "Ba a ajiye ba: sabar ta ƙi.",
@@ -5793,24 +5796,23 @@
       "countryButton": "Ƙasa: {{country}}. Canja ta.",
       "countryButtonNone": "Ƙasa: ba a zaɓa ba. Canja ta.",
       "chooseCountry": "Zaɓi ƙasa",
+      "saveCountry": "Ajiye ƙasa",
       "target": "Buri",
       "start": "Farawa (YYYY-MM-DD)",
       "finishBy": "Kammala kafin (YYYY-MM-DD)",
       "datesInvalid": "Ku rubuta kwanakin biyu kamar YYYY-MM-DD, kammalawa bayan farawa.",
+      "saveTarget": "Ajiye buri",
       "findCountry": "Nemo ƙasa",
       "typeToFind_one": "Ku rubuta don nemo sauran {{count, number}}.",
       "typeToFind_other": "Ku rubuta don nemo sauran {{count, number}}.",
       "countryHelp": "Yana buɗe jerin ƙasashe, don zaɓar inda ake aikin wannan harshe.",
+      "saveCountryHelp": "Yana ajiye ƙasar a sabar yanzu. Yana buƙatar haɗi.",
       "scopeHelp": "Abin da burin ya ƙunsa. Sannan ku sa kwanakin ku ajiye.",
       "startHelp": "Ranar da aka fara aiki zuwa ga burin.",
       "finishByHelp": "Ranar da ya kamata a cim ma burin.",
+      "saveTargetHelp": "Yana ajiye burin da kwanakinsa a sabar yanzu. Yana buƙatar haɗi.",
       "pickCountryHelp": "Yana zaɓar wannan ƙasa. Sannan Ajiye ƙasa yana riƙe ta.",
-      "chosenCountryHelp": "Ƙasar da aka zaɓa yanzu, a rubutu mai kauri. Taɓa wata don canja ta.",
-      "saved": "An ajiye.",
-      "saveCountry": "Ajiye ƙasa",
-      "saveCountryHelp": "Yana ajiye ƙasar a sabar yanzu. Yana buƙatar haɗi.",
-      "saveTarget": "Ajiye buri",
-      "saveTargetHelp": "Yana ajiye burin da kwanakinsa a sabar yanzu. Yana buƙatar haɗi."
+      "chosenCountryHelp": "Ƙasar da aka zaɓa yanzu, a rubutu mai kauri. Taɓa wata don canja ta."
     },
     "clusters": {
       "title": "Rukunoni",
@@ -6271,14 +6273,14 @@
     "openVersionHelp": "Yana dawo da wurin kunna sigar zuwa rabin shafin.",
     "openPartsHelp": "Yana dawo da sassanku zuwa rabin shafin.",
     "deletePartHelp": "Yana goge abin da kuka faɗa don wannan sashe. Kuna iya janyewa nan take bayan haka.",
-    "notesForCheck_one": "Bayani {{count, number}} don {{check}}",
-    "notesForCheck_other": "Bayanai {{count, number}} don {{check}}",
-    "doneHelp": "Idan an faɗi kowane sashe: ku gama shi, ku aika shi zuwa dubawar da za ta saurare shi na gaba.",
     "sendHelp": "Yana gama {{what}}, ya aika musu shi don wannan dubawa. Za su same shi a Aikina.",
-    "askHelp": "Yana gama {{what}}, sannan ku zaɓi wanda za ku roƙa.",
     "sendLaterHelp": "Yana gama {{what}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin sa.",
+    "ofVersion": "Na Siga ta {{n, number}}",
+    "notesForCheck_one": "Bayani {{count, number}} don {{check}}",
+    "askHelp": "Yana gama {{what}}, sannan ku zaɓi wanda za ku roƙa.",
     "finishWhat": "Gama {{what}}",
-    "ofVersion": "Na Siga ta {{n, number}}"
+    "doneHelp": "Idan an faɗi kowane sashe: ku gama shi, ku aika shi zuwa dubawar da za ta saurare shi na gaba.",
+    "notesForCheck_other": "Bayanai {{count, number}} don {{check}}"
   },
   "translate": {
     "missing": "Wannan nassi ba ya kan wannan na'ura tukuna.",
@@ -6308,13 +6310,12 @@
     "dragDown": "Ja ƙasa don jagora, muhimman kalmomi, bayanai da naɗe-naɗen baya",
     "openStudy": "Buɗe nazarin",
     "yourRecording": "Naɗinku",
-    "tapRed": "Taɓa jan maɓalli ku yi magana. Ku dakata tsakanin sassa: ana ajiye kowane sashe shi kaɗai.",
-    "latestParts": "Waɗannan su ne sassan Siga ta {{n}}. Ku naɗa sabon sashe ko ku goge ɗaya don wallafa sabuwar siga.",
     "clipped": "Sassan suna fitowa gajeru sosai. Wataƙila ana yanke kalmomi.",
     "micSetup": "Shirya makirufo",
     "micSetupHint": "Daidaita yadda na'urar take jin ku: ƙarfin ji da tsayawa.",
     "openReferenceHelp": "Yana dawo da kayan bincike zuwa rabin shafin.",
-    "openStudyHelp": "Yana buɗe wannan mataki a cikakken nazarin."
+    "openStudyHelp": "Yana buɗe wannan mataki a cikakken nazarin.",
+    "partReplaced": "An sake naɗa {{part}}."
   },
   "reference": {
     "organization": "Ƙungiya",
@@ -7112,8 +7113,8 @@
     "rename": {
       "title": "Canza sunan {{cluster}}",
       "label": "Sunansa",
-      "done": "An canza suna zuwa {{name}}.",
-      "save": "Ajiye"
+      "save": "Ajiye",
+      "done": "An canza suna zuwa {{name}}."
     },
     "ungroup": {
       "title": "Raba {{cluster}}?",
@@ -7135,12 +7136,12 @@
       "firstLabel": "Saka shi a sabon rukuni",
       "note": "Harshe zai iya kasancewa a rukuni fiye da ɗaya, ko babu ko ɗaya. Babu abin da ke canzawa a harshen.",
       "done": "An gama",
+      "saved": "An ajiye rukunonin {{language}}.",
       "rowHelp": "Ku zaɓi rukunonin da yake ciki, ko ku sa shi a sabon rukuni.",
       "inHelp": "Yana cikin wannan rukuni. Taɓa don fitar da shi.",
       "outHelp": "Ba ya cikin wannan rukuni. Taɓa don sa shi a ciki.",
       "newHelp": "Ku rubuta suna: zai shiga sabon rukuni mai wannan suna.",
-      "doneHelp": "Yana ajiye rukunonin da yake ciki.",
-      "saved": "An ajiye rukunonin {{language}}."
+      "doneHelp": "Yana ajiye rukunonin da yake ciki."
     },
     "newLanguage": {
       "what": "Me kake ƙarawa?",
@@ -7194,11 +7195,11 @@
     }
   },
   "saved": {
-    "saving": "Ana ajiyewa",
-    "saved": "An ajiye",
-    "failed": "Ba a ajiye ba",
-    "help": "Ana ajiyewa yayin da kuke aiki: da'ira mai juyawa yayin da ake ajiyewa, sannan alamar ✓. Ba sai kun ajiye ba.",
     "draftHelp": "Ana ajiyewa a wannan na'ura yayin da kuke aiki, kuma ku kaɗai kuke ganinsa har sai kun gama. Da'ira mai juyawa yayin da ake ajiyewa, sannan alamar ✓.",
-    "failedHelp": "Ba a ajiye wannan ba. Sake gwadawa: abin da kuka yi yana nan a shafin."
+    "failed": "Ba a ajiye ba",
+    "saved": "An ajiye",
+    "saving": "Ana ajiyewa",
+    "failedHelp": "Ba a ajiye wannan ba. Sake gwadawa: abin da kuka yi yana nan a shafin.",
+    "help": "Ana ajiyewa yayin da kuke aiki: da'ira mai juyawa yayin da ake ajiyewa, sannan alamar ✓. Ba sai kun ajiye ba."
   }
 }

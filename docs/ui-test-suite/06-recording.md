@@ -42,7 +42,7 @@ Steps:
 2. On the record, tap "Record". If the main button reads "Study" (the passage has a study guide), tap the "Record" step row under it instead.
 
 Expected:
-- The workspace opens. Header title "Luke 13:1-9", sub "Recording Version 1", a ✕ ("Close") on the left. There is no Save button (decision 124); the saved mark on the right shows nothing until a part is kept.
+- The workspace opens. Header title "Luke 13:1-9", sub "Recording Version 1", a ✕ ("Close") on the left. There is no Save button (decision 125); the saved mark on the right shows nothing until a part is kept.
 - The divider sits at half: the reference on top, the recorder below.
 - The chips over the reference show at least "Bible", "Key words" and "Notes". "Earlier" is not shown, because nothing has been recorded or reviewed yet.
 - The "Bible" chip is selected.
@@ -113,6 +113,8 @@ Expected:
 - On a second device signed in as COORD, after Sync now, P-NEW's record says "Some parts are recorded, not published yet." (the draft is on the record; G10.4).
 
 Decided (2026-10-13), the docs were stale: decision 71's amendment of 2026-10-08 ("the recording workspace, Publish, the study and microphone setup now follow the agreed images") makes the lit part card and its meter the agreed recording view; the full-screen voice-detection panel (`VadPanel`) is back translation's. This test checks the lit card and the meter.
+
+Changed (2026-10-16, decision 124): while recording, the pane below the divider is the red recording view (`RecordingView.tsx`) in the workspace and in back translation alike: its top row names the part being said ("Part 2", with its verses when it fills a place), the time and a check, Done; the live waveform fills the rest. Its label reads "Part 2. Recording…" or "Part 2. Listening for you · pause between parts"; the parts card returns when recording stops.
 
 Fixed (2026-10-13), G10.3: on the web a part recorded while uploads are held back (they wait while the microphone is open) sometimes goes up only at the upload worker's next one-minute tick, so "waiting to upload" can stay above 0 for up to a minute after stop. Fixed in part (2026-10-13): the workspace asks for an upload when a session ends and after publishing (`translate.tsx`); the rest is in `useLanguage.ts` / the transfer worker. The web suite records it as a soft failure naming the recordings.
 
@@ -220,7 +222,7 @@ Steps:
 3. On the record, tap "Continue recording".
 
 Expected:
-- Step 1: the saved mark on the right of the header shows its check ("Saved"); there is no Save button (decision 124).
+- Step 1: the saved mark on the right of the header shows its check ("Saved"); there is no Save button (decision 125).
 - Step 2 returns to the record with no toast. Nothing is lost: every part was already kept when it was recorded.
 - Step 3 opens the same three parts.
 
@@ -241,7 +243,7 @@ Steps:
 3. Tap "Ask {usual target}".
 
 Expected:
-- Step 1 opens the Done screen inside the workspace (decision 124). Header title "Luke 13:1-9", sub "Version 1", with ✕.
+- Step 1 opens the Done screen inside the workspace (decision 125). Header title "Luke 13:1-9", sub "Version 1", with ✕.
 - A player for the whole version, titled "Version 1", with the sub "3 parts · 0:11 · recorded with the {abbr} Bible" (the Bible's abbreviation, when one is offered).
 - A row "Say something about it" with the sub "Optional · the team hears it with this version". The row has no amber border.
 - "Next check", with a card for each check that comes next ("Peer check" and "Back translation", decision 91) and its people (in the fixture "Trevor Both, Rita Reviewer"). No sentence explains publishing.
@@ -282,7 +284,7 @@ Steps:
 
 Expected:
 - Step 3 returns to the workspace, not the record. The part is still there, and nothing was published.
-- After step 4 the Done screen opens with what was typed kept (decision 124): the row reads "What you said about it" with "“Draft for the team”".
+- After step 4 the Done screen opens with what was typed kept (decision 125): the row reads "What you said about it" with "“Draft for the team”".
 - Step 5 returns to the workspace too; it never leaves past it.
 - No version exists on the record.
 
@@ -690,7 +692,7 @@ Steps:
 Expected:
 - While online, nothing says the version waits for a connection; the sync mark settles once it has gone.
 
-Changed (2026-10-16, decision 124): Done returns straight to the record, so the published page and its line are gone.
+Changed (2026-10-16, decision 125): Done returns straight to the record, so the published page and its line are gone.
 
 Fixed (2026-10-13): the line always reads "{title} · saved on this device · sends when you're online" (`passage.published.savedHere`), even online, after the upload has finished.
 
@@ -823,7 +825,7 @@ Expected:
 - Step 7: the divider's label is "Divider between reference and your recording", its hint "Drag up or down to give either one more room", and its value reads "Source 35%" (and so on), "Reference as one line", "Recorder as one line".
 - The divider's touch area is at least 48 points tall.
 - Fixed (2026-10-13): on the web the divider had no value for a screen reader (react-native-web reads `aria-valuetext`, not `accessibilityValue`); `SplitPane.tsx` now gives both. Step 7's swipes are a device check; the web run checks the label and the value at each stop.
-- When the recorder pane is shorter than 360 points, the parts card is replaced by "Parts 1–4 recorded · drag up to see them".
+- When the recorder pane is shorter than 360 points, the parts card shows closed ("Parts 1–4, 4 parts · 0:16"); tapping it opens it and gives the recorder the room (the reference goes to one line). Changed (2026-10-16, LAN-83): the card no longer gives way to "Parts 1–4 recorded · drag up to see them".
 
 ---
 
@@ -885,7 +887,7 @@ Expected:
 - Parts 3 to 5 take the next verses in order.
 - A space that cannot take a verse (every verse is used) shakes when tapped and changes nothing.
 
-### REC-044 A verse left for later, then Record here
+### REC-044 A verse left for later, then tap its place and record
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -893,14 +895,16 @@ Preconditions:
 
 Steps:
 1. Look between Part 1 and Part 2.
-2. Tap "Record here" on that row.
-3. Speak for 3 seconds, pause, tap stop.
+2. Tap that place ("Record Part 2 here").
+3. Tap the red button, speak for 3 seconds, pause, tap stop.
 
 Expected:
-- A row "Verse 23 · left for later" shows between the two parts, with "Record here".
-- Step 2 starts recording.
-- After step 3 the new part sits between Part 1 and the old Part 2, labelled verse 23, and the parts are renumbered in order.
-- Recording again without "Record here" adds parts at the end.
+- A row for the place left out shows between the two parts: verse 23's number, a dashed microphone and "Part 2"; the old Part 2 reads "Part 3".
+- Step 2 chooses it: it is tinted, its microphone is filled and it reads "Recording next"; the footer reads "Part 2"; the end card is dashed.
+- After step 3 the new part sits between Part 1 and the old Part 2, labelled verse 23, and the place is gone.
+- Recording again, with nothing chosen, adds parts at the end.
+
+Changed (2026-10-16, decision 124): the amber "Verse 23 · left for later" row and its "Record here" button became a place to tap; the red button records there.
 
 ---
 
