@@ -457,7 +457,7 @@ export function PassageRecord(ctx: Ctx) {
             ))}
             {/* With someone to send it to, the questions they'll answer, and more to add. With nobody yet, the button opens Someone else, which has them. */}
             {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions}
-              {...(ctx.session.can('manage_flows') ? { check: { name: checkName(nextKind.kindId, kinds), open: () => ctx.go('check_editor', { languageId: v.languageId, kindId: nextKind.kindId }) } } : {})} /> : null}
+              {...(ctx.session.can('manage_flows') ? { check: { name: checkName(nextKind.kindId, kinds), open: () => ctx.go('check_editor', { languageId: v.languageId, kindId: nextKind.kindId, part: 'questions' }) } } : {})} /> : null}
           </View>
         ) : can.ask ? (
           <Text style={[txt.smMuted, { textAlign: 'center', marginTop: space.lg }]}>
@@ -1294,7 +1294,7 @@ export function AskSomeone(ctx: Ctx) {
       <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
 
       {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions}
-        {...(kindId && ctx.session.can('manage_flows') ? { check: { name: model.check, open: () => ctx.go('check_editor', { languageId: v.languageId, kindId }) } } : {})} /> : null}
+        {...(kindId && ctx.session.can('manage_flows') ? { check: { name: model.check, open: () => ctx.go('check_editor', { languageId: v.languageId, kindId, part: 'questions' }) } } : {})} /> : null}
     </Screen>
   );
 }
