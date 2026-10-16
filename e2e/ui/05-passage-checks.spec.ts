@@ -368,17 +368,24 @@ test('PASS-048 A check that happened outside the app: Needs changes', async ({ b
   expect(await mainButton(t)).toBe('Hear the feedback');
 });
 
-test('PASS-049 Add details: where, and other passages', async ({ browser }) => {
-  const [a, b] = [await spare(6), await spare(7)];
-  for (const p of [a, b]) await recordOn(world(), 'TRANS', p, { parts: 1, publish: true });
-  const ta = (await passageAs(world(), 'TRANS', a)).latest!.takeId;
-  const tb = (await passageAs(world(), 'TRANS', b)).latest!.takeId;
-  await actAs(world(), 'TRANS', (c) => c.recordReview({ commandId: id(), takeIds: [ta, tb], kindId: 'peer', outcome: 'looks_good', via: 'logged', place: 'Bor church, after service' }));
-  for (const p of [a, b]) {
-    const page = await recordAs(browser, world(), 'TRANS', p);
-    expect((await teamRows(page))[0], p.label).toBe('Peer check, looks good');
-    expect(await history(page), p.label).toContain('Bor church, after service');
-  }
+test('PASS-049 Add details: where, on this passage only (decision 128)', async ({ browser }) => {
+  const s = await spare(6);
+  await recordOn(world(), 'TRANS', s, { parts: 1, publish: true });
+  const page = await recordAs(browser, world(), 'TRANS', s);
+  await openTeamRow(page, 'Peer check');
+  await sheet(page).getByRole('button', { name: 'Already happened' }).first().click();
+  await text(page, 'Add details').click();
+  const details = await sheetText(page);
+  expect(details).toContain('Evidence · optional');
+  // A review goes on its own passage: the session's other passages each get theirs there.
+  expect(details).not.toContain('Also covered in this session');
+  await closeSheet(page);
+  await byId(page, 'header-close').click();
+  const v1 = (await passageAs(world(), 'TRANS', s)).latest!.takeId;
+  await actAs(world(), 'TRANS', (c) => c.recordReview({ commandId: id(), takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'logged', place: 'Bor church, after service' }));
+  await refreshRecord(page, world(), s);
+  expect((await teamRows(page))[0]).toBe('Peer check, looks good');
+  expect(await history(page)).toContain('Bor church, after service');
 });
 
 test('PASS-050 A back translation that happened outside the app', async ({ browser }) => {
