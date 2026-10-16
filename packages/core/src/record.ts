@@ -150,13 +150,15 @@ export type RecordEvents = {
     blobHash?: string;
     photoHash?: string;
     onTakeId?: string;
+    /** The step it was written at: `record` or a check (decisions.md 130). Absent on older notes, which count as written while recording. */
+    kindId?: string;
   };
   /** Take back your own note (decisions.md 111): it no longer shows anywhere. Only its author may, as with a review. Add-wins. */
   'v1.NoteWithdrawn': { noteId: string };
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
   /**
-   * A kind that makes something (decisions.md 130): it turns recording or
+   * A kind that makes something (decisions.md 131): it turns recording or
    * writing into recording or writing, in the same language or another, and
    * may make the passage's next version. `null` makes it an ordinary check
    * again. Register per kind.
@@ -170,7 +172,7 @@ export type RecordEvents = {
   'v1.CheckLooksAtSet': { kindId: string; makerKindId: string | null };
   /**
    * Something made from a version, or from something made from one
-   * (decisions.md 130): exactly one of `fromTakeId` and `fromMadeId`, and
+   * (decisions.md 131): exactly one of `fromTakeId` and `fromMadeId`, and
    * exactly one of `parts` (recorded cards or written parts, one kind) and
    * `takeId` (it became the passage's next version). `kindId` is the step
    * that made it, absent when none did (brought over from LangQuest v2);
@@ -204,7 +206,7 @@ export interface KindDef {
   usualReviewer: string;
   withholdsContext?: boolean;
   produces?: ProducesSpec;
-  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 130); read from the fold, never a field of ReviewKindDefined. */
+  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 131); read from the fold, never a field of ReviewKindDefined. */
   makes?: MakesSpec;
   /** The making kind whose output it reads, when it checks one (v1.CheckLooksAtSet). */
   looksAt?: string;
@@ -378,39 +380,6 @@ export const FLOWS: FlowTemplate[] = [
 export function flowTemplate(id: string): FlowTemplate | undefined {
   return FLOWS.find((f) => f.id === id);
 }
-
-/** Shipped question sets, each for one kind of review. LangQuest's library publishes them too. */
-interface QuestionTemplate {
-  id: string;
-  name: string;
-  /** The kind of review these questions are for. */
-  kindId: string;
-  questions: { id: string; text: string; type: 'rating' | 'yesno' | 'text' }[];
-}
-
-export const QUESTION_TEMPLATES: QuestionTemplate[] = [
-  {
-    id: 'community_check',
-    name: 'Community Check Questions',
-    kindId: 'community',
-    questions: [
-      { id: 'meaning', text: 'Does the translation accurately convey the meaning of the source text?', type: 'rating' },
-      { id: 'natural', text: 'Is the translation natural and clear in the target language?', type: 'rating' },
-      { id: 'terms', text: 'Are key theological terms rendered consistently with the Translation Guidelines?', type: 'yesno' },
-      { id: 'revisit', text: 'Are there any passages you would suggest revisiting?', type: 'text' }
-    ]
-  },
-  {
-    id: 'consultant_check',
-    name: 'Consultant Check Questions',
-    kindId: 'consultant',
-    questions: [
-      { id: 'hardest', text: 'How well does this draft hold up against the source in the hardest verses?', type: 'rating' },
-      { id: 'kt_aligned', text: "Are the key terms aligned with the language's key terms list?", type: 'yesno' },
-      { id: 'notes', text: 'Notes for the translation team', type: 'text' }
-    ]
-  }
-];
 
 /** The flow id a language's hand-edited steps are selected under. */
 export const CUSTOM_FLOW = 'custom';

@@ -29,7 +29,7 @@ Core workflows, in priority order:
 
 A passage may also be written, verse by verse, and a step in a language's
 checks can turn recording or writing into either, in its language or
-another: written down, read aloud, back-translated, translated (decision 130).
+another: written down, read aloud, back-translated, translated (decision 131).
 
 Non-goals for v1: real-time co-editing of one recording, waveform editing,
 public browsing of everything.
@@ -96,7 +96,7 @@ Agents: treat each of these as a test you must not break.
 3. **Fold is idempotent.** Applying an event twice equals applying it once.
 4. **Recorded and written parts are never mutated.** Cards, written parts
    and takes are immutable. Any edit is a new take that may reference
-   existing parts (decision 130).
+   existing parts (decision 131).
 5. **Status is derived, never stored.** No `status` or `approved` column
    anywhere. Ask the reducer.
 6. **Streams are self-contained.** An event in stream S references only
@@ -201,24 +201,26 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.ReviewRecorded` | reviewId, takeId, kindId, outcome (looks_good, needs_changes, recorded), via (app, link, logged), comment?, commentBlobHash?, answers?, skipped?, people?, place?, givenBy?, requestId?, artifactHashes? | grow-only (earliest wins) |
 | `v1.FlowStepLinksSet` | stepId, allowed | register per step; may the step be reviewed by a shared link that counts (default: any step but a checkpoint; decision 70) |
 | `v1.CheckHelpSet` | kindId, itemId or materialId, linked | register per (kind, help); a note, guide or Bible linked to a check, which its reviewers see first (decision 91) |
+| `v1.CheckShowsSet` | kindId (a check, or `record`), what (bibleAudio, bibleText, guideAudio, guideText, terms, notes, earlier), shown, from? (a step, for notes and earlier) | register per (kind, what); what a step puts on the screen of whoever does it, everything by default, nothing at a kind that withholds context (decision 130) |
 | `v1.VersionReleased` | takeId, channel, live, url? | register per (version, channel); where a version is published, a fact not a verdict (decision 72) |
 | `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo |
 | `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, what (record, review), kindId?, exactly one of profileId, guest, teamId, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record; `dueDate` is no longer set or shown (decision 126), old events may still carry it |
-| `v1.NoteAdded` | noteId, unitId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId? | grow-only |
+| `v1.NoteAdded` | noteId, unitId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId?, kindId? (the step it was written at, decision 130) | grow-only |
 | `v1.ReviewWithdrawn` / `v1.NoteWithdrawn` | reviewId / noteId | add-wins; counts only from the review's or note's own author (decisions.md 111) |
 | `v1.StudyStepMarked` | unitId, guideId, stepId, done | register per (unit, guide, step) |
 | `v1.MaterialDefined` / `v1.MaterialFieldSet` / `v1.MaterialLocked` | materialId, kind, title, scope {unitId?, stepId?}, templateRef? / materialId, fieldId, text? / blobHash? / materialId, locked | earliest wins / register per (material, field) / register per material |
 | `v1.KeyTermDefined` / `v1.KeyTermRenderingAdded` / `v1.KeyTermAdjusted` / `v1.KeyTermLinked` | termId, term, gloss, unitScope[] / renderingId… / adjustmentId, note, blobHash?, duringTakeId? / takeId, termId, note?, adjustmentId? | all grow-only |
 | `v1.ReferenceSet` | itemId, state (recommended, hidden, inherit) | register per item; the language's say on a library item (decision 62) |
 | `v1.ReferenceLanguageSet` | language | register; the language the team's reference material is in, before which `sourceCode` stands (decision 84) |
+| `v1.ReferenceLanguageAdded` | language, added | register per language; another language the team's reference material may be in, beside the main one (decision 130) |
 | `v1.PassageReferenceLinked` | unitId, itemId, linked | register per (unit, item) |
 | `v1.ReferencesUsed` | unitId, takeId? or reviewId?, items[] | grow-only |
 | `v1.BlobStored` / `v1.BlobInvalidated` | hash, size / hash, reason | register per hash (LWW by clock); server-only |
 | `v1.CardVerseSet` | unitId, hash, mark (next, join, set, none), from?, to? | register per (unit, card); which verses a recorded part holds, worked out down a take's cards (verses.ts, decisions.md 82) |
-| `v1.WritingAdded` | writingId, unitId, parts[{id, text}] | grow-only, one event per id, earliest wins; a written part is named `w:` + the SHA-256 of its words, and a take lists written parts or recorded cards, never both (decisions.md 130) |
-| `v1.MediaAllowedSet` | recording, writing, first | register; what the language's team may make and which leads (decisions.md 130) |
-| `v1.StepMakesSet` / `v1.CheckLooksAtSet` | kindId, makes {from, to, language, otherLanguage?, fromKindId?, result: beside|added|version} or null / kindId, makerKindId or null | register per kind; a step that turns recording or writing into either, in any language, and a check that reads what such a step made (decisions.md 130) |
-| `v1.Made` | madeId, unitId, kindId?, fromTakeId or fromMadeId, language?, parts or takeId, added?, requestId? | grow-only; what a step made stays with the version it came from; with takeId, the step made the passage's next version; with added, it is part of that version (decisions.md 130) |
+| `v1.WritingAdded` | writingId, unitId, parts[{id, text}] | grow-only, one event per id, earliest wins; a written part is named `w:` + the SHA-256 of its words, and a take lists written parts or recorded cards, never both (decisions.md 131) |
+| `v1.MediaAllowedSet` | recording, writing, first | register; what the language's team may make and which leads (decisions.md 131) |
+| `v1.StepMakesSet` / `v1.CheckLooksAtSet` | kindId, makes {from, to, language, otherLanguage?, fromKindId?, result: beside|added|version} or null / kindId, makerKindId or null | register per kind; a step that turns recording or writing into either, in any language, and a check that reads what such a step made (decisions.md 131) |
+| `v1.Made` | madeId, unitId, kindId?, fromTakeId or fromMadeId, language?, parts or takeId, added?, requestId? | grow-only; what a step made stays with the version it came from; with takeId, the step made the passage's next version; with added, it is part of that version (decisions.md 131) |
 | `v1.AudioFormatSet` | hash, format | one event per hash, earliest wins (decisions.md 75); a voice note's format when not m4a (decisions.md 77) |
 | `v1.ExternalValueSet` | key, data (object or null) | register per key (later clock, then higher id); a third-party app's own value, kept and never acted on; only the app's Worker appends it, for a token with the `external_values` scope (decisions.md 79) |
 | `v1.Redacted` | eventId, reason | grow-only set; the target is never folded; a redaction is never itself redacted (decisions.md 16) |

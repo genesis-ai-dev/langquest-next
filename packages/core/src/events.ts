@@ -6,6 +6,10 @@ import type { RecordEvents } from './record';
 import type { ReferenceWorkEvents } from './references';
 import type { Medium, WrittenPart } from './writing';
 
+/** What a step can show (v1.CheckShowsSet): the Bible and the guide heard or read, key words, notes, earlier work. */
+export const SHOWN = ['bibleAudio', 'bibleText', 'guideAudio', 'guideText', 'terms', 'notes', 'earlier'] as const;
+export type ShownWhat = (typeof SHOWN)[number];
+
 /**
  * Event catalog v1. See PLAN.md section 6 and docs/streams-and-languages.md.
  *
@@ -58,7 +62,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   };
   'v1.TakeArchived': { takeId: string };
   /**
-   * Written parts of a passage (decisions.md 130): short pieces of text,
+   * Written parts of a passage (decisions.md 131): short pieces of text,
    * usually a verse each, named `w:` + the SHA-256 of their words
    * (writing.ts). The words travel here, not as files. A take may list them
    * as it lists recorded cards; a take holds one kind or the other. Grow-only,
@@ -67,7 +71,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   'v1.WritingAdded': { writingId: string; unitId: string; parts: WrittenPart[] };
   /**
    * What the language's team may make, recordings, writing or both, and
-   * which leads on a passage (decisions.md 130). Register; recording only
+   * which leads on a passage (decisions.md 131). Register; recording only
    * until set.
    */
   'v1.MediaAllowedSet': { recording: boolean; writing: boolean; first: Medium };
@@ -128,6 +132,17 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    * Register per (kind, help).
    */
   'v1.CheckHelpSet': { kindId: string; itemId?: string; materialId?: string; linked: boolean };
+  /**
+   * What a step puts in front of whoever does it (decisions.md 130): the
+   * Bible and the guide, each heard and read separately, key words, notes
+   * and earlier work. `kindId` is a check, or `record` (RECORD_STEP) for
+   * recording a version. Register per (kind, what); without one a step shows
+   * everything, except a kind that withholds context, which shows nothing.
+   * Notes and earlier versions are chosen by the step they came from:
+   * `from` names it (`record` or a check), a register per (kind, what,
+   * from) that falls back to the (kind, what) one.
+   */
+  'v1.CheckShowsSet': { kindId: string; what: ShownWhat; shown: boolean; from?: string };
   /**
    * A distribution channel reports a version live, or taken down
    * (decisions.md 72): "v3 is live in the EL app". A fact, not a verdict.

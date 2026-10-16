@@ -582,7 +582,9 @@ export function Toggle(props: { on: boolean; onToggle: () => void; label: string
   return (
     <View>
       <Switch {...(props.testID ? { testID: props.testID } : {})} value={props.on} onValueChange={props.onToggle} disabled={props.disabled || !!spot.id} accessibilityLabel={props.label}
-        trackColor={{ true: C.primary, false: C.border }} thumbColor={C.white} ios_backgroundColor={C.border} />
+        trackColor={{ true: C.primary, false: C.border }} thumbColor={C.white} ios_backgroundColor={C.border}
+        // On the web an on switch's thumb is react-native-web's teal unless it is given its own colour.
+        {...(Platform.OS === 'web' ? ({ activeThumbColor: C.white } as object) : {})} />
       <HelpCover spot={spot} label={props.label} />
     </View>
   );

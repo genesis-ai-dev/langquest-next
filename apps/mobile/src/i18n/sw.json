@@ -3669,7 +3669,6 @@
         "question": "Swali"
       },
       "questionFrom": {
-        "org": "Shirika",
         "language": "Lugha",
         "request": "Imeombwa kwa ukaguzi huu"
       },
@@ -3694,8 +3693,8 @@
       "record": "Rekodi",
       "yourParts": "Sehemu zako zimerekodiwa, bado hazijachapishwa.",
       "someParts": "Baadhi ya sehemu zimerekodiwa, bado hazijachapishwa.",
-      "recordHint": "Kisimulie katika lugha yako. Biblia, maneno muhimu na madokezo viko kando yako unaporekodi.",
-      "recordHintAsked": "{{asked}}. Kisimulie katika lugha yako. Biblia, maneno muhimu na madokezo viko kando yako unaporekodi.",
+      "recordHint": "Kisimulie katika lugha yako.",
+      "recordHintAsked": "{{asked}}. Kisimulie katika lugha yako.",
       "asked": {
         "youAskedYou": "Ulijiomba mwenyewe",
         "youAskedName": "Ulimwomba {{name}}",
@@ -4049,7 +4048,8 @@
       "askSpecificHelp": "Andika swali ili walijibu, kisha uliongeze.",
       "answerTypeHelp": "Hubadilisha jinsi wanavyojibu: ndiyo au hapana, kwa maneno, au 1 hadi 5.",
       "addQuestionHelp": "Huongeza swali lako kwenye yale wanayojibu.",
-      "removeQuestionHelp": "Huondoa swali hili."
+      "removeQuestionHelp": "Huondoa swali hili.",
+      "openCheckHelp": "Hufungua {{check}}, ambapo unabadilisha maswali yake."
     },
     "resources": {
       "sourceAudio": "Sauti ya chanzo"
@@ -5798,7 +5798,6 @@
       "saidAloud": "Imesemwa kwa sauti · {{time}} · rekodi {{n}}",
       "typedAndSaidAloud": "{{typed}} (imesemwa kwa sauti · {{time}} · rekodi {{n}})",
       "source": {
-        "org": "Shirika",
         "language": "Timu ya lugha",
         "fromName": "Kutoka kwa {{name}}",
         "fromWhoeverAsked": "Kutoka kwa aliyeomba"
@@ -5841,7 +5840,6 @@
       "btNote": "Dokezo la mtafsiri wa tafsiri rejeshi",
       "theirNote": "Dokezo lao",
       "playTheirNote": "Cheza dokezo lao",
-      "withheld": "Madokezo na ukaguzi wa awali umefichwa kwa {{kind}}, ili unachosikia kisiathiriwe na yale wengine walisema. Bado viko kwenye kumbukumbu.",
       "recordings_one": "Rekodi {{count, number}}",
       "recordings_other": "Rekodi {{count, number}}",
       "review": "Ukaguzi",
@@ -6155,7 +6153,6 @@
     "listenTo": "Sikiliza Toleo la {{n}}",
     "madeFrom": "Sehemu zako zilitengenezwa kutoka Toleo la {{n}}",
     "madeFromBody": "Toleo la {{n}} limetoka sasa, na kuchapisha kunaweka {{what}} yako pamoja nalo. Sikiliza tena na urudie sehemu yoyote iliyobadilika.",
-    "sayEachPart": "Sema kila sehemu kwa {{into}}, kwa maneno yako mwenyewe. Madokezo na ukaguzi wa awali umefichwa makusudi, ili rekodi pekee iongoze unachosema.",
     "openYour": "Fungua {{what}} yako",
     "yourWhat": "{{what}} yako, {{said}}",
     "loadingParts": "Inapakia sehemu zako…",
@@ -6194,7 +6191,10 @@
     "finishWhat": "Maliza {{what}}",
     "doneHelp": "Kila sehemu ikishasemwa: imalize na uitume kwenye ukaguzi utakaoisikiliza baadaye.",
     "notesForCheck_other": "Madokezo {{count, number}} kwa {{check}}",
-    "sendLaterHelp": "Humaliza {{what}} bila kumwomba mtu yeyote bado. Timu inaweza kuisikia."
+    "sendLaterHelp": "Humaliza {{what}} bila kumwomba mtu yeyote bado. Timu inaweza kuisikia.",
+    "chips": {
+      "version": "Toleo la {{n}}"
+    }
   },
   "translate": {
     "missing": "Kifungu hiki bado hakipo kwenye kifaa hiki.",
@@ -6533,7 +6533,8 @@
       "verseNotesHelp": "Namba inahesabu madokezo kwenye mstari huu.",
       "verseTermsHelp": "Maneno yaliyopigiwa mstari ni maneno muhimu: gusa moja ili kulifungua.",
       "verseTermsMarkedHelp": "Maneno yaliyopigiwa mstari ni maneno muhimu.",
-      "verseTiedHelp": "Alama ya vema baada ya neno muhimu inamaanisha limeunganishwa na rasimu yako."
+      "verseTiedHelp": "Alama ya vema baada ya neno muhimu inamaanisha limeunganishwa na rasimu yako.",
+      "verseDotHelp": "Inacheza Biblia kuanzia mstari huu."
     },
     "keyWords": {
       "none": "Bado hakuna maneno muhimu katika kifungu hiki.",
@@ -6823,8 +6824,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "Biblia na miongozo ya kujifunza ya {{language}} iwe kwa lugha gani?",
-    "sub": "Chagua lugha ambayo timu ya {{language}} inasoma vizuri zaidi. Kila moja inaonyesha kile LangQuest inacho kwa lugha hiyo.",
+    "question": "Biblia na miongozo ya kujifunza ya {{language}} iwe katika lugha zipi?",
     "setPassages_one": "Miongozo ya {{name}} kwa kifungu {{count, number}}",
     "setPassages_other": "Miongozo ya {{name}} kwa vifungu {{count, number}}",
     "bibles_one": "Biblia {{count, number}}",
@@ -6835,7 +6835,7 @@
     "chip": "Biblia na miongozo kwa {{language}}",
     "chipHelp": "Lugha ya Biblia na miongozo yao ya kujifunza. Gusa ili kuibadilisha.",
     "change": "Badilisha",
-    "rowHelp": "Huchagua lugha hii kwa Biblia na miongozo ya timu. Mstari wa maandishi unaonyesha ilicho nacho."
+    "rowHelp": "Inaongeza lugha hii kwa Biblia na miongozo ya timu, au inaiondoa. Mstari unasema kilichomo."
   },
   "checks": {
     "title": "Kaguzi",
@@ -6843,7 +6843,7 @@
     "together": " + ",
     "then": " → ",
     "sameTime": "wakati mmoja",
-    "openHelp": "Watu, maswali na visaidizi vyake",
+    "openHelp": "Watu, maswali, kilicho kwenye skrini yao na visaidizi",
     "cardA11y": "{{n}}. {{title}}",
     "questionsCount_one": "Swali {{count, number}}",
     "questionsCount_other": "Maswali {{count, number}}",
@@ -6888,7 +6888,6 @@
     "questionSaved": "Swali limehifadhiwa",
     "questionRemoved": "Swali limeondolewa",
     "questionsTitle": "Maswali ya {{check}}",
-    "fromLangQuest": "Kutoka LangQuest",
     "noQuestions": "Hakuna maswali",
     "addHelp": "Ongeza kisaidizi",
     "removeHelp": "Ondoa {{name}} kwenye ukaguzi huu",
@@ -6934,7 +6933,60 @@
     "helpOnHelp": "Kimeunganishwa: wakaguzi wanaweza kukifungua katika ukaguzi huu. Gusa ili kuondoa kiungo.",
     "helpOffHelp": "Gusa ili wakaguzi waweze kukifungua katika ukaguzi huu.",
     "writeNoteHelp": "Andika dokezo jipya, lililounganishwa na ukaguzi huu.",
-    "removeCheckHelp": "Huondoa ukaguzi huu kwenye hatua ambazo vifungu hupitia."
+    "removeCheckHelp": "Huondoa ukaguzi huu kwenye hatua ambazo vifungu hupitia.",
+    "recording": "Kurekodi",
+    "openRecordHelp": "Inafungua kile ambacho kinasa sauti kinaonyesha.",
+    "shows": {
+      "title": "Kwenye skrini yao",
+      "bibleAudio": "Kusikia Biblia",
+      "bibleText": "Kusoma Biblia",
+      "guideAudio": "Kusikia mwongozo",
+      "guideText": "Kusoma mwongozo",
+      "terms": "Maneno muhimu",
+      "notes": "Madokezo",
+      "earlier": "Matoleo ya awali",
+      "short": {
+        "bibleAudio": "Sauti ya Biblia",
+        "bibleText": "Maandishi ya Biblia",
+        "guideAudio": "Sauti ya mwongozo",
+        "guideText": "Maandishi ya mwongozo",
+        "terms": "Maneno muhimu",
+        "notes": "Madokezo",
+        "earlier": "Matoleo ya awali"
+      },
+      "allHidden": "Vyote vimefichwa",
+      "onHelp": "Kiko kwenye skrini yao. Gusa ili kukificha.",
+      "offHelp": "Kimefichwa kwao. Gusa ili kukionyesha.",
+      "shownToast": "{{what}}: kinaonyeshwa kwenye {{check}}",
+      "hiddenToast": "{{what}}: kimefichwa kwenye {{check}}",
+      "bible": "Biblia",
+      "guide": "Mwongozo",
+      "audio": "Sauti",
+      "text": "Maandishi",
+      "allOnHelp": "Imewashwa: wanapata yote. Gusa ili kuficha yote.",
+      "allOffHelp": "Imezimwa: hawapati chochote. Gusa ili kuonyesha yote.",
+      "partLabel": "{{help}}: {{part}}",
+      "all": "Vyote",
+      "off": "Imezimwa",
+      "someOf": "{{n, number}} kati ya {{total, number}}",
+      "openHelp": "Inafungua swichi kwa kila sehemu yake.",
+      "notesFrom": "Madokezo yaliyoongezwa wakati wa",
+      "earlierFrom": "Matoleo na maoni kutoka"
+    },
+    "peopleOpenHelp": "Inafungua anayefanya ukaguzi huu.",
+    "questionsOpenHelp": "Inafungua maswali wanayojibu.",
+    "sameTimeRow": "Wakati mmoja na",
+    "sameTimeNone": "Hakuna ukaguzi mwingine",
+    "sameTimeHelp": "Inafungua ukaguzi upi unafanyika wakati mmoja na huu.",
+    "sameTimeDoneHelp": "Inahifadhi ukaguzi upi unafanyika wakati mmoja.",
+    "sameTimeOnHelp2": "Unafanyika wakati mmoja. Gusa ili usifanyike.",
+    "sameTimeOffHelp2": "Gusa ili ufanyike wakati mmoja.",
+    "checkedAt": "Unakaguliwa kwenye",
+    "checkedAtHelp": "Inafungua ukaguzi upi unasikiliza kile hatua hii inatengeneza.",
+    "checkedAtPickHelp": "Ukaguzi huu unakisikiliza.",
+    "ownCheck": "Ukaguzi wake wenyewe",
+    "ownCheckHelp": "Inaongeza ukaguzi mara baada ya huu unaokisikiliza.",
+    "ownCheckName": "Ukaguzi wa {{name}}"
   },
   "lostFiles": {
     "title": "Sauti imepotea",

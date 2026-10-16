@@ -12,7 +12,7 @@ import { countEvent } from './changes';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 18;
+export const REDUCER_VERSION = 19;
 
 // The revision and the change log live in changes.ts; re-exported for the callers that read it here.
 export { stateRevision } from './changes';
@@ -123,6 +123,12 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       const { kindId, itemId, materialId, linked } = event.payload;
       const key = itemId !== undefined ? `item:${itemId}` : `material:${materialId}`;
       lww((state.checkHelps ??= {})[kindId] ??= {}, key, event, linked);
+      break;
+    }
+
+    case 'v1.CheckShowsSet': {
+      const { kindId, what, shown, from } = event.payload;
+      lww((state.checkShows ??= {})[kindId] ??= {}, from !== undefined ? `${what}@${from}` : what, event, shown);
       break;
     }
 
@@ -359,6 +365,7 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
 
     case 'v1.ReferenceSet':
     case 'v1.ReferenceLanguageSet':
+    case 'v1.ReferenceLanguageAdded':
     case 'v1.PassageReferenceLinked':
     case 'v1.ReferencesUsed':
       applyReferenceEvent(state, event);

@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { alphaMembers, alphaPage, deviceAs, memberships, orgHome, quietReloads } from './people-helpers';
 import { clientAs, send } from './fixture';
-import { back, button, expect, expectToast, field, openAs, primary, screenText, test, text, undoToast, useWorld } from './support';
+import { back, button, byId, expect, expectToast, field, openAs, primary, screenText, test, text, undoToast, useWorld } from './support';
 
 const world = useWorld();
 const run = () => world().run;
@@ -242,11 +242,18 @@ async function openCheck(page: Page, check: string, opts: { lead?: boolean } = {
   await alphaPage(page, world(), opts);
   await text(page, 'Checks').click();
   await expect(text(page, 'Add a check')).toBeVisible();
-  await text(page, check).click();
+  // The card itself: another card's line can name this check (back translation's "Checked at").
+  await page.getByRole('button', { name: new RegExp(`^\\d+\\. ${check}$`) }).locator('visible=true').first().click();
   await expect(text(page, /^Check \d+ · Alpha$/)).toBeVisible();
 }
-/** The names under a check's People, as the screen lists them. */
-const peopleOn = (page: Page) => between(page, 'People', 'Questions');
+/** A check's People page: its own page since decision 130. */
+async function openPeople(page: Page, check: string, opts: { lead?: boolean } = {}): Promise<void> {
+  await openCheck(page, check, opts);
+  await text(page, 'People').click();
+  await expect(text(page, 'Add people')).toBeVisible();
+}
+/** The names on a check's People page, as it lists them. */
+const peopleOn = (page: Page) => between(page, 'People', 'Add people');
 
 test('PEOPLE-040 A check\'s people, for a language', async ({ page, browser }) => {
   const w = world();
@@ -263,6 +270,7 @@ test('PEOPLE-040 A check\'s people, for a language', async ({ page, browser }) =
     expect(await between(p, 'Community check', 'Consultant check')).toContain('Anyone');
     await text(p, 'Peer check').click();
     await expect(text(p, 'Check 1 · Alpha')).toBeVisible();
+    await text(p, 'People').click();
     await expect.poll(() => peopleOn(p)).toContain(`${w.accounts.TREV.name} Translator-Reviewer`);
     expect(await peopleOn(p)).toContain(`${w.accounts.REV.name} Reviewer`);
     await expect(text(p, 'Add people')).toBeVisible();
@@ -273,7 +281,7 @@ test('PEOPLE-040 A check\'s people, for a language', async ({ page, browser }) =
 test('PEOPLE-041 Put someone on a check', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
-  await openCheck(page, 'Consultant check');
+  await openPeople(page, 'Consultant check');
   await text(page, 'Add people').click();
   await expect(text(page, 'Done')).toBeVisible();
   await page.getByRole('checkbox', { name: new RegExp(`^${esc(w.accounts.TRANS.name)}`) }).locator('visible=true').first().click();
@@ -281,21 +289,27 @@ test('PEOPLE-041 Put someone on a check', async ({ page }) => {
   await expectToast(page, 'Consultant check: 1 person');
   await expect.poll(() => peopleOn(page)).toContain(`${w.accounts.TRANS.name} Translator`);
   await back(page).click();
+  await back(page).click();
   await expect.poll(async () => between(page, 'Consultant check', 'Final approval')).toContain(w.accounts.TRANS.name);
 });
 
-test('PEOPLE-042 Take someone off a check, and Undo', async ({ page, browser }) => {
+test('PEOPLE-042 Take someone off a check, and put them back', async ({ page, browser }) => {
   const w = world();
   for (const who of ['ADMIN', 'LADMIN'] as const) {
     const d = who === 'ADMIN' ? { page, context: null } : await deviceAs(browser, w, who);
     if (who === 'ADMIN') await openAs(page, w, 'ADMIN');
     const p = d.page;
-    await openCheck(p, 'Peer check', { lead: who === 'LADMIN' });
+    await openPeople(p, 'Peer check', { lead: who === 'LADMIN' });
     await expect.poll(() => peopleOn(p)).toContain(w.accounts.TREV.name);
     await p.getByRole('button', { name: `Take ${w.accounts.TREV.name} off this check` }).locator('visible=true').first().click();
     await expectToast(p, 'Peer check: 1 person');
+    // No timed Undo (Caleb, 2026-10-16): they are put back the way they were put on.
+    await expect(byId(p, 'toast-undo')).toHaveCount(0);
     await expect.poll(() => peopleOn(p)).not.toContain(w.accounts.TREV.name);
-    await undoToast(p);
+    await text(p, 'Add people').click();
+    await p.getByRole('checkbox', { name: new RegExp(`^${esc(w.accounts.TREV.name)}`) }).locator('visible=true').first().click();
+    await primary(p).click();
+    await expectToast(p, 'Peer check: 2 people');
     await expect.poll(() => peopleOn(p)).toContain(w.accounts.TREV.name);
     expect(await peopleOn(p)).toContain(w.accounts.REV.name);
     await d.context?.close();
@@ -305,7 +319,7 @@ test('PEOPLE-042 Take someone off a check, and Undo', async ({ page, browser }) 
 test('PEOPLE-044 Only people with Review at the language can be put on a check', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
-  await openCheck(page, 'Final approval');
+  await openPeople(page, 'Final approval');
   await text(page, 'Add people').click();
   await expect(text(page, 'Done')).toBeVisible();
   // Names arrive from the server; until then people show as colours and shapes.

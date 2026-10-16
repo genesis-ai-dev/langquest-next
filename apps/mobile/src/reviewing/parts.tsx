@@ -199,18 +199,6 @@ export function CompareCard(props: { ctx: Ctx; review: ReviewView; kind: KindDef
   );
 }
 
-/** Notes and earlier reviews are hidden for this kind; say so (REV-4). */
-export function WithheldNotice(props: { kind: KindDef }) {
-  return (
-    <View style={styles.withheld}>
-      <Ico name="lock" size={18} color={TINT.grayText} />
-      <Text style={[txt.sm, { flex: 1, color: TINT.grayText }]}>
-        {t('review.parts.withheld', { kind: props.kind.name })}
-      </Text>
-    </View>
-  );
-}
-
 // ---- background, on request (ADR-013) ------------------------------------------------------------
 
 /** What an earlier reviewer said and recorded; recordings play in place, not as a summary. */
@@ -327,8 +315,8 @@ function PartLabel(props: { label: string; inset?: boolean }) {
 /**
  * Everything a reviewer may open for background, as one collapsed card
  * (REV-1, ADR-029): notes and key terms from the translator, the team's
- * study, earlier reviews. Nothing to show, nothing drawn. A kind that
- * withholds context shows WithheldNotice instead (REV-4).
+ * study, earlier reviews. Nothing to show, nothing drawn. What a check
+ * shows is the language's to say (decisions.md 130).
  */
 export function Background(props: {
   ctx: Ctx;
@@ -459,7 +447,6 @@ const styles = StyleSheet.create({
   choiceLabel: { fontSize: T.base, fontWeight: '600' },
   choiceBig: { fontSize: T.lg, fontWeight: '700' },
   inset: { backgroundColor: C.bg, borderRadius: radius.md, padding: space.md, gap: space.xs },
-  withheld: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start', padding: space.lg, borderRadius: radius.lg, backgroundColor: TINT.gray },
   partTop: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   strip: { backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: space.md, paddingVertical: space.xs },
   stripRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },

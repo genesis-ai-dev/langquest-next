@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   canonicalJson, FIA_PERICOPES, foldOrg, libraryItemView, referencedDocs, templateUnits, validateEvent,
-  type CollectionDoc, type FlowDoc, type MaterialDoc, type TemplateDoc, type VersificationDoc
+  type CollectionDoc, type FlowDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { buildLibrary, onlyItems, seedEvents, SEED_ORG } from './library-seed';
 
@@ -43,8 +43,10 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
       'langquest.template.bible-chapters-eng', 'langquest.template.bible-chapters-rsc', 'langquest.template.bible-books-eng',
       'langquest.template.nt-chapters-eng', 'langquest.template.fia-passages-eng',
       'langquest.flow.standard_bible', 'langquest.flow.spoken_oral', 'langquest.flow.collect_only',
-      'langquest.questions.community_check', 'langquest.questions.consultant_check', 'langquest.fia.eng', 'langquest.fia.fra'
+      'langquest.fia.eng', 'langquest.fia.fra'
     ]));
+    // LangQuest's checks come with no questions (LAN-85).
+    expect(build.items.some((i) => i.itemId.startsWith('langquest.questions.'))).toBe(false);
     expect(new Set(build.items.map((i) => i.itemId)).size).toBe(build.items.length);
     expect(build.items.every((i) => /^langquest\.[a-z0-9._-]+$/.test(i.itemId))).toBe(true);
   });
@@ -85,13 +87,10 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
     expect(books.bible!.books).toHaveLength(66);
   });
 
-  it('carries each flow\'s kinds, and question sets for their review kinds', () => {
+  it('carries each flow\'s kinds', () => {
     const f = doc(item('langquest.flow.standard_bible').docHash) as FlowDoc;
     expect(f.kinds.map((k) => k.id)).toEqual(['peer', 'bt', 'community', 'consultant', 'final']);
     expect(f.steps[2]).toEqual({ stepId: 's3', kindIds: ['consultant'], checkpoint: true });
-    const q = doc(item('langquest.questions.consultant_check').docHash) as MaterialDoc;
-    expect(q).toMatchObject({ kind: 'questions', reviewKindId: 'consultant', language: 'eng' });
-    expect(q.questions!.every((x) => x.required === false)).toBe(true);
   });
 
   it('puts peer review before the community check in the Spoken Oral Method', () => {

@@ -153,6 +153,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.ReviewTeamKindSet': 'manage_teams',
   'v1.FlowStepLinksSet': 'manage_flows',
   'v1.CheckHelpSet': 'manage_flows',
+  'v1.CheckShowsSet': 'manage_flows',
   // Whoever runs the work says where it went out.
   'v1.VersionReleased': 'assign_work',
   'v1.RecordingAdded': 'translate',
@@ -160,7 +161,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.TakeArchived': 'translate',
   'v1.CardVerseSet': 'translate',
   'v1.TakeSubmitted': 'translate',
-  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 130).
+  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 131).
   'v1.WritingAdded': ['translate', 'review'],
   // What the team makes is part of what it records, like its template.
   'v1.MediaAllowedSet': 'manage_templates',
@@ -191,6 +192,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.KeyTermAdjusted': 'fill_reference',
   'v1.KeyTermLinked': 'fill_reference',
   'v1.ReferenceSet': 'manage_reference',
+  'v1.ReferenceLanguageAdded': 'manage_reference',
   'v1.ReferenceLanguageSet': 'manage_reference',
   'v1.PassageReferenceLinked': 'manage_reference',
   // Whoever publishes a version (translate) or records a review (review, or translate for a logged check).

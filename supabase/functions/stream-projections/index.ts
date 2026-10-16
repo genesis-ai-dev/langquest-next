@@ -20775,6 +20775,9 @@ function shouldShowDeprecationWarning() {
 }
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
 
+// packages/core/src/events.ts
+var SHOWN = ["bibleAudio", "bibleText", "guideAudio", "guideText", "terms", "notes", "earlier"];
+
 // packages/core/src/references.ts
 function emptyReferenceState() {
   return { languageReferences: {}, passageLinks: {}, referencesUsed: {} };
@@ -20791,6 +20794,12 @@ function applyReferenceEvent(state, e) {
     case "v1.ReferenceLanguageSet": {
       const p = e.payload;
       if (later(state.referenceLanguage, e)) state.referenceLanguage = { value: p.language, hlc: e.hlc, eventId: e.id };
+      break;
+    }
+    case "v1.ReferenceLanguageAdded": {
+      const p = e.payload;
+      const added = state.referenceLanguagesAdded ??= {};
+      if (later(added[p.language], e)) added[p.language] = { value: p.added, hlc: e.hlc, eventId: e.id };
       break;
     }
     case "v1.PassageReferenceLinked": {
@@ -21469,13 +21478,15 @@ function validateEvent(e) {
       return str("stepId") ?? bool("allowed");
     case "v1.CheckHelpSet":
       return str("kindId") ?? bool("linked") ?? (p["itemId"] === void 0 === (p["materialId"] === void 0) ? "exactly one of itemId, materialId" : null) ?? (p["itemId"] === void 0 || nonEmpty(p["itemId"]) ? null : "itemId must be a non-empty string") ?? (p["materialId"] === void 0 || nonEmpty(p["materialId"]) ? null : "materialId must be a non-empty string");
+    case "v1.CheckShowsSet":
+      return str("kindId") ?? oneOf("what", SHOWN) ?? bool("shown") ?? (p["from"] === void 0 ? null : !nonEmpty(p["from"]) ? "from must be a non-empty string" : p["what"] === "notes" || p["what"] === "earlier" ? null : "from is only for notes and earlier");
     case "v1.VersionReleased":
       return str("takeId", "channel") ?? bool("live") ?? (p["url"] === void 0 || nonEmpty(p["url"]) ? null : "url must be a non-empty string") ?? // Characters, as SQL length() counts them.
       ([...p["channel"]].length <= 60 ? null : "channel must be at most 60 characters");
     case "v1.RecordingAdded":
       return str("recordingId", "unitId") ?? oneOf("kind", ["source", "target"]) ?? cards("cards");
     case "v1.TakeComposed":
-      return str("takeId", "unitId") ?? strArray("cardHashes") ?? (p["parentTakeId"] === null ? null : str("parentTakeId")) ?? // A take holds recorded parts or written ones, never both (decisions.md 130).
+      return str("takeId", "unitId") ?? strArray("cardHashes") ?? (p["parentTakeId"] === null ? null : str("parentTakeId")) ?? // A take holds recorded parts or written ones, never both (decisions.md 131).
       (oneMedium(p["cardHashes"]) ? null : "cardHashes must be all recorded or all written parts");
     case "v1.WritingAdded":
       return str("writingId", "unitId") ?? writtenPartsError(p["parts"]);
@@ -21514,7 +21525,7 @@ function validateEvent(e) {
     case "v1.NoteWithdrawn":
       return str("noteId");
     case "v1.NoteAdded":
-      return str("noteId", "unitId") ?? optStr("text", "blobHash", "photoHash", "onTakeId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
+      return str("noteId", "unitId") ?? optStr("text", "blobHash", "photoHash", "onTakeId", "kindId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
     case "v1.StudyStepMarked":
       return str("unitId", "guideId", "stepId") ?? bool("done");
     case "v1.MaterialDefined":
@@ -21535,6 +21546,8 @@ function validateEvent(e) {
       return str("itemId") ?? oneOf("state", ["recommended", "hidden", "inherit"]);
     case "v1.ReferenceLanguageSet":
       return str("language") ?? (/^[a-z0-9-]{2,40}$/.test(p["language"]) ? null : "language must be a language code");
+    case "v1.ReferenceLanguageAdded":
+      return str("language") ?? (/^[a-z0-9-]{2,40}$/.test(p["language"]) ? null : "language must be a language code") ?? bool("added");
     case "v1.PassageReferenceLinked":
       return str("unitId", "itemId") ?? bool("linked");
     case "v1.ReferencesUsed":
@@ -21817,7 +21830,7 @@ function changesSince(live, revision) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 18;
+var REDUCER_VERSION = 19;
 function applyLanguageEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
@@ -21898,6 +21911,11 @@ function applyLanguageEvent(state, event) {
       const { kindId, itemId, materialId, linked } = event.payload;
       const key = itemId !== void 0 ? `item:${itemId}` : `material:${materialId}`;
       lww((state.checkHelps ??= {})[kindId] ??= {}, key, event, linked);
+      break;
+    }
+    case "v1.CheckShowsSet": {
+      const { kindId, what, shown, from } = event.payload;
+      lww((state.checkShows ??= {})[kindId] ??= {}, from !== void 0 ? `${what}@${from}` : what, event, shown);
       break;
     }
     case "v1.VersionReleased": {
@@ -22104,6 +22122,7 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.ReferenceSet":
     case "v1.ReferenceLanguageSet":
+    case "v1.ReferenceLanguageAdded":
     case "v1.PassageReferenceLinked":
     case "v1.ReferencesUsed":
       applyReferenceEvent(state, event);

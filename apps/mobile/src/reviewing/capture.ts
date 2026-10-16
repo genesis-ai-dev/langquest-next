@@ -113,7 +113,7 @@ export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | '
  */
 export function reviewStages(opts: { questions: number; logged: boolean; makes: boolean; reads?: boolean }): Stage[] {
   return [
-    // Checking writing reads instead of listening (decisions.md 130).
+    // Checking writing reads instead of listening (decisions.md 131).
     opts.reads ? { id: 'listen', label: t('writing.review.read'), icon: 'edit' } : { id: 'listen', label: t('review.capture.stages.listen'), icon: 'listen' },
     ...(opts.questions > 0 ? [{ id: 'questions' as const, label: t('review.capture.stages.questions'), icon: 'help' as const }] : []),
     opts.makes ? { id: 'decide', label: t('review.capture.stages.recordIt'), icon: 'mic' } : { id: 'decide', label: t('review.capture.stages.decide'), icon: 'check' }
@@ -270,7 +270,6 @@ export function cleanSkips(questions: SourcedQuestion[], answers: Answers, skipp
 /** Where a question comes from, as the demo labels it (REV-2). */
 export function questionSource(q: SourcedQuestion, asker?: string): string {
   switch (q.source) {
-    case 'org': return t('review.capture.source.org');
     case 'language': return t('review.capture.source.language');
     case 'request': return asker ? t('review.capture.source.fromName', { name: asker }) : t('review.capture.source.fromWhoeverAsked');
   }

@@ -34,6 +34,7 @@ import { useStudyAudio, type StudyAudio } from './useStudyAudio';
 import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
+import { useNoteStep } from '../checks/useNoteStep';
 
 // ---- audio -------------------------------------------------------------------------
 
@@ -352,6 +353,7 @@ export function StepPreview(props: { text: string; onOpenRef?: (ref: string) => 
  * says where.
  */
 export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: boolean; header?: ReactNode; hidden?: boolean }) {
+  const noteStep = useNoteStep();
   const { ctx, v } = props;
   const [adding, setAdding] = useState<{ verse: string; at?: string; code: string } | null>(null);
   const notes = useMemo(() => v.p.notes.filter((n) => n.anchor.kind === 'verse'), [v.p.notes]);
@@ -387,7 +389,7 @@ export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: 
             : t('study.reader.where', { title: v.title, verse: adding.verse, bible: adding.code })}
           onClose={() => setAdding(null)}
           onSave={(c) => saveNote(ctx, v, { kind: 'verse', verse: adding.verse, translation: adding.code, ...(adding.at ? { at: adding.at } : {}) }, c,
-            t('study.reader.noteAdded', { verse: adding.verse }))} />
+            t('study.reader.noteAdded', { verse: adding.verse }), noteStep)} />
       ) : null}
     </>
   );

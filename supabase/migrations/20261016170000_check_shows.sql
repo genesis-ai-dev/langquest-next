@@ -1,74 +1,20 @@
--- Writing beside recording, and steps that make something (decisions.md 130).
+-- v1.CheckShowsSet: what a step shows whoever does it (decisions.md 130).
 --
---   v1.WritingAdded    { writingId, unitId, parts: [{ id, text }] }
---   v1.MediaAllowedSet { recording, writing, first }
---   v1.StepMakesSet    { kindId, makes: { from, to, language, otherLanguage?, fromKindId?, result: beside | added | version } | null }
---   v1.CheckLooksAtSet { kindId, makerKindId | null }
---   v1.Made            { madeId, unitId, kindId?, fromTakeId | fromMadeId, language?, parts | takeId, added?: true, requestId? }
+--   v1.CheckShowsSet { kindId, what, shown, from? }
+--   v1.NoteAdded gains an optional kindId: the step a note was written at.
+--   v1.ReferenceLanguageAdded { language, added }: another language the
+--   team's reference material may be in (manage_reference).
 --
--- A written part is a short piece of text named `w:` and the SHA-256 of its
--- UTF-8 words (core writing.ts); the words travel in the event, never as a
--- file. validate_payload checks each name against its words with pgcrypto,
--- as core does, so two parts with the same name always say the same thing.
--- A take holds recorded parts or written ones, never both (v1.TakeComposed
--- gains that rule; no row in the log has a written part yet). Privileges:
--- writing and making are translate or review (a back translator holds
--- Review); what a language may make is its template's (manage_templates);
--- making steps and what a check reads are its flow's (manage_flows).
+-- A register per (kind, what) in the language stream (core reducer.ts):
+-- whether the step's screen has the Bible heard, the Bible read, the guide
+-- heard, the guide read, key words, notes, earlier work. kindId is a check,
+-- or `record` for recording a version. Setting up a step is managing the
+-- flow, so the privilege is manage_flows, as for v1.CheckHelpSet.
 --
--- validate_payload and event_privilege are restated whole, as `create or
--- replace`, from 20261016020000_object_member_names.sql's and
+-- validate_payload is restated whole, as `create or replace`, from
+-- 20261016020000_object_member_names.sql's, and event_privilege from
 -- 20261016030000_join_events_server_only.sql's, plus these events.
--- _entity_key is restated from 20261009170000_audio_format_set.sql's plus
--- WritingAdded and Made; no row already in the log changes key (none of
--- these types could be appended before), so events_entity_idx needs no
--- rebuild. scripts/record-parity-sql.ts holds them all to core.
-
--- Recorded parts or written parts, never both: written ones start `w:`.
-create or replace function public._one_medium(v jsonb) returns boolean language sql immutable as $$
-  select v is null or jsonb_typeof(v) <> 'array' or jsonb_array_length(v) = 0
-    or (select count(distinct (jsonb_typeof(h) = 'string' and left(h #>> '{}', 2) = 'w:')) = 1 from jsonb_array_elements(v) h);
-$$;
-
--- Why a list of written parts cannot be used, or null: 1 to 100 parts, each
--- an id that is `w:` and the SHA-256 of its text, and 1 to 2000 characters of text.
-create or replace function public._written_parts_error(v jsonb) returns text language plpgsql immutable as $$
-declare x jsonb;
-begin
-  if v is null or jsonb_typeof(v) <> 'array' or jsonb_array_length(v) = 0 then return 'parts must be a non-empty array'; end if;
-  if jsonb_array_length(v) > 100 then return 'parts may hold at most 100'; end if;
-  for x in select * from jsonb_array_elements(v) loop
-    if jsonb_typeof(x) <> 'object' then return 'parts entries must be objects'; end if;
-    if jsonb_typeof(x->'id') is distinct from 'string' or (x->>'id') !~ '^w:[0-9a-f]{64}$' then return 'parts need an id: w: and a SHA-256 hex digest'; end if;
-    if jsonb_typeof(x->'text') is distinct from 'string' or (x->>'text') = '' then return 'parts need text'; end if;
-    if length(x->>'text') > 2000 then return 'text must be at most 2000 characters'; end if;
-    if (x->>'id') <> 'w:' || encode(extensions.digest(convert_to(x->>'text', 'UTF8'), 'sha256'), 'hex') then
-      return 'id must be w: and the SHA-256 of the text';
-    end if;
-  end loop;
-  return null;
-end $$;
-
--- Why a making step's spec cannot be used, or null (core validate.ts makesError).
-create or replace function public._makes_error(m jsonb) returns text language plpgsql immutable as $$
-begin
-  if m is null or jsonb_typeof(m) <> 'object' then return 'makes must be an object or null'; end if;
-  if not public._is_one_of(m->'from', array['recording', 'writing', 'either']) then return 'makes.from must be one of recording, writing, either'; end if;
-  if not public._is_one_of(m->'to', array['recording', 'writing', 'either']) then return 'makes.to must be one of recording, writing, either'; end if;
-  if not public._is_one_of(m->'language', array['same', 'other']) then return 'makes.language must be one of same, other'; end if;
-  if not public._is_one_of(m->'result', array['beside', 'added', 'version']) then return 'makes.result must be one of beside, added, version'; end if;
-  if m ? 'otherLanguage' and not (m->>'language' = 'other' and public._is_str(m->'otherLanguage') and length(m->>'otherLanguage') <= 40) then
-    return 'makes.otherLanguage must be a language code, for another language only';
-  end if;
-  if m ? 'fromKindId' and not public._is_str(m->'fromKindId') then return 'makes.fromKindId must be a non-empty string'; end if;
-  if m->>'result' = 'version' and (m->>'language' <> 'same' or m->>'to' = 'either') then
-    return 'only a step that makes recording or writing in the same language can make the next version';
-  end if;
-  if m->>'result' = 'added' and (m->>'language' <> 'same' or m->>'to' = 'either' or m->>'from' = 'either' or m->>'from' = m->>'to') then
-    return 'only a step that turns recording into writing, or writing into recording, in the same language can add to the version';
-  end if;
-  return null;
-end $$;
+-- scripts/record-parity-sql.ts holds them to core.
 
 create or replace function public.validate_payload(p_type text, p jsonb)
 returns text language plpgsql immutable as $$
@@ -235,6 +181,16 @@ begin
       if (p ? 'itemId') = (p ? 'materialId') then return 'exactly one of itemId, materialId'; end if;
       if p ? 'itemId' and not public._is_str(p->'itemId') then return 'itemId must be a non-empty string'; end if;
       if p ? 'materialId' and not public._is_str(p->'materialId') then return 'materialId must be a non-empty string'; end if;
+    when 'v1.CheckShowsSet' then
+      if not public._is_str(p->'kindId') then return 'kindId must be a non-empty string'; end if;
+      if not public._is_one_of(p->'what', array['bibleAudio', 'bibleText', 'guideAudio', 'guideText', 'terms', 'notes', 'earlier']) then
+        return 'what must be one of bibleAudio, bibleText, guideAudio, guideText, terms, notes, earlier';
+      end if;
+      if not public._is_bool(p->'shown') then return 'shown must be a boolean'; end if;
+      if p ? 'from' then
+        if not public._is_str(p->'from') then return 'from must be a non-empty string'; end if;
+        if (p->>'what') not in ('notes', 'earlier') then return 'from is only for notes and earlier'; end if;
+      end if;
     when 'v1.VersionReleased' then
       if not (public._is_str(p->'takeId') and public._is_str(p->'channel')) then return 'takeId, channel must be non-empty strings'; end if;
       if not public._is_bool(p->'live') then return 'live must be a boolean'; end if;
@@ -248,38 +204,6 @@ begin
       if not (public._is_str(p->'takeId') and public._is_str(p->'unitId')) then return 'takeId, unitId must be non-empty strings'; end if;
       if not public._is_str_array(p->'cardHashes') then return 'cardHashes must be a string array'; end if;
       if not (jsonb_typeof(p->'parentTakeId') is not distinct from 'null' or public._is_str(p->'parentTakeId')) then return 'parentTakeId must be a non-empty string'; end if;
-      if not public._one_medium(p->'cardHashes') then return 'cardHashes must be all recorded or all written parts'; end if;
-    when 'v1.WritingAdded' then
-      if not (public._is_str(p->'writingId') and public._is_str(p->'unitId')) then return 'writingId, unitId must be non-empty strings'; end if;
-      return public._written_parts_error(p->'parts');
-    when 'v1.MediaAllowedSet' then
-      if not public._is_bool(p->'recording') then return 'recording must be a boolean'; end if;
-      if not public._is_bool(p->'writing') then return 'writing must be a boolean'; end if;
-      if not public._is_one_of(p->'first', array['recording', 'writing']) then return 'first must be one of recording, writing'; end if;
-      if not ((p->>'recording')::boolean or (p->>'writing')::boolean) then return 'recording or writing must be allowed'; end if;
-      if not (p->>(p->>'first'))::boolean then return 'first must be allowed'; end if;
-    when 'v1.StepMakesSet' then
-      if not public._is_str(p->'kindId') then return 'kindId must be a non-empty string'; end if;
-      if jsonb_typeof(p->'makes') is distinct from 'null' then return public._makes_error(p->'makes'); end if;
-    when 'v1.CheckLooksAtSet' then
-      if not public._is_str(p->'kindId') then return 'kindId must be a non-empty string'; end if;
-      if not (jsonb_typeof(p->'makerKindId') is not distinct from 'null' or public._is_str(p->'makerKindId')) then return 'makerKindId must be a string or null'; end if;
-    when 'v1.Made' then
-      if not (public._is_str(p->'madeId') and public._is_str(p->'unitId')) then return 'madeId, unitId must be non-empty strings'; end if;
-      select to_jsonb(k) into x from unnest(array['kindId', 'fromTakeId', 'fromMadeId', 'takeId', 'requestId']) k where p ? k and not public._is_str(p->k) limit 1;
-      if x is not null then return (x #>> '{}') || ' must be a non-empty string'; end if;
-      if (p ? 'fromTakeId') = (p ? 'fromMadeId') then return 'exactly one of fromTakeId, fromMadeId'; end if;
-      if (p ? 'parts') = (p ? 'takeId') then return 'exactly one of parts, takeId'; end if;
-      if p ? 'language' and not (public._is_str(p->'language') and length(p->>'language') <= 40) then return 'language must be a language code'; end if;
-      if p ? 'added' then
-        if jsonb_typeof(p->'added') is distinct from 'boolean' or not (p->>'added')::boolean then return 'added must be true when present'; end if;
-        if not (p ? 'fromTakeId') or not (p ? 'parts') or p ? 'language' then return 'added needs fromTakeId and parts, in the team''s own language'; end if;
-      end if;
-      if p ? 'parts' then
-        if not public._is_cards(p->'parts') then return 'parts must be cards'; end if;
-        if jsonb_array_length(p->'parts') = 0 then return 'parts must not be empty'; end if;
-        if not public._one_medium((select jsonb_agg(c->'hash') from jsonb_array_elements(p->'parts') c)) then return 'parts must be all recorded or all written'; end if;
-      end if;
     when 'v1.CardVerseSet' then
       if not (public._is_str(p->'unitId') and public._is_str(p->'hash')) then return 'unitId, hash must be non-empty strings'; end if;
       if not public._is_one_of(p->'mark', array['next', 'join', 'set', 'none']) then return 'mark must be one of next, join, set, none'; end if;
@@ -369,8 +293,9 @@ begin
       if not public._is_str(p->'noteId') then return 'noteId must be a non-empty string'; end if;
     when 'v1.NoteAdded' then
       if not (public._is_str(p->'noteId') and public._is_str(p->'unitId')) then return 'noteId, unitId must be non-empty strings'; end if;
-      if not (public._is_opt_str(p->'text') and public._is_opt_str(p->'blobHash') and public._is_opt_str(p->'photoHash') and public._is_opt_str(p->'onTakeId')) then
-        return 'text, blobHash, photoHash, onTakeId must be strings';
+      if not (public._is_opt_str(p->'text') and public._is_opt_str(p->'blobHash') and public._is_opt_str(p->'photoHash') and public._is_opt_str(p->'onTakeId')
+          and public._is_opt_str(p->'kindId')) then
+        return 'text, blobHash, photoHash, onTakeId, kindId must be strings';
       end if;
       if jsonb_typeof(p->'anchor') is distinct from 'object' then return 'anchor must be an object'; end if;
       case p->'anchor'->>'kind'
@@ -426,6 +351,10 @@ begin
     when 'v1.ReferenceLanguageSet' then
       if not public._is_str(p->'language') then return 'language must be a non-empty string'; end if;
       if (p->>'language') !~ '^[a-z0-9-]{2,40}$' then return 'language must be a language code'; end if;
+    when 'v1.ReferenceLanguageAdded' then
+      if not public._is_str(p->'language') then return 'language must be a non-empty string'; end if;
+      if (p->>'language') !~ '^[a-z0-9-]{2,40}$' then return 'language must be a language code'; end if;
+      if not public._is_bool(p->'added') then return 'added must be a boolean'; end if;
     when 'v1.PassageReferenceLinked' then
       if not (public._is_str(p->'unitId') and public._is_str(p->'itemId')) then return 'unitId, itemId must be non-empty strings'; end if;
       if not public._is_bool(p->'linked') then return 'linked must be a boolean'; end if;
@@ -491,17 +420,13 @@ returns text language sql immutable as $$
     when 'v1.ReviewTeamKindSet' then 'manage_teams'
     when 'v1.FlowStepLinksSet' then 'manage_flows'
     when 'v1.CheckHelpSet' then 'manage_flows'
+    when 'v1.CheckShowsSet' then 'manage_flows'
     when 'v1.VersionReleased' then 'assign_work'
     when 'v1.RecordingAdded' then 'translate'
     when 'v1.TakeComposed' then 'translate'
     when 'v1.TakeArchived' then 'translate'
     when 'v1.CardVerseSet' then 'translate'
     when 'v1.TakeSubmitted' then 'translate'
-    when 'v1.WritingAdded' then 'translate,review'
-    when 'v1.MediaAllowedSet' then 'manage_templates'
-    when 'v1.StepMakesSet' then 'manage_flows'
-    when 'v1.CheckLooksAtSet' then 'manage_flows'
-    when 'v1.Made' then 'translate,review'
     when 'v1.ResponseRecorded' then 'translate'
     when 'v1.AudioFormatSet' then 'translate,review,assign_work,send_to_reviewers,override_checkpoints,fill_reference'
     when 'v1.ExternalValueSet' then 'translate,review,fill_reference'
@@ -524,26 +449,9 @@ returns text language sql immutable as $$
     when 'v1.KeyTermLinked' then 'fill_reference'
     when 'v1.ReferenceSet' then 'manage_reference'
     when 'v1.ReferenceLanguageSet' then 'manage_reference'
+    when 'v1.ReferenceLanguageAdded' then 'manage_reference'
     when 'v1.PassageReferenceLinked' then 'manage_reference'
     when 'v1.ReferencesUsed' then 'translate,review'
     else null
-  end;
-$$;
-
-create or replace function public._entity_key(p_type text, p jsonb)
-returns text language sql immutable as $$
-  select case p_type
-    when 'v1.RecordingAdded' then 'recording:' || (p->>'recordingId')
-    when 'v1.TakeComposed' then 'take:' || (p->>'takeId')
-    when 'v1.ResponseRecorded' then 'response:' || (p->>'takeId')
-    when 'v1.ReviewRecorded' then 'review:' || (p->>'reviewId')
-    when 'v1.DepartureRecorded' then 'departure:' || (p->>'departureId')
-    when 'v1.RequestMade' then 'request:' || (p->>'requestId')
-    when 'v1.NoteAdded' then 'note:' || (p->>'noteId')
-    when 'v1.KeyTermRenderingAdded' then 'rendering:' || (p->>'termId') || '/' || (p->>'renderingId')
-    when 'v1.KeyTermAdjusted' then 'adjustment:' || (p->>'termId') || '/' || (p->>'adjustmentId')
-    when 'v1.AudioFormatSet' then 'audioformat:' || (p->>'hash')
-    when 'v1.WritingAdded' then 'writing:' || (p->>'writingId')
-    when 'v1.Made' then 'made:' || (p->>'madeId')
   end;
 $$;

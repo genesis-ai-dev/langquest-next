@@ -75,7 +75,7 @@ export function usualTargets(
 export function recordPathInput(o: {
   p: PassageState; kinds: KindDef[]; me: string; name: NameFn; teamName: (teamId: string) => string | undefined;
   study?: PathInput['study']; latestSeconds?: number; latestVerses?: string | null;
-  /** How the passage goes on: recording or writing (decisions.md 130). */
+  /** How the passage goes on: recording or writing (decisions.md 131). */
   lead?: Medium;
 }): PathInput {
   const { p } = o;
@@ -99,7 +99,7 @@ export type RecordMain =
   | { id: 'hearFeedback'; label: string; icon: IconName; reviewId: string }
   | { id: 'check'; label: string; icon: IconName; kindId: string; produces: boolean; requestId?: string; makes?: boolean }
   | { id: 'study'; label: string; icon: IconName }
-  /** `write`: the passage goes on in writing (decisions.md 130). */
+  /** `write`: the passage goes on in writing (decisions.md 131). */
   | { id: 'record'; label: string; icon: IconName; write?: boolean }
   | { id: 'ask'; label: string; icon: IconName; kindId: string };
 
@@ -126,7 +126,7 @@ export function recordModel(o: {
   p: PassageState; kinds: KindDef[]; kind: (id: string) => KindDef; me: string; can: RecordCan; steps: PathStep[]; mine: MineFn;
   /** Whoever just published, or the version's author. */
   asker: boolean;
-  /** How the passage goes on: recording or writing (decisions.md 130). */
+  /** How the passage goes on: recording or writing (decisions.md 131). */
   lead?: Medium;
   /** The next check picked on the ask page. */
   askKindId?: string | null;
@@ -151,7 +151,7 @@ export function recordModel(o: {
   const openCheck = openCheckFor(p, { isAuthor: o.isAuthor, canReview: can.review });
   const check = (kindId: string, requestId?: string): RecordMain => {
     const kind = o.kind(kindId);
-    // A step that makes something is called by its name and drawn as what it makes (decisions.md 130).
+    // A step that makes something is called by its name and drawn as what it makes (decisions.md 131).
     if (kind.makes) {
       return { id: 'check', kindId, produces: false, makes: true, ...(requestId ? { requestId } : {}), label: kind.name, icon: kind.makes.to === 'writing' ? 'edit' : 'mic' };
     }
@@ -206,7 +206,7 @@ export function currentCheck(p: PassageState, currentStepId: string | undefined)
 }
 
 export type ElseOptionId = 'recordSomeone' | 'checkSomeone' | 'already' | 'notNow' | 'newVersion' | 'writeInstead' | 'recordInstead' | 'movePast';
-/** `write`: a new version is written, not recorded (decisions.md 130). */
+/** `write`: a new version is written, not recorded (decisions.md 131). */
 export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon: IconName; kindId?: string; stepId?: string; write?: boolean }
 
 /**
@@ -218,7 +218,7 @@ export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon
 export function elseOptions(o: {
   p: PassageState; kinds: KindDef[]; can: RecordCan; current: { step: FlowStepStatus; kind: KindStatus } | undefined;
   answersMine: boolean; myDraft: boolean;
-  /** How the passage goes on, and the other way the language allows (decisions.md 130). */
+  /** How the passage goes on, and the other way the language allows (decisions.md 131). */
   lead?: Medium; other?: Medium | null;
 }): ElseOption[] {
   const { p, can, current } = o;
@@ -243,7 +243,7 @@ export function elseOptions(o: {
   } else if (can.record && p.recorded && !o.answersMine) {
     out.push({ id: 'newVersion', icon: 'mic', label: o.myDraft ? t('passage.page.continueRecording') : t('passage.else.newVersion'), sub: t('passage.else.newVersionSub') });
   }
-  // The other way the language allows (decisions.md 130): write it instead, or record it instead.
+  // The other way the language allows (decisions.md 131): write it instead, or record it instead.
   if (can.record && o.other === 'writing') out.push({ id: 'writeInstead', icon: 'edit', label: t('writing.path.writeInstead'), sub: t('writing.path.writeInsteadSub'), write: true });
   if (can.record && o.other === 'recording') out.push({ id: 'recordInstead', icon: 'mic', label: t('writing.path.recordInstead'), sub: t('writing.path.recordInsteadSub') });
   // Moving past is offered at the checkpoint itself, when it is the step the passage is at.
@@ -260,7 +260,7 @@ export function lockedNameFor(p: PassageState, step: FlowStepStatus, kinds: Kind
   return gate ? stepTitle(gate.step.kindIds, kinds) : undefined;
 }
 
-/** What a making step made here last (decisions.md 130): beside a version, or a version it made (a final recording). */
+/** What a making step made here last (decisions.md 131): beside a version, or a version it made (a final recording). */
 export interface MadeByStep { madeId?: string; takeId?: string; by: string; hlc: Hlc; medium: Medium }
 
 export function madeByStep(p: PassageState, kindId: string): MadeByStep | undefined {
@@ -273,7 +273,7 @@ export function madeByStep(p: PassageState, kindId: string): MadeByStep | undefi
 export interface SheetRow {
   status: KindStatus;
   name: string;
-  /** A making step that is done: what it made, to open (decisions.md 130). */
+  /** A making step that is done: what it made, to open (decisions.md 131). */
   made?: MadeByStep;
   /** The step's icon when not its kind's: a pen or a microphone for a step that makes something. */
   icon?: IconName;
@@ -316,7 +316,7 @@ export function stepSheet(o: {
     const waitFor = fbKindIds.length && !fbKindIds.includes(status.kindId) ? fbNames : undefined;
     const checkedBy = kind.produces ? nameOf(kind.produces.checkedBy) : undefined;
     const acts = kindRowActions({ status, kind, step, can: o.can, isAuthor: o.isAuthor, me: o.me, mine: o.mine, ...(target ? { sendTo: sendTargetLabel(target, o.name) } : {}) });
-    // A making step that is done says who made it and when, and opens what it made (decisions.md 130).
+    // A making step that is done says who made it and when, and opens what it made (decisions.md 131).
     const made = kind.makes && isCompleteState(status.state) ? madeByStep(p, status.kindId) : undefined;
     const sub = made ? `${o.name(made.by)} · ${when(made.hlc)}` : kindRowSub({
       status, kind, step, me: o.me, name: o.name, mine: o.mine, teamName: o.teamName,
@@ -368,7 +368,7 @@ export function stepMove(st: PathStep, o: { p: PassageState; can: RecordCan; ear
   const doneVersion = (): RecordMove | undefined => (st.state === 'done' && p.latest ? goTo('version_detail', { takeId: p.latest.takeId }) : undefined);
   if (o.earlier) return st.kind === 'record' || st.kind === 'publish' ? doneVersion() : undefined;
   if (st.kind === 'study') return goTo('study_guide');
-  // A passage that goes on in writing opens the writing boxes (decisions.md 130).
+  // A passage that goes on in writing opens the writing boxes (decisions.md 131).
   if (st.kind === 'record') return doneVersion() ?? (can.record ? (o.lead === 'writing' ? goTo('workspace', { write: '1' }) : { id: 'recordOrPick' }) : undefined);
   if (st.kind === 'publish') return doneVersion() ?? (can.record && p.drafting ? { id: 'recordOrPick' } : undefined);
   if ((st.kind === 'feedback' || st.kind === 'fix') && o.feedbackReview) return goTo('review_detail', { reviewId: o.feedbackReview.id });

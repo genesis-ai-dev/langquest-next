@@ -3,7 +3,7 @@ import { libraryUnitRange } from './versification';
 import type { Hlc } from './hlc';
 import { indexesOf, type Indexes } from './indexes';
 import {
-  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, QUESTION_TEMPLATES,
+  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate,
   type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec, type Undo
 } from './record';
 import { checkTeamFor } from './checks';
@@ -37,7 +37,7 @@ export function deriveKinds(state: LanguageState): KindDef[] {
   // Shipped kinds keep their order; the language's own follow by id, so the
   // list never depends on the order events arrived in.
   for (const id of Object.keys(state.reviewKinds).sort()) out.set(id, state.reviewKinds[id]!.value);
-  // What a kind makes or reads (decisions.md 130) is its own register, so a
+  // What a kind makes or reads (decisions.md 131) is its own register, so a
   // shipped kind can become a making step without redefining it.
   for (const [id, reg] of Object.entries(state.stepMakes ?? {})) {
     const k = out.get(id);
@@ -105,13 +105,13 @@ export interface Version {
   takeId: string;
   /** 1-based, in order of publishing. */
   n: number;
-  /** Recorded or written (decisions.md 130): read from its parts. */
+  /** Recorded or written (decisions.md 131): read from its parts. */
   medium: Medium;
   /** The step that made it, when a step made the passage's next version (a final recording). */
   madeByKindId?: string;
   /** The version it was made from, then. */
   madeFromTakeId?: string;
-  /** What steps added to it (decisions.md 130): words for a recording, a recording for writing; oldest first. */
+  /** What steps added to it (decisions.md 131): words for a recording, a recording for writing; oldest first. */
   added: MadeView[];
   by: string;
   hlc: Hlc;
@@ -246,9 +246,9 @@ export interface PassageState {
   /** Feedback on the latest version nobody answered yet. */
   awaitingResponse: ReviewView[];
   notes: PassageNote[];
-  /** What was made from its versions, by steps or brought over from v2 (decisions.md 130), oldest first; versions a step made are not here. */
+  /** What was made from its versions, by steps or brought over from v2 (decisions.md 131), oldest first; versions a step made are not here. */
   made: MadeView[];
-  /** The flow's kinds that make something rather than judge (decisions.md 130). */
+  /** The flow's kinds that make something rather than judge (decisions.md 131). */
   makingKindIds: string[];
 }
 
@@ -605,7 +605,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== 'link'));
     const request = openRequests.find((r) => r.what === 'review' && r.kindId === kindId);
     const departure = active((d) => d.type === 'skip' && d.kindId === kindId);
-    // A making step (decisions.md 130) is done once it made something, from
+    // A making step (decisions.md 131) is done once it made something, from
     // any version: what it made stays with that version and is never out of
     // date. What it adds to a version is part of that version, so a step
     // that adds is done only for the version it counts for here (the latest,
@@ -964,21 +964,19 @@ export function upNext(state: LanguageState, opts: { canRecord: boolean; canRevi
 
 export interface SourcedQuestion {
   q: QuestionSpec;
-  source: 'org' | 'language' | 'request';
+  /** The check's own, as the language's team wrote them, or the asker's for this request. */
+  source: 'language' | 'request';
   required: boolean;
 }
 
 /**
- * Questions for a kind of review (REV-2): the shipped set for the kind, then
- * the language's question-set materials for the kind (`scope.stepId` = kind
- * id), then the asker's own.
+ * Questions for a kind of review (REV-2): the language's question-set
+ * materials for the kind (`scope.stepId` = kind id), then the asker's own.
+ * LangQuest's checks come with no questions (LAN-85): a team writes its own
+ * on each check.
  */
 export function questionsForKind(state: LanguageState, kindId: string, request?: RequestView): SourcedQuestion[] {
   const out: SourcedQuestion[] = [];
-  for (const t of QUESTION_TEMPLATES) {
-    if (t.kindId !== kindId) continue;
-    for (const q of t.questions) out.push({ q: { id: `${t.id}#${q.id}`, text: q.text, type: q.type }, source: 'org', required: false });
-  }
   const sets = Object.entries(state.materials).filter(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId)
     .sort(([a], [b]) => (a < b ? -1 : 1));
   for (const [id, m] of sets) {
@@ -1041,7 +1039,7 @@ export function recordTimeline(state: LanguageState, s: PassageState): RecordEnt
 }
 
 /**
- * What steps added to a version (decisions.md 130), one per kind: the latest
+ * What steps added to a version (decisions.md 131), one per kind: the latest
  * holds, and `first` is when that kind was first added. `changedAfter` is
  * the newest review of the version that saw an earlier one: the content
  * changed after it. The approval stands either way (Caleb, 2026-10-13: the
@@ -1270,7 +1268,7 @@ export function approvedVersion(s: PassageState): Version | null {
       const status = st.kinds[k];
       if (status?.state === 'skipped') return true;
       // A version a step made (a final recording) answers for the steps
-      // before that step with the version it was made from (decisions.md 130).
+      // before that step with the version it was made from (decisions.md 131).
       const heard = versionHeardAt(s, v, si);
       if (isMakingStatus(s, kindId)) return madeFrom(s, kindId, heard) || v.madeByKindId === kindId;
       let last: ReviewView | undefined;
@@ -1289,7 +1287,7 @@ export function approvedVersion(s: PassageState): Version | null {
  * The version whose reviews count for step `stepIndex` when `v` is checked:
  * `v` itself, unless a step made `v` from an earlier version and this step
  * comes before that one; then the earlier version, and so on back
- * (decisions.md 130).
+ * (decisions.md 131).
  */
 export function versionHeardAt(s: Pick<PassageState, 'versions' | 'flow'>, v: Version, stepIndex: number): Version {
   let cur = v;
@@ -1338,7 +1336,7 @@ export interface MadeColumn {
 
 /**
  * What was made from each version, for Reviews by version (decisions.md
- * 130): a column per step that made something, and per kind of thing no
+ * 131): a column per step that made something, and per kind of thing no
  * step made (v2's transcriptions and translations), only where some exist.
  */
 export function madeGrid(s: PassageState): { columns: MadeColumn[]; byVersion: Map<string, Map<string, MadeView[]>> } {

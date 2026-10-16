@@ -33,7 +33,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.ReviewRecorded': ['comment', 'commentBlobHash', 'answers', 'skipped', 'people', 'place', 'givenBy', 'requestId', 'artifacts'],
   'v1.DepartureRecorded': ['kindId', 'stepId', 'reviewId', 'reasonBlobHash'],
   'v1.RequestMade': ['kindId', 'profileId', 'guest', 'teamId', 'dueDate', 'note', 'noteBlobHash', 'questions'],
-  'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId'],
+  'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId', 'kindId'],
   'v1.LibraryItemDefined': ['copiedFrom'],
   'v1.LibraryVersionPublished': ['note'],
   'v1.TemplateSelected': ['books'],
@@ -111,6 +111,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.ReferenceSet':
       variants.push({ ...p, state: 'pinned' });
       break;
+    case 'v1.ReferenceLanguageAdded':
+      variants.push({ ...p, language: '' }, { ...p, language: 'Greek' }, { ...p, language: 'x' }, { ...p, added: 'yes' });
+      break;
     case 'v1.ReferenceLanguageSet':
       variants.push({ ...p, language: '' }, { ...p, language: 'French' }, { ...p, language: 'x' }, { ...p, language: 'x'.repeat(41) }, { ...p, language: 7 });
       break;
@@ -122,6 +125,10 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       break;
     case 'v1.CheckHelpSet':
       variants.push({ ...p, itemId: 'x', materialId: 'y' }, { kindId: p['kindId'], linked: true }, { ...p, materialId: '' }, { ...p, itemId: '' }, { ...p, kindId: '' });
+      break;
+    case 'v1.CheckShowsSet':
+      variants.push({ ...p, what: 'bible' }, { ...p, what: 'BibleText' }, { ...p, shown: 'no' }, { ...p, kindId: '' },
+        { ...p, what: 'notes', from: 'peer' }, { ...p, what: 'earlier', from: '' }, { ...p, what: 'bibleText', from: 'peer' }, { ...p, what: 'notes', from: 7 });
       break;
     case 'v1.BookNameSet':
       variants.push({ ...p, book: 'luk' }, { ...p, book: 'LUKE' }, { ...p, book: '1 SA' });
@@ -138,7 +145,7 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.UnitAdded':
     case 'v1.TakeComposed':
       variants.push({ ...p, parentUnitId: 'x', parentTakeId: 'x' });
-      // A take holds recorded parts or written ones, never both (decisions.md 130).
+      // A take holds recorded parts or written ones, never both (decisions.md 131).
       if (e.type === 'v1.TakeComposed') variants.push({ ...p, cardHashes: [HASH, writtenPartId('x')] }, { ...p, cardHashes: [writtenPartId('x'), writtenPartId('y')] }, { ...p, cardHashes: [] });
       break;
     case 'v1.WritingAdded': {

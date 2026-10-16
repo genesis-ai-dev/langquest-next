@@ -4,7 +4,7 @@
 // 'language'`, or New language's draft with `draft: '1'`); `CheckEditor` is
 // one check. Every change saves as it is made, with Undo, like the rest of
 // the app's lists.
-import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, commands, deriveFlow, formatQuestionField, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, scopeCovers, type CheckHelp, type EventSpec, type KindDef, type LanguageState, type MakesSpec, type OrgState, type QuestionSpec } from '@langquest-next/core';
+import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, commands, deriveFlow, formatQuestionField, kindOf, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, shownFrom, type CheckHelp, type EventSpec, type KindDef, type LanguageState, type MakesSpec, type OrgState, type QuestionSpec, type ShownWhat } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -14,7 +14,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Chip, ChipRow, EmptyState, Field, Group, Header, Ico, IconBtn, PrimaryBtn, Row, Screen, SectionLabel, Sheet, Toggle } from '../ui/kit';
+import { Banner, Chip, ChipRow, EmptyState, Field, Group, Header, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SectionLabel, Sheet, Toggle } from '../ui/kit';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { refKindOf } from '../reference/model';
 import { failureMessage } from '../diagnostics/report';
@@ -23,13 +23,16 @@ import { C, TINT } from '../ui/theme';
 import { PersonAvatar } from '../ui/UserChip';
 import { usePerson } from '../ui/usePerson';
 import { checkName } from '../admin/adminModel';
-import { removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether } from '../checks/model';
-import { nextFieldId, referenceKindName } from '../config/model';
+import { groupOf, removeRow, rowNumbers, rowsOf, sameTimeOf, setCheckpoint, setSameTime } from '../checks/model';
+import { newKindId, nextFieldId, referenceKindName } from '../config/model';
+import { docLanguage, inLanguages, teamLanguage, teamLanguages } from '../reference/languages';
 import { saveRows } from '../checks/checkActions';
 import { styles } from '../checks/checkStyles';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { teamLanguage } from '../reference/languages';
+import { ShowsSection } from '../checks/ShowsSection';
+import { setParts } from '../checks/showActions';
+import { isAudio, partsOf, type ShowPart } from '../checks/showsModel';
 import { MakesFields } from '../writing/StepMaking';
 
 // ---- shared parts ------------------------------------------------------------------------
@@ -77,48 +80,76 @@ function RemoveQuestion(props: { onPress: () => void }) {
   );
 }
 
+/** A tick for a pick-many row. */
+function Tick(props: { on: boolean }) {
+  return <View style={[styles.tick, props.on && styles.tickOn]}>{props.on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>;
+}
+
+/** Recording a version, as a step: what the recorder shows (decisions.md 130). */
+function RecordEditor({ ctx }: { ctx: Ctx }) {
+  const language = languageName(ctx.org.state, ctx.language.languageId);
+  const name = t('checks.recording');
+  return (
+    <Screen header={<Header title={name} sub={language} onBack={ctx.back} />}>
+      <ShowsSection ctx={ctx} kindId={RECORD_STEP} name={name} canEdit={ctx.session.can('manage_flows')} />
+    </Screen>
+  );
+}
+
+/**
+ * One check, or one of its parts as a page of its own (`part`): its people,
+ * its questions, and each help with parts inside it (decisions.md 130).
+ */
 export function CheckEditor(ctx: Ctx) {
+  const part = ctx.params['part'];
+  if (part === 'people') return <PeoplePage ctx={ctx} />;
+  if (part === 'questions') return <QuestionsPage ctx={ctx} />;
+  if (part === 'bible' || part === 'guide' || part === 'notes' || part === 'earlier') return <ShowsPage ctx={ctx} part={part} />;
+  if (ctx.params['kindId'] === RECORD_STEP) return <RecordEditor ctx={ctx} />;
+  return <OneCheck ctx={ctx} />;
+}
+
+/** The check's name, its place and the language, for every page of it; null while the language loads or when it is gone. */
+function useCheck(ctx: Ctx) {
   const state = ctx.language.state;
-  const org = ctx.org.state;
-  const languageId = ctx.language.languageId;
   const kindId = ctx.params['kindId'] ?? '';
-  const language = languageName(org, languageId);
-  const lib = useLibrary(ctx);
   const known = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const rows = useMemo(() => (state ? rowsOf(deriveFlow(state).steps) : []), [state]);
-  const [picking, setPicking] = useState<string[] | null>(null);
-  const [question, setQuestion] = useState<QuestionDraft | null>(null);
+  const i = rows.findIndex((r) => r.kindId === kindId);
+  const name = kindId === RECORD_STEP ? t('checks.recording') : checkName(kindId, known);
+  const language = languageName(ctx.org.state, ctx.language.languageId);
+  return { state, kindId, known, rows, i, name, language };
+}
+
+function Gone(props: { ctx: Ctx; name: string; loading: boolean }) {
+  return (
+    <Screen header={<Header title={props.name} onBack={props.ctx.back} />}>
+      <EmptyState icon="flow" title={props.loading ? t('common.loading') : t('checks.gone')} />
+    </Screen>
+  );
+}
+
+function OneCheck({ ctx }: { ctx: Ctx }) {
+  const { state, kindId, known, rows, i, name, language } = useCheck(ctx);
+  const languageId = ctx.language.languageId;
+  const lib = useLibrary(ctx);
   const [helping, setHelping] = useState(false);
   const [writing, setWriting] = useState<{ title: string; text: string } | null>(null);
-  const look = usePerson();
+  const [together, setTogether] = useState<string[] | null>(null);
+  const [checking, setChecking] = useState(false);
   const items = lib.items('material').filter((it) => it.current && !it.archived);
   const docs = useLibraryDocs(lib.orgId, items.map((it) => it.current), { deps: false });
-  const i = rows.findIndex((r) => r.kindId === kindId);
-  const name = checkName(kindId, known);
-  if (!state || i < 0) {
-    return (
-      <Screen header={<Header title={name} onBack={ctx.back} />}>
-        <EmptyState icon="flow" title={state ? t('checks.gone') : t('common.loading')} />
-      </Screen>
-    );
-  }
+  if (!state || i < 0) return <Gone ctx={ctx} name={name} loading={!state} />;
   const row = rows[i]!;
   const number = rowNumbers(rows)[i]!;
   const people = checkPeople(state, kindId);
   const helps = checkHelps(state, kindId);
   const questions = questionsForKind(state, kindId);
-  const mayTeams = ctx.session.can('manage_teams');
   const mayFlows = ctx.session.can('manage_flows');
-  const mayQuestions = ctx.session.can('fill_reference');
   const mayWrite = ctx.session.can('manage_reference');
-
-  async function setPeople(next: string[]) {
-    const s = ctx.language.state;
-    if (!s) return;
-    const plan = checkPeopleSpecs(s, { commandId: Crypto.randomUUID(), kindId, people: next, kinds: rows.map((r) => r.kindId), nameOf: (k) => checkName(k, known) });
-    if (!plan.specs.length) return;
-    await ctx.act(plan.specs, t('checks.peopleSaved', { check: name, count: next.length }), plan.undo).catch(() => {});
-  }
+  const kind = kindOf(state, kindId);
+  const others = sameTimeOf(rows, i);
+  const open = (part: string) => ctx.go('check_editor', { languageId, kindId, part });
 
   async function setHelp(help: CheckHelp, linked: boolean, before: EventSpec[] = []) {
     const s = ctx.language.state;
@@ -126,12 +157,269 @@ export function CheckEditor(ctx: Ctx) {
     const commandId = Crypto.randomUUID();
     const specs = [...before, ...checkHelpSpecs(s, { commandId, kindId, help, linked })];
     if (!specs.length) return;
-    const undo = () => {
-      const now = ctx.language.state;
-      return now ? checkHelpSpecs(now, { commandId: `${commandId}:undo`, kindId, help, linked: !linked }) : [];
-    };
-    await ctx.act(specs, linked ? t('checks.helpAdded', { check: name }) : t('checks.helpRemoved', { check: name }), undo).catch(() => {});
+    // No Undo: the help is put back from Add a help (no timed undo toasts, Caleb 2026-10-16).
+    await ctx.act(specs, linked ? t('checks.helpAdded', { check: name }) : t('checks.helpRemoved', { check: name })).catch(() => {});
   }
+
+  async function writeNote(w: { title: string; text: string }) {
+    const s = ctx.language.state;
+    if (!s) return;
+    const materialId = `note-${Crypto.randomUUID()}`;
+    let define: EventSpec[];
+    try {
+      define = commands(s, indexesFor(s)).defineMaterial({ commandId: Crypto.randomUUID(), materialId, kind: 'note', title: w.title, scope: {}, fields: [{ fieldId: 'body', text: w.text }] });
+    } catch (e) {
+      ctx.toast(t('common.notSaved', { reason: failureMessage('write note', e) })); // i18n-ignore: log label
+      return;
+    }
+    await setHelp({ materialId }, true, define);
+  }
+
+  /** Who listens to what this check makes: another check, or a new check of its own right after it. */
+  function setCheckedBy(target: string | 'own') {
+    const s = ctx.language.state;
+    if (!s || !kind.produces) return;
+    const c = commands(s, indexesFor(s));
+    const own = target === 'own'
+      ? { id: newKindId(t('checks.ownCheckName', { name }), known.map((k) => k.id)), name: t('checks.ownCheckName', { name }) }
+      : null;
+    const checkedBy = own ? own.id : target;
+    const before = [
+      ...(own ? c.defineKind({ commandId: Crypto.randomUUID(), kindId: own.id, name: own.name, description: '', usualReviewer: '' }) : []),
+      ...c.defineKind({
+        commandId: Crypto.randomUUID(), kindId, name: kind.name, description: kind.description, usualReviewer: kind.usualReviewer,
+        ...(kind.withholdsContext ? { withholdsContext: true } : {}), produces: { ...kind.produces, checkedBy }
+      })
+    ];
+    // A check of its own goes right after this check's step.
+    const group = groupOf(rows, i);
+    const next = own ? [...rows.slice(0, group.at(-1)! + 1), { kindId: own.id, together: false, checkpoint: false }, ...rows.slice(group.at(-1)! + 1)] : rows;
+    void saveRows(ctx, next, t('checks.saved', { language }), before);
+  }
+  const checkers = rows.filter((r, j) => j !== i && !kindOf(state, r.kindId).produces);
+  const checkedByName = kind.produces ? checkName(kind.produces.checkedBy, known) : '';
+
+  // A step that makes something (decisions.md 131): what it turns, into what, in which language, and what happens to it.
+  const makes = kind.makes;
+  const reference = teamLanguage(ctx.org.state, state, languageId);
+  const setMakes = (next: MakesSpec) => {
+    const s = ctx.language.state;
+    if (!s) return;
+    const before = makes;
+    void ctx.act(commands(s, indexesFor(s)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: next }), t('checks.saved', { language }),
+      before ? () => { const now = ctx.language.state; return now ? commands(now, indexesFor(now)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: before }) : []; } : undefined)
+      .catch(() => {});
+  };
+  // Words added here, before a step that makes the next version, stay with the older version (decision 131).
+  const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
+  // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
+  const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);
+  const looksAt = kind.looksAt ?? null;
+  const setLooksAt = (maker: string | null) => {
+    const s = ctx.language.state;
+    if (!s || maker === looksAt) return;
+    void ctx.act(commands(s, indexesFor(s)).setCheckLooksAt({ commandId: Crypto.randomUUID(), kindId, makerKindId: maker }), t('checks.saved', { language })).catch(() => {});
+  };
+
+  // What can be linked: the language's own notes, and the organization's notes, guides and Bibles.
+  const ownNotes = materialsFor(state).filter((m) => !['questions', 'key_terms', 'fia_study'].includes(m.kind));
+  const all = items.map((it) => ({ it, kind: refKindOf(docs.get(it.current)), language: docLanguage(docs.get(it.current)) }))
+    .filter((x) => x.kind === 'note' || x.kind === 'other' || x.kind === 'guide' || x.kind === 'source');
+  // Helps are offered in the language the team's material is in, set once for the language (Caleb, 2026-10-16).
+  const team = teamLanguages(ctx.org.state, state, languageId);
+  const library = all.filter((x) => inLanguages(x.language, team));
+  const linked = new Set(helps.map((h) => ('itemId' in h ? `item:${h.itemId}` : `material:${h.materialId}`)));
+  const linkedHelp = (on: boolean) => (on ? t('checks.helpOnHelp') : t('checks.helpOffHelp'));
+  const tick = (on: boolean) => <Tick on={on} />;
+
+  return (
+    <Screen header={<Header title={name} sub={t('checks.checkOf', { n: formatNumber(number), language })} onBack={ctx.back} />}>
+      {makes ? (
+        <>
+          <SectionLabel label={t('writing.step.whatItMakes')} />
+          <MakesFields makes={makes} own={language} reference={reference} onChange={setMakes} disabled={!mayFlows}
+            {...(laterVersion ? { warning: t('writing.step.addedBeforeVersion', { step: laterVersion.name }) } : {})} />
+        </>
+      ) : makersBefore.length > 0 ? (
+        <>
+          <SectionLabel label={t('writing.step.reads')} />
+          <ChipRow>
+            <Chip label={t('writing.step.theVersion')} on={!looksAt} help={t('writing.help.readsVersion')} onPress={() => mayFlows && setLooksAt(null)} />
+            {makersBefore.map((m) => <Chip key={m.id} label={t('writing.step.whatMade', { step: m.name })} icon={m.makes!.to === 'writing' ? 'edit' : 'mic'}
+              help={t('writing.help.readsMade', { step: m.name })} on={looksAt === m.id} onPress={() => mayFlows && setLooksAt(m.id)} />)}
+          </ChipRow>
+        </>
+      ) : null}
+      <Group>
+        <Row icon="people" label={t('checks.people')} sub={people.length ? people.map((id) => ctx.name(id)).join(', ') : t('checks.anyone')}
+          help={t('checks.peopleOpenHelp')} onPress={() => open('people')} />
+        <Row icon="chat" label={t('checks.questions')} sub={questions.length ? t('checks.questionsCount', { count: questions.length }) : t('checks.noQuestions')}
+          help={t('checks.questionsOpenHelp')} onPress={() => open('questions')} last />
+      </Group>
+
+      <ShowsSection ctx={ctx} kindId={kindId} name={name} canEdit={mayFlows} />
+
+      <SectionLabel label={t('checks.helps')} />
+      <Group>
+        {helps.map((h) => {
+          const l = helpLabel(state, lib, h);
+          return (
+            <Row key={'itemId' in h ? h.itemId : h.materialId} icon={l.icon} label={l.name} sub={l.kind || undefined}
+              right={mayFlows ? <IconBtn name="close" label={t('checks.removeHelp', { name: l.name })} help={t('checks.unlinkHelp')} onPress={() => void setHelp(h, false)} bg="transparent" color={C.muted} /> : undefined} />
+          );
+        })}
+        {helps.length === 0 && !mayFlows ? <Row label={t('checks.noHelps')} last /> : null}
+        {mayFlows ? <Row icon="plus" label={t('checks.addHelp')} help={t('checks.addHelpHelp')} onPress={() => setHelping(true)} last /> : null}
+      </Group>
+
+      {mayFlows ? (
+        <Group>
+          <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
+            right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} help={row.checkpoint ? t('admin.lock.on') : t('admin.lock.off')}
+              onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
+          {rows.length > 1 ? (
+            <Row icon="swap" label={t('checks.sameTimeRow')} sub={others.length ? others.map((k) => checkName(k, known)).join(', ') : t('checks.sameTimeNone')}
+              help={t('checks.sameTimeHelp')} onPress={() => setTogether(others)} />
+          ) : null}
+          {kind.produces ? (
+            <Row icon="arrowR" label={t('checks.checkedAt')} sub={checkedByName} help={t('checks.checkedAtHelp')} onPress={() => setChecking(true)} />
+          ) : null}
+          <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} help={t('checks.removeCheckHelp')} last
+            onPress={() => { void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((ok) => { if (ok) ctx.back(); }); }} />
+        </Group>
+      ) : null}
+
+      <Sheet visible={together !== null} title={t('checks.sameTimeRow')} sub={name} onClose={() => setTogether(null)}
+        footer={<PrimaryBtn label={t('common.done')} help={t('checks.sameTimeDoneHelp')} onPress={() => {
+          const next = together ?? others;
+          setTogether(null);
+          void saveRows(ctx, setSameTime(rows, i, next), t('checks.saved', { language }));
+        }} />}>
+        <Group>
+          {rows.filter((_, j) => j !== i).map((r, j, a) => {
+            const on = (together ?? []).includes(r.kindId);
+            return (
+              <Row key={r.kindId} leading={<KindIcon kindId={r.kindId} size={40} />} label={checkName(r.kindId, known)} role="checkbox" checked={on} right={tick(on)}
+                help={on ? t('checks.sameTimeOnHelp2') : t('checks.sameTimeOffHelp2')} last={j === a.length - 1}
+                onPress={() => setTogether((cur) => (cur ?? []).includes(r.kindId) ? (cur ?? []).filter((x) => x !== r.kindId) : [...(cur ?? []), r.kindId])} />
+            );
+          })}
+        </Group>
+      </Sheet>
+
+      <Sheet visible={checking} title={t('checks.checkedAt')} sub={name} onClose={() => setChecking(false)}>
+        <Group>
+          {checkers.map((r) => {
+            const on = kind.produces?.checkedBy === r.kindId;
+            return (
+              <Row key={r.kindId} leading={<KindIcon kindId={r.kindId} size={40} />} label={checkName(r.kindId, known)} role="radio" selected={on}
+                right={on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : undefined} help={t('checks.checkedAtPickHelp')}
+                onPress={() => { setChecking(false); if (!on) setCheckedBy(r.kindId); }} />
+            );
+          })}
+          <Row icon="plus" label={t('checks.ownCheck')} help={t('checks.ownCheckHelp')} last onPress={() => { setChecking(false); setCheckedBy('own'); }} />
+        </Group>
+      </Sheet>
+
+      <Sheet visible={helping} title={t('checks.addHelp')} sub={name} onClose={() => setHelping(false)}
+        footer={<PrimaryBtn label={t('common.done')} help={t('checks.helpsDoneHelp')} onPress={() => setHelping(false)} />}>
+        <SectionLabel label={t('checks.notes')} />
+        <Group>
+          {ownNotes.map((m) => {
+            const on = linked.has(`material:${m.materialId}`);
+            return <Row key={m.materialId} icon="note" label={m.title} sub={referenceKindName(m.kind)} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ materialId: m.materialId }, !on)} />;
+          })}
+          {library.filter((x) => x.kind === 'note' || x.kind === 'other').map(({ it }) => {
+            const on = linked.has(`item:${it.itemId}`);
+            return <Row key={it.itemId} icon="note" label={it.name} sub={it.description || undefined} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
+          })}
+          {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} help={t('checks.writeNoteHelp')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
+        </Group>
+        {library.some((x) => x.kind === 'guide' || x.kind === 'source') ? (
+          <>
+            <SectionLabel label={t('checks.guidesAndBibles')} />
+            <Group>
+              {library.filter((x) => x.kind === 'guide' || x.kind === 'source').map(({ it, kind: k }, j, a) => {
+                const on = linked.has(`item:${it.itemId}`);
+                return <Row key={it.itemId} icon={k === 'source' ? 'book' : 'sparkle'} label={it.name} role="checkbox" checked={on} right={tick(on)} last={j === a.length - 1} help={linkedHelp(on)}
+                  onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
+              })}
+            </Group>
+          </>
+        ) : null}
+      </Sheet>
+
+      <Sheet visible={writing !== null} title={t('checks.writeNote')} sub={name} onClose={() => setWriting(null)}
+        footer={writing ? <PrimaryBtn label={t('common.save')} icon="check" disabled={!writing.title.trim() || !writing.text.trim()} onPress={() => { const w = writing; setWriting(null); void writeNote(w); }} /> : undefined}>
+        {writing ? (
+          <>
+            <Field label={t('checks.noteTitle')} value={writing.title} onChangeText={(title) => setWriting({ ...writing, title })} autoCapitalize="sentences" />
+            <Field label={t('checks.noteText')} value={writing.text} onChangeText={(text) => setWriting({ ...writing, text })} multiline autoCapitalize="sentences" />
+          </>
+        ) : null}
+      </Sheet>
+    </Screen>
+  );
+}
+
+/** A check's people, on a page of their own. */
+function PeoplePage({ ctx }: { ctx: Ctx }) {
+  const { state, kindId, known, rows, i, name } = useCheck(ctx);
+  const org = ctx.org.state;
+  const languageId = ctx.language.languageId;
+  const look = usePerson();
+  const [picking, setPicking] = useState<string[] | null>(null);
+  if (!state || i < 0) return <Gone ctx={ctx} name={name} loading={!state} />;
+  const people = checkPeople(state, kindId);
+  const mayTeams = ctx.session.can('manage_teams');
+  const eligible = [...new Set([...[...languagePeople(org, languageId).values()].filter((p) => p.privileges.has('review')).map((p) => p.profileId), ...people])]
+    .sort((a, b) => ctx.name(a).localeCompare(ctx.name(b)));
+  async function setPeople(next: string[]) {
+    const s = ctx.language.state;
+    if (!s) return;
+    const plan = checkPeopleSpecs(s, { commandId: Crypto.randomUUID(), kindId, people: next, kinds: rows.map((r) => r.kindId), nameOf: (k) => checkName(k, known) });
+    if (!plan.specs.length) return;
+    // No Undo: whoever was taken off is added back from Add people (no timed undo toasts).
+    await ctx.act(plan.specs, t('checks.peopleSaved', { check: name, count: next.length })).catch(() => {});
+  }
+  return (
+    <Screen header={<Header title={t('checks.people')} sub={name} onBack={ctx.back} />}>
+      <Group>
+        {people.map((id, j) => (
+          <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={ctx.name(id)} sub={roleIn(org, id, languageId) || undefined}
+            right={mayTeams ? <IconBtn name="close" label={t('checks.removePerson', { name: ctx.name(id) })} help={t('checks.removePersonHelp')} onPress={() => void setPeople(people.filter((p) => p !== id))} bg="transparent" color={C.muted} /> : undefined}
+            last={!mayTeams && j === people.length - 1} />
+        ))}
+        {people.length === 0 && !mayTeams ? <Row label={t('checks.anyone')} last /> : null}
+        {mayTeams ? <Row icon="plus" label={t('checks.addPeople')} help={t('checks.addPeopleHelp')} onPress={() => setPicking(people)} last /> : null}
+      </Group>
+      <Sheet visible={picking !== null} title={t('checks.addPeople')} sub={name} onClose={() => setPicking(null)}
+        footer={<PrimaryBtn label={t('common.done')} help={t('checks.peopleDoneHelp')} onPress={() => { const next = picking ?? people; setPicking(null); void setPeople(next); }} />}>
+        {eligible.length === 0 ? <Banner icon="people" title={t('checks.nobodyYet')} body={t('checks.nobodyYetBody')} /> : (
+          <Group>
+            {eligible.map((id, j) => {
+              const on = (picking ?? []).includes(id);
+              return (
+                <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={id === ctx.session.actorId ? t('checks.you') : ctx.name(id)}
+                  sub={roleIn(org, id, languageId) || undefined} role="checkbox" checked={on} right={<Tick on={on} />} last={j === eligible.length - 1}
+                  help={on ? t('checks.personOnHelp') : t('checks.personOffHelp')}
+                  onPress={() => setPicking((cur) => (cur ?? []).includes(id) ? (cur ?? []).filter((x) => x !== id) : [...(cur ?? []), id])} />
+              );
+            })}
+          </Group>
+        )}
+      </Sheet>
+    </Screen>
+  );
+}
+
+/** A check's questions, on a page of their own. */
+function QuestionsPage({ ctx }: { ctx: Ctx }) {
+  const { state, kindId, i, name } = useCheck(ctx);
+  const [question, setQuestion] = useState<QuestionDraft | null>(null);
+  if (!state || i < 0) return <Gone ctx={ctx} name={name} loading={!state} />;
+  const questions = questionsForKind(state, kindId);
+  const mayQuestions = ctx.session.can('fill_reference');
 
   async function saveQuestion(q: QuestionDraft, remove = false) {
     const s = ctx.language.state;
@@ -162,85 +450,8 @@ export function CheckEditor(ctx: Ctx) {
     await ctx.act(specs, remove ? t('checks.questionRemoved') : t('checks.questionSaved')).catch(() => {});
   }
 
-  async function writeNote(w: { title: string; text: string }) {
-    const s = ctx.language.state;
-    if (!s) return;
-    const materialId = `note-${Crypto.randomUUID()}`;
-    let define: EventSpec[];
-    try {
-      define = commands(s, indexesFor(s)).defineMaterial({ commandId: Crypto.randomUUID(), materialId, kind: 'note', title: w.title, scope: {}, fields: [{ fieldId: 'body', text: w.text }] });
-    } catch (e) {
-      ctx.toast(t('common.notSaved', { reason: failureMessage('write note', e) })); // i18n-ignore: log label
-      return;
-    }
-    await setHelp({ materialId }, true, define);
-  }
-
-  // What can be linked: the language's own notes, and the organization's notes, guides and Bibles.
-  const ownNotes = materialsFor(state).filter((m) => !['questions', 'key_terms', 'fia_study'].includes(m.kind));
-  const library = items.map((it) => ({ it, kind: refKindOf(docs.get(it.current)) })).filter((x) => x.kind === 'note' || x.kind === 'other' || x.kind === 'guide' || x.kind === 'source');
-  const linked = new Set(helps.map((h) => ('itemId' in h ? `item:${h.itemId}` : `material:${h.materialId}`)));
-  const linkedHelp = (on: boolean) => (on ? t('checks.helpOnHelp') : t('checks.helpOffHelp'));
-  const tick = (on: boolean) => (
-    <View style={[styles.tick, on && styles.tickOn]}>{on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>
-  );
-  const eligible = [...new Set([...[...languagePeople(org, languageId).values()].filter((p) => p.privileges.has('review')).map((p) => p.profileId), ...people])]
-    .sort((a, b) => ctx.name(a).localeCompare(ctx.name(b)));
-  const previous = i > 0 ? checkName(rows[i - 1]!.kindId, known) : '';
-
-  // A step that makes something (decisions.md 130): what it turns, into what, in which language, and what happens to it.
-  const kind = known.find((k) => k.id === kindId);
-  const makes = kind?.makes;
-  const reference = teamLanguage(org, state, languageId);
-  const setMakes = (next: MakesSpec) => {
-    const s = ctx.language.state;
-    if (!s) return;
-    const before = makes;
-    void ctx.act(commands(s, indexesFor(s)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: next }), t('checks.saved', { language }),
-      before ? () => { const now = ctx.language.state; return now ? commands(now, indexesFor(now)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: before }) : []; } : undefined)
-      .catch(() => {});
-  };
-  // Words added here, before a step that makes the next version, stay with the older version (decision 130).
-  const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
-  // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
-  const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);
-  const looksAt = kind?.looksAt ?? null;
-  const setLooksAt = (maker: string | null) => {
-    const s = ctx.language.state;
-    if (!s || maker === looksAt) return;
-    void ctx.act(commands(s, indexesFor(s)).setCheckLooksAt({ commandId: Crypto.randomUUID(), kindId, makerKindId: maker }), t('checks.saved', { language })).catch(() => {});
-  };
-
   return (
-    <Screen header={<Header title={name} sub={t('checks.checkOf', { n: formatNumber(number), language })} onBack={ctx.back} />}>
-      {makes ? (
-        <>
-          <SectionLabel label={t('writing.step.whatItMakes')} />
-          <MakesFields makes={makes} own={language} reference={reference} onChange={setMakes} disabled={!mayFlows}
-            {...(laterVersion ? { warning: t('writing.step.addedBeforeVersion', { step: laterVersion.name }) } : {})} />
-        </>
-      ) : makersBefore.length > 0 ? (
-        <>
-          <SectionLabel label={t('writing.step.reads')} />
-          <ChipRow>
-            <Chip label={t('writing.step.theVersion')} on={!looksAt} help={t('writing.help.readsVersion')} onPress={() => mayFlows && setLooksAt(null)} />
-            {makersBefore.map((m) => <Chip key={m.id} label={t('writing.step.whatMade', { step: m.name })} icon={m.makes!.to === 'writing' ? 'edit' : 'mic'}
-              help={t('writing.help.readsMade', { step: m.name })} on={looksAt === m.id} onPress={() => mayFlows && setLooksAt(m.id)} />)}
-          </ChipRow>
-        </>
-      ) : null}
-      <SectionLabel label={t('checks.people')} />
-      <Group>
-        {people.map((id, j) => (
-          <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={ctx.name(id)} sub={roleIn(org, id, languageId) || undefined}
-            right={mayTeams ? <IconBtn name="close" label={t('checks.removePerson', { name: ctx.name(id) })} help={t('checks.removePersonHelp')} onPress={() => void setPeople(people.filter((p) => p !== id))} bg="transparent" color={C.muted} /> : undefined}
-            last={!mayTeams && j === people.length - 1} />
-        ))}
-        {people.length === 0 && !mayTeams ? <Row label={t('checks.anyone')} last /> : null}
-        {mayTeams ? <Row icon="plus" label={t('checks.addPeople')} help={t('checks.addPeopleHelp')} onPress={() => setPicking(people)} last /> : null}
-      </Group>
-
-      <SectionLabel label={t('checks.questions')} />
+    <Screen header={<Header title={t('checks.questions')} sub={name} onBack={ctx.back} />}>
       <Group>
         {questions.map((sq) => {
           const [materialId, fieldId] = sq.q.id.split('#');
@@ -248,60 +459,13 @@ export function CheckEditor(ctx: Ctx) {
           const type = questionTypes().find((x) => x.id === sq.q.type)?.label ?? '';
           return (
             <Row key={sq.q.id} icon="chat" label={sq.q.text}
-              sub={[type, sq.required ? t('common.required') : '', sq.source === 'org' ? t('checks.fromLangQuest') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
+              sub={[type, sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
               {...(editable ? { onPress: () => setQuestion({ materialId: materialId!, fieldId: fieldId!, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
           );
         })}
         {questions.length === 0 && !mayQuestions ? <Row label={t('checks.noQuestions')} last /> : null}
         {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} help={t('checks.addQuestionHelp')} onPress={() => setQuestion({ materialId: null, fieldId: null, text: '', type: 'yesno', required: false })} last /> : null}
       </Group>
-
-      <SectionLabel label={t('checks.helps')} />
-      <Group>
-        {helps.map((h) => {
-          const l = helpLabel(state, lib, h);
-          return (
-            <Row key={'itemId' in h ? h.itemId : h.materialId} icon={l.icon} label={l.name} sub={l.kind || undefined}
-              right={mayFlows ? <IconBtn name="close" label={t('checks.removeHelp', { name: l.name })} help={t('checks.unlinkHelp')} onPress={() => void setHelp(h, false)} bg="transparent" color={C.muted} /> : undefined} />
-          );
-        })}
-        {helps.length === 0 && !mayFlows ? <Row label={t('checks.noHelps')} last /> : null}
-        {mayFlows ? <Row icon="plus" label={t('checks.addHelp')} help={t('checks.addHelpHelp')} onPress={() => setHelping(true)} last /> : null}
-      </Group>
-
-      {mayFlows ? (
-        <Group>
-          <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
-            right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} help={row.checkpoint ? t('admin.lock.on') : t('admin.lock.off')}
-              onToggle={() => void saveRows(ctx, setCheckpoint(rows, i, !row.checkpoint), t('checks.saved', { language }))} />} />
-          {i > 0 ? (
-            <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
-              right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })}
-                help={row.together ? t('checks.sameTimeOnHelp', { check: previous }) : t('checks.sameTimeOffHelp', { check: previous })}
-                onToggle={() => void saveRows(ctx, setTogether(rows, i, !row.together), t('checks.saved', { language }))} />} />
-          ) : null}
-          <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} help={t('checks.removeCheckHelp')} last
-            onPress={() => { void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((ok) => { if (ok) ctx.back(); }); }} />
-        </Group>
-      ) : null}
-
-      <Sheet visible={picking !== null} title={t('checks.addPeople')} sub={name} onClose={() => setPicking(null)}
-        footer={<PrimaryBtn label={t('common.done')} help={t('checks.peopleDoneHelp')} onPress={() => { const next = picking ?? people; setPicking(null); void setPeople(next); }} />}>
-        {eligible.length === 0 ? <Banner icon="people" title={t('checks.nobodyYet')} body={t('checks.nobodyYetBody')} /> : (
-          <Group>
-            {eligible.map((id, j) => {
-              const on = (picking ?? []).includes(id);
-              return (
-                <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={id === ctx.session.actorId ? t('checks.you') : ctx.name(id)}
-                  sub={roleIn(org, id, languageId) || undefined} role="checkbox" checked={on} right={tick(on)} last={j === eligible.length - 1}
-                  help={on ? t('checks.personOnHelp') : t('checks.personOffHelp')}
-                  onPress={() => setPicking((cur) => (cur ?? []).includes(id) ? (cur ?? []).filter((x) => x !== id) : [...(cur ?? []), id])} />
-              );
-            })}
-          </Group>
-        )}
-      </Sheet>
-
       <Sheet visible={question !== null} title={question?.fieldId ? t('checks.editQuestion') : t('checks.addQuestion')} sub={name} onClose={() => setQuestion(null)}
         footer={question ? (
           <>
@@ -326,44 +490,42 @@ export function CheckEditor(ctx: Ctx) {
           </>
         ) : null}
       </Sheet>
+    </Screen>
+  );
+}
 
-      <Sheet visible={helping} title={t('checks.addHelp')} sub={name} onClose={() => setHelping(false)}
-        footer={<PrimaryBtn label={t('common.done')} help={t('checks.helpsDoneHelp')} onPress={() => setHelping(false)} />}>
-        <SectionLabel label={t('checks.notes')} />
-        <Group>
-          {ownNotes.map((m) => {
-            const on = linked.has(`material:${m.materialId}`);
-            return <Row key={m.materialId} icon="note" label={m.title} sub={referenceKindName(m.kind)} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ materialId: m.materialId }, !on)} />;
-          })}
-          {library.filter((x) => x.kind === 'note' || x.kind === 'other').map(({ it }) => {
-            const on = linked.has(`item:${it.itemId}`);
-            return <Row key={it.itemId} icon="note" label={it.name} sub={it.description || undefined} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
-          })}
-          {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} help={t('checks.writeNoteHelp')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
-        </Group>
-        {library.some((x) => x.kind === 'guide' || x.kind === 'source') ? (
-          <>
-            <SectionLabel label={t('checks.guidesAndBibles')} />
-            <Group>
-              {library.filter((x) => x.kind === 'guide' || x.kind === 'source').map(({ it, kind }, j, a) => {
-                const on = linked.has(`item:${it.itemId}`);
-                return <Row key={it.itemId} icon={kind === 'source' ? 'book' : 'sparkle'} label={it.name} role="checkbox" checked={on} right={tick(on)} last={j === a.length - 1} help={linkedHelp(on)}
-                  onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
-              })}
-            </Group>
-          </>
-        ) : null}
-      </Sheet>
-
-      <Sheet visible={writing !== null} title={t('checks.writeNote')} sub={name} onClose={() => setWriting(null)}
-        footer={writing ? <PrimaryBtn label={t('common.save')} icon="check" disabled={!writing.title.trim() || !writing.text.trim()} onPress={() => { const w = writing; setWriting(null); void writeNote(w); }} /> : undefined}>
-        {writing ? (
-          <>
-            <Field label={t('checks.noteTitle')} value={writing.title} onChangeText={(title) => setWriting({ ...writing, title })} autoCapitalize="sentences" />
-            <Field label={t('checks.noteText')} value={writing.text} onChangeText={(text) => setWriting({ ...writing, text })} multiline autoCapitalize="sentences" />
-          </>
-        ) : null}
-      </Sheet>
+/**
+ * One help a step shows, on a page of its own (decisions.md 130): a switch
+ * for each of its parts, the Bible and the guide as audio and text, notes and
+ * earlier versions by the step they were added during.
+ */
+function ShowsPage({ ctx, part }: { ctx: Ctx; part: 'bible' | 'guide' | 'notes' | 'earlier' }) {
+  const { state, kindId, known, i, name } = useCheck(ctx);
+  if (!state || (i < 0 && kindId !== RECORD_STEP)) return <Gone ctx={ctx} name={name} loading={!state} />;
+  const canEdit = ctx.session.can('manage_flows');
+  const title = part === 'bible' ? t('checks.shows.bible') : part === 'guide' ? t('checks.shows.guide') : part === 'notes' ? t('checks.shows.notes') : t('checks.shows.earlier');
+  const parts = partsOf(state, kindId, part);
+  const labelOf = (p: ShowPart) => (p.from !== undefined ? (p.from === RECORD_STEP ? t('checks.recording') : checkName(p.from, known)) : isAudio(p.what) ? t('checks.shows.audio') : t('checks.shows.text'));
+  const iconOf = (p: ShowPart) => (p.from !== undefined ? (p.from === RECORD_STEP ? <View style={styles.mic}><Ico name="mic" size={18} color={C.white} /></View> : <KindIcon kindId={p.from} size={40} />) : null);
+  const set = (p: ShowPart) => {
+    if (!canEdit) return;
+    const what = t('checks.shows.partLabel', { help: title, part: labelOf(p) });
+    void setParts(ctx, kindId, [p], !p.on, p.on ? t('checks.shows.hiddenToast', { what, check: name }) : t('checks.shows.shownToast', { what, check: name }));
+  };
+  return (
+    <Screen header={<Header title={title} sub={name} onBack={ctx.back} />}>
+      {part === 'notes' || part === 'earlier' ? <SectionLabel label={part === 'notes' ? t('checks.shows.notesFrom') : t('checks.shows.earlierFrom')} /> : null}
+      <Group>
+        {parts.map((p, j) => {
+          const leading = iconOf(p);
+          return (
+            <Row key={p.key} {...(leading ? { leading } : { icon: isAudio(p.what) ? 'listen' as const : 'book' as const })} label={labelOf(p)}
+              role="switch" checked={p.on} muted={!p.on} last={j === parts.length - 1}
+              right={<Toggle testID={`toggle-part-${p.key}`} on={p.on} label={labelOf(p)} disabled={!canEdit}
+                help={p.on ? t('checks.shows.onHelp') : t('checks.shows.offHelp')} onToggle={() => set(p)} />} />
+          );
+        })}
+      </Group>
     </Screen>
   );
 }

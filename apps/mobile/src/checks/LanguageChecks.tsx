@@ -1,7 +1,7 @@
 // A language's own checks (decision 91): the list, with who is on each and its
 // helps, as the flow editor and New language show it (screens/config.tsx).
 // screens/checks.tsx edits one check.
-import { checkHelps, checkPeople, commands, deriveFlow, languageName, questionsForKind, type EventSpec, type KindDef, type MakesSpec } from '@langquest-next/core';
+import { checkHelps, checkPeople, checkShows, commands, deriveFlow, kindOf, languageName, questionsForKind, RECORD_STEP, type EventSpec, type KindDef, type LanguageState, type MakesSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
@@ -30,6 +30,7 @@ import { saveRows } from './checkActions';
 import { styles } from './checkStyles';
 import { teamLanguage } from '../reference/languages';
 import { MakeStepSheet, MakingPresets } from '../writing/StepMaking';
+import { anyFrom, shownLine } from './showsModel';
 
 /** The grip's press while help is on: it explains itself; dragging waits until help is off. */
 const DRAG_HERE = () => undefined;
@@ -37,6 +38,8 @@ const DRAG_HERE = () => undefined;
 function CheckCard(props: {
   ctx: Ctx; row: CheckRow; i: number; n: number; count: number; kinds: KindDef[]; people: string[] | null;
   questions: number; helps: number; readOnly: boolean; height: number;
+  /** What the check hides (decisions.md 130), as a line: "Bible text · Guide text". */ hidden?: ShownLine | null;
+  /** The check that listens to what this step makes (decisions.md 130). */ checkedAt?: string;
   onLayout: (h: number) => void; onMove: (to: number) => void; onLock: () => void; onOpen?: () => void;
   /** What help mode says opening the card shows. */ openHelp?: string;
 }) {
@@ -91,6 +94,10 @@ function CheckCard(props: {
               {props.helps ? <View style={styles.metaPart}><Ico name="book" size={15} color={C.muted} /><Text style={styles.metaText}>{t('checks.helpsCount', { count: props.helps })}</Text></View> : null}
             </View>
           ) : null}
+          {props.checkedAt ? (
+            <View style={styles.metaPart}><Ico name="arrowR" size={15} color={C.muted} /><Text style={styles.metaText} numberOfLines={1}>{props.checkedAt}</Text></View>
+          ) : null}
+          {props.hidden ? <HiddenLine {...props.hidden} /> : null}
         </View>
         <HelpBadge spot={open} />
       </Pressable>
@@ -100,11 +107,47 @@ function CheckCard(props: {
   );
 }
 
+type ShownLine = ReturnType<typeof shownLine>;
+
+/** What a step hides, by a struck eye, or what it still shows, by an open one (decisions.md 130). */
+function HiddenLine(props: NonNullable<ShownLine>) {
+  return (
+    <View style={styles.metaPart}>
+      <Ico name={props.icon} size={15} color={TINT.amberText} />
+      <Text style={[styles.metaText, { color: TINT.amberText, flexShrink: 1 }]} numberOfLines={2}>{props.line}</Text>
+    </View>
+  );
+}
+
+/** What a step hides, from its switches. */
+function hiddenOf(state: LanguageState, kindId: string): ShownLine {
+  return shownLine({ ...checkShows(state, kindId), notes: anyFrom(state, kindId, 'notes'), earlier: anyFrom(state, kindId, 'earlier') });
+}
+
+/** A translator's recording, first in the list: a step too, opened to say what the recorder shows. */
+function RecordCard(props: { hidden: ShownLine; onOpen: () => void }) {
+  const open = useHelpSpot(t('review.checkSteps.translatorRecords'), t('checks.openRecordHelp'), props.onOpen);
+  return (
+    <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={t('review.checkSteps.translatorRecords')}
+      style={({ pressed }) => [styles.card, styles.recordCard, pressed && { opacity: 0.7 }]}>
+      <View style={styles.mic}><Ico name="mic" size={18} color={C.white} /></View>
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <Text style={styles.title}>{t('review.checkSteps.translatorRecords')}</Text>
+        {props.hidden ? <HiddenLine {...props.hidden} /> : null}
+      </View>
+      <Ico name="right" size={20} color={C.faint} />
+      <HelpBadge spot={open} />
+    </Pressable>
+  );
+}
+
 /** The rows as cards, a translator's recording above them, checks that happen together joined by a bar. */
 function CheckList(props: {
   ctx: Ctx; rows: CheckRow[]; kinds: KindDef[]; readOnly: boolean;
   peopleOf?: (kindId: string) => string[]; questionsOf?: (kindId: string) => number; helpsOf?: (kindId: string) => number;
-  onChange: (rows: CheckRow[]) => void; onOpen?: (i: number) => void;
+  /** What each step hides (`record` for the recording), when the list opens them. */ hiddenOf?: (kindId: string) => ShownLine;
+  /** The check that listens to what a step makes. */ checkedAtOf?: (kindId: string) => string | undefined;
+  onChange: (rows: CheckRow[]) => void; onOpen?: (i: number) => void; onOpenRecord?: () => void;
   /** What help mode says opening a check shows, where it is not its people, questions and helps. */ openHelp?: string;
 }) {
   const [height, setHeight] = useState(0);
@@ -119,6 +162,8 @@ function CheckList(props: {
       <CheckCard key={`${r.kindId}#${i}`} ctx={props.ctx} row={r} i={i} n={numbers[i]!} count={rows.length} kinds={props.kinds}
         people={props.peopleOf ? props.peopleOf(r.kindId) : null} questions={props.questionsOf?.(r.kindId) ?? 0} helps={props.helpsOf?.(r.kindId) ?? 0}
         readOnly={props.readOnly} height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
+        {...(props.hiddenOf ? { hidden: props.hiddenOf(r.kindId) } : {})}
+        {...(props.checkedAtOf?.(r.kindId) ? { checkedAt: props.checkedAtOf(r.kindId)! } : {})}
         onMove={(to) => props.onChange(moveRow(rows, i, to))}
         onLock={() => props.onChange(setCheckpoint(rows, i, !r.checkpoint))}
         {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} {...(props.openHelp ? { openHelp: props.openHelp } : {})} />
@@ -126,10 +171,12 @@ function CheckList(props: {
   };
   return (
     <View style={{ gap: space.sm + 2 }}>
-      <View style={styles.start}>
-        <View style={styles.mic}><Ico name="mic" size={18} color={C.white} /></View>
-        <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{t('review.checkSteps.translatorRecords')}</Text>
-      </View>
+      {props.onOpenRecord ? <RecordCard hidden={props.hiddenOf?.(RECORD_STEP) ?? null} onOpen={props.onOpenRecord} /> : (
+        <View style={styles.start}>
+          <View style={styles.mic}><Ico name="mic" size={18} color={C.white} /></View>
+          <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{t('review.checkSteps.translatorRecords')}</Text>
+        </View>
+      )}
       {rows.length === 0 ? (
         <View style={[styles.card, { justifyContent: 'center' }]}>
           <Text style={[txt.sm, { color: C.muted, flex: 1, textAlign: 'center' }]}>{t('review.checkSteps.noChecks')}</Text>
@@ -151,7 +198,7 @@ function CheckList(props: {
   );
 }
 
-/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 130). */
+/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 131). */
 function AddCheckSheet(props: {
   visible: boolean; kinds: KindDef[]; taken: string[]; onClose: () => void; onPick: (k: KindDef, isNew: boolean) => void;
   making?: { own: string; reference: string; onPick: (k: KindDef, makes: MakesSpec) => void; onOwn: () => void };
@@ -162,7 +209,7 @@ function AddCheckSheet(props: {
     <Sheet visible={props.visible} title={t('checks.addCheck')} onClose={props.onClose}>
       {props.making ? (
         <>
-          {/* The shipped back translation, when the language has it, stands for the said one (decision 130). */}
+          {/* The shipped back translation, when the language has it, stands for the said one (decision 131). */}
           <MakingPresets taken={[...props.taken, ...props.kinds.map((k) => k.id), ...(props.taken.includes('bt') ? ['make-bt-said'] : [])]} own={props.making.own} reference={props.making.reference}
             onPick={props.making.onPick} onOwn={props.making.onOwn} />
           <SectionLabel label={t('writing.step.checkIt')} />
@@ -223,7 +270,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   }
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);
   const reference = teamLanguage(ctx.org.state, state, languageId);
-  /** A step that makes something: its kind, what it makes, and its row (decisions.md 130). */
+  /** A step that makes something: its kind, what it makes, and its row (decisions.md 131). */
   const addMaking = (k: KindDef, makes: MakesSpec) => {
     const c = commands(state, indexesFor(state));
     const define = state.reviewKinds[k.id] ? [] : c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer });
@@ -236,7 +283,10 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
         peopleOf={(k) => checkPeople(state, k)}
         questionsOf={(k) => questionsForKind(state, k).length}
         helpsOf={(k) => checkHelps(state, k).length}
-        onChange={save} onOpen={(i) => ctx.go('check_editor', { languageId, kindId: rows[i]!.kindId })} />
+        hiddenOf={(k) => hiddenOf(state, k)}
+        checkedAtOf={(k) => { const by = kindOf(state, k).produces?.checkedBy; return by ? checkName(by, known) : undefined; }}
+        onChange={save} onOpen={(i) => ctx.go('check_editor', { languageId, kindId: rows[i]!.kindId })}
+        onOpenRecord={() => ctx.go('check_editor', { languageId, kindId: RECORD_STEP })} />
       {canManage ? <DashedRow icon="plus" label={t('checks.addCheck')} detail={t('checks.addCheckHelp')} centred onPress={() => setAdding(true)} /> : null}
       {canManage ? (
         <Pressable onPress={startFlow.onPress} accessibilityRole="button" style={({ pressed }) => [styles.quiet, pressed && { opacity: 0.7 }]}>

@@ -94,7 +94,8 @@ export interface Commands {
   withdrawReviews(c: { commandId: string; reviewIds: string[] }): EventSpec[];
   /** Take back a note you added (decisions.md 111). */
   withdrawNote(c: { commandId: string; noteId: string }): EventSpec[];
-  addNote(c: { commandId: string; unitId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string }): EventSpec[];
+  /** `kindId`: the step it is written at (`record` or a check, decisions.md 130). */
+  addNote(c: { commandId: string; unitId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string; kindId?: string }): EventSpec[];
   markStudyStep(c: { commandId: string; unitId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
   /** Tie key terms to a take (TERM-4): the draft being recorded, or a version as it is published. */
@@ -127,7 +128,7 @@ export interface Commands {
    */
   restoreFlow(c: { commandId: string; previous: { flow: FlowSelection | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
 
-  // ---- writing, and steps that make something (writing.ts, decisions.md 130) ----
+  // ---- writing, and steps that make something (writing.ts, decisions.md 131) ----
 
   /** Written parts the log lacks, at most 100 an event. Ids are the caller's `writtenPartId` of NFC text. */
   addWriting(c: { commandId: string; unitId: string; parts: readonly WrittenPart[] }): EventSpec[];
@@ -353,7 +354,7 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
         payload: {
           noteId: `note:${c.commandId}`, unitId: c.unitId, anchor: c.anchor,
           ...(text ? { text } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {}), ...(c.photoHash ? { photoHash: c.photoHash } : {}),
-          ...(onTake ? { onTakeId: onTake } : {})
+          ...(onTake ? { onTakeId: onTake } : {}), ...(c.kindId ? { kindId: c.kindId } : {})
         }
       }];
     },

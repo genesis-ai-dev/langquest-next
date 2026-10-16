@@ -1,4 +1,4 @@
-// Writing a passage (decisions.md 130; demo branch caleb-written-translations,
+// Writing a passage (decisions.md 131; demo branch caleb-written-translations,
 // simple/writing.tsx wWrite, wType, wPublish, wFirstWrite, wBtWrite): the
 // recording workspace's split, with the reference on top and one box per
 // verse below. On top: what is being written from (a version heard verse by
@@ -15,7 +15,7 @@
 // until Done (a draft, decision 127), so nothing half written reaches the
 // grow-only record.
 import {
-  addedTo, commands, madeVersionOf, versesInChapter, writtenCards,
+  addedTo, checkShows, commands, madeVersionOf, RECORD_STEP, versesInChapter, writtenCards,
   type EventSpec, type KindDef, type MakesSpec, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -35,6 +35,8 @@ import { PublishScreen, type DoneAsk } from '../recording/publish';
 import { nextAfterDone, recordCan, sentText, usualTargets } from '../passage/recordModel';
 import { sendTargetLabel } from '../passage/record';
 import { sendToInput } from '../passage/sendTarget';
+import { NoteStepContext } from '../checks/noteStep';
+import { anyFrom, fromFilter } from '../checks/showsModel';
 import { txt } from '../ui/textStyles';
 import { versionTitle, type PassageView } from '../passage/passageView';
 import { SplitPane } from '../recording/SplitPane';
@@ -66,7 +68,10 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
   const me = ctx.session.actorId;
   const idx = indexesFor(state);
   const usage = useUsage();
-  const bible = useBible(ctx, unitId, languageId, { usage });
+  // What this step shows its writer (decisions.md 130): a version is written at the recording's step, what a step makes at that step.
+  const step = mode.kind === 'version' ? RECORD_STEP : mode.step.id;
+  const shows = useMemo(() => checkShows(state, step), [state, step]);
+  const bible = useBible(ctx, unitId, languageId, { usage, shows: { audio: shows.bibleAudio, text: shows.bibleText } });
   const v11n = bible.passage.versification;
   const verseKeys = useMemo(() => passageVerseKeys(bible.passage.range,
     (b, c) => (v11n ? versesInChapter(v11n, b, c) : undefined) ?? catalogVerses(b, c)), [bible.passage.range, v11n]);
@@ -117,15 +122,18 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
 
   // ---- the reference on top ----
   const source = mode.kind === 'make' ? mode.source : mode.kind === 'final' ? { kind: 'version' as const, version: mode.source } : null;
-  const chipIds: Chip[] = [...(source ? ['source' as const] : []), ...(bible.hasVerses ? ['bible' as const] : []), 'notes'];
+  const notesFrom = useMemo(() => fromFilter(state, step, 'notes'), [state, step]);
+  const notes = p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP));
+  const chipIds: Chip[] = [...(source ? ['source' as const] : []), ...(bible.hasVerses && (shows.bibleAudio || shows.bibleText) ? ['bible' as const] : []),
+    ...(anyFrom(state, step, 'notes') ? ['notes' as const] : [])];
   const [chipState, setChip] = useState<Chip>(source ? 'source' : 'bible');
-  const chip = chipIds.includes(chipState) ? chipState : chipIds[0]!;
+  const chip: Chip | undefined = chipIds.includes(chipState) ? chipState : chipIds[0];
   const sourceTitle = !source ? '' : source.kind === 'version' ? versionTitle(source.version.n)
     : source.made.kindId ? v.kind(source.made.kindId).name : t('writing.madeThing');
   const chips: ChipItem<Chip>[] = chipIds.map((c) => ({
     source: { id: 'source' as const, label: sourceTitle, icon: (source && (source.kind === 'version' ? source.version.medium : source.made.medium) === 'writing' ? 'edit' : 'mic') as 'edit' | 'mic', hint: t('writing.sourceHint') },
     bible: { id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') },
-    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: p.notes.length, hint: t('translate.chips.notesHint') }
+    notes: { id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: notes.length, hint: t('translate.chips.notesHint') }
   })[c]);
   const [verse, setVerse] = useState<string | null>(null);
   const focusKey = focus !== null ? shown[focus]?.key ?? null : null;
@@ -209,6 +217,8 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
   }
 
   return (
+    // Notes written here are this step's (decisions.md 130).
+    <NoteStepContext.Provider value={step}>
     <Screen fixed
       header={<Header title={v.title} sub={sub} onBack={ctx.back} close action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />} />}
       footer={typing ? (
@@ -221,16 +231,16 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
           <SourceBar title={source ? sourceTitle : t('translate.dragDown')} icon={source ? 'listen' : 'book'} onOpen={open} />
         ) : (
           <View style={{ flex: 1 }}>
-            <RefChips items={chips} value={chip} onChange={setChip} />
+            {chip ? <RefChips items={chips} value={chip} onChange={setChip} /> : null}
             <HelpClip style={{ flex: 1 }}>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
                 {chip === 'source' && source ? (
                   <SourcePane ctx={ctx} v={v} source={source} verseKeys={verseKeys} lit={focusKey} />
                 ) : chip === 'bible' ? (
-                  <BiblePane ctx={ctx} v={v} bible={bible} canNote selected={verse ?? focusKey} onSelect={setVerse} />
-                ) : (
-                  <NotesPane ctx={ctx} v={v} notes={p.notes.filter((n) => n.anchor.kind !== 'study')} />
-                )}
+                  <BiblePane ctx={ctx} v={v} bible={bible} canNote selected={verse ?? focusKey} onSelect={setVerse} hear={shows.bibleAudio} read={shows.bibleText} />
+                ) : chip === 'notes' ? (
+                  <NotesPane ctx={ctx} v={v} notes={notes} />
+                ) : null}
               </ScrollView>
             </HelpClip>
           </View>
@@ -255,6 +265,7 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
           </HelpClip>
         )} />
     </Screen>
+    </NoteStepContext.Provider>
   );
 }
 
