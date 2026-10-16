@@ -1,4 +1,4 @@
-// Reading writing, and hearing a recording verse by verse (decisions.md 128;
+// Reading writing, and hearing a recording verse by verse (decisions.md 129;
 // demo branch caleb-written-translations wCheck, wMadeRead, wConsult): each
 // verse as a grey tile and its words, with a play button for the same verse
 // of a recording when there is one, so whoever reads hears it too.

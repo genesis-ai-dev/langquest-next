@@ -4,7 +4,7 @@ import { isReviewDraft, isStoredReview, reviewDraftOf, reviewStateOf, saysSometh
 
 const empty: ReviewState = {
   takeId: undefined, stage: 'listen', qi: 0, answers: {}, voice: {}, typing: {}, skipped: {}, comment: '', feedback: null, typeFeedback: false,
-  moments: [], also: [], people: 0, givenBy: '', place: '', evidence: null, made: []
+  moments: [], people: 0, givenBy: '', place: '', evidence: null, made: []
 };
 const clip = (hash: string) => ({ hash, durationMs: 4200, format: 'm4a' as const });
 
@@ -16,10 +16,15 @@ describe('a review kept as a draft (decision 127)', () => {
     expect(saysSomething({ ...empty, answers: { q1: 'Yes' } })).toBe(true);
     for (const said of [
       { voice: { q1: clip('a') } }, { skipped: { q1: 'Nobody knew' } }, { comment: 'Clear' }, { feedback: clip('b') }, { moments: [{ ...clip('c'), atMs: 1200 }] },
-      { also: ['john2'] }, { people: 3 }, { givenBy: 'Mary' }, { place: 'Church' }, { evidence: clip('d') }, { made: [{ hash: 'e', durationMs: 900, format: 'm4a' as const }] }
+      { people: 3 }, { givenBy: 'Mary' }, { place: 'Church' }, { evidence: clip('d') }, { made: [{ hash: 'e', durationMs: 900, format: 'm4a' as const }] }
     ]) {
       expect(reviewDraftOf({ ...empty, ...said }, 't2', undefined)).not.toBeNull();
     }
+  });
+
+  it('reads a draft an earlier version kept with other passages picked (decision 128)', () => {
+    const d = reviewDraftOf({ ...empty, comment: 'Clear' }, 't2', undefined)!;
+    expect(isReviewDraft({ ...d, also: ['john2'] })).toBe(true);
   });
 
   it('keeps where you were and the version it is about along with what was said', () => {

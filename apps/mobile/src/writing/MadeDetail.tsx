@@ -1,4 +1,4 @@
-// Something made from a version (decisions.md 128; demo branch
+// Something made from a version (decisions.md 129; demo branch
 // caleb-written-translations wMadeRead): a written copy, a back translation,
 // a translation, or what LangQuest v2 brought over with no step. It stays
 // with the version it came from and is never marked out of date. Written,
@@ -37,7 +37,7 @@ export function MadeDetail(ctx: Ctx) {
   }
   const from = v.p.versions.find((x) => x.takeId === madeVersionOf(v.p, m));
   const title = madeTitle(v, m);
-  // Added to its version (decision 128): part of it, and the latest of its kind there holds.
+  // Added to its version (decision 129): part of it, and the latest of its kind there holds.
   const holds = m.added && from ? addedTo(v.p, from).find((a) => a.medium === m.medium) : undefined;
   const edge = edgeFor('made_detail', 'back_translation');
   const changeable = !!holds && holds.made.id === m.id && !!m.kindId && !!edge && edgeAllowed(edge, ctx.session);

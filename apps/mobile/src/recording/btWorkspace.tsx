@@ -62,7 +62,7 @@ import type { SaveStatus } from '../ui/savedModel';
 
 export function BackTranslationBody({ ctx, v, kind, of, make }: {
   ctx: Ctx; v: PassageView; kind: KindDef; of: Version;
-  /** A step that makes recording (decisions.md 128): what it says it into, and the language it is in when not the team's own. */
+  /** A step that makes recording (decisions.md 129): what it says it into, and the language it is in when not the team's own. */
   make?: { into: string; language?: string; added?: boolean };
 }) {
   const { state, unitId, languageId, p } = v;

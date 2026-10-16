@@ -268,14 +268,14 @@ export function kindRowActions(o: {
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = kindCleared(o.status, o.step);
   // Nobody checks their own version unless they were asked to (the role matrix: Review, "not their own version unless asked").
-  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 128).
+  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 129).
   const doIt: RowAction | undefined = o.can.review && (!o.isAuthor || askedMe || !!o.kind.makes)
     ? { id: 'do', label: o.kind.makes ? o.kind.name : o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
   const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
     ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
     ? { id: 'ask', label: s === 'addressed' ? t('passage.record.actions.askAgain') : send ? t('passage.record.actions.sendElsewhere') : t('passage.record.actions.askSomeone') } : undefined;
-  // What a step makes is made here, not logged afterwards (decision 128).
+  // What a step makes is made here, not logged afterwards (decision 129).
   const log: RowAction | undefined = o.can.log && !o.kind.makes ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
   const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: t('passage.record.actions.setAside') } : undefined;
   const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
@@ -461,7 +461,7 @@ export function describeEntry(e: RecordEntry, o: {
       };
     }
     case 'made': {
-      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 128).
+      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 129).
       const m = e.made;
       const of = o.p.versions.find((x) => x.takeId === madeVersionOf(o.p, m));
       const version = of ? versionTitle(of.n) : t('passage.record.anchor.aVersion');

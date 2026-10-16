@@ -29,7 +29,6 @@ export interface ReviewState {
   feedback: VoiceAnswer | null;
   typeFeedback: boolean;
   moments: Moment[];
-  also: string[];
   people: number;
   givenBy: string;
   place: string;
@@ -44,7 +43,7 @@ export type ReviewDraft = Omit<ReviewState, 'takeId'> & { takeId: string };
 export function saysSomething(s: Omit<ReviewState, 'takeId'>): boolean {
   return s.moments.length > 0 || Object.values(s.answers).some((a) => !!a.trim()) || Object.keys(s.voice).length > 0
     || Object.keys(s.skipped).length > 0 || !!s.comment.trim() || !!s.feedback || !!s.evidence || s.people > 0 || !!s.place.trim()
-    || !!s.givenBy.trim() || s.made.length > 0 || s.also.length > 0;
+    || !!s.givenBy.trim() || s.made.length > 0;
 }
 
 /**
@@ -58,7 +57,7 @@ export function reviewDraftOf(s: ReviewState, about: string | undefined, opened:
   // One order of fields, so a draft brought back and built again reads the same.
   return {
     takeId: about, stage: s.stage, qi: s.qi, answers: s.answers, voice: s.voice, typing: s.typing, skipped: s.skipped,
-    comment: s.comment, feedback: s.feedback, typeFeedback: s.typeFeedback, moments: s.moments, also: s.also, people: s.people,
+    comment: s.comment, feedback: s.feedback, typeFeedback: s.typeFeedback, moments: s.moments, people: s.people,
     givenBy: s.givenBy, place: s.place, evidence: s.evidence, made: s.made
   };
 }
@@ -103,13 +102,13 @@ function isList<T>(x: unknown, each: (v: unknown) => v is T): x is T[] {
 const isString = (x: unknown): x is string => typeof x === 'string';
 const isBool = (x: unknown): x is boolean => typeof x === 'boolean';
 
-/** A stored review draft this version can read. */
+/** A stored review draft this version can read; an earlier version's `also` (other passages, gone in decision 128) is left unread. */
 export function isReviewDraft(x: unknown): x is ReviewDraft {
   if (!isRecord(x)) return false;
   return typeof x['takeId'] === 'string' && STAGES.includes(x['stage'] as StageId) && isCount(x['qi'])
     && isMap(x['answers'], isString) && isMap(x['voice'], isVoice) && isMap(x['typing'], isBool) && isMap(x['skipped'], isString)
     && typeof x['comment'] === 'string' && (x['feedback'] === null || isVoice(x['feedback'])) && typeof x['typeFeedback'] === 'boolean'
-    && isList(x['moments'], isMoment) && isList(x['also'], isString) && isCount(x['people'])
+    && isList(x['moments'], isMoment) && isCount(x['people'])
     && typeof x['givenBy'] === 'string' && typeof x['place'] === 'string' && (x['evidence'] === null || isVoice(x['evidence']))
     && isList(x['made'], isCard);
 }
