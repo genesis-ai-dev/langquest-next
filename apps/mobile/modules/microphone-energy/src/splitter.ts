@@ -52,7 +52,9 @@ export const SPLIT = {
   minGapMs: 150,
   learnAfterGaps: 8,
   /** Exact silence this long is the room (a quiet line, a noise gate); shorter, it is a microphone starting. */
-  zeroRoomMs: 500
+  zeroRoomMs: 500,
+  /** While a part is open the room rises at most this fast (dB a second), so speech never becomes the room. */
+  roomRisePerSec: 1.5
 };
 
 /** What a device remembers between sessions, so the first words of the next one are heard right. */
@@ -240,8 +242,9 @@ export class Splitter {
     if (this.calm.length === 0) return;
     let min = Infinity;
     for (const c of this.calm) min = Math.min(min, c.db);
-    // Until the window has filled once, a remembered or guessed room is the floor's upper bound.
-    this.roomDb = now - this.calm[0]!.t < SPLIT.roomWindowMs / 2 ? Math.min(min, this.roomDb + 3) : min;
+    // Between parts the room follows the quietest stretch heard; inside one it only creeps up.
+    const rise = this.open ? SPLIT.roomRisePerSec * this.frameMs / 1000 : 3;
+    this.roomDb = Math.min(min, this.roomDb + rise);
   }
 
   private learnVoice(): void {
