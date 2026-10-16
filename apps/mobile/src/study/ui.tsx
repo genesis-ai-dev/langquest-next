@@ -11,7 +11,7 @@ import { openContentLink } from '../ui/share';
 import { AudioClip } from '../audio/audioClip';
 import { studyUri } from './studyFiles';
 import type { Ctx } from '../shell/ctx';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -105,6 +105,7 @@ export function ViewSwitch<T extends string>(props: { views: { id: T; label: str
   return (
     <View style={styles.switchWrap}>
       <View style={styles.switch} accessibilityRole="tablist">
+        {/* help-each: each tab shows a different view */}
         {props.views.map((v) => {
           const on = props.active === v.id;
           return (
@@ -231,18 +232,20 @@ export function MediaSheet(props: { resource: StudyResource; source: string; org
     <Sheet visible title={props.resource.title} sub={kinds ? `${kinds} · ${props.source}` : props.source} onClose={props.onClose}>
       {props.resource.description ? <Text style={txt.body}>{props.resource.description}</Text> : null}
       {items.map((item) => (
-        <View key={item.id} style={{ gap: space.xs }}>
-          {item.kind === 'map' && item.url ? (
-            <MapFullSize item={item} url={item.url} orgId={props.orgId} />
-          ) : (
-            <View style={styles.imageWrap}><MediaImage item={item} orgId={props.orgId} /></View>
-          )}
-          {item.caption || (items.length > 1 && item.title) ? (
-            <Text style={txt.smMuted}>
-              {items.length > 1 ? <Text style={{ fontWeight: '700', color: C.dark }}>{item.title}. </Text> : null}{item.caption}
-            </Text>
-          ) : null}
-        </View>
+        <HelpRow key={item.id} of="study.mediaItem">
+          <View style={{ gap: space.xs }}>
+            {item.kind === 'map' && item.url ? (
+              <MapFullSize item={item} url={item.url} orgId={props.orgId} />
+            ) : (
+              <View style={styles.imageWrap}><MediaImage item={item} orgId={props.orgId} /></View>
+            )}
+            {item.caption || (items.length > 1 && item.title) ? (
+              <Text style={txt.smMuted}>
+                {items.length > 1 ? <Text style={{ fontWeight: '700', color: C.dark }}>{item.title}. </Text> : null}{item.caption}
+              </Text>
+            ) : null}
+          </View>
+        </HelpRow>
       ))}
       <Text style={txt.xs}>
         {tapMap && noCopy ? t('study.media.lowResMapFilm') : tapMap ? t('study.media.lowResMap') : noCopy ? t('study.media.lowResFilm') : t('study.media.lowRes')}
@@ -376,7 +379,7 @@ export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: 
                 ) : null}
                 {here.map((n) => {
                   const a = n.anchor.kind === 'verse' ? [n.anchor.translation, n.anchor.at].filter(Boolean).join(' · ') : '';
-                  return <StudyNote key={n.id} ctx={ctx} note={n} label={a || t('study.reader.verse', { verse: row.key })} />;
+                  return <HelpRow key={n.id} of="study.note"><StudyNote ctx={ctx} note={n} label={a || t('study.reader.verse', { verse: row.key })} /></HelpRow>;
                 })}
               </View>
             );

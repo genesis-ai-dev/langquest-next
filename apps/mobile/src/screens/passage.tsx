@@ -57,7 +57,7 @@ import {
 } from '../passage/recordModel';
 import { clipSeconds, clock as clockOf } from '../audio/clipTime';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn } from '../passage/sendTarget';
 import { feedbackSource, isJustNow, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
@@ -366,8 +366,10 @@ export function PassageRecord(ctx: Ctx) {
       {openSheet && openStep ? (
         <Sheet visible title={openSheet.title} sub={openSheet.sub || undefined} onClose={() => setOpenStepId(null)}>
           <Group>{openSheet.rows.map((row, i) => (
-            <KindActionRow key={row.status.kindId} row={row} step={openStep} first={i === 0} compact={false}
-              onAction={onRowAction} onMore={() => setOpenStepId(openStep.step.id)} />
+            <HelpRow key={row.status.kindId} of="passage.stepCheck">
+              <KindActionRow row={row} step={openStep} first={i === 0} compact={false}
+                onAction={onRowAction} onMore={() => setOpenStepId(openStep.step.id)} />
+            </HelpRow>
           ))}</Group>
           {openSheet.movePast ? (
             <GhostBtn label={t('passage.page.movePastThis')} tone="red" help={t('passage.page.movePastHelp')} onPress={() => afterSheet(() => setOverriding(openStep.step.id))} />
@@ -418,6 +420,7 @@ export function PassageRecord(ctx: Ctx) {
           </View>
         ) : undefined}>
         <View style={{ gap: space.md }}>
+          {/* help-each: each option does something different */}
           {options.map((o) => <BigOption key={o.id} testID={`else-${o.id}${o.kindId ? `-${o.kindId}` : ''}`} icon={o.icon} label={o.label} sub={o.sub} onPress={() => onOption(o)} />)}
           <View style={styles.tiles}>
             {can.note ? <SmallOption testID="else-note" icon="chat" label={t('common.addNote')} help={t('passage.else.addNoteHelp')} onPress={() => setNoting('note')} /> : null}
@@ -452,8 +455,10 @@ export function PassageRecord(ctx: Ctx) {
           <View style={{ gap: space.sm }}>
             <Text style={txt.label}>{t('passage.published.nextAsk')}</Text>
             {nextKinds.map((k) => (
-              <AskCheckCard key={k.kindId} ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, kinds)} on={k.kindId === nextKind.kindId} radio={nextKinds.length > 1}
-                people={checkPeople(v.state, k.kindId).filter((id) => id !== me)} onPress={() => setAskKindId(k.kindId)} />
+              <HelpRow key={k.kindId} of="ask.check">
+                <AskCheckCard ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, kinds)} on={k.kindId === nextKind.kindId} radio={nextKinds.length > 1}
+                  people={checkPeople(v.state, k.kindId).filter((id) => id !== me)} onPress={() => setAskKindId(k.kindId)} />
+              </HelpRow>
             ))}
             {/* With someone to send it to, the questions they'll answer, and more to add. With nobody yet, the button opens Someone else, which has them. */}
             {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions}
@@ -492,14 +497,18 @@ export function PassageRecord(ctx: Ctx) {
           summary={listenersLine(live, listened)}
           {...ctx.details(`passage:${unitId}:${languageId}:listeners`)}>
           {live.map((r) => (
-            <Row key={r.channel} icon="check" iconColor={TINT.greenText} label={t('passage.page.liveIn', { channel: r.channel, version: versionTitle(r.versionN) })}
-              sub={when(r.hlc)} onPress={() => go('version_detail', { takeId: r.takeId })} last={listened.length === 0 && r === live[live.length - 1]} />
+            <HelpRow key={r.channel} of="passage.live">
+              <Row icon="check" iconColor={TINT.greenText} label={t('passage.page.liveIn', { channel: r.channel, version: versionTitle(r.versionN) })}
+                sub={when(r.hlc)} onPress={() => go('version_detail', { takeId: r.takeId })} last={listened.length === 0 && r === live[live.length - 1]} />
+            </HelpRow>
           ))}
           {listened.map((r, i) => (
-            <Row key={r.id} icon={r.outcome === 'needs_changes' ? 'chat' : 'check'}
-              label={listenerLabel(r)}
-              sub={[feedbackSource(r, ctx.name), versionTitle(r.versionN), when(r.hlc)].join(' · ')}
-              onPress={() => go('review_detail', { reviewId: r.id })} last={i === listened.length - 1} />
+            <HelpRow key={r.id} of="passage.listener">
+              <Row icon={r.outcome === 'needs_changes' ? 'chat' : 'check'}
+                label={listenerLabel(r)}
+                sub={[feedbackSource(r, ctx.name), versionTitle(r.versionN), when(r.hlc)].join(' · ')}
+                onPress={() => go('review_detail', { reviewId: r.id })} last={i === listened.length - 1} />
+            </HelpRow>
           ))}
         </Disclosure>
       ) : null}
@@ -520,7 +529,11 @@ export function PassageRecord(ctx: Ctx) {
             if (act?.id === 'undoNote') trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.undoNoteHelp')} onPress={() => takeBackNote(act.noteId)} />;
             if (act?.id === 'reportNote') trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', act.noteId, act.by, unitId)} size={36} />;
             if (act?.id === 'reportRequest') trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', act.requestId, act.by, unitId)} size={36} />;
-            return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={entry} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} {...(help ? { help } : {})} />;
+            return (
+              <HelpRow key={`${e.type}-${e.hlc}-${i}`} of="passage.history">
+                <HistoryRow text={entry} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} {...(help ? { help } : {})} />
+              </HelpRow>
+            );
           })}
           <View style={{ paddingHorizontal: space.md, paddingBottom: historyShown < timeline.length ? space.md : 0 }}>
             <ShowMore remaining={timeline.length - historyShown} step={HISTORY_STEP} onMore={() => setHistoryShown((n) => n + HISTORY_STEP)} />
@@ -714,6 +727,7 @@ function KindActionRow(props: {
           ) : null}
           {acts.rest.length ? (
             <View style={[styles.btnRow, { flexWrap: 'wrap' }]}>
+              {/* help-each: each button does something different */}
               {acts.rest.map((a) => <View key={a.id} style={{ flexGrow: 1, flexBasis: '45%' }}>{btn(a, 'plain')}</View>)}
             </View>
           ) : null}
@@ -729,7 +743,9 @@ function StudyRows(props: { ctx: Ctx; study: StudyProgress; onOpen: (stepId: str
   return (
     <>
       {props.study.steps.map((st) => (
-        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} help={t('passage.page.openStudyStepHelp')} onPress={() => props.onOpen(st.step.id)} />
+        <HelpRow key={st.step.id} of="passage.studyStep">
+          <Row leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} help={t('passage.page.openStudyStepHelp')} onPress={() => props.onOpen(st.step.id)} />
+        </HelpRow>
       ))}
     </>
   );
@@ -758,30 +774,34 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
             </View>
           </HelpInfo>
           {rows.slice(0, shown).map((row, ri) => (
-            <View key={row.version.takeId} style={[styles.gridRow, styles.topBorder]}>
-              <GridVersion n={row.version.n} hlc={row.version.hlc} onPress={() => props.onVersion(row.version.takeId)} />
-              {row.cells.map((cell) => {
-                const kind = { ...v.kind(cell.kindId), name: checkName(cell.kindId, v.kinds) };
-                const shown = gridCell(cell, { newest: ri === 0, grid, produces: !!kind.produces });
-                return (
-                  <View key={cell.kindId} style={styles.gridCol}>
-                    {shown.id === 'review' ? (
-                      <GridCell label={gridCellLabel(kind.name, shown.review, shown.count, props.ctx.name)}
-                        help={shown.produced ? t('passage.grid.madeHelp', { kind: kindInSentence(kind.name) }) : t('passage.grid.cellHelp', { mark: markHelp(reviewMark(shown.review)) })}
-                        onPress={() => props.onReview(shown.review.id)}>
-                        {shown.produced
-                          // Made content, not a verdict: its own mark, never a "looks good" tick.
-                          ? <View style={[styles.producedMark]}><Ico name={kindIcon(cell.kindId)} size={14} color={C.primary} /></View>
-                          : <StateMark state={reviewMark(shown.review)} size={24} />}
-                        {shown.count > 1 ? <View style={styles.countBadge}><Text style={[txt.xsStrong, { color: C.white }]}>{shown.count}</Text></View> : null}
-                      </GridCell>
-                    ) : shown.id === 'skipped' ? <HelpInfo label={stateLabel('skipped')} detail={markHelp('skipped')}><StateMark state="skipped" size={24} /></HelpInfo>
-                      : shown.id === 'asked' ? <HelpInfo label={stateLabel('asked')} detail={markHelp('asked')}><StateMark state="asked" size={24} /></HelpInfo>
-                      : <View style={styles.gridEmpty} />}
-                  </View>
-                );
-              })}
-            </View>
+            <HelpRow key={row.version.takeId} of="grid.version">
+              <View style={[styles.gridRow, styles.topBorder]}>
+                <GridVersion n={row.version.n} hlc={row.version.hlc} onPress={() => props.onVersion(row.version.takeId)} />
+                {row.cells.map((cell) => {
+                  const kind = { ...v.kind(cell.kindId), name: checkName(cell.kindId, v.kinds) };
+                  const shown = gridCell(cell, { newest: ri === 0, grid, produces: !!kind.produces });
+                  return (
+                    <HelpRow key={cell.kindId} of={`grid.${shown.id}`}>
+                      <View style={styles.gridCol}>
+                        {shown.id === 'review' ? (
+                          <GridCell label={gridCellLabel(kind.name, shown.review, shown.count, props.ctx.name)}
+                            help={shown.produced ? t('passage.grid.madeHelp', { kind: kindInSentence(kind.name) }) : t('passage.grid.cellHelp', { mark: markHelp(reviewMark(shown.review)) })}
+                            onPress={() => props.onReview(shown.review.id)}>
+                            {shown.produced
+                              // Made content, not a verdict: its own mark, never a "looks good" tick.
+                              ? <View style={[styles.producedMark]}><Ico name={kindIcon(cell.kindId)} size={14} color={C.primary} /></View>
+                              : <StateMark state={reviewMark(shown.review)} size={24} />}
+                            {shown.count > 1 ? <View style={styles.countBadge}><Text style={[txt.xsStrong, { color: C.white }]}>{shown.count}</Text></View> : null}
+                          </GridCell>
+                        ) : shown.id === 'skipped' ? <HelpInfo label={stateLabel('skipped')} detail={markHelp('skipped')}><StateMark state="skipped" size={24} /></HelpInfo>
+                          : shown.id === 'asked' ? <HelpInfo label={stateLabel('asked')} detail={markHelp('asked')}><StateMark state="asked" size={24} /></HelpInfo>
+                          : <View style={styles.gridEmpty} />}
+                      </View>
+                    </HelpRow>
+                  );
+                })}
+              </View>
+            </HelpRow>
           ))}
         </View>
       </ScrollView>
@@ -894,8 +914,10 @@ export function VersionDetail(ctx: Ctx) {
           {version.changeBlobHash ? <PlayRow ctx={ctx} hashes={[version.changeBlobHash]} label={t('passage.version.changeAloud')} /> : null}
         </Authored>
         {prompted.map((r) => (
-          <InResponseLink key={r.id} label={t('passage.version.inResponseTo', { kind: checkName(r.kindId, v.kinds), who: feedbackSource(r, ctx.name) })}
-            onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} />
+          <HelpRow key={r.id} of="version.inResponse">
+            <InResponseLink label={t('passage.version.inResponseTo', { kind: checkName(r.kindId, v.kinds), who: feedbackSource(r, ctx.name) })}
+              onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} />
+          </HelpRow>
         ))}
       </Card>
 
@@ -911,9 +933,11 @@ export function VersionDetail(ctx: Ctx) {
           summary={termsTiedSummary(terms)}
           {...ctx.details(key('terms'))}>
           {terms.map(({ term, note }, i) => (
-            <Row key={term.termId} icon="book" label={termLabel(term)} {...(note ? { sub: note } : {})}
-              help={t('passage.version.termHelp')}
-              onPress={() => ctx.go('key_term_detail', { ...params, termId: term.termId })} last={i === terms.length - 1} />
+            <HelpRow key={term.termId} of="version.term">
+              <Row icon="book" label={termLabel(term)} {...(note ? { sub: note } : {})}
+                help={t('passage.version.termHelp')}
+                onPress={() => ctx.go('key_term_detail', { ...params, termId: term.termId })} last={i === terms.length - 1} />
+            </HelpRow>
           ))}
         </Disclosure>
       ) : null}
@@ -922,10 +946,12 @@ export function VersionDetail(ctx: Ctx) {
           {reviews.map((r, i) => {
             const kind = { ...v.kind(r.kindId), name: checkName(r.kindId, v.kinds) };
             return (
-              <Row key={r.id} leading={kind.produces ? <KindIcon kindId={r.kindId} size={36} /> : <StateMark state={reviewMark(r)} size={24} />}
-                label={`${kind.name} · ${outcomeText(kind, r.outcome)}`} sub={`${feedbackSource(r, ctx.name)} · ${when(r.hlc)} · ${viaText(r, ctx.name)}`}
-                help={t('passage.page.openReviewHelp')}
-                onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} last={i === reviews.length - 1} />
+              <HelpRow key={r.id} of="version.review">
+                <Row leading={kind.produces ? <KindIcon kindId={r.kindId} size={36} /> : <StateMark state={reviewMark(r)} size={24} />}
+                  label={`${kind.name} · ${outcomeText(kind, r.outcome)}`} sub={`${feedbackSource(r, ctx.name)} · ${when(r.hlc)} · ${viaText(r, ctx.name)}`}
+                  help={t('passage.page.openReviewHelp')}
+                  onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} last={i === reviews.length - 1} />
+              </HelpRow>
             );
           })}
         </Disclosure>
@@ -937,12 +963,14 @@ export function VersionDetail(ctx: Ctx) {
           summary={notesSummary(notes, (by, text) => authoredText(ctx, by, text))} {...ctx.details(key('notes'))}>
           <View style={{ padding: space.md, gap: space.sm }}>
             {notes.map((n) => (
-              <Authored key={n.id} ctx={ctx} by={n.by}>
-                <NoteCard anchor={anchorLabel(n, { state: v.state, p, guide })} by={ctx.name(n.by)} when={when(n.hlc)}
-                  {...(n.text ? { text: n.text } : {})}
-                  {...(n.blobHash ? { audio: <PlayRow ctx={ctx} hashes={[n.blobHash]} label={t('common.voiceNote')} /> } : {})}
-                  action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, unitId)} size={36} />} />
-              </Authored>
+              <HelpRow key={n.id} of="version.note">
+                <Authored ctx={ctx} by={n.by}>
+                  <NoteCard anchor={anchorLabel(n, { state: v.state, p, guide })} by={ctx.name(n.by)} when={when(n.hlc)}
+                    {...(n.text ? { text: n.text } : {})}
+                    {...(n.blobHash ? { audio: <PlayRow ctx={ctx} hashes={[n.blobHash]} label={t('common.voiceNote')} /> } : {})}
+                    action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, unitId)} size={36} />} />
+                </Authored>
+              </HelpRow>
             ))}
           </View>
         </Disclosure>
@@ -1226,9 +1254,11 @@ export function AskSomeone(ctx: Ctx) {
   const personRow = (c: { profileId: string; sub: string }, last: boolean) => {
     const on = who === c.profileId;
     return (
-      <Row key={c.profileId} testID={`ask-person-${c.profileId}`} leading={<PersonAvatar look={look(c.profileId)} size={36} />} label={ctx.name(c.profileId)} sub={c.sub}
-        help={t('passage.ask.personHelp')} onPress={() => setWho(c.profileId)} last={last} role="radio" selected={on}
-        right={<View style={[styles.radio, on && { backgroundColor: C.primary, borderColor: C.primary }]}>{on ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
+      <HelpRow key={c.profileId} of="ask.person">
+        <Row testID={`ask-person-${c.profileId}`} leading={<PersonAvatar look={look(c.profileId)} size={36} />} label={ctx.name(c.profileId)} sub={c.sub}
+          help={t('passage.ask.personHelp')} onPress={() => setWho(c.profileId)} last={last} role="radio" selected={on}
+          right={<View style={[styles.radio, on && { backgroundColor: C.primary, borderColor: C.primary }]}>{on ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
+      </HelpRow>
     );
   };
 

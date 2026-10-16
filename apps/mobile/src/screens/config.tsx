@@ -63,6 +63,7 @@ import { bookOf } from '../recording/model';
 import { useBible } from '../helps/useBible';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
 import { LanguageChecks } from '../checks/LanguageChecks';
+import { HelpRow } from '../helpMode/helpBadge';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
 import {
   adjustDuringTake, adjustmentNote, adjustmentReady, defineTermInput, EMPTY_TERM_DRAFT, groupTerms, termDraftReady, termUsedIn, tieState,
@@ -219,15 +220,17 @@ export function RolesHome(ctx: Ctx) {
           <SectionLabel label={t('config.roles.definedAtOrg')} />
           <Group>
             {rows.map((r, i) => (
-              <Row key={r.roleId} icon={r.inherited ? 'lock' : r.builtIn ? 'people' : 'star'}
-                iconColor={r.inherited ? TINT.grayText : C.primary} iconBg={r.inherited ? TINT.gray : undefined}
-                label={r.name} muted={r.inherited}
-                sub={r.inherited ? t('config.roles.inheritedSub')
-                  : `${t('config.roles.members', { count: r.members })} · ${t('config.roles.privileges', { count: r.privileges.length })}`}
-                badge={r.inherited ? t('common.viewOnly') : undefined}
-                help={r.inherited ? t('config.roles.inheritedRoleHelp') : r.builtIn ? t('config.roles.builtInRoleHelp') : t('config.roles.ownRoleHelp')}
-                onPress={() => ctx.go('role_editor', { roleId: r.roleId, level })} last={i === rows.length - 1}
-                current={beside?.screen === 'role_editor' && beside.params['roleId'] === r.roleId} />
+              <HelpRow key={r.roleId} of="config.role">
+                <Row icon={r.inherited ? 'lock' : r.builtIn ? 'people' : 'star'}
+                  iconColor={r.inherited ? TINT.grayText : C.primary} iconBg={r.inherited ? TINT.gray : undefined}
+                  label={r.name} muted={r.inherited}
+                  sub={r.inherited ? t('config.roles.inheritedSub')
+                    : `${t('config.roles.members', { count: r.members })} · ${t('config.roles.privileges', { count: r.privileges.length })}`}
+                  badge={r.inherited ? t('common.viewOnly') : undefined}
+                  help={r.inherited ? t('config.roles.inheritedRoleHelp') : r.builtIn ? t('config.roles.builtInRoleHelp') : t('config.roles.ownRoleHelp')}
+                  onPress={() => ctx.go('role_editor', { roleId: r.roleId, level })} last={i === rows.length - 1}
+                  current={beside?.screen === 'role_editor' && beside.params['roleId'] === r.roleId} />
+              </HelpRow>
             ))}
           </Group>
         </>
@@ -294,6 +297,7 @@ export function RoleEditor(ctx: Ctx) {
         <View key={g.title} style={{ gap: space.sm }}>
           <SectionLabel label={g.title} />
           <Group>
+            {/* help-each: each switch allows different work */}
             {g.rows.map((row, i) => {
               const state = switchState(privileges, row);
               return (
@@ -392,19 +396,21 @@ function SharedItems(props: {
       {!shared.loaded ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('common.loading')}</Text>
         : rows.length === 0 && !shared.error ? <Card><Text style={txt.smMuted}>{t('config.library.nothingShared')}</Text></Card> : null}
       {rows.slice(0, n).map((s) => (
-        <Card key={`${s.org_id}/${s.item_id}`}>
-          <Text style={txt.h3}>{s.name}</Text>
-          <Text style={txt.xsStrong}>{`${s.org_name} · ${t('config.library.versions', { count: s.version_count })}`}</Text>
-          {s.description ? <Text style={txt.smMuted}>{s.description}</Text> : null}
-          {props.detail?.(s)}
-          {props.canManage || props.use ? (
-            <View style={styles.actions}>
-              {props.use ? <SmallBtn label={props.use.label} tone="primary" disabled={busy || props.use.disabled} help={props.use.help} onPress={() => props.use!.onUse(s)} /> : null}
-              {props.canManage && s.subscribable ? <SmallBtn label={t('config.library.follow')} icon="link" disabled={busy} help={t('config.library.followHelp')} onPress={() => setFollowing(s)} /> : null}
-              {props.canManage ? <SmallBtn label={t('common.copy')} icon="plus" disabled={busy} help={t('config.library.copyHelp')} onPress={() => void copy(s)} /> : null}
-            </View>
-          ) : null}
-        </Card>
+        <HelpRow key={`${s.org_id}/${s.item_id}`} of="library.sharedItem">
+          <Card>
+            <Text style={txt.h3}>{s.name}</Text>
+            <Text style={txt.xsStrong}>{`${s.org_name} · ${t('config.library.versions', { count: s.version_count })}`}</Text>
+            {s.description ? <Text style={txt.smMuted}>{s.description}</Text> : null}
+            {props.detail?.(s)}
+            {props.canManage || props.use ? (
+              <View style={styles.actions}>
+                {props.use ? <SmallBtn label={props.use.label} tone="primary" disabled={busy || props.use.disabled} help={props.use.help} onPress={() => props.use!.onUse(s)} /> : null}
+                {props.canManage && s.subscribable ? <SmallBtn label={t('config.library.follow')} icon="link" disabled={busy} help={t('config.library.followHelp')} onPress={() => setFollowing(s)} /> : null}
+                {props.canManage ? <SmallBtn label={t('common.copy')} icon="plus" disabled={busy} help={t('config.library.copyHelp')} onPress={() => void copy(s)} /> : null}
+              </View>
+            ) : null}
+          </Card>
+        </HelpRow>
       ))}
       <ShowMore remaining={rows.length - n} step={STEP} onMore={() => setN(n + STEP)} />
 
@@ -629,24 +635,26 @@ export function FlowsHome(ctx: Ctx) {
           {flows.slice(0, shown).map((f) => {
             const on = !!current && current.itemId === f.itemId;
             return (
-              <Card key={f.itemId} onPress={open(f.itemId)} accessibilityLabel={t('config.flows.openNamed', { name: f.name })}
-                help={updates[f.itemId] && !f.archived ? t('config.library.openUpdateHelp') : t('config.flows.flowCardHelp')}
-                style={on ? { borderColor: C.primary, borderWidth: 1.5 } : undefined}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={txt.h3}>{f.name}</Text>
-                    <Text style={txt.xs}>{sourceLine(f)}</Text>
-                    {f.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{f.description}</Text> : null}
+              <HelpRow key={f.itemId} of="flows.flow">
+                <Card onPress={open(f.itemId)} accessibilityLabel={t('config.flows.openNamed', { name: f.name })}
+                  help={updates[f.itemId] && !f.archived ? t('config.library.openUpdateHelp') : t('config.flows.flowCardHelp')}
+                  style={on ? { borderColor: C.primary, borderWidth: 1.5 } : undefined}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={txt.h3}>{f.name}</Text>
+                      <Text style={txt.xs}>{sourceLine(f)}</Text>
+                      {f.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{f.description}</Text> : null}
+                    </View>
+                    {f.archived ? <Badge label={t('config.library.archivedBadge')} />
+                      : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
+                    {on
+                      ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" help={t('config.flows.inUseHelp')} onPress={() => {}} />
+                      : language && !f.archived ? <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => void adopt({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
                   </View>
-                  {f.archived ? <Badge label={t('config.library.archivedBadge')} />
-                    : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
-                  {on
-                    ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" help={t('config.flows.inUseHelp')} onPress={() => {}} />
-                    : language && !f.archived ? <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => void adopt({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
-                </View>
-                {/* Inside a card that opens, the card says what the steps mean. */}
-                <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} explain={!canManage} />
-              </Card>
+                  {/* Inside a card that opens, the card says what the steps mean. */}
+                  <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} explain={!canManage} />
+                </Card>
+              </HelpRow>
             );
           })}
           <ShowMore remaining={flows.length - shown} step={STEP} onMore={() => setShown(shown + STEP)} />
@@ -677,8 +685,10 @@ function StepSheet(props: {
         <>
           <Group>
             {st.kindIds.map((id, j) => (
-              <Row key={id} leading={<KindIcon kindId={id} size={40} />} label={name(id)} last={j === st.kindIds.length - 1}
-                right={st.kindIds.length > 1 ? <IconBtn name="close" label={t('config.flowEditor.removeCheck', { name: name(id) })} help={t('config.flowEditor.removeCheckHelp')} onPress={() => props.onChange({ ...st, kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : undefined} />
+              <HelpRow key={id} of="flowEditor.stepCheck">
+                <Row leading={<KindIcon kindId={id} size={40} />} label={name(id)} last={j === st.kindIds.length - 1}
+                  right={st.kindIds.length > 1 ? <IconBtn name="close" label={t('config.flowEditor.removeCheck', { name: name(id) })} help={t('config.flowEditor.removeCheckHelp')} onPress={() => props.onChange({ ...st, kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : undefined} />
+              </HelpRow>
             ))}
           </Group>
           <Group>
@@ -822,9 +832,11 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
       <Sheet visible={pickFor !== null} title={pickFor === 'new' ? t('config.flowEditor.addStep') : t('config.flowEditor.addAlongside')} sub={t('config.flowEditor.kindsSub')} onClose={() => setPickFor(null)}>
         <Group>
           {kinds.filter((k) => !(picking?.kindIds ?? []).includes(k.id)).map((k, i, a) => (
-            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} sub={k.description || k.usualReviewer || undefined}
-              help={pickFor === 'new' ? t('config.flowEditor.pickNewHelp') : t('config.flowEditor.pickAlongsideHelp')}
-              onPress={() => pick(k.id)} last={i === a.length - 1} />
+            <HelpRow key={k.id} of="flowEditor.kind">
+              <Row leading={<KindIcon kindId={k.id} size={40} />} label={k.name} sub={k.description || k.usualReviewer || undefined}
+                help={pickFor === 'new' ? t('config.flowEditor.pickNewHelp') : t('config.flowEditor.pickAlongsideHelp')}
+                onPress={() => pick(k.id)} last={i === a.length - 1} />
+            </HelpRow>
           ))}
         </Group>
         <Field label={t('config.flowEditor.newKindLabel')} value={newKind} onChangeText={setNewKind} placeholder={t('config.flowEditor.newKindPlaceholder')} autoCapitalize="words"
@@ -1151,9 +1163,11 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
           <SectionLabel label={t('config.material.whatKind')} />
           <Group>
             {referenceKinds().filter((k) => k.id !== 'key_terms' && (canManage || k.id === 'questions')).map((k, i, a) => (
-              <Row key={k.id} label={k.name} sub={k.code} help={t('config.material.kindHelp')} onPress={() => edit({ kind: k.id })} last={i === a.length - 1}
-                role="radio" selected={kind === k.id}
-                right={kind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+              <HelpRow key={k.id} of="material.kind">
+                <Row label={k.name} sub={k.code} help={t('config.material.kindHelp')} onPress={() => edit({ kind: k.id })} last={i === a.length - 1}
+                  role="radio" selected={kind === k.id}
+                  right={kind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+              </HelpRow>
             ))}
           </Group>
           <Field label={t('config.material.titleLabel')} value={title} onChangeText={(v) => edit({ title: v })} placeholder={isQuestions ? t('config.material.questionsTitlePlaceholder') : t('config.material.titlePlaceholder')} autoCapitalize="sentences" />
@@ -1178,9 +1192,11 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
               <SectionLabel label={t('config.material.forWhichKind')} />
               <Group>
                 {kinds.map((k, i) => (
-                  <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} help={t('config.material.reviewKindHelp')} onPress={() => edit({ reviewKind: k.id })} last={i === kinds.length - 1}
-                    role="radio" selected={reviewKind === k.id}
-                    right={reviewKind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+                  <HelpRow key={k.id} of="material.reviewKind">
+                    <Row leading={<KindIcon kindId={k.id} size={40} />} label={k.name} help={t('config.material.reviewKindHelp')} onPress={() => edit({ reviewKind: k.id })} last={i === kinds.length - 1}
+                      role="radio" selected={reviewKind === k.id}
+                      right={reviewKind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+                  </HelpRow>
                 ))}
               </Group>
             </>
@@ -1192,33 +1208,36 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
         <>
           <SectionLabel label={withCount(t('config.material.questions'), qs.filter((q) => q.text.trim()).length)} />
           {qs.map((q, i) => (
-            <Card key={q.fieldId}>
-              {canFill ? (
-                <>
-                  <Field value={q.text} onChangeText={(v) => setQuestion(i, { text: v })} placeholder={t('config.material.questionPlaceholder')} multiline
-                    help={t('config.material.questionHelp')} />
-                  <ChipRow>
-                    {questionTypes().map((type) => <Chip key={type.id} label={type.label} on={q.type === type.id} help={questionTypeHelp(type.id)} onPress={() => setQuestion(i, { type: type.id })} />)}
-                  </ChipRow>
-                  <View style={styles.checkpoint}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[txt.sm, { fontWeight: '700' }]}>{q.required ? t('common.required') : t('config.material.suggested')}</Text>
-                      <Text style={txt.xs}>{q.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')}</Text>
+            <HelpRow key={q.fieldId} of="material.question">
+              <Card>
+                {canFill ? (
+                  <>
+                    <Field value={q.text} onChangeText={(v) => setQuestion(i, { text: v })} placeholder={t('config.material.questionPlaceholder')} multiline
+                      help={t('config.material.questionHelp')} />
+                    <ChipRow>
+                      {/* help-each: each type asks in a different way */}
+                      {questionTypes().map((type) => <Chip key={type.id} label={type.label} on={q.type === type.id} help={questionTypeHelp(type.id)} onPress={() => setQuestion(i, { type: type.id })} />)}
+                    </ChipRow>
+                    <View style={styles.checkpoint}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[txt.sm, { fontWeight: '700' }]}>{q.required ? t('common.required') : t('config.material.suggested')}</Text>
+                        <Text style={txt.xs}>{q.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')}</Text>
+                      </View>
+                      <Toggle testID="toggle-required" on={q.required} label={t('common.required')} help={t('config.material.requiredSwitchHelp')} onToggle={() => setQuestion(i, { required: !q.required })} />
                     </View>
-                    <Toggle testID="toggle-required" on={q.required} label={t('common.required')} help={t('config.material.requiredSwitchHelp')} onToggle={() => setQuestion(i, { required: !q.required })} />
-                  </View>
-                  <SmallBtn label={t('config.material.removeQuestion')} icon="trash" help={t('config.material.removeQuestionHelp')} onPress={() => setQuestions(qs.filter((_, j) => j !== i))} />
-                </>
-              ) : (
-                <>
-                  <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
-                    <Text style={txt.label}>{questionTypes().find((type) => type.id === q.type)?.label}</Text>
-                    {q.required ? <Badge label={t('common.required')} tone="brand" /> : null}
-                  </View>
-                  <Text style={txt.body}>{q.text}</Text>
-                </>
-              )}
-            </Card>
+                    <SmallBtn label={t('config.material.removeQuestion')} icon="trash" help={t('config.material.removeQuestionHelp')} onPress={() => setQuestions(qs.filter((_, j) => j !== i))} />
+                  </>
+                ) : (
+                  <>
+                    <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
+                      <Text style={txt.label}>{questionTypes().find((type) => type.id === q.type)?.label}</Text>
+                      {q.required ? <Badge label={t('common.required')} tone="brand" /> : null}
+                    </View>
+                    <Text style={txt.body}>{q.text}</Text>
+                  </>
+                )}
+              </Card>
+            </HelpRow>
           ))}
           {qs.length === 0 && !canFill ? <Card><Text style={txt.smMuted}>{t('config.material.noQuestions')}</Text></Card> : null}
           {canFill ? <GhostBtn label={t('config.material.addQuestion')} icon="plus" help={t('config.material.addQuestionHelp')} onPress={() => setQuestions([...qs, { fieldId: nextFieldId([...qs.map((x) => x.fieldId), ...(existing?.fields.map((f) => f.fieldId) ?? [])]), text: '', type: 'text', required: false }])} /> : null}
@@ -1227,13 +1246,15 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
         <>
           <SectionLabel label={withCount(t('config.material.sections'), fieldIds.length)} />
           {fieldIds.slice(0, shown).map((fieldId) => (
-            <Card key={fieldId}>
-              <Text style={txt.h3}>{fieldTitle(fieldId)}</Text>
-              {canFill
-                ? <Field value={valueOf(fieldId)} onChangeText={(v) => edit({ texts: { ...texts, [fieldId]: v } })} placeholder={t('config.material.guidanceFor', { section: fieldTitle(fieldId) })} multiline
-                  help={t('config.material.sectionHelp')} />
-                : <Text style={valueOf(fieldId) ? txt.body : txt.bodyMuted}>{valueOf(fieldId) || t('config.material.notFilled')}</Text>}
-            </Card>
+            <HelpRow key={fieldId} of="material.section">
+              <Card>
+                <Text style={txt.h3}>{fieldTitle(fieldId)}</Text>
+                {canFill
+                  ? <Field value={valueOf(fieldId)} onChangeText={(v) => edit({ texts: { ...texts, [fieldId]: v } })} placeholder={t('config.material.guidanceFor', { section: fieldTitle(fieldId) })} multiline
+                    help={t('config.material.sectionHelp')} />
+                  : <Text style={valueOf(fieldId) ? txt.body : txt.bodyMuted}>{valueOf(fieldId) || t('config.material.notFilled')}</Text>}
+              </Card>
+            </HelpRow>
           ))}
           <ShowMore remaining={fieldIds.length - shown} step={STEP} onMore={() => setShown(shown + STEP)} />
           {canFill ? (
@@ -1404,7 +1425,11 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
           <>
             <SectionLabel label={t('config.material.whatKind')} />
             <ChipRow>
-              {[...new Set([...LIBRARY_MATERIAL_KINDS, k])].map((id) => <Chip key={id} label={referenceKindName(id)} on={k === id} help={t('config.libraryMaterial.kindHelp')} onPress={() => setKind(id)} />)}
+              {[...new Set([...LIBRARY_MATERIAL_KINDS, k])].map((id) => (
+                <HelpRow key={id} of="libraryMaterial.kind">
+                  <Chip label={referenceKindName(id)} on={k === id} help={t('config.libraryMaterial.kindHelp')} onPress={() => setKind(id)} />
+                </HelpRow>
+              ))}
             </ChipRow>
             <Field label={t('config.material.titleLabel')} value={titleText} onChangeText={setTitle} placeholder={t('config.libraryMaterial.titlePlaceholder')} autoCapitalize="sentences" />
             <LanguageField label={t('reference.language.writtenIn')} value={lang} onChange={setLanguage} />
@@ -1419,7 +1444,9 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
                 <Text style={txt.xsStrong}>{t('config.libraryMaterial.numberedAs')}</Text>
                 <ChipRow>
                   {[...choices, ...(choices.some((c) => c.key === chosen.key) ? [] : [chosen])].map((c) => (
-                    <Chip key={c.key} label={c.label} on={c.key === chosen.key} help={t('config.libraryMaterial.numberingHelp')} onPress={() => setV11n(c)} />
+                    <HelpRow key={c.key} of="libraryMaterial.numbering">
+                      <Chip label={c.label} on={c.key === chosen.key} help={t('config.libraryMaterial.numberingHelp')} onPress={() => setV11n(c)} />
+                    </HelpRow>
                   ))}
                 </ChipRow>
               </>
@@ -1427,9 +1454,11 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
             {linked.length ? (
               <Group>
                 {linked.map((l, i) => (
-                  <Row key={`${l.template}/${l.node}`} icon="template" label={partLabel(l)} sub={t('config.libraryMaterial.templatePart')} last={i === linked.length - 1}
-                    right={<IconBtn name="close" label={t('config.libraryMaterial.removePart', { name: partLabel(l) })} help={t('config.libraryMaterial.removePartHelp')}
-                      onPress={() => setParts(linked.filter((_, j) => j !== i))} bg={C.light} color={C.primary} />} />
+                  <HelpRow key={`${l.template}/${l.node}`} of="libraryMaterial.linkedPart">
+                    <Row icon="template" label={partLabel(l)} sub={t('config.libraryMaterial.templatePart')} last={i === linked.length - 1}
+                      right={<IconBtn name="close" label={t('config.libraryMaterial.removePart', { name: partLabel(l) })} help={t('config.libraryMaterial.removePartHelp')}
+                        onPress={() => setParts(linked.filter((_, j) => j !== i))} bg={C.light} color={C.primary} />} />
+                  </HelpRow>
                 ))}
               </Group>
             ) : null}
@@ -1695,12 +1724,14 @@ export function KeyTermDetail(ctx: Ctx) {
           {adjustments.map((a, i) => {
             const v = versionOf(a.duringTakeId);
             return (
-              <View key={a.adjustmentId} style={[styles.adjustment, i < adjustments.length - 1 && styles.rowBorder]}>
-                <Text style={txt.xs}>{ctx.name(a.actorId)} · {when(a.hlc)}{v ? ` · ${v.title}` : ''}</Text>
-                <Text style={txt.sm}>{adjustmentNote(a.note)}</Text>
-                {a.blobHash ? <AudioClip language={ctx.language} hashes={[a.blobHash]} label={t('config.keyTerm.playExplanation')} /> : null}
-                {v && v.n !== null ? <SmallBtn label={t('config.keyTerm.openVersion', { n: v.n })} icon="mic" help={t('config.keyTerm.openVersionHelp')} onPress={() => openVersion(v)} /> : null}
-              </View>
+              <HelpRow key={a.adjustmentId} of="keyTerm.adjustment">
+                <View style={[styles.adjustment, i < adjustments.length - 1 && styles.rowBorder]}>
+                  <Text style={txt.xs}>{ctx.name(a.actorId)} · {when(a.hlc)}{v ? ` · ${v.title}` : ''}</Text>
+                  <Text style={txt.sm}>{adjustmentNote(a.note)}</Text>
+                  {a.blobHash ? <AudioClip language={ctx.language} hashes={[a.blobHash]} label={t('config.keyTerm.playExplanation')} /> : null}
+                  {v && v.n !== null ? <SmallBtn label={t('config.keyTerm.openVersion', { n: v.n })} icon="mic" help={t('config.keyTerm.openVersionHelp')} onPress={() => openVersion(v)} /> : null}
+                </View>
+              </HelpRow>
             );
           })}
         </Disclosure>
@@ -1709,9 +1740,11 @@ export function KeyTermDetail(ctx: Ctx) {
         <Disclosure icon="mic" title={t('config.keyTerm.whereUsed')} open={used.open} onToggle={used.onToggle}
           summary={`${t('config.keyTerm.versions', { count: usedIn.length })} · ${listOf([...new Set(usedIn.map((u) => u.title))].slice(0, 2))}${usedIn.length > 2 ? '…' : ''}`}>
           {usedIn.slice(0, usedShown).map((u, i, a) => (
-            <Row key={u.takeId} icon="mic" label={t('config.keyTerm.usedTitle', { title: u.title, n: u.n })} sub={u.note ?? `${ctx.name(u.by)} · ${when(u.hlc)}`}
-              badge={u.adjustmentId ? t('config.keyTerm.changedHere') : undefined} onPress={() => openVersion(u)} last={i === a.length - 1}
-              help={u.adjustmentId ? t('config.keyTerm.usedChangedHelp') : t('config.keyTerm.usedHelp')} />
+            <HelpRow key={u.takeId} of="keyTerm.usedIn">
+              <Row icon="mic" label={t('config.keyTerm.usedTitle', { title: u.title, n: u.n })} sub={u.note ?? `${ctx.name(u.by)} · ${when(u.hlc)}`}
+                badge={u.adjustmentId ? t('config.keyTerm.changedHere') : undefined} onPress={() => openVersion(u)} last={i === a.length - 1}
+                help={u.adjustmentId ? t('config.keyTerm.usedChangedHelp') : t('config.keyTerm.usedHelp')} />
+            </HelpRow>
           ))}
           <ShowMore remaining={usedIn.length - usedShown} step={STEP} onMore={() => setUsedShown(usedShown + STEP)} />
         </Disclosure>

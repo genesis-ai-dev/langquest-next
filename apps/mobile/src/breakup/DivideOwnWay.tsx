@@ -16,7 +16,7 @@ import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Field, Group, Header, Ico, PrimaryBtn, QuietLinks, Row, Screen, Sheet, type IconName } from '../ui/kit';
@@ -211,8 +211,10 @@ export function DivideOwnWay(props: {
           </View>
         }
         renderItem={({ item: c }) => (
-          <ChapterBlock c={c} count={maxVerses[c - 1] ?? 0} first={order[0]!} starts={starts} sections={sections} names={names} breaks={breaks} text={text.byAt}
-            sel={sel} bookName={bookName} onVerse={(at) => setSel(sel === at ? null : at)} onStart={startAt} onSection={(at) => setPanel({ section: at })} />
+          <HelpRow of="breakup.chapter">
+            <ChapterBlock c={c} count={maxVerses[c - 1] ?? 0} first={order[0]!} starts={starts} sections={sections} names={names} breaks={breaks} text={text.byAt}
+              sel={sel} bookName={bookName} onVerse={(at) => setSel(sel === at ? null : at)} onStart={startAt} onSection={(at) => setPanel({ section: at })} />
+          </HelpRow>
         )}
       />
 
@@ -220,11 +222,13 @@ export function DivideOwnWay(props: {
         {text.options.length ? (
           <Group>
             {text.options.map((o, i) => (
-              <Row key={o.itemId} icon="book" label={o.name} last={i === text.options.length - 1} role="radio" selected={o.itemId === text.option?.itemId}
-                sub={o.from === 'language' || o.from === 'organization' ? t('breakup.own.teamBible', { language: languageLabel(o.language) }) : languageLabel(o.language)}
-                right={o.itemId === text.option?.itemId ? <Ico name="check" size={22} color={C.green} strokeWidth={3} /> : undefined}
-                help={o.itemId === text.option?.itemId ? t('breakup.own.bibleRowOnHelp') : t('breakup.own.bibleRowHelp')}
-                onPress={() => { text.choose(o.itemId); setPanel(null); }} />
+              <HelpRow key={o.itemId} of="breakup.bible">
+                <Row icon="book" label={o.name} last={i === text.options.length - 1} role="radio" selected={o.itemId === text.option?.itemId}
+                  sub={o.from === 'language' || o.from === 'organization' ? t('breakup.own.teamBible', { language: languageLabel(o.language) }) : languageLabel(o.language)}
+                  right={o.itemId === text.option?.itemId ? <Ico name="check" size={22} color={C.green} strokeWidth={3} /> : undefined}
+                  help={o.itemId === text.option?.itemId ? t('breakup.own.bibleRowOnHelp') : t('breakup.own.bibleRowHelp')}
+                  onPress={() => { text.choose(o.itemId); setPanel(null); }} />
+              </HelpRow>
             ))}
           </Group>
         ) : <Text style={txt.smMuted}>{t('breakup.own.noText', { book: bookName })}</Text>}
@@ -233,7 +237,9 @@ export function DivideOwnWay(props: {
       <Sheet visible={panel === 'jump'} title={t('breakup.own.jumpTitle')} sub={t('breakup.own.jumpSub')} onClose={() => setPanel(null)}>
         <View style={styles.grid}>
           {chapters.map((c) => (
-            <JumpTile key={c} c={c} n={sections.filter((s) => parseAt(s.start).chapter === c).length} here={c === inView} onPress={() => { setPanel(null); jump(c); }} />
+            <HelpRow key={c} of="breakup.jumpChapter">
+              <JumpTile c={c} n={sections.filter((s) => parseAt(s.start).chapter === c).length} here={c === inView} onPress={() => { setPanel(null); jump(c); }} />
+            </HelpRow>
           ))}
         </View>
       </Sheet>
@@ -243,8 +249,10 @@ export function DivideOwnWay(props: {
           {offered.map((r, i) => {
             const fromStarts = startsOfWay(ways.docOf(r.choice), book, props.v11n);
             return (
-              <Row key={r.choice.key} icon="book" label={r.choice.name} sub={t('breakup.own.sections', { count: fromStarts.size })} last={i === offered.length - 1}
-                help={t('breakup.own.fromRowHelp')} onPress={() => { setPanel(null); replace(fromStarts, t('breakup.own.startedFrom', { book: bookName, way: r.choice.name })); }} />
+              <HelpRow key={r.choice.key} of="breakup.fromWay">
+                <Row icon="book" label={r.choice.name} sub={t('breakup.own.sections', { count: fromStarts.size })} last={i === offered.length - 1}
+                  help={t('breakup.own.fromRowHelp')} onPress={() => { setPanel(null); replace(fromStarts, t('breakup.own.startedFrom', { book: bookName, way: r.choice.name })); }} />
+              </HelpRow>
             );
           })}
         </Group>
@@ -389,6 +397,7 @@ function HelpsPane(props: { book: string; helps: Help[]; outline: Part[]; onClos
         <Round icon="close" label={t('breakup.own.closeHelps')} help={t('breakup.own.closeHelpsHelp')} onPress={props.onClose} />
       </View>
       <View style={styles.tabs}>
+        {/* help-each: each tab shows different helps */}
         {tabs.map(([id, label, detail]) => <PaneTab key={id} label={label} detail={detail} on={tab === id} onPress={() => setTab(id)} />)}
       </View>
       <ScrollView contentContainerStyle={{ gap: space.sm, paddingBottom: space.sm }}>
@@ -397,8 +406,10 @@ function HelpsPane(props: { book: string; helps: Help[]; outline: Part[]; onClos
             <Text style={txt.xs}>{t('breakup.own.outlineFrom', { from })}</Text>
             <Group>
               {props.outline.map((p, i) => (
-                <Row key={`${p.start}-${i}`} label={p.title} sub={`${props.book} ${sectionLabel(p)}`} last={i === props.outline.length - 1}
-                  help={t('breakup.own.outlineRowHelp')} onPress={() => props.onGo(p.start)} />
+                <HelpRow key={`${p.start}-${i}`} of="breakup.outlinePart">
+                  <Row label={p.title} sub={`${props.book} ${sectionLabel(p)}`} last={i === props.outline.length - 1}
+                    help={t('breakup.own.outlineRowHelp')} onPress={() => props.onGo(p.start)} />
+                </HelpRow>
               ))}
             </Group>
             <Pressable onPress={use.onPress} accessibilityRole="button" style={({ pressed }) => [styles.useStarts, pressed && { opacity: 0.7 }]}>
@@ -409,24 +420,28 @@ function HelpsPane(props: { book: string; helps: Help[]; outline: Part[]; onClos
           </>
         ) : <Text style={txt.smMuted}>{t('breakup.own.noOutline', { book: props.book })}</Text>) : null}
         {tab === 'notes' ? (notes.length ? notes.map(({ help, part }, i) => (
-          <View key={`${help.itemId}-${i}`} style={styles.note}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <Ico name="note" size={16} color={TINT.amberText} />
-              <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText, flex: 1 }]} numberOfLines={1}>
-                {t('breakup.own.noteOn', { name: help.name, where: sectionLabel(part) })}
-              </Text>
+          <HelpRow key={`${help.itemId}-${i}`} of="breakup.note">
+            <View style={styles.note}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                <Ico name="note" size={16} color={TINT.amberText} />
+                <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText, flex: 1 }]} numberOfLines={1}>
+                  {t('breakup.own.noteOn', { name: help.name, where: sectionLabel(part) })}
+                </Text>
+              </View>
+              {help.body ? <Text style={txt.sm} numberOfLines={4}>{help.body}</Text> : null}
+              <ShowInText onPress={() => props.onGo(part.start)} />
             </View>
-            {help.body ? <Text style={txt.sm} numberOfLines={4}>{help.body}</Text> : null}
-            <ShowInText onPress={() => props.onGo(part.start)} />
-          </View>
+          </HelpRow>
         )) : <Text style={txt.smMuted}>{t('breakup.own.noNotes', { book: props.book })}</Text>) : null}
         {tab === 'guides' ? (props.helps.length ? (
           <Group>
             {props.helps.map((h, i) => (
-              <Row key={h.itemId} icon={h.kind === 'guide' ? 'sparkle' : 'file'} label={h.name} last={i === props.helps.length - 1} help={t('breakup.own.guideRowHelp')}
-                sub={[h.language ? languageLabel(h.language) : '', h.parts.length ? t('breakup.own.partsIn', { count: h.parts.length, book: props.book })
-                  : h.wholeBook ? t('breakup.own.allOf', { book: props.book }) : t('breakup.own.nothingFor', { book: props.book })].filter(Boolean).join(' · ')}
-                onPress={h.parts[0] ? () => props.onGo(h.parts[0]!.start) : undefined} />
+              <HelpRow key={h.itemId} of="breakup.guide">
+                <Row icon={h.kind === 'guide' ? 'sparkle' : 'file'} label={h.name} last={i === props.helps.length - 1} help={t('breakup.own.guideRowHelp')}
+                  sub={[h.language ? languageLabel(h.language) : '', h.parts.length ? t('breakup.own.partsIn', { count: h.parts.length, book: props.book })
+                    : h.wholeBook ? t('breakup.own.allOf', { book: props.book }) : t('breakup.own.nothingFor', { book: props.book })].filter(Boolean).join(' · ')}
+                  onPress={h.parts[0] ? () => props.onGo(h.parts[0]!.start) : undefined} />
+              </HelpRow>
             ))}
           </Group>
         ) : <Text style={txt.smMuted}>{t('breakup.own.noHelps', { book: props.book })}</Text>) : null}

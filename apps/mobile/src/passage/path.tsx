@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { HelpInfo, Ico, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -148,6 +148,7 @@ export function PassagePath(props: {
 }) {
   return (
     <View>
+      {/* help-each: each step does something different (study, record, publish, feedback) */}
       {props.steps.map((s, i) => (
         <StepRow key={s.kind} step={s} n={i + 1} last={i === props.steps.length - 1}
           lineDone={s.state === 'done' && props.steps[i + 1]?.state !== undefined && props.steps[i + 1]!.state !== 'todo'}
@@ -157,8 +158,10 @@ export function PassagePath(props: {
         <View style={styles.team}>
           <Text style={[txt.label, { marginBottom: space.xs }]}>{t('passage.path.thenTheTeam')}</Text>
           {props.team.map((step) => (
-            <TeamRow key={`${step.stepId}:${step.kindId}`} ctx={props.ctx} step={step} people={props.peopleOf ? props.peopleOf(step.kindId) : null}
-              {...(props.onTeamStep(step) ? { onPress: props.onTeamStep(step)! } : {})} />
+            <HelpRow key={`${step.stepId}:${step.kindId}`} of="path.teamCheck">
+              <TeamRow ctx={props.ctx} step={step} people={props.peopleOf ? props.peopleOf(step.kindId) : null}
+                {...(props.onTeamStep(step) ? { onPress: props.onTeamStep(step)! } : {})} />
+            </HelpRow>
           ))}
         </View>
       ) : null}

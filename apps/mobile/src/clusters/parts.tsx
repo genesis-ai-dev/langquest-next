@@ -12,6 +12,7 @@ import { Field, PrimaryBtn, Row, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { failureMessage } from '../diagnostics/report';
 import { CheckRow, IconTile } from '../admin/admin';
+import { HelpRow } from '../helpMode/helpBadge';
 import { Text } from '../ui/text';
 import { TINT } from '../ui/theme';
 import { clusterEvents, clusterNamed, newClusterId, type ClusterEvent } from './model';
@@ -86,9 +87,11 @@ export function LanguageClustersRow(props: { ctx: Ctx; languageId: string; langu
         {all.length ? (
           <View>
             {all.map((c, i) => (
-              <CheckRow key={c.clusterId} label={c.name} sub={t('clusters.language.count', { count: c.languageIds.length })} checked={picked.has(c.clusterId)}
-                last={i === all.length - 1} detail={picked.has(c.clusterId) ? t('clusters.language.inHelp') : t('clusters.language.outHelp')}
-                onToggle={() => setPicked((cur) => { const next = new Set(cur); if (next.has(c.clusterId)) next.delete(c.clusterId); else next.add(c.clusterId); return next; })} />
+              <HelpRow key={c.clusterId} of="clusters.cluster">
+                <CheckRow label={c.name} sub={t('clusters.language.count', { count: c.languageIds.length })} checked={picked.has(c.clusterId)}
+                  last={i === all.length - 1} detail={picked.has(c.clusterId) ? t('clusters.language.inHelp') : t('clusters.language.outHelp')}
+                  onToggle={() => setPicked((cur) => { const next = new Set(cur); if (next.has(c.clusterId)) next.delete(c.clusterId); else next.add(c.clusterId); return next; })} />
+              </HelpRow>
             ))}
           </View>
         ) : null}

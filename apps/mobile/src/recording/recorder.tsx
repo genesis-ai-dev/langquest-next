@@ -18,7 +18,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { HelpInfo, Ico, IconBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -151,7 +151,7 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
         const lifted = drag.dragging === key;
         const name = partLabel(r.n - 1);
         const mark = !props.disabled && !drag.dragging && opensAbove(rows, k)
-          ? <InsertMark key={`mark-${key}`} n={r.n} before={name} onPress={() => props.onChoose({ kind: 'gap', before: r.kind === 'part' ? r.index : r.before })} /> : null;
+          ? <HelpRow key={`mark-${key}`} of="recording.insert"><InsertMark n={r.n} before={name} onPress={() => props.onChoose({ kind: 'gap', before: r.kind === 'part' ? r.index : r.before })} /></HelpRow> : null;
         const row = r.kind === 'gap' ? (
           <GapSlot n={r.n} gutter={false} grip first={k === 0} disabled={props.disabled}
             chosen={target.kind === 'gap' && target.before === r.before} onPress={() => props.onChoose({ kind: 'gap', before: r.before })} />
@@ -164,7 +164,9 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
         );
         return [
           mark,
-          <View key={key} ref={drag.ref(key)} onLayout={drag.onLayout(key)} style={[moved !== 0 && { transform: [{ translateY: moved }] }, lifted && { zIndex: 10 }]}>{row}</View>
+          <HelpRow key={key} of={r.kind === 'gap' ? 'recording.gap' : 'recording.part'}>
+            <View ref={drag.ref(key)} onLayout={drag.onLayout(key)} style={[moved !== 0 && { transform: [{ translateY: moved }] }, lifted && { zIndex: 10 }]}>{row}</View>
+          </HelpRow>
         ];
       })}
     </View>

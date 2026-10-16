@@ -15,7 +15,7 @@ import { AudioClip } from '../audio/audioClip';
 import { stepName } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t, Trans } from '../i18n';
 import { Ico, StateMark, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -150,40 +150,46 @@ export function Journey(props: {
         const tone = feedback.length ? C.amber : isNext ? C.primary : C.border;
         const options = isLatest && props.canAct && !s.lockedBy && (!isNext || feedback.length > 0 || p.awaitingResponse.length > 0);
         return (
-          <JourneyRow key={st.id} {...(lineTo ? { line: lineTo } : {})} dim={isLatest && !!s.lockedBy}
-            {...(isCurrent ? { rowRef: currentRow, onLayout: () => { if (currentRow.current) props.onCurrentLayout(currentRow.current); } } : {})}
-            dot={<PathDot state={dot} checkpoint={st.checkpoint} override={!!s.override && isLatest} size={36} />}>
-            <View style={[styles.stepBox, open && { borderColor: tone, borderWidth: isNext || feedback.length ? 1.5 : StyleSheet.hairlineWidth, ...shadow }]}>
-              <StepHead name={stepName(kinds, st)} summary={summary} open={open} onPress={() => setExpanded((e) => ({ ...e, [st.id]: !open }))}>
-                <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-                  <View style={styles.pills}>
-                    <Text style={[txt.body, { fontWeight: '700' }]}>{stepName(kinds, st)}</Text>
-                    {st.checkpoint ? <Pill icon="lock" label={t('passage.journey.pill.checkpoint')} bg={TINT.amber} fg={TINT.amberText} /> : null}
-                    {isNext && feedback.length === 0 ? <Pill label={t('passage.journey.pill.next')} bg={C.primary} fg={C.white} /> : null}
-                    {feedback.length > 0 ? <Pill label={t('passage.journey.pill.feedback')} bg={TINT.amber} fg={TINT.amberText} /> : null}
-                  </View>
-                  {!open ? <Text style={txt.smMuted} numberOfLines={2}>{summary}</Text> : null}
-                  {open && st.kindIds.length > 1 ? <Text style={txt.xs}>{st.kindIds.length === 2 ? t('passage.journey.eitherOrder') : t('passage.journey.anyOrder')}</Text> : null}
-                </View>
-                <View style={styles.chev}><Ico name={open ? 'up' : 'down'} size={18} color={C.muted} /></View>
-              </StepHead>
-              {open ? (
-                <View style={styles.stepBody}>
-                  {feedback.map((r) => <View key={r.id}>{props.feedbackSlot(r)}</View>)}
-                  {isNext ? props.nextSlot : feedback.length > 0 ? null : (
-                    <View style={{ gap: space.sm }}>
-                      {st.kindIds.map((kid, j) => isLatest
-                        ? <KindLine key={kid} ctx={ctx} v={v} label={st.kindIds.length > 1 ? kindName(kid) : undefined} status={s.kinds.find((k) => k.kindId === kid)}
-                            step={s} onOpenReview={props.onOpenReview} onVersion={goTo} {...(props.teamName ? { teamName: props.teamName } : {})} />
-                        : <OldKindLine key={kid} ctx={ctx} v={v} label={st.kindIds.length > 1 ? kindName(kid) : undefined} kindId={kid}
-                            review={oldReviews[j]} onOpenReview={props.onOpenReview} onVersion={goTo} />)}
+          <HelpRow key={st.id} of="journey.step">
+            <JourneyRow {...(lineTo ? { line: lineTo } : {})} dim={isLatest && !!s.lockedBy}
+              {...(isCurrent ? { rowRef: currentRow, onLayout: () => { if (currentRow.current) props.onCurrentLayout(currentRow.current); } } : {})}
+              dot={<PathDot state={dot} checkpoint={st.checkpoint} override={!!s.override && isLatest} size={36} />}>
+              <View style={[styles.stepBox, open && { borderColor: tone, borderWidth: isNext || feedback.length ? 1.5 : StyleSheet.hairlineWidth, ...shadow }]}>
+                <StepHead name={stepName(kinds, st)} summary={summary} open={open} onPress={() => setExpanded((e) => ({ ...e, [st.id]: !open }))}>
+                  <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                    <View style={styles.pills}>
+                      <Text style={[txt.body, { fontWeight: '700' }]}>{stepName(kinds, st)}</Text>
+                      {st.checkpoint ? <Pill icon="lock" label={t('passage.journey.pill.checkpoint')} bg={TINT.amber} fg={TINT.amberText} /> : null}
+                      {isNext && feedback.length === 0 ? <Pill label={t('passage.journey.pill.next')} bg={C.primary} fg={C.white} /> : null}
+                      {feedback.length > 0 ? <Pill label={t('passage.journey.pill.feedback')} bg={TINT.amber} fg={TINT.amberText} /> : null}
                     </View>
-                  )}
-                  {options ? <StepOptions step={stepName(kinds, st)} onPress={() => props.onOpenStep(st.id)} /> : null}
-                </View>
-              ) : null}
-            </View>
-          </JourneyRow>
+                    {!open ? <Text style={txt.smMuted} numberOfLines={2}>{summary}</Text> : null}
+                    {open && st.kindIds.length > 1 ? <Text style={txt.xs}>{st.kindIds.length === 2 ? t('passage.journey.eitherOrder') : t('passage.journey.anyOrder')}</Text> : null}
+                  </View>
+                  <View style={styles.chev}><Ico name={open ? 'up' : 'down'} size={18} color={C.muted} /></View>
+                </StepHead>
+                {open ? (
+                  <View style={styles.stepBody}>
+                    {feedback.map((r) => <View key={r.id}>{props.feedbackSlot(r)}</View>)}
+                    {isNext ? props.nextSlot : feedback.length > 0 ? null : (
+                      <View style={{ gap: space.sm }}>
+                        {st.kindIds.map((kid, j) => (
+                          <HelpRow key={kid} of="journey.check">
+                            {isLatest
+                              ? <KindLine ctx={ctx} v={v} label={st.kindIds.length > 1 ? kindName(kid) : undefined} status={s.kinds.find((k) => k.kindId === kid)}
+                                  step={s} onOpenReview={props.onOpenReview} onVersion={goTo} {...(props.teamName ? { teamName: props.teamName } : {})} />
+                              : <OldKindLine ctx={ctx} v={v} label={st.kindIds.length > 1 ? kindName(kid) : undefined} kindId={kid}
+                                  review={oldReviews[j]} onOpenReview={props.onOpenReview} onVersion={goTo} />}
+                          </HelpRow>
+                        ))}
+                      </View>
+                    )}
+                    {options ? <StepOptions step={stepName(kinds, st)} onPress={() => props.onOpenStep(st.id)} /> : null}
+                  </View>
+                ) : null}
+              </View>
+            </JourneyRow>
+          </HelpRow>
         );
       })}
 
@@ -298,7 +304,9 @@ function VersionCard(props: {
       </View>
       {many ? (
         <View style={styles.dots} accessibilityRole="tablist" accessibilityLabel={t('passage.journey.versions')}>
-          {props.titles.map((title, i) => <VersionDot key={title} title={title} on={i === index} onPress={() => props.onGo(i)} />)}
+          {props.titles.map((title, i) => (
+            <HelpRow key={title} of="journey.versionDot"><VersionDot title={title} on={i === index} onPress={() => props.onGo(i)} /></HelpRow>
+          ))}
         </View>
       ) : null}
       <View style={styles.rowCenter}>
@@ -317,7 +325,7 @@ function VersionCard(props: {
       {props.madeAfter.length > 0 ? (
         <View style={styles.chips}>
           <Text style={txt.xsStrong}>{t('passage.journey.madeAfter')}</Text>
-          {props.madeAfter.map((m) => <MadeAfterChip key={m.id} label={m.label} onPress={m.onPress} />)}
+          {props.madeAfter.map((m) => <HelpRow key={m.id} of="journey.madeAfter"><MadeAfterChip label={m.label} onPress={m.onPress} /></HelpRow>)}
         </View>
       ) : null}
     </View>

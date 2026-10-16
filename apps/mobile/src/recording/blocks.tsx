@@ -6,7 +6,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico, Sheet, type IconName } from '../ui/kit';
@@ -37,6 +37,7 @@ export function RefChips<T extends string>(props: { items: ChipItem<T>[]; value:
   if (props.items.length < 2) return null;
   return (
     <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chips} accessibilityRole="tablist">
+      {/* help-each: each tab shows something different */}
       {props.items.map((it) => (
         <View key={it.id} onLayout={(e) => {
           const x = e.nativeEvent.layout.x;
@@ -260,7 +261,11 @@ export function StepsSheet(props: { title: string; sub?: string; steps: StepList
       {groups.map((g, gi) => (
         <View key={`${g.phase}-${gi}`} style={{ gap: 2 }}>
           {g.phase ? <Text style={[txt.label, { paddingHorizontal: space.xs, paddingBottom: space.xs }]}>{g.phase}</Text> : null}
-          {g.items.map(({ s, i }) => <StepRow key={i} n={i + 1} title={s.title} state={s.done ? 'done' : i === props.current ? 'now' : 'later'} onPress={() => props.onPick(i)} />)}
+          {g.items.map(({ s, i }) => (
+            <HelpRow key={i} of="recording.step">
+              <StepRow n={i + 1} title={s.title} state={s.done ? 'done' : i === props.current ? 'now' : 'later'} onPress={() => props.onPick(i)} />
+            </HelpRow>
+          ))}
         </View>
       ))}
       {props.children}

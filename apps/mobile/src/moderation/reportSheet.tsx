@@ -117,6 +117,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
         sub={t('moderation.report.whatIsWrong')} onClose={props.onClose}
         footer={<PrimaryBtn label={t('moderation.report.send')} icon="flag" disabled={!ready || busy} busy={busy} onPress={() => void send(of)} />}>
         <Group>
+          {/* help-each: each reason means something different */}
           {REPORT_REASON_IDS.map((id, i) => (
             <Row key={id} label={reasonLabel(id)} sub={reasonSub(id)} role="radio" selected={reason === id} last={i === REPORT_REASON_IDS.length - 1}
               right={<View style={[styles.radio, reason === id && styles.radioOn]}>{reason === id ? <Ico name="check" size={16} color={C.white} /> : null}</View>}

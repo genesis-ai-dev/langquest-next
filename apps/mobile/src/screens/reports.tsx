@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t, Trans } from '../i18n';
 import { contractsFor } from '../shell/screenContracts';
@@ -81,6 +81,7 @@ export function ReportsHome(ctx: Ctx) {
   return (
     <Screen header={header} columnWidth={COLUMN}>
       <ChipRow>
+        {/* help-each: each section shows a different report */}
         {SECTIONS.map((s) => (
           <Chip key={s.id} label={sectionLabel(s.id)} help={sectionHelp(s.id)} on={s.id === section} onPress={() => setSection(s.id)}
             {...(s.id === 'alerts' && alerts > 0 ? { count: alerts, accessibilityLabel: t('reports.home.alertsChip', { count: alerts }) } : {})} />
@@ -90,8 +91,10 @@ export function ReportsHome(ctx: Ctx) {
         <ChipRow>
           <Chip label={t('reports.home.allLanguages')} icon="globe" count={every.length} help={t('reports.home.allLanguagesHelp')} on={filter.kind === 'all'} onPress={() => { setCluster({ kind: 'all' }); setCountry(''); }} />
           {clusters.map((c) => (
-            <Chip key={c.clusterId} label={c.name} icon="layers" count={c.languageIds.length} help={t('reports.home.clusterHelp')} on={filter.kind === 'cluster' && filter.clusterId === c.clusterId}
-              onPress={() => { setCluster({ kind: 'cluster', clusterId: c.clusterId }); setCountry(''); }} />
+            <HelpRow key={c.clusterId} of="reports.clusterChip">
+              <Chip label={c.name} icon="layers" count={c.languageIds.length} help={t('reports.home.clusterHelp')} on={filter.kind === 'cluster' && filter.clusterId === c.clusterId}
+                onPress={() => { setCluster({ kind: 'cluster', clusterId: c.clusterId }); setCountry(''); }} />
+            </HelpRow>
           ))}
           {outside ? <Chip label={t('clusters.status.none')} count={outside} help={t('reports.home.noClusterHelp')} on={filter.kind === 'none'} onPress={() => { setCluster({ kind: 'none' }); setCountry(''); }} /> : null}
         </ChipRow>
@@ -99,7 +102,11 @@ export function ReportsHome(ctx: Ctx) {
       {spec.filterCountry && countries.length > 1 ? (
         <ChipRow>
           <Chip label={t('reports.home.allCountries')} icon="globe" help={t('reports.home.allCountriesHelp')} on={!country} onPress={() => setCountry('')} />
-          {countries.map((c) => <Chip key={c || 'none'} label={countryName(c || null)} help={t('reports.home.countryHelp')} on={country === c} onPress={() => setCountry(c)} />)}
+          {countries.map((c) => (
+            <HelpRow key={c || 'none'} of="reports.countryChip">
+              <Chip label={countryName(c || null)} help={t('reports.home.countryHelp')} on={country === c} onPress={() => setCountry(c)} />
+            </HelpRow>
+          ))}
         </ChipRow>
       ) : null}
       {reports.status === 'loading' ? <EmptyState icon="progress" title={t('reports.home.loading')} /> : null}
@@ -344,6 +351,7 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
           disabled={busy !== '' || !country || country === r.country} />
       </View>
       <Text style={[txt.xsStrong, { marginTop: space.sm }]}>{t('reports.settings.target')}</Text>
+      {/* help-each: each scope sets a different target */}
       <ChipRow>{TARGET_SCOPES.map((s) => <Chip key={s} label={scopeLabel(s)} help={t('reports.settings.scopeHelp')} on={scope === s} onPress={() => setScope(s)} />)}</ChipRow>
       <Columns min={200}>
         <Field label={t('reports.settings.start')} value={start} onChangeText={setStart} autoCapitalize="none" help={t('reports.settings.startHelp')} />
@@ -358,7 +366,9 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
       <Sheet visible={picking} title={t('reports.settings.country')} sub={r.name} onClose={() => setPicking(false)}>
         <SearchField value={search} onChangeText={setSearch} placeholder={t('reports.settings.findCountry')} />
         {choices.slice(0, 60).map((c) => (
-          <CountryChoice key={c} code={c} chosen={c === country} onPick={() => { setCountry(c); setPicking(false); setSearch(''); }} />
+          <HelpRow key={c} of="reports.countryChoice">
+            <CountryChoice code={c} chosen={c === country} onPick={() => { setCountry(c); setPicking(false); setSearch(''); }} />
+          </HelpRow>
         ))}
         {choices.length > 60 ? <Text style={txt.xs}>{t('reports.settings.typeToFind', { count: choices.length - 60 })}</Text> : null}
       </Sheet>

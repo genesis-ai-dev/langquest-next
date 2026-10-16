@@ -59,6 +59,7 @@ import { shareText } from '../ui/share';
 import { C, radius, space, tile, TINT } from '../ui/theme';
 import { useOrgSummary } from '../reports/useOrgSummary';
 import { useHelpMode } from '../helpMode/useHelpMode';
+import { HelpRow } from '../helpMode/helpBadge';
 import { AmberNote, BigTop, CheckRow, ChoiceCard, CountBadge, DashedRow, IconTile, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../admin/admin';
 import { inviteFailureText } from '../admin/inviteText';
 import { askedAgo, firstName, flowSub, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, stepTitle } from '../admin/adminModel';
@@ -306,9 +307,15 @@ export function OrgHome(ctx: Ctx) {
           <View style={{ padding: space.lg }}><Text style={txt.smMuted}>{t('org.home.noLanguages')}</Text></View>
         ) : null}
         {clusters.map((c) => (
-          <ClusterRow key={c.clusterId} ctx={ctx} c={c} current={beside?.screen === 'cluster_home' && beside.params['clusterId'] === c.clusterId} />
+          <HelpRow key={c.clusterId} of="org.cluster">
+            <ClusterRow ctx={ctx} c={c} current={beside?.screen === 'cluster_home' && beside.params['clusterId'] === c.clusterId} />
+          </HelpRow>
         ))}
-        {loose.slice(0, shown).map((languageId) => <LanguageListRow key={languageId} ctx={ctx} v={v} languageId={languageId} />)}
+        {loose.slice(0, shown).map((languageId) => (
+          <HelpRow key={languageId} of="org.language">
+            <LanguageListRow ctx={ctx} v={v} languageId={languageId} />
+          </HelpRow>
+        ))}
       </HomeSection>
       <ShowMore remaining={loose.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
       <PeopleRows ctx={ctx} level="org" />
@@ -398,7 +405,11 @@ export function ClusterHome(ctx: Ctx) {
         </Card>
       ) : null}
       <HomeSection label={t('clusters.home.itsLanguages')}>
-        {c.languageIds.map((languageId, i) => <LanguageListRow key={languageId} ctx={ctx} v={v} languageId={languageId} bar last={i === c.languageIds.length - 1} />)}
+        {c.languageIds.map((languageId, i) => (
+          <HelpRow key={languageId} of="cluster.language">
+            <LanguageListRow ctx={ctx} v={v} languageId={languageId} bar last={i === c.languageIds.length - 1} />
+          </HelpRow>
+        ))}
       </HomeSection>
       <Sheet visible={sheet === 'add'} title={t('clusters.add.title', { cluster: c.name })} onClose={close}
         footer={others.length ? <PrimaryBtn label={t('clusters.add.button')} icon="check" busy={busy} disabled={adding.size === 0} help={t('clusters.add.buttonHelp')}
@@ -414,9 +425,11 @@ export function ClusterHome(ctx: Ctx) {
           <View>
             <SectionLabel label={t('clusters.add.alreadyIn', { org: v.orgName })} />
             {others.map((id, i) => (
-              <CheckRow key={id} label={v.label(id)} checked={adding.has(id)} last={i === others.length - 1}
-                detail={adding.has(id) ? t('clusters.add.pickedHelp') : t('clusters.add.pickHelp')}
-                onToggle={() => setAdding((cur) => { const next = new Set(cur); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
+              <HelpRow key={id} of="cluster.addLanguage">
+                <CheckRow label={v.label(id)} checked={adding.has(id)} last={i === others.length - 1}
+                  detail={adding.has(id) ? t('clusters.add.pickedHelp') : t('clusters.add.pickHelp')}
+                  onToggle={() => setAdding((cur) => { const next = new Set(cur); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
+              </HelpRow>
             ))}
           </View>
         ) : <Text style={txt.smMuted}>{t('clusters.add.none', { org: v.orgName })}</Text>}
@@ -758,7 +771,9 @@ export function MembersList(ctx: Ctx) {
   // Only at a scope where this person holds Invite (the server checks the same).
   const edit = (e: MemberEntry) => mayInvite && mayGrantAt(v.org, ctx.session.actorId, e.scope);
   const rows = (list: MemberEntry[]) => list.map((e, i) => (
-    <MemberRow key={e.key} ctx={ctx} e={e} target={v.target(e.scope)} editable={edit(e)} level={level} last={i === list.length - 1} />
+    <HelpRow key={e.key} of="org.member">
+      <MemberRow ctx={ctx} e={e} target={v.target(e.scope)} editable={edit(e)} level={level} last={i === list.length - 1} />
+    </HelpRow>
   ));
   const group = (by: 'language', label: string) => {
     const groups = groupBelow(entries);
@@ -788,9 +803,11 @@ export function MembersList(ctx: Ctx) {
       <SectionLabel label={level === 'org' ? t('org.members.sectionOrg', { total }) : t('org.members.sectionLanguage', { total })} />
       <Group>
         {requests.map((r) => (
-          <Row key={r.id} leading={<Avatar id={r.profileId} name={r.name} />} label={r.name ?? ctx.name(r.profileId)} sub={r.message || t('admin.asked.toJoin')}
-            help={t('org.members.requestHelp')} onPress={() => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, level, ...(r.name ? { name: r.name } : {}) })}
-            right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}><Badge label={t('org.members.pending')} tone="amber" /><Ico name="right" size={22} color={C.muted} /></View>} />
+          <HelpRow key={r.id} of="org.request">
+            <Row leading={<Avatar id={r.profileId} name={r.name} />} label={r.name ?? ctx.name(r.profileId)} sub={r.message || t('admin.asked.toJoin')}
+              help={t('org.members.requestHelp')} onPress={() => ctx.go('edit_member', { memberId: r.profileId, requestId: r.id, level, ...(r.name ? { name: r.name } : {}) })}
+              right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}><Badge label={t('org.members.pending')} tone="amber" /><Ico name="right" size={22} color={C.muted} /></View>} />
+          </HelpRow>
         ))}
         {rows(current.slice(0, shown))}
         {current.length === 0 && requests.length === 0 ? (
@@ -807,7 +824,11 @@ export function MembersList(ctx: Ctx) {
       {higher.length > 0 ? (
         <>
           <SectionLabel label={t('org.members.higher')} />
-          <Group>{higher.map((e, i) => <MemberRow key={e.key} ctx={ctx} e={e} target={v.target(e.scope)} editable={false} level={level} last={i === higher.length - 1} />)}</Group>
+          <Group>{higher.map((e, i) => (
+            <HelpRow key={e.key} of="org.higherMember">
+              <MemberRow ctx={ctx} e={e} target={v.target(e.scope)} editable={false} level={level} last={i === higher.length - 1} />
+            </HelpRow>
+          ))}</Group>
         </>
       ) : null}
     </Screen>
@@ -816,15 +837,20 @@ export function MembersList(ctx: Ctx) {
 
 // ---- Invite, and editing a member (one form, as in the demo) ------------------------------------
 
-/** A list of choices on one card, the chosen one ticked; a screen reader hears radio buttons and which is selected. */
-function Choices(props: { items: { id: string; label: string; sub?: string; badge?: string; help?: string }[]; value: string; onChoose: (id: string) => void; empty?: string }) {
+/**
+ * A list of choices on one card, the chosen one ticked; a screen reader hears radio buttons and which is selected.
+ * `of` names the kind when the choices are alike (roles, languages), so one speaks for all in help mode; without it each explains itself.
+ */
+function Choices(props: { items: { id: string; label: string; sub?: string; badge?: string; help?: string }[]; value: string; onChoose: (id: string) => void; empty?: string; of?: string }) {
   if (props.items.length === 0) return <Text style={txt.smMuted}>{props.empty ?? t('org.choices.empty')}</Text>;
   return (
     <Group>
       {props.items.map((it, i) => (
-        <Row key={it.id} label={it.label} sub={it.sub} badge={it.badge} help={it.help} onPress={() => props.onChoose(it.id)} last={i === props.items.length - 1}
-          role="radio" selected={props.value === it.id}
-          right={props.value === it.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+        <HelpRow key={it.id} of={props.of ?? `org.choice.${it.id}`}>
+          <Row label={it.label} sub={it.sub} badge={it.badge} help={it.help} onPress={() => props.onChoose(it.id)} last={i === props.items.length - 1}
+            role="radio" selected={props.value === it.id}
+            right={props.value === it.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+        </HelpRow>
       ))}
     </Group>
   );
@@ -860,9 +886,10 @@ function AssignmentForm(props: {
         <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
       ) : null}
       <Choices items={props.roles.map((r) => ({ id: r.id, label: r.name, sub: r.sub, help: t('admin.invite.pickRoleHelp') }))} value={value.roleId}
-        onChoose={(roleId) => props.onChange({ ...value, roleId })} empty={t('org.assign.noRoles')} />
+        onChoose={(roleId) => props.onChange({ ...value, roleId })} empty={t('org.assign.noRoles')} of="assign.role" />
       <SectionLabel label={t('org.assign.where')} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+        {/* help-each: each level reaches different work */}
         {props.levels.map((l) => (
           <Chip key={l} label={levelLabel(l)} on={value.level === l} help={l === 'org' ? t('org.assign.orgHelp') : t('org.assign.languageLevelHelp')} onPress={() => {
             const languageId = l === 'language' ? value.languageId || defaultLanguage(languages, v.openId) : '';
@@ -876,7 +903,7 @@ function AssignmentForm(props: {
           <SectionLabel label={t('org.assign.language')} />
           <Text style={txt.xs}>{t('org.assign.languageHelp')}</Text>
           <Choices items={languages.map((id) => ({ id, label: v.label(id), help: t('org.assign.pickLanguageHelp') }))} value={value.languageId}
-            onChoose={(languageId) => props.onChange({ ...value, languageId })} empty={t('org.assign.noLanguages')} />
+            onChoose={(languageId) => props.onChange({ ...value, languageId })} empty={t('org.assign.noLanguages')} of="assign.language" />
         </>
       ) : null}
     </>
@@ -1027,16 +1054,23 @@ function JoinRequest(ctx: Ctx) {
       {message ? <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{t('org.join.message', { message })}</Text> : null}
       <SectionLabel label={t('admin.invite.whatWillTheyDo')} />
       {ctx.session.can('manage_roles') ? <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} /> : null}
+      {/* help-each: each plain role does different work */}
       {roles.choices.map((c) => (
         <RadioRow key={c.id} icon={c.icon as IconName} label={c.label} help={plainRoleHelp(c.id)} on={choice === c.id} onPress={() => setChoice(c.id)} />
       ))}
       {roles.others.length ? (others ? roles.others.map((r) => (
-        <RadioRow key={r.id} icon="star" label={r.name} help={t('admin.invite.pickRoleHelp')} on={choice === r.id} onPress={() => setChoice(r.id)} />
+        <HelpRow key={r.id} of="join.otherRole">
+          <RadioRow icon="star" label={r.name} help={t('admin.invite.pickRoleHelp')} on={choice === r.id} onPress={() => setChoice(r.id)} />
+        </HelpRow>
       )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} detail={t('admin.invite.otherRolesHelp')}
         onPress={() => setOthers(true)} />) : null}
       <SectionLabel label={t('admin.invite.whichLanguage')} />
       <Pills>
-        {granted.map((id) => <Chip key={id} label={v.label(id)} on={where === id} help={t('admin.invite.scopeLanguageHelp')} onPress={() => setWhere(id)} />)}
+        {granted.map((id) => (
+          <HelpRow key={id} of="join.language">
+            <Chip label={v.label(id)} on={where === id} help={t('admin.invite.scopeLanguageHelp')} onPress={() => setWhere(id)} />
+          </HelpRow>
+        ))}
         {mayOrg ? <Chip label={granted.length ? t('org.invite.allOfThem') : v.orgName} on={where === 'org'} help={t('admin.invite.scopeOrgHelp')} onPress={() => setWhere('org')} /> : null}
       </Pills>
       {!allowed ? <Banner icon="lock" title={t('common.viewOnly')} body={t('org.join.viewOnly')} /> : null}
@@ -1299,7 +1333,7 @@ export function InviteQr(ctx: Ctx) {
             <DashedRow icon="plus" label={t('org.qr.createRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
           ) : null}
           <Choices items={roles.map((r) => ({ id: r.id, label: r.name, sub: t('org.qr.privileges', { count: r.privileges }), help: t('admin.invite.pickRoleHelp') }))} value={roleId} onChoose={setRoleId}
-            empty={t('org.qr.noRoles')} />
+            empty={t('org.qr.noRoles')} of="qr.role" />
         </>
       ) : null}
       {step === 1 ? (
@@ -1602,14 +1636,18 @@ export function NewLanguage(ctx: Ctx) {
             {batch.length || existing.size ? (
               <Group>
                 {batch.map((l) => (
-                  <Row key={l.key} icon="globe" label={l.name} sub={l.code ? t('clusters.newLanguage.newWithCode', { code: l.code }) : t('clusters.newLanguage.new')}
-                    right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" help={t('clusters.newLanguage.takeOutHelp')}
-                      onPress={() => setBatch((cur) => cur.filter((x) => x.key !== l.key))} />} />
+                  <HelpRow key={l.key} of="newLanguage.clusterLanguage">
+                    <Row icon="globe" label={l.name} sub={l.code ? t('clusters.newLanguage.newWithCode', { code: l.code }) : t('clusters.newLanguage.new')}
+                      right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" help={t('clusters.newLanguage.takeOutHelp')}
+                        onPress={() => setBatch((cur) => cur.filter((x) => x.key !== l.key))} />} />
+                  </HelpRow>
                 ))}
                 {[...existing].map((id) => (
-                  <Row key={id} icon="globe" label={languageName(ctx.org.state, id)} sub={t('clusters.newLanguage.already', { org: orgName })}
-                    right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" help={t('clusters.newLanguage.takeOutHelp')}
-                      onPress={() => setExisting((cur) => { const next = new Set(cur); next.delete(id); return next; })} />} />
+                  <HelpRow key={id} of="newLanguage.clusterLanguage">
+                    <Row icon="globe" label={languageName(ctx.org.state, id)} sub={t('clusters.newLanguage.already', { org: orgName })}
+                      right={<SmallBtn label={t('clusters.newLanguage.takeOut')} icon="close" tone="plain" help={t('clusters.newLanguage.takeOutHelp')}
+                        onPress={() => setExisting((cur) => { const next = new Set(cur); next.delete(id); return next; })} />} />
+                  </HelpRow>
                 ))}
               </Group>
             ) : null}
@@ -1629,8 +1667,10 @@ export function NewLanguage(ctx: Ctx) {
                 <SectionLabel label={t('clusters.add.alreadyIn', { org: orgName })} />
                 <Pills>
                   {orgLangs.filter((id) => !existing.has(id)).map((id) => (
-                    <Chip key={id} label={languageName(ctx.org.state, id)} on={false} icon="plus" help={t('clusters.newLanguage.addExistingHelp')}
-                      onPress={() => setExisting((cur) => new Set(cur).add(id))} />
+                    <HelpRow key={id} of="newLanguage.addExisting">
+                      <Chip label={languageName(ctx.org.state, id)} on={false} icon="plus" help={t('clusters.newLanguage.addExistingHelp')}
+                        onPress={() => setExisting((cur) => new Set(cur).add(id))} />
+                    </HelpRow>
                   ))}
                 </Pills>
               </>
@@ -1653,8 +1693,12 @@ export function NewLanguage(ctx: Ctx) {
                 <SectionLabel label={t('clusters.newLanguage.inCluster')} />
                 <Pills>
                   <Chip label={t('clusters.newLanguage.no')} on={joins === null} help={t('clusters.newLanguage.noHelp')} onPress={() => setJoins(null)} />
-                  {clusters.map((c) => <Chip key={c.clusterId} label={c.name} icon="layers" on={joins === c.clusterId} help={t('clusters.newLanguage.joinHelp')}
-                    onPress={() => setJoins(c.clusterId)} />)}
+                  {clusters.map((c) => (
+                    <HelpRow key={c.clusterId} of="newLanguage.cluster">
+                      <Chip label={c.name} icon="layers" on={joins === c.clusterId} help={t('clusters.newLanguage.joinHelp')}
+                        onPress={() => setJoins(c.clusterId)} />
+                    </HelpRow>
+                  ))}
                   {fromCluster && !clusters.some((c) => c.clusterId === fromCluster) && clusterName(ctx.org.state, fromCluster) ? (
                     <Chip label={clusterName(ctx.org.state, fromCluster)!} icon="layers" on={joins === fromCluster} help={t('clusters.newLanguage.joinHelp')} onPress={() => setJoins(fromCluster)} />
                   ) : null}
@@ -1690,17 +1734,23 @@ export function NewLanguage(ctx: Ctx) {
             <SectionLabel label={t('getReady.record.whichPart')} />
             <Pills>
               {/* Choose books starts from the part picked before (the New Testament, say), to change (design principle 12). */}
-              {LANGUAGE_SCOPES.map((sc) => <Chip key={sc} label={languageScopeLabel(sc)} on={scope === sc}
-                help={sc === 'custom' ? t('getReady.record.chooseBooksHelp') : t('getReady.record.partHelp')} onPress={() => {
-                if (sc === 'custom' && scope !== 'custom' && chosenBooks.size === 0) setChosenBooks(new Set(booksInScope(doc, scope) ?? templateBooks(doc).map((b) => b.book)));
-                setScope(sc);
-              }} />)}
+              {LANGUAGE_SCOPES.map((sc) => (
+                <HelpRow key={sc} of={sc === 'custom' ? 'newLanguage.chooseBooks' : 'newLanguage.part'}>
+                  <Chip label={languageScopeLabel(sc)} on={scope === sc}
+                    help={sc === 'custom' ? t('getReady.record.chooseBooksHelp') : t('getReady.record.partHelp')} onPress={() => {
+                    if (sc === 'custom' && scope !== 'custom' && chosenBooks.size === 0) setChosenBooks(new Set(booksInScope(doc, scope) ?? templateBooks(doc).map((b) => b.book)));
+                    setScope(sc);
+                  }} />
+                </HelpRow>
+              ))}
             </Pills>
             {scope === 'custom' ? (
               <Pills>
                 {templateBooks(doc).map((b) => (
-                  <Chip key={b.book} label={b.name || b.book} on={chosenBooks.has(b.book)} help={chosenBooks.has(b.book) ? t('getReady.record.bookOnHelp') : t('getReady.record.bookOffHelp')}
-                    onPress={() => setChosenBooks((cur) => { const next = new Set(cur); if (next.has(b.book)) next.delete(b.book); else next.add(b.book); return next; })} />
+                  <HelpRow key={b.book} of="newLanguage.book">
+                    <Chip label={b.name || b.book} on={chosenBooks.has(b.book)} help={chosenBooks.has(b.book) ? t('getReady.record.bookOnHelp') : t('getReady.record.bookOffHelp')}
+                      onPress={() => setChosenBooks((cur) => { const next = new Set(cur); if (next.has(b.book)) next.delete(b.book); else next.add(b.book); return next; })} />
+                  </HelpRow>
                 ))}
               </Pills>
             ) : null}
@@ -1739,9 +1789,11 @@ export function NewLanguage(ctx: Ctx) {
     // A long description would push the rest off the screen: then its number of checks says enough.
     const sub = e === chk.first ? t('org.newLanguage.suggested', { from }) : e.doc.description && e.doc.description.length <= 60 ? e.doc.description : `${flowSub(e.doc.steps)} · ${from}`;
     return (
-      <ChoiceCard key={e.c.key} on={on} icon="route" title={e.c.name} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setFlowKey(e.c.key)}>
-        {on && e.doc.steps.length ? <NumberedSteps items={e.doc.steps.map((st) => ({ label: stepTitle(st.kindIds, chk.kindsOf(e.doc)), lock: !!st.checkpoint }))} /> : null}
-      </ChoiceCard>
+      <HelpRow key={e.c.key} of="newLanguage.way">
+        <ChoiceCard on={on} icon="route" title={e.c.name} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setFlowKey(e.c.key)}>
+          {on && e.doc.steps.length ? <NumberedSteps items={e.doc.steps.map((st) => ({ label: stepTitle(st.kindIds, chk.kindsOf(e.doc)), lock: !!st.checkpoint }))} /> : null}
+        </ChoiceCard>
+      </HelpRow>
     );
   };
   return (

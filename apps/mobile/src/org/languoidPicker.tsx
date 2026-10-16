@@ -4,6 +4,7 @@
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
+import { HelpRow } from '../helpMode/helpBadge';
 import { Banner, Group, LinkBtn, Row, SectionLabel, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { hitLine, type LanguoidHit } from './languoidModel';
@@ -56,8 +57,10 @@ export function LanguoidPicker(props: {
               label={t('languoid.picker.searching')} muted last={n === 0} />
           ) : null}
           {search.hits.map((h, i) => (
-            <Row key={h.id} icon="globe" label={h.name} sub={hitLine(h)} highlight={search.query} role="radio" selected={false} last={i === n - 1}
-              help={t('languoid.picker.pickHelp')} onPress={() => props.onPick(h)} />
+            <HelpRow key={h.id} of="languoid.hit">
+              <Row icon="globe" label={h.name} sub={hitLine(h)} highlight={search.query} role="radio" selected={false} last={i === n - 1}
+                help={t('languoid.picker.pickHelp')} onPress={() => props.onPick(h)} />
+            </HelpRow>
           ))}
         </ScrollView>
       </Group>

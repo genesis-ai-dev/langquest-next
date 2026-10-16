@@ -25,6 +25,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
+import { HelpRow } from '../helpMode/helpBadge';
 import { Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, GhostBtn, Group, Header, PrimaryBtn, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
@@ -92,6 +93,7 @@ function RecButtons(props: { ctx: Ctx; level: Level; itemId: string; name: strin
   const r = recState(props.ctx.org.state?.recommendations, props.ctx.language.state, props.level, props.itemId);
   return (
     <View style={styles.actions}>
+      {/* help-each: each button does something different */}
       {recActions(r, props.level).map((a) => (
         <SmallBtn key={a.id} label={a.label} tone={a.id === 'recommend' ? 'primary' : 'plain'} disabled={props.rec.busy} help={recHelp(a.id, props.level, r)}
           onPress={() => void props.rec.run(props.level, props.itemId, props.name, a.id)} />
@@ -132,17 +134,19 @@ export function ReferenceBibles(ctx: Ctx) {
     const st = recState(ctx.org.state?.recommendations, ctx.language.state, level, r.it.itemId);
     const label = recLabel(st, level);
     return (
-      <Card key={r.it.itemId} current={beside?.screen === 'reference_source' && beside.params['itemId'] === r.it.itemId}
-        onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...levelParams(level) })} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}
-        help={t('reference.bibles.cardHelp')}>
-        <View style={styles.titleRow}>
-          <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
-          <Badge label={label} tone={recTone(st)} />
-        </View>
-        <Text style={txt.xs}>{[doc.abbreviation, languageLabel(doc.language), providerName(doc.provider.kind), sourceLine(r.it)].join(' · ')}</Text>
-        <Text style={txt.sm}>{sourceSummary(facts)}</Text>
-        {canAct ? <RecButtons ctx={ctx} level={level} itemId={r.it.itemId} name={r.it.name} rec={rec} /> : null}
-      </Card>
+      <HelpRow key={r.it.itemId} of="reference.bibleCard">
+        <Card current={beside?.screen === 'reference_source' && beside.params['itemId'] === r.it.itemId}
+          onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...levelParams(level) })} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}
+          help={t('reference.bibles.cardHelp')}>
+          <View style={styles.titleRow}>
+            <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
+            <Badge label={label} tone={recTone(st)} />
+          </View>
+          <Text style={txt.xs}>{[doc.abbreviation, languageLabel(doc.language), providerName(doc.provider.kind), sourceLine(r.it)].join(' · ')}</Text>
+          <Text style={txt.sm}>{sourceSummary(facts)}</Text>
+          {canAct ? <RecButtons ctx={ctx} level={level} itemId={r.it.itemId} name={r.it.name} rec={rec} /> : null}
+        </Card>
+      </HelpRow>
     );
   };
 
@@ -278,8 +282,12 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
                 <Group>
                   {ready.map((s, i) => {
                     const doc = readyDocs.get(s.latest_hash) as SourceDoc;
-                    return <Row key={`${s.org_id}/${s.item_id}`} icon="book" label={s.name} disabled={busy} last={i === ready.length - 1}
-                      sub={[s.org_name, languageLabel(doc.language), sourceSummary(sourceFacts(doc, readyDocs.get))].join(' · ')} help={t('reference.addBible.readyHelp')} onPress={() => void addReady(s)} />;
+                    return (
+                      <HelpRow key={`${s.org_id}/${s.item_id}`} of="reference.readyBible">
+                        <Row icon="book" label={s.name} disabled={busy} last={i === ready.length - 1}
+                          sub={[s.org_name, languageLabel(doc.language), sourceSummary(sourceFacts(doc, readyDocs.get))].join(' · ')} help={t('reference.addBible.readyHelp')} onPress={() => void addReady(s)} />
+                      </HelpRow>
+                    );
                   })}
                 </Group>
               )
@@ -292,7 +300,9 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
               {languages.length ? (
                 <ChipRow>
                   {languages.slice(0, 8).map((l) => (
-                    <Chip key={l.code} label={`${l.name} · ${l.code}`} count={l.bibles} on={l.code === lang} help={t('reference.addBible.languageHelp')} onPress={() => setLang(l.code)} />
+                    <HelpRow key={l.code} of="reference.bibleLanguage">
+                      <Chip label={`${l.name} · ${l.code}`} count={l.bibles} on={l.code === lang} help={t('reference.addBible.languageHelp')} onPress={() => setLang(l.code)} />
+                    </HelpRow>
                   ))}
                 </ChipRow>
               ) : null}
@@ -301,8 +311,10 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
               {bibles && bibles.length ? (
                 <Group>
                   {bibles.map((b, i) => (
-                    <Row key={b.bibleId} icon="book" label={b.name} disabled={busy} last={i === bibles.length - 1}
-                      sub={`${b.abbreviation} · ${bibleLine(b)}`} help={t('reference.addBible.bibleHelp')} onPress={() => void pick(b)} />
+                    <HelpRow key={b.bibleId} of="reference.bible">
+                      <Row icon="book" label={b.name} disabled={busy} last={i === bibles.length - 1}
+                        sub={`${b.abbreviation} · ${bibleLine(b)}`} help={t('reference.addBible.bibleHelp')} onPress={() => void pick(b)} />
+                    </HelpRow>
                   ))}
                 </Group>
               ) : null}
@@ -422,9 +434,9 @@ export function ReferenceSource(ctx: Ctx) {
           {!need.reason && need.requests.length === 0 && detail ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.source.allTimed')}</Text> : null}
           {!detail && !detailError ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.source.checking')}</Text> : null}
           {mayAsk ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.source.untimedBooks', { count: booksToTime })}</Text> : null}
-          {jobs.map((j) => <JobCard key={j.id} job={j} outcome={outcomes[j.id]} ctx={ctx} onRetry={async () => {
+          {jobs.map((j) => <HelpRow key={j.id} of="reference.timingJob"><JobCard job={j} outcome={outcomes[j.id]} ctx={ctx} onRetry={async () => {
             try { await publishTimingJob(lib, it, j.id); ctx.toast(t('reference.source.published')); } catch (e) { ctx.toast(t('reference.source.notPublished', { reason: referenceFailure('publish timings', e) })); } // i18n-ignore: 'publish timings' is a log label
-          }} />)}
+          }} /></HelpRow>)}
         </>
       ) : null}
     </Screen>
@@ -518,7 +530,7 @@ export function ReferenceGuides(ctx: Ctx) {
       {withRec.length === 0 ? (
         <Card><Text style={txt.smMuted}>{items.length ? t('reference.guides.nothingMatches') : t('reference.guides.empty')}</Text></Card>
       ) : withRec.slice(0, n).map(({ r, st, label }) => (
-        <Card key={r.it.itemId} current={beside?.screen === 'material_editor' && beside.params['itemId'] === r.it.itemId}
+        <HelpRow key={r.it.itemId} of="reference.guide"><Card current={beside?.screen === 'material_editor' && beside.params['itemId'] === r.it.itemId}
           onPress={() => (r.doc?.format === 'study@2' && r.it.source !== 'subscription'
             ? ctx.go('guide_editor', { itemId: r.it.itemId, ...levelParams(level) })
             : ctx.go('material_editor', { itemId: r.it.itemId, ...levelParams(level) }))} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}
@@ -529,7 +541,7 @@ export function ReferenceGuides(ctx: Ctx) {
           </View>
           <Text style={txt.xs}>{guideLine(r, reach ? itemReaches(reach, r.it.itemId) : null)}</Text>
           {canAct ? <RecButtons ctx={ctx} level={level} itemId={r.it.itemId} name={r.it.name} rec={rec} /> : null}
-        </Card>
+        </Card></HelpRow>
       ))}
       <ShowMore remaining={withRec.length - n} step={STEP} onMore={() => setN(n + STEP)} />
 
@@ -548,13 +560,14 @@ export function ReferenceGuides(ctx: Ctx) {
 
       <Sheet visible={filtering} title={t('common.filter')} onClose={() => setFiltering(false)} footer={<PrimaryBtn label={t('reference.guides.showItems', { count: shown.length })} onPress={() => setFiltering(false)} />}>
         <Text style={txt.xsStrong}>{t('reference.guides.whatKind')}</Text>
+        {/* help-each: each kind shows different material */}
         <ChipRow>{KIND_FILTERS.map((k) => <Chip key={k} label={kindFilterLabel(k)} on={kind === k} help={k === 'all' ? t('reference.guides.kindAllHelp') : t('reference.guides.kindHelp')} onPress={() => setKind(k)} />)}</ChipRow>
         {languages.length ? (
           <>
             <Text style={txt.xsStrong}>{t('reference.guides.language')}</Text>
             <ChipRow>
               <Chip label={t('reference.guides.any')} on={!language} help={t('reference.guides.anyLanguageHelp')} onPress={() => setLanguage(null)} />
-              {languages.map((l) => <Chip key={l} label={languageLabel(l)} on={language === l} help={t('reference.guides.languageHelp')} onPress={() => setLanguage(l)} />)}
+              {languages.map((l) => <HelpRow key={l} of="reference.filterLanguage"><Chip label={languageLabel(l)} on={language === l} help={t('reference.guides.languageHelp')} onPress={() => setLanguage(l)} /></HelpRow>)}
             </ChipRow>
           </>
         ) : null}
@@ -563,7 +576,7 @@ export function ReferenceGuides(ctx: Ctx) {
             <Text style={txt.xsStrong}>{t('reference.guides.book')}</Text>
             <ChipRow>
               <Chip label={t('reference.guides.any')} on={!book} help={t('reference.guides.anyBookHelp')} onPress={() => setBook(null)} />
-              {books.slice(0, 40).map((b) => <Chip key={b} label={b} on={book === b} help={t('reference.guides.bookHelp')} onPress={() => setBook(b)} />)}
+              {books.slice(0, 40).map((b) => <HelpRow key={b} of="reference.filterBook"><Chip label={b} on={book === b} help={t('reference.guides.bookHelp')} onPress={() => setBook(b)} /></HelpRow>)}
             </ChipRow>
           </>
         ) : null}
@@ -621,11 +634,13 @@ export function ReferenceCoverage(ctx: Ctx) {
           {shown.slice(0, n).map((p, i) => {
             const { what, bare } = coverageRow(map?.get(p.unitId) ?? [], names);
             return (
-              <Row key={p.unitId} label={p.label} last={i === Math.min(n, shown.length) - 1}
-                current={beside?.screen === 'passage_reference' && beside.params['unitId'] === p.unitId}
-                sub={what.length ? what.join(' · ') : t('reference.coverage.nothingReaches')}
-                badge={bare ? t('reference.coverage.noGuideBadge') : undefined} badgeTone={bare ? 'amber' : undefined}
-                help={t('reference.coverage.passageHelp')} onPress={() => ctx.go('passage_reference', { unitId: p.unitId, languageId })} />
+              <HelpRow key={p.unitId} of="reference.passage">
+                <Row label={p.label} last={i === Math.min(n, shown.length) - 1}
+                  current={beside?.screen === 'passage_reference' && beside.params['unitId'] === p.unitId}
+                  sub={what.length ? what.join(' · ') : t('reference.coverage.nothingReaches')}
+                  badge={bare ? t('reference.coverage.noGuideBadge') : undefined} badgeTone={bare ? 'amber' : undefined}
+                  help={t('reference.coverage.passageHelp')} onPress={() => ctx.go('passage_reference', { unitId: p.unitId, languageId })} />
+              </HelpRow>
             );
           })}
         </Group>
@@ -720,16 +735,20 @@ export function PassageReference(ctx: Ctx) {
       <PassageTextBar ctx={ctx} bible={bible} title={passage.label} open={text.open} onToggle={text.onToggle} terms={termsHere} notes={notes} />
       {cards.length === 0 ? <Card><Text style={txt.smMuted}>{t('reference.passageText.none')}</Text></Card> : null}
       {cards.map((c) => (
-        <HelpCard key={c.key} icon={c.icon} name={c.name} sub={c.sub} preview={c.preview} shown={c.shown} busy={busy} {...(c.onSet ? { onSet: c.onSet } : {})}>
-          {c.terms ? (
-            <View style={styles.words}>
-              {c.terms.map((term) => (
-                <WordChip key={term.termId} label={term.term} help={t('reference.keyWords.openHelp')}
-                  onPress={() => ctx.go('key_term_detail', { termId: term.termId, unitId, languageId })} />
-              ))}
-            </View>
-          ) : null}
-        </HelpCard>
+        <HelpRow key={c.key} of={c.terms ? 'reference.keyWords' : 'reference.help'}>
+          <HelpCard icon={c.icon} name={c.name} sub={c.sub} preview={c.preview} shown={c.shown} busy={busy} {...(c.onSet ? { onSet: c.onSet } : {})}>
+            {c.terms ? (
+              <View style={styles.words}>
+                {c.terms.map((term) => (
+                  <HelpRow key={term.termId} of="reference.keyWord">
+                    <WordChip label={term.term} help={t('reference.keyWords.openHelp')}
+                      onPress={() => ctx.go('key_term_detail', { termId: term.termId, unitId, languageId })} />
+                  </HelpRow>
+                ))}
+              </View>
+            ) : null}
+          </HelpCard>
+        </HelpRow>
       ))}
       {canManage ? <DashedBtn label={t('reference.passageText.addHelp')} icon="plus" hint={t('reference.passageText.addHelpHint')} onPress={() => setAdding(true)} /> : null}
       <Sheet visible={adding} title={t('reference.passageText.addHelp')} sub={passage.label} onClose={() => setAdding(false)}>
@@ -745,10 +764,12 @@ export function PassageReference(ctx: Ctx) {
         {addable.length === 0 ? <Text style={txt.smMuted}>{q ? t('common.nothingMatches', { query: q }) : t('reference.passage.allHere')}</Text> : (
           <Group>
             {addable.slice(0, 50).map((r, i) => (
-              <Row key={r.it.itemId} icon={refIcon(r.kind!)} label={r.it.name}
-                sub={addableLine(r)} last={i === Math.min(addable.length, 50) - 1} disabled={busy}
-                help={t('reference.passage.placeHelp')}
-                onPress={() => { setAdding(false); void link(r.it.itemId, true, t('reference.passage.placed', { name: r.it.name }), false); }} />
+              <HelpRow key={r.it.itemId} of="reference.addable">
+                <Row icon={refIcon(r.kind!)} label={r.it.name}
+                  sub={addableLine(r)} last={i === Math.min(addable.length, 50) - 1} disabled={busy}
+                  help={t('reference.passage.placeHelp')}
+                  onPress={() => { setAdding(false); void link(r.it.itemId, true, t('reference.passage.placed', { name: r.it.name }), false); }} />
+              </HelpRow>
             ))}
           </Group>
         )}

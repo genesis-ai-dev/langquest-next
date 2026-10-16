@@ -26,7 +26,7 @@ import type { HelpSpot } from '../helpMode/helpContext';
 import { useHelpInfo, useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
 import { isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { HelpBadge, HelpClip, HelpHost, HelpLit } from '../helpMode/helpBadge';
+import { HelpBadge, HelpClip, HelpHost, HelpLit, HelpRow } from '../helpMode/helpBadge';
 import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
@@ -185,6 +185,7 @@ export function Header(props: {
   const back = useHelpSpot(props.close ? t('common.close') : t('common.back'), props.backHelp ?? (props.close ? t('help.details.close') : t('help.details.back')), props.onBack);
   const crumbs = props.crumbs && props.crumbs.length > 0 && wide ? (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.crumbs}>
+      {/* help-each: each crumb goes back to a different place */}
       {props.crumbs.map((c, i) => (
         <View key={`${c.label}-${i}`} style={styles.crumb}>
           {i > 0 ? <Ico name="right" size={14} color={C.muted} /> : null}
@@ -521,6 +522,7 @@ export function QuietLinks(props: { items: { label: string; icon: IconName; onPr
   /** What help mode says it does; else "Another way forward, less often needed." */ help?: string }[] }) {
   return (
     <View style={styles.quietRow}>
+      {/* help-each: each link does something different */}
       {props.items.map((it) => <QuietLink key={it.label} {...it} />)}
     </View>
   );
@@ -910,7 +912,7 @@ export function ReasonSheet(props: {
         // i18n-ignore: stored in the event log as the reason when only a voice note was given; stays English like the rest of the log
         onPress={() => { props.onConfirm({ reason: reason.trim() || 'Explained in a voice note.', ...(hash ? { blobHash: hash } : {}) }); setReason(''); setHash(null); }} />}>
       {props.quickReasons.length > 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-        {props.quickReasons.map((q) => <QuickReason key={q} reason={q} on={reason === q} onPick={() => setReason(q)} />)}
+        {props.quickReasons.map((q) => <HelpRow key={q} of="kit.reason"><QuickReason reason={q} on={reason === q} onPick={() => setReason(q)} /></HelpRow>)}
       </View> : null}
       {props.voice ? props.voice({ hash, onChange: setHash }) : null}
       <Field value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? t('shell.kit.orTypeReason') : t('common.orTypeIt')} multiline />

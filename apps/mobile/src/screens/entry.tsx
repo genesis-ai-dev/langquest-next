@@ -50,7 +50,7 @@ import { lift } from '../ui/shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { LanguageChip } from '../i18n/uiLanguage';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 
 /**
@@ -301,20 +301,22 @@ export function ExploreHome(ctx: Ctx) {
         // A license this build does not know yet is simply not shown.
         const license = isLicense(p.license) ? { ...licenseText(p.license), terms: LICENSE_INFO[p.license].terms } : null;
         return (
-          <Card key={`${p.org_id}:${p.language_id}`} accessibilityLabel={t('entry.explore.cardLabel', { name: p.name, percent: formatPercent(pct) })}
-            help={guest ? t('entry.explore.cardGuestHelp') : t('entry.explore.cardHelp')}
-            onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id })}>
-            <View style={{ gap: 2 }}>
-              <Text style={txt.h3}>{p.name}</Text>
-              {p.code ? <Text style={txt.smMuted}>{p.code}</Text> : null}
-            </View>
-            {license ? <View style={{ flexDirection: 'row' }}><Badge label={`${license.name} · ${license.short}`} tone={license.terms.outsidersMayView ? 'green' : 'default'} /></View> : null}
-            <ProgressBar value={pct} />
-            <View style={styles.between}>
-              <Text style={txt.xs}>{t('entry.explore.recorded')}</Text>
-              <Text style={[txt.xsStrong, { color: C.primary }]}>{formatPercent(pct)}</Text>
-            </View>
-          </Card>
+          <HelpRow key={`${p.org_id}:${p.language_id}`} of="entry.listedLanguage">
+            <Card accessibilityLabel={t('entry.explore.cardLabel', { name: p.name, percent: formatPercent(pct) })}
+              help={guest ? t('entry.explore.cardGuestHelp') : t('entry.explore.cardHelp')}
+              onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id })}>
+              <View style={{ gap: 2 }}>
+                <Text style={txt.h3}>{p.name}</Text>
+                {p.code ? <Text style={txt.smMuted}>{p.code}</Text> : null}
+              </View>
+              {license ? <View style={{ flexDirection: 'row' }}><Badge label={`${license.name} · ${license.short}`} tone={license.terms.outsidersMayView ? 'green' : 'default'} /></View> : null}
+              <ProgressBar value={pct} />
+              <View style={styles.between}>
+                <Text style={txt.xs}>{t('entry.explore.recorded')}</Text>
+                <Text style={[txt.xsStrong, { color: C.primary }]}>{formatPercent(pct)}</Text>
+              </View>
+            </Card>
+          </HelpRow>
         );
       })}
       <ShowMore remaining={listed.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
@@ -757,6 +759,7 @@ export function IntentChooser(ctx: Ctx) {
           <SectionLabel label={t('entry.intent.meanwhile')} />
         </>
       ) : null}
+      {/* help-each: each choice goes somewhere different */}
       {main.map((o, i) => (
         <Card key={o.to} onPress={() => ctx.go(o.to)} accessibilityLabel={o.label} help={o.help} current={i === 0 && !waiting}>
           <View style={styles.optionRow}>
@@ -946,10 +949,12 @@ export function RequestAccess(ctx: Ctx) {
       {matches.length > 0 ? (
         <Group>
           {matches.slice(0, shown).map((o, i, all) => (
-            <Row key={o.org_id} label={o.name} sub={o.languages.join(' · ')} help={t('entry.request.rowHelp')} last={i === all.length - 1}
-              accessibilityLabel={t('entry.request.askRowLabel', { org: o.name })}
-              right={<Text style={[txt.link, { fontSize: 16 }]}>{busy && picked?.org_id === o.org_id ? t('entry.request.asking') : t('entry.request.askToJoin')}</Text>}
-              onPress={() => { setPicked(o); void sendTo(o); }} />
+            <HelpRow key={o.org_id} of="entry.organization">
+              <Row label={o.name} sub={o.languages.join(' · ')} help={t('entry.request.rowHelp')} last={i === all.length - 1}
+                accessibilityLabel={t('entry.request.askRowLabel', { org: o.name })}
+                right={<Text style={[txt.link, { fontSize: 16 }]}>{busy && picked?.org_id === o.org_id ? t('entry.request.asking') : t('entry.request.askToJoin')}</Text>}
+                onPress={() => { setPicked(o); void sendTo(o); }} />
+            </HelpRow>
           ))}
         </Group>
       ) : null}

@@ -27,7 +27,7 @@ import { useOfflineSummary } from '../sync/useOfflineSummary';
 import { useSyncStatus } from '../sync/useSyncStatus';
 import { offlineCount, moreSettingsSub } from '../account/meModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation/model';
 import { decideRequest, type PendingRequest } from '../invites/invites';
 import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
@@ -219,16 +219,18 @@ export function InboxHome(ctx: Ctx) {
   const list = (rows: InboxItem[], shown: number) => (
     <Group>
       {rows.slice(0, shown).map((n, i, a) => (
-        <Row key={n.id} icon={n.icon} iconBg={n.read ? C.bg : C.light} label={n.title}
-          sub={n.time ? `${n.body} · ${n.time}` : n.body} last={i === a.length - 1} onPress={n.onPress}
-          help={n.read ? n.help : t('account.inbox.unreadHelp', { line: n.help })}
-          current={!!n.unitId && beside?.screen === 'passage_record' && beside.params['unitId'] === n.unitId}
-          right={
-            <View style={styles.rowEnd}>
-              {!n.read ? <View style={styles.dot} accessibilityLabel={t('account.inbox.unread')} /> : null}
-              <Ico name="right" size={22} color={C.muted} />
-            </View>
-          } />
+        <HelpRow key={n.id} of="inbox.item">
+          <Row icon={n.icon} iconBg={n.read ? C.bg : C.light} label={n.title}
+            sub={n.time ? `${n.body} · ${n.time}` : n.body} last={i === a.length - 1} onPress={n.onPress}
+            help={n.read ? n.help : t('account.inbox.unreadHelp', { line: n.help })}
+            current={!!n.unitId && beside?.screen === 'passage_record' && beside.params['unitId'] === n.unitId}
+            right={
+              <View style={styles.rowEnd}>
+                {!n.read ? <View style={styles.dot} accessibilityLabel={t('account.inbox.unread')} /> : null}
+                <Ico name="right" size={22} color={C.muted} />
+              </View>
+            } />
+        </HelpRow>
       ))}
     </Group>
   );
@@ -242,13 +244,15 @@ export function InboxHome(ctx: Ctx) {
           <SectionLabel label={t('account.inbox.savedChanges')} />
           <Group>
             {accountActions.map((a, i, all) => (
-              <Row key={a.id} icon={a.status === 'failed' ? 'flag' : 'cloud'} iconColor={a.status === 'failed' ? TINT.redText : C.primary}
-                label={a.kind === 'join_request' ? t('account.inbox.actions.joinRequest') : a.kind === 'profile' ? t('account.inbox.actions.profile')
-                  : a.kind === 'report' ? t('account.inbox.actions.report')
-                  : a.kind === 'block' ? (a.payload.blocked ? t('account.inbox.actions.block') : t('account.inbox.actions.unblock')) : t('account.inbox.actions.onboarding')}
-                sub={a.status === 'failed' ? t('account.inbox.failedSub', { reason: outboxErrorText(a.error) }) : t('account.inbox.waiting')}
-                badge={a.status === 'failed' ? t('account.inbox.badgeNotSent') : t('account.inbox.badgeSaved')} last={i === all.length - 1}
-                onPress={a.status === 'failed' ? () => { void accountOutbox(me).retry(a.id).catch((e: unknown) => ctx.toast(failure('account retry', e))); } : undefined} />
+              <HelpRow key={a.id} of="inbox.savedChange">
+                <Row icon={a.status === 'failed' ? 'flag' : 'cloud'} iconColor={a.status === 'failed' ? TINT.redText : C.primary}
+                  label={a.kind === 'join_request' ? t('account.inbox.actions.joinRequest') : a.kind === 'profile' ? t('account.inbox.actions.profile')
+                    : a.kind === 'report' ? t('account.inbox.actions.report')
+                    : a.kind === 'block' ? (a.payload.blocked ? t('account.inbox.actions.block') : t('account.inbox.actions.unblock')) : t('account.inbox.actions.onboarding')}
+                  sub={a.status === 'failed' ? t('account.inbox.failedSub', { reason: outboxErrorText(a.error) }) : t('account.inbox.waiting')}
+                  badge={a.status === 'failed' ? t('account.inbox.badgeNotSent') : t('account.inbox.badgeSaved')} last={i === all.length - 1}
+                  onPress={a.status === 'failed' ? () => { void accountOutbox(me).retry(a.id).catch((e: unknown) => ctx.toast(failure('account retry', e))); } : undefined} />
+              </HelpRow>
             ))}
           </Group>
         </>
@@ -528,11 +532,13 @@ function BlockedPeople(props: { ctx: Ctx; onClose: () => void }) {
           {shown.map((id, i, all) => {
             const blocked = ctx.blocks.has(id);
             return (
-              <Row key={id} leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)}
-                {...(blocked ? {} : { sub: t('account.blocked.unblocked') })} last={i === all.length - 1}
-                right={blocked
-                  ? <SmallBtn label={t('account.blocked.unblock')} help={t('account.blocked.unblockHelp')} onPress={() => void set(id, false)} />
-                  : <SmallBtn label={t('account.blocked.blockAgain')} tone="plain" help={t('account.blocked.blockAgainHelp')} onPress={() => void set(id, true)} />} />
+              <HelpRow key={id} of="account.blockedPerson">
+                <Row leading={<PersonAvatar look={personLook(id, ctx.name(id))} size={36} />} label={ctx.name(id)}
+                  {...(blocked ? {} : { sub: t('account.blocked.unblocked') })} last={i === all.length - 1}
+                  right={blocked
+                    ? <SmallBtn label={t('account.blocked.unblock')} help={t('account.blocked.unblockHelp')} onPress={() => void set(id, false)} />
+                    : <SmallBtn label={t('account.blocked.blockAgain')} tone="plain" help={t('account.blocked.blockAgainHelp')} onPress={() => void set(id, true)} />} />
+              </HelpRow>
             );
           })}
         </Group>
@@ -629,17 +635,19 @@ export function OrgSwitcher(ctx: Ctx) {
       {rows.map((r) => {
         const active = r.org_id === ctx.language.orgId;
         return (
-          <Card key={r.org_id} accessibilityLabel={active ? t('account.orgs.activeLabel', { name: r.name }) : r.name}
-            help={active ? t('account.orgs.activeHelp') : t('account.orgs.openHelp')}
-            onPress={() => void ctx.openOrganization(r.org_id).catch((e: unknown) => setError(failure('switch organization', e)))}>
-            <View style={styles.profile}>
-              <View style={styles.tile}><Ico name="building" size={24} color={active ? C.primary : C.muted} /></View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{r.name}</Text>
+          <HelpRow key={r.org_id} of="account.organization">
+            <Card accessibilityLabel={active ? t('account.orgs.activeLabel', { name: r.name }) : r.name}
+              help={active ? t('account.orgs.activeHelp') : t('account.orgs.openHelp')}
+              onPress={() => void ctx.openOrganization(r.org_id).catch((e: unknown) => setError(failure('switch organization', e)))}>
+              <View style={styles.profile}>
+                <View style={styles.tile}><Ico name="building" size={24} color={active ? C.primary : C.muted} /></View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{r.name}</Text>
+                </View>
+                {active ? <View style={styles.check}><Ico name="check" size={16} color={C.white} strokeWidth={3} /></View> : null}
               </View>
-              {active ? <View style={styles.check}><Ico name="check" size={16} color={C.white} strokeWidth={3} /></View> : null}
-            </View>
-          </Card>
+            </Card>
+          </HelpRow>
         );
       })}
       {!rows.length && !error ? <EmptyState icon="building" title={t('account.orgs.loading')} /> : null}
@@ -842,7 +850,9 @@ export function SyncStatus(ctx: Ctx) {
           <SectionLabel label={t('account.sync.waitingCount', { n: ins.pending.length })} />
           <Group>
             {ins.pending.slice(0, 20).map((l, i, a) => (
-              <Row key={l.event.id} icon="cloud" label={eventLabel(ctx, l.event)} sub={clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
+              <HelpRow key={l.event.id} of="sync.event">
+                <Row icon="cloud" label={eventLabel(ctx, l.event)} sub={clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
+              </HelpRow>
             ))}
           </Group>
         </>
@@ -852,7 +862,9 @@ export function SyncStatus(ctx: Ctx) {
           <SectionLabel label={t('account.sync.refusedCount', { n: rejected.length })} />
           <Group>
             {rejected.slice(0, 20).map((l, i, a) => (
-              <Row key={l.event.id} icon="flag" iconColor={TINT.redText} label={eventLabel(ctx, l.event)} sub={l.rejectReason ?? clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
+              <HelpRow key={l.event.id} of="sync.event">
+                <Row icon="flag" iconColor={TINT.redText} label={eventLabel(ctx, l.event)} sub={l.rejectReason ?? clock(l.event.hlc)} help={t('account.sync.eventHelp')} last={i === a.length - 1} onPress={openUnit(ctx, l.event)} />
+              </HelpRow>
             ))}
           </Group>
         </>

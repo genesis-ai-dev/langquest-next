@@ -35,6 +35,7 @@ export function ShowsSection(props: { ctx: Ctx; kindId: string; name: string; ca
     <>
       <SectionLabel label={t('checks.shows.title')} />
       <Group>
+        {/* help-each: each row is a different help, with its own switch */}
         {rows.map((r, j) => {
           const parts: ShowPart[] = r.key === 'terms' ? [{ key: 'terms', what: 'terms' as ShownWhat, on: shows.terms }] : partsOf(state, kindId, r.key);
           const on = parts.some((p) => p.on);
