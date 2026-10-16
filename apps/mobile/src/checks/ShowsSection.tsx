@@ -8,7 +8,9 @@
 import { checkShows, type ShownWhat } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { Group, Row, SectionLabel, Toggle, type IconName } from '../ui/kit';
+import { StyleSheet, View } from 'react-native';
+import { Group, Ico, Row, SectionLabel, Toggle, type IconName } from '../ui/kit';
+import { C, space } from '../ui/theme';
 import { partsOf, partsLine, type ShowPart } from './showsModel';
 import { setParts } from './showActions';
 
@@ -43,7 +45,8 @@ export function ShowsSection(props: { ctx: Ctx; kindId: string; name: string; ca
           return r.key === 'terms' ? (
             <Row key={r.key} icon={r.icon} label={r.label} role="switch" checked={on} muted={!on} right={switchEl} last={j === rows.length - 1} />
           ) : (
-            <Row key={r.key} icon={r.icon} label={r.label} sub={partsLine(parts, r.key)} muted={!on} right={switchEl}
+            <Row key={r.key} icon={r.icon} label={r.label} sub={partsLine(parts, r.key)} muted={!on}
+              right={<View style={styles.right}>{switchEl}<Ico name="right" size={20} color={C.faint} /></View>}
               help={t('checks.shows.openHelp')} onPress={() => open(r.key)} last={j === rows.length - 1} />
           );
         })}
@@ -51,3 +54,8 @@ export function ShowsSection(props: { ctx: Ctx; kindId: string; name: string; ca
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  // A help's switch, then the way into its page.
+  right: { flexDirection: 'row', alignItems: 'center', gap: space.xs }
+});
