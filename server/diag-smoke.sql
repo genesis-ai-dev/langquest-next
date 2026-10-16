@@ -140,7 +140,7 @@ do $$ begin
   if not exists (select 1 from diag.records where id = 'dgr2') then raise exception 'prune removed a current record'; end if;
 end $$;
 
--- 6. Server jobs (20261015210000_diag_jobs.sql): runs go in through
+-- 6. Server jobs (20261016010000_diag_jobs.sql): runs go in through
 -- public.diag_job_ingest as the service role only, content-free.
 select set_config('request.jwt.claim.sub', '', false);
 set role service_role;
@@ -271,7 +271,7 @@ begin
   delete from public.projection_marks where org_id = 'dg_org';
 end $$;
 
--- 7. The second pass (20261015200000_diag_gaps.sql): the new kinds go in
+-- 7. The second pass (20261016000000_diag_gaps.sql): the new kinds go in
 -- through the same allowlist, and the reports read them, the organization
 -- stream, and a member's phone that never opened the language.
 select set_config('request.jwt.claim.sub', 'dg_t1', false);

@@ -1,6 +1,6 @@
 /**
  * Job runs for field diagnostics (docs/diagnostics.md, migration
- * 20261015210000_diag_jobs.sql): one content-free row per run of a server
+ * 20261016010000_diag_jobs.sql): one content-free row per run of a server
  * job, so support can see from `diag.jobs()` whether pushes go out, the
  * projection passes run and the import keeps up, without the Edge, Worker
  * or GitHub logs that keep a few days and that diag_reader cannot read.

@@ -116,9 +116,9 @@ it with any change to what is recorded or how long it is kept.
   `diag.error`, `diag.rpc_stats` (server-side timings of the RPCs phones and
   jobs call, all orgs, from `pg_stat_statements`).
 
-The second pass (decision 111) is
-`supabase/migrations/20261015200000_diag_gaps.sql` (the new kinds and
-reports) and `20261015210000_diag_jobs.sql`, the server's own jobs:
+The second pass (decision 112) is
+`supabase/migrations/20261016000000_diag_gaps.sql` (the new kinds and
+reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
 
 - `diag.job_runs`, one row per run of a server job: its outcome (`ok`,
   `partial`, `error`), ms, counts, an error's class or code (never its
@@ -230,7 +230,7 @@ the install's timeline to pick the time window.
   decision.
 - **Failures before sign-in** are recorded but only delivered once someone
   signs in on that phone (they then go at once). Accepting records with the
-  public key before sign-in was turned down (decision 111).
+  public key before sign-in was turned down (decision 112).
 - **Native recorder codes**: the microphone module's errors are mapped to
   codes from their text in JS (`recording/recorderFaultModel.ts`); a code
   sent by the module itself needs a native build.

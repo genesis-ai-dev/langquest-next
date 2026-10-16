@@ -1,4 +1,4 @@
--- Field diagnostics, second pass (docs/diagnostics.md, decisions.md 111):
+-- Field diagnostics, second pass (docs/diagnostics.md, decisions.md 112):
 -- the gaps an audit of the app since decision 39 found.
 --
 -- New kinds: `checkpoint`, `open`, `expected` (noteExpected, tallied per

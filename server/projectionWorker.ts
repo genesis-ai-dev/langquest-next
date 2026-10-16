@@ -163,7 +163,7 @@ export async function runProjections(
   };
   const mark = async (orgId: string, streamId: string, seq: number, orgSeq: number, isListed: boolean) => {
     check(await service.from('projection_marks').upsert({
-      // projected_at is set by the database on this write (20261015210000_diag_jobs.sql).
+      // projected_at is set by the database on this write (20261016010000_diag_jobs.sql).
       org_id: orgId, stream_id: streamId, seq, org_seq: orgSeq, listed: isListed, version: PROJECTION_VERSION
     }), 'projection_marks');
   };
@@ -222,7 +222,7 @@ export async function runProjections(
   return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, failed };
 }
 
-/** Why a push did not go out (`notifications.push_last_error`, 20261015210000_diag_jobs.sql). */
+/** Why a push did not go out (`notifications.push_last_error`, 20261016010000_diag_jobs.sql). */
 type PushError = 'no_token' | 'http_4xx' | 'http_5xx' | 'timeout' | 'unreachable' | 'ticket_error' | 'receipt_error';
 
 /** What one push delivery pass did, for its job run. */

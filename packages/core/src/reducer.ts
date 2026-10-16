@@ -11,7 +11,7 @@ import { earlier } from './ties';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 16;
+export const REDUCER_VERSION = 17;
 
 /**
  * How many events have been applied to a state object. Kept outside the
@@ -235,6 +235,14 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
 
     case 'v1.RequestWithdrawn':
       earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
+      break;
+
+    case 'v1.ReviewWithdrawn':
+      earliestUndo(state.withdrawnReviews, event.payload.reviewId, event);
+      break;
+
+    case 'v1.NoteWithdrawn':
+      earliestUndo(state.withdrawnNotes, event.payload.noteId, event);
       break;
 
     case 'v1.NoteAdded': {

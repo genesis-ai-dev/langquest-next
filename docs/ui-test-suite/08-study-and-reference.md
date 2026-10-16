@@ -180,7 +180,7 @@ Expected:
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- P-SUBMITTED's study on a step whose spoken recording loads.
+- P-SUBMITTED's study on a step whose spoken recording loads. (The world's guide records step 1 with the test voice, four seconds long, so the automated test notes at 0:01 to 0:03 instead of 0:20.)
 
 Steps:
 1. Play "This step, spoken" and at about 0:20 tap "Add a note here".
@@ -209,7 +209,7 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- P-SUBMITTED's study, on a step whose text has glossary words (dotted).
+- P-SUBMITTED's study, on a step whose text has glossary words (dotted). (The world's guide links "inheritance" in step 2, with a recording of its own.)
 
 Steps:
 1. Tap a glossary word (accessibility hint "Tap for its meaning").
@@ -558,7 +558,7 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- Online. Bible Brain is set up on the local server (G2).
+- Online. Bible Brain is set up on the local server (G2) with a real `BIBLE_BRAIN_ACCESS_KEY`. **Needs the key:** the test searches Bible Brain's live catalogue, so it skips (saying so) on a stack without one, which is the default local and CI stack.
 
 Steps:
 1. In the Bible picker, tap "More Bibles".
@@ -580,7 +580,7 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- STUDY-030's list of Swahili Bibles.
+- STUDY-030's list of Swahili Bibles (needs the Bible Brain key, see STUDY-030). The automated test runs the same steps on the organization's own library Bible ("Test Library Bible", TLB, added to each world by `e2e/ui/study-helpers.ts`), which needs no key; the Swahili Bible Brain half is by hand.
 
 Steps:
 1. Tap a Bible.
@@ -639,7 +639,7 @@ Steps:
 Expected:
 - After Luke 24, "Next chapter" is disabled, or moves to the next book.
 
-Fixed (2026-10-12): "Next chapter" stops at the book's last chapter under the Bible's numbering (`chaptersInBook` of its versification, `sources.tsx`): after Luke 24 it is gone. Not yet run: the local library has no Bible of its own.
+Fixed (2026-10-12): "Next chapter" stops at the book's last chapter under the Bible's numbering (`chaptersInBook` of its versification, `sources.tsx`): after Luke 24 it is gone. Run on the organization's own Bible ("Test Library Bible", Luke in English numbering) that the world adds (`e2e/ui/study-helpers.ts`).
 
 ### STUDY-035 A note on a verse beside the recorder
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto

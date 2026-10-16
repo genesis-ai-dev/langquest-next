@@ -26,6 +26,7 @@ import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import type { PassageView } from '../passage/passageView';
 import { when } from '../passage/passageView';
+import { undoNote } from '../passage/recordInputsModel';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { recordTarget } from '../moderation/reportTargets';
 import { clockMs, questionSource, YES_NO, yesNoLabel, type Stage, type StageId } from './capture';
@@ -437,11 +438,12 @@ function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string;
     if (!state || busy) return;
     setBusy(true);
     try {
-      await ctx.act(commands(state, indexesFor(state)).addNote({
+      const specs = commands(state, indexesFor(state)).addNote({
         commandId: Crypto.randomUUID(), unitId: v.unitId,
         anchor: { kind: 'verse', verse: props.verse, ...(props.translation ? { translation: props.translation } : {}), ...(props.at ? { at: props.at } : {}) },
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
-      }), t('review.simple.noteAdded'));
+      });
+      await ctx.act(specs, t('review.simple.noteAdded'), () => undoNote(specs)(commands(state)));
       props.onDone();
     } catch { /* ctx.act said what went wrong */ } finally { setBusy(false); }
   }

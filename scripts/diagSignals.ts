@@ -276,7 +276,7 @@ export function signals(health: LanguageHealth | null, members: Member[], summar
   return out.sort((a, b) => rank[a.level] - rank[b.level]);
 }
 
-/** One row of `diag.jobs()`: a server job's recent runs (migration 20261015210000_diag_jobs.sql). */
+/** One row of `diag.jobs()`: a server job's recent runs (migration 20261016010000_diag_jobs.sql). */
 export interface JobStat {
   job: string; every: string | null; runs: number; failures: number; partials: number; streak: number;
   last_at: string | null; last_outcome: string | null; last_error_class: string | null; last_ok_at: string | null;

@@ -32,6 +32,7 @@ import { Banner, Field, Header, Ico, IconBtn, PrimaryBtn, Screen, Sheet, type Ic
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, type PassageView } from '../passage/passageView';
+import { undoReviews } from '../passage/recordInputsModel';
 import { useBackTranslationDraft } from './useBackTranslationDraft';
 import { checkName } from '../admin/adminModel';
 import { backParts, nextPart, noteText, partAfter, pieceFor, piecesInOrder, saidLine, sourceParts, type BackPart, type MomentNote } from './backTranslationParts';
@@ -146,7 +147,9 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     }
     setSaving(true);
     try {
-      await ctx.act(specs, shipped ? t('backTranslation.published') : t('backTranslation.whatPublished', { what: capitalize(produces.what) }));
+      const sent = specs;
+      await ctx.act(specs, shipped ? t('backTranslation.published') : t('backTranslation.whatPublished', { what: capitalize(produces.what) }),
+        () => undoReviews(sent)(commands(state)));
     } catch {
       setSaving(false); // ctx.act said what went wrong
       return;
