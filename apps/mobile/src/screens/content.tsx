@@ -4,7 +4,7 @@
 // with OutlineScroll, LevelSheet and NodeSheet (template_editor) and
 // BookStructureScreen (book_structure). The demo's TemplatePickerScreen is a
 // language's Content template page (templates/ContentTemplatePage.tsx,
-// decision 136).
+// decision 137).
 // Requirements TPL-1, TPL-2, TPL-7, TPL-9; ADR-025 (a language uses its own
 // version, suggestions are advice), ADR-026 (a whole book in one scroll) and
 // ADR-027 (the book reads like a Bible, FIA's breaks are suggestions).
@@ -401,7 +401,7 @@ function SharedTemplateSheet(props: { ctx: Ctx; lib: Lib; shared: SharedItem; ca
 /**
  * A language's books, each opening to divide it into passages its own way
  * (decisions 74, 93): "Each book's passages" on its Content template page
- * (decision 136), which holds the template itself, its version and edit.
+ * (decision 137), which holds the template itself, its version and edit.
  */
 function LanguageTemplateView({ ctx, languageId }: { ctx: Ctx; languageId: string | null }) {
   const state = ctx.language.state;

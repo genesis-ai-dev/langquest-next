@@ -93,7 +93,7 @@ Steps:
 3. Play the voice note and read the text "Verse 18 is too fast".
 4. Tap "Record a fix".
 5. In the workspace, check that the Earlier chip is open with the review highlighted.
-6. Record one new part (6 seconds). Hold one of Version 1's parts and tap "Delete Part 1" (the fixture's parts carry no verses), then tap "Done".
+6. Record one new part (6 seconds). Slide Version 1's first part aside and tap its bin ("Delete Part 1"), then tap "Done".
 7. On the Done screen, open "What changed", empty it, tap "Done"; then say or type "Slowed verse 18", tap "Done", then "Send later".
 8. Open the bell again. Open the feedback on P-SUBMITTED, then tap "Hear the feedback".
 9. Tap "Keep it, say why". Type "The speed matches how elders tell it", then tap "Keep it".
@@ -247,7 +247,7 @@ Steps:
    - Name it "Community Checker".
    - Turn on "Check recordings" only, and save.
 7. Manage → "Invite people": choose Community Checker (under "Other roles"), then "Show the code to scan".
-8. (Decision 91: Review teams are gone.) Manage → Journey Language → "Review flow" → "Edit" (Checks, decision 136): the Standard Bible Flow's checks are the language's own. Until its translators are invited the page is the Get ready checklist, where they show under "Who checks the recordings?" ("In use · your own steps").
+8. (Decision 91: Review teams are gone.) Manage → Journey Language → "Review flow" → "Edit" (Checks, decision 137): the Standard Bible Flow's checks are the language's own. Until its translators are invited the page is the Get ready checklist, where they show under "Who checks the recordings?" ("In use · your own steps").
 9. Me → More settings → Switch Organization: check that only Journey Org is listed (the account has no other).
 
 Expected:
@@ -271,7 +271,7 @@ Steps:
 1. Tap the Manage tab.
 2. Open People, then Invite. Look at the roles offered.
 3. Make a group code for Translator at Alpha.
-4. (Decision 91: Review teams are gone.) Alpha → "Review flow" → "Edit" (Checks, decision 136) → Peer check → "Add people": tick TRANS, then "Done".
+4. (Decision 91: Review teams are gone.) Alpha → "Review flow" → "Edit" (Checks, decision 137) → Peer check → "Add people": tick TRANS, then "Done".
 5. Open the Map tab (All languages).
 6. Open the Inbox from the bell. Look for join requests.
 

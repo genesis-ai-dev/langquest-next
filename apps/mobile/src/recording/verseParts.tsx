@@ -4,9 +4,11 @@
 // no next verse fits. Tap a number: the part takes the same verse as the
 // part above (a verse said in pieces), and again to make it the next verse.
 // Hold it to choose a verse or a range. Slide a finger down the spaces to
-// number several parts at once. Each part has its own delete at the end of
-// its row (LAN-83), and a deleted part's place can hold the lit next part,
-// with the verses it will take where the part's were. Parts are not
+// number several parts at once. A part is deleted by sliding its row either
+// way to its bin (swipeRow.tsx), and a deleted part's place can hold the lit
+// next part, with the verses it will take where the part's were. Each row
+// reads as a voice message (Caleb, 2026-10-16): verse, play, its bars and
+// length, and the grip at the right end. Parts are not
 // grouped by verse (Caleb, 2026-10-10): one list, as before. The numbering
 // is core's (verses.ts); this file only draws it and passes on what was tapped.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -26,7 +28,11 @@ import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/them
 import { mmss, partLabel } from './model';
 import { styles as ps } from './blockStyles';
 import type { Part } from './recorder';
-import { ChosenMic, GapSlot, GRIP, InsertMark, PartGrip, RAIL } from './slots';
+import { ChosenMic, EDGE, GapSlot, InsertMark, PartGrip } from './slots';
+import { SwipeRow, type SwipeSide } from './swipeRow';
+import { PartBars } from './partBars';
+import { useSwipeHint } from './useSwipeHint';
+import { useBars } from '../audio/useBars';
 import { useClip } from '../audio/useClip';
 import { partIs, spanName, spanShort } from './verseModel';
 import { opensAbove, rowKeys, type RecordTarget, type SlotRow } from './workspaceModel';
@@ -121,7 +127,7 @@ export function VerseParts(props: {
   };
   const arm = (x: number, y: number) => {
     measure();
-    slide.current = { ...slide.current, armed: !latest.current.disabled && !latest.current.helpOn && x - boxLeft.current >= RAIL + GRIP && x - boxLeft.current < RAIL + GRIP + GUTTER, startY: y, last: -1, marks: null };
+    slide.current = { ...slide.current, armed: !latest.current.disabled && !latest.current.helpOn && x - boxLeft.current >= 0 && x - boxLeft.current < GUTTER, startY: y, last: -1, marks: null };
   };
   const begin = () => {
     const sl = slide.current;
@@ -203,9 +209,14 @@ export function VerseParts(props: {
     const at = partIndexAfter(rows.map((x) => x.kind === 'part'), from, to);
     if (at !== r.index) props.onMove(r.index, at);
   }, props.show ? { key: `part:${props.show.hash}`, at: props.show.at } : null);
+  // One row open on its bin at a time; recording or a drag closes it.
+  const [open, setOpen] = useState<{ key: string; side: SwipeSide } | null>(null);
+  const openSide = (key: string): SwipeSide => (!disabled && !drag.dragging && open?.key === key ? open.side : 0);
+  const hint = useSwipeHint(parts.length > 0 && !disabled);
+  const firstPart = rows.findIndex((r) => r.kind === 'part');
 
   return (
-    <View ref={box} onLayout={() => box.current?.measureInWindow((x) => { boxLeft.current = x; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
+    <View ref={box} style={styles.list} onLayout={() => box.current?.measureInWindow((x) => { boxLeft.current = x; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
       {rows.map((r, k) => {
         const key = keys[k]!;
         const moved = drag.offset(key);
@@ -213,15 +224,17 @@ export function VerseParts(props: {
         const mark = !disabled && !drag.dragging && opensAbove(rows, k) && r.kind === 'part'
           ? <HelpRow key={`mark-${key}`} of="recording.insert"><InsertMark n={r.n} before={nameOf(r.index)} onPress={() => props.onChoose({ kind: 'gap', before: r.index })} /></HelpRow> : null;
         const row = r.kind === 'gap' ? (
-          <GapSlot n={r.n} gutter grip first={k === 0} disabled={disabled}
+          <GapSlot n={r.n} first={k === 0} disabled={disabled}
             {...(r.label ? { tile: <VerseTile verses={verses} label={r.label} same={r.label.kind === 'join'} /> } : {})}
             chosen={target.kind === 'gap' && target.before === r.before} onPress={() => props.onChoose({ kind: 'gap', before: r.before })} />
         ) : (() => {
           const i = r.index;
           const part = parts[i]!;
           return (
-            <PartRow ctx={props.ctx} part={part} first={k === 0} name={nameOf(i)} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
-              onDelete={() => props.onDelete(part.hash, nameOf(i))}
+            <PartRow ctx={props.ctx} part={part} first={k === 0} last={k === rows.length - 1} name={nameOf(i)} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
+              onDelete={() => { setOpen(null); props.onDelete(part.hash, nameOf(i)); }}
+              open={openSide(key)} onOpen={(side) => setOpen(side ? { key, side } : null)}
+              hint={hint.show && k === firstPart} onHinted={hint.done}
               chosen={target.kind === 'over' && target.index === i} onChoose={() => props.onChoose({ kind: 'over', index: i })}
               flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled} fresh={props.fresh.has(part.hash)} lifted={lifted}
               grip={<PartGrip part={nameOf(i)} handlers={drag.grip(key)} disabled={disabled} canUp={i > 0} canDown={i < parts.length - 1} at={i + 1} of={parts.length}
@@ -233,7 +246,7 @@ export function VerseParts(props: {
         return [
           mark,
           <HelpRow key={key} of={r.kind === 'gap' ? 'recording.gap' : 'recording.part'}>
-            <View ref={drag.ref(key)} onLayout={drag.onLayout(key)} style={[moved !== 0 && { transform: [{ translateY: moved }] }, lifted && styles.lifted]}>{row}</View>
+            <View ref={drag.ref(key)} onLayout={drag.onLayout(key)} style={[styles.inCard, moved !== 0 && { transform: [{ translateY: moved }] }, lifted && styles.lifted]}>{row}</View>
           </HelpRow>
         ];
       })}
@@ -255,7 +268,7 @@ export function VerseParts(props: {
 }
 
 function PartRow(props: {
-  ctx: Ctx; part: Part; first: boolean; name: string; label: PartLabel | null; verses: string[];
+  ctx: Ctx; part: Part; first: boolean; last: boolean; name: string; label: PartLabel | null; verses: string[];
   ghost: { text: string; join: boolean } | null; flash: boolean; shake: boolean; editing: boolean; disabled: boolean;
   gutterRef: (v: View | null) => void; onTap: () => void; onHold: () => void; onDelete: () => void;
   /** Chosen: what is said next replaces this part (LAN-83). */
@@ -263,9 +276,12 @@ function PartRow(props: {
   /** Just recorded: shaded until the next recording. Lifted: being dragged. */
   fresh: boolean; lifted: boolean;
   grip: ReactNode;
+  /** Slid open on its bin, and the first time's slide. */
+  open: SwipeSide; onOpen: (side: SwipeSide) => void; hint: boolean; onHinted: () => void;
 }) {
   const name = props.name;
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
+  const bars = useBars(props.ctx.language, props.part.hash);
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: name });
   const play = useHelpSpot(playLabel, undefined, clip.toggle);
   const choose = useHelpSpot(t('recording.recorder.recordOver', { part: name }), t('recording.recorder.recordOverHelp'), props.onChoose);
@@ -275,10 +291,10 @@ function PartRow(props: {
   const tap = useHelpSpot(l ? (l.kind === 'join' ? t('recording.verses.giveNext', { part: name }) : t('recording.verses.giveAbove', { part: name })) : t('recording.verses.giveVerse', { part: name }),
     t(!l ? 'recording.verses.spaceEmptyHelp' : l.kind === 'join' ? 'recording.verses.spaceSameHelp' : l.kind === 'set' ? 'recording.verses.spaceSetHelp' : 'recording.verses.spaceHelp'), props.onTap);
   return (
+    <SwipeRow name={name} disabled={props.disabled} open={props.open} onOpen={props.onOpen} onDelete={props.onDelete} last={props.last}
+      {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})}>
     <View style={[styles.row, !props.first && styles.rowBorder, props.fresh && styles.fresh, (props.flash || props.chosen) && { backgroundColor: C.light }, props.editing && styles.editing,
       props.lifted && styles.liftedRow]}>
-      <View style={styles.rail} />
-      {props.grip}
       <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={tap.id ? undefined : props.onHold} delayLongPress={HOLD_MS}
         disabled={props.disabled} accessibilityRole="button"
         accessibilityLabel={l ? t(l.kind === 'join' ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses }) : t('recording.verses.labelEmpty', { part: name })}
@@ -304,23 +320,21 @@ function PartRow(props: {
         <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
         <HelpBadge spot={play} />
       </Pressable>
-      {/* Its name chooses it: what is said next replaces it. */}
+      {/* Its bars and length choose it: what is said next replaces it. A screen reader opens its bin from here. */}
       <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
         accessibilityLabel={t('recording.recorder.recordOver', { part: name })}
+        accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: name }) }]}
+        onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') props.onOpen(1); }}
         style={({ pressed }) => [styles.play, pressed && ps.pressed]}>
-        {/* Its length under its name, so both fit beside the rail and grip on a narrow phone. */}
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.body, { fontWeight: '700', color: C.dark }]} numberOfLines={1}>{name}</Text>
-          <Text style={txt.smMuted}>{mmss(props.part.durationMs)}</Text>
-        </View>
+        <PartBars bars={bars} progress={clip.playing ? (clip.total > 0 ? clip.elapsed / clip.total : 0) : null} />
+        <Text style={styles.length}>{mmss(props.part.durationMs)}</Text>
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
-      <View style={styles.trash}>
-        <IconBtn name="trash" label={t('recording.deleteItem', { item: name })} help={t('recording.recorder.deletePartHelp')} bg="transparent" color={C.muted} size={target.min}
-          disabled={props.disabled} onPress={props.onDelete} />
-      </View>
+      {props.grip}
+      <View style={styles.edge} />
     </View>
+    </SwipeRow>
   );
 }
 
@@ -419,7 +433,6 @@ const styles = StyleSheet.create({
   lifted: { zIndex: 10 },
   liftedRow: { backgroundColor: C.card, borderRadius: radius.md, ...lift({ opacity: 0.18, radius: 12, y: 4, elevation: 6 }) },
 
-  trash: { alignSelf: 'center', marginRight: space.xs },
   gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
   // A part's own verse: a soft grey tile with a dark number, so the labels stay quiet beside the parts.
   // Narrow enough for a range ("49–50") to sit inside the 64-point space beside its part.
@@ -432,9 +445,14 @@ const styles = StyleSheet.create({
   // An empty space is barely there (Caleb, 2026-10-09): grey at a tenth, so it never competes with a verse.
   ghost: { width: 44, height: 44, borderRadius: radius.md + 2, borderWidth: 2, borderStyle: 'dashed', borderColor: C.dark, opacity: 0.1, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: 18, fontWeight: '700', color: C.dark },
-  play: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingRight: space.sm, minHeight: target.row },
+  play: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: space.xs, minHeight: target.row },
   playTap: { paddingLeft: space.sm, paddingRight: space.xs, alignItems: 'center', justifyContent: 'center' },
-  rail: { width: RAIL },
+  length: { fontSize: T.sm, color: C.muted, fontVariant: ['tabular-nums'] },
+  // Inside the card's right edge, where the + marks' targets reach: nothing to tap.
+  edge: { width: EDGE },
+  // The rows sit inside the card's border; the list itself reaches past its right edge for the + marks.
+  list: { marginLeft: 1, marginBottom: 1 },
+  inCard: { marginRight: EDGE + 1 },
   playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   gap: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs,
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: TINT.amber },

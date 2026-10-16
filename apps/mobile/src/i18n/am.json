@@ -4675,7 +4675,7 @@
       "discardAsk": "ይህን ቅጂ ይጣሉ?",
       "discardConfirm": "ይጣሉ",
       "recordOver": "{{part}}ን እንደገና ይቅረጹ",
-      "recordOverHelp": "ቀጥሎ የሚቀርጹት ይህን ቁራጭ ይተካል።",
+      "recordOverHelp": "ቀጥሎ የሚቀርጹት ይህን ቁራጭ ይተካል። ለመሰረዝ ወደ ጎን ያንሸራቱት።",
       "recordInGap": "{{part}}ን እዚህ ይቅረጹ",
       "gapHelp": "ቀጥሎ የሚቀርጹት በዚህ ክፍተት ውስጥ ይገባል።",
       "recordAtEnd": "{{part}}ን መጨረሻ ላይ ይቅረጹ",

@@ -9,7 +9,7 @@
 //   4 Invite your translators  a group code to scan (the invite RPC Invite by QR uses)
 // Params: `languageId` (opens that language) and `step`: none for the
 // checklist, '1'..'4' for the questions (Next walks on through the rest),
-// 'template', 'helps' and 'flow' for a ready language's three picks (decision 136). `only: '1'` opens
+// 'template', 'helps' and 'flow' for a ready language's three picks (decision 137). `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
   commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, languageProgress, materialsFor,
@@ -72,7 +72,7 @@ export function GetReady(ctx: Ctx) {
   if (!ctx.language.state || !ctx.org.state) {
     return <Screen header={<Header title={t('getReady.loading.title')} onBack={ctx.back} close />}><EmptyState icon="cloud" title={t('getReady.loading.empty')} sub={t('getReady.loading.sub')} /></Screen>;
   }
-  // A ready language's three picks (decision 136): what it uses, its other options, and the organization's shelf.
+  // A ready language's three picks (decision 137): what it uses, its other options, and the organization's shelf.
   if (step === 'template') return <ContentTemplatePage ctx={ctx} />;
   if (step === 'helps') return <HelpsPage ctx={ctx} />;
   if (step === 'flow') return <ReviewFlowPage ctx={ctx} />;
@@ -515,7 +515,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   );
 }
 
-/** Reference material, on a ready language: every kind of help with a switch each, Add more, and the organization's whole shelf (decision 136). */
+/** Reference material, on a ready language: every kind of help with a switch each, Add more, and the organization's whole shelf (decision 137). */
 function HelpsPage({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state!;
   const languageId = ctx.language.languageId;
@@ -575,7 +575,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
         ))}
         {notes.length + written.length === 0 ? none(t('getReady.page.noNotes')) : null}
       </Group>
-      {/* Last, the organization's whole shelf (decision 136). */}
+      {/* Last, the organization's whole shelf (decision 137). */}
       {ctx.session.can('manage_reference') ? (
         <Group>
           <Row icon="layers" label={t('getReady.helps.all')} help={t('getReady.helps.allHelp')} last onPress={() => ctx.go('reference_home', { languageId })} />

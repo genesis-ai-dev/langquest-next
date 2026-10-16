@@ -100,7 +100,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   const checks = page.getByRole('button', { name: /^Review flow/ }).locator('visible=true');
   await expect(checks.first().or(button(page, /^Who checks the recordings\?/))).toBeVisible();
   if (await checks.count()) {
-    // Its Review flow, then Edit: the checks themselves (decision 136).
+    // Its Review flow, then Edit: the checks themselves (decision 137).
     await checks.first().click();
     await text(page, 'Edit').click();
     for (const check of ['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval']) {

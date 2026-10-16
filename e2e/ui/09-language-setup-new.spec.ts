@@ -78,7 +78,7 @@ test('SETUP-010 Create a language end to end @p0', async ({ page }) => {
   await text(page, name).click();
   // A template, checks and an invite: ready, once the invite the server issued reaches this phone with the organization's stream.
   await expect.poll(async () => { await syncNow(page); return screenText(page); }, { timeout: 60_000 }).toContain('Ready · 0 translators');
-  // Its Languages say whether it is linked to the language list (decision 136).
+  // Its Languages say whether it is linked to the language list (decision 137).
   await text(page, 'Languages').click();
   await expectOnScreen(page, 'Not linked yet: added offline, or not found there');
   await closeSheet(page);

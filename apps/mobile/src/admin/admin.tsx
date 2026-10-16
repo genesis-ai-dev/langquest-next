@@ -267,7 +267,7 @@ export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; 
 }
 
 /**
- * What a language uses now, above the others it could use (decision 136): a
+ * What a language uses now, above the others it could use (decision 137): a
  * lit radio, its name and facts, what it holds, and links into it (its
  * books, its edit). The others are RadioRows under it, and the last row
  * opens the organization's whole shelf.

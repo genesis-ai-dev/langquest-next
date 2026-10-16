@@ -66,7 +66,7 @@ export const DROPPED_SCREENS: Record<string, string> = {
   // i18n-ignore: reasons for developers, read by the parity tests
   review_team_editor: 'no review teams (docs/decisions.md 91): people are put on a check, on the check itself (check_editor)',
   // i18n-ignore: reasons for developers, read by the parity tests
-  template_picker: "a language's Content template page lists the other templates under the one it uses (docs/decisions.md 136)"
+  template_picker: "a language's Content template page lists the other templates under the one it uses (docs/decisions.md 137)"
 };
 /**
  * Demo edges the app leaves out on purpose, with the reason. The parity test
@@ -394,7 +394,7 @@ export const EDGES: Edge[] = [
   // an outline for something other than the Bible, and "I'll choose the steps"
   e('new_language', 'template_editor', undefined, 'manageTemplates'),
   e('new_language', 'flow_editor', undefined, 'manageFlows'),
-  // App only: a ready language's page (decision 71, demo ADR-039): letting someone in. Its checks open from its Review flow (decision 136).
+  // App only: a ready language's page (decision 71, demo ADR-039): letting someone in. Its checks open from its Review flow (decision 137).
   e('language_home', 'edit_member', undefined, 'assigner'),
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.
   e('flow_editor', 'check_editor'),

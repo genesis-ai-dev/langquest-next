@@ -625,7 +625,7 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
 /**
  * A language's page (decision 71, demo ADR-039; the prototype's AdminStart
  * and LangReady): until it is ready for translators, the four questions that
- * get it ready; once it is, seven rows and no More (decision 136): its
+ * get it ready; once it is, seven rows and no More (decision 137): its
  * content template, reference material and review flow, each by the name
  * the organization's page uses with this language's pick as its line, each
  * opening that pick, its other options and the organization's shelf; People
@@ -666,7 +666,7 @@ export function LanguageHome(ctx: Ctx) {
       right={<CountBadge n={requests.length} />} help={t('org.join.manyHelp')} onPress={() => ctx.go('members_list', params)} />
   );
   const mayRename = mayRenameLanguage(v.org, ctx.session.actorId, languageId);
-  // The name and its clusters are changed where they show, at the top (decision 136).
+  // The name and its clusters are changed where they show, at the top (decision 137).
   const top = {
     // A language lead's Manage tab opens here, with no Back: the organization is one tap up, where Back would be.
     ...(atRoot ? { up: { label: v.orgName, help: t('org.language.upHelp'), onPress: () => ctx.go('org_home') } } : {}),
@@ -720,7 +720,7 @@ export function LanguageHome(ctx: Ctx) {
       </Screen>
     );
   }
-  // One name for each thing, everywhere (decision 136): the row is what it is, its line this language's pick, and the
+  // One name for each thing, everywhere (decision 137): the row is what it is, its line this language's pick, and the
   // pick's page lists the others and the organization's shelf.
   return (
     <Screen header={<BigTop onBack={back} title={name} {...top}

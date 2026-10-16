@@ -16,7 +16,7 @@ const world = useWorld();
 
 const ORDER = /Peer check \+ back translation → Community check → Consultant check → Final approval/;
 
-/** Alpha's Checks screen: from Alpha's page (the Manage tab's root for LADMIN), Review flow › Edit (decision 136). */
+/** Alpha's Checks screen: from Alpha's page (the Manage tab's root for LADMIN), Review flow › Edit (decision 137). */
 async function checks(page: Page, w: UiWorld, who: AccountKey): Promise<void> {
   await openAs(page, w, who);
   if (who === 'LADMIN') await tab(page, 'manage').click();
@@ -149,7 +149,7 @@ test('SETUP-075 A ready language\'s Review flow: its checks, the others, and the
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  // Its checks on top, named as its page names them; the ready-made flows under them; the organization's last (decision 136).
+  // Its checks on top, named as its page names them; the ready-made flows under them; the organization's last (decision 137).
   await reviewFlow(page);
   await languageArrived(page);
   await expectOnScreen(page, ORDER, '4 checks', 'Edit', 'Peer check → Final approval', 'All review flows');

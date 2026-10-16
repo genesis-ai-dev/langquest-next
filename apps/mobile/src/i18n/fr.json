@@ -4828,7 +4828,7 @@
       "discardAsk": "Jeter cet enregistrement ?",
       "discardConfirm": "Jeter",
       "recordOver": "Réenregistrer {{part}}",
-      "recordOverHelp": "Ce que vous enregistrez ensuite remplace cette partie.",
+      "recordOverHelp": "Ce que vous enregistrez ensuite remplace cette partie. Faites-la glisser de côté pour la supprimer.",
       "recordInGap": "Enregistrer {{part}} ici",
       "gapHelp": "Ce que vous enregistrez ensuite va dans ce vide.",
       "recordAtEnd": "Enregistrer {{part}} à la fin",

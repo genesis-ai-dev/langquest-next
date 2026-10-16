@@ -439,7 +439,7 @@ the world under the tests after it: the world is kept for the whole run
 `testID`s:
 - `header-back`, `header-close`, `header-help` for the header buttons, and
   `header-up` for the organization's name where Back would be on a language
-  lead's language page (decision 136).
+  lead's language page (decision 137).
 - `title-rename` for the pencil beside a language's title, and
   `org-rename` for the one beside the organization's name on Org home.
 - `primary-action` for the main button.
@@ -552,7 +552,7 @@ note, until each is resolved.
 | REV-019, REV-031, REV-047 | The docs and the app disagree. `docs/ux/screen-path.md` still names "Can't answer this?" and "Save back translation"; the app says "Skip" and "Done". An older review footer that can never show is still in the code. |
 | PEOPLE-039 | Retiring a role is not built. |
 | NAV-051 | No screen offers a forbidden move, so the permission refusal can only be checked through the dev hook `__langquestGo`. |
-| SETUP-026, MOD-018, SYNC-018 | Seen once while automating, not reproduced in the full run of 2026-10-13: a book change followed by the toast's Undo upsetting "What helps them", now "Reference material" (that Undo is gone since decision 134: SETUP-024 now puts the books back by choosing them again in "Content template" → "Which books", decision 136, and whether that upsets it is not yet known); a removed note showing on a fresh device until the next snapshot (decision 88's design); a translator removed from their only language landing on "Join your team". |
+| SETUP-026, MOD-018, SYNC-018 | Seen once while automating, not reproduced in the full run of 2026-10-13: a book change followed by the toast's Undo upsetting "What helps them", now "Reference material" (that Undo is gone since decision 134: SETUP-024 now puts the books back by choosing them again in "Content template" → "Which books", decision 137, and whether that upsets it is not yet known); a removed note showing on a fresh device until the next snapshot (decision 88's design); a translator removed from their only language landing on "Join your team". |
 
 ## Run sheets
 

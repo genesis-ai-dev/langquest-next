@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto';
 import { derivePassage, draftsBy, type LanguageState } from '@langquest-next/core';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import {
-  chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, leaveSession, mic, openWorkspace, draftParts, partCount, partsTitle,
+  chip, deletePart, swipePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, leaveSession, mic, openWorkspace, draftParts, partCount, partsTitle,
   publishButton, recordButton, recordSaid, recordStep, redoButton, savedMark, say, secondDevice, startFromRecord, stopRecording, undoButton, verseSpace, workspaceSub,
   useFileWorld
 } from './06-recording-helpers';
@@ -214,6 +214,15 @@ test('REC-007 Delete a part, then Undo and Redo @p0', async ({ page }) => {
   await expectParts(page, 3);
   const before = await lastComposed(page, w, 'P-NEW');
   const original = before.length === 3 ? before : (await onServer(w, 'P-NEW')).drafts[0]!.cardHashes;
+  // A part slides either way to its bin, and nothing goes until the bin is tapped; a tap on the row closes it.
+  const bin = page.getByRole('button', { name: 'Delete Part 2', exact: true }).locator('visible=true');
+  await expect(bin).toHaveCount(0);
+  await swipePart(page, 2, -110);
+  await expect(bin).toHaveCount(1);
+  const row = (await page.getByRole('button', { name: 'Record Part 2 again', exact: true }).locator('visible=true').first().boundingBox())!;
+  await page.mouse.click(row.x + row.width / 2, row.y + row.height / 2);
+  await expect(bin).toHaveCount(0);
+  await expectParts(page, 3);
   await deletePart(page, 2);
   // No toast with an Undo that runs out (Caleb, 2026-10-16): the arrows by the red button stay.
   await expect(byId(page, 'toast-undo')).toHaveCount(0);

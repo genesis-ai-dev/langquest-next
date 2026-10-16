@@ -4828,7 +4828,7 @@
       "discardAsk": "¿Descartar esta grabación?",
       "discardConfirm": "Descartar",
       "recordOver": "Grabar {{part}} de nuevo",
-      "recordOverHelp": "Lo que grabes a continuación reemplaza esta parte.",
+      "recordOverHelp": "Lo que grabes a continuación reemplaza esta parte. Deslízala a un lado para borrarla.",
       "recordInGap": "Grabar {{part}} aquí",
       "gapHelp": "Lo que grabes a continuación va en este hueco.",
       "recordAtEnd": "Grabar {{part}} al final",

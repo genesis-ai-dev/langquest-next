@@ -22,7 +22,7 @@ test('SETUP-001 Org home shows the organization, its languages and its setup', a
   await expectOnScreen(page, /Alpha Standard Bible Flow · \d+ of \d+ recorded · \d+ done/);
   await setup(page);
   await expectOnScreen(page, 'Content templates', 'Reference material', 'Review flows', 'Roles', '7 roles at this level and above', 'All rights reserved');
-  // The name and licence are changed beside the name, not in Setup (decision 136).
+  // The name and licence are changed beside the name, not in Setup (decision 137).
   await expect(byId(page, 'org-rename')).toBeVisible();
   await expect(text(page, w.orgName).first()).toBeVisible();
   await text(page, 'Alpha').click();
@@ -46,7 +46,7 @@ test('SETUP-002 Only an organization admin renames the organization and changes 
   await expectOnScreen(page, 'Who may use your work', 'Only an organization admin can change this.');
   await expectNotOnScreen(page, 'Open to ', 'Pick a more open license');
 
-  // LADMIN: Org home from Alpha's page, where Back would be (decision 136).
+  // LADMIN: Org home from Alpha's page, where Back would be (decision 137).
   const lead = await deviceFor(page.context().browser()!, w, 'LADMIN');
   const p = lead.page;
   await tab(p, 'manage').click();
@@ -111,7 +111,7 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     await expect(primary(p)).toContainText('What will they record?');
     // "How this works" is offered on the checklist; tapping it turns help on and says how (decision 71, amended 2026-10-10).
     await expect(text(p, /How this works · 0:40/)).toBeVisible();
-    // No More: See their work, Roles, Languages and the public list are on the page (decision 136).
+    // No More: See their work, Roles, Languages and the public list are on the page (decision 137).
     await expectOnScreen(p, 'See their work', 'Roles', 'Languages', 'Show on the public list');
     await expectNotOnScreen(p, 'More');
     await text(p, 'What will help them?').click();
@@ -135,7 +135,7 @@ for (const who of ['ADMIN', 'COORD', 'LADMIN'] as const) {
       await languagePage(p, w, 'Alpha');
     }
     // TRANS, TREV and KEPT translate at Alpha; people who also assign work are not counted.
-    // One name for each thing, its line this language's pick (decision 136).
+    // One name for each thing, its line this language's pick (decision 137).
     await expectOnScreen(p, 'Alpha', 'Ready · 3 translators', 'Content template', 'Reference material', 'Review flow', 'People', '3 translators · invite more', 'Roles');
     // The Review flow row says the order of the checks (decision 91).
     await expectOnScreen(p, /Review flow Peer check \+ back translation → Community check → Consultant check → Final approval/);
@@ -164,7 +164,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
     // While Alpha's events are still arriving the page can read as not ready; wait for the language as it is.
     await expect(text(p, 'Ready · 3 translators')).toBeVisible({ timeout: 60_000 });
-    // Seven rows (decision 136): the work, the people, the language itself. No More, nothing twice.
+    // Seven rows (decision 137): the work, the people, the language itself. No More, nothing twice.
     await expectOnScreen(p, 'Content template', 'Reference material', 'Review flow', 'People', 'Roles', '7 roles', 'Languages', 'Show on the public list');
     await expectNotOnScreen(p, 'More', 'Members', 'Every way to divide the work', 'Bibles, guides and notes', 'Every way to check', 'In the language list',
       'The organization\'s page', 'Review groups');
@@ -358,7 +358,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
-    // Content template › Which books: the question that chose it (decision 136).
+    // Content template › Which books: the question that chose it (decision 137).
     await contentTemplate(p);
     await text(p, 'Which books').click();
     await expectOnScreen(p, 'What to translate', 'Alpha');
@@ -439,7 +439,7 @@ test('SETUP-028 The "Reference material" page and "Add more"', async ({ page }) 
   await languagePage(page, w, 'Alpha');
   await referenceMaterial(page);
   await expectOnScreen(page, 'Reference material', 'Bibles', 'Study guides', 'Key words', 'Key terms', /\d+ words? · \d+ with a Alpha word/, 'Notes for translators');
-  // Last, the organization's whole shelf (decision 136), not a row in Add more.
+  // Last, the organization's whole shelf (decision 137), not a row in Add more.
   await expectOnScreen(page, 'No Bibles yet', 'No notes yet', 'Add more to offer some', /passages? covered/, 'All reference material');
   await text(page, 'Add more').click();
   await expectOnScreen(page, 'A Bible', 'A study guide', 'A note for translators', 'Key words');
@@ -541,7 +541,7 @@ test('SETUP-032 "By language" rows on Content templates', async ({ page }) => {
   await page.getByText('Alpha', { exact: true }).last().click();
   // Known issue: flow.ts has no templates_home → templates_home edge.
   await expect(page.getByTestId('toast').filter({ hasText: 'That can\'t be opened from here.' })).toHaveCount(0);
-  // A language's row opens its books, each to divide (decision 136).
+  // A language's row opens its books, each to divide (decision 137).
   await expectOnScreen(page, 'Each book\'s passages', 'Alpha', 'Luke');
 });
 
@@ -626,7 +626,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
-    // The pick on top with its facts and links, the others under it, the organization's shelf last (decision 136).
+    // The pick on top with its facts and links, the others under it, the organization's shelf last (decision 137).
     await contentTemplate(p);
     await expectOnScreen(p, 'FIA passages (English)', /\d+ of its \d+ books · English versification/, /\d+ passages · \d+ recorded/,
       'Each book\'s passages', 'Which books', 'View', 'All content templates');
@@ -647,7 +647,7 @@ test('SETUP-036 Choose a different template for a language', async ({ page }) =>
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  // The others are listed under the one it uses (decision 136).
+  // The others are listed under the one it uses (decision 137).
   await contentTemplate(page);
   await expectOnScreen(page, 'FIA passages (English)', 'OpenBible: long sections');
   // LangQuest's older templates are not offered, nor its ways in other numberings (decision 107).

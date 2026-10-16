@@ -1,4 +1,4 @@
-// A language's content template (decision 136): the one it uses on top, with
+// A language's content template (decision 137): the one it uses on top, with
 // its books, version and edit; the organization's others to choose from under
 // it; and, last, the organization's whole shelf (Content templates). Opened
 // from the language's page as get_ready `step: 'template'`.

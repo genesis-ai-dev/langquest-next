@@ -4522,7 +4522,7 @@
       "discardAsk": "丢弃这段录音？",
       "discardConfirm": "丢弃",
       "recordOver": "重录{{part}}",
-      "recordOverHelp": "你接下来录的内容会替换这一段。",
+      "recordOverHelp": "你接下来录的内容会替换这一段。把它滑到一边即可删除。",
       "recordInGap": "在这里录{{part}}",
       "gapHelp": "你接下来录的内容放进这个空位。",
       "recordAtEnd": "在末尾录{{part}}",

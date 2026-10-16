@@ -1,0 +1,57 @@
+// A part's sound as bars (audio/barsModel.ts): even slices up to the part's
+// loudest, fitted to a row, and kept as short text.
+import { describe, expect, it } from 'vitest';
+import { barsFromChannels, barsFromPcm, fitBars, packBars, unpackBars } from '../src/audio/barsModel';
+
+const tone = (n: number, amp: number) => Int16Array.from({ length: n }, (_, k) => Math.round(Math.sin(k / 5) * amp * 32767));
+
+describe('a part\'s bars', () => {
+  it('silence is the lowest bar, a steady voice the highest, and a part quiet all through stays low', () => {
+    expect(barsFromPcm(new Int16Array(4410), 1, 8)).toEqual(Array(8).fill(0));
+    for (const b of barsFromPcm(tone(4410, 0.7), 1, 8)) expect(b).toBeGreaterThan(0.95);
+    for (const b of barsFromPcm(tone(4410, 0.01), 1, 8)) expect(b).toBeLessThan(0.4);
+  });
+  it('speech rising and falling shows as taller and shorter bars', () => {
+    const pcm = new Int16Array(6000);
+    pcm.set(tone(2000, 0.5), 0);
+    pcm.set(tone(2000, 0.15), 2000);
+    pcm.set(tone(2000, 0.5), 4000);
+    const [a, b, c] = barsFromPcm(pcm, 1, 3);
+    expect(a).toBeCloseTo(1, 1);
+    expect(c).toBeCloseTo(1, 1);
+    expect(b!).toBeLessThan(0.5);
+    expect(b!).toBeGreaterThan(0.3);
+  });
+  it('shows where a part is loud and where it is quiet, in order', () => {
+    const pcm = new Int16Array(8000);
+    pcm.set(tone(4000, 0.5), 4000);
+    const bars = barsFromPcm(pcm, 1, 4);
+    expect(bars[0]).toBe(0);
+    expect(bars[1]).toBe(0);
+    expect(bars[2]).toBeGreaterThan(0.5);
+    expect(bars[3]).toBeGreaterThan(0.5);
+  });
+  it('mixes channels to one, and reads the web decoder\'s floats the same as PCM', () => {
+    const left = Float32Array.from(tone(2000, 0.4), (v) => v / 32768);
+    const fromFloats = barsFromChannels([left, left], 4);
+    const stereo = new Int16Array(4000);
+    tone(2000, 0.4).forEach((v, k) => { stereo[2 * k] = v; stereo[2 * k + 1] = v; });
+    const fromPcm = barsFromPcm(stereo, 2, 4);
+    fromFloats.forEach((b, k) => expect(b).toBeCloseTo(fromPcm[k]!, 2));
+  });
+  it('fits to the room a row has: the loudest of each group, or repeated when there is more room than bars', () => {
+    expect(fitBars([0.1, 0.9, 0.2, 0.4], 2)).toEqual([0.9, 0.4]);
+    expect(fitBars([0.1, 0.9], 4)).toEqual([0.1, 0.1, 0.9, 0.9]);
+    expect(fitBars([0.5], 0)).toEqual([]);
+    expect(fitBars([], 3)).toEqual([]);
+  });
+  it('keeps as one character a bar, and refuses text that is not that', () => {
+    const bars = [0, 0.5, 1];
+    const text = packBars(bars);
+    expect(text).toHaveLength(3);
+    unpackBars(text)!.forEach((b, k) => expect(b).toBeCloseTo(bars[k]!, 1));
+    expect(unpackBars('')).toBeNull();
+    expect(unpackBars('xyz!')).toBeNull();
+    expect(unpackBars(null)).toBeNull();
+  });
+});
