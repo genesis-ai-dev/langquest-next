@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseTransport } from '../src/supabaseTransport';
-import { ClientTooOldError, NotAuthorizedError, OfflineError } from '../src/types';
+import { ClientTooOldError, NotAuthorizedError, OfflineError, ServerError, UnrenewedError } from '../src/types';
 
 /** A SupabaseClient whose every rpc() fails the way the real one reports it. */
 function failingWith(error: { message: string; code?: string }): SupabaseTransport {
@@ -24,6 +24,25 @@ describe('SupabaseTransport error classification', () => {
     // fetch"; both mean the request never reached the server.
     await expect(failingWith({ message: 'Network request failed' }).pull('org1', 'p1', 0, 1)).rejects.toBeInstanceOf(OfflineError);
     await expect(failingWith({ message: 'TypeError: Failed to fetch' }).pull('org1', 'p1', 0, 1)).rejects.toBeInstanceOf(OfflineError);
+  });
+
+  it('a sign-in that could not be renewed is offline, and says which kind', async () => {
+    // Why: sessionSafeFetch.ts stops a request that would go out as no one
+    // with a network-failure text, so it stays queued; diagnostics must still
+    // tell it from no signal (both of its texts).
+    const held = failingWith({ message: 'TypeError: Network request failed: the sign-in could not be renewed yet', code: '' });
+    const err = await held.pull('org1', 'p1', 0, 1).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(UnrenewedError);
+    expect(err).toBeInstanceOf(OfflineError);
+    await expect(failingWith({ message: 'Network request failed: sign-in renewal answered 429' }).append([])).rejects.toBeInstanceOf(UnrenewedError);
+  });
+
+  it('any other failure keeps the server code, or the HTTP status', async () => {
+    const timeout = await failingWith({ code: '57014', message: 'canceling statement' }).pull('org1', 'p1', 0, 1).catch((e: unknown) => e);
+    expect(timeout).toBeInstanceOf(ServerError);
+    expect((timeout as ServerError).code).toBe('57014');
+    const gateway = new SupabaseTransport({ rpc: async () => ({ data: null, error: { message: 'Bad gateway', code: '' }, status: 502 }) } as unknown as SupabaseClient);
+    expect(((await gateway.pull('org1', 'p1', 0, 1).catch((e: unknown) => e)) as ServerError).code).toBe('http502');
   });
 
   it('still reports a refused protocol version as too old', async () => {

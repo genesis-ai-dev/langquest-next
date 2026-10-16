@@ -32,7 +32,7 @@ export function BigVoice(props: {
     setLength(card.durationMs / 1000);
     latest.current.onChange(card.ref.hash, { durationMs: card.durationMs, format: card.ref.format });
   };
-  const rec = useRecorder(persist);
+  const rec = useRecorder(persist, undefined, props.ctx.language);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (!rec.manualOn) return;

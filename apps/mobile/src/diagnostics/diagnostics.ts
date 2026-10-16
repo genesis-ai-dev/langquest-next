@@ -1,4 +1,4 @@
-import { classifyTransferFailure, Diagnostics, ensureDeviceId, sanitizeContext, type DiagContext, type DiagStore } from '@langquest-next/sync';
+import { classifyTransferFailure, Diagnostics, ensureDeviceId, sanitizeContext, type DiagContext, type DiagStore, type TransferSource } from '@langquest-next/sync';
 import { CLIENT_PROTOCOL_VERSION, REDUCER_VERSION } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { Paths } from 'expo-file-system';
@@ -69,23 +69,60 @@ async function context(): Promise<DiagContext> {
 
 const mb = (bytes: number) => Math.round(bytes / (1024 * 1024));
 
+/**
+ * Counts a feature reports about this phone in the `device` record, read at
+ * each delivery: lost files (the file ledger), unsent recordings (the
+ * journal), streams and events held. Each answers only numbers whose names
+ * are `device` fields; a probe that throws or is slow is left out.
+ */
+export type DeviceProbe = () => Promise<Record<string, number | undefined>> | Record<string, number | undefined>;
+const probes = new Map<string, DeviceProbe>();
+
+/** Register (or replace) a probe under a name; returns a function that removes it. */
+export function registerDeviceProbe(name: string, probe: DeviceProbe): () => void {
+  probes.set(name, probe);
+  return () => { if (probes.get(name) === probe) probes.delete(name); };
+}
+
+async function probeAll(): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  await Promise.all([...probes.values()].map(async (probe) => {
+    try {
+      const values = await Promise.race([
+        Promise.resolve(probe()),
+        new Promise<Record<string, number | undefined>>((resolve) => setTimeout(() => resolve({}), 2000))
+      ]);
+      // Several languages open at once: counts add up, ages take the oldest.
+      for (const [k, v] of Object.entries(values)) {
+        if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+        out[k] = /Min$/.test(k) ? Math.max(out[k] ?? 0, v) : (out[k] ?? 0) + v;
+      }
+    } catch { /* a probe never stops a delivery */ }
+  }));
+  return out;
+}
+
 let lastAttempt = 0;
 let flushing = false;
 
 /**
- * Deliver waiting records. Call only when the phone's own work is done: the
- * outbox is empty and uploads are idle (docs/diagnostics.md, "Delivery").
- * Downloads are not waited for, because a stuck download is exactly what
- * support needs to hear about. Never throws; what is not delivered stays.
+ * Deliver waiting records. Called when this phone's own work has had its
+ * turn: after a language sync that left nothing to push and no upload that
+ * has not yet been tried, after the organization stream settles, and on
+ * sign-in (docs/diagnostics.md, "Delivery"). Downloads are not waited for,
+ * and neither are uploads that keep failing: a stuck transfer is exactly
+ * what support needs to hear about. Never throws; what is not delivered
+ * stays.
  */
 export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsWanted?: number } = {}): Promise<void> {
   await setting;
   if (!diagnostics.isEnabled || flushing || Date.now() - lastAttempt < FLUSH_EVERY_MS) return;
   flushing = true;
-  lastAttempt = Date.now();
   try {
+    // Signed out is not an attempt: the first delivery after sign-in must not wait out the throttle.
     if (!await currentSession()) return;
-    const n: Record<string, number> = {};
+    lastAttempt = Date.now();
+    const n: Record<string, number> = await probeAll();
     // The web's expo-file-system answers 0 rather than throwing, which would
     // read as a full disk; a browser leaves the numbers out.
     if (Platform.OS !== 'web') {
@@ -96,6 +133,9 @@ export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsW
     }
     if (device.blobCacheBytes !== undefined) n.blobCacheMb = mb(device.blobCacheBytes);
     if (device.blobsWanted !== undefined) n.blobsWanted = device.blobsWanted;
+    await diagnostics.settle();
+    n.diagQueued = await diagnostics.pendingCount();
+    n.diagDropped = diagnostics.takeDropped();
     diagnostics.record('device', { n });
     const ctx = await context();
     await diagnostics.flush(async (records) => {
@@ -115,17 +155,25 @@ export interface TransferTimings {
   verifyMs?: number;
 }
 
-/** Time one blob transfer and tally it under its stream, failure or not. Rethrows so the worker's backoff still applies. */
-export async function timedTransfer(
+/**
+ * Time one blob transfer and tally it under its stream and source, failure
+ * or not. Rethrows so the caller's backoff still applies. `src` defaults to
+ * `lang`, a language's own upload and download lists; guide media, hand-over,
+ * streamed play, source audio, help and study files name theirs. Answers
+ * what `run` answered.
+ */
+export async function timedTransfer<T extends number | { bytes: number }>(
   dir: 'up' | 'down',
-  where: { orgId: string; streamId: string },
-  run: (timings: TransferTimings) => Promise<number>
-): Promise<void> {
+  where: { orgId: string; streamId: string; src?: TransferSource },
+  run: (timings: TransferTimings) => Promise<T>
+): Promise<T> {
   const started = Date.now();
   const timings: TransferTimings = {};
   try {
-    const bytes = await run(timings);
+    const result = await run(timings);
+    const bytes = typeof result === 'number' ? result : result.bytes;
     diagnostics.transfer(dir, { ...where, ...timings, bytes, ms: Date.now() - started });
+    return result;
   } catch (e) {
     diagnostics.transfer(dir, { ...where, ...timings, bytes: 0, ms: Date.now() - started, failure: classifyTransferFailure(e) });
     throw e;

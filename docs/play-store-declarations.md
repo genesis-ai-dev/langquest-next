@@ -204,12 +204,17 @@ this block.
   "diagnostics": {
     "context": ["appVersion", "channel", "embedded", "installId", "model", "os", "osVersion", "protocolVersion", "reducerVersion", "runtimeVersion", "updateId"],
     "kinds": {
-      "device": ["blobCacheMb", "blobsWanted", "freeDiskMb", "totalDiskMb"],
-      "error": ["errorId", "fatal", "name", "where"],
-      "load": ["events", "fromSnapshot", "ms", "staleCheckpointSeq"],
-      "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq"],
-      "sync": ["applyMs", "error", "ms", "offlineMs", "outcome", "pages", "pending", "pulled", "pullNetMs", "pushed", "pushNetMs", "rejected"],
-      "transfer": ["bytes", "count", "dir", "failDisk", "failHash", "failHttp4xx", "failHttp5xx", "failOffline", "failOther", "fetchMs", "maxMs", "ms", "signMs", "verifyMs"]
+      "audio": ["encodeFail", "interrupted", "micRefused", "playFail", "playNotHere", "plays", "saveFail", "startFail", "stopFail", "streamFail", "takeMs", "takes", "tooShort", "wavKept"],
+      "auth": ["accountLeft", "action", "ageH", "attempt", "code", "eventsLeft", "ms", "op", "outcome", "pending", "sinceOkMs", "status", "uploadsLeft"],
+      "checkpoint": ["kb", "ms", "path", "pruned", "seq"],
+      "device": ["blobCacheMb", "blobsWanted", "dbMb", "diagDropped", "diagQueued", "freeDiskMb", "journalFailed", "journalPending", "localEvents", "lostFiles", "lostRecordings", "oldestUnsentMin", "streams", "totalDiskMb", "uploadsWaiting", "wantedStuckMin"],
+      "error": ["code", "errorId", "fatal", "name", "where"],
+      "expected": ["code", "count", "name", "where"],
+      "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
+      "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
+      "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],
+      "sync": ["applyMs", "code", "error", "more", "ms", "offlineMs", "outcome", "pages", "pending", "phase", "pullNetMs", "pulled", "pushNetMs", "pushed", "rejClockAhead", "rejInvalid", "rejNotAllowed", "rejNotListed", "rejNotMember", "rejOther", "rejected", "requeued"],
+      "transfer": ["bytes", "count", "dir", "failAuth", "failBadDigest", "failDisk", "failGone", "failHash", "failHttp4xx", "failHttp5xx", "failNotFound", "failOffline", "failOther", "failTooLarge", "fetchMs", "maxMs", "ms", "signMs", "src", "verifyMs"]
     }
   }
 }

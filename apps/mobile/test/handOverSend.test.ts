@@ -27,6 +27,11 @@ vi.mock('../src/account/accountData', () => ({ accountOutbox: (actorId: string) 
 vi.mock('../src/sync/blobs', () => ({ getBlobStore: async () => ({ exists: async () => true }) }));
 vi.mock('../src/notifications/notifications', () => ({ handOverPushToken: async () => null }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: fake.note }));
+vi.mock('../src/diagnostics/diagnostics', () => ({
+  diagnostics: { record: () => undefined, audio: () => undefined, expected: () => undefined },
+  flushDiagnostics: async () => undefined,
+  timedTransfer: (_dir: unknown, _where: unknown, run: (t: object) => unknown) => run({})
+}));
 vi.mock('../src/sync/store', () => ({
   getStore: async () => ({ meta: async () => 'device-1', commit: async () => undefined })
 }));

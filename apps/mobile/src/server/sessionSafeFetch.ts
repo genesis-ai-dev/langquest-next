@@ -1,6 +1,7 @@
 // i18n-ignore-file: HTTP plumbing; its strings are header names and error messages for the sync layer, never shown.
 import type { Session } from '@supabase/supabase-js';
 import { savedSession } from '../auth/authState';
+import { noteRefusal } from '../auth/signOutCause';
 
 /**
  * The fetch every Supabase client on the phone uses (decision 87). Two
@@ -33,7 +34,53 @@ export interface SessionSafeOptions {
 }
 
 /** When a renewal last failed for want of a network (or a busy one); null once one has worked. */
-export interface RenewalWatch { failedAt: number | null }
+export interface RenewalWatch {
+  failedAt: number | null;
+  /** How renewing fails now, when it does, and since when; when one last worked. For `renewalChanges`. */
+  failing?: 'offline' | 'http';
+  failingSince?: number;
+  okAt?: number;
+}
+
+/**
+ * Renewal changed state: it started failing (no network, or an answer that
+ * is not Supabase Auth's: 429, 5xx, a hotspot's page), or worked again.
+ * `ms`: how long it had been failing; `sinceOkMs`: since one last worked,
+ * when one has since the app started. Told once per change, never per try.
+ */
+export type RenewalChange =
+  | { outcome: 'offline' }
+  | { outcome: 'http'; status: number }
+  | { outcome: 'ok'; ms: number; sinceOkMs?: number };
+
+/** Who hears a renewal change (diagnostics); module-wide, so the clients made in supabase.ts need no option for it. */
+export const renewalChanges = new Set<(change: RenewalChange) => void>();
+
+function tell(change: RenewalChange): void {
+  for (const listener of renewalChanges) {
+    try { listener(change); } catch { /* a listener never breaks a renewal */ }
+  }
+}
+
+/** Track a renewal's result on its watch, telling listeners only when the state changes. */
+function renewed(watch: RenewalWatch | undefined, result: { failed: 'offline' } | { failed: 'http'; status: number } | { failed: null }, now = Date.now()): void {
+  if (!watch) return;
+  if (result.failed === null) {
+    watch.failedAt = null;
+    if (watch.failing) {
+      tell({ outcome: 'ok', ms: now - (watch.failingSince ?? now), ...(watch.okAt !== undefined ? { sinceOkMs: now - watch.okAt } : {}) });
+    }
+    delete watch.failing;
+    delete watch.failingSince;
+    watch.okAt = now;
+    return;
+  }
+  watch.failedAt = now;
+  if (watch.failing === result.failed) return;
+  if (!watch.failing) watch.failingSince = now;
+  watch.failing = result.failed;
+  tell(result.failed === 'http' ? { outcome: 'http', status: result.status } : { outcome: 'offline' });
+}
 
 /** The message fetch failures carry, so OfflineError (supabaseTransport.ts) and supabase-js both read it as no network. */
 export const NOT_RENEWED = 'Network request failed: the sign-in could not be renewed yet';
@@ -48,14 +95,21 @@ export function sessionSafeFetch(opts: SessionSafeOptions): typeof fetch {
       try {
         res = await base(input, init);
       } catch (e) {
-        if (watch) watch.failedAt = Date.now();
+        renewed(watch, { failed: 'offline' });
         throw e;
       }
-      if (res.ok || await endsTheSignIn(res)) {
-        if (watch) watch.failedAt = null;
+      if (res.ok) {
+        renewed(watch, { failed: null });
         return res;
       }
-      if (watch) watch.failedAt = Date.now();
+      const refusal = await refusalOf(res);
+      if (refusal) {
+        // The server ended the sign-in; supabase-js signs out next (signOutCause.ts says why).
+        noteRefusal(refusal.code, res.status);
+        if (watch) { watch.failedAt = null; delete watch.failing; delete watch.failingSince; }
+        return res;
+      }
+      renewed(watch, { failed: 'http', status: res.status });
       throw new TypeError(`Network request failed: sign-in renewal answered ${res.status}`);
     }
     if (isData(url) && bearerOf(input, init) === opts.anonKey && await opts.hasSavedSession()) {
@@ -65,14 +119,20 @@ export function sessionSafeFetch(opts: SessionSafeOptions): typeof fetch {
   };
 }
 
-/** Supabase Auth's own refusal: JSON with an error code, and not a rate limit or a timeout. */
-async function endsTheSignIn(res: Response): Promise<boolean> {
-  if (res.status === 408 || res.status === 429 || res.status >= 500) return false;
+/**
+ * Supabase Auth's own refusal: JSON with an error code, and not a rate
+ * limit or a timeout. Answers its code (`refresh_token_not_found`), kept
+ * only when it is code-shaped, or null when this is not a refusal.
+ */
+async function refusalOf(res: Response): Promise<{ code?: string } | null> {
+  if (res.status === 408 || res.status === 429 || res.status >= 500) return null;
   try {
     const body = (await res.clone().json()) as { code?: unknown; error_code?: unknown } | null;
-    return typeof body?.code === 'string' || typeof body?.error_code === 'string';
+    const code = typeof body?.error_code === 'string' ? body.error_code : typeof body?.code === 'string' ? body.code : null;
+    if (code === null) return null;
+    return /^[A-Za-z0-9_]{1,40}$/.test(code) ? { code } : {};
   } catch {
-    return false;
+    return null;
   }
 }
 

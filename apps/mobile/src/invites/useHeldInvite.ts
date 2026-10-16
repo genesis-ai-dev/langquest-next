@@ -7,9 +7,11 @@ import { t } from '../i18n';
 import { claim, deadMessage, holdScanned, learnFromPreview, nextStep, outcomeOfError, type HeldInvite, type InvitePreview } from './heldInvite';
 import { writeHeld, } from './heldInviteStore';
 import { FunctionError, joinByInvite, redeemInvite } from './invites';
-import { noteExpected } from '../diagnostics/report';
+import { errorCode, noteExpected } from '../diagnostics/report';
 import { setSession } from '../server/auth';
 import { listeners, readHeld } from './heldInviteStore';
+import { recordAuth, recordAuthFailure, since } from '../auth/authDiag';
+import { inviteOutcome, OutcomeThrottle } from '../auth/authOutcome';
 
 /** What happened to the held invite last, for the screens to say. */
 type InviteStatus =
@@ -45,6 +47,13 @@ export interface InviteHandle {
 const RETRY_MS = 30_000;
 
 /**
+ * A waiting redeem is tried every 30 seconds: diagnostics hear the first
+ * failure, a change, and then once an hour. Keyed by the invite in memory
+ * only; no record names it.
+ */
+const redeemNotes = new OutcomeThrottle();
+
+/**
  * The one redeemer (docs/invites-and-accounts.md section 4). It lives above
  * the organization, so opening the organization it joined cannot unmount
  * it, and it acts only on `nextStep`: the held invite and who is signed in.
@@ -54,6 +63,8 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
   const [status, setStatus] = useState<InviteStatus>({ kind: 'idle' });
   const busy = useRef(false);
   const [tick, setTick] = useState(0);
+  // Tries at redeeming the held invite, for diagnostics; a new invite starts again.
+  const tries = useRef<{ token: string; n: number }>({ token: '', n: 0 });
 
   useEffect(() => {
     if (held === undefined || busy.current) return;
@@ -68,13 +79,25 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
         // sign-out mid-way cannot hand it to someone else.
         await writeHeld(step.held);
         let orgId: string;
+        const token = step.held.token;
+        if (tries.current.token !== token) tries.current = { token, n: 0 };
+        const attempt = ++tries.current.n;
+        const started = Date.now();
         try {
-          orgId = (await redeemInvite(step.held.token)).orgId;
+          orgId = (await redeemInvite(token)).orgId;
         } catch (e) {
           const message = e instanceof Error ? e.message : String(e);
           noteExpected('redeem invite', e);
+          // The real outcome, with its code: a refusal (42501), a busy server
+          // or a rate limit is kept and tried again like no signal, but it is
+          // not the same thing (outcomeOfError says only dead or retry).
+          const code = errorCode(e);
+          if (redeemNotes.shouldRecord(token, `${inviteOutcome(e, code)}:${code ?? ''}`, Date.now())) {
+            recordAuthFailure('redeem', e, { attempt, ms: since(started) }, inviteOutcome);
+          }
           const outcome = outcomeOfError(message);
           if (outcome.kind === 'dead') {
+            redeemNotes.forget(token);
             await writeHeld(null);
             setStatus({ kind: 'dead', message: deadMessage(outcome.reason) });
           } else {
@@ -82,6 +105,8 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
           }
           return;
         }
+        redeemNotes.forget(token);
+        recordAuth('redeem', 'ok', { n: { attempt, ms: since(started) } });
         // The welcome is for joining, even for an account welcomed before (ADR-022).
         await AsyncStorage.setItem(`joined:${actorId}`, '1');
         await writeHeld(null);
@@ -118,14 +143,17 @@ export function useHeldInvite(actorId: string | null, joined: (orgId: string) =>
     const bound = { ...claim(held, 'next-account'), joinId: held.joinId ?? Crypto.randomUUID() };
     await writeHeld(bound);
     setStatus({ kind: 'joining' });
+    const started = Date.now();
     try {
       const joined = await joinByInvite(bound.token, bound.joinId, name);
       const { data, error } = await setSession(joined.session);
       if (error) throw error;
+      recordAuth('join', 'ok', { n: { ms: since(started) } });
       if (data.user && signedIn) await signedIn(data.user.id).catch((e: unknown) => { noteExpected('after join', e); });
       return null;
     } catch (e) {
       noteExpected('join by invite', e);
+      recordAuthFailure('join', e, { ms: since(started) }, inviteOutcome);
       const message = e instanceof Error ? e.message : String(e);
       const outcome = outcomeOfError(message);
       if (outcome.kind === 'dead') {

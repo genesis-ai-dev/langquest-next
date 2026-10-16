@@ -20,19 +20,52 @@ function errorId(): string {
   return `E-${t}${counter.toString(36).toUpperCase().padStart(2, '0')}`;
 }
 
-/** Report a fault; returns the id shown to the user. */
-export function reportError(where: string, error: unknown, fatal = false): string {
+/**
+ * A fixed code for an error, never its message: Supabase Auth's and
+ * PostgREST's `code` (`invalid_credentials`, `42501`, `PGRST301`), an HTTP
+ * `status` as `http<status>`, or `offline` for our transport's OfflineError.
+ */
+export function errorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+  const e = error as { code?: unknown; status?: unknown; name?: unknown };
+  if (typeof e.code === 'string' && /^[A-Za-z0-9_]{1,40}$/.test(e.code)) return e.code;
+  if (typeof e.status === 'number' && e.status >= 100 && e.status < 600) return `http${e.status}`;
+  if (e.name === 'OfflineError') return 'offline';
+  return undefined;
+}
+
+/** `where` as a diagnostics tag: code-written, but kept to the token alphabet so it is never dropped. */
+function tagOf(where: string): string {
+  return where.replace(/[^A-Za-z0-9 _.:()/#-]/g, ' ').trim().slice(0, 80) || 'unknown';
+}
+
+/**
+ * Report a fault; returns the id shown to the user. `code` is a fixed code
+ * the caller gives the cause (a recorder's `nospace`); without it, the
+ * error's own code (`errorCode`) when it has one.
+ */
+export function reportError(where: string, error: unknown, fatal = false, code?: string): string {
   const id = errorId();
   const e = error instanceof Error ? error : new Error('non-error thrown');
   console.error(`[error ${id}] ${where}: ${e.name}`, e.stack ?? '');
-  diagnostics.record('error', { t: { name: e.name, where, errorId: id, fatal: fatal ? 'yes' : 'no' }, ...(e.stack ? { stack: e.stack } : {}) });
+  const c = code ?? errorCode(error);
+  diagnostics.record('error', {
+    t: { name: e.name, where: tagOf(where), errorId: id, fatal: fatal ? 'yes' : 'no', ...(c ? { code: c } : {}) },
+    ...(e.stack ? { stack: e.stack } : {})
+  });
   return id;
 }
 
-/** A failure that is expected and already shown to the user: count it, do not report it as a fault. */
-export function noteExpected(where: string, error: unknown): void {
+/**
+ * A failure that is expected and already shown to the user: not a fault,
+ * but counted on the hourly `expected` tally by where, class and code
+ * (never the message), so a pattern (every invite check refused, every
+ * stream link failing) reaches support.
+ */
+export function noteExpected(where: string, error: unknown, code?: string): void {
   const name = error instanceof Error ? error.name : typeof error;
   console.warn(`[expected] ${where}: ${name}`);
+  diagnostics.expected(tagOf(where), /^[A-Za-z0-9_.]{1,80}$/.test(name) ? name : 'unknown', code ?? errorCode(error));
 }
 
 let installed = false;

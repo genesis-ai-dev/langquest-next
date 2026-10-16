@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SupabaseTransport, type PendingUpload } from '@langquest-next/sync';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BlobStore } from '../sync/blobs';
+import { timedTransfer } from '../diagnostics/diagnostics';
 import { noteExpected } from '../diagnostics/report';
+import { signingOutByChoice } from '../auth/signOutCause';
 import { UploadError, uploadBlob } from './blobTransport';
 import { SESSION_KEY, clientKeptAt, supabase } from './supabase';
 
@@ -36,25 +38,27 @@ export function sendingAs(actorId: string): SupabaseClient | undefined {
  * out here. `keep` records the hand-over while the session is being moved.
  * Answers whether there was a session to keep.
  */
-export async function keepSessionAndSignOut(actorId: string, keep: () => Promise<void>): Promise<boolean> {
-  let moved = false;
-  await supabase.auth.stopAutoRefresh();
-  try {
-    const session = await AsyncStorage.getItem(SESSION_KEY);
-    if (session) {
-      await AsyncStorage.setItem(sessionKeyFor(actorId), session);
-      await keep();
-      await AsyncStorage.removeItem(SESSION_KEY);
-      moved = true;
+export function keepSessionAndSignOut(actorId: string, keep: () => Promise<void>): Promise<boolean> {
+  return signingOutByChoice(async () => {
+    let moved = false;
+    await supabase.auth.stopAutoRefresh();
+    try {
+      const session = await AsyncStorage.getItem(SESSION_KEY);
+      if (session) {
+        await AsyncStorage.setItem(sessionKeyFor(actorId), session);
+        await keep();
+        await AsyncStorage.removeItem(SESSION_KEY);
+        moved = true;
+      }
+      // Nothing is stored now, so this asks the server nothing: it forgets
+      // the session here and tells the app.
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) throw error;
+    } finally {
+      void supabase.auth.startAutoRefresh();
     }
-    // Nothing is stored now, so this asks the server nothing: it forgets
-    // the session here and tells the app.
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    if (error) throw error;
-  } finally {
-    void supabase.auth.startAutoRefresh();
-  }
-  return moved;
+    return moved;
+  });
 }
 
 /**
@@ -78,7 +82,11 @@ export function actAs(actorId: string, blobs: BlobStore) {
     /** `refused`: they are no longer a member of that language, so trying again will not help. */
     upload: async (u: PendingUpload): Promise<'sent' | 'refused'> => {
       try {
-        await uploadBlob(u.orgId, u.languageId, u.ref, blobs, {}, client);
+        // Tallied with the other uploads, under its own source, so a stuck hand-over shows (docs/diagnostics.md).
+        await timedTransfer('up', { orgId: u.orgId, streamId: u.languageId, src: 'handover' }, async (timings) => {
+          await uploadBlob(u.orgId, u.languageId, u.ref, blobs, timings, client);
+          return blobs.sizes().get(u.ref.hash) ?? 0;
+        });
         return 'sent';
       } catch (e) {
         if (!(e instanceof UploadError && e.refused)) throw e;

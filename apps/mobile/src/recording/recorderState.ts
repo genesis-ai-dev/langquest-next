@@ -1,7 +1,11 @@
 // The recorder's shared state and failures: who holds voice detection, whether a
 // recording is running, and what a failure says (recording/useRecorder.ts).
+import { CommandError } from '@langquest-next/core';
 import { t } from '../i18n';
-import { failureMessage, noteExpected } from '../diagnostics/report';
+import { commandErrorText } from '../i18n/coreText';
+import { noteExpected, reportError } from '../diagnostics/report';
+import { countAudio, type AudioLanguage } from '../audio/audioTally';
+import { faultCounter, recorderFaultCode, type RecorderFailure, type RecorderStage } from './recorderFaultModel';
 
 /**
  * Whose voice detector is on: its parts belong to it alone. The microphone
@@ -22,12 +26,28 @@ export class MicrophoneRefused extends Error {
 
 /**
  * What a person reads when recording failed: a refused microphone in words;
- * anything else is a fault, reported, and shown with a code (never the raw
- * message, which is a native module's English).
+ * anything else is a fault, reported under `recorder:<stage>` with a fixed
+ * code for its cause (recorderFaultModel.ts), and shown with an id (never
+ * the raw message, which is a native module's English). `failed` says what
+ * the language's `audio` tally counts it as.
  */
-export function recorderProblem(where: string, e: unknown): string {
-  if (e instanceof MicrophoneRefused) { noteExpected(where, e); return t('recording.recorder.permissionNeeded'); }
-  return failureMessage(where, e);
+export function recorderProblem(
+  stage: RecorderStage,
+  e: unknown,
+  failed: RecorderFailure,
+  language?: AudioLanguage | null
+): string {
+  // Core refused the take's event (an expected outcome, said in core's words): a save that failed, not a recorder fault.
+  if (e instanceof CommandError) {
+    if (failed && failed !== 'native') countAudio(language, failed);
+    return commandErrorText(e);
+  }
+  const code = recorderFaultCode(e);
+  const counter = faultCounter(code, failed);
+  if (counter) countAudio(language, counter);
+  const where = `recorder:${stage}`;
+  if (code === 'perm') { noteExpected(where, e, code); return t('recording.recorder.permissionNeeded'); }
+  return t('common.somethingWentWrong', { code: reportError(where, e, false, code) });
 }
 
 /** Recorders with the microphone open or a save in progress, app-wide. */

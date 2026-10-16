@@ -10,8 +10,8 @@ export function accountKeys(keys: readonly string[], actorId: string): string[] 
 }
 
 export interface DeletionDeps {
-  /** `delete_my_account`; resolves with the server's error message, or null. */
-  deleteOnServer: () => Promise<string | null>;
+  /** `delete_my_account`; resolves with the server's refusal (its message and code), or null. */
+  deleteOnServer: () => Promise<{ message: string; code?: string } | null>;
   storage: { getAllKeys: () => Promise<readonly string[]>; multiRemove: (keys: string[]) => Promise<void> };
   /** Ends the session on this phone only; the server no longer knows it. */
   signOutHere: () => Promise<void>;
@@ -23,8 +23,9 @@ export interface DeletionDeps {
  * failure leaves the person signed in to try again.
  */
 export async function deleteAccount(actorId: string, deps: DeletionDeps): Promise<void> {
-  const error = await deps.deleteOnServer();
-  if (error) throw new Error(error);
+  const refused = await deps.deleteOnServer();
+  // The code goes with the error, so the report of it says why (reportError reads `code`).
+  if (refused) throw Object.assign(new Error(refused.message), refused.code ? { code: refused.code } : {});
   await deps.storage.multiRemove(accountKeys(await deps.storage.getAllKeys(), actorId));
   await deps.signOutHere();
 }

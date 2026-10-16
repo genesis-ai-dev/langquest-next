@@ -9,6 +9,7 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import type { AudioLanguage } from '../audio/audioTally';
 import { Text } from '../ui/text';
 import { registerPlayback, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
 import type { Ctx } from '../shell/ctx';
@@ -60,11 +61,13 @@ export function BigMic(props: {
   tone?: 'red' | 'brand';
   size?: number;
   disabled?: boolean;
+  /** The language the answer is about, for the recording tally in field diagnostics. */
+  language?: AudioLanguage | null;
 }) {
   const latest = useRef(props);
   latest.current = props;
   const persist = (card: RecordedCard) => { latest.current.onClip({ hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }); };
-  const rec = useRecorder(persist);
+  const rec = useRecorder(persist, undefined, props.language);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
     if (!rec.manualOn) return;

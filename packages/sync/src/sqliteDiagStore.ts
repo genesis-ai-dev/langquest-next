@@ -21,17 +21,18 @@ export class SqliteDiagStore implements DiagStore {
     return new SqliteDiagStore(db);
   }
 
-  async addDiag(record: DiagRecord, max: number): Promise<void> {
+  async addDiag(record: DiagRecord, max: number): Promise<number> {
     await this.db.run(`insert or ignore into diag_records (id, kind, at, json) values (?, ?, ?, ?)`, [
       record.id, record.kind, record.at, JSON.stringify(record)
     ]);
-    // max(0, ...): a negative LIMIT in SQLite means no limit at all.
+    const over = Number((await this.db.all<{ n: number }>(`select count(*) - ? as n from diag_records`, [max]))[0]?.n ?? 0);
+    if (over <= 0) return 0;
     await this.db.run(
       `delete from diag_records where id in (
-        select id from diag_records order by (kind = 'error'), at
-        limit max(0, (select count(*) from diag_records) - ?))`,
-      [max]
+        select id from diag_records order by (kind = 'error'), at limit ?)`,
+      [over]
     );
+    return over;
   }
 
   async diagBatch(limit: number): Promise<DiagRecord[]> {

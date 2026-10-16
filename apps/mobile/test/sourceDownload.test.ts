@@ -51,6 +51,11 @@ vi.mock('../src/sync/blobs', () => ({
 }));
 vi.mock('../src/library/docStore', () => ({ loadDocs: async () => new Map() }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: () => undefined }));
+vi.mock('../src/diagnostics/diagnostics', () => ({
+  diagnostics: { record: () => undefined, audio: () => undefined, expected: () => undefined },
+  flushDiagnostics: async () => undefined,
+  timedTransfer: (_dir: unknown, _where: unknown, run: (t: object) => unknown) => run({})
+}));
 vi.mock('../src/recording/recorderState', () => ({ isRecording: () => false }));
 vi.mock('../src/sources/bibleBrain', () => ({ BibleError: class extends Error {} }));
 vi.mock('../src/sources/store', () => ({ bibleBrain: null }));
