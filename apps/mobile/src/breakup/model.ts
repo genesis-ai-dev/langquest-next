@@ -366,3 +366,78 @@ export function verseSays(says: string): string {
     default: return says;
   }
 }
+
+// ---- which languages use which way, and where numberings clash -------------------------
+
+/** A language and the template item it uses, as the server lists template users. */
+export interface TemplateUse {
+  language_id: string;
+  item_id: string;
+}
+
+/**
+ * Who uses which template. Offline the server's list is not known, but the
+ * open language's template is (this device folds it): the way it uses is
+ * still offered, first, rather than only LangQuest's ways that need the server.
+ */
+export function knownUses(users: TemplateUse[] | null, openLanguage: string | null, openTemplateItem: string | undefined): TemplateUse[] {
+  return users ?? (openTemplateItem && openLanguage ? [{ language_id: openLanguage, item_id: openTemplateItem }] : []);
+}
+
+/** The other languages' use of ways, named, for `wayRows`. */
+export function otherUses(known: readonly TemplateUse[], forLanguage: string | null, nameOf: (languageId: string) => string): { languageId: string; name: string; itemId: string }[] {
+  return known.filter((u) => u.language_id !== forLanguage).map((u) => ({ languageId: u.language_id, name: nameOf(u.language_id), itemId: u.item_id }));
+}
+
+/** A template offered only in the numbering asked for (decision 80): its versification document's code. With no numbering asked, any. */
+export function templateInNumbering(doc: TemplateDoc | null, v11n: VersificationDoc | null, numbering: string | null | undefined): TemplateDoc | null {
+  if (!doc || !numbering) return doc;
+  return v11n && v11n.code === numbering ? doc : null;
+}
+
+/** What numbering the organization's other languages use, by code: their template's versification. */
+export function usedInByNumbering(
+  known: readonly TemplateUse[],
+  forLanguage: string | null,
+  codeOf: (itemId: string) => string | undefined,
+  nameOf: (languageId: string) => string
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const u of known) {
+    if (u.language_id === forLanguage) continue;
+    const code = codeOf(u.item_id);
+    if (code) (out[code] ??= []).push(nameOf(u.language_id));
+  }
+  return out;
+}
+
+/** The numbering note, unless the person put it away for exactly this set of Bibles. */
+export function clashShown<T>(clash: T | null, key: string, ignored: string | null): T | null {
+  return clash && ignored !== key ? clash : null;
+}
+
+/** A row of the server's list of who uses which template (`library_template_users`). */
+export interface TemplateUserRow {
+  language_id: string;
+  item_id: string;
+  unit_prefix: string;
+  books?: string[] | null;
+}
+
+/**
+ * The languages using a template, for "Change it for…": each named, and
+ * whether this person may change its template. Null while the server's list
+ * is not known (offline).
+ */
+export function templateUsersFor(
+  c: { users: readonly TemplateUserRow[] | null; itemId: string; nameOf: (languageId: string) => string; mayChange: (languageId: string) => boolean }
+): TemplateUser[] | null {
+  if (c.users === null) return null;
+  return c.users.filter((u) => u.item_id === c.itemId).map((u) => ({
+    languageId: u.language_id,
+    name: c.nameOf(u.language_id),
+    mayChange: c.mayChange(u.language_id),
+    unitPrefix: u.unit_prefix,
+    ...(u.books ? { books: u.books } : {})
+  }));
+}

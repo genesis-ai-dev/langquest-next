@@ -1,12 +1,12 @@
 // Breaking up a book: the change being made and saving it (breakup/BreakUpBook.tsx).
-import { withBookBrokenUp, type LibraryItemView, type TemplateDoc } from '@langquest-next/core';
+import { languageName, privilegesFor, withBookBrokenUp, type LibraryItemView, type TemplateDoc } from '@langquest-next/core';
 import { useState } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { useLibrary } from '../library/useLibrary';
 import { failureMessage } from '../diagnostics/report';
 import { useTemplateUsers } from './useBreakup';
-import { publishChange, templateUsersOf } from './breakupActions';
-import type { TemplateUser } from './model';
+import { publishChange } from './breakupActions';
+import { templateUsersFor, type TemplateUser } from './model';
 
 
 /** The questions a book change asks, for BookChangeSheets (parts.tsx) to draw. */
@@ -38,7 +38,11 @@ export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc
   const [warn, setWarn] = useState(false);
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
-  const users = sel ? templateUsersOf(ctx, rows, sel.itemId) : null;
+  const org = ctx.org.state;
+  const users = sel ? templateUsersFor({
+    users: rows, itemId: sel.itemId, nameOf: (id) => languageName(org, id),
+    mayChange: (id) => !!org && privilegesFor(org, ctx.session.actorId, id).has('manage_templates')
+  }) : null;
   const shared = !!users && users.filter((u) => u.languageId !== ctx.language.languageId).length > 0;
 
   async function apply(chosen: Set<string>, change = pending) {

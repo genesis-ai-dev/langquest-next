@@ -850,6 +850,10 @@ Expected:
 - Nothing was refused (Sync on device 1, as REV, shows "refused by the
   server" at 0).
 
+The P0 smoke flow `P0-signout-handover.yaml` covers the sign-out message, the
+hand-over and "refused" at 0 on Android with a note instead of a recording
+(airplane mode; no second device, so not the COORD or server-actor checks).
+
 ### ACCT-039 Signing back in on the same phone takes the work back
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android · Run: Device
 

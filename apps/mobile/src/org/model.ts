@@ -29,3 +29,10 @@ export function signInFailure(e: unknown): string {
 export function looksLikeEmail(address: string): boolean {
   return /\S+@\S+\.\S+/.test(address.trim());
 }
+
+/** The roles still in use, the most privileged first, then by name. */
+export function liveRoles(roles: Record<string, { retired?: boolean; name: { value?: string | null }; privileges: { value?: readonly unknown[] | null } }> | undefined): { id: string; name: string; privileges: number }[] {
+  return Object.entries(roles ?? {}).filter(([, r]) => !r.retired)
+    .map(([id, r]) => ({ id, name: r.name.value || id, privileges: r.privileges.value?.length ?? 0 }))
+    .sort((a, b) => b.privileges - a.privileges || a.name.localeCompare(b.name));
+}
