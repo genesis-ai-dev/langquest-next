@@ -38,11 +38,14 @@ const MAX_AGE_MS = 60_000;
 export const STATE_SAVE_EVERY = 500;
 /**
  * Whole folds kept in memory, most recently used first out, by the size of
- * their serialized text (a parsed fold takes several times that in V8's
- * heap, in an isolate of 128 MB). The rest are read back from the cache when
- * they move. One fold is always kept, however large.
+ * their serialized text. A parsed fold takes about twice that in V8's heap,
+ * and the isolate is reset past 128 MB, so held folds stay well under half
+ * of it: a pass still folds, packs and measures a language on top of them.
+ * At 40 MB an organization's Durable Object ran out of memory (2026-10-16,
+ * test/memory). The rest are read back from the cache when they move. One
+ * fold is always kept, however large.
  */
-export const STATE_BUDGET_BYTES = 40_000_000;
+export const STATE_BUDGET_BYTES = 12_000_000;
 /** A language whose fold is at least this big is refreshed alone; smaller ones run PARALLEL at a time. */
 export const LARGE_STATE_BYTES = 2_000_000;
 const PAGE = 1000;
@@ -74,7 +77,7 @@ interface Summary {
   orgCursor: number;
   day: string;
   report: LanguageReport | null;
-  /** Serialized size of the fold when the summary was made; decides whether a pass refreshes the language alone. Absent in summaries written before it existed (treated as small). */
+  /** Serialized size of the fold when the summary was made; decides whether a pass refreshes the language alone. Absent in summaries written before it existed (treated as large). */
   bytes?: number;
 }
 
@@ -215,7 +218,9 @@ export class OrgFolder {
     const ids = orgLanguages(this.org!.state).map((l) => l.languageId);
     // Small languages run PARALLEL at a time; a large one (by the size its
     // last summary recorded) runs alone, since one parsed fold can fill the
-    // isolate. A language with no recorded size counts as small.
+    // isolate. A language with no recorded size (a cold object, or a summary
+    // written before sizes were recorded) runs alone too: four large
+    // languages folded at once do not fit.
     for (const id of ids) {
       if (this.summaries.has(id)) continue;
       const restored = await this.restoreSummary(id);
@@ -242,7 +247,8 @@ export class OrgFolder {
   }
 
   private isLarge(id: string): boolean {
-    return (this.summaries.get(id)?.bytes ?? this.states.get(id)?.bytes ?? 0) >= this.largeState;
+    const bytes = this.summaries.get(id)?.bytes ?? this.states.get(id)?.bytes;
+    return bytes === undefined || bytes >= this.largeState;
   }
 
   /** Bring one language's summary up to date, folding only when it moved, the day turned or the organization changed. */
