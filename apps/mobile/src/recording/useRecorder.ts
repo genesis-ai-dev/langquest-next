@@ -482,6 +482,29 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     return run;
   }, [deliver, fail, stopVad, work]);
 
+  /**
+   * Throw the session away (the red view's ✕, after asking): recording
+   * stops, and nothing said in it is saved. Its chunks and journal entries go.
+   */
+  const discardSession = useCallback(async (): Promise<void> => {
+    await stopVad();
+    const s = session.current;
+    if (!s) return;
+    session.current = null;
+    if (mounted.current) setSessionOpen(false);
+    const state = s.snapshot();
+    const journal = getRecordingJournal();
+    for (const p of state.parts) {
+      if (!p.id) continue;
+      liveParts.delete(p.id);
+      await journal.remove(p.id).catch((e: unknown) => noteExpected('recorder: journal discard', e));
+    }
+    for (const [chunk, c] of Object.entries(state.chunks)) {
+      const uri = c.uri ?? (WEB ? null : chunk);
+      if (uri) { try { deleteRecorderFile(uri); } catch (e) { noteExpected('recorder: delete chunk', e, recorderFaultCode(e)); } }
+    }
+  }, [stopVad]);
+
   const busy = working > 0;
   useEffect(() => {
     if (!(manualOn || vadOn || busy)) return;
@@ -585,7 +608,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     /** The number the next part of the session takes, and how many it keeps so far. */
     sessionNext: snap ? liveNext(snap) : null,
     sessionKept: snap ? liveKeptCount(snap) : 0,
-    endSession, dropPart, notePart
+    endSession, discardSession, dropPart, notePart
   };
 }
 

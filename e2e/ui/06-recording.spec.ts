@@ -1015,6 +1015,39 @@ test('REC-053 A stopped session: hear a part, move its edge, drop one, carry on,
   await expectUploaded(page, w);
 });
 
+test('REC-054 Throw away a session: the ✕ asks first, then nothing said in it is kept @p0', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  await openWorkspace(page, w, 'P-DRAFT', 'Continue recording');
+  const before = await draftParts(page);
+  const events = await eventCount(page, w);
+  const m = mic(page);
+  await m.mode('tone');
+  await m.speak(false);
+  await recordButton(page).click();
+  for (const [i, ms] of [2500, 2500].entries()) {
+    await say(page, ms, 0);
+    await expectParts(page, before + i + 1, 10_000);
+  }
+  // The ✕ stops recording and asks, saying what would go.
+  await button(page, 'Throw away this recording').click();
+  await expect(text(page, 'Throw away this recording?')).toBeVisible();
+  await expect(text(page, /^2 parts · 0:0\d$/)).toBeVisible();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
+  // Cancel keeps the session, stopped, its parts still boxes.
+  await button(page, 'Cancel').click();
+  await expect(text(page, 'Stopped')).toBeVisible();
+  for (const n of [before + 1, before + 2]) await expect(byId(page, `live-part-${n}`)).toBeVisible();
+  // Throwing it away keeps nothing said in it: the draft is as it was, and nothing is written.
+  await button(page, 'Throw away this recording').click();
+  await button(page, 'Throw away').click();
+  await expect(text(page, 'Stopped')).toHaveCount(0);
+  await expectIdle(page);
+  await expect(page.getByRole('button', { name: new RegExp(`^Parts 1–${before}, ${before} parts · `) })).toBeVisible();
+  expect(await eventCount(page, w), 'nothing is written').toBe(events);
+  await m.mode('file');
+});
+
 // ---- Who may record -----------------------------------------------------------------
 
 /** Back to a screen with the tab bar (each tap goes back one screen). */

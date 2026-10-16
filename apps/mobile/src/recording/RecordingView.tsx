@@ -22,6 +22,8 @@ import type { useRecorder } from './useRecorder';
 import { loopStatus, type LoopNoun, type LoopPhase } from './splitModel';
 import { mmss } from './workspaceModel';
 import { LiveParts } from './LiveParts';
+import { liveKept } from './livePartsModel';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
 
 type Recorder = ReturnType<typeof useRecorder>;
 
@@ -84,6 +86,8 @@ export function RecordingView(props: {
   /** Its verses, when it takes a deleted part's. */
   tile?: ReactNode;
   onLeave: () => void; onResume: () => void;
+  /** The ✕: stop recording for the question, then throw the session away (Caleb, 2026-10-16). */
+  onStop: () => Promise<void>; onDiscard: () => void;
 }) {
   const { rec } = props;
   const listening = props.phase === 'listening';
@@ -95,10 +99,19 @@ export function RecordingView(props: {
   // The waveform numbers the parts from where they go; a part recorded into a gap changes that, until the first is said.
   const session = rec.session;
   useEffect(() => { session?.setFirst(props.partNumber); }, [session, props.partNumber]);
+  // Throwing a session away asks first, with what it holds; one with nothing kept just goes.
+  const [asking, setAsking] = useState<{ count: number; ms: number } | null>(null);
+  const discard = () => {
+    const kept = session ? liveKept(session.snapshot()) : [];
+    if (kept.length === 0) { props.onDiscard(); return; }
+    setAsking({ count: kept.length, ms: kept.reduce((n, k) => n + (k.toMs - k.fromMs), 0) });
+    void props.onStop();
+  };
   const resume = useHelpSpot(t('recording.resumeNow'), t('recording.vad.resumeHelp'), listening ? props.onResume : undefined);
   return (
     <View style={[styles.panel, { backgroundColor: listening ? TINT.red : capturing ? C.red : TINT.redText }]}>
       <View style={styles.head}>
+        <IconBtn name="close" label={t('recording.recorder.discard')} help={t('recording.recorder.discardHelp')} bg="transparent" color={fg} size={target.min} onPress={discard} />
         {props.tile ? <View style={styles.tile}>{props.tile}</View> : null}
         <HelpInfo style={{ flex: 1, minWidth: 0 }} label={`${props.title}. ${status}`} detail={listening ? t('recording.vad.statusPausedHelp') : stopped ? t('recording.recorder.stoppedHelp') : t('recording.recorder.nextRecordingHelp')}>
           <View accessible accessibilityLabel={t('recording.recorder.nextLabel', { part: props.title, status })}>
@@ -130,6 +143,9 @@ export function RecordingView(props: {
         </View>
       )}
       {rec.error ? <Text style={styles.error} accessibilityRole="alert">{rec.error}</Text> : null}
+      <ConfirmDelete visible={asking !== null} name={props.title} title={t('recording.recorder.discardAsk')} confirmLabel={t('recording.recorder.discardConfirm')}
+        sub={asking ? t('recording.parts.groupSub', { count: asking.count, length: mmss(asking.ms) }) : ''}
+        onClose={() => setAsking(null)} onConfirm={() => { setAsking(null); props.onDiscard(); }} />
     </View>
   );
 }

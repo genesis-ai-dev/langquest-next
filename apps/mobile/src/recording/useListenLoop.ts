@@ -75,6 +75,18 @@ export function useListenLoop(rec: Recorder) {
     await recRef.current.endSession();
   }, []);
 
+  /** Stop recording, for the question before a session is thrown away. */
+  const stop = useCallback(async () => {
+    setListening(false);
+    await recRef.current.stopVad();
+  }, []);
+
+  /** Throw the session away: nothing said in it is kept. */
+  const discard = useCallback(async () => {
+    setListening(false);
+    await recRef.current.discardSession();
+  }, []);
+
   // Leaving the screen stops the source (App.tsx) and leaves the session; don't keep the microphone open behind another screen.
   const showing = useScreenShowing();
   useEffect(() => {
@@ -91,5 +103,5 @@ export function useListenLoop(rec: Recorder) {
 
   const phase: LoopPhase = loopPhase(rec.vadOn, listening, rec.sessionOpen);
   const hooks = useMemo<ListenHooks>(() => ({ beforePlay, onPlaying }), [beforePlay, onPlaying]);
-  return { phase, hooks, toggle, finish, resumeNow };
+  return { phase, hooks, toggle, finish, stop, discard, resumeNow };
 }

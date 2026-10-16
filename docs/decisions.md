@@ -4846,8 +4846,10 @@ they reach the record when the session is left, not as each is said.
   the app's journal on the next launch ends it, and only then are its parts
   cut and saved, in order, as their boxes stand. Uploads and the footer's
   Done (127's, which was Publish) wait until then; while the session is open
-  the recording view's Done is the only one. The same holds in back
-  translation.
+  the recording view's Done is the only one. Its ✕ (Caleb, 2026-10-16)
+  stops recording and asks "Throw away this recording?" with what the
+  session holds; throwing it away saves nothing said in it, and a session
+  that kept no part just goes. The same holds in back translation.
 - **The room near speech is kept, not the session.** A chunk file opens when
   a part starts, with up to 2 s of what was heard before its head, and closes
   2 s after the last part in it ended (`modules/microphone-energy/src/chunks.ts`,

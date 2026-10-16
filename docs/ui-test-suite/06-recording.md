@@ -939,6 +939,25 @@ Expected:
 - After step 7 the new part is boxed as part 3.
 - After step 8 the card reads "Parts 1–3" with "3 parts", part 1 as long as its box, and part 3 the one said in step 7.
 
+### REC-054 Throw away a session: the ✕ asks first, then nothing said in it is kept
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- P-DRAFT, TRANS's fixture draft of two parts (REC-003).
+
+Steps:
+1. Open P-DRAFT and tap "Continue recording".
+2. Tap the red button. Speak for 2.5 seconds, pause, twice.
+3. Tap the ✕ at the left of the red view ("Throw away this recording").
+4. Tap "Cancel".
+5. Tap the ✕ again, then "Throw away".
+
+Expected:
+- Step 3 stops recording (the button reads "Record") and asks "Throw away this recording?" with "2 parts · 0:0x", "Throw away" and "Cancel".
+- After step 4 the session is still open and stopped, with parts 3 and 4 boxed.
+- After step 5 the red view is gone and the card reads "Parts 1–2" as before: nothing said in the session is kept, and no event is written.
+- A session that kept no part (nothing said, or only taps) goes at the ✕ without asking.
+
 ## Microphone setup
 
 ### REC-045 Set up the microphone by ear (retired)
