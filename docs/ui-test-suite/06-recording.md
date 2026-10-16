@@ -114,6 +114,8 @@ Expected:
 
 Decided (2026-10-13), the docs were stale: decision 71's amendment of 2026-10-08 ("the recording workspace, Publish, the study and microphone setup now follow the agreed images") makes the lit part card and its meter the agreed recording view; the full-screen voice-detection panel (`VadPanel`) is back translation's. This test checks the lit card and the meter.
 
+Changed (2026-10-16, decision 124): while recording, the pane below the divider is the red recording view (`RecordingView.tsx`) in the workspace and in back translation alike: its top row names the part being said ("Part 2", with its verses when it fills a place), the time and a check, Done; the live waveform fills the rest. Its label reads "Part 2. Recording…" or "Part 2. Listening for you · pause between parts"; the parts card returns when recording stops.
+
 Fixed (2026-10-13), G10.3: on the web a part recorded while uploads are held back (they wait while the microphone is open) sometimes goes up only at the upload worker's next one-minute tick, so "waiting to upload" can stay above 0 for up to a minute after stop. Fixed in part (2026-10-13): the workspace asks for an upload when a session ends and after publishing (`translate.tsx`); the rest is in `useLanguage.ts` / the transfer worker. The web suite records it as a soft failure naming the recordings.
 
 ### REC-005 Parts can be heard together and one by one
@@ -829,7 +831,7 @@ Expected:
 - Step 7: the divider's label is "Divider between reference and your recording", its hint "Drag up or down to give either one more room", and its value reads "Source 35%" (and so on), "Reference as one line", "Recorder as one line".
 - The divider's touch area is at least 48 points tall.
 - Fixed (2026-10-13): on the web the divider had no value for a screen reader (react-native-web reads `aria-valuetext`, not `accessibilityValue`); `SplitPane.tsx` now gives both. Step 7's swipes are a device check; the web run checks the label and the value at each stop.
-- When the recorder pane is shorter than 360 points, the parts card is replaced by "Parts 1–4 recorded · drag up to see them".
+- When the recorder pane is shorter than 360 points, the parts card shows closed ("Parts 1–4, 4 parts · 0:16"); tapping it opens it and gives the recorder the room (the reference goes to one line). Changed (2026-10-16, LAN-83): the card no longer gives way to "Parts 1–4 recorded · drag up to see them".
 
 ---
 
@@ -891,7 +893,7 @@ Expected:
 - Parts 3 to 5 take the next verses in order.
 - A space that cannot take a verse (every verse is used) shakes when tapped and changes nothing.
 
-### REC-044 A verse left for later, then Record here
+### REC-044 A verse left for later, then tap its place and record
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -899,14 +901,16 @@ Preconditions:
 
 Steps:
 1. Look between Part 1 and Part 2.
-2. Tap "Record here" on that row.
-3. Speak for 3 seconds, pause, tap stop.
+2. Tap that place ("Record Part 2 here").
+3. Tap the red button, speak for 3 seconds, pause, tap stop.
 
 Expected:
-- A row "Verse 23 · left for later" shows between the two parts, with "Record here".
-- Step 2 starts recording.
-- After step 3 the new part sits between Part 1 and the old Part 2, labelled verse 23, and the parts are renumbered in order.
-- Recording again without "Record here" adds parts at the end.
+- A row for the place left out shows between the two parts: verse 23's number, a dashed microphone and "Part 2"; the old Part 2 reads "Part 3".
+- Step 2 chooses it: it is tinted, its microphone is filled and it reads "Recording next"; the footer reads "Part 2"; the end card is dashed.
+- After step 3 the new part sits between Part 1 and the old Part 2, labelled verse 23, and the place is gone.
+- Recording again, with nothing chosen, adds parts at the end.
+
+Changed (2026-10-16, decision 124): the amber "Verse 23 · left for later" row and its "Record here" button became a place to tap; the red button records there.
 
 ---
 

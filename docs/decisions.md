@@ -2974,6 +2974,11 @@ would need a new event with the version in it.
 Reverse if: teams need drafts others can pick up and change (then a draft
 would need an owner other than whoever composed its takes).
 
+Amended (2026-10-16, Caleb Koster): "deleting a published version" is no
+longer rejected. Whoever published a version can delete it, as a tombstone
+that keeps its number and its checks on the record (decision 124). Deleting a
+draft now asks first instead of offering Undo.
+
 ## 84. Reference material says the language it is in, and FIA is chosen with its language
 
 Date: 2026-10-10 · By: Caleb Koster · Status: accepted
@@ -4182,7 +4187,7 @@ with no change to the events.
 
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
-Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 124
+Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 125
 
 Reason: Ryder asked for the whole EveryBible loop for a stakeholder demo:
 a recorded passage goes out for review, reviewers hear it in EveryBible,
@@ -4607,9 +4612,62 @@ file). Reverse if: a lazy screen's first open is slow enough for people to
 notice on the slowest partner phone, or the web's background fetch competes
 with a first sync on slow links; then move that screen back, or fetch later.
 
-## 124. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
+## 124. You choose where the next part is recorded, a whole thing asks before it is deleted, and a deleted version is a tombstone
 
-Date: 2026-10-15 · By: Ryder Wishart · Status: accepted
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Spoken's tester could not find how to delete a version or a part,
+or how to say one part again (LAN-83). On a phone at half split the parts
+were hidden behind "drag up to see them", and with verse numbers a part's
+delete was only in the menu a hold on its number opens. Caleb's rules: no
+sentences explaining the screen, the layout carries it; recordings are
+parts. What was built:
+- **Parts and where the next goes.** The parts card shows at every size
+  (closed when the pane is small; opening it gives the recorder the room),
+  named "Version N" while its parts are still that version's. Every part has
+  a bin. The person taps where the next recording goes: a gap (verses left
+  out, decision 82, or a deleted part's place), a part (what is said next
+  replaces it, with Undo), or the end, which is lit by default and dashed
+  otherwise. The chosen place is tinted with a purple microphone and the
+  footer names its number; the red button records there. A deleted part's
+  place stays open and chosen, numbered and with its verses; the first part
+  said in a place takes its verses and the rest join them
+  (`workspaceModel` `slotRows`, `targetNumber`; `screens/translate.tsx`
+  `aim` and `hole`; `recording/slots.tsx`). The amber "left for later" row
+  and "Record here" are gone, as are the lines "These are Version N's
+  parts…", "drag up to see them", "Tap the red button and speak…" and "No
+  drafts. Edit a version below…".
+- **Asking first.** Deleting a whole version, a draft or every part opens a
+  sheet ("Delete Version 2?", what it holds, Delete or Cancel;
+  `ui/ConfirmDelete.tsx`) instead of a toast whose Undo runs out. One part is
+  still deleted at once, with Undo.
+- **A deleted version is a tombstone.** Whoever published a version can
+  delete it (`canDeleteVersion`, `deleteVersion`). No new event:
+  `v1.TakeArchived` on the submitted take, add-wins, with the first archive's
+  clock and actor kept (`Take.archivedAt`, reducer version 18). A reviewer
+  may have the version offline and check it a month later, so the version
+  keeps its number (`nextVersionN` never reuses one), and checks of it, before
+  or after the delete arrived, are kept in `reviewsOfDeleted`: shown in the
+  history and on their own page, marked "Version N deleted", and counted for
+  nothing (status reads only `reviews` of versions not deleted). Its page
+  still opens, as what it was.
+- **Recording view.** While recording, the pane below the divider is the
+  red recording view, in the workspace and in back translation alike
+  (`recording/RecordingView.tsx`, which replaces the back translation's
+  `VadTakeover`): the part being said with its verses, the time, a check
+  (Done; a cross read as throwing it away) and the live waveform, which the
+  "Recordings getting cut off" work (LAN-82) owns (`LiveParts.tsx`). Its
+  sensitivity line and pause chips went with it.
+Rejected: a new `v1.VersionDeleted` event (an archive is already the
+tombstone, and the server accepts it from translators); letting anyone with
+a role delete someone else's version.
+Reverse if: teams lose work by deleting versions others were relying on
+(then deleting would need the checks to be withdrawn first, or a role), or
+people miss the end of the list as the default place to record.
+
+## 125. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
+
+Date: 2026-10-16 · By: Ryder Wishart · Status: accepted
 
 Reason: Ryder wants the Every Language organization linked to EveryBible,
 its review and listening app, with no bridge between them, while it is a

@@ -21599,7 +21599,7 @@ function changesSince(live, revision) {
 }
 
 // packages/core/src/reducer.ts
-var REDUCER_VERSION = 17;
+var REDUCER_VERSION = 18;
 function applyLanguageEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
@@ -21711,16 +21711,20 @@ function applyLanguageEvent(state, event) {
         actorId: event.actorId,
         hlc: event.hlc,
         // Add-wins: an archive that arrived before the compose still sticks.
-        archived: prior?.archived ?? false
+        archived: prior?.archived ?? false,
+        ...prior?.archivedAt ? { archivedAt: prior.archivedAt } : {}
       };
       break;
     }
     case "v1.TakeArchived": {
       const take = state.takes[event.payload.takeId];
+      const at = { hlc: event.hlc, by: event.actorId };
+      const first = (prior) => !prior || at.hlc < prior.hlc || at.hlc === prior.hlc && at.by < prior.by ? at : prior;
       if (take) {
         take.archived = true;
+        take.archivedAt = first(take.archivedAt);
       } else {
-        state.takes[event.payload.takeId] = { unitId: "", cardHashes: [], parentTakeId: null, actorId: event.actorId, hlc: event.hlc, archived: true };
+        state.takes[event.payload.takeId] = { unitId: "", cardHashes: [], parentTakeId: null, actorId: event.actorId, hlc: event.hlc, archived: true, archivedAt: at };
       }
       break;
     }
@@ -22262,7 +22266,7 @@ function derivePassage(state, unitId, idx) {
   const hit = ri.passages.get(key);
   if (hit) return hit;
   const flow = ri.flow;
-  const versions = (ri.versions.get(key) ?? []).map((takeId, i) => {
+  const everyVersion = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId];
     const response = state.responses[takeId];
     const change = ri.changeNotes.get(takeId);
@@ -22279,6 +22283,12 @@ function derivePassage(state, unitId, idx) {
       ...blob ? { changeBlobHash: blob } : {}
     };
   });
+  const deletedVersions = everyVersion.flatMap((v) => {
+    const t = state.takes[v.takeId];
+    return t.archived ? [{ ...v, deleted: t.archivedAt ?? { hlc: v.hlc, by: v.by } }] : [];
+  });
+  const versions = everyVersion.filter((v) => !state.takes[v.takeId].archived);
+  const reviewsOfDeleted = deletedVersions.flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n }))).sort(byHlc);
   const departures = (ri.departures.get(key) ?? []).map(({ eventId: _e, ...d }) => {
     const undone = state.undoneDepartures[d.id];
     return undone ? { ...d, undone } : d;
@@ -22355,6 +22365,9 @@ function derivePassage(state, unitId, idx) {
     unitId,
     flow,
     versions,
+    deletedVersions,
+    reviewsOfDeleted,
+    nextVersionN: everyVersion.length + 1,
     recorded,
     departures,
     reviews,
@@ -22458,7 +22471,7 @@ function updatesFor(state, actorId, idx) {
       }
     }
     for (const r of s.reviews) {
-      const version5 = s.versions[r.versionN - 1];
+      const version5 = s.versions.find((v) => v.n === r.versionN);
       if (version5?.by === actorId && r.by !== actorId) out.push({ ...base, id: `review:${r.id}`, kind: "review", by: r.by, hlc: r.hlc, review: r, version: version5 });
       if (r.by === actorId && r.response && r.response.by !== actorId) {
         out.push({ ...base, id: `answer:${r.id}`, kind: r.response.decision === "revised" ? "revision" : "kept", by: r.response.by, hlc: r.response.hlc, review: r });

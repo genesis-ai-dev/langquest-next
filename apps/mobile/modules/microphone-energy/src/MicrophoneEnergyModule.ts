@@ -4,6 +4,8 @@ import { NativeModule, requireNativeModule } from 'expo-modules-core';
 type VADResult = {
   energy: number;
   timestamp: number;
+  /** The room's quiet level when this frame was heard, dB (LAN-82's splitter); absent from this detector. */
+  quiet?: number;
 };
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -24,7 +26,8 @@ export type VADConfig = {
 export type MicrophoneEnergyModuleEvents = {
   onEnergyResult: (result: VADResult) => void;
   onError: (error: { message: string }) => void;
-  onSegmentStart: () => void;
+  /** `headMs`: how far back the part's head reaches (LAN-82's splitter); absent from this detector. */
+  onSegmentStart: (e?: { headMs?: number }) => void;
   onSegmentComplete: (payload: {
     uri: string;
     startTime: number;

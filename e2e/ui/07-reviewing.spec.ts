@@ -689,11 +689,10 @@ test('REV-032 Say each part, then publish the back translation @p0', async ({ pa
   await primary(page).click();
   await button(page, 'Record part 1').click();
   await expect(button(page, 'Stop recording')).toBeVisible();
-  await expect(visible(page.getByLabel(/Recording what you say|Listening for you/)).first()).toBeVisible();
+  // The pane below the divider is the recording view (LAN-83): the part being said, the time and Done.
+  await expect(visible(page.getByLabel(/^Part 1\. (Recording…|Listening for you)/)).first()).toBeVisible();
   await expect(visible(page.getByLabel(/^Recorded for 0:\d\d$/)).first()).toBeVisible();
-  await expect(visible(page.getByLabel('Sound cutoff')).first()).toBeVisible();
-  for (const p of ['Short pause', 'Normal pause', 'Long pause']) await expect(button(page, new RegExp(p))).toBeVisible();
-  await expect(visible(page.getByLabel(/[1-9]\d* pieces? so far/)).first()).toBeVisible({ timeout: 15_000 });
+  await expect(button(page, 'Done')).toBeVisible();
   await button(page, 'Stop recording').click();
   await expect(button(page, /^Part 1, 0:0\d in English$/)).toBeVisible({ timeout: 20_000 });
   await expect(button(page, /^Part 1, 0:\d\d in English$/)).toBeVisible({ timeout: 20_000 });
@@ -865,7 +864,8 @@ test('REV-041 Record a fix answers the feedback with Version 2 @p0', async ({ pa
   await button(page, 'Hear the feedback').click();
   await button(page, 'Record a fix').click();
   await expect(text(page, 'Recording Version 2')).toBeVisible();
-  await expect(text(page, 'These are Version 1\'s parts. Record a new part or delete one to publish a new version.')).toBeVisible();
+  // The parts are Version 1's until something changes (LAN-83: no sentence says so).
+  await expect(page.getByRole('button', { name: /^Version 1, \d+ parts? · / }).locator('visible=true').first()).toBeVisible();
   await deletePart(page, 3);
   await recordAPart(page);
   await publishButton(page).click();

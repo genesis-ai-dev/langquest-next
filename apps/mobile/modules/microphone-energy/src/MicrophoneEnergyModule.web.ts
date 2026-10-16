@@ -13,7 +13,7 @@ export type { VADConfig, MicrophoneEnergyModuleEvents } from './MicrophoneEnergy
 type Events = MicrophoneEnergyModuleEvents;
 const listeners = new Map<keyof Events, Set<(...args: never[]) => void>>();
 function emit<E extends keyof Events>(event: E, ...args: Parameters<Events[E]>) {
-  for (const l of listeners.get(event) ?? []) (l as (...a: Parameters<Events[E]>) => void)(...args);
+  for (const l of listeners.get(event) ?? []) (l as unknown as (...a: Parameters<Events[E]>) => void)(...args);
 }
 
 // Posts one 2048-sample frame at a time, as the iOS tap does.
