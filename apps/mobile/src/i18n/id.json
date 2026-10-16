@@ -6653,7 +6653,6 @@
   },
   "referenceLanguage": {
     "question": "Dalam bahasa apa saja Alkitab dan panduan belajar {{language}}?",
-    "sub": "Pilih bahasa yang paling baik dibaca oleh tim {{language}}. Setiap bahasa menunjukkan apa yang dimiliki LangQuest dalam bahasa itu.",
     "setPassages_other": "Panduan {{name}} untuk {{count, number}} perikop",
     "bibles_other": "{{count, number}} Alkitab",
     "otherGuides_other": "{{count, number}} panduan atau catatan lain",

@@ -6653,7 +6653,6 @@
   },
   "referenceLanguage": {
     "question": "{{language}}的圣经和学习指南应使用哪些语言？",
-    "sub": "请选择{{language}}团队读得最好的语言。每种语言都显示 LangQuest 在这种语言里有什么。",
     "setPassages_other": "{{name}}指南涵盖 {{count, number}} 个经段",
     "bibles_other": "{{count, number}} 本圣经",
     "otherGuides_other": "另有 {{count, number}} 份指南或笔记",

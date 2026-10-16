@@ -6943,7 +6943,6 @@
   },
   "referenceLanguage": {
     "question": "Biblia na miongozo ya kujifunza ya {{language}} iwe katika lugha zipi?",
-    "sub": "Chagua lugha ambayo timu ya {{language}} inasoma vizuri zaidi. Kila moja inaonyesha kile LangQuest inacho kwa lugha hiyo.",
     "setPassages_one": "Miongozo ya {{name}} kwa kifungu {{count, number}}",
     "setPassages_other": "Miongozo ya {{name}} kwa vifungu {{count, number}}",
     "bibles_one": "Biblia {{count, number}}",

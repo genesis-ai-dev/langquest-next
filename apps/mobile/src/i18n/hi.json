@@ -6943,7 +6943,6 @@
   },
   "referenceLanguage": {
     "question": "{{language}} की बाइबलें और अध्ययन गाइड किन भाषाओं में हों?",
-    "sub": "वह भाषा चुनें जिसे {{language}} की टीम सबसे अच्छी तरह पढ़ती है। हर भाषा बताती है कि उसमें LangQuest के पास क्या है।",
     "setPassages_one": "{{count, number}} अंश के लिए {{name}} गाइड",
     "setPassages_other": "{{count, number}} अंशों के लिए {{name}} गाइड",
     "bibles_one": "{{count, number}} बाइबल",

@@ -6943,7 +6943,6 @@
   },
   "referenceLanguage": {
     "question": "Da waɗanne harsuna ya kamata Littattafai Masu Tsarki da jagororin nazari na {{language}} su kasance?",
-    "sub": "Zaɓi harshen da ƙungiyar {{language}} ta fi karantawa da kyau. Kowane yana nuna abin da LangQuest ke da shi a cikinsa.",
     "setPassages_one": "Jagororin {{name}} don nassi {{count, number}}",
     "setPassages_other": "Jagororin {{name}} don nassosi {{count, number}}",
     "bibles_one": "Littafi Mai Tsarki {{count, number}}",

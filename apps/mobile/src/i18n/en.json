@@ -6943,7 +6943,6 @@
   },
   "referenceLanguage": {
     "question": "Which languages should {{language}}'s Bibles and study guides be in?",
-    "sub": "Choose the language {{language}}'s team reads best. Each one says what LangQuest has in it.",
     "setPassages_one": "{{name}} guides for {{count, number}} passage",
     "setPassages_other": "{{name}} guides for {{count, number}} passages",
     "bibles_one": "{{count, number}} Bible",

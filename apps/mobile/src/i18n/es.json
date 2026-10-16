@@ -7233,7 +7233,6 @@
   },
   "referenceLanguage": {
     "question": "¿En qué idiomas deben estar las Biblias y guías de estudio de {{language}}?",
-    "sub": "Elija el idioma que mejor lee el equipo de {{language}}. Cada uno dice lo que LangQuest tiene en él.",
     "setPassages_one": "Guías de {{name}} para {{count, number}} pasaje",
     "setPassages_many": "Guías de {{name}} para {{count, number}} de pasajes",
     "setPassages_other": "Guías de {{name}} para {{count, number}} pasajes",

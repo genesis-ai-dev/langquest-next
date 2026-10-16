@@ -6653,7 +6653,6 @@
   },
   "referenceLanguage": {
     "question": "พระคัมภีร์และคู่มือศึกษาของ {{language}} ควรเป็นภาษาอะไรบ้าง",
-    "sub": "เลือกภาษาที่ทีม {{language}} อ่านได้ดีที่สุด แต่ละภาษาบอกว่า LangQuest มีอะไรในภาษานั้น",
     "setPassages_other": "คู่มือ {{name}} สำหรับ {{count, number}} ตอน",
     "bibles_other": "พระคัมภีร์ {{count, number}} ฉบับ",
     "otherGuides_other": "คู่มือหรือบันทึกอื่น {{count, number}} รายการ",

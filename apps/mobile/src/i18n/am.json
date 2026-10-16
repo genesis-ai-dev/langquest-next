@@ -6943,7 +6943,6 @@
   },
   "referenceLanguage": {
     "question": "የ{{language}} መጽሐፍ ቅዱሶችና የጥናት መመሪያዎች በየትኞቹ ቋንቋዎች ይሁኑ?",
-    "sub": "የ{{language}} ቡድን በተሻለ የሚያነበውን ቋንቋ ይምረጡ። እያንዳንዱ LangQuest በዚያ ቋንቋ ያለውን ያሳያል።",
     "setPassages_one": "የ{{name}} መመሪያዎች ለ{{count, number}} ክፍል",
     "setPassages_other": "የ{{name}} መመሪያዎች ለ{{count, number}} ክፍሎች",
     "bibles_one": "{{count, number}} መጽሐፍ ቅዱስ",

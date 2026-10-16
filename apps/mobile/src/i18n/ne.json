@@ -6943,7 +6943,6 @@
   },
   "referenceLanguage": {
     "question": "{{language}} का बाइबल र अध्ययन निर्देशिकाहरू कुन कुन भाषामा हुनुपर्छ?",
-    "sub": "{{language}}को टोलीले सबैभन्दा राम्रोसँग पढ्ने भाषा छान्नुहोस्। हरेकमा LangQuest सँग के छ भनेर देखाइएको छ।",
     "setPassages_one": "{{count, number}} खण्डका लागि {{name}} निर्देशिका",
     "setPassages_other": "{{count, number}} खण्डहरूका लागि {{name}} निर्देशिका",
     "bibles_one": "{{count, number}} बाइबल",

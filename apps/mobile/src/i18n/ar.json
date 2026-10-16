@@ -8103,7 +8103,6 @@
   },
   "referenceLanguage": {
     "question": "بأي اللغات يجب أن تكون أناجيل وأدلة دراسة {{language}}؟",
-    "sub": "اختر اللغة التي يقرؤها فريق {{language}} أفضل. كل لغة تبيّن ما لدى LangQuest بها.",
     "setPassages_zero": "أدلة {{name}} لـ {{count, number}} مقطع",
     "setPassages_one": "أدلة {{name}} لمقطع واحد",
     "setPassages_two": "أدلة {{name}} لمقطعين",

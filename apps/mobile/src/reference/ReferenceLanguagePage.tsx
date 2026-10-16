@@ -60,7 +60,6 @@ export function ReferenceLanguagePage(props: {
   return (
     <View style={{ gap: 14 }}>
       <Question>{t('referenceLanguage.question', { language: props.team })}</Question>
-      <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{t('referenceLanguage.sub', { language: props.team })}</Text>
       {ordered.map((c) => (
         <RadioRow key={c.language} icon="globe" label={label(c.language)} on={on(c.language)} onPress={() => toggle(c.language)} subLines={4} many
           help={t('referenceLanguage.rowHelp')}
