@@ -3,7 +3,7 @@ import { libraryUnitRange } from './versification';
 import type { Hlc } from './hlc';
 import { indexesOf, type Indexes } from './indexes';
 import {
-  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, QUESTION_TEMPLATES,
+  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate,
   type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec, type Undo
 } from './record';
 import { checkTeamFor } from './checks';
@@ -907,21 +907,19 @@ export function upNext(state: LanguageState, opts: { canRecord: boolean; canRevi
 
 export interface SourcedQuestion {
   q: QuestionSpec;
-  source: 'org' | 'language' | 'request';
+  /** The check's own, as the language's team wrote them, or the asker's for this request. */
+  source: 'language' | 'request';
   required: boolean;
 }
 
 /**
- * Questions for a kind of review (REV-2): the shipped set for the kind, then
- * the language's question-set materials for the kind (`scope.stepId` = kind
- * id), then the asker's own.
+ * Questions for a kind of review (REV-2): the language's question-set
+ * materials for the kind (`scope.stepId` = kind id), then the asker's own.
+ * LangQuest's checks come with no questions (LAN-85): a team writes its own
+ * on each check.
  */
 export function questionsForKind(state: LanguageState, kindId: string, request?: RequestView): SourcedQuestion[] {
   const out: SourcedQuestion[] = [];
-  for (const t of QUESTION_TEMPLATES) {
-    if (t.kindId !== kindId) continue;
-    for (const q of t.questions) out.push({ q: { id: `${t.id}#${q.id}`, text: q.text, type: q.type }, source: 'org', required: false });
-  }
   const sets = Object.entries(state.materials).filter(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId)
     .sort(([a], [b]) => (a < b ? -1 : 1));
   for (const [id, m] of sets) {

@@ -40,9 +40,13 @@ export function AskCheckCard(props: { ctx: Ctx; kindId: string; name: string; on
 /**
  * What the people asked will answer: the check's own questions (decision 91),
  * then any added for this request, with a field to add one. On Done, on the ask page
- * and on Someone else alike.
+ * and on Someone else alike. Someone who sets up the checks opens the check from
+ * its questions, to change them there (LAN-85).
  */
-export function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; questions: QuestionSpec[]; setQuestions: (f: (qs: QuestionSpec[]) => QuestionSpec[]) => void }) {
+export function TheyAnswer(props: {
+  asked: ReturnType<typeof questionsForKind>; questions: QuestionSpec[]; setQuestions: (f: (qs: QuestionSpec[]) => QuestionSpec[]) => void;
+  check?: { name: string; open: () => void };
+}) {
   const [draft, setDraft] = useState('');
   const [type, setType] = useState<QuestionSpec['type']>('yesno');
   const add = () => {
@@ -57,7 +61,8 @@ export function TheyAnswer(props: { asked: ReturnType<typeof questionsForKind>; 
       {props.asked.length > 0 || props.questions.length > 0 ? (
         <Group>
           {props.asked.map((sq) => (
-            <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} />
+            <Row key={sq.q.id} icon="chat" label={sq.q.text} sub={[questionTypeLabel(sq.q.type), sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')}
+              {...(props.check ? { onPress: props.check.open, help: t('passage.ask.openCheckHelp', { check: props.check.name }) } : {})} />
           ))}
           {props.questions.map((q, i) => (
             <Row key={q.id} label={q.text} sub={questionTypeLabel(q.type)} last={i === props.questions.length - 1}

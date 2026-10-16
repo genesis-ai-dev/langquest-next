@@ -1,4 +1,4 @@
-import { addRow, groupOf, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, stepsOf } from '../src/checks/model';
+import { addRow, groupOf, moveRow, removeRow, rowNumbers, rowsOf, sameTimeOf, setCheckpoint, setSameTime, setTogether, stepsOf } from '../src/checks/model';
 
 /** A language's checks as one list, and back to flow steps (decisions.md 91). */
 const STANDARD = [
@@ -56,3 +56,29 @@ describe('the checks list', () => {
     expect(kinds(stepsOf(addRow(rows, 'retell'))).at(-1)).toEqual(['retell']);
   });
 });
+
+describe('checks at the same time', () => {
+  const rows = rowsOf(STANDARD);
+  const ids = (steps: { kindIds: string[] }[]) => steps.map((s) => s.kindIds);
+
+  it('names the checks a check happens with', () => {
+    expect(sameTimeOf(rows, 0)).toEqual(['bt']);
+    expect(sameTimeOf(rows, 2)).toEqual([]);
+  });
+
+  it('brings any chosen checks into its step, wherever they were', () => {
+    const next = setSameTime(rows, 2, ['final']);
+    expect(ids(stepsOf(next))).toEqual([['peer', 'bt'], ['community', 'final'], ['consultant']]);
+    expect(stepsOf(next)[1]!.stepId).toBe('f/s2');
+  });
+
+  it('lets go of checks no longer chosen, which follow on their own', () => {
+    expect(ids(stepsOf(setSameTime(rows, 0, [])))).toEqual([['peer'], ['bt'], ['community'], ['consultant'], ['final']]);
+    expect(ids(stepsOf(setSameTime(rows, 1, ['community'])))).toEqual([['peer'], ['bt', 'community'], ['consultant'], ['final']]);
+  });
+
+  it('takes a check out of the step it was in', () => {
+    expect(ids(stepsOf(setSameTime(rows, 3, ['bt'])))).toEqual([['peer'], ['community'], ['bt', 'consultant'], ['final']]);
+  });
+});
+

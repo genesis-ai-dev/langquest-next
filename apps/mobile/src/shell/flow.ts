@@ -400,7 +400,12 @@ export const EDGES: Edge[] = [
   e('language_home', 'edit_member', undefined, 'assigner'),
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.
   e('flow_editor', 'check_editor'),
+  // App only: a check's people, questions and each help with choices are pages of their own (decision 130)
+  e('check_editor', 'check_editor'),
   e('review_capture', 'material_editor'),
+  // A check's questions, from where asking shows them, for whoever sets up the checks (LAN-85)
+  e('passage_record', 'check_editor', undefined, 'manageFlows'),
+  e('ask_someone', 'check_editor', undefined, 'manageFlows'),
   // App only: Content Templates' "By language" rows open that language's own template view (TPL-1, SETUP-032)
   e('templates_home', 'templates_home', undefined, 'manageTemplates'),
   // App only: signing out of "Join your team" goes through the same confirmation as Me (NOORG-004, decision 60)

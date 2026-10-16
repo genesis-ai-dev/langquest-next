@@ -42,7 +42,8 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     await primary(coord).click();
     // Question 2: English Bibles and FIA's guides.
     await expect(text(coord, '2 of 4')).toBeVisible();
-    await coord.getByRole('radio', { name: 'English' }).click();
+    // As many languages as the team reads (decision 130): English is ticked already.
+    await expect(coord.getByRole('checkbox', { name: /^English/ })).toBeChecked();
     await primary(coord).click();
     await expect(coord.getByRole('switch', { name: 'FIA study guides' })).toBeVisible();
     await primary(coord).click();

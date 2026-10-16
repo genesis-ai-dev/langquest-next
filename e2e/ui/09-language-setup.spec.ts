@@ -284,7 +284,7 @@ test('SETUP-022 Get a language ready, question by question @p0', async ({ page, 
   // A first answer has nothing to go back to: no Undo.
   await expectToast(page, /^Bravo translates .*\./);
   // The language of the Bibles and guides: English already, so no toast.
-  await expectOnScreen(page, '2 of 4', 'Which language should Bravo\'s Bibles and study guides be in?');
+  await expectOnScreen(page, '2 of 4', 'Which languages should Bravo\'s Bibles and study guides be in?');
   await primary(page).click();
   await expectOnScreen(page, 'What will help them?', 'Bibles they understand');
   // The local library has no Bible (no source@1 is seeded): there is none to tick here.

@@ -149,6 +149,8 @@ export type RecordEvents = {
     blobHash?: string;
     photoHash?: string;
     onTakeId?: string;
+    /** The step it was written at: `record` or a check (decisions.md 130). Absent on older notes, which count as written while recording. */
+    kindId?: string;
   };
   /** Take back your own note (decisions.md 111): it no longer shows anywhere. Only its author may, as with a review. Add-wins. */
   'v1.NoteWithdrawn': { noteId: string };
@@ -322,39 +324,6 @@ export const FLOWS: FlowTemplate[] = [
 export function flowTemplate(id: string): FlowTemplate | undefined {
   return FLOWS.find((f) => f.id === id);
 }
-
-/** Shipped question sets, each for one kind of review. LangQuest's library publishes them too. */
-interface QuestionTemplate {
-  id: string;
-  name: string;
-  /** The kind of review these questions are for. */
-  kindId: string;
-  questions: { id: string; text: string; type: 'rating' | 'yesno' | 'text' }[];
-}
-
-export const QUESTION_TEMPLATES: QuestionTemplate[] = [
-  {
-    id: 'community_check',
-    name: 'Community Check Questions',
-    kindId: 'community',
-    questions: [
-      { id: 'meaning', text: 'Does the translation accurately convey the meaning of the source text?', type: 'rating' },
-      { id: 'natural', text: 'Is the translation natural and clear in the target language?', type: 'rating' },
-      { id: 'terms', text: 'Are key theological terms rendered consistently with the Translation Guidelines?', type: 'yesno' },
-      { id: 'revisit', text: 'Are there any passages you would suggest revisiting?', type: 'text' }
-    ]
-  },
-  {
-    id: 'consultant_check',
-    name: 'Consultant Check Questions',
-    kindId: 'consultant',
-    questions: [
-      { id: 'hardest', text: 'How well does this draft hold up against the source in the hardest verses?', type: 'rating' },
-      { id: 'kt_aligned', text: "Are the key terms aligned with the language's key terms list?", type: 'yesno' },
-      { id: 'notes', text: 'Notes for the translation team', type: 'text' }
-    ]
-  }
-];
 
 /** The flow id a language's hand-edited steps are selected under. */
 export const CUSTOM_FLOW = 'custom';

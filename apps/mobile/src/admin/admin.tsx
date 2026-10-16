@@ -220,17 +220,20 @@ export function NumberedSteps(props: { items: { label: string; lock?: boolean }[
 
 /** A radio row ("Translate"), with the icon on a tile (inviting) or bare (letting someone in). */
 export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; on: boolean; onPress: () => void; tile?: boolean; subLines?: number;
-  /** What help mode says picking it means, where `sub` (its line otherwise) does not say it. */ help?: string }) {
+  /** What help mode says picking it means, where `sub` (its line otherwise) does not say it. */ help?: string;
+  /** One of several that can be picked together: a tick instead of a dot. */ many?: boolean }) {
   const spot = useHelpSpot(props.label, props.help ?? props.sub, props.onPress);
   return (
-    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ selected: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole={props.many ? 'checkbox' : 'radio'} accessibilityState={props.many ? { checked: props.on } : { selected: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.radioRow, props.tile && styles.radioRowTall, props.on && styles.choiceOn, pressed && styles.pressed]}>
       {props.tile ? <IconTile icon={props.icon} size={44} /> : <Glyph name={props.icon} size={24} />}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={[styles.radioLabel, props.tile && { fontWeight: '800' }]}>{props.label}</Text>
         {props.sub ? <Text style={[txt.xs]} numberOfLines={props.subLines ?? 2}>{props.sub}</Text> : null}
       </View>
-      <Radio on={props.on} size={26} />
+      {props.many ? (
+        <View style={[styles.tickBox, props.on && styles.tickBoxOn]}>{props.on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>
+      ) : <Radio on={props.on} size={26} />}
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -364,6 +367,8 @@ export function InviteCode(props: { state: InviteState }) {
 }
 
 const styles = StyleSheet.create({
+  tickBox: { width: 26, height: 26, borderRadius: radius.sm, borderWidth: 2, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  tickBoxOn: { backgroundColor: C.primary, borderColor: C.primary },
   pressed: { opacity: 0.7 },
   tile: { backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   round: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },

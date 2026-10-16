@@ -983,9 +983,9 @@ Steps:
 Expected:
 - The list names each check's people: Peer check and Back translation
   "{REV name}, {TREV name}" (either order), a check with nobody "Anyone".
-- Peer check is "Check 1 · Alpha"; under "People", TREV (Translator-Reviewer)
-  and REV (Reviewer), each with "Take {name} off this check", and "Add
-  people".
+- Peer check is "Check 1 · Alpha"; its People page (a page of its own,
+  decision 130) lists TREV (Translator-Reviewer) and REV (Reviewer), each
+  with "Take {name} off this check", and "Add people".
 
 ### PEOPLE-041 Put someone on a check
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -994,7 +994,7 @@ Preconditions (in addition to the global ones):
 - Resets: puts TRANS on the Consultant check.
 
 Steps:
-1. Checks → "Consultant check" → "Add people".
+1. Checks → "Consultant check" → "People" → "Add people".
 2. Tick TRANS. Tap "Done".
 3. Go back to Checks.
 
@@ -1003,20 +1003,22 @@ Expected:
 - TRANS is under People, as Translator; the Checks list names TRANS for the
   Consultant check.
 
-### PEOPLE-042 Take someone off a check, and Undo
+### PEOPLE-042 Take someone off a check, and put them back
 Roles: ADMIN, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- Resets: takes TREV off the Peer check and undoes it.
+- Resets: takes TREV off the Peer check and puts them back.
 
 Steps:
-1. Checks → "Peer check".
+1. Checks → "Peer check" → "People".
 2. Tap "Take {TREV name} off this check".
-3. Tap "Undo".
+3. "Add people" → tick TREV → "Done".
 
 Expected:
-- Toast "Peer check: 1 person" with Undo; TREV leaves People.
-- After Undo, TREV and REV are both on the check again.
+- Toast "Peer check: 1 person", with no Undo (no timed undo toasts, Caleb
+  2026-10-16); TREV leaves People.
+- After step 3, toast "Peer check: 2 people": TREV and REV are both on the
+  check again.
 - LADMIN can do the same (Manage teams at Alpha).
 
 ### PEOPLE-043 Deleting a review team (retired)
@@ -1033,7 +1035,7 @@ Preconditions (in addition to the global ones):
 - None.
 
 Steps:
-1. Checks → "Final approval" → "Add people".
+1. Checks → "Final approval" → "People" → "Add people".
 
 Expected:
 - Offered: everyone with Review at Alpha: REV, TREV, TRANS and KEPT

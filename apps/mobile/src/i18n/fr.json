@@ -3785,7 +3785,6 @@
         "question": "Question"
       },
       "questionFrom": {
-        "org": "Organisation",
         "language": "Langue",
         "request": "Demandée pour cette révision"
       },
@@ -3811,8 +3810,8 @@
       "record": "Enregistrer",
       "yourParts": "Vos parties sont enregistrées, pas encore publiées.",
       "someParts": "Certaines parties sont enregistrées, pas encore publiées.",
-      "recordHint": "Racontez-le dans votre langue. La Bible, les mots clés et les notes sont à côté de vous pendant que vous enregistrez.",
-      "recordHintAsked": "{{asked}}. Racontez-le dans votre langue. La Bible, les mots clés et les notes sont à côté de vous pendant que vous enregistrez.",
+      "recordHint": "Racontez-le dans votre langue.",
+      "recordHintAsked": "{{asked}}. Racontez-le dans votre langue.",
       "asked": {
         "youAskedYou": "Vous vous l’êtes demandé",
         "youAskedName": "Vous l’avez demandé à {{name}}",
@@ -4174,7 +4173,8 @@
       "askSpecificHelp": "Tapez une question à laquelle ils répondront, puis ajoutez-la.",
       "answerTypeHelp": "Change la façon de répondre : oui ou non, avec des mots, ou de 1 à 5.",
       "addQuestionHelp": "Ajoute votre question à celles auxquelles ils répondent.",
-      "removeQuestionHelp": "Retire cette question."
+      "removeQuestionHelp": "Retire cette question.",
+      "openCheckHelp": "Ouvre {{check}}, où vous changez ses questions."
     },
     "resources": {
       "sourceAudio": "Audio source"
@@ -6042,7 +6042,6 @@
       "saidAloud": "Dit à voix haute · {{time}} · enregistrement {{n}}",
       "typedAndSaidAloud": "{{typed}} (dit à voix haute · {{time}} · enregistrement {{n}})",
       "source": {
-        "org": "Organisation",
         "language": "Équipe de la langue",
         "fromName": "De {{name}}",
         "fromWhoeverAsked": "De la personne qui a demandé"
@@ -6086,7 +6085,6 @@
       "btNote": "Note du rétrotraducteur",
       "theirNote": "Sa note",
       "playTheirNote": "Écouter sa note",
-      "withheld": "Les notes et les révisions précédentes sont masquées pour « {{kind}} », pour que ce que vous entendez ne soit pas influencé par ce que d’autres ont dit. Elles restent dans l’historique.",
       "recordings_one": "{{count, number}} enregistrement",
       "recordings_many": "{{count, number}} enregistrements",
       "recordings_other": "{{count, number}} enregistrements",
@@ -6408,7 +6406,6 @@
     "listenTo": "Écouter la version {{n}}",
     "madeFrom": "Vos parties ont été faites d’après la version {{n}}",
     "madeFromBody": "La version {{n}} est maintenant sortie, et publier y joint votre {{what}}. Réécoutez et refaites toute partie qui a changé.",
-    "sayEachPart": "Dites chaque partie en {{into}}, avec vos propres mots. Les notes et les vérifications précédentes sont masquées exprès, pour que seul l’enregistrement guide ce que vous dites.",
     "openYour": "Ouvrir votre {{what}}",
     "yourWhat": "Votre {{what}}, {{said}}",
     "loadingParts": "Chargement de vos parties…",
@@ -6450,7 +6447,10 @@
     "finishWhat": "Terminer la {{what}}",
     "doneHelp": "Quand toutes les parties sont dites : terminez-la et envoyez-la à la vérification qui l’écoute ensuite.",
     "notesForCheck_other": "{{count, number}} notes pour la {{check}}",
-    "sendLaterHelp": "Termine la {{what}} sans rien demander à personne pour l’instant. L’équipe peut l’écouter."
+    "sendLaterHelp": "Termine la {{what}} sans rien demander à personne pour l’instant. L’équipe peut l’écouter.",
+    "chips": {
+      "version": "Version {{n}}"
+    }
   },
   "translate": {
     "missing": "Ce passage n’est pas encore sur cet appareil.",
@@ -6808,7 +6808,8 @@
       "verseNotesHelp": "Le nombre compte les notes sur ce verset.",
       "verseTermsHelp": "Les mots soulignés sont des mots clés : touchez-en un pour l’ouvrir.",
       "verseTermsMarkedHelp": "Les mots soulignés sont des mots clés.",
-      "verseTiedHelp": "Une coche après un mot clé signifie qu’il est lié à votre brouillon."
+      "verseTiedHelp": "Une coche après un mot clé signifie qu’il est lié à votre brouillon.",
+      "verseDotHelp": "Lit la Bible à partir de ce verset."
     },
     "keyWords": {
       "none": "Pas encore de mots clés dans ce passage.",
@@ -7107,8 +7108,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "En quelle langue doivent être les Bibles et les guides d’étude de {{language}} ?",
-    "sub": "Choisissez la langue que l’équipe de {{language}} lit le mieux. Chacune indique ce que LangQuest propose dans cette langue.",
+    "question": "Dans quelles langues doivent être les Bibles et guides d’étude de {{language}} ?",
     "setPassages_one": "Guides {{name}} pour {{count, number}} passage",
     "setPassages_many": "Guides {{name}} pour {{count, number}} de passages",
     "setPassages_other": "Guides {{name}} pour {{count, number}} passages",
@@ -7122,7 +7122,7 @@
     "chip": "Bibles et guides en {{language}}",
     "chipHelp": "La langue de leurs Bibles et guides d’étude. Touchez pour la changer.",
     "change": "Changer",
-    "rowHelp": "Choisit cette langue pour les Bibles et les guides de l’équipe. La ligne indique ce qu’elle a."
+    "rowHelp": "Ajoute cette langue pour les Bibles et guides de l’équipe, ou la retire. La ligne dit ce qu’elle contient."
   },
   "checks": {
     "title": "Vérifications",
@@ -7130,7 +7130,7 @@
     "together": " + ",
     "then": " → ",
     "sameTime": "en même temps",
-    "openHelp": "Personnes, questions et aides de cette vérification",
+    "openHelp": "Personnes, questions, ce qui est sur leur écran et aides",
     "cardA11y": "{{n}}. {{title}}",
     "questionsCount_one": "{{count, number}} question",
     "questionsCount_many": "{{count, number}} questions",
@@ -7178,7 +7178,6 @@
     "questionSaved": "Question sauvegardée",
     "questionRemoved": "Question retirée",
     "questionsTitle": "Questions : {{check}}",
-    "fromLangQuest": "De LangQuest",
     "noQuestions": "Aucune question",
     "addHelp": "Ajouter une aide",
     "removeHelp": "Retirer {{name}} de cette vérification",
@@ -7224,7 +7223,60 @@
     "helpOnHelp": "Lié : les réviseurs peuvent l’ouvrir à cette vérification. Touchez pour retirer le lien.",
     "helpOffHelp": "Touchez pour que les réviseurs puissent l’ouvrir à cette vérification.",
     "writeNoteHelp": "Écrivez une nouvelle note, liée à cette vérification.",
-    "removeCheckHelp": "Retire cette vérification des étapes par lesquelles passent les passages."
+    "removeCheckHelp": "Retire cette vérification des étapes par lesquelles passent les passages.",
+    "recording": "Enregistrement",
+    "openRecordHelp": "Ouvre ce que l’enregistreur affiche.",
+    "shows": {
+      "title": "Sur leur écran",
+      "bibleAudio": "Écouter la Bible",
+      "bibleText": "Lire la Bible",
+      "guideAudio": "Écouter le guide",
+      "guideText": "Lire le guide",
+      "terms": "Mots clés",
+      "notes": "Notes",
+      "earlier": "Versions précédentes",
+      "short": {
+        "bibleAudio": "Audio de la Bible",
+        "bibleText": "Texte de la Bible",
+        "guideAudio": "Audio du guide",
+        "guideText": "Texte du guide",
+        "terms": "Mots clés",
+        "notes": "Notes",
+        "earlier": "Versions précédentes"
+      },
+      "allHidden": "Tout est masqué",
+      "onHelp": "Sur leur écran. Touchez pour le masquer.",
+      "offHelp": "Masqué pour eux. Touchez pour l’afficher.",
+      "shownToast": "{{what}} : affiché pour {{check}}",
+      "hiddenToast": "{{what}} : masqué pour {{check}}",
+      "bible": "Bible",
+      "guide": "Guide",
+      "audio": "Audio",
+      "text": "Texte",
+      "allOnHelp": "Activé : ils reçoivent tout. Touchez pour tout masquer.",
+      "allOffHelp": "Désactivé : ils ne reçoivent rien. Touchez pour tout afficher.",
+      "partLabel": "{{help}} : {{part}}",
+      "all": "Tout",
+      "off": "Désactivé",
+      "someOf": "{{n, number}} sur {{total, number}}",
+      "openHelp": "Ouvre un interrupteur pour chaque partie.",
+      "notesFrom": "Notes ajoutées pendant",
+      "earlierFrom": "Versions et retours de"
+    },
+    "peopleOpenHelp": "Ouvre qui fait cette vérification.",
+    "questionsOpenHelp": "Ouvre les questions auxquelles ils répondent.",
+    "sameTimeRow": "En même temps que",
+    "sameTimeNone": "Aucune autre vérification",
+    "sameTimeHelp": "Ouvre les vérifications qui ont lieu en même temps que celle-ci.",
+    "sameTimeDoneHelp": "Enregistre les vérifications qui ont lieu en même temps.",
+    "sameTimeOnHelp2": "A lieu en même temps. Touchez pour l’en retirer.",
+    "sameTimeOffHelp2": "Touchez pour qu’elle ait lieu en même temps.",
+    "checkedAt": "Vérifié à",
+    "checkedAtHelp": "Ouvre la vérification qui écoute ce que cette étape produit.",
+    "checkedAtPickHelp": "Cette vérification l’écoute.",
+    "ownCheck": "Une vérification à part",
+    "ownCheckHelp": "Ajoute juste après celle-ci une vérification qui l’écoute.",
+    "ownCheckName": "Vérification de la {{name}}"
   },
   "lostFiles": {
     "title": "Audio manquant",
