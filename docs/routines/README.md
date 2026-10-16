@@ -14,7 +14,7 @@ stuck.
 | --- | --- | --- |
 | `agent-executor.md` | on demand, one Todo issue per run | code on main (outside guarded paths), issue status up to Verifying |
 | `post-deploy-smoke.md` | every 15 minutes | issue comments, Outage, a revert |
-| `deploy-watchdog.md` | hourly | issue comments only |
+| `deploy-watchdog.md` | hourly | issue comments, and an issue for a hosted database behind main or a server job in trouble |
 
 ## Guarded paths
 

@@ -24,6 +24,7 @@ import {
 } from './model';
 import { audioFormatOf, bbKey, ensureIndex, keptAudio, libAudioKey, onSourceFiles, playableUri } from './offline';
 import { PlayError } from './player';
+import { BUILTIN_AUDIO_ID, bibleBrainFacts, builtinCopyright, builtinFacts, libraryFacts } from './passageSourceModel';
 import { bibleBrain, textKept } from './store';
 import { useKeptRevision, useMyBibles } from './useMyBibles';
 
@@ -297,24 +298,20 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     if (option.kind === 'builtin') {
       const reading = builtinReadings(range).find((r) => `builtin.${r.code}` === option.itemId);
       const rows = reading ? passageRows(range, new Map(chapters.map((c) => [c, reading.verses.filter((v) => v.chapter === c).map((v) => [v.verse, v.verse, v.text] as [number, number, string])]))) : null;
-      const audio: AudioChapter[] = option.itemId === 'builtin.BSB'
+      const audio: AudioChapter[] = option.itemId === BUILTIN_AUDIO_ID
         ? chapters.map((c) => ({ chapter: c, timing: null, timingSource: 'none' as const, local: false, resolve: async () => sourceAudioUrl(SOURCE_BIBLES[0], { book: bookIdOf(range.book), chapter: c, label: '' }) }))
         : [];
-      // Bundled verses are on the device. A chapter the bundle never carried still
-      // belongs to this Bible; offline, its audio was never cached (STUDY-036).
+      // Bundled verses are on the device.
       const linkDown = online === false || (typeof navigator !== 'undefined' && navigator.onLine === false);
-      const audioNotHere = !reading && linkDown && audio.length > 0;
+      const { textProblem, audioNotHere } = builtinFacts({ rows, hasReading: !!reading, audioChapters: audio.length, linkDown });
       return {
-        loading: false, range, rows, textProblem: rows || audioNotHere ? null : t('sources.text.noPassageText'), audioNotHere,
+        loading: false, range, rows, textProblem, audioNotHere,
         plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
-        filesets: [], copyright: option.itemId === 'builtin.BSB' ? { text: t('sources.text.publicDomain'), audio: t('sources.text.publicDomainRead') } : { text: t('sources.text.publicDomain') }, bibleBrain: false
+        filesets: [], copyright: builtinCopyright(option.itemId), bibleBrain: false
       };
     }
     // Library text and audio from the source's book document.
     if (option.doc?.provider.kind === 'library') {
-      // Offline, a book that was never opened stops waiting. Its audio is not here; the Bible is.
-      const bookMissing = !!bookHash && !book && !!books.error;
-      const loading = !!bookHash && !book && !bookMissing;
       const rows = book ? passageRows(range, new Map(chapters.map((c) => [c, book.chapters.find((x) => x.chapter === c)?.verses ?? []]))) : null;
       const audio: AudioChapter[] = [];
       for (const c of chapters) {
@@ -334,9 +331,9 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
           }
         });
       }
+      const { loading, audioNotHere, textProblem } = libraryFacts({ bookHash, hasBook: !!book, booksFailed: !!books.error, rows });
       return {
-        loading, range, rows, audioNotHere: bookMissing,
-        textProblem: loading || bookMissing ? null : rows ? null : bookHash ? t('sources.text.noTextInSource') : t('sources.text.noBookInSource'),
+        loading, range, rows, audioNotHere, textProblem,
         plan: audio.length ? playPlan(range, audio) : null, chapters: audio, filesets: [], copyright, bibleBrain: false
       };
     }
@@ -351,10 +348,9 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
         resolve: () => bibleBrainAudio(store, filesets.audio!, range.book, c)
       };
     }) : [];
-    const loading = !!bbKeyNow && !ready?.done && !rows;
+    const { loading, textProblem } = bibleBrainFacts({ keyed: !!bbKeyNow, done: !!ready?.done, hasText: !!filesets.text, rows, problem: ready?.problem });
     return {
-      loading, range, rows, audioNotHere: false,
-      textProblem: loading ? null : !filesets.text ? t('sources.text.noBookInBible') : rows ? null : ready?.problem ?? t('sources.text.noPassageText'),
+      loading, range, rows, audioNotHere: false, textProblem,
       plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
       filesets: [filesets.text, filesets.audio].filter((x): x is string => !!x), copyright, bibleBrain: true
     };

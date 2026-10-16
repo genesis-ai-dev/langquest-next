@@ -51,6 +51,15 @@ export function removeEntry(entries: JournalEntry[], id: string): JournalEntry[]
   return entries.filter((e) => e.id !== id);
 }
 
+/**
+ * What the journal holds, for field diagnostics (the `device` record):
+ * takes written down but not yet saved as events, and of them the ones the
+ * last pass for their language could not finish. Counts only.
+ */
+export function journalCounts(entries: readonly JournalEntry[], failedIds: ReadonlySet<string>): { journalPending: number; journalFailed: number } {
+  return { journalPending: entries.length, journalFailed: entries.filter((e) => failedIds.has(e.id)).length };
+}
+
 export interface ResumeDeps {
   /** Is the staging file (stage `recorded`) still on disk? */
   fileExists: (uri: string) => boolean;

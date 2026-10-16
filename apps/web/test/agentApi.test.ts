@@ -7,6 +7,7 @@ import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/ht
 import { AgentOrg } from '../worker/agent/org';
 import type { AgentStore, DeviceGrant, NewToken, NewWebhook, TokenRecord, WebhookRecord } from '../worker/agent/store';
 import { WebhookDispatcher } from '../worker/agent/dispatch';
+import type { JobRun } from '../../../server/jobRuns';
 import { RETRY_AT_MS, signature } from '../worker/agent/webhooks';
 import { referenceOf } from '../worker/agent/view';
 import { hashSecret } from '../worker/agent/tokens';
@@ -228,6 +229,7 @@ function setup() {
   const received: Received[] = [];
   // What the app's server answers; a status, or 'down' for no answer at all.
   let answerWith: number | 'down' = 200;
+  const runs: JobRun[] = [];
   const dispatcher = new WebhookDispatcher(sqlite(), ORG, {
     store,
     orgState: () => folder.orgState(true),
@@ -239,7 +241,8 @@ function setup() {
       if (answerWith === 'down') throw new TypeError('fetch failed');
       return new Response('ok', { status: answerWith });
     },
-    now: () => now
+    now: () => now,
+    jobRun: (run) => { runs.push(run); }
   });
   const agent = new AgentOrg(folder, ORG, {
     append: (events) => log.append(events),
@@ -282,7 +285,7 @@ function setup() {
   };
   return {
     log, store, call, token, advance: (ms: number) => { now += ms; }, signed: () => signed,
-    dispatcher, received, answer: (a: number | 'down') => { answerWith = a; },
+    dispatcher, received, runs, answer: (a: number | 'down') => { answerWith = a; },
     /** What the alarm does after a poke: look, then send what is due. */
     tick: async () => { await dispatcher.scan(); await dispatcher.deliverDue(); }
   };
@@ -1047,7 +1050,7 @@ describe('webhooks and the change feed (decisions.md 101)', () => {
   });
 
   it('retries a failing app with the same event id for a day, then stops the webhook and says why', async () => {
-    const { log, call, token, tick, received, answer, advance, dispatcher, store } = setup();
+    const { log, call, token, tick, received, answer, advance, dispatcher, store, runs } = setup();
     const t = await token('rev', { scopes: ['read'] });
     const { webhookId } = await make(call, t, ['passage.version.submitted']);
     answer(500);
@@ -1063,6 +1066,11 @@ describe('webhooks and the change feed (decisions.md 101)', () => {
     }
     expect(new Set(received.map((r) => r.body.id)).size).toBe(1);
     expect(store.webhooks[0]!.disabledReason).toMatch(/failed for a day/);
+    // Each batch is a job run for support (diag.jobs), counts only: no address, no body.
+    expect(runs).toHaveLength(RETRY_AT_MS.length);
+    expect(runs.every((r) => r.job === 'webhook_dispatch' && r.outcome === 'partial' && r.orgId === ORG)).toBe(true);
+    expect(runs.at(-1)!.n).toMatchObject({ attempts: 1, answered5xx: 1, answered2xx: 0, stopped: 1 });
+    expect(JSON.stringify(runs)).not.toContain('https://');
     const log2 = await call('GET', `/api/v1/webhooks/${webhookId}/deliveries`, t);
     expect(log2.body.pending).toBe(0);
     expect(log2.body.deliveries).toHaveLength(RETRY_AT_MS.length);

@@ -3,12 +3,13 @@ import { MemoryStore } from '../src/memoryStore';
 import { OrgSession } from '../src/orgSession';
 import { FakeServer } from '../src/testing/fakeServer';
 
-function phone() {
+function phone(onSettled?: () => void) {
   const server = new FakeServer();
   const wall = { t: 0 };
   const open = () => OrgSession.open({
     orgId: 'org1', actorId: 'akol', deviceId: 'phone', store: new MemoryStore(), transport: server.transportFor(),
-    client: { clock: new HlcClock('phone', () => (wall.t += 1)), newId: () => `e${(wall.t += 1)}` }
+    client: { clock: new HlcClock('phone', () => (wall.t += 1)), newId: () => `e${(wall.t += 1)}` },
+    ...(onSettled ? { onSettled } : {})
   });
   return { server, open };
 }
@@ -76,3 +77,25 @@ async function until(ok: () => boolean, ms = 2000): Promise<void> {
     await new Promise((r) => setTimeout(r, 5));
   }
 }
+
+describe('OrgSession: a moment to send diagnostics', () => {
+  it('comes once the server answered and nothing of this person is left to send, or it refused them', async () => {
+    // Why: only a language session sent diagnostics, so a phone that never
+    // opened a language (a new member, a stuck invite) never sent any.
+    let settled = 0;
+    const { server, open } = phone(() => { settled += 1; });
+    const session = await open();
+    await session.append('v1.OrgRenamed', { name: 'Village team' });
+    server.offline = true;
+    await session.sync();
+    expect(settled).toBe(0);
+    server.offline = false;
+    await session.sync();
+    await until(() => settled === 1);
+    await session.append('v1.OrgRenamed', { name: 'Another name' });
+    server.refuse = 'not a member';
+    await session.sync();
+    expect(settled).toBe(2);
+    session.close();
+  });
+});

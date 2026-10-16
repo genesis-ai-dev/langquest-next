@@ -53,6 +53,7 @@ import { useLeaveGuard } from './src/web/useLeaveGuard';
 import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/shell/session';
 import { SESSION_KEY, onAuthChange, serverConfigError } from './src/server/auth';
 import { afterAuthEvent, savedSession } from './src/auth/authState';
+import { noteAuthEvent, watchRenewals } from './src/auth/authDiag';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/account/useAccount';
@@ -297,6 +298,9 @@ export default function App() {
   useEffect(() => { void keepHelpAudio(); }, []);
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
+  // Who was signed in when supabase-js next speaks, for diagnostics of a sign-out the person did not choose.
+  const authNow = useRef<AuthSession | null | undefined>(undefined);
+  useEffect(() => { authNow.current = auth; }, [auth]);
   useEffect(() => {
     if (serverConfigError) return;
     let active = true;
@@ -305,8 +309,12 @@ export default function App() {
     // the token is an hour old, and took half a minute to say so.
     const fromStorage = (s: AuthSession | null) => { if (active) setAuth((now) => (now === undefined ? s : now)); };
     AsyncStorage.getItem(SESSION_KEY).then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
-    const unsubscribe = onAuthChange((event, s) => setAuth((now) => afterAuthEvent(now, event, s)));
-    return () => { active = false; unsubscribe(); };
+    const unsubscribe = onAuthChange((event, s) => {
+      noteAuthEvent(event, authNow.current, s);
+      setAuth((now) => afterAuthEvent(now, event, s));
+    });
+    const unwatch = watchRenewals();
+    return () => { active = false; unsubscribe(); unwatch(); };
   }, []);
   return (
     <SafeAreaProvider>
@@ -405,7 +413,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
   useRouting({
-    nav, session, signedIn: props.signedIn, actorId: props.actorId, orgId: props.orgId, arrival: props.arrival, openTask, setLanguage,
+    nav, session, signedIn: props.signedIn, actorId: props.actorId, orgId: props.orgId, noOrganizations: props.noOrganizations, arrival: props.arrival, openTask, setLanguage,
     loaded: foldsSettled(org.state !== null && org.settled, language.state !== null, props.noOrganizations),
     ready: onboarding.loaded && welcomeBack.loaded
   });

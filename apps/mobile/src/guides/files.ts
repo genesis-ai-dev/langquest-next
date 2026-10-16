@@ -11,8 +11,9 @@
 // (`<org>/_org/<hash>.<ext>`), where study/media.ts fetches them.
 import { ORG_STREAM, type MediaRef } from '@langquest-next/core';
 import { Platform } from 'react-native';
-import { getBlobStore, isStoredFormat, type StoredFile, type StoredFormat } from '../sync/blobs';
+import { getBlobStore, isStoredFormat, type BlobStore, type StoredFile, type StoredFormat } from '../sync/blobs';
 import { uploadBlob } from '../server/blobTransport';
+import { timedTransfer } from '../diagnostics/diagnostics';
 import { formatNumber } from '../i18n/format';
 import { t } from '../i18n';
 import type { StudyMediaKind } from '../study/guides';
@@ -143,6 +144,14 @@ export async function pickMedia(kind: PickKind): Promise<MediaRef | null> {
   return file ? keepPicked(file, kind) : null;
 }
 
+/** Send one file to the organization's guide files, tallied as a `guide` upload of the organization. */
+function uploadGuideFile(orgId: string, f: StoredFile, store: BlobStore): Promise<number> {
+  return timedTransfer('up', { orgId, streamId: ORG_STREAM, src: 'guide' }, async (timings) => {
+    await uploadBlob(orgId, ORG_STREAM, f, store, timings);
+    return store.sizeOf(f.hash) ?? 0;
+  });
+}
+
 /** The stored files a MediaRef names: the original and, for a picture or film, its phone copy. */
 function storedFilesOfMedia(m: MediaRef, kind: PickKind): StoredFile[] {
   const out: StoredFile[] = [];
@@ -160,7 +169,7 @@ function storedFilesOfMedia(m: MediaRef, kind: PickKind): StoredFile[] {
  */
 export async function uploadMedia(orgId: string, m: MediaRef, kind: PickKind): Promise<void> {
   const store = await getBlobStore();
-  for (const f of storedFilesOfMedia(m, kind)) if (store.has(f.hash)) await uploadBlob(orgId, ORG_STREAM, f, store);
+  for (const f of storedFilesOfMedia(m, kind)) if (store.has(f.hash)) await uploadGuideFile(orgId, f, store);
 }
 
 /** The stored name of each file the draft's document names (phone copies are always JPEG pictures or MP4 films). */
@@ -186,7 +195,7 @@ export async function uploadDraftFiles(orgId: string, d: GuideDraft, onProgress?
   let done = 0;
   for (const f of here) {
     onProgress?.(done, here.length);
-    await uploadBlob(orgId, ORG_STREAM, f, store);
+    await uploadGuideFile(orgId, f, store);
     done++;
   }
   onProgress?.(done, here.length);

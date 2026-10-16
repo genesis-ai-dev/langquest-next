@@ -14,12 +14,17 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 
 | Kind | When | Fields |
 | --- | --- | --- |
-| `sync` | A sync that moved events, took over 2 s, ended a spell offline, or changed outcome. A repeated offline or refused outcome at most once an hour. | total ms; network ms for push and pull; phone ms (fold and write); pushed, rejected, pulled; pages; outbox size; how long it was offline; outcome |
-| `load` | A language (or the org) is opened and its log folded | ms, events folded, whether from a checkpoint; `staleCheckpointSeq` when an update changed the reducer and the checkpoint up to that seq was dropped, so the stream is fetched again |
-| `snapshot` | A cold start looks for a server snapshot | fetch ms, pieces, pieces resumed after a dropped link, bytes, seq; `none` when there was none to use |
-| `transfer` | Blob uploads or downloads, tallied per minute or 50 files | files, bytes, ms, slowest; download split into signing, network and verifying on the phone; failures by cause (link, 4xx, 5xx, hash, disk, other) |
-| `device` | Each delivery | free and total disk (not on the web), audio cache size, files still wanted |
-| `error` | A fault reaches `reportError` (`apps/mobile/src/diagnostics/report.ts`) | error class, where, the id shown to the person, fatal or not, stack frames |
+| `sync` | A sync that moved events, took over 2 s, ended a spell offline, or changed outcome. A repeated offline or refused outcome at most once an hour. | total ms; network ms for push and pull; phone ms (fold and write); pushed, rejected (and by reason: not a member, not allowed, language not listed, invalid, other; clock-ahead refusals are counted apart, as they are stamped again rather than rejected), requeued, pulled; pages; outbox size; how long it was offline; outcome (`ok`, `offline`, `unrenewed`: the sign-in could not be renewed, `refused`, `too_old`, `error`); on an error its class, its SQLSTATE or PostgREST code or `http<status>`, and the phase (push, pull, snapshot, checkpoint, load, store) |
+| `load` | A language's (or the org's) log is folded | ms, split into reading the store and folding; events folded; whether from a checkpoint (`none`, `ok`, `old_reducer`); why it ran (`open`, `rejected`, `requeue`, `redaction`, `snapshot`, `membership`, `other`); `staleCheckpointSeq` when an update dropped the checkpoint (decision 110) |
+| `checkpoint` | The phone rolls its confirmed prefix into a checkpoint and prunes | ms, size in KB, seq, events pruned, fast or slow path |
+| `open` | A stream is opened, until its first full pull | ms, syncs, events pulled, snapshot and load ms, whether it started cold |
+| `snapshot` | A server snapshot is fetched | fetch ms, pieces, pieces resumed after a dropped link, bytes, seq; `none` when there was none to use; why (`cold`, `redaction`, `reducer`) |
+| `transfer` | Blob uploads or downloads, tallied per minute or 50 files, per source | files, bytes, ms, slowest; download split into signing, network and verifying on the phone; failures by cause (link, sign-in refused 401/403, not found 404, too large 413, bad digest 422, other 4xx, 5xx, hash, gone from the device, disk, other); source (`lang`, `guide`, `handover`, `stream`, `source`, `help`, `study`) |
+| `device` | Each delivery | free and total disk (not on the web), audio cache size, files still wanted; files lost behind the app's back and unsent recordings among them (decision 92); takes mid-save and recoveries that failed; uploads waiting and the oldest unsent recording's age; the oldest wanted download's age; streams, events and database size held; diagnostics queued, and dropped past the 3000 bound |
+| `error` | A fault reaches `reportError` (`apps/mobile/src/diagnostics/report.ts`) | error class, where, the id shown to the person, fatal or not, a fixed code (a recorder's `nospace`, a SQLSTATE), stack frames |
+| `expected` | A failure already shown to the person (`noteExpected`), tallied per hour | where, error class, code; how many |
+| `audio` | Recording and playback, tallied per hour per language | takes and their total length, takes too short to keep, microphone refused, start, stop, save and compression failures, WAV kept, interruptions; plays, playback failures, taps on audio not yet on the phone, stream failures |
+| `auth` | Signing in and staying in | what was tried (`sign_in`, `sign_up`, `code`, `v2`, `redeem`, `join`, `renew`, `ended`, `courier`, `outbox`, `route`, `delete`, `org_list`), how it ended, an Auth error code, SQLSTATE or our own code; ms, HTTP status, attempt, ages; for a hand-over, how much another person's sign-in left to send, never who |
 
 Every delivery also sends the phone's context: install id, OS and version,
 model (Android), runtime version, EAS update id and channel, whether the
@@ -34,7 +39,8 @@ one.
 
 **Never recorded:** audio or blob bytes, event payloads, anything typed
 (titles, notes, comments, transcripts), names, emails, phone numbers, invite
-codes, tokens, IP addresses, location, screenshots. Error messages are not
+codes, tokens, IP addresses, location, screenshots, file names or hashes,
+and on a shared phone the other person's id. Error messages are not
 recorded, because they can quote what someone typed; only the class name
 and the stack frames, with the message line removed and file paths cut to
 file names.
@@ -78,10 +84,14 @@ it with any change to what is recorded or how long it is kept.
 - Records wait in their own SQLite file (`langquest-diagnostics.db`), so a
   diagnostics write never holds a lock an event commit needs. At most 3000
   are kept; past that the oldest go first and errors go last.
-- They are sent after a sync that reached the server, left the outbox empty
-  and found no uploads waiting: translation work always goes first. Not after
-  downloads, because a stuck download is exactly what support needs to hear
-  about. At most one attempt every 10 minutes, 3 batches of 100.
+- They are sent once the phone's own work has had its turn: after a
+  language sync that reached the server, left the outbox empty and has no
+  upload that has not yet been tried (an upload that keeps failing does not
+  hold them: it is exactly what support needs to hear about), after a
+  refused or "app too old" sync (such a phone never empties its outbox),
+  when the organization stream settles, and on sign-in, so a
+  phone that never opens a language still reports. At most one attempt
+  every 10 minutes, 3 batches of 100.
 - A batch is deleted on the phone only after the server accepted it; the
   server ignores ids it already has, so a resend is harmless.
 - Recording never throws and never blocks the caller.
@@ -96,13 +106,47 @@ it with any change to what is recorded or how long it is kept.
 - `public.diag_ingest(context, records)`: the one way in. Signed-in callers
   only, at most 200 records a call, 8 KB a record, 5000 records per install
   per day;
-- report functions for `diag_reader`: `diag.find`, `diag.language_health`,
-  `diag.members`, `diag.summary`, `diag.timeline`, `diag.error`,
-  `diag.rpc_stats` (server-side timings of the sync RPCs, all orgs, from
-  `pg_stat_statements`).
+- report functions for `diag_reader`: `diag.find`, `diag.language_health`
+  (with when the language was last projected), `diag.members`,
+  `diag.summary` (a language: the installs that recorded something about it,
+  and every member's install that recorded anything, so a phone stuck on the
+  organization stream is there too), `diag.org_summary` (every member's
+  installs, and members never heard from), `diag.person` (one account's
+  installs, for someone in no organization yet), `diag.timeline`,
+  `diag.error`, `diag.rpc_stats` (server-side timings of the RPCs phones and
+  jobs call, all orgs, from `pg_stat_statements`).
+
+The second pass (decision 112) is
+`supabase/migrations/20261016000000_diag_gaps.sql` (the new kinds and
+reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
+
+- `diag.job_runs`, one row per run of a server job: its outcome (`ok`,
+  `partial`, `error`), ms, counts, an error's class or code (never its
+  message) and, where it is about one, the organization and stream. Written
+  only through `public.diag_job_ingest`, which only the service role may
+  call (`server/jobRuns.ts`; writing never fails or slows the job). Kept 90
+  days, like records.
+- Writers: the projection pass (`projection`, every 5 minutes on the Edge;
+  `projection_large`, every 10 in GitHub Actions), push delivery
+  (`push_delivery`, every minute: claimed, sent, no token, failed by cause,
+  receipts), the v2 import (`v2_import`), the dashboard Worker's cron
+  (`worker_cron`), webhook delivery per batch (`webhook_dispatch`), the
+  Worker's requests by route and status class, at most once a minute per
+  isolate (`worker_requests`), and invitation email (`invite_email`, from
+  `send-invite`, with the email service's code).
+- `diag.job_schedule` says how often each runs; `diag.jobs()` gives each
+  job's runs, failures, failure streak, last success and `stale` (no run
+  that was not an error for over twice its schedule); `diag.job_history`
+  one job's runs.
+- `diag.inbox_health(org)`: push delivery for an organization, counts and
+  ages only (pending, oldest pending, attempts, the last errors by code,
+  members with no push token). Notifications carry `push_attempts` and
+  `push_last_error` (a fixed code), and `projection_marks` `projected_at`.
+- `diag.v2_import_status()`: the v2 import per project, running, cut off,
+  failed or done, with its counts; no messages, no names.
 
 `server/diag-smoke.sql` covers ingest, the allowlist, refusals, the report
-functions, the role boundaries and retention (`npm run db:test`).
+functions, the role boundaries, retention and job runs (`npm run db:test`).
 
 ## Reading it
 
@@ -110,6 +154,11 @@ functions, the role boundaries and retention (`npm run db:test`).
 npm run diag -- find "Dinka"                       # org and language ids by name
 npm run diag -- report "LangQuest Sample" Dinka    # the report, signals first
 npm run diag -- report <org> <lang> --days 30 --install <id> --json
+npm run diag -- org "LangQuest Sample"            # every member's phones, whatever they opened
+npm run diag -- person <profileId>                 # one account: no organization yet, a join request waiting
+npm run diag -- jobs                               # the server's own jobs; --job <name> for its runs
+npm run diag -- inbox "LangQuest Sample"          # push delivery for an organization
+npm run diag -- v2                                 # the v2 import, per project
 npm run diag -- error E-7K2Q01                     # the code a person read out
 npm run diag -- timeline <installId> --days 3      # one phone, in order
 ```
@@ -137,14 +186,34 @@ hypotheses drawn from the numbers:
 - **Phone-bound**: verifying downloads (read and hash in JS) takes longer
   than fetching them, or a sync spends more time folding and writing than
   waiting on the network.
-- **Failures by cause**: link drops, 4xx (session or signing), 5xx, hash
-  mismatch, disk.
+- **Failures by cause**: link drops, sign-in refused (401/403), not on the
+  server (404), too large to upload (413, retried for ever), the server
+  saw a different file (422), other 4xx, 5xx, hash mismatch, gone from the
+  device, disk; for the language's lists and each other source.
+- **Sign-in that cannot be renewed** (`unrenewed`), and sync errors by
+  phase and code (`pull:57014`, a statement timeout).
+- **Work refused** for membership, as invalid, or for a clock ahead.
 - **Low disk**, **clock ahead**, **refused** or **too old** syncs, errors
-  with their ids, several app updates in the window.
+  with their codes and ids, several app updates in the window.
+- **Lost files** and unsent recordings among them, recordings that could not
+  be recovered, a recording waiting over a day to upload, a download wanted
+  over a day, and records dropped on the phone (the history is incomplete).
+- **Recording**: the microphone refused, takes that failed to start, stop
+  or save, compression failures, many takes too short; playback failures.
+- **Sign-in**: signed out by the server with work unsent, invites refused,
+  the organization list failing, the app landing somewhere other than home,
+  hand-over that cannot deliver, account changes refused or retried for a
+  day; any `expected` failure seen ten times or more.
+- **Updates**: a checkpoint dropped after a reducer update (decision 110),
+  folds repeated after rejections, slow checkpoints, a slow first open.
+- **Organization stream**: its syncs refused, failing or slow, and a
+  member's phone that syncs the organization but never opened the language.
 - **Members with no diagnostics**: the phone never synced since installing a
   build that has this, or has it turned off. Their last pushed event is
   shown as a fallback.
-- **Server**: sync RPCs averaging over 500 ms.
+- **Server**: RPCs averaging over 500 ms; jobs that stopped, failed three
+  times running or often, push delivery that sends little of what it
+  claims.
 
 Server-side request logs (API gateway, storage, Postgres) are in Supabase's
 log explorer for the hosted project, kept for the plan's log retention; use
@@ -160,6 +229,10 @@ the install's timeline to pick the time window.
   JS. If they turn out to matter, a native crash reporter is its own
   decision.
 - **Failures before sign-in** are recorded but only delivered once someone
-  signs in on that phone.
+  signs in on that phone (they then go at once). Accepting records with the
+  public key before sign-in was turned down (decision 112).
+- **Native recorder codes**: the microphone module's errors are mapped to
+  codes from their text in JS (`recording/recorderFaultModel.ts`); a code
+  sent by the module itself needs a native build.
 - **Request ids**: records carry times, not the gateway's request id, so
   matching a record to a server log line is by install and time window.

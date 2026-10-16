@@ -1,6 +1,6 @@
 import { HlcClock, type BlobRef } from '@langquest-next/core';
 import { DurableOutbox } from '../src/durableOutbox';
-import { afterAttempt, deliverHandOver, parseHandOvers, withHandOver, type HandOver, type HandOverAttempt, type HandOverDeps } from '../src/handOver';
+import { afterAttempt, courierReport, deliverHandOver, parseHandOvers, withHandOver, type HandOver, type HandOverAttempt, type HandOverDeps } from '../src/handOver';
 import { MemoryStore } from '../src/memoryStore';
 import { SyncClient } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
@@ -34,6 +34,28 @@ describe('hand-over on a shared phone (decisions.md 60)', () => {
     expect(list[0]!.uploads.map((u) => u.ref.hash)).toEqual(['b', 'c', 'a']);
     expect(list[0]!.pushToken).toBe('tok');
     expect(withHandOver(list, { ...akol, actorId: 'mary' }).map((h) => h.actorId)).toEqual(['akol', 'mary']);
+  });
+
+  it('signing out again keeps the date of the oldest work still waiting', () => {
+    // Why: the courier's diagnostics say how long work has waited; a later sign-out made it look fresh.
+    const later: HandOver = { actorId: 'akol', uploads: [upload('c')], savedAt: '2026-10-07T08:00:00Z' };
+    expect(withHandOver(withHandOver([], akol), later)[0]!.savedAt).toBe(akol.savedAt);
+    expect(withHandOver([], later)[0]!.savedAt).toBe(later.savedAt);
+  });
+
+  it('a courier attempt is reported as counts of what is left, never whose work it is', () => {
+    // Why: hand-overs that never finished were invisible; the record must not name the person who handed over.
+    const at = Date.parse(akol.savedAt) + 30 * 3_600_000;
+    const sent = { attempt: attempt({ finished: ['a', 'b'] }), offline: false };
+    expect(courierReport(akol, sent, afterAttempt(akol, sent.attempt), at)).toEqual({ outcome: 'done', eventsLeft: 0, uploadsLeft: 0, accountLeft: 0, ageH: 30 });
+    const cut = { attempt: attempt({ finished: ['a'], eventsLeft: 4, accountLeft: 1 }), offline: true };
+    const report = courierReport(akol, cut, afterAttempt(akol, cut.attempt), at);
+    expect(report).toEqual({ outcome: 'offline', eventsLeft: 4, uploadsLeft: 1, accountLeft: 1, ageH: 30 });
+    expect(JSON.stringify(report)).not.toContain('akol');
+    const slow = { attempt: attempt({ eventsLeft: 2 }), offline: false };
+    expect(courierReport(akol, slow, afterAttempt(akol, slow.attempt), at).outcome).toBe('keep');
+    const gone = { attempt: attempt({ sessionGone: true }), offline: false };
+    expect(courierReport(akol, gone, afterAttempt(akol, gone.attempt), at)).toMatchObject({ outcome: 'gone', uploadsLeft: 2 });
   });
 
   it('a torn write reads as no hand-overs, never a crash on launch', () => {

@@ -35,7 +35,8 @@ import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrar
 import { booksInScope, LANGUAGE_SCOPES, languageScopeLabel, mayGrantAt, type LanguageScope } from '../org/orgAdmin';
 import { recState, refKindOf, sourceFacts, type RefKind } from '../reference/model';
 import { useRecommend } from '../reference/useReference';
-import { referenceFailure } from '../reference/referenceActions';
+import { guidesArriving, helpItems, type HelpItem } from '../reference/helpItemsModel';
+import { referenceFailure } from '../reference/failureModel';
 import { GuideLanguageSheet } from '../reference/GuideLanguageSheet';
 import { chooseSetLanguage, guideSets, hideSet, originOf, patternOf, setKeyOf, setReach, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
 import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguage } from '../reference/languages';
@@ -216,23 +217,6 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
 
 // ---- 2 What will help them? ----------------------------------------------------------------------
 
-interface HelpItem {
-  key: string;
-  /** In this organization's library; null for one another organization shares, followed when turned on. */
-  itemId: string | null;
-  shared: SharedItem | null;
-  name: string;
-  kind: RefKind;
-  doc: LibraryDoc;
-  on: boolean;
-  /** Where it comes from, as a line under its name. */
-  owner: string;
-  /** The organization it is followed from or shared by, when it is another's. */
-  from: string | null;
-  /** A guide set in several languages (FIA), chosen as one with its language (decision 84), and what of it reaches the team. */
-  set?: { set: GuideSet; reach: SetMember[] };
-}
-
 /**
  * Everything that can help a language's team: the organization's Bibles,
  * guides and notes, and the Bibles and guides (in the language its team
@@ -253,52 +237,12 @@ function useHelpItems(ctx: Ctx) {
   const offered = recommendedFor(org?.recommendations, state);
   const reads = teamLanguage(org, state, languageId);
   const reader = readerLanguage();
-  const out: HelpItem[] = [];
-  const say = state?.languageReferences ?? {};
-  // FIA's collections, one per language, are one row whose language is chosen (decision 84).
-  const sets = guideSets(items.map((it) => ({ it, doc: docs.get(it.current) })), others.map((s) => ({ s, doc: docs.get(s.latest_hash) })));
-  const setKeys = new Set(sets.map((x) => x.key));
-  // Sibling languages arrive after the one already in the library. Until their
-  // documents are here, a patterned collection is not its own switch: tapping
-  // that switch would turn FIA off instead of asking which language.
+  // Sibling languages arrive after the one already in the library (reference/helpItemsModel.ts).
   const docsPending = others.some((s) => !!s.latest_hash && !docs.get(s.latest_hash));
-  const guidesIncoming = (!shared.loaded || docsPending) && !docs.error;
-  for (const set of sets) {
-    // Wait until every shared document is in, so the sheet lists every language, not the first two that arrived.
-    if (guidesIncoming) continue;
-    const reach = setReach(set, org?.recommendations, state);
-    const first = reach[0] ?? set.members[0]!;
-    const doc = first.itemId ? docs.get(lib.item(first.itemId)?.current) : docs.get(first.shared?.latest_hash);
-    const heldFrom = set.members.map((m) => (m.itemId ? lib.item(m.itemId)?.subscription?.sourceOrgName ?? lib.item(m.itemId)?.copiedFrom?.orgName : m.shared?.org_name)).find(Boolean) ?? null;
-    if (!doc) continue;
-    out.push({ key: `set:${set.key}`, itemId: null, shared: null, name: set.name, kind: 'guide', doc, on: reach.length > 0,
-      owner: heldFrom ? t('getReady.helps.fromOrg', { org: heldFrom }) : '', from: heldFrom, set: { set, reach } });
-  }
-  for (const it of items) {
-    const doc = docs.get(it.current);
-    const kind = refKindOf(doc);
-    if (!doc || !kind || kind === 'questions') continue;
-    if (setKeys.has(setKeyOf(originOf(it), doc) ?? '')) continue;
-    if (guidesIncoming && kind === 'guide' && doc.format === 'collection@1' && patternOf(doc)) continue;
-    // A Bible reaches the team when recommended; a guide or note in the library reaches it unless hidden here (reference/offered.ts).
-    const on = kind === 'source' ? offered.has(it.itemId) : say[it.itemId]?.value !== 'hidden';
-    const following = it.source === 'subscription' && it.subscription?.active ? it.subscription.sourceOrgName : null;
-    out.push({ key: it.itemId, itemId: it.itemId, shared: null, name: it.name, kind, doc, on, owner: sourceLine(it), from: following });
-  }
-  for (const s of others) {
-    const doc = docs.get(s.latest_hash);
-    const kind = refKindOf(doc);
-    if (!doc || (kind !== 'source' && kind !== 'guide')) continue;
-    if (setKeys.has(setKeyOf(s.org_id, doc) ?? '')) continue;
-    if (guidesIncoming && kind === 'guide' && doc.format === 'collection@1' && patternOf(doc)) continue;
-    // Another organization's guides in a language the team may read: the language's own or the reader's.
-    const lang = docLanguage(doc);
-    if (kind === 'guide' && lang && !sameLanguage(lang, reads) && !sameLanguage(lang, reader)) continue;
-    out.push({ key: `shared:${s.org_id}/${s.item_id}`, itemId: null, shared: s, name: s.name, kind, doc, on: false, owner: t('getReady.helps.fromOrg', { org: s.org_name }), from: s.org_name });
-  }
-  // By name, examples last; never by on or off, so a row stays put when it is switched.
-  const rank = (h: HelpItem) => (/example/i.test(h.name) ? 1 : 0);
-  out.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  const guidesIncoming = guidesArriving(shared.loaded, docsPending, !!docs.error);
+  const out = helpItems({
+    items, others, doc: docs.get, itemOf: lib.item, recommendations: org?.recommendations, state, offered, reads, reader, guidesIncoming
+  });
   const may = ctx.session.can('manage_reference');
   async function toggle(h: HelpItem) {
     if (busy || !may || !languageId) return;
@@ -352,7 +296,7 @@ function useHelpItems(ctx: Ctx) {
     await sayAll(hideSet(h.set.set, ctx.language.state), t('getReady.helps.setOff', { name: guideShortName(h.set.set.name) }));
     setBusy(false);
   }
-  return { items: out, toggle, chooseLanguage, setOff, busy, may, reads, loading: (!shared.loaded || docsPending) && !docs.error, get: docs.get };
+  return { items: out, toggle, chooseLanguage, setOff, busy, may, reads, loading: guidesIncoming, get: docs.get };
 }
 
 /**

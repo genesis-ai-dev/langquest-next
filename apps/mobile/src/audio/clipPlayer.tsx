@@ -19,6 +19,7 @@ import { formatNumber } from '../i18n/format';
 import { Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { noteExpected, reportError } from '../diagnostics/report';
+import { countAudio } from './audioTally';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
 import type { LanguageHandle } from '../sync/useLanguage';
 
@@ -135,13 +136,14 @@ export function ClipPlayer(props: {
       if (!uri && ref && language.state && isStored(language.state, hash)) {
         try { uri = await language.blobs.streamUri(ref); } catch (err) {
           noteExpected('clip player stream', err);
+          countAudio(language, 'streamFail');
           if (generation.current === run) { wants.current = false; setPlaying(false); setError(t('common.audioCouldNotLoad')); }
           return;
         }
         if (generation.current !== run || !wants.current) return;
       }
     }
-    if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); return; }
+    if (!uri) { wants.current = false; setPlaying(false); setError(t('recording.player.notOnDeviceYet')); countAudio(language, 'playNotHere'); return; }
     try {
       const p = createAudioPlayer({ uri }, LISTEN_PLAYER);
       player.current = p;
@@ -150,6 +152,7 @@ export function ClipPlayer(props: {
         if (status.error) {
           wants.current = false; p.remove(); player.current = null; setPlaying(false);
           setError(t('common.audioCouldNotLoad'));
+          countAudio(language, 'playFail');
           return;
         }
         if (status.duration > 0) setClipLength(status.duration);
@@ -160,6 +163,7 @@ export function ClipPlayer(props: {
       if (generation.current === run && wants.current) p.play();
     } catch (err) {
       wants.current = false; player.current?.remove(); player.current = null; setPlaying(false);
+      countAudio(language, 'playFail');
       setError(t('common.audioCouldNotPlay', { code: reportError('clip player create', err) }));
     }
   }
@@ -173,6 +177,7 @@ export function ClipPlayer(props: {
     setPlaying(true);
     setError('');
     props.onPlay?.();
+    countAudio(props.language, 'plays');
     try {
       // The microphone first: nothing of this may land in a take.
       await listenRef.current?.beforePlay();
@@ -185,7 +190,11 @@ export function ClipPlayer(props: {
       const atEnd = !!p && p.duration > 0 && p.currentTime >= p.duration - 0.1;
       await playFrom(restartIndex(p ? { index: indexRef.current, atEnd } : null, count), 0, run);
     } catch (err) {
-      if (generation.current === run) { halt(); setError(t('common.audioCouldNotPlay', { code: reportError('clip player play', err) })); }
+      if (generation.current === run) {
+        halt();
+        countAudio(props.language, 'playFail');
+        setError(t('common.audioCouldNotPlay', { code: reportError('clip player play', err) }));
+      }
     }
   }
 

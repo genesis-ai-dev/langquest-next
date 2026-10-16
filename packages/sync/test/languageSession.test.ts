@@ -1,5 +1,6 @@
 import { HlcClock, type BlobRef } from '@langquest-next/core';
 import { LanguageSession, type LanguageSessionOptions, type LocalFiles } from '../src/languageSession';
+import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { MemoryStore } from '../src/memoryStore';
 import { FakeServer } from '../src/testing/fakeServer';
 
@@ -193,6 +194,113 @@ describe('LanguageSession: what tells a screen to redraw', () => {
     await until(() => session.status.revision >= before + 5);
     await new Promise((r) => setTimeout(r, 20));
     expect(seen.every((keys) => !keys.split(',').includes('saving'))).toBe(true);
+    session.close();
+  });
+});
+
+describe('LanguageSession: when diagnostics may go', () => {
+  const recording = { recordingId: 'r1', unitId: 'Luke 1', kind: 'target' as const, cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' as const }] };
+
+  it('an upload that fails every time holds diagnostics back only until it has been tried', async () => {
+    // Why: uploads retry forever, and diagnostics waited for them to finish.
+    // One recording the server always refused stopped every delivery from
+    // that phone, the one phone support most needed to hear from.
+    const settled: number[] = [];
+    let recording_ = true;
+    const tried: string[] = [];
+    const { files, open } = phone({
+      upload: async (ref) => { tried.push(ref.hash); throw new Error('http 500'); },
+      isDeferred: () => recording_,
+      onSettled: ({ blobsWanted }) => settled.push(blobsWanted)
+    });
+    const session = await open();
+    session.start();
+    files.put('h1', 10);
+    await session.append('v1.RecordingAdded', recording);
+    await until(() => session.status.pendingUp === 1);
+    // Still recording: the upload has not had its turn, so nothing goes.
+    await session.sync();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(tried).toEqual([]);
+    expect(settled).toEqual([]);
+
+    recording_ = false;
+    session.triggerUpload();
+    await until(() => tried.length === 1);
+    await session.sync();
+    await until(() => settled.length === 1);
+    expect(session.status.pendingUp).toBe(1);
+    session.close();
+  });
+
+  it('a refusal is an answer: diagnostics go though the work cannot', async () => {
+    // Why: a refused phone keeps its outbox for good (invariant 1), so
+    // "outbox empty" never came, and its diagnostics, which say why, never went.
+    const settled: number[] = [];
+    const { server, open } = phone({ onSettled: ({ blobsWanted }) => settled.push(blobsWanted) });
+    const session = await open();
+    await session.append('v1.UnitAdded', unit('Luke 1'));
+    server.refuse = 'not a member';
+    await session.sync();
+    expect(settled).toEqual([0]);
+    session.close();
+  });
+
+  it('never while offline', async () => {
+    const settled: number[] = [];
+    const { server, open } = phone({ onSettled: ({ blobsWanted }) => settled.push(blobsWanted) });
+    const session = await open();
+    server.offline = true;
+    await session.sync();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(settled).toEqual([]);
+    session.close();
+  });
+});
+
+describe('LanguageSession: the open record', () => {
+  it('times a first open from opening to the first full pull, once', async () => {
+    // Why: "the language takes forever to open" was the report support could
+    // least answer: offline spells, a snapshot and folds all looked alike.
+    const diagStore = new MemoryDiagStore();
+    const wall = { t: 0 };
+    let id = 0;
+    const diag = new Diagnostics({ store: diagStore, newId: () => `d${++id}`, now: () => wall.t });
+    const { server, open } = phone({
+      client: { clock: new HlcClock('phone', () => (wall.t += 1)), newId: () => `e${(wall.t += 1)}`, diag, now: () => wall.t }
+    });
+    const session = await open();
+    server.offline = true;
+    await session.sync();
+    server.offline = false;
+    wall.t += 60_000;
+    await session.sync();
+    await session.sync();
+    await diag.settle();
+    const opens = diagStore.records.filter((r) => r.kind === 'open');
+    expect(opens).toHaveLength(1);
+    expect(opens[0]).toMatchObject({ orgId: 'org1', streamId: 'luke', t: { cold: 'yes' }, n: { syncs: 2, pulled: 0 } });
+    expect(opens[0]!.n.ms).toBeGreaterThanOrEqual(60_000);
+    expect(diagStore.records.find((r) => r.kind === 'load')?.t.reason).toBe('open');
+    session.close();
+  });
+});
+
+describe('LanguageSession: its part of the device record', () => {
+  it('counts recordings waiting to go up and how long the oldest has waited since it was recorded', async () => {
+    // Why: "my recordings never upload" needs how many and since when, and a
+    // phone restarted since must not reset the age.
+    const wall = { t: 0 };
+    const { files, open } = phone({
+      upload: async () => { throw new Error('http 500'); },
+      client: { clock: new HlcClock('phone', () => wall.t), newId: () => `e${(wall.t += 1)}`, now: () => wall.t }
+    });
+    const session = await open();
+    expect(session.probe()).toEqual({ uploadsWaiting: 0 });
+    files.put('h1', 10);
+    await session.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    wall.t += 90 * 60_000;
+    expect(session.probe()).toMatchObject({ uploadsWaiting: 1, oldestUnsentMin: 90 });
     session.close();
   });
 });
