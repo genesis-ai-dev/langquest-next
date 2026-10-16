@@ -7377,6 +7377,27 @@
       "wordsChanged": "Words of {{version}} changed",
       "recordingChanged": "Recording of {{version}} changed",
       "changedAfter": "Changed after the {{check}}"
+    },
+    "help": {
+      "readsVersion": "This check reads or hears the version itself.",
+      "readsMade": "This check reads what {{step}} made from the version, instead of the version.",
+      "startRecording": "Passages start as recordings. Writing is one tap away.",
+      "startWriting": "Passages start as writing. Recording is one tap away.",
+      "openMade": "Opens what this step made, to read or hear it.",
+      "gridVersionMade": "This step made this version. Opens the version.",
+      "gridMade": "Opens what this step made from this version.",
+      "gridAdded": "Opens what this step added to this version.",
+      "changeWords": "Opens the words to change them. The version keeps its approval, and its history says they changed.",
+      "changeRecording": "Records it again. The version keeps its approval, and its history says it changed.",
+      "turn": "What this step works from: a recording, writing, or either.",
+      "into": "What this step makes: a recording, writing, or whichever the person picks.",
+      "inOwn": "It makes it in the team's own language.",
+      "inOther": "It makes it in another language: the team's reference language, unless this language's checks name one.",
+      "save": "Keeps what you wrote on this phone and goes back. Nobody sees it until you publish.",
+      "openSource": "Opens what you write from: the version, the Bible and notes.",
+      "box": "Type this verse here. Your team's letters are above the keyboard.",
+      "addPart": "Adds another box to write in.",
+      "letter": "Types {{letter}} where you are writing."
     }
   }
 }

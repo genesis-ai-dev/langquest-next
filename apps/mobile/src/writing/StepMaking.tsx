@@ -94,11 +94,11 @@ export function MakesFields(props: { makes: MakesSpec; own: string; reference: s
     const result: MakesResult = 'result' in patch ? patch.result! : ('from' in patch || 'to' in patch || 'language' in patch) ? defaultResult(next) : next.result;
     props.onChange({ ...next, result: resultAllowed(next, result) ? result : 'beside' });
   };
-  const sides = (value: Side, onPick: (s: Side) => void, last: string) => (
+  const sides = (value: Side, onPick: (s: Side) => void, last: string, help: string) => (
     <ChipRow>
-      <Chip label={t('writing.step.recording')} icon="mic" on={value === 'recording'} onPress={() => !props.disabled && onPick('recording')} />
-      <Chip label={t('writing.step.writing')} icon="edit" on={value === 'writing'} onPress={() => !props.disabled && onPick('writing')} />
-      <Chip label={last} on={value === 'either'} onPress={() => !props.disabled && onPick('either')} />
+      <Chip label={t('writing.step.recording')} icon="mic" on={value === 'recording'} help={help} onPress={() => !props.disabled && onPick('recording')} />
+      <Chip label={t('writing.step.writing')} icon="edit" on={value === 'writing'} help={help} onPress={() => !props.disabled && onPick('writing')} />
+      <Chip label={last} on={value === 'either'} help={help} onPress={() => !props.disabled && onPick('either')} />
     </ChipRow>
   );
   const option = (result: MakesResult, icon: IconName, title: string, sub: string, off: string) => {
@@ -111,13 +111,13 @@ export function MakesFields(props: { makes: MakesSpec; own: string; reference: s
   return (
     <View style={{ gap: space.sm }}>
       <SectionLabel label={t('writing.step.turn')} />
-      {sides(makes.from, (from) => set({ from }), t('writing.step.either'))}
+      {sides(makes.from, (from) => set({ from }), t('writing.step.either'), t('writing.help.turn'))}
       <SectionLabel label={t('writing.step.into')} />
-      {sides(makes.to, (to) => set({ to }), t('writing.step.theyPick'))}
+      {sides(makes.to, (to) => set({ to }), t('writing.step.theyPick'), t('writing.help.into'))}
       <SectionLabel label={t('writing.step.in')} />
       <ChipRow>
-        <Chip label={props.own} on={makes.language === 'same'} onPress={() => !props.disabled && set({ language: 'same' })} />
-        <Chip label={languageLabel(makes.otherLanguage ?? props.reference)} icon="globe" on={makes.language === 'other'} onPress={() => !props.disabled && set({ language: 'other' })} />
+        <Chip label={props.own} on={makes.language === 'same'} help={t('writing.help.inOwn')} onPress={() => !props.disabled && set({ language: 'same' })} />
+        <Chip label={languageLabel(makes.otherLanguage ?? props.reference)} icon="globe" on={makes.language === 'other'} help={t('writing.help.inOther')} onPress={() => !props.disabled && set({ language: 'other' })} />
       </ChipRow>
       <SectionLabel label={t('writing.step.result.title')} />
       <View style={{ gap: space.sm }} accessibilityRole="radiogroup">

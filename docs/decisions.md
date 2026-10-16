@@ -4241,7 +4241,7 @@ only to its author.
 
 ## 112. A passage may be written as well as recorded, and a step can turn either into either, in any language
 
-Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+Date: 2026-10-15 · By: Caleb Koster · Status: accepted
 
 Reason: Caleb asked how the app would hold written translations beside
 audio, and chose (thread "Written translations alongside audio", plan page
@@ -4313,9 +4313,9 @@ Chosen:
   version's words, or the words added to a recording, with their verses;
   `audio` never names a written part; a new `made` include (team only)
   lists what was made beside versions. `approvedVersion` keeps its meaning.
-- The web app's JavaScript budget (58) rises from 6.1 to 6.2 MB: the
+- The web app's JavaScript budget (58) rises from 6.25 to 6.35 MB: the
   writing screens and making steps are about 35 KB of modules, with their
-  English words besides (6.12 MB at the merge).
+  English words and help lines besides (6.28 MB at the merge).
 - People ask each other for what they need in other languages; there is no
   language feature for it (Caleb). No AI help for now.
 Not yet: the shipped back translation still records through

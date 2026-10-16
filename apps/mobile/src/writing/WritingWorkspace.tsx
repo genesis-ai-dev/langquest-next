@@ -20,13 +20,14 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputProps, type TextInputSelectionChangeEventData } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { HelpClip } from '../helpMode/helpBadge';
+import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Field, Header, Ico, PrimaryBtn, Screen, Sheet, SmallBtn } from '../ui/kit';
+import { Field, Header, HelpCover, Ico, PrimaryBtn, Screen, Sheet, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, type PassageView } from '../passage/passageView';
 import { SplitPane } from '../recording/SplitPane';
@@ -182,7 +183,7 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
 
   return (
     <Screen fixed
-      header={<Header title={v.title} sub={sub} onBack={ctx.back} close action={<SmallBtn label={t('common.save')} icon="check" onPress={save} />} />}
+      header={<Header title={v.title} sub={sub} onBack={ctx.back} close action={<SmallBtn label={t('common.save')} icon="check" help={t('writing.help.save')} onPress={save} />} />}
       footer={typing ? (
         letters.length > 0 ? <LetterStrip letters={letters} onLetter={insert} /> : null
       ) : (
@@ -198,10 +199,7 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
       )}>
       <SplitPane memoryKey="writing" minBottom={MIN_BOTTOM} topStyle={styles.refPane} bottomStyle={styles.writePane}
         top={({ compact, open }) => compact ? (
-          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={t('writing.openReference')} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
-            <Ico name={source ? 'listen' : 'book'} size={18} color={C.primary} />
-            <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{source ? sourceTitle : t('translate.dragDown')}</Text>
-          </Pressable>
+          <SourceBar title={source ? sourceTitle : t('translate.dragDown')} icon={source ? 'listen' : 'book'} onOpen={open} />
         ) : (
           <View style={{ flex: 1 }}>
             <RefChips items={chips} value={chip} onChange={setChip} />
@@ -225,16 +223,15 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
                 <View key={b.key} style={styles.verseRow}>
                   <VerseTile label={isPartKey(b.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(b.key))} empty={!b.text.trim()} />
                   {/* No spell check or autocorrect: a phone's dictionary would "fix" the language into another one. */}
-                  <TextInput value={b.text} multiline spellCheck={false} autoCorrect={false} onChangeText={(x) => setText(i, x)}
+                  <VerseBox label={isPartKey(b.key) ? t('writing.partBox', { n: i + 1 }) : t('writing.verseBox', { verse: verseName(verseKeys, verseKeys.indexOf(b.key)) })} value={b.text} multiline spellCheck={false} autoCorrect={false} onChangeText={(x) => setText(i, x)}
                     onFocus={() => setFocus(i)} onBlur={() => setFocus((f) => (f === i ? null : f))}
                     onSelectionChange={(e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => selections.current.set(i, e.nativeEvent.selection)}
                     onContentSizeChange={(e) => { const h = Math.ceil(e.nativeEvent.contentSize.height); setHeights((cur) => (cur[b.key] === h ? cur : { ...cur, [b.key]: h })); }}
                     placeholder={t('writing.tapToWrite')} placeholderTextColor={C.faint}
-                    accessibilityLabel={isPartKey(b.key) ? t('writing.partBox', { n: i + 1 }) : t('writing.verseBox', { verse: verseName(verseKeys, verseKeys.indexOf(b.key)) })}
                     style={[styles.box, heights[b.key] ? { height: Math.max(target.min, heights[b.key]! + 2) } : null, focus === i && styles.boxOn, !b.text.trim() && focus !== i && styles.boxEmpty]} />
                 </View>
               ))}
-              {verseKeys.length === 0 ? <SmallBtn label={t('writing.addPart')} icon="plus" onPress={addPart} /> : null}
+              {verseKeys.length === 0 ? <SmallBtn label={t('writing.addPart')} icon="plus" help={t('writing.help.addPart')} onPress={addPart} /> : null}
             </ScrollView>
           </HelpClip>
         )} />
@@ -289,15 +286,47 @@ export function VerseTile({ label, empty }: { label: string; empty?: boolean }) 
 }
 
 /** The letters this team writes that a plain keyboard lacks, above the keyboard. */
+/** The bar over the boxes when the reference is folded away: what you write from, and it opens it. */
+function SourceBar({ title, icon, onOpen }: { title: string; icon: 'listen' | 'book'; onOpen: () => void }) {
+  const spot = useHelpSpot(t('writing.openReference'), t('writing.help.openSource'), onOpen);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('writing.openReference')} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
+      <Ico name={icon} size={18} color={C.primary} />
+      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{title}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** A verse's box: while help is on, tapping it explains it instead of opening the keyboard. */
+function VerseBox({ label, ...input }: { label: string } & TextInputProps) {
+  const spot = useHelpSpot(label, t('writing.help.box'), NOTHING);
+  return (
+    <View style={{ flex: 1 }}>
+      <TextInput {...input} accessibilityLabel={label} />
+      <HelpCover spot={spot} label={label} />
+    </View>
+  );
+}
+
+/** One of the team's letters over the keyboard: it types the letter where you are writing. */
+function LetterKey({ letter, onLetter }: { letter: string; onLetter: (l: string) => void }) {
+  const label = t('writing.addLetter', { letter });
+  const spot = useHelpSpot(label, t('writing.help.letter', { letter }), () => onLetter(letter));
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.letter, pressed && { opacity: 0.6 }]}>
+      <Text style={styles.letterText}>{letter}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+const NOTHING = () => undefined;
+
 function LetterStrip({ letters, onLetter }: { letters: string[]; onLetter: (l: string) => void }) {
   return (
     <View style={styles.strip} accessibilityLabel={t('writing.letters')}>
-      {letters.map((l) => (
-        <Pressable key={l} onPress={() => onLetter(l)} accessibilityRole="button" accessibilityLabel={t('writing.addLetter', { letter: l })}
-          style={({ pressed }) => [styles.letter, pressed && { opacity: 0.6 }]}>
-          <Text style={styles.letterText}>{l}</Text>
-        </Pressable>
-      ))}
+      {letters.map((l) => <LetterKey key={l} letter={l} onLetter={onLetter} />)}
     </View>
   );
 }

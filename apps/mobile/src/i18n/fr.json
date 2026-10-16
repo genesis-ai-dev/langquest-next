@@ -7690,6 +7690,27 @@
       "wordsChanged": "Mots de {{version}} changés",
       "recordingChanged": "Enregistrement de {{version}} changé",
       "changedAfter": "Changé après la {{check}}"
+    },
+    "help": {
+      "readsVersion": "Cette vérification lit ou écoute la version elle-même.",
+      "readsMade": "Cette vérification lit ce que {{step}} a fait à partir de la version, au lieu de la version elle-même.",
+      "startRecording": "Les passages commencent sous forme d’enregistrement. Le texte écrit est à une touche.",
+      "startWriting": "Les passages commencent sous forme de texte écrit. L’enregistrement est à une touche.",
+      "openMade": "Ouvre ce que cette étape a fait, pour le lire ou l’écouter.",
+      "gridVersionMade": "Cette étape a fait cette version. Ouvre la version.",
+      "gridMade": "Ouvre ce que cette étape a fait à partir de cette version.",
+      "gridAdded": "Ouvre ce que cette étape a ajouté à cette version.",
+      "changeWords": "Ouvre les mots pour les changer. La version garde son approbation, et son historique indique qu’ils ont changé.",
+      "changeRecording": "L’enregistre à nouveau. La version garde son approbation, et son historique indique qu’il a changé.",
+      "turn": "Ce sur quoi cette étape travaille : un enregistrement, un texte écrit, ou l’un ou l’autre.",
+      "into": "Ce que cette étape fait : un enregistrement, un texte écrit, ou ce que la personne choisit.",
+      "inOwn": "Elle le fait dans la propre langue de l’équipe.",
+      "inOther": "Elle le fait dans une autre langue : la langue de référence de l’équipe, sauf si les vérifications de cette langue en indiquent une.",
+      "save": "Garde sur ce téléphone ce que vous avez écrit, et revient en arrière. Personne ne le voit tant que vous ne publiez pas.",
+      "openSource": "Ouvre la source de ce que vous écrivez : la version, la Bible et les notes.",
+      "box": "Écrivez ce verset ici. Les lettres de votre équipe sont au-dessus du clavier.",
+      "addPart": "Ajoute une autre case où écrire.",
+      "letter": "Ajoute {{letter}} là où vous écrivez."
     }
   }
 }

@@ -7377,6 +7377,27 @@
       "wordsChanged": "Maneno ya {{version}} yamebadilishwa",
       "recordingChanged": "Rekodi ya {{version}} imebadilishwa",
       "changedAfter": "Imebadilishwa baada ya {{check}}"
+    },
+    "help": {
+      "readsVersion": "Ukaguzi huu husoma au husikiliza toleo lenyewe.",
+      "readsMade": "Ukaguzi huu husoma kile ambacho {{step}} ilitengeneza kutoka kwenye toleo, badala ya toleo lenyewe.",
+      "startRecording": "Vifungu huanza kama rekodi. Maandishi yanapatikana kwa mguso mmoja.",
+      "startWriting": "Vifungu huanza kama maandishi. Rekodi inapatikana kwa mguso mmoja.",
+      "openMade": "Hufungua kile ambacho hatua hii ilitengeneza, ili ukisome au ukisikilize.",
+      "gridVersionMade": "Hatua hii ndiyo iliyotengeneza toleo hili. Hufungua toleo.",
+      "gridMade": "Hufungua kile ambacho hatua hii ilitengeneza kutoka toleo hili.",
+      "gridAdded": "Hufungua kile ambacho hatua hii iliongeza kwenye toleo hili.",
+      "changeWords": "Hufungua maneno ili uyabadilishe. Toleo linabaki limeidhinishwa, na historia yake inaonyesha kwamba maneno yalibadilishwa.",
+      "changeRecording": "Hurekodi tena. Toleo linabaki limeidhinishwa, na historia yake inaonyesha kwamba rekodi ilibadilishwa.",
+      "turn": "Kile hatua hii inachoanzia: rekodi, maandishi, au yoyote kati ya hizo.",
+      "into": "Kile hatua hii inachotengeneza: rekodi, maandishi, au chochote mtu huyo anachochagua.",
+      "inOwn": "Hutengeneza katika lugha ya timu yenyewe.",
+      "inOther": "Hutengeneza katika lugha nyingine: lugha ya marejeo ya timu, isipokuwa kaguzi za lugha hii zitaje lugha nyingine.",
+      "save": "Huhifadhi ulichoandika kwenye simu hii na kurudi. Hakuna anayekiona hadi uchapishe.",
+      "openSource": "Hufungua kile unachoandika kutoka kwake: toleo, Biblia na madokezo.",
+      "box": "Andika mstari huu hapa. Herufi za timu yako ziko juu ya kibodi.",
+      "addPart": "Huongeza kisanduku kingine cha kuandikia.",
+      "letter": "Huandika {{letter}} pale unapoandika."
     }
   }
 }

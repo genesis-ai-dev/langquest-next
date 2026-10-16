@@ -72,7 +72,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // Raised to 6.25 MB when every part of every screen got its help line
 // (decision 71, amended 2026-10-14): 883 English lines add 59 KB to the
 // catalog a first visit downloads (6.17 MB then).
-const BUDGET_BYTES = 6.25 * 1024 * 1024;
+// Raised to 6.35 MB with writing beside recording (decision 112): its
+// workspace, making steps and readers are about 35 KB of modules, with their
+// English words and help lines besides (6.28 MB then).
+const BUDGET_BYTES = 6.35 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

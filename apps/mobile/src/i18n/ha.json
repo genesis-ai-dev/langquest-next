@@ -7377,6 +7377,27 @@
       "wordsChanged": "An canja kalmomin {{version}}",
       "recordingChanged": "An canja naɗin {{version}}",
       "changedAfter": "An canja bayan {{check}}"
+    },
+    "help": {
+      "readsVersion": "Wannan dubawa tana karanta ko sauraron sigar kanta.",
+      "readsMade": "Wannan dubawa tana karanta abin da {{step}} ya yi daga sigar, maimakon sigar kanta.",
+      "startRecording": "Nassosi suna farawa a matsayin naɗi. Rubutu yana nan da taɓawa ɗaya.",
+      "startWriting": "Nassosi suna farawa a matsayin rubutu. Naɗi yana nan da taɓawa ɗaya.",
+      "openMade": "Yana buɗe abin da wannan mataki ya yi, don a karanta ko a saurara.",
+      "gridVersionMade": "Wannan mataki ne ya yi wannan siga. Yana buɗe sigar.",
+      "gridMade": "Yana buɗe abin da wannan mataki ya yi daga wannan siga.",
+      "gridAdded": "Yana buɗe abin da wannan mataki ya ƙara a wannan siga.",
+      "changeWords": "Yana buɗe kalmomin don ku canja su. Sigar tana riƙe da amincewarta, kuma tarihinta yana nuna cewa an canja su.",
+      "changeRecording": "Yana sake naɗa shi. Sigar tana riƙe da amincewarta, kuma tarihinta yana nuna cewa an canja shi.",
+      "turn": "Abin da wannan mataki yake aiki a kai: naɗi, rubutu, ko ko wanne.",
+      "into": "Abin da wannan mataki yake yi: naɗi, rubutu, ko duk wanda mutumin ya zaɓa.",
+      "inOwn": "Yana yin sa a harshen tawagar kanta.",
+      "inOther": "Yana yin sa a wani harshe: harshen kayan bincike na tawagar, sai dai idan dubawar wannan harshe sun ambaci wani.",
+      "save": "Yana ajiye abin da kuka rubuta a wannan waya, ya koma baya. Babu wanda zai gan shi sai kun wallafa.",
+      "openSource": "Yana buɗe abin da kuke rubutawa daga gare shi: sigar, Littafi Mai Tsarki da bayanai.",
+      "box": "Ku rubuta wannan aya a nan. Haruffan tawagarku suna saman madannai.",
+      "addPart": "Yana ƙara wani akwati don rubutu.",
+      "letter": "Yana sa {{letter}} inda kuke rubutu."
     }
   }
 }

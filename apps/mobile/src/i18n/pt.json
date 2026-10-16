@@ -7690,6 +7690,27 @@
       "wordsChanged": "As palavras da {{version}} mudaram",
       "recordingChanged": "A gravação da {{version}} mudou",
       "changedAfter": "Mudou depois da {{check}}"
+    },
+    "help": {
+      "readsVersion": "Esta verificação lê ou ouve a própria versão.",
+      "readsMade": "Esta verificação lê o que {{step}} fez a partir da versão, em vez da versão.",
+      "startRecording": "As passagens começam como gravações. A escrita está a um toque.",
+      "startWriting": "As passagens começam como escrita. A gravação está a um toque.",
+      "openMade": "Abre o que esta etapa fez, para ler ou ouvir.",
+      "gridVersionMade": "Esta etapa fez esta versão. Abre a versão.",
+      "gridMade": "Abre o que esta etapa fez a partir desta versão.",
+      "gridAdded": "Abre o que esta etapa adicionou a esta versão.",
+      "changeWords": "Abre as palavras para mudá-las. A versão mantém a aprovação, e o histórico dela mostra que as palavras mudaram.",
+      "changeRecording": "Grava de novo. A versão mantém a aprovação, e o histórico dela mostra que a gravação mudou.",
+      "turn": "Com o que esta etapa trabalha: uma gravação, escrita ou qualquer uma das duas.",
+      "into": "O que esta etapa faz: uma gravação, escrita ou o que a pessoa escolher.",
+      "inOwn": "Ela faz no próprio idioma da equipe.",
+      "inOther": "Ela faz em outro idioma: o idioma de referência da equipe, a não ser que as verificações deste idioma indiquem outro.",
+      "save": "Guarda o que você escreveu neste celular e volta. Ninguém vê até você publicar.",
+      "openSource": "Abre a fonte do que você escreve: a versão, a Bíblia e as notas.",
+      "box": "Digite este versículo aqui. As letras da sua equipe ficam acima do teclado.",
+      "addPart": "Adiciona outra caixa para escrever.",
+      "letter": "Adiciona {{letter}} onde você está escrevendo."
     }
   }
 }

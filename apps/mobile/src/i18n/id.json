@@ -7064,6 +7064,27 @@
       "wordsChanged": "Kata-kata {{version}} diubah",
       "recordingChanged": "Rekaman {{version}} diubah",
       "changedAfter": "Diubah setelah {{check}}"
+    },
+    "help": {
+      "readsVersion": "Pemeriksaan ini membaca atau mendengar versinya sendiri.",
+      "readsMade": "Pemeriksaan ini membaca yang dibuat {{step}} dari versinya, bukan versinya sendiri.",
+      "startRecording": "Perikop dimulai sebagai rekaman. Tulisan tinggal satu ketukan.",
+      "startWriting": "Perikop dimulai sebagai tulisan. Rekaman tinggal satu ketukan.",
+      "openMade": "Membuka yang dibuat tahap ini, untuk dibaca atau didengar.",
+      "gridVersionMade": "Tahap ini membuat versi ini. Membuka versinya.",
+      "gridMade": "Membuka yang dibuat tahap ini dari versi ini.",
+      "gridAdded": "Membuka yang ditambahkan tahap ini ke versi ini.",
+      "changeWords": "Membuka kata-katanya untuk diubah. Versinya tetap disetujui, dan riwayatnya mencatat bahwa kata-katanya diubah.",
+      "changeRecording": "Merekamnya lagi. Versinya tetap disetujui, dan riwayatnya mencatat bahwa rekamannya diubah.",
+      "turn": "Bahan kerja tahap ini: rekaman, tulisan, atau salah satunya.",
+      "into": "Yang dibuat tahap ini: rekaman, tulisan, atau yang dipilih orang yang mengerjakannya.",
+      "inOwn": "Tahap ini membuatnya dalam bahasa tim sendiri.",
+      "inOther": "Tahap ini membuatnya dalam bahasa lain: bahasa referensi tim, kecuali pemeriksaan bahasa ini menyebut bahasa lain.",
+      "save": "Menyimpan tulisan Anda di ponsel ini lalu kembali. Tidak ada yang melihatnya sampai Anda menerbitkannya.",
+      "openSource": "Membuka sumber tulisan Anda: versinya, Alkitab, dan catatan.",
+      "box": "Ketik ayat ini di sini. Huruf-huruf tim Anda ada di atas keyboard.",
+      "addPart": "Menambah satu kotak lagi untuk menulis.",
+      "letter": "Mengetik {{letter}} di tempat Anda menulis."
     }
   }
 }

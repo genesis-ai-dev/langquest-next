@@ -7690,6 +7690,27 @@
       "wordsChanged": "Se cambiaron las palabras de la {{version}}",
       "recordingChanged": "Se cambió la grabación de la {{version}}",
       "changedAfter": "Se cambió después de la {{check}}"
+    },
+    "help": {
+      "readsVersion": "Esta verificación lee o escucha la versión misma.",
+      "readsMade": "Esta verificación lee lo que hizo {{step}} a partir de la versión, en lugar de la versión.",
+      "startRecording": "Los pasajes empiezan como grabaciones. El texto escrito está a un toque.",
+      "startWriting": "Los pasajes empiezan como texto escrito. La grabación está a un toque.",
+      "openMade": "Abre lo que hizo este paso, para leerlo o escucharlo.",
+      "gridVersionMade": "Este paso hizo esta versión. Abre la versión.",
+      "gridMade": "Abre lo que hizo este paso a partir de esta versión.",
+      "gridAdded": "Abre lo que este paso agregó a esta versión.",
+      "changeWords": "Abre las palabras para cambiarlas. La versión conserva su aprobación, y su historial muestra que se cambiaron.",
+      "changeRecording": "Lo graba de nuevo. La versión conserva su aprobación, y su historial muestra que se cambió.",
+      "turn": "Con qué trabaja este paso: una grabación, un texto escrito o cualquiera de los dos.",
+      "into": "Lo que hace este paso: una grabación, un texto escrito o lo que elija la persona.",
+      "inOwn": "Lo hace en el propio idioma del equipo.",
+      "inOther": "Lo hace en otro idioma: el idioma de referencia del equipo, a menos que las verificaciones de este idioma indiquen uno.",
+      "save": "Guarda en este teléfono lo que escribiste y vuelve atrás. Nadie lo ve hasta que publiques.",
+      "openSource": "Abre la fuente de lo que escribes: la versión, la Biblia y las notas.",
+      "box": "Escribe este versículo aquí. Las letras de tu equipo están arriba del teclado.",
+      "addPart": "Agrega otra casilla para escribir.",
+      "letter": "Pone {{letter}} donde estás escribiendo."
     }
   }
 }

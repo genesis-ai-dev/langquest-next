@@ -723,7 +723,7 @@ function KindActionRow(props: {
       {made && props.onOpenMade && !props.compact ? (
         <View style={styles.btnRow}>
           <View style={{ flex: 1 }}>
-            <SmallBtn label={made.medium === 'writing' ? t('writing.review.read') : t('review.parts.listen')} tone="primary"
+            <SmallBtn label={made.medium === 'writing' ? t('writing.review.read') : t('review.parts.listen')} tone="primary" help={t('writing.help.openMade')}
               onPress={() => props.onOpenMade?.(made.madeId ? { madeId: made.madeId } : { takeId: made.takeId })} />
           </View>
         </View>
@@ -843,24 +843,22 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
                 return (
                   <View key={c.key} style={styles.gridCol}>
                     {c.kindId && row.version.madeByKindId === c.kindId ? (
-                      <Pressable onPress={() => props.onVersion(row.version.takeId)} accessibilityRole="button"
-                        accessibilityLabel={t('passage.page.openVersion', { version: versionTitle(row.version.n) })}
-                        style={({ pressed }) => [styles.gridCell, pressed && { opacity: 0.6 }]}>
+                      <GridCell label={t('passage.page.openVersion', { version: versionTitle(row.version.n) })} help={t('writing.help.gridVersionMade')}
+                        onPress={() => props.onVersion(row.version.takeId)}>
                         <View style={[styles.producedMark, { backgroundColor: TINT.green }]}>
                           <Ico name={row.version.medium === 'writing' ? 'edit' : 'mic'} size={14} color={TINT.greenText} />
                         </View>
-                      </Pressable>
+                      </GridCell>
                     ) : last ? (
-                      <Pressable onPress={() => props.onMade(last.id)} accessibilityRole="button"
-                        accessibilityLabel={last.added ? t('writing.grid.addedCell', { what: c.kindId ? v.kind(c.kindId).name : madeTitle(v, last), version: versionTitle(row.version.n) })
+                      <GridCell label={last.added ? t('writing.grid.addedCell', { what: c.kindId ? v.kind(c.kindId).name : madeTitle(v, last), version: versionTitle(row.version.n) })
                           : t('writing.grid.cell', { what: c.kindId ? v.kind(c.kindId).name : madeTitle(v, last), version: versionTitle(row.version.n) })}
-                        style={({ pressed }) => [styles.gridCell, pressed && { opacity: 0.6 }]}>
+                        help={last.added ? t('writing.help.gridAdded') : t('writing.help.gridMade')} onPress={() => props.onMade(last.id)}>
                         <View style={[styles.producedMark, { backgroundColor: TINT.green }]}>
                           <Ico name={last.medium === 'writing' ? 'edit' : 'mic'} size={14} color={TINT.greenText} />
                         </View>
                         {last.added ? <View style={styles.addedBadge}><Ico name="link" size={10} color={TINT.greenText} strokeWidth={3} /></View>
                           : here.length > 1 ? <View style={styles.countBadge}><Text style={[txt.xsStrong, { color: C.white }]}>{here.length}</Text></View> : null}
-                      </Pressable>
+                      </GridCell>
                     ) : <View style={styles.gridEmpty} />}
                   </View>
                 );
@@ -1090,7 +1088,8 @@ function AddedSection(props: { ctx: Ctx; v: PassageView; version: Version; added
           <Text style={[txt.sm, { flex: 1, color: TINT.amberText }]}>{t('writing.history.changedAfter', { check: v.kind(a.changedAfter.kindId).name })}</Text>
         </View>
       ) : null}
-      {props.onChange ? <GhostBtn label={words ? t('writing.version.changeWords') : t('writing.version.changeRecording')} icon={words ? 'edit' : 'mic'} onPress={props.onChange} /> : null}
+      {props.onChange ? <GhostBtn label={words ? t('writing.version.changeWords') : t('writing.version.changeRecording')} icon={words ? 'edit' : 'mic'}
+        help={words ? t('writing.help.changeWords') : t('writing.help.changeRecording')} onPress={props.onChange} /> : null}
     </>
   );
 }

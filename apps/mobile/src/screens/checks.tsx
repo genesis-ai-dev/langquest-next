@@ -223,9 +223,9 @@ export function CheckEditor(ctx: Ctx) {
         <>
           <SectionLabel label={t('writing.step.reads')} />
           <ChipRow>
-            <Chip label={t('writing.step.theVersion')} on={!looksAt} onPress={() => mayFlows && setLooksAt(null)} />
+            <Chip label={t('writing.step.theVersion')} on={!looksAt} help={t('writing.help.readsVersion')} onPress={() => mayFlows && setLooksAt(null)} />
             {makersBefore.map((m) => <Chip key={m.id} label={t('writing.step.whatMade', { step: m.name })} icon={m.makes!.to === 'writing' ? 'edit' : 'mic'}
-              on={looksAt === m.id} onPress={() => mayFlows && setLooksAt(m.id)} />)}
+              help={t('writing.help.readsMade', { step: m.name })} on={looksAt === m.id} onPress={() => mayFlows && setLooksAt(m.id)} />)}
           </ChipRow>
         </>
       ) : null}

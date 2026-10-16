@@ -593,7 +593,7 @@ export function Toggle(props: { on: boolean; onToggle: () => void; label: string
  * switch): takes its tap so it explains itself instead of opening the
  * keyboard or switching, and lights and numbers it.
  */
-function HelpCover(props: { spot: HelpSpot<(() => void) | undefined>; label: string; inset?: boolean }) {
+export function HelpCover(props: { spot: HelpSpot<(() => void) | undefined>; label: string; inset?: boolean }) {
   if (!props.spot.id) return null;
   return (
     <Pressable onPress={props.spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} style={StyleSheet.absoluteFill}>

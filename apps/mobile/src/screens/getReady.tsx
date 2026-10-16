@@ -234,8 +234,8 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
             <>
               <SectionLabel label={t('writing.setup.startWith')} />
               <Pills>
-                <Chip label={t('writing.setup.recording')} icon="mic" on={media.first === 'recording'} onPress={() => setMedia((m) => ({ ...m, first: 'recording' }))} />
-                <Chip label={t('writing.setup.writingFirst')} icon="edit" on={media.first === 'writing'} onPress={() => setMedia((m) => ({ ...m, first: 'writing' }))} />
+                <Chip label={t('writing.setup.recording')} icon="mic" on={media.first === 'recording'} help={t('writing.help.startRecording')} onPress={() => setMedia((m) => ({ ...m, first: 'recording' }))} />
+                <Chip label={t('writing.setup.writingFirst')} icon="edit" on={media.first === 'writing'} help={t('writing.help.startWriting')} onPress={() => setMedia((m) => ({ ...m, first: 'writing' }))} />
               </Pills>
               <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('writing.setup.otherOneTap')}</Text>
             </>
