@@ -1,5 +1,5 @@
-// Undo and Redo's memory on the recording screens (Caleb, 2026-10-16): the
-// changes made to a draft's parts, kept on this phone (AsyncStorage, keyed by
+// Undo and Redo's memory (decisions 133 and 134): the changes made to a
+// draft (its parts, its guide, its sections), kept on this phone (AsyncStorage, keyed by
 // language, person, passage and draft; workspaceModel.ts) so it lasts
 // through leaving the screen and the phone closing the app, until the draft
 // is published or deleted. It does not sync: it only says which parts were in
@@ -8,7 +8,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { noteExpected } from '../diagnostics/report';
-import { emptyHistory, type History } from './workspaceModel';
+import { emptyHistory, type History } from '../ui/undoModel';
 
 /**
  * The history of the draft stored under `key`; null while the draft has no

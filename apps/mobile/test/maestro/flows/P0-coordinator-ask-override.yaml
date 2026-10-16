@@ -1,7 +1,7 @@
 # P0 smoke on phones (decision 95): a coordinator asks someone to record a
 # passage (P-Q2 → TRANS) and moves P-CHECK past its
 # checkpoint, the Consultant check, with a reason (JRN-006's middle), then
-# undoes it from the toast.
+# undoes it from History (no toast offers Undo, decision 134).
 appId: com.frontierrnd.langquestnext
 name: "P0 A coordinator asks someone and overrides a checkpoint"
 tags:
@@ -47,8 +47,6 @@ tags:
     visible:
       id: "toast"
     timeout: 20000
-- assertVisible:
-    id: "toast-undo"
 # Override: P-CHECK waits at the Consultant check, a checkpoint.
 - tapOn:
     id: "header-back"
@@ -78,28 +76,19 @@ tags:
 - tapOn:
     text: "Move past checkpoint"
     waitToSettleTimeoutMs: 0
-# Undo (the toast offers it, so the tap proves it is there) puts the checkpoint
-# back, so JRN-006 finds P-CHECK as the fixture left it. The toast goes in a few
-# seconds and a Maestro command takes about one on a phone, so the tap is the
-# first thing after the button. (The toast's message and that the next step, the
-# final approval, is offered are checked by JRN-006.)
+# History's Undo puts the checkpoint back, so JRN-006 finds P-CHECK as the
+# fixture left it. (The toast's message and that the next step, the final
+# approval, is offered are checked by JRN-006.)
+- extendedWaitUntil:
+    visible: "Consultant check, moved past"
+    timeout: 20000
+- tapOn: "Versions and history"
+- tapOn: "History.*"
 - tapOn:
-    id: "toast-undo"
-    waitToSettleTimeoutMs: 0
-    optional: true
-# Android's commands are slower still and the toast may be gone: History offers the same Undo.
-- runFlow:
-    when:
-      platform: Android
-      visible: "Consultant check, moved past"
-    commands:
-      - tapOn: "Versions and history"
-      - tapOn: "History.*"
-      - tapOn:
-          text: "Undo"
-          index: 0
-      - tapOn:
-          id: "header-close"
+    text: "Undo"
+    index: 0
+- tapOn:
+    id: "header-close"
 - extendedWaitUntil:
     visible: "Consultant check, next"
     timeout: 20000

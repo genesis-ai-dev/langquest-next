@@ -41,7 +41,6 @@ interface ScreenAudit { screen: string; who: string; targets: Target[]; small: S
  * frame; these are listed, not failed, when frame + slop reaches 48.
  */
 const HIT_SLOP: { match: (t: Target) => boolean; slop: number; where: string }[] = [
-  { match: (t) => t.testId === 'toast-undo', slop: 10, where: 'kit.tsx Toast (hitSlop 10)' },
   { match: (t) => /^Hear /.test(t.name) && t.w >= 40, slop: 4, where: 'simple/reference.tsx key word Hear (hitSlop 4)' }
 ];
 

@@ -28,7 +28,7 @@ export interface BookChangeSheet {
  * Changing how one book is divided, whatever the new division is (a ready-made
  * way, or the language's own): the warning when the book was divided before,
  * which languages it changes when the template is shared (decision 74), then
- * the change with Undo. `sheets` is what BookChangeSheets (parts.tsx) asks.
+ * the change. `sheets` is what BookChangeSheets (parts.tsx) asks.
  */
 export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc: TemplateDoc; item: LibraryItemView | null; redo: boolean; onDone: () => void }) {
   const lib = useLibrary(ctx);
@@ -50,10 +50,8 @@ export function useBookChange(ctx: Ctx, c: { book: string; bookName: string; doc
     setBusy(true);
     try {
       const next = withBookBrokenUp(c.doc, c.book, change.way);
-      const prev = sel;
-      const undo = prev.docHash ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(prev.books ? { books: prev.books } : {}) }).catch(() => null) : null;
       const specs = await publishChange(ctx, lib, { item: c.item, doc: next, users, chosen, label: change.note });
-      await ctx.act(specs, change.said, undo ? () => undo : undefined);
+      await ctx.act(specs, change.said);
       setBusy(false);
       setAsking(false);
       setWarn(false);

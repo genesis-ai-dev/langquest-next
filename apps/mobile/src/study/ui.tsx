@@ -15,7 +15,7 @@ import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Field, HelpInfo, Ico, NoteCard, PrimaryBtn, Sheet, type IconName } from '../ui/kit';
+import { Field, HelpInfo, Ico, NoteCard, PrimaryBtn, Sheet, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { when, type PassageView } from '../passage/passageView';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
@@ -28,7 +28,7 @@ import { useStudyFileUri } from './useStudyFileUri';
 import type { StudyStepStatus } from './progress';
 import { inlineParts, isCallout, isQuestion, studySections, type StudySection } from './text';
 import { shownClock, mediaKindLabel, CALLOUT_LOOK, calloutLabel } from './studyText';
-import { saveNote } from './studyActions';
+import { saveNote, takeBackNote } from './studyActions';
 import { styles } from './studyStyles';
 import { useStudyAudio, type StudyAudio } from './useStudyAudio';
 import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
@@ -145,7 +145,9 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
       <NoteCard anchor={n.photoHash ? t('study.note.withPhoto', { anchor }) : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
         icon={n.blobHash ? 'mic' : 'note'}
         audio={n.blobHash ? <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label={t('study.note.playVoiceNote')} /> : undefined}
-        action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
+        action={n.by === props.ctx.session.actorId
+          ? <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.undoNoteHelp')} onPress={() => void takeBackNote(props.ctx, n.id)} />
+          : <ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
     </Authored>
   );
 }

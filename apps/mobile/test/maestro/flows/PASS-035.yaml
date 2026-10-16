@@ -42,8 +42,6 @@ tags:
 - assertVisible:
     id: "toast"
     text: ".*Kept on this device\\. It downloads while you are connected\\..*"
-- assertNotVisible:
-    id: "toast-undo"
 - extendedWaitUntil:
     visible: ".*Kept because you chose to keep it\\..*"
     timeout: 60000

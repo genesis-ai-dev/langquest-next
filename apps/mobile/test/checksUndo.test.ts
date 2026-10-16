@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { commands, DEFAULT_KINDS, deriveFlow, foldLanguage, HlcClock, type AnyEvent, type EventSpec } from '@langquest-next/core';
 import { restoreChecks } from '../src/checks/undo';
 import { removeRow, rowsOf, stepsOf } from '../src/checks/model';
+import { checksSaved, hearChecksSaved } from '../src/checks/checksHistory';
 
 function language() {
   const log: AnyEvent[] = [];
@@ -56,5 +57,27 @@ describe('Undo of a change to the checks', () => {
     l.run(commands(l.state()).saveFlowSteps({ commandId: 'lock', steps: stepsOf(rows) }));
     l.run(restoreChecks(l.state(), was, 'undo'));
     expect(deriveFlow(l.state()).steps.map((s) => s.id)).toEqual(ids);
+  });
+});
+
+describe('a save on a check\'s own page reaches the open Checks list (decision 134)', () => {
+  const was = { flow: null, steps: [] };
+  it('goes to the list open for that language, and to nothing once it is left', () => {
+    const heard: string[] = [];
+    const stop = hearChecksSaved('L1', (_b, what) => heard.push(what));
+    checksSaved('L2', was, 'Beta saved');
+    checksSaved('L1', was, 'Community check removed');
+    stop();
+    checksSaved('L1', was, 'Alpha saved');
+    expect(heard).toEqual(['Community check removed']);
+  });
+  it('a list left late does not stop the one opened after it', () => {
+    const heard: string[] = [];
+    const stopFirst = hearChecksSaved('L1', () => heard.push('first'));
+    const stopSecond = hearChecksSaved('L1', () => heard.push('second'));
+    stopFirst();
+    checksSaved('L1', was, 'saved');
+    stopSecond();
+    expect(heard).toEqual(['second']);
   });
 });

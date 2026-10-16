@@ -85,7 +85,8 @@ test('JRN-002 A translator answers feedback: one fix, one kept with a reason @p0
   await button(page, 'Keep it').click();
   const toast = await expectToast(page, 'Kept · your reason is on the record');
   await expect(toast).toBeVisible();
-  await expect(byId(page, 'toast-undo')).toBeVisible();
+  // No Undo in the toast (decision 134): History offers it.
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await button(page, 'Versions and history').click();
   await page.getByRole('button', { name: /^History\./ }).locator('visible=true').first().click();
   await expect(text(page, /The speed matches how elders tell it/)).toBeVisible();

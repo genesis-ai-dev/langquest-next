@@ -5,7 +5,7 @@
 import type { Page } from '@playwright/test';
 import {
   back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, openAs, primary, screenText, syncNow, test, text,
-  undoToast, useWorld
+  useWorld
 } from './support';
 import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, languagePage, more, orgHome, orgRefused, setup } from './setup-helpers';
 
@@ -98,8 +98,7 @@ test('SETUP-053 Coverage and a passage\'s reference', async ({ page }) => {
   if (await guide.count()) {
     await guide.click();
     await expectToast(page, /is hidden on this passage\.$/);
-    await undoToast(page);
-    await page.getByRole('radio', { name: 'Hide here' }).first().click();
+    // No toast offers Undo (decision 134): Show here, on the same card, puts it back.
     await page.getByRole('radio', { name: 'Show here' }).first().click();
     await expectToast(page, /shows on this passage again\.$/);
   }
@@ -167,11 +166,16 @@ test('SETUP-056 Write a guide and publish it', async ({ page }) => {
   await field(page, 'Title').fill(title);
   // The draft is kept on this device as it is written (decision 127): the header's saved mark turns into a check.
   await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
-  // A new guide starts with FIA's six steps; choosing another start replaces them (a toast with Undo only once a step has words in it).
+  // A new guide starts with FIA's six steps; choosing another start replaces them, with no toast.
   await expectOnScreen(page, 'Now: 6 steps.');
   await text(page, 'One empty step').click();
   await expectOnScreen(page, 'Now: 1 step.');
   await text(page, 'FIA\'s six steps').click();
+  await expectOnScreen(page, 'Now: 6 steps.');
+  // No toast offers Undo (decision 134): the header's Undo and Redo arrows step back and forth through every change.
+  await byId(page, 'undo').click();
+  await expectOnScreen(page, 'Now: 1 step.');
+  await byId(page, 'redo').click();
   await expectOnScreen(page, 'Now: 6 steps.');
   await page.getByLabel(/^Verses/).first().fill('LUK 15:11-32');
   await expectOnScreen(page, 'Numbered as in');

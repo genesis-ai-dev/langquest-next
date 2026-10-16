@@ -8,6 +8,7 @@ import {
   type AnyEvent, type EventPayloads, type EventType, type OrgState, type Privilege, type TemplateDoc
 } from '@langquest-next/core';
 import {
+  sameChecks,
   askedAgo, dropIndex, firstName, flipSwitch, flowShort, flowSub, flowTitle, flowWho, guideShortName, helpsSummary, invitedTo, joinAnd,
   languageLabel, languageTranslators, moveTo, plainRoleChoices, readableRef, readiness, recordExamples, recordKind, recordSummary,
   ROLE_SWITCHES, scopeLabel, scopeOfBooks, stepTitle, stepWho, switchState, translatorsOf
@@ -215,5 +216,15 @@ describe('small words', () => {
     expect(guideShortName('FIA study guides (English)')).toBe('FIA');
     expect(helpsSummary(['Amharic', 'English'], ['FIA'], 0)).toBe('Amharic and English Bibles · FIA guides');
     expect(helpsSummary([], [], 0)).toBe('Nothing offered yet');
+  });
+});
+
+describe('checks still as a ready-made set made them (decision 134)', () => {
+  it('are the same checks in the same order, with the same ones that must pass', () => {
+    const set = [{ kindIds: ['peer', 'bt'], checkpoint: false }, { kindIds: ['consultant'], checkpoint: true }];
+    expect(sameChecks(set, [{ kindIds: ['peer', 'bt'] }, { kindIds: ['consultant'], checkpoint: true }])).toBe(true);
+    expect(sameChecks(set, [{ kindIds: ['peer', 'bt'] }, { kindIds: ['consultant'] }])).toBe(false);
+    expect(sameChecks(set, [{ kindIds: ['bt', 'peer'] }, { kindIds: ['consultant'], checkpoint: true }])).toBe(false);
+    expect(sameChecks(set, set.slice(0, 1))).toBe(false);
   });
 });
