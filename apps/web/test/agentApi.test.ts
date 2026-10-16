@@ -478,7 +478,7 @@ describe('reading', () => {
   });
 });
 
-describe('what an approved passage holds (decisions.md 135)', () => {
+describe('what an approved passage holds (decisions.md 136)', () => {
   const words = (...texts: string[]) => texts.map((text) => ({ id: writtenPartId(text), text }));
   const written = (parts: { id: string }[]) => parts.map((p) => ({ hash: p.id, durationMs: 0 }));
   /** A step that writes a recording down and adds the words to the version. */

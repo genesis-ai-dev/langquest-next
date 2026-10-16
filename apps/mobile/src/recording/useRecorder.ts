@@ -522,6 +522,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
 
   useEffect(() => {
     mounted.current = true;
+    // The speech model (decision 135) loads while the screen is looked at, not when record is tapped.
+    MicrophoneEnergy.prepareSpeech().catch((e: unknown) => noteExpected('recorder: speech model', e));
     const subscriptions = [
       // The module's own report, from its threads (a part's file that could not be written).
       // Every recorder hears it; only the one whose session it is counts it.
