@@ -80,6 +80,13 @@ describe('where parts split (splitter.ts)', () => {
     expect(kept(parts)).toHaveLength(1);
   });
 
+  it('never lets speech become the room, even when it starts as the microphone opens', () => {
+    // The UI tests tap record and speak at once: 0.2 s of exact silence, then 4 s of steady tone.
+    const { parts } = split([...frames(0.2, -60), ...frames(4, -7), ...frames(2, -60), ...frames(4, -7), ...frames(2, -60)]);
+    expect(kept(parts)).toHaveLength(2);
+    expect(kept(parts)[0]!.to - kept(parts)[0]!.from).toBeGreaterThanOrEqual(frames(4, 0).length);
+  });
+
   it('takes lasting exact silence as the room, so a steady sound after it is a part, not the room', () => {
     // The UI tests' microphone: a tone switched on and off over exact silence.
     const { parts, s } = split([...frames(1.5, -60), ...frames(4, -7), ...frames(2, -60), ...frames(4, -7), ...frames(2, -60)]);

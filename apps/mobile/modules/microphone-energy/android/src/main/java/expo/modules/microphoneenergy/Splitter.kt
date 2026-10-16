@@ -42,6 +42,8 @@ class Splitter(private val frameMs: Double, remembered: Heard?) {
     const val LEARN_AFTER_GAPS = 8
     /** Exact silence this long is the room (a quiet line, a noise gate); shorter, it is a microphone starting. */
     const val ZERO_ROOM_MS = 500.0
+    /** While a part is open the room rises at most this fast (dB a second), so speech never becomes the room. */
+    const val ROOM_RISE_PER_SEC = 1.5
 
     /** A frame's peak (0..1) in dB, -60..0. */
     fun levelDb(energy: Double): Double = max(-60.0, min(0.0, 20 * log10(max(energy, 1e-6))))
@@ -148,7 +150,9 @@ class Splitter(private val frameMs: Double, remembered: Heard?) {
     while (calm.isNotEmpty() && now - calm.first().t > ROOM_WINDOW_MS) calm.removeFirst()
     if (calm.isEmpty()) return
     val lowest = calm.minOf { it.db }
-    roomDb = if (now - calm.first().t < ROOM_WINDOW_MS / 2) min(lowest, roomDb + 3) else lowest
+    // Between parts the room follows the quietest stretch heard; inside one it only creeps up.
+    val rise = if (open) ROOM_RISE_PER_SEC * frameMs / 1000 else 3.0
+    roomDb = min(lowest, roomDb + rise)
   }
 
   private fun learnVoice() {
