@@ -245,7 +245,10 @@ export const redoButton = (page: Page): Locator => byId(page, 'redo');
 
 /** Slide a part's row sideways (`by` points: right is positive) by its bars, as a finger does. */
 export async function swipePart(page: Page, n: number, by = 110): Promise<void> {
+  // A row slides only while nothing is recording or saving.
+  await expectIdle(page);
   const bars = page.getByRole('button', { name: `Record Part ${n} again`, exact: true }).locator('visible=true').first();
+  await expect(bars).not.toHaveAttribute('aria-disabled', 'true');
   await bars.scrollIntoViewIfNeeded();
   await expectStill(bars);
   const box = (await bars.boundingBox())!;

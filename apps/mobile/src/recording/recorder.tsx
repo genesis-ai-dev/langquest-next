@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   underCard: { marginRight: EDGE - space.lg },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs, marginRight: EDGE },
   // Open, a band under its buttons keeps the first + mark's target clear of them.
-  headOpen: { paddingTop: space.xs, paddingBottom: EDGE - space.xs, borderBottomWidth: 1, borderColor: C.border },
+  headOpen: { paddingTop: space.xs, paddingBottom: EDGE, borderBottomWidth: 1, borderColor: C.border },
   // The rows sit inside the card's border; the list itself reaches past its right edge for the + marks.
   list: { marginLeft: 1, marginBottom: 1 },
   inCard: { marginRight: EDGE + 1 },

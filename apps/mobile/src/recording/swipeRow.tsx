@@ -43,7 +43,7 @@ export function SwipeRow(props: {
   const latest = useRef(props);
   latest.current = props;
   // The web's click that ends a swipe is not a tap on what it ended over.
-  const swipedAt = useRef(0);
+  const swiped = useRef(false);
   const settleTo = (side: SwipeSide) => {
     base.current = side * BIN;
     Animated.spring(x, { toValue: side * BIN, useNativeDriver: Platform.OS !== 'web', bounciness: 0, speed: 20 }).start();
@@ -94,6 +94,7 @@ export function SwipeRow(props: {
     let start: { x: number; y: number; id: number } | null = null;
     let sliding = false;
     const down = (e: PointerEvent) => {
+      swiped.current = false;
       if (latest.current.disabled || e.button !== 0) return;
       // The grip drags the row up and down; it never slides it.
       if ((e.target as HTMLElement | null)?.closest?.('[data-testid="part-grip"]')) return;
@@ -117,11 +118,14 @@ export function SwipeRow(props: {
       start = null;
       if (!sliding) return;
       sliding = false;
-      swipedAt.current = Date.now();
+      swiped.current = true;
       letGo(base.current + dx);
     };
     const click = (e: MouseEvent) => {
-      if (Date.now() - swipedAt.current < 400) { e.stopPropagation(); e.preventDefault(); }
+      if (!swiped.current) return;
+      swiped.current = false;
+      e.stopPropagation();
+      e.preventDefault();
     };
     el.addEventListener('pointerdown', down, { capture: true });
     window.addEventListener('pointermove', move, { capture: true, passive: false });
@@ -159,7 +163,7 @@ export function SwipeRow(props: {
       </View>
       <Animated.View style={[styles.face, { transform: [{ translateX: x }] }]} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
         {props.children}
-        {/* Open: a tap on the row closes it rather than playing or choosing. */}
+        {/* help-ignore: open, a tap on the row closes it rather than playing or choosing, as tapping outside a sheet does */}
         {props.open !== 0 ? <Pressable onPress={close} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill} /> : null}
       </Animated.View>
     </View>
