@@ -15,7 +15,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | Kind | When | Fields |
 | --- | --- | --- |
 | `sync` | A sync that moved events, took over 2 s, ended a spell offline, or changed outcome. A repeated offline or refused outcome at most once an hour. | total ms; network ms for push and pull; phone ms (fold and write); pushed, rejected, pulled; pages; outbox size; how long it was offline; outcome |
-| `load` | A language (or the org) is opened and its log folded | ms, events folded, whether from a checkpoint |
+| `load` | A language (or the org) is opened and its log folded | ms, events folded, whether from a checkpoint; `staleCheckpointSeq` when an update changed the reducer and the checkpoint up to that seq was dropped, so the stream is fetched again |
 | `snapshot` | A cold start looks for a server snapshot | fetch ms, pieces, pieces resumed after a dropped link, bytes, seq; `none` when there was none to use |
 | `transfer` | Blob uploads or downloads, tallied per minute or 50 files | files, bytes, ms, slowest; download split into signing, network and verifying on the phone; failures by cause (link, 4xx, 5xx, hash, disk, other) |
 | `device` | Each delivery | free and total disk (not on the web), audio cache size, files still wanted |

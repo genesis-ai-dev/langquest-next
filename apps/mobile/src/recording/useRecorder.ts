@@ -364,7 +364,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget)
     })();
     vadStarting.current = start;
     return start;
-  }, [fail, stopVad, work]);
+  }, [fail, self, stopVad, work]);
 
   const busy = working > 0;
   useEffect(() => {

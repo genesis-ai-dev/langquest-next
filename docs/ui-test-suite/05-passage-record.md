@@ -759,7 +759,7 @@ Expected:
 - TREV's lit "Record" step (if not recorded), or History, shows "{TRANS}'s
   note". In History it is "Note · {anchor}", with a report flag (PASS-066).
   TRANS sees "Undo" on it instead: their own note, which they may take back
-  (decisions.md 110).
+  (decisions.md 111).
 - REV can add a note. VIEW has no "Add a note" tile.
 
 ### PASS-033 Say it instead
@@ -1073,7 +1073,7 @@ Expected:
   "Needs changes" are disabled while a required question is open, with
   "{n} required question(s) left — answer, or say why not".
 - Saving shows "Peer Review added to the record", with "Undo" (whoever
-  logged a check may take it back, decisions.md 110). The app returns to the
+  logged a check may take it back, decisions.md 111). The app returns to the
   record.
 - Peer Review is marked "Looks good". TREV's request is done, and P-DRAFT
   leaves TREV's My Work after Sync.

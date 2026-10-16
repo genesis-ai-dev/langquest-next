@@ -449,7 +449,7 @@ export function historyAction(e: RecordEntry, o: { can: RecordCan; me: string; a
   if (e.type === 'request' && e.request.status === 'open' && o.can.withdraw && (e.request.by === o.me || o.assigns)) {
     return { id: 'withdraw', requestId: e.request.id };
   }
-  // Your own review or note, taken back by its author only (decisions.md 110).
+  // Your own review or note, taken back by its author only (decisions.md 111).
   if (e.type === 'review' && !e.review.withdrawn && e.review.by === o.me) return { id: 'undoReview', reviewId: e.review.id };
   if (e.type === 'note' && e.note.by === o.me) return { id: 'undoNote', noteId: e.note.id };
   if (e.type === 'note') return { id: 'reportNote', noteId: e.note.id, by: e.by };

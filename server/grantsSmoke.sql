@@ -227,7 +227,7 @@ select pg_temp.accepted(pg_temp.ev('gr-f4', 'gr-L', 'gr-tr', 'v1.DepartureUndone
 select pg_temp.accepted(pg_temp.ev('gr-f5', 'gr-L', 'gr-owner', 'v1.DepartureUndone', '{"departureId":"dep:gr-o"}'), 'an owner undoing an override');
 
 -- 10b. Only whoever recorded a review or added a note may take it back
--- (LAN-84, decisions.md 110): may_emit looks it up in the same stream.
+-- (LAN-84, decisions.md 111): may_emit looks it up in the same stream.
 -- gr-rev is gr-owner's (section 5); gr-tr adds a note of their own.
 select pg_temp.refused(pg_temp.ev('gr-w1', 'gr-L', 'gr-tr', 'v1.ReviewWithdrawn', '{"reviewId":"gr-rev"}'),
   'may not emit v1.ReviewWithdrawn', 'someone taking back another person''s review');

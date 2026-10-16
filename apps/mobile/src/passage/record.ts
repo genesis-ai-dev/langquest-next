@@ -246,7 +246,7 @@ interface KindRowActions {
   rest: RowAction[];
   /** The person looking was asked to do it: Review it now carries their request. */
   askedMe: boolean;
-  /** Their own review is what this check says now: they may take it back (decisions.md 110), done or not. */
+  /** Their own review is what this check says now: they may take it back (decisions.md 111), done or not. */
   undo?: RowAction;
 }
 
@@ -415,7 +415,7 @@ export function describeEntry(e: RecordEntry, o: {
       const k = kinds.find((x) => x.id === r.kindId);
       const good = r.outcome !== 'needs_changes';
       const source = r.via === 'logged' ? t('passage.record.entry.from', { who: feedbackSource(r, name, true) }) : viaText(r, name);
-      // Taken back by its author (decisions.md 110): struck through, with when, like a set-aside brought back.
+      // Taken back by its author (decisions.md 111): struck through, with when, like a set-aside brought back.
       const undone = !r.withdrawn ? '' : isJustNow(r.withdrawn.hlc) ? t('passage.record.entry.undoneJustNow') : t('passage.record.entry.undone', { when: when(r.withdrawn.hlc) });
       return {
         icon: r.withdrawn ? 'undo' : k?.produces ? 'swap' : good ? 'check' : 'chat',

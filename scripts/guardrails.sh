@@ -71,6 +71,13 @@ step "SQL smokes, parity and the client integration test (server)"
 npm run --silent db:test
 npm run --silent test:integration
 
+# db:test reset the database with a bare `supabase db reset`, which drops the
+# library and the projection worker's Vault values and cron job. The ui-web
+# job starts from `npm run db:start`, so put back what it leaves (on a running
+# stack that is only scripts/local-db.mjs prepare()).
+step "Library and projection worker back after the reset (npm run db:start)"
+npm run --silent db:start
+
 step "P0 web UI tests on the export (ui-web)"
 npm run test:ui:web -- --grep @p0 --grep-invert @quarantine
 

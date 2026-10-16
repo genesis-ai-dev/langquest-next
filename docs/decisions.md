@@ -2528,6 +2528,34 @@ lead. The UI test suite holds this (SETUP-061 to 066, MAP-023).
 Amended (2026-10-13, Carl Sauder): nobody may leave the organization
 without someone who can manage roles (98).
 
+Amended (2026-10-15, Carl Sauder): a resend is a duplicate even while the
+first push is still being inserted. A push that timed out on a weak link
+is retried with the first still in flight (the client no longer overlaps
+its own pushes, `SyncClient.exclusive`, but a lost response still races on
+the server). `append_events` checked the id before it took the stream's
+lock, so the retry passed that check, waited on the lock, and found the
+entity id taken: it refused the event, and the phone folded out work the
+server holds; an event with no entity id failed the whole batch on the
+primary key. Every event now takes its stream's lock once it is authorized
+and valid (`_next_seq` took it anyway, so nothing waits longer) and checks
+the id again under it, answering a stored event of the same organization,
+stream, actor and type as `duplicate` with its seq. The lock comes after
+authorization so nobody makes or holds a stream they may not write. The
+same id pushed to two different streams at once still fails one batch on
+the primary key; the retry is then refused (`event id already used`), as
+it should be. Migration `20261015180000_append_duplicate_under_lock.sql`;
+SQL test `server/concurrentAppendSmoke.sql`, two sessions over dblink.
+
+Amended (2026-10-15, Carl Sauder): the server's own events race the same
+way. `_append_event_as` (blob verdicts, invites redeemed, join decisions,
+redactions, account deletions, library pins) checked the id before
+`_next_seq` locked the stream, so two Worker or projection passes
+appending the same id at once failed the second on the primary key and
+aborted its caller's transaction. It now takes the stream's lock and
+checks the id again under it, returning null as it says it does.
+Migration `20261015190000_append_event_as_under_lock.sql`; cases 4 and 5
+of `server/concurrentAppendSmoke.sql` (`record_blob` twice at once).
+
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
 Date: 2026-10-09 · By: Carl Sauder · Status: accepted
@@ -3709,6 +3737,21 @@ run's flags into exclusions and a printed list. The flows had been written
 to fail rather than pass silently; a skip that is printed keeps that
 honesty without the noise. Named flows (`--flow`) still run as asked.
 
+Amended (2026-10-15, Carl Sauder): the PR jobs no longer wait for
+`checks`, and `ui-web` runs in two shards. A PR waited about 12 minutes:
+`checks` (2.4 min), then `ui-web` (8 to 10 min), of which the `@p0` tests
+were 5 to 6.5 min on four workers that were busy only 70% of the time,
+because the one long `@wide` journey (JRN-005, about 2 min) was queued last
+and ran alone. Now the four jobs start together, a job that needs the local
+stack starts it in the background while it installs browsers, the `wide`
+project is listed first, and each project builds its own fixture world, so
+the two can run one file at once. Shards, not more workers: a runner has
+four cores and already runs the stack and the Worker beside the browsers.
+A failing `checks` no longer saves the other jobs' runner time, which on a
+public repository costs nothing. Reverse if: runner minutes start to cost
+(a private repository, or a paid plan's limit), or the shards' runs disagree
+with an unsharded one.
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -3908,6 +3951,21 @@ redone on the new structure rather than merged across it, so no branch
 needs them. Git history keeps where each file went. The layout and the
 roles are held by `eslint.config.mjs` and `apps/mobile/test/folders.test.ts`.
 
+Amended (2026-10-15, Carl Sauder): react-hooks/exhaustive-deps is on, as
+an error, in the app. Carl chose to turn it on after seeing what it would
+take: a hook that reads a value it does not list keeps that value from the
+draw it first ran in, and agents write much of the code. Of the 55 hooks it
+named, most only spelled their dependencies in a way the rule cannot read
+(a method called on an object, a field of a value that is new each draw),
+and now read them once instead; two read a value they did not list and
+could show it stale (the source reader's language and whether it is
+online). The rest list less or more on purpose, because the org and
+language folds change their maps in place, because a counter is bumped on
+cleanup, or because a key made of the inputs stands for them; each says why
+after `--` on its disable comment, which lint now requires
+(`@eslint-community/eslint-comments/require-description`), and a disable
+that no longer excuses anything is an error.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -4106,7 +4164,39 @@ publishes on approval, per language), reviewers need their own accounts
 change feed and webhooks prove too slow for live listening (then push from
 the organization's Durable Object directly).
 
-## 110. Whoever gave a review or added a note can take it back, as a new event, and the record keeps the review crossed out
+## 110. A checkpoint from an older reducer is dropped with its stream's cursor, so the phone fetches the stream again
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: a phone checkpoints every 2000 confirmed events and prunes what the
+checkpoint covers (invariant 10). An update that bumps `REDUCER_VERSION`,
+which happens often, made that checkpoint unreadable, and invariant 10 said
+the client then "folds the log", but the log held only the tail after the
+checkpoint. `load()` folded that tail from empty state, `pullSlice()` took a
+server snapshot only at cursor 0, which the cursor was not, and the next
+checkpoint saved the partial state under the new version, so every language
+and organization stream that had pruned lost most of its work on the phone
+for good (the server's log was intact). The fleet modelled a reducer bump
+as a reinstall with an empty store and never saw it. Now `load()` drops a
+checkpoint from another reducer version and puts the stream's cursor back
+to 0 in one write (`dropStaleCheckpoint` in `packages/sync/src/syncClient.ts`).
+The next pull takes the server's snapshot for this reducer, or, when there
+is none (the organization stream never has one, 44), pulls the log again from
+the start. With nothing below the cursor missing, no checkpoint can be
+partial. Until the phone reaches the server it shows the events still in its
+log, the person's unsent work among them, as a first download does. The
+`load` record carries `staleCheckpointSeq` so support can see it happened
+(`docs/diagnostics.md`). The fleet's `reducerBump` scenario and a
+`fleet.test.ts` case now update phones that keep their store
+(`SimDevice.update`, `Fleet.deployReducer`). Turned down: keeping the whole
+log on the phone (the reason for pruning is replay bounded by recent
+history), and migrating checkpoints between reducer versions (a migration
+per bump, with the risk of a wrong one that the server cannot correct).
+Reverse if: phones that update while offline need their language on screen
+before they reach the server; then keep the pruned events beside the
+checkpoint until a checkpoint from the new reducer replaces it.
+
+## 111. Whoever gave a review or added a note can take it back, as a new event, and the record keeps the review crossed out
 
 Date: 2026-10-15 · By: Caleb Koster · Status: accepted
 

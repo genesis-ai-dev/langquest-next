@@ -235,18 +235,22 @@ export function PassageRecord(ctx: Ctx) {
   const [askKindId, setAskKindId] = useState<string | null>(null);
   // Questions added on the ask page, sent with the request (as Someone else can).
   const [askQuestions, setAskQuestions] = useState<QuestionSpec[]>([]);
-  const timeline = useMemo(() => (v ? recordTimeline(v.state, v.p) : []), [v?.state, v?.p]);
+  const vState = v?.state;
+  const vp = v?.p;
+  const vLanguageId = v?.languageId;
+  const timeline = useMemo(() => (vState && vp ? recordTimeline(vState, vp) : []), [vState, vp]);
   const guide = useStudyGuide(ctx, v?.unitId);
-  const study = useMemo(() => (v && guide ? studyProgress(v.state, v.p, guide) : null), [v?.state, v?.p, guide]);
+  const study = useMemo(() => (vState && vp && guide ? studyProgress(vState, vp, guide) : null), [vState, vp, guide]);
   const versesHeld = useVersesHeld(ctx, v?.state, v?.unitId);
   const me = ctx.session.actorId;
   const isAuthor = !!v?.p.latest && v.p.latest.by === me;
   // Whoever just published (a version, or a back translation) asks for the next check (demo ADR-034).
   const asker = isAuthor || !!publishedParam?.startsWith('bt');
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
+  const orgState = ctx.org.state;
   const targets = useMemo(
-    () => (v ? usualTargets(v.state, ctx.org.state, { p: v.p, languageId: v.languageId, me, asker }) : {}),
-    [v?.state, v?.languageId, v?.p.flow, ctx.org.state, me, asker]
+    () => (vState && vp && vLanguageId !== undefined ? usualTargets(vState, orgState, { p: vp, languageId: vLanguageId, me, asker }) : {}),
+    [vState, vLanguageId, vp, orgState, me, asker]
   );
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
@@ -302,7 +306,7 @@ export function PassageRecord(ctx: Ctx) {
   const sheetOf = (step: FlowStepStatus) => stepSheet({ p, kinds, kind: v.kind, step, can, isAuthor, me, mine, name: ctx.name, teamName, targets });
   const undoFromHistory = (departureId: string, type: string) => void perform(ctx, (c) => c.undoDeparture({ commandId: newId(), departureId }), undoneText(type));
   const withdraw = (requestId: string) => void perform(ctx, (c) => c.withdrawRequest({ commandId: newId(), requestId }), t('passage.page.withdrawn'));
-  /** Your own review or note, taken back (decisions.md 110): the check is open again, the note gone. */
+  /** Your own review or note, taken back (decisions.md 111): the check is open again, the note gone. */
   const takeBackReview = (reviewId: string) => void perform(ctx, (c) => c.withdrawReviews({ commandId: newId(), reviewIds: [reviewId] }), t('common.undone'));
   const takeBackNote = (noteId: string) => void perform(ctx, (c) => c.withdrawNote({ commandId: newId(), noteId }), t('common.undone'));
 
@@ -1060,7 +1064,7 @@ export function ReviewDetail(ctx: Ctx) {
     );
   }
 
-  // Your own review, taken back from here too (decisions.md 110); one taken back reads crossed out, grey.
+  // Your own review, taken back from here too (decisions.md 111); one taken back reads crossed out, grey.
   const mine = review.by === me && !review.withdrawn;
   const undone = review.withdrawn ? (isJustNow(review.withdrawn.hlc) ? t('passage.record.entry.undoneJustNow') : t('passage.record.entry.undone', { when: when(review.withdrawn.hlc) })) : '';
   const fg = review.withdrawn ? C.muted : tint.fg;
@@ -1226,8 +1230,11 @@ export function AskSomeone(ctx: Ctx) {
   const [dueTyped, setDueTyped] = useState('');
   const [othersShown, setOthersShown] = useState(PEOPLE_STEP);
   const [busy, setBusy] = useState(false);
-  const candidates = useMemo(() => (v ? askCandidates(v.state, ctx.org.state, { languageId: v.languageId, what, ...(kindId ? { kindId } : {}), me }) : []),
-    [v?.state, v?.languageId, ctx.org.state, what, kindId, me]);
+  const vState = v?.state;
+  const vLanguageId = v?.languageId;
+  const orgState = ctx.org.state;
+  const candidates = useMemo(() => (vState && vLanguageId !== undefined ? askCandidates(vState, orgState, { languageId: vLanguageId, what, ...(kindId ? { kindId } : {}), me }) : []),
+    [vState, vLanguageId, orgState, what, kindId, me]);
   if (!v) return <Missing ctx={ctx} id="ask_someone" />;
   if (what === 'review' && !kindId) {
     return <Missing ctx={ctx} id="ask_someone" crumbsOf={v} text={t('passage.ask.fromItsStep')} />;

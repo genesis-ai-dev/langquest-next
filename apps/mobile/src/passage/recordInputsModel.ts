@@ -20,7 +20,7 @@ export function payloadField(specs: EventSpec[], field: 'departureId' | 'request
   return String((specs[0]?.payload as Record<string, unknown> | undefined)?.[field] ?? '');
 }
 
-/** Every review a save recorded (one per passage a logged check covered), to take them all back with one Undo (decisions.md 110). */
+/** Every review a save recorded (one per passage a logged check covered), to take them all back with one Undo (decisions.md 111). */
 export function recordedReviewIds(specs: EventSpec[]): string[] {
   return specs.filter((s) => s.type === 'v1.ReviewRecorded').map((s) => String((s.payload as { reviewId: string }).reviewId));
 }

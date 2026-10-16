@@ -128,7 +128,7 @@ export type RecordEvents = {
   /** Bring a set-aside step back. The departure stays on the record, marked undone. Add-wins. */
   'v1.DepartureUndone': { departureId: string };
   /**
-   * Take back your own review (decisions.md 110): a verdict, feedback, a
+   * Take back your own review (decisions.md 111): a verdict, feedback, a
    * logged check or a back translation. It stays on the record, marked
    * undone, and counts for nothing: the check is open again and a request
    * it answered is open again. Only whoever recorded the review may (the
@@ -149,7 +149,7 @@ export type RecordEvents = {
     photoHash?: string;
     onTakeId?: string;
   };
-  /** Take back your own note (decisions.md 110): it no longer shows anywhere. Only its author may, as with a review. Add-wins. */
+  /** Take back your own note (decisions.md 111): it no longer shows anywhere. Only its author may, as with a review. Add-wins. */
   'v1.NoteWithdrawn': { noteId: string };
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };

@@ -39,7 +39,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   book_map: { reads:['derivePassage','unitPlace','earlierSections','library'],rpcs:['library_get_documents'] },
   // Send to … (ADR-029) asks the usual reviewer or review team in one tap.
   // Versions deletes a draft; its Undo composes it again (decisions.md 83).
-  // Your own review or note is taken back from its check or the history (decisions.md 110).
+  // Your own review or note is taken back from its check or the history (decisions.md 111).
   passage_record: { emits:['v1.DepartureRecorded','v1.DepartureUndone','v1.RequestMade','v1.RequestWithdrawn','v1.NoteAdded','v1.NoteWithdrawn','v1.ReviewWithdrawn','v1.TakeArchived','v1.TakeComposed'],
     reads:['derivePassage','recordTimeline','reviewGrid','studyMarksFor','earlierSections','library'],rpcs:[...REPORTS,'library_get_documents'] },
   version_detail: { reads:['derivePassage','keyTermLinksFor'],rpcs:REPORTS },

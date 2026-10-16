@@ -198,7 +198,7 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n2', unitId: 'luke1', anchor: { kind: 'study', guideId: 'fia:luke1', stepId: 'hear', at: '1:02' }, blobHash: 'c9' });
   emit('dB', 't1', 'v1.StudyStepMarked', { unitId: 'luke1', guideId: 'fia:luke1', stepId: 'hear', done: true });
   emit('dG', 't2', 'v1.StudyStepMarked', { unitId: 'luke1', guideId: 'fia:luke1', stepId: 'hear', done: false });
-  // Taking back (decisions.md 110): a reviewer withdraws their own verdict, someone else's withdrawal
+  // Taking back (decisions.md 111): a reviewer withdraws their own verdict, someone else's withdrawal
   // of a review and of a note count for nothing, and the author takes back a note.
   emit('dF', 'r1', 'v1.ReviewRecorded', { reviewId: 'rv3', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' });
   emit('dF', 'r1', 'v1.ReviewWithdrawn', { reviewId: 'rv3' });

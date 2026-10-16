@@ -27,7 +27,9 @@ function kindName(kind: UsedReference['kind']): string {
 
 /** "Made with BSB (opened), FIA" under a version or a review; tap for the list. Nothing when nothing was recorded. */
 export function UsedLine(props: { ctx: Ctx; state: LanguageState; subject: { takeId?: string; reviewId?: string }; detailsKey: string }) {
-  const items = useMemo(() => usedOn(props.state, props.subject), [props.state, props.subject.takeId, props.subject.reviewId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { state } = props;
+  const { takeId, reviewId } = props.subject;
+  const items = useMemo(() => usedOn(state, { ...(takeId ? { takeId } : {}), ...(reviewId ? { reviewId } : {}) }), [state, takeId, reviewId]);
   const d = props.ctx.details(props.detailsKey);
   const spot = useHelpSpot(items.length ? madeWithLine(items) : '', d.open ? t('help.details.disclosureOpen') : t('sources.used.showHelp'), items.length ? d.onToggle : undefined);
   if (items.length === 0) return null;

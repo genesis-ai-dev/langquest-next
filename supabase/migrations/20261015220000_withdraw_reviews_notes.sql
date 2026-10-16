@@ -1,4 +1,4 @@
--- Taking back your own review or note (decisions.md 110, LAN-84).
+-- Taking back your own review or note (decisions.md 111, LAN-84).
 --
 --   v1.ReviewWithdrawn  { reviewId }
 --   v1.NoteWithdrawn    { noteId }

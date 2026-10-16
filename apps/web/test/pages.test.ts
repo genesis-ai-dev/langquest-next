@@ -9,6 +9,24 @@ type Tree = { [k: string]: string | Tree };
 const keys = (o: Tree, prefix = ''): string[] => Object.entries(o).flatMap(([k, v]) => (typeof v === 'string' ? [prefix + k] : keys(v, `${prefix}${k}.`))).sort();
 const marked = (o: Tree): Tree => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'string' ? v.replace(/[^{}\s]+(?![^{]*\}\})/g, 'ж') : marked(v)]));
 
+/** Runs a page's inline script once, against stand-ins for the browser, and throws what it throws at load. */
+function runPageScript(script: string) {
+  const element = (): Record<string, unknown> => new Proxy({ addEventListener() {}, value: '', checked: false, hidden: false, innerHTML: '', textContent: '' }, {
+    get: (t, k) => (k in t ? t[k as keyof typeof t] : element()),
+    set: () => true
+  });
+  const storage = { getItem: () => null, setItem() {}, removeItem() {} };
+  const browser = {
+    document: { getElementById: element, querySelectorAll: () => [], documentElement: { lang: 'en' } },
+    location: { href: 'https://x/connect', search: '', origin: 'https://x', replace() {} },
+    localStorage: storage, sessionStorage: storage,
+    navigator: { clipboard: { writeText: async () => {} } },
+    fetch: () => new Promise(() => {}),
+    window: { scrollTo() {} }
+  };
+  new Function(...Object.keys(browser), script)(...Object.values(browser));
+}
+
 describe('pages the Worker serves, in the reader’s language', () => {
   it('follows ?lang=, then the browser’s approved languages, then English', () => {
     const req = (url: string, accept = '') => new Request(url, { headers: { 'accept-language': accept } });
@@ -38,7 +56,9 @@ describe('pages the Worker serves, in the reader’s language', () => {
         const [, body = ''] = /<body>([\s\S]*)<\/body>/.exec(html) ?? [];
         const markup = body.replace(/<script>[\s\S]*<\/script>/, '');
         const script = /<script>([\s\S]*)<\/script>/.exec(body)?.[1] ?? '';
-        expect(() => new Function(script)).not.toThrow();
+        // Parsing is not enough: a name used before its `const` (LAN-42's
+        // language picker) parses and then stops the whole page at load.
+        expect(() => runPageScript(script)).not.toThrow();
         // Text between tags, and the words in attributes people see or hear.
         const shown = [...markup.matchAll(/>([^<]+)</g)].map((m) => m[1]!.trim()).filter(Boolean)
           .concat([...markup.matchAll(/(?:aria-label|placeholder|title)="([^"]*)"/g)].map((m) => m[1]!));

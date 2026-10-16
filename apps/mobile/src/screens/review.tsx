@@ -19,7 +19,7 @@
 //
 // Everything is read from the record (core derivePassage, questionsForKind,
 // keyTermLinksFor) and written with core recordReview / produceContent.
-// Sending it offers Undo, which takes the review back (decisions.md 110):
+// Sending it offers Undo, which takes the review back (decisions.md 111):
 // the check is open again, and its author can still take it back later from
 // the check on the record or from the history.
 import {
@@ -155,13 +155,16 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   });
 
   const version = v ? versionFor(v.p, takeId) : undefined;
-  const request = useMemo(() => v ? requestFor(v.p, kindId, actorId, { ...(ctx.params['requestId'] ? { requestId: ctx.params['requestId'] } : {}), mineOnly: logged }) : undefined,
-    [v?.p, kindId, actorId, ctx.params, logged]);
-  const questions = useMemo(() => v ? questionsForKind(v.state, kindId, request) : [], [v?.state, kindId, request]);
+  const vState = v?.state;
+  const vp = v?.p;
+  const requestParam = ctx.params['requestId'];
+  const request = useMemo(() => vp ? requestFor(vp, kindId, actorId, { ...(requestParam ? { requestId: requestParam } : {}), mineOnly: logged }) : undefined,
+    [vp, kindId, actorId, requestParam, logged]);
+  const questions = useMemo(() => vState ? questionsForKind(vState, kindId, request) : [], [vState, kindId, request]);
   const guide = useStudyGuide(ctx, v?.unitId);
-  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
-    [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
-  const all = useMemo(() => v && logged ? recordedPassages(v.state) : [], [v?.state, logged]);
+  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(v, kindId, version.takeId, guide) : null,
+    [v?.state, v?.p, kindId, version?.takeId, kind, guide]); // eslint-disable-line react-hooks/exhaustive-deps -- v is new on every draw; what backgroundFor reads of it (state, p, kinds) follows v.state and v.p
+  const all = useMemo(() => vState && logged ? recordedPassages(vState) : [], [vState, logged]);
   // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
   const usage = useUsage();
   const shown = !!context;
@@ -613,7 +616,7 @@ function helpRowHelp(h: HelpRow): string {
 }
 
 /** The background a reviewer may open, or null when the kind withholds it (REV-1, REV-4). */
-function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
+function backgroundFor(v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
   const { state, p } = v;
   const terms = keyTermLinksFor(state, takeId).map((l) => l.term);
   const notes = p.notes.filter((n) => n.anchor.kind !== 'study');

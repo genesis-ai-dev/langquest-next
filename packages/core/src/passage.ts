@@ -114,7 +114,7 @@ export interface ReviewView extends Omit<KindReview, 'eventId'> {
   /** The version it heard. */
   versionN: number;
   response?: ResponseView;
-  /** Its author took it back (decisions.md 110): only `withdrawnReviews` and the history hold these. */
+  /** Its author took it back (decisions.md 111): only `withdrawnReviews` and the history hold these. */
   withdrawn?: Undo;
 }
 
@@ -203,7 +203,7 @@ export interface PassageState {
   /** Every open draft, anyone's, in the order they were started: a person may keep several (decisions.md 83). */
   drafts: DraftView[];
   reviews: ReviewView[];
-  /** Reviews their own authors took back (decisions.md 110), for the history only: nothing else counts them. */
+  /** Reviews their own authors took back (decisions.md 111), for the history only: nothing else counts them. */
   withdrawnReviews: (ReviewView & { withdrawn: Undo })[];
   departures: DepartureView[];
   requests: RequestView[];
@@ -219,7 +219,7 @@ export interface PassageState {
 
 // ---- indexes ---------------------------------------------------------------------
 
-/** A review or note its own author took back (decisions.md 110); anyone else's withdrawal counts for nothing. */
+/** A review or note its own author took back (decisions.md 111); anyone else's withdrawal counts for nothing. */
 export function withdrawnBy<T extends { by: string }>(table: Record<string, Undo> | undefined, id: string, item: T): Undo | undefined {
   const w = table?.[id];
   return w && w.by === item.by ? w : undefined;
@@ -235,7 +235,7 @@ interface RecordIndexes {
   drafts: Map<string, string[]>;
   /** takeId -> reviews of it, but those their authors took back */
   reviewsByTake: Map<string, KindReview[]>;
-  /** takeId -> reviews of it their authors took back (decisions.md 110) */
+  /** takeId -> reviews of it their authors took back (decisions.md 111) */
   withdrawnByTake: Map<string, (KindReview & { withdrawn: Undo })[]>;
   departures: Map<string, Departure[]>;
   requests: Map<string, PassageRequest[]>;
