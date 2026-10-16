@@ -476,10 +476,11 @@ test('REC-016 Version 2 needs "what changed" @p0', async ({ page }) => {
   await button(page, 'Edit').click();
   await expect(text(page, 'Recording Version 2')).toBeVisible();
   await expectParts(page, 3);
-  await expect(text(page, 'These are Version 1\'s parts. Record a new part or delete one to publish a new version.')).toBeVisible();
+  // The card is named for the version while its parts are still the version's (LAN-83: no sentence says so).
+  await expect(page.getByRole('button', { name: /^Version 1, 3 parts · / }).locator('visible=true').first()).toBeVisible();
   await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
   await recordSaid(page, [3000]);
-  await expect(text(page, 'These are Version 1\'s parts. Record a new part or delete one to publish a new version.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Version 1, / }).locator('visible=true')).toHaveCount(0);
   await expectParts(page, 4);
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await publishButton(page).click();
@@ -883,7 +884,8 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   await expect(divider).toHaveAttribute('aria-valuetext', /^(Source 65%|Source 6\d%)$/);
   const at = await divider.getAttribute('aria-valuetext');
   const small = ((await page.getByLabel('Your recording', { exact: true }).first().boundingBox())?.height ?? 999) < 360;
-  if (small) await expect(text(page, new RegExp(`^Parts 1–${parts + 1} recorded · drag up to see them$`))).toBeVisible();
+  // A small pane keeps the parts card, closed (LAN-83), where it used to say "drag up to see them".
+  if (small) await expect(page.getByRole('button', { name: new RegExp(`^Parts 1–${parts + 1}, ${parts + 1} parts · `) }).locator('visible=true').first()).toBeVisible();
   await back(page).click();
   await startFromRecord(page, 'Continue recording');
   await expect(divider).toHaveAttribute('aria-valuetext', at!);
