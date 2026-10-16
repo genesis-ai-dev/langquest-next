@@ -49,7 +49,6 @@ import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, passageView as passageViewOf, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
-import { undoReviews } from '../passage/recordInputsModel';
 import { failureMessage } from '../diagnostics/report';
 import {
   canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
@@ -314,8 +313,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     }
     setBusy(true);
     try {
-      const sent = specs;
-      await ctx.act(specs, message, () => undoReviews(sent)(commands(state)));
+      await ctx.act(specs, message);
     } catch {
       setBusy(false);
       return;

@@ -18,7 +18,6 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Chip, ChipRow, Field, HelpInfo, Ico, LinkBtn, NoteCard, PrimaryBtn, ProgressBar, Row, Sheet, ShowMore, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from '../passage/passageView';
-import { undoNote } from '../passage/recordInputsModel';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { recordTarget } from '../moderation/reportTargets';
 import type { StudyProgress } from '../study/progress';
@@ -263,7 +262,8 @@ function NoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
         commandId: Crypto.randomUUID(), unitId: v.unitId, anchor: { kind: 'passage' }, ...(step ? { kindId: step } : {}),
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
       });
-      await ctx.act(specs, t('recording.tray.noteAdded'), () => undoNote(specs)(commands(state)));
+      // No toast offers Undo (decision 134): History's Undo on your own note takes it back.
+      await ctx.act(specs, t('recording.tray.noteAdded'));
       props.onClose();
     } catch { /* ctx.act said what went wrong */ }
     finally { setBusy(false); }

@@ -103,11 +103,13 @@ Steps:
 Expected:
 - Step 3 shows Decide: the heading "Is it accurate and natural?" with a speak button, a green "Looks good" card, an amber "Needs changes" card and a dashed row "Say something about it" with the sub "{TRANS first name} hears it with your answer" and "optional".
 - The strip shows "Listen" done (green check, accessibility label "Listen, done. Go back").
-- Step 4 saves at once, with no further screen. The toast reads "Looks good · sent to {TRANS-name}", with "Undo" (REV-049 takes it back).
+- Step 4 saves at once, with no further screen. The toast reads "Looks good · sent to {TRANS-name}", with no Undo: REV takes it back from the review's page, the step sheet or History (REV-049).
 - The app returns to P-SUBMITTED's record, where the team's first step reads "Peer check looks good".
 - Within 30 seconds nothing waits to upload. TRANS, on a second device after Sync now, sees an update that the Peer check looks good in the Inbox (from the bell), and the record shows it.
 - The request to REV is done: P-SUBMITTED leaves REV's My Work.
 - Resets: P-SUBMITTED's Peer check is "looks good".
+
+Changed (2026-10-16, decision 134): no toast offers Undo; REV's Undo on the review's page, the step sheet or History takes it back.
 
 ### REV-004 A note at a moment while listening
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -147,11 +149,13 @@ Expected:
 - After step 3 the big mic is replaced by a chip "Your feedback · 0:05" and "Record again".
 - Step 4's field has the placeholder "Or type it — what worked, what didn't".
 - A dashed row "Record a listener retelling" with "optional" is under it.
-- Step 5 shows the toast "Feedback sent to {TRANS-name}", with "Undo", and returns to P-Q1's record.
+- Step 5 shows the toast "Feedback sent to {TRANS-name}", with no Undo (REV takes it back as in REV-049), and returns to P-Q1's record.
 - The record's first step reads Peer check "needs changes", with REV's name.
 - TRANS, on a second device after Sync now, sees an Inbox update that Peer check suggests changes ("… suggests changes — revise, or keep it and say why."), and P-Q1's main button reads "Hear the feedback".
 - In TRANS's "Hear the feedback", the voice feedback plays, "“Verse 12 is too fast”" shows, and the note at 0:04 is listed with the review.
 - Resets: P-Q1's Version 1 has needs-changes feedback from REV, not yet answered.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; REV's Undo on the review's page, the step sheet or History takes it back.
 
 ### REV-006 "Send feedback" needs words; text alone is enough
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -657,12 +661,14 @@ Expected:
 - Said parts that are not open read "0:07 in English".
 - "Done" is enabled after the first part is said.
 - Step 5 opens the sheet "Back translation", sub "Of Version 1", with "✓ N of N parts said" and the header's saved mark (what is typed there is kept as it is typed). REV may not ask for checks, so it has no "Next check" and its only button is "Finish the back translation" (REV-033).
-- Step 7 shows the toast "Back translation published.", with "Undo" (which takes it back), and returns to the record: there is no page of its own after Done.
+- Step 7 shows the toast "Back translation published.", with no Undo, and returns to the record: there is no page of its own after Done. REV takes it back with "Undo" on it in "Versions and history" → "History".
 - Afterwards, the record shows Back translation done ("Back translation recorded") on Version 1, and step 1 is complete.
 - COORD, on a second device after Sync now, can play the back translation from the review, in part order, and reads the note.
 - Resets: P-BT has its back translation.
 
 Fixed (2026-10-12): a recording started on a part with nothing picked followed "the next part to say", so after its first piece landed every later piece went to the next part (Part 1, 2 and 3 each got a piece of one recording). The session now keeps to the part it started on (`btWorkspace.tsx`). The sheet names the next check by its check name, "Consultant check" (decision 91).
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo on the back translation takes it back.
 
 ### REV-033 A reviewer who cannot ask is not offered to ask
 Roles: REV · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
@@ -688,15 +694,18 @@ Preconditions:
 
 Steps:
 1. Tap Part 2 to open it, then tap "Delete part 2 to say it again".
-2. Tap "Undo" on the toast.
-3. Delete Part 2 again and let the toast go.
+2. Tap the Undo arrow left of the red button.
+3. Tap Part 2 and delete it again.
 4. Tap "Record part 2", say it again, stop.
 
 Expected:
-- Step 1 shows "Part 2 deleted." with Undo. Part 2 reads "Saying it next".
-- Step 2 brings it back ("0:0x in English").
+- After step 1 no toast shows. Part 2 reads "Saying it next". The Undo arrow is dark (its label "Undo: Part 2 deleted."), Redo is grey. A screen reader hears "Part 2 deleted.".
+- Step 2 brings it back ("0:0x in English"), shaded faintly red. The Redo arrow beside it is dark (its label "Redo: Part 2 deleted."). A screen reader hears "Undone: Part 2 deleted.".
+- Step 3 deletes it again: Part 2 reads "Saying it next".
 - Step 4 records a new Part 2.
-- If the device cannot restore, "Not restored: {reason}"; if it cannot delete, "Not deleted: {reason}".
+- If it cannot delete, the toast "Not deleted: {reason}"; if it cannot undo, "Not undone. {reason}".
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the back translation screen's own Undo arrow left of the red button brings a deleted part back, as REC-007.
 
 ### REV-035 Notes at a moment, for the consultant
 Roles: REV · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -862,28 +871,32 @@ Steps:
 Expected:
 - Step 2 opens a page: header "Luke 13:10-17" with sub "Keep it, say why" and a back arrow (no ✕), the heading "Keep it as it is?", "Say why. {REV-name} and the team will hear it.", a big mic "Tap and say why" and a field "Or type it".
 - Step 3: "Keep it" is disabled until something is said or typed.
-- Step 6 shows the toast "Kept · your reason is on the record" with Undo, and returns to the record.
+- Step 6 shows the toast "Kept · your reason is on the record", with no Undo, and returns to the record. History's "Undo" takes it back (REV-044).
 - The record no longer shows "Hear the feedback". The review shows "{TRANS-name} kept it · {when}", the typed reason, and "Their answer, said aloud" playing the voice reason.
 - REV, on a second device after Sync now, hears and reads the reason.
 - No new version was made.
 - Resets: P-Q1's feedback is kept (answered by keeping).
 
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo on the kept entry brings the feedback back.
+
 ### REV-044 Undo after keeping
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- Run as part of REV-043, at step 6.
+- Right after REV-043, on P-Q1's record.
 
 Steps:
-1. Within 7 seconds of "Kept · your reason is on the record", tap "Undo".
+1. Open "Versions and history" → "History" and tap "Undo" on "Kept after Peer check". Close with ✕.
 
 Expected:
-- The toast reads "Undone — the feedback is waiting again".
+- The toast reads "Undone — the feedback is waiting again", and the entry reads "… · brought back just now".
 - The record's main button is "Hear the feedback" again, and the review offers "Record a fix" and "Keep it, say why".
 - A second device shows the feedback waiting again after Sync now (G10.5).
 - Then keep it again (as REV-043) so later tests find it kept.
 
 Fixed (2026-10-13), via `ctx.act`'s new `undone` argument: the toast's Undo said only "Undone." The specific line "Undone — the feedback is waiting again" (`passage.page.undone.keep`) shows only when the keep is undone from the record's history, because `ctx.act` has no way to name what an Undo brings back (`passage.tsx` `keep`, `ctx.ts`). The automated test (a fresh request for changes on P-Q1 first, since REV-043's is kept) fails there.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo on the kept entry brings the feedback back, with its own words.
 
 ### REV-045 Keep it: a voice reason alone, and the way back
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -953,13 +966,15 @@ Preconditions:
 - TRANS published P-DRAFT and asked REV for its Peer check.
 
 Steps:
-1. Do the peer check on P-DRAFT, tap "Looks good", then "Undo" on the message.
-2. Do it again and tap "Looks good". Wait for the message to go, tap the Peer check row under "Then the team", and tap "Undo" in the sheet.
+1. Do the peer check on P-DRAFT and tap "Looks good". Open "Versions and history" → "Reviews by version", tap "Peer check from You", and tap "Undo" on the review's page.
+2. Do it again and tap "Looks good". Tap the Peer check row under "Then the team", and tap "Undo" in the sheet.
 3. Close the sheet. Do it a third time, then open "Versions and history" → "History" and tap "Undo" on the review.
 
 Expected:
-- Step 1: "Undone." The record offers "Do the peer check" again.
+- Step 1: the toast after "Looks good" has no Undo. The review's page shows "Undo" (REV's own review only); after it, "Undone.", the review reads crossed out, "undone just now", and the record offers "Do the peer check" again.
 - Step 2: the sheet shows "Undo" under REV's own check (no one else sees it, decisions.md 111). After it, the row reads "Tom Translator asked you" with "Review it now".
 - Step 3: "Undone." Each review taken back stays in the history, crossed out, "undone just now".
 - Afterwards P-DRAFT has no peer review that counts, three taken back, and TRANS's request to REV is open: P-DRAFT is back on REV's My Work, and TRANS's "reviewed" update is gone.
 - Nothing is refused by the server.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the review's page, the step sheet's row and History each have Undo.

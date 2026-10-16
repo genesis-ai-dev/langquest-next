@@ -93,15 +93,19 @@ Steps:
 1. Tap "Done with this step".
 2. Look at the step bar and footer.
 3. Tap "Previous step".
-4. Tap "Next step", then "Done with this step" on step 2, then "Undo" on the toast.
+4. Tap "Next step", then "Done with this step" on step 2.
+5. Tap "Previous step" to go back to step 2, then tap "Undo" in its footer.
 
 Expected:
-- Step 1 shows the toast "Hear and Heart done · 1 of 6" with Undo, and the reader moves to step 2 ("2/6 Setting the Stage").
-- Step 3 shows step 1 with a green line "Done by you · Just now" (another person sees "Done by {TRANS-name} · …") in place of the Done button, and a ghost button "Next: Setting the Stage".
-- Step 4: the toast reads "Setting the Stage done · 2 of 6"; Undo shows "Undone." and step 2 is not done again (its footer is "Done with this step").
+- Step 1 shows the toast "Hear and Heart done · 1 of 6", with no Undo, and the reader moves to step 2 ("2/6 Setting the Stage").
+- Step 3 shows step 1 with a green line "Done by you · Just now" and "Undo" beside it (another person sees "Done by {TRANS-name} · …"; only people who may translate get the "Undo") in place of the Done button, and a ghost button "Next: Setting the Stage".
+- Step 4: the toast reads "Setting the Stage done · 2 of 6", with no Undo, and the reader moves to step 3.
+- Step 5: "Undo" shows "Undone." and step 2 is not done again (its footer is "Done with this step"). The step's "Undo" stays as long as the step is done; it does not run out.
 - The record's Study row reads "FIA guide · 1 of 6 steps".
 - The step bar's sheet lists step 1 with a check and reads "1 of 6 done · by {TRANS-name}".
 - A second device as REV sees step 1 done after Sync now (`v1.StudyStepMarked`): REV's reader opens on the next step to do, and its sheet lists "Step 1: Hear and Heart, done" with "1 of 6 done · by {TRANS-name}".
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the step's own "Undo" in its footer takes "done" back.
 
 ### STUDY-004 The last step, then "Record the first draft"
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -116,10 +120,12 @@ Steps:
 3. On P-S's study, mark every step done, then tap the footer's button.
 
 Expected:
-- Marking step 6 shows "Every step is done" with Undo.
+- Marking step 6 shows "Every step is done", with no Undo. Step 6's footer then shows "Done by you · Just now" with "Undo", which takes the step back.
 - On P-SUBMITTED (a version exists), the footer then reads "Open the recording workspace".
 - On P-S (no version), it reads "Record the first draft", and tapping it opens the workspace for P-S ("Recording Version 1").
 - The record's Study row reads "FIA guide · done".
+
+Changed (2026-10-16, decision 134): no toast offers Undo; each done step's own "Undo" in its footer takes it back.
 
 ### STUDY-005 Reviewers see the next step, not "Done"
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -172,9 +178,11 @@ Expected:
 - Step 1 lights the question and shows "Answer". A plain section shows "Add a note" instead.
 - The sheet's sub reads "It stays with the passage, and reviewers see it with the study."
 - "Add your answer" is disabled until something is said or typed. What is said or typed is kept on this device as a draft only TRANS sees (the sheet's saved mark), so closing the sheet and answering again brings it back (decision 127).
-- Step 4 shows the toast "Added to the study. Reviewers will see it with the passage.".
-- The answer shows under the question, labelled "Answer", with a play button for the voice.
+- Step 4 shows the toast "Added to the study. Reviewers will see it with the passage.", with no Undo.
+- The answer shows under the question, labelled "Answer", with a play button for the voice. Its card has "Undo", because it is TRANS's own (someone else's answer has the report flag instead). Do not tap it here: REV-011 uses this answer.
 - REV sees it in Review it → Background → "Guide" (REV-011) and in the study.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the "Undo" on your own answer's card takes it back.
 
 ### STUDY-008 A note at a moment of the spoken step
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -185,11 +193,15 @@ Preconditions:
 Steps:
 1. Play "This step, spoken" and at about 0:20 tap "Add a note here".
 2. Type "Ask the elders about the ring", tap "Add a note".
+3. Tap "Undo" on the note's card.
 
 Expected:
 - Step 1 pauses the recording and opens "Add a note".
-- Step 2 shows "Note added at 0:20. It stays with the study.".
-- The note shows under the player, labelled "At 0:20".
+- Step 2 shows "Note added at 0:20. It stays with the study.", with no Undo.
+- The note shows under the player, labelled "At 0:20". Its card has "Undo", because it is TRANS's own (someone else's note has the report flag instead).
+- Step 3 shows "Undone." and the note is gone from under the player. The card's "Undo" does not run out: it is there whenever TRANS opens the step.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the "Undo" on your own note's card takes it back.
 
 ### STUDY-009 The spoken step without a connection
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -576,7 +588,7 @@ Expected:
 - The footnote reads "Bibles you add are yours, on this device, for this language. Your team's recommended Bibles always come first."
 - Back from a Bible returns to the list; Back from the list returns to the workspace.
 
-### STUDY-031 Add to My Bibles, then Undo
+### STUDY-031 Add to My Bibles, then Remove
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -586,17 +598,19 @@ Steps:
 1. Tap a Bible.
 2. Read the detail, choose a chapter.
 3. Tap "Add to My Bibles".
-4. Tap "Undo" on the toast.
-5. Open the same Bible again and tap "Add to My Bibles".
+4. Open More Bibles again, open the same Bible, and tap "Remove from My Bibles".
+5. Tap "Add to My Bibles".
 
 Expected:
 - The detail shows its name, "{abbr} · Swahili", a badge "Can be kept offline" or "Streams only", and "No audio for the Old Testament" or "No audio for the New Testament" when the book has none.
 - Book and chapter chips (or "Previous chapter" and "Next chapter" for a library Bible) change the reader below.
-- Step 3 shows "{abbr} added to My Bibles" with Undo and returns to the passage.
-- Step 4 removes it again (it no longer shows in the Bible picker).
+- Step 3 shows "{abbr} added to My Bibles", with no Undo, and returns to the passage.
+- In step 4 the reopened Bible shows a disabled "In My Bibles" and the link "Remove from My Bibles". Tapping the link shows "{abbr} removed from My Bibles", the footer turns back to "Add to My Bibles", and the Bible picker no longer lists it.
 - After step 5 it shows in the Bible picker, with "My Bible" in the More Bibles list. Reopening it shows a disabled "In My Bibles" and a link "Remove from My Bibles".
 - If adding fails, the toast reads "Not added. Try again." and the screen stays.
 - Resets: TRANS's device has the Swahili Bible in My Bibles.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the Bible's "Remove from My Bibles" link takes it out again.
 
 ### STUDY-032 Remove from My Bibles
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
@@ -609,9 +623,11 @@ Steps:
 
 Expected:
 - It is removed: the footer turns back to "Add to My Bibles", and the Bible picker no longer lists it.
-- The person is told it was removed, or can undo it, as with adding.
+- The toast reads "{abbr} removed from My Bibles", with no Undo. "Add to My Bibles" in the footer adds it back. If removing fails, the toast reads "Not removed. Try again.".
 
 Fixed (2026-10-12): removing shows "{abbr} removed from My Bibles" with Undo, which adds it back, as adding does (`sources.tsx`); "Not removed. Try again." if it fails.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; the footer's "Add to My Bibles" adds it back.
 
 ### STUDY-033 More Bibles without Bible Brain, or offline
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto

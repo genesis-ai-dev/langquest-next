@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { alphaMembers, alphaPage, deviceAs, memberships, orgHome, quietReloads } from './people-helpers';
 import { clientAs, send } from './fixture';
-import { back, button, byId, expect, expectToast, field, openAs, primary, screenText, test, text, undoToast, useWorld } from './support';
+import { back, button, byId, expect, expectToast, field, openAs, primary, screenText, test, text, useWorld } from './support';
 
 const world = useWorld();
 const run = () => world().run;
@@ -112,8 +112,7 @@ test('PEOPLE-034 Make a new role', async ({ page, browser }) => {
   await switchNamed(page, 'Check recordings').click();
   await switchNamed(page, 'Choose who checks').click();
   await primary(page).click();
-  const t = await expectToast(page, `${elder} created.`);
-  await expect(t.getByTestId('toast-undo')).toHaveCount(0);
+  await expectToast(page, `${elder} created.`);
   await expect(text(page, elder)).toBeVisible();
   expect(await between(page, elder, null)).toMatch(/^ 0 members · 3 privileges/);
 
@@ -129,7 +128,7 @@ test('PEOPLE-034 Make a new role', async ({ page, browser }) => {
   }
 });
 
-test('PEOPLE-035 Edit a role, partly-on switches, and Undo', async ({ page }) => {
+test('PEOPLE-035 Edit a role, partly-on switches, and change it back', async ({ page }) => {
   const w = world();
   const elder = `Elder ${run()}`;
   const elders = `Elders ${run()}`;
@@ -156,8 +155,11 @@ test('PEOPLE-035 Edit a role, partly-on switches, and Undo', async ({ page }) =>
   await expect(text(page, elders)).toBeVisible();
   // Off then on again sets every privilege it covers: still three.
   expect(await between(page, elders, null)).toMatch(/^ 0 members · 3 privileges/);
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
+  // No toast offers Undo (decision 134): the role is opened again and its old name saved.
+  await text(page, elders).click();
+  await field(page, 'Its name').fill(elder);
+  await primary(page).click();
+  await expectToast(page, `${elder} saved.`);
   await expect(text(page, elder)).toBeVisible();
   await expect(text(page, elders)).toHaveCount(0);
 });

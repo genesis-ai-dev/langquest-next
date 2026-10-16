@@ -4,7 +4,8 @@ The passage record and everything one tap from it:
 - each fixture passage's main button, per role
 - the step sheet ("Then the team") and "Something else?"
 - Ask someone, and asking for a check from Done
-- Already happened, set aside, checkpoints and Undo
+- Already happened, set aside, checkpoints, and taking them back from
+  History
 - "Versions and history", the version and review pages, and the passage's
   reference page
 
@@ -29,6 +30,11 @@ fixture world and the role matrix hold for every test here.
   and publishes in the same tap ("Ask the Peer check team"); "Someone else"
   and "Send later" finish it too. There is no "Version N published" page:
   every way out lands on the record's path (06 REC-011).
+- Since decision 134 no toast offers Undo. A toast says what happened, with
+  a close ✕, for about 3.5 s. What is done here is taken back from
+  "Versions and history" → "History" ("Undo", or "Withdraw" on a request),
+  from the step sheet's "Undo" under your own check, or from your own
+  review's page.
 - Since decision 91 the Translator role holds Review, so TRANS and KEPT may
   check other people's versions (never their own unless asked).
 - Recording, the review screens and the study belong to 06 REC, 07 REV and
@@ -328,7 +334,8 @@ Steps:
 1. Open P-DRAFT. Tap "Continue recording", then "Done" (06 REC).
 2. Read the Done screen, before anything is published.
 3. Tap "Ask the Peer check team".
-4. Within 7 seconds, tap "Undo" on the toast.
+4. Open "Versions and history" → "History" and tap "Withdraw" on the request
+   to the Peer check team. Close with ✕.
 
 Expected:
 - The Done screen is titled "Luke 14:1-14", with the sub "Version 1" and ✕
@@ -341,14 +348,17 @@ Expected:
   else" and "Send later".
 - Tapping the button publishes Version 1 and asks, in one write. The app
   returns to the path and shows "Sent to the Peer check team — anyone on it
-  will see it on My Work", with "Undo". The "Peer check" card reads "asked
-  the Peer check team".
-- "Undo" takes back the asking, not the version: it shows "Undone.", the
-  card goes back to "next", Version 1 stays published, and REV's My Work
-  (after Sync now) does not list Luke 14:1-14.
+  will see it on My Work". The toast has no Undo. The "Peer check" card
+  reads "asked the Peer check team".
+- "Withdraw" takes back the asking, not the version: it shows "Request
+  withdrawn" and the entry reads "withdrawn". Back on the path the card
+  reads "next" again, Version 1 stays published, and REV's My Work (after
+  Sync now) does not list Luke 14:1-14.
 - Changed (2026-10-15, decision 127): the page after publishing (a big
   green ✓, "Version 1 published", its upload line, fixed 2026-10-12 in
   REC-034, and "Next, ask for a check") is gone. Asking happens on Done.
+- Changed (2026-10-16, decision 134): no toast offers Undo; History's
+  Withdraw takes the request back.
 
 Resets: P-DRAFT is now Version 1, with the Peer check not asked.
 
@@ -497,7 +507,7 @@ Expected:
 
 Resets: P-NEEDS is at Version 2.
 
-### PASS-020 Keep it, say why, and Undo
+### PASS-020 Keep it, say why, and Undo from History
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
@@ -509,19 +519,22 @@ Steps:
 2. Read the page. Try to tap "Keep it".
 3. Type "The pace is right for our listeners" in "Or type it". Tap "Keep
    it".
-4. Tap "Undo" on the toast.
+4. Open "Versions and history" → "History" and tap "Undo" on "Kept after
+   Peer check". Close with ✕.
 
 Expected:
 - The page reads "Keep it as it is?" with "Say why. {REV} and the team will
   hear it.", a big "Tap and say why" button, and "Or type it".
 - "Keep it" stays disabled until there is a voice note or text.
-- The toast reads "Kept · your reason is on the record" with "Undo". The app
-  returns to the record. "Hear the feedback" is gone, and the step sheet
+- The toast reads "Kept · your reason is on the record", with no Undo. The
+  app returns to the record. "Hear the feedback" is gone, and the step sheet
   marks Peer Review "Feedback answered".
-- "Undo" shows "Undone — the feedback is waiting again" (REV-044), and
-  "Hear the feedback" is back.
+- History's "Undo" shows "Undone — the feedback is waiting again" (REV-044),
+  and "Hear the feedback" is back.
 - Android back on the keep page returns to the feedback page, not the
   record.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo on the kept entry brings the feedback back.
 
 ## The step sheet ("Then the team")
 
@@ -571,7 +584,7 @@ Steps:
 
 Expected:
 - The sheet closes. The toast "Sent to the Peer check team — anyone on it
-  will see it on My Work" shows, with "Undo".
+  will see it on My Work" shows, with no Undo.
 - The "Peer check" card reads "asked the Peer check team".
 - REV and TREV see Luke 14:1-14 on My Work, asked by {TRANS}.
 - TRANS's My Work → "Waiting on others" lists it.
@@ -582,7 +595,9 @@ Expected:
 Resets: withdraw the request from History straight away ("Withdraw",
 PASS-044), so that PASS-037 finds the Peer check not asked.
 
-### PASS-023 Set a check aside, with a reason, and Undo
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Withdraw takes the request back.
+
+### PASS-023 Set a check aside, with a reason, and Undo from History
 Roles: TRANS, REV, COORD · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
@@ -590,7 +605,8 @@ Steps:
 2. On the Back translation, tap "Set aside".
 3. Read the sheet. Try to tap "Set aside".
 4. Tap "Not needed for this passage". Tap "Set aside".
-5. Within 7 seconds, tap "Undo".
+5. Open "Versions and history" → "History" and tap "Undo" on "Back
+   translation set aside". Close with ✕.
 
 Expected:
 - The step sheet closes, then the sheet "Set aside Back translation?" opens.
@@ -602,12 +618,15 @@ Expected:
 - The footnote reads "This goes in the passage's record with your name. It
   can be undone later; the record keeps both."
 - "Set aside" is disabled until a reason is chosen, typed or said.
-- After confirming: the toast "Back translation set aside · reason saved"
-  with "Undo". The check is marked "Set aside", with "Set aside: Not needed
+- After confirming: the toast "Back translation set aside · reason saved",
+  with no Undo. The check is marked "Set aside", with "Set aside: Not needed
   for this passage".
-- "Undo" shows "Undone.", and the check is "Not yet" again.
-- History keeps both acts: "Back Translation set aside · brought back
-  {when}".
+- History's "Undo" shows "Brought back — it's a suggested step again", and
+  the check is "Not yet" again.
+- History keeps both acts: "Back translation set aside · brought back just
+  now".
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo brings the check back.
 
 ### PASS-024 Set aside with only a voice note
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android · Run: Device
@@ -737,13 +756,17 @@ Steps:
 1. Open a Version 1 of TRANS's whose Peer check nobody has asked for. Tap
    "Something else?", then "Not now".
 2. Choose "No one available for this right now". Tap "Set aside".
-3. Tap "Undo".
+3. Tap ✕. Open "Versions and history" → "History" and tap "Undo" on "Peer
+   check set aside".
 
 Expected:
 - The sheet "Set aside Peer check?" opens, as in PASS-023.
-- The toast reads "Peer check set aside · reason saved" with "Undo". "Undo"
-  shows "Undone.".
+- The toast reads "Peer check set aside · reason saved", with no Undo.
 - The page stays on "Something else?", on every platform.
+- History's "Undo" shows "Brought back — it's a suggested step again", and
+  the Peer check is no longer set aside.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo brings the check back.
 
 ### PASS-031 Record a new version, or continue
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -777,12 +800,14 @@ Expected:
 - The sheet's sub reads "On the whole passage. It follows the passage into
   reviews and later versions." It has "Say it" and "Or type it".
 - "Add note" is disabled until there is text or a voice note.
-- The toast reads "Note added — it follows this passage", with "Undo".
+- The toast reads "Note added — it follows this passage", with no Undo.
 - TREV's lit "Record" step (if not recorded), or History, shows "{TRANS}'s
   note". In History it is "Note · {anchor}", with a report flag (PASS-066).
   TRANS sees "Undo" on it instead: their own note, which they may take back
-  (decisions.md 111).
+  (decisions.md 111). It shows "Undone.".
 - REV can add a note. VIEW has no "Add a note" tile.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo on your own note takes it back.
 
 ### PASS-033 Say it instead
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android · Run: Device
@@ -803,7 +828,8 @@ Roles: TRANS, VIEW, COORD, LADMIN · Priority: P1 · Platforms: iOS, Android, We
 Steps:
 1. Open P-SUBMITTED. Tap "Something else?", then "What helps here".
 2. Read the page.
-3. COORD and LADMIN: on a study guide, tap "Hide here", then "Undo".
+3. COORD and LADMIN: on a study guide, tap "Hide here", then "Show here" on
+   the same card.
 
 Expected:
 - The header is "What helps here", with the sub "Alpha" and Back. There is no
@@ -819,14 +845,18 @@ Expected:
 - TRANS and VIEW see the cards only, with no "Hide here", "Show here" or
   "Add a help".
 - COORD and LADMIN (Reference material) get "Show here" / "Hide here" on each
-  card; "Hide here" shows "{name} is hidden on this passage." with "Undo".
-  Undo restores the link. They also get "Add a help" (a note for translators
-  first, then the library; 08 STUDY covers adding). The automated test checks
-  "Hide here" only when a card is offered.
+  card; "Hide here" shows "{name} is hidden on this passage.", with no Undo.
+  The card stays on their page, its line reading "Hidden here", and "Show
+  here" restores the link ("{name} shows on this passage again."). They also
+  get "Add a help" (a note for translators first, then the library; 08 STUDY
+  covers adding). The automated test checks "Hide here" only when a card is
+  offered.
 - Back returns to "Something else?".
 - Updated (2026-10-13): main's "Decide about a passage with its text open"
   (0a6934c, demo ADR-042, design principles 12 and 13): the page was titled
   "Reference" and listed groups ("Bibles · {n}") with an "Add" footer.
+- Changed (2026-10-16, decision 134): no toast offers Undo; "Show here" on
+  the same card brings a hidden help back.
 
 ### PASS-035 Keep a passage on this device
 Roles: TRANS, VIEW · Priority: P1 · Platforms: iOS, Android · Run: Auto
@@ -933,31 +963,36 @@ Expected:
 - There is no "By when · optional", no date chip, no date field and no
   "Due {day}" line (decision 126).
 - After sending, the toast reads "{TREV} will see it on their My Work", with
-  "Undo". The app returns to P-DRAFT's record.
+  no Undo. The app returns to P-DRAFT's record.
 - The "Peer check" card reads "asked {TREV}".
 - History shows "Asked {TREV} for Peer Review", "You · {when} — open", with
-  "Withdraw".
+  "Withdraw": the way to take the request back.
 - TREV's My Work lists "Luke 14:1-14", "… asked by {TRANS}". In
   the review the directions and the question appear (07 REV).
 
-### PASS-039 Ask someone to record, then Undo
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Withdraw takes the request back.
+
+### PASS-039 Ask someone to record, then withdraw it
 Roles: COORD, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Open an unstarted Luke passage nobody was asked to record. Tap "Something
    else?", then "Someone else should do this".
 2. Pick KEPT ("Kept Person"). Tap "Ask Kept".
-3. Within 7 seconds, tap "Undo".
+3. Open "Versions and history" → "History" and tap "Withdraw" on "Asked Kept
+   Person to record". Close with ✕.
 
 Expected:
-- The toast reads "Kept Person will see it on their My Work" with "Undo".
+- The toast reads "Kept Person will see it on their My Work", with no Undo.
   The app returns to the record's path, where "Record" reads "You asked Kept
   Person. Tell it…".
-- "Undo" shows "Undone.". The Record step loses the "asked" line, and
-  History shows the request as withdrawn.
+- "Withdraw" shows "Request withdrawn", and History shows the request as
+  withdrawn. Back on the path the Record step has lost the "asked" line.
 - LADMIN can do the same in Alpha (Assign work, Send to reviewers).
 - Fixed (2026-10-12): asking from "Something else?" came back to "Something
   else?", not the path (`passage_record` now takes an `asked` param).
+- Changed (2026-10-16, decision 134): no toast offers Undo; History's
+  Withdraw takes the request back.
 
 ### PASS-040 Typing a due date (retired)
 Removed with due dates (decision 126). The number is not reused.
@@ -999,7 +1034,7 @@ Expected:
   number. Sending the no-account link from the app is not ready yet."
 - With "123" the footer stays disabled (more than 3 characters are needed).
 - After sending, the toast reads "Asked Pastor Garang · the request is on the
-  record", with "Undo".
+  record", with no Undo. History's "Withdraw" takes it back (PASS-044).
 - The Back translation's sub reads "Waiting on Pastor Garang · by link over
   SMS".
 - Known issue (2026-10-12): nothing is sent to the phone, and the link page
@@ -1009,6 +1044,8 @@ Expected:
   Garang · Back Translation".
 
 Resets: withdraw the request (PASS-044).
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Withdraw takes the request back.
 
 ### PASS-043 Who may ask
 Roles: TRANS, REV, TREV, COORD, LADMIN, KEPT, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (model)
@@ -1077,11 +1114,14 @@ Expected:
 - The verdict question is "Is it accurate and natural?". "Looks good" and
   "Needs changes" are disabled while a required question is open, with
   "{n} required question(s) left — answer, or say why not".
-- Saving shows "Peer Review added to the record", with "Undo" (whoever
-  logged a check may take it back, decisions.md 111). The app returns to the
-  record.
+- Saving shows "Peer Review added to the record", with no Undo. The app
+  returns to the record. Whoever logged a check may take it back with "Undo"
+  on it in History, under their check in the step sheet, or on the review's
+  page (decisions.md 111).
 - Peer Review is marked "Looks good". TREV's request is done, and P-DRAFT
   leaves TREV's My Work after Sync.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo on the logged review takes it back.
 
 ### PASS-048 A check that happened outside the app: Needs changes
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1205,7 +1245,8 @@ Expected:
   now" and "Checked informally — will record it later". There is a voice
   note and a typed reason.
 - "Move past checkpoint" is disabled until there is a reason.
-- The toast reads "Moved past the checkpoint · reason saved", with "Undo".
+- The toast reads "Moved past the checkpoint · reason saved", with no Undo.
+  History's "Undo" takes it back (PASS-056).
 - "Then the team" reads "Consultant check" "moved past" and "Final approval"
   "next".
 - "Consultant check"'s sheet's sub reads "Checkpoint moved past, with a
@@ -1215,6 +1256,8 @@ Expected:
 - History shows "Moved past a checkpoint" with the reason and COORD's name.
 - Fixed (2026-10-12): "Then the team" never showed "moved past"
   (`pathModel.ts` `teamSteps` now reads the override).
+- Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo
+  brings the checkpoint back.
 
 ### PASS-055 A language lead may not move past a checkpoint
 Roles: LADMIN · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
@@ -1489,12 +1532,14 @@ Steps:
 5. Read My Work's chip. Turn the network on and wait 30 seconds.
 
 Expected:
-- Each act shows its usual toast at once, with Undo where it is offered.
-  None of them waits for the network.
+- Each act shows its usual toast at once, with no Undo. None of them waits
+  for the network.
 - The record shows each change straight away.
 - My Work's chip reads "{n} to send" while offline.
 - Online, the chip goes away. A second device sees every change (G10.3,
   G10.4).
 - "refused by the server" stays 0 (G10.2).
 
-Resets: undo the set aside, and withdraw the request.
+Resets: undo the set aside, and withdraw the request, from History.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo and Withdraw take each act back.
