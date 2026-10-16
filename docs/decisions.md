@@ -5226,3 +5226,27 @@ instead of 1.7 GB), and opens in 33 s.
 Reverse if: bringing a passage in from disk makes moving between passages
 noticeably slow on a cheap phone, or the lines themselves outgrow cheap
 phones (then lists page their lines from disk).
+
+Amended (2026-10-16, Carl Sauder): merged onto main at decision 133 as
+`carl/big-languages-e`, option E of `docs/big-languages-plan.md`, which
+weighs the alternatives and sets out option F (the server cuts the
+snapshot by passage) as the step after. What the merge settled:
+`markChanged` is an `all` touch for the incremental views (120); a
+checkpoint from another reducer takes the kept rows and lines with it
+(110); a review or note taken back is a passage part hanging on what it
+takes back (111); two copies of a take keep the first archive's who and
+when (124). Closed on the way: a pull of the whole log from the start
+(after a reducer bump before the server has a snapshot for it, or a
+redaction waited out) skipped every checkpoint until the tail was reached,
+so a language of Santhali's size would have been folded whole into memory
+before its first cut to rows. A language kept on disk now checkpoints
+every `checkpointEvery` events while catching up, each one moving the
+passages folded so far onto disk and out of memory, except once a
+redaction was pulled in the slice, whose target the refold at the end
+undoes from the log (`keptLanguage.test.ts` holds a pull from zero under
+the limit throughout). Known cost: a first
+download works out every passage's line on the phone (Koro × 4: 33 s; a
+language of Santhali's size, an estimated one to two minutes), which F
+removes. Still open from the plan: folding the local log in pages rather
+than from one array (`store.all`), and moving the whole-language guard
+(`apps/mobile/test/wholeLanguage.test.ts`) into lint.
