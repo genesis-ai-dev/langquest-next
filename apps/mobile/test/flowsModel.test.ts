@@ -7,7 +7,7 @@ import {
   addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor,
   withAddedKinds
 } from '../src/flows/model';
-import { draftFromDoc, type DraftStep } from '../src/screens/configModel';
+import { draftFromDoc, type DraftStep } from '../src/config/model';
 import { language } from './configFixtures';
 
 const kind = (id: string, extra: Partial<KindDef> = {}): KindDef => ({ id, name: id.toUpperCase(), description: '', usualReviewer: '', ...extra });

@@ -1,24 +1,13 @@
-// Pure port of the native voice-activity detector (MicrophoneEnergyModule.kt,
-// handleVADLocked and startSegment; the Swift module is the same). The web
-// module feeds it frames; tests feed it synthetic ones. Keep it in step with
-// the native code: a take that splits differently on web is a false result.
-import type { VADConfig } from './MicrophoneEnergyModule';
+// The microphone's frames as the native modules see them, for the web
+// module: their size, their level, a take's head start, and the WAV a part is
+// written as. Where parts split is splitter.ts (LAN-82).
 
 export const SAMPLE_RATE = 44100;
 /** Samples per frame: iOS taps 2048 frames; Android's read size is close to it. */
 export const FRAME_SAMPLES = 2048;
 const FRAME_MS = FRAME_SAMPLES / (SAMPLE_RATE / 1000);
-/** Frames kept for preroll. */
-export const RING_FRAMES = 10;
 /** Manual startSegment without prerollMs. */
 export const DEFAULT_PREROLL_MS = 200;
-
-/** confirmMultiplier is in the JS type, but neither native configureVAD reads it. */
-type VadSettings = Required<Omit<VADConfig, 'confirmMultiplier'>>;
-const VAD_DEFAULTS: VadSettings = {
-  threshold: 0.05, onsetMultiplier: 0.1, maxOnsetDuration: 250, silenceDuration: 300,
-  minSegmentDuration: 500, rewindHalfPause: true, minActiveAudioDuration: 250, sustainMultiplier: 0.5
-};
 
 /** Peak amplitude, clamped to -60..0 dB and returned as a linear 0..1 value. */
 export function peakEnergy(samples: Float32Array): number {
@@ -31,85 +20,6 @@ export function peakEnergy(samples: Float32Array): number {
 /** How many ring frames a preroll of `ms` covers (native truncates). */
 export function prerollFrames(ms: number): number {
   return Math.trunc(ms / FRAME_MS);
-}
-
-type VadAction =
-  | { type: 'start'; prerollMs: number }
-  /** `discard`: too little active audio; native deletes the file and emits an empty uri. */
-  | { type: 'stop'; discard: boolean; rewindMs: number };
-
-type State = 'IDLE' | 'ONSET_PENDING' | 'RECORDING';
-
-export class Vad {
-  settings: VadSettings = { ...VAD_DEFAULTS };
-  state: State = 'IDLE';
-  private preOnsetCutPoint = 0;
-  private lockedOnsetTime = 0;
-  private lastAboveThresholdTime = 0;
-  private recordingStartTime = 0;
-  private activeAudioTime = 0;
-  private lastFrameTime = 0;
-
-  configure(config: VADConfig): void {
-    for (const [key, value] of Object.entries(config)) {
-      if (value !== undefined) (this.settings as Record<string, unknown>)[key] = value;
-    }
-  }
-
-  /** enableVAD: every timer starts over. */
-  reset(): void {
-    this.state = 'IDLE';
-    this.preOnsetCutPoint = this.lockedOnsetTime = this.lastAboveThresholdTime = 0;
-    this.activeAudioTime = this.lastFrameTime = 0;
-  }
-
-  /** One frame's energy at time `now` (ms). Returns what the recorder must do. */
-  step(energy: number, now: number): VadAction | null {
-    const s = this.settings;
-    const onsetThreshold = s.threshold * s.onsetMultiplier;
-    if (energy > s.threshold) this.lastAboveThresholdTime = now;
-    switch (this.state) {
-      case 'IDLE':
-        this.preOnsetCutPoint = Math.max(0, now - s.maxOnsetDuration);
-        if (energy > onsetThreshold) {
-          this.state = 'ONSET_PENDING';
-          this.lockedOnsetTime = this.preOnsetCutPoint;
-          if (energy > s.threshold) return this.confirm(now);
-        }
-        return null;
-      case 'ONSET_PENDING':
-        if (now - this.lockedOnsetTime > s.maxOnsetDuration) this.lockedOnsetTime = now - s.maxOnsetDuration;
-        if (energy > s.threshold) return this.confirm(now);
-        if (energy <= onsetThreshold) this.state = 'IDLE';
-        return null;
-      case 'RECORDING': {
-        // An open part keeps going while the voice stays above `sustainMultiplier`
-        // of the cutoff (decisions.md 106): a soft stretch is speech, not a pause.
-        if (energy > s.threshold * s.sustainMultiplier) {
-          this.lastAboveThresholdTime = now;
-          this.activeAudioTime += now - this.lastFrameTime;
-        }
-        this.lastFrameTime = now;
-        const silent = now - this.lastAboveThresholdTime >= s.silenceDuration;
-        if (silent && now - this.recordingStartTime >= s.minSegmentDuration) {
-          this.state = 'IDLE';
-          return {
-            type: 'stop',
-            discard: this.activeAudioTime < s.minActiveAudioDuration,
-            rewindMs: s.rewindHalfPause ? Math.trunc(s.silenceDuration / 2) : 0
-          };
-        }
-        return null;
-      }
-    }
-  }
-
-  private confirm(now: number): VadAction {
-    this.state = 'RECORDING';
-    this.lastAboveThresholdTime = this.recordingStartTime = this.lastFrameTime = now;
-    this.activeAudioTime = 0;
-    return { type: 'start', prerollMs: now - this.lockedOnsetTime };
-  }
 }
 
 /** One segment's PCM: preroll plus captured frames, minus the trimmed tail. */

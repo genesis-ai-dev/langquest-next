@@ -22,7 +22,7 @@ export interface WriteBatch {
 
 /**
  * One record a big language keeps on the phone rather than in memory
- * (decisions.md 110): an entry of a map the language is cut into by
+ * (decisions.md 134): an entry of a map the language is cut into by
  * passage (a recording, a take, a review, a note; core `PASSAGE_PARTS`),
  * the server's verdict on an audio file (`file`), which record names an
  * audio file (`audio`), or a passage's line for lists (`line`). `json` is
@@ -155,7 +155,7 @@ export interface SnapshotMeta {
  * push; a clock-ahead refusal re-stamps the clock; invalid payloads never
  * retry.
  */
-type RejectCode = 'NOT_MEMBER' | 'NOT_ALLOWED' | 'NOT_LISTED' | 'INVALID' | 'CLOCK_AHEAD' | 'UNKNOWN';
+export type RejectCode = 'NOT_MEMBER' | 'NOT_ALLOWED' | 'NOT_LISTED' | 'INVALID' | 'CLOCK_AHEAD' | 'UNKNOWN';
 
 export function rejectCodeOf(reason: string | undefined): RejectCode {
   const r = reason ?? '';
@@ -175,6 +175,34 @@ export class OfflineError extends Error {
 }
 
 /**
+ * The phone holds a sign-in it could not renew yet (a rate limit, a 5xx, or
+ * a captive portal answering for Supabase Auth), so the request was stopped
+ * before it went out as no one (apps/mobile/src/server/sessionSafeFetch.ts).
+ * It behaves as offline: work stays queued and nothing is refused. Only
+ * diagnostics tell the two apart, because "offline" while the radio is fine
+ * sends support looking at the wrong thing.
+ */
+export class UnrenewedError extends OfflineError {
+  override name = 'UnrenewedError';
+}
+
+/** The texts sessionSafeFetch.ts fails with while the sign-in cannot be renewed (`NOT_RENEWED`, and a renewal's own answer). */
+export const UNRENEWED_TEXT = /sign-in could not be renewed|sign-in renewal answered/i;
+
+/**
+ * The server answered with a failure that is neither a refusal nor a
+ * version check. `code` is its own fixed code (a SQLSTATE such as `57014`,
+ * a PostgREST `PGRST…`) or `http<status>`, never a message, so diagnostics
+ * can keep it.
+ */
+export class ServerError extends Error {
+  override name = 'ServerError';
+  constructor(message: string, readonly code: string | undefined) {
+    super(message);
+  }
+}
+
+/**
  * The server was reached and refused the request: this actor is not a member
  * of the stream, or lacks the privilege. Distinct from `OfflineError` on
  * purpose (PLAN.md invariant 1 keeps queued work, but a device whose session
@@ -188,4 +216,12 @@ export class NotAuthorizedError extends Error {
 /** The server refuses this client's protocol version; the app must upgrade. */
 export class ClientTooOldError extends Error {
   override name = 'ClientTooOldError';
+}
+
+/**
+ * An event bigger than the server takes (core `eventSizeError`, decisions.md
+ * 115). Refused before it is recorded: kept, it could never be sent.
+ */
+export class EventTooLargeError extends Error {
+  override name = 'EventTooLargeError';
 }

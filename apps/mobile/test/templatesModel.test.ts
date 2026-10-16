@@ -2,7 +2,7 @@
 // the lines a card says, what the picker offers, and when the editor may save.
 import { describe, expect, it } from 'vitest';
 import type { LibraryItemView, TemplateDoc, TemplateDocV2, VersificationDoc } from '@langquest-next/core';
-import { newTemplateForm, type LibraryChoice, type TemplateForm } from '../src/contentTemplates';
+import { newTemplateForm, type LibraryChoice, type TemplateForm } from '../src/templates/contentTemplates';
 import type { SharedItem } from '../src/library/model';
 import {
   bookRowSub, choiceInUse, defaultDisplay, displayExample, editorSub, filterBooks, formReady, isOpenLanguage, joinNames, languageSummary,

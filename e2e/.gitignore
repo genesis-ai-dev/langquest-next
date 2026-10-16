@@ -1,2 +1,6 @@
 results/
 fixtures/*.wav
+
+# Local-only test settings and fixtures (a private stack's port, realistic demo names): never committed.
+*.local.ts
+*.local.config.ts

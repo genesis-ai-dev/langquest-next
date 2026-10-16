@@ -36,6 +36,10 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
 2. **Report**: `npm run diag -- report <org> <language> --days 14`. Widen
    `--days` if the problem is older. Read the signals first, then the
    install sections for the role in question.
+   If the person never opened a language (no organization yet, a join
+   request waiting, stuck at sign-in or on the organization stream), use
+   `npm run diag -- org <org>` (every member's phones, and members never
+   heard from) or `npm run diag -- person <profileId>`.
 3. **Narrow** to one phone: `--install <id>` on the report, then
    `npm run diag -- timeline <id> --days 3` to see the order of events
    around when it went wrong (sync outcomes, snapshot, transfer tallies,
@@ -43,7 +47,10 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
 4. **An error code** someone read out: `npm run diag -- error <code>` gives
    the frames, the build and the 30 records before it. Map frames to source
    with the update id's source maps.
-5. **Server side**: `diag.rpc_stats()` is in the report. For a specific
+5. **Server side**: `diag.rpc_stats()` is in the report, and
+   `npm run diag -- jobs` shows the server's own jobs (push delivery,
+   projection passes, the v2 import, webhooks, invite email, Worker
+   errors): last success, failure streaks, stale jobs. For a specific
    window, the hosted project's API and storage logs, filtered by time.
 6. **Cross-check with code**: sync is `packages/sync/src/syncClient.ts`
    (`pullSlice`, `adoptServerSnapshot`), transfers are
@@ -65,15 +72,30 @@ role on a hosted database (`DIAG_DATABASE_URL`) or the local database.
 | `failHttp4xx` | Session expired or signing refused | Sync outcomes `refused`; membership |
 | `failHash` | Corrupt or truncated downloads | Storage object sizes vs `v1.BlobStored` (blob reconciler) |
 | `too_old` outcomes | Build below `server_config.min_client_version` | Context `runtimeVersion`, `updateId` |
+| `load` with `staleCheckpointSeq`, then a `snapshot` record | An update changed the reducer: the phone dropped its checkpoint and fetches the stream again (decisions.md 110); it looks partial until that finishes | Snapshot outcome `none` means it pulls the whole log: `partition_health.snapshots` for the current reducer |
 | Problems begin at a new `updateId` | Regression in an over-the-air update | Roll back the update first (error-tracking section 7) |
 | `clockAheadS` large | Phone clock ahead; events refused `clock ahead` and re-stamped | Sync `rejected` |
 | `freeDiskMb` < 500 | Recording and downloads constrained | `blobCacheMb`, `blobsWanted` |
+| Sync outcome `unrenewed` | The sign-in could not be renewed: a rate limit, an Auth 5xx, or a captive portal answering with a page. Not "no signal" | `auth` renew records (`status`); time of day; other members on the same network |
+| Sync `errorCodes` like `pull:57014` | A statement timeout on the server for that phase | `rpc_stats`, the stream's size in `language_health` |
+| `failTooLarge` on uploads | A recording over the Worker's limit, retried for ever | `blobs.maxBytes`; the recorder's format (WAV kept after `encodeFail`) |
+| `failGone`, `lostFiles`, `lostRecordings` | Files removed behind the app's back (decision 92) | `freeDiskMb`, OS version; tell the person which passages to record again (the app's alert does) |
+| `oldestUnsentMin` large | A recording is not reaching the server | Upload failures by cause; `auth` ended or renew records |
+| `audio.micRefused` | Microphone permission off | Tell the person to allow it in the phone's settings |
+| `audio.saveFail` / error code `nospace` | Disk full while recording | `freeDiskMb` |
+| `auth` `ended` | Signed out by the server (a lost-phone code, a reused refresh token, a revoked session) | `pending`: unsent work waiting for the next sign-in |
+| `auth` `redeem`/`join` `refused` with an attempt count | An invite refused for a reason the app retries | The code (42501, http5xx) |
+| `auth` `courier` `gone`/`unreachable` | Work another person left on a shared phone cannot be handed over | `eventsLeft`, `uploadsLeft` |
+| `expected` with a large count | The same shown-to-the-person failure, over and over | `where` and code name the screen and cause |
+| `diagDropped` | The phone was offline long enough to drop records | The history is incomplete; widen nothing, ask nothing |
+| `diag -- jobs` shows a stale job | A cron, the GitHub projection job or a Worker stopped | The job's last error class; GitHub Actions or Cloudflare logs for that window |
 
 ## Changing what is recorded
 
 Add a field to `DIAG_SCHEMA` and to the JSON in `diag.schema()` in a new
 migration (never edit a shipped one); `scripts/diagSchema.test.ts` fails
-until both agree. A new field must be a measurement or a code-written tag,
+until both agree, and `scripts/playDeclarations.test.ts` until the facts
+block in `docs/play-store-declarations.md` lists it. A new field must be a measurement or a code-written tag,
 never something a person typed or said. Add a signal and a test in
 `scripts/diagSignals.ts` if the field answers a question. Anything that
 would identify a person, or record content, is a new decision

@@ -3,27 +3,31 @@
 // (REV-2), the question list with "Can't answer this?", earlier reviews that
 // play in place, the content a checking kind compares against (REV-5), the
 // background a reviewer opens on request as one collapsed card (REV-1,
-// ADR-013, ADR-029), the strip of review stages (REV-0), and the
-// "Also covered in this session" picker for a review that already happened
-// (REV-6, ADR-028). Built from kit.tsx only.
+// ADR-013, ADR-029) and the strip of review stages (REV-0). A review that
+// already happened goes on its one passage (decision 128), so the demo's
+// "Also covered in this session" picker is not here. Built from kit.tsx only.
 import type { KindDef, KeyTermView, PassageNote, RequestView, ReviewView, SourcedQuestion, Version } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import type { Ctx } from '../ctx';
-import {
-  Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore, txt, useLayout
-} from '../kit';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import type { Ctx } from '../shell/ctx';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SectionLabel, ShowMore } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout } from '../ui/useLayout';
 import { t } from '../i18n';
-import { dueText, feedbackSource, outcomeText, versionTitle, when } from '../passageView';
-import { Authored, authoredText, recordTarget, ReportFlag } from '../reportSheet';
+import { feedbackSource, outcomeText, versionTitle, when } from '../passage/passageView';
+import { Authored, ReportFlag } from '../moderation/reportSheet';
+import { authoredText, recordTarget } from '../moderation/reportTargets';
 import type { StudyProgress } from '../study/progress';
 import { studySummary } from '../study/progress';
-import { StepMark, stepLine } from '../study/ui';
-import { C, measure, radius, space, target, TINT, type as T, withAlpha } from '../theme';
+import { StepMark } from '../study/ui';
+import { stepLine } from '../study/studyText';
+import { C, measure, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import {
-  questionSource, searchPassages, nearbyPassages, summaryLine, YES_NO, yesNoLabel, type Answers, type PassageChoice, type Skips, type Stage, type StageId
+  questionSource, summaryLine, YES_NO, yesNoLabel, type Answers, type Skips, type Stage, type StageId
 } from './capture';
 
 // ---- answers --------------------------------------------------------------------------
@@ -34,10 +38,12 @@ import {
  * so this stays; a screen reader hears it as one radio of the set.
  */
 function Choice(props: { label: string; on: boolean; onPress: () => void; big?: boolean }) {
+  const spot = useHelpSpot(props.label, t('review.simple.yourAnswerHelp'), props.onPress);
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityState={{ checked: props.on }} aria-checked={props.on} accessibilityLabel={props.label}
       style={({ pressed }) => [styles.choice, props.on ? { backgroundColor: C.primary } : null, pressed && { opacity: 0.7 }]}>
       <Text style={[props.big ? styles.choiceBig : styles.choiceLabel, { color: props.on ? C.white : C.dark }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -90,12 +96,12 @@ export function QuestionList(props: {
             {skip !== undefined ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
                 <Text style={[txt.smMuted, { flex: 1 }]}><Text style={{ fontWeight: '700' }}>{t('review.parts.leftUnanswered')}</Text> {skip}</Text>
-                <LinkBtn label={t('review.parts.answer')} onPress={() => props.onUnskip(id)} />
+                <LinkBtn label={t('review.parts.answer')} help={t('review.screen.answerItHelp')} onPress={() => props.onUnskip(id)} />
               </View>
             ) : (
               <>
                 <AnswerInput type={sq.q.type} value={answers[id]} onChange={(v) => props.onAnswer(id, v)} />
-                {sq.required && unanswered ? <LinkBtn label={t('review.parts.cantAnswer')} color={C.muted} onPress={() => props.onSkip(id)} /> : null}
+                {sq.required && unanswered ? <LinkBtn label={t('review.parts.cantAnswer')} color={C.muted} help={t('review.parts.cantAnswerHelp')} onPress={() => props.onSkip(id)} /> : null}
               </>
             )}
           </Card>
@@ -131,7 +137,7 @@ export function RequestBanner(props: { ctx: Ctx; request: RequestView }) {
   const who = r.by ? props.ctx.name(r.by) : t('common.someone');
   return (
     <View style={{ gap: space.sm }}>
-      <Banner icon={r.guest ? 'link' : 'assign'} title={r.dueDate ? t('review.parts.askedDue', { name: who, due: dueText(r.dueDate) }) : t('review.parts.asked', { name: who })}
+      <Banner icon={r.guest ? 'link' : 'assign'} title={t('review.parts.asked', { name: who })}
         {...(r.note ? { body: authoredText(props.ctx, r.by, r.note) } : {})} />
       {r.noteBlobHash ? (
         <Authored ctx={props.ctx} by={r.by}>
@@ -190,18 +196,6 @@ export function CompareCard(props: { ctx: Ctx; review: ReviewView; kind: KindDef
         ) : null}
       </Authored>
     </Card>
-  );
-}
-
-/** Notes and earlier reviews are hidden for this kind; say so (REV-4). */
-export function WithheldNotice(props: { kind: KindDef }) {
-  return (
-    <View style={styles.withheld}>
-      <Ico name="lock" size={18} color={TINT.grayText} />
-      <Text style={[txt.sm, { flex: 1, color: TINT.grayText }]}>
-        {t('review.parts.withheld', { kind: props.kind.name })}
-      </Text>
-    </View>
   );
 }
 
@@ -275,7 +269,7 @@ function FromTranslatorPart(props: {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
           {props.terms.map((term) => {
             const rendering = term.renderings.at(-1)?.rendering;
-            return <Chip key={term.termId} icon="book" label={`${term.term}${rendering ? ` · ${rendering}` : ''}`} on={false} onPress={() => props.onOpenTerm(term.termId)} />;
+            return <Chip key={term.termId} icon="book" label={`${term.term}${rendering ? ` · ${rendering}` : ''}`} on={false} help={t('passage.version.termHelp')} onPress={() => props.onOpenTerm(term.termId)} />;
           })}
         </View>
       ) : null}
@@ -306,9 +300,9 @@ export function TeamStudyPart(props: { ctx: Ctx; study: StudyProgress; onOpenSte
         {t('review.parts.studyIntro', { summary: started ? studySummary(s) : t('review.parts.notStarted') })}
       </Text>
       {s.steps.map((st) => (
-        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} onPress={() => props.onOpenStep(st.step.id)} />
+        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} help={t('passage.page.openStudyStepHelp')} onPress={() => props.onOpenStep(st.step.id)} />
       ))}
-      <Row icon="sparkle" label={t('review.parts.openStudy')} onPress={props.onOpenStudy} last />
+      <Row icon="sparkle" label={t('review.parts.openStudy')} help={t('passage.page.openStudyHelp')} onPress={props.onOpenStudy} last />
     </View>
   );
 }
@@ -321,8 +315,8 @@ function PartLabel(props: { label: string; inset?: boolean }) {
 /**
  * Everything a reviewer may open for background, as one collapsed card
  * (REV-1, ADR-029): notes and key terms from the translator, the team's
- * study, earlier reviews. Nothing to show, nothing drawn. A kind that
- * withholds context shows WithheldNotice instead (REV-4).
+ * study, earlier reviews. Nothing to show, nothing drawn. What a check
+ * shows is the language's to say (decisions.md 130).
  */
 export function Background(props: {
   ctx: Ctx;
@@ -377,25 +371,31 @@ export function StageStrip(props: { stages: Stage[]; at: number; onGo: (id: Stag
   return (
     <View style={styles.strip}>
       <View style={[styles.stripRow, wide && { maxWidth: measure.column, alignSelf: 'center', width: '100%' }]} accessibilityLabel={t('review.parts.stagesLabel')}>
-        {props.stages.map((st, i) => {
-          const current = i === props.at;
-          const done = i < props.at;
-          return (
-            <Pressable key={st.id} onPress={() => props.onGo(st.id)} disabled={!done} accessibilityRole="button"
-              accessibilityLabel={done ? t('review.parts.backToStage', { stage: st.label }) : t('review.parts.stageOf', { stage: st.label, index: i + 1, total: props.stages.length })}
-              accessibilityState={{ selected: current, disabled: !done }}
-              style={({ pressed }) => [styles.stage, current && { backgroundColor: C.light }, pressed && { opacity: 0.7 }]}>
-              <View style={[styles.stageNum, current ? { backgroundColor: C.primary } : done ? { backgroundColor: C.dark } : styles.stageNumLater]}>
-                {done ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : (
-                  <Text style={[styles.stageNumText, { color: current ? C.white : C.muted }]}>{i + 1}</Text>
-                )}
-              </View>
-              <Text style={[txt.sm, { fontWeight: '600', flexShrink: 1, color: current ? C.primary : done ? C.dark : C.muted }]} numberOfLines={1}>{st.label}</Text>
-            </Pressable>
-          );
-        })}
+        {props.stages.map((st, i) => <StageTab key={st.id} stage={st} index={i} count={props.stages.length} at={props.at} onGo={props.onGo} />)}
       </View>
     </View>
+  );
+}
+
+/** One stage in the strip: a done one goes back with a tap; in help mode each says where it is. */
+function StageTab(props: { stage: Stage; index: number; count: number; at: number; onGo: (id: StageId) => void }) {
+  const { stage: st, index: i } = props;
+  const current = i === props.at;
+  const done = i < props.at;
+  const spot = useHelpSpot(st.label, done ? t('review.simple.goBack') : t('review.simple.stepOf', { index: i + 1, total: props.count }), () => props.onGo(st.id));
+  return (
+    <Pressable onPress={spot.onPress} disabled={!done && !spot.id} accessibilityRole="button"
+      accessibilityLabel={done ? t('review.parts.backToStage', { stage: st.label }) : t('review.parts.stageOf', { stage: st.label, index: i + 1, total: props.count })}
+      accessibilityState={{ selected: current, disabled: !done }}
+      style={({ pressed }) => [styles.stage, current && { backgroundColor: C.light }, pressed && { opacity: 0.7 }]}>
+      <View style={[styles.stageNum, current ? { backgroundColor: C.primary } : done ? { backgroundColor: C.dark } : styles.stageNumLater]}>
+        {done ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : (
+          <Text style={[styles.stageNumText, { color: current ? C.white : C.muted }]}>{i + 1}</Text>
+        )}
+      </View>
+      <Text style={[txt.sm, { fontWeight: '600', flexShrink: 1, color: current ? C.primary : done ? C.dark : C.muted }]} numberOfLines={1}>{st.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
@@ -408,63 +408,24 @@ export function StageStrip(props: { stages: Stage[]; at: number; onGo: (id: Stag
  */
 export function PeopleCounter(props: { value: number; onChange: (n: number) => void }) {
   const n = props.value;
+  const fewer = useHelpSpot(t('review.parts.oneFewer'), t('review.parts.counterHelp'), () => props.onChange(Math.max(0, n - 1)));
+  const more = useHelpSpot(t('review.parts.oneMore'), t('review.parts.counterHelp'), () => props.onChange(n + 1));
   return (
     <View style={styles.counter}>
-      <Pressable onPress={() => props.onChange(Math.max(0, n - 1))} disabled={n === 0} accessibilityRole="button" accessibilityLabel={t('review.parts.oneFewer')}
+      <Pressable onPress={fewer.onPress} disabled={n === 0 && !fewer.id} accessibilityRole="button" accessibilityLabel={t('review.parts.oneFewer')}
         style={({ pressed }) => [styles.counterBtn, n === 0 && { opacity: 0.4 }, pressed && { opacity: 0.6 }]}>
         <Text style={styles.counterSign}>−</Text>
+        <HelpBadge spot={fewer} />
       </Pressable>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
         <Ico name="people" size={22} color={C.muted} />
         <Text style={[txt.body, { fontWeight: '600', color: n ? C.dark : C.muted }]}>{n ? t('review.parts.people', { count: n }) : t('review.parts.howManyListened')}</Text>
       </View>
-      <Pressable onPress={() => props.onChange(n + 1)} accessibilityRole="button" accessibilityLabel={t('review.parts.oneMore')}
+      <Pressable onPress={more.onPress} accessibilityRole="button" accessibilityLabel={t('review.parts.oneMore')}
         style={({ pressed }) => [styles.counterBtn, pressed && { opacity: 0.6 }]}>
         <Text style={styles.counterSign}>+</Text>
+        <HelpBadge spot={more} />
       </Pressable>
-    </View>
-  );
-}
-
-/**
- * One session often covers a run of neighbouring chapters. Suggest the
- * nearest recorded passages in the same book, and search for anything else;
- * never a wall of every recorded passage in the language.
- */
-export function AlsoCoveredPicker(props: { here: PassageChoice; all: PassageChoice[]; picked: string[]; onChange: (ids: string[]) => void }) {
-  const [query, setQuery] = useState('');
-  const { here, all, picked } = props;
-  const toggle = (id: string) => props.onChange(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
-  const searching = query.trim() !== '';
-  const hits = searching ? searchPassages(all, query, here.unitId) : [];
-  const near = nearbyPassages(all, here).filter((p) => !picked.includes(p.unitId));
-  const list = searching ? hits : near;
-  const pickedChoices = picked.map((id) => all.find((p) => p.unitId === id)).filter((p): p is PassageChoice => !!p);
-  if (all.every((p) => p.unitId === here.unitId)) return null;
-  return (
-    <View style={{ gap: space.sm }}>
-      <SectionLabel label={t('review.parts.alsoCovered')} />
-      <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('review.parts.alsoCoveredHint')}</Text>
-      {pickedChoices.length ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {pickedChoices.map((p) => <Chip key={p.unitId} label={p.title} icon="close" on accessibilityLabel={t('review.parts.removePassage', { title: p.title })} onPress={() => toggle(p.unitId)} />)}
-        </View>
-      ) : null}
-      <SearchField value={query} onChangeText={setQuery} placeholder={t('review.parts.findAnother')} />
-      {list.length ? (
-        <View style={styles.pickList}>
-          {!searching ? <Text style={[txt.label, { paddingHorizontal: space.lg, paddingTop: space.md }]}>{t('review.parts.nearbyIn', { book: here.bookLabel })}</Text> : null}
-          {list.map((p, i) => {
-            const on = picked.includes(p.unitId);
-            return (
-              <Row key={p.unitId} last={i === list.length - 1} label={p.title} onPress={() => toggle(p.unitId)} role="checkbox" checked={on}
-                leading={<View style={[styles.box, on ? { backgroundColor: C.primary, borderColor: C.primary } : null]}>{on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>}
-                right={<View />} />
-            );
-          })}
-        </View>
-      ) : null}
-      {searching && hits.length === 0 ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('review.parts.noMatch', { query: query.trim() })}</Text> : null}
     </View>
   );
 }
@@ -486,7 +447,6 @@ const styles = StyleSheet.create({
   choiceLabel: { fontSize: T.base, fontWeight: '600' },
   choiceBig: { fontSize: T.lg, fontWeight: '700' },
   inset: { backgroundColor: C.bg, borderRadius: radius.md, padding: space.md, gap: space.xs },
-  withheld: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start', padding: space.lg, borderRadius: radius.lg, backgroundColor: TINT.gray },
   partTop: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   strip: { backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: space.md, paddingVertical: space.xs },
   stripRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
@@ -498,7 +458,5 @@ const styles = StyleSheet.create({
   mark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   counter: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card },
   counterBtn: { width: target.primary, height: target.primary, borderRadius: radius.md, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  counterSign: { fontSize: T.xxl, fontWeight: '600', color: C.dark },
-  pickList: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' },
-  box: { width: 28, height: 28, borderRadius: 8, borderWidth: 2, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' }
+  counterSign: { fontSize: T.xxl, fontWeight: '600', color: C.dark }
 });

@@ -5,10 +5,10 @@
 // feedback comes back, Hear the feedback and Fix it join the path. The
 // language's flow follows under "Then the team". Pure, for tests.
 import { isCompleteState, type FlowStepStatus, type KindDef, type PassageState, type ReviewView } from '@langquest-next/core';
-import { checkName } from '../simple/adminModel';
+import { checkName } from '../admin/adminModel';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
-import { kindInSentence, versionTitle } from '../passageView';
+import { kindInSentence, versionTitle } from './passageView';
 import { kindCleared } from './record';
 
 export type PathStepKind = 'study' | 'record' | 'publish' | 'feedback' | 'fix';
@@ -51,8 +51,6 @@ export interface PathInput {
   latestVerses?: string | null;
   /** Who a request went to, as people say it ("the Community team", "Mary"). */
   askedName?: (kindId: string) => string | undefined;
-  /** A due date as people say it ("due Oct 11"). */
-  due?: (iso: string) => string;
 }
 
 // A check's one name on every screen (decision 91).
@@ -95,8 +93,7 @@ export function pathSteps(input: PathInput): PathStep[] {
   }
 
   const recordAsk = p.openRequests.find((r) => r.what === 'record');
-  const askedLine = recordAsk ? [whoAsked(recordAsk, input), recordAsk.dueDate ? (input.due ? input.due(recordAsk.dueDate) : t('passage.path.dueOn', { date: recordAsk.dueDate })) : '']
-    .filter(Boolean).join(' · ') : '';
+  const askedLine = recordAsk ? whoAsked(recordAsk, input) : '';
   out.push({
     kind: 'record', title: t('passage.path.record'),
     sub: p.recorded && latest
@@ -109,13 +106,13 @@ export function pathSteps(input: PathInput): PathStep[] {
 
   const asked = first ? first.step.kinds.find((k) => k.kindId === first.kindId)?.request : undefined;
   out.push({
-    kind: 'publish', title: t('passage.path.publish'),
+    kind: 'publish', title: t('common.done'),
     sub: p.recorded && latest
       ? [
         publishedLine(input.when(latest.hlc)),
         asked ? t('passage.path.status.askedWho', { who: input.askedName?.(asked.kindId ?? '') ?? (asked.profileId ? input.name(asked.profileId) : asked.team?.name ?? t('passage.path.someoneInSentence')) }) : ''
       ].filter(Boolean).join(' · ')
-      : firstName ? t('passage.path.thenAskFor', { check: kindInSentence(firstName) }) : t('passage.path.saveForTeam'),
+      : firstName ? t('passage.path.thenAskFor', { check: kindInSentence(firstName) }) : t('passage.path.teamHears'),
     state: p.recorded ? 'done' : 'todo'
   });
 
@@ -185,7 +182,7 @@ export function teamSteps(input: PathInput): TeamStep[] {
       } else {
         state = 'todo';
         status = !p.recorded
-          ? previous ? after(previous.name) : t('passage.path.status.afterPublish')
+          ? previous ? after(previous.name) : t('passage.path.status.afterDone')
           : previous && !previous.complete ? after(previous.name) : t('passage.path.status.next');
       }
       return { stepId: s.step.id, kindId: k.kindId, together: j > 0, name, status, state, checkpoint: s.step.checkpoint };

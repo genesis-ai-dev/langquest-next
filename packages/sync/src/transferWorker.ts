@@ -19,7 +19,7 @@ import type { BlobRef } from '@langquest-next/core';
  * finishing together cannot spike a weak phone.
  */
 interface TransferWorkerOptions {
-  /** The work list; a language that keeps recordings on disk works it out from there (decisions.md 110). */
+  /** The work list; a language that keeps recordings on disk works it out from there (decisions.md 134). */
   work: () => BlobRef[] | Promise<BlobRef[]>;
   transfer: (ref: BlobRef) => Promise<void>;
   isOnline: () => boolean;
@@ -51,6 +51,8 @@ const HELD_RETRY_MS = 1000;
 
 export class TransferWorker {
   private attempts = new Map<string, Attempt>();
+  /** When each file now waiting was first seen waiting: diagnostics' "stuck for how long". */
+  private waiting = new Map<string, number>();
   private draining = false;
   private dirty = false;
   private debounceId: unknown;
@@ -98,6 +100,27 @@ export class TransferWorker {
   /** Work outstanding right now, regardless of backoff. Honest even offline. */
   async pending(): Promise<number> {
     return (await this.o.work()).length;
+  }
+
+  /**
+   * Work this worker has not tried yet: not sent, and not failed. A file
+   * that failed, or went and awaits the server's confirmation, has had its
+   * turn; diagnostics wait only for files that have not (languageSession.ts).
+   */
+  async untried(): Promise<number> {
+    return (await this.o.work()).filter((r) => !this.attempts.has(r.hash)).length;
+  }
+
+  /** When a file still waiting was first seen waiting by a pass; undefined when it is not waiting. */
+  waitingSince(hash: string): number | undefined {
+    return this.waiting.get(hash);
+  }
+
+  /** How long the file waiting longest has waited, as of the last pass; null when none is. */
+  oldestWaitingMs(): number | null {
+    let oldest = Infinity;
+    for (const at of this.waiting.values()) oldest = Math.min(oldest, at);
+    return Number.isFinite(oldest) ? this.now() - oldest : null;
   }
 
   private scheduleTick(): void {
@@ -148,6 +171,9 @@ export class TransferWorker {
     // Drop attempt records for hashes that got confirmed or disappeared.
     const live = new Set(list.map((r) => r.hash));
     for (const h of [...this.attempts.keys()]) if (!live.has(h)) this.attempts.delete(h);
+    for (const h of [...this.waiting.keys()]) if (!live.has(h)) this.waiting.delete(h);
+    const seen = this.now();
+    for (const h of live) if (!this.waiting.has(h)) this.waiting.set(h, seen);
     this.publish(list.length);
 
     if (!this.o.isOnline()) return;

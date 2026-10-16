@@ -1,0 +1,141 @@
+/**
+ * Recording journal (pure). One entry per recorded file from the moment the
+ * native recorder hands it over until its RecordingAdded event is durable.
+ * The stage says how far the save got, so a restart can resume it:
+ *
+ *   recorded  -> file sits in staging under `uri`; not yet content-addressed
+ *                (with `range`: a part of a recording session, still in its
+ *                session chunk at `uri`, from `range.fromMs` to `range.toMs`;
+ *                it is cut from the chunk first, LAN-82)
+ *   ingested  -> file is in the blob store as `hash`; event not yet appended
+ *
+ * `id` is the recordingId the event will carry, chosen when the entry is
+ * created, so resuming after a crash between "event written" and "entry
+ * removed" appends nothing twice: the fold already has that id.
+ */
+/** Where the recording goes: the language's stream, and the passage in it. */
+export interface JournalTarget {
+  orgId: string;
+  languageId: string;
+  unitId: string;
+}
+
+export interface JournalEntry {
+  id: string;
+  uri: string;
+  format: 'wav' | 'm4a';
+  durationMs: number;
+  stage: 'recorded' | 'ingested';
+  hash?: string;
+  size?: number;
+  /** Absent for recordings the user still has to place (key terms). */
+  target?: JournalTarget;
+  /** A session's part not yet cut from its chunk (`uri`): where its box was when last saved. */
+  range?: { fromMs: number; toMs: number };
+}
+
+export function parseJournal(text: string | undefined): JournalEntry[] {
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    return Array.isArray(parsed) ? (parsed as JournalEntry[]).filter((e) => e && typeof e.id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function upsertEntry(entries: JournalEntry[], entry: JournalEntry): JournalEntry[] {
+  const i = entries.findIndex((e) => e.id === entry.id);
+  if (i < 0) return [...entries, entry];
+  const next = entries.slice();
+  next[i] = entry;
+  return next;
+}
+
+export function removeEntry(entries: JournalEntry[], id: string): JournalEntry[] {
+  return entries.filter((e) => e.id !== id);
+}
+
+/**
+ * What the journal holds, for field diagnostics (the `device` record):
+ * takes written down but not yet saved as events, and of them the ones the
+ * last pass for their language could not finish. Counts only.
+ */
+export function journalCounts(entries: readonly JournalEntry[], failedIds: ReadonlySet<string>): { journalPending: number; journalFailed: number } {
+  return { journalPending: entries.length, journalFailed: entries.filter((e) => failedIds.has(e.id)).length };
+}
+
+export interface ResumeDeps {
+  /** Is the staging file (stage `recorded`) still on disk? */
+  fileExists: (uri: string) => boolean;
+  /** Cut a session's part from its chunk: a new staging file. */
+  cut?: (uri: string, fromMs: number, toMs: number) => Promise<string>;
+  /** Persist the destination through beforeMove before relocating the file. */
+  ingest: (uri: string, format: JournalEntry['format'], beforeMove: (hash: string, size: number) => Promise<void>) => Promise<{ hash: string; size: number }>;
+  blobExists: (hash: string, format: JournalEntry['format']) => boolean;
+  /** Has the fold already got this recording? A language kept on disk looks there too (decisions.md 134). */
+  hasRecording: (id: string) => boolean | Promise<boolean>;
+  /** Append RecordingAdded for a fully ingested entry. */
+  append: (entry: JournalEntry & { hash: string; target: JournalTarget }) => Promise<void>;
+  /** Persist a partial step so a second interruption resumes from here. */
+  save: (entry: JournalEntry) => Promise<void>;
+}
+
+export interface ResumeResult {
+  resumed: string[];
+  /** Reserved for explicit discards; missing audio stays in failed. */
+  dropped: string[];
+  /** Entries that failed this pass and stay in the journal for the next one. */
+  failed: { id: string; error: string }[];
+}
+
+/**
+ * Finish every unfinished save for one language. Idempotent: every step
+ * checks what already happened before doing it again.
+ */
+export async function resumeEntries(
+  entries: JournalEntry[],
+  language: { orgId: string; languageId: string },
+  deps: ResumeDeps
+): Promise<ResumeResult> {
+  const result: ResumeResult = { resumed: [], dropped: [], failed: [] };
+  for (const original of entries) {
+    const t = original.target;
+    if (!t || t.orgId !== language.orgId || t.languageId !== language.languageId) continue;
+    let entry = original;
+    try {
+      if (await deps.hasRecording(entry.id)) {
+        result.resumed.push(entry.id);
+        continue;
+      }
+      if (entry.stage === 'recorded') {
+        if (entry.hash && deps.blobExists(entry.hash, entry.format)) {
+          entry = { ...entry, stage: 'ingested' };
+        } else {
+          if (!deps.fileExists(entry.uri)) {
+            throw new Error('Recording file is missing; keep the journal for recovery.');
+          }
+          // A part of a session the app never left (it was closed or crashed): its box as last saved.
+          if (entry.range) {
+            if (!deps.cut) throw new Error('A session part cannot be cut here; keep the journal for recovery.');
+            const { range, ...rest } = entry;
+            entry = { ...rest, uri: await deps.cut(entry.uri, range.fromMs, range.toMs) };
+            await deps.save(entry);
+          }
+          const { hash, size } = await deps.ingest(entry.uri, entry.format,
+            (hash, size) => deps.save({ ...entry, hash, size }));
+          entry = { ...entry, stage: 'ingested', hash, size };
+        }
+        await deps.save(entry);
+      }
+      if (!entry.hash || !deps.blobExists(entry.hash, entry.format)) {
+        throw new Error('Recorded audio is unavailable; keep the journal for recovery.');
+      }
+      if (!(await deps.hasRecording(entry.id))) await deps.append({ ...entry, hash: entry.hash, target: t });
+      result.resumed.push(entry.id);
+    } catch (err) {
+      result.failed.push({ id: entry.id, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return result;
+}

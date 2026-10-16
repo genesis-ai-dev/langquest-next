@@ -2,10 +2,10 @@
 // parts, which are recorded, the words under each verse, and the chapter
 // jump grid. Pure: no React, no I/O (decision 105; TPL-5, ADR-027).
 import { languageLines, languageName, type Indexes, type LanguageState, type OrgState, type PassageLines } from '@langquest-next/core';
-import { bookRows, bookSegments, fiaStarts, type BibleBook, type Segment } from '../contentTemplates';
-import { bookName } from '../coreText';
+import { bookRows, bookSegments, fiaStarts, type BibleBook, type Segment } from './contentTemplates';
+import { bookName } from '../i18n/coreText';
 import { t } from '../i18n';
-import { readingsFor } from '../scripture';
+import { readingsFor } from '../passage/scripture';
 import { lower } from './model';
 
 export interface BookStructureData {
@@ -23,7 +23,7 @@ export function bookStructureData(
   state: LanguageState, idx: Indexes, book: BibleBook, org: OrgState | null, languageId: string, lines: PassageLines = languageLines(state, idx)
 ): BookStructureData {
   const segments = bookSegments(state, idx, book);
-  // Which are recorded, read off the passages' lines (decisions.md 110).
+  // Which are recorded, read off the passages' lines (decisions.md 134).
   const recorded = new Set(segments.filter((s) => lines.get(s.unitId).recorded).map((s) => s.unitId));
   // The words, where the app has them (scripture.ts); verse numbers otherwise.
   const text = new Map<string, string>();

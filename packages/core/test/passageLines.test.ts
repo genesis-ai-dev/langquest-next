@@ -8,7 +8,7 @@ import { buildFixture, buildRecordFixture, buildStep11Fixture } from './fixtures
 
 /**
  * Why: Map, Progress, My Work and the Inbox read one line per passage
- * (decisions.md 110), and a phone that keeps a big language on disk works
+ * (decisions.md 134), and a phone that keeps a big language on disk works
  * a line out from that passage's part alone. A line must therefore come
  * out the same from the passage's part as from the whole language, and
  * survive being written to disk and read back.

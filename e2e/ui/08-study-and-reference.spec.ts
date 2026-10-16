@@ -4,22 +4,25 @@
 //
 // What the local library gives (checked 2026-10-12): FIA's English guides
 // cover only Genesis 2:4-25, outside LANG-A's New Testament, so the world
-// also follows LangQuest's "Example study guides (English)", written in FIA's
+// follows LangQuest's "Example study guides (English)", written in FIA's
 // format, which hold the worked study for Luke 15:11-32 (P-SUBMITTED) and
 // John 3:1-21 (not started: the passage "with a guide and no study done").
-// Neither has recordings of its steps or glossary links. The Bible is the
-// built-in Berean Standard Bible (text and audio); the library has no
-// Bible of its own and Bible Brain is not set up locally, so the tests that
-// need either check for it and are skipped, saying so, when it is missing.
+// Neither has recordings of its steps or glossary links, and the library has
+// no Bible of its own, so the world's setup (study-helpers.ts) gives the
+// organization its own copy of those guides with Luke's first step recorded
+// (the test voice) and a glossary word in its second, and a small Bible of
+// its own. Bible Brain is not set up locally: the two tests that need a real
+// Bible Brain key (STUDY-030, STUDY-031's Bible Brain half) say so and skip.
 import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { commands, derivePassage } from '@langquest-next/core';
 import { button, byId, deviceEvents, expect, expectSent, expectStill, expectSyncIdle, field, primary, screenText, test, text, undoToast } from './support';
 import { recordButton, publishButton, recordParts } from './06-recording-helpers';
-import { act, device, langAs, offerExampleGuides, open, openLabel, openRecord, recordedFor, sawToast, uploadVoice, useRunWorld, visible } from './reviewing-helpers';
+import { GLOSSARY_WORD, offerStudyWorld, OWN_BIBLE } from './study-helpers';
+import { act, device, langAs, open, openLabel, openRecord, recordedFor, sawToast, uploadVoice, useRunWorld, visible } from './reviewing-helpers';
 
 // One world for the run, kept when a failed test restarts the worker (reviewing-helpers.ts useRunWorld).
-const world = useRunWorld('08-study', offerExampleGuides);
+const world = useRunWorld('08-study', offerStudyWorld);
 const JOHN = 'John 3:1–8';
 const STEPS = ['Hear and Heart', 'Setting the Stage', 'Defining the Scenes', 'Embodying the Text', 'Filling the Gaps', 'Speaking the Word'];
 
@@ -245,10 +248,10 @@ test('STUDY-007 Answer a question in the guide, by voice', async ({ page }) => {
   await button(page, 'Answer').click();
   await expect(text(page, 'Your answer')).toBeVisible();
   await expect(text(page, 'It stays with the passage, and reviewers see it with the study.')).toBeVisible();
-  await expect(button(page, 'Save')).toBeDisabled();
+  await expect(button(page, 'Add your answer')).toBeDisabled();
   await speakInto(page, 'Record what the group said', 4000);
   await field(page, 'Or type it').fill('The son came to himself');
-  await button(page, 'Save').click();
+  await button(page, 'Add your answer').click();
   await sawToast(page, 'Added to the study. Reviewers will see it with the passage.');
   await expect(text(page, 'The son came to himself')).toBeVisible();
   await expect(button(page, 'Play voice note').or(button(page, /^Play /)).first()).toBeVisible();
@@ -256,10 +259,20 @@ test('STUDY-007 Answer a question in the guide, by voice', async ({ page }) => {
 });
 
 test('STUDY-008 A note at a moment of the spoken step', async ({ page }) => {
-  // The library's guides have no recordings of their steps: there is no spoken player to note.
   await open(page, world(), 'TRANS');
   await openStudy(page);
-  test.skip(await text(page, 'This step, spoken').count() === 0, 'needs a guide whose steps are recorded (none in the local library)');
+  // The step's recording is the test voice, four seconds long: the note lands at 0:01 to 0:03, not at 0:20.
+  await button(page, 'Play This step, spoken').click();
+  await expect(text(page, /^0:0[1-3]\b/)).toBeVisible();
+  await button(page, 'Add a note here').click();
+  await expect(button(page, 'Play This step, spoken')).toBeVisible();
+  await expect(text(page, 'Add a note')).toBeVisible();
+  await field(page, 'Or type it').fill('Ask the elders about the ring');
+  await button(page, 'Save').click();
+  await sawToast(page, /^Note added at 0:0[1-4]\. It stays with the study\.$/);
+  await expect(text(page, /^At 0:0[1-4]$/)).toBeVisible();
+  await expect(text(page, 'Ask the elders about the ring')).toBeVisible();
+  await expectSent(page, world());
 });
 
 test('STUDY-009 The study without a connection', async ({ page, context }) => {
@@ -279,18 +292,24 @@ test('STUDY-009 The study without a connection', async ({ page, context }) => {
 test('STUDY-010 Glossary words in the guide', async ({ page }) => {
   await open(page, world(), 'TRANS');
   await openStudy(page);
-  // A glossary word is a link whose hint is "Tap for its meaning" (pictures and maps say "Opens the picture").
-  const glossaryLinks = () => page.locator('[role="link"]').evaluateAll((els) => els
-    .map((e, i) => ({ i, attrs: Array.from(e.attributes).map((a) => a.value).join(' ') }))
-    .filter((x) => x.attrs.includes('Tap for its meaning')).map((x) => x.i));
-  let found: number[] = [];
-  for (let n = 1; n <= 6 && !found.length; n++) {
-    found = await glossaryLinks();
-    if (!found.length && n < 6) await button(page, 'Next step').click();
-  }
-  test.skip(!found.length, 'needs a guide with glossary words (the local library\'s guides have none)');
-  await page.locator('[role="link"]').nth(found[0]!).click();
-  await expect(text(page, /^Glossary · /)).toBeVisible();
+  // The second step links a glossary word (the web does not carry the link's "Tap for its meaning" hint, so it is not read here).
+  await button(page, 'Next step').click();
+  await expect(stepBar(page, 2)).toBeVisible();
+  const word = visible(page.getByRole('link', { name: GLOSSARY_WORD })).first();
+  await word.click();
+  await expect(text(page, GLOSSARY_WORD)).toBeVisible();
+  await expect(text(page, /^Glossary · the guide/)).toBeVisible();
+  await expect(text(page, 'What a father leaves to his children.')).toBeVisible();
+  await expect(text(page, 'In the story the younger son asks for his share while his father is alive.')).toBeVisible();
+  // Its recording plays: the player's button turns to Pause.
+  await button(page, `Play Listen: ${GLOSSARY_WORD}`).click();
+  await expect(button(page, `Pause Listen: ${GLOSSARY_WORD}`)).toBeVisible();
+  await expect(text(page, 'Couldn\'t load the audio — playing a stand-in')).toHaveCount(0);
+  // The organization has no key term of that name, so the footer says so and is not a button.
+  const keyTerms = Object.values((await langAs(world(), 'TRANS')).getState().keyTerms as Record<string, { term: string }>);
+  expect(keyTerms.map((k) => k.term), 'the world has no key term of that name').not.toContain(GLOSSARY_WORD);
+  await expect(text(page, 'This term isn\'t in your organization\'s key terms yet.')).toBeVisible();
+  await expect(button(page, 'Open the key term')).toHaveCount(0);
 });
 
 test('STUDY-012 The study\'s other chips', async ({ page }) => {
@@ -404,9 +423,9 @@ test('STUDY-018 Say your word for a key word', async ({ page }) => {
   await button(page, 'Say your word for son').click();
   await expect(text(page, 'Your word for “son”')).toBeVisible();
   await expect(text(page, 'Say how Alpha says it. Your team hears it whenever this word comes up.')).toBeVisible();
-  await expect(button(page, 'Save your word')).toBeDisabled();
+  await expect(button(page, 'Add your word')).toBeDisabled();
   await speakInto(page, 'Say it');
-  await button(page, 'Save your word').click();
+  await button(page, 'Add your word').click();
   await sawToast(page, 'Your word for son is saved.');
   await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expect(button(page, 'Play your word for son')).toBeVisible();
@@ -549,15 +568,15 @@ test('STUDY-026 Adjust or add a rendering, with why', async ({ page }) => {
   await button(page, 'Adjust or add a rendering').click();
   await expect(text(page, 'Alpha · “heaven”')).toBeVisible();
   await expect(text(page, `Recorded as part of ${world().passages['P-SUBMITTED'].label}, and tied to your draft.`)).toBeVisible();
-  await expect(button(page, 'Save')).toBeDisabled();
+  await expect(button(page, 'Add your word')).toBeDisabled();
   await field(page, 'New rendering (optional)').fill('ijuru ry\'Imana');
   await field(page, 'When to use it').fill('Only for God\'s dwelling');
   await speakInto(page, 'Say why', 4000);
-  await button(page, 'Save').click();
+  await button(page, 'Add your word').click();
   await sawToast(page, 'Added “ijuru ry\'Imana”.');
   await button(page, 'Adjust or add a rendering').click();
   await field(page, 'Or type what changed, and why').fill('Elders prefer the older word');
-  await button(page, 'Save').click();
+  await button(page, 'Add your word').click();
   await sawToast(page, 'Change recorded.');
   await expect(text(page, 'Why it\'s rendered this way')).toBeVisible();
   expect(await screenText(page)).toMatch(/\d+ changes · latest by (you|You|Tom Translator)/);
@@ -591,8 +610,7 @@ test('STUDY-029 Choose a Bible', async ({ page }) => {
   await expect(text(page, 'Choose a Bible')).toBeVisible();
   await expect(text(page, 'The one you choose plays and shows here, and in the study and reviews on this device.')).toBeVisible();
   await expect(button(page, /More Bibles/)).toBeVisible();
-  const choices = await visible(page.getByRole('radio')).count();
-  test.skip(choices < 2, 'needs a second Bible for LANG-A (a library Bible, or one in My Bibles); the local server has only the built-in BSB');
+  expect(await visible(page.getByRole('radio')).count(), 'the picker offers at least two Bibles').toBeGreaterThanOrEqual(2);
 });
 
 /** More Bibles from the workspace's Bible picker; false when Bible Brain is not set up here. */
@@ -612,15 +630,58 @@ async function moreBibles(page: Page): Promise<boolean> {
 }
 
 test('STUDY-030 Find another Bible', async ({ page }) => {
-  test.skip(!(await moreBibles(page)), 'needs Bible Brain on the local server (BIBLE_BRAIN_ACCESS_KEY)');
+  // Searches Bible Brain's live catalogue: no local stand-in, so it needs a real key (BIBLE_BRAIN_ACCESS_KEY) on the Worker.
+  test.skip(!(await moreBibles(page)), 'needs a real Bible Brain key on the local Worker (BIBLE_BRAIN_ACCESS_KEY); none is set here');
   await expect(text(page, /^Swahili/)).toBeVisible();
   await field(page, 'Search for a language').fill('zzqx');
   await expect(text(page, 'No languages found')).toBeVisible();
   await expect(text(page, 'Try the name in English, or its three-letter code.')).toBeVisible();
 });
 
+/** The organization's own Bible, opened from More Bibles in the workspace's Bible picker (the local library has none). */
+async function openOwnBible(page: Page): Promise<void> {
+  await open(page, world(), 'TRANS');
+  await openWorkspace(page);
+  await tabChip(page, 'Bible').click();
+  await button(page, 'Bible: BSB. Choose another').click();
+  await button(page, /More Bibles/).click();
+  await expect(text(page, 'In your organization\'s library')).toBeVisible();
+  await button(page, new RegExp(`^${OWN_BIBLE} · Test Library Bible`)).click();
+  await expect(text(page, 'Test Library Bible')).toBeVisible();
+}
+
+const ownBibleChoice = (page: Page) => visible(page.getByRole('radio', { name: new RegExp(OWN_BIBLE) }));
+
 test('STUDY-031 Add to My Bibles, then Undo', async ({ page }) => {
-  test.skip(!(await moreBibles(page)), 'needs Bible Brain on the local server (BIBLE_BRAIN_ACCESS_KEY), or a library Bible');
+  // Bible Brain's Swahili Bibles need a real key (STUDY-030); the same screen adds a Bible from the organization's library.
+  await openOwnBible(page);
+  await expect(text(page, `${OWN_BIBLE} · eng`)).toBeVisible();
+  await expect(text(page, 'Can be kept offline')).toBeVisible();
+  await button(page, 'Next chapter').click();
+  await expect(text(page, 'Chapter 2')).toBeVisible();
+  await button(page, 'Add to My Bibles').click();
+  await sawToast(page, `${OWN_BIBLE} added to My Bibles`);
+  await expect(text(page, /^Recording Version \d+$/)).toBeVisible();
+  // Undo takes it out again: the Bible picker does not list it.
+  await undoToast(page);
+  await tabChip(page, 'Bible').click();
+  await button(page, 'Bible: BSB. Choose another').click();
+  await expect(text(page, 'Choose a Bible')).toBeVisible();
+  await expect(ownBibleChoice(page)).toHaveCount(0);
+  // Added again, it shows in the picker and as "My Bible" in More Bibles.
+  await button(page, /More Bibles/).click();
+  await button(page, new RegExp(`^${OWN_BIBLE} · Test Library Bible`)).click();
+  await button(page, 'Add to My Bibles').click();
+  await sawToast(page, `${OWN_BIBLE} added to My Bibles`);
+  await tabChip(page, 'Bible').click();
+  // It has Luke 15's text, so it now stands in for the built-in BSB: the Bible chip shows it, and "Other Bibles" leads to More Bibles.
+  await expect(text(page, `${OWN_BIBLE}: Written for the UI tests.`)).toBeVisible();
+  await expect(button(page, 'Bible: BSB. Choose another')).toHaveCount(0);
+  await button(page, 'Other Bibles').click();
+  await expect(text(page, 'My Bible')).toBeVisible();
+  await button(page, new RegExp(`^${OWN_BIBLE} · Test Library Bible`)).click();
+  await expect(button(page, 'In My Bibles')).toBeDisabled();
+  await expect(button(page, 'Remove from My Bibles')).toBeVisible();
 });
 
 test('STUDY-033 More Bibles without Bible Brain', async ({ page }) => {
@@ -633,12 +694,14 @@ test('STUDY-033 More Bibles without Bible Brain', async ({ page }) => {
 });
 
 test('STUDY-034 "Next chapter" stops at the last chapter', async ({ page }) => {
-  await open(page, world(), 'TRANS');
-  await openWorkspace(page);
-  await tabChip(page, 'Bible').click();
-  await button(page, 'Bible: BSB. Choose another').click();
-  await button(page, /More Bibles/).click();
-  test.skip(await text(page, 'In your organization\'s library').count() === 0, 'needs a Bible in the organization\'s library (none in the local library)');
+  await openOwnBible(page);
+  // Luke has 24 chapters in this Bible's numbering.
+  for (let n = 2; n <= 24; n++) {
+    await button(page, 'Next chapter').click();
+    await expect(text(page, `Chapter ${n}`)).toBeVisible();
+  }
+  await expect(button(page, 'Next chapter')).toHaveCount(0);
+  await expect(text(page, 'Chapter 24')).toBeVisible();
 });
 
 test('STUDY-035 A note on a verse beside the recorder', async ({ page }) => {
@@ -650,7 +713,7 @@ test('STUDY-035 A note on a verse beside the recorder', async ({ page }) => {
   await expect(text(page, /Luke 15:11–32 · verse 15:20/)).toBeVisible();
   await speakInto(page, 'Say it');
   await field(page, 'Or type it').fill('Ran: elders never run');
-  await button(page, 'Save note').click();
+  await button(page, 'Add a note').click();
   await sawToast(page, /^Note added/);
   await expect(button(page, /^Verse 15:20\. .*\d+ notes?$/)).toBeVisible();
   await tabChip(page, /^Notes/).click();

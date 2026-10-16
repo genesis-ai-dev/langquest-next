@@ -42,7 +42,8 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     await primary(coord).click();
     // Question 2: English Bibles and FIA's guides.
     await expect(text(coord, '2 of 4')).toBeVisible();
-    await coord.getByRole('radio', { name: 'English' }).click();
+    // As many languages as the team reads (decision 130): English is ticked already.
+    await expect(coord.getByRole('checkbox', { name: /^English/ })).toBeChecked();
     await primary(coord).click();
     await expect(coord.getByRole('switch', { name: 'FIA study guides' })).toBeVisible();
     await primary(coord).click();
@@ -160,28 +161,38 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     await button(coord, 'Something else?').click();
     await button(coord, /^Someone else should do this/).click();
     await coord.getByRole('radio', { name: new RegExp(benName) }).click();
-    await button(coord, 'In a week').click();
     await primary(coord).click();
     await expectToast(coord, new RegExp(benName.split(' ')[0]!));
-    // Ben's My Work shows it, with the due date.
+    // Ben's My Work shows it, with who asked and no due date.
     await syncUntil(ben, async () => /NEXT FOR YOU/i.test(await screenText(ben)), 60_000, 'the request on Ben\'s My Work');
-    expect(await screenText(ben)).toMatch(/Record it · asked by Cora Coordinator · due \w{3} \d{1,2}/);
+    expect(await screenText(ben)).toMatch(/Record it · asked by Cora Coordinator(?! · due)/);
     void passage;
 
     // Step 7: on a wide window, Reports → Bravo: its template, its flow and one passage asked.
     await coord.setViewportSize({ width: 1280, height: 900 });
+    const reportsRead = (fresh: boolean) => coord.waitForResponse((r) =>
+      r.url().includes(`/api/orgs/${w.orgId}/reports`) && r.url().includes('fresh=1') === fresh, { timeout: 30_000 });
+    const opened = reportsRead(false);
     await tab(coord, 'reports').click();
+    await opened;
+    // Reports is read from the Worker, which folds the log itself (decision 44). A plain read
+    // answers from its last pass when that is under a minute old, and that pass can predate the
+    // request to Ben, and a language's page never asks for a newer one. So, once the first read is
+    // in (a later answer to it would put the old figures back), catch up on Reports, as a
+    // coordinator who just asked someone would: the Worker folds the log's tail now, and Ben
+    // already holds the request, so it is on the server.
+    const catchUp = coord.getByRole('button', { name: 'Catch up with the server' }).locator('visible=true').first();
+    const caughtUp = reportsRead(true);
+    await catchUp.click();
+    await caughtUp;
     await button(coord, 'Languages').click();
     await coord.getByRole('button', { name: /^Bravo\b/ }).or(coord.getByRole('link', { name: /^Bravo\b/ })).locator('visible=true').first().click();
-    // Its flow, its passages, and the one passage asked (the server's figures catch up within a minute or two).
+    // Its flow, its passages, and the one passage asked.
     await expect(text(coord, /Review flow: /)).toBeVisible();
     expect.soft(await screenText(coord), 'the report names the checks chosen in Get ready').toMatch(/Community/i);
     // The template is the known gap below (JRN-005 Reports names the template), kept out of the P0 run.
-    await expect.poll(async () => {
-      const catchUp = coord.getByRole('button', { name: 'Catch up with the server' }).locator('visible=true');
-      if (await catchUp.count()) await catchUp.first().click();
-      return (await screenText(coord)).match(/(\d+) requests? open in all/)?.[1];
-    }, { timeout: 150_000, intervals: [5_000, 10_000], message: 'Reports counts the one request to Ben (G2: the projection runs every minute)' }).toBe('1');
+    // The Open requests tile (decision 126): its value and label are read together.
+    await expect(coord.getByLabel(/^Open requests: 1\b/).locator('visible=true').first(), 'Reports counts the one request to Ben').toBeVisible();
     await expect(byId(coord, 'tab-reports')).toBeVisible();
     await ctx.close();
   } finally {

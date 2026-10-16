@@ -1,15 +1,15 @@
 import { BIBLE_BOOKS } from './catalogData';
 import { libraryUnitRange } from './versification';
 import type { Hlc } from './hlc';
-import { buildIndexes, type Indexes } from './indexes';
+import { indexesOf, type Indexes } from './indexes';
 import {
-  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, QUESTION_TEMPLATES,
-  type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec
+  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate,
+  type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec, type Undo
 } from './record';
 import { checkTeamFor } from './checks';
 import { sourceChapters } from './sourceBibles';
 import type { LanguageState } from './state';
-import { stateRevision } from './reducer';
+import { changesSince, liveStateOf, sameFields, stateRevision, watchChanges, type Touched } from './changes';
 
 /**
  * Reading a passage's record against its language's flow (UX demo
@@ -87,6 +87,8 @@ export function stepName(kinds: KindDef[], step: FlowStep): string {
 
 // ---- views -----------------------------------------------------------------------
 
+export interface DeletedVersion extends Version { deleted: { hlc: Hlc; by: string } }
+
 export interface Version {
   takeId: string;
   /** 1-based, in order of publishing. */
@@ -114,6 +116,8 @@ export interface ReviewView extends Omit<KindReview, 'eventId'> {
   /** The version it heard. */
   versionN: number;
   response?: ResponseView;
+  /** Its author took it back (decisions.md 111): only `withdrawnReviews` and the history hold these. */
+  withdrawn?: Undo;
 }
 
 type RequestStatus = 'open' | 'done' | 'withdrawn';
@@ -191,6 +195,15 @@ export interface PassageState {
   unitId: string;
   flow: LanguageFlow;
   versions: Version[];
+  /**
+   * Versions their publisher deleted (LAN-83): tombstones. Each keeps its
+   * number, so the next version never reuses it; none counts for the path.
+   */
+  deletedVersions: DeletedVersion[];
+  /** Checks of deleted versions, given before or after the delete reached the reviewer: kept to read, counted for nothing. */
+  reviewsOfDeleted: ReviewView[];
+  /** The number the next version published will have. */
+  nextVersionN: number;
   latest?: Version;
   recorded: boolean;
   /** An unpublished take exists (someone's draft). */
@@ -201,6 +214,8 @@ export interface PassageState {
   /** Every open draft, anyone's, in the order they were started: a person may keep several (decisions.md 83). */
   drafts: DraftView[];
   reviews: ReviewView[];
+  /** Reviews their own authors took back (decisions.md 111), for the history only: nothing else counts them. */
+  withdrawnReviews: (ReviewView & { withdrawn: Undo })[];
   departures: DepartureView[];
   requests: RequestView[];
   openRequests: RequestView[];
@@ -215,6 +230,12 @@ export interface PassageState {
 
 // ---- indexes ---------------------------------------------------------------------
 
+/** A review or note its own author took back (decisions.md 111); anyone else's withdrawal counts for nothing. */
+export function withdrawnBy<T extends { by: string }>(table: Record<string, Undo> | undefined, id: string, item: T): Undo | undefined {
+  const w = table?.[id];
+  return w && w.by === item.by ? w : undefined;
+}
+
 interface RecordIndexes {
   idx: Indexes;
   kinds: KindDef[];
@@ -223,8 +244,12 @@ interface RecordIndexes {
   versions: Map<string, string[]>;
   /** unitId -> unsubmitted, unarchived takes, newest first */
   drafts: Map<string, string[]>;
-  /** takeId -> reviews of it */
+  /** takeId -> takes of a passage that name it as their parent (a draft's line reads whether it was published) */
+  children: Map<string, string[]>;
+  /** takeId -> reviews of it, but those their authors took back */
   reviewsByTake: Map<string, KindReview[]>;
+  /** takeId -> reviews of it their authors took back (decisions.md 111) */
+  withdrawnByTake: Map<string, (KindReview & { withdrawn: Undo })[]>;
   departures: Map<string, Departure[]>;
   requests: Map<string, PassageRequest[]>;
   requestsTo: Map<string, PassageRequest[]>;
@@ -238,10 +263,19 @@ interface RecordIndexes {
 
 /**
  * One set of indexes per state object and revision. The app publishes a
- * fresh top-level copy per change; a client's live state is mutated in
- * place and bumps its revision with every applied event.
+ * fresh top-level copy per change (`publishedCopy`); a client's live state
+ * is mutated in place and bumps its revision with every applied event.
  */
 const cache = new WeakMap<LanguageState, { revision: number; ri: RecordIndexes }>();
+
+/**
+ * Per live state, the latest indexes built for it or for a copy of it: the
+ * live revision they were built at and the state they were built for. The
+ * next state's indexes start from them and redo only what the events since
+ * touched (`changesSince`), so one new take re-derives one passage, not
+ * the language (performance-audit-app.md C1). Only the latest is kept.
+ */
+const latest = new WeakMap<LanguageState, { ri: RecordIndexes; revision: number; source: LanguageState }>();
 
 function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
   const list = m.get(k);
@@ -253,21 +287,65 @@ function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
 const byHlc = <T extends { hlc: string; id?: string }>(a: T, b: T) =>
   a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? '') < (b.id ?? '') ? -1 : (a.id ?? '') > (b.id ?? '') ? 1 : 0;
 
+/** Versions: by when they were submitted, then take id. */
+const versionOrder = (state: LanguageState) => {
+  const at = (id: string) => state.submissions[id]?.hlc ?? '';
+  return (a: string, b: string) => (at(a) < at(b) ? -1 : at(a) > at(b) ? 1 : a < b ? -1 : 1);
+};
+
+/** Drafts: newest first, then the higher take id. */
+const draftOrder = (state: LanguageState) => (a: string, b: string) => {
+  const ha = state.takes[a]!.hlc;
+  const hb = state.takes[b]!.hlc;
+  return ha < hb ? 1 : ha > hb ? -1 : a < b ? 1 : -1;
+};
+
+const isDraft = (state: LanguageState, id: string): boolean => {
+  const t = state.takes[id]!;
+  return !state.submissions[id] && !t.archived && t.cardHashes.length > 0;
+};
+
+/** Everyone a request is open to: its person, and its team but the asker (ADR-029). */
+function requestRecipients(state: LanguageState, r: PassageRequest): string[] {
+  const out = r.profileId ? [r.profileId] : [];
+  if (r.teamId) for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) out.push(id);
+  return out;
+}
+
 function recordIndexes(state: LanguageState, idx?: Indexes): RecordIndexes {
   const revision = stateRevision(state);
   const hit = cache.get(state);
   if (hit && hit.revision === revision) return hit.ri;
+  const live = liveStateOf(state);
+  const now = stateRevision(live);
+  const prev = latest.get(live);
+  const changes = prev && sameFields(prev.source, state) ? changesSince(live, prev.revision) : null;
+  const ri = prev && changes && !changes.includes('all')
+    ? patchIndexes(state, prev.ri, changes as readonly Touched[], idx)
+    : buildRecordIndexes(state, idx ?? indexesOf(state));
+  latest.set(live, { ri, revision: now, source: state });
+  watchChanges(live, 'passages', now);
+  cache.set(state, { revision, ri });
+  return ri;
+}
+
+function buildRecordIndexes(state: LanguageState, idx: Indexes): RecordIndexes {
   const reviewsByTake = new Map<string, KindReview[]>();
-  for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
+  const withdrawnByTake = new Map<string, (KindReview & { withdrawn: Undo })[]>();
+  for (const r of Object.values(state.kindReviews)) {
+    const withdrawn = withdrawnBy(state.withdrawnReviews, r.id, r);
+    if (withdrawn) push(withdrawnByTake, r.takeId, { ...r, withdrawn });
+    else push(reviewsByTake, r.takeId, r);
+  }
   const versions = new Map<string, string[]>();
   const drafts = new Map<string, string[]>();
-  const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
-  const submittedAt = (id: string) => state.submissions[id]?.hlc ?? '';
-  for (const [id, t] of takes.filter(([id]) => state.submissions[id]).sort(([a], [b]) => (submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1))) {
-    push(versions, t.unitId, id);
-  }
-  for (const [id, t] of takes.filter(([id, t]) => !state.submissions[id] && !t.archived && t.cardHashes.length > 0).sort(([ia, a], [ib, b]) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1))) {
-    push(drafts, t.unitId, id);
+  const children = new Map<string, string[]>();
+  const takes = Object.keys(state.takes).filter((id) => state.takes[id]!.unitId);
+  for (const id of takes.filter((id) => state.submissions[id]).sort(versionOrder(state))) push(versions, state.takes[id]!.unitId, id);
+  for (const id of takes.filter((id) => isDraft(state, id)).sort(draftOrder(state))) push(drafts, state.takes[id]!.unitId, id);
+  for (const id of takes) {
+    const parent = state.takes[id]!.parentTakeId;
+    if (parent) push(children, parent, id);
   }
   const departures = new Map<string, Departure[]>();
   for (const d of Object.values(state.departures).sort(byHlc)) push(departures, d.unitId, d);
@@ -276,29 +354,143 @@ function recordIndexes(state: LanguageState, idx?: Indexes): RecordIndexes {
   const requestsBy = new Map<string, PassageRequest[]>();
   for (const r of Object.values(state.requests).sort(byHlc)) {
     push(requests, r.unitId, r);
-    if (r.profileId) push(requestsTo, r.profileId, r);
-    // A team request is open to every member but the asker (ADR-029).
-    if (r.teamId) for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) push(requestsTo, id, r);
+    for (const id of requestRecipients(state, r)) push(requestsTo, id, r);
     push(requestsBy, r.by, r);
   }
   const notes = new Map<string, PassageNote[]>();
   const changeNotes = new Map<string, PassageNote>();
   for (const n of Object.values(state.notes).sort(byHlc)) {
+    if (withdrawnBy(state.withdrawnNotes, n.id, n)) continue;
     if (n.anchor.kind === 'version' && n.anchor.role === 'change') {
       if (!changeNotes.has(n.anchor.takeId)) changeNotes.set(n.anchor.takeId, n);
       continue;
     }
     push(notes, n.unitId, n);
   }
-  const out: RecordIndexes = {
-    idx: idx ?? buildIndexes(state), kinds: deriveKinds(state), flow: deriveFlow(state), versions, drafts, reviewsByTake,
+  return {
+    idx, kinds: deriveKinds(state), flow: deriveFlow(state), versions, drafts, children, reviewsByTake, withdrawnByTake,
     departures, requests, requestsTo, requestsBy, notes, changeNotes, passages: new Map()
   };
-  cache.set(state, { revision, ri: out });
-  return out;
+}
+
+/** Replace a map's list with `f` of it; an empty list leaves the map, since a full build never holds one. */
+function edit<V>(m: Map<string, V[]>, key: string, f: (list: readonly V[]) => V[]): void {
+  const next = f(m.get(key) ?? []);
+  if (next.length) m.set(key, next);
+  else m.delete(key);
+}
+
+/** A copy of `list` with `item` where a full build's sort puts it (each order here is total, so the place is unique). */
+function insertSorted<V>(list: readonly V[], item: V, order: (a: V, b: V) => number): V[] {
+  let i = 0;
+  while (i < list.length && order(list[i]!, item) <= 0) i++;
+  return [...list.slice(0, i), item, ...list.slice(i)];
+}
+
+const withoutId = <V extends { id: string }>(list: readonly V[], id: string): V[] => list.filter((x) => x.id !== id);
+
+/**
+ * The indexes a full build would give for `state`, made from `prev` and
+ * what every event since touched (none of them 'all'): touched entries are
+ * moved or added, touched passages are derived again, the rest are kept.
+ * Never mutates `prev`, which other states may still be using.
+ */
+function patchIndexes(state: LanguageState, prev: RecordIndexes, changes: readonly Touched[], idx?: Indexes): RecordIndexes {
+  const units = new Set<string>();
+  const takes = new Set<string>();
+  const reviews = new Set<string>();
+  const departures = new Set<string>();
+  const requests = new Set<string>();
+  const notes = new Set<string>();
+  for (const c of changes) {
+    for (const id of c.units) units.add(id);
+    for (const id of c.takes) takes.add(id);
+    for (const id of c.reviews) reviews.add(id);
+    for (const id of c.departures) departures.add(id);
+    for (const id of c.requests) requests.add(id);
+    for (const id of c.notes) notes.add(id);
+  }
+  const nothing = !units.size && !takes.size && !reviews.size && !departures.size && !requests.size && !notes.size;
+  if (nothing && (idx ?? prev.idx) === prev.idx) return prev;
+  const ri: RecordIndexes = {
+    ...prev,
+    idx: idx ?? prev.idx,
+    versions: new Map(prev.versions), drafts: new Map(prev.drafts), children: new Map(prev.children),
+    reviewsByTake: new Map(prev.reviewsByTake), withdrawnByTake: new Map(prev.withdrawnByTake),
+    departures: new Map(prev.departures), requests: new Map(prev.requests),
+    requestsTo: new Map(prev.requestsTo), requestsBy: new Map(prev.requestsBy), notes: new Map(prev.notes),
+    changeNotes: new Map(prev.changeNotes), passages: new Map(prev.passages)
+  };
+  for (const id of reviews) {
+    const r = state.kindReviews[id];
+    if (!r) continue;
+    // A take-back can arrive before the review it names (decisions.md 111): the review then goes with the withdrawn ones.
+    const withdrawn = withdrawnBy(state.withdrawnReviews, id, r);
+    edit(ri.reviewsByTake, r.takeId, (l) => (withdrawn ? withoutId(l, id) : [...withoutId(l, id), r]));
+    edit(ri.withdrawnByTake, r.takeId, (l) => (withdrawn ? [...withoutId(l, id), { ...r, withdrawn }] : withoutId(l, id)));
+    takes.add(r.takeId);
+  }
+  for (const id of departures) {
+    const d = state.departures[id];
+    if (!d) continue;
+    edit(ri.departures, d.unitId, (l) => insertSorted(withoutId(l, id), d, byHlc));
+    units.add(d.unitId);
+  }
+  for (const id of requests) {
+    const r = state.requests[id];
+    if (!r) continue;
+    edit(ri.requests, r.unitId, (l) => insertSorted(withoutId(l, id), r, byHlc));
+    edit(ri.requestsBy, r.by, (l) => insertSorted(withoutId(l, id), r, byHlc));
+    const to = requestRecipients(state, r);
+    for (const p of new Set(to)) edit(ri.requestsTo, p, (l) => withoutId(l, id));
+    for (const p of to) edit(ri.requestsTo, p, (l) => insertSorted(l, r, byHlc));
+    units.add(r.unitId);
+  }
+  for (const id of notes) {
+    const n = state.notes[id];
+    if (!n) continue;
+    // A note whose take-back came first is left out, as a full build leaves it.
+    if (withdrawnBy(state.withdrawnNotes, id, n)) {
+      if (n.anchor.kind !== 'version' || n.anchor.role !== 'change') edit(ri.notes, n.unitId, (l) => withoutId(l, id));
+      units.add(n.unitId);
+      continue;
+    }
+    if (n.anchor.kind === 'version' && n.anchor.role === 'change') {
+      const had = ri.changeNotes.get(n.anchor.takeId);
+      if (!had || had.id === id || byHlc(n, had) < 0) ri.changeNotes.set(n.anchor.takeId, n);
+      takes.add(n.anchor.takeId);
+    } else {
+      edit(ri.notes, n.unitId, (l) => insertSorted(withoutId(l, id), n, byHlc));
+    }
+    units.add(n.unitId);
+  }
+  for (const id of takes) {
+    // A draft whose line reaches this take reads whether it was published,
+    // even before the take itself arrives.
+    for (const c of ri.children.get(id) ?? []) units.add(state.takes[c]!.unitId);
+    const t = state.takes[id];
+    if (!t?.unitId) continue;
+    units.add(t.unitId);
+    if (t.parentTakeId) edit(ri.children, t.parentTakeId, (l) => (l.includes(id) ? [...l] : [...l, id]));
+    edit(ri.versions, t.unitId, (l) => l.filter((x) => x !== id));
+    edit(ri.drafts, t.unitId, (l) => l.filter((x) => x !== id));
+    if (state.submissions[id]) edit(ri.versions, t.unitId, (l) => insertSorted(l, id, versionOrder(state)));
+    else if (isDraft(state, id)) edit(ri.drafts, t.unitId, (l) => insertSorted(l, id, draftOrder(state)));
+  }
+  for (const u of units) ri.passages.delete(u);
+  return ri;
 }
 
 // ---- the passage -----------------------------------------------------------------
+
+/**
+ * Whether a person may delete a version (LAN-83): whoever published it.
+ * Deleting leaves a tombstone, since a reviewer offline may already hold
+ * it and check it later: that check is kept to read and counts for nothing.
+ */
+export function canDeleteVersion(p: Pick<PassageState, 'versions'>, takeId: string, actorId: string): boolean {
+  return p.versions.some((v) => v.takeId === takeId && v.by === actorId);
+}
 
 export function derivePassage(state: LanguageState, unitId: string, idx?: Indexes): PassageState {
   const ri = recordIndexes(state, idx);
@@ -307,7 +499,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   if (hit) return hit;
   const flow = ri.flow;
 
-  const versions: Version[] = (ri.versions.get(key) ?? []).map((takeId, i) => {
+  const everyVersion: Version[] = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId]!;
     const response = state.responses[takeId];
     const change = ri.changeNotes.get(takeId);
@@ -319,6 +511,16 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
       ...(note ? { changeNote: note } : {}), ...(blob ? { changeBlobHash: blob } : {})
     };
   });
+  // A deleted version is a tombstone (LAN-83): it keeps its number and its
+  // checks, but it is not a version the passage has any more.
+  const deletedVersions: DeletedVersion[] = everyVersion.flatMap((v) => {
+    const t = state.takes[v.takeId]!;
+    return t.archived ? [{ ...v, deleted: t.archivedAt ?? { hlc: v.hlc, by: v.by } }] : [];
+  });
+  const versions = everyVersion.filter((v) => !state.takes[v.takeId]!.archived);
+  const reviewsOfDeleted: ReviewView[] = deletedVersions
+    .flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n })))
+    .sort(byHlc);
 
   const departures: DepartureView[] = (ri.departures.get(key) ?? []).map(({ eventId: _e, ...d }) => {
     const undone = state.undoneDepartures[d.id];
@@ -326,6 +528,9 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   });
   const active = (match: (d: DepartureView) => boolean) => [...departures].reverse().find((d) => match(d) && !d.undone);
 
+  const withdrawnReviews = versions
+    .flatMap((v) => (ri.withdrawnByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n })))
+    .sort(byHlc);
   const reviews: ReviewView[] = versions
     .flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n })))
     .sort(byHlc)
@@ -402,7 +607,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   // An overridden checkpoint is cleared (decision 29): it is never next, and it does not hold the passage back from done.
   const next = recorded ? open.find((s) => !s.override) : undefined;
   const result: PassageState = {
-    unitId, flow, versions, recorded, departures, reviews, requests, openRequests, steps, drafts,
+    unitId, flow, versions, deletedVersions, reviewsOfDeleted, nextVersionN: everyVersion.length + 1, recorded, departures, reviews, withdrawnReviews, requests, openRequests, steps, drafts,
     drafting: draftTakeId !== undefined,
     done: recorded && steps.every((s) => s.complete || !!s.override),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
@@ -524,9 +729,9 @@ export function usualTarget(
   const teamId = checkTeamFor(state, kindId, me, opts.eligible);
   if (teamId) return { teamId, name: state.teams[teamId]!.name.value };
   const did = new Set<string>();
-  // A language kept on disk passes who reviewed what, read off its lines (`reviewersOf`).
+  // A language kept on disk passes who reviewed what, read off its lines (`reviewersOf`); a review taken back does not count (decisions.md 111).
   if (opts.reviewers) for (const [by, app] of opts.reviewers) { if (app) did.add(by); }
-  else for (const r of Object.values(state.kindReviews)) if (r.kindId === kindId && r.via === 'app') did.add(r.by);
+  else for (const r of Object.values(state.kindReviews)) if (r.kindId === kindId && r.via === 'app' && !withdrawnBy(state.withdrawnReviews, r.id, r)) did.add(r.by);
   const people = [...did].filter(ok);
   return people.length === 1 ? { profileId: people[0]! } : undefined;
 }
@@ -575,21 +780,19 @@ export function percent(n: number, total: number): number {
 
 export interface SourcedQuestion {
   q: QuestionSpec;
-  source: 'org' | 'language' | 'request';
+  /** The check's own, as the language's team wrote them, or the asker's for this request. */
+  source: 'language' | 'request';
   required: boolean;
 }
 
 /**
- * Questions for a kind of review (REV-2): the shipped set for the kind, then
- * the language's question-set materials for the kind (`scope.stepId` = kind
- * id), then the asker's own.
+ * Questions for a kind of review (REV-2): the language's question-set
+ * materials for the kind (`scope.stepId` = kind id), then the asker's own.
+ * LangQuest's checks come with no questions (LAN-85): a team writes its own
+ * on each check.
  */
 export function questionsForKind(state: LanguageState, kindId: string, request?: RequestView): SourcedQuestion[] {
   const out: SourcedQuestion[] = [];
-  for (const t of QUESTION_TEMPLATES) {
-    if (t.kindId !== kindId) continue;
-    for (const q of t.questions) out.push({ q: { id: `${t.id}#${q.id}`, text: q.text, type: q.type }, source: 'org', required: false });
-  }
   const sets = Object.entries(state.materials).filter(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId)
     .sort(([a], [b]) => (a < b ? -1 : 1));
   for (const [id, m] of sets) {
@@ -618,6 +821,7 @@ export function formatQuestionField(q: Omit<QuestionSpec, 'id'>): string {
 
 export type RecordEntry =
   | { type: 'version'; hlc: Hlc; by: string; version: Version }
+  | { type: 'deleted'; hlc: Hlc; by: string; version: DeletedVersion }
   | { type: 'review'; hlc: Hlc; by: string; review: ReviewView }
   | { type: 'response'; hlc: Hlc; by: string; review: ReviewView; response: ResponseView }
   | { type: 'request'; hlc: Hlc; by: string; request: RequestView }
@@ -629,7 +833,9 @@ export type RecordEntry =
 export function recordTimeline(state: LanguageState, s: PassageState): RecordEntry[] {
   const out: RecordEntry[] = [
     ...s.versions.map((v) => ({ type: 'version' as const, hlc: v.hlc, by: v.by, version: v })),
-    ...s.reviews.map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
+    // A deleted version stays on the record where it was published, and its deletion is an entry of its own.
+    ...s.deletedVersions.flatMap((v) => [{ type: 'version' as const, hlc: v.hlc, by: v.by, version: v }, { type: 'deleted' as const, hlc: v.deleted.hlc, by: v.deleted.by, version: v }]),
+    ...[...s.reviews, ...s.withdrawnReviews, ...s.reviewsOfDeleted].map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
     ...s.reviews.filter((r) => r.response?.decision === 'revised').map((r) => ({ type: 'response' as const, hlc: r.response!.hlc, by: r.response!.by, review: r, response: r.response! })),
     ...s.requests.map((r) => ({ type: 'request' as const, hlc: r.hlc, by: r.by, request: r })),
     ...s.departures.map((d) => ({ type: 'departure' as const, hlc: d.hlc, by: d.by, departure: d })),
@@ -638,7 +844,7 @@ export function recordTimeline(state: LanguageState, s: PassageState): RecordEnt
   ];
   // Same instant (a version and the feedback it answered): the day's usual
   // order, so the answer reads above the version that carries it.
-  const rank: Record<RecordEntry['type'], number> = { study: 0, version: 0, note: 1, request: 2, review: 3, departure: 3, response: 4 };
+  const rank: Record<RecordEntry['type'], number> = { study: 0, version: 0, deleted: 0, note: 1, request: 2, review: 3, departure: 3, response: 4 };
   return out.sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : rank[b.type] - rank[a.type]));
 }
 
@@ -787,13 +993,14 @@ export function updatesFor(state: LanguageState, actorId: string, idx?: Indexes)
       }
     }
     for (const r of s.reviews) {
-      const version = s.versions[r.versionN - 1];
+      const version = s.versions.find((v) => v.n === r.versionN);
       if (version?.by === actorId && r.by !== actorId) out.push({ ...base, id: `review:${r.id}`, kind: 'review', by: r.by, hlc: r.hlc, review: r, version });
       if (r.by === actorId && r.response && r.response.by !== actorId) {
         out.push({ ...base, id: `answer:${r.id}`, kind: r.response.decision === 'revised' ? 'revision' : 'kept', by: r.response.by, hlc: r.response.hlc, review: r });
       }
     }
   }
+  // The id settles equal clocks, so the order never rests on how the indexes were built.
   return out.sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 

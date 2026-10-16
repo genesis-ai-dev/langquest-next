@@ -9,7 +9,8 @@
 // there study media stay on the web and the offline card says so.
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
-import { noteExpected } from '../report';
+import { noteExpected } from '../diagnostics/report';
+import { timedTransfer } from '../diagnostics/diagnostics';
 import type { StudyGuide } from './guides';
 
 export const STUDY_FILES_OFFLINE = Platform.OS !== 'web';
@@ -36,6 +37,8 @@ let online = false;
 let retry: ReturnType<typeof setTimeout> | null = null;
 /** Per kept passage, the study addresses it wants; set by the prefetcher, read by the offline counts. */
 let wanted = new Map<string, string[]>();
+/** The language whose kept passages want them: field diagnostics tally the downloads under it. */
+let tallyAs: { orgId: string; streamId: string } | null = null;
 
 /** FNV-1a, 52 bits: a stable file name from an address, without waiting on crypto. */
 function nameOf(url: string): string {
@@ -97,9 +100,10 @@ export function studyWanted(): ReadonlyMap<string, string[]> {
 }
 
 /** The prefetcher's latest wish list; downloads what is missing while `online`. */
-export function setStudyWanted(next: Map<string, string[]>, isOnline: boolean): void {
+export function setStudyWanted(next: Map<string, string[]>, isOnline: boolean, language?: { orgId: string; languageId: string } | null): void {
   wanted = next;
   online = isOnline;
+  tallyAs = language?.orgId && language.languageId ? { orgId: language.orgId, streamId: language.languageId } : null;
   changed();
   enqueue();
 }
@@ -136,7 +140,7 @@ async function fetchOne(url: string): Promise<void> {
   const staged = new File(DIR, name + STAGING);
   inFlight.add(url);
   let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
+  const download = async () => {
     if (staged.exists) staged.delete();
     await Promise.race([
       File.downloadFileAsync(url, staged),
@@ -145,7 +149,12 @@ async function fetchOne(url: string): Promise<void> {
     const dest = new File(DIR, name);
     if (dest.exists) dest.delete();
     staged.move(dest);
-    present.set(name, dest.uri);
+    return { bytes: dest.size, uri: dest.uri };
+  };
+  const where = tallyAs;
+  try {
+    const { uri } = await (where ? timedTransfer('down', { ...where, src: 'study' }, download) : download());
+    present.set(name, uri);
     failedAt.delete(url);
     changed();
   } catch (e) {

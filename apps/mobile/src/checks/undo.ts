@@ -7,7 +7,7 @@
 // same checks; reviews, departures and requests name the check's kind, so
 // what the record says about it stays with it.
 import { commands, CUSTOM_FLOW, type EventSpec, type FlowSelection, type LanguageState } from '@langquest-next/core';
-import { indexesFor } from '../indexes';
+import { indexesFor } from '../sync/indexes';
 
 export interface ChecksBefore {
   flow: FlowSelection | null;

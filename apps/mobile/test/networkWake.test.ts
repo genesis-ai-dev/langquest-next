@@ -1,4 +1,4 @@
-import { wakeOnReconnect, type NetworkSignal } from '../src/networkWake';
+import { wakeOnReconnect, type NetworkSignal } from '../src/sync/networkWake';
 
 function harness() {
   let emit: (s: NetworkSignal) => void = () => {};

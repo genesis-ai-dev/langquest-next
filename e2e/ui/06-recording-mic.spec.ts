@@ -1,5 +1,5 @@
 // 06 · Recording: the microphone refused (docs/ui-test-suite/06-recording.md
-// REC-020, REC-021, REC-048), in a world of its own so P-Q4 is untouched.
+// REC-020, REC-021), in a world of its own so P-Q4 is untouched.
 //
 // Chrome is started with --use-fake-ui-for-media-stream (ui.config.ts),
 // which answers every microphone prompt "Allow", and the site's own
@@ -66,17 +66,3 @@ test('REC-021 Recording works once the microphone is allowed in Settings', async
   await expectUploaded(page, w);
 });
 
-test('REC-048 Microphone setup without microphone permission', async ({ page }) => {
-  const w = world();
-  await openAs(page, w, 'TRANS');
-  await sitePermission(page, 'denied');
-  await tab(page, 'me').click();
-  await button(page, /^Set up the microphone/).click();
-  await expect(text(page, 'Set up your microphone')).toBeVisible();
-  await recordButton(page).click();
-  await expect(refused(page).or(text(page, 'The microphone could not start.'))).toBeVisible();
-  await expect(refused(page)).toBeVisible();
-  await back(page).click();
-  await expect(tab(page, 'me')).toBeVisible();
-  await expect(workspaceSub(page)).toHaveCount(0);
-});

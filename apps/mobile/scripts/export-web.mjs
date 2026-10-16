@@ -59,7 +59,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
   fs.writeFileSync(path.join(dist, 'i18n', name), JSON.stringify(JSON.parse(fs.readFileSync(path.join(catalogs, name), 'utf8'))));
 }
 
-// A fitness function (decisions.md 58): the JavaScript a first visit downloads.
+// Two fitness functions (decisions.md 58): the JavaScript a first visit
+// downloads (the files index.html loads), and all of it (every chunk, loaded
+// or not). They were one number until screens were split into chunks that
+// load when opened (src/shell/lazyScreens.tsx).
 // 4.8 MB when this was set (catalog data, study texts, the map's shapes); a
 // rise past it is a change someone should notice, not drift. Raised to 6 MB
 // with localization (decision 81): the app's words moved from the code into
@@ -69,7 +72,18 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // when the app's logic moved out of its screens into small modules
 // (decision 105): Metro wraps each module, about half a kilobyte apiece,
 // and 57 new ones cost 30 KB beyond the code they moved (6.01 MB then).
-const BUDGET_BYTES = 6.1 * 1024 * 1024;
+// Raised to 6.25 MB when every part of every screen got its help line
+// (decision 71, amended 2026-10-14): 883 English lines add 59 KB to the
+// catalog a first visit downloads (6.17 MB then).
+// Then the split: Reports, Config, Org, Content, Checks, Sources and
+// Reference load when first opened. The first visit's budget is 5.7 MB (5.41
+// MB then, 5% of room), and the 6.25 MB above stays as the cap on every chunk
+// together (6.21 MB then). That cap rose to 6.5 MB when main's security fixes
+// and field diagnostics merged with the split (6.26 MB in all, a first visit
+// 5.46 MB): it catches growth that runs away, and what a visit pays is held
+// by the first-visit budget (decision 123).
+const TOTAL_BUDGET_BYTES = 6.5 * 1024 * 1024;
+const FIRST_VISIT_BUDGET_BYTES = 5.7 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
@@ -104,10 +118,16 @@ if (links.androidSha256.length) {
 if (!links.appleTeamId || !links.androidSha256.length) console.warn('appLinks.json is not filled in: links will open the web app on phones too.');
 
 const scriptBytes = walk(path.join(dist, '_expo')).filter((f) => f.endsWith('.js') && !f.includes('/worker-')).reduce((n, f) => n + fs.statSync(f).size, 0);
-if (scriptBytes > BUDGET_BYTES) {
-  console.error(`x the web app's JavaScript is ${(scriptBytes / 1048576).toFixed(2)} MB, over its ${(BUDGET_BYTES / 1048576).toFixed(1)} MB budget (scripts/export-web.mjs). Trim it, or raise the budget in the same change and say why.`);
-  process.exit(1);
+const entryScripts = [...fs.readFileSync(path.join(dist, 'index.html'), 'utf8').matchAll(/<script[^>]*\ssrc="([^"]+\.js)"/g)].map((m) => m[1]);
+if (entryScripts.length === 0) throw new Error('dist/index.html loads no script: the first-visit budget has nothing to measure');
+const entryBytes = entryScripts.reduce((n, src) => n + fs.statSync(path.join(dist, src)).size, 0);
+const mb = (n) => (n / 1048576).toFixed(2);
+for (const [what, bytes, budget] of [['a first visit', entryBytes, FIRST_VISIT_BUDGET_BYTES], ['all chunks', scriptBytes, TOTAL_BUDGET_BYTES]]) {
+  if (bytes > budget) {
+    console.error(`x the web app's JavaScript for ${what} is ${mb(bytes)} MB, over its ${mb(budget)} MB budget by ${((bytes - budget) / 1024).toFixed(0)} KB (scripts/export-web.mjs). Trim it, load the screen that grew when it is opened (src/shell/lazyScreens.tsx), or raise the budget in the same change and say why.`);
+    process.exit(1);
+  }
 }
 
 fs.writeFileSync(path.join(dist, '_headers'), headersFor({ supabaseUrl }));
-console.log(`web build ${build} for ${env} in apps/mobile/dist: ${(scriptBytes / 1048576).toFixed(2)} MB of JavaScript (${moved} source maps kept in dist-sourcemaps/, not served)`);
+console.log(`web build ${build} for ${env} in apps/mobile/dist: ${mb(entryBytes)} MB of JavaScript on a first visit, ${mb(scriptBytes)} MB in all (${moved} source maps kept in dist-sourcemaps/, not served)`);

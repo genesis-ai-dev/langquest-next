@@ -7,18 +7,21 @@
 // shows inside the step that gave it. The recording flips between versions
 // (‹ ›, the dots, or a swipe), and every step then shows what that version
 // heard, read only.
-import { type FlowStepStatus, type KindStatus, type ReviewView, type Version } from '@langquest-next/core';
+import type { FlowStepStatus, KindStatus, ReviewView, Version } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import { stepName } from '../coreText';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import { stepName } from '../i18n/coreText';
+import type { Ctx } from '../shell/ctx';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t, Trans } from '../i18n';
-import { Ico, StateMark, txt, type IconName } from '../kit';
-import { commaList, versionTitle, when, type PassageView } from '../passageView';
-import { shadow } from '../shadow';
-import { C, radius, space, target, TINT, withAlpha } from '../theme';
+import { Ico, StateMark, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { commaList, versionTitle, when, type PassageView } from './passageView';
+import { shadow } from '../ui/shadow';
+import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import {
   currentStepId, kindLineText, lastReviewOn, ledTo, madeAfter, oldKindLineText, oldStepState, oldStepSummary, pathState, reviewMark,
   stepSummary, versionCaption, type NameFn, type PathState
@@ -103,6 +106,7 @@ export function Journey(props: {
   const goTo = (takeId?: string) => go(versions.findIndex((x) => x.takeId === takeId));
   const kindName = (id: string) => v.kind(id).name;
   const steps = p.steps;
+  const toLatest = useHelpSpot(t('passage.journey.backToLatest'), t('passage.journey.showVersionHelp'), !isLatest ? () => go(versions.length - 1) : undefined);
 
   return (
     <View>
@@ -125,10 +129,11 @@ export function Journey(props: {
       </JourneyRow>
 
       {!isLatest ? (
-        <Pressable onPress={() => go(versions.length - 1)} accessibilityRole="button"
+        <Pressable onPress={toLatest.onPress} accessibilityRole="button"
           style={({ pressed }) => [styles.backToLatest, pressed && styles.pressed]}>
           <Ico name="history" size={16} color={TINT.amberText} />
           <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('passage.journey.backToLatest')}</Text>
+          <HelpBadge spot={toLatest} />
         </Pressable>
       ) : null}
 
@@ -149,9 +154,7 @@ export function Journey(props: {
             {...(isCurrent ? { rowRef: currentRow, onLayout: () => { if (currentRow.current) props.onCurrentLayout(currentRow.current); } } : {})}
             dot={<PathDot state={dot} checkpoint={st.checkpoint} override={!!s.override && isLatest} size={36} />}>
             <View style={[styles.stepBox, open && { borderColor: tone, borderWidth: isNext || feedback.length ? 1.5 : StyleSheet.hairlineWidth, ...shadow }]}>
-              <Pressable onPress={() => setExpanded((e) => ({ ...e, [st.id]: !open }))} accessibilityRole="button"
-                accessibilityState={{ expanded: open }} accessibilityLabel={`${stepName(kinds, st)}. ${summary}`}
-                style={({ pressed }) => [styles.stepHead, pressed && styles.pressed]}>
+              <StepHead name={stepName(kinds, st)} summary={summary} open={open} onPress={() => setExpanded((e) => ({ ...e, [st.id]: !open }))}>
                 <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                   <View style={styles.pills}>
                     <Text style={[txt.body, { fontWeight: '700' }]}>{stepName(kinds, st)}</Text>
@@ -163,7 +166,7 @@ export function Journey(props: {
                   {open && st.kindIds.length > 1 ? <Text style={txt.xs}>{st.kindIds.length === 2 ? t('passage.journey.eitherOrder') : t('passage.journey.anyOrder')}</Text> : null}
                 </View>
                 <View style={styles.chev}><Ico name={open ? 'up' : 'down'} size={18} color={C.muted} /></View>
-              </Pressable>
+              </StepHead>
               {open ? (
                 <View style={styles.stepBody}>
                   {feedback.map((r) => <View key={r.id}>{props.feedbackSlot(r)}</View>)}
@@ -176,13 +179,7 @@ export function Journey(props: {
                             review={oldReviews[j]} onOpenReview={props.onOpenReview} onVersion={goTo} />)}
                     </View>
                   )}
-                  {options ? (
-                    <Pressable onPress={() => props.onOpenStep(st.id)} accessibilityRole="button" accessibilityLabel={t('passage.journey.allOptions', { step: stepName(kinds, st) })}
-                      style={({ pressed }) => [styles.softBtn, pressed && styles.pressed]}>
-                      <Ico name="settings" size={18} color={C.dark} />
-                      <Text style={[txt.sm, { fontWeight: '700' }]}>{t('passage.journey.stepOptions')}</Text>
-                    </Pressable>
-                  ) : null}
+                  {options ? <StepOptions step={stepName(kinds, st)} onPress={() => props.onOpenStep(st.id)} /> : null}
                 </View>
               ) : null}
             </View>
@@ -204,6 +201,31 @@ export function Journey(props: {
       ) : null}
       {versions.length > 1 ? <Hint icon="swap" text={t('passage.journey.hintVersions')} /> : null}
     </View>
+  );
+}
+
+/** A step's head: opens or closes the step in place. */
+function StepHead(props: { name: string; summary: string; open: boolean; onPress: () => void; children: ReactNode }) {
+  const spot = useHelpSpot(props.name, props.open ? t('help.details.disclosureOpen') : t('help.details.disclosure'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={`${props.name}. ${props.summary}`}
+      style={({ pressed }) => [styles.stepHead, pressed && styles.pressed]}>
+      {props.children}
+      <HelpBadge spot={spot} inset />
+    </Pressable>
+  );
+}
+
+/** "Options for this step": the step sheet with everything that can be done. */
+function StepOptions(props: { step: string; onPress: () => void }) {
+  const spot = useHelpSpot(t('passage.journey.stepOptions'), t('passage.page.moreHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('passage.journey.allOptions', { step: props.step })}
+      style={({ pressed }) => [styles.softBtn, pressed && styles.pressed]}>
+      <Ico name="settings" size={18} color={C.dark} />
+      <Text style={[txt.sm, { fontWeight: '700' }]}>{t('passage.journey.stepOptions')}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
@@ -263,6 +285,7 @@ function VersionCard(props: {
     },
     onPanResponderTerminationRequest: () => true
   }), []);
+  const open = useHelpSpot(t('passage.journey.openRecording'), t('passage.page.openVersionHelp'), props.onOpen);
   return (
     <View style={styles.versionCard} {...(many ? pan.panHandlers : {})}>
       <View style={styles.rowCenter}>
@@ -275,12 +298,7 @@ function VersionCard(props: {
       </View>
       {many ? (
         <View style={styles.dots} accessibilityRole="tablist" accessibilityLabel={t('passage.journey.versions')}>
-          {props.titles.map((title, i) => (
-            <Pressable key={title} onPress={() => props.onGo(i)} hitSlop={10} accessibilityRole="tab" accessibilityLabel={title}
-              accessibilityState={{ selected: i === index }} style={styles.dotTap}>
-              <View style={[styles.dot, i === index && { width: 18, backgroundColor: C.primary }]} />
-            </Pressable>
-          ))}
+          {props.titles.map((title, i) => <VersionDot key={title} title={title} on={i === index} onPress={() => props.onGo(i)} />)}
         </View>
       ) : null}
       <View style={styles.rowCenter}>
@@ -291,33 +309,55 @@ function VersionCard(props: {
         </View>
       </View>
       {version.changeNote ? <Text style={txt.sm} numberOfLines={2}>{version.changeNote}</Text> : null}
-      <Pressable onPress={props.onOpen} accessibilityRole="button" style={({ pressed }) => [styles.openBtn, pressed && styles.pressed]}>
+      <Pressable onPress={open.onPress} accessibilityRole="button" style={({ pressed }) => [styles.openBtn, pressed && styles.pressed]}>
         <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{t('passage.journey.openRecording')}</Text>
         <Ico name="right" size={16} color={C.primary} />
+        <HelpBadge spot={open} />
       </Pressable>
       {props.madeAfter.length > 0 ? (
         <View style={styles.chips}>
           <Text style={txt.xsStrong}>{t('passage.journey.madeAfter')}</Text>
-          {props.madeAfter.map((m) => (
-            <Pressable key={m.id} onPress={m.onPress} accessibilityRole="button" accessibilityLabel={t('passage.journey.madeAfterShow', { label: m.label })}
-              style={({ pressed }) => [styles.chip, { backgroundColor: TINT.amber }, pressed && styles.pressed]}>
-              <Ico name="chat" size={12} color={TINT.amberText} />
-              <Text style={[txt.xsStrong, { color: TINT.amberText }]}>{m.label}</Text>
-            </Pressable>
-          ))}
+          {props.madeAfter.map((m) => <MadeAfterChip key={m.id} label={m.label} onPress={m.onPress} />)}
         </View>
       ) : null}
     </View>
   );
 }
 
+/** One version's dot under the card: shows that version. */
+function VersionDot(props: { title: string; on: boolean; onPress: () => void }) {
+  const spot = useHelpSpot(props.title, t('passage.journey.showVersionHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} hitSlop={10} accessibilityRole="tab" accessibilityLabel={props.title}
+      accessibilityState={{ selected: props.on }} style={styles.dotTap}>
+      <View style={[styles.dot, props.on && { width: 18, backgroundColor: C.primary }]} />
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** "Made after": a review of an earlier version this one answered; shows that version. */
+function MadeAfterChip(props: { label: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, t('passage.journey.showVersionHelp'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('passage.journey.madeAfterShow', { label: props.label })}
+      style={({ pressed }) => [styles.chip, { backgroundColor: TINT.amber }, pressed && styles.pressed]}>
+      <Ico name="chat" size={12} color={TINT.amberText} />
+      <Text style={[txt.xsStrong, { color: TINT.amberText }]}>{props.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
 function Flip(props: { icon: 'left' | 'right'; label: string; hidden: boolean; disabled: boolean; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, t('passage.journey.showVersionHelp'), props.hidden ? undefined : props.onPress);
   if (props.hidden) return <View style={{ width: target.min }} />;
   return (
-    <Pressable onPress={props.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled }}
       style={({ pressed }) => [styles.flip, props.disabled && { opacity: 0.25 }, pressed && styles.pressed]}>
       <Ico name={props.icon} size={22} color={C.dark} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -353,16 +393,20 @@ function ClipRow(props: { ctx: Ctx; hashes: string[]; label: string; playLabel: 
 }
 
 function LedTo(props: { version: Version; onPress: () => void }) {
+  const label = t('passage.journey.ledTo', { version: versionTitle(props.version.n) });
+  const spot = useHelpSpot(label, t('passage.journey.showVersionHelp'), props.onPress);
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="button" accessibilityLabel={t('passage.journey.ledToShow', { version: versionTitle(props.version.n) })}
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('passage.journey.ledToShow', { version: versionTitle(props.version.n) })}
       style={({ pressed }) => [styles.chip, { backgroundColor: C.light }, pressed && styles.pressed]}>
-      <Text style={[txt.xsStrong, { color: C.primary }]}>{t('passage.journey.ledTo', { version: versionTitle(props.version.n) })}</Text>
+      <Text style={[txt.xsStrong, { color: C.primary }]}>{label}</Text>
       <Ico name="right" size={12} color={C.primary} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
 function LineText(props: { label?: string; text: string; muted?: boolean; onPress?: () => void }) {
+  const spot = useHelpSpot(props.text, t('passage.page.openReviewHelp'), props.onPress);
   const body = (
     <Text style={[txt.sm, props.muted && { color: C.muted }, props.onPress && styles.underline]}>
       {props.label
@@ -372,7 +416,7 @@ function LineText(props: { label?: string; text: string; muted?: boolean; onPres
   );
   if (!props.onPress) return <View style={styles.lineText}>{body}</View>;
   return (
-    <Pressable onPress={props.onPress} accessibilityRole="link" style={({ pressed }) => [styles.lineText, pressed && styles.pressed]}>{body}</Pressable>
+    <Pressable onPress={spot.onPress} accessibilityRole="link" style={({ pressed }) => [styles.lineText, pressed && styles.pressed]}>{body}<HelpBadge spot={spot} /></Pressable>
   );
 }
 

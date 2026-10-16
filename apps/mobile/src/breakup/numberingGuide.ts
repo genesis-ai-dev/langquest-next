@@ -4,7 +4,7 @@
 // numbering code (eng, org, lxx, vul, rsc, rso), or "custom" for a Bible that
 // mixes them (with the nearest). Read by NumberingStep.
 
-import { bookName } from '../coreText';
+import { bookName } from '../i18n/coreText';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 

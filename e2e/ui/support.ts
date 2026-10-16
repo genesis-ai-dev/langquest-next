@@ -19,17 +19,19 @@ export type PassageKey = keyof UiWorld['passages'];
 
 /**
  * Spec files call `const w = useWorld()` at the top; `w()` is the world inside tests.
- * One world per spec file per run: when a test fails Playwright starts a new
- * worker, and a fresh world there would strand the file's later tests (they
- * build on what earlier ones did). The world is kept beside the results under
- * the run's id (ui.config.ts sets UI_RUN_ID once, in the runner process).
+ * One world per spec file per project per run: when a test fails Playwright
+ * starts a new worker, and a fresh world there would strand the file's later
+ * tests (they build on what earlier ones did). The world is kept beside the
+ * results under the run's id (ui.config.ts sets UI_RUN_ID once, in the runner
+ * process). The phone and wide projects can run one file at the same time, so
+ * each builds its own.
  */
 export function useWorld(opts: Parameters<typeof buildWorld>[0] = {}): () => UiWorld {
   let world: UiWorld | null = null;
   base.beforeAll(async ({}, testInfo) => {
     base.setTimeout(300_000);
     const run = process.env['UI_RUN_ID'];
-    const key = createHash('sha1').update(`${testInfo.file}:${JSON.stringify(opts)}`).digest('hex').slice(0, 12);
+    const key = createHash('sha1').update(`${testInfo.project.name}:${testInfo.file}:${JSON.stringify(opts)}`).digest('hex').slice(0, 12);
     const file = run ? path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'results', 'worlds', `${run}-${key}.json`) : null;
     if (file && existsSync(file)) {
       world = JSON.parse(readFileSync(file, 'utf8')) as UiWorld;
@@ -210,10 +212,12 @@ export async function expectSent(page: Page, world: UiWorld, language: 'A' | 'B'
 export async function openPassage(page: Page, world: UiWorld, key: keyof UiWorld['passages']): Promise<void> {
   const label = world.passages[key].label;
   await tab(page, 'map').click();
-  // Admins land on All languages; workers on their language's map.
+  // Admins land on All languages; workers on their language's map. Wait for one of the two
+  // before choosing: a device that has just signed in may show neither yet.
   const lang = text(page, 'Alpha');
-  if (await page.getByRole('searchbox').or(page.getByPlaceholder(/Search|Find/)).count() === 0 && await lang.isVisible().catch(() => false)) await lang.click();
   const search = visible(page.getByRole('searchbox')).or(visible(page.getByPlaceholder(/Search|Find/))).first();
+  await expect(search.or(lang).first()).toBeVisible({ timeout: 60_000 });
+  if (!(await search.isVisible())) await lang.click();
   await search.fill(label.replace(/^Luke /, 'Luke '));
   await visible(page.getByText(label, { exact: false })).first().click();
   await expect(text(page, label, false)).toBeVisible();
@@ -251,7 +255,7 @@ export async function expectStill(target: Locator): Promise<void> {
 // ---- entering by address -------------------------------------------------------------------
 
 /**
- * The web app's addresses name sections only (apps/mobile/src/webPaths.ts, decision 58): a deeper
+ * The web app's addresses name sections only (apps/mobile/src/web/webPaths.ts, decision 58): a deeper
  * screen has no address, because its place depends on what was opened before it. `pathTo` is the
  * address of a section; `openAs(page, world, who, { path: pathTo('map') })` lands there.
  * A role that may not open a section lands on its own home, as a person typing the address would.

@@ -17,7 +17,7 @@ are:
 - the language map
 - a book's chapters
 - the passage record
-- the recording workspace and its Publish screen
+- the recording workspace and its Done screen
 - Review it: Listen, Questions (only when the check has questions, as the
   Consultant Check does) and Decide
 - back translation
@@ -39,7 +39,7 @@ Steps:
 
 Expected:
 - Every control is reached.
-- Each control speaks a name that says what it does, for example "Record", "Stop recording", "Publish Version 1" or "Help: explain this screen", and a role: button, switch, adjustable or tab.
+- Each control speaks a name that says what it does, for example "Record", "Stop recording", "Ask the Peer check team" (or "Finish Version 1" when no check comes next) or "Help: explain this screen", and a role: button, switch, adjustable or tab.
 - No control is spoken as just "button" or by an icon name.
 - Decorative icons are skipped.
 - The reading order follows the screen top to bottom: header, then body, then footer.
@@ -86,12 +86,11 @@ Preconditions: The screen reader is on.
 Steps:
 1. As TRANS, in the workspace, focus the divider.
 2. Swipe up, and then down, on the divider.
-3. As REV, start a back translation recording session. Focus the "Sound cutoff" line and adjust it.
 
 Expected:
 - Step 1: the divider speaks "Divider between reference and your recording", is adjustable, and gives the hint "Drag up or down to give either one more room".
 - Step 2: each swipe moves one snap. The value is spoken: "Source 35%", "Reference as one line" or "Recorder as one line".
-- Step 3: the line moves by 2 for each step, within 4–92, and its value is spoken.
+- (The "Sound cutoff" line went in decision 124; there is nothing to adjust while recording.)
 
 ### A11Y-005 Recording state is never only visual
 Roles: TRANS, REV · Priority: P0 · Platforms: iOS, Android · Run: Manual
@@ -105,7 +104,7 @@ Steps:
 Expected:
 - Step 1: the record button changes its spoken name from "Record" to "Stop recording" and back.
 - Step 2:
-  - The status is read politely: "Recording what you say", then "Listening for you. 2 pieces so far".
+  - The status is read politely: "Part 1. Recording…", then "Part 1. Listening for you · pause between parts" (decision 124).
   - The elapsed time is readable, for example "Recorded for 0:12".
 - The reader's own speech is not recorded into the take. Check by playing the take.
 
@@ -127,7 +126,6 @@ Roles: TRANS, COORD · Priority: P1 · Platforms: iOS, Android, Web · Run: Manu
 
 Steps:
 1. Open each of these:
-   - "Ask someone"'s due date
    - "Report or block"
    - the Language sheet
    - "Leave this question unanswered?"
@@ -170,13 +168,13 @@ Steps:
 
 Expected:
 - Every pressable is at least 48×48 pt. Count the hit slop where one is set.
-- The screen's main action is at least 56 pt high. These include "Publish Version N", "Send feedback", "Looks good", "Ask {target}" and "Create Organization".
+- The screen's main action is at least 56 pt high. These include Done's "Ask {target}" (or "Finish Version N"), "Send feedback", "Looks good" and "Create Organization".
 - The record button is at least 56 pt. It is 72 pt in the footer and 120 pt on microphone setup.
 - Adjacent targets do not overlap.
 
 Web (`e2e/ui/17-accessibility.spec.ts`): walks Sign In, Join your
 team, My Work, the language map, Luke's chapters, the passage record, the
-workspace (empty, and with P-DRAFT's two parts), Publish, Something else?,
+workspace (empty, and with P-DRAFT's two parts), Done, Something else?,
 Ask someone (to record P-S), Me, Review it (Listen and Decide on
 P-SUBMITTED; Listen and Questions on P-CHECK), back translation (P-BT), the
 language page, Members and Invite. React Native Web ignores `hitSlop`, so the
@@ -187,7 +185,7 @@ apart).
 
 Fixed (2026-10-13), found on the web:
 - The player's timeline ("Where you are in …", `clipPlayer.tsx` `track`) is
-  372×32 on Publish, Review it's Listen and back translation.
+  372×32 on Publish (now Done), Review it's Listen and back translation.
 - In the workspace with parts, "Play Parts 1–2" and "Hide the parts" are
   44×48 (`simple/recorder.tsx` `iconTap` width 44).
 - A one-line verse in the workspace's Bible (Luke 14:6) is 398×32
@@ -221,7 +219,7 @@ Steps:
 Expected: No text is under 13 pt at the default text size.
 
 - Fixed (2026-10-13): the player's "10" (Back 10 seconds) and "Note"
-  are 11 pt on Publish, Review it's Listen and back translation
+  are 11 pt on Publish (now Done), Review it's Listen and back translation
   (`clipPlayer.tsx` and `simple/review.tsx` `sideLabel`).
 - Fixed (2026-10-12): the workspace's Back 10 "10" was 11 pt
   (`simple/parts.tsx` `roundWord`, now 13).
@@ -235,7 +233,7 @@ Preconditions:
 
 Steps:
 1. Walk each key screen.
-2. Do one full job: record and publish, then review.
+2. Do one full job: record, tap "Done" and ask for the check, then review.
 
 Expected:
 - No text is cut off without a way to read it: it wraps, or the screen scrolls.
@@ -294,12 +292,12 @@ Roles: TRANS · Priority: P2 · Platforms: Android · Run: Device
 Preconditions: A mid-range Android phone at the brightness it picks automatically, outdoors in direct sun.
 
 Steps:
-1. Record and publish a passage.
+1. Record a passage, tap "Done", then "Send later".
 2. Find a passage on the map.
 
 Expected:
 - The tester can read the passage name.
-- The tester can tell whether recording is on, and tell "Publish" from "Record".
+- The tester can tell whether recording is on, and tell "Done" from "Record".
 - These hold without shading the screen.
 - Note any colour pair that washed out. The two reds are the open question in `docs/ux/README.md`.
 
@@ -349,7 +347,7 @@ Roles: TRANS · Priority: P2 · Platforms: Wide (iPad) · Run: Manual
 Preconditions: An iPad with a hardware keyboard, Full Keyboard Access on.
 
 Steps:
-1. Record and publish a passage using only the keyboard.
+1. Record a passage and finish it with "Done", using only the keyboard.
 
 Expected: Every step can be reached and activated.
 
@@ -425,24 +423,24 @@ Steps:
 1. Cold-start the app.
 2. Open the Map, Luke, then a passage.
 3. Record for 5 minutes in one session, with pauses.
-4. Publish.
+4. Tap "Done", then "Send later".
 
 Expected:
 - The cold start reaches My Work within 5 seconds of the splash.
 - Scrolling the map and the chapters does not stutter visibly.
 - The level meter keeps moving during the 5-minute recording.
 - No parts are lost. The part count matches the pauses.
-- Publish completes without an "Application not responding" dialog.
+- Done and "Send later" complete without an "Application not responding" dialog.
 
 ### A11Y-022 One-handed use on a large phone
 Roles: TRANS, REV · Priority: P2 · Platforms: iOS, Android · Run: Manual
 
 Steps:
 1. Hold a 6.7-inch phone in one hand.
-2. Record and publish, then review to "Looks good".
+2. Record, tap "Done" and ask for the check, then review to "Looks good".
 
 Expected:
-- The main actions (record, "Publish", "Next: …", "Looks good", "Send feedback") sit in the footer, within thumb reach.
+- The main actions (record, "Done", "Ask {target}", "Next: …", "Looks good", "Send feedback") sit in the footer, within thumb reach.
 - ✕ and ? are the only top controls needed, and neither is needed for the main path.
 
 ### A11Y-023 Spoken help works offline

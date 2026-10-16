@@ -4,14 +4,15 @@
 // come from pathModel.ts; this only draws them.
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { Text } from '../ui/text';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico, txt, type IconName } from '../kit';
-import { C, radius, space, target, TINT } from '../theme';
+import { HelpInfo, Ico, type IconName } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { C, radius, space, target, TINT } from '../ui/theme';
 import type { PathStep, PathStepKind, TeamStep } from './pathModel';
-import type { Ctx } from '../ctx';
+import type { Ctx } from '../shell/ctx';
 import { PeopleLine } from '../checks/parts';
 
 const STEP_ICON: Record<PathStepKind, IconName> = { study: 'star', record: 'mic', publish: 'send', feedback: 'chat', fix: 'mic' };
@@ -26,6 +27,19 @@ function stepHelp(kind: PathStepKind): string {
     case 'fix': return t('passage.path.help.fix');
   }
 }
+
+/** What a step's round mark says (its tick, number or dash), as help mode says it. */
+function stateHelp(state: PathStep['state']): string {
+  switch (state) {
+    case 'done': return t('passage.path.help.state.done');
+    case 'current': return t('passage.path.help.state.current');
+    case 'todo': return t('passage.path.help.state.todo');
+    case 'passed': return t('passage.path.help.state.passed');
+  }
+}
+
+/** A team row with nothing to tap still explains itself while help is on (its icon and status). */
+const INFO = () => undefined;
 
 function Dot(props: { n: number; state: PathStep['state'] }) {
   const { state } = props;
@@ -52,7 +66,8 @@ function StepRow(props: {
 }) {
   const { step } = props;
   const lit = step.state === 'current';
-  const spot = useHelpSpot(step.title, stepHelp(step.kind), props.onPress);
+  const detail = t('passage.path.help.withMark', { help: stepHelp(step.kind), mark: stateHelp(step.state) });
+  const spot = useHelpSpot(step.title, detail, props.onPress);
   const press = spot.onPress;
   // The card's own words are the step's button; what sits inside the lit card (a note or the feedback to
   // play) has buttons of its own, so it stays outside that button (a button in a button breaks the web).
@@ -79,7 +94,7 @@ function StepRow(props: {
               {head}
               <HelpBadge spot={spot} />
             </Pressable>
-          ) : head}
+          ) : <HelpInfo label={step.title} detail={detail}>{head}</HelpInfo>}
           {props.extra ? <View style={{ marginTop: space.sm }}>{props.extra}</View> : null}
         </View>
       </View>
@@ -87,24 +102,35 @@ function StepRow(props: {
   );
 }
 
+/**
+ * One check by the team, as its own card with space around it: the state's
+ * icon in a round tile, the check's name, what is happening with it, and who
+ * does it. Tapping opens the step's sheet when there is something to do there.
+ */
 function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onPress?: () => void }) {
   const { step } = props;
-  const spot = useHelpSpot(step.name, t('passage.path.help.team', { status: step.status }), props.onPress);
-  const press = spot.onPress;
+  const status = props.onPress ? t('passage.path.help.team', { status: step.status }) : t('passage.path.help.teamView', { status: step.status });
+  // The lock on a check that must pass says so; the other icons say what the status beside them says.
+  const locked = step.checkpoint && step.state !== 'done';
+  const spot = useHelpSpot(step.name, locked ? t('passage.path.help.withMark', { help: status, mark: t('passage.path.help.checkpoint') }) : status,
+    props.onPress ?? INFO);
+  const press = props.onPress || spot.id ? spot.onPress : undefined;
   const icon: IconName = step.state === 'done' ? 'check' : step.state === 'locked' || step.checkpoint ? 'lock' : step.state === 'attention' ? 'chat' : step.state === 'waiting' ? 'clock' : 'people';
   const color = step.state === 'done' ? TINT.greenText : step.state === 'attention' ? TINT.amberText : step.state === 'waiting' ? C.primary : C.faint;
+  const tile = step.state === 'done' ? TINT.green : step.state === 'attention' ? TINT.amber : step.state === 'waiting' ? C.light : C.bg;
   return (
     <Pressable testID={`team-row-${step.kindId}`} onPress={press} disabled={!press} accessibilityRole="button" accessibilityLabel={`${step.name}, ${step.status}`}
-      style={({ pressed }) => [styles.teamRow, pressed && { opacity: 0.7 }]}>
-      <Ico name={icon} size={20} color={color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
+      style={({ pressed }) => [styles.teamCard, pressed && { opacity: 0.7 }]}>
+      <View style={[styles.teamTile, { backgroundColor: tile }]}>
+        <Ico name={icon} size={20} color={color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
+      </View>
       <HelpBadge spot={spot} />
-      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <Text style={styles.teamName}>
-          {step.name}{'  '}
-          <Text style={[txt.smMuted, { fontWeight: '400' }, step.state === 'attention' ? { color: TINT.amberText } : null]}>{step.status}</Text>
-        </Text>
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <Text style={styles.teamName}>{step.name}</Text>
+        <Text style={[txt.smMuted, step.state === 'attention' ? { color: TINT.amberText } : null]}>{step.status}</Text>
         {props.people && props.people.length ? <PeopleLine ctx={props.ctx} people={props.people} size={22} /> : null}
       </View>
+      {props.onPress ? <Ico name="right" size={20} color={C.muted} /> : null}
     </Pressable>
   );
 }
@@ -151,7 +177,9 @@ const styles = StyleSheet.create({
   litCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 2, borderColor: C.primary, padding: space.lg, gap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   stepTitle: { fontSize: 19, fontWeight: '800', color: C.dark, flexShrink: 1 },
-  team: { marginTop: space.xl, paddingTop: space.lg, borderTopWidth: 1.5, borderColor: C.border, borderStyle: 'dashed', gap: 2 },
-  teamRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.min },
-  teamName: { fontSize: 17, fontWeight: '700', color: C.dark }
+  team: { marginTop: space.xl, paddingTop: space.lg, borderTopWidth: 1.5, borderColor: C.border, borderStyle: 'dashed', gap: space.sm + 2 },
+  teamCard: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingVertical: space.md, paddingHorizontal: space.md + 2,
+    borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
+  teamTile: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  teamName: { fontSize: 17, fontWeight: '800', color: C.dark }
 });

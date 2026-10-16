@@ -8,6 +8,8 @@ import { handleAgentApi, type AgentDeps } from './agent/http';
 export interface ApiDeps {
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
   profileOf(token: string): Promise<string | null>;
+  /** The organizations a profile is an active member of (agent/store.ts). */
+  orgsOf(profileId: string): Promise<string[]>;
   /** The caller's languages in the organization, or null when they are not in it. */
   reports(orgId: string, profileId: string, fresh: boolean): Promise<OrgReportsResponse | null>;
   /** Bible Brain (`/api/bible/*`, bible.ts); without it, or without its key, those routes answer 503. */
@@ -92,14 +94,26 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   if (!profileId) return json(401, { error: 'Sign in again.' });
   let out: OrgReportsResponse | null;
   try {
-    out = await deps.reports(orgId, profileId, url.searchParams.get('fresh') === '1');
+    // Membership first, as the token routes do, so nobody wakes an
+    // organization's object, or makes it read the database again with
+    // fresh=1, by naming it.
+    out = (await deps.orgsOf(profileId)).includes(orgId) ? await deps.reports(orgId, profileId, url.searchParams.get('fresh') === '1') : null;
   } catch (e) {
     console.error(`reports ${orgId}:`, e);
     return json(502, { error: 'The dashboard could not read this organization just now. Try again.' });
   }
   if (!out) return json(403, { error: 'You are not a member of this organization.' });
-  const body = url.searchParams.get('view') === 'summary' ? summarizeReports(out) : out;
+  const body = url.searchParams.get('view') === 'summary' ? summarizeReports(out) : withOverdueZero(out);
   const headers = { etag: await etagOf(body.rows), 'x-as-of': body.asOf };
   if (request.headers.get('if-none-match') === headers.etag) return new Response(null, { status: 304, headers: { ...NO_STORE, ...headers } });
   return json(200, body, headers);
+}
+
+/**
+ * Apps built before due dates were removed (decision 126) still show an
+ * "Overdue requests" tile and add up `attention.overdueRequests`; without the
+ * field they show NaN. Nothing is overdue any more, so they are told 0.
+ */
+function withOverdueZero(out: OrgReportsResponse): OrgReportsResponse {
+  return { ...out, rows: out.rows.map((r) => ({ ...r, report: { ...r.report, attention: { ...r.report.attention, overdueRequests: 0 } } })) };
 }

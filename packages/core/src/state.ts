@@ -51,6 +51,8 @@ interface Take {
   actorId: string;
   hlc: Hlc;
   archived: boolean;
+  /** The first archive of it (earliest clock, then actor): for a version, who deleted it and when (LAN-83). */
+  archivedAt?: { hlc: Hlc; by: string };
 }
 
 interface Submission {
@@ -145,6 +147,8 @@ export interface LanguageState extends RecordState, ReferenceState {
   teams: Record<string, ReviewTeam>;
   /** kindId -> help key (`item:<id>` or `material:<id>`) -> linked (v1.CheckHelpSet); absent in older snapshots. */
   checkHelps?: Record<string, Record<string, Register<boolean>>>;
+  /** kindId (or `record`) -> what -> shown (v1.CheckShowsSet); absent in older snapshots. */
+  checkShows?: Record<string, Record<string, Register<boolean>>>;
   /** stepId -> may it be reviewed by a shared link (v1.FlowStepLinksSet). */
   stepLinks: Record<string, Register<boolean>>;
   /** takeId -> channel -> live there (v1.VersionReleased). */

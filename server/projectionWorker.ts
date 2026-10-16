@@ -1,12 +1,24 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, ORG_STREAM, orgLicense, PERSON_ORG,
+import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, onlyQuietEvents, ORG_STREAM, orgLicense, PERSON_ORG,
   REDUCER_VERSION, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
-import { runSnapshotWorker, SNAPSHOT_SCHEDULE } from '../packages/sync/src/snapshotWorker';
+import { runSnapshotWorker, shouldWriteSnapshot, SNAPSHOT_SCHEDULE } from '../packages/sync/src/snapshotWorker';
 import { SupabaseTransport } from '../packages/sync/src/supabaseTransport';
 import { listStreams } from '../packages/sync/src/listStreams';
 
-function check(result: { error: { message: string } | null }) {
-  if (result.error) throw new Error(result.error.message);
+/**
+ * A database call that failed. Its operation and SQLSTATE travel with it,
+ * so a job run can say what failed (`reconcile_notifications:57014`)
+ * without its message (server/jobRuns.ts errorClassOf).
+ */
+export class DbError extends Error {
+  override name = 'DbError';
+  constructor(readonly op: string, readonly code: string | undefined, message: string) {
+    super(message);
+  }
+}
+
+function check(result: { error: { message: string; code?: string } | null }, op: string) {
+  if (result.error) throw new DbError(op, result.error.code, result.error.message);
 }
 
 /** What an Inbox row says. The app shows the passage; the push shows neither (deliverPushes). */
@@ -53,10 +65,32 @@ async function selectAll<T>(service: SupabaseClient, table: string, columns: str
   const out: T[] = [];
   for (let from = 0; ; from += 1000) {
     const page = await service.from(table).select(columns).range(from, from + 999);
-    check(page);
+    check(page, table);
     const rows = (page.data ?? []) as T[];
     out.push(...rows);
     if (rows.length < 1000) return out;
+  }
+}
+
+/**
+ * What a pass has done so far. The caller passes it in, so a pass that stops
+ * at a failing language still says how far it got (its job run).
+ */
+export interface ProjectionCounts {
+  /** Organizations whose own Inbox rows were refreshed. */
+  orgs: number;
+  /** Languages whose Inbox rows and listing were written. */
+  projected: number;
+}
+
+/**
+ * The Edge pass stopped at a language: which one, and what failed (`cause`).
+ * The message is the cause's, for the function's log.
+ */
+export class ProjectionFailed extends Error {
+  override name = 'ProjectionFailed';
+  constructor(readonly orgId: string, readonly streamId: string, cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
   }
 }
 
@@ -68,10 +102,19 @@ async function selectAll<T>(service: SupabaseClient, table: string, columns: str
  * even downloaded. An organization whose stream changed has its own Inbox
  * rows refreshed too; the database already refreshes them when a join
  * request or report changes (refresh_org_notifications).
+ *
+ * A language whose stream moved is not always folded either: when the
+ * organization and the listing are as the mark left them, no snapshot is
+ * due, and every new event is of a type that cannot change an Inbox row, a
+ * row's title or the language's progress (`eventsThatCannotChangeInbox`),
+ * the pass reads just those events and moves the mark to them, without
+ * downloading the snapshot (a Bible-scale one is about 14 MB). The
+ * snapshot's own schedule (88) is unchanged: once 200 events or an hour
+ * have passed, the language is folded and its snapshot written as before.
  */
 export async function runProjections(
-  service: SupabaseClient, scope: ProjectionScope = 'all'
-): Promise<{ languages: number; snapshots: number; failed: { streamId: string; error: string }[] }> {
+  service: SupabaseClient, scope: ProjectionScope = 'all', counts: ProjectionCounts = { orgs: 0, projected: 0 }
+): Promise<{ languages: number; snapshots: number; quiet: number; failed: { orgId: string; streamId: string; error: unknown }[] }> {
   const transport = new SupabaseTransport(service);
   const orgs = new Map<string, { org: OrgState; seq: number }>();
   async function orgState(orgId: string) {
@@ -129,8 +172,37 @@ export async function runProjections(
   };
   const mark = async (orgId: string, streamId: string, seq: number, orgSeq: number, isListed: boolean) => {
     check(await service.from('projection_marks').upsert({
+      // projected_at is set by the database on this write (20261016010000_diag_jobs.sql).
       org_id: orgId, stream_id: streamId, seq, org_seq: orgSeq, listed: isListed, version: PROJECTION_VERSION
-    }));
+    }), 'projection_marks');
+  };
+
+  /**
+   * Look at only the events past the mark. When they are all quiet and
+   * nothing else is due, move the mark to them (no snapshot download) and
+   * say so. Any doubt answers false and the language is folded as usual.
+   */
+  let quiet = 0;
+  const skipQuiet = async (orgId: string, streamId: string): Promise<boolean> => {
+    const key = streamKey(orgId, streamId);
+    const m = marks.get(key);
+    const snap = snapshotOf.get(key);
+    const head = heads.get(key) ?? 0;
+    if (!m || !snap || m.version !== PROJECTION_VERSION) return false;
+    if (Number(m.org_seq) !== heads.get(streamKey(orgId, ORG_STREAM)) || m.listed !== listed.has(key)) return false;
+    // At most one page of news; a long backlog is folded.
+    if (Number(m.seq) >= head || head - Number(m.seq) > 1000) return false;
+    const ageMs = Number.isNaN(snap.at) ? null : Date.now() - snap.at;
+    if (shouldWriteSnapshot({ existing: true, newEvents: head - snap.seq, redaction: false, ageMs })) return false;
+    try {
+      const tail = await transport.pull(orgId, streamId, Number(m.seq), 1000);
+      if (tail.length === 0 || !onlyQuietEvents(tail)) return false;
+      await mark(orgId, streamId, tail[tail.length - 1]!.serverSeq!, Number(m.org_seq), m.listed);
+    } catch {
+      return false;
+    }
+    quiet += 1;
+    return true;
   };
 
   // The organizations' own rows first: they are quick, and admins wait on them.
@@ -138,13 +210,19 @@ export async function runProjections(
   for (const [key, head] of heads) {
     const [orgId, streamId] = JSON.parse(key) as [string, string];
     if (scope === 'large' || streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
-    check(await service.rpc('refresh_org_notifications', { p_org: orgId }));
+    check(await service.rpc('refresh_org_notifications', { p_org: orgId }), 'refresh_org_notifications');
     await mark(orgId, ORG_STREAM, head, head, false);
+    counts.orgs += 1;
   }
 
   // Each changed language stream: everyone who may open the language gets
   // the updates that concern them (core updatesFor, the phone's Inbox).
-  const failed: { streamId: string; error: string }[] = [];
+  const failed: { orgId: string; streamId: string; error: unknown }[] = [];
+  // What the public listing holds now, read once and only if a listed language is folded.
+  let shownRows: Promise<Map<string, { name: string; code: string; translated_pct: number; license: string }>> | undefined;
+  const publicRows = () => shownRows ??= selectAll<{ org_id: string; language_id: string; name: string; code: string; translated_pct: number; license: string }>(
+    service, 'public_languages', 'org_id,language_id,name,code,translated_pct,license')
+    .then((rows) => new Map(rows.map((r) => [streamKey(r.org_id, r.language_id), r])));
   const results = await runSnapshotWorker(service, 1000, async (snapshot) => {
     const { org, seq: orgSeq } = await orgState(snapshot.orgId);
     const languageId = snapshot.streamId;
@@ -159,82 +237,205 @@ export async function runProjections(
       })));
     check(await service.rpc('reconcile_notifications', {
       p_org: snapshot.orgId, p_language: languageId, p_rows: notifications
-    }));
+    }), 'reconcile_notifications');
     const isListed = listed.has(streamKey(snapshot.orgId, languageId));
     const info = languageInfo(org, languageId);
     if (isListed && info) {
       const progress = languageProgress(state, idx);
-      check(await service.from('public_languages').upsert({
+      const row = {
         org_id: snapshot.orgId, language_id: languageId,
         name: info.name, code: info.code,
         translated_pct: progress.total ? (100 * progress.recorded) / progress.total : 0,
         // What someone browsing may do with the work (docs/licensing.md).
-        license: orgLicense(org),
-        updated_at: new Date().toISOString()
-      }));
+        license: orgLicense(org)
+      };
+      // Written only when something shown changed, not on every fold.
+      const shown = (await publicRows()).get(streamKey(snapshot.orgId, languageId));
+      if (!shown || shown.name !== row.name || shown.code !== row.code
+        || shown.translated_pct !== row.translated_pct || shown.license !== row.license) {
+        check(await service.from('public_languages').upsert({ ...row, updated_at: new Date().toISOString() }), 'public_languages');
+      }
     }
     await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
-  }, (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)),
+    counts.projected += 1;
+  }, async (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId))
+    && !(await skipQuiet(orgId, streamId)),
   // The large pass goes on past a language that fails, so the next waits only
-  // for its own turn; the Edge pass stops at the first error, as before.
-  scope === 'large' ? (_orgId, streamId, error) => {
-    failed.push({ streamId, error: error instanceof Error ? error.message : String(error) });
-  } : undefined);
-  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, failed };
+  // for its own turn; the Edge pass stops at the first error, as before, and
+  // says which language it stopped at.
+  (orgId, streamId, error) => {
+    if (scope !== 'large') throw new ProjectionFailed(orgId, streamId, error);
+    failed.push({ orgId, streamId, error });
+  },
+  // The age of the snapshot the pass already read, so folding does not ask again.
+  (orgId, streamId) => {
+    const snap = snapshotOf.get(streamKey(orgId, streamId));
+    return snap ? (Number.isNaN(snap.at) ? null : Date.now() - snap.at) : undefined;
+  });
+  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, quiet, failed };
+}
+
+/** Why a push did not go out (`notifications.push_last_error`, 20261016010000_diag_jobs.sql). */
+type PushError = 'no_token' | 'http_4xx' | 'http_5xx' | 'timeout' | 'unreachable' | 'ticket_error' | 'receipt_error';
+
+/** What one push delivery pass did, for its job run. */
+export interface PushCounts {
+  claimed: number;
+  /** Every phone of the person accepted it. */
+  sent: number;
+  /** The person's phones were unregistered between the claim and the send. */
+  noToken: number;
+  /** A send was refused or never answered; the row is tried again when its lease runs out. */
+  failed: number;
+  /** Failed rows by their code. */
+  failHttp4xx: number;
+  failHttp5xx: number;
+  failTimeout: number;
+  failUnreachable: number;
+  failTicket: number;
+  /** Tokens Expo said no longer exist, dropped. */
+  unregistered: number;
+  /** Receipts read back from Expo, and how many said the send failed after all. */
+  receipts: number;
+  receiptErrors: number;
+  /** 1 when Expo's receipts could not be read this pass (they are read again next time). */
+  receiptsError: number;
+}
+
+const FAIL_COUNT = {
+  http_4xx: 'failHttp4xx', http_5xx: 'failHttp5xx', timeout: 'failTimeout', unreachable: 'failUnreachable', ticket_error: 'failTicket'
+} as const satisfies Partial<Record<PushError, keyof PushCounts>>;
+
+const isTimeout = (e: unknown) => e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
+
+/**
+ * Each claimed row's outcome: pushed, or an attempt counted with its code.
+ * Before the migration that adds the columns is applied, a row that went out
+ * is marked as the pass marked it before, so nothing is pushed twice.
+ */
+async function recordPushes(service: SupabaseClient, results: { id: string; error: PushError | null }[]) {
+  if (!results.length) return;
+  if (!(await service.rpc('record_notification_pushes', { p_results: results })).error) return;
+  for (const r of results) {
+    if (r.error === null) {
+      check(await service.from('notifications').update({ pushed_at: new Date().toISOString(), push_lease_until: null }).eq('id', r.id), 'notifications');
+    } else if (r.error === 'receipt_error') {
+      check(await service.from('notifications').update({ pushed_at: null }).eq('id', r.id), 'notifications');
+    }
+  }
 }
 
 /** Push contains no language name or personal content on the lock screen. */
-export async function deliverPushes(service: SupabaseClient, fetcher = fetch) {
+export async function deliverPushes(service: SupabaseClient, fetcher = fetch): Promise<PushCounts> {
+  const counts: PushCounts = {
+    claimed: 0, sent: 0, noToken: 0, failed: 0, failHttp4xx: 0, failHttp5xx: 0, failTimeout: 0, failUnreachable: 0, failTicket: 0,
+    unregistered: 0, receipts: 0, receiptErrors: 0, receiptsError: 0
+  };
   const claimed = await service.rpc('claim_notification_pushes');
-  check(claimed);
-  for (const row of claimed.data ?? []) {
-    const tokens = await service.from('push_tokens').select('token').eq('profile_id', row.profile_id);
-    check(tokens);
-    // No registered phone yet: leave it pending with a five-minute lease.
-    if (!tokens.data?.length) continue;
-    let accepted = true;
-    for (const { token } of tokens.data) {
-      const response = await fetcher('https://exp.host/--/api/v2/push/send', {
-        signal: AbortSignal.timeout(15_000),
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: token, title: 'LangQuest',
-          body: 'You have an update in your inbox.',
-          data: { notificationId: row.id }, channelId: 'work' })
-      });
-      if (!response.ok) { accepted = false; continue; }
-      const result = await response.json();
-      const ticket = result.data;
-      if (ticket?.status === 'ok' && ticket.id) {
-        check(await service.from('push_receipts').upsert({
-          ticket_id: ticket.id, token, notification_id: row.id
-        }));
-      } else if (ticket?.details?.error === 'DeviceNotRegistered') {
-        check(await service.from('push_tokens').delete().eq('token',token));
-      } else accepted = false;
+  check(claimed, 'claim_notification_pushes');
+  const results: { id: string; error: PushError | null }[] = [];
+  try {
+    // Every claimed person's phones in one query, not one per row.
+    const rows: { id: string; profile_id: string }[] = claimed.data ?? [];
+    const tokensOf = new Map<string, { token: string }[]>();
+    if (rows.length) {
+      const found = await service.from('push_tokens').select('token,profile_id')
+        .in('profile_id', [...new Set(rows.map((r) => r.profile_id))]);
+      check(found, 'push_tokens');
+      for (const t of (found.data ?? []) as { token: string; profile_id: string }[]) {
+        const list = tokensOf.get(t.profile_id);
+        if (list) list.push({ token: t.token }); else tokensOf.set(t.profile_id, [{ token: t.token }]);
+      }
     }
-    if (accepted) check(await service.from('notifications')
-      .update({ pushed_at: new Date().toISOString(), push_lease_until: null }).eq('id',row.id));
+    for (const row of rows) {
+      counts.claimed += 1;
+      const tokens = { data: tokensOf.get(row.profile_id) ?? [] };
+      // No registered phone any more: leave it pending with a five-minute lease.
+      if (!tokens.data.length) {
+        counts.noToken += 1;
+        results.push({ id: row.id, error: 'no_token' });
+        continue;
+      }
+      let error: keyof typeof FAIL_COUNT | null = null;
+      for (const { token } of tokens.data) {
+        // One phone that does not answer is that row's failure, not the pass's.
+        let response: Response;
+        try {
+          response = await fetcher('https://exp.host/--/api/v2/push/send', {
+            signal: AbortSignal.timeout(15_000),
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: token, title: 'LangQuest',
+              body: 'You have an update in your inbox.',
+              data: { notificationId: row.id }, channelId: 'work' })
+          });
+        } catch (e) {
+          error = isTimeout(e) ? 'timeout' : 'unreachable';
+          continue;
+        }
+        if (!response.ok) {
+          error = response.status >= 500 ? 'http_5xx' : 'http_4xx';
+          await response.body?.cancel().catch(() => undefined);
+          continue;
+        }
+        const result = await response.json().catch(() => null);
+        const ticket = result?.data;
+        if (ticket?.status === 'ok' && ticket.id) {
+          check(await service.from('push_receipts').upsert({
+            ticket_id: ticket.id, token, notification_id: row.id
+          }), 'push_receipts');
+        } else if (ticket?.details?.error === 'DeviceNotRegistered') {
+          check(await service.from('push_tokens').delete().eq('token', token), 'push_tokens');
+          counts.unregistered += 1;
+        } else error = 'ticket_error';
+      }
+      if (error) {
+        counts.failed += 1;
+        counts[FAIL_COUNT[error]] += 1;
+      } else counts.sent += 1;
+      results.push({ id: row.id, error });
+    }
+  } finally {
+    // What went out is marked even when the pass stops part way, so it is not sent again.
+    await recordPushes(service, results);
   }
   const receipts = await service.from('push_receipts').select('*')
     .lt('created_at', new Date(Date.now() - 15 * 60_000).toISOString()).limit(100);
-  check(receipts);
-  if (!receipts.data?.length) return;
-  const response = await fetcher('https://exp.host/--/api/v2/push/getReceipts', {
-    signal: AbortSignal.timeout(15_000),
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ ids: receipts.data.map((r) => r.ticket_id) })
-  });
-  if (!response.ok) return;
+  check(receipts, 'push_receipts');
+  if (!receipts.data?.length) return counts;
+  let response: Response;
+  try {
+    response = await fetcher('https://exp.host/--/api/v2/push/getReceipts', {
+      signal: AbortSignal.timeout(15_000),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: receipts.data.map((r) => r.ticket_id) })
+    });
+  } catch {
+    counts.receiptsError = 1;
+    return counts;
+  }
+  if (!response.ok) {
+    counts.receiptsError = 1;
+    await response.body?.cancel().catch(() => undefined);
+    return counts;
+  }
   const result = await response.json();
+  const back: { id: string; error: PushError }[] = [];
+  const read: string[] = [];
   for (const receipt of receipts.data) {
     const status = result.data?.[receipt.ticket_id];
     if (!status) continue;
+    counts.receipts += 1;
     if (status.details?.error === 'DeviceNotRegistered') {
-      check(await service.from('push_tokens').delete().eq('token',receipt.token));
+      check(await service.from('push_tokens').delete().eq('token', receipt.token), 'push_tokens');
+      counts.unregistered += 1;
     } else if (status.status === 'error') {
-      check(await service.from('notifications').update({ pushed_at:null })
-        .eq('id',receipt.notification_id));
+      counts.receiptErrors += 1;
+      back.push({ id: receipt.notification_id, error: 'receipt_error' });
     }
-    check(await service.from('push_receipts').delete().eq('ticket_id',receipt.ticket_id));
+    read.push(receipt.ticket_id);
   }
+  // Back to pending before the receipts go, so a failure here leaves them to be read again.
+  await recordPushes(service, back);
+  for (const ticketId of read) check(await service.from('push_receipts').delete().eq('ticket_id', ticketId), 'push_receipts');
+  return counts;
 }

@@ -1,4 +1,4 @@
-import type { AnyEvent } from './events';
+import { SHOWN, type AnyEvent } from './events';
 import { LIBRARY_KINDS } from './libraryDocs';
 import { ORG_STREAM, PRIVILEGES, TARGET_SCOPES } from './orgTerms';
 import { isLicense, LICENSES } from './license';
@@ -14,11 +14,46 @@ import { isLicense, LICENSES } from './license';
 /** A languoid's id (docs/languoids.md): a UUID. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/**
+ * The names every plain object already answers to. The fold keys its maps by
+ * the ids in events (`state.takes[takeId]`), so an id of `__proto__` would
+ * reach Object.prototype instead of a take, and one change there changes
+ * every object in the app. No string or key in an event may be one of these
+ * (SQL `_names_object_member`).
+ */
+export const OBJECT_MEMBER_NAMES: readonly string[] = [
+  '__proto__', 'constructor', 'prototype', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable',
+  'toLocaleString', 'toString', 'valueOf', '__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__'
+];
+const MEMBER_NAMES = new Set(OBJECT_MEMBER_NAMES);
+
+/** The first string or key anywhere in `v` that names an object member, or null. Iterative, so no depth can overflow the stack. */
+export function objectMemberNameIn(v: unknown): string | null {
+  const stack: unknown[] = [v];
+  while (stack.length > 0) {
+    const x = stack.pop();
+    if (typeof x === 'string') {
+      if (MEMBER_NAMES.has(x)) return x;
+    } else if (Array.isArray(x)) {
+      for (const item of x) stack.push(item);
+    } else if (typeof x === 'object' && x !== null) {
+      for (const [k, child] of Object.entries(x)) {
+        if (MEMBER_NAMES.has(k)) return k;
+        stack.push(child);
+      }
+    }
+  }
+  return null;
+}
+
 export function validateEvent(e: AnyEvent): string | null {
   for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc'] as const) {
     if (typeof e[k] !== 'string' || e[k] === '') return `${k} must be a non-empty string`;
+    if (MEMBER_NAMES.has(e[k])) return `${k} may not be ${e[k]}`;
   }
   if (!isObject(e.payload)) return 'payload must be an object';
+  const member = objectMemberNameIn(e.payload);
+  if (member !== null) return `payload may not use the name ${member}`;
   const p = e.payload as Record<string, unknown>;
   const str = (...keys: string[]) => {
     for (const k of keys) if (typeof p[k] !== 'string' || p[k] === '') return `${k} must be a non-empty string`;
@@ -155,6 +190,10 @@ export function validateEvent(e: AnyEvent): string | null {
         ((p['itemId'] === undefined) === (p['materialId'] === undefined) ? 'exactly one of itemId, materialId' : null) ??
         (p['itemId'] === undefined || nonEmpty(p['itemId']) ? null : 'itemId must be a non-empty string') ??
         (p['materialId'] === undefined || nonEmpty(p['materialId']) ? null : 'materialId must be a non-empty string');
+    case 'v1.CheckShowsSet':
+      return str('kindId') ?? oneOf('what', SHOWN) ?? bool('shown') ??
+        (p['from'] === undefined ? null : !nonEmpty(p['from']) ? 'from must be a non-empty string'
+          : p['what'] === 'notes' || p['what'] === 'earlier' ? null : 'from is only for notes and earlier');
     case 'v1.VersionReleased':
       return str('takeId', 'channel') ?? bool('live') ??
         (p['url'] === undefined || nonEmpty(p['url']) ? null : 'url must be a non-empty string') ??
@@ -210,10 +249,14 @@ export function validateEvent(e: AnyEvent): string | null {
       );
     case 'v1.RequestWithdrawn':
       return str('requestId');
+    case 'v1.ReviewWithdrawn':
+      return str('reviewId');
+    case 'v1.NoteWithdrawn':
+      return str('noteId');
     case 'v1.NoteAdded':
       return (
         str('noteId', 'unitId') ??
-        optStr('text', 'blobHash', 'photoHash', 'onTakeId') ??
+        optStr('text', 'blobHash', 'photoHash', 'onTakeId', 'kindId') ??
         anchor(p['anchor']) ??
         (!p['text'] && !p['blobHash'] && !p['photoHash'] ? 'a note needs text, audio or a photo' : null)
       );
@@ -239,6 +282,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('itemId') ?? oneOf('state', ['recommended', 'hidden', 'inherit']);
     case 'v1.ReferenceLanguageSet':
       return str('language') ?? (/^[a-z0-9-]{2,40}$/.test(p['language'] as string) ? null : 'language must be a language code');
+    case 'v1.ReferenceLanguageAdded':
+      return str('language') ?? (/^[a-z0-9-]{2,40}$/.test(p['language'] as string) ? null : 'language must be a language code') ?? bool('added');
     case 'v1.PassageReferenceLinked':
       return str('unitId', 'itemId') ?? bool('linked');
     case 'v1.ReferencesUsed':
@@ -370,4 +415,59 @@ function cardVerseError(p: Record<string, unknown>): string | null {
   const b = verseRefOrder(p['to']);
   if (a === null || b === null) return 'from and to must be chapter:verse';
   return a <= b ? null : 'from must not come after to';
+}
+
+/**
+ * The most one event may carry (decisions.md 115): its payload as Postgres
+ * prints it, and each envelope field. Checked where events are made
+ * (SyncClient.append) and where the server takes them (append_events, SQL
+ * `_event_size_refusal`), never in the fold, so nothing already in a log
+ * changes meaning. A recording's cards are the largest real payload, about
+ * 120 bytes each.
+ */
+export const EVENT_PAYLOAD_MAX_BYTES = 64 * 1024;
+export const EVENT_FIELD_MAX_CHARS = 256;
+
+/**
+ * Bytes of `v` as Postgres prints jsonb (`payload::text`): the compact JSON,
+ * plus the space it puts after each `:` and each `,`. Iterative, so no depth
+ * can overflow the stack.
+ */
+export function jsonbTextBytes(v: unknown): number {
+  let spaces = 0;
+  const stack: unknown[] = [v];
+  while (stack.length > 0) {
+    const x = stack.pop();
+    if (Array.isArray(x)) {
+      if (x.length > 1) spaces += x.length - 1;
+      for (const item of x) stack.push(item);
+    } else if (typeof x === 'object' && x !== null) {
+      const values = Object.values(x).filter((child) => child !== undefined);
+      if (values.length > 0) spaces += 2 * values.length - 1;
+      for (const child of values) stack.push(child);
+    }
+  }
+  return utf8Bytes(JSON.stringify(v) ?? '') + spaces;
+}
+
+function utf8Bytes(s: string): number {
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < s.length) { n += 4; i++; }
+    else n += 3;
+  }
+  return n;
+}
+
+/** Why an event is too big to make or to take, or null. */
+export function eventSizeError(e: AnyEvent): string | null {
+  for (const k of ['id', 'type', 'orgId', 'streamId', 'actorId', 'deviceId', 'hlc', 'parentEventId'] as const) {
+    const v = (e as unknown as Record<string, unknown>)[k];
+    if (typeof v === 'string' && v.length > EVENT_FIELD_MAX_CHARS) return `${k} is longer than ${EVENT_FIELD_MAX_CHARS} characters`;
+  }
+  const bytes = jsonbTextBytes(e.payload);
+  return bytes > EVENT_PAYLOAD_MAX_BYTES ? `event too large: ${bytes} bytes (max ${EVENT_PAYLOAD_MAX_BYTES})` : null;
 }

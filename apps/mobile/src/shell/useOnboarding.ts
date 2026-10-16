@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { recordUserEvent } from '../accountData';
+import { recordUserEvent } from '../account/accountData';
 import { userState } from '../server/account';
 
 /**
@@ -39,7 +39,7 @@ export function useOnboarding(actorId: string, signedIn: boolean) {
       if (active) { setWelcomed(seen); setLoaded(true); }
     })().catch(() => { if (active) setLoaded(true); });
     return () => { active = false; };
-  }, [actorId]);
+  }, [actorId, signedIn]);
   const markWelcomed = useCallback(async () => {
     await recordUserEvent(actorId, 'v1.VisionSeen');
     await AsyncStorage.multiSet([[`vision:${actorId}`, '1'], [`joined:${actorId}`, '0']]);

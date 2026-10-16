@@ -7,12 +7,24 @@ import {
   button, byId, expect, expectNothingRefused, expectSent, leaveScreen, primary, openAs, screenChanged, screenText, syncNow, tab, test, text, type AccountKey, type PassageKey, type UiWorld
 } from './support';
 
-/** The parts card's count ("Parts 1–3 · 3 parts"), or 0 before the first part. */
+/**
+ * The parts card's count ("Parts 1–3, 3 parts", or "Version 1, 5 parts"
+ * while they are still the version's), or 0 before the first part. While
+ * recording the card gives way to the recording view, whose title is the
+ * part being said ("Part 4. Recording…"): three are kept.
+ */
 export async function partsCount(page: Page): Promise<number> {
-  const label = await page.getByRole('button', { name: /^Parts 1–\d+, \d+ parts?/ }).locator('visible=true').first()
-    .getAttribute('aria-label', { timeout: 1_000 }).catch(() => null);
-  const m = label?.match(/(\d+) parts?/);
-  return m ? Number(m[1]) : 0;
+  // Only what is on screen now: a lookup that waits for an absent card makes a recording overrun its stop.
+  const card = page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts?/ }).locator('visible=true').first();
+  if (await card.count()) {
+    const m = (await card.getAttribute('aria-label').catch(() => null))?.match(/, (\d+) parts?/);
+    return m ? Number(m[1]) : 0;
+  }
+  if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
+  const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+  if (!(await live.count())) return 0;
+  const n = (await live.getAttribute('aria-label').catch(() => null))?.match(/^Part (\d+)\. /);
+  return n ? Number(n[1]) - 1 : 0;
 }
 
 /**
@@ -27,6 +39,8 @@ export async function recordParts(page: Page, parts: number): Promise<void> {
   // Each loop of the voice ends one part; a part shows once its pause is heard.
   await expect.poll(() => partsCount(page), { timeout: 15_000 + parts * 5_000, intervals: [500] }).toBeGreaterThanOrEqual(before + parts);
   await byId(page, 'record-button').click();
+  // Stopped, the session is still open (LAN-82); Done keeps its parts.
+  await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').first().click();
   await expect(byId(page, 'record-button')).toHaveAccessibleName('Record');
 }
 
@@ -41,17 +55,23 @@ export async function sayEachPart(page: Page, parts: number): Promise<void> {
     if (await said(n).count()) continue;
     await page.getByRole('button', { name: new RegExp(`^Record part ${n}`) }).locator('visible=true').first().click();
     await expect(page.getByRole('button', { name: 'Stop recording' }).locator('visible=true').first()).toBeVisible();
-    await page.waitForTimeout(6_500); // sleep: the fake microphone must play one full voice loop (about 4 s) and a pause; the screen shows no running time
+    // The voice file speaks 1.5 s in every 4 s: stop once a piece has been heard, as a person stops after
+    // speaking (07-reviewing's sayPart). A fixed wait let a slow runner stop before anything was heard.
+    await expect(page.getByLabel(/[1-9]\d* pieces? so far/).locator('visible=true').first()).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'Stop recording' }).locator('visible=true').first().click();
-    await expect(said(n).first()).toBeVisible({ timeout: 10_000 });
+    // Stopped, the session is still open (LAN-82); Done keeps its pieces.
+    await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').first().click();
+    await expect(said(n).first()).toBeVisible({ timeout: 20_000 });
   }
 }
 
-/** The workspace's Publish, then "Publish Version N" on the Publish screen. */
+/**
+ * The workspace's Done, then on its last look either "Send later" (published,
+ * nobody asked) or, with no check next, "Finish Version N" (decision 127).
+ */
 export async function publishVersion(page: Page, n: number): Promise<void> {
   await byId(page, 'publish-button').click();
-  await expect(button(page, `Publish Version ${n}`)).toBeVisible();
-  await button(page, `Publish Version ${n}`).click();
+  await button(page, 'Send later').or(button(page, `Finish Version ${n}`)).first().click();
 }
 
 /** Open the bell on My Work. */

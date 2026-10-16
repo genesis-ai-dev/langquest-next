@@ -55,19 +55,17 @@ test('JRN-003 A reviewer\'s round: one check, one back translation @p0', async (
   await expect(text(page, /^Back translation · asked by/)).toBeVisible();
   await primary(page).click();
 
-  // Step 8: each part said in English; the top pane hides notes and earlier checks on purpose.
-  await expect(text(page, /Notes and earlier checks are hidden on purpose/)).toBeVisible();
+  // Step 8: each part said in English; the top pane has the version alone, with no sentence saying so (decision 130).
+  await expect(text(page, /hidden on purpose/)).toHaveCount(0);
   await sayEachPart(page, 3);
 
-  // Step 9: published, and REV (no Send to reviewers) is not offered an ask.
-  await button(page, 'Publish').click();
-  await button(page, 'Publish back translation').click();
-  await expectToast(page, 'Back translation published.');
-  await expect(text(page, 'Back translation published')).toBeVisible();
+  // Step 9: Done, and REV (no Send to reviewers) is not offered an ask: it just finishes.
+  await button(page, 'Done').click();
   await expect(button(page, /^Ask /)).toHaveCount(0);
-  await expect(primary(page)).toHaveAccessibleName('Done');
-  // Known issue (2026-10-12, PASS-017): the page still says "Next, ask for a check" to a reviewer who cannot ask.
-  expect.soft(await screenText(page), 'PASS-017: a reviewer who cannot ask is told to ask').not.toMatch(/Next, ask for a check/i);
+  expect(await screenText(page), 'PASS-017: a reviewer who cannot ask is not told to ask').not.toMatch(/Next check/i);
+  await expect(primary(page)).toHaveAccessibleName('Finish the back translation');
+  await primary(page).click();
+  await expectToast(page, 'Back translation published.');
 
   // TRANS, after syncing: the bell has the feedback on P-SUBMITTED, unread.
   const devices = new Devices(browser, world);

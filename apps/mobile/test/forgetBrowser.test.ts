@@ -3,12 +3,12 @@
  * (decisions.md 11; AUTH-034, decided 2026-10-13): its token on a shared
  * computer would let the next person join as someone else.
  */
-import { HELD_INVITE_KEY } from '../src/heldInviteStore';
+import { HELD_INVITE_KEY } from '../src/invites/heldInviteStore';
 
 vi.mock('react-native', () => ({ Platform: { OS: 'web' } }));
-vi.mock('../src/store', () => ({ deleteLocalDatabases: vi.fn(async () => undefined) }));
-vi.mock('../src/webFiles', () => ({ clearAllWebFiles: vi.fn(async () => undefined) }));
-vi.mock('../src/report', () => ({ reportError: vi.fn() }));
+vi.mock('../src/sync/store', () => ({ deleteLocalDatabases: vi.fn(async () => undefined) }));
+vi.mock('../src/web/webFiles', () => ({ clearAllWebFiles: vi.fn(async () => undefined) }));
+vi.mock('../src/diagnostics/report', () => ({ reportError: vi.fn() }));
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: async () => null,
@@ -38,9 +38,9 @@ beforeEach(() => {
   reload.mockClear();
 });
 
-const { forgetThisBrowser } = await import('../src/forgetBrowser');
-const { deleteLocalDatabases } = await import('../src/store');
-const { clearAllWebFiles } = await import('../src/webFiles');
+const { forgetThisBrowser } = await import('../src/web/forgetBrowser');
+const { deleteLocalDatabases } = await import('../src/sync/store');
+const { clearAllWebFiles } = await import('../src/web/webFiles');
 
 describe('forget this browser', () => {
   beforeEach(() => {

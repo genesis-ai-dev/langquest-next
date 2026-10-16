@@ -6,9 +6,16 @@
 # web-smoke: the release web build in three browser engines (e2e/web-smoke).
 # ui-web:   the P0 web UI tests (e2e/ui, `@p0`) on the release export
 #           served by the Worker, against a local Supabase with the library
-#           seeded and the projection worker scheduled (docs/testing.md).
+#           seeded and the projection worker scheduled (docs/testing.md),
+#           in two shards.
 # nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
-#           on a schedule; reported, not blocking (docs/testing.md).
+#           on a schedule; not blocking, but each job files its failures in
+#           Linear (scripts/nightly-report.mjs; a dry run off main).
+#
+# The four PR jobs start together rather than after `checks`: a PR waits for
+# the slowest job, not for `checks` plus it (decisions.md 102, amended
+# 2026-10-15). A job that needs the local stack starts it in the background
+# and installs the browsers meanwhile.
 #
 # e2e/env.sh reads the local stack's URL and keys from `supabase
 # status`, so no dotenvx key is needed in any job.
@@ -28,6 +35,11 @@ on:
         type: boolean
         default: false
 
+# Read the code, nothing more: a compromised dependency in a job gets no
+# write access to the repository through the token.
+permissions:
+  contents: read
+
 concurrency:
   group: guardrails-${{ github.ref }}
   cancel-in-progress: true
@@ -37,16 +49,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run typecheck
+      # What may import what (decisions.md 104, 105): eslint.config.mjs.
+      - run: npm run lint
       # The unit suite with coverage; core and client have thresholds (vitest.config.ts).
       - run: npm run test:coverage
       - name: Keep the coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage
           path: coverage/lcov.info
@@ -75,10 +89,9 @@ jobs:
     # the client integration test (npm run test:integration).
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: checks
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - name: Start Supabase (applies every migration)
@@ -95,18 +108,22 @@ jobs:
     # no model. The build also holds the bundle-size budget.
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: checks
     env:
       CI: 'true'
       SMOKE_PORT: '8787'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - name: Start Supabase in the background (applies every migration)
+        run: nohup bash -c 'npx supabase start -x studio,imgproxy,vector,logflare,supavisor > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
       - run: npx playwright install --with-deps chromium firefox webkit
-      - name: Start Supabase (applies every migration)
-        run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor
+      - name: Wait for Supabase
+        run: |
+          while [ ! -f "$RUNNER_TEMP/stack.exit" ]; do sleep 2; done
+          cat "$RUNNER_TEMP/stack.log"
+          exit "$(cat "$RUNNER_TEMP/stack.exit")"
       # A new language needs a template, and templates live in the LangQuest
       # library (docs/library.md), which migrations do not create.
       - name: Publish the LangQuest library
@@ -117,7 +134,7 @@ jobs:
       # What the page showed when a step failed (error-context.md), so a CI-only failure can be read.
       - name: Keep the smoke results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: web-smoke-results
           path: e2e/results
@@ -128,29 +145,40 @@ jobs:
     # the build people get, served by the Worker, against a local Supabase
     # with the library and the projection worker as `npm run db:start` leaves
     # them. Zero retries; a red run is a finding, not a flake to hide.
+    # Two shards, each on its own runner: the tests are most of the job.
+    # Playwright splits by test count, in file order, with the `wide` project
+    # first (e2e/ui.config.ts), so the longest test starts at once.
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     env:
       CI: 'true'
       UI_PORT: '8787'
       UI_WORKERS: '4'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - name: Start the local stack in the background (migrations, library, projection worker)
+        run: nohup bash -c 'npm run db:start > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
       - run: npx playwright install --with-deps chromium
-      - name: Start the local stack (migrations, library, projection worker)
-        run: npm run db:start
-      - name: P0 web UI tests on the export
+      - name: Wait for the local stack
+        run: |
+          while [ ! -f "$RUNNER_TEMP/stack.exit" ]; do sleep 2; done
+          cat "$RUNNER_TEMP/stack.log"
+          exit "$(cat "$RUNNER_TEMP/stack.exit")"
+      - name: P0 web UI tests on the export (shard ${{ matrix.shard }} of 2)
         shell: bash
-        run: npm run test:ui:web -- --grep @p0 --grep-invert @quarantine
+        run: npm run test:ui:web -- --grep @p0 --grep-invert @quarantine --shard=${{ matrix.shard }}/2
       - name: Keep the results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: ui-web-p0-results
+          name: ui-web-p0-results-${{ matrix.shard }}
           path: |
             e2e/results/ui/report.json
             e2e/results/ui/**/*.png
@@ -158,7 +186,7 @@ jobs:
           if-no-files-found: ignore
 
   nightly-ui-web:
-    # The whole web UI suite, quarantine apart. Reported, not blocking.
+    # The whole web UI suite, quarantine apart. Not blocking; its failures go to Linear.
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -167,8 +195,8 @@ jobs:
       UI_PORT: '8787'
       UI_WORKERS: '4'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npx playwright install --with-deps chromium
@@ -179,7 +207,7 @@ jobs:
         run: npm run test:ui:web -- --grep-invert @quarantine
       - name: Keep the results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ui-web-nightly-results
           path: |
@@ -187,6 +215,14 @@ jobs:
             e2e/results/ui/**/*.png
             e2e/results/ui/**/error-context.md
           if-no-files-found: ignore
+      # An issue per failing test, or one for the run when it broke as a whole.
+      - name: Tell Linear
+        if: always()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          JOB_STATUS: ${{ job.status }}
+          DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
+        run: node scripts/nightly-report.mjs ui --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY
 
   nightly-quarantine:
     # The quarantined tests, on their own, so their pass rate is visible
@@ -199,8 +235,8 @@ jobs:
       CI: 'true'
       UI_PORT: '8787'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npx playwright install --with-deps chromium
@@ -211,7 +247,7 @@ jobs:
         run: npm run test:ui:web -- --grep @quarantine
       - name: Keep the results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ui-web-quarantine-results
           path: e2e/results/ui/report.json
@@ -224,15 +260,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run fleet -- normalDay --json=fleet-normalDay.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: fleet-normalDay
           path: fleet-normalDay.json
+      - name: Tell Linear
+        if: always()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          JOB_STATUS: ${{ job.status }}
+          DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
+        run: node scripts/nightly-report.mjs job --name nightly-fleet --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY
 
   nightly-mutation:
     # Stryker over packages/core (docs/testing.md): a test would notice a
@@ -241,20 +284,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
       # Stryker's incremental file, so a night only re-tests what changed (about 7 min from cold on 7 workers).
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .stryker-tmp/incremental.json
           key: stryker-core-${{ github.sha }}
           restore-keys: stryker-core-
       - run: npm run mutate:core
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: mutation-core
           path: reports/mutation
           if-no-files-found: ignore
+      - name: Tell Linear
+        if: always()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          JOB_STATUS: ${{ job.status }}
+          DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
+        run: node scripts/nightly-report.mjs job --name nightly-mutation --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY

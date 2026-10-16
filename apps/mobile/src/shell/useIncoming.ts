@@ -1,16 +1,16 @@
 import { CommonActions } from '@react-navigation/native';
 import { useEffect, useRef } from 'react';
 import { Linking } from 'react-native';
-import { forgetKeyInAddress } from '../appUrl';
-import type { Ctx } from '../ctx';
-import { nextStep } from '../heldInvite';
-import { parseKey } from '../inviteCode';
-import { navRef, type Nav } from '../nav';
-import { findNotification } from '../notifications';
-import { notificationTarget, openAfterSwitch } from '../notificationTarget';
-import { onNotificationOpened } from '../push';
-import { noteExpected } from '../report';
-import type { InviteHandle } from '../useHeldInvite';
+import { forgetKeyInAddress } from '../web/appUrl';
+import type { Ctx } from './ctx';
+import { nextStep } from '../invites/heldInvite';
+import { parseKey } from '../invites/inviteCode';
+import { navRef, type Nav } from './nav';
+import { findNotification } from '../notifications/notifications';
+import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
+import { onNotificationOpened } from '../notifications/push';
+import { noteExpected } from '../diagnostics/report';
+import type { InviteHandle } from '../invites/useHeldInvite';
 
 let initialLinkRead = false;
 
@@ -24,13 +24,15 @@ export function useIncoming(o: {
   toast: (message: string) => void; openTask: (languageId: string, unitId: string) => void; openOrganization: Ctx['openOrganization'];
 }) {
   const { nav, invite, signedIn, onboardingLoaded, actorId, toast, homeIsWork, openTask, openOrganization, orgId: thisOrg } = o;
+  const resetNav = nav.reset;
+  const scanInvite = invite.scan;
   useEffect(() => {
     const receive = (url: string) => {
       const key = parseKey(url);
       if (!key) return;
       forgetKeyInAddress();
-      if (key.kind === 'signin') { nav.reset({ screen: 'scan_qr', params: { code: url } }); return; }
-      void invite.scan(key).then(() => nav.reset({ screen: 'scan_qr' }));
+      if (key.kind === 'signin') { resetNav({ screen: 'scan_qr', params: { code: url } }); return; }
+      void scanInvite(key).then(() => resetNav({ screen: 'scan_qr' }));
     };
     if (!initialLinkRead) {
       initialLinkRead = true;
@@ -38,7 +40,7 @@ export function useIncoming(o: {
     }
     const listener = Linking.addEventListener('url', ({ url }) => receive(url));
     return () => listener.remove();
-  }, [nav.reset, invite.scan]);
+  }, [resetNav, scanInvite]);
   // An invite nobody has claimed is shown to whoever is signed in, once, to
   // ask "Join as you?"; it never joins on its own (heldInvite.ts).
   const asked = useRef<string | null>(null);
@@ -65,7 +67,7 @@ export function useIncoming(o: {
     const inbox = () => {
       if (homeIsWork && navRef.isReady()) {
         navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'my_work' }, { name: 'inbox_home', params: { from: 'my_work' } }] }));
-      } else nav.reset({ screen: 'inbox_home' });
+      } else resetNav({ screen: 'inbox_home' });
     };
     // The push names only its Inbox row; the row says what it is about, and that opens (design principle 11).
     return onNotificationOpened((id) => {
@@ -76,5 +78,5 @@ export function useIncoming(o: {
         else inbox();
       }).catch((e: unknown) => { noteExpected('open pushed notification', e); inbox(); });
     });
-  }, [signedIn, nav.reset, homeIsWork, openTask, openOrganization, thisOrg, actorId]);
+  }, [signedIn, resetNav, homeIsWork, openTask, openOrganization, thisOrg, actorId]);
 }

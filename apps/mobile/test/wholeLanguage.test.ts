@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 import { PASSAGE_PARTS, READS_EVERY_PASSAGE } from '@langquest-next/core';
 
 /**
- * A language kept on disk (decisions.md 110) holds in memory only the
+ * A language kept on disk (decisions.md 134) holds in memory only the
  * passages a screen has open. Code that looks across every passage in the
  * state sees those few and answers wrongly, without any error: a list that
  * shows most passages as not started, a count that is too low. Lists read
@@ -16,13 +16,13 @@ import { PASSAGE_PARTS, READS_EVERY_PASSAGE } from '@langquest-next/core';
 const APP = join(__dirname, '..');
 
 const ALLOWED: Record<string, { reads: string[]; why: string }> = {
-  'src/recordingFlow.ts': { reads: ['takes'], why: 'the passage on screen: which of its recordings a take already holds' },
-  'src/passageResources.ts': { reads: ['recordings'], why: "the source audio of the passage's book and chapter, which come into memory with it" },
-  'src/lostFiles.tsx': { reads: ['lostFilesView'], why: "only when no view is given; the alert passes the one worked out from the phone's table" },
-  'src/offline.tsx': { reads: ['offlineByUnit'], why: 'passages not kept offline, counted only while they are on screen' },
+  'src/recording/recordingFlow.ts': { reads: ['takes'], why: 'the passage on screen: which of its recordings a take already holds' },
+  'src/passage/passageResources.ts': { reads: ['recordings'], why: "the source audio of the passage's book and chapter, which come into memory with it" },
+  'src/sync/lostFilesWords.ts': { reads: ['lostFilesView'], why: "only when no view is given; the alert passes the one worked out from the phone's table" },
+  'src/sync/offline.tsx': { reads: ['offlineByUnit'], why: 'passages not kept offline, counted only while they are on screen' },
   'src/keyTerms/model.ts': { reads: ['takesLinkingTerm'], why: "called with the passages read in for the term (`passagesLinkingTerm`)" },
   'src/passage/sendTarget.ts': { reads: ['usualTarget'], why: "given each passage's reviewers from the lines, it reads no records" },
-  'src/useLanguage.ts': { reads: ['languageLines', 'updatesFor'], why: 'on an empty language, before a session opens' },
+  'src/sync/useLanguage.ts': { reads: ['languageLines', 'updatesFor'], why: 'on an empty language, before a session opens' },
   'src/templates/bookStructureModel.ts': { reads: ['languageLines'], why: "only when no lines are given (tests); screens pass the language's lines" }
 };
 
@@ -69,7 +69,7 @@ describe('the app never reads every passage from memory', () => {
       const allowed = new Set(ALLOWED[name]?.reads ?? []);
       for (const r of reads) if (!allowed.has(r)) found.push(`${name} reads ${r}`);
     }
-    expect(found, 'Read the language\'s lines, or read the passages in with `withPassages` (decisions.md 110); or list the file in ALLOWED with why its passages are in memory.').toEqual([]);
+    expect(found, 'Read the language\'s lines, or read the passages in with `withPassages` (decisions.md 134); or list the file in ALLOWED with why its passages are in memory.').toEqual([]);
     // A listed read that is gone is dropped from the list, so the list stays true.
     const stale = Object.entries(ALLOWED).flatMap(([file, a]) => a.reads.filter((r) => !used.get(file)?.has(r)).map((r) => `${file} no longer reads ${r}`));
     expect(stale).toEqual([]);

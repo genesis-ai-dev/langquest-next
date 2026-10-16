@@ -44,8 +44,8 @@ describe('the app writes no words into its code (LAN-42)', { timeout: 30_000 }, 
     expect(found.map((f) => `${f.file}:${f.line} ${f.text}`)).toEqual([]);
   });
 
-  it('draws text through src/text.tsx, so iOS lays it out in the reading direction', () => {
-    const direct = files.filter((path) => !path.endsWith('src/text.tsx') && /import\s*\{[^}]*(?<![\w.])Text(?![\w])[^}]*\}\s*from\s*'react-native'/.test(readFileSync(path, 'utf8')));
+  it('draws text through src/ui/text.tsx, so iOS lays it out in the reading direction', () => {
+    const direct = files.filter((path) => !path.endsWith('src/ui/text.tsx') && /import\s*\{[^}]*(?<![\w.])Text(?![\w])[^}]*\}\s*from\s*'react-native'/.test(readFileSync(path, 'utf8')));
     expect(direct.map((p) => p.slice(ROOT.length + 1))).toEqual([]);
   });
 
@@ -191,6 +191,6 @@ describe('plurals, dates and numbers', () => {
     } finally {
       showLanguage('en');
     }
-    expect(t('common.save')).toBe('Save');
+    expect(t('common.done')).toBe('Done');
   });
 });

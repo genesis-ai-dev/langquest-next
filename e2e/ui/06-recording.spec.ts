@@ -17,8 +17,8 @@ import { randomUUID } from 'node:crypto';
 import { derivePassage, draftsBy, type LanguageState } from '@langquest-next/core';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import {
-  chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, mic, openWorkspace, draftParts, partCount, partsTitle,
-  publishButton, recordButton, recordSaid, recordStep, saveButton, say, secondDevice, startFromRecord, verseSpace, workspaceSub,
+  chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, leaveSession, mic, openWorkspace, draftParts, partCount, partsTitle,
+  publishButton, recordButton, recordSaid, recordStep, redoButton, savedMark, say, secondDevice, startFromRecord, stopRecording, undoButton, verseSpace, workspaceSub,
   useFileWorld
 } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
@@ -60,7 +60,9 @@ test('REC-001 Record opens the workspace for a passage nobody has recorded', asy
   await expect(text(page, w.passages['P-NEW'].label)).toBeVisible();
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   await expect(byId(page, 'header-close')).toBeVisible();
-  await expect(saveButton(page)).toBeVisible();
+  // Nothing to save (decision 127): no Save button, and no mark until a part is kept.
+  await expect(button(page, 'Save')).toHaveCount(0);
+  await expect(savedMark(page)).toHaveCount(0);
   // The divider at half: the reference on top, the recorder below.
   const divider = page.getByRole('slider', { name: 'Divider between reference and your recording' });
   await expect(divider).toHaveAttribute('aria-valuetext', 'Source 50%');
@@ -68,10 +70,10 @@ test('REC-001 Record opens the workspace for a passage nobody has recorded', asy
   for (const c of ['Bible', 'Key words', 'Notes']) await expect(chip(page, new RegExp(`^${c}`))).toBeVisible();
   await expect(chip(page, /^Earlier/)).toHaveCount(0);
   await expect(chip(page, /^Bible/)).toHaveAttribute('aria-selected', 'true');
-  // The recorder: Part 1 lit, the hint, the quiet microphone link.
+  // The recorder: Part 1 lit, the hint. Nothing about the microphone to set (LAN-82).
   await expect(page.getByLabel('Part 1. Recording next')).toBeVisible();
-  await expect(text(page, 'Tap the red button and speak. Pause between parts: each part is kept by itself.')).toBeVisible();
-  await expect(button(page, 'Set up the microphone')).toBeVisible();
+  // No line explains it (decision 124): the lit part says where the next one goes.
+  await expect(button(page, 'Set up the microphone')).toHaveCount(0);
   // The footer: Part 1, the red button, Publish disabled.
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
   await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
@@ -129,10 +131,10 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
   await m.mode('tone');
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
-  await expect(text(page, 'Part 1…')).toBeVisible();
+  // The recording view names the part being said; the footer holds Undo and Redo, out of the way while recording (decision 133).
+  await expect(page.getByLabel(/^Part 1\. /)).toBeVisible();
   await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
-  await expect(saveButton(page)).toHaveAttribute('aria-disabled', 'true');
-  await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expect(publishButton(page)).toHaveCount(0);
   for (const [i, ms] of [4000, 4000, 3000].entries()) {
     await m.speak(true);
     await expect(text(page, 'Recording…')).toBeVisible();
@@ -143,14 +145,20 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
     await expect(page.getByLabel(new RegExp(`^Part ${i + 2}\\. `))).toBeVisible();
     await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
   }
-  await recordButton(page).click();
-  await expectIdle(page);
+  // Stopping keeps the session open (decision 129): its parts are boxes to hear, move or drop, and nothing is saved until the recording view's Done.
+  await stopRecording(page);
+  for (const n of [1, 2, 3]) await expect(byId(page, `live-part-${n}`)).toBeVisible();
+  await expect(page.getByLabel(/^Part 4\. /)).toBeVisible();
+  await expect(publishButton(page)).toHaveCount(0);
+  await leaveSession(page);
   await expect(page.getByRole('button', { name: /^Parts 1–3, 3 parts · 0:1\d$/ })).toBeVisible();
   await expect(page.getByLabel('Part 4. Recording next')).toBeVisible();
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
-  await expect(saveButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  // Each part is kept as it lands: the mark ends on its check.
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
   // No part is shorter than a second, and none is empty.
-  const lengths = await page.getByRole('button', { name: /^Play Part \d$/ }).evaluateAll((els) => els.map((e) => e.textContent ?? ''));
+  // Each part's name and length: tapping it chooses it to record over (LAN-83); its play button has no words.
+  const lengths = await page.getByRole('button', { name: /^Record Part \d again$/ }).evaluateAll((els) => els.map((e) => e.textContent ?? ''));
   expect(lengths).toHaveLength(3);
   for (const l of lengths) expect(l).toMatch(/0:0[3-5]/);
   await m.mode('file');
@@ -199,7 +207,7 @@ test('REC-005 Parts can be heard together and one by one', async ({ page }) => {
   expect((await mic(page).counts()).opened).toBe(opened);
 });
 
-test('REC-007 Delete a part, then Undo @p0', async ({ page }) => {
+test('REC-007 Delete a part, then Undo and Redo @p0', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-NEW', 'Continue recording');
@@ -207,16 +215,27 @@ test('REC-007 Delete a part, then Undo @p0', async ({ page }) => {
   const before = await lastComposed(page, w, 'P-NEW');
   const original = before.length === 3 ? before : (await onServer(w, 'P-NEW')).drafts[0]!.cardHashes;
   await deletePart(page, 2);
-  const toast = await expectToast(page, 'Part 2 deleted.');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Parts 1–2, 2 parts · / })).toBeVisible();
+  // No toast with an Undo that runs out (Caleb, 2026-10-16): the arrows by the red button stay.
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(undoButton(page)).toHaveAttribute('aria-label', 'Undo: Part 2 deleted.');
+  await expect(redoButton(page)).toHaveAttribute('aria-disabled', 'true');
+  // The deleted part's place stays, numbered, so the card reads three places and two parts (LAN-83).
+  await expect(page.getByRole('button', { name: /^Parts 1–3, 2 parts · / })).toBeVisible();
+  await expect(button(page, 'Record Part 2 here')).toBeVisible();
   await expect.poll(() => lastComposed(page, w, 'P-NEW')).toEqual([original[0], original[2]]);
-  // The toast stays for 7 seconds; Undo inside them.
-  await page.waitForTimeout(4000); // sleep: the toast's own 7 s life; Undo must still work 4 s in
-  await expect(toast).toBeVisible();
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
+  // Undo is still there after leaving the workspace and coming back.
+  await back(page).click();
+  await startFromRecord(page, 'Continue recording');
+  await expectParts(page, 2);
+  await undoButton(page).click();
   await expectParts(page, 3);
+  await expect.poll(() => lastComposed(page, w, 'P-NEW')).toEqual(original);
+  // Redo deletes it again, and Undo brings it back once more: each a new change on the record.
+  await redoButton(page).click();
+  await expectParts(page, 2);
+  await undoButton(page).click();
+  await expectParts(page, 3);
+  await expect(redoButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await expect.poll(() => lastComposed(page, w, 'P-NEW')).toEqual(original);
   await expectUploaded(page, w);
   // A second device: the same three parts in the same order.
@@ -238,8 +257,7 @@ test('REC-008 Parts cannot be deleted while recording', async ({ page }) => {
     await expect(verseSpace(page, n)).toHaveAttribute('aria-disabled', 'true');
     await expect(button(page, `Play Part ${n}`)).toHaveAttribute('aria-disabled', 'true');
   }
-  await expect(saveButton(page)).toHaveAttribute('aria-disabled', 'true');
-  await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expect(publishButton(page)).toHaveCount(0);
   // A hold on the space does nothing: no sheet, no toast.
   const box = (await verseSpace(page, 1).boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -247,11 +265,10 @@ test('REC-008 Parts cannot be deleted while recording', async ({ page }) => {
   await button(page, 'Play Part 1').click({ force: true });
   await expect(page.getByRole('button', { name: 'Delete Part 1', exact: true })).toHaveCount(0);
   await expect(byId(page, 'toast')).toHaveCount(0);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await m.mode('file');
   for (const n of [1, 2, 3]) await expect(verseSpace(page, n)).not.toHaveAttribute('aria-disabled', 'true');
-  await expect(saveButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await expectParts(page, 3);
 });
@@ -263,26 +280,25 @@ test('REC-009 Deleting the only part leaves nothing to publish', async ({ page }
   await recordSaid(page, [3000]);
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await deletePart(page, 1);
-  await expectToast(page, 'Part 1 deleted.');
   await expectParts(page, 0);
   await expect(page.getByLabel('Part 1. Recording next')).toBeVisible();
-  await expect(text(page, 'Tap the red button and speak. Pause between parts: each part is kept by itself.')).toBeVisible();
+  // No line explains it (decision 124): the lit part says where the next one goes.
   await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
+  await undoButton(page).click();
   await expectParts(page, 1);
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await expectUploaded(page, w);
   await expect.poll(async () => (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes.length), { timeout: 30_000 }).toEqual([1]);
 });
 
-test('REC-010 Save keeps the draft and goes back', async ({ page }) => {
+test('REC-010 Leaving keeps the draft, and the mark says so', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-NEW', 'Continue recording');
   await expectParts(page, 3);
-  await saveButton(page).click();
-  await expectToast(page, 'Draft saved.');
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
+  await back(page).click();
+  await expect(byId(page, 'toast')).toHaveCount(0);
   await expect(primary(page)).toHaveText('Continue recording');
   await primary(page).click();
   await expectParts(page, 3);
@@ -295,8 +311,8 @@ test('REC-010 Save keeps the draft and goes back', async ({ page }) => {
 // ---- Publishing ------------------------------------------------------------------------
 
 /**
- * REC-011 ends on the published page and REC-012 starts there: the two share
- * one browser, kept open between them.
+ * REC-011 ends on the passage record after Done asked for the peer check, and
+ * REC-012 starts there: the two share one browser, kept open between them.
  */
 let kept: { context: BrowserContext; page: Page } | null = null;
 async function keptPage(browser: Browser): Promise<Page> {
@@ -314,41 +330,43 @@ async function pathRows(page: Page): Promise<string[]> {
   return page.getByRole('button', { name: /^\d+\. / }).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
 }
 
-test('REC-011 Publish Version 1 @p0', async ({ browser }) => {
+test('REC-011 Done, then ask the usual people for the peer check @p0', async ({ browser }) => {
   const w = world();
   const page = await keptPage(browser);
   const label = w.passages['P-NEW'].label;
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-NEW', 'Continue recording');
   await expectParts(page, 3);
+  await expect(publishButton(page)).toHaveText('Done');
   await publishButton(page).click();
-  // The Publish screen, inside the workspace.
+  // The Done screen, inside the workspace: the version, a word about it, and its next check with its people.
   await expect(page.getByRole('heading', { name: label })).toBeVisible();
-  await expect(text(page, 'Publish')).toBeVisible();
   await expect(byId(page, 'header-close')).toBeVisible();
   await expect(text(page, 'Version 1')).toBeVisible();
   await expect(text(page, /^3 parts · 0:1\d( · recorded with the \S+ Bible)?$/)).toBeVisible();
-  const row = button(page, 'Say something about it. Optional · the team hears it with this version');
-  await expect(row).toBeVisible();
-  await expect(text(page, 'Publishing saves Version 1 to the passage. Everyone on the team can hear it. It goes out when the device has internet.')).toBeVisible();
-  await expect(primary(page)).toHaveText('Publish Version 1');
-  await expect(primary(page)).toBeEnabled();
-  await primary(page).click();
-  await expectToast(page, 'Version 1 published.');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
-  // The published page: what was done, then the next check and who usually does it.
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toBeVisible();
-  await expect(text(page, `${label} · sent to the team`)).toBeVisible();
-  await expect(text(page, 'Next, ask for a check')).toBeVisible();
+  await expect(button(page, 'Say something about it. Optional · the team hears it with this version')).toBeVisible();
+  await expect(text(page, 'Next check')).toBeVisible();
   await expect(text(page, 'Peer check')).toBeVisible();
   await expect(text(page, /Trevor Both|Rita Reviewer/)).toBeVisible();
   await expect(primary(page)).toHaveText(/^Ask /);
+  await expect(primary(page)).toBeEnabled();
   await expect(button(page, 'Someone else')).toBeVisible();
-  await expect(button(page, 'Not now')).toBeVisible();
+  await expect(button(page, 'Send later')).toBeVisible();
+  const target = (await primary(page).innerText()).trim().replace(/^Ask /, '');
+  // One tap publishes and asks, with Undo for the asking.
+  await primary(page).click();
+  const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await expectToast(page, new RegExp(`^Sent to ${escaped} — (anyone on it|they) will see it on My Work`));
+  await expect(byId(page, 'toast-undo')).toBeVisible();
+  // Back on the record, which says the version and who was asked; no "published" page in between.
+  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
+  await expect.poll(async () => (await pathRows(page)).join('\n')).toMatch(/asked /);
   await expectUploaded(page, w);
-  // On the server: no draft, Version 1 by TRANS with three parts.
-  await expect.poll(async () => { const s = await onServer(w, 'P-NEW'); return [s.drafts.length, s.versions.map((v) => v.cardHashes.length)]; }, { timeout: 30_000 })
-    .toEqual([0, [3]]);
+  // On the server: no draft, Version 1 by TRANS with three parts, and the peer check asked for.
+  await expect.poll(async () => {
+    const s = await onServer(w, 'P-NEW');
+    return [s.drafts.length, s.versions.map((v) => v.cardHashes.length), s.p.openRequests.filter((r) => r.what === 'review').map((r) => r.kindId)];
+  }, { timeout: 30_000 }).toEqual([0, [3], ['peer']]);
   // REV's device: Version 1 is on the record, and plays.
   const rev = await secondDevice(browser, w, 'REV');
   try {
@@ -360,31 +378,14 @@ test('REC-011 Publish Version 1 @p0', async ({ browser }) => {
   await expectNothingRefused(page, w);
 });
 
-test('REC-012 After publishing, ask for the check or not now', async ({ browser }) => {
+test('REC-012 After Done, the record says who was asked, and they find it on My Work', async ({ browser }) => {
   const w = world();
   const page = await keptPage(browser);
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toBeVisible();
-  const target = (await primary(page).innerText()).trim().replace(/^Ask /, '');
-  const before = await eventCount(page, w);
-  await button(page, 'Not now').click();
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
-  await expect(primary(page)).toHaveText('Ask for the peer check');
-  expect(await eventCount(page, w), '"Not now" writes nothing').toBe(before);
-  // Afterwards the record's steps read the version and when it was published.
   const rows = await pathRows(page);
   expect(rows.join('\n')).toMatch(/Version 1 · 0:1\d/);
-  // Known issue (2026-10-12): the step reads "Published Just now" (pathModel.ts puts `when()`'s sentence-start form mid-sentence).
-  expect.soft(rows.join('\n')).toMatch(/Published just now/);
-  await primary(page).click();
-  await expect(page.getByRole('heading', { name: 'Ask for a check' })).toBeVisible();
-  await expect(text(page, w.passages['P-NEW'].label)).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
-  await primary(page).click();
-  const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  await expectToast(page, new RegExp(`^Sent to ${escaped} — (anyone on it|they) will see it on My Work`));
-  await expect(byId(page, 'toast-undo')).toBeVisible();
-  await expect.poll(async () => (await pathRows(page)).join('\n')).toMatch(/asked /);
-  await expectUploaded(page, w);
+  expect(rows.join('\n')).toMatch(/Published just now · asked /);
+  // Asked already: the record does not offer asking for the peer check again.
+  await expect(primary(page)).not.toHaveText('Ask for the peer check');
   // REV finds P-NEW's Peer check on My Work.
   const rev = await secondDevice(browser, w, 'REV');
   try {
@@ -392,7 +393,7 @@ test('REC-012 After publishing, ask for the check or not now', async ({ browser 
   } finally { await rev.context.close(); }
 });
 
-test('REC-013 Publish\'s ✕ returns to the workspace and keeps everything', async ({ page }) => {
+test('REC-013 Done\'s ✕ returns to the workspace and keeps everything', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-Q2', 'Continue recording');
@@ -406,8 +407,9 @@ test('REC-013 Publish\'s ✕ returns to the workspace and keeps everything', asy
   // Back in the workspace, not the record: the part is still there, nothing published.
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   await expectParts(page, 1);
+  // What was said is kept too (decision 127): opening Done again brings it back.
   await publishButton(page).click();
-  await expect(button(page, /^Say something about it\. /)).toBeVisible();
+  await expect(button(page, /^What you said about it\. “Draft for the team”/)).toBeVisible();
   await back(page).click();
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   expect((await onServer(w, 'P-Q2')).versions).toHaveLength(0);
@@ -429,14 +431,16 @@ test('REC-014 Say something about Version 1 by voice', async ({ page }) => {
   await expect(button(page, 'Play voice note')).toBeVisible();
   await button(page, 'Done').click();
   await expect(button(page, 'What you said about it. Voice note')).toBeVisible();
-  await primary(page).click();
+  // Send later: done, and nobody asked yet.
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 1 published.');
   await expectUploaded(page, w);
-  const v = (await onServer(w, 'P-Q2')).versions;
-  expect(v).toHaveLength(1);
-  expect(v[0]!.changeBlobHash, 'the voice note goes with Version 1').toBeTruthy();
-  // The record's Versions and history plays the version with its note.
-  await button(page, 'Not now').click();
+  const s = await onServer(w, 'P-Q2');
+  expect(s.versions).toHaveLength(1);
+  expect(s.versions[0]!.changeBlobHash, 'the voice note goes with Version 1').toBeTruthy();
+  expect(s.p.openRequests.filter((r) => r.what === 'review'), 'Send later asks nobody').toHaveLength(0);
+  // The record asks later; its Versions and history plays the version with its note.
+  await expect(primary(page)).toHaveText('Ask for the peer check');
   await button(page, 'Versions and history').click();
   await expect(button(page, 'Play Version 1')).toBeEnabled();
 });
@@ -473,15 +477,16 @@ test('REC-016 Version 2 needs "what changed" @p0', async ({ page }) => {
   await button(page, 'Edit').click();
   await expect(text(page, 'Recording Version 2')).toBeVisible();
   await expectParts(page, 3);
-  await expect(text(page, 'These are Version 1\'s parts. Record a new part or delete one to publish a new version.')).toBeVisible();
+  // The card is named for the version while its parts are still the version's (LAN-83: no sentence says so).
+  await expect(page.getByRole('button', { name: /^Version 1, 3 parts · / }).locator('visible=true').first()).toBeVisible();
   await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
   await recordSaid(page, [3000]);
-  await expect(text(page, 'These are Version 1\'s parts. Record a new part or delete one to publish a new version.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Version 1, / }).locator('visible=true')).toHaveCount(0);
   await expectParts(page, 4);
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await publishButton(page).click();
   await expect(button(page, 'Say what changed. Needed · since Version 1, so the team knows what to listen for')).toBeVisible();
-  await expect(primary(page)).toHaveText('Publish Version 2');
+  await expect(primary(page)).toHaveText(/^Ask /);
   await expect(primary(page)).toBeDisabled();
   await button(page, /^Say what changed\. /).click();
   await expect(text(page, 'What changed?')).toBeVisible();
@@ -491,11 +496,9 @@ test('REC-016 Version 2 needs "what changed" @p0', async ({ page }) => {
   await button(page, 'Done').click();
   await expect(button(page, 'What changed. “Added verse 9 again, slower”')).toBeVisible();
   await expect(primary(page)).toBeEnabled();
-  await primary(page).click();
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 2 published.');
-  await expect(page.getByRole('heading', { name: 'Version 2 published' })).toBeVisible();
   await expectUploaded(page, w);
-  await button(page, 'Not now').click();
   await button(page, 'Versions and history').click();
   await expect(button(page, /^Open Version 2/)).toBeVisible();
   await expect(button(page, /^Open Version 1/)).toBeVisible();
@@ -528,7 +531,7 @@ test('REC-017 What changed can be said instead of typed', async ({ page }) => {
   await button(page, 'Done').click();
   await expect(button(page, 'What changed. Voice note')).toBeVisible();
   await expect(primary(page)).toBeEnabled();
-  await primary(page).click();
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 2 published.');
   await expectUploaded(page, w);
   const v = (await onServer(w, 'P-Q2')).versions;
@@ -548,11 +551,11 @@ test('REC-018 Changing a published version\'s parts makes a new draft', async ({
   await expectParts(page, 2);
   const v2 = (await onServer(w, 'P-Q2')).versions[1]!.cardHashes;
   await deletePart(page, 2);
-  await expectToast(page, 'Part 2 deleted.');
+  await expectParts(page, 1);
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
-  await saveButton(page).click();
-  await expectToast(page, 'Draft saved.');
-  // Save goes back to where the workspace was opened from: the Versions page.
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
+  await back(page).click();
+  // ✕ goes back to where the workspace was opened from, the Versions page, with the draft kept.
   await expect(text(page, 'Your draft')).toBeVisible();
   await expectUploaded(page, w);
   const s = await onServer(w, 'P-Q2');
@@ -571,9 +574,9 @@ test('REC-019 Several drafts of one passage', async ({ page }) => {
   await expectParts(page, 0);
   await recordSaid(page, [3000]);
   await expect(text(page, 'Draft 2')).toBeVisible();
-  await saveButton(page).click();
-  await expectToast(page, 'Draft 2 saved.');
-  // Save went back to the Versions page it was opened from, which lists both drafts.
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
+  await back(page).click();
+  // ✕ went back to the Versions page it was opened from, which lists both drafts.
   await expect(text(page, 'Your drafts')).toBeVisible();
   // The record behind it still leads with asking for Version 2's check; its drafts are under Versions and history.
   await back(page).click();
@@ -619,8 +622,7 @@ test('REC-025 Web: closing the tab while recording asks first', async ({ page, c
   // Cancelled: the page stays and recording goes on; the part ends at the pause.
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await expectParts(page, before + 1, 8_000);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   // Idle, with nothing left to send (else the leave guard asks, storageGate.tsx), a reload asks nothing.
   await expectUploaded(page, w);
   // Until the upload count catches up the leave guard is still on; then nothing holds the page.
@@ -630,11 +632,14 @@ test('REC-025 Web: closing the tab while recording asks first', async ({ page, c
   expect(dialogs).toEqual(['beforeunload']);
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
   await expectParts(page, before + 1);
-  // The tab killed outright in the middle of a session (no question asked):
-  // every part that ended and was stored in the browser before it went is
-  // there when LangQuest opens again in the same browser (recordingJournal.ts).
+  // The tab killed outright (no question asked) right after a session was
+  // left: every part it kept was stored in the browser before it went, and
+  // is there when LangQuest opens again in the same browser
+  // (recordingJournal.ts). A session not yet left lives in the page, which
+  // asks before it goes (above); a phone keeps it in its journal (LAN-82).
   await recordButton(page).click();
   await expectParts(page, before + 2, 8_000);
+  await leaveSession(page);
   await page.waitForTimeout(800); // sleep: the journal's write to browser storage, which shows nowhere on screen
   await page.close();
   const again = await context.newPage();
@@ -660,7 +665,8 @@ test('REC-031 Tapping record and stop very fast', async ({ page }) => {
   const label = await recordButton(page).getAttribute('aria-label');
   const open = (await m.counts()).open;
   expect(label === 'Stop recording' ? open > 0 : open === 0, `button "${label}" with ${open} microphone(s) open`).toBe(true);
-  if (label === 'Stop recording') { await recordButton(page).click(); await expectIdle(page); }
+  // However the taps landed, Done leaves whatever session they opened.
+  if (await button(page, 'Done').isVisible()) await leaveSession(page);
   await expectParts(page, 1);
   await expect(text(page, /could not start|did not save|Something went wrong/)).toHaveCount(0);
   await recordSaid(page, [3000]);
@@ -689,15 +695,13 @@ test('REC-033 Record and publish in airplane mode @p0', async ({ page, context }
   await recordSaid(page, [3000, 3000]);
   await expectParts(page, 4);
   await deletePart(page, 3);
-  await expectToast(page, 'Part 3 deleted.');
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
+  await expectParts(page, 3);
+  await undoButton(page).click();
   await expectParts(page, 4);
   await publishButton(page).click();
-  await primary(page).click();
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 1 published.');
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toBeVisible();
-  await expect(text(page, `${label} · saved on this device · sends when you're online`)).toBeVisible();
+  await expect(page.getByRole('heading', { name: label })).toBeVisible();
   const waiting = (await deviceLog(page, w.languages.A.orgId, w.languages.A.languageId)).filter((r) => r.status === 'pending');
   expect(waiting.length, 'the work waits on the device').toBeGreaterThan(0);
   await context.setOffline(false);
@@ -744,8 +748,7 @@ test('REC-036 Playing the Bible while recording pauses the microphone', async ({
   await button(page, 'Resume recording now').click();
   await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
   await say(page, 3000);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await expectParts(page, before + 3);
 });
 
@@ -764,12 +767,11 @@ test('REC-037 The Bible in the reference pane', async ({ page }) => {
   await page.getByRole('button', { name: /^Verse 25\. / }).first().click();
   await button(page, 'Add a note here').click();
   await page.getByPlaceholder('Or type it').fill('Hard to say \'Lord, open to us\'');
-  await button(page, 'Save note').click();
+  await button(page, 'Add a note').last().click();
   await expectToast(page, 'Note added.');
   await recordButton(page).click();
   await expect(button(page, 'Add a note here')).toHaveCount(0);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await expect(button(page, 'Add a note here')).toBeVisible();
 });
 
@@ -817,15 +819,14 @@ test('REC-039 Notes from the workspace', async ({ page }) => {
   const n = await count();
   await button(page, 'Add a note').click();
   await page.getByPlaceholder('Or type it').fill('The fig tree means Israel here');
-  await button(page, 'Save note').click();
+  await button(page, 'Add a note').last().click();
   await expectToast(page, 'Note added.');
   await expect(text(page, 'The fig tree means Israel here', false)).toBeVisible();
   await expect.poll(count).toBe(n + 1);
   await mic(page).mode('tone');
   await recordButton(page).click();
   await expect(button(page, 'Add a note')).toHaveAttribute('aria-disabled', 'true');
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await expectUploaded(page, w);
   const notes = (await onServer(w, 'P-Q3')).p.notes.map((x) => x.text);
   expect(notes).toContain('The fig tree means Israel here');
@@ -869,8 +870,7 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   await page.waitForTimeout(2500); // sleep: N s of speech, the product's own threshold
   await mic(page).speak(false);
   await page.waitForTimeout(2000); // sleep: the quiet that ends a part, the product's own silence threshold
-  await recordButton(page).click();
-  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
+  await leaveSession(page);
   await expect(text(page, `${parts + 1} parts recorded`)).toBeVisible({ timeout: 10_000 });
   await button(page, /^Your recording\. /).click();
   await expect(divider).toHaveAttribute('aria-valuetext', 'Source 50%');
@@ -880,7 +880,8 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   await expect(divider).toHaveAttribute('aria-valuetext', /^(Source 65%|Source 6\d%)$/);
   const at = await divider.getAttribute('aria-valuetext');
   const small = ((await page.getByLabel('Your recording', { exact: true }).first().boundingBox())?.height ?? 999) < 360;
-  if (small) await expect(text(page, new RegExp(`^Parts 1–${parts + 1} recorded · drag up to see them$`))).toBeVisible();
+  // A small pane keeps the parts card, closed (LAN-83), where it used to say "drag up to see them".
+  if (small) await expect(page.getByRole('button', { name: new RegExp(`^Parts 1–${parts + 1}, ${parts + 1} parts · `) }).locator('visible=true').first()).toBeVisible();
   await back(page).click();
   await startFromRecord(page, 'Continue recording');
   await expect(divider).toHaveAttribute('aria-valuetext', at!);
@@ -895,19 +896,18 @@ test('REC-041 Tap a part\'s space to give it the next verse', async ({ page }) =
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
   expect(await partCount(page)).toBeGreaterThanOrEqual(3);
   await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, no verse yet');
+  // A verse is plain to see and easy to change again: no toast (Caleb, 2026-10-16). Undo takes one back.
   await verseSpace(page, 1).click();
-  await expectToast(page, 'Part 1 is verse 22.');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
+  await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, Verse 22');
+  await expect(byId(page, 'toast')).toHaveCount(0);
+  await verseSpace(page, 2).click();
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
+  await undoButton(page).click();
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, no verse yet');
   await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, Verse 22');
   await verseSpace(page, 2).click();
-  await expectToast(page, 'Part 2 is verse 23.');
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
-  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, no verse yet');
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
   await verseSpace(page, 2).click();
-  await expectToast(page, 'Part 2 is verse 23.');
-  await verseSpace(page, 2).click();
-  await expectToast(page, 'Part 2 is more of verse 22.');
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 22, same as the part above');
   await expectUploaded(page, w);
   // On the record: a second device reads the same marks.
@@ -924,23 +924,26 @@ test('REC-042 Hold a part to choose its verses, Auto, None or Delete', async ({ 
   await holdPart(page, 3);
   await expect(text(page, 'Part 3')).toBeVisible();
   for (const name of ['Auto', 'None', 'Delete Part 3']) await expect(button(page, name)).toBeVisible();
+  // Every tap applies at once, with no toast: each is a verse mark on the record.
+  const marks = async () => (await deviceLog(page, w.languages.A.orgId, w.languages.A.languageId)).filter((e) => e.type === 'v1.CardVerseSet');
+  const set = async (expected: Record<string, unknown>) => expect.poll(async () => (await marks()).at(-1)?.payload).toMatchObject(expected);
   await page.getByRole('button', { name: /^Verse 25$/ }).click();
-  await expectToast(page, 'Part 3 is verse 25.');
+  await set({ mark: 'set', from: '13:25', to: '13:25' });
   await page.getByRole('button', { name: /^Verse 26$/ }).click();
-  await expectToast(page, 'Part 3 is verses 25–26.');
+  await set({ mark: 'set', from: '13:25', to: '13:26' });
   await button(page, 'Auto').click();
-  await expectToast(page, 'Part 3 follows the order.');
+  await set({ mark: 'next' });
   await button(page, 'None').click();
-  await expectToast(page, 'Part 3 has no verse.');
+  await set({ mark: 'none' });
+  await expect(byId(page, 'toast')).toHaveCount(0);
   await button(page, 'Delete Part 3').click();
-  await expectToast(page, 'Part 3 deleted.');
   await expectParts(page, parts - 1);
-  await undoToast(page);
+  await undoButton(page).click();
   await expectParts(page, parts);
   await expectUploaded(page, w);
 });
 
-test('REC-044 A verse left for later, then Record here', async ({ page }) => {
+test('REC-044 A verse left for later, then tap its place and record', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
@@ -951,174 +954,199 @@ test('REC-044 A verse left for later, then Record here', async ({ page }) => {
   await holdPart(page, 2);
   await page.getByRole('button', { name: /^Verse 24$/ }).click();
   await page.keyboard.press('Escape');
-  await expect(text(page, 'Verse 23 · left for later')).toBeVisible();
+  // The verse left out is a place of its own, numbered as the part it will be (LAN-83).
+  const place = button(page, 'Record Part 2 here');
+  await expect(place).toBeVisible();
   await mic(page).mode('tone');
-  await button(page, 'Record here').click();
+  await place.click();
+  await expect(place).toHaveAttribute('aria-selected', 'true');
+  await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await say(page, 3000);
+  await leaveSession(page);
   await expectParts(page, parts + 1);
-  await recordButton(page).click();
-  await expectIdle(page);
   // The new part sits between Part 1 and the old Part 2, as verse 23.
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
   await expect(verseSpace(page, 3)).toHaveAttribute('aria-label', 'Part 3, Verse 24');
-  await expect(text(page, 'Verse 23 · left for later')).toHaveCount(0);
-  // Recording again without Record here adds at the end.
+  await expect(button(page, 'Record Part 2 here')).toHaveCount(0);
+  // Recording again, with nothing chosen, adds at the end.
   await recordSaid(page, [3000]);
   await expect(verseSpace(page, parts + 2)).toBeVisible();
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
   await expectUploaded(page, w);
 });
 
-// ---- Microphone setup ---------------------------------------------------------------
+// ---- A stopped session ---------------------------------------------------------------
 
-/** The microphone settings kept on this device (AsyncStorage on the web is localStorage). */
-const micStored = (page: Page) => page.evaluate(() => localStorage.getItem('mic-setup:v1'));
+test('REC-053 A stopped session: hear a part, move its edge, drop one, carry on, then Done @p0', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  await openWorkspace(page, w, 'P-S', 'Record');
+  const m = mic(page);
+  await m.mode('tone');
+  await m.speak(false);
+  await recordButton(page).click();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
+  for (const [i, ms] of [3000, 3000, 3000].entries()) {
+    await say(page, ms, 0);
+    await expectParts(page, i + 1, 10_000);
+  }
+  // Stopped (LAN-82): the session is open, each part a box on the whole session's waveform.
+  await stopRecording(page);
+  const part = (n: number) => byId(page, `live-part-${n}`);
+  for (const n of [1, 2, 3]) await expect(part(n)).toBeVisible();
+  // A tap on a box plays it.
+  const two = (await part(2).boundingBox())!;
+  await page.mouse.click(two.x + two.width / 2, two.y + 40);
+  await expect(text(page, /could not|Something went wrong/)).toHaveCount(0);
+  // Part 1's end drags out into the room after it.
+  const one = (await part(1).boundingBox())!;
+  const y = one.y + one.height / 2;
+  await page.mouse.move(one.x + one.width - 2, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(one.x + one.width - 2 + i * 5, y);
+  await page.mouse.up();
+  await expect.poll(async () => (await part(1).boundingBox())?.width ?? 0, { message: 'part 1 is longer' }).toBeGreaterThan(one.width + 5);
+  // Part 3's ×: it goes, and its place and number stay for what is said next.
+  const three = (await part(3).boundingBox())!;
+  await page.mouse.click(three.x + three.width - 15, three.y + three.height - 15);
+  await expect(part(3)).toHaveCount(0);
+  await expect(page.getByLabel(/^Part 3\. /)).toBeVisible();
+  // Carrying on fills it.
+  await recordButton(page).click();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
+  await say(page, 3000, 0);
+  await expectParts(page, 3, 10_000);
+  // Done keeps the parts as their boxes stand, and only then are they saved.
+  await leaveSession(page);
+  await expect(page.getByRole('button', { name: /^Parts 1–3, 3 parts · 0:\d\d$/ })).toBeVisible();
+  await m.mode('file');
+  await expectUploaded(page, w);
+});
 
-/** One try on "Try N of 3": tap, say the sentence twice with a pause, tap to stop. */
-async function sayTry(page: Page, n: number): Promise<void> {
-  await expect(text(page, `Try ${n} of 3`)).toBeVisible();
+test('REC-054 Throw away a session: the ✕ asks first, then nothing said in it is kept @p0', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  await openWorkspace(page, w, 'P-DRAFT', 'Continue recording');
+  const before = await draftParts(page);
+  const events = await eventCount(page, w);
+  const m = mic(page);
+  await m.mode('tone');
+  await m.speak(false);
   await recordButton(page).click();
-  await expect(text(page, /^Listening… 0:0\d$/)).toBeVisible();
-  await say(page, 1500, 1800);
-  await say(page, 1500, 1800);
-  await recordButton(page).click();
+  for (const [i, ms] of [2500, 2500].entries()) {
+    await say(page, ms, 0);
+    await expectParts(page, before + i + 1, 10_000);
+  }
+  // The ✕ stops recording and asks, saying what would go.
+  await button(page, 'Throw away this recording').click();
+  await expect(text(page, 'Throw away this recording?')).toBeVisible();
+  await expect(text(page, /^2 parts · 0:0\d$/)).toBeVisible();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
+  // Cancel keeps the session, stopped, its parts still boxes.
+  await button(page, 'Cancel').click();
+  await expect(text(page, 'Stopped')).toBeVisible();
+  for (const n of [before + 1, before + 2]) await expect(byId(page, `live-part-${n}`)).toBeVisible();
+  // Throwing it away keeps nothing said in it: the draft is as it was, and nothing is written.
+  await button(page, 'Throw away this recording').click();
+  await button(page, 'Throw away').click();
+  await expect(text(page, 'Stopped')).toHaveCount(0);
+  await expectIdle(page);
+  await expect(page.getByRole('button', { name: new RegExp(`^Parts 1–${before}, ${before} parts · `) })).toBeVisible();
+  expect(await eventCount(page, w), 'nothing is written').toBe(events);
+  await m.mode('file');
+});
+
+// ---- Moving parts, recording between them, Undo and Redo (Caleb, 2026-10-16) ----------------
+
+/** Drag a part by its grip until it sits where `to` is now. */
+async function dragPart(page: Page, from: number, to: number) {
+  const grip = page.getByLabel(`Move Part ${from}`, { exact: true }).locator('visible=true').first();
+  const target = page.getByLabel(`Move Part ${to}`, { exact: true }).locator('visible=true').first();
+  const a = (await grip.boundingBox())!;
+  const b = (await target.boundingBox())!;
+  const x = a.x + a.width / 2;
+  const dy = b.y - a.y + (to < from ? -8 : 8);
+  await page.mouse.move(x, a.y + a.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(x, a.y + a.height / 2 + (dy * i) / 12);
+  await page.mouse.up();
 }
 
-test('REC-045 Set up the microphone by ear', async ({ page }) => {
+test('REC-055 Drag a part by its grip; it loses its verse, the others keep theirs; Undo and Redo', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
-  await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  await mic(page).mode('tone');
-  await button(page, 'Set up the microphone').click();
-  await expect(text(page, 'Set up your microphone')).toBeVisible();
-  await expect(text(page, 'Takes about a minute')).toBeVisible();
-  await expect(text(page, 'First, the room')).toBeVisible();
-  await expect(text(page, 'First, a few seconds of quiet')).toBeVisible();
-  await expect(text(page, 'Go where you usually record. Stay quiet while the device listens to the room.')).toBeVisible();
-  await expect(text(page, 'Tap to start')).toBeVisible();
-  await expect(text(page, 'Then you\'ll say one sentence three times.')).toBeVisible();
-  await expect(button(page, 'Adjust by hand')).toBeVisible();
-  expect(Math.round((await recordButton(page).boundingBox())!.width)).toBe(120);
-  await recordButton(page).click();
-  await expect(text(page, /^Listening to the room… 0:0[0-3]$/)).toBeVisible();
+  // REC-053 leaves TRANS a draft of P-S with three parts; run alone, this test records them.
+  if ((await onServer(w, 'P-S')).drafts.length === 0) {
+    await openWorkspace(page, w, 'P-S', 'Record');
+    await recordSaid(page, [2000, 2000, 2000]);
+  } else {
+    await openWorkspace(page, w, 'P-S', 'Continue recording');
+  }
+  await expect.poll(async () => (await lastComposed(page, w, 'P-S')).length).toBe(3);
   for (const n of [1, 2, 3]) {
-    await expect(text(page, `Try ${n} of 3`)).toBeVisible({ timeout: 10_000 });
-    await expect(text(page, 'Say this, then pause, then say it again')).toBeVisible();
-    await expect(text(page, '“The shepherd went to look for the lost sheep.”')).toBeVisible();
-    await expect(button(page, 'Hear it')).toBeVisible();
-    await sayTry(page, n);
+    if ((await verseSpace(page, n).getAttribute('aria-label'))?.endsWith('no verse yet')) await verseSpace(page, n).click();
   }
-  await expect(text(page, 'Which sounds best?')).toBeVisible();
-  await expect(text(page, 'Listen to each. Pick the one where every word is clear and nothing is cut off.')).toBeVisible();
-  for (const id of ['A', 'B', 'C']) {
-    await expect(page.getByRole('radio', { name: new RegExp(`^Try ${id}, 0:0\\d$`) })).toBeVisible();
-    await expect(button(page, `Play Try ${id}`)).toBeVisible();
-  }
-  await expect(page.getByRole('radio', { name: /^Try B,/ })).toHaveAttribute('aria-checked', 'true');
-  await button(page, 'Play Try A').click();
-  await page.getByRole('radio', { name: /^Try A,/ }).click();
-  await expect(primary(page)).toHaveText('Use Try A');
-  await primary(page).click();
-  await expectToast(page, 'Microphone set up. Recording now uses Try A.');
-  await expect(workspaceSub(page)).toBeVisible();
-  expect(JSON.parse((await micStored(page))!)).toMatchObject({ pauseMs: 700 });
-  // A pause of about 0.9 s now ends a part (Try A's 0.7 s; the default 1 s would not).
-  const before = await draftParts(page);
-  await recordButton(page).click();
-  await say(page, 1500, 900);
-  await say(page, 1500, 2000);
-  await recordButton(page).click();
-  await expectIdle(page);
-  await expectParts(page, before + 2);
-  // Kept on this device after the app starts again.
-  await page.reload();
-  await waitForApp(page);
-  expect(JSON.parse((await micStored(page))!)).toMatchObject({ pauseMs: 700 });
+  await expect(verseSpace(page, 3)).toHaveAttribute('aria-label', 'Part 3, Verse 37');
+  const order = await lastComposed(page, w, 'P-S');
+  await dragPart(page, 3, 1);
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual([order[2], order[0], order[1]]);
+  await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, no verse yet');
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 35');
+  await expect(verseSpace(page, 3)).toHaveAttribute('aria-label', 'Part 3, Verse 36');
+  await expect(byId(page, 'toast')).toHaveCount(0);
+  await undoButton(page).click();
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual(order);
+  await expect(verseSpace(page, 3)).toHaveAttribute('aria-label', 'Part 3, Verse 37');
+  await redoButton(page).click();
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual([order[2], order[0], order[1]]);
+  await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, no verse yet');
   await expectUploaded(page, w);
 });
 
-test('REC-046 Microphone setup when nothing is heard, or every try sounds bad', async ({ page }) => {
+test('REC-056 Record between two parts with the mark on the line; Undo takes the whole recording back', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
-  await mic(page).mode('tone');
-  const saved = await micStored(page);
-  await tab(page, 'me').click();
-  await button(page, /^Set up the microphone/).click();
+  // REC-055 leaves TRANS a draft of P-S; run alone, this test records one.
+  if ((await onServer(w, 'P-S')).drafts.length === 0) {
+    await openWorkspace(page, w, 'P-S', 'Record');
+    await recordSaid(page, [2000, 2000]);
+  } else {
+    await openWorkspace(page, w, 'P-S', 'Continue recording');
+  }
+  await expect.poll(async () => (await lastComposed(page, w, 'P-S')).length).toBeGreaterThanOrEqual(2);
+  const before = await lastComposed(page, w, 'P-S');
+  await button(page, 'Record a new part before Part 2').click();
+  // The line opens: a place numbered as the part will be, chosen.
+  await expect(button(page, 'Record Part 2 here')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Record Part 3 again', exact: true }).locator('visible=true')).toBeVisible();
+  // Two parts said into the place: boxed on the waveform as Parts 2 and 3.
+  const m = mic(page);
+  await m.mode('tone');
+  await m.speak(false);
   await recordButton(page).click();
-  await expect(text(page, 'Try 1 of 3')).toBeVisible({ timeout: 10_000 });
-  // A silent try does not count.
-  await recordButton(page).click();
-  await page.waitForTimeout(2000); // sleep: seconds of silence, the product's own threshold for a try
-  await recordButton(page).click();
-  await expect(text(page, 'Nothing was heard. Say it a little louder, or hold the device closer.')).toBeVisible();
-  await expect(text(page, 'Try 1 of 3')).toBeVisible();
-  for (const n of [1, 2, 3]) await sayTry(page, n);
-  await button(page, 'They all sound bad. Try again somewhere quieter.').click();
-  await expect(text(page, 'First, the room')).toBeVisible();
-  await back(page).click();
-  await expect(tab(page, 'me')).toBeVisible();
-  expect(await micStored(page), 'the saved settings are unchanged').toBe(saved);
-});
-
-test('REC-047 Adjust the microphone by hand', async ({ page }) => {
-  const w = world();
-  await openAs(page, w, 'TRANS');
-  await mic(page).mode('tone');
-  await tab(page, 'me').click();
-  await button(page, /^Set up the microphone/).click();
-  await button(page, 'Adjust by hand').click();
-  await expect(text(page, 'Speak, and watch the bars. Drag the line so your voice goes above it and the room\'s noise stays below.')).toBeVisible();
-  const line = page.getByRole('slider', { name: 'Sensitivity line' });
-  await expect(line).toHaveAttribute('aria-valuemin', '4');
-  await expect(line).toHaveAttribute('aria-valuemax', '92');
-  for (const p of ['Short pause', 'Normal pause', 'Long pause']) await expect(page.getByRole('radio', { name: p })).toBeVisible();
-  await page.getByRole('radio', { name: 'Long pause' }).click();
-  // The device cannot store the settings: the screen says so and stays.
-  await page.evaluate(() => {
-    const real = Storage.prototype.setItem;
-    (window as unknown as { __realSetItem: typeof real }).__realSetItem = real;
-    Storage.prototype.setItem = function (k: string, v: string) { if (k === 'mic-setup:v1') throw new Error('QuotaExceededError'); return real.call(this, k, v); };
-  });
-  await primary(page).click();
-  await expectToast(page, 'Not saved on this device. Try again.');
-  await expect(text(page, 'Adjust by hand')).toBeVisible();
-  await page.evaluate(() => { Storage.prototype.setItem = (window as unknown as { __realSetItem: Storage['setItem'] }).__realSetItem; });
-  await primary(page).click();
-  await expectToast(page, 'Microphone settings saved on this device.');
-  await expect(tab(page, 'me')).toBeVisible();
-  expect(JSON.parse((await micStored(page))!)).toMatchObject({ pauseMs: 2000 });
-  // A 1.5-second pause no longer ends a part.
-  await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  const before = await draftParts(page);
-  await recordButton(page).click();
-  await say(page, 1500, 1500);
-  await say(page, 1500, 2600);
-  await recordButton(page).click();
-  await expectIdle(page);
-  await expectParts(page, before + 1);
-  await expectUploaded(page, w);
-});
-
-test('REC-049 Very short parts suggest setting up the microphone', async ({ page }) => {
-  const w = world();
-  await openAs(page, w, 'TRANS');
-  await openWorkspace(page, w, 'P-Q3', 'Continue recording');
-  const before = await draftParts(page);
-  await mic(page).mode('tone');
-  await recordButton(page).click();
-  for (const _ of [1, 2, 3]) await say(page, 350, 2000);
-  await recordButton(page).click();
-  await expectIdle(page);
-  await expectParts(page, before + 3);
-  await expect(text(page, 'Parts are coming out very short. Words may be cut off.')).toBeVisible();
-  // The quiet link gives way to the box's button.
-  await expect(page.getByRole('button', { name: 'Set up the microphone' })).toHaveCount(1);
-  await button(page, 'Set up the microphone').click();
-  await expect(text(page, 'Set up your microphone')).toBeVisible();
-  await back(page).click();
-  await expect(workspaceSub(page)).toBeVisible();
-  await expectParts(page, before + 3);
+  for (const n of [2, 3]) {
+    await say(page, 2000);
+    await expect(byId(page, `live-part-${n}`)).toBeVisible({ timeout: 10_000 });
+  }
+  await stopRecording(page);
+  await leaveSession(page);
+  await m.mode('file');
+  await expect.poll(async () => (await lastComposed(page, w, 'P-S')).length).toBe(before.length + 2);
+  const after = await lastComposed(page, w, 'P-S');
+  expect(after[0]).toBe(before[0]);
+  expect(after.slice(3)).toEqual(before.slice(1));
+  // Back from the red view the card is open, with the first part just said in view.
+  await expect(button(page, 'Hide the parts')).toBeVisible();
+  await expect(verseSpace(page, 2)).toBeInViewport();
+  // What was said between them has no verse; the parts around it keep theirs.
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, no verse yet');
+  // One Undo takes back the whole recording, however many parts it made.
+  await expect(undoButton(page)).toHaveAttribute('aria-label', 'Undo: New recording');
+  await undoButton(page).click();
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual(before);
+  await redoButton(page).click();
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual(after);
   await expectUploaded(page, w);
 });
 
@@ -1194,11 +1222,9 @@ test('REC-052 A translator-reviewer records and publishes', async ({ page }) => 
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   await recordSaid(page, [3000, 3000]);
   await publishButton(page).click();
-  await expect(primary(page)).toHaveText('Publish Version 1');
-  await primary(page).click();
-  await expectToast(page, 'Version 1 published.');
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toBeVisible();
   await expect(primary(page)).toHaveText(/^Ask /);
+  await button(page, 'Send later').click();
+  await expectToast(page, 'Version 1 published.');
   await expectUploaded(page, w);
   const v = (await onServer(w, 'P-T')).versions;
   expect(v.map((x) => [x.by, x.cardHashes.length])).toEqual([[w.accounts.TREV.id, 2]]);

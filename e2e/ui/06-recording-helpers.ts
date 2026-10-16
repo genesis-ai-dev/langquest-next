@@ -90,7 +90,8 @@ export async function say(page: Page, ms: number, quietMs = 2000): Promise<void>
 
 export const recordButton = (page: Page): Locator => byId(page, 'record-button');
 export const publishButton = (page: Page): Locator => byId(page, 'publish-button');
-export const saveButton = (page: Page): Locator => button(page, 'Save');
+/** The saved mark in the header (decision 127): a spinner while a part is kept, then a check ("Saved"). */
+export const savedMark = (page: Page): Locator => byId(page, 'saved-mark');
 
 /** The passage record's Record step row ("1. Record. …"). */
 export const recordStep = (page: Page): Locator => button(page, /^\d+\. Record\./);
@@ -128,12 +129,22 @@ export const partsTitle = (count: number): string => (count <= 1 ? 'Part 1' : `P
 /** The parts card's sub line: "3 parts · 0:06". */
 export const partsSub = (count: number): RegExp => new RegExp(`^${count} parts? · \\d+:\\d\\d$`);
 
-/** How many parts the card counts now (0 when there is no card). */
+/**
+ * How many parts the card counts now (0 when there is no card). While
+ * recording, the card gives way to the recording view, whose title is the
+ * part being said at the end ("Part 4. Recording…": three are kept).
+ */
 export async function partCount(page: Page): Promise<number> {
-  const group = page.getByRole('button', { name: /^Parts? 1(–\d+)?, \d+ parts? · / }).locator('visible=true').first();
-  if (!(await group.count())) return 0;
-  const m = /^Parts? 1(?:–(\d+))?,/.exec((await group.getAttribute('aria-label')) ?? '');
-  return m ? Number(m[1] ?? 1) : 0;
+  const group = page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts? · / }).locator('visible=true').first();
+  if (await group.count()) {
+    const m = /, (\d+) parts? · /.exec((await group.getAttribute('aria-label')) ?? '');
+    return m ? Number(m[1]) : 0;
+  }
+  if (!(await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').count())) return 0;
+  const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+  if (!(await live.count())) return 0;
+  const n = /^Part (\d+)\. /.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
+  return n ? Number(n[1]) - 1 : 0;
 }
 
 /** The parts a draft already has, once its card has drawn (the workspace opens before the card shows; 0 read too soon is not the count). */
@@ -152,6 +163,20 @@ export async function expectIdle(page: Page): Promise<void> {
   await expect(recordButton(page)).not.toHaveAttribute('aria-disabled', 'true');
 }
 
+/** Stop recording (LAN-82): the session stays open, its parts boxes to hear, move or drop until Done. */
+export async function stopRecording(page: Page): Promise<void> {
+  await recordButton(page).click();
+  await expect(text(page, 'Stopped')).toBeVisible();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
+}
+
+/** Leave the recording session: Done stops recording if it still is, and keeps every part as its box stands; only then are they saved. */
+export async function leaveSession(page: Page): Promise<void> {
+  await button(page, 'Done').click();
+  await expect(text(page, 'Stopped')).toHaveCount(0);
+  await expectIdle(page);
+}
+
 /**
  * Record with the voice file until the card counts `more` new parts, then
  * stop in the quiet after the last one (the file speaks again 1.5 s later).
@@ -161,8 +186,8 @@ export async function recordParts(page: Page, more: number): Promise<void> {
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await expectParts(page, before + more, 8_000 + more * 6_000);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await stopRecording(page);
+  await leaveSession(page);
   await expectParts(page, before + more);
 }
 
@@ -178,8 +203,8 @@ export async function recordSaid(page: Page, lengths: number[]): Promise<void> {
     await say(page, ms, 0);
     await expectParts(page, before + i + 1, 10_000);
   }
-  await recordButton(page).click();
-  await expectIdle(page);
+  await stopRecording(page);
+  await leaveSession(page);
   await expectParts(page, before + lengths.length);
   await m.mode('file');
 }
@@ -193,10 +218,11 @@ export const verseSpace = (page: Page, n: number): Locator =>
  * until the sheet opens, not for a fixed time: on a busy page (a part just recorded, the list
  * settling) the timer that turns a press into a hold runs late, so a press let go at the threshold
  * lands as a tap and gives the part a verse instead (JRN-002 failed so in CI). A press that lands
- * as a tap anyway is undone with its toast's Undo, and held again.
+ * as a tap anyway is undone with the footer's Undo, and held again.
  */
 export async function holdPart(page: Page, n: number): Promise<void> {
-  const sheet = page.getByRole('button', { name: `Delete Part ${n}`, exact: true }).locator('visible=true').first();
+  // The hold sheet's own tool ("None"): every part row has its own "Delete Part n" too.
+  const sheet = page.getByRole('button', { name: 'None', exact: true }).locator('visible=true').first();
   for (let attempt = 0; attempt < 3; attempt++) {
     const space = verseSpace(page, n);
     await space.scrollIntoViewIfNeeded();
@@ -207,15 +233,18 @@ export async function holdPart(page: Page, n: number): Promise<void> {
     await sheet.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
     await page.mouse.up();
     if (await sheet.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true, () => false)) return;
-    const undo = byId(page, 'toast-undo');
-    if (await undo.isVisible().catch(() => false)) await undo.click();
+    const undo = undoButton(page);
+    if (await undo.isEnabled().catch(() => false)) await undo.click();
   }
   await expect(sheet, 'holding the part opens its sheet').toBeVisible();
 }
 
-/** Delete a part as a person does: hold its space, then "Delete Part N". */
+/** Undo and Redo by the red button (Caleb, 2026-10-16). */
+export const undoButton = (page: Page): Locator => byId(page, 'undo');
+export const redoButton = (page: Page): Locator => byId(page, 'redo');
+
+/** Delete a part as a person does: the bin at the end of its row (LAN-83). */
 export async function deletePart(page: Page, n: number): Promise<void> {
-  await holdPart(page, n);
   await page.getByRole('button', { name: `Delete Part ${n}`, exact: true }).locator('visible=true').first().click();
 }
 

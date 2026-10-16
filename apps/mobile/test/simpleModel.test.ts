@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bookOf, DEFAULT_MIC, MIC_TRIES, mmss, parseMicSettings, partLabel, partsLookClipped, partsRange, passageClock, recorderLines, refChips,
-  SHORT_PART_MS, stepAfterDone, stepGroups, thresholdFromNoise, totalMs, verseRefs
-} from '../src/simple/model';
+  bookOf, mmss, parseHeardLevels, partLabel, partsRange, passageClock, recorderLines, refChips,
+  stepAfterDone, stepGroups, totalMs, verseRefs
+} from '../src/recording/model';
 
 describe('the recorder cards (decision 71, demo ADR-036)', () => {
   it('counts parts, since parts carry no verse labels yet', () => {
@@ -23,13 +23,6 @@ describe('the recorder cards (decision 71, demo ADR-036)', () => {
     expect(totalMs([12_000, undefined])).toBeUndefined();
     expect(mmss(84_000)).toBe('1:24');
     expect(mmss(undefined)).toBe('–:––');
-  });
-
-  it('offers microphone setup when the last three parts all came out very short', () => {
-    expect(partsLookClipped([400, 600, 900])).toBe(true);
-    expect(partsLookClipped([400, 600])).toBe(false);
-    expect(partsLookClipped([5000, 400, 600])).toBe(false);
-    expect(partsLookClipped([5000, 400, 600, SHORT_PART_MS - 1])).toBe(true);
   });
 });
 
@@ -86,27 +79,14 @@ describe('the Bible clock', () => {
   });
 });
 
-describe('microphone setup by ear (demo ADR-037)', () => {
-  it('sets the sensitivity a margin above the loud end of the room', () => {
-    expect(thresholdFromNoise([])).toBe(DEFAULT_MIC.threshold);
-    // A quiet room: the floor, never lower than the recorder allows.
-    expect(thresholdFromNoise(Array(50).fill(0.002))).toBe(0.04);
-    // A noisy one: three times its loud end.
-    const noisy = [...Array(90).fill(0.03), ...Array(10).fill(0.05)];
-    expect(thresholdFromNoise(noisy)).toBe(0.15);
-    // Never so high that speech cannot pass.
-    expect(thresholdFromNoise(Array(20).fill(0.6))).toBe(0.5);
-  });
-  it('tries three pauses around the recorder default, the middle one the default', () => {
-    expect(MIC_TRIES.map((t) => t.id)).toEqual(['A', 'B', 'C']);
-    expect(MIC_TRIES[1]!.pauseMs).toBe(DEFAULT_MIC.pauseMs);
-    expect(MIC_TRIES[0]!.pauseMs).toBeLessThan(MIC_TRIES[2]!.pauseMs);
-  });
-  it('reads back only settings the recorder can use', () => {
-    expect(parseMicSettings(JSON.stringify({ threshold: 0.08, pauseMs: 700 }))).toEqual({ threshold: 0.08, pauseMs: 700 });
-    expect(parseMicSettings(null)).toBeNull();
-    expect(parseMicSettings('not json')).toBeNull();
-    expect(parseMicSettings(JSON.stringify({ threshold: 2, pauseMs: 700 }))).toBeNull();
-    expect(parseMicSettings(JSON.stringify({ threshold: 0.08 }))).toBeNull();
+describe('what the microphone heard, kept on the device (LAN-82)', () => {
+  it('reads back only levels the splitter can start from', () => {
+    expect(parseHeardLevels(JSON.stringify({ room: -52, voice: -22.5, pause: 1200 }))).toEqual({ room: -52, voice: -22.5, pause: 1200 });
+    expect(parseHeardLevels(null)).toBeNull();
+    expect(parseHeardLevels('not json')).toBeNull();
+    expect(parseHeardLevels(JSON.stringify({ room: -52, voice: -60, pause: 1200 }))).toBeNull();
+    expect(parseHeardLevels(JSON.stringify({ room: -52, voice: -22 }))).toBeNull();
+    // The old setup's settings are not levels.
+    expect(parseHeardLevels(JSON.stringify({ threshold: 0.08, pauseMs: 700 }))).toBeNull();
   });
 });

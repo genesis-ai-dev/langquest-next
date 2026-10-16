@@ -166,12 +166,12 @@ Steps:
 1. Tap the question.
 2. Tap "Answer".
 3. In the sheet "Your answer", tap "Record what the group said", speak for 6 seconds, stop.
-4. Tap "Or type it", type "The son came to himself", tap "Save".
+4. Tap "Or type it", type "The son came to himself", tap "Add your answer".
 
 Expected:
 - Step 1 lights the question and shows "Answer". A plain section shows "Add a note" instead.
 - The sheet's sub reads "It stays with the passage, and reviewers see it with the study."
-- "Save" is disabled until something is said or typed.
+- "Add your answer" is disabled until something is said or typed. What is said or typed is kept on this device as a draft only TRANS sees (the sheet's saved mark), so closing the sheet and answering again brings it back (decision 127).
 - Step 4 shows the toast "Added to the study. Reviewers will see it with the passage.".
 - The answer shows under the question, labelled "Answer", with a play button for the voice.
 - REV sees it in Review it → Background → "Guide" (REV-011) and in the study.
@@ -180,11 +180,11 @@ Expected:
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- P-SUBMITTED's study on a step whose spoken recording loads.
+- P-SUBMITTED's study on a step whose spoken recording loads. (The world's guide records step 1 with the test voice, four seconds long, so the automated test notes at 0:01 to 0:03 instead of 0:20.)
 
 Steps:
 1. Play "This step, spoken" and at about 0:20 tap "Add a note here".
-2. Type "Ask the elders about the ring", tap "Save".
+2. Type "Ask the elders about the ring", tap "Add a note".
 
 Expected:
 - Step 1 pauses the recording and opens "Add a note".
@@ -209,7 +209,7 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- P-SUBMITTED's study, on a step whose text has glossary words (dotted).
+- P-SUBMITTED's study, on a step whose text has glossary words (dotted). (The world's guide links "inheritance" in step 2, with a recording of its own.)
 
 Steps:
 1. Tap a glossary word (accessibility hint "Tap for its meaning").
@@ -351,13 +351,13 @@ Preconditions:
 
 Steps:
 1. Tap "Say yours" (accessibility label "Say your word for {term}").
-2. In the sheet "Your word for “{term}”", try "Save your word".
+2. In the sheet "Your word for “{term}”", try "Add your word".
 3. Tap "Say it", say the word, stop.
-4. Tap "Save your word".
+4. Tap "Add your word".
 
 Expected:
 - The sheet's sub reads "Say how Alpha says it. Your team hears it whenever this word comes up." (with the meaning first when the term has one).
-- "Save your word" is disabled until something is said or typed ("Or type it").
+- "Add your word" is disabled until something is said or typed ("Or type it"). Until then what is said is a draft only TRANS sees, kept as it is made (decision 127).
 - Step 4 shows "Your word for {term} is saved.", with no Undo (grow-only, as STUDY-016).
 - The row now shows "Your word", which plays it.
 - The change is recorded with the passage and, when a draft is open, tied to that draft.
@@ -485,14 +485,14 @@ Preconditions:
 
 Steps:
 1. Tap "Adjust or add a rendering".
-2. Try "Save" with nothing.
+2. Try "Add your word" with nothing.
 3. Type a new rendering in "New rendering (optional)", and "Only for God's dwelling" in "When to use it".
-4. Tap "Say why", say 5 seconds, stop. Tap "Save".
-5. Open the sheet again; this time only type "Elders prefer the older word" in "Or type what changed, and why", and tap "Save".
+4. Tap "Say why", say 5 seconds, stop. Tap "Add your word".
+5. Open the sheet again; this time only type "Elders prefer the older word" in "Or type what changed, and why", and tap "Add your word".
 
 Expected:
 - The sheet is titled "Alpha · “heaven”", sub "Recorded as part of Luke 15:11-32, and tied to your draft." (with a draft) or "Every change is recorded with your reason.".
-- "Save" is disabled until a note is typed or a reason said.
+- "Add your word" is disabled until a note is typed or a reason said. What is typed or said is kept as a draft (the sheet's saved mark) until it is added (decision 127).
 - Step 4 shows "Added “{rendering}”." The page shows the rendering under "In Alpha".
 - Step 5 shows "Change recorded.".
 - "Why it's rendered this way" shows "2 changes · latest by {TRANS-name}, {when}", with "Play the explanation" for the voice reason and "Open Version N" where the change was made with a version.
@@ -558,7 +558,7 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- Online. Bible Brain is set up on the local server (G2).
+- Online. Bible Brain is set up on the local server (G2) with a real `BIBLE_BRAIN_ACCESS_KEY`. **Needs the key:** the test searches Bible Brain's live catalogue, so it skips (saying so) on a stack without one, which is the default local and CI stack.
 
 Steps:
 1. In the Bible picker, tap "More Bibles".
@@ -580,7 +580,7 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- STUDY-030's list of Swahili Bibles.
+- STUDY-030's list of Swahili Bibles (needs the Bible Brain key, see STUDY-030). The automated test runs the same steps on the organization's own library Bible ("Test Library Bible", TLB, added to each world by `e2e/ui/study-helpers.ts`), which needs no key; the Swahili Bible Brain half is by hand.
 
 Steps:
 1. Tap a Bible.
@@ -639,7 +639,7 @@ Steps:
 Expected:
 - After Luke 24, "Next chapter" is disabled, or moves to the next book.
 
-Fixed (2026-10-12): "Next chapter" stops at the book's last chapter under the Bible's numbering (`chaptersInBook` of its versification, `sources.tsx`): after Luke 24 it is gone. Not yet run: the local library has no Bible of its own.
+Fixed (2026-10-12): "Next chapter" stops at the book's last chapter under the Bible's numbering (`chaptersInBook` of its versification, `sources.tsx`): after Luke 24 it is gone. Run on the organization's own Bible ("Test Library Bible", Luke in English numbering) that the world adds (`e2e/ui/study-helpers.ts`).
 
 ### STUDY-035 A note on a verse beside the recorder
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -649,12 +649,12 @@ Preconditions:
 
 Steps:
 1. Tap verse 20, then "Add a note here".
-2. Say a note by voice, save.
+2. Say a note by voice, type "Ran: elders never run", tap "Add a note".
 3. Open the "Notes" chip.
 
 Expected:
 - The sheet names where the note goes ("Luke 15:11-32 · verse 20").
-- Saving shows "Note added." and verse 20 shows "● 1" (or one more).
+- "Add a note" shows "Note added." and verse 20 shows "● 1" (or one more). Closing the sheet instead keeps what was said as a draft for the next note on that verse (decision 127).
 - The "Notes" chip lists it first as "Note on verse 20", with a play button.
 - REV sees it in Background → Notes and on the "Passage" chip.
 

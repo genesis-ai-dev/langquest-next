@@ -24,17 +24,18 @@ tags:
     visible: "More settings.*"
     timeout: 20000
 - tapOn: "Sign out"
-# No header, no tabs, no ?: the title, the line under it, Sign Out and Cancel.
+# No header and no tabs, but its ? (decision 71, every screen explains
+# itself): the title, the line under it, Sign Out and Cancel.
 - extendedWaitUntil:
     visible: "Sign out\\?"
     timeout: 20000
 - assertVisible: "You can sign back in anytime\\."
 - assertVisible: "Sign Out"
 - assertVisible: "Cancel"
+- assertVisible:
+    id: "header-help"
 - assertNotVisible:
     id: "tab-me"
-- assertNotVisible:
-    id: "header-help"
 - assertNotVisible:
     id: "header-back"
 - tapOn: "Cancel"

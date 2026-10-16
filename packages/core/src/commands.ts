@@ -2,7 +2,7 @@ import type { Card, EventPayloads, EventType } from './events';
 import { buildIndexes, type Indexes } from './indexes';
 import { TG_MATERIAL_ID } from './materials';
 import type { FlowSelection, LanguageState } from './state';
-import { derivePassage, latestDraftBy, type PassageState } from './passage';
+import { canDeleteVersion, derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
 import { cardVerseEvents, type PartMark } from './verses';
 import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type KindDef, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
@@ -43,6 +43,8 @@ export interface Commands {
   keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null }): EventSpec[];
   /** Set one of the person's drafts aside (decisions.md 83). Undo is `keepTake` with its cards and the draft as parent. */
   deleteDraft(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
+  /** Delete a version its publisher no longer wants (LAN-83, `canDeleteVersion`): a tombstone; its number and its checks stay on the record. */
+  deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
   /**
    * Which verses each part holds (decisions.md 82): one 'v1.CardVerseSet'
    * per card whose mark changed, from the marks of a whole list of cards.
@@ -86,7 +88,12 @@ export interface Commands {
   /** Ask someone (ASK-1..5): a teammate, a guest by link, or a review team (ADR-029). */
   ask(c: Omit<RecordEvents['v1.RequestMade'], 'requestId'> & { commandId: string }): EventSpec[];
   withdrawRequest(c: { commandId: string; requestId: string }): EventSpec[];
-  addNote(c: { commandId: string; unitId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string }): EventSpec[];
+  /** Take back reviews you recorded (decisions.md 111): one Undo can take back a check logged on several passages. */
+  withdrawReviews(c: { commandId: string; reviewIds: string[] }): EventSpec[];
+  /** Take back a note you added (decisions.md 111). */
+  withdrawNote(c: { commandId: string; noteId: string }): EventSpec[];
+  /** `kindId`: the step it is written at (`record` or a check, decisions.md 130). */
+  addNote(c: { commandId: string; unitId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string; kindId?: string }): EventSpec[];
   markStudyStep(c: { commandId: string; unitId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
   /** Tie key terms to a take (TERM-4): the draft being recorded, or a version as it is published. */
@@ -184,6 +191,12 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       const draft = derivePassage(state, c.unitId, idx).drafts.find((d) => d.takeId === c.takeId);
       if (!draft) throw new CommandError('That draft is already gone.');
       if (draft.by !== c.actorId) throw new CommandError("Only whoever recorded a draft can delete it.");
+      return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
+    },
+
+    deleteVersion(c) {
+      const passage = derivePassage(state, c.unitId, idx);
+      if (!canDeleteVersion(passage, c.takeId, c.actorId)) throw new CommandError('Only whoever published a version can delete it.');
       return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
     },
 
@@ -294,6 +307,15 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       return [{ id: ids(c.commandId)(), type: 'v1.RequestWithdrawn', payload: { requestId: c.requestId } }];
     },
 
+    withdrawReviews(c) {
+      const next = ids(c.commandId);
+      return c.reviewIds.map((reviewId) => ({ id: next(), type: 'v1.ReviewWithdrawn' as const, payload: { reviewId } }));
+    },
+
+    withdrawNote(c) {
+      return [{ id: ids(c.commandId)(), type: 'v1.NoteWithdrawn', payload: { noteId: c.noteId } }];
+    },
+
     addNote(c) {
       const text = c.text?.trim();
       if (!text && !c.blobHash && !c.photoHash) throw new CommandError('A note needs words, a voice note or a photo.');
@@ -305,7 +327,7 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
         payload: {
           noteId: `note:${c.commandId}`, unitId: c.unitId, anchor: c.anchor,
           ...(text ? { text } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {}), ...(c.photoHash ? { photoHash: c.photoHash } : {}),
-          ...(onTake ? { onTakeId: onTake } : {})
+          ...(onTake ? { onTakeId: onTake } : {}), ...(c.kindId ? { kindId: c.kindId } : {})
         }
       }];
     },

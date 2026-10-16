@@ -1,7 +1,6 @@
 // Reviewing: the UX demo's ReviewCaptureScreen ("Review it", and in logged
 // mode "Already happened") and GuestReviewScreen ("Review by link"), from
-// ng-langquest-ux src/screens/review.tsx and the AlsoCoveredPicker in
-// screens/shared.tsx, laid out as the simple review (demo SIMPLE-10;
+// ng-langquest-ux src/screens/review.tsx, laid out as the simple review (demo SIMPLE-10;
 // Ryder's ReviewListen, ReviewQuestion, ReviewDecide, ReviewSayWhy and the
 // agreed "Background, open"). Requirements REV-1..8; ADR-005 (reviews
 // attach to the version they heard), ADR-015 (a kind that makes content
@@ -14,52 +13,71 @@
 // a required one is answered or set aside with a reason), Decide (Looks good
 // sends it; Needs changes opens "What should change?", voice first, with an
 // optional listener retelling). Already happened is the same screens, with
-// who gave it, where, which version, other passages and a retelling behind
-// "Add details".
+// who gave it, where, which version and a retelling behind "Add details".
+// A review goes on the one passage it is about (decision 128): the demo's
+// "Also covered in this session" is left out.
 //
 // Everything is read from the record (core derivePassage, questionsForKind,
-// keyTermLinksFor) and written with core recordReview / produceContent. A
-// review is grow-only, so sending it offers no Undo.
+// keyTermLinksFor) and written with core recordReview / produceContent.
+// Sending it offers Undo, which takes the review back (decisions.md 111):
+// the check is open again, and its author can still take it back later from
+// the check on the record or from the history.
+//
+// What is said, answered or chosen here is kept on this phone as it is made,
+// a draft only its maker sees (decision 127, reviewing/reviewDraft.ts), with
+// the saved mark in the header. Back and ✕ leave and keep it; opening the
+// same review again brings it back where it was left; sending it drops it.
 import {
-  commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
+  checkShows, commands, keyTermLinksFor, languageName, questionsForKind, RECORD_STEP, SHOWN,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useHardwareBack } from '../hardwareBack';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import { ClipPlayer } from '../clipPlayer';
+import { useHardwareBack } from '../ui/useHardwareBack';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import { ClipPlayer } from '../audio/clipPlayer';
 import { VersionParts } from '../passage/versionParts';
-import type { Ctx } from '../ctx';
-import { screenTitle } from '../flow';
+import type { Ctx } from '../shell/ctx';
+import { screenTitle } from '../shell/flow';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
-import { indexesFor } from '../indexes';
-import { Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, txt, useLayout, SectionLabel } from '../kit';
-import { passageCrumbs, passageView as passageViewOf, usePassage, versionTitle, type PassageView } from '../passageView';
-import { failureMessage } from '../report';
+import { indexesFor } from '../sync/indexes';
+import { Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, SectionLabel } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { useLayout } from '../ui/useLayout';
+import { passageCrumbs, passageView as passageViewOf, versionTitle, type PassageView } from '../passage/passageView';
+import { usePassage } from '../passage/usePassage';
+import { undoReviews } from '../passage/recordInputsModel';
+import { failureMessage } from '../diagnostics/report';
 import {
-  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, loggedTargets, nextLabel,
-  noteAnchorText, readiness, recordedPassages, requestFor, reviewCapture, reviewStages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor,
+  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
+  noteAnchorText, readiness, requestFor, reviewCapture, reviewStages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor,
   type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
 import {
-  AlsoCoveredPicker, AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner, WithheldNotice
+  AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner
 } from '../reviewing/parts';
-import { contractsFor } from '../screenContracts';
-import { AgainBtn, BigMic, DashedRow, PlayChip, SpeakBtn } from '../simple/reviewVoice';
-import { checkName } from '../simple/adminModel';
-import { useCheckHelpRows, type HelpRow } from '../checks/parts';
-import { BackgroundSheet, backgroundLine, BigChoices, Centre, DecideCard, MomentList, OutcomePill, QuestionCard, QuestionDots, SkipBtn, StepStrip } from '../simple/review';
-import { useOfferedSources } from '../sources/SourceReader';
-import { useUsage } from '../sources/used';
-import { useStudyGuide } from '../study/libraryGuides';
+import { contractsFor } from '../shell/screenContracts';
+import { AgainBtn, BigMic, DashedRow, PlayChip, SpeakBtn } from '../reviewing/reviewVoice';
+import { checkName } from '../admin/adminModel';
+import { useCheckHelpRows, type HelpRow } from '../checks/useCheckHelpRows';
+import { BackgroundSheet, BigChoices, Centre, DecideCard, MomentList, OutcomePill, QuestionCard, QuestionDots, SkipBtn, StepStrip } from '../reviewing/review';
+import { backgroundLine } from '../reviewing/reviewText';
+import { useOfferedSources } from '../sources/useSourceChoice';
+import { useUsage } from '../sources/useUsage';
+import { useStudyGuide } from '../study/useStudyGuides';
 import type { StudyGuide } from '../study/guides';
 import { studyProgress } from '../study/progress';
-import { C, space, TINT, type as T } from '../theme';
-import { VoiceNote } from '../voiceNote';
+import { C, space, TINT, type as T } from '../ui/theme';
+import { VoiceNote } from '../audio/voiceNote';
+import { draftKey } from '../drafts/draftModel';
+import { useDraft } from '../drafts/useDraft';
+import { SavedMark } from '../ui/SavedMark';
+import { isStoredReview, reviewDraftOf, reviewStateOf, type ReviewDraft, type ReviewState } from '../reviewing/reviewDraft';
+import { NoteStepContext } from '../checks/noteStep';
+import { anyFrom, fromFilter } from '../checks/showsModel';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
 const SHEET_GAP_MS = 400;
@@ -77,15 +95,16 @@ function voiceCard(hash: string, card?: { durationMs: number; format: 'wav' | 'm
 
 /** Listen (with the background, unless the kind withholds it), answer, give your verdict (REV-0..4). */
 export function ReviewCapture(ctx: Ctx) {
-  return <Capture ctx={ctx} logged={false} />;
+  // Notes written while reviewing are this check's (decisions.md 130).
+  return <NoteStepContext.Provider value={ctx.params['kindId']}><Capture ctx={ctx} logged={false} /></NoteStepContext.Provider>;
 }
 
 // ---- Already happened (add_record) ---------------------------------------------------------
 
 /**
  * A review that happened outside the app goes on the record through the
- * same screen, plus who gave it, where, which version was played and other
- * passages the session covered; a kind that makes content asks for its
+ * same screen, plus who gave it, where and which version was played, on
+ * this passage only (decision 128); a kind that makes content asks for its
  * recording instead of an outcome (REV-6, ADR-028).
  */
 export function AddRecord(ctx: Ctx) {
@@ -110,21 +129,18 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [feedback, setFeedback] = useState<VoiceAnswer | null>(null);
   const [typeFeedback, setTypeFeedback] = useState(false);
   const [moments, setMoments] = useState<(VoiceAnswer & { atMs: number })[]>([]);
-  const [also, setAlso] = useState<string[]>([]);
   const [people, setPeople] = useState(0);
   const [givenBy, setGivenBy] = useState('');
   const [place, setPlace] = useState('');
   const [evidence, setEvidence] = useState<VoiceAnswer | null>(null);
   const [made, setMade] = useState<AudioCard[]>([]);
   const [busy, setBusy] = useState(false);
-  // Where you are in the review, kept for this visit: Back from a key term or the study returns here.
+  // Where you are in the review, kept with the draft: Back from a key term or the study, or opening it again, returns here.
   const [stageId, setStageId] = useState<StageId>('listen');
   const [qi, setQi] = useState(0);
   const [why, setWhy] = useState(false);
   const [sheet, setSheet] = useState<'background' | 'who' | 'details' | 'say' | 'retell' | null>(null);
   const [momentAt, setMomentAt] = useState<number | null>(null);
-  // Leaving with something said or answered asks first: nothing is saved until the review is sent (REV-024).
-  const [leaving, setLeaving] = useState(false);
   // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
@@ -135,29 +151,54 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   };
   // A wide window names the passage in the crumbs above the title, so the title is the kind.
   const wide = useLayout().kind !== 'phone';
-  // Anything said, answered or chosen here lives only on this screen until the review is sent.
-  const dirty = moments.length > 0 || Object.keys(answers).some((k) => !!answers[k]?.trim()) || Object.keys(voice).length > 0
-    || Object.keys(skipped).length > 0 || !!comment.trim() || !!feedback || !!evidence || people > 0 || !!place.trim() || !!givenBy.trim()
-    || made.length > 0 || also.length > 0;
-  const leave = () => (dirty && !busy ? setLeaving(true) : ctx.back());
-  // A phone's Back does what the header's arrow does: from "What should change?" to Decide, and asks before throwing a review away.
-  useHardwareBack(why || dirty || leaving, () => {
-    if (leaving) setLeaving(false);
-    else if (why) setWhy(false);
-    else setLeaving(true);
-  });
+  // A phone's Back does what the header's arrow does: from "What should change?" to Decide, else it leaves (the draft stays).
+  useHardwareBack(why, () => setWhy(false));
 
   const version = v ? versionFor(v.p, takeId) : undefined;
-  const request = useMemo(() => v ? requestFor(v.p, kindId, actorId, { ...(ctx.params['requestId'] ? { requestId: ctx.params['requestId'] } : {}), mineOnly: logged }) : undefined,
-    [v?.p, kindId, actorId, ctx.params, logged]);
-  const questions = useMemo(() => v ? questionsForKind(v.state, kindId, request) : [], [v?.state, kindId, request]);
+
+  // Everything said, answered, chosen or recorded here is a draft only you see, kept as you go
+  // (decision 127): Back and ✕ leave it, opening this review again brings it back, sending drops it.
+  const opened = ctx.params['takeId'];
+  const draft = useDraft<ReviewDraft | null>(v ? draftKey('review', actorId, v.languageId, v.unitId, kindId, logged ? 'logged' : 'live') : null, null, isStoredReview);
+  const setDraft = draft.set;
+  const onScreen: ReviewState = {
+    takeId, stage: stageId, qi, answers, voice, typing, skipped, comment, feedback, typeFeedback, moments, people, givenBy, place, evidence, made
+  };
+  const kept = JSON.stringify(reviewDraftOf(onScreen, version?.takeId, opened));
+  // What the draft holds: written when the screen holds something else, so a draft not yet read is never written over.
+  const stored = useRef('null');
+  useEffect(() => {
+    const d = draft.value;
+    if (draft.restoredAt === null || !d || !v) return;
+    const back = reviewStateOf(d, v.p.versions.map((x) => x.takeId), opened, versionFor(v.p, opened)?.takeId);
+    // Its version is gone: the review starts fresh.
+    if (!back) { stored.current = 'null'; setDraft(null); return; }
+    stored.current = JSON.stringify(d);
+    setTakeId(back.takeId); setStageId(back.stage); setQi(back.qi); setAnswers(back.answers); setVoice(back.voice); setTyping(back.typing);
+    setSkipped(back.skipped); setComment(back.comment); setFeedback(back.feedback); setTypeFeedback(back.typeFeedback); setMoments(back.moments);
+    setPeople(back.people); setGivenBy(back.givenBy); setPlace(back.place); setEvidence(back.evidence); setMade(back.made);
+  }, [draft.restoredAt]); // eslint-disable-line react-hooks/exhaustive-deps -- once per draft read: what it brings back is that read's value, versions and params
+  useEffect(() => {
+    if (kept === stored.current) return;
+    stored.current = kept;
+    setDraft(JSON.parse(kept) as ReviewDraft | null);
+  }, [kept, setDraft]);
+  const vState = v?.state;
+  const vp = v?.p;
+  const requestParam = ctx.params['requestId'];
+  const request = useMemo(() => vp ? requestFor(vp, kindId, actorId, { ...(requestParam ? { requestId: requestParam } : {}), mineOnly: logged }) : undefined,
+    [vp, kindId, actorId, requestParam, logged]);
+  const questions = useMemo(() => vState ? questionsForKind(vState, kindId, request) : [], [vState, kindId, request]);
   const guide = useStudyGuide(ctx, v?.unitId);
-  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
-    [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
-  const all = useMemo(() => v && logged ? recordedPassages(v.state, ctx.language.lines) : [], [v?.state, ctx.language.lines, logged]);
+  // What the check shows (decisions.md 130): Background has only that, and is not there when it shows nothing.
+  const shows = useMemo(() => (vState ? { ...checkShows(vState, kindId), notes: anyFrom(vState, kindId, 'notes'), earlier: anyFrom(vState, kindId, 'earlier') } : null), [vState, kindId]);
+  const earlierFrom = useMemo(() => (vState ? fromFilter(vState, kindId, 'earlier') : undefined), [vState, kindId]);
+  const anyShown = !!shows && SHOWN.some((w) => shows[w]);
+  const context = useMemo(() => v && version && kind ? backgroundFor(v, kindId, version.takeId, guide) : null,
+    [v?.state, v?.p, kindId, version?.takeId, kind, guide]); // eslint-disable-line react-hooks/exhaustive-deps -- v is new on every draw; what backgroundFor reads of it (state, p, kinds) follows v.state and v.p
   // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
   const usage = useUsage();
-  const shown = !!context;
+  const shown = !!context && anyShown;
   useOfferedSources(ctx, shown ? v?.unitId : undefined, shown ? v?.languageId : undefined, shown ? usage : undefined);
   const guideItem = guide ? guide.id.split('~')[0] ?? guide.id : null;
   useEffect(() => {
@@ -194,14 +235,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const captured = reviewCapture({ questions, answers, voice: makes ? {} : voice, moments: makes ? [] : moments, evidence: makes ? null : evidence });
   const r = readiness(questions, captured.answers, skipped, comment, feedback?.hash ?? null);
   const group = isGroupKind(kind.id);
-  const here = all.find((p) => p.unitId === v.unitId);
   const asker = request?.by ? ctx.name(request.by) : undefined;
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes });
   const at = stageAt(stages, stageId);
   const stage = stages[at]!.id;
   const next = stages[at + 1];
   const latest = v.p.latest;
-  const otherPassages = !!here && all.some((p) => p.unitId !== here.unitId);
   const mine = version.by === actorId;
   // The translator's first name, for sentences about them; when it is you, the sentences say so themselves.
   const translator = ctx.name(version.by).split(' ')[0] ?? ctx.name(version.by);
@@ -218,8 +257,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
     const live = ctx.language.state;
     if (!live || !v || !version || !kind || busy) return;
-    // A check logged for other passages too reads their records from the phone's disk (decisions.md 110).
-    const state = logged && also.length ? (await ctx.language.withPassages([v.unitId, ...also])) ?? live : live;
+    const state = live;
     const cmd = Crypto.randomUUID();
     const c = commands(state, indexesFor(state));
     const text = comment.trim();
@@ -242,30 +280,24 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           ? (mine ? t('review.screen.looksGoodOnRecord') : t('review.screen.looksGoodSentTo', { name }))
           : (mine ? t('review.screen.feedbackOnRecord') : t('review.screen.feedbackSentTo', { name }));
       } else {
-        const targets = loggedTargets(state, { unitId: v.unitId, takeId: version.takeId }, also);
+        // One passage, the one it is about (decision 128): another passage the session covered gets its own review there.
         const who = !group && givenBy.trim() ? { givenBy: givenBy.trim() } : {};
         const shared = {
           ...(cleanA ? { answers: cleanA } : {}), ...(cleanS ? { skipped: cleanS } : {}),
           ...who, ...(group && people > 0 ? { people } : {}), ...(place.trim() ? { place: place.trim() } : {})
         };
-        targets.forEach((t, i) => {
-          const tp = t.unitId === v.unitId ? v.p : derivePassage(state, t.unitId, indexesFor(state));
-          const req = requestFor(tp, kind.id, actorId, { mineOnly: true });
-          const commandId = `${cmd}:${i}`;
-          // Notes at moments are about this passage's version; the rest of the session goes with every passage it covered.
-          const theseArtifacts = t.unitId === v.unitId ? artifacts : artifacts.filter((a) => a.atMs === undefined);
-          specs.push(...(makes
-            ? c.produceContent({
-              commandId, fromTakeId: t.takeId, kindId: kind.id, cards: made, via: 'logged',
-              ...(text ? { note: text } : {}), ...(commentHash ? { noteBlobHash: commentHash } : {}), ...shared, ...(req ? { requestId: req.id } : {})
-            })
-            : c.recordReview({
-              commandId, takeIds: [t.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'logged',
-              ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}), ...shared,
-              ...(theseArtifacts.length ? { artifacts: theseArtifacts } : {}), ...(req ? { requestId: req.id } : {})
-            })));
-        });
-        message = targets.length > 1 ? t('review.screen.addedToPassages', { kind: check, count: targets.length }) : t('review.screen.addedToRecord', { kind: check });
+        const req = requestFor(v.p, kind.id, actorId, { mineOnly: true });
+        specs = makes
+          ? c.produceContent({
+            commandId: cmd, fromTakeId: version.takeId, kindId: kind.id, cards: made, via: 'logged',
+            ...(text ? { note: text } : {}), ...(commentHash ? { noteBlobHash: commentHash } : {}), ...shared, ...(req ? { requestId: req.id } : {})
+          })
+          : c.recordReview({
+            commandId: cmd, takeIds: [version.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'logged',
+            ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}), ...shared,
+            ...(artifacts.length ? { artifacts } : {}), ...(req ? { requestId: req.id } : {})
+          });
+        message = t('review.screen.addedToRecord', { kind: check });
       }
       // Each review of this passage names what its Background offered and what was opened.
       const used = usage.items();
@@ -283,11 +315,14 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     }
     setBusy(true);
     try {
-      await ctx.act(specs, message);
+      const sent = specs;
+      await ctx.act(specs, message, () => undoReviews(sent)(commands(state)));
     } catch {
       setBusy(false);
       return;
     }
+    // Sent: it is on the record now, so the draft goes.
+    void draft.clear();
     ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId });
   }
 
@@ -323,8 +358,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   } else if (stage === 'decide' && makes) {
     footer = (
       <>
-        {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>{t('review.screen.savesTo', { count: also.length + 1 })}</Text> : null}
-        <PrimaryBtn label={t('review.screen.saveToRecord')} icon="check" disabled={!r.ready || made.length === 0} busy={busy} onPress={() => void save('recorded')} />
+        <PrimaryBtn label={t('common.done')} icon="check" help={t('review.screen.doneRecordedHelp', { what: makes.what })} disabled={!r.ready || made.length === 0} busy={busy} onPress={() => void save('recorded')} />
       </>
     );
   }
@@ -353,32 +387,31 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         </Card>
       ) : null}
       {context?.compare ? <CompareCard ctx={ctx} review={context.compare} kind={v.kind(context.compare.kindId)} version={version} /> : null}
-      {context !== null && helps.length ? (
+      {helps.length ? (
         <>
           <SectionLabel label={t('checks.forCheck', { check })} />
           <Group>
             {helps.map((h, i) => (
-              <Row key={h.key} icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} onPress={() => openHelp(h)} last={i === helps.length - 1} />
+              <Row key={h.key} icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last={i === helps.length - 1} />
             ))}
           </Group>
         </>
       ) : null}
-      {context === null ? <WithheldNotice kind={kind} /> : (
+      {context && anyShown ? (
         <Group>
           <Row leading={<Ico name="layers" size={28} color={C.primary} />} label={t('review.parts.background')} sub={backgroundLine(context, { id: version.by, name: translator, you: mine })}
-            onPress={() => setSheet('background')} last />
+            help={t('review.screen.backgroundHelp')} onPress={() => setSheet('background')} last />
         </Group>
-      )}
-      <DashedRow icon="people" label={whoTitle}
+      ) : null}
+      <DashedRow icon="people" label={whoTitle} help={!logged ? t('review.screen.whoHelp') : group ? t('review.screen.howManyHelp') : t('review.screen.whoReviewedHelp')}
         {...(whoLine ? { sub: whoLine, done: true } : {})} right={whoLine ? t('review.shared.change') : t('review.shared.optional')} onPress={() => setSheet('who')} />
       {logged ? (
         <DashedRow icon="edit" label={t('review.screen.addDetails')}
           sub={summaryLine([
             place.trim() || t('review.screen.where'),
             latest && version.takeId === latest.takeId ? t('review.screen.versionLatest', { n: version.n }) : versionTitle(version.n),
-            otherPassages && (also.length ? t('review.screen.morePassages', { count: also.length }) : t('review.screen.otherPassages')),
             !makes && (evidence ? t('review.screen.retellingRecorded') : t('review.screen.retelling'))
-          ])} onPress={() => setSheet('details')} />
+          ])} help={t('review.screen.addDetailsHelp')} onPress={() => setSheet('details')} />
       ) : null}
     </>
   );
@@ -392,7 +425,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         {skipped[q.q.id] !== undefined ? (
           <View style={{ alignItems: 'center', gap: space.sm }}>
             <Text style={[txt.body, styles.center]}><Text style={{ fontWeight: '700' }}>{t('review.parts.leftUnanswered')}</Text> {skipped[q.q.id]}</Text>
-            <LinkBtn label={t('review.screen.answerIt')} onPress={() => setSkipped((s) => { const { [q.q.id]: _gone, ...rest } = s; return rest; })} />
+            <LinkBtn label={t('review.screen.answerIt')} help={t('review.screen.answerItHelp')} onPress={() => setSkipped((s) => { const { [q.q.id]: _gone, ...rest } = s; return rest; })} />
           </View>
         ) : q.q.type !== 'text' ? (
           <BigChoices type={q.q.type} value={answers[q.q.id]} onChange={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} />
@@ -404,14 +437,14 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
                 <AgainBtn label={t('review.screen.recordAgain')} onPress={() => setVoice((x) => { const { [q.q.id]: _gone, ...rest } = x; return rest; })} />
               </>
             ) : (
-              <BigMic label={t('review.screen.tapRecordAnswer')} size={96} onClip={(clip) => setVoice((x) => ({ ...x, [q.q.id]: clip }))} />
+              <BigMic language={ctx.language} label={t('review.screen.tapRecordAnswer')} size={96} onClip={(clip) => setVoice((x) => ({ ...x, [q.q.id]: clip }))} />
             )}
             {makes || typing[q.q.id] || answers[q.q.id] ? (
               <View style={{ alignSelf: 'stretch' }}>
                 <Field value={answers[q.q.id] ?? ''} onChangeText={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} placeholder={t('review.screen.typeAnswer')} multiline />
               </View>
             ) : (
-              <LinkBtn label={t('common.orTypeIt')} style={{ alignSelf: 'center' }} onPress={() => setTyping((x) => ({ ...x, [q.q.id]: true }))} />
+              <LinkBtn label={t('common.orTypeIt')} help={t('review.screen.orTypeHelp')} style={{ alignSelf: 'center' }} onPress={() => setTyping((x) => ({ ...x, [q.q.id]: true }))} />
             )}
           </>
         )}
@@ -427,16 +460,16 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         <Text style={[txt.smMuted, styles.center]}>{t('review.screen.recordTheWhy')}</Text>
       </View>
       <View style={styles.answer}>
-        <BigMic label={made.length ? t('review.screen.recordAnotherPart') : t('review.screen.tapAndSpeak')} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
+        <BigMic language={ctx.language} label={made.length ? t('review.screen.recordAnotherPart') : t('review.screen.tapAndSpeak')} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
       </View>
       {made.map((c, i) => (
         <View key={c.hash} style={styles.partRow}>
           <PlayChip ctx={ctx} clip={{ hash: c.hash, durationMs: c.durationMs, format: c.format ?? 'm4a' }} label={t('review.screen.part', { n: i + 1 })} tone="brand" />
-          <LinkBtn label={t('common.remove')} color={C.muted} accessibilityLabel={t('review.screen.removePart', { n: i + 1 })} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
+          <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.screen.removePartHelp')} accessibilityLabel={t('review.screen.removePart', { n: i + 1 })} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
         </View>
       ))}
       <DashedRow icon="chatDots" label={t('review.screen.whatHappened')} sub={comment.trim() || (feedback ? t('review.screen.saidInVoiceNoteCap') : t('review.screen.whatWasHard'))}
-        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')}
+        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} help={t('review.screen.whatHappenedHelp')}
         done={!!comment.trim() || !!feedback} onPress={() => setSheet('say')} />
     </>
   ) : (
@@ -446,15 +479,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         <SpeakBtn text={verdictQuestion(kind.id)} size={52} />
       </View>
       {openAt >= 0 ? (
-        <LinkBtn label={t('review.capture.requiredLeft', { count: r.open })} style={{ alignSelf: 'center' }} onPress={() => goStage('questions')} />
+        <LinkBtn label={t('review.capture.requiredLeft', { count: r.open })} help={t('review.screen.requiredLeftHelp')} style={{ alignSelf: 'center' }} onPress={() => goStage('questions')} />
       ) : null}
       <DecideCard tone="green" label={t('review.screen.looksGood')} icon="check" busy={busy} disabled={openAt >= 0} onPress={() => void save('looks_good')} />
       <DecideCard tone="amber" label={t('review.screen.needsChanges')} icon="chat" disabled={openAt >= 0 || busy} onPress={() => setWhy(true)} />
       <DashedRow icon="chatDots" label={logged ? t('review.screen.whatHappened') : t('review.screen.saySomething')}
         sub={comment.trim() || (feedback ? t('review.screen.saidInVoiceNoteCap') : logged ? t('review.screen.whatPeopleUnderstood')
           : mine ? t('review.screen.onRecordWithAnswer') : t('review.screen.nameHearsWithAnswer', { name: translator }))}
-        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} done={!!comment.trim() || !!feedback} onPress={() => setSheet('say')} />
-      {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>{t('review.screen.savesTo', { count: also.length + 1 })}</Text> : null}
+        right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} done={!!comment.trim() || !!feedback}
+        help={logged ? t('review.screen.whatHappenedHelp') : t('review.screen.saySomethingHelp')} onPress={() => setSheet('say')} />
     </Centre>
   );
 
@@ -476,27 +509,28 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             <PlayChip ctx={ctx} clip={feedback} label={t('review.screen.yourFeedback')} tone="amber" />
             <AgainBtn label={t('review.screen.recordAgain')} onPress={() => setFeedback(null)} />
           </View>
-        ) : <BigMic label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
+        ) : <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
         {typeFeedback || comment ? (
           <Field value={comment} onChangeText={setComment} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline testID="feedback-text" />
-        ) : <LinkBtn label={t('common.orTypeIt')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
+        ) : <LinkBtn label={t('common.orTypeIt')} help={t('review.screen.orTypeHelp')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
       </Centre>
       {evidence ? (
         <View style={styles.partRow}>
           <PlayChip ctx={ctx} clip={evidence} label={t('review.screen.listenerRetelling')} />
-          <LinkBtn label={t('common.remove')} color={C.muted} accessibilityLabel={t('review.screen.removeRetelling')} onPress={() => setEvidence(null)} />
+          <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.screen.removeRetellingHelp')} accessibilityLabel={t('review.screen.removeRetelling')} onPress={() => setEvidence(null)} />
         </View>
       ) : (
-        <DashedRow tile icon="user" label={t('review.screen.recordListenerRetelling')} right={t('review.shared.optional')} onPress={() => setSheet('retell')} />
+        <DashedRow tile icon="user" label={t('review.screen.recordListenerRetelling')} right={t('review.shared.optional')} help={t('review.screen.retellingHelp')} onPress={() => setSheet('retell')} />
       )}
     </>
   );
 
+  const mark = <SavedMark status={draft.status} help={t('saved.draftHelp')} />;
   const header = why ? (
-    <Header title={title} sub={sub} crumbs={crumbs} onBack={() => setWhy(false)} />
+    <Header title={title} sub={sub} crumbs={crumbs} onBack={() => setWhy(false)} action={mark} />
   ) : (
     <>
-      <Header title={title} sub={sub} crumbs={crumbs} onBack={leave} close />
+      <Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close action={mark} />
       <StepStrip stages={stages} at={at} onGo={goStage} />
     </>
   );
@@ -506,8 +540,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     <Screen key={`${stage}:${qi}:${why}`} footer={footer} header={header} bodyStyle={{ flexGrow: 1 }}>
       {why ? whyBody : stage === 'listen' ? listen : stage === 'questions' ? question : decide}
 
-      {sheet === 'background' && context ? (
-        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind}
+      {sheet === 'background' && context && shows ? (
+        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind} shows={shows}
+          {...(earlierFrom ? { earlierFrom } : {})}
           {...(bible ? { bible } : {})}
           onClose={() => { setSheet(null); setBible(null); }}
           onOpenTerm={(termId) => afterSheet(() => ctx.go('key_term_detail', { termId, unitId: v.unitId, languageId: v.languageId }))}
@@ -519,29 +554,28 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {sheet === 'who' ? (
         <Sheet visible title={whoTitle}
           sub={t('review.screen.whoSheetSub')} onClose={() => setSheet(null)}
-          footer={<PrimaryBtn label={t('common.done')} onPress={() => setSheet(null)} />}>
+          footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
           {logged && !group ? (
             <Field value={givenBy} onChangeText={setGivenBy} autoCapitalize="words" placeholder={makes ? t('review.screen.whoMadeIt') : t('review.screen.whoReviewedIt')} />
           ) : <PeopleCounter value={people} onChange={setPeople} />}
-          {/* Already happened keeps where under Add details, with which version and other passages. */}
-          {logged ? null : <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} />}
+          {/* Already happened keeps where under Add details, with which version. */}
+          {logged ? null : <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} help={t('review.screen.whereHelp')} />}
         </Sheet>
       ) : null}
 
       {sheet === 'details' ? (
         <Sheet visible title={t('review.screen.addDetails')} sub={t('review.screen.detailsSub')} onClose={() => setSheet(null)}
-          footer={<PrimaryBtn label={t('common.done')} onPress={() => setSheet(null)} />}>
-          <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} />
+          footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
+          <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} help={t('review.screen.whereHelp')} />
           {v.p.versions.length > 1 ? (
             <Block label={t('review.screen.whichVersion')}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
                 {[...v.p.versions].reverse().map((x) => (
-                  <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} onPress={() => setTakeId(x.takeId)} />
+                  <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} help={t('review.screen.whichVersionHelp')} onPress={() => setTakeId(x.takeId)} />
                 ))}
               </View>
             </Block>
           ) : null}
-          {here ? <AlsoCoveredPicker here={here} all={all} picked={also} onChange={setAlso} /> : null}
           {!makes ? (
             <Block label={t('review.screen.evidence')} hint={t('review.screen.evidenceHint')}>
               <VoiceNote ctx={ctx} label={t('review.screen.recordARetelling')} hash={evidence?.hash ?? null}
@@ -554,7 +588,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {sheet === 'say' ? (
         <Sheet visible title={logged ? t('review.screen.whatHappened') : t('review.screen.saySomething')}
           sub={makes ? t('review.screen.saySubMakes') : logged ? t('review.screen.saySubLogged') : mine ? t('review.screen.saySubMine') : t('review.screen.saySub', { name: translator })}
-          onClose={() => setSheet(null)} footer={<PrimaryBtn label={t('common.done')} onPress={() => setSheet(null)} />}>
+          onClose={() => setSheet(null)} footer={<PrimaryBtn label={t('common.done')} help={t('review.screen.sheetDoneHelp')} onPress={() => setSheet(null)} />}>
           <VoiceNote ctx={ctx} label={logged ? t('review.screen.recordSummary') : t('common.sayIt')} hash={feedback?.hash ?? null}
             onChange={(h, card) => setFeedback(h ? { hash: h, durationMs: card?.durationMs ?? 0, format: card?.format ?? 'm4a' } : null)} />
           <Field value={comment} onChangeText={setComment} placeholder={t('common.orTypeIt')} multiline />
@@ -564,7 +598,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {sheet === 'retell' ? (
         <Sheet visible title={t('review.screen.recordListenerRetelling')} sub={t('review.screen.retellSub')} onClose={() => setSheet(null)}>
           <View style={{ paddingVertical: space.lg }}>
-            <BigMic label={t('review.screen.tapRecordRetelling')} size={96} onClip={(clip) => { setEvidence(clip); setSheet(null); }} />
+            <BigMic language={ctx.language} label={t('review.screen.tapRecordRetelling')} size={96} onClip={(clip) => { setEvidence(clip); setSheet(null); }} />
           </View>
         </Sheet>
       ) : null}
@@ -574,18 +608,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           sub={mine ? t('review.screen.noteAtSubMine') : t('review.screen.noteAtSub', { name: translator })}
           onClose={() => setMomentAt(null)}>
           <View style={{ paddingVertical: space.lg }}>
-            <BigMic label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
+            <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
           </View>
-        </Sheet>
-      ) : null}
-
-      {leaving ? (
-        <Sheet visible title={t('review.screen.leaveTitle')} sub={t('review.screen.leaveSub')} onClose={() => setLeaving(false)}
-          footer={<>
-            <PrimaryBtn label={t('review.screen.keepReviewing')} onPress={() => setLeaving(false)} />
-            <GhostBtn label={t('review.screen.leave')} tone="red" onPress={() => { setLeaving(false); ctx.back(); }} />
-          </>}>
-          {null}
         </Sheet>
       ) : null}
 
@@ -599,11 +623,20 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   );
 }
 
+/** What opening one of the check's helps does (decision 91), as help mode says it. */
+function helpRowHelp(h: HelpRow): string {
+  if ('bible' in h.open) return t('review.screen.helpBibleHelp');
+  return h.open.screen === 'study_guide' ? t('review.screen.helpGuideHelp') : t('review.screen.helpNoteHelp');
+}
+
 /** The background a reviewer may open, or null when the kind withholds it (REV-1, REV-4). */
-function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
+function backgroundFor(v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
   const { state, p } = v;
   const terms = keyTermLinksFor(state, takeId).map((l) => l.term);
-  const notes = p.notes.filter((n) => n.anchor.kind !== 'study');
+  // Notes and earlier reviews from the steps this check shows (decisions.md 130).
+  const notesFrom = fromFilter(state, kindId, 'notes');
+  const earlierFrom = fromFilter(state, kindId, 'earlier');
+  const notes = p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP));
   const versionN = (id: string) => p.versions.find((x) => x.takeId === id)?.n;
   const anchor = (n: PassageNote) => noteAnchorText(n.anchor, { term: (id) => state.keyTerms[id]?.term, versionN });
   const olderVersion = (n: PassageNote) => {
@@ -612,7 +645,7 @@ function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string,
   };
   const study = guide ? studyProgress(state, p, guide) : null;
   const compare = toCompareFor(p, v.kinds, kindId);
-  const earlier = earlierReviews(p, v.kinds, kindId);
+  const earlier = earlierReviews(p, v.kinds, kindId).filter((r) => earlierFrom(r.kindId));
   return { terms, notes, anchor, olderVersion, study, compare, earlier };
 }
 
@@ -661,8 +694,8 @@ export function GuestReview(ctx: Ctx) {
     <>
       <Text style={[txt.xs, styles.center]}>{t('review.guest.previewOnly')}</Text>
       <View style={{ flexDirection: 'row', gap: space.sm }}>
-        <View style={{ flex: 1 }}><GhostBtn label={t('review.guest.someUnclear')} disabled onPress={() => undefined} /></View>
-        <View style={{ flex: 1 }}><PrimaryBtn label={t('review.guest.understoodWell')} tone="green" disabled onPress={() => undefined} /></View>
+        <View style={{ flex: 1 }}><GhostBtn label={t('review.guest.someUnclear')} help={t('review.guest.someUnclearHelp')} disabled onPress={() => undefined} /></View>
+        <View style={{ flex: 1 }}><PrimaryBtn label={t('review.guest.understoodWell')} tone="green" help={t('review.guest.understoodWellHelp')} disabled onPress={() => undefined} /></View>
       </View>
     </>
   );

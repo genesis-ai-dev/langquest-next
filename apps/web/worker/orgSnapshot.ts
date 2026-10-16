@@ -11,6 +11,7 @@ import { supabaseAgentStore, type WebhookRecord } from './agent/store';
 import { COALESCE_MS } from './agent/webhooks';
 import { readPath } from './blobs';
 import { SqlCache } from './sqlCache';
+import { jobRunSink } from '../../../server/jobRuns';
 
 /**
  * One per organization, named by its id, so every request for an
@@ -140,7 +141,8 @@ export class OrgSnapshot extends DurableObject<Env> {
         languageState: (languageId) => folder.languageState(languageId),
         heads: () => this.heads(orgId),
         fetch: (url, init) => fetch(url, init),
-        now: Date.now
+        now: Date.now,
+        jobRun: (run) => this.ctx.waitUntil(jobRunSink(this.env.SUPABASE_URL, this.env.SUPABASE_SERVICE_ROLE_KEY)(run))
       });
     }
     return this.dispatcher;

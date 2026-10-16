@@ -1,4 +1,4 @@
-import { emptyLanguageState, foldLanguage, languageLines } from '@langquest-next/core';
+import { emptyLanguageState, foldLanguage, languageLines, REDUCER_VERSION } from '@langquest-next/core';
 import { always, Fleet, FLEET_EPOCH, NETWORKS, offlineBetween, patchy, TIME, village, type Link } from '../src/testing';
 
 /**
@@ -54,6 +54,32 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
     expect(r.phones.refolds).toBe(0);
   });
 
+  it('an update that changes the reducer, on phones that keep their store, leaves every phone with the whole language', async () => {
+    // Why: phones prune their log behind their checkpoint, and an update
+    // that bumps REDUCER_VERSION makes the checkpoint unreadable. Folding
+    // the tail that was left lost those phones most of the language for
+    // good (2026-10-15); a reinstall with an empty store never showed it.
+    // Half the phones update before the server has a snapshot for the new
+    // reducer (they pull the stream again), half after (they take it).
+    const fleet = new Fleet({ seed: 11, checkpointEvery: 20, crew: { passages: 40, translators: 4, reviewers: 3, link: mixed } });
+    await fleet.start();
+    await fleet.runFor(2 * TIME.DAY);
+    const pruned = (await Promise.all(fleet.devices.map((d) => d.client.inspect()))).filter((v) => (v.checkpointSeq ?? 0) > 0).length;
+    expect(pruned).toBeGreaterThan(fleet.devices.length / 2);
+    const updateAt = fleet.time.now() - FLEET_EPOCH + 9 * TIME.HOUR;
+    fleet.at(updateAt, () => fleet.deployReducer(REDUCER_VERSION + 1));
+    for (const [i, d] of fleet.devices.entries()) {
+      fleet.at(updateAt + (i % 2 === 0 ? TIME.MINUTE : 2 * TIME.HOUR), () => d.update(REDUCER_VERSION + 1));
+    }
+    await fleet.runFor(2 * TIME.DAY);
+    const r = fleet.report(await fleet.settle(), 0);
+    expect(r.errors).toEqual([]);
+    expect(r.agreement).toMatchObject({ caughtUp: true, agree: true, disagree: [] });
+    expect(r.events.appended).toBe(r.events.onServer);
+    const dropped = fleet.devices.flatMap((d) => d.diag.records).filter((x) => x.kind === 'load' && x.n.staleCheckpointSeq !== undefined);
+    expect(dropped).toHaveLength(pruned);
+  });
+
   it('moves the audio too: every recording reaches the server, and reviewers hear what they review', async () => {
     // Why: work is audio. An event that arrives without its recording is a
     // passage nobody can review, and a recording that never leaves the phone
@@ -71,7 +97,7 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
   });
 
   it('phones that keep the language on disk end with the same language, and move the same audio', async () => {
-    // Why: a phone that keeps a big language on disk (decisions.md 110) folds
+    // Why: a phone that keeps a big language on disk (decisions.md 134) folds
     // what arrives for a passage it does not hold, and combines it with the
     // stored copy at its next checkpoint. Across days offline, snapshots and
     // reinstalls, it must still end where the server's log does, and still

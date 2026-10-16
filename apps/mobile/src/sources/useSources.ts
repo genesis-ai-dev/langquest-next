@@ -12,11 +12,11 @@ import {
   type LibraryDoc, type SourceBookDoc, type SourceDoc, type TemplateDoc, type TimingDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
-import type { Ctx } from '../ctx';
-import { teamLanguage } from '../reference/languages';
+import type { Ctx } from '../shell/ctx';
+import { inLanguages, teamLanguages } from '../reference/languages';
 import { t } from '../i18n';
 import { useLibraryDocs, useSharedItems } from '../library/useLibrary';
-import { carriedBible, readingsForRange } from '../scripture';
+import { carriedBible, readingsForRange } from '../passage/scripture';
 import { bibleErrorText, type BibleDetail } from './bibleBrain';
 import {
   bibleNotOnDevice, bookOffers, catalogVerses, chaptersOf, chipMarks, filesetsFor, inSourceNumbering, isOfferedSourceId, offersFor, offlineAllowed, orderOptions, passageRows, playPlan,
@@ -24,7 +24,9 @@ import {
 } from './model';
 import { audioFormatOf, bbKey, ensureIndex, keptAudio, libAudioKey, onSourceFiles, playableUri } from './offline';
 import { PlayError } from './player';
-import { bibleBrain, textKept, useKeptRevision, useMyBibles } from './store';
+import { BUILTIN_AUDIO_ID, bibleBrainFacts, builtinCopyright, builtinFacts, libraryFacts } from './passageSourceModel';
+import { bibleBrain, textKept } from './store';
+import { useKeptRevision, useMyBibles } from './useMyBibles';
 
 type Get = <T extends LibraryDoc = LibraryDoc>(hash: string | null | undefined) => T | null;
 
@@ -112,9 +114,11 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
     return unitCoordinates(unitId, versification ? (b, c) => versesInChapter(versification, b, c) ?? catalogVerses(b, c) : catalogVerses);
   }, [unitId, versification]);
 
+  const openLanguage = ctx.language.languageId;
+  const openState = ctx.language.state;
   const options = useMemo(() => {
     const out: SourceOption[] = [];
-    const sourceLanguage = teamLanguage(ctx.org.state, languageId === ctx.language.languageId ? ctx.language.state : null, languageId);
+    const sourceLanguages = teamLanguages(ctx.org.state, languageId === openLanguage ? openState : null, languageId);
     const fromLibrary = (itemId: string, from: SourceFrom) => {
       const hash = libraryItemView(library ?? {}, itemId)?.current;
       const doc = get<SourceDoc>(hash);
@@ -133,7 +137,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
     if (recs.size === 0 || (wholeBook && out.length === 0)) {
       for (const r of shared.rows) {
         const doc = get<SourceDoc>(r.latest_hash);
-        if (!doc || doc.format !== 'source@1' || doc.language !== sourceLanguage) continue;
+        if (!doc || doc.format !== 'source@1' || !doc.language || !inLanguages(doc.language, sourceLanguages)) continue;
         out.push({ itemId: subscriptionItemId(r.org_id, r.item_id), kind: 'library', from: 'shared', name: doc.name, abbreviation: doc.abbreviation, language: doc.language, doc, docHash: r.latest_hash, sharedBy: r.org_name });
       }
     }
@@ -148,7 +152,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
       }
     }
     return orderOptions(out);
-  }, [recs, mine.list, shared.rows, get, details, library, range, ctx.org.state, languageId, wholeBook]);
+  }, [recs, mine.list, shared.rows, get, details, library, range, ctx.org.state, languageId, openLanguage, openState, wholeBook]);
 
   // A recommended source whose body is not in this snapshot is not "no Bible"
   // (STUDY-036). The library view can omit the option entirely (no pin, no
@@ -246,6 +250,8 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
   // Only the passage's chapters' timings, not the whole book's.
   const timingHashes = useMemo(() => (book && range ? chaptersOf(range).map((c) => book.chapters.find((x) => x.chapter === c)?.timing) : []), [book, range]);
   const timings = useLibraryDocs(ctx.language.orgId, timingHashes, { deps: false });
+  const getTiming = timings.get;
+  const online = ctx.language.online;
   const [bb, setBb] = useState<{ key: string; verses: Map<number, [number, number, string][]>; stamps: Map<number, { verse: number; seconds: number }[] | null>; problem: string | null; done: boolean } | null>(null);
   const [files, setFiles] = useState(0);
   const keptTick = useKeptRevision();
@@ -283,7 +289,7 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     })();
     return () => { live = false; };
     // `book` only decides whether FCBH is asked; its arrival re-runs through bbKeyNow's inputs.
-  }, [bbKeyNow, book]);
+  }, [bbKeyNow, book]); // eslint-disable-line react-hooks/exhaustive-deps -- bbKeyNow is the key: it is made of the option, the range and its filesets
 
   return useMemo(() => {
     if (!option || !range) return null;
@@ -292,31 +298,27 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     if (option.kind === 'builtin') {
       const reading = builtinReadings(range).find((r) => `builtin.${r.code}` === option.itemId);
       const rows = reading ? passageRows(range, new Map(chapters.map((c) => [c, reading.verses.filter((v) => v.chapter === c).map((v) => [v.verse, v.verse, v.text] as [number, number, string])]))) : null;
-      const audio: AudioChapter[] = option.itemId === 'builtin.BSB'
+      const audio: AudioChapter[] = option.itemId === BUILTIN_AUDIO_ID
         ? chapters.map((c) => ({ chapter: c, timing: null, timingSource: 'none' as const, local: false, resolve: async () => sourceAudioUrl(SOURCE_BIBLES[0], { book: bookIdOf(range.book), chapter: c, label: '' }) }))
         : [];
-      // Bundled verses are on the device. A chapter the bundle never carried still
-      // belongs to this Bible; offline, its audio was never cached (STUDY-036).
-      const linkDown = ctx.language.online === false || (typeof navigator !== 'undefined' && navigator.onLine === false);
-      const audioNotHere = !reading && linkDown && audio.length > 0;
+      // Bundled verses are on the device.
+      const linkDown = online === false || (typeof navigator !== 'undefined' && navigator.onLine === false);
+      const { textProblem, audioNotHere } = builtinFacts({ rows, hasReading: !!reading, audioChapters: audio.length, linkDown });
       return {
-        loading: false, range, rows, textProblem: rows || audioNotHere ? null : t('sources.text.noPassageText'), audioNotHere,
+        loading: false, range, rows, textProblem, audioNotHere,
         plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
-        filesets: [], copyright: option.itemId === 'builtin.BSB' ? { text: t('sources.text.publicDomain'), audio: t('sources.text.publicDomainRead') } : { text: t('sources.text.publicDomain') }, bibleBrain: false
+        filesets: [], copyright: builtinCopyright(option.itemId), bibleBrain: false
       };
     }
     // Library text and audio from the source's book document.
     if (option.doc?.provider.kind === 'library') {
-      // Offline, a book that was never opened stops waiting. Its audio is not here; the Bible is.
-      const bookMissing = !!bookHash && !book && !!books.error;
-      const loading = !!bookHash && !book && !bookMissing;
       const rows = book ? passageRows(range, new Map(chapters.map((c) => [c, book.chapters.find((x) => x.chapter === c)?.verses ?? []]))) : null;
       const audio: AudioChapter[] = [];
       for (const c of chapters) {
         const ch = book?.chapters.find((x) => x.chapter === c);
         const a = ch?.audio;
         if (!a) continue;
-        const { timing, source } = resolveTiming({ bookTiming: timings.get<TimingDoc>(ch.timing), audioHash: a.hash ?? null, durationMs: a.durationMs ?? null });
+        const { timing, source } = resolveTiming({ bookTiming: getTiming<TimingDoc>(ch.timing), audioHash: a.hash ?? null, durationMs: a.durationMs ?? null });
         // By hash when the document gives one; a file downloaded from its link is found through the index.
         const ref = a.hash ? { hash: a.hash, format: audioFormatOf(a.format) } : keptAudio(store, libAudioKey(a));
         const local = !!ref && !!store?.has(ref.hash);
@@ -329,9 +331,9 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
           }
         });
       }
+      const { loading, audioNotHere, textProblem } = libraryFacts({ bookHash, hasBook: !!book, booksFailed: !!books.error, rows });
       return {
-        loading, range, rows, audioNotHere: bookMissing,
-        textProblem: loading || bookMissing ? null : rows ? null : bookHash ? t('sources.text.noTextInSource') : t('sources.text.noBookInSource'),
+        loading, range, rows, audioNotHere, textProblem,
         plan: audio.length ? playPlan(range, audio) : null, chapters: audio, filesets: [], copyright, bibleBrain: false
       };
     }
@@ -339,22 +341,21 @@ export function usePassageSource(ctx: Ctx, option: SourceOption | undefined, pas
     const ready = bb && bb.key === bbKeyNow ? bb : null;
     const rows = ready && filesets.text ? passageRows(range, ready.verses) : null;
     const audio: AudioChapter[] = filesets.audio ? chapters.map((c) => {
-      const ownTiming = timings.get<TimingDoc>(book?.chapters.find((x) => x.chapter === c)?.timing);
+      const ownTiming = getTiming<TimingDoc>(book?.chapters.find((x) => x.chapter === c)?.timing);
       const { timing, source } = resolveTiming({ bookTiming: ownTiming, fcbhRows: ready?.stamps.get(c) ?? null });
       return {
         chapter: c, timing, timingSource: source, local: !!keptAudio(store, bbKey(filesets.audio!, range.book, c)),
         resolve: () => bibleBrainAudio(store, filesets.audio!, range.book, c)
       };
     }) : [];
-    const loading = !!bbKeyNow && !ready?.done && !rows;
+    const { loading, textProblem } = bibleBrainFacts({ keyed: !!bbKeyNow, done: !!ready?.done, hasText: !!filesets.text, rows, problem: ready?.problem });
     return {
-      loading, range, rows, audioNotHere: false,
-      textProblem: loading ? null : !filesets.text ? t('sources.text.noBookInBible') : rows ? null : ready?.problem ?? t('sources.text.noPassageText'),
+      loading, range, rows, audioNotHere: false, textProblem,
       plan: audio.length ? playPlan(range, audio) : null, chapters: audio,
       filesets: [filesets.text, filesets.audio].filter((x): x is string => !!x), copyright, bibleBrain: true
     };
     // `setFiles` revisions re-run this through the store and index reads.
-  }, [option, range, book, bookHash, books.error, bb, bbKeyNow, filesets, get, timings.get, store, keptTick, files]);
+  }, [option, range, book, bookHash, books.error, bb, bbKeyNow, filesets, get, getTiming, online, store, keptTick, files]); // eslint-disable-line react-hooks/exhaustive-deps -- get, keptTick and files change when documents arrive or a file is kept on this device, which changes what is ready
 }
 
 /** The marks on each version chip for this passage. */
@@ -368,6 +369,7 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
     ? passage.options.map((o) => o.doc?.provider.kind === 'library' ? o.doc.books.find((b) => b.book === passage.range!.book)?.doc : undefined)
     : [], [passage.options, passage.range]);
   const books = useLibraryDocs(ctx.language.orgId, bookHashes);
+  const getBook = books.get;
   return useMemo(() => {
     const out: Record<string, string[]> = {};
     const range = passage.range;
@@ -381,7 +383,7 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
       }
       if (o.doc?.provider.kind === 'library') {
         const hash = o.doc.books.find((b) => b.book === range.book)?.doc;
-        const book = books.get<SourceBookDoc>(hash);
+        const book = getBook<SourceBookDoc>(hash);
         const exact = book ? bookOffers(book, chapters) : offers;
         const audioOnPhone = !!book && chapters.every((c) => {
           const a = book.chapters.find((x) => x.chapter === c)?.audio;
@@ -399,5 +401,5 @@ export function useChipMarks(ctx: Ctx, passage: PassageSources): Record<string, 
     }
     return out;
     // tick and files: kept text and files changed.
-  }, [passage.options, passage.range, books.get, store, tick, files]);
+  }, [passage.options, passage.range, getBook, store, tick, files]); // eslint-disable-line react-hooks/exhaustive-deps -- tick and files change when a book is kept or dropped on this device, which changes what is ready
 }

@@ -6,7 +6,7 @@ export async function deviceBlobs(page: Page): Promise<string[]> {
   return page.evaluate(async () => {
     const root = await navigator.storage.getDirectory();
     let dir: FileSystemDirectoryHandle;
-    // apps/mobile/src/webFiles.ts: every web store under langquest/.
+    // apps/mobile/src/web/webFiles.ts: every web store under langquest/.
     try { dir = await (await root.getDirectoryHandle('langquest')).getDirectoryHandle('blobs'); } catch { return []; }
     const out: string[] = [];
     for await (const name of (dir as unknown as { keys(): AsyncIterable<string> }).keys()) {

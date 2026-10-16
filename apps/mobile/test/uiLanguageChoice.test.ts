@@ -3,7 +3,7 @@
 // choice and closes the sheet, instead of waiting on a restart that never
 // comes.
 import { describe, expect, it } from 'vitest';
-import { choiceChangesLanguage } from '../src/uiLanguageChoice';
+import { choiceChangesLanguage } from '../src/i18n/uiLanguageChoice';
 
 describe('a choice on the Language sheet', () => {
   it('changes nothing when it names the language showing', () => {

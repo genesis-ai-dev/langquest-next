@@ -20775,6 +20775,9 @@ function shouldShowDeprecationWarning() {
 }
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715");
 
+// packages/core/src/events.ts
+var SHOWN = ["bibleAudio", "bibleText", "guideAudio", "guideText", "terms", "notes", "earlier"];
+
 // packages/core/src/references.ts
 function emptyReferenceState() {
   return { languageReferences: {}, passageLinks: {}, referencesUsed: {} };
@@ -20791,6 +20794,12 @@ function applyReferenceEvent(state, e) {
     case "v1.ReferenceLanguageSet": {
       const p = e.payload;
       if (later(state.referenceLanguage, e)) state.referenceLanguage = { value: p.language, hlc: e.hlc, eventId: e.id };
+      break;
+    }
+    case "v1.ReferenceLanguageAdded": {
+      const p = e.payload;
+      const added = state.referenceLanguagesAdded ??= {};
+      if (later(added[p.language], e)) added[p.language] = { value: p.added, hlc: e.hlc, eventId: e.id };
       break;
     }
     case "v1.PassageReferenceLinked": {
@@ -20828,7 +20837,9 @@ function emptyRecordState() {
     undoneDepartures: {},
     requests: {},
     withdrawnRequests: {},
+    withdrawnReviews: {},
     notes: {},
+    withdrawnNotes: {},
     studyMarks: {}
   };
 }
@@ -21149,11 +21160,47 @@ function licenseRank(license) {
 
 // packages/core/src/validate.ts
 var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+var OBJECT_MEMBER_NAMES = [
+  "__proto__",
+  "constructor",
+  "prototype",
+  "hasOwnProperty",
+  "isPrototypeOf",
+  "propertyIsEnumerable",
+  "toLocaleString",
+  "toString",
+  "valueOf",
+  "__defineGetter__",
+  "__defineSetter__",
+  "__lookupGetter__",
+  "__lookupSetter__"
+];
+var MEMBER_NAMES = new Set(OBJECT_MEMBER_NAMES);
+function objectMemberNameIn(v) {
+  const stack = [v];
+  while (stack.length > 0) {
+    const x = stack.pop();
+    if (typeof x === "string") {
+      if (MEMBER_NAMES.has(x)) return x;
+    } else if (Array.isArray(x)) {
+      for (const item of x) stack.push(item);
+    } else if (typeof x === "object" && x !== null) {
+      for (const [k, child] of Object.entries(x)) {
+        if (MEMBER_NAMES.has(k)) return k;
+        stack.push(child);
+      }
+    }
+  }
+  return null;
+}
 function validateEvent(e) {
   for (const k of ["id", "type", "orgId", "streamId", "actorId", "deviceId", "hlc"]) {
     if (typeof e[k] !== "string" || e[k] === "") return `${k} must be a non-empty string`;
+    if (MEMBER_NAMES.has(e[k])) return `${k} may not be ${e[k]}`;
   }
   if (!isObject(e.payload)) return "payload must be an object";
+  const member = objectMemberNameIn(e.payload);
+  if (member !== null) return `payload may not use the name ${member}`;
   const p = e.payload;
   const str = (...keys) => {
     for (const k of keys) if (typeof p[k] !== "string" || p[k] === "") return `${k} must be a non-empty string`;
@@ -21263,6 +21310,8 @@ function validateEvent(e) {
       return str("stepId") ?? bool("allowed");
     case "v1.CheckHelpSet":
       return str("kindId") ?? bool("linked") ?? (p["itemId"] === void 0 === (p["materialId"] === void 0) ? "exactly one of itemId, materialId" : null) ?? (p["itemId"] === void 0 || nonEmpty(p["itemId"]) ? null : "itemId must be a non-empty string") ?? (p["materialId"] === void 0 || nonEmpty(p["materialId"]) ? null : "materialId must be a non-empty string");
+    case "v1.CheckShowsSet":
+      return str("kindId") ?? oneOf("what", SHOWN) ?? bool("shown") ?? (p["from"] === void 0 ? null : !nonEmpty(p["from"]) ? "from must be a non-empty string" : p["what"] === "notes" || p["what"] === "earlier" ? null : "from is only for notes and earlier");
     case "v1.VersionReleased":
       return str("takeId", "channel") ?? bool("live") ?? (p["url"] === void 0 || nonEmpty(p["url"]) ? null : "url must be a non-empty string") ?? // Characters, as SQL length() counts them.
       ([...p["channel"]].length <= 60 ? null : "channel must be at most 60 characters");
@@ -21292,8 +21341,12 @@ function validateEvent(e) {
       return str("requestId", "unitId") ?? oneOf("what", ["record", "review"]) ?? optStr("kindId", "profileId", "teamId", "dueDate", "note", "noteBlobHash") ?? (p["what"] === "review" && !p["kindId"] ? "a review request needs kindId" : null) ?? (p["guest"] === void 0 || guest(p["guest"]) ? null : "guest needs name, channel, contact") ?? (p["questions"] === void 0 || questions(p["questions"]) ? null : "questions must be id, text, type") ?? (["profileId", "guest", "teamId"].filter((k) => p[k] !== void 0 && p[k] !== "").length === 1 ? null : "exactly one of profileId, guest, teamId");
     case "v1.RequestWithdrawn":
       return str("requestId");
+    case "v1.ReviewWithdrawn":
+      return str("reviewId");
+    case "v1.NoteWithdrawn":
+      return str("noteId");
     case "v1.NoteAdded":
-      return str("noteId", "unitId") ?? optStr("text", "blobHash", "photoHash", "onTakeId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
+      return str("noteId", "unitId") ?? optStr("text", "blobHash", "photoHash", "onTakeId", "kindId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
     case "v1.StudyStepMarked":
       return str("unitId", "guideId", "stepId") ?? bool("done");
     case "v1.MaterialDefined":
@@ -21314,6 +21367,8 @@ function validateEvent(e) {
       return str("itemId") ?? oneOf("state", ["recommended", "hidden", "inherit"]);
     case "v1.ReferenceLanguageSet":
       return str("language") ?? (/^[a-z0-9-]{2,40}$/.test(p["language"]) ? null : "language must be a language code");
+    case "v1.ReferenceLanguageAdded":
+      return str("language") ?? (/^[a-z0-9-]{2,40}$/.test(p["language"]) ? null : "language must be a language code") ?? bool("added");
     case "v1.PassageReferenceLinked":
       return str("unitId", "itemId") ?? bool("linked");
     case "v1.ReferencesUsed":
@@ -21395,6 +21450,7 @@ function cardVerseError(p) {
   if (a === null || b === null) return "from and to must be chapter:verse";
   return a <= b ? null : "from must not come after to";
 }
+var EVENT_PAYLOAD_MAX_BYTES = 64 * 1024;
 
 // packages/core/src/ties.ts
 function earlier(event, content, prior, priorContent, actorId = event.actorId) {
@@ -21418,22 +21474,156 @@ function stable(v) {
   return JSON.stringify(v);
 }
 
-// packages/core/src/reducer.ts
-var REDUCER_VERSION = 16;
+// packages/core/src/changes.ts
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
 }
+var ORIGIN = /* @__PURE__ */ new WeakMap();
+function liveStateOf(state) {
+  if (REVISIONS.has(state)) return state;
+  return ORIGIN.get(state) ?? state;
+}
+function sameFields(a, b) {
+  if (a === b) return true;
+  const ra = a;
+  const rb = b;
+  const keys = Object.keys(ra);
+  if (keys.length !== Object.keys(rb).length) return false;
+  for (const k of keys) if (ra[k] !== rb[k] || !(k in rb)) return false;
+  return true;
+}
+var NONE = Object.freeze([]);
+var NOTHING = Object.freeze({ units: NONE, takes: NONE, reviews: NONE, departures: NONE, requests: NONE, notes: NONE });
+var touched = (t) => ({ ...NOTHING, ...t });
+function touchedBy(state, event) {
+  switch (event.type) {
+    case "v1.TakeComposed": {
+      const prior = state.takes[event.payload.takeId];
+      return prior && prior.unitId !== "" ? "all" : touched({ takes: [event.payload.takeId] });
+    }
+    case "v1.TakeArchived":
+    case "v1.TakeSubmitted":
+    case "v1.ResponseRecorded":
+      return touched({ takes: [event.payload.takeId] });
+    case "v1.ReviewRecorded":
+      return state.kindReviews[event.payload.reviewId] ? "all" : touched({ reviews: [event.payload.reviewId] });
+    case "v1.DepartureRecorded":
+      return state.departures[event.payload.departureId] ? "all" : touched({ departures: [event.payload.departureId] });
+    case "v1.DepartureUndone": {
+      const d = state.departures[event.payload.departureId];
+      return d ? touched({ units: [d.unitId] }) : NOTHING;
+    }
+    case "v1.RequestMade":
+      return state.requests[event.payload.requestId] ? "all" : touched({ requests: [event.payload.requestId] });
+    case "v1.RequestWithdrawn": {
+      const r = state.requests[event.payload.requestId];
+      return r ? touched({ units: [r.unitId] }) : NOTHING;
+    }
+    case "v1.NoteAdded":
+      return state.notes[event.payload.noteId] ? "all" : touched({ notes: [event.payload.noteId] });
+    // Nothing the passage views or the unit list read.
+    case "v1.RecordingAdded":
+    case "v1.StudyStepMarked":
+    case "v1.BookNameSet":
+    case "v1.CheckHelpSet":
+    case "v1.VersionReleased":
+    case "v1.ExternalValueSet":
+    case "v1.CardVerseSet":
+    case "v1.MaterialDefined":
+    case "v1.MaterialFieldSet":
+    case "v1.MaterialLocked":
+    case "v1.KeyTermDefined":
+    case "v1.KeyTermRenderingAdded":
+    case "v1.KeyTermAdjusted":
+    case "v1.KeyTermLinked":
+    case "v1.ReferenceSet":
+    case "v1.ReferenceLanguageSet":
+    case "v1.PassageReferenceLinked":
+    case "v1.ReferencesUsed":
+    case "v1.BlobStored":
+    case "v1.BlobInvalidated":
+    case "v1.AudioFormatSet":
+    // Organization-stream events: the language fold ignores them.
+    case "v1.OrgCreated":
+    case "v1.OrgRenamed":
+    case "v1.RoleDefined":
+    case "v1.RoleRetired":
+    case "v1.MemberAdded":
+    case "v1.MemberRemoved":
+    case "v1.InviteIssued":
+    case "v1.InviteRedeemed":
+    case "v1.JoinDecided":
+    case "v1.LicenseSet":
+    case "v1.LanguageAdded":
+    case "v1.LanguageRenamed":
+    case "v1.LanguageCodeSet":
+    case "v1.LanguageCountrySet":
+    case "v1.LanguageTargetSet":
+    case "v1.ClusterNamed":
+    case "v1.LanguageClusterSet":
+    case "v1.ReferenceRecommended":
+    case "v1.LibraryItemDefined":
+    case "v1.LibraryVersionPublished":
+    case "v1.LibrarySharingSet":
+    case "v1.LibraryItemArchived":
+    case "v1.LibrarySubscribed":
+    case "v1.LibraryPinned":
+      return NOTHING;
+    // Templates, units, the flow, kinds, teams, links, redactions, and any type added later.
+    default:
+      return "all";
+  }
+}
+var LOGS = /* @__PURE__ */ new WeakMap();
+var MAX_ENTRIES = 1e3;
+function countEvent(state, event) {
+  const before = REVISIONS.get(state) ?? 0;
+  REVISIONS.set(state, before + 1);
+  const log = LOGS.get(state);
+  if (!log?.entries) return;
+  if (log.entries.length >= MAX_ENTRIES || log.from + log.entries.length !== before) {
+    log.entries = null;
+    return;
+  }
+  log.entries.push(event ? touchedBy(state, event) : NOTHING);
+}
+function watchChanges(live, consumer, revision) {
+  let log = LOGS.get(live);
+  if (!log) LOGS.set(live, log = { from: revision, entries: [], marks: /* @__PURE__ */ new Map() });
+  if (!log.entries || revision < log.from || revision > log.from + log.entries.length) {
+    log.from = revision;
+    log.entries = [];
+    for (const [k, v] of log.marks) if (v < revision) log.marks.delete(k);
+  }
+  log.marks.set(consumer, revision);
+  const oldest = Math.min(...log.marks.values());
+  if (oldest > log.from) {
+    log.entries.splice(0, oldest - log.from);
+    log.from = oldest;
+  }
+}
+function changesSince(live, revision) {
+  const now = stateRevision(live);
+  if (revision === now) return [];
+  const log = LOGS.get(live);
+  if (!log?.entries || revision < log.from || log.from + log.entries.length !== now) return null;
+  return log.entries.slice(revision - log.from);
+}
+
+// packages/core/src/reducer.ts
+var REDUCER_VERSION = 19;
 function applyLanguageEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
-  REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
   const invalid = validateEvent(event);
+  const redacted = !invalid && !!state.redactions[event.id] && event.type !== "v1.Redacted";
+  countEvent(state, invalid || redacted ? null : event);
   if (invalid) {
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  if (state.redactions[event.id] && event.type !== "v1.Redacted") return state;
+  if (redacted) return state;
   switch (event.type) {
     case "v1.TemplateSelected": {
       const { itemId, docHash, unitPrefix, books } = event.payload;
@@ -21505,6 +21695,11 @@ function applyLanguageEvent(state, event) {
       lww((state.checkHelps ??= {})[kindId] ??= {}, key, event, linked);
       break;
     }
+    case "v1.CheckShowsSet": {
+      const { kindId, what, shown, from } = event.payload;
+      lww((state.checkShows ??= {})[kindId] ??= {}, from !== void 0 ? `${what}@${from}` : what, event, shown);
+      break;
+    }
     case "v1.VersionReleased": {
       const { takeId, channel, live, url } = event.payload;
       lww((state.releases ??= {})[takeId] ??= {}, channel, event, { live, by: event.actorId, ...url !== void 0 ? { url } : {} });
@@ -21534,16 +21729,20 @@ function applyLanguageEvent(state, event) {
         actorId: event.actorId,
         hlc: event.hlc,
         // Add-wins: an archive that arrived before the compose still sticks.
-        archived: prior?.archived ?? false
+        archived: prior?.archived ?? false,
+        ...prior?.archivedAt ? { archivedAt: prior.archivedAt } : {}
       };
       break;
     }
     case "v1.TakeArchived": {
       const take = state.takes[event.payload.takeId];
+      const at = { hlc: event.hlc, by: event.actorId };
+      const first = (prior) => !prior || at.hlc < prior.hlc || at.hlc === prior.hlc && at.by < prior.by ? at : prior;
       if (take) {
         take.archived = true;
+        take.archivedAt = first(take.archivedAt);
       } else {
-        state.takes[event.payload.takeId] = { unitId: "", cardHashes: [], parentTakeId: null, actorId: event.actorId, hlc: event.hlc, archived: true };
+        state.takes[event.payload.takeId] = { unitId: "", cardHashes: [], parentTakeId: null, actorId: event.actorId, hlc: event.hlc, archived: true, archivedAt: at };
       }
       break;
     }
@@ -21589,6 +21788,12 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.RequestWithdrawn":
       earliestUndo(state.withdrawnRequests, event.payload.requestId, event);
+      break;
+    case "v1.ReviewWithdrawn":
+      earliestUndo(state.withdrawnReviews, event.payload.reviewId, event);
+      break;
+    case "v1.NoteWithdrawn":
+      earliestUndo(state.withdrawnNotes, event.payload.noteId, event);
       break;
     case "v1.NoteAdded": {
       const { noteId, ...rest } = event.payload;
@@ -21675,6 +21880,7 @@ function applyLanguageEvent(state, event) {
     }
     case "v1.ReferenceSet":
     case "v1.ReferenceLanguageSet":
+    case "v1.ReferenceLanguageAdded":
     case "v1.PassageReferenceLinked":
     case "v1.ReferencesUsed":
       applyReferenceEvent(state, event);
@@ -21783,13 +21989,13 @@ function set(current, event, value) {
 }
 
 // packages/core/src/snapshot.ts
-function resume(snapshot, tail) {
+function resume(snapshot, tail, opts = {}) {
   if (snapshot.reducerVersion !== REDUCER_VERSION) {
     throw new Error(
       `Snapshot reducer version ${snapshot.reducerVersion} does not match ${REDUCER_VERSION}`
     );
   }
-  const state = structuredClone(snapshot.state);
+  const state = opts.clone === false ? snapshot.state : structuredClone(snapshot.state);
   const newer = [...tail].filter((e) => e.serverSeq === void 0 || e.serverSeq > snapshot.serverSeq);
   return foldLanguage(newer, state);
 }
@@ -21836,6 +22042,22 @@ function buildIndexes(state) {
   }
   return { passages, containers, waiting };
 }
+var built = /* @__PURE__ */ new WeakMap();
+var latest = /* @__PURE__ */ new WeakMap();
+function indexesOf(state) {
+  const revision = stateRevision(state);
+  const hit = built.get(state);
+  if (hit && hit.revision === revision) return hit.idx;
+  const live = liveStateOf(state);
+  const now = stateRevision(live);
+  const prev = latest.get(live);
+  const changes = prev && sameFields(prev.source, state) ? changesSince(live, prev.revision) : null;
+  const idx = prev && changes && !changes.includes("all") ? prev.idx : buildIndexes(state);
+  latest.set(live, { idx, revision: now, source: state });
+  watchChanges(live, "indexes", now);
+  built.set(state, { revision, idx });
+  return idx;
+}
 
 // packages/core/src/passage.ts
 function deriveKinds(state) {
@@ -21860,28 +22082,69 @@ function stepName(kinds, step) {
 }
 var COMPLETE = ["approved", "skipped"];
 var isCompleteState = (s) => COMPLETE.includes(s);
+function withdrawnBy(table, id, item) {
+  const w = table?.[id];
+  return w && w.by === item.by ? w : void 0;
+}
 var cache = /* @__PURE__ */ new WeakMap();
+var latest2 = /* @__PURE__ */ new WeakMap();
 function push(m, k, v) {
   const list = m.get(k);
   if (list) list.push(v);
   else m.set(k, [v]);
 }
 var byHlc = (a, b) => a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? "") < (b.id ?? "") ? -1 : (a.id ?? "") > (b.id ?? "") ? 1 : 0;
+var versionOrder = (state) => {
+  const at = (id) => state.submissions[id]?.hlc ?? "";
+  return (a, b) => at(a) < at(b) ? -1 : at(a) > at(b) ? 1 : a < b ? -1 : 1;
+};
+var draftOrder = (state) => (a, b) => {
+  const ha = state.takes[a].hlc;
+  const hb = state.takes[b].hlc;
+  return ha < hb ? 1 : ha > hb ? -1 : a < b ? 1 : -1;
+};
+var isDraft = (state, id) => {
+  const t = state.takes[id];
+  return !state.submissions[id] && !t.archived && t.cardHashes.length > 0;
+};
+function requestRecipients(state, r) {
+  const out = r.profileId ? [r.profileId] : [];
+  if (r.teamId) {
+    for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) out.push(id);
+  }
+  return out;
+}
 function recordIndexes(state, idx) {
   const revision = stateRevision(state);
   const hit = cache.get(state);
   if (hit && hit.revision === revision) return hit.ri;
+  const live = liveStateOf(state);
+  const now = stateRevision(live);
+  const prev = latest2.get(live);
+  const changes = prev && sameFields(prev.source, state) ? changesSince(live, prev.revision) : null;
+  const ri = prev && changes && !changes.includes("all") ? patchIndexes(state, prev.ri, changes, idx) : buildRecordIndexes(state, idx ?? indexesOf(state));
+  latest2.set(live, { ri, revision: now, source: state });
+  watchChanges(live, "passages", now);
+  cache.set(state, { revision, ri });
+  return ri;
+}
+function buildRecordIndexes(state, idx) {
   const reviewsByTake = /* @__PURE__ */ new Map();
-  for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
+  const withdrawnByTake = /* @__PURE__ */ new Map();
+  for (const r of Object.values(state.kindReviews)) {
+    const withdrawn = withdrawnBy(state.withdrawnReviews, r.id, r);
+    if (withdrawn) push(withdrawnByTake, r.takeId, { ...r, withdrawn });
+    else push(reviewsByTake, r.takeId, r);
+  }
   const versions = /* @__PURE__ */ new Map();
   const drafts = /* @__PURE__ */ new Map();
-  const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
-  const submittedAt = (id) => state.submissions[id]?.hlc ?? "";
-  for (const [id, t] of takes.filter(([id2]) => state.submissions[id2]).sort(([a], [b]) => submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1)) {
-    push(versions, t.unitId, id);
-  }
-  for (const [id, t] of takes.filter(([id2, t2]) => !state.submissions[id2] && !t2.archived && t2.cardHashes.length > 0).sort(([ia, a], [ib, b]) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1)) {
-    push(drafts, t.unitId, id);
+  const children = /* @__PURE__ */ new Map();
+  const takes = Object.keys(state.takes).filter((id) => state.takes[id].unitId);
+  for (const id of takes.filter((id2) => state.submissions[id2]).sort(versionOrder(state))) push(versions, state.takes[id].unitId, id);
+  for (const id of takes.filter((id2) => isDraft(state, id2)).sort(draftOrder(state))) push(drafts, state.takes[id].unitId, id);
+  for (const id of takes) {
+    const parent = state.takes[id].parentTakeId;
+    if (parent) push(children, parent, id);
   }
   const departures = /* @__PURE__ */ new Map();
   for (const d of Object.values(state.departures).sort(byHlc)) push(departures, d.unitId, d);
@@ -21890,28 +22153,28 @@ function recordIndexes(state, idx) {
   const requestsBy = /* @__PURE__ */ new Map();
   for (const r of Object.values(state.requests).sort(byHlc)) {
     push(requests, r.unitId, r);
-    if (r.profileId) push(requestsTo, r.profileId, r);
-    if (r.teamId) {
-      for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) push(requestsTo, id, r);
-    }
+    for (const id of requestRecipients(state, r)) push(requestsTo, id, r);
     push(requestsBy, r.by, r);
   }
   const notes = /* @__PURE__ */ new Map();
   const changeNotes = /* @__PURE__ */ new Map();
   for (const n of Object.values(state.notes).sort(byHlc)) {
+    if (withdrawnBy(state.withdrawnNotes, n.id, n)) continue;
     if (n.anchor.kind === "version" && n.anchor.role === "change") {
       if (!changeNotes.has(n.anchor.takeId)) changeNotes.set(n.anchor.takeId, n);
       continue;
     }
     push(notes, n.unitId, n);
   }
-  const out = {
-    idx: idx ?? buildIndexes(state),
+  return {
+    idx,
     kinds: deriveKinds(state),
     flow: deriveFlow(state),
     versions,
     drafts,
+    children,
     reviewsByTake,
+    withdrawnByTake,
     departures,
     requests,
     requestsTo,
@@ -21920,8 +22183,105 @@ function recordIndexes(state, idx) {
     changeNotes,
     passages: /* @__PURE__ */ new Map()
   };
-  cache.set(state, { revision, ri: out });
-  return out;
+}
+function edit(m, key, f) {
+  const next = f(m.get(key) ?? []);
+  if (next.length) m.set(key, next);
+  else m.delete(key);
+}
+function insertSorted(list, item, order) {
+  let i = 0;
+  while (i < list.length && order(list[i], item) <= 0) i++;
+  return [...list.slice(0, i), item, ...list.slice(i)];
+}
+var withoutId = (list, id) => list.filter((x) => x.id !== id);
+function patchIndexes(state, prev, changes, idx) {
+  const units = /* @__PURE__ */ new Set();
+  const takes = /* @__PURE__ */ new Set();
+  const reviews = /* @__PURE__ */ new Set();
+  const departures = /* @__PURE__ */ new Set();
+  const requests = /* @__PURE__ */ new Set();
+  const notes = /* @__PURE__ */ new Set();
+  for (const c of changes) {
+    for (const id of c.units) units.add(id);
+    for (const id of c.takes) takes.add(id);
+    for (const id of c.reviews) reviews.add(id);
+    for (const id of c.departures) departures.add(id);
+    for (const id of c.requests) requests.add(id);
+    for (const id of c.notes) notes.add(id);
+  }
+  const nothing = !units.size && !takes.size && !reviews.size && !departures.size && !requests.size && !notes.size;
+  if (nothing && (idx ?? prev.idx) === prev.idx) return prev;
+  const ri = {
+    ...prev,
+    idx: idx ?? prev.idx,
+    versions: new Map(prev.versions),
+    drafts: new Map(prev.drafts),
+    children: new Map(prev.children),
+    reviewsByTake: new Map(prev.reviewsByTake),
+    withdrawnByTake: new Map(prev.withdrawnByTake),
+    departures: new Map(prev.departures),
+    requests: new Map(prev.requests),
+    requestsTo: new Map(prev.requestsTo),
+    requestsBy: new Map(prev.requestsBy),
+    notes: new Map(prev.notes),
+    changeNotes: new Map(prev.changeNotes),
+    passages: new Map(prev.passages)
+  };
+  for (const id of reviews) {
+    const r = state.kindReviews[id];
+    if (!r) continue;
+    const withdrawn = withdrawnBy(state.withdrawnReviews, id, r);
+    edit(ri.reviewsByTake, r.takeId, (l) => withdrawn ? withoutId(l, id) : [...withoutId(l, id), r]);
+    edit(ri.withdrawnByTake, r.takeId, (l) => withdrawn ? [...withoutId(l, id), { ...r, withdrawn }] : withoutId(l, id));
+    takes.add(r.takeId);
+  }
+  for (const id of departures) {
+    const d = state.departures[id];
+    if (!d) continue;
+    edit(ri.departures, d.unitId, (l) => insertSorted(withoutId(l, id), d, byHlc));
+    units.add(d.unitId);
+  }
+  for (const id of requests) {
+    const r = state.requests[id];
+    if (!r) continue;
+    edit(ri.requests, r.unitId, (l) => insertSorted(withoutId(l, id), r, byHlc));
+    edit(ri.requestsBy, r.by, (l) => insertSorted(withoutId(l, id), r, byHlc));
+    const to = requestRecipients(state, r);
+    for (const p of new Set(to)) edit(ri.requestsTo, p, (l) => withoutId(l, id));
+    for (const p of to) edit(ri.requestsTo, p, (l) => insertSorted(l, r, byHlc));
+    units.add(r.unitId);
+  }
+  for (const id of notes) {
+    const n = state.notes[id];
+    if (!n) continue;
+    if (withdrawnBy(state.withdrawnNotes, id, n)) {
+      if (n.anchor.kind !== "version" || n.anchor.role !== "change") edit(ri.notes, n.unitId, (l) => withoutId(l, id));
+      units.add(n.unitId);
+      continue;
+    }
+    if (n.anchor.kind === "version" && n.anchor.role === "change") {
+      const had = ri.changeNotes.get(n.anchor.takeId);
+      if (!had || had.id === id || byHlc(n, had) < 0) ri.changeNotes.set(n.anchor.takeId, n);
+      takes.add(n.anchor.takeId);
+    } else {
+      edit(ri.notes, n.unitId, (l) => insertSorted(withoutId(l, id), n, byHlc));
+    }
+    units.add(n.unitId);
+  }
+  for (const id of takes) {
+    for (const c of ri.children.get(id) ?? []) units.add(state.takes[c].unitId);
+    const t = state.takes[id];
+    if (!t?.unitId) continue;
+    units.add(t.unitId);
+    if (t.parentTakeId) edit(ri.children, t.parentTakeId, (l) => l.includes(id) ? [...l] : [...l, id]);
+    edit(ri.versions, t.unitId, (l) => l.filter((x) => x !== id));
+    edit(ri.drafts, t.unitId, (l) => l.filter((x) => x !== id));
+    if (state.submissions[id]) edit(ri.versions, t.unitId, (l) => insertSorted(l, id, versionOrder(state)));
+    else if (isDraft(state, id)) edit(ri.drafts, t.unitId, (l) => insertSorted(l, id, draftOrder(state)));
+  }
+  for (const u of units) ri.passages.delete(u);
+  return ri;
 }
 function derivePassage(state, unitId, idx) {
   const ri = recordIndexes(state, idx);
@@ -21929,7 +22289,7 @@ function derivePassage(state, unitId, idx) {
   const hit = ri.passages.get(key);
   if (hit) return hit;
   const flow = ri.flow;
-  const versions = (ri.versions.get(key) ?? []).map((takeId, i) => {
+  const everyVersion = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId];
     const response = state.responses[takeId];
     const change = ri.changeNotes.get(takeId);
@@ -21946,11 +22306,18 @@ function derivePassage(state, unitId, idx) {
       ...blob ? { changeBlobHash: blob } : {}
     };
   });
+  const deletedVersions = everyVersion.flatMap((v) => {
+    const t = state.takes[v.takeId];
+    return t.archived ? [{ ...v, deleted: t.archivedAt ?? { hlc: v.hlc, by: v.by } }] : [];
+  });
+  const versions = everyVersion.filter((v) => !state.takes[v.takeId].archived);
+  const reviewsOfDeleted = deletedVersions.flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n }))).sort(byHlc);
   const departures = (ri.departures.get(key) ?? []).map(({ eventId: _e, ...d }) => {
     const undone = state.undoneDepartures[d.id];
     return undone ? { ...d, undone } : d;
   });
   const active = (match) => [...departures].reverse().find((d) => match(d) && !d.undone);
+  const withdrawnReviews = versions.flatMap((v) => (ri.withdrawnByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n }))).sort(byHlc);
   const reviews = versions.flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n }))).sort(byHlc).map((r) => {
     if (r.outcome !== "needs_changes") return r;
     const kept = departures.find((d) => d.type === "keep" && d.reviewId === r.id && !d.undone);
@@ -22013,7 +22380,7 @@ function derivePassage(state, unitId, idx) {
   });
   const recorded = versions.length > 0;
   const open = steps.filter((s) => !s.complete && !s.lockedBy);
-  const latest = versions.at(-1);
+  const latest3 = versions.at(-1);
   const draftTakeId = ri.drafts.get(key)?.[0];
   const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId)).sort((a, b) => a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1);
   const next = recorded ? open.find((s) => !s.override) : void 0;
@@ -22021,18 +22388,22 @@ function derivePassage(state, unitId, idx) {
     unitId,
     flow,
     versions,
+    deletedVersions,
+    reviewsOfDeleted,
+    nextVersionN: everyVersion.length + 1,
     recorded,
     departures,
     reviews,
+    withdrawnReviews,
     requests,
     openRequests,
     steps,
     drafts,
     drafting: draftTakeId !== void 0,
     done: recorded && steps.every((s) => s.complete || !!s.override),
-    awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest?.n),
+    awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest3?.n),
     notes: ri.notes.get(key) ?? [],
-    ...latest ? { latest } : {},
+    ...latest3 ? { latest: latest3 } : {},
     ...draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId].actorId } : {},
     ...next ? { next } : {}
   };
@@ -22106,7 +22477,7 @@ function updatesFor(state, actorId, idx) {
       }
     }
     for (const r of s.reviews) {
-      const version5 = s.versions[r.versionN - 1];
+      const version5 = s.versions.find((v) => v.n === r.versionN);
       if (version5?.by === actorId && r.by !== actorId) out.push({ ...base, id: `review:${r.id}`, kind: "review", by: r.by, hlc: r.hlc, review: r, version: version5 });
       if (r.by === actorId && r.response && r.response.by !== actorId) {
         out.push({ ...base, id: `answer:${r.id}`, kind: r.response.decision === "revised" ? "revision" : "kept", by: r.response.by, hlc: r.response.hlc, review: r });
@@ -22130,13 +22501,19 @@ function byKey(merge) {
     return out;
   };
 }
+function firstArchive(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  return a.hlc < b.hlc || a.hlc === b.hlc && a.by <= b.by ? a : b;
+}
 function keptTake(a, b) {
-  const archived = a.archived || b.archived;
-  if (a.unitId === "") return { ...b, archived };
-  if (b.unitId === "") return { ...a, archived };
+  const archivedAt = firstArchive(a.archivedAt, b.archivedAt);
+  const flags = { archived: a.archived || b.archived, ...archivedAt ? { archivedAt } : {} };
+  if (a.unitId === "") return { ...b, ...flags };
+  if (b.unitId === "") return { ...a, ...flags };
   const content = (t) => ({ unitId: t.unitId, cardHashes: t.cardHashes, parentTakeId: t.parentTakeId });
   const first = earlier({ hlc: a.hlc, actorId: a.actorId }, content(a), b, content(b)) ? a : b;
-  return { ...first, archived };
+  return { ...first, ...flags };
 }
 var keptSubmission = (a, b) => earlier({ hlc: a.hlc, actorId: a.actorId }, { questionSetIds: a.questionSetIds }, b, { questionSetIds: b.questionSetIds }) ? a : b;
 var keptResponse = (a, b) => {
@@ -22186,7 +22563,22 @@ var PASSAGE_PARTS = [
     passage: (k) => ({ request: k }),
     merge: (a, b) => firstUndo(a, b)
   },
+  // A review or note taken back (decision 111) hangs on what it takes back; the first undo stands, as the reducer's `earliestUndo` has it.
+  {
+    map: "withdrawnReviews",
+    kind: "withdrawnReview",
+    depth: 1,
+    passage: (k) => ({ review: k }),
+    merge: (a, b) => firstUndo(a, b)
+  },
   { map: "notes", kind: "note", depth: 1, passage: (_k, n) => ({ unitId: n.unitId }), merge: (a, b) => firstOf(a, b) },
+  {
+    map: "withdrawnNotes",
+    kind: "withdrawnNote",
+    depth: 1,
+    passage: (k) => ({ note: k }),
+    merge: (a, b) => firstUndo(a, b)
+  },
   { map: "studyMarks", kind: "studyMark", depth: 1, passage: (k) => ({ studyKey: k }), merge: (a, b) => laterRegister(a, b) },
   { map: "cardVerses", kind: "cardVerses", depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a, b) },
   { map: "passageLinks", kind: "passageLinks", depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a, b) },
@@ -22213,6 +22605,7 @@ function passageInMemory(state, of) {
   }
   if ("departure" in of) return state.departures[of.departure]?.unitId || null;
   if ("request" in of) return state.requests[of.request]?.unitId || null;
+  if ("note" in of) return state.notes[of.note]?.unitId || null;
   return studyMarkUnit(state.units, of.studyKey);
 }
 function* partEntries(state) {
@@ -22277,6 +22670,7 @@ function rawByUnit(state) {
       if (!e.value.archived) raw.takes += 1;
     } else if (e.part.map === "kindReviews") {
       const r = e.value;
+      if (withdrawnBy(state.withdrawnReviews, r.id, r)) continue;
       const byKind = raw.reviewers[r.kindId] ??= {};
       byKind[r.by] = byKind[r.by] === true || r.via === "app";
     }
@@ -22644,9 +23038,50 @@ function orgLicense(state) {
 // packages/core/src/version.ts
 var CLIENT_PROTOCOL_VERSION = 1;
 
+// packages/core/src/quiet.ts
+var eventsThatCannotChangeInbox = /* @__PURE__ */ new Set([
+  "v1.RecordingAdded",
+  "v1.CardVerseSet",
+  "v1.BlobStored",
+  "v1.BlobInvalidated",
+  "v1.AudioFormatSet",
+  "v1.NoteAdded",
+  "v1.StudyStepMarked",
+  "v1.MaterialDefined",
+  "v1.MaterialFieldSet",
+  "v1.MaterialLocked",
+  "v1.KeyTermDefined",
+  "v1.KeyTermRenderingAdded",
+  "v1.KeyTermAdjusted",
+  "v1.KeyTermLinked",
+  "v1.ReferenceSet",
+  "v1.ReferenceLanguageSet",
+  "v1.PassageReferenceLinked",
+  "v1.ReferencesUsed",
+  "v1.CheckHelpSet",
+  "v1.VersionReleased",
+  "v1.ExternalValueSet"
+]);
+function onlyQuietEvents(events) {
+  for (const e of events) if (!eventsThatCannotChangeInbox.has(e.type)) return false;
+  return true;
+}
+
 // packages/sync/src/types.ts
 var OfflineError = class extends Error {
   name = "OfflineError";
+};
+var UnrenewedError = class extends OfflineError {
+  name = "UnrenewedError";
+};
+var UNRENEWED_TEXT = /sign-in could not be renewed|sign-in renewal answered/i;
+var ServerError = class extends Error {
+  constructor(message, code) {
+    super(message);
+    this.code = code;
+  }
+  code;
+  name = "ServerError";
 };
 var NotAuthorizedError = class extends Error {
   name = "NotAuthorizedError";
@@ -22662,57 +23097,58 @@ var SupabaseTransport = class {
   }
   supabase;
   async append(events) {
-    const { data, error } = await this.supabase.rpc("append_events", {
+    const { data, error, status } = await this.supabase.rpc("append_events", {
       p_events: events.map(({ serverSeq: _s, ...e }) => e),
       p_client_version: CLIENT_PROTOCOL_VERSION
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     return data.map(
       (r) => ({ id: r.id, accepted: r.accepted, serverSeq: r.server_seq, reason: r.reason })
     );
   }
   async snapshotMeta(orgId, streamId, reducerVersion) {
-    const { data, error } = await this.supabase.rpc("get_snapshot_meta", {
+    const { data, error, status } = await this.supabase.rpc("get_snapshot_meta", {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     const row = data?.[0];
     return row ? { serverSeq: row.server_seq, chunks: row.chunks, bytes: row.bytes } : null;
   }
   async snapshotChunk(orgId, streamId, reducerVersion, serverSeq, index) {
-    const { data, error } = await this.supabase.rpc("get_snapshot_chunk", {
+    const { data, error, status } = await this.supabase.rpc("get_snapshot_chunk", {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_reducer_version: reducerVersion,
       p_server_seq: serverSeq,
       p_index: index
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     return data ?? null;
   }
   /**
-   * A database trigger (supabase/migrations/*_events_realtime.sql) broadcasts
-   * an empty poke on `events:<org>/<stream>` after every insert. The
-   * channel is public because the poke says only that the stream moved;
-   * the events themselves still come through the RPC and its checks.
+   * A database trigger (events_notify) broadcasts a poke on
+   * `events:<org>/<stream>` after every push. The channel is private: the
+   * server lets only someone who may read the stream hear it
+   * (20261016090000_private_pokes.sql), since even a bare poke says when a
+   * language is working. The events themselves come through the RPC.
    */
   watch(orgId, streamId, handlers) {
-    const channel = this.supabase.channel(`events:${orgId}/${streamId}`, { config: { private: false } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
+    const channel = this.supabase.channel(`events:${orgId}/${streamId}`, { config: { private: true } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
     return () => {
       void this.supabase.removeChannel(channel);
     };
   }
   async pull(orgId, streamId, after, limit) {
-    const { data, error } = await this.supabase.rpc("pull_events", {
+    const { data, error, status } = await this.supabase.rpc("pull_events", {
       p_org_id: orgId,
       p_stream_id: streamId,
       p_after: after,
       p_limit: limit,
       p_client_version: CLIENT_PROTOCOL_VERSION
     });
-    if (error) throw toError(error);
+    if (error) throw toError(error, status);
     return data.map(
       (r) => ({
         id: r.id,
@@ -22729,15 +23165,16 @@ var SupabaseTransport = class {
     );
   }
 };
-function toError(error) {
+function toError(error, status) {
   if (error.code === "LQ001") return new ClientTooOldError(error.message);
+  if (UNRENEWED_TEXT.test(error.message)) return new UnrenewedError(error.message);
   if (error.code === "42501" || /not a member|permission denied|service role only|not authorized/i.test(error.message)) {
     return new NotAuthorizedError(error.message);
   }
   if (/fetch failed|failed to fetch|network|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|timed out/i.test(error.message)) {
     return new OfflineError(error.message);
   }
-  return new Error(`${error.code ?? "rpc"}: ${error.message}`);
+  return new ServerError(`${error.code ?? "rpc"}: ${error.message}`, error.code || (status ? `http${status}` : void 0));
 }
 
 // packages/sync/src/snapshotFetch.ts
@@ -22745,17 +23182,19 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
   const meta = opts.meta ?? await transport.snapshotMeta(orgId, streamId, reducerVersion);
   if (!meta) return null;
   const pieces = new Array(meta.chunks);
-  for (const [i, text] of opts.saved ?? []) pieces[i] = text;
+  for (const [i, text2] of opts.saved ?? []) pieces[i] = text2;
   const complete = await downloadPieces(transport, orgId, streamId, reducerVersion, meta, {
     have: (i) => pieces[i] !== void 0,
-    onChunk: async (serverSeq, i, text) => {
-      await opts.onChunk?.(serverSeq, i, text);
-      pieces[i] = text;
+    onChunk: async (serverSeq, i, text2) => {
+      await opts.onChunk?.(serverSeq, i, text2);
+      pieces[i] = text2;
     },
     inFlight: opts.inFlight
   });
   if (!complete) return null;
-  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
+  const text = pieces.join("");
+  opts.onJoined?.(text);
+  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(text) };
 }
 async function downloadPieces(transport, orgId, streamId, reducerVersion, meta, opts) {
   let next = 0;
@@ -22806,7 +23245,7 @@ function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
   if (o.newEvents === 0) return false;
   return o.newEvents >= schedule.minNewEvents || o.ageMs === null || o.ageMs >= schedule.maxAgeMs;
 }
-async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onError) {
+async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onError, snapshotAgeMs) {
   const transport = new SupabaseTransport(service);
   const streams = (await listStreams(service)).sort((a, b) => Number(a.next_seq) - Number(b.next_seq));
   const out = [];
@@ -22814,20 +23253,21 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onErro
     const orgId = row.org_id;
     const streamId = row.stream_id;
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
-    if (visit && !visit(orgId, streamId)) continue;
     if (!onError) {
-      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+      if (visit && !await visit(orgId, streamId)) continue;
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs));
       continue;
     }
     try {
-      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+      if (visit && !await visit(orgId, streamId)) continue;
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs));
     } catch (error) {
       onError(orgId, streamId, error);
     }
   }
   return out;
 }
-async function snapshotOne(service, transport, orgId, streamId, pageSize, observe) {
+async function snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs) {
   const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
   const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
   if (tail.length === 0) {
@@ -22840,7 +23280,7 @@ async function snapshotOne(service, transport, orgId, streamId, pageSize, observ
   );
   let snapshot;
   if (existing && !redactsSnapshot) {
-    const state = resume(existing, tail);
+    const state = resume(existing, tail, { clone: false });
     state.appliedEventIds = {};
     snapshot = { ...existing, serverSeq: tail[tail.length - 1].serverSeq, state };
   } else {
@@ -22851,7 +23291,10 @@ async function snapshotOne(service, transport, orgId, streamId, pageSize, observ
   }
   const redaction = tail.some((e) => e.type === "v1.Redacted");
   let ageMs = null;
-  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+  const known = snapshotAgeMs?.(orgId, streamId);
+  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents && known !== void 0) {
+    ageMs = known;
+  } else if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
     const at = await service.from("snapshots").select("created_at").eq("org_id", orgId).eq("stream_id", streamId).eq("reducer_version", REDUCER_VERSION).order("server_seq", { ascending: false }).limit(1);
     if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
     const written2 = at.data?.[0]?.created_at;
@@ -22882,8 +23325,18 @@ async function pullAll(transport, orgId, streamId, after, pageSize) {
 }
 
 // server/projectionWorker.ts
-function check(result) {
-  if (result.error) throw new Error(result.error.message);
+var DbError = class extends Error {
+  constructor(op, code, message) {
+    super(message);
+    this.op = op;
+    this.code = code;
+  }
+  op;
+  code;
+  name = "DbError";
+};
+function check(result, op) {
+  if (result.error) throw new DbError(op, result.error.code, result.error.message);
 }
 var UPDATE_TITLES = {
   request: "You were asked to help",
@@ -22902,13 +23355,23 @@ async function selectAll(service, table, columns) {
   const out = [];
   for (let from = 0; ; from += 1e3) {
     const page = await service.from(table).select(columns).range(from, from + 999);
-    check(page);
+    check(page, table);
     const rows = page.data ?? [];
     out.push(...rows);
     if (rows.length < 1e3) return out;
   }
 }
-async function runProjections(service, scope2 = "all") {
+var ProjectionFailed = class extends Error {
+  constructor(orgId, streamId, cause) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.orgId = orgId;
+    this.streamId = streamId;
+  }
+  orgId;
+  streamId;
+  name = "ProjectionFailed";
+};
+async function runProjections(service, scope2 = "all", counts = { orgs: 0, projected: 0 }) {
   const transport = new SupabaseTransport(service);
   const orgs = /* @__PURE__ */ new Map();
   async function orgState(orgId) {
@@ -22965,21 +23428,50 @@ async function runProjections(service, scope2 = "all") {
   };
   const mark = async (orgId, streamId, seq, orgSeq, isListed) => {
     check(await service.from("projection_marks").upsert({
+      // projected_at is set by the database on this write (20261016010000_diag_jobs.sql).
       org_id: orgId,
       stream_id: streamId,
       seq,
       org_seq: orgSeq,
       listed: isListed,
       version: PROJECTION_VERSION
-    }));
+    }), "projection_marks");
+  };
+  let quiet = 0;
+  const skipQuiet = async (orgId, streamId) => {
+    const key = streamKey(orgId, streamId);
+    const m = marks.get(key);
+    const snap = snapshotOf.get(key);
+    const head2 = heads.get(key) ?? 0;
+    if (!m || !snap || m.version !== PROJECTION_VERSION) return false;
+    if (Number(m.org_seq) !== heads.get(streamKey(orgId, ORG_STREAM)) || m.listed !== listed.has(key)) return false;
+    if (Number(m.seq) >= head2 || head2 - Number(m.seq) > 1e3) return false;
+    const ageMs = Number.isNaN(snap.at) ? null : Date.now() - snap.at;
+    if (shouldWriteSnapshot({ existing: true, newEvents: head2 - snap.seq, redaction: false, ageMs })) return false;
+    try {
+      const tail = await transport.pull(orgId, streamId, Number(m.seq), 1e3);
+      if (tail.length === 0 || !onlyQuietEvents(tail)) return false;
+      await mark(orgId, streamId, tail[tail.length - 1].serverSeq, Number(m.org_seq), m.listed);
+    } catch {
+      return false;
+    }
+    quiet += 1;
+    return true;
   };
   for (const [key, head2] of heads) {
     const [orgId, streamId] = JSON.parse(key);
     if (scope2 === "large" || streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
-    check(await service.rpc("refresh_org_notifications", { p_org: orgId }));
+    check(await service.rpc("refresh_org_notifications", { p_org: orgId }), "refresh_org_notifications");
     await mark(orgId, ORG_STREAM, head2, head2, false);
+    counts.orgs += 1;
   }
   const failed = [];
+  let shownRows;
+  const publicRows = () => shownRows ??= selectAll(
+    service,
+    "public_languages",
+    "org_id,language_id,name,code,translated_pct,license"
+  ).then((rows) => new Map(rows.map((r) => [streamKey(r.org_id, r.language_id), r])));
   const results = await runSnapshotWorker(
     service,
     1e3,
@@ -23000,113 +23492,294 @@ async function runProjections(service, scope2 = "all") {
         p_org: snapshot.orgId,
         p_language: languageId,
         p_rows: notifications
-      }));
+      }), "reconcile_notifications");
       const isListed = listed.has(streamKey(snapshot.orgId, languageId));
       const info = languageInfo(org, languageId);
       if (isListed && info) {
         const progress = languageProgress(state, idx);
-        check(await service.from("public_languages").upsert({
+        const row = {
           org_id: snapshot.orgId,
           language_id: languageId,
           name: info.name,
           code: info.code,
           translated_pct: progress.total ? 100 * progress.recorded / progress.total : 0,
           // What someone browsing may do with the work (docs/licensing.md).
-          license: orgLicense(org),
-          updated_at: (/* @__PURE__ */ new Date()).toISOString()
-        }));
+          license: orgLicense(org)
+        };
+        const shown = (await publicRows()).get(streamKey(snapshot.orgId, languageId));
+        if (!shown || shown.name !== row.name || shown.code !== row.code || shown.translated_pct !== row.translated_pct || shown.license !== row.license) {
+          check(await service.from("public_languages").upsert({ ...row, updated_at: (/* @__PURE__ */ new Date()).toISOString() }), "public_languages");
+        }
       }
       await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
+      counts.projected += 1;
     },
-    (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)),
+    async (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)) && !await skipQuiet(orgId, streamId),
     // The large pass goes on past a language that fails, so the next waits only
-    // for its own turn; the Edge pass stops at the first error, as before.
-    scope2 === "large" ? (_orgId, streamId, error) => {
-      failed.push({ streamId, error: error instanceof Error ? error.message : String(error) });
-    } : void 0
+    // for its own turn; the Edge pass stops at the first error, as before, and
+    // says which language it stopped at.
+    (orgId, streamId, error) => {
+      if (scope2 !== "large") throw new ProjectionFailed(orgId, streamId, error);
+      failed.push({ orgId, streamId, error });
+    },
+    // The age of the snapshot the pass already read, so folding does not ask again.
+    (orgId, streamId) => {
+      const snap = snapshotOf.get(streamKey(orgId, streamId));
+      return snap ? Number.isNaN(snap.at) ? null : Date.now() - snap.at : void 0;
+    }
   );
-  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, failed };
+  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, quiet, failed };
+}
+var FAIL_COUNT = {
+  http_4xx: "failHttp4xx",
+  http_5xx: "failHttp5xx",
+  timeout: "failTimeout",
+  unreachable: "failUnreachable",
+  ticket_error: "failTicket"
+};
+var isTimeout = (e) => e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
+async function recordPushes(service, results) {
+  if (!results.length) return;
+  if (!(await service.rpc("record_notification_pushes", { p_results: results })).error) return;
+  for (const r of results) {
+    if (r.error === null) {
+      check(await service.from("notifications").update({ pushed_at: (/* @__PURE__ */ new Date()).toISOString(), push_lease_until: null }).eq("id", r.id), "notifications");
+    } else if (r.error === "receipt_error") {
+      check(await service.from("notifications").update({ pushed_at: null }).eq("id", r.id), "notifications");
+    }
+  }
 }
 async function deliverPushes(service, fetcher = fetch) {
+  const counts = {
+    claimed: 0,
+    sent: 0,
+    noToken: 0,
+    failed: 0,
+    failHttp4xx: 0,
+    failHttp5xx: 0,
+    failTimeout: 0,
+    failUnreachable: 0,
+    failTicket: 0,
+    unregistered: 0,
+    receipts: 0,
+    receiptErrors: 0,
+    receiptsError: 0
+  };
   const claimed = await service.rpc("claim_notification_pushes");
-  check(claimed);
-  for (const row of claimed.data ?? []) {
-    const tokens = await service.from("push_tokens").select("token").eq("profile_id", row.profile_id);
-    check(tokens);
-    if (!tokens.data?.length) continue;
-    let accepted = true;
-    for (const { token } of tokens.data) {
-      const response2 = await fetcher("https://exp.host/--/api/v2/push/send", {
-        signal: AbortSignal.timeout(15e3),
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: token,
-          title: "LangQuest",
-          body: "You have an update in your inbox.",
-          data: { notificationId: row.id },
-          channelId: "work"
-        })
-      });
-      if (!response2.ok) {
-        accepted = false;
+  check(claimed, "claim_notification_pushes");
+  const results = [];
+  try {
+    const rows = claimed.data ?? [];
+    const tokensOf = /* @__PURE__ */ new Map();
+    if (rows.length) {
+      const found = await service.from("push_tokens").select("token,profile_id").in("profile_id", [...new Set(rows.map((r) => r.profile_id))]);
+      check(found, "push_tokens");
+      for (const t of found.data ?? []) {
+        const list = tokensOf.get(t.profile_id);
+        if (list) list.push({ token: t.token });
+        else tokensOf.set(t.profile_id, [{ token: t.token }]);
+      }
+    }
+    for (const row of rows) {
+      counts.claimed += 1;
+      const tokens = { data: tokensOf.get(row.profile_id) ?? [] };
+      if (!tokens.data.length) {
+        counts.noToken += 1;
+        results.push({ id: row.id, error: "no_token" });
         continue;
       }
-      const result2 = await response2.json();
-      const ticket = result2.data;
-      if (ticket?.status === "ok" && ticket.id) {
-        check(await service.from("push_receipts").upsert({
-          ticket_id: ticket.id,
-          token,
-          notification_id: row.id
-        }));
-      } else if (ticket?.details?.error === "DeviceNotRegistered") {
-        check(await service.from("push_tokens").delete().eq("token", token));
-      } else accepted = false;
+      let error = null;
+      for (const { token } of tokens.data) {
+        let response2;
+        try {
+          response2 = await fetcher("https://exp.host/--/api/v2/push/send", {
+            signal: AbortSignal.timeout(15e3),
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: token,
+              title: "LangQuest",
+              body: "You have an update in your inbox.",
+              data: { notificationId: row.id },
+              channelId: "work"
+            })
+          });
+        } catch (e) {
+          error = isTimeout(e) ? "timeout" : "unreachable";
+          continue;
+        }
+        if (!response2.ok) {
+          error = response2.status >= 500 ? "http_5xx" : "http_4xx";
+          await response2.body?.cancel().catch(() => void 0);
+          continue;
+        }
+        const result2 = await response2.json().catch(() => null);
+        const ticket = result2?.data;
+        if (ticket?.status === "ok" && ticket.id) {
+          check(await service.from("push_receipts").upsert({
+            ticket_id: ticket.id,
+            token,
+            notification_id: row.id
+          }), "push_receipts");
+        } else if (ticket?.details?.error === "DeviceNotRegistered") {
+          check(await service.from("push_tokens").delete().eq("token", token), "push_tokens");
+          counts.unregistered += 1;
+        } else error = "ticket_error";
+      }
+      if (error) {
+        counts.failed += 1;
+        counts[FAIL_COUNT[error]] += 1;
+      } else counts.sent += 1;
+      results.push({ id: row.id, error });
     }
-    if (accepted) check(await service.from("notifications").update({ pushed_at: (/* @__PURE__ */ new Date()).toISOString(), push_lease_until: null }).eq("id", row.id));
+  } finally {
+    await recordPushes(service, results);
   }
   const receipts = await service.from("push_receipts").select("*").lt("created_at", new Date(Date.now() - 15 * 6e4).toISOString()).limit(100);
-  check(receipts);
-  if (!receipts.data?.length) return;
-  const response = await fetcher("https://exp.host/--/api/v2/push/getReceipts", {
-    signal: AbortSignal.timeout(15e3),
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ids: receipts.data.map((r) => r.ticket_id) })
-  });
-  if (!response.ok) return;
+  check(receipts, "push_receipts");
+  if (!receipts.data?.length) return counts;
+  let response;
+  try {
+    response = await fetcher("https://exp.host/--/api/v2/push/getReceipts", {
+      signal: AbortSignal.timeout(15e3),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: receipts.data.map((r) => r.ticket_id) })
+    });
+  } catch {
+    counts.receiptsError = 1;
+    return counts;
+  }
+  if (!response.ok) {
+    counts.receiptsError = 1;
+    await response.body?.cancel().catch(() => void 0);
+    return counts;
+  }
   const result = await response.json();
+  const back = [];
+  const read = [];
   for (const receipt of receipts.data) {
     const status = result.data?.[receipt.ticket_id];
     if (!status) continue;
+    counts.receipts += 1;
     if (status.details?.error === "DeviceNotRegistered") {
-      check(await service.from("push_tokens").delete().eq("token", receipt.token));
+      check(await service.from("push_tokens").delete().eq("token", receipt.token), "push_tokens");
+      counts.unregistered += 1;
     } else if (status.status === "error") {
-      check(await service.from("notifications").update({ pushed_at: null }).eq("id", receipt.notification_id));
+      counts.receiptErrors += 1;
+      back.push({ id: receipt.notification_id, error: "receipt_error" });
     }
-    check(await service.from("push_receipts").delete().eq("ticket_id", receipt.ticket_id));
+    read.push(receipt.ticket_id);
   }
+  await recordPushes(service, back);
+  for (const ticketId of read) check(await service.from("push_receipts").delete().eq("ticket_id", ticketId), "push_receipts");
+  return counts;
+}
+
+// server/jobRuns.ts
+var WRITE_TIMEOUT_MS = 3e3;
+var noJobRuns = async () => {
+};
+function jobRunSink(url, serviceKey, fetcher = fetch) {
+  if (!url || !serviceKey) return noJobRuns;
+  const endpoint = `${url.replace(/\/+$/, "")}/rest/v1/rpc/diag_job_ingest`;
+  return async (run) => {
+    try {
+      const response = await fetcher(endpoint, {
+        method: "POST",
+        signal: AbortSignal.timeout(WRITE_TIMEOUT_MS),
+        headers: { "content-type": "application/json", apikey: serviceKey, authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({
+          p_job: run.job,
+          p_started_at: new Date(run.startedAt).toISOString(),
+          p_ms: Math.max(0, Math.round(run.ms)),
+          p_outcome: run.outcome,
+          p_n: numbersOnly(run.n ?? {}),
+          p_error_class: run.errorClass ?? null,
+          p_org: run.orgId ?? null,
+          p_stream: run.streamId ?? null
+        })
+      });
+      await response.body?.cancel().catch(() => void 0);
+    } catch {
+    }
+  };
+}
+function numbersOnly(n) {
+  const out = {};
+  for (const [k, v] of Object.entries(n)) if (typeof v === "number" && Number.isFinite(v)) out[k] = Math.round(v);
+  return out;
+}
+function errorClassOf(error) {
+  if (!error || typeof error !== "object") return "unknown";
+  const e = error;
+  if (typeof e.streamId === "string" && e.cause) return errorClassOf(e.cause);
+  const code = typeof e.code === "string" && /^[0-9A-Z]{5}$|^PGRST\d{3}$|^E_[A-Z_]{1,60}$/.test(e.code) ? e.code : null;
+  const op = typeof e.op === "string" ? e.op : typeof e.message === "string" ? /^([a-z]+_[a-z0-9_]+)\b/.exec(e.message)?.[1] ?? null : null;
+  const name = typeof e.name === "string" && e.name ? e.name : "Error";
+  const parts = [op ?? name, code].filter((p) => !!p);
+  return parts.join(":").replace(/[^A-Za-z0-9_.:#/-]/g, "_").slice(0, 80) || "unknown";
 }
 
 // server/projectionEdge.ts
+function commonest(p) {
+  const codes = { http_4xx: p.failHttp4xx, http_5xx: p.failHttp5xx, timeout: p.failTimeout, unreachable: p.failUnreachable, ticket_error: p.failTicket };
+  return Object.entries(codes).sort((a, b) => b[1] - a[1])[0][0];
+}
+async function sameSecret(given, expected) {
+  const digest = async (text) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  const [a, b] = await Promise.all([digest(given), digest(expected)]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
 Deno.serve(async (request) => {
   const secret = Deno.env.get("PROJECTION_WORKER_SECRET");
-  if (!secret || request.headers.get("x-worker-secret") !== secret) {
+  if (!secret || !await sameSecret(request.headers.get("x-worker-secret") ?? "", secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const service = createClient(
-    Deno.env.get("SUPABASE_URL"),
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
-    { auth: { persistSession: false } }
-  );
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const service = createClient(url, key, { auth: { persistSession: false } });
+  const record = jobRunSink(url, key);
+  const startedAt = Date.now();
   const body = await request.json().catch(() => ({}));
+  const counts = { orgs: 0, projected: 0 };
   try {
-    if (body.task === "pushes") await deliverPushes(service);
-    else await runProjections(service, "small");
+    if (body.task === "pushes") {
+      const pushes = await deliverPushes(service);
+      const allFailed = pushes.failed > 0 && pushes.sent === 0;
+      await record({
+        job: "push_delivery",
+        startedAt,
+        ms: Date.now() - startedAt,
+        outcome: allFailed ? "error" : pushes.failed || pushes.receiptsError ? "partial" : "ok",
+        n: { ...pushes },
+        ...allFailed ? { errorClass: commonest(pushes) } : {}
+      });
+    } else {
+      const done = await runProjections(service, "small", counts);
+      await record({
+        job: "projection",
+        startedAt,
+        ms: Date.now() - startedAt,
+        outcome: "ok",
+        n: { ...counts, languages: done.languages, snapshots: done.snapshots, failed: 0 }
+      });
+    }
     return Response.json({ ok: true });
   } catch (error) {
+    const stoppedAt = error instanceof ProjectionFailed ? error : null;
+    await record({
+      job: body.task === "pushes" ? "push_delivery" : "projection",
+      startedAt,
+      ms: Date.now() - startedAt,
+      outcome: "error",
+      errorClass: errorClassOf(error),
+      ...body.task === "pushes" ? {} : { n: { ...counts, failed: 1 } },
+      ...stoppedAt ? { orgId: stoppedAt.orgId, streamId: stoppedAt.streamId } : {}
+    });
     console.error("Projection worker failed", error instanceof Error ? error.message : "unknown");
     return Response.json({ error: "Projection pass failed. Retry after checking worker logs." }, { status: 500 });
   }

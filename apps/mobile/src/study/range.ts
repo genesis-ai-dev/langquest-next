@@ -4,7 +4,7 @@
 // (STUDY-1, STUDY-5), so a chapter unit, a FIA pericope and a hand-added
 // passage all find the same material. Pure: no I/O.
 import { unitPlace, type LanguageState } from '@langquest-next/core';
-import { latinDigits } from '../textMatch';
+import { latinDigits } from '../ui/textMatch';
 
 export interface VerseRange {
   /** Core's book id ("gen", "luk", "joh"). */

@@ -18,20 +18,26 @@ const world = useRunWorld('05-asking');
 const nameOf = (who: AccountKey) => world().accounts[who].name;
 const label = (p: Passage) => (typeof p === 'string' ? world().passages[p].label : p.label);
 
-/** In the workspace: publish what is there, through the confirm page. */
-async function publish(page: Page, n = 1): Promise<void> {
+/** In the workspace: Done, the last look with the next check ready to ask (decision 127). */
+async function openDone(page: Page): Promise<void> {
+  await expect(byId(page, 'publish-button')).toHaveText('Done');
   await byId(page, 'publish-button').click();
-  await expect(byId(page, 'primary-action')).toHaveText(`Publish Version ${n}`);
-  await byId(page, 'primary-action').click();
-  await expect(text(page, `Version ${n} published`)).toBeVisible({ timeout: 30_000 });
+  await expect(text(page, 'Next check')).toBeVisible({ timeout: 30_000 });
 }
 
-/** From the record's main button (Record or Continue recording): record one part, unless the draft has some, and publish it. */
-async function recordAndPublish(page: Page, opts: { record?: boolean } = {}): Promise<void> {
+/** Done, then Send later: Version `n` is published and nobody is asked yet. */
+async function publishLater(page: Page, n = 1): Promise<void> {
+  await openDone(page);
+  await button(page, 'Send later').click();
+  await toast(page, `Version ${n} published.`);
+}
+
+/** From the record's main button (Record or Continue recording): record one part, unless the draft has some, then Done. */
+async function recordAndDone(page: Page, opts: { record?: boolean } = {}): Promise<void> {
   await byId(page, 'primary-action').click();
   await expect(byId(page, 'record-button')).toBeVisible();
   if (opts.record !== false) await recordOnePart(page);
-  await publish(page);
+  await openDone(page);
 }
 
 async function toast(page: Page, message: string | RegExp): Promise<void> {
@@ -72,30 +78,27 @@ test('PASS-011 Record opens the workspace, and the record updates after publishi
   await expect(byId(page, 'record-button')).toBeVisible();
   await expect(header(page)).toHaveText(L);
   await recordOnePart(page);
-  await publish(page);
-  await button(page, 'Not now').click();
+  await publishLater(page);
   await expect(header(page)).toHaveText(L);
   expect(await pathStep(page, 'Record').getAttribute('aria-label')).toMatch(/^\d\. Record\. Version 1 · \d+:\d\d$/);
-  expect(await pathStep(page, 'Publish').getAttribute('aria-label')).toMatch(/^\d\. Publish\. Published (Just now|just now)$/);
+  expect(await pathStep(page, 'Done').getAttribute('aria-label')).toMatch(/^\d\. Done\. Published (Just now|just now)$/);
   // My Work no longer asks TRANS to record it.
   expect(await myWork(page)).not.toContain(`${L} Record`);
 });
 
-test('PASS-012 Publishing, then asking: the check\'s people are picked @p0', async ({ browser }) => {
+test('PASS-012 Done, then asking: the check\'s people are picked @p0', async ({ browser }) => {
   const L = label('P-DRAFT');
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
   expect(await mainButton(page)).toBe('Continue recording');
-  await recordAndPublish(page, { record: false });
-  await expect(byId(page, 'header-close')).toHaveCount(0);
-  await expect(byId(page, 'header-back')).toHaveCount(0);
+  await recordAndDone(page, { record: false });
+  // The last look: the next check and its people, before anything is published.
   const all = await screenText(page);
-  // Online, it says the version went (or is going) to the team; offline, that it waits on this device.
-  expect(all).toMatch(new RegExp(`Version 1 published ${L} · (sent to the team|sending now)`));
-  expect(all).toContain('NEXT, ASK FOR A CHECK Peer check');
+  expect(all).toContain('NEXT CHECK Peer check');
   expect(all).toMatch(/Peer check (\w\w )*(Rita Reviewer, Trevor Both|Trevor Both, Rita Reviewer) Back translation/);
   await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team');
   await expect(button(page, 'Someone else')).toBeVisible();
-  await expect(button(page, 'Not now')).toBeVisible();
+  await expect(button(page, 'Send later')).toBeVisible();
+  // One tap publishes Version 1 and asks.
   await byId(page, 'primary-action').click();
   await toast(page, 'Sent to the Peer check team — anyone on it will see it on My Work');
   await expect(header(page)).toHaveText(L);
@@ -108,10 +111,10 @@ test('PASS-012 Publishing, then asking: the check\'s people are picked @p0', asy
   expect(await myWork(rev)).not.toContain(L);
 });
 
-test('PASS-013 Publishing, then asking someone else', async ({ browser }) => {
+test('PASS-013 Done, then asking someone else', async ({ browser }) => {
   const L = label('P-Q2');
   const page = await recordAs(browser, world(), 'TRANS', 'P-Q2');
-  await recordAndPublish(page);
+  await recordAndDone(page);
   await button(page, 'Someone else').click();
   await expect(header(page)).toHaveText('Ask for Peer check');
   expect(await screenText(page)).toContain(`Ask for Peer check ${L} · Alpha`);
@@ -120,11 +123,12 @@ test('PASS-013 Publishing, then asking someone else', async ({ browser }) => {
   await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
 });
 
-test('PASS-014 Publishing, then not now', async ({ browser }) => {
+test('PASS-014 Done, then send later', async ({ browser }) => {
   const L = label('P-Q3');
   const page = await recordAs(browser, world(), 'TRANS', 'P-Q3');
-  await recordAndPublish(page);
-  await button(page, 'Not now').click();
+  await recordAndDone(page);
+  await button(page, 'Send later').click();
+  await toast(page, 'Version 1 published.');
   await expect(header(page)).toHaveText(L);
   expect(await mainButton(page)).toBe('Ask for the peer check');
   await byId(page, 'primary-action').click();
@@ -206,7 +210,7 @@ test('PASS-037 Ask someone for a check: who is listed first @p0', async ({ brows
   await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team');
 });
 
-test('PASS-038 Ask a person, with directions, a question and a due date @p0', async ({ browser }) => {
+test('PASS-038 Ask a person, with directions and a question, and no due date @p0', async ({ browser }) => {
   const L = label('P-DRAFT');
   const trev = nameOf('TREV');
   await draftPublished();
@@ -223,8 +227,9 @@ test('PASS-038 Ask a person, with directions, a question and a due date @p0', as
   expect(listed.toLowerCase()).toContain("they’ll answer");
   expect(listed).toContain("Is the host's anger clear? Yes/No");
   await expect(button(page, 'Remove question')).toBeVisible();
-  await button(page, 'In a week').click();
-  expect(await screenText(page)).toMatch(/Due [A-Z][a-z]{2} \d{1,2}/);
+  // Due dates are gone (decision 126): no By when, no date to type.
+  expect((await screenText(page)).toLowerCase()).not.toMatch(/by when|\bdue\b/);
+  await expect(field(page, /^Or a date, like /)).toHaveCount(0);
   await byId(page, 'primary-action').click();
   await toast(page, `${trev} will see it on their My Work`);
   await expect(byId(page, 'toast-undo')).toBeVisible();
@@ -232,10 +237,11 @@ test('PASS-038 Ask a person, with directions, a question and a due date @p0', as
   await expect(teamRow(page, 'Peer check')).toHaveAttribute('aria-label', `Peer check, asked ${trev}`);
   await versionsPage(page);
   await expand(page, 'History', /^Version \d+ published$|^Asked /);
-  expect(await screenText(page)).toMatch(new RegExp(`Asked ${trev} for Peer check You · .+ — due [A-Z][a-z]{2} \\d{1,2} Withdraw`));
+  expect(await screenText(page)).toMatch(new RegExp(`Asked ${trev} for Peer check You · .+ — open Withdraw`));
   const all = await myWork(await pageFor(browser, world(), 'TREV'), `asked by ${nameOf('TRANS')}`);
   expect(all).toContain(L);
-  expect(all).toMatch(new RegExp(`asked by ${nameOf('TRANS')} · due [A-Z][a-z]{2} \\d{1,2}`));
+  expect(all).toContain(`asked by ${nameOf('TRANS')}`);
+  expect(all).not.toMatch(/\bdue\b/);
 });
 
 /** PASS-039 for one role: asks Kept to record a spare passage (`at` picks the passage), then undoes it. */
@@ -246,12 +252,11 @@ async function askToRecordThenUndo(browser: Browser, who: AccountKey, at: number
   await somethingElse(page);
   await button(page, /^Someone else should do this/).click();
   await page.getByRole('radio', { name: new RegExp(`^${kept}`) }).locator('visible=true').first().click();
-  await button(page, 'In 2 weeks').click();
   await expect(byId(page, 'primary-action')).toHaveText('Ask Kept');
   await byId(page, 'primary-action').click();
   await toast(page, `${kept} will see it on their My Work`);
   await expect(header(page), who).toHaveText(p.label);
-  expect(await pathStep(page, 'Record').getAttribute('aria-label'), who).toMatch(new RegExp(`Record\\. You asked ${kept} · due [A-Z][a-z]{2} \\d{1,2}\\. Tell it`));
+  expect(await pathStep(page, 'Record').getAttribute('aria-label'), who).toMatch(new RegExp(`Record\\. You asked ${kept}\\. Tell it`));
   await byId(page, 'toast-undo').click();
   await toast(page, 'Undone.');
   await expect.poll(async () => pathStep(page, 'Record').getAttribute('aria-label'), { message: who }).not.toContain('asked');
@@ -275,29 +280,6 @@ async function askForBt(page: Page): Promise<void> {
   await sheet(page).getByRole('button', { name: /^(Send to someone else|Ask someone)$/ }).last().click();
   await expect(header(page)).toHaveText('Ask for Back translation');
 }
-
-test('PASS-040 Typing a due date', async ({ browser }) => {
-  await draftPublished();
-  const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
-  await askForBt(page);
-  const due = field(page, /^Or a date, like /);
-  const err = (m: string) => expect(text(page, m)).toBeVisible();
-  await due.fill('12/10/2026');
-  await err('Write the date as YYYY-MM-DD, like 2026-10-07.');
-  await expect(byId(page, 'primary-action')).toBeDisabled();
-  await due.fill('2026-02-30');
-  await err('That date does not exist.');
-  const day = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-  await due.fill(day(-1));
-  await err('Pick today or a later day.');
-  await due.fill(day(10));
-  await expect(text(page, /^Due [A-Z][a-z]{2} \d{1,2}$/)).toBeVisible();
-  await due.fill('');
-  await button(page, 'Today').click();
-  await expect(text(page, /^Due [A-Z][a-z]{2} \d{1,2}$/)).toBeVisible();
-  await button(page, 'No date').click();
-  await expect(text(page, /^Due /)).toHaveCount(0);
-});
 
 test('PASS-041 Your own questions', async ({ browser }) => {
   await draftPublished();

@@ -60,6 +60,7 @@ interface RequestPayload {
   teamId?: string;
   /** Someone without the app, reached by a link. */
   guest?: { name: string; channel: 'whatsapp' | 'sms'; contact: string };
+  /** Requests made before due dates were removed (decision 126) may carry one; nothing sets or shows it. */
   dueDate?: string;
   note?: string;
   noteBlobHash?: string;
@@ -127,6 +128,14 @@ export type RecordEvents = {
   };
   /** Bring a set-aside step back. The departure stays on the record, marked undone. Add-wins. */
   'v1.DepartureUndone': { departureId: string };
+  /**
+   * Take back your own review (decisions.md 111): a verdict, feedback, a
+   * logged check or a back translation. It stays on the record, marked
+   * undone, and counts for nothing: the check is open again and a request
+   * it answered is open again. Only whoever recorded the review may (the
+   * server's may_emit holds it, and the fold ignores anyone else's). Add-wins.
+   */
+  'v1.ReviewWithdrawn': { reviewId: string };
   /** A record of asking (ADR-007, ADR-020, ADR-029): who, for what, by when. Nobody needs one to act. Grow-only by requestId. */
   'v1.RequestMade': RequestPayload;
   /** Undo of a request. Add-wins. */
@@ -140,7 +149,11 @@ export type RecordEvents = {
     blobHash?: string;
     photoHash?: string;
     onTakeId?: string;
+    /** The step it was written at: `record` or a check (decisions.md 130). Absent on older notes, which count as written while recording. */
+    kindId?: string;
   };
+  /** Take back your own note (decisions.md 111): it no longer shows anywhere. Only its author may, as with a review. Add-wins. */
+  'v1.NoteWithdrawn': { noteId: string };
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
 };
@@ -209,7 +222,11 @@ export interface RecordState {
   undoneDepartures: Record<string, Undo>;
   requests: Record<string, PassageRequest>;
   withdrawnRequests: Record<string, Undo>;
+  /** reviewId -> who took it back, when (add-wins); counts only when it is the review's own author. */
+  withdrawnReviews: Record<string, Undo>;
   notes: Record<string, PassageNote>;
+  /** noteId -> who took it back, when (add-wins); counts only when it is the note's own author. */
+  withdrawnNotes: Record<string, Undo>;
   /** `${unitId}:${guideId}:${stepId}` -> done register */
   studyMarks: Record<string, { value: { done: boolean; by: string }; hlc: Hlc; eventId: string }>;
 }
@@ -224,7 +241,9 @@ export function emptyRecordState(): RecordState {
     undoneDepartures: {},
     requests: {},
     withdrawnRequests: {},
+    withdrawnReviews: {},
     notes: {},
+    withdrawnNotes: {},
     studyMarks: {}
   };
 }
@@ -305,39 +324,6 @@ export const FLOWS: FlowTemplate[] = [
 export function flowTemplate(id: string): FlowTemplate | undefined {
   return FLOWS.find((f) => f.id === id);
 }
-
-/** Shipped question sets, each for one kind of review. LangQuest's library publishes them too. */
-interface QuestionTemplate {
-  id: string;
-  name: string;
-  /** The kind of review these questions are for. */
-  kindId: string;
-  questions: { id: string; text: string; type: 'rating' | 'yesno' | 'text' }[];
-}
-
-export const QUESTION_TEMPLATES: QuestionTemplate[] = [
-  {
-    id: 'community_check',
-    name: 'Community Check Questions',
-    kindId: 'community',
-    questions: [
-      { id: 'meaning', text: 'Does the translation accurately convey the meaning of the source text?', type: 'rating' },
-      { id: 'natural', text: 'Is the translation natural and clear in the target language?', type: 'rating' },
-      { id: 'terms', text: 'Are key theological terms rendered consistently with the Translation Guidelines?', type: 'yesno' },
-      { id: 'revisit', text: 'Are there any passages you would suggest revisiting?', type: 'text' }
-    ]
-  },
-  {
-    id: 'consultant_check',
-    name: 'Consultant Check Questions',
-    kindId: 'consultant',
-    questions: [
-      { id: 'hardest', text: 'How well does this draft hold up against the source in the hardest verses?', type: 'rating' },
-      { id: 'kt_aligned', text: "Are the key terms aligned with the language's key terms list?", type: 'yesno' },
-      { id: 'notes', text: 'Notes for the translation team', type: 'text' }
-    ]
-  }
-];
 
 /** The flow id a language's hand-edited steps are selected under. */
 export const CUSTOM_FLOW = 'custom';

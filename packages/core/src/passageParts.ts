@@ -4,7 +4,7 @@ import type { LanguageState } from './state';
 import { earlier } from './ties';
 
 /**
- * A language cut by passage (decisions.md 110). Most of what a language
+ * A language cut by passage (decisions.md 134). Most of what a language
  * holds belongs to one passage: its recordings, versions, reviews, notes,
  * requests and the rest. A phone that keeps a big language on disk holds a
  * passage's part in memory only while a screen needs it, so each entry of
@@ -22,7 +22,7 @@ import { earlier } from './ties';
 export type PassageMap =
   | 'recordings' | 'takes' | 'submissions' | 'responses' | 'kindReviews' | 'departures' | 'undoneDepartures'
   | 'requests' | 'withdrawnRequests' | 'notes' | 'studyMarks' | 'cardVerses' | 'passageLinks' | 'referencesUsed'
-  | 'keyTermLinks' | 'releases';
+  | 'keyTermLinks' | 'releases' | 'withdrawnReviews' | 'withdrawnNotes';
 
 /**
  * Where an entry's passage comes from: the entry itself, or the take,
@@ -35,6 +35,8 @@ export type PassageOf =
   | { review: string }
   | { departure: string }
   | { request: string }
+  /** A note taken back (decision 111) hangs on its note. */
+  | { note: string }
   /** A study mark's key, `${unitId}:${guideId}:${stepId}`: its passage is the longest known unit it starts with. */
   | { studyKey: string };
 
@@ -80,14 +82,22 @@ type Response = LanguageState['responses'][string];
 type TermLink = LanguageState['keyTermLinks'][string][string];
 type Used = LanguageState['referencesUsed'][string][string];
 
-/** v1.TakeComposed: the earliest compose stands; an archive sticks whichever arrived first; a placeholder from an early archive is filled in. */
+/** The first archive of a take names who deleted it and when (reducer `v1.TakeArchived`, decision 124): the earliest clock, then the lower actor. */
+function firstArchive(a: Take['archivedAt'], b: Take['archivedAt']): Take['archivedAt'] {
+  if (!a) return b;
+  if (!b) return a;
+  return a.hlc < b.hlc || (a.hlc === b.hlc && a.by <= b.by) ? a : b;
+}
+
+/** v1.TakeComposed: the earliest compose stands; an archive sticks whichever arrived first, with the first archive's who and when; a placeholder from an early archive is filled in. */
 export function keptTake(a: Take, b: Take): Take {
-  const archived = a.archived || b.archived;
-  if (a.unitId === '') return { ...b, archived };
-  if (b.unitId === '') return { ...a, archived };
+  const archivedAt = firstArchive(a.archivedAt, b.archivedAt);
+  const flags = { archived: a.archived || b.archived, ...(archivedAt ? { archivedAt } : {}) };
+  if (a.unitId === '') return { ...b, ...flags };
+  if (b.unitId === '') return { ...a, ...flags };
   const content = (t: Take) => ({ unitId: t.unitId, cardHashes: t.cardHashes, parentTakeId: t.parentTakeId });
   const first = earlier({ hlc: a.hlc, actorId: a.actorId } as AnyEvent, content(a), b, content(b)) ? a : b;
-  return { ...first, archived };
+  return { ...first, ...flags };
 }
 
 const keptSubmission = (a: Submission, b: Submission): Submission =>
@@ -126,7 +136,12 @@ export const PASSAGE_PARTS: readonly PassagePart[] = [
   { map: 'requests', kind: 'request', depth: 1, passage: (_k, r) => ({ unitId: (r as Entry<'requests'>).unitId }), merge: (a, b) => firstOf(a as Reg, b as Reg) },
   { map: 'withdrawnRequests', kind: 'withdrawnRequest', depth: 1, passage: (k) => ({ request: k }),
     merge: (a, b) => firstUndo(a as Entry<'withdrawnRequests'>, b as Entry<'withdrawnRequests'>) },
+  // A review or note taken back (decision 111) hangs on what it takes back; the first undo stands, as the reducer's `earliestUndo` has it.
+  { map: 'withdrawnReviews', kind: 'withdrawnReview', depth: 1, passage: (k) => ({ review: k }),
+    merge: (a, b) => firstUndo(a as Entry<'withdrawnReviews'>, b as Entry<'withdrawnReviews'>) },
   { map: 'notes', kind: 'note', depth: 1, passage: (_k, n) => ({ unitId: (n as Entry<'notes'>).unitId }), merge: (a, b) => firstOf(a as Reg, b as Reg) },
+  { map: 'withdrawnNotes', kind: 'withdrawnNote', depth: 1, passage: (k) => ({ note: k }),
+    merge: (a, b) => firstUndo(a as Entry<'withdrawnNotes'>, b as Entry<'withdrawnNotes'>) },
   { map: 'studyMarks', kind: 'studyMark', depth: 1, passage: (k) => ({ studyKey: k }), merge: (a, b) => laterRegister(a as Reg, b as Reg) },
   { map: 'cardVerses', kind: 'cardVerses', depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a as Record<string, Reg>, b as Record<string, Reg>) },
   { map: 'passageLinks', kind: 'passageLinks', depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a as Record<string, Reg>, b as Record<string, Reg>) },
@@ -143,7 +158,7 @@ export const PART_OF_KIND: ReadonlyMap<string, PassagePart> = new Map(PASSAGE_PA
 
 /**
  * Core's answers about every passage of a language at once. Given the state
- * of a language kept on disk (decisions.md 110), which holds only the
+ * of a language kept on disk (decisions.md 134), which holds only the
  * passages a screen has open, each answers about those alone. An app calls
  * them on a language held whole, on a few passages read in (`withPassages`),
  * or not at all, and reads lines instead (`apps/mobile/test/wholeLanguage.test.ts`).
@@ -196,6 +211,10 @@ export function eventPassage(e: AnyEvent): PassageOf | 'settings' | null {
       return { departure: e.payload.departureId };
     case 'v1.RequestWithdrawn':
       return { request: e.payload.requestId };
+    case 'v1.ReviewWithdrawn':
+      return { review: e.payload.reviewId };
+    case 'v1.NoteWithdrawn':
+      return { note: e.payload.noteId };
     case 'v1.FlowSelected':
     case 'v1.FlowStepSet':
     case 'v1.FlowStepRemoved':
@@ -225,6 +244,7 @@ export function passageInMemory(state: LanguageState, of: PassageOf | null): str
   }
   if ('departure' in of) return state.departures[of.departure]?.unitId || null;
   if ('request' in of) return state.requests[of.request]?.unitId || null;
+  if ('note' in of) return state.notes[of.note]?.unitId || null;
   return studyMarkUnit(state.units, of.studyKey);
 }
 
@@ -235,6 +255,7 @@ export function hangsOn(of: PassageOf | null): { kind: string; id: string } | nu
   if ('review' in of) return { kind: 'review', id: of.review };
   if ('departure' in of) return { kind: 'departure', id: of.departure };
   if ('request' in of) return { kind: 'request', id: of.request };
+  if ('note' in of) return { kind: 'note', id: of.note };
   return null;
 }
 

@@ -1,13 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useRef, useState } from 'react';
 import { Dimensions } from 'react-native';
-import type { ScreenId } from '../flow';
-import { layoutKind } from '../layout';
-import { navRef, type Nav } from '../nav';
-import { AUTH_SCREENS, GUEST_SCREENS, homeScreenFor, postSignInScreen, type Session } from '../session';
-import { sectionAtLoad, useWebHistory } from '../webHistory';
-import { addressSection } from './routingModel';
+import type { ScreenId } from './flow';
+import { layoutKind } from '../ui/layout';
+import { navRef, type Nav } from './nav';
+import { AUTH_SCREENS, GUEST_SCREENS, homeScreenFor, postSignInScreen, type Session } from './session';
+import { sectionAtLoad } from '../web/webHistory';
+import { useWebHistory } from '../web/useWebHistory';
+import { addressSection, routeOutcome } from './routingModel';
 import type { Arrival } from './useOpenOrganization';
+import { routeReached } from '../auth/authDiag';
 
 /**
  * Where a person is sent, as a rule rather than a move. Auth routing is an
@@ -25,6 +27,8 @@ import type { Arrival } from './useOpenOrganization';
  */
 export function useRouting(o: {
   nav: Nav; session: Session; loaded: boolean; signedIn: boolean; ready: boolean; actorId: string; orgId: string;
+  /** The server lists no organization for this person (useOpenOrganization). */
+  noOrganizations: boolean;
   arrival: Arrival | null; openTask: (languageId: string, unitId: string) => void; setLanguage: (languageId: string) => void;
 }) {
   const { nav, session, loaded, signedIn, ready } = o;
@@ -71,7 +75,12 @@ export function useRouting(o: {
       return;
     }
     if (!ready) return;
-    if (!AUTH_SCREENS.includes(nav.current.screen)) { sentOnFromAuth.current = false; return; }
+    if (!AUTH_SCREENS.includes(nav.current.screen)) {
+      sentOnFromAuth.current = false;
+      // Diagnostics: how long from signing in (or starting) to a first screen, once per sign-in.
+      routeReached(routeOutcome(o.orgId, o.noOrganizations));
+      return;
+    }
     if (loaded) {
       if (sentOnFromAuth.current) return;
       sentOnFromAuth.current = navRef.isReady();
@@ -90,7 +99,7 @@ export function useRouting(o: {
     if (nav.stack.length !== 1 || nav.current.screen !== cachedHome) { urlSection.current = null; return; }
     const s = takeUrlSection();
     if (s && s !== nav.current.screen) nav.reset({ screen: s });
-  }, [loaded, signedIn, cachedHome]);
+  }, [loaded, signedIn, cachedHome]); // eslint-disable-line react-hooks/exhaustive-deps -- runs once loading, sign-in and the home are settled, not on every navigation; nav and the address are read as they are then
   // Opened from another organization's Inbox row or push: its passage, or its language, once this organization is in.
   const arrived = useRef(false);
   useEffect(() => {

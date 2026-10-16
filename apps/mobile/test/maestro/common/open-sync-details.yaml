@@ -1,0 +1,15 @@
+# Open the Sync screen's Details, where its tiles (waiting, refused), the
+# audio transfers and the event lists are (the Sync screen keeps them folded
+# away). Run it on the Sync screen, which always opens with Details closed.
+appId: com.frontierrnd.langquestnext
+---
+- scrollUntilVisible:
+    element:
+      id: "sync-details"
+    direction: DOWN
+- tapOn:
+    id: "sync-details"
+- scrollUntilVisible:
+    element:
+      id: "sync-tile-waiting"
+    direction: DOWN

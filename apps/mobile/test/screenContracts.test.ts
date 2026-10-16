@@ -2,16 +2,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import { type AnyEvent, type Role } from '@langquest-next/core';
-import { SCREEN_IDS, EDGES, TAB_SCREENS, type ScreenId, type NodeId } from '../src/flow';
-import { SCREEN_CONTRACTS, screenMayEmit } from '../src/screenContracts';
-import { edgeAllowed } from '../src/session';
+import { SCREEN_IDS, EDGES, TAB_SCREENS, type ScreenId, type NodeId } from '../src/shell/flow';
+import { SCREEN_CONTRACTS, screenMayEmit } from '../src/shell/screenContracts';
+import { edgeAllowed } from '../src/shell/session';
 import { buildFixture, buildOrgFixture } from '../../../packages/core/test/fixtures';
 import { roleSession } from './sessions';
 
 const root = path.resolve('apps/mobile');
 const app = fs.readFileSync(path.join(root,'App.tsx'),'utf8');
-const componentScreen = new Map([...app.matchAll(/(\w+): (?:Entry|Onboarding|Org|Config|Checks|Content|Account|Work|MapScreens|Passage|Review|Translate|Study|Reports|Reference|Sources|Simple)\.(\w+)/g)]
-  .map((m) => [m[2]!,m[1]! as ScreenId]));
+// A screen is either `id: Module.Name` or, for a module that loads when first opened, `id: lazyScreen(loadX, 'Name')`.
+const componentScreen = new Map([...app.matchAll(/(\w+): (?:(?:Entry|Onboarding|Account|Work|MapScreens|Passage|Review|Translate|Study|Simple|Ready)\.(\w+)|lazyScreen\(load\w+, '(\w+)'\))/g)]
+  .map((m) => [(m[2] ?? m[3])!,m[1]! as ScreenId]));
 
 // These parse the screens and what they import, so they grow with the app: on a shared CI
 // runner under coverage the slowest took over the 5 s default.

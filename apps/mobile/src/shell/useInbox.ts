@@ -1,16 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { highlightsOf, type Update } from '@langquest-next/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePendingRequestCount } from '../invites';
-import { useOpenReportCount, type Blocks } from '../moderationData';
-import type { Session } from '../session';
-import type { LanguageHandle } from '../useLanguage';
+import { usePendingRequestCount } from '../invites/useInviteRequests';
+import type { Blocks } from '../moderation/moderationData';
+import { useOpenReportCount } from '../moderation/useModeration';
+import type { Session } from './session';
+import type { LanguageHandle } from '../sync/useLanguage';
 
 /**
  * What is waiting and what happened (WORK-1, INBOX-1): the work for this
  * person, the record's updates and which of them this device has shown,
  * and, for whoever may act on them, open reports and people asking to join.
- * Both read off the passages' lines (decisions.md 110): the updates from
+ * Both read off the passages' lines (decisions.md 134): the updates from
  * the passages whose line says they concern this person, read again only
  * when that line changes.
  */

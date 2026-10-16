@@ -3,12 +3,14 @@
 // one tap each, and any other language from the language list (online).
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import { t } from '../i18n';
-import { Chip, ChipRow, SearchField, txt } from '../kit';
-import { LanguoidPicker, useLanguoidSearch } from '../languoidPicker';
-import { languageLabel } from '../simple/adminModel';
-import { space } from '../theme';
+import { Chip, ChipRow, SearchField } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { LanguoidPicker } from '../org/languoidPicker';
+import { useLanguoidSearch } from '../org/useLanguoids';
+import { languageLabel } from '../admin/adminModel';
+import { space } from '../ui/theme';
 import { readerLanguage, sameLanguage } from './languages';
 
 export function LanguageField(props: { label: string; value: string | null; onChange: (code: string) => void; suggestions?: readonly string[]; disabled?: boolean }) {
@@ -26,8 +28,8 @@ export function LanguageField(props: { label: string; value: string | null; onCh
     <View style={{ gap: space.xs }}>
       <Text style={txt.xsStrong}>{props.label}</Text>
       <ChipRow>
-        {chips.map((c) => <Chip key={c} label={found[c] ?? languageLabel(c)} on={sameLanguage(c, props.value)} onPress={() => choose(c)} />)}
-        {props.disabled ? null : <Chip label={t('reference.language.another')} icon="search" on={searching} onPress={() => setSearching(!searching)} />}
+        {chips.map((c) => <Chip key={c} label={found[c] ?? languageLabel(c)} on={sameLanguage(c, props.value)} help={t('reference.language.chipHelp')} onPress={() => choose(c)} />)}
+        {props.disabled ? null : <Chip label={t('reference.language.another')} icon="search" on={searching} help={t('reference.language.anotherHelp')} onPress={() => setSearching(!searching)} />}
       </ChipRow>
       {searching ? (
         <>

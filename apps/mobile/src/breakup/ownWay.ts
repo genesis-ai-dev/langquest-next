@@ -2,12 +2,14 @@
 // verses in order, and the sections as the verses they start at. Starting a
 // section at a verse adds a start; joining one with the one before removes
 // it. A ready-made way, or the book as the language has it now, gives the
-// starts to begin from. Saving makes a way with just this book in it, which
-// is applied like any other way (core withBookBrokenUp). Pure.
+// starts to begin from. What is drawn is kept as a private draft until Done
+// (decision 127), which makes a way with just this book in it, applied like
+// any other way (core withBookBrokenUp). Pure.
 import {
   bookParts, formatRef, parseRef, refId, renumberedParts,
   type TemplateBook, type TemplateDoc, type TemplateDocV2, type VersificationDoc
 } from '@langquest-next/core';
+import { isRecord } from '../drafts/draftModel';
 
 /** A verse as "chapter:verse". */
 export type At = string;
@@ -103,4 +105,42 @@ export function ownWayDoc(c: {
     bible: { versification: c.base.bible!.versification, books: [out], ...(numbering ? { numbering } : {}) },
     deps: []
   };
+}
+
+/** The sections being drawn: the verses they start at, and the names given them. */
+export interface Drawn {
+  starts: ReadonlySet<At>;
+  names: Readonly<Record<At, string>>;
+}
+
+/** What is drawn, kept on this phone until Done (useDraft, decision 127). Empty: nothing changed. */
+export interface OwnWayDraft {
+  starts: At[];
+  names: Record<At, string>;
+}
+
+export const EMPTY_OWN_WAY: OwnWayDraft = { starts: [], names: {} };
+
+export function isOwnWayDraft(x: unknown): x is OwnWayDraft {
+  if (!isRecord(x) || !Array.isArray(x['starts']) || !isRecord(x['names'])) return false;
+  return x['starts'].every((s) => typeof s === 'string') && Object.values(x['names']).every((n) => typeof n === 'string');
+}
+
+/** What the editor shows: the draft's sections when there is one, else the book as it was. */
+export function drawnFrom(draft: OwnWayDraft, was: Drawn): Drawn {
+  return draft.starts.length ? { starts: new Set(draft.starts), names: draft.names } : was;
+}
+
+/**
+ * The draft for what is drawn now: empty when it is the book as it was, so
+ * nothing is kept. The book's first verse always starts a section, so it is
+ * kept as a start: a draft is never empty by accident.
+ */
+export function draftOf(now: Drawn, was: Drawn, firstVerse: At | undefined): OwnWayDraft {
+  const starts = (s: ReadonlySet<At>) => (firstVerse ? new Set(s).add(firstVerse) : new Set(s));
+  const a = starts(now.starts);
+  const b = starts(was.starts);
+  const sameStarts = a.size === b.size && [...a].every((at) => b.has(at));
+  const sameNames = Object.keys({ ...now.names, ...was.names }).every((k) => (now.names[k] ?? '').trim() === (was.names[k] ?? '').trim());
+  return sameStarts && sameNames ? EMPTY_OWN_WAY : { starts: [...a], names: { ...now.names } };
 }

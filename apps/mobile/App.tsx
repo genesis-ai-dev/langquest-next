@@ -1,9 +1,10 @@
 import { StudyPrefetch } from './src/study/StudyPrefetch';
-import { HelpModeProvider } from './src/helpMode';
-import { keepHelpAudio } from './src/helpAudio';
+import { HelpModeProvider } from './src/helpMode/helpMode';
+import { useKeepHelpAudio } from './src/helpMode/useKeepHelpAudio';
+import { usePrefetchLazyScreens } from './src/shell/usePrefetchLazyScreens';
 import { languageReady, onLanguageReady } from './src/i18n/start';
-import { HelpScopeContext } from './src/helpContext';
-import { stopAudioPlayback } from './src/audioSession';
+import { HelpScopeContext } from './src/helpMode/useHelpMode';
+import { stopAudioPlayback } from './src/audio/audioSession';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session as AuthSession } from '@supabase/supabase-js';
 import { StatusBar } from 'expo-status-bar';
@@ -11,59 +12,58 @@ import { NavigationContainer, NavigationContext, type RouteProp } from '@react-n
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import { AccessibilityInfo, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Text } from './src/text';
+import { Text } from './src/ui/text';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import type { Ctx } from './src/ctx';
-import { DevMenu } from './src/DevMenu';
-import { UpdateBanner } from './src/UpdateBanner';
-import { maySwitchPersona } from './src/dev';
-import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/flow';
-import { chromeVisible, frame, layoutKind } from './src/layout';
-import { NavChrome } from './src/NavChrome';
-import { lockPhonesToPortrait } from './src/orientation';
-import { paneFor, type SplitSpec } from './src/panes';
-import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail } from './src/useLayout';
-import { EmptyState, FooterHeightContext, GhostBtn, ToastView, txt, type ToastSpec } from './src/kit';
-import { installGlobalHandlers, reportError } from './src/report';
+import type { Ctx } from './src/shell/ctx';
+import { DevMenu } from './src/shell/DevMenu';
+import { UpdateBanner } from './src/shell/UpdateBanner';
+import { maySwitchPersona } from './src/auth/dev';
+import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/shell/flow';
+import { chromeVisible, frame, layoutKind } from './src/ui/layout';
+import { NavChrome } from './src/shell/NavChrome';
+import { lockPhonesToPortrait } from './src/shell/orientation';
+import { paneFor, type SplitSpec } from './src/shell/panes';
+import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail, FooterHeightContext } from './src/ui/useLayout';
+import { EmptyState, GhostBtn, ToastView, type ToastSpec } from './src/ui/kit';
+import { txt } from './src/ui/textStyles';
+import { installGlobalHandlers, reportError } from './src/diagnostics/report';
 import { t } from './src/i18n';
-import { personLook } from './src/people';
-import { navRef, useNav, type StackParams } from './src/nav';
+import { personLook } from './src/ui/people';
+import { navRef, type StackParams } from './src/shell/nav';
+import { useNav } from './src/shell/useNav';
 import * as Account from './src/screens/account';
-import * as Checks from './src/screens/checks';
-import * as Config from './src/screens/config';
-import * as Content from './src/screens/content';
 import * as Entry from './src/screens/entry';
 import * as MapScreens from './src/screens/map';
 import * as Onboarding from './src/screens/onboarding';
-import * as Org from './src/screens/org';
 import * as Passage from './src/screens/passage';
-import * as Reference from './src/screens/reference';
-import * as Reports from './src/screens/reports';
 import * as Review from './src/screens/review';
-import * as Sources from './src/screens/sources';
-import * as Simple from './src/screens/simple';
+import * as Ready from './src/screens/getReady';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
-import { StorageGate, useLeaveGuard } from './src/storageGate';
-import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/session';
+import { lazyScreen } from './src/shell/lazyScreens';
+import { StorageGate } from './src/web/storageGate';
+import { SyncEffects } from './src/sync/SyncEffects';
+import { SyncStatusContext } from './src/sync/useSyncStatus';
+import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/shell/session';
 import { SESSION_KEY, onAuthChange, serverConfigError } from './src/server/auth';
-import { afterAuthEvent, savedSession } from './src/authState';
-import { C, space } from './src/theme';
-import { recordUserEvent } from './src/accountData';
-import { useAccountSync, useDisplayNames, useProfileName } from './src/useAccount';
-import { useBlocks } from './src/moderationData';
-import { PeopleContext } from './src/UserChip';
-import { titleFor } from './src/webPaths';
-import { useHeldInvite, type InviteHandle } from './src/useHeldInvite';
-import { useOrg, type OrgHandle } from './src/useOrg';
-import { useLibraryFollow, useTranslatorReview } from './src/library/follow';
-import { useSourceOffline } from './src/sources/offline';
-import { useLanguage } from './src/useLanguage';
-import { useHandOvers } from './src/handOver';
-import { LostFilesAlert } from './src/lostFiles';
-import { hasWelcome, isFromV2 } from './src/welcomeBack';
-import { useWelcomeBack } from './src/useWelcomeBack';
+import { afterAuthEvent, savedSession } from './src/auth/authState';
+import { noteAuthEvent, watchRenewals } from './src/auth/authDiag';
+import { C, space } from './src/ui/theme';
+import { recordUserEvent } from './src/account/accountData';
+import { useAccountSync, useDisplayNames, useProfileName } from './src/account/useAccount';
+import { useBlocks } from './src/moderation/useModeration';
+import { PeopleContext } from './src/ui/usePerson';
+import { titleFor } from './src/web/webPaths';
+import { useHeldInvite, type InviteHandle } from './src/invites/useHeldInvite';
+import { useOrg, type OrgHandle } from './src/sync/useOrg';
+import { useLibraryFollow, useTranslatorReview } from './src/library/useLibraryFollow';
+import { useSourceOffline } from './src/sources/useSourceOffline';
+import { useLanguage } from './src/sync/useLanguage';
+import { useHandOvers } from './src/sync/useHandOvers';
+import { LostFilesAlert } from './src/sync/lostFiles';
+import { hasWelcome, isFromV2 } from './src/account/welcomeBack';
+import { useWelcomeBack } from './src/account/useWelcomeBack';
 import { useActions } from './src/shell/useActions';
 import { useDetails } from './src/shell/useDetails';
 import { useIncoming } from './src/shell/useIncoming';
@@ -80,6 +80,15 @@ import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
 
 const IS_DEV = __DEV__;
 
+// Screens that load the first time they are opened (src/shell/lazyScreens.tsx): one loader per module.
+const loadChecks = () => import('./src/screens/checks');
+const loadConfig = () => import('./src/screens/config');
+const loadContent = () => import('./src/screens/content');
+const loadOrg = () => import('./src/screens/org');
+const loadReference = () => import('./src/screens/reference');
+const loadReports = () => import('./src/screens/reports');
+const loadSources = () => import('./src/screens/sources');
+
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
   scan_qr: Entry.ScanQr, vision: Entry.Vision, intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
@@ -91,21 +100,21 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   guest_review: Review.GuestReview, add_record: Review.AddRecord, review_capture: Review.ReviewCapture,
   study_guide: Study.StudyGuide, study_step: Study.StudyStep, guide_editor: Study.GuideEditor,
   workspace: Translate.Workspace, back_translation: Translate.BackTranslation,
-  key_terms: Config.KeyTerms, key_term_detail: Config.KeyTermDetail,
+  key_terms: lazyScreen(loadConfig, 'KeyTerms'), key_term_detail: lazyScreen(loadConfig, 'KeyTermDetail'),
   inbox_home: Account.InboxHome, settings_home: Account.SettingsHome, profile_edit: Account.ProfileEdit,
   org_switcher: Account.OrgSwitcher, sign_out_confirm: Account.SignOutConfirm, delete_account: Account.DeleteAccount, sync_status: Account.SyncStatus,
-  org_home: Org.OrgHome, cluster_home: Org.ClusterHome, language_home: Org.LanguageHome,
-  new_language: Org.NewLanguage, members_list: Org.MembersList, invite_member: Org.InviteMember, invite_qr: Org.InviteQr,
-  edit_member: Org.EditMember, check_editor: Checks.CheckEditor,
-  roles_home: Config.RolesHome, role_editor: Config.RoleEditor, reference_home: Config.ReferenceHome, material_editor: Config.MaterialEditor,
-  flows_home: Config.FlowsHome, flow_editor: Config.FlowEditor,
-  templates_home: Content.TemplatesHome, template_picker: Content.TemplatePicker, template_editor: Content.TemplateEditor,
-  book_structure: Content.BookStructure,
-  reports_home: Reports.ReportsHome, reports_language: Reports.ReportsLanguage,
-  reference_bibles: Reference.ReferenceBibles, reference_source: Reference.ReferenceSource, reference_guides: Reference.ReferenceGuides,
-  reference_coverage: Reference.ReferenceCoverage, passage_reference: Reference.PassageReference,
-  bible_explore: Sources.BibleExplore,
-  mic_setup: Simple.MicSetup, get_ready: Simple.GetReady,
+  org_home: lazyScreen(loadOrg, 'OrgHome'), cluster_home: lazyScreen(loadOrg, 'ClusterHome'), language_home: lazyScreen(loadOrg, 'LanguageHome'),
+  new_language: lazyScreen(loadOrg, 'NewLanguage'), members_list: lazyScreen(loadOrg, 'MembersList'), invite_member: lazyScreen(loadOrg, 'InviteMember'), invite_qr: lazyScreen(loadOrg, 'InviteQr'),
+  edit_member: lazyScreen(loadOrg, 'EditMember'), check_editor: lazyScreen(loadChecks, 'CheckEditor'),
+  roles_home: lazyScreen(loadConfig, 'RolesHome'), role_editor: lazyScreen(loadConfig, 'RoleEditor'), reference_home: lazyScreen(loadConfig, 'ReferenceHome'), material_editor: lazyScreen(loadConfig, 'MaterialEditor'),
+  flows_home: lazyScreen(loadConfig, 'FlowsHome'), flow_editor: lazyScreen(loadConfig, 'FlowEditor'),
+  templates_home: lazyScreen(loadContent, 'TemplatesHome'), template_picker: lazyScreen(loadContent, 'TemplatePicker'), template_editor: lazyScreen(loadContent, 'TemplateEditor'),
+  book_structure: lazyScreen(loadContent, 'BookStructure'),
+  reports_home: lazyScreen(loadReports, 'ReportsHome'), reports_language: lazyScreen(loadReports, 'ReportsLanguage'),
+  reference_bibles: lazyScreen(loadReference, 'ReferenceBibles'), reference_source: lazyScreen(loadReference, 'ReferenceSource'), reference_guides: lazyScreen(loadReference, 'ReferenceGuides'),
+  reference_coverage: lazyScreen(loadReference, 'ReferenceCoverage'), passage_reference: lazyScreen(loadReference, 'PassageReference'),
+  bible_explore: lazyScreen(loadSources, 'BibleExplore'),
+  get_ready: Ready.GetReady,
   settings_more: Account.SettingsMore
 };
 
@@ -116,6 +125,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
  * below the top keeps its own params while another is pushed over it.
  */
 const CtxContext = createContext<Ctx | null>(null);
+const NO_PARAMS: Record<string, string> = {};
+const markJoined: Ctx['markJoined'] = (actorId) => AsyncStorage.setItem(`joined:${actorId}`, '1');
 const Stack = createNativeStackNavigator<StackParams>();
 
 /**
@@ -152,11 +163,9 @@ function hostFor(id: ScreenId) {
     const focused = useFocusedSafe();
     // Playback belongs to the screen it started on: leaving it (another screen pushed over it, or a tab
     // switched away) stops whatever was playing. Popping back unmounts the screen, and its players with it.
-    const wasFocused = useRef(focused);
-    useEffect(() => {
-      if (wasFocused.current && !focused) stopAudioPlayback();
-      wasFocused.current = focused;
-    }, [focused]);
+    // Heard from the navigation event, not from a render: a screen being frozen may never draw its blur.
+    const navigation = useContext(NavigationContext);
+    useEffect(() => navigation?.addListener('blur', stopAudioPlayback), [navigation]);
     const pane = useContext(PaneKeyContext);
     const report = useContext(FooterReportContext);
     const key = props.route.key;
@@ -267,8 +276,9 @@ class ScreenBoundary extends Component<{ screen: ScreenId; onBack: () => void; o
         <Text style={txt.h2} accessibilityRole="header">{t('shell.errors.screenTitle')}</Text>
         <Text style={txt.body}>{t('shell.errors.safe')}</Text>
         <Text style={txt.smMuted} selectable>{t('shell.errors.tellCode', { code: this.state.id })}</Text>
+        {/* help-ignore: the crash screen has no ? to turn help on */}
         <GhostBtn label={t('shell.errors.goBack')} icon="left" onPress={reset(this.props.onBack)} />
-        {/* A viewer's home is Progress, not My Work (NAV-070). */}
+        {/* A viewer's home is Progress, not My Work (NAV-070). help-ignore: the crash screen has no ? to turn help on */}
         <GhostBtn label={this.props.homeLabel} icon="home" onPress={reset(this.props.onHome)} />
       </ScrollView>
     );
@@ -293,10 +303,11 @@ export default function App() {
   const [wordsReady, setWordsReady] = useState(languageReady);
   useEffect(() => onLanguageReady(() => setWordsReady(true)), []);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
-  // Help speaks offline too: keep the recorded help lines of the app's language (decision 81).
-  useEffect(() => { void keepHelpAudio(); }, []);
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
+  // Who was signed in when supabase-js next speaks, for diagnostics of a sign-out the person did not choose.
+  const authNow = useRef<AuthSession | null | undefined>(undefined);
+  useEffect(() => { authNow.current = auth; }, [auth]);
   useEffect(() => {
     if (serverConfigError) return;
     let active = true;
@@ -305,8 +316,12 @@ export default function App() {
     // the token is an hour old, and took half a minute to say so.
     const fromStorage = (s: AuthSession | null) => { if (active) setAuth((now) => (now === undefined ? s : now)); };
     AsyncStorage.getItem(SESSION_KEY).then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
-    const unsubscribe = onAuthChange((event, s) => setAuth((now) => afterAuthEvent(now, event, s)));
-    return () => { active = false; unsubscribe(); };
+    const unsubscribe = onAuthChange((event, s) => {
+      noteAuthEvent(event, authNow.current, s);
+      setAuth((now) => afterAuthEvent(now, event, s));
+    });
+    const unwatch = watchRenewals();
+    return () => { active = false; unsubscribe(); unwatch(); };
   }, []);
   return (
     <SafeAreaProvider>
@@ -352,6 +367,10 @@ function Shell(props: { actorId: string; email: string | null; signedIn: boolean
  */
 function Workspace(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean; orgId: string | null; noOrganizations: boolean; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
   const org = useOrg(props.orgId, props.actorId);
+  // Help audio waits for this organization's first sync (src/helpMode/useKeepHelpAudio.ts).
+  useKeepHelpAudio(org.settled);
+  // So is fetching the screens that load when opened, on the web (src/shell/lazyScreens.tsx).
+  usePrefetchLazyScreens(org.settled);
   const known = org.state !== null && (org.state.org !== null || org.settled);
   if (!known) return <View style={styles.root} accessibilityLabel={t('shell.openingOrganization')} />;
   // No organization: the screens still need an id for their keys; '' names none.
@@ -371,8 +390,6 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const { languageId, setLanguage, languages } = useWorkingLanguage(org.state, props.actorId, props.orgId, nav.current.params?.['languageId']);
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
   usePassagesInMemory(language, nav.current.params?.['unitId']);
-  // Web: warn before the tab closes with work still to send (storageGate.tsx).
-  useLeaveGuard(!language.refused && (language.pending > 0 || language.blobs.pendingUp > 0) || org.pending > 0);
   useAccountSync(props.actorId);
   useProfileName(props.actorId, props.email);
   const blocks = useBlocks(props.actorId);
@@ -406,7 +423,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
   useRouting({
-    nav, session, signedIn: props.signedIn, actorId: props.actorId, orgId: props.orgId, arrival: props.arrival, openTask, setLanguage,
+    nav, session, signedIn: props.signedIn, actorId: props.actorId, orgId: props.orgId, noOrganizations: props.noOrganizations, arrival: props.arrival, openTask, setLanguage,
     loaded: foldsSettled(org.state !== null && org.settled, language.state !== null, props.noOrganizations),
     ready: onboarding.loaded && welcomeBack.loaded
   });
@@ -419,14 +436,28 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   useTestProbes({ org, language, languageId, orgId: props.orgId, go, openTask });
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
-  const ctx: Ctx = {
+  const home = useCallback(() => nav.reset({ screen: homeScreenFor(session) }), [nav, session]);
+  const acceptTerms = useCallback((actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'), [props.actorId]);
+  const openDev = useCallback(() => setDevOpen(true), []);
+  const inboxView = useMemo(
+    () => ({ updates: inbox.updates, unread: inbox.unread, isRead: inbox.isRead, markRead: inbox.markRead }),
+    [inbox.updates, inbox.unread, inbox.isRead, inbox.markRead]
+  );
+  const { data: welcomeData, refresh: refreshWelcome } = welcomeBack;
+  const welcomeView = useMemo(() => (hasWelcome(welcomeData) ? { data: welcomeData, refresh: refreshWelcome } : null), [welcomeData, refreshWelcome]);
+  const { markWelcomed } = onboarding;
+  const { openOrganization } = props;
+  const params = nav.current.params ?? NO_PARAMS;
+  // One object until something a screen reads changes: the sync's ticking status is not in it (useSyncStatus.ts),
+  // and the native stack keeps every screen below the top mounted, so each new `ctx` redraws all of them.
+  const ctx: Ctx = useMemo(() => ({
     language,
     org,
     session,
-    params: nav.current.params ?? {},
+    params,
     go,
     back: nav.back,
-    home: () => nav.reset({ screen: homeScreenFor(session) }),
+    home,
     languageId,
     setLanguage,
     languages,
@@ -437,17 +468,19 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     openPassage,
     name,
     blocks,
-    inbox: { updates: inbox.updates, unread: inbox.unread, isRead: inbox.isRead, markRead: inbox.markRead },
-    ...(hasWelcome(welcomeBack.data) ? { welcomeBack: { data: welcomeBack.data, refresh: welcomeBack.refresh } } : {}),
-    markWelcomed: onboarding.markWelcomed,
-    acceptTerms: (actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'),
-    markJoined: (actorId) => AsyncStorage.setItem(`joined:${actorId}`, '1'),
+    inbox: inboxView,
+    ...(welcomeView ? { welcomeBack: welcomeView } : {}),
+    markWelcomed,
+    acceptTerms,
+    markJoined,
     invite,
-    openOrganization: props.openOrganization,
-    openDev: () => setDevOpen(true),
+    openOrganization,
+    openDev,
     isDev: IS_DEV,
     canSwitchPersona
-  };
+  }), [language, org, session, params, go, nav.back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
+    name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, openOrganization, openDev, canSwitchPersona]);
+  const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 
   const screen = nav.current.screen;
   // Phone, tablet or desktop by the window's width alone (decisions.md 55).
@@ -477,11 +510,14 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const listKey = found?.list.key;
   const split = found && listKey ? { ...found, list: { ...found.list, key: listKey } } : null;
   const box = frame(width, { chrome: wide && showTabs, split: !!split });
-  const stackLayout = useMemo((): Layout => ({ kind, contentWidth: box.detailWidth, role: split ? 'detail' : 'single' }),
-    [kind, box.detailWidth, !!split]);
+  const isSplit = !!split;
+  const stackLayout = useMemo((): Layout => ({ kind, contentWidth: box.detailWidth, role: isSplit ? 'detail' : 'single' }),
+    [kind, box.detailWidth, isSplit]);
   const paneLayout = useMemo((): Layout => ({ kind, contentWidth: box.paneWidth, role: 'list' }), [kind, box.paneWidth]);
-  const paneKey = useMemo(() => (split ? { key: split.list.key, ...(split.empty ? { empty: split.empty } : {}) } : null),
-    [split?.list.key, split?.empty]);
+  const splitKey = split?.list.key;
+  const splitEmpty = split?.empty;
+  const paneKey = useMemo(() => (splitKey !== undefined ? { key: splitKey, ...(splitEmpty ? { empty: splitEmpty } : {}) } : null),
+    [splitKey, splitEmpty]);
   const paneCtx: Ctx | null = split ? {
     ...ctx,
     params: split.list.params ?? {},
@@ -504,6 +540,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   return (
     <View style={{ flex: 1 }}>
+      <SyncStatusContext.Provider value={syncSources}>
+      <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused} />
       <PeopleContext.Provider value={people}>
         <View style={{ flex: 1, flexDirection: 'row' }}>
           {wide && showTabs ? navChrome(kind === 'tablet' ? 'rail' : 'sidebar') : null}
@@ -520,7 +558,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator
                 initialRouteName={nav.initial.screen}
-                screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, contentStyle: { backgroundColor: C.bg } }}
+                // Screens under the top one are frozen: they keep their state but skip renders until shown again (react-native-screens).
+                screenOptions={{ headerShown: false, fullScreenGestureEnabled: true, freezeOnBlur: true, contentStyle: { backgroundColor: C.bg } }}
               >
                 {SCREEN_IDS.map((id) => (
                   // Tab-level screens are only ever reached by reset, so they
@@ -540,6 +579,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
       </PeopleContext.Provider>
+      </SyncStatusContext.Provider>
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
       <LostFilesAlert state={language.state} whatWere={language.blobs.lost} />
       {canSwitchPersona ? (
@@ -586,15 +626,16 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
     const sub = AccessibilityInfo.addEventListener('screenReaderChanged', (on) => { reader.current = on; });
     return () => sub.remove();
   }, []);
+  const { register } = props;
   useEffect(() => {
-    props.register((next) => {
+    register((next) => {
       if (timer.current) clearTimeout(timer.current);
       const ms = (next.undo ? 7000 : 3500) * (reader.current ? 2 : 1);
       showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);
     });
-  }, [props.register]);
+  }, [register]);
   // A toast carried over from the host before goes when its time is up.
   useEffect(() => {
     if (!spec?.ms || timer.current) return;

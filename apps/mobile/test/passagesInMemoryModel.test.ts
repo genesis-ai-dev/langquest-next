@@ -1,6 +1,6 @@
 import { nearUnits } from '../src/shell/passagesInMemoryModel';
 
-describe('the passages memory holds around the one on screen (decisions.md 110)', () => {
+describe('the passages memory holds around the one on screen (decisions.md 134)', () => {
   const order = ['a', 'b', 'c', 'd', 'e', 'f'];
   it('holds two on each side, fewer at the ends', () => {
     expect(nearUnits(order, 'c')).toEqual(['a', 'b', 'c', 'd', 'e']);

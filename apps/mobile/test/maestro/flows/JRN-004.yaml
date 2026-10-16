@@ -9,7 +9,7 @@ tags:
   - jrn
   - voice
 ---
-# Step 1: TREV records P-Q4 and publishes Version 1, then "Not now".
+# Step 1: TREV records P-Q4 and publishes Version 1 with Done, then "Send later".
 - runFlow: ../common/launch.yaml
 - runFlow:
     file: ../common/sign-in.yaml
@@ -57,13 +57,14 @@ tags:
     timeout: 30000
 - tapOn:
     id: "record-button"
+# Stop keeps the session open (decision 129): Done leaves it and saves its parts.
+- tapOn: "Done"
 - tapOn:
     id: "publish-button"
-- tapOn: "Publish Version 1"
+- tapOn: "Send later"
 - extendedWaitUntil:
     visible: "Version 1 published\\..*"
     timeout: 20000
-- tapOn: "Not now"
 # Not asked, so no check of one's own version is offered.
 - assertNotVisible: "Do the peer (check|review)"
 # Step 2: COORD asks TREV by name for the peer check.
@@ -177,14 +178,15 @@ tags:
     timeout: 30000
 - tapOn:
     id: "record-button"
+# Stop keeps the session open (decision 129): Done leaves it and saves its parts.
+- tapOn: "Done"
 - tapOn:
     id: "publish-button"
-- tapOn: "Publish Version 1"
-- extendedWaitUntil:
-    visible: "Version 1 published\\..*"
-    timeout: 20000
+# Done: one tap publishes and asks the Peer check team (decision 127).
 - tapOn: "Ask the Peer check team"
-- assertVisible: "Sent to the Peer check team.*"
+- extendedWaitUntil:
+    visible: "Sent to the Peer check team.*"
+    timeout: 20000
 # Step 5: TREV checks the colleague's version: looks good, sent to TRANS.
 - runFlow: ../common/launch.yaml
 - runFlow:

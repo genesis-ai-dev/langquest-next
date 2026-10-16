@@ -284,7 +284,7 @@ test('SETUP-022 Get a language ready, question by question @p0', async ({ page, 
   // A first answer has nothing to go back to: no Undo.
   await expectToast(page, /^Bravo translates .*\./);
   // The language of the Bibles and guides: English already, so no toast.
-  await expectOnScreen(page, '2 of 4', 'Which language should Bravo\'s Bibles and study guides be in?');
+  await expectOnScreen(page, '2 of 4', 'Which languages should Bravo\'s Bibles and study guides be in?');
   await primary(page).click();
   await expectOnScreen(page, 'What will help them?', 'Bibles they understand');
   // The local library has no Bible (no source@1 is seeded): there is none to tick here.
@@ -650,7 +650,7 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   await expectOnScreen(page, 'Change how Genesis is broken up', 'Divide it your own way', 'Or pick a ready-made way', 'Rename or remove Genesis');
   await text(page, 'OpenBible: usual sections').click();
   await button(page, 'Change Genesis').click();
-  await expectToast(page, 'Genesis is divided. Save the template to keep it.');
+  await expectToast(page, 'Genesis is divided.');
   await expectOnScreen(page, /OpenBible: usual sections · \d+ pieces/);
   // Its name in the language, and taking it out.
   await text(page, 'Exodus').click();
@@ -665,21 +665,23 @@ test('SETUP-037 Make a Scripture template', async ({ page }) => {
   expect(await orgRefused(page, w)).toEqual([]);
 });
 
-test('SETUP-038 Edit a template; leave without saving', async ({ page }) => {
+test('SETUP-038 Edit a template; leaving keeps the draft', async ({ page }) => {
   const w = world();
   const name = `Gospels ${w.run.slice(-4)}`;
   await openAs(page, w, 'ADMIN');
   await contentTemplates(page, w);
   await cardWith(page, name, 'Edit').getByRole('button', { name: 'Edit', exact: true }).click();
   await field(page, 'What it\'s for').fill('The four gospels first.');
+  // Kept on this device as it changes (decision 127): the header's saved mark turns into a check.
+  await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
+  // Back leaves at once: nothing asks, and nothing is published.
   await back(page).click();
-  await expectOnScreen(page, 'Leave without saving?', 'Your changes to this template are not saved.', 'Keep editing', 'Leave');
-  await text(page, 'Keep editing').click();
-  await back(page).click();
-  await text(page, 'Leave').click();
   await expectOnScreen(page, 'Content Templates');
+  await expect(byId(page, 'toast')).toHaveCount(0);
+  // Opening it again brings the change back; Done publishes it, as version 2 (leaving published nothing).
   await cardWith(page, name, 'Edit').getByRole('button', { name: 'Edit', exact: true }).click();
-  await field(page, 'What it\'s for').fill('The four gospels first.');
+  await expect(field(page, 'What it\'s for')).toHaveValue('The four gospels first.');
+  await expect(primary(page)).toHaveText('Done');
   await primary(page).click();
   await expectToast(page, `${name} saved as version 2.`);
   await expect(byId(page, 'toast-undo')).toHaveCount(0);

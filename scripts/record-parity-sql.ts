@@ -7,7 +7,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, PRIVILEGES, entityKeyOf, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
+  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
   validateEvent, type AnyEvent, type Role
 } from '@langquest-next/core';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
@@ -32,7 +32,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.ReviewRecorded': ['comment', 'commentBlobHash', 'answers', 'skipped', 'people', 'place', 'givenBy', 'requestId', 'artifacts'],
   'v1.DepartureRecorded': ['kindId', 'stepId', 'reviewId', 'reasonBlobHash'],
   'v1.RequestMade': ['kindId', 'profileId', 'guest', 'teamId', 'dueDate', 'note', 'noteBlobHash', 'questions'],
-  'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId'],
+  'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId', 'kindId'],
   'v1.LibraryItemDefined': ['copiedFrom'],
   'v1.LibraryVersionPublished': ['note'],
   'v1.TemplateSelected': ['books'],
@@ -61,6 +61,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
   for (const k of new Set([...Object.keys(p), ...(OPTIONAL[e.type] ?? [])])) {
     variants.push({ ...p, [k]: 5 }, { ...p, [k]: null }, { ...p, [k]: '' });
   }
+  // A name every object has, as each string field and as a key (decisions.md 113).
+  for (const k of Object.keys(p)) if (typeof p[k] === 'string') variants.push({ ...p, [k]: '__proto__' }, { ...p, [k]: 'constructor' });
+  variants.push({ ...p, extra: JSON.parse('{"__proto__": {"toString": 1}}') as unknown }, { ...p, extra: [['valueOf']] });
   if ('outcome' in p) variants.push({ ...p, outcome: 'approve' });
   if ('type' in p) variants.push({ ...p, type: 'ignore' });
   if ('anchor' in p) {
@@ -106,6 +109,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.ReferenceSet':
       variants.push({ ...p, state: 'pinned' });
       break;
+    case 'v1.ReferenceLanguageAdded':
+      variants.push({ ...p, language: '' }, { ...p, language: 'Greek' }, { ...p, language: 'x' }, { ...p, added: 'yes' });
+      break;
     case 'v1.ReferenceLanguageSet':
       variants.push({ ...p, language: '' }, { ...p, language: 'French' }, { ...p, language: 'x' }, { ...p, language: 'x'.repeat(41) }, { ...p, language: 7 });
       break;
@@ -117,6 +123,10 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       break;
     case 'v1.CheckHelpSet':
       variants.push({ ...p, itemId: 'x', materialId: 'y' }, { kindId: p['kindId'], linked: true }, { ...p, materialId: '' }, { ...p, itemId: '' }, { ...p, kindId: '' });
+      break;
+    case 'v1.CheckShowsSet':
+      variants.push({ ...p, what: 'bible' }, { ...p, what: 'BibleText' }, { ...p, shown: 'no' }, { ...p, kindId: '' },
+        { ...p, what: 'notes', from: 'peer' }, { ...p, what: 'earlier', from: '' }, { ...p, what: 'bibleText', from: 'peer' }, { ...p, what: 'notes', from: 7 });
       break;
     case 'v1.BookNameSet':
       variants.push({ ...p, book: 'luk' }, { ...p, book: 'LUKE' }, { ...p, book: '1 SA' });
@@ -218,6 +228,23 @@ const scopedLanguage = [...events, ...broken.filter((e) => SCOPED.has(e.type) &&
 // The entity a creating event names (one event per entity in a stream, decisions.md 75).
 const entities = events.map((e) => ({ type: e.type, payload: e.payload, key: entityKeyOf(e) }));
 
+// How big an event may be (decisions.md 115): each fixture, and payloads on
+// either side of the limit, of text, of many small numbers (a space after
+// every comma) and of nested objects (one after every colon too).
+const room = (shape: (n: number) => unknown, base = shape(0)) => EVENT_PAYLOAD_MAX_BYTES - jsonbTextBytes(base);
+const near = [
+  (n: number) => ({ text: 'x'.repeat(n) }),
+  (n: number) => ({ text: 'é'.repeat(Math.floor(n / 2)) }),
+  (n: number) => ({ nums: Array.from({ length: Math.floor(n / 3) }, () => 1) }),
+  (n: number) => ({ objs: Array.from({ length: Math.floor(n / 9) }, () => ({ a: 1 })) })
+].flatMap((shape) => {
+  const r = room(shape);
+  return [-6, -3, 0, 3, 6, 30].map((d) => shape(r + d));
+});
+const sizes = [...events, ...near.map((payload) => ({ ...events[0]!, payload }) as AnyEvent),
+  { ...events[0]!, deviceId: 'd'.repeat(256) }, { ...events[0]!, deviceId: 'd'.repeat(257) }]
+  .map((e) => ({ ev: e, ok: eventSizeError(e) === null }));
+
 writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r jsonb; begin
   for r in select * from jsonb_array_elements(${sql(rows)}) loop
     if (public.validate_payload(r->>'type', r->'payload') is null) is distinct from (r->>'valid')::boolean then
@@ -239,6 +266,16 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
       raise exception 'language_of_org_event disagrees with core: %', r;
     end if;
   end loop;
+  for r in select * from jsonb_array_elements(${sql(Object.keys(EVENT_PRIVILEGE).map((type) => ({ type, org: (ORG_EVENT_TYPES as readonly string[]).includes(type) })))}) loop
+    if (r->>'type' = any (public._org_event_types())) is distinct from (r->>'org')::boolean then
+      raise exception '_org_event_types disagrees with core on %', r->>'type';
+    end if;
+  end loop;
+  for r in select * from jsonb_array_elements(${sql(sizes)}) loop
+    if (public._event_size_refusal(r->'ev') is null) is distinct from (r->>'ok')::boolean then
+      raise exception '_event_size_refusal disagrees with core on % bytes: %', octet_length((r->'ev'->'payload')::text), public._event_size_refusal(r->'ev');
+    end if;
+  end loop;
   for r in select * from jsonb_array_elements(${sql(entities)}) loop
     if public._entity_key(r->>'type', r->'payload') is distinct from r->>'key' then
       raise exception '_entity_key disagrees with core: % (sql says %)', r, public._entity_key(r->>'type', r->'payload');
@@ -246,5 +283,5 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
   end loop;
 end $$;
 select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks,
-  ${entities.length} as entity_checks;
+  ${entities.length} as entity_checks, ${sizes.length} as size_checks;
 `);

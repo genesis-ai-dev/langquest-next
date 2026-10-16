@@ -286,7 +286,7 @@ state would have to be kept coherent by the reducer, which is exactly the
 trigger-maintained rollup PLAN.md section 2 warns against.
 
 Amended (2026-10-14, Caleb Koster): a phone that keeps a big language on
-disk (decision 110) also keeps one line per passage there, so lists never
+disk (decision 134) also keeps one line per passage there, so lists never
 need every passage's record in memory. The lines are still views: outside
 the state, never snapshotted or synced, and worked out by core's own
 `derivePassage` from the passage's records whenever an event touches that
@@ -941,6 +941,15 @@ and every answer carries an ETag over its rows and `X-As-Of`, so an
 unchanged answer is a 304. `_org` gets no server snapshot: with the cache it
 is folded from 0 once per reducer version.
 
+Amended (2026-10-15, Carl Sauder): the folds held in memory are capped by
+the size of their serialized text (`STATE_BUDGET_BYTES`, 40 MB, always at
+least one) instead of eight by count, a language of 2 MB or more is
+refreshed alone while smaller ones still go four at a time, and a large
+fold is let go once it is in the cache (`apps/web/worker/orgFolder.ts`). A
+14 MB snapshot parses to well over 100 MB in a 128 MB isolate, and every
+language is recomputed when the UTC day turns (performance-audit-app.md
+V4). The limits are not yet measured against a real isolate.
+
 ## 45. Merging to main ships Android to Google Play's internal testing track
 
 Date: 2026-09-30 · By: Caleb Koster · Status: accepted
@@ -1304,6 +1313,16 @@ Amended (2026-10-07, Carl Sauder): "Looked-after accounts cannot invite" is
 superseded by 67; their role decides, as for anyone. Helping someone sign
 in still needs an account with its own email.
 
+Amended (2026-10-15, Carl Sauder): a looked-after account is one `join`
+made, not any address at people.langquest.org. Sign-up is open, so anyone
+could make a password account in that domain and be taken as looked-after
+by the server, which lets helpers issue it sign-in codes. `join` now sets
+`app_metadata.managed`, which only the service role can write, and
+`is_managed_account` asks for it as well as the domain (migration
+20261016080000; the accounts already in the domain were all made by `join`
+and are marked there). The phone still tells a looked-after account by its
+domain, which only changes what it shows.
+
 ## 55. Wide windows get a centred column, a side rail or sidebar, and list–detail panes; phones are unchanged
 
 Date: 2026-10-01 · By: Carl Sauder · Status: partly superseded by 58
@@ -1521,6 +1540,10 @@ each one, about half a kilobyte apiece, so the move cost 30 KB beyond the
 code it moved (5.98 MB on main, 6.01 MB after). The budget still says when
 the download grows; one module per concern is worth that half kilobyte.
 
+Amended (2026-10-15, Carl Sauder): the export is now a main file and one
+file per screen module that loads when opened, and the budget is two: 5.7
+MiB for what a first visit loads, 6.5 MiB for all of it (123).
+
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -1615,6 +1638,22 @@ before. Tests `packages/client/test/courier.test.ts`,
 `apps/mobile/test/handOver.test.ts`.
 Reverse if: kept sessions outlive their work in the field (then they
 expire after a set time), or a phone signs work in as the wrong person.
+
+Amended (2026-10-15, Carl Sauder): the signed-in session and the sessions
+kept here now live in the iOS Keychain and the Android Keystore through
+`expo-secure-store`, not in AsyncStorage; the web build is unchanged and keeps
+the browser's storage, which signing out wipes. A security audit found
+refresh tokens, ours and other people's, in plaintext AsyncStorage, where a
+backup, a rooted phone or a stolen one could read them. A session is longer
+than SecureStore's 2 KB guidance, so `apps/mobile/src/server/secureStorageModel.ts`
+cuts a value into parts and encodes the key; the list of hand-overs holds
+no secret and stays in AsyncStorage. A value found only in the old place
+moves over on its first read, so people already signed in, and hand-overs
+already waiting, survive the upgrade. The Android backup rules keep the
+Keystore-encrypted values out of backups. supabase-js reads its session at
+every request, so values are kept in memory once read; an entry the Keystore
+can no longer read counts as signed out. Test
+`apps/mobile/test/secureStorage.test.ts`.
 
 ## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
 
@@ -1911,6 +1950,20 @@ newest snapshot is behind its stream and an hour old, so it gets a new one
 (88); a language whose stream moved is still folded every pass, but its
 snapshot is written only on 88's schedule.
 
+Amended (2026-10-15, Carl Sauder): the pass also skips a language whose
+stream moved when the organization and the listing are as its mark left
+them, no snapshot is due (88's schedule, unchanged), and every event since
+the mark, at most 1,000, is of a type that cannot change an Inbox row, a
+row's title or the language's progress (`eventsThatCannotChangeInbox`,
+`packages/core/src/quiet.ts`, held by a property test). It reads only those
+events and moves the mark; the snapshot is not downloaded. A type not
+checked is left out and costs a full fold, so a new language event type is
+read against the list before it joins it. `public_languages` is written
+only when something it shows changed, and the snapshot's age comes from the
+list the pass already read (performance-audit-app.md V2). Reverse if a
+skipped language's Inbox rows are found stale: take that type out of the
+set.
+
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -2029,7 +2082,7 @@ organization (101).
 
 ## 71. One simpler set of screens for everyone, keeping every capability
 
-Date: 2026-10-08 · By: Caleb Koster · Status: accepted
+Date: 2026-10-08 · By: Caleb Koster · Status: partly superseded by 125
 
 Reason: clients who had watched field translators with little or no
 experience with technology preferred Ryder's simplified screens (one task,
@@ -2231,6 +2284,34 @@ most translators (the demo's ADR-029 shows it only to people in more than
 one). The list is read once per run and shared
 (`account/useOrganizations.ts`), so the row does not jump between Me and
 More settings.
+
+Amended (2026-10-14, Caleb Koster): every part explains itself. Caleb asked
+for help on every element that should have it, with the principle behind it
+applied across the app. What deserves help:
+1. Everything a person can tap, type in, switch or drag is a part: while help
+   is on it lights, takes a number, and explains itself instead of acting.
+   Before, about 90 controls outside the kit still acted, as did the kit's
+   tappable cards, sections that open in place, Show more, fields, switches,
+   Back and the tabs, so a tap in help mode could leave the screen or open the
+   keyboard. Back now explains itself too: the ? is the one way out of help.
+2. A part says what tapping it does, not only its name. Buttons, chips,
+   tappable cards and rows whose label is one word or a name carry a line
+   (`help` on the kit's controls; a Row's `sub` unless `help` is given).
+3. A mark that means something without words (the sync dot and ring, a
+   step's state marks, a bar or a bare count) explains itself (kit's
+   `HelpInfo`), or the part it sits in says what it means.
+Plain words that say what they are need nothing. Sheets have their own ?: on
+a phone a sheet is a window of its own, so help draws inside it and lights
+only its parts (`useHelpHost`), and help turns off when a sheet opens or
+closes. `apps/mobile/test/helpParts.ts`, run by `helpMode.test.ts`, fails on a
+control without its line; a `help-ignore:` comment marks the few that need
+none (a sheet's backdrop, toasts, the crash screen, the update banner above
+the help layer). The 883 English lines add 59 KB to what a first visit
+downloads on the web, so its budget rose from 6.1 to 6.25 MB
+(`apps/mobile/scripts/export-web.mjs`, 6.17 MB then).
+Reverse if: people stop using help because the extra numbers crowd a screen
+(then number only the parts in reach of the ? first), or a line per part
+costs more to translate and record than field tests show it saves.
 
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
@@ -2506,6 +2587,34 @@ lead. The UI test suite holds this (SETUP-061 to 066, MAP-023).
 
 Amended (2026-10-13, Carl Sauder): nobody may leave the organization
 without someone who can manage roles (98).
+
+Amended (2026-10-15, Carl Sauder): a resend is a duplicate even while the
+first push is still being inserted. A push that timed out on a weak link
+is retried with the first still in flight (the client no longer overlaps
+its own pushes, `SyncClient.exclusive`, but a lost response still races on
+the server). `append_events` checked the id before it took the stream's
+lock, so the retry passed that check, waited on the lock, and found the
+entity id taken: it refused the event, and the phone folded out work the
+server holds; an event with no entity id failed the whole batch on the
+primary key. Every event now takes its stream's lock once it is authorized
+and valid (`_next_seq` took it anyway, so nothing waits longer) and checks
+the id again under it, answering a stored event of the same organization,
+stream, actor and type as `duplicate` with its seq. The lock comes after
+authorization so nobody makes or holds a stream they may not write. The
+same id pushed to two different streams at once still fails one batch on
+the primary key; the retry is then refused (`event id already used`), as
+it should be. Migration `20261015180000_append_duplicate_under_lock.sql`;
+SQL test `server/concurrentAppendSmoke.sql`, two sessions over dblink.
+
+Amended (2026-10-15, Carl Sauder): the server's own events race the same
+way. `_append_event_as` (blob verdicts, invites redeemed, join decisions,
+redactions, account deletions, library pins) checked the id before
+`_next_seq` locked the stream, so two Worker or projection passes
+appending the same id at once failed the second on the primary key and
+aborted its caller's transaction. It now takes the stream's lock and
+checks the id again under it, returning null as it says it does.
+Migration `20261015190000_append_event_as_under_lock.sql`; cases 4 and 5
+of `server/concurrentAppendSmoke.sql` (`record_blob` twice at once).
 
 ## 76. Names identify nothing: a repeated language is warned about, and an organization can be renamed
 
@@ -2872,6 +2981,16 @@ would need a new event with the version in it.
 Reverse if: teams need drafts others can pick up and change (then a draft
 would need an owner other than whoever composed its takes).
 
+Amended (2026-10-16, Caleb Koster): "deleting a published version" is no
+longer rejected. Whoever published a version can delete it, as a tombstone
+that keeps its number and its checks on the record (decision 124). Deleting a
+draft now asks first instead of offering Undo.
+
+Amended (2026-10-15, Caleb Koster): the workspace has no Save any more; a
+saved mark in its header turns from a spinner to a check as each part is
+kept, and Publish is Done, which asks for the next check in the same tap
+(decision 127).
+
 ## 84. Reference material says the language it is in, and FIA is chosen with its language
 
 Date: 2026-10-10 · By: Caleb Koster · Status: accepted
@@ -3198,6 +3317,22 @@ else the smallest role that both translates and reviews but runs nothing
 (other than Translate's own role), else the checking role. With only the
 seed roles, that is Reviewer (`plainRoleChoices` in `simple/adminModel.ts`,
 PEOPLE-003).
+
+Amended (2026-10-16, Caleb Koster): no check hosted by LangQuest comes with
+premade questions yet (LAN-85). Spoken asked how to change the community
+check's questions, which were LangQuest's shipped set and could not be
+edited on the check. Caleb (2026-10-16): there should just be a community
+check, and the admin puts in their own questions, notes and helps;
+LangQuest will do something specific later. So `QUESTION_TEMPLATES`,
+`instantiateQuestionSet` and `questionSetMaterialId` are gone from core,
+`questionsForKind` returns the language's own question sets for the check
+and then the request's, and the library seed no longer publishes LangQuest's
+two question sets (the hosted library keeps them until someone removes
+them there). Someone who manages flows opens the check from the questions
+on the ask page and on Someone else, to change them there. Changes made
+on a check's page (its people, its helps, what its step shows) say what
+happened without an Undo button (Caleb, 2026-10-16: no timed undo toasts);
+each is reversed the way it was made.
 
 ## 92. A phone writes down the files it keeps, and a file it loses behind the app's back is an alarm
 
@@ -3688,6 +3823,48 @@ run's flags into exclusions and a printed list. The flows had been written
 to fail rather than pass silently; a skip that is printed keeps that
 honesty without the noise. Named flows (`--flow`) still run as asked.
 
+Amended (2026-10-15, Carl Sauder): the PR jobs no longer wait for
+`checks`, and `ui-web` runs in two shards. A PR waited about 12 minutes:
+`checks` (2.4 min), then `ui-web` (8 to 10 min), of which the `@p0` tests
+were 5 to 6.5 min on four workers that were busy only 70% of the time,
+because the one long `@wide` journey (JRN-005, about 2 min) was queued last
+and ran alone. Now the four jobs start together, a job that needs the local
+stack starts it in the background while it installs browsers, the `wide`
+project is listed first, and each project builds its own fixture world, so
+the two can run one file at once. Shards, not more workers: a runner has
+four cores and already runs the stack and the Worker beside the browsers.
+A failing `checks` no longer saves the other jobs' runner time, which on a
+public repository costs nothing. Reverse if: runner minutes start to cost
+(a private repository, or a paid plan's limit), or the shards' runs disagree
+with an unsharded one.
+
+Amended (2026-10-15, Carl Sauder): coverage thresholds also hold the
+mobile screen models (`apps/mobile/src/**/{model,*Model}.ts`), and every
+threshold sits about two points under what is measured, raised as coverage
+rises. A coverage audit that day found decision logic had grown back into
+screens and hooks (Get ready's help items, My Work's to-dos, the break-up
+rules) and a model at 0% that nothing flagged; the logic moved into models,
+and a threshold keeps it there. Thresholds well under the measured value had
+let a gain slip back unnoticed.
+
+Amended (2026-10-16, Carl Sauder): "reported" now means filed in Linear.
+The whole web suite had failed on the first two nights (5, then 8 tests)
+and nobody knew: a red scheduled run only emails whoever last edited its
+cron line. Each nightly job now ends with `scripts/nightly-report.mjs`,
+which opens an unassigned issue in the team per failing test (titled
+`Nightly: <test> [<project>]`), or one for the whole run when it left no
+report or more than 15 tests failed (one cause, such as the stack not
+starting), and one per fleet or mutation job that fails. As in decision
+53 the state lives in the issues: a failure that persists adds nothing,
+and a turn to passing or back to failing is one comment. The reporter
+never closes an issue; a fix names it and linear-sync moves it, and a
+test that fails again after its issue is closed opens a new one naming
+the old. A run off `main` only prints what it would file. Linear rather
+than a chat message, because an open issue waits for someone to act on it.
+The quarantine job stays unreported: its tests already have an issue.
+Reverse if: a night's issues are mostly noise (then raise the bar, or
+report a weekly digest from scripts/ui-flakes.mjs instead).
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted
@@ -3824,9 +4001,87 @@ client per area with errors mapped once; or feature folders start
 importing each other in a cycle, which would mean a shared layer belongs
 below them.
 
+Amended (2026-10-15, Carl Sauder): ESLint holds what may import what
+(`eslint.config.mjs`, `npm run lint`, in CI's `checks` job and the
+pre-push hook). Core imports nothing; sync only core and supabase-js (its
+`src/testing`, Node built-ins too); nothing outside `src/server` imports
+the Supabase client or supabase-js (types aside); nothing but `App.tsx`
+and other screens imports a screen file; screens import no AsyncStorage,
+SQLite, file system or event store; `model.ts` and `*Model.ts` import no
+React, React Native, Expo, storage, `server/`, hooks or UI (types aside);
+`src/server` imports no React, screens or shell; packages are imported by
+their entry. Carl asked for it as strict as is reasonable: an audit after
+the restructure found three feature models importing
+`screens/configModel.ts` (now `src/config/model.ts`) and three screens
+reaching storage themselves, which tests had not caught. React's
+rules-of-hooks is on too; exhaustive-deps is not yet, since turning it on
+means reviewing 55 effects whose re-runs would change.
+
+Amended (2026-10-15, Carl Sauder): part two is done, earlier than planned.
+Carl chose to make the moves while six pull requests were open rather than
+wait for the three that overlap (96, 120, 126), so the moves are a codemod:
+`scripts/restructure/moves.json` says where each file went and
+`node scripts/restructure.mjs` makes the moves and rewrites everything
+that names them, and can be run again. A branch made before the moves runs
+it, commits, then merges `main`, so the moves meet themselves and only its
+own edits are left to merge (`docs/merging-onto-the-restructure.md`). The
+src root's files and `simple/` went to `shell`, `ui`, `sync`, `web`,
+`audio`, `recording`, `helps`, `helpMode`, `mic`, `admin`, `invites`,
+`work`, `map`, `account`, `auth`, `moderation`, `notifications`,
+`diagnostics` and the existing feature folders; `recordingJournalCore.ts`
+is `recordingJournalModel.ts`; `dev.ts` went to `auth/`, since `src/server`
+may not import the shell. The passage record, the Map and reference
+material had their rules moved out of their screens as config and content
+had. ESLint now also holds `src/ui` as the design system, importing only
+itself, `i18n`, `helpMode` and `shell/flow`, and keeps `src/server` from
+the UI; `apps/mobile/test/folders.test.ts` keeps code out of the src root
+and `simple/` gone.
+
+Amended (2026-10-15, Carl Sauder): each file has one role, and its name
+says which. Carl found the roles too loose once code was by feature: a
+folder no longer said whether a file held components, hooks or helpers,
+and about sixty files mixed them. Rather than go back to folders by kind,
+the name carries the role: `screens/*.tsx` are screens; any other `.tsx`
+exports components only (`eslint-plugin-react-refresh`); a `use<Thing>.ts`
+file exports hooks only, with the contexts they read; `model.ts` and
+`<thing>Model.ts` are pure, and never `.tsx`; `src/server/` holds the
+server calls; every other `.ts` is a module, which exports no hooks.
+`eslint-plugin-boundaries` holds which role may import which, for values
+(types may come from anywhere): a component reaches the server through a
+hook or module, a hook returns data rather than importing components, a
+model or module imports neither components nor hooks, and a screen imports
+no other screen, so the checks list the flow editor shows is
+`checks/LanguageChecks.tsx`, no longer part of the checks screen. The split is a second codemod
+round: the moved hooks and helpers are a hand commit that leaves
+re-exports, and `movedExports` in `scripts/restructure/moves.json` repoints
+every import of a moved name, on this branch and on any made before it.
+
+Amended (2026-10-15, Carl Sauder): the codemod (`scripts/restructure.mjs`,
+`scripts/restructure/moves.json`) and `docs/merging-onto-the-restructure.md`
+are removed. Pull requests 126, 125, 123, 121 and 129 merged through it,
+and the two still open from before the restructure (96 and 120) will be
+redone on the new structure rather than merged across it, so no branch
+needs them. Git history keeps where each file went. The layout and the
+roles are held by `eslint.config.mjs` and `apps/mobile/test/folders.test.ts`.
+
+Amended (2026-10-15, Carl Sauder): react-hooks/exhaustive-deps is on, as
+an error, in the app. Carl chose to turn it on after seeing what it would
+take: a hook that reads a value it does not list keeps that value from the
+draw it first ran in, and agents write much of the code. Of the 55 hooks it
+named, most only spelled their dependencies in a way the rule cannot read
+(a method called on an object, a field of a value that is new each draw),
+and now read them once instead; two read a value they did not list and
+could show it stale (the source reader's language and whether it is
+online). The rest list less or more on purpose, because the org and
+language folds change their maps in place, because a counter is bumped on
+cleanup, or because a key made of the inputs stands for them; each says why
+after `--` on its disable comment, which lint now requires
+(`@eslint-community/eslint-comments/require-description`), and a disable
+that no longer excuses anything is an error.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
-Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+Date: 2026-10-14 · By: Caleb Koster · Status: partly superseded by 125
 
 Reason: supersedes 13 in part. Decided 2026-10-12, logged as 106 when it reached main after the restructure. Recording on v3 felt flaky to Caleb, and v2's users had complained
 of parts cut out. The detector was v2's unchanged (13), so the causes were
@@ -3978,7 +4233,7 @@ with no change to the events.
 
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
-Date: 2026-10-14 · By: Ryder Wishart · Status: accepted
+Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 131
 
 Reason: Ryder asked for the whole EveryBible loop for a stakeholder demo:
 a recorded passage goes out for review, reviewers hear it in EveryBible,
@@ -4022,9 +4277,876 @@ publishes on approval, per language), reviewers need their own accounts
 change feed and webhooks prove too slow for live listening (then push from
 the organization's Durable Object directly).
 
-## 110. A big language keeps each passage's record on the phone's disk; memory holds the passages on screen, and lists read one line per passage
+## 110. A checkpoint from an older reducer is dropped with its stream's cursor, so the phone fetches the stream again
 
-Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: a phone checkpoints every 2000 confirmed events and prunes what the
+checkpoint covers (invariant 10). An update that bumps `REDUCER_VERSION`,
+which happens often, made that checkpoint unreadable, and invariant 10 said
+the client then "folds the log", but the log held only the tail after the
+checkpoint. `load()` folded that tail from empty state, `pullSlice()` took a
+server snapshot only at cursor 0, which the cursor was not, and the next
+checkpoint saved the partial state under the new version, so every language
+and organization stream that had pruned lost most of its work on the phone
+for good (the server's log was intact). The fleet modelled a reducer bump
+as a reinstall with an empty store and never saw it. Now `load()` drops a
+checkpoint from another reducer version and puts the stream's cursor back
+to 0 in one write (`dropStaleCheckpoint` in `packages/sync/src/syncClient.ts`).
+The next pull takes the server's snapshot for this reducer, or, when there
+is none (the organization stream never has one, 44), pulls the log again from
+the start. With nothing below the cursor missing, no checkpoint can be
+partial. Until the phone reaches the server it shows the events still in its
+log, the person's unsent work among them, as a first download does. The
+`load` record carries `staleCheckpointSeq` so support can see it happened
+(`docs/diagnostics.md`). The fleet's `reducerBump` scenario and a
+`fleet.test.ts` case now update phones that keep their store
+(`SimDevice.update`, `Fleet.deployReducer`). Turned down: keeping the whole
+log on the phone (the reason for pruning is replay bounded by recent
+history), and migrating checkpoints between reducer versions (a migration
+per bump, with the risk of a wrong one that the server cannot correct).
+Reverse if: phones that update while offline need their language on screen
+before they reach the server; then keep the pruned events beside the
+checkpoint until a checkpoint from the new reducer replaces it.
+
+## 111. Whoever gave a review or added a note can take it back, as a new event, and the record keeps the review crossed out
+
+Date: 2026-10-15 · By: Caleb Koster · Status: accepted
+
+Reason: Spoken's tester approved a peer check by accident and found no way
+back (LAN-84). A review was grow-only with no inverse: its toast had no
+Undo, the record stopped offering the check once it was approved, and only
+a moderator's redaction (48) could remove it. Caleb asked for approval to be
+undoable, and for the other actions people would want to take back. What
+was built:
+- **Two events, the shape `v1.RequestWithdrawn` already has.**
+  `v1.ReviewWithdrawn { reviewId }` and `v1.NoteWithdrawn { noteId }`,
+  add-wins (`withdrawnReviews`, `withdrawnNotes` in `RecordState`). Nothing is
+  deleted: the log keeps the review, and `derivePassage` leaves it out of
+  every status, so the check is open again, a request it answered is open
+  again (back on the reviewer's My Work), feedback stops waiting on the
+  translator, and a checkpoint it cleared holds the steps after it again.
+  Inbox rows follow, since they are derived (`updatesFor`).
+- **Only the author.** A withdrawal counts only when its actor is the
+  review's or note's own author (`withdrawnBy`), so a refused or stray one
+  changes nothing on a phone, whichever arrives first. The server's
+  `may_emit` refuses anyone else's, and one for a review or note it has not
+  seen (`20261015220000_withdraw_reviews_notes.sql`, `server/grantsSmoke.sql`
+  10b). Removing someone else's words stays a moderator's redaction (48).
+- **Where Undo is.** The toast after Looks good, Send feedback, a logged
+  check, a back translation and every note. Later: on your own check in its
+  step sheet, on your own review's page, and on your own review or note in
+  the history. A review taken back stays in the history and on its page,
+  crossed out, "undone just now"; a note taken back shows nowhere. No words
+  were added to explain any of it (Caleb's rule for this work).
+- **A study step marked done** already had a register (`v1.StudyStepMarked`),
+  so its Undo after the toast is the same event with `done: false`.
+Reducer version 17: the state has two new maps.
+Not given an Undo: publishing a version (the "Delete a version" work,
+LAN-83, takes that), withdrawing a request or bringing back a set-aside
+check (both are two taps to do again), declining a join request (the person
+can ask again), renames and library publishes (done again the same way), the
+license (final by design, 38), and a key term tie (grow-only, its own topic).
+Reverse if: teams need someone else (a coordinator) to take back a
+reviewer's verdict, then add a privilege for it beside Override checkpoints;
+or a verdict taken back must disappear from the history too, then show it
+only to its author.
+
+Amended (2026-10-16, Caleb Koster): on the recording screen and in back translation, Undo is two arrows by the red button, not a toast (decision 133).
+
+## 112. Diagnostics reach us without waiting on a stuck upload, cover sign-in, recording and the server's own jobs, and stay counts and codes
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: Carl asked for an audit of what field diagnostics (39) can and
+cannot see after the features added since, and for every gap it found to be
+closed (2026-10-15). The worst gap was delivery itself: records went out
+only after a language sync with no upload waiting, and uploads retry for
+ever, so one file the server always refuses (a 413 over 50 MB, a 403 after
+removal) kept every record on the phone that support most needed to hear
+from; and a phone that never opened a language (no organization yet, a join
+request waiting, stuck on the organization stream) never sent anything.
+Now records also go when every waiting upload has failed at least once,
+after a refused sync, when the organization stream settles and on sign-in.
+The rest made failures that were invisible or mislabelled readable, still
+within 39's rule that a record is measurements and code-written tags:
+- `sync` says why work was rejected, separates a sign-in that could not be
+  renewed (a rate limit, a 5xx, a captive portal: it read as offline) and
+  carries an error's SQLSTATE or PostgREST code and where it failed;
+- `load` says why a fold ran and splits reading from folding; `checkpoint`
+  and `open` (first full pull) are new; `snapshot` says why it was fetched;
+- `transfer` names its source (guide media, hand-over, streamed play, source
+  audio, help, study files were untallied) and the Worker's refusals by
+  meaning (401/403, 404, 413, 422), and a file gone before upload;
+- `device` adds lost files (92), unsent and unrecoverable recordings, the
+  oldest unsent recording, the streams and events held, and the
+  diagnostics queue, including records dropped past its bound;
+- `error` takes a fixed code (a recorder's `nospace`, a SQLSTATE);
+- `expected` tallies per hour what `noteExpected` saw (it only logged), by
+  where, class and code; `audio` tallies recording and playback per hour per
+  language; `auth` records sign-in, renewal, a sign-out the person did not
+  choose, invites, hand-over and the account outbox, never a name, an email,
+  an invite or the other person on a shared phone.
+On the server, jobs that leave nothing support can read (push delivery,
+projection passes, the v2 import, webhooks, invite email, Worker errors)
+write counts to `diag.job_runs` through a service-role function, and
+`diag.jobs()` flags a job whose last success is too old; `npm run diag` gains
+`org`, `person` and `jobs`. Messages are still never kept: they can quote
+what someone typed. Turned down: accepting records before sign-in with the
+public key (an abuse and privacy cost for a gap that sign-in closes), native
+error codes from the microphone module (a native build; the JS side maps its
+texts to codes), and a third-party tracker for the Workers (39's reasons
+stand). Reverse if: the volume of `expected` or `audio` records outgrows the
+5000-a-day cap per install, or Play's Data safety review reads recording and
+sign-in outcomes as more than "App info and performance".
+
+## 113. No event may use a name every object already has
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: the fold keys its maps by the ids in events (`state.takes[takeId]`),
+and a security audit showed that a member with `translate` could push
+`v1.TakeArchived { takeId: "__proto__" }`: both validators passed it, and
+folding it set `archived` on Object.prototype, so every object on every
+phone in that language, and in the projection worker, changed, on every
+refold, for good, since the log is append-only. Now no string or key at any
+depth of a payload, and no envelope field, may be one of the names a plain
+object answers to (`OBJECT_MEMBER_NAMES` and `objectMemberNameIn` in
+`packages/core/src/validate.ts`; SQL `_names_object_member`, migration
+20261016020000). The fold runs `validateEvent` first, so an event like
+that already in a log is folded out as invalid. Checking every string, not
+only the fields that are ids, holds future event types without a list to
+keep; the cost is that a note or comment that is exactly one of these
+words, such as "constructor", is refused, while a longer text holding one
+is not. Turned down: maps without a prototype (`Object.create(null)`),
+which every snapshot load would need to rebuild, and checking only the id
+fields. The parity script tries each name in every string field and as a
+key; tests `packages/core/test/objectMemberNames.test.ts`, server smoke 5e.
+Reverse if: a real text payload that is exactly one of these words is
+refused in the field; then check only the fields the folds use as keys.
+
+## 114. How someone joined is the server's to say
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `v1.InviteIssued` and `v1.JoinDecided` were open through
+`append_events` to anyone holding `invite_members`, though only
+`issue_invite_v3` and `decide_join_request` append them, as the server.
+A security audit found that `_joined_by_consent` counts any accepted
+`JoinDecided` naming a person as their consent, and `may_help_sign_in`
+lets a helper issue a sign-in code for a looked-after account that joined
+by consent, so an organization's admin could forge the consent that rule
+asks for. Both are now server-only, as `v1.InviteRedeemed` was: null in
+core's `EVENT_PRIVILEGE` (`packages/core/src/org.ts`) and in SQL
+`event_privilege` (migration 20261016030000). The RPCs keep their own
+`invite_members` checks and are unchanged; no client emitted either event.
+Server smoke: a lead's own JoinDecided and InviteIssued are refused.
+Reverse if: a client must issue invites or decide requests offline; then
+`_joined_by_consent` must instead require a matching row the server wrote.
+
+## 115. An event is at most 64 KB, and an account creates at most 5 organizations a day and 20 in all
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: a security audit found that `append_events` limited a push to 500
+events (invariant 12) but not their size, so one member could push notes
+of many megabytes that every phone in the language must download and fold,
+into a log that never sheds them, and that any account could create
+organizations without end. Now, for signed-in callers, a payload as
+Postgres prints it is at most 64 KB and each envelope field at most 256
+characters (`eventSizeError` and `jsonbTextBytes` in
+`packages/core/src/validate.ts`, SQL `_event_size_refusal`, migration
+20261016040000). A recording's cards, the largest real payload, take about
+120 bytes each. The app refuses to record a bigger event
+(`EventTooLargeError` from `SyncClient.append`), since kept it could never be
+sent; the fold does not check size, so nothing already in a log changes
+meaning. The creation of an organization, the first event of one nobody has
+written to, is refused once its author has created 5 in the last day or 20
+in all (`org_bootstraps`, `_org_creation_refusal`); the service role's
+imports and seeds are exempt. Turned down: a quota on events per day, which
+would refuse a phone pushing weeks of offline work at once, and a size
+measured differently on each side, which would refuse at the server what the
+app had recorded; the parity script holds the two measures together on
+either side of the limit.
+Reverse if: real work needs a bigger event (then split it, as cards are), or
+someone legitimately runs more than 20 organizations (then raise the
+allowance for that account rather than for everyone).
+
+## 116. An event goes on the kind of stream it belongs to
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `append_events` asked whether the author held an event's privilege,
+not whether the event belonged on that stream. A security audit found that
+an organization's events (`RoleDefined`, `MemberAdded`, `InviteIssued`)
+could be written into a language's stream by someone holding the privilege
+there, past the grant checks that run only on the organization stream
+(`_grant_refusal`), and a language's events into the organization stream.
+The folds skip foreign types, so they did nothing yet, but a later fold or
+report that read them would have believed them. Now, for signed-in callers,
+the organization's events (core `ORG_EVENT_TYPES`, SQL `_org_event_types`)
+go only on `_org`, every other event only on a language's stream, and
+`v1.Redacted` on either (migration 20261016050000; the parity script holds
+the two lists together; server smoke 5f). The service role's imports keep
+their own rules.
+Reverse if: an event needs to live on both kinds of stream; then list it
+with `v1.Redacted`.
+
+## 117. A stream's pokes reach only those who may read it
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `events_notify` broadcast each push's poke on a public Realtime
+channel, `events:<org>/<stream>`, on the reasoning that a poke says only
+that a stream moved. A security audit pointed out that anyone holding the
+publishable key and a stream's name, and organization and language ids are
+not secret, could still watch when and how much a language works. The poke
+is now private: a policy on `realtime.messages` lets a signed-in person hear
+a stream's channel only when `can_read_stream` says they may read it, asked
+through `may_hear_stream`, which answers only for the caller (migration
+20261016090000), and the phone joins with `private: true`
+(`packages/sync/src/supabaseTransport.ts`). Checked on the local stack: a
+member hears the poke and a stranger is refused the channel. An app from
+before this change subscribes to the public channel, hears nothing, and
+falls back to its poll until it updates.
+Reverse if: joining private channels costs phones on weak links noticeably
+more than public ones did.
+
+## 118. A Worker request needs a session that is still live
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: the Worker verifies access tokens itself (`getClaims`), and a
+verified token stays valid until it expires, an hour, after its session is
+gone. A security audit found that a lost phone signed out from another
+(`sign-in-code`'s "sign out my other phones"), or a deleted account, kept
+reading recordings and reports, and could mint API tokens, until then. Now
+`profileOf` also asks `session_is_live` for the token's `session_id`
+(migration 20261016100000), remembering the answer for 30 seconds per
+isolate so a run of blob requests asks once (`apps/web/worker/liveSessions.ts`).
+When the question cannot be answered, the verified token stands: a
+database hiccup must not sign every phone out.
+Reverse if: the extra query shows in the Worker's latency; then ask only on
+the routes that mint credentials or change data.
+
+## 119. Sync status that ticks is a store of its own, read where it is shown, not part of `ctx`
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: every screen gets `ctx` (`apps/mobile/App.tsx`), and the native
+stack keeps every screen under the top one mounted. `ctx` was a new object
+on every render of `OrgWork`, and `OrgWork` rendered whenever a sync or
+transfer counter moved, so one file arriving redrew every mounted screen and
+re-ran their derived views. Each arrival also copied the set of files on the
+phone (61,000 for a big language) to publish it (performance-audit-app.md
+R1, R2). Now the counters that tick while syncing (`pending`, `lastSync`,
+`pendingUp`, `pendingDown`, `peakUp`, `peakDown`, `present`, the
+organization's `pending`) live in a `StatusStore` per session
+(`src/sync/syncStatusStore.ts`), read with `useSyncStatus()` by the
+components that show them. `ctx`, the language and organization handles and
+`blobs` are memoized. Fields that change rarely (`online`, `refused`,
+`pulled`, `live`, `revision`, `keptUnits`) stay on `ctx.language`. The
+stack freezes blurred screens (`freezeOnBlur`), so audio stops on the
+navigation `blur` event rather than on a render. The session reads the file
+set in place, tells screens about it at most every 500 ms
+(`FILE_NEWS_MS`, `packages/sync/src/languageSession.ts`), reclaims storage
+at most that often, and keeps one offline-scope `Set` per fold revision,
+which core's plan cache finds by identity. A scope `Set` is never changed
+after it is handed to core. Turned down: `React.memo` on every screen (each
+needs stable props from callers, and a new `ctx` defeats it anyway).
+Reverse if: a screen needs a ticking value to decide what to draw on every
+change; read it with `useSyncStatus()` there, rather than putting it back
+on `ctx`.
+
+## 120. Passage views are patched per published copy from a change log kept outside the state
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: the app publishes a shallow copy of the live state after each fold
+change (`stateCopier`), and the derived views were cached by state identity
+and revision, so every copy re-sorted every take, request and note and
+re-derived every passage: 41 ms at 5,000 passages on a laptop, several
+hundred ms on a slow phone, after each recording (performance-audit.md item
+10, performance-audit-app.md C1). Now, while a view is watching a live
+state, the reducer records what each event may change
+(`packages/core/src/changes.ts`, `touchedBy`): specific takes, reviews,
+departures, requests, notes and passages, nothing, or `all`. The app
+publishes with `publishedCopy`, and `recordIndexes` and `indexesOf` build a
+copy's views from the previous copy's, re-deriving only touched passages.
+The log lives in `WeakMap`s beside the state, never in it or in a snapshot,
+and holds at most 1,000 entries; past that, or after any `all`, the next
+view rebuilds in full. Any event type not checked against the views is
+`all`, the default for new types. `packages/core/test/incrementalViews.test.ts`
+holds patched views equal to a full rebuild for every fixture event in
+random order. One new take: 2.0 to 2.6 ms instead of 43 at 5,000 passages
+(`npm run bench:core`). Equal clocks in `highlightsFor` and `updatesFor`
+are now ordered by id. Turned down: maintaining every view per event (too
+much to keep correct) and caching passages by a hash of their inputs (about
+as costly as deriving them). Reverse if: the views start reading state the
+touch rules do not follow (a passage view that reads `recordings`, say)
+and keeping `touchedBy` in step costs more than the rebuild it saves.
+
+## 121. The Worker trusts a verified token, and a file-access answer, for up to a minute per isolate
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: the hosted project still signs with the legacy shared secret, so
+`getClaims` (44) asks Supabase Auth about every request, and every audio
+file also asked Postgres `blob_access`: two serial round trips per file, for
+a phone downloading tens of thousands (performance-audit-app.md V1). Each
+isolate now remembers a verified token's claims, keyed by the token's
+SHA-256, until the token expires or 60 s pass, and still asks whether its
+session is live on every request (118's check and its 30 s cache are
+unchanged, so a signed-out phone loses access as 118 says), and each `blob_access`
+answer per person, organization, stream and mode for 60 s (a refusal for
+10 s); library media in an organization's own stream is per file, as
+`_library_media_readable` decides it (`apps/web/worker/isolateCache.ts`).
+Both are bounded to 5,000 entries. A member who is removed may keep
+opening files from an isolate that already answered for them for up to a
+minute; Carl accepted that. Moving the hosted project to
+asymmetric signing keys, so tokens are checked without Auth, is a separate
+step to take through the repo's Supabase config (`docs/cloudflare.md`).
+Reverse if: a removal must cut access at once (a takedown, say); then drop
+the access cache, or clear it from the event that removes the member.
+
+## 122. Inactive Inbox rows are deleted 30 days after they went inactive
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `reconcile_notifications` (68) marks a row inactive and never
+deleted it, so the table only grew, the pass scanned it per language, and a
+phone's Inbox read walked the dead rows (performance-audit-app.md V3). Rows
+now record when they last changed (`changed_at`), and a daily pg_cron job
+(`langquest-purge-notifications`) deletes rows inactive for 30 days, except
+any a push receipt still names. A phone learns a row went away from the
+inactive row itself, so one whose Inbox copy has not refreshed in 25 days
+starts it over from cursor 0 (`INBOX_COPY_MAX_AGE_MS`,
+`apps/mobile/src/notifications/notifications.ts`). Partial indexes serve
+the reconcile's language and organization cases. Migration
+`20261016120000_notifications_indexes_and_purge.sql`, smoke
+`server/notificationsSmoke.sql`. Reverse if: someone needs Inbox history
+older than a month (an audit of who was asked what); then archive rows
+before deleting them.
+
+## 123. Screens most people never open load when opened, and the web budget measures a first visit
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `App.tsx` imported every screen module, and Expo's Metro config
+turns inline requires off, so a phone ran all of them before the first
+frame: Reports' d3-geo, world map and 13 country-name tables among them,
+though phones never show Reports. On the web the export was one file, its
+budget raised four times (4.8, 6, 6.1, 6.25 MB) and nearly spent
+(performance-audit-app.md S1, S2). Now Reports, Config, Org, Content,
+Checks, Sources and Reference are `import()`ed the first time one of their
+screens opens (`lazyScreen`, `apps/mobile/src/shell/lazyScreens.tsx`); the
+screens on the way to recording stay in the main bundle. The web export
+gives each its own file; a phone keeps them in its one bundle. Inline
+requires are on for native only (`metro.config.js`): on the web they added
+110 KB to the entry file, which a browser parses whole either way. Once the
+organization's first sync has settled, the web fetches the lazy files in
+the background (`usePrefetchLazyScreens`), so work still continues offline
+once the app is open (58); a file that fails to load reaches the error
+boundary, and the next open tries again. `apps/mobile/scripts/export-web.mjs`
+holds two budgets: 5.7 MiB for the files `index.html` loads (5.41
+measured, 6.21 before), and 6.5 MiB for every file together (6.26 once
+main's security fixes and field diagnostics merged in; the cap only catches
+growth that runs away, and the first-visit budget holds what a visit pays). Help
+audio now waits for that first sync, an idle screen, and Wi-Fi or a cable
+(`useKeepHelpAudio`), and `/i18n/*` is cached for a year, since the app
+asks for it with `?v=<build>`. Turned down: splitting the country names by
+language (`countryName()` is synchronous; they now ride in the Reports
+file). Reverse if: a lazy screen's first open is slow enough for people to
+notice on the slowest partner phone, or the web's background fetch competes
+with a first sync on slow links; then move that screen back, or fetch later.
+
+## 124. You choose where the next part is recorded, a whole thing asks before it is deleted, and a deleted version is a tombstone
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Spoken's tester could not find how to delete a version or a part,
+or how to say one part again (LAN-83). On a phone at half split the parts
+were hidden behind "drag up to see them", and with verse numbers a part's
+delete was only in the menu a hold on its number opens. Caleb's rules: no
+sentences explaining the screen, the layout carries it; recordings are
+parts. What was built:
+- **Parts and where the next goes.** The parts card shows at every size
+  (closed when the pane is small; opening it gives the recorder the room),
+  named "Version N" while its parts are still that version's. Every part has
+  a bin. The person taps where the next recording goes: a gap (verses left
+  out, decision 82, or a deleted part's place), a part (what is said next
+  replaces it, with Undo), or the end, which is lit by default and dashed
+  otherwise. The chosen place is tinted with a purple microphone and the
+  footer names its number; the red button records there. A deleted part's
+  place stays open and chosen, numbered and with its verses; the first part
+  said in a place takes its verses and the rest join them
+  (`workspaceModel` `slotRows`, `targetNumber`; `screens/translate.tsx`
+  `aim` and `hole`; `recording/slots.tsx`). The amber "left for later" row
+  and "Record here" are gone, as are the lines "These are Version N's
+  parts…", "drag up to see them", "Tap the red button and speak…" and "No
+  drafts. Edit a version below…".
+- **Asking first.** Deleting a whole version, a draft or every part opens a
+  sheet ("Delete Version 2?", what it holds, Delete or Cancel;
+  `ui/ConfirmDelete.tsx`) instead of a toast whose Undo runs out. One part is
+  still deleted at once, with Undo.
+- **A deleted version is a tombstone.** Whoever published a version can
+  delete it (`canDeleteVersion`, `deleteVersion`). No new event:
+  `v1.TakeArchived` on the submitted take, add-wins, with the first archive's
+  clock and actor kept (`Take.archivedAt`, reducer version 18). A reviewer
+  may have the version offline and check it a month later, so the version
+  keeps its number (`nextVersionN` never reuses one), and checks of it, before
+  or after the delete arrived, are kept in `reviewsOfDeleted`: shown in the
+  history and on their own page, marked "Version N deleted", and counted for
+  nothing (status reads only `reviews` of versions not deleted). Its page
+  still opens, as what it was.
+- **Recording view.** While recording, the pane below the divider is the
+  red recording view, in the workspace and in back translation alike
+  (`recording/RecordingView.tsx`, which replaces the back translation's
+  `VadTakeover`): the part being said with its verses, the time, a check
+  (Done; a cross read as throwing it away) and the live waveform, which the
+  "Recordings getting cut off" work (LAN-82) owns (`LiveParts.tsx`). Its
+  sensitivity line and pause chips went with it.
+Rejected: a new `v1.VersionDeleted` event (an archive is already the
+tombstone, and the server accepts it from translators); letting anyone with
+a role delete someone else's version.
+Reverse if: teams lose work by deleting versions others were relying on
+(then deleting would need the checks to be withdrawn first, or a role), or
+people miss the end of the list as the default place to record.
+
+Amended (2026-10-16, Caleb Koster): one part is deleted at once with no toast; the recording screen's Undo arrow brings it back, and also a whole set of parts deleted after asking (decision 133).
+
+## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Spoken's tester found parts of what she said cut off (LAN-82).
+Supersedes 71's microphone setup by ear (demo ADR-037) and, of 106, the
+sustain rule and the "too short to keep" message. The detector decided what
+to keep: a part started only when a frame passed a fixed cutoff (0.1, about
+-20 dB, unless setup had been run), kept about 0.2 s before that, cut half
+the pause off its end, and threw away a part with under 0.25 s above half
+the cutoff. Setup measured the room for 3 s, never the voice, and its floor
+(0.04) was what most rooms got. A real v2 phone recording's speech is
+mostly quieter than -20 dB; in the web app, 40 s of speech 6 dB softer made
+no part at all. Replaying real speech through both rules: today lost 2.7 to
+3.9 % of a drafting session (soft starts, one-word answers) and all of it 6 dB
+softer; the new rules lost none. Chosen with Caleb after the report and the
+live demo (2026-10-16):
+- **Where parts split, not what is kept.** `modules/microphone-energy/src/splitter.ts`,
+  ported line for line to `Splitter.kt` and `Splitter.swift` (the three give
+  the same parts on the same frames). It learns the room (the quietest
+  3-frame median of the last 8 s; exact zeros from a microphone starting are
+  not the room) and the voice (the loud end of each part said). A part
+  starts at a frame halfway from room to voice, or after 0.3 s of sound out
+  of the room; its head reaches back to where the sound rose out of the room,
+  up to 3 s, never into the part before. It ends after the pause (1 s,
+  growing to 1.5 times the person's own mid-speech pauses, up to 2.5 s) and
+  keeps 0.3 s after the last sound. Only sound shorter than a syllable
+  (0.12 s: a tap, a bump) makes no part, and nothing is said about it.
+- **Nothing to set.** The room, voice and pause are kept on the device
+  (`mic-heard:v1`, `src/mic/heardLevels.ts`) so a session's first words are
+  judged right. Microphone setup (its screen, Me's row, the workspace link,
+  the "parts are coming out very short" box) is gone; so are the cutoff line
+  and pause chips (already gone with 124's recording view).
+- **What is heard shows while recording.** The live waveform boxes each part
+  with its number from the moment it starts (`recording/LiveParts.tsx`,
+  built here and carried by 124's PR), with the room as a faint band and
+  sound kept in no part shown as not kept; two fingers pinch it nearer or
+  farther (about 2 s to 30 s; the bars only grow or shrink).
+- **Tapping stop keeps the last word.** A tapped take runs on until the voice
+  falls back to the room, up to 0.6 s.
+Considered: keeping setup as a fallback (v2's settings were too technical,
+and a wrong setting can no longer lose anything, only change where parts
+split); recording the whole session and cutting it when the person is done,
+with box edges dragged and parts dropped before that (shown in the demo,
+left for its own change); a third-party audio library (v2's FFmpegKit was
+retired in 2025).
+Reverse if: parts run together where other people talk nearby (their voices
+are out of the room), taps or bumps start parts often, or a phone's frames
+are so long that the head reaches too far (iOS can tap 100 ms buffers; the
+splitter counts in that phone's own frames).
+
+## 126. Due dates are gone
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked on 2026-10-16 to get rid of the due date feature across
+the app. Nobody sets one any more: "Ask someone" has no "By when" section,
+no date chips and no typed date. Nothing shows one: My Work's rows and Next
+for you read "asked by {name}", Waiting on others lists newest first, the
+Inbox body is the passage and its language, the passage's path and its step
+rows say only who asked, History shows a request as open, done or
+withdrawn, and the review banner reads "{name} asked". Reports replace the
+"Overdue requests" tile with "Open requests" (the count of open requests,
+still opening the Map filtered to waiting passages), the CSV exports drop
+the "Overdue requests" column, and the agent API's requests no longer carry
+`dueDate` (`docs/agent-api.md`). Stored data is unchanged: `v1.RequestMade`
+keeps its optional `dueDate` in the schema, the validator and the server's
+checks, so old events still sync, and an old request's date is simply not
+shown. The reports API still sends `attention.overdueRequests: 0` (and the
+report version is 5), so an app built before this shows 0 on its old tile,
+not NaN. Removing the field from stored events is left for Caleb to decide.
+Reverse if: teams need deadlines on requests again; then bring back setting
+and showing `dueDate`, which old events still hold.
+
+## 127. What people make has no Save button: it is kept as it is made, private until Done, and Done sends it on
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-15): "It's strange that we would have a save button.
+Everything should be automatically saved", with a spinner turning into a
+check to show it, and what people make should be "saved but only accessible
+by the creator while unpublished, and once published, accessible to
+others." He also asked for something clearer than Publish, with the
+easiest next step being to send the work to the preferred people for its
+next check. The app had about twenty Save or Publish buttons and four
+"Leave without saving?" dialogs; a recording's parts were already kept as
+they were made (decision 83), while a review in progress, a note being
+typed or an editor's changes lived only on the screen. Chosen:
+- **The saved mark.** `apps/mobile/src/ui/SavedMark.tsx` sits in a
+  header or sheet: a spinner while something is being kept, then a check
+  (`useSaveStatus`, at least 600 ms of spinner so the change reads), a
+  warning when it failed. It explains itself in help mode.
+- **Drafts on the phone, only for their maker.** `apps/mobile/src/drafts/`
+  keeps what someone is making in AsyncStorage as it changes
+  (`useDraft`, written 400 ms after each change and when the screen
+  closes; keys from `draftKey` always name the person, so a shared phone
+  never shows one person's draft to another and account deletion removes
+  them). Used for a review in progress (answers, voice, moments, who
+  listened), notes, key words, a back translation's notes, what is said on
+  Done, and the template, flow, material, guide and divide-your-own-way
+  editors. A recording's parts stay on the record as before (decision 83).
+  No new event: an unfinished thing is not on the record.
+- **Finishing is named for what it does for others.** The recorder's and
+  back translation's Publish is now Done; a note's button adds it; a
+  review's verdicts are unchanged and "Save to the record" is Done; an
+  editor's Save or Publish is Done. Leaving keeps the draft, so every
+  "Leave without saving?" is gone.
+- **Done sends it on.** Done opens one last look at the version (hear it,
+  say what changed) whose main button asks whoever usually does the check
+  that comes next ("Ask Rebecca Nyibol"), publishing and asking in one
+  write with Undo taking the asking back; "Someone else" and "Send later"
+  finish it too. `nextAfterDone` (`passage/recordModel.ts`) works out that
+  check before publishing, as the record will after it: feedback the new
+  version answers goes back to its reviewer, a back translation once made
+  is done. The "Version N published" page after publishing is gone, since
+  asking happened on Done.
+- **Shared settings keep their Save button** (Caleb, 2026-10-16: "we don't
+  want the org name dynamically changing with every stroke for every user
+  in the org"). An organization's or language's name, a cluster, a role's
+  permissions, a member's role, a book's name, a check's questions and
+  people, report targets and a profile name change things for everyone, so
+  they apply only when saved, as before.
+Amends 83: the workspace's Save, which only said the draft was kept, is
+gone; the mark says it. What stays as it was: a draft's events still reach
+the server and teammates' phones (they see "Recording in progress" and
+cannot play it); making a draft private in the sync itself would move it to
+the person's stream, which this does not do. Caleb chose to keep it so
+(2026-10-16): teammates cannot play a draft, and the server copy is its
+backup.
+Reverse if: people lose work because a draft lives on one phone (then
+drafts move to the person's own stream, which only they can read), or
+teams want to look a version over before anyone is asked (then Done
+publishes and the asking moves back to the record).
+The passage's "Then the team" checks are cards again, each with its state,
+status and people and space around it: PR 72 had made them one-line rows
+and PR 92 stacked names under them with no room between.
+
+## 128. A review goes on the one passage it is about
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked on 2026-10-16 to get rid of applying one review to more
+than one passage: "I think it's more confusing than convenient. The user can
+go in, passage by passage, and apply reviews where needed." The partner demo's
+"Also covered in this session" picker (REV-6, ADR-028) is gone from Already
+happened's Add details, with its nearby-passage list, search, "Saves to N
+passages" line and "added to N passages" message: a logged check is written
+for the passage it was opened on, on the version chosen there
+(`screens/review.tsx`), and another passage the session covered gets its own
+review from its own record. `reviewing/capture.ts` loses `recordedPassages`,
+`nearbyPassages`, `searchPassages`, `matchesQuery` and `loggedTargets`, and a
+review draft no longer keeps `also` (one kept by an earlier version still
+reads). Stored data and core are unchanged: `recordReview` still takes several
+`takeIds`, and reviews an earlier version logged on several passages stay on
+each of them.
+Reverse if: teams who log community or consultant sessions covering many
+passages find going passage by passage too slow; then bring the picker back
+(the demo's AlsoCoveredPicker), perhaps as a copy-this-review action on the
+record rather than a field of the review.
+
+## 129. A recording session stays open after Stop: its parts are boxes to hear, move or drop, and leaving it cuts them from the room kept around them
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (LAN-82, 2026-10-16) to fix a part's start and end in
+the session rather than after it: tap a box to hear it, drag its edges, drop
+it with the × in its corner, and "once they leave the session, that's that",
+so nothing about a part's edges is ever saved. It extends 125, which left
+this for its own change, keeps 124's rule that a deleted part's place
+stays for what is said next, and narrows 83 and 127 for a session's parts:
+they reach the record when the session is left, not as each is said.
+- **Stop is not leaving.** Stop turns the microphone off and the session's
+  waveform stays, showing the whole session (as far as the farthest zoom,
+  then one finger slides back over it): a tap on a box plays that part as it
+  would be cut, its edges drag out into the room around it or in (never into
+  another part, never shorter than a fifth of a second), its × drops it and
+  the next part said takes its place and number. The big button carries on
+  recording in the same session. Done (124's check), leaving the screen, or
+  the app's journal on the next launch ends it, and only then are its parts
+  cut and saved, in order, as their boxes stand. Uploads and the footer's
+  Done (127's, which was Publish) wait until then; while the session is open
+  the recording view's Done is the only one. Its ✕ (Caleb, 2026-10-16)
+  stops recording and asks "Throw away this recording?" with what the
+  session holds; throwing it away saves nothing said in it, and a session
+  that kept no part just goes. The same holds in back translation.
+- **The room near speech is kept, not the session.** A chunk file opens when
+  a part starts, with up to 2 s of what was heard before its head, and closes
+  2 s after the last part in it ended (`modules/microphone-energy/src/chunks.ts`,
+  ported line for line to `Chunks.kt` and `Chunks.swift`; the three keep the
+  same samples on the same frames). Parts close together share a chunk; a
+  long silence is never written, so storage grows with speech (about 5 MB a
+  minute of it, as a WAV) and memory holds only the ring (about 5 s). The
+  module reports each part as where it lies in its chunk; nothing is cut
+  until the session is left (`src/audio/wavCut.ts`), then the chunks go.
+- **A crash loses nothing said on a phone.** Each part is in the recording
+  journal as its chunk and its box (`range`) from the moment it ends, and
+  again when an edge is let go; recovery cuts it as it last stood
+  (`recordingJournalModel.ts`). The web keeps a session in the page until it
+  is left, and the browser asks before the tab closes; a tab killed outright
+  mid-session loses that session's parts (the phones were the concern).
+Considered: saving each part as it ends and replacing it when its box
+changes (it writes recordings nobody keeps, and the draft changes under the
+person while they edit); one file for the whole session (an hour of room on
+a low-end phone's storage); keeping box edges editable after the session
+(Caleb: what is saved is where the boxes were when it was left).
+Reverse if: people lose parts by leaving a stopped session open (the app
+killed in the background on a phone without its journal entry), the 2 s of
+room is too little to reach a cut-off word, or the web's in-page session
+loses work people expected kept.
+
+## 130. Each step says what is on the screen of whoever does it, the recording too, with hearing and reading apart
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Spoken (2026-10-15) does not want translators reading while they
+record: they liked that the Bible's text can be folded away, but worry that
+if it is there at all it shapes the draft, in FIA recordings too. Caleb
+asked that admins control what is available at each step of the review,
+including the first recording and recording a back translation (LAN-81).
+Before this, a language chose its Bibles and guides for every step at once
+(decision 62), a check could only add helps (decision 91), the recorder
+always showed a Bible's words (falling back to the English the app
+carries), and only Back Translation hid anything, through the kind's
+`withholdsContext`, which no screen could set. So a step now says what it
+shows: `v1.CheckShowsSet { kindId, what, shown }` in the language stream, a
+register per (kind, what), where `what` is one of hearing the Bible,
+reading the Bible, hearing the guide, reading the guide, key words, notes
+and earlier versions, and `kindId` is a check or `record` for recording a
+version (`core/checks.ts` `checkShows`, `RECORD_STEP`). Without a register
+everything shows, as before, except at a kind that withholds context,
+where nothing does, so Back Translation looks as it did. Setting up a step
+is managing the flow (Manage flows). Screens: the language's Checks list
+starts with the recording as a card that opens like a check, and every
+card says what its step hides (or, when it hides most, what it shows) by
+an eye; the recording and each check have "On their screen", one switch
+per thing, hearing and reading as separate switches. The recorder, the
+study (the drafting team's preparation) and back translation follow their
+step: the Bible heard and not read is its player and the verse numbers,
+only Bibles with audio are offered and Other Bibles goes; the guide heard
+and not read is its spoken step; a check's Background has only what the
+check shows and is not there when it shows nothing. Answering feedback
+keeps Earlier, where the feedback is. A check's own helps always show,
+being chosen for it. The sentences that explained what was hidden are gone
+(the review's notice, back translation's line, the passage's "beside you").
+Not built: a ready-made flow saying what its steps show (Spoken's own flow
+could start with reading off), and translators' own Bible exploring
+outside a passage.
+
+Amended (2026-10-15, Caleb Koster): Caleb's second look asked for a shorter
+check page and finer choices. A check's page now has People and Questions
+as rows that open pages of their own, and "On their screen" has one row
+per help: the Bible and the guide open to Audio and Text, key words is a
+switch, and notes and earlier versions open to the steps they come from.
+`v1.CheckShowsSet` gains `from` (a step: `record` or a check), a register
+per (kind, what, from) that falls back to the (kind, what) one, for notes
+and earlier versions only. Earlier versions come from a step by what made
+them (versions are the recording's, feedback its check's); a note says
+where it was written through an optional `kindId` on `v1.NoteAdded`, set
+by the recorder, the study, back translation and the review. That adds a
+field to a shipped event, as `Card.atMs` did (decision 72): it is additive
+and optional, older validators and reducers keep it, and notes without it
+count as the recording's. "Same time as" is a choice of any other checks,
+which join the check's step where it stands (`checks/model.ts`
+`setSameTime`), instead of a switch for the check above. A step that makes
+something (back translation) has "Checked at": any check after it, or a
+check of its own made right after it, which is `produces.checkedBy` on the
+kind, so recording the back translation and reviewing it are two steps
+with their own people, questions and screens, and the passage's steps
+list both. On the web, switches keep a white thumb when on.
+
+Amended (2026-10-16, Caleb Koster): on a step's page each help is one row
+with a switch that turns all of it on or off and a line saying how much is
+on ("All", "Audio", "3 of 7"); the row opens the help's own page with a
+switch per part (Audio and Text, or each step its notes or earlier versions
+were added during, under a label saying so). Choosing material follows the
+language its content is in, set once for the language: the team's
+reference language (decision 84), asked when the language is set up with
+how much is in each language, and changed from the top of What helps them.
+What helps them and a check's "Add a help" offer only material in that
+language, and what the team already has. Caleb's rule (2026-10-16): the
+language of review material is set by the admin for the team, in one place.
+Caleb then asked for several languages (2026-10-16: translators will want
+Greek and Hebrew beside their own, or other languages): the language
+question ticks as many as the team needs. The main language stays
+`v1.ReferenceLanguageSet` (what FIA, Bible order and guide matching follow);
+each other one is `v1.ReferenceLanguageAdded { language, added }`, a
+register per language, so two admins adding different languages offline
+both land, and nothing already stored changes. Lists of material take any
+of the team's languages.
+
+Reverse if: teams want the same settings on every language of an
+organization or cluster; then they move to the organization's
+recommendations level (decision 62) with the language's register on top,
+with no change to what a step reads.
+
+## 131. For its prototype, EveryBible holds LangQuest tokens on the phone: a reviewer's code is a review token, and listeners hear approved versions
+
+Date: 2026-10-16 · By: Ryder Wishart · Status: accepted
+
+Reason: Ryder wants the Every Language organization linked to EveryBible,
+its review and listening app, with no bridge between them, while it is a
+prototype. Partly supersedes 109's listening side: EveryBible no longer
+goes through its bridge Worker.
+- **A reviewer's code is a token.** An Every Language admin makes a token
+  with `read` and `review` at `/connect` and shares it with reviewers. The
+  phone checks it with `/me` (it must read drafts and review in some
+  language), keeps it in the keychain and calls `/api/v1` itself. Revoking
+  the token on `/connect` closes it for everyone who holds it. This departs
+  from `docs/agent-api.md` ("`review` … tokens belong on a server") on
+  purpose: anyone who holds the code can record listener reviews and, where
+  a step takes links, reviews that count, as the admin who made it. That is
+  acceptable while the code goes only to known reviewers.
+- **Listeners use the app's own `read:published` token**, which the docs
+  allow in an app: it hears approved versions only. Approved in LangQuest is
+  published in EveryBible; no studio step. That token cannot write, so a
+  listener without a code cannot send feedback; feedback after approval
+  comes from phones with a reviewer code.
+- **Freshness without webhooks.** A reviewer's phone reads each language's
+  change feed every 4 s while the screen is open and then only the passages
+  it names; a listener's token cannot read the feed, so it asks for passages
+  changed since its newest `updatedAt` every 30 s, which folds the whole
+  language list on LangQuest's side.
+- `server/listeningDemo.ts` answers `/me` as LangQuest does and adds a
+  `read:published` token (`.listening-demo/listener-token`) for testing.
+Reverse if: codes reach people the team does not know, or listeners
+without a code must send feedback (then a server holds the review token, as
+109's bridge did, or LangQuest issues per-reviewer tokens by the device
+flow); or listener polling shows up in LangQuest's load (then a cheaper
+published change feed).
+
+## 132. An organization's Durable Object keeps under half its isolate, folds languages of unknown size one at a time, and a capped-heap test holds it there
+
+Date: 2026-10-16 · By: Ryder Wishart · Status: accepted
+
+Reason: on 2026-10-16 `/connect` answered 502 for people in a large
+organization. The Worker log said "Durable Object's isolate exceeded its
+memory limit and was reset": answering `session/orgs` asks each of the
+person's organizations for their access, which on a cold object folds
+every language, and one object went past Cloudflare's 128 MB. Two things
+let it: the folder kept 40 MB of folds (`STATE_BUDGET_BYTES`, PR #150), and
+a parsed fold takes about 1.8 times its serialized size, so a full budget
+held about 72 MB before any request's own work; and a language with no
+recorded size (a cold object, or a summary written before sizes were
+recorded) counted as small, so four large languages were folded at once.
+- `STATE_BUDGET_BYTES` is 12 MB (about 22 MB once parsed), and a language
+  of unknown size is folded alone (`isLarge`). Once its summary records a
+  size, small languages run four at a time again.
+- `apps/web/test/memory/orgFolderMemory.test.ts` runs the real `OrgFolder`
+  over two large organizations (twelve languages of about 5 MB of fold,
+  and six of about 12 MB) in a Node heap capped at 112 MB, below the
+  isolate's 128 MB for what it spends outside V8's old space. Events come
+  a page at a time and folds are saved to disk, as Postgres and SQLite do
+  in production, so the heap holds only what the folder keeps. It fails if
+  the folder runs out of memory or keeps 48 MB or more between requests.
+  It runs in `npm test`, so in the checks job on every pull request. With
+  the 40 MB budget and parallel unknowns it fails both ways.
+- Memory is now a property tests hold, like order-independence (102's
+  lowest layer that can hold the check: a unit test with a capped heap,
+  not a deployed canary).
+Reverse if: Cloudflare raises the isolate limit, folds move out of the
+heap (then the budget can grow), or production shows an organization the
+test's shapes do not cover (then add that shape to the test).
+
+## 133. The recording screen has its own Undo and Redo, parts move by a grip, a place opens on the line between parts, and no Undo there runs out
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-16): "I don't like the undo toast at all": with 7
+seconds to read it, and the next toast replacing it, it "induces panic and
+frustration"; an Undo toast on a verse label is "silly", as a verse is plain
+to see and easy to change. He asked for the recording screen's own undo and
+redo (users' earlier feedback), a six-dot grip to drag parts up and down that
+takes the moved part's verse off so it can be labelled again, a clean mark on
+the line between parts that opens a place to record into, and a subtle shade
+on the parts just recorded. Research on Mobbin (the "Undo and redo in
+recording" page) found editors keep undo as two arrows that stay on screen,
+greyed when empty, and voice recorders (TikTok, Shopee) put them by the
+record button. Narrows 111's "Where Undo is" for this screen and 124's "one
+part is still deleted at once, with Undo". What was built:
+- **Undo and Redo.** Two arrows in the footer left of the red button (where
+  the next part's number was; its row says it), and beside the small red
+  button when the recorder is one line, grey when there is nothing to take
+  back or put back, out of the way while the red recording view is open. One
+  step is one thing done: a whole recording session however many parts it
+  split into, recording over a part or into a place, one delete, deleting
+  every part (which still asks first), one drag, one verse tap, slide or
+  choice. Every undo and redo is new events putting the parts as they stood
+  (`workspaceModel` `restoreSpecs`: a new take continuing the draft, or the
+  draft set aside when it is back to what it started from, and the verse
+  marks), never removing any; a verse mark changed since the step (here, or
+  in another draft sharing the part) is left as it is. No depth limit. The
+  history is kept with the draft on this phone (`useUndoHistory`,
+  AsyncStorage `parts-history:v1:…`) through leaving the screen and the app
+  being closed, ends when the draft is published, does not sync, and is not
+  offered when the draft has moved on elsewhere (`historyFits`). What an undo
+  or redo changed is shaded, and a screen reader hears what it was. No toast
+  on this screen offers Undo, and the part, verse and move changes say
+  nothing on screen (a screen reader is told). Back translation has the same
+  arrows for its pieces (a session, or clearing a part; `bt-history:v1:…`).
+- **Moving a part.** A grip at the left of each part (`slots.tsx`
+  `PartGrip`; `useDragRows`, `dragModel`): the row lifts and the rows it
+  passes move out of its way, the pane scrolls near its edges, and a screen
+  reader has Move up and Move down. The moved part's verse is taken off;
+  every other part keeps the verses it showed, a mark that read them from the
+  part above naming them instead (`marksKeepingLabels`), so nothing is
+  renumbered by a move.
+- **Recording between parts.** A small + on each line between two parts and
+  above the first (`InsertMark`) opens a place there, numbered as the part
+  will be (`slotRows` `open`); the red button records into it. The + marks
+  sit in a rail at the left of the rows, before the grips, so each one's
+  48 pt target overlaps nothing a row has to tap (A11Y-009). What is said
+  there has no verse, unless it sits inside one verse said in pieces, when it
+  is more of that verse; the parts around it keep theirs.
+- **Just recorded.** The parts a session added are shaded faintly red (the
+  recording view's colour) until the next session starts. The card of parts
+  is open at every size of the pane unless closed, and back from the red
+  view the first part just said is brought into view (Caleb: "have the list
+  of audio segments expanded by default so that when the user leaves the
+  waveform recording view, they see the newly added/toned segments"); it
+  used to open by itself only when the pane was 360 pt tall.
+Considered: an undo history in memory only (phones close apps in the
+background; a history that vanishes is the toast's problem again); undo on
+the record by walking the draft's takes (verse marks are not in takes, and
+redo needs a way forward); a long-press to move parts (nothing shows it can
+be done).
+Reverse if: people undo by accident (the arrows sit beside the red button),
+a history kept on the phone undoes work they expected kept, or the grip is
+dragged by mistake while scrolling a long list.
+
+## 134. A big language keeps each passage's record on the phone's disk; memory holds the passages on screen, and lists read one line per passage
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
 
 Reason: a phone held a whole language in memory. On a 2 GB test emulator
 Koro Miyan (37,000 recordings, 541 versions) added about 235 MB once open,

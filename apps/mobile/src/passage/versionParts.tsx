@@ -7,54 +7,25 @@
 // 2026-10-14). Many teams never number verses, so a part without one shows
 // nothing where its verse would be, and nothing here asks for one. Read only:
 // verses are changed where the parts are recorded.
-import {
-  partMarksFor, versesInChapter, type LanguageState, type TemplateDoc, type VersificationDoc
-} from '@langquest-next/core';
-import { useCallback, useMemo } from 'react';
+import type { LanguageState } from '@langquest-next/core';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { ClipPlayer } from '../clipPlayer';
-import type { Ctx } from '../ctx';
-import { useHelpSpot } from '../helpContext';
-import { HelpBadge } from '../helpBadge';
+import { Text } from '../ui/text';
+import { ClipPlayer } from '../audio/clipPlayer';
+import type { Ctx } from '../shell/ctx';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico, txt } from '../kit';
-import { useLibraryDocs } from '../library/useLibrary';
+import { Ico } from '../ui/kit';
+import { txt } from '../ui/textStyles';
 import { cardDurations } from '../recording/workspaceModel';
-import { catalogVerses, unitCoordinates } from '../sources/model';
-import { mmss, partLabel } from '../simple/model';
-import { styles as ps } from '../simple/parts';
-import { useClip } from '../simple/useClip';
-import { VerseTile } from '../simple/verseParts';
-import { passageVerseKeys, readPartVerses, spanName, versesHeld } from '../simple/verseModel';
-import { C, radius, space, target } from '../theme';
-
-/** The passage's verses in order ("chapter:verse"), counted as the recorder counts them; empty for a unit with no verses. */
-export function useVerseKeys(ctx: Ctx, unitId: string | undefined): string[] {
-  const template = ctx.language.state?.template?.value.docHash;
-  const { get } = useLibraryDocs(ctx.language.orgId, [template]);
-  const doc = get<TemplateDoc>(template);
-  const v11n = doc?.bible ? get<VersificationDoc>(doc.bible.versification) : null;
-  return useMemo(() => {
-    if (!unitId) return [];
-    const versesIn = (b: string, c: number) => (v11n ? versesInChapter(v11n, b, c) : undefined) ?? catalogVerses(b, c);
-    return passageVerseKeys(unitCoordinates(unitId, versesIn), versesIn);
-  }, [unitId, v11n]);
-}
-
-/** Each part's verses, for parts of one passage. */
-export function usePartVerses(ctx: Ctx, state: LanguageState | null | undefined, unitId: string | undefined, hashes: readonly string[]) {
-  const verses = useVerseKeys(ctx, unitId);
-  const rows = useMemo(() => (state && unitId ? readPartVerses(partMarksFor(state, unitId, hashes, verses), verses.length) : hashes.map(() => ({ label: null, same: false }))),
-    [state, unitId, hashes, verses]);
-  return { verses, rows, numbered: rows.some((r) => r.label) };
-}
-
-/** "Verses 1–4" for a list of parts, or null when none has a verse. */
-export function useVersesHeld(ctx: Ctx, state: LanguageState | null | undefined, unitId: string | undefined): (hashes: readonly string[]) => string | null {
-  const verses = useVerseKeys(ctx, unitId);
-  return useCallback((hashes) => (state && unitId ? versesHeld(partMarksFor(state, unitId, hashes, verses), verses) : null), [state, unitId, verses]);
-}
+import { mmss, partLabel } from '../recording/model';
+import { styles as ps } from '../recording/blockStyles';
+import { useClip } from '../audio/useClip';
+import { VerseTile } from '../recording/verseParts';
+import { type readPartVerses, spanName } from '../recording/verseModel';
+import { C, radius, space, target } from '../ui/theme';
+import { usePartVerses } from './useVerses';
 
 /** The whole version, then its parts. */
 export function VersionRecording(props: { ctx: Ctx; state: LanguageState; unitId: string; title: string; hashes: string[] }) {
@@ -99,7 +70,7 @@ function PartRow(props: {
   const l = props.row.label;
   const said = l ? t(props.row.same ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses: spanName(props.verses, l.s, l.e) }) : name;
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: name }) : t('recording.player.playTitle', { title: said });
-  const play = useHelpSpot(playLabel, undefined, clip.toggle);
+  const play = useHelpSpot(playLabel, t('passage.versions.partHelp'), clip.toggle);
   return (
     <View style={[styles.row, props.index > 0 && styles.rowBorder]}>
       {props.numbered ? (

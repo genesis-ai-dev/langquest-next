@@ -9,7 +9,7 @@ import { emptyLanguageState, type LanguageState } from '../src/state';
 import { buildFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
 
 /**
- * Why: a phone that keeps a big language on disk (decisions.md 110) holds a
+ * Why: a phone that keeps a big language on disk (decisions.md 134) holds a
  * passage's part in memory only while a screen needs it. Events for a
  * passage that is not in memory are folded on their own and combined with
  * the stored copy later. If the combination differed from folding every
@@ -114,7 +114,7 @@ describe('a language cut by passage', () => {
       const on = hangsOn(of);
       // What an entry hangs on may never have arrived (an undo of a departure
       // nobody recorded, a take archived before anyone composed it): it waits.
-      const kinds: Record<string, keyof LanguageState> = { take: 'takes', review: 'kindReviews', departure: 'departures', request: 'requests' };
+      const kinds: Record<string, keyof LanguageState> = { take: 'takes', review: 'kindReviews', departure: 'departures', request: 'requests', note: 'notes' };
       const target = on ? (whole[kinds[on.kind]!] as Record<string, { unitId?: string }>)[on.id] : undefined;
       if (on && (!target || target.unitId === '')) continue;
       expect(passageInMemory(whole, of), `${e.part.map} ${e.key}`).toBeTruthy();

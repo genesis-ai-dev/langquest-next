@@ -1,10 +1,10 @@
 import { foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
-import { chapterStage, chapterTone, type PassageFacts } from '../src/canon';
-import { needsConnection, openableLanguages } from '../src/simple/mapModel';
-import { EDGES } from '../src/flow';
-import { edgeAllowed, tabsFor } from '../src/session';
-import { nextSub, readiness, readySteps, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/simple/homeModel';
-import { offlineCount } from '../src/simple/meModel';
+import { chapterStage, chapterTone, type PassageFacts } from '../src/reference/canon';
+import { needsConnection, openableLanguages } from '../src/map/mapModel';
+import { EDGES } from '../src/shell/flow';
+import { edgeAllowed, tabsFor } from '../src/shell/session';
+import { nextSub, readiness, readySteps, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat } from '../src/work/homeModel';
+import { offlineCount } from '../src/account/meModel';
 import { inSeveral } from '../src/account/model';
 import { roleSession } from './sessions';
 
@@ -43,14 +43,14 @@ describe('the simple My Work (decision 71)', () => {
     expect(workIcon('produce').icon).toBe('globe');
   });
 
-  it('says what to do in few words, the due date before who asked', () => {
+  it('says what to do in few words, then who asked', () => {
     expect(workWhat('respond')).toBe('Feedback to hear');
     expect(workWhat('review', 'Community Check')).toBe('Community Check');
     expect(workSub('Record')).toBe('Record');
-    expect(workSub('Record', { by: 'Mary', due: 'due Oct 11' })).toBe('Record · due Oct 11');
+    expect(workSub('Record', { by: 'Mary' })).toBe('Record · asked by Mary');
     expect(workSub('Community Check', { by: 'Abebe' })).toBe('Community Check · asked by Abebe');
     // The Next card has room for both.
-    expect(nextSub('record', 'Record', { by: 'Mary', due: 'due Oct 11' })).toBe('Record it · asked by Mary · due Oct 11');
+    expect(nextSub('record', 'Record', { by: 'Mary' })).toBe('Record it · asked by Mary');
   });
 
   it('names who a request is waiting on: the person, the check\'s team, an older team, or the guest', () => {
@@ -80,7 +80,7 @@ describe('the simple tabs (decision 71)', () => {
     // Why: Me shows five rows; More settings holds the rest (profile, switching
     // organization, sync, diagnostics, deleting the account), so nothing is lost.
     const s = roleSession('translator');
-    for (const to of ['settings_more', 'profile_edit', 'sync_status', 'mic_setup', 'vision', 'sign_out_confirm'] as const) {
+    for (const to of ['settings_more', 'profile_edit', 'sync_status', 'vision', 'sign_out_confirm'] as const) {
       expect(EDGES.some((e) => e.from === 'settings_home' && e.to === to && edgeAllowed(e, s)), to).toBe(true);
     }
     for (const to of ['org_switcher', 'sync_status', 'delete_account', 'profile_edit'] as const) {

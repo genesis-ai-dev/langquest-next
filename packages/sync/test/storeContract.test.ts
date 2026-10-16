@@ -210,6 +210,21 @@ describe('SqliteStore durability', () => {
   });
 });
 
+describe('SqliteStore footprint', () => {
+  it('counts streams, events and bytes for the device record', async () => {
+    // Why: support could not tell a phone holding one small language from
+    // one holding forty, and a slow open often is just a big database.
+    const s = await SqliteStore.open(nodeDriver());
+    expect(await s.footprint()).toMatchObject({ streams: 0, events: 0 });
+    await s.put({ event: ev('a', '1'), status: 'pending' });
+    await s.put({ event: { ...ev('b', '2'), streamId: 'q' }, status: 'rejected', rejectReason: 'no' });
+    await s.setCursor('o', 'r', 4);
+    const f = await s.footprint();
+    expect(f).toMatchObject({ streams: 3, events: 2 });
+    expect(f.bytes).toBeGreaterThan(0);
+  });
+});
+
 describe.each(impls)('%s batch and rejected contract', (_name, make) => {
   it('putMany upserts every row and rejected() lists refusals oldest first per stream', async () => {
     // Why: after a month offline a device pulls tens of thousands of events;
@@ -230,7 +245,7 @@ describe.each(impls)('%s batch and rejected contract', (_name, make) => {
     expect((await s.rejected('o', 'p')).map((e) => e.event.id)).toEqual(['x', 'y']);
   });
 
-  it('keeps a language\'s records out of memory, found by passage, id, second key or kind (decisions.md 110)', async () => {
+  it('keeps a language\'s records out of memory, found by passage, id, second key or kind (decisions.md 134)', async () => {
     const s = await make();
     const rec = (id: string, unitId: string, ref = 'a', kind = 'recording') => ({ kind, id, unitId, ref, json: `{"id":"${id}"}` });
     await s.commit({ kept: { orgId: 'o', streamId: 'p', upsert: [rec('r1', 'u1'), rec('r2', 'u2', 'b'), rec('t1', 'u4', 'b', 'take'), { kind: 'file', id: 'h1', unitId: '', ref: '', json: '{"size":1}' }] } });

@@ -30,7 +30,9 @@ type Verdict = LanguageState['blobs'][string];
 /** Row kinds of the parts, in core's order. */
 export const PART_KINDS: readonly string[] = PASSAGE_PARTS.map((p) => p.kind);
 /** What `derivePassage` reads of a passage: what its line, its versions and its Inbox are worked out from. Not its recordings. */
-export const RECORD_KINDS: readonly string[] = ['take', 'submission', 'response', 'review', 'departure', 'undoneDeparture', 'request', 'withdrawnRequest', 'note'];
+export const RECORD_KINDS: readonly string[] = [
+  'take', 'submission', 'response', 'review', 'withdrawnReview', 'departure', 'undoneDeparture', 'request', 'withdrawnRequest', 'note', 'withdrawnNote'
+];
 /** The server's verdict on an audio file, by hash. */
 export const FILE = 'file';
 /** Which record names an audio file, by hash, under that record's passage: planning reads these instead of the records. */
@@ -58,7 +60,7 @@ export function fileRow(hash: string, v: Verdict, json = JSON.stringify(v)): Kep
   return { kind: FILE, id: hash, unitId: '', ref: '', json };
 }
 
-/** Does this state hold entries of the parts or verdicts that belong on disk (a checkpoint from before decision 110)? */
+/** Does this state hold entries of the parts or verdicts that belong on disk (a checkpoint from before decision 134)? */
 export function holdsKept(state: LanguageState): boolean {
   for (const _ in state.blobs) return true;
   for (const part of PASSAGE_PARTS) for (const _ in state[part.map] ?? {}) return true;
@@ -345,7 +347,9 @@ export class SnapshotRows {
 
   private rows(part: PassagePart, key: string, unitId: string, value: unknown, json: string): KeptRecord[] {
     // Remember what others hang on: a take's passage, a review's, a departure's, a request's.
-    if (part.kind === 'take' || part.kind === 'review' || part.kind === 'departure' || part.kind === 'request') this.unitOf.set(`${part.kind}\u0000${key}`, unitId);
+    if (part.kind === 'take' || part.kind === 'review' || part.kind === 'departure' || part.kind === 'request' || part.kind === 'note') {
+      this.unitOf.set(`${part.kind}\u0000${key}`, unitId);
+    }
     if (part.depth === 1) return entryRows(part, key, unitId, value, json);
     return Object.entries(value as Record<string, unknown>).flatMap(([inner, v]) => entryRows(part, `${key}\u001f${inner}`, unitId, v));
   }

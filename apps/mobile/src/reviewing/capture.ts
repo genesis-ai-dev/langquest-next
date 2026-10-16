@@ -1,16 +1,13 @@
 // Pure reading for the reviewing screens (UX demo src/screens/review.tsx,
 // requirements REV-1..8, ADR-005, ADR-015, ADR-028): which request a review
 // answers, what a checking kind compares against, what is still required
-// before an outcome can be sent, how notes are labelled, and which other
-// passages a session that already happened may have covered, and the
-// stages the screen walks through (REV-0, ADR-029). No React and
+// before an outcome can be sent, how notes are labelled, and the stages
+// the screen walks through (REV-0, ADR-029). No React and
 // no I/O here, so it is tested directly (test/reviewCapture.test.ts).
-import {
-  derivePassage, unitPlace, unitTitle,
-  type Card, type KindDef, type NoteAnchor, type PassageLines, type PassageState, type LanguageState,
-  type RequestView, type ReviewView, type SourcedQuestion, type Version
+import type {
+  Card, KindDef, NoteAnchor, PassageState,
+  RequestView, ReviewView, SourcedQuestion, Version
 } from '@langquest-next/core';
-import { bookMatches, canonBook, parseQuery } from '../canon';
 import { currentLanguage, t } from '../i18n';
 import { formatClock } from '../i18n/format';
 
@@ -272,7 +269,6 @@ export function cleanSkips(questions: SourcedQuestion[], answers: Answers, skipp
 /** Where a question comes from, as the demo labels it (REV-2). */
 export function questionSource(q: SourcedQuestion, asker?: string): string {
   switch (q.source) {
-    case 'org': return t('review.capture.source.org');
     case 'language': return t('review.capture.source.language');
     case 'request': return asker ? t('review.capture.source.fromName', { name: asker }) : t('review.capture.source.fromWhoeverAsked');
   }
@@ -299,96 +295,4 @@ export function noteAnchorText(anchor: NoteAnchor, look: { term: (termId: string
 /** Kinds heard by a group: ask how many listened rather than who reviewed it. */
 export function isGroupKind(kindId: string): boolean {
   return kindId === 'community' || kindId === 'retell';
-}
-
-export interface PassageChoice {
-  unitId: string;
-  title: string;
-  bookId: string | null;
-  bookLabel: string;
-  chapters: number[];
-  /** Canon, chapter, first verse: the order people expect. */
-  order: number;
-}
-
-function choiceOf(state: LanguageState, unitId: string): PassageChoice {
-  const place = unitPlace(state, unitId);
-  const title = unitTitle(state, unitId);
-  const verse = /:(\d+)/.exec(title);
-  return {
-    unitId, title, bookId: place.bookId, bookLabel: place.bookLabel, chapters: place.chapters,
-    order: place.canon * 1_000_000 + (place.chapters[0] ?? 0) * 1000 + Number(verse?.[1] ?? 0)
-  };
-}
-
-const recordedCache = new WeakMap<PassageLines, { state: LanguageState; out: PassageChoice[] }>();
-
-/**
- * Every passage in the language with at least one published version, in
- * canon order. Read off the passages' lines (decisions.md 110), cached per
- * lines and state, so a whole Bible costs nothing to reopen.
- */
-export function recordedPassages(state: LanguageState, lines: PassageLines): PassageChoice[] {
-  const hit = recordedCache.get(lines);
-  if (hit && hit.state === state) return hit.out;
-  const units: string[] = [];
-  for (const u of lines.worked()) if (state.units[u] && lines.get(u).recorded) units.push(u);
-  const out = units.map((u) => choiceOf(state, u)).sort((a, b) => a.order - b.order || (a.title < b.title ? -1 : 1));
-  recordedCache.set(lines, { state, out });
-  return out;
-}
-
-/** The nearest recorded passages in the same book, in canon order (the demo shows four). */
-export function nearbyPassages(all: PassageChoice[], here: PassageChoice, n = 4): PassageChoice[] {
-  if (!here.bookId) return [];
-  const at = here.chapters[0] ?? 0;
-  return all
-    .filter((p) => p.unitId !== here.unitId && p.bookId === here.bookId)
-    .map((p) => ({ p, d: Math.abs((p.chapters[0] ?? 0) - at) }))
-    .sort((a, b) => a.d - b.d || a.p.order - b.p.order)
-    .slice(0, n)
-    .map((x) => x.p)
-    .sort((a, b) => a.order - b.order);
-}
-
-/**
- * "joh 3", "ps 23", "cor" (both Corinthians), "Mark 2", "1 cor 13:4-6" find
- * their passages; "1" is a book prefix (1 Samuel, 1 Kings, ...), not every
- * chapter 1. Parsing and book names are the Map's (canon.ts), so the two
- * searches agree; a passage outside the canon matches by its own title.
- */
-export function matchesQuery(p: PassageChoice, query: string): boolean {
-  if (!query.trim()) return false;
-  const { book, chapter } = parseQuery(query);
-  const canon = canonBook(p.bookId);
-  const bookOk = canon ? bookMatches(canon, book)
-    : !book || [p.bookLabel, p.title].some((n) => n.toLowerCase().startsWith(book));
-  if (!bookOk) return false;
-  return chapter === undefined || p.chapters.includes(chapter);
-}
-
-export function searchPassages(all: PassageChoice[], query: string, exceptUnitId: string, n = 8): PassageChoice[] {
-  if (!query.trim()) return [];
-  const out: PassageChoice[] = [];
-  for (const p of all) {
-    if (p.unitId === exceptUnitId || !matchesQuery(p, query)) continue;
-    out.push(p);
-    if (out.length >= n) break;
-  }
-  return out;
-}
-
-/**
- * Where a logged session's review goes (REV-6): the version that was played
- * on this passage, and the latest version of every other passage picked.
- * Passages with no version are left out.
- */
-export function loggedTargets(state: LanguageState, main: { unitId: string; takeId: string }, alsoUnitIds: string[]): { unitId: string; takeId: string }[] {
-  const out = [main];
-  for (const unitId of alsoUnitIds) {
-    if (unitId === main.unitId || out.some((t) => t.unitId === unitId)) continue;
-    const latest = derivePassage(state, unitId).latest;
-    if (latest) out.push({ unitId, takeId: latest.takeId });
-  }
-  return out;
 }

@@ -1,5 +1,6 @@
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { SESSION_KEY, signOutHere, supabase, supabaseConfigError } from './supabase';
+import { signingOutByChoice } from '../auth/signOutCause';
 
 /** Where the session is kept on this device (sessionKey.ts), and why this build cannot reach a server, if it cannot. */
 export { SESSION_KEY, signOutHere, supabaseConfigError as serverConfigError };
@@ -37,10 +38,12 @@ export function choosePassword(password: string) {
   return supabase.auth.updateUser({ password, data: { has_password: true } });
 }
 
-/** Forget the sign-in on this device without asking the server. */
-export async function signOutLocally(): Promise<void> {
-  const { error } = await supabase.auth.signOut({ scope: 'local' });
-  if (error) throw error;
+/** Forget the sign-in on this device without asking the server (the person's choice, signOutCause.ts). */
+export function signOutLocally(): Promise<void> {
+  return signingOutByChoice(async () => {
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) throw error;
+  });
 }
 
 /** Hold the session still (no renewal) while it is moved, and let it renew again. */

@@ -4,11 +4,10 @@ import {
   type AnyEvent, type EventPayloads, type EventType, type SourcedQuestion
 } from '@langquest-next/core';
 import {
-  canLeave, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, footHint, isGroupKind, kindLabel, listenLine, loggedTargets, matchesQuery,
-  nearbyPassages, noteAnchorText, nextLabel, openRequired, questionSource, readiness, recordedPassages, requestFor, reviewCapture, reviewStages,
-  searchPassages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor
+  canLeave, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, footHint, isGroupKind, kindLabel, listenLine,
+  noteAnchorText, nextLabel, openRequired, questionSource, readiness, requestFor, reviewCapture, reviewStages,
+  stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor
 } from '../src/reviewing/capture';
-import { parseQuery } from '../src/canon';
 
 /** A small language on the Standard Bible Flow, with a few passages of John and one of Mark. */
 function language() {
@@ -111,7 +110,6 @@ describe('before an outcome can be sent (REV-2, REV-3)', () => {
   });
 
   it('labels questions by where they come from', () => {
-    expect(questionSource(q('x', false, 'org'))).toBe('Organization');
     expect(questionSource(q('x', false, 'language'))).toBe('Language team');
     expect(questionSource(q('x', false, 'request'), 'Mary')).toBe('From Mary');
   });
@@ -125,52 +123,11 @@ describe('before an outcome can be sent (REV-2, REV-3)', () => {
   });
 });
 
-describe('a session that already happened (REV-6)', () => {
+describe('a session that already happened (REV-6), on its one passage (decision 128)', () => {
   it('asks how many listened for a group kind, and who for the rest', () => {
     expect(isGroupKind('community')).toBe(true);
     expect(isGroupKind('retell')).toBe(true);
     expect(isGroupKind('consultant')).toBe(false);
-  });
-
-  it('suggests the nearest recorded passages in the same book, and searches for the rest', () => {
-    const p = language();
-    for (const u of ['john1', 'john2', 'john3', 'john4', 'john5', 'john9', 'mark2']) p.publish(u, [`c-${u}`]);
-    const all = recordedPassages(p.state(), languageLines(p.state()));
-    expect(all.map((x) => x.unitId)).toEqual(['mark2', 'john1', 'john2', 'john3', 'john4', 'john5', 'john9']); // canon order: Mark before John
-    const here = all.find((x) => x.unitId === 'john3')!;
-    expect(nearbyPassages(all, here).map((x) => x.unitId)).toEqual(['john1', 'john2', 'john4', 'john5']);
-    expect(searchPassages(all, 'Mark 2', 'john3').map((x) => x.unitId)).toEqual(['mark2']);
-    expect(searchPassages(all, 'joh 9', 'john3').map((x) => x.unitId)).toEqual(['john9']);
-    expect(searchPassages(all, 'john', 'john3')).toHaveLength(5);
-    expect(searchPassages(all, '', 'john3')).toEqual([]);
-    expect(parseQuery('1 Cor 13:4')).toEqual({ book: '1 cor', chapter: 13 });
-    expect(parseQuery('1 cor 13:4-6')).toEqual({ book: '1 cor', chapter: 13 });
-    expect(matchesQuery(here, 'luke')).toBe(false);
-    // Same parsing as the Map: a verse range still finds the chapter, and a bare number is a book prefix.
-    expect(searchPassages(all, 'john 9:1-5', 'john3').map((x) => x.unitId)).toEqual(['john9']);
-    expect(searchPassages(all, '1', 'john3')).toEqual([]);
-    expect(matchesQuery(here, 'jn')).toBe(false);
-  });
-
-  it('leaves out passages with no version, and caches the list per state', () => {
-    const p = language();
-    p.publish('john3', ['a']);
-    const state = p.state();
-    expect(recordedPassages(state, languageLines(state)).map((x) => x.unitId)).toEqual(['john3']);
-    expect(recordedPassages(state, languageLines(state))).toBe(recordedPassages(state, languageLines(state)));
-  });
-
-  it('saves to the version played here and the latest version of each other passage picked', () => {
-    const p = language();
-    p.publish('john3', ['a']);
-    p.publish('john3', ['b'], 'Second.');
-    p.publish('john4', ['c']);
-    const state = p.state();
-    const here = derivePassage(state, 'john3');
-    const first = here.versions[0]!.takeId;
-    const other = derivePassage(state, 'john4').latest!.takeId;
-    expect(loggedTargets(state, { unitId: 'john3', takeId: first }, ['john4', 'john5', 'john3']))
-      .toEqual([{ unitId: 'john3', takeId: first }, { unitId: 'john4', takeId: other }]);
   });
 });
 

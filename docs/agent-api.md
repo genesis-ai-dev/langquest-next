@@ -77,7 +77,7 @@ curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/passages/UNIT     
   - `audio` is `version`'s cards in playing order. Each has a `url` that plays without a token for ten minutes, with Range support.
   - `approvedAudio` (with `read`) is `approvedVersion`'s cards, so an app keeps playing the version it published while a newer one is in review. It is empty when nothing is approved.
   - Each step lists its `kinds`: `kindId` (what a review of it sends), `name`, `state`, and `apiReviewCounts`, whether a review through this API completes it. It does on an ordinary step that takes links, never on a checkpoint.
-  - `requests` are the ones not done yet: `requestId`, `what` (`review` or `record`), `kindId` and `kind`, `forYou` (to the token's person, or a team they are in), `team`, `dueDate`, `note` and `askedAt`.
+  - `requests` are the ones not done yet: `requestId`, `what` (`review` or `record`), `kindId` and `kind`, `forYou` (to the token's person, or a team they are in), `team`, `note` and `askedAt`.
 
 ## Writing
 

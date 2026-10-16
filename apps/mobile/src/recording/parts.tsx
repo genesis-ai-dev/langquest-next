@@ -4,14 +4,17 @@
 import { CommandError } from '@langquest-next/core';
 import { useEffect } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
-import { Text } from '../text';
-import { AudioClip } from '../audioClip';
-import type { Ctx } from '../ctx';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
+import type { Ctx } from '../shell/ctx';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
-import { GhostBtn, Ico, IconBtn, txt } from '../kit';
-import { reportError } from '../report';
-import { lift } from '../shadow';
-import { C, radius, space, target, TINT, withAlpha } from '../theme';
+import { GhostBtn, Ico, IconBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import { reportError } from '../diagnostics/report';
+import { lift } from '../ui/shadow';
+import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import { mmss } from './workspaceModel';
 
 /**
@@ -20,13 +23,14 @@ import { mmss } from './workspaceModel';
  * someone can read to support. Never the raw message, which can carry
  * content.
  */
-export { failureMessage as problemText } from '../report';
 
 /** 80pt, always red whatever the theme, a stop square while recording (ADR-028). */
 export function RecordButton(props: { recording: boolean; disabled?: boolean; onPress: () => void }) {
   const off = props.disabled && !props.recording;
+  const spot = useHelpSpot(props.recording ? t('common.stopRecording') : t('recording.take.record'),
+    props.recording ? t('recording.recordButton.stopHelp') : t('recording.recordButton.recordHelp'), props.onPress);
   return (
-    <Pressable onPress={props.onPress} disabled={off} accessibilityRole="button"
+    <Pressable onPress={spot.onPress} disabled={off} accessibilityRole="button"
       accessibilityLabel={props.recording ? t('common.stopRecording') : t('recording.take.record')}
       accessibilityHint={props.recording ? undefined : t('recording.take.recordHint')}
       accessibilityState={{ disabled: !!off }}
@@ -34,6 +38,7 @@ export function RecordButton(props: { recording: boolean; disabled?: boolean; on
         props.recording ? { borderWidth: 8, borderColor: withAlpha(C.red, 0.33) } : null,
         pressed && { transform: [{ scale: 0.95 }] }]}>
       <Ico name={props.recording ? 'stop' : 'mic'} size={props.recording ? 30 : 36} color={C.white} />
+      <HelpBadge spot={spot} />
     </Pressable>
   );
 }
@@ -64,7 +69,7 @@ export function CardList(props: {
             <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{c.label}</Text>
             <Text style={txt.xs}>{mmss(c.durationMs)}</Text>
           </View>
-          <IconBtn name="trash" label={t('recording.deleteItem', { item: c.label })} bg="transparent" color={C.muted} disabled={props.disabled}
+          <IconBtn name="trash" label={t('recording.deleteItem', { item: c.label })} help={t('recording.recorder.deletePartHelp')} bg="transparent" color={C.muted} disabled={props.disabled}
             onPress={() => props.onDelete(c.hash)} />
         </View>
       ))}
@@ -82,7 +87,7 @@ export function SaveProblem(props: { message: string; retryLabel?: string; onRet
         <Ico name="flag" size={18} color={TINT.redText} />
         <Text style={[txt.sm, { flex: 1, color: TINT.redText }]} accessibilityRole="alert">{props.message}</Text>
       </View>
-      {props.onRetry ? <GhostBtn label={props.retryLabel ?? t('common.tryAgain')} icon="restart" tone="red" disabled={props.busy} onPress={props.onRetry} /> : null}
+      {props.onRetry ? <GhostBtn label={props.retryLabel ?? t('common.tryAgain')} help={t('help.details.tryAgain')} icon="restart" tone="red" disabled={props.busy} onPress={props.onRetry} /> : null}
     </View>
   );
 }

@@ -3,7 +3,7 @@
 The passage record and everything one tap from it:
 - each fixture passage's main button, per role
 - the step sheet ("Then the team") and "Something else?"
-- Ask someone, and asking after publishing
+- Ask someone, and asking for a check from Done
 - Already happened, set aside, checkpoints and Undo
 - "Versions and history", the version and review pages, and the passage's
   reference page
@@ -19,8 +19,16 @@ fixture world and the role matrix hold for every test here.
   the peer check", "Ask for the back translation". The version and review
   pages say it too. The History entries and Already happened still say the
   library's kind names ("Peer Review", "Back Translation"); see PASS-062.
-- "Then the team" lists each check on its own row, with the people on it
-  (decision 91). The Peer check and Back translation have {REV} and {TREV}.
+- "Then the team" lists each check as a card, with the people on it
+  (decision 91): a round state tile, the check's name, its status on its
+  own line, then its people, with space between the cards (decision 127).
+  A card is still spoken "{name}, {status}". The Peer check and Back
+  translation have {REV} and {TREV}.
+- Since decision 127 the recorder's "Publish" is "Done". Done opens a last
+  look at the version whose main button asks the next check's usual people
+  and publishes in the same tap ("Ask the Peer check team"); "Someone else"
+  and "Send later" finish it too. There is no "Version N published" page:
+  every way out lands on the record's path (06 REC-011).
 - Since decision 91 the Translator role holds Review, so TRANS and KEPT may
   check other people's versions (never their own unless asked).
 - Recording, the review screens and the study belong to 06 REC, 07 REV and
@@ -70,16 +78,18 @@ Steps:
 Expected:
 - The header has the title "Luke 13:1-9", the sub "Alpha", and a Back arrow.
 - The path shows "Record" lit. Its sub reads:
-  - TRANS: "{COORD} asked you · due {Mon d}. Tell it in your language. The
-    Bible, key words and notes are beside you while you record."
-  - COORD: "You asked {TRANS} · due {Mon d}. Tell it…"
-  - Everyone else: "{COORD} asked {TRANS} · due {Mon d}. Tell it…"
-- Then "Publish", with the sub "Then ask for the peer check".
-- "Then the team" lists one row per check (decision 91): "Peer check" "after
-  you publish", "Back translation" "same time", "Community check" "after the
-  peer check", "Consultant check" "after the community check" (a lock),
-  "Final approval" "after the consultant check" (a lock). The Peer check and
-  Back translation rows show their people, "{REV}, {TREV}".
+  - TRANS: "{COORD} asked you. Tell it in your language."
+  - COORD: "You asked {TRANS}. Tell it…"
+  - Everyone else: "{COORD} asked {TRANS}. Tell it…"
+- Then "Done", with the sub "Then ask for the peer check" (in a language
+  with no flow, "Then the team can hear it").
+- "Then the team" lists one card per check (decision 91), each with its
+  state tile, name, status and people: "Peer check" "once you're done",
+  "Back translation" "same time", "Community check" "after the peer check",
+  "Consultant check" "after the community check" (a lock), "Final approval"
+  "after the consultant check" (a lock). The Peer check and Back translation
+  cards show their people, "{REV}, {TREV}". Each card is spoken "{name},
+  {status}" ("Peer check, once you're done").
 - The main button:
 
   | Role | Main button | Opens |
@@ -125,9 +135,9 @@ Expected:
 - When FIA's study guide for this passage is offered, "Study" shows first,
   as passed ("–"), with the sub "{pattern} guide · {done} of {n} steps". It
   is passed because recording has started.
-- "Record" is done, with the sub "Version 1 · {m:ss}". "Publish" is done,
-  with the sub "Published {when} · asked {REV}" ("Published just now" when
-  it is new; it read "Published Just now", REC-012).
+- "Record" is done, with the sub "Version 1 · {m:ss}". The "Done" step is
+  done too, with the sub "Published {when} · asked {REV}" ("Published just
+  now" when it is new; it read "Published Just now", REC-012).
 - "Then the team": "Peer check" reads "asked {REV}", "Back translation"
   "same time", "Community check" "after the peer check", "Consultant check"
   "after the community check" with a lock.
@@ -148,7 +158,7 @@ Steps:
 2. Read the path, any amber line, and the footer.
 
 Expected:
-- TRANS's path adds two steps after "Publish":
+- TRANS's path adds two steps after "Done":
   - "Hear the feedback" (lit), with the sub "Peer check · needs changes".
     Inside it are "{REV}" (with "· 0:05" when the voice note's length is
     known on this device) and the quote "Verse 18 is too fast".
@@ -156,7 +166,7 @@ Expected:
     the check".
 - Everyone else sees no such steps. They see the amber line "Waiting on
   {TRANS} to answer the Peer check feedback.".
-- The "Peer check" row of "Then the team" reads "needs changes" in amber.
+- The "Peer check" card of "Then the team" reads "needs changes" in amber.
 - The main button:
 
   | Role | Main button | Opens |
@@ -176,7 +186,7 @@ Roles: TRANS, REV, TREV, COORD, LADMIN, KEPT, VIEW · Priority: P0 · Platforms:
 
 Steps:
 1. Open Luke 14:25-35.
-2. Read the first two "Then the team" rows and the footer.
+2. Read the first two "Then the team" cards and the footer.
 
 Expected:
 - "Peer check" reads "looks good"; "Back translation" reads "asked {REV}".
@@ -215,11 +225,11 @@ Roles: TRANS, REV, COORD, LADMIN, VIEW · Priority: P0 · Platforms: iOS, Androi
 
 Steps:
 1. Open Luke 16:1-15.
-2. Tap the "Community check" row ("Then the team").
+2. Tap the "Community check" card ("Then the team").
 3. Close the sheet and read the footer.
 
 Expected:
-- The "Community check" row reads "set aside".
+- The "Community check" card reads "set aside".
 - Its sheet is titled "Community check", with the sub "This step is done.".
   The check's row reads "Community check", "Set aside: No community meeting
   this month", marked "Set aside", with no buttons. VIEW cannot open the
@@ -251,14 +261,14 @@ Roles: VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Open P-SUBMITTED, then P-NEEDS, then P-ASIDE.
-2. Tap each path step and each "Then the team" row.
+2. Tap each path step and each "Then the team" card.
 3. Tap "Something else?", then ✕. Tap "Versions and history".
 
 Expected:
 - No main button on any of them.
-- "Record" and "Publish", when done, open the version page. Steps not done
+- "Record" and "Done", once ticked, open the version page. Steps not done
   do nothing.
-- "Then the team" rows do nothing.
+- "Then the team" cards do nothing.
 - "Something else?" shows only the "What helps here" tile and the offline
   card. It has no "Add a note" tile and no "Say it instead" footer.
 - "Versions" has no "New version" button, no "Edit", and no "Your draft".
@@ -272,16 +282,16 @@ Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 Steps:
 1. Open P-SUBMITTED. Tap "Study" (when it shows, PASS-003).
 2. Go back and tap "Record" (done).
-3. Go back and tap "Publish" (done).
-4. Go back and tap the "Peer check" row.
+3. Go back and tap the "Done" step (ticked).
+4. Go back and tap the "Peer check" card.
 
 Expected:
 - "Study" opens the study (08 STUDY).
-- "Record" and "Publish", when done, both open "Version 1" (PASS-064).
-- The row opens a sheet titled with the step's checks, "Peer check and back
+- "Record" and "Done", once ticked, both open "Version 1" (PASS-064).
+- The card opens a sheet titled with the step's checks, "Peer check and back
   translation". An ordinary step has no sub: it is just its checks
   (decision 91).
-- On P-NEW, "Record" (not done) opens the workspace. "Publish" (not done,
+- On P-NEW, "Record" (not done) opens the workspace. "Done" (not done,
   with no draft) does nothing.
 - On P-NEEDS, "Hear the feedback" and "Fix it, or keep it and say why" both
   open the review page.
@@ -293,77 +303,83 @@ Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Open P-Q1 (Luke 13:10-17). Tap "Record".
-2. Record one part and publish it (06 REC does it step by step).
-3. On the page that follows, tap "Not now".
+2. Record one part and tap "Done" (06 REC does it step by step).
+3. On the Done screen, tap "Send later".
 
 Expected:
 - "Record" opens the recording workspace for Luke 13:10-17.
-- After publishing, the record shows the page from PASS-012 ("Version 1
-  published").
-- After "Not now": the path's "Record" is done ("Version 1 · {m:ss}") and
-  "Publish" is done ("Published just now").
+- "Send later" publishes Version 1 and asks nobody: the toast reads
+  "Version 1 published.", and the app returns to the record's path. There
+  is no "Version 1 published" page (decision 127).
+- The path's "Record" is done ("Version 1 · {m:ss}"), and so is "Done"
+  ("Published just now").
 - My Work no longer lists Luke 13:10-17 for TRANS. COORD's "Waiting on
   others" drops by one.
 
 Resets: P-Q1 now has Version 1.
 
-### PASS-012 Publishing, then asking: the check's people are picked
+### PASS-012 Done, then asking: the check's people are picked
 Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
 - A second device signed in as REV.
 
 Steps:
-1. Open P-DRAFT. Tap "Continue recording" and publish the draft (06 REC).
-2. Read the page that opens.
+1. Open P-DRAFT. Tap "Continue recording", then "Done" (06 REC).
+2. Read the Done screen, before anything is published.
 3. Tap "Ask the Peer check team".
 4. Within 7 seconds, tap "Undo" on the toast.
 
 Expected:
-- The page has no header. A big green ✓ is followed by "Version 1
-  published", then "Luke 14:1-14 · sent to the team" (or "· sending now"
-  while it uploads; "· saved on this device · sends when you're online"
-  only offline). Fixed (2026-10-12, REC-034): it always said "saved on this
-  device".
-- "Next, ask for a check" is followed by a card for each open check of the
-  next step, each with its people (decision 91): "Peer check" with "{REV},
-  {TREV}", then "Back translation" with the same. The first is picked; with
-  more than one they are radios.
+- The Done screen is titled "Luke 14:1-14", with the sub "Version 1" and ✕
+  (06 REC-011).
+- "Next check" is followed by a card for each open check of the next step,
+  each with its people (decision 91): "Peer check" with "{REV}, {TREV}",
+  then "Back translation" with the same. The first is picked; with more
+  than one they are radios.
 - The footer holds "Ask the Peer check team", then the quiet links "Someone
-  else" and "Not now".
-- Tapping the button returns to the path and shows "Sent to the Peer check
-  team — anyone on it will see it on My Work", with "Undo". The "Peer check"
-  row reads "asked the Peer check team".
-- "Undo" shows "Undone.". The row goes back to "next", and REV's My Work
+  else" and "Send later".
+- Tapping the button publishes Version 1 and asks, in one write. The app
+  returns to the path and shows "Sent to the Peer check team — anyone on it
+  will see it on My Work", with "Undo". The "Peer check" card reads "asked
+  the Peer check team".
+- "Undo" takes back the asking, not the version: it shows "Undone.", the
+  card goes back to "next", Version 1 stays published, and REV's My Work
   (after Sync now) does not list Luke 14:1-14.
+- Changed (2026-10-15, decision 127): the page after publishing (a big
+  green ✓, "Version 1 published", its upload line, fixed 2026-10-12 in
+  REC-034, and "Next, ask for a check") is gone. Asking happens on Done.
 
 Resets: P-DRAFT is now Version 1, with the Peer check not asked.
 
-### PASS-013 Publishing, then asking someone else
+### PASS-013 Done, then asking someone else
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. Open P-Q2 (Luke 13:18-21). Record a part and publish it (06 REC).
-2. On "Version 1 published", tap "Someone else".
+1. Open P-Q2 (Luke 13:18-21). Record a part and tap "Done" (06 REC).
+2. On the Done screen, tap "Someone else".
 
 Expected:
-- Ask someone opens, titled "Ask for Peer check", with the sub "Luke
-  13:18-21 · Alpha" and ✕ (PASS-037).
-- ✕ returns to the record's path, not to the publish page.
+- "Someone else" publishes Version 1, then Ask someone opens, titled "Ask
+  for Peer check", with the sub "Luke 13:18-21 · Alpha" and ✕ (PASS-037).
+- ✕ returns to the record's path, not to the Done screen. There is no
+  "Version 1 published" page.
 
-### PASS-014 Publishing, then not now
+### PASS-014 Done, then send later
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. Publish a new version of any of TRANS's passages that has an unasked
-   next check.
-2. On the page, tap "Not now".
+1. Record a new version of any of TRANS's passages that has an unasked
+   next check, and tap "Done".
+2. On the Done screen, tap "Send later".
 3. Read the footer.
 
 Expected:
-- "Not now" returns to the path with nothing sent.
+- "Send later" publishes the version and asks nobody: the toast reads
+  "Version {n} published.", and the app returns to the path.
 - The main button now reads "Ask for the {check}". Tapping it opens the
-  same page with the header "Ask for a check" and ✕, and no big ✓.
+  ask page (PASS-015), with the header "Ask for a check" and ✕. No
+  "Version {n} published" page shows at any point.
 
 ### PASS-015 Ask for the check from the main button
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -393,7 +409,7 @@ Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 Steps:
 1. Open P-SUBMITTED. Tap "Do the peer check".
 2. Give the verdict "Looks good" (07 REV).
-3. Read the record, then open the "Peer check" row.
+3. Read the record, then open the "Peer check" card.
 
 Expected:
 - The review screen opens on the Peer check for Version 1 (its header is the
@@ -401,7 +417,7 @@ Expected:
 - Afterwards the record is back on top.
 - The sheet shows the Peer check marked "Looks good". The Back translation is
   still "Not yet".
-- The "Peer check" row reads "looks good", no longer "asked {REV}".
+- The "Peer check" card reads "looks good", no longer "asked {REV}".
 - REV's My Work no longer lists P-SUBMITTED. TRANS's bell gains "Peer
   Review: looks good" (after Sync).
 
@@ -412,23 +428,27 @@ Roles: REV, TREV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. REV: open P-BT. Tap "Back-translate it".
-2. Record and publish the back translation (07 REV).
+2. Record the back translation and tap "Done" (07 REV).
 3. TREV: do the same on a Version 1 whose Peer check looks good and whose
    back translation nobody was asked for.
 
 Expected:
 - The back translation screen opens for Version 1, with the sub "Back
   translation · into English".
-- Afterwards the record shows the page "Back translation published".
-- Step 1 is now complete: the "Peer check" and "Back translation" rows read
-  "looks good".
-- REV holds no Send to reviewers, so the page offers no check to ask for:
-  the footer is only "Done".
-- TREV is offered the next check: "Next, ask for a check" with the Community
-  check, and "Ask {target}" or "Ask for the community check".
-- Fixed (2026-10-12): the page showed "Next, ask for a check" with the
-  Community Check card to someone who cannot ask. The page now lists checks
-  only for someone who can ask.
+- "Done" opens its sheet, titled "Back translation", with the sub "Of
+  Version 1".
+- REV holds no Send to reviewers, so the sheet offers no check to ask for:
+  it has no "Next check", and its only button is "Finish the back
+  translation". That shows "Back translation published." and returns to the
+  record; there is no "Back translation published" page.
+- Step 1 is now complete: the "Peer check" and "Back translation" cards
+  read "looks good".
+- TREV is offered the next check: the sheet's "Next check" holds the
+  Community check, with "Ask {target}" (then "Someone else" and "Send
+  later") or "Ask for the community check" (then "Send later").
+- Fixed (2026-10-12): the page after publishing showed "Next, ask for a
+  check" with the Community Check card to someone who cannot ask. Done now
+  lists checks only for someone who can ask.
 
 Resets: P-BT's step 1 is complete.
 
@@ -459,14 +479,16 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. On P-NEEDS's feedback page, tap "Record a fix".
-2. Record and publish Version 2 (06 REC).
-3. On the page that follows, tap "Not now". Open the "Peer check" row.
+2. Record a part for Version 2 and tap "Done" (06 REC).
+3. Tap "Send later". Open the "Peer check" card.
 
 Expected:
 - The workspace opens on P-NEEDS, tied to REV's review.
-- Afterwards the record shows "Version 2 published". The check it offers
-  first is the Peer check again, with "Ask the Peer check team": answered
-  feedback keeps the check open (decided 2026-10-13, decisions.md 96).
+- On the Done screen, "What changed" starts from "Revised after the Peer
+  check feedback.", so its buttons are enabled. "Next check" is the Peer
+  check again, with "Ask the Peer check team": answered feedback keeps the
+  check open (decided 2026-10-13, decisions.md 96).
+- "Send later" shows "Version 2 published." and returns to the record.
 - On the path, "Hear the feedback" and "Fix it…" are gone.
 - In the sheet, the Peer check is marked "Feedback answered".
 - "Versions and history" → "History" lists "Revised after Peer Review".
@@ -507,7 +529,7 @@ Expected:
 Roles: TRANS, REV, TREV, COORD, LADMIN, KEPT, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. Open P-SUBMITTED (before PASS-016). Tap the "Peer check" row.
+1. Open P-SUBMITTED (before PASS-016). Tap the "Peer check" card.
 2. Read each check's sub and buttons.
 
 Expected:
@@ -543,14 +565,14 @@ Preconditions (in addition to the global ones):
 - A second device signed in as REV.
 
 Steps:
-1. TRANS: open P-DRAFT. Tap the "Peer check" row.
+1. TRANS: open P-DRAFT. Tap the "Peer check" card.
 2. Tap "Send to the Peer check team".
 3. REV and TREV: tap Sync now, then open My Work.
 
 Expected:
 - The sheet closes. The toast "Sent to the Peer check team — anyone on it
   will see it on My Work" shows, with "Undo".
-- The "Peer check" row reads "asked the Peer check team".
+- The "Peer check" card reads "asked the Peer check team".
 - REV and TREV see Luke 14:1-14 on My Work, asked by {TRANS}.
 - TRANS's My Work → "Waiting on others" lists it.
 - Fixed (2026-10-13): that row names "someone", not the team. It is
@@ -564,7 +586,7 @@ PASS-044), so that PASS-037 finds the Peer check not asked.
 Roles: TRANS, REV, COORD · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. Open P-SUBMITTED. Tap the "Back translation" row.
+1. Open P-SUBMITTED. Tap the "Back translation" card.
 2. On the Back translation, tap "Set aside".
 3. Read the sheet. Try to tap "Set aside".
 4. Tap "Not needed for this passage". Tap "Set aside".
@@ -728,7 +750,7 @@ Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Open P-DONE. Tap "Something else?", then "Record a new version".
-2. Record one part, then tap ✕ without publishing.
+2. Record one part, then tap ✕ (the draft is kept; nothing is published).
 3. Read "Something else?" again.
 
 Expected:
@@ -755,9 +777,11 @@ Expected:
 - The sheet's sub reads "On the whole passage. It follows the passage into
   reviews and later versions." It has "Say it" and "Or type it".
 - "Add note" is disabled until there is text or a voice note.
-- The toast reads "Note added — it follows this passage", with no Undo.
+- The toast reads "Note added — it follows this passage", with "Undo".
 - TREV's lit "Record" step (if not recorded), or History, shows "{TRANS}'s
   note". In History it is "Note · {anchor}", with a report flag (PASS-066).
+  TRANS sees "Undo" on it instead: their own note, which they may take back
+  (decisions.md 111).
 - REV can add a note. VIEW has no "Add a note" tile.
 
 ### PASS-033 Say it instead
@@ -863,7 +887,7 @@ Preconditions (in addition to the global ones):
 - P-DRAFT is Version 1, with the Peer check not asked (after PASS-012).
 
 Steps:
-1. Open P-DRAFT. Tap the "Peer check" row, then "Send to someone else".
+1. Open P-DRAFT. Tap the "Peer check" card, then "Send to someone else".
 2. Read the page top to bottom.
 
 Expected:
@@ -885,7 +909,7 @@ Expected:
   more.
 - The footer reads "Ask the Peer check team".
 
-### PASS-038 Ask a person, with directions, a question and a due date
+### PASS-038 Ask a person, with directions and a question, and no due date
 Roles: TRANS, TREV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
@@ -898,7 +922,7 @@ Steps:
    "Or type them".
 3. Under "They'll answer", type "Is the host's anger clear?" in "Ask
    something specific". Tap "Add question".
-4. Under "By when · optional", tap "In a week".
+4. Check that there is no "By when" section and no date field.
 5. Tap "Ask {TREV first name}".
 6. TREV: Sync now, then open My Work.
 
@@ -906,13 +930,14 @@ Expected:
 - The footer changes to "Ask {first name}" once TREV is picked.
 - The question shows under "They'll answer", after the check's own
   questions, with "Yes/No" and ✕ ("Remove question").
-- The date line reads "Due {day}".
+- There is no "By when · optional", no date chip, no date field and no
+  "Due {day}" line (decision 126).
 - After sending, the toast reads "{TREV} will see it on their My Work", with
   "Undo". The app returns to P-DRAFT's record.
-- The "Peer check" row reads "asked {TREV}".
-- History shows "Asked {TREV} for Peer Review", "You · {when} — due {Mon d}",
-  with "Withdraw".
-- TREV's My Work lists "Luke 14:1-14", "… asked by {TRANS} · due {Mon d}". In
+- The "Peer check" card reads "asked {TREV}".
+- History shows "Asked {TREV} for Peer Review", "You · {when} — open", with
+  "Withdraw".
+- TREV's My Work lists "Luke 14:1-14", "… asked by {TRANS}". In
   the review the directions and the question appear (07 REV).
 
 ### PASS-039 Ask someone to record, then Undo
@@ -921,39 +946,21 @@ Roles: COORD, LADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Aut
 Steps:
 1. Open an unstarted Luke passage nobody was asked to record. Tap "Something
    else?", then "Someone else should do this".
-2. Pick KEPT ("Kept Person"). Tap "In 2 weeks". Tap "Ask Kept".
+2. Pick KEPT ("Kept Person"). Tap "Ask Kept".
 3. Within 7 seconds, tap "Undo".
 
 Expected:
 - The toast reads "Kept Person will see it on their My Work" with "Undo".
   The app returns to the record's path, where "Record" reads "You asked Kept
-  Person · due {Mon d}. Tell it…".
+  Person. Tell it…".
 - "Undo" shows "Undone.". The Record step loses the "asked" line, and
   History shows the request as withdrawn.
 - LADMIN can do the same in Alpha (Assign work, Send to reviewers).
 - Fixed (2026-10-12): asking from "Something else?" came back to "Something
   else?", not the path (`passage_record` now takes an `asked` param).
 
-### PASS-040 Typing a due date
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
-
-Steps:
-1. On Ask someone (any), type "12/10/2026" in "Or a date, like
-   {today+10}".
-2. Type "2026-02-30".
-3. Type yesterday's date as YYYY-MM-DD.
-4. Type a date 10 days ahead.
-5. Clear the field and tap "Today".
-6. Tap "No date".
-
-Expected:
-- Step 1: "Write the date as YYYY-MM-DD, like 2026-10-07." in red. The
-  footer stays disabled.
-- Step 2: "That date does not exist."
-- Step 3: "Pick today or a later day."
-- Step 4: no error. The line reads "Due {day}", and no chip is lit.
-- Step 5: "Today" is lit, and the line reads "Due {today}".
-- Step 6: "No date" removes the due date.
+### PASS-040 Typing a due date (retired)
+Removed with due dates (decision 126). The number is not reused.
 
 ### PASS-041 Your own questions
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -974,7 +981,7 @@ Expected:
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- On P-DRAFT, open the "Back translation" row and tap "Send to someone else"
+- On P-DRAFT, open the "Back translation" card and tap "Send to someone else"
   (or "Ask someone" when nobody is on the check). The page is titled "Ask for
   Back translation".
 
@@ -1052,7 +1059,7 @@ Preconditions (in addition to the global ones):
 - P-DRAFT is Version 1 with Peer Review asked of TREV (PASS-038).
 
 Steps:
-1. Open P-DRAFT's first "Then the team" row. On Peer Review, tap "Already
+1. Open P-DRAFT's first "Then the team" card. On Peer Review, tap "Already
    happened".
 2. Read the first stage. In "Who reviewed it?", type "Peter Lual".
 3. Tap "Next: questions" (or "Next: decide"), answer or skip each question,
@@ -1070,8 +1077,9 @@ Expected:
 - The verdict question is "Is it accurate and natural?". "Looks good" and
   "Needs changes" are disabled while a required question is open, with
   "{n} required question(s) left — answer, or say why not".
-- Saving shows "Peer Review added to the record", with no Undo (reviews only
-  grow). The app returns to the record.
+- Saving shows "Peer Review added to the record", with "Undo" (whoever
+  logged a check may take it back, decisions.md 111). The app returns to the
+  record.
 - Peer Review is marked "Looks good". TREV's request is done, and P-DRAFT
   leaves TREV's My Work after Sync.
 
@@ -1079,7 +1087,7 @@ Expected:
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. Open P-DRAFT. Tap the "Community Check" row ("Then the team"), then
+1. Open P-DRAFT. Tap the "Community Check" card ("Then the team"), then
    "Already happened".
 2. Set "How many listened?" to 12.
 3. Go to "Decide". Tap "Needs changes".
@@ -1093,44 +1101,45 @@ Expected:
   {TRANS} will hear it."
 - "Send feedback" is disabled until something is said or typed.
 - Saving shows "Community Check added to the record". The Community Check
-  row reads "needs changes".
+  card reads "needs changes".
 - TRANS's My Work gains "Feedback to hear", and the bell gains "Feedback on
   Luke 14:1-14".
 
-### PASS-049 Add details: where, which version, and other passages
+### PASS-049 Add details: where and which version, on this passage only
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. On Already happened for a Peer Review on a passage with two versions (P-NEEDS
-   after PASS-019), tap "Add details".
-2. Type "Bor church, after service" in "Where". Under "Which version was
-   played", choose Version 1. Under other passages, add Luke 14:25-35.
+1. On Already happened for a Peer Review, tap "Add details".
+2. Type "Bor church, after service" in "Where".
 3. Finish with "Looks good".
 
 Expected:
 - The sheet offers "Where — e.g. Bor church, after service", "Which version
-  was played" (chips, only with more than one version), the other-passages
-  picker ("Saves to 2 passages") and "Evidence · optional".
-- The toast reads "Peer Review added to 2 passages".
-- Each passage's History shows the review, with the place.
+  was played" (chips, only with more than one version) and "Evidence ·
+  optional". It has no "Also covered in this session": a review goes on the
+  one passage it is about, and another passage the session covered gets its
+  own review there (decision 128).
+- The toast reads "Peer Review added to the record".
+- The passage's History shows the review, with the place.
 
 ### PASS-050 A back translation that happened outside the app
 Roles: REV · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. Open P-SUBMITTED's first "Then the team" row. On Back Translation, tap
+1. Open P-SUBMITTED's first "Then the team" card. On Back Translation, tap
    "Already happened".
-2. Go to the "Record it" stage. Try "Save to the record".
-3. Record one part (G8). Tap "Save to the record".
+2. Go to the "Record it" stage. Try "Done".
+3. Record one part (G8). Tap "Done".
 
 Expected:
 - The stages end in "Record it", not "Decide". The heading reads "Record
   the {what}", with "It's what gets checked next, so it's the one thing this
   entry needs."
-- "Save to the record" is disabled until there is at least one part. Each
-  part shows "Part {n}" and "Remove part {n}".
-- Saving shows "Back Translation added to the record". Back Translation is
+- "Done" is disabled until there is at least one part. Each part shows
+  "Part {n}" and "Remove part {n}".
+- "Done" shows "Back Translation added to the record". Back Translation is
   marked done on the record.
+- Changed (2026-10-15, decision 127): the button read "Save to the record".
 
 ## Checkpoints
 
@@ -1158,7 +1167,7 @@ Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. Open P-CHECK. Tap "Consultant check", then "Already happened".
-2. Give the verdict "Looks good" and save.
+2. Give the verdict "Looks good".
 3. Read "Then the team", then open "Consultant check".
 
 Expected:
@@ -1169,8 +1178,8 @@ Expected:
   TRANS's main button is still "Ask for the consultant check". Only approval
   given in the app clears a checkpoint (decision 72; core `derivePassage`).
 - A reviewer's "Looks good" given in the app (07 REV) does clear it.
-- Fixed (2026-10-12): the row read "looks good" and the sheet offered
-  nothing after a logged check (`kindCleared`, record.ts).
+- Fixed (2026-10-12): the "Consultant check" read "looks good" and the
+  sheet offered nothing after a logged check (`kindCleared`, record.ts).
 
 Resets: P-CHECK has a logged Consultant check review.
 
@@ -1262,8 +1271,9 @@ Steps:
 
 Expected:
 - The header is "Versions", with the sub "Luke 14:15-24" and ✕.
-- TRANS, with no draft: "No drafts. Edit a version below, or start a new
-  one." and the footer "New version".
+- TRANS, with no draft: no drafts section, and the footer "New version"
+  (the line "No drafts. Edit a version below, or start a new one." went in
+  decision 124).
 - "Published" lists the versions newest first. The latest has the badge
   "Latest". Each shows "{name} · {when}", its length, and a summary of its
   reviews. Each has "Edit" for anyone who can record.
@@ -1297,10 +1307,10 @@ Expected:
   (P-DONE).
 - The page shows "Your drafts", with "Draft 1" and "Draft 2" in the order
   started. Each has a play button, "{n} parts · {m:ss} · from Version {n}"
-  (or without "from"), "Saved {when}", "Edit", "Publish" and a trash
+  (or without "from"), "Saved {when}", "Edit", "Done" and a trash
   button.
-- "Publish" is disabled on a draft whose parts are the same as the latest
-  version.
+- "Done" is disabled on a draft whose parts are the same as the latest
+  version. Otherwise it opens that draft's Done screen (06 REC-011).
 - "Edit" opens the workspace on that draft, named "Draft 2".
 - Fixed (2026-10-12): the path's "Record" step skipped the picker and opened
   the workspace on the latest draft (`passage.tsx` `onStep`). (On P-DONE the
@@ -1308,20 +1318,24 @@ Expected:
 
 Resets: delete the unstarted passage's drafts.
 
-### PASS-060 Delete a draft, and Undo
+### PASS-060 Delete a draft, asked first
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
 1. On P-DONE's Versions page (PASS-059), tap the trash on "Draft 1".
-2. Tap "Undo".
-3. Delete it again and let the toast pass.
+2. Tap "Cancel".
+3. Tap the trash again, then "Delete Draft 1" in the sheet.
 
 Expected:
-- The trash is spoken "Delete Draft 1". Tapping it shows "Draft 1 deleted."
-  with "Undo", and the draft goes away. "Draft 2" is now the only draft,
-  named "Draft".
-- "Undo" brings back the same draft, with the same parts.
+- The trash is spoken "Delete Draft 1". Tapping it opens the sheet
+  "Delete Draft 1?" with what it holds, "Delete Draft 1" and "Cancel".
+- "Cancel" keeps both drafts.
+- Step 3 shows "Draft 1 deleted." with no Undo, and the draft goes away.
+  "Draft 2" is now the only draft, named "Draft".
 - Only TRANS's own drafts have a trash button.
+
+Changed (2026-10-16, decision 124): a whole draft, a whole version or every
+part asks first instead of offering Undo.
 
 Resets: delete both drafts.
 
@@ -1356,7 +1370,7 @@ Expected:
 - The summary reads "{n} entries since {when}" (or "{n} entries · just
   now"). 20 entries show, then "Show 20 more · {left} left".
 - The entries include "Version 1 published", "Asked {who} for {kind}" (with
-  open, due, done or withdrawn), "{Kind} · looks good" and "Community Check
+  open, done or withdrawn), "{Kind} · looks good" and "Community Check
   set aside".
 - Each sub reads "{who} · {when} — {detail}".
 - A version entry opens the version. A review entry opens the review.

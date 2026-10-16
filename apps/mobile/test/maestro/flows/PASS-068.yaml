@@ -93,7 +93,9 @@ tags:
       - tapOn:
           text: "Send to someone else"
           index: 0
-      - tapOn: "${TREV_NAME}.*"
+      # TREV's own row: the Peer check team comes first, chosen, and names TREV too.
+      - tapOn:
+          id: "ask-person-${TREV_ID}"
       - tapOn:
           text: "Ask ${TREV_FIRST}"
           waitToSettleTimeoutMs: 0
@@ -101,14 +103,18 @@ tags:
           id: "toast"
           text: ".*${TREV_NAME} will see it on their My Work.*"
       - assertVisible: "Peer check, asked ${TREV_NAME}|asked ${TREV_NAME}"
-      # My Work counts what waits to send.
+      # My Work's sync icon counts what waits to send ("Offline, 3 to send").
       - tapOn:
           id: "header-back"
       - tapOn:
           id: "tab-work"
-      - assertVisible: "\\d+ to send"
+      - assertVisible:
+          id: "sync-indicator"
+          text: ".*, \\d+ to send"
       - setAirplaneMode: disabled
       - extendedWaitUntil:
-          notVisible: "\\d+ to send"
+          visible:
+            id: "sync-indicator"
+            text: "Live|Connected"
           timeout: 60000
       - assertNotVisible: "Offline"

@@ -4,25 +4,16 @@
 // admin sees them, publishing a change to a template for the languages
 // chosen, and the names to offer when a language names a book (demo
 // ADR-042). Pure parts are in model.ts.
-import {
-  CommandError, isTemplateDoc, languageName, libraryItemView, orgLanguages, privilegesFor, recommendedFor, selectTemplateSpecs, subscriptionItemId,
-  templateBooks, verseNumbering,
-  type EventSpec, type LibraryItemView, type SourceDoc, type TemplateDoc, type VersificationDoc
-} from '@langquest-next/core';
+import { isTemplateDoc, languageName, libraryItemView, orgLanguages, recommendedFor, subscriptionItemId, verseNumbering, type SourceDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../contentTemplates';
-import type { Ctx } from '../ctx';
-import { t } from '../i18n';
-import { appendToLanguage } from '../languageWriter';
-import { flushOutbox, keepNewDoc, loadDocs, prepareDoc } from '../library/docStore';
-import { newItemId } from '../library/model';
+import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
+import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
-import { noteExpected } from '../report';
+import { noteExpected } from '../diagnostics/report';
 import { templateUsers } from '../server/library';
 import { bookNames } from '../server/languages';
-import { copyName, copyOffOps, groupNames, itemIdOf, NUMBERING_ITEMS, planChange, wayOf, wayRows, type TemplateUser, type WayRow } from './model';
+import { clashShown, groupNames, templateInNumbering, itemIdOf, knownUses, otherUses, usedInByNumbering, NUMBERING_ITEMS, wayOf, wayRows, type WayRow } from './model';
 
 interface UserRow {
   language_id: string;
@@ -71,49 +62,38 @@ export function useTemplateUsers(ctx: Ctx) {
  */
 export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string | null) {
   const lib = useLibrary(ctx);
+  const libItems = lib.items;
   const library = ctx.org.state?.library;
   const shared = useSharedItems('template', lib.orgId);
-  const choices = useMemo(() => libraryChoices(library ?? {}, lib.items('template'), shared.rows, STARTER_TEMPLATE.name), [library, lib.items, shared.rows]);
+  const choices = useMemo(() => libraryChoices(library ?? {}, libItems('template'), shared.rows, STARTER_TEMPLATE.name), [library, libItems, shared.rows]);
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
+  const getDoc = docs.get;
   const { users } = useTemplateUsers(ctx);
   // Offline the server's list of who uses what is not known, but the open language's template is (this device
   // folds it): the way it uses is still offered, first, rather than only LangQuest's ways that need the server.
   const openTemplate = ctx.language.state?.template?.value;
-  const known = useMemo(() => users ?? (openTemplate && ctx.language.languageId
-    ? [{ language_id: ctx.language.languageId, item_id: openTemplate.itemId }] : []), [users, openTemplate, ctx.language.languageId]);
+  const known = useMemo(() => knownUses(users, ctx.language.languageId, openTemplate?.itemId), [users, openTemplate, ctx.language.languageId]);
   const current = forLanguage ? (forLanguage === ctx.language.languageId ? ctx.language.state?.template?.value.itemId ?? null : null) : null;
   // Only the ways in this numbering (decision 80): a template's numbering is its versification document's code.
   const inNumbering = useCallback((h: string) => {
-    const d = docs.get<TemplateDoc>(h);
-    if (!d || !numbering) return d;
-    const v = d.bible ? docs.get<VersificationDoc>(d.bible.versification) : null;
-    return v && v.code === numbering ? d : null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docs.get, numbering]);
+    const d = getDoc<TemplateDoc>(h);
+    return templateInNumbering(d, d?.bible ? getDoc<VersificationDoc>(d.bible.versification) : null, numbering);
+  }, [getDoc, numbering]);
   const rows = useMemo(() => wayRows({
     choices,
     docOf: inNumbering,
-    others: known.filter((u) => u.language_id !== forLanguage).map((u) => ({ languageId: u.language_id, name: languageName(ctx.org.state, u.language_id), itemId: u.item_id })),
+    others: otherUses(known, forLanguage, (id) => languageName(ctx.org.state, id)),
     current,
     follow: (s) => subscriptionItemId(s.org_id, s.item_id)
-    // docs.get changes when documents arrive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [choices, inNumbering, known, forLanguage, current, ctx.org.state]);
-  const docOf = useCallback((c: LibraryChoice | null | undefined) => (c ? docs.get<TemplateDoc>(c.hash) : null), [docs.get]);
+  const docOf = useCallback((c: LibraryChoice | null | undefined) => (c ? getDoc<TemplateDoc>(c.hash) : null), [getDoc]);
   // What numbering the organization's other languages use, by code: their template's versification.
-  const usedInByNumbering = useMemo(() => {
-    const out: Record<string, string[]> = {};
-    for (const u of known) {
-      if (u.language_id === forLanguage) continue;
-      const ch = choices.find((c) => itemIdOf(c, (sh) => subscriptionItemId(sh.org_id, sh.item_id)) === u.item_id);
-      const d = ch ? docs.get<TemplateDoc>(ch.hash) : null;
-      const code = d?.bible ? docs.get<VersificationDoc>(d.bible.versification)?.code : undefined;
-      if (code) (out[code] ??= []).push(languageName(ctx.org.state, u.language_id));
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [known, choices, docs.get, forLanguage, ctx.org.state]);
-  const v11nOf = useCallback((d: TemplateDoc | null | undefined) => (d?.bible ? docs.get<VersificationDoc>(d.bible.versification) : null), [docs.get]);
+  const usedByNumbering = useMemo(() => usedInByNumbering(known, forLanguage, (itemId) => {
+    const ch = choices.find((c) => itemIdOf(c, (sh) => subscriptionItemId(sh.org_id, sh.item_id)) === itemId);
+    const d = ch ? getDoc<TemplateDoc>(ch.hash) : null;
+    return d?.bible ? getDoc<VersificationDoc>(d.bible.versification)?.code : undefined;
+  }, (id) => languageName(ctx.org.state, id)), [known, choices, getDoc, forLanguage, ctx.org.state]);
+  const v11nOf = useCallback((d: TemplateDoc | null | undefined) => (d?.bible ? getDoc<VersificationDoc>(d.bible.versification) : null), [getDoc]);
   /** A LangQuest way by its item id, when it is offered. */
   const way = useCallback((sourceItemId: string): WayRow | null => rows.find((r) => wayOf(r.choice) === sourceItemId) ?? null, [rows]);
   // The numberings to choose from: LangQuest's, with their documents.
@@ -122,104 +102,7 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
     const row = numberingRows.rows.find((r) => r.org_id === 'langquest' && r.item_id === itemId);
     return row ? [{ code, itemId, name: row.name, description: row.description, hash: row.latest_hash }] : [];
   }), [numberingRows.rows]);
-  return { lib, rows, choices, docOf, v11nOf, way, numberings, usedInByNumbering, loaded: shared.loaded, error: shared.error };
-}
-
-/**
- * Use a choice in this organization: ours as it is; another organization's
- * followed with automatic updates (copied when it may not be followed).
- */
-export async function adoptWay(lib: ReturnType<typeof useLibrary>, c: LibraryChoice): Promise<string> {
-  if (c.source === 'ours') return c.item.itemId;
-  return c.shared.subscribable ? lib.subscribe(c.shared, true) : lib.copy(c.shared);
-}
-
-/**
- * Publish a document as this organization's own template, reusing an item
- * of its own whose current version is already that document ("FIA
- * passages, other books by chapter" made for an earlier language).
- */
-export async function ownTemplate(ctx: Ctx, lib: ReturnType<typeof useLibrary>, c: { doc: TemplateDoc; name: string; from: LibraryItemView | null; fromHash: string }): Promise<{ itemId: string; docHash: string }> {
-  const { text, hash } = await prepareDoc(c.doc);
-  const existing = lib.items('template').find((it) => !it.archived && it.source !== 'subscription' && it.current === hash);
-  if (existing) return { itemId: existing.itemId, docHash: hash };
-  await keepNewDoc(ctx.language.orgId, text, hash);
-  const itemId = newItemId(c.name, Crypto.randomUUID());
-  const orgName = ctx.org.state?.org?.value.name ?? '';
-  const ops = c.from
-    ? copyOffOps({ orgId: ctx.language.orgId, orgName, item: c.from, itemId, name: c.name, from: c.fromHash, next: hash })
-    : [{ type: 'v1.LibraryItemDefined' as const, payload: { itemId, kind: 'template' as const, name: c.name, description: c.doc.description } },
-      { type: 'v1.LibraryVersionPublished' as const, payload: { itemId, kind: 'template' as const, docHash: hash } }];
-  for (const op of ops) await ctx.org.append(op.type, op.payload as never);
-  void flushOutbox(ctx.language.orgId).catch((e: unknown) => noteExpected('library upload', e));
-  return { itemId, docHash: hash };
-}
-
-/** The languages using the open language's template, for "Change it for…" (model.ts `TemplateUser`). */
-export function templateUsersOf(ctx: Ctx, users: ReturnType<typeof useTemplateUsers>['users'], itemId: string): TemplateUser[] | null {
-  if (users === null) return null;
-  const org = ctx.org.state;
-  return users.filter((u) => u.item_id === itemId).map((u) => ({
-    languageId: u.language_id,
-    name: languageName(org, u.language_id),
-    mayChange: !!org && privilegesFor(org, ctx.session.actorId, u.language_id).has('manage_templates'),
-    unitPrefix: u.unit_prefix,
-    ...(u.books ? { books: u.books } : {})
-  }));
-}
-
-/**
- * Publish a changed template for the languages chosen (decision 74): its
- * next version when every language using it changes, else a copy for the
- * chosen ones, which keep their part ids. The open language changes now
- * (with Undo); the others move to the copy, and the next phone that opens
- * each one brings it up to date (library/follow.ts).
- */
-export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>, c: {
-  item: LibraryItemView; doc: TemplateDoc; users: TemplateUser[] | null; chosen: Set<string>; label: string;
-}): Promise<EventSpec[]> {
-  const state = ctx.language.state;
-  const sel = state?.template?.value;
-  if (!state || !sel) throw new CommandError(t('breakup.errors.noTemplate'));
-  const plan = planChange({ item: c.item, users: c.users, chosen: c.chosen });
-  let itemId = c.item.itemId;
-  let docHash: string;
-  if (plan === 'version') {
-    ({ docHash } = await lib.publish({ kind: 'template', itemId: c.item.itemId, name: c.item.name, description: c.item.description, doc: c.doc, note: c.label }));
-  } else {
-    const names = (c.users ?? []).filter((u) => c.chosen.has(u.languageId)).map((u) => u.name);
-    const own = await ownTemplate(ctx, lib, {
-      doc: c.doc, name: copyName(c.item.name, names.length ? names : [languageName(ctx.org.state, ctx.language.languageId ?? '')]),
-      from: c.item, fromHash: sel.docHash
-    });
-    ({ itemId, docHash } = own);
-    // The other chosen languages move to the copy at the version they had; they catch up on their own phones.
-    for (const u of c.users ?? []) {
-      if (u.languageId === ctx.language.languageId || !c.chosen.has(u.languageId) || !u.mayChange) continue;
-      await appendToLanguage({
-        orgId: ctx.language.orgId, languageId: u.languageId, actorId: ctx.session.actorId,
-        specs: [{ id: Crypto.randomUUID(), type: 'v1.TemplateSelected', payload: { itemId, docHash: sel.docHash, unitPrefix: u.unitPrefix, ...(u.books ? { books: u.books } : {}) } } as EventSpec]
-      }).catch((e: unknown) => noteExpected('template copy for another language', e));
-    }
-  }
-  const docs = await loadDocs(ctx.language.orgId, [docHash]);
-  const v11n = c.doc.bible ? ((docs.get(c.doc.bible.versification) as VersificationDoc | undefined) ?? null) : null;
-  if (c.doc.bible && !v11n) throw new CommandError(t('breakup.errors.versificationMissing'));
-  return selectTemplateSpecs(state, {
-    commandId: Crypto.randomUUID(), itemId, docHash, doc: c.doc, versification: v11n, unitPrefix: sel.unitPrefix,
-    ...(sel.books ? { books: sel.books } : {})
-  });
-}
-
-/** Every language of the organization, for naming one by id. */
-export function languageNames(ctx: Ctx): Map<string, string> {
-  return new Map(orgLanguages(ctx.org.state).map((l) => [l.languageId, l.name]));
-}
-
-/** The books of a template that a language covers. */
-export function coveredBooks(doc: TemplateDoc, books: readonly string[] | undefined): string[] {
-  const all = templateBooks(doc).map((b) => b.book);
-  return books ? all.filter((b) => books.includes(b)) : all;
+  return { lib, rows, choices, docOf, v11nOf, way, numberings, usedInByNumbering: usedByNumbering, loaded: shared.loaded, error: shared.error };
 }
 
 /**
@@ -255,8 +138,7 @@ export function useVerseNumbering(ctx: Ctx) {
     if (!english) return { code: bibles[0]?.versification.code ?? 'eng', clash: null, key: '' };
     const n = verseNumbering(bibles, english);
     return { ...n, key: bibles.map((b) => b.versification.code).sort().join(',') };
-    // docs.get changes when documents arrive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- docs.get changes when documents arrive
   }, [hashes, docs.get, state]);
   const store = `numbering-ignored:${languageId}`;
   const [ignored, setIgnored] = useState<string | null>(null);
@@ -267,7 +149,7 @@ export function useVerseNumbering(ctx: Ctx) {
     setIgnored(result.key);
     void AsyncStorage.setItem(store, result.key).catch(() => undefined);
   }, [store, result.key]);
-  return { code: result.code, clash: result.clash && ignored !== result.key ? result.clash : null, ignore };
+  return { code: result.code, clash: clashShown(result.clash, result.key, ignored), ignore };
 }
 
 /**
@@ -292,8 +174,7 @@ export function useBookNameChoices(ctx: Ctx, book: string, open: boolean) {
     const b = d?.format === 'source@1' ? d.books.find((x) => x.book === book) : undefined;
     return d && b ? [{ name: b.name, from: d.name }] : [];
   })),
-  // docs.get changes when documents arrive.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- docs.get changes when documents arrive
   [hashes, docs.get, book]);
   const [answer, setAnswer] = useState<{ book: string; rows: { language_id: string; name: string }[] } | null>(null);
   useEffect(() => {

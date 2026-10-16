@@ -34,17 +34,19 @@ async function history(page: Page): Promise<string> {
   return screenText(page);
 }
 
-/** The back translation screen: say one part with the fake microphone, then publish it. */
+/** The back translation screen: say one part with the fake microphone, then Done, whose sheet shows who listens next (decision 127). */
 async function backTranslateOnePart(page: Page): Promise<void> {
   await button(page, 'Record part 1').click();
   await expect(button(page, 'Stop recording')).toBeVisible();
   // The microphone's voice file speaks 1.5 s in every 4 s; the takeover covers the parts while it records.
   await page.waitForTimeout(10_000); // sleep: the recorder shows no part until it stops, so only the voice file's loop length says when one was said
   await button(page, 'Stop recording').click();
-  await expect(button(page, 'Publish'), 'a part was said').toBeEnabled({ timeout: 45_000 });
-  await button(page, 'Publish').click();
-  await button(page, 'Publish back translation').click();
-  await expect(text(page, 'Back translation published')).toBeVisible({ timeout: 30_000 });
+  // Stopped, the session is still open (decision 129): its Done keeps the pieces, then the footer's Done sends the back translation on.
+  await button(page, 'Done').click();
+  await expect(text(page, 'Stopped')).toHaveCount(0);
+  await expect(button(page, 'Done'), 'a part was said').toBeEnabled({ timeout: 45_000 });
+  await button(page, 'Done').click();
+  await expect(byId(page, 'sheet')).toBeVisible();
 }
 
 /** Spare passages for this file, set up once. */
@@ -112,10 +114,11 @@ test('PASS-017 REV Back-translate it, and the record afterwards', async ({ brows
   expect(await screenText(page)).toContain('Back translation · into English');
   await backTranslateOnePart(page);
   const all = await screenText(page);
-  // Fixed (2026-10-12): REV cannot ask, so the page offers no check to ask for, only Done.
-  expect(all.toLowerCase()).not.toContain('next, ask for a check');
-  await expect(byId(page, 'primary-action')).toHaveText('Done');
+  // Fixed (2026-10-12): REV cannot ask, so Done offers no check to ask for: it just finishes.
+  expect(all.toLowerCase()).not.toContain('next check');
+  await expect(byId(page, 'primary-action')).toHaveText('Finish the back translation');
   await byId(page, 'primary-action').click();
+  await toast(page, 'Back translation published.');
   await expect(header(page)).toHaveText(L);
   expect((await teamRows(page)).slice(0, 2)).toEqual(['Peer check, looks good', 'Back translation, looks good']);
 });
@@ -130,7 +133,7 @@ test('PASS-017 TREV Back-translate it, and is offered the next check', async ({ 
   expect(await mainButton(t)).toBe('Back-translate it');
   await byId(t, 'primary-action').click();
   await backTranslateOnePart(t);
-  expect((await screenText(t)).toLowerCase()).toContain('next, ask for a check community check');
+  expect((await screenText(t)).toLowerCase()).toContain('next check community check');
   await expect(byId(t, 'primary-action')).toHaveText(/^Ask /);
 });
 
@@ -161,13 +164,11 @@ test('PASS-019 Record a fix', async ({ browser }) => {
   await expect(byId(page, 'record-button')).toBeVisible();
   await recordOnePart(page);
   await byId(page, 'publish-button').click();
-  await expect(byId(page, 'primary-action')).toHaveText('Publish Version 2');
-  await byId(page, 'primary-action').click();
-  await expect(text(page, 'Version 2 published')).toBeVisible({ timeout: 30_000 });
-  // Answered feedback keeps the check open (decisions.md 96): the peer check is the one asked for again.
-  expect((await screenText(page)).toLowerCase()).toContain('next, ask for a check peer check');
-  await expect(button(page, 'Ask the Peer check team')).toBeVisible();
-  await button(page, 'Not now').click();
+  // Answered feedback keeps the check open (decisions.md 96): Done offers the peer check again.
+  expect((await screenText(page)).toLowerCase()).toContain('next check peer check');
+  await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team');
+  await button(page, 'Send later').click();
+  await toast(page, 'Version 2 published.');
   await expect(header(page)).toHaveText(L);
   const path = await screenText(page);
   expect(path).not.toContain('Hear the feedback');
@@ -370,17 +371,25 @@ test('PASS-048 A check that happened outside the app: Needs changes', async ({ b
   expect(await mainButton(t)).toBe('Hear the feedback');
 });
 
-test('PASS-049 Add details: where, and other passages', async ({ browser }) => {
-  const [a, b] = [await spare(6), await spare(7)];
-  for (const p of [a, b]) await recordOn(world(), 'TRANS', p, { parts: 1, publish: true });
-  const ta = (await passageAs(world(), 'TRANS', a)).latest!.takeId;
-  const tb = (await passageAs(world(), 'TRANS', b)).latest!.takeId;
-  await actAs(world(), 'TRANS', (c) => c.recordReview({ commandId: id(), takeIds: [ta, tb], kindId: 'peer', outcome: 'looks_good', via: 'logged', place: 'Bor church, after service' }));
-  for (const p of [a, b]) {
-    const page = await recordAs(browser, world(), 'TRANS', p);
-    expect((await teamRows(page))[0], p.label).toBe('Peer check, looks good');
-    expect(await history(page), p.label).toContain('Bor church, after service');
-  }
+test('PASS-049 Add details: where, on this passage only (decision 128)', async ({ browser }) => {
+  const s = await spare(6);
+  await recordOn(world(), 'TRANS', s, { parts: 1, publish: true });
+  const page = await recordAs(browser, world(), 'TRANS', s);
+  await openTeamRow(page, 'Peer check');
+  await sheet(page).getByRole('button', { name: 'Already happened' }).first().click();
+  await text(page, 'Add details').click();
+  // Section labels show in capitals, so the sheet is read without case.
+  const details = (await sheetText(page)).toLowerCase();
+  expect(details).toContain('record a retelling');
+  // A review goes on its own passage: the session's other passages each get theirs there.
+  expect(details).not.toContain('also covered in this session');
+  await closeSheet(page);
+  await byId(page, 'header-close').click();
+  const v1 = (await passageAs(world(), 'TRANS', s)).latest!.takeId;
+  await actAs(world(), 'TRANS', (c) => c.recordReview({ commandId: id(), takeIds: [v1], kindId: 'peer', outcome: 'looks_good', via: 'logged', place: 'Bor church, after service' }));
+  await refreshRecord(page, world(), s);
+  expect((await teamRows(page))[0]).toBe('Peer check, looks good');
+  expect(await history(page)).toContain('Bor church, after service');
 });
 
 test('PASS-050 A back translation that happened outside the app', async ({ browser }) => {
@@ -511,18 +520,20 @@ test('PASS-059 Several drafts of one passage', async ({ browser }) => {
   await expect(header(p)).toHaveText('Versions');
 });
 
-test('PASS-060 Delete a draft, and Undo', async ({ browser }) => {
+test('PASS-060 Delete a draft, asked first', async ({ browser }) => {
   await twoDraftsOnDone();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DONE');
   await versionsPage(page);
+  // A whole draft is never one tap from gone (LAN-83): the sheet asks, and Cancel keeps it.
   await button(page, 'Delete Draft 1').click();
-  await toast(page, 'Draft 1 deleted.');
-  await expect(text(page, 'Your draft')).toBeVisible();
-  await byId(page, 'toast-undo').click();
+  await expect(text(page, 'Delete Draft 1?')).toBeVisible();
+  await button(page, 'Cancel').click();
   await expect(text(page, 'Your drafts')).toBeVisible();
   await button(page, 'Delete Draft 1').click();
+  await expect(text(page, 'Delete Draft 1?')).toBeVisible();
+  await page.getByRole('button', { name: 'Delete Draft 1', exact: true }).locator('visible=true').last().click();
   await toast(page, 'Draft 1 deleted.');
-  await expect(byId(page, 'toast')).toHaveCount(0, { timeout: 15_000 });
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expect(text(page, 'Your draft')).toBeVisible();
 });
 

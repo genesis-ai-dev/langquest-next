@@ -107,9 +107,12 @@ Agents: treat each of these as a test you must not break.
    the membership fold for authorization. Dashboards, snapshots, search, and
    integrity checks are async and may lag without affecting translators.
 10. **Snapshots are tagged with the reducer version.** A client only loads a
-    snapshot produced by its own reducer version; otherwise it folds the log.
-    Devices roll their own checkpoint every 2000 confirmed events and prune
-    what it covers, so replay is bounded by recent history.
+    snapshot produced by its own reducer version. Devices roll their own
+    checkpoint every 2000 confirmed events and prune what it covers, so
+    replay is bounded by recent history. A checkpoint from another reducer
+    version is dropped with the stream's cursor, so the device takes the
+    server's snapshot for its version or pulls the log again from the start;
+    it never folds the pruned tail as the whole stream (decisions.md 110).
 11. **Every event is validated at the door, and the fold never throws.**
     `validate_payload` (SQL) and `validateEvent` (core) are the same rules. A
     malformed event that slips through is counted in `state.invalidEvents`
@@ -193,15 +196,18 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.ReviewRecorded` | reviewId, takeId, kindId, outcome (looks_good, needs_changes, recorded), via (app, link, logged), comment?, commentBlobHash?, answers?, skipped?, people?, place?, givenBy?, requestId?, artifactHashes? | grow-only (earliest wins) |
 | `v1.FlowStepLinksSet` | stepId, allowed | register per step; may the step be reviewed by a shared link that counts (default: any step but a checkpoint; decision 70) |
 | `v1.CheckHelpSet` | kindId, itemId or materialId, linked | register per (kind, help); a note, guide or Bible linked to a check, which its reviewers see first (decision 91) |
+| `v1.CheckShowsSet` | kindId (a check, or `record`), what (bibleAudio, bibleText, guideAudio, guideText, terms, notes, earlier), shown, from? (a step, for notes and earlier) | register per (kind, what); what a step puts on the screen of whoever does it, everything by default, nothing at a kind that withholds context (decision 130) |
 | `v1.VersionReleased` | takeId, channel, live, url? | register per (version, channel); where a version is published, a fact not a verdict (decision 72) |
 | `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo |
-| `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, what (record, review), kindId?, exactly one of profileId, guest, teamId, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record |
-| `v1.NoteAdded` | noteId, unitId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId? | grow-only |
+| `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, what (record, review), kindId?, exactly one of profileId, guest, teamId, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record; `dueDate` is no longer set or shown (decision 126), old events may still carry it |
+| `v1.NoteAdded` | noteId, unitId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId?, kindId? (the step it was written at, decision 130) | grow-only |
+| `v1.ReviewWithdrawn` / `v1.NoteWithdrawn` | reviewId / noteId | add-wins; counts only from the review's or note's own author (decisions.md 111) |
 | `v1.StudyStepMarked` | unitId, guideId, stepId, done | register per (unit, guide, step) |
 | `v1.MaterialDefined` / `v1.MaterialFieldSet` / `v1.MaterialLocked` | materialId, kind, title, scope {unitId?, stepId?}, templateRef? / materialId, fieldId, text? / blobHash? / materialId, locked | earliest wins / register per (material, field) / register per material |
 | `v1.KeyTermDefined` / `v1.KeyTermRenderingAdded` / `v1.KeyTermAdjusted` / `v1.KeyTermLinked` | termId, term, gloss, unitScope[] / renderingId… / adjustmentId, note, blobHash?, duringTakeId? / takeId, termId, note?, adjustmentId? | all grow-only |
 | `v1.ReferenceSet` | itemId, state (recommended, hidden, inherit) | register per item; the language's say on a library item (decision 62) |
 | `v1.ReferenceLanguageSet` | language | register; the language the team's reference material is in, before which `sourceCode` stands (decision 84) |
+| `v1.ReferenceLanguageAdded` | language, added | register per language; another language the team's reference material may be in, beside the main one (decision 130) |
 | `v1.PassageReferenceLinked` | unitId, itemId, linked | register per (unit, item) |
 | `v1.ReferencesUsed` | unitId, takeId? or reviewId?, items[] | grow-only |
 | `v1.BlobStored` / `v1.BlobInvalidated` | hash, size / hash, reason | register per hash (LWW by clock); server-only |
@@ -327,7 +333,7 @@ langquest-next/
    `microphone-energy` native module (raw PCM tap, energy for the waveform,
    VAD state machine, one WAV per card) plus expo-audio for hold-to-record
    takes, both microphone sessions open at once as in v2. Cards are ingested
-   into a content-addressed store (`apps/mobile/src/blobs.ts`), appended as
+   into a content-addressed store (`apps/mobile/src/sync/blobs.ts`), appended as
    `RecordingAdded`, and the draft take is recomposed. Uploads and downloads
    run on `TransferWorker` (packages/sync) per section 14, through the
    app's Worker into R2 (decisions.md 69), which appends `BlobStored` as the
@@ -357,7 +363,7 @@ langquest-next/
    (migration 000008, `syncClient.ts`, smoke section 7).
 10. **Done:** org partition (`_org`) with roles as privilege sets,
     scoped memberships, catalog toggles and partition registry (core `org.ts`,
-    migration 000009, smoke section 8, `apps/mobile/src/useOrg.ts`);
+    migration 000009, smoke section 8, `apps/mobile/src/sync/useOrg.ts`);
     `SyncClient` is generic over a materializer; session facets are
     privileges and Home follows the admin scope, so `language_home` is
     reachable and the parity test has no known dead gate.
@@ -442,9 +448,24 @@ short:
 - **Show what others usually do** (14): where there is a common answer (where
   most Bibles start a section, what the organization's other languages use),
   the choice shows it.
+- **Every part explains itself** (help mode, decision 71): while the ? is on,
+  everything a person can tap, type in or switch lights up and says what
+  tapping it does instead of doing it, sheets included, and a mark that means
+  something without words (a coloured dot, a tick, a bar) says what it means.
+  A new control gets its line (`help`, or a Row's `sub`) when it is built;
+  `apps/mobile/test/helpParts.ts` holds it.
+- **What you make needs no saving** (decision 127): nothing asks "Leave
+  without saving?". What someone makes (a recording, a review, a
+  note, an editor's changes) is kept as they go, only for them, and a small
+  mark in the header turns from a spinner to a check as it is kept. One
+  button finishes it and shares it, named for what it does for others
+  (Done, Add note, Looks good), and Done offers the next step in the same
+  tap: send it to whoever usually does the next check. A shared setting (a
+  name, permissions, someone's role) keeps its Save button, since it changes
+  things for everyone.
 
-Tokens are `apps/mobile/src/theme.ts` (the demo's `C` and `TINT`);
-primitives are `apps/mobile/src/kit.tsx`. `docs/ux/one-next-action.html`
+Tokens are `apps/mobile/src/ui/theme.ts` (the demo's `C` and `TINT`);
+primitives are `apps/mobile/src/ui/kit.tsx`. `docs/ux/one-next-action.html`
 records the earlier task-first design. Recording now splits the screen with
 the source instead of taking it over (decisions.md 56). Each screen's main
 action, secondary actions and way back are in `docs/ux/screen-path.md`.
@@ -470,13 +491,13 @@ gone (decision 63).
 | Verdict looks good / needs changes | `ReviewRecorded.outcome` = `looks_good`, `needs_changes` or `recorded` (a producing kind), by kind | suggestions are advisory (A11); a checkpoint step is passed or overridden (`DepartureRecorded`) |
 | Review questions and answers | `TakeSubmitted.questionSetIds` (material ids), the kind's questions (`questionsForKind`) or a request's own, `ReviewRecorded.answers` | question sets are materials of kind `questions` |
 | Translator response to suggestions | a new take with `parentTakeId`, `ResponseRecorded` (note or audio), then `TakeSubmitted` | the `respond` task type |
-| Assignment: what, who, due, note | `RequestMade` (record or review; a person, a guest or a team) and `RequestWithdrawn` | **added** `dueDate`, `note`; a request is done when what it asked for happens |
+| Assignment: what, who, note | `RequestMade` (record or review; a person, a guest or a team) and `RequestWithdrawn` | **added** `note` (`dueDate` too, but it is no longer set or shown, decision 126; old events may still carry it); a request is done when what it asked for happens |
 | To Do / Doing / Done | `upNext`, `highlightsFor` and `waitingOn` (core `passage.ts`) | todo: asked or next; doing: a draft exists; done: the flow is through |
 | Piece work status | derived per passage (`derivePassage`: recorded, steps complete, done) | reports (`languageReport`) |
 | Bottleneck ("3 in Community Check") | passages by the first step not yet complete (`languageProgress.steps`) | reports |
 | Reference material (TMF, Brief, TG, FIA study), key terms | library material (study guides and collections, simple documents, question sets) matched to passages by verses through their versifications; the organization's own working material as `MaterialDefined` + `MaterialFieldSet`; `KeyTerm*` events | a v2 project's source content is imported as material |
 | Inbox | `updatesFor` (core `passage.ts`): what concerns the actor on the record, plus server notifications | read state is per device |
-| Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
+| Role gates on edges (`when`) | `Gate` on `Edge` in `apps/mobile/src/shell/flow.ts`, `edgeAllowed` in `session.ts` | one privilege per gate (`session.can`) |
 | Roles with privilege switches, member scope (org / language) | organization stream: `RoleDefined`, `MemberAdded { scope }` (core `org.ts`); one role per scope | fixed roles are seed roles; `effectiveRole` maps back |
 | Sharing templates, flows and material between organizations | library items: shared / followable per item, copied or followed (`Library*` events, `library_adopt`) | decision 36; recommendations are `ReferenceRecommended` and `ReferenceSet` (decision 62) |
 | Who may use an organization's work, and what outsiders see | `v1.LicenseSet` in the organization stream (`orgLicense`, `LICENSE_INFO[..].terms`); outsiders read a projection, never the log | **added**, not in the demo (decision 38, docs/licensing.md); only ever opens |

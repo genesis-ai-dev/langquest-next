@@ -35,9 +35,6 @@ Rules specific to this folder:
   every Supabase call lives in `src/server/` (decisions.md 105,
   `apps/mobile/test/serverBoundary.test.ts`); screens and hooks call its
   functions.
-- A branch started before pull request 116 (the restructure above): read
-  `docs/merging-onto-the-restructure.md` before merging `main`. It says
-  where moved code went and how to resolve the conflicts.
 - Every new event type needs: a type in `events.ts` (or `record.ts`), a case
   in `reducer.ts`, a case in `validate.ts` and in the SQL `validate_payload`
   and `event_privilege` (a new migration), and coverage in the
@@ -46,7 +43,7 @@ Rules specific to this folder:
   `scripts/record-parity-sql.ts` checks SQL against core.
 - User-facing screens follow the partner demo in `ng-langquest-ux` (its
   flow, look and capabilities). Read PLAN.md section 12 and
-  `docs/ux/demo-parity.md` before changing a screen. `apps/mobile/src/flow.ts`
+  `docs/ux/demo-parity.md` before changing a screen. `apps/mobile/src/shell/flow.ts`
   is generated from the demo's flow (`test/spec-flow.json`); the parity test
   holds it edge by edge.
 
@@ -59,7 +56,12 @@ Rules specific to this folder:
   `npm run test:web` (e2e/web-smoke) must pass.
 - No `status` columns. Status comes from `passage.ts`.
 - No local versus synced tables. Sync status is a column on the events table.
-- Run `npm test` and `npm run typecheck` in this folder before finishing.
+- Run `npm run guardrails` in this folder before pushing (see Guardrails
+  below). Lint holds what may import what (`eslint.config.mjs`, decisions.md
+  104 and 105): a rule's message says where the code belongs. In
+  `apps/mobile/src` a file's name says its role: components in `.tsx`,
+  hooks in `use<Thing>.ts`, pure logic in `model.ts` or `<thing>Model.ts`,
+  everything else a module in `.ts`.
   `docs/testing.md` says which layer a new test belongs in and the rules the
   end-to-end suites keep (no sleeps, one role per test, IDs for structure).
 - Put the Linear issue ID (`LAN-12`) in the commit message of work that comes
@@ -72,6 +74,42 @@ Rules specific to this folder:
   Never read `.env.keys` or print decrypted values, and ask before pushing
   to EAS. Hosted settings live in repo files, not dashboards
   (`infrastructure-as-code`).
+
+## Guardrails (required before every push, whoever you are working for)
+
+The `guardrails` workflow (`.github/workflows/guardrails.yml`) runs on every
+pull request, on the pull request merged with `main`, not on the branch alone:
+
+| Job | What fails it | Run it here |
+| --- | --- | --- |
+| `checks` | typecheck; lint (what may import what); a unit, property or model test (over its timeout in `vitest.config.ts`); coverage under its threshold; the projection worker bundle behind its source | `npm run guardrails` |
+| `server` | SQL smokes, SQL-to-core parity, the client integration test | `npm run guardrails -- --all` (Docker) |
+| `web-smoke` | the release web export (and its JavaScript size budget in `apps/mobile/scripts/export-web.mjs`) in Chromium, Firefox, WebKit | `npm run guardrails -- --web` for the build and budget, `npm run test:web` for the browsers |
+| `ui-web` | a `@p0` web UI test on the export (zero retries) | `npm run guardrails -- --all`, or one file: `npm run test:ui:web -- e2e/ui/<file>` |
+
+Before pushing:
+
+1. Look at what changed in the guardrails and tests on `main` since your
+   branch started: `git fetch origin main && git log --oneline HEAD..origin/main
+   -- .github .githooks vitest.config.ts e2e scripts/*.test.ts`. A new rule
+   or a raised limit there is often why a check fails.
+2. Merge `origin/main`, then run `npm run guardrails` (add `--web` when the
+   change touches the app's code or dependencies, `--all` when it touches the
+   server, sync or a screen a `@p0` test covers). It says when the branch is
+   behind `main`.
+3. Push without `--no-verify`. The git hooks in `.githooks` (enabled by
+   `npm install`) rebuild the worker bundle and run the fast checks.
+
+Things parallel branches collide on, which only show on the merge with
+`main`: the next number in `docs/decisions.md` (`scripts/decisions.test.ts`
+allows no gaps or repeats; take the next free number after merging `main`,
+and renumber yours, never theirs), a migration's 14-digit version
+(`scripts/migrations.test.ts`), the web size budget (two branches can each fit
+alone and not together), and the worker bundle. When a check is red, read its
+log first (`gh run view <run> --log-failed`), and say whether the cause is the
+change, `main`, or a flaky test. A test that fails without a product cause is
+tagged `@quarantine` with an owner (`docs/testing.md`), never retried until it
+passes or skipped quietly.
 
 ## Store declarations (required, whoever you are working for)
 

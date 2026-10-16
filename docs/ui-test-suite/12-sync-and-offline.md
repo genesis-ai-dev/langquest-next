@@ -253,7 +253,7 @@ Preconditions:
 
 Steps:
 1. Device 1 (COORD): open Luke 17:11-19 (not started) and use "Ask
-   someone" to ask TREV to record it, due in 7 days (PASS).
+   someone" to ask TREV to record it (PASS).
 2. Device 1: go online. Wait 30 seconds.
 3. Device 2 (TREV): tap "Sync now". Open My Work and the bell.
 

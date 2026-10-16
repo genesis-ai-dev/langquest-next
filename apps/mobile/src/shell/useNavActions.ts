@@ -1,10 +1,10 @@
 import { CommonActions } from '@react-navigation/native';
 import { useCallback } from 'react';
-import { edgeFor, TAB_SCREENS, type ScreenId } from '../flow';
+import { edgeFor, TAB_SCREENS, type ScreenId } from './flow';
 import { t } from '../i18n';
-import { navRef, type Nav, type Route } from '../nav';
-import { reportError } from '../report';
-import { edgeAllowed, homeScreenFor, type Session } from '../session';
+import { navRef, type Nav, type Route } from './nav';
+import { reportError } from '../diagnostics/report';
+import { edgeAllowed, homeScreenFor, type Session } from './session';
 
 /**
  * Moves between screens. Every move follows a declared edge (flow.ts) from
@@ -43,18 +43,25 @@ export function useNavActions(o: { nav: Nav; session: Session; toast: (message: 
     },
     [nav, session, toast]
   );
-  const go = useCallback((to: ScreenId, params?: Record<string, string>) => goFrom(nav.current.screen, undefined, to, params),
-    [goFrom, nav.current.screen]);
+  const screenNow = nav.current.screen;
+  // From the navigator's focused route when it has one: a screen that moves on as soon as it is
+  // reached (Done's "Someone else" lands on the record, which opens Ask someone) runs before
+  // `nav.current` catches up with the move.
+  const go = useCallback((to: ScreenId, params?: Record<string, string>) => {
+    const live = navRef.isReady() ? navRef.getCurrentRoute()?.name : undefined;
+    return goFrom((live as ScreenId | undefined) ?? screenNow, undefined, to, params);
+  }, [goFrom, screenNow]);
   const openPassage = useCallback((unitId: string, inLanguage: string, extra?: Record<string, string>) => {
     remember(unitId, inLanguage);
     go('passage_record', { unitId, languageId: inLanguage, ...extra });
   }, [go, remember]);
+  const resetNav = nav.reset;
   // A task opened from outside the screens (a push, another organization's Inbox row) opens over the home screen, so Back leads home.
   const openTask = useCallback((inLanguage: string, unitId: string) => {
     remember(unitId, inLanguage);
     const params = { unitId, languageId: inLanguage };
     if (navRef.isReady()) navRef.dispatch(CommonActions.reset({ index: 1, routes: [{ name: homeScreenFor(session) }, { name: 'passage_record', params }] }));
-    else nav.reset({ screen: 'passage_record', params });
-  }, [remember, session, nav.reset]);
+    else resetNav({ screen: 'passage_record', params });
+  }, [remember, session, resetNav]);
   return { goFrom, go, openPassage, openTask };
 }

@@ -13,7 +13,7 @@ export type { UsualTarget };
 
 /** Where `kindId` usually goes in this language, as `me` would send it; undefined when nobody usually does it. */
 export function usualTargetFor(state: LanguageState, org: OrgState | null, o: { languageId: string; kindId: string; me: string; lines: PassageLines }): UsualTarget | undefined {
-  // Who did this kind before is read off the passages' lines (decisions.md 110), not every review.
+  // Who did this kind before is read off the passages' lines (decisions.md 134), not every review.
   return usualTarget(state, o.kindId, o.me, { eligible: (id) => holdsIn(org, id, o.languageId, 'review'), reviewers: reviewersOf(o.lines, o.kindId) });
 }
 

@@ -3,30 +3,33 @@
 // its addresses to `studyFiles.ts`, which downloads what is missing while
 // connected. Draws nothing.
 import { useEffect, useMemo } from 'react';
-import type { Ctx } from '../ctx';
-import { useStudyGuides } from './libraryGuides';
+import type { Ctx } from '../shell/ctx';
+import { useStudyGuides } from './useStudyGuides';
 import { setStudyWanted, STUDY_FILES_OFFLINE, studyUrls } from './studyFiles';
 
 export function StudyPrefetch(props: { ctx: Ctx }) {
   const { ctx } = props;
   const state = ctx.language.state;
   const kept = ctx.language.blobs.keptUnits;
-  let key = '';
-  if (state && STUDY_FILES_OFFLINE) {
-    // The default scope comes worked out from the phone's table too (decisions.md 110).
-    const scope = new Set(ctx.language.blobs.scope);
+  const scopeNow = ctx.language.blobs.scope;
+  // Worked out when the scope or the kept units change, not on every render of the app root.
+  // The default scope comes worked out from the phone's table too (decisions.md 134).
+  const key = useMemo(() => {
+    if (!state || !STUDY_FILES_OFFLINE) return '';
+    const scope = new Set(scopeNow);
     for (const u of kept) scope.add(u);
-    key = [...scope].sort().join(',');
-  }
+    return [...scope].sort().join(',');
+  }, [state, scopeNow, kept]);
   // Keyed by the scope's members, so a new fold with the same scope finds the same guides.
   const unitIds = useMemo(() => (key ? key.split(',') : []), [key]);
   const guides = useStudyGuides(ctx, unitIds);
   const online = ctx.language.online !== false;
+  const { orgId, languageId } = ctx.language;
   useEffect(() => {
     if (!STUDY_FILES_OFFLINE) return;
     const next = new Map<string, string[]>();
     for (const [unitId, guide] of guides) next.set(unitId, studyUrls(guide));
-    setStudyWanted(next, online);
-  }, [guides, online]);
+    setStudyWanted(next, online, { orgId, languageId });
+  }, [guides, online, orgId, languageId]);
   return null;
 }

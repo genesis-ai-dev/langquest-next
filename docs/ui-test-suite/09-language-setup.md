@@ -300,8 +300,8 @@ Steps:
 4. Leave the first card ("Standard Bible Flow", "Suggested · from
    LangQuest") chosen under "How will recordings get checked?". Tap
    "Continue".
-5. Under "Which language should Charlie {run}'s Bibles and study guides be
-   in?" leave "English" chosen. Tap "Continue".
+5. Under "Which languages should Charlie {run}'s Bibles and study guides
+   be in?" leave "English" ticked. Tap "Continue".
 6. Wait until the invite screen shows.
 7. Leave "Translate" chosen. Tap "Show the code to scan". Tap "Done".
 8. Open Org home.
@@ -567,9 +567,9 @@ Steps:
 4. Tap "Another language" and search "French".
 
 Expected:
-- The question is "Which language should {language}'s Bibles and study
-  guides be in?", with "Choose the language {language}'s team reads best.
-  Each one says what LangQuest has in it."
+- The question is "Which languages should {language}'s Bibles and study
+  guides be in?", with no sentence under it; as many languages as the
+  team reads can be ticked (decision 130).
 - Each choice says what is in it, for example "FIA guides for {n} passages
   · {n} Bibles · {n} other guides or notes".
 - The app's own language is marked as yours and chosen first when it has
@@ -1084,16 +1084,16 @@ Expected:
   it's divided."
 - A book opens "Change how Genesis is broken up" with "Divide it your own
   way" first, then "Or pick a ready-made way", and "Rename or remove
-  Genesis". After the change, the toast says "Genesis is divided. Save the
-  template to keep it." and Genesis's row says "OpenBible: usual sections ·
-  {n} pieces".
+  Genesis". After the change, the toast says "Genesis is divided." (the
+  form is kept on this device as it changes, decision 127) and Genesis's
+  row says "OpenBible: usual sections · {n} pieces".
 - The book sheet has "Name in the language" and "Remove this book" with
   "Languages using the template keep anything recorded in it; its parts are
   set aside, not deleted."; after removing it the list is "Books · 65".
 - "Create template" is disabled until there is a name and a book.
 - Toast "Gospels {run} created."
 
-### SETUP-038 Edit a template; leave without saving
+### SETUP-038 Edit a template; leaving keeps the draft
 Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
@@ -1101,16 +1101,19 @@ Preconditions (in addition to the global ones):
 - Resets: publishes a new version.
 
 Steps:
-1. Open "Gospels {run}" → "Edit". Change "What it's for". Tap Back.
-2. Tap "Keep editing". Tap Back again, then "Leave".
-3. Edit it again and tap "Save changes".
+1. Open "Gospels {run}" → "Edit". Change "What it's for".
+2. Tap Back.
+3. Open "Edit" again. Tap "Done".
 
 Expected:
-- The sheet "Leave without saving?" says "Your changes to this template are
-  not saved." with "Keep editing" and "Leave" (red).
-- After "Leave" nothing is saved.
-- Toast "Gospels {run} saved as version 2." (with "{names} moves to it by
-  itself." when a language uses it). No Undo.
+- Step 1: the header's saved mark turns from a spinner into a check; the
+  change is kept on this device as a draft only ADMIN sees (decision 127).
+- Step 2 leaves at once, with nothing to answer first, and publishes
+  nothing (no toast).
+- Step 3 opens with the change still there ("The four gospels first.").
+  "Done" (it was "Save changes") publishes it: toast "Gospels {run} saved
+  as version 2." (with "{names} moves to it by itself." when a language
+  uses it). No Undo. With nothing changed, "Done" just closes.
 
 ### SETUP-039 Make an outline template
 Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -1235,7 +1238,7 @@ Expected:
 - The card says "Alpha uses" and "Custom flow" (its checks were copied from
   Standard Bible Flow, decision 91), its steps (Peer Review, Back
   Translation, Community Check, Consultant Check, Final Approval), and
-  "Save as a flow".
+  "Add to your flows".
 - "Your organization · 0" with "No flows here yet. Follow or copy one
   another organization shares, or make your own."
 - "From other organizations · {n}" lists LangQuest's flows with "LangQuest ·
@@ -1278,7 +1281,7 @@ Steps:
 4. Add a step. Under "A new kind" type "Elder check". Tap "Add this kind",
    then pick it.
 5. Open step 2. Tap "Move up". Close the sheet.
-6. Tap Save.
+6. Tap "Done".
 
 Expected:
 - The header is "New way to check" with "New · your organization".
@@ -1286,6 +1289,9 @@ Expected:
   own if these don't fit."
 - The step sheet is "Step 2 of 2" with "Add a check alongside", "Move up"
   and "Remove this step".
+- The header's saved mark shows the flow is kept on this device as it is
+  made; Back would keep it as a draft, with no "Leave without saving?"
+  (decision 127).
 - Toast "Community first {run} saved." The flow is listed under "Your
   organization · 1". Nothing is refused.
 
@@ -1353,18 +1359,20 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's page → "Checks". Read Peer check's card.
-2. Tap "Peer check". Read People.
+2. Tap "Peer check". Read its People row. Tap "People".
 3. Tap "Add people". Read the list. Tick "Tom Translator". Tap "Done".
-4. Tap ✕ beside Tom Translator.
+4. Tap ✕ beside Tom Translator. Go back twice.
 
 Expected:
 - The card names "Rita Reviewer, Trevor Both" with their faces; a check
   with nobody on it says "Anyone".
-- People lists each person with their role ("Reviewer",
+- The check's People row names them; People opens a page of its own
+  (decision 130) listing each person with their role ("Reviewer",
   "Translator-Reviewer").
 - "Add people" lists whoever may review at Alpha, Translators included
   (decision 91), and "You" for oneself; Vic Viewer is not offered.
-- Toast "Peer check: 3 people" with Undo; then "Peer check: 2 people".
+- Toast "Peer check: 3 people", with no Undo (no timed undo toasts,
+  Caleb 2026-10-16); then "Peer check: 2 people".
 
 ### SETUP-068 A check's questions
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1373,17 +1381,19 @@ Preconditions (in addition to the global ones):
 - Resets: adds a question and removes it.
 
 Steps:
-1. Checks → "Community check". Read Questions. Go back.
-2. Checks → "Peer check" → "Add a question". Type "Is it clear to a
-   child?", tap "Yes / No", turn on "Required", tap "Save".
-3. Go back and read Peer check's card.
-4. Open the question. Tap "Remove question".
+1. Checks → "Community check". Read its Questions row. Go back.
+2. Checks → "Peer check" → "Questions" → "Add a question". Type "Is it
+   clear to a child?", tap "Yes / No", turn on "Required", tap "Save".
+3. Go back and read the Questions row; go back and read Peer check's card.
+4. Open Questions, then the question. Tap "Remove question".
 
 Expected:
-- LangQuest's own questions for the check show with "From LangQuest".
+- Community check comes with no questions (LangQuest's checks bring none,
+  LAN-85): its card shows no count, and its row reads "Questions · No
+  questions". Questions is a page of its own (decision 130).
 - The question sheet offers "Text", "Yes / No", "1–5" and "Required".
-- Toast "Question saved"; the row reads "Yes / No · Required"; the card
-  says "1 question".
+- Toast "Question saved"; the row reads "Yes / No · Required"; the
+  check's Questions row and its card say "1 question".
 - Toast "Question removed".
 
 ### SETUP-069 A check's helps
@@ -1398,13 +1408,14 @@ Steps:
 2. "Add a help" → "Write a note". Title "Listen for names", a line of text.
    "Save".
 3. Go back and read Peer check's card.
-4. Take FIA study guides off; tap "Undo"; take both off.
+4. Take FIA study guides off; add it again from "Add a help"; take both
+   off.
 
 Expected:
 - The sheet has "Notes" with "Write a note", and "Guides and Bibles".
-- Toast "Added to Peer check" with Undo for each.
+- Toast "Added to Peer check" for each, with no Undo.
 - The card says "2 helps".
-- Toast "Taken off Peer check"; Undo puts it back.
+- Toast "Taken off Peer check"; Add a help puts it back.
 
 ### SETUP-070 Must pass, and checks at the same time
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1414,14 +1425,17 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Checks → "Community check". Turn on "Must pass". Go back.
-2. Open "Back translation". Turn off "Same time as Peer check", then on.
+2. Open "Back translation". Tap "Same time as" (it reads "Peer check"),
+   untick "Peer check", tap "Done"; then tick it again and "Done".
 3. Turn Community check's "Must pass" off again.
 
 Expected:
 - Toast "Alpha's checks saved" with Undo; Community check's card shows the
   lock ("Community check must pass before the next steps").
+- "Same time as" is a choice of any other checks (decision 130).
 - Back translation is "Check 1 · Alpha" while at the same time as Peer
-  check, and "Check 2 · Alpha" on its own.
+  check, and "Check 2 · Alpha" on its own ("Same time as · No other
+  check").
 - Checks reads as the fixture's at the end; nothing refused.
 
 ### SETUP-071 Add a check
@@ -1649,9 +1663,8 @@ Expected:
   (organization-scope Manage reference only). Kinds of review are listed
   by their kind names ("Peer Review"), not the check names Checks uses.
 - Toast "Names in Luke {run} added."
-- "Publish to library" is disabled with "Save your changes first." while
-  there are unsaved changes; then "{title} is in your library. Share it
-  from there."
+- "Publish to library" puts in any changes not yet written first (as
+  "Done" does), then "{title} is in your library. Share it from there."
 - REV's Questions include the new required question.
 
 ### SETUP-055 Library material: verses, numbering, "Use in reviews"
@@ -1664,7 +1677,7 @@ Steps:
 1. Reference Material (organization) → "Library · your organization" →
    "New".
 2. Type the verses "LUK 15:11-32" and "LUKE fifteen".
-3. Fix the second line. Pick "Numbered as in". Tap "Publish".
+3. Fix the second line. Pick "Numbered as in". Tap "Done".
 4. Make a question set the same way, then tap "Use in reviews".
 
 Expected:
@@ -1684,14 +1697,14 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's Reference Material → "Write a guide".
-2. Tap Publish at once.
+2. Tap "Done" at once.
 3. Fix each item: title "The lost son {run}"; "Verses" LUK 15:11-32;
    "Numbered as in" English; "Start with these steps" → FIA (six steps).
 4. Tap Undo on the steps toast, then choose FIA again.
 5. Open "Steps". Record step audio for step 1. Use Bold and Link in its
    text.
 6. Open "Media". Add a picture and a film. Open "Glossary". Add a term.
-7. Tap Publish.
+7. Tap "Done".
 8. As TRANS after Sync now, open P-SUBMITTED's study.
 
 Expected:
@@ -1701,8 +1714,8 @@ Expected:
   "Before publishing" list ("Give the guide a title.", "Say where the guide
   applies: a verse range, or a part of a template.", "Add at least one
   step." …); each item jumps to its panel. "Ready to publish." once fixed.
-- "Draft saved on this device at {time}. One person edits a guide at a
-  time." updates as you type.
+- The header's saved mark turns from a spinner into a check as you type:
+  the draft is kept on this device, only for its writer (decision 127).
 - A new guide starts with FIA's six steps ("Now: 6 steps."); "One empty
   step" and "FIA's six steps" replace them. The toast "Steps replaced with
   FIA's six steps." with Undo shows only once a step has words or audio.
@@ -1720,14 +1733,14 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Open "The lost son {run}" from Guides and Notes. Change a step title.
-2. Close the app and reopen the guide.
-3. Publish.
+2. Close the app (or go Back) and reopen the guide.
+3. Tap "Done".
 4. Open an FIA guide from LangQuest (shared) and choose to adapt it.
 
 Expected:
-- The title is "Edit guide". After reopening: "Your draft from {time} is
-  open." with "Publish it, or keep writing. Nothing is published until you
-  do."
+- The title is "Edit guide". Leaving publishes nothing. After reopening
+  the change is there, with the saved mark's check (the "Your draft from
+  {time} is open" banner is gone, decision 127). "Done" publishes it.
 - If someone published meanwhile: "A newer version was published after you
   started this draft."
 - Adapting: title "Adapt a guide", banner "Adapted from someone else's
@@ -1861,9 +1874,9 @@ Steps:
 Expected:
 - The template view offers "View template" and "Change template", never
   "Edit template"; a book offers no "Break up differently"; the template
-  opens read only.
+  opens read only (no "Done" and no saved mark).
 - Review Flows offers "Use" (Alpha's own checks) but no "Flow", "Follow",
-  "Copy" or "Save as a flow".
+  "Copy" or "Add to your flows".
 - Content Templates offers "View" but no "Options" or "Template"; a shared
   template's sheet offers no "Follow" or "Copy".
 - Nothing goes to the organization's stream to be refused (G10.2).

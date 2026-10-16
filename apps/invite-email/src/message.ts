@@ -38,7 +38,7 @@ function escapeHtml(value: string): string {
  * else, once `appUrl` names the app's https address (APP_URL in
  * wrangler.jsonc, decisions.md 54, amended); the key rides after the `#`.
  * Without it, the older `langquestnext://` link. Same forms as the app's
- * apps/mobile/src/inviteCode.ts, which reads both.
+ * apps/mobile/src/invites/inviteCode.ts, which reads both.
  */
 export function invitationContent(p: InviteMessage, appUrl = '') {
   const params = `org=${encodeURIComponent(p.orgId)}&token=${encodeURIComponent(p.token)}`;

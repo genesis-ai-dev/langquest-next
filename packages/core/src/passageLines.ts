@@ -1,7 +1,7 @@
 import type { Hlc } from './hlc';
 import { buildIndexes, type Indexes } from './indexes';
 import {
-  deriveFlow, deriveKinds, derivePassage, stepName,
+  deriveFlow, deriveKinds, derivePassage, stepName, withdrawnBy,
   type FlowStep, type FlowStepStatus, type KindStatus, type LanguageProgress, type PassageState, type RequestView, type ReviewView, type Version
 } from './passage';
 import { partEntries, passageInMemory } from './passageParts';
@@ -9,7 +9,7 @@ import { stateRevision } from './reducer';
 import type { LanguageState } from './state';
 
 /**
- * One line per passage (decisions.md 110): what every list of passages
+ * One line per passage (decisions.md 134): what every list of passages
  * reads of it, so Map, Progress, My Work and the Inbox badge never need
  * every passage's record in memory. A line is worked out from the
  * passage's record by `derivePassage` and nothing else, so it cannot
@@ -117,6 +117,8 @@ function rawByUnit(state: LanguageState): Map<string, Raw> {
       if (!(e.value as LanguageState['takes'][string]).archived) raw.takes += 1;
     } else if (e.part.map === 'kindReviews') {
       const r = e.value as LanguageState['kindReviews'][string];
+      // A review its author took back does not count (decisions.md 111).
+      if (withdrawnBy(state.withdrawnReviews, r.id, r)) continue;
       const byKind = (raw.reviewers[r.kindId] ??= {});
       byKind[r.by] = byKind[r.by] === true || r.via === 'app';
     }
@@ -243,7 +245,7 @@ export interface Waiting {
   request: RequestView;
 }
 
-/** What a person asked of someone else that is not done yet, most overdue first (WORK-3). */
+/** What a person asked of someone else that is not done yet, newest first (WORK-3; due dates are gone, decision 126). */
 export function waitingOf(lines: PassageLines, state: Pick<LanguageState, 'units'>, actorId: string): Waiting[] {
   const out: Waiting[] = [];
   for (const unitId of lines.worked()) {
@@ -252,10 +254,8 @@ export function waitingOf(lines: PassageLines, state: Pick<LanguageState, 'units
       if (r.by === actorId && r.profileId !== actorId) out.push({ id: `wait-${r.id}`, unitId, request: r });
     }
   }
-  const due = (w: Waiting) => w.request.dueDate ?? '￿';
-  // Most overdue first; among the same due date, the newest ask first.
-  return out.sort((a, b) => (due(a) < due(b) ? -1 : due(a) > due(b) ? 1
-    : a.request.hlc > b.request.hlc ? -1 : a.request.hlc < b.request.hlc ? 1 : a.request.id > b.request.id ? -1 : a.request.id < b.request.id ? 1 : 0));
+  // The newest ask first; the id settles equal clocks, so the order never rests on how the lines were read.
+  return out.sort((a, b) => (a.request.hlc > b.request.hlc ? -1 : a.request.hlc < b.request.hlc ? 1 : a.request.id > b.request.id ? -1 : a.request.id < b.request.id ? 1 : 0));
 }
 
 /**

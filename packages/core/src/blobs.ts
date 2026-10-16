@@ -73,7 +73,7 @@ type Verdict = LanguageState['blobs'][string];
  * bumps a state's revision with every event it applies, so a hit is never
  * stale.
  *
- * A phone that keeps a language on disk (decisions.md 110) makes its own
+ * A phone that keeps a language on disk (decisions.md 134) makes its own
  * plan (`filePlan`) from the files memory names and those its table lists
  * for the passages or files a question is about, so planning never needs
  * the records themselves.
@@ -88,6 +88,8 @@ export interface FilePlan {
   units: LanguageState['units'];
   /** Per offline scope asked about with this plan: the files its passages need, and those the server has, in order. */
   scoped: Map<string, { needed: ReadonlySet<string>; stored: readonly BlobRef[] }>;
+  /** The same answers by the scope's own identity: a caller that asks again with the same Set skips the sort and join. */
+  byScope: WeakMap<ReadonlySet<string>, { needed: ReadonlySet<string>; stored: readonly BlobRef[] }>;
 }
 
 const plans = new WeakMap<LanguageState, { revision: number; plan: FilePlan }>();
@@ -120,7 +122,7 @@ export function filePlan(
   const order = new Map<string, number>();
   let n = 0;
   for (const hash of refs.keys()) order.set(hash, n++);
-  return { refs, order, idx: audioIndex(state, refs), verdict, units: state.units, scoped: new Map() };
+  return { refs, order, idx: audioIndex(state, refs), verdict, units: state.units, scoped: new Map(), byScope: new WeakMap() };
 }
 
 /** Every blob the language references: recording cards and reference audio. Read-only: it is shared until the next change. */
@@ -130,6 +132,9 @@ export function referencedBlobs(state: LanguageState): ReadonlyMap<string, BlobR
 
 /** What a scope needs, worked out once per plan: the workers and the reclaimer ask with the same scope after every file. */
 function forScope(plan: FilePlan, scope: ReadonlySet<string>): { needed: ReadonlySet<string>; stored: readonly BlobRef[] } {
+  // A scope Set is not changed once it has been passed in here (the session keeps one per revision).
+  const same = plan.byScope.get(scope);
+  if (same) return same;
   const key = [...scope].sort().join('\n');
   let hit = plan.scoped.get(key);
   if (!hit) {
@@ -139,6 +144,7 @@ function forScope(plan: FilePlan, scope: ReadonlySet<string>): { needed: Readonl
     if (plan.scoped.size >= 4) plan.scoped.delete(plan.scoped.keys().next().value!);
     plan.scoped.set(key, hit);
   }
+  plan.byScope.set(scope, hit);
   return hit;
 }
 

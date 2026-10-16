@@ -1,5 +1,5 @@
-import { DROPPED_SCREENS, EDGES, SCREEN_IDS, TAB_SCREENS, screenTitle, type NodeId, type ScreenId } from '../src/flow';
-import { edgeAllowed, tabsFor } from '../src/session';
+import { DROPPED_SCREENS, EDGES, SCREEN_IDS, TAB_SCREENS, screenTitle, type NodeId, type ScreenId } from '../src/shell/flow';
+import { edgeAllowed, tabsFor } from '../src/shell/session';
 import { roleSession } from './sessions';
 import spec from './spec-flow.json';
 
@@ -19,7 +19,7 @@ describe('UX flow coverage', () => {
       // More Bibles beside a passage (docs/reference-material.md).
       'bible_explore',
       // Microphone setup and getting a language ready (decision 71).
-      'mic_setup', 'get_ready',
+      'get_ready',
       // Me keeps five rows; the rest of Settings is under More settings (decision 71).
       'settings_more',
       // One of a language's checks, with its people, questions and helps (decision 91).

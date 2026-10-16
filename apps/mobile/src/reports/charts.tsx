@@ -1,13 +1,16 @@
 import { PASSAGE_WORK, percent, RECENCY_DAYS, type ActivityWeek, type PaceBand, type PassageWork, type RecencyBand } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Pressable, View, type LayoutChangeEvent } from 'react-native';
-import { Text } from '../text';
+import { Text } from '../ui/text';
 import Svg, { Circle, G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
 import { t } from '../i18n';
-import { txt } from '../kit';
-import { C, space } from '../theme';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpSpot } from '../helpMode/useHelpMode';
+import { txt } from '../ui/textStyles';
+import { C, space } from '../ui/theme';
 import { PACE_TONE, recencyDaysLabel, recencyLabel, RECENCY_TONE, workLabel, WORK_TONE } from './labels';
-import { Legend, num, pctText, shortDate, signed, TONE_FILL, weekday, type Tone } from './ui';
+import { Legend } from './ui';
+import { num, pctText, shortDate, signed, TONE_FILL, weekday, type Tone } from './format';
 
 /**
  * Small SVG charts, ported from the web dashboard. Each one says its numbers
@@ -69,6 +72,8 @@ interface Series {
 export function GroupedBars(props: { labels: string[]; series: Series[]; format: (label: string) => string; title: (label: string) => string; empty: string; table?: boolean }) {
   const { labels, series } = props;
   const [open, setOpen] = useState(false);
+  const numbers = useHelpSpot(open ? t('reports.charts.hideNumbers') : t('reports.charts.showNumbers'),
+    open ? t('reports.charts.hideNumbersHelp') : t('reports.charts.showNumbersHelp'), props.table !== false ? () => setOpen((o) => !o) : undefined);
   const max = Math.max(1, ...series.flatMap((s) => s.values));
   const totals = series.map((s) => s.values.reduce((n, v) => n + v, 0));
   if (totals.every((t) => t === 0)) return <Text style={txt.smMuted}>{props.empty}</Text>;
@@ -110,9 +115,10 @@ export function GroupedBars(props: { labels: string[]; series: Series[]; format:
       <Legend items={series.map((s, i) => ({ label: s.label, color: s.color, value: num(totals[i]!) }))} />
       {props.table !== false ? (
         <View>
-          <Pressable onPress={() => setOpen((o) => !o)} accessibilityRole="button" accessibilityState={{ expanded: open }} hitSlop={8}
+          <Pressable onPress={numbers.onPress} accessibilityRole="button" accessibilityState={{ expanded: open }} hitSlop={8}
             style={({ pressed }) => [{ minHeight: 48, justifyContent: 'center' }, pressed && { opacity: 0.6 }]}>
             <Text style={txt.link}>{open ? t('reports.charts.hideNumbers') : t('reports.charts.showNumbers')}</Text>
+            <HelpBadge spot={numbers} />
           </Pressable>
           {open ? (
             <View>

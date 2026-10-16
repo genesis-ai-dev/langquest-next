@@ -31,7 +31,14 @@ const token = readFileSync(tokenPath, 'utf8').trim();
 const logPath = resolve(directory, 'events.ndjson');
 const orgId = 'every-language-prototype';
 const admin = 'prototype-admin';
-const grant: Grant = { tokenId: 'local-demo-token', orgId, profileId: admin, scopes: ['read', 'review', 'release'], languageIds: null };
+const adminGrant: Grant = { tokenId: 'local-demo-token', orgId, profileId: admin, scopes: ['read', 'review', 'release'], languageIds: null };
+// A listening app's own read-only token: approved versions only (docs/agent-api.md, Tokens).
+const listenerPath = resolve(directory, 'listener-token');
+if (!existsSync(listenerPath)) writeFileSync(listenerPath, 'lqp_' + randomBytes(32).toString('base64url'), { mode: 0o600 });
+const grants = new Map<string, Grant>([
+  [`Bearer ${token}`, adminGrant],
+  [`Bearer ${readFileSync(listenerPath, 'utf8').trim()}`, { tokenId: 'local-demo-listener', orgId, profileId: admin, scopes: ['read:published'], languageIds: null }],
+]);
 
 // ---- audio: synthesized speech, kept by its hash like LangQuest's blobs --------------------
 function speak(text: string) {
@@ -202,7 +209,8 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': 'audio/wav', 'accept-ranges': 'bytes', 'content-length': bytes.length });
     return res.end(bytes);
   }
-  if (req.headers.authorization !== `Bearer ${token}`) return reply({ error: 'Unknown demo token', code: 'unauthorized' }, 401);
+  const grant = grants.get(req.headers.authorization ?? '');
+  if (!grant) return reply({ error: 'Unknown demo token', code: 'unauthorized' }, 401);
   let text = '';
   for await (const chunk of req) {
     text += String(chunk);
@@ -211,6 +219,7 @@ const server = createServer(async (req, res) => {
   const body = (text ? JSON.parse(text) : {}) as Record<string, unknown>;
   try {
     // The translator's phone, for the demo.
+    if (url.pathname.startsWith('/demo/') && grant !== adminGrant) return reply({ error: 'The listener token cannot record.', code: 'scope' }, 403);
     if (req.method === 'POST' && url.pathname === '/demo/record') {
       const takeId = record(String(body.languageId), String(body.unitId), String(body.text ?? `${body.unitId}, a new recording.`));
       void look();
@@ -221,7 +230,10 @@ const server = createServer(async (req, res) => {
       void look();
       return reply({ takeId });
     }
-    if (url.pathname === '/api/v1/me') return reply({ token: { orgId }, org: { id: orgId, name: 'Every Language prototype' }, demo: true });
+    if (url.pathname === '/api/v1/me') {
+      const languages = await agent.read(grant, { op: 'languages' });
+      return reply({ token: { orgId, scopes: grant.scopes, languageIds: grant.languageIds }, org: { id: orgId, name: 'Every Language prototype' }, languages: languages.ok ? languages.data : [], demo: true });
+    }
     if (url.pathname === '/api/v1/languages') {
       const out = await agent.read(grant, { op: 'languages' });
       return reply(out.ok ? out.data : out, out.ok ? 200 : out.status);

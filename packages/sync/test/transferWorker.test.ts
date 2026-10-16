@@ -335,3 +335,38 @@ describe('TransferWorker deferral and budget', () => {
     expect(budget.bytesInFlight()).toBe(0);
   });
 });
+
+describe('TransferWorker: what diagnostics may wait for', () => {
+  it('a file counts as tried once it failed or went, and the longest wait is kept until it is done', async () => {
+    // Why: diagnostics waited for every upload to finish, and uploads retry
+    // forever, so one file that always failed stopped every delivery.
+    const h = harness();
+    let work = ['bad', 'good'];
+    const w = new TransferWorker({
+      ...UPLOAD_DEFAULTS,
+      work: () => work.map(ref),
+      transfer: async (r) => { if (r.hash === 'bad') throw new Error('http 500'); },
+      isOnline: () => true,
+      isPulling: () => false,
+      ...h
+    });
+    expect(await w.untried()).toBe(2);
+    expect(w.oldestWaitingMs()).toBeNull();
+    w.start();
+    await h.advance(UPLOAD_DEFAULTS.debounceMs);
+    expect(await w.untried()).toBe(0);
+    // First seen by the first pass, after the debounce.
+    expect(w.waitingSince('bad')).toBe(UPLOAD_DEFAULTS.debounceMs);
+    await h.advance(10 * 60_000);
+    expect(w.oldestWaitingMs()).toBe(10 * 60_000);
+
+    // A new file has not had its turn; once 'good' is confirmed it no longer waits.
+    work = ['bad', 'new'];
+    expect(await w.untried()).toBe(1);
+    w.nudge();
+    await h.advance(UPLOAD_DEFAULTS.debounceMs);
+    expect(await w.untried()).toBe(0);
+    expect(w.waitingSince('good')).toBeUndefined();
+    w.stop();
+  });
+});

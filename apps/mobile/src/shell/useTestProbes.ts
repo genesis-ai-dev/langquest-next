@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
-import type { ScreenId } from '../flow';
-import { syncActivity } from '../syncActivity';
-import { isTestBuild } from '../testBuild';
-import type { LanguageHandle } from '../useLanguage';
-import type { OrgHandle } from '../useOrg';
+import type { ScreenId } from './flow';
+import { syncActivity } from '../sync/syncActivity';
+import { isTestBuild } from './testBuild';
+import type { LanguageHandle } from '../sync/useLanguage';
+import type { OrgHandle } from '../sync/useOrg';
 
 /**
  * Test builds on the web only (testBuild.ts): what the UI tests reach for

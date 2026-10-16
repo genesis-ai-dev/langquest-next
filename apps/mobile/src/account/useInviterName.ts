@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { Ctx } from '../ctx';
-import { noteExpected } from '../report';
+import type { Ctx } from '../shell/ctx';
+import { noteExpected } from '../diagnostics/report';
 import { accountSteward, profileName } from '../server/account';
-import { useDisplayNames } from '../useAccount';
+import { useDisplayNames } from './useAccount';
 
 /**
  * Who invited this person: the one to ask on a new phone (decisions.md 59).

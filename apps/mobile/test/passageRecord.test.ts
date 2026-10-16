@@ -4,13 +4,13 @@ import {
   recordTimeline, SEED_ROLES, type AnyEvent, type EventPayloads, type EventType, type OrgState, type Scope
 } from '@langquest-next/core';
 import {
-  addDays, answeredQuestions, askCandidates, currentStepId, describeEntry, dueError, feedbackNames, gridKindIds, heroHeadline, historySummary,
+  answeredQuestions, askCandidates, currentStepId, describeEntry, feedbackNames, gridKindIds, heroHeadline, historySummary,
   kindLineText, kindRowActions, kindRowSub, kindPathState, lastReviewOn, ledTo, listenersOf, madeAfter, nextQuestionType, oldKindLineText, oldStepState,
   oldStepSummary, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
 } from '../src/passage/record';
 import { requestIsMine, sendToInput, usualTargetFor } from '../src/passage/sendTarget';
-import { hiddenText } from '../src/moderation';
-import { feedbackSource } from '../src/passageView';
+import { hiddenText } from '../src/moderation/model';
+import { feedbackSource } from '../src/passage/passageView';
 
 /**
  * The passage record's words and button rules (demo screens/passage.tsx),
@@ -162,7 +162,7 @@ describe('a kind’s actions', () => {
       .toBe('A bilingual speaker records it in English — new content, not a verdict · the Consultant Check reviews it');
   });
 
-  it('someone asked sees Review it now; everyone else sees who it waits on and no main button', () => {
+  it('someone asked sees Review it now; everyone else sees who it waits on and no main button; an older due date is not shown', () => {
     const p = language();
     record(p, 'v1', ['c1']);
     p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', what: 'review', kindId: 'peer', profileId: 'ayen', dueDate: '2099-01-02' }));
@@ -172,10 +172,10 @@ describe('a kind’s actions', () => {
     const asked = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: false, me: 'ayen' });
     expect(asked.askedMe).toBe(true);
     expect(asked.primary?.label).toBe('Review it now');
-    expect(kindRowSub({ status: peer, kind, step: s.steps[0]!, me: 'ayen', name: nameFor('ayen') })).toBe('Akol asked you · due Jan 2');
+    expect(kindRowSub({ status: peer, kind, step: s.steps[0]!, me: 'ayen', name: nameFor('ayen') })).toBe('Akol asked you');
     const other = kindRowActions({ status: peer, kind, step: s.steps[0]!, can: all, isAuthor: false, me: 'deng' });
     expect(other.primary).toBeUndefined();
-    expect(kindRowSub({ status: peer, kind, step: s.steps[0]!, me: 'deng', name: nameFor('deng') })).toBe('Waiting on Ayen · due Jan 2');
+    expect(kindRowSub({ status: peer, kind, step: s.steps[0]!, me: 'deng', name: nameFor('deng') })).toBe('Waiting on Ayen');
   });
 
   it('while feedback is open, the other kinds are best after it (advice, not a gate)', () => {
@@ -243,10 +243,10 @@ describe('the record’s details', () => {
   });
 
   it('pairs answers with their questions and keeps answers whose question is gone', () => {
-    const qs = [{ q: { id: 'q1', text: 'Is it clear?', type: 'yesno' as const }, source: 'org' as const, required: false },
+    const qs = [{ q: { id: 'q1', text: 'Is it clear?', type: 'yesno' as const }, source: 'language' as const, required: false },
       { q: { id: 'q2', text: 'How natural?', type: 'rating' as const }, source: 'request' as const, required: false }];
     expect(answeredQuestions(qs, { q1: 'yes', q2: '4', old: 'Fine' })).toEqual([
-      { id: 'q1', label: 'Is it clear?', source: 'Organization', answer: 'Yes' },
+      { id: 'q1', label: 'Is it clear?', source: 'Language', answer: 'Yes' },
       { id: 'q2', label: 'How natural?', source: 'Asked for this review', answer: '4 / 5' },
       { id: 'old', label: 'Question', answer: 'Fine' }
     ]);
@@ -286,14 +286,7 @@ describe('asking someone', () => {
     expect(other.find((c) => c.profileId === 'nyibol')).toMatchObject({ usual: false, onCheck: false, sub: 'Community Reviewer' });
   });
 
-  it('takes a due date from today on, written as YYYY-MM-DD', () => {
-    expect(addDays('2026-09-28', 7)).toBe('2026-10-05');
-    expect(addDays('2026-12-30', 3)).toBe('2027-01-02');
-    expect(dueError('', '2026-09-28')).toBeNull();
-    expect(dueError('2026-09-28', '2026-09-28')).toBeNull();
-    expect(dueError('2026-09-27', '2026-09-28')).toBe('Pick today or a later day.');
-    expect(dueError('2026-02-30', '2026-01-01')).toBe('That date does not exist.');
-    expect(dueError('Oct 7', '2026-09-28')).toMatch(/YYYY-MM-DD/);
+  it('cycles question types', () => {
     expect(nextQuestionType('yesno')).toBe('text');
     expect(nextQuestionType('text')).toBe('rating');
     expect(nextQuestionType('rating')).toBe('yesno');
@@ -382,7 +375,7 @@ describe('the journey (REC-2, REC-2a, ADR-030)', () => {
     p.run('akol', (c) => c.ask({ commandId: 'a1', unitId: 'john3', what: 'review', kindId: 'bt', profileId: 'deng', dueDate: '2099-01-02' }));
     const s = p.passage();
     expect(kindLineText(s.steps[0]!.kinds[0]!, s.steps[0]!, s, name)).toBe('Looks good · Ayen on Version 1');
-    expect(kindLineText(s.steps[0]!.kinds[1]!, s.steps[0]!, s, name)).toBe('Waiting on Deng · due Jan 2');
+    expect(kindLineText(s.steps[0]!.kinds[1]!, s.steps[0]!, s, name)).toBe('Waiting on Deng');
     expect(kindLineText(s.steps[1]!.kinds[0]!, s.steps[1]!, s, name)).toBe('Not yet');
   });
 });

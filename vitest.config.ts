@@ -21,6 +21,7 @@ export default defineConfig({
       include: [
         'packages/core/src/**',
         'packages/sync/src/**',
+        'packages/v2-import/src/**',
         'apps/mobile/src/**',
         'apps/web/worker/**',
         'scripts/**'
@@ -30,16 +31,20 @@ export default defineConfig({
         '**/*.md',
         '**/*.test.{ts,tsx}',
         '**/*.d.ts',
+        '**/tsconfig.json',
         '**/generated/**',
         '**/*.generated.*',
-        'apps/mobile/src/flow.ts',
+        'apps/mobile/src/shell/flow.ts',
         'scripts/**/*.{sh,mjs}',
         'scripts/fleet/**',
         'scripts/bench/**'
       ],
       thresholds: {
-        'packages/core/src/**': { lines: 93, branches: 79, functions: 90, statements: 88 },
-        'packages/sync/src/**': { lines: 88, branches: 77, functions: 85, statements: 86 }
+        'packages/core/src/**': { lines: 95, branches: 83, functions: 92, statements: 90 },
+        'packages/sync/src/**': { lines: 95, branches: 85, functions: 91, statements: 92 },
+        'packages/v2-import/src/**': { lines: 48, branches: 42, functions: 45, statements: 46 },
+        // Screen models (docs/testing.md layer 3): pure, so they stay covered. model.ts and <thing>Model.ts under apps/mobile/src.
+        'apps/mobile/src/**/{model,*Model}.ts': { lines: 88, branches: 79, functions: 87, statements: 86 }
       }
     }
   }

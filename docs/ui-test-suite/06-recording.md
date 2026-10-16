@@ -1,16 +1,16 @@
 # 06 · Recording
 
 The recording workspace (`workspace`): the reference on top, the recorder
-below, voice detection that keeps each part by itself, verse labels on
-parts (decision 82), several drafts (decision 83), Publish as a screen
-inside the workspace, microphone setup, and what happens when the field
-interrupts a recording.
+below, voice detection that keeps each part by itself (decision 125), verse
+labels on parts (decision 82), several drafts (decision 83), Done as a
+screen inside the workspace, and what happens when the field interrupts a
+recording.
 
 Read with [the README](README.md): the global preconditions G1 to G10, the
 fixture and the role matrix apply to every test here.
 
 Code under test: `src/screens/translate.tsx` (Workspace),
-`src/simple/{recorder,publish,reference,verseParts,micSetup,model,parts}.tsx`,
+`src/simple/{recorder,publish,reference,verseParts,model,parts}.tsx`,
 `src/recording/*`, `src/useRecorder.ts`, `src/recordingJournal*.ts`, and the
 passage record's published page (`src/screens/passage.tsx`).
 
@@ -42,13 +42,13 @@ Steps:
 2. On the record, tap "Record". If the main button reads "Study" (the passage has a study guide), tap the "Record" step row under it instead.
 
 Expected:
-- The workspace opens. Header title "Luke 13:1-9", sub "Recording Version 1", a ✕ ("Close") on the left and "Save" (with a check) on the right.
+- The workspace opens. Header title "Luke 13:1-9", sub "Recording Version 1", a ✕ ("Close") on the left. There is no Save button (decision 127); the saved mark on the right shows nothing until a part is kept.
 - The divider sits at half: the reference on top, the recorder below.
 - The chips over the reference show at least "Bible", "Key words" and "Notes". "Earlier" is not shown, because nothing has been recorded or reviewed yet.
 - The "Bible" chip is selected.
 - The recorder shows a lit card "Part 1" with "Recording next".
-- The line "Tap the red button and speak. Pause between parts: each part is kept by itself." shows under it, then a quiet link "Set up the microphone".
-- The footer shows "Part 1" on the left, the big red button (accessibility label "Record") in the middle, and "Publish" on the right, dimmed and disabled.
+- No line explains it (decision 124). There is no "Set up the microphone" link (LAN-82).
+- The footer shows "Part 1" on the left, the big red button (accessibility label "Record") in the middle, and "Done" on the right, dimmed and disabled.
 - The passage record is unchanged (nothing is written by opening the workspace).
 
 ### REC-002 My Work's Start opens the same workspace
@@ -64,7 +64,7 @@ Steps:
 
 Expected:
 - The workspace for that passage opens with sub "Recording Version 1".
-- Choose the "Notes" chip: COORD's request shows at the top of the notes: "Cora Coordinator asked", with "· due {date}" when the request has a due date (P-NEW's has).
+- Choose the "Notes" chip: COORD's request shows at the top of the notes: "Cora Coordinator asked", with no due date (decision 126).
 - Tapping ✕ returns to the screen the test came from (My Work or the record), and nothing is written.
 
 ### REC-003 Continue recording opens the draft already on the device
@@ -80,8 +80,8 @@ Steps:
 Expected:
 - The record's main button reads "Continue recording", and its Record step says "Your parts are recorded, not published yet."
 - The workspace opens with sub "Recording Version 1".
-- The recorder shows one card "Parts 1–2" with "2 parts · {total length}" and a play button "Play Parts 1–2". The parts show under it by themselves when the pane has room, so its toggle reads "Hide the parts" ("Show the parts" when folded).
-- The footer reads "Part 3", and "Publish" is enabled.
+- The recorder shows one card "Parts 1–2" with "2 parts · {total length}" and a play button "Play Parts 1–2". The parts show under it at every size of the pane (decision 133), so its toggle reads "Hide the parts" ("Show the parts" when folded).
+- The footer reads "Part 3", and "Done" is enabled.
 - The "Tap the red button and speak…" hint is not shown.
 
 ---
@@ -100,19 +100,25 @@ Steps:
 3. Speak for 4 seconds, then stay silent for 2 seconds.
 4. Speak for 3 seconds, then stay silent for 2 seconds.
 5. Tap the red button again ("Stop recording").
+6. Tap the check, "Done".
 
 Expected:
-- After step 1 the button turns to a stop button (accessibility label "Stop recording"), and the footer's left label turns red: "Part 1…".
+- After step 1 the button turns to a stop button (accessibility label "Stop recording"), and the recording view's title reads "Part 1". The Undo and Redo arrows left of the red button are out of the way while it records (decision 133).
 - The lit card reads "Listening for you · pause between parts" while silent, and "Recording…" with a moving level meter while speaking.
 - Each pause ends a part. Within 2 seconds of each pause the card above counts it: "Part 1", then "Parts 1–2", then "Parts 1–3", and the lit card moves to the next part number.
-- After step 5 the card reads "Parts 1–3" with "3 parts · 0:1x" (about 11 seconds in total), and the footer reads "Part 4" in grey.
-- "Publish" is enabled.
-- "Save" is disabled while recording and enabled after step 5.
+- After step 5 the session is still open (decision 129): the pane says "Stopped", the waveform shows the three parts boxed and numbered, the title reads "Part 4", the button reads "Record", and the footer has no "Done" (the recording view's check is the only one).
+- After step 6 the card reads "Parts 1–3" with "3 parts · 0:1x" (about 11 seconds in total), and the footer reads "Part 4" in grey.
+- The footer's "Done" is enabled.
+- The saved mark in the header ends on its check ("Saved") once the parts are kept.
 - No part is shorter than 1 second, and no part is empty.
 - Afterwards, on the record, the main button reads "Continue recording" and the Record step says "Your parts are recorded, not published yet."
 - On a second device signed in as COORD, after Sync now, P-NEW's record says "Some parts are recorded, not published yet." (the draft is on the record; G10.4).
 
 Decided (2026-10-13), the docs were stale: decision 71's amendment of 2026-10-08 ("the recording workspace, Publish, the study and microphone setup now follow the agreed images") makes the lit part card and its meter the agreed recording view; the full-screen voice-detection panel (`VadPanel`) is back translation's. This test checks the lit card and the meter.
+
+Changed (2026-10-16, decision 124): while recording, the pane below the divider is the red recording view (`RecordingView.tsx`) in the workspace and in back translation alike: its top row names the part being said ("Part 2", with its verses when it fills a place), the time and a check, Done; the live waveform fills the rest. Its label reads "Part 2. Recording…" or "Part 2. Listening for you · pause between parts"; the parts card returns when recording stops.
+
+Changed (2026-10-16, decision 129): Stop no longer ends the session. Its parts stay boxes on the waveform, to hear, move or drop (REC-053), and are cut and saved, in order, when the session is left: Done, leaving the screen, or on a phone the next launch after a crash.
 
 Fixed (2026-10-13), G10.3: on the web a part recorded while uploads are held back (they wait while the microphone is open) sometimes goes up only at the upload worker's next one-minute tick, so "waiting to upload" can stay above 0 for up to a minute after stop. Fixed in part (2026-10-13): the workspace asks for an upload when a session ends and after publishing (`translate.tsx`); the rest is in `useLanguage.ts` / the transfer worker. The web suite records it as a soft failure naming the recordings.
 
@@ -125,7 +131,7 @@ Preconditions:
 Steps:
 1. In the workspace, tap the play button on the "Parts 1–3" card ("Play Parts 1–3").
 2. While it plays, tap it again ("Pause").
-3. Look at the parts under the card (they show by themselves when the pane has room; otherwise tap "Show the parts").
+3. Look at the parts under the card (they show by themselves).
 4. Tap the play button on "Part 2 · 0:04" ("Play Part 2").
 5. Tap "Hide the parts", then "Show the parts".
 
@@ -156,7 +162,7 @@ Expected:
 - The volume is even from part to part.
 - Resets: P-Q1 now has TRANS's draft. Delete it from Versions and history before a fresh run.
 
-### REC-007 Delete a part, then Undo
+### REC-007 Delete a part, then Undo and Redo
 Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -164,14 +170,19 @@ Preconditions:
 
 Steps:
 1. In the workspace, look at the parts (tap "Show the parts" if they are folded).
-2. Hold Part 2's verse space, then tap "Delete Part 2" in the sheet (decision 82).
-3. Within 7 seconds, tap "Undo" on the toast.
+2. Tap the bin at the end of Part 2's row.
+3. Close the workspace with ✕, then open it again with "Continue recording".
+4. Tap the Undo arrow left of the red button.
+5. Tap the Redo arrow beside it, then Undo again.
 
 Expected:
-- After step 2, the toast reads "Part 2 deleted." with "Undo", and stays for 7 seconds.
-- The card reads "Parts 1–2", "2 parts · 0:07". The rows are "Part 1 · 0:04" and "Part 2 · 0:03" (the old Part 3, renumbered).
-- After step 3, the toast reads "Undone.". The card reads "Parts 1–3" again, in the original order. Playing Part 2 plays the second sentence again.
+- After step 2 no toast shows. Part 2's place stays, numbered ("Record Part 2 here"), and the card reads "Parts 1–3, 2 parts". The Undo arrow is dark (its label "Undo: Part 2 deleted."), Redo is grey.
+- After step 3 Undo is still dark: the history is kept with the draft on this phone, through leaving the screen and the app being closed, until the draft is published or deleted.
+- After step 4 the card reads three parts again, in the original order, and Part 2 is shaded faintly red. Redo is dark. Playing Part 2 plays the second sentence again.
+- Step 5 deletes Part 2 again, then brings it back. Each Undo and Redo is a new change on the record, never a removed one.
 - Every step is on the record: a second device, after Sync now, shows the same three parts in the same order (G10.4, G10.5).
+
+Changed (2026-10-16, decision 133): no toast offers an Undo that runs out; the recording screen has its own Undo and Redo.
 
 ### REC-008 Parts cannot be deleted while recording
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -188,7 +199,7 @@ Steps:
 
 Expected:
 - During steps 3 and 4 the verse spaces and play buttons are dimmed and do nothing: no sheet opens, no toast shows, and no part is removed.
-- The header's "Save" and the footer's "Publish" are disabled while recording.
+- While recording the footer has no "Done" (the recording view's check is Done); afterwards it is back and the saved mark shows its check.
 - After step 5 every control is enabled again, and the draft still has three parts.
 
 ### REC-009 Deleting the only part leaves nothing to publish
@@ -200,35 +211,35 @@ Preconditions:
 Steps:
 1. Open P-Q2 and tap "Record" (or the Record step row).
 2. Record one part: speak for 3 seconds, then stop.
-3. Hold Part 1's verse space, then tap "Delete Part 1".
-4. Tap "Undo" on the toast.
+3. Tap the bin at the end of Part 1's row.
+4. Tap the Undo arrow left of the red button.
 
 Expected:
-- After step 3 the toast reads "Part 1 deleted.". The parts card is gone, the lit card reads "Part 1", the hint "Tap the red button and speak…" is back, and "Publish" is disabled.
-- After step 4, "Undone." shows, Part 1 is back, and "Publish" is enabled.
+- After step 3 the parts card is gone, the lit card reads "Part 1", and "Done" is disabled. No toast shows.
+- After step 4 Part 1 is back, shaded, and "Done" is enabled.
 - Resets: P-Q2 now has TRANS's draft.
 
-### REC-010 Save keeps the draft and goes back
+### REC-010 Leaving keeps the draft, and the mark says so
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - P-NEW has TRANS's draft with three parts, and it is TRANS's only draft of P-NEW.
 
 Steps:
-1. In the workspace, tap "Save" in the header.
-2. On the record, tap "Continue recording".
-3. Tap ✕.
+1. In the workspace, look at the header.
+2. Tap ✕.
+3. On the record, tap "Continue recording".
 
 Expected:
-- Step 1 shows the toast "Draft saved." and returns to the record.
-- Step 2 opens the same three parts.
-- Step 3 returns to the record with no toast. Nothing is lost: every part was already kept when it was recorded.
+- Step 1: the saved mark on the right of the header shows its check ("Saved"); there is no Save button (decision 127).
+- Step 2 returns to the record with no toast. Nothing is lost: every part was already kept when it was recorded.
+- Step 3 opens the same three parts.
 
 ---
 
 ## Publishing
 
-### REC-011 Publish Version 1
+### REC-011 Done, then ask the usual people for the peer check
 Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -236,61 +247,53 @@ Preconditions:
 - Online.
 
 Steps:
-1. In the workspace, tap "Publish".
-2. Look at the Publish screen without changing anything.
-3. Tap "Publish Version 1".
+1. In the workspace, tap "Done".
+2. Look at the Done screen without changing anything.
+3. Tap "Ask {usual target}".
 
 Expected:
-- Step 1 opens the Publish screen inside the workspace. Header title "Luke 13:1-9", sub "Publish", with ✕.
+- Step 1 opens the Done screen inside the workspace (decision 127). Header title "Luke 13:1-9", sub "Version 1", with ✕.
 - A player for the whole version, titled "Version 1", with the sub "3 parts · 0:11 · recorded with the {abbr} Bible" (the Bible's abbreviation, when one is offered).
 - A row "Say something about it" with the sub "Optional · the team hears it with this version". The row has no amber border.
-- The text "Publishing saves Version 1 to the passage. Everyone on the team can hear it. It goes out when the device has internet."
-- The footer "Publish Version 1" is enabled.
-- After step 3, the toast reads "Version 1 published." with no Undo.
-- The record opens on its published page: a large green check, the heading "Version 1 published", the line "Luke 13:1-9 · sent to the team" (online; offline it stays "saved on this device · sends when you're online"), then "Next, ask for a check" with a card for each check that comes next ("Peer check" and "Back translation", decision 91: "check" is the word for a review stage) and its people (in the fixture "Trevor Both, Rita Reviewer").
-- The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), then quiet links "Someone else" and "Not now".
-- Afterwards, the record's Record step reads "Version 1 · 0:11" and its Publish step reads "Published just now".
+- "Next check", with a card for each check that comes next ("Peer check" and "Back translation", decision 91) and its people (in the fixture "Trevor Both, Rita Reviewer"). No sentence explains publishing.
+- The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), enabled, then quiet links "Someone else" and "Send later".
+- Step 3 publishes Version 1 and asks for the peer check in one write: the toast reads "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with Undo (which takes the asking back, not the version).
+- It returns to the record's path; there is no "Version 1 published" page.
 - The draft is gone from Versions and history; Version 1 is listed under "Published" with "Latest".
 - Within 30 seconds, Sync shows nothing waiting to upload (G10.3). On a second device as REV, after Sync now, P-NEW's record shows Version 1 and its audio plays.
-- Resets: P-NEW now has Version 1 by TRANS.
+- Resets: P-NEW now has Version 1 by TRANS, and its Peer check is asked.
 
-### REC-012 After publishing, ask for the check or not now
+### REC-012 After Done, the record says who was asked, and they find it on My Work
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- REC-011 has just published Version 1 of P-NEW, and its published page shows.
+- REC-011 has just finished P-NEW's Version 1 and asked for its Peer check; the record shows.
 
 Steps:
-1. Tap "Not now".
-2. Tap "Ask for the peer check" (the record's main button now).
-3. On the ask page, tap "Ask {usual target}".
+1. Look at the record's path.
+2. As REV, on a second device, Sync now and open My Work.
 
 Expected:
-- Step 1 returns to the record's path. Nothing is written.
-- After step 1, the record's main button reads "Ask for the peer check", the Record step reads "Version 1 · 0:11" and the Publish step "Published just now".
-- Step 2 opens the same ask page, now with a header "Ask for a check" and the sub "Luke 13:1-9", and without the "Version 1 published" heading.
-- Step 3 shows the toast "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with Undo.
-- Afterwards, the first step on the record reads "asked {target}". REV, on a second device after Sync now, finds P-NEW on My Work as a Peer check to do.
-- Resets: P-NEW's Peer check is asked.
+- The Record step reads "Version 1 · 0:11" and the Done step "Published just now · asked {target}".
+- The record does not offer "Ask for the peer check" again.
+- REV finds P-NEW on My Work as a Peer check to do.
 
-Fixed (2026-10-13): the Publish step reads "Published Just now": `passage/pathModel.ts` puts `when()`'s sentence-start form ("Just now") in the middle of "Published {{when}}". The Versions page already special-cases it (`passage.versions.savedJustNow`); the path should too.
-
-### REC-013 Publish's ✕ and Android back return to the workspace and keep everything
+### REC-013 Done's ✕ and Android back return to the workspace and keep everything
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - P-Q2 has TRANS's draft with one part (REC-009).
 
 Steps:
-1. Open P-Q2's workspace and tap "Publish".
+1. Open P-Q2's workspace and tap "Done".
 2. Tap "Say something about it", type "Draft for the team", tap "Done".
 3. Tap ✕.
-4. Tap "Publish" again.
+4. Tap "Done" again.
 5. Android only: press the system Back button.
 
 Expected:
 - Step 3 returns to the workspace, not the record. The part is still there, and nothing was published.
-- After step 4 the Publish screen opens fresh: the row reads "Say something about it" again (what was typed is not kept between visits).
+- After step 4 the Done screen opens with what was typed kept (decision 127): the row reads "What you said about it" with "“Draft for the team”".
 - Step 5 returns to the workspace too; it never leaves past it.
 - No version exists on the record.
 
@@ -301,15 +304,15 @@ Preconditions:
 - P-Q2 has TRANS's draft with one part.
 
 Steps:
-1. In P-Q2's workspace, tap "Publish".
+1. In P-Q2's workspace, tap "Done".
 2. Tap the row "Say something about it".
 3. In the sheet "Say something about it" (sub "Anything the team should know. They hear it with this version."), tap "Say it", speak for 3 seconds, tap to stop.
 4. Tap "Done".
-5. Tap "Publish Version 1".
+5. Tap "Send later".
 
 Expected:
 - After step 4 the row reads "What you said about it" with the sub "Voice note", and its icon is a green check.
-- Step 5 shows "Version 1 published.".
+- Step 5 shows "Version 1 published." and asks nobody: the record's main button reads "Ask for the peer check".
 - On the record, Versions and history → Version 1 plays the voice note with the version.
 - REV, on a second device, hears the voice note on Version 1 after Sync now.
 - Resets: P-Q2 now has Version 1.
@@ -321,7 +324,7 @@ Preconditions:
 - P-Q3 (Luke 13:22-30) has TRANS's draft with two parts (record them as in REC-004).
 
 Steps:
-1. In P-Q3's workspace, tap "Publish".
+1. In P-Q3's workspace, tap "Done".
 2. Play the version, and at about 0:05 tap "Note" on the player.
 3. In the sheet, type "verse 24 needs a slower pace", tap "Done".
 4. Tap ✕ without publishing.
@@ -341,19 +344,19 @@ Steps:
 1. Open P-NEW. Open Versions and history and tap "Edit" on Version 1. (Once a version is published, the Record step row opens that version, not the workspace.)
 2. Look at the workspace before recording.
 3. Record one more part: speak for 3 seconds, then stop.
-4. Tap "Publish".
+4. Tap "Done".
 5. Look at the row under the player, and at the footer.
 6. Tap the row, type "Added verse 9 again, slower", tap "Done".
-7. Tap "Publish Version 2".
+7. Tap "Send later".
 
 Expected:
 - Step 1 opens the workspace with sub "Recording Version 2" and Version 1's parts already in the card.
-- Step 2 shows "These are Version 1's parts. Record a new part or delete one to publish a new version.", and "Publish" is disabled.
-- After step 3 that line is gone, the card counts one more part, and "Publish" is enabled.
-- Step 5: the row reads "Say what changed" with the sub "Needed · since Version 1, so the team knows what to listen for", with an amber border. "Publish Version 2" is disabled.
+- Step 2 shows "These are Version 1's parts. Record a new part or delete one to publish a new version.", and "Done" is disabled.
+- After step 3 that line is gone, the card counts one more part, and "Done" is enabled.
+- Step 5: the row reads "Say what changed" with the sub "Needed · since Version 1, so the team knows what to listen for", with an amber border. The footer's "Ask …" is disabled, and "Send later" does nothing.
 - The sheet opened in step 6 is titled "What changed?" with the sub "Since Version 1. The team hears it with this version.", and its voice button reads "Say what changed".
-- After step 6 the row reads "What changed" with "“Added verse 9 again, slower”", and "Publish Version 2" is enabled.
-- Step 7 shows "Version 2 published." and the published page reads "Version 2 published".
+- After step 6 the row reads "What changed" with "“Added verse 9 again, slower”", and the footer's "Ask …" is enabled.
+- Step 7 shows "Version 2 published." and returns to the record.
 - Afterwards, Versions and history lists Version 2 as latest and Version 1 under it. Version 1 is unchanged (decision 83: a published version never changes).
 - A reviewer opening Version 2 for review sees "What changed in Version 2:" followed by the typed note (REV-010).
 - Resets: P-NEW now has Version 2.
@@ -366,12 +369,12 @@ Preconditions:
 
 Steps:
 1. Open P-Q2's Versions and history and tap "Edit" on Version 1 (it opens Version 1's parts).
-2. Record one more part, then tap "Publish".
+2. Record one more part, then tap "Done".
 3. Tap "Say what changed", tap "Say what changed" in the sheet, speak for 3 seconds, stop, tap "Done".
-4. Tap "Publish Version 2".
+4. Tap "Send later".
 
 Expected:
-- After step 3 the row reads "What changed" with the sub "Voice note", and "Publish Version 2" is enabled with nothing typed.
+- After step 3 the row reads "What changed" with the sub "Voice note", and the footer's "Ask …" is enabled with nothing typed.
 - Step 4 shows "Version 2 published.".
 - REV's review of Version 2 shows "What changed in Version 2: said in a voice note" and a "Play what changed" button that plays it.
 
@@ -384,11 +387,11 @@ Preconditions:
 Steps:
 1. Open P-Q2's Versions and history and tap "Edit" on Version 2 (it opens Version 2's parts, sub "Recording Version 3").
 2. Delete the last part (hold its verse space, "Delete Part 2").
-3. Tap "Save".
+3. Tap ✕.
 
 Expected:
-- After step 2 "Publish" is enabled, because the list differs from Version 2.
-- Step 3 shows "Draft saved." and goes back to where the workspace was opened from (the Versions page).
+- After step 2 "Done" is enabled, because the list differs from Version 2, and the saved mark shows its check.
+- Step 3 goes back to where the workspace was opened from (the Versions page), with the draft kept.
 - Version 2 still has all its parts when played from Versions and history.
 - Versions and history shows "Your draft" with one fewer part than Version 2. ("from Version N" is added only when the draft started from a version other than the latest; Version 2 is the latest.)
 
@@ -400,13 +403,13 @@ Preconditions:
 
 Steps:
 1. Open P-Q2. Open "Versions and history" and tap "New version".
-2. Record one part, then tap "Save".
+2. Record one part, then tap ✕.
 3. Go back to the record, then open "Versions and history".
 
 Expected:
 - Step 1 opens an empty workspace with the header sub "New draft"; once its first part is kept it reads "Draft 2" (the person now keeps more than one).
-- Step 2 shows the toast "Draft 2 saved." and goes back to the Versions page, which lists "Your drafts" with both.
-- In step 3 the record still leads with "Ask for the peer check" (Version 2 is not asked yet), so "Continue recording" is not offered; Versions and history lists "Your drafts" with both, each with play, Edit, Publish and Delete. (Record with several drafts opening this page is PASS-059's.)
+- Step 2 goes back to the Versions page, which lists "Your drafts" with both (the saved mark had shown the part kept).
+- In step 3 the record still leads with "Ask for the peer check" (Version 2 is not asked yet), so "Continue recording" is not offered; Versions and history lists "Your drafts" with both, each with play, Edit, Done and Delete. (Record with several drafts opening this page is PASS-059's.)
 - Deleting one shows "{name} deleted." with Undo, and Undo brings it back with the same parts.
 
 ---
@@ -428,7 +431,7 @@ Steps:
 
 Expected:
 - After step 3 the recorder shows "Microphone permission is required." in place of a part.
-- The button returns to "Record". No part is made, and "Publish" stays disabled.
+- The button returns to "Record". No part is made, and "Done" stays disabled.
 - Step 4 shows the same message again without a crash. On iOS and Android the system does not ask a second time.
 - The app does not hang: ✕ still returns to the record, and nothing is written.
 - Automation: phones, `apps/mobile/test/maestro/flows/REC-020.yaml` (Maestro grants permissions at launch, so the app is started again with the microphone denied). Web, `e2e/ui/06-recording-mic.spec.ts`: Chrome runs with `--use-fake-ui-for-media-stream`, which answers every prompt "Allow" even with the site's permission set to denied through DevTools, so "Block" is the page's microphone refusing (getUserMedia fails with NotAllowedError, as after a person blocks it).
@@ -446,7 +449,7 @@ Steps:
 
 Expected:
 - The error message is gone once recording starts.
-- One part is recorded, and "Publish" is enabled.
+- One part is recorded, and "Done" is enabled.
 - On Android, if the app restarts when the permission changes, it reopens without a crash and P-Q4's workspace opens normally.
 
 ### REC-022 Microphone permission taken away while the app is in the background
@@ -506,7 +509,7 @@ Steps:
 3. Launch the app and open LANG-A's map, then P-Q3, then "Continue recording".
 
 Expected:
-- The 60-second part is in the draft, once, and plays to the end (the journal finished its save: `recordingJournalCore.ts` resumes by recording id).
+- The 60-second part is in the draft, once, and plays to the end (the journal finished its save: `recordingJournalModel.ts` resumes by recording id).
 - No duplicate part, and nothing waits to upload after 30 seconds online.
 - If the audio file itself was lost (the device never wrote it), the part is absent and the app does not crash; the journal keeps the entry and does not show an error on every launch.
 
@@ -520,15 +523,16 @@ Steps:
 1. Tap the red button and speak for 3 seconds without pausing.
 2. Close the tab (or reload) while still speaking.
 3. Cancel the browser's "Leave site?" dialog.
-4. Pause for 2 seconds, tap stop, then reload the page and open P-Q3's workspace.
-5. Tap the red button again; once a part has ended, close the tab outright, the way a browser that is killed does (no dialog), then open LangQuest again in the same browser and P-Q3's workspace.
+4. Pause for 2 seconds, tap Done, then reload the page and open P-Q3's workspace.
+5. Tap the red button again; once a part has ended, tap Done, then close the tab outright, the way a browser that is killed does (no dialog), and open LangQuest again in the same browser and P-Q3's workspace.
 
 Expected:
 - Step 2 shows Chrome's "Leave site?" (or "Reload site?") dialog, because recording is in progress.
 - After step 3 recording continues.
 - After step 4 the part spoken in steps 1 to 4 is in the draft.
 - With the recorder idle and nothing waiting to send, closing the tab (or reloading) shows no dialog. (While work waits to send, the web's leave guard asks too, `storageGate.tsx` `useLeaveGuard`; that is intended.)
-- After step 5 the part that ended before the tab went is in the draft, once (the web keeps its files in the browser; `recordingJournal.ts`).
+- After step 5 the part kept when the session was left is in the draft, once (the web keeps its files in the browser; `recordingJournal.ts`).
+- Changed (2026-10-16, decision 129): on the web a session not yet left lives in the page, so the browser asks before the tab closes; a tab killed outright before Done loses that session's parts. A phone keeps them in its journal (REC-023).
 - Note: on the web, a part that ended but had not yet been stored in the browser before a reload is lost (`recordingJournal.ts`: a blob URL does not outlive the page). This is expected on the web.
 
 ### REC-026 Putting the app in the background stops recording and keeps the last part
@@ -543,8 +547,8 @@ Steps:
 3. Wait 10 seconds, then return to the app.
 
 Expected:
-- The recorder is idle on return: the button reads "Record", the footer label is grey.
-- The part spoken before step 2 is in the draft, as the last part, and plays.
+- Recording has stopped on return: the button reads "Record" and the pane says "Stopped" (decision 129: the session is still open, its parts boxes on the waveform).
+- After Done, the part spoken before step 2 is in the draft, as the last part, and plays.
 - No part is recorded while the app was in the background (the 10 seconds are not in the draft).
 - The OS's "microphone in use" indicator (iOS orange dot, Android green dot) goes off within 2 seconds of step 2.
 
@@ -560,7 +564,7 @@ Steps:
 3. Speak for 3 seconds, pause 2 seconds, then tap stop if still recording.
 
 Expected:
-- iOS: the app becomes inactive, so recording stops at step 2 and the part so far is kept. After step 2 the button reads "Record"; step 3 records nothing until the person taps the button again.
+- iOS: the app becomes inactive, so recording stops at step 2 and the part so far is kept in the open session (Done saves it, decision 129). After step 2 the button reads "Record"; step 3 records nothing until the person taps the button again.
 - Android: the app stays active, recording continues, and the speech in step 3 becomes a part.
 - On both, no part is lost, none is duplicated, and there is no crash.
 - If iOS stopping on Control Center is judged a problem in the field, report it against `useRecorder.ts` (it stops on any AppState other than "active").
@@ -623,7 +627,7 @@ Expected:
 - The workspace stays responsive: the lit card and meter keep moving, and taps answer within half a second, through all ten minutes.
 - Part 1 plays from start to end without gaps.
 - "Show the parts" lists every part and scrolls smoothly.
-- "Publish" then "Publish Version 1" succeeds, and REV on a second device can play the whole version after Sync now.
+- "Done" then "Send later" succeeds, and REV on a second device can play the whole version after Sync now.
 - Resets: P-Q4 now has Version 1.
 
 ### REC-031 Tapping record and stop very fast
@@ -658,7 +662,7 @@ Steps:
 
 Expected:
 - The app does not warn before recording; there is no low-storage check today.
-- If the part cannot be written, the recorder shows "A part did not save." with "Retry saving". The red button and "Publish" are disabled while a part is unsaved.
+- If the part cannot be written, the recorder shows "A part did not save." with "Retry saving". The red button and "Done" are disabled while a part is unsaved.
 - If the part was saved but the draft could not be written, the recorder shows "Your takes are saved on this device but not yet in your draft. {reason}" with "Try again".
 - After step 3 the part is saved, the message goes away, and the part plays.
 - No earlier part was removed to make room (recordings are never evicted).
@@ -673,30 +677,32 @@ Preconditions:
 
 Steps:
 1. Open P-Q1's workspace and record two more parts.
-2. Tap "Show the parts", delete one part, tap "Undo".
-3. Tap "Publish", then "Publish Version 1".
+2. Delete one part, then tap the Undo arrow.
+3. Tap "Done", then "Send later".
 4. Turn airplane mode off and wait 30 seconds.
 
 Expected:
-- Steps 1 to 3 behave and read exactly as online: the same parts, "Part N deleted.", "Undone.", then "Version 1 published.".
-- The published page reads "Luke 13:10-17 · saved on this device · sends when you're online".
+- Steps 1 to 3 behave and read exactly as online: the same parts, the part gone and back, then "Version 1 published.".
+- It returns to the record, where the version shows as published; its events wait on the device until there is a connection.
 - My Work shows the sync chip while offline, and Sync shows the events waiting to upload.
 - After step 4 nothing waits to upload, and a second device as REV, after Sync now, sees Version 1 and can play every part.
 - Sync shows nothing refused (G10.2).
 - Resets: P-Q1 now has Version 1.
 
-### REC-034 "Saved on this device · sends when you're online" while online
+### REC-034 Nothing says "waits for a connection" while online
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
 
 Preconditions:
 - Online. A passage with a draft ready to publish (for example P-Q3).
 
 Steps:
-1. Publish it as in REC-011.
-2. Read the published page.
+1. Tap "Done", then "Send later".
+2. Read the record and the sync mark.
 
 Expected:
-- While online, the line says the version is on its way or sent, not that it waits for a connection.
+- While online, nothing says the version waits for a connection; the sync mark settles once it has gone.
+
+Changed (2026-10-16, decision 127): Done returns straight to the record, so the published page and its line are gone.
 
 Fixed (2026-10-13): the line always reads "{title} · saved on this device · sends when you're online" (`passage.published.savedHere`), even online, after the upload has finished.
 
@@ -710,11 +716,11 @@ Preconditions:
 
 Steps:
 1. As soon as My Work shows P-DRAFT, open it, tap "Continue recording", then "Show the parts" and delete a part.
-2. Tap "Undo".
+2. Tap the Undo arrow.
 3. Wait until loading finishes, then reopen the workspace.
 
 Expected:
-- Either the action is not offered until the language has loaded, or it is saved: the draft after step 3 matches what the toasts said.
+- Either the action is not offered until the language has loaded, or it is saved: the draft after step 3 matches what the screen showed.
 
 Fixed (2026-10-13): `language.run` (`useLanguage.ts`) returns without writing when the language's sync client is not ready yet, so `ctx.act` can toast success ("Part 2 deleted.", "Version N published.") for a change that was never written. Record whether the draft matches the toasts. Reported 2026-10-13 with a proposed patch for `useLanguage.ts`: `run`, `append` and `appendMany` throw a "still loading" error when the client is not ready, so `ctx.act` shows a failure toast instead of success.
 
@@ -795,7 +801,7 @@ Preconditions:
 
 Steps:
 1. Tap the "Notes" chip, then "Add a note".
-2. In the sheet, tap "Or type it", type "The fig tree means Israel here", tap "Save note".
+2. In the sheet, tap "Or type it", type "The fig tree means Israel here", tap "Add a note".
 3. Start recording and look at "Add a note".
 
 Expected:
@@ -822,14 +828,14 @@ Steps:
 Expected:
 - Step 1 leaves the reference as one line: "Play the Bible", "Bible · {abbr}", "Drag down for the guide, key words, notes and earlier recordings", and Back 10.
 - Step 2 opens the divider back to half.
-- Step 3 leaves the recorder as one line: "Part 4" with "3 parts recorded", and a 56-point red button. The footer (record and Publish) is hidden.
+- Step 3 leaves the recorder as one line: "Part 4" with "3 parts recorded", and a 56-point red button. The footer (record and Done) is hidden.
 - Step 4 records a part from the bar; the bar reads "Recording…" while capturing.
 - Step 5 reopens the divider to half.
 - Step 6: the divider snaps to one of 0, 35, 50, 65 or 100 percent, and reopens where it was left (for the rest of this app session).
 - Step 7: the divider's label is "Divider between reference and your recording", its hint "Drag up or down to give either one more room", and its value reads "Source 35%" (and so on), "Reference as one line", "Recorder as one line".
 - The divider's touch area is at least 48 points tall.
 - Fixed (2026-10-13): on the web the divider had no value for a screen reader (react-native-web reads `aria-valuetext`, not `accessibilityValue`); `SplitPane.tsx` now gives both. Step 7's swipes are a device check; the web run checks the label and the value at each stop.
-- When the recorder pane is shorter than 360 points, the parts card is replaced by "Parts 1–4 recorded · drag up to see them".
+- When the recorder pane is shorter than 360 points, the parts card shows closed ("Parts 1–4, 4 parts · 0:16"); tapping it opens it and gives the recorder the room (the reference goes to one line). Changed (2026-10-16, LAN-83): the card no longer gives way to "Parts 1–4 recorded · drag up to see them".
 
 ---
 
@@ -845,15 +851,15 @@ Steps:
 1. In the workspace, look at the parts (tap "Show the parts" if they are folded).
 2. Tap the empty space left of Part 1.
 3. Tap the empty space left of Part 2.
-4. Tap "Undo" on the toast.
+4. Tap the Undo arrow left of the red button.
 5. Tap Part 2's space again, then tap the number now shown on Part 2.
 
 Expected:
 - Each part has an empty space on its left (accessibility label "Part 1, no verse yet", hint "Tap to give it the next verse. Hold to choose.").
-- Step 2 shows the toast "Part 1 is verse 22." with Undo; Part 1 shows 22 in a soft grey tile.
-- Step 3 shows "Part 2 is verse 23.".
-- Step 4 shows "Undone." and Part 2's space is empty again.
-- Step 5: the first tap gives 23; tapping the number then makes Part 2 the same verse as the part above ("Part 2 is more of verse 22."), shown hollow and grey.
+- Step 2: Part 1 shows 22 in a soft grey tile. No toast: a verse is plain to see and easy to change again (Caleb, 2026-10-16).
+- Step 3: Part 2 shows 23.
+- Step 4: Part 2's space is empty again; Part 1 keeps 22.
+- Step 5: the first tap gives 23; tapping the number then makes Part 2 the same verse as the part above (label "Part 2, Verse 22, same as the part above"), shown hollow and grey.
 - Labels are on the record (`v1.CardVerseSet`): a second device shows the same numbers after Sync now.
 
 ### REC-042 Hold a part to choose its verses, Auto, None or Delete
@@ -867,14 +873,14 @@ Steps:
 2. In the sheet "Part 3", tap verse 25, then verse 26.
 3. Tap "Auto".
 4. Tap "None".
-5. Tap "Delete Part 3", then "Undo".
+5. Tap "Delete Part 3", then the Undo arrow left of the red button.
 
 Expected:
 - Step 1 opens a sheet titled "Part 3" with the passage's verses as chips, and "Auto", "None" and "Delete Part 3".
-- Each tap applies at once with a toast: step 2 ends with "Part 3 is verses 25–26.".
-- Step 3 lets the app work it out from the neighbours ("Part 3 follows the order.").
-- Step 4 clears it ("Part 3 has no verse.").
-- Step 5 deletes the part ("Part 3 deleted.") and Undo restores it.
+- Each tap applies at once, with no toast: step 2 ends with Part 3 as verses 25–26.
+- Step 3 lets the app work it out from the neighbours.
+- Step 4 clears it.
+- Step 5 deletes the part and Undo restores it.
 - A later part whose label no longer fits after a chosen verse loses its label instead of breaking the order.
 
 ### REC-043 Slide down the spaces to number many parts
@@ -887,11 +893,11 @@ Steps:
 1. Press on Part 3's space and slide down to Part 5's space without lifting.
 
 Expected:
-- The toast reads "3 parts numbered." with Undo.
+- No toast shows; one Undo takes back the whole slide.
 - Parts 3 to 5 take the next verses in order.
 - A space that cannot take a verse (every verse is used) shakes when tapped and changes nothing.
 
-### REC-044 A verse left for later, then Record here
+### REC-044 A verse left for later, then tap its place and record
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -899,118 +905,119 @@ Preconditions:
 
 Steps:
 1. Look between Part 1 and Part 2.
-2. Tap "Record here" on that row.
-3. Speak for 3 seconds, pause, tap stop.
+2. Tap that place ("Record Part 2 here").
+3. Tap the red button, speak for 3 seconds, pause, tap stop.
 
 Expected:
-- A row "Verse 23 · left for later" shows between the two parts, with "Record here".
-- Step 2 starts recording.
-- After step 3 the new part sits between Part 1 and the old Part 2, labelled verse 23, and the parts are renumbered in order.
-- Recording again without "Record here" adds parts at the end.
+- A row for the place left out shows between the two parts: verse 23's number, a dashed microphone and "Part 2"; the old Part 2 reads "Part 3".
+- Step 2 chooses it: it is tinted, its microphone is filled and it reads "Recording next"; the footer reads "Part 2"; the end card is dashed.
+- After step 3 the new part sits between Part 1 and the old Part 2, labelled verse 23, and the place is gone.
+- Recording again, with nothing chosen, adds parts at the end.
+
+Changed (2026-10-16, decision 124): the amber "Verse 23 · left for later" row and its "Record here" button became a place to tap; the red button records there.
 
 ---
 
-## Microphone setup
+## A stopped session (decision 129)
 
-### REC-045 Set up the microphone by ear
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (Device for the pick)
-
-Preconditions:
-- P-Q3's workspace is open, recorder idle.
-
-Steps:
-1. Tap "Set up the microphone".
-2. Tap "Tap to start" and stay quiet.
-3. On "Try 1 of 3", tap "Tap, then say it" and say "The shepherd went to look for the lost sheep." twice with a pause. Repeat for tries 2 and 3.
-4. On "Which sounds best?", play each try, then choose Try A.
-5. Tap "Use Try A".
-6. Record a part in the workspace.
-
-Expected:
-- Step 1 opens "Set up your microphone", sub "Takes about a minute", with ✕, a three-part progress bar labelled "First, the room", the heading "First, a few seconds of quiet", "Go where you usually record. Stay quiet while the device listens to the room.", a 120-point "Tap to start", "Then you'll say one sentence three times." and "Adjust by hand".
-- Step 2 shows "Listening to the room… 0:01" up to about 0:03, then moves on by itself.
-- Each try shows "Try N of 3", "Say this, then pause, then say it again", the sentence in quotes, and "Listening… 0:0x" while listening. ("Hear it" shows on the web only.)
-- Step 4 shows "Listen to each. Pick the one where every word is clear and nothing is cut off.", rows "Try A · 0:0x", "Try B · 0:0x", "Try C · 0:0x", each with "Play Try A" (and so on). Try B is chosen at first.
-- Step 5 shows "Microphone set up. Recording now uses Try A." and returns to the workspace.
-- Step 6 uses the new settings: a pause of about 0.7 seconds now ends a part (Try A's pause).
-- The choice is kept on this device after the app restarts, and every recorder (workspace, back translation, voice notes) follows it.
-- Device: the person judges that the chosen try sounds clearest.
-
-### REC-046 Microphone setup when nothing is heard, or every try sounds bad
-Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+### REC-053 A stopped session: hear a part, move its edge, drop one, carry on, then Done
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- Microphone setup is open from Me → "Set up the microphone".
+- Luke 12:35-48, called P-S below, is not started.
 
 Steps:
-1. Tap "Tap to start" and stay quiet until the tries begin.
-2. On "Try 1 of 3", tap "Tap, then say it" and stay silent.
-3. Complete the three tries by speaking.
-4. On "Which sounds best?", tap "They all sound bad. Try again somewhere quieter."
+1. Open P-S and tap "Record" (or the Record step row).
+2. Tap the red button. Speak for 3 seconds, pause, three times.
+3. Tap the red button ("Stop recording").
+4. Tap part 2's box on the waveform.
+5. Drag part 1's right edge to the right.
+6. Tap the × in part 3's box.
+7. Tap the red button, speak for 3 seconds and pause.
+8. Tap the check, "Done".
 
 Expected:
-- Step 2 shows "Nothing was heard. Say it a little louder, or hold the device closer." and stays on "Try 1 of 3" (the silent try does not count).
-- Step 4 starts again at "First, the room", with no try kept.
-- ✕ at any point returns to Me without changing the saved settings.
+- After step 3 the pane says "Stopped" and the waveform shows the whole session with parts 1 to 3 boxed and numbered, each with handles on its edges and an × in its corner. The footer has no "Done".
+- Step 4 plays part 2 as it would be kept, with a line moving through its box; a second tap stops it.
+- After step 5 part 1's box is longer; its edge stops at the room kept around it and never runs into part 2.
+- After step 6 part 3's box is gone, its sound shows as not kept, and the title reads "Part 3": its place and number are kept for what is said next.
+- After step 7 the new part is boxed as part 3.
+- After step 8 the card reads "Parts 1–3" with "3 parts", part 1 as long as its box, and part 3 the one said in step 7.
 
-### REC-047 Adjust the microphone by hand
-Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+### REC-054 Throw away a session: the ✕ asks first, then nothing said in it is kept
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- Microphone setup is open.
+- P-DRAFT, TRANS's fixture draft of two parts (REC-003).
 
 Steps:
-1. Tap "Adjust by hand".
-2. Speak, and drag the dashed "Sensitivity line" up and down.
-3. Choose "Long pause" under "Pause that ends a part".
-4. Tap "Save these settings".
-5. Record in a workspace with 1.5-second pauses between sentences.
+1. Open P-DRAFT and tap "Continue recording".
+2. Tap the red button. Speak for 2.5 seconds, pause, twice.
+3. Tap the ✕ at the left of the red view ("Throw away this recording").
+4. Tap "Cancel".
+5. Tap the ✕ again, then "Throw away".
 
 Expected:
-- Step 1 shows "Adjust by hand" with "Speak, and watch the bars. Drag the line so your voice goes above it and the room's noise stays below.", a live meter and the line.
-- The line's accessibility value goes from 4 to 92.
-- The pause choices are "Short pause", "Normal pause" and "Long pause".
-- Step 4 shows "Microphone settings saved on this device." and goes back.
-- Step 5: a 1.5-second pause does not end a part (a long pause is 2 seconds).
+- Step 3 stops recording (the button reads "Record") and asks "Throw away this recording?" with "2 parts · 0:0x", "Throw away" and "Cancel".
+- After step 4 the session is still open and stopped, with parts 3 and 4 boxed.
+- After step 5 the red view is gone and the card reads "Parts 1–2" as before: nothing said in the session is kept, and no event is written.
+- A session that kept no part (nothing said, or only taps) goes at the ✕ without asking.
 
-- If the device cannot store the settings, Save says "Not saved on this device. Try again." and the screen stays, as "Use Try N" does; nothing starts using the unsaved settings.
+## Moving parts, recording between them, Undo and Redo (decision 133)
 
-Fixed (2026-10-13): "Save these settings" now catches a failed save and says "Not saved on this device. Try again." (`micSetup.tsx`), and `micSettings.ts` stores the settings before every recorder follows them (`apps/mobile/test/micSettings.test.ts`). The line's value is also given as aria values, so the web reads 4 to 92 too.
-
-### REC-048 Microphone setup without microphone permission
-Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
-
-Preconditions:
-- The microphone is refused for LangQuest (as in REC-020).
-
-Steps:
-1. Open Me → "Set up the microphone".
-2. Tap "Tap to start".
-
-Expected:
-- "Microphone permission is required." shows. If the microphone exists but cannot start, "The microphone could not start." shows instead.
-- No crash; ✕ returns to Me.
-
-### REC-049 Very short parts suggest setting up the microphone
+### REC-055 Drag a part by its grip; it loses its verse, the others keep theirs; Undo and Redo
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- P-Q3's workspace is open, recorder idle.
+- TRANS's draft of P-S has three parts (REC-053), labelled verses 35, 36 and 37 (tap each space once).
 
 Steps:
-1. Tap the red button.
-2. Say three single words, each under one second, with a 2-second pause after each.
-3. Tap stop.
-4. Tap "Set up the microphone" in the amber box.
+1. Press the six-dot grip at the left of Part 3 and drag it up above Part 1, then let go.
+2. Tap the Undo arrow left of the red button.
+3. Tap the Redo arrow beside it.
 
 Expected:
-- After the third short part an amber box shows "Parts are coming out very short. Words may be cut off." with "Set up the microphone".
-- The quiet "Set up the microphone" link is replaced by the box.
-- Step 4 opens "Set up your microphone"; ✕ returns to the workspace with the parts kept.
+- While dragging, the part is lifted with a shadow and the parts it passes move out of its way; the + marks between parts are hidden. No toast shows when it is dropped.
+- After step 1 the moved part is Part 1 with no verse ("Part 1, no verse yet"), so it can be labelled again; the others keep theirs: Part 2 is verse 35, Part 3 verse 36. Verse 37 now shows as a place left for later.
+- After step 2 the parts are back in their order, Part 3 is verse 37 again, and the moved part is shaded.
+- After step 3 the move is made again.
+- A screen reader reaches the grip as "Move Part 3", with "Move up" and "Move down" actions.
 
----
+### REC-056 Record between two parts with the mark on the line; Undo takes the whole recording back
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
-## Who may record
+Preconditions:
+- TRANS's draft of P-S (REC-055).
+
+Steps:
+1. Tap the small + on the line between Part 1 and Part 2.
+2. Tap the red button, say two parts, stop, and tap the check, "Done".
+3. Tap the Undo arrow.
+4. Tap the Redo arrow.
+
+Expected:
+- Each line between two parts (and above the first) has a small + at its left end, before the grips, labelled "Record a new part before Part 2". A line beside a place already open has none.
+- After step 1 the line opens into a place "Part 2 · Recording next" with the purple microphone, and the parts after it are numbered as they will be (the old Part 2 reads "Part 3").
+- After step 2 the card is open, whatever the split, with the first new part in view. The two new parts are Parts 2 and 3, faintly red-shaded until the next recording, with no verses; the parts around them keep theirs. Undo's label reads "Undo: New recording".
+- Step 3 takes both new parts back in one tap; step 4 puts both back.
+- A part said between two pieces of one verse is labelled as more of that verse, so the piece after it keeps its verse.
+
+## Microphone setup
+
+### REC-045 Set up the microphone by ear (retired)
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
+
+### REC-046 Microphone setup when nothing is heard, or every try sounds bad (retired)
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
+
+### REC-047 Adjust the microphone by hand (retired)
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
+
+### REC-048 Microphone setup without microphone permission (retired)
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set. REC-020 still covers a refused microphone.
+
+### REC-049 Very short parts suggest setting up the microphone (retired)
+Retired 2026-10-16: decision 125 keeps every part with speech in it, a one-word answer included, so there is no "very short" box or "Too short to keep" message; only a tap or a bump makes no part.
 
 ### REC-050 Reviewers and viewers are not offered recording
 Roles: REV, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1056,10 +1063,10 @@ Preconditions:
 
 Steps:
 1. Open P-T and tap "Record" (or the Record step row).
-2. Record two parts and tap "Publish", then "Publish Version 1".
+2. Record two parts and tap "Done", then "Send later".
 
 Expected:
-- The workspace and Publish behave exactly as for TRANS (REC-004, REC-011).
+- The workspace and Done behave exactly as for TRANS (REC-004, REC-011).
 - The published page offers "Ask {usual target}".
 - REV-030 continues from here (TREV reviewing their own version).
 - Resets: P-T has Version 1 by TREV.

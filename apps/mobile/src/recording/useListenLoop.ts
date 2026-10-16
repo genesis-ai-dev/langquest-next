@@ -7,9 +7,9 @@
 // what it hears while the source plays is never kept.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { stopAudioPlayback } from '../audioSession';
-import { useScreenShowing } from '../helpContext';
-import type { useRecorder } from '../useRecorder';
+import { stopAudioPlayback } from '../audio/audioSession';
+import { useScreenShowing } from '../helpMode/useHelpMode';
+import type { useRecorder } from './useRecorder';
 import { loopPhase, type LoopPhase } from './splitModel';
 
 type Recorder = ReturnType<typeof useRecorder>;
@@ -60,16 +60,39 @@ export function useListenLoop(rec: Recorder) {
     void resume();
   }, [resume]);
 
-  /** The record button: start a session, or end it whichever phase it is in. */
+  /**
+   * The record button: start a session, stop recording (the session stays
+   * open, its parts to hear, move or drop), or carry on recording in it.
+   */
   const toggle = useCallback(async () => {
     if (listeningRef.current) { setListening(false); await recRef.current.stopVad(); return; }
     await recRef.current.toggleVad();
   }, []);
 
-  // Leaving the screen stops the source (App.tsx); don't keep the microphone open behind another screen.
+  /** Done: leave the session, keeping its parts as their boxes stand. */
+  const finish = useCallback(async () => {
+    setListening(false);
+    await recRef.current.endSession();
+  }, []);
+
+  /** Stop recording, for the question before a session is thrown away. */
+  const stop = useCallback(async () => {
+    setListening(false);
+    await recRef.current.stopVad();
+  }, []);
+
+  /** Throw the session away: nothing said in it is kept. */
+  const discard = useCallback(async () => {
+    setListening(false);
+    await recRef.current.discardSession();
+  }, []);
+
+  // Leaving the screen stops the source (App.tsx) and leaves the session; don't keep the microphone open behind another screen.
   const showing = useScreenShowing();
   useEffect(() => {
-    if (!showing && listeningRef.current) { setListening(false); void recRef.current.stopVad(); }
+    if (showing) return;
+    if (listeningRef.current) setListening(false);
+    if (recRef.current.sessionOpen) void recRef.current.endSession();
   }, [showing]);
 
   // Never pick the microphone up again in the background (the recorder stops itself there).
@@ -78,7 +101,7 @@ export function useListenLoop(rec: Recorder) {
     return () => sub.remove();
   }, []);
 
-  const phase: LoopPhase = loopPhase(rec.vadOn, listening);
+  const phase: LoopPhase = loopPhase(rec.vadOn, listening, rec.sessionOpen);
   const hooks = useMemo<ListenHooks>(() => ({ beforePlay, onPlaying }), [beforePlay, onPlaying]);
-  return { phase, hooks, toggle, resumeNow };
+  return { phase, hooks, toggle, finish, stop, discard, resumeNow };
 }

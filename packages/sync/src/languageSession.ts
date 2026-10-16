@@ -1,5 +1,6 @@
 import {
-  audioFormatsFor, concerning, languageLines, updatesFor, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
+  audioFormatsFor, concerning, decodeHlc, filePlanOf, languageLines, updatesFor, uploadWorkOf,
+  type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
   type LostFilesView, type OfflineSummary, type PassageLine, type PassageLines, type UnitOffline, type Update
 } from '@langquest-next/core';
 import { RECORD_KINDS } from './keptLanguage';
@@ -11,8 +12,16 @@ import type { EventStore, SyncInspection, Transport } from './types';
 
 /** The files a language's recordings are kept in on this device: the phone's blob store, a fake in tests. */
 export interface LocalFiles {
-  /** Hashes of the files here now. */
+  /** Hashes of the files here now, as a copy that will not change. */
   snapshot(): ReadonlySet<string>;
+  /**
+   * The same hashes without a copy: the live set, to be read at once and never
+   * kept or changed. Work lists, reclaim and the scope ask after every file
+   * that lands; a copy of 61,000 entries each time was O(files squared).
+   */
+  presentView?(): ReadonlySet<string>;
+  /** Changes whenever the set of files does: lets a copy be skipped when nothing changed. */
+  readonly version?: number;
   sizes(): ReadonlyMap<string, number>;
   sizeOf(hash: string): number | undefined;
   /** The format a file was stored in, which can differ from the one asked for (WAV on a browser without MP4). */
@@ -63,7 +72,7 @@ export interface LanguageStatus {
   /**
    * Each passage's line: what lists of passages read (Map, Progress, My
    * Work), so none of them needs every passage's record in memory
-   * (decisions.md 110). A new object whenever any line changed.
+   * (decisions.md 134). A new object whenever any line changed.
    */
   lines: PassageLines;
 }
@@ -89,13 +98,18 @@ export interface LanguageSessionOptions {
   client?: Pick<SyncClientOptions, 'newId' | 'yieldBetweenPages' | 'diag' | 'clock' | 'now'>;
   /** Wraps every `client.sync()`, for a test-state probe. */
   aroundSync?: (run: () => Promise<SyncResult>) => Promise<SyncResult>;
-  /** A sync left nothing of this device's own to send: a moment to send diagnostics. */
+  /**
+   * A moment to send diagnostics: a sync the server answered left nothing
+   * of this person's to send, and every upload waiting has been tried at
+   * least once; or the server refused this person or this build, which
+   * syncing again will not change. Never offline, never with more to pull.
+   */
   onSettled?: (o: { blobsWanted: number }) => void;
   /** Poll interval and backoff for the scheduler; its defaults otherwise. */
   scheduler?: { pollMs?: number };
   /**
    * Keep the language's recordings and file verdicts on disk, holding in
-   * memory only the passages `loadUnits` asks for (decisions.md 110).
+   * memory only the passages `loadUnits` asks for (decisions.md 134).
    */
   keepOnDisk?: boolean;
   /** The app's build: lines kept by another build are worked out again (`SyncClientOptions.build`). */
@@ -106,6 +120,8 @@ export interface LanguageSessionOptions {
 const OFFLINE_RECOUNT_MS = 750;
 /** Passages read from disk at once for the Inbox: a bounded slice of the language in memory. */
 const INBOX_PASSAGES_PER_READ = 25;
+/** How long file arrivals are gathered before screens are told, and between storage reclaims. */
+export const FILE_NEWS_MS = 500;
 
 const keepKey = (orgId: string, languageId: string) => `keep:${orgId}/${languageId}`;
 
@@ -131,6 +147,14 @@ export class LanguageSession {
   /** Which files to send, fetch or free, from memory and, for a language kept on disk, the phone's table. */
   private readonly plan: LanguageFiles;
   private recountAt: ReturnType<typeof setTimeout> | undefined;
+  /** The upload worker's last work list: what `probe` reports for a language kept on disk. */
+  private lastUnsent: BlobRef[] = [];
+  /** Trailing timers: the file set shown to screens, and reclaim after file changes. */
+  private presentTimer: ReturnType<typeof setTimeout> | null = null;
+  private reclaimTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastReclaim = -Infinity;
+  /** The file set last published, to skip a copy when nothing changed since. */
+  private publishedVersion: number | undefined;
 
   static async open(o: LanguageSessionOptions): Promise<LanguageSession> {
     const client = new SyncClient({
@@ -145,7 +169,8 @@ export class LanguageSession {
       ...(o.keepOnDisk ? { keepOnDisk: true } : {}),
       ...(o.build ? { build: o.build } : {})
     });
-    await client.load();
+    await client.trackOpen();
+    await client.load('open');
     const kept = new Set<string>(JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[]);
     return new LanguageSession(o, client, kept);
   }
@@ -157,6 +182,7 @@ export class LanguageSession {
       pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
       keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines()
     };
+    this.publishedVersion = o.files.version;
     const files = o.files;
     const plan = new LanguageFiles(client, o.store, o.orgId, o.languageId);
     this.plan = plan;
@@ -172,7 +198,7 @@ export class LanguageSession {
       ...UPLOAD_DEFAULTS,
       ...common,
       // Size from the confirmation versus the file here: a mismatch reopens the upload.
-      work: () => plan.upload(files.snapshot(), files.sizes()),
+      work: async () => { const list = await plan.upload(this.here(), files.sizes()); this.lastUnsent = list; return list; },
       transfer: o.upload,
       onChange: (n) => this.set({ pendingUp: n, peakUp: n === 0 ? 0 : Math.max(this.current.peakUp, n) })
     });
@@ -181,7 +207,7 @@ export class LanguageSession {
       ...common,
       // Rule 10: by scope, never the whole language. Scope is the actor's
       // own units plus what they explicitly chose to keep offline.
-      work: async () => plan.download(files.snapshot(), await this.scope()),
+      work: async () => plan.download(this.here(), await this.scope()),
       transfer: o.download,
       onChange: (n) => this.set({ pendingDown: n, peakDown: n === 0 ? 0 : Math.max(this.current.peakDown, n) })
     });
@@ -211,9 +237,11 @@ export class LanguageSession {
     // Storage pressure must never reach the recorder: after any change to
     // what is on disk, give back out-of-scope files the server still has.
     void this.reclaim();
-    this.stops.push(files.onChange(() => { void this.reclaim(); this.recount(); }));
+    this.stops.push(files.onChange(() => { this.reclaimSoon(); this.recount(); }));
     // What is on this device, for the offline marks on passages and in Settings.
-    this.stops.push(files.onChange(() => this.set({ present: files.snapshot() })));
+    // Told once per window however many files landed in it: a copy per file
+    // (and a redraw per copy) made a full download quadratic.
+    this.stops.push(files.onChange(() => this.presentSoon()));
     const unwatch = o.transport.watch?.(o.orgId, o.languageId, {
       onPoke: () => this.scheduler.nudge(),
       onStatus: (connected) => { this.set({ live: connected }); this.scheduler.connection(connected); }
@@ -232,6 +260,9 @@ export class LanguageSession {
     this.up.stop();
     this.down.stop();
     this.scheduler.stop();
+    if (this.presentTimer) clearTimeout(this.presentTimer);
+    if (this.reclaimTimer) clearTimeout(this.reclaimTimer);
+    this.presentTimer = this.reclaimTimer = null;
     this.listeners.clear();
   }
 
@@ -278,11 +309,21 @@ export class LanguageSession {
               ? 'up to date'
               : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
       });
-      // Diagnostics go only after this device's own work: outbox empty, uploads idle.
-      if (!r.offline && !r.more && this.current.pendingUp === 0 && o.onSettled) {
-        void client.pendingCount()
-          .then((n) => { if (n === 0) o.onSettled?.({ blobsWanted: this.current.pendingDown }); })
-          .catch(() => {});
+      // Diagnostics go after this device's own work has had its turn: the
+      // outbox empty and every waiting upload tried. An upload that fails
+      // every time (they retry forever) must not hold them back for good: it
+      // is what support most needs to hear about. A refusal or a build the
+      // server no longer takes is an answer that syncing will not change.
+      // Asked of the worker, not `pendingUp`: a sync right after recording
+      // runs before the worker's first pass has counted the new file.
+      if (!r.offline && !r.more && o.onSettled) {
+        const settled = () => o.onSettled?.({ blobsWanted: this.current.pendingDown });
+        if (r.refused !== null || r.tooOld) settled();
+        else {
+          void this.up.untried()
+            .then(async (untried) => { if (untried === 0 && (await client.pendingCount()) === 0) settled(); })
+            .catch(() => {});
+        }
       }
       // New confirmations may have arrived: re-derive. Reconnect retries now,
       // which clears waits. A finished sync while not deferred runs the
@@ -310,7 +351,7 @@ export class LanguageSession {
 
   /** Someone's membership or a role changed: work refused for want of one may pass now. */
   async membershipChanged(): Promise<void> {
-    const n = await this.client.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED']);
+    const n = await this.client.retryRejected(['NOT_MEMBER', 'NOT_ALLOWED'], 'membership');
     if (n > 0) this.scheduler.nudge();
   }
 
@@ -347,7 +388,7 @@ export class LanguageSession {
 
   /**
    * Hold these passages' recordings in memory: the one a screen shows and
-   * those next to it (decisions.md 110). Others stay on the phone's disk.
+   * those next to it (decisions.md 134). Others stay on the phone's disk.
    */
   async loadUnits(unitIds: readonly string[]): Promise<void> {
     await this.client.loadUnits(unitIds);
@@ -441,6 +482,41 @@ export class LanguageSession {
     return this.client.inspect();
   }
 
+  /**
+   * This language's part of the `device` diagnostics record: recordings
+   * waiting to go up, how long the oldest has waited, and how long the
+   * download waiting longest has, in minutes. A recording's age is from
+   * when it was recorded (its event's clock) while its recording is in
+   * memory, so it survives a restart; for a recording on disk
+   * (decisions.md 134), or a file no recording names, from when this
+   * session first saw it. A language kept on disk answers with the upload
+   * worker's last list, since the list is worked out from the phone's table.
+   */
+  probe(): { uploadsWaiting: number; oldestUnsentMin?: number; wantedStuckMin?: number } {
+    const unsent = this.client.keptRecords() ? this.lastUnsent : uploadWorkOf(filePlanOf(this.client.getState()), this.here(), this.o.files.sizes());
+    const now = this.o.client?.now?.() ?? Date.now();
+    const minutes = (ms: number) => Math.max(0, Math.round(ms / 60_000));
+    const out: { uploadsWaiting: number; oldestUnsentMin?: number; wantedStuckMin?: number } = { uploadsWaiting: unsent.length };
+    if (unsent.length > 0) {
+      const waiting = new Set(unsent.map((r) => r.hash));
+      const recordedAt = new Map<string, number>();
+      for (const rec of Object.values(this.client.getState().recordings)) {
+        for (const card of rec.cards) if (waiting.has(card.hash)) recordedAt.set(card.hash, decodeHlc(rec.hlc).wallMs);
+      }
+      let oldest = now;
+      for (const hash of waiting) oldest = Math.min(oldest, recordedAt.get(hash) ?? this.up.waitingSince(hash) ?? now);
+      out.oldestUnsentMin = minutes(now - oldest);
+    }
+    const stuck = this.down.oldestWaitingMs();
+    if (stuck !== null) out.wantedStuckMin = minutes(stuck);
+    return out;
+  }
+
+  /** The files here, read at once and not kept: the live set where the store offers one, else a copy. */
+  private here(): ReadonlySet<string> {
+    return this.o.files.presentView?.() ?? this.o.files.snapshot();
+  }
+
   /** The passages kept offline: this person's own and asked-of, and the ones they chose. */
   private async scope(): Promise<Set<string>> {
     const scope = await this.plan.scope(this.o.actorId);
@@ -450,9 +526,13 @@ export class LanguageSession {
 
   private async reclaim(): Promise<void> {
     const files = this.o.files;
+    this.lastReclaim = Date.now();
     try {
-      const present = files.snapshot();
-      files.reclaim(await this.plan.evictable(present, await this.scope(), files.sizes()), this.o.limits);
+      const scope = await this.scope();
+      const evictable = await this.plan.evictable(this.here(), scope, files.sizes());
+      // The plan was read from the phone's table; a session closed meanwhile frees nothing.
+      if (this.closed) return;
+      files.reclaim(evictable, this.o.limits);
     } catch { /* disk queries can fail on some devices; try again next change */ }
   }
 
@@ -462,7 +542,8 @@ export class LanguageSession {
     if (this.recountAt) clearTimeout(this.recountAt);
     this.recountAt = setTimeout(() => {
       void (async () => {
-        const present = this.o.files.snapshot();
+        // The window's published copy of the files here (`presentSoon`), not another copy per recount.
+        const present = this.current.present;
         const own = await this.plan.scope(this.o.actorId);
         const kept = await this.scope();
         const chosen = this.current.keptUnits;
@@ -473,6 +554,30 @@ export class LanguageSession {
         this.set({ keptOffline, offlineSummary, scope: own });
       })().catch(() => { /* counted again after the next change */ });
     }, OFFLINE_RECOUNT_MS);
+  }
+
+  /**
+   * After a file change: reclaim now if it has been a while, else once more
+   * when the window ends. Storage pressure is still answered within
+   * FILE_NEWS_MS, and a burst of arrivals costs one pass, not one per file.
+   */
+  private reclaimSoon(): void {
+    if (this.closed || this.reclaimTimer) return;
+    const wait = this.lastReclaim + FILE_NEWS_MS - Date.now();
+    if (wait <= 0) { void this.reclaim(); return; }
+    this.reclaimTimer = setTimeout(() => { this.reclaimTimer = null; if (!this.closed) void this.reclaim(); }, wait);
+  }
+
+  /** Tell screens which files are here, once per window. */
+  private presentSoon(): void {
+    if (this.closed || this.presentTimer) return;
+    this.presentTimer = setTimeout(() => {
+      this.presentTimer = null;
+      const version = this.o.files.version;
+      if (version !== undefined && version === this.publishedVersion) return;
+      this.publishedVersion = version;
+      this.set({ present: this.o.files.snapshot() });
+    }, FILE_NEWS_MS);
   }
 
   /**

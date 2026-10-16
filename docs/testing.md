@@ -14,7 +14,7 @@ below it, so a check goes in the lowest-numbered layer that can hold it.
 | --- | --- | --- | --- | --- |
 | 1. Unit and property | Core folds and commands, client sync, mobile models, scripts. The PLAN.md invariants as property tests. | Vitest, with fast-check for the property tests | `packages/*/test`, `apps/*/test`, `scripts/*.test.ts` | every `npm test`, pre-push, CI on every PR |
 | 2. Server | SQL smokes, SQL-to-core parity (`validate_payload`, `event_privilege`), the sync integration test, a fleet scenario on simulated time | Plain SQL run by `psql` from a Node script (`scripts/db-test.mjs`); the parity check and the fleet are `tsx` scripts; the integration test is Vitest | `server/*.sql`, `scripts/db-test.mjs`, `packages/sync/test/integration.test.ts`, `scripts/fleet` | CI on every PR (fleet nightly) |
-| 3. Screen models | What a screen shows for a state and a role: main button, path steps, team rows, tabs. Pure functions in `apps/mobile/src/*Model.ts`, tested with the core fixtures and `test/sessions.ts`. | Vitest | `apps/mobile/test` | every `npm test` |
+| 3. Screen models | What a screen shows for a state and a role: main button, path steps, team rows, tabs. Pure functions in `apps/mobile/src/<feature>/model.ts` and `*Model.ts`, tested with the core fixtures and `test/sessions.ts`. | Vitest | `apps/mobile/test` | every `npm test` |
 | 4. End-to-end, web | A person does a job in the real app, signed in, against the local server: the release web export served by the Worker. | Playwright (Chromium) | `e2e/ui` | `@p0` on every PR; the whole suite nightly and before a store release |
 | 5. End-to-end, phones | What only a phone shows: recording, permissions, backgrounding, airplane mode, hand-over, the P0 smoke set. On a Release test build. | Maestro (YAML flows) | `apps/mobile/test/maestro` | before a store release, and after a change to the recorder, sync or sign-in |
 
@@ -23,9 +23,15 @@ Beside them:
 - **Web smoke** (`e2e/web-smoke`): the release export in Chromium,
   Firefox and WebKit, checking the platform itself (storage, tabs, headers,
   sign-out). CI on every PR.
+- **Lint** (`npm run lint`): what may import what (`eslint.config.mjs`,
+  decisions.md 104 and 105): core imports nothing, sync only core and
+  supabase-js, only `src/server` reaches Supabase, models stay pure,
+  screens keep storage out, and nothing but `App.tsx` imports a screen.
+  CI, pre-push.
 - **Coverage** (`npm run test:coverage`): V8 coverage of layers 1 to 3 with
   thresholds for `packages/core` and `packages/sync`, which are pure and
-  must stay near fully covered. CI fails under the threshold. On 2026-10-14 core was at 95% lines and client at 90%; thresholds are 93 and 88.
+  must stay near fully covered. The mobile screen models (`apps/mobile/src/**/model.ts`,
+  `*Model.ts`) have a threshold of 88% lines (90% measured on 2026-10-15). CI fails under the threshold. On 2026-10-15 core was at 97% lines (85% branches) and sync at 97% (87%); thresholds are 95 and 95 lines, 83 and 85 branches, about two points under what is measured, so a gain is kept. Raise them when coverage rises.
 - **Mutation testing** (`npm run mutate:core`): Stryker over `packages/core`,
   nightly. Coverage says a line ran; mutation says a test would notice it
   changing. Core holds the invariants, so it gets both. Baseline on 2026-10-14: 52.5%
@@ -99,8 +105,9 @@ These keep the suite fast enough to run and stable enough to trust.
   the words, and take them from the i18n catalog, not literals.
 - **Zero retries, quarantine instead.** `retries: 0` stays. A test that
   fails without a product cause is tagged `@quarantine`, runs in its own job,
-  and has an owner and an issue. `scripts/ui-flakes.mjs` reads the kept
-  reports and lists pass rates per test.
+  and has an owner and an issue (for a test the nightly run caught, the
+  issue it opened). `scripts/ui-flakes.mjs` reads the kept reports and
+  lists pass rates per test.
 - **Own world per file, no order between files.** Inside a file, tests may
   build on earlier ones only when the spec says so under "Resets".
 - **Phones run the P0 smoke set and phone-only behaviour.** A test that can
@@ -114,14 +121,41 @@ These keep the suite fast enough to run and stable enough to trust.
 
 | When | What | Budget |
 | --- | --- | --- |
-| Pre-push hook | typecheck, `npm test` | under 30 s |
+| Pre-push hook | typecheck, `npm test`, worker bundle parity | under 30 s |
+| `npm run guardrails` | the CI `checks` job here; `--web` adds the export and its budget, `--all` the server and `ui-web` jobs | |
 | PR (CI `checks`) | typecheck, `npm test`, coverage thresholds, worker bundle parity | under 10 min |
 | PR (CI `server`) | `db:test`, `test:integration` | under 15 min |
 | PR (CI `web-smoke`) | the export in three engines | under 20 min |
-| PR (CI `ui-web`) | `@p0` web tests on the export | under 20 min |
-| Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | reported, not blocking |
+| PR (CI `ui-web`) | `@p0` web tests on the export, in two shards | under 20 min |
+| Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | not blocking; failures filed in Linear, unassigned (`scripts/nightly-report.mjs`) |
 | `npm run ship` | typecheck, then `@p0` web tests on the local stack (`SHIP_UNTESTED=1` skips, loudly) | |
 | Store release | full web suite, every Maestro flow on both phones, the run sheet | |
+
+The four PR jobs start together, so a PR waits for the slowest of them
+(about 6 minutes, the `ui-web` shards), not for `checks` and then the rest.
+A job that needs the local stack starts it in the background while it
+installs the browsers.
+
+## Running each layer here
+
+| Layer | Command |
+| --- | --- |
+| 1 and 3 | `npm test` (about 10 s); `npm run test:coverage` with the thresholds |
+| 2 | `npm run db:test`, `npm run test:integration`, `npm run fleet -- normalDay` (Docker, local stack) |
+| 4 | `npm run db:start`, then `npm run test:ui:web`; one file: `npm run test:ui:web -- e2e/ui/<file>` |
+| 5 | `npm run test:ui:build -- --platform ios --device <simulator udid>` (Android: `--platform android --device <AVD name>`), then `npm run test:ui:phone` (`-- --platform android`) |
+| Beside them | `npm run lint`, `npm run test:web` (web smoke), `npm run mutate:core` |
+
+Two things these leave behind can pass for current:
+
+- **The phone build.** `test:ui:phone` runs the build installed on the
+  device, with its JavaScript inside, not this checkout's code. Rebuild with
+  `test:ui:build` after pulling or changing app code, or the flows test old
+  code and fail on what changed since.
+- **The local stack.** It serves the Edge Functions of the checkout that
+  started it. Started from a worktree that is later removed, every function
+  call fails (`failed to determine entrypoint` in the edge runtime's log).
+  `npm run db:stop`, then `npm run db:start` from the checkout you are in.
 
 ## Adding a test
 

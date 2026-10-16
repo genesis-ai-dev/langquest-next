@@ -7,8 +7,8 @@ import {
   type KeyTermView, type LanguageState, type PassageState
 } from '@langquest-next/core';
 import { t } from '../i18n';
-import { indexesFor } from '../indexes';
-import { matchesTerm } from '../screens/configModel';
+import { indexesFor } from '../sync/indexes';
+import { matchesTerm } from '../config/model';
 
 /**
  * A new term's first adjustment, when nobody wrote why: written into the

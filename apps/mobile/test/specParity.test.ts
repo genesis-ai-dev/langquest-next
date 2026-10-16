@@ -1,5 +1,5 @@
-import { DROPPED_EDGES, DROPPED_SCREENS as DROPPED, EDGES, SCREEN_IDS, type Edge } from '../src/flow';
-import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, postSignInScreen } from '../src/session';
+import { DROPPED_EDGES, DROPPED_SCREENS as DROPPED, EDGES, SCREEN_IDS, type Edge } from '../src/shell/flow';
+import { AUTH_SCREENS, GUEST_SCREENS, deriveSession, edgeAllowed, homeScreenFor, manageHomeFor, postSignInScreen } from '../src/shell/session';
 import spec from './spec-flow.json';
 import { ORG, roleSession } from './sessions';
 
@@ -17,8 +17,6 @@ import { ORG, roleSession } from './sessions';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
-  'settings_home->mic_setup': 'microphone setup by ear, from Me (decision 71, demo ADR-037)',
-  'workspace->mic_setup': 'microphone setup, offered when takes keep clipping or come out quiet (decision 71)',
   'study_guide->key_term_detail': 'the study is one reader for both nodes; its key words and glossary open a key term (decision 71, demo ADR-035)',
   'study_step->guide_editor': 'the steps sheet offers the guide editor from either study node (decision 71)',
   'my_work->book_structure': "a book waiting to be divided is on the admin's My Work; the row opens that book in the open language (decision 80)",
@@ -91,11 +89,15 @@ const APP_ONLY: Record<string, string> = {
   'settings_more->sync_status': 'More settings: Sync, moved from Settings › Advanced (decision 71)',
   'settings_more->delete_account': 'More settings: Delete account, moved from Settings (decision 71; store rules, decisions.md 46)',
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
+  'passage_record->check_editor': "the questions a check's people will answer open the check, to change them there (LAN-85)",
+  'ask_someone->check_editor': "the questions a check's people will answer open the check, to change them there (LAN-85)",
+  'check_editor->check_editor': "a check's people, its questions and each help with choices inside it are pages of their own (decision 130)",
   'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)",
   'org_home->cluster_home': "a cluster is a row among the organization's languages and opens its page (decision 108, demo ADR-045)",
   'cluster_home->language_home': "a cluster's page lists its languages (decision 108, demo ADR-045)",
   'cluster_home->new_language': 'Add a language to it: a new one, already in the cluster (decision 108, demo ADR-045)',
-  'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 108, demo ADR-045)'
+  'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 108, demo ADR-045)',
+  'version_detail->workspace': 'a version\'s page edits it into a new draft, as the Versions page does (LAN-83)'
 };
 
 /** App-only reference screens (docs/reference-material.md). */
@@ -111,7 +113,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check and a cluster, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'mic_setup', 'get_ready', 'settings_more', 'check_editor', 'cluster_home'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

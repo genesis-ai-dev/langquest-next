@@ -9,11 +9,12 @@
 // - P-Q1: Version 1 (REV-004/005 needs changes), kept in REV-043/044, fixed in REV-048.
 // - P-Q2: Versions 1 and 2 (2 said by voice): REV-006 needs changes, REV-042 fix (Version 3), REV-045 keep.
 // - P-Q3: Version 1: REV-007 needs changes with a retelling; back translation REV-034 to 039; REV-046.
-// - P-NEW: Versions 1 and 2 (2 typed "Added verse 9 again, slower"): REV-008, REV-010, REV-024 (nothing saved).
+// - P-NEW: Versions 1 and 2 (2 typed "Added verse 9 again, slower"): REV-008, REV-010, REV-024 (nothing sent).
 // - P-ASIDE: REV-009 (who is listening, looks good).
 // - P-S: Versions 1 and 2 (2 said by voice): REV-010, then REV-022 offline.
 // - P-CHECK: questions REV-012 to 018; REV-017 saves the consultant check.
 // - P-Q4: asked of REV before any version (REV-021). P-T: TREV's own (REV-030). P-BT: REV-031/032. P-NEEDS: REV-029, REV-040/041.
+// - P-DRAFT: published and asked of REV in REV-049, which approves and takes it back three ways.
 import type { Page } from '@playwright/test';
 import {
   back, button, byId, deviceEvents, expect, expectNothingRefused, expectSent, field, primary,
@@ -28,6 +29,7 @@ import { clientAs, send } from './fixture';
 import { commands } from '@langquest-next/core';
 import { randomUUID } from 'node:crypto';
 import { openSyncDetails } from './sync-helpers';
+import { closeSheet, openTeamRow, sheet } from './05-passage-helpers';
 
 // One world for the run, kept when a failed test restarts the worker (reviewing-helpers.ts useRunWorld).
 const world = useRunWorld('07-reviewing', async (w) => {
@@ -117,7 +119,7 @@ test('REV-003 Looks good @p0', async ({ page, browser }) => {
   await expect(button(page, 'Listen, done. Go back')).toBeVisible();
   await button(page, 'Looks good').click();
   await sawToast(page, `Looks good · sent to ${TOM}`);
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(button(page, 'Versions and history')).toBeVisible();
   expect(await screenText(page)).toMatch(/Peer check\s+looks good/);
   await expectSent(page, world());
@@ -174,7 +176,7 @@ test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await expect(button(page, 'Record a listener retelling, optional')).toBeVisible();
   await primary(page).click();
   await sawToast(page, `Feedback sent to ${TOM}`);
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(button(page, 'Versions and history')).toBeVisible();
   expect(await screenText(page)).toMatch(/Peer check\s+needs changes/);
   await expectSent(page, world());
@@ -312,7 +314,7 @@ test('REV-011 Background', async ({ page }) => {
   await button(page, /^Verse 3:16\. /).click();
   await button(page, 'Add a note on the verse playing').click();
   await field(page, 'Or type it').fill('Is \'heaven\' clear here?');
-  await button(page, 'Save note').click();
+  await button(page, 'Add a note').click();
   await sawToast(page, 'Note added — it follows this passage');
   await button(page, /^Choose a Bible/).click();
   await button(page, /^More Bibles/).click();
@@ -443,11 +445,9 @@ test('REV-016 An open required question holds the way forward', async ({ page })
   await expect(text(page, /required questions? left/)).toHaveCount(0);
   await expect(button(page, 'Looks good')).toBeEnabled();
   await expect(button(page, 'Needs changes')).toBeEnabled();
-  // ✕ with an answer given asks first (REV-024), and leaving saves nothing.
+  // ✕ with an answer given leaves at once, the answers kept as a draft on this device (REV-024), and sends nothing.
   const before = await eventCount(page);
   await byId(page, 'header-close').click();
-  await expect(text(page, 'Leave without saving?')).toBeVisible();
-  await button(page, 'Leave').click();
   await expect(button(page, 'Versions and history')).toBeVisible();
   expect(await eventCount(page)).toBe(before);
 });
@@ -568,26 +568,34 @@ test('REV-023 A review the server refuses is not lost silently', async ({ page, 
   }
 });
 
-test('REV-024 ✕ in the middle of a review asks first', async ({ page }) => {
+test('REV-024 Leaving a review keeps it; opening it again brings it back', async ({ page }) => {
   await open(page, world(), 'REV');
   await startCheck(page, 'P-NEW');
   const before = await eventCount(page);
   await button(page, 'Add a note at this moment').click();
   await speakInto(page, 'Tap and speak');
   await expect(text(page, 'Your note at 0:00')).toBeVisible();
+  await primary(page).click();
+  await button(page, 'Needs changes').click();
+  await button(page, 'Or type it').click();
+  await field(page, 'Or type it — what worked, what didn\'t').fill('Too quiet at the start');
+  // Kept as it is made, only on this device: the header's saved mark turns into a check (decision 127).
+  await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
+  // Back to Decide, then ✕: it leaves at once, with nothing to answer first, and sends nothing.
+  await byId(page, 'header-back').click();
   await byId(page, 'header-close').click();
-  await expect(text(page, 'Leave without saving?')).toBeVisible();
-  await expect(text(page, 'What you said and answered here is not saved until you send the review.')).toBeVisible();
-  await button(page, 'Keep reviewing').click();
-  await expect(text(page, 'Your note at 0:00')).toBeVisible();
-  await byId(page, 'header-close').click();
-  await button(page, 'Leave').click();
   await expect(button(page, 'Versions and history')).toBeVisible();
   expect(await eventCount(page)).toBe(before);
-  // With nothing said, ✕ leaves at once.
+  // Opened again, after a reload too, the review is back where it was left: on Decide, with the words and the note.
+  await page.reload();
+  await openRecord(page, world(), 'P-NEW');
   await doCheck(page, 'peer').click();
-  await byId(page, 'header-close').click();
-  await expect(button(page, 'Versions and history')).toBeVisible();
+  await expect(text(page, 'Is it accurate and natural?')).toBeVisible();
+  await button(page, 'Needs changes').click();
+  await expect(field(page, 'Or type it — what worked, what didn\'t')).toHaveValue('Too quiet at the start');
+  await byId(page, 'header-back').click();
+  await button(page, 'Listen, done. Go back').click();
+  await expect(text(page, 'Your note at 0:00')).toBeVisible();
 });
 
 // ---- who may review ----
@@ -660,12 +668,13 @@ test('REV-031 "Back-translate it" opens the back translation', async ({ page }) 
   await expect(byId(page, 'header-close')).toBeVisible();
   await expect(text(page, 'Alpha · Version 1 · part 1')).toBeVisible();
   await expect(text(page, `${TOM_FIRST} · drag back and forth as often as you like`)).toBeVisible();
-  await expect(text(page, 'Say each part in English, in your own words. Notes and earlier checks are hidden on purpose, so only the recording shapes what you say.')).toBeVisible();
+  // No sentence explains what is hidden: Back translation's own settings say it (decision 130).
+  await expect(text(page, /hidden on purpose/)).toHaveCount(0);
   await expect(button(page, 'Part 1, Saying it next')).toBeVisible();
   await expect(button(page, 'Part 2')).toBeVisible();
   await expect(button(page, 'Part 3')).toBeVisible();
   await expect(button(page, 'Record part 1')).toBeVisible();
-  await expect(button(page, 'Publish')).toBeDisabled();
+  await expect(button(page, 'Done')).toBeDisabled();
   await expect(button(page, /^Background/)).toHaveCount(0);
 });
 
@@ -676,26 +685,30 @@ async function sayPart(page: Page, n: number): Promise<void> {
   // The voice file speaks 1.5 s in every 4 s: stop once a piece has been heard, as a person stops after speaking.
   await expect(visible(page.getByLabel(/[1-9]\d* pieces? so far/)).first()).toBeVisible({ timeout: 15_000 });
   await button(page, 'Stop recording').click();
+  // Stopped, the session is still open (LAN-82); Done keeps its pieces.
+  await button(page, 'Done').click();
   await expect(button(page, new RegExp(`^Part ${n}, 0:\\d\\d in English`))).toBeVisible({ timeout: 20_000 });
   // The last piece lands a moment after Stop, and then the next part lights up.
   await expect(button(page, /^Record part \d$/)).toBeEnabled();
 }
 
-test('REV-032 Say each part, then publish the back translation @p0', async ({ page }) => {
+test('REV-032 Say each part, then finish the back translation @p0', async ({ page }) => {
   await open(page, world(), 'REV');
   await openRecord(page, world(), 'P-BT');
   await primary(page).click();
   await button(page, 'Record part 1').click();
   await expect(button(page, 'Stop recording')).toBeVisible();
-  await expect(visible(page.getByLabel(/Recording what you say|Listening for you/)).first()).toBeVisible();
+  // The pane below the divider is the recording view (LAN-83): the part being said, the time and Done.
+  await expect(visible(page.getByLabel(/^Part 1\. (Recording…|Listening for you)/)).first()).toBeVisible();
   await expect(visible(page.getByLabel(/^Recorded for 0:\d\d$/)).first()).toBeVisible();
-  await expect(visible(page.getByLabel('Sound cutoff')).first()).toBeVisible();
-  for (const p of ['Short pause', 'Normal pause', 'Long pause']) await expect(button(page, new RegExp(p))).toBeVisible();
-  await expect(visible(page.getByLabel(/[1-9]\d* pieces? so far/)).first()).toBeVisible({ timeout: 15_000 });
+  await expect(button(page, 'Done')).toBeVisible();
+  // Stop keeps the session open (LAN-82): its pieces are boxes until Done.
   await button(page, 'Stop recording').click();
+  await expect(text(page, 'Stopped')).toBeVisible();
+  await button(page, 'Done').click();
   await expect(button(page, /^Part 1, 0:0\d in English$/)).toBeVisible({ timeout: 20_000 });
   await expect(button(page, /^Part 1, 0:\d\d in English$/)).toBeVisible({ timeout: 20_000 });
-  await expect(button(page, 'Publish')).toBeEnabled();
+  await expect(button(page, 'Done')).toBeEnabled();
   await button(page, /^Part 1(,|$)/).click();
   await expect(button(page, /^Part 1, 0:0\d in English · record to add more$/)).toBeVisible();
   await expect(button(page, /Play your part 1/)).toBeVisible();
@@ -703,15 +716,17 @@ test('REV-032 Say each part, then publish the back translation @p0', async ({ pa
   await button(page, /^Part 2(,|$)/).click();
   await sayPart(page, 2);
   await sayPart(page, 3);
-  await button(page, 'Publish').click();
-  await expect(text(page, 'Publish the back translation?')).toBeVisible();
-  await expect(text(page, 'Of Version 1. The Consultant check listens to it next.')).toBeVisible();
+  await button(page, 'Done').click();
+  await expect(text(page, 'Of Version 1')).toBeVisible();
   await expect(text(page, '✓ 3 of 3 parts said')).toBeVisible();
   await field(page, 'Or type it — e.g. a word with no English match').fill('The word for \'salt\' has no match');
-  await button(page, 'Publish back translation').click();
+  // A reviewer may not ask for the next check (REV-033), so Done only finishes it.
+  await expect(text(page, 'Next check')).toHaveCount(0);
+  await button(page, 'Finish the back translation').click();
   await sawToast(page, 'Back translation published.');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
-  await expect(text(page, 'Back translation published')).toBeVisible();
+  await expect(byId(page, 'toast-undo')).toBeVisible();
+  // Back on the record: there is no page of its own after Done.
+  await expect(button(page, 'Versions and history')).toBeVisible();
   await expectSent(page, world());
   const p = await passageNow(world(), 'COORD', 'P-BT');
   const bt = p.reviews.find((r) => r.kindId === 'bt');
@@ -761,7 +776,7 @@ test('REV-035 Notes at a moment, for the consultant', async ({ page }) => {
   // The first note, by voice only.
   await speakInto(page, 'Say it');
   await button(page, 'Add note').click();
-  await expect(text(page, '1 note for the Consultant check · they go with it when you publish')).toBeVisible();
+  await expect(text(page, '1 note for the Consultant check')).toBeVisible();
   // Decided (2026-10-13, interim): a back translation carries one spoken note, so the next is typed, and says so.
   await button(page, 'Add a note at this moment').click();
   await expect(text(page, 'One spoken note per back translation for now: type this one.')).toBeVisible();
@@ -769,26 +784,26 @@ test('REV-035 Notes at a moment, for the consultant', async ({ page }) => {
   await expect(button(page, 'Add note')).toBeDisabled();
   await field(page, 'Or type it — e.g. a word with no English match').fill('No word for \'disciple\'');
   await button(page, 'Add note').click();
-  await expect(text(page, '2 notes for the Consultant check · they go with it when you publish')).toBeVisible();
-  await button(page, 'Publish').click();
+  await expect(text(page, '2 notes for the Consultant check')).toBeVisible();
+  await button(page, 'Done').click();
   await expect(text(page, '✓ 2 notes at moments')).toBeVisible();
-  // The publish sheet's "anything hard to say back?" is typed too: the one spoken note is taken.
+  // Done's "anything hard to say back?" is typed too: the one spoken note is taken.
   await expect(text(page, 'One spoken note per back translation for now: type this one.')).toBeVisible();
   await expect(button(page, 'Say it')).toHaveCount(0);
 });
 
-test('REV-036 Publishing with parts not said', async ({ page }) => {
+test('REV-036 Done with parts not said', async ({ page }) => {
   await btInProgress(page, 1);
-  await button(page, 'Publish').click();
+  await button(page, 'Done').click();
   await expect(text(page, '✓ 1 of 3 parts said')).toBeVisible();
   await expect(text(page, 'Nothing yet for part 2, 3')).toBeVisible();
-  await expect(button(page, 'Publish back translation')).toBeEnabled();
+  await expect(button(page, 'Finish the back translation')).toBeEnabled();
   await button(page, 'Close').click();
-  await expect(text(page, 'Publish the back translation?')).toHaveCount(0);
+  await expect(button(page, 'Finish the back translation')).toHaveCount(0);
   await expect(button(page, /^Part 1, 0:0\d in English/)).toBeVisible();
 });
 
-test('REV-037 Parts are kept on the device until published', async ({ page }) => {
+test('REV-037 Parts are kept on the device until Done', async ({ page }) => {
   await btInProgress(page, 2);
   await expect(button(page, /^Part 1, 0:0\d in English/)).toBeVisible();
   await expect(button(page, /^Part 2, 0:0\d in English/)).toBeVisible();
@@ -813,7 +828,7 @@ test('REV-038 Hearing the version while saying a part', async ({ page }) => {
   await expect(button(page, 'Resume recording now')).toBeVisible();
   await button(page, 'Resume recording now').click();
   await expect(text(page, /^Paused while/)).toHaveCount(0);
-  await button(page, 'Stop recording').click();
+  await button(page, 'Done').click();
 });
 
 test('REV-039 Parts made from an older version', async ({ page }) => {
@@ -863,15 +878,19 @@ test('REV-041 Record a fix answers the feedback with Version 2 @p0', async ({ pa
   await button(page, 'Hear the feedback').click();
   await button(page, 'Record a fix').click();
   await expect(text(page, 'Recording Version 2')).toBeVisible();
-  await expect(text(page, 'These are Version 1\'s parts. Record a new part or delete one to publish a new version.')).toBeVisible();
+  // The parts are Version 1's until something changes (LAN-83: no sentence says so).
+  await expect(page.getByRole('button', { name: /^Version 1, \d+ parts? · / }).locator('visible=true').first()).toBeVisible();
   await deletePart(page, 3);
   await recordAPart(page);
   await publishButton(page).click();
   await expect(text(page, /^Answers the Peer (Review|check) feedback from Rita Reviewer$/)).toBeVisible();
   await expect(text(page, /Revised after the Peer (Review|check) feedback\./)).toBeVisible();
-  await button(page, 'Publish Version 2').click();
+  // The feedback goes back to its check: Done's main button asks for the Peer check again.
+  await expect(text(page, 'Next check')).toBeVisible();
+  await expect(primary(page)).toHaveText(/^Ask /);
+  await button(page, 'Send later').click();
   await sawToast(page, 'Version 2 published.');
-  await expect(text(page, 'Version 2 published')).toBeVisible();
+  await expect(button(page, 'Versions and history')).toBeVisible();
   await expectSent(page, world());
   const p = await passageNow(world(), 'REV', 'P-NEEDS');
   expect(p.versions.length).toBe(2);
@@ -887,7 +906,7 @@ test('REV-042 Record a fix offline', async ({ page, context }) => {
   await expect(text(page, 'Recording Version 3')).toBeVisible();
   await recordAPart(page);
   await publishButton(page).click();
-  await button(page, 'Publish Version 3').click();
+  await button(page, 'Send later').click();
   await sawToast(page, 'Version 3 published.');
   await context.setOffline(false);
   await expectSent(page, world(), 'A', 60_000);
@@ -997,7 +1016,45 @@ test('REV-048 Answering feedback on P-Q1 with a new version', async ({ page }) =
   await publishButton(page).click();
   expect(open1).toBeGreaterThan(0);
   await expect(visible(page.getByText(/^Answers the Peer (Review|check) feedback from Rita Reviewer$/))).toHaveCount(open1);
-  await button(page, 'Publish Version 2').click();
+  await button(page, 'Send later').click();
   await sawToast(page, 'Version 2 published.');
   await expectSent(page, world());
+});
+
+test('REV-049 Take back a review @p0', async ({ page }) => {
+  await publishVersion(world(), 'TRANS', 'P-DRAFT');
+  await ask(world(), 'TRANS', 'P-DRAFT', { kindId: 'peer', profile: 'REV' });
+  await open(page, world(), 'REV');
+  const approve = async () => {
+    await startCheck(page, 'P-DRAFT');
+    await primary(page).click();
+    await button(page, 'Looks good').click();
+    await sawToast(page, `Looks good · sent to ${TOM}`);
+  };
+  // Right away, from the message.
+  await approve();
+  await undoToast(page);
+  await sawToast(page, 'Undone.');
+  await expect(doCheck(page, 'peer')).toBeVisible();
+  // Later, from the check on the passage: the sheet offers Undo on REV's own check only.
+  await approve();
+  await openTeamRow(page, 'Peer check');
+  await visible(sheet(page).getByRole('button', { name: 'Undo', exact: true })).click();
+  await sawToast(page, 'Undone.');
+  await expect(visible(sheet(page).getByRole('button', { name: 'Review it now' }))).toBeVisible();
+  await closeSheet(page);
+  // Later, from the history: the review taken back stays, crossed out.
+  await approve();
+  await button(page, 'Versions and history').click();
+  await text(page, 'History').click();
+  await expect(visible(page.getByText(/undone just now/))).toHaveCount(2);
+  await visible(page.getByRole('button', { name: 'Undo', exact: true })).first().click();
+  await expect(visible(page.getByText(/undone just now/))).toHaveCount(3);
+  await expectSent(page, world());
+  await expectNothingRefused(page, world());
+  // The check is open again, and the request is back with REV.
+  const p = await passageNow(world(), 'TRANS', 'P-DRAFT');
+  expect(p.reviews.filter((r) => r.kindId === 'peer')).toEqual([]);
+  expect(p.withdrawnReviews).toHaveLength(3);
+  expect(p.requests.find((r) => r.kindId === 'peer')?.status).toBe('open');
 });

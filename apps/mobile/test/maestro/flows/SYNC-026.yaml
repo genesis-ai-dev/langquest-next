@@ -30,6 +30,7 @@ tags:
     timeout: 300000
 - tapOn: "More settings.*"
 - tapOn: "Sync.*"
+- runFlow: ../common/open-sync-details.yaml
 - scrollUntilVisible:
     element: ".*Audio downloading.*"
     direction: DOWN

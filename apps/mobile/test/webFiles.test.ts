@@ -4,7 +4,7 @@
  * removal while a write is open, and found by WEB-023 on 2026-10-14, a single
  * refusal used to leave every recording and library file behind.
  */
-import { clearAllWebFiles } from '../src/webFiles';
+import { clearAllWebFiles } from '../src/web/webFiles';
 
 function refusal(name: string): Error {
   const e = new Error(`refused: ${name}`);
@@ -39,6 +39,13 @@ describe('clearAllWebFiles', () => {
     const { root, removeEntry } = rootFailing(refusal('NoModificationAllowedError'), refusal('NoModificationAllowedError'));
     await clearAllWebFiles(root, 1000, noPause);
     expect(removeEntry).toHaveBeenCalledTimes(3);
+  });
+
+  it('tries again when a download opens or closes its file as the removal runs', async () => {
+    // Chrome refuses that removal as InvalidModificationError; taken as final, it left a recording behind (WEB-023, 2026-10-15).
+    const { root, removeEntry } = rootFailing(refusal('InvalidModificationError'));
+    await clearAllWebFiles(root, 1000, noPause);
+    expect(removeEntry).toHaveBeenCalledTimes(2);
   });
 
   it('gives up once its patience runs out, so sign-out still finishes', async () => {

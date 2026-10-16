@@ -8,7 +8,7 @@ import {
   materialReady, materialScopeName, normalizedQuestion, partOfUnit, questionTypes, sortQuestionSets, storedQuestion, templatePartChoices,
   versificationChoices
 } from '../src/reference/materialModel';
-import { questionDrafts, type QuestionDraft } from '../src/screens/configModel';
+import { questionDrafts, type QuestionDraft } from '../src/config/model';
 import { language } from './configFixtures';
 
 const q = (fieldId: string, text: string, extra: Partial<QuestionDraft> = {}): QuestionDraft => ({ fieldId, text, type: 'text', required: false, ...extra });

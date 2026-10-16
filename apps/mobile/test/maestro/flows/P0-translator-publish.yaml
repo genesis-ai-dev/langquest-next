@@ -44,6 +44,8 @@ tags:
     timeout: 30000
 - tapOn:
     id: "record-button"
+# Stop keeps the session open (decision 129): Done leaves it and saves its parts.
+- tapOn: "Done"
 # The microphone permission prompt, the first time only.
 - runFlow:
     when:
@@ -63,16 +65,14 @@ tags:
     text: "Record"
 - tapOn:
     id: "publish-button"
-- assertVisible: "Publish Version 1"
+- assertVisible: "(?i)Next check"
+# Done: one tap publishes Version 1 and asks the Peer check team (decision 127).
 - tapOn:
-    text: "Publish Version 1"
+    text: "Ask the Peer check team"
     waitToSettleTimeoutMs: 0
 - extendedWaitUntil:
     visible:
       id: "toast"
     timeout: 20000
-- assertVisible: "Version 1 published\\..*"
-- assertVisible: "(?i)Next, ask for a check"
-- tapOn: "Ask the Peer check team"
 - assertVisible: "Sent to the Peer check team.*"
 - assertVisible: ".*asked the Peer check team.*"

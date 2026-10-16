@@ -113,9 +113,12 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.RoleRetired': 'manage_roles',
   'v1.MemberAdded': 'invite_members',
   'v1.MemberRemoved': 'invite_members',
-  'v1.InviteIssued': 'invite_members',
+  // Server-only, like a redemption: issue_invite_v3 and decide_join_request
+  // append these after their own checks. A client's copy would be believed
+  // as consent by may_help_sign_in (decisions.md 114).
+  'v1.InviteIssued': null,
   'v1.InviteRedeemed': null,
-  'v1.JoinDecided': 'invite_members',
+  'v1.JoinDecided': null,
   // The owner's decision, and it cannot be taken back: only Organization
   // Admin holds manage_roles among the seed roles.
   'v1.LicenseSet': 'manage_roles',
@@ -150,6 +153,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.ReviewTeamKindSet': 'manage_teams',
   'v1.FlowStepLinksSet': 'manage_flows',
   'v1.CheckHelpSet': 'manage_flows',
+  'v1.CheckShowsSet': 'manage_flows',
   // Whoever runs the work says where it went out.
   'v1.VersionReleased': 'assign_work',
   'v1.RecordingAdded': 'translate',
@@ -168,6 +172,9 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.RequestMade': ['send_to_reviewers', 'assign_work'],
   'v1.RequestWithdrawn': ['send_to_reviewers', 'assign_work'],
   'v1.NoteAdded': ['translate', 'review', 'fill_reference'],
+  // Taking back your own review or note: whoever may record one, and only its author (may_emit, decisions.md 111).
+  'v1.ReviewWithdrawn': ['review', 'translate'],
+  'v1.NoteWithdrawn': ['translate', 'review', 'fill_reference'],
   'v1.StudyStepMarked': 'translate',
   'v1.MaterialDefined': 'by_kind',
   'v1.MaterialFieldSet': 'fill_reference',
@@ -177,6 +184,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.KeyTermAdjusted': 'fill_reference',
   'v1.KeyTermLinked': 'fill_reference',
   'v1.ReferenceSet': 'manage_reference',
+  'v1.ReferenceLanguageAdded': 'manage_reference',
   'v1.ReferenceLanguageSet': 'manage_reference',
   'v1.PassageReferenceLinked': 'manage_reference',
   // Whoever publishes a version (translate) or records a review (review, or translate for a logged check).

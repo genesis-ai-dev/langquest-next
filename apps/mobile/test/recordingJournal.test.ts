@@ -1,4 +1,4 @@
-import { parseJournal, removeEntry, resumeEntries, upsertEntry, type JournalEntry, type ResumeDeps } from '../src/recordingJournalCore';
+import { journalCounts, parseJournal, removeEntry, resumeEntries, upsertEntry, type JournalEntry, type ResumeDeps } from '../src/recording/recordingJournalModel';
 
 const target = { orgId: 'org', languageId: 'lang', unitId: 'passage' };
 const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
@@ -42,6 +42,24 @@ describe('recording journal', () => {
     expect(calls.ingest).toEqual(['file:///staging/a.wav']);
     expect(calls.saved[0]?.stage).toBe('ingested');
     expect(calls.append).toEqual(['rec-1']);
+  });
+
+  it('cuts a session part from its chunk first, as its box last stood, then saves it as any take (LAN-82)', async () => {
+    const cuts: string[] = [];
+    const { d, calls } = deps({ cut: async (uri, from, to) => { cuts.push(`${uri}@${from}-${to}`); return 'file:///staging/part.wav'; } });
+    const r = await resumeEntries([entry({ uri: 'file:///staging/chunk.wav', range: { fromMs: 2000, toMs: 5200 } })], target, d);
+    expect(r.resumed).toEqual(['rec-1']);
+    expect(cuts).toEqual(['file:///staging/chunk.wav@2000-5200']);
+    expect(calls.saved[0]).toMatchObject({ uri: 'file:///staging/part.wav', stage: 'recorded' });
+    expect(calls.saved[0]).not.toHaveProperty('range');
+    expect(calls.ingest).toEqual(['file:///staging/part.wav']);
+  });
+
+  it('keeps a session part it cannot cut for a later pass', async () => {
+    const { d, calls } = deps();
+    const r = await resumeEntries([entry({ range: { fromMs: 0, toMs: 900 } })], target, d);
+    expect(r.failed[0]?.id).toBe('rec-1');
+    expect(calls.ingest).toEqual([]);
   });
 
   it('is idempotent: an entry whose event already reached the fold appends nothing again', async () => {
@@ -124,7 +142,7 @@ const disk = vi.hoisted(() => ({
   fail: false,
   reads: 0
 }));
-vi.mock('../src/store', () => ({ getStore: async () => ({
+vi.mock('../src/sync/store', () => ({ getStore: async () => ({
   meta: async () => { disk.reads++; await Promise.resolve(); return disk.value; },
   setMeta: async (_key: string, value: string) => {
     if (disk.fail) throw new Error('disk full');
@@ -132,6 +150,11 @@ vi.mock('../src/store', () => ({ getStore: async () => ({
   }
 }) }));
 vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
+// Field diagnostics: the device probe the journal registers.
+const diag = vi.hoisted(() => ({ probes: new Map<string, () => unknown>() }));
+vi.mock('../src/diagnostics/diagnostics', () => ({
+  registerDeviceProbe: (name: string, probe: () => unknown) => { diag.probes.set(name, probe); return () => diag.probes.delete(name); }
+}));
 vi.mock('expo-file-system', () => ({
   Paths: { document: 'file:///documents' },
   File: class {
@@ -147,7 +170,7 @@ describe('durable journal storage', () => {
   });
 
   it('shares initial loading and preserves concurrent additions', async () => {
-    const { RecordingJournal } = await import('../src/recordingJournal');
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
     const journal = new RecordingJournal();
     await Promise.all([journal.all(), journal.put(entry()), journal.put(entry({ id: 'second' }))]);
     expect(disk.reads).toBe(1);
@@ -156,7 +179,7 @@ describe('durable journal storage', () => {
   });
 
   it('does not publish a failed write and permits a later retry', async () => {
-    const { RecordingJournal } = await import('../src/recordingJournal');
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
     const journal = new RecordingJournal();
     await journal.all();
     disk.fail = true;
@@ -168,7 +191,7 @@ describe('durable journal storage', () => {
   });
 
   it('imports the previous journal once without overwriting a SQLite journal', async () => {
-    const { RecordingJournal } = await import('../src/recordingJournal');
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
     disk.value = undefined;
     disk.legacy = JSON.stringify([entry()]);
     const journal = new RecordingJournal();
@@ -178,10 +201,43 @@ describe('durable journal storage', () => {
   });
 
   it('retains a damaged legacy journal instead of replacing it with an empty one', async () => {
-    const { RecordingJournal } = await import('../src/recordingJournal');
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
     disk.value = undefined;
     disk.legacy = '{torn';
     await expect(new RecordingJournal().all()).rejects.toThrow();
     expect(disk.value).toBeUndefined();
+  });
+});
+
+describe('what the journal tells field diagnostics', () => {
+  beforeEach(() => {
+    disk.value = '[]'; disk.legacy = undefined; disk.fail = false; disk.reads = 0;
+  });
+
+  it('counts takes waiting, and of them the ones a recovery could not save', () => {
+    const entries = [entry(), entry({ id: 'rec-2' }), entry({ id: 'rec-3' })];
+    expect(journalCounts(entries, new Set())).toEqual({ journalPending: 3, journalFailed: 0 });
+    // A failure for a take no longer in the journal (saved since) is not counted.
+    expect(journalCounts(entries, new Set(['rec-2', 'gone']))).toEqual({ journalPending: 3, journalFailed: 1 });
+  });
+
+  it('a recovery that leaves takes unsaved is counted until they are saved', async () => {
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
+    const journal = new RecordingJournal();
+    // One take already in the store, one whose staging file the phone no longer has.
+    await journal.put(entry({ stage: 'ingested', hash: 'h-1' }));
+    await journal.put(entry({ id: 'rec-2', uri: 'file:///staging/b.wav' }));
+    const { d } = deps({ blobExists: (hash) => hash === 'h-1' });
+    const result = await journal.resume({ orgId: 'org', languageId: 'lang' }, d);
+    expect(result.failed.map((f) => f.id)).toEqual(['rec-2']);
+    expect(await journal.counts()).toEqual({ journalPending: 1, journalFailed: 1 });
+    await journal.remove('rec-2');
+    expect(await journal.counts()).toEqual({ journalPending: 0, journalFailed: 0 });
+  });
+
+  it('the app-wide journal reports through a device probe', async () => {
+    const { getRecordingJournal } = await import('../src/recording/recordingJournal');
+    await getRecordingJournal().put(entry());
+    expect(await diag.probes.get('recordingJournal')!()).toEqual({ journalPending: 1, journalFailed: 0 });
   });
 });

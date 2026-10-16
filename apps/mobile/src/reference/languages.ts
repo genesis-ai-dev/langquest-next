@@ -5,7 +5,7 @@
 // the reader's first guess at what they read. Pure, so it is tested.
 import { languageInfo, type LanguageState, type LibraryDoc, type OrgState } from '@langquest-next/core';
 import { currentLanguage, t, type UiLanguage } from '../i18n';
-import { joinAnd, languageLabel } from '../simple/adminModel';
+import { joinAnd, languageLabel } from '../admin/adminModel';
 
 /** The app's languages as material writes them: the code it is usually written with first. */
 const CONTENT_CODES: Record<UiLanguage, readonly string[]> = {
@@ -56,4 +56,33 @@ export function languagesLine(codes: readonly (string | null | undefined)[]): st
  */
 export function teamLanguage(org: OrgState | null | undefined, state: LanguageState | null | undefined, languageId: string | null | undefined): string {
   return state?.referenceLanguage?.value ?? (languageId ? languageInfo(org ?? null, languageId)?.sourceCode : undefined) ?? 'eng';
+}
+
+/**
+ * Every language a team's reference material may be in (decision 130): the
+ * main one (`teamLanguage`), then the others it added, by code.
+ */
+export function teamLanguages(org: OrgState | null | undefined, state: LanguageState | null | undefined, languageId: string | null | undefined): string[] {
+  const main = teamLanguage(org, state, languageId);
+  const added = Object.entries(state?.referenceLanguagesAdded ?? {}).filter(([code, r]) => r.value && !sameLanguage(code, main)).map(([code]) => code).sort();
+  return [main, ...added];
+}
+
+/** Is a piece of material, by the language it says it is in, in one of the team's languages? Material that says none is. */
+export function inLanguages(language: string | null | undefined, languages: readonly string[]): boolean {
+  return !language || languages.some((l) => sameLanguage(l, language));
+}
+
+/**
+ * The events that make the team's languages `next` (the first is the main
+ * one), from `now`: the main one when it moves, and each other one added or
+ * taken away. Undo is the same from `next` back to `now`.
+ */
+export function languagesSays(now: readonly string[], next: readonly string[]): { type: 'v1.ReferenceLanguageSet' | 'v1.ReferenceLanguageAdded'; payload: object }[] {
+  const out: { type: 'v1.ReferenceLanguageSet' | 'v1.ReferenceLanguageAdded'; payload: object }[] = [];
+  if (next[0] && !sameLanguage(next[0], now[0])) out.push({ type: 'v1.ReferenceLanguageSet', payload: { language: next[0] } });
+  const others = (list: readonly string[]) => list.slice(1);
+  for (const l of others(next)) if (!others(now).some((x) => sameLanguage(x, l))) out.push({ type: 'v1.ReferenceLanguageAdded', payload: { language: l, added: true } });
+  for (const l of others(now)) if (!others(next).some((x) => sameLanguage(x, l))) out.push({ type: 'v1.ReferenceLanguageAdded', payload: { language: l, added: false } });
+  return out;
 }

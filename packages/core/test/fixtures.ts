@@ -182,6 +182,10 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dA', 'lead', 'v1.CheckHelpSet', { kindId: 'peer', materialId: 'note-names', linked: true });
   emit('dE', 'lead2', 'v1.CheckHelpSet', { kindId: 'peer', materialId: 'note-names', linked: false });
   emit('dA', 'lead', 'v1.CheckHelpSet', { kindId: 'community', itemId: 'fia-guides', linked: true });
+  emit('dA', 'lead', 'v1.CheckShowsSet', { kindId: 'record', what: 'bibleText', shown: false });
+  emit('dE', 'lead2', 'v1.CheckShowsSet', { kindId: 'record', what: 'bibleText', shown: true });
+  emit('dA', 'lead', 'v1.CheckShowsSet', { kindId: 'bt', what: 'bibleAudio', shown: true });
+  emit('dA', 'lead', 'v1.CheckShowsSet', { kindId: 'peer', what: 'notes', shown: false, from: 'community' });
   emit('dB', 't1', 'v1.ReviewRecorded', { reviewId: 'rv-link', takeId: 'take2', kindId: 'community', outcome: 'looks_good', via: 'link', givenBy: 'Deng', comment: 'Clear.' });
   emit('dA', 'lead', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: true, url: 'https://el.example/luke1' });
   emit('dE', 'lead2', 'v1.VersionReleased', { takeId: 'take2', channel: 'EL app', live: false });
@@ -198,6 +202,14 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n2', unitId: 'luke1', anchor: { kind: 'study', guideId: 'fia:luke1', stepId: 'hear', at: '1:02' }, blobHash: 'c9' });
   emit('dB', 't1', 'v1.StudyStepMarked', { unitId: 'luke1', guideId: 'fia:luke1', stepId: 'hear', done: true });
   emit('dG', 't2', 'v1.StudyStepMarked', { unitId: 'luke1', guideId: 'fia:luke1', stepId: 'hear', done: false });
+  // Taking back (decisions.md 111): a reviewer withdraws their own verdict, someone else's withdrawal
+  // of a review and of a note count for nothing, and the author takes back a note.
+  emit('dF', 'r1', 'v1.ReviewRecorded', { reviewId: 'rv3', takeId: 'take2', kindId: 'peer', outcome: 'looks_good', via: 'app' });
+  emit('dF', 'r1', 'v1.ReviewWithdrawn', { reviewId: 'rv3' });
+  emit('dA', 'lead', 'v1.ReviewWithdrawn', { reviewId: 'rv2' });
+  emit('dB', 't1', 'v1.NoteAdded', { noteId: 'n3', unitId: 'luke1', anchor: { kind: 'passage' }, text: 'Wrong passage, sorry.' });
+  emit('dB', 't1', 'v1.NoteWithdrawn', { noteId: 'n3' });
+  emit('dA', 'lead', 'v1.NoteWithdrawn', { noteId: 'n1' });
   // The library (decision 36): the language moves to another template
   // version from two devices, hides a part the new version dropped (and
   // another device brings it back), and follows a library flow from one
@@ -214,6 +226,9 @@ export function buildRecordFixture(): AnyEvent[] {
   // version and a review record what was in front of the person.
   emit('dE', 'lead2', 'v1.ReferenceSet', { itemId: 'langquest.source.bsb', state: 'hidden' });
   emit('dA', 'lead', 'v1.ReferenceSet', { itemId: 'langquest.source.bsb', state: 'recommended' });
+  emit('dA', 'lead', 'v1.ReferenceLanguageAdded', { language: 'grc', added: true });
+  emit('dE', 'lead2', 'v1.ReferenceLanguageAdded', { language: 'grc', added: false });
+  emit('dA', 'lead', 'v1.ReferenceLanguageAdded', { language: 'hbo', added: true });
   emit('dA', 'lead', 'v1.ReferenceSet', { itemId: 'langquest.source.esv', state: 'inherit' });
   emit('dA', 'lead', 'v1.ReferenceLanguageSet', { language: 'fra' });
   emit('dE', 'lead2', 'v1.ReferenceLanguageSet', { language: 'swa' });
