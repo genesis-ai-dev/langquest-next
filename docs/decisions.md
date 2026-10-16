@@ -5033,3 +5033,36 @@ without a code must send feedback (then a server holds the review token, as
 109's bridge did, or LangQuest issues per-reviewer tokens by the device
 flow); or listener polling shows up in LangQuest's load (then a cheaper
 published change feed).
+
+## 132. An organization's Durable Object keeps under half its isolate, folds languages of unknown size one at a time, and a capped-heap test holds it there
+
+Date: 2026-10-16 · By: Ryder Wishart · Status: accepted
+
+Reason: on 2026-10-16 `/connect` answered 502 for people in a large
+organization. The Worker log said "Durable Object's isolate exceeded its
+memory limit and was reset": answering `session/orgs` asks each of the
+person's organizations for their access, which on a cold object folds
+every language, and one object went past Cloudflare's 128 MB. Two things
+let it: the folder kept 40 MB of folds (`STATE_BUDGET_BYTES`, PR #150), and
+a parsed fold takes about 1.8 times its serialized size, so a full budget
+held about 72 MB before any request's own work; and a language with no
+recorded size (a cold object, or a summary written before sizes were
+recorded) counted as small, so four large languages were folded at once.
+- `STATE_BUDGET_BYTES` is 12 MB (about 22 MB once parsed), and a language
+  of unknown size is folded alone (`isLarge`). Once its summary records a
+  size, small languages run four at a time again.
+- `apps/web/test/memory/orgFolderMemory.test.ts` runs the real `OrgFolder`
+  over two large organizations (twelve languages of about 5 MB of fold,
+  and six of about 12 MB) in a Node heap capped at 112 MB, below the
+  isolate's 128 MB for what it spends outside V8's old space. Events come
+  a page at a time and folds are saved to disk, as Postgres and SQLite do
+  in production, so the heap holds only what the folder keeps. It fails if
+  the folder runs out of memory or keeps 48 MB or more between requests.
+  It runs in `npm test`, so in the checks job on every pull request. With
+  the 40 MB budget and parallel unknowns it fails both ways.
+- Memory is now a property tests hold, like order-independence (102's
+  lowest layer that can hold the check: a unit test with a capped heap,
+  not a deployed canary).
+Reverse if: Cloudflare raises the isolate limit, folds move out of the
+heap (then the budget can grow), or production shows an organization the
+test's shapes do not cover (then add that shape to the test).
