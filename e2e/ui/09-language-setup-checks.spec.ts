@@ -10,7 +10,7 @@ import {
   back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, languageArrived, openAs, primary, screenText, tab, test, text,
   useWorld, type AccountKey, type UiWorld
 } from './support';
-import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, goBack, languageChecks, languagePage, orgRefused, reviewFlows } from './setup-helpers';
+import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, goBack, languageChecks, languagePage, orgRefused, reviewFlow, reviewFlows } from './setup-helpers';
 
 const world = useWorld();
 
@@ -141,6 +141,29 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   await expect(lock('can be set aside')).toBeVisible();
   await back(page).click();
   await expectOnScreen(page, ORDER);
+  await expectSent(page, w);
+  await expectNothingRefused(page, w);
+});
+
+test('SETUP-075 A ready language\'s Review flow: its checks, the others, and the organization\'s', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'ADMIN');
+  await languagePage(page, w, 'Alpha');
+  // Its checks on top, named as its page names them; the ready-made flows under them; the organization's last (decision 136).
+  await reviewFlow(page);
+  await languageArrived(page);
+  await expectOnScreen(page, ORDER, '4 checks', 'Edit', 'Peer check → Final approval', 'All review flows');
+  await text(page, 'Peer check → Final approval').click();
+  await button(page, 'Use Peer check → Final approval').click();
+  await expectToast(page, 'Alpha now starts from Peer check → Final approval');
+  // Still as a ready-made flow made them: the one it used before is listed, and Use asks nothing (decision 134).
+  await expect(text(page, 'Peer check → Final approval')).toBeVisible();
+  await text(page, 'Peer check + back translation → Community check → Consultant check → Final approval').click();
+  await button(page, 'Use Peer check + back translation → Community check → Consultant check → Final approval').click();
+  await expectToast(page, /^Alpha now starts from Peer check \+ back translation/);
+  await expect(text(page, /^Replace Alpha's own checks/)).toHaveCount(0);
+  await back(page).click();
+  await expectOnScreen(page, /Review flow Peer check \+ back translation → Community check → Consultant check → Final approval/);
   await expectSent(page, w);
   await expectNothingRefused(page, w);
 });
