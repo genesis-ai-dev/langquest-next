@@ -217,6 +217,10 @@ describe('LanguageSession: when diagnostics may go', () => {
     session.start();
     files.put('h1', 10);
     await session.append('v1.RecordingAdded', recording);
+    // The worker counts the file on a pass, and its first pass after a change
+    // waits out a 2 s debounce: waiting for that raced `until`'s own 2 s. Run
+    // the pass now; while recording it only counts the file and holds it.
+    session.triggerUpload();
     await until(() => session.status.pendingUp === 1);
     // Still recording: the upload has not had its turn, so nothing goes.
     await session.sync();
