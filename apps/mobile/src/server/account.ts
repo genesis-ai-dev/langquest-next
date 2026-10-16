@@ -30,9 +30,10 @@ export function userState() {
   return supabase.rpc('get_user_state');
 }
 
-/** Delete this account on the server. Null when it went, or the server's reason. */
-export async function deleteMyAccount(): Promise<string | null> {
-  return (await supabase.rpc('delete_my_account')).error?.message ?? null;
+/** Delete this account on the server. Null when it went, or the server's reason and its code (a SQLSTATE). */
+export async function deleteMyAccount(): Promise<{ message: string; code?: string } | null> {
+  const { error } = await supabase.rpc('delete_my_account');
+  return error ? { message: error.message, ...(error.code ? { code: error.code } : {}) } : null;
 }
 
 /** Languages listed on Explore (`public_languages`, written by the projection worker). */
@@ -60,7 +61,7 @@ export async function deliverAccountAction(actorId: string, action: AccountActio
   const client = data.session?.user.id === actorId ? supabase : sendingAs(actorId);
   if (!client) {
     // i18n-ignore: kept in the account outbox; shown through outboxErrorText (accountText.ts)
-    throw new DeliveryError('Sign in again to send your saved changes.', true);
+    throw new DeliveryError('Sign in again to send your saved changes.', true, 'no_session');
   }
   const p = action.payload;
   const { error } = action.kind === 'join_request'
@@ -83,6 +84,6 @@ export async function deliverAccountAction(actorId: string, action: AccountActio
           });
   if (error) {
     const permanent = ['22023', '42501', '23514'].includes(error.code);
-    throw new DeliveryError(error.message, !permanent);
+    throw new DeliveryError(error.message, !permanent, error.code || undefined);
   }
 }

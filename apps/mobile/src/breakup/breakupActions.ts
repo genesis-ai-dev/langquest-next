@@ -11,7 +11,6 @@ import { newItemId } from '../library/model';
 import type { useLibrary } from '../library/useLibrary';
 import { noteExpected } from '../diagnostics/report';
 import { copyName, copyOffOps, planChange, type TemplateUser } from './model';
-import type { useTemplateUsers } from './useBreakup';
 
 /**
  * Use a choice in this organization: ours as it is; another organization's
@@ -41,19 +40,6 @@ export async function ownTemplate(ctx: Ctx, lib: ReturnType<typeof useLibrary>, 
   for (const op of ops) await ctx.org.append(op.type, op.payload as never);
   void flushOutbox(ctx.language.orgId).catch((e: unknown) => noteExpected('library upload', e));
   return { itemId, docHash: hash };
-}
-
-/** The languages using the open language's template, for "Change it for…" (model.ts `TemplateUser`). */
-export function templateUsersOf(ctx: Ctx, users: ReturnType<typeof useTemplateUsers>['users'], itemId: string): TemplateUser[] | null {
-  if (users === null) return null;
-  const org = ctx.org.state;
-  return users.filter((u) => u.item_id === itemId).map((u) => ({
-    languageId: u.language_id,
-    name: languageName(org, u.language_id),
-    mayChange: !!org && privilegesFor(org, ctx.session.actorId, u.language_id).has('manage_templates'),
-    unitPrefix: u.unit_prefix,
-    ...(u.books ? { books: u.books } : {})
-  }));
 }
 
 /**
@@ -97,15 +83,4 @@ export async function publishChange(ctx: Ctx, lib: ReturnType<typeof useLibrary>
     commandId: Crypto.randomUUID(), itemId, docHash, doc: c.doc, versification: v11n, unitPrefix: sel.unitPrefix,
     ...(sel.books ? { books: sel.books } : {})
   });
-}
-
-/** Every language of the organization, for naming one by id. */
-export function languageNames(ctx: Ctx): Map<string, string> {
-  return new Map(orgLanguages(ctx.org.state).map((l) => [l.languageId, l.name]));
-}
-
-/** The books of a template that a language covers. */
-export function coveredBooks(doc: TemplateDoc, books: readonly string[] | undefined): string[] {
-  const all = templateBooks(doc).map((b) => b.book);
-  return books ? all.filter((b) => books.includes(b)) : all;
 }

@@ -80,4 +80,38 @@ describe('deliverQueued (a shared phone handed on)', () => {
     const queued = await store.pending('org1', 'p1');
     expect(queued.map((l) => (l.event.payload as { label: string }).label)).toEqual(['Too early']);
   });
+
+  it('goes on batch after batch until the person has nothing queued', async () => {
+    const { server, store, client } = phone();
+    server.offline = true;
+    const akol = client('akol');
+    await akol.load();
+    for (const l of ['a', 'b', 'c', 'd', 'e']) await akol.append('v1.UnitAdded', unit(l));
+    server.offline = false;
+    const sent = await deliverQueued({ store, transport: server.transportFor(), actorId: 'akol', deviceId: 'shared', pushBatchSize: 2 });
+    expect(sent).toEqual({ accepted: 5, rejected: 0, left: 0 });
+    expect(server.appendCalls).toBe(3);
+  });
+
+  it('stops when a batch makes no progress, and reports what is still queued', async () => {
+    // Why: events refused for their clock stay queued; looping on them
+    // forever is how a retry storm starts.
+    const { server, store, client } = phone();
+    server.offline = true;
+    const akol = client('akol');
+    await akol.load();
+    for (const l of ['a', 'b', 'c']) await akol.append('v1.UnitAdded', unit(l));
+    server.offline = false;
+    server.authorize = () => 'clock ahead: server time 5';
+    const sent = await deliverQueued({ store, transport: server.transportFor(), actorId: 'akol', deviceId: 'shared', pushBatchSize: 1 });
+    expect(sent.accepted).toBe(0);
+    expect(sent.left).toBe(3);
+    expect(server.appendCalls).toBeLessThanOrEqual(3);
+  });
+
+  it('a person with nothing queued costs no request', async () => {
+    const { server, store } = phone();
+    expect(await deliverQueued({ store, transport: server.transportFor(), actorId: 'akol', deviceId: 'shared' })).toEqual({ accepted: 0, rejected: 0, left: 0 });
+    expect(server.appendCalls).toBe(0);
+  });
 });

@@ -357,6 +357,7 @@ describe('the reports API', () => {
     return {
       calls,
       profileOf: async (token) => (token === 'good' ? 'p1' : null),
+      orgsOf: async (profileId) => (profileId === 'p1' ? ['org 1', 'o'] : []),
       reports: async (...args) => { calls.push(args); return body; },
       ...over
     };
@@ -377,6 +378,15 @@ describe('the reports API', () => {
     const d = deps();
     expect((await handleApi(get('/api/orgs/o/reports'), d)).status).toBe(401);
     expect((await handleApi(get('/api/orgs/o/reports', 'forged'), d)).status).toBe(401);
+    expect(d.calls).toEqual([]);
+  });
+
+  it('asks about membership before waking the organization, so naming one wakes nothing', async () => {
+    // Why: any signed-in account could otherwise create or wake an object
+    // per made-up id, and make a real one read the database with fresh=1.
+    const d = deps();
+    const res = await handleApi(get('/api/orgs/someone-else/reports?fresh=1', 'good'), d);
+    expect(res.status).toBe(403);
     expect(d.calls).toEqual([]);
   });
 

@@ -63,7 +63,9 @@ export class InviteDelivery extends DurableObject<Env> {
         this.ctx.storage.sql.exec('DELETE FROM delivery WHERE id=1');
       }
       console.error(JSON.stringify({ event: 'invite_email_failed', code }));
-      return reply({ error: 'Email delivery failed. Share the QR or invite link instead.' }, 502);
+      // The code (Cloudflare's E_*) goes back to send-invite, which records the
+      // run for field diagnostics; this Worker holds no database key.
+      return reply({ error: 'Email delivery failed. Share the QR or invite link instead.', code: /^[A-Za-z0-9_.:-]{1,80}$/.test(code) ? code : 'unknown' }, 502);
     }
   }
 

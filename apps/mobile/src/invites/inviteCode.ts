@@ -31,8 +31,26 @@ export function inviteUri(orgId: string, token: string, appUrl?: string | null):
 function linkParams(raw: string, path: 'invite' | 'signin'): string | null {
   const scheme = new RegExp(`^langquestnext://${path}\\?(.*)$`, 'i').exec(raw);
   if (scheme) return scheme[1]!;
-  const https = new RegExp(`^(?:https://[^/?#\\s]+|http://${LOCAL_HOST}(?::\\d+)?)/${path}/?[?#](.*)$`, 'i').exec(raw);
-  return https ? https[1]! : null;
+  const https = new RegExp(`^(?:https://([^/?#\\s]+)|http://${LOCAL_HOST}(?::\\d+)?)/${path}/?[?#](.*)$`, 'i').exec(raw);
+  if (!https) return null;
+  // An https link is the app's only when it is at one of the app's own addresses: a key read out of a link to
+  // anywhere else would let a page that is not ours put a code in front of someone as if it were.
+  if (https[1] !== undefined && !appHosts().has(https[1].toLowerCase())) return null;
+  return https[2]!;
+}
+
+/**
+ * The hosts the app's links are made at: the two it declares for universal links and app links (app.json,
+ * associatedDomains and intentFilters) and the address this build was given (appUrl.ts).
+ */
+const DECLARED_HOSTS = ['next.langquest.org', 'next-preview.langquest.org'];
+function appHosts(): Set<string> {
+  const hosts = new Set(DECLARED_HOSTS);
+  try {
+    const own = process.env.EXPO_PUBLIC_APP_URL;
+    if (own) hosts.add(new URL(own).host.toLowerCase());
+  } catch { /* not an address: only the declared hosts */ }
+  return hosts;
 }
 
 /** This machine, by the names a local web server answers to. */

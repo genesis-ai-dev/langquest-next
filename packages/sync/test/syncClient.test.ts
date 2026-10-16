@@ -4,7 +4,7 @@ import { MemoryStore } from '../src/memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
 import { ORG_MATERIALIZER } from '../src/orgSession';
 import { FakeServer } from '../src/testing/fakeServer';
-import { rejectCodeOf, type Transport } from '../src/types';
+import { EventTooLargeError, rejectCodeOf, type Transport } from '../src/types';
 
 /** The organization stream's fold, as the app wires it (apps/mobile useOrg). */
 const unit = (i: number | string, label = `P${i}`) =>
@@ -33,6 +33,20 @@ describe('SyncClient', () => {
     await client.load();
     await client.append('v1.UnitAdded', unit(1, 'Luke 1'));
     expect(client.getState().units['u1']?.label).toBe('Luke 1');
+    expect(await client.pendingCount()).toBe(1);
+  });
+
+  it('refuses an event bigger than the server takes before recording it', async () => {
+    // Why: the server refuses a payload over 64 KB (decisions.md 115); kept,
+    // it would sit rejected in the log, a write the person thinks was saved.
+    const server = new FakeServer();
+    const { client } = device(server, 'dA', 'lead', { t: 0 });
+    await client.load();
+    const cardHashes = Array.from({ length: 1200 }, (_, i) => `${i}`.padStart(64, 'a'));
+    await expect(client.append('v1.TakeComposed', { takeId: 'big', unitId: 'u1', cardHashes, parentTakeId: null })).rejects.toThrow(EventTooLargeError);
+    expect(await client.pendingCount()).toBe(0);
+    expect(client.getState().takes['big']).toBeUndefined();
+    await client.append('v1.TakeComposed', { takeId: 'ok', unitId: 'u1', cardHashes: cardHashes.slice(0, 500), parentTakeId: null });
     expect(await client.pendingCount()).toBe(1);
   });
 

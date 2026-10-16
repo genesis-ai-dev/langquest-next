@@ -48,23 +48,39 @@ export const AUTH_TTL_MS = 60_000;
 export const DENIAL_TTL_MS = 10_000;
 export const MAX_ENTRIES = 5_000;
 
-export type Verified = { sub: string; /** Token expiry, epoch seconds, when the claims carry one. */ exp?: number | undefined } | null;
+export type Verified = {
+  sub: string;
+  /** Token expiry, epoch seconds, when the claims carry one. */
+  exp?: number | undefined;
+  /** The Auth session the token belongs to, when the claims carry one. */
+  sessionId?: string | undefined;
+} | null;
 
 /**
- * Who a token belongs to, asking `verify` only the first time within a
- * minute. Keyed by the token's SHA-256, so the raw token is not kept. Only
- * successes are remembered, and never past the token's own expiry.
+ * Who a token belongs to, asking `verify` (Auth, while the project signs
+ * with a shared secret) only the first time within a minute. Keyed by the
+ * token's SHA-256, so the raw token is not kept. Only successes are
+ * remembered, and never past the token's own expiry. Whether the token's
+ * session is still live is asked on every call, cached or not
+ * (`sessionLive`, decisions.md 118): remembering the token skips verifying
+ * it again, never the check that it was signed out.
  */
-export function cachedProfileOf(verify: (token: string) => Promise<Verified>, now: () => number = Date.now) {
-  const cache = new TtlCache<string>(MAX_ENTRIES, now);
+export function cachedProfileOf(
+  verify: (token: string) => Promise<Verified>,
+  now: () => number = Date.now,
+  sessionLive?: (sessionId: string) => Promise<boolean>
+) {
+  const cache = new TtlCache<NonNullable<Verified>>(MAX_ENTRIES, now);
   return async (token: string): Promise<string | null> => {
     const key = await sha256Hex(token);
-    const known = cache.get(key);
-    if (known) return known;
-    const verified = await verify(token);
-    if (!verified?.sub) return null;
-    const until = Math.min(now() + AUTH_TTL_MS, verified.exp !== undefined ? verified.exp * 1000 : Infinity);
-    cache.set(key, verified.sub, until);
+    let verified: Verified = cache.get(key) ?? null;
+    if (!verified) {
+      verified = await verify(token);
+      if (!verified?.sub) return null;
+      const until = Math.min(now() + AUTH_TTL_MS, verified.exp !== undefined ? verified.exp * 1000 : Infinity);
+      cache.set(key, verified, until);
+    }
+    if (verified.sessionId && sessionLive && !(await sessionLive(verified.sessionId))) return null;
     return verified.sub;
   };
 }

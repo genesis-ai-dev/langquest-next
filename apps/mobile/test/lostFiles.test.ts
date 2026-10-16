@@ -19,6 +19,11 @@ vi.mock('expo-file-system', () => ({ Directory: class {}, File: class {}, Paths:
 vi.mock('expo-file-system/legacy', () => ({ readDirectoryAsync: async () => [] }));
 vi.mock('../src/sync/store', () => ({ getFileLedger: async () => null }));
 vi.mock('../src/sync/wake', () => ({ onWake: () => () => undefined }));
+// Field diagnostics: each check that finds a loss is counted, with no names or hashes.
+const noted = vi.hoisted(() => [] as { where: string; name: string; code: string | undefined }[]);
+vi.mock('../src/diagnostics/report', () => ({
+  noteExpected: (where: string, e: Error, code?: string) => { noted.push({ where, name: e.name, code }); }
+}));
 
 const { BlobStore } = await import('../src/sync/blobs');
 
@@ -71,8 +76,10 @@ describe('noticing files the device lost (decisions.md 92)', () => {
     expect([...ledger.keptFiles.keys()].sort()).toEqual([kept.hash, other.hash].sort());
 
     files.delete(`${kept.hash}.wav`);
+    noted.length = 0;
     const second = await start(web, ledger);
     expect((await second.lostFiles()).map((l) => [l.hash, l.format])).toEqual([[kept.hash, 'wav']]);
+    expect(noted).toEqual([{ where: 'files: lost at start', name: 'FilesLost', code: 'lost' }]);
     expect(second.has(kept.hash)).toBe(false);
     expect([...ledger.keptFiles.keys()]).toEqual([other.hash]);
 
@@ -96,9 +103,15 @@ describe('noticing files the device lost (decisions.md 92)', () => {
     store.onChange(() => { changed++; });
 
     files.delete(`${b.hash}.jpg`);
+    noted.length = 0;
     store.recheck(true);
     await store.settle();
     expect((await store.lostFiles()).map((l) => l.hash)).toEqual([b.hash]);
+    // Once per check that found losses, however many files it found.
+    expect(noted).toEqual([{ where: 'files: lost in use', name: 'FilesLost', code: 'lost' }]);
+    store.recheck(true);
+    await store.settle();
+    expect(noted).toHaveLength(1);
     // Off the index, so kept passages download it again and nothing tries to play or send it.
     expect(store.has(b.hash)).toBe(false);
     expect(store.has(a.hash)).toBe(true);
@@ -207,5 +220,32 @@ describe('a write a reload cut short (WEB-023)', () => {
     expect(store.has('d'.repeat(64))).toBe(true);
     expect(files.has(empty)).toBe(false);
     expect(store.sizes().has('c'.repeat(64))).toBe(false);
+  });
+});
+
+describe('names the store makes', () => {
+  it('never lets a hash from an event become a path', async () => {
+    const { files, web } = folder();
+    const store = await start(web, new MemoryFileLedger());
+    const good = 'e'.repeat(64);
+    for (const hash of ['../x', 'a/b', 'short', 'E'.repeat(64), `${good}.wav`, '']) {
+      const ref = { hash, format: 'wav' as const };
+      store.markPresent(hash, 3, 'wav');
+      expect(store.has(hash), hash).toBe(false);
+      expect(store.exists(ref), hash).toBe(false);
+      expect(store.uriFor(ref), hash).toBeNull();
+      expect(await store.readBytes(ref), hash).toBeNull();
+      await store.putVerified(ref, bytes('abc'));
+      expect(store.remove([ref]), hash).toEqual([]);
+    }
+    // A format outside the list is refused as well.
+    await store.putVerified({ hash: good, format: '../../x' as never }, bytes('abc'));
+    expect(store.has(good)).toBe(false);
+    expect(files.size).toBe(0);
+    // A stray file in the folder is not one of the store's.
+    files.set('notes.txt', bytes('x'));
+    files.set(`..%2Fx.wav`, bytes('x'));
+    const again = await start(web, new MemoryFileLedger());
+    expect(again.snapshot().size).toBe(0);
   });
 });

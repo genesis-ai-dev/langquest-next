@@ -1,8 +1,9 @@
-import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, TransferBudget, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
+import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, TransferBudget, classifyTransferFailure, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
 import { CommandError, emptyLanguageState, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState } from '@langquest-next/core';
 import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
 import { downloadBlob, streamUrl, uploadBlob } from '../server/blobTransport';
-import { diagnostics, flushDiagnostics, timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
+import { diagnostics, flushDiagnostics, registerDeviceProbe, timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
+import { noteExpected, reportError } from '../diagnostics/report';
 import { getRecordingJournal } from '../recording/recordingJournal';
 import { isRecording } from '../recording/recorderState';
 import * as Crypto from 'expo-crypto';
@@ -194,6 +195,8 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
         });
       };
       stops.push(session.subscribe(publish));
+      // Uploads waiting and how long, for the device record (diagnostics.ts); gone with the session.
+      stops.push(registerDeviceProbe(`language:${orgId}/${languageId}`, () => session.probe()));
       // Web: a recording's playable URL is read from the browser's files on first ask; draw again once it is.
       stops.push(files.onUrlReady(() => setUrlsReady((n) => n + 1)));
       session.start();
@@ -214,7 +217,13 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
             cards: [{ hash: e.hash, durationMs: e.durationMs, format: e.format }]
           });
         }
-      }).catch(() => null);
+      }).catch((e: unknown) => { reportError('recording recovery', e); return null; });
+      // An entry that failed stays in the journal for the next open. Count
+      // each failure by its cause's fixed class (a full disk, a file gone),
+      // never its text; how many wait is the journal's own probe.
+      for (const f of resumed?.failed ?? []) {
+        noteExpected('recording recovery entry', new Error('recovery failed'), recoveryCode(f.error));
+      }
       if (cancelled || !resumed?.resumed.length) return;
       await session.refresh();
       session.triggerUpload();
@@ -298,4 +307,10 @@ async function metered(
     meter.add(bytes);
     return bytes;
   });
+}
+
+/** A failed recovery's cause as a fixed code: its take's file gone, a full disk, or a transfer's class. Never the text. */
+function recoveryCode(error: string): string {
+  if (/missing|gone|not found|no such file/i.test(error)) return 'missing';
+  return classifyTransferFailure(new Error(error));
 }

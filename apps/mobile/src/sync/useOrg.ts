@@ -6,7 +6,8 @@ import { getStore } from './store';
 import { trackSync } from './syncActivity';
 import { onWake } from './wake';
 import { serverTransport } from '../server/sync';
-import { diagnostics } from '../diagnostics/diagnostics';
+import { diagnostics, flushDiagnostics } from '../diagnostics/diagnostics';
+import { watchLocalStore } from './storeProbe';
 import { StatusStore, type OrgStatusStore } from './syncStatusStore';
 
 export interface OrgHandle {
@@ -65,6 +66,7 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
     let cancelled = false;
     let opened: OrgSession | null = null;
     let stop = () => {};
+    watchLocalStore();
     (async () => {
       const store = await getStore();
       const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
@@ -72,7 +74,9 @@ export function useOrg(orgId: string | null, actorId: string): OrgHandle {
         orgId, actorId, deviceId, store,
         transport: serverTransport(),
         client: { newId: () => Crypto.randomUUID(), diag: diagnostics },
-        aroundSync: trackSync
+        aroundSync: trackSync,
+        // A phone that never opens a language still delivers its diagnostics.
+        onSettled: () => { void flushDiagnostics().catch(() => {}); }
       });
       if (cancelled) { session.close(); return; }
       opened = session;

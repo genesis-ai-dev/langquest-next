@@ -226,6 +226,19 @@ select pg_temp.accepted(pg_temp.ev('gr-f3', 'gr-L', 'gr-tr', 'v1.DepartureRecord
 select pg_temp.accepted(pg_temp.ev('gr-f4', 'gr-L', 'gr-tr', 'v1.DepartureUndone', '{"departureId":"dep:gr-s"}'), 'a translator undoing a set-aside');
 select pg_temp.accepted(pg_temp.ev('gr-f5', 'gr-L', 'gr-owner', 'v1.DepartureUndone', '{"departureId":"dep:gr-o"}'), 'an owner undoing an override');
 
+-- 10b. Only whoever recorded a review or added a note may take it back
+-- (LAN-84, decisions.md 111): may_emit looks it up in the same stream.
+-- gr-rev is gr-owner's (section 5); gr-tr adds a note of their own.
+select pg_temp.refused(pg_temp.ev('gr-w1', 'gr-L', 'gr-tr', 'v1.ReviewWithdrawn', '{"reviewId":"gr-rev"}'),
+  'may not emit v1.ReviewWithdrawn', 'someone taking back another person''s review');
+select pg_temp.refused(pg_temp.ev('gr-w2', 'gr-L', 'gr-owner', 'v1.ReviewWithdrawn', '{"reviewId":"gr-nobody"}'),
+  'may not emit v1.ReviewWithdrawn', 'taking back a review the server has not seen');
+select pg_temp.accepted(pg_temp.ev('gr-w3', 'gr-L', 'gr-owner', 'v1.ReviewWithdrawn', '{"reviewId":"gr-rev"}'), 'a reviewer taking back their own review');
+select pg_temp.accepted(pg_temp.ev('gr-w4', 'gr-L', 'gr-tr', 'v1.NoteAdded', '{"noteId":"gr-wn","unitId":"u1","anchor":{"kind":"passage"},"text":"x"}'), 'a note');
+select pg_temp.refused(pg_temp.ev('gr-w5', 'gr-L', 'gr-owner', 'v1.NoteWithdrawn', '{"noteId":"gr-wn"}'),
+  'may not emit v1.NoteWithdrawn', 'an owner taking back someone else''s note');
+select pg_temp.accepted(pg_temp.ev('gr-w6', 'gr-L', 'gr-tr', 'v1.NoteWithdrawn', '{"noteId":"gr-wn"}'), 'a translator taking back their own note');
+
 -- 11. An organization always keeps someone who can manage roles (PEOPLE-026,
 -- decided 2026-10-13). gr-view's half admin role (section 2) manages roles too; once
 -- gr-view is a viewer again, gr-owner is the only one.

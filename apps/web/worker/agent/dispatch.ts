@@ -1,4 +1,5 @@
 import type { LanguageState, OrgState } from '@langquest-next/core';
+import { errorClassOf, statusClass, type JobRun } from '../../../../server/jobRuns';
 import { SqlCache, type SqlStore } from '../sqlCache';
 import type { AgentStore, TokenRecord, WebhookRecord } from './store';
 import type { Grant } from './tokens';
@@ -30,6 +31,12 @@ export interface DispatchDeps {
   heads(): Promise<Record<string, number> | null>;
   fetch(url: string, init: RequestInit): Promise<Response>;
   now(): number;
+  /**
+   * Each batch of deliveries as a job run (diag.jobs `webhook_dispatch`):
+   * attempts and answers by status class, for the organization, never a
+   * webhook's address or what it was sent.
+   */
+  jobRun?(run: JobRun): void;
 }
 
 export interface DeliveryOut {
@@ -55,6 +62,7 @@ export type ChangePage = { changes: ChangeOut[]; cursor: string; more: boolean }
 /** Undelivered events one webhook may have waiting; past this, only the feed has the rest. */
 const OUTBOX_PER_WEBHOOK = 500;
 const SEND_AT_ONCE = 50;
+const TIMED_OUT = `no answer within ${DELIVERY_TIMEOUT_MS / 1000} seconds`;
 
 type Row = Record<string, unknown>;
 
@@ -278,6 +286,19 @@ export class WebhookDispatcher {
     const now = this.deps.now();
     const due = this.db.exec('select * from wh_outbox where next_at <= ? order by next_at limit ?', now, SEND_AT_ONCE).toArray();
     if (due.length === 0) return;
+    const n = { attempts: 0, answered2xx: 0, answered3xx: 0, answered4xx: 0, answered5xx: 0, timeout: 0, unreachable: 0, dropped: 0, stopped: 0 };
+    try {
+      await this.sendDue(due, n);
+    } catch (e) {
+      this.deps.jobRun?.({ job: 'webhook_dispatch', startedAt: now, ms: this.deps.now() - now, outcome: 'error', n, errorClass: errorClassOf(e), orgId: this.orgId });
+      throw e;
+    }
+    // The apps' own servers failing is theirs to fix, so a batch with failures is partial, not an error.
+    const answeredOk = n.attempts === n.answered2xx;
+    this.deps.jobRun?.({ job: 'webhook_dispatch', startedAt: now, ms: this.deps.now() - now, outcome: answeredOk ? 'ok' : 'partial', n, orgId: this.orgId });
+  }
+
+  private async sendDue(due: Row[], n: Record<'attempts' | 'answered2xx' | 'answered3xx' | 'answered4xx' | 'answered5xx' | 'timeout' | 'unreachable' | 'dropped' | 'stopped', number>): Promise<void> {
     const hooks = new Map((await this.deps.store.webhooksByIds([...new Set(due.map((e) => e['webhook_id'] as string))])).map((w) => [w.id, w]));
     const stop = new Map<string, string>();
     await Promise.all(due.map(async (e) => {
@@ -286,10 +307,15 @@ export class WebhookDispatcher {
       const final = Number(e['final']) === 1;
       if (!hook || (hook.disabledAt && !final)) {
         this.db.exec('delete from wh_outbox where id = ?', id);
+        n.dropped += 1;
         return;
       }
       const attempt = Number(e['attempts']) + 1;
       const out = await this.send(hook, id, e['type'] as string, e['body'] as string, attempt);
+      n.attempts += 1;
+      if (out.status !== null) n[`answered${statusClass(out.status)}`] += 1;
+      else if (out.error === TIMED_OUT) n.timeout += 1;
+      else n.unreachable += 1;
       if (out.status !== null && out.status >= 200 && out.status < 300) {
         this.db.exec('delete from wh_outbox where id = ?', id);
       } else if (attempt >= RETRY_AT_MS.length) {
@@ -300,6 +326,7 @@ export class WebhookDispatcher {
       }
     }));
     for (const [webhookId, reason] of stop) {
+      n.stopped += 1;
       await this.deps.store.disableWebhooks([webhookId], reason);
       this.db.exec('delete from wh_outbox where webhook_id = ? and final = 0', webhookId);
     }
@@ -327,7 +354,7 @@ export class WebhookDispatcher {
       status = res.status;
       await res.body?.cancel().catch(() => undefined);
     } catch (e) {
-      error = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError') ? `no answer within ${DELIVERY_TIMEOUT_MS / 1000} seconds` : 'could not connect';
+      error = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError') ? TIMED_OUT : 'could not connect';
     }
     const ms = Math.max(0, this.deps.now() - start);
     this.db.exec('insert into wh_deliveries (webhook_id, event_id, type, attempt, status, error, ms, at) values (?, ?, ?, ?, ?, ?, ?, ?)',

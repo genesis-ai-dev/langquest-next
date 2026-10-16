@@ -41,6 +41,12 @@ export interface BlobDeps {
   /** The service-role key: scripts and the reconciler present it, and read links are signed with a key derived from it. */
   serviceKey: string;
   now?: () => number;
+  /**
+   * Counts the two steps an upload's 502 can come from, the R2 write and
+   * `record_blob`, by the status the upload answers for each (the Worker's
+   * request tally, diag.jobs `worker_requests`).
+   */
+  tally?(step: 'r2_put' | 'record_blob', status: number): void;
 }
 
 /** The cap Supabase Storage had (supabase/config.toml), under the Worker's 100 MB request limit. */
@@ -182,18 +188,25 @@ async function upload(request: Request, b: BlobKey, deps: BlobDeps): Promise<Res
   try {
     stored = await deps.bucket.put(b.key, request.body ?? new Uint8Array(), length, b.hash, MIME[b.ext]!);
   } catch (e) {
-    if (e instanceof BadDigest) return json(422, { error: 'The file does not match its name; it was not stored.' });
+    if (e instanceof BadDigest) {
+      deps.tally?.('r2_put', 422);
+      return json(422, { error: 'The file does not match its name; it was not stored.' });
+    }
+    deps.tally?.('r2_put', 502);
     console.error(`blob put ${b.key}:`, e);
     return json(502, { error: 'The file could not be stored just now. Try again.' });
   }
+  deps.tally?.('r2_put', 200);
   try {
     await deps.record(b.orgId, b.streamId, b.hash, stored.size);
   } catch (e) {
     // Stored but not yet confirmed: the phone sends it again, which is harmless,
     // and the reconciler confirms it if it never does.
+    deps.tally?.('record_blob', 502);
     console.error(`record_blob ${b.key}:`, e);
     return json(502, { error: 'The file was stored but not confirmed. Try again.' });
   }
+  deps.tally?.('record_blob', 200);
   return json(200, { hash: b.hash, size: stored.size });
 }
 

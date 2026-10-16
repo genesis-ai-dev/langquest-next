@@ -24,11 +24,9 @@ const KNOWN_GAPS: Record<string, string> = {
   'A11Y-005': 'P0 without automation, needs a screen reader (2026-10-14)',
   'A11Y-011': 'P0 without automation, needs a screen reader (2026-10-14)',
   'A11Y-024': 'P0 without automation, needs a device (2026-10-14)',
-  'ACCT-038': 'P0 without automation, manual or device (2026-10-14)',
   'ACCT-047': 'P0 without automation, manual or device (2026-10-14)',
   'AUTH-025': 'P0 without automation, manual or device (2026-10-14)',
   'JRN-012': 'P0 without automation, manual or device (2026-10-14)',
-  'JRN-013': 'P0 without automation, manual or device (2026-10-14)',
 };
 
 interface Spec {
@@ -81,13 +79,20 @@ const live = all.filter((s) => !s.retired);
 
 const web = new Set(titles(files('e2e/ui', (n) => n.endsWith('.spec.ts')), 'test'));
 const phone = new Set(files('apps/mobile/test/maestro/flows', (n) => /^[A-Z0-9]+-\d+\.yaml$/.test(n)).map((p) => p.replace(/.*\//, '').replace('.yaml', '')));
+// A P0 smoke flow (P0-*.yaml) names the specs it covers on a line
+// "# Covers: ID, ID (what it does differently)". It claims only the steps it
+// runs; the spec doc says how the flow differs from the spec.
+const covered = files('apps/mobile/test/maestro/flows', (n) => /^P0-.*\.yaml$/.test(n)).flatMap((p) => {
+  const line = /^# Covers: (.+)$/m.exec(readFileSync(p, 'utf8'))?.[1] ?? '';
+  return [...line.matchAll(new RegExp(`\\b${ID}\\b`, 'g'))].map((m) => m[0]);
+});
 const modelFiles = [
   ...files('apps/mobile/test', (n) => n.endsWith('.test.ts')),
   ...readdirSync('packages').flatMap((p) => files(`packages/${p}/test`, (n) => n.endsWith('.test.ts'))),
 ];
 const model = new Set([...titles(modelFiles, 'it'), ...titles(modelFiles, 'test')]);
 
-const implemented = new Set([...web, ...phone, ...model]);
+const implemented = new Set([...web, ...phone, ...model, ...covered]);
 
 describe('UI test suite traceability', () => {
   if (process.env.VERBOSE) {

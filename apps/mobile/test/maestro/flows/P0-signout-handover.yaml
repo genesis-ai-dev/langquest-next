@@ -5,6 +5,8 @@
 # in on the same phone and finds the note credited to TRANS.
 # iOS: the simulator cannot go offline from Maestro, so there the note may
 # already be sent; the flow checks the sign-out and the hand-over's result.
+# Covers: JRN-013, ACCT-038 (with a note, not a recording; REV checks the
+# result on this phone, no second device or COORD, no server actor check)
 # Note: Android reaches the local stack through `adb reverse`, which airplane
 # mode may not cut; the app goes by the phone's own network state.
 appId: com.frontierrnd.langquestnext

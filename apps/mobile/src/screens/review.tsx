@@ -18,8 +18,10 @@
 // "Add details".
 //
 // Everything is read from the record (core derivePassage, questionsForKind,
-// keyTermLinksFor) and written with core recordReview / produceContent. A
-// review is grow-only, so sending it offers no Undo.
+// keyTermLinksFor) and written with core recordReview / produceContent.
+// Sending it offers Undo, which takes the review back (decisions.md 111):
+// the check is open again, and its author can still take it back later from
+// the check on the record or from the history.
 import {
   commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
@@ -42,6 +44,7 @@ import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, passageView as passageViewOf, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
+import { undoReviews } from '../passage/recordInputsModel';
 import { failureMessage } from '../diagnostics/report';
 import {
   canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, loggedTargets, nextLabel,
@@ -288,7 +291,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     }
     setBusy(true);
     try {
-      await ctx.act(specs, message);
+      const sent = specs;
+      await ctx.act(specs, message, () => undoReviews(sent)(commands(state)));
     } catch {
       setBusy(false);
       return;
@@ -409,7 +413,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
                 <AgainBtn label={t('review.screen.recordAgain')} onPress={() => setVoice((x) => { const { [q.q.id]: _gone, ...rest } = x; return rest; })} />
               </>
             ) : (
-              <BigMic label={t('review.screen.tapRecordAnswer')} size={96} onClip={(clip) => setVoice((x) => ({ ...x, [q.q.id]: clip }))} />
+              <BigMic language={ctx.language} label={t('review.screen.tapRecordAnswer')} size={96} onClip={(clip) => setVoice((x) => ({ ...x, [q.q.id]: clip }))} />
             )}
             {makes || typing[q.q.id] || answers[q.q.id] ? (
               <View style={{ alignSelf: 'stretch' }}>
@@ -432,7 +436,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         <Text style={[txt.smMuted, styles.center]}>{t('review.screen.recordTheWhy')}</Text>
       </View>
       <View style={styles.answer}>
-        <BigMic label={made.length ? t('review.screen.recordAnotherPart') : t('review.screen.tapAndSpeak')} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
+        <BigMic language={ctx.language} label={made.length ? t('review.screen.recordAnotherPart') : t('review.screen.tapAndSpeak')} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
       </View>
       {made.map((c, i) => (
         <View key={c.hash} style={styles.partRow}>
@@ -482,7 +486,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             <PlayChip ctx={ctx} clip={feedback} label={t('review.screen.yourFeedback')} tone="amber" />
             <AgainBtn label={t('review.screen.recordAgain')} onPress={() => setFeedback(null)} />
           </View>
-        ) : <BigMic label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
+        ) : <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} onClip={setFeedback} />}
         {typeFeedback || comment ? (
           <Field value={comment} onChangeText={setComment} placeholder={logged ? t('review.screen.typeWhatPeopleUnderstood') : t('review.screen.typeWhatWorked')} multiline testID="feedback-text" />
         ) : <LinkBtn label={t('common.orTypeIt')} help={t('review.screen.orTypeHelp')} style={{ alignSelf: 'center' }} onPress={() => setTypeFeedback(true)} />}
@@ -570,7 +574,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {sheet === 'retell' ? (
         <Sheet visible title={t('review.screen.recordListenerRetelling')} sub={t('review.screen.retellSub')} onClose={() => setSheet(null)}>
           <View style={{ paddingVertical: space.lg }}>
-            <BigMic label={t('review.screen.tapRecordRetelling')} size={96} onClip={(clip) => { setEvidence(clip); setSheet(null); }} />
+            <BigMic language={ctx.language} label={t('review.screen.tapRecordRetelling')} size={96} onClip={(clip) => { setEvidence(clip); setSheet(null); }} />
           </View>
         </Sheet>
       ) : null}
@@ -580,7 +584,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           sub={mine ? t('review.screen.noteAtSubMine') : t('review.screen.noteAtSub', { name: translator })}
           onClose={() => setMomentAt(null)}>
           <View style={{ paddingVertical: space.lg }}>
-            <BigMic label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
+            <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
           </View>
         </Sheet>
       ) : null}

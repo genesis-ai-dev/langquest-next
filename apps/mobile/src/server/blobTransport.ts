@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { File, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { BlobStore, mimeOf, type StoredFile } from '../sync/blobs';
-import type { TransferTimings } from '../diagnostics/diagnostics';
+import { timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
 import { supabase } from './supabase';
 
 /**
@@ -59,13 +59,24 @@ export class UploadError extends Error {
 }
 
 /**
- * A link to read a file the server has, valid for ten minutes. Downloads
- * use it, and so does playing without keeping the file on this phone:
+ * A link to play a file the server has without keeping it on this phone:
  * audio of a passage outside the offline scope plays while connected
- * (decisions.md 61), asked for at play time. The Worker asks the database
- * whether this person may read it.
+ * (decisions.md 61), asked for at play time. Tallied for field diagnostics
+ * as a `stream` transfer of no bytes: how long the link took, and why it
+ * would not come.
  */
 export async function streamUrl(orgId: string, streamId: string, ref: StoredFile): Promise<string> {
+  const { url } = await timedTransfer('down', { orgId, streamId, src: 'stream' }, async (timings) => {
+    const started = Date.now();
+    const signed = await signedUrl(orgId, streamId, ref);
+    timings.signMs = Date.now() - started;
+    return { bytes: 0, url: signed };
+  });
+  return url;
+}
+
+/** A link to read a file the server has, valid for ten minutes. The Worker asks the database whether this person may read it. */
+async function signedUrl(orgId: string, streamId: string, ref: StoredFile): Promise<string> {
   const res = await fetch(`${api()}/api/blob-urls/${objectPath(orgId, streamId, ref)}`, {
     headers: { Authorization: `Bearer ${await tokenOf(supabase)}` }
   });
@@ -81,13 +92,13 @@ export async function streamUrl(orgId: string, streamId: string, ref: StoredFile
 export async function downloadBlob(orgId: string, streamId: string, ref: StoredFile, store: BlobStore, timings: TransferTimings = {}): Promise<void> {
   let mark = Date.now();
   const lap = () => { const now = Date.now(); const ms = now - mark; mark = now; return ms; };
-  const signedUrl = await streamUrl(orgId, streamId, ref);
+  const url = await signedUrl(orgId, streamId, ref);
   timings.signMs = lap();
-  if (Platform.OS === 'web') return downloadOnWeb(signedUrl, ref, store, timings, lap);
+  if (Platform.OS === 'web') return downloadOnWeb(url, ref, store, timings, lap);
   // Land in a staging name; only a verified hash earns the trusted name.
   const staged = store.stagingFor(ref);
   if (staged.exists) staged.delete();
-  await File.downloadFileAsync(signedUrl, staged);
+  await File.downloadFileAsync(url, staged);
   timings.fetchMs = lap();
   const bytes = await staged.bytes();
   const actual = await BlobStore.hashOf(bytes);

@@ -4,7 +4,7 @@ import type { Hlc } from './hlc';
 import { indexesOf, type Indexes } from './indexes';
 import {
   CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, QUESTION_TEMPLATES,
-  type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec
+  type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec, type Undo
 } from './record';
 import { checkTeamFor } from './checks';
 import { sourceChapters } from './sourceBibles';
@@ -114,6 +114,8 @@ export interface ReviewView extends Omit<KindReview, 'eventId'> {
   /** The version it heard. */
   versionN: number;
   response?: ResponseView;
+  /** Its author took it back (decisions.md 111): only `withdrawnReviews` and the history hold these. */
+  withdrawn?: Undo;
 }
 
 type RequestStatus = 'open' | 'done' | 'withdrawn';
@@ -201,6 +203,8 @@ export interface PassageState {
   /** Every open draft, anyone's, in the order they were started: a person may keep several (decisions.md 83). */
   drafts: DraftView[];
   reviews: ReviewView[];
+  /** Reviews their own authors took back (decisions.md 111), for the history only: nothing else counts them. */
+  withdrawnReviews: (ReviewView & { withdrawn: Undo })[];
   departures: DepartureView[];
   requests: RequestView[];
   openRequests: RequestView[];
@@ -215,6 +219,12 @@ export interface PassageState {
 
 // ---- indexes ---------------------------------------------------------------------
 
+/** A review or note its own author took back (decisions.md 111); anyone else's withdrawal counts for nothing. */
+export function withdrawnBy<T extends { by: string }>(table: Record<string, Undo> | undefined, id: string, item: T): Undo | undefined {
+  const w = table?.[id];
+  return w && w.by === item.by ? w : undefined;
+}
+
 interface RecordIndexes {
   idx: Indexes;
   kinds: KindDef[];
@@ -225,8 +235,10 @@ interface RecordIndexes {
   drafts: Map<string, string[]>;
   /** takeId -> takes of a passage that name it as their parent (a draft's line reads whether it was published) */
   children: Map<string, string[]>;
-  /** takeId -> reviews of it */
+  /** takeId -> reviews of it, but those their authors took back */
   reviewsByTake: Map<string, KindReview[]>;
+  /** takeId -> reviews of it their authors took back (decisions.md 111) */
+  withdrawnByTake: Map<string, (KindReview & { withdrawn: Undo })[]>;
   departures: Map<string, Departure[]>;
   requests: Map<string, PassageRequest[]>;
   requestsTo: Map<string, PassageRequest[]>;
@@ -308,7 +320,12 @@ function recordIndexes(state: LanguageState, idx?: Indexes): RecordIndexes {
 
 function buildRecordIndexes(state: LanguageState, idx: Indexes): RecordIndexes {
   const reviewsByTake = new Map<string, KindReview[]>();
-  for (const r of Object.values(state.kindReviews)) push(reviewsByTake, r.takeId, r);
+  const withdrawnByTake = new Map<string, (KindReview & { withdrawn: Undo })[]>();
+  for (const r of Object.values(state.kindReviews)) {
+    const withdrawn = withdrawnBy(state.withdrawnReviews, r.id, r);
+    if (withdrawn) push(withdrawnByTake, r.takeId, { ...r, withdrawn });
+    else push(reviewsByTake, r.takeId, r);
+  }
   const versions = new Map<string, string[]>();
   const drafts = new Map<string, string[]>();
   const children = new Map<string, string[]>();
@@ -332,6 +349,7 @@ function buildRecordIndexes(state: LanguageState, idx: Indexes): RecordIndexes {
   const notes = new Map<string, PassageNote[]>();
   const changeNotes = new Map<string, PassageNote>();
   for (const n of Object.values(state.notes).sort(byHlc)) {
+    if (withdrawnBy(state.withdrawnNotes, n.id, n)) continue;
     if (n.anchor.kind === 'version' && n.anchor.role === 'change') {
       if (!changeNotes.has(n.anchor.takeId)) changeNotes.set(n.anchor.takeId, n);
       continue;
@@ -339,7 +357,7 @@ function buildRecordIndexes(state: LanguageState, idx: Indexes): RecordIndexes {
     push(notes, n.unitId, n);
   }
   return {
-    idx, kinds: deriveKinds(state), flow: deriveFlow(state), versions, drafts, children, reviewsByTake,
+    idx, kinds: deriveKinds(state), flow: deriveFlow(state), versions, drafts, children, reviewsByTake, withdrawnByTake,
     departures, requests, requestsTo, requestsBy, notes, changeNotes, passages: new Map()
   };
 }
@@ -387,14 +405,18 @@ function patchIndexes(state: LanguageState, prev: RecordIndexes, changes: readon
     ...prev,
     idx: idx ?? prev.idx,
     versions: new Map(prev.versions), drafts: new Map(prev.drafts), children: new Map(prev.children),
-    reviewsByTake: new Map(prev.reviewsByTake), departures: new Map(prev.departures), requests: new Map(prev.requests),
+    reviewsByTake: new Map(prev.reviewsByTake), withdrawnByTake: new Map(prev.withdrawnByTake),
+    departures: new Map(prev.departures), requests: new Map(prev.requests),
     requestsTo: new Map(prev.requestsTo), requestsBy: new Map(prev.requestsBy), notes: new Map(prev.notes),
     changeNotes: new Map(prev.changeNotes), passages: new Map(prev.passages)
   };
   for (const id of reviews) {
     const r = state.kindReviews[id];
     if (!r) continue;
-    edit(ri.reviewsByTake, r.takeId, (l) => [...withoutId(l, id), r]);
+    // A take-back can arrive before the review it names (decisions.md 111): the review then goes with the withdrawn ones.
+    const withdrawn = withdrawnBy(state.withdrawnReviews, id, r);
+    edit(ri.reviewsByTake, r.takeId, (l) => (withdrawn ? withoutId(l, id) : [...withoutId(l, id), r]));
+    edit(ri.withdrawnByTake, r.takeId, (l) => (withdrawn ? [...withoutId(l, id), { ...r, withdrawn }] : withoutId(l, id)));
     takes.add(r.takeId);
   }
   for (const id of departures) {
@@ -416,6 +438,12 @@ function patchIndexes(state: LanguageState, prev: RecordIndexes, changes: readon
   for (const id of notes) {
     const n = state.notes[id];
     if (!n) continue;
+    // A note whose take-back came first is left out, as a full build leaves it.
+    if (withdrawnBy(state.withdrawnNotes, id, n)) {
+      if (n.anchor.kind !== 'version' || n.anchor.role !== 'change') edit(ri.notes, n.unitId, (l) => withoutId(l, id));
+      units.add(n.unitId);
+      continue;
+    }
     if (n.anchor.kind === 'version' && n.anchor.role === 'change') {
       const had = ri.changeNotes.get(n.anchor.takeId);
       if (!had || had.id === id || byHlc(n, had) < 0) ri.changeNotes.set(n.anchor.takeId, n);
@@ -470,6 +498,9 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   });
   const active = (match: (d: DepartureView) => boolean) => [...departures].reverse().find((d) => match(d) && !d.undone);
 
+  const withdrawnReviews = versions
+    .flatMap((v) => (ri.withdrawnByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n })))
+    .sort(byHlc);
   const reviews: ReviewView[] = versions
     .flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n })))
     .sort(byHlc)
@@ -546,7 +577,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   // An overridden checkpoint is cleared (decision 29): it is never next, and it does not hold the passage back from done.
   const next = recorded ? open.find((s) => !s.override) : undefined;
   const result: PassageState = {
-    unitId, flow, versions, recorded, departures, reviews, requests, openRequests, steps, drafts,
+    unitId, flow, versions, recorded, departures, reviews, withdrawnReviews, requests, openRequests, steps, drafts,
     drafting: draftTakeId !== undefined,
     done: recorded && steps.every((s) => s.complete || !!s.override),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
@@ -668,7 +699,7 @@ export function usualTarget(
   const teamId = checkTeamFor(state, kindId, me, opts.eligible);
   if (teamId) return { teamId, name: state.teams[teamId]!.name.value };
   const did = new Set<string>();
-  for (const r of Object.values(state.kindReviews)) if (r.kindId === kindId && r.via === 'app') did.add(r.by);
+  for (const r of Object.values(state.kindReviews)) if (r.kindId === kindId && r.via === 'app' && !withdrawnBy(state.withdrawnReviews, r.id, r)) did.add(r.by);
   const people = [...did].filter(ok);
   return people.length === 1 ? { profileId: people[0]! } : undefined;
 }
@@ -901,7 +932,7 @@ export type RecordEntry =
 export function recordTimeline(state: LanguageState, s: PassageState): RecordEntry[] {
   const out: RecordEntry[] = [
     ...s.versions.map((v) => ({ type: 'version' as const, hlc: v.hlc, by: v.by, version: v })),
-    ...s.reviews.map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
+    ...[...s.reviews, ...s.withdrawnReviews].map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
     ...s.reviews.filter((r) => r.response?.decision === 'revised').map((r) => ({ type: 'response' as const, hlc: r.response!.hlc, by: r.response!.by, review: r, response: r.response! })),
     ...s.requests.map((r) => ({ type: 'request' as const, hlc: r.hlc, by: r.by, request: r })),
     ...s.departures.map((d) => ({ type: 'departure' as const, hlc: d.hlc, by: d.by, departure: d })),

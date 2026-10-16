@@ -5,13 +5,13 @@
 begin;
 -- An org admin, two language leads, an admin who will leave, and two
 -- looked-after accounts made by `join`.
-insert into auth.users (id, email, aud, role) values
-  ('21000000-0000-0000-0000-00000000000a', 'join-admin@example.org', 'authenticated', 'authenticated'),
-  ('21000000-0000-0000-0000-00000000000b', 'join-lead-one@example.org', 'authenticated', 'authenticated'),
-  ('21000000-0000-0000-0000-00000000000c', 'join-lead-two@example.org', 'authenticated', 'authenticated'),
-  ('21000000-0000-0000-0000-00000000000d', 'join-leaver@example.org', 'authenticated', 'authenticated'),
-  ('21000000-0000-0000-0000-00000000000e', 'achol-201@people.langquest.org', 'authenticated', 'authenticated'),
-  ('21000000-0000-0000-0000-00000000000f', 'deng-202@people.langquest.org', 'authenticated', 'authenticated');
+insert into auth.users (id, email, aud, role, raw_app_meta_data) values
+  ('21000000-0000-0000-0000-00000000000a', 'join-admin@example.org', 'authenticated', 'authenticated', '{}'),
+  ('21000000-0000-0000-0000-00000000000b', 'join-lead-one@example.org', 'authenticated', 'authenticated', '{}'),
+  ('21000000-0000-0000-0000-00000000000c', 'join-lead-two@example.org', 'authenticated', 'authenticated', '{}'),
+  ('21000000-0000-0000-0000-00000000000d', 'join-leaver@example.org', 'authenticated', 'authenticated', '{}'),
+  ('21000000-0000-0000-0000-00000000000e', 'achol-201@people.langquest.org', 'authenticated', 'authenticated', '{"managed": true}'),
+  ('21000000-0000-0000-0000-00000000000f', 'deng-202@people.langquest.org', 'authenticated', 'authenticated', '{"managed": true}');
 insert into public.profiles (id, display_name) values ('21000000-0000-0000-0000-00000000000b', 'Ryder Lead');
 -- The organization, its roles, its admins, two languages and their leads,
 -- in one batch, set up as the server would (an import): people here have
@@ -107,9 +107,9 @@ end $$;
 -- an older log may hold) lets its maker sign nobody in, and does not stop
 -- her own admin from helping. A helper must hold every privilege of her
 -- role, not Invite alone.
-insert into auth.users (id, email, aud, role) values
-  ('21000000-0000-0000-0000-0000000000aa', 'join-attacker@example.org', 'authenticated', 'authenticated'),
-  ('21000000-0000-0000-0000-0000000000ab', 'join-inviter-only@example.org', 'authenticated', 'authenticated');
+insert into auth.users (id, email, aud, role, raw_app_meta_data) values
+  ('21000000-0000-0000-0000-0000000000aa', 'join-attacker@example.org', 'authenticated', 'authenticated', '{}'),
+  ('21000000-0000-0000-0000-0000000000ab', 'join-inviter-only@example.org', 'authenticated', 'authenticated', '{}');
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-0000000000aa',true);
 do $$ declare r record; begin
   for r in select * from public.append_events('[
@@ -190,8 +190,8 @@ end $$;
 
 -- Someone asking to join is named to whoever may admit them, and to nobody
 -- else, until the request is decided (decisions.md 65).
-insert into auth.users (id, email, aud, role) values
-  ('21000000-0000-0000-0000-000000000010', 'join-asker@example.org', 'authenticated', 'authenticated');
+insert into auth.users (id, email, aud, role, raw_app_meta_data) values
+  ('21000000-0000-0000-0000-000000000010', 'join-asker@example.org', 'authenticated', 'authenticated', '{}');
 insert into public.profiles (id, display_name) values ('21000000-0000-0000-0000-000000000010', 'Amira Asker');
 select set_config('request.jwt.claim.sub','21000000-0000-0000-0000-000000000010',true);
 select public.create_join_request('join-org','join-request-amira','Please let me help');

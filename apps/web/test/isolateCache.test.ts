@@ -75,6 +75,16 @@ describe('cachedProfileOf', () => {
     expect(await profileOf('good')).toBe('p1');
     expect(await profileOf('other-bad')).toBeNull();
   });
+
+  it('asks whether the session is live on every call, cached token or not (decisions.md 118)', async () => {
+    let calls = 0;
+    let live = true;
+    const profileOf = cachedProfileOf(async () => { calls++; return { sub: 'p1', sessionId: 's1' }; }, () => 0, async () => live);
+    expect(await profileOf('tok')).toBe('p1');
+    live = false;
+    expect(await profileOf('tok')).toBeNull();
+    expect(calls).toBe(1);
+  });
 });
 
 describe('cachedBlobAccess', () => {

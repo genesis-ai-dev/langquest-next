@@ -1,4 +1,4 @@
-import { DurableOutbox, DeliveryError } from '../src/durableOutbox';
+import { DurableOutbox, DeliveryError, type OutboxFailure } from '../src/durableOutbox';
 
 describe('durable outbox', () => {
   const storageFor = () => {
@@ -91,5 +91,44 @@ describe('durable outbox: a refused change, tried again', () => {
   it('a guest has no outbox to write to', async () => {
     const outbox = new DurableOutbox('guest', { getItem: async () => null, setItem: async () => {} }, async () => {});
     await expect(outbox.enqueue({ id: 'g', kind: 'profile', payload: {} })).rejects.toThrow();
+  });
+});
+
+describe('durable outbox: what diagnostics hear of a change that keeps failing', () => {
+  // Why: an account change stuck for weeks behind a refusal or a lost sign-in was invisible to support,
+  // and the outbox retries on every sync, so telling each failure would have buried everything else.
+  const storage = () => {
+    const map = new Map<string, string>();
+    return { getItem: async (k: string) => map.get(k) ?? null, setItem: async (k: string, v: string) => { map.set(k, v); } };
+  };
+
+  it('a retry is told at most once an hour per change, with its tries and age; a permanent refusal at once', async () => {
+    let now = 1_000_000;
+    const heard: OutboxFailure[] = [];
+    let refuse = new DeliveryError('busy', true, '57014');
+    const outbox = new DurableOutbox('ana', storage(), async () => { throw refuse; }, { onFailure: (f) => heard.push(f), now: () => now });
+    await outbox.enqueue({ id: 'p1', kind: 'profile', payload: { displayName: 'Ana' } });
+    now += 60_000;
+    await outbox.flush();
+    now += 10 * 60_000;
+    await outbox.flush();
+    expect(heard).toEqual([{ kind: 'profile', outcome: 'retry', error: refuse, attempt: 1, ageMs: 60_000 }]);
+    now += 3_600_000;
+    await outbox.flush();
+    expect(heard.map((f) => f.attempt)).toEqual([1, 3]);
+    refuse = new DeliveryError('not allowed', false, '42501');
+    now += 60_000;
+    await outbox.flush();
+    expect(heard.at(-1)).toMatchObject({ outcome: 'failed', attempt: 4, error: { code: '42501' } });
+    // Retried by hand: its count starts again.
+    await outbox.retry('p1');
+    await outbox.flush();
+    expect(heard.at(-1)).toMatchObject({ outcome: 'failed', attempt: 1 });
+  });
+
+  it('a listener that throws never stops a delivery', async () => {
+    const outbox = new DurableOutbox('ana', storage(), async () => { throw new DeliveryError('offline', true); }, { onFailure: () => { throw new Error('boom'); } });
+    await outbox.enqueue({ id: 'p1', kind: 'profile', payload: {} });
+    await expect(outbox.flush()).resolves.toBe(false);
   });
 });
