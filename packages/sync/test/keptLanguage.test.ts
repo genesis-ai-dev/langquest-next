@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  buildIndexes, derivePassage, HlcClock, keptVerdict, languageLines, PART_OF_KIND, putEntry, updatesFor, withOwnParts, type LanguageState
+  buildIndexes, derivePassage, emptyLanguageState, foldLanguage, HlcClock, keptVerdict, languageLines, PART_OF_KIND, putEntry, updatesFor, withOwnParts,
+  type LanguageState
 } from '@langquest-next/core';
 import { PART_KINDS } from '../src/keptLanguage';
 import { MemoryStore } from '../src/memoryStore';
@@ -39,13 +40,14 @@ function sqlite(): EventStore {
 /** Each test runs on both stores: the memory twin, and SQLite as the phone runs it. */
 let makeStore: () => EventStore = () => new MemoryStore();
 
-function phone(server: FakeServer, deviceId: string, actorId: string, opts: { keepOnDisk?: boolean; checkpointEvery?: number; store?: EventStore; build?: string } = {}) {
+function phone(server: FakeServer, deviceId: string, actorId: string, opts: { keepOnDisk?: boolean; checkpointEvery?: number; pullPageSize?: number; store?: EventStore; build?: string } = {}) {
   const store = opts.store ?? makeStore();
   const client = new SyncClient({
     orgId: 'org1', streamId: 'p1', actorId, deviceId, store, transport: server.transportFor(),
     clock: new HlcClock(deviceId, () => ++ids), newId: () => `${deviceId}-${++ids}`,
     ...(opts.keepOnDisk ? { keepOnDisk: true } : {}),
     ...(opts.checkpointEvery ? { checkpointEvery: opts.checkpointEvery } : {}),
+    ...(opts.pullPageSize ? { pullPageSize: opts.pullPageSize } : {}),
     ...(opts.build ? { build: opts.build } : {})
   });
   return { client, store };
@@ -142,6 +144,28 @@ describe('a language that keeps its recordings on disk', () => {
     expect(Object.keys(client.getState().recordings).sort()).toEqual(['r3', 'r4']);
     expect(Object.keys(client.getState().blobs).sort()).toEqual(['h3', 'h4']);
     expect(client.getState().blobs['h3']).toMatchObject({ stored: true, size: 103 });
+  });
+
+  it('a pull of the whole log from the start, with no server snapshot, checkpoints as it goes and never holds the language whole', async () => {
+    // Why: after a reducer bump the server has no snapshot for the new reducer for a while, and a phone pulls the
+    // whole log from the start (decisions.md 110). Checkpoints waited for the tail, so the whole language was folded into
+    // memory before its first cut to rows: the 850 MB case on a phone, for a language of Santhali's size.
+    const server = new FakeServer();
+    await language(server, 60);
+    const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true, checkpointEvery: 25, pullPageSize: 10 });
+    await client.load();
+    await client.loadUnits(['u1']);
+    let peak = 0;
+    const stop = client.subscribe((s) => { peak = Math.max(peak, Object.keys((s.state as Lang).recordings).length); });
+    await client.pull();
+    stop();
+    // Checkpoints were taken on the way, so memory never held more than a couple of checkpoints' worth of passages.
+    expect(peak).toBeLessThan(45);
+    expect((await client.inspect()).checkpointSeq).toBe(server.head('org1', 'p1'));
+    expect(Object.values(client.getState().recordings).every((r) => r.unitId === 'u1')).toBe(true);
+    expect(await store.keptCount('org1', 'p1', 'recording')).toBe(60);
+    // And the language on disk is the server's.
+    expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState())));
   });
 
   it('agrees with a phone that keeps everything in memory, through checkpoints, in any order', async () => {

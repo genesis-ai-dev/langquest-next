@@ -1142,6 +1142,7 @@ export class SyncClient<S = LanguageState> {
     /** The newest redaction whose target is inside the checkpoint: a snapshot at or past it will do. */
     let redactionSeq = 0;
     let membershipChanged = false;
+    let base = (await this.checkpointSeq()) ?? 0;
     for (;;) {
       const asked = this.elapsed();
       const page = await this.opts.transport.pull(
@@ -1193,6 +1194,15 @@ export class SyncClient<S = LanguageState> {
         meta: this.clockMeta()
       });
       this.opts.onPullProgress?.(total);
+      // A language kept on disk checkpoints as it goes (decisions.md 134): its checkpoint is the small shared
+      // part, and each one moves the passages folded so far onto disk and out of memory, so a pull of the whole
+      // log from the start (a reducer bump before the server has a snapshot for it, a redaction waited out)
+      // never holds the whole language. Not once a redaction was pulled in this slice: the refold below undoes
+      // its target from the log, and a checkpoint before that would prune the target and keep its effects.
+      if (this.kept && !redacted && folded > 0 && after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) {
+        await this.checkpoint(after);
+        base = after;
+      }
       if (page.length < this.pullPageSize) break;
       if (this.wall() - started >= budgetMs) {
         more = true;
@@ -1217,10 +1227,10 @@ export class SyncClient<S = LanguageState> {
     }
     // A redaction may target an event already folded; only a refold undoes it.
     if (redacted) await this.refold('redaction');
-    // Still catching up: skip the checkpoint (it serializes the whole state)
-    // and take one when the tail is reached. Nothing is pruned before the
-    // checkpoint, so a crash mid-catch-up only costs a longer fold on launch.
-    const base = (await this.checkpointSeq()) ?? 0;
+    // Still catching up: a language held whole in memory skips the checkpoint
+    // (it serializes the whole state) and takes one when the tail is reached;
+    // nothing is pruned before it, so a crash mid-catch-up only costs a longer
+    // fold on launch. A language kept on disk checkpointed as it went (above).
     if (!more && after - base >= this.checkpointEvery && !this.opts.deferCheckpoint?.()) await this.checkpoint(after);
     // Our membership changed on the server: work refused for membership
     // reasons may be acceptable now. Queue it; the next push decides. The
