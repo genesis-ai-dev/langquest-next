@@ -114,7 +114,7 @@ function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolea
     ? <Header title={n === 2 ? t('getReady.page.title') : t('getReady.whatToTranslate')} sub={lang} onBack={ctx.back} />
     : <Header title={t('getReady.title', { language: lang })} sub={t('getReady.stepOf', { step: formatNumber(n), total: formatNumber(4) })} onBack={ctx.back} close />;
   const next = () => (only || n >= 4 ? ctx.back() : setN(n + 1));
-  // A phone's Back goes to the question before, down to the one this opened on, then leaves; ✕ leaves at once (decision 136).
+  // A phone's Back goes to the question before, down to the one this opened on, then leaves; ✕ leaves at once (decision 137).
   useHardwareBack(n > start, () => setN(n - 1));
   const props: StepProps = { ctx, lang, header, next, only };
   switch (n) {
@@ -149,7 +149,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   // Any work at all, published or not: a change of numbering moves it (decision 80).
   const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
   const [warn, setWarn] = useState(false);
-  // A phone's Back goes back a page of the question, as the Back under it does (decision 136); from the first, it leaves.
+  // A phone's Back goes back a page of the question, as the Back under it does (decision 137); from the first, it leaves.
   useHardwareBack(tq.page !== 'what', () => { tq.retreat(); });
 
   async function answer(confirmed = false) {
@@ -387,7 +387,7 @@ function HelpsStep(props: StepProps) {
   const [page, setPage] = useState<'language' | 'helps'>('language');
   // Opened from a ready language's What helps them to change the language: back there once it is saved.
   const languageOnly = props.only && props.ctx.params['page'] === 'language';
-  // A phone's Back from what is offered goes back to the language, the page before (decision 136).
+  // A phone's Back from what is offered goes back to the language, the page before (decision 137).
   useHardwareBack(page === 'helps', () => setPage('language'));
   return page === 'language'
     ? <ReferenceLanguageStep {...props} onDone={() => (languageOnly ? props.next() : setPage('helps'))} />

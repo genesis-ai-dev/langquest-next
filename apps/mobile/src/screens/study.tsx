@@ -91,7 +91,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const [chipState, setChip] = useState<RefChip>('guide');
   // Moving on changes the step, not the screen (STUDY-4).
   const [indexState, setIndexState] = useState<number | null>(null);
-  // The steps this screen showed before, so a phone's Back retraces them (decision 136).
+  // The steps this screen showed before, so a phone's Back retraces them (decision 137).
   const [trail, setTrail] = useState<number[]>([]);
   // Back: from Bible, Key words or Notes to the guide, as "Back to the guide" does; then the step before; then out.
   useHardwareBack(chipState !== 'guide' || trail.length > 0, () => {

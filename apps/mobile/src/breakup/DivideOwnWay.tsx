@@ -110,7 +110,7 @@ export function DivideOwnWay(props: {
   const [sel, setSel] = useState<At | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   // A phone's Back closes what is open here first, the helps or the verse picked, then goes back
-  // as the header's arrow does (decision 136). The sections are kept as a draft either way.
+  // as the header's arrow does (decision 137). The sections are kept as a draft either way.
   useHardwareBack(true, () => {
     if (panel === 'helps') setPanel(null);
     else if (sel) setSel(null);

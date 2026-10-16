@@ -12,7 +12,7 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, Redo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, FileText, Eye, EyeOff
+  ChevronsUpDown, FileText, Eye, EyeOff, Menu
 } from 'lucide-react-native';
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -49,7 +49,7 @@ const ICONS = {
   share: Share2, skip: SkipForward, sound: Volume2, sparkle: Sparkles, star: Star, stop: Square, swap: ArrowLeftRight,
   template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, redo: Redo2, up: ChevronUp, user: User, video: Video,
   work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, info: Info, onPhone: CloudCheck, notOnPhone: CloudOff,
-  arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, sliders: SlidersHorizontal, done: CircleCheck,
+  arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, handle: Menu, sliders: SlidersHorizontal, done: CircleCheck,
   warning: TriangleAlert, join: ChevronsUpDown, file: FileText,
   // Show here / Hide here on a passage's helps (demo ADR-042).
   eye: Eye, eyeOff: EyeOff
@@ -853,7 +853,7 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
  */
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
   /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode;
-  /** A phone's Back in a sheet of several steps: the step before, as its own Back does (decision 136). Else Back closes it. */
+  /** A phone's Back in a sheet of several steps: the step before, as its own Back does (decision 137). Else Back closes it. */
   onBack?: () => void }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';

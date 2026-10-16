@@ -107,7 +107,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
     }
   }
 
-  // A phone's Back from a step goes back to the menu it was opened from, as Cancel does (decision 136).
+  // A phone's Back from a step goes back to the menu it was opened from, as Cancel does (decision 137).
   const toMenu = props.startAt === 'report' ? undefined : () => setStep({ at: 'menu' });
   if (step.at === 'report') {
     const of = step.of;

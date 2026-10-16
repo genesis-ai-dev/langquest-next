@@ -7,7 +7,7 @@ import { navRef, type Nav } from './nav';
 import type { Session } from './session';
 
 /**
- * Android's Back, for the whole app (decision 136): a step open on the
+ * Android's Back, for the whole app (decision 137): a step open on the
  * screen goes back one step (ui/hardwareBack.ts); else the screen under
  * this one comes back; with none, Back goes to the person's first screen,
  * and leaves the app only from there, when pressed again after "Press Back

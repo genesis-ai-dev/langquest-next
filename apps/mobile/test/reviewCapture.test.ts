@@ -151,7 +151,7 @@ describe('reviewing is three short steps: Listen, Questions, Decide (REV-0, SIMP
     expect(stageAt(reviewStages({ questions: 0, logged: false, makes: false }), 'questions')).toBe(0);
   });
 
-  it("a phone's Back goes one step back: the question before, the stage before, and leaves only from Listen (decision 136)", () => {
+  it("a phone's Back goes one step back: the question before, the stage before, and leaves only from Listen (decision 137)", () => {
     const stages = reviewStages({ questions: 3, logged: false, makes: false });
     expect(stageBack(stages, 'decide', 0, 3)).toEqual({ stage: 'questions', qi: 2 });
     expect(stageBack(stages, 'questions', 2, 3)).toEqual({ stage: 'questions', qi: 1 });

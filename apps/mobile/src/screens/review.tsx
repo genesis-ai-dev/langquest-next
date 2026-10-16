@@ -203,7 +203,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     if (shown && guide && guideItem) usage.offer([{ itemId: guideItem, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
   }, [shown, guide, guideItem, usage]);
 
-  // A phone's Back goes one step back (decision 136): from "What should change?" to Decide, as its arrow does;
+  // A phone's Back goes one step back (decision 137): from "What should change?" to Decide, as its arrow does;
   // else the question before, then the stage before. From Listen it leaves, and the draft stays.
   const stepBack = stageBack(reviewStages({ questions: questions.length, logged, makes: !!makes }), stageId, qi, questions.length);
   useHardwareBack(why || !!stepBack, () => {

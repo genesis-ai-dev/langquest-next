@@ -4696,7 +4696,7 @@
       "discardAsk": "Throw away this recording?",
       "discardConfirm": "Throw away",
       "recordOver": "Record {{part}} again",
-      "recordOverHelp": "What you record next replaces this part.",
+      "recordOverHelp": "What you record next replaces this part. Slide it aside to delete it.",
       "recordInGap": "Record {{part}} here",
       "gapHelp": "What you record next goes in this gap.",
       "recordAtEnd": "Record {{part}} at the end",

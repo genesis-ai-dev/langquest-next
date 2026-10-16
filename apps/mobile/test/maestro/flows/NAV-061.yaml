@@ -61,7 +61,7 @@ tags:
       - assertVisible: "Chapter 16.*|16"
       - back
       - assertVisible: "Find.*"
-      # 6. Back on the tab's own page goes to My Work, the first screen (decision 136); never out of the app or a blank screen.
+      # 6. Back on the tab's own page goes to My Work, the first screen (decision 137); never out of the app or a blank screen.
       - back
       - extendedWaitUntil:
           visible:

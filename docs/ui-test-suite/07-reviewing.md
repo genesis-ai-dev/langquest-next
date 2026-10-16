@@ -503,7 +503,7 @@ Steps:
 
 Expected:
 - While it is made, the header's saved mark turns from a spinner into a check: what is said, typed or answered is kept on this device as a draft only REV sees (decision 127).
-- Step 2 leaves at once, with nothing to answer first; nothing is sent (the device's log is unchanged). A phone's Back goes back a question or a stage instead (decision 136), and from Listen leaves the same way.
+- Step 2 leaves at once, with nothing to answer first; nothing is sent (the device's log is unchanged). A phone's Back goes back a question or a stage instead (decision 137), and from Listen leaves the same way.
 - Step 3 opens the review where it was left, on Decide.
 - Step 4: the typed words are back in the field, and the note at a moment is listed under the player.
 - Sending the review drops the draft; a draft about a version that is gone is dropped and the review starts fresh.

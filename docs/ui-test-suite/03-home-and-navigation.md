@@ -722,7 +722,7 @@ Expected:
   with nothing sent; back again returns to the path.
 - Back from the record returns to the chapter grid, then to the map.
 - Back on a tab's own page (the map, which is TRANS's Map tab) goes to My
-  Work, TRANS's first screen (decision 136). It never leaves the app or
+  Work, TRANS's first screen (decision 137). It never leaves the app or
   shows a blank screen.
 - The first back on My Work stays and says "Press Back again to leave
   LangQuest" above the tab bar, covering no button; the second, while those

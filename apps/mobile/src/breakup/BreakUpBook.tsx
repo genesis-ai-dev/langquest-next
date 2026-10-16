@@ -131,7 +131,7 @@ export function BreakUpBook(props: {
   const picked = offered.find((r) => r.choice.key === key) ?? null;
   const [peek, setPeek] = useState<WayRow | null>(null);
   const change = useBookChange(ctx, { book, bookName: props.bookName, doc: props.doc, item: props.item, redo: props.redo, onDone: props.onClose });
-  // A phone's Back does what the header's arrow does: back to the book, or out when it is not broken up yet (decision 136).
+  // A phone's Back does what the header's arrow does: back to the book, or out when it is not broken up yet (decision 137).
   useHardwareBack(true, props.onClose);
 
   const go = () => {

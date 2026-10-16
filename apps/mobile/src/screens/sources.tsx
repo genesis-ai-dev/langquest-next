@@ -92,7 +92,7 @@ export function BibleExplore(ctx: Ctx) {
 
   const passageLabel = unitId && state?.units[unitId] ? state.units[unitId]!.label : undefined;
   const back = () => (picked ? setPicked(null) : ctx.back());
-  // A phone's Back from one Bible goes back to the list, as the header's arrow does (decision 136).
+  // A phone's Back from one Bible goes back to the list, as the header's arrow does (decision 137).
   useHardwareBack(!!picked, () => setPicked(null));
   const header = <Header title={screenTitle('bible_explore')} sub={passageLabel ? t('sources.explore.forPassage', { passage: passageLabel }) : t('sources.explore.sub')} onBack={back} />;
 
