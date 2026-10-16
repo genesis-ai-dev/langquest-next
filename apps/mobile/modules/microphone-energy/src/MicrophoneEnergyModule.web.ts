@@ -9,6 +9,8 @@ import {
 } from './vadCore';
 import { Splitter, type HeardLevels } from './splitter';
 import { Chunks, ringFrames } from './chunks';
+import { frameScore, Resampler, SpeechChunks } from './speech';
+import { loadSpeechModel, type SpeechModel } from './speechModel.web';
 
 export type { VADConfig, MicrophoneEnergyModuleEvents } from './MicrophoneEnergyModule';
 
@@ -51,8 +53,49 @@ let splitter: Splitter | null = null;
 let clock = 0;
 const frameMs = () => FRAME_SAMPLES / (rate / 1000);
 
+/** The speech model (speech.ts), once loaded; null where it could not load, and the splitter goes by levels alone. */
+let model: SpeechModel | null = null;
+/** The model this stretch of listening is judged by, fixed when it starts (enableVAD), so one stretch never mixes rules. */
+let speechNow: SpeechModel | null = null;
+let resampler: Resampler | null = null;
+const speechChunks = new SpeechChunks();
+let lastScore = 0;
+/** Frames are handled one after another: a frame waits for the model's score of the one before. */
+let pending: Promise<void> = Promise.resolve();
+/** How long the microphone waits for the model on a first visit; on a slow network the model joins at the next stretch. */
+const SPEECH_WAIT_MS = 3000;
+
+function prepareSpeech(): Promise<void> {
+  return loadSpeechModel().then((m) => { model = m; });
+}
+
 function onFrame(frame: Float32Array) {
   const now = Date.now();
+  pending = pending.then(() => handle(frame, now)).catch(() => undefined);
+}
+
+/** The speech score for one frame from the chunks it completes, or null without a model or while the detector is off. */
+async function score(frame: Float32Array): Promise<number | null> {
+  if (!speechNow || !vadEnabled) return null;
+  resampler ??= new Resampler(rate);
+  const ready: Float32Array[] = [];
+  resampler.push(frame, (x) => { const c = speechChunks.push(x); if (c) ready.push(c); });
+  const scores: number[] = [];
+  try {
+    for (const c of ready) scores.push(await speechNow.score(c));
+  } catch (e) {
+    // The model failed mid-session: from here parts split by levels alone.
+    console.warn('[expected] speech model failed; parts split by levels alone', e);
+    model = speechNow = null;
+    return null;
+  }
+  lastScore = frameScore(scores, lastScore);
+  return lastScore;
+}
+
+async function handle(frame: Float32Array, now: number) {
+  const speech = await score(frame);
+  if (!capture) return;
   const energy = peakEnergy(frame);
   // Native order: ring, then the open take or chunk, then the splitter and the chunks, then the meter event.
   ring.push(frame);
@@ -61,7 +104,7 @@ function onFrame(frame: Float32Array) {
   chunk?.frames.push(frame);
   clock += frameMs();
   if (vadEnabled && splitter && chunks) {
-    const action = splitter.step(energy, clock);
+    const action = splitter.step(energy, clock, speech);
     if (action?.type === 'start') emit('onSegmentStart', { headMs: action.headFrames * frameMs() });
     if (action?.type === 'stop') {
       remembered = splitter.remember();
@@ -170,9 +213,15 @@ export default {
     set.add(listener);
     return { remove() { set.delete(listener); } };
   },
-  async startEnergyDetection() { await start(); },
+  async prepareSpeech() { void prepareSpeech(); },
+  async startEnergyDetection() {
+    // The model loads before the microphone opens (prepareSpeech usually has it ready).
+    await Promise.race([prepareSpeech(), new Promise((resolve) => setTimeout(resolve, SPEECH_WAIT_MS))]);
+    await start();
+  },
   /** Mid-segment, the segment is kept as a manual stop (no trim), as on the phone. */
   async stopEnergyDetection() {
+    await pending;
     vadEnabled = false;
     if (splitter) remembered = splitter.remember();
     splitter?.pauseListening();
@@ -188,13 +237,21 @@ export default {
   async configureVAD(config: VADConfig) { if (config.heard) remembered = config.heard; },
   /** As on the phones, what was heard while the detector was off never heads a part. */
   async enableVAD() {
+    await pending;
     vadEnabled = true;
     ring.length = 0;
+    // What the model heard before (a source playing) is not this stretch's.
+    speechNow = model;
+    resampler = null;
+    speechChunks.reset();
+    speechNow?.reset();
+    lastScore = 0;
     if (!splitter) splitter = new Splitter(frameMs(), remembered);
     chunks ??= new Chunks(frameMs(), rate);
     splitter.pauseListening();
   },
   async disableVAD() {
+    await pending;
     vadEnabled = false;
     if (splitter) remembered = splitter.remember();
     splitter?.pauseListening();
@@ -208,6 +265,7 @@ export default {
     open(prerollFrames(options?.prerollMs ?? DEFAULT_PREROLL_MS));
   },
   async stopSegment(): Promise<string | null> {
+    await pending;
     splitter?.pauseListening();
     return finish(Date.now(), 0);
   },
