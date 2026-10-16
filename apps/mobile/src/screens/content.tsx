@@ -679,7 +679,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   const start = form ?? draft.value?.form;
   // Back from the first question leaves Scripture; otherwise it goes back a question.
   const backOut = () => { if ((tq.page === 'find' && !tq.numbering) || tq.page === 'what' || !tq.retreat()) setBible(false); };
-  // A phone's Back does the same as the header's arrow (decision 135).
+  // A phone's Back does the same as the header's arrow (decision 136).
   useHardwareBack(bible && !start, backOut);
   if (start) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={start} draft={draft} />;
   if (!draft.loaded) return <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={ctx.back} />}>{null}</Screen>;

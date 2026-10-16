@@ -2,8 +2,9 @@
 # the system Back steps out of Something else?, Versions, Ask someone, the
 # record, the chapter grid and the map one level at a time, as the header's
 # Back and ✕ do (NAV-060 runs those on the web); the map's Back goes to My
-# Work. P-ASIDE: its Peer check is not asked yet, so "Someone else should do
-# this" is offered. iOS has no system Back: there the flow only signs in.
+# Work, where the first Back says how to leave. P-ASIDE: its Peer check is
+# not asked yet, so "Someone else should do this" is offered. iOS has no
+# system Back: there the flow only signs in.
 appId: com.frontierrnd.langquestnext
 name: "NAV-061 Android's back button"
 tags:
@@ -60,7 +61,7 @@ tags:
       - assertVisible: "Chapter 16.*|16"
       - back
       - assertVisible: "Find.*"
-      # 6. Back on the tab's own page goes to My Work, the first screen (decision 135); never out of the app or a blank screen.
+      # 6. Back on the tab's own page goes to My Work, the first screen (decision 136); never out of the app or a blank screen.
       - back
       - extendedWaitUntil:
           visible:
@@ -68,3 +69,8 @@ tags:
             selected: true
           timeout: 10000
       - assertNotVisible: "This screen could not open"
+      # 7. On My Work the first Back stays and says how to leave.
+      - back
+      - assertVisible: "Press Back again to leave LangQuest"
+      - assertVisible:
+          id: "tab-work"

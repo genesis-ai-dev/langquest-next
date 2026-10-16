@@ -109,7 +109,7 @@ export function RecordingView(props: {
     void props.onStop();
   };
   const resume = useHelpSpot(t('recording.resumeNow'), t('recording.vad.resumeHelp'), listening ? props.onResume : undefined);
-  // A phone's Back is the ✓ (decision 135): it keeps every part said and goes back to the parts, never out of the screen.
+  // A phone's Back is the ✓ (decision 136): it keeps every part said and goes back to the parts, never out of the screen.
   useHardwareBack(true, props.onLeave);
   return (
     <View style={[styles.panel, { backgroundColor: listening ? TINT.red : capturing ? C.red : TINT.redText }]}>

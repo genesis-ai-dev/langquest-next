@@ -434,7 +434,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const home = useCallback(() => nav.reset({ screen: homeScreenFor(session) }), [nav, session]);
   // Android's Back for the whole app, and a Back arrow with nothing under it: to the first screen (useRootBack.ts).
   // Here, not in a child: this component's effects run after the navigator's, so its listener is asked first.
-  const backFromRoot = useRootBack(nav, session);
+  const backFromRoot = useRootBack(nav, session, toast);
   const navBack = nav.back;
   const back = useCallback(() => { if (navRef.isReady() && navRef.canGoBack()) navBack(); else backFromRoot(); }, [navBack, backFromRoot]);
   const acceptTerms = useCallback((actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'), [props.actorId]);

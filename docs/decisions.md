@@ -5321,7 +5321,11 @@ What was built:
   comes back; with nothing underneath, Back goes to the person's first
   screen (their home, "Join your team", or Sign In signed out) and leaves the
   app only from there, or from the welcome a first sign-in shows
-  (`shell/backModel.ts`). A Back arrow with nothing under it does the same.
+  (`shell/backModel.ts`), and only when pressed twice: the first Back there
+  shows "Press Back again to leave LangQuest", and a second one while it
+  shows (3.5 seconds) leaves (Caleb, 2026-10-16: "have it say press back
+  again to leave"). A Back arrow with nothing under it goes to the first
+  screen too.
   `test/hardwareBack.test.ts` keeps every other `BackHandler` listener out.
 - **A step registers its own way back** with `useHardwareBack(active, onBack)`
   (`ui/hardwareBack.ts`): the newest step open on the screen showing answers
@@ -5339,7 +5343,8 @@ What was built:
   Back goes to its step before; otherwise Back closes a sheet, as before.
 - Help mode turns off on Back, as its ? does.
 Not covered: iOS has no Back button, and its edge swipe still pops a screen
-past its steps. NAV-061 now expects the first screen, not leaving the app.
+past its steps. NAV-061 now expects the first screen, then the message,
+not leaving the app at once.
 Reverse if: people expect Back on a tab's page to leave the app, as before,
 or find stepping back through a long task slower than they want (✕ still
 leaves it at once).

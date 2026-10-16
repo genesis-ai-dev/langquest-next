@@ -50,7 +50,7 @@ export function InviteSomeone(props: {
   const roles = usePlainRoles(ctx, scope?.scope ?? null);
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
   const making = shown && sent;
-  // A phone's Back from the code goes back to who it is for, as the header's arrow does (decision 135).
+  // A phone's Back from the code goes back to who it is for, as the header's arrow does (decision 136).
   useHardwareBack(shown, () => setShown(false));
   const invite = useGroupInvite(ctx.language.orgId, making ? roleId : null, making && scope ? scope.scope : null, scope ? props.label(scope) : '');
   function show() {

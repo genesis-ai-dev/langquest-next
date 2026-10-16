@@ -523,7 +523,7 @@ function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; st
   const sideBySide = layout.kind !== 'phone' && layout.contentWidth >= 960;
   const step = draft.steps.find((st) => st.id === props.stepId) ?? null;
   const index = step ? draft.steps.indexOf(step) : -1;
-  // On a phone one step is open at a time: Back goes to all the steps, as "All steps" does (decision 135).
+  // On a phone one step is open at a time: Back goes to all the steps, as "All steps" does (decision 136).
   const setStepId = props.setStepId;
   useHardwareBack(!sideBySide && !!step, () => setStepId(null));
   const remove = (st: DraftStep) => {

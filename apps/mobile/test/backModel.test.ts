@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { backAtRoot } from '../src/shell/backModel';
+import { backAtRoot, LEAVE_AGAIN_MS, leavesNow } from '../src/shell/backModel';
 import { deriveSession, homeScreenFor, tabsFor } from '../src/shell/session';
 import { ORG, roleSession } from './sessions';
 
@@ -47,5 +47,11 @@ describe("Android's Back with nothing under the screen (NAV-061)", () => {
     const stranger = deriveSession('stranger', 'stranger@x', true, ORG, 'din');
     expect(backAtRoot('intent_chooser', stranger)).toEqual({ leave: true });
     expect(backAtRoot('settings_home', stranger)).toEqual({ leave: false, to: 'intent_chooser' });
+  });
+
+  it('leaves only when pressed again while "Press Back again to leave" shows', () => {
+    expect(leavesNow(null, 10_000)).toBe(false);
+    expect(leavesNow(10_000, 10_000 + LEAVE_AGAIN_MS)).toBe(true);
+    expect(leavesNow(10_000, 10_001 + LEAVE_AGAIN_MS)).toBe(false);
   });
 });

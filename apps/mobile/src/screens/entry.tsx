@@ -226,7 +226,7 @@ export function Vision(ctx: Ctx) {
   const [step, setStep] = useState(0);
   const current = VISION_STEPS[step]!;
   const last = step === VISION_STEPS.length - 1;
-  // A phone's Back goes back a card, as the header's arrow does (decision 135).
+  // A phone's Back goes back a card, as the header's arrow does (decision 136).
   useHardwareBack(step > 0, () => setStep(step - 1));
   return (
     <Screen

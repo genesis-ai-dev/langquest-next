@@ -3,7 +3,7 @@
 // on top keeps the Back of its own (NAV-061, "Ask for Peer check" from
 // "Something else?"). Sheets need none of this: a Modal takes Back itself.
 // The newest step open answers first (hardwareBack.ts), before the navigator
-// pops the screen (shell/useRootBack.ts, decision 135).
+// pops the screen (shell/useRootBack.ts, decision 136).
 import { NavigationContext } from '@react-navigation/native';
 import { useContext, useEffect, useRef } from 'react';
 import { openBackStep } from './hardwareBack';

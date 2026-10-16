@@ -1287,7 +1287,7 @@ export function InviteQr(ctx: Ctx) {
   const [error, setError] = useState('');
   const role = roles.find((r) => r.id === roleId) ?? null;
   const canAdvance = step === 0 ? !!role : step === 1 ? name.trim().length > 0 : true;
-  // A phone's Back from the name goes back to the role, as the header's arrow does (decision 135).
+  // A phone's Back from the name goes back to the role, as the header's arrow does (decision 136).
   useHardwareBack(step === 1 && !invite, () => setStep(0));
   async function next() {
     if (step === 0) return setStep(1);
@@ -1574,7 +1574,7 @@ export function NewLanguage(ctx: Ctx) {
   );
   const back = step > 1 && step < 5 ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: () => setStep(step - 1) }]} /> : null;
   // A phone's Back goes one step back, as the Back under each step does: on step 2 a page of its question first
-  // (decision 135). While it is being added, it says to wait, as ✕ does.
+  // (decision 136). While it is being added, it says to wait, as ✕ does.
   useHardwareBack(!!making || (step > 1 && step < 5), () => {
     if (making) { ctx.toast(t('org.newLanguage.making.wait', { language: title })); return; }
     if (step === 2 && tq.retreat()) return;

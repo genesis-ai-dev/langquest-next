@@ -853,7 +853,7 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
  */
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
   /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode;
-  /** A phone's Back in a sheet of several steps: the step before, as its own Back does (decision 135). Else Back closes it. */
+  /** A phone's Back in a sheet of several steps: the step before, as its own Back does (decision 136). Else Back closes it. */
   onBack?: () => void }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
