@@ -3814,6 +3814,24 @@ rules) and a model at 0% that nothing flagged; the logic moved into models,
 and a threshold keeps it there. Thresholds well under the measured value had
 let a gain slip back unnoticed.
 
+Amended (2026-10-16, Carl Sauder): "reported" now means filed in Linear.
+The whole web suite had failed on the first two nights (5, then 8 tests)
+and nobody knew: a red scheduled run only emails whoever last edited its
+cron line. Each nightly job now ends with `scripts/nightly-report.mjs`,
+which opens an unassigned issue in the team per failing test (titled
+`Nightly: <test> [<project>]`), or one for the whole run when it left no
+report or more than 15 tests failed (one cause, such as the stack not
+starting), and one per fleet or mutation job that fails. As in decision
+53 the state lives in the issues: a failure that persists adds nothing,
+and a turn to passing or back to failing is one comment. The reporter
+never closes an issue; a fix names it and linear-sync moves it, and a
+test that fails again after its issue is closed opens a new one naming
+the old. A run off `main` only prints what it would file. Linear rather
+than a chat message, because an open issue waits for someone to act on it.
+The quarantine job stays unreported: its tests already have an issue.
+Reverse if: a night's issues are mostly noise (then raise the bar, or
+report a weekly digest from scripts/ui-flakes.mjs instead).
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: accepted

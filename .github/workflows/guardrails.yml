@@ -9,7 +9,8 @@
 #           seeded and the projection worker scheduled (docs/testing.md),
 #           in two shards.
 # nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
-#           on a schedule; reported, not blocking (docs/testing.md).
+#           on a schedule; not blocking, but each job files its failures in
+#           Linear (scripts/nightly-report.mjs; a dry run off main).
 #
 # The four PR jobs start together rather than after `checks`: a PR waits for
 # the slowest job, not for `checks` plus it (decisions.md 102, amended
@@ -185,7 +186,7 @@ jobs:
           if-no-files-found: ignore
 
   nightly-ui-web:
-    # The whole web UI suite, quarantine apart. Reported, not blocking.
+    # The whole web UI suite, quarantine apart. Not blocking; its failures go to Linear.
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -214,6 +215,14 @@ jobs:
             e2e/results/ui/**/*.png
             e2e/results/ui/**/error-context.md
           if-no-files-found: ignore
+      # An issue per failing test, or one for the run when it broke as a whole.
+      - name: Tell Linear
+        if: always()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          JOB_STATUS: ${{ job.status }}
+          DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
+        run: node scripts/nightly-report.mjs ui --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY
 
   nightly-quarantine:
     # The quarantined tests, on their own, so their pass rate is visible
@@ -260,6 +269,13 @@ jobs:
         with:
           name: fleet-normalDay
           path: fleet-normalDay.json
+      - name: Tell Linear
+        if: always()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          JOB_STATUS: ${{ job.status }}
+          DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
+        run: node scripts/nightly-report.mjs job --name nightly-fleet --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY
 
   nightly-mutation:
     # Stryker over packages/core (docs/testing.md): a test would notice a
@@ -285,3 +301,10 @@ jobs:
           name: mutation-core
           path: reports/mutation
           if-no-files-found: ignore
+      - name: Tell Linear
+        if: always()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          JOB_STATUS: ${{ job.status }}
+          DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
+        run: node scripts/nightly-report.mjs job --name nightly-mutation --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY

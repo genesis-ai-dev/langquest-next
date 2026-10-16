@@ -105,8 +105,9 @@ These keep the suite fast enough to run and stable enough to trust.
   the words, and take them from the i18n catalog, not literals.
 - **Zero retries, quarantine instead.** `retries: 0` stays. A test that
   fails without a product cause is tagged `@quarantine`, runs in its own job,
-  and has an owner and an issue. `scripts/ui-flakes.mjs` reads the kept
-  reports and lists pass rates per test.
+  and has an owner and an issue (for a test the nightly run caught, the
+  issue it opened). `scripts/ui-flakes.mjs` reads the kept reports and
+  lists pass rates per test.
 - **Own world per file, no order between files.** Inside a file, tests may
   build on earlier ones only when the spec says so under "Resets".
 - **Phones run the P0 smoke set and phone-only behaviour.** A test that can
@@ -126,7 +127,7 @@ These keep the suite fast enough to run and stable enough to trust.
 | PR (CI `server`) | `db:test`, `test:integration` | under 15 min |
 | PR (CI `web-smoke`) | the export in three engines | under 20 min |
 | PR (CI `ui-web`) | `@p0` web tests on the export, in two shards | under 20 min |
-| Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | reported, not blocking |
+| Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | not blocking; failures filed in Linear, unassigned (`scripts/nightly-report.mjs`) |
 | `npm run ship` | typecheck, then `@p0` web tests on the local stack (`SHIP_UNTESTED=1` skips, loudly) | |
 | Store release | full web suite, every Maestro flow on both phones, the run sheet | |
 
