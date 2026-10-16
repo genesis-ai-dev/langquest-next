@@ -18,9 +18,9 @@
 import type { Page } from '@playwright/test';
 import {
   back, button, byId, deviceEvents, expect, expectNothingRefused, expectSent, field, primary,
-  screenText, tab, test, text, undoToast
+  screenText, tab, test, text
 } from './support';
-import { deletePart, publishButton, recordButton, recordParts } from './06-recording-helpers';
+import { deletePart, publishButton, recordButton, recordParts, undoButton } from './06-recording-helpers';
 import {
   act, ask, device, doCheck, langAs, offerExampleGuides, open, openLabel, openRecord, passageNow, publishVersion, reviewLatest, sawToast, toTabs, unitByLabel,
   recordedFor, useRunWorld, visible
@@ -119,7 +119,6 @@ test('REV-003 Looks good @p0', async ({ page, browser }) => {
   await expect(button(page, 'Listen, done. Go back')).toBeVisible();
   await button(page, 'Looks good').click();
   await sawToast(page, `Looks good · sent to ${TOM}`);
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(button(page, 'Versions and history')).toBeVisible();
   expect(await screenText(page)).toMatch(/Peer check\s+looks good/);
   await expectSent(page, world());
@@ -176,7 +175,6 @@ test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await expect(button(page, 'Record a listener retelling, optional')).toBeVisible();
   await primary(page).click();
   await sawToast(page, `Feedback sent to ${TOM}`);
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(button(page, 'Versions and history')).toBeVisible();
   expect(await screenText(page)).toMatch(/Peer check\s+needs changes/);
   await expectSent(page, world());
@@ -724,7 +722,6 @@ test('REV-032 Say each part, then finish the back translation @p0', async ({ pag
   await expect(text(page, 'Next check')).toHaveCount(0);
   await button(page, 'Finish the back translation').click();
   await sawToast(page, 'Back translation published.');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   // Back on the record: there is no page of its own after Done.
   await expect(button(page, 'Versions and history')).toBeVisible();
   await expectSent(page, world());
@@ -743,14 +740,14 @@ test('REV-034 Delete a part of the back translation, then Undo', async ({ page }
   await sayPart(page, 2);
   await button(page, /^Part 2(,|$)/).click();
   await button(page, 'Delete part 2 to say it again').click();
-  await sawToast(page, 'Part 2 deleted.');
   await expect(button(page, 'Part 2, Saying it next')).toBeVisible();
-  await undoToast(page);
+  // No toast offers Undo (decision 134): the Undo arrow beside the red button brings it back.
+  await expect(undoButton(page)).toHaveAttribute('aria-label', 'Undo: Part 2 deleted.');
+  await undoButton(page).click();
   await expect(button(page, /^Part 2, 0:0\d in English/)).toBeVisible();
   await button(page, /^Part 2(,|$)/).click();
   await button(page, 'Delete part 2 to say it again').click();
-  await sawToast(page, 'Part 2 deleted.');
-  await expect(byId(page, 'toast')).toHaveCount(0, { timeout: 15_000 });
+  await expect(button(page, 'Part 2, Saying it next')).toBeVisible();
   await sayPart(page, 2);
 });
 
@@ -935,7 +932,6 @@ test('REV-043 Keep it, say why @p0', async ({ page, browser }) => {
   await field(page, 'Or type it').fill('Verse 12 is at the speed the elders asked for');
   await primary(page).click();
   await sawToast(page, 'Kept · your reason is on the record');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(button(page, 'Versions and history')).toBeVisible();
   await expect(primary(page)).not.toHaveText('Hear the feedback');
   await expectSent(page, world());
@@ -960,8 +956,12 @@ test('REV-044 Undo after keeping', async ({ page }) => {
   await field(page, 'Or type it').fill('The elders chose this speed');
   await primary(page).click();
   await sawToast(page, 'Kept · your reason is on the record');
-  await undoToast(page);
+  // No toast offers Undo (decision 134): History's Undo on the keep, the newest entry, takes it back.
+  await button(page, 'Versions and history').click();
+  await text(page, 'History').click();
+  await visible(page.getByRole('button', { name: 'Undo', exact: true })).first().click();
   await sawToast(page, 'Undone — the feedback is waiting again');
+  await byId(page, 'header-close').click();
   await expect(primary(page)).toHaveText('Hear the feedback');
   await primary(page).click();
   await expect(button(page, 'Record a fix')).toBeVisible();
@@ -1031,10 +1031,14 @@ test('REV-049 Take back a review @p0', async ({ page }) => {
     await button(page, 'Looks good').click();
     await sawToast(page, `Looks good · sent to ${TOM}`);
   };
-  // Right away, from the message.
+  // Right away, from the review itself (no toast offers Undo, decision 134).
   await approve();
-  await undoToast(page);
+  await button(page, 'Versions and history').click();
+  await button(page, /^Reviews by version/).click();
+  await button(page, /^Peer (Review|check) from You$/).click();
+  await button(page, 'Undo').click();
   await sawToast(page, 'Undone.');
+  await openRecord(page, world(), 'P-DRAFT');
   await expect(doCheck(page, 'peer')).toBeVisible();
   // Later, from the check on the passage: the sheet offers Undo on REV's own check only.
   await approve();

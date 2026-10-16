@@ -38,7 +38,14 @@
     "addNote": "Add a note",
     "orTypeIt": "Or type it",
     "sayIt": "Say it",
-    "deleteAsk": "Delete {{name}}?"
+    "deleteAsk": "Delete {{name}}?",
+    "undo": "Undo",
+    "redo": "Redo",
+    "undoWhat": "Undo: {{what}}",
+    "redoWhat": "Redo: {{what}}",
+    "undoneWhat": "Undone: {{what}}",
+    "redoneWhat": "Redone: {{what}}",
+    "redoHelp": "Puts back what Undo took back."
   },
   "time": {
     "justNow": "Just now",
@@ -455,7 +462,8 @@
       "removed": "{{name}} was removed.",
       "publishHelp": "Checks what is missing, then puts it in your organization's library.",
       "problemHelp": "Goes to it, to fix it.",
-      "refHelp": "How the steps' links find it. Link in the text toolbar writes it for you."
+      "refHelp": "How the steps' links find it. Link in the text toolbar writes it for you.",
+      "undoHelp": "Takes back your last change to the guide. Tap again to go further back."
     },
     "details": {
       "replacedFia": "Steps replaced with FIA's six steps.",
@@ -870,8 +878,6 @@
       "byNameHelp": "Makes a code with a name on it, for one person or a group."
     },
     "member": {
-      "putBack": "Put back.",
-      "notPutBack": "Not put back. {{reason}}",
       "isNow": "{{name}} is now {{role}}",
       "removedOrg": "{{name}} removed at organization level",
       "removedLanguage": "{{name}} removed at language level",
@@ -893,7 +899,8 @@
       "removeFromOrg": "Remove from organization",
       "removeFromLanguage": "Remove from language",
       "declineHelp": "Says no to their request to join.",
-      "removeHelp": "Takes away their role here. Undo shows for a moment after."
+      "removeHelp": "Takes away their role here. It asks first; to come back, they join again.",
+      "removeAsk": "Remove {{name}}?"
     },
     "signIn": {
       "notAllowed": "You may not help this person sign in.",
@@ -2061,7 +2068,6 @@
       "bookStarts": "The book starts here",
       "joinWith": "Join with section {{n}}",
       "startHere": "Start a section here",
-      "undo": "Undo",
       "startFrom": "Start from a ready-made way",
       "started": "Section {{n}} starts at {{at}}",
       "joined": "Joined with section {{n}}",
@@ -3875,7 +3881,7 @@
       },
       "actionHelp": {
         "do": "Opens it, to do it yourself now.",
-        "send": "Sends it to whoever usually does it. Undo takes it back.",
+        "send": "Sends it to whoever usually does it. You can withdraw it later.",
         "ask": "Choose a person, a team, or someone without the app.",
         "log": "It happened outside the app: put it on the record.",
         "skip": "Leave this check out. You say why.",
@@ -4224,11 +4230,7 @@
     "toast": {
       "notSaved": "Not saved: {{reason}}",
       "notSavedCode": "Not saved. Something went wrong (code {{code}}).",
-      "notUndone": "Could not undo: {{reason}}",
-      "notUndoneCode": "Could not undo. Something went wrong (code {{code}}).",
-      "announceUndo": "{{message}} Undo available.",
-      "dismissLabel": "{{message}} Dismiss",
-      "undo": "Undo"
+      "dismissLabel": "{{message}} Dismiss"
     },
     "nav": {
       "cannotOpenHere": "That can't be opened from here.",
@@ -4707,14 +4709,7 @@
       "movePartHelp": "Drag up or down to move this part. A part you move loses its verse, so you can give it again.",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "undo": "Undo",
-      "redo": "Redo",
-      "undoWhat": "Undo: {{what}}",
-      "redoWhat": "Redo: {{what}}",
-      "undoHelp": "Takes back your last change to the parts. Tap again to go further back.",
-      "redoHelp": "Puts back what Undo took back.",
-      "undoneWhat": "Undone: {{what}}",
-      "redoneWhat": "Redone: {{what}}"
+      "undoHelp": "Takes back your last change to the parts. Tap again to go further back."
     },
     "quoted": "“{{text}}”",
     "listening": "Listening… {{time}}",
@@ -6834,7 +6829,7 @@
       "languageHelp": "Shows its Bibles below.",
       "nextChapterHelp": "Reads and plays the chapter after this one.",
       "previousChapterHelp": "Reads and plays the chapter before this one.",
-      "removeHelp": "Takes it out of your Bibles on this device. You can undo it.",
+      "removeHelp": "Takes it out of your Bibles on this device. You can add it again here.",
       "searchHelp": "Type a language’s name or code to find its Bibles."
     }
   },
@@ -6874,7 +6869,8 @@
       "used": "{{language}} now starts from {{name}}",
       "startHelp": "Replaces the checks with a ready-made set, to change as you like.",
       "useHelp": "Replaces {{language}}'s checks with these. Undo puts them back.",
-      "pickHelp": "Picks it. Use, at the bottom, then replaces the checks with its own."
+      "pickHelp": "Picks it. Use, at the bottom, then replaces the checks with its own.",
+      "replaceAsk": "Replace {{language}}'s own checks with {{name}}?"
     },
     "gone": "This is no longer one of the language's checks",
     "checkOf": "Check {{n}} · {{language}}",
@@ -6933,11 +6929,11 @@
     "draftDoneHelp": "Keeps these checks for the new language and goes back.",
     "sameTimeOnHelp": "On: it happens alongside {{check}}. Tap so it comes after.",
     "sameTimeOffHelp": "Off: it comes after {{check}}. Tap so both happen at once.",
-    "removePersonHelp": "Takes them off this check. Undo puts them back.",
+    "removePersonHelp": "Takes them off this check. Add people puts them back.",
     "addPeopleHelp": "Choose who does this check. With nobody chosen, anyone can.",
     "editQuestionHelp": "Change the question or its kind, or remove it.",
     "addQuestionHelp": "Write a question reviewers answer at this check.",
-    "unlinkHelp": "Takes it off this check. Undo puts it back.",
+    "unlinkHelp": "Takes it off this check. You can add it again.",
     "addHelpHelp": "Link notes, guides or Bibles reviewers can open at this check.",
     "peopleDoneHelp": "Saves who is on this check.",
     "personOnHelp": "On this check. Tap to take them off.",
@@ -7001,7 +6997,9 @@
     "checkedAtPickHelp": "This check listens to it.",
     "ownCheck": "A check of its own",
     "ownCheckHelp": "Adds a check right after this one that listens to it.",
-    "ownCheckName": "{{name}} check"
+    "ownCheckName": "{{name}} check",
+    "undoHelp": "Takes back your last change to the checks. Tap again to go further back.",
+    "removeAsk": "Remove {{check}}?"
   },
   "lostFiles": {
     "title": "Audio is missing",

@@ -11,7 +11,7 @@ import { alphaMembers, deviceAs, deviceForNew, issueInviteAs, newPerson, quietRe
 import { clientAs, send, signIn } from './fixture';
 import { caughtUp } from './sync-helpers';
 import {
-  back, button, deviceEvents, expect, expectSyncIdle, expectToast, openAs, primary, screenChanged, screenText, syncNow, tab, tabsShown, test, text, undoToast, useWorld
+  back, button, deviceEvents, expect, expectSyncIdle, expectToast, openAs, primary, screenChanged, screenText, syncNow, tab, tabsShown, test, text, useWorld
 } from './support';
 
 const world = useWorld();
@@ -44,8 +44,11 @@ test('PEOPLE-045 A member\'s new role reaches their phone', async ({ page, brows
   const rows = await deviceEvents(trans.page, w.orgId, w.languages.A.languageId);
   expect(rows.filter((r) => r.type === 'v1.VersionPublished' || r.type === 'v1.TakeComposed').length).toBeGreaterThan(0);
 
-  await undoToast(page);
-  await expectToast(page, 'Put back.');
+  // No toast offers Undo (decision 134): TRANS's role is given back the same way it was changed.
+  await text(page, tom).click();
+  await page.getByRole('radio', { name: 'Translator', exact: true }).locator('visible=true').first().click();
+  await primary(page).click();
+  await expectToast(page, `${tom} is now Translator`);
   await syncNow(trans.page);
   await expect.poll(() => tabsShown(trans.page), { timeout: 60_000 }).toEqual(['work', 'map', 'me']);
   await trans.context.close();

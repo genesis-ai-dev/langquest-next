@@ -66,16 +66,17 @@ import { RecordingView } from '../recording/RecordingView';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, didStep, draftToOpen, emptyHistory, labelAt, marksKeepingLabels, marksOf, movedList,
-  redoStep, removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber, undoStep,
+  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, labelAt, marksKeepingLabels, marksOf, movedList,
+  removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber,
   changedParts, historyFits, parsePartsHistory, partsHistoryKey,
   type PartsHistory, type PartsSnap, type RecordTarget, type SlotRow,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
 import { DragScrollContext } from '../recording/useDragRows';
 import { useDragScroll } from '../recording/useDragScroll';
-import { useUndoHistory } from '../recording/useUndoHistory';
-import { forgetUndoHistory } from '../recording/undoHistory';
+import { useUndoHistory } from '../drafts/useUndoHistory';
+import { forgetUndoHistory } from '../drafts/undoHistory';
+import { didStep, emptyHistory, redoStep, undoStep } from '../ui/undoModel';
 import { getReferenceSlides } from '../passage/passageResources';
 import { pendingPassageCards } from '../recording/recordingFlow';
 import { failureMessage } from '../diagnostics/report';
@@ -97,7 +98,8 @@ import { sendToInput } from '../passage/sendTarget';
 import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
 import { useSaveStatus } from '../ui/useSaveStatus';
-import { RecorderBar, RecorderFooter, RecorderPane, type Part, type UndoRedoProps } from '../recording/recorder';
+import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../recording/recorder';
+import type { UndoRedoProps } from '../ui/undoRedo';
 import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote } from '../helps/reference';
 import { useBible } from '../helps/useBible';
 import { useUsage } from '../sources/useUsage';
@@ -128,7 +130,7 @@ const say = (message: string) => AccessibilityInfo.announceForAccessibility(mess
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
-  // Writing the passage instead of recording it (decisions.md 134).
+  // Writing the passage instead of recording it (decisions.md 135).
   if (ctx.params['write'] === '1') return <WritingWorkspace key={`${v.unitId}:${v.languageId}:write`} ctx={ctx} v={v} mode={{ kind: 'version' }} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
@@ -144,7 +146,7 @@ function Missing(props: { ctx: Ctx; title: string; text?: string }) {
   );
 }
 
-/** A step whose result is the passage's next version (a final recording, decisions.md 134): what it is made from. */
+/** A step whose result is the passage's next version (a final recording, decisions.md 135): what it is made from. */
 interface MakingVersion { kindId: string; name: string; fromTakeId: string; requestId?: string }
 
 function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: MakingVersion }) {
@@ -162,7 +164,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // one from the latest version. `root` names the draft once it is saved;
   // `tip` is its newest take seen here, which the next change continues.
   const fromParam = making ? undefined : ctx.params['from'];
-  // A final recording starts empty: it is said again, not edited (decisions.md 134).
+  // A final recording starts empty: it is said again, not edited (decisions.md 135).
   const fresh = ctx.params['fresh'] === '1' || !!making;
   const mine = useMemo(() => draftsBy(p, me), [p, me]);
   const draftId = ctx.params['draftId'];
@@ -181,7 +183,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // What the draft started from: a version's parts, or nothing.
   const startFrom = draft || tipRef.current ? (draft?.basedOnTakeId ?? (rootRef.current ? state.takes[rootRef.current]?.parentTakeId ?? undefined : undefined))
     : fromParam && state.submissions[fromParam] ? fromParam : fresh ? undefined : latest?.takeId;
-  // A written version is a version to say again, not parts to keep (decision 134): recording from it starts empty.
+  // A written version is a version to say again, not parts to keep (decision 135): recording from it starts empty.
   const startCards = startFrom && partsMedium(state.takes[startFrom]?.cardHashes ?? []) === 'recording' ? state.takes[startFrom]?.cardHashes : undefined;
   /** What the next change continues: this draft's newest take, else what it starts from. */
   const parentNow = useCallback(() => (tipRef.current && stateRef.current.takes[tipRef.current] ? tipRef.current : startFrom ?? null), [startFrom]);
@@ -454,7 +456,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
       const changedNow = changedParts(now, step.to);
       setJustSaid(new Set(changedNow));
       if (changedNow[0]) setShow({ hash: changedNow[0], at: Date.now() });
-      say(step.what ? t(which === 'undo' ? 'recording.recorder.undoneWhat' : 'recording.recorder.redoneWhat', { what: step.what })
+      say(step.what ? t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what })
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
       setCleared(wasCleared);
@@ -614,10 +616,9 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
     let specs: EventSpec[];
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
     let message = t('translate.versionPublished', { n: nextN });
-    let requestId: string | undefined;
     try {
       const c = commands(state, idx);
-      // A step that makes the next version (a final recording) says which step made it (decisions.md 134).
+      // A step that makes the next version (a final recording) says which step made it (decisions.md 135).
       specs = making
         ? c.makeVersion({
           commandId, unitId, kindId: making.kindId, fromTakeId: making.fromTakeId, cardHashes: list, actorId: me, parentTakeId: draft?.takeId ?? parentNow(),
@@ -630,10 +631,9 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
       if (canTie) specs = [...specs, ...tieTermsSpecs(state, specs, tied, commandId)];
       const takeId = specs.find((x) => x.type === 'v1.TakeSubmitted')?.payload as { takeId: string } | undefined;
       if (takeId) specs = [...specs, ...c.referencesUsed({ commandId, unitId, takeId: takeId.takeId, items: usage.items() })];
-      // Sent on in the same write, so it is never published and forgotten (one Undo takes the asking back).
+      // Sent on in the same write, so it is never published and forgotten (History's Withdraw takes the asking back).
       if (ask && 'kindId' in ask && sendTo) {
         const asked = c.ask({ ...sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }), ...(ask.questions.length ? { questions: ask.questions } : {}) });
-        requestId = (asked.find((x) => x.type === 'v1.RequestMade')?.payload as { requestId: string } | undefined)?.requestId;
         specs = [...specs, ...asked];
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
       }
@@ -643,8 +643,8 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
     }
     setPublishing(true);
     try {
-      const undo = requestId ? () => { const now = ctx.language.state ?? state; return commands(now, indexesFor(now)).withdrawRequest({ commandId: Crypto.randomUUID(), requestId: requestId! }); } : undefined;
-      await ctx.act(specs, message, undo);
+      // Taken back from the record's History (Withdraw), not a toast (decision 134).
+      await ctx.act(specs, message);
       // Done: the draft is over, and so is its undo history.
       if (historyKey) forgetUndoHistory(historyKey);
       // The voice note said on the Done screen was kept while uploads waited: send it now.
@@ -811,7 +811,7 @@ export function BackTranslation(ctx: Ctx) {
 }
 
 /**
- * A step that makes something (decisions.md 134): turn the latest version,
+ * A step that makes something (decisions.md 135): turn the latest version,
  * or what an earlier step made, into recording or writing, in the team's
  * language or another. When the step lets the person pick, they say which
  * first. Writing opens the writing workspace; recording, the back
@@ -820,7 +820,7 @@ export function BackTranslation(ctx: Ctx) {
 function Making({ ctx, v, kind }: { ctx: Ctx; v: PassageView; kind: KindDef }) {
   const makes = kind.makes!;
   const [picked, setPicked] = useState<'recording' | 'writing' | null>(null);
-  // Changing what a step added to a version opens on that version (decision 134). A step that adds
+  // Changing what a step added to a version opens on that version (decision 135). A step that adds
   // works on the version it counts for: the latest, or, before a step that makes a newer one, the one before.
   const stepIndex = v.p.flow.steps.findIndex((st) => st.kindIds.includes(kind.id));
   const onVersion = v.p.versions.find((x) => x.takeId === ctx.params['fromTakeId'])

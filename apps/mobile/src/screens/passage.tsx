@@ -41,7 +41,7 @@ import {
   type OutcomeTone
 } from '../passage/reviewModel';
 import {
-  hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText, undoNote
+  hasWords, keepInput, keepPageInput, noteInput, overrideInput, skipInput, undoneText
 } from '../passage/recordInputsModel';
 import { VersionsPage } from '../passage/versions';
 import { deleteVersion } from '../passage/deleteVersion';
@@ -118,17 +118,10 @@ function canGo(ctx: Ctx, from: ScreenId, to: ScreenId): boolean {
  * Build a command's events against the fold and apply them. A command the
  * fold refuses says why in a toast instead of throwing; anything else is a
  * fault, reported with an id the person can read out. A failed write was
- * already shown by ctx.act. `undo` builds the inverse from the specs that
- * were applied (their ids).
+ * already shown by ctx.act. The toast offers no Undo (decision 134): what is
+ * done here is taken back from the record's History (Undo, Withdraw).
  */
-async function perform(
-  ctx: Ctx,
-  build: (c: Commands) => EventSpec[],
-  message: string,
-  undo?: (applied: EventSpec[]) => (c: Commands) => EventSpec[],
-  /** What Undo says once it has undone (ctx.act's default is "Undone."). */
-  undone?: string
-): Promise<boolean> {
+async function perform(ctx: Ctx, build: (c: Commands) => EventSpec[], message: string): Promise<boolean> {
   const state = ctx.language.state;
   if (!state) return false;
   let specs: EventSpec[];
@@ -140,10 +133,7 @@ async function perform(
     return false;
   }
   try {
-    await ctx.act(specs, message, undo ? () => {
-      const now = ctx.language.state ?? state;
-      return undo(specs)(commands(now, indexesFor(now)));
-    } : undefined, undone);
+    await ctx.act(specs, message);
     return true;
   } catch (e) {
     // ctx.act already said "Not saved"; only the caller's busy state is left to reset.
@@ -151,9 +141,6 @@ async function perform(
     return false;
   }
 }
-
-/** Undo of a departure: the step, checkpoint or feedback is back as it was (CORE-2). */
-const undoDepart = (applied: EventSpec[]) => (c: Commands) => c.undoDeparture({ commandId: newId(), departureId: payloadField(applied, 'departureId') });
 
 function Missing(props: { ctx: Ctx; id: ScreenId; crumbsOf?: PassageView; text?: string }) {
   const { ctx } = props;
@@ -305,8 +292,7 @@ export function PassageRecord(ctx: Ctx) {
     setOpenStepId(null);
     const label = sendTargetLabel(target, ctx.name);
     void perform(ctx, (c) => c.ask({ ...sendToInput({ commandId: newId(), unitId, kindId, target }), ...(questions.length ? { questions } : {}) }),
-      sentText(target, label),
-      (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
+      sentText(target, label));
   };
   /** Carry out a move the record's models decided (recordModel.ts `RecordMove`). */
   const doMove = (mv: RecordMove) => {
@@ -331,7 +317,7 @@ export function PassageRecord(ctx: Ctx) {
 
   // ---- the path ----
   const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
-  // A passage goes on the way its latest version was made, else the way the language leads (decision 134).
+  // A passage goes on the way its latest version was made, else the way the language leads (decision 135).
   const media = mediaAllowed(v.state);
   const lead = p.latest && media[p.latest.medium] ? p.latest.medium : leadMedium(v.state);
   const other = media.recording && media.writing ? (lead === 'writing' ? 'recording' : 'writing') : null;
@@ -394,7 +380,7 @@ export function PassageRecord(ctx: Ctx) {
             const { kindId, stepId } = skipping;
             setSkipping(null);
             void perform(ctx, (c) => c.depart(skipInput({ commandId: newId(), unitId, kindId, stepId, reason: r })),
-              t('passage.page.skip.done', { kind: nameOf(kindId) }), undoDepart);
+              t('passage.page.skip.done', { kind: nameOf(kindId) }));
           }} />
       ) : null}
       {overriding ? (
@@ -405,7 +391,7 @@ export function PassageRecord(ctx: Ctx) {
             const stepId = overriding;
             setOverriding(null);
             void perform(ctx, (c) => c.depart(overrideInput({ commandId: newId(), unitId, stepId, reason: r })),
-              t('passage.page.override.done'), undoDepart);
+              t('passage.page.override.done'));
           }} />
       ) : null}
       {noting ? <AddNoteSheet ctx={ctx} v={v} say={noting === 'say'} onClose={() => setNoting(null)} /> : null}
@@ -642,7 +628,7 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
       onConfirm={(r) => {
         props.onClose();
         void perform(ctx, (c) => c.depart(keepInput({ commandId: newId(), unitId: v.unitId, reviewId: props.reviewId, reason: r })),
-          t('passage.keep.done'), undoDepart, t('passage.page.undone.keep'));
+          t('passage.keep.done'));
       }} />
   );
 }
@@ -655,7 +641,7 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; sa
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
-    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'), undoNote);
+    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'));
     setBusy(false);
     if (ok) { await draft.clear(); props.onClose(); }
   };
@@ -683,7 +669,7 @@ function KindActionRow(props: {
   compact: boolean;
   onAction: (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => void;
   onMore: () => void;
-  /** Open what a making step made: the made thing, or the version it made (decision 134). */
+  /** Open what a making step made: the made thing, or the version it made (decision 135). */
   onOpenMade?: (m: { madeId?: string; takeId?: string }) => void;
 }) {
   const { row, step } = props;
@@ -764,7 +750,7 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
   const { v } = props;
   const [shown, setShown] = useState(GRID_STEP);
   // Steps that make something are columns of what they made, a version they made among it (a final
-  // recording); what no step made (v2's) gets a column only where some exists (decision 134).
+  // recording); what no step made (v2's) gets a column only where some exists (decision 135).
   const made = madeGrid(v.p);
   const makingIds = [...new Set([...props.kindIds.filter((id) => !!v.kind(id).makes), ...made.columns.flatMap((c) => (c.kindId ? [c.kindId] : []))])];
   const madeColumns: MadeColumn[] = [
@@ -949,7 +935,7 @@ export function VersionDetail(ctx: Ctx) {
   const gone = p.deletedVersions.find((x) => x.takeId === version.takeId);
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
-  // What was made from this version, by steps or brought over (decision 134); it stays here, never out of date.
+  // What was made from this version, by steps or brought over (decision 135); it stays here, never out of date.
   // What a step added to it (words for a recording) is part of it, and shows with it.
   const made = p.made.filter((m) => !m.added && madeVersionOf(p, m) === version.takeId);
   const added = addedTo(p, version);
@@ -990,7 +976,7 @@ export function VersionDetail(ctx: Ctx) {
       <SectionLabel label={version.medium === 'writing' ? t('writing.version.words') : t('passage.version.recording')} />
       <Authored ctx={ctx} by={version.by}>
         {version.medium === 'writing' ? (
-          // A written version reads verse by verse (decision 134).
+          // A written version reads verse by verse (decision 135).
           <WrittenReader ctx={ctx} state={v.state} unitId={unitId} parts={version.cardHashes} verseKeys={verseKeys} />
         ) : (
           <VersionRecording ctx={ctx} state={v.state} unitId={unitId} title={title} hashes={version.cardHashes} />
@@ -1065,7 +1051,7 @@ export function VersionDetail(ctx: Ctx) {
 }
 
 /**
- * What a step added to a version (decision 134; demo wJoinVersion): its words
+ * What a step added to a version (decision 135; demo wJoinVersion): its words
  * read verse by verse with the recording, or the recording added to
  * writing. Approved with them when a check after they were added looked
  * good; changing them later keeps the approval, and says so.
@@ -1107,7 +1093,7 @@ function AddedSection(props: { ctx: Ctx; v: PassageView; version: Version; added
   );
 }
 
-// ---- made_detail (decision 134): something made from a version ------------------------------
+// ---- made_detail (decision 135): something made from a version ------------------------------
 
 export function MadeDetail(ctx: Ctx) {
   return <MadeDetailScreen {...ctx} />;
@@ -1137,7 +1123,7 @@ function KeepPage(props: { ctx: Ctx; v: PassageView; review: ReviewView; source:
   const keep = async () => {
     setBusy(true);
     const ok = await perform(ctx, (c) => c.depart(keepPageInput({ commandId: newId(), unitId: v.unitId, reviewId: review.id, text, hash })),
-      t('passage.keep.done'), undoDepart, t('passage.page.undone.keep'));
+      t('passage.keep.done'));
     setBusy(false);
     if (ok) ctx.back();
   };
@@ -1376,8 +1362,7 @@ export function AskSomeone(ctx: Ctx) {
     if (!ready) return;
     setBusy(true);
     const ok = await perform(ctx, (c) => c.ask(askInput({ commandId: newId(), unitId: v.unitId, what, model, picks, channel, note, noteHash, questions })),
-    askDoneText(model),
-    (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
+    askDoneText(model));
     setBusy(false);
     if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId, asked: String(Date.now()) });
   };

@@ -293,7 +293,9 @@ test('PASS-034 COORD What helps here (the passage\'s reference)', async ({ brows
     expect(all, all).toContain('Hide here');
     await text(page, 'Hide here').click();
     await expect(byId(page, 'toast')).toContainText('is hidden on this passage.');
-    await byId(page, 'toast-undo').click();
+    // No toast offers Undo (decision 134): the same card's Show here puts it back.
+    await text(page, 'Show here').click();
+    await expect(byId(page, 'toast')).toContainText('shows on this passage again.');
     await expect(text(page, 'Hide here')).toBeVisible();
   }
   await back(page).click();

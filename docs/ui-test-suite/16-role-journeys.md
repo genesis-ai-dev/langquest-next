@@ -107,10 +107,12 @@ Expected:
   - Version 2 is current.
   - The feedback shows as answered.
   - "Hear the feedback" is gone.
-- Step 9: the toast reads "Kept · your reason is on the record" with Undo. On the record, Versions and history shows the departure and its reason.
+- Step 9: the toast reads "Kept · your reason is on the record", with no Undo. On the record, Versions and history → History shows the departure ("Kept after Peer check") and its reason, with "Undo": the way back.
 - REV, after syncing: the Inbox shows both answers ("{TRANS first} revised {P-NEEDS}" and "{TRANS first} kept {P-SUBMITTED} as is", with the reason), and P-NEEDS offers "Do the peer check" on Version 2.
 - Decided (2026-10-13, decisions.md 96): answered feedback keeps the check open, so Version 2 goes back to the peer check, as the record told the translator. The peer check reads "answered · back to the check" until REV passes it.
 - Fixed (2026-10-13): playing the feedback, then leaving for the workspace, logs an unhandled "play() request was interrupted by a call to pause()" (web).
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo on the kept entry brings the feedback back.
 
 ## Reviewer
 
@@ -219,8 +221,8 @@ Steps:
 Expected:
 - Step 1: TRANS sees that the passage is waiting at a checkpoint, and is not offered a way past it.
 - Step 3:
-  - The toast reads "Moved past the checkpoint · reason saved", with Undo.
-  - The record shows the departure with COORD's name and the reason.
+  - The toast reads "Moved past the checkpoint · reason saved", with no Undo.
+  - The record shows the departure with COORD's name and the reason. In Versions and history → History, "Moved past a checkpoint" has "Undo" for COORD: the way back.
 - Step 4: the passage shows as done.
 - Step 5:
   - P-CHECK shows as done in chapter 15's list ("{P-CHECK}. Done").
@@ -229,6 +231,8 @@ Expected:
   - VIEW has no action buttons.
 
 Automation: Maestro `JRN-006.yaml`, one phone, TRANS, COORD and VIEW in turn. It leaves P-CHECK done; in one run it goes after `P0-coordinator-ask-override.yaml`, which undoes its own override.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo brings the checkpoint back.
 
 ### JRN-007 An organization admin starts from nothing
 Roles: NEW (becomes ADMIN of a new org) · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto

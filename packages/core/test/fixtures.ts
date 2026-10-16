@@ -243,7 +243,7 @@ export function buildRecordFixture(): AnyEvent[] {
     { itemId: 'biblebrain.ENGESV', name: 'English Standard Version', kind: 'source', detail: 'ENGESVN1DA', opened: true }] });
   emit('dF', 'bt1', 'v1.ReferencesUsed', { unitId: 'luke1', reviewId: 'rv1', items: [{ itemId: 'guidelines', name: 'Translation Guidelines', kind: 'note', opened: false }] });
 
-  // Writing beside recording (decisions.md 134): two devices write overlapping
+  // Writing beside recording (decisions.md 135): two devices write overlapping
   // verses, a written version is composed, labelled and published; the
   // language's switches are set from two devices; a kind becomes a making
   // step and another reads what it made; things are made from a version,
@@ -272,7 +272,7 @@ export function buildRecordFixture(): AnyEvent[] {
   emit('dB', 't1', 'v1.TakeComposed', { takeId: 'takeFinal', unitId: 'luke1', cardHashes: ['c1', 'c3', 'c4'], parentTakeId: 'take2' });
   emit('dB', 't1', 'v1.TakeSubmitted', { takeId: 'takeFinal' });
   emit('dB', 't1', 'v1.Made', { madeId: 'm4', unitId: 'luke1', kindId: 'polish', fromTakeId: 'take2', takeId: 'takeFinal' });
-  // Words added to the final recording, checked, then changed (decisions.md 134).
+  // Words added to the final recording, checked, then changed (decisions.md 135).
   emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'transcribe', makes: { from: 'recording', to: 'writing', language: 'same', result: 'added' } });
   emit('dB', 't1', 'v1.Made', { madeId: 'm5', unitId: 'luke1', kindId: 'transcribe', fromTakeId: 'takeFinal', added: true, parts: [{ hash: w4.id, durationMs: 0 }, { hash: w5.id, durationMs: 0 }] });
   emit('dC', 'r1', 'v1.ReviewRecorded', { reviewId: 'rvFinal', takeId: 'takeFinal', kindId: 'community', outcome: 'looks_good', via: 'app' });

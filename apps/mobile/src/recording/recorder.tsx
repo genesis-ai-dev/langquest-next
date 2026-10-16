@@ -28,6 +28,7 @@ import { useEnergyHistory } from './useRecorder';
 import { mmss, partLabel, recorderLines, totalMs } from './model';
 import type { RecordTarget, SlotRow } from './workspaceModel';
 import { ChosenMic, GapSlot, InsertMark, PartGrip, RAIL } from './slots';
+import { UndoRedo, type UndoRedoProps } from '../ui/undoRedo';
 import { opensAbove, rowKeys } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
 import { useDragRows } from './useDragRows';
@@ -257,6 +258,9 @@ function Meter(props: { captured: boolean }) {
   );
 }
 
+/** What help mode says the recording screen's Undo and Redo do. */
+const recordingHelp = () => ({ undo: t('recording.recorder.undoHelp'), redo: t('common.redoHelp') });
+
 /** The recorder at one line (a-wsGuide): what is next, how far along, Undo and Redo, and the record button. */
 export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: boolean; onRecord: () => void; onOpen: () => void; nextIndex?: number; undo?: UndoRedoProps }) {
   const lines = { ...recorderLines(props.count), ...(props.nextIndex !== undefined ? { next: partLabel(props.nextIndex) } : {}) };
@@ -269,32 +273,8 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
         <Text style={[txt.smMuted, recording && { color: TINT.redText }]}>{props.phase === 'recording' ? t('recording.recorder.recordingNow') : props.phase === 'listening' ? t('recording.recorder.pausedForBible') : lines.bar}</Text>
         <HelpBadge spot={open} />
       </Pressable>
-      {props.undo ? <UndoRedo {...props.undo} hidden={props.phase !== 'off'} /> : null}
+      {props.undo ? <UndoRedo {...props.undo} hidden={props.phase !== 'off'} help={recordingHelp()} /> : null}
       <RecordBtn size={56} recording={recording} disabled={props.disabled} onPress={props.onRecord} />
-    </View>
-  );
-}
-
-/**
- * Undo and Redo on the recording screen (Caleb, 2026-10-16; the research
- * "Undo and redo in recording": TikTok's and Shopee's voice recorders put
- * them beside the record button). Two arrows that never move: grey when
- * there is nothing to take back or put back, out of the way while the red
- * recording view is open.
- */
-export interface UndoRedoProps { canUndo: boolean; canRedo: boolean; undoWhat?: string; redoWhat?: string; onUndo: () => void; onRedo: () => void }
-
-export function UndoRedo(props: UndoRedoProps & { hidden: boolean; size?: number }) {
-  const size = props.size ?? target_.min;
-  const undoLabel = props.undoWhat ? t('recording.recorder.undoWhat', { what: props.undoWhat }) : t('recording.recorder.undo');
-  const redoLabel = props.redoWhat ? t('recording.recorder.redoWhat', { what: props.redoWhat }) : t('recording.recorder.redo');
-  return (
-    <View style={[styles.undoRedo, props.hidden && { opacity: 0 }]} pointerEvents={props.hidden ? 'none' : 'auto'}
-      accessibilityElementsHidden={props.hidden} importantForAccessibility={props.hidden ? 'no-hide-descendants' : 'auto'}>
-      <IconBtn name="undo" testID="undo" label={undoLabel} help={t('recording.recorder.undoHelp')} bg="transparent" color={C.dark} size={size}
-        disabled={!props.canUndo} onPress={props.onUndo} />
-      <IconBtn name="redo" testID="redo" label={redoLabel} help={t('recording.recorder.redoHelp')} bg="transparent" color={C.dark} size={size}
-        disabled={!props.canRedo} onPress={props.onRedo} />
     </View>
   );
 }
@@ -312,7 +292,7 @@ export function RecorderFooter(props: { count: number; phase: LoopPhase; recordD
   return (
     <View style={styles.footer}>
       <View style={[styles.sideBox, { alignItems: 'flex-end' }]}>
-        <UndoRedo {...props.undo} hidden={session} />
+        <UndoRedo {...props.undo} hidden={session} help={recordingHelp()} />
       </View>
       <RecordBtn size={72} recording={recording} disabled={props.recordDisabled} onPress={props.onRecord} />
       <View style={styles.sideBox}>
@@ -351,7 +331,6 @@ const styles = StyleSheet.create({
   bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, backgroundColor: C.card, borderTopWidth: 1, borderColor: C.border },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
   sideBox: { width: 96 },
-  undoRedo: { flexDirection: 'row', alignItems: 'center' },
   publish: { minHeight: target_.min, borderRadius: radius.md + 2, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.sm },
   publishLabel: { fontSize: T.base, fontWeight: '800', color: C.primary }
 });

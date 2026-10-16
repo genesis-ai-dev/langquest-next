@@ -23,7 +23,7 @@ import {
 } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
 import {
-  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, openAs, openPassage, primary, screenText, syncNow, tab, test, text, undoToast, waitForApp,
+  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, openAs, openPassage, primary, screenText, syncNow, tab, test, text, waitForApp,
   type UiWorld
 } from './support';
 
@@ -353,11 +353,11 @@ test('REC-011 Done, then ask the usual people for the peer check @p0', async ({ 
   await expect(button(page, 'Someone else')).toBeVisible();
   await expect(button(page, 'Send later')).toBeVisible();
   const target = (await primary(page).innerText()).trim().replace(/^Ask /, '');
-  // One tap publishes and asks, with Undo for the asking.
+  // One tap publishes and asks; the asking is taken back from History (Withdraw), not the toast (decision 134).
   await primary(page).click();
   const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   await expectToast(page, new RegExp(`^Sent to ${escaped} — (anyone on it|they) will see it on My Work`));
-  await expect(byId(page, 'toast-undo')).toBeVisible();
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   // Back on the record, which says the version and who was asked; no "published" page in between.
   await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
   await expect.poll(async () => (await pathRows(page)).join('\n')).toMatch(/asked /);
@@ -590,13 +590,18 @@ test('REC-019 Several drafts of one passage', async ({ page }) => {
   await expect(button(page, 'Edit').first()).toBeVisible();
   const before = (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes);
   expect(before).toHaveLength(2);
+  // A whole draft asks first (decision 124); Cancel keeps it, and once deleted there is no Undo.
   await button(page, 'Delete Draft 2').click();
-  await expectToast(page, 'Draft 2 deleted.');
-  await expect(button(page, 'Delete Draft 2')).toHaveCount(0);
-  await undoToast(page);
+  await expect(text(page, 'Delete Draft 2?')).toBeVisible();
+  await button(page, 'Cancel').click();
   await expect(button(page, 'Delete Draft 2')).toBeVisible();
+  await button(page, 'Delete Draft 2').click();
+  await page.getByRole('button', { name: 'Delete Draft 2', exact: true }).locator('visible=true').last().click();
+  await expectToast(page, 'Draft 2 deleted.');
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(button(page, 'Delete Draft 2')).toHaveCount(0);
   await expectUploaded(page, w);
-  await expect.poll(async () => (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes), { timeout: 30_000 }).toEqual(before);
+  await expect.poll(async () => (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes), { timeout: 30_000 }).toEqual([before[0]]);
 });
 
 // ---- Interruptions and field conditions --------------------------------------------

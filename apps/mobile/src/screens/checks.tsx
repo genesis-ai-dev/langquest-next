@@ -2,8 +2,8 @@
 // its own people, questions and helps. `LanguageChecks` (src/checks) is the list (the
 // flow editor for a language's own steps, `flow_editor` with `steps:
 // 'language'`, or New language's draft with `draft: '1'`); `CheckEditor` is
-// one check. Every change saves as it is made, with Undo, like the rest of
-// the app's lists.
+// one check. Every change saves as it is made; the list's header Undo takes a
+// save back, one made here too, and removing a check asks first (decision 134).
 import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, commands, deriveFlow, formatQuestionField, kindOf, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, shownFrom, type CheckHelp, type EventSpec, type KindDef, type LanguageState, type MakesSpec, type OrgState, type QuestionSpec, type ShownWhat } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
@@ -18,6 +18,7 @@ import { Banner, Chip, ChipRow, EmptyState, Field, Group, Header, Ico, IconBtn, 
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { refKindOf } from '../reference/model';
 import { failureMessage } from '../diagnostics/report';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { contractsFor } from '../shell/screenContracts';
 import { C, TINT } from '../ui/theme';
 import { PersonAvatar } from '../ui/UserChip';
@@ -137,6 +138,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const [writing, setWriting] = useState<{ title: string; text: string } | null>(null);
   const [together, setTogether] = useState<string[] | null>(null);
   const [checking, setChecking] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const items = lib.items('material').filter((it) => it.current && !it.archived);
   const docs = useLibraryDocs(lib.orgId, items.map((it) => it.current), { deps: false });
   if (!state || i < 0) return <Gone ctx={ctx} name={name} loading={!state} />;
@@ -199,18 +201,16 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const checkers = rows.filter((r, j) => j !== i && !kindOf(state, r.kindId).produces);
   const checkedByName = kind.produces ? checkName(kind.produces.checkedBy, known) : '';
 
-  // A step that makes something (decisions.md 134): what it turns, into what, in which language, and what happens to it.
+  // A step that makes something (decisions.md 135): what it turns, into what, in which language, and what happens to it.
   const makes = kind.makes;
   const reference = teamLanguage(ctx.org.state, state, languageId);
   const setMakes = (next: MakesSpec) => {
     const s = ctx.language.state;
     if (!s) return;
-    const before = makes;
-    void ctx.act(commands(s, indexesFor(s)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: next }), t('checks.saved', { language }),
-      before ? () => { const now = ctx.language.state; return now ? commands(now, indexesFor(now)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: before }) : []; } : undefined)
-      .catch(() => {});
+    // No Undo: the same choices change it back (decision 134).
+    void ctx.act(commands(s, indexesFor(s)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: next }), t('checks.saved', { language })).catch(() => {});
   };
-  // Words added here, before a step that makes the next version, stay with the older version (decision 134).
+  // Words added here, before a step that makes the next version, stay with the older version (decision 135).
   const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
   // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
   const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);
@@ -285,9 +285,13 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
             <Row icon="arrowR" label={t('checks.checkedAt')} sub={checkedByName} help={t('checks.checkedAtHelp')} onPress={() => setChecking(true)} />
           ) : null}
           <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} help={t('checks.removeCheckHelp')} last
-            onPress={() => { void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((ok) => { if (ok) ctx.back(); }); }} />
+            onPress={() => setRemoving(true)} />
         </Group>
       ) : null}
+      {/* A whole check goes: it asks first, and back on the list its Undo puts it back. */}
+      <ConfirmDelete visible={removing} name={name} title={t('checks.removeAsk', { check: name })} sub={t('checks.checkOf', { n: formatNumber(number), language })}
+        confirmLabel={t('checks.remove')} onClose={() => setRemoving(false)}
+        onConfirm={() => { setRemoving(false); void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((was) => { if (was) ctx.back(); }); }} />
 
       <Sheet visible={together !== null} title={t('checks.sameTimeRow')} sub={name} onClose={() => setTogether(null)}
         footer={<PrimaryBtn label={t('common.done')} help={t('checks.sameTimeDoneHelp')} onPress={() => {

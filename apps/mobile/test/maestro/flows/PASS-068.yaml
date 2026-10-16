@@ -52,8 +52,6 @@ tags:
           text: "Set aside"
           waitToSettleTimeoutMs: 0
       - assertVisible: "Back translation set aside · reason saved"
-      - assertVisible:
-          id: "toast-undo"
       # A note on the passage.
       - tapOn: "Something else\\?"
       - tapOn: "Add a note"

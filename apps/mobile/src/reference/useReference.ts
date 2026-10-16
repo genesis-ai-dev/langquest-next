@@ -11,16 +11,16 @@ import { t } from '../i18n';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { noteExpected } from '../diagnostics/report';
 import * as server from '../server/reference';
-import { recMessage, recState, recUndo, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
+import { recMessage, recWrite, refKindOf, type Level, type RecAction, type RecWrite, type RefKind } from './model';
 import type { TimingPublication } from '@langquest-next/core';
 import { referenceFailure } from './failureModel';
 import { publishTimingJob } from './referenceActions';
 
-async function write(ctx: Ctx, w: RecWrite, message: string, undo?: RecWrite): Promise<boolean> {
+async function write(ctx: Ctx, w: RecWrite, message: string): Promise<boolean> {
   if (w.to === 'language') {
     const spec = (x: RecWrite) => [{ id: Crypto.randomUUID(), type: x.type, payload: x.payload }] as Parameters<Ctx['act']>[0];
     try {
-      await ctx.act(spec(w), message, undo ? () => spec(undo) : undefined);
+      await ctx.act(spec(w), message);
       return true;
     } catch {
       // ctx.act has already said "Not saved" and why.
@@ -33,19 +33,16 @@ async function write(ctx: Ctx, w: RecWrite, message: string, undo?: RecWrite): P
     ctx.toast(t('common.notSaved', { reason: referenceFailure('recommend', e) }));
     return false;
   }
-  if (message) ctx.toast(message, undo ? async () => {
-    try { await ctx.org.append('v1.ReferenceRecommended', undo.payload as { itemId: string; recommended: boolean }); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: referenceFailure('undo recommend', e) })); } // i18n-ignore: 'undo recommend' is a log label
-  } : undefined);
+  if (message) ctx.toast(message);
   return true;
 }
 
-/** Recommend, stop, hide or follow the organization, with Undo. */
+/** Recommend, stop, hide or follow the organization; the same buttons offer the way back. */
 export function useRecommend(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const run = useCallback(async (level: Level, itemId: string, name: string, action: RecAction, quiet = false) => {
     setBusy(true);
-    const before = recState(ctx.org.state?.recommendations, ctx.language.state, level, itemId);
-    const ok = await write(ctx, recWrite(level, itemId, action), quiet ? '' : recMessage(name, action, level), quiet ? undefined : recUndo(before, level, itemId));
+    const ok = await write(ctx, recWrite(level, itemId, action), quiet ? '' : recMessage(name, action, level));
     setBusy(false);
     return ok;
   }, [ctx]);

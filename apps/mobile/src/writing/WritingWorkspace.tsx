@@ -1,4 +1,4 @@
-// Writing a passage (decisions.md 134; demo branch caleb-written-translations,
+// Writing a passage (decisions.md 135; demo branch caleb-written-translations,
 // simple/writing.tsx wWrite, wType, wPublish, wFirstWrite, wBtWrite): the
 // recording workspace's split, with the reference on top and one box per
 // verse below. On top: what is being written from (a version heard verse by
@@ -153,7 +153,6 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
     const commandId = Crypto.randomUUID();
     const sendTo = asked && 'kindId' in asked ? targets[asked.kindId] : undefined;
     let message = mode.kind === 'make' ? t('writing.madePublished', { what: mode.step.name }) : t('writing.versionPublished', { version: versionTitle(nextN) });
-    let requestId: string | undefined;
     let specs: EventSpec[];
     try {
       const w = writingSpecs(state, idx, { commandId, unitId, boxes: shown, verseKeys });
@@ -172,10 +171,9 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
         const of = mode.source.kind === 'version' ? mode.source.version.takeId : madeVersionOf(p, mode.source.made);
         if ((said.text || said.blobHash) && of) specs = [...specs, ...cmd.addNote({ commandId: Crypto.randomUUID(), unitId, anchor: { kind: 'version', takeId: of }, ...said })];
       }
-      // Sent on in the same write, so it is never finished and forgotten (one Undo takes the asking back).
+      // Sent on in the same write, so it is never finished and forgotten (History's Withdraw takes the asking back).
       if (asked && 'kindId' in asked && sendTo) {
         const req = cmd.ask({ ...sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: asked.kindId, target: sendTo }), ...(asked.questions.length ? { questions: asked.questions } : {}) });
-        requestId = (req.find((x) => x.type === 'v1.RequestMade')?.payload as { requestId: string } | undefined)?.requestId;
         specs = [...specs, ...req];
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
       }
@@ -185,8 +183,7 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
     }
     setBusy(true);
     try {
-      const undo = requestId ? () => { const now = ctx.language.state ?? state; return commands(now, indexesFor(now)).withdrawRequest({ commandId: Crypto.randomUUID(), requestId: requestId! }); } : undefined;
-      await ctx.act(specs, message, undo);
+      await ctx.act(specs, message);
     } catch { setBusy(false); return false; /* ctx.act said what went wrong */ }
     await draft.clear();
     ctx.language.triggerUpload();

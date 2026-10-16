@@ -694,12 +694,11 @@ export function PassageReference(ctx: Ctx) {
   }
   const byId = new Map(rows.map((r) => [r.it.itemId, r]));
 
-  async function link(itemId: string, linked: boolean, message: string, undo: boolean | null) {
+  async function link(itemId: string, linked: boolean, message: string) {
     if (busy) return;
     setBusy(true);
-    const spec = (value: boolean) => passageLinkSpec(Crypto.randomUUID(), unitId, itemId, value);
     try {
-      await ctx.act(spec(linked), message, undo === null ? undefined : () => spec(undo));
+      await ctx.act(passageLinkSpec(Crypto.randomUUID(), unitId, itemId, linked), message);
     } catch {
       // ctx.act has already said "Not saved" and why.
     } finally {
@@ -709,7 +708,7 @@ export function PassageReference(ctx: Ctx) {
 
   const cards = helpCards({
     state, unitId, helps: result, ownGuide, canManage, byId, studies, guideFor, verseText, get: docs.get, detail: heldDetail, notes, inApp, termsHere,
-    onLink: (itemId, linked, message, undo) => void link(itemId, linked, message, undo)
+    onLink: (itemId, linked, message) => void link(itemId, linked, message)
   });
 
   const addable = addableHelps(rows, result.here, q);
@@ -748,7 +747,7 @@ export function PassageReference(ctx: Ctx) {
               <Row key={r.it.itemId} icon={refIcon(r.kind!)} label={r.it.name}
                 sub={addableLine(r)} last={i === Math.min(addable.length, 50) - 1} disabled={busy}
                 help={t('reference.passage.placeHelp')}
-                onPress={() => { setAdding(false); void link(r.it.itemId, true, t('reference.passage.placed', { name: r.it.name }), false); }} />
+                onPress={() => { setAdding(false); void link(r.it.itemId, true, t('reference.passage.placed', { name: r.it.name })); }} />
             ))}
           </Group>
         )}
