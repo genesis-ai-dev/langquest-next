@@ -3322,7 +3322,10 @@ LangQuest will do something specific later. So `QUESTION_TEMPLATES`,
 and then the request's, and the library seed no longer publishes LangQuest's
 two question sets (the hosted library keeps them until someone removes
 them there). Someone who manages flows opens the check from the questions
-on the ask page and on Someone else, to change them there.
+on the ask page and on Someone else, to change them there. Changes made
+on a check's page (its people, its helps, what its step shows) say what
+happened without an Undo button (Caleb, 2026-10-16: no timed undo toasts);
+each is reversed the way it was made.
 
 ## 92. A phone writes down the files it keeps, and a file it loses behind the app's back is an alarm
 

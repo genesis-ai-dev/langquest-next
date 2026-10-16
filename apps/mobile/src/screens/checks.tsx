@@ -156,11 +156,8 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
     const commandId = Crypto.randomUUID();
     const specs = [...before, ...checkHelpSpecs(s, { commandId, kindId, help, linked })];
     if (!specs.length) return;
-    const undo = () => {
-      const now = ctx.language.state;
-      return now ? checkHelpSpecs(now, { commandId: `${commandId}:undo`, kindId, help, linked: !linked }) : [];
-    };
-    await ctx.act(specs, linked ? t('checks.helpAdded', { check: name }) : t('checks.helpRemoved', { check: name }), undo).catch(() => {});
+    // No Undo: the help is put back from Add a help (no timed undo toasts, Caleb 2026-10-16).
+    await ctx.act(specs, linked ? t('checks.helpAdded', { check: name }) : t('checks.helpRemoved', { check: name })).catch(() => {});
   }
 
   async function writeNote(w: { title: string; text: string }) {
@@ -343,7 +340,8 @@ function PeoplePage({ ctx }: { ctx: Ctx }) {
     if (!s) return;
     const plan = checkPeopleSpecs(s, { commandId: Crypto.randomUUID(), kindId, people: next, kinds: rows.map((r) => r.kindId), nameOf: (k) => checkName(k, known) });
     if (!plan.specs.length) return;
-    await ctx.act(plan.specs, t('checks.peopleSaved', { check: name, count: next.length }), plan.undo).catch(() => {});
+    // No Undo: whoever was taken off is added back from Add people (no timed undo toasts).
+    await ctx.act(plan.specs, t('checks.peopleSaved', { check: name, count: next.length })).catch(() => {});
   }
   return (
     <Screen header={<Header title={t('checks.people')} sub={name} onBack={ctx.back} />}>
