@@ -2075,7 +2075,7 @@ organization (101).
 
 ## 71. One simpler set of screens for everyone, keeping every capability
 
-Date: 2026-10-08 · By: Caleb Koster · Status: partly superseded by 113
+Date: 2026-10-08 · By: Caleb Koster · Status: partly superseded by 125
 
 Reason: clients who had watched field translators with little or no
 experience with technology preferred Ryder's simplified screens (one task,
@@ -4035,7 +4035,7 @@ that no longer excuses anything is an error.
 
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
-Date: 2026-10-14 · By: Caleb Koster · Status: partly superseded by 113
+Date: 2026-10-14 · By: Caleb Koster · Status: partly superseded by 125
 
 Reason: supersedes 13 in part. Decided 2026-10-12, logged as 106 when it reached main after the restructure. Recording on v3 felt flaky to Caleb, and v2's users had complained
 of parts cut out. The detector was v2's unchanged (13), so the causes were
@@ -4665,7 +4665,7 @@ Reverse if: teams lose work by deleting versions others were relying on
 (then deleting would need the checks to be withdrawn first, or a role), or
 people miss the end of the list as the default place to record.
 
-## 113. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
+## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
 
@@ -4697,10 +4697,10 @@ live demo (2026-10-16):
   (`mic-heard:v1`, `src/mic/heardLevels.ts`) so a session's first words are
   judged right. Microphone setup (its screen, Me's row, the workspace link,
   the "parts are coming out very short" box) is gone; so are the cutoff line
-  and pause chips (already gone with 112's recording view).
+  and pause chips (already gone with 124's recording view).
 - **What is heard shows while recording.** The live waveform boxes each part
   with its number from the moment it starts (`recording/LiveParts.tsx`,
-  built here and carried by 112's PR), with the room as a faint band and
+  built here and carried by 124's PR), with the room as a faint band and
   sound kept in no part shown as not kept; two fingers pinch it nearer or
   farther (about 2 s to 30 s; the bars only grow or shrink).
 - **Tapping stop keeps the last word.** A tapped take runs on until the voice

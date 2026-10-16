@@ -1,7 +1,7 @@
 # 06 · Recording
 
 The recording workspace (`workspace`): the reference on top, the recorder
-below, voice detection that keeps each part by itself (decision 113), verse
+below, voice detection that keeps each part by itself (decision 125), verse
 labels on parts (decision 82), several drafts (decision 83), Publish as a
 screen inside the workspace, and what happens when the field interrupts a
 recording.
@@ -917,19 +917,19 @@ Changed (2026-10-16, decision 124): the amber "Verse 23 · left for later" row a
 ## Microphone setup
 
 ### REC-045 Set up the microphone by ear (retired)
-Retired 2026-10-16: decision 113 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
 
 ### REC-046 Microphone setup when nothing is heard, or every try sounds bad (retired)
-Retired 2026-10-16: decision 113 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
 
 ### REC-047 Adjust the microphone by hand (retired)
-Retired 2026-10-16: decision 113 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
 
 ### REC-048 Microphone setup without microphone permission (retired)
-Retired 2026-10-16: decision 113 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set. REC-020 still covers a refused microphone.
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set. REC-020 still covers a refused microphone.
 
 ### REC-049 Very short parts suggest setting up the microphone (retired)
-Retired 2026-10-16: decision 113 keeps every part with speech in it, a one-word answer included, so there is no "very short" box or "Too short to keep" message; only a tap or a bump makes no part.
+Retired 2026-10-16: decision 125 keeps every part with speech in it, a one-word answer included, so there is no "very short" box or "Too short to keep" message; only a tap or a bump makes no part.
 
 ### REC-050 Reviewers and viewers are not offered recording
 Roles: REV, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
