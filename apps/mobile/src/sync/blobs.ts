@@ -73,7 +73,17 @@ export function mimeOf(format: StoredFormat): string {
 }
 /** Object URLs kept for playback on the web, most recently used last. */
 const URLS_KEPT = 64;
-const nameOf = (ref: StoredFile) => `${ref.hash}.${ref.format}`;
+/**
+ * A hash from an event is any non-empty text to core, and becomes part of a path here: only the 64 hex
+ * characters of a SHA-256 and a format from the list are ever a file name. Anything else (`../x`, a slash,
+ * a stray extension) is a file the store does not have and will not make, read or delete.
+ */
+const HASH_NAME = /^[0-9a-f]{64}$/;
+const safeRef = (ref: { hash: string; format: string }): ref is StoredFile => HASH_NAME.test(ref.hash) && isStoredFormat(ref.format);
+const nameOf = (ref: StoredFile) => {
+  if (!safeRef(ref)) throw new Error('not a file name this store makes');
+  return `${ref.hash}.${ref.format}`;
+};
 /** While the app is in use, the folder is listed again at most this often. */
 const RECHECK_MS = 10 * 60 * 1000;
 /** New files are written down together, this long after the first of them. */
@@ -90,7 +100,7 @@ class FilesLost extends Error {
 function parseName(name: string): StoredFile | null {
   if (name.endsWith(STAGING_SUFFIX)) return null;
   const [hash, ext, more] = name.split('.');
-  return hash && isStoredFormat(ext) && more === undefined ? { hash, format: ext } : null;
+  return hash && HASH_NAME.test(hash) && isStoredFormat(ext) && more === undefined ? { hash, format: ext } : null;
 }
 
 export class BlobStore {
@@ -142,7 +152,7 @@ export class BlobStore {
         // page) leaves it empty. Taken as kept, it would never be downloaded again, and its size would make
         // it an upload the server refuses, so signing out would wait for it forever (WEB-023, 2026-10-14).
         if (hash && size === 0) { await this.files.remove(name).catch(() => undefined); continue; }
-        if (hash) {
+        if (hash && HASH_NAME.test(hash)) {
           this.present.add(hash);
           this.sizeByHash.set(hash, size);
           if (isStoredFormat(ext)) this.formatByHash.set(hash, ext);
@@ -160,7 +170,7 @@ export class BlobStore {
           continue;
         }
         const [hash, ext] = entry.name.split('.');
-        if (hash) {
+        if (hash && HASH_NAME.test(hash)) {
           this.present.add(hash);
           if (entry.size !== null) this.sizeByHash.set(hash, entry.size);
           if (isStoredFormat(ext)) this.formatByHash.set(hash, ext);
@@ -219,6 +229,7 @@ export class BlobStore {
 
   /** Whether this file is stored. On the web the index is the truth: it is marked only after a write commits. */
   exists(ref: StoredFile): boolean {
+    if (!safeRef(ref)) return false;
     return this.dir ? this.fileFor(ref).exists : this.present.has(ref.hash);
   }
 
@@ -227,23 +238,25 @@ export class BlobStore {
     return this.dir ? this.fileFor(ref).size : this.sizeByHash.get(ref.hash) ?? 0;
   }
 
-  /** Native only: the file on disk. */
+  /** Native only: the file on disk. Throws for a name the store does not make (the caller's transfer fails and is tried or dropped as any failure is). */
   fileFor(ref: StoredFile): File {
-    return new File(this.disk(), `${ref.hash}.${ref.format}`);
+    return new File(this.disk(), nameOf(ref));
   }
 
   /** Native only: where a download lands before its bytes are verified. */
   stagingFor(ref: StoredFile): File {
-    return new File(this.disk(), `${ref.hash}.${ref.format}${STAGING_SUFFIX}`);
+    return new File(this.disk(), `${nameOf(ref)}${STAGING_SUFFIX}`);
   }
 
   /** Web only: the bytes to upload. */
   async readBytes(ref: StoredFile): Promise<Uint8Array<ArrayBuffer> | null> {
+    if (!safeRef(ref)) return null;
     return this.web().read(nameOf(this.here(ref)));
   }
 
   /** Web only: keep downloaded bytes the caller has verified against their hash. */
   async putVerified(ref: StoredFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    if (!safeRef(ref)) return;
     if (!this.present.has(ref.hash)) await this.web().write(nameOf(ref), bytes);
     this.markPresent(ref.hash, bytes.byteLength, ref.format);
   }
@@ -310,7 +323,7 @@ export class BlobStore {
   private discard(refs: readonly StoredFile[]): string[] {
     const gone: StoredFile[] = [];
     for (const ref of refs) {
-      if (!this.present.has(ref.hash) || this.removing.has(ref.hash)) continue;
+      if (!safeRef(ref) || !this.present.has(ref.hash) || this.removing.has(ref.hash)) continue;
       // By the name it is stored under, which the index forgets next.
       gone.push(this.here(ref));
       this.unindex(ref.hash);
@@ -377,7 +390,7 @@ export class BlobStore {
     const kept = await ledger.kept();
     const missing: StoredFile[] = [];
     for (const [hash, format] of kept) {
-      if (!this.present.has(hash) && !this.removing.has(hash) && isStoredFormat(format)) missing.push({ hash, format });
+      if (!this.present.has(hash) && !this.removing.has(hash) && HASH_NAME.test(hash) && isStoredFormat(format)) missing.push({ hash, format });
     }
     const fresh: StoredFile[] = [];
     for (const hash of this.present) {
@@ -490,7 +503,7 @@ export class BlobStore {
    * screen that asked while drawing has it for the tap.
    */
   uriFor(asked: StoredFile): string | null {
-    if (!this.present.has(asked.hash)) return null;
+    if (!safeRef(asked) || !this.present.has(asked.hash)) return null;
     if (this.dir) return this.fileFor(asked).uri;
     const ref = this.here(asked);
     const url = this.urls.get(ref.hash);
@@ -580,6 +593,7 @@ export class BlobStore {
 
   /** Called by the downloader once a file is on disk and verified. */
   markPresent(hash: string, size?: number, format?: StoredFormat): void {
+    if (!HASH_NAME.test(hash)) return;
     if (size !== undefined) this.sizeByHash.set(hash, size);
     if (this.present.has(hash)) return;
     if (format) this.formatByHash.set(hash, format);

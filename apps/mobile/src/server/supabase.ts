@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { secureStorage } from './secureStorage';
 import { sessionStorageKey } from './sessionKey';
 import { answerAtOnceWhileOffline, sessionSafeFetch, type RenewalWatch } from './sessionSafeFetch';
 import { signOutThisDevice } from './signOut';
@@ -43,12 +43,12 @@ export const SESSION_KEY = sessionStorageKey(supabaseUrl);
 function clientAt(storageKey: string, autoRefreshToken: boolean) {
   const watch: RenewalWatch = { failedAt: null };
   const client = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { storage: AsyncStorage, storageKey, autoRefreshToken, persistSession: true, detectSessionInUrl: false },
+    auth: { storage: secureStorage, storageKey, autoRefreshToken, persistSession: true, detectSessionInUrl: false },
     global: {
-      fetch: sessionSafeFetch({ anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await AsyncStorage.getItem(storageKey)) !== null })
+      fetch: sessionSafeFetch({ anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await secureStorage.getItem(storageKey)) !== null })
     }
   });
-  answerAtOnceWhileOffline(client.auth, { watch, readSaved: () => AsyncStorage.getItem(storageKey) });
+  answerAtOnceWhileOffline(client.auth, { watch, readSaved: () => secureStorage.getItem(storageKey) });
   return client;
 }
 
@@ -58,7 +58,7 @@ export const supabase = clientAt(SESSION_KEY, true);
 
 /** Sign out of this device only, online or not (signOut.ts, decision 87). */
 export function signOutHere(): Promise<void> {
-  return signOutThisDevice(supabase, AsyncStorage, SESSION_KEY);
+  return signOutThisDevice(supabase, secureStorage, SESSION_KEY);
 }
 
 /**

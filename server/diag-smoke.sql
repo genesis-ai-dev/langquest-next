@@ -79,6 +79,15 @@ do $$ begin
 exception when invalid_parameter_value then null;
 end $$;
 
+-- 2b. Made-up install ids do not lift the daily cap: it is per person too.
+do $$ begin
+  insert into diag.installs (install_id, profile_id, day_count) values ('dg_cap1', 'dg_t1', 5000), ('dg_cap2', 'dg_t1', 5000), ('dg_cap3', 'dg_t1', 5000), ('dg_cap4', 'dg_t1', 5000);
+  if public.diag_ingest('{"installId":"dg_cap5"}', '[{"id":"dgcap","kind":"load","at":1}]') <> 0 then
+    raise exception 'a person past 20000 records today should be refused';
+  end if;
+  delete from diag.installs where install_id like 'dg_cap%';
+end $$;
+
 -- 3. The report functions answer "a translator in this language".
 do $$
 declare v jsonb;

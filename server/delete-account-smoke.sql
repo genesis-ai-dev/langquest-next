@@ -45,6 +45,11 @@ insert into diag.installs (install_id, profile_id) values
 insert into diag.records (id, install_id, delivered_by, kind, at) values
   ('del-test-r1','del-test-install-a','d0000000-0000-0000-0000-00000000000a','sync',now()),
   ('del-test-r2','del-test-install-b','d0000000-0000-0000-0000-00000000000b','sync',now());
+insert into v2_import.arrivals (profile_id, projects) values
+  ('d0000000-0000-0000-0000-00000000000a', '[{"id":"p1","name":"Leaver Project"}]'), ('d0000000-0000-0000-0000-00000000000b', '[]');
+insert into v2_import.people_links (v2_id, next_id, email, confirmed_by) values
+  ('del-test-v2-a', 'd0000000-0000-0000-0000-00000000000a', 'leaver@example.org', 'caleb'),
+  ('del-test-v2-b', 'd0000000-0000-0000-0000-00000000000b', 'stayer@example.org', 'caleb');
 
 -- Signed out, nobody can call it.
 select set_config('request.jwt.claim.sub','',true);
@@ -80,6 +85,10 @@ do $$
 declare a text := 'd0000000-0000-0000-0000-00000000000a'; b text := 'd0000000-0000-0000-0000-00000000000b';
 begin
   if exists (select 1 from auth.users where id::text = a) then raise exception 'sign-in kept'; end if;
+  if exists (select 1 from v2_import.arrivals where profile_id = a) then raise exception 'v2 arrival kept'; end if;
+  if exists (select 1 from v2_import.people_links where next_id = a and (active or email is not null)) then raise exception 'v2 link kept live'; end if;
+  if not exists (select 1 from v2_import.arrivals where profile_id = b) or not exists (select 1 from v2_import.people_links where next_id = b and active)
+    then raise exception 'someone else''s v2 rows went too'; end if;
   if exists (select 1 from public.profiles where id = a) then raise exception 'profile kept'; end if;
   if exists (select 1 from public.push_tokens where profile_id = a) then raise exception 'push token kept'; end if;
   if exists (select 1 from public.push_receipts where token = 'ExponentPushToken[leaver]') then raise exception 'receipt kept'; end if;

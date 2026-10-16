@@ -12,9 +12,18 @@ declare const Deno: {
   env: { get(name: string): string | undefined };
   serve(handler: (request: Request) => Promise<Response>): void;
 };
+/** Compared by digest, so the time taken says nothing about the secret (as apps/web/worker/index.ts does). */
+async function sameSecret(given: string, expected: string): Promise<boolean> {
+  const digest = async (text: string) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+  const [a, b] = await Promise.all([digest(given), digest(expected)]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
+}
+
 Deno.serve(async (request) => {
   const secret = Deno.env.get('PROJECTION_WORKER_SECRET');
-  if (!secret || request.headers.get('x-worker-secret') !== secret) {
+  if (!secret || !(await sameSecret(request.headers.get('x-worker-secret') ?? '', secret))) {
     return new Response('Unauthorized', { status: 401 });
   }
   if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });

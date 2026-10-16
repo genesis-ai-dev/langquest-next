@@ -99,7 +99,8 @@ describe('SupabaseTransport.watch', () => {
     const seen: (string | boolean)[] = [];
     const stop = transport.watch('o', 's', { onPoke: () => seen.push('poke'), onStatus: (up) => seen.push(up) });
     expect(state.name).toBe('events:o/s');
-    expect(state.config).toEqual({ config: { private: false } });
+    // Private: only someone who may read the stream hears its pokes (decisions.md 117).
+    expect(state.config).toEqual({ config: { private: true } });
     state.onStatus!('SUBSCRIBED');
     state.onBroadcast!();
     state.onStatus!('CHANNEL_ERROR');

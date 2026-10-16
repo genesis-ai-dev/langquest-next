@@ -3,11 +3,11 @@
 \set ON_ERROR_STOP on
 begin;
 -- Two people with their own email, two looked-after accounts.
-insert into auth.users (id, email, aud, role) values
-  ('20000000-0000-0000-0000-00000000000a', 'keys-admin@example.org', 'authenticated', 'authenticated'),
-  ('20000000-0000-0000-0000-00000000000b', 'keys-other-admin@example.org', 'authenticated', 'authenticated'),
-  ('20000000-0000-0000-0000-00000000000c', 'nyibol-482@people.langquest.org', 'authenticated', 'authenticated'),
-  ('20000000-0000-0000-0000-00000000000d', 'akol-117@people.langquest.org', 'authenticated', 'authenticated');
+insert into auth.users (id, email, aud, role, raw_app_meta_data) values
+  ('20000000-0000-0000-0000-00000000000a', 'keys-admin@example.org', 'authenticated', 'authenticated', '{}'),
+  ('20000000-0000-0000-0000-00000000000b', 'keys-other-admin@example.org', 'authenticated', 'authenticated', '{}'),
+  ('20000000-0000-0000-0000-00000000000c', 'nyibol-482@people.langquest.org', 'authenticated', 'authenticated', '{"managed": true}'),
+  ('20000000-0000-0000-0000-00000000000d', 'akol-117@people.langquest.org', 'authenticated', 'authenticated', '{"managed": true}');
 -- The organization, its roles, its two admins and one language, in one batch.
 -- Set up as the server would (an import): people here have joined by invite or request (decisions.md 75).
 select set_config('request.jwt.claim.sub','',true);

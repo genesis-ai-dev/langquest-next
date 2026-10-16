@@ -10,6 +10,8 @@ import { serviceClient, type Env } from './env';
 import { publishLangQuestTimings } from './timings';
 import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
+import { ownsResponse, withSecurityHeaders } from './securityHeaders';
+import { liveSessions } from './liveSessions';
 
 export { OrgSnapshot } from './orgSnapshot';
 
@@ -30,6 +32,9 @@ function flushTally(env: Env, ctx: ExecutionContext): void {
   if (run) ctx.waitUntil(jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)(run));
 }
 
+/** One per isolate, so its answers outlive a request. */
+let sessionLive: ((sessionId: string) => Promise<boolean>) | null = null;
+
 /** The dashboard's server: `/api/*` here, everything else is the built page. */
 export default {
   async fetch(request, env, ctx) {
@@ -44,7 +49,9 @@ export default {
     }
     if (route) tally.add(route, response.status);
     flushTally(env, ctx);
-    return response;
+    // The built page gets its headers from the `_headers` file; what the Worker answers itself (the routes in
+    // wrangler's run_worker_first) never passes through it, so it is given the same three here.
+    return ownsResponse(new URL(request.url), request) ? withSecurityHeaders(response) : response;
   },
   // The Worker's cron (wrangler.jsonc, every ten minutes): verse timings
   // asked for LangQuest's own sources (worker/timings.ts), expired device
@@ -106,17 +113,28 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   // Verified here against the project's signing keys when it has
   // asymmetric ones (the keys are fetched once and cached); otherwise
   // supabase-js asks Auth, as getUser did.
+  // A session signed out since (a lost phone, a deleted account) no longer counts (liveSessions.ts).
+  sessionLive ??= liveSessions(async (sessionId) => {
+    const { data, error } = await serviceClient(env).rpc('session_is_live', { p_session: sessionId });
+    if (error) throw new Error(`session_is_live: ${error.message}`);
+    return data === true;
+  });
   const profileOf = async (token: string) => {
     const { data, error } = await serviceClient(env).auth.getClaims(token);
-    return error ? null : data?.claims.sub ?? null;
+    const sub = error ? null : data?.claims.sub ?? null;
+    const sessionId = data?.claims['session_id'];
+    if (sub && typeof sessionId === 'string' && !(await sessionLive!(sessionId))) return null;
+    return sub;
   };
   const recordBlob = async (orgId: string, streamId: string, hash: string, size: number) => {
     const { error } = await serviceClient(env).rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
     if (error) throw new Error(`record_blob: ${error.message}`);
   };
   const orgObject = (orgId: string) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId));
+  const agentStore = supabaseAgentStore(serviceClient(env));
   return handleApi(request, {
     profileOf,
+    orgsOf: (profileId) => agentStore.orgsOf(profileId),
     reports: (orgId, profileId, fresh) => orgObject(orgId).reports(orgId, profileId, fresh),
     bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) },
     languoids: {
@@ -140,7 +158,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       tally: (step, status) => tally.add(step, status)
     },
     agent: {
-      store: supabaseAgentStore(serviceClient(env)),
+      store: agentStore,
       profileOf,
       org: (orgId): OrgStub => {
         const object = orgObject(orgId);

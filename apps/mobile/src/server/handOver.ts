@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SupabaseTransport, type PendingUpload } from '@langquest-next/sync';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BlobStore } from '../sync/blobs';
@@ -6,6 +5,7 @@ import { timedTransfer } from '../diagnostics/diagnostics';
 import { noteExpected } from '../diagnostics/report';
 import { signingOutByChoice } from '../auth/signOutCause';
 import { UploadError, uploadBlob } from './blobTransport';
+import { secureStorage } from './secureStorage';
 import { SESSION_KEY, clientKeptAt, supabase } from './supabase';
 
 /**
@@ -43,11 +43,11 @@ export function keepSessionAndSignOut(actorId: string, keep: () => Promise<void>
     let moved = false;
     await supabase.auth.stopAutoRefresh();
     try {
-      const session = await AsyncStorage.getItem(SESSION_KEY);
+      const session = await secureStorage.getItem(SESSION_KEY);
       if (session) {
-        await AsyncStorage.setItem(sessionKeyFor(actorId), session);
+        await secureStorage.setItem(sessionKeyFor(actorId), session);
         await keep();
-        await AsyncStorage.removeItem(SESSION_KEY);
+        await secureStorage.removeItem(SESSION_KEY);
         moved = true;
       }
       // Nothing is stored now, so this asks the server nothing: it forgets
@@ -69,7 +69,7 @@ export function keepSessionAndSignOut(actorId: string, keep: () => Promise<void>
 export async function keptSession(actorId: string): Promise<'ready' | 'unreachable' | 'gone'> {
   const { data } = await keptClient(actorId).auth.getSession();
   if (data.session) return 'ready';
-  return await AsyncStorage.getItem(sessionKeyFor(actorId)) !== null ? 'unreachable' : 'gone';
+  return await secureStorage.getItem(sessionKeyFor(actorId)) !== null ? 'unreachable' : 'gone';
 }
 
 /** What a delivery attempt does as this person (deliverHandOver in packages/sync). */
@@ -102,5 +102,5 @@ export async function forgetKeptSession(actorId: string, endSession: boolean): P
   sending.delete(actorId);
   if (endSession) await keptClient(actorId).auth.signOut({ scope: 'local' }).catch(() => {});
   kept.delete(actorId);
-  await AsyncStorage.removeItem(sessionKeyFor(actorId));
+  await secureStorage.removeItem(sessionKeyFor(actorId));
 }

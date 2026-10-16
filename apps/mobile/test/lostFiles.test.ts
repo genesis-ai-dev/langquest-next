@@ -222,3 +222,30 @@ describe('a write a reload cut short (WEB-023)', () => {
     expect(store.sizes().has('c'.repeat(64))).toBe(false);
   });
 });
+
+describe('names the store makes', () => {
+  it('never lets a hash from an event become a path', async () => {
+    const { files, web } = folder();
+    const store = await start(web, new MemoryFileLedger());
+    const good = 'e'.repeat(64);
+    for (const hash of ['../x', 'a/b', 'short', 'E'.repeat(64), `${good}.wav`, '']) {
+      const ref = { hash, format: 'wav' as const };
+      store.markPresent(hash, 3, 'wav');
+      expect(store.has(hash), hash).toBe(false);
+      expect(store.exists(ref), hash).toBe(false);
+      expect(store.uriFor(ref), hash).toBeNull();
+      expect(await store.readBytes(ref), hash).toBeNull();
+      await store.putVerified(ref, bytes('abc'));
+      expect(store.remove([ref]), hash).toEqual([]);
+    }
+    // A format outside the list is refused as well.
+    await store.putVerified({ hash: good, format: '../../x' as never }, bytes('abc'));
+    expect(store.has(good)).toBe(false);
+    expect(files.size).toBe(0);
+    // A stray file in the folder is not one of the store's.
+    files.set('notes.txt', bytes('x'));
+    files.set(`..%2Fx.wav`, bytes('x'));
+    const again = await start(web, new MemoryFileLedger());
+    expect(again.snapshot().size).toBe(0);
+  });
+});

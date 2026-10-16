@@ -1297,6 +1297,16 @@ Amended (2026-10-07, Carl Sauder): "Looked-after accounts cannot invite" is
 superseded by 67; their role decides, as for anyone. Helping someone sign
 in still needs an account with its own email.
 
+Amended (2026-10-15, Carl Sauder): a looked-after account is one `join`
+made, not any address at people.langquest.org. Sign-up is open, so anyone
+could make a password account in that domain and be taken as looked-after
+by the server, which lets helpers issue it sign-in codes. `join` now sets
+`app_metadata.managed`, which only the service role can write, and
+`is_managed_account` asks for it as well as the domain (migration
+20261016080000; the accounts already in the domain were all made by `join`
+and are marked there). The phone still tells a looked-after account by its
+domain, which only changes what it shows.
+
 ## 55. Wide windows get a centred column, a side rail or sidebar, and list–detail panes; phones are unchanged
 
 Date: 2026-10-01 · By: Carl Sauder · Status: partly superseded by 58
@@ -1608,6 +1618,22 @@ before. Tests `packages/client/test/courier.test.ts`,
 `apps/mobile/test/handOver.test.ts`.
 Reverse if: kept sessions outlive their work in the field (then they
 expire after a set time), or a phone signs work in as the wrong person.
+
+Amended (2026-10-15, Carl Sauder): the signed-in session and the sessions
+kept here now live in the iOS Keychain and the Android Keystore through
+`expo-secure-store`, not in AsyncStorage; the web build is unchanged and keeps
+the browser's storage, which signing out wipes. A security audit found
+refresh tokens, ours and other people's, in plaintext AsyncStorage, where a
+backup, a rooted phone or a stolen one could read them. A session is longer
+than SecureStore's 2 KB guidance, so `apps/mobile/src/server/secureStorageModel.ts`
+cuts a value into parts and encodes the key; the list of hand-overs holds
+no secret and stays in AsyncStorage. A value found only in the old place
+moves over on its first read, so people already signed in, and hand-overs
+already waiting, survive the upgrade. The Android backup rules keep the
+Keystore-encrypted values out of backups. supabase-js reads its session at
+every request, so values are kept in memory once read; an entry the Keystore
+can no longer read counts as signed out. Test
+`apps/mobile/test/secureStorage.test.ts`.
 
 ## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
 
@@ -4293,3 +4319,132 @@ texts to codes), and a third-party tracker for the Workers (39's reasons
 stand). Reverse if: the volume of `expected` or `audio` records outgrows the
 5000-a-day cap per install, or Play's Data safety review reads recording and
 sign-in outcomes as more than "App info and performance".
+
+## 113. No event may use a name every object already has
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: the fold keys its maps by the ids in events (`state.takes[takeId]`),
+and a security audit showed that a member with `translate` could push
+`v1.TakeArchived { takeId: "__proto__" }`: both validators passed it, and
+folding it set `archived` on Object.prototype, so every object on every
+phone in that language, and in the projection worker, changed, on every
+refold, for good, since the log is append-only. Now no string or key at any
+depth of a payload, and no envelope field, may be one of the names a plain
+object answers to (`OBJECT_MEMBER_NAMES` and `objectMemberNameIn` in
+`packages/core/src/validate.ts`; SQL `_names_object_member`, migration
+20261016020000). The fold runs `validateEvent` first, so an event like
+that already in a log is folded out as invalid. Checking every string, not
+only the fields that are ids, holds future event types without a list to
+keep; the cost is that a note or comment that is exactly one of these
+words, such as "constructor", is refused, while a longer text holding one
+is not. Turned down: maps without a prototype (`Object.create(null)`),
+which every snapshot load would need to rebuild, and checking only the id
+fields. The parity script tries each name in every string field and as a
+key; tests `packages/core/test/objectMemberNames.test.ts`, server smoke 5e.
+Reverse if: a real text payload that is exactly one of these words is
+refused in the field; then check only the fields the folds use as keys.
+
+## 114. How someone joined is the server's to say
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `v1.InviteIssued` and `v1.JoinDecided` were open through
+`append_events` to anyone holding `invite_members`, though only
+`issue_invite_v3` and `decide_join_request` append them, as the server.
+A security audit found that `_joined_by_consent` counts any accepted
+`JoinDecided` naming a person as their consent, and `may_help_sign_in`
+lets a helper issue a sign-in code for a looked-after account that joined
+by consent, so an organization's admin could forge the consent that rule
+asks for. Both are now server-only, as `v1.InviteRedeemed` was: null in
+core's `EVENT_PRIVILEGE` (`packages/core/src/org.ts`) and in SQL
+`event_privilege` (migration 20261016030000). The RPCs keep their own
+`invite_members` checks and are unchanged; no client emitted either event.
+Server smoke: a lead's own JoinDecided and InviteIssued are refused.
+Reverse if: a client must issue invites or decide requests offline; then
+`_joined_by_consent` must instead require a matching row the server wrote.
+
+## 115. An event is at most 64 KB, and an account creates at most 5 organizations a day and 20 in all
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: a security audit found that `append_events` limited a push to 500
+events (invariant 12) but not their size, so one member could push notes
+of many megabytes that every phone in the language must download and fold,
+into a log that never sheds them, and that any account could create
+organizations without end. Now, for signed-in callers, a payload as
+Postgres prints it is at most 64 KB and each envelope field at most 256
+characters (`eventSizeError` and `jsonbTextBytes` in
+`packages/core/src/validate.ts`, SQL `_event_size_refusal`, migration
+20261016040000). A recording's cards, the largest real payload, take about
+120 bytes each. The app refuses to record a bigger event
+(`EventTooLargeError` from `SyncClient.append`), since kept it could never be
+sent; the fold does not check size, so nothing already in a log changes
+meaning. The creation of an organization, the first event of one nobody has
+written to, is refused once its author has created 5 in the last day or 20
+in all (`org_bootstraps`, `_org_creation_refusal`); the service role's
+imports and seeds are exempt. Turned down: a quota on events per day, which
+would refuse a phone pushing weeks of offline work at once, and a size
+measured differently on each side, which would refuse at the server what the
+app had recorded; the parity script holds the two measures together on
+either side of the limit.
+Reverse if: real work needs a bigger event (then split it, as cards are), or
+someone legitimately runs more than 20 organizations (then raise the
+allowance for that account rather than for everyone).
+
+## 116. An event goes on the kind of stream it belongs to
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `append_events` asked whether the author held an event's privilege,
+not whether the event belonged on that stream. A security audit found that
+an organization's events (`RoleDefined`, `MemberAdded`, `InviteIssued`)
+could be written into a language's stream by someone holding the privilege
+there, past the grant checks that run only on the organization stream
+(`_grant_refusal`), and a language's events into the organization stream.
+The folds skip foreign types, so they did nothing yet, but a later fold or
+report that read them would have believed them. Now, for signed-in callers,
+the organization's events (core `ORG_EVENT_TYPES`, SQL `_org_event_types`)
+go only on `_org`, every other event only on a language's stream, and
+`v1.Redacted` on either (migration 20261016050000; the parity script holds
+the two lists together; server smoke 5f). The service role's imports keep
+their own rules.
+Reverse if: an event needs to live on both kinds of stream; then list it
+with `v1.Redacted`.
+
+## 117. A stream's pokes reach only those who may read it
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: `events_notify` broadcast each push's poke on a public Realtime
+channel, `events:<org>/<stream>`, on the reasoning that a poke says only
+that a stream moved. A security audit pointed out that anyone holding the
+publishable key and a stream's name, and organization and language ids are
+not secret, could still watch when and how much a language works. The poke
+is now private: a policy on `realtime.messages` lets a signed-in person hear
+a stream's channel only when `can_read_stream` says they may read it, asked
+through `may_hear_stream`, which answers only for the caller (migration
+20261016090000), and the phone joins with `private: true`
+(`packages/sync/src/supabaseTransport.ts`). Checked on the local stack: a
+member hears the poke and a stranger is refused the channel. An app from
+before this change subscribes to the public channel, hears nothing, and
+falls back to its poll until it updates.
+Reverse if: joining private channels costs phones on weak links noticeably
+more than public ones did.
+
+## 118. A Worker request needs a session that is still live
+
+Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+
+Reason: the Worker verifies access tokens itself (`getClaims`), and a
+verified token stays valid until it expires, an hour, after its session is
+gone. A security audit found that a lost phone signed out from another
+(`sign-in-code`'s "sign out my other phones"), or a deleted account, kept
+reading recordings and reports, and could mint API tokens, until then. Now
+`profileOf` also asks `session_is_live` for the token's `session_id`
+(migration 20261016100000), remembering the answer for 30 seconds per
+isolate so a run of blob requests asks once (`apps/web/worker/liveSessions.ts`).
+When the question cannot be answered, the verified token stands: a
+database hiccup must not sign every phone out.
+Reverse if: the extra query shows in the Worker's latency; then ask only on
+the routes that mint credentials or change data.
