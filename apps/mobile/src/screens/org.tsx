@@ -608,7 +608,7 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
       </View>
       <Pressable testID="org-license" onPress={license.onPress} accessibilityRole="button" style={({ pressed }) => [{ alignSelf: 'flex-start' }, pressed && { opacity: 0.7 }]}
         accessibilityLabel={t('shell.license.rowLabel', { name: licenseText(current).name, short: licenseText(current).short })}>
-        <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{licenseText(current).name}</Text>
+        <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{licenseText(current).name} · {licenseText(current).short}</Text>
         <HelpBadge spot={license} />
       </Pressable>
       <RenameSheet ctx={ctx} visible={open === 'name'} onClose={() => setOpen(null)} current={name}

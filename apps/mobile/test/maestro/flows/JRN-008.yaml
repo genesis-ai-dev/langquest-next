@@ -21,7 +21,7 @@ tags:
 - tapOn:
     id: "tab-manage"
 - assertVisible: "${LANG_A}"
-- assertVisible: "Checks.*"
+- assertVisible: "Review flow.*"
 - assertNotVisible: "New language"
 # Step 2: Invite offers only roles LADMIN holds, in Alpha only.
 - tapOn: "People.*"
@@ -58,7 +58,9 @@ tags:
           id: "header-back"
 - tapOn:
     id: "tab-manage"
-- tapOn: "Checks.*"
+# Alpha's checks: Review flow, then Edit (decision 136).
+- tapOn: "Review flow.*"
+- tapOn: "Edit"
 - tapOn: "1\\. Peer check"
 - tapOn: "Add people"
 - tapOn: ".*${TRANS_NAME}.*"
@@ -66,7 +68,9 @@ tags:
 - extendedWaitUntil:
     visible: "Take ${TRANS_NAME} off this check"
     timeout: 20000
-# Back to the Checks list, then back to Alpha's page where the tab bar is.
+# Back to the Checks list, its Review flow, then Alpha's page where the tab bar is.
+- tapOn:
+    id: "header-back"
 - tapOn:
     id: "header-back"
 - tapOn:

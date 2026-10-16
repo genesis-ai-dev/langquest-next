@@ -65,7 +65,7 @@ test('SETUP-010 Create a language end to end @p0', async ({ page }) => {
   await primary(page).click();
   await expectOnScreen(page, 'Step 4 of 5', `Which languages should ${name}'s Bibles and study guides be in?`);
   // The local library has FIA's English guides and no Bible (no source@1 is seeded), so only the guides are offered.
-  await expectOnScreen(page, new RegExp(`We'll offer .* to ${name}'s translators\\. FIA's guides go with the FIA passages you chose\\. Change that any time under What helps\\.`));
+  await expectOnScreen(page, new RegExp(`We'll offer .* to ${name}'s translators\\. FIA's guides go with the FIA passages you chose\\. Change that any time under Reference material\\.`));
   await primary(page).click();
   await expectToast(page, `${name} added to ${w.orgName}.`);
   await expectOnScreen(page, 'Invite someone', name, 'What will they do?', 'Later');
@@ -125,7 +125,7 @@ test('SETUP-012 Add a language offline, unlinked, and link it later', async ({ p
   await bibleStep(page, { way: 'FIA passages (English)' });
   await finish(page);
   // Offline it is added unlinked; what needs the server to be offered is named, to offer later (decisions 71, 76).
-  await expectToast(page, new RegExp(`^${name} added to ${w.orgName}\\.( Offer .* under What helps once you are online\\.)?`));
+  await expectToast(page, new RegExp(`^${name} added to ${w.orgName}\\.( Offer .* under Reference material once you are online\\.)?`));
   await text(page, 'Later').click();
   await page.context().setOffline(false);
   await languagePage(page, w, name);
@@ -327,7 +327,7 @@ test('SETUP-019 The language of a new team\'s Bibles and guides', async ({ page 
   const none = text(page, 'Nothing in this language yet', false);
   if (await none.count()) {
     await none.click();
-    await expectOnScreen(page, new RegExp(`LangQuest has no Bibles or study guides in .* yet\\. Find a Bible or write notes for ${name}'s translators under What helps\\.`));
+    await expectOnScreen(page, new RegExp(`LangQuest has no Bibles or study guides in .* yet\\. Find a Bible or write notes for ${name}'s translators under Reference material\\.`));
   }
   await text(page, 'Another language').click();
   await page.getByPlaceholder('Search for a language').fill('French');

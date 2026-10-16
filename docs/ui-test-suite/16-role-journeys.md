@@ -247,7 +247,7 @@ Steps:
    - Name it "Community Checker".
    - Turn on "Check recordings" only, and save.
 7. Manage → "Invite people": choose Community Checker (under "Other roles"), then "Show the code to scan".
-8. (Decision 91: Review teams are gone.) Manage → Journey Language → Checks: the Standard Bible Flow's checks are the language's own.
+8. (Decision 91: Review teams are gone.) Manage → Journey Language → "Review flow" → "Edit" (Checks, decision 136): the Standard Bible Flow's checks are the language's own. Until its translators are invited the page is the Get ready checklist, where they show under "Who checks the recordings?" ("In use · your own steps").
 9. Me → More settings → Switch Organization: check that only Journey Org is listed (the account has no other).
 
 Expected:
@@ -269,9 +269,9 @@ Roles: LADMIN · Priority: P1 · Platforms: iOS, Android · Run: Auto
 
 Steps:
 1. Tap the Manage tab.
-2. Open Members, then Invite. Look at the roles offered.
+2. Open People, then Invite. Look at the roles offered.
 3. Make a group code for Translator at Alpha.
-4. (Decision 91: Review teams are gone.) Alpha → Checks → Peer check → "Add people": tick TRANS, then "Done".
+4. (Decision 91: Review teams are gone.) Alpha → "Review flow" → "Edit" (Checks, decision 136) → Peer check → "Add people": tick TRANS, then "Done".
 5. Open the Map tab (All languages).
 6. Open the Inbox from the bell. Look for join requests.
 

@@ -501,7 +501,7 @@ test('SETUP-030 What counts as ready', async ({ page }) => {
 
 // ---- Content templates ---------------------------------------------------------------------------
 
-/** Org home → Setup → Content Templates. */
+/** Org home → Setup → Content templates. */
 async function contentTemplates(page: import('@playwright/test').Page, w: ReturnType<typeof world>): Promise<void> {
   await orgHome(page, w);
   await setup(page);
