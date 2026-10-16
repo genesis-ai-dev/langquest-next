@@ -6,7 +6,7 @@
 // the app's lists.
 import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, commands, deriveFlow, formatQuestionField, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, scopeCovers, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type QuestionSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import { deriveKinds } from '../i18n/coreText';
@@ -29,8 +29,6 @@ import { saveRows } from '../checks/checkActions';
 import { styles } from '../checks/checkStyles';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { SavedMark } from '../ui/SavedMark';
-import { useSaver } from '../ui/useSaveStatus';
 
 // ---- shared parts ------------------------------------------------------------------------
 
@@ -56,14 +54,6 @@ function helpLabel(state: LanguageState, lib: ReturnType<typeof useLibrary>, h: 
 // ---- one check -------------------------------------------------------------------------------
 
 interface QuestionDraft { materialId: string | null; fieldId: string | null; text: string; type: QuestionSpec['type']; required: boolean }
-
-/** Where a question is kept: its set and its field. */
-interface QuestionAt { materialId: string; fieldId: string }
-
-/** A question's words, kind and Required as one string, to tell whether it changed. */
-function questionKey(q: QuestionDraft): string {
-  return JSON.stringify([q.text.trim(), q.type, q.required]);
-}
 
 function questionTypes(): { id: QuestionSpec['type']; label: string; help: string }[] {
   return [
@@ -98,16 +88,6 @@ export function CheckEditor(ctx: Ctx) {
   const [question, setQuestion] = useState<QuestionDraft | null>(null);
   const [helping, setHelping] = useState(false);
   const [writing, setWriting] = useState<{ title: string; text: string } | null>(null);
-  // The question and note sheets keep what they change (decision 111): these say where and what was last kept.
-  const questionSaver = useSaver();
-  const noteSaver = useSaver();
-  const [marked, setMarked] = useState<'question' | 'note' | null>(null);
-  const questionAt = useRef<QuestionAt | null>(null);
-  const questionKept = useRef('');
-  const questionRefused = useRef('');
-  const questionWrites = useRef<Promise<boolean>>(Promise.resolve(true));
-  const noteRefused = useRef('');
-  const noteWriting = useRef(false);
   const look = usePerson();
   const items = lib.items('material').filter((it) => it.current && !it.archived);
   const docs = useLibraryDocs(lib.orgId, items.map((it) => it.current), { deps: false });
@@ -138,135 +118,60 @@ export function CheckEditor(ctx: Ctx) {
     await ctx.act(plan.specs, t('checks.peopleSaved', { check: name, count: next.length }), plan.undo).catch(() => {});
   }
 
-  async function setHelp(help: CheckHelp, linked: boolean, before: EventSpec[] = []): Promise<boolean> {
+  async function setHelp(help: CheckHelp, linked: boolean, before: EventSpec[] = []) {
     const s = ctx.language.state;
-    if (!s) return false;
+    if (!s) return;
     const commandId = Crypto.randomUUID();
     const specs = [...before, ...checkHelpSpecs(s, { commandId, kindId, help, linked })];
-    if (!specs.length) return true;
+    if (!specs.length) return;
     const undo = () => {
       const now = ctx.language.state;
       return now ? checkHelpSpecs(now, { commandId: `${commandId}:undo`, kindId, help, linked: !linked }) : [];
     };
-    return ctx.act(specs, linked ? t('checks.helpAdded', { check: name }) : t('checks.helpRemoved', { check: name }), undo).then(() => true, () => false);
+    await ctx.act(specs, linked ? t('checks.helpAdded', { check: name }) : t('checks.helpRemoved', { check: name }), undo).catch(() => {});
   }
 
-  /** Writes a question, or takes it off, and says where it is kept; throws when it was not (the toast says why). */
-  async function saveQuestion(q: QuestionDraft, remove = false): Promise<QuestionAt> {
+  async function saveQuestion(q: QuestionDraft, remove = false) {
     const s = ctx.language.state;
-    if (!s) throw new Error('no language open'); // i18n-ignore: never shown, the sheet stays open
+    if (!s) return;
     const c = commands(s, indexesFor(s));
     const text = remove ? '' : formatQuestionField({ text: q.text.trim(), type: q.type, ...(q.required ? { required: true } : {}) });
     let specs: EventSpec[];
-    let at: QuestionAt;
     try {
       if (q.materialId && q.fieldId) {
-        at = { materialId: q.materialId, fieldId: q.fieldId };
         specs = c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: q.materialId, fields: [{ fieldId: q.fieldId, text }] });
       } else {
         // The language's set for this check, or a new one made for it.
         const set = Object.entries(s.materials).find(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId && !m.locked.value);
         if (set) {
-          at = { materialId: set[0], fieldId: nextFieldId(Object.keys(set[1].fields)) };
-          specs = c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: at.materialId, fields: [{ fieldId: at.fieldId, text }] });
+          const fieldId = nextFieldId(Object.keys(set[1].fields));
+          specs = c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: set[0], fields: [{ fieldId, text }] });
         } else {
-          at = { materialId: `questions-${Crypto.randomUUID()}`, fieldId: 'q1' };
           specs = c.defineMaterial({
-            commandId: Crypto.randomUUID(), materialId: at.materialId, kind: 'questions',
-            title: t('checks.questionsTitle', { check: name }), scope: { stepId: kindId }, fields: [{ fieldId: at.fieldId, text }]
+            commandId: Crypto.randomUUID(), materialId: `questions-${Crypto.randomUUID()}`, kind: 'questions',
+            title: t('checks.questionsTitle', { check: name }), scope: { stepId: kindId }, fields: [{ fieldId: 'q1', text }]
           });
         }
       }
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('save question', e) })); // i18n-ignore: log label
-      throw e;
+      return;
     }
-    await ctx.act(specs, remove ? t('checks.questionRemoved') : t('checks.questionSaved'));
-    return at;
+    await ctx.act(specs, remove ? t('checks.questionRemoved') : t('checks.questionSaved')).catch(() => {});
   }
 
-  /** Done, ✕ or the backdrop: the people ticked are on the check, with Undo. */
-  function closePeople() {
-    const next = picking ?? people;
-    setPicking(null);
-    void setPeople(next);
-  }
-
-  function openQuestion(q: QuestionDraft) {
-    questionAt.current = q.materialId && q.fieldId ? { materialId: q.materialId, fieldId: q.fieldId } : null;
-    questionKept.current = questionAt.current ? questionKey(q) : '';
-    questionRefused.current = '';
-    setMarked(null);
-    setQuestion(q);
-  }
-  /**
-   * Keeps the question as it is now, once it has words and has changed: the
-   * same write for its words left, a kind or Required chosen, Done or closing the sheet.
-   * Each waits for the one before, so a new question is made once.
-   */
-  function keepQuestion(q: QuestionDraft): Promise<boolean> {
-    const next = questionWrites.current.then(async () => {
-      const key = questionKey(q);
-      if (!q.text.trim() || key === questionKept.current) return true;
-      setMarked('question');
-      const at = await questionSaver.run(() => saveQuestion({ ...q, ...(questionAt.current ?? {}) }));
-      if (!at) { questionRefused.current = key; return false; }
-      questionAt.current = at;
-      questionKept.current = key;
-      // Kept now, so it can be removed.
-      setQuestion((cur) => (cur && !cur.fieldId ? { ...cur, ...at } : cur));
-      return true;
-    });
-    questionWrites.current = next;
-    return next;
-  }
-  function changeQuestion(q: QuestionDraft) {
-    setQuestion(q);
-    void keepQuestion(q);
-  }
-  /** Done, ✕ or the backdrop: keeps a changed question, then closes; one not kept stays open once, saying why. */
-  function closeQuestion() {
-    const q = question;
-    if (!q) return;
-    if (questionKey(q) === questionRefused.current) { setQuestion(null); return; }
-    void keepQuestion(q).then((ok) => { if (ok) setQuestion(null); });
-  }
-  function removeQuestion() {
-    const q = question;
-    if (!q) return;
-    setQuestion(null);
-    void questionWrites.current.then(() => saveQuestion({ ...q, ...(questionAt.current ?? {}) }, true)).catch(() => {});
-  }
-
-  async function writeNote(w: { title: string; text: string }): Promise<boolean> {
+  async function writeNote(w: { title: string; text: string }) {
     const s = ctx.language.state;
-    if (!s) return false;
+    if (!s) return;
     const materialId = `note-${Crypto.randomUUID()}`;
     let define: EventSpec[];
     try {
       define = commands(s, indexesFor(s)).defineMaterial({ commandId: Crypto.randomUUID(), materialId, kind: 'note', title: w.title, scope: {}, fields: [{ fieldId: 'body', text: w.text }] });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('write note', e) })); // i18n-ignore: log label
-      return false;
+      return;
     }
-    return setHelp({ materialId }, true, define);
-  }
-  /** Done, ✕ or the backdrop: a note with a title and words is added to the check, then the sheet closes; one not kept stays open once. */
-  function closeNote() {
-    const w = writing;
-    if (!w || noteWriting.current) return;
-    const key = JSON.stringify([w.title.trim(), w.text.trim()]);
-    if (!w.title.trim() || !w.text.trim() || key === noteRefused.current) { setWriting(null); return; }
-    noteWriting.current = true;
-    setMarked('note');
-    void noteSaver.run(async () => {
-      if (!(await writeNote(w))) throw new Error('note not kept'); // i18n-ignore: never shown, the toast says why
-      return true;
-    }).then((ok) => {
-      noteWriting.current = false;
-      if (ok) setWriting(null);
-      else noteRefused.current = key;
-    });
+    await setHelp({ materialId }, true, define);
   }
 
   // What can be linked: the language's own notes, and the organization's notes, guides and Bibles.
@@ -303,11 +208,11 @@ export function CheckEditor(ctx: Ctx) {
           return (
             <Row key={sq.q.id} icon="chat" label={sq.q.text}
               sub={[type, sq.required ? t('common.required') : '', sq.source === 'org' ? t('checks.fromLangQuest') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
-              {...(editable ? { onPress: () => openQuestion({ materialId: materialId!, fieldId: fieldId!, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
+              {...(editable ? { onPress: () => setQuestion({ materialId: materialId!, fieldId: fieldId!, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
           );
         })}
         {questions.length === 0 && !mayQuestions ? <Row label={t('checks.noQuestions')} last /> : null}
-        {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} help={t('checks.addQuestionHelp')} onPress={() => openQuestion({ materialId: null, fieldId: null, text: '', type: 'yesno', required: false })} last /> : null}
+        {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} help={t('checks.addQuestionHelp')} onPress={() => setQuestion({ materialId: null, fieldId: null, text: '', type: 'yesno', required: false })} last /> : null}
       </Group>
 
       <SectionLabel label={t('checks.helps')} />
@@ -339,8 +244,8 @@ export function CheckEditor(ctx: Ctx) {
         </Group>
       ) : null}
 
-      <Sheet visible={picking !== null} title={t('checks.addPeople')} sub={name} onClose={closePeople}
-        footer={<PrimaryBtn label={t('common.done')} help={t('checks.peopleDoneHelp')} onPress={closePeople} />}>
+      <Sheet visible={picking !== null} title={t('checks.addPeople')} sub={name} onClose={() => setPicking(null)}
+        footer={<PrimaryBtn label={t('common.done')} help={t('checks.peopleDoneHelp')} onPress={() => { const next = picking ?? people; setPicking(null); void setPeople(next); }} />}>
         {eligible.length === 0 ? <Banner icon="people" title={t('checks.nobodyYet')} body={t('checks.nobodyYetBody')} /> : (
           <Group>
             {eligible.map((id, j) => {
@@ -356,25 +261,26 @@ export function CheckEditor(ctx: Ctx) {
         )}
       </Sheet>
 
-      <Sheet visible={question !== null} title={question?.fieldId ? t('checks.editQuestion') : t('checks.addQuestion')} sub={name} onClose={closeQuestion}
-        action={<SavedMark status={marked === 'question' ? questionSaver.status : 'idle'} />}
+      <Sheet visible={question !== null} title={question?.fieldId ? t('checks.editQuestion') : t('checks.addQuestion')} sub={name} onClose={() => setQuestion(null)}
         footer={question ? (
           <>
-            <PrimaryBtn label={t('common.done')} icon="check" help={t('checks.questionDoneHelp')} onPress={closeQuestion} />
-            {question.fieldId ? <RemoveQuestion onPress={removeQuestion} /> : null}
+            <PrimaryBtn label={t('common.save')} icon="check" disabled={!question.text.trim()} onPress={() => { const q = question; setQuestion(null); void saveQuestion(q); }} />
+            {question.fieldId ? (
+              <RemoveQuestion onPress={() => { const q = question; setQuestion(null); void saveQuestion(q, true); }} />
+            ) : null}
           </>
         ) : undefined}>
         {question ? (
           <>
             <Field value={question.text} onChangeText={(text) => setQuestion({ ...question, text })} placeholder={t('checks.questionPlaceholder')} multiline
-              help={t('checks.questionFieldHelp')} onBlur={() => void keepQuestion(question)} />
+              help={t('checks.questionFieldHelp')} />
             <ChipRow>
-              {questionTypes().map((x) => <Chip key={x.id} label={x.label} on={question.type === x.id} help={x.help} onPress={() => changeQuestion({ ...question, type: x.id })} />)}
+              {questionTypes().map((x) => <Chip key={x.id} label={x.label} on={question.type === x.id} help={x.help} onPress={() => setQuestion({ ...question, type: x.id })} />)}
             </ChipRow>
             <Group>
               <Row icon="lock" label={t('common.required')} role="switch" checked={question.required} last
                 right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')}
-                  help={question.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')} onToggle={() => changeQuestion({ ...question, required: !question.required })} />} />
+                  help={question.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')} onToggle={() => setQuestion({ ...question, required: !question.required })} />} />
             </Group>
           </>
         ) : null}
@@ -392,7 +298,7 @@ export function CheckEditor(ctx: Ctx) {
             const on = linked.has(`item:${it.itemId}`);
             return <Row key={it.itemId} icon="note" label={it.name} sub={it.description || undefined} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
           })}
-          {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} help={t('checks.writeNoteHelp')} onPress={() => { setHelping(false); noteRefused.current = ''; setMarked(null); setWriting({ title: '', text: '' }); }} last /> : null}
+          {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} help={t('checks.writeNoteHelp')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
         </Group>
         {library.some((x) => x.kind === 'guide' || x.kind === 'source') ? (
           <>
@@ -408,9 +314,8 @@ export function CheckEditor(ctx: Ctx) {
         ) : null}
       </Sheet>
 
-      <Sheet visible={writing !== null} title={t('checks.writeNote')} sub={name} onClose={closeNote}
-        action={<SavedMark status={marked === 'note' ? noteSaver.status : 'idle'} />}
-        footer={writing ? <PrimaryBtn label={t('common.done')} icon="check" help={t('checks.noteDoneHelp')} onPress={closeNote} /> : undefined}>
+      <Sheet visible={writing !== null} title={t('checks.writeNote')} sub={name} onClose={() => setWriting(null)}
+        footer={writing ? <PrimaryBtn label={t('common.save')} icon="check" disabled={!writing.title.trim() || !writing.text.trim()} onPress={() => { const w = writing; setWriting(null); void writeNote(w); }} /> : undefined}>
         {writing ? (
           <>
             <Field label={t('checks.noteTitle')} value={writing.title} onChangeText={(title) => setWriting({ ...writing, title })} autoCapitalize="sentences" />

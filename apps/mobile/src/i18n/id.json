@@ -36,7 +36,8 @@
     "voiceNote": "Catatan suara",
     "addNote": "Tambah catatan",
     "orTypeIt": "Atau ketik",
-    "sayIt": "Ucapkan"
+    "sayIt": "Ucapkan",
+    "save": "Simpan"
   },
   "time": {
     "justNow": "Baru saja",
@@ -715,7 +716,8 @@
       "languageTitle": "Ganti nama {{name}}",
       "languageSub": "Semua orang di {{org}} melihat nama baru. Kodenya, {{code}}, tetap sama.",
       "takenBody": "{{languages}} sudah memakai nama ini. Dua bahasa dengan satu nama sulit dibedakan.",
-      "rowHelp": "Ubah nama yang dilihat semua orang di sini."
+      "rowHelp": "Ubah nama yang dilihat semua orang di sini.",
+      "save": "Simpan nama"
     },
     "link": {
       "done": "{{name}} ditautkan ke {{linked}}.",
@@ -873,7 +875,8 @@
       "removeFromOrg": "Keluarkan dari organisasi",
       "removeFromLanguage": "Keluarkan dari bahasa",
       "declineHelp": "Menolak permintaannya untuk bergabung.",
-      "removeHelp": "Mencabut perannya di sini. Urungkan muncul sebentar sesudahnya."
+      "removeHelp": "Mencabut perannya di sini. Urungkan muncul sebentar sesudahnya.",
+      "saveAssignment": "Simpan Penugasan"
     },
     "signIn": {
       "notAllowed": "Anda tidak boleh membantu orang ini masuk.",
@@ -1813,8 +1816,9 @@
       "fromLanguages": "Sebutannya dalam bahasa lain di sini",
       "use": "Pakai",
       "useLabel": "Pakai {{name}} ({{from}})",
-      "useHelp": "Memakai nama ini: penerjemah melihatnya mulai sekarang.",
-      "inBoxHelp": "Tanda centang berarti nama ini ada di kotak di atas."
+      "useHelp": "Menaruh nama ini di kotak di atas. Ketuk Simpan untuk menyimpannya.",
+      "inBoxHelp": "Tanda centang berarti nama ini ada di kotak di atas.",
+      "saveHelp": "Menyimpan nama ini: penerjemah melihatnya mulai sekarang."
     },
     "translate": {
       "question": "Apa yang akan diterjemahkan {{language}}?",
@@ -2259,8 +2263,7 @@
       "assignWorkHelp": "Aktif: orang dengan peran ini boleh meminta siapa pun merekam atau memeriksa perikop.",
       "overrideChecksHelp": "Aktif: orang dengan peran ini boleh meloloskan perikop melewati pemeriksaan yang terkunci, dengan alasan.",
       "manageRolesHelp": "Aktif: orang dengan peran ini boleh membuat peran dan mengubah apa yang diizinkan masing-masing.",
-      "addRole": "Tambah peran",
-      "addRoleHelp": "Membuat peran ini dengan pilihan aktif/mati tersebut."
+      "saveHelp": "Menyimpan nama dan pilihan aktif/mati. Semua orang dengan peran ini mendapat perubahannya."
     },
     "library": {
       "followingAuto": "Mengikuti {{name}}. Diperbarui otomatis.",
@@ -3163,9 +3166,9 @@
       "savedBody": "Akan terkirim saat Anda terhubung.",
       "nameHelp": "Nama yang dipakai tim Anda untuk mengenali Anda. Terkirim saat Anda terhubung.",
       "passwordHelp": "Agar Anda bisa masuk lagi setelah orang lain memakai perangkat ini.",
-      "setPassword": "Buat kata sandi",
-      "setPasswordHelp": "Membuat kata sandi ini sekarang, agar Anda bisa masuk kembali dengannya. Memerlukan koneksi.",
-      "passwordSet": "Kata sandi sudah dibuat."
+      "savedWithPassword": "Tersimpan. Anda dapat masuk dengan nama pengguna Anda dan kata sandi ini.",
+      "saved": "Profil tersimpan. Akan disinkronkan saat Anda terhubung.",
+      "save": "Simpan Profil"
     },
     "orgs": {
       "stale": "Tidak dapat memperbarui. Organisasi yang tersimpan tetap tersedia.",
@@ -4258,7 +4261,8 @@
       "done": "Selesai di sini: kembali.",
       "undo": "Mengembalikan yang ada sebelumnya.",
       "tryAgain": "Mencoba sekali lagi.",
-      "quickReason": "Memakai ini sebagai alasan Anda. Anda masih dapat mengubah kata-katanya."
+      "quickReason": "Memakai ini sebagai alasan Anda. Anda masih dapat mengubah kata-katanya.",
+      "save": "Menyimpan yang Anda ubah."
     },
     "tabs": {
       "work": "Apa yang dikerjakan berikutnya: perikop Anda berikutnya, dan yang menunggu Anda.",
@@ -4593,7 +4597,7 @@
       "tryHelp": "Memulai percobaan ini: ucapkan kalimatnya, berhenti sejenak, ucapkan lagi, lalu ketuk berhenti.",
       "tryStopHelp": "Mengakhiri percobaan ini dan menyimpannya, untuk dibandingkan dengan yang lain.",
       "sensitivityHelp": "Batang-batang ini adalah apa yang didengar mikrofon. Tarik garisnya: suara di atas garis akan direkam.",
-      "useSettings": "Pakai pengaturan ini"
+      "saveSettings": "Simpan pengaturan ini"
     },
     "bigVoice": {
       "toggleHelp": "Ketuk untuk mulai bicara, ketuk lagi untuk berhenti.",
@@ -5548,11 +5552,16 @@
       "findCountry": "Cari negara",
       "typeToFind_other": "Ketik untuk mencari {{count, number}} lainnya.",
       "countryHelp": "Membuka daftar negara, untuk memilih di mana pekerjaan bahasa ini dilakukan.",
-      "scopeHelp": "Apa yang dicakup target, di antara tanggal di bawah ini.",
+      "scopeHelp": "Apa yang dicakup target. Lalu atur tanggalnya dan simpan.",
       "startHelp": "Hari dimulainya pekerjaan menuju target.",
       "finishByHelp": "Hari target harus tercapai.",
-      "pickCountryHelp": "Memilih negara ini untuk bahasa ini.",
-      "chosenCountryHelp": "Negara yang dipilih sekarang, dicetak tebal. Ketuk yang lain untuk menggantinya."
+      "pickCountryHelp": "Memilih negara ini. Lalu ketuk Simpan negara untuk menyimpannya.",
+      "chosenCountryHelp": "Negara yang dipilih sekarang, dicetak tebal. Ketuk yang lain untuk menggantinya.",
+      "saved": "Tersimpan.",
+      "saveCountry": "Simpan negara",
+      "saveCountryHelp": "Menyimpan negara ke server sekarang. Memerlukan koneksi.",
+      "saveTarget": "Simpan target",
+      "saveTargetHelp": "Menyimpan target dan tanggalnya ke server sekarang. Memerlukan koneksi."
     },
     "clusters": {
       "title": "Rumpun",
@@ -6704,7 +6713,7 @@
     "addQuestionHelp": "Tulis pertanyaan yang dijawab pemeriksa pada pemeriksaan ini.",
     "unlinkHelp": "Melepaskannya dari pemeriksaan ini. Urungkan mengembalikannya.",
     "addHelpHelp": "Tautkan catatan, panduan, atau Alkitab yang dapat dibuka pemeriksa pada pemeriksaan ini.",
-    "peopleDoneHelp": "Memasukkan orang yang dicentang ke pemeriksaan ini dan menutup ini.",
+    "peopleDoneHelp": "Menyimpan siapa saja yang ada di pemeriksaan ini.",
     "personOnHelp": "Ada di pemeriksaan ini. Ketuk untuk mengeluarkannya.",
     "personOffHelp": "Tidak ada di pemeriksaan ini. Ketuk untuk memasukkannya.",
     "questionFieldHelp": "Apa yang ditanyakan kepada pemeriksa pada pemeriksaan ini.",
@@ -6713,9 +6722,7 @@
     "helpOnHelp": "Ditautkan: pemeriksa dapat membukanya pada pemeriksaan ini. Ketuk untuk melepas tautan.",
     "helpOffHelp": "Ketuk agar pemeriksa dapat membukanya pada pemeriksaan ini.",
     "writeNoteHelp": "Tulis catatan baru, yang ditautkan ke pemeriksaan ini.",
-    "removeCheckHelp": "Mengeluarkan pemeriksaan ini dari tahap-tahap yang dilalui perikop.",
-    "questionDoneHelp": "Memasukkan pertanyaan ke pemeriksaan ini apa adanya dan menutup ini.",
-    "noteDoneHelp": "Menambahkan catatan ke pemeriksaan ini dan menutup ini."
+    "removeCheckHelp": "Mengeluarkan pemeriksaan ini dari tahap-tahap yang dilalui perikop."
   },
   "lostFiles": {
     "title": "Audio hilang",
@@ -6797,7 +6804,8 @@
     "rename": {
       "title": "Ganti nama {{cluster}}",
       "label": "Namanya",
-      "done": "Namanya sekarang {{name}}."
+      "done": "Namanya sekarang {{name}}.",
+      "save": "Simpan"
     },
     "ungroup": {
       "title": "Pisahkan {{cluster}}?",
@@ -6821,7 +6829,8 @@
       "inHelp": "Ada di rumpun ini. Ketuk untuk mengeluarkannya.",
       "outHelp": "Tidak ada di rumpun ini. Ketuk untuk memasukkannya.",
       "newHelp": "Ketik nama: bahasa ini masuk ke rumpun baru dengan nama itu.",
-      "doneHelp": "Menutup ini. Centang langsung berlaku saat Anda mengetuknya; nama yang diketik di bawah membuat rumpun baru."
+      "doneHelp": "Menyimpan rumpun mana saja yang mencakup bahasa ini.",
+      "saved": "Rumpun {{language}} disimpan."
     },
     "newLanguage": {
       "what": "Apa yang Anda tambahkan?",

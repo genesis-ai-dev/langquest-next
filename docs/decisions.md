@@ -4200,7 +4200,7 @@ Reverse if: phones that update while offline need their language on screen
 before they reach the server; then keep the pruned events beside the
 checkpoint until a checkpoint from the new reducer replaces it.
 
-## 111. Nothing has a Save button: work is kept as it is made, private until Done, and Done sends it on
+## 111. What people make has no Save button: it is kept as it is made, private until Done, and Done sends it on
 
 Date: 2026-10-15 · By: Caleb Koster · Status: accepted
 
@@ -4242,8 +4242,12 @@ typed or an editor's changes lived only on the screen. Chosen:
   version answers goes back to its reviewer, a back translation once made
   is done. The "Version N published" page after publishing is gone, since
   asking happened on Done.
-- **Settings apply as they change**, with the same mark: names when the
-  field is left, choices at once, keeping the Undo they had.
+- **Shared settings keep their Save button** (Caleb, 2026-10-16: "we don't
+  want the org name dynamically changing with every stroke for every user
+  in the org"). An organization's or language's name, a cluster, a role's
+  permissions, a member's role, a book's name, a check's questions and
+  people, report targets and a profile name change things for everyone, so
+  they apply only when saved, as before.
 Amends 83: the workspace's Save, which only said the draft was kept, is
 gone; the mark says it. What stays as it was: a draft's events still reach
 the server and teammates' phones (they see "Recording in progress" and
@@ -4253,3 +4257,6 @@ Reverse if: people lose work because a draft lives on one phone (then
 drafts move to the person's own stream, which only they can read), or
 teams want to look a version over before anyone is asked (then Done
 publishes and the asking moves back to the record).
+The passage's "Then the team" checks are cards again, each with its state,
+status and people and space around it: PR 72 had made them one-line rows
+and PR 92 stacked names under them with no room between.

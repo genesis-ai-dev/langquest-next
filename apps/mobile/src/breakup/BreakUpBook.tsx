@@ -7,7 +7,7 @@
 // languages call it (demo ADR-042, `?simple=helpsBookName`).
 import { wayCovers, type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -22,8 +22,6 @@ import { isItself, wayNow, type WayRow } from './model';
 import { BookChangeSheets, PieceBar, PreviewSheet, WayCard } from './parts';
 import { useBookNameChoices, useWays } from './useBreakup';
 import { alsoUsedLine } from './templateNames';
-import { SavedMark } from '../ui/SavedMark';
-import { useSaver } from '../ui/useSaveStatus';
 import { useBookChange } from './useBookChange';
 
 /** The numbering a template is in (decision 80): its versification document's code. */
@@ -45,46 +43,15 @@ export function BookHead(props: {
   const [name, setName] = useState('');
   const choices = useBookNameChoices(ctx, book, naming);
   const title = t('breakup.bookName.title', { language: props.language, book: props.templateName });
-  // The name applies as it is picked, as its field is left, or as the sheet closes (decision 111).
-  const saver = useSaver();
-  const [marked, setMarked] = useState(false);
-  const kept = useRef('');
-  const refused = useRef('');
-  const writing = useRef<Promise<boolean> | null>(null);
-  function startNaming() {
-    setName(own ?? '');
-    setMarked(false);
-    kept.current = own ?? '';
-    refused.current = '';
-    setNaming(true);
-  }
-  function applyName(value: string): Promise<boolean> {
-    if (writing.current) return writing.current.then(() => applyName(value));
-    const trimmed = value.trim();
-    if (!trimmed || trimmed === kept.current) return Promise.resolve(true);
-    setMarked(true);
-    const write = saver.run(async () => {
-      try {
-        await ctx.act([{ id: Crypto.randomUUID(), type: 'v1.BookNameSet', payload: { book, name: trimmed } } as EventSpec], t('breakup.book.namedToast', { language: props.language, name: trimmed }));
-      } catch (e) {
-        refused.current = trimmed;
-        ctx.toast(failureMessage('book name', e));
-        throw e;
-      }
-      kept.current = trimmed;
-      return true;
-    }).then((ok) => ok === true).finally(() => { writing.current = null; });
-    writing.current = write;
-    return write;
-  }
-  function pick(value: string) {
-    setName(value);
-    void applyName(value);
-  }
-  /** ✕ or the backdrop: a new name is kept, then the sheet closes; one not kept stays open once. */
-  function closeNaming() {
-    if (name.trim() === refused.current) { setNaming(false); return; }
-    void applyName(name).then((ok) => { if (ok) setNaming(false); });
+  async function saveName() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try {
+      await ctx.act([{ id: Crypto.randomUUID(), type: 'v1.BookNameSet', payload: { book, name: trimmed } } as EventSpec], t('breakup.book.namedToast', { language: props.language, name: trimmed }));
+      setNaming(false);
+    } catch (e) {
+      ctx.toast(failureMessage('book name', e));
+    }
   }
   return (
     <Card>
@@ -97,22 +64,22 @@ export function BookHead(props: {
       <Group style={{ marginTop: space.md }}>
         <Row icon="edit" label={t('breakup.book.calledIn', { name: own ?? props.templateName, language: props.language })}
           sub={own ? t('breakup.book.templateCalls', { name: props.templateName }) : t('breakup.book.tapToName')} help={t('breakup.book.nameHelp')} last
-          onPress={props.canShape ? startNaming : undefined} />
+          onPress={props.canShape ? () => { setName(own ?? ''); setNaming(true); } : undefined} />
       </Group>
-      <Sheet visible={naming} title={title} sub={t('breakup.bookName.sub')} onClose={closeNaming} action={<SavedMark status={marked ? saver.status : 'idle'} />}>
+      <Sheet visible={naming} title={title} sub={t('breakup.bookName.sub')} onClose={() => setNaming(false)}
+        footer={<PrimaryBtn label={t('common.save')} icon="check" disabled={!name.trim()} help={t('breakup.bookName.saveHelp')} onPress={() => void saveName()} />}>
         <Field value={name} onChangeText={setName} accessibilityLabel={title} autoCapitalize="words"
-          onSubmit={() => void applyName(name)} onBlur={() => void applyName(name)}
           placeholder={choices.bibles.length || choices.languages.length ? t('breakup.bookName.typeOrTap') : props.templateName} />
         {choices.bibles.length ? (
           <>
             <SectionLabel label={t('breakup.bookName.fromBibles')} />
-            <NameChoices rows={choices.bibles} current={name.trim()} onPick={pick} />
+            <NameChoices rows={choices.bibles} current={name.trim()} onPick={setName} />
           </>
         ) : null}
         {choices.languages.length ? (
           <>
             <SectionLabel label={t('breakup.bookName.fromLanguages')} />
-            <NameChoices rows={choices.languages} current={name.trim()} onPick={pick} />
+            <NameChoices rows={choices.languages} current={name.trim()} onPick={setName} />
           </>
         ) : null}
       </Sheet>
@@ -120,7 +87,7 @@ export function BookHead(props: {
   );
 }
 
-/** Names to use, each with who uses it: one tapped is the name now, in the field and ticked. */
+/** Names to fill the field with, each with who uses it; the one in the field is ticked. */
 function NameChoices(props: { rows: { name: string; from: string[] }[]; current: string; onPick: (name: string) => void }) {
   return (
     <Group>
@@ -142,7 +109,7 @@ function NameChoices(props: { rows: { name: string; from: string[] }[]; current:
  * whole Bible, with this book drawn in each. Break up / Change applies to
  * this language and, when the template is shared, to the languages chosen.
  * In the template editor (decision 107) `apply` takes the way instead: the
- * book changes in the template being edited, which that editor publishes, and
+ * book changes in the template being edited, which Save publishes, and
  * `self` is that template, `sub` its name and `extra` what else the editor
  * offers for the book (its name, removing it).
  */

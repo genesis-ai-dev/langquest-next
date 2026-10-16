@@ -36,7 +36,8 @@
     "voiceNote": "语音备注",
     "addNote": "添加备注",
     "orTypeIt": "或者打字输入",
-    "sayIt": "说出来"
+    "sayIt": "说出来",
+    "save": "保存"
   },
   "time": {
     "justNow": "刚刚",
@@ -715,7 +716,8 @@
       "languageTitle": "重命名{{name}}",
       "languageSub": "{{org}}中的所有人都会看到新名称。它的代码 {{code}} 保持不变。",
       "takenBody": "{{languages}}已经用了这个名称。两个语言同名，很难区分。",
-      "rowHelp": "更改这里所有人看到的名称。"
+      "rowHelp": "更改这里所有人看到的名称。",
+      "save": "保存名称"
     },
     "link": {
       "done": "{{name}}已关联到{{linked}}。",
@@ -873,7 +875,8 @@
       "removeFromOrg": "从机构中移除",
       "removeFromLanguage": "从语言中移除",
       "declineHelp": "拒绝对方的加入申请。",
-      "removeHelp": "取消他在这里的角色。之后会短暂显示“撤销”。"
+      "removeHelp": "取消他在这里的角色。之后会短暂显示“撤销”。",
+      "saveAssignment": "保存分配"
     },
     "signIn": {
       "notAllowed": "你不能帮这个人登录。",
@@ -1813,8 +1816,9 @@
       "fromLanguages": "这里的其他语言怎么称呼",
       "use": "使用",
       "useLabel": "使用{{name}}（{{from}}）",
-      "useHelp": "使用这个名称：从现在起译者会看到它。",
-      "inBoxHelp": "勾表示这个名称已经在上面的框里。"
+      "useHelp": "把这个名称填到上面的框里。“保存”会保留它。",
+      "inBoxHelp": "勾表示这个名称已经在上面的框里。",
+      "saveHelp": "保留这个名称：从现在起译者会看到它。"
     },
     "translate": {
       "question": "{{language}}要翻译什么？",
@@ -2259,8 +2263,7 @@
       "assignWorkHelp": "已开启：拥有这个角色的人可以请任何人录制或检查经段。",
       "overrideChecksHelp": "已开启：拥有这个角色的人可以说明原因，让经段越过已锁定的检查。",
       "manageRolesHelp": "已开启：拥有这个角色的人可以创建角色，并更改每个角色允许做的事。",
-      "addRole": "添加角色",
-      "addRoleHelp": "按这些开关创建这个角色。"
+      "saveHelp": "保留名称和各项开关。所有拥有这个角色的人都会得到这项更改。"
     },
     "library": {
       "followingAuto": "正在关注{{name}}。它会自动更新。",
@@ -3163,9 +3166,9 @@
       "savedBody": "联网后会发送。",
       "nameHelp": "你的团队看到的你的名字。联网后会发送。",
       "passwordHelp": "别人用过这台设备后，你可以用它重新登录。",
-      "setPassword": "设置密码",
-      "setPasswordHelp": "现在设置这个密码，以后你可以用它重新登录。需要联网。",
-      "passwordSet": "密码已设置。"
+      "savedWithPassword": "已保存。你可以用你的登录名和这个密码登录。",
+      "saved": "个人资料已保存。联网后会同步。",
+      "save": "保存个人资料"
     },
     "orgs": {
       "stale": "无法刷新。已保存的机构仍然可以使用。",
@@ -4258,7 +4261,8 @@
       "done": "这里完成了：返回。",
       "undo": "恢复之前的内容。",
       "tryAgain": "再试一次。",
-      "quickReason": "用这个作为你的理由。你仍然可以修改文字。"
+      "quickReason": "用这个作为你的理由。你仍然可以修改文字。",
+      "save": "保存你的更改。"
     },
     "tabs": {
       "work": "接下来要做什么：你的下一个经段，以及等着你处理的事。",
@@ -4593,7 +4597,7 @@
       "tryHelp": "开始这次尝试：说这句话，停顿一下，再说一遍，然后点按停止。",
       "tryStopHelp": "结束这次尝试并保存，用来和其他几次比较。",
       "sensitivityHelp": "这些条是麦克风听到的声音。拖动这条线：高于它的声音会被录下来。",
-      "useSettings": "使用这些设置"
+      "saveSettings": "保存这些设置"
     },
     "bigVoice": {
       "toggleHelp": "点按开始说话，再点一次停止。",
@@ -5548,11 +5552,16 @@
       "findCountry": "查找国家",
       "typeToFind_other": "输入文字查找其他 {{count, number}} 个国家。",
       "countryHelp": "打开国家列表，选择这个语言的工作在哪里进行。",
-      "scopeHelp": "目标在下面两个日期之间涵盖的范围。",
+      "scopeHelp": "目标涵盖的范围。然后设置日期并保存。",
       "startHelp": "为这个目标开始工作的日期。",
       "finishByHelp": "应该达成目标的日期。",
-      "pickCountryHelp": "为这个语言选择这个国家。",
-      "chosenCountryHelp": "当前选择的国家，以粗体显示。点按另一个可以更改。"
+      "pickCountryHelp": "选择这个国家。然后点按“保存国家”来保存。",
+      "chosenCountryHelp": "当前选择的国家，以粗体显示。点按另一个可以更改。",
+      "saved": "已保存。",
+      "saveCountry": "保存国家",
+      "saveCountryHelp": "立即把国家保存到服务器。需要联网。",
+      "saveTarget": "保存目标",
+      "saveTargetHelp": "立即把目标及其日期保存到服务器。需要联网。"
     },
     "clusters": {
       "title": "语言群",
@@ -6704,7 +6713,7 @@
     "addQuestionHelp": "写一个审核人在这项检查中要回答的问题。",
     "unlinkHelp": "把它从这项检查中移除。“撤销”可以恢复。",
     "addHelpHelp": "链接审核人在这项检查中可以打开的注释、指南或圣经。",
-    "peopleDoneHelp": "把勾选的人放到这项检查中，然后关闭。",
+    "peopleDoneHelp": "保存这项检查的人员。",
     "personOnHelp": "在这项检查中。点按可以移除。",
     "personOffHelp": "不在这项检查中。点按可以加入。",
     "questionFieldHelp": "审核人在这项检查中被问的问题。",
@@ -6713,9 +6722,7 @@
     "helpOnHelp": "已链接：审核人可以在这项检查中打开它。点按可以取消链接。",
     "helpOffHelp": "点按后，审核人可以在这项检查中打开它。",
     "writeNoteHelp": "写一条新注释，链接到这项检查。",
-    "removeCheckHelp": "把这项检查从经段要经过的步骤中移除。",
-    "questionDoneHelp": "把这个问题按现在的样子放到这项检查中，然后关闭。",
-    "noteDoneHelp": "把这条注释添加到这项检查中，然后关闭。"
+    "removeCheckHelp": "把这项检查从经段要经过的步骤中移除。"
   },
   "lostFiles": {
     "title": "音频丢失了",
@@ -6797,7 +6804,8 @@
     "rename": {
       "title": "重命名 {{cluster}}",
       "label": "名称",
-      "done": "已重命名为 {{name}}。"
+      "done": "已重命名为 {{name}}。",
+      "save": "保存"
     },
     "ungroup": {
       "title": "解散 {{cluster}}？",
@@ -6821,7 +6829,8 @@
       "inHelp": "在这个语言群中。点按可以移出。",
       "outHelp": "不在这个语言群中。点按可以加入。",
       "newHelp": "输入一个名称：它会放入以这个名称命名的新语言群。",
-      "doneHelp": "关闭。点按勾选会立即生效；在下面输入名称会创建一个新语言群。"
+      "doneHelp": "保存它所属的语言群。",
+      "saved": "已保存 {{language}} 的语言群。"
     },
     "newLanguage": {
       "what": "你要添加什么？",

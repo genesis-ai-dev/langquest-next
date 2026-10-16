@@ -102,6 +102,11 @@ function StepRow(props: {
   );
 }
 
+/**
+ * One check by the team, as its own card with space around it: the state's
+ * icon in a round tile, the check's name, what is happening with it, and who
+ * does it. Tapping opens the step's sheet when there is something to do there.
+ */
 function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onPress?: () => void }) {
   const { step } = props;
   const status = props.onPress ? t('passage.path.help.team', { status: step.status }) : t('passage.path.help.teamView', { status: step.status });
@@ -112,18 +117,20 @@ function TeamRow(props: { ctx: Ctx; step: TeamStep; people: string[] | null; onP
   const press = props.onPress || spot.id ? spot.onPress : undefined;
   const icon: IconName = step.state === 'done' ? 'check' : step.state === 'locked' || step.checkpoint ? 'lock' : step.state === 'attention' ? 'chat' : step.state === 'waiting' ? 'clock' : 'people';
   const color = step.state === 'done' ? TINT.greenText : step.state === 'attention' ? TINT.amberText : step.state === 'waiting' ? C.primary : C.faint;
+  const tile = step.state === 'done' ? TINT.green : step.state === 'attention' ? TINT.amber : step.state === 'waiting' ? C.light : C.bg;
   return (
     <Pressable testID={`team-row-${step.kindId}`} onPress={press} disabled={!press} accessibilityRole="button" accessibilityLabel={`${step.name}, ${step.status}`}
-      style={({ pressed }) => [styles.teamRow, pressed && { opacity: 0.7 }]}>
-      <Ico name={icon} size={20} color={color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
+      style={({ pressed }) => [styles.teamCard, pressed && { opacity: 0.7 }]}>
+      <View style={[styles.teamTile, { backgroundColor: tile }]}>
+        <Ico name={icon} size={20} color={color} strokeWidth={step.state === 'done' ? 3 : 2.2} />
+      </View>
       <HelpBadge spot={spot} />
-      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <Text style={styles.teamName}>
-          {step.name}{'  '}
-          <Text style={[txt.smMuted, { fontWeight: '400' }, step.state === 'attention' ? { color: TINT.amberText } : null]}>{step.status}</Text>
-        </Text>
+      <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+        <Text style={styles.teamName}>{step.name}</Text>
+        <Text style={[txt.smMuted, step.state === 'attention' ? { color: TINT.amberText } : null]}>{step.status}</Text>
         {props.people && props.people.length ? <PeopleLine ctx={props.ctx} people={props.people} size={22} /> : null}
       </View>
+      {props.onPress ? <Ico name="right" size={20} color={C.muted} /> : null}
     </Pressable>
   );
 }
@@ -170,7 +177,9 @@ const styles = StyleSheet.create({
   litCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 2, borderColor: C.primary, padding: space.lg, gap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   stepTitle: { fontSize: 19, fontWeight: '800', color: C.dark, flexShrink: 1 },
-  team: { marginTop: space.xl, paddingTop: space.lg, borderTopWidth: 1.5, borderColor: C.border, borderStyle: 'dashed', gap: 2 },
-  teamRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.min },
-  teamName: { fontSize: 17, fontWeight: '700', color: C.dark }
+  team: { marginTop: space.xl, paddingTop: space.lg, borderTopWidth: 1.5, borderColor: C.border, borderStyle: 'dashed', gap: space.sm + 2 },
+  teamCard: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingVertical: space.md, paddingHorizontal: space.md + 2,
+    borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
+  teamTile: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  teamName: { fontSize: 17, fontWeight: '800', color: C.dark }
 });

@@ -246,21 +246,14 @@ export function RoleEditor(ctx: Ctx) {
   const existing = isNew ? undefined : org?.roles[roleId];
   const inherited = !isNew && level !== 'org';
   const readOnly = inherited || !ctx.session.can('manage_roles');
-  // The name as typed; a new role's switches until it is made, an existing role's while their change is on its way.
   const [name, setName] = useState<string | null>(null);
   const [picked, setPicked] = useState<Privilege[] | null>(null);
   const [busy, setBusy] = useState(false);
-  const saver = useSaver();
-  const writing = useRef(0);
-  // The definition on its way, so Enter and then leaving the field write it once.
-  const sending = useRef<string | null>(null);
   const label = name ?? existing?.name.value ?? '';
   const privileges = picked ?? existing?.privileges.value ?? [];
   const holders = useMemo(() => (isNew ? [] : holdersOf(org, roleId)), [isNew, org, roleId]);
   const canAssign = ctx.session.can('assign_work');
-  // Leaving keeps a new name typed and not yet applied (decision 111).
-  const leave = useLatest(() => { if (name !== null) void apply(name, privileges); });
-  useEffect(() => () => leave.current(), [leave]);
+  const dirty = roleDirty(isNew, existing, label, privileges);
 
   if (!isNew && !existing) {
     return (
@@ -270,46 +263,16 @@ export function RoleEditor(ctx: Ctx) {
     );
   }
 
-  /**
-   * An existing role changes as it is changed (decision 111): a switch at
-   * once, the name when its field or the screen is left. Each change is written with Undo; an
-   * empty name is never written.
-   */
-  async function apply(nextName: string, nextPrivileges: Privilege[]) {
-    if (readOnly || !existing) return;
-    const next = roleDefinition(roleId, nextName.trim() || existing.name.value, nextPrivileges);
-    const prev = roleSnapshot(roleId, existing);
-    if (!prev || !roleDirty(false, existing, next.name, next.privileges) || sending.current === JSON.stringify(next)) return;
-    sending.current = JSON.stringify(next);
-    writing.current += 1;
-    setPicked(next.privileges);
-    const ok = await saver.run(async () => {
-      try {
-        await ctx.org.append('v1.RoleDefined', next);
-      } catch (e) {
-        ctx.toast(t('common.notSaved', { reason: failure('save role', e) }));
-        throw e;
-      }
-      return true;
-    });
-    writing.current -= 1;
-    if (sending.current === JSON.stringify(next)) sending.current = null;
-    if (writing.current === 0) setPicked(null);
-    if (!ok) return;
-    setName((n) => (n !== null && n.trim() === next.name ? null : n));
-    ctx.toast(t('config.roleEditor.saved', { name: next.name }), async () => {
-      try { await ctx.org.append('v1.RoleDefined', prev); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: failure('undo role', e) })); }
-    });
-  }
-
-  /** A new role is made once it has a name, with the switches chosen. */
-  async function create() {
+  async function save() {
     if (readOnly || busy || !label.trim()) return;
     const next = roleDefinition(roleId, label, privileges);
+    const prev = roleSnapshot(roleId, existing);
     setBusy(true);
     try {
       await ctx.org.append('v1.RoleDefined', next);
-      ctx.toast(t('config.roleEditor.created', { name: next.name }));
+      ctx.toast(isNew ? t('config.roleEditor.created', { name: next.name }) : t('config.roleEditor.saved', { name: next.name }), prev ? async () => {
+        try { await ctx.org.append('v1.RoleDefined', prev); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: failure('undo role', e) })); }
+      } : undefined);
       ctx.back();
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failure('save role', e) }));
@@ -321,10 +284,9 @@ export function RoleEditor(ctx: Ctx) {
   // The role's permissions as three groups of switches in the admin's words (decision 71, demo ADR-039).
   return (
     <Screen
-      header={<Header title={label || (isNew ? t('config.roleEditor.newRole') : t('config.roleEditor.title'))} sub={isNew ? t('config.roleEditor.aNewRole') : t('config.roleEditor.people', { count: people })} onBack={ctx.back}
-        action={readOnly || isNew ? undefined : <SavedMark status={saver.status} />} />}
+      header={<Header title={label || (isNew ? t('config.roleEditor.newRole') : t('config.roleEditor.title'))} sub={isNew ? t('config.roleEditor.aNewRole') : t('config.roleEditor.people', { count: people })} onBack={ctx.back} />}
       bodyStyle={{ gap: space.sm }}
-      footer={readOnly || !isNew ? undefined : <PrimaryBtn label={t('config.roleEditor.addRole')} icon="plus" help={t('config.roleEditor.addRoleHelp')} onPress={() => void create()} disabled={!label.trim()} busy={busy} />}>
+      footer={readOnly ? undefined : <PrimaryBtn label={t('common.save')} icon="check" help={t('config.roleEditor.saveHelp')} onPress={() => void save()} disabled={!label.trim() || !dirty} busy={busy} />}>
       {inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.inheritedBody')} /> : null}
       {readOnly && !inherited ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.roleEditor.noPermission')} /> : null}
       {isNew && !readOnly ? <Field label={t('config.roleEditor.nameLabel')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.namePlaceholder')} autoCapitalize="words" /> : null}
@@ -337,7 +299,7 @@ export function RoleEditor(ctx: Ctx) {
               return (
                 <SwitchRow key={row.label} label={row.label} on={state !== 'off'} disabled={readOnly || busy} last={i === g.rows.length - 1} help={roleSwitchHelp(row.privileges)}
                   {...(state === 'some' ? { sub: t('config.roleEditor.onlySome', { privileges: listOf(privilegesOn(row.privileges, privileges).map((p) => PRIVILEGE_INFO[p].label)) }) } : {})}
-                  onToggle={() => (isNew ? setPicked(flipSwitch(privileges, row)) : void apply(label, flipSwitch(privileges, row)))} />
+                  onToggle={() => setPicked(flipSwitch(privileges, row))} />
               );
             })}
           </Group>
@@ -354,7 +316,7 @@ export function RoleEditor(ctx: Ctx) {
               onPress={canAssign ? () => ctx.go('edit_member', { memberId: h.profileId }) : undefined} last={last} />
           )} />
           {!readOnly ? <Field label={t('config.roleEditor.itsName')} value={label} onChangeText={setName} placeholder={t('config.roleEditor.itsNamePlaceholder')} autoCapitalize="words"
-            onSubmit={() => void apply(label, privileges)} onBlur={() => void apply(label, privileges)} help={t('config.roleEditor.renameHelp')} /> : null}
+            help={t('config.roleEditor.renameHelp')} /> : null}
         </>
       ) : null}
       <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('config.roleEditor.scopeNote')}</Text>

@@ -9,7 +9,7 @@ import {
   clustersOf, dayPercents, mayViewLanguage, orgClusters, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -31,8 +31,6 @@ import { openAlerts, sectionLabel, SECTIONS, type SectionId, sectionHelp } from 
 import { AttentionPanel, Bar, Columns, CoverageRows, Freshness, HeadlineStats, ListLine, NoReports, Notice, Panel, ProgressPair, Stat, Stats, ToneBadge } from '../reports/ui';
 import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../reports/format';
 import { canPrint, exportCsv, fileName, languageCsv, printPage } from '../reports/exportFiles';
-import { SavedMark } from '../ui/SavedMark';
-import { useSaver } from '../ui/useSaveStatus';
 
 const COLUMN = measure.report;
 /** No rows yet: one list, so what is worked out from it is not worked out again on every draw. */
@@ -296,9 +294,7 @@ function notSavedText(e: unknown): string {
 /**
  * Country and target, for people who manage the organization's structure
  * (decision 41). Saved online straight to the organization's stream on the
- * server, which checks again, so the page can catch up with it at once. A
- * country applies as it is chosen; the target as its kind is chosen or a
- * date field is left, once both dates are right (decision 111).
+ * server, which checks again, so the page can catch up with it at once.
  */
 function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void }) {
   const { ctx, row } = props;
@@ -310,58 +306,32 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
   const [scope, setScope] = useState<TargetScope>(r.target?.scope ?? 'nt');
   const [start, setStart] = useState(r.target?.startDate ?? new Date(now).toISOString().slice(0, 10));
   const [end, setEnd] = useState(r.target?.targetDate ?? new Date(now + 548 * 86_400_000).toISOString().slice(0, 10));
-  const [problem, setProblem] = useState<{ tone: Tone; text: string } | null>(null);
-  const saver = useSaver();
+  const [busy, setBusy] = useState<'' | 'country' | 'target'>('');
+  const [status, setStatus] = useState<{ tone: Tone; text: string } | null>(null);
   const datesOk = validDay(start) && validDay(end) && end > start;
   const codes = useMemo(() => countryCodes(), []);
   const q = search.trim().toLowerCase();
   const choices = q ? codes.filter((c) => countryName(c).toLowerCase().includes(q) || c.toLowerCase() === q) : codes;
   const countrySpot = useHelpSpot(country ? countryName(country) : t('reports.settings.chooseCountry'), t('reports.settings.countryHelp'), () => setPicking(true));
-  // What the server has, or was last sent from here: nothing is sent twice.
-  const keptCountry = useRef(r.country ?? '');
-  const keptTarget = useRef(r.target ? targetKey(r.target.scope, r.target.startDate, r.target.targetDate) : '');
-  // The target as it stands, for leaving the page from inside a date field.
-  const target = useRef({ scope, start, end });
-  target.current = { scope, start, end };
-  const gone = useRef(false);
 
-  /** Sends a setting; `forget` says it was not kept, so choosing it again sends it again. */
-  function send(event: Parameters<typeof saveLanguageSetting>[2], forget: () => void) {
-    setProblem(null);
-    void saver.run(async () => {
-      try {
-        await saveLanguageSetting(row.orgId, ctx.session.actorId, event);
-      } catch (e) {
-        forget();
-        // Once the page has gone, the toast says it.
-        if (gone.current) ctx.toast(notSavedText(e));
-        else setProblem({ tone: e instanceof NotSavedError && e.reason === 'offline' ? 'amber' : 'red', text: notSavedText(e) });
-        throw e;
-      }
+  async function save(what: 'country' | 'target') {
+    setBusy(what);
+    setStatus(null);
+    try {
+      await saveLanguageSetting(row.orgId, ctx.session.actorId, what === 'country'
+        ? { type: 'v1.LanguageCountrySet', payload: { languageId: r.languageId, country } }
+        : { type: 'v1.LanguageTargetSet', payload: { languageId: r.languageId, scope, startDate: start, targetDate: end } });
+      setStatus({ tone: 'green', text: t('reports.settings.saved') });
       props.refresh();
-    });
+    } catch (e) {
+      setStatus({ tone: e instanceof NotSavedError && e.reason === 'offline' ? 'amber' : 'red', text: notSavedText(e) });
+    } finally {
+      setBusy('');
+    }
   }
-  function chooseCountry(next: string) {
-    setCountry(next);
-    if (!next || next === keptCountry.current) return;
-    const before = keptCountry.current;
-    keptCountry.current = next;
-    send({ type: 'v1.LanguageCountrySet', payload: { languageId: r.languageId, country: next } }, () => { keptCountry.current = before; });
-  }
-  /** The target, once both dates are right and it is not what was kept. */
-  function applyTarget(next = target.current) {
-    if (!(validDay(next.start) && validDay(next.end) && next.end > next.start)) return;
-    const key = targetKey(next.scope, next.start, next.end);
-    if (key === keptTarget.current) return;
-    const before = keptTarget.current;
-    keptTarget.current = key;
-    send({ type: 'v1.LanguageTargetSet', payload: { languageId: r.languageId, scope: next.scope, startDate: next.start, targetDate: next.end } },
-      () => { keptTarget.current = before; });
-  }
-  useEffect(() => { gone.current = false; return () => { gone.current = true; applyTarget(); }; }, []); // eslint-disable-line react-hooks/exhaustive-deps -- a date typed still applies as the page goes
 
   return (
-    <Panel title={t('reports.settings.title')} sub={t('reports.settings.sub')} right={<SavedMark status={saver.status} />}>
+    <Panel title={t('reports.settings.title')} sub={t('reports.settings.sub')}>
       <Text style={txt.xsStrong}>{t('reports.settings.country')}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
         <Pressable onPress={countrySpot.onPress} accessibilityRole="button"
@@ -370,32 +340,30 @@ function SettingsPanel(props: { ctx: Ctx; row: LanguageRow; refresh: () => void 
           <Text style={txt.body}>{country ? countryName(country) : t('reports.settings.chooseCountry')}</Text>
           <HelpBadge spot={countrySpot} />
         </Pressable>
+        <SmallBtn label={busy === 'country' ? t('common.saving') : t('reports.settings.saveCountry')} tone="primary" help={t('reports.settings.saveCountryHelp')} onPress={() => void save('country')}
+          disabled={busy !== '' || !country || country === r.country} />
       </View>
       <Text style={[txt.xsStrong, { marginTop: space.sm }]}>{t('reports.settings.target')}</Text>
-      <ChipRow>{TARGET_SCOPES.map((s) => <Chip key={s} label={scopeLabel(s)} help={t('reports.settings.scopeHelp')} on={scope === s}
-        onPress={() => { setScope(s); applyTarget({ scope: s, start, end }); }} />)}</ChipRow>
+      <ChipRow>{TARGET_SCOPES.map((s) => <Chip key={s} label={scopeLabel(s)} help={t('reports.settings.scopeHelp')} on={scope === s} onPress={() => setScope(s)} />)}</ChipRow>
       <Columns min={200}>
-        <Field label={t('reports.settings.start')} value={start} onChangeText={setStart} autoCapitalize="none" help={t('reports.settings.startHelp')}
-          onSubmit={() => applyTarget()} onBlur={() => applyTarget()} />
-        <Field label={t('reports.settings.finishBy')} value={end} onChangeText={setEnd} autoCapitalize="none" help={t('reports.settings.finishByHelp')}
-          onSubmit={() => applyTarget()} onBlur={() => applyTarget()} />
+        <Field label={t('reports.settings.start')} value={start} onChangeText={setStart} autoCapitalize="none" help={t('reports.settings.startHelp')} />
+        <Field label={t('reports.settings.finishBy')} value={end} onChangeText={setEnd} autoCapitalize="none" help={t('reports.settings.finishByHelp')} />
       </Columns>
       {!datesOk ? <Text style={txt.error} accessibilityRole="alert">{t('reports.settings.datesInvalid')}</Text> : null}
-      {problem ? <Notice tone={problem.tone} title={problem.text} /> : null}
+      <View style={{ alignSelf: 'flex-start' }}>
+        <SmallBtn label={busy === 'target' ? t('common.saving') : t('reports.settings.saveTarget')} tone="primary" help={t('reports.settings.saveTargetHelp')}
+          onPress={() => void save('target')} disabled={busy !== '' || !datesOk} />
+      </View>
+      {status ? <Notice tone={status.tone} title={status.text} /> : null}
       <Sheet visible={picking} title={t('reports.settings.country')} sub={r.name} onClose={() => setPicking(false)}>
         <SearchField value={search} onChangeText={setSearch} placeholder={t('reports.settings.findCountry')} />
         {choices.slice(0, 60).map((c) => (
-          <CountryChoice key={c} code={c} chosen={c === country} onPick={() => { chooseCountry(c); setPicking(false); setSearch(''); }} />
+          <CountryChoice key={c} code={c} chosen={c === country} onPick={() => { setCountry(c); setPicking(false); setSearch(''); }} />
         ))}
         {choices.length > 60 ? <Text style={txt.xs}>{t('reports.settings.typeToFind', { count: choices.length - 60 })}</Text> : null}
       </Sheet>
     </Panel>
   );
-}
-
-/** A target as one string, to tell whether it changed. */
-function targetKey(scope: TargetScope, start: string, end: string): string {
-  return `${scope}|${start}|${end}`;
 }
 
 /** One country in the country sheet; the chosen one is in bold purple, as help mode says. */

@@ -36,7 +36,8 @@
     "voiceNote": "Nota de voz",
     "addNote": "Agregar una nota",
     "orTypeIt": "O escríbelo",
-    "sayIt": "Dilo"
+    "sayIt": "Dilo",
+    "save": "Guardar"
   },
   "time": {
     "justNow": "Ahora mismo",
@@ -735,7 +736,8 @@
       "languageTitle": "Cambiar el nombre de {{name}}",
       "languageSub": "Todos en {{org}} ven el nombre nuevo. Su código, {{code}}, no cambia.",
       "takenBody": "{{languages}} ya tiene este nombre. Es difícil distinguir dos idiomas con el mismo nombre.",
-      "rowHelp": "Cambia el nombre que ven todos aquí."
+      "rowHelp": "Cambia el nombre que ven todos aquí.",
+      "save": "Guardar el nombre"
     },
     "link": {
       "done": "{{name}} está vinculado a {{linked}}.",
@@ -905,7 +907,8 @@
       "removeFromOrg": "Quitar de la organización",
       "removeFromLanguage": "Quitar del idioma",
       "declineHelp": "Le dice que no a su solicitud para unirse.",
-      "removeHelp": "Le quita su rol aquí. Después, Deshacer aparece por un momento."
+      "removeHelp": "Le quita su rol aquí. Después, Deshacer aparece por un momento.",
+      "saveAssignment": "Guardar asignación"
     },
     "signIn": {
       "notAllowed": "No puedes ayudar a esta persona a iniciar sesión.",
@@ -1929,8 +1932,9 @@
       "fromLanguages": "Cómo lo llaman otros idiomas de aquí",
       "use": "Usar",
       "useLabel": "Usar {{name}} ({{from}})",
-      "useHelp": "Usa este nombre: los traductores lo ven a partir de ahora.",
-      "inBoxHelp": "La marca significa que este nombre está en la casilla de arriba."
+      "useHelp": "Pone este nombre en la casilla de arriba. Guardar lo conserva.",
+      "inBoxHelp": "La marca significa que este nombre está en la casilla de arriba.",
+      "saveHelp": "Guarda este nombre: los traductores lo ven a partir de ahora."
     },
     "translate": {
       "question": "¿Qué traducirá {{language}}?",
@@ -2421,8 +2425,7 @@
       "assignWorkHelp": "Activado: las personas con este rol pueden pedir a cualquiera que grabe o revise un pasaje.",
       "overrideChecksHelp": "Activado: las personas con este rol pueden hacer que un pasaje pase una verificación bloqueada, dando una razón.",
       "manageRolesHelp": "Activado: las personas con este rol pueden crear roles y cambiar lo que permite cada uno.",
-      "addRole": "Agregar rol",
-      "addRoleHelp": "Crea el rol, con estas opciones."
+      "saveHelp": "Guarda el nombre y las opciones. Todos los que tienen este rol reciben el cambio."
     },
     "library": {
       "followingAuto": "Sigues {{name}}. Se actualiza automáticamente.",
@@ -3353,9 +3356,9 @@
       "savedBody": "Se envía cuando tengas conexión.",
       "nameHelp": "El nombre con el que te ve tu equipo. Se envía cuando tengas conexión.",
       "passwordHelp": "Te permite volver a entrar después de que otra persona use este dispositivo.",
-      "setPassword": "Poner contraseña",
-      "setPasswordHelp": "Pone esta contraseña ahora, para que puedas volver a entrar con ella. Necesita conexión.",
-      "passwordSet": "Se puso la contraseña."
+      "savedWithPassword": "Guardado. Puedes iniciar sesión con tu nombre de usuario y esta contraseña.",
+      "saved": "Perfil guardado. Se sincroniza cuando tengas conexión.",
+      "save": "Guardar perfil"
     },
     "orgs": {
       "stale": "No se pudo actualizar. Las organizaciones guardadas siguen disponibles.",
@@ -4532,7 +4535,8 @@
       "done": "Terminado aquí: vuelve atrás.",
       "undo": "Vuelve a poner lo que había antes.",
       "tryAgain": "Lo intenta una vez más.",
-      "quickReason": "Usa esto como tu razón. Igual puedes cambiar las palabras."
+      "quickReason": "Usa esto como tu razón. Igual puedes cambiar las palabras.",
+      "save": "Guarda lo que cambiaste."
     },
     "tabs": {
       "work": "Lo que sigue: tu próximo pasaje y lo que espera por ti.",
@@ -4901,7 +4905,7 @@
       "tryHelp": "Empieza esta prueba: di la frase, haz una pausa, dila otra vez y luego toca detener.",
       "tryStopHelp": "Termina esta prueba y la guarda, para compararla con las demás.",
       "sensitivityHelp": "Las barras son lo que oye el micrófono. Mueve la línea: se graba el sonido que queda por encima.",
-      "useSettings": "Usar estos ajustes"
+      "saveSettings": "Guardar estos ajustes"
     },
     "bigVoice": {
       "toggleHelp": "Toca para empezar a hablar y vuelve a tocar para detener.",
@@ -6036,11 +6040,16 @@
       "typeToFind_many": "Escribe para buscar los otros {{count, number}}.",
       "typeToFind_other": "Escribe para buscar los otros {{count, number}}.",
       "countryHelp": "Abre la lista de países, para elegir dónde se hace el trabajo de este idioma.",
-      "scopeHelp": "Lo que cubre la meta, entre las fechas de abajo.",
+      "scopeHelp": "Lo que cubre la meta. Luego pon las fechas y guarda.",
       "startHelp": "El día en que empezó el trabajo hacia la meta.",
       "finishByHelp": "El día en que se debería alcanzar la meta.",
-      "pickCountryHelp": "Elige este país para este idioma.",
-      "chosenCountryHelp": "El país elegido ahora, en negrita. Toca otro para cambiarlo."
+      "pickCountryHelp": "Elige este país. Luego, Guardar país lo conserva.",
+      "chosenCountryHelp": "El país elegido ahora, en negrita. Toca otro para cambiarlo.",
+      "saved": "Guardado.",
+      "saveCountry": "Guardar país",
+      "saveCountryHelp": "Guarda el país en el servidor ahora. Necesita conexión.",
+      "saveTarget": "Guardar meta",
+      "saveTargetHelp": "Guarda la meta y sus fechas en el servidor ahora. Necesita conexión."
     },
     "clusters": {
       "title": "Grupos",
@@ -7294,7 +7303,7 @@
     "addQuestionHelp": "Escribe una pregunta que los revisores responden en esta verificación.",
     "unlinkHelp": "Lo quita de esta verificación. Deshacer lo vuelve a poner.",
     "addHelpHelp": "Vincula notas, guías o Biblias que los revisores pueden abrir en esta verificación.",
-    "peopleDoneHelp": "Pone en esta verificación a las personas marcadas y cierra esto.",
+    "peopleDoneHelp": "Guarda quién está en esta verificación.",
     "personOnHelp": "Está en esta verificación. Toca para quitar a esta persona.",
     "personOffHelp": "No está en esta verificación. Toca para agregar a esta persona.",
     "questionFieldHelp": "Lo que se pregunta a los revisores en esta verificación.",
@@ -7303,9 +7312,7 @@
     "helpOnHelp": "Vinculado: los revisores pueden abrirlo en esta verificación. Toca para desvincularlo.",
     "helpOffHelp": "Toca para que los revisores puedan abrirlo en esta verificación.",
     "writeNoteHelp": "Escribe una nota nueva, vinculada a esta verificación.",
-    "removeCheckHelp": "Quita esta verificación de los pasos por los que pasan los pasajes.",
-    "questionDoneHelp": "Pone la pregunta en esta verificación tal como está y cierra esto.",
-    "noteDoneHelp": "Agrega la nota a esta verificación y cierra esto."
+    "removeCheckHelp": "Quita esta verificación de los pasos por los que pasan los pasajes."
   },
   "lostFiles": {
     "title": "Falta audio",
@@ -7403,7 +7410,8 @@
     "rename": {
       "title": "Cambiar el nombre de {{cluster}}",
       "label": "Su nombre",
-      "done": "Ahora se llama {{name}}."
+      "done": "Ahora se llama {{name}}.",
+      "save": "Guardar"
     },
     "ungroup": {
       "title": "¿Desagrupar {{cluster}}?",
@@ -7431,7 +7439,8 @@
       "inHelp": "En este grupo. Toca para sacarlo.",
       "outHelp": "No está en este grupo. Toca para ponerlo.",
       "newHelp": "Escribe un nombre: va a un grupo nuevo con ese nombre.",
-      "doneHelp": "Cierra esto. Una marca se aplica en cuanto la tocas; un nombre escrito abajo crea un grupo nuevo."
+      "doneHelp": "Guarda en qué grupos está.",
+      "saved": "Grupos de {{language}} guardados."
     },
     "newLanguage": {
       "what": "¿Qué vas a añadir?",

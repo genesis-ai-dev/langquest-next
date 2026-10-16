@@ -36,7 +36,8 @@
     "voiceNote": "Note vocale",
     "addNote": "Ajouter une note",
     "orTypeIt": "Ou écrivez-la",
-    "sayIt": "Dites-la"
+    "sayIt": "Dites-la",
+    "save": "Sauvegarder"
   },
   "time": {
     "justNow": "À l’instant",
@@ -735,7 +736,8 @@
       "languageTitle": "Renommer {{name}}",
       "languageSub": "Tout le monde dans {{org}} voit le nouveau nom. Son code, {{code}}, ne change pas.",
       "takenBody": "{{languages}} a déjà ce nom. Deux langues avec le même nom sont difficiles à distinguer.",
-      "rowHelp": "Changez le nom que tout le monde voit ici."
+      "rowHelp": "Changez le nom que tout le monde voit ici.",
+      "save": "Sauvegarder le nom"
     },
     "link": {
       "done": "{{name}} est lié à {{linked}}.",
@@ -905,7 +907,8 @@
       "removeFromOrg": "Retirer de l’organisation",
       "removeFromLanguage": "Retirer de la langue",
       "declineHelp": "Refuse sa demande pour rejoindre.",
-      "removeHelp": "Lui retire son rôle ici. Annuler s’affiche un moment après."
+      "removeHelp": "Lui retire son rôle ici. Annuler s’affiche un moment après.",
+      "saveAssignment": "Sauvegarder l’attribution"
     },
     "signIn": {
       "notAllowed": "Vous ne pouvez pas aider cette personne à se connecter.",
@@ -1929,8 +1932,9 @@
       "fromLanguages": "Comment d’autres langues d’ici l’appellent",
       "use": "Utiliser",
       "useLabel": "Utiliser {{name}} ({{from}})",
-      "useHelp": "Utilise ce nom : les traducteurs le voient désormais.",
-      "inBoxHelp": "La coche signifie que ce nom est dans la case ci-dessus."
+      "useHelp": "Met ce nom dans la case ci-dessus. Sauvegarder le garde.",
+      "inBoxHelp": "La coche signifie que ce nom est dans la case ci-dessus.",
+      "saveHelp": "Garde ce nom : les traducteurs le voient désormais."
     },
     "translate": {
       "question": "Que va traduire {{language}} ?",
@@ -2421,8 +2425,7 @@
       "assignWorkHelp": "Activé : les personnes qui ont ce rôle peuvent demander à n’importe qui d’enregistrer ou de vérifier un passage.",
       "overrideChecksHelp": "Activé : les personnes qui ont ce rôle peuvent faire avancer un passage au-delà d’un point de contrôle, avec une raison.",
       "manageRolesHelp": "Activé : les personnes qui ont ce rôle peuvent créer des rôles et changer ce que chacun permet.",
-      "addRole": "Ajouter le rôle",
-      "addRoleHelp": "Crée le rôle, avec ces options."
+      "saveHelp": "Garde le nom et les options. Toutes les personnes qui ont ce rôle reçoivent la modification."
     },
     "library": {
       "followingAuto": "Vous suivez {{name}}. Il se met à jour automatiquement.",
@@ -3353,9 +3356,9 @@
       "savedBody": "Elle partira quand vous serez connecté.",
       "nameHelp": "Le nom sous lequel votre équipe vous voit. Il part quand vous êtes connecté.",
       "passwordHelp": "Vous permet de vous reconnecter après que quelqu’un d’autre a utilisé cet appareil.",
-      "setPassword": "Définir le mot de passe",
-      "setPasswordHelp": "Définit ce mot de passe maintenant, pour que vous puissiez vous reconnecter avec. Il faut une connexion.",
-      "passwordSet": "Mot de passe défini."
+      "savedWithPassword": "Sauvegardé. Vous pouvez vous connecter avec votre nom de connexion et ce mot de passe.",
+      "saved": "Profil sauvegardé. Il se synchronise quand vous êtes connecté.",
+      "save": "Sauvegarder le profil"
     },
     "orgs": {
       "stale": "Impossible d’actualiser. Les organisations gardées restent disponibles.",
@@ -4532,7 +4535,8 @@
       "done": "Terminé ici : revient en arrière.",
       "undo": "Remet ce qui était là avant.",
       "tryAgain": "Essaie encore une fois.",
-      "quickReason": "Utilise ceci comme raison. Vous pouvez encore changer les mots."
+      "quickReason": "Utilise ceci comme raison. Vous pouvez encore changer les mots.",
+      "save": "Garde ce que vous avez changé."
     },
     "tabs": {
       "work": "Ce qu’il y a à faire ensuite : votre prochain passage, et ce qui vous attend.",
@@ -4901,7 +4905,7 @@
       "tryHelp": "Commence cet essai : dites la phrase, faites une pause, redites-la, puis touchez Arrêter.",
       "tryStopHelp": "Termine cet essai et le garde, pour le comparer aux autres.",
       "sensitivityHelp": "Les barres montrent ce que le microphone entend. Faites glisser la ligne : le son au-dessus est enregistré.",
-      "useSettings": "Utiliser ces réglages"
+      "saveSettings": "Sauvegarder ces réglages"
     },
     "bigVoice": {
       "toggleHelp": "Touchez pour commencer à parler, touchez à nouveau pour arrêter.",
@@ -6036,11 +6040,16 @@
       "typeToFind_many": "Tapez pour trouver les {{count, number}} autres.",
       "typeToFind_other": "Tapez pour trouver les {{count, number}} autres.",
       "countryHelp": "Ouvre la liste des pays, pour choisir où se fait le travail de cette langue.",
-      "scopeHelp": "Ce que couvre l’objectif, entre les dates ci-dessous.",
+      "scopeHelp": "Ce que couvre l’objectif. Ensuite, fixez les dates et sauvegardez.",
       "startHelp": "Le jour où le travail vers l’objectif a commencé.",
       "finishByHelp": "Le jour où l’objectif doit être atteint.",
-      "pickCountryHelp": "Choisit ce pays pour cette langue.",
-      "chosenCountryHelp": "Le pays choisi maintenant, en gras. Touchez-en un autre pour le changer."
+      "pickCountryHelp": "Choisit ce pays. Sauvegarder le pays le garde ensuite.",
+      "chosenCountryHelp": "Le pays choisi maintenant, en gras. Touchez-en un autre pour le changer.",
+      "saved": "Sauvegardé.",
+      "saveCountry": "Sauvegarder le pays",
+      "saveCountryHelp": "Sauvegarde le pays sur le serveur maintenant. Il faut une connexion.",
+      "saveTarget": "Sauvegarder l’objectif",
+      "saveTargetHelp": "Sauvegarde l’objectif et ses dates sur le serveur maintenant. Il faut une connexion."
     },
     "clusters": {
       "title": "Groupes",
@@ -7294,7 +7303,7 @@
     "addQuestionHelp": "Écrivez une question à laquelle les réviseurs répondent à cette vérification.",
     "unlinkHelp": "Le retire de cette vérification. Annuler le remet.",
     "addHelpHelp": "Liez des notes, des guides ou des Bibles que les réviseurs peuvent ouvrir à cette vérification.",
-    "peopleDoneHelp": "Ajoute les personnes cochées à cette vérification et ferme ceci.",
+    "peopleDoneHelp": "Sauvegarde qui fait cette vérification.",
     "personOnHelp": "Sur cette vérification. Touchez pour retirer cette personne.",
     "personOffHelp": "Pas sur cette vérification. Touchez pour ajouter cette personne.",
     "questionFieldHelp": "Ce qu’on demande aux réviseurs à cette vérification.",
@@ -7303,9 +7312,7 @@
     "helpOnHelp": "Lié : les réviseurs peuvent l’ouvrir à cette vérification. Touchez pour retirer le lien.",
     "helpOffHelp": "Touchez pour que les réviseurs puissent l’ouvrir à cette vérification.",
     "writeNoteHelp": "Écrivez une nouvelle note, liée à cette vérification.",
-    "removeCheckHelp": "Retire cette vérification des étapes par lesquelles passent les passages.",
-    "questionDoneHelp": "Met la question dans cette vérification telle qu’elle est et ferme ceci.",
-    "noteDoneHelp": "Ajoute la note à cette vérification et ferme ceci."
+    "removeCheckHelp": "Retire cette vérification des étapes par lesquelles passent les passages."
   },
   "lostFiles": {
     "title": "Audio manquant",
@@ -7403,7 +7410,8 @@
     "rename": {
       "title": "Renommer {{cluster}}",
       "label": "Son nom",
-      "done": "Renommé en {{name}}."
+      "done": "Renommé en {{name}}.",
+      "save": "Enregistrer"
     },
     "ungroup": {
       "title": "Dégrouper {{cluster}} ?",
@@ -7431,7 +7439,8 @@
       "inHelp": "Dans ce groupe. Touchez pour l’en retirer.",
       "outHelp": "Pas dans ce groupe. Touchez pour l’y mettre.",
       "newHelp": "Tapez un nom : elle va dans un nouveau groupe de ce nom.",
-      "doneHelp": "Ferme ceci. Une coche compte dès que vous la touchez ; un nom tapé ci-dessous crée un nouveau groupe."
+      "doneHelp": "Enregistre les groupes dont elle fait partie.",
+      "saved": "Groupes de {{language}} enregistrés."
     },
     "newLanguage": {
       "what": "Que voulez-vous ajouter ?",

@@ -36,7 +36,8 @@
     "voiceNote": "Saƙon murya",
     "addNote": "Ƙara bayani",
     "orTypeIt": "Ko ku rubuta shi",
-    "sayIt": "Faɗe shi"
+    "sayIt": "Faɗe shi",
+    "save": "Ajiye"
   },
   "time": {
     "justNow": "Yanzu nan",
@@ -725,7 +726,8 @@
       "languageTitle": "Sake sunan {{name}}",
       "languageSub": "Kowa a {{org}} yana ganin sabon sunan. Lambarsa, {{code}}, ba ta canja ba.",
       "takenBody": "{{languages}} tuni yana da wannan suna. Harsuna biyu masu suna ɗaya suna da wuyar bambancewa.",
-      "rowHelp": "Ku canja sunan da kowa a nan yake gani."
+      "rowHelp": "Ku canja sunan da kowa a nan yake gani.",
+      "save": "Ajiye sunan"
     },
     "link": {
       "done": "An haɗa {{name}} da {{linked}}.",
@@ -889,7 +891,8 @@
       "removeFromOrg": "Cire daga ƙungiya",
       "removeFromLanguage": "Cire daga harshe",
       "declineHelp": "Yana ƙin buƙatarsu ta shiga.",
-      "removeHelp": "Yana cire matsayinsu a nan. Janye yana bayyana na ɗan lokaci bayan haka."
+      "removeHelp": "Yana cire matsayinsu a nan. Janye yana bayyana na ɗan lokaci bayan haka.",
+      "saveAssignment": "Ajiye Sanyawa"
     },
     "signIn": {
       "notAllowed": "Ba ku da izinin taimaka wa wannan mutum shiga.",
@@ -1871,8 +1874,9 @@
       "fromLanguages": "Abin da sauran harsuna a nan suke kiransa",
       "use": "Yi amfani",
       "useLabel": "Yi amfani da {{name}} ({{from}})",
-      "useHelp": "Yana amfani da wannan suna: masu fassara za su gan shi daga yanzu.",
-      "inBoxHelp": "Alamar ✓ tana nufin wannan suna yana cikin akwatin da ke sama."
+      "useHelp": "Yana sa wannan suna a akwatin da ke sama. Ajiye yana riƙe shi.",
+      "inBoxHelp": "Alamar ✓ tana nufin wannan suna yana cikin akwatin da ke sama.",
+      "saveHelp": "Yana riƙe wannan suna: masu fassara za su gan shi daga yanzu."
     },
     "translate": {
       "question": "Me {{language}} zai fassara?",
@@ -2340,8 +2344,7 @@
       "assignWorkHelp": "A kunne: mutanen da ke da wannan matsayi za su iya roƙon kowa ya naɗa ko ya duba nassi.",
       "overrideChecksHelp": "A kunne: mutanen da ke da wannan matsayi za su iya sa nassi ya wuce dubawar da aka kulle, tare da dalili.",
       "manageRolesHelp": "A kunne: mutanen da ke da wannan matsayi za su iya yin matsayai da canja abin da kowanne yake bari.",
-      "addRole": "Ƙara matsayi",
-      "addRoleHelp": "Yana ƙirƙirar matsayin, da abubuwan da aka kunna a nan."
+      "saveHelp": "Yana riƙe sunan da abubuwan da aka kunna. Duk mai wannan matsayi zai sami canjin."
     },
     "library": {
       "followingAuto": "Ana bin {{name}}. Yana sabuntawa da kansa.",
@@ -3258,9 +3261,9 @@
       "savedBody": "Za a aika idan an haɗa.",
       "nameHelp": "Sunan da tawagarku take ganin ku da shi. Za a aika shi idan an haɗa.",
       "passwordHelp": "Yana ba ku damar sake shiga bayan wani ya yi amfani da wannan na'ura.",
-      "setPassword": "Sa kalmar sirri",
-      "setPasswordHelp": "Yana sa wannan kalmar sirri yanzu, don ku iya sake shiga da ita. Yana buƙatar haɗi.",
-      "passwordSet": "An sa kalmar sirri."
+      "savedWithPassword": "An ajiye. Kuna iya shiga da sunan shigarku da wannan kalmar sirri.",
+      "saved": "An ajiye bayanan kai. Za a daidaita idan an haɗa.",
+      "save": "Ajiye Bayanan Kai"
     },
     "orgs": {
       "stale": "An kasa sabuntawa. Ƙungiyoyin da aka ajiye suna nan.",
@@ -4395,7 +4398,8 @@
       "done": "An gama a nan: yana komawa.",
       "undo": "Yana mayar da abin da yake nan a da.",
       "tryAgain": "Yana sake gwadawa sau ɗaya.",
-      "quickReason": "Yana amfani da wannan a matsayin dalilinku. Har yanzu kuna iya canja kalmomin."
+      "quickReason": "Yana amfani da wannan a matsayin dalilinku. Har yanzu kuna iya canja kalmomin.",
+      "save": "Yana riƙe abin da kuka canja."
     },
     "tabs": {
       "work": "Abin da za ku yi na gaba: nassinku na gaba, da abin da ke jiran ku.",
@@ -4747,7 +4751,7 @@
       "tryHelp": "Yana fara wannan gwaji: ku faɗi jumlar, ku dakata, ku sake faɗinta, sannan ku taɓa tsaya.",
       "tryStopHelp": "Yana kammala wannan gwaji ya ajiye shi, don kwatanta shi da sauran.",
       "sensitivityHelp": "Sandunan su ne abin da makirufo yake ji. Ku ja layin: sautin da ke samansa ana naɗa shi.",
-      "useSettings": "Yi amfani da waɗannan saituna"
+      "saveSettings": "Ajiye waɗannan saituna"
     },
     "bigVoice": {
       "toggleHelp": "Taɓa don fara magana, sake taɓawa don tsayawa.",
@@ -5792,11 +5796,16 @@
       "typeToFind_one": "Ku rubuta don nemo sauran {{count, number}}.",
       "typeToFind_other": "Ku rubuta don nemo sauran {{count, number}}.",
       "countryHelp": "Yana buɗe jerin ƙasashe, don zaɓar inda ake aikin wannan harshe.",
-      "scopeHelp": "Abin da burin ya ƙunsa, tsakanin kwanakin da ke ƙasa.",
+      "scopeHelp": "Abin da burin ya ƙunsa. Sannan ku sa kwanakin ku ajiye.",
       "startHelp": "Ranar da aka fara aiki zuwa ga burin.",
       "finishByHelp": "Ranar da ya kamata a cim ma burin.",
-      "pickCountryHelp": "Yana zaɓar wannan ƙasa don wannan harshe.",
-      "chosenCountryHelp": "Ƙasar da aka zaɓa yanzu, a rubutu mai kauri. Taɓa wata don canja ta."
+      "pickCountryHelp": "Yana zaɓar wannan ƙasa. Sannan Ajiye ƙasa yana riƙe ta.",
+      "chosenCountryHelp": "Ƙasar da aka zaɓa yanzu, a rubutu mai kauri. Taɓa wata don canja ta.",
+      "saved": "An ajiye.",
+      "saveCountry": "Ajiye ƙasa",
+      "saveCountryHelp": "Yana ajiye ƙasar a sabar yanzu. Yana buƙatar haɗi.",
+      "saveTarget": "Ajiye buri",
+      "saveTargetHelp": "Yana ajiye burin da kwanakinsa a sabar yanzu. Yana buƙatar haɗi."
     },
     "clusters": {
       "title": "Rukunoni",
@@ -6999,7 +7008,7 @@
     "addQuestionHelp": "Ku rubuta tambayar da masu bita za su amsa a wannan dubawa.",
     "unlinkHelp": "Yana cire shi daga wannan dubawa. Janye yana mayar da shi.",
     "addHelpHelp": "Ku haɗa bayanai, jagorori ko Littattafai Masu Tsarki da masu bita za su iya buɗewa a wannan dubawa.",
-    "peopleDoneHelp": "Yana sa mutanen da ke da alamar ✓ a kan wannan dubawa, ya rufe wannan.",
+    "peopleDoneHelp": "Yana ajiye waɗanda ke kan wannan dubawa.",
     "personOnHelp": "Suna kan wannan dubawa. Taɓa don cire su.",
     "personOffHelp": "Ba sa kan wannan dubawa. Taɓa don sa su.",
     "questionFieldHelp": "Abin da ake tambayar masu bita a wannan dubawa.",
@@ -7008,9 +7017,7 @@
     "helpOnHelp": "An haɗa: masu bita za su iya buɗe shi a wannan dubawa. Taɓa don cire haɗin.",
     "helpOffHelp": "Taɓa don masu bita su iya buɗe shi a wannan dubawa.",
     "writeNoteHelp": "Ku rubuta sabon bayani, wanda aka haɗa da wannan dubawa.",
-    "removeCheckHelp": "Yana cire wannan dubawa daga matakan da nassosi suke bi.",
-    "questionDoneHelp": "Yana sa tambayar a kan wannan dubawa yadda take, ya rufe wannan.",
-    "noteDoneHelp": "Yana ƙara bayanin a wannan dubawa, ya rufe wannan."
+    "removeCheckHelp": "Yana cire wannan dubawa daga matakan da nassosi suke bi."
   },
   "lostFiles": {
     "title": "Sauti ta ɓace",
@@ -7100,7 +7107,8 @@
     "rename": {
       "title": "Canza sunan {{cluster}}",
       "label": "Sunansa",
-      "done": "An canza suna zuwa {{name}}."
+      "done": "An canza suna zuwa {{name}}.",
+      "save": "Ajiye"
     },
     "ungroup": {
       "title": "Raba {{cluster}}?",
@@ -7126,7 +7134,8 @@
       "inHelp": "Yana cikin wannan rukuni. Taɓa don fitar da shi.",
       "outHelp": "Ba ya cikin wannan rukuni. Taɓa don sa shi a ciki.",
       "newHelp": "Ku rubuta suna: zai shiga sabon rukuni mai wannan suna.",
-      "doneHelp": "Yana rufe wannan. Alamar ✓ tana aiki nan take idan kun taɓa ta; sunan da aka rubuta a ƙasa yana yin sabon rukuni."
+      "doneHelp": "Yana ajiye rukunonin da yake ciki.",
+      "saved": "An ajiye rukunonin {{language}}."
     },
     "newLanguage": {
       "what": "Me kake ƙarawa?",

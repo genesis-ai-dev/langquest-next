@@ -36,7 +36,8 @@
     "voiceNote": "Voice note",
     "addNote": "Add a note",
     "orTypeIt": "Or type it",
-    "sayIt": "Say it"
+    "sayIt": "Say it",
+    "save": "Save"
   },
   "time": {
     "justNow": "Just now",
@@ -725,7 +726,8 @@
       "languageTitle": "Rename {{name}}",
       "languageSub": "Everyone in {{org}} sees the new name. Its code, {{code}}, stays.",
       "takenBody": "{{languages}} already has this name. Two languages with one name are hard to tell apart.",
-      "rowHelp": "Change the name everyone here sees."
+      "rowHelp": "Change the name everyone here sees.",
+      "save": "Save the name"
     },
     "link": {
       "done": "{{name}} is linked to {{linked}}.",
@@ -889,7 +891,8 @@
       "removeFromOrg": "Remove from organization",
       "removeFromLanguage": "Remove from language",
       "declineHelp": "Says no to their request to join.",
-      "removeHelp": "Takes away their role here. Undo shows for a moment after."
+      "removeHelp": "Takes away their role here. Undo shows for a moment after.",
+      "saveAssignment": "Save Assignment"
     },
     "signIn": {
       "notAllowed": "You may not help this person sign in.",
@@ -1871,8 +1874,9 @@
       "fromLanguages": "What other languages here call it",
       "use": "Use",
       "useLabel": "Use {{name}} ({{from}})",
-      "useHelp": "Uses this name: translators see it from now on.",
-      "inBoxHelp": "The tick means this name is in the box above."
+      "useHelp": "Puts this name in the box above. Save keeps it.",
+      "inBoxHelp": "The tick means this name is in the box above.",
+      "saveHelp": "Keeps this name: translators see it from now on."
     },
     "translate": {
       "question": "What will {{language}} translate?",
@@ -2340,8 +2344,7 @@
       "assignWorkHelp": "On: people with this role may ask anyone to record or check a passage.",
       "overrideChecksHelp": "On: people with this role may move a passage past a locked check, with a reason.",
       "manageRolesHelp": "On: people with this role may make roles and change what each allows.",
-      "addRole": "Add role",
-      "addRoleHelp": "Makes the role, with these switches."
+      "saveHelp": "Keeps the name and switches. Everyone with this role gets the change."
     },
     "library": {
       "followingAuto": "Following {{name}}. It updates automatically.",
@@ -3258,9 +3261,9 @@
       "savedBody": "It sends when you are connected.",
       "nameHelp": "The name your team sees you by. It sends when you are connected.",
       "passwordHelp": "Lets you sign back in after someone else uses this device.",
-      "setPassword": "Set password",
-      "setPasswordHelp": "Sets this password now, so you can sign back in with it. It needs a connection.",
-      "passwordSet": "Password set."
+      "savedWithPassword": "Saved. You can sign in with your sign-in name and this password.",
+      "saved": "Profile saved. It syncs when you are connected.",
+      "save": "Save Profile"
     },
     "orgs": {
       "stale": "Unable to refresh. Saved organizations remain available.",
@@ -4395,7 +4398,8 @@
       "done": "Finished here: goes back.",
       "undo": "Puts back what was there before.",
       "tryAgain": "Tries once more.",
-      "quickReason": "Uses this as your reason. You can still change the words."
+      "quickReason": "Uses this as your reason. You can still change the words.",
+      "save": "Keeps what you changed."
     },
     "tabs": {
       "work": "What to do next: your next passage, and what waits on you.",
@@ -4747,7 +4751,7 @@
       "tryHelp": "Starts this try: say the sentence, pause, say it again, then tap stop.",
       "tryStopHelp": "Ends this try and keeps it, to compare with the others.",
       "sensitivityHelp": "The bars are what the microphone hears. Drag the line: sound above it is recorded.",
-      "useSettings": "Use these settings"
+      "saveSettings": "Save these settings"
     },
     "bigVoice": {
       "toggleHelp": "Tap to start speaking, tap again to stop.",
@@ -5792,11 +5796,16 @@
       "typeToFind_one": "Type to find the other {{count, number}}.",
       "typeToFind_other": "Type to find the other {{count, number}}.",
       "countryHelp": "Opens the list of countries, to choose where this language's work happens.",
-      "scopeHelp": "What the target covers, between the dates below.",
+      "scopeHelp": "What the target covers. Then set the dates and save.",
       "startHelp": "The day work toward the target began.",
       "finishByHelp": "The day the target should be reached.",
-      "pickCountryHelp": "Chooses this country for this language.",
-      "chosenCountryHelp": "The country chosen now, in bold. Tap another to change it."
+      "pickCountryHelp": "Chooses this country. Save country then keeps it.",
+      "chosenCountryHelp": "The country chosen now, in bold. Tap another to change it.",
+      "saved": "Saved.",
+      "saveCountry": "Save country",
+      "saveCountryHelp": "Saves the country to the server now. Needs a connection.",
+      "saveTarget": "Save target",
+      "saveTargetHelp": "Saves the target and its dates to the server now. Needs a connection."
     },
     "clusters": {
       "title": "Clusters",
@@ -6999,7 +7008,7 @@
     "addQuestionHelp": "Write a question reviewers answer at this check.",
     "unlinkHelp": "Takes it off this check. Undo puts it back.",
     "addHelpHelp": "Link notes, guides or Bibles reviewers can open at this check.",
-    "peopleDoneHelp": "Puts the people ticked on this check, and closes this.",
+    "peopleDoneHelp": "Saves who is on this check.",
     "personOnHelp": "On this check. Tap to take them off.",
     "personOffHelp": "Not on this check. Tap to put them on.",
     "questionFieldHelp": "What reviewers are asked at this check.",
@@ -7008,9 +7017,7 @@
     "helpOnHelp": "Linked: reviewers can open it at this check. Tap to unlink.",
     "helpOffHelp": "Tap so reviewers can open it at this check.",
     "writeNoteHelp": "Write a new note, linked to this check.",
-    "removeCheckHelp": "Takes this check out of the steps passages go through.",
-    "questionDoneHelp": "Puts the question on this check as it is, and closes this.",
-    "noteDoneHelp": "Adds the note to this check, and closes this."
+    "removeCheckHelp": "Takes this check out of the steps passages go through."
   },
   "lostFiles": {
     "title": "Audio is missing",
@@ -7100,7 +7107,8 @@
     "rename": {
       "title": "Rename {{cluster}}",
       "label": "Its name",
-      "done": "Renamed to {{name}}."
+      "done": "Renamed to {{name}}.",
+      "save": "Save"
     },
     "ungroup": {
       "title": "Ungroup {{cluster}}?",
@@ -7126,7 +7134,8 @@
       "inHelp": "In this cluster. Tap to take it out.",
       "outHelp": "Not in this cluster. Tap to put it in.",
       "newHelp": "Type a name: it goes in a new cluster by that name.",
-      "doneHelp": "Closes this. A tick applies as you tap it; a name typed below makes a new cluster."
+      "doneHelp": "Saves which clusters it is in.",
+      "saved": "{{language}}'s clusters saved."
     },
     "newLanguage": {
       "what": "What are you adding?",

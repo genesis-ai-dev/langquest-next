@@ -13,7 +13,7 @@
 import {
   clusterName, clustersOf, mayManageClusters, orgClusters,
   decodeHlc, deriveFlow, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
-  leavesNoRoleManager, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, scopeKey, SEED_ROLES,
+  leavesNoRoleManager, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -84,8 +84,6 @@ import { usePerson } from '../ui/usePerson';
 import { clusterEvents, clusterNamed, languagesOutsideClusters, newClusterId, ungroupEvents } from '../clusters/model';
 import { ClusterRow, ClusterTile, LanguageClustersRow } from '../clusters/parts';
 import { appendClusterEvents } from '../clusters/clusterActions';
-import { SavedMark } from '../ui/SavedMark';
-import { useSaver } from '../ui/useSaveStatus';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -356,6 +354,7 @@ export function ClusterHome(ctx: Ctx) {
   const clusterId = ctx.params['clusterId'] ?? '';
   const [sheet, setSheet] = useState<'add' | 'rename' | 'ungroup' | null>(null);
   const [adding, setAdding] = useState<Set<string>>(new Set());
+  const [rename, setRename] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   if (!v.org) return <Loading title={t('screens.cluster_home')} onBack={ctx.back} />;
@@ -394,7 +393,7 @@ export function ClusterHome(ctx: Ctx) {
         <>
           <PrimaryBtn label={t('clusters.home.add')} icon="plus" onPress={() => { setAdding(new Set()); setSheet('add'); }} />
           <QuietLinks items={[
-            { label: t('clusters.home.rename'), icon: 'edit', help: t('clusters.home.renameHelp'), onPress: () => setSheet('rename') },
+            { label: t('clusters.home.rename'), icon: 'edit', help: t('clusters.home.renameHelp'), onPress: () => { setRename(c.name); setSheet('rename'); } },
             { label: t('clusters.home.ungroup'), icon: 'layers', help: t('clusters.home.ungroupHelp'), onPress: () => setSheet('ungroup') }
           ]} />
         </>
@@ -430,9 +429,13 @@ export function ClusterHome(ctx: Ctx) {
         ) : <Text style={txt.smMuted}>{t('clusters.add.none', { org: v.orgName })}</Text>}
         {error ? <Banner icon="flag" tone="amber" title={t('clusters.home.notSaved')} body={error} /> : null}
       </Sheet>
-      <NameSheet ctx={ctx} visible={sheet === 'rename'} title={t('clusters.rename.title', { cluster: c.name })} label={t('clusters.rename.label')} current={c.name}
-        failedTitle={t('clusters.home.notSaved')} what="rename cluster" // i18n-ignore: log label
-        write={(name) => appendClusterEvents(ctx, clusterEvents(v.org, { clusterId, name }))} done={(name) => t('clusters.rename.done', { name })} onClose={close} />
+      <Sheet visible={sheet === 'rename'} title={t('clusters.rename.title', { cluster: c.name })} onClose={close}
+        footer={<PrimaryBtn label={t('clusters.rename.save')} icon="check" busy={busy} disabled={!rename.trim() || rename.trim() === c.name} help={t('help.details.save')}
+          // i18n-ignore: the first argument is a log label
+          onPress={() => void run('rename cluster', clusterEvents(v.org, { clusterId, name: rename }), t('clusters.rename.done', { name: rename.trim() }))} />}>
+        <Field label={t('clusters.rename.label')} value={rename} onChangeText={setRename} autoCapitalize="words" />
+        {error ? <Banner icon="flag" tone="amber" title={t('clusters.home.notSaved')} body={error} /> : null}
+      </Sheet>
       <Sheet visible={sheet === 'ungroup'} title={t('clusters.ungroup.title', { cluster: c.name })} onClose={close}
         footer={<>
           <PrimaryBtn label={t('clusters.ungroup.confirm')} icon="layers" busy={busy} help={t('clusters.ungroup.confirmHelp')}
@@ -456,68 +459,38 @@ function RenameRow(props: {
   ctx: Ctx; current: string; may: boolean; title: string; sub: string; what: string;
   warn?: (name: string) => string | null; save: (name: string) => Promise<void>; last?: boolean;
 }) {
+  const { ctx, current } = props;
   const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const next = name.trim();
+  const warning = next && next !== current ? props.warn?.(next) ?? null : null;
+  async function save() {
+    if (!next || next === current) return;
+    setBusy(true);
+    setError('');
+    try {
+      await props.save(next);
+      setOpen(false);
+      ctx.toast(t('org.rename.done', { name: next }));
+    } catch (e) {
+      setError(failure(props.what, e));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <>
-      <Row icon="edit" label={t('org.rename.row')} sub={props.current} last={props.last} help={t('org.rename.rowHelp')}
-        {...(props.may ? { onPress: () => setOpen(true) } : {})} />
-      <NameSheet ctx={props.ctx} visible={open} title={props.title} sub={props.sub} label={t('org.itsName')} current={props.current} placeholder={props.current}
-        {...(props.warn ? { warn: props.warn } : {})} failedTitle={t('org.rename.failed')} what={props.what}
-        write={props.save} done={(name) => t('org.rename.done', { name })} onClose={() => setOpen(false)} />
+      <Row icon="edit" label={t('org.rename.row')} sub={current} last={props.last} help={t('org.rename.rowHelp')}
+        {...(props.may ? { onPress: () => { setName(current); setError(''); setOpen(true); } } : {})} />
+      <Sheet visible={open} title={props.title} sub={props.sub} onClose={() => setOpen(false)}
+        footer={<PrimaryBtn label={t('org.rename.save')} icon="check" busy={busy} disabled={!next || next === current} onPress={() => void save()} />}>
+        <Field label={t('org.itsName')} value={name} onChangeText={setName} placeholder={current} autoCapitalize="words" />
+        {warning ? <Banner icon="flag" tone="amber" title={t('org.rename.taken')} body={warning} /> : null}
+        {error ? <Banner icon="flag" tone="amber" title={t('org.rename.failed')} body={error} /> : null}
+      </Sheet>
     </>
-  );
-}
-
-/**
- * A name in a sheet (decision 111): it applies as the person leaves the
- * field or closes the sheet, when it is not empty and not the name it has, and the
- * saved mark shows it kept. One that could not be kept leaves the sheet
- * open, saying why; closing it again leaves the name as it was.
- */
-function NameSheet(props: {
-  ctx: Ctx; visible: boolean; title: string; sub?: string; label: string; current: string; placeholder?: string;
-  warn?: (name: string) => string | null; failedTitle: string; what: string;
-  write: (name: string) => Promise<void>; done: (name: string) => string; onClose: () => void;
-}) {
-  const [name, setName] = useState(props.current);
-  const [error, setError] = useState('');
-  const [shown, setShown] = useState(props.visible);
-  const saver = useSaver();
-  // The mark is about this opening: what was kept since the sheet opened.
-  const [marked, setMarked] = useState(false);
-  const kept = useRef(props.current);
-  const refused = useRef('');
-  const writing = useRef<Promise<boolean> | null>(null);
-  // Each time it opens, it starts from the name it has now.
-  if (props.visible !== shown) {
-    setShown(props.visible);
-    if (props.visible) { setName(props.current); setError(''); setMarked(false); kept.current = props.current; refused.current = ''; }
-  }
-  const next = name.trim();
-  const warning = next && next !== props.current ? props.warn?.(next) ?? null : null;
-  /** Keeps `value` once it is whole and new; a second call waits for the first, so one name is written once. */
-  function apply(value: string): Promise<boolean> {
-    if (writing.current) return writing.current.then(() => apply(value));
-    if (!value || value === props.current || value === kept.current) return Promise.resolve(true);
-    setError('');
-    setMarked(true);
-    const write = saver.run(async () => {
-      try { await props.write(value); } catch (e) { refused.current = value; setError(failure(props.what, e)); throw e; }
-      kept.current = value;
-      props.ctx.toast(props.done(value));
-      return true;
-    }).then((ok) => ok === true).finally(() => { writing.current = null; });
-    writing.current = write;
-    return write;
-  }
-  return (
-    <Sheet visible={props.visible} title={props.title} {...(props.sub ? { sub: props.sub } : {})} action={<SavedMark status={marked ? saver.status : 'idle'} />}
-      onClose={() => { if (next === refused.current) props.onClose(); else void apply(next).then((ok) => { if (ok) props.onClose(); }); }}>
-      <Field label={props.label} value={name} onChangeText={setName} {...(props.placeholder ? { placeholder: props.placeholder } : {})} autoCapitalize="words"
-        onSubmit={() => void apply(next)} onBlur={() => void apply(next)} />
-      {warning ? <Banner icon="flag" tone="amber" title={t('org.rename.taken')} body={warning} /> : null}
-      {error ? <Banner icon="flag" tone="amber" title={props.failedTitle} body={error} /> : null}
-    </Sheet>
   );
 }
 
@@ -923,11 +896,6 @@ function defaultLanguage(languages: string[], open: string): string {
   return languages.length === 1 ? languages[0]! : '';
 }
 
-/** A membership as the form shows it. */
-function assignmentOf(entry: MemberEntry | undefined): Assignment {
-  return { roleId: entry?.roleId ?? '', level: entry?.scope.level ?? 'org', languageId: entry?.scope.level === 'language' ? entry.scope.languageId : '' };
-}
-
 function scopeOf(value: Assignment): Scope | null {
   if (value.level === 'org') return { level: 'org' };
   return value.languageId ? { level: 'language', languageId: value.languageId } : null;
@@ -1088,43 +1056,32 @@ export function EditMember(ctx: Ctx) {
   return ctx.params['requestId'] ? <JoinRequest {...ctx} /> : <MemberEditor {...ctx} />;
 }
 
-/**
- * One member's role and where it applies (ORG-7), with their sign-in help
- * and Remove. A role or place chosen applies at once, with Undo (decision
- * 111); a language-level place applies once its language is chosen.
- */
+/** One member's role and where it applies (ORG-7), with their sign-in help and Remove. */
 function MemberEditor(ctx: Ctx) {
   const v = useOrgView(ctx);
   const memberId = ctx.params['memberId'] ?? '';
   const requestId = ctx.params['requestId'];
   const viewLevel = parseLevel(ctx.params['level'] ?? ctx.session.adminScope?.level);
   const entries = useMemo(() => memberEntries(v.org).filter((e) => e.profileId === memberId), [v.org, memberId]);
-  // A change of place is a new membership (changeMembership): the page follows it.
-  const [entryKey, setEntryKey] = useState(ctx.params['entry']);
-  const entry = entries.find((e) => e.key === entryKey) ?? entries.find((e) => e.key === ctx.params['entry']) ?? entries[0];
+  const entry = entries.find((e) => e.key === ctx.params['entry']) ?? entries[0];
   const pending = !!requestId;
   // The demo's "Assign a role and scope": deciding needs org-scope Invite, so every level is open.
   const levels: ScopeLevel[] = pending ? assignableLevels(v.org, ctx.session.actorId, 'org')
     : [...new Set([...(entry ? [entry.scope.level] : []), ...assignableLevels(v.org, ctx.session.actorId, viewLevel)])];
-  const [form, setForm] = useState<Assignment>(() => ({ ...assignmentOf(entry), ...(pending ? { level: 'org' as const } : {}) }));
-  // What the membership is now, changed here, by Undo or on another device: the form shows it.
-  const held = entry ? `${entry.key}|${entry.roleId}` : '';
-  const [shown, setShown] = useState(held);
-  if (held !== shown) {
-    setShown(held);
-    if (!pending && entry) setForm(assignmentOf(entry));
-  }
+  const [form, setForm] = useState<Assignment>({
+    roleId: entry?.roleId ?? '',
+    level: pending ? 'org' : entry?.scope.level ?? 'org',
+    languageId: entry?.scope.level === 'language' ? entry.scope.languageId : ''
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const saver = useSaver();
-  const writing = useRef(false);
   // Nobody changes or removes a role that holds more than they do (decisions.md 75).
   const outranked = !!entry && !mayChangeMembership(v.org, ctx.session.actorId, memberId, entry.scope);
   const allowed = ctx.session.can('invite_members') && !outranked;
   const scope = scopeOf(form);
   // An organization always keeps someone who can manage roles (decided 2026-10-13, PEOPLE-026; the server holds it).
   const onlyManager = !pending && entry?.scope.level === 'org' && leavesNoRoleManager(v.org, memberId, undefined);
-  const keeps = (a: Assignment) => !onlyManager || !leavesNoRoleManager(v.org, memberId, scopeOf(a)?.level === 'org' ? a.roleId : undefined);
+  const keepsManager = !onlyManager || !leavesNoRoleManager(v.org, memberId, scope?.level === 'org' ? form.roleId : undefined);
   // Only roles they could grant at the chosen scope, and the one held now.
   const roles = liveRoles(ctx).filter((r) => r.id === entry?.roleId || (!!scope && mayGrantRole(v.org, ctx.session.actorId, r.id, scope)));
   // A requester's name comes with the request (decisions.md 65), not from the members' names.
@@ -1151,35 +1108,20 @@ function MemberEditor(ctx: Ctx) {
       setError(failure('edit member', e));
     } finally { setBusy(false); }
   }
-  /** A role or place chosen: it applies as soon as it is whole, unless it would leave nobody to manage roles. */
-  function choose(next: Assignment) {
-    if (pending) { setForm(next); return; }
-    if (writing.current || !keeps(next)) return;
-    setForm(next);
-    const at = scopeOf(next);
-    if (!allowed || !entry || !at || !next.roleId) return;
-    const plan = changeMembership(entry, { roleId: next.roleId, scope: at });
-    if (plan.apply.length === 0) return;
-    const before = entry.key;
-    const role = roleName(ctx, next.roleId);
-    writing.current = true;
-    setError('');
-    setEntryKey(`${memberId}|${scopeKey(at)}`);
-    void saver.run(async () => {
-      try { await runOrg(plan.apply); } catch (e) {
-        setEntryKey(before);
-        setError(failure('edit member', e));
-        throw e;
-      }
-      ctx.toast(t('org.member.isNow', { name: who, role }), () => { setEntryKey(before); return undoOrg(plan.undo, 'undo role change'); }); // i18n-ignore: log label
-    }).finally(() => { writing.current = false; });
-  }
-  // Letting in someone who asked is a decision, not a setting: it waits for Assign role.
-  const assign = () => attempt(async () => {
+  const save = () => attempt(async () => {
     if (!scope || !form.roleId) return;
-    await decideRequest(requestId!, true, form.roleId, scope);
-    await ctx.org.sync();
-    ctx.toast(t('org.member.isNow', { name: who, role: roleName(ctx, form.roleId) }));
+    const role = roleName(ctx, form.roleId);
+    if (pending) {
+      await decideRequest(requestId!, true, form.roleId, scope);
+      await ctx.org.sync();
+      ctx.toast(t('org.member.isNow', { name: who, role }));
+      return;
+    }
+    if (!entry) return;
+    const plan = changeMembership(entry, { roleId: form.roleId, scope });
+    if (plan.apply.length === 0) return;
+    await runOrg(plan.apply);
+    ctx.toast(t('org.member.isNow', { name: who, role }), () => undoOrg(plan.undo, 'undo role change')); // i18n-ignore: log label
   });
   const remove = () => attempt(async () => {
     if (!entry) return;
@@ -1202,25 +1144,27 @@ function MemberEditor(ctx: Ctx) {
     );
   }
   const sub = pending ? (ctx.params['message'] || t('org.member.awaiting')) : `${roleName(ctx, entry!.roleId)} · ${v.target(entry!.scope)}`;
+  // Save Assignment waits for a change (a request is decided by choosing, so it is ready at once).
+  const changed = pending || (!!entry && !!scope && changeMembership(entry, { roleId: form.roleId, scope }).apply.length > 0);
+  const ready = allowed && !!form.roleId && !!scope && changed && keepsManager;
   return (
-    <Screen header={<Header title={pending ? t('org.member.assignRole') : who} sub={sub} onBack={ctx.back}
-      {...(allowed && !pending ? { action: <SavedMark status={saver.status} /> } : {})} />}
-      footer={allowed && pending ? (
+    <Screen header={<Header title={pending ? t('org.member.assignRole') : who} sub={sub} onBack={ctx.back} />}
+      footer={allowed ? (
         <>
-          <PrimaryBtn label={t('org.member.assignRole')} disabled={!form.roleId || !scope} busy={busy} onPress={() => void assign()} />
-          <GhostBtn label={t('org.member.decline')} tone="red" help={t('org.member.declineHelp')} onPress={() => void decline()} disabled={busy} />
+          <PrimaryBtn label={pending ? t('org.member.assignRole') : t('org.member.saveAssignment')} disabled={!ready} busy={busy} onPress={() => void save()} />
+          {pending ? <GhostBtn label={t('org.member.decline')} tone="red" help={t('org.member.declineHelp')} onPress={() => void decline()} disabled={busy} /> : null}
         </>
       ) : undefined}>
       <Row leading={<Avatar id={memberId} name={requesterName} size={48} />} label={who} sub={pending ? t('admin.asked.toJoin') : v.target(entry!.scope)} />
       {!pending && memberId ? <HelpSignIn memberId={memberId} who={who} /> : null}
       <Text style={txt.xs}>{pending ? t('org.member.introPending') : t('org.member.intro')}</Text>
-      {allowed ? <AssignmentForm ctx={ctx} roles={roles} levels={levels} value={form} onChange={choose} />
+      {allowed ? <AssignmentForm ctx={ctx} roles={roles} levels={levels} value={form} onChange={setForm} />
         : <Banner icon="lock" title={t('common.viewOnly')} body={outranked ? t('org.member.outranked', { name: who }) : t('org.member.viewOnly')} />}
       {allowed && onlyManager ? <Banner icon="lock" title={memberId === ctx.session.actorId ? t('org.member.onlyManagerYou') : t('org.member.onlyManager', { name: who })} body={t('org.member.onlyManagerSub')} /> : null}
       {error ? <Banner icon="flag" tone="amber" title={t('org.notSaved')} body={error} /> : null}
       {allowed && !pending && !onlyManager ? (
         // The demo has no Remove here; kept as a quiet link below the form,
-        // away from the choices, and it offers Undo.
+        // away from Save, and it offers Undo.
         <LinkBtn label={entry!.scope.level === 'org' ? t('org.member.removeFromOrg') : t('org.member.removeFromLanguage')} color={TINT.redText}
           help={t('org.member.removeHelp')} onPress={() => { if (!busy) void remove(); }} style={{ alignSelf: 'center' }} />
       ) : null}
