@@ -93,7 +93,7 @@ Steps:
 3. Play the voice note and read the text "Verse 18 is too fast".
 4. Tap "Record a fix".
 5. In the workspace, check that the Earlier chip is open with the review highlighted.
-6. Record one new part (6 seconds). Hold one of Version 1's parts and tap "Delete Part 1" (the fixture's parts carry no verses), then tap "Done".
+6. Record one new part (6 seconds). Slide Version 1's first part aside and tap its bin ("Delete Part 1"), then tap "Done".
 7. On the Done screen, open "What changed", empty it, tap "Done"; then say or type "Slowed verse 18", tap "Done", then "Send later".
 8. Open the bell again. Open the feedback on P-SUBMITTED, then tap "Hear the feedback".
 9. Tap "Keep it, say why". Type "The speed matches how elders tell it", then tap "Keep it".

@@ -9,7 +9,7 @@ import { EVENT_PAYLOAD_MAX_BYTES, eventSizeError, jsonbTextBytes, validateEvent 
 import { defaultResult, isWrittenPart, mediaAllowed, partsMedium, resultAllowed, sha256Hex, writtenPartId, writtenText } from '../src/writing';
 
 /**
- * Writing beside recording, and steps that make something (decisions.md 136).
+ * Writing beside recording, and steps that make something (decisions.md 137).
  */
 
 const env = (type: EventType, payload: unknown, n = 1): AnyEvent =>

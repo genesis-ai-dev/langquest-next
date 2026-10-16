@@ -4696,7 +4696,7 @@
       "discardAsk": "Tupa rekodi hii?",
       "discardConfirm": "Tupa",
       "recordOver": "Rekodi {{part}} upya",
-      "recordOverHelp": "Utakachorekodi kijacho kinachukua nafasi ya sehemu hii.",
+      "recordOverHelp": "Utakachorekodi kijacho kinachukua nafasi ya sehemu hii. Itelezeshe pembeni ili kuifuta.",
       "recordInGap": "Rekodi {{part}} hapa",
       "gapHelp": "Utakachorekodi kijacho kinaingia katika pengo hili.",
       "recordAtEnd": "Rekodi {{part}} mwishoni",

@@ -73,14 +73,14 @@ Steps:
 1. Open P-S. Tap "Something else?", then "Keep offline".
 2. Time how long the toast stays.
 3. Tap "Stop keeping offline". While its toast shows, move focus to the toast's close ✕ and activate it.
-4. Open P-DRAFT in the workspace. Delete Part 2.
+4. Open P-DRAFT in the workspace. On Part 2's bars ("Record Part 2 again"), choose the "Delete Part 2" action, then activate the bin it shows.
 5. Move focus to the Undo arrow left of the red button and activate it.
 
 Expected:
 - Step 1: the reader speaks the toast's message, "Kept on this device. It downloads while you are connected.", and nothing about Undo. The toast has no Undo.
 - Step 2: the toast stays about 7 seconds, double the 3.5 seconds it stays without a screen reader.
 - Step 3: the ✕ is spoken "Close", and closes the toast at once.
-- Step 4: no toast shows. The reader speaks "Part 2 deleted.", and the Undo arrow is spoken "Undo: Part 2 deleted.".
+- Step 4: the action slides the row aside; the bin is spoken "Delete Part 2". Once it is activated no toast shows: the reader speaks "Part 2 deleted.", and the Undo arrow is spoken "Undo: Part 2 deleted.".
 - Step 5: the part is back. The reader speaks "Undone: Part 2 deleted.".
 
 Changed (2026-10-16, decision 134): no toast offers Undo; a toast lasts 3.5 s (7 s with a screen reader on a phone), and the recording screen's Undo arrow brings a deleted part back.

@@ -29,11 +29,12 @@ export function useUndoHistory<S>(key: string | null, parse: (raw: string | null
     if (!key || readKey.current === key) return;
     readKey.current = key;
     let live = true;
-    // What was done here before the draft had a name is kept, after what was stored.
-    const unsaved = current.current;
     void AsyncStorage.getItem(key).then((raw) => {
       if (!live) return;
       const stored = parseRef.current(raw);
+      // What was done here before the stored history came back (before the draft had a name, or
+      // while the read was slow) is kept, after what was stored: read now, not when the read began.
+      const unsaved = current.current;
       const merged = unsaved.done.length > 0 || unsaved.undone.length > 0
         ? { done: [...stored.done, ...unsaved.done], undone: unsaved.undone } : stored;
       current.current = merged;
