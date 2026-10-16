@@ -242,7 +242,8 @@ async function openCheck(page: Page, check: string, opts: { lead?: boolean } = {
   await alphaPage(page, world(), opts);
   await text(page, 'Checks').click();
   await expect(text(page, 'Add a check')).toBeVisible();
-  await text(page, check).click();
+  // The card itself: another card's line can name this check (back translation's "Checked at").
+  await page.getByRole('button', { name: new RegExp(`^\\d+\\. ${check}$`) }).locator('visible=true').first().click();
   await expect(text(page, /^Check \d+ · Alpha$/)).toBeVisible();
 }
 /** A check's People page: its own page since decision 129. */

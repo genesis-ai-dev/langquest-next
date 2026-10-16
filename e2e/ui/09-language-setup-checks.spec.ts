@@ -24,12 +24,13 @@ async function checks(page: Page, w: UiWorld, who: AccountKey): Promise<void> {
   await expectOnScreen(page, 'A translator records a version', 'Add a check');
 }
 
-/** The checks as the Checks screen lists them, in order, by name. */
+/**
+ * The checks as the Checks screen lists them, in order, by name: each card is a button named
+ * "{n}. {name}" (a card's lines can name other checks, as back translation's "Checked at" does).
+ */
 async function listed(page: Page): Promise<string[]> {
-  const names = ['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval', 'Retelling', 'Local check', 'Elder check'];
-  const all = await screenText(page);
-  const body = all.slice(all.indexOf('A translator records a version'), all.indexOf('Add a check'));
-  return names.map((n) => [n, body.indexOf(` ${n} `)] as const).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([n]) => n);
+  const labels = await page.getByRole('button', { name: /^\d+\. / }).locator('visible=true').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
+  return labels.map((l) => l.replace(/^\d+\. /, ''));
 }
 
 /** Peer check's people, in either order. */
