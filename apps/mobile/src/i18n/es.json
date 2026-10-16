@@ -4893,7 +4893,8 @@
       "recordInGap": "Grabar {{part}} aquí",
       "gapHelp": "Lo que grabes a continuación va en este hueco.",
       "recordAtEnd": "Grabar {{part}} al final",
-      "endHelp": "Lo que grabes a continuación va al final."
+      "endHelp": "Lo que grabes a continuación va al final.",
+      "deleteAllAsk": "¿Borrar todas las partes?"
     },
     "quoted": "“{{text}}”",
     "listening": "Escuchando… {{time}}",

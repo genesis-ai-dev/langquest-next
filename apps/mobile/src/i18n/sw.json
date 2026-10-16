@@ -4739,7 +4739,8 @@
       "recordInGap": "Rekodi {{part}} hapa",
       "gapHelp": "Utakachorekodi kijacho kinaingia katika pengo hili.",
       "recordAtEnd": "Rekodi {{part}} mwishoni",
-      "endHelp": "Utakachorekodi kijacho kinaenda mwishoni."
+      "endHelp": "Utakachorekodi kijacho kinaenda mwishoni.",
+      "deleteAllAsk": "Futa sehemu zote?"
     },
     "quoted": "“{{text}}”",
     "listening": "Inasikiliza… {{time}}",

@@ -296,9 +296,11 @@ export function slotRows(count: number, gaps: readonly { before: number; label: 
 
 /** The number the part recorded next will have, where the target puts it. */
 export function targetNumber(rows: readonly SlotRow[], target: RecordTarget): number {
-  const row = target.kind === 'end' ? undefined
-    : rows.find((r) => (target.kind === 'gap' ? r.kind === 'gap' && r.before === target.before : r.kind === 'part' && r.index === target.index));
-  return row ? row.n : rows.length + 1;
+  if (target.kind === 'end') return rows.length + 1;
+  const at = (index: number) => rows.find((r) => r.kind === 'part' && r.index === index);
+  if (target.kind === 'over') return at(target.index)?.n ?? rows.length + 1;
+  // A gap with no row of its own any more (its first part is said): the next goes before the part after it.
+  return (rows.find((r) => r.kind === 'gap' && r.before === target.before) ?? at(target.before))?.n ?? rows.length + 1;
 }
 
 /** The verses a part recorded at `at` with `mark` would have, read with it in the list. */

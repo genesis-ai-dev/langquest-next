@@ -57,7 +57,7 @@ import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
 import {
   backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, labelAt, removeCardSpecs, sameCards, slotRows, targetNumber,
-  type RecordTarget,
+  type RecordTarget, type SlotRow,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
 import { getReferenceSlides } from '../passage/passageResources';
@@ -87,7 +87,7 @@ import { useOnTooShort, useRecorder, type RecordedCard } from '../recording/useR
 // ---- Workspace ---------------------------------------------------------------------
 
 /** Where what is said next goes, by card (LAN-83): the end, before a part (a gap), or over a part. */
-type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark } | { kind: 'over'; hash: string; mark?: PartMark };
+type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark } | { kind: 'over'; hash: string; n: number; mark?: PartMark };
 
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
@@ -170,6 +170,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // A deleted part's place, kept open as a gap until something is recorded into it (one at a time).
   const [hole, setHole] = useState<{ before: string; mark?: PartMark } | null>(null);
   const insertBefore = aim.kind === 'gap' ? aim.before : aim.kind === 'over' ? aim.hash : null;
+  // The card's rows as last drawn, for what a tap chose.
+  const rowsRef = useRef<SlotRow[]>([]);
   const list = useMemo(() => {
     const base = workingCards({
       ...(draftCards ? { draftCards } : {}), ...(startCards ? { latestCards: startCards } : {}), pending, cleared
@@ -276,7 +278,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       const first = list.findIndex((h) => fresh.has(h));
       const after = list.slice(first).find((h) => !fresh.has(h)) ?? null;
       const before = [...list.slice(0, first).filter((h) => !fresh.has(h)), aim.hash, ...list.slice(first).filter((h) => !fresh.has(h))];
-      replacedLabel = partLabel(Math.max(0, first));
+      replacedLabel = partLabel(aim.n - 1);
+      // The hole was before the part just replaced: it is before what replaced it now.
+      if (hole?.before === aim.hash && list[first]) setHole({ ...hole, before: list[first]! });
       undo = () => {
         const s = stateRef.current;
         return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me, parentTakeId: draftIn(s)?.takeId ?? parentNow() });
@@ -414,14 +418,18 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     if (to.kind === 'gap') {
       const before = list[to.before];
       if (!before) return;
-      const mark = hole?.before === before ? hole.mark : undefined;
+      // A deleted part's verses, or the verses the gap leaves out.
+      const row = rowsRef.current.find((r) => r.kind === 'gap' && r.before === to.before);
+      const label = row?.kind === 'gap' ? row.label : null;
+      const mark: PartMark | undefined = hole?.before === before ? hole.mark : label ? { t: 'set', s: label.s, e: label.e } : undefined;
       setAim({ kind: 'gap', before, ...(mark ? { mark } : {}) });
       return;
     }
     const hash = list[to.index];
     if (!hash) return;
     const mark = marks[to.index] ?? undefined;
-    setAim({ kind: 'over', hash, ...(mark ? { mark } : {}) });
+    const n = rowsRef.current.find((r) => r.kind === 'part' && r.index === to.index)?.n ?? to.index + 1;
+    setAim({ kind: 'over', hash, n, ...(mark ? { mark } : {}) });
   };
   const unitTerms = useMemo(() => keyTermsForUnit(state, unitId), [state, unitId]);
   const tied = useMemo(() => tiedTermIds(state, draft?.takeId ?? startFrom), [state, draft?.takeId, startFrom]);
@@ -505,6 +513,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const target: RecordTarget = aim.kind === 'gap' && list.includes(aim.before) ? { kind: 'gap', before: list.indexOf(aim.before) }
     : aim.kind === 'over' && list.includes(aim.hash) ? { kind: 'over', index: list.indexOf(aim.hash) } : { kind: 'end' };
   const targetN = targetNumber(rows, target);
+  rowsRef.current = rows;
   const nextIndex = targetN - 1;
   // The verses the next part takes, for the recording view's title.
   const targetLabel = target.kind === 'over' ? verseLabels[target.index] ?? null
@@ -608,7 +617,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
             </ScrollView>
           </HelpClip>
         )} />
-      <ConfirmDelete visible={askingAll} name={recorderLines(list.length).group}
+      <ConfirmDelete visible={askingAll} name={recorderLines(list.length).group} title={t('recording.recorder.deleteAllAsk')} confirmLabel={t('recording.recorder.deleteAll')}
         sub={t('recording.parts.groupSub', { count: list.length, length: mmss(totalMs(parts.map((x) => x.durationMs))) })}
         onClose={() => setAskingAll(false)} onConfirm={() => { setAskingAll(false); void removeAll(); }} />
     </Screen>

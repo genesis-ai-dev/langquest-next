@@ -4739,7 +4739,8 @@
       "recordInGap": "Record {{part}} here",
       "gapHelp": "What you record next goes in this gap.",
       "recordAtEnd": "Record {{part}} at the end",
-      "endHelp": "What you record next goes at the end."
+      "endHelp": "What you record next goes at the end.",
+      "deleteAllAsk": "Delete every part?"
     },
     "quoted": "“{{text}}”",
     "listening": "Listening… {{time}}",

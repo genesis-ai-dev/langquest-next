@@ -12,16 +12,18 @@ export function ConfirmDelete(props: {
   name: string;
   /** What it holds: "5 parts · 0:49 · Verses 49–59". */
   sub?: string;
+  /** In place of "Delete {name}?" and "Delete {name}", when the thing has no one name. */
+  title?: string; confirmLabel?: string;
   busy?: boolean;
   onConfirm: () => void;
   onClose: () => void;
   children?: ReactNode;
 }) {
   return (
-    <Sheet visible={props.visible} title={t('common.deleteAsk', { name: props.name })} {...(props.sub ? { sub: props.sub } : {})} onClose={props.onClose}
+    <Sheet visible={props.visible} title={props.title ?? t('common.deleteAsk', { name: props.name })} {...(props.sub ? { sub: props.sub } : {})} onClose={props.onClose}
       footer={(
         <>
-          <PrimaryBtn label={t('passage.versions.delete', { name: props.name })} icon="trash" tone="red" busy={!!props.busy} onPress={props.onConfirm} />
+          <PrimaryBtn label={props.confirmLabel ?? t('passage.versions.delete', { name: props.name })} icon="trash" tone="red" busy={!!props.busy} onPress={props.onConfirm} />
           <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={props.onClose} />
         </>
       )}>

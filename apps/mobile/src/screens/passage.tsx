@@ -34,7 +34,7 @@ import { PassagePath } from '../passage/path';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {
   answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnName, gridModel, hasFeedback, notesSummary, responseLine,
-  revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor,
+  revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor, versionName,
   type OutcomeTone
 } from '../passage/reviewModel';
 import {
@@ -868,6 +868,8 @@ export function VersionDetail(ctx: Ctx) {
   const version = versionFor(p, ctx.params['takeId']);
   if (!version) return <Missing ctx={ctx} id="version_detail" crumbsOf={v} text={t('passage.version.nothingRecorded')} />;
   const { title, reviews, prompted, terms, notes } = versionDetailModel(v, version);
+  // A deleted version opens as what it was, with when and by whom it was deleted (LAN-83).
+  const gone = p.deletedVersions.find((x) => x.takeId === version.takeId);
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
   const canEdit = recordCan(ctx.session).record;
@@ -885,7 +887,8 @@ export function VersionDetail(ctx: Ctx) {
     </View>
   ) : undefined;
   return (
-    <Screen footer={footer} header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back}
+    <Screen footer={footer} header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} onBack={ctx.back}
+      sub={gone ? `${t('passage.record.entry.versionDeleted', { n: version.n })} · ${ctx.name(gone.deleted.by)} · ${when(gone.deleted.hlc)}` : `${ctx.name(version.by)} · ${when(version.hlc)}`}
       action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, unitId)} />} />}>
       <Card>
         <Label text={version.n === 1 ? t('passage.version.note') : t('passage.version.whatChanged')} />
@@ -1043,7 +1046,7 @@ export function ReviewDetail(ctx: Ctx) {
           </View>
           <View style={{ marginTop: space.md }}><PersonAvatar look={look(review.by)} size={72} /></View>
           <Text style={[txt.h2, { fontWeight: '800' }]}>{source}</Text>
-          <Text style={txt.smMuted}>{[when(review.hlc), version ? versionTitle(version.n) : ''].filter(Boolean).join(' · ')}</Text>
+          <Text style={txt.smMuted}>{[when(review.hlc), version ? versionName(p, version) : ''].filter(Boolean).join(' · ')}</Text>
         </View>
         <Authored ctx={ctx} by={review.by}>
           <View style={styles.feedbackCard}>

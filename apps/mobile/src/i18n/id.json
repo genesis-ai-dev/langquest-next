@@ -4585,7 +4585,8 @@
       "recordInGap": "Rekam {{part}} di sini",
       "gapHelp": "Yang Anda rekam berikutnya masuk ke celah ini.",
       "recordAtEnd": "Rekam {{part}} di akhir",
-      "endHelp": "Yang Anda rekam berikutnya masuk di akhir."
+      "endHelp": "Yang Anda rekam berikutnya masuk di akhir.",
+      "deleteAllAsk": "Hapus semua bagian?"
     },
     "quoted": "“{{text}}”",
     "listening": "Mendengarkan… {{time}}",

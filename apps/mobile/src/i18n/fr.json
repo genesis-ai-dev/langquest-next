@@ -4893,7 +4893,8 @@
       "recordInGap": "Enregistrer {{part}} ici",
       "gapHelp": "Ce que vous enregistrez ensuite va dans ce vide.",
       "recordAtEnd": "Enregistrer {{part}} à la fin",
-      "endHelp": "Ce que vous enregistrez ensuite va à la fin."
+      "endHelp": "Ce que vous enregistrez ensuite va à la fin.",
+      "deleteAllAsk": "Supprimer toutes les parties ?"
     },
     "quoted": "« {{text}} »",
     "listening": "Écoute… {{time}}",

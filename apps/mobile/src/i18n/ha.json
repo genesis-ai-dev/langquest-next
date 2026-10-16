@@ -4739,7 +4739,8 @@
       "recordInGap": "Naɗa {{part}} a nan",
       "gapHelp": "Abin da za ku naɗa na gaba zai shiga wannan gibi.",
       "recordAtEnd": "Naɗa {{part}} a ƙarshe",
-      "endHelp": "Abin da za ku naɗa na gaba zai tafi ƙarshe."
+      "endHelp": "Abin da za ku naɗa na gaba zai tafi ƙarshe.",
+      "deleteAllAsk": "A goge dukkan sassa?"
     },
     "quoted": "“{{text}}”",
     "listening": "Ana saurara… {{time}}",

@@ -32,6 +32,8 @@ import { useClip } from '../audio/useClip';
 import { partIs, spanName, spanShort } from './verseModel';
 
 const GUTTER = 64;
+/** A range's size, so "49–50" or "100–105" sits whole inside the space beside its part. */
+const rangeFit = (text: string) => ({ fontSize: text.length <= 5 ? T.sm : T.xs - 1, letterSpacing: -0.3 });
 const HOLD_MS = 420;
 
 export function VerseParts(props: {
@@ -251,7 +253,7 @@ function PartRow(props: {
         {l ? (
           // The same verse as the part above is drawn hollow and grey: one verse said in pieces.
           <View style={[styles.badge, l.kind === 'join' && styles.badgeSame]}>
-            <Text style={[l.s === l.e ? styles.badgeText : styles.badgeRange, l.kind === 'join' && { color: C.dark }]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+            <Text style={[l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))], l.kind === 'join' && { color: C.dark }]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
             {l.kind === 'set' ? <View style={styles.pin} /> : null}
           </View>
         ) : (
@@ -294,7 +296,7 @@ export function VerseTile(props: { verses: string[]; label: PartLabel; same: boo
   return (
     <HelpInfo label={spanName(props.verses, l.s, l.e)} detail={props.same ? t('recording.verses.tileSameHelp') : t('recording.verses.tileHelp')}>
       <View style={[styles.badge, props.same && styles.badgeSame]}>
-        <Text style={l.s === l.e ? styles.badgeText : styles.badgeRange} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
+        <Text style={l.s === l.e ? styles.badgeText : [styles.badgeRange, rangeFit(spanShort(props.verses, l.s, l.e))]} numberOfLines={1}>{spanShort(props.verses, l.s, l.e)}</Text>
       </View>
     </HelpInfo>
   );

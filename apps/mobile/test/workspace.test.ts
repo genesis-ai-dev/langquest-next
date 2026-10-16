@@ -4,7 +4,7 @@ import {
 } from '@langquest-next/core';
 import {
   backTranslationDraftKey, canPublish, cardDurations, draftToOpen, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
-  termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards
+  termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards, slotRows, targetNumber
 } from '../src/recording/workspaceModel';
 import { pendingPassageCards } from '../src/recording/recordingFlow';
 
@@ -260,5 +260,22 @@ describe('a back translation in progress', () => {
     // A draft the save could not clear offers nothing twice.
     expect(unsavedParts(s, d)).toEqual([]);
     expect(unsavedParts(s, null)).toEqual([]);
+  });
+});
+
+describe('where the next part goes (LAN-83)', () => {
+  it('numbers a gap as the part it will be, and the parts after it as they will be', () => {
+    // Why: a deleted part's place is said again as "Part 3", and Part 4 stays Part 4 meanwhile.
+    const rows = slotRows(4, [], { before: 2, label: null });
+    expect(rows.map((r) => (r.kind === 'gap' ? `gap${r.n}` : `p${r.index}:${r.n}`))).toEqual(['p0:1', 'p1:2', 'gap3', 'p2:4', 'p3:5']);
+    expect(targetNumber(rows, { kind: 'end' })).toBe(6);
+    expect(targetNumber(rows, { kind: 'gap', before: 2 })).toBe(3);
+    expect(targetNumber(rows, { kind: 'over', index: 2 })).toBe(4);
+  });
+
+  it('keeps counting in a place once its gap is filled', () => {
+    // Why: what is said after the first part in a place goes there too, numbered next.
+    const rows = slotRows(5, [], null);
+    expect(targetNumber(rows, { kind: 'gap', before: 3 })).toBe(4);
   });
 });

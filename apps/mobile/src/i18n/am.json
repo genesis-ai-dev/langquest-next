@@ -4739,7 +4739,8 @@
       "recordInGap": "{{part}}ን እዚህ ይቅረጹ",
       "gapHelp": "ቀጥሎ የሚቀርጹት በዚህ ክፍተት ውስጥ ይገባል።",
       "recordAtEnd": "{{part}}ን መጨረሻ ላይ ይቅረጹ",
-      "endHelp": "ቀጥሎ የሚቀርጹት መጨረሻ ላይ ይገባል።"
+      "endHelp": "ቀጥሎ የሚቀርጹት መጨረሻ ላይ ይገባል።",
+      "deleteAllAsk": "ሁሉንም ቁራጮች ይሰርዙ?"
     },
     "quoted": "«{{text}}»",
     "listening": "በማዳመጥ ላይ… {{time}}",
