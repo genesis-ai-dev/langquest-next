@@ -6,7 +6,7 @@
 import { derivePassage, type LanguageState } from '@langquest-next/core';
 import type { Page } from '@playwright/test';
 import {
-  chip, expectIdle, expectParts, expectUploaded, installMicControl, mic, openWorkspace, partCount, publishButton, recordButton, useFileWorld
+  chip, expectIdle, expectParts, expectUploaded, installMicControl, leaveSession, mic, openWorkspace, partCount, publishButton, recordButton, useFileWorld
 } from './06-recording-helpers';
 import { clientAs } from './fixture';
 import { button, expect, expectToast, openAs, primary, test, text } from './support';
@@ -41,8 +41,7 @@ test('REC-030 A five-minute part, and a five-minute session of many parts', asyn
   }
   await m.speak(false);
   await expectParts(page, 1, 10_000);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await expectParts(page, 1, 60_000);
   await expect(button(page, 'Play Part 1')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Part 1, 1 part · 5:2\d$/ })).toBeVisible();
@@ -55,8 +54,7 @@ test('REC-030 A five-minute part, and a five-minute session of many parts', asyn
     await expectParts(page, 2 + i, 10_000);
     if (i % 5 === 4) slow.push(await tapLatency(page));
   }
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await expectParts(page, 31, 60_000);
   // About ten minutes: the pauses trimmed off each part (half of each kept at its end) leave a little under.
   await expect(page.getByRole('button', { name: /^Parts 1–31, 31 parts · (9:[3-5]\d|10:\d\d)$/ })).toBeVisible();

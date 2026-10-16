@@ -39,6 +39,8 @@ export async function recordParts(page: Page, parts: number): Promise<void> {
   // Each loop of the voice ends one part; a part shows once its pause is heard.
   await expect.poll(() => partsCount(page), { timeout: 15_000 + parts * 5_000, intervals: [500] }).toBeGreaterThanOrEqual(before + parts);
   await byId(page, 'record-button').click();
+  // Stopped, the session is still open (LAN-82); Done keeps its parts.
+  await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').first().click();
   await expect(byId(page, 'record-button')).toHaveAccessibleName('Record');
 }
 
@@ -57,6 +59,8 @@ export async function sayEachPart(page: Page, parts: number): Promise<void> {
     // speaking (07-reviewing's sayPart). A fixed wait let a slow runner stop before anything was heard.
     await expect(page.getByLabel(/[1-9]\d* pieces? so far/).locator('visible=true').first()).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'Stop recording' }).locator('visible=true').first().click();
+    // Stopped, the session is still open (LAN-82); Done keeps its pieces.
+    await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').first().click();
     await expect(said(n).first()).toBeVisible({ timeout: 20_000 });
   }
 }

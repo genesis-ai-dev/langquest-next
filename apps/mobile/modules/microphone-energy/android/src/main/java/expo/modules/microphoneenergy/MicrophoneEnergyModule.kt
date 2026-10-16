@@ -36,15 +36,17 @@ class MicrophoneEnergyModule : Module() {
   
   private data class RingBufferEntry(val buffer: ShortArray, val timestamp: Long)
   private val ringBuffer = ArrayDeque<RingBufferEntry>()
-  /** Long enough for a part's head to reach back as far as the splitter lets it. */
-  private val ringBufferMaxSize = kotlin.math.ceil((Splitter.MAX_HEAD_MS + Splitter.HEAD_MARGIN_MS) / FRAME_MS).toInt() + 2
+  /** Long enough for a part's head to reach back as far as the splitter lets it, and the room before it (Chunks.kt). */
+  private val ringBufferMaxSize = Chunks.ringFrames(FRAME_MS)
   
+  /** A hold-to-record take, streaming to disk as it is heard. */
   private var isRecordingSegment = false
   private var segmentStartTime: Long = 0
   private val sampleRate = 44100
-  // Audio for the open segment streams to disk as it arrives; only the
-  // trimming window (half the pause) stays in memory.
   private var segmentWriter: SegmentWriter? = null
+  /** A session's parts and the room around them (Chunks.kt, LAN-82): the open chunk's file streams to disk as it is heard. */
+  private var chunks: Chunks? = null
+  private var chunkWriter: SegmentWriter? = null
   
   private var vadEnabled = false
   /** Where parts split (Splitter.kt, LAN-82): it learns the room and the voice, and needs no setting. */
@@ -56,7 +58,7 @@ class MicrophoneEnergyModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("MicrophoneEnergy")
-    Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart")
+    Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete")
     
     AsyncFunction("startEnergyDetection") { promise: Promise -> startEnergyDetection(promise) }
     AsyncFunction("stopEnergyDetection") { promise: Promise -> stopEnergyDetection(promise) }
@@ -86,6 +88,7 @@ class MicrophoneEnergyModule : Module() {
     if (isActive) stopEnergyDetectionInternal()
     synchronized(ringBuffer) { ringBuffer.clear() }
     segmentWriter?.discard(); segmentWriter = null; isRecordingSegment = false
+    chunkWriter?.discard(); chunkWriter = null
     try {
       val channelConfig = AudioFormat.CHANNEL_IN_MONO
       val audioFormat = AudioFormat.ENCODING_PCM_16BIT
@@ -146,6 +149,7 @@ class MicrophoneEnergyModule : Module() {
       isActive = false
       vadEnabled = false
       splitter?.let { remembered = it.remember(); it.pauseListening() }
+      chunks?.let { keep(it.stop()) }
     }
     recordingScope?.cancel()
     recordingScope = null
@@ -168,6 +172,7 @@ class MicrophoneEnergyModule : Module() {
     synchronized(configLock) {
       vadEnabled = true
       val sp = splitter ?: Splitter(FRAME_MS, remembered).also { splitter = it }
+      if (chunks == null) chunks = Chunks(FRAME_MS, sampleRate)
       sp.pauseListening()
       // What the microphone heard while the detector was off (a source playing) never heads a part.
       synchronized(ringBuffer) { ringBuffer.clear() }
@@ -178,6 +183,8 @@ class MicrophoneEnergyModule : Module() {
     synchronized(configLock) {
       vadEnabled = false
       splitter?.let { remembered = it.remember(); it.pauseListening() }
+      // A part being said is kept to here, and its chunk is finished before this resolves.
+      chunks?.let { keep(it.stop()) }
     }
     awaitWrites { finishStoppedSegment(done) }
   }
@@ -210,12 +217,15 @@ class MicrophoneEnergyModule : Module() {
         ringBuffer.addLast(RingBufferEntry(dataCopy, now))
         if (ringBuffer.size > ringBufferMaxSize) ringBuffer.removeFirst()
       }
-      // The open part keeps the last pause's worth in memory, so its tail can still be trimmed.
-      if (isRecordingSegment) segmentWriter?.append(dataCopy, (sampleRate * Splitter.MAX_PAUSE_MS / 1000).toInt())
+      if (isRecordingSegment) segmentWriter?.append(dataCopy, 0)
+      chunkWriter?.append(dataCopy, 0)
       clockMs += bytesRead * 1000.0 / sampleRate
       val sp = splitter
-      if (vadEnabled && sp != null) {
-        handleSplit(sp, sp.step(normalizedAmplitude.toDouble(), clockMs))
+      val ch = chunks
+      if (vadEnabled && sp != null && ch != null) {
+        val action = sp.step(normalizedAmplitude.toDouble(), clockMs)
+        handleSplit(sp, action)
+        keep(ch.step(bytesRead, action, clockMs))
         quiet = sp.levels().quiet
       }
     }
@@ -226,30 +236,68 @@ class MicrophoneEnergyModule : Module() {
     }
   }
 
-  /** Called with configLock held: start or end a part as the splitter says. */
+  /**
+   * Called with configLock held: a part starts or ends, as the splitter says.
+   * Its events go by the main thread, as the meter's do, so JS hears them in
+   * the order of the frames.
+   */
   private fun handleSplit(sp: Splitter, action: Splitter.Action?) {
     when (action) {
-      is Splitter.Action.Start -> {
-        sendEvent("onSegmentStart", mapOf("headMs" to action.headFrames * FRAME_MS))
-        val p = object : Promise { override fun resolve(value: Any?) {}; override fun reject(code: String?, message: String?, cause: Throwable?) {} }
-        startSegmentFrames(action.headFrames, p)
-      }
+      is Splitter.Action.Start -> { val headMs = action.headFrames * FRAME_MS; main.post { sendEvent("onSegmentStart", mapOf("headMs" to headMs)) } }
       is Splitter.Action.Stop -> {
-        if (!isRecordingSegment) return
-        isRecordingSegment = false
-        val writer = segmentWriter
-        segmentWriter = null
         remembered = sp.remember()
-        if (action.discard) {
-          // A tap or a bump, not speech: nothing said is lost.
-          writer?.discard()
-          sendEvent("onSegmentComplete", mapOf("uri" to "", "duration" to 0.0, "heard" to heardMap()))
-          return
-        }
-        val endTime = System.currentTimeMillis() - action.trimMs
-        finishSegment(writer, segmentStartTime, endTime, sampleRate * action.trimMs / 1000)
+        // A tap or a bump, not speech: nothing said is lost, so nothing is kept.
+        if (action.discard) { val heard = heardMap(); main.post { sendEvent("onSegmentComplete", mapOf("uri" to "", "duration" to 0.0, "heard" to heard)) } }
       }
       null -> {}
+    }
+  }
+
+  /** Called with configLock held: do what Chunks.kt says (open a chunk with the ring's last frames, mark a part in it, close it). */
+  private fun keep(actions: List<Chunks.Action>) {
+    for (a in actions) when (a) {
+      is Chunks.Action.Open -> {
+        try {
+          val context = appContext.reactContext ?: throw Exception("Context not available")
+          // filesDir survives restarts, unlike cacheDir, so JS can cut the parts from it after a crash (its journal).
+          val dir = java.io.File(context.filesDir, "recording-staging").also { it.mkdirs() }
+          val writer = SegmentWriter(java.io.File(dir, "chunk_${java.util.UUID.randomUUID()}.wav"), sampleRate)
+          synchronized(ringBuffer) { for (entry in ringBuffer.takeLast(a.frames)) writer.append(entry.buffer, 0) }
+          chunkWriter = writer
+        } catch (e: Exception) {
+          sendEvent("onError", mapOf("message" to "Could not start recording a part: ${e.message}"))
+        }
+      }
+      is Chunks.Action.Mark -> {
+        val writer = chunkWriter ?: continue
+        val fromMs = a.from * 1000.0 / sampleRate
+        val toMs = a.to * 1000.0 / sampleRate
+        val event = mapOf("uri" to writer.uri, "chunk" to writer.uri, "fromMs" to fromMs, "toMs" to toMs,
+          "duration" to toMs - fromMs, "startTime" to 0.0, "endTime" to 0.0, "heard" to heardMap())
+        main.post { sendEvent("onSegmentComplete", event) }
+      }
+      is Chunks.Action.Close -> {
+        val writer = chunkWriter ?: continue
+        chunkWriter = null
+        if (a.keep) finishChunk(writer) else writer.discard()
+      }
+    }
+  }
+
+  /** Completes a chunk's file off the audio thread, then says so; stopping waits for it. Every failure reaches JS as onError. */
+  private fun finishChunk(writer: SegmentWriter) {
+    synchronized(writeWaiters) { pendingWrites += 1 }
+    (writeScope ?: CoroutineScope(Dispatchers.IO).also { writeScope = it }).launch {
+      try {
+        writer.finish(0)
+        withContext(Dispatchers.Main) {
+          sendEvent("onChunkComplete", mapOf("chunk" to writer.uri, "uri" to writer.uri, "duration" to writer.durationMs))
+        }
+      } catch (e: Exception) {
+        withContext(Dispatchers.Main) {
+          sendEvent("onError", mapOf("message" to "Could not save recording (${writer.file.name}): ${e.message}"))
+        }
+      } finally { writeFinished() }
     }
   }
 
@@ -279,7 +327,7 @@ class MicrophoneEnergyModule : Module() {
     synchronized(configLock) { startSegmentFrames((prerollMs / FRAME_MS).toInt(), promise) }
   }
 
-  /** Called with configLock held: open a part's file with the last `headFrames` frames of the ring. */
+  /** Called with configLock held: open a take's file with the last `headFrames` frames of the ring. */
   private fun startSegmentFrames(headFrames: Int, promise: Promise) {
     if (!isActive) { promise.reject("NOT_ACTIVE", "Energy detection not active", null); return }
     if (isRecordingSegment) { promise.resolve(null); return }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BAR, clampCutoff, cutoffAfterDrag, DEFAULT_SPLIT, DIVIDER, fractionAfterDrag, levelAtHeight, loopPhase, loopStatus, meterHeight,
+  BAR, clampCutoff, cutoffAfterDrag, DEFAULT_SPLIT, DIVIDER, fractionAfterDrag, levelAtHeight, loopPhase, loopRecording, loopStatus, meterHeight,
   MIN_BOTTOM, MIN_BOTTOM_RECORDING, MIN_TOP, nearestSnap, paneHeights, rememberedSplit, rememberSplit, SNAPS, splitValueText, stepSnap
 } from '../src/recording/splitModel';
 
@@ -88,9 +88,14 @@ describe('listen, speak, listen', () => {
     expect(loopPhase(true, false)).toBe('recording');
     // The microphone stays open while the source plays (decisions.md 106).
     expect(loopPhase(true, true)).toBe('listening');
-    // A recorder that stopped by itself (background, error) ends the session, paused or not.
+    // A recorder that stopped by itself (background, error) stops recording, paused or not.
     expect(loopPhase(false, true)).toBe('off');
     expect(loopPhase(false, false)).toBe('off');
+    // Stopped with the session still open (LAN-82): its parts can be heard, moved and dropped until it is left.
+    expect(loopPhase(false, true, true)).toBe('stopped');
+    expect(loopPhase(true, false, true)).toBe('recording');
+    expect(loopRecording('stopped')).toBe(false);
+    expect(loopRecording('listening')).toBe(true);
   });
 
   it('says plainly that recording is paused while the source plays', () => {

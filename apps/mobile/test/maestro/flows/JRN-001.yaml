@@ -107,6 +107,8 @@ tags:
     timeout: 30000
 - tapOn:
     id: "record-button"
+# Stop keeps the session open (decision 129): Done leaves it and saves its parts.
+- tapOn: "Done"
 - runFlow:
     when:
       visible: "(?i)Allow|While using the app"

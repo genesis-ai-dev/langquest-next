@@ -47,7 +47,7 @@ import { AskCheckCard } from '../passage/askParts';
 import type { DoneAsk } from './publish';
 import { RecordButton, SaveProblem } from './parts';
 import { SplitPane } from './SplitPane';
-import { MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
+import { loopRecording, MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
 import { useListenLoop } from './useListenLoop';
 import { RecordingView } from './RecordingView';
 import { backTranslationDraftKey, cardDurations, unsavedParts } from './workspaceModel';
@@ -62,7 +62,7 @@ import type { SaveStatus } from '../ui/savedModel';
 
 export function BackTranslationBody({ ctx, v, kind, of, make }: {
   ctx: Ctx; v: PassageView; kind: KindDef; of: Version;
-  /** A step that makes recording (decisions.md 129): what it says it into, and the language it is in when not the team's own. */
+  /** A step that makes recording (decisions.md 130): what it says it into, and the language it is in when not the team's own. */
   make?: { into: string; language?: string; added?: boolean };
 }) {
   const { state, unitId, languageId, p } = v;
@@ -223,7 +223,7 @@ export function BackTranslationBody({ ctx, v, kind, of, make }: {
           crumbs={passageCrumbs(ctx, v, screenTitle('back_translation'))} onBack={ctx.back} close action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />
         : <Header title={v.title} sub={shipped ? t('backTranslation.subInto', { into: produces.into }) : t('backTranslation.whatInto', { what: capitalize(produces.what), into: produces.into })}
           onBack={ctx.back} close action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
-      footer={session ? (
+      footer={loopRecording(loop.phase) ? (
         <View style={styles.footer}>
           <Text style={[txt.sm, styles.footLabel, { color: TINT.redText }]} numberOfLines={2}>{partLabel}…</Text>
           <RecordButton recording onPress={() => void loop.toggle()} />
@@ -234,7 +234,8 @@ export function BackTranslationBody({ ctx, v, kind, of, make }: {
           <Text style={[txt.sm, styles.footLabel]} numberOfLines={2}>{partLabel}</Text>
           <BigRecord disabled={blocked || rec.failureCount > 0 || !part} part={partN} onPress={() => void loop.toggle()} />
           <View style={styles.footSide}>
-            <PublishBtn disabled={pieces.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />
+            {/* A session open but stopped (decision 129) has the recording view's Done. */}
+            {session ? null : <PublishBtn disabled={pieces.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />}
           </View>
         </View>
       )}>
@@ -265,7 +266,7 @@ export function BackTranslationBody({ ctx, v, kind, of, make }: {
           </HelpClip>
         )}
         bottom={({ compact, open }) => session ? (
-          <RecordingView rec={rec} phase={loop.phase} title={partLabel} partNumber={partN ?? 1} count={part?.cards.length ?? 0} noun="piece" onLeave={() => void loop.toggle()} onResume={loop.resumeNow} />
+          <RecordingView rec={rec} phase={loop.phase} title={partLabel} partNumber={partN ?? 1} count={(part?.cards.length ?? 0) + rec.sessionKept} noun="piece" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()} />
         ) : compact ? (
           <PaneBar icon="mic" onPress={open} text={<>{partLabel} · {saidLine(parts)}</>} label={t('backTranslation.openYour', { what: produces.what })}
             help={t('backTranslation.openPartsHelp')} />

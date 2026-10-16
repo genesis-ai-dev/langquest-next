@@ -5,9 +5,10 @@ import Foundation
 /**
  * The microphone, its level, and parts split where the speaker pauses
  * (Splitter.swift, LAN-82): the splitter learns the room and the voice while
- * it listens and needs no setting. Each part's audio streams to disk as it is
+ * it listens and needs no setting. A session's parts are kept with the room
+ * around them in chunk files (Chunks.swift) that stream to disk as they are
  * heard; the ring buffer holds the last few seconds so a part can start where
- * the voice first rose out of the room.
+ * the voice first rose out of the room, with the room before it.
  */
 public class MicrophoneEnergyModule: Module {
     private var audioEngine: AVAudioEngine?
@@ -21,17 +22,18 @@ public class MicrophoneEnergyModule: Module {
         let timestamp: TimeInterval
     }
     private var ringBuffer: [RingBufferEntry] = []
-    /// Long enough for a part's head to reach back as far as the splitter lets it, at this device's frame length.
+    /// Long enough for a part's head to reach back as far as the splitter lets it, and the room before it, at this device's frame length.
     private var ringBufferMaxSize: Int {
-        max(10, Int(((Splitter.maxHeadMs + Splitter.headMarginMs) / (splitter?.frameMs ?? 46.4)).rounded(.up)) + 2)
+        max(10, chunks?.ringSize ?? Chunks.ringFrames(splitter?.frameMs ?? 46.4))
     }
     
+    /// A hold-to-record take. Its audio streams to disk as it arrives; touched only on wavWriteQueue after creation.
     private var isRecordingSegment = false
     private var segmentStartTime: TimeInterval = 0
-    // Audio for the open segment streams to disk as it arrives; only the
-    // trimming window (half the pause) stays in memory. Touched only on
-    // wavWriteQueue after creation.
     private var segmentWriter: SegmentWriter?
+    /// A session's parts and the room around them (Chunks.swift, LAN-82): the open chunk's file streams to disk as it is heard.
+    private var chunks: Chunks?
+    private var chunkWriter: SegmentWriter?
     // All WAV writes share one queue. Stop waits for this queue so the JS
     // promise cannot resolve before the final completion event is enqueued.
     private let wavWriteQueue = DispatchQueue(label: "langquest.microphone-energy.wav")
@@ -49,7 +51,7 @@ public class MicrophoneEnergyModule: Module {
     
     public func definition() -> ModuleDefinition {
         Name("MicrophoneEnergy")
-        Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart")
+        Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete")
         
         AsyncFunction("startEnergyDetection") { () -> Void in try await self.startEnergyDetection() }
         AsyncFunction("stopEnergyDetection") { () -> Void in try await self.stopEnergyDetection() }
@@ -67,6 +69,8 @@ public class MicrophoneEnergyModule: Module {
         if let stale = segmentWriter { wavWriteQueue.async { stale.discard() } }
         segmentWriter = nil
         isRecordingSegment = false
+        if let stale = chunkWriter { wavWriteQueue.async { stale.discard() } }
+        chunkWriter = nil
         
         let audioSession = AVAudioSession.sharedInstance()
         let permissionGranted = await withCheckedContinuation { continuation in
@@ -145,6 +149,7 @@ public class MicrophoneEnergyModule: Module {
         isActive = false
         vadEnabled = false
         if let sp = splitter { remembered = sp.remember(); sp.pauseListening() }
+        if let ch = chunks { keep(ch.stop()) }
         configLock.unlock()
         
         // Preserve segment order: older queued writes emit before the final clip.
@@ -200,6 +205,8 @@ public class MicrophoneEnergyModule: Module {
         configLock.lock()
         vadEnabled = false
         if let sp = splitter { remembered = sp.remember(); sp.pauseListening() }
+        // A part being said is kept to here; its chunk is finished before this returns (the queue is drained below).
+        if let ch = chunks { keep(ch.stop()) }
         configLock.unlock()
         // Preserve segment order: older queued writes emit before the final clip.
         await drainWavWritesAndMain()
@@ -249,46 +256,79 @@ public class MicrophoneEnergyModule: Module {
         while ringBuffer.count > ringBufferMaxSize { ringBuffer.removeFirst() }
         
         if isRecordingSegment, let writer = segmentWriter {
-            // The open part keeps the longest pause's worth in memory, so its tail can still be trimmed.
-            let keep = Int(sampleRate * Splitter.maxPauseMs / 1000)
-            wavWriteQueue.async { writer.append(bufferCopy, keepSamples: keep) }
+            wavWriteQueue.async { writer.append(bufferCopy, keepSamples: 0) }
+        }
+        if let writer = chunkWriter {
+            wavWriteQueue.async { writer.append(bufferCopy, keepSamples: 0) }
         }
         clockMs += frameMs
         var event: [String: Any] = ["energy": normalizedAmplitude, "timestamp": now]
         if vadEnabled {
             if splitter == nil { splitter = Splitter(frameMs: frameMs, remembered: remembered) }
-            if let sp = splitter {
-                handleSplit(sp, sp.step(energy: Double(normalizedAmplitude), now: clockMs))
+            if chunks == nil { chunks = Chunks(frameMs: frameMs, sampleRate: Int(sampleRate)) }
+            if let sp = splitter, let ch = chunks {
+                let action = sp.step(energy: Double(normalizedAmplitude), now: clockMs)
+                handleSplit(sp, action)
+                keep(ch.step(samples: frameLength, action: action, now: clockMs))
                 event["quiet"] = sp.levels().quiet
             }
         }
         sendEvent("onEnergyResult", event)
     }
     
-    /// Called with configLock held: start or end a part as the splitter says.
+    /// Called with configLock held: a part starts or ends, as the splitter says.
     private func handleSplit(_ sp: Splitter, _ action: Splitter.Action?) {
         switch action {
         case .start(let headFrames):
             sendEvent("onSegmentStart", ["headMs": Double(headFrames) * sp.frameMs])
-            do { try openSegment(headFrames: headFrames) } catch {
-                sendEvent("onError", ["message": error.localizedDescription])
-            }
-        case .stop(let discard, let trimMs):
-            guard isRecordingSegment else { return }
-            isRecordingSegment = false
-            let writer = segmentWriter
-            segmentWriter = nil
+        case .stop(let discard, _):
             remembered = sp.remember()
-            if discard {
-                // A tap or a bump, not speech: nothing said is lost.
-                wavWriteQueue.async { writer?.discard() }
-                sendEvent("onSegmentComplete", ["uri": "", "duration": 0, "heard": heardMap()])
-                return
-            }
-            let endTime = Date().timeIntervalSince1970 * 1000 - Double(trimMs)
-            finishSegment(writer, startTime: segmentStartTime, endTime: endTime, trimSamples: Int(sampleRate) * trimMs / 1000)
+            // A tap or a bump, not speech: nothing said is lost, so nothing is kept.
+            if discard { sendEvent("onSegmentComplete", ["uri": "", "duration": 0, "heard": heardMap()]) }
         case .none:
             break
+        }
+    }
+
+    /// Called with configLock held: do what Chunks.swift says (open a chunk with the ring's last frames, mark a part in it, close it).
+    private func keep(_ actions: [Chunks.Action]) {
+        for a in actions {
+            switch a {
+            case .open(let frames):
+                do {
+                    let url = SegmentWriter.stagingDirectory().appendingPathComponent("chunk_\(UUID().uuidString).wav")
+                    let writer = try SegmentWriter(url: url, sampleRate: Int(sampleRate))
+                    let head = ringBuffer.suffix(min(ringBuffer.count, frames)).map { $0.buffer }
+                    wavWriteQueue.async { for buffer in head { writer.append(buffer, keepSamples: 0) } }
+                    chunkWriter = writer
+                } catch {
+                    sendEvent("onError", ["message": "Could not start recording a part: \(error.localizedDescription)"])
+                }
+            case .mark(let from, let to):
+                guard let writer = chunkWriter else { continue }
+                let fromMs = Double(from) * 1000 / sampleRate, toMs = Double(to) * 1000 / sampleRate
+                sendEvent("onSegmentComplete", ["uri": writer.uri, "chunk": writer.uri, "fromMs": fromMs, "toMs": toMs,
+                                                "duration": toMs - fromMs, "startTime": 0, "endTime": 0, "heard": heardMap()])
+            case .close(let keep):
+                guard let writer = chunkWriter else { continue }
+                chunkWriter = nil
+                if keep { finishChunk(writer) } else { wavWriteQueue.async { writer.discard() } }
+            }
+        }
+    }
+
+    /// Completes a chunk's file on the write queue, then says so; stopping drains the queue first. Every failure reaches JS as onError.
+    private func finishChunk(_ writer: SegmentWriter) {
+        wavWriteQueue.async { [weak self] in
+            guard let self = self else { return }
+            do {
+                try writer.finish(trimSamples: 0)
+                let uri = writer.uri, duration = writer.durationMs
+                DispatchQueue.main.async { self.sendEvent("onChunkComplete", ["chunk": uri, "uri": uri, "duration": duration]) }
+            } catch {
+                let message = "Could not save recording (\(writer.url.lastPathComponent)): \(error.localizedDescription)"
+                DispatchQueue.main.async { self.sendEvent("onError", ["message": message]) }
+            }
         }
     }
     
@@ -329,7 +369,7 @@ public class MicrophoneEnergyModule: Module {
         try openSegment(headFrames: Int(prerollMs / frameMs))
     }
     
-    /// Called with configLock held: open a part's file with the last `headFrames` buffers of the ring.
+    /// Called with configLock held: open a take's file with the last `headFrames` buffers of the ring.
     private func openSegment(headFrames: Int) throws {
         guard isActive else { throw NSError(domain: "MicrophoneEnergy", code: 4, userInfo: nil) }
         if isRecordingSegment { return }
