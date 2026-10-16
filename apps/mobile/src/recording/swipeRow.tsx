@@ -147,6 +147,7 @@ export function SwipeRow(props: {
     <View ref={box} style={[styles.box, props.last && styles.last]}>
       {/* The bins behind the row: one on each side, as it slides either way. */}
       <View style={styles.under} accessibilityElementsHidden={props.open === 0} importantForAccessibility={props.open === 0 ? 'no-hide-descendants' : 'auto'}>
+        {/* help-each: one bin on each side, and only the one the row slid to shows and acts */}
         {[1, -1].map((side) => (
           props.open === side ? (
             <Pressable key={side} onPress={bin.onPress} accessibilityRole="button" accessibilityLabel={t('recording.deleteItem', { item: props.name })}
