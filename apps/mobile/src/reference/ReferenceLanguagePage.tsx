@@ -33,7 +33,7 @@ export function ReferenceLanguagePage(props: {
   /** The language whose team it is for, by name. */
   team: string;
   choices: readonly LanguageChoice[];
-  /** The languages chosen, the main one first (decision 129). */
+  /** The languages chosen, the main one first (decision 130). */
   value: readonly string[];
   /** Listed first, so the languages chosen when the page opened show without scrolling. */
   first?: readonly string[];

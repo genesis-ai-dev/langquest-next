@@ -316,7 +316,7 @@ function PartLabel(props: { label: string; inset?: boolean }) {
  * Everything a reviewer may open for background, as one collapsed card
  * (REV-1, ADR-029): notes and key terms from the translator, the team's
  * study, earlier reviews. Nothing to show, nothing drawn. What a check
- * shows is the language's to say (decisions.md 129).
+ * shows is the language's to say (decisions.md 130).
  */
 export function Background(props: {
   ctx: Ctx;

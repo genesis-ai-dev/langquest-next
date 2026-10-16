@@ -318,7 +318,7 @@ test('SETUP-019 The language of a new team\'s Bibles and guides', async ({ page 
   await nameStep(page, name);
   await bibleStep(page);
   await primary(page).click();
-  // As many languages as the team reads; each line says what LangQuest has in it, with no sentence above (decision 129).
+  // As many languages as the team reads; each line says what LangQuest has in it, with no sentence above (decision 130).
   await expectOnScreen(page, `Which languages should ${name}'s Bibles and study guides be in?`);
   await expectNotOnScreen(page, 'reads best');
   await expectOnScreen(page, 'English', /FIA guides for \d+ passages?/);

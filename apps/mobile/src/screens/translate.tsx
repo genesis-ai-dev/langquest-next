@@ -105,7 +105,7 @@ export function Workspace(ctx: Ctx) {
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
-  // Notes written while recording are the recording's (decisions.md 129).
+  // Notes written while recording are the recording's (decisions.md 130).
   return <NoteStepContext.Provider value={RECORD_STEP}><WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} /></NoteStepContext.Provider>;
 }
 
@@ -385,7 +385,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // ---- reference (REC-W1, REC-W5; demo ADR-036): what is attached, one chip each ----
   // What was offered and used here goes on the record with the version (docs/reference-material.md).
   const usage = useUsage();
-  // What the recorder shows is the language's to say (decisions.md 129).
+  // What the recorder shows is the language's to say (decisions.md 130).
   const shows = useMemo(() => checkShows(state, RECORD_STEP), [state]);
   const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming, shows: { audio: shows.bibleAudio, text: shows.bibleText } });
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
@@ -448,7 +448,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   }, [sourceWords, unitTerms, tied]);
   const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
-  // Notes and earlier work from the steps the recording shows (decisions.md 129).
+  // Notes and earlier work from the steps the recording shows (decisions.md 130).
   const notesFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'notes'), [state]);
   const earlierFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'earlier'), [state]);
   const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP)), [p.notes, notesFrom]);
@@ -544,6 +544,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const targetN = targetNumber(rows, target);
   rowsRef.current = rows;
   const nextIndex = targetN - 1;
+  // While a session is open its parts are not in the list yet (LAN-82): the next one's number is the session's.
+  const sessionIndex = (rec.sessionNext ?? targetN) - 1;
   // The verses the next part takes, for the recording view's title.
   const targetLabel = target.kind === 'over' ? verseLabels[target.index] ?? null
     : target.kind === 'gap' ? (rows.find((r) => r.kind === 'gap' && r.before === target.before) as { label: PartLabel | null } | undefined)?.label
@@ -581,7 +583,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
         action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
       footer={recorderLine ? undefined : (
-        <RecorderFooter count={list.length} nextIndex={nextIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
+        <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
       )}>
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM} onFraction={setSplit}
@@ -623,7 +625,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         )}
         bottom={({ compact, open, height, room }) => session ? (
           // While recording, the pane is the recording view: what is being said, the waveform, and an X back to the parts.
-          <RecordingView rec={rec} phase={loop.phase} title={partLabel(nextIndex)} partNumber={targetN} count={list.length} noun="part" onLeave={record} onResume={loop.resumeNow}
+          <RecordingView rec={rec} phase={loop.phase} title={partLabel(sessionIndex)} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()}
             {...(slotTile ? { tile: slotTile } : {})} />
         ) : compact ? (
           <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />

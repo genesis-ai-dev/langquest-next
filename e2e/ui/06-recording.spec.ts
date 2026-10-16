@@ -17,8 +17,8 @@ import { randomUUID } from 'node:crypto';
 import { derivePassage, draftsBy, type LanguageState } from '@langquest-next/core';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import {
-  chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, mic, openWorkspace, draftParts, partCount, partsTitle,
-  publishButton, recordButton, recordSaid, recordStep, savedMark, say, secondDevice, startFromRecord, verseSpace, workspaceSub,
+  chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, leaveSession, mic, openWorkspace, draftParts, partCount, partsTitle,
+  publishButton, recordButton, recordSaid, recordStep, savedMark, say, secondDevice, startFromRecord, stopRecording, verseSpace, workspaceSub,
   useFileWorld
 } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
@@ -144,8 +144,12 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
     await expect(page.getByLabel(new RegExp(`^Part ${i + 2}\\. `))).toBeVisible();
     await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
   }
-  await recordButton(page).click();
-  await expectIdle(page);
+  // Stopping keeps the session open (decision 129): its parts are boxes to hear, move or drop, and nothing is saved until the recording view's Done.
+  await stopRecording(page);
+  for (const n of [1, 2, 3]) await expect(byId(page, `live-part-${n}`)).toBeVisible();
+  await expect(page.getByLabel(/^Part 4\. /)).toBeVisible();
+  await expect(publishButton(page)).toHaveCount(0);
+  await leaveSession(page);
   await expect(page.getByRole('button', { name: /^Parts 1–3, 3 parts · 0:1\d$/ })).toBeVisible();
   await expect(page.getByLabel('Part 4. Recording next')).toBeVisible();
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
@@ -251,8 +255,7 @@ test('REC-008 Parts cannot be deleted while recording', async ({ page }) => {
   await button(page, 'Play Part 1').click({ force: true });
   await expect(page.getByRole('button', { name: 'Delete Part 1', exact: true })).toHaveCount(0);
   await expect(byId(page, 'toast')).toHaveCount(0);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await m.mode('file');
   for (const n of [1, 2, 3]) await expect(verseSpace(page, n)).not.toHaveAttribute('aria-disabled', 'true');
   await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
@@ -611,8 +614,7 @@ test('REC-025 Web: closing the tab while recording asks first', async ({ page, c
   // Cancelled: the page stays and recording goes on; the part ends at the pause.
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await expectParts(page, before + 1, 8_000);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   // Idle, with nothing left to send (else the leave guard asks, storageGate.tsx), a reload asks nothing.
   await expectUploaded(page, w);
   // Until the upload count catches up the leave guard is still on; then nothing holds the page.
@@ -622,11 +624,14 @@ test('REC-025 Web: closing the tab while recording asks first', async ({ page, c
   expect(dialogs).toEqual(['beforeunload']);
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
   await expectParts(page, before + 1);
-  // The tab killed outright in the middle of a session (no question asked):
-  // every part that ended and was stored in the browser before it went is
-  // there when LangQuest opens again in the same browser (recordingJournal.ts).
+  // The tab killed outright (no question asked) right after a session was
+  // left: every part it kept was stored in the browser before it went, and
+  // is there when LangQuest opens again in the same browser
+  // (recordingJournal.ts). A session not yet left lives in the page, which
+  // asks before it goes (above); a phone keeps it in its journal (LAN-82).
   await recordButton(page).click();
   await expectParts(page, before + 2, 8_000);
+  await leaveSession(page);
   await page.waitForTimeout(800); // sleep: the journal's write to browser storage, which shows nowhere on screen
   await page.close();
   const again = await context.newPage();
@@ -652,7 +657,8 @@ test('REC-031 Tapping record and stop very fast', async ({ page }) => {
   const label = await recordButton(page).getAttribute('aria-label');
   const open = (await m.counts()).open;
   expect(label === 'Stop recording' ? open > 0 : open === 0, `button "${label}" with ${open} microphone(s) open`).toBe(true);
-  if (label === 'Stop recording') { await recordButton(page).click(); await expectIdle(page); }
+  // However the taps landed, Done leaves whatever session they opened.
+  if (await button(page, 'Done').isVisible()) await leaveSession(page);
   await expectParts(page, 1);
   await expect(text(page, /could not start|did not save|Something went wrong/)).toHaveCount(0);
   await recordSaid(page, [3000]);
@@ -735,8 +741,7 @@ test('REC-036 Playing the Bible while recording pauses the microphone', async ({
   await button(page, 'Resume recording now').click();
   await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
   await say(page, 3000);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await expectParts(page, before + 3);
 });
 
@@ -759,8 +764,7 @@ test('REC-037 The Bible in the reference pane', async ({ page }) => {
   await expectToast(page, 'Note added.');
   await recordButton(page).click();
   await expect(button(page, 'Add a note here')).toHaveCount(0);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await expect(button(page, 'Add a note here')).toBeVisible();
 });
 
@@ -815,8 +819,7 @@ test('REC-039 Notes from the workspace', async ({ page }) => {
   await mic(page).mode('tone');
   await recordButton(page).click();
   await expect(button(page, 'Add a note')).toHaveAttribute('aria-disabled', 'true');
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await expectUploaded(page, w);
   const notes = (await onServer(w, 'P-Q3')).p.notes.map((x) => x.text);
   expect(notes).toContain('The fig tree means Israel here');
@@ -860,8 +863,7 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   await page.waitForTimeout(2500); // sleep: N s of speech, the product's own threshold
   await mic(page).speak(false);
   await page.waitForTimeout(2000); // sleep: the quiet that ends a part, the product's own silence threshold
-  await recordButton(page).click();
-  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
+  await leaveSession(page);
   await expect(text(page, `${parts + 1} parts recorded`)).toBeVisible({ timeout: 10_000 });
   await button(page, /^Your recording\. /).click();
   await expect(divider).toHaveAttribute('aria-valuetext', 'Source 50%');
@@ -952,8 +954,7 @@ test('REC-044 A verse left for later, then tap its place and record', async ({ p
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await say(page, 3000);
-  await recordButton(page).click();
-  await expectIdle(page);
+  await leaveSession(page);
   await expectParts(page, parts + 1);
   // The new part sits between Part 1 and the old Part 2, as verse 23.
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
@@ -966,20 +967,86 @@ test('REC-044 A verse left for later, then tap its place and record', async ({ p
   await expectUploaded(page, w);
 });
 
-// ---- Microphone setup ---------------------------------------------------------------
+// ---- A stopped session ---------------------------------------------------------------
 
-/** The microphone settings kept on this device (AsyncStorage on the web is localStorage). */
-const micStored = (page: Page) => page.evaluate(() => localStorage.getItem('mic-setup:v1'));
+test('REC-053 A stopped session: hear a part, move its edge, drop one, carry on, then Done @p0', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  await openWorkspace(page, w, 'P-S', 'Record');
+  const m = mic(page);
+  await m.mode('tone');
+  await m.speak(false);
+  await recordButton(page).click();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
+  for (const [i, ms] of [3000, 3000, 3000].entries()) {
+    await say(page, ms, 0);
+    await expectParts(page, i + 1, 10_000);
+  }
+  // Stopped (LAN-82): the session is open, each part a box on the whole session's waveform.
+  await stopRecording(page);
+  const part = (n: number) => byId(page, `live-part-${n}`);
+  for (const n of [1, 2, 3]) await expect(part(n)).toBeVisible();
+  // A tap on a box plays it.
+  const two = (await part(2).boundingBox())!;
+  await page.mouse.click(two.x + two.width / 2, two.y + 40);
+  await expect(text(page, /could not|Something went wrong/)).toHaveCount(0);
+  // Part 1's end drags out into the room after it.
+  const one = (await part(1).boundingBox())!;
+  const y = one.y + one.height / 2;
+  await page.mouse.move(one.x + one.width - 2, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(one.x + one.width - 2 + i * 5, y);
+  await page.mouse.up();
+  await expect.poll(async () => (await part(1).boundingBox())?.width ?? 0, { message: 'part 1 is longer' }).toBeGreaterThan(one.width + 5);
+  // Part 3's ×: it goes, and its place and number stay for what is said next.
+  const three = (await part(3).boundingBox())!;
+  await page.mouse.click(three.x + three.width - 15, three.y + three.height - 15);
+  await expect(part(3)).toHaveCount(0);
+  await expect(page.getByLabel(/^Part 3\. /)).toBeVisible();
+  // Carrying on fills it.
+  await recordButton(page).click();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
+  await say(page, 3000, 0);
+  await expectParts(page, 3, 10_000);
+  // Done keeps the parts as their boxes stand, and only then are they saved.
+  await leaveSession(page);
+  await expect(page.getByRole('button', { name: /^Parts 1–3, 3 parts · 0:\d\d$/ })).toBeVisible();
+  await m.mode('file');
+  await expectUploaded(page, w);
+});
 
-/** One try on "Try N of 3": tap, say the sentence twice with a pause, tap to stop. */
-async function sayTry(page: Page, n: number): Promise<void> {
-  await expect(text(page, `Try ${n} of 3`)).toBeVisible();
+test('REC-054 Throw away a session: the ✕ asks first, then nothing said in it is kept @p0', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  await openWorkspace(page, w, 'P-DRAFT', 'Continue recording');
+  const before = await draftParts(page);
+  const events = await eventCount(page, w);
+  const m = mic(page);
+  await m.mode('tone');
+  await m.speak(false);
   await recordButton(page).click();
-  await expect(text(page, /^Listening… 0:0\d$/)).toBeVisible();
-  await say(page, 1500, 1800);
-  await say(page, 1500, 1800);
-  await recordButton(page).click();
-}
+  for (const [i, ms] of [2500, 2500].entries()) {
+    await say(page, ms, 0);
+    await expectParts(page, before + i + 1, 10_000);
+  }
+  // The ✕ stops recording and asks, saying what would go.
+  await button(page, 'Throw away this recording').click();
+  await expect(text(page, 'Throw away this recording?')).toBeVisible();
+  await expect(text(page, /^2 parts · 0:0\d$/)).toBeVisible();
+  await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
+  // Cancel keeps the session, stopped, its parts still boxes.
+  await button(page, 'Cancel').click();
+  await expect(text(page, 'Stopped')).toBeVisible();
+  for (const n of [before + 1, before + 2]) await expect(byId(page, `live-part-${n}`)).toBeVisible();
+  // Throwing it away keeps nothing said in it: the draft is as it was, and nothing is written.
+  await button(page, 'Throw away this recording').click();
+  await button(page, 'Throw away').click();
+  await expect(text(page, 'Stopped')).toHaveCount(0);
+  await expectIdle(page);
+  await expect(page.getByRole('button', { name: new RegExp(`^Parts 1–${before}, ${before} parts · `) })).toBeVisible();
+  expect(await eventCount(page, w), 'nothing is written').toBe(events);
+  await m.mode('file');
+});
 
 // ---- Who may record -----------------------------------------------------------------
 

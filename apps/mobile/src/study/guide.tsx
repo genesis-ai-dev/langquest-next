@@ -63,7 +63,7 @@ export function GuideStep(props: {
   ctx: Ctx; v: PassageView; guide: StudyGuide; status: StudyStepStatus; canContribute: boolean;
   /** The step spoken, at the top: the study shows it; the workspace keeps to the text. */
   spoken: boolean;
-  /** The step's words: false when the step hears the guide but does not read it (decisions.md 129). */
+  /** The step's words: false when the step hears the guide but does not read it (decisions.md 130). */
   read?: boolean;
   hidden?: boolean;
   /** Open a key term (an edge from this screen). */

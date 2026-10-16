@@ -1,4 +1,4 @@
-// What a step shows (decisions.md 129), as the Checks screens word it: the
+// What a step shows (decisions.md 130), as the Checks screens word it: the
 // switches in order, each thing's short name, and a card's one line.
 import { checkShows, deriveFlow, RECORD_STEP, shownFrom, type LanguageState, type ShownWhat } from '@langquest-next/core';
 import { rowsOf } from './model';

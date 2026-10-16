@@ -71,7 +71,7 @@ function Missing(props: { ctx: Ctx; title: string; v: PassageView | null }) {
 
 // ---- the reader (STUDY-2..5, STUDY-7) ------------------------------------------------------
 
-// The study is the drafting team's, so notes written in it are the recording's (decisions.md 129).
+// The study is the drafting team's, so notes written in it are the recording's (decisions.md 130).
 export function StudyGuide(ctx: Ctx) {
   return <NoteStepContext.Provider value={RECORD_STEP}><StudyReader ctx={ctx} title={screenTitle('study_guide')} /></NoteStepContext.Provider>;
 }
@@ -83,7 +83,7 @@ export function StudyStep(ctx: Ctx) {
 function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const { ctx } = props;
   const { v, guide, sp } = useStudy(ctx);
-  // The study is the drafting team's: it shows what the recorder shows (decisions.md 129).
+  // The study is the drafting team's: it shows what the recorder shows (decisions.md 130).
   const state0 = ctx.language.state;
   const shows = useMemo(() => (state0 ? checkShows(state0, RECORD_STEP) : null), [state0]);
   const bible = useBible(ctx, v?.unitId ?? null, v?.languageId ?? null, shows ? { shows: { audio: shows.bibleAudio, text: shows.bibleText } } : {});

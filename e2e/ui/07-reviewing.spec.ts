@@ -668,7 +668,7 @@ test('REV-031 "Back-translate it" opens the back translation', async ({ page }) 
   await expect(byId(page, 'header-close')).toBeVisible();
   await expect(text(page, 'Alpha · Version 1 · part 1')).toBeVisible();
   await expect(text(page, `${TOM_FIRST} · drag back and forth as often as you like`)).toBeVisible();
-  // No sentence explains what is hidden: Back translation's own settings say it (decision 129).
+  // No sentence explains what is hidden: Back translation's own settings say it (decision 130).
   await expect(text(page, /hidden on purpose/)).toHaveCount(0);
   await expect(button(page, 'Part 1, Saying it next')).toBeVisible();
   await expect(button(page, 'Part 2')).toBeVisible();
@@ -685,6 +685,8 @@ async function sayPart(page: Page, n: number): Promise<void> {
   // The voice file speaks 1.5 s in every 4 s: stop once a piece has been heard, as a person stops after speaking.
   await expect(visible(page.getByLabel(/[1-9]\d* pieces? so far/)).first()).toBeVisible({ timeout: 15_000 });
   await button(page, 'Stop recording').click();
+  // Stopped, the session is still open (LAN-82); Done keeps its pieces.
+  await button(page, 'Done').click();
   await expect(button(page, new RegExp(`^Part ${n}, 0:\\d\\d in English`))).toBeVisible({ timeout: 20_000 });
   // The last piece lands a moment after Stop, and then the next part lights up.
   await expect(button(page, /^Record part \d$/)).toBeEnabled();
@@ -700,7 +702,10 @@ test('REV-032 Say each part, then finish the back translation @p0', async ({ pag
   await expect(visible(page.getByLabel(/^Part 1\. (Recording…|Listening for you)/)).first()).toBeVisible();
   await expect(visible(page.getByLabel(/^Recorded for 0:\d\d$/)).first()).toBeVisible();
   await expect(button(page, 'Done')).toBeVisible();
+  // Stop keeps the session open (LAN-82): its pieces are boxes until Done.
   await button(page, 'Stop recording').click();
+  await expect(text(page, 'Stopped')).toBeVisible();
+  await button(page, 'Done').click();
   await expect(button(page, /^Part 1, 0:0\d in English$/)).toBeVisible({ timeout: 20_000 });
   await expect(button(page, /^Part 1, 0:\d\d in English$/)).toBeVisible({ timeout: 20_000 });
   await expect(button(page, 'Done')).toBeEnabled();
@@ -823,7 +828,7 @@ test('REV-038 Hearing the version while saying a part', async ({ page }) => {
   await expect(button(page, 'Resume recording now')).toBeVisible();
   await button(page, 'Resume recording now').click();
   await expect(text(page, /^Paused while/)).toHaveCount(0);
-  await button(page, 'Stop recording').click();
+  await button(page, 'Done').click();
 });
 
 test('REV-039 Parts made from an older version', async ({ page }) => {

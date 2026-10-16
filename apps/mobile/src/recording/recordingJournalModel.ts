@@ -4,6 +4,9 @@
  * The stage says how far the save got, so a restart can resume it:
  *
  *   recorded  -> file sits in staging under `uri`; not yet content-addressed
+ *                (with `range`: a part of a recording session, still in its
+ *                session chunk at `uri`, from `range.fromMs` to `range.toMs`;
+ *                it is cut from the chunk first, LAN-82)
  *   ingested  -> file is in the blob store as `hash`; event not yet appended
  *
  * `id` is the recordingId the event will carry, chosen when the entry is
@@ -27,6 +30,8 @@ export interface JournalEntry {
   size?: number;
   /** Absent for recordings the user still has to place (key terms). */
   target?: JournalTarget;
+  /** A session's part not yet cut from its chunk (`uri`): where its box was when last saved. */
+  range?: { fromMs: number; toMs: number };
 }
 
 export function parseJournal(text: string | undefined): JournalEntry[] {
@@ -63,6 +68,8 @@ export function journalCounts(entries: readonly JournalEntry[], failedIds: Reado
 export interface ResumeDeps {
   /** Is the staging file (stage `recorded`) still on disk? */
   fileExists: (uri: string) => boolean;
+  /** Cut a session's part from its chunk: a new staging file. */
+  cut?: (uri: string, fromMs: number, toMs: number) => Promise<string>;
   /** Persist the destination through beforeMove before relocating the file. */
   ingest: (uri: string, format: JournalEntry['format'], beforeMove: (hash: string, size: number) => Promise<void>) => Promise<{ hash: string; size: number }>;
   blobExists: (hash: string, format: JournalEntry['format']) => boolean;
@@ -107,6 +114,13 @@ export async function resumeEntries(
         } else {
           if (!deps.fileExists(entry.uri)) {
             throw new Error('Recording file is missing; keep the journal for recovery.');
+          }
+          // A part of a session the app never left (it was closed or crashed): its box as last saved.
+          if (entry.range) {
+            if (!deps.cut) throw new Error('A session part cannot be cut here; keep the journal for recovery.');
+            const { range, ...rest } = entry;
+            entry = { ...rest, uri: await deps.cut(entry.uri, range.fromMs, range.toMs) };
+            await deps.save(entry);
           }
           const { hash, size } = await deps.ingest(entry.uri, entry.format,
             (hash, size) => deps.save({ ...entry, hash, size }));

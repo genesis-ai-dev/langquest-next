@@ -77,7 +77,7 @@ export const RECORD_STEP = 'record';
 export type Shows = Record<ShownWhat, boolean>;
 
 /**
- * What a step shows whoever does it (decisions.md 129). Each thing is its
+ * What a step shows whoever does it (decisions.md 130). Each thing is its
  * register when set; otherwise everything shows, except at a kind that
  * withholds context (Back Translation), where nothing does, as before.
  */

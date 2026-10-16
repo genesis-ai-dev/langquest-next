@@ -1,4 +1,4 @@
--- v1.CheckShowsSet: what a step shows whoever does it (decisions.md 129).
+-- v1.CheckShowsSet: what a step shows whoever does it (decisions.md 130).
 --
 --   v1.CheckShowsSet { kindId, what, shown, from? }
 --   v1.NoteAdded gains an optional kindId: the step a note was written at.

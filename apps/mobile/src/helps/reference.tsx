@@ -57,7 +57,7 @@ export function BiblePane(props: {
   header?: ReactNode;
   /** Under the text: the passage's own reference recordings. */
   footer?: ReactNode;
-  /** What the step shows (decisions.md 129): the player when heard, the verses' words when read; numbers alone otherwise. */
+  /** What the step shows (decisions.md 130): the player when heard, the verses' words when read; numbers alone otherwise. */
   hear?: boolean;
   read?: boolean;
 }) {
@@ -617,7 +617,7 @@ interface EarlierItem { key: string; hlc: string; title: string; sub: string; ha
  * voice notes. Each plays where it is.
  */
 export function EarlierPane(props: { ctx: Ctx; v: PassageView; focusReviewId?: string;
-  /** Which steps' work shows (decisions.md 129): `record` for versions and notes written while recording, else a check. */ from?: (step: string) => boolean }) {
+  /** Which steps' work shows (decisions.md 130): `record` for versions and notes written while recording, else a check. */ from?: (step: string) => boolean }) {
   const { ctx, v } = props;
   const me = ctx.session.actorId;
   const items = useMemo<EarlierItem[]>(() => {

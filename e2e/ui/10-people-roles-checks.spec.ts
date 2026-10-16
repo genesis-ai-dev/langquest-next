@@ -246,7 +246,7 @@ async function openCheck(page: Page, check: string, opts: { lead?: boolean } = {
   await page.getByRole('button', { name: new RegExp(`^\\d+\\. ${check}$`) }).locator('visible=true').first().click();
   await expect(text(page, /^Check \d+ · Alpha$/)).toBeVisible();
 }
-/** A check's People page: its own page since decision 129. */
+/** A check's People page: its own page since decision 130. */
 async function openPeople(page: Page, check: string, opts: { lead?: boolean } = {}): Promise<void> {
   await openCheck(page, check, opts);
   await text(page, 'People').click();

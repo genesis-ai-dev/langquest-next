@@ -118,7 +118,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    */
   'v1.CheckHelpSet': { kindId: string; itemId?: string; materialId?: string; linked: boolean };
   /**
-   * What a step puts in front of whoever does it (decisions.md 129): the
+   * What a step puts in front of whoever does it (decisions.md 130): the
    * Bible and the guide, each heard and read separately, key words, notes
    * and earlier work. `kindId` is a check, or `record` (RECORD_STEP) for
    * recording a version. Register per (kind, what); without one a step shows

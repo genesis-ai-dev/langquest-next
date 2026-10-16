@@ -984,7 +984,7 @@ Expected:
 - The list names each check's people: Peer check and Back translation
   "{REV name}, {TREV name}" (either order), a check with nobody "Anyone".
 - Peer check is "Check 1 · Alpha"; its People page (a page of its own,
-  decision 129) lists TREV (Translator-Reviewer) and REV (Reviewer), each
+  decision 130) lists TREV (Translator-Reviewer) and REV (Reviewer), each
   with "Take {name} off this check", and "Add people".
 
 ### PEOPLE-041 Put someone on a check

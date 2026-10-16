@@ -149,7 +149,7 @@ export type RecordEvents = {
     blobHash?: string;
     photoHash?: string;
     onTakeId?: string;
-    /** The step it was written at: `record` or a check (decisions.md 129). Absent on older notes, which count as written while recording. */
+    /** The step it was written at: `record` or a check (decisions.md 130). Absent on older notes, which count as written while recording. */
     kindId?: string;
   };
   /** Take back your own note (decisions.md 111): it no longer shows anywhere. Only its author may, as with a review. Add-wins. */

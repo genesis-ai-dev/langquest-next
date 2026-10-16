@@ -1413,7 +1413,7 @@ export function NewLanguage(ctx: Ctx) {
   const [readsPicked, setReadsPicked] = useState<string[] | null>(null);
   const reader = readerLanguage();
   const refs = useReferenceLanguages(ctx, [...(readsPicked ?? []), reader, 'eng']);
-  // The languages its Bibles and guides may be in, the main one first (decision 129).
+  // The languages its Bibles and guides may be in, the main one first (decision 130).
   const readsAll = readsPicked ?? [startingLanguage(refs.choices, reader)];
   const reads = readsAll[0]!;
   const offers = useNewLanguageOffers(ctx, reads, refs.sets);

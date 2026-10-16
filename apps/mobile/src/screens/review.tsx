@@ -95,7 +95,7 @@ function voiceCard(hash: string, card?: { durationMs: number; format: 'wav' | 'm
 
 /** Listen (with the background, unless the kind withholds it), answer, give your verdict (REV-0..4). */
 export function ReviewCapture(ctx: Ctx) {
-  // Notes written while reviewing are this check's (decisions.md 129).
+  // Notes written while reviewing are this check's (decisions.md 130).
   return <NoteStepContext.Provider value={ctx.params['kindId']}><Capture ctx={ctx} logged={false} /></NoteStepContext.Provider>;
 }
 
@@ -190,7 +190,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     [vp, kindId, actorId, requestParam, logged]);
   const questions = useMemo(() => vState ? questionsForKind(vState, kindId, request) : [], [vState, kindId, request]);
   const guide = useStudyGuide(ctx, v?.unitId);
-  // What the check shows (decisions.md 129): Background has only that, and is not there when it shows nothing.
+  // What the check shows (decisions.md 130): Background has only that, and is not there when it shows nothing.
   const shows = useMemo(() => (vState ? { ...checkShows(vState, kindId), notes: anyFrom(vState, kindId, 'notes'), earlier: anyFrom(vState, kindId, 'earlier') } : null), [vState, kindId]);
   const earlierFrom = useMemo(() => (vState ? fromFilter(vState, kindId, 'earlier') : undefined), [vState, kindId]);
   const anyShown = !!shows && SHOWN.some((w) => shows[w]);
@@ -632,7 +632,7 @@ function helpRowHelp(h: HelpRow): string {
 function backgroundFor(v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
   const { state, p } = v;
   const terms = keyTermLinksFor(state, takeId).map((l) => l.term);
-  // Notes and earlier reviews from the steps this check shows (decisions.md 129).
+  // Notes and earlier reviews from the steps this check shows (decisions.md 130).
   const notesFrom = fromFilter(state, kindId, 'notes');
   const earlierFrom = fromFilter(state, kindId, 'earlier');
   const notes = p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP));

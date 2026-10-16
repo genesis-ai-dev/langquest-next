@@ -56,7 +56,7 @@ export interface ReferenceWorkEvents {
   'v1.ReferenceLanguageSet': { language: string };
   /**
    * Another language the team's reference material may be in, beside the
-   * one `v1.ReferenceLanguageSet` names (decision 129): Greek and Hebrew
+   * one `v1.ReferenceLanguageSet` names (decision 130): Greek and Hebrew
    * beside English, say. Register per language.
    */
   'v1.ReferenceLanguageAdded': { language: string; added: boolean };

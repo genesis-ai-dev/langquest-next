@@ -1,4 +1,4 @@
-// A step's card line (decisions.md 129): what it hides, or what it still shows when that is shorter.
+// A step's card line (decisions.md 130): what it hides, or what it still shows when that is shorter.
 import { describe, expect, it } from 'vitest';
 import { shownLine } from '../src/checks/showsModel';
 

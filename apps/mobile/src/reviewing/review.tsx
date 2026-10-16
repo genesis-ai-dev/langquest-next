@@ -173,7 +173,7 @@ export function BackgroundSheet(props: {
   onMoreBibles: () => void;
   /** A Bible to open on, from the check's helps (decision 91). */
   bible?: string;
-  /** What the check shows (decisions.md 129); a Bible from its helps opens whatever it says. */
+  /** What the check shows (decisions.md 130); a Bible from its helps opens whatever it says. */
   shows: Shows;
   /** Which steps' earlier work shows. */ earlierFrom?: (step: string) => boolean;
 }) {
@@ -240,7 +240,7 @@ export function BackgroundSheet(props: {
 // ---- the passage in the Bible the translator used --------------------------------------------
 
 function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; translator: string; translatorIsYou: boolean; usage: Usage; onMoreBibles: () => void; bible?: string;
-  /** What the check shows (decisions.md 129): the player when heard, the words when read. */ hear: boolean; read: boolean }) {
+  /** What the check shows (decisions.md 130): the player when heard, the words when read. */ hear: boolean; read: boolean }) {
   const { ctx, v, usage, hear, read } = props;
   const all = useSources(ctx, v.unitId, v.languageId);
   // Heard and not read: only Bibles with audio; read and not heard: only Bibles with text.

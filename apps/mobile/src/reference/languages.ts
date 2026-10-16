@@ -59,7 +59,7 @@ export function teamLanguage(org: OrgState | null | undefined, state: LanguageSt
 }
 
 /**
- * Every language a team's reference material may be in (decision 129): the
+ * Every language a team's reference material may be in (decision 130): the
  * main one (`teamLanguage`), then the others it added, by code.
  */
 export function teamLanguages(org: OrgState | null | undefined, state: LanguageState | null | undefined, languageId: string | null | undefined): string[] {
