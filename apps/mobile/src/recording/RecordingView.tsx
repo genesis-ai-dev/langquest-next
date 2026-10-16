@@ -2,7 +2,8 @@
 // divider turns into the recording view, red from start to stop, as the
 // back translation's was (the VadTakeover panel it replaces). Its top row says what is being
 // recorded (the part, and its verses when it is said again in a deleted
-// part's place) and has an X that stops and goes back to the parts; the
+// part's place) and has a check, Done, that stops, keeps every part and goes
+// back to the parts; the
 // rest is the live waveform, each kept part boxed and numbered as it is
 // said (LiveParts.tsx, the "Recordings getting cut off" thread's). Stop stays in the footer. The reference above
 // stays readable and playable. While the Bible plays the microphone is
@@ -101,7 +102,8 @@ export function RecordingView(props: {
           </View>
         </HelpInfo>
         <Elapsed running={props.phase === 'recording'} color={fg} />
-        <IconBtn name="close" label={t('recording.recorder.leave')} help={t('recording.recorder.leaveHelp')} bg={listening ? C.card : withAlpha(C.white, 0.18)} color={fg} size={target.min} onPress={props.onLeave} />
+        {/* Done, not close (Caleb, 2026-10-16): an X reads as throwing away what was said; a check keeps it all. */}
+        <IconBtn name="check" label={t('recording.recorder.leave')} help={t('recording.recorder.leaveHelp')} bg={listening ? C.card : C.white} color={listening ? TINT.redText : C.red} size={target.min} onPress={props.onLeave} />
       </View>
       {listening ? (
         <View style={styles.paused}>
