@@ -4162,7 +4162,6 @@
         "question": "سؤال"
       },
       "questionFrom": {
-        "org": "المنظمة",
         "language": "اللغة",
         "request": "طُلب لهذه المراجعة"
       },
@@ -6870,7 +6869,6 @@
       "saidAloud": "قيل بالصوت · {{time}} · التسجيل {{n}}",
       "typedAndSaidAloud": "{{typed}} (قيل بالصوت · {{time}} · التسجيل {{n}})",
       "source": {
-        "org": "المنظمة",
         "language": "فريق اللغة",
         "fromName": "من {{name}}",
         "fromWhoeverAsked": "ممن طلب"

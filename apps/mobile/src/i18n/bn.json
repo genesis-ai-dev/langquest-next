@@ -3694,7 +3694,6 @@
         "question": "প্রশ্ন"
       },
       "questionFrom": {
-        "org": "সংস্থা",
         "language": "ভাষা",
         "request": "এই পর্যালোচনার জন্য চাওয়া"
       },
@@ -5886,7 +5885,6 @@
       "saidAloud": "মুখে বলা · {{time}} · রেকর্ডিং {{n}}",
       "typedAndSaidAloud": "{{typed}} (মুখে বলা · {{time}} · রেকর্ডিং {{n}})",
       "source": {
-        "org": "সংস্থা",
         "language": "ভাষা দল",
         "fromName": "{{name}}-এর কাছ থেকে",
         "fromWhoeverAsked": "যিনি বলেছেন তার কাছ থেকে"

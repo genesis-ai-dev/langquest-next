@@ -3577,7 +3577,6 @@
         "question": "Pertanyaan"
       },
       "questionFrom": {
-        "org": "Organisasi",
         "language": "Bahasa",
         "request": "Diminta untuk pemeriksaan ini"
       },
@@ -5640,7 +5639,6 @@
       "saidAloud": "Diucapkan · {{time}} · rekaman {{n}}",
       "typedAndSaidAloud": "{{typed}} (diucapkan · {{time}} · rekaman {{n}})",
       "source": {
-        "org": "Organisasi",
         "language": "Tim bahasa",
         "fromName": "Dari {{name}}",
         "fromWhoeverAsked": "Dari orang yang meminta"

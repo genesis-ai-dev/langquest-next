@@ -3,12 +3,10 @@ import { libraryUnitRange } from './versification';
 import type { Hlc } from './hlc';
 import { buildIndexes, type Indexes } from './indexes';
 import {
-  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate, QUESTION_TEMPLATES,
+  CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate,
   type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec
 } from './record';
 import { checkTeamFor } from './checks';
-import type { EventSpec } from './commands';
-import { questionSetMaterialId } from './materials';
 import { sourceChapters } from './sourceBibles';
 import type { LanguageState } from './state';
 import { stateRevision } from './reducer';
@@ -703,95 +701,31 @@ export function upNext(state: LanguageState, opts: { canRecord: boolean; canRevi
 
 export interface SourcedQuestion {
   q: QuestionSpec;
-  source: 'org' | 'language' | 'request';
+  /** The check's own, as the language's team wrote them, or the asker's for this request. */
+  source: 'language' | 'request';
   required: boolean;
-  /**
-   * Where a check's question is kept, to change it there (`checkQuestionSpecs`): the language's
-   * question set and field. A LangQuest question names the copy its first change makes.
-   */
-  field?: { materialId: string; fieldId: string };
-}
-
-/** LangQuest's set a language question set is the copy of (`checkQuestionSpecs`), if it is one. */
-function copiedSet(materialId: string) {
-  return QUESTION_TEMPLATES.find((t) => questionSetMaterialId(t.id) === materialId);
-}
-
-/** Does a "Use in reviews" set (`qs.<itemId>`) put questions on this check? */
-function usedSetFor(state: LanguageState, kindId: string): boolean {
-  return Object.entries(state.materials).some(([id, m]) => id.startsWith('qs.') && m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId
-    && Object.values(m.fields).some((f) => !!f.value.text?.trim()));
 }
 
 /**
- * Questions for a kind of review (REV-2): the shipped set for the kind, then
- * the language's question-set materials for the kind (`scope.stepId` = kind
- * id), then the asker's own. The shipped set shows until the language has its
- * own copy of it (made by changing one of its questions on the check), or uses
- * a library set for the kind in its place (LAN-85). The copy comes first, in
- * the shipped order, and keeps the shipped ids, so answers given before still
- * find their question.
+ * Questions for a kind of review (REV-2): the language's question-set
+ * materials for the kind (`scope.stepId` = kind id), then the asker's own.
+ * LangQuest's checks come with no questions (LAN-85): a team writes its own
+ * on each check.
  */
 export function questionsForKind(state: LanguageState, kindId: string, request?: RequestView): SourcedQuestion[] {
   const out: SourcedQuestion[] = [];
-  const replaced = usedSetFor(state, kindId);
-  for (const t of QUESTION_TEMPLATES) {
-    if (t.kindId !== kindId || replaced || state.materials[questionSetMaterialId(t.id)]) continue;
-    for (const q of t.questions) {
-      out.push({ q: { id: `${t.id}#${q.id}`, text: q.text, type: q.type }, source: 'org', required: false, field: { materialId: questionSetMaterialId(t.id), fieldId: q.id } });
-    }
-  }
-  const first = (id: string) => (copiedSet(id) ? 0 : 1);
   const sets = Object.entries(state.materials).filter(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId)
-    .sort(([a], [b]) => first(a) - first(b) || (a < b ? -1 : 1));
+    .sort(([a], [b]) => (a < b ? -1 : 1));
   for (const [id, m] of sets) {
-    const copied = copiedSet(id);
-    const order = copied?.questions.map((q) => q.id) ?? [];
-    const rank = (fieldId: string) => (order.includes(fieldId) ? order.indexOf(fieldId) : order.length);
-    for (const [fieldId, f] of Object.entries(m.fields).sort(([a], [b]) => rank(a) - rank(b) || (a < b ? -1 : 1))) {
+    for (const [fieldId, f] of Object.entries(m.fields).sort(([a], [b]) => (a < b ? -1 : 1))) {
       const text = f.value.text?.trim();
       if (!text) continue;
       const [type, required, body] = parseQuestionField(text);
-      out.push({
-        q: { id: `${copied ? copied.id : id}#${fieldId}`, text: body, type, ...(required ? { required } : {}) },
-        source: 'language', required, field: { materialId: id, fieldId }
-      });
+      out.push({ q: { id: `${id}#${fieldId}`, text: body, type, ...(required ? { required } : {}) }, source: 'language', required });
     }
   }
   for (const q of request?.questions ?? []) out.push({ q, source: 'request', required: !!q.required });
   return out;
-}
-
-/**
- * The events that change one of a check's questions (decision 91, LAN-85);
- * `text` is the field as `formatQuestionField` writes it, '' takes the
- * question off. A LangQuest question is changed by copying LangQuest's whole
- * set into the language first, at the set's own id with the change made, so
- * two admins doing it offline write the same set. `undo` puts the field back
- * as it was (a copy stays, holding LangQuest's question again).
- */
-export function checkQuestionSpecs(state: LanguageState, c: { commandId: string; question: SourcedQuestion; text: string; title: string }): { specs: EventSpec[]; undo: EventSpec[] } {
-  const field = c.question.field;
-  if (!field) throw new Error('Only a question kept on its check can be changed there.');
-  const { materialId, fieldId } = field;
-  let n = 0;
-  const next = () => `${c.commandId}:${n++}`;
-  const set = (text: string, id: string): EventSpec => ({ id, type: 'v1.MaterialFieldSet', payload: { materialId, fieldId, text } });
-  const m = state.materials[materialId];
-  if (m) {
-    const before = m.fields[fieldId]?.value.text ?? '';
-    return { specs: [set(c.text, next())], undo: [set(before, `${c.commandId}:undo`)] };
-  }
-  const shipped = copiedSet(materialId);
-  if (!shipped) throw new Error(`No question set ${materialId}`);
-  const was = shipped.questions.find((q) => q.id === fieldId);
-  const specs: EventSpec[] = [
-    { id: next(), type: 'v1.MaterialDefined', payload: { materialId, kind: 'questions', title: c.title, scope: { stepId: shipped.kindId } } },
-    ...shipped.questions.map((q) => (q.id === fieldId ? c.text : formatQuestionField({ text: q.text, type: q.type })))
-      .map((text, i) => ({ id: next(), type: 'v1.MaterialFieldSet' as const, payload: { materialId, fieldId: shipped.questions[i]!.id, text } }))
-      .filter((e) => e.payload.text !== '')
-  ];
-  return { specs, undo: [set(was ? formatQuestionField({ text: was.text, type: was.type }) : '', `${c.commandId}:undo`)] };
 }
 
 /** Question fields may carry a type and a required mark: `[yesno!] Is it clear?`. Plain text is a text question. */

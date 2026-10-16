@@ -3694,7 +3694,6 @@
         "question": "ጥያቄ"
       },
       "questionFrom": {
-        "org": "ድርጅት",
         "language": "ቋንቋ",
         "request": "ለዚህ ግምገማ የተጠየቀ"
       },
@@ -5886,7 +5885,6 @@
       "saidAloud": "በድምፅ የተነገረ · {{time}} · ቀረጻ {{n}}",
       "typedAndSaidAloud": "{{typed}} (በድምፅ የተነገረ · {{time}} · ቀረጻ {{n}})",
       "source": {
-        "org": "ድርጅት",
         "language": "የቋንቋ ቡድን",
         "fromName": "ከ{{name}}",
         "fromWhoeverAsked": "ከጠየቀው ሰው"

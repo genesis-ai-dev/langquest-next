@@ -3,8 +3,7 @@ import { emptyLanguageState } from '../src/state';
 import { questionsForKind } from '../src/passage';
 import { referencedBlobs } from '../src/blobs';
 import {
-  instantiateQuestionSet, keyTermLinksFor, keyTermsForUnit, keyTermsFor, materialsFor, materialView, questionsOf,
-  questionSetMaterialId, takesLinkingTerm, templateFields
+  keyTermLinksFor, keyTermsForUnit, keyTermsFor, materialsFor, materialView, questionsOf, takesLinkingTerm, templateFields
 } from '../src/materials';
 import { buildFixture, buildStep11Fixture, shuffle } from './fixtures';
 
@@ -28,31 +27,24 @@ describe('reference material: per-field registers, scopes, locks, question sets 
     expect(materialsFor(state, { unitId: 'elsewhere' }).map((m) => m.materialId)).toEqual(['tg', 'tmf']);
     expect(materialsFor(state, { stepId: 'community' }).map((m) => m.materialId)).toEqual(['questions/community_check', 'tg', 'tmf']);
     const set = materialView(state, 'questions/community_check')!;
-    expect(templateFields(set.templateRef).length).toBe(4);
-    expect(set.blanks).toBe(2); // two of four template questions filled
+    // LangQuest ships no question sets (LAN-85), so a question set's template expects nothing.
+    expect(templateFields(set.templateRef)).toEqual([]);
+    expect(set.blanks).toBe(0);
+    expect(templateFields('fia_study/x')).toEqual(['summary', 'key_ideas', 'scenes', 'discussion']);
   });
 
-  it('a kind\'s question set is the shipped questions, then the language\'s filled ones, then the asker\'s', () => {
+  it('a kind\'s questions are the language\'s filled ones, then the asker\'s; LangQuest\'s checks bring none', () => {
     // Why: the reviewer answers one combined list; each question says where
-    // it came from so nobody mistakes the organization's for the asker's.
-    // The language's copy of a shipped set takes the shipped set's place,
-    // under the shipped questions' ids (LAN-85).
+    // it came from so nobody mistakes the team's for the asker's. A team
+    // writes its own questions on each check (LAN-85).
     const sets = materialsFor(state, { stepId: 'community' }).filter((m) => m.kind === 'questions');
     expect(questionsOf(sets).map((q) => q.id)).toEqual(['questions/community_check#meaning', 'questions/community_check#natural']);
     const qs = questionsForKind(state, 'community');
-    expect(qs.filter((q) => q.source === 'org')).toHaveLength(0);
-    expect(qs.filter((q) => q.source === 'language').map((q) => q.q.id)).toEqual(['community_check#meaning', 'community_check#natural']);
-    expect(questionsForKind(state, 'consultant').filter((q) => q.source === 'org')).toHaveLength(3);
+    expect(qs.map((q) => [q.source, q.q.id])).toEqual([['language', 'questions/community_check#meaning'], ['language', 'questions/community_check#natural']]);
+    expect(questionsForKind(state, 'consultant')).toEqual([]);
     // A set scoped to a passage is not a kind's set.
     expect(qs.some((q) => q.q.id.startsWith('q-luke1'))).toBe(false);
     expect(questionsForKind(state, 'peer')).toEqual([]);
-  });
-
-  it('instantiating a catalog question set is deterministic', () => {
-    const a = instantiateQuestionSet('community_check');
-    expect(a[0]!.payload).toMatchObject({ materialId: questionSetMaterialId('community_check'), kind: 'questions' });
-    expect(a.length).toBe(5);
-    expect(instantiateQuestionSet('community_check')).toEqual(a);
   });
 });
 

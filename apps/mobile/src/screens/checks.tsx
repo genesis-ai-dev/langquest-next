@@ -4,7 +4,7 @@
 // 'language'`, or New language's draft with `draft: '1'`); `CheckEditor` is
 // one check. Every change saves as it is made, with Undo, like the rest of
 // the app's lists.
-import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkQuestionSpecs, commands, deriveFlow, formatQuestionField, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, scopeCovers, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type QuestionSpec, type SourcedQuestion } from '@langquest-next/core';
+import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, commands, deriveFlow, formatQuestionField, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, scopeCovers, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type QuestionSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -53,8 +53,7 @@ function helpLabel(state: LanguageState, lib: ReturnType<typeof useLibrary>, h: 
 
 // ---- one check -------------------------------------------------------------------------------
 
-/** A question being written: `question` is the one changed, null for a new one. */
-interface QuestionDraft { question: SourcedQuestion | null; text: string; type: QuestionSpec['type']; required: boolean }
+interface QuestionDraft { materialId: string | null; fieldId: string | null; text: string; type: QuestionSpec['type']; required: boolean }
 
 function questionTypes(): { id: QuestionSpec['type']; label: string; help: string }[] {
   return [
@@ -138,11 +137,9 @@ export function CheckEditor(ctx: Ctx) {
     const c = commands(s, indexesFor(s));
     const text = remove ? '' : formatQuestionField({ text: q.text.trim(), type: q.type, ...(q.required ? { required: true } : {}) });
     let specs: EventSpec[];
-    let undo: EventSpec[] | undefined;
     try {
-      if (q.question) {
-        // LangQuest's questions too: the first change copies them into the language (core checkQuestionSpecs).
-        ({ specs, undo } = checkQuestionSpecs(s, { commandId: Crypto.randomUUID(), question: q.question, text, title: t('checks.questionsTitle', { check: name }) }));
+      if (q.materialId && q.fieldId) {
+        specs = c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: q.materialId, fields: [{ fieldId: q.fieldId, text }] });
       } else {
         // The language's set for this check, or a new one made for it.
         const set = Object.entries(s.materials).find(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId && !m.locked.value);
@@ -160,7 +157,7 @@ export function CheckEditor(ctx: Ctx) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('save question', e) })); // i18n-ignore: log label
       return;
     }
-    await ctx.act(specs, remove ? t('checks.questionRemoved') : t('checks.questionSaved'), undo ? () => undo : undefined).catch(() => {});
+    await ctx.act(specs, remove ? t('checks.questionRemoved') : t('checks.questionSaved')).catch(() => {});
   }
 
   async function writeNote(w: { title: string; text: string }) {
@@ -205,16 +202,17 @@ export function CheckEditor(ctx: Ctx) {
       <SectionLabel label={t('checks.questions')} />
       <Group>
         {questions.map((sq) => {
-          const editable = mayQuestions && !!sq.field && !state.materials[sq.field.materialId]?.locked.value;
+          const [materialId, fieldId] = sq.q.id.split('#');
+          const editable = sq.source === 'language' && mayQuestions && !!materialId && !!fieldId && !state.materials[materialId]?.locked.value;
           const type = questionTypes().find((x) => x.id === sq.q.type)?.label ?? '';
           return (
             <Row key={sq.q.id} icon="chat" label={sq.q.text}
               sub={[type, sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
-              {...(editable ? { onPress: () => setQuestion({ question: sq, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
+              {...(editable ? { onPress: () => setQuestion({ materialId: materialId!, fieldId: fieldId!, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
           );
         })}
         {questions.length === 0 && !mayQuestions ? <Row label={t('checks.noQuestions')} last /> : null}
-        {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} help={t('checks.addQuestionHelp')} onPress={() => setQuestion({ question: null, text: '', type: 'yesno', required: false })} last /> : null}
+        {mayQuestions ? <Row icon="plus" label={t('checks.addQuestion')} help={t('checks.addQuestionHelp')} onPress={() => setQuestion({ materialId: null, fieldId: null, text: '', type: 'yesno', required: false })} last /> : null}
       </Group>
 
       <SectionLabel label={t('checks.helps')} />
@@ -263,11 +261,11 @@ export function CheckEditor(ctx: Ctx) {
         )}
       </Sheet>
 
-      <Sheet visible={question !== null} title={question?.question ? t('checks.editQuestion') : t('checks.addQuestion')} sub={name} onClose={() => setQuestion(null)}
+      <Sheet visible={question !== null} title={question?.fieldId ? t('checks.editQuestion') : t('checks.addQuestion')} sub={name} onClose={() => setQuestion(null)}
         footer={question ? (
           <>
             <PrimaryBtn label={t('common.save')} icon="check" disabled={!question.text.trim()} onPress={() => { const q = question; setQuestion(null); void saveQuestion(q); }} />
-            {question.question ? (
+            {question.fieldId ? (
               <RemoveQuestion onPress={() => { const q = question; setQuestion(null); void saveQuestion(q, true); }} />
             ) : null}
           </>

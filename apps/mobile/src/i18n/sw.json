@@ -3694,7 +3694,6 @@
         "question": "Swali"
       },
       "questionFrom": {
-        "org": "Shirika",
         "language": "Lugha",
         "request": "Imeombwa kwa ukaguzi huu"
       },
@@ -5886,7 +5885,6 @@
       "saidAloud": "Imesemwa kwa sauti · {{time}} · rekodi {{n}}",
       "typedAndSaidAloud": "{{typed}} (imesemwa kwa sauti · {{time}} · rekodi {{n}})",
       "source": {
-        "org": "Shirika",
         "language": "Timu ya lugha",
         "fromName": "Kutoka kwa {{name}}",
         "fromWhoeverAsked": "Kutoka kwa aliyeomba"

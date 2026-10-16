@@ -3577,7 +3577,6 @@
         "question": "คำถาม"
       },
       "questionFrom": {
-        "org": "องค์กร",
         "language": "ภาษา",
         "request": "ขอมาสำหรับการตรวจนี้"
       },
@@ -5640,7 +5639,6 @@
       "saidAloud": "พูดออกเสียง · {{time}} · เสียงที่อัดที่ {{n}}",
       "typedAndSaidAloud": "{{typed}} (พูดออกเสียง · {{time}} · เสียงที่อัดที่ {{n}})",
       "source": {
-        "org": "องค์กร",
         "language": "ทีมภาษา",
         "fromName": "จาก {{name}}",
         "fromWhoeverAsked": "จากคนที่ขอ"

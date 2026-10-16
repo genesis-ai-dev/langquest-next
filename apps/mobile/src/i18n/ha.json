@@ -3694,7 +3694,6 @@
         "question": "Tambaya"
       },
       "questionFrom": {
-        "org": "Ƙungiya",
         "language": "Harshe",
         "request": "An nema don wannan bita"
       },
@@ -5886,7 +5885,6 @@
       "saidAloud": "An faɗa da murya · {{time}} · naɗi na {{n}}",
       "typedAndSaidAloud": "{{typed}} (an faɗa da murya · {{time}} · naɗi na {{n}})",
       "source": {
-        "org": "Ƙungiya",
         "language": "Tawagar harshe",
         "fromName": "Daga {{name}}",
         "fromWhoeverAsked": "Daga wanda ya roƙa"

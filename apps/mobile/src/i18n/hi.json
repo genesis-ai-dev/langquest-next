@@ -3694,7 +3694,6 @@
         "question": "सवाल"
       },
       "questionFrom": {
-        "org": "संगठन",
         "language": "भाषा",
         "request": "इस समीक्षा के लिए पूछा गया"
       },
@@ -5886,7 +5885,6 @@
       "saidAloud": "बोलकर कहा · {{time}} · रिकॉर्डिंग {{n}}",
       "typedAndSaidAloud": "{{typed}} (बोलकर कहा · {{time}} · रिकॉर्डिंग {{n}})",
       "source": {
-        "org": "संगठन",
         "language": "भाषा टीम",
         "fromName": "{{name}} से",
         "fromWhoeverAsked": "जिसने माँगा उससे"

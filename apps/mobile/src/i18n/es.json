@@ -3811,7 +3811,6 @@
         "question": "Pregunta"
       },
       "questionFrom": {
-        "org": "Organización",
         "language": "Idioma",
         "request": "Pedida para esta revisión"
       },
@@ -6132,7 +6131,6 @@
       "saidAloud": "Dicho en voz alta · {{time}} · grabación {{n}}",
       "typedAndSaidAloud": "{{typed}} (dicho en voz alta · {{time}} · grabación {{n}})",
       "source": {
-        "org": "Organización",
         "language": "Equipo del idioma",
         "fromName": "De {{name}}",
         "fromWhoeverAsked": "De quien lo pidió"

@@ -3694,7 +3694,6 @@
         "question": "Question"
       },
       "questionFrom": {
-        "org": "Organization",
         "language": "Language",
         "request": "Asked for this review"
       },
@@ -5886,7 +5885,6 @@
       "saidAloud": "Said aloud · {{time}} · recording {{n}}",
       "typedAndSaidAloud": "{{typed}} (said aloud · {{time}} · recording {{n}})",
       "source": {
-        "org": "Organization",
         "language": "Language team",
         "fromName": "From {{name}}",
         "fromWhoeverAsked": "From whoever asked"

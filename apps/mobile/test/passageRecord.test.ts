@@ -242,10 +242,10 @@ describe('the record’s details', () => {
   });
 
   it('pairs answers with their questions and keeps answers whose question is gone', () => {
-    const qs = [{ q: { id: 'q1', text: 'Is it clear?', type: 'yesno' as const }, source: 'org' as const, required: false },
+    const qs = [{ q: { id: 'q1', text: 'Is it clear?', type: 'yesno' as const }, source: 'language' as const, required: false },
       { q: { id: 'q2', text: 'How natural?', type: 'rating' as const }, source: 'request' as const, required: false }];
     expect(answeredQuestions(qs, { q1: 'yes', q2: '4', old: 'Fine' })).toEqual([
-      { id: 'q1', label: 'Is it clear?', source: 'Organization', answer: 'Yes' },
+      { id: 'q1', label: 'Is it clear?', source: 'Language', answer: 'Yes' },
       { id: 'q2', label: 'How natural?', source: 'Asked for this review', answer: '4 / 5' },
       { id: 'old', label: 'Question', answer: 'Fine' }
     ]);

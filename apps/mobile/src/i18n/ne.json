@@ -3694,7 +3694,6 @@
         "question": "प्रश्न"
       },
       "questionFrom": {
-        "org": "संस्था",
         "language": "भाषा",
         "request": "यो जाँचका लागि सोधिएको"
       },
@@ -5886,7 +5885,6 @@
       "saidAloud": "बोलेर भनिएको · {{time}} · रेकर्डिङ {{n}}",
       "typedAndSaidAloud": "{{typed}} (बोलेर भनिएको · {{time}} · रेकर्डिङ {{n}})",
       "source": {
-        "org": "संस्था",
         "language": "भाषा टोली",
         "fromName": "{{name}}बाट",
         "fromWhoeverAsked": "सोध्ने व्यक्तिबाट"

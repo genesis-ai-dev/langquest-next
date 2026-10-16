@@ -37,14 +37,14 @@ name by following the test that creates it. The automated tests
 (`e2e/ui/07-reviewing.spec.ts`) make these versions and requests
 through the server as the person who would.
 
-**Questions in the fixture.** Peer check has no questions. Consultant check
-has four: the three shipped ones (from the organization, so no source line
-shows): a 1 to 5 rating "How well does this draft hold up against the
-source in the hardest verses?", a Yes/No "Are the key terms aligned with
-the language's key terms list?" and a text "Notes for the translation
-team"; and the one COORD added on the check (decision 91), a required Yes/No
-"Does it carry the meaning of the original?", shown with "Required" and the
-source "Language team". Community check has four shipped questions.
+**Questions in the fixture.** LangQuest's checks come with no questions
+(LAN-85): only questions a team writes on a check (decision 91) are asked.
+Peer check and Community check have none. Consultant check has the four
+COORD wrote on it, each shown with the source "Language team": a 1 to 5
+rating "How well does this draft hold up against the source in the hardest
+verses?", a Yes/No "Are the key terms aligned with the language's key terms
+list?", a text "Notes for the translation team", and a required Yes/No
+"Does it carry the meaning of the original?", shown with "Required".
 
 **One word for a check (decision 91).** Screens name a review stage with
 its check's name: "Peer check", "Consultant check", "Do the peer check".
@@ -429,7 +429,7 @@ Expected:
 - Consultant check: "Does it carry the meaning?" (P-CHECK is used up by REV-017; use a fresh fixture or check it there).
 - Final approval: "Is it ready to share?".
 - Community check: "Is it clear?", and its Listen sub reads "Play it for the group" instead of "Listen to all of it first".
-- Community check shows the four shipped questions (two ratings, one Yes/No, one text).
+- Community check has no Questions step (LangQuest's checks come with no questions, LAN-85).
 
 ---
 
