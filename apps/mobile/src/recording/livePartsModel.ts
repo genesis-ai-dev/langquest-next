@@ -5,8 +5,13 @@
 // of the room that ends up in no part is shown as not kept, once nothing can
 // still claim it. Pure: the hook feeds it the module's events.
 
-/** Bars shown: about 6 s of microphone frames. */
+/** Frames shown before any pinch: about 6 s. */
 export const LIVE_BARS = 128;
+/** Pinching shows between about 2 s and 30 s; the bars only grow or shrink. */
+export const MIN_LIVE_FRAMES = 43;
+export const MAX_LIVE_FRAMES = 646;
+/** At most this many bars are drawn: zoomed out, each bar is the loudest of the frames it covers. */
+export const LIVE_COLUMNS = 128;
 /** A part's head can reach back this far (splitter.ts maxHeadMs plus its margin); sound newer than this may still be claimed. */
 const CLAIM_MS = 3300;
 /** Sound counts as out of the room this many dB above the room's quiet level. */
@@ -45,7 +50,7 @@ export function liveStart(firstPart: number): LiveState {
 
 const toDb = (energy: number) => Math.max(-60, Math.min(0, 20 * Math.log10(Math.max(energy, 1e-6))));
 /** Frames kept in memory: the window and the longest reach of a head. */
-const keep = (s: LiveState) => LIVE_BARS + Math.ceil(CLAIM_MS / s.frameMs) + 4;
+const keep = (s: LiveState) => MAX_LIVE_FRAMES + Math.ceil(CLAIM_MS / s.frameMs) + 4;
 
 /** One frame from the microphone: its peak energy (0..1), the room's quiet level if known, and when (ms). */
 export function liveFrame(s: LiveState, energy: number, quiet: number | undefined, at: number): LiveState {
@@ -89,30 +94,50 @@ export function livePartEnd(s: LiveState, durationMs: number | null): LiveState 
   return { ...s, open: null, next: open.n + 1, parts: s.parts.map((p) => (p === open ? done : p)) };
 }
 
-/** The window's bars, oldest first, padded with silence until the window fills. */
-export function liveBars(s: LiveState): LiveBar[] {
+/** A frame zoom, kept between the nearest and the farthest the pinch allows. */
+export function clampFrames(frames: number): number {
+  return Math.round(Math.max(MIN_LIVE_FRAMES, Math.min(MAX_LIVE_FRAMES, frames)));
+}
+
+const RANK: Record<LiveBar['kind'], number> = { room: 0, heard: 1, lost: 2, kept: 3, open: 4 };
+
+/**
+ * The last `frames` frames as bars, oldest first, padded with silence until
+ * the window fills. Zoomed out past LIVE_COLUMNS frames, a bar covers several
+ * frames: the loudest of them, and the strongest kind (a part wins over the room).
+ */
+export function liveBars(s: LiveState, frames = LIVE_BARS): LiveBar[] {
   const now = s.base + s.db.length;
-  const first = now - LIVE_BARS;
+  const first = now - frames;
   const claimFrames = Math.ceil(CLAIM_MS / s.frameMs);
-  const bars: LiveBar[] = [];
-  for (let f = first; f < now; f++) {
+  const one = (f: number): LiveBar => {
     const i = f - s.base;
-    if (i < 0) { bars.push({ db: -60, quiet: null, kind: 'room' }); continue; }
+    if (i < 0) return { db: -60, quiet: null, kind: 'room' };
     const db = s.db[i]!, quiet = s.quiet[i] ?? null;
     const part = s.parts.find((p) => f >= p.from && (p.to === null || f < p.to));
     let kind: LiveBar['kind'];
     if (part) kind = part.to === null ? 'open' : 'kept';
     else if (quiet === null || db <= quiet + OUT_OF_ROOM_DB) kind = 'room';
     else kind = now - f > claimFrames ? 'lost' : 'heard';
-    bars.push({ db, quiet, kind });
+    return { db, quiet, kind };
+  };
+  const per = Math.max(1, Math.ceil(frames / LIVE_COLUMNS));
+  const bars: LiveBar[] = [];
+  for (let f = first; f < now; f += per) {
+    let bar = one(f);
+    for (let k = 1; k < per && f + k < now; k++) {
+      const b = one(f + k);
+      bar = { db: Math.max(bar.db, b.db), quiet: bar.quiet === null ? b.quiet : b.quiet === null ? bar.quiet : Math.min(bar.quiet, b.quiet), kind: RANK[b.kind] > RANK[bar.kind] ? b.kind : bar.kind };
+    }
+    bars.push(bar);
   }
   return bars;
 }
 
-/** The parts with a box in the window: where each starts and ends, as bar positions (0..LIVE_BARS). */
-export function liveBoxes(s: LiveState): { n: number; from: number; to: number; open: boolean }[] {
+/** The parts with a box in the window of `frames` frames: where each starts and ends, in frames from the window's start. */
+export function liveBoxes(s: LiveState, frames = LIVE_BARS): { n: number; from: number; to: number; open: boolean }[] {
   const now = s.base + s.db.length;
-  const first = now - LIVE_BARS;
+  const first = now - frames;
   return s.parts
     .filter((p) => (p.to ?? now) > first)
     .map((p) => ({ n: p.n, from: Math.max(0, p.from - first), to: (p.to ?? now) - first, open: p.to === null }));

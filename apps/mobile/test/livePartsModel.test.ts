@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LIVE_BARS, liveBars, liveBoxes, liveFrame, livePartEnd, livePartStart, liveStart, type LiveState } from '../src/recording/livePartsModel';
+import { clampFrames, LIVE_BARS, LIVE_COLUMNS, MAX_LIVE_FRAMES, MIN_LIVE_FRAMES, liveBars, liveBoxes, liveFrame, livePartEnd, livePartStart, liveStart, type LiveState } from '../src/recording/livePartsModel';
 
 // The live waveform's parts (LAN-82): fed the microphone module's events in
 // the order the module sends them (a part's start just before the frame that
@@ -50,9 +50,9 @@ describe('the live waveform (livePartsModel.ts)', () => {
   });
 
   it('keeps a window of the latest bars', () => {
-    const s = feed(liveStart(1), frames(500, -52));
+    const s = feed(liveStart(1), frames(2000, -52));
     expect(liveBars(s)).toHaveLength(LIVE_BARS);
-    expect(s.db.length).toBeLessThanOrEqual(LIVE_BARS + 80);
+    expect(s.db.length).toBeLessThanOrEqual(MAX_LIVE_FRAMES + 80);
   });
 
   it('never starts a box inside the last one', () => {
@@ -63,5 +63,20 @@ describe('the live waveform (livePartsModel.ts)', () => {
     s = livePartStart(s, 60 * MS);
     const [a, b] = liveBoxes(s);
     expect(b!.from).toBeGreaterThanOrEqual(a!.to);
+  });
+
+  it('zooms: nearer shows fewer, wider bars; farther keeps the bar count and lets a part win over the room', () => {
+    let s = feed(liveStart(1), frames(600, -52));
+    s = livePartStart(s, MS);
+    s = feed(s, frames(3, -20));
+    s = livePartEnd(s, 3 * MS);
+    s = feed(s, frames(40, -52));
+    expect(liveBars(s, 50)).toHaveLength(50);
+    const far = liveBars(s, MAX_LIVE_FRAMES);
+    expect(far.length).toBeLessThanOrEqual(LIVE_COLUMNS);
+    expect(far.filter((b) => b.kind === 'kept').length).toBeGreaterThanOrEqual(1);
+    expect(liveBoxes(s, MAX_LIVE_FRAMES)[0]).toMatchObject({ n: 1, open: false });
+    expect(clampFrames(5)).toBe(MIN_LIVE_FRAMES);
+    expect(clampFrames(10_000)).toBe(MAX_LIVE_FRAMES);
   });
 });

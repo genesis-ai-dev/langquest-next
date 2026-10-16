@@ -13,7 +13,7 @@ export function useLiveParts(firstPart: number): LiveState {
   useEffect(() => {
     const subs = [
       MicrophoneEnergy.addListener('onEnergyResult', (e) => setState((s) => liveFrame(s, e.energy, e.quiet, e.timestamp))),
-      MicrophoneEnergy.addListener('onSegmentStart', (e) => setState((s) => livePartStart(s, e?.headMs))),
+      MicrophoneEnergy.addListener('onSegmentStart', (e) => setState((s) => livePartStart(s, e.headMs))),
       MicrophoneEnergy.addListener('onSegmentComplete', (e) => setState((s) => livePartEnd(s, e.uri ? e.duration : null)))
     ];
     return () => subs.forEach((sub) => sub.remove());
