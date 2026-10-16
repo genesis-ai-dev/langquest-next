@@ -175,11 +175,18 @@ export async function recordAndPublish(page: Page, world: UiWorld, key: PassageK
   }
   await expect(text(page, /^Recording Version \d+|^Draft \d+/)).toBeVisible();
   const rec = byId(page, 'record-button');
-  // The parts card counts what is there already (a revision starts from the last version's parts).
+  // The parts card counts what is there already (a revision starts from the last version's parts: "Version 1, 3 parts");
+  // while recording, the recording view names the part being said at the end ("Part 4. …": three are kept).
   const count = async () => {
-    const title = await page.getByText(/^Parts? 1(–\d+)?$/).locator('visible=true').first().innerText({ timeout: 1000 }).catch(() => '');
-    const m = /^Parts? 1(?:–(\d+))?$/.exec(title.trim());
-    return m ? Number(m[1] ?? 1) : 0;
+    const card = page.getByRole('button', { name: /^(Parts? 1(–\d+)?|Version \d+), \d+ parts?/ }).locator('visible=true').first();
+    if (await card.count()) {
+      const m = /, (\d+) parts?/.exec((await card.getAttribute('aria-label').catch(() => null)) ?? '');
+      return m ? Number(m[1]) : 0;
+    }
+    const live = page.getByLabel(/^Part \d+\. /).locator('visible=true').first();
+    if (!(await live.count())) return 0;
+    const n = /^Part (\d+)\. /.exec((await live.getAttribute('aria-label').catch(() => null)) ?? '');
+    return n ? Number(n[1]) - 1 : 0;
   };
   const before = await count();
   await rec.click();

@@ -16,10 +16,11 @@ import {
 } from './splitModel';
 
 /**
- * A pane is one line at an end snap; `open` brings the split back to half.
- * `height` is the pane's own, so it can show more as it gets room.
+ * A pane is one line at an end snap; `open` brings the split back to half,
+ * and `room` gives this pane all but the other's one line. `height` is the
+ * pane's own, so it can show more as it gets room.
  */
-type PaneContent = ReactNode | ((p: { compact: boolean; open: () => void; height: number }) => ReactNode);
+type PaneContent = ReactNode | ((p: { compact: boolean; open: () => void; room: () => void; height: number }) => ReactNode);
 
 /** The divider's press while help is on: it explains itself; it is moved by dragging. */
 const DRAG_ONLY = () => undefined;
@@ -78,10 +79,10 @@ export function SplitPane(props: {
   const help = useHelpSpot(t('recording.split.divider'), t('recording.split.dividerHelp'), DRAG_ONLY);
   const measured = available > 0;
   const open = () => settle(DEFAULT_SPLIT);
-  const render = (c: PaneContent, compact: boolean, height: number) => (typeof c === 'function' ? c({ compact, open, height }) : c);
+  const render = (c: PaneContent, compact: boolean, height: number, room: () => void) => (typeof c === 'function' ? c({ compact, open, room, height }) : c);
   return (
     <View style={styles.split} onLayout={(e) => setAvailable(Math.max(0, e.nativeEvent.layout.height - DIVIDER))}>
-      <View style={[styles.pane, measured ? { height: heights.top } : { flex: fraction }, props.topStyle]}>{render(props.top, fraction <= 0, heights.top)}</View>
+      <View style={[styles.pane, measured ? { height: heights.top } : { flex: fraction }, props.topStyle]}>{render(props.top, fraction <= 0, heights.top, () => settle(1))}</View>
       <View style={styles.divider} {...(help.id ? {} : pan.panHandlers)}
         accessible accessibilityRole="adjustable"
         accessibilityLabel={t('recording.split.divider')}
@@ -100,7 +101,7 @@ export function SplitPane(props: {
           </Pressable>
         ) : null}
       </View>
-      <View style={[styles.pane, measured ? { height: heights.bottom } : { flex: 1 - fraction }, props.bottomStyle]}>{render(props.bottom, fraction >= 1, heights.bottom)}</View>
+      <View style={[styles.pane, measured ? { height: heights.bottom } : { flex: 1 - fraction }, props.bottomStyle]}>{render(props.bottom, fraction >= 1, heights.bottom, () => settle(0))}</View>
     </View>
   );
 }

@@ -12,7 +12,7 @@ import { isEarlierSection } from '../breakup/earlierSections';
 import { Faces, PeopleLine } from '../checks/parts';
 import { checkName } from '../admin/adminModel';
 import {
-  addedTo, approvedVersion, CommandError, checkPeople, commands, draftsBy, LISTENER_KIND, madeGrid, madeGroup, madeVersionOf, mediaAllowed,
+  addedTo, approvedVersion, CommandError, canDeleteVersion, checkPeople, commands, draftsBy, LISTENER_KIND, madeGrid, madeGroup, madeVersionOf, mediaAllowed,
   questionsForKind, recordTimeline,
   type AddedContent, type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type MadeColumn, type PassageNote,
   type QuestionSpec, type ReviewView, type Version
@@ -37,13 +37,17 @@ import { PassagePath } from '../passage/path';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {
   answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnName, gridModel, hasFeedback, notesSummary, responseLine,
-  revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor,
+  revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor, versionName,
   type OutcomeTone
 } from '../passage/reviewModel';
 import {
   hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText, undoNote
 } from '../passage/recordInputsModel';
 import { VersionsPage } from '../passage/versions';
+import { deleteVersion } from '../passage/deleteVersion';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
+import { cardDurations } from '../recording/workspaceModel';
+import { mmss, totalMs } from '../recording/model';
 import { VersionRecording } from '../passage/versionParts';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
@@ -321,7 +325,7 @@ export function PassageRecord(ctx: Ctx) {
 
   // ---- the path ----
   const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
-  // A passage goes on the way its latest version was made, else the way the language leads (decision 124).
+  // A passage goes on the way its latest version was made, else the way the language leads (decision 125).
   const media = mediaAllowed(v.state);
   const lead = p.latest && media[p.latest.medium] ? p.latest.medium : leadMedium(v.state);
   const other = media.recording && media.writing ? (lead === 'writing' ? 'recording' : 'writing') : null;
@@ -700,7 +704,7 @@ function KindActionRow(props: {
   compact: boolean;
   onAction: (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => void;
   onMore: () => void;
-  /** Open what a making step made: the made thing, or the version it made (decision 124). */
+  /** Open what a making step made: the made thing, or the version it made (decision 125). */
   onOpenMade?: (m: { madeId?: string; takeId?: string }) => void;
 }) {
   const { row, step } = props;
@@ -781,7 +785,7 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
   const { v } = props;
   const [shown, setShown] = useState(GRID_STEP);
   // Steps that make something are columns of what they made, a version they made among it (a final
-  // recording); what no step made (v2's) gets a column only where some exists (decision 124).
+  // recording); what no step made (v2's) gets a column only where some exists (decision 125).
   const made = madeGrid(v.p);
   const makingIds = [...new Set([...props.kindIds.filter((id) => !!v.kind(id).makes), ...made.columns.flatMap((c) => (c.kindId ? [c.kindId] : []))])];
   const madeColumns: MadeColumn[] = [
@@ -946,26 +950,49 @@ function HistoryRow(props: { text: EntryText; when: string; last: boolean; trail
 
 // ---- version_detail (REC-9) --------------------------------------------------------------
 
-/** One version: what changed and why, its takes, the key terms tied to it, its reviews and notes. */
+/**
+ * One version: what changed and why, its takes, the key terms tied to it,
+ * its reviews and notes. Its footer edits it into a new draft, and deletes
+ * it while it is the person's latest and nobody has checked it (LAN-83).
+ */
 export function VersionDetail(ctx: Ctx) {
   const v = usePassage(ctx);
   const guide = useStudyGuide(ctx, v?.unitId);
   const verseKeys = usePassageVerses(ctx, v?.unitId ?? '', v?.languageId ?? '');
+  // Deleting the version asks first (LAN-83).
+  const [asking, setAsking] = useState(false);
   if (!v) return <Missing ctx={ctx} id="version_detail" />;
   const { p, unitId, languageId } = v;
   const version = versionFor(p, ctx.params['takeId']);
   if (!version) return <Missing ctx={ctx} id="version_detail" crumbsOf={v} text={t('passage.version.nothingRecorded')} />;
   const { title, reviews, prompted, terms, notes } = versionDetailModel(v, version);
+  // A deleted version opens as what it was, with when and by whom it was deleted (LAN-83).
+  const gone = p.deletedVersions.find((x) => x.takeId === version.takeId);
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
-  // What was made from this version, by steps or brought over (decision 124); it stays here, never out of date.
+  // What was made from this version, by steps or brought over (decision 125); it stays here, never out of date.
   // What a step added to it (words for a recording) is part of it, and shows with it.
   const made = p.made.filter((m) => !m.added && madeVersionOf(p, m) === version.takeId);
   const added = addedTo(p, version);
   const approved = approvedVersion(p)?.takeId === version.takeId;
   const mayChange = canGo(ctx, 'version_detail', 'back_translation');
+  const canEdit = recordCan(ctx.session).record;
+  const deletable = canEdit && canDeleteVersion(p, version.takeId, ctx.session.actorId);
+  const durations = cardDurations(v.state, unitId);
+  const footer = canEdit ? (
+    <View style={styles.versionFooter}>
+      <View style={{ flex: 1 }}>
+        <PrimaryBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editVersionHelp')} onPress={() => ctx.go('workspace', { ...params, ...(version.medium === 'writing' ? { write: '1' } : { from: version.takeId }) })} />
+      </View>
+      {deletable ? (
+        <IconBtn name="trash" label={t('passage.versions.delete', { name: title })} help={t('passage.versions.deleteVersionHelp')} bg={TINT.red} color={TINT.redText}
+          onPress={() => setAsking(true)} />
+      ) : null}
+    </View>
+  ) : undefined;
   return (
-    <Screen header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} sub={`${ctx.name(version.by)} · ${when(version.hlc)}`} onBack={ctx.back}
+    <Screen footer={footer} header={<Header title={title} crumbs={passageCrumbs(ctx, v, title)} onBack={ctx.back}
+      sub={gone ? `${t('passage.record.entry.versionDeleted', { n: version.n })} · ${ctx.name(gone.deleted.by)} · ${when(gone.deleted.hlc)}` : `${ctx.name(version.by)} · ${when(version.hlc)}`}
       action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'version', version.takeId, version.by, unitId)} />} />}>
       <Card>
         <Label text={version.n === 1 ? t('passage.version.note') : t('passage.version.whatChanged')} />
@@ -984,7 +1011,7 @@ export function VersionDetail(ctx: Ctx) {
       <SectionLabel label={version.medium === 'writing' ? t('writing.version.words') : t('passage.version.recording')} />
       <Authored ctx={ctx} by={version.by}>
         {version.medium === 'writing' ? (
-          // A written version reads verse by verse (decision 124).
+          // A written version reads verse by verse (decision 125).
           <WrittenReader ctx={ctx} state={v.state} unitId={unitId} parts={version.cardHashes} verseKeys={verseKeys} />
         ) : (
           <VersionRecording ctx={ctx} state={v.state} unitId={unitId} title={title} hashes={version.cardHashes} />
@@ -1049,12 +1076,17 @@ export function VersionDetail(ctx: Ctx) {
           </View>
         </Disclosure>
       ) : null}
+      {deletable ? (
+        <ConfirmDelete visible={asking} name={title} sub={version.medium === 'writing' ? t('writing.publishSub', { count: version.cardHashes.length })
+          : t('recording.parts.groupSub', { count: version.cardHashes.length, length: mmss(totalMs(version.cardHashes.map((h) => durations.get(h)))) })}
+          onClose={() => setAsking(false)} onConfirm={() => { setAsking(false); deleteVersion(ctx, v, version, ctx.back); }} />
+      ) : null}
     </Screen>
   );
 }
 
 /**
- * What a step added to a version (decision 124; demo wJoinVersion): its words
+ * What a step added to a version (decision 125; demo wJoinVersion): its words
  * read verse by verse with the recording, or the recording added to
  * writing. Approved with them when a check after they were added looked
  * good; changing them later keeps the approval, and says so.
@@ -1096,7 +1128,7 @@ function AddedSection(props: { ctx: Ctx; v: PassageView; version: Version; added
   );
 }
 
-// ---- made_detail (decision 124): something made from a version ------------------------------
+// ---- made_detail (decision 125): something made from a version ------------------------------
 
 export function MadeDetail(ctx: Ctx) {
   return <MadeDetailScreen {...ctx} />;
@@ -1190,7 +1222,7 @@ export function ReviewDetail(ctx: Ctx) {
           </View>
           <View style={{ marginTop: space.md }}><PersonAvatar look={look(review.by)} size={72} /></View>
           <Text style={[txt.h2, { fontWeight: '800' }]}>{source}</Text>
-          <Text style={txt.smMuted}>{[when(review.hlc), version ? versionTitle(version.n) : ''].filter(Boolean).join(' · ')}</Text>
+          <Text style={txt.smMuted}>{[when(review.hlc), version ? versionName(p, version) : ''].filter(Boolean).join(' · ')}</Text>
         </View>
         <Authored ctx={ctx} by={review.by}>
           <View style={styles.feedbackCard}>
@@ -1508,6 +1540,7 @@ const OUTCOME_TINT: Record<OutcomeTone, { bg: string; fg: string }> = {
 };
 
 const styles = StyleSheet.create({
+  versionFooter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   amberPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.full, backgroundColor: TINT.amber },
   feedbackCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: TINT.noteBorder, padding: space.lg, gap: space.md },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

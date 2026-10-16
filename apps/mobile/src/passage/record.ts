@@ -269,14 +269,14 @@ export function kindRowActions(o: {
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = kindCleared(o.status, o.step);
   // Nobody checks their own version unless they were asked to (the role matrix: Review, "not their own version unless asked").
-  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 124).
+  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 125).
   const doIt: RowAction | undefined = o.can.review && (!o.isAuthor || askedMe || !!o.kind.makes)
     ? { id: 'do', label: o.kind.makes ? o.kind.name : o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
   const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
     ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
     ? { id: 'ask', label: s === 'addressed' ? t('passage.record.actions.askAgain') : send ? t('passage.record.actions.sendElsewhere') : t('passage.record.actions.askSomeone') } : undefined;
-  // What a step makes is made here, not logged afterwards (decision 124).
+  // What a step makes is made here, not logged afterwards (decision 125).
   const log: RowAction | undefined = o.can.log && !o.kind.makes ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
   const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: t('passage.record.actions.setAside') } : undefined;
   const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
@@ -423,11 +423,14 @@ export function describeEntry(e: RecordEntry, o: {
         icon: r.withdrawn ? 'undo' : k?.produces ? 'swap' : good ? 'check' : 'chat',
         color: r.withdrawn ? C.muted : k?.produces ? C.primary : good ? C.green : C.amber,
         title: `${kindName(kinds, r.kindId)} · ${outcomeText(k, r.outcome)}`,
-        sub: [source, undone].filter(Boolean).join(' · '),
+        // A check of a version deleted since says so: it counts for nothing (LAN-83).
+        sub: [o.p.deletedVersions.some((v) => v.n === r.versionN) ? t('passage.record.entry.versionDeleted', { n: r.versionN }) : '', source, undone].filter(Boolean).join(' · '),
         who: r.via === 'logged' ? t('passage.record.entry.loggedBy', { name: name(r.by, true) }) : who,
         ...(r.withdrawn ? { struck: true } : {})
       };
     }
+    case 'deleted':
+      return { icon: 'trash', color: C.muted, title: t('passage.record.entry.versionDeleted', { n: e.version.n }), sub: '', who };
     case 'response':
       return { icon: 'edit', color: C.primary, title: t('passage.record.entry.revisedAfter', { kind: kindName(kinds, e.review.kindId) }), sub: said(e.response.note ?? ''), who };
     case 'request': {
@@ -460,7 +463,7 @@ export function describeEntry(e: RecordEntry, o: {
       };
     }
     case 'made': {
-      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 124).
+      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 125).
       const m = e.made;
       const of = o.p.versions.find((x) => x.takeId === madeVersionOf(o.p, m));
       const version = of ? versionTitle(of.n) : t('passage.record.anchor.aVersion');

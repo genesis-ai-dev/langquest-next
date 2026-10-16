@@ -12,7 +12,7 @@ import { countEvent } from './changes';
  * events. Snapshots are tagged with this; a client only loads snapshots at
  * its own version.
  */
-export const REDUCER_VERSION = 17;
+export const REDUCER_VERSION = 18;
 
 // The revision and the change log live in changes.ts; re-exported for the callers that read it here.
 export { stateRevision } from './changes';
@@ -165,19 +165,25 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
         actorId: event.actorId,
         hlc: event.hlc,
         // Add-wins: an archive that arrived before the compose still sticks.
-        archived: prior?.archived ?? false
+        archived: prior?.archived ?? false,
+        ...(prior?.archivedAt ? { archivedAt: prior.archivedAt } : {})
       };
       break;
     }
 
     case 'v1.TakeArchived': {
       const take = state.takes[event.payload.takeId];
+      // The first archive names who and when, whatever order archives arrive in.
+      const at = { hlc: event.hlc, by: event.actorId };
+      const first = (prior?: { hlc: string; by: string }) =>
+        !prior || at.hlc < prior.hlc || (at.hlc === prior.hlc && at.by < prior.by) ? at : prior;
       if (take) {
         take.archived = true;
+        take.archivedAt = first(take.archivedAt);
       } else {
         // Archive arrived before compose. Record a placeholder so the flag
         // survives; compose fills in the rest.
-        state.takes[event.payload.takeId] = { unitId: '', cardHashes: [], parentTakeId: null, actorId: event.actorId, hlc: event.hlc, archived: true };
+        state.takes[event.payload.takeId] = { unitId: '', cardHashes: [], parentTakeId: null, actorId: event.actorId, hlc: event.hlc, archived: true, archivedAt: at };
       }
       break;
     }

@@ -15,7 +15,10 @@
 // LAN-23). The recorder shows the parts recorded under one card and the
 // next part lit; when the passage has verses they are grouped into cards by
 // verse, with a space beside each part to tap a verse in (decisions.md 82); the big red button and Publish are in the footer, or in
-// the recorder's one line. Publish is its own screen inside this one, so
+// the recorder's one line. Each part has its own delete, and the card one
+// for all; a deleted part's place takes the next part, and with it the
+// deleted part's verses, so a part said wrong is said again where it was
+// (LAN-83). While the parts are still a version's, the card is named for it. Publish is its own screen inside this one, so
 // nothing recorded or offered is lost on the way. The sensitivity and the
 // pause between parts are set in microphone setup (`mic_setup`).
 //
@@ -26,7 +29,8 @@
 // listen to the latest version and what you save is content for the next
 // check, not a version.
 import {
-  commands, derivePassage, draftsBy, keyTermsForUnit, latestDraftBy, partMarksFor, partsMedium, versesInChapter, versionHeardAt,
+  commands, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, latestDraftBy, partMarksFor, partsMedium, skippedVerses, versesInChapter,
+  versionHeardAt, type PartLabel,
   type EventSpec, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -49,9 +53,12 @@ import { CardList, RecordButton, SaveProblem, type ListedCard } from '../recordi
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING, rememberedSplit } from '../recording/splitModel';
 import { useListenLoop } from '../recording/useListenLoop';
-import { VadControls, VadPanel } from '../recording/VadTakeover';
+import { RecordingView } from '../recording/RecordingView';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
+import { VerseTile } from '../recording/verseParts';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, draftToOpen, removeCardSpecs, sameCards,
+  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, labelAt, removeCardSpecs, sameCards, slotRows, targetNumber,
+  type RecordTarget, type SlotRow,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
 import { getReferenceSlides } from '../passage/passageResources';
@@ -62,7 +69,7 @@ import { contractsFor } from '../shell/screenContracts';
 import { BackTranslationBody } from '../recording/btWorkspace';
 import { SourceReader } from '../sources/SourceReader';
 import { GuideNav, GuideStep } from '../study/guide';
-import { partLabel, partsLookClipped, refChips, totalMs, type RefChip } from '../recording/model';
+import { mmss, partLabel, partsLookClipped, recorderLines, refChips, totalMs, type RefChip } from '../recording/model';
 import { passageVerseKeys } from '../recording/verseModel';
 import { draftName, draftOf, startedFrom } from '../passage/versionsModel';
 import { catalogVerses } from '../sources/model';
@@ -85,10 +92,13 @@ import { useOnTooShort, useRecorder, type RecordedCard } from '../recording/useR
 
 // ---- Workspace ---------------------------------------------------------------------
 
+/** Where what is said next goes, by card (LAN-83): the end, before a part (a gap), or over a part. */
+type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark } | { kind: 'over'; hash: string; n: number; mark?: PartMark };
+
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
-  // Writing the passage instead of recording it (decisions.md 124).
+  // Writing the passage instead of recording it (decisions.md 125).
   if (ctx.params['write'] === '1') return <WritingWorkspace key={`${v.unitId}:${v.languageId}:write`} ctx={ctx} v={v} mode={{ kind: 'version' }} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
@@ -103,7 +113,7 @@ function Missing(props: { ctx: Ctx; title: string; text?: string }) {
   );
 }
 
-/** A step whose result is the passage's next version (a final recording, decisions.md 124): what it is made from. */
+/** A step whose result is the passage's next version (a final recording, decisions.md 125): what it is made from. */
 interface MakingVersion { kindId: string; name: string; fromTakeId: string; requestId?: string }
 
 function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: MakingVersion }) {
@@ -111,7 +121,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   const me = ctx.session.actorId;
   const idx = indexesFor(state);
   const latest = p.latest;
-  const nextN = p.versions.length + 1;
+  const nextN = p.nextVersionN;
   const isFirst = !latest;
 
   // ---- which draft (decisions.md 83) ----
@@ -121,7 +131,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // one from the latest version. `root` names the draft once it is saved;
   // `tip` is its newest take seen here, which the next change continues.
   const fromParam = making ? undefined : ctx.params['from'];
-  // A final recording starts empty: it is said again, not edited (decisions.md 124).
+  // A final recording starts empty: it is said again, not edited (decisions.md 125).
   const fresh = ctx.params['fresh'] === '1' || !!making;
   const mine = useMemo(() => draftsBy(p, me), [p, me]);
   const draftId = ctx.params['draftId'];
@@ -140,7 +150,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // What the draft started from: a version's parts, or nothing.
   const startFrom = draft || tipRef.current ? (draft?.basedOnTakeId ?? (rootRef.current ? state.takes[rootRef.current]?.parentTakeId ?? undefined : undefined))
     : fromParam && state.submissions[fromParam] ? fromParam : fresh ? undefined : latest?.takeId;
-  // A written version is a version to say again, not parts to keep (decision 124): recording from it starts empty.
+  // A written version is a version to say again, not parts to keep (decision 125): recording from it starts empty.
   const startCards = startFrom && partsMedium(state.takes[startFrom]?.cardHashes ?? []) === 'recording' ? state.takes[startFrom]?.cardHashes : undefined;
   /** What the next change continues: this draft's newest take, else what it starts from. */
   const parentNow = useCallback(() => (tipRef.current && stateRef.current.takes[tipRef.current] ? tipRef.current : startFrom ?? null), [startFrom]);
@@ -164,8 +174,17 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   const durations = useMemo(() => cardDurations(state, unitId), [state, unitId]);
   const draftCards = draft?.cardHashes;
   const [cleared, setCleared] = useState(false);
-  // Recording into a gap left for later (decisions.md 82): new parts go before this part.
-  const [insertBefore, setInsertBefore] = useState<string | null>(null);
+  // Where what is said next goes (LAN-83): the end, a gap (before a part:
+  // verses left for later, decisions.md 82, or a deleted part's place), or
+  // over a part, which it replaces. Tapping the end, a gap or a part
+  // chooses; deleting a part chooses its place. `mark` is the verses the
+  // first part said there takes; the rest are more of them.
+  const [aim, setAim] = useState<Aim>({ kind: 'end' });
+  // A deleted part's place, kept open as a gap until something is recorded into it (one at a time).
+  const [hole, setHole] = useState<{ before: string; mark?: PartMark } | null>(null);
+  const insertBefore = aim.kind === 'gap' ? aim.before : aim.kind === 'over' ? aim.hash : null;
+  // The card's rows as last drawn, for what a tap chose.
+  const rowsRef = useRef<SlotRow[]>([]);
   const list = useMemo(() => {
     const base = workingCards({
       ...(draftCards ? { draftCards } : {}), ...(startCards ? { latestCards: startCards } : {}), pending, cleared
@@ -174,9 +193,15 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
     const fresh = new Set(pending.filter((h) => !draftCards?.includes(h)));
     const rest = base.filter((h) => !fresh.has(h));
     const at = rest.indexOf(insertBefore);
-    return [...rest.slice(0, at), ...base.filter((h) => fresh.has(h)), ...rest.slice(at)];
-  }, [draftCards, startCards, pending, cleared, insertBefore]);
+    const said = base.filter((h) => fresh.has(h));
+    // Over a part: what was said takes its place, once something was said.
+    const over = aim.kind === 'over' && said.length > 0 ? 1 : 0;
+    return [...rest.slice(0, at), ...said, ...rest.slice(at + over)];
+  }, [draftCards, startCards, pending, cleared, insertBefore, aim.kind]);
   const changed = canPublish(list, latest?.cardHashes);
+  // While the parts are still the version's they started from, the card is named for it (LAN-83).
+  const fromVersion = startedFrom(p.versions, startFrom);
+  const recorderGroupTitle = fromVersion && startCards && sameCards(list, startCards) ? versionTitle(fromVersion) : undefined;
   const [split, setSplit] = useState(() => rememberedSplit('workspace'));
   // Publish from the Versions page opens the publish screen at once.
   const publishParam = ctx.params['publish'] === '1';
@@ -236,10 +261,18 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
     const commandId = Crypto.randomUUID();
     try {
       specs = commands(state, idx).keepTake({ commandId, unitId, cardHashes: list, actorId: me, parentTakeId: parentNow() });
-      // A part recorded into a gap takes the next verse, so it fills the gap.
+      // A part recorded into a gap takes the next verse, so it fills the gap;
+      // in a deleted or replaced part's place, the first takes that part's verses and the rest are more of them.
+      const aimMark = aim.kind === 'end' ? undefined : aim.mark;
       if (insertBefore && verseKeysRef.current.length > 0) {
         const fresh = new Set(pending);
-        const marks = partMarksFor(state, unitId, list, verseKeysRef.current).map((m, i) => (fresh.has(list[i]!) && !m ? { t: 'next' as const } : m));
+        let first = true;
+        const marks = partMarksFor(state, unitId, list, verseKeysRef.current).map((m, i) => {
+          if (!fresh.has(list[i]!) || m) return m;
+          const mark: PartMark = aimMark ? (first ? aimMark : { t: 'join' }) : { t: 'next' };
+          first = false;
+          return mark;
+        });
         specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards: list, marks, verses: verseKeysRef.current })];
       }
     } catch (e) {
@@ -249,15 +282,43 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
       return;
     }
     adopt(specs);
-    ctx.language.run(specs)
+    // Recorded over a part: the part is gone from the draft now, so what comes
+    // next goes after what was just said, and Undo brings the old part back.
+    let undo: (() => EventSpec[]) | undefined;
+    let replacedLabel = '';
+    if (aim.kind === 'over') {
+      const fresh = new Set(pending);
+      const first = list.findIndex((h) => fresh.has(h));
+      const after = list.slice(first).find((h) => !fresh.has(h)) ?? null;
+      const before = [...list.slice(0, first).filter((h) => !fresh.has(h)), aim.hash, ...list.slice(first).filter((h) => !fresh.has(h))];
+      replacedLabel = partLabel(aim.n - 1);
+      // The hole was before the part just replaced: it is before what replaced it now.
+      if (hole?.before === aim.hash && list[first]) setHole({ ...hole, before: list[first]! });
+      undo = () => {
+        const s = stateRef.current;
+        // This draft as it is now (as `draftIn`), read here so the effect depends on nothing that changes every render.
+        const now = draftOf(draftsBy(derivePassage(s, unitId), me), rootRef.current);
+        return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me, parentTakeId: now?.takeId ?? parentNow() });
+      };
+      setAim(after ? { kind: 'gap', before: after, ...(aim.mark ? { mark: { t: 'join' } } : {}) } : { kind: 'end' });
+    } else if (aim.kind === 'gap') {
+      // Parts said after the first in a place are more of its verses; the hole is filled.
+      if (aim.mark) setAim({ ...aim, mark: { t: 'join' } });
+      if (hole?.before === aim.before) setHole(null);
+    }
+    (undo ? latestCtx.current.act(specs, t('translate.partReplaced', { part: replacedLabel }), undo) : ctx.language.run(specs))
       .catch((e: unknown) => setComposeError(t('translate.partsNotInDraft', { reason: failureMessage('workspace: save draft', e) })))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
-  }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me, insertBefore, parentNow]);
+  }, [state, pending, list, composing, composeError, ctx.language, idx, unitId, me, insertBefore, parentNow, aim, hole]);
   // The verses of the passage, set once the Bible's range is known (below); read by the compose effect.
   const verseKeysRef = useRef<string[]>([]);
-  // A gap is filled for one recording session.
-  useEffect(() => { if (!recording && !rec.busy) setInsertBefore(null); }, [recording, rec.busy]);
+  // A place is recorded into for one session; then the next part is at the end again.
+  const filling = useRef(false);
+  useEffect(() => {
+    if (recording) { if (aim.kind !== 'end') filling.current = true; return; }
+    if (!rec.busy && filling.current) { filling.current = false; setAim({ kind: 'end' }); }
+  }, [recording, rec.busy, aim.kind]);
 
   // ---- deleting a take ----
   const [working, setWorking] = useState(false);
@@ -268,6 +329,13 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   async function remove(hash: string, label = partLabel(Math.max(0, list.indexOf(hash)))) {
     if (blocked) return;
     const before = list;
+    // Its place stays open, chosen: what is said next goes there, taking its verses (LAN-83).
+    const at = list.indexOf(hash);
+    const was = { aim, hole };
+    const next = at >= 0 && at < list.length - 1 ? list[at + 1]! : null;
+    const mark = at >= 0 ? marks[at] ?? undefined : undefined;
+    setHole(next ? { before: next, ...(mark ? { mark } : {}) } : null);
+    setAim(next ? { kind: 'gap', before: next, ...(mark ? { mark } : {}) } : { kind: 'end' });
     const { specs, cleared: nowCleared } = removeCardSpecs(state, idx, {
       commandId: Crypto.randomUUID(), unitId, actorId: me, list, hash, pending: new Set(pending), parentTakeId: parentNow(),
       ...(draft ? { draftTakeId: draft.takeId } : {}), ...(startCards ? { latestCards: startCards } : {})
@@ -280,6 +348,8 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
     try {
       await ctx.act(specs, t('translate.partDeleted', { part: label }), () => {
         setCleared(false);
+        setAim(was.aim);
+        setHole(was.hole);
         if (startCards && sameCards(before, startCards)) return [];
         const s = stateRef.current;
         return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me,
@@ -287,6 +357,27 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
       });
     } catch {
       setCleared(wasCleared); // ctx.act said what went wrong
+      setAim(was.aim);
+      setHole(was.hole);
+    } finally { setWorking(false); }
+  }
+
+  /** Every part off the list, to start over (LAN-83), once the person said yes. */
+  const [askingAll, setAskingAll] = useState(false);
+  async function removeAll() {
+    if (blocked || list.length === 0) return;
+    const label = recorderLines(list.length).group;
+    const specs = clearListSpecs(state, idx, {
+      commandId: Crypto.randomUUID(), unitId, list, pending: new Set(pending), parentTakeId: parentNow(), ...(draft ? { draftTakeId: draft.takeId } : {})
+    });
+    setWorking(true);
+    setCleared(true);
+    setAim({ kind: 'end' });
+    setHole(null);
+    try {
+      await ctx.act(specs, t('translate.partDeleted', { part: label }));
+    } catch {
+      setCleared(false);
     } finally { setWorking(false); }
   }
 
@@ -333,11 +424,27 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
     ctx.act(specs, message, () => commands(stateRef.current, indexesFor(stateRef.current)).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: before, verses: verseKeys }))
       .catch(() => setShownMarks(null));
   };
-  const recordHere = (beforeIndex: number) => {
-    const hash = list[beforeIndex];
-    if (!hash || blocked) return;
-    setInsertBefore(hash);
-    void loop.toggle();
+  // Tapping the end, a gap or a part chooses where what is said next goes; tapping it again goes back to the end.
+  const choose = (to: RecordTarget) => {
+    if (blocked) return;
+    const same = (to.kind === 'end' && aim.kind === 'end') || (to.kind === 'gap' && aim.kind === 'gap' && aim.before === list[to.before])
+      || (to.kind === 'over' && aim.kind === 'over' && aim.hash === list[to.index]);
+    if (same || to.kind === 'end') { setAim({ kind: 'end' }); return; }
+    if (to.kind === 'gap') {
+      const before = list[to.before];
+      if (!before) return;
+      // A deleted part's verses, or the verses the gap leaves out.
+      const row = rowsRef.current.find((r) => r.kind === 'gap' && r.before === to.before);
+      const label = row?.kind === 'gap' ? row.label : null;
+      const mark: PartMark | undefined = hole?.before === before ? hole.mark : label ? { t: 'set', s: label.s, e: label.e } : undefined;
+      setAim({ kind: 'gap', before, ...(mark ? { mark } : {}) });
+      return;
+    }
+    const hash = list[to.index];
+    if (!hash) return;
+    const mark = marks[to.index] ?? undefined;
+    const n = rowsRef.current.find((r) => r.kind === 'part' && r.index === to.index)?.n ?? to.index + 1;
+    setAim({ kind: 'over', hash, n, ...(mark ? { mark } : {}) });
   };
   const unitTerms = useMemo(() => keyTermsForUnit(state, unitId), [state, unitId]);
   const tied = useMemo(() => tiedTermIds(state, draft?.takeId ?? startFrom), [state, draft?.takeId, startFrom]);
@@ -418,6 +525,21 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   }
 
   const parts: Part[] = list.map((hash) => ({ hash, ...(durations.has(hash) ? { durationMs: durations.get(hash)! } : {}) }));
+  // The parts card's rows (parts, and gaps a part can be recorded into) and where the next part goes (LAN-83).
+  const verseLabels = verseKeys.length > 0 ? derivePartVerses(marks, verseKeys.length).labels : [];
+  const dataGaps = skippedVerses(verseLabels).map((g) => ({ before: g.before, label: { s: g.s, e: g.e, kind: 'set' as const } }));
+  const holeAt = hole ? list.indexOf(hole.before) : -1;
+  const rows = slotRows(list.length, dataGaps, holeAt >= 0 ? { before: holeAt, label: labelAt(marks, holeAt, hole?.mark, verseKeys.length) } : null);
+  const target: RecordTarget = aim.kind === 'gap' && list.includes(aim.before) ? { kind: 'gap', before: list.indexOf(aim.before) }
+    : aim.kind === 'over' && list.includes(aim.hash) ? { kind: 'over', index: list.indexOf(aim.hash) } : { kind: 'end' };
+  const targetN = targetNumber(rows, target);
+  rowsRef.current = rows;
+  const nextIndex = targetN - 1;
+  // The verses the next part takes, for the recording view's title.
+  const targetLabel = target.kind === 'over' ? verseLabels[target.index] ?? null
+    : target.kind === 'gap' ? (rows.find((r) => r.kind === 'gap' && r.before === target.before) as { label: PartLabel | null } | undefined)?.label
+      ?? labelAt(marks, target.before, aim.kind === 'gap' ? aim.mark : undefined, verseKeys.length) : null;
+  const slotTile = targetLabel ? <VerseTile verses={verseKeys} label={targetLabel} same={targetLabel.kind === 'join'} /> : null;
   const problem = rec.failureCount > 0
     ? <SaveProblem message={rec.error || t('translate.partNotSaved')} retryLabel={t('translate.retrySaving')} busy={rec.busy} onRetry={() => void rec.retryFailed()} />
     : composeError ? <SaveProblem message={composeError} onRetry={() => setComposeError('')} />
@@ -451,10 +573,10 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
       header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
         action={<SmallBtn label={t('common.save')} icon="check" help={t('translate.saveHelp')} disabled={blocked} onPress={save} />} />}
       footer={recorderLine ? undefined : (
-        <RecorderFooter count={list.length} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
+        <RecorderFooter count={list.length} nextIndex={nextIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
       )}>
-      <SplitPane memoryKey="workspace" minBottom={MIN_BOTTOM} onFraction={setSplit}
+      <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM} onFraction={setSplit}
         topStyle={styles.refPane} bottomStyle={styles.wsRecordPane}
         top={({ compact, open }) => compact ? (
           bible.hasVerses ? <BibleBar bible={bible} onOpen={open} /> : <ReferenceBar onOpen={open} />
@@ -490,21 +612,21 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
             </HelpClip>
           </View>
         )}
-        bottom={({ compact, open, height }) => compact ? (
-          <RecorderBar count={list.length} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
+        bottom={({ compact, open, height, room }) => session ? (
+          // While recording, the pane is the recording view: what is being said, the waveform, and an X back to the parts.
+          <RecordingView rec={rec} phase={loop.phase} title={partLabel(nextIndex)} partNumber={targetN} count={list.length} noun="part" onLeave={record} onResume={loop.resumeNow}
+            {...(slotTile ? { tile: slotTile } : {})} />
+        ) : compact ? (
+          <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
         ) : (
           <HelpClip style={{ flex: 1 }}>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.recordBody} accessibilityLabel={t('translate.yourRecording')}>
               {problem}
               <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
-                onDelete={(h, label) => void remove(h, label)} onResume={loop.resumeNow}
-                verses={{ keys: verseKeys, marks, onMarks: setMarks, onRecordHere: recordHere }} />
-              {list.length === 0 && !session ? (
-                <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('translate.tapRed')}</Text>
-              ) : null}
-              {!isFirst && !changed && list.length > 0 ? (
-                <Text style={[txt.xs, { textAlign: 'center' }]}>{t('translate.latestParts', { n: latest.n })}</Text>
-              ) : null}
+                onDelete={(h, label) => void remove(h, label)} onDeleteAll={() => setAskingAll(true)} onRoom={room} onResume={loop.resumeNow}
+                {...(recorderGroupTitle ? { title: recorderGroupTitle } : {})}
+                rows={rows} target={target} onChoose={choose}
+                verses={{ keys: verseKeys, marks, onMarks: setMarks }} />
               {clipped ? (
                 <View style={styles.clipped}>
                   <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>{t('translate.clipped')}</Text>
@@ -516,6 +638,9 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
             </ScrollView>
           </HelpClip>
         )} />
+      <ConfirmDelete visible={askingAll} name={recorderLines(list.length).group} title={t('recording.recorder.deleteAllAsk')} confirmLabel={t('recording.recorder.deleteAll')}
+        sub={t('recording.parts.groupSub', { count: list.length, length: mmss(totalMs(parts.map((x) => x.durationMs))) })}
+        onClose={() => setAskingAll(false)} onConfirm={() => { setAskingAll(false); void removeAll(); }} />
     </Screen>
   );
 }
@@ -546,7 +671,7 @@ export function BackTranslation(ctx: Ctx) {
 }
 
 /**
- * A step that makes something (decisions.md 124): turn the latest version,
+ * A step that makes something (decisions.md 125): turn the latest version,
  * or what an earlier step made, into recording or writing, in the team's
  * language or another. When the step lets the person pick, they say which
  * first. Writing opens the writing workspace; recording, the back
@@ -555,7 +680,7 @@ export function BackTranslation(ctx: Ctx) {
 function Making({ ctx, v, kind }: { ctx: Ctx; v: PassageView; kind: KindDef }) {
   const makes = kind.makes!;
   const [picked, setPicked] = useState<'recording' | 'writing' | null>(null);
-  // Changing what a step added to a version opens on that version (decision 124). A step that adds
+  // Changing what a step added to a version opens on that version (decision 125). A step that adds
   // works on the version it counts for: the latest, or, before a step that makes a newer one, the one before.
   const stepIndex = v.p.flow.steps.findIndex((st) => st.kindIds.includes(kind.id));
   const onVersion = v.p.versions.find((x) => x.takeId === ctx.params['fromTakeId'])

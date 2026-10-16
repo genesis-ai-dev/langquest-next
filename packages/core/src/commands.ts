@@ -2,7 +2,7 @@ import type { Card, EventPayloads, EventType } from './events';
 import { buildIndexes, type Indexes } from './indexes';
 import { TG_MATERIAL_ID } from './materials';
 import type { FlowSelection, LanguageState } from './state';
-import { derivePassage, latestDraftBy, type PassageState } from './passage';
+import { canDeleteVersion, derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
 import { cardVerseEvents, type PartMark } from './verses';
 import { EVENT_PAYLOAD_MAX_BYTES, jsonbTextBytes } from './validate';
@@ -45,6 +45,8 @@ export interface Commands {
   keepTake(c: { commandId: string; unitId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null }): EventSpec[];
   /** Set one of the person's drafts aside (decisions.md 83). Undo is `keepTake` with its cards and the draft as parent. */
   deleteDraft(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
+  /** Delete a version its publisher no longer wants (LAN-83, `canDeleteVersion`): a tombstone; its number and its checks stay on the record. */
+  deleteVersion(c: { commandId: string; unitId: string; takeId: string; actorId: string }): EventSpec[];
   /**
    * Which verses each part holds (decisions.md 82): one 'v1.CardVerseSet'
    * per card whose mark changed, from the marks of a whole list of cards.
@@ -125,7 +127,7 @@ export interface Commands {
    */
   restoreFlow(c: { commandId: string; previous: { flow: FlowSelection | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
 
-  // ---- writing, and steps that make something (writing.ts, decisions.md 124) ----
+  // ---- writing, and steps that make something (writing.ts, decisions.md 125) ----
 
   /** Written parts the log lacks, at most 100 an event. Ids are the caller's `writtenPartId` of NFC text. */
   addWriting(c: { commandId: string; unitId: string; parts: readonly WrittenPart[] }): EventSpec[];
@@ -215,6 +217,12 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
       const draft = derivePassage(state, c.unitId, idx).drafts.find((d) => d.takeId === c.takeId);
       if (!draft) throw new CommandError('That draft is already gone.');
       if (draft.by !== c.actorId) throw new CommandError("Only whoever recorded a draft can delete it.");
+      return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
+    },
+
+    deleteVersion(c) {
+      const passage = derivePassage(state, c.unitId, idx);
+      if (!canDeleteVersion(passage, c.takeId, c.actorId)) throw new CommandError('Only whoever published a version can delete it.');
       return [{ id: ids(c.commandId)(), type: 'v1.TakeArchived', payload: { takeId: c.takeId } }];
     },
 

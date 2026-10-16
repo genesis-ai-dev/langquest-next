@@ -38,7 +38,8 @@
     "voiceNote": "Nota de voz",
     "addNote": "Agregar una nota",
     "orTypeIt": "O escríbelo",
-    "sayIt": "Dilo"
+    "sayIt": "Dilo",
+    "deleteAsk": "¿Borrar {{name}}?"
   },
   "time": {
     "justNow": "Ahora mismo",
@@ -3784,7 +3785,8 @@
         "studyStepDone": "Paso {{n, number}} de {{pattern}} listo · {{step}}",
         "studyDone": "Paso del estudio listo",
         "keptAfter": "Se dejó igual después de {{kind}}",
-        "keptAfterFeedback": "Se dejó igual después de los comentarios"
+        "keptAfterFeedback": "Se dejó igual después de los comentarios",
+        "versionDeleted": "Versión {{n, number}} borrada"
       },
       "counts": {
         "versions_one": "{{count, number}} versión",
@@ -4237,7 +4239,6 @@
       "newVersion": "Versión nueva",
       "yourDraft": "Tu borrador",
       "yourDrafts": "Tus borradores",
-      "noDrafts": "No hay borradores. Edita una versión de abajo o empieza una nueva.",
       "published": "Publicadas",
       "latest": "La más reciente",
       "saved": "Guardado {{when}}",
@@ -4253,11 +4254,12 @@
       "draft": "Borrador",
       "draftN": "Borrador {{n, number}}",
       "newVersionHelp": "Empieza una versión nueva desde el principio. Tus borradores se quedan.",
-      "deleteHelp": "Borra este borrador. Deshacer lo recupera.",
+      "deleteHelp": "Borra este borrador.",
       "editDraftHelp": "Abre este borrador en la grabadora, para seguir trabajando en él.",
       "publishHelp": "Abre este borrador para publicarlo y que el equipo lo escuche.",
       "editVersionHelp": "Empieza un borrador nuevo a partir de esta versión. La versión se queda como está.",
-      "partHelp": "Reproduce solo esta parte."
+      "partHelp": "Reproduce solo esta parte.",
+      "deleteVersionHelp": "Borra esta versión para todos. Las revisiones que ya se hicieron quedan en el historial, pero ya no cuentan."
     }
   },
   "work": {
@@ -4863,7 +4865,6 @@
     },
     "recorder": {
       "permissionNeeded": "Se necesita permiso para usar el micrófono.",
-      "dragUp": "{{recorded}} · desliza hacia arriba para verlas",
       "hidePartsHelp": "Ocultar las partes.",
       "showPartsHelp": "Muestra cada parte, para escucharla o eliminarla.",
       "playAllHelp": "Escucha todo lo grabado hasta ahora, una parte tras otra.",
@@ -4888,7 +4889,18 @@
       "deletePartHelp": "Borra esta parte. Puedes deshacerlo justo después.",
       "nextCardHelp": "La parte que grabas a continuación. Toca el botón rojo para empezar.",
       "nextRecordingHelp": "Grabando. Las barras sólidas son tu voz que se guarda; las tenues son silencio.",
-      "nextPausedHelp": "En pausa mientras suena la Biblia. La grabación sigue cuando se detiene."
+      "nextPausedHelp": "En pausa mientras suena la Biblia. La grabación sigue cuando se detiene.",
+      "deleteAll": "Borrar todas las partes",
+      "deleteAllHelp": "Borra todas las partes, para empezar de nuevo.",
+      "leave": "Listo",
+      "leaveHelp": "Detiene la grabación y guarda todas las partes.",
+      "recordOver": "Grabar {{part}} de nuevo",
+      "recordOverHelp": "Lo que grabes a continuación reemplaza esta parte.",
+      "recordInGap": "Grabar {{part}} aquí",
+      "gapHelp": "Lo que grabes a continuación va en este hueco.",
+      "recordAtEnd": "Grabar {{part}} al final",
+      "endHelp": "Lo que grabes a continuación va al final.",
+      "deleteAllAsk": "¿Borrar todas las partes?"
     },
     "quoted": "“{{text}}”",
     "listening": "Escuchando… {{time}}",
@@ -5072,16 +5084,9 @@
     },
     "vad": {
       "recordedFor": "Grabado durante {{time}}",
-      "pausedForSource": "En pausa mientras suena la fuente",
-      "startsAgain": "La grabación vuelve a empezar cuando la fuente se detiene.",
-      "cutoff": "Corte de sonido",
-      "pauseBetween": "Pausa entre partes",
       "tooShort": "Fue demasiado corto para guardarlo. Si estabas hablando, dilo otra vez.",
-      "statusHelp": "Punto que late: tu voz se está guardando. El número: cuántas partes van. El reloj: tiempo grabado.",
       "statusPausedHelp": "En pausa mientras suena la fuente. El número: cuántas partes van. El reloj: tiempo grabado.",
-      "resumeHelp": "Detiene lo que suena y sigue grabando.",
-      "cutoffHelp": "Las barras son lo que oye el micrófono. Mueve la línea: se graba el sonido que queda por encima.",
-      "pauseHelp": "Cuánto dura la pausa que termina una parte. Cambia de inmediato."
+      "resumeHelp": "Detiene lo que suena y sigue grabando."
     },
     "split": {
       "referenceOneLine": "Referencia en una línea",
@@ -5111,7 +5116,6 @@
       "numbered_one": "{{count, number}} parte numerada.",
       "numbered_many": "{{count, number}} de partes numeradas.",
       "numbered_other": "{{count, number}} partes numeradas.",
-      "leftForLater": "{{verses}} · para después",
       "follows": "{{part}} sigue el orden.",
       "none": "{{part}} no tiene versículo.",
       "giveNext": "Dar a {{part}} el versículo siguiente",
@@ -5124,8 +5128,6 @@
       "hintLabelled": "Toca para darle el mismo versículo que la parte de arriba. Mantén pulsado para elegir.",
       "hintEmpty": "Toca para darle el versículo siguiente. Mantén pulsado para elegir.",
       "choose": "Elegir versículos",
-      "recordHere": "Grabar aquí",
-      "recordHereHelp": "Graba el versículo que dejaste para después; queda en su lugar.",
       "verseSame": "{{verse}}, igual que la parte de arriba",
       "auto": "Auto",
       "noVerse": "Ninguno",
@@ -6603,14 +6605,13 @@
     "dragDown": "Desliza hacia abajo para ver la guía, las palabras clave, las notas y las grabaciones anteriores",
     "openStudy": "Abrir el estudio",
     "yourRecording": "Tu grabación",
-    "tapRed": "Toca el botón rojo y habla. Haz una pausa entre partes: cada parte se guarda por separado.",
-    "latestParts": "Estas son las partes de la versión {{n}}. Graba una parte nueva o elimina una para publicar una versión nueva.",
     "clipped": "Las partes están saliendo muy cortas. Puede que se corten palabras.",
     "micSetup": "Configurar el micrófono",
     "micSetupHint": "Ajusta cómo te escucha el dispositivo: sensibilidad y pausas.",
     "saveHelp": "Tus partes ya se guardan mientras grabas. Esto vuelve atrás.",
     "openReferenceHelp": "Vuelve a poner la referencia en media pantalla.",
-    "openStudyHelp": "Abre este paso en el estudio completo."
+    "openStudyHelp": "Abre este paso en el estudio completo.",
+    "partReplaced": "{{part}} grabada de nuevo."
   },
   "reference": {
     "organization": "Organización",

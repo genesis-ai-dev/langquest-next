@@ -36,11 +36,11 @@ import { undoReviews } from '../passage/recordInputsModel';
 import { useBackTranslationDraft } from './useBackTranslationDraft';
 import { checkName } from '../admin/adminModel';
 import { backParts, nextPart, noteText, partAfter, pieceFor, piecesInOrder, saidLine, sourceParts, type BackPart, type MomentNote } from './backTranslationParts';
-import { SaveProblem } from './parts';
+import { RecordButton, SaveProblem } from './parts';
 import { SplitPane } from './SplitPane';
 import { MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
 import { useListenLoop } from './useListenLoop';
-import { VadControls, VadPanel } from './VadTakeover';
+import { RecordingView } from './RecordingView';
 import { backTranslationDraftKey, cardDurations, unsavedParts } from './workspaceModel';
 import { failureMessage, reportError } from '../diagnostics/report';
 import { RequestBanner } from '../reviewing/parts';
@@ -52,7 +52,7 @@ import { VoiceNote } from '../audio/voiceNote';
 
 export function BackTranslationBody({ ctx, v, kind, of, make }: {
   ctx: Ctx; v: PassageView; kind: KindDef; of: Version;
-  /** A step that makes recording (decisions.md 124): what it says it into, and the language it is in when not the team's own. */
+  /** A step that makes recording (decisions.md 125): what it says it into, and the language it is in when not the team's own. */
   make?: { into: string; language?: string; added?: boolean };
 }) {
   const { state, unitId, languageId, p } = v;
@@ -193,7 +193,13 @@ export function BackTranslationBody({ ctx, v, kind, of, make }: {
           crumbs={passageCrumbs(ctx, v, screenTitle('back_translation'))} onBack={ctx.back} close />
         : <Header title={v.title} sub={shipped ? t('backTranslation.subInto', { into: produces.into }) : t('backTranslation.whatInto', { what: capitalize(produces.what), into: produces.into })}
           onBack={ctx.back} close />}
-      footer={session ? <VadControls rec={rec} onStop={() => void loop.toggle()} /> : (
+      footer={session ? (
+        <View style={styles.footer}>
+          <Text style={[txt.sm, styles.footLabel, { color: TINT.redText }]} numberOfLines={2}>{partLabel}…</Text>
+          <RecordButton recording onPress={() => void loop.toggle()} />
+          <View style={styles.footSide} />
+        </View>
+      ) : (
         <View style={styles.footer}>
           <Text style={[txt.sm, styles.footLabel]} numberOfLines={2}>{partLabel}</Text>
           <BigRecord disabled={blocked || rec.failureCount > 0 || !part} part={partN} onPress={() => void loop.toggle()} />
@@ -228,7 +234,9 @@ export function BackTranslationBody({ ctx, v, kind, of, make }: {
             </ScrollView>
           </HelpClip>
         )}
-        bottom={({ compact, open }) => session ? <VadPanel rec={rec} phase={loop.phase} count={part?.cards.length ?? 0} noun="piece" onResume={loop.resumeNow} /> : compact ? (
+        bottom={({ compact, open }) => session ? (
+          <RecordingView rec={rec} phase={loop.phase} title={partLabel} partNumber={partN ?? 1} count={part?.cards.length ?? 0} noun="piece" onLeave={() => void loop.toggle()} onResume={loop.resumeNow} />
+        ) : compact ? (
           <PaneBar icon="mic" onPress={open} text={<>{partLabel} · {saidLine(parts)}</>} label={t('backTranslation.openYour', { what: produces.what })}
             help={t('backTranslation.openPartsHelp')} />
         ) : (

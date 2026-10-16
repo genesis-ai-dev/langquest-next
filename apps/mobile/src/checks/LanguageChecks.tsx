@@ -151,7 +151,7 @@ function CheckList(props: {
   );
 }
 
-/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 124). */
+/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 125). */
 function AddCheckSheet(props: {
   visible: boolean; kinds: KindDef[]; taken: string[]; onClose: () => void; onPick: (k: KindDef, isNew: boolean) => void;
   making?: { own: string; reference: string; onPick: (k: KindDef, makes: MakesSpec) => void; onOwn: () => void };
@@ -162,7 +162,7 @@ function AddCheckSheet(props: {
     <Sheet visible={props.visible} title={t('checks.addCheck')} onClose={props.onClose}>
       {props.making ? (
         <>
-          {/* The shipped back translation, when the language has it, stands for the said one (decision 124). */}
+          {/* The shipped back translation, when the language has it, stands for the said one (decision 125). */}
           <MakingPresets taken={[...props.taken, ...props.kinds.map((k) => k.id), ...(props.taken.includes('bt') ? ['make-bt-said'] : [])]} own={props.making.own} reference={props.making.reference}
             onPick={props.making.onPick} onOwn={props.making.onOwn} />
           <SectionLabel label={t('writing.step.checkIt')} />
@@ -223,7 +223,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   }
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);
   const reference = teamLanguage(ctx.org.state, state, languageId);
-  /** A step that makes something: its kind, what it makes, and its row (decisions.md 124). */
+  /** A step that makes something: its kind, what it makes, and its row (decisions.md 125). */
   const addMaking = (k: KindDef, makes: MakesSpec) => {
     const c = commands(state, indexesFor(state));
     const define = state.reviewKinds[k.id] ? [] : c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer });

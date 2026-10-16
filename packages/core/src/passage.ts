@@ -37,7 +37,7 @@ export function deriveKinds(state: LanguageState): KindDef[] {
   // Shipped kinds keep their order; the language's own follow by id, so the
   // list never depends on the order events arrived in.
   for (const id of Object.keys(state.reviewKinds).sort()) out.set(id, state.reviewKinds[id]!.value);
-  // What a kind makes or reads (decisions.md 124) is its own register, so a
+  // What a kind makes or reads (decisions.md 125) is its own register, so a
   // shipped kind can become a making step without redefining it.
   for (const [id, reg] of Object.entries(state.stepMakes ?? {})) {
     const k = out.get(id);
@@ -99,17 +99,19 @@ export function stepName(kinds: KindDef[], step: FlowStep): string {
 
 // ---- views -----------------------------------------------------------------------
 
+export interface DeletedVersion extends Version { deleted: { hlc: Hlc; by: string } }
+
 export interface Version {
   takeId: string;
   /** 1-based, in order of publishing. */
   n: number;
-  /** Recorded or written (decisions.md 124): read from its parts. */
+  /** Recorded or written (decisions.md 125): read from its parts. */
   medium: Medium;
   /** The step that made it, when a step made the passage's next version (a final recording). */
   madeByKindId?: string;
   /** The version it was made from, then. */
   madeFromTakeId?: string;
-  /** What steps added to it (decisions.md 124): words for a recording, a recording for writing; oldest first. */
+  /** What steps added to it (decisions.md 125): words for a recording, a recording for writing; oldest first. */
   added: MadeView[];
   by: string;
   hlc: Hlc;
@@ -213,6 +215,15 @@ export interface PassageState {
   unitId: string;
   flow: LanguageFlow;
   versions: Version[];
+  /**
+   * Versions their publisher deleted (LAN-83): tombstones. Each keeps its
+   * number, so the next version never reuses it; none counts for the path.
+   */
+  deletedVersions: DeletedVersion[];
+  /** Checks of deleted versions, given before or after the delete reached the reviewer: kept to read, counted for nothing. */
+  reviewsOfDeleted: ReviewView[];
+  /** The number the next version published will have. */
+  nextVersionN: number;
   latest?: Version;
   recorded: boolean;
   /** An unpublished take exists (someone's draft). */
@@ -235,9 +246,9 @@ export interface PassageState {
   /** Feedback on the latest version nobody answered yet. */
   awaitingResponse: ReviewView[];
   notes: PassageNote[];
-  /** What was made from its versions, by steps or brought over from v2 (decisions.md 124), oldest first; versions a step made are not here. */
+  /** What was made from its versions, by steps or brought over from v2 (decisions.md 125), oldest first; versions a step made are not here. */
   made: MadeView[];
-  /** The flow's kinds that make something rather than judge (decisions.md 124). */
+  /** The flow's kinds that make something rather than judge (decisions.md 125). */
   makingKindIds: string[];
 }
 
@@ -507,6 +518,15 @@ function patchIndexes(state: LanguageState, prev: RecordIndexes, changes: readon
 
 // ---- the passage -----------------------------------------------------------------
 
+/**
+ * Whether a person may delete a version (LAN-83): whoever published it.
+ * Deleting leaves a tombstone, since a reviewer offline may already hold
+ * it and check it later: that check is kept to read and counts for nothing.
+ */
+export function canDeleteVersion(p: Pick<PassageState, 'versions'>, takeId: string, actorId: string): boolean {
+  return p.versions.some((v) => v.takeId === takeId && v.by === actorId);
+}
+
 export function derivePassage(state: LanguageState, unitId: string, idx?: Indexes): PassageState {
   const ri = recordIndexes(state, idx);
   const key = unitId;
@@ -515,7 +535,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   const flow = ri.flow;
 
   const madeViews = madeIn(state, key);
-  const versions: Version[] = (ri.versions.get(key) ?? []).map((takeId, i) => {
+  const everyVersion: Version[] = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId]!;
     const response = state.responses[takeId];
     const change = ri.changeNotes.get(takeId);
@@ -530,6 +550,16 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
       ...(note ? { changeNote: note } : {}), ...(blob ? { changeBlobHash: blob } : {})
     };
   });
+  // A deleted version is a tombstone (LAN-83): it keeps its number and its
+  // checks, but it is not a version the passage has any more.
+  const deletedVersions: DeletedVersion[] = everyVersion.flatMap((v) => {
+    const t = state.takes[v.takeId]!;
+    return t.archived ? [{ ...v, deleted: t.archivedAt ?? { hlc: v.hlc, by: v.by } }] : [];
+  });
+  const versions = everyVersion.filter((v) => !state.takes[v.takeId]!.archived);
+  const reviewsOfDeleted: ReviewView[] = deletedVersions
+    .flatMap((v) => (ri.reviewsByTake.get(v.takeId) ?? []).map(({ eventId: _e, ...r }) => ({ ...r, versionN: v.n })))
+    .sort(byHlc);
 
   const departures: DepartureView[] = (ri.departures.get(key) ?? []).map(({ eventId: _e, ...d }) => {
     const undone = state.undoneDepartures[d.id];
@@ -575,7 +605,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== 'link'));
     const request = openRequests.find((r) => r.what === 'review' && r.kindId === kindId);
     const departure = active((d) => d.type === 'skip' && d.kindId === kindId);
-    // A making step (decisions.md 124) is done once it made something, from
+    // A making step (decisions.md 125) is done once it made something, from
     // any version: what it made stays with that version and is never out of
     // date. What it adds to a version is part of that version, so a step
     // that adds is done only for the version it counts for here (the latest,
@@ -632,7 +662,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   // An overridden checkpoint is cleared (decision 29): it is never next, and it does not hold the passage back from done.
   const next = recorded ? open.find((s) => !s.override) : undefined;
   const result: PassageState = {
-    unitId, flow, versions, recorded, departures, reviews, withdrawnReviews, requests, openRequests, steps, drafts,
+    unitId, flow, versions, deletedVersions, reviewsOfDeleted, nextVersionN: everyVersion.length + 1, recorded, departures, reviews, withdrawnReviews, requests, openRequests, steps, drafts,
     drafting: draftTakeId !== undefined,
     done: recorded && steps.every((s) => s.complete || !!s.override),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
@@ -978,6 +1008,7 @@ export function formatQuestionField(q: Omit<QuestionSpec, 'id'>): string {
 
 export type RecordEntry =
   | { type: 'version'; hlc: Hlc; by: string; version: Version }
+  | { type: 'deleted'; hlc: Hlc; by: string; version: DeletedVersion }
   | { type: 'review'; hlc: Hlc; by: string; review: ReviewView }
   | { type: 'response'; hlc: Hlc; by: string; review: ReviewView; response: ResponseView }
   | { type: 'request'; hlc: Hlc; by: string; request: RequestView }
@@ -991,7 +1022,9 @@ export type RecordEntry =
 export function recordTimeline(state: LanguageState, s: PassageState): RecordEntry[] {
   const out: RecordEntry[] = [
     ...s.versions.map((v) => ({ type: 'version' as const, hlc: v.hlc, by: v.by, version: v })),
-    ...[...s.reviews, ...s.withdrawnReviews].map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
+    // A deleted version stays on the record where it was published, and its deletion is an entry of its own.
+    ...s.deletedVersions.flatMap((v) => [{ type: 'version' as const, hlc: v.hlc, by: v.by, version: v }, { type: 'deleted' as const, hlc: v.deleted.hlc, by: v.deleted.by, version: v }]),
+    ...[...s.reviews, ...s.withdrawnReviews, ...s.reviewsOfDeleted].map((r) => ({ type: 'review' as const, hlc: r.hlc, by: r.by, review: r })),
     ...s.reviews.filter((r) => r.response?.decision === 'revised').map((r) => ({ type: 'response' as const, hlc: r.response!.hlc, by: r.response!.by, review: r, response: r.response! })),
     ...s.requests.map((r) => ({ type: 'request' as const, hlc: r.hlc, by: r.by, request: r })),
     ...s.departures.map((d) => ({ type: 'departure' as const, hlc: d.hlc, by: d.by, departure: d })),
@@ -1004,12 +1037,12 @@ export function recordTimeline(state: LanguageState, s: PassageState): RecordEnt
   ];
   // Same instant (a version and the feedback it answered): the day's usual
   // order, so the answer reads above the version that carries it.
-  const rank: Record<RecordEntry['type'], number> = { study: 0, version: 0, made: 1, note: 1, request: 2, review: 3, departure: 3, response: 4 };
+  const rank: Record<RecordEntry['type'], number> = { study: 0, version: 0, deleted: 0, made: 1, note: 1, request: 2, review: 3, departure: 3, response: 4 };
   return out.sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : rank[b.type] - rank[a.type]));
 }
 
 /**
- * What steps added to a version (decisions.md 124), one per kind: the latest
+ * What steps added to a version (decisions.md 125), one per kind: the latest
  * holds, and `first` is when that kind was first added. `changedAfter` is
  * the newest review of the version that saw an earlier one: the content
  * changed after it. The approval stands either way (Caleb, 2026-10-13: the
@@ -1192,7 +1225,7 @@ export function updatesFor(state: LanguageState, actorId: string, idx?: Indexes)
       }
     }
     for (const r of s.reviews) {
-      const version = s.versions[r.versionN - 1];
+      const version = s.versions.find((v) => v.n === r.versionN);
       if (version?.by === actorId && r.by !== actorId) out.push({ ...base, id: `review:${r.id}`, kind: 'review', by: r.by, hlc: r.hlc, review: r, version });
       if (r.by === actorId && r.response && r.response.by !== actorId) {
         out.push({ ...base, id: `answer:${r.id}`, kind: r.response.decision === 'revised' ? 'revision' : 'kept', by: r.response.by, hlc: r.response.hlc, review: r });
@@ -1238,7 +1271,7 @@ export function approvedVersion(s: PassageState): Version | null {
       const status = st.kinds[k];
       if (status?.state === 'skipped') return true;
       // A version a step made (a final recording) answers for the steps
-      // before that step with the version it was made from (decisions.md 124).
+      // before that step with the version it was made from (decisions.md 125).
       const heard = versionHeardAt(s, v, si);
       if (isMakingStatus(s, kindId)) return madeFrom(s, kindId, heard) || v.madeByKindId === kindId;
       let last: ReviewView | undefined;
@@ -1257,7 +1290,7 @@ export function approvedVersion(s: PassageState): Version | null {
  * The version whose reviews count for step `stepIndex` when `v` is checked:
  * `v` itself, unless a step made `v` from an earlier version and this step
  * comes before that one; then the earlier version, and so on back
- * (decisions.md 124).
+ * (decisions.md 125).
  */
 export function versionHeardAt(s: Pick<PassageState, 'versions' | 'flow'>, v: Version, stepIndex: number): Version {
   let cur = v;
@@ -1306,7 +1339,7 @@ export interface MadeColumn {
 
 /**
  * What was made from each version, for Reviews by version (decisions.md
- * 124): a column per step that made something, and per kind of thing no
+ * 125): a column per step that made something, and per kind of thing no
  * step made (v2's transcriptions and translations), only where some exist.
  */
 export function madeGrid(s: PassageState): { columns: MadeColumn[]; byVersion: Map<string, Map<string, MadeView[]>> } {

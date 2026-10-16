@@ -38,7 +38,8 @@
     "voiceNote": "Nota de voz",
     "addNote": "Adicionar uma nota",
     "orTypeIt": "Ou digite",
-    "sayIt": "Falar"
+    "sayIt": "Falar",
+    "deleteAsk": "Apagar {{name}}?"
   },
   "time": {
     "justNow": "Agora mesmo",
@@ -3784,7 +3785,8 @@
         "studyStepDone": "Etapa {{n, number}} de {{pattern}} feita · {{step}}",
         "studyDone": "Etapa do estudo feita",
         "keptAfter": "Mantida depois da {{kind}}",
-        "keptAfterFeedback": "Mantida depois dos comentários"
+        "keptAfterFeedback": "Mantida depois dos comentários",
+        "versionDeleted": "Versão {{n, number}} apagada"
       },
       "counts": {
         "versions_one": "{{count, number}} versão",
@@ -4237,7 +4239,6 @@
       "newVersion": "Nova versão",
       "yourDraft": "Seu rascunho",
       "yourDrafts": "Seus rascunhos",
-      "noDrafts": "Nenhum rascunho. Edite uma versão abaixo ou comece uma nova.",
       "published": "Publicadas",
       "latest": "A mais recente",
       "saved": "Salvo {{when}}",
@@ -4253,11 +4254,12 @@
       "draft": "Rascunho",
       "draftN": "Rascunho {{n, number}}",
       "newVersionHelp": "Começa uma versão nova do início. Os seus rascunhos continuam.",
-      "deleteHelp": "Apaga este rascunho. Desfazer traz de volta.",
+      "deleteHelp": "Apaga este rascunho.",
       "editDraftHelp": "Abre este rascunho no gravador, para continuar trabalhando nele.",
       "publishHelp": "Abre este rascunho para publicar, para a equipe ouvir.",
       "editVersionHelp": "Começa um rascunho novo a partir desta versão. A versão em si continua como está.",
-      "partHelp": "Toca só esta parte."
+      "partHelp": "Toca só esta parte.",
+      "deleteVersionHelp": "Apaga esta versão para todos. As verificações já feitas ficam no histórico, mas deixam de contar."
     }
   },
   "work": {
@@ -4863,7 +4865,6 @@
     },
     "recorder": {
       "permissionNeeded": "É preciso permitir o uso do microfone.",
-      "dragUp": "{{recorded}} · arraste para cima para ver",
       "hidePartsHelp": "Esconder as partes.",
       "showPartsHelp": "Mostrar cada parte, para ouvir ou apagar.",
       "playAllHelp": "Ouvir tudo o que foi gravado até agora, uma parte depois da outra.",
@@ -4888,7 +4889,18 @@
       "deletePartHelp": "Apaga esta parte. Você pode desfazer logo depois.",
       "nextCardHelp": "A parte que você grava em seguida. Toque no botão vermelho para começar.",
       "nextRecordingHelp": "Gravando agora. As barras cheias são a sua voz sendo guardada; as barras fracas são silêncio.",
-      "nextPausedHelp": "Pausado enquanto a Bíblia toca. A gravação continua quando ela parar."
+      "nextPausedHelp": "Pausado enquanto a Bíblia toca. A gravação continua quando ela parar.",
+      "deleteAll": "Apagar todas as partes",
+      "deleteAllHelp": "Apaga todas as partes, para começar de novo.",
+      "leave": "Pronto",
+      "leaveHelp": "Para a gravação e guarda todas as partes.",
+      "recordOver": "Gravar {{part}} de novo",
+      "recordOverHelp": "O que você gravar em seguida substitui esta parte.",
+      "recordInGap": "Gravar {{part}} aqui",
+      "gapHelp": "O que você gravar em seguida fica neste espaço.",
+      "recordAtEnd": "Gravar {{part}} no fim",
+      "endHelp": "O que você gravar em seguida fica no fim.",
+      "deleteAllAsk": "Apagar todas as partes?"
     },
     "quoted": "“{{text}}”",
     "listening": "Ouvindo… {{time}}",
@@ -5072,16 +5084,9 @@
     },
     "vad": {
       "recordedFor": "Gravado por {{time}}",
-      "pausedForSource": "Pausado enquanto o texto-fonte toca",
-      "startsAgain": "A gravação recomeça quando o texto-fonte parar.",
-      "cutoff": "Limite de som",
-      "pauseBetween": "Pausa entre as partes",
       "tooShort": "Curto demais para guardar. Se você estava falando, diga de novo.",
-      "statusHelp": "Ponto pulsando: a sua voz está sendo guardada. O número: quantas partes até agora. O relógio: tempo gravado.",
       "statusPausedHelp": "Pausado enquanto o texto-fonte toca. O número: quantas partes até agora. O relógio: tempo gravado.",
-      "resumeHelp": "Para o que está tocando e continua gravando.",
-      "cutoffHelp": "As barras são o que o microfone ouve. Arraste a linha: o som acima dela é gravado.",
-      "pauseHelp": "Quanto tempo de pausa termina uma parte. Muda na hora."
+      "resumeHelp": "Para o que está tocando e continua gravando."
     },
     "split": {
       "referenceOneLine": "Referência em uma linha",
@@ -5111,7 +5116,6 @@
       "numbered_one": "{{count, number}} parte numerada.",
       "numbered_many": "{{count, number}} de partes numeradas.",
       "numbered_other": "{{count, number}} partes numeradas.",
-      "leftForLater": "{{verses}} · para depois",
       "follows": "{{part}} segue a ordem.",
       "none": "{{part}} não tem versículo.",
       "giveNext": "Dar a {{part}} o próximo versículo",
@@ -5124,8 +5128,6 @@
       "hintLabelled": "Toque para dar o mesmo versículo da parte de cima. Segure para escolher.",
       "hintEmpty": "Toque para dar o próximo versículo. Segure para escolher.",
       "choose": "Escolher versículos",
-      "recordHere": "Gravar aqui",
-      "recordHereHelp": "Grave o versículo que você deixou para depois; ele fica no lugar certo.",
       "verseSame": "{{verse}}, igual à parte de cima",
       "auto": "Auto",
       "noVerse": "Nenhum",
@@ -6603,14 +6605,13 @@
     "dragDown": "Arraste para baixo para ver o guia, as palavras-chave, as notas e as gravações anteriores",
     "openStudy": "Abrir o estudo",
     "yourRecording": "A sua gravação",
-    "tapRed": "Toque no botão vermelho e fale. Faça pausas entre as partes: cada parte é guardada separadamente.",
-    "latestParts": "Estas são as partes da versão {{n}}. Grave uma parte nova ou apague uma para publicar uma nova versão.",
     "clipped": "As partes estão saindo muito curtas. Algumas palavras podem estar sendo cortadas.",
     "micSetup": "Configurar o microfone",
     "micSetupHint": "Ajuste como o aparelho ouve você: sensibilidade e pausas.",
     "saveHelp": "As suas partes já ficam guardadas enquanto você grava. Isto volta.",
     "openReferenceHelp": "Volta a mostrar a referência em metade da tela.",
-    "openStudyHelp": "Abre esta etapa no estudo completo."
+    "openStudyHelp": "Abre esta etapa no estudo completo.",
+    "partReplaced": "{{part}} gravada de novo."
   },
   "reference": {
     "organization": "Organização",
