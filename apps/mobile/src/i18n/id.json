@@ -4541,7 +4541,7 @@
       "discardAsk": "Buang rekaman ini?",
       "discardConfirm": "Buang",
       "recordOver": "Rekam ulang {{part}}",
-      "recordOverHelp": "Yang Anda rekam berikutnya menggantikan bagian ini.",
+      "recordOverHelp": "Yang Anda rekam berikutnya menggantikan bagian ini. Geser ke samping untuk menghapusnya.",
       "recordInGap": "Rekam {{part}} di sini",
       "gapHelp": "Yang Anda rekam berikutnya masuk ke celah ini.",
       "recordAtEnd": "Rekam {{part}} di akhir",

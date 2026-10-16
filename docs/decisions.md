@@ -2329,6 +2329,11 @@ Reverse if: people miss what a row does because the row that speaks for its
 list is not the one they look at (then let the row last tapped speak), or
 same-shaped rows turn out to need different explanations.
 
+Amended (2026-10-16, Caleb Koster): one first-time motion, which Caleb asked
+for: the first time a phone shows a list of parts, its top part slides right
+to show its bin, then back. It has no words, covers nothing and opens no help
+(decision 135).
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -4733,6 +4738,10 @@ people miss the end of the list as the default place to record.
 
 Amended (2026-10-16, Caleb Koster): one part is deleted at once with no toast; the recording screen's Undo arrow brings it back, and also a whole set of parts deleted after asking (decision 133).
 
+Amended (2026-10-16, Caleb Koster): one part is deleted by sliding its row
+aside and tapping the bin it shows; the rows have no bin of their own
+(decision 135).
+
 ## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -5162,6 +5171,10 @@ Reverse if: people undo by accident (the arrows sit beside the red button),
 a history kept on the phone undoes work they expected kept, or the grip is
 dragged by mistake while scrolling a long list.
 
+Amended (2026-10-16, Caleb Koster): the grip is now at a part's right end
+and the + marks sit on the card's right edge, half off it, not in a rail at
+the left; a part is deleted by sliding its row to its bin (decision 135).
+
 ## 134. No toast offers Undo: the way back stays with the thing, building screens get their own arrows, and what cannot come back asks first
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -5210,3 +5223,57 @@ slows down every reversible change to guard a few).
 Reverse if: people take back things by accident with the header arrows, or
 miss a change made by mistake that the same control would have reversed
 because nothing points at it.
+
+## 135. A part's row reads as a voice message: verse, play, its bars and length, and the grip; it slides aside to its bin, and the + hangs off the card's edge
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-16), choosing from the "Recording row order" research
+page: "I like replacing the name with a voice message waveform image", with
+the verse label, a line, play, the bars and length, a hamburger grip, and
+"half-hanging off the end of the card at the line intersections is the small
+plus icon". Then: "Can we have the user swipe left/right to trash a
+recording? Then we don't have to have a garbage icon on each row at all -
+more space then", deletion with a confirmation, a one-time animation of a
+part sliding to show the bin, and an opened place that looks "different -
+like a pill with space around it". The research found most apps put the grip
+at the right and keep delete behind a swipe or a menu, not on every row.
+What was built:
+- **The row.** The verse space, a line, play, the part's bars and its
+  length (`partBars.tsx`; the name is gone from sight, and a screen reader
+  still hears "Part 2"), the grip (three lines) at the right end. Tapping
+  the bars chooses the part to record over, as tapping its name did.
+- **The bars.** Each part's sound in 64 even slices, as tall as its
+  loudest allows, a quiet part staying low (`audio/barsModel.ts`), kept on
+  the phone by the audio's hash (AsyncStorage `bars:v1:…`, `barsStore.ts`):
+  worked out from the WAV when a part is recorded, before a phone encodes it
+  to AAC (`useRecorder`), and for a part recorded before, read once from its
+  file (`barsOfFile.ts`: a WAV on a phone, anything the browser decodes on
+  the web). A phone has no AAC decoder, so an AAC part it did not record
+  shows a low even line until a native reader is added. Bars are not
+  events: they are worked out again from the audio wherever they are needed.
+  They fill from the left as the part plays.
+- **Deleting.** A row slides either way, by finger or mouse, to show a red
+  bin behind it, and stays open on it (`swipeRow.tsx`); tapping the bin is
+  the confirmation, and the footer's Undo brings the part back (133). A tap
+  on the open row closes it; one row is open at a time. A screen reader
+  opens it from the part's "Delete Part 2" action, and the hold sheet keeps
+  its delete. The first time a phone shows a list of parts, the top one
+  slides right to show the bin, then back (`useSwipeHint`, once per phone,
+  not with reduced motion).
+- **The + marks.** On the card's right edge at each line, half off the card.
+  Each 48 pt target is centred on the edge: the rows and the header leave
+  the 24 points inside it with nothing to tap, the card sits 8 points
+  further in from the screen's right edge so the target ends at the screen's
+  edge, and the card's box reaches past its drawn edge so a phone delivers
+  the taps (A11Y-009). The header keeps a band under its buttons for the
+  first +. An opened place is a pill with the microphone and space all
+  around it, dashed until chosen.
+Considered: a bin on every row, or the no-entry icon at its left (the row
+needs the room, and Caleb chose the swipe); deleting on a long swipe with no
+bin (no confirmation); bars from the recording session's live levels (they
+are gone once the session is left, and older parts never had them); a new
+event carrying the bars (they come from the audio, so nothing needs to sync).
+Reverse if: people delete by accident while scrolling, cannot find how to
+delete without the hint, or the low even line on older phone parts reads as
+silence.

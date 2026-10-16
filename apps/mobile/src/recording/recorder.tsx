@@ -5,13 +5,15 @@
 // 2026-10-16; opened again when the pane is small, it takes the room it
 // needs), the next part lit, the one-line bar when the
 // reference has the screen, and the footer with the big red button and
-// Done. Every part has its own delete, and the card one for them all.
-// A deleted part leaves the lit next part in its place, so what is said
-// next goes there (LAN-83). When the passage has verses, each part in the
-// card has a space beside it to tap a verse in (verseParts.tsx, decisions.md 82).
-// Each part has a grip to drag it up or down, a mark on the line above it
-// opens a place there to record into, and the parts just recorded are
-// shaded until the next recording (Caleb, 2026-10-16).
+// Done. A part slides either way to its bin (swipeRow.tsx), and the card
+// has one bin for them all. A deleted part leaves the lit next part in its
+// place, so what is said next goes there (LAN-83). When the passage has
+// verses, each part in the card has a space beside it to tap a verse in
+// (verseParts.tsx, decisions.md 82). Each part reads as a voice message:
+// play, its bars and length, and a grip at its right end to drag it up or
+// down; a + on the card's right edge at each line opens a place there to
+// record into, and the parts just recorded are shaded until the next
+// recording (Caleb, 2026-10-16).
 import { useState, type ReactNode } from 'react';
 import type { PartMark as VerseMark } from '@langquest-next/core';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -27,7 +29,11 @@ import { C, radius, space, target as target_, TINT, type as T, withAlpha } from 
 import { useEnergyHistory } from './useRecorder';
 import { mmss, partLabel, recorderLines, totalMs } from './model';
 import type { RecordTarget, SlotRow } from './workspaceModel';
-import { ChosenMic, GapSlot, InsertMark, PartGrip, RAIL } from './slots';
+import { ChosenMic, EDGE, GapSlot, InsertMark, PartGrip } from './slots';
+import { SwipeRow, type SwipeSide } from './swipeRow';
+import { PartBars } from './partBars';
+import { useSwipeHint } from './useSwipeHint';
+import { useBars } from '../audio/useBars';
 import { UndoRedo, type UndoRedoProps } from '../ui/undoRedo';
 import { opensAbove, rowKeys } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
@@ -84,8 +90,10 @@ export function RecorderPane(props: {
           onMove={props.onMove} fresh={props.fresh} show={props.show ?? null}
           {...(props.onDeleteAll ? { onDeleteAll: props.onDeleteAll } : {})} />
       ) : null}
-      <NextCard label={partLabel(endN - 1)} chosen={atEnd} disabled={props.disabled} onChoose={() => props.onChoose({ kind: 'end' })}
-        phase={props.phase} capturing={props.capturing} onResume={props.onResume} />
+      <View style={styles.underCard}>
+        <NextCard label={partLabel(endN - 1)} chosen={atEnd} disabled={props.disabled} onChoose={() => props.onChoose({ kind: 'end' })}
+          phase={props.phase} capturing={props.capturing} onResume={props.onResume} />
+      </View>
     </View>
   );
 }
@@ -102,11 +110,13 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
   const play = useHelpSpot(playLabel, t('recording.recorder.playAllHelp'), clip.toggle);
   const onDeleteAll = props.onDeleteAll;
   return (
-    <View style={styles.card}>
-      <View style={styles.head}>
+    // The card's box reaches past its right edge, for the + marks that hang off it (slots.tsx EDGE); the card is drawn inside.
+    <View style={styles.cardBox}>
+      <View style={styles.cardFace} pointerEvents="none" />
+      <View style={[styles.head, props.open && styles.headOpen]}>
         <PartMark state="done" />
         <Pressable onPress={toggle.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }} accessibilityLabel={t('recording.recorder.groupLabel', { title: props.title, sub: props.sub })}
-          style={({ pressed }) => [{ flex: 1, minHeight: target_.min, justifyContent: 'center' }, pressed && ps.pressed]}>
+          style={({ pressed }) => [{ flex: 1, minHeight: target_.min, justifyContent: 'center', paddingLeft: space.xs + 2 }, pressed && ps.pressed]}>
           <Text style={styles.title}>{props.title}</Text>
           <Text style={txt.smMuted}>{props.sub}</Text>
           <HelpBadge spot={toggle} />
@@ -124,15 +134,15 @@ function GroupCard(props: { ctx: Ctx; parts: Part[]; title: string; sub: string;
           <HelpBadge spot={toggle} />
         </Pressable>
       </View>
-      {props.open && props.body ? <View style={styles.versePart}>{props.body}</View> : props.open ? (
+      {props.open && props.body ? props.body : props.open ? (
         <PlainParts {...props} />
       ) : null}
-      {clip.error ? <Text style={[txt.error, { paddingHorizontal: space.md, paddingBottom: space.sm }]}>{clip.error}</Text> : null}
+      {clip.error ? <Text style={[txt.error, { paddingHorizontal: space.md, paddingBottom: space.sm, marginRight: EDGE }]}>{clip.error}</Text> : null}
     </View>
   );
 }
 
-/** The parts without verses: each with its grip, play, name and bin, and the marks between them. */
+/** The parts without verses: each with play, its bars and length, and its grip, sliding to its bin; and the + marks between them. */
 function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelete: (hash: string, label: string) => void;
   rows: SlotRow[]; target: RecordTarget; onChoose: (to: RecordTarget) => void; onMove: (from: number, to: number) => void; fresh: ReadonlySet<string>;
   show: { hash: string; at: number } | null }) {
@@ -144,8 +154,12 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
     const at = partIndexAfter(rows.map((x) => x.kind === 'part'), from, to);
     if (at !== r.index) props.onMove(r.index, at);
   }, props.show ? { key: `part:${props.show.hash}`, at: props.show.at } : null);
+  // One row open on its bin at a time; recording or a drag closes it.
+  const [open, setOpen] = useState<{ key: string; side: SwipeSide } | null>(null);
+  const hint = useSwipeHint(parts.length > 0 && !props.disabled);
+  const firstPart = rows.findIndex((r) => r.kind === 'part');
   return (
-    <View style={styles.parts}>
+    <View style={styles.list}>
       {rows.map((r, k) => {
         const key = keys[k]!;
         const moved = drag.offset(key);
@@ -154,10 +168,13 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
         const mark = !props.disabled && !drag.dragging && opensAbove(rows, k)
           ? <HelpRow key={`mark-${key}`} of="recording.insert"><InsertMark n={r.n} before={name} onPress={() => props.onChoose({ kind: 'gap', before: r.kind === 'part' ? r.index : r.before })} /></HelpRow> : null;
         const row = r.kind === 'gap' ? (
-          <GapSlot n={r.n} gutter={false} grip first={k === 0} disabled={props.disabled}
+          <GapSlot n={r.n} first={k === 0} disabled={props.disabled}
             chosen={target.kind === 'gap' && target.before === r.before} onPress={() => props.onChoose({ kind: 'gap', before: r.before })} />
         ) : (
-          <PartRow ctx={props.ctx} part={parts[r.index]!} n={r.n} disabled={props.disabled} onDelete={props.onDelete}
+          <PartRow ctx={props.ctx} part={parts[r.index]!} n={r.n} disabled={props.disabled} first={k === 0} last={k === rows.length - 1}
+            onDelete={(hash, label) => { setOpen(null); props.onDelete(hash, label); }}
+            open={!props.disabled && !drag.dragging && open?.key === key ? open.side : 0} onOpen={(side) => setOpen(side ? { key, side } : null)}
+            hint={hint.show && k === firstPart} onHinted={hint.done}
             fresh={props.fresh.has(parts[r.index]!.hash)} lifted={lifted}
             grip={<PartGrip part={name} handlers={drag.grip(key)} disabled={props.disabled} canUp={r.index > 0} canDown={r.index < parts.length - 1} at={r.index + 1} of={parts.length}
               onStep={(by) => props.onMove(r.index, r.index + by)} />}
@@ -166,7 +183,7 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
         return [
           mark,
           <HelpRow key={key} of={r.kind === 'gap' ? 'recording.gap' : 'recording.part'}>
-            <View ref={drag.ref(key)} onLayout={drag.onLayout(key)} style={[moved !== 0 && { transform: [{ translateY: moved }] }, lifted && { zIndex: 10 }]}>{row}</View>
+            <View ref={drag.ref(key)} onLayout={drag.onLayout(key)} style={[styles.inCard, moved !== 0 && { transform: [{ translateY: moved }] }, lifted && { zIndex: 10 }]}>{row}</View>
           </HelpRow>
         ];
       })}
@@ -175,30 +192,37 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
 }
 
 function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; chosen: boolean; onChoose: () => void; onDelete: (hash: string, label: string) => void;
-  fresh: boolean; lifted: boolean; grip: ReactNode }) {
+  first: boolean; last: boolean; fresh: boolean; lifted: boolean; grip: ReactNode;
+  open: SwipeSide; onOpen: (side: SwipeSide) => void; hint: boolean; onHinted: () => void }) {
   const label = partLabel(props.n - 1);
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
+  const bars = useBars(props.ctx.language, props.part.hash);
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: label }) : t('recording.player.playTitle', { title: label });
   const play = useHelpSpot(clip.playing ? t('common.pause') : t('recording.player.playTitle', { title: label }), undefined, clip.toggle);
   const choose = useHelpSpot(t('recording.recorder.recordOver', { part: label }), t('recording.recorder.recordOverHelp'), props.onChoose);
   return (
-    <View style={[styles.partRow, props.fresh && styles.fresh, props.chosen && styles.chosenRow, props.lifted && styles.liftedRow]}>
-      <View style={{ width: RAIL }} />
-      {props.grip}
+    <SwipeRow name={label} disabled={props.disabled} open={props.open} onOpen={props.onOpen} onDelete={() => props.onDelete(props.part.hash, label)} last={props.last}
+      {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})}>
+    <View style={[styles.partRow, !props.first && styles.rowBorder, props.fresh && styles.fresh, props.chosen && styles.chosenRow, props.lifted && styles.liftedRow]}>
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
-        style={({ pressed }) => [styles.iconTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
-        <Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} />
+        style={({ pressed }) => [styles.playTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>
+        <View style={styles.playDot}><Ico name={clip.playing ? 'pause' : 'play'} size={16} color={C.primary} strokeWidth={2.6} fill={C.primary} /></View>
         <HelpBadge spot={play} />
       </Pressable>
       <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
         accessibilityLabel={t('recording.recorder.recordOver', { part: label })}
+        accessibilityActions={props.disabled ? [] : [{ name: 'delete', label: t('recording.deleteItem', { item: label }) }]}
+        onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'delete') props.onOpen(1); }}
         style={({ pressed }) => [styles.partPlay, pressed && ps.pressed]}>
-        <Text style={[txt.body, { color: props.chosen ? C.dark : C.muted, flex: 1 }]}>{t('recording.recorder.partLength', { part: label, length: mmss(props.part.durationMs) })}</Text>
+        <PartBars bars={bars} progress={clip.playing ? (clip.total > 0 ? clip.elapsed / clip.total : 0) : null} />
+        <Text style={styles.length}>{mmss(props.part.durationMs)}</Text>
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
-      <IconBtn name="trash" label={t('recording.deleteItem', { item: label })} help={t('recording.recorder.deletePartHelp')} bg="transparent" color={C.muted} size={40} disabled={props.disabled} onPress={() => props.onDelete(props.part.hash, label)} />
+      {props.grip}
+      <View style={{ width: EDGE }} />
     </View>
+    </SwipeRow>
   );
 }
 
@@ -311,22 +335,34 @@ export function RecorderFooter(props: { count: number; phase: LoopPhase; recordD
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
-  head: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs },
+  // The box reaches to the pane's right edge (its 16-point padding) and the card sits EDGE inside it,
+  // so a + mark's target ends at the screen's edge, not past it.
+  cardBox: { marginRight: -space.lg },
+  cardFace: { position: 'absolute', top: 0, left: 0, bottom: 0, right: EDGE, backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border },
+  // What sits under the card lines up with its right edge.
+  underCard: { marginRight: EDGE - space.lg },
+  head: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs, marginRight: EDGE },
+  // Open, a band under its buttons keeps the first + mark's target clear of them.
+  headOpen: { paddingTop: space.xs, paddingBottom: EDGE - space.xs, borderBottomWidth: 1, borderColor: C.border },
+  // The rows sit inside the card's border; the list itself reaches past its right edge for the + marks.
+  list: { marginLeft: 1, marginBottom: 1 },
+  inCard: { marginRight: EDGE + 1 },
+  rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  playTap: { paddingLeft: space.sm, paddingRight: space.xs, minWidth: target_.min, minHeight: target_.min, alignItems: 'center', justifyContent: 'center' },
+  playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
+  length: { fontSize: T.sm, color: C.muted, fontVariant: ['tabular-nums'] },
   title: { fontSize: T.base, fontWeight: '800', color: C.dark },
   iconTap: { width: target_.min, height: target_.min, alignItems: 'center', justifyContent: 'center' },
-  parts: { borderTopWidth: 1, borderColor: C.border, paddingLeft: space.xs, paddingRight: space.xs, paddingVertical: space.xs },
-  versePart: { borderTopWidth: 1, borderColor: C.border },
-  partRow: { flexDirection: 'row', alignItems: 'center' },
-  partPlay: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target_.min },
+  partRow: { flexDirection: 'row', alignItems: 'stretch', minHeight: target_.row },
+  partPlay: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingLeft: space.xs, minHeight: target_.row },
   next: { flexDirection: 'row', alignItems: 'center', gap: space.sm + 2, minHeight: 56, paddingHorizontal: space.md, borderRadius: radius.lg, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card },
   // The end, when the next part goes somewhere else: quiet and dashed, a tap away.
   nextQuiet: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.border, backgroundColor: 'transparent' },
   quietMic: { width: 36, height: 36, borderRadius: radius.full, borderWidth: 2, borderStyle: 'dashed', borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
-  chosenRow: { backgroundColor: C.light, borderRadius: radius.md },
+  chosenRow: { backgroundColor: C.light },
   // Just recorded (Caleb, 2026-10-16): the red view's colour, faintly, until the next recording.
-  fresh: { backgroundColor: withAlpha(C.red, 0.06), borderRadius: radius.md },
-  liftedRow: { backgroundColor: C.card, borderRadius: radius.md, ...lift({ opacity: 0.18, radius: 12, y: 4, elevation: 6 }) },
+  fresh: { backgroundColor: withAlpha(C.red, 0.06) },
+  liftedRow: { backgroundColor: C.card, ...lift({ opacity: 0.18, radius: 12, y: 4, elevation: 6 }) },
   meter: { width: 64, height: 28, flexDirection: 'row', alignItems: 'center', gap: 2 },
   meterBar: { flex: 1, borderRadius: 2, backgroundColor: C.red },
   resume: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: TINT.amberText },
