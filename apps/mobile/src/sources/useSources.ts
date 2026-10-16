@@ -13,7 +13,7 @@ import {
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import type { Ctx } from '../shell/ctx';
-import { teamLanguage } from '../reference/languages';
+import { inLanguages, teamLanguages } from '../reference/languages';
 import { t } from '../i18n';
 import { useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { carriedBible, readingsForRange } from '../passage/scripture';
@@ -115,7 +115,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
 
   const options = useMemo(() => {
     const out: SourceOption[] = [];
-    const sourceLanguage = teamLanguage(ctx.org.state, languageId === ctx.language.languageId ? ctx.language.state : null, languageId);
+    const sourceLanguages = teamLanguages(ctx.org.state, languageId === ctx.language.languageId ? ctx.language.state : null, languageId);
     const fromLibrary = (itemId: string, from: SourceFrom) => {
       const hash = libraryItemView(library ?? {}, itemId)?.current;
       const doc = get<SourceDoc>(hash);
@@ -134,7 +134,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
     if (recs.size === 0 || (wholeBook && out.length === 0)) {
       for (const r of shared.rows) {
         const doc = get<SourceDoc>(r.latest_hash);
-        if (!doc || doc.format !== 'source@1' || doc.language !== sourceLanguage) continue;
+        if (!doc || doc.format !== 'source@1' || !doc.language || !inLanguages(doc.language, sourceLanguages)) continue;
         out.push({ itemId: subscriptionItemId(r.org_id, r.item_id), kind: 'library', from: 'shared', name: doc.name, abbreviation: doc.abbreviation, language: doc.language, doc, docHash: r.latest_hash, sharedBy: r.org_name });
       }
     }

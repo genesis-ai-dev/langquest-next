@@ -7232,7 +7232,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "¿En qué idioma deben estar las Biblias y guías de estudio de {{language}}?",
+    "question": "¿En qué idiomas deben estar las Biblias y guías de estudio de {{language}}?",
     "sub": "Elija el idioma que mejor lee el equipo de {{language}}. Cada uno dice lo que LangQuest tiene en él.",
     "setPassages_one": "Guías de {{name}} para {{count, number}} pasaje",
     "setPassages_many": "Guías de {{name}} para {{count, number}} de pasajes",
@@ -7247,7 +7247,7 @@
     "chip": "Biblias y guías en {{language}}",
     "chipHelp": "El idioma de sus Biblias y guías de estudio. Toque para cambiarlo.",
     "change": "Cambiar",
-    "rowHelp": "Elige este idioma para las Biblias y guías del equipo. La línea dice lo que tiene."
+    "rowHelp": "Agrega este idioma para las Biblias y guías del equipo, o lo quita. La línea dice qué hay en él."
   },
   "checks": {
     "title": "Verificaciones",

@@ -67,6 +67,8 @@ export interface NewLanguageDeps {
 
 type NewLanguageInput = {
   org: OrgState | null; actorId: string; reads: string;
+  /** Other languages its reference material may be in, beside `reads` (decision 110). */
+  alsoReads?: readonly string[];
   scope: LanguageScope; chosenBooks: ReadonlySet<string>; checks: { name?: string | undefined; kinds: readonly KindDef[]; steps: readonly { kindIds: readonly string[]; checkpoint?: boolean }[] }; offers: Offer[];
 };
 
@@ -153,7 +155,8 @@ export async function createLanguages(input: NewLanguageInput & {
     // i18n-ignore: a diagnostics label (noteExpected), never shown
     await deps.syncOrg().catch((e: unknown) => deps.note('new language listing', e));
     if (!input.each) await deps.onPart('saving');
-    await deps.appendToLanguage(languageId, [...plan.specs, ...offerSpecs(languageId, offered, setSays, input.org?.recommendations)]);
+    const also = (input.alsoReads ?? []).map((language, i): EventSpec => ({ id: `${languageId}:reads:${i}`, type: 'v1.ReferenceLanguageAdded', payload: { language, added: true } }));
+    await deps.appendToLanguage(languageId, [...plan.specs, ...offerSpecs(languageId, offered, setSays, input.org?.recommendations), ...also]);
     input.done?.set(one.key, { languageId, name: languageName });
     made.push({ languageId, name: languageName });
   }

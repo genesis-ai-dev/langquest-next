@@ -25,7 +25,7 @@ import { usePerson } from '../ui/usePerson';
 import { checkName } from '../admin/adminModel';
 import { groupOf, removeRow, rowNumbers, rowsOf, sameTimeOf, setCheckpoint, setSameTime } from '../checks/model';
 import { newKindId, nextFieldId, referenceKindName } from '../config/model';
-import { docLanguage, sameLanguage, teamLanguage } from '../reference/languages';
+import { docLanguage, inLanguages, teamLanguages } from '../reference/languages';
 import { saveRows } from '../checks/checkActions';
 import { styles } from '../checks/checkStyles';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -206,8 +206,8 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const all = items.map((it) => ({ it, kind: refKindOf(docs.get(it.current)), language: docLanguage(docs.get(it.current)) }))
     .filter((x) => x.kind === 'note' || x.kind === 'other' || x.kind === 'guide' || x.kind === 'source');
   // Helps are offered in the language the team's material is in, set once for the language (Caleb, 2026-10-16).
-  const team = teamLanguage(ctx.org.state, state, languageId);
-  const library = all.filter((x) => !x.language || sameLanguage(x.language, team));
+  const team = teamLanguages(ctx.org.state, state, languageId);
+  const library = all.filter((x) => inLanguages(x.language, team));
   const linked = new Set(helps.map((h) => ('itemId' in h ? `item:${h.itemId}` : `material:${h.materialId}`)));
   const linkedHelp = (on: boolean) => (on ? t('checks.helpOnHelp') : t('checks.helpOffHelp'));
   const tick = (on: boolean) => <Tick on={on} />;

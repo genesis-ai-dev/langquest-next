@@ -6942,7 +6942,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "Da wane harshe Littafi Mai Tsarki da jagororin nazari na {{language}} za su kasance?",
+    "question": "Da waɗanne harsuna ya kamata Littattafai Masu Tsarki da jagororin nazari na {{language}} su kasance?",
     "sub": "Zaɓi harshen da ƙungiyar {{language}} ta fi karantawa da kyau. Kowane yana nuna abin da LangQuest ke da shi a cikinsa.",
     "setPassages_one": "Jagororin {{name}} don nassi {{count, number}}",
     "setPassages_other": "Jagororin {{name}} don nassosi {{count, number}}",
@@ -6954,7 +6954,7 @@
     "chip": "Littafi Mai Tsarki da jagorori cikin {{language}}",
     "chipHelp": "Harshen Littafi Mai Tsarki da jagororin nazarinsu. Taɓa don canja shi.",
     "change": "Canja",
-    "rowHelp": "Yana zaɓar wannan harshe don Littattafai Masu Tsarki da jagororin tawagar. Layin yana faɗin abin da yake da shi."
+    "rowHelp": "Yana ƙara wannan harshe ga Littattafai Masu Tsarki da jagororin ƙungiyar, ko ya cire shi. Layin yana faɗin abin da ke ciki."
   },
   "checks": {
     "title": "Dubawa",

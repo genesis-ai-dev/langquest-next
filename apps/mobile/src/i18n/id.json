@@ -6652,7 +6652,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "Alkitab dan panduan studi {{language}} sebaiknya dalam bahasa apa?",
+    "question": "Dalam bahasa apa saja Alkitab dan panduan belajar {{language}}?",
     "sub": "Pilih bahasa yang paling baik dibaca oleh tim {{language}}. Setiap bahasa menunjukkan apa yang dimiliki LangQuest dalam bahasa itu.",
     "setPassages_other": "Panduan {{name}} untuk {{count, number}} perikop",
     "bibles_other": "{{count, number}} Alkitab",
@@ -6661,7 +6661,7 @@
     "chip": "Alkitab dan panduan dalam bahasa {{language}}",
     "chipHelp": "Bahasa Alkitab dan panduan studi mereka. Ketuk untuk mengubahnya.",
     "change": "Ubah",
-    "rowHelp": "Memilih bahasa ini untuk Alkitab dan panduan tim. Barisnya menyebutkan apa yang tersedia."
+    "rowHelp": "Menambahkan bahasa ini untuk Alkitab dan panduan tim, atau menghapusnya. Barisnya menyebut isinya."
   },
   "checks": {
     "title": "Pemeriksaan",

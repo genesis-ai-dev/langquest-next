@@ -6652,7 +6652,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "{{language}}的圣经和学习指南应该用哪种语言？",
+    "question": "{{language}}的圣经和学习指南应使用哪些语言？",
     "sub": "请选择{{language}}团队读得最好的语言。每种语言都显示 LangQuest 在这种语言里有什么。",
     "setPassages_other": "{{name}}指南涵盖 {{count, number}} 个经段",
     "bibles_other": "{{count, number}} 本圣经",
@@ -6661,7 +6661,7 @@
     "chip": "{{language}}的圣经和指南",
     "chipHelp": "他们的圣经和学习指南所用的语言。点按即可更改。",
     "change": "更改",
-    "rowHelp": "为团队的圣经和指南选择这个语言。那一行说明它有什么。"
+    "rowHelp": "为团队的圣经和指南添加这种语言，或去掉它。这一行说明其中有什么。"
   },
   "checks": {
     "title": "检查",

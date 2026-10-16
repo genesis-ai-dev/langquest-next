@@ -243,6 +243,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('itemId') ?? oneOf('state', ['recommended', 'hidden', 'inherit']);
     case 'v1.ReferenceLanguageSet':
       return str('language') ?? (/^[a-z0-9-]{2,40}$/.test(p['language'] as string) ? null : 'language must be a language code');
+    case 'v1.ReferenceLanguageAdded':
+      return str('language') ?? (/^[a-z0-9-]{2,40}$/.test(p['language'] as string) ? null : 'language must be a language code') ?? bool('added');
     case 'v1.PassageReferenceLinked':
       return str('unitId', 'itemId') ?? bool('linked');
     case 'v1.ReferencesUsed':

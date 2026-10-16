@@ -54,6 +54,12 @@ export interface ReferenceWorkEvents {
   'v1.ReferenceSet': { itemId: string; state: LanguageRecommendation };
   /** The language the team's reference material is in (ISO 639-3, or a glottocode): its Bibles, guides and notes (decision 84). Register. */
   'v1.ReferenceLanguageSet': { language: string };
+  /**
+   * Another language the team's reference material may be in, beside the
+   * one `v1.ReferenceLanguageSet` names (decision 110): Greek and Hebrew
+   * beside English, say. Register per language.
+   */
+  'v1.ReferenceLanguageAdded': { language: string; added: boolean };
   /** An admin places an item on one passage by hand, or hides a match there. Register per passage and item. */
   'v1.PassageReferenceLinked': { unitId: string; itemId: string; linked: boolean };
   /** What was in front of the person for a version (`takeId`) or a review (`reviewId`); exactly one of the two. Grow-only. */
@@ -69,6 +75,8 @@ export interface ReferenceState {
   referencesUsed: Record<string, Record<string, UsedReference & { by: string; hlc: Hlc; eventId: string }>>;
   /** The language the team's reference material is in (`v1.ReferenceLanguageSet`); absent until set, and in older snapshots. */
   referenceLanguage?: Register<string>;
+  /** language -> added (`v1.ReferenceLanguageAdded`); absent in older snapshots. */
+  referenceLanguagesAdded?: Record<string, Register<boolean>>;
 }
 
 export function emptyReferenceState(): ReferenceState {
@@ -90,6 +98,12 @@ export function applyReferenceEvent(state: ReferenceState, e: EventEnvelope): vo
     case 'v1.ReferenceLanguageSet': {
       const p = e.payload as ReferenceWorkEvents['v1.ReferenceLanguageSet'];
       if (later(state.referenceLanguage, e)) state.referenceLanguage = { value: p.language, hlc: e.hlc, eventId: e.id };
+      break;
+    }
+    case 'v1.ReferenceLanguageAdded': {
+      const p = e.payload as ReferenceWorkEvents['v1.ReferenceLanguageAdded'];
+      const added = (state.referenceLanguagesAdded ??= {});
+      if (later(added[p.language], e)) added[p.language] = { value: p.added, hlc: e.hlc, eventId: e.id };
       break;
     }
     case 'v1.PassageReferenceLinked': {

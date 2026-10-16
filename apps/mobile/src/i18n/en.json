@@ -6942,7 +6942,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "Which language should {{language}}'s Bibles and study guides be in?",
+    "question": "Which languages should {{language}}'s Bibles and study guides be in?",
     "sub": "Choose the language {{language}}'s team reads best. Each one says what LangQuest has in it.",
     "setPassages_one": "{{name}} guides for {{count, number}} passage",
     "setPassages_other": "{{name}} guides for {{count, number}} passages",
@@ -6954,7 +6954,7 @@
     "chip": "Bibles and guides in {{language}}",
     "chipHelp": "The language of their Bibles and study guides. Tap to change it.",
     "change": "Change",
-    "rowHelp": "Picks this language for the team’s Bibles and guides. The line says what it has."
+    "rowHelp": "Adds this language for the team’s Bibles and guides, or takes it away. The line says what it has."
   },
   "checks": {
     "title": "Checks",

@@ -4177,6 +4177,14 @@ how much is in each language, and changed from the top of What helps them.
 What helps them and a check's "Add a help" offer only material in that
 language, and what the team already has. Caleb's rule (2026-10-16): the
 language of review material is set by the admin for the team, in one place.
+Caleb then asked for several languages (2026-10-16: translators will want
+Greek and Hebrew beside their own, or other languages): the language
+question ticks as many as the team needs. The main language stays
+`v1.ReferenceLanguageSet` (what FIA, Bible order and guide matching follow);
+each other one is `v1.ReferenceLanguageAdded { language, added }`, a
+register per language, so two admins adding different languages offline
+both land, and nothing already stored changes. Lists of material take any
+of the team's languages.
 
 Reverse if: teams want the same settings on every language of an
 organization or cluster; then they move to the organization's

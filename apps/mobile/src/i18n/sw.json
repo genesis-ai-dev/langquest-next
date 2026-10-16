@@ -6942,7 +6942,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "Biblia na miongozo ya kujifunza ya {{language}} iwe kwa lugha gani?",
+    "question": "Biblia na miongozo ya kujifunza ya {{language}} iwe katika lugha zipi?",
     "sub": "Chagua lugha ambayo timu ya {{language}} inasoma vizuri zaidi. Kila moja inaonyesha kile LangQuest inacho kwa lugha hiyo.",
     "setPassages_one": "Miongozo ya {{name}} kwa kifungu {{count, number}}",
     "setPassages_other": "Miongozo ya {{name}} kwa vifungu {{count, number}}",
@@ -6954,7 +6954,7 @@
     "chip": "Biblia na miongozo kwa {{language}}",
     "chipHelp": "Lugha ya Biblia na miongozo yao ya kujifunza. Gusa ili kuibadilisha.",
     "change": "Badilisha",
-    "rowHelp": "Huchagua lugha hii kwa Biblia na miongozo ya timu. Mstari wa maandishi unaonyesha ilicho nacho."
+    "rowHelp": "Inaongeza lugha hii kwa Biblia na miongozo ya timu, au inaiondoa. Mstari unasema kilichomo."
   },
   "checks": {
     "title": "Kaguzi",

@@ -106,6 +106,9 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.ReferenceSet':
       variants.push({ ...p, state: 'pinned' });
       break;
+    case 'v1.ReferenceLanguageAdded':
+      variants.push({ ...p, language: '' }, { ...p, language: 'Greek' }, { ...p, language: 'x' }, { ...p, added: 'yes' });
+      break;
     case 'v1.ReferenceLanguageSet':
       variants.push({ ...p, language: '' }, { ...p, language: 'French' }, { ...p, language: 'x' }, { ...p, language: 'x'.repeat(41) }, { ...p, language: 7 });
       break;

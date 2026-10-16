@@ -2,6 +2,8 @@
 --
 --   v1.CheckShowsSet { kindId, what, shown, from? }
 --   v1.NoteAdded gains an optional kindId: the step a note was written at.
+--   v1.ReferenceLanguageAdded { language, added }: another language the
+--   team's reference material may be in (manage_reference).
 --
 -- A register per (kind, what) in the language stream (core reducer.ts):
 -- whether the step's screen has the Bible heard, the Bible read, the guide
@@ -343,6 +345,10 @@ begin
     when 'v1.ReferenceLanguageSet' then
       if not public._is_str(p->'language') then return 'language must be a non-empty string'; end if;
       if (p->>'language') !~ '^[a-z0-9-]{2,40}$' then return 'language must be a language code'; end if;
+    when 'v1.ReferenceLanguageAdded' then
+      if not public._is_str(p->'language') then return 'language must be a non-empty string'; end if;
+      if (p->>'language') !~ '^[a-z0-9-]{2,40}$' then return 'language must be a language code'; end if;
+      if not public._is_bool(p->'added') then return 'added must be a boolean'; end if;
     when 'v1.PassageReferenceLinked' then
       if not (public._is_str(p->'unitId') and public._is_str(p->'itemId')) then return 'unitId, itemId must be non-empty strings'; end if;
       if not public._is_bool(p->'linked') then return 'linked must be a boolean'; end if;
@@ -435,6 +441,7 @@ returns text language sql immutable as $$
     when 'v1.KeyTermLinked' then 'fill_reference'
     when 'v1.ReferenceSet' then 'manage_reference'
     when 'v1.ReferenceLanguageSet' then 'manage_reference'
+    when 'v1.ReferenceLanguageAdded' then 'manage_reference'
     when 'v1.PassageReferenceLinked' then 'manage_reference'
     when 'v1.ReferencesUsed' then 'translate,review'
     else null

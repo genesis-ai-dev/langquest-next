@@ -38,7 +38,7 @@ import { useRecommend } from '../reference/useReference';
 import { referenceFailure } from '../reference/referenceActions';
 import { GuideLanguageSheet } from '../reference/GuideLanguageSheet';
 import { chooseSetLanguage, guideSets, hideSet, originOf, patternOf, setKeyOf, setReach, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
-import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguage } from '../reference/languages';
+import { docLanguage, inLanguages, languagesLine, languagesSays, readerLanguage, sameLanguage, teamLanguage, teamLanguages } from '../reference/languages';
 import { memberIn } from '../reference/languageChoices';
 import { ReferenceLanguageChip, ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
 import { useReferenceLanguages } from '../reference/useReferenceLanguages';
@@ -48,7 +48,7 @@ import { C, space } from '../ui/theme';
 import { BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, InviteCode, NumberedSteps, Pills, Question, QuietLink } from '../admin/admin';
 import { useGroupInvite } from '../admin/useGroupInvite';
 import {
-  flowSub, flowTitle, flowWho, guideShortName, languageLabel, QUESTIONS, questionLabel, recordSummary, scopeOfBooks,
+  flowSub, flowTitle, flowWho, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, recordSummary, scopeOfBooks,
   type PlainRoleId } from '../admin/adminModel';
 import { shareInvite } from '../invites/shareInvite';
 import { ReadyChecklist } from '../admin/ready';
@@ -252,6 +252,7 @@ function useHelpItems(ctx: Ctx) {
   const [busy, setBusy] = useState(false);
   const offered = recommendedFor(org?.recommendations, state);
   const reads = teamLanguage(org, state, languageId);
+  const languages = teamLanguages(org, state, languageId);
   const reader = readerLanguage();
   const out: HelpItem[] = [];
   const say = state?.languageReferences ?? {};
@@ -352,7 +353,7 @@ function useHelpItems(ctx: Ctx) {
     await sayAll(hideSet(h.set.set, ctx.language.state), t('getReady.helps.setOff', { name: guideShortName(h.set.set.name) }));
     setBusy(false);
   }
-  return { items: out, toggle, chooseLanguage, setOff, busy, may, reads, loading: (!shared.loaded || docsPending) && !docs.error, get: docs.get };
+  return { items: out, toggle, chooseLanguage, setOff, busy, may, reads, languages, loading: (!shared.loaded || docsPending) && !docs.error, get: docs.get };
 }
 
 /**
@@ -451,22 +452,25 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
   const org = ctx.org.state;
   const languageId = ctx.language.languageId;
   const lib = useLibrary(ctx);
-  const current = teamLanguage(org, state, languageId);
-  const [picked, setPicked] = useState<string | null>(null);
-  const value = picked ?? current;
-  const refs = useReferenceLanguages(ctx, [value, readerLanguage(), 'eng']);
+  // The languages the team's material may be in, the main one first (decision 110).
+  const current = teamLanguages(org, state, languageId);
+  const [picked, setPicked] = useState<string[] | null>(null);
+  const values = picked ?? current;
+  const value = values[0]!;
+  const refs = useReferenceLanguages(ctx, [...values, readerLanguage(), 'eng']);
   const may = ctx.session.can('manage_reference');
   const [busy, setBusy] = useState(false);
 
   async function save() {
     if (busy) return;
-    const moved = !sameLanguage(value, current);
+    const moved = languagesSays(current, values).length > 0;
     if (!may || !moved) { onDone(); return; }
     setBusy(true);
-    const says: { type: 'v1.ReferenceLanguageSet' | 'v1.ReferenceSet'; payload: object }[] = [{ type: 'v1.ReferenceLanguageSet', payload: { language: value } }];
-    const undo: typeof says = [{ type: 'v1.ReferenceLanguageSet', payload: { language: current } }];
+    const says: { type: 'v1.ReferenceLanguageSet' | 'v1.ReferenceLanguageAdded' | 'v1.ReferenceSet'; payload: object }[] = languagesSays(current, values);
+    const undo: typeof says = languagesSays(values, current);
     try {
-      for (const set of refs.sets) {
+      // A guide set follows the main language only.
+      for (const set of sameLanguage(value, current[0]) ? [] : refs.sets) {
         // A set the team has follows the language; one it does not have stays off.
         const reach = setReach(set, org?.recommendations, state);
         const m = memberIn(set, value);
@@ -484,7 +488,7 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
     }
     const specs = (list: typeof says) => list.map((x) => ({ id: Crypto.randomUUID(), ...x } as EventSpec));
     try {
-      await ctx.act(specs(says), t('getReady.language.saved', { team: lang, language: languageLabel(value) }), () => specs(undo));
+      await ctx.act(specs(says), t('getReady.language.saved', { team: lang, language: joinAnd(values.map(languageLabel)) }), () => specs(undo));
     } catch {
       // ctx.act has already said "Not saved" and why.
       setBusy(false);
@@ -496,7 +500,7 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
 
   return (
     <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" busy={busy} help={t('getReady.language.nextHelp')} onPress={() => void save()} />}>
-      <ReferenceLanguagePage team={lang} choices={refs.choices} value={value} first={current} onChange={setPicked} loading={refs.loading} />
+      <ReferenceLanguagePage team={lang} choices={refs.choices} value={values} first={current} onChange={setPicked} loading={refs.loading} />
       {!may ? <Banner icon="lock" title={t('common.viewOnly')} body={t('getReady.helps.viewOnly')} /> : null}
     </Screen>
   );
@@ -509,13 +513,13 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   const numbering = useVerseNumbering(ctx);
   const comes = useComesWith(ctx);
   // Only what is in the team's language, and what the team already has (decision 110 amended).
-  const offered = h.items.filter((x) => inTeamLanguage(x, h.reads));
+  const offered = h.items.filter((x) => inTeamLanguage(x, h.languages));
   const bibles = offered.filter((x) => x.kind === 'source');
   const guides = offered.filter((x) => x.kind === 'guide');
   const notes = offered.filter((x) => x.kind === 'note' || x.kind === 'other');
   return (
     <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" help={t('getReady.nextHelp')} onPress={next} />}>
-      <ReferenceLanguageChip language={h.reads} onPress={onLanguage} />
+      <ReferenceLanguageChip languages={h.languages} onPress={onLanguage} />
       <Question>{questionLabel('helps')}</Question>
       <SectionLabel label={t('getReady.helps.biblesTheyUnderstand')} />
       <Group>
@@ -574,7 +578,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   );
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
   // Only what is in the team's language, and what the team already has (decision 110 amended).
-  const offered = h.items.filter((x) => inTeamLanguage(x, h.reads));
+  const offered = h.items.filter((x) => inTeamLanguage(x, h.languages));
   const bibles = offered.filter((x) => x.kind === 'source');
   const guides = offered.filter((x) => x.kind === 'guide');
   const notes = offered.filter((x) => x.kind === 'note' || x.kind === 'other');
@@ -583,7 +587,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   return (
     <Screen header={<Header title={t('getReady.page.title')} sub={lang} onBack={ctx.back} />} bodyStyle={{ gap: space.sm }}
       footer={h.may ? <PrimaryBtn label={t('getReady.page.addMore')} icon="plus" help={t('getReady.page.addMoreHelp')} onPress={() => setAdding(true)} /> : undefined}>
-      <ReferenceLanguageChip language={h.reads} onPress={() => ctx.go('get_ready', { languageId, step: '2', only: '1', page: 'language' })} />
+      <ReferenceLanguageChip languages={h.languages} onPress={() => ctx.go('get_ready', { languageId, step: '2', only: '1', page: 'language' })} />
       <SectionLabel label={t('getReady.page.bibles')} />
       <Group>
         {bibles.length ? bibles.map((b, i) => {
@@ -632,10 +636,9 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
  * (`reads`, set once for the language), or one the team already has. A
  * guide set (FIA) follows the team's language by itself.
  */
-function inTeamLanguage(x: HelpItem, reads: string): boolean {
+function inTeamLanguage(x: HelpItem, languages: readonly string[]): boolean {
   if (x.on || x.set) return true;
-  const language = x.kind === 'source' ? (x.doc as SourceDoc).language : docLanguage(x.doc);
-  return !language || sameLanguage(language, reads);
+  return inLanguages(x.kind === 'source' ? (x.doc as SourceDoc).language : docLanguage(x.doc), languages);
 }
 
 /** "FIA study guides (English)" for a team that reads English: "FIA study guides". */

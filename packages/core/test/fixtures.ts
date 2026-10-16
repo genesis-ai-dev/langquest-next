@@ -218,6 +218,9 @@ export function buildRecordFixture(): AnyEvent[] {
   // version and a review record what was in front of the person.
   emit('dE', 'lead2', 'v1.ReferenceSet', { itemId: 'langquest.source.bsb', state: 'hidden' });
   emit('dA', 'lead', 'v1.ReferenceSet', { itemId: 'langquest.source.bsb', state: 'recommended' });
+  emit('dA', 'lead', 'v1.ReferenceLanguageAdded', { language: 'grc', added: true });
+  emit('dE', 'lead2', 'v1.ReferenceLanguageAdded', { language: 'grc', added: false });
+  emit('dA', 'lead', 'v1.ReferenceLanguageAdded', { language: 'hbo', added: true });
   emit('dA', 'lead', 'v1.ReferenceSet', { itemId: 'langquest.source.esv', state: 'inherit' });
   emit('dA', 'lead', 'v1.ReferenceLanguageSet', { language: 'fra' });
   emit('dE', 'lead2', 'v1.ReferenceLanguageSet', { language: 'swa' });
