@@ -112,3 +112,43 @@ export function setCheckpoint(rows: readonly CheckRow[], i: number, on: boolean)
 export function addRow(rows: readonly CheckRow[], kindId: string): CheckRow[] {
   return [...rows.map((r) => ({ ...r })), { kindId, together: false, checkpoint: false }];
 }
+
+/** The other checks that happen at the same time as row `i`, by kind. */
+export function sameTimeOf(rows: readonly CheckRow[], i: number): string[] {
+  return groupOf(rows, i).filter((j) => j !== i).map((j) => rows[j]!.kindId);
+}
+
+/**
+ * Row `i` happens at the same time as exactly the checks `others` (kind
+ * ids), wherever they are in the list. They join its step, in the list's
+ * order, where row `i` stands; checks that were with it and are not chosen
+ * any more stay where they are, on their own. The step keeps whether it
+ * must pass, and its id when its first check stays in it.
+ */
+export function setSameTime(rows: readonly CheckRow[], i: number, others: readonly string[]): CheckRow[] {
+  const me = rows[i];
+  if (!me) return [...rows];
+  const group = groupOf(rows, i);
+  const lead = rows[group[0]!]!;
+  const chosen = new Set([me.kindId, ...others]);
+  const joined = rows.filter((r) => chosen.has(r.kindId));
+  // What stays put, each row still with the one above it only if that is still the row above it.
+  const kept = rows.map((r, j) => ({ r, j })).filter(({ r }) => !chosen.has(r.kindId));
+  const rest = kept.map(({ r, j }, k): CheckRow => {
+    const sameAbove = k > 0 && kept[k - 1]!.j === j - 1;
+    if (r.together && !sameAbove) {
+      const { stepId: _id, ...plain } = r;
+      return { ...plain, together: false };
+    }
+    return { ...r };
+  });
+  const at = kept.filter(({ j }) => j < i).length;
+  const step = joined.map((r, k): CheckRow => {
+    const { stepId: _id, ...plain } = r;
+    return k === 0
+      ? { ...plain, together: false, checkpoint: lead.checkpoint, ...(chosen.has(lead.kindId) && lead.stepId ? { stepId: lead.stepId } : {}) }
+      : { ...plain, together: true, checkpoint: lead.checkpoint };
+  });
+  rest.splice(at, 0, ...step);
+  return rest;
+}

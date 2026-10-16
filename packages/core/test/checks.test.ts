@@ -5,7 +5,7 @@ import { foldLanguage as fold } from '../src/reducer';
 import { emptyLanguageState as emptyState } from '../src/state';
 import { DEFAULT_KINDS, flowTemplate, instantiateFlow } from '../src/record';
 import { deriveFlow, usualTarget } from '../src/passage';
-import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, checkTeamFor, checkTeamId, RECORD_STEP } from '../src/checks';
+import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, shownFrom, checkTeamFor, checkTeamId, RECORD_STEP } from '../src/checks';
 import { validateEvent } from '../src/validate';
 import { applyOrgEvent, emptyOrgState, SEED_ROLES, translatorReviewUpgrade, type OrgState } from '../src/org';
 
@@ -142,12 +142,26 @@ describe('what a step shows', () => {
     expect(checkShows(p.state(), RECORD_STEP).bibleText).toBe(true);
   });
 
+  it('chooses notes and earlier versions step by step, falling back to the thing', () => {
+    const p = language();
+    expect(shownFrom(p.state(), 'consultant', 'notes', 'peer')).toBe(true);
+    expect(shownFrom(p.state(), 'bt', 'earlier', RECORD_STEP)).toBe(false);
+    p.apply('lead', checkShowsSpecs(p.state(), { commandId: 'a', kindId: 'consultant', what: 'notes', from: 'peer', shown: false }));
+    expect(shownFrom(p.state(), 'consultant', 'notes', 'peer')).toBe(false);
+    expect(shownFrom(p.state(), 'consultant', 'notes', 'community')).toBe(true);
+    expect(checkShows(p.state(), 'consultant').notes).toBe(true);
+    expect(checkShowsSpecs(p.state(), { commandId: 'b', kindId: 'consultant', what: 'notes', from: 'peer', shown: false })).toEqual([]);
+  });
+
   it('names one of the things a step can show', () => {
     const ev = (payload: object) => ({ id: 'e', type: 'v1.CheckShowsSet', orgId: 'o', streamId: 'din', actorId: 'a', deviceId: 'd', hlc: 'h', payload } as AnyEvent);
     expect(validateEvent(ev({ kindId: 'record', what: 'guideText', shown: false }))).toBeNull();
     expect(validateEvent(ev({ kindId: 'record', what: 'bible', shown: false }))).not.toBeNull();
     expect(validateEvent(ev({ kindId: '', what: 'notes', shown: false }))).not.toBeNull();
     expect(validateEvent(ev({ kindId: 'peer', what: 'notes', shown: 'no' }))).not.toBeNull();
+    expect(validateEvent(ev({ kindId: 'peer', what: 'notes', shown: false, from: 'record' }))).toBeNull();
+    expect(validateEvent(ev({ kindId: 'peer', what: 'bibleText', shown: false, from: 'record' }))).not.toBeNull();
+    expect(validateEvent(ev({ kindId: 'peer', what: 'earlier', shown: false, from: '' }))).not.toBeNull();
   });
 });
 

@@ -140,6 +140,8 @@ export type RecordEvents = {
     blobHash?: string;
     photoHash?: string;
     onTakeId?: string;
+    /** The step it was written at: `record` or a check (decisions.md 110). Absent on older notes, which count as written while recording. */
+    kindId?: string;
   };
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };

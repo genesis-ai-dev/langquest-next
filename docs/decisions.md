@@ -4144,6 +4144,28 @@ Not built: a ready-made flow saying what its steps show (Spoken's own flow
 could start with reading off), and translators' own Bible exploring
 outside a passage.
 
+Amended (2026-10-15, Caleb Koster): Caleb's second look asked for a shorter
+check page and finer choices. A check's page now has People and Questions
+as rows that open pages of their own, and "On their screen" has one row
+per help: the Bible and the guide open to Audio and Text, key words is a
+switch, and notes and earlier versions open to the steps they come from.
+`v1.CheckShowsSet` gains `from` (a step: `record` or a check), a register
+per (kind, what, from) that falls back to the (kind, what) one, for notes
+and earlier versions only. Earlier versions come from a step by what made
+them (versions are the recording's, feedback its check's); a note says
+where it was written through an optional `kindId` on `v1.NoteAdded`, set
+by the recorder, the study, back translation and the review. That adds a
+field to a shipped event, as `Card.atMs` did (decision 72): it is additive
+and optional, older validators and reducers keep it, and notes without it
+count as the recording's. "Same time as" is a choice of any other checks,
+which join the check's step where it stands (`checks/model.ts`
+`setSameTime`), instead of a switch for the check above. A step that makes
+something (back translation) has "Checked at": any check after it, or a
+check of its own made right after it, which is `produces.checkedBy` on the
+kind, so recording the back translation and reviewing it are two steps
+with their own people, questions and screens, and the passage's steps
+list both. On the web, switches keep a white thumb when on.
+
 Reverse if: teams want the same settings on every language of an
 organization or cluster; then they move to the organization's
 recommendations level (decision 62) with the language's register on top,

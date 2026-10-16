@@ -88,10 +88,19 @@ export function checkShows(state: LanguageState, kindId: string): Shows {
   return Object.fromEntries(SHOWN.map((w) => [w, set[w]?.value ?? fallback])) as Shows;
 }
 
-/** Show or hide one thing at a step; nothing when it already is. */
-export function checkShowsSpecs(state: LanguageState, c: { commandId: string; kindId: string; what: ShownWhat; shown: boolean }): EventSpec[] {
-  if (checkShows(state, c.kindId)[c.what] === c.shown) return [];
-  return [{ id: `${c.commandId}:shows:${c.what}`, type: 'v1.CheckShowsSet', payload: { kindId: c.kindId, what: c.what, shown: c.shown } }];
+/** Notes or earlier versions from one step (`record` or a check): its own register, else the thing's. */
+export function shownFrom(state: LanguageState, kindId: string, what: 'notes' | 'earlier', from: string): boolean {
+  return state.checkShows?.[kindId]?.[`${what}@${from}`]?.value ?? checkShows(state, kindId)[what];
+}
+
+/** Show or hide one thing at a step, or notes or earlier versions from one step; nothing when it already is. */
+export function checkShowsSpecs(state: LanguageState, c: { commandId: string; kindId: string; what: ShownWhat; shown: boolean; from?: string }): EventSpec[] {
+  const now = c.from !== undefined && (c.what === 'notes' || c.what === 'earlier') ? shownFrom(state, c.kindId, c.what, c.from) : checkShows(state, c.kindId)[c.what];
+  if (now === c.shown) return [];
+  return [{
+    id: `${c.commandId}:shows:${c.what}${c.from !== undefined ? `@${c.from}` : ''}`, type: 'v1.CheckShowsSet',
+    payload: { kindId: c.kindId, what: c.what, shown: c.shown, ...(c.from !== undefined ? { from: c.from } : {}) }
+  }];
 }
 
 /**

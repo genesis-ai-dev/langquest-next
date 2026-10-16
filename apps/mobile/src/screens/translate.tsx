@@ -77,6 +77,8 @@ import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { useOnTooShort, useRecorder, type RecordedCard } from '../recording/useRecorder';
+import { NoteStepContext } from '../checks/noteStep';
+import { anyFrom, fromFilter } from '../checks/showsModel';
 
 // ---- Workspace ---------------------------------------------------------------------
 
@@ -85,7 +87,8 @@ export function Workspace(ctx: Ctx) {
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
-  return <WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} />;
+  // Notes written while recording are the recording's (decisions.md 110).
+  return <NoteStepContext.Provider value={RECORD_STEP}><WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} /></NoteStepContext.Provider>;
 }
 
 function Missing(props: { ctx: Ctx; title: string; text?: string }) {
@@ -341,7 +344,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   }, [sourceWords, unitTerms, tied]);
   const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
-  const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
+  // Notes and earlier work from the steps the recording shows (decisions.md 110).
+  const notesFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'notes'), [state]);
+  const earlierFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'earlier'), [state]);
+  const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP)), [p.notes, notesFrom]);
   const guideItem = guide ? guide.id.split('~')[0] ?? guide.id : null;
   useEffect(() => {
     if (guide && guideItem) usage.offer([{ itemId: guideItem, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
@@ -354,7 +360,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const chipIds = refChips('workspace', {
     bible: bible.hasVerses && (shows.bibleAudio || shows.bibleText), guide: !!study && (shows.guideAudio || shows.guideText),
     // Answering feedback keeps Earlier, where the feedback is.
-    terms: shows.terms, notes: shows.notes, earlier: hasEarlier && (shows.earlier || !!revising)
+    terms: shows.terms, notes: anyFrom(state, RECORD_STEP, 'notes'), earlier: hasEarlier && (anyFrom(state, RECORD_STEP, 'earlier') || !!revising)
   });
   // Opens on the Bible; answering feedback, on Earlier, where the feedback is (demo ADR-036).
   const [chipState, setChip] = useState<RefChip>(revising && hasEarlier ? 'earlier' : 'bible');
@@ -473,7 +479,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                 ) : chip === 'notes' ? (
                   <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
                 ) : chip === 'earlier' ? (
-                  <EarlierPane ctx={ctx} v={v} {...(revising ? { focusReviewId: revising.id } : {})} />
+                  <EarlierPane ctx={ctx} v={v} from={revising ? (s) => s === revising.kindId || earlierFrom(s) : earlierFrom} {...(revising ? { focusReviewId: revising.id } : {})} />
                 ) : null}
               </ScrollView>
             </HelpClip>
@@ -530,7 +536,7 @@ export function BackTranslation(ctx: Ctx) {
   const kind = v.kind(kindId);
   if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={screenTitle('back_translation')} text={t('backTranslation.noRecording')} />;
   // The same split workspace, with only the version being back-translated on top (simple/btWorkspace.tsx).
-  return <BackTranslationBody key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} />;
+  return <NoteStepContext.Provider value={kind.id}><BackTranslationBody key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} /></NoteStepContext.Provider>;
 }
 
 const styles = StyleSheet.create({

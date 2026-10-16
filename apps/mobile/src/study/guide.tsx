@@ -29,6 +29,7 @@ import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { Callout, MiniPlayer, StepNav, StepsSheet } from '../recording/blocks';
 import { styles as ps } from '../recording/blockStyles';
 import { guideLanguage } from './guideText';
+import { useNoteStep } from '../checks/useNoteStep';
 
 /** ‹ 2/6 Setting the stage ▾ ›, and the sheet of every step it opens. */
 export function GuideNav(props: { ctx: Ctx; sp: StudyProgress; index: number; onIndex: (i: number) => void; sheetFooter?: React.ReactNode }) {
@@ -69,6 +70,7 @@ export function GuideStep(props: {
   onTerm?: (termId: string) => void;
 }) {
   const { ctx, v, guide, status } = props;
+  const noteStep = useNoteStep();
   const step = status.step;
   const sections = useMemo(() => studySections(step.text), [step.text]);
   const hasAudio = !!(step.audio.url || step.audio.file);
@@ -128,7 +130,7 @@ export function GuideStep(props: {
           onSave={(c) => saveNote(ctx, v, {
             kind: 'study', guideId: guide.id, stepId: step.id,
             ...(adding.sectionId ? { sectionId: adding.sectionId } : {}), ...(adding.at ? { at: adding.at } : {})
-          }, c, adding.at ? t('study.guide.noteAddedAt', { time: shownClock(secondsOf(adding.at)) }) : t('study.guide.added'))} />
+          }, c, adding.at ? t('study.guide.noteAddedAt', { time: shownClock(secondsOf(adding.at)) }) : t('study.guide.added'), noteStep)} />
       ) : null}
       {resource && resource.kind !== 'term' ? <MediaSheet resource={resource} source={lang ? t('study.guide.mediaSourceLanguage', { language: lang }) : t('study.guide.mediaSource')} orgId={ctx.language.orgId} onClose={() => setResource(null)} /> : null}
       {resource && entry ? (

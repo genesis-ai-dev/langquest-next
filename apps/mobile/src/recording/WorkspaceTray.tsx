@@ -26,6 +26,7 @@ import { StepMark } from '../study/ui';
 import { stepLine } from '../study/studyText';
 import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
+import { useNoteStep } from '../checks/useNoteStep';
 
 export type TrayTab = 'terms' | 'study' | 'notes' | 'history';
 
@@ -251,13 +252,14 @@ function NoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
   const [text, setText] = useState('');
   const [hash, setHash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const step = useNoteStep();
   async function save() {
     const state = ctx.language.state;
     if (!state || busy) return;
     setBusy(true);
     try {
       const specs = commands(state, indexesFor(state)).addNote({
-        commandId: Crypto.randomUUID(), unitId: v.unitId, anchor: { kind: 'passage' },
+        commandId: Crypto.randomUUID(), unitId: v.unitId, anchor: { kind: 'passage' }, ...(step ? { kindId: step } : {}),
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
       });
       await ctx.act(specs, t('recording.tray.noteAdded'));

@@ -1,6 +1,7 @@
 -- v1.CheckShowsSet: what a step shows whoever does it (decisions.md 110).
 --
---   v1.CheckShowsSet { kindId, what, shown }
+--   v1.CheckShowsSet { kindId, what, shown, from? }
+--   v1.NoteAdded gains an optional kindId: the step a note was written at.
 --
 -- A register per (kind, what) in the language stream (core reducer.ts):
 -- whether the step's screen has the Bible heard, the Bible read, the guide
@@ -182,6 +183,10 @@ begin
         return 'what must be one of bibleAudio, bibleText, guideAudio, guideText, terms, notes, earlier';
       end if;
       if not public._is_bool(p->'shown') then return 'shown must be a boolean'; end if;
+      if p ? 'from' then
+        if not public._is_str(p->'from') then return 'from must be a non-empty string'; end if;
+        if (p->>'what') not in ('notes', 'earlier') then return 'from is only for notes and earlier'; end if;
+      end if;
     when 'v1.VersionReleased' then
       if not (public._is_str(p->'takeId') and public._is_str(p->'channel')) then return 'takeId, channel must be non-empty strings'; end if;
       if not public._is_bool(p->'live') then return 'live must be a boolean'; end if;
@@ -280,8 +285,9 @@ begin
       if not public._is_str(p->'requestId') then return 'requestId must be a non-empty string'; end if;
     when 'v1.NoteAdded' then
       if not (public._is_str(p->'noteId') and public._is_str(p->'unitId')) then return 'noteId, unitId must be non-empty strings'; end if;
-      if not (public._is_opt_str(p->'text') and public._is_opt_str(p->'blobHash') and public._is_opt_str(p->'photoHash') and public._is_opt_str(p->'onTakeId')) then
-        return 'text, blobHash, photoHash, onTakeId must be strings';
+      if not (public._is_opt_str(p->'text') and public._is_opt_str(p->'blobHash') and public._is_opt_str(p->'photoHash') and public._is_opt_str(p->'onTakeId')
+          and public._is_opt_str(p->'kindId')) then
+        return 'text, blobHash, photoHash, onTakeId, kindId must be strings';
       end if;
       if jsonb_typeof(p->'anchor') is distinct from 'object' then return 'anchor must be an object'; end if;
       case p->'anchor'->>'kind'

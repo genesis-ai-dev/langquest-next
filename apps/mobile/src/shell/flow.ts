@@ -404,6 +404,8 @@ export const EDGES: Edge[] = [
   e('language_home', 'edit_member', undefined, 'assigner'),
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.
   e('flow_editor', 'check_editor'),
+  // App only: a check's people, questions and each help with choices are pages of their own (decision 110)
+  e('check_editor', 'check_editor'),
   e('review_capture', 'material_editor'),
   // App only: Content Templates' "By language" rows open that language's own template view (TPL-1, SETUP-032)
   e('templates_home', 'templates_home', undefined, 'manageTemplates'),

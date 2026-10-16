@@ -32,7 +32,7 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.ReviewRecorded': ['comment', 'commentBlobHash', 'answers', 'skipped', 'people', 'place', 'givenBy', 'requestId', 'artifacts'],
   'v1.DepartureRecorded': ['kindId', 'stepId', 'reviewId', 'reasonBlobHash'],
   'v1.RequestMade': ['kindId', 'profileId', 'guest', 'teamId', 'dueDate', 'note', 'noteBlobHash', 'questions'],
-  'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId'],
+  'v1.NoteAdded': ['text', 'blobHash', 'photoHash', 'onTakeId', 'kindId'],
   'v1.LibraryItemDefined': ['copiedFrom'],
   'v1.LibraryVersionPublished': ['note'],
   'v1.TemplateSelected': ['books'],
@@ -119,7 +119,8 @@ const broken: AnyEvent[] = events.flatMap((e) => {
       variants.push({ ...p, itemId: 'x', materialId: 'y' }, { kindId: p['kindId'], linked: true }, { ...p, materialId: '' }, { ...p, itemId: '' }, { ...p, kindId: '' });
       break;
     case 'v1.CheckShowsSet':
-      variants.push({ ...p, what: 'bible' }, { ...p, what: 'BibleText' }, { ...p, shown: 'no' }, { ...p, kindId: '' });
+      variants.push({ ...p, what: 'bible' }, { ...p, what: 'BibleText' }, { ...p, shown: 'no' }, { ...p, kindId: '' },
+        { ...p, what: 'notes', from: 'peer' }, { ...p, what: 'earlier', from: '' }, { ...p, what: 'bibleText', from: 'peer' }, { ...p, what: 'notes', from: 7 });
       break;
     case 'v1.BookNameSet':
       variants.push({ ...p, book: 'luk' }, { ...p, book: 'LUKE' }, { ...p, book: '1 SA' });

@@ -47,6 +47,7 @@ import { studyProgress, type StudyProgress } from '../study/progress';
 import { stepLine } from '../study/studyText';
 import { GuideEditorScreen } from '../guides/GuideEditor';
 import { space, TINT } from '../ui/theme';
+import { NoteStepContext } from '../checks/noteStep';
 
 /** The passage, its guide and the team's progress, derived from the record. */
 function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress } | { v: PassageView | null; guide: null; sp: null } {
@@ -69,12 +70,13 @@ function Missing(props: { ctx: Ctx; title: string; v: PassageView | null }) {
 
 // ---- the reader (STUDY-2..5, STUDY-7) ------------------------------------------------------
 
+// The study is the drafting team's, so notes written in it are the recording's (decisions.md 110).
 export function StudyGuide(ctx: Ctx) {
-  return <StudyReader ctx={ctx} title={screenTitle('study_guide')} />;
+  return <NoteStepContext.Provider value={RECORD_STEP}><StudyReader ctx={ctx} title={screenTitle('study_guide')} /></NoteStepContext.Provider>;
 }
 
 export function StudyStep(ctx: Ctx) {
-  return <StudyReader ctx={ctx} title={screenTitle('study_step')} stepId={ctx.params['stepId']} />;
+  return <NoteStepContext.Provider value={RECORD_STEP}><StudyReader ctx={ctx} title={screenTitle('study_step')} stepId={ctx.params['stepId']} /></NoteStepContext.Provider>;
 }
 
 function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {

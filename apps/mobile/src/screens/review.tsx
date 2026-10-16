@@ -21,7 +21,7 @@
 // keyTermLinksFor) and written with core recordReview / produceContent. A
 // review is grow-only, so sending it offers no Undo.
 import {
-  checkShows, commands, derivePassage, keyTermLinksFor, languageName, questionsForKind, SHOWN,
+  checkShows, commands, derivePassage, keyTermLinksFor, languageName, questionsForKind, RECORD_STEP, SHOWN,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -64,6 +64,8 @@ import type { StudyGuide } from '../study/guides';
 import { studyProgress } from '../study/progress';
 import { C, space, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
+import { NoteStepContext } from '../checks/noteStep';
+import { anyFrom, fromFilter } from '../checks/showsModel';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
 const SHEET_GAP_MS = 400;
@@ -81,7 +83,8 @@ function voiceCard(hash: string, card?: { durationMs: number; format: 'wav' | 'm
 
 /** Listen (with the background, unless the kind withholds it), answer, give your verdict (REV-0..4). */
 export function ReviewCapture(ctx: Ctx) {
-  return <Capture ctx={ctx} logged={false} />;
+  // Notes written while reviewing are this check's (decisions.md 110).
+  return <NoteStepContext.Provider value={ctx.params['kindId']}><Capture ctx={ctx} logged={false} /></NoteStepContext.Provider>;
 }
 
 // ---- Already happened (add_record) ---------------------------------------------------------
@@ -157,7 +160,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const questions = useMemo(() => v ? questionsForKind(v.state, kindId, request) : [], [v?.state, kindId, request]);
   const guide = useStudyGuide(ctx, v?.unitId);
   // What the check shows (decisions.md 110): Background has only that, and is not there when it shows nothing.
-  const shows = useMemo(() => (v ? checkShows(v.state, kindId) : null), [v?.state, kindId]);
+  const shows = useMemo(() => (v ? { ...checkShows(v.state, kindId), notes: anyFrom(v.state, kindId, 'notes'), earlier: anyFrom(v.state, kindId, 'earlier') } : null), [v?.state, kindId]);
+  const earlierFrom = useMemo(() => (v ? fromFilter(v.state, kindId, 'earlier') : undefined), [v?.state, kindId]);
   const anyShown = !!shows && SHOWN.some((w) => shows[w]);
   const context = useMemo(() => v && version && kind ? backgroundFor(ctx, v, kindId, version.takeId, guide) : null,
     [v?.state, v?.p, kindId, version?.takeId, kind, guide]);
@@ -514,6 +518,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 
       {sheet === 'background' && context && shows ? (
         <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind} shows={shows}
+          {...(earlierFrom ? { earlierFrom } : {})}
           {...(bible ? { bible } : {})}
           onClose={() => { setSheet(null); setBible(null); }}
           onOpenTerm={(termId) => afterSheet(() => ctx.go('key_term_detail', { termId, unitId: v.unitId, languageId: v.languageId }))}
@@ -615,7 +620,10 @@ function helpRowHelp(h: HelpRow): string {
 function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
   const { state, p } = v;
   const terms = keyTermLinksFor(state, takeId).map((l) => l.term);
-  const notes = p.notes.filter((n) => n.anchor.kind !== 'study');
+  // Notes and earlier reviews from the steps this check shows (decisions.md 110).
+  const notesFrom = fromFilter(state, kindId, 'notes');
+  const earlierFrom = fromFilter(state, kindId, 'earlier');
+  const notes = p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP));
   const versionN = (id: string) => p.versions.find((x) => x.takeId === id)?.n;
   const anchor = (n: PassageNote) => noteAnchorText(n.anchor, { term: (id) => state.keyTerms[id]?.term, versionN });
   const olderVersion = (n: PassageNote) => {
@@ -624,7 +632,7 @@ function backgroundFor(ctx: Ctx, v: PassageView, kindId: string, takeId: string,
   };
   const study = guide ? studyProgress(state, p, guide) : null;
   const compare = toCompareFor(p, v.kinds, kindId);
-  const earlier = earlierReviews(p, v.kinds, kindId);
+  const earlier = earlierReviews(p, v.kinds, kindId).filter((r) => earlierFrom(r.kindId));
   return { terms, notes, anchor, olderVersion, study, compare, earlier };
 }
 

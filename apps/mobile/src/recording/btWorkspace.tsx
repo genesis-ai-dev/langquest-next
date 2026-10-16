@@ -12,7 +12,7 @@
 // part starts (`atMs`), and Publish puts them in one core produceContent,
 // in part order. Publishing returns to the passage record with
 // `published=bt:<time>`, where the next check is asked (demo ADR-034).
-import { checkShows, commands, DEFAULT_KINDS, keyTermsForUnit, type EventSpec, type KindDef, type PassageNote, type Version } from '@langquest-next/core';
+import { checkShows, commands, DEFAULT_KINDS, keyTermsForUnit, RECORD_STEP, type EventSpec, type KindDef, type PassageNote, type Version } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -49,6 +49,7 @@ import { useOnTooShort, useRecorder, type RecordedCard } from './useRecorder';
 import { spanName } from './verseModel';
 import { VoiceNote } from '../audio/voiceNote';
 import { RefChips, type ChipItem } from './blocks';
+import { anyFrom, fromFilter } from '../checks/showsModel';
 import { BiblePane, EarlierPane, KeyWordsPane, NotesPane } from '../helps/reference';
 import { useBible } from '../helps/useBible';
 import { useStudyGuide } from '../study/useStudyGuides';
@@ -84,15 +85,17 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
   const unitTerms = useMemo(() => keyTermsForUnit(state, unitId), [state, unitId]);
-  const passageNotes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
+  const notesFrom = useMemo(() => fromFilter(state, kind.id, 'notes'), [state, kind.id]);
+  const earlierFrom = useMemo(() => fromFilter(state, kind.id, 'earlier'), [state, kind.id]);
+  const passageNotes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP)), [p.notes, notesFrom]);
   type TopChip = 'version' | 'bible' | 'guide' | 'terms' | 'notes' | 'earlier';
   const topChips: ChipItem<TopChip>[] = [
     { id: 'version', label: t('backTranslation.chips.version', { n: of.n }), icon: 'mic' },
     ...(bible.hasVerses && (shows.bibleAudio || shows.bibleText) ? [{ id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') }] : []),
     ...(study && (shows.guideAudio || shows.guideText) ? [{ id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') }] : []),
     ...(shows.terms ? [{ id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') }] : []),
-    ...(shows.notes ? [{ id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: passageNotes.length, hint: t('translate.chips.notesHint') }] : []),
-    ...(shows.earlier ? [{ id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }] : [])
+    ...(anyFrom(state, kind.id, 'notes') ? [{ id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: passageNotes.length, hint: t('translate.chips.notesHint') }] : []),
+    ...(anyFrom(state, kind.id, 'earlier') ? [{ id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }] : [])
   ];
   const [topState, setTop] = useState<TopChip>('version');
   const top = topChips.some((c) => c.id === topState) ? topState : 'version';
@@ -235,7 +238,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
                 ) : top === 'notes' ? (
                   <NotesPane ctx={ctx} v={v} notes={passageNotes} disabled={blocked} />
                 ) : top === 'earlier' ? (
-                  <EarlierPane ctx={ctx} v={v} />
+                  <EarlierPane ctx={ctx} v={v} from={earlierFrom} />
                 ) : (
                   <>
                     {request && (request.note || request.noteBlobHash) ? <RequestBanner ctx={ctx} request={request} /> : null}

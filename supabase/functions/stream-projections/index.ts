@@ -21267,7 +21267,7 @@ function validateEvent(e) {
     case "v1.CheckHelpSet":
       return str("kindId") ?? bool("linked") ?? (p["itemId"] === void 0 === (p["materialId"] === void 0) ? "exactly one of itemId, materialId" : null) ?? (p["itemId"] === void 0 || nonEmpty(p["itemId"]) ? null : "itemId must be a non-empty string") ?? (p["materialId"] === void 0 || nonEmpty(p["materialId"]) ? null : "materialId must be a non-empty string");
     case "v1.CheckShowsSet":
-      return str("kindId") ?? oneOf("what", SHOWN) ?? bool("shown");
+      return str("kindId") ?? oneOf("what", SHOWN) ?? bool("shown") ?? (p["from"] === void 0 ? null : !nonEmpty(p["from"]) ? "from must be a non-empty string" : p["what"] === "notes" || p["what"] === "earlier" ? null : "from is only for notes and earlier");
     case "v1.VersionReleased":
       return str("takeId", "channel") ?? bool("live") ?? (p["url"] === void 0 || nonEmpty(p["url"]) ? null : "url must be a non-empty string") ?? // Characters, as SQL length() counts them.
       ([...p["channel"]].length <= 60 ? null : "channel must be at most 60 characters");
@@ -21298,7 +21298,7 @@ function validateEvent(e) {
     case "v1.RequestWithdrawn":
       return str("requestId");
     case "v1.NoteAdded":
-      return str("noteId", "unitId") ?? optStr("text", "blobHash", "photoHash", "onTakeId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
+      return str("noteId", "unitId") ?? optStr("text", "blobHash", "photoHash", "onTakeId", "kindId") ?? anchor(p["anchor"]) ?? (!p["text"] && !p["blobHash"] && !p["photoHash"] ? "a note needs text, audio or a photo" : null);
     case "v1.StudyStepMarked":
       return str("unitId", "guideId", "stepId") ?? bool("done");
     case "v1.MaterialDefined":
@@ -21511,8 +21511,8 @@ function applyLanguageEvent(state, event) {
       break;
     }
     case "v1.CheckShowsSet": {
-      const { kindId, what, shown } = event.payload;
-      lww((state.checkShows ??= {})[kindId] ??= {}, what, event, shown);
+      const { kindId, what, shown, from } = event.payload;
+      lww((state.checkShows ??= {})[kindId] ??= {}, from !== void 0 ? `${what}@${from}` : what, event, shown);
       break;
     }
     case "v1.VersionReleased": {

@@ -32,6 +32,7 @@ import { clockMs, questionSource, YES_NO, yesNoLabel, type Stage, type StageId }
 import { TeamStudyPart } from './parts';
 import { EarlierPane, VerseDot, VerseDots } from '../helps/reference';
 import { offersFor } from '../sources/model';
+import { useNoteStep } from '../checks/useNoteStep';
 import { lift } from '../ui/shadow';
 import { usePassagePlayer } from '../sources/usePassagePlayer';
 import type { Usage } from '../sources/useUsage';
@@ -170,6 +171,7 @@ export function BackgroundSheet(props: {
   bible?: string;
   /** What the check shows (decisions.md 110); a Bible from its helps opens whatever it says. */
   shows: Shows;
+  /** Which steps' earlier work shows. */ earlierFrom?: (step: string) => boolean;
 }) {
   const { ctx, v, data, shows } = props;
   const bibleShown = shows.bibleAudio || shows.bibleText || !!props.bible;
@@ -226,7 +228,7 @@ export function BackgroundSheet(props: {
         )
       ) : null}
       {/* Every version and what was said about each, as the recorder shows them (decision 91). */}
-      {tab === 'earlier' ? <EarlierPane ctx={ctx} v={v} /> : null}
+      {tab === 'earlier' ? <EarlierPane ctx={ctx} v={v} {...(props.earlierFrom ? { from: props.earlierFrom } : {})} /> : null}
     </TallSheet>
   );
 }
@@ -453,13 +455,14 @@ function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string;
   const [text, setText] = useState('');
   const [hash, setHash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const step = useNoteStep();
   async function save() {
     const state = ctx.language.state;
     if (!state || busy) return;
     setBusy(true);
     try {
       await ctx.act(commands(state, indexesFor(state)).addNote({
-        commandId: Crypto.randomUUID(), unitId: v.unitId,
+        commandId: Crypto.randomUUID(), unitId: v.unitId, ...(step ? { kindId: step } : {}),
         anchor: { kind: 'verse', verse: props.verse, ...(props.translation ? { translation: props.translation } : {}), ...(props.at ? { at: props.at } : {}) },
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
       }), t('review.simple.noteAdded'));

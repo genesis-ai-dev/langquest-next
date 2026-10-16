@@ -131,8 +131,8 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
     }
 
     case 'v1.CheckShowsSet': {
-      const { kindId, what, shown } = event.payload;
-      lww((state.checkShows ??= {})[kindId] ??= {}, what, event, shown);
+      const { kindId, what, shown, from } = event.payload;
+      lww((state.checkShows ??= {})[kindId] ??= {}, from !== undefined ? `${what}@${from}` : what, event, shown);
       break;
     }
 

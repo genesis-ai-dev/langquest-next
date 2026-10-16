@@ -123,8 +123,11 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
    * and earlier work. `kindId` is a check, or `record` (RECORD_STEP) for
    * recording a version. Register per (kind, what); without one a step shows
    * everything, except a kind that withholds context, which shows nothing.
+   * Notes and earlier versions are chosen by the step they came from:
+   * `from` names it (`record` or a check), a register per (kind, what,
+   * from) that falls back to the (kind, what) one.
    */
-  'v1.CheckShowsSet': { kindId: string; what: ShownWhat; shown: boolean };
+  'v1.CheckShowsSet': { kindId: string; what: ShownWhat; shown: boolean; from?: string };
   /**
    * A distribution channel reports a version live, or taken down
    * (decisions.md 72): "v3 is live in the EL app". A fact, not a verdict.

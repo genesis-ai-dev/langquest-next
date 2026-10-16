@@ -4,7 +4,7 @@
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
 // lit, a note on a verse or a moment), key words (hear each, your word or
 // say yours, add a word), notes, and everything recorded so far.
-import { commands, keyTermsFor, type KeyTermView, type PassageNote } from '@langquest-next/core';
+import { commands, keyTermsFor, RECORD_STEP, type KeyTermView, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -38,6 +38,7 @@ import { Back10, DashedBtn, MiniPlayer, PlayBtn, PlayRow } from '../recording/bl
 import { styles as ps } from '../recording/blockStyles';
 import { useClip } from '../audio/useClip';
 import { noteLabel } from './referenceText';
+import { useNoteStep } from '../checks/useNoteStep';
 import type { useBible } from './useBible';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
@@ -548,13 +549,14 @@ export function RequestNote(props: { ctx: Ctx; request: Parameters<typeof Reques
 
 /** A note by voice or text on the passage, a verse or a moment. */
 export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; title: string; where: string; anchor: Parameters<typeof saveNote>[2]; onClose: () => void; message?: string }) {
+  const step = useNoteStep();
   const [text, setText] = useState('');
   const [hash, setHash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
     <Sheet visible title={props.title} sub={t('reference.notes.sheetSub')} onClose={props.onClose}
       footer={<PrimaryBtn label={t('reference.notes.save')} busy={busy} disabled={!text.trim() && !hash}
-        onPress={() => { setBusy(true); void saveNote(props.ctx, props.v, props.anchor, { text, blobHash: hash }, props.message ?? t('reference.notes.added')).then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
+        onPress={() => { setBusy(true); void saveNote(props.ctx, props.v, props.anchor, { text, blobHash: hash }, props.message ?? t('reference.notes.added'), step).then((ok) => { setBusy(false); if (ok) props.onClose(); }); }} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>
       <VoiceNote ctx={props.ctx} label={t('common.sayIt')} hash={hash} onChange={setHash} />
       <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} help={t('reference.notes.typeHelp')} multiline />
@@ -571,12 +573,14 @@ interface EarlierItem { key: string; hlc: string; title: string; sub: string; ha
  * oldest first: its versions (and what changed), the feedback on them, and
  * voice notes. Each plays where it is.
  */
-export function EarlierPane(props: { ctx: Ctx; v: PassageView; focusReviewId?: string }) {
+export function EarlierPane(props: { ctx: Ctx; v: PassageView; focusReviewId?: string;
+  /** Which steps' work shows (decisions.md 110): `record` for versions and notes written while recording, else a check. */ from?: (step: string) => boolean }) {
   const { ctx, v } = props;
   const me = ctx.session.actorId;
   const items = useMemo<EarlierItem[]>(() => {
     const out: EarlierItem[] = [];
-    for (const x of v.p.versions) {
+    const from = props.from ?? (() => true);
+    for (const x of from(RECORD_STEP) ? v.p.versions : []) {
       const who = x.by === me ? t('reference.earlier.yours') : ctx.name(x.by);
       out.push({ key: x.takeId, hlc: x.hlc, title: versionTitle(x.n), sub: who, after: when(x.hlc), hashes: x.cardHashes });
       if (x.changeBlobHash || (x.changeNote && x.n > 1)) {
@@ -584,6 +588,7 @@ export function EarlierPane(props: { ctx: Ctx; v: PassageView; focusReviewId?: s
       }
     }
     for (const r of v.p.reviews) {
+      if (!from(r.kindId)) continue;
       const kind = v.kind(r.kindId);
       const mine = r.by === me;
       const name = ctx.name(r.by);
@@ -606,7 +611,7 @@ export function EarlierPane(props: { ctx: Ctx; v: PassageView; focusReviewId?: s
       }
     }
     for (const n of v.p.notes) {
-      if (!n.blobHash || n.anchor.kind === 'study' || (n.anchor.kind === 'version' && n.anchor.role === 'change')) continue;
+      if (!n.blobHash || n.anchor.kind === 'study' || (n.anchor.kind === 'version' && n.anchor.role === 'change') || !from(n.kindId ?? RECORD_STEP)) continue;
       const verse = n.anchor.kind === 'verse' ? keyLabel(n.anchor.verse.slice(n.anchor.verse.indexOf(':') + 1)) : null;
       const title = n.by === me
         ? (verse ? t('reference.earlier.yourNoteOnVerse', { verse }) : t('reference.earlier.yourNote'))
@@ -614,7 +619,7 @@ export function EarlierPane(props: { ctx: Ctx; v: PassageView; focusReviewId?: s
       out.push({ key: n.id, hlc: n.hlc, title, sub: when(n.hlc), hashes: [n.blobHash], ...(n.text ? { text: n.text } : {}) });
     }
     return out.sort((a, b) => (a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : 0));
-  }, [v, ctx, me, props.focusReviewId]);
+  }, [v, ctx, me, props.focusReviewId, props.from]);
   if (items.length === 0) return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.earlier.empty')}</Text>;
   return (
     <View style={styles.card}>
