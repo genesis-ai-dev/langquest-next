@@ -1,4 +1,4 @@
-// A draft kept on this phone as it changes (draftModel.ts, decision 112).
+// A draft kept on this phone as it changes (draftModel.ts, decision 124).
 // The screen holds the value; a moment after each change it is written, and
 // the mark in the header turns from a spinner into a check. An empty value
 // removes the draft. `clear` drops it when the thing is finished.

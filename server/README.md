@@ -79,6 +79,13 @@ Field diagnostics (`*_field_diagnostics.sql`, docs/diagnostics.md): schema
 `diag`, not exposed by the API. Phones deliver content-free records through
 `diag_ingest`; support reads them as `diag_reader` with `npm run diag`.
 `diag-smoke.sql` covers it in `npm run db:test`.
+The server's own jobs leave one content-free row per run in `diag.job_runs`
+(`*_diag_jobs.sql`): the projection passes, push delivery, the v2 import,
+webhook dispatch, invite email, and the dashboard Worker's cron and request
+tally. They write through `public.diag_job_ingest` (service role only) with
+`server/jobRuns.ts`, which gives up after three seconds and never fails the
+job. `diag.jobs()` says which are stale or failing; `diag.job_schedule`
+holds each job's schedule, so change it with the file that sets the cron.
 
 Dashboard reports (decision 44) are not stored here. The dashboard's own
 Worker (`apps/web/worker`) reads the server snapshots this worker writes and

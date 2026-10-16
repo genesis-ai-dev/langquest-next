@@ -348,7 +348,7 @@ function SayYours(props: { onPress: () => void; term: string }) {
   );
 }
 
-/** Say (or type) the language's word for a key term: kept as a draft only you see until Add your word (decision 112). */
+/** Say (or type) the language's word for a key term: kept as a draft only you see until Add your word (decision 124). */
 function SayYoursSheet(props: { ctx: Ctx; v: PassageView; term: KeyTermView; draftTakeId: string | undefined; canTie: boolean; onClose: () => void }) {
   const { ctx, v, term } = props;
   const draft = useDraft(draftKey('word', ctx.session.actorId, v.languageId, v.unitId, term.termId), EMPTY_NOTE, isNoteDraft);
@@ -412,7 +412,7 @@ function isNewWordDraft(x: unknown): x is NewWordDraft {
  */
 function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | undefined; rows: VerseRow[] | null; bibleName: string; onClose: () => void }) {
   const { ctx, v } = props;
-  // What is typed, said or taken is kept as a draft only you see until Add the word (decision 112).
+  // What is typed, said or taken is kept as a draft only you see until Add the word (decision 124).
   const draft = useDraft(draftKey('word', ctx.session.actorId, v.languageId, v.unitId, 'new'), EMPTY_WORD, isNewWordDraft);
   const { term, gloss, hash, rendering, taken } = draft.value;
   const put = (change: Partial<NewWordDraft>) => draft.set((d) => ({ ...d, ...change }));
@@ -537,7 +537,7 @@ function noteDraftAt(anchor: NoteAnchor): string {
 
 /**
  * A note by voice or text on the passage, a verse or a moment. What is said
- * or typed is kept as a draft only you see (decision 112): closing keeps it
+ * or typed is kept as a draft only you see (decision 124): closing keeps it
  * for the next note there, Add a note puts it on the record and drops it.
  */
 export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; title: string; where: string; anchor: NoteAnchor; onClose: () => void; message?: string }) {

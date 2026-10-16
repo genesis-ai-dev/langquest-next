@@ -672,7 +672,7 @@ test('SETUP-038 Edit a template; leaving keeps the draft', async ({ page }) => {
   await contentTemplates(page, w);
   await cardWith(page, name, 'Edit').getByRole('button', { name: 'Edit', exact: true }).click();
   await field(page, 'What it\'s for').fill('The four gospels first.');
-  // Kept on this device as it changes (decision 112): the header's saved mark turns into a check.
+  // Kept on this device as it changes (decision 124): the header's saved mark turns into a check.
   await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
   // Back leaves at once: nothing asks, and nothing is published.
   await back(page).click();

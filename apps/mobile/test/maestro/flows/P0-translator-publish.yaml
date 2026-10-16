@@ -64,7 +64,7 @@ tags:
 - tapOn:
     id: "publish-button"
 - assertVisible: "(?i)Next check"
-# Done: one tap publishes Version 1 and asks the Peer check team (decision 112).
+# Done: one tap publishes Version 1 and asks the Peer check team (decision 124).
 - tapOn:
     text: "Ask the Peer check team"
     waitToSettleTimeoutMs: 0

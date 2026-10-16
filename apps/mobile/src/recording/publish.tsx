@@ -1,4 +1,4 @@
-// Done, as its own screen inside the recording workspace (decision 112,
+// Done, as its own screen inside the recording workspace (decision 124,
 // replacing Publish; demo ADR-034, simple/translator.tsx Publish; REC-W3,
 // REC-W4): hear the version once more, say something about it (voice first;
 // needed from Version 2 on, where it says what changed), and send it to the

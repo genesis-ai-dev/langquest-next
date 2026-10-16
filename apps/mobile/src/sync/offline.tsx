@@ -19,11 +19,13 @@ import { STUDY_FILES_OFFLINE } from '../study/studyFiles';
 import { C, onColor, space, TINT } from '../ui/theme';
 import { offlineLine, type KeptOffline, type OfflineOverview, withStudy } from './offlineText';
 import { useStudyRevision } from './useOfflineSummary';
+import { useSyncStatus } from './useSyncStatus';
 
 /** Offline counts for these passages, recomputed when files arrive, leave, or a passage is kept. */
 function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
   const state = ctx.language.state;
-  const { present, keptUnits } = ctx.language.blobs;
+  const { present } = useSyncStatus();
+  const { keptUnits } = ctx.language.blobs;
   const me = ctx.session.actorId;
   const rev = useStudyRevision();
   const key = unitIds.join(',');

@@ -90,7 +90,7 @@ export async function say(page: Page, ms: number, quietMs = 2000): Promise<void>
 
 export const recordButton = (page: Page): Locator => byId(page, 'record-button');
 export const publishButton = (page: Page): Locator => byId(page, 'publish-button');
-/** The saved mark in the header (decision 112): a spinner while a part is kept, then a check ("Saved"). */
+/** The saved mark in the header (decision 124): a spinner while a part is kept, then a check ("Saved"). */
 export const savedMark = (page: Page): Locator => byId(page, 'saved-mark');
 
 /** The passage record's Record step row ("1. Record. …"). */

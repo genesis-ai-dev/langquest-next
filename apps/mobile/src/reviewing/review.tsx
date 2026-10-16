@@ -433,7 +433,7 @@ function NotesBy(props: { open: boolean; label: string; names: string; onPress: 
 /**
  * A note on a verse of the Bible, where it was paused: it follows the passage
  * (a verse note, as the study and the recorder leave). What is said or typed
- * is kept as a draft only you see (decision 112): Close keeps it for the next
+ * is kept as a draft only you see (decision 124): Close keeps it for the next
  * note on this verse, Add note puts it on the record and drops it.
  */
 function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string; translation: string; onDone: () => void }) {

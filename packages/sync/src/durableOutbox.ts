@@ -9,13 +9,35 @@ export interface AccountAction {
   payload: Record<string, unknown>;
   status: 'queued' | 'sent' | 'failed';
   error?: string;
+  /** When it was queued (ms); rows queued before this was kept have none. */
+  queuedAt?: number;
+  /** Deliveries that failed since it was queued or retried by hand, and when one was last told to `onFailure`. */
+  tries?: number;
+  notedAt?: number;
 }
+/** `code`: the server's fixed code for the refusal (a SQLSTATE), or our own; never its message. */
 export class DeliveryError extends Error {
-  constructor(message: string, readonly retryable: boolean) { super(message); }
+  constructor(message: string, readonly retryable: boolean, readonly code?: string) { super(message); }
 }
-/** The action with a new status and no error left over from an earlier try. */
+
+/**
+ * A delivery that failed, for diagnostics: what kind of change, whether it
+ * will be tried again, how many tries so far and how long it has waited.
+ * Never the payload. A change failing again is told at most once an hour.
+ */
+export interface OutboxFailure {
+  kind: AccountAction['kind'];
+  outcome: 'retry' | 'failed';
+  error: unknown;
+  attempt: number;
+  ageMs?: number;
+}
+
+const NOTE_EVERY_MS = 3_600_000;
+
+/** The action with a new status and no error or tries left over from an earlier one. */
 function cleared(r: AccountAction, status: AccountAction['status']): AccountAction {
-  const { error: _error, ...rest } = r;
+  const { error: _error, tries: _tries, notedAt: _notedAt, ...rest } = r;
   return { ...rest, status };
 }
 export class DurableOutbox {
@@ -26,8 +48,13 @@ export class DurableOutbox {
   constructor(
     readonly actorId: string,
     private storage: OutboxStorage,
-    private deliver: (action: AccountAction) => Promise<void>
+    private deliver: (action: AccountAction) => Promise<void>,
+    private opts: { onFailure?: (failure: OutboxFailure) => void; now?: () => number } = {}
   ) { this.key = `account-outbox:${actorId}`; }
+
+  private now(): number {
+    return this.opts.now?.() ?? Date.now();
+  }
 
   subscribe(listener: (reason: 'queued' | 'updated') => void): () => void {
     this.listeners.add(listener);
@@ -54,8 +81,9 @@ export class DurableOutbox {
   }
   async enqueue(action: Omit<AccountAction, 'status'>) {
     if (this.actorId === 'guest') throw new Error('Sign in first.');
+    const queuedAt = this.now();
     await this.mutate((rows) => rows.some((r) => r.id === action.id)
-      ? rows : [...rows, { ...action, status: 'queued' }], 'queued');
+      ? rows : [...rows, { ...action, status: 'queued', queuedAt }], 'queued');
   }
   retry(id: string) {
     return this.mutate((rows) => rows.map((r) => r.id === id
@@ -77,9 +105,20 @@ export class DurableOutbox {
           ? cleared(r, 'sent') : r));
       } catch (error) {
         const retryable = !(error instanceof DeliveryError) || error.retryable;
+        const now = this.now();
+        const tries = (action.tries ?? 0) + 1;
+        const note = !retryable || action.notedAt === undefined || now - action.notedAt >= NOTE_EVERY_MS;
         await this.mutate((rows) => rows.map((r) => r.id === action.id
-          ? { ...r, status: retryable ? 'queued' : 'failed',
+          ? { ...r, status: retryable ? 'queued' : 'failed', tries, ...(note ? { notedAt: now } : {}),
             error: error instanceof Error ? error.message : String(error) } : r));
+        if (note) {
+          try {
+            this.opts.onFailure?.({
+              kind: action.kind, outcome: retryable ? 'retry' : 'failed', error, attempt: tries,
+              ...(action.queuedAt !== undefined ? { ageMs: now - action.queuedAt } : {})
+            });
+          } catch { /* diagnostics never stop a delivery */ }
+        }
         if (retryable) return false;
       }
     }

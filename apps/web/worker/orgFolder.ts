@@ -36,15 +36,30 @@ export class MemoryCache implements OrgCache {
 const MAX_AGE_MS = 60_000;
 /** A language's fold is written to the cache when it has moved this far since the last write. */
 export const STATE_SAVE_EVERY = 500;
-/** Whole folds kept in memory, most recently used; the rest are read back from the cache when they move. */
-const STATES_IN_MEMORY = 8;
+/**
+ * Whole folds kept in memory, most recently used first out, by the size of
+ * their serialized text (a parsed fold takes several times that in V8's
+ * heap, in an isolate of 128 MB). The rest are read back from the cache when
+ * they move. One fold is always kept, however large.
+ */
+export const STATE_BUDGET_BYTES = 40_000_000;
+/** A language whose fold is at least this big is refreshed alone; smaller ones run PARALLEL at a time. */
+export const LARGE_STATE_BYTES = 2_000_000;
 const PAGE = 1000;
 const PARALLEL = 4;
+
+/** Memory limits; tests set small ones. */
+export interface FolderLimits {
+  stateBudgetBytes?: number;
+  largeStateBytes?: number;
+}
 
 interface Held<S> {
   state: S;
   /** serverSeq of the newest event folded in. */
   cursor: number;
+  /** Length of the fold as serialized text: read, packed or measured. Absent until one of those has happened. */
+  bytes?: number | undefined;
   /** Folded again from the start because a redaction reached into it; the cache must not keep the old fold. */
   refolded?: boolean;
 }
@@ -59,6 +74,8 @@ interface Summary {
   orgCursor: number;
   day: string;
   report: LanguageReport | null;
+  /** Serialized size of the fold when the summary was made; decides whether a pass refreshes the language alone. Absent in summaries written before it existed (treated as small). */
+  bytes?: number;
 }
 
 const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
@@ -91,8 +108,20 @@ export class OrgFolder {
     private readonly orgId: string,
     private readonly cache: OrgCache = new MemoryCache(),
     private readonly now: () => number = Date.now,
-    private readonly maxAgeMs = MAX_AGE_MS
-  ) {}
+    private readonly maxAgeMs = MAX_AGE_MS,
+    limits: FolderLimits = {}
+  ) {
+    this.stateBudget = limits.stateBudgetBytes ?? STATE_BUDGET_BYTES;
+    this.largeState = limits.largeStateBytes ?? LARGE_STATE_BYTES;
+  }
+
+  private readonly stateBudget: number;
+  private readonly largeState: number;
+
+  /** The languages whose folds are held in memory, least recently used first (for tests and diagnostics). */
+  heldLanguages(): string[] {
+    return [...this.states.keys()];
+  }
 
   /**
    * The caller's languages, caught up if the snapshot is stale or `fresh` is
@@ -164,7 +193,7 @@ export class OrgFolder {
       const org = this.org!.state;
       if (!languageInfo(org, languageId)) return null;
       const held = await this.catchUp(languageId, await this.stateOf(languageId), emptyLanguageState, foldLanguage);
-      this.keep(languageId, { state: held.state, cursor: held.cursor });
+      this.keep(languageId, held);
       return { org, state: held.state };
     });
   }
@@ -184,10 +213,36 @@ export class OrgFolder {
       this.org = next;
     }
     const ids = orgLanguages(this.org!.state).map((l) => l.languageId);
-    for (let i = 0; i < ids.length; i += PARALLEL) {
-      await Promise.all(ids.slice(i, i + PARALLEL).map((id) => this.refreshLanguage(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt)));
+    // Small languages run PARALLEL at a time; a large one (by the size its
+    // last summary recorded) runs alone, since one parsed fold can fill the
+    // isolate. A language with no recorded size counts as small.
+    for (const id of ids) {
+      if (this.summaries.has(id)) continue;
+      const restored = await this.restoreSummary(id);
+      if (restored) this.summaries.set(id, restored);
     }
+    const run = (id: string) => this.refreshLanguage(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt);
+    let batch: string[] = [];
+    const flush = async () => {
+      const now = batch;
+      batch = [];
+      await Promise.all(now.map(run));
+    };
+    for (const id of ids) {
+      if (this.isLarge(id)) {
+        await flush();
+        await run(id);
+      } else {
+        batch.push(id);
+        if (batch.length >= PARALLEL) await flush();
+      }
+    }
+    await flush();
     this.refreshedAt = startedAt;
+  }
+
+  private isLarge(id: string): boolean {
+    return (this.summaries.get(id)?.bytes ?? this.states.get(id)?.bytes ?? 0) >= this.largeState;
   }
 
   /** Bring one language's summary up to date, folding only when it moved, the day turned or the organization changed. */
@@ -208,18 +263,27 @@ export class OrgFolder {
     const tail = peeked && known?.cursor === summary?.cursor ? peeked
       : known && head !== undefined && head <= known.cursor ? [] : undefined;
     const held = await this.catchUp(id, known, emptyLanguageState, foldLanguage, tail);
-    this.keep(id, { state: held.state, cursor: held.cursor });
     const info = languageInfo(org.state, id);
     const next: Summary = { cursor: held.cursor, orgCursor: org.cursor, day, report: info ? languageReport(held.state, info, at) : null };
-    this.summaries.set(id, next);
-    if (held.cursor === 0) return; // nothing in the log yet, nothing worth keeping
+    if (held.cursor === 0) { // nothing in the log yet, nothing worth keeping
+      this.summaries.set(id, next);
+      this.keep(id, held);
+      return;
+    }
     // Like a phone's checkpoint: a fold read back later catches up from its own cursor, so it need not be written every pass.
     const last = this.saved.get(id);
     if (last === undefined || held.refolded || held.cursor - last >= STATE_SAVE_EVERY) {
+      // The packed text is a temporary: nothing holds it once the write is done.
       await this.cache.put(`state:${id}`, this.pack(held));
       this.saved.set(id, held.cursor);
     }
+    if (held.bytes !== undefined) next.bytes = held.bytes;
+    this.summaries.set(id, next);
     await this.cache.put(`summary:${id}`, JSON.stringify({ v: REDUCER_VERSION, rv: REPORT_VERSION, ...next }));
+    // A large fold that is in the cache at this cursor is let go rather than
+    // held until the budget needs the room; an API read restores it.
+    if (held.bytes !== undefined && held.bytes >= this.largeState && this.saved.get(id) === held.cursor) this.states.delete(id);
+    else this.keep(id, held);
   }
 
   /** A language's fold: from memory, else the cache, else the server snapshot, else nothing (fold from zero). */
@@ -231,26 +295,42 @@ export class OrgFolder {
       this.saved.set(id, cached.cursor);
       return cached;
     }
-    const snapshot = await fetchSnapshot(this.source, this.orgId, id, REDUCER_VERSION);
-    return snapshot ? { state: snapshot.state, cursor: snapshot.serverSeq } : null;
+    const meta = await this.source.snapshotMeta(this.orgId, id, REDUCER_VERSION);
+    if (!meta) return null;
+    const snapshot = await fetchSnapshot(this.source, this.orgId, id, REDUCER_VERSION, { meta });
+    return snapshot ? { state: snapshot.state, cursor: snapshot.serverSeq, bytes: meta.bytes } : null;
   }
 
-  /** Hold a fold in memory, dropping the least recently used beyond the limit. */
+  /**
+   * Hold a fold in memory, dropping the least recently used until the held
+   * folds fit the byte budget (the newest always stays). A fold of unknown
+   * size is measured once.
+   */
   private keep(id: string, held: Held<LanguageState>): void {
+    held.bytes ??= JSON.stringify(held.state).length;
     this.states.delete(id);
-    this.states.set(id, held);
-    while (this.states.size > STATES_IN_MEMORY) this.states.delete(this.states.keys().next().value!);
+    this.states.set(id, { state: held.state, cursor: held.cursor, bytes: held.bytes });
+    let total = 0;
+    for (const h of this.states.values()) total += h.bytes ?? 0;
+    for (const [oldest, h] of this.states) {
+      if (total <= this.stateBudget || this.states.size <= 1) break;
+      this.states.delete(oldest);
+      total -= h.bytes ?? 0;
+    }
   }
 
+  /** The text kept in the cache; its length becomes the fold's recorded size. */
   private pack<S>(held: Held<S>): string {
-    return JSON.stringify({ v: REDUCER_VERSION, cursor: held.cursor, state: held.state });
+    const text = JSON.stringify({ v: REDUCER_VERSION, cursor: held.cursor, state: held.state });
+    held.bytes = text.length;
+    return text;
   }
 
   private async restore<S>(key: string): Promise<Held<S> | null> {
     const text = await this.cache.get(key);
     if (!text) return null;
     const saved = JSON.parse(text) as { v: number; cursor: number; state: S };
-    return saved.v === REDUCER_VERSION ? { state: saved.state, cursor: saved.cursor } : null;
+    return saved.v === REDUCER_VERSION ? { state: saved.state, cursor: saved.cursor, bytes: text.length } : null;
   }
 
   private async restoreSummary(id: string): Promise<Summary | null> {
@@ -275,7 +355,8 @@ export class OrgFolder {
     const state = apply(events, known && !redactsFolded ? known.state : empty());
     // Events at or below the cursor are never pulled again, so their ids need not be kept.
     state.appliedEventIds = {};
-    return { state, cursor: events.at(-1)?.serverSeq ?? known?.cursor ?? 0, refolded: redactsFolded };
+    // The size is the old fold's until it is packed or measured again.
+    return { state, cursor: events.at(-1)?.serverSeq ?? known?.cursor ?? 0, bytes: redactsFolded ? undefined : known?.bytes, refolded: redactsFolded };
   }
 
   private async pullAll(streamId: string, after: number): Promise<AnyEvent[]> {

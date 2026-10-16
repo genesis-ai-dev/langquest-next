@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { noteExpected, reportError } from '../diagnostics/report';
 import type { Session } from '../shell/session';
 import type { OrgHandle } from '../sync/useOrg';
+import { useSyncStatus } from '../sync/useSyncStatus';
 import type { LanguageHandle } from '../sync/useLanguage';
 import { flushOutbox, loadDocs } from './docStore';
 import { behindLibrary } from './model';
@@ -53,14 +54,23 @@ export function useLibraryFollow(language: LanguageHandle, org: OrgHandle, sessi
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `behind` is keyed by `key`
   }, [key, session]);
 
-  // Documents made here go to the server whenever this organization syncs.
+}
+
+/**
+ * Documents made here go to the server whenever this organization syncs.
+ * Its own hook, called by a component that draws nothing (App.tsx
+ * LibraryUpload): events not yet sent tick, and the shell must not redraw
+ * with them.
+ */
+export function useLibraryUpload(orgId: string, pulled: boolean): void {
+  const { orgPending } = useSyncStatus();
   useEffect(() => {
-    if (!org.pulled) return;
+    if (!pulled) return;
     void flushOutbox(orgId).catch((e: unknown) => {
       if (e instanceof Error && /network|fetch/i.test(e.message)) noteExpected('library upload', e);
       else reportError('library upload', e);
     });
-  }, [orgId, org.pulled, org.pending]);
+  }, [orgId, pulled, orgPending]);
 }
 
 /**

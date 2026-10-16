@@ -452,7 +452,7 @@ short:
   something without words (a coloured dot, a tick, a bar) says what it means.
   A new control gets its line (`help`, or a Row's `sub`) when it is built;
   `apps/mobile/test/helpParts.ts` holds it.
-- **What you make needs no saving** (decision 112): nothing asks "Leave
+- **What you make needs no saving** (decision 124): nothing asks "Leave
   without saving?". What someone makes (a recording, a review, a
   note, an editor's changes) is kept as they go, only for them, and a small
   mark in the header turns from a spinner to a check as it is kept. One

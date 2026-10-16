@@ -215,8 +215,8 @@ function actionHelp(id: RowAction['id']): string {
  * other ways forward) and "Versions and history" (a page of the person's
  * drafts and every published version to work on freely, then the full
  * record, decisions.md 83). With several drafts, Record opens that page to
- * pick one. Publishing comes back here to "Version N published" with the
- * likely next check picked (demo ADR-034).
+ * pick one. Done asks for the next check before coming back here
+ * (decision 124).
  */
 export function PassageRecord(ctx: Ctx) {
   const v = usePassage(ctx);
@@ -225,12 +225,12 @@ export function PassageRecord(ctx: Ctx) {
   const [overriding, setOverriding] = useState<string | null>(null);
   const [noting, setNoting] = useState<null | 'note' | 'say'>(null);
   // The record's pages: the path, "Something else?", asking for the next check, and every version (decisions.md 83).
-  // Done asks for the next check itself (decision 112), so the record opens on the path after it.
+  // Done asks for the next check itself (decision 124), so the record opens on the path after it.
   const [page, setPage] = useState<'path' | 'else' | 'ask' | 'versions'>('path');
   // Asking someone comes back to the path, where the request shows, even when it started from "Something else?".
   const askedParam = ctx.params['asked'];
   useEffect(() => { if (askedParam) setPage('path'); }, [askedParam]);
-  // Done's "Someone else" (decision 112): the version is on the record; choosing who to ask opens from here.
+  // Done's "Someone else" (decision 124): the version is on the record; choosing who to ask opens from here.
   const askSomeoneParam = ctx.params['askSomeone'];
   const goRef = useRef(ctx.go);
   goRef.current = ctx.go;
@@ -428,7 +428,7 @@ export function PassageRecord(ctx: Ctx) {
     );
   }
 
-  // ---- Ask for a check (demo a-ask; decision 91: each check with its people). Done asks in its own tap (decision 112). ----
+  // ---- Ask for a check (demo a-ask; decision 91: each check with its people). Done asks in its own tap (decision 124). ----
   if (page === 'ask') {
     const close = () => setPage('path');
     return (
@@ -631,7 +631,7 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
 
 function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; say?: boolean }) {
   const { ctx, v } = props;
-  // Kept as it is said or typed, only for whoever is writing it, until it is added (decision 112).
+  // Kept as it is said or typed, only for whoever is writing it, until it is added (decision 124).
   const draft = useDraft(draftKey('note', ctx.session.actorId, v.languageId, v.unitId, 'passage'), EMPTY_NOTE, isNoteDraft);
   const { text, hash } = draft.value;
   const [busy, setBusy] = useState(false);

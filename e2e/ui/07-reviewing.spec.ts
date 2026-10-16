@@ -579,7 +579,7 @@ test('REV-024 Leaving a review keeps it; opening it again brings it back', async
   await button(page, 'Needs changes').click();
   await button(page, 'Or type it').click();
   await field(page, 'Or type it — what worked, what didn\'t').fill('Too quiet at the start');
-  // Kept as it is made, only on this device: the header's saved mark turns into a check (decision 112).
+  // Kept as it is made, only on this device: the header's saved mark turns into a check (decision 124).
   await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
   // Back to Decide, then ✕: it leaves at once, with nothing to answer first, and sends nothing.
   await byId(page, 'header-back').click();

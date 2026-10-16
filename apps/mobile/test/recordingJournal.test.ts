@@ -1,4 +1,4 @@
-import { parseJournal, removeEntry, resumeEntries, upsertEntry, type JournalEntry, type ResumeDeps } from '../src/recording/recordingJournalModel';
+import { journalCounts, parseJournal, removeEntry, resumeEntries, upsertEntry, type JournalEntry, type ResumeDeps } from '../src/recording/recordingJournalModel';
 
 const target = { orgId: 'org', languageId: 'lang', unitId: 'passage' };
 const entry = (over: Partial<JournalEntry> = {}): JournalEntry => ({
@@ -132,6 +132,11 @@ vi.mock('../src/sync/store', () => ({ getStore: async () => ({
   }
 }) }));
 vi.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
+// Field diagnostics: the device probe the journal registers.
+const diag = vi.hoisted(() => ({ probes: new Map<string, () => unknown>() }));
+vi.mock('../src/diagnostics/diagnostics', () => ({
+  registerDeviceProbe: (name: string, probe: () => unknown) => { diag.probes.set(name, probe); return () => diag.probes.delete(name); }
+}));
 vi.mock('expo-file-system', () => ({
   Paths: { document: 'file:///documents' },
   File: class {
@@ -183,5 +188,38 @@ describe('durable journal storage', () => {
     disk.legacy = '{torn';
     await expect(new RecordingJournal().all()).rejects.toThrow();
     expect(disk.value).toBeUndefined();
+  });
+});
+
+describe('what the journal tells field diagnostics', () => {
+  beforeEach(() => {
+    disk.value = '[]'; disk.legacy = undefined; disk.fail = false; disk.reads = 0;
+  });
+
+  it('counts takes waiting, and of them the ones a recovery could not save', () => {
+    const entries = [entry(), entry({ id: 'rec-2' }), entry({ id: 'rec-3' })];
+    expect(journalCounts(entries, new Set())).toEqual({ journalPending: 3, journalFailed: 0 });
+    // A failure for a take no longer in the journal (saved since) is not counted.
+    expect(journalCounts(entries, new Set(['rec-2', 'gone']))).toEqual({ journalPending: 3, journalFailed: 1 });
+  });
+
+  it('a recovery that leaves takes unsaved is counted until they are saved', async () => {
+    const { RecordingJournal } = await import('../src/recording/recordingJournal');
+    const journal = new RecordingJournal();
+    // One take already in the store, one whose staging file the phone no longer has.
+    await journal.put(entry({ stage: 'ingested', hash: 'h-1' }));
+    await journal.put(entry({ id: 'rec-2', uri: 'file:///staging/b.wav' }));
+    const { d } = deps({ blobExists: (hash) => hash === 'h-1' });
+    const result = await journal.resume({ orgId: 'org', languageId: 'lang' }, d);
+    expect(result.failed.map((f) => f.id)).toEqual(['rec-2']);
+    expect(await journal.counts()).toEqual({ journalPending: 1, journalFailed: 1 });
+    await journal.remove('rec-2');
+    expect(await journal.counts()).toEqual({ journalPending: 0, journalFailed: 0 });
+  });
+
+  it('the app-wide journal reports through a device probe', async () => {
+    const { getRecordingJournal } = await import('../src/recording/recordingJournal');
+    await getRecordingJournal().put(entry());
+    expect(await diag.probes.get('recordingJournal')!()).toEqual({ journalPending: 1, journalFailed: 0 });
   });
 });

@@ -5,6 +5,7 @@ import { validateEvent } from './validate';
 import { studyMarkKey, type Undo } from './record';
 import { applyReferenceEvent } from './references';
 import { earlier } from './ties';
+import { countEvent } from './changes';
 
 /**
  * Bump when a materializer changes in a way that alters output for existing
@@ -13,16 +14,8 @@ import { earlier } from './ties';
  */
 export const REDUCER_VERSION = 17;
 
-/**
- * How many events have been applied to a state object. Kept outside the
- * state (so snapshots and the permutation tests never see it) for caches of
- * derived views: `SyncClient.getState()` returns an object the fold keeps
- * mutating, so identity alone cannot say whether a cached view is current.
- */
-const REVISIONS = new WeakMap<object, number>();
-export function stateRevision(state: object): number {
-  return REVISIONS.get(state) ?? 0;
-}
+// The revision and the change log live in changes.ts; re-exported for the callers that read it here.
+export { stateRevision } from './changes';
 
 /**
  * Apply one language-stream event. Must be deterministic, order-independent,
@@ -32,17 +25,20 @@ export function stateRevision(state: object): number {
 export function applyLanguageEvent(state: LanguageState, event: AnyEvent): LanguageState {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
-  REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
 
   const invalid = validateEvent(event);
+  // A redaction is never itself redacted: the server refuses one aimed at
+  // another, and the fold ignores any that got in, since which one stood
+  // would otherwise depend on the order redactions arrived in.
+  const redacted = !invalid && !!state.redactions[event.id] && event.type !== 'v1.Redacted';
+  // Bumps the revision and, while a view watches this state, logs what the
+  // event touches; before the switch, which may overwrite what it reads.
+  countEvent(state, invalid || redacted ? null : event);
   if (invalid) {
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  // A redaction is never itself redacted: the server refuses one aimed at
-  // another, and the fold ignores any that got in, since which one stood
-  // would otherwise depend on the order redactions arrived in.
-  if (state.redactions[event.id] && event.type !== 'v1.Redacted') return state;
+  if (redacted) return state;
 
   switch (event.type) {
     case 'v1.TemplateSelected': {

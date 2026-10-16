@@ -27,6 +27,8 @@ export async function fetchSnapshot(
     saved?: ReadonlyMap<number, string>;
     onChunk?: (serverSeq: number, index: number, text: string) => Promise<void>;
     inFlight?: number;
+    /** Given the joined state text before it is parsed, so a caller can store it as it came. */
+    onJoined?: (text: string) => void;
   } = {}
 ): Promise<Snapshot | null> {
   const meta = opts.meta ?? (await transport.snapshotMeta(orgId, streamId, reducerVersion));
@@ -63,5 +65,7 @@ export async function fetchSnapshot(
   const failure = runs.find((r): r is PromiseRejectedResult => r.status === 'rejected');
   if (failure) throw failure.reason;
   if (stale) return null;
-  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join('')) as LanguageState };
+  const text = pieces.join('');
+  opts.onJoined?.(text);
+  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(text) as LanguageState };
 }

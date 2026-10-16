@@ -1,11 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { afterAttempt, deliverHandOver, ensureDeviceId, parseHandOvers, withHandOver, withoutFinished, type EventStore, type HandOver, type PendingUpload } from '@langquest-next/sync';
+import { afterAttempt, courierReport, deliverHandOver, ensureDeviceId, parseHandOvers, withHandOver, withoutFinished, type EventStore, type HandOver, type PendingUpload } from '@langquest-next/sync';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { accountOutbox } from '../account/accountData';
 import { getBlobStore, type BlobStore } from './blobs';
 import { handOverPushToken } from '../notifications/notifications';
 import { noteExpected } from '../diagnostics/report';
+import { flushDiagnostics } from '../diagnostics/diagnostics';
+import { recordAuth } from '../auth/authDiag';
+import { OutcomeThrottle } from '../auth/authOutcome';
 import { getStore } from './store';
 import { actAs, forgetKeptSession, keepSessionAndSignOut, keptSession } from '../server/handOver';
 
@@ -55,14 +58,47 @@ async function forget(actorId: string, endSession: boolean): Promise<void> {
   await change((list) => list.filter((h) => h.actorId !== actorId));
 }
 
+/**
+ * Courier attempts for diagnostics (`auth` op `courier`): an offline phone
+ * polls every few minutes, so a repeat is recorded on a change or once an
+ * hour. Keyed by the person in memory only; the record never names them.
+ */
+const courierNotes = new OutcomeThrottle();
+
+/** Their events still queued on this phone, over every stream. */
+async function eventsOf(store: EventStore, actorId: string): Promise<number> {
+  let n = 0;
+  for (const { orgId, streamId } of await store.pendingStreamsBy(actorId)) n += await store.pendingCountBy(orgId, streamId, actorId);
+  return n;
+}
+
+const hoursSince = (iso: string) => {
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? Math.max(0, Math.round((Date.now() - t) / 3_600_000)) : undefined;
+};
+
+/** A session that cannot be used: out of reach for now, or refused for good. Counts what waits, not whose. */
+async function noteSession(h: HandOver, store: EventStore, outcome: 'unreachable' | 'gone'): Promise<void> {
+  if (!courierNotes.shouldRecord(h.actorId, outcome, Date.now())) return;
+  const ageH = hoursSince(h.savedAt);
+  recordAuth('courier', outcome, {
+    n: { pending: await eventsOf(store, h.actorId).catch(() => 0), uploadsLeft: h.uploads.length, ...(ageH !== undefined ? { ageH } : {}) }
+  });
+}
+
 /** One person's work, sent as them. Resolves to whether the server was out of reach. */
 async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: BlobStore): Promise<boolean> {
   const session = await keptSession(h.actorId);
   // supabase-js drops a session the server refused to renew; one it could
   // not renew for want of a network stays.
-  if (session === 'unreachable') return true;
-  if (session === 'gone') { await forget(h.actorId, false); return false; }
-  const { attempt, offline } = await deliverHandOver(h, {
+  if (session === 'unreachable') { await noteSession(h, store, 'unreachable'); return true; }
+  if (session === 'gone') {
+    await noteSession(h, store, 'gone');
+    courierNotes.forget(h.actorId);
+    await forget(h.actorId, false);
+    return false;
+  }
+  const result = await deliverHandOver(h, {
     ...actAs(h.actorId, blobs),
     store,
     deviceId,
@@ -70,9 +106,15 @@ async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: 
     hasFile: (ref) => blobs.exists(ref),
     note: noteExpected
   });
+  const { attempt, offline } = result;
   const next = afterAttempt(h, attempt);
-  if (next.kind === 'done') await forget(h.actorId, true);
-  else if (next.kind === 'drop') await forget(h.actorId, false);
+  const report = courierReport(h, result, next, Date.now());
+  if (courierNotes.shouldRecord(h.actorId, report.outcome, Date.now())) {
+    const { outcome, ...n } = report;
+    recordAuth('courier', outcome, { n });
+  }
+  if (next.kind === 'done') { courierNotes.forget(h.actorId); await forget(h.actorId, true); }
+  else if (next.kind === 'drop') { courierNotes.forget(h.actorId); await forget(h.actorId, false); }
   // Read again: a sign-out since this began may have named more recordings.
   else await change((list) => list.map((x) => (x.actorId === h.actorId ? withoutFinished(x, attempt.finished, attempt.unregistered) : x)));
   return offline;
@@ -95,6 +137,8 @@ export async function sendAll(signedInAs: string | null): Promise<{ offline: boo
       noteExpected('hand-over', e);
     }
   }
+  // Reached the server: deliver what diagnostics hold (as whoever is signed in, if anyone).
+  if (!offline) void flushDiagnostics();
   return { offline };
 }
 

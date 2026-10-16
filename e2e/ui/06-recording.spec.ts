@@ -60,7 +60,7 @@ test('REC-001 Record opens the workspace for a passage nobody has recorded', asy
   await expect(text(page, w.passages['P-NEW'].label)).toBeVisible();
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   await expect(byId(page, 'header-close')).toBeVisible();
-  // Nothing to save (decision 112): no Save button, and no mark until a part is kept.
+  // Nothing to save (decision 124): no Save button, and no mark until a part is kept.
   await expect(button(page, 'Save')).toHaveCount(0);
   await expect(savedMark(page)).toHaveCount(0);
   // The divider at half: the reference on top, the recorder below.
@@ -393,7 +393,7 @@ test('REC-013 Done\'s ✕ returns to the workspace and keeps everything', async 
   // Back in the workspace, not the record: the part is still there, nothing published.
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   await expectParts(page, 1);
-  // What was said is kept too (decision 112): opening Done again brings it back.
+  // What was said is kept too (decision 124): opening Done again brings it back.
   await publishButton(page).click();
   await expect(button(page, /^What you said about it\. “Draft for the team”/)).toBeVisible();
   await back(page).click();

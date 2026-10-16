@@ -42,6 +42,8 @@ export interface ProjectReport {
   rejected?: { id: string; reason: string }[];
   /** Facts whose events were refused, so they are said again next pass. */
   retry?: number;
+  /** What stopped the project (with `skipped: 'failed: …'`), for the pass's job run to classify. */
+  error?: unknown;
 }
 
 /** The ways LangQuest's Bible is broken up that v2's templates become (question 9 a). */
@@ -96,7 +98,7 @@ export async function sync(deps: PassDeps, opts: { all?: boolean; projects?: str
       reports.push(await run.project(id));
     } catch (e) {
       failed += 1;
-      reports.push({ projectId: id, skipped: `failed: ${(e as Error).message}` });
+      reports.push({ projectId: id, skipped: `failed: ${(e as Error).message}`, error: e });
     }
   }
   // Only a pass that read everything it meant to moves the cursor; otherwise the next looks again.

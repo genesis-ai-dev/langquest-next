@@ -42,7 +42,7 @@ Steps:
 2. On the record, tap "Record". If the main button reads "Study" (the passage has a study guide), tap the "Record" step row under it instead.
 
 Expected:
-- The workspace opens. Header title "Luke 13:1-9", sub "Recording Version 1", a ✕ ("Close") on the left. There is no Save button (decision 112); the saved mark on the right shows nothing until a part is kept.
+- The workspace opens. Header title "Luke 13:1-9", sub "Recording Version 1", a ✕ ("Close") on the left. There is no Save button (decision 124); the saved mark on the right shows nothing until a part is kept.
 - The divider sits at half: the reference on top, the recorder below.
 - The chips over the reference show at least "Bible", "Key words" and "Notes". "Earlier" is not shown, because nothing has been recorded or reviewed yet.
 - The "Bible" chip is selected.
@@ -220,7 +220,7 @@ Steps:
 3. On the record, tap "Continue recording".
 
 Expected:
-- Step 1: the saved mark on the right of the header shows its check ("Saved"); there is no Save button (decision 112).
+- Step 1: the saved mark on the right of the header shows its check ("Saved"); there is no Save button (decision 124).
 - Step 2 returns to the record with no toast. Nothing is lost: every part was already kept when it was recorded.
 - Step 3 opens the same three parts.
 
@@ -241,7 +241,7 @@ Steps:
 3. Tap "Ask {usual target}".
 
 Expected:
-- Step 1 opens the Done screen inside the workspace (decision 112). Header title "Luke 13:1-9", sub "Version 1", with ✕.
+- Step 1 opens the Done screen inside the workspace (decision 124). Header title "Luke 13:1-9", sub "Version 1", with ✕.
 - A player for the whole version, titled "Version 1", with the sub "3 parts · 0:11 · recorded with the {abbr} Bible" (the Bible's abbreviation, when one is offered).
 - A row "Say something about it" with the sub "Optional · the team hears it with this version". The row has no amber border.
 - "Next check", with a card for each check that comes next ("Peer check" and "Back translation", decision 91) and its people (in the fixture "Trevor Both, Rita Reviewer"). No sentence explains publishing.
@@ -282,7 +282,7 @@ Steps:
 
 Expected:
 - Step 3 returns to the workspace, not the record. The part is still there, and nothing was published.
-- After step 4 the Done screen opens with what was typed kept (decision 112): the row reads "What you said about it" with "“Draft for the team”".
+- After step 4 the Done screen opens with what was typed kept (decision 124): the row reads "What you said about it" with "“Draft for the team”".
 - Step 5 returns to the workspace too; it never leaves past it.
 - No version exists on the record.
 
@@ -690,7 +690,7 @@ Steps:
 Expected:
 - While online, nothing says the version waits for a connection; the sync mark settles once it has gone.
 
-Changed (2026-10-16, decision 112): Done returns straight to the record, so the published page and its line are gone.
+Changed (2026-10-16, decision 124): Done returns straight to the record, so the published page and its line are gone.
 
 Fixed (2026-10-13): the line always reads "{title} · saved on this device · sends when you're online" (`passage.published.savedHere`), even online, after the upload has finished.
 

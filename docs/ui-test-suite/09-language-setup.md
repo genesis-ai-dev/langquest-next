@@ -1085,7 +1085,7 @@ Expected:
 - A book opens "Change how Genesis is broken up" with "Divide it your own
   way" first, then "Or pick a ready-made way", and "Rename or remove
   Genesis". After the change, the toast says "Genesis is divided." (the
-  form is kept on this device as it changes, decision 112) and Genesis's
+  form is kept on this device as it changes, decision 124) and Genesis's
   row says "OpenBible: usual sections · {n} pieces".
 - The book sheet has "Name in the language" and "Remove this book" with
   "Languages using the template keep anything recorded in it; its parts are
@@ -1107,7 +1107,7 @@ Steps:
 
 Expected:
 - Step 1: the header's saved mark turns from a spinner into a check; the
-  change is kept on this device as a draft only ADMIN sees (decision 112).
+  change is kept on this device as a draft only ADMIN sees (decision 124).
 - Step 2 leaves at once, with nothing to answer first, and publishes
   nothing (no toast).
 - Step 3 opens with the change still there ("The four gospels first.").
@@ -1291,7 +1291,7 @@ Expected:
   and "Remove this step".
 - The header's saved mark shows the flow is kept on this device as it is
   made; Back would keep it as a draft, with no "Leave without saving?"
-  (decision 112).
+  (decision 124).
 - Toast "Community first {run} saved." The flow is listed under "Your
   organization · 1". Nothing is refused.
 
@@ -1707,7 +1707,7 @@ Expected:
   applies: a verse range, or a part of a template.", "Add at least one
   step." …); each item jumps to its panel. "Ready to publish." once fixed.
 - The header's saved mark turns from a spinner into a check as you type:
-  the draft is kept on this device, only for its writer (decision 112).
+  the draft is kept on this device, only for its writer (decision 124).
 - A new guide starts with FIA's six steps ("Now: 6 steps."); "One empty
   step" and "FIA's six steps" replace them. The toast "Steps replaced with
   FIA's six steps." with Undo shows only once a step has words or audio.
@@ -1732,7 +1732,7 @@ Steps:
 Expected:
 - The title is "Edit guide". Leaving publishes nothing. After reopening
   the change is there, with the saved mark's check (the "Your draft from
-  {time} is open" banner is gone, decision 112). "Done" publishes it.
+  {time} is open" banner is gone, decision 124). "Done" publishes it.
 - If someone published meanwhile: "A newer version was published after you
   started this draft."
 - Adapting: title "Adapt a guide", banner "Adapted from someone else's

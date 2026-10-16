@@ -1,4 +1,4 @@
-// The saved mark (decision 112): what people make has no Save button, so a small mark
+// The saved mark (decision 124): what people make has no Save button, so a small mark
 // in the header shows that what you are making is kept. A spinner while it
 // is being kept turns into a check once it is. Wordless, so it explains
 // itself in help mode, and says itself to a screen reader (an image with a
