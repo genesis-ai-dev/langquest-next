@@ -1,4 +1,4 @@
--- Writing beside recording, and steps that make something (decisions.md 127).
+-- Writing beside recording, and steps that make something (decisions.md 128).
 --
 --   v1.WritingAdded    { writingId, unitId, parts: [{ id, text }] }
 --   v1.MediaAllowedSet { recording, writing, first }

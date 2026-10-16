@@ -14,16 +14,19 @@
 // microphone and recording resumes when it stops (listen, speak, listen;
 // LAN-23). The recorder shows the parts recorded under one card and the
 // next part lit; when the passage has verses they are grouped into cards by
-// verse, with a space beside each part to tap a verse in (decisions.md 82); the big red button and Publish are in the footer, or in
+// verse, with a space beside each part to tap a verse in (decisions.md 82); the big red button and Done are in the footer, or in
 // the recorder's one line. Each part has its own delete, and the card one
 // for all; a deleted part's place takes the next part, and with it the
 // deleted part's verses, so a part said wrong is said again where it was
-// (LAN-83). While the parts are still a version's, the card is named for it. Publish is its own screen inside this one, so
+// (LAN-83). While the parts are still a version's, the card is named for it. Done is its own screen inside this one, so
 // nothing recorded or offered is lost on the way. Parts split by what the
 // microphone hears, the room and the voice, with nothing to set (LAN-82).
 //
 // Every change persists: each part is kept as the draft on the record, so
-// nothing is lost if you leave, and Save says so. A person may keep several
+// nothing is lost if you leave; the saved mark in the header turns from a
+// spinner to a check as each part is kept (decision 127). Done (it was
+// Publish) opens a last look that sends the version to the people who do its
+// next check in the same tap. A person may keep several
 // drafts of a passage (decisions.md 83): the workspace opens one of them, a
 // new one from a version's parts, or a new empty one, and publishes that one. Back translation: the same tools, but you
 // listen to the latest version and what you save is content for the next
@@ -75,7 +78,13 @@ import { draftName, draftOf, startedFrom } from '../passage/versionsModel';
 import { catalogVerses } from '../sources/model';
 import { QuietLink, RefChips, type ChipItem } from '../recording/blocks';
 import { checkName } from '../admin/adminModel';
-import { PublishScreen } from '../recording/publish';
+import { PublishScreen, type DoneAsk } from '../recording/publish';
+import { nextAfterDone, recordCan, sentText, usualTargets } from '../passage/recordModel';
+import { sendTargetLabel } from '../passage/record';
+import { sendToInput } from '../passage/sendTarget';
+import { draftKey } from '../drafts/draftModel';
+import { SavedMark } from '../ui/SavedMark';
+import { useSaveStatus } from '../ui/useSaveStatus';
 import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../recording/recorder';
 import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote } from '../helps/reference';
 import { useBible } from '../helps/useBible';
@@ -98,7 +107,7 @@ type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark } | 
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
-  // Writing the passage instead of recording it (decisions.md 127).
+  // Writing the passage instead of recording it (decisions.md 128).
   if (ctx.params['write'] === '1') return <WritingWorkspace key={`${v.unitId}:${v.languageId}:write`} ctx={ctx} v={v} mode={{ kind: 'version' }} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
@@ -113,7 +122,7 @@ function Missing(props: { ctx: Ctx; title: string; text?: string }) {
   );
 }
 
-/** A step whose result is the passage's next version (a final recording, decisions.md 127): what it is made from. */
+/** A step whose result is the passage's next version (a final recording, decisions.md 128): what it is made from. */
 interface MakingVersion { kindId: string; name: string; fromTakeId: string; requestId?: string }
 
 function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: MakingVersion }) {
@@ -131,7 +140,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // one from the latest version. `root` names the draft once it is saved;
   // `tip` is its newest take seen here, which the next change continues.
   const fromParam = making ? undefined : ctx.params['from'];
-  // A final recording starts empty: it is said again, not edited (decisions.md 127).
+  // A final recording starts empty: it is said again, not edited (decisions.md 128).
   const fresh = ctx.params['fresh'] === '1' || !!making;
   const mine = useMemo(() => draftsBy(p, me), [p, me]);
   const draftId = ctx.params['draftId'];
@@ -150,7 +159,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // What the draft started from: a version's parts, or nothing.
   const startFrom = draft || tipRef.current ? (draft?.basedOnTakeId ?? (rootRef.current ? state.takes[rootRef.current]?.parentTakeId ?? undefined : undefined))
     : fromParam && state.submissions[fromParam] ? fromParam : fresh ? undefined : latest?.takeId;
-  // A written version is a version to say again, not parts to keep (decision 127): recording from it starts empty.
+  // A written version is a version to say again, not parts to keep (decision 128): recording from it starts empty.
   const startCards = startFrom && partsMedium(state.takes[startFrom]?.cardHashes ?? []) === 'recording' ? state.takes[startFrom]?.cardHashes : undefined;
   /** What the next change continues: this draft's newest take, else what it starts from. */
   const parentNow = useCallback(() => (tipRef.current && stateRef.current.takes[tipRef.current] ? tipRef.current : startFrom ?? null), [startFrom]);
@@ -477,37 +486,57 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   })[c]);
 
 
-  // ---- publishing (REC-W3, REC-W4) ----
+  // ---- Done: publishing, and asking for the next check in the same tap (REC-W3, REC-W4; decision 127) ----
   const [publishing, setPublishing] = useState(false);
-  async function publish(note: string, noteBlobHash: string | null) {
+  // Who it goes to next: the step that will be open once this version is on the record, and each check's usual people.
+  const can = recordCan(ctx.session);
+  const orgState = ctx.org.state;
+  const nextUp = useMemo(() => (can.ask ? nextAfterDone(p, { publishing: true }) : undefined), [p, can.ask]);
+  const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true }) : {}), [nextUp, state, orgState, p, languageId, me]);
+  async function publish(note: string, noteBlobHash: string | null, ask: DoneAsk): Promise<boolean> {
     const commandId = Crypto.randomUUID();
     let specs: EventSpec[];
+    const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
+    let message = t('translate.versionPublished', { n: nextN });
+    let requestId: string | undefined;
     try {
+      const c = commands(state, idx);
+      // A step that makes the next version (a final recording) says which step made it (decisions.md 128).
       specs = making
-        ? commands(state, idx).makeVersion({
+        ? c.makeVersion({
           commandId, unitId, kindId: making.kindId, fromTakeId: making.fromTakeId, cardHashes: list, actorId: me, parentTakeId: draft?.takeId ?? parentNow(),
           ...(making.requestId ? { requestId: making.requestId } : {})
         })
-        : commands(state, idx).publishVersion({
+        : c.publishVersion({
           commandId, unitId, cardHashes: list, actorId: me, parentTakeId: draft?.takeId ?? parentNow(),
           ...(note.trim() ? { note: note.trim() } : {}), ...(noteBlobHash ? { noteBlobHash } : {})
         });
       if (canTie) specs = [...specs, ...tieTermsSpecs(state, specs, tied, commandId)];
       const takeId = specs.find((x) => x.type === 'v1.TakeSubmitted')?.payload as { takeId: string } | undefined;
-      if (takeId) specs = [...specs, ...commands(state, idx).referencesUsed({ commandId, unitId, takeId: takeId.takeId, items: usage.items() })];
+      if (takeId) specs = [...specs, ...c.referencesUsed({ commandId, unitId, takeId: takeId.takeId, items: usage.items() })];
+      // Sent on in the same write, so it is never published and forgotten (one Undo takes the asking back).
+      if (ask && 'kindId' in ask && sendTo) {
+        const asked = c.ask({ ...sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }), ...(ask.questions.length ? { questions: ask.questions } : {}) });
+        requestId = (asked.find((x) => x.type === 'v1.RequestMade')?.payload as { requestId: string } | undefined)?.requestId;
+        specs = [...specs, ...asked];
+        message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
+      }
     } catch (e) {
       ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }));
-      return;
+      return false;
     }
     setPublishing(true);
     try {
-      await ctx.act(specs, t('translate.versionPublished', { n: nextN }));
-      // The voice note said on the Publish screen was kept while uploads waited: send it now.
+      const undo = requestId ? () => { const now = ctx.language.state ?? state; return commands(now, indexesFor(now)).withdrawRequest({ commandId: Crypto.randomUUID(), requestId: requestId! }); } : undefined;
+      await ctx.act(specs, message, undo);
+      // The voice note said on the Done screen was kept while uploads waited: send it now.
       ctx.language.triggerUpload();
       setConfirming(false);
-      // Publish, then ask (demo ADR-034): the record opens with the likely check ready to send.
-      ctx.go('passage_record', { unitId, languageId, published: `${nextN}:${Date.now()}` });
-    } catch { /* ctx.act said what went wrong */ }
+      // Back to the record, where the version and who was asked show; Someone else opens there with the check chosen.
+      const someone = ask && 'someoneElse' in ask ? ask.someoneElse : ask && 'kindId' in ask && !sendTo ? ask.kindId : undefined;
+      ctx.go('passage_record', { unitId, languageId, ...(someone ? { askSomeone: someone } : { asked: `${nextN}:${Date.now()}` }) });
+      return true;
+    } catch { return false; /* ctx.act said what went wrong */ }
     finally { setPublishing(false); }
   }
 
@@ -534,12 +563,17 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   const record = () => void loop.toggle();
   const scope = { unitId, languageId };
 
+  // Every change is kept as it happens: the mark turns from a spinner to a check as each part is kept.
+  const savedStatus = useSaveStatus(saving, list.length > 0 && !(startCards && sameCards(list, startCards)) || !!draft, rec.failureCount > 0 || !!composeError);
+
   if (confirming) {
     return (
       <PublishScreen ctx={ctx} v={v} n={nextN} first={isFirst} cards={list} totalMs={totalMs(parts.map((x) => x.durationMs))}
         bible={bible.option?.abbreviation} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
         {...(revising ? { revisingKind: checkName(revising.kindId, v.kinds) } : {})} {...(making ? { making: true } : {})}
-        onClose={() => (publishParam ? ctx.back() : setConfirming(false))} onPublish={(note, hash) => void publish(note, hash)} />
+        draftKey={draftKey('publish', me, languageId, unitId, rootRef.current ?? 'new')}
+        next={nextUp && !making ? { kinds: nextUp.kinds, targets } : null}
+        onClose={() => (publishParam ? ctx.back() : setConfirming(false))} onDone={publish} />
     );
   }
 
@@ -549,16 +583,11 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   const recordingName = making ? t('writing.makingFrom', { step: making.name, version: versionTitle(p.versions.find((x) => x.takeId === making.fromTakeId)?.n ?? nextN - 1) })
     : several ? name : t('translate.recordingVersion', { n: nextN });
   const recordingSub = fromN && fromN !== latest?.n ? t('passage.versions.nameFrom', { name: recordingName, version: versionTitle(fromN) }) : recordingName;
-  // Every change is kept as it happens; Save says so and goes back.
-  const save = () => {
-    if (draft || list.length > 0 && !(startCards && sameCards(list, startCards))) ctx.toast(t('passage.versions.savedToast', { name: several ? name : t('passage.versions.draft') }));
-    ctx.back();
-  };
   const recorderLine = split >= 1;
   return (
     <Screen fixed
       header={<Header title={v.title} sub={recordingSub} crumbs={passageCrumbs(ctx, v, screenTitle('workspace'))} onBack={ctx.back} close
-        action={<SmallBtn label={t('common.save')} icon="check" help={t('translate.saveHelp')} disabled={blocked} onPress={save} />} />}
+        action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} nextIndex={nextIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
           publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
@@ -650,7 +679,7 @@ export function BackTranslation(ctx: Ctx) {
 }
 
 /**
- * A step that makes something (decisions.md 127): turn the latest version,
+ * A step that makes something (decisions.md 128): turn the latest version,
  * or what an earlier step made, into recording or writing, in the team's
  * language or another. When the step lets the person pick, they say which
  * first. Writing opens the writing workspace; recording, the back
@@ -659,7 +688,7 @@ export function BackTranslation(ctx: Ctx) {
 function Making({ ctx, v, kind }: { ctx: Ctx; v: PassageView; kind: KindDef }) {
   const makes = kind.makes!;
   const [picked, setPicked] = useState<'recording' | 'writing' | null>(null);
-  // Changing what a step added to a version opens on that version (decision 127). A step that adds
+  // Changing what a step added to a version opens on that version (decision 128). A step that adds
   // works on the version it counts for: the latest, or, before a step that makes a newer one, the one before.
   const stepIndex = v.p.flow.steps.findIndex((st) => st.kindIds.includes(kind.id));
   const onVersion = v.p.versions.find((x) => x.takeId === ctx.params['fromTakeId'])

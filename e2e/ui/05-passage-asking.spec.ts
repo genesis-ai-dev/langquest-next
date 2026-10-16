@@ -18,20 +18,26 @@ const world = useRunWorld('05-asking');
 const nameOf = (who: AccountKey) => world().accounts[who].name;
 const label = (p: Passage) => (typeof p === 'string' ? world().passages[p].label : p.label);
 
-/** In the workspace: publish what is there, through the confirm page. */
-async function publish(page: Page, n = 1): Promise<void> {
+/** In the workspace: Done, the last look with the next check ready to ask (decision 127). */
+async function openDone(page: Page): Promise<void> {
+  await expect(byId(page, 'publish-button')).toHaveText('Done');
   await byId(page, 'publish-button').click();
-  await expect(byId(page, 'primary-action')).toHaveText(`Publish Version ${n}`);
-  await byId(page, 'primary-action').click();
-  await expect(text(page, `Version ${n} published`)).toBeVisible({ timeout: 30_000 });
+  await expect(text(page, 'Next check')).toBeVisible({ timeout: 30_000 });
 }
 
-/** From the record's main button (Record or Continue recording): record one part, unless the draft has some, and publish it. */
-async function recordAndPublish(page: Page, opts: { record?: boolean } = {}): Promise<void> {
+/** Done, then Send later: Version `n` is published and nobody is asked yet. */
+async function publishLater(page: Page, n = 1): Promise<void> {
+  await openDone(page);
+  await button(page, 'Send later').click();
+  await toast(page, `Version ${n} published.`);
+}
+
+/** From the record's main button (Record or Continue recording): record one part, unless the draft has some, then Done. */
+async function recordAndDone(page: Page, opts: { record?: boolean } = {}): Promise<void> {
   await byId(page, 'primary-action').click();
   await expect(byId(page, 'record-button')).toBeVisible();
   if (opts.record !== false) await recordOnePart(page);
-  await publish(page);
+  await openDone(page);
 }
 
 async function toast(page: Page, message: string | RegExp): Promise<void> {
@@ -72,30 +78,27 @@ test('PASS-011 Record opens the workspace, and the record updates after publishi
   await expect(byId(page, 'record-button')).toBeVisible();
   await expect(header(page)).toHaveText(L);
   await recordOnePart(page);
-  await publish(page);
-  await button(page, 'Not now').click();
+  await publishLater(page);
   await expect(header(page)).toHaveText(L);
   expect(await pathStep(page, 'Record').getAttribute('aria-label')).toMatch(/^\d\. Record\. Version 1 · \d+:\d\d$/);
-  expect(await pathStep(page, 'Publish').getAttribute('aria-label')).toMatch(/^\d\. Publish\. Published (Just now|just now)$/);
+  expect(await pathStep(page, 'Done').getAttribute('aria-label')).toMatch(/^\d\. Done\. Published (Just now|just now)$/);
   // My Work no longer asks TRANS to record it.
   expect(await myWork(page)).not.toContain(`${L} Record`);
 });
 
-test('PASS-012 Publishing, then asking: the check\'s people are picked @p0', async ({ browser }) => {
+test('PASS-012 Done, then asking: the check\'s people are picked @p0', async ({ browser }) => {
   const L = label('P-DRAFT');
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
   expect(await mainButton(page)).toBe('Continue recording');
-  await recordAndPublish(page, { record: false });
-  await expect(byId(page, 'header-close')).toHaveCount(0);
-  await expect(byId(page, 'header-back')).toHaveCount(0);
+  await recordAndDone(page, { record: false });
+  // The last look: the next check and its people, before anything is published.
   const all = await screenText(page);
-  // Online, it says the version went (or is going) to the team; offline, that it waits on this device.
-  expect(all).toMatch(new RegExp(`Version 1 published ${L} · (sent to the team|sending now)`));
-  expect(all).toContain('NEXT, ASK FOR A CHECK Peer check');
+  expect(all).toContain('NEXT CHECK Peer check');
   expect(all).toMatch(/Peer check (\w\w )*(Rita Reviewer, Trevor Both|Trevor Both, Rita Reviewer) Back translation/);
   await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team');
   await expect(button(page, 'Someone else')).toBeVisible();
-  await expect(button(page, 'Not now')).toBeVisible();
+  await expect(button(page, 'Send later')).toBeVisible();
+  // One tap publishes Version 1 and asks.
   await byId(page, 'primary-action').click();
   await toast(page, 'Sent to the Peer check team — anyone on it will see it on My Work');
   await expect(header(page)).toHaveText(L);
@@ -108,10 +111,10 @@ test('PASS-012 Publishing, then asking: the check\'s people are picked @p0', asy
   expect(await myWork(rev)).not.toContain(L);
 });
 
-test('PASS-013 Publishing, then asking someone else', async ({ browser }) => {
+test('PASS-013 Done, then asking someone else', async ({ browser }) => {
   const L = label('P-Q2');
   const page = await recordAs(browser, world(), 'TRANS', 'P-Q2');
-  await recordAndPublish(page);
+  await recordAndDone(page);
   await button(page, 'Someone else').click();
   await expect(header(page)).toHaveText('Ask for Peer check');
   expect(await screenText(page)).toContain(`Ask for Peer check ${L} · Alpha`);
@@ -120,11 +123,12 @@ test('PASS-013 Publishing, then asking someone else', async ({ browser }) => {
   await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
 });
 
-test('PASS-014 Publishing, then not now', async ({ browser }) => {
+test('PASS-014 Done, then send later', async ({ browser }) => {
   const L = label('P-Q3');
   const page = await recordAs(browser, world(), 'TRANS', 'P-Q3');
-  await recordAndPublish(page);
-  await button(page, 'Not now').click();
+  await recordAndDone(page);
+  await button(page, 'Send later').click();
+  await toast(page, 'Version 1 published.');
   await expect(header(page)).toHaveText(L);
   expect(await mainButton(page)).toBe('Ask for the peer check');
   await byId(page, 'primary-action').click();

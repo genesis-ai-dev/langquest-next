@@ -18,7 +18,7 @@ import { derivePassage, draftsBy, type LanguageState } from '@langquest-next/cor
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import {
   chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, mic, openWorkspace, draftParts, partCount, partsTitle,
-  publishButton, recordButton, recordSaid, recordStep, saveButton, say, secondDevice, startFromRecord, verseSpace, workspaceSub,
+  publishButton, recordButton, recordSaid, recordStep, savedMark, say, secondDevice, startFromRecord, verseSpace, workspaceSub,
   useFileWorld
 } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
@@ -60,7 +60,9 @@ test('REC-001 Record opens the workspace for a passage nobody has recorded', asy
   await expect(text(page, w.passages['P-NEW'].label)).toBeVisible();
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   await expect(byId(page, 'header-close')).toBeVisible();
-  await expect(saveButton(page)).toBeVisible();
+  // Nothing to save (decision 127): no Save button, and no mark until a part is kept.
+  await expect(button(page, 'Save')).toHaveCount(0);
+  await expect(savedMark(page)).toHaveCount(0);
   // The divider at half: the reference on top, the recorder below.
   const divider = page.getByRole('slider', { name: 'Divider between reference and your recording' });
   await expect(divider).toHaveAttribute('aria-valuetext', 'Source 50%');
@@ -131,8 +133,7 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await expect(text(page, 'Part 1…')).toBeVisible();
   await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
-  await expect(saveButton(page)).toHaveAttribute('aria-disabled', 'true');
-  await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expect(publishButton(page)).toHaveCount(0);
   for (const [i, ms] of [4000, 4000, 3000].entries()) {
     await m.speak(true);
     await expect(text(page, 'Recording…')).toBeVisible();
@@ -148,7 +149,8 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
   await expect(page.getByRole('button', { name: /^Parts 1–3, 3 parts · 0:1\d$/ })).toBeVisible();
   await expect(page.getByLabel('Part 4. Recording next')).toBeVisible();
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
-  await expect(saveButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  // Each part is kept as it lands: the mark ends on its check.
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
   // No part is shorter than a second, and none is empty.
   // Each part's name and length: tapping it chooses it to record over (LAN-83); its play button has no words.
   const lengths = await page.getByRole('button', { name: /^Record Part \d again$/ }).evaluateAll((els) => els.map((e) => e.textContent ?? ''));
@@ -241,8 +243,7 @@ test('REC-008 Parts cannot be deleted while recording', async ({ page }) => {
     await expect(verseSpace(page, n)).toHaveAttribute('aria-disabled', 'true');
     await expect(button(page, `Play Part ${n}`)).toHaveAttribute('aria-disabled', 'true');
   }
-  await expect(saveButton(page)).toHaveAttribute('aria-disabled', 'true');
-  await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expect(publishButton(page)).toHaveCount(0);
   // A hold on the space does nothing: no sheet, no toast.
   const box = (await verseSpace(page, 1).boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -254,7 +255,7 @@ test('REC-008 Parts cannot be deleted while recording', async ({ page }) => {
   await expectIdle(page);
   await m.mode('file');
   for (const n of [1, 2, 3]) await expect(verseSpace(page, n)).not.toHaveAttribute('aria-disabled', 'true');
-  await expect(saveButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await expectParts(page, 3);
 });
@@ -279,13 +280,14 @@ test('REC-009 Deleting the only part leaves nothing to publish', async ({ page }
   await expect.poll(async () => (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes.length), { timeout: 30_000 }).toEqual([1]);
 });
 
-test('REC-010 Save keeps the draft and goes back', async ({ page }) => {
+test('REC-010 Leaving keeps the draft, and the mark says so', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-NEW', 'Continue recording');
   await expectParts(page, 3);
-  await saveButton(page).click();
-  await expectToast(page, 'Draft saved.');
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
+  await back(page).click();
+  await expect(byId(page, 'toast')).toHaveCount(0);
   await expect(primary(page)).toHaveText('Continue recording');
   await primary(page).click();
   await expectParts(page, 3);
@@ -298,8 +300,8 @@ test('REC-010 Save keeps the draft and goes back', async ({ page }) => {
 // ---- Publishing ------------------------------------------------------------------------
 
 /**
- * REC-011 ends on the published page and REC-012 starts there: the two share
- * one browser, kept open between them.
+ * REC-011 ends on the passage record after Done asked for the peer check, and
+ * REC-012 starts there: the two share one browser, kept open between them.
  */
 let kept: { context: BrowserContext; page: Page } | null = null;
 async function keptPage(browser: Browser): Promise<Page> {
@@ -317,41 +319,43 @@ async function pathRows(page: Page): Promise<string[]> {
   return page.getByRole('button', { name: /^\d+\. / }).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
 }
 
-test('REC-011 Publish Version 1 @p0', async ({ browser }) => {
+test('REC-011 Done, then ask the usual people for the peer check @p0', async ({ browser }) => {
   const w = world();
   const page = await keptPage(browser);
   const label = w.passages['P-NEW'].label;
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-NEW', 'Continue recording');
   await expectParts(page, 3);
+  await expect(publishButton(page)).toHaveText('Done');
   await publishButton(page).click();
-  // The Publish screen, inside the workspace.
+  // The Done screen, inside the workspace: the version, a word about it, and its next check with its people.
   await expect(page.getByRole('heading', { name: label })).toBeVisible();
-  await expect(text(page, 'Publish')).toBeVisible();
   await expect(byId(page, 'header-close')).toBeVisible();
   await expect(text(page, 'Version 1')).toBeVisible();
   await expect(text(page, /^3 parts · 0:1\d( · recorded with the \S+ Bible)?$/)).toBeVisible();
-  const row = button(page, 'Say something about it. Optional · the team hears it with this version');
-  await expect(row).toBeVisible();
-  await expect(text(page, 'Publishing saves Version 1 to the passage. Everyone on the team can hear it. It goes out when the device has internet.')).toBeVisible();
-  await expect(primary(page)).toHaveText('Publish Version 1');
-  await expect(primary(page)).toBeEnabled();
-  await primary(page).click();
-  await expectToast(page, 'Version 1 published.');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
-  // The published page: what was done, then the next check and who usually does it.
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toBeVisible();
-  await expect(text(page, `${label} · sent to the team`)).toBeVisible();
-  await expect(text(page, 'Next, ask for a check')).toBeVisible();
+  await expect(button(page, 'Say something about it. Optional · the team hears it with this version')).toBeVisible();
+  await expect(text(page, 'Next check')).toBeVisible();
   await expect(text(page, 'Peer check')).toBeVisible();
   await expect(text(page, /Trevor Both|Rita Reviewer/)).toBeVisible();
   await expect(primary(page)).toHaveText(/^Ask /);
+  await expect(primary(page)).toBeEnabled();
   await expect(button(page, 'Someone else')).toBeVisible();
-  await expect(button(page, 'Not now')).toBeVisible();
+  await expect(button(page, 'Send later')).toBeVisible();
+  const target = (await primary(page).innerText()).trim().replace(/^Ask /, '');
+  // One tap publishes and asks, with Undo for the asking.
+  await primary(page).click();
+  const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await expectToast(page, new RegExp(`^Sent to ${escaped} — (anyone on it|they) will see it on My Work`));
+  await expect(byId(page, 'toast-undo')).toBeVisible();
+  // Back on the record, which says the version and who was asked; no "published" page in between.
+  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
+  await expect.poll(async () => (await pathRows(page)).join('\n')).toMatch(/asked /);
   await expectUploaded(page, w);
-  // On the server: no draft, Version 1 by TRANS with three parts.
-  await expect.poll(async () => { const s = await onServer(w, 'P-NEW'); return [s.drafts.length, s.versions.map((v) => v.cardHashes.length)]; }, { timeout: 30_000 })
-    .toEqual([0, [3]]);
+  // On the server: no draft, Version 1 by TRANS with three parts, and the peer check asked for.
+  await expect.poll(async () => {
+    const s = await onServer(w, 'P-NEW');
+    return [s.drafts.length, s.versions.map((v) => v.cardHashes.length), s.p.openRequests.filter((r) => r.what === 'review').map((r) => r.kindId)];
+  }, { timeout: 30_000 }).toEqual([0, [3], ['peer']]);
   // REV's device: Version 1 is on the record, and plays.
   const rev = await secondDevice(browser, w, 'REV');
   try {
@@ -363,31 +367,14 @@ test('REC-011 Publish Version 1 @p0', async ({ browser }) => {
   await expectNothingRefused(page, w);
 });
 
-test('REC-012 After publishing, ask for the check or not now', async ({ browser }) => {
+test('REC-012 After Done, the record says who was asked, and they find it on My Work', async ({ browser }) => {
   const w = world();
   const page = await keptPage(browser);
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toBeVisible();
-  const target = (await primary(page).innerText()).trim().replace(/^Ask /, '');
-  const before = await eventCount(page, w);
-  await button(page, 'Not now').click();
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
-  await expect(primary(page)).toHaveText('Ask for the peer check');
-  expect(await eventCount(page, w), '"Not now" writes nothing').toBe(before);
-  // Afterwards the record's steps read the version and when it was published.
   const rows = await pathRows(page);
   expect(rows.join('\n')).toMatch(/Version 1 · 0:1\d/);
-  // Known issue (2026-10-12): the step reads "Published Just now" (pathModel.ts puts `when()`'s sentence-start form mid-sentence).
-  expect.soft(rows.join('\n')).toMatch(/Published just now/);
-  await primary(page).click();
-  await expect(page.getByRole('heading', { name: 'Ask for a check' })).toBeVisible();
-  await expect(text(page, w.passages['P-NEW'].label)).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
-  await primary(page).click();
-  const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  await expectToast(page, new RegExp(`^Sent to ${escaped} — (anyone on it|they) will see it on My Work`));
-  await expect(byId(page, 'toast-undo')).toBeVisible();
-  await expect.poll(async () => (await pathRows(page)).join('\n')).toMatch(/asked /);
-  await expectUploaded(page, w);
+  expect(rows.join('\n')).toMatch(/Published just now · asked /);
+  // Asked already: the record does not offer asking for the peer check again.
+  await expect(primary(page)).not.toHaveText('Ask for the peer check');
   // REV finds P-NEW's Peer check on My Work.
   const rev = await secondDevice(browser, w, 'REV');
   try {
@@ -395,7 +382,7 @@ test('REC-012 After publishing, ask for the check or not now', async ({ browser 
   } finally { await rev.context.close(); }
 });
 
-test('REC-013 Publish\'s ✕ returns to the workspace and keeps everything', async ({ page }) => {
+test('REC-013 Done\'s ✕ returns to the workspace and keeps everything', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-Q2', 'Continue recording');
@@ -409,8 +396,9 @@ test('REC-013 Publish\'s ✕ returns to the workspace and keeps everything', asy
   // Back in the workspace, not the record: the part is still there, nothing published.
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   await expectParts(page, 1);
+  // What was said is kept too (decision 127): opening Done again brings it back.
   await publishButton(page).click();
-  await expect(button(page, /^Say something about it\. /)).toBeVisible();
+  await expect(button(page, /^What you said about it\. “Draft for the team”/)).toBeVisible();
   await back(page).click();
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   expect((await onServer(w, 'P-Q2')).versions).toHaveLength(0);
@@ -432,14 +420,16 @@ test('REC-014 Say something about Version 1 by voice', async ({ page }) => {
   await expect(button(page, 'Play voice note')).toBeVisible();
   await button(page, 'Done').click();
   await expect(button(page, 'What you said about it. Voice note')).toBeVisible();
-  await primary(page).click();
+  // Send later: done, and nobody asked yet.
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 1 published.');
   await expectUploaded(page, w);
-  const v = (await onServer(w, 'P-Q2')).versions;
-  expect(v).toHaveLength(1);
-  expect(v[0]!.changeBlobHash, 'the voice note goes with Version 1').toBeTruthy();
-  // The record's Versions and history plays the version with its note.
-  await button(page, 'Not now').click();
+  const s = await onServer(w, 'P-Q2');
+  expect(s.versions).toHaveLength(1);
+  expect(s.versions[0]!.changeBlobHash, 'the voice note goes with Version 1').toBeTruthy();
+  expect(s.p.openRequests.filter((r) => r.what === 'review'), 'Send later asks nobody').toHaveLength(0);
+  // The record asks later; its Versions and history plays the version with its note.
+  await expect(primary(page)).toHaveText('Ask for the peer check');
   await button(page, 'Versions and history').click();
   await expect(button(page, 'Play Version 1')).toBeEnabled();
 });
@@ -485,7 +475,7 @@ test('REC-016 Version 2 needs "what changed" @p0', async ({ page }) => {
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await publishButton(page).click();
   await expect(button(page, 'Say what changed. Needed · since Version 1, so the team knows what to listen for')).toBeVisible();
-  await expect(primary(page)).toHaveText('Publish Version 2');
+  await expect(primary(page)).toHaveText(/^Ask /);
   await expect(primary(page)).toBeDisabled();
   await button(page, /^Say what changed\. /).click();
   await expect(text(page, 'What changed?')).toBeVisible();
@@ -495,11 +485,9 @@ test('REC-016 Version 2 needs "what changed" @p0', async ({ page }) => {
   await button(page, 'Done').click();
   await expect(button(page, 'What changed. “Added verse 9 again, slower”')).toBeVisible();
   await expect(primary(page)).toBeEnabled();
-  await primary(page).click();
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 2 published.');
-  await expect(page.getByRole('heading', { name: 'Version 2 published' })).toBeVisible();
   await expectUploaded(page, w);
-  await button(page, 'Not now').click();
   await button(page, 'Versions and history').click();
   await expect(button(page, /^Open Version 2/)).toBeVisible();
   await expect(button(page, /^Open Version 1/)).toBeVisible();
@@ -532,7 +520,7 @@ test('REC-017 What changed can be said instead of typed', async ({ page }) => {
   await button(page, 'Done').click();
   await expect(button(page, 'What changed. Voice note')).toBeVisible();
   await expect(primary(page)).toBeEnabled();
-  await primary(page).click();
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 2 published.');
   await expectUploaded(page, w);
   const v = (await onServer(w, 'P-Q2')).versions;
@@ -554,9 +542,9 @@ test('REC-018 Changing a published version\'s parts makes a new draft', async ({
   await deletePart(page, 2);
   await expectToast(page, 'Part 2 deleted.');
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
-  await saveButton(page).click();
-  await expectToast(page, 'Draft saved.');
-  // Save goes back to where the workspace was opened from: the Versions page.
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
+  await back(page).click();
+  // ✕ goes back to where the workspace was opened from, the Versions page, with the draft kept.
   await expect(text(page, 'Your draft')).toBeVisible();
   await expectUploaded(page, w);
   const s = await onServer(w, 'P-Q2');
@@ -575,9 +563,9 @@ test('REC-019 Several drafts of one passage', async ({ page }) => {
   await expectParts(page, 0);
   await recordSaid(page, [3000]);
   await expect(text(page, 'Draft 2')).toBeVisible();
-  await saveButton(page).click();
-  await expectToast(page, 'Draft 2 saved.');
-  // Save went back to the Versions page it was opened from, which lists both drafts.
+  await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
+  await back(page).click();
+  // ✕ went back to the Versions page it was opened from, which lists both drafts.
   await expect(text(page, 'Your drafts')).toBeVisible();
   // The record behind it still leads with asking for Version 2's check; its drafts are under Versions and history.
   await back(page).click();
@@ -698,10 +686,9 @@ test('REC-033 Record and publish in airplane mode @p0', async ({ page, context }
   await expectToast(page, 'Undone.');
   await expectParts(page, 4);
   await publishButton(page).click();
-  await primary(page).click();
+  await button(page, 'Send later').click();
   await expectToast(page, 'Version 1 published.');
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toBeVisible();
-  await expect(text(page, `${label} · saved on this device · sends when you're online`)).toBeVisible();
+  await expect(page.getByRole('heading', { name: label })).toBeVisible();
   const waiting = (await deviceLog(page, w.languages.A.orgId, w.languages.A.languageId)).filter((r) => r.status === 'pending');
   expect(waiting.length, 'the work waits on the device').toBeGreaterThan(0);
   await context.setOffline(false);
@@ -768,7 +755,7 @@ test('REC-037 The Bible in the reference pane', async ({ page }) => {
   await page.getByRole('button', { name: /^Verse 25\. / }).first().click();
   await button(page, 'Add a note here').click();
   await page.getByPlaceholder('Or type it').fill('Hard to say \'Lord, open to us\'');
-  await button(page, 'Save note').click();
+  await button(page, 'Add a note').last().click();
   await expectToast(page, 'Note added.');
   await recordButton(page).click();
   await expect(button(page, 'Add a note here')).toHaveCount(0);
@@ -821,7 +808,7 @@ test('REC-039 Notes from the workspace', async ({ page }) => {
   const n = await count();
   await button(page, 'Add a note').click();
   await page.getByPlaceholder('Or type it').fill('The fig tree means Israel here');
-  await button(page, 'Save note').click();
+  await button(page, 'Add a note').last().click();
   await expectToast(page, 'Note added.');
   await expect(text(page, 'The fig tree means Israel here', false)).toBeVisible();
   await expect.poll(count).toBe(n + 1);
@@ -1066,11 +1053,9 @@ test('REC-052 A translator-reviewer records and publishes', async ({ page }) => 
   await expect(text(page, 'Recording Version 1')).toBeVisible();
   await recordSaid(page, [3000, 3000]);
   await publishButton(page).click();
-  await expect(primary(page)).toHaveText('Publish Version 1');
-  await primary(page).click();
-  await expectToast(page, 'Version 1 published.');
-  await expect(page.getByRole('heading', { name: 'Version 1 published' })).toBeVisible();
   await expect(primary(page)).toHaveText(/^Ask /);
+  await button(page, 'Send later').click();
+  await expectToast(page, 'Version 1 published.');
   await expectUploaded(page, w);
   const v = (await onServer(w, 'P-T')).versions;
   expect(v.map((x) => [x.by, x.cardHashes.length])).toEqual([[w.accounts.TREV.id, 2]]);

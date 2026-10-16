@@ -22,12 +22,17 @@
 // Sending it offers Undo, which takes the review back (decisions.md 111):
 // the check is open again, and its author can still take it back later from
 // the check on the record or from the history.
+//
+// What is said, answered or chosen here is kept on this phone as it is made,
+// a draft only its maker sees (decision 127, reviewing/reviewDraft.ts), with
+// the saved mark in the header. Back and ✕ leave and keep it; opening the
+// same review again brings it back where it was left; sending it drops it.
 import {
   addedTo, commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { Text } from '../ui/text';
@@ -70,6 +75,10 @@ import type { StudyGuide } from '../study/guides';
 import { studyProgress } from '../study/progress';
 import { C, space, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
+import { draftKey } from '../drafts/draftModel';
+import { useDraft } from '../drafts/useDraft';
+import { SavedMark } from '../ui/SavedMark';
+import { isStoredReview, reviewDraftOf, reviewStateOf, type ReviewDraft, type ReviewState } from '../reviewing/reviewDraft';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
 const SHEET_GAP_MS = 400;
@@ -128,14 +137,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [evidence, setEvidence] = useState<VoiceAnswer | null>(null);
   const [made, setMade] = useState<AudioCard[]>([]);
   const [busy, setBusy] = useState(false);
-  // Where you are in the review, kept for this visit: Back from a key term or the study returns here.
+  // Where you are in the review, kept with the draft: Back from a key term or the study, or opening it again, returns here.
   const [stageId, setStageId] = useState<StageId>('listen');
   const [qi, setQi] = useState(0);
   const [why, setWhy] = useState(false);
   const [sheet, setSheet] = useState<'background' | 'who' | 'details' | 'say' | 'retell' | null>(null);
   const [momentAt, setMomentAt] = useState<number | null>(null);
-  // Leaving with something said or answered asks first: nothing is saved until the review is sent (REV-024).
-  const [leaving, setLeaving] = useState(false);
   // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
@@ -146,19 +153,38 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   };
   // A wide window names the passage in the crumbs above the title, so the title is the kind.
   const wide = useLayout().kind !== 'phone';
-  // Anything said, answered or chosen here lives only on this screen until the review is sent.
-  const dirty = moments.length > 0 || Object.keys(answers).some((k) => !!answers[k]?.trim()) || Object.keys(voice).length > 0
-    || Object.keys(skipped).length > 0 || !!comment.trim() || !!feedback || !!evidence || people > 0 || !!place.trim() || !!givenBy.trim()
-    || made.length > 0 || also.length > 0;
-  const leave = () => (dirty && !busy ? setLeaving(true) : ctx.back());
-  // A phone's Back does what the header's arrow does: from "What should change?" to Decide, and asks before throwing a review away.
-  useHardwareBack(why || dirty || leaving, () => {
-    if (leaving) setLeaving(false);
-    else if (why) setWhy(false);
-    else setLeaving(true);
-  });
+  // A phone's Back does what the header's arrow does: from "What should change?" to Decide, else it leaves (the draft stays).
+  useHardwareBack(why, () => setWhy(false));
 
   const version = v ? versionFor(v.p, takeId) : undefined;
+
+  // Everything said, answered, chosen or recorded here is a draft only you see, kept as you go
+  // (decision 127): Back and ✕ leave it, opening this review again brings it back, sending drops it.
+  const opened = ctx.params['takeId'];
+  const draft = useDraft<ReviewDraft | null>(v ? draftKey('review', actorId, v.languageId, v.unitId, kindId, logged ? 'logged' : 'live') : null, null, isStoredReview);
+  const setDraft = draft.set;
+  const onScreen: ReviewState = {
+    takeId, stage: stageId, qi, answers, voice, typing, skipped, comment, feedback, typeFeedback, moments, also, people, givenBy, place, evidence, made
+  };
+  const kept = JSON.stringify(reviewDraftOf(onScreen, version?.takeId, opened));
+  // What the draft holds: written when the screen holds something else, so a draft not yet read is never written over.
+  const stored = useRef('null');
+  useEffect(() => {
+    const d = draft.value;
+    if (draft.restoredAt === null || !d || !v) return;
+    const back = reviewStateOf(d, v.p.versions.map((x) => x.takeId), opened, versionFor(v.p, opened)?.takeId);
+    // Its version is gone: the review starts fresh.
+    if (!back) { stored.current = 'null'; setDraft(null); return; }
+    stored.current = JSON.stringify(d);
+    setTakeId(back.takeId); setStageId(back.stage); setQi(back.qi); setAnswers(back.answers); setVoice(back.voice); setTyping(back.typing);
+    setSkipped(back.skipped); setComment(back.comment); setFeedback(back.feedback); setTypeFeedback(back.typeFeedback); setMoments(back.moments);
+    setAlso(back.also); setPeople(back.people); setGivenBy(back.givenBy); setPlace(back.place); setEvidence(back.evidence); setMade(back.made);
+  }, [draft.restoredAt]); // eslint-disable-line react-hooks/exhaustive-deps -- once per draft read: what it brings back is that read's value, versions and params
+  useEffect(() => {
+    if (kept === stored.current) return;
+    stored.current = kept;
+    setDraft(JSON.parse(kept) as ReviewDraft | null);
+  }, [kept, setDraft]);
   const vState = v?.state;
   const vp = v?.p;
   const requestParam = ctx.params['requestId'];
@@ -210,7 +236,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const group = isGroupKind(kind.id);
   const here = all.find((p) => p.unitId === v.unitId);
   const asker = request?.by ? ctx.name(request.by) : undefined;
-  // What this check reads (decision 127): what an earlier step made from this version, or the version; writing is read.
+  // What this check reads (decision 128): what an earlier step made from this version, or the version; writing is read.
   const reads = readsFor(v.p, kind, version);
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes, reads: reads.medium === 'writing' });
   const at = stageAt(stages, stageId);
@@ -303,6 +329,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       setBusy(false);
       return;
     }
+    // Sent: it is on the record now, so the draft goes.
+    void draft.clear();
     ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId });
   }
 
@@ -339,7 +367,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     footer = (
       <>
         {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>{t('review.screen.savesTo', { count: also.length + 1 })}</Text> : null}
-        <PrimaryBtn label={t('review.screen.saveToRecord')} icon="check" disabled={!r.ready || made.length === 0} busy={busy} onPress={() => void save('recorded')} />
+        <PrimaryBtn label={t('common.done')} icon="check" help={t('review.screen.doneRecordedHelp', { what: makes.what })} disabled={!r.ready || made.length === 0} busy={busy} onPress={() => void save('recorded')} />
       </>
     );
   }
@@ -368,7 +396,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       )}
       {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
       {!reads.made && reads.medium === 'recording' ? <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered /> : null}
-      {/* What a step added to the version is part of it: a check hears and reads them together (decision 127). */}
+      {/* What a step added to the version is part of it: a check hears and reads them together (decision 128). */}
       {!reads.made ? addedTo(v.p, version).map((a) => (
         <View key={a.medium} style={{ gap: space.sm }}>
           <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
@@ -530,11 +558,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     </>
   );
 
+  const mark = <SavedMark status={draft.status} help={t('saved.draftHelp')} />;
   const header = why ? (
-    <Header title={title} sub={sub} crumbs={crumbs} onBack={() => setWhy(false)} />
+    <Header title={title} sub={sub} crumbs={crumbs} onBack={() => setWhy(false)} action={mark} />
   ) : (
     <>
-      <Header title={title} sub={sub} crumbs={crumbs} onBack={leave} close />
+      <Header title={title} sub={sub} crumbs={crumbs} onBack={ctx.back} close action={mark} />
       <StepStrip stages={stages} at={at} onGo={goStage} />
     </>
   );
@@ -614,16 +643,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           <View style={{ paddingVertical: space.lg }}>
             <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
           </View>
-        </Sheet>
-      ) : null}
-
-      {leaving ? (
-        <Sheet visible title={t('review.screen.leaveTitle')} sub={t('review.screen.leaveSub')} onClose={() => setLeaving(false)}
-          footer={<>
-            <PrimaryBtn label={t('review.screen.keepReviewing')} help={t('review.screen.keepReviewingHelp')} onPress={() => setLeaving(false)} />
-            <GhostBtn label={t('review.screen.leave')} tone="red" help={t('review.screen.leaveHelp')} onPress={() => { setLeaving(false); ctx.back(); }} />
-          </>}>
-          {null}
         </Sheet>
       ) : null}
 

@@ -191,6 +191,6 @@ describe('plurals, dates and numbers', () => {
     } finally {
       showLanguage('en');
     }
-    expect(t('common.save')).toBe('Save');
+    expect(t('common.done')).toBe('Done');
   });
 });

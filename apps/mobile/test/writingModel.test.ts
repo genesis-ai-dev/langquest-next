@@ -1,4 +1,4 @@
-// Writing beside recording (decisions.md 127): what the writing screens read
+// Writing beside recording (decisions.md 128): what the writing screens read
 // from the record (writing/model.ts, writing/namesModel.ts), against real
 // folds of the event log.
 import { describe, expect, it } from 'vitest';
@@ -6,7 +6,7 @@ import {
   buildIndexes, commands, derivePassage, foldLanguage, HlcClock, writtenPartId, type AnyEvent, type EventSpec, type KindDef, type MakesSpec
 } from '@langquest-next/core';
 import {
-  boxesChanged, boxesFor, heardByVerse, isMaking, isPartKey, leadMedium, makingLanguage, makingSource, nfc, otherMedium, partIdFor, partKey,
+  boxesChanged, boxesFor, EMPTY_WRITING, heardByVerse, isWritingDraft, writingDraftFor, isMaking, isPartKey, leadMedium, makingLanguage, makingSource, nfc, otherMedium, partIdFor, partKey,
   readsFor, sourceMedium, teamLetters, writingSpecs, writtenByVerse
 } from '../src/writing/model';
 import { madeTitle, presetName } from '../src/writing/namesModel';
@@ -87,6 +87,17 @@ describe('the writing boxes', () => {
     expect(boxesChanged([{ key: '1', text: ' café ' }, { key: '2', text: '  ' }], start)).toBe(false);
     expect(boxesChanged([{ key: '1', text: 'cafe' }, { key: '2', text: '' }], start)).toBe(true);
     expect(boxesChanged([{ key: '1', text: 'café' }, { key: '2', text: 'More' }], start)).toBe(true);
+  });
+
+  it('keep a draft only while the words differ from where they started (decisions.md 127)', () => {
+    const start = [{ key: '1', text: 'One' }];
+    expect(writingDraftFor([{ key: '1', text: 'One ' }], start)).toEqual(EMPTY_WRITING);
+    expect(writingDraftFor([{ key: '1', text: 'Uno' }], start)).toEqual({ boxes: [{ key: '1', text: 'Uno' }] });
+    expect(isWritingDraft({ boxes: [{ key: '1', text: 'Uno' }] })).toBe(true);
+    expect(isWritingDraft(EMPTY_WRITING)).toBe(true);
+    expect(isWritingDraft({ boxes: [{ key: 1, text: 'x' }] })).toBe(false);
+    expect(isWritingDraft({ boxes: 'x' })).toBe(false);
+    expect(isWritingDraft(null)).toBe(false);
   });
 
   it('name the same words typed two ways alike', () => {

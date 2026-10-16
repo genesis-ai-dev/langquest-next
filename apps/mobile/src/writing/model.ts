@@ -1,4 +1,4 @@
-// Writing beside recording (decisions.md 127): what the screens need from the
+// Writing beside recording (decisions.md 128): what the screens need from the
 // record, pure so it is tested. A written version, or something written that
 // a step made, is one written part per verse; its verse is a `set` label on
 // the part (decisions.md 82), so a verse left empty never shifts the ones
@@ -87,6 +87,25 @@ export function writingSpecs(state: LanguageState, idx: Indexes, c: { commandId:
     ...(c.verseKeys.length > 0 ? cmd.setCardVerses({ commandId: `${c.commandId}:v`, unitId: c.unitId, cards: ids, marks, verses: c.verseKeys }) : [])
   ];
   return { specs, ids };
+}
+
+/** What is typed, kept on this phone as it is typed and only for its writer (decisions.md 127): the boxes, or none while nothing changed. */
+export interface WritingDraft {
+  boxes: VerseText[];
+}
+
+export const EMPTY_WRITING: WritingDraft = { boxes: [] };
+
+export function isWritingDraft(x: unknown): x is WritingDraft {
+  if (typeof x !== 'object' || x === null) return false;
+  const boxes = (x as { boxes?: unknown }).boxes;
+  return Array.isArray(boxes) && boxes.every((b) => typeof b === 'object' && b !== null
+    && typeof (b as VerseText).key === 'string' && typeof (b as VerseText).text === 'string');
+}
+
+/** The draft to keep for these boxes: nothing when they are back where they started, so leaving them keeps nothing. */
+export function writingDraftFor(boxes: readonly VerseText[], start: readonly VerseText[]): WritingDraft {
+  return { boxes: boxesChanged(boxes, start) ? [...boxes] : [] };
 }
 
 /** Did the boxes change from where they started? */
@@ -178,7 +197,7 @@ export function isMaking(kind: KindDef): boolean {
 }
 
 /**
- * What a check reads of a version (decisions.md 127): what its earlier
+ * What a check reads of a version (decisions.md 128): what its earlier
  * making step made from that version, when the check reads one, else the
  * version itself.
  */

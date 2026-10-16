@@ -30,6 +30,9 @@ import { BibleSheet, type Bible } from './reference';
 import { useBible } from './useBible';
 import { useClip } from '../audio/useClip';
 import { textMissing } from './helpsModel';
+import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
+import { useDraft } from '../drafts/useDraft';
+import { SavedMark } from '../ui/SavedMark';
 
 /** A chosen verse or a found word: soft grey, never loud purple (Caleb, 2026-10-10). */
 const SOFT_MARK = withAlpha(C.dark, 0.1);
@@ -226,9 +229,10 @@ export function WordChip(props: { label: string; help: string; onPress: () => vo
  * A note for translators, written under the passage's text (demo
  * `NoteOnPassage`): the passage in a Bible the writer chooses, tap a verse
  * and another to run to it (or the whole passage), then say the note, with
- * typing under it. Saved as a passage note on those verses (`v1.NoteAdded`,
+ * typing under it. Added as a passage note on those verses (`v1.NoteAdded`,
  * a verse anchor in the verse rows' own key form), which translators see
- * on those verses in the recorder and the study.
+ * on those verses in the recorder and the study. What is said or typed is a
+ * draft only its writer sees until Add a note (decision 127): ✕ keeps it.
  */
 export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state;
@@ -237,12 +241,13 @@ export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
   const here = !!state?.units[unitId] && languageId === ctx.language.languageId;
   const bible = useBible(ctx, here ? unitId : null, languageId, {});
   const [run, setRun] = useState<VerseRun>(null);
-  const [text, setText] = useState('');
-  const [hash, setHash] = useState<string | null>(null);
+  const draft = useDraft(unitId ? draftKey('note', ctx.session.actorId, languageId, unitId, 'onVerses') : null, EMPTY_NOTE, isNoteDraft);
+  const { text, hash } = draft.value;
   const [busy, setBusy] = useState(false);
   const title = state && here ? unitTitle(state, unitId) : '';
   const language = languageName(ctx.org.state, languageId);
-  const header = <Header title={t('notes.onVerses.title')} sub={title ? t('notes.onVerses.sub', { passage: title, language }) : language} onBack={ctx.back} close />;
+  const header = <Header title={t('notes.onVerses.title')} sub={title ? t('notes.onVerses.sub', { passage: title, language }) : language} onBack={ctx.back} close
+    action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />} />;
   if (!state || !here) {
     return <Screen header={header}><Text style={txt.smMuted}>{state ? t('reference.passage.gone') : t('common.loading')}</Text></Screen>;
   }
@@ -251,12 +256,13 @@ export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
   const abbr = bible.option?.abbreviation;
   const ready = !!text.trim() || !!hash;
 
-  async function save() {
+  async function add() {
     if (!ready || busy) return;
     setBusy(true);
     const anchor = key ? { kind: 'verse' as const, verse: key, ...(abbr ? { translation: abbr } : {}) } : { kind: 'passage' as const };
     const ok = await saveNote(ctx, { unitId }, anchor, { text, blobHash: hash },
       key ? t('notes.onVerses.saved', { where: keyLabel(key) }) : t('notes.onVerses.savedWhole', { passage: title }));
+    if (ok) await draft.clear();
     setBusy(false);
     if (ok) ctx.back();
   }
@@ -270,9 +276,9 @@ export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
             <View style={styles.wherePill}><Text style={styles.whereText} numberOfLines={1}>{key ? t('notes.onVerses.on', { where: keyLabel(key) }) : t('notes.onVerses.onWhole')}</Text></View>
             {key ? <LinkBtn label={t('notes.onVerses.whole')} color={C.muted} help={t('notes.onVerses.wholeHelp')} onPress={() => setRun(null)} /> : null}
           </View>
-          <VoiceNote ctx={ctx} label={t('notes.onVerses.say')} hash={hash} onChange={setHash} />
-          <Field value={text} onChangeText={setText} placeholder={t('common.orTypeIt')} autoCapitalize="sentences" help={t('reference.notes.typeHelp')} multiline />
-          <PrimaryBtn label={t('reference.notes.save')} icon="check" disabled={!ready} busy={busy} onPress={() => void save()} />
+          <VoiceNote ctx={ctx} label={t('notes.onVerses.say')} hash={hash} onChange={(h) => draft.set((d) => ({ ...d, hash: h }))} />
+          <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} autoCapitalize="sentences" help={t('reference.notes.typeHelp')} multiline />
+          <PrimaryBtn label={t('common.addNote')} icon="check" disabled={!ready} busy={busy} onPress={() => void add()} />
         </>
       )}>
       <View style={styles.hint}>

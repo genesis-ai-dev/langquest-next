@@ -46,7 +46,7 @@ export function VersionsPage(props: {
   const mine = draftsBy(p, me);
   const durations = cardDurations(state, unitId);
   const versesHeld = useVersesHeld(ctx, state, unitId);
-  // "2 parts · 0:17", and the verses they hold when they have any: "2 parts · 0:17 · Verses 1–2". Written: "3 verses written" (decisions.md 127).
+  // "2 parts · 0:17", and the verses they hold when they have any: "2 parts · 0:17 · Verses 1–2". Written: "3 verses written" (decisions.md 128).
   const length = (hashes: readonly string[]) => partsMedium(hashes) === 'writing' ? t('writing.publishSub', { count: hashes.length })
     : [t('recording.parts.groupSub', { count: hashes.length, length: mmss(totalMs(hashes.map((h) => durations.get(h)))) }), versesHeld(hashes)].filter(Boolean).join(' · ');
   const saved = (hlc: string) => {
@@ -82,7 +82,7 @@ export function VersionsPage(props: {
               onPress={() => setAsking({ name, sub: length(d.cardHashes), go: () => remove(d, name) })} />}>
             {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editDraftHelp')} onPress={() => props.go('workspace', { draftId: d.rootTakeId })} /> : null}
             {props.canRecord ? (
-              <SmallBtn label={t('common.publish')} icon="send" tone="primary" disabled={unchanged} help={t('passage.versions.publishHelp')}
+              <SmallBtn label={t('common.done')} icon="send" tone="primary" disabled={unchanged} help={t('passage.versions.doneHelp')}
                 onPress={() => props.go('workspace', { draftId: d.rootTakeId, publish: '1' })} />
             ) : null}
           </ItemCard>
@@ -131,7 +131,7 @@ function ItemCard(props: {
 }) {
   const written = partsMedium(props.hashes) === 'writing';
   const clip = useClip(props.ctx.language, written ? [] : props.hashes);
-  // A written version shows its first words, and a pen where a recording has play (decision 127).
+  // A written version shows its first words, and a pen where a recording has play (decision 128).
   const words = written ? props.hashes.map((h) => writtenText(props.ctx.language.state!, h) ?? '').join(' ').trim() : '';
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: props.title }) : t('recording.player.playTitle', { title: props.title });
   const play = useHelpSpot(playLabel, undefined, clip.toggle);

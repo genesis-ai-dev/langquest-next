@@ -75,7 +75,7 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     await text(p, 'Every way to check').click();
     await expectOnScreen(p, 'Review Flows', 'Alpha', 'Flow');
     // Alpha's checks were copied from Standard Bible Flow (decision 91): they are its own.
-    await expectOnScreen(p, 'Alpha uses', 'Custom flow', 'Peer Review', 'Back Translation', 'Community Check', 'Consultant Check', 'Final Approval', 'Save as a flow');
+    await expectOnScreen(p, 'Alpha uses', 'Custom flow', 'Peer Review', 'Back Translation', 'Community Check', 'Consultant Check', 'Final Approval', 'Add to your flows');
     await expectOnScreen(p, /Your organization · 0/i, 'No flows here yet. Follow or copy one another organization shares, or make your own.');
     await expectOnScreen(p, /From other organizations · \d+/i, 'Standard Bible Flow', 'Quick Check', /LangQuest · \d+ versions?/);
     await expect(button(p, 'Use')).toBeVisible();
@@ -95,7 +95,7 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   // The copy replaces the checks this device holds, and its Undo is the flow it read: Alpha's record must
   // have arrived (a fresh device pulls it in pages), or the old checks stay beside the new ones and Undo is missing.
   await languageArrived(page);
-  await expectOnScreen(page, /Alpha uses Custom flow Peer Review Back Translation Community Check Consultant Check Final Approval Save as a flow/);
+  await expectOnScreen(page, /Alpha uses Custom flow Peer Review Back Translation Community Check Consultant Check Final Approval Add to your flows/);
   const quick = await flowCard(page, 'Quick Check', 'Peer Review', 'Final Approval');
   await quick.getByRole('button', { name: 'Use', exact: true }).click();
   await expectToast(page, 'Alpha now uses Quick Check.');

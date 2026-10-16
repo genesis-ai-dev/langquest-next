@@ -120,12 +120,10 @@ tags:
     id: "record-button"
 - tapOn:
     id: "publish-button"
-- tapOn: "Publish Version 1"
-- extendedWaitUntil:
-    visible: "Version 1 published\\..*"
-    timeout: 20000
-- assertVisible: "(?i)Next, ask for a check"
-# Step 13: the check's team (decision 91: "Ask the Peer check team").
+- assertVisible: "(?i)Next check"
+# Step 13: Done asks the check's team in the same tap (decision 91: "Ask the Peer check team"; decision 127).
 - tapOn: "Ask the Peer check team"
-- assertVisible: "Sent to the Peer check team.*"
+- extendedWaitUntil:
+    visible: "Sent to the Peer check team.*"
+    timeout: 20000
 - assertVisible: "Peer check, asked the Peer check team"

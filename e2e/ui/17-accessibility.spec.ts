@@ -106,8 +106,8 @@ async function walk(browser: Browser, w: UiWorld): Promise<ScreenAudit[]> {
     await expect(button(page, /^Play Part 1$/)).toBeVisible();
     await audit(page, 'the recording workspace with two parts (P-DRAFT)', 'TRANS');
     await byId(page, 'publish-button').click();
-    await expect(primary(page)).toHaveText('Publish Version 1');
-    await audit(page, 'Publish (P-DRAFT)', 'TRANS');
+    await expect(primary(page)).toHaveText(/^Ask /);
+    await audit(page, 'Done (P-DRAFT)', 'TRANS');
     await home(page);
     // An unstarted passage nobody was asked to record (PASS-028).
     await openPassage(page, w, 'P-S');
@@ -204,7 +204,7 @@ test('A11Y-009 touch targets meet 48 pt, and primary actions 56 pt @p0', async (
       else small.push(`${s.screen} (${s.who}): ${named(t)} is ${size(t)}`);
     }
     // The screen's main action, and the record button (72 in the footer).
-    for (const t of s.targets.filter((x) => x.testId === 'primary-action' || x.testId === 'record-button' || /^(Looks good|Needs changes|Send feedback|Publish Version \d+|Create Organization|Record part \d+)$/.test(x.name))) {
+    for (const t of s.targets.filter((x) => x.testId === 'primary-action' || x.testId === 'record-button' || /^(Looks good|Needs changes|Send feedback|Finish Version \d+|Create Organization|Record part \d+)$/.test(x.name))) {
       if (t.h < PRIMARY || (t.testId === 'record-button' && t.w < PRIMARY)) mains.push(`${s.screen}: ${named(t)} is ${size(t)}`);
     }
     overlapping.push(...overlaps(s.targets).map((o) => `${s.screen}: ${o}`));

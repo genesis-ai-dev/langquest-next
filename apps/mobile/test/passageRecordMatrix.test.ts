@@ -82,9 +82,9 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       expect(rec, who).toContain(`${asked}. `);
       expect(rec, who).not.toMatch(/\bdue\b/);
       expect(rec, who).toContain('Tell it in your language. The Bible, key words and notes are beside you while you record.');
-      expect(r.path[1], who).toBe('2. Publish. Then ask for the peer check');
+      expect(r.path[1], who).toBe('2. Done. Then ask for the peer check');
       expect(r.team, who).toEqual([
-        'Peer check, after you publish', 'Back translation, same time', 'Community check, after the peer check',
+        "Peer check, once you're done", 'Back translation, same time', 'Community check, after the peer check',
         'Consultant check, after the community check', 'Final approval, after the consultant check'
       ]);
     }
@@ -108,7 +108,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
   it('PASS-003 P-SUBMITTED: Version 1, Peer check asked of REV', () => {
     const trans = record('TRANS', 'P-SUBMITTED');
     expect(trans.path[0]).toMatch(/^1\. Record\. Version 1/);
-    expect(trans.path[1]).toMatch(new RegExp(`^2\\. Publish\\. Published .+ · asked ${name('REV')}$`));
+    expect(trans.path[1]).toMatch(new RegExp(`^2\\. Done\\. Published .+ · asked ${name('REV')}$`));
     expect(trans.team).toEqual([
       `Peer check, asked ${name('REV')}`, 'Back translation, same time', 'Community check, after the peer check',
       'Consultant check, after the community check', 'Final approval, after the consultant check'

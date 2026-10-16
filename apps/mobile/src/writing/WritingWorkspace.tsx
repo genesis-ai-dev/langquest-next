@@ -1,21 +1,21 @@
-// Writing a passage (decisions.md 127; demo branch caleb-written-translations,
+// Writing a passage (decisions.md 128; demo branch caleb-written-translations,
 // simple/writing.tsx wWrite, wType, wPublish, wFirstWrite, wBtWrite): the
 // recording workspace's split, with the reference on top and one box per
 // verse below. On top: what is being written from (a version heard verse by
 // verse, or its words), the Bible, key words and notes. Below: a grey verse
 // tile and a box for each verse; while typing, the letters this team writes
-// that a plain keyboard lacks sit above the keyboard. Publish puts the words
-// on the record:
+// that a plain keyboard lacks sit above the keyboard. Done looks the words
+// over, says what changed, and puts them on the record, asking whoever does
+// the next check in the same tap (decisions.md 127):
 //   version  a written version of the passage (a team that writes, or "Write it instead")
 //   make     what a making step makes from a version: written down, a written back translation, a translation,
 //            or words added to the version (it then holds the recording and its words; changing them starts from the words it has)
 //   final    a step whose result is the passage's next version, in writing
-// What is typed is kept on this phone until Publish (like a back
-// translation's parts, decision 30), so nothing half written reaches the
+// What is typed is kept on this phone as it is typed, only for its writer,
+// until Done (a draft, decision 127), so nothing half written reaches the
 // grow-only record.
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  addedTo, commands, versesInChapter, writtenCards,
+  addedTo, commands, madeVersionOf, versesInChapter, writtenCards,
   type EventSpec, type KindDef, type MakesSpec, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -27,12 +27,19 @@ import { HelpBadge, HelpClip } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Field, Header, HelpCover, Ico, PrimaryBtn, Screen, Sheet, SmallBtn } from '../ui/kit';
+import { Header, HelpCover, Ico, PrimaryBtn, Screen, SmallBtn } from '../ui/kit';
+import { SavedMark } from '../ui/SavedMark';
+import { useDraft } from '../drafts/useDraft';
+import { draftKey as draftKeyFor } from '../drafts/draftModel';
+import { PublishScreen, type DoneAsk } from '../recording/publish';
+import { nextAfterDone, recordCan, sentText, usualTargets } from '../passage/recordModel';
+import { sendTargetLabel } from '../passage/record';
+import { sendToInput } from '../passage/sendTarget';
 import { txt } from '../ui/textStyles';
 import { versionTitle, type PassageView } from '../passage/passageView';
 import { SplitPane } from '../recording/SplitPane';
 import { MIN_BOTTOM } from '../recording/splitModel';
-import { failureMessage, reportError } from '../diagnostics/report';
+import { failureMessage } from '../diagnostics/report';
 import { RefChips, type ChipItem } from '../recording/blocks';
 import { BiblePane, NotesPane } from '../helps/reference';
 import { useBible } from '../helps/useBible';
@@ -42,7 +49,8 @@ import { useUsage } from '../sources/useUsage';
 import { languageLabel } from '../admin/adminModel';
 import { C, radius, space, target, TINT } from '../ui/theme';
 import {
-  boxesChanged, boxesFor, heardByVerse, isPartKey, teamLetters, writingSpecs, writtenByVerse, type MakingSource, type VerseText
+  boxesChanged, boxesFor, EMPTY_WRITING, heardByVerse, isPartKey, isWritingDraft, teamLetters, writingDraftFor, writingSpecs, writtenByVerse,
+  type MakingSource, type VerseText
 } from './model';
 import { VersePlayRow } from './WrittenText';
 
@@ -75,32 +83,18 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
     }
     return [];
   }, [mode, latest, state, unitId, verseKeys, p]);
-  const draftKey = `writing:v1:${ctx.language.orgId}:${languageId}:${me}:${unitId}:${mode.kind === 'version' ? 'version' : mode.step.id}`
-    + (mode.kind === 'make' && mode.added && mode.source.kind === 'version' ? `:${mode.source.version.takeId}` : '');
-  const [boxes, setBoxes] = useState<VerseText[] | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    let live = true;
-    AsyncStorage.getItem(draftKey).then((raw) => {
-      if (!live) return;
-      const saved = raw ? (JSON.parse(raw) as { boxes?: VerseText[] }).boxes : undefined;
-      if (saved?.length) setBoxes(saved);
-      setLoaded(true);
-    }, (e: unknown) => { reportError('writing: read draft', e); if (live) setLoaded(true); });
-    return () => { live = false; };
-  }, [draftKey]);
+  // One draft per writer, per passage and what it makes (and per version, for words added to one).
+  const draft = useDraft(draftKeyFor('writing', me, languageId, unitId, mode.kind === 'version' ? 'version' : mode.step.id,
+    mode.kind === 'make' && mode.added && mode.source.kind === 'version' ? mode.source.version.takeId : null), EMPTY_WRITING, isWritingDraft);
+  const boxes = draft.value.boxes;
+  const loaded = draft.loaded;
   const shown = useMemo(() => {
     const base = boxesFor(verseKeys, start);
-    if (!boxes) return base;
+    if (!boxes.length) return base;
     // Keep what was typed for each verse; verses the passage has now that the draft lacks start from `start`.
     return verseKeys.length > 0 ? base.map((b) => boxes.find((x) => x.key === b.key) ?? b) : boxes;
   }, [boxes, verseKeys, start]);
-  const write = (next: VerseText[]) => {
-    setBoxes(next);
-    const keep = boxesChanged(next, start);
-    (keep ? AsyncStorage.setItem(draftKey, JSON.stringify({ boxes: next, at: Date.now() })) : AsyncStorage.removeItem(draftKey))
-      .catch((e: unknown) => reportError('writing: save draft', e));
-  };
+  const write = (next: VerseText[]) => draft.set(writingDraftFor(next, start));
   const changed = boxesChanged(shown, start);
   const filled = shown.filter((b) => b.text.trim()).length;
 
@@ -136,66 +130,91 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
   const [verse, setVerse] = useState<string | null>(null);
   const focusKey = focus !== null ? shown[focus]?.key ?? null : null;
 
-  // ---- publishing ----
+  // ---- Done: putting it on the record, and asking for the next check in the same tap (decisions.md 127) ----
   const [confirming, setConfirming] = useState(false);
-  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const nextN = p.versions.length + 1;
-  const needsNote = mode.kind === 'version' && !!latest;
-  async function publish() {
+  const ask = recordCan(ctx.session).ask;
+  const orgState = ctx.org.state;
+  // What comes next once this is on the record: after a version, its first check; after a step made something, the check after it.
+  // A step that makes the next version leaves the asking to the record, as a final recording does.
+  const nextUp = useMemo(() => (!ask || mode.kind === 'final' ? undefined
+    : mode.kind === 'version' ? nextAfterDone(p, { publishing: true }) : nextAfterDone(p, { recordedKindId: mode.step.id })), [ask, mode, p]);
+  const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true }) : {}), [nextUp, state, orgState, p, languageId, me]);
+  async function publish(note: string, noteBlobHash: string | null, asked: DoneAsk): Promise<boolean> {
     const commandId = Crypto.randomUUID();
+    const sendTo = asked && 'kindId' in asked ? targets[asked.kindId] : undefined;
+    let message = mode.kind === 'make' ? t('writing.madePublished', { what: mode.step.name }) : t('writing.versionPublished', { version: versionTitle(nextN) });
+    let requestId: string | undefined;
     let specs: EventSpec[];
     try {
       const w = writingSpecs(state, idx, { commandId, unitId, boxes: shown, verseKeys });
       const cmd = commands(state, idx);
+      const said = { ...(note.trim() ? { text: note.trim() } : {}), ...(noteBlobHash ? { blobHash: noteBlobHash } : {}) };
       if (mode.kind === 'version') {
-        specs = [...w.specs, ...cmd.publishVersion({ commandId, unitId, cardHashes: w.ids, actorId: me, parentTakeId: latest?.takeId ?? null, ...(note.trim() ? { note: note.trim() } : {}) })];
+        specs = [...w.specs, ...cmd.publishVersion({ commandId, unitId, cardHashes: w.ids, actorId: me, parentTakeId: latest?.takeId ?? null,
+          ...(note.trim() ? { note: note.trim() } : {}), ...(noteBlobHash ? { noteBlobHash } : {}) })];
       } else if (mode.kind === 'final') {
         specs = [...w.specs, ...cmd.makeVersion({ commandId, unitId, kindId: mode.step.id, fromTakeId: mode.source.takeId, cardHashes: w.ids, actorId: me, ...(mode.requestId ? { requestId: mode.requestId } : {}) })];
       } else {
         const from = mode.source.kind === 'version' ? { fromTakeId: mode.source.version.takeId } : { fromMadeId: mode.source.made.id };
         specs = [...w.specs, ...cmd.make({ commandId, unitId, kindId: mode.step.id, ...from, parts: writtenCards(w.ids),
           ...(mode.language ? { language: mode.language } : {}), ...(mode.added ? { added: true } : {}), ...(mode.requestId ? { requestId: mode.requestId } : {}) })];
+        // What was said about it goes on the passage, with the version it was made from, as a back translation's notes do.
+        const of = mode.source.kind === 'version' ? mode.source.version.takeId : madeVersionOf(p, mode.source.made);
+        if ((said.text || said.blobHash) && of) specs = [...specs, ...cmd.addNote({ commandId: Crypto.randomUUID(), unitId, anchor: { kind: 'version', takeId: of }, ...said })];
+      }
+      // Sent on in the same write, so it is never finished and forgotten (one Undo takes the asking back).
+      if (asked && 'kindId' in asked && sendTo) {
+        const req = cmd.ask({ ...sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: asked.kindId, target: sendTo }), ...(asked.questions.length ? { questions: asked.questions } : {}) });
+        requestId = (req.find((x) => x.type === 'v1.RequestMade')?.payload as { requestId: string } | undefined)?.requestId;
+        specs = [...specs, ...req];
+        message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
       }
     } catch (e) {
       ctx.toast(t('writing.notPublished', { reason: failureMessage('writing: publish', e) }));
-      return;
+      return false;
     }
     setBusy(true);
     try {
-      await ctx.act(specs, mode.kind === 'version' ? t('writing.versionPublished', { version: versionTitle(nextN) }) : t('writing.madePublished', { what: mode.step.name }));
-    } catch { setBusy(false); return; }
-    await AsyncStorage.removeItem(draftKey).catch((e: unknown) => reportError('writing: clear draft', e));
+      const undo = requestId ? () => { const now = ctx.language.state ?? state; return commands(now, indexesFor(now)).withdrawRequest({ commandId: Crypto.randomUUID(), requestId: requestId! }); } : undefined;
+      await ctx.act(specs, message, undo);
+    } catch { setBusy(false); return false; /* ctx.act said what went wrong */ }
+    await draft.clear();
+    ctx.language.triggerUpload();
     setBusy(false);
     setConfirming(false);
-    // A new version is published, then asked about (demo ADR-034); what a step made goes back to the record.
-    ctx.go('passage_record', mode.kind === 'make' ? { unitId, languageId } : { unitId, languageId, published: `w:${Date.now()}` });
+    // Back to the record, where who was asked shows; Someone else opens there with the check chosen.
+    const someone = asked && 'someoneElse' in asked ? asked.someoneElse : asked && 'kindId' in asked && !sendTo ? asked.kindId : undefined;
+    ctx.go('passage_record', { unitId, languageId, ...(someone ? { askSomeone: someone } : { asked: `w:${Date.now()}` }) });
+    return true;
   }
 
   const sub = mode.kind === 'version' ? t('writing.writingVersion', { version: versionTitle(nextN) })
     : mode.kind === 'make' && mode.language ? t('writing.stepInto', { step: mode.step.name, language: languageLabel(mode.language) })
     : mode.step.name;
-  const save = () => {
-    if (changed) ctx.toast(t('writing.savedOnPhone'));
-    ctx.back();
-  };
   const typing = focus !== null;
+
+  if (confirming) {
+    const words = shown.filter((b) => b.text.trim());
+    return (
+      <PublishScreen ctx={ctx} v={v} n={nextN} first={mode.kind !== 'version' || !latest} cards={[]} totalMs={undefined} bible={undefined}
+        busy={busy} answers={mode.kind === 'version' ? p.awaitingResponse : []} tied={0} {...(mode.kind === 'final' ? { making: true } : {})}
+        {...(mode.kind === 'make' ? { title: mode.step.name } : {})}
+        preview={<WordsPreview boxes={words} verseKeys={verseKeys} sub={t('writing.publishSub', { count: words.length })} />}
+        draftKey={draftKeyFor('publish', me, languageId, unitId, `writing:${mode.kind === 'version' ? 'version' : mode.step.id}`)}
+        next={nextUp ? { kinds: nextUp.kinds, targets } : null}
+        onClose={() => setConfirming(false)} onDone={publish} />
+    );
+  }
 
   return (
     <Screen fixed
-      header={<Header title={v.title} sub={sub} onBack={ctx.back} close action={<SmallBtn label={t('common.save')} icon="check" help={t('writing.help.save')} onPress={save} />} />}
+      header={<Header title={v.title} sub={sub} onBack={ctx.back} close action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />} />}
       footer={typing ? (
         letters.length > 0 ? <LetterStrip letters={letters} onLetter={insert} /> : null
       ) : (
-        <View style={styles.saveBar}>
-          <View style={styles.saved}>
-            <Ico name="check" size={16} color={TINT.greenText} />
-            <Text style={txt.smMuted}>{changed ? t('writing.savedOnPhone') : t('writing.nothingYet')}</Text>
-          </View>
-          <View style={{ flex: 1, maxWidth: 200 }}>
-            <PrimaryBtn label={t('common.publish')} icon="send" disabled={!loaded || !changed || filled === 0} onPress={() => setConfirming(true)} />
-          </View>
-        </View>
+        <PrimaryBtn label={t('common.done')} icon="check" help={t('writing.help.done')} disabled={!loaded || !changed || filled === 0} onPress={() => setConfirming(true)} />
       )}>
       <SplitPane memoryKey="writing" minBottom={MIN_BOTTOM} topStyle={styles.refPane} bottomStyle={styles.writePane}
         top={({ compact, open }) => compact ? (
@@ -235,15 +254,22 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
             </ScrollView>
           </HelpClip>
         )} />
-      {confirming ? (
-        <Sheet visible title={mode.kind === 'version' ? t('writing.publishVersion', { version: versionTitle(nextN) }) : t('writing.publishMade', { what: mode.step.name })}
-          sub={t('writing.publishSub', { count: filled })} onClose={() => setConfirming(false)}
-          footer={<PrimaryBtn label={t('common.publish')} icon="send" busy={busy} disabled={needsNote && !note.trim()} onPress={() => void publish()} />}>
-          {needsNote ? <Field label={t('writing.whatChanged')} value={note} onChangeText={setNote} placeholder={t('writing.whatChangedHint')} multiline /> : null}
-          <Text style={txt.smMuted}>{mode.kind === 'version' ? t('writing.publishVersionBody') : t('writing.publishMadeBody')}</Text>
-        </Sheet>
-      ) : null}
     </Screen>
+  );
+}
+
+/** The words about to go on the record, verse by verse, to look over on Done. */
+function WordsPreview({ boxes, verseKeys, sub }: { boxes: VerseText[]; verseKeys: string[]; sub: string }) {
+  return (
+    <View style={styles.preview} accessibilityLabel={sub}>
+      <Text style={txt.smMuted}>{sub}</Text>
+      {boxes.map((b, i) => (
+        <View key={b.key} style={styles.previewRow}>
+          <VerseTile label={isPartKey(b.key) ? String(i + 1) : verseName(verseKeys, verseKeys.indexOf(b.key))} />
+          <Text style={[txt.body, { flex: 1 }]}>{b.text.trim()}</Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -349,8 +375,8 @@ const styles = StyleSheet.create({
   tileText: { fontSize: 15, fontWeight: '800', color: C.dark },
   readRow: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start', padding: space.xs, borderRadius: radius.md },
   readRowLit: { backgroundColor: C.light },
-  saveBar: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  saved: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  preview: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, padding: space.md, gap: space.sm },
+  previewRow: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' },
   strip: { flexDirection: 'row', gap: space.xs, flexWrap: 'wrap' },
   letter: { minWidth: target.min, height: target.min, borderRadius: radius.md, borderWidth: 1.5, borderColor: C.primary, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.sm },
   letterText: { fontSize: 22, fontWeight: '700', color: C.primary }

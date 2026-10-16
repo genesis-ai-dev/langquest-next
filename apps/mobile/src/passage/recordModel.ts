@@ -75,7 +75,7 @@ export function usualTargets(
 export function recordPathInput(o: {
   p: PassageState; kinds: KindDef[]; me: string; name: NameFn; teamName: (teamId: string) => string | undefined;
   study?: PathInput['study']; latestSeconds?: number; latestVerses?: string | null;
-  /** How the passage goes on: recording or writing (decisions.md 127). */
+  /** How the passage goes on: recording or writing (decisions.md 128). */
   lead?: Medium;
 }): PathInput {
   const { p } = o;
@@ -99,7 +99,7 @@ export type RecordMain =
   | { id: 'hearFeedback'; label: string; icon: IconName; reviewId: string }
   | { id: 'check'; label: string; icon: IconName; kindId: string; produces: boolean; requestId?: string; makes?: boolean }
   | { id: 'study'; label: string; icon: IconName }
-  /** `write`: the passage goes on in writing (decisions.md 127). */
+  /** `write`: the passage goes on in writing (decisions.md 128). */
   | { id: 'record'; label: string; icon: IconName; write?: boolean }
   | { id: 'ask'; label: string; icon: IconName; kindId: string };
 
@@ -126,7 +126,7 @@ export function recordModel(o: {
   p: PassageState; kinds: KindDef[]; kind: (id: string) => KindDef; me: string; can: RecordCan; steps: PathStep[]; mine: MineFn;
   /** Whoever just published, or the version's author. */
   asker: boolean;
-  /** How the passage goes on: recording or writing (decisions.md 127). */
+  /** How the passage goes on: recording or writing (decisions.md 128). */
   lead?: Medium;
   /** The next check picked on the ask page. */
   askKindId?: string | null;
@@ -151,7 +151,7 @@ export function recordModel(o: {
   const openCheck = openCheckFor(p, { isAuthor: o.isAuthor, canReview: can.review });
   const check = (kindId: string, requestId?: string): RecordMain => {
     const kind = o.kind(kindId);
-    // A step that makes something is called by its name and drawn as what it makes (decisions.md 127).
+    // A step that makes something is called by its name and drawn as what it makes (decisions.md 128).
     if (kind.makes) {
       return { id: 'check', kindId, produces: false, makes: true, ...(requestId ? { requestId } : {}), label: kind.name, icon: kind.makes.to === 'writing' ? 'edit' : 'mic' };
     }
@@ -206,7 +206,7 @@ export function currentCheck(p: PassageState, currentStepId: string | undefined)
 }
 
 export type ElseOptionId = 'recordSomeone' | 'checkSomeone' | 'already' | 'notNow' | 'newVersion' | 'writeInstead' | 'recordInstead' | 'movePast';
-/** `write`: a new version is written, not recorded (decisions.md 127). */
+/** `write`: a new version is written, not recorded (decisions.md 128). */
 export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon: IconName; kindId?: string; stepId?: string; write?: boolean }
 
 /**
@@ -218,7 +218,7 @@ export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon
 export function elseOptions(o: {
   p: PassageState; kinds: KindDef[]; can: RecordCan; current: { step: FlowStepStatus; kind: KindStatus } | undefined;
   answersMine: boolean; myDraft: boolean;
-  /** How the passage goes on, and the other way the language allows (decisions.md 127). */
+  /** How the passage goes on, and the other way the language allows (decisions.md 128). */
   lead?: Medium; other?: Medium | null;
 }): ElseOption[] {
   const { p, can, current } = o;
@@ -243,7 +243,7 @@ export function elseOptions(o: {
   } else if (can.record && p.recorded && !o.answersMine) {
     out.push({ id: 'newVersion', icon: 'mic', label: o.myDraft ? t('passage.page.continueRecording') : t('passage.else.newVersion'), sub: t('passage.else.newVersionSub') });
   }
-  // The other way the language allows (decisions.md 127): write it instead, or record it instead.
+  // The other way the language allows (decisions.md 128): write it instead, or record it instead.
   if (can.record && o.other === 'writing') out.push({ id: 'writeInstead', icon: 'edit', label: t('writing.path.writeInstead'), sub: t('writing.path.writeInsteadSub'), write: true });
   if (can.record && o.other === 'recording') out.push({ id: 'recordInstead', icon: 'mic', label: t('writing.path.recordInstead'), sub: t('writing.path.recordInsteadSub') });
   // Moving past is offered at the checkpoint itself, when it is the step the passage is at.
@@ -260,7 +260,7 @@ export function lockedNameFor(p: PassageState, step: FlowStepStatus, kinds: Kind
   return gate ? stepTitle(gate.step.kindIds, kinds) : undefined;
 }
 
-/** What a making step made here last (decisions.md 127): beside a version, or a version it made (a final recording). */
+/** What a making step made here last (decisions.md 128): beside a version, or a version it made (a final recording). */
 export interface MadeByStep { madeId?: string; takeId?: string; by: string; hlc: Hlc; medium: Medium }
 
 export function madeByStep(p: PassageState, kindId: string): MadeByStep | undefined {
@@ -273,7 +273,7 @@ export function madeByStep(p: PassageState, kindId: string): MadeByStep | undefi
 export interface SheetRow {
   status: KindStatus;
   name: string;
-  /** A making step that is done: what it made, to open (decisions.md 127). */
+  /** A making step that is done: what it made, to open (decisions.md 128). */
   made?: MadeByStep;
   /** The step's icon when not its kind's: a pen or a microphone for a step that makes something. */
   icon?: IconName;
@@ -316,7 +316,7 @@ export function stepSheet(o: {
     const waitFor = fbKindIds.length && !fbKindIds.includes(status.kindId) ? fbNames : undefined;
     const checkedBy = kind.produces ? nameOf(kind.produces.checkedBy) : undefined;
     const acts = kindRowActions({ status, kind, step, can: o.can, isAuthor: o.isAuthor, me: o.me, mine: o.mine, ...(target ? { sendTo: sendTargetLabel(target, o.name) } : {}) });
-    // A making step that is done says who made it and when, and opens what it made (decisions.md 127).
+    // A making step that is done says who made it and when, and opens what it made (decisions.md 128).
     const made = kind.makes && isCompleteState(status.state) ? madeByStep(p, status.kindId) : undefined;
     const sub = made ? `${o.name(made.by)} · ${when(made.hlc)}` : kindRowSub({
       status, kind, step, me: o.me, name: o.name, mine: o.mine, teamName: o.teamName,
@@ -368,7 +368,7 @@ export function stepMove(st: PathStep, o: { p: PassageState; can: RecordCan; ear
   const doneVersion = (): RecordMove | undefined => (st.state === 'done' && p.latest ? goTo('version_detail', { takeId: p.latest.takeId }) : undefined);
   if (o.earlier) return st.kind === 'record' || st.kind === 'publish' ? doneVersion() : undefined;
   if (st.kind === 'study') return goTo('study_guide');
-  // A passage that goes on in writing opens the writing boxes (decisions.md 127).
+  // A passage that goes on in writing opens the writing boxes (decisions.md 128).
   if (st.kind === 'record') return doneVersion() ?? (can.record ? (o.lead === 'writing' ? goTo('workspace', { write: '1' }) : { id: 'recordOrPick' }) : undefined);
   if (st.kind === 'publish') return doneVersion() ?? (can.record && p.drafting ? { id: 'recordOrPick' } : undefined);
   if ((st.kind === 'feedback' || st.kind === 'fix') && o.feedbackReview) return goTo('review_detail', { reviewId: o.feedbackReview.id });
@@ -417,6 +417,30 @@ export function studyLine(study: StudyProgress): string {
   return study.doneCount || study.noteCount ? studySummary(study) : t('passage.page.studyNotStarted');
 }
 
+/**
+ * The checks to ask for once this is done (decision 127), worked out before
+ * it is: Done offers "Ask Rebecca" on the same screen, so the next step is
+ * one tap. A new version answers the feedback on the latest one (so that
+ * check reads as addressed, as derivePassage will say once it is
+ * published); a check that makes content (a back translation) is recorded,
+ * so it is approved. Then, as on the record, the first step still open and
+ * not locked behind a checkpoint, and of it the checks nobody is asked for yet.
+ */
+export function nextAfterDone(p: Pick<PassageState, 'steps'>, o: { publishing?: boolean; recordedKindId?: string }): { step: FlowStepStatus; kinds: KindStatus[] } | undefined {
+  for (const s of p.steps) {
+    if (s.override) continue;
+    const kinds: KindStatus[] = s.kinds.map((k) => {
+      const state = k.state === 'locked' ? 'todo' : k.state;
+      return { ...k, state: o.publishing && state === 'suggestions' ? 'addressed' : state };
+    });
+    const cleared = (k: KindStatus) => k.kindId === o.recordedKindId || kindCleared(k, s);
+    if (kinds.every(cleared)) continue;
+    const open = kinds.filter((k) => !cleared(k) && !k.request && k.state !== 'suggestions');
+    return open.length ? { step: { ...s, kinds, complete: false }, kinds: open } : undefined;
+  }
+  return undefined;
+}
+
 /** The toast after sending a check on with one tap: to the team or to the person. */
 export function sentText(target: UsualTarget, label: string): string {
   return 'teamId' in target ? t('passage.page.sentToTeam', { target: label }) : t('passage.page.sentToPerson', { target: label });
@@ -431,18 +455,6 @@ export function askButtonLabel(o: { target: UsualTarget | undefined; kindId: str
 /** The Versions page's "Ask for the …" button label. */
 export function askForLabel(kindId: string, kinds: KindDef[]): string {
   return t('passage.page.askFor', { check: kindInSentence(checkName(kindId, kinds)) });
-}
-
-/** "Version 3 published": what the ask page celebrates (or the back translation just published). */
-export function publishedHeadline(o: { backTranslation: boolean; latest: Pick<Version, 'n'> | undefined }): string {
-  return o.backTranslation ? t('passage.published.backTranslation') : o.latest ? t('passage.published.version', { n: o.latest.n }) : t('passage.published.versionNoNumber');
-}
-
-/** Where the new version is: sent, sending, or kept here until there is a connection. */
-export function publishedLine(o: { pending: number; pendingUp: number; online: boolean | null | undefined; title: string }): string {
-  const waiting = o.pending > 0 || o.pendingUp > 0;
-  return !waiting ? t('passage.published.sent', { title: o.title })
-    : o.online === false ? t('passage.published.savedHere', { title: o.title }) : t('passage.published.sending', { title: o.title });
 }
 
 /** What the ask page says when there is no next check to ask for. */
