@@ -46,13 +46,13 @@ import { failureMessage, reportError } from '../diagnostics/report';
 import { RequestBanner } from '../reviewing/parts';
 import { lift } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
-import { useOnTooShort, useRecorder, type RecordedCard } from './useRecorder';
+import { useRecorder, type RecordedCard } from './useRecorder';
 import { spanName } from './verseModel';
 import { VoiceNote } from '../audio/voiceNote';
 
 export function BackTranslationBody({ ctx, v, kind, of, make }: {
   ctx: Ctx; v: PassageView; kind: KindDef; of: Version;
-  /** A step that makes recording (decisions.md 125): what it says it into, and the language it is in when not the team's own. */
+  /** A step that makes recording (decisions.md 126): what it says it into, and the language it is in when not the team's own. */
   make?: { into: string; language?: string; added?: boolean };
 }) {
   const { state, unitId, languageId, p } = v;
@@ -95,7 +95,6 @@ export function BackTranslationBody({ ctx, v, kind, of, make }: {
   }, [add]);
   const rec = useRecorder(persist, undefined, ctx.language);
   // A piece too short to keep is said (decisions.md 106).
-  useOnTooShort(rec.tooShort, () => ctx.toast(t('recording.vad.tooShort')));
   const loop = useListenLoop(rec);
   const session = loop.phase !== 'off';
   const recording = session || rec.manualOn;

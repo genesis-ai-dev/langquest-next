@@ -188,7 +188,7 @@ export function CheckEditor(ctx: Ctx) {
     .sort((a, b) => ctx.name(a).localeCompare(ctx.name(b)));
   const previous = i > 0 ? checkName(rows[i - 1]!.kindId, known) : '';
 
-  // A step that makes something (decisions.md 125): what it turns, into what, in which language, and what happens to it.
+  // A step that makes something (decisions.md 126): what it turns, into what, in which language, and what happens to it.
   const kind = known.find((k) => k.id === kindId);
   const makes = kind?.makes;
   const reference = teamLanguage(org, state, languageId);
@@ -200,7 +200,7 @@ export function CheckEditor(ctx: Ctx) {
       before ? () => { const now = ctx.language.state; return now ? commands(now, indexesFor(now)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: before }) : []; } : undefined)
       .catch(() => {});
   };
-  // Words added here, before a step that makes the next version, stay with the older version (decision 125).
+  // Words added here, before a step that makes the next version, stay with the older version (decision 126).
   const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
   // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
   const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);

@@ -1,4 +1,4 @@
-// The passage's verses, as the recorder works them out (decisions.md 125).
+// The passage's verses, as the recorder works them out (decisions.md 126).
 import { versesInChapter } from '@langquest-next/core';
 import { useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';

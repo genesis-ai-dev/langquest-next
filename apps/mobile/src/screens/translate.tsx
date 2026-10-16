@@ -19,8 +19,8 @@
 // for all; a deleted part's place takes the next part, and with it the
 // deleted part's verses, so a part said wrong is said again where it was
 // (LAN-83). While the parts are still a version's, the card is named for it. Publish is its own screen inside this one, so
-// nothing recorded or offered is lost on the way. The sensitivity and the
-// pause between parts are set in microphone setup (`mic_setup`).
+// nothing recorded or offered is lost on the way. Parts split by what the
+// microphone hears, the room and the voice, with nothing to set (LAN-82).
 //
 // Every change persists: each part is kept as the draft on the record, so
 // nothing is lost if you leave, and Save says so. A person may keep several
@@ -69,7 +69,7 @@ import { contractsFor } from '../shell/screenContracts';
 import { BackTranslationBody } from '../recording/btWorkspace';
 import { SourceReader } from '../sources/SourceReader';
 import { GuideNav, GuideStep } from '../study/guide';
-import { mmss, partLabel, partsLookClipped, recorderLines, refChips, totalMs, type RefChip } from '../recording/model';
+import { mmss, partLabel, recorderLines, refChips, totalMs, type RefChip } from '../recording/model';
 import { passageVerseKeys } from '../recording/verseModel';
 import { draftName, draftOf, startedFrom } from '../passage/versionsModel';
 import { catalogVerses } from '../sources/model';
@@ -88,7 +88,7 @@ import { teamLanguage } from '../reference/languages';
 import { languageLabel } from '../admin/adminModel';
 import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
-import { useOnTooShort, useRecorder, type RecordedCard } from '../recording/useRecorder';
+import { useRecorder, type RecordedCard } from '../recording/useRecorder';
 
 // ---- Workspace ---------------------------------------------------------------------
 
@@ -98,7 +98,7 @@ type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark } | 
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
-  // Writing the passage instead of recording it (decisions.md 125).
+  // Writing the passage instead of recording it (decisions.md 126).
   if (ctx.params['write'] === '1') return <WritingWorkspace key={`${v.unitId}:${v.languageId}:write`} ctx={ctx} v={v} mode={{ kind: 'version' }} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
@@ -113,7 +113,7 @@ function Missing(props: { ctx: Ctx; title: string; text?: string }) {
   );
 }
 
-/** A step whose result is the passage's next version (a final recording, decisions.md 125): what it is made from. */
+/** A step whose result is the passage's next version (a final recording, decisions.md 126): what it is made from. */
 interface MakingVersion { kindId: string; name: string; fromTakeId: string; requestId?: string }
 
 function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: MakingVersion }) {
@@ -131,7 +131,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // one from the latest version. `root` names the draft once it is saved;
   // `tip` is its newest take seen here, which the next change continues.
   const fromParam = making ? undefined : ctx.params['from'];
-  // A final recording starts empty: it is said again, not edited (decisions.md 125).
+  // A final recording starts empty: it is said again, not edited (decisions.md 126).
   const fresh = ctx.params['fresh'] === '1' || !!making;
   const mine = useMemo(() => draftsBy(p, me), [p, me]);
   const draftId = ctx.params['draftId'];
@@ -150,7 +150,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // What the draft started from: a version's parts, or nothing.
   const startFrom = draft || tipRef.current ? (draft?.basedOnTakeId ?? (rootRef.current ? state.takes[rootRef.current]?.parentTakeId ?? undefined : undefined))
     : fromParam && state.submissions[fromParam] ? fromParam : fresh ? undefined : latest?.takeId;
-  // A written version is a version to say again, not parts to keep (decision 125): recording from it starts empty.
+  // A written version is a version to say again, not parts to keep (decision 126): recording from it starts empty.
   const startCards = startFrom && partsMedium(state.takes[startFrom]?.cardHashes ?? []) === 'recording' ? state.takes[startFrom]?.cardHashes : undefined;
   /** What the next change continues: this draft's newest take, else what it starts from. */
   const parentNow = useCallback(() => (tipRef.current && stateRef.current.takes[tipRef.current] ? tipRef.current : startFrom ?? null), [startFrom]);
@@ -206,9 +206,6 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // Publish from the Versions page opens the publish screen at once.
   const publishParam = ctx.params['publish'] === '1';
   const [confirming, setConfirming] = useState(publishParam);
-  // This session's part lengths: three very short ones in a row look like clipping (demo ADR-037).
-  const sessionLengths = useRef<number[]>([]);
-  const [clipped, setClipped] = useState(false);
 
   // Cards arrive from the recorder already saved (addRecording, id chosen
   // before any save step, journaled against this passage). The latest
@@ -224,16 +221,8 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
       card: { hash: card.ref.hash, durationMs: card.durationMs, format: card.ref.format }
     }));
     current.language.triggerUpload();
-    sessionLengths.current.push(card.durationMs);
-    if (partsLookClipped(sessionLengths.current)) setClipped(true);
   }, [unitId]);
   const rec = useRecorder(persist, { orgId: ctx.language.orgId, languageId, unitId });
-  // A part too short to keep is said, and counts as a clipped one (decisions.md 106).
-  useOnTooShort(rec.tooShort, () => {
-    ctx.toast(t('recording.vad.tooShort'));
-    sessionLengths.current.push(0);
-    if (partsLookClipped(sessionLengths.current)) setClipped(true);
-  });
   const loop = useListenLoop(rec);
   const session = loop.phase !== 'off';
   const recording = session || rec.manualOn;
@@ -487,8 +476,6 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
     earlier: { id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }
   })[c]);
 
-  // ---- microphone: offered when parts keep coming out clipped (demo ADR-037) ----
-  useEffect(() => { if (session) sessionLengths.current = []; }, [session]);
 
   // ---- publishing (REC-W3, REC-W4) ----
   const [publishing, setPublishing] = useState(false);
@@ -627,14 +614,6 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
                 {...(recorderGroupTitle ? { title: recorderGroupTitle } : {})}
                 rows={rows} target={target} onChoose={choose}
                 verses={{ keys: verseKeys, marks, onMarks: setMarks }} />
-              {clipped ? (
-                <View style={styles.clipped}>
-                  <Text style={[txt.sm, { color: TINT.amberText, fontWeight: '700' }]}>{t('translate.clipped')}</Text>
-                  <SmallBtn label={t('translate.micSetup')} icon="sliders" help={t('translate.micSetupHint')} onPress={() => ctx.go('mic_setup')} />
-                </View>
-              ) : !session ? (
-                <QuietLink label={t('translate.micSetup')} icon="sliders" hint={t('translate.micSetupHint')} onPress={() => ctx.go('mic_setup')} />
-              ) : null}
             </ScrollView>
           </HelpClip>
         )} />
@@ -671,7 +650,7 @@ export function BackTranslation(ctx: Ctx) {
 }
 
 /**
- * A step that makes something (decisions.md 125): turn the latest version,
+ * A step that makes something (decisions.md 126): turn the latest version,
  * or what an earlier step made, into recording or writing, in the team's
  * language or another. When the step lets the person pick, they say which
  * first. Writing opens the writing workspace; recording, the back
@@ -680,7 +659,7 @@ export function BackTranslation(ctx: Ctx) {
 function Making({ ctx, v, kind }: { ctx: Ctx; v: PassageView; kind: KindDef }) {
   const makes = kind.makes!;
   const [picked, setPicked] = useState<'recording' | 'writing' | null>(null);
-  // Changing what a step added to a version opens on that version (decision 125). A step that adds
+  // Changing what a step added to a version opens on that version (decision 126). A step that adds
   // works on the version it counts for: the latest, or, before a step that makes a newer one, the one before.
   const stepIndex = v.p.flow.steps.findIndex((st) => st.kindIds.includes(kind.id));
   const onVersion = v.p.versions.find((x) => x.takeId === ctx.params['fromTakeId'])
@@ -713,7 +692,6 @@ const styles = StyleSheet.create({
   refPane: { backgroundColor: C.bg },
   wsRecordPane: { backgroundColor: C.card },
   recordBody: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.lg, gap: space.md },
-  clipped: { backgroundColor: TINT.amber, borderRadius: radius.lg, padding: space.md, gap: space.sm },
   // Back translation (LAN-23): each half its own ground, so the two read as
   // different places: the version cool (the brand's pale tint), your parts
   // warm (the red tint). Cards on both stay white, so text keeps its contrast.

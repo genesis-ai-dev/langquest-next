@@ -17,8 +17,6 @@ import { ORG, roleSession } from './sessions';
  * the drift log: empty means the app has nothing the spec does not.
  */
 const APP_ONLY: Record<string, string> = {
-  'settings_home->mic_setup': 'microphone setup by ear, from Me (decision 71, demo ADR-037)',
-  'workspace->mic_setup': 'microphone setup, offered when takes keep clipping or come out quiet (decision 71)',
   'study_guide->key_term_detail': 'the study is one reader for both nodes; its key words and glossary open a key term (decision 71, demo ADR-035)',
   'study_step->guide_editor': 'the steps sheet offers the guide editor from either study node (decision 71)',
   'my_work->book_structure': "a book waiting to be divided is on the admin's My Work; the row opens that book in the open language (decision 80)",
@@ -96,11 +94,11 @@ const APP_ONLY: Record<string, string> = {
   'cluster_home->language_home': "a cluster's page lists its languages (decision 108, demo ADR-045)",
   'cluster_home->new_language': 'Add a language to it: a new one, already in the cluster (decision 108, demo ADR-045)',
   'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 108, demo ADR-045)',
-  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 125)",
-  'version_detail->made_detail': 'a version lists what was made from it (decision 125)',
-  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 125)',
-  'version_detail->back_translation': 'change the words a step added to a version (decision 125)',
-  'made_detail->back_translation': 'change the words a step added to a version (decision 125)',
+  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 126)",
+  'version_detail->made_detail': 'a version lists what was made from it (decision 126)',
+  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 126)',
+  'version_detail->back_translation': 'change the words a step added to a version (decision 126)',
+  'made_detail->back_translation': 'change the words a step added to a version (decision 126)',
   'version_detail->workspace': 'a version\'s page edits it into a new draft, as the Versions page does (LAN-83)'
 };
 
@@ -117,7 +115,7 @@ const appEdges = EDGES.filter(machine);
 
 describe('UX spec parity', () => {
   it('the screen set is the demo screen set plus sync status, account deletion, the Reports section, the reference screens, the guide editor, More Bibles, a check, a cluster and something made from a version, less the dropped screens', () => {
-    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'mic_setup', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'made_detail'].sort());
+    expect([...SCREEN_IDS].sort()).toEqual([...spec.screens.filter((s) => !(s in DROPPED)), 'sync_status', 'delete_account', 'reports_home', 'reports_language', ...REFERENCE_SCREENS, 'guide_editor', 'bible_explore', 'get_ready', 'settings_more', 'check_editor', 'cluster_home', 'made_detail'].sort());
     // The drop list names only screens the spec has.
     expect(Object.keys(DROPPED).filter((s) => !spec.screens.includes(s))).toEqual([]);
   });

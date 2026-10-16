@@ -19,12 +19,12 @@ describe('UX flow coverage', () => {
       // More Bibles beside a passage (docs/reference-material.md).
       'bible_explore',
       // Microphone setup and getting a language ready (decision 71).
-      'mic_setup', 'get_ready',
+      'get_ready',
       // Me keeps five rows; the rest of Settings is under More settings (decision 71).
       'settings_more',
       // One of a language's checks, with its people, questions and helps (decision 91).
       'check_editor',
-      // Something made from a version (decision 125).
+      // Something made from a version (decision 126).
       'made_detail',
       // A cluster of languages: a name on some of them (decision 108).
       'cluster_home'] as const;
