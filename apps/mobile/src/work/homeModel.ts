@@ -92,18 +92,17 @@ export function workWhat(kind: WorkKind, kindName?: string): string {
 }
 
 /**
- * A row's second line, short enough for one line: what to do, then when it
- * is due, or else who asked ("Record · due Oct 11", "Community check · asked
- * by Abebe").
+ * A row's second line, short enough for one line: what to do, then who asked
+ * ("Community check · asked by Abebe").
  */
-export function workSub(what: string, opts: { by?: string; due?: string } = {}): string {
-  return [what, opts.due ?? (opts.by ? t('work.askedBy', { name: opts.by }) : '')].filter(Boolean).join(' · ');
+export function workSub(what: string, opts: { by?: string } = {}): string {
+  return [what, opts.by ? t('work.askedBy', { name: opts.by }) : ''].filter(Boolean).join(' · ');
 }
 
-/** The "Next for you" card's line under the passage, which has room for both: "Record it · asked by Mary · due Oct 11". */
-export function nextSub(kind: WorkKind, what: string, opts: { by?: string; due?: string } = {}): string {
+/** The "Next for you" card's line under the passage: "Record it · asked by Mary". */
+export function nextSub(kind: WorkKind, what: string, opts: { by?: string } = {}): string {
   const verb = kind === 'record' ? t('work.what.recordIt') : kind === 'draft' ? t('work.what.draftIt') : what;
-  return [verb, opts.by ? t('work.askedBy', { name: opts.by }) : '', opts.due ?? ''].filter(Boolean).join(' · ');
+  return [verb, opts.by ? t('work.askedBy', { name: opts.by }) : ''].filter(Boolean).join(' · ');
 }
 
 /** What you asked of someone else, as "Waiting on others" says it. */

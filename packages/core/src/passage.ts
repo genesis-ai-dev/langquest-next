@@ -665,7 +665,7 @@ export interface Waiting {
   request: RequestView;
 }
 
-/** What a person asked of someone else that is not done yet, most overdue first (WORK-3). */
+/** What a person asked of someone else that is not done yet, newest first (WORK-3). */
 export function waitingOn(state: LanguageState, actorId: string, idx?: Indexes): Waiting[] {
   const ri = recordIndexes(state, idx);
   const out: Waiting[] = [];
@@ -674,8 +674,7 @@ export function waitingOn(state: LanguageState, actorId: string, idx?: Indexes):
     const view = derivePassage(state, r.unitId, ri.idx).requests.find((x) => x.id === r.id);
     if (view?.status === 'open') out.push({ id: `wait-${r.id}`, unitId: r.unitId, request: view });
   }
-  const due = (w: Waiting) => w.request.dueDate ?? '￿';
-  return out.reverse().sort((a, b) => (due(a) < due(b) ? -1 : due(a) > due(b) ? 1 : 0));
+  return out.reverse();
 }
 
 /**

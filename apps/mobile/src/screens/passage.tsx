@@ -29,7 +29,7 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName, HelpTop } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
-import { addDays, anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, dueChoices, gridKindIds, guestMessage, historySummary, isoDay, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
+import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
 import { PassagePath } from '../passage/path';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {
@@ -54,7 +54,7 @@ import { clipSeconds, clock as clockOf } from '../audio/clipTime';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn } from '../passage/sendTarget';
-import { dueTitle, feedbackSource, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
+import { feedbackSource, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
 import { PassageOffline, PassageOfflineLine } from '../sync/offline';
 import { noteExpected, reportError } from '../diagnostics/report';
@@ -1206,9 +1206,6 @@ export function AskSomeone(ctx: Ctx) {
   const [note, setNote] = useState('');
   const [noteHash, setNoteHash] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSpec[]>([]);
-  const [today] = useState(() => isoDay(new Date()));
-  const [dueDays, setDueDays] = useState<number | null>(null);
-  const [dueTyped, setDueTyped] = useState('');
   const [othersShown, setOthersShown] = useState(PEOPLE_STEP);
   const [busy, setBusy] = useState(false);
   const vState = v?.state;
@@ -1222,10 +1219,10 @@ export function AskSomeone(ctx: Ctx) {
   }
 
   const kind = kindId ? v.kind(kindId) : undefined;
-  const picks: AskPicks = { mode, who, guestName, contact, dueDays, dueTyped, today };
+  const picks: AskPicks = { mode, who, guestName, contact };
   const model = askModel({ v, org: ctx.org.state, me, name: ctx.name, what, kindId, candidates, picks });
   // The check's team (decision 91): everyone on it gets the request, and it is the first choice.
-  const { isRecord, check, title, usual, others, team, teamPeople, chosen, asked, dueErr, due, outside, ready } = model;
+  const { isRecord, check, title, usual, others, team, teamPeople, chosen, asked, outside, ready } = model;
 
   const send = async () => {
     if (!ready) return;
@@ -1307,17 +1304,6 @@ export function AskSomeone(ctx: Ctx) {
       <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
 
       {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions} /> : null}
-
-      <SectionLabel label={t('passage.ask.byWhen')} />
-      <ChipRow>
-        {dueChoices().map((d) => (
-          <Chip key={String(d.days)} label={d.label} on={!dueTyped.trim() && dueDays === d.days} help={d.days === null ? t('passage.ask.noDateHelp') : t('passage.ask.dueHelp')}
-            onPress={() => { setDueTyped(''); setDueDays(d.days); }} />
-        ))}
-      </ChipRow>
-      <Field value={dueTyped} onChangeText={setDueTyped} placeholder={t('passage.ask.orDate', { date: addDays(today, 10) })} autoCapitalize="none" help={t('passage.ask.dateHelp')} />
-      {dueErr ? <Text style={[txt.xs, { color: TINT.redText }]}>{dueErr}</Text>
-        : due ? <Text style={txt.xs}>{dueTitle(due)}</Text> : null}
     </Screen>
   );
 }

@@ -34,7 +34,6 @@ import { txt } from '../ui/textStyles';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
 import { notificationTarget, openAfterSwitch } from '../notifications/notificationTarget';
-import { dueText } from '../passage/passageView';
 import { personLook } from '../ui/people';
 import { noteExpected, failureMessage } from '../diagnostics/report';
 import { ReportActions } from '../moderation/reportSheet';
@@ -143,7 +142,7 @@ export function InboxHome(ctx: Ctx) {
     const kindName = (id: string | undefined) => (id ? (kinds.find((k) => k.id === id) ?? kindOf(state, id)).name : t('account.updates.reviewFallback'));
     const produces = (id: string) => !!(kinds.find((k) => k.id === id) ?? kindOf(state, id)).produces;
     return (u: Update) => updateText(u, {
-      name: ctx.name, passage: unitTitle(state, u.unitId), language, kindName, produces, due: (d) => dueText(d)
+      name: ctx.name, passage: unitTitle(state, u.unitId), language, kindName, produces
     });
   }, [state, language, ctx.name]);
 

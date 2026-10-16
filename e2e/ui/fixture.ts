@@ -532,8 +532,7 @@ export async function buildWorld(opts: { welcomed?: boolean } = {}): Promise<UiW
     commandId: id(), materialId: questionSet, kind: 'questions', title: `${checkName['consultant']} questions`, scope: { stepId: 'consultant' },
     fields: [{ fieldId: 'q1', text: formatQuestionField({ text: CONSULTANT_QUESTION, type: 'yesno', required: true }) }]
   }));
-  const due = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
-  await coord.step((st) => commands(st).ask({ commandId: id(), unitId: unit('P-NEW'), what: 'record', profileId: TRANS.id, dueDate: due }));
+  await coord.step((st) => commands(st).ask({ commandId: id(), unitId: unit('P-NEW'), what: 'record', profileId: TRANS.id }));
   for (const k of ['P-Q1', 'P-Q2', 'P-Q3', 'P-Q4'] as const) await coord.step((st) => commands(st).ask({ commandId: id(), unitId: unit(k), what: 'record', profileId: TRANS.id }));
   await coord.done('checks and requests');
 

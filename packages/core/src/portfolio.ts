@@ -19,7 +19,7 @@ export interface LanguageRow {
  * Organization figures, summed on the device from the language rows this
  * person may read (decision 44). Nothing here is stored: a member scoped to
  * one language gets figures for that language only. Everything takes `now`
- * so a page reads "check in" or "overdue" as of the moment it is looked at.
+ * so a page reads "check in" as of the moment it is looked at.
  */
 
 const DAY_MS = 86_400_000;
@@ -33,7 +33,6 @@ interface OrgTotals {
   work: Record<PassageWork, number>;
   feedback: number;
   openRequests: number;
-  overdueRequests: number;
   atCheckpoint: number;
   lastActivity: string | null;
   /** The stalest report among the rows: how far behind the page may be. */
@@ -47,7 +46,7 @@ export function orgTotals(rows: LanguageRow[]): OrgTotals {
   const out: OrgTotals = {
     languages: rows.length, total: 0, recorded: 0, done: 0,
     work: Object.fromEntries(PASSAGE_WORK.map((w) => [w, 0])) as Record<PassageWork, number>,
-    feedback: 0, openRequests: 0, overdueRequests: 0, atCheckpoint: 0, lastActivity: null, oldestUpdate: null
+    feedback: 0, openRequests: 0, atCheckpoint: 0, lastActivity: null, oldestUpdate: null
   };
   for (const { report: r, updatedAt } of rows) {
     out.total += r.progress.total;
@@ -56,7 +55,6 @@ export function orgTotals(rows: LanguageRow[]): OrgTotals {
     for (const w of PASSAGE_WORK) out.work[w] += r.work[w];
     out.feedback += r.attention.feedback;
     out.openRequests += r.attention.openRequests;
-    out.overdueRequests += r.attention.overdueRequests;
     out.atCheckpoint += r.attention.atCheckpoint;
     out.lastActivity = later(out.lastActivity, r.lastActivity);
     out.oldestUpdate = earlier(out.oldestUpdate, updatedAt);
@@ -534,7 +532,7 @@ export function alertsFor(rows: LanguageRow[], asOf: string, now: number): Alert
 
 /** Things a coordinator can act on in one language. */
 export function attentionCount(r: LanguageReport): number {
-  return r.attention.feedback + r.attention.overdueRequests + r.attention.atCheckpoint;
+  return r.attention.feedback + r.attention.atCheckpoint;
 }
 
 export type LanguageSortKey = 'name' | 'recorded' | 'done' | 'attention' | 'activity' | 'coverage' | 'cards' | 'upload';
@@ -592,13 +590,13 @@ export function languagesCsv(rows: LanguageRow[], now = Date.now()): string {
   return toCsv([
     ['Language', 'Code', 'Country', 'Review flow', 'Passages', 'Recorded', 'Done', 'Recorded %', 'Done %',
       'Gospels recorded %', 'New Testament recorded %', 'Old Testament recorded %', 'Recordings on server', 'Last upload', 'Upload status',
-      'Feedback to answer', 'Open requests', 'Overdue requests', 'At a checkpoint', 'Bottleneck', 'Last activity', 'Report updated'],
+      'Feedback to answer', 'Open requests', 'At a checkpoint', 'Bottleneck', 'Last activity', 'Report updated'],
     ...rows.map(({ report: r, updatedAt }) => [
       r.name, r.code, r.country, r.flowName, r.progress.total, r.progress.recorded, r.progress.done,
       percent(r.progress.recorded, r.progress.total), percent(r.progress.done, r.progress.total),
       r.coverage.recorded.gospels, r.coverage.recorded.nt, r.coverage.recorded.ot, r.uploads.cards, r.uploads.lastAt,
       recencyOf(r, now).band,
-      r.attention.feedback, r.attention.openRequests, r.attention.overdueRequests, r.attention.atCheckpoint,
+      r.attention.feedback, r.attention.openRequests, r.attention.atCheckpoint,
       r.bottleneck, r.lastActivity, updatedAt
     ])
   ]);

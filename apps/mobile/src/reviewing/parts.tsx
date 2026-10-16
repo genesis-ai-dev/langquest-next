@@ -18,7 +18,7 @@ import { Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, R
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { t } from '../i18n';
-import { dueText, feedbackSource, outcomeText, versionTitle, when } from '../passage/passageView';
+import { feedbackSource, outcomeText, versionTitle, when } from '../passage/passageView';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { authoredText, recordTarget } from '../moderation/reportTargets';
 import type { StudyProgress } from '../study/progress';
@@ -137,7 +137,7 @@ export function RequestBanner(props: { ctx: Ctx; request: RequestView }) {
   const who = r.by ? props.ctx.name(r.by) : t('common.someone');
   return (
     <View style={{ gap: space.sm }}>
-      <Banner icon={r.guest ? 'link' : 'assign'} title={r.dueDate ? t('review.parts.askedDue', { name: who, due: dueText(r.dueDate) }) : t('review.parts.asked', { name: who })}
+      <Banner icon={r.guest ? 'link' : 'assign'} title={t('review.parts.asked', { name: who })}
         {...(r.note ? { body: authoredText(props.ctx, r.by, r.note) } : {})} />
       {r.noteBlobHash ? (
         <Authored ctx={props.ctx} by={r.by}>

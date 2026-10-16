@@ -20,7 +20,7 @@ always a way back to a home.
 | Back translation | The version to listen to on top, the recorder below | The red record button | Save back translation | — | ✕ to the passage |
 | Review it now | ① Listen ② Questions ③ Your verdict, one stage at a time | Next (Next: questions / Next: your verdict), then Looks good | Needs changes (with what to change) | Background (translator's notes, the team's study, earlier reviews); Can't answer this? | ✕ to the passage |
 | Already happened | Who gave it, then the same stages | Next, then Looks good / Save to the record | Needs changes | Add details (where, which version, other passages, the retelling) | ✕ to the passage |
-| Ask someone | Who usually does it, first | Ask ‹name› | Someone without the app | Directions, questions, due date | ✕ to the passage |
+| Ask someone | Who usually does it, first | Ask ‹name› | Someone without the app | Directions, questions | ✕ to the passage |
 | Version | What changed, the takes | Play | Reviews of this version | Key terms, notes, report | Back to the passage |
 | Review | The outcome and the feedback | Record a fix (the author) | Keep it, say why (the author) | Answers, report | Back to the passage |
 | Study guide / step | The step's material | Done with this step (or Next step) | Record the first draft (last step) | Passage view, notes | Back to the passage |

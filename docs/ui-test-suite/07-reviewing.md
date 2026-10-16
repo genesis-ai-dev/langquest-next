@@ -68,7 +68,7 @@ Expected:
 - Review it opens. Header title "Luke 15:11-32", sub "Peer check", with ✕.
 - Under the header, the step strip shows two steps, "Listen" and "Decide" (no "Questions", because the Peer check has none here). "Listen" is current.
 - A large player titled "Version 1 · recorded by {TRANS first name}", with the sub "Listen to all of it first", a timeline, "Back 10 seconds" and "Note".
-- If whoever asked left directions, a banner "{name} asked · {due}" with "Play their directions" shows above the player.
+- If whoever asked left directions, a banner "{name} asked" with "Play their directions" shows above the player.
 - If the check has helps linked to it (decision 91), they are listed under "For Peer check" above Background, each opening its note, guide or Bible.
 - A "Background" row whose sub lists what is there, for example "The passage, the team's study, {TRANS first name}'s notes, key words".
 - A dashed row "Who is listening?" with "optional".

@@ -143,8 +143,6 @@ export interface LanguageReport {
     /** Latest version has feedback nobody answered. */
     feedback: number;
     openRequests: number;
-    /** Open requests whose due date is before the report's day. */
-    overdueRequests: number;
     /** Next step is a checkpoint nobody has cleared or moved past. */
     atCheckpoint: number;
   };
@@ -212,11 +210,10 @@ export function languageReport(state: LanguageState, info: LanguageInfo, now: nu
   const flow = deriveFlow(state);
   const kinds = deriveKinds(state);
   const passages = idx.passages.map((unitId) => derivePassage(state, unitId, idx));
-  const today = isoDay(now);
 
   const work = Object.fromEntries(PASSAGE_WORK.map((w) => [w, 0])) as Record<PassageWork, number>;
   const atStep = new Map<string, number>();
-  const attention = { feedback: 0, openRequests: 0, overdueRequests: 0, atCheckpoint: 0 };
+  const attention = { feedback: 0, openRequests: 0, atCheckpoint: 0 };
   const books = new Map<string, BookReport & { canon: number }>();
   const firstWeek = weekStartOf(now) - (REPORT_WEEKS - 1) * WEEK_MS;
   const weeks: ActivityWeek[] = Array.from({ length: REPORT_WEEKS }, (_, i) => ({
@@ -250,7 +247,6 @@ export function languageReport(state: LanguageState, info: LanguageInfo, now: nu
       if (s.next.step.checkpoint) attention.atCheckpoint += 1;
     }
     attention.openRequests += s.openRequests.length;
-    attention.overdueRequests += s.openRequests.filter((r) => r.dueDate !== undefined && r.dueDate < today).length;
 
     const place = unitPlace(state, s.unitId);
     const key = place.bookId ?? `label:${place.bookLabel}`;

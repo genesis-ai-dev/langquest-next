@@ -43,14 +43,14 @@ describe('the simple My Work (decision 71)', () => {
     expect(workIcon('produce').icon).toBe('globe');
   });
 
-  it('says what to do in few words, the due date before who asked', () => {
+  it('says what to do in few words, then who asked', () => {
     expect(workWhat('respond')).toBe('Feedback to hear');
     expect(workWhat('review', 'Community Check')).toBe('Community Check');
     expect(workSub('Record')).toBe('Record');
-    expect(workSub('Record', { by: 'Mary', due: 'due Oct 11' })).toBe('Record · due Oct 11');
+    expect(workSub('Record', { by: 'Mary' })).toBe('Record · asked by Mary');
     expect(workSub('Community Check', { by: 'Abebe' })).toBe('Community Check · asked by Abebe');
     // The Next card has room for both.
-    expect(nextSub('record', 'Record', { by: 'Mary', due: 'due Oct 11' })).toBe('Record it · asked by Mary · due Oct 11');
+    expect(nextSub('record', 'Record', { by: 'Mary' })).toBe('Record it · asked by Mary');
   });
 
   it('names who a request is waiting on: the person, the check\'s team, an older team, or the guest', () => {

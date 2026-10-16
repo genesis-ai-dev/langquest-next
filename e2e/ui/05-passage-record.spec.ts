@@ -22,7 +22,6 @@ import {
 const world = useRunWorld('05-record', offerExampleGuides);
 const nameOf = (who: AccountKey) => world().accounts[who].name;
 const label = (p: Passage) => (typeof p === 'string' ? world().passages[p].label : p.label);
-const DUE = /due [A-Z][a-z]{2} \d{1,2}/;
 
 async function expectNoCrash(page: Page): Promise<void> {
   await expect(text(page, 'This screen could not open')).toHaveCount(0);
@@ -38,8 +37,8 @@ test('PASS-001 TRANS P-NEW: not started, asked of TRANS @p0', async ({ browser }
   await expect(text(page, 'Alpha')).toBeVisible();
   await expect(byId(page, 'header-back')).toBeVisible();
   const rec = (await pathStep(page, 'Record').getAttribute('aria-label')) ?? '';
-  expect(rec).toContain(`${nameOf('COORD')} asked you · `);
-  expect(rec).toMatch(DUE);
+  expect(rec).toContain(`${nameOf('COORD')} asked you. `);
+  expect(rec).not.toMatch(/\bdue\b/);
   expect(rec).toContain('Tell it in your language. The Bible, key words and notes are beside you while you record.');
   expect(await screenText(page)).toContain('Publish Then ask for the peer check');
   expect(await teamRows(page)).toEqual([

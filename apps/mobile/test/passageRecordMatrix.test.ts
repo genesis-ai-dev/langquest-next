@@ -79,8 +79,8 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       const asked = who === 'TRANS' ? `${name('COORD')} asked you` : who === 'COORD' ? `You asked ${name('TRANS')}` : `${name('COORD')} asked ${name('TRANS')}`;
       const rec = r.path[0]!;
       expect(rec, who).toMatch(/^1\. Record\. /);
-      expect(rec, who).toContain(`${asked} · `);
-      expect(rec, who).toMatch(/due [A-Z][a-z]{2} \d{1,2}/);
+      expect(rec, who).toContain(`${asked}. `);
+      expect(rec, who).not.toMatch(/\bdue\b/);
       expect(rec, who).toContain('Tell it in your language. The Bible, key words and notes are beside you while you record.');
       expect(r.path[1], who).toBe('2. Publish. Then ask for the peer check');
       expect(r.team, who).toEqual([

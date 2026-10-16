@@ -32,7 +32,7 @@ import { pendingRequests, type PendingRequest } from '../invites/invites';
 import { useServerInbox } from '../account/useInboxSources';
 import { Card, Group, Header, Ico, Row, Screen, SectionLabel, StepMarks, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
-import { dueText, isJustNow, when } from '../passage/passageView';
+import { isJustNow, when } from '../passage/passageView';
 import { noteExpected } from '../diagnostics/report';
 import { contractsFor } from '../shell/screenContracts';
 import { edgeAllowed, mapScreenFor } from '../shell/session';
@@ -63,7 +63,7 @@ function waitingText(state: LanguageState, kinds: KindDef[], w: Waiting, name: C
   const what = waitingWhat(r, check);
   // A check asked of its team names the team, not "someone" (decisions.md 91).
   const who = waitingWho(r, { name: (id) => name(id), checkName: check });
-  return { title: unitTitle(state, w.unitId), sub: `${what} · ${who} · ${r.dueDate ? dueText(r.dueDate) : askedWhen(r.hlc)}` };
+  return { title: unitTitle(state, w.unitId), sub: `${what} · ${who} · ${askedWhen(r.hlc)}` };
 }
 
 /** When someone asked to join: "Asked just now", "Asked 5 min ago", "Asked Oct 1". */
@@ -218,15 +218,14 @@ export function MyWork(ctx: Ctx) {
     ctx.openPassage(h.unitId, languageId);
   }
 
-  /** One highlight's words: the passage, what to do, who asked and when it is due. */
-  function words(h: Highlight): { title: string; what: string; by?: string; due?: string } {
+  /** One highlight's words: the passage, what to do and who asked. */
+  function words(h: Highlight): { title: string; what: string; by?: string } {
     const r = h.request;
     const kindName = r?.kindId ? checkName(r.kindId, kinds) : undefined;
     return {
       title: unitTitle(state!, h.unitId),
       what: workWhat(h.kind, kindName),
-      ...(h.kind === 'respond' && h.review ? {} : r?.by ? { by: ctx.name(r.by) } : {}),
-      ...(r?.dueDate ? { due: dueText(r.dueDate) } : {})
+      ...(h.kind === 'respond' && h.review ? {} : r?.by ? { by: ctx.name(r.by) } : {})
     };
   }
 
@@ -234,7 +233,7 @@ export function MyWork(ctx: Ctx) {
     const w = words(h);
     const look = workIcon(h.kind);
     // Feedback says who it came from in the passage itself; the row stays short (demo Then list).
-    const sub = h.kind === 'respond' ? w.what : workSub(w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) });
+    const sub = h.kind === 'respond' ? w.what : workSub(w.what, w.by ? { by: w.by } : {});
     // A check asked of you reads as one (demo HomeCoord: "Check Luke 1:1–4"); the rest by the passage alone.
     return { id: h.id, icon: look.icon, tone: look.tone, title: h.kind === 'review' ? t('work.checkPassage', { passage: w.title }) : w.title, sub, onPress: () => open(h, languageId),
       help: t('work.list.openHelp') };
@@ -267,7 +266,7 @@ export function MyWork(ctx: Ctx) {
     // A check asked of a whole team (decision 91) says so, with the team's faces.
     const team = first.request?.teamId && first.request.kindId ? { kindId: first.request.kindId, people: checkPeople(state, first.request.kindId) } : null;
     lead = <NextCard label={t('work.lead.nextForYou')} title={w.title} cta={t('work.lead.start')} onPress={() => open(first, languageId)} help={t('work.lead.startHelp')}
-      sub={nextSub(first.kind, w.what, { ...(w.by ? { by: w.by } : {}), ...(w.due ? { due: w.due } : {}) })}
+      sub={nextSub(first.kind, w.what, w.by ? { by: w.by } : {})}
       {...(team ? { below: (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
           <Faces people={team.people} />

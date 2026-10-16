@@ -309,7 +309,7 @@ export const EDGES: Edge[] = [
   e('delete_account', 'settings_home', 'back'),
   e('delete_account', 'intent_chooser', 'back'),
   e('reports_home', 'reports_language'),
-  e('reports_language', 'map_home'), // tap Feedback to answer / Overdue requests: the map, filtered to them
+  e('reports_language', 'map_home'), // tap Feedback to answer / Open requests: the map, filtered to them
   e('reports_language', 'reports_home', 'back'),
   e('reference_home', 'reference_bibles', undefined, 'manageReference'),
   e('reference_bibles', 'reference_home', 'back'),

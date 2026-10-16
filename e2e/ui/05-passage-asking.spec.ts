@@ -206,7 +206,7 @@ test('PASS-037 Ask someone for a check: who is listed first @p0', async ({ brows
   await expect(byId(page, 'primary-action')).toHaveText('Ask the Peer check team');
 });
 
-test('PASS-038 Ask a person, with directions, a question and a due date @p0', async ({ browser }) => {
+test('PASS-038 Ask a person, with directions and a question, and no due date @p0', async ({ browser }) => {
   const L = label('P-DRAFT');
   const trev = nameOf('TREV');
   await draftPublished();
@@ -223,8 +223,9 @@ test('PASS-038 Ask a person, with directions, a question and a due date @p0', as
   expect(listed.toLowerCase()).toContain("they’ll answer");
   expect(listed).toContain("Is the host's anger clear? Yes/No");
   await expect(button(page, 'Remove question')).toBeVisible();
-  await button(page, 'In a week').click();
-  expect(await screenText(page)).toMatch(/Due [A-Z][a-z]{2} \d{1,2}/);
+  // Due dates are gone (decision 111): no By when, no date to type.
+  expect((await screenText(page)).toLowerCase()).not.toMatch(/by when|\bdue\b/);
+  await expect(field(page, /^Or a date, like /)).toHaveCount(0);
   await byId(page, 'primary-action').click();
   await toast(page, `${trev} will see it on their My Work`);
   await expect(byId(page, 'toast-undo')).toBeVisible();
@@ -232,10 +233,11 @@ test('PASS-038 Ask a person, with directions, a question and a due date @p0', as
   await expect(teamRow(page, 'Peer check')).toHaveAttribute('aria-label', `Peer check, asked ${trev}`);
   await versionsPage(page);
   await expand(page, 'History', /^Version \d+ published$|^Asked /);
-  expect(await screenText(page)).toMatch(new RegExp(`Asked ${trev} for Peer check You · .+ — due [A-Z][a-z]{2} \\d{1,2} Withdraw`));
+  expect(await screenText(page)).toMatch(new RegExp(`Asked ${trev} for Peer check You · .+ — open Withdraw`));
   const all = await myWork(await pageFor(browser, world(), 'TREV'), `asked by ${nameOf('TRANS')}`);
   expect(all).toContain(L);
-  expect(all).toMatch(new RegExp(`asked by ${nameOf('TRANS')} · due [A-Z][a-z]{2} \\d{1,2}`));
+  expect(all).toContain(`asked by ${nameOf('TRANS')}`);
+  expect(all).not.toMatch(/\bdue\b/);
 });
 
 /** PASS-039 for one role: asks Kept to record a spare passage (`at` picks the passage), then undoes it. */
@@ -246,12 +248,11 @@ async function askToRecordThenUndo(browser: Browser, who: AccountKey, at: number
   await somethingElse(page);
   await button(page, /^Someone else should do this/).click();
   await page.getByRole('radio', { name: new RegExp(`^${kept}`) }).locator('visible=true').first().click();
-  await button(page, 'In 2 weeks').click();
   await expect(byId(page, 'primary-action')).toHaveText('Ask Kept');
   await byId(page, 'primary-action').click();
   await toast(page, `${kept} will see it on their My Work`);
   await expect(header(page), who).toHaveText(p.label);
-  expect(await pathStep(page, 'Record').getAttribute('aria-label'), who).toMatch(new RegExp(`Record\\. You asked ${kept} · due [A-Z][a-z]{2} \\d{1,2}\\. Tell it`));
+  expect(await pathStep(page, 'Record').getAttribute('aria-label'), who).toMatch(new RegExp(`Record\\. You asked ${kept}\\. Tell it`));
   await byId(page, 'toast-undo').click();
   await toast(page, 'Undone.');
   await expect.poll(async () => pathStep(page, 'Record').getAttribute('aria-label'), { message: who }).not.toContain('asked');
@@ -275,29 +276,6 @@ async function askForBt(page: Page): Promise<void> {
   await sheet(page).getByRole('button', { name: /^(Send to someone else|Ask someone)$/ }).last().click();
   await expect(header(page)).toHaveText('Ask for Back translation');
 }
-
-test('PASS-040 Typing a due date', async ({ browser }) => {
-  await draftPublished();
-  const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
-  await askForBt(page);
-  const due = field(page, /^Or a date, like /);
-  const err = (m: string) => expect(text(page, m)).toBeVisible();
-  await due.fill('12/10/2026');
-  await err('Write the date as YYYY-MM-DD, like 2026-10-07.');
-  await expect(byId(page, 'primary-action')).toBeDisabled();
-  await due.fill('2026-02-30');
-  await err('That date does not exist.');
-  const day = (n: number) => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-  await due.fill(day(-1));
-  await err('Pick today or a later day.');
-  await due.fill(day(10));
-  await expect(text(page, /^Due [A-Z][a-z]{2} \d{1,2}$/)).toBeVisible();
-  await due.fill('');
-  await button(page, 'Today').click();
-  await expect(text(page, /^Due [A-Z][a-z]{2} \d{1,2}$/)).toBeVisible();
-  await button(page, 'No date').click();
-  await expect(text(page, /^Due /)).toHaveCount(0);
-});
 
 test('PASS-041 Your own questions', async ({ browser }) => {
   await draftPublished();

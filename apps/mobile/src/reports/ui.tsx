@@ -238,7 +238,7 @@ export function AttentionPanel(props: { attention: LanguageReport['attention']; 
     <Panel title={t('reports.attention.title')} sub={t('reports.attention.sub')}>
       <Stats>
         <Stat label={t('reports.attention.feedback')} value={num(a.feedback)} tone={tone(a.feedback, 'amber')} sub={t('reports.attention.feedbackSub')} onOpen={show(a.feedback, 'feedback')} />
-        <Stat label={t('reports.attention.overdue')} value={num(a.overdueRequests)} tone={tone(a.overdueRequests, 'red')} sub={t('reports.attention.openInAll', { count: a.openRequests })} onOpen={show(a.openRequests, 'waiting')} />
+        <Stat label={t('reports.attention.open')} value={num(a.openRequests)} onOpen={show(a.openRequests, 'waiting')} />
         <Stat label={t('reports.attention.checkpoint')} value={num(a.atCheckpoint)} tone={tone(a.atCheckpoint, 'amber')} sub={t('reports.attention.checkpointSub')} />
       </Stats>
     </Panel>
