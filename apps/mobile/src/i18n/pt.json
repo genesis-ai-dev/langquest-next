@@ -3810,8 +3810,8 @@
       "record": "Gravar",
       "yourParts": "As suas partes estão gravadas, mas ainda não publicadas.",
       "someParts": "Algumas partes estão gravadas, mas ainda não publicadas.",
-      "recordHint": "Conte no seu idioma. A Bíblia, as palavras-chave e as notas ficam ao seu lado enquanto você grava.",
-      "recordHintAsked": "{{asked}}. Conte no seu idioma. A Bíblia, as palavras-chave e as notas ficam ao seu lado enquanto você grava.",
+      "recordHint": "Conte no seu idioma.",
+      "recordHintAsked": "{{asked}}. Conte no seu idioma.",
       "asked": {
         "youAskedYou": "Você pediu a si mesmo",
         "youAskedName": "Você pediu a {{name}}",
@@ -6075,7 +6075,6 @@
       "btNote": "Nota do retrotradutor",
       "theirNote": "A nota",
       "playTheirNote": "Tocar a nota",
-      "withheld": "As notas e as revisões anteriores ficam escondidas na {{kind}}, para que o que você ouve não seja influenciado pelo que outros disseram. Elas continuam na ficha.",
       "recordings_one": "{{count, number}} gravação",
       "recordings_many": "{{count, number}} de gravações",
       "recordings_other": "{{count, number}} gravações",
@@ -6416,7 +6415,6 @@
     "listenTo": "Ouvir a versão {{n}}",
     "madeFrom": "As suas partes foram feitas a partir da versão {{n}}",
     "madeFromBody": "A versão {{n}} já saiu, e publicar coloca a sua {{what}} junto com ela. Ouça de novo e refaça qualquer parte que mudou.",
-    "sayEachPart": "Diga cada parte em {{into}}, com as suas próprias palavras. As notas e as verificações anteriores ficam escondidas de propósito, para que só a gravação influencie o que você diz.",
     "openYour": "Abrir a sua {{what}}",
     "yourWhat": "A sua {{what}}, {{said}}",
     "loadingParts": "Carregando as suas partes…",
@@ -6458,7 +6456,10 @@
     "finishWhat": "Terminar a {{what}}",
     "doneHelp": "Quando todas as partes estiverem ditas: termine e envie para a verificação que ouve em seguida.",
     "notesForCheck_other": "{{count, number}} notas para a {{check}}",
-    "sendLaterHelp": "Termina a {{what}} sem pedir a ninguém por enquanto. A equipe pode ouvir."
+    "sendLaterHelp": "Termina a {{what}} sem pedir a ninguém por enquanto. A equipe pode ouvir.",
+    "chips": {
+      "version": "Versão {{n}}"
+    }
   },
   "translate": {
     "missing": "Esta passagem ainda não está neste aparelho.",
@@ -6816,7 +6817,8 @@
       "verseNotesHelp": "O número conta as notas neste versículo.",
       "verseTermsHelp": "As palavras sublinhadas são palavras-chave: toque em uma para abrir.",
       "verseTermsMarkedHelp": "As palavras sublinhadas são palavras-chave.",
-      "verseTiedHelp": "Um visto depois de uma palavra-chave quer dizer que ela está ligada ao seu rascunho."
+      "verseTiedHelp": "Um visto depois de uma palavra-chave quer dizer que ela está ligada ao seu rascunho.",
+      "verseDotHelp": "Toca a Bíblia a partir deste versículo."
     },
     "keyWords": {
       "none": "Ainda não há palavras-chave nesta passagem.",
@@ -7115,8 +7117,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "Em que idioma devem estar as Bíblias e os guias de estudo de {{language}}?",
-    "sub": "Escolha o idioma que a equipe de {{language}} lê melhor. Cada um mostra o que o LangQuest tem nele.",
+    "question": "Em quais idiomas devem estar as Bíblias e guias de estudo de {{language}}?",
     "setPassages_one": "Guias de {{name}} para {{count, number}} passagem",
     "setPassages_many": "Guias de {{name}} para {{count, number}} de passagens",
     "setPassages_other": "Guias de {{name}} para {{count, number}} passagens",
@@ -7130,7 +7131,7 @@
     "chip": "Bíblias e guias em {{language}}",
     "chipHelp": "O idioma das Bíblias e dos guias de estudo deles. Toque para mudar.",
     "change": "Mudar",
-    "rowHelp": "Escolhe este idioma para as Bíblias e os guias da equipe. A linha diz o que ele tem."
+    "rowHelp": "Adiciona este idioma para as Bíblias e guias da equipe, ou o tira. A linha diz o que há nele."
   },
   "checks": {
     "title": "Verificações",
@@ -7138,7 +7139,7 @@
     "together": " + ",
     "then": " → ",
     "sameTime": "ao mesmo tempo",
-    "openHelp": "Pessoas, perguntas e ajudas desta verificação",
+    "openHelp": "Pessoas, perguntas, o que aparece na tela e ajudas",
     "cardA11y": "{{n}}. {{title}}",
     "questionsCount_one": "{{count, number}} pergunta",
     "questionsCount_many": "{{count, number}} de perguntas",
@@ -7231,7 +7232,60 @@
     "helpOnHelp": "Ligado: os revisores podem abrir nesta verificação. Toque para desfazer a ligação.",
     "helpOffHelp": "Toque para os revisores poderem abrir nesta verificação.",
     "writeNoteHelp": "Escreva uma nota nova, ligada a esta verificação.",
-    "removeCheckHelp": "Tira esta verificação das etapas pelas quais as passagens passam."
+    "removeCheckHelp": "Tira esta verificação das etapas pelas quais as passagens passam.",
+    "recording": "Gravação",
+    "openRecordHelp": "Abre o que o gravador mostra.",
+    "shows": {
+      "title": "Na tela deles",
+      "bibleAudio": "Ouvir a Bíblia",
+      "bibleText": "Ler a Bíblia",
+      "guideAudio": "Ouvir o guia",
+      "guideText": "Ler o guia",
+      "terms": "Palavras-chave",
+      "notes": "Notas",
+      "earlier": "Versões anteriores",
+      "short": {
+        "bibleAudio": "Áudio da Bíblia",
+        "bibleText": "Texto da Bíblia",
+        "guideAudio": "Áudio do guia",
+        "guideText": "Texto do guia",
+        "terms": "Palavras-chave",
+        "notes": "Notas",
+        "earlier": "Versões anteriores"
+      },
+      "allHidden": "Tudo oculto",
+      "onHelp": "Na tela deles. Toque para ocultar.",
+      "offHelp": "Oculto para eles. Toque para mostrar.",
+      "shownToast": "{{what}}: aparece em {{check}}",
+      "hiddenToast": "{{what}}: oculto em {{check}}",
+      "bible": "Bíblia",
+      "guide": "Guia",
+      "audio": "Áudio",
+      "text": "Texto",
+      "allOnHelp": "Ligado: recebem tudo. Toque para ocultar tudo.",
+      "allOffHelp": "Desligado: não recebem nada. Toque para mostrar tudo.",
+      "partLabel": "{{help}}: {{part}}",
+      "all": "Tudo",
+      "off": "Desligado",
+      "someOf": "{{n, number}} de {{total, number}}",
+      "openHelp": "Abre um botão para cada parte.",
+      "notesFrom": "Notas adicionadas durante",
+      "earlierFrom": "Versões e comentários de"
+    },
+    "peopleOpenHelp": "Abre quem faz esta verificação.",
+    "questionsOpenHelp": "Abre as perguntas que eles respondem.",
+    "sameTimeRow": "Ao mesmo tempo que",
+    "sameTimeNone": "Nenhuma outra verificação",
+    "sameTimeHelp": "Abre quais verificações acontecem ao mesmo tempo que esta.",
+    "sameTimeDoneHelp": "Salva quais verificações acontecem ao mesmo tempo.",
+    "sameTimeOnHelp2": "Acontece ao mesmo tempo. Toque para que não.",
+    "sameTimeOffHelp2": "Toque para que aconteça ao mesmo tempo.",
+    "checkedAt": "Verificado em",
+    "checkedAtHelp": "Abre qual verificação ouve o que este passo produz.",
+    "checkedAtPickHelp": "Esta verificação ouve isso.",
+    "ownCheck": "Uma verificação própria",
+    "ownCheckHelp": "Adiciona logo depois desta uma verificação que ouve isso.",
+    "ownCheckName": "Verificação da {{name}}"
   },
   "lostFiles": {
     "title": "Falta áudio",

@@ -3574,8 +3574,8 @@
       "record": "Rekam",
       "yourParts": "Bagian-bagian Anda sudah direkam, belum diterbitkan.",
       "someParts": "Beberapa bagian sudah direkam, belum diterbitkan.",
-      "recordHint": "Ceritakan dalam bahasa Anda. Alkitab, kata kunci, dan catatan ada di dekat Anda selama merekam.",
-      "recordHintAsked": "{{asked}}. Ceritakan dalam bahasa Anda. Alkitab, kata kunci, dan catatan ada di dekat Anda selama merekam.",
+      "recordHint": "Ceritakan dalam bahasa Anda.",
+      "recordHintAsked": "{{asked}}. Ceritakan dalam bahasa Anda.",
       "asked": {
         "youAskedYou": "Anda meminta diri sendiri",
         "youAskedName": "Anda meminta {{name}}",
@@ -5583,7 +5583,6 @@
       "btNote": "Catatan penerjemah balik",
       "theirNote": "Catatan mereka",
       "playTheirNote": "Putar catatan mereka",
-      "withheld": "Catatan dan pemeriksaan sebelumnya disembunyikan untuk {{kind}}, agar apa yang Anda dengar tidak dipengaruhi pendapat orang lain. Semuanya tetap ada di riwayat.",
       "recordings_other": "{{count, number}} rekaman",
       "review": "Pemeriksaan",
       "playRecorded": "Putar apa yang mereka rekam",
@@ -5902,7 +5901,6 @@
     "listenTo": "Dengarkan Versi {{n}}",
     "madeFrom": "Bagian-bagian Anda dibuat dari Versi {{n}}",
     "madeFromBody": "Versi {{n}} sudah keluar, dan menerbitkan akan menyertakan {{what}} Anda dengan versi itu. Dengarkan lagi dan ulangi bagian yang berubah.",
-    "sayEachPart": "Ucapkan setiap bagian dalam {{into}}, dengan kata-kata Anda sendiri. Catatan dan pemeriksaan sebelumnya sengaja disembunyikan, agar hanya rekaman yang memengaruhi apa yang Anda ucapkan.",
     "openYour": "Buka {{what}} Anda",
     "yourWhat": "{{what}} Anda, {{said}}",
     "loadingParts": "Memuat bagian-bagian Anda…",
@@ -5938,7 +5936,10 @@
     "finishWhat": "Selesaikan {{what}}",
     "doneHelp": "Setelah semua bagian diucapkan: selesaikan dan kirim ke pemeriksaan yang mendengarkannya berikutnya.",
     "notesForCheck_other": "{{count, number}} catatan untuk {{check}}",
-    "sendLaterHelp": "Menyelesaikan {{what}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya."
+    "sendLaterHelp": "Menyelesaikan {{what}} tanpa meminta siapa pun dulu. Tim bisa mendengarnya.",
+    "chips": {
+      "version": "Versi {{n}}"
+    }
   },
   "translate": {
     "missing": "Perikop ini belum ada di perangkat ini.",
@@ -6258,7 +6259,8 @@
       "verseNotesHelp": "Angkanya menunjukkan jumlah catatan pada ayat ini.",
       "verseTermsHelp": "Kata yang bergaris bawah adalah kata kunci: ketuk salah satunya untuk membukanya.",
       "verseTermsMarkedHelp": "Kata yang bergaris bawah adalah kata kunci.",
-      "verseTiedHelp": "Centang setelah kata kunci berarti kata itu dikaitkan dengan draf Anda."
+      "verseTiedHelp": "Centang setelah kata kunci berarti kata itu dikaitkan dengan draf Anda.",
+      "verseDotHelp": "Memutar Alkitab dari ayat ini."
     },
     "keyWords": {
       "none": "Belum ada kata kunci dalam perikop ini.",
@@ -6539,8 +6541,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "Alkitab dan panduan studi {{language}} sebaiknya dalam bahasa apa?",
-    "sub": "Pilih bahasa yang paling baik dibaca oleh tim {{language}}. Setiap bahasa menunjukkan apa yang dimiliki LangQuest dalam bahasa itu.",
+    "question": "Dalam bahasa apa saja Alkitab dan panduan belajar {{language}}?",
     "setPassages_other": "Panduan {{name}} untuk {{count, number}} perikop",
     "bibles_other": "{{count, number}} Alkitab",
     "otherGuides_other": "{{count, number}} panduan atau catatan lain",
@@ -6548,7 +6549,7 @@
     "chip": "Alkitab dan panduan dalam bahasa {{language}}",
     "chipHelp": "Bahasa Alkitab dan panduan studi mereka. Ketuk untuk mengubahnya.",
     "change": "Ubah",
-    "rowHelp": "Memilih bahasa ini untuk Alkitab dan panduan tim. Barisnya menyebutkan apa yang tersedia."
+    "rowHelp": "Menambahkan bahasa ini untuk Alkitab dan panduan tim, atau menghapusnya. Barisnya menyebut isinya."
   },
   "checks": {
     "title": "Pemeriksaan",
@@ -6556,7 +6557,7 @@
     "together": " + ",
     "then": " → ",
     "sameTime": "bersamaan",
-    "openHelp": "Orang, pertanyaan, dan alat bantunya",
+    "openHelp": "Orang, pertanyaan, yang ada di layar mereka, dan alat bantunya",
     "cardA11y": "{{n}}. {{title}}",
     "questionsCount_other": "{{count, number}} pertanyaan",
     "helpsCount_other": "{{count, number}} alat bantu",
@@ -6643,7 +6644,60 @@
     "helpOnHelp": "Ditautkan: pemeriksa dapat membukanya pada pemeriksaan ini. Ketuk untuk melepas tautan.",
     "helpOffHelp": "Ketuk agar pemeriksa dapat membukanya pada pemeriksaan ini.",
     "writeNoteHelp": "Tulis catatan baru, yang ditautkan ke pemeriksaan ini.",
-    "removeCheckHelp": "Mengeluarkan pemeriksaan ini dari tahap-tahap yang dilalui perikop."
+    "removeCheckHelp": "Mengeluarkan pemeriksaan ini dari tahap-tahap yang dilalui perikop.",
+    "recording": "Merekam",
+    "openRecordHelp": "Membuka apa yang ditampilkan perekam.",
+    "shows": {
+      "title": "Di layar mereka",
+      "bibleAudio": "Dengar Alkitab",
+      "bibleText": "Baca Alkitab",
+      "guideAudio": "Dengar panduan",
+      "guideText": "Baca panduan",
+      "terms": "Kata kunci",
+      "notes": "Catatan",
+      "earlier": "Versi sebelumnya",
+      "short": {
+        "bibleAudio": "Audio Alkitab",
+        "bibleText": "Teks Alkitab",
+        "guideAudio": "Audio panduan",
+        "guideText": "Teks panduan",
+        "terms": "Kata kunci",
+        "notes": "Catatan",
+        "earlier": "Versi sebelumnya"
+      },
+      "allHidden": "Semua disembunyikan",
+      "onHelp": "Ada di layar mereka. Ketuk untuk menyembunyikan.",
+      "offHelp": "Disembunyikan dari mereka. Ketuk untuk menampilkan.",
+      "shownToast": "{{what}} ditampilkan di {{check}}",
+      "hiddenToast": "{{what}} disembunyikan di {{check}}",
+      "bible": "Alkitab",
+      "guide": "Panduan",
+      "audio": "Audio",
+      "text": "Teks",
+      "allOnHelp": "Aktif: mereka mendapat semuanya. Ketuk untuk menyembunyikan semuanya.",
+      "allOffHelp": "Mati: mereka tidak mendapat apa pun. Ketuk untuk menampilkan semuanya.",
+      "partLabel": "{{help}}: {{part}}",
+      "all": "Semua",
+      "off": "Mati",
+      "someOf": "{{n, number}} dari {{total, number}}",
+      "openHelp": "Membuka sakelar untuk setiap bagiannya.",
+      "notesFrom": "Catatan yang ditambahkan selama",
+      "earlierFrom": "Versi dan masukan dari"
+    },
+    "peopleOpenHelp": "Membuka siapa yang melakukan pemeriksaan ini.",
+    "questionsOpenHelp": "Membuka pertanyaan yang mereka jawab.",
+    "sameTimeRow": "Bersamaan dengan",
+    "sameTimeNone": "Tidak ada pemeriksaan lain",
+    "sameTimeHelp": "Membuka pemeriksaan mana yang berlangsung bersamaan dengan ini.",
+    "sameTimeDoneHelp": "Menyimpan pemeriksaan mana yang berlangsung bersamaan.",
+    "sameTimeOnHelp2": "Berlangsung bersamaan. Ketuk agar tidak.",
+    "sameTimeOffHelp2": "Ketuk agar berlangsung bersamaan.",
+    "checkedAt": "Diperiksa di",
+    "checkedAtHelp": "Membuka pemeriksaan mana yang mendengarkan hasil langkah ini.",
+    "checkedAtPickHelp": "Pemeriksaan ini mendengarkannya.",
+    "ownCheck": "Pemeriksaan tersendiri",
+    "ownCheckHelp": "Menambahkan pemeriksaan tepat setelah ini yang mendengarkannya.",
+    "ownCheckName": "Pemeriksaan {{name}}"
   },
   "lostFiles": {
     "title": "Audio hilang",

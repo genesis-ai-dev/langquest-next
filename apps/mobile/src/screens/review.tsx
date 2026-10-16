@@ -28,7 +28,7 @@
 // the saved mark in the header. Back and ✕ leave and keep it; opening the
 // same review again brings it back where it was left; sending it drops it.
 import {
-  commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
+  checkShows, commands, derivePassage, keyTermLinksFor, languageName, questionsForKind, RECORD_STEP, SHOWN,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -57,7 +57,7 @@ import {
   type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
 import {
-  AlsoCoveredPicker, AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner, WithheldNotice
+  AlsoCoveredPicker, AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner
 } from '../reviewing/parts';
 import { contractsFor } from '../shell/screenContracts';
 import { AgainBtn, BigMic, DashedRow, PlayChip, SpeakBtn } from '../reviewing/reviewVoice';
@@ -76,6 +76,8 @@ import { draftKey } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import { isStoredReview, reviewDraftOf, reviewStateOf, type ReviewDraft, type ReviewState } from '../reviewing/reviewDraft';
+import { NoteStepContext } from '../checks/noteStep';
+import { anyFrom, fromFilter } from '../checks/showsModel';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
 const SHEET_GAP_MS = 400;
@@ -93,7 +95,8 @@ function voiceCard(hash: string, card?: { durationMs: number; format: 'wav' | 'm
 
 /** Listen (with the background, unless the kind withholds it), answer, give your verdict (REV-0..4). */
 export function ReviewCapture(ctx: Ctx) {
-  return <Capture ctx={ctx} logged={false} />;
+  // Notes written while reviewing are this check's (decisions.md 128).
+  return <NoteStepContext.Provider value={ctx.params['kindId']}><Capture ctx={ctx} logged={false} /></NoteStepContext.Provider>;
 }
 
 // ---- Already happened (add_record) ---------------------------------------------------------
@@ -188,12 +191,16 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     [vp, kindId, actorId, requestParam, logged]);
   const questions = useMemo(() => vState ? questionsForKind(vState, kindId, request) : [], [vState, kindId, request]);
   const guide = useStudyGuide(ctx, v?.unitId);
-  const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(v, kindId, version.takeId, guide) : null,
+  // What the check shows (decisions.md 128): Background has only that, and is not there when it shows nothing.
+  const shows = useMemo(() => (vState ? { ...checkShows(vState, kindId), notes: anyFrom(vState, kindId, 'notes'), earlier: anyFrom(vState, kindId, 'earlier') } : null), [vState, kindId]);
+  const earlierFrom = useMemo(() => (vState ? fromFilter(vState, kindId, 'earlier') : undefined), [vState, kindId]);
+  const anyShown = !!shows && SHOWN.some((w) => shows[w]);
+  const context = useMemo(() => v && version && kind ? backgroundFor(v, kindId, version.takeId, guide) : null,
     [v?.state, v?.p, kindId, version?.takeId, kind, guide]); // eslint-disable-line react-hooks/exhaustive-deps -- v is new on every draw; what backgroundFor reads of it (state, p, kinds) follows v.state and v.p
   const all = useMemo(() => vState && logged ? recordedPassages(vState) : [], [vState, logged]);
   // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
   const usage = useUsage();
-  const shown = !!context;
+  const shown = !!context && anyShown;
   useOfferedSources(ctx, shown ? v?.unitId : undefined, shown ? v?.languageId : undefined, shown ? usage : undefined);
   const guideItem = guide ? guide.id.split('~')[0] ?? guide.id : null;
   useEffect(() => {
@@ -390,7 +397,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         </Card>
       ) : null}
       {context?.compare ? <CompareCard ctx={ctx} review={context.compare} kind={v.kind(context.compare.kindId)} version={version} /> : null}
-      {context !== null && helps.length ? (
+      {helps.length ? (
         <>
           <SectionLabel label={t('checks.forCheck', { check })} />
           <Group>
@@ -400,12 +407,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           </Group>
         </>
       ) : null}
-      {context === null ? <WithheldNotice kind={kind} /> : (
+      {context && anyShown ? (
         <Group>
           <Row leading={<Ico name="layers" size={28} color={C.primary} />} label={t('review.parts.background')} sub={backgroundLine(context, { id: version.by, name: translator, you: mine })}
             help={t('review.screen.backgroundHelp')} onPress={() => setSheet('background')} last />
         </Group>
-      )}
+      ) : null}
       <DashedRow icon="people" label={whoTitle} help={!logged ? t('review.screen.whoHelp') : group ? t('review.screen.howManyHelp') : t('review.screen.whoReviewedHelp')}
         {...(whoLine ? { sub: whoLine, done: true } : {})} right={whoLine ? t('review.shared.change') : t('review.shared.optional')} onPress={() => setSheet('who')} />
       {logged ? (
@@ -545,8 +552,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     <Screen key={`${stage}:${qi}:${why}`} footer={footer} header={header} bodyStyle={{ flexGrow: 1 }}>
       {why ? whyBody : stage === 'listen' ? listen : stage === 'questions' ? question : decide}
 
-      {sheet === 'background' && context ? (
-        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind}
+      {sheet === 'background' && context && shows ? (
+        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind} shows={shows}
+          {...(earlierFrom ? { earlierFrom } : {})}
           {...(bible ? { bible } : {})}
           onClose={() => { setSheet(null); setBible(null); }}
           onOpenTerm={(termId) => afterSheet(() => ctx.go('key_term_detail', { termId, unitId: v.unitId, languageId: v.languageId }))}
@@ -638,7 +646,10 @@ function helpRowHelp(h: HelpRow): string {
 function backgroundFor(v: PassageView, kindId: string, takeId: string, guide: StudyGuide | null) {
   const { state, p } = v;
   const terms = keyTermLinksFor(state, takeId).map((l) => l.term);
-  const notes = p.notes.filter((n) => n.anchor.kind !== 'study');
+  // Notes and earlier reviews from the steps this check shows (decisions.md 128).
+  const notesFrom = fromFilter(state, kindId, 'notes');
+  const earlierFrom = fromFilter(state, kindId, 'earlier');
+  const notes = p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP));
   const versionN = (id: string) => p.versions.find((x) => x.takeId === id)?.n;
   const anchor = (n: PassageNote) => noteAnchorText(n.anchor, { term: (id) => state.keyTerms[id]?.term, versionN });
   const olderVersion = (n: PassageNote) => {
@@ -647,7 +658,7 @@ function backgroundFor(v: PassageView, kindId: string, takeId: string, guide: St
   };
   const study = guide ? studyProgress(state, p, guide) : null;
   const compare = toCompareFor(p, v.kinds, kindId);
-  const earlier = earlierReviews(p, v.kinds, kindId);
+  const earlier = earlierReviews(p, v.kinds, kindId).filter((r) => earlierFrom(r.kindId));
   return { terms, notes, anchor, olderVersion, study, compare, earlier };
 }
 

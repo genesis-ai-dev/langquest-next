@@ -91,6 +91,7 @@ const APP_ONLY: Record<string, string> = {
   'flow_editor->check_editor': "a language's Checks open one check, with its people, questions and helps (decision 91)",
   'passage_record->check_editor': "the questions a check's people will answer open the check, to change them there (LAN-85)",
   'ask_someone->check_editor': "the questions a check's people will answer open the check, to change them there (LAN-85)",
+  'check_editor->check_editor': "a check's people, its questions and each help with choices inside it are pages of their own (decision 128)",
   'review_capture->material_editor': "a check's help that is a note opens from the review (decision 91)",
   'org_home->cluster_home': "a cluster is a row among the organization's languages and opens its page (decision 108, demo ADR-045)",
   'cluster_home->language_home': "a cluster's page lists its languages (decision 108, demo ADR-045)",

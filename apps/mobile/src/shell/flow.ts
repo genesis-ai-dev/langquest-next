@@ -400,6 +400,8 @@ export const EDGES: Edge[] = [
   e('language_home', 'edit_member', undefined, 'assigner'),
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.
   e('flow_editor', 'check_editor'),
+  // App only: a check's people, questions and each help with choices are pages of their own (decision 128)
+  e('check_editor', 'check_editor'),
   e('review_capture', 'material_editor'),
   // A check's questions, from where asking shows them, for whoever sets up the checks (LAN-85)
   e('passage_record', 'check_editor', undefined, 'manageFlows'),

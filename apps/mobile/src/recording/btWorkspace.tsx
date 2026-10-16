@@ -12,7 +12,9 @@
 // part starts (`atMs`), and so do the notes at moments (decision 127). Done
 // (it was Publish) puts them in one core produceContent, in part order, and
 // in the same tap asks whoever usually does the check that comes next.
-import { checkPeople, commands, DEFAULT_KINDS, type EventSpec, type KindDef, type KindStatus, type Version } from '@langquest-next/core';
+import {
+  checkPeople, checkShows, commands, DEFAULT_KINDS, keyTermsForUnit, RECORD_STEP, type EventSpec, type KindDef, type KindStatus, type PassageNote, type Version
+} from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -59,6 +61,13 @@ import { useRecorder, type RecordedCard } from './useRecorder';
 import { spanName } from './verseModel';
 import { VoiceNote } from '../audio/voiceNote';
 import type { SaveStatus } from '../ui/savedModel';
+import { RefChips, type ChipItem } from './blocks';
+import { anyFrom, fromFilter } from '../checks/showsModel';
+import { BiblePane, EarlierPane, KeyWordsPane, NotesPane } from '../helps/reference';
+import { useBible } from '../helps/useBible';
+import { useStudyGuide } from '../study/useStudyGuides';
+import { studyProgress } from '../study/progress';
+import { GuideNav, GuideStep } from '../study/guide';
 
 export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
   const { state, unitId, languageId, p } = v;
@@ -82,6 +91,30 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const requestId = ctx.params['requestId'];
   const request = (requestId ? p.requests.find((r) => r.id === requestId) : undefined)
     ?? p.openRequests.find((r) => r.what === 'review' && r.kindId === kind.id && r.profileId === me);
+
+  // What this check shows beside the version (decisions.md 128); out of the box a back translation shows nothing else.
+  const shows = useMemo(() => checkShows(state, kind.id), [state, kind.id]);
+  const bible = useBible(ctx, unitId, languageId, { shows: { audio: shows.bibleAudio, text: shows.bibleText } });
+  const guide = useStudyGuide(ctx, unitId);
+  const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
+  const unitTerms = useMemo(() => keyTermsForUnit(state, unitId), [state, unitId]);
+  const notesFrom = useMemo(() => fromFilter(state, kind.id, 'notes'), [state, kind.id]);
+  const earlierFrom = useMemo(() => fromFilter(state, kind.id, 'earlier'), [state, kind.id]);
+  const passageNotes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP)), [p.notes, notesFrom]);
+  type TopChip = 'version' | 'bible' | 'guide' | 'terms' | 'notes' | 'earlier';
+  const topChips: ChipItem<TopChip>[] = [
+    { id: 'version', label: t('backTranslation.chips.version', { n: of.n }), icon: 'mic' },
+    ...(bible.hasVerses && (shows.bibleAudio || shows.bibleText) ? [{ id: 'bible' as const, label: t('translate.chips.bible'), icon: 'listen' as const, hint: t('translate.chips.bibleHint') }] : []),
+    ...(study && (shows.guideAudio || shows.guideText) ? [{ id: 'guide' as const, label: t('translate.chips.guide'), icon: 'star' as const, hint: t('translate.chips.guideHint') }] : []),
+    ...(shows.terms ? [{ id: 'terms' as const, label: t('translate.chips.terms'), icon: 'key' as const, hint: t('translate.chips.termsHint') }] : []),
+    ...(anyFrom(state, kind.id, 'notes') ? [{ id: 'notes' as const, label: t('translate.chips.notes'), icon: 'chat' as const, count: passageNotes.length, hint: t('translate.chips.notesHint') }] : []),
+    ...(anyFrom(state, kind.id, 'earlier') ? [{ id: 'earlier' as const, label: t('translate.chips.earlier'), icon: 'clock' as const, hint: t('translate.chips.earlierHint') }] : [])
+  ];
+  const [topState, setTop] = useState<TopChip>('version');
+  const top = topChips.some((c) => c.id === topState) ? topState : 'version';
+  const [verse, setVerse] = useState<string | null>(null);
+  const [guideStep, setGuideStep] = useState<number | null>(null);
+  const gStep = study ? Math.min(study.steps.length - 1, guideStep ?? study.next?.index ?? 0) : 0;
 
   // The part being worked on: the next one to say, until the person picks another.
   const [picked, setPicked] = useState<number | null>(null);
@@ -230,25 +263,41 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
           <PaneBar icon="listen" oneLine onPress={open} text={playerTitle} help={t('backTranslation.openVersionHelp')}
             label={partN ? t('backTranslation.openPart', { language: v.language, n: of.n, part: partN }) : t('backTranslation.openVersion', { language: v.language, n: of.n })} />
         ) : (
-          <HelpClip style={{ flex: 1 }}>
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody}
-              accessibilityLabel={partN ? t('backTranslation.listenToPart', { n: of.n, part: partN }) : t('backTranslation.listenTo', { n: of.n })}>
-              {request && (request.note || request.noteBlobHash) ? <RequestBanner ctx={ctx} request={request} /> : null}
-              {madeFrom ? (
-                <Banner icon="history" tone="amber" title={t('backTranslation.madeFrom', { n: madeFrom.n })}
-                  body={t('backTranslation.madeFromBody', { n: of.n, what: produces.what })} />
-              ) : null}
-              {part ? (
-                <ClipPlayer language={ctx.language} hashes={[part.hash]} listen={loop.hooks}
-                  title={playerTitle}
-                  sub={mine ? t('backTranslation.youDrag') : t('backTranslation.nameDrag', { name: who })}
-                  onNote={(s) => setNoteAt(Math.round(s * 1000))} />
-              ) : null}
-              <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>
-                {t('backTranslation.sayEachPart', { into: produces.into })}
-              </Text>
-            </ScrollView>
-          </HelpClip>
+          <View style={{ flex: 1 }}>
+            <RefChips items={topChips} value={top} onChange={setTop} />
+            {top === 'guide' && study ? <GuideNav ctx={ctx} sp={study} index={gStep} onIndex={setGuideStep} /> : null}
+            <HelpClip style={{ flex: 1 }}>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody}
+                accessibilityLabel={partN ? t('backTranslation.listenToPart', { n: of.n, part: partN }) : t('backTranslation.listenTo', { n: of.n })}>
+                {top === 'bible' ? (
+                  <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} canNote={!recording} selected={verse} onSelect={setVerse} hear={shows.bibleAudio} read={shows.bibleText} />
+                ) : top === 'guide' && study && guide ? (
+                  <GuideStep key={study.steps[gStep]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[gStep]!} spoken={shows.guideAudio} read={shows.guideText} canContribute={!recording} />
+                ) : top === 'terms' ? (
+                  <KeyWordsPane ctx={ctx} v={v} terms={unitTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={undefined} canTie={false} disabled={blocked}
+                    onHear={(key) => { setTop('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
+                ) : top === 'notes' ? (
+                  <NotesPane ctx={ctx} v={v} notes={passageNotes} disabled={blocked} />
+                ) : top === 'earlier' ? (
+                  <EarlierPane ctx={ctx} v={v} from={earlierFrom} />
+                ) : (
+                  <>
+                    {request && (request.note || request.noteBlobHash) ? <RequestBanner ctx={ctx} request={request} /> : null}
+                    {madeFrom ? (
+                      <Banner icon="history" tone="amber" title={t('backTranslation.madeFrom', { n: madeFrom.n })}
+                        body={t('backTranslation.madeFromBody', { n: of.n, what: produces.what })} />
+                    ) : null}
+                    {part ? (
+                      <ClipPlayer language={ctx.language} hashes={[part.hash]} listen={loop.hooks}
+                        title={playerTitle}
+                        sub={mine ? t('backTranslation.youDrag') : t('backTranslation.nameDrag', { name: who })}
+                        onNote={(s) => setNoteAt(Math.round(s * 1000))} />
+                    ) : null}
+                  </>
+                )}
+              </ScrollView>
+            </HelpClip>
+          </View>
         )}
         bottom={({ compact, open }) => session ? (
           <RecordingView rec={rec} phase={loop.phase} title={partLabel} partNumber={partN ?? 1} count={part?.cards.length ?? 0} noun="piece" onLeave={() => void loop.toggle()} onResume={loop.resumeNow} />

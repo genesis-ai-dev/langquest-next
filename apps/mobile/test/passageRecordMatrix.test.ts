@@ -81,7 +81,8 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       expect(rec, who).toMatch(/^1\. Record\. /);
       expect(rec, who).toContain(`${asked}. `);
       expect(rec, who).not.toMatch(/\bdue\b/);
-      expect(rec, who).toContain('Tell it in your language. The Bible, key words and notes are beside you while you record.');
+      expect(rec, who).toContain('Tell it in your language.');
+      expect(rec, who).not.toContain('beside you');
       expect(r.path[1], who).toBe('2. Done. Then ask for the peer check');
       expect(r.team, who).toEqual([
         "Peer check, once you're done", 'Back translation, same time', 'Community check, after the peer check',

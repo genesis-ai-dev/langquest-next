@@ -29,6 +29,7 @@ import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { Callout, MiniPlayer, StepNav, StepsSheet } from '../recording/blocks';
 import { styles as ps } from '../recording/blockStyles';
 import { guideLanguage } from './guideText';
+import { useNoteStep } from '../checks/useNoteStep';
 
 /** ‹ 2/6 Setting the stage ▾ ›, and the sheet of every step it opens. */
 export function GuideNav(props: { ctx: Ctx; sp: StudyProgress; index: number; onIndex: (i: number) => void; sheetFooter?: React.ReactNode }) {
@@ -62,11 +63,14 @@ export function GuideStep(props: {
   ctx: Ctx; v: PassageView; guide: StudyGuide; status: StudyStepStatus; canContribute: boolean;
   /** The step spoken, at the top: the study shows it; the workspace keeps to the text. */
   spoken: boolean;
+  /** The step's words: false when the step hears the guide but does not read it (decisions.md 128). */
+  read?: boolean;
   hidden?: boolean;
   /** Open a key term (an edge from this screen). */
   onTerm?: (termId: string) => void;
 }) {
   const { ctx, v, guide, status } = props;
+  const noteStep = useNoteStep();
   const step = status.step;
   const sections = useMemo(() => studySections(step.text), [step.text]);
   const hasAudio = !!(step.audio.url || step.audio.file);
@@ -110,7 +114,7 @@ export function GuideStep(props: {
         </View>
       ) : null}
 
-      {sections.map((sec) => (
+      {props.read === false ? null : sections.map((sec) => (
         <SectionView key={sec.id} ctx={ctx} section={sec} resources={guide.resources} notes={onSection(sec.id)} orgId={ctx.language.orgId}
           selected={selected === sec.id} canContribute={props.canContribute}
           onSelect={() => setSelected((cur) => (cur === sec.id ? null : sec.id))}
@@ -128,7 +132,7 @@ export function GuideStep(props: {
           onSave={(c) => saveNote(ctx, v, {
             kind: 'study', guideId: guide.id, stepId: step.id,
             ...(adding.sectionId ? { sectionId: adding.sectionId } : {}), ...(adding.at ? { at: adding.at } : {})
-          }, c, adding.at ? t('study.guide.noteAddedAt', { time: shownClock(secondsOf(adding.at)) }) : t('study.guide.added'))} />
+          }, c, adding.at ? t('study.guide.noteAddedAt', { time: shownClock(secondsOf(adding.at)) }) : t('study.guide.added'), noteStep)} />
       ) : null}
       {resource && resource.kind !== 'term' ? <MediaSheet resource={resource} source={lang ? t('study.guide.mediaSourceLanguage', { language: lang }) : t('study.guide.mediaSource')} orgId={ctx.language.orgId} onClose={() => setResource(null)} /> : null}
       {resource && entry ? (

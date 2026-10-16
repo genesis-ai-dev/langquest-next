@@ -3692,8 +3692,8 @@
       "record": "Naɗa",
       "yourParts": "An naɗa sassanku, ba a wallafa ba tukuna.",
       "someParts": "An naɗa wasu sassa, ba a wallafa ba tukuna.",
-      "recordHint": "Ku faɗe shi a harshenku. Littafi Mai Tsarki, muhimman kalmomi da bayanai suna kusa da ku yayin da kuke naɗawa.",
-      "recordHintAsked": "{{asked}}. Ku faɗe shi a harshenku. Littafi Mai Tsarki, muhimman kalmomi da bayanai suna kusa da ku yayin da kuke naɗawa.",
+      "recordHint": "Ku faɗe shi a harshenku.",
+      "recordHintAsked": "{{asked}}. Ku faɗe shi a harshenku.",
       "asked": {
         "youAskedYou": "Kun roƙi kanku",
         "youAskedName": "Kun roƙi {{name}}",
@@ -5829,7 +5829,6 @@
       "btNote": "Bayanin mai fassarar baya",
       "theirNote": "Bayaninsu",
       "playTheirNote": "Kunna bayaninsu",
-      "withheld": "An ɓoye bayanai da bitocin baya don {{kind}}, don kada abin da wasu suka faɗa ya tsara abin da kuke ji. Har yanzu suna cikin tarihi.",
       "recordings_one": "Naɗi {{count, number}}",
       "recordings_other": "Naɗe-naɗe {{count, number}}",
       "review": "Bita",
@@ -6159,7 +6158,6 @@
     "listenTo": "Saurari Siga ta {{n}}",
     "madeFrom": "An yi sassanku ne daga Siga ta {{n}}",
     "madeFromBody": "Siga ta {{n}} ta fito yanzu, kuma wallafawa za ta haɗa {{what}} ɗinku da ita. Ku sake saurara ku sake yin kowane sashe da ya canja.",
-    "sayEachPart": "Ku faɗi kowane sashe da {{into}}, da kalmominku. An ɓoye bayanai da dubawar da aka yi a baya da gangan, don naɗin kaɗai ya tsara abin da kuke faɗa.",
     "openYour": "Buɗe {{what}} ɗinku",
     "yourWhat": "{{what}} ɗinku, {{said}}",
     "loadingParts": "Ana loda sassanku…",
@@ -6198,7 +6196,10 @@
     "finishWhat": "Gama {{what}}",
     "doneHelp": "Idan an faɗi kowane sashe: ku gama shi, ku aika shi zuwa dubawar da za ta saurare shi na gaba.",
     "notesForCheck_other": "Bayanai {{count, number}} don {{check}}",
-    "sendLaterHelp": "Yana gama {{what}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin sa."
+    "sendLaterHelp": "Yana gama {{what}} ba tare da kun roƙi kowa ba tukuna. Tawagar za ta iya jin sa.",
+    "chips": {
+      "version": "Siga ta {{n}}"
+    }
   },
   "translate": {
     "missing": "Wannan nassi ba ya kan wannan na'ura tukuna.",
@@ -6537,7 +6538,8 @@
       "verseNotesHelp": "Lambar tana ƙidaya bayanai a kan wannan aya.",
       "verseTermsHelp": "Kalmomin da aka ja layi a ƙarƙashinsu muhimman kalmomi ne: taɓa ɗaya don buɗe ta.",
       "verseTermsMarkedHelp": "Kalmomin da aka ja layi a ƙarƙashinsu muhimman kalmomi ne.",
-      "verseTiedHelp": "Alamar ✓ bayan muhimmiyar kalma tana nufin an haɗa ta da daftarinku."
+      "verseTiedHelp": "Alamar ✓ bayan muhimmiyar kalma tana nufin an haɗa ta da daftarinku.",
+      "verseDotHelp": "Yana kunna Littafi Mai Tsarki daga wannan aya."
     },
     "keyWords": {
       "none": "Babu muhimman kalmomi a wannan nassi tukuna.",
@@ -6827,8 +6829,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "Da wane harshe Littafi Mai Tsarki da jagororin nazari na {{language}} za su kasance?",
-    "sub": "Zaɓi harshen da ƙungiyar {{language}} ta fi karantawa da kyau. Kowane yana nuna abin da LangQuest ke da shi a cikinsa.",
+    "question": "Da waɗanne harsuna ya kamata Littattafai Masu Tsarki da jagororin nazari na {{language}} su kasance?",
     "setPassages_one": "Jagororin {{name}} don nassi {{count, number}}",
     "setPassages_other": "Jagororin {{name}} don nassosi {{count, number}}",
     "bibles_one": "Littafi Mai Tsarki {{count, number}}",
@@ -6839,7 +6840,7 @@
     "chip": "Littafi Mai Tsarki da jagorori cikin {{language}}",
     "chipHelp": "Harshen Littafi Mai Tsarki da jagororin nazarinsu. Taɓa don canja shi.",
     "change": "Canja",
-    "rowHelp": "Yana zaɓar wannan harshe don Littattafai Masu Tsarki da jagororin tawagar. Layin yana faɗin abin da yake da shi."
+    "rowHelp": "Yana ƙara wannan harshe ga Littattafai Masu Tsarki da jagororin ƙungiyar, ko ya cire shi. Layin yana faɗin abin da ke ciki."
   },
   "checks": {
     "title": "Dubawa",
@@ -6847,7 +6848,7 @@
     "together": " + ",
     "then": " → ",
     "sameTime": "lokaci ɗaya",
-    "openHelp": "Mutane, tambayoyi da abubuwan taimako",
+    "openHelp": "Mutane, tambayoyi, abin da ke allon su da abubuwan taimako",
     "cardA11y": "{{n}}. {{title}}",
     "questionsCount_one": "Tambaya {{count, number}}",
     "questionsCount_other": "Tambayoyi {{count, number}}",
@@ -6937,7 +6938,60 @@
     "helpOnHelp": "An haɗa: masu bita za su iya buɗe shi a wannan dubawa. Taɓa don cire haɗin.",
     "helpOffHelp": "Taɓa don masu bita su iya buɗe shi a wannan dubawa.",
     "writeNoteHelp": "Ku rubuta sabon bayani, wanda aka haɗa da wannan dubawa.",
-    "removeCheckHelp": "Yana cire wannan dubawa daga matakan da nassosi suke bi."
+    "removeCheckHelp": "Yana cire wannan dubawa daga matakan da nassosi suke bi.",
+    "recording": "Naɗawa",
+    "openRecordHelp": "Yana buɗe abin da na'urar naɗi ke nunawa.",
+    "shows": {
+      "title": "A allon su",
+      "bibleAudio": "Jin Littafi Mai Tsarki",
+      "bibleText": "Karanta Littafi Mai Tsarki",
+      "guideAudio": "Jin jagora",
+      "guideText": "Karanta jagora",
+      "terms": "Muhimman kalmomi",
+      "notes": "Bayanai",
+      "earlier": "Sigogin baya",
+      "short": {
+        "bibleAudio": "Sautin Littafi Mai Tsarki",
+        "bibleText": "Rubutun Littafi Mai Tsarki",
+        "guideAudio": "Sautin jagora",
+        "guideText": "Rubutun jagora",
+        "terms": "Muhimman kalmomi",
+        "notes": "Bayanai",
+        "earlier": "Sigogin baya"
+      },
+      "allHidden": "An ɓoye duka",
+      "onHelp": "Yana kan allon su. Taɓa don ɓoye shi.",
+      "offHelp": "An ɓoye musu. Taɓa don nuna shi.",
+      "shownToast": "{{what}}: ana nunawa a {{check}}",
+      "hiddenToast": "{{what}}: an ɓoye a {{check}}",
+      "bible": "Littafi Mai Tsarki",
+      "guide": "Jagora",
+      "audio": "Sauti",
+      "text": "Rubutu",
+      "allOnHelp": "A kunne: suna samun duka. Taɓa don ɓoye duka.",
+      "allOffHelp": "A kashe: ba sa samun komai. Taɓa don nuna duka.",
+      "partLabel": "{{help}}: {{part}}",
+      "all": "Duka",
+      "off": "A kashe",
+      "someOf": "{{n, number}} cikin {{total, number}}",
+      "openHelp": "Yana buɗe maɓalli ga kowane sashe nasa.",
+      "notesFrom": "Bayanan da aka ƙara a lokacin",
+      "earlierFrom": "Sigogi da ra'ayoyi daga"
+    },
+    "peopleOpenHelp": "Yana buɗe waɗanda ke yin wannan dubawa.",
+    "questionsOpenHelp": "Yana buɗe tambayoyin da suke amsawa.",
+    "sameTimeRow": "Lokaci ɗaya da",
+    "sameTimeNone": "Babu wani dubawa",
+    "sameTimeHelp": "Yana buɗe dubawar da ake yi lokaci ɗaya da wannan.",
+    "sameTimeDoneHelp": "Yana adana dubawar da ake yi lokaci ɗaya.",
+    "sameTimeOnHelp2": "Ana yi lokaci ɗaya. Taɓa don kada a yi haka.",
+    "sameTimeOffHelp2": "Taɓa don a yi shi lokaci ɗaya.",
+    "checkedAt": "Ana duba shi a",
+    "checkedAtHelp": "Yana buɗe dubawar da ke sauraron abin da wannan mataki ya yi.",
+    "checkedAtPickHelp": "Wannan dubawa tana sauraron sa.",
+    "ownCheck": "Dubawa ta kanta",
+    "ownCheckHelp": "Yana ƙara dubawa nan da nan bayan wannan da ke sauraron sa.",
+    "ownCheckName": "Dubawar {{name}}"
   },
   "lostFiles": {
     "title": "Sauti ta ɓace",

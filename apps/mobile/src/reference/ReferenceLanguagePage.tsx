@@ -14,7 +14,7 @@ import { txt } from '../ui/textStyles';
 import { LanguoidPicker } from '../org/languoidPicker';
 import { useLanguoidSearch } from '../org/useLanguoids';
 import { Question, QuietLink, RadioRow } from '../admin/admin';
-import { guideShortName, languageLabel } from '../admin/adminModel';
+import { guideShortName, joinAnd, languageLabel } from '../admin/adminModel';
 import { C, radius, space, type as T } from '../ui/theme';
 import type { LanguageChoice } from './languageChoices';
 import { readerLanguage, sameLanguage } from './languages';
@@ -33,10 +33,11 @@ export function ReferenceLanguagePage(props: {
   /** The language whose team it is for, by name. */
   team: string;
   choices: readonly LanguageChoice[];
-  value: string;
-  /** Listed first, so the language chosen when the page opened shows without scrolling. */
-  first?: string;
-  onChange: (code: string) => void;
+  /** The languages chosen, the main one first (decision 128). */
+  value: readonly string[];
+  /** Listed first, so the languages chosen when the page opened show without scrolling. */
+  first?: readonly string[];
+  onChange: (codes: string[]) => void;
   loading?: boolean;
   /** Under the list: what will be offered, in New language. */
   children?: ReactNode;
@@ -48,14 +49,19 @@ export function ReferenceLanguagePage(props: {
   const [found, setFound] = useState<Record<string, string>>({});
   const search = useLanguoidSearch(q, searching);
   const label = (code: string) => found[code] ?? languageLabel(code);
-  const lead = props.first ? props.choices.filter((c) => sameLanguage(c.language, props.first)) : [];
+  const lead = props.first ? props.choices.filter((c) => props.first!.some((f) => sameLanguage(c.language, f))) : [];
   const ordered = [...lead, ...props.choices.filter((c) => !lead.includes(c))];
+  const on = (code: string) => props.value.some((v) => sameLanguage(v, code));
+  // Tick as many as the team reads; the last one cannot go.
+  const toggle = (code: string) => {
+    if (!on(code)) props.onChange([...props.value, code]);
+    else if (props.value.length > 1) props.onChange(props.value.filter((v) => !sameLanguage(v, code)));
+  };
   return (
     <View style={{ gap: 14 }}>
       <Question>{t('referenceLanguage.question', { language: props.team })}</Question>
-      <Text style={[txt.sm, { paddingHorizontal: space.xs }]}>{t('referenceLanguage.sub', { language: props.team })}</Text>
       {ordered.map((c) => (
-        <RadioRow key={c.language} icon="globe" label={label(c.language)} on={sameLanguage(c.language, props.value)} onPress={() => props.onChange(c.language)} subLines={4}
+        <RadioRow key={c.language} icon="globe" label={label(c.language)} on={on(c.language)} onPress={() => toggle(c.language)} subLines={4} many
           help={t('referenceLanguage.rowHelp')}
           sub={[whatIsThere(c), sameLanguage(c.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
       ))}
@@ -67,7 +73,7 @@ export function ReferenceLanguagePage(props: {
             onPick={(h) => {
               if (!h) return;
               setFound({ ...found, [h.code]: h.name });
-              props.onChange(h.code);
+              if (!on(h.code)) props.onChange([...props.value, h.code]);
               setSearching(false);
               setQ('');
             }} />
@@ -80,15 +86,15 @@ export function ReferenceLanguagePage(props: {
   );
 }
 
-/** Above What will help them: "Bibles and guides in French · Change", back to the language page. */
-export function ReferenceLanguageChip(props: { language: string; onPress: () => void }) {
-  const label = t('referenceLanguage.chip', { language: languageLabel(props.language) });
+/** Above What will help them: "Bibles and guides in English and Greek · Change", back to the language page. */
+export function ReferenceLanguageChip(props: { languages: readonly string[]; onPress: () => void }) {
+  const label = t('referenceLanguage.chip', { language: joinAnd(props.languages.map(languageLabel)) });
   const spot = useHelpSpot(label, t('referenceLanguage.chipHelp'), props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={`${label}. ${t('referenceLanguage.change')}`}
       style={({ pressed }) => [styles.chip, pressed && { opacity: 0.75 }]}>
       <Ico name="globe" size={18} color={C.primary} />
-      <Text style={styles.chipText} numberOfLines={1}>{label}</Text>
+      <Text style={styles.chipText} numberOfLines={2}>{label}</Text>
       <Text style={styles.chipChange}>{t('referenceLanguage.change')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>

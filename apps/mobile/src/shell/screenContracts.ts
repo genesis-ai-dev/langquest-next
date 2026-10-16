@@ -87,8 +87,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   language_home: { emits:['v1.LanguageRenamed','v1.LanguageCodeSet','v1.ClusterNamed','v1.LanguageClusterSet'],rpcs:['set_language_visibility','search_languoids'],reads:['languoid','language_visibility','join_requests','recommendedFor','deriveFlow','org.members'] },
   // One check (decision 91): its people (one review team per check), its questions (a question set for the kind),
   // its helps, and its place in the language's steps.
-  check_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet','v1.CheckHelpSet','v1.MaterialDefined','v1.MaterialFieldSet',
-    'v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved'],reads:['checkPeople','checkHelps','questionsForKind','deriveFlow','library'] },
+  check_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet','v1.CheckHelpSet','v1.CheckShowsSet','v1.MaterialDefined','v1.MaterialFieldSet',
+    'v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved'],reads:['checkPeople','checkHelps','checkShows','questionsForKind','deriveFlow','library'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   template_picker: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },

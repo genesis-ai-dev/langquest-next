@@ -18,7 +18,7 @@
 // the study is advice: nothing waits on it (STUDY-6). App only: Write a
 // guide (`guide_editor`), from the steps sheet, for whoever manages
 // reference material; the editor itself is in src/guides/.
-import { commands, isLicense, keyTermsForUnit, type EventSpec, type PassageNote } from '@langquest-next/core';
+import { checkShows, commands, isLicense, keyTermsForUnit, RECORD_STEP, type EventSpec, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -47,6 +47,7 @@ import { studyProgress, type StudyProgress } from '../study/progress';
 import { stepLine } from '../study/studyText';
 import { GuideEditorScreen } from '../guides/GuideEditor';
 import { space, TINT } from '../ui/theme';
+import { NoteStepContext } from '../checks/noteStep';
 
 /** The passage, its guide and the team's progress, derived from the record. */
 function useStudy(ctx: Ctx): { v: PassageView; guide: Guide; sp: StudyProgress } | { v: PassageView | null; guide: null; sp: null } {
@@ -70,18 +71,22 @@ function Missing(props: { ctx: Ctx; title: string; v: PassageView | null }) {
 
 // ---- the reader (STUDY-2..5, STUDY-7) ------------------------------------------------------
 
+// The study is the drafting team's, so notes written in it are the recording's (decisions.md 128).
 export function StudyGuide(ctx: Ctx) {
-  return <StudyReader ctx={ctx} title={screenTitle('study_guide')} />;
+  return <NoteStepContext.Provider value={RECORD_STEP}><StudyReader ctx={ctx} title={screenTitle('study_guide')} /></NoteStepContext.Provider>;
 }
 
 export function StudyStep(ctx: Ctx) {
-  return <StudyReader ctx={ctx} title={screenTitle('study_step')} stepId={ctx.params['stepId']} />;
+  return <NoteStepContext.Provider value={RECORD_STEP}><StudyReader ctx={ctx} title={screenTitle('study_step')} stepId={ctx.params['stepId']} /></NoteStepContext.Provider>;
 }
 
 function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const { ctx } = props;
   const { v, guide, sp } = useStudy(ctx);
-  const bible = useBible(ctx, v?.unitId ?? null, v?.languageId ?? null, {});
+  // The study is the drafting team's: it shows what the recorder shows (decisions.md 128).
+  const state0 = ctx.language.state;
+  const shows = useMemo(() => (state0 ? checkShows(state0, RECORD_STEP) : null), [state0]);
+  const bible = useBible(ctx, v?.unitId ?? null, v?.languageId ?? null, shows ? { shows: { audio: shows.bibleAudio, text: shows.bibleText } } : {});
   const [chipState, setChip] = useState<RefChip>('guide');
   // Moving on changes the step, not the screen (STUDY-4).
   const [indexState, setIndex] = useState<number | null>(null);
@@ -105,7 +110,10 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const named = props.stepId ? sp.steps.findIndex((st) => st.step.id === props.stepId) : -1;
   const index = Math.min(sp.steps.length - 1, Math.max(0, indexState ?? (named >= 0 ? named : sp.next?.index ?? 0)));
   const status = sp.steps[index]!;
-  const chipIds = refChips('study', { guide: true, bible: bible.hasVerses, terms: terms.length > 0, notes: notes.length > 0, earlier: false });
+  const chipIds = refChips('study', {
+    guide: true, bible: bible.hasVerses && (shows?.bibleAudio !== false || shows?.bibleText !== false),
+    terms: terms.length > 0 && shows?.terms !== false, notes: notes.length > 0 && shows?.notes !== false, earlier: false
+  });
   const chip = chipIds.includes(chipState) ? chipState : 'guide';
   const chips: ChipItem<RefChip>[] = chipIds.map((c) => ({
     guide: { id: 'guide' as const, label: t('study.screen.chips.guide'), icon: 'star' as const, hint: t('study.screen.chips.guideHint') },
@@ -185,7 +193,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
     </View>
   );
 
-  const dock = bible.hasAudio && chip !== 'bible';
+  const dock = bible.hasAudio && chip !== 'bible' && shows?.bibleAudio !== false;
   return (
     <Screen fixed footer={footer}
       header={<Header title={v.title} sub={t('study.screen.study')} onBack={ctx.back} close />}>
@@ -194,9 +202,10 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
       <HelpClip style={{ flex: 1 }}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
           {chip === 'guide' ? (
-            <GuideStep key={status.step.id} ctx={ctx} v={v} guide={guide} status={status} spoken canContribute={canContribute} onTerm={openTerm} />
+            <GuideStep key={status.step.id} ctx={ctx} v={v} guide={guide} status={status} spoken={shows?.guideAudio !== false} read={shows?.guideText !== false} canContribute={canContribute} onTerm={openTerm} />
           ) : chip === 'bible' ? (
             <BiblePane ctx={ctx} v={v} bible={bible} terms={terms} canNote={canContribute} selected={verse} onSelect={setVerse}
+              hear={shows?.bibleAudio !== false} read={shows?.bibleText !== false}
               onTerm={openTerm} onMoreBibles={() => ctx.go('bible_explore', scope)} />
           ) : chip === 'terms' ? (
             <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={v.p.draftTakeId} canTie={false}

@@ -14,14 +14,15 @@ import { noteExpected, reportError } from '../diagnostics/report';
  * A note the record refuses says why; anything else is reported with an id.
  * A failed write was already shown by ctx.act.
  */
-export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId'>, anchor: NoteAnchor, c: { text: string; blobHash: string | null }, message: string): Promise<boolean> {
+export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId'>, anchor: NoteAnchor, c: { text: string; blobHash: string | null }, message: string,
+  /** The step it is written at (checks/noteStep.ts). */ kindId?: string): Promise<boolean> {
   const state = ctx.language.state;
   if (!state) return false;
   let specs: EventSpec[];
   try {
     specs = commands(state, indexesFor(state)).addNote({
       commandId: Crypto.randomUUID(), unitId: v.unitId, anchor,
-      ...(c.text.trim() ? { text: c.text.trim() } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {})
+      ...(c.text.trim() ? { text: c.text.trim() } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {}), ...(kindId ? { kindId } : {})
     });
   } catch (e) {
     if (e instanceof CommandError) ctx.toast(commandErrorText(e));
