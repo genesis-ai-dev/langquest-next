@@ -3,9 +3,12 @@
 // version being back-translated on top, cut into the parts it was recorded
 // in. The top is the big player of the part being worked on (Back 10 s, a
 // timeline to drag back and forth, Note at a moment); the bottom a card per
-// part, said ones green, the next one lit. The footer is the part's name,
+// part, said ones green, the next one lit. The footer is Undo and Redo,
 // the big red record button and Done. Playing pauses the microphone and
 // recording picks up again when it stops (listen, speak, listen, LAN-23).
+// Undo and Redo work as on the recording screen: a session of recording, or
+// clearing a part, is one step, and the parts that changed are shaded; no
+// toast offers an Undo that runs out (Caleb, 2026-10-16).
 //
 // The parts are kept on this device until Done (decision 30): each
 // recorded piece goes to a local draft with the moment in the version its
@@ -17,7 +20,7 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import { ClipPlayer } from '../audio/clipPlayer';
@@ -52,7 +55,12 @@ import { SplitPane } from './SplitPane';
 import { loopRecording, MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
 import { useListenLoop } from './useListenLoop';
 import { RecordingView } from './RecordingView';
-import { backTranslationDraftKey, cardDurations, unsavedParts } from './workspaceModel';
+import {
+  backTranslationDraftKey, cardDurations, didStep, parsePiecesHistory, piecesHistoryKey, redoStep, undoStep, unsavedParts, type PiecesSnap
+} from './workspaceModel';
+import { useUndoHistory } from './useUndoHistory';
+import { forgetUndoHistory } from './undoHistory';
+import { UndoRedo } from './recorder';
 import { failureMessage, reportError } from '../diagnostics/report';
 import { RequestBanner } from '../reviewing/parts';
 import { lift } from '../ui/shadow';
@@ -151,19 +159,66 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     if (parts[was]?.cards.length) { saidFor.current = null; setPicked(partAfter(parts, was)); }
   }, [session, rec.busy, parts]);
 
+  // ---- undo and redo (Caleb, 2026-10-16) ----
+  // Kept beside the draft on this phone until Done, as the draft is.
+  const historyKey = piecesHistoryKey({ languageId, actorId: me, unitId, kindId: kind.id });
+  const { history, loaded: historyLoaded, set: setHistory } = useUndoHistory(historyKey, parsePiecesHistory);
+  const piecesNow = (): PiecesSnap => [...(drafts.draft?.cards ?? [])];
+  // The parts a recording or an undo changed are shaded until the next recording.
+  const [justSaid, setJustSaid] = useState<ReadonlySet<number>>(() => new Set());
+  const partsOf = (cards: readonly { hash: string }[]) => {
+    const hashes = new Set(cards.map((c) => c.hash));
+    return new Set(parts.filter((x) => x.cards.some((c) => hashes.has(c.hash))).map((x) => x.index));
+  };
+  const session0 = useRef<PiecesSnap | null>(null);
+  if (recording && !session0.current) session0.current = piecesNow();
+  const settled = !recording && !rec.busy;
+  const nowCards = drafts.draft?.cards;
+  useEffect(() => {
+    const start = session0.current;
+    if (!start) return;
+    const was = new Set(start.map((c) => c.hash));
+    const added = (nowCards ?? []).filter((c) => !was.has(c.hash));
+    setJustSaid((prev) => { const next = partsOf(added); return prev.size === next.size && [...next].every((i) => prev.has(i)) ? prev : next; });
+    if (!settled) return;
+    session0.current = null;
+    setHistory((h) => didStep(h, { before: start, after: [...(nowCards ?? [])], what: t('translate.newRecording') }));
+  }, [settled, nowCards]); // eslint-disable-line react-hooks/exhaustive-deps -- partsOf and setHistory read only what this render shows
+
   async function clearPart(target: BackPart) {
     if (blocked || target.cards.length === 0) return;
     setWorking(true);
+    const before = piecesNow();
+    const gone = new Set(target.cards.map((c) => c.hash));
     try {
       for (const c of target.cards) await drafts.remove(c.hash);
       setPicked(target.index);
-      ctx.toast(t('backTranslation.partDeleted', { n: target.index + 1 }), async () => {
-        try { for (const c of target.cards) await drafts.add(c); } catch (e) { ctx.toast(t('backTranslation.notRestored', { reason: failureMessage('back translation: restore part', e) })); }
-      });
+      const what = t('backTranslation.partDeleted', { n: target.index + 1 });
+      setHistory((h) => didStep(h, { before, after: before.filter((c) => !gone.has(c.hash)), what }));
+      AccessibilityInfo.announceForAccessibility(what);
     } catch (e) {
       ctx.toast(t('backTranslation.notDeleted', { reason: failureMessage('back translation: delete part', e) }));
     } finally { setWorking(false); }
   }
+
+  async function travel(which: 'undo' | 'redo') {
+    if (blocked || !historyLoaded) return;
+    const step = which === 'undo' ? undoStep(history) : redoStep(history);
+    if (!step) return;
+    setWorking(true);
+    try {
+      await drafts.replace(step.to);
+      setHistory(step.history);
+      const was = new Set(step.from.map((c) => c.hash));
+      setJustSaid(partsOf(step.to.filter((c) => !was.has(c.hash))));
+      AccessibilityInfo.announceForAccessibility(step.what ? t(which === 'undo' ? 'recording.recorder.undoneWhat' : 'recording.recorder.redoneWhat', { what: step.what })
+        : which === 'undo' ? t('common.undone') : t('translate.redone'));
+    } catch (e) {
+      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`back translation: ${which}`, e) }));
+    } finally { setWorking(false); }
+  }
+  const lastDone = history.done[history.done.length - 1];
+  const lastUndone = history.undone[history.undone.length - 1];
 
   // ---- notes at moments, and Done ----
   // Kept as they are said or typed, only for whoever is making it, until it is done (decision 127).
@@ -216,6 +271,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     }
     // On the record now; a draft left behind is harmless (saved parts are never offered again).
     await drafts.clear().catch((e: unknown) => { reportError('back translation: clear draft', e); });
+    // Its undo history ends with the draft.
+    forgetUndoHistory(historyKey);
     await said.clear();
     setSaving(false);
     setConfirming(false);
@@ -250,7 +307,11 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
         </View>
       ) : (
         <View style={styles.footer}>
-          <Text style={[txt.sm, styles.footLabel]} numberOfLines={2}>{partLabel}</Text>
+          <View style={[styles.footSide, { alignItems: 'flex-end' }]}>
+            <UndoRedo hidden={session} canUndo={!!lastDone && !blocked && historyLoaded} canRedo={!!lastUndone && !blocked && historyLoaded}
+              {...(lastDone?.what ? { undoWhat: lastDone.what } : {})} {...(lastUndone?.what ? { redoWhat: lastUndone.what } : {})}
+              onUndo={() => void travel('undo')} onRedo={() => void travel('redo')} />
+          </View>
           <BigRecord disabled={blocked || rec.failureCount > 0 || !part} part={partN} onPress={() => void loop.toggle()} />
           <View style={styles.footSide}>
             {/* A session open but stopped (decision 129) has the recording view's Done. */}
@@ -310,7 +371,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} accessibilityLabel={t('backTranslation.yourWhat', { what: produces.what, said: saidLine(parts) })}>
               {problem}
               {!drafts.loaded ? <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('backTranslation.loadingParts')}</Text> : parts.map((x) => (
-                <PartCard key={x.index} ctx={ctx} part={x} verse={verseOf(x.index)} into={produces.into} focused={x.index === focus} disabled={blocked}
+                <PartCard key={x.index} ctx={ctx} part={x} verse={verseOf(x.index)} into={produces.into} focused={x.index === focus} disabled={blocked} fresh={justSaid.has(x.index)}
                   onPick={() => setPicked(x.index)} onDelete={() => void clearPart(x)} />
               ))}
               {notes.length ? (
@@ -344,7 +405,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
 }
 
 /** A part's card: said (green check, how long in English), the one being said (lit), or still to come. */
-function PartCard(props: { ctx: Ctx; part: BackPart; verse: string | null; into: string; focused: boolean; disabled: boolean; onPick: () => void; onDelete: () => void }) {
+function PartCard(props: { ctx: Ctx; part: BackPart; verse: string | null; into: string; focused: boolean; disabled: boolean; onPick: () => void; onDelete: () => void;
+  /** Just said, or changed by Undo or Redo: shaded until the next recording. */ fresh: boolean }) {
   const { part, focused } = props;
   const said = part.cards.length > 0;
   const n = part.index + 1;
@@ -354,7 +416,7 @@ function PartCard(props: { ctx: Ctx; part: BackPart; verse: string | null; into:
     : said ? t('backTranslation.saidIn', { length, into: props.into }) : '';
   const spot = useHelpSpot(label, said ? t('backTranslation.partSaidHelp') : t('backTranslation.partTapHelp'), props.onPick);
   return (
-    <View style={[styles.part, focused && styles.partNow]}>
+    <View style={[styles.part, props.fresh && styles.partFresh, focused && styles.partNow]}>
       <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: focused }}
         accessibilityLabel={sub ? t('backTranslation.partA11y', { part: props.verse ? `${label}, ${props.verse}` : label, sub }) : props.verse ? `${label}, ${props.verse}` : label}
         style={({ pressed }) => [styles.partHead, pressed && { opacity: 0.7 }]}>
@@ -523,6 +585,8 @@ const styles = StyleSheet.create({
   bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, minHeight: 48 },
   part: { borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, overflow: 'hidden' },
   partNow: { borderWidth: 2, borderColor: C.primary },
+  // Just said (Caleb, 2026-10-16): the red view's colour, faintly, until the next recording.
+  partFresh: { backgroundColor: withAlpha(C.red, 0.06) },
   partHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.primary, paddingHorizontal: space.md, paddingVertical: space.sm },
   partMark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   partTitle: { fontSize: T.base + 1, fontWeight: '800', color: C.dark },

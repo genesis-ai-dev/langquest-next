@@ -1,7 +1,7 @@
 // Asking before a whole thing is deleted (Caleb, 2026-10-16): a version, a
 // draft, or every part at once. Not a toast whose Undo is about to vanish:
-// the sheet names what goes and waits. A single part is still deleted at
-// once, with Undo, since it is said again in a moment.
+// the sheet names what goes and waits. A single part is deleted at once:
+// the recording screen's Undo brings it back (decision 133).
 import type { ReactNode } from 'react';
 import { t } from '../i18n';
 import { GhostBtn, PrimaryBtn, Sheet } from './kit';

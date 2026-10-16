@@ -22,14 +22,17 @@ import { HelpBadge } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { HelpInfo, Ico, IconBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
-import { C, radius, space, target, TINT, type as T } from '../ui/theme';
+import { C, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import { mmss, partLabel } from './model';
 import { styles as ps } from './blockStyles';
 import type { Part } from './recorder';
-import type { RecordTarget, SlotRow } from './workspaceModel';
-import { ChosenMic, GapSlot } from './slots';
+import { ChosenMic, GapSlot, GRIP, InsertMark, PartGrip, RAIL } from './slots';
 import { useClip } from '../audio/useClip';
 import { partIs, spanName, spanShort } from './verseModel';
+import { opensAbove, rowKeys, type RecordTarget, type SlotRow } from './workspaceModel';
+import { partIndexAfter } from './dragModel';
+import { useDragRows } from './useDragRows';
+import { lift } from '../ui/shadow';
 
 const GUTTER = 64;
 /** A range's size, so "49–50" or "100–105" sits whole inside the space beside its part. */
@@ -50,6 +53,12 @@ export function VerseParts(props: {
   rows: SlotRow[];
   target: RecordTarget;
   onChoose: (to: RecordTarget) => void;
+  /** Move the part at `from` so it sits at `to` in the list. */
+  onMove: (from: number, to: number) => void;
+  /** The parts just recorded, shaded until the next recording. */
+  fresh: ReadonlySet<string>;
+  /** A part to bring into view (what an Undo or Redo changed), and when it was asked. */
+  show?: { hash: string; at: number } | null;
 }) {
   const { parts, verses, disabled } = props;
   const count = verses.length;
@@ -112,7 +121,7 @@ export function VerseParts(props: {
   };
   const arm = (x: number, y: number) => {
     measure();
-    slide.current = { ...slide.current, armed: !latest.current.disabled && !latest.current.helpOn && x - boxLeft.current < GUTTER, startY: y, last: -1, marks: null };
+    slide.current = { ...slide.current, armed: !latest.current.disabled && !latest.current.helpOn && x - boxLeft.current >= RAIL + GRIP && x - boxLeft.current < RAIL + GRIP + GUTTER, startY: y, last: -1, marks: null };
   };
   const begin = () => {
     const sl = slide.current;
@@ -186,26 +195,45 @@ export function VerseParts(props: {
     return { text: `${r.how === 'joinFallback' ? '+' : ''}${spanShort(verses, l.s, l.e)}`, join: r.how === 'joinFallback' };
   };
 
+  // Dragging a part by its grip: every row moves out of its way, gaps too.
+  const keys = rowKeys(rows, parts.map((p) => p.hash));
+  const drag = useDragRows(keys, !disabled, (from, to) => {
+    const r = rows[from];
+    if (r?.kind !== 'part') return;
+    const at = partIndexAfter(rows.map((x) => x.kind === 'part'), from, to);
+    if (at !== r.index) props.onMove(r.index, at);
+  }, props.show ? { key: `part:${props.show.hash}`, at: props.show.at } : null);
+
   return (
     <View ref={box} onLayout={() => box.current?.measureInWindow((x) => { boxLeft.current = x; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
       {rows.map((r, k) => {
-        if (r.kind === 'gap') {
+        const key = keys[k]!;
+        const moved = drag.offset(key);
+        const lifted = drag.dragging === key;
+        const mark = !disabled && !drag.dragging && opensAbove(rows, k) && r.kind === 'part'
+          ? <InsertMark key={`mark-${key}`} n={r.n} before={nameOf(r.index)} onPress={() => props.onChoose({ kind: 'gap', before: r.index })} /> : null;
+        const row = r.kind === 'gap' ? (
+          <GapSlot n={r.n} gutter grip first={k === 0} disabled={disabled}
+            {...(r.label ? { tile: <VerseTile verses={verses} label={r.label} same={r.label.kind === 'join'} /> } : {})}
+            chosen={target.kind === 'gap' && target.before === r.before} onPress={() => props.onChoose({ kind: 'gap', before: r.before })} />
+        ) : (() => {
+          const i = r.index;
+          const part = parts[i]!;
           return (
-            <GapSlot key={`gap-${r.before}`} n={r.n} gutter first={k === 0} disabled={disabled}
-              {...(r.label ? { tile: <VerseTile verses={verses} label={r.label} same={r.label.kind === 'join'} /> } : {})}
-              chosen={target.kind === 'gap' && target.before === r.before} onPress={() => props.onChoose({ kind: 'gap', before: r.before })} />
+            <PartRow ctx={props.ctx} part={part} first={k === 0} name={nameOf(i)} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
+              onDelete={() => props.onDelete(part.hash, nameOf(i))}
+              chosen={target.kind === 'over' && target.index === i} onChoose={() => props.onChoose({ kind: 'over', index: i })}
+              flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled} fresh={props.fresh.has(part.hash)} lifted={lifted}
+              grip={<PartGrip part={nameOf(i)} handlers={drag.grip(key)} disabled={disabled} canUp={i > 0} canDown={i < parts.length - 1} at={i + 1} of={parts.length}
+                onStep={(by) => props.onMove(i, i + by)} />}
+              gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
+              onTap={() => tap(i)} onHold={() => { if (!disabled) setSheet({ i, anchor: null }); }} />
           );
-        }
-        const i = r.index;
-        const part = parts[i]!;
-        return (
-          <PartRow key={`${part.hash}-${i}`} ctx={props.ctx} part={part} first={k === 0} name={nameOf(i)} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
-            onDelete={() => props.onDelete(part.hash, nameOf(i))}
-            chosen={target.kind === 'over' && target.index === i} onChoose={() => props.onChoose({ kind: 'over', index: i })}
-            flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled}
-            gutterRef={(v) => { if (v) refs.current.set(i, v); else refs.current.delete(i); }}
-            onTap={() => tap(i)} onHold={() => { if (!disabled) setSheet({ i, anchor: null }); }} />
-        );
+        })();
+        return [
+          mark,
+          <View key={key} ref={drag.ref(key)} onLayout={drag.onLayout(key)} style={[moved !== 0 && { transform: [{ translateY: moved }] }, lifted && styles.lifted]}>{row}</View>
+        ];
       })}
       {sheet ? (
         <VerseSheet i={sheet.i} anchor={sheet.anchor} marks={marks} labels={labels} verses={verses} disabled={disabled}
@@ -230,6 +258,9 @@ function PartRow(props: {
   gutterRef: (v: View | null) => void; onTap: () => void; onHold: () => void; onDelete: () => void;
   /** Chosen: what is said next replaces this part (LAN-83). */
   chosen: boolean; onChoose: () => void;
+  /** Just recorded: shaded until the next recording. Lifted: being dragged. */
+  fresh: boolean; lifted: boolean;
+  grip: ReactNode;
 }) {
   const name = props.name;
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
@@ -242,7 +273,10 @@ function PartRow(props: {
   const tap = useHelpSpot(l ? (l.kind === 'join' ? t('recording.verses.giveNext', { part: name }) : t('recording.verses.giveAbove', { part: name })) : t('recording.verses.giveVerse', { part: name }),
     t(!l ? 'recording.verses.spaceEmptyHelp' : l.kind === 'join' ? 'recording.verses.spaceSameHelp' : l.kind === 'set' ? 'recording.verses.spaceSetHelp' : 'recording.verses.spaceHelp'), props.onTap);
   return (
-    <View style={[styles.row, !props.first && styles.rowBorder, (props.flash || props.chosen) && { backgroundColor: C.light }, props.editing && styles.editing]}>
+    <View style={[styles.row, !props.first && styles.rowBorder, props.fresh && styles.fresh, (props.flash || props.chosen) && { backgroundColor: C.light }, props.editing && styles.editing,
+      props.lifted && styles.liftedRow]}>
+      <View style={styles.rail} />
+      {props.grip}
       <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={tap.id ? undefined : props.onHold} delayLongPress={HOLD_MS}
         disabled={props.disabled} accessibilityRole="button"
         accessibilityLabel={l ? t(l.kind === 'join' ? 'recording.verses.labelSame' : 'recording.verses.label', { part: name, verses }) : t('recording.verses.labelEmpty', { part: name })}
@@ -272,8 +306,11 @@ function PartRow(props: {
       <Pressable onPress={choose.onPress} disabled={props.disabled} accessibilityRole="button" accessibilityState={{ selected: props.chosen }}
         accessibilityLabel={t('recording.recorder.recordOver', { part: name })}
         style={({ pressed }) => [styles.play, pressed && ps.pressed]}>
-        <Text style={[txt.body, { fontWeight: '700', color: C.dark }]}>{name}</Text>
-        <Text style={[txt.smMuted, { flex: 1 }]}>{mmss(props.part.durationMs)}</Text>
+        {/* Its length under its name, so both fit beside the rail and grip on a narrow phone. */}
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[txt.body, { fontWeight: '700', color: C.dark }]} numberOfLines={1}>{name}</Text>
+          <Text style={txt.smMuted}>{mmss(props.part.durationMs)}</Text>
+        </View>
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
@@ -372,6 +409,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'stretch', minHeight: target.row },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   editing: { backgroundColor: C.light },
+  // Just recorded (Caleb, 2026-10-16): the red view's colour, faintly, until the next recording.
+  fresh: { backgroundColor: withAlpha(C.red, 0.06) },
+  // Being dragged: above the rest, with a shadow, on white.
+  lifted: { zIndex: 10 },
+  liftedRow: { backgroundColor: C.card, borderRadius: radius.md, ...lift({ opacity: 0.18, radius: 12, y: 4, elevation: 6 }) },
 
   trash: { alignSelf: 'center', marginRight: space.xs },
   gutter: { width: GUTTER, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderColor: C.border },
@@ -387,7 +429,8 @@ const styles = StyleSheet.create({
   ghost: { width: 44, height: 44, borderRadius: radius.md + 2, borderWidth: 2, borderStyle: 'dashed', borderColor: C.dark, opacity: 0.1, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: 18, fontWeight: '700', color: C.dark },
   play: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingRight: space.sm, minHeight: target.row },
-  playTap: { paddingLeft: space.md, paddingRight: space.xs, alignItems: 'center', justifyContent: 'center' },
+  playTap: { paddingLeft: space.sm, paddingRight: space.xs, alignItems: 'center', justifyContent: 'center' },
+  rail: { width: RAIL },
   playDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   gap: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingLeft: space.md, paddingRight: space.xs,
     borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: TINT.amber },

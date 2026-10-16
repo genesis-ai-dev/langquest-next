@@ -67,6 +67,8 @@ export function useBackTranslationDraft(key: string, fromTakeId: string) {
     /** A recorded part; resolves once it is on disk, so the recorder keeps the file until then. */
     add: useCallback((card: Card, at?: number) => write((d) => withPart(d, fromTakeId, card, at)), [write, fromTakeId]),
     remove: useCallback((hash: string) => write((d) => withoutPart(d, hash)), [write]),
+    /** Every piece at once, as Undo or Redo puts them. */
+    replace: useCallback((cards: Card[]) => write((d) => ({ fromTakeId: d?.fromTakeId ?? fromTakeId, cards })), [write, fromTakeId]),
     /** After Save: the parts are on the record now. */
     clear: useCallback(() => write(() => null), [write])
   };
