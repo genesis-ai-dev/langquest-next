@@ -159,7 +159,7 @@ export function escape(s: string): string {
 const TEAM_KIND: Record<string, string> = { 'Peer check': 'peer', 'Back translation': 'bt', 'Community check': 'community', 'Consultant check': 'consultant', 'Final approval': 'final' };
 
 /** The path step each title stands for (`path-step-<kind>`). */
-const STEP_KIND: Record<string, string> = { Study: 'study', Record: 'record', Publish: 'publish', 'Hear the feedback': 'feedback', 'Fix it, or keep it and say why': 'fix' };
+const STEP_KIND: Record<string, string> = { Study: 'study', Record: 'record', Done: 'publish', 'Hear the feedback': 'feedback', 'Fix it, or keep it and say why': 'fix' };
 
 /** A "Then the team" row, by its check's name (spoken "{name}, {status}"). */
 export function teamRow(page: Page, name: string): Locator {
@@ -175,7 +175,7 @@ export async function teamRows(page: Page): Promise<string[]> {
   return out;
 }
 
-/** A path step ("2. Publish. …"), by its title; its spoken name holds its sub. */
+/** A path step ("2. Done. …"), by its title; its spoken name holds its sub. */
 export function pathStep(page: Page, title: string): Locator {
   const kind = STEP_KIND[title];
   if (kind) return visible(page.getByTestId(`path-step-${kind}`)).first();

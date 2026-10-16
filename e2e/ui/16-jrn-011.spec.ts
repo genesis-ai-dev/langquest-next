@@ -4,7 +4,7 @@
 // Luke 12:1–12, which nobody in the fixture touches.
 import type { Page } from '@playwright/test';
 import {
-  Devices, backToTabs, deviceTail, expectClean, openByLabel, passageRow, publishVersion, recordParts, sayEachPart, syncUntil, throughToDecide
+  Devices, backToTabs, deviceTail, expectClean, openByLabel, passageRow, recordParts, sayEachPart, syncUntil, throughToDecide
 } from './16-helpers';
 import { button, byId, expect, expectToast, primary, screenText, syncNow, tab, test, text, useWorld } from './support';
 
@@ -56,8 +56,8 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     await openFromWork(trans, PX);
     if (!(await byId(trans, 'record-button').isVisible().catch(() => false))) await button(trans, /^1\. Record\./).click();
     await recordParts(trans, 2);
-    await publishVersion(trans, 1);
-    await expectToast(trans, 'Version 1 published.');
+    // Done asks the Peer check team in the same tap (decision 112).
+    await byId(trans, 'publish-button').click();
     await button(trans, 'Ask the Peer check team').click();
     await expectToast(trans, /Sent to the Peer check team/);
     // REV and TREV each see the check.
@@ -86,12 +86,9 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     await trans.getByRole('button', { name: /^What changed\./ }).locator('visible=true').first().click();
     await trans.getByPlaceholder('Or type it').locator('visible=true').first().fill('Said verse 5 more plainly');
     await button(trans, 'Done').click();
-    await button(trans, 'Publish Version 2').click();
-    await expectToast(trans, 'Version 2 published.');
-    // The answered check goes back to the peer check team (decided 2026-10-13: answering keeps it open).
-    const askPeer = trans.getByRole('button', { name: 'Ask the Peer check team' }).locator('visible=true');
-    if (await askPeer.count()) await askPeer.first().click();
-    else await button(trans, 'Not now').click();
+    // The answered check goes back to the peer check team (decided 2026-10-13: answering keeps it open): Done asks them again.
+    await button(trans, 'Ask the Peer check team').click();
+    await expectToast(trans, /Sent to the Peer check team/);
 
     // Step 5: REV's peer check on Version 2: looks good.
     await openByLabel(rev, PX);
@@ -112,8 +109,8 @@ test('JRN-011 One passage from first recording to done, across every role @p0', 
     await bt.first().click();
     await expect(text(rev, /Version 2/)).toBeVisible();
     await sayEachPart(rev, 3);
-    await button(rev, 'Publish').click();
-    await button(rev, 'Publish back translation').click();
+    await button(rev, 'Done').click();
+    await button(rev, 'Finish the back translation').or(button(rev, 'Send later')).first().click();
     await expectToast(rev, 'Back translation published.');
 
     // Step 7: TRANS logs the Community Check: Already happened, looks good, at Village church.

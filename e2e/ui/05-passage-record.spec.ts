@@ -41,9 +41,9 @@ test('PASS-001 TRANS P-NEW: not started, asked of TRANS @p0', async ({ browser }
   expect(rec).toContain(`${nameOf('COORD')} asked you · `);
   expect(rec).toMatch(DUE);
   expect(rec).toContain('Tell it in your language. The Bible, key words and notes are beside you while you record.');
-  expect(await screenText(page)).toContain('Publish Then ask for the peer check');
+  expect(await screenText(page)).toContain('Done Then ask for the peer check');
   expect(await teamRows(page)).toEqual([
-    'Peer check, after you publish', 'Back translation, same time', 'Community check, after the peer check',
+    "Peer check, once you're done", 'Back translation, same time', 'Community check, after the peer check',
     'Consultant check, after the community check', 'Final approval, after the consultant check'
   ]);
   expect(await mainButton(page)).toBe('Record');
@@ -67,7 +67,7 @@ test('PASS-003 TRANS P-SUBMITTED: Version 1, Peer check asked of REV @p0', async
   const page = await recordAs(browser, world(), 'TRANS', 'P-SUBMITTED');
   // The worked study comes first, passed ("–"): recording has started.
   await expect(pathStep(page, 'Study')).toHaveAttribute('aria-label', /^1\. Study\. .+ guide · 0 of \d+ steps$/, { timeout: 30_000 });
-  expect(await screenText(page)).toMatch(/Record Version 1 · \d+:\d\d Publish Published .+ · asked Rita Reviewer/);
+  expect(await screenText(page)).toMatch(/Record Version 1 · \d+:\d\d Done Published .+ · asked Rita Reviewer/);
   expect(await teamRows(page)).toEqual([
     `Peer check, asked ${rev}`, 'Back translation, same time', 'Community check, after the peer check',
     'Consultant check, after the community check', 'Final approval, after the consultant check'
@@ -154,7 +154,7 @@ test('PASS-009 VIEW The viewer\'s record is read-only', async ({ browser }) => {
   await pathStep(page, 'Record').click();
   await expect(header(page)).toHaveText('Version 1');
   await back(page).click();
-  await pathStep(page, 'Publish').click();
+  await pathStep(page, 'Done').click();
   await expect(header(page)).toHaveText('Version 1');
   await back(page).click();
   await somethingElse(page);
@@ -181,7 +181,7 @@ test('PASS-010 TRANS Steps, "Then the team", and what each tap opens', async ({ 
   await expect(text(page, 'Then the team')).toHaveCount(0);
   await back(page).click();
   await expect(header(page)).toHaveText(L);
-  for (const step of ['Record', 'Publish']) {
+  for (const step of ['Record', 'Done']) {
     await pathStep(page, step).click();
     await expect(header(page), step).toHaveText('Version 1');
     await back(page).click();
@@ -191,9 +191,9 @@ test('PASS-010 TRANS Steps, "Then the team", and what each tap opens', async ({ 
   // The step's own name; an ordinary step is just its checks, with no sub (decision 91).
   expect(await sheetText(page)).toMatch(/^Peer check and back translation Peer check /);
   await closeSheet(page);
-  // P-NEW: Record opens the workspace; Publish, with nothing recorded, does nothing.
+  // P-NEW: Record opens the workspace; Done, with nothing recorded, does nothing.
   const n = await recordAs(browser, world(), 'TRANS', 'P-NEW');
-  await expect(pathStep(n, 'Publish')).toHaveCount(0);
+  await expect(pathStep(n, 'Done')).toHaveCount(0);
   await pathStep(n, 'Record').click();
   await expect(byId(n, 'record-button')).toBeVisible();
   await byId(n, 'header-close').click();

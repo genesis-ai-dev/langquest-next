@@ -160,8 +160,8 @@ export async function addNote(page: Page, world: UiWorld, key: PassageKey, words
 
 /**
  * Record `parts` parts with the voice file (one part about every four
- * seconds) and publish them as the next version; "Not now" on the asking
- * screen after it. Leaves the passage's record showing.
+ * seconds) and publish them as the next version: Done, then "Send later"
+ * (or "Finish Version N" when no check is next). Leaves the passage's record showing.
  */
 export async function recordAndPublish(page: Page, world: UiWorld, key: PassageKey, parts = 2, opts: { enter?: () => Promise<void> } = {}): Promise<void> {
   if (opts.enter) await opts.enter();
@@ -188,10 +188,8 @@ export async function recordAndPublish(page: Page, world: UiWorld, key: PassageK
   await rec.click();
   await expect(rec).toHaveAttribute('aria-label', 'Record');
   await byId(page, 'publish-button').click();
-  await button(page, /^Publish Version \d+$/).click();
-  await expect(text(page, /^Version \d+ published$/)).toBeVisible();
-  // "Next, ask for a check" offers Not now; with nothing to ask, Done.
-  await button(page, 'Not now').or(button(page, 'Done')).first().click();
+  await button(page, 'Send later').or(button(page, /^Finish Version \d+$/)).first().click();
+  await expect(byId(page, 'toast')).toContainText(/^Version \d+ published\./);
 }
 
 // ---- the other side, through the real server ------------------------------------------

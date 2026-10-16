@@ -161,11 +161,12 @@ test('SETUP-056 Write a guide and publish it', async ({ page }) => {
   await alphaReference(page);
   await text(page, 'Write a guide').click();
   await expectOnScreen(page, 'Write a guide', 'Details', 'Steps', 'Media', 'Glossary');
-  await button(page, 'Publish').click();
+  await button(page, 'Done').click();
   await expectToast(page, /things? to fix before publishing\./);
   await expectOnScreen(page, 'Before publishing', 'Give the guide a title.');
   await field(page, 'Title').fill(title);
-  await expectOnScreen(page, /Draft saved on this device at .*\. One person edits a guide at a time\.|Drafts are saved on this device as you write\./);
+  // The draft is kept on this device as it is written (decision 112): the header's saved mark turns into a check.
+  await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
   // A new guide starts with FIA's six steps; choosing another start replaces them (a toast with Undo only once a step has words in it).
   await expectOnScreen(page, 'Now: 6 steps.');
   await text(page, 'One empty step').click();
@@ -175,7 +176,7 @@ test('SETUP-056 Write a guide and publish it', async ({ page }) => {
   await page.getByLabel(/^Verses/).first().fill('LUK 15:11-32');
   await expectOnScreen(page, 'Numbered as in');
   await text(page, /^English · LangQuest|Like most English Bibles/).click().catch(() => undefined);
-  await button(page, 'Publish').click();
+  await button(page, 'Done').click();
   await expectToast(page, `${title} is published. Devices get it when they next sync.`);
   await expectOrgSent(page, w);
   expect(await orgRefused(page, w)).toEqual([]);
@@ -185,11 +186,13 @@ test('SETUP-057 Edit a guide; a draft is kept', async ({ page }) => {
   await alphaReference(page);
   await text(page, 'Write a guide').click();
   await field(page, 'Title').fill('Draft kept');
-  await page.waitForTimeout(1500); // sleep: the draft's autosave debounce; the app shows no saved marker
+  // Kept on this device a moment after the change: the saved mark turns into a check.
+  await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
+  // Back leaves at once and publishes nothing; writing a guide again opens the draft as it was left.
   await back(page).click();
+  await expect(byId(page, 'toast')).toHaveCount(0);
   await text(page, 'Write a guide').click();
-  await expectOnScreen(page, /Your draft from .* is open\./, 'Publish it, or keep writing. Nothing is published until you do.');
   await expect(field(page, 'Title')).toHaveValue('Draft kept');
-  void byId;
+  await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
   void syncNow;
 });

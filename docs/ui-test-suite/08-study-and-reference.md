@@ -166,12 +166,12 @@ Steps:
 1. Tap the question.
 2. Tap "Answer".
 3. In the sheet "Your answer", tap "Record what the group said", speak for 6 seconds, stop.
-4. Tap "Or type it", type "The son came to himself", tap "Save".
+4. Tap "Or type it", type "The son came to himself", tap "Add your answer".
 
 Expected:
 - Step 1 lights the question and shows "Answer". A plain section shows "Add a note" instead.
 - The sheet's sub reads "It stays with the passage, and reviewers see it with the study."
-- "Save" is disabled until something is said or typed.
+- "Add your answer" is disabled until something is said or typed. What is said or typed is kept on this device as a draft only TRANS sees (the sheet's saved mark), so closing the sheet and answering again brings it back (decision 112).
 - Step 4 shows the toast "Added to the study. Reviewers will see it with the passage.".
 - The answer shows under the question, labelled "Answer", with a play button for the voice.
 - REV sees it in Review it → Background → "Guide" (REV-011) and in the study.
@@ -184,7 +184,7 @@ Preconditions:
 
 Steps:
 1. Play "This step, spoken" and at about 0:20 tap "Add a note here".
-2. Type "Ask the elders about the ring", tap "Save".
+2. Type "Ask the elders about the ring", tap "Add a note".
 
 Expected:
 - Step 1 pauses the recording and opens "Add a note".
@@ -351,13 +351,13 @@ Preconditions:
 
 Steps:
 1. Tap "Say yours" (accessibility label "Say your word for {term}").
-2. In the sheet "Your word for “{term}”", try "Save your word".
+2. In the sheet "Your word for “{term}”", try "Add your word".
 3. Tap "Say it", say the word, stop.
-4. Tap "Save your word".
+4. Tap "Add your word".
 
 Expected:
 - The sheet's sub reads "Say how Alpha says it. Your team hears it whenever this word comes up." (with the meaning first when the term has one).
-- "Save your word" is disabled until something is said or typed ("Or type it").
+- "Add your word" is disabled until something is said or typed ("Or type it"). Until then what is said is a draft only TRANS sees, kept as it is made (decision 112).
 - Step 4 shows "Your word for {term} is saved.", with no Undo (grow-only, as STUDY-016).
 - The row now shows "Your word", which plays it.
 - The change is recorded with the passage and, when a draft is open, tied to that draft.
@@ -485,14 +485,14 @@ Preconditions:
 
 Steps:
 1. Tap "Adjust or add a rendering".
-2. Try "Save" with nothing.
+2. Try "Add your word" with nothing.
 3. Type a new rendering in "New rendering (optional)", and "Only for God's dwelling" in "When to use it".
-4. Tap "Say why", say 5 seconds, stop. Tap "Save".
-5. Open the sheet again; this time only type "Elders prefer the older word" in "Or type what changed, and why", and tap "Save".
+4. Tap "Say why", say 5 seconds, stop. Tap "Add your word".
+5. Open the sheet again; this time only type "Elders prefer the older word" in "Or type what changed, and why", and tap "Add your word".
 
 Expected:
 - The sheet is titled "Alpha · “heaven”", sub "Recorded as part of Luke 15:11-32, and tied to your draft." (with a draft) or "Every change is recorded with your reason.".
-- "Save" is disabled until a note is typed or a reason said.
+- "Add your word" is disabled until a note is typed or a reason said. What is typed or said is kept as a draft (the sheet's saved mark) until it is added (decision 112).
 - Step 4 shows "Added “{rendering}”." The page shows the rendering under "In Alpha".
 - Step 5 shows "Change recorded.".
 - "Why it's rendered this way" shows "2 changes · latest by {TRANS-name}, {when}", with "Play the explanation" for the voice reason and "Open Version N" where the change was made with a version.
@@ -649,12 +649,12 @@ Preconditions:
 
 Steps:
 1. Tap verse 20, then "Add a note here".
-2. Say a note by voice, save.
+2. Say a note by voice, type "Ran: elders never run", tap "Add a note".
 3. Open the "Notes" chip.
 
 Expected:
 - The sheet names where the note goes ("Luke 15:11-32 · verse 20").
-- Saving shows "Note added." and verse 20 shows "● 1" (or one more).
+- "Add a note" shows "Note added." and verse 20 shows "● 1" (or one more). Closing the sheet instead keeps what was said as a draft for the next note on that verse (decision 112).
 - The "Notes" chip lists it first as "Note on verse 20", with a play button.
 - REV sees it in Background → Notes and on the "Passage" chip.
 

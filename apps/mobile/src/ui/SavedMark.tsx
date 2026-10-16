@@ -1,7 +1,8 @@
-// The saved mark (decision 112): nothing has a Save button, so a small mark
+// The saved mark (decision 112): what people make has no Save button, so a small mark
 // in the header shows that what you are making is kept. A spinner while it
 // is being kept turns into a check once it is. Wordless, so it explains
-// itself in help mode, and says itself to a screen reader.
+// itself in help mode, and says itself to a screen reader (an image with a
+// name: a wordless mark, which the web may name only with a role).
 import { useEffect, useRef } from 'react';
 import { ActivityIndicator, Animated, StyleSheet, View } from 'react-native';
 import { t } from '../i18n';
@@ -25,7 +26,7 @@ export function SavedMark(props: { status: SaveStatus; testID?: string;
   const label = status === 'saving' ? t('saved.saving') : status === 'failed' ? t('saved.failed') : t('saved.saved');
   return (
     <HelpInfo label={label} detail={status === 'failed' ? t('saved.failedHelp') : props.help ?? t('saved.help')} style={styles.box}>
-      <View testID={props.testID ?? 'saved-mark'} accessible accessibilityRole="text" accessibilityLabel={label}
+      <View testID={props.testID ?? 'saved-mark'} accessible accessibilityRole="image" accessibilityLabel={label}
         accessibilityLiveRegion="polite" style={styles.box}>
         {status === 'saving' ? <ActivityIndicator size="small" color={C.primary} />
           : status === 'failed' ? <Ico name="warning" size={22} color={TINT.redText} />

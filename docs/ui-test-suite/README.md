@@ -28,7 +28,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 03 | [03-home-and-navigation.md](03-home-and-navigation.md) | Tabs per role, My Work, the bell, the Inbox, the viewer's overview, flow gates | `NAV` | 37 |
 | 04 | [04-map.md](04-map.md) | All languages, a language's map, books, chapters, search, filter | `MAP` | 21 |
 | 05 | [05-passage-record.md](05-passage-record.md) | The passage record, Something else?, Ask someone, Already happened, versions and history, set aside, checkpoints, Undo | `PASS` | 65 |
-| 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Publish, microphone setup, interruptions | `REC` | 52 |
+| 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Done, microphone setup, interruptions | `REC` | 52 |
 | 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 49 |
 | 08 | [08-study-and-reference.md](08-study-and-reference.md) | The study, key words, Bibles beside a passage, reference for one passage | `STUDY` | 36 |
 | 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 67 |
@@ -528,7 +528,7 @@ note, until each is resolved.
 | PASS-042 | A guest reviewer's link sends nothing to the guest's phone, and their name shows anonymously in summaries. Review by link (REV-7) is not built. |
 | STUDY-036 | Offline, a passage whose Bible never came to the device says "No Bible for this passage yet" instead of naming the Bible and saying its audio needs a connection. |
 | NOORG-001, WEB-006 | On the web, a card or Inbox row marked current is not announced as current to a screen reader. |
-| REV-019, REV-031, REV-047 | The docs and the app disagree. `docs/ux/screen-path.md` still names "Can't answer this?" and "Save back translation"; the app says "Skip" and "Publish". An older review footer that can never show is still in the code. |
+| REV-019, REV-031, REV-047 | The docs and the app disagree. `docs/ux/screen-path.md` still names "Can't answer this?" and "Save back translation"; the app says "Skip" and "Done". An older review footer that can never show is still in the code. |
 | PEOPLE-039 | Retiring a role is not built. |
 | NAV-051 | No screen offers a forbidden move, so the permission refusal can only be checked through the dev hook `__langquestGo`. |
 | SETUP-026, MOD-018, SYNC-018 | Seen once while automating, not reproduced in the full run of 2026-10-13: a book change followed by Undo upsetting "What helps them"; a removed note showing on a fresh device until the next snapshot (decision 88's design); a translator removed from their only language landing on "Join your team". |

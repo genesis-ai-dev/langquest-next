@@ -1,6 +1,7 @@
 # REV-008, the phone's own Back (docs/ui-test-suite/07-reviewing.md): on
 # "What should change?" Android's system Back returns to Decide, as the
-# header's back arrow does, and keeps what was typed. The web steps run in
+# header's back arrow does, and keeps what was typed; ✕ then leaves at once
+# and the review comes back when opened again (REV-024). The web steps run in
 # Playwright (e2e/ui/07-reviewing.spec.ts); iOS has no system Back,
 # so there the header's arrow is used.
 appId: com.frontierrnd.langquestnext
@@ -61,7 +62,9 @@ tags:
 # What was typed is still there.
 - tapOn: "Needs changes"
 - assertVisible: "Too quiet at the start"
-# Back again, then ✕ asks before throwing the review away (REV-024).
+# Back again, then ✕ leaves at once: the review is kept on the phone as a
+# draft (REV-024, decision 112), and opening it again brings it back on
+# Decide with what was typed.
 - runFlow:
     when:
       platform: Android
@@ -75,6 +78,10 @@ tags:
           id: "header-back"
 - tapOn:
     id: "header-close"
-- assertVisible: "Leave without saving\\?"
-- tapOn: "Leave"
 - assertVisible: "Versions and history"
+- tapOn: "Do the peer (check|review)"
+- extendedWaitUntil:
+    visible: "Is it accurate and natural\\?"
+    timeout: 30000
+- tapOn: "Needs changes"
+- assertVisible: "Too quiet at the start"

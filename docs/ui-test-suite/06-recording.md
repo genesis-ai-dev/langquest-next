@@ -2,7 +2,7 @@
 
 The recording workspace (`workspace`): the reference on top, the recorder
 below, voice detection that keeps each part by itself, verse labels on
-parts (decision 82), several drafts (decision 83), Publish as a screen
+parts (decision 82), several drafts (decision 83), Done as a screen
 inside the workspace, microphone setup, and what happens when the field
 interrupts a recording.
 
@@ -42,13 +42,13 @@ Steps:
 2. On the record, tap "Record". If the main button reads "Study" (the passage has a study guide), tap the "Record" step row under it instead.
 
 Expected:
-- The workspace opens. Header title "Luke 13:1-9", sub "Recording Version 1", a ✕ ("Close") on the left and "Save" (with a check) on the right.
+- The workspace opens. Header title "Luke 13:1-9", sub "Recording Version 1", a ✕ ("Close") on the left. There is no Save button (decision 112); the saved mark on the right shows nothing until a part is kept.
 - The divider sits at half: the reference on top, the recorder below.
 - The chips over the reference show at least "Bible", "Key words" and "Notes". "Earlier" is not shown, because nothing has been recorded or reviewed yet.
 - The "Bible" chip is selected.
 - The recorder shows a lit card "Part 1" with "Recording next".
 - The line "Tap the red button and speak. Pause between parts: each part is kept by itself." shows under it, then a quiet link "Set up the microphone".
-- The footer shows "Part 1" on the left, the big red button (accessibility label "Record") in the middle, and "Publish" on the right, dimmed and disabled.
+- The footer shows "Part 1" on the left, the big red button (accessibility label "Record") in the middle, and "Done" on the right, dimmed and disabled.
 - The passage record is unchanged (nothing is written by opening the workspace).
 
 ### REC-002 My Work's Start opens the same workspace
@@ -81,7 +81,7 @@ Expected:
 - The record's main button reads "Continue recording", and its Record step says "Your parts are recorded, not published yet."
 - The workspace opens with sub "Recording Version 1".
 - The recorder shows one card "Parts 1–2" with "2 parts · {total length}" and a play button "Play Parts 1–2". The parts show under it by themselves when the pane has room, so its toggle reads "Hide the parts" ("Show the parts" when folded).
-- The footer reads "Part 3", and "Publish" is enabled.
+- The footer reads "Part 3", and "Done" is enabled.
 - The "Tap the red button and speak…" hint is not shown.
 
 ---
@@ -106,8 +106,8 @@ Expected:
 - The lit card reads "Listening for you · pause between parts" while silent, and "Recording…" with a moving level meter while speaking.
 - Each pause ends a part. Within 2 seconds of each pause the card above counts it: "Part 1", then "Parts 1–2", then "Parts 1–3", and the lit card moves to the next part number.
 - After step 5 the card reads "Parts 1–3" with "3 parts · 0:1x" (about 11 seconds in total), and the footer reads "Part 4" in grey.
-- "Publish" is enabled.
-- "Save" is disabled while recording and enabled after step 5.
+- "Done" is enabled.
+- The saved mark in the header ends on its check ("Saved") once the parts are kept.
 - No part is shorter than 1 second, and no part is empty.
 - Afterwards, on the record, the main button reads "Continue recording" and the Record step says "Your parts are recorded, not published yet."
 - On a second device signed in as COORD, after Sync now, P-NEW's record says "Some parts are recorded, not published yet." (the draft is on the record; G10.4).
@@ -188,7 +188,7 @@ Steps:
 
 Expected:
 - During steps 3 and 4 the verse spaces and play buttons are dimmed and do nothing: no sheet opens, no toast shows, and no part is removed.
-- The header's "Save" and the footer's "Publish" are disabled while recording.
+- The footer's "Done" is disabled while recording; afterwards the saved mark shows its check.
 - After step 5 every control is enabled again, and the draft still has three parts.
 
 ### REC-009 Deleting the only part leaves nothing to publish
@@ -204,31 +204,31 @@ Steps:
 4. Tap "Undo" on the toast.
 
 Expected:
-- After step 3 the toast reads "Part 1 deleted.". The parts card is gone, the lit card reads "Part 1", the hint "Tap the red button and speak…" is back, and "Publish" is disabled.
-- After step 4, "Undone." shows, Part 1 is back, and "Publish" is enabled.
+- After step 3 the toast reads "Part 1 deleted.". The parts card is gone, the lit card reads "Part 1", the hint "Tap the red button and speak…" is back, and "Done" is disabled.
+- After step 4, "Undone." shows, Part 1 is back, and "Done" is enabled.
 - Resets: P-Q2 now has TRANS's draft.
 
-### REC-010 Save keeps the draft and goes back
+### REC-010 Leaving keeps the draft, and the mark says so
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - P-NEW has TRANS's draft with three parts, and it is TRANS's only draft of P-NEW.
 
 Steps:
-1. In the workspace, tap "Save" in the header.
-2. On the record, tap "Continue recording".
-3. Tap ✕.
+1. In the workspace, look at the header.
+2. Tap ✕.
+3. On the record, tap "Continue recording".
 
 Expected:
-- Step 1 shows the toast "Draft saved." and returns to the record.
-- Step 2 opens the same three parts.
-- Step 3 returns to the record with no toast. Nothing is lost: every part was already kept when it was recorded.
+- Step 1: the saved mark on the right of the header shows its check ("Saved"); there is no Save button (decision 112).
+- Step 2 returns to the record with no toast. Nothing is lost: every part was already kept when it was recorded.
+- Step 3 opens the same three parts.
 
 ---
 
 ## Publishing
 
-### REC-011 Publish Version 1
+### REC-011 Done, then ask the usual people for the peer check
 Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
@@ -236,61 +236,53 @@ Preconditions:
 - Online.
 
 Steps:
-1. In the workspace, tap "Publish".
-2. Look at the Publish screen without changing anything.
-3. Tap "Publish Version 1".
+1. In the workspace, tap "Done".
+2. Look at the Done screen without changing anything.
+3. Tap "Ask {usual target}".
 
 Expected:
-- Step 1 opens the Publish screen inside the workspace. Header title "Luke 13:1-9", sub "Publish", with ✕.
+- Step 1 opens the Done screen inside the workspace (decision 112). Header title "Luke 13:1-9", sub "Version 1", with ✕.
 - A player for the whole version, titled "Version 1", with the sub "3 parts · 0:11 · recorded with the {abbr} Bible" (the Bible's abbreviation, when one is offered).
 - A row "Say something about it" with the sub "Optional · the team hears it with this version". The row has no amber border.
-- The text "Publishing saves Version 1 to the passage. Everyone on the team can hear it. It goes out when the device has internet."
-- The footer "Publish Version 1" is enabled.
-- After step 3, the toast reads "Version 1 published." with no Undo.
-- The record opens on its published page: a large green check, the heading "Version 1 published", the line "Luke 13:1-9 · sent to the team" (online; offline it stays "saved on this device · sends when you're online"), then "Next, ask for a check" with a card for each check that comes next ("Peer check" and "Back translation", decision 91: "check" is the word for a review stage) and its people (in the fixture "Trevor Both, Rita Reviewer").
-- The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), then quiet links "Someone else" and "Not now".
-- Afterwards, the record's Record step reads "Version 1 · 0:11" and its Publish step reads "Published just now".
+- "Next check", with a card for each check that comes next ("Peer check" and "Back translation", decision 91) and its people (in the fixture "Trevor Both, Rita Reviewer"). No sentence explains publishing.
+- The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), enabled, then quiet links "Someone else" and "Send later".
+- Step 3 publishes Version 1 and asks for the peer check in one write: the toast reads "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with Undo (which takes the asking back, not the version).
+- It returns to the record's path; there is no "Version 1 published" page.
 - The draft is gone from Versions and history; Version 1 is listed under "Published" with "Latest".
 - Within 30 seconds, Sync shows nothing waiting to upload (G10.3). On a second device as REV, after Sync now, P-NEW's record shows Version 1 and its audio plays.
-- Resets: P-NEW now has Version 1 by TRANS.
+- Resets: P-NEW now has Version 1 by TRANS, and its Peer check is asked.
 
-### REC-012 After publishing, ask for the check or not now
+### REC-012 After Done, the record says who was asked, and they find it on My Work
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- REC-011 has just published Version 1 of P-NEW, and its published page shows.
+- REC-011 has just finished P-NEW's Version 1 and asked for its Peer check; the record shows.
 
 Steps:
-1. Tap "Not now".
-2. Tap "Ask for the peer check" (the record's main button now).
-3. On the ask page, tap "Ask {usual target}".
+1. Look at the record's path.
+2. As REV, on a second device, Sync now and open My Work.
 
 Expected:
-- Step 1 returns to the record's path. Nothing is written.
-- After step 1, the record's main button reads "Ask for the peer check", the Record step reads "Version 1 · 0:11" and the Publish step "Published just now".
-- Step 2 opens the same ask page, now with a header "Ask for a check" and the sub "Luke 13:1-9", and without the "Version 1 published" heading.
-- Step 3 shows the toast "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with Undo.
-- Afterwards, the first step on the record reads "asked {target}". REV, on a second device after Sync now, finds P-NEW on My Work as a Peer check to do.
-- Resets: P-NEW's Peer check is asked.
+- The Record step reads "Version 1 · 0:11" and the Done step "Published just now · asked {target}".
+- The record does not offer "Ask for the peer check" again.
+- REV finds P-NEW on My Work as a Peer check to do.
 
-Fixed (2026-10-13): the Publish step reads "Published Just now": `passage/pathModel.ts` puts `when()`'s sentence-start form ("Just now") in the middle of "Published {{when}}". The Versions page already special-cases it (`passage.versions.savedJustNow`); the path should too.
-
-### REC-013 Publish's ✕ and Android back return to the workspace and keep everything
+### REC-013 Done's ✕ and Android back return to the workspace and keep everything
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - P-Q2 has TRANS's draft with one part (REC-009).
 
 Steps:
-1. Open P-Q2's workspace and tap "Publish".
+1. Open P-Q2's workspace and tap "Done".
 2. Tap "Say something about it", type "Draft for the team", tap "Done".
 3. Tap ✕.
-4. Tap "Publish" again.
+4. Tap "Done" again.
 5. Android only: press the system Back button.
 
 Expected:
 - Step 3 returns to the workspace, not the record. The part is still there, and nothing was published.
-- After step 4 the Publish screen opens fresh: the row reads "Say something about it" again (what was typed is not kept between visits).
+- After step 4 the Done screen opens with what was typed kept (decision 112): the row reads "What you said about it" with "“Draft for the team”".
 - Step 5 returns to the workspace too; it never leaves past it.
 - No version exists on the record.
 
@@ -301,15 +293,15 @@ Preconditions:
 - P-Q2 has TRANS's draft with one part.
 
 Steps:
-1. In P-Q2's workspace, tap "Publish".
+1. In P-Q2's workspace, tap "Done".
 2. Tap the row "Say something about it".
 3. In the sheet "Say something about it" (sub "Anything the team should know. They hear it with this version."), tap "Say it", speak for 3 seconds, tap to stop.
 4. Tap "Done".
-5. Tap "Publish Version 1".
+5. Tap "Send later".
 
 Expected:
 - After step 4 the row reads "What you said about it" with the sub "Voice note", and its icon is a green check.
-- Step 5 shows "Version 1 published.".
+- Step 5 shows "Version 1 published." and asks nobody: the record's main button reads "Ask for the peer check".
 - On the record, Versions and history → Version 1 plays the voice note with the version.
 - REV, on a second device, hears the voice note on Version 1 after Sync now.
 - Resets: P-Q2 now has Version 1.
@@ -321,7 +313,7 @@ Preconditions:
 - P-Q3 (Luke 13:22-30) has TRANS's draft with two parts (record them as in REC-004).
 
 Steps:
-1. In P-Q3's workspace, tap "Publish".
+1. In P-Q3's workspace, tap "Done".
 2. Play the version, and at about 0:05 tap "Note" on the player.
 3. In the sheet, type "verse 24 needs a slower pace", tap "Done".
 4. Tap ✕ without publishing.
@@ -341,19 +333,19 @@ Steps:
 1. Open P-NEW. Open Versions and history and tap "Edit" on Version 1. (Once a version is published, the Record step row opens that version, not the workspace.)
 2. Look at the workspace before recording.
 3. Record one more part: speak for 3 seconds, then stop.
-4. Tap "Publish".
+4. Tap "Done".
 5. Look at the row under the player, and at the footer.
 6. Tap the row, type "Added verse 9 again, slower", tap "Done".
-7. Tap "Publish Version 2".
+7. Tap "Send later".
 
 Expected:
 - Step 1 opens the workspace with sub "Recording Version 2" and Version 1's parts already in the card.
-- Step 2 shows "These are Version 1's parts. Record a new part or delete one to publish a new version.", and "Publish" is disabled.
-- After step 3 that line is gone, the card counts one more part, and "Publish" is enabled.
-- Step 5: the row reads "Say what changed" with the sub "Needed · since Version 1, so the team knows what to listen for", with an amber border. "Publish Version 2" is disabled.
+- Step 2 shows "These are Version 1's parts. Record a new part or delete one to publish a new version.", and "Done" is disabled.
+- After step 3 that line is gone, the card counts one more part, and "Done" is enabled.
+- Step 5: the row reads "Say what changed" with the sub "Needed · since Version 1, so the team knows what to listen for", with an amber border. The footer's "Ask …" is disabled, and "Send later" does nothing.
 - The sheet opened in step 6 is titled "What changed?" with the sub "Since Version 1. The team hears it with this version.", and its voice button reads "Say what changed".
-- After step 6 the row reads "What changed" with "“Added verse 9 again, slower”", and "Publish Version 2" is enabled.
-- Step 7 shows "Version 2 published." and the published page reads "Version 2 published".
+- After step 6 the row reads "What changed" with "“Added verse 9 again, slower”", and the footer's "Ask …" is enabled.
+- Step 7 shows "Version 2 published." and returns to the record.
 - Afterwards, Versions and history lists Version 2 as latest and Version 1 under it. Version 1 is unchanged (decision 83: a published version never changes).
 - A reviewer opening Version 2 for review sees "What changed in Version 2:" followed by the typed note (REV-010).
 - Resets: P-NEW now has Version 2.
@@ -366,12 +358,12 @@ Preconditions:
 
 Steps:
 1. Open P-Q2's Versions and history and tap "Edit" on Version 1 (it opens Version 1's parts).
-2. Record one more part, then tap "Publish".
+2. Record one more part, then tap "Done".
 3. Tap "Say what changed", tap "Say what changed" in the sheet, speak for 3 seconds, stop, tap "Done".
-4. Tap "Publish Version 2".
+4. Tap "Send later".
 
 Expected:
-- After step 3 the row reads "What changed" with the sub "Voice note", and "Publish Version 2" is enabled with nothing typed.
+- After step 3 the row reads "What changed" with the sub "Voice note", and the footer's "Ask …" is enabled with nothing typed.
 - Step 4 shows "Version 2 published.".
 - REV's review of Version 2 shows "What changed in Version 2: said in a voice note" and a "Play what changed" button that plays it.
 
@@ -384,11 +376,11 @@ Preconditions:
 Steps:
 1. Open P-Q2's Versions and history and tap "Edit" on Version 2 (it opens Version 2's parts, sub "Recording Version 3").
 2. Delete the last part (hold its verse space, "Delete Part 2").
-3. Tap "Save".
+3. Tap ✕.
 
 Expected:
-- After step 2 "Publish" is enabled, because the list differs from Version 2.
-- Step 3 shows "Draft saved." and goes back to where the workspace was opened from (the Versions page).
+- After step 2 "Done" is enabled, because the list differs from Version 2, and the saved mark shows its check.
+- Step 3 goes back to where the workspace was opened from (the Versions page), with the draft kept.
 - Version 2 still has all its parts when played from Versions and history.
 - Versions and history shows "Your draft" with one fewer part than Version 2. ("from Version N" is added only when the draft started from a version other than the latest; Version 2 is the latest.)
 
@@ -400,13 +392,13 @@ Preconditions:
 
 Steps:
 1. Open P-Q2. Open "Versions and history" and tap "New version".
-2. Record one part, then tap "Save".
+2. Record one part, then tap ✕.
 3. Go back to the record, then open "Versions and history".
 
 Expected:
 - Step 1 opens an empty workspace with the header sub "New draft"; once its first part is kept it reads "Draft 2" (the person now keeps more than one).
-- Step 2 shows the toast "Draft 2 saved." and goes back to the Versions page, which lists "Your drafts" with both.
-- In step 3 the record still leads with "Ask for the peer check" (Version 2 is not asked yet), so "Continue recording" is not offered; Versions and history lists "Your drafts" with both, each with play, Edit, Publish and Delete. (Record with several drafts opening this page is PASS-059's.)
+- Step 2 goes back to the Versions page, which lists "Your drafts" with both (the saved mark had shown the part kept).
+- In step 3 the record still leads with "Ask for the peer check" (Version 2 is not asked yet), so "Continue recording" is not offered; Versions and history lists "Your drafts" with both, each with play, Edit, Done and Delete. (Record with several drafts opening this page is PASS-059's.)
 - Deleting one shows "{name} deleted." with Undo, and Undo brings it back with the same parts.
 
 ---
@@ -428,7 +420,7 @@ Steps:
 
 Expected:
 - After step 3 the recorder shows "Microphone permission is required." in place of a part.
-- The button returns to "Record". No part is made, and "Publish" stays disabled.
+- The button returns to "Record". No part is made, and "Done" stays disabled.
 - Step 4 shows the same message again without a crash. On iOS and Android the system does not ask a second time.
 - The app does not hang: ✕ still returns to the record, and nothing is written.
 - Automation: phones, `apps/mobile/test/maestro/flows/REC-020.yaml` (Maestro grants permissions at launch, so the app is started again with the microphone denied). Web, `e2e/ui/06-recording-mic.spec.ts`: Chrome runs with `--use-fake-ui-for-media-stream`, which answers every prompt "Allow" even with the site's permission set to denied through DevTools, so "Block" is the page's microphone refusing (getUserMedia fails with NotAllowedError, as after a person blocks it).
@@ -446,7 +438,7 @@ Steps:
 
 Expected:
 - The error message is gone once recording starts.
-- One part is recorded, and "Publish" is enabled.
+- One part is recorded, and "Done" is enabled.
 - On Android, if the app restarts when the permission changes, it reopens without a crash and P-Q4's workspace opens normally.
 
 ### REC-022 Microphone permission taken away while the app is in the background
@@ -623,7 +615,7 @@ Expected:
 - The workspace stays responsive: the lit card and meter keep moving, and taps answer within half a second, through all ten minutes.
 - Part 1 plays from start to end without gaps.
 - "Show the parts" lists every part and scrolls smoothly.
-- "Publish" then "Publish Version 1" succeeds, and REV on a second device can play the whole version after Sync now.
+- "Done" then "Send later" succeeds, and REV on a second device can play the whole version after Sync now.
 - Resets: P-Q4 now has Version 1.
 
 ### REC-031 Tapping record and stop very fast
@@ -658,7 +650,7 @@ Steps:
 
 Expected:
 - The app does not warn before recording; there is no low-storage check today.
-- If the part cannot be written, the recorder shows "A part did not save." with "Retry saving". The red button and "Publish" are disabled while a part is unsaved.
+- If the part cannot be written, the recorder shows "A part did not save." with "Retry saving". The red button and "Done" are disabled while a part is unsaved.
 - If the part was saved but the draft could not be written, the recorder shows "Your takes are saved on this device but not yet in your draft. {reason}" with "Try again".
 - After step 3 the part is saved, the message goes away, and the part plays.
 - No earlier part was removed to make room (recordings are never evicted).
@@ -674,29 +666,31 @@ Preconditions:
 Steps:
 1. Open P-Q1's workspace and record two more parts.
 2. Tap "Show the parts", delete one part, tap "Undo".
-3. Tap "Publish", then "Publish Version 1".
+3. Tap "Done", then "Send later".
 4. Turn airplane mode off and wait 30 seconds.
 
 Expected:
 - Steps 1 to 3 behave and read exactly as online: the same parts, "Part N deleted.", "Undone.", then "Version 1 published.".
-- The published page reads "Luke 13:10-17 · saved on this device · sends when you're online".
+- It returns to the record, where the version shows as published; its events wait on the device until there is a connection.
 - My Work shows the sync chip while offline, and Sync shows the events waiting to upload.
 - After step 4 nothing waits to upload, and a second device as REV, after Sync now, sees Version 1 and can play every part.
 - Sync shows nothing refused (G10.2).
 - Resets: P-Q1 now has Version 1.
 
-### REC-034 "Saved on this device · sends when you're online" while online
+### REC-034 Nothing says "waits for a connection" while online
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
 
 Preconditions:
 - Online. A passage with a draft ready to publish (for example P-Q3).
 
 Steps:
-1. Publish it as in REC-011.
-2. Read the published page.
+1. Tap "Done", then "Send later".
+2. Read the record and the sync mark.
 
 Expected:
-- While online, the line says the version is on its way or sent, not that it waits for a connection.
+- While online, nothing says the version waits for a connection; the sync mark settles once it has gone.
+
+Changed (2026-10-16, decision 112): Done returns straight to the record, so the published page and its line are gone.
 
 Fixed (2026-10-13): the line always reads "{title} · saved on this device · sends when you're online" (`passage.published.savedHere`), even online, after the upload has finished.
 
@@ -795,7 +789,7 @@ Preconditions:
 
 Steps:
 1. Tap the "Notes" chip, then "Add a note".
-2. In the sheet, tap "Or type it", type "The fig tree means Israel here", tap "Save note".
+2. In the sheet, tap "Or type it", type "The fig tree means Israel here", tap "Add a note".
 3. Start recording and look at "Add a note".
 
 Expected:
@@ -822,7 +816,7 @@ Steps:
 Expected:
 - Step 1 leaves the reference as one line: "Play the Bible", "Bible · {abbr}", "Drag down for the guide, key words, notes and earlier recordings", and Back 10.
 - Step 2 opens the divider back to half.
-- Step 3 leaves the recorder as one line: "Part 4" with "3 parts recorded", and a 56-point red button. The footer (record and Publish) is hidden.
+- Step 3 leaves the recorder as one line: "Part 4" with "3 parts recorded", and a 56-point red button. The footer (record and Done) is hidden.
 - Step 4 records a part from the bar; the bar reads "Recording…" while capturing.
 - Step 5 reopens the divider to half.
 - Step 6: the divider snaps to one of 0, 35, 50, 65 or 100 percent, and reopens where it was left (for the rest of this app session).
@@ -1056,10 +1050,10 @@ Preconditions:
 
 Steps:
 1. Open P-T and tap "Record" (or the Record step row).
-2. Record two parts and tap "Publish", then "Publish Version 1".
+2. Record two parts and tap "Done", then "Send later".
 
 Expected:
-- The workspace and Publish behave exactly as for TRANS (REC-004, REC-011).
+- The workspace and Done behave exactly as for TRANS (REC-004, REC-011).
 - The published page offers "Ask {usual target}".
 - REV-030 continues from here (TREV reviewing their own version).
 - Resets: P-T has Version 1 by TREV.

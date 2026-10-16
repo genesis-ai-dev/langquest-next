@@ -20,6 +20,14 @@ TREV, and "Ask the Peer check team" reaches both. The Review Teams screens
 are gone. "Ask someone" on the record is now "Something else?" → "Someone
 else should do this".
 
+**Done since decision 112.** The recorder's and back translation's
+"Publish" is "Done". Done's main button asks the next check's usual people
+and publishes in the same tap ("Ask the Peer check team"); "Someone else"
+publishes and opens Ask someone, and "Send later" publishes and asks nobody
+("Version N published."). With no check to ask for, the main button is
+"Finish Version N" (or "Finish the back translation"). There is no page
+after publishing: every way out lands on the record.
+
 **Automation (decision 95).** Journeys with Web or Wide run in Playwright,
 each in its own file with a fresh world and one browser per person
 (`e2e/ui/16-jrn-NNN.spec.ts`, helpers in `16-helpers.ts`). Phone-only
@@ -49,8 +57,8 @@ Steps:
 9. Device 2: pull to sync on My Work. Tap "Start" on the "Next for you" card.
 10. On the passage record, tap the Record step row. The main button may read "Study", because P-NEW has an FIA guide. In the workspace, tap the red record button.
 11. Speak for 8 seconds, pause 2 seconds, speak for 8 seconds, then tap stop.
-12. Tap "Publish", then "Publish Version 1".
-13. On the ask page, tap "Ask the Peer check team".
+12. Tap "Done".
+13. On the Done screen, tap "Ask the Peer check team".
 
 Expected:
 - Step 5: the invite card read "Invite for Ana Test" with "Translator · Alpha · UI Test Org" before joining.
@@ -63,9 +71,10 @@ Expected:
   - Me → More settings shows "No email yet".
 - Step 9: P-NEW is the "Next for you" card, with COORD named as the one who asked.
 - Step 11: the parts card shows two parts.
-- Step 12: the toast reads "Version 1 published.". The record shows "Version 1 published" and "Next, ask for a check".
+- Step 12: the Done screen shows "Version 1", then "Next check" with the Peer check and its people, and the main button "Ask the Peer check team". Nothing is published yet.
 - Step 13:
-  - The record shows "Peer check · asked the Peer check team".
+  - Version 1 is published and the Peer check asked in one tap: the toast reads "Sent to the Peer check team — anyone on it will see it on My Work".
+  - The app returns to the record, whose "Peer check" card reads "asked the Peer check team".
   - REV and TREV each see the passage in "Next for you" or "Then" after syncing.
 - Device 1 (COORD) after syncing: the passage record shows Version 1 by Ana Test, and the request to record is done.
 
@@ -84,17 +93,17 @@ Steps:
 3. Play the voice note and read the text "Verse 18 is too fast".
 4. Tap "Record a fix".
 5. In the workspace, check that the Earlier chip is open with the review highlighted.
-6. Record one new part (6 seconds). Hold one of Version 1's parts and tap "Delete Part 1" (the fixture's parts carry no verses), then tap "Publish".
-7. Open "What changed", empty it, tap "Done"; then say or type "Slowed verse 18", tap "Done", then "Publish Version 2". On the ask page, tap "Not now".
+6. Record one new part (6 seconds). Hold one of Version 1's parts and tap "Delete Part 1" (the fixture's parts carry no verses), then tap "Done".
+7. On the Done screen, open "What changed", empty it, tap "Done"; then say or type "Slowed verse 18", tap "Done", then "Send later".
 8. Open the bell again. Open the feedback on P-SUBMITTED, then tap "Hear the feedback".
 9. Tap "Keep it, say why". Type "The speed matches how elders tell it", then tap "Keep it".
 
 Expected:
 - Step 6:
-  - "What changed" starts from a first draft, "Revised after the {check} feedback.", which the translator may change. Emptied, "Publish Version 2" is disabled until something is said.
+  - "What changed" starts from a first draft, "Revised after the {check} feedback.", which the translator may change. Emptied, the main button ("Ask the Peer check team") is disabled, and "Send later" does nothing, until something is said.
   - The check line reads "Answers the peer check feedback from {REV's name}".
-  - Fixed (2026-10-13): the Publish screen, "Hear the feedback", the workspace's Earlier and the Inbox name the kind ("Peer Review"), not the check ("Peer check"), against decision 91's one word on every screen.
-- Step 7: the toast reads "Version 2 published.". On the record:
+  - Fixed (2026-10-13): the Publish screen (now Done), "Hear the feedback", the workspace's Earlier and the Inbox name the kind ("Peer Review"), not the check ("Peer check"), against decision 91's one word on every screen.
+- Step 7: the toast reads "Version 2 published.", and the app returns to the record. On the record:
   - Version 2 is current.
   - The feedback shows as answered.
   - "Hear the feedback" is gone.
@@ -122,7 +131,7 @@ Steps:
 6. Tap "Send feedback".
 7. Back on My Work, open P-BT's back translation from "Then", or from the card.
 8. Tap "Record part 1" and say each part in English (about 4 seconds each); the session moves to the next part at each pause. Stop after the third.
-9. Tap "Publish", then "Publish back translation".
+9. Tap "Done", then "Finish the back translation".
 
 Expected:
 - Step 1:
@@ -137,10 +146,10 @@ Expected:
   - The record shows "Peer check · needs changes", credited to REV ("You" on REV's own device).
 - Step 8: the top pane says notes and earlier checks are hidden on purpose.
 - Step 9:
-  - The toast reads "Back translation published.".
-  - The record shows "Back translation published".
-  - REV is not offered "Ask …", because REV has no Send to reviewers; only "Done" shows.
-  - Fixed (2026-10-13): the page still says "Next, ask for a check" to REV (see PASS-017).
+  - Done's sheet is titled "Back translation", with the sub "Of Version 1".
+  - REV is not offered "Ask …" and the sheet has no "Next check", because REV has no Send to reviewers; its only button is "Finish the back translation".
+  - The toast reads "Back translation published.", and the app returns to the record. There is no "Back translation published" page.
+  - Fixed (2026-10-13): the page after publishing said "Next, ask for a check" to REV (see PASS-017).
 - TRANS, after syncing: the bell has an unread update for P-SUBMITTED's feedback.
 
 ### JRN-004 A translator-reviewer records, checks their own work, and checks a colleague's
@@ -149,10 +158,10 @@ Roles: TREV, TRANS · Priority: P1 · Platforms: iOS, Android · Run: Auto
 Preconditions: P-Q4 is asked of TREV to record.
 
 Steps:
-1. Device 1 (TREV): record P-Q4 Version 1 and publish it. On the ask page, tap "Not now".
-2. COORD (any device): open P-Q4, tap its "Peer check" row, then "Send to someone else", and ask TREV by name. The record never offers a check of your own version unless someone asks you.
+1. Device 1 (TREV): record P-Q4 Version 1, tap "Done", then "Send later".
+2. COORD (any device): open P-Q4, tap its "Peer check" card, then "Send to someone else", and ask TREV by name. The record never offers a check of your own version unless someone asks you.
 3. Device 1 (TREV): sync. On the passage record, tap "Do the peer check". Play it, then tap "Looks good".
-4. Device 2 (TRANS): record P-Q3 Version 1, publish it, then tap "Ask the Peer check team".
+4. Device 2 (TRANS): record P-Q3 Version 1, tap "Done", then "Ask the Peer check team".
 5. Device 1 (TREV): sync. Open P-Q3 and tap "Do the peer check", then "Looks good".
 
 Expected:
@@ -325,11 +334,11 @@ Preconditions:
 
 Steps:
 1. COORD asks TRANS to record P-X ("Something else?" → "Someone else should do this").
-2. TRANS records and publishes Version 1, then asks the Peer check team.
+2. TRANS records Version 1, taps "Done", then "Ask the Peer check team" (it publishes and asks in one tap).
 3. REV does the Peer Review: "Needs changes", with text.
-4. TRANS taps "Record a fix" and publishes Version 2, saying what changed.
+4. TRANS taps "Record a fix", records Version 2, taps "Done", says what changed, then taps "Ask the Peer check team".
 5. REV does the Peer Review on Version 2: "Looks good".
-6. REV back-translates Version 2 and publishes it.
+6. REV back-translates Version 2, taps "Done", then "Finish the back translation".
 7. TRANS logs a Community Check through "Already happened", with outcome "Looks good" and where "Village church".
 8. COORD does the consultant check ("Do the consultant check"): "Looks good".
 9. COORD does the Final Approval: "Looks good".
@@ -353,7 +362,7 @@ Preconditions: TRANS has used Ready for offline to keep P-Q1, P-Q2 and P-Q3. Eve
 Steps:
 1. Device 1 (TRANS): turn on airplane mode.
 2. Do the study for P-Q1 and mark every step done.
-3. Record and publish P-Q1, P-Q2 and P-Q3. Ask the Peer check team on each.
+3. Record P-Q1, P-Q2 and P-Q3. On each, tap "Done", then "Ask the Peer check team".
 4. Close the app fully, then reopen it while still offline.
 5. Turn off airplane mode and wait.
 6. Device 2 (REV): sync.
@@ -375,7 +384,7 @@ Expected:
 Roles: TRANS, REV · Priority: P0 · Platforms: iOS, Android · Run: Device
 
 Steps:
-1. Turn on airplane mode. As TRANS, record and publish P-Q2.
+1. Turn on airplane mode. As TRANS, record P-Q2, tap "Done", then "Send later".
 2. Me → Sign out.
 3. Read the message, then tap "Sign Out".
 4. Sign in as REV on the same phone. This needs a connection, so turn off airplane mode first.
