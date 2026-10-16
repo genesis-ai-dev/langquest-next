@@ -12,7 +12,7 @@ import {
 import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import type { IconName } from '../ui/kit';
-import { andList, dueText, kindInSentence, versionTitle, when } from './passageView';
+import { andList, kindInSentence, versionTitle, when } from './passageView';
 import { studySummary, type StudyProgress } from '../study/progress';
 import { edgeAllowed, type Session } from '../shell/session';
 import { checkName, stepTitle } from '../admin/adminModel';
@@ -78,7 +78,7 @@ export function recordPathInput(o: {
 }): PathInput {
   const { p } = o;
   return {
-    p, kinds: o.kinds, me: o.me, name: o.name, when, due: dueText,
+    p, kinds: o.kinds, me: o.me, name: o.name, when,
     study: o.study ?? null,
     latestSeconds: o.latestSeconds ?? 0,
     latestVerses: o.latestVerses ?? null,

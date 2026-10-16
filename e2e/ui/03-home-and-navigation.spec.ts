@@ -50,8 +50,6 @@ const joinRequest = once(() => askToJoin(W(), 'NOORG', 'I translate for Alpha'))
 const judeWaiting = once(() => leaveBookWaiting(W(), 'COORD', 'JUD'));
 const label = (k: PassageKey) => W().passages[k].label;
 const orgSub = () => `${W().orgName} · All languages`;
-/** P-NEW's due date as the app words it: 14 days after the world was built, "Oct 27". */
-const dueDay = () => new Date(Date.parse(W().builtAt) + 14 * 86_400_000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 /** Open a passage from the Map by searching its reference, as a person would (workers' Map is their language). */
 async function openByMap(page: Page, k: PassageKey): Promise<void> {
@@ -314,7 +312,7 @@ test('NAV-011 Next for you: a record request opens the passage @p0', async ({ pa
   await expect(text(page, 'Record it · asked by Cora Coordinator')).toBeVisible();
   await button(page, /^\d+ more for you$/).click();
   await expect(text(page, label('P-NEW'))).toBeVisible();
-  await expect(text(page, `Record · due ${dueDay()}`)).toBeVisible();
+  await expect(text(page, 'Record · asked by Cora Coordinator').first()).toBeVisible();
   await primary(page).click();
   await expect.poll(() => headerTitle(page)).toBe(label('P-Q4'));
   await expect(primary(page)).toHaveText('Record');
@@ -336,7 +334,8 @@ test('NAV-012 Then: three rows, and the rest one tap on', async ({ page }) => {
   // Requests, then drafts, then feedback.
   expect(at('P-NEW')).toBeLessThan(at('P-DRAFT'));
   expect(at('P-DRAFT')).toBeLessThan(at('P-NEEDS'));
-  expect(all).toContain(`${label('P-NEW')} Record · due ${dueDay()}`);
+  expect(all).toContain(`${label('P-NEW')} Record · asked by Cora Coordinator`);
+  expect(all).not.toMatch(/\bdue\b/);
   expect(all).toContain(`${label('P-DRAFT')} Finish recording`);
   expect(all).toMatch(new RegExp(`${label('P-NEEDS')} Feedback to hear(?! ·)`));
   await expect(button(page, 'Fewer')).toBeVisible();
@@ -398,18 +397,17 @@ test('NAV-015 Waiting on others opens in place', async ({ page }) => {
   // People's names come from the server after the record: until then each shows as a placeholder.
   await expect.poll(() => screen(page)).toContain('Recording · Tom Translator');
   const all = await screen(page);
-  const due = `${label('P-NEW')} Recording · Tom Translator · due ${dueDay()}`;
-  expect(all).toContain(due);
-  for (const k of ['P-Q1', 'P-Q2', 'P-Q3', 'P-Q4'] as const) expect(all).toMatch(new RegExp(`${label(k)} Recording · Tom Translator · asked (just now|\\d+ (min|h) ago)`));
-  // Rows with a due date first.
-  expect(all.indexOf(due)).toBeLessThan(all.indexOf(`${label('P-Q4')} Recording`));
+  for (const k of ['P-NEW', 'P-Q1', 'P-Q2', 'P-Q3', 'P-Q4'] as const) expect(all).toMatch(new RegExp(`${label(k)} Recording · Tom Translator · asked (just now|\\d+ (min|h) ago)`));
+  // Newest first, with no due dates.
+  expect(all.indexOf(`${label('P-Q4')} Recording`)).toBeLessThan(all.indexOf(`${label('P-NEW')} Recording`));
+  expect(all).not.toMatch(/\bdue\b/);
   // The team request names the team, not "someone" (Resets: P-ASIDE's Peer check is asked of its team).
   expect(all).toMatch(new RegExp(`${label('P-ASIDE')} Peer check · the Peer check team · asked`));
   expect(all).not.toContain('· someone ·');
   await text(page, label('P-NEW')).click();
   await expect.poll(() => headerTitle(page)).toBe(label('P-NEW'));
   await back(page).click();
-  await expect(text(page, due.slice(label('P-NEW').length + 1))).toBeVisible();
+  await expect(text(page, label('P-NEW'))).toBeVisible();
 });
 
 test('NAV-016 Opened lately opens in place', async ({ page }) => {
@@ -545,7 +543,8 @@ test('NAV-030 The bell\'s count and the Inbox, from My Work @p0', async ({ page 
   await expect(text(page, `Unread (${n})`)).toBeVisible();
   await expect.poll(() => screen(page)).toContain('Cora asked you to record');
   const all = await screen(page);
-  expect(all).toContain(`Cora asked you to record ${label('P-NEW')} (Alpha) — due ${dueDay()}`);
+  expect(all).toContain(`Cora asked you to record ${label('P-NEW')} (Alpha)`);
+  expect(all).not.toMatch(/\bdue\b/);
   expect(all).toMatch(new RegExp(`Feedback on ${label('P-NEEDS')} Rita Reviewer: Peer (Review|check) suggests changes — revise, or keep it and say why\\.`));
   // Nothing TRANS did themselves.
   expect(all).not.toMatch(/Tom Translator (asked|published|recorded|approved|made)/);

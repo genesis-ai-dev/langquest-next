@@ -35,9 +35,6 @@ const LABELS: Record<WorldPassage, string> = {
 };
 export const unitOf = (k: WorldPassage): string => `LUK/${k}`;
 export const labelOf = (k: WorldPassage): string => LABELS[k];
-/** COORD's due date on P-NEW's request: fixed, and far enough ahead never to be overdue. */
-export const DUE = '2099-01-15';
-
 export interface PassageWorld {
   languageId: string;
   state: LanguageState;
@@ -112,7 +109,7 @@ function buildLanguage(): LanguageState {
     commandId: id('questions'), materialId: 'questions-consultant', kind: 'questions', title: 'Consultant check questions', scope: { stepId: 'consultant' },
     fields: [{ fieldId: 'q1', text: formatQuestionField({ text: 'Does it carry the meaning of the original?', type: 'yesno', required: true }) }]
   }));
-  run('COORD', (c) => c.ask({ commandId: id('ask'), unitId: unit('P-NEW'), what: 'record', profileId: ID.TRANS, dueDate: DUE }));
+  run('COORD', (c) => c.ask({ commandId: id('ask'), unitId: unit('P-NEW'), what: 'record', profileId: ID.TRANS }));
 
   // TRANS records: two parts kept as a draft on P-DRAFT, and Version 1 (three parts) of six passages; asks REV for one Peer check.
   let card = 0;

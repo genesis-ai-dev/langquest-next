@@ -160,12 +160,11 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     await button(coord, 'Something else?').click();
     await button(coord, /^Someone else should do this/).click();
     await coord.getByRole('radio', { name: new RegExp(benName) }).click();
-    await button(coord, 'In a week').click();
     await primary(coord).click();
     await expectToast(coord, new RegExp(benName.split(' ')[0]!));
-    // Ben's My Work shows it, with the due date.
+    // Ben's My Work shows it, with who asked and no due date.
     await syncUntil(ben, async () => /NEXT FOR YOU/i.test(await screenText(ben)), 60_000, 'the request on Ben\'s My Work');
-    expect(await screenText(ben)).toMatch(/Record it · asked by Cora Coordinator · due \w{3} \d{1,2}/);
+    expect(await screenText(ben)).toMatch(/Record it · asked by Cora Coordinator(?! · due)/);
     void passage;
 
     // Step 7: on a wide window, Reports → Bravo: its template, its flow and one passage asked.
@@ -191,7 +190,8 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     await expect(text(coord, /Review flow: /)).toBeVisible();
     expect.soft(await screenText(coord), 'the report names the checks chosen in Get ready').toMatch(/Community/i);
     // The template is the known gap below (JRN-005 Reports names the template), kept out of the P0 run.
-    await expect(text(coord, '1 request open in all'), 'Reports counts the one request to Ben').toBeVisible();
+    // The Open requests tile (decision 126): its value and label are read together.
+    await expect(coord.getByLabel(/^Open requests: 1\b/).locator('visible=true').first(), 'Reports counts the one request to Ben').toBeVisible();
     await expect(byId(coord, 'tab-reports')).toBeVisible();
     await ctx.close();
   } finally {

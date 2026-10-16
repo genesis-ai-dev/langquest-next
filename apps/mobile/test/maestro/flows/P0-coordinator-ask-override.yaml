@@ -1,5 +1,5 @@
 # P0 smoke on phones (decision 95): a coordinator asks someone to record a
-# passage (P-Q2 → TRANS, due in a week) and moves P-CHECK past its
+# passage (P-Q2 → TRANS) and moves P-CHECK past its
 # checkpoint, the Consultant check, with a reason (JRN-006's middle), then
 # undoes it from the toast.
 appId: com.frontierrnd.langquestnext
@@ -40,7 +40,6 @@ tags:
 - assertVisible: "Ask someone to record"
 - tapOn: ".*${TRANS_NAME}.*"
 - scroll
-- tapOn: "In a week"
 - tapOn:
     id: "primary-action"
     waitToSettleTimeoutMs: 0

@@ -88,7 +88,7 @@ export interface PassageDetail extends PassageSummary {
    * the token's person, or to a review team they are in; a review of its
    * `kindId` answers it.
    */
-  requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; dueDate?: string; note?: string; askedAt: string }[];
+  requests?: { requestId: string; what: 'record' | 'review'; kindId?: string; kind?: string; forYou: boolean; team?: string; note?: string; askedAt: string }[];
   versions?: { n: number; takeId: string; submittedAt: string }[];
   /**
    * With `read`: `approvedVersion`'s cards, so a listening app keeps playing what it
@@ -394,7 +394,7 @@ async function passageOut(
       requestId: r.id, what: r.what,
       ...(r.kindId ? { kindId: r.kindId, kind: kindOf(state, r.kindId).name } : {}),
       forYou: r.profileId === grant.profileId || (r.team?.memberIds.includes(grant.profileId) ?? false),
-      ...(r.team ? { team: r.team.name } : {}), ...(r.dueDate ? { dueDate: r.dueDate } : {}), ...(r.note ? { note: r.note } : {}),
+      ...(r.team ? { team: r.team.name } : {}), ...(r.note ? { note: r.note } : {}),
       askedAt: iso(r.hlc)
     }));
   }

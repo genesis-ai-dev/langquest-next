@@ -24,7 +24,7 @@ function report(over: Partial<LanguageReport> & { name: string }): LanguageRepor
     progress: { total: 10, recorded: 4, done: 2, steps: [], waiting: 0, feedback: 0 },
     work: { not_started: 5, drafting: 1, in_review: 2, feedback: 0, done: 2 },
     stages: [], bottleneck: null,
-    attention: { feedback: 0, openRequests: 0, overdueRequests: 0, atCheckpoint: 0 },
+    attention: { feedback: 0, openRequests: 0, atCheckpoint: 0 },
     books: [], activity: [], lastActivity: null,
     coverage: { recorded: cov(), done: cov(), weekly: [] },
     milestones: [],
@@ -42,10 +42,10 @@ const uploadedDaysAgo = (d: number) => ({ cards: 1, chapters: 1, firstAt: null, 
 describe('orgTotals', () => {
   it('sums every visible language and keeps the stalest update', () => {
     const t = orgTotals([
-      row(report({ name: 'Dinka', attention: { feedback: 1, openRequests: 3, overdueRequests: 1, atCheckpoint: 0 }, lastActivity: '2026-09-20T00:00:00Z' }), '2026-09-29T12:00:00Z'),
+      row(report({ name: 'Dinka', attention: { feedback: 1, openRequests: 3, atCheckpoint: 0 }, lastActivity: '2026-09-20T00:00:00Z' }), '2026-09-29T12:00:00Z'),
       row(report({ name: 'Nuer', progress: { total: 5, recorded: 5, done: 5, steps: [], waiting: 0, feedback: 0 }, work: { not_started: 0, drafting: 0, in_review: 0, feedback: 0, done: 5 }, lastActivity: '2026-09-25T00:00:00Z' }), '2026-09-29T08:00:00Z')
     ]);
-    expect(t).toMatchObject({ languages: 2, total: 15, recorded: 9, done: 7, feedback: 1, openRequests: 3, overdueRequests: 1 });
+    expect(t).toMatchObject({ languages: 2, total: 15, recorded: 9, done: 7, feedback: 1, openRequests: 3 });
     expect(t.work).toEqual({ not_started: 5, drafting: 1, in_review: 2, feedback: 0, done: 7 });
     expect(t.lastActivity).toBe('2026-09-25T00:00:00Z');
     expect(t.oldestUpdate).toBe('2026-09-29T08:00:00Z');
@@ -173,14 +173,14 @@ describe('alerts', () => {
 describe('sortLanguages', () => {
   const rows = [
     row(report({ name: 'nuer', progress: { total: 10, recorded: 9, done: 1, steps: [], waiting: 0, feedback: 0 } })),
-    row(report({ name: 'Dinka', progress: { total: 4, recorded: 1, done: 1, steps: [], waiting: 0, feedback: 0 }, attention: { feedback: 2, openRequests: 0, overdueRequests: 1, atCheckpoint: 1 } })),
+    row(report({ name: 'Dinka', progress: { total: 4, recorded: 1, done: 1, steps: [], waiting: 0, feedback: 0 }, attention: { feedback: 2, openRequests: 0, atCheckpoint: 1 } })),
     row(report({ name: 'Bari', progress: { total: 0, recorded: 0, done: 0, steps: [], waiting: 0, feedback: 0 } }))
   ];
   const names = (key: Parameters<typeof sortLanguages>[1], dir: 'asc' | 'desc') => sortLanguages(rows, key, dir).map((r) => r.report.name);
   it('sorts names without regard to case, and shares not counts', () => {
     expect(names('name', 'asc')).toEqual(['Bari', 'Dinka', 'nuer']);
     expect(names('recorded', 'desc')).toEqual(['nuer', 'Dinka', 'Bari']);
-    expect(attentionCount(rows[1]!.report)).toBe(4);
+    expect(attentionCount(rows[1]!.report)).toBe(3);
   });
 });
 

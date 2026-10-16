@@ -198,7 +198,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.CheckHelpSet` | kindId, itemId or materialId, linked | register per (kind, help); a note, guide or Bible linked to a check, which its reviewers see first (decision 91) |
 | `v1.VersionReleased` | takeId, channel, live, url? | register per (version, channel); where a version is published, a fact not a verdict (decision 72) |
 | `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo |
-| `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, what (record, review), kindId?, exactly one of profileId, guest, teamId, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record |
+| `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, what (record, review), kindId?, exactly one of profileId, guest, teamId, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record; `dueDate` is no longer set or shown (decision 126), old events may still carry it |
 | `v1.NoteAdded` | noteId, unitId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId? | grow-only |
 | `v1.ReviewWithdrawn` / `v1.NoteWithdrawn` | reviewId / noteId | add-wins; counts only from the review's or note's own author (decisions.md 111) |
 | `v1.StudyStepMarked` | unitId, guideId, stepId, done | register per (unit, guide, step) |
@@ -480,7 +480,7 @@ gone (decision 63).
 | Verdict looks good / needs changes | `ReviewRecorded.outcome` = `looks_good`, `needs_changes` or `recorded` (a producing kind), by kind | suggestions are advisory (A11); a checkpoint step is passed or overridden (`DepartureRecorded`) |
 | Review questions and answers | `TakeSubmitted.questionSetIds` (material ids), the kind's questions (`questionsForKind`) or a request's own, `ReviewRecorded.answers` | question sets are materials of kind `questions` |
 | Translator response to suggestions | a new take with `parentTakeId`, `ResponseRecorded` (note or audio), then `TakeSubmitted` | the `respond` task type |
-| Assignment: what, who, due, note | `RequestMade` (record or review; a person, a guest or a team) and `RequestWithdrawn` | **added** `dueDate`, `note`; a request is done when what it asked for happens |
+| Assignment: what, who, note | `RequestMade` (record or review; a person, a guest or a team) and `RequestWithdrawn` | **added** `note` (`dueDate` too, but it is no longer set or shown, decision 126; old events may still carry it); a request is done when what it asked for happens |
 | To Do / Doing / Done | `upNext`, `highlightsFor` and `waitingOn` (core `passage.ts`) | todo: asked or next; doing: a draft exists; done: the flow is through |
 | Piece work status | derived per passage (`derivePassage`: recorded, steps complete, done) | reports (`languageReport`) |
 | Bottleneck ("3 in Community Check") | passages by the first step not yet complete (`languageProgress.steps`) | reports |
