@@ -18,6 +18,13 @@ function fakeService(o: { claimed: { id: string; profile_id: string }[]; tokens:
     q['delete'] = () => q;
     q['update'] = (values: Record<string, unknown>) => { update = values; return q; };
     q['lt'] = () => q;
+    // Every claimed person's phones in one query (deliverPushes).
+    q['in'] = async (col: string, values: unknown[]) => {
+      if (table === 'push_tokens' && col === 'profile_id') {
+        return { data: values.flatMap((p) => (o.tokens[String(p)] ?? []).map((token) => ({ token, profile_id: p }))), error: null };
+      }
+      return { data: [], error: null };
+    };
     q['limit'] = async () => ({ data: [], error: null });
     q['eq'] = async (col: string, value: unknown) => {
       filter = { col, value };

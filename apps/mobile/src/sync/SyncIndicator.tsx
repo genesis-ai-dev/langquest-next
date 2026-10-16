@@ -15,6 +15,7 @@ import { C } from '../ui/theme';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Text } from '../ui/text';
+import { useSyncStatus } from './useSyncStatus';
 import { syncStanding, standingTitle, type SyncStanding, previewCount, previewListeners } from './syncStanding';
 
 const SIZE = 40;
@@ -38,7 +39,8 @@ function standingHelp(s: SyncStanding): string {
 export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org']; onPress: () => void }) {
   const { language: project, org } = props;
   const preview = usePreview();
-  const pending = preview ?? project.pending + org.pending + project.blobs.pendingUp + project.blobs.pendingDown;
+  const status = useSyncStatus();
+  const pending = preview ?? status.pending + status.orgPending + status.pendingUp + status.pendingDown;
   const ring = useRing(pending);
   const standing = syncStanding(project);
   const color = STANDING_COLOR[standing];

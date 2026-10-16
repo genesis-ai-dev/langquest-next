@@ -249,23 +249,31 @@ export class SyncClient<S = LanguageState> {
         this.reducerDropped = true;
       }
       const snapshot = staleSeq === null ? checkpoint : null;
-      const folding = this.elapsed();
-      this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
-      const foldMs = this.elapsed() - folding;
-      this.loaded = true;
-      const ms = this.elapsed() - started;
-      if (this.opening) this.opening.loadMs += ms;
-      this.opts.diag?.record('load', {
-        ...this.stream(),
-        n: {
-          ms, events: events.length, fromSnapshot: snapshot ? 1 : 0, readMs, foldMs,
-          ...(staleSeq !== null ? { staleCheckpointSeq: staleSeq } : {})
-        },
-        t: { reason, checkpoint: staleSeq !== null ? 'old_reducer' : snapshot ? 'ok' : 'none' }
-      });
-      this.publish();
-      return this.state;
+      return this.foldLocal(snapshot, events, { started, readMs, staleSeq, reason });
     });
+  }
+
+  /** The end of a load: fold the local log onto `snapshot` (or from empty), keep it, record it, publish. */
+  private foldLocal(
+    snapshot: Snapshot | null, events: AnyEvent[],
+    o: { started: number; readMs: number; staleSeq: number | null; reason: LoadReason }
+  ): S {
+    const folding = this.elapsed();
+    this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
+    const foldMs = this.elapsed() - folding;
+    this.loaded = true;
+    const ms = this.elapsed() - o.started;
+    if (this.opening) this.opening.loadMs += ms;
+    this.opts.diag?.record('load', {
+      ...this.stream(),
+      n: {
+        ms, events: events.length, fromSnapshot: snapshot ? 1 : 0, readMs: o.readMs, foldMs,
+        ...(o.staleSeq !== null ? { staleCheckpointSeq: o.staleSeq } : {})
+      },
+      t: { reason: o.reason, checkpoint: o.staleSeq !== null ? 'old_reducer' : snapshot ? 'ok' : 'none' }
+    });
+    this.publish();
+    return this.state;
   }
 
   /**
@@ -365,8 +373,12 @@ export class SyncClient<S = LanguageState> {
   }
 
   /** What writes a checkpoint: the snapshot and, beside it, its seq; and how long the snapshot's text is, for diagnostics. */
-  private snapshotMeta(snap: Snapshot): { meta: Record<string, string>; chars: number } {
-    const text = JSON.stringify(snap);
+  private snapshotMeta(snap: Snapshot, stateText?: string): { meta: Record<string, string>; chars: number } {
+    // `stateText` is `snap.state` as the server sent it: the row is built around it, byte for byte what
+    // `JSON.stringify(snap)` writes, without serializing the language again.
+    const text = stateText === undefined
+      ? JSON.stringify(snap)
+      : `{"orgId":${JSON.stringify(snap.orgId)},"streamId":${JSON.stringify(snap.streamId)},"reducerVersion":${snap.reducerVersion},"serverSeq":${snap.serverSeq},"state":${stateText}}`;
     return { meta: { [this.snapshotKey()]: text, [this.snapshotSeqKey()]: `${snap.reducerVersion}:${snap.serverSeq}` }, chars: text.length };
   }
 
@@ -422,10 +434,10 @@ export class SyncClient<S = LanguageState> {
   }
 
   /** Save a checkpoint, move the cursor to it and prune behind it. Answers the length of its text. */
-  private async saveSnapshot(snap: Snapshot): Promise<number> {
+  private async saveSnapshot(snap: Snapshot, stateText?: string): Promise<number> {
     const { orgId, streamId } = this.opts;
     const seq = Math.max(snap.serverSeq, await this.opts.store.cursor(orgId, streamId));
-    const { meta, chars } = this.snapshotMeta(snap);
+    const { meta, chars } = this.snapshotMeta(snap, stateText);
     await this.commit({
       meta,
       cursor: { orgId, streamId, seq },
@@ -507,8 +519,10 @@ export class SyncClient<S = LanguageState> {
       index = { seq: meta.serverSeq, chunks: meta.chunks, version: this.m.version };
       await this.opts.store.commit({ meta: { [this.chunkKey()]: JSON.stringify(index) } });
     }
+    let stateText: string | undefined;
     const snap = await fetchSnapshot(this.opts.transport, this.opts.orgId, this.opts.streamId, this.m.version, {
       meta,
+      onJoined: (text) => { stateText = text; },
       saved: savedMap,
       inFlight: SNAPSHOT_PIECES_IN_FLIGHT,
       onChunk: (serverSeq, i, text) => this.opts.store.commit({ meta: { [this.chunkPieceKey(serverSeq, i)]: text } })
@@ -524,8 +538,17 @@ export class SyncClient<S = LanguageState> {
     this.reducerDropped = false;
     await this.clearChunks(index);
     await this.opts.store.commit({ meta: { [this.chunkKey()]: '' } });
-    await this.saveSnapshot(snap);
-    await this.load('snapshot');
+    await this.saveSnapshot(snap, stateText);
+    if (this.loaded) {
+      // The checkpoint is committed: fold the local tail onto the state already parsed, rather than reading it back and parsing it again.
+      await this.inPhase('load', async () => {
+        const started = this.elapsed();
+        const events = (await this.opts.store.all(this.opts.orgId, this.opts.streamId)).map((l) => l.event);
+        this.foldLocal(snap, events, { started, readMs: this.elapsed() - started, staleSeq: null, reason: 'snapshot' });
+      });
+    } else {
+      await this.load('snapshot');
+    }
     return snap.serverSeq;
   }
 

@@ -12,6 +12,7 @@ import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
+import { cachedBlobAccess, cachedProfileOf } from './isolateCache';
 
 export { OrgSnapshot } from './orgSnapshot';
 
@@ -34,6 +35,9 @@ function flushTally(env: Env, ctx: ExecutionContext): void {
 
 /** One per isolate, so its answers outlive a request. */
 let sessionLive: ((sessionId: string) => Promise<boolean>) | null = null;
+/** This isolate's token and file-access caches (isolateCache.ts); an isolate's secrets do not change, so the first request's env serves them all. */
+let profileOfCached: ((token: string) => Promise<string | null>) | null = null;
+let blobAccessCached: ((key: string, profileId: string, write: boolean) => Promise<boolean>) | null = null;
 
 /** The dashboard's server: `/api/*` here, everything else is the built page. */
 export default {
@@ -119,13 +123,13 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     if (error) throw new Error(`session_is_live: ${error.message}`);
     return data === true;
   });
-  const profileOf = async (token: string) => {
+  // A verified token is remembered for up to a minute (decisions.md 121); its session is asked about every time (118).
+  const profileOf = profileOfCached ??= cachedProfileOf(async (token) => {
     const { data, error } = await serviceClient(env).auth.getClaims(token);
-    const sub = error ? null : data?.claims.sub ?? null;
-    const sessionId = data?.claims['session_id'];
-    if (sub && typeof sessionId === 'string' && !(await sessionLive!(sessionId))) return null;
-    return sub;
-  };
+    if (error || !data?.claims.sub) return null;
+    const sessionId = data.claims['session_id'];
+    return { sub: data.claims.sub, exp: data.claims.exp, sessionId: typeof sessionId === 'string' ? sessionId : undefined };
+  }, Date.now, (sessionId) => sessionLive!(sessionId));
   const recordBlob = async (orgId: string, streamId: string, hash: string, size: number) => {
     const { error } = await serviceClient(env).rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
     if (error) throw new Error(`record_blob: ${error.message}`);
@@ -149,11 +153,12 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     blobs: {
       bucket: r2Bucket(env.BLOBS),
       serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
-      mayUse: async (key, profileId, write) => {
+      // Remembered per person, stream and mode for a minute (decisions.md 121).
+      mayUse: blobAccessCached ??= cachedBlobAccess(async (key, profileId, write) => {
         const { data, error } = await serviceClient(env).rpc('blob_access', { p_name: key, p_profile: profileId, p_write: write });
         if (error) throw new Error(`blob_access: ${error.message}`);
         return data === true;
-      },
+      }),
       record: recordBlob,
       tally: (step, status) => tally.add(step, status)
     },

@@ -44,12 +44,21 @@ export interface RemoteNotification {
   unit_id?: string | null;
   active: boolean;
 }
+/**
+ * The server deletes an Inbox row 30 days after it went inactive. A phone
+ * learns a row went away from that inactive row, so a copy not refreshed
+ * for 25 days starts over from the active rows instead.
+ */
+export const INBOX_COPY_MAX_AGE_MS = 25 * 24 * 60 * 60 * 1000;
+
 /** Persist each cursor with its rows, so a restart cannot skip a page. */
 export async function refreshInbox(actorId: string): Promise<RemoteNotification[]> {
   const key = `inbox:${actorId}`;
   const cached = JSON.parse(await AsyncStorage.getItem(key) ?? '{"cursor":0,"rows":[]}') as {
-    cursor: number; rows: RemoteNotification[];
+    cursor: number; rows: RemoteNotification[]; at?: number;
   };
+  // A copy made before this field existed starts over once; nothing is lost, it is pulled again.
+  if (Date.now() - (cached.at ?? 0) > INBOX_COPY_MAX_AGE_MS) { cached.cursor = 0; cached.rows = []; }
   const rows = new Map(cached.rows.map((row) => [row.id, row]));
   for (let page = 0; page < 10; page++) {
     const { data, error } = await server.notificationsAfter(actorId, cached.cursor, 100);
@@ -59,6 +68,7 @@ export async function refreshInbox(actorId: string): Promise<RemoteNotification[
       cached.cursor = Math.max(cached.cursor, row.seq);
     }
     cached.rows = [...rows.values()];
+    cached.at = Date.now();
     await AsyncStorage.setItem(key, JSON.stringify(cached));
     if (!data || data.length < 100) break;
   }

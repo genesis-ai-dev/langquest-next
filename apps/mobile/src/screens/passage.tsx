@@ -26,6 +26,7 @@ import type { Ctx } from '../shell/ctx';
 import { edgeFor, screenTitle, type ScreenId } from '../shell/flow';
 import { t, Trans } from '../i18n';
 import { indexesFor } from '../sync/indexes';
+import { useSyncStatus } from '../sync/useSyncStatus';
 import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName, HelpTop } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
@@ -215,6 +216,7 @@ function actionHelp(id: RowAction['id']): string {
  * likely next check picked (demo ADR-034).
  */
 export function PassageRecord(ctx: Ctx) {
+  const sync = useSyncStatus();
   const v = usePassage(ctx);
   const [openStepId, setOpenStepId] = useState<string | null>(null);
   const [skipping, setSkipping] = useState<{ kindId: string; stepId: string } | null>(null);
@@ -425,7 +427,7 @@ export function PassageRecord(ctx: Ctx) {
     const bt = publishedParam?.startsWith('bt');
     const latest = p.latest;
     const close = () => { setPage('path'); setAskAfterPublish(false); };
-    const sendLine = publishedLine({ pending: ctx.language.pending, pendingUp: ctx.language.blobs.pendingUp, online: ctx.language.online, title: v.title });
+    const sendLine = publishedLine({ pending: sync.pending, pendingUp: sync.pendingUp, online: ctx.language.online, title: v.title });
     return (
       <Screen header={askAfterPublish ? <HelpTop /> : <Header title={t('passage.published.askTitle')} sub={v.title} onBack={close} close />}
         footer={nextKind && can.ask ? (

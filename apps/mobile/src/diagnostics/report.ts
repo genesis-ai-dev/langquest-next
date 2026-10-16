@@ -83,6 +83,10 @@ export function installGlobalHandlers(): void {
   };
   const previous = g.ErrorUtils?.getGlobalHandler();
   g.ErrorUtils?.setGlobalHandler((e, fatal) => {
+    // A browser opening a screen's chunk (src/shell/lazyScreens.tsx) first asks for its module, and
+    // Metro reports the missing module here before Expo loads the file and asks again: not a fault.
+    // i18n-ignore: Metro's own message
+    if (typeof document !== 'undefined' && e instanceof Error && e.message.startsWith('Requiring unknown module')) { previous?.(e, fatal); return; }
     // i18n-ignore: log labels
     reportError(fatal ? 'global (fatal)' : 'global', e, !!fatal);
     previous?.(e, fatal);

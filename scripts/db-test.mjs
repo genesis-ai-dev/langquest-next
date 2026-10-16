@@ -32,6 +32,7 @@ const SMOKES = [
   'server/joinSmoke.sql',
   'server/grantsSmoke.sql',
   'server/externalValuesSmoke.sql',
+  'server/notificationsSmoke.sql',
   'server/concurrentAppendSmoke.sql',
   'server/rlsReadSmoke.sql',
   'server/timingJobsSmoke.sql',

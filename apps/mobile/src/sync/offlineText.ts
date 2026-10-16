@@ -17,9 +17,9 @@ export function withStudy(u: UnitOffline, unitId: string): KeptOffline {
  * Counts for every kept passage, for marks on long lists. A passage missing
  * from the map is not kept. Shared by every row drawn from the same inputs.
  */
-export function keptOfflineMap(ctx: Ctx): Map<string, KeptOffline> {
+export function keptOfflineMap(ctx: Ctx, present: ReadonlySet<string>): Map<string, KeptOffline> {
   const state = ctx.language.state;
-  const { present, keptUnits } = ctx.language.blobs;
+  const { keptUnits } = ctx.language.blobs;
   const me = ctx.session.actorId;
   if (!state) return new Map();
   const rev = studyRevision();

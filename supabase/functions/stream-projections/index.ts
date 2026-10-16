@@ -21461,22 +21461,156 @@ function stable(v) {
   return JSON.stringify(v);
 }
 
-// packages/core/src/reducer.ts
-var REDUCER_VERSION = 17;
+// packages/core/src/changes.ts
 var REVISIONS = /* @__PURE__ */ new WeakMap();
 function stateRevision(state) {
   return REVISIONS.get(state) ?? 0;
 }
+var ORIGIN = /* @__PURE__ */ new WeakMap();
+function liveStateOf(state) {
+  if (REVISIONS.has(state)) return state;
+  return ORIGIN.get(state) ?? state;
+}
+function sameFields(a, b) {
+  if (a === b) return true;
+  const ra = a;
+  const rb = b;
+  const keys = Object.keys(ra);
+  if (keys.length !== Object.keys(rb).length) return false;
+  for (const k of keys) if (ra[k] !== rb[k] || !(k in rb)) return false;
+  return true;
+}
+var NONE = Object.freeze([]);
+var NOTHING = Object.freeze({ units: NONE, takes: NONE, reviews: NONE, departures: NONE, requests: NONE, notes: NONE });
+var touched = (t) => ({ ...NOTHING, ...t });
+function touchedBy(state, event) {
+  switch (event.type) {
+    case "v1.TakeComposed": {
+      const prior = state.takes[event.payload.takeId];
+      return prior && prior.unitId !== "" ? "all" : touched({ takes: [event.payload.takeId] });
+    }
+    case "v1.TakeArchived":
+    case "v1.TakeSubmitted":
+    case "v1.ResponseRecorded":
+      return touched({ takes: [event.payload.takeId] });
+    case "v1.ReviewRecorded":
+      return state.kindReviews[event.payload.reviewId] ? "all" : touched({ reviews: [event.payload.reviewId] });
+    case "v1.DepartureRecorded":
+      return state.departures[event.payload.departureId] ? "all" : touched({ departures: [event.payload.departureId] });
+    case "v1.DepartureUndone": {
+      const d = state.departures[event.payload.departureId];
+      return d ? touched({ units: [d.unitId] }) : NOTHING;
+    }
+    case "v1.RequestMade":
+      return state.requests[event.payload.requestId] ? "all" : touched({ requests: [event.payload.requestId] });
+    case "v1.RequestWithdrawn": {
+      const r = state.requests[event.payload.requestId];
+      return r ? touched({ units: [r.unitId] }) : NOTHING;
+    }
+    case "v1.NoteAdded":
+      return state.notes[event.payload.noteId] ? "all" : touched({ notes: [event.payload.noteId] });
+    // Nothing the passage views or the unit list read.
+    case "v1.RecordingAdded":
+    case "v1.StudyStepMarked":
+    case "v1.BookNameSet":
+    case "v1.CheckHelpSet":
+    case "v1.VersionReleased":
+    case "v1.ExternalValueSet":
+    case "v1.CardVerseSet":
+    case "v1.MaterialDefined":
+    case "v1.MaterialFieldSet":
+    case "v1.MaterialLocked":
+    case "v1.KeyTermDefined":
+    case "v1.KeyTermRenderingAdded":
+    case "v1.KeyTermAdjusted":
+    case "v1.KeyTermLinked":
+    case "v1.ReferenceSet":
+    case "v1.ReferenceLanguageSet":
+    case "v1.PassageReferenceLinked":
+    case "v1.ReferencesUsed":
+    case "v1.BlobStored":
+    case "v1.BlobInvalidated":
+    case "v1.AudioFormatSet":
+    // Organization-stream events: the language fold ignores them.
+    case "v1.OrgCreated":
+    case "v1.OrgRenamed":
+    case "v1.RoleDefined":
+    case "v1.RoleRetired":
+    case "v1.MemberAdded":
+    case "v1.MemberRemoved":
+    case "v1.InviteIssued":
+    case "v1.InviteRedeemed":
+    case "v1.JoinDecided":
+    case "v1.LicenseSet":
+    case "v1.LanguageAdded":
+    case "v1.LanguageRenamed":
+    case "v1.LanguageCodeSet":
+    case "v1.LanguageCountrySet":
+    case "v1.LanguageTargetSet":
+    case "v1.ClusterNamed":
+    case "v1.LanguageClusterSet":
+    case "v1.ReferenceRecommended":
+    case "v1.LibraryItemDefined":
+    case "v1.LibraryVersionPublished":
+    case "v1.LibrarySharingSet":
+    case "v1.LibraryItemArchived":
+    case "v1.LibrarySubscribed":
+    case "v1.LibraryPinned":
+      return NOTHING;
+    // Templates, units, the flow, kinds, teams, links, redactions, and any type added later.
+    default:
+      return "all";
+  }
+}
+var LOGS = /* @__PURE__ */ new WeakMap();
+var MAX_ENTRIES = 1e3;
+function countEvent(state, event) {
+  const before = REVISIONS.get(state) ?? 0;
+  REVISIONS.set(state, before + 1);
+  const log = LOGS.get(state);
+  if (!log?.entries) return;
+  if (log.entries.length >= MAX_ENTRIES || log.from + log.entries.length !== before) {
+    log.entries = null;
+    return;
+  }
+  log.entries.push(event ? touchedBy(state, event) : NOTHING);
+}
+function watchChanges(live, consumer, revision) {
+  let log = LOGS.get(live);
+  if (!log) LOGS.set(live, log = { from: revision, entries: [], marks: /* @__PURE__ */ new Map() });
+  if (!log.entries || revision < log.from || revision > log.from + log.entries.length) {
+    log.from = revision;
+    log.entries = [];
+    for (const [k, v] of log.marks) if (v < revision) log.marks.delete(k);
+  }
+  log.marks.set(consumer, revision);
+  const oldest = Math.min(...log.marks.values());
+  if (oldest > log.from) {
+    log.entries.splice(0, oldest - log.from);
+    log.from = oldest;
+  }
+}
+function changesSince(live, revision) {
+  const now = stateRevision(live);
+  if (revision === now) return [];
+  const log = LOGS.get(live);
+  if (!log?.entries || revision < log.from || log.from + log.entries.length !== now) return null;
+  return log.entries.slice(revision - log.from);
+}
+
+// packages/core/src/reducer.ts
+var REDUCER_VERSION = 17;
 function applyLanguageEvent(state, event) {
   if (state.appliedEventIds[event.id]) return state;
   state.appliedEventIds[event.id] = true;
-  REVISIONS.set(state, (REVISIONS.get(state) ?? 0) + 1);
   const invalid = validateEvent(event);
+  const redacted = !invalid && !!state.redactions[event.id] && event.type !== "v1.Redacted";
+  countEvent(state, invalid || redacted ? null : event);
   if (invalid) {
     state.invalidEvents[event.id] = invalid;
     return state;
   }
-  if (state.redactions[event.id] && event.type !== "v1.Redacted") return state;
+  if (redacted) return state;
   switch (event.type) {
     case "v1.TemplateSelected": {
       const { itemId, docHash, unitPrefix, books } = event.payload;
@@ -21828,13 +21962,13 @@ function set(current, event, value) {
 }
 
 // packages/core/src/snapshot.ts
-function resume(snapshot, tail) {
+function resume(snapshot, tail, opts = {}) {
   if (snapshot.reducerVersion !== REDUCER_VERSION) {
     throw new Error(
       `Snapshot reducer version ${snapshot.reducerVersion} does not match ${REDUCER_VERSION}`
     );
   }
-  const state = structuredClone(snapshot.state);
+  const state = opts.clone === false ? snapshot.state : structuredClone(snapshot.state);
   const newer = [...tail].filter((e) => e.serverSeq === void 0 || e.serverSeq > snapshot.serverSeq);
   return foldLanguage(newer, state);
 }
@@ -21881,6 +22015,22 @@ function buildIndexes(state) {
   }
   return { passages, containers, waiting };
 }
+var built = /* @__PURE__ */ new WeakMap();
+var latest = /* @__PURE__ */ new WeakMap();
+function indexesOf(state) {
+  const revision = stateRevision(state);
+  const hit = built.get(state);
+  if (hit && hit.revision === revision) return hit.idx;
+  const live = liveStateOf(state);
+  const now = stateRevision(live);
+  const prev = latest.get(live);
+  const changes = prev && sameFields(prev.source, state) ? changesSince(live, prev.revision) : null;
+  const idx = prev && changes && !changes.includes("all") ? prev.idx : buildIndexes(state);
+  latest.set(live, { idx, revision: now, source: state });
+  watchChanges(live, "indexes", now);
+  built.set(state, { revision, idx });
+  return idx;
+}
 
 // packages/core/src/passage.ts
 function deriveKinds(state) {
@@ -21910,16 +22060,48 @@ function withdrawnBy(table, id, item) {
   return w && w.by === item.by ? w : void 0;
 }
 var cache = /* @__PURE__ */ new WeakMap();
+var latest2 = /* @__PURE__ */ new WeakMap();
 function push(m, k, v) {
   const list = m.get(k);
   if (list) list.push(v);
   else m.set(k, [v]);
 }
 var byHlc = (a, b) => a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? "") < (b.id ?? "") ? -1 : (a.id ?? "") > (b.id ?? "") ? 1 : 0;
+var versionOrder = (state) => {
+  const at = (id) => state.submissions[id]?.hlc ?? "";
+  return (a, b) => at(a) < at(b) ? -1 : at(a) > at(b) ? 1 : a < b ? -1 : 1;
+};
+var draftOrder = (state) => (a, b) => {
+  const ha = state.takes[a].hlc;
+  const hb = state.takes[b].hlc;
+  return ha < hb ? 1 : ha > hb ? -1 : a < b ? 1 : -1;
+};
+var isDraft = (state, id) => {
+  const t = state.takes[id];
+  return !state.submissions[id] && !t.archived && t.cardHashes.length > 0;
+};
+function requestRecipients(state, r) {
+  const out = r.profileId ? [r.profileId] : [];
+  if (r.teamId) {
+    for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) out.push(id);
+  }
+  return out;
+}
 function recordIndexes(state, idx) {
   const revision = stateRevision(state);
   const hit = cache.get(state);
   if (hit && hit.revision === revision) return hit.ri;
+  const live = liveStateOf(state);
+  const now = stateRevision(live);
+  const prev = latest2.get(live);
+  const changes = prev && sameFields(prev.source, state) ? changesSince(live, prev.revision) : null;
+  const ri = prev && changes && !changes.includes("all") ? patchIndexes(state, prev.ri, changes, idx) : buildRecordIndexes(state, idx ?? indexesOf(state));
+  latest2.set(live, { ri, revision: now, source: state });
+  watchChanges(live, "passages", now);
+  cache.set(state, { revision, ri });
+  return ri;
+}
+function buildRecordIndexes(state, idx) {
   const reviewsByTake = /* @__PURE__ */ new Map();
   const withdrawnByTake = /* @__PURE__ */ new Map();
   for (const r of Object.values(state.kindReviews)) {
@@ -21929,13 +22111,13 @@ function recordIndexes(state, idx) {
   }
   const versions = /* @__PURE__ */ new Map();
   const drafts = /* @__PURE__ */ new Map();
-  const takes = Object.entries(state.takes).filter(([, t]) => t.unitId);
-  const submittedAt = (id) => state.submissions[id]?.hlc ?? "";
-  for (const [id, t] of takes.filter(([id2]) => state.submissions[id2]).sort(([a], [b]) => submittedAt(a) < submittedAt(b) ? -1 : submittedAt(a) > submittedAt(b) ? 1 : a < b ? -1 : 1)) {
-    push(versions, t.unitId, id);
-  }
-  for (const [id, t] of takes.filter(([id2, t2]) => !state.submissions[id2] && !t2.archived && t2.cardHashes.length > 0).sort(([ia, a], [ib, b]) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : ia < ib ? 1 : -1)) {
-    push(drafts, t.unitId, id);
+  const children = /* @__PURE__ */ new Map();
+  const takes = Object.keys(state.takes).filter((id) => state.takes[id].unitId);
+  for (const id of takes.filter((id2) => state.submissions[id2]).sort(versionOrder(state))) push(versions, state.takes[id].unitId, id);
+  for (const id of takes.filter((id2) => isDraft(state, id2)).sort(draftOrder(state))) push(drafts, state.takes[id].unitId, id);
+  for (const id of takes) {
+    const parent = state.takes[id].parentTakeId;
+    if (parent) push(children, parent, id);
   }
   const departures = /* @__PURE__ */ new Map();
   for (const d of Object.values(state.departures).sort(byHlc)) push(departures, d.unitId, d);
@@ -21944,10 +22126,7 @@ function recordIndexes(state, idx) {
   const requestsBy = /* @__PURE__ */ new Map();
   for (const r of Object.values(state.requests).sort(byHlc)) {
     push(requests, r.unitId, r);
-    if (r.profileId) push(requestsTo, r.profileId, r);
-    if (r.teamId) {
-      for (const id of teamMemberIds(state, r.teamId)) if (id !== r.by) push(requestsTo, id, r);
-    }
+    for (const id of requestRecipients(state, r)) push(requestsTo, id, r);
     push(requestsBy, r.by, r);
   }
   const notes = /* @__PURE__ */ new Map();
@@ -21960,12 +22139,13 @@ function recordIndexes(state, idx) {
     }
     push(notes, n.unitId, n);
   }
-  const out = {
-    idx: idx ?? buildIndexes(state),
+  return {
+    idx,
     kinds: deriveKinds(state),
     flow: deriveFlow(state),
     versions,
     drafts,
+    children,
     reviewsByTake,
     withdrawnByTake,
     departures,
@@ -21976,8 +22156,105 @@ function recordIndexes(state, idx) {
     changeNotes,
     passages: /* @__PURE__ */ new Map()
   };
-  cache.set(state, { revision, ri: out });
-  return out;
+}
+function edit(m, key, f) {
+  const next = f(m.get(key) ?? []);
+  if (next.length) m.set(key, next);
+  else m.delete(key);
+}
+function insertSorted(list, item, order) {
+  let i = 0;
+  while (i < list.length && order(list[i], item) <= 0) i++;
+  return [...list.slice(0, i), item, ...list.slice(i)];
+}
+var withoutId = (list, id) => list.filter((x) => x.id !== id);
+function patchIndexes(state, prev, changes, idx) {
+  const units = /* @__PURE__ */ new Set();
+  const takes = /* @__PURE__ */ new Set();
+  const reviews = /* @__PURE__ */ new Set();
+  const departures = /* @__PURE__ */ new Set();
+  const requests = /* @__PURE__ */ new Set();
+  const notes = /* @__PURE__ */ new Set();
+  for (const c of changes) {
+    for (const id of c.units) units.add(id);
+    for (const id of c.takes) takes.add(id);
+    for (const id of c.reviews) reviews.add(id);
+    for (const id of c.departures) departures.add(id);
+    for (const id of c.requests) requests.add(id);
+    for (const id of c.notes) notes.add(id);
+  }
+  const nothing = !units.size && !takes.size && !reviews.size && !departures.size && !requests.size && !notes.size;
+  if (nothing && (idx ?? prev.idx) === prev.idx) return prev;
+  const ri = {
+    ...prev,
+    idx: idx ?? prev.idx,
+    versions: new Map(prev.versions),
+    drafts: new Map(prev.drafts),
+    children: new Map(prev.children),
+    reviewsByTake: new Map(prev.reviewsByTake),
+    withdrawnByTake: new Map(prev.withdrawnByTake),
+    departures: new Map(prev.departures),
+    requests: new Map(prev.requests),
+    requestsTo: new Map(prev.requestsTo),
+    requestsBy: new Map(prev.requestsBy),
+    notes: new Map(prev.notes),
+    changeNotes: new Map(prev.changeNotes),
+    passages: new Map(prev.passages)
+  };
+  for (const id of reviews) {
+    const r = state.kindReviews[id];
+    if (!r) continue;
+    const withdrawn = withdrawnBy(state.withdrawnReviews, id, r);
+    edit(ri.reviewsByTake, r.takeId, (l) => withdrawn ? withoutId(l, id) : [...withoutId(l, id), r]);
+    edit(ri.withdrawnByTake, r.takeId, (l) => withdrawn ? [...withoutId(l, id), { ...r, withdrawn }] : withoutId(l, id));
+    takes.add(r.takeId);
+  }
+  for (const id of departures) {
+    const d = state.departures[id];
+    if (!d) continue;
+    edit(ri.departures, d.unitId, (l) => insertSorted(withoutId(l, id), d, byHlc));
+    units.add(d.unitId);
+  }
+  for (const id of requests) {
+    const r = state.requests[id];
+    if (!r) continue;
+    edit(ri.requests, r.unitId, (l) => insertSorted(withoutId(l, id), r, byHlc));
+    edit(ri.requestsBy, r.by, (l) => insertSorted(withoutId(l, id), r, byHlc));
+    const to = requestRecipients(state, r);
+    for (const p of new Set(to)) edit(ri.requestsTo, p, (l) => withoutId(l, id));
+    for (const p of to) edit(ri.requestsTo, p, (l) => insertSorted(l, r, byHlc));
+    units.add(r.unitId);
+  }
+  for (const id of notes) {
+    const n = state.notes[id];
+    if (!n) continue;
+    if (withdrawnBy(state.withdrawnNotes, id, n)) {
+      if (n.anchor.kind !== "version" || n.anchor.role !== "change") edit(ri.notes, n.unitId, (l) => withoutId(l, id));
+      units.add(n.unitId);
+      continue;
+    }
+    if (n.anchor.kind === "version" && n.anchor.role === "change") {
+      const had = ri.changeNotes.get(n.anchor.takeId);
+      if (!had || had.id === id || byHlc(n, had) < 0) ri.changeNotes.set(n.anchor.takeId, n);
+      takes.add(n.anchor.takeId);
+    } else {
+      edit(ri.notes, n.unitId, (l) => insertSorted(withoutId(l, id), n, byHlc));
+    }
+    units.add(n.unitId);
+  }
+  for (const id of takes) {
+    for (const c of ri.children.get(id) ?? []) units.add(state.takes[c].unitId);
+    const t = state.takes[id];
+    if (!t?.unitId) continue;
+    units.add(t.unitId);
+    if (t.parentTakeId) edit(ri.children, t.parentTakeId, (l) => l.includes(id) ? [...l] : [...l, id]);
+    edit(ri.versions, t.unitId, (l) => l.filter((x) => x !== id));
+    edit(ri.drafts, t.unitId, (l) => l.filter((x) => x !== id));
+    if (state.submissions[id]) edit(ri.versions, t.unitId, (l) => insertSorted(l, id, versionOrder(state)));
+    else if (isDraft(state, id)) edit(ri.drafts, t.unitId, (l) => insertSorted(l, id, draftOrder(state)));
+  }
+  for (const u of units) ri.passages.delete(u);
+  return ri;
 }
 function derivePassage(state, unitId, idx) {
   const ri = recordIndexes(state, idx);
@@ -22070,7 +22347,7 @@ function derivePassage(state, unitId, idx) {
   });
   const recorded = versions.length > 0;
   const open = steps.filter((s) => !s.complete && !s.lockedBy);
-  const latest = versions.at(-1);
+  const latest3 = versions.at(-1);
   const draftTakeId = ri.drafts.get(key)?.[0];
   const drafts = (ri.drafts.get(key) ?? []).map((takeId) => draftView(state, takeId)).sort((a, b) => a.startedHlc < b.startedHlc ? -1 : a.startedHlc > b.startedHlc ? 1 : a.rootTakeId < b.rootTakeId ? -1 : 1);
   const next = recorded ? open.find((s) => !s.override) : void 0;
@@ -22088,9 +22365,9 @@ function derivePassage(state, unitId, idx) {
     drafts,
     drafting: draftTakeId !== void 0,
     done: recorded && steps.every((s) => s.complete || !!s.override),
-    awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest?.n),
+    awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest3?.n),
     notes: ri.notes.get(key) ?? [],
-    ...latest ? { latest } : {},
+    ...latest3 ? { latest: latest3 } : {},
     ...draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId].actorId } : {},
     ...next ? { next } : {}
   };
@@ -22188,7 +22465,7 @@ function updatesFor(state, actorId, idx) {
       }
     }
   }
-  return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0);
+  return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 function stepAllowsLinks(state, step) {
   return state.stepLinks?.[step.id]?.value ?? !step.checkpoint;
@@ -22516,6 +22793,35 @@ function orgLicense(state) {
 // packages/core/src/version.ts
 var CLIENT_PROTOCOL_VERSION = 1;
 
+// packages/core/src/quiet.ts
+var eventsThatCannotChangeInbox = /* @__PURE__ */ new Set([
+  "v1.RecordingAdded",
+  "v1.CardVerseSet",
+  "v1.BlobStored",
+  "v1.BlobInvalidated",
+  "v1.AudioFormatSet",
+  "v1.NoteAdded",
+  "v1.StudyStepMarked",
+  "v1.MaterialDefined",
+  "v1.MaterialFieldSet",
+  "v1.MaterialLocked",
+  "v1.KeyTermDefined",
+  "v1.KeyTermRenderingAdded",
+  "v1.KeyTermAdjusted",
+  "v1.KeyTermLinked",
+  "v1.ReferenceSet",
+  "v1.ReferenceLanguageSet",
+  "v1.PassageReferenceLinked",
+  "v1.ReferencesUsed",
+  "v1.CheckHelpSet",
+  "v1.VersionReleased",
+  "v1.ExternalValueSet"
+]);
+function onlyQuietEvents(events) {
+  for (const e of events) if (!eventsThatCannotChangeInbox.has(e.type)) return false;
+  return true;
+}
+
 // packages/sync/src/types.ts
 var OfflineError = class extends Error {
   name = "OfflineError";
@@ -22643,13 +22949,13 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
         continue;
       }
       try {
-        const text = await transport.snapshotChunk(orgId, streamId, reducerVersion, meta.serverSeq, i);
-        if (text === null) {
+        const text2 = await transport.snapshotChunk(orgId, streamId, reducerVersion, meta.serverSeq, i);
+        if (text2 === null) {
           stale = true;
           return;
         }
-        await opts.onChunk?.(meta.serverSeq, i, text);
-        pieces[i] = text;
+        await opts.onChunk?.(meta.serverSeq, i, text2);
+        pieces[i] = text2;
       } catch (error) {
         failed = true;
         throw error;
@@ -22660,7 +22966,9 @@ async function fetchSnapshot(transport, orgId, streamId, reducerVersion, opts = 
   const failure = runs.find((r) => r.status === "rejected");
   if (failure) throw failure.reason;
   if (stale) return null;
-  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(pieces.join("")) };
+  const text = pieces.join("");
+  opts.onJoined?.(text);
+  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(text) };
 }
 
 // packages/sync/src/listStreams.ts
@@ -22685,7 +22993,7 @@ function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
   if (o.newEvents === 0) return false;
   return o.newEvents >= schedule.minNewEvents || o.ageMs === null || o.ageMs >= schedule.maxAgeMs;
 }
-async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onError) {
+async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onError, snapshotAgeMs) {
   const transport = new SupabaseTransport(service);
   const streams = (await listStreams(service)).sort((a, b) => Number(a.next_seq) - Number(b.next_seq));
   const out = [];
@@ -22693,20 +23001,21 @@ async function runSnapshotWorker(service, pageSize = 1e3, observe, visit, onErro
     const orgId = row.org_id;
     const streamId = row.stream_id;
     if (streamId === ORG_STREAM || orgId === PERSON_ORG) continue;
-    if (visit && !visit(orgId, streamId)) continue;
     if (!onError) {
-      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+      if (visit && !await visit(orgId, streamId)) continue;
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs));
       continue;
     }
     try {
-      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe));
+      if (visit && !await visit(orgId, streamId)) continue;
+      out.push(await snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs));
     } catch (error) {
       onError(orgId, streamId, error);
     }
   }
   return out;
 }
-async function snapshotOne(service, transport, orgId, streamId, pageSize, observe) {
+async function snapshotOne(service, transport, orgId, streamId, pageSize, observe, snapshotAgeMs) {
   const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
   const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
   if (tail.length === 0) {
@@ -22719,7 +23028,7 @@ async function snapshotOne(service, transport, orgId, streamId, pageSize, observ
   );
   let snapshot;
   if (existing && !redactsSnapshot) {
-    const state = resume(existing, tail);
+    const state = resume(existing, tail, { clone: false });
     state.appliedEventIds = {};
     snapshot = { ...existing, serverSeq: tail[tail.length - 1].serverSeq, state };
   } else {
@@ -22730,7 +23039,10 @@ async function snapshotOne(service, transport, orgId, streamId, pageSize, observ
   }
   const redaction = tail.some((e) => e.type === "v1.Redacted");
   let ageMs = null;
-  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
+  const known = snapshotAgeMs?.(orgId, streamId);
+  if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents && known !== void 0) {
+    ageMs = known;
+  } else if (existing && !redaction && tail.length < SNAPSHOT_SCHEDULE.minNewEvents) {
     const at = await service.from("snapshots").select("created_at").eq("org_id", orgId).eq("stream_id", streamId).eq("reducer_version", REDUCER_VERSION).order("server_seq", { ascending: false }).limit(1);
     if (at.error) throw new Error(`snapshot age ${orgId}/${streamId}: ${at.error.message}`);
     const written2 = at.data?.[0]?.created_at;
@@ -22873,6 +23185,27 @@ async function runProjections(service, scope2 = "all", counts = { orgs: 0, proje
       version: PROJECTION_VERSION
     }), "projection_marks");
   };
+  let quiet = 0;
+  const skipQuiet = async (orgId, streamId) => {
+    const key = streamKey(orgId, streamId);
+    const m = marks.get(key);
+    const snap = snapshotOf.get(key);
+    const head2 = heads.get(key) ?? 0;
+    if (!m || !snap || m.version !== PROJECTION_VERSION) return false;
+    if (Number(m.org_seq) !== heads.get(streamKey(orgId, ORG_STREAM)) || m.listed !== listed.has(key)) return false;
+    if (Number(m.seq) >= head2 || head2 - Number(m.seq) > 1e3) return false;
+    const ageMs = Number.isNaN(snap.at) ? null : Date.now() - snap.at;
+    if (shouldWriteSnapshot({ existing: true, newEvents: head2 - snap.seq, redaction: false, ageMs })) return false;
+    try {
+      const tail = await transport.pull(orgId, streamId, Number(m.seq), 1e3);
+      if (tail.length === 0 || !onlyQuietEvents(tail)) return false;
+      await mark(orgId, streamId, tail[tail.length - 1].serverSeq, Number(m.org_seq), m.listed);
+    } catch {
+      return false;
+    }
+    quiet += 1;
+    return true;
+  };
   for (const [key, head2] of heads) {
     const [orgId, streamId] = JSON.parse(key);
     if (scope2 === "large" || streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
@@ -22881,6 +23214,12 @@ async function runProjections(service, scope2 = "all", counts = { orgs: 0, proje
     counts.orgs += 1;
   }
   const failed = [];
+  let shownRows;
+  const publicRows = () => shownRows ??= selectAll(
+    service,
+    "public_languages",
+    "org_id,language_id,name,code,translated_pct,license"
+  ).then((rows) => new Map(rows.map((r) => [streamKey(r.org_id, r.language_id), r])));
   const results = await runSnapshotWorker(
     service,
     1e3,
@@ -22906,30 +23245,38 @@ async function runProjections(service, scope2 = "all", counts = { orgs: 0, proje
       const info = languageInfo(org, languageId);
       if (isListed && info) {
         const progress = languageProgress(state, idx);
-        check(await service.from("public_languages").upsert({
+        const row = {
           org_id: snapshot.orgId,
           language_id: languageId,
           name: info.name,
           code: info.code,
           translated_pct: progress.total ? 100 * progress.recorded / progress.total : 0,
           // What someone browsing may do with the work (docs/licensing.md).
-          license: orgLicense(org),
-          updated_at: (/* @__PURE__ */ new Date()).toISOString()
-        }), "public_languages");
+          license: orgLicense(org)
+        };
+        const shown = (await publicRows()).get(streamKey(snapshot.orgId, languageId));
+        if (!shown || shown.name !== row.name || shown.code !== row.code || shown.translated_pct !== row.translated_pct || shown.license !== row.license) {
+          check(await service.from("public_languages").upsert({ ...row, updated_at: (/* @__PURE__ */ new Date()).toISOString() }), "public_languages");
+        }
       }
       await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
       counts.projected += 1;
     },
-    (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)),
+    async (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)) && !await skipQuiet(orgId, streamId),
     // The large pass goes on past a language that fails, so the next waits only
     // for its own turn; the Edge pass stops at the first error, as before, and
     // says which language it stopped at.
     (orgId, streamId, error) => {
       if (scope2 !== "large") throw new ProjectionFailed(orgId, streamId, error);
       failed.push({ orgId, streamId, error });
+    },
+    // The age of the snapshot the pass already read, so folding does not ask again.
+    (orgId, streamId) => {
+      const snap = snapshotOf.get(streamKey(orgId, streamId));
+      return snap ? Number.isNaN(snap.at) ? null : Date.now() - snap.at : void 0;
     }
   );
-  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, failed };
+  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, quiet, failed };
 }
 var FAIL_COUNT = {
   http_4xx: "failHttp4xx",
@@ -22970,11 +23317,21 @@ async function deliverPushes(service, fetcher = fetch) {
   check(claimed, "claim_notification_pushes");
   const results = [];
   try {
-    for (const row of claimed.data ?? []) {
+    const rows = claimed.data ?? [];
+    const tokensOf = /* @__PURE__ */ new Map();
+    if (rows.length) {
+      const found = await service.from("push_tokens").select("token,profile_id").in("profile_id", [...new Set(rows.map((r) => r.profile_id))]);
+      check(found, "push_tokens");
+      for (const t of found.data ?? []) {
+        const list = tokensOf.get(t.profile_id);
+        if (list) list.push({ token: t.token });
+        else tokensOf.set(t.profile_id, [{ token: t.token }]);
+      }
+    }
+    for (const row of rows) {
       counts.claimed += 1;
-      const tokens = await service.from("push_tokens").select("token").eq("profile_id", row.profile_id);
-      check(tokens, "push_tokens");
-      if (!tokens.data?.length) {
+      const tokens = { data: tokensOf.get(row.profile_id) ?? [] };
+      if (!tokens.data.length) {
         counts.noToken += 1;
         results.push({ id: row.id, error: "no_token" });
         continue;
