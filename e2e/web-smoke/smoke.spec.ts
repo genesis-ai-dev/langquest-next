@@ -153,6 +153,8 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
     await button(page, 'Record').click();
     await page.waitForTimeout(5_000);
     await page.getByRole('button', { name: 'Stop recording', exact: true }).locator('visible=true').last().click({ force: true });
+    // Stopped, the session is still open (decision 128): the recording view's Done keeps its parts.
+    await page.getByRole('button', { name: 'Done', exact: true }).locator('visible=true').first().click();
     // One part kept: the next one to record is Part 2.
     await expect(page.getByText('Part 2', { exact: true }).locator('visible=true').first()).toBeVisible({ timeout: 30_000 });
     const [hash] = await settle(() => deviceBlobs(page), (b) => b.length > 0, 20_000);
