@@ -1,10 +1,11 @@
 // The Bible text the reference panel shows (helps/reference.tsx).
+import { useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import type { ListenHooks } from '../recording/useListenLoop';
 import { choiceKey } from '../sources/sourceText';
 import { useChoice, useOffer } from '../sources/useSourceChoice';
-import { emptyBibleText, type SourceOption } from '../sources/model';
+import { emptyBibleText, offersFor, type SourceOption } from '../sources/model';
 import { PlayError } from '../sources/player';
 import { usePassagePlayer } from '../sources/usePassagePlayer';
 import type { Usage } from '../sources/useUsage';
@@ -17,8 +18,17 @@ import { mmss, passageClock } from '../recording/model';
  * key word can play its verse. The version chosen last for the language is
  * shared with every other reader on this device (SourceReader.tsx).
  */
-export function useBible(ctx: Ctx, unitId: string | null, languageId: string | null, opts: { listen?: ListenHooks; usage?: Usage; hidden?: boolean }) {
-  const passage = useSources(ctx, unitId, languageId);
+export function useBible(ctx: Ctx, unitId: string | null, languageId: string | null, opts: {
+  listen?: ListenHooks; usage?: Usage; hidden?: boolean;
+  /** What the step shows (decisions.md 130): only Bibles with audio when it is heard and not read, with text when read and not heard. */
+  shows?: { audio: boolean; text: boolean };
+}) {
+  const all = useSources(ctx, unitId, languageId);
+  const need = opts.shows;
+  const book = all.range?.book;
+  const only = !need || (need.audio && need.text) || !book ? null : need.text ? 'text' : 'audio';
+  const options = useMemo(() => (only && book ? all.options.filter((o) => offersFor(o, book, o.kind === 'builtin')[only]) : all.options), [all.options, only, book]);
+  const passage = useMemo(() => (options === all.options ? all : { ...all, options }), [all, options]);
   const [chosen, setChosen] = useChoice(choiceKey(ctx.session.actorId, ctx.language.orgId, languageId ?? ''));
   const option = passage.options.find((o) => o.itemId === chosen) ?? passage.options[0];
   const usage = opts.usage;

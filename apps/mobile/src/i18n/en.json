@@ -3668,7 +3668,6 @@
         "question": "Question"
       },
       "questionFrom": {
-        "org": "Organization",
         "language": "Language",
         "request": "Asked for this review"
       },
@@ -3693,8 +3692,8 @@
       "record": "Record",
       "yourParts": "Your parts are recorded, not published yet.",
       "someParts": "Some parts are recorded, not published yet.",
-      "recordHint": "Tell it in your language. The Bible, key words and notes are beside you while you record.",
-      "recordHintAsked": "{{asked}}. Tell it in your language. The Bible, key words and notes are beside you while you record.",
+      "recordHint": "Tell it in your language.",
+      "recordHintAsked": "{{asked}}. Tell it in your language.",
       "asked": {
         "youAskedYou": "You asked you",
         "youAskedName": "You asked {{name}}",
@@ -4048,7 +4047,8 @@
       "askSpecificHelp": "Type a question for them to answer, then add it.",
       "answerTypeHelp": "Changes how they answer: yes or no, in words, or 1 to 5.",
       "addQuestionHelp": "Adds your question to the ones they answer.",
-      "removeQuestionHelp": "Takes this question off."
+      "removeQuestionHelp": "Takes this question off.",
+      "openCheckHelp": "Opens {{check}}, where you change its questions."
     },
     "resources": {
       "sourceAudio": "Source audio"
@@ -5797,7 +5797,6 @@
       "saidAloud": "Said aloud · {{time}} · recording {{n}}",
       "typedAndSaidAloud": "{{typed}} (said aloud · {{time}} · recording {{n}})",
       "source": {
-        "org": "Organization",
         "language": "Language team",
         "fromName": "From {{name}}",
         "fromWhoeverAsked": "From whoever asked"
@@ -5840,7 +5839,6 @@
       "btNote": "Back translator's note",
       "theirNote": "Their note",
       "playTheirNote": "Play their note",
-      "withheld": "Notes and earlier reviews are hidden for {{kind}}, so what you hear isn't shaped by what others said. They're still on the record.",
       "recordings_one": "{{count, number}} recording",
       "recordings_other": "{{count, number}} recordings",
       "review": "Review",
@@ -6154,7 +6152,6 @@
     "listenTo": "Listen to Version {{n}}",
     "madeFrom": "Your parts were made from Version {{n}}",
     "madeFromBody": "Version {{n}} is out now, and publishing puts your {{what}} with it. Listen again and redo any part that changed.",
-    "sayEachPart": "Say each part in {{into}}, in your own words. Notes and earlier checks are hidden on purpose, so only the recording shapes what you say.",
     "openYour": "Open your {{what}}",
     "yourWhat": "Your {{what}}, {{said}}",
     "loadingParts": "Loading your parts…",
@@ -6193,7 +6190,10 @@
     "finishWhat": "Finish the {{what}}",
     "doneHelp": "When every part is said: finish it and send it to the check that listens to it next.",
     "notesForCheck_other": "{{count, number}} notes for the {{check}}",
-    "sendLaterHelp": "Finishes the {{what}} without asking anyone yet. The team can hear it."
+    "sendLaterHelp": "Finishes the {{what}} without asking anyone yet. The team can hear it.",
+    "chips": {
+      "version": "Version {{n}}"
+    }
   },
   "translate": {
     "missing": "This passage isn't on this device yet.",
@@ -6532,7 +6532,8 @@
       "verseNotesHelp": "The number counts the notes on this verse.",
       "verseTermsHelp": "Underlined words are key words: tap one to open it.",
       "verseTermsMarkedHelp": "Underlined words are key words.",
-      "verseTiedHelp": "A tick after a key word means it is tied to your draft."
+      "verseTiedHelp": "A tick after a key word means it is tied to your draft.",
+      "verseDotHelp": "Plays the Bible from this verse."
     },
     "keyWords": {
       "none": "No key words in this passage yet.",
@@ -6822,8 +6823,7 @@
     }
   },
   "referenceLanguage": {
-    "question": "Which language should {{language}}'s Bibles and study guides be in?",
-    "sub": "Choose the language {{language}}'s team reads best. Each one says what LangQuest has in it.",
+    "question": "Which languages should {{language}}'s Bibles and study guides be in?",
     "setPassages_one": "{{name}} guides for {{count, number}} passage",
     "setPassages_other": "{{name}} guides for {{count, number}} passages",
     "bibles_one": "{{count, number}} Bible",
@@ -6834,7 +6834,7 @@
     "chip": "Bibles and guides in {{language}}",
     "chipHelp": "The language of their Bibles and study guides. Tap to change it.",
     "change": "Change",
-    "rowHelp": "Picks this language for the team’s Bibles and guides. The line says what it has."
+    "rowHelp": "Adds this language for the team’s Bibles and guides, or takes it away. The line says what it has."
   },
   "checks": {
     "title": "Checks",
@@ -6842,7 +6842,7 @@
     "together": " + ",
     "then": " → ",
     "sameTime": "same time",
-    "openHelp": "Its people, questions and helps",
+    "openHelp": "Its people, questions, what's on their screen and helps",
     "cardA11y": "{{n}}. {{title}}",
     "questionsCount_one": "{{count, number}} question",
     "questionsCount_other": "{{count, number}} questions",
@@ -6887,7 +6887,6 @@
     "questionSaved": "Question saved",
     "questionRemoved": "Question removed",
     "questionsTitle": "{{check}} questions",
-    "fromLangQuest": "From LangQuest",
     "noQuestions": "No questions",
     "addHelp": "Add a help",
     "removeHelp": "Take {{name}} off this check",
@@ -6933,7 +6932,60 @@
     "helpOnHelp": "Linked: reviewers can open it at this check. Tap to unlink.",
     "helpOffHelp": "Tap so reviewers can open it at this check.",
     "writeNoteHelp": "Write a new note, linked to this check.",
-    "removeCheckHelp": "Takes this check out of the steps passages go through."
+    "removeCheckHelp": "Takes this check out of the steps passages go through.",
+    "recording": "Recording",
+    "openRecordHelp": "Opens what the recorder shows.",
+    "shows": {
+      "title": "On their screen",
+      "bibleAudio": "Hear the Bible",
+      "bibleText": "Read the Bible",
+      "guideAudio": "Hear the guide",
+      "guideText": "Read the guide",
+      "terms": "Key words",
+      "notes": "Notes",
+      "earlier": "Earlier versions",
+      "short": {
+        "bibleAudio": "Bible audio",
+        "bibleText": "Bible text",
+        "guideAudio": "Guide audio",
+        "guideText": "Guide text",
+        "terms": "Key words",
+        "notes": "Notes",
+        "earlier": "Earlier versions"
+      },
+      "allHidden": "All hidden",
+      "onHelp": "On their screen. Tap to hide it.",
+      "offHelp": "Hidden from them. Tap to show it.",
+      "shownToast": "{{what}} shown at {{check}}",
+      "hiddenToast": "{{what}} hidden at {{check}}",
+      "bible": "Bible",
+      "guide": "Guide",
+      "audio": "Audio",
+      "text": "Text",
+      "allOnHelp": "On: they get all of it. Tap to hide all of it.",
+      "allOffHelp": "Off: they get none of it. Tap to show all of it.",
+      "partLabel": "{{help}} ({{part}})",
+      "all": "All",
+      "off": "Off",
+      "someOf": "{{n, number}} of {{total, number}}",
+      "openHelp": "Opens a switch for each part of it.",
+      "notesFrom": "Notes added during",
+      "earlierFrom": "Versions and feedback from"
+    },
+    "peopleOpenHelp": "Opens who does this check.",
+    "questionsOpenHelp": "Opens the questions they answer.",
+    "sameTimeRow": "Same time as",
+    "sameTimeNone": "No other check",
+    "sameTimeHelp": "Opens which checks happen at the same time as this one.",
+    "sameTimeDoneHelp": "Saves which checks happen at the same time.",
+    "sameTimeOnHelp2": "Happens at the same time. Tap so it doesn't.",
+    "sameTimeOffHelp2": "Tap so it happens at the same time.",
+    "checkedAt": "Checked at",
+    "checkedAtHelp": "Opens which check listens to what this step makes.",
+    "checkedAtPickHelp": "This check listens to it.",
+    "ownCheck": "A check of its own",
+    "ownCheckHelp": "Adds a check right after this one that listens to it.",
+    "ownCheckName": "{{name}} check"
   },
   "lostFiles": {
     "title": "Audio is missing",

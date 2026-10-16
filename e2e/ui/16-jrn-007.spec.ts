@@ -52,7 +52,8 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await expect(text(page, 'How will recordings get checked?')).toBeVisible();
   await page.getByRole('radio', { name: /^Standard Bible Flow\./ }).click();
   await primary(page).click();
-  await page.getByRole('radio', { name: 'English' }).click();
+  // As many languages as the team reads (decision 130): English is ticked already.
+  await expect(page.getByRole('checkbox', { name: /^English/ })).toBeChecked();
   await primary(page).click();
   // The progress names each part as it starts; it ends on inviting the language's people.
   await expect(text(page, /^(Setting up Journey Language|Getting the passages|Getting the review steps|Saving Journey Language's passages)/)).toBeVisible();

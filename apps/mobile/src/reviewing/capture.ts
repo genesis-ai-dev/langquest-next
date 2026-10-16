@@ -269,7 +269,6 @@ export function cleanSkips(questions: SourcedQuestion[], answers: Answers, skipp
 /** Where a question comes from, as the demo labels it (REV-2). */
 export function questionSource(q: SourcedQuestion, asker?: string): string {
   switch (q.source) {
-    case 'org': return t('review.capture.source.org');
     case 'language': return t('review.capture.source.language');
     case 'request': return asker ? t('review.capture.source.fromName', { name: asker }) : t('review.capture.source.fromWhoeverAsked');
   }

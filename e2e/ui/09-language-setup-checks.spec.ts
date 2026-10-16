@@ -24,12 +24,13 @@ async function checks(page: Page, w: UiWorld, who: AccountKey): Promise<void> {
   await expectOnScreen(page, 'A translator records a version', 'Add a check');
 }
 
-/** The checks as the Checks screen lists them, in order, by name. */
+/**
+ * The checks as the Checks screen lists them, in order, by name: each card is a button named
+ * "{n}. {name}" (a card's lines can name other checks, as back translation's "Checked at" does).
+ */
 async function listed(page: Page): Promise<string[]> {
-  const names = ['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval', 'Retelling', 'Local check', 'Elder check'];
-  const all = await screenText(page);
-  const body = all.slice(all.indexOf('A translator records a version'), all.indexOf('Add a check'));
-  return names.map((n) => [n, body.indexOf(` ${n} `)] as const).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]).map(([n]) => n);
+  const labels = await page.getByRole('button', { name: /^\d+\. / }).locator('visible=true').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
+  return labels.map((l) => l.replace(/^\d+\. /, ''));
 }
 
 /** Peer check's people, in either order. */
@@ -55,10 +56,10 @@ async function flowCard(page: Page, title: string, ...steps: string[]) {
   return card;
 }
 
-/** The people on the open check, as its People group lists them. */
+/** The people on the open check's People page, as it lists them. */
 async function onCheck(page: Page): Promise<string> {
   const all = await screenText(page);
-  return /PEOPLE (.*?) Add people/i.exec(all)?.[1] ?? '';
+  return /People (.*?) Add people/.exec(all)?.[1] ?? '';
 }
 
 /** A switch in a Row (the kit's Toggle): its checkbox carries the state; clicked through, since its track lies over it. */
@@ -209,7 +210,10 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await checks(page, w, who);
     await expectOnScreen(page, PEER_PEOPLE);
     await text(page, 'Peer check').click();
-    await expectOnScreen(page, 'Peer check', 'Check 1 · Alpha', 'Rita Reviewer', 'Reviewer', 'Trevor Both', 'Translator-Reviewer');
+    await expectOnScreen(page, 'Peer check', 'Check 1 · Alpha', /People (Rita Reviewer, Trevor Both|Trevor Both, Rita Reviewer) Questions/);
+    // People and Questions open pages of their own (decision 130).
+    await text(page, 'People').click();
+    await expectOnScreen(page, 'Rita Reviewer', 'Reviewer', 'Trevor Both', 'Translator-Reviewer');
     await text(page, 'Add people').click();
     // Whoever may review at Alpha can be put on a check; Translators have Review since decision 91. A viewer cannot.
     await expectOnScreen(page, 'Tom Translator', 'Kept Person', 'Cora Coordinator', 'You', who === 'ADMIN' ? 'Lena Lead' : 'Ada Admin');
@@ -217,11 +221,13 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await text(page, 'Tom Translator').click();
     await primary(page).click();
     await expectToast(page, 'Peer check: 3 people');
-    await expect(byId(page, 'toast-undo')).toBeVisible();
+    // No timed Undo (Caleb, 2026-10-16): taking someone off is the way back.
+    await expect(byId(page, 'toast-undo')).toHaveCount(0);
     await expect.poll(() => onCheck(page)).toContain('Tom Translator');
     await page.getByRole('button', { name: 'Take Tom Translator off this check' }).click();
     await expectToast(page, 'Peer check: 2 people');
     await expect.poll(() => onCheck(page)).not.toContain('Tom Translator');
+    await back(page).click();
     await back(page).click();
     await expectOnScreen(page, PEER_PEOPLE);
     await expectSent(page, w);
@@ -233,12 +239,13 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
 test('SETUP-068 A check\'s questions', async ({ page }) => {
   const w = world();
   await checks(page, w, 'ADMIN');
-  // LangQuest's own questions for a community check come with it.
-  await expectOnScreen(page, /Community check .*\d+ questions/);
+  // LangQuest's checks come with no questions: a team writes its own on each check (LAN-85).
+  expect(await screenText(page)).toMatch(/Community check Anyone \d+ Consultant check/);
   await text(page, 'Community check').click();
-  await expectOnScreen(page, 'From LangQuest');
+  await expectOnScreen(page, /Questions No questions/);
   await back(page).click();
   await text(page, 'Peer check').click();
+  await text(page, 'Questions').click();
   await text(page, 'Add a question').click();
   await page.getByPlaceholder('The question').fill('Is it clear to a child?');
   await text(page, 'Yes / No').click();
@@ -247,9 +254,12 @@ test('SETUP-068 A check\'s questions', async ({ page }) => {
   await expectToast(page, 'Question saved');
   await expectOnScreen(page, 'Is it clear to a child?', 'Yes / No · Required');
   await back(page).click();
+  await expectOnScreen(page, /Questions 1 question/);
+  await back(page).click();
   await expectOnScreen(page, /Peer check .*1 question/);
   // A reviewer sees it when reviewing: REV-side checks live in 07-reviewing; here, edit and remove it.
   await text(page, 'Peer check').click();
+  await text(page, 'Questions').click();
   await text(page, 'Is it clear to a child?').click();
   await expectOnScreen(page, 'Question', 'Remove question');
   await text(page, 'Remove question').click();
@@ -267,7 +277,7 @@ test('SETUP-069 A check\'s helps', async ({ page }) => {
   await expectOnScreen(page, 'Notes', 'Write a note', 'Guides and Bibles', 'FIA study guides (English)');
   await text(page, 'FIA study guides (English)').click();
   await expectToast(page, 'Added to Peer check');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await primary(page).click();
   await expectOnScreen(page, 'FIA study guides (English)');
   await text(page, 'Add a help').click();
@@ -282,7 +292,11 @@ test('SETUP-069 A check\'s helps', async ({ page }) => {
   await text(page, 'Peer check').click();
   await page.getByRole('button', { name: 'Take FIA study guides (English) off this check' }).click();
   await expectToast(page, 'Taken off Peer check');
-  await undoToast(page);
+  // Put back the way it was added: no timed Undo (Caleb, 2026-10-16).
+  await text(page, 'Add a help').click();
+  await text(page, 'FIA study guides (English)').click();
+  await expectToast(page, 'Added to Peer check');
+  await primary(page).click();
   await expectOnScreen(page, 'FIA study guides (English)');
   await page.getByRole('button', { name: 'Take FIA study guides (English) off this check' }).click();
   await page.getByRole('button', { name: 'Take Listen for names off this check' }).click();
@@ -302,15 +316,19 @@ test('SETUP-070 Must pass, and checks at the same time', async ({ page }) => {
   await back(page).click();
   await expect(page.getByLabel('Community check must pass before the next steps')).toHaveCount(1);
   await undoToast(page).catch(() => undefined);
-  // Back translation happens at the same time as Peer check; taking that off makes it a check of its own.
+  // Back translation happens at the same time as Peer check; untick it there and it is a check of its own (decision 130).
   await text(page, 'Back translation').click();
-  await expectOnScreen(page, 'Same time as Peer check');
-  await expect(toggle(page, 'Same time as Peer check')).toBeChecked();
-  await toggle(page, 'Same time as Peer check').click({ force: true });
+  await expectOnScreen(page, /Same time as Peer check/);
+  await text(page, 'Same time as').click();
+  await expect(page.getByRole('checkbox', { name: 'Peer check' })).toBeChecked();
+  await page.getByRole('checkbox', { name: 'Peer check' }).click();
+  await primary(page).click();
   await expectToast(page, 'Alpha\'s checks saved');
-  await expectOnScreen(page, 'Check 2 · Alpha');
-  await toggle(page, 'Same time as Peer check').click({ force: true });
-  await expectOnScreen(page, 'Check 1 · Alpha');
+  await expectOnScreen(page, 'Check 2 · Alpha', /Same time as No other check/);
+  await text(page, 'Same time as').click();
+  await page.getByRole('checkbox', { name: 'Peer check' }).click();
+  await primary(page).click();
+  await expectOnScreen(page, 'Check 1 · Alpha', /Same time as Peer check/);
   await back(page).click();
   // Community check back as it was.
   await text(page, 'Community check').click();

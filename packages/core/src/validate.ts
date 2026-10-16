@@ -1,4 +1,4 @@
-import type { AnyEvent } from './events';
+import { SHOWN, type AnyEvent } from './events';
 import { LIBRARY_KINDS } from './libraryDocs';
 import { ORG_STREAM, PRIVILEGES, TARGET_SCOPES } from './orgTerms';
 import { isLicense, LICENSES } from './license';
@@ -190,6 +190,10 @@ export function validateEvent(e: AnyEvent): string | null {
         ((p['itemId'] === undefined) === (p['materialId'] === undefined) ? 'exactly one of itemId, materialId' : null) ??
         (p['itemId'] === undefined || nonEmpty(p['itemId']) ? null : 'itemId must be a non-empty string') ??
         (p['materialId'] === undefined || nonEmpty(p['materialId']) ? null : 'materialId must be a non-empty string');
+    case 'v1.CheckShowsSet':
+      return str('kindId') ?? oneOf('what', SHOWN) ?? bool('shown') ??
+        (p['from'] === undefined ? null : !nonEmpty(p['from']) ? 'from must be a non-empty string'
+          : p['what'] === 'notes' || p['what'] === 'earlier' ? null : 'from is only for notes and earlier');
     case 'v1.VersionReleased':
       return str('takeId', 'channel') ?? bool('live') ??
         (p['url'] === undefined || nonEmpty(p['url']) ? null : 'url must be a non-empty string') ??
@@ -252,7 +256,7 @@ export function validateEvent(e: AnyEvent): string | null {
     case 'v1.NoteAdded':
       return (
         str('noteId', 'unitId') ??
-        optStr('text', 'blobHash', 'photoHash', 'onTakeId') ??
+        optStr('text', 'blobHash', 'photoHash', 'onTakeId', 'kindId') ??
         anchor(p['anchor']) ??
         (!p['text'] && !p['blobHash'] && !p['photoHash'] ? 'a note needs text, audio or a photo' : null)
       );
@@ -278,6 +282,8 @@ export function validateEvent(e: AnyEvent): string | null {
       return str('itemId') ?? oneOf('state', ['recommended', 'hidden', 'inherit']);
     case 'v1.ReferenceLanguageSet':
       return str('language') ?? (/^[a-z0-9-]{2,40}$/.test(p['language'] as string) ? null : 'language must be a language code');
+    case 'v1.ReferenceLanguageAdded':
+      return str('language') ?? (/^[a-z0-9-]{2,40}$/.test(p['language'] as string) ? null : 'language must be a language code') ?? bool('added');
     case 'v1.PassageReferenceLinked':
       return str('unitId', 'itemId') ?? bool('linked');
     case 'v1.ReferencesUsed':

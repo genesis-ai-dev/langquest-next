@@ -78,8 +78,7 @@ Steps:
 Expected:
 - The header has the title "Luke 13:1-9", the sub "Alpha", and a Back arrow.
 - The path shows "Record" lit. Its sub reads:
-  - TRANS: "{COORD} asked you. Tell it in your language. The Bible, key
-    words and notes are beside you while you record."
+  - TRANS: "{COORD} asked you. Tell it in your language."
   - COORD: "You asked {TRANS}. Tell it…"
   - Everyone else: "{COORD} asked {TRANS}. Tell it…"
 - Then "Done", with the sub "Then ask for the peer check" (in a language

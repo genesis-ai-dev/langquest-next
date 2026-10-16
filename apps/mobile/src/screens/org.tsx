@@ -1410,10 +1410,12 @@ export function NewLanguage(ctx: Ctx) {
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds);
   // The language its Bibles and study guides are in, a step of its own (decision 84): the admin's own when there is anything in it, else English.
-  const [readsPicked, setReadsPicked] = useState<string | null>(null);
+  const [readsPicked, setReadsPicked] = useState<string[] | null>(null);
   const reader = readerLanguage();
-  const refs = useReferenceLanguages(ctx, [readsPicked ?? '', reader, 'eng']);
-  const reads = readsPicked ?? startingLanguage(refs.choices, reader);
+  const refs = useReferenceLanguages(ctx, [...(readsPicked ?? []), reader, 'eng']);
+  // The languages its Bibles and guides may be in, the main one first (decision 130).
+  const readsAll = readsPicked ?? [startingLanguage(refs.choices, reader)];
+  const reads = readsAll[0]!;
   const offers = useNewLanguageOffers(ctx, reads, refs.sets);
   const doc = tq.doc;
   // "I'll choose the checks": the language's own checks, edited on the Checks screen before it exists
@@ -1486,7 +1488,7 @@ export function NewLanguage(ctx: Ctx) {
     const parts = newLanguageParts(offers.items.length > 0, { ...(many ? { each: list.length } : {}), cluster: !!target });
     try {
       const made = await createLanguages({
-        org: ctx.org.state, actorId: ctx.session.actorId, reads, scope, chosenBooks, checks, offers: offers.items,
+        org: ctx.org.state, actorId: ctx.session.actorId, reads, alsoReads: readsAll.slice(1), scope, chosenBooks, checks, offers: offers.items,
         languages: list, each: many, done: madeRef.current,
         cluster: target ? { ...target, ...(many ? { existing: [...existing] } : {}) } : null
       }, {
@@ -1547,7 +1549,7 @@ export function NewLanguage(ctx: Ctx) {
       <Screen header={header} bodyStyle={bodyStyle}
         footer={<><PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!checks || !tq.ready || !ready1}
           help={many ? t('clusters.newLanguage.addHelp', { cluster: title }) : t('org.newLanguage.addHelp', { language: title })} onPress={() => void create()} />{back}</>}>
-        <ReferenceLanguagePage team={title} choices={refs.choices} value={reads} first={startingLanguage(refs.choices, reader)} onChange={setReadsPicked} loading={refs.loading}>
+        <ReferenceLanguagePage team={title} choices={refs.choices} value={readsAll} first={[startingLanguage(refs.choices, reader)]} onChange={setReadsPicked} loading={refs.loading}>
           {offers.names.length ? (
             <AmberNote icon="layers">
               <Trans i18nKey={goesWith(tq.doc, 'FIA') && offers.names.some((n) => /FIA/.test(n)) ? 'org.newLanguage.offerNoteFia' : 'org.newLanguage.offerNote'}

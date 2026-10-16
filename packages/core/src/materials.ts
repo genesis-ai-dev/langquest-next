@@ -1,5 +1,3 @@
-import type { EventPayloads } from './events';
-import { QUESTION_TEMPLATES } from './record';
 import type { LanguageState } from './state';
 
 /**
@@ -38,30 +36,6 @@ export type MaterialEvents = {
 /** The language's Translation Guidelines document: one per language. */
 export const TG_MATERIAL_ID = 'tg';
 
-/** A shipped question set's material id, decided by the set, so two admins adding it offline agree. */
-export function questionSetMaterialId(templateId: string): string {
-  return `questions/${templateId}`;
-}
-
-/** Every event a shipped question set implies: the material plus one field per question. */
-export function instantiateQuestionSet(
-  templateId: string
-): { type: 'v1.MaterialDefined' | 'v1.MaterialFieldSet'; payload: EventPayloads['v1.MaterialDefined'] | EventPayloads['v1.MaterialFieldSet'] }[] {
-  const t = QUESTION_TEMPLATES.find((q) => q.id === templateId);
-  if (!t) throw new Error(`Unknown question template ${templateId}`);
-  const materialId = questionSetMaterialId(templateId);
-  return [
-    {
-      type: 'v1.MaterialDefined',
-      payload: { materialId, kind: 'questions', title: t.name, scope: { stepId: t.kindId }, templateRef: `questions/${templateId}` }
-    },
-    ...t.questions.map((q) => ({
-      type: 'v1.MaterialFieldSet' as const,
-      payload: { materialId, fieldId: q.id, text: q.text }
-    }))
-  ];
-}
-
 // ---- derivations ---------------------------------------------------------
 
 export interface MaterialView {
@@ -80,8 +54,7 @@ export interface MaterialView {
 /** Field ids a material's template expects; free-form materials expect none. */
 export function templateFields(templateRef: string | undefined): string[] {
   if (!templateRef) return [];
-  const [kind, id] = templateRef.split('/');
-  if (kind === 'questions') return QUESTION_TEMPLATES.find((q) => q.id === id)?.questions.map((q) => q.id) ?? [];
+  const [kind] = templateRef.split('/');
   if (kind === 'fia_study') return ['summary', 'key_ideas', 'scenes', 'discussion'];
   return [];
 }

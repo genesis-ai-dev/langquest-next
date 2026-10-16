@@ -32,7 +32,7 @@
 // listen to the latest version and what you save is content for the next
 // check, not a version.
 import {
-  commands, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, skippedVerses, versesInChapter, type PartLabel,
+  checkShows, commands, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, RECORD_STEP, skippedVerses, versesInChapter, type PartLabel,
   type EventSpec, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -92,6 +92,8 @@ import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
+import { NoteStepContext } from '../checks/noteStep';
+import { anyFrom, fromFilter } from '../checks/showsModel';
 
 // ---- Workspace ---------------------------------------------------------------------
 
@@ -103,7 +105,8 @@ export function Workspace(ctx: Ctx) {
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
-  return <WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} />;
+  // Notes written while recording are the recording's (decisions.md 130).
+  return <NoteStepContext.Provider value={RECORD_STEP}><WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} /></NoteStepContext.Provider>;
 }
 
 function Missing(props: { ctx: Ctx; title: string; text?: string }) {
@@ -382,7 +385,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // ---- reference (REC-W1, REC-W5; demo ADR-036): what is attached, one chip each ----
   // What was offered and used here goes on the record with the version (docs/reference-material.md).
   const usage = useUsage();
-  const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming });
+  // What the recorder shows is the language's to say (decisions.md 130).
+  const shows = useMemo(() => checkShows(state, RECORD_STEP), [state]);
+  const bible = useBible(ctx, unitId, languageId, { listen: loop.hooks, usage, hidden: confirming, shows: { audio: shows.bibleAudio, text: shows.bibleText } });
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
   // ---- verse labels on the parts (decisions.md 82) ----
   const v11n = bible.passage.versification;
@@ -443,7 +448,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   }, [sourceWords, unitTerms, tied]);
   const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
-  const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study'), [p.notes]);
+  // Notes and earlier work from the steps the recording shows (decisions.md 130).
+  const notesFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'notes'), [state]);
+  const earlierFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'earlier'), [state]);
+  const notes = useMemo<PassageNote[]>(() => p.notes.filter((n) => n.anchor.kind !== 'study' && notesFrom(n.kindId ?? RECORD_STEP)), [p.notes, notesFrom]);
   const guideItem = guide ? guide.id.split('~')[0] ?? guide.id : null;
   useEffect(() => {
     if (guide && guideItem) usage.offer([{ itemId: guideItem, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
@@ -453,10 +461,14 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     usage.offer(references.map((r) => ({ itemId: r.id, name: r.label, kind: r.id.startsWith('source:') ? 'source' as const : 'note' as const, opened: false })));
   }, [references, usage]);
   const hasEarlier = p.versions.length > 0 || p.reviews.length > 0;
-  const chipIds = refChips('workspace', { bible: bible.hasVerses, guide: !!study, terms: true, notes: true, earlier: hasEarlier });
+  const chipIds = refChips('workspace', {
+    bible: bible.hasVerses && (shows.bibleAudio || shows.bibleText), guide: !!study && (shows.guideAudio || shows.guideText),
+    // Answering feedback keeps Earlier, where the feedback is.
+    terms: shows.terms, notes: anyFrom(state, RECORD_STEP, 'notes'), earlier: hasEarlier && (anyFrom(state, RECORD_STEP, 'earlier') || !!revising)
+  });
   // Opens on the Bible; answering feedback, on Earlier, where the feedback is (demo ADR-036).
   const [chipState, setChip] = useState<RefChip>(revising && hasEarlier ? 'earlier' : 'bible');
-  const chip = chipIds.includes(chipState) ? chipState : chipIds[0] ?? 'terms';
+  const chip = chipIds.includes(chipState) ? chipState : chipIds[0] ?? null;
   const [verse, setVerse] = useState<string | null>(null);
   const [stepState, setStep] = useState<number | null>(null);
   const step = study ? Math.min(study.steps.length - 1, stepState ?? study.next?.index ?? 0) : 0;
@@ -577,7 +589,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM} onFraction={setSplit}
         topStyle={styles.refPane} bottomStyle={styles.wsRecordPane}
         top={({ compact, open }) => compact ? (
-          bible.hasVerses ? <BibleBar bible={bible} onOpen={open} /> : <ReferenceBar onOpen={open} />
+          chipIds.includes('bible') && shows.bibleAudio ? <BibleBar bible={bible} onOpen={open} /> : <ReferenceBar onOpen={open} />
         ) : (
           <View style={{ flex: 1 }}>
             <RefChips items={chips} value={chip} onChange={openChip} />
@@ -586,6 +598,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
                 {chip === 'bible' ? (
                   <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
+                    hear={shows.bibleAudio} read={shows.bibleText}
                     footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
                     {...(recording ? {} : {
                       onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
@@ -593,7 +606,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                     })} />
                 ) : chip === 'guide' && study && guide ? (
                   <>
-                    <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={false}
+                    <GuideStep key={study.steps[step]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[step]!} spoken={!shows.guideText && shows.guideAudio} read={shows.guideText}
                       canContribute={!recording} onTerm={(termId) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) })} />
                     <LinkBtn label={t('translate.openStudy')} help={t('translate.openStudyHelp')} style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
                   </>
@@ -603,9 +616,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                     allTerms={() => ctx.go('key_terms', scope)} />
                 ) : chip === 'notes' ? (
                   <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
-                ) : (
-                  <EarlierPane ctx={ctx} v={v} {...(revising ? { focusReviewId: revising.id } : {})} />
-                )}
+                ) : chip === 'earlier' ? (
+                  <EarlierPane ctx={ctx} v={v} from={revising ? (s) => s === revising.kindId || earlierFrom(s) : earlierFrom} {...(revising ? { focusReviewId: revising.id } : {})} />
+                ) : null}
               </ScrollView>
             </HelpClip>
           </View>
@@ -656,7 +669,7 @@ export function BackTranslation(ctx: Ctx) {
   const kind = v.kind(kindId);
   if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={screenTitle('back_translation')} text={t('backTranslation.noRecording')} />;
   // The same split workspace, with only the version being back-translated on top (simple/btWorkspace.tsx).
-  return <BackTranslationBody key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} />;
+  return <NoteStepContext.Provider value={kind.id}><BackTranslationBody key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} /></NoteStepContext.Provider>;
 }
 
 const styles = StyleSheet.create({
