@@ -114,7 +114,7 @@ Expected:
 
 Decided (2026-10-13), the docs were stale: decision 71's amendment of 2026-10-08 ("the recording workspace, Publish, the study and microphone setup now follow the agreed images") makes the lit part card and its meter the agreed recording view; the full-screen voice-detection panel (`VadPanel`) is back translation's. This test checks the lit card and the meter.
 
-Changed (2026-10-16, decision 125): while recording, the pane below the divider is the red recording view (`RecordingView.tsx`) in the workspace and in back translation alike: its top row names the part being said ("Part 2", with its verses when it fills a place), the time and a check, Done; the live waveform fills the rest. Its label reads "Part 2. Recording…" or "Part 2. Listening for you · pause between parts"; the parts card returns when recording stops.
+Changed (2026-10-16, decision 124): while recording, the pane below the divider is the red recording view (`RecordingView.tsx`) in the workspace and in back translation alike: its top row names the part being said ("Part 2", with its verses when it fills a place), the time and a check, Done; the live waveform fills the rest. Its label reads "Part 2. Recording…" or "Part 2. Listening for you · pause between parts"; the parts card returns when recording stops.
 
 Fixed (2026-10-13), G10.3: on the web a part recorded while uploads are held back (they wait while the microphone is open) sometimes goes up only at the upload worker's next one-minute tick, so "waiting to upload" can stay above 0 for up to a minute after stop. Fixed in part (2026-10-13): the workspace asks for an upload when a session ends and after publishing (`translate.tsx`); the rest is in `useLanguage.ts` / the transfer worker. The web suite records it as a soft failure naming the recordings.
 
@@ -910,7 +910,7 @@ Expected:
 - After step 3 the new part sits between Part 1 and the old Part 2, labelled verse 23, and the place is gone.
 - Recording again, with nothing chosen, adds parts at the end.
 
-Changed (2026-10-16, decision 125): the amber "Verse 23 · left for later" row and its "Record here" button became a place to tap; the red button records there.
+Changed (2026-10-16, decision 124): the amber "Verse 23 · left for later" row and its "Record here" button became a place to tap; the red button records there.
 
 ---
 
