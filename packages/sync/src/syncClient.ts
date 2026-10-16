@@ -1,6 +1,7 @@
 import {
   applyLanguageEvent,
   emptyLanguageState,
+  eventSizeError,
   foldLanguage,
   REDUCER_VERSION,
   type AnyEvent,
@@ -12,7 +13,7 @@ import {
 } from '@langquest-next/core';
 import type { EventStore, LocalEvent, SyncInspection, Transport, WriteBatch } from './types';
 import { WriteQueue } from './writeQueue';
-import { ClientTooOldError, NotAuthorizedError, OfflineError, UnrenewedError, rejectCodeOf, type RejectCode } from './types';
+import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, rejectCodeOf, type RejectCode } from './types';
 import { fetchSnapshot } from './snapshotFetch';
 import type { DIAG_SCHEMA, Diagnostics } from './diagnostics';
 
@@ -625,6 +626,10 @@ export class SyncClient<S = LanguageState> {
    * locally"); until then `saving` is above zero.
    */
   private async applyLocal(events: AnyEvent[]): Promise<void> {
+    for (const event of events) {
+      const tooLarge = eventSizeError(event);
+      if (tooLarge) throw new EventTooLargeError(`${event.type}: ${tooLarge}`);
+    }
     for (const event of events) this.state = this.m.apply(this.state, event);
     // The writer publishes as soon as the commit is queued, carrying this
     // revision and saving > 0: the screen moves now, and can say "saved"

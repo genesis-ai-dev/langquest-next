@@ -176,3 +176,11 @@ export class NotAuthorizedError extends Error {
 export class ClientTooOldError extends Error {
   override name = 'ClientTooOldError';
 }
+
+/**
+ * An event bigger than the server takes (core `eventSizeError`, decisions.md
+ * 115). Refused before it is recorded: kept, it could never be sent.
+ */
+export class EventTooLargeError extends Error {
+  override name = 'EventTooLargeError';
+}

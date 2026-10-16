@@ -141,6 +141,15 @@ microphone is recording, so a hands-free session is not ended by the
 screen timeout. It sets a flag on the app's window; it needs no Android
 permission and collects or sends nothing, so no Play Console answer changes.
 
+`expo-secure-store` (decisions.md 60, amended 2026-10-15) keeps the
+signed-in session, and sessions kept for a shared phone's hand-overs, in the
+Keychain (iOS) and the Keystore (Android) instead of plain app storage. It is
+the same data on the same device, now encrypted and left out of Android
+backups (`configureAndroidBackup`); nothing new is collected or sent, it adds
+no Android permission and no biometrics (`faceIDPermission` is off), so no
+Play Console answer changes. "Encrypted in transit" and the data types are
+unchanged.
+
 Recordings (decisions.md 106) are kept and uploaded as AAC (`.m4a`) on a
 phone instead of WAV: the same voice recordings in a smaller file, so the
 "Voice or sound recordings" answer is unchanged.
@@ -189,6 +198,7 @@ this block.
     "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",
     "expo-localization {\"supportedLocales\":[\"en\",\"es\",\"pt-BR\",\"fr\",\"ar\",\"sw\",\"ha\",\"am\",\"hi\",\"bn\",\"ne\",\"id\",\"zh-Hans\",\"th\",\"my\"]}",
     "expo-notifications",
+    "expo-secure-store {\"configureAndroidBackup\":true,\"faceIDPermission\":false}",
     "expo-sqlite"
   ],
   "mobileDependencies": [
@@ -196,7 +206,7 @@ this block.
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
-    "expo-notifications", "expo-screen-orientation", "expo-sqlite", "expo-status-bar", "expo-updates",
+    "expo-notifications", "expo-screen-orientation", "expo-secure-store", "expo-sqlite", "expo-status-bar", "expo-updates",
     "i18n-iso-countries", "i18next", "lucide-react-native", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",
     "react-native-url-polyfill", "react-native-web", "topojson-client", "world-atlas"

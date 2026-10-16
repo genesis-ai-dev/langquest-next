@@ -21151,11 +21151,47 @@ function licenseRank(license) {
 
 // packages/core/src/validate.ts
 var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+var OBJECT_MEMBER_NAMES = [
+  "__proto__",
+  "constructor",
+  "prototype",
+  "hasOwnProperty",
+  "isPrototypeOf",
+  "propertyIsEnumerable",
+  "toLocaleString",
+  "toString",
+  "valueOf",
+  "__defineGetter__",
+  "__defineSetter__",
+  "__lookupGetter__",
+  "__lookupSetter__"
+];
+var MEMBER_NAMES = new Set(OBJECT_MEMBER_NAMES);
+function objectMemberNameIn(v) {
+  const stack = [v];
+  while (stack.length > 0) {
+    const x = stack.pop();
+    if (typeof x === "string") {
+      if (MEMBER_NAMES.has(x)) return x;
+    } else if (Array.isArray(x)) {
+      for (const item of x) stack.push(item);
+    } else if (typeof x === "object" && x !== null) {
+      for (const [k, child] of Object.entries(x)) {
+        if (MEMBER_NAMES.has(k)) return k;
+        stack.push(child);
+      }
+    }
+  }
+  return null;
+}
 function validateEvent(e) {
   for (const k of ["id", "type", "orgId", "streamId", "actorId", "deviceId", "hlc"]) {
     if (typeof e[k] !== "string" || e[k] === "") return `${k} must be a non-empty string`;
+    if (MEMBER_NAMES.has(e[k])) return `${k} may not be ${e[k]}`;
   }
   if (!isObject(e.payload)) return "payload must be an object";
+  const member = objectMemberNameIn(e.payload);
+  if (member !== null) return `payload may not use the name ${member}`;
   const p = e.payload;
   const str = (...keys) => {
     for (const k of keys) if (typeof p[k] !== "string" || p[k] === "") return `${k} must be a non-empty string`;
@@ -21401,6 +21437,7 @@ function cardVerseError(p) {
   if (a === null || b === null) return "from and to must be chapter:verse";
   return a <= b ? null : "from must not come after to";
 }
+var EVENT_PAYLOAD_MAX_BYTES = 64 * 1024;
 
 // packages/core/src/ties.ts
 function earlier(event, content, prior, priorContent, actorId = event.actorId) {
@@ -22540,13 +22577,14 @@ var SupabaseTransport = class {
     return data ?? null;
   }
   /**
-   * A database trigger (supabase/migrations/*_events_realtime.sql) broadcasts
-   * an empty poke on `events:<org>/<stream>` after every insert. The
-   * channel is public because the poke says only that the stream moved;
-   * the events themselves still come through the RPC and its checks.
+   * A database trigger (events_notify) broadcasts a poke on
+   * `events:<org>/<stream>` after every push. The channel is private: the
+   * server lets only someone who may read the stream hear it
+   * (20261016090000_private_pokes.sql), since even a bare poke says when a
+   * language is working. The events themselves come through the RPC.
    */
   watch(orgId, streamId, handlers) {
-    const channel = this.supabase.channel(`events:${orgId}/${streamId}`, { config: { private: false } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
+    const channel = this.supabase.channel(`events:${orgId}/${streamId}`, { config: { private: true } }).on("broadcast", { event: "appended" }, () => handlers.onPoke()).subscribe((status) => handlers.onStatus(status === "SUBSCRIBED"));
     return () => {
       void this.supabase.removeChannel(channel);
     };
@@ -23079,9 +23117,16 @@ function commonest(p) {
   const codes = { http_4xx: p.failHttp4xx, http_5xx: p.failHttp5xx, timeout: p.failTimeout, unreachable: p.failUnreachable, ticket_error: p.failTicket };
   return Object.entries(codes).sort((a, b) => b[1] - a[1])[0][0];
 }
+async function sameSecret(given, expected) {
+  const digest = async (text) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  const [a, b] = await Promise.all([digest(given), digest(expected)]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
 Deno.serve(async (request) => {
   const secret = Deno.env.get("PROJECTION_WORKER_SECRET");
-  if (!secret || request.headers.get("x-worker-secret") !== secret) {
+  if (!secret || !await sameSecret(request.headers.get("x-worker-secret") ?? "", secret)) {
     return new Response("Unauthorized", { status: 401 });
   }
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
