@@ -413,7 +413,9 @@ export function describeEntry(e: RecordEntry, o: {
         icon: k?.produces ? 'swap' : good ? 'check' : 'chat',
         color: k?.produces ? C.primary : good ? C.green : C.amber,
         title: `${kindName(kinds, r.kindId)} · ${outcomeText(k, r.outcome)}`,
-        sub: r.via === 'logged' ? t('passage.record.entry.from', { who: feedbackSource(r, name, true) }) : viaText(r, name),
+        // A check of a version deleted since says so: it counts for nothing (LAN-83).
+        sub: [o.p.deletedVersions.some((v) => v.n === r.versionN) ? t('passage.record.entry.versionDeleted', { n: r.versionN }) : '',
+          r.via === 'logged' ? t('passage.record.entry.from', { who: feedbackSource(r, name, true) }) : viaText(r, name)].filter(Boolean).join(' · '),
         who: r.via === 'logged' ? t('passage.record.entry.loggedBy', { name: name(r.by, true) }) : who
       };
     }
