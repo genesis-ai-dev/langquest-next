@@ -1535,7 +1535,7 @@ the download grows; one module per concern is worth that half kilobyte.
 
 Amended (2026-10-15, Carl Sauder): the export is now a main file and one
 file per screen module that loads when opened, and the budget is two: 5.7
-MiB for what a first visit loads, 6.25 MiB for all of it (123).
+MiB for what a first visit loads, 6.5 MiB for all of it (123).
 
 ## 59. Joining by invite needs no password, and whoever can invite you can get you back in
 
@@ -4596,7 +4596,9 @@ the background (`usePrefetchLazyScreens`), so work still continues offline
 once the app is open (58); a file that fails to load reaches the error
 boundary, and the next open tries again. `apps/mobile/scripts/export-web.mjs`
 holds two budgets: 5.7 MiB for the files `index.html` loads (5.41
-measured, 6.21 before), and 6.25 MiB for every file together (6.21). Help
+measured, 6.21 before), and 6.5 MiB for every file together (6.26 once
+main's security fixes and field diagnostics merged in; the cap only catches
+growth that runs away, and the first-visit budget holds what a visit pays). Help
 audio now waits for that first sync, an idle screen, and Wi-Fi or a cable
 (`useKeepHelpAudio`), and `/i18n/*` is cached for a year, since the app
 asks for it with `?v=<build>`. Turned down: splitting the country names by
