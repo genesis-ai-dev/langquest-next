@@ -760,7 +760,8 @@
       "contentTemplateHelp": "Membuka templat isi yang dipakai, pilihan lainnya, dan semuanya.",
       "referenceMaterialHelp": "Membuka Alkitab, panduan, dan catatan yang dipakai, untuk menambah atau mengurangi.",
       "reviewFlowHelp": "Membuka pemeriksaan yang dipakai, alur siap pakai yang bisa dipakai, dan semuanya.",
-      "rolesSub_other": "{{count, number}} peran"
+      "rolesSub_other": "{{count, number}} peran",
+      "upHelp": "Membuka halaman organisasi."
     },
     "join": {
       "wantsToJoin": "{{name}} ingin bergabung",

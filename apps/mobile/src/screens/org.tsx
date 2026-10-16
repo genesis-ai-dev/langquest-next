@@ -668,6 +668,8 @@ export function LanguageHome(ctx: Ctx) {
   const mayRename = mayRenameLanguage(v.org, ctx.session.actorId, languageId);
   // The name and its clusters are changed where they show, at the top (decision 136).
   const top = {
+    // A language lead's Manage tab opens here, with no Back: the organization is one tap up, where Back would be.
+    ...(atRoot ? { up: { label: v.orgName, help: t('org.language.upHelp'), onPress: () => ctx.go('org_home') } } : {}),
     ...(mayRename ? { rename: { label: t('org.rename.languageTitle', { name }), help: t('org.rename.rowHelp'), onPress: () => setRenaming(true) } } : {}),
     below: <LanguageClustersChip ctx={ctx} languageId={languageId} language={name} />
   };

@@ -825,7 +825,8 @@
       "rolesSub_two": "دوران",
       "rolesSub_few": "{{count, number}} أدوار",
       "rolesSub_many": "{{count, number}} دورًا",
-      "rolesSub_other": "{{count, number}} دور"
+      "rolesSub_other": "{{count, number}} دور",
+      "upHelp": "يفتح صفحة المؤسسة."
     },
     "join": {
       "wantsToJoin": "{{name}} يريد الانضمام",

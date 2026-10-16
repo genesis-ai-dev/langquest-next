@@ -786,7 +786,8 @@
       "reviewFlowHelp": "Ouvre les vérifications qu’elle utilise, les circuits tout prêts possibles, et tous.",
       "rolesSub_one": "{{count, number}} rôle",
       "rolesSub_many": "{{count, number}} rôles",
-      "rolesSub_other": "{{count, number}} rôles"
+      "rolesSub_other": "{{count, number}} rôles",
+      "upHelp": "Ouvre la page de l’organisation."
     },
     "join": {
       "wantsToJoin": "{{name}} veut rejoindre",

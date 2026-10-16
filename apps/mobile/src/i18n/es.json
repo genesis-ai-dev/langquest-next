@@ -786,7 +786,8 @@
       "reviewFlowHelp": "Abre las revisiones que usa, los flujos listos que podría usar y todos.",
       "rolesSub_one": "{{count, number}} rol",
       "rolesSub_many": "{{count, number}} roles",
-      "rolesSub_other": "{{count, number}} roles"
+      "rolesSub_other": "{{count, number}} roles",
+      "upHelp": "Abre la página de la organización."
     },
     "join": {
       "wantsToJoin": "{{name}} quiere unirse",

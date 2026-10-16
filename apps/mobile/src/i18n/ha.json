@@ -773,7 +773,8 @@
       "referenceMaterialHelp": "Yana buɗe Littafi Mai Tsarki, jagorori da bayanan da take amfani da su, don ƙara ko cire.",
       "reviewFlowHelp": "Yana buɗe binciken da take amfani da shi, tsare-tsaren da aka shirya da za ta iya amfani da su, da duka.",
       "rolesSub_one": "Matsayi {{count, number}}",
-      "rolesSub_other": "Matsayai {{count, number}}"
+      "rolesSub_other": "Matsayai {{count, number}}",
+      "upHelp": "Yana buɗe shafin ƙungiyar."
     },
     "join": {
       "wantsToJoin": "{{name}} na son shiga",

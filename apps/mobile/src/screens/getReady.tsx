@@ -385,7 +385,7 @@ function useComesWith(ctx: Ctx) {
 /** What will help them: the language of their reference material on a page of its own, then what is offered in it (decision 84). */
 function HelpsStep(props: StepProps) {
   const [page, setPage] = useState<'language' | 'helps'>('language');
-  // Opened from a ready language's What helps them to change the language: back there once it is saved.
+  // Opened from a ready language's Reference material (or its Languages) to change the language: back there once it is saved.
   const languageOnly = props.only && props.ctx.params['page'] === 'language';
   return page === 'language'
     ? <ReferenceLanguageStep {...props} onDone={() => (languageOnly ? props.next() : setPage('helps'))} />

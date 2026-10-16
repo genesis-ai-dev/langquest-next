@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import {
   back, button, byId, deviceFor, expect, expectToast, field, openAs, primary, screenText, syncNow, tab, test, text, useWorld, type UiWorld
 } from './support';
-import { expectNotOnScreen, expectOnScreen, languagePage, more, orgHome } from './setup-helpers';
+import { closeSheet, expectNotOnScreen, expectOnScreen, languagePage, orgHome } from './setup-helpers';
 
 const world = useWorld();
 const tag = () => world().run.slice(-4);
@@ -78,8 +78,10 @@ test('SETUP-010 Create a language end to end @p0', async ({ page }) => {
   await text(page, name).click();
   // A template, checks and an invite: ready, once the invite the server issued reaches this phone with the organization's stream.
   await expect.poll(async () => { await syncNow(page); return screenText(page); }, { timeout: 60_000 }).toContain('Ready · 0 translators');
-  await more(page);
+  // Its Languages say whether it is linked to the language list (decision 136).
+  await text(page, 'Languages').click();
   await expectOnScreen(page, 'Not linked yet: added offline, or not found there');
+  await closeSheet(page);
   await primary(page).click();
   await expectOnScreen(page, 'Luke');
 });
@@ -127,7 +129,7 @@ test('SETUP-012 Add a language offline, unlinked, and link it later', async ({ p
   await text(page, 'Later').click();
   await page.context().setOffline(false);
   await languagePage(page, w, name);
-  await more(page);
+  await text(page, 'Languages').click();
   await expectOnScreen(page, 'Not linked yet: added offline, or not found there');
   // Linking is SETUP-008's; the local language list returns nothing to link to.
 });
@@ -358,8 +360,7 @@ test('SETUP-021 Only organization-scope setters add languages', async ({ page, b
   const lead = await deviceFor(browser, w, 'LADMIN');
   const p = lead.page;
   await tab(p, 'manage').click();
-  await more(p);
-  await text(p, 'The organization\'s page').click();
+  await byId(p, 'header-up').click();
   await expect(text(p, w.orgName).first()).toBeVisible();
   await expect(text(p, 'New language or cluster')).toHaveCount(0);
   await tab(p, 'work').click();

@@ -760,7 +760,8 @@
       "contentTemplateHelp": "เปิดแม่แบบเนื้อหาที่ใช้อยู่ ตัวเลือกอื่น และทั้งหมด",
       "referenceMaterialHelp": "เปิดพระคัมภีร์ คู่มือ และบันทึกที่ใช้อยู่ เพื่อเพิ่มหรือเอาออก",
       "reviewFlowHelp": "เปิดการตรวจที่ใช้อยู่ ลำดับการตรวจสำเร็จรูปที่ใช้ได้ และทั้งหมด",
-      "rolesSub_other": "{{count, number}} บทบาท"
+      "rolesSub_other": "{{count, number}} บทบาท",
+      "upHelp": "เปิดหน้าขององค์กร"
     },
     "join": {
       "wantsToJoin": "{{name}} ขอเข้าร่วม",

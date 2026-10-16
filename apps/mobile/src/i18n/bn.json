@@ -773,7 +773,8 @@
       "referenceMaterialHelp": "এটি যে বাইবেল, নির্দেশিকা ও নোট ব্যবহার করে তা যোগ বা বাদ দিতে খোলে।",
       "reviewFlowHelp": "এটি যে যাচাইগুলো ব্যবহার করে, সম্ভাব্য তৈরি পদ্ধতিগুলো এবং সবগুলো খোলে।",
       "rolesSub_one": "{{count, number}}টি ভূমিকা",
-      "rolesSub_other": "{{count, number}}টি ভূমিকা"
+      "rolesSub_other": "{{count, number}}টি ভূমিকা",
+      "upHelp": "সংস্থার পাতা খোলে।"
     },
     "join": {
       "wantsToJoin": "{{name}} যোগ দিতে চান",

@@ -773,7 +773,8 @@
       "referenceMaterialHelp": "वे बाइबलें, गाइड और नोट खोलता है जो यह इस्तेमाल करती है, जोड़ने या हटाने के लिए।",
       "reviewFlowHelp": "वे जाँचें खोलता है जो यह इस्तेमाल करती है, तैयार क्रम जो इस्तेमाल हो सकते हैं, और सब।",
       "rolesSub_one": "{{count, number}} भूमिका",
-      "rolesSub_other": "{{count, number}} भूमिकाएँ"
+      "rolesSub_other": "{{count, number}} भूमिकाएँ",
+      "upHelp": "संगठन का पेज खोलता है।"
     },
     "join": {
       "wantsToJoin": "{{name}} जुड़ना चाहते हैं",

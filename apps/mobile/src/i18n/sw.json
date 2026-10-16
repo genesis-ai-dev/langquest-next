@@ -773,7 +773,8 @@
       "referenceMaterialHelp": "Hufungua Biblia, miongozo na maelezo inayotumia, ili kuongeza au kuondoa.",
       "reviewFlowHelp": "Hufungua ukaguzi unaotumika, mitiririko iliyo tayari inayowezekana, na yote.",
       "rolesSub_one": "Jukumu {{count, number}}",
-      "rolesSub_other": "Majukumu {{count, number}}"
+      "rolesSub_other": "Majukumu {{count, number}}",
+      "upHelp": "Hufungua ukurasa wa shirika."
     },
     "join": {
       "wantsToJoin": "{{name}} anataka kujiunga",

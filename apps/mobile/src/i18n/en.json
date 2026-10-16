@@ -773,7 +773,8 @@
       "referenceMaterialHelp": "Opens the Bibles, guides and notes it uses, to add or take some away.",
       "reviewFlowHelp": "Opens the checks it uses, the ready-made flows it could use, and all of them.",
       "rolesSub_one": "{{count, number}} role",
-      "rolesSub_other": "{{count, number}} roles"
+      "rolesSub_other": "{{count, number}} roles",
+      "upHelp": "Opens the organization's page."
     },
     "join": {
       "wantsToJoin": "{{name}} wants to join",

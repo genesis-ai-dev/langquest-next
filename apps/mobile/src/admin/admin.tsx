@@ -73,10 +73,13 @@ export function BigTop(props: {
   rename?: { label: string; help: string; onPress: () => void };
   /** Under the title, before the status: what it belongs to, such as its clusters. */
   below?: ReactNode;
+  /** Where Back would be on a tab's root: the page above it (a language lead's language, up to the organization). */
+  up?: { label: string; help: string; onPress: () => void };
 }) {
   const tone = props.statusTone === 'green' ? TINT.greenText : props.statusTone === 'amber' ? TINT.amberText : C.muted;
   const back = useHelpSpot(t('common.back'), t('help.details.back'), props.onBack);
   const pencil = useHelpSpot(props.rename?.label ?? '', props.rename?.help ?? '', props.rename?.onPress);
+  const up = useHelpSpot(props.up?.label ?? '', props.up?.help ?? '', props.up?.onPress);
   return (
     <View style={styles.bigTop}>
       <View style={styles.bigTopBar}>
@@ -84,6 +87,13 @@ export function BigTop(props: {
           <Pressable testID="header-back" onPress={back.onPress} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
             <Ico name="arrowL" size={24} color={C.dark} />
             <HelpBadge spot={back} />
+          </Pressable>
+        ) : props.up ? (
+          <Pressable testID="header-up" onPress={up.onPress} accessibilityRole="button" accessibilityLabel={props.up.label}
+            style={({ pressed }) => [styles.upLink, pressed && styles.pressed]}>
+            <Ico name="arrowL" size={20} color={C.dark} />
+            <Text style={styles.upText} numberOfLines={1}>{props.up.label}</Text>
+            <HelpBadge spot={up} />
           </Pressable>
         ) : <View />}
         <HelpButton />
@@ -428,6 +438,9 @@ const styles = StyleSheet.create({
   bigTitle: { fontSize: 28, fontWeight: '800', color: C.dark, marginTop: 2 },
   bigTitleLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   pencil: { width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' },
+  upLink: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: target.min, maxWidth: '75%', paddingHorizontal: space.md, borderRadius: target.min / 2,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  upText: { flexShrink: 1, fontSize: T.sm, fontWeight: '700', color: C.dark },
   status: { fontSize: T.sm, fontWeight: '700', marginTop: 2 },
   work: { gap: space.md, paddingTop: space.sm, paddingHorizontal: space.xs },
   workRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 32 },

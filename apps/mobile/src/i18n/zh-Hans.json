@@ -760,7 +760,8 @@
       "contentTemplateHelp": "打开它使用的内容模板、可选的其他模板以及全部模板。",
       "referenceMaterialHelp": "打开它使用的圣经、指南和注释，以便添加或移除。",
       "reviewFlowHelp": "打开它使用的审核、可用的现成流程以及全部流程。",
-      "rolesSub_other": "{{count, number}} 个角色"
+      "rolesSub_other": "{{count, number}} 个角色",
+      "upHelp": "打开组织的页面。"
     },
     "join": {
       "wantsToJoin": "{{name}}想加入",

@@ -773,7 +773,8 @@
       "referenceMaterialHelp": "የሚጠቀማቸውን መጽሐፍ ቅዱሶች፣ መመሪያዎችና ማስታወሻዎች ለመጨመር ወይም ለማስወገድ ይከፍታል።",
       "reviewFlowHelp": "የሚጠቀማቸውን ፍተሻዎች፣ ሊጠቀምባቸው የሚችሉ የተዘጋጁ ሂደቶች እና ሁሉንም ይከፍታል።",
       "rolesSub_one": "{{count, number}} ሚና",
-      "rolesSub_other": "{{count, number}} ሚናዎች"
+      "rolesSub_other": "{{count, number}} ሚናዎች",
+      "upHelp": "የድርጅቱን ገጽ ይከፍታል።"
     },
     "join": {
       "wantsToJoin": "{{name}} መቀላቀል ይፈልጋል",

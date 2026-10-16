@@ -773,7 +773,8 @@
       "referenceMaterialHelp": "यसले प्रयोग गर्ने बाइबल, निर्देशिका र टिप्पणीहरू थप्न वा हटाउन खोल्छ।",
       "reviewFlowHelp": "यसले प्रयोग गर्ने जाँचहरू, प्रयोग गर्न सकिने तयारी क्रमहरू र सबै खोल्छ।",
       "rolesSub_one": "{{count, number}} भूमिका",
-      "rolesSub_other": "{{count, number}} भूमिका"
+      "rolesSub_other": "{{count, number}} भूमिका",
+      "upHelp": "संस्थाको पेज खोल्छ।"
     },
     "join": {
       "wantsToJoin": "{{name}} सामेल हुन चाहनुहुन्छ",

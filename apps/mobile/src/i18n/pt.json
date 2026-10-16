@@ -786,7 +786,8 @@
       "reviewFlowHelp": "Abre as verificações que usa, os fluxos prontos que poderia usar e todos.",
       "rolesSub_one": "{{count, number}} função",
       "rolesSub_many": "{{count, number}} de funções",
-      "rolesSub_other": "{{count, number}} funções"
+      "rolesSub_other": "{{count, number}} funções",
+      "upHelp": "Abre a página da organização."
     },
     "join": {
       "wantsToJoin": "{{name}} quer entrar",
