@@ -63,6 +63,12 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
+# The team's checks are cards, and the Consultant check's can sit under the
+# bottom bar, where a tap on its middle lands on the bar: bring it up first.
+- scrollUntilVisible:
+    element: "Consultant check, .*"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Consultant check, .*"
 - assertVisible: "Checkpoint — later steps wait for this one\\."
 - tapOn: "Move past this checkpoint…"
