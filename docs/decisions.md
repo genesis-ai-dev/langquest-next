@@ -5066,3 +5066,31 @@ recorded) counted as small, so four large languages were folded at once.
 Reverse if: Cloudflare raises the isolate limit, folds move out of the
 heap (then the budget can grow), or production shows an organization the
 test's shapes do not cover (then add that shape to the test).
+
+Amended (2026-10-16, Ryder Wishart): the test now holds every memory user
+in the object, not only the folder. What `OrgSnapshot` keeps per
+organization: the folder's org fold, per-language summaries and saved
+cursors (grow with the number of languages, small) and its held folds
+(the 12 MB budget); the folds' derived indexes (core's WeakMaps, as long as
+a fold is held and outside the budget's count: about 11 MB more on the
+API path at 60 × 300); the webhook dispatcher only a promise chain, with
+digests, the feed and the outbox in SQLite, and while scanning one
+language's fold and two digests at a time; `AgentOrg`'s write and upload
+counters, at most an hour of timestamps per key (600 writes, 100 uploads)
+but one key for every token and link that wrote since the object woke,
+never forgotten; and nothing else (no response or link caches). A partner
+API answer is at most 500 passages (0.7 MB of JSON at 5,000 passages a
+language). `orgFolderHeap.ts` now runs one path per child process (fold,
+webhooks, api, reports, writes) over 12 × 2,000, 6 × 5,000 and a new
+60 × 300 (many small languages), and each path also runs against the
+regression its bound stops (no fold budget; a dispatcher that keeps what
+it compared; a response cache; counters that keep every timestamp) and
+must fail there, so a check that can no longer fail fails. All of them
+pass at a 64 MB heap except 6 × 5,000, which needs 80 MB, so there is
+room under 112 MB. A post-deploy canary
+(`docs/routines/do-memory-canary.md`) is proposed beside the test, not
+instead of it: it calls the largest real organizations' objects once after
+each production deploy (every object is cold then) and reads the Worker
+log for "exceeded its memory limit", to catch the shapes the test does not
+have. It is not running; it needs per-organization read tokens and a
+read-only Cloudflare token.
