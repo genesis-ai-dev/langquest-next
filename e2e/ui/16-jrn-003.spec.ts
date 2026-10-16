@@ -55,8 +55,8 @@ test('JRN-003 A reviewer\'s round: one check, one back translation @p0', async (
   await expect(text(page, /^Back translation · asked by/)).toBeVisible();
   await primary(page).click();
 
-  // Step 8: each part said in English; the top pane hides notes and earlier checks on purpose.
-  await expect(text(page, /Notes and earlier checks are hidden on purpose/)).toBeVisible();
+  // Step 8: each part said in English; the top pane has the version alone, with no sentence saying so (decision 128).
+  await expect(text(page, /hidden on purpose/)).toHaveCount(0);
   await sayEachPart(page, 3);
 
   // Step 9: Done, and REV (no Send to reviewers) is not offered an ask: it just finishes.

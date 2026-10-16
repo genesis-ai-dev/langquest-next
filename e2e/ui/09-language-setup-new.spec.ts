@@ -63,7 +63,7 @@ test('SETUP-010 Create a language end to end @p0', async ({ page }) => {
   await bibleStep(page);
   await expectOnScreen(page, 'Step 3 of 5', 'How will recordings get checked?', 'Standard Bible Flow', /Suggested · from /);
   await primary(page).click();
-  await expectOnScreen(page, 'Step 4 of 5', `Which language should ${name}'s Bibles and study guides be in?`);
+  await expectOnScreen(page, 'Step 4 of 5', `Which languages should ${name}'s Bibles and study guides be in?`);
   // The local library has FIA's English guides and no Bible (no source@1 is seeded), so only the guides are offered.
   await expectOnScreen(page, new RegExp(`We'll offer .* to ${name}'s translators\\. FIA's guides go with the FIA passages you chose\\. Change that any time under What helps\\.`));
   await primary(page).click();
@@ -318,7 +318,9 @@ test('SETUP-019 The language of a new team\'s Bibles and guides', async ({ page 
   await nameStep(page, name);
   await bibleStep(page);
   await primary(page).click();
-  await expectOnScreen(page, `Which language should ${name}'s Bibles and study guides be in?`, `Choose the language ${name}'s team reads best. Each one says what LangQuest has in it.`);
+  // As many languages as the team reads; each line says what LangQuest has in it, with no sentence above (decision 128).
+  await expectOnScreen(page, `Which languages should ${name}'s Bibles and study guides be in?`);
+  await expectNotOnScreen(page, 'reads best');
   await expectOnScreen(page, 'English', /FIA guides for \d+ passages?/);
   const none = text(page, 'Nothing in this language yet', false);
   if (await none.count()) {

@@ -300,8 +300,8 @@ Steps:
 4. Leave the first card ("Standard Bible Flow", "Suggested · from
    LangQuest") chosen under "How will recordings get checked?". Tap
    "Continue".
-5. Under "Which language should Charlie {run}'s Bibles and study guides be
-   in?" leave "English" chosen. Tap "Continue".
+5. Under "Which languages should Charlie {run}'s Bibles and study guides
+   be in?" leave "English" ticked. Tap "Continue".
 6. Wait until the invite screen shows.
 7. Leave "Translate" chosen. Tap "Show the code to scan". Tap "Done".
 8. Open Org home.
@@ -567,9 +567,9 @@ Steps:
 4. Tap "Another language" and search "French".
 
 Expected:
-- The question is "Which language should {language}'s Bibles and study
-  guides be in?", with "Choose the language {language}'s team reads best.
-  Each one says what LangQuest has in it."
+- The question is "Which languages should {language}'s Bibles and study
+  guides be in?", with no sentence under it; as many languages as the
+  team reads can be ticked (decision 128).
 - Each choice says what is in it, for example "FIA guides for {n} passages
   · {n} Bibles · {n} other guides or notes".
 - The app's own language is marked as yours and chosen first when it has
@@ -1359,18 +1359,20 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Alpha's page → "Checks". Read Peer check's card.
-2. Tap "Peer check". Read People.
+2. Tap "Peer check". Read its People row. Tap "People".
 3. Tap "Add people". Read the list. Tick "Tom Translator". Tap "Done".
-4. Tap ✕ beside Tom Translator.
+4. Tap ✕ beside Tom Translator. Go back twice.
 
 Expected:
 - The card names "Rita Reviewer, Trevor Both" with their faces; a check
   with nobody on it says "Anyone".
-- People lists each person with their role ("Reviewer",
+- The check's People row names them; People opens a page of its own
+  (decision 128) listing each person with their role ("Reviewer",
   "Translator-Reviewer").
 - "Add people" lists whoever may review at Alpha, Translators included
   (decision 91), and "You" for oneself; Vic Viewer is not offered.
-- Toast "Peer check: 3 people" with Undo; then "Peer check: 2 people".
+- Toast "Peer check: 3 people", with no Undo (no timed undo toasts,
+  Caleb 2026-10-16); then "Peer check: 2 people".
 
 ### SETUP-068 A check's questions
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1379,19 +1381,19 @@ Preconditions (in addition to the global ones):
 - Resets: adds a question and removes it.
 
 Steps:
-1. Checks → "Community check". Read Questions. Go back.
-2. Checks → "Peer check" → "Add a question". Type "Is it clear to a
-   child?", tap "Yes / No", turn on "Required", tap "Save".
-3. Go back and read Peer check's card.
-4. Open the question. Tap "Remove question".
+1. Checks → "Community check". Read its Questions row. Go back.
+2. Checks → "Peer check" → "Questions" → "Add a question". Type "Is it
+   clear to a child?", tap "Yes / No", turn on "Required", tap "Save".
+3. Go back and read the Questions row; go back and read Peer check's card.
+4. Open Questions, then the question. Tap "Remove question".
 
 Expected:
 - Community check comes with no questions (LangQuest's checks bring none,
-  LAN-85): its card shows no count, and Questions holds only "Add a
-  question".
+  LAN-85): its card shows no count, and its row reads "Questions · No
+  questions". Questions is a page of its own (decision 128).
 - The question sheet offers "Text", "Yes / No", "1–5" and "Required".
-- Toast "Question saved"; the row reads "Yes / No · Required"; the card
-  says "1 question".
+- Toast "Question saved"; the row reads "Yes / No · Required"; the
+  check's Questions row and its card say "1 question".
 - Toast "Question removed".
 
 ### SETUP-069 A check's helps
@@ -1406,13 +1408,14 @@ Steps:
 2. "Add a help" → "Write a note". Title "Listen for names", a line of text.
    "Save".
 3. Go back and read Peer check's card.
-4. Take FIA study guides off; tap "Undo"; take both off.
+4. Take FIA study guides off; add it again from "Add a help"; take both
+   off.
 
 Expected:
 - The sheet has "Notes" with "Write a note", and "Guides and Bibles".
-- Toast "Added to Peer check" with Undo for each.
+- Toast "Added to Peer check" for each, with no Undo.
 - The card says "2 helps".
-- Toast "Taken off Peer check"; Undo puts it back.
+- Toast "Taken off Peer check"; Add a help puts it back.
 
 ### SETUP-070 Must pass, and checks at the same time
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -1422,14 +1425,17 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Checks → "Community check". Turn on "Must pass". Go back.
-2. Open "Back translation". Turn off "Same time as Peer check", then on.
+2. Open "Back translation". Tap "Same time as" (it reads "Peer check"),
+   untick "Peer check", tap "Done"; then tick it again and "Done".
 3. Turn Community check's "Must pass" off again.
 
 Expected:
 - Toast "Alpha's checks saved" with Undo; Community check's card shows the
   lock ("Community check must pass before the next steps").
+- "Same time as" is a choice of any other checks (decision 128).
 - Back translation is "Check 1 · Alpha" while at the same time as Peer
-  check, and "Check 2 · Alpha" on its own.
+  check, and "Check 2 · Alpha" on its own ("Same time as · No other
+  check").
 - Checks reads as the fixture's at the end; nothing refused.
 
 ### SETUP-071 Add a check

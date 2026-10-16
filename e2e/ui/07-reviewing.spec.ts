@@ -668,7 +668,8 @@ test('REV-031 "Back-translate it" opens the back translation', async ({ page }) 
   await expect(byId(page, 'header-close')).toBeVisible();
   await expect(text(page, 'Alpha · Version 1 · part 1')).toBeVisible();
   await expect(text(page, `${TOM_FIRST} · drag back and forth as often as you like`)).toBeVisible();
-  await expect(text(page, 'Say each part in English, in your own words. Notes and earlier checks are hidden on purpose, so only the recording shapes what you say.')).toBeVisible();
+  // No sentence explains what is hidden: Back translation's own settings say it (decision 128).
+  await expect(text(page, /hidden on purpose/)).toHaveCount(0);
   await expect(button(page, 'Part 1, Saying it next')).toBeVisible();
   await expect(button(page, 'Part 2')).toBeVisible();
   await expect(button(page, 'Part 3')).toBeVisible();
