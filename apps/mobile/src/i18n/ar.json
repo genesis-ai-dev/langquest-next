@@ -8284,7 +8284,8 @@
     "checkedAtPickHelp": "هذا الفحص يستمع إليه.",
     "ownCheck": "فحص خاص به",
     "ownCheckHelp": "يضيف بعد هذا الفحص مباشرة فحصًا يستمع إليه.",
-    "ownCheckName": "فحص {{name}}"
+    "ownCheckName": "فحص {{name}}",
+    "helpLanguageHelp": "يعرض وسائل المساعدة بهذه اللغة."
   },
   "lostFiles": {
     "title": "الصوت مفقود",

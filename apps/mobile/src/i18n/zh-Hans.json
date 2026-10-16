@@ -6804,7 +6804,8 @@
     "checkedAtPickHelp": "这项检查会听它。",
     "ownCheck": "单独的检查",
     "ownCheckHelp": "在这项之后紧接着添加一项检查来听它。",
-    "ownCheckName": "{{name}}检查"
+    "ownCheckName": "{{name}}检查",
+    "helpLanguageHelp": "显示这种语言的帮助资料。"
   },
   "lostFiles": {
     "title": "音频丢失了",

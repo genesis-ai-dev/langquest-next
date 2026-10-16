@@ -7100,7 +7100,8 @@
     "checkedAtPickHelp": "यो जाँचले यसलाई सुन्छ।",
     "ownCheck": "आफ्नै छुट्टै जाँच",
     "ownCheckHelp": "यसको ठीक पछि यसलाई सुन्ने जाँच थप्छ।",
-    "ownCheckName": "{{name}} जाँच"
+    "ownCheckName": "{{name}} जाँच",
+    "helpLanguageHelp": "यो भाषामा भएका मद्दत सामग्री देखाउँछ।"
   },
   "lostFiles": {
     "title": "अडियो हराएको छ",

@@ -6804,7 +6804,8 @@
     "checkedAtPickHelp": "การตรวจนี้ฟังสิ่งนี้",
     "ownCheck": "การตรวจของมันเอง",
     "ownCheckHelp": "เพิ่มการตรวจที่ฟังสิ่งนี้ต่อจากขั้นนี้ทันที",
-    "ownCheckName": "การตรวจ{{name}}"
+    "ownCheckName": "การตรวจ{{name}}",
+    "helpLanguageHelp": "แสดงตัวช่วยในภาษานี้"
   },
   "lostFiles": {
     "title": "เสียงหายไป",

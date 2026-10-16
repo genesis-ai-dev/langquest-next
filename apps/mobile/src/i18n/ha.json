@@ -7100,7 +7100,8 @@
     "checkedAtPickHelp": "Wannan dubawa tana sauraron sa.",
     "ownCheck": "Dubawa ta kanta",
     "ownCheckHelp": "Yana ƙara dubawa nan da nan bayan wannan da ke sauraron sa.",
-    "ownCheckName": "Dubawar {{name}}"
+    "ownCheckName": "Dubawar {{name}}",
+    "helpLanguageHelp": "Yana nuna abubuwan taimako a wannan harshe."
   },
   "lostFiles": {
     "title": "Sauti ta ɓace",

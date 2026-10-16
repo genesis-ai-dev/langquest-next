@@ -7100,7 +7100,8 @@
     "checkedAtPickHelp": "ይህ ፍተሻ ያዳምጠዋል።",
     "ownCheck": "የራሱ ፍተሻ",
     "ownCheckHelp": "ከዚህ በኋላ ወዲያውኑ የሚያዳምጠው ፍተሻ ያክላል።",
-    "ownCheckName": "የ{{name}} ፍተሻ"
+    "ownCheckName": "የ{{name}} ፍተሻ",
+    "helpLanguageHelp": "በዚህ ቋንቋ ያሉትን አጋዦች ያሳያል።"
   },
   "lostFiles": {
     "title": "ድምፅ ጠፍቷል",

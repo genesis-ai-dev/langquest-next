@@ -7100,7 +7100,8 @@
     "checkedAtPickHelp": "This check listens to it.",
     "ownCheck": "A check of its own",
     "ownCheckHelp": "Adds a check right after this one that listens to it.",
-    "ownCheckName": "{{name}} check"
+    "ownCheckName": "{{name}} check",
+    "helpLanguageHelp": "Shows the helps in this language."
   },
   "lostFiles": {
     "title": "Audio is missing",

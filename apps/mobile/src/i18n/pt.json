@@ -7396,7 +7396,8 @@
     "checkedAtPickHelp": "Esta verificação ouve isso.",
     "ownCheck": "Uma verificação própria",
     "ownCheckHelp": "Adiciona logo depois desta uma verificação que ouve isso.",
-    "ownCheckName": "Verificação da {{name}}"
+    "ownCheckName": "Verificação da {{name}}",
+    "helpLanguageHelp": "Mostra as ajudas neste idioma."
   },
   "lostFiles": {
     "title": "Falta áudio",

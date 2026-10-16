@@ -7396,7 +7396,8 @@
     "checkedAtPickHelp": "Esta revisión lo escucha.",
     "ownCheck": "Una revisión propia",
     "ownCheckHelp": "Agrega justo después de esta una revisión que lo escucha.",
-    "ownCheckName": "Revisión de {{name}}"
+    "ownCheckName": "Revisión de {{name}}",
+    "helpLanguageHelp": "Muestra las ayudas en este idioma."
   },
   "lostFiles": {
     "title": "Falta audio",

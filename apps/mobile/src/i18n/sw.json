@@ -7100,7 +7100,8 @@
     "checkedAtPickHelp": "Ukaguzi huu unakisikiliza.",
     "ownCheck": "Ukaguzi wake wenyewe",
     "ownCheckHelp": "Inaongeza ukaguzi mara baada ya huu unaokisikiliza.",
-    "ownCheckName": "Ukaguzi wa {{name}}"
+    "ownCheckName": "Ukaguzi wa {{name}}",
+    "helpLanguageHelp": "Inaonyesha visaidizi katika lugha hii."
   },
   "lostFiles": {
     "title": "Sauti imepotea",

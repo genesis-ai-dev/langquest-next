@@ -7100,7 +7100,8 @@
     "checkedAtPickHelp": "এই যাচাই এটি শোনে।",
     "ownCheck": "নিজস্ব একটি যাচাই",
     "ownCheckHelp": "এর ঠিক পরে একটি যাচাই যোগ করে, যা এটি শোনে।",
-    "ownCheckName": "{{name}} যাচাই"
+    "ownCheckName": "{{name}} যাচাই",
+    "helpLanguageHelp": "এই ভাষার সহায়কগুলো দেখায়।"
   },
   "lostFiles": {
     "title": "অডিও হারিয়ে গেছে",

@@ -6804,7 +6804,8 @@
     "checkedAtPickHelp": "Pemeriksaan ini mendengarkannya.",
     "ownCheck": "Pemeriksaan tersendiri",
     "ownCheckHelp": "Menambahkan pemeriksaan tepat setelah ini yang mendengarkannya.",
-    "ownCheckName": "Pemeriksaan {{name}}"
+    "ownCheckName": "Pemeriksaan {{name}}",
+    "helpLanguageHelp": "Menampilkan alat bantu dalam bahasa ini."
   },
   "lostFiles": {
     "title": "Audio hilang",

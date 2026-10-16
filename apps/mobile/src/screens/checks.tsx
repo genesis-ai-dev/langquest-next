@@ -22,9 +22,10 @@ import { contractsFor } from '../shell/screenContracts';
 import { C, TINT } from '../ui/theme';
 import { PersonAvatar } from '../ui/UserChip';
 import { usePerson } from '../ui/usePerson';
-import { checkName } from '../admin/adminModel';
+import { checkName, languageLabel } from '../admin/adminModel';
 import { groupOf, removeRow, rowNumbers, rowsOf, sameTimeOf, setCheckpoint, setSameTime } from '../checks/model';
 import { newKindId, nextFieldId, referenceKindName } from '../config/model';
+import { docLanguage, sameLanguage, teamLanguage } from '../reference/languages';
 import { saveRows } from '../checks/checkActions';
 import { styles } from '../checks/checkStyles';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -75,6 +76,11 @@ function RemoveQuestion(props: { onPress: () => void }) {
       <HelpBadge spot={spot} />
     </Pressable>
   );
+}
+
+/** The language's own notes for translators, which are in the team's language. */
+function ownNotesCount(state: LanguageState): number {
+  return materialsFor(state).filter((m) => !['questions', 'key_terms', 'fia_study'].includes(m.kind)).length;
 }
 
 /** A tick for a pick-many row. */
@@ -133,6 +139,8 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const [writing, setWriting] = useState<{ title: string; text: string } | null>(null);
   const [together, setTogether] = useState<string[] | null>(null);
   const [checking, setChecking] = useState(false);
+  // The language the helps on offer are in: the team's reference language unless the admin picks another.
+  const [helpLanguage, setHelpLanguage] = useState<string | null>(null);
   const items = lib.items('material').filter((it) => it.current && !it.archived);
   const docs = useLibraryDocs(lib.orgId, items.map((it) => it.current), { deps: false });
   if (!state || i < 0) return <Gone ctx={ctx} name={name} loading={!state} />;
@@ -200,7 +208,16 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
 
   // What can be linked: the language's own notes, and the organization's notes, guides and Bibles.
   const ownNotes = materialsFor(state).filter((m) => !['questions', 'key_terms', 'fia_study'].includes(m.kind));
-  const library = items.map((it) => ({ it, kind: refKindOf(docs.get(it.current)) })).filter((x) => x.kind === 'note' || x.kind === 'other' || x.kind === 'guide' || x.kind === 'source');
+  const all = items.map((it) => ({ it, kind: refKindOf(docs.get(it.current)), language: docLanguage(docs.get(it.current)) }))
+    .filter((x) => x.kind === 'note' || x.kind === 'other' || x.kind === 'guide' || x.kind === 'source');
+  // Helps are offered in one language at a time (Caleb, 2026-10-16): the team's first, then the others that have something.
+  const team = teamLanguage(ctx.org.state, state, languageId);
+  const shownLanguage = helpLanguage ?? team;
+  const inLanguage = (language: string) => all.filter((x) => !x.language || sameLanguage(x.language, language)).length + (sameLanguage(language, team) ? ownNotesCount(state) : 0);
+  const helpLanguages = [team, ...[...new Set(all.map((x) => x.language).filter((l): l is string => !!l))].filter((l) => !sameLanguage(l, team))
+    .sort((a, b) => inLanguage(b) - inLanguage(a) || languageLabel(a).localeCompare(languageLabel(b)))];
+  const library = all.filter((x) => !x.language || sameLanguage(x.language, shownLanguage));
+  const ownShown = sameLanguage(shownLanguage, team);
   const linked = new Set(helps.map((h) => ('itemId' in h ? `item:${h.itemId}` : `material:${h.materialId}`)));
   const linkedHelp = (on: boolean) => (on ? t('checks.helpOnHelp') : t('checks.helpOffHelp'));
   const tick = (on: boolean) => <Tick on={on} />;
@@ -280,9 +297,17 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
 
       <Sheet visible={helping} title={t('checks.addHelp')} sub={name} onClose={() => setHelping(false)}
         footer={<PrimaryBtn label={t('common.done')} help={t('checks.helpsDoneHelp')} onPress={() => setHelping(false)} />}>
+        {helpLanguages.length > 1 ? (
+          <ChipRow>
+            {helpLanguages.map((l) => (
+              <Chip key={l} label={languageLabel(l)} icon={sameLanguage(l, team) ? 'people' : 'globe'} count={inLanguage(l)} on={sameLanguage(l, shownLanguage)}
+                help={t('checks.helpLanguageHelp')} onPress={() => setHelpLanguage(l)} />
+            ))}
+          </ChipRow>
+        ) : null}
         <SectionLabel label={t('checks.notes')} />
         <Group>
-          {ownNotes.map((m) => {
+          {(ownShown ? ownNotes : []).map((m) => {
             const on = linked.has(`material:${m.materialId}`);
             return <Row key={m.materialId} icon="note" label={m.title} sub={referenceKindName(m.kind)} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ materialId: m.materialId }, !on)} />;
           })}
