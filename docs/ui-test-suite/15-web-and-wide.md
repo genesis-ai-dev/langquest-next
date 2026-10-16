@@ -506,7 +506,6 @@ Expected:
 - Step 1: the browser's own microphone prompt.
 - Step 2: recording works; the take plays back.
 - Step 3: "Microphone permission is required." No crash, nothing saved.
-- "Set up the microphone" behaves the same way.
 
 ### WEB-026 The update banner waits while recording
 Roles: TRANS · Priority: P2 · Platforms: Web · Run: Auto

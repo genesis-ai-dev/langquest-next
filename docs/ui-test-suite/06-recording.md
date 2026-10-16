@@ -1,16 +1,16 @@
 # 06 · Recording
 
 The recording workspace (`workspace`): the reference on top, the recorder
-below, voice detection that keeps each part by itself, verse labels on
-parts (decision 82), several drafts (decision 83), Publish as a screen
-inside the workspace, microphone setup, and what happens when the field
-interrupts a recording.
+below, voice detection that keeps each part by itself (decision 125), verse
+labels on parts (decision 82), several drafts (decision 83), Publish as a
+screen inside the workspace, and what happens when the field interrupts a
+recording.
 
 Read with [the README](README.md): the global preconditions G1 to G10, the
 fixture and the role matrix apply to every test here.
 
 Code under test: `src/screens/translate.tsx` (Workspace),
-`src/simple/{recorder,publish,reference,verseParts,micSetup,model,parts}.tsx`,
+`src/simple/{recorder,publish,reference,verseParts,model,parts}.tsx`,
 `src/recording/*`, `src/useRecorder.ts`, `src/recordingJournal*.ts`, and the
 passage record's published page (`src/screens/passage.tsx`).
 
@@ -47,7 +47,7 @@ Expected:
 - The chips over the reference show at least "Bible", "Key words" and "Notes". "Earlier" is not shown, because nothing has been recorded or reviewed yet.
 - The "Bible" chip is selected.
 - The recorder shows a lit card "Part 1" with "Recording next".
-- The line "Tap the red button and speak. Pause between parts: each part is kept by itself." shows under it, then a quiet link "Set up the microphone".
+- The line "Tap the red button and speak. Pause between parts: each part is kept by itself." shows under it. There is no "Set up the microphone" link (LAN-82).
 - The footer shows "Part 1" on the left, the big red button (accessibility label "Record") in the middle, and "Publish" on the right, dimmed and disabled.
 - The passage record is unchanged (nothing is written by opening the workspace).
 
@@ -64,7 +64,7 @@ Steps:
 
 Expected:
 - The workspace for that passage opens with sub "Recording Version 1".
-- Choose the "Notes" chip: COORD's request shows at the top of the notes: "Cora Coordinator asked", with no due date (decision 125).
+- Choose the "Notes" chip: COORD's request shows at the top of the notes: "Cora Coordinator asked", with no due date (decision 126).
 - Tapping ✕ returns to the screen the test came from (My Work or the record), and nothing is written.
 
 ### REC-003 Continue recording opens the draft already on the device
@@ -916,105 +916,20 @@ Changed (2026-10-16, decision 124): the amber "Verse 23 · left for later" row a
 
 ## Microphone setup
 
-### REC-045 Set up the microphone by ear
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto (Device for the pick)
+### REC-045 Set up the microphone by ear (retired)
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
 
-Preconditions:
-- P-Q3's workspace is open, recorder idle.
+### REC-046 Microphone setup when nothing is heard, or every try sounds bad (retired)
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
 
-Steps:
-1. Tap "Set up the microphone".
-2. Tap "Tap to start" and stay quiet.
-3. On "Try 1 of 3", tap "Tap, then say it" and say "The shepherd went to look for the lost sheep." twice with a pause. Repeat for tries 2 and 3.
-4. On "Which sounds best?", play each try, then choose Try A.
-5. Tap "Use Try A".
-6. Record a part in the workspace.
+### REC-047 Adjust the microphone by hand (retired)
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set.
 
-Expected:
-- Step 1 opens "Set up your microphone", sub "Takes about a minute", with ✕, a three-part progress bar labelled "First, the room", the heading "First, a few seconds of quiet", "Go where you usually record. Stay quiet while the device listens to the room.", a 120-point "Tap to start", "Then you'll say one sentence three times." and "Adjust by hand".
-- Step 2 shows "Listening to the room… 0:01" up to about 0:03, then moves on by itself.
-- Each try shows "Try N of 3", "Say this, then pause, then say it again", the sentence in quotes, and "Listening… 0:0x" while listening. ("Hear it" shows on the web only.)
-- Step 4 shows "Listen to each. Pick the one where every word is clear and nothing is cut off.", rows "Try A · 0:0x", "Try B · 0:0x", "Try C · 0:0x", each with "Play Try A" (and so on). Try B is chosen at first.
-- Step 5 shows "Microphone set up. Recording now uses Try A." and returns to the workspace.
-- Step 6 uses the new settings: a pause of about 0.7 seconds now ends a part (Try A's pause).
-- The choice is kept on this device after the app restarts, and every recorder (workspace, back translation, voice notes) follows it.
-- Device: the person judges that the chosen try sounds clearest.
+### REC-048 Microphone setup without microphone permission (retired)
+Retired 2026-10-16: decision 125 removed microphone setup (LAN-82). Parts split by the room and the voice the microphone hears, learned while recording (`modules/microphone-energy/src/splitter.ts` and its two native ports, tested in `apps/mobile/test/splitter.test.ts`); nothing is set. REC-020 still covers a refused microphone.
 
-### REC-046 Microphone setup when nothing is heard, or every try sounds bad
-Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
-
-Preconditions:
-- Microphone setup is open from Me → "Set up the microphone".
-
-Steps:
-1. Tap "Tap to start" and stay quiet until the tries begin.
-2. On "Try 1 of 3", tap "Tap, then say it" and stay silent.
-3. Complete the three tries by speaking.
-4. On "Which sounds best?", tap "They all sound bad. Try again somewhere quieter."
-
-Expected:
-- Step 2 shows "Nothing was heard. Say it a little louder, or hold the device closer." and stays on "Try 1 of 3" (the silent try does not count).
-- Step 4 starts again at "First, the room", with no try kept.
-- ✕ at any point returns to Me without changing the saved settings.
-
-### REC-047 Adjust the microphone by hand
-Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
-
-Preconditions:
-- Microphone setup is open.
-
-Steps:
-1. Tap "Adjust by hand".
-2. Speak, and drag the dashed "Sensitivity line" up and down.
-3. Choose "Long pause" under "Pause that ends a part".
-4. Tap "Save these settings".
-5. Record in a workspace with 1.5-second pauses between sentences.
-
-Expected:
-- Step 1 shows "Adjust by hand" with "Speak, and watch the bars. Drag the line so your voice goes above it and the room's noise stays below.", a live meter and the line.
-- The line's accessibility value goes from 4 to 92.
-- The pause choices are "Short pause", "Normal pause" and "Long pause".
-- Step 4 shows "Microphone settings saved on this device." and goes back.
-- Step 5: a 1.5-second pause does not end a part (a long pause is 2 seconds).
-
-- If the device cannot store the settings, Save says "Not saved on this device. Try again." and the screen stays, as "Use Try N" does; nothing starts using the unsaved settings.
-
-Fixed (2026-10-13): "Save these settings" now catches a failed save and says "Not saved on this device. Try again." (`micSetup.tsx`), and `micSettings.ts` stores the settings before every recorder follows them (`apps/mobile/test/micSettings.test.ts`). The line's value is also given as aria values, so the web reads 4 to 92 too.
-
-### REC-048 Microphone setup without microphone permission
-Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
-
-Preconditions:
-- The microphone is refused for LangQuest (as in REC-020).
-
-Steps:
-1. Open Me → "Set up the microphone".
-2. Tap "Tap to start".
-
-Expected:
-- "Microphone permission is required." shows. If the microphone exists but cannot start, "The microphone could not start." shows instead.
-- No crash; ✕ returns to Me.
-
-### REC-049 Very short parts suggest setting up the microphone
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
-
-Preconditions:
-- P-Q3's workspace is open, recorder idle.
-
-Steps:
-1. Tap the red button.
-2. Say three single words, each under one second, with a 2-second pause after each.
-3. Tap stop.
-4. Tap "Set up the microphone" in the amber box.
-
-Expected:
-- After the third short part an amber box shows "Parts are coming out very short. Words may be cut off." with "Set up the microphone".
-- The quiet "Set up the microphone" link is replaced by the box.
-- Step 4 opens "Set up your microphone"; ✕ returns to the workspace with the parts kept.
-
----
-
-## Who may record
+### REC-049 Very short parts suggest setting up the microphone (retired)
+Retired 2026-10-16: decision 125 keeps every part with speech in it, a one-word answer included, so there is no "very short" box or "Too short to keep" message; only a tap or a bump makes no part.
 
 ### REC-050 Reviewers and viewers are not offered recording
 Roles: REV, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

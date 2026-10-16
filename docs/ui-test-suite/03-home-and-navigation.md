@@ -216,7 +216,7 @@ Expected:
   requests lead newest first (core `highlightsFor`). With the fixture that
   is P-Q4, Luke 13:31–35, asked after P-NEW.
 - The sub reads "Record it · asked by {COORD}". No due date shows
-  (decision 125).
+  (decision 126).
 - "Start" opens that passage's record, with "Record" as its main button
   (PASS-001).
 - Back on the record returns to My Work.
@@ -308,7 +308,7 @@ Expected:
   {TRANS} · asked {when}".
 - The team request reads "Peer check · the Peer check team · asked {when}":
   the check by its one name, and the team, never "someone".
-- Rows are newest first. No due date shows (decision 125).
+- Rows are newest first. No due date shows (decision 126).
 - Tapping P-NEW opens its record. Back returns to My Work with the list
   still open.
 - Fixed (2026-10-12): a request made to a check's team named "someone"
