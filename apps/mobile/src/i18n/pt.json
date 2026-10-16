@@ -696,8 +696,7 @@
         "flowsFirst": "Fluxos de revisão",
         "flows": "fluxos de revisão",
         "rolesFirst": "Funções",
-        "roles": "funções",
-        "nameAndLicense": "nome e licença"
+        "roles": "funções"
       },
       "titleHelp": "Mostra o que é configurado uma vez e raramente muda: funções, o nome, a licença.",
       "templatesHelp": "Abre as formas de dividir o trabalho em passagens, e qual delas cada idioma usa.",
@@ -736,7 +735,6 @@
     },
     "rename": {
       "done": "O nome mudou para {{name}}.",
-      "row": "Nome",
       "save": "Salvar o nome",
       "taken": "Esse nome já está em uso aqui",
       "failed": "O nome não mudou",
@@ -749,7 +747,6 @@
     },
     "link": {
       "done": "{{name}} está ligado a {{linked}}.",
-      "row": "Na lista de idiomas",
       "linkedTo": "Ligado a {{name}} · {{code}}",
       "linked": "Ligado · {{code}}",
       "notLinked": "Ainda não ligado: adicionado sem internet, ou não encontrado na lista",
@@ -808,31 +805,18 @@
       "title": "Mais",
       "summary": {
         "progress": "Progresso",
-        "members": "membros",
         "roles": "funções",
         "publicListing": "listagem pública",
-        "name": "nome",
-        "languageList": "lista de idiomas",
-        "cluster": "grupo"
+        "languages": "idiomas"
       },
       "orgAndCode": "{{org}} · Código {{code}}",
       "seeWork": "Ver o trabalho deles",
       "seeWorkSub": "Cada passagem e até onde ela chegou",
-      "membersSub_one": "{{count, number}} com função em {{language}}",
-      "membersSub_many": "{{count, number}} de pessoas com função em {{language}}",
-      "membersSub_other": "{{count, number}} com função em {{language}}",
       "rolesSub_one": "{{count, number}} função · o que cada uma pode fazer",
       "rolesSub_many": "{{count, number}} de funções · o que cada uma pode fazer",
       "rolesSub_other": "{{count, number}} funções · o que cada uma pode fazer",
-      "templates": "Todas as formas de dividir o trabalho",
-      "templatesSub": "A biblioteca de passagens e roteiros da organização",
-      "reference": "Bíblias, guias e notas",
-      "referenceSub": "Tudo o que há na biblioteca, cobertura e compartilhamento",
-      "flows": "Todas as formas de verificar",
-      "flowsSub": "Os fluxos de revisão da organização",
       "publicList": "Mostrar na lista pública",
       "publicListSub": "Só o nome do idioma e o progresso",
-      "orgPage": "A página da organização",
       "titleHelp": "Mostra o resto: progresso, pessoas, funções, o nome e mais.",
       "seeWorkHelp": "Abre o mapa: cada passagem e até onde ela chegou.",
       "publicListOnHelp": "Ligado: o nome e o progresso estão na lista pública. Toque para tirar.",
@@ -1029,6 +1013,14 @@
       "guides": "os guias de estudo de {{name}}",
       "theBible": "a {{name}}",
       "guidesIn": "os guias de estudo de {{name}} em {{language}}"
+    },
+    "languages": {
+      "row": "Idiomas",
+      "rowSub": "{{target}} · {{understood}}",
+      "rowHelp": "Abre o idioma para o qual traduzem e os idiomas que entendem.",
+      "target": "Traduzem para",
+      "understood": "Entendem",
+      "understoodHelp": "Abre os idiomas das Bíblias e guias deles, para mudá-los."
     }
   },
   "admin": {
@@ -1314,7 +1306,9 @@
       "bookOffHelp": "Toque para escolher este livro.",
       "nextHelp": "Guarda esta resposta e vai para a próxima pergunta.",
       "useThisHelp": "Eles traduzem isto a partir de agora. Depois, volta para a página do idioma.",
-      "keepItHelp": "Mantém o que eles traduzem agora, e volta."
+      "keepItHelp": "Mantém o que eles traduzem agora, e volta.",
+      "eachBook": "As passagens de cada livro",
+      "eachBookHelp": "Abre cada livro, para mudar onde suas passagens começam e terminam."
     },
     "media": {
       "both": "Áudio e texto",
@@ -7159,7 +7153,8 @@
       "startHelp": "Troca as verificações por um conjunto pronto, para mudar como quiser.",
       "useHelp": "Substitui as verificações de {{language}} por estas. Desfazer traz de volta.",
       "pickHelp": "Escolhe. Depois, Usar, embaixo, troca as verificações pelas dele.",
-      "replaceAsk": "Substituir as verificações próprias de {{language}} por {{name}}?"
+      "replaceAsk": "Substituir as verificações próprias de {{language}} por {{name}}?",
+      "keep": "Guardar como fluxo pronto"
     },
     "gone": "Esta não é mais uma das verificações do idioma",
     "checkOf": "Verificação {{n}} · {{language}}",
@@ -7402,22 +7397,21 @@
       "keepHelp": "Fecha. O grupo continua como está."
     },
     "language": {
-      "label": "Grupo",
-      "none": "Não está em um grupo",
       "sheetTitle": "Em qual grupo ele está?",
       "count_one": "{{count, number}} idioma",
       "count_many": "{{count, number}} idiomas",
       "count_other": "{{count, number}} idiomas",
       "newLabel": "Ou um grupo novo",
       "firstLabel": "Colocar em um grupo novo",
-      "note": "Um idioma pode estar em mais de um grupo, ou em nenhum. Nada no idioma muda.",
       "done": "Pronto",
       "saved": "Grupos de {{language}} salvos.",
       "rowHelp": "Escolha em quais grupos ele está, ou coloque em um grupo novo.",
       "inHelp": "Neste grupo. Toque para tirar.",
       "outHelp": "Fora deste grupo. Toque para colocar.",
       "newHelp": "Digite um nome: ele vai para um grupo novo com esse nome.",
-      "doneHelp": "Salva em quais grupos ele está."
+      "doneHelp": "Salva em quais grupos ele está.",
+      "add": "Adicionar a um grupo",
+      "chipHelp": "Os grupos em que está."
     },
     "newLanguage": {
       "what": "O que você vai adicionar?",

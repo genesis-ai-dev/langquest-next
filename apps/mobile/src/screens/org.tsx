@@ -11,7 +11,7 @@
 // languages directly (docs/decisions.md 63). A cluster (decision 108, demo
 // ADR-045) is a name on some of them, with a page of its own (ClusterHome).
 import {
-  clusterName, clustersOf, mayManageClusters, orgClusters,
+  clusterName, mayManageClusters, orgClusters,
   decodeHlc, deriveFlow, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
   leavesNoRoleManager, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
@@ -19,7 +19,7 @@ import {
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
 import type { LibraryChoice } from '../templates/contentTemplates';
@@ -59,8 +59,8 @@ import { edgeAllowed } from '../shell/session';
 import { shareText } from '../ui/share';
 import { C, radius, space, tile, TINT } from '../ui/theme';
 import { useOrgSummary } from '../reports/useOrgSummary';
-import { useHelpMode } from '../helpMode/useHelpMode';
-import { HelpRow } from '../helpMode/helpBadge';
+import { useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { AmberNote, BigTop, CheckRow, ChoiceCard, CountBadge, DashedRow, IconTile, NumberedSteps, Pills, Question, QuietLink, RadioRow, WorkSteps } from '../admin/admin';
 import { inviteFailureText } from '../admin/inviteText';
 import { askedAgo, firstName, flowSub, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, stepTitle } from '../admin/adminModel';
@@ -74,7 +74,7 @@ import { InviteSomeone } from '../invites/invite';
 import { refKindOf } from '../reference/model';
 import type { GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
-import { docLanguage, readerLanguage, sameLanguage } from '../reference/languages';
+import { docLanguage, readerLanguage, sameLanguage, teamLanguages } from '../reference/languages';
 import { ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
 import { useReferenceLanguages } from '../reference/useReferenceLanguages';
 import { ReadyChecklist } from '../admin/ready';
@@ -84,7 +84,7 @@ import { personLook } from '../ui/people';
 import { PersonAvatar } from '../ui/UserChip';
 import { usePerson } from '../ui/usePerson';
 import { clusterEvents, clusterNamed, languagesOutsideClusters, newClusterId, ungroupEvents } from '../clusters/model';
-import { ClusterRow, ClusterTile, LanguageClustersRow } from '../clusters/parts';
+import { ClusterRow, ClusterTile, LanguageClustersChip } from '../clusters/parts';
 import { appendClusterEvents } from '../clusters/clusterActions';
 
 /**
@@ -177,11 +177,11 @@ type HomeId = 'org_home' | 'language_home';
 
 /**
  * Setup (ORG-1, ADR-029): content templates, reference material, review
- * flows, roles and the home's other set-once rows, together behind one tap.
+ * flows and roles, together behind one tap.
  * Only the rows this person may open, each saying what the languages under
  * this home use. Open state is kept across Back.
  */
-function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageIds: string[]; languageId?: string; extra?: { label: string; rows: ReactNode } }) {
+function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageIds: string[]; languageId?: string }) {
   const { ctx, languageIds } = props;
   const state = ctx.language.state;
   const can = ctx.session.can;
@@ -212,8 +212,7 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
     ...(templates ? [[t('org.setup.summary.templates'), t('org.setup.summary.templates')] as [string, string]] : []),
     ...(reference ? [[t('org.setup.summary.referenceFirst'), t('org.setup.summary.reference')] as [string, string]] : []),
     ...(flows ? [[t('org.setup.summary.flowsFirst'), t('org.setup.summary.flows')] as [string, string]] : []),
-    [t('org.setup.summary.rolesFirst'), t('org.setup.summary.roles')],
-    ...(props.extra ? [[props.extra.label, props.extra.label] as [string, string]] : [])
+    [t('org.setup.summary.rolesFirst'), t('org.setup.summary.roles')]
   ];
   const summary = parts.map(([first, later], i) => (i === 0 ? first : later)).join(t('admin.list.separator'));
   // A language's page has its own setup now (LanguageHome: the four questions, then More).
@@ -226,8 +225,7 @@ function HomeSetup(props: { ctx: Ctx; from: HomeId; level: ScopeLevel; languageI
           sub={t('org.setup.referenceSub', { study: formatNumber(counts.study), questions: formatNumber(counts.questions), terms: formatNumber(counts.terms) })} /> : null}
         {flows ? <Row icon="flow" label={t('org.setup.flows')} sub={applied(counts.flow)} help={t('org.setup.flowsHelp')} onPress={() => ctx.go('flows_home', params)} /> : null}
         <Row icon="star" label={t('org.setup.roles')} sub={t('org.setup.rolesSub', { count: liveRoles(ctx.org.state?.roles).length })} help={t('org.setup.rolesHelp')} onPress={() => ctx.go('roles_home', params)}
-          last={!props.extra} />
-        {props.extra?.rows}
+          last />
       </Disclosure>
     </View>
   );
@@ -286,11 +284,8 @@ export function OrgHome(ctx: Ctx) {
             <Ico name="building" size={28} color={C.primary} />
           </View>
           <View style={{ flex: 1, gap: 4 }}>
-            <Text style={txt.h3}>{v.orgName}</Text>
-            {/* Also a row inside Setup. Named here so the home shows the license without opening Setup. */}
-            <HelpInfo label={licenseText(orgLicense(v.org)).name} detail={t('org.home.licenseHelp')} style={{ alignSelf: 'flex-start' }}>
-              <Text style={txt.xs}>{licenseText(orgLicense(v.org)).name}</Text>
-            </HelpInfo>
+            {/* Its name and license are changed here, where they show, not in Setup. */}
+            <OrgNameAndLicense ctx={ctx} />
             <Text style={txt.xs}>{t('org.home.languages', { count: v.languages.length })} · {t('org.home.members', { count: memberCount })}</Text>
             {mine ? (
               <View style={{ flexDirection: 'row' }}>
@@ -320,8 +315,7 @@ export function OrgHome(ctx: Ctx) {
       </HomeSection>
       <ShowMore remaining={loose.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
       <PeopleRows ctx={ctx} level="org" />
-      <HomeSetup ctx={ctx} from="org_home" level="org" languageIds={v.languages}
-        extra={{ label: t('org.setup.summary.nameAndLicense'), rows: <><OrgNameSection ctx={ctx} /><LicenseSection ctx={ctx} /></> }} />
+      <HomeSetup ctx={ctx} from="org_home" level="org" languageIds={v.languages} />
     </Screen>
   );
 }
@@ -458,19 +452,20 @@ export function ClusterHome(ctx: Ctx) {
 }
 
 /**
- * A name row that whoever may rename opens into a sheet: the organization's
- * and a language's. Names identify nothing (decision 76), so a rename is
- * how two alike are told apart. `warn` says what the new name repeats.
+ * The rename sheet the pencil beside a big title opens: the organization's
+ * and a language's names. Names identify nothing (decision 76), so a rename
+ * is how two alike are told apart. `warn` says what the new name repeats.
+ * Everyone sees the name, so it keeps its Save.
  */
-function RenameRow(props: {
-  ctx: Ctx; current: string; may: boolean; title: string; sub: string; what: string;
-  warn?: (name: string) => string | null; save: (name: string) => Promise<void>; last?: boolean;
+function RenameSheet(props: {
+  ctx: Ctx; visible: boolean; onClose: () => void; current: string; title: string; sub: string; what: string;
+  warn?: (name: string) => string | null; save: (name: string) => Promise<void>;
 }) {
-  const { ctx, current } = props;
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
+  const { ctx, current, visible } = props;
+  const [name, setName] = useState(current);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  useEffect(() => { if (visible) { setName(current); setError(''); } }, [visible, current]);
   const next = name.trim();
   const warning = next && next !== current ? props.warn?.(next) ?? null : null;
   async function save() {
@@ -479,7 +474,7 @@ function RenameRow(props: {
     setError('');
     try {
       await props.save(next);
-      setOpen(false);
+      props.onClose();
       ctx.toast(t('org.rename.done', { name: next }));
     } catch (e) {
       setError(failure(props.what, e));
@@ -488,16 +483,12 @@ function RenameRow(props: {
     }
   }
   return (
-    <>
-      <Row icon="edit" label={t('org.rename.row')} sub={current} last={props.last} help={t('org.rename.rowHelp')}
-        {...(props.may ? { onPress: () => { setName(current); setError(''); setOpen(true); } } : {})} />
-      <Sheet visible={open} title={props.title} sub={props.sub} onClose={() => setOpen(false)}
-        footer={<PrimaryBtn label={t('org.rename.save')} icon="check" busy={busy} disabled={!next || next === current} onPress={() => void save()} />}>
-        <Field label={t('org.itsName')} value={name} onChangeText={setName} placeholder={current} autoCapitalize="words" />
-        {warning ? <Banner icon="flag" tone="amber" title={t('org.rename.taken')} body={warning} /> : null}
-        {error ? <Banner icon="flag" tone="amber" title={t('org.rename.failed')} body={error} /> : null}
-      </Sheet>
-    </>
+    <Sheet visible={visible} title={props.title} sub={props.sub} onClose={props.onClose}
+      footer={<PrimaryBtn label={t('org.rename.save')} icon="check" busy={busy} disabled={!next || next === current} onPress={() => void save()} />}>
+      <Field label={t('org.itsName')} value={name} onChangeText={setName} placeholder={current} autoCapitalize="words" />
+      {warning ? <Banner icon="flag" tone="amber" title={t('org.rename.taken')} body={warning} /> : null}
+      {error ? <Banner icon="flag" tone="amber" title={t('org.rename.failed')} body={error} /> : null}
+    </Sheet>
   );
 }
 
@@ -507,23 +498,21 @@ function RenameRow(props: {
  * until someone who may rename it links it here (v1.LanguageCodeSet); the
  * link also gives it the list's code. Its name stays its own.
  */
-function LanguoidLinkRow(props: { ctx: Ctx; languageId: string; name: string; code: string; languoidId: string | null; may: boolean; last?: boolean }) {
-  const { ctx } = props;
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
+function LanguoidLinkSheet(props: { ctx: Ctx; visible: boolean; onClose: () => void; languageId: string; name: string; linked: boolean }) {
+  const { ctx, visible } = props;
+  const [query, setQuery] = useState(props.name);
   const [picked, setPicked] = useState<LanguoidHit | null>(null);
-  const search = useLanguoidSearch(query, open && !picked);
+  const search = useLanguoidSearch(query, visible && !picked);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const linked = !!props.languoidId;
-  const linkedName = useLanguoidName(props.languoidId);
+  useEffect(() => { if (visible) { setQuery(props.name); setPicked(null); setError(''); } }, [visible, props.name]);
   async function link() {
     if (!picked) return;
     setBusy(true);
     setError('');
     try {
       await ctx.org.append('v1.LanguageCodeSet', { languageId: props.languageId, code: picked.code, languoidId: picked.id });
-      setOpen(false);
+      props.onClose();
       ctx.toast(t('org.link.done', { name: props.name, linked: picked.name }));
     } catch (e) {
       setError(failure('link language', e));
@@ -532,57 +521,73 @@ function LanguoidLinkRow(props: { ctx: Ctx; languageId: string; name: string; co
     }
   }
   return (
+    <Sheet visible={visible} title={props.linked ? t('org.link.titleAgain', { name: props.name }) : t('org.link.title', { name: props.name })} onClose={props.onClose}
+      sub={t('org.link.sub', { name: props.name })}
+      footer={<PrimaryBtn label={t('org.link.linkIt')} icon="check" busy={busy} disabled={!picked} onPress={() => void link()} />}>
+      <SearchField value={query} onChangeText={(q) => { setQuery(q); setPicked(null); }} placeholder={t('org.link.searchPlaceholder')} />
+      <LanguoidPicker search={search} picked={picked} onPick={setPicked}
+        unlisted={t('org.link.unlisted')} unreachable={t('org.link.unreachable')} />
+      {error ? <Banner icon="flag" tone="amber" title={t('org.link.failed')} body={error} /> : null}
+    </Sheet>
+  );
+}
+
+/**
+ * A language's languages, behind one row: the one they translate into (its
+ * link to the language list) and the ones they understand, which their
+ * Bibles and guides are in (decision 130). Each opens where it is changed.
+ */
+function LanguagesRow(props: { ctx: Ctx; languageId: string; name: string; code: string; languoidId: string | null; may: boolean; last?: boolean }) {
+  const { ctx, languageId } = props;
+  const [open, setOpen] = useState<'menu' | 'link' | null>(null);
+  const linked = !!props.languoidId;
+  const linkedName = useLanguoidName(props.languoidId);
+  const understood = joinAnd(teamLanguages(ctx.org.state, ctx.language.state, languageId).map(languageLabel));
+  const target = !linked ? t('org.link.notLinked')
+    : linkedName ? t('org.link.linkedTo', { name: linkedName, code: props.code.toUpperCase() }) : t('org.link.linked', { code: props.code.toUpperCase() });
+  const unlinked = !linked && props.may ? { badge: t('org.link.linkIt'), badgeTone: 'amber' as const } : {};
+  return (
     <>
-      <Row icon="globe" label={t('org.link.row')}
-        sub={linked ? (linkedName ? t('org.link.linkedTo', { name: linkedName, code: props.code.toUpperCase() }) : t('org.link.linked', { code: props.code.toUpperCase() })) : t('org.link.notLinked')}
-        last={props.last} {...(!linked && props.may ? { badge: t('org.link.linkIt'), badgeTone: 'amber' as const } : {})}
-        help={linked ? t('org.link.rowHelp') : t('org.link.rowLinkHelp')}
-        {...(props.may ? { onPress: () => { setQuery(props.name); setPicked(null); setError(''); setOpen(true); } } : {})} />
-      <Sheet visible={open} title={linked ? t('org.link.titleAgain', { name: props.name }) : t('org.link.title', { name: props.name })} onClose={() => setOpen(false)}
-        sub={t('org.link.sub', { name: props.name })}
-        footer={<PrimaryBtn label={t('org.link.linkIt')} icon="check" busy={busy} disabled={!picked} onPress={() => void link()} />}>
-        <SearchField value={query} onChangeText={(q) => { setQuery(q); setPicked(null); }} placeholder={t('org.link.searchPlaceholder')} />
-        <LanguoidPicker search={search} picked={picked} onPick={setPicked}
-          unlisted={t('org.link.unlisted')} unreachable={t('org.link.unreachable')} />
-        {error ? <Banner icon="flag" tone="amber" title={t('org.link.failed')} body={error} /> : null}
+      <Row icon="globe" label={t('org.languages.row')} sub={t('org.languages.rowSub', { target: linkedName ?? props.name, understood })} last={props.last}
+        help={t('org.languages.rowHelp')} {...unlinked} onPress={() => setOpen('menu')} />
+      <Sheet visible={open === 'menu'} title={t('org.languages.row')} sub={props.name} onClose={() => setOpen(null)}>
+        <Group>
+          <Row icon="globe" label={t('org.languages.target')} sub={target} {...unlinked}
+            help={linked ? t('org.link.rowHelp') : t('org.link.rowLinkHelp')} {...(props.may ? { onPress: () => setOpen('link') } : {})} />
+          <Row icon="book" label={t('org.languages.understood')} sub={understood} help={t('org.languages.understoodHelp')} last
+            onPress={() => { setOpen(null); ctx.go('get_ready', { languageId, step: '2', only: '1', page: 'language' }); }} />
+        </Group>
       </Sheet>
+      <LanguoidLinkSheet ctx={ctx} visible={open === 'link'} onClose={() => setOpen(null)} languageId={languageId} name={props.name} linked={linked} />
     </>
   );
 }
 
 /**
- * The organization's name. Two organizations made offline can share one,
- * so an Organization Admin may rename theirs (decision 76). Everyone sees
- * the name; only they may change it. Not in the partner demo.
+ * The organization's name and license, beside its name at the top of its
+ * home (decision 76, docs/licensing.md): a pencil renames it, for whoever
+ * may (two organizations made offline can share one name); the license
+ * opens to read, and an Organization Admin may open it further, never close
+ * it. Every member sees both. Not in the partner demo (decision 38).
  */
-function OrgNameSection(props: { ctx: Ctx }) {
+function OrgNameAndLicense(props: { ctx: Ctx }) {
   const { ctx } = props;
-  return (
-    <RenameRow ctx={ctx} current={orgName(ctx.org.state) ?? ''} may={mayRenameOrg(ctx.org.state, ctx.session.actorId)}
-      title={t('org.rename.orgTitle')} sub={t('org.rename.orgSub')} what="rename organization" // i18n-ignore: log label
-      save={(name) => ctx.org.append('v1.OrgRenamed', { name }).then(() => undefined)} />
-  );
-}
-
-/**
- * The license the organization's work is under (docs/licensing.md). Every
- * member sees it, since it is their recordings; an Organization Admin may
- * open it further, never close it. Not in the partner demo (decision 38).
- */
-function LicenseSection(props: { ctx: Ctx }) {
-  const { ctx } = props;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<'name' | 'license' | null>(null);
   const [busy, setBusy] = useState(false);
+  const name = orgName(ctx.org.state) ?? '';
+  const mayRename = mayRenameOrg(ctx.org.state, ctx.session.actorId);
   const current = orgLicense(ctx.org.state);
   const may = mayChangeLicense(ctx.org.state, ctx.session.actorId);
-  async function openTo(license: License) {
+  const pencil = useHelpSpot(t('org.rename.orgTitle'), t('org.rename.rowHelp'), mayRename ? () => setOpen('name') : undefined);
+  const license = useHelpSpot(licenseText(current).name, t('org.home.licenseHelp'), () => setOpen('license'));
+  async function openTo(next: License) {
     // Someone else may have opened it further while the sheet was up.
-    if (!isMoreOpen(license, orgLicense(ctx.org.state))) { setOpen(false); return; }
+    if (!isMoreOpen(next, orgLicense(ctx.org.state))) { setOpen(null); return; }
     setBusy(true);
     try {
-      await ctx.org.append('v1.LicenseSet', { license });
-      setOpen(false);
-      ctx.toast(t('org.license.now', { license: licenseText(license).name }));
+      await ctx.org.append('v1.LicenseSet', { license: next });
+      setOpen(null);
+      ctx.toast(t('org.license.now', { license: licenseText(next).name }));
     } catch (e) {
       ctx.toast(failure('open license', e));
     } finally {
@@ -590,11 +595,28 @@ function LicenseSection(props: { ctx: Ctx }) {
     }
   }
   return (
-    <>
-      <LicenseRow license={current} onPress={() => setOpen(true)} last />
-      <LicenseSheet visible={open} mode={may ? 'open' : 'view'} current={current} busy={busy}
-        onClose={() => setOpen(false)} onConfirm={(l) => void openTo(l)} />
-    </>
+    <View style={{ gap: 4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+        <Text style={[txt.h3, { flexShrink: 1 }]}>{name}</Text>
+        {mayRename ? (
+          <Pressable testID="org-rename" onPress={pencil.onPress} accessibilityRole="button" accessibilityLabel={t('org.rename.orgTitle')} hitSlop={8}
+            style={({ pressed }) => [{ padding: space.xs }, pressed && { opacity: 0.7 }]}>
+            <Ico name="edit" size={18} color={C.primary} />
+            <HelpBadge spot={pencil} />
+          </Pressable>
+        ) : null}
+      </View>
+      <Pressable testID="org-license" onPress={license.onPress} accessibilityRole="button" style={({ pressed }) => [{ alignSelf: 'flex-start' }, pressed && { opacity: 0.7 }]}
+        accessibilityLabel={t('shell.license.rowLabel', { name: licenseText(current).name, short: licenseText(current).short })}>
+        <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{licenseText(current).name}</Text>
+        <HelpBadge spot={license} />
+      </Pressable>
+      <RenameSheet ctx={ctx} visible={open === 'name'} onClose={() => setOpen(null)} current={name}
+        title={t('org.rename.orgTitle')} sub={t('org.rename.orgSub')} what="rename organization" // i18n-ignore: log label
+        save={(next) => ctx.org.append('v1.OrgRenamed', { name: next }).then(() => undefined)} />
+      <LicenseSheet visible={open === 'license'} mode={may ? 'open' : 'view'} current={current} busy={busy}
+        onClose={() => setOpen(null)} onConfirm={(l) => void openTo(l)} />
+    </View>
   );
 }
 
@@ -605,9 +627,10 @@ function LicenseSection(props: { ctx: Ctx }) {
  * and LangReady): until it is ready for translators, the four questions that
  * get it ready; once it is, the same four as a summary (they record, what
  * helps them, who checks, people) with join requests under them, each row
- * opening one screen. Everything else the page had (progress, members,
- * review groups, roles, the public listing, the library behind each
- * question) is under More, one labelled tap deeper.
+ * opening one screen. Its name (a pencil) and clusters are at the top, where
+ * they show. Progress, roles, its languages and the public listing are under
+ * More, one labelled tap deeper; nothing there repeats a row above, and the
+ * organization's libraries open from the organization (decision 136).
  */
 export function LanguageHome(ctx: Ctx) {
   const v = useOrgView(ctx);
@@ -618,6 +641,7 @@ export function LanguageHome(ctx: Ctx) {
   const help = useHelpMode();
   const listing = usePublicListing(ctx);
   const more = ctx.details(`language_home:${languageId}:more`);
+  const [renaming, setRenaming] = useState(false);
   if (!v.state) return <Loading title={t('org.language.title')} />;
   const info = languageInfo(v.org, languageId);
   if (!info) {
@@ -643,45 +667,42 @@ export function LanguageHome(ctx: Ctx) {
     <Row leading={<IconTile icon="people" />} label={t('org.join.peopleWant', { count: requests.length })} sub={t('org.join.tapToLetIn')} last
       right={<CountBadge n={requests.length} />} help={t('org.join.manyHelp')} onPress={() => ctx.go('members_list', params)} />
   );
-  const clusters = clustersOf(v.org, languageId);
-  const showClusters = clusters.length > 0 || mayManageClusters(v.org, ctx.session.actorId);
+  const mayRename = mayRenameLanguage(v.org, ctx.session.actorId, languageId);
+  // The name and its clusters are changed where they show, at the top (decision 136).
+  const top = {
+    ...(mayRename ? { rename: { label: t('org.rename.languageTitle', { name }), help: t('org.rename.rowHelp'), onPress: () => setRenaming(true) } } : {}),
+    below: <LanguageClustersChip ctx={ctx} languageId={languageId} language={name} />
+  };
+  const renameSheet = (
+    <RenameSheet ctx={ctx} visible={renaming} onClose={() => setRenaming(false)} current={name}
+      title={t('org.rename.languageTitle', { name })} sub={t('org.rename.languageSub', { org: v.orgName, code: info.code.toUpperCase() })}
+      what="rename language" // i18n-ignore: log label
+      warn={(next) => {
+        const alike = similarLanguages(v.org, { code: '', name: next, except: languageId });
+        return alike.length ? t('org.rename.takenBody', { languages: alike.map((l) => `${l.name} (${l.code.toUpperCase()})`).join(t('admin.list.separator')) }) : null;
+      }}
+      save={(next) => ctx.org.append('v1.LanguageRenamed', { languageId, name: next }).then(() => undefined)} />
+  );
+  // What is set once and seldom changed. Each library (ways to divide, Bibles and guides, check sets) is the
+  // organization's and opens from its Setup; each of the four rows above opens its part of it (decision 136).
   const moreCard = (
     <Disclosure icon="settings" title={t('org.more.title')}
-      summary={[t('org.more.summary.progress'), t('org.more.summary.members'), t('org.more.summary.roles'),
-        listing.may ? t('org.more.summary.publicListing') : '', t('org.more.summary.name'), t('org.more.summary.languageList'),
-        showClusters ? t('org.more.summary.cluster') : ''].filter(Boolean).join(t('admin.list.separator'))}
+      summary={[t('org.more.summary.progress'), t('org.more.summary.roles'), t('org.more.summary.languages'),
+        listing.may ? t('org.more.summary.publicListing') : ''].filter(Boolean).join(t('admin.list.separator'))}
       open={more.open} onToggle={more.onToggle} {...(more.open ? {} : { help: t('org.more.titleHelp') })}>
       <View style={{ padding: space.lg, gap: space.sm }}>
         <Text style={txt.xs}>{t('org.more.orgAndCode', { org: v.orgName, code: info.code.toUpperCase() })}</Text>
         <HomeProgressBars p={v.progressOf(languageId) ?? { total: 0, recorded: 0, done: 0 }} />
       </View>
       {s.readiness.ready ? null : <Row icon="book" label={t('org.more.seeWork')} sub={t('org.more.seeWorkSub')} onPress={openMap} />}
-      <Row icon="people" label={t('org.people.members')} sub={t('org.more.membersSub', { count: membersAt(memberEntries(v.org), 'language', languageId).length, language: name })}
-        help={t('org.people.membersHelp')} onPress={() => ctx.go('members_list', params)} />
       {/* Roles are the organization's: whoever may change them opens them there (decision 63). */}
       <Row icon="star" label={t('org.setup.roles')} sub={t('org.more.rolesSub', { count: liveRoles(ctx.org.state?.roles).length })} help={t('org.setup.rolesHelp')}
         onPress={() => ctx.go('roles_home', v.org && privilegesFor(v.org, ctx.session.actorId).has('manage_roles') ? { level: 'org' } : params)} />
-      {can('manage_templates') ? <Row icon="template" label={t('org.more.templates')} sub={t('org.more.templatesSub')} onPress={() => ctx.go('templates_home', { level: 'language', languageId })} /> : null}
-      {can('manage_reference') ? <Row icon="layers" label={t('org.more.reference')} sub={t('org.more.referenceSub')} onPress={() => ctx.go('reference_home', params)} /> : null}
-      {can('manage_flows') ? <Row icon="flow" label={t('org.more.flows')} sub={t('org.more.flowsSub')} onPress={() => ctx.go('flows_home', params)} /> : null}
+      <LanguagesRow ctx={ctx} languageId={languageId} name={name} code={info.code} languoidId={info.languoidId} may={mayRename} last={!listing.may} />
       {listing.may ? (
-        <Row icon="globe" label={t('org.more.publicList')} sub={t('org.more.publicListSub')} role="switch" checked={listing.listed} disabled={listing.busy}
+        <Row icon="globe" label={t('org.more.publicList')} sub={t('org.more.publicListSub')} role="switch" checked={listing.listed} disabled={listing.busy} last
           help={listing.listed ? t('org.more.publicListOnHelp') : t('org.more.publicListOffHelp')} onPress={() => void listing.set(!listing.listed)} />
       ) : null}
-      <Row icon="building" label={v.orgName} sub={t('org.more.orgPage')} onPress={() => ctx.go('org_home')} />
-      {/* Its name and its link to the language list: whoever manages its structure, here or for the organization, changes them (decision 76). */}
-      <RenameRow ctx={ctx} current={name} may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)}
-        title={t('org.rename.languageTitle', { name })} sub={t('org.rename.languageSub', { org: v.orgName, code: info.code.toUpperCase() })}
-        what="rename language" // i18n-ignore: log label
-        warn={(next) => {
-          const alike = similarLanguages(v.org, { code: '', name: next, except: languageId });
-          return alike.length ? t('org.rename.takenBody', { languages: alike.map((l) => `${l.name} (${l.code.toUpperCase()})`).join(t('admin.list.separator')) }) : null;
-        }}
-        save={(next) => ctx.org.append('v1.LanguageRenamed', { languageId, name: next }).then(() => undefined)} />
-      <LanguoidLinkRow ctx={ctx} languageId={languageId} name={name} code={info.code} languoidId={info.languoidId}
-        may={mayRenameLanguage(v.org, ctx.session.actorId, languageId)} last={!showClusters} />
-      {/* The clusters it is in (decision 108): a name the organization puts on it, nothing more. */}
-      <LanguageClustersRow ctx={ctx} languageId={languageId} language={name} last />
     </Disclosure>
   );
   const listingError = listing.error ? <Banner icon="flag" tone="amber" title={t('org.listing.failed')} body={listing.error} /> : null;
@@ -689,7 +710,7 @@ export function LanguageHome(ctx: Ctx) {
   if (!s.readiness.ready) {
     const next = s.readiness.current;
     return (
-      <Screen header={<BigTop onBack={back} over={name} title={t('getReady.title', { language: name })} />} bodyStyle={{ gap: space.md }}
+      <Screen header={<BigTop onBack={back} over={name} title={t('getReady.title', { language: name })} {...top} />} bodyStyle={{ gap: space.md }}
         footer={next >= 0 ? <PrimaryBtn label={questionLabel(QUESTIONS[next]!.id)} icon="right" help={t('getReady.nextQuestionHelp')}
           onPress={() => ctx.go('get_ready', { languageId, step: String(next + 1) })} /> : undefined}>
         <ReadyChecklist ctx={ctx} s={s} />
@@ -698,11 +719,12 @@ export function LanguageHome(ctx: Ctx) {
         {joinRows ? <Group>{joinRows}</Group> : null}
         {moreCard}
         {listingError}
+        {renameSheet}
       </Screen>
     );
   }
   return (
-    <Screen header={<BigTop onBack={back} {...(clusters.length ? { over: clusters.map((c) => c.name).join(t('admin.list.separator')) } : {})} title={name}
+    <Screen header={<BigTop onBack={back} title={name} {...top}
       status={t('org.language.readyStatus', { count: n })} statusTone="green" />} bodyStyle={{ gap: space.md }}
       footer={<PrimaryBtn label={t('org.more.seeWork')} icon="book" help={t('org.more.seeWorkHelp')} onPress={openMap} />}>
       <Group>
@@ -718,6 +740,7 @@ export function LanguageHome(ctx: Ctx) {
       </Group>
       {moreCard}
       {listingError}
+      {renameSheet}
     </Screen>
   );
 }

@@ -689,8 +689,7 @@
         "flowsFirst": "Review flows",
         "flows": "review flows",
         "rolesFirst": "Roles",
-        "roles": "roles",
-        "nameAndLicense": "name and license"
+        "roles": "roles"
       },
       "titleHelp": "Shows what is set up once and seldom changed: roles, the name, the license.",
       "templatesHelp": "Opens the ways to divide the work into passages, and which one each language uses.",
@@ -726,7 +725,6 @@
     },
     "rename": {
       "done": "Renamed to {{name}}.",
-      "row": "Name",
       "save": "Save the name",
       "taken": "That name is taken here",
       "failed": "Not renamed",
@@ -739,7 +737,6 @@
     },
     "link": {
       "done": "{{name}} is linked to {{linked}}.",
-      "row": "In the language list",
       "linkedTo": "Linked to {{name}} · {{code}}",
       "linked": "Linked to it · {{code}}",
       "notLinked": "Not linked yet: added offline, or not found there",
@@ -795,29 +792,17 @@
       "title": "More",
       "summary": {
         "progress": "Progress",
-        "members": "members",
         "roles": "roles",
         "publicListing": "public listing",
-        "name": "name",
-        "languageList": "language list",
-        "cluster": "cluster"
+        "languages": "languages"
       },
       "orgAndCode": "{{org}} · Code {{code}}",
       "seeWork": "See their work",
       "seeWorkSub": "Every passage, and how far it has come",
-      "membersSub_one": "{{count, number}} given a role in {{language}}",
-      "membersSub_other": "{{count, number}} given a role in {{language}}",
       "rolesSub_one": "{{count, number}} role · what each can do",
       "rolesSub_other": "{{count, number}} roles · what each can do",
-      "templates": "Every way to divide the work",
-      "templatesSub": "The organization's library of passages and outlines",
-      "reference": "Bibles, guides and notes",
-      "referenceSub": "Everything in the library, coverage and sharing",
-      "flows": "Every way to check",
-      "flowsSub": "The organization's review flows",
       "publicList": "Show on the public list",
       "publicListSub": "Only the language's name and progress",
-      "orgPage": "The organization's page",
       "titleHelp": "Shows the rest: progress, people, roles, its name and more.",
       "seeWorkHelp": "Opens the map: every passage, and how far it has come.",
       "publicListOnHelp": "On: its name and progress are on the public list. Tap to take them off.",
@@ -1009,6 +994,14 @@
       "guides": "{{name}}'s study guides",
       "theBible": "the {{name}}",
       "guidesIn": "{{name}}'s study guides in {{language}}"
+    },
+    "languages": {
+      "row": "Languages",
+      "rowSub": "{{target}} · {{understood}}",
+      "rowHelp": "Opens the language they translate into, and the languages they understand.",
+      "target": "They translate into",
+      "understood": "They understand",
+      "understoodHelp": "Opens the languages their Bibles and guides are in, to change them."
     }
   },
   "admin": {
@@ -1285,7 +1278,9 @@
       "bookOffHelp": "Tap to choose this book.",
       "nextHelp": "Keeps this answer, then on to the next question.",
       "useThisHelp": "They translate this from now on. Then back to the language's page.",
-      "keepItHelp": "Keeps what they translate now, and goes back."
+      "keepItHelp": "Keeps what they translate now, and goes back.",
+      "eachBook": "Each book's passages",
+      "eachBookHelp": "Opens each book, to change where its passages start and end."
     },
     "media": {
       "both": "Audio and text",
@@ -6869,7 +6864,8 @@
       "startHelp": "Replaces the checks with a ready-made set, to change as you like.",
       "useHelp": "Replaces {{language}}'s checks with these. Undo puts them back.",
       "pickHelp": "Picks it. Use, at the bottom, then replaces the checks with its own.",
-      "replaceAsk": "Replace {{language}}'s own checks with {{name}}?"
+      "replaceAsk": "Replace {{language}}'s own checks with {{name}}?",
+      "keep": "Keep as a ready-made flow"
     },
     "gone": "This is no longer one of the language's checks",
     "checkOf": "Check {{n}} · {{language}}",
@@ -7102,21 +7098,20 @@
       "keepHelp": "Closes this. The cluster stays as it is."
     },
     "language": {
-      "label": "Cluster",
-      "none": "Not in a cluster",
       "sheetTitle": "Which cluster is it in?",
       "count_one": "{{count, number}} language",
       "count_other": "{{count, number}} languages",
       "newLabel": "Or a new cluster",
       "firstLabel": "Put it in a new cluster",
-      "note": "A language can be in more than one cluster, or none. Nothing about the language changes.",
       "done": "Done",
       "saved": "{{language}}'s clusters saved.",
       "rowHelp": "Choose which clusters it is in, or put it in a new one.",
       "inHelp": "In this cluster. Tap to take it out.",
       "outHelp": "Not in this cluster. Tap to put it in.",
       "newHelp": "Type a name: it goes in a new cluster by that name.",
-      "doneHelp": "Saves which clusters it is in."
+      "doneHelp": "Saves which clusters it is in.",
+      "add": "Add to a cluster",
+      "chipHelp": "The clusters it is in."
     },
     "newLanguage": {
       "what": "What are you adding?",

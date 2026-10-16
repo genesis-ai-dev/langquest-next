@@ -682,8 +682,7 @@
         "flowsFirst": "审核流程",
         "flows": "审核流程",
         "rolesFirst": "角色",
-        "roles": "角色",
-        "nameAndLicense": "名称和许可协议"
+        "roles": "角色"
       },
       "titleHelp": "显示只设置一次、很少更改的内容：角色、名称、许可协议。",
       "templatesHelp": "打开把工作划分成经段的各种方式，以及每个语言用的是哪一种。",
@@ -716,7 +715,6 @@
     },
     "rename": {
       "done": "已重命名为{{name}}。",
-      "row": "名称",
       "save": "保存名称",
       "taken": "这里已经有这个名称了",
       "failed": "未重命名",
@@ -729,7 +727,6 @@
     },
     "link": {
       "done": "{{name}}已关联到{{linked}}。",
-      "row": "在语言列表中",
       "linkedTo": "已关联到{{name}} · {{code}}",
       "linked": "已关联 · {{code}}",
       "notLinked": "还没有关联：离线时添加的，或者在列表中找不到",
@@ -782,27 +779,16 @@
       "title": "更多",
       "summary": {
         "progress": "进展",
-        "members": "成员",
         "roles": "角色",
         "publicListing": "公开列表",
-        "name": "名称",
-        "languageList": "语言列表",
-        "cluster": "语言群"
+        "languages": "语言"
       },
       "orgAndCode": "{{org}} · 代码 {{code}}",
       "seeWork": "查看他们的工作",
       "seeWorkSub": "所有经段，以及各自的进展",
-      "membersSub_other": "{{count, number}} 人在{{language}}中有角色",
       "rolesSub_other": "{{count, number}} 个角色 · 各自能做什么",
-      "templates": "所有划分工作的方式",
-      "templatesSub": "机构的经段和大纲资料库",
-      "reference": "圣经、指南和注释",
-      "referenceSub": "资料库中的所有内容、覆盖范围和分享",
-      "flows": "所有检查方式",
-      "flowsSub": "机构的审核流程",
       "publicList": "在公开列表中显示",
       "publicListSub": "只显示语言名称和进展",
-      "orgPage": "机构页面",
       "titleHelp": "显示其余内容：进展、人员、角色、名称等。",
       "seeWorkHelp": "打开地图：所有经段，以及各自的进展。",
       "publicListOnHelp": "已开启：它的名称和进展在公开列表中。点按可以移除。",
@@ -989,6 +975,14 @@
       "guides": "{{name}}的学习指南",
       "theBible": "{{name}}",
       "guidesIn": "{{language}}的{{name}}学习指南"
+    },
+    "languages": {
+      "row": "语言",
+      "rowSub": "{{target}} · {{understood}}",
+      "rowHelp": "打开他们译入的语言，以及他们懂的语言。",
+      "target": "他们译入",
+      "understood": "他们懂",
+      "understoodHelp": "打开他们的圣经和指南所用的语言，以便更改。"
     }
   },
   "admin": {
@@ -1256,7 +1250,9 @@
       "bookOffHelp": "点按选择这卷书。",
       "nextHelp": "保留这个回答，然后进入下一个问题。",
       "useThisHelp": "从现在起他们翻译这个。然后回到这个语言的页面。",
-      "keepItHelp": "保持他们现在翻译的内容不变，然后返回。"
+      "keepItHelp": "保持他们现在翻译的内容不变，然后返回。",
+      "eachBook": "每卷书的段落",
+      "eachBookHelp": "打开每卷书，更改其段落的起止位置。"
     },
     "media": {
       "both": "音频和文字",
@@ -6579,7 +6575,8 @@
       "startHelp": "用一套现成的检查替换现有检查，之后可以随意修改。",
       "useHelp": "用这些替换{{language}}的检查。“撤销”可以恢复。",
       "pickHelp": "选择它。然后点按底部的“使用”，用它的检查替换现有检查。",
-      "replaceAsk": "用{{name}}替换{{language}}自己的检查？"
+      "replaceAsk": "用{{name}}替换{{language}}自己的检查？",
+      "keep": "保存为现成的流程"
     },
     "gone": "这项检查已不属于这个语言",
     "checkOf": "第 {{n}} 项检查 · {{language}}",
@@ -6802,20 +6799,19 @@
       "keepHelp": "关闭。语言群保持不变。"
     },
     "language": {
-      "label": "语言群",
-      "none": "不在任何语言群中",
       "sheetTitle": "它在哪个语言群中？",
       "count_other": "{{count, number}} 种语言",
       "newLabel": "或一个新语言群",
       "firstLabel": "放入一个新语言群",
-      "note": "一种语言可以在多个语言群中，也可以不在任何语言群中。语言本身不会有任何改变。",
       "done": "完成",
       "saved": "已保存 {{language}} 的语言群。",
       "rowHelp": "选择它属于哪些语言群，或者把它放入一个新语言群。",
       "inHelp": "在这个语言群中。点按可以移出。",
       "outHelp": "不在这个语言群中。点按可以加入。",
       "newHelp": "输入一个名称：它会放入以这个名称命名的新语言群。",
-      "doneHelp": "保存它所属的语言群。"
+      "doneHelp": "保存它所属的语言群。",
+      "add": "加入语言群",
+      "chipHelp": "它所在的语言群。"
     },
     "newLanguage": {
       "what": "你要添加什么？",

@@ -682,8 +682,7 @@
         "flowsFirst": "Alur pemeriksaan",
         "flows": "alur pemeriksaan",
         "rolesFirst": "Peran",
-        "roles": "peran",
-        "nameAndLicense": "nama dan lisensi"
+        "roles": "peran"
       },
       "titleHelp": "Menampilkan hal yang diatur sekali dan jarang diubah: peran, nama, lisensi.",
       "templatesHelp": "Membuka cara-cara membagi pekerjaan menjadi perikop, dan cara yang dipakai setiap bahasa.",
@@ -716,7 +715,6 @@
     },
     "rename": {
       "done": "Nama diganti menjadi {{name}}.",
-      "row": "Nama",
       "save": "Simpan nama",
       "taken": "Nama itu sudah dipakai di sini",
       "failed": "Nama tidak diganti",
@@ -729,7 +727,6 @@
     },
     "link": {
       "done": "{{name}} ditautkan ke {{linked}}.",
-      "row": "Di daftar bahasa",
       "linkedTo": "Ditautkan ke {{name}} · {{code}}",
       "linked": "Sudah ditautkan · {{code}}",
       "notLinked": "Belum ditautkan: ditambahkan saat offline, atau tidak ditemukan di sana",
@@ -782,27 +779,16 @@
       "title": "Lainnya",
       "summary": {
         "progress": "Perkembangan",
-        "members": "anggota",
         "roles": "peran",
         "publicListing": "daftar publik",
-        "name": "nama",
-        "languageList": "daftar bahasa",
-        "cluster": "rumpun"
+        "languages": "bahasa"
       },
       "orgAndCode": "{{org}} · Kode {{code}}",
       "seeWork": "Lihat pekerjaan mereka",
       "seeWorkSub": "Setiap perikop, dan sejauh mana perkembangannya",
-      "membersSub_other": "{{count, number}} diberi peran di {{language}}",
       "rolesSub_other": "{{count, number}} peran · apa yang dapat dilakukan masing-masing",
-      "templates": "Semua cara membagi pekerjaan",
-      "templatesSub": "Perpustakaan perikop dan kerangka milik organisasi",
-      "reference": "Alkitab, panduan, dan catatan",
-      "referenceSub": "Semua isi perpustakaan, cakupan, dan berbagi",
-      "flows": "Semua cara memeriksa",
-      "flowsSub": "Alur pemeriksaan organisasi",
       "publicList": "Tampilkan di daftar publik",
       "publicListSub": "Hanya nama dan perkembangan bahasa ini",
-      "orgPage": "Halaman organisasi",
       "titleHelp": "Menampilkan sisanya: perkembangan, orang, peran, namanya, dan lainnya.",
       "seeWorkHelp": "Membuka peta: setiap perikop, dan sejauh mana perkembangannya.",
       "publicListOnHelp": "Aktif: nama dan perkembangannya ada di daftar publik. Ketuk untuk menghapusnya dari sana.",
@@ -989,6 +975,14 @@
       "guides": "panduan studi {{name}}",
       "theBible": "{{name}}",
       "guidesIn": "panduan studi {{name}} dalam bahasa {{language}}"
+    },
+    "languages": {
+      "row": "Bahasa",
+      "rowSub": "{{target}} · {{understood}}",
+      "rowHelp": "Membuka bahasa tujuan terjemahan mereka, dan bahasa yang mereka pahami.",
+      "target": "Mereka menerjemahkan ke",
+      "understood": "Mereka pahami",
+      "understoodHelp": "Membuka bahasa Alkitab dan panduan mereka, untuk mengubahnya."
     }
   },
   "admin": {
@@ -1256,7 +1250,9 @@
       "bookOffHelp": "Ketuk untuk memilih kitab ini.",
       "nextHelp": "Menyimpan jawaban ini, lalu lanjut ke pertanyaan berikutnya.",
       "useThisHelp": "Mereka menerjemahkan ini mulai sekarang. Lalu kembali ke halaman bahasa itu.",
-      "keepItHelp": "Tetap pada apa yang mereka terjemahkan sekarang, lalu kembali."
+      "keepItHelp": "Tetap pada apa yang mereka terjemahkan sekarang, lalu kembali.",
+      "eachBook": "Perikop tiap kitab",
+      "eachBookHelp": "Membuka tiap kitab, untuk mengubah awal dan akhir perikopnya."
     },
     "media": {
       "both": "Audio dan teks",
@@ -6579,7 +6575,8 @@
       "startHelp": "Mengganti pemeriksaan dengan kumpulan siap pakai, untuk diubah sesuka Anda.",
       "useHelp": "Mengganti pemeriksaan {{language}} dengan yang ini. Urungkan mengembalikannya.",
       "pickHelp": "Memilihnya. Lalu ketuk Pakai di bagian bawah untuk mengganti pemeriksaan dengan pemeriksaannya.",
-      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?"
+      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?",
+      "keep": "Simpan sebagai alur siap pakai"
     },
     "gone": "Ini bukan lagi salah satu pemeriksaan bahasa ini",
     "checkOf": "Pemeriksaan {{n}} · {{language}}",
@@ -6802,20 +6799,19 @@
       "keepHelp": "Menutup ini. Rumpun tetap seperti semula."
     },
     "language": {
-      "label": "Rumpun",
-      "none": "Tidak dalam rumpun",
       "sheetTitle": "Di rumpun mana bahasa ini?",
       "count_other": "{{count, number}} bahasa",
       "newLabel": "Atau rumpun baru",
       "firstLabel": "Masukkan ke rumpun baru",
-      "note": "Sebuah bahasa bisa berada di lebih dari satu rumpun, atau tidak di mana pun. Tidak ada yang berubah pada bahasanya.",
       "done": "Selesai",
       "saved": "Rumpun {{language}} disimpan.",
       "rowHelp": "Pilih rumpun mana saja yang mencakup bahasa ini, atau masukkan ke rumpun baru.",
       "inHelp": "Ada di rumpun ini. Ketuk untuk mengeluarkannya.",
       "outHelp": "Tidak ada di rumpun ini. Ketuk untuk memasukkannya.",
       "newHelp": "Ketik nama: bahasa ini masuk ke rumpun baru dengan nama itu.",
-      "doneHelp": "Menyimpan rumpun mana saja yang mencakup bahasa ini."
+      "doneHelp": "Menyimpan rumpun mana saja yang mencakup bahasa ini.",
+      "add": "Tambahkan ke rumpun",
+      "chipHelp": "Rumpun tempat bahasa ini berada."
     },
     "newLanguage": {
       "what": "Apa yang Anda tambahkan?",

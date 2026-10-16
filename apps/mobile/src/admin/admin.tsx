@@ -67,9 +67,16 @@ export function HelpButton() {
  * tab's root. While help is on, the ? is filled and stays lit, as in the
  * kit's header.
  */
-export function BigTop(props: { onBack?: () => void; over?: string; title: string; status?: string; statusTone?: 'green' | 'amber' | 'muted' }) {
+export function BigTop(props: {
+  onBack?: () => void; over?: string; title: string; status?: string; statusTone?: 'green' | 'amber' | 'muted';
+  /** A pencil beside the title that opens its rename: the name is changed where it is shown. */
+  rename?: { label: string; help: string; onPress: () => void };
+  /** Under the title, before the status: what it belongs to, such as its clusters. */
+  below?: ReactNode;
+}) {
   const tone = props.statusTone === 'green' ? TINT.greenText : props.statusTone === 'amber' ? TINT.amberText : C.muted;
   const back = useHelpSpot(t('common.back'), t('help.details.back'), props.onBack);
+  const pencil = useHelpSpot(props.rename?.label ?? '', props.rename?.help ?? '', props.rename?.onPress);
   return (
     <View style={styles.bigTop}>
       <View style={styles.bigTopBar}>
@@ -82,7 +89,17 @@ export function BigTop(props: { onBack?: () => void; over?: string; title: strin
         <HelpButton />
       </View>
       {props.over ? <Text style={styles.over}>{props.over}</Text> : null}
-      <Text style={styles.bigTitle} accessibilityRole="header">{props.title}</Text>
+      <View style={styles.bigTitleLine}>
+        <Text style={[styles.bigTitle, { flexShrink: 1 }]} accessibilityRole="header">{props.title}</Text>
+        {props.rename ? (
+          <Pressable testID="title-rename" onPress={pencil.onPress} accessibilityRole="button" accessibilityLabel={props.rename.label} hitSlop={8}
+            style={({ pressed }) => [styles.pencil, pressed && styles.pressed]}>
+            <Ico name="edit" size={20} color={C.primary} />
+            <HelpBadge spot={pencil} />
+          </Pressable>
+        ) : null}
+      </View>
+      {props.below}
       {props.status ? <Text style={[styles.status, { color: tone }]}>{props.status}</Text> : null}
     </View>
   );
@@ -376,6 +393,8 @@ const styles = StyleSheet.create({
   bigTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.sm },
   over: { fontSize: 14, fontWeight: '700', color: C.muted },
   bigTitle: { fontSize: 28, fontWeight: '800', color: C.dark, marginTop: 2 },
+  bigTitleLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  pencil: { width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' },
   status: { fontSize: T.sm, fontWeight: '700', marginTop: 2 },
   work: { gap: space.md, paddingTop: space.sm, paddingHorizontal: space.xs },
   workRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 32 },
