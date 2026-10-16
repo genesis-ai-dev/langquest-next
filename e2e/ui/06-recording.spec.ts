@@ -133,7 +133,7 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await expect(text(page, 'Part 1…')).toBeVisible();
   await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
-  await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expect(publishButton(page)).toHaveCount(0);
   for (const [i, ms] of [4000, 4000, 3000].entries()) {
     await m.speak(true);
     await expect(text(page, 'Recording…')).toBeVisible();
@@ -243,7 +243,7 @@ test('REC-008 Parts cannot be deleted while recording', async ({ page }) => {
     await expect(verseSpace(page, n)).toHaveAttribute('aria-disabled', 'true');
     await expect(button(page, `Play Part ${n}`)).toHaveAttribute('aria-disabled', 'true');
   }
-  await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expect(publishButton(page)).toHaveCount(0);
   // A hold on the space does nothing: no sheet, no toast.
   const box = (await verseSpace(page, 1).boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

@@ -190,7 +190,7 @@ Steps:
 
 Expected:
 - During steps 3 and 4 the verse spaces and play buttons are dimmed and do nothing: no sheet opens, no toast shows, and no part is removed.
-- The footer's "Done" is disabled while recording; afterwards the saved mark shows its check.
+- While recording the footer has no "Done" (the recording view's check is Done); afterwards it is back and the saved mark shows its check.
 - After step 5 every control is enabled again, and the draft still has three parts.
 
 ### REC-009 Deleting the only part leaves nothing to publish
