@@ -47,9 +47,11 @@ export default defineConfig({
     trace: 'off', video: 'off', screenshot: 'only-on-failure'
   },
   projects: [
-    // Phone width, the default for every test. Tests tagged @wide run only in the wide project.
-    { name: 'phone', grepInvert: /@wide/, use: { ...devices['Desktop Chrome'], ...chrome, viewport: { width: 430, height: 932 }, ...mic } },
-    { name: 'wide', grep: /@wide/, use: { ...devices['Desktop Chrome'], ...chrome, viewport: { width: 1280, height: 900 }, ...mic } }
+    // Tests tagged @wide run only in the wide project; it is listed first so its few long
+    // journeys start at once rather than last, alone (and land in CI's first shard).
+    { name: 'wide', grep: /@wide/, use: { ...devices['Desktop Chrome'], ...chrome, viewport: { width: 1280, height: 900 }, ...mic } },
+    // Phone width, the default for every test.
+    { name: 'phone', grepInvert: /@wide/, use: { ...devices['Desktop Chrome'], ...chrome, viewport: { width: 430, height: 932 }, ...mic } }
   ],
   webServer: dev
     ? [

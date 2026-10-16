@@ -63,7 +63,7 @@ export function useRefItems(ctx: Ctx, include?: (it: LibraryItemView) => boolean
   // The org fold changes the library in place, so the list is read every render and kept while its versions are the same.
   const fresh = libraryItems(ctx.org.state?.library ?? {}, 'material').filter((it) => it.current && (include ? include(it) : true));
   const signature = fresh.map((it) => `${it.itemId}:${it.current}:${it.name}:${it.archived}:${it.source}:${it.versions.length}`).join('|');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature names the items: a new list of the same ones keeps its identity
   const items = useMemo(() => fresh, [signature]);
   const docs = useLibraryDocs(lib.orgId, items.map((it) => it.current));
   const rows: RefItem[] = useMemo(() => items.map((it) => {

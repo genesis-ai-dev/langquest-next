@@ -1,9 +1,12 @@
+import { REDUCER_VERSION } from '@langquest-next/core';
 import { always, Fleet, FLEET_EPOCH, NETWORKS, TIME } from '@langquest-next/sync/src/testing';
 import type { Scenario } from './types';
 
 /**
  * A release changes REDUCER_VERSION, so every phone throws its checkpoint
- * away and catches up through the server snapshot (decision 18), while the
+ * away and catches up again through the server snapshot (decisions 18 and
+ * 110), keeping its own log and outbox (`--keepStore=0` models it as a
+ * reinstall with an empty store, as this scenario did before), while the
  * team keeps working and the projection pass rewrites the snapshot every
  * five minutes (audit items 4 and 5). Updates reach phones over an hour.
  * Read the snapshot outcomes (`stale` means a download was thrown away),
@@ -14,7 +17,7 @@ import type { Scenario } from './types';
 export const reducerBump: Scenario = {
   name: 'reducerBump',
   summary: 'Every phone cold-starts through the server snapshot while the team keeps working.',
-  defaults: { seed: 1, passages: 600, translators: 8, reviewers: 5, historyDays: 3, slowShare: 0.3, slowKBps: 20, snapshotEveryMin: 5, snapshotMinNew: 200, snapshotMaxAgeMin: 60, snapshotRetainHours: 24, chunkKB: 256 },
+  defaults: { seed: 1, passages: 600, translators: 8, reviewers: 5, historyDays: 3, slowShare: 0.3, slowKBps: 20, snapshotEveryMin: 5, snapshotMinNew: 200, snapshotMaxAgeMin: 60, snapshotRetainHours: 24, chunkKB: 256, keepStore: 1 },
   async run(k) {
     const started = performance.now();
     const slow = { ...NETWORKS.slow, bytesPerSecond: k.slowKBps! * 1000 };
@@ -33,10 +36,11 @@ export const reducerBump: Scenario = {
       }
     });
     await fleet.start();
-    // The update lands during working hours, spread over an hour.
+    // The update lands during working hours: on the server first, then on phones over an hour.
     const at = k.historyDays! * TIME.DAY + 9 * TIME.HOUR;
+    if (k.keepStore) fleet.at(at, () => fleet.deployReducer(REDUCER_VERSION + 1));
     for (const [i, d] of fleet.devices.entries()) {
-      fleet.at(at + Math.round((i / fleet.devices.length) * TIME.HOUR), () => d.reinstall());
+      fleet.at(at + Math.round((i / fleet.devices.length) * TIME.HOUR), () => (k.keepStore ? d.update(REDUCER_VERSION + 1) : d.reinstall()));
     }
     await fleet.time.runUntil(FLEET_EPOCH + at + TIME.DAY);
     const agreement = await fleet.settle();

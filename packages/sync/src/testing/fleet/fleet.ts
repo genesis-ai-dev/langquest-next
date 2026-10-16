@@ -49,6 +49,8 @@ export interface FleetOptions {
    * before the organization stream lists it (they are re-queued on every push).
    */
   unlistedUntil?: number;
+  /** Each phone's `checkpointEvery` (the app's is 2000), so a short run checkpoints and prunes. */
+  checkpointEvery?: number;
 }
 
 /**
@@ -83,7 +85,8 @@ export class Fleet {
       realtime: options.realtime ?? { on: true, delayMs: 1_000 },
       working: () => this.working,
       audio: options.audio ?? null,
-      recordedAt: new Map()
+      recordedAt: new Map(),
+      ...(options.checkpointEvery !== undefined ? { checkpointEvery: options.checkpointEvery } : {})
     };
     const { crew } = options;
     const work = crew.work ?? OFFICE_HOURS;
@@ -133,7 +136,8 @@ export class Fleet {
     this.time.setTimeout(() => {
       const head = this.server.head(this.orgId, this.streamId);
       const moved = head - this.lastSnapshotSeq;
-      const first = this.snapshotsTaken === 0 && head > 0;
+      // As the server: write at once when there is no snapshot for the reducer it runs.
+      const first = head > 0 && this.server.snapshots.get(`${this.orgId}/${this.streamId}`)?.reducerVersion !== this.server.reducerVersion;
       const redaction = !first && this.server.stream(this.orgId, this.streamId).slice(this.lastSnapshotSeq).some((e) => e.type === 'v1.Redacted');
       if (first || redaction || moved >= o.minNewEvents || (moved > 0 && this.time.now() - this.lastSnapshotAt >= o.maxAgeMs)) {
         this.server.makeSnapshot(this.orgId, this.streamId);
@@ -143,6 +147,15 @@ export class Fleet {
       }
       this.snapshotPass(o);
     }, o.everyMs);
+  }
+
+  /**
+   * A release that changes REDUCER_VERSION reaches the server: from its next
+   * pass the snapshot worker writes snapshots for `version`, and until then
+   * there is none for it. Phones get it later, with `SimDevice.update`.
+   */
+  deployReducer(version: number): void {
+    this.server.reducerVersion = version;
   }
 
   /** Audio recorded on phones that the server does not hold yet. */

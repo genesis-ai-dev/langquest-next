@@ -38,9 +38,10 @@ export function LicenseSheet(props: {
   const [picked, setPicked] = useState<License>(props.current);
   const [confirming, setConfirming] = useState(false);
   // Opening again starts from where the organization stands now.
+  const { visible, current } = props;
   useEffect(() => {
-    if (props.visible) { setPicked(props.current); setConfirming(false); }
-  }, [props.visible, props.current]);
+    if (visible) { setPicked(current); setConfirming(false); }
+  }, [visible, current]);
   const floor = props.mode === 'open' ? props.current : 'all-rights-reserved';
   const info = LICENSE_INFO[picked];
   const words = licenseText(picked);

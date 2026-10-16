@@ -1,4 +1,4 @@
-import { CLIENT_PROTOCOL_VERSION, takeSnapshot, type AnyEvent, type Snapshot } from '@langquest-next/core';
+import { CLIENT_PROTOCOL_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type Snapshot } from '@langquest-next/core';
 import type { AppendResult, Transport } from '../types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError } from '../types';
 
@@ -37,6 +37,8 @@ export class FakeServer {
   /** Clients below this protocol version are refused, like the server RPCs. */
   minClientVersion = 0;
   readonly snapshots = new Map<string, Snapshot>();
+  /** The reducer the snapshot worker runs; a test raises it to model a deploy that bumps REDUCER_VERSION. */
+  reducerVersion = REDUCER_VERSION;
   /**
    * How long a replaced snapshot can still be downloaded (put_snapshot keeps
    * it 24 hours, decisions.md 88). 0 drops it at once, as put_snapshot did.
@@ -143,7 +145,7 @@ export class FakeServer {
 
   /** What the snapshot worker does: fold the whole stream and store it. */
   makeSnapshot(orgId: string, streamId: string): Snapshot {
-    const s = takeSnapshot(orgId, streamId, [...this.stream(orgId, streamId)]);
+    const s = { ...takeSnapshot(orgId, streamId, [...this.stream(orgId, streamId)]), reducerVersion: this.reducerVersion };
     const key = `${orgId}/${streamId}`;
     const previous = this.snapshots.get(key);
     const now = this.now();

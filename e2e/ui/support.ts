@@ -19,17 +19,19 @@ export type PassageKey = keyof UiWorld['passages'];
 
 /**
  * Spec files call `const w = useWorld()` at the top; `w()` is the world inside tests.
- * One world per spec file per run: when a test fails Playwright starts a new
- * worker, and a fresh world there would strand the file's later tests (they
- * build on what earlier ones did). The world is kept beside the results under
- * the run's id (ui.config.ts sets UI_RUN_ID once, in the runner process).
+ * One world per spec file per project per run: when a test fails Playwright
+ * starts a new worker, and a fresh world there would strand the file's later
+ * tests (they build on what earlier ones did). The world is kept beside the
+ * results under the run's id (ui.config.ts sets UI_RUN_ID once, in the runner
+ * process). The phone and wide projects can run one file at the same time, so
+ * each builds its own.
  */
 export function useWorld(opts: Parameters<typeof buildWorld>[0] = {}): () => UiWorld {
   let world: UiWorld | null = null;
   base.beforeAll(async ({}, testInfo) => {
     base.setTimeout(300_000);
     const run = process.env['UI_RUN_ID'];
-    const key = createHash('sha1').update(`${testInfo.file}:${JSON.stringify(opts)}`).digest('hex').slice(0, 12);
+    const key = createHash('sha1').update(`${testInfo.project.name}:${testInfo.file}:${JSON.stringify(opts)}`).digest('hex').slice(0, 12);
     const file = run ? path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'results', 'worlds', `${run}-${key}.json`) : null;
     if (file && existsSync(file)) {
       world = JSON.parse(readFileSync(file, 'utf8')) as UiWorld;

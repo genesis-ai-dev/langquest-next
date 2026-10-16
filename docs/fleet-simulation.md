@@ -42,7 +42,7 @@ Baseline numbers for every scenario at several sizes are in
 | --- | --- | --- |
 | `normalDay` | A team on mixed links (phone signal, a town trip every 3 days, a patchy slow signal) working office hours for a week | Sync CPU per run, time for work to reach the others, wakes with no signal |
 | `villageReconnect` | Everyone sets up in town, works out of reach for two weeks, and comes back into signal on the same morning | Backlog size, minutes to drain it, append calls, sync CPU while draining |
-| `reducerBump` | Every phone cold-starts through the server snapshot over an hour, while the team works and the server writes snapshots on its schedule (decision 88) | Snapshot outcomes, minutes to catch up, megabytes |
+| `reducerBump` | An update changes the reducer: the server first, then every phone over an hour, each keeping its store but not its checkpoint (decision 110), so it catches up through the server snapshot while the team works and the server writes snapshots on its schedule (decision 88). `--keepStore=0` reinstalls instead | Snapshot outcomes, minutes to catch up, megabytes |
 | `slowLink` | Phones on a 2 KB/s link join a busy language | Whether each joiner's snapshot went `stale`, minutes, megabytes |
 | `refoldTriggers` | The language is not listed for its first 10 hours (its events refused and re-queued), then the coordinator redacts notes as it goes | Refolds while unlisted and after, the sync CPU they cost, empty snapshot lookups |
 
