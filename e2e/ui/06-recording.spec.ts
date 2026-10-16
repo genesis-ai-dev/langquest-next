@@ -144,7 +144,7 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
     await expect(page.getByLabel(new RegExp(`^Part ${i + 2}\\. `))).toBeVisible();
     await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
   }
-  // Stopping keeps the session open (decision 128): its parts are boxes to hear, move or drop, and nothing is saved until the recording view's Done.
+  // Stopping keeps the session open (decision 129): its parts are boxes to hear, move or drop, and nothing is saved until the recording view's Done.
   await stopRecording(page);
   for (const n of [1, 2, 3]) await expect(byId(page, `live-part-${n}`)).toBeVisible();
   await expect(page.getByLabel(/^Part 4\. /)).toBeVisible();

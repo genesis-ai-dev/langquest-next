@@ -220,7 +220,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
           <Text style={[txt.sm, styles.footLabel]} numberOfLines={2}>{partLabel}</Text>
           <BigRecord disabled={blocked || rec.failureCount > 0 || !part} part={partN} onPress={() => void loop.toggle()} />
           <View style={styles.footSide}>
-            {/* A session open but stopped (decision 128) has the recording view's Done. */}
+            {/* A session open but stopped (decision 129) has the recording view's Done. */}
             {session ? null : <PublishBtn disabled={pieces.length === 0 || blocked || rec.failureCount > 0} onPress={() => setConfirming(true)} />}
           </View>
         </View>

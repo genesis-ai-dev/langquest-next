@@ -230,7 +230,7 @@ export function RecorderBar(props: { count: number; phase: LoopPhase; disabled: 
 export function RecorderFooter(props: { count: number; phase: LoopPhase; recordDisabled: boolean; publishDisabled: boolean; onRecord: () => void; onPublish: () => void; nextIndex?: number }) {
   const lines = { ...recorderLines(props.count), ...(props.nextIndex !== undefined ? { next: partLabel(props.nextIndex) } : {}) };
   const recording = loopRecording(props.phase);
-  // A session open but stopped (decision 128) still has the recording view's Done.
+  // A session open but stopped (decision 129) still has the recording view's Done.
   const session = props.phase !== 'off';
   const publish = useHelpSpot(t('common.done'), t('recording.recorder.doneHelp'), props.onPublish);
   return (

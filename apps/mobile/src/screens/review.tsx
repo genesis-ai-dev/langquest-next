@@ -1,7 +1,6 @@
 // Reviewing: the UX demo's ReviewCaptureScreen ("Review it", and in logged
 // mode "Already happened") and GuestReviewScreen ("Review by link"), from
-// ng-langquest-ux src/screens/review.tsx and the AlsoCoveredPicker in
-// screens/shared.tsx, laid out as the simple review (demo SIMPLE-10;
+// ng-langquest-ux src/screens/review.tsx, laid out as the simple review (demo SIMPLE-10;
 // Ryder's ReviewListen, ReviewQuestion, ReviewDecide, ReviewSayWhy and the
 // agreed "Background, open"). Requirements REV-1..8; ADR-005 (reviews
 // attach to the version they heard), ADR-015 (a kind that makes content
@@ -14,8 +13,9 @@
 // a required one is answered or set aside with a reason), Decide (Looks good
 // sends it; Needs changes opens "What should change?", voice first, with an
 // optional listener retelling). Already happened is the same screens, with
-// who gave it, where, which version, other passages and a retelling behind
-// "Add details".
+// who gave it, where, which version and a retelling behind "Add details".
+// A review goes on the one passage it is about (decision 128): the demo's
+// "Also covered in this session" is left out.
 //
 // Everything is read from the record (core derivePassage, questionsForKind,
 // keyTermLinksFor) and written with core recordReview / produceContent.
@@ -28,7 +28,7 @@
 // the saved mark in the header. Back and ✕ leave and keep it; opening the
 // same review again brings it back where it was left; sending it drops it.
 import {
-  commands, derivePassage, keyTermLinksFor, languageName, questionsForKind,
+  commands, keyTermLinksFor, languageName, questionsForKind,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -52,12 +52,12 @@ import { usePassage } from '../passage/usePassage';
 import { undoReviews } from '../passage/recordInputsModel';
 import { failureMessage } from '../diagnostics/report';
 import {
-  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, loggedTargets, nextLabel,
-  noteAnchorText, readiness, recordedPassages, requestFor, reviewCapture, reviewStages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor,
+  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
+  noteAnchorText, readiness, requestFor, reviewCapture, reviewStages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor,
   type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
 import {
-  AlsoCoveredPicker, AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner, WithheldNotice
+  AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner, WithheldNotice
 } from '../reviewing/parts';
 import { contractsFor } from '../shell/screenContracts';
 import { AgainBtn, BigMic, DashedRow, PlayChip, SpeakBtn } from '../reviewing/reviewVoice';
@@ -100,8 +100,8 @@ export function ReviewCapture(ctx: Ctx) {
 
 /**
  * A review that happened outside the app goes on the record through the
- * same screen, plus who gave it, where, which version was played and other
- * passages the session covered; a kind that makes content asks for its
+ * same screen, plus who gave it, where and which version was played, on
+ * this passage only (decision 128); a kind that makes content asks for its
  * recording instead of an outcome (REV-6, ADR-028).
  */
 export function AddRecord(ctx: Ctx) {
@@ -126,7 +126,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [feedback, setFeedback] = useState<VoiceAnswer | null>(null);
   const [typeFeedback, setTypeFeedback] = useState(false);
   const [moments, setMoments] = useState<(VoiceAnswer & { atMs: number })[]>([]);
-  const [also, setAlso] = useState<string[]>([]);
   const [people, setPeople] = useState(0);
   const [givenBy, setGivenBy] = useState('');
   const [place, setPlace] = useState('');
@@ -160,7 +159,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const draft = useDraft<ReviewDraft | null>(v ? draftKey('review', actorId, v.languageId, v.unitId, kindId, logged ? 'logged' : 'live') : null, null, isStoredReview);
   const setDraft = draft.set;
   const onScreen: ReviewState = {
-    takeId, stage: stageId, qi, answers, voice, typing, skipped, comment, feedback, typeFeedback, moments, also, people, givenBy, place, evidence, made
+    takeId, stage: stageId, qi, answers, voice, typing, skipped, comment, feedback, typeFeedback, moments, people, givenBy, place, evidence, made
   };
   const kept = JSON.stringify(reviewDraftOf(onScreen, version?.takeId, opened));
   // What the draft holds: written when the screen holds something else, so a draft not yet read is never written over.
@@ -174,7 +173,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     stored.current = JSON.stringify(d);
     setTakeId(back.takeId); setStageId(back.stage); setQi(back.qi); setAnswers(back.answers); setVoice(back.voice); setTyping(back.typing);
     setSkipped(back.skipped); setComment(back.comment); setFeedback(back.feedback); setTypeFeedback(back.typeFeedback); setMoments(back.moments);
-    setAlso(back.also); setPeople(back.people); setGivenBy(back.givenBy); setPlace(back.place); setEvidence(back.evidence); setMade(back.made);
+    setPeople(back.people); setGivenBy(back.givenBy); setPlace(back.place); setEvidence(back.evidence); setMade(back.made);
   }, [draft.restoredAt]); // eslint-disable-line react-hooks/exhaustive-deps -- once per draft read: what it brings back is that read's value, versions and params
   useEffect(() => {
     if (kept === stored.current) return;
@@ -190,7 +189,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const guide = useStudyGuide(ctx, v?.unitId);
   const context = useMemo(() => v && version && kind && !kind.withholdsContext ? backgroundFor(v, kindId, version.takeId, guide) : null,
     [v?.state, v?.p, kindId, version?.takeId, kind, guide]); // eslint-disable-line react-hooks/exhaustive-deps -- v is new on every draw; what backgroundFor reads of it (state, p, kinds) follows v.state and v.p
-  const all = useMemo(() => vState && logged ? recordedPassages(vState) : [], [vState, logged]);
   // What the Background offered and what was opened go on the record with the review (docs/reference-material.md).
   const usage = useUsage();
   const shown = !!context;
@@ -230,14 +228,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const captured = reviewCapture({ questions, answers, voice: makes ? {} : voice, moments: makes ? [] : moments, evidence: makes ? null : evidence });
   const r = readiness(questions, captured.answers, skipped, comment, feedback?.hash ?? null);
   const group = isGroupKind(kind.id);
-  const here = all.find((p) => p.unitId === v.unitId);
   const asker = request?.by ? ctx.name(request.by) : undefined;
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes });
   const at = stageAt(stages, stageId);
   const stage = stages[at]!.id;
   const next = stages[at + 1];
   const latest = v.p.latest;
-  const otherPassages = !!here && all.some((p) => p.unitId !== here.unitId);
   const mine = version.by === actorId;
   // The translator's first name, for sentences about them; when it is you, the sentences say so themselves.
   const translator = ctx.name(version.by).split(' ')[0] ?? ctx.name(version.by);
@@ -276,30 +272,24 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           ? (mine ? t('review.screen.looksGoodOnRecord') : t('review.screen.looksGoodSentTo', { name }))
           : (mine ? t('review.screen.feedbackOnRecord') : t('review.screen.feedbackSentTo', { name }));
       } else {
-        const targets = loggedTargets(state, { unitId: v.unitId, takeId: version.takeId }, also);
+        // One passage, the one it is about (decision 128): another passage the session covered gets its own review there.
         const who = !group && givenBy.trim() ? { givenBy: givenBy.trim() } : {};
         const shared = {
           ...(cleanA ? { answers: cleanA } : {}), ...(cleanS ? { skipped: cleanS } : {}),
           ...who, ...(group && people > 0 ? { people } : {}), ...(place.trim() ? { place: place.trim() } : {})
         };
-        targets.forEach((t, i) => {
-          const tp = t.unitId === v.unitId ? v.p : derivePassage(state, t.unitId, indexesFor(state));
-          const req = requestFor(tp, kind.id, actorId, { mineOnly: true });
-          const commandId = `${cmd}:${i}`;
-          // Notes at moments are about this passage's version; the rest of the session goes with every passage it covered.
-          const theseArtifacts = t.unitId === v.unitId ? artifacts : artifacts.filter((a) => a.atMs === undefined);
-          specs.push(...(makes
-            ? c.produceContent({
-              commandId, fromTakeId: t.takeId, kindId: kind.id, cards: made, via: 'logged',
-              ...(text ? { note: text } : {}), ...(commentHash ? { noteBlobHash: commentHash } : {}), ...shared, ...(req ? { requestId: req.id } : {})
-            })
-            : c.recordReview({
-              commandId, takeIds: [t.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'logged',
-              ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}), ...shared,
-              ...(theseArtifacts.length ? { artifacts: theseArtifacts } : {}), ...(req ? { requestId: req.id } : {})
-            })));
-        });
-        message = targets.length > 1 ? t('review.screen.addedToPassages', { kind: check, count: targets.length }) : t('review.screen.addedToRecord', { kind: check });
+        const req = requestFor(v.p, kind.id, actorId, { mineOnly: true });
+        specs = makes
+          ? c.produceContent({
+            commandId: cmd, fromTakeId: version.takeId, kindId: kind.id, cards: made, via: 'logged',
+            ...(text ? { note: text } : {}), ...(commentHash ? { noteBlobHash: commentHash } : {}), ...shared, ...(req ? { requestId: req.id } : {})
+          })
+          : c.recordReview({
+            commandId: cmd, takeIds: [version.takeId], kindId: kind.id, outcome: outcome === 'needs_changes' ? 'needs_changes' : 'looks_good', via: 'logged',
+            ...(text ? { comment: text } : {}), ...(commentHash ? { commentBlobHash: commentHash } : {}), ...shared,
+            ...(artifacts.length ? { artifacts } : {}), ...(req ? { requestId: req.id } : {})
+          });
+        message = t('review.screen.addedToRecord', { kind: check });
       }
       // Each review of this passage names what its Background offered and what was opened.
       const used = usage.items();
@@ -360,7 +350,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   } else if (stage === 'decide' && makes) {
     footer = (
       <>
-        {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>{t('review.screen.savesTo', { count: also.length + 1 })}</Text> : null}
         <PrimaryBtn label={t('common.done')} icon="check" help={t('review.screen.doneRecordedHelp', { what: makes.what })} disabled={!r.ready || made.length === 0} busy={busy} onPress={() => void save('recorded')} />
       </>
     );
@@ -413,7 +402,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           sub={summaryLine([
             place.trim() || t('review.screen.where'),
             latest && version.takeId === latest.takeId ? t('review.screen.versionLatest', { n: version.n }) : versionTitle(version.n),
-            otherPassages && (also.length ? t('review.screen.morePassages', { count: also.length }) : t('review.screen.otherPassages')),
             !makes && (evidence ? t('review.screen.retellingRecorded') : t('review.screen.retelling'))
           ])} help={t('review.screen.addDetailsHelp')} onPress={() => setSheet('details')} />
       ) : null}
@@ -492,7 +480,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           : mine ? t('review.screen.onRecordWithAnswer') : t('review.screen.nameHearsWithAnswer', { name: translator }))}
         right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} done={!!comment.trim() || !!feedback}
         help={logged ? t('review.screen.whatHappenedHelp') : t('review.screen.saySomethingHelp')} onPress={() => setSheet('say')} />
-      {logged && also.length > 0 ? <Text style={[txt.xsStrong, styles.center, { color: C.primary }]}>{t('review.screen.savesTo', { count: also.length + 1 })}</Text> : null}
     </Centre>
   );
 
@@ -562,7 +549,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           {logged && !group ? (
             <Field value={givenBy} onChangeText={setGivenBy} autoCapitalize="words" placeholder={makes ? t('review.screen.whoMadeIt') : t('review.screen.whoReviewedIt')} />
           ) : <PeopleCounter value={people} onChange={setPeople} />}
-          {/* Already happened keeps where under Add details, with which version and other passages. */}
+          {/* Already happened keeps where under Add details, with which version. */}
           {logged ? null : <Field value={place} onChangeText={setPlace} placeholder={t('review.screen.wherePlaceholder')} help={t('review.screen.whereHelp')} />}
         </Sheet>
       ) : null}
@@ -580,7 +567,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
               </View>
             </Block>
           ) : null}
-          {here ? <AlsoCoveredPicker here={here} all={all} picked={also} onChange={setAlso} /> : null}
           {!makes ? (
             <Block label={t('review.screen.evidence')} hint={t('review.screen.evidenceHint')}>
               <VoiceNote ctx={ctx} label={t('review.screen.recordARetelling')} hash={evidence?.hash ?? null}

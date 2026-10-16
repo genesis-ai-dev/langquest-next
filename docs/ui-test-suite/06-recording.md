@@ -106,7 +106,7 @@ Expected:
 - After step 1 the button turns to a stop button (accessibility label "Stop recording"), and the footer's left label turns red: "Part 1…".
 - The lit card reads "Listening for you · pause between parts" while silent, and "Recording…" with a moving level meter while speaking.
 - Each pause ends a part. Within 2 seconds of each pause the card above counts it: "Part 1", then "Parts 1–2", then "Parts 1–3", and the lit card moves to the next part number.
-- After step 5 the session is still open (decision 128): the pane says "Stopped", the waveform shows the three parts boxed and numbered, the title reads "Part 4", the button reads "Record", and the footer has no "Done" (the recording view's check is the only one).
+- After step 5 the session is still open (decision 129): the pane says "Stopped", the waveform shows the three parts boxed and numbered, the title reads "Part 4", the button reads "Record", and the footer has no "Done" (the recording view's check is the only one).
 - After step 6 the card reads "Parts 1–3" with "3 parts · 0:1x" (about 11 seconds in total), and the footer reads "Part 4" in grey.
 - The footer's "Done" is enabled.
 - The saved mark in the header ends on its check ("Saved") once the parts are kept.
@@ -118,7 +118,7 @@ Decided (2026-10-13), the docs were stale: decision 71's amendment of 2026-10-08
 
 Changed (2026-10-16, decision 124): while recording, the pane below the divider is the red recording view (`RecordingView.tsx`) in the workspace and in back translation alike: its top row names the part being said ("Part 2", with its verses when it fills a place), the time and a check, Done; the live waveform fills the rest. Its label reads "Part 2. Recording…" or "Part 2. Listening for you · pause between parts"; the parts card returns when recording stops.
 
-Changed (2026-10-16, decision 128): Stop no longer ends the session. Its parts stay boxes on the waveform, to hear, move or drop (REC-053), and are cut and saved, in order, when the session is left: Done, leaving the screen, or on a phone the next launch after a crash.
+Changed (2026-10-16, decision 129): Stop no longer ends the session. Its parts stay boxes on the waveform, to hear, move or drop (REC-053), and are cut and saved, in order, when the session is left: Done, leaving the screen, or on a phone the next launch after a crash.
 
 Fixed (2026-10-13), G10.3: on the web a part recorded while uploads are held back (they wait while the microphone is open) sometimes goes up only at the upload worker's next one-minute tick, so "waiting to upload" can stay above 0 for up to a minute after stop. Fixed in part (2026-10-13): the workspace asks for an upload when a session ends and after publishing (`translate.tsx`); the rest is in `useLanguage.ts` / the transfer worker. The web suite records it as a soft failure naming the recordings.
 
@@ -527,7 +527,7 @@ Expected:
 - After step 4 the part spoken in steps 1 to 4 is in the draft.
 - With the recorder idle and nothing waiting to send, closing the tab (or reloading) shows no dialog. (While work waits to send, the web's leave guard asks too, `storageGate.tsx` `useLeaveGuard`; that is intended.)
 - After step 5 the part kept when the session was left is in the draft, once (the web keeps its files in the browser; `recordingJournal.ts`).
-- Changed (2026-10-16, decision 128): on the web a session not yet left lives in the page, so the browser asks before the tab closes; a tab killed outright before Done loses that session's parts. A phone keeps them in its journal (REC-023).
+- Changed (2026-10-16, decision 129): on the web a session not yet left lives in the page, so the browser asks before the tab closes; a tab killed outright before Done loses that session's parts. A phone keeps them in its journal (REC-023).
 - Note: on the web, a part that ended but had not yet been stored in the browser before a reload is lost (`recordingJournal.ts`: a blob URL does not outlive the page). This is expected on the web.
 
 ### REC-026 Putting the app in the background stops recording and keeps the last part
@@ -542,7 +542,7 @@ Steps:
 3. Wait 10 seconds, then return to the app.
 
 Expected:
-- Recording has stopped on return: the button reads "Record" and the pane says "Stopped" (decision 128: the session is still open, its parts boxes on the waveform).
+- Recording has stopped on return: the button reads "Record" and the pane says "Stopped" (decision 129: the session is still open, its parts boxes on the waveform).
 - After Done, the part spoken before step 2 is in the draft, as the last part, and plays.
 - No part is recorded while the app was in the background (the 10 seconds are not in the draft).
 - The OS's "microphone in use" indicator (iOS orange dot, Android green dot) goes off within 2 seconds of step 2.
@@ -559,7 +559,7 @@ Steps:
 3. Speak for 3 seconds, pause 2 seconds, then tap stop if still recording.
 
 Expected:
-- iOS: the app becomes inactive, so recording stops at step 2 and the part so far is kept in the open session (Done saves it, decision 128). After step 2 the button reads "Record"; step 3 records nothing until the person taps the button again.
+- iOS: the app becomes inactive, so recording stops at step 2 and the part so far is kept in the open session (Done saves it, decision 129). After step 2 the button reads "Record"; step 3 records nothing until the person taps the button again.
 - Android: the app stays active, recording continues, and the speech in step 3 becomes a part.
 - On both, no part is lost, none is duplicated, and there is no crash.
 - If iOS stopping on Control Center is judged a problem in the field, report it against `useRecorder.ts` (it stops on any AppState other than "active").
@@ -913,7 +913,7 @@ Changed (2026-10-16, decision 124): the amber "Verse 23 · left for later" row a
 
 ---
 
-## A stopped session (decision 128)
+## A stopped session (decision 129)
 
 ### REC-053 A stopped session: hear a part, move its edge, drop one, carry on, then Done
 Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto

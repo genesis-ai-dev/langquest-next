@@ -62,7 +62,7 @@ tags:
       - assertVisible:
           id: "record-button"
           text: "Record"
-      # Stopped, the session is still open (decision 127): Done keeps the part so far.
+      # Stopped, the session is still open (decision 129): Done keeps the part so far.
       - tapOn: "Done"
 - runFlow:
     when:
@@ -83,7 +83,7 @@ tags:
             id: "record-button"
           timeout: 10000
       - assertVisible: "Stop recording"
-      # Done stops and leaves the session (decision 127), keeping its parts.
+      # Done stops and leaves the session (decision 129), keeping its parts.
       - tapOn: "Done"
       - assertVisible:
           id: "record-button"

@@ -3,9 +3,9 @@
 // (REV-2), the question list with "Can't answer this?", earlier reviews that
 // play in place, the content a checking kind compares against (REV-5), the
 // background a reviewer opens on request as one collapsed card (REV-1,
-// ADR-013, ADR-029), the strip of review stages (REV-0), and the
-// "Also covered in this session" picker for a review that already happened
-// (REV-6, ADR-028). Built from kit.tsx only.
+// ADR-013, ADR-029) and the strip of review stages (REV-0). A review that
+// already happened goes on its one passage (decision 128), so the demo's
+// "Also covered in this session" picker is not here. Built from kit.tsx only.
 import type { KindDef, KeyTermView, PassageNote, RequestView, ReviewView, SourcedQuestion, Version } from '@langquest-next/core';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -14,7 +14,7 @@ import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge } from '../helpMode/helpBadge';
-import { Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SearchField, SectionLabel, ShowMore } from '../ui/kit';
+import { Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SectionLabel, ShowMore } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { t } from '../i18n';
@@ -27,7 +27,7 @@ import { StepMark } from '../study/ui';
 import { stepLine } from '../study/studyText';
 import { C, measure, radius, space, target, TINT, type as T, withAlpha } from '../ui/theme';
 import {
-  questionSource, searchPassages, nearbyPassages, summaryLine, YES_NO, yesNoLabel, type Answers, type PassageChoice, type Skips, type Stage, type StageId
+  questionSource, summaryLine, YES_NO, yesNoLabel, type Answers, type Skips, type Stage, type StageId
 } from './capture';
 
 // ---- answers --------------------------------------------------------------------------
@@ -442,49 +442,6 @@ export function PeopleCounter(props: { value: number; onChange: (n: number) => v
   );
 }
 
-/**
- * One session often covers a run of neighbouring chapters. Suggest the
- * nearest recorded passages in the same book, and search for anything else;
- * never a wall of every recorded passage in the language.
- */
-export function AlsoCoveredPicker(props: { here: PassageChoice; all: PassageChoice[]; picked: string[]; onChange: (ids: string[]) => void }) {
-  const [query, setQuery] = useState('');
-  const { here, all, picked } = props;
-  const toggle = (id: string) => props.onChange(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
-  const searching = query.trim() !== '';
-  const hits = searching ? searchPassages(all, query, here.unitId) : [];
-  const near = nearbyPassages(all, here).filter((p) => !picked.includes(p.unitId));
-  const list = searching ? hits : near;
-  const pickedChoices = picked.map((id) => all.find((p) => p.unitId === id)).filter((p): p is PassageChoice => !!p);
-  if (all.every((p) => p.unitId === here.unitId)) return null;
-  return (
-    <View style={{ gap: space.sm }}>
-      <SectionLabel label={t('review.parts.alsoCovered')} />
-      <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('review.parts.alsoCoveredHint')}</Text>
-      {pickedChoices.length ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {pickedChoices.map((p) => <Chip key={p.unitId} label={p.title} icon="close" on help={t('review.parts.removePassageHelp')} accessibilityLabel={t('review.parts.removePassage', { title: p.title })} onPress={() => toggle(p.unitId)} />)}
-        </View>
-      ) : null}
-      <SearchField value={query} onChangeText={setQuery} placeholder={t('review.parts.findAnother')} />
-      {list.length ? (
-        <View style={styles.pickList}>
-          {!searching ? <Text style={[txt.label, { paddingHorizontal: space.lg, paddingTop: space.md }]}>{t('review.parts.nearbyIn', { book: here.bookLabel })}</Text> : null}
-          {list.map((p, i) => {
-            const on = picked.includes(p.unitId);
-            return (
-              <Row key={p.unitId} last={i === list.length - 1} label={p.title} help={on ? t('review.parts.alsoOnHelp') : t('review.parts.alsoHelp')} onPress={() => toggle(p.unitId)} role="checkbox" checked={on}
-                leading={<View style={[styles.box, on ? { backgroundColor: C.primary, borderColor: C.primary } : null]}>{on ? <Ico name="check" size={18} color={C.white} strokeWidth={3} /> : null}</View>}
-                right={<View />} />
-            );
-          })}
-        </View>
-      ) : null}
-      {searching && hits.length === 0 ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('review.parts.noMatch', { query: query.trim() })}</Text> : null}
-    </View>
-  );
-}
-
 /** A labelled block in the body: a small heading and what goes under it. */
 export function Block(props: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -514,7 +471,5 @@ const styles = StyleSheet.create({
   mark: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   counter: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card },
   counterBtn: { width: target.primary, height: target.primary, borderRadius: radius.md, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  counterSign: { fontSize: T.xxl, fontWeight: '600', color: C.dark },
-  pickList: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden' },
-  box: { width: 28, height: 28, borderRadius: 8, borderWidth: 2, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' }
+  counterSign: { fontSize: T.xxl, fontWeight: '600', color: C.dark }
 });
