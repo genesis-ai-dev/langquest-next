@@ -4098,6 +4098,7 @@
     "nav": {
       "cannotOpenHere": "เปิดจากที่นี่ไม่ได้",
       "noPermission": "คุณไม่มีสิทธิ์เปิดสิ่งนั้น",
+      "backAgainToLeave": "กดกลับอีกครั้งเพื่อออกจาก LangQuest",
       "languageExplorer": "สำรวจภาษา",
       "languageExplorerNewTab": "สำรวจภาษา เปิดในแท็บใหม่",
       "tabBadge": "{{tab}}, {{badge, number}}",

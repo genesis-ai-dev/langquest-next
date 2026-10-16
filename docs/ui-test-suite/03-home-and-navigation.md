@@ -713,6 +713,7 @@ Steps:
 4. Tap "Something else?", "Someone else should do this", then press back
    twice.
 5. Press back on the record, then on the chapter grid, then on the map.
+6. Press back on My Work, then again straight away.
 
 Expected:
 - Back from "Something else?" and from "Versions" returns to the record's
@@ -720,8 +721,17 @@ Expected:
 - Back from Ask someone returns to "Something else?", where it was opened,
   with nothing sent; back again returns to the path.
 - Back from the record returns to the chapter grid, then to the map.
-- Back on a tab's root (the map, which is TRANS's Map tab) leaves the app or
-  goes to the previous tab, as Android does. It never shows a blank screen.
+- Back on a tab's own page (the map, which is TRANS's Map tab) goes to My
+  Work, TRANS's first screen (decision 137). It never leaves the app or
+  shows a blank screen.
+- The first back on My Work stays and says "Press Back again to leave
+  LangQuest" above the tab bar, covering no button; the second, while those
+  words show, leaves the app. Sign In, Join your team and the welcome do the
+  same.
+- Inside a screen's steps (New language, Get ready, a review's questions, a
+  study's steps, the recording view), back goes one step back, as the
+  step's own Back does; on the first step it leaves the screen. ✕ leaves at
+  once.
 
 ## The crash screen
 
