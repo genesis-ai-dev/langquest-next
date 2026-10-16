@@ -15,6 +15,7 @@ stuck.
 | `agent-executor.md` | on demand, one Todo issue per run | code on main (outside guarded paths), issue status up to Verifying |
 | `post-deploy-smoke.md` | every 15 minutes | issue comments, Outage, a revert |
 | `deploy-watchdog.md` | hourly | issue comments, and an issue for a hosted database behind main or a server job in trouble |
+| `do-memory-canary.md` (proposed, not running) | after each production Worker deploy | comments on LAN-33, and an issue when a large organization's Durable Object fails or is reset for memory |
 
 ## Guarded paths
 
