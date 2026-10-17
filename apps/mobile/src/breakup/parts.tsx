@@ -141,6 +141,7 @@ export function LessonSheet(props: { visible: boolean; onClose: () => void; wayD
   const close = () => { setN(0); props.onClose(); };
   return (
     <Sheet visible={props.visible} title={t('breakup.lesson.sheetTitle')} sub={t('breakup.lesson.progress', { step: n + 1, total: lesson.length })} onClose={close}
+      onBack={n > 0 ? () => setN(n - 1) : undefined}
       footer={<>
         <PrimaryBtn label={last ? t('common.done') : t('common.next')} icon={last ? 'check' : 'right'} onPress={() => (last ? close() : setN(n + 1))}
           help={last ? t('breakup.lesson.doneHelp') : t('breakup.lesson.nextHelp')} />

@@ -4235,6 +4235,7 @@
     "nav": {
       "cannotOpenHere": "Ba za a iya buɗe wannan daga nan ba.",
       "noPermission": "Ba ku da izinin buɗe wannan.",
+      "backAgainToLeave": "Danna Koma sake don fita daga LangQuest",
       "languageExplorer": "Mai zagaya harsuna",
       "languageExplorerNewTab": "Mai zagaya harsuna, yana buɗewa a sabon shafi",
       "tabBadge": "{{tab}}, {{badge, number}}",

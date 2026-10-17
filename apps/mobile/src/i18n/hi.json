@@ -4235,6 +4235,7 @@
     "nav": {
       "cannotOpenHere": "इसे यहाँ से नहीं खोला जा सकता।",
       "noPermission": "आपको इसे खोलने का अधिकार नहीं है।",
+      "backAgainToLeave": "LangQuest से बाहर निकलने के लिए फिर से वापस दबाएँ",
       "languageExplorer": "भाषा खोजक",
       "languageExplorerNewTab": "भाषा खोजक, नए टैब में खुलता है",
       "tabBadge": "{{tab}}, {{badge, number}}",

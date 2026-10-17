@@ -56,7 +56,7 @@ import { usePassage } from '../passage/usePassage';
 import { failureMessage } from '../diagnostics/report';
 import {
   canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
-  noteAnchorText, readiness, requestFor, reviewCapture, reviewStages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor,
+  noteAnchorText, readiness, requestFor, reviewCapture, reviewStages, stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor,
   type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
 import {
@@ -155,8 +155,6 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   };
   // A wide window names the passage in the crumbs above the title, so the title is the kind.
   const wide = useLayout().kind !== 'phone';
-  // A phone's Back does what the header's arrow does: from "What should change?" to Decide, else it leaves (the draft stays).
-  useHardwareBack(why, () => setWhy(false));
 
   const version = v ? versionFor(v.p, takeId) : undefined;
 
@@ -209,6 +207,14 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     if (shown && guide && guideItem) usage.offer([{ itemId: guideItem, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
   }, [shown, guide, guideItem, usage]);
 
+  // A phone's Back goes one step back (decision 137): from "What should change?" to Decide, as its arrow does;
+  // else the question before, then the stage before. From Listen it leaves, and the draft stays.
+  const stepBack = stageBack(reviewStages({ questions: questions.length, logged, makes: !!makes }), stageId, qi, questions.length);
+  useHardwareBack(why || !!stepBack, () => {
+    if (why) setWhy(false);
+    else if (stepBack) { setStageId(stepBack.stage); setQi(stepBack.qi); }
+  });
+
   if (!v || !kind) {
     return (
       <Screen header={<Header title={logged ? screenTitle('add_record') : screenTitle('review_capture')} onBack={ctx.back} close />}>
@@ -240,7 +246,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const r = readiness(questions, captured.answers, skipped, comment, feedback?.hash ?? null);
   const group = isGroupKind(kind.id);
   const asker = request?.by ? ctx.name(request.by) : undefined;
-  // What this check reads (decision 137): what an earlier step made from this version, or the version; writing is read.
+  // What this check reads (decision 138): what an earlier step made from this version, or the version; writing is read.
   const reads = readsFor(v.p, kind, version);
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes, reads: reads.medium === 'writing' });
   const at = stageAt(stages, stageId);
@@ -391,7 +397,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       )}
       {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
       {!reads.made && reads.medium === 'recording' ? <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered /> : null}
-      {/* What a step added to the version is part of it: a check hears and reads them together (decision 137). */}
+      {/* What a step added to the version is part of it: a check hears and reads them together (decision 138). */}
       {!reads.made ? addedTo(v.p, version).map((a) => (
         <HelpRow key={a.medium} of="review.added">
           <View style={{ gap: space.sm }}>

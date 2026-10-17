@@ -4235,6 +4235,7 @@
     "nav": {
       "cannotOpenHere": "Hicho hakiwezi kufunguliwa kutoka hapa.",
       "noPermission": "Huna ruhusa ya kufungua hicho.",
+      "backAgainToLeave": "Bonyeza Rudi tena ili kutoka LangQuest",
       "languageExplorer": "Kichunguzi cha lugha",
       "languageExplorerNewTab": "Kichunguzi cha lugha, kinafunguka kwenye kichupo kipya",
       "tabBadge": "{{tab}}, {{badge, number}}",

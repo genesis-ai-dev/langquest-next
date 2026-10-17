@@ -4099,6 +4099,7 @@
     "nav": {
       "cannotOpenHere": "这里无法打开它。",
       "noPermission": "你没有权限打开它。",
+      "backAgainToLeave": "再按一次返回即可退出 LangQuest",
       "languageExplorer": "语言浏览",
       "languageExplorerNewTab": "语言浏览，在新标签页中打开",
       "tabBadge": "{{tab}}，{{badge, number}}",

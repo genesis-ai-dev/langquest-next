@@ -6,8 +6,8 @@
 // later" finish it too. What is said here is kept as you go, like the parts,
 // so leaving loses nothing.
 import { checkPeople, questionsForKind, type KindStatus, type QuestionSpec, type ReviewView } from '@langquest-next/core';
-import { useEffect, useState, type ReactNode } from 'react';
-import { BackHandler, Pressable, StyleSheet, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { ClipPlayer } from '../audio/clipPlayer';
 import type { Ctx } from '../shell/ctx';
@@ -25,6 +25,7 @@ import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { checkName } from '../admin/adminModel';
 import { useDraft } from '../drafts/useDraft';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { isNoteDraft, type NoteDraft } from '../drafts/draftModel';
 import { mmss } from './model';
 import { styles as ps } from './blockStyles';
@@ -35,9 +36,9 @@ export type DoneAsk = { kindId: string; questions: QuestionSpec[] } | { someoneE
 export function PublishScreen(props: {
   ctx: Ctx; v: PassageView; n: number; first: boolean; cards: string[]; totalMs: number | undefined; bible: string | undefined;
   busy: boolean; answers: ReviewView[]; tied: number; revisingKind?: string;
-  /** A step makes this version (a final recording, decisions.md 137): the step says what it is, so no change note. */
+  /** A step makes this version (a final recording, decisions.md 138): the step says what it is, so no change note. */
   making?: boolean;
-  /** Writing (decisions.md 137): its words to look over instead of a recording to hear, and what it is when not a version. */
+  /** Writing (decisions.md 138): its words to look over instead of a recording to hear, and what it is when not a version. */
   preview?: ReactNode;
   title?: string;
   /** Where what is said here is kept until it is done (drafts/draftModel.ts). */
@@ -64,11 +65,7 @@ export function PublishScreen(props: {
   const next = kinds.find((k) => k.kindId === kindId) ?? kinds[0];
   const nextTarget = next ? props.next?.targets[next.kindId] : undefined;
   // A screen inside the workspace: Back returns to it, never past it.
-  const onClose = props.onClose;
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; });
-    return () => sub.remove();
-  }, [onClose]);
+  useHardwareBack(true, props.onClose);
   const said = !!text.trim() || !!hash;
   const parts = t('recording.publish.parts', { count: props.cards.length });
   const sub = [parts, props.totalMs !== undefined ? mmss(props.totalMs) : null, props.bible ? t('recording.publish.withBible', { bible: props.bible }) : null].filter(Boolean).join(' · ');

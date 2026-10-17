@@ -4099,6 +4099,7 @@
     "nav": {
       "cannotOpenHere": "Itu tidak dapat dibuka dari sini.",
       "noPermission": "Anda tidak punya izin untuk membukanya.",
+      "backAgainToLeave": "Tekan Kembali sekali lagi untuk keluar dari LangQuest",
       "languageExplorer": "Penjelajah bahasa",
       "languageExplorerNewTab": "Penjelajah bahasa, terbuka di tab baru",
       "tabBadge": "{{tab}}, {{badge, number}}",

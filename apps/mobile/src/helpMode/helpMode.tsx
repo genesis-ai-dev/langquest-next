@@ -18,6 +18,7 @@ import { formatNumber } from '../i18n/format';
 import { registerPlayback } from '../audio/audioSession';
 import { isRecorded, sayRecorded, stopHelpAudio } from './helpAudio';
 import { Ico } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { lift } from '../ui/shadow';
 import { C, radius, space } from '../ui/theme';
 
@@ -215,6 +216,9 @@ export function HelpModeProvider(props: { children: ReactNode }) {
   }, []);
   // Help explains what shows: a sheet opening over the screen, or closing, turns it off.
   useEffect(() => { setOn(false); }, [top, setOn]);
+  // While on, Android's Back turns it off, as the ? does, and leaves the screen where it is:
+  // turned on last, it is the newest step there is.
+  useHardwareBack(on, () => setOn(false));
 
   const value = useMemo<HelpMode>(() => ({ on, setOn, explain, tell, register, place, track, top, openHost }),
     [on, setOn, explain, tell, register, place, track, top, openHost]);

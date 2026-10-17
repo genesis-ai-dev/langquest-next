@@ -64,7 +64,8 @@ export function LicenseSheet(props: {
   }
 
   return (
-    <Sheet visible={props.visible} title={t('shell.license.title')} sub={subFor(props.mode)} onClose={props.onClose} footer={footer}>
+    <Sheet visible={props.visible} title={t('shell.license.title')} sub={subFor(props.mode)} onClose={props.onClose} footer={footer}
+      onBack={confirming ? () => setConfirming(false) : undefined}>
       {confirming ? (
         <Banner icon="flag" tone="amber" title={t('shell.license.cannotUndo')}
           body={`${words.means} ${t('shell.license.cannotClose')}`} />

@@ -113,7 +113,7 @@ export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | '
  */
 export function reviewStages(opts: { questions: number; logged: boolean; makes: boolean; reads?: boolean }): Stage[] {
   return [
-    // Checking writing reads instead of listening (decisions.md 137).
+    // Checking writing reads instead of listening (decisions.md 138).
     opts.reads ? { id: 'listen', label: t('writing.review.read'), icon: 'edit' } : { id: 'listen', label: t('review.capture.stages.listen'), icon: 'listen' },
     ...(opts.questions > 0 ? [{ id: 'questions' as const, label: t('review.capture.stages.questions'), icon: 'help' as const }] : []),
     opts.makes ? { id: 'decide', label: t('review.capture.stages.recordIt'), icon: 'mic' } : { id: 'decide', label: t('review.capture.stages.decide'), icon: 'check' }
@@ -123,6 +123,19 @@ export function reviewStages(opts: { questions: number; logged: boolean; makes: 
 /** Where a stage sits on the strip; a stage that is no longer there (its questions went) falls back to the first. */
 export function stageAt(stages: Stage[], id: StageId): number {
   return Math.max(0, stages.findIndex((s) => s.id === id));
+}
+
+/**
+ * One step back from where a review stands, for a phone's Back: the question
+ * before, else the stage before (Decide goes back to the last question).
+ * Null on Listen, the first, where Back leaves the review (its draft stays).
+ */
+export function stageBack(stages: Stage[], stage: StageId, qi: number, questions: number): { stage: StageId; qi: number } | null {
+  const at = stageAt(stages, stage);
+  if (stages[at]!.id === 'questions' && qi > 0) return { stage: 'questions', qi: Math.min(qi, questions) - 1 };
+  const before = stages[at - 1];
+  if (!before) return null;
+  return { stage: before.id, qi: before.id === 'questions' ? Math.max(0, questions - 1) : 0 };
 }
 
 /** The footer's main button before the last stage: "Next: questions", "Next: decide". */

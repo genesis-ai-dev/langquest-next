@@ -852,12 +852,14 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
  * node. On a wide window it is a centred dialog instead (decisions.md 55).
  */
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
-  /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode }) {
+  /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode;
+  /** A phone's Back in a sheet of several steps: the step before, as its own Back does (decision 137). Else Back closes it. */
+  onBack?: () => void }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
   const host = useHelpHost(props.visible);
   return (
-    <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
+    <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onBack ?? props.onClose}>
       <HelpHost id={host}>
       <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
         {/* help-ignore: the darkened backdrop; tapping outside the sheet closes it, as everywhere */}

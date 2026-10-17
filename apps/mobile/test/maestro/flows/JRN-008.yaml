@@ -60,13 +60,17 @@ tags:
     id: "tab-manage"
 - tapOn: "Checks.*"
 - tapOn: "1\\. Peer check"
+# A check's people are on a page of their own (decision 130).
+- tapOn: "People, .*"
 - tapOn: "Add people"
 - tapOn: ".*${TRANS_NAME}.*"
 - tapOn: "Done"
 - extendedWaitUntil:
     visible: "Take ${TRANS_NAME} off this check"
     timeout: 20000
-# Back to the Checks list, then back to Alpha's page where the tab bar is.
+# Back to the check, the Checks list, then Alpha's page where the tab bar is.
+- tapOn:
+    id: "header-back"
 - tapOn:
     id: "header-back"
 - tapOn:

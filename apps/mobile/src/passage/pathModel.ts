@@ -22,7 +22,7 @@ export interface PathStep {
   state: PathStepState;
   /** Feedback the step is about (Hear the feedback). */
   review?: ReviewView;
-  /** Written, not recorded (decision 137): the step shows a pen. */
+  /** Written, not recorded (decision 138): the step shows a pen. */
   written?: boolean;
 }
 
@@ -53,7 +53,7 @@ export interface PathInput {
   latestVerses?: string | null;
   /** Who a request went to, as people say it ("the Community team", "Mary"). */
   askedName?: (kindId: string) => string | undefined;
-  /** What the language leads with (decisions.md 137): a team that writes first sees Write. */
+  /** What the language leads with (decisions.md 138): a team that writes first sees Write. */
   lead?: 'recording' | 'writing';
 }
 
@@ -98,7 +98,7 @@ export function pathSteps(input: PathInput): PathStep[] {
 
   const recordAsk = p.openRequests.find((r) => r.what === 'record');
   const askedLine = recordAsk ? whoAsked(recordAsk, input) : '';
-  // Write when the latest version is written, or, before there is one, when the language leads with writing (decision 137).
+  // Write when the latest version is written, or, before there is one, when the language leads with writing (decision 138).
   const writes = latest ? latest.medium === 'writing' : input.lead === 'writing';
   out.push({
     kind: 'record', title: writes ? t('writing.path.write') : t('passage.path.record'), ...(writes ? { written: true } : {}),
@@ -172,7 +172,7 @@ export function teamSteps(input: PathInput): TeamStep[] {
         state = 'done';
         status = s.override && !kindDone ? t('passage.path.status.movedPast') : k.state === 'skipped' ? t('passage.path.status.setAside')
           : k.state === 'addressed' ? t('passage.path.status.answered')
-          // A step that makes something is done when it made it, never "looks good" (decisions.md 137).
+          // A step that makes something is done when it made it, never "looks good" (decisions.md 138).
           : kinds.find((x) => x.id === k.kindId)?.makes ? t('writing.path.made') : t('passage.path.status.looksGood');
       } else if (k.state === 'suggestions') {
         state = 'attention'; status = t('passage.path.status.needsChanges');
