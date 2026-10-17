@@ -81,8 +81,8 @@ export interface LiveState {
 
 export type LiveBar = { db: number; quiet: number | null; kind: 'kept' | 'open' | 'room' | 'heard' | 'lost' };
 export interface LiveBox { index: number; n: number; from: number; to: number; open: boolean }
-/** A part as it is cut when the session is left. */
-export interface KeptPart { id: string | null; chunk: string; uri: string | null; fromMs: number; toMs: number }
+/** A part as it is cut when the session is left, with the levels its box shows (dB a frame), for its bars. */
+export interface KeptPart { id: string | null; chunk: string; uri: string | null; fromMs: number; toMs: number; levels: number[] }
 
 export function liveStart(firstPart: number): LiveState {
   return { db: [], quiet: [], count: 0, parts: [], open: null, chunks: {}, first: firstPart, hole: null, insert: null, seams: [], frameMs: FRAME_MS_GUESS, lastAt: null };
@@ -220,7 +220,8 @@ export function liveKept(s: LiveState): KeptPart[] {
   return liveNumbered(s).flatMap(({ index }) => {
     const p = index === null ? undefined : s.parts[index];
     if (!p || !p.chunk || p.fromMs === undefined || p.toMs === undefined) return [];
-    return [{ id: p.id ?? null, chunk: p.chunk, uri: s.chunks[p.chunk]?.uri ?? null, fromMs: p.fromMs, toMs: p.toMs }];
+    return [{ id: p.id ?? null, chunk: p.chunk, uri: s.chunks[p.chunk]?.uri ?? null, fromMs: p.fromMs, toMs: p.toMs,
+      levels: s.db.slice(p.from, p.to ?? s.count) }];
   });
 }
 

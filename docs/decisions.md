@@ -5372,6 +5372,18 @@ Reverse if: people delete by accident while scrolling, cannot find how to
 delete without the hint, or the low even line on older phone parts reads as
 silence.
 
+Amended (2026-10-17, Caleb Koster): a session's parts take their bars from
+the levels the recording screen showed for their boxes (`barsFromLevels`),
+read as the session is left, so leaving no longer reads every part's WAV in
+JavaScript before saving it. Caleb saw parts fill the list slowly, one by
+one, after leaving a session; in Hermes on a Mac that read took about 390 ms
+for ten 8 s parts, and the levels take under a millisecond. The live levels
+were set aside above because they are gone once the session is left; they
+are read just before it goes. A hold-to-record take, and a part found again
+after a restart, still read their WAV. The bars are each slice's level from
+the frames' loudest samples rather than every sample, so a row can look a
+little fuller than one read from its file.
+
 ## 137. Android's Back goes one step back, inside a screen's steps too, and leaves the app only from the first screen
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
