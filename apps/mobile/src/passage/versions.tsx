@@ -140,10 +140,10 @@ function ItemCard(props: {
   const body = (
     <>
       <View style={styles.titleRow}>
-        <Text style={styles.title} numberOfLines={1}>{props.title}</Text>
+        <Text style={[styles.title, { flexShrink: 1 }]}>{props.title}</Text>
         {props.badge ? <Badge label={props.badge} tone="brand" /> : null}
       </View>
-      {props.lines.map((l, i) => <Text key={i} style={txt.smMuted} numberOfLines={2}>{l}</Text>)}
+      {props.lines.map((l, i) => <Text key={i} style={txt.smMuted}>{l}</Text>)}
     </>
   );
   return (
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, padding: space.md, gap: space.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   play: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
   title: { fontSize: 18, fontWeight: '800', color: C.dark, flexShrink: 1 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingLeft: target.min + space.md }
 });

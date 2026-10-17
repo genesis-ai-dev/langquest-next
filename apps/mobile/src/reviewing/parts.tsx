@@ -431,7 +431,7 @@ export function PeopleCounter(props: { value: number; onChange: (n: number) => v
       </Pressable>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
         <Ico name="people" size={22} color={C.muted} />
-        <Text style={[txt.body, { fontWeight: '600', color: n ? C.dark : C.muted }]}>{n ? t('review.parts.people', { count: n }) : t('review.parts.howManyListened')}</Text>
+        <Text style={[txt.body, { fontWeight: '600', color: n ? C.dark : C.muted, flexShrink: 1, textAlign: 'center' }]}>{n ? t('review.parts.people', { count: n }) : t('review.parts.howManyListened')}</Text>
       </View>
       <Pressable onPress={more.onPress} accessibilityRole="button" accessibilityLabel={t('review.parts.oneMore')}
         style={({ pressed }) => [styles.counterBtn, pressed && { opacity: 0.6 }]}>

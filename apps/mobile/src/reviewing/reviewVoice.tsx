@@ -134,14 +134,14 @@ export function PlayChip(props: { ctx: Ctx; clip: VoiceAnswer; label: string; to
   const spot = useHelpSpot(props.label, t('review.voice.playsRecorded'), () => void toggle());
   const length = formatClock(props.clip.durationMs);
   return (
-    <View style={{ alignItems: 'center', gap: space.xs }}>
+    <View style={{ alignItems: 'center', gap: space.xs, flexShrink: 1, maxWidth: '100%' }}>
       <Pressable onPress={spot.onPress} accessibilityRole="button"
         accessibilityLabel={playing ? t('review.voice.pauseClip', { label: props.label, length }) : t('review.voice.playClip', { label: props.label, length })}
         style={({ pressed }) => [styles.chip, { backgroundColor: bg }, pressed && styles.pressed]}>
         <View style={[styles.chipPlay, { backgroundColor: fill }]}>
           <Ico name={playing ? 'pause' : 'play'} size={22} color={C.white} />
         </View>
-        <Text style={[styles.chipLabel, { color: fg }]} numberOfLines={1}>{props.label} · {length}</Text>
+        <Text style={[styles.chipLabel, { color: fg }]}>{props.label} · {length}</Text>
         <HelpBadge spot={spot} />
       </Pressable>
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}

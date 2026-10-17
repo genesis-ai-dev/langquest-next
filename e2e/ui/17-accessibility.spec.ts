@@ -5,7 +5,7 @@
 // A11Y-009, A11Y-010 and axe together.
 import { readFileSync } from 'node:fs';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
-import { axeSerious, focused, noHotReload, pressables, smallText, type AxeFinding, type SmallText, type Target } from './17-a11y-helpers';
+import { axeSerious, cutOff, focused, noHotReload, pressables, smallText, type AxeFinding, type SmallText, type Target } from './17-a11y-helpers';
 import { button, byId, expect, expectNothingRefused, expectSent, openAs, openPassage, openSignedOut, primary, tab, test, text, useWorld, waitForApp, type AccountKey, type UiWorld } from './support';
 
 const world = useWorld();
@@ -416,10 +416,36 @@ async function gaps(page: Page, code: Code, screen: string): Promise<string[]> {
   return found;
 }
 
+/** A small phone (decision 139): where words run out of room first. */
+const SMALL = { width: 360, height: 800 };
+
+/** Whether a text is one the app writes in `code`: a catalog entry whole, any {{value}} matching anything. */
+function appWords(code: Code): (text: string) => boolean {
+  const values = Object.values(catalog(code)).map((v) => v.replace(/<\/?[a-z]+>/g, ''));
+  const exact = new Set(values.filter((v) => !v.includes('{{')));
+  // A template that is mostly its values ("{{a}}, {{b}}" joining names) says nothing of its own.
+  const patterns = values.filter((v) => v.includes('{{') && /\p{L}{3}/u.test(v.replace(/\{\{.*?\}\}/g, '')))
+    .map((v) => new RegExp(`^${esc(v).replace(/\\\{\\\{.*?\\\}\\\}/g, '.+')}$`, 's'));
+  return (text) => exact.has(text) || patterns.some((p) => p.test(text));
+}
+
+/**
+ * Words cut off on the screen showing (decision 139): anything running past
+ * its box or the screen's side, and any of the app's own words shortened with
+ * "…" or a clamp. People's own content (names, notes) may be shortened in a list.
+ */
+async function cut(page: Page, code: Code, screen: string): Promise<string[]> {
+  const mine = appWords(code);
+  return (await cutOff(page)).filter((c) => c.how === 'outside' || c.how === 'offscreen' || mine(c.text))
+    .map((c) => `${code} ${screen}: "${c.text}" ${c.how}${c.by ? ` by ${c.by} px` : ''}`);
+}
+
 test('A11Y-019 every interface language fills the key screens without gaps', async ({ page, browser }) => {
   test.setTimeout(1_200_000); // ceiling: loads every interface language in one test
   const w = world();
+  await page.setViewportSize(SMALL);
   const problems: string[] = [];
+  const cutWords: string[] = [];
   const consoleGaps: string[] = [];
   let showing: Code = 'en';
   page.on('console', (m) => {
@@ -430,6 +456,7 @@ test('A11Y-019 every interface language fills the key screens without gaps', asy
   await openAs(page, w, 'TRANS');
   // REV's back translation, on a second device that is told the language directly.
   const rev = await device(browser, 'REV');
+  await rev.page.setViewportSize(SMALL);
   rev.page.on('console', (m) => { if (/missingKey|missing key/i.test(m.text())) consoleGaps.push(`${showing} (REV): ${m.text().slice(0, 160)}`); });
 
   for (const code of CODES) {
@@ -455,17 +482,32 @@ test('A11Y-019 every interface language fills the key screens without gaps', asy
     await expect(page).toHaveURL(/\/work$/);
     await expect(text(page, words['work.lead.nextForYou']!, false), `${code}: My Work`).toBeVisible();
     problems.push(...await gaps(page, code, 'My Work'));
+    cutWords.push(...await cut(page, code, 'My Work'));
     await primary(page).click();
     await expect(byId(page, 'header-back')).toBeVisible();
     await expect(primary(page)).toBeVisible();
     problems.push(...await gaps(page, code, 'the passage record'));
+    cutWords.push(...await cut(page, code, 'the passage record'));
+    // A check's choices and Something else?: the screens where long words met side-by-side buttons.
+    await text(page, words['admin.kinds.peer.step']!).click();
+    await expect(byId(page, 'sheet-close')).toBeVisible();
+    cutWords.push(...await cut(page, code, "a check's choices"));
+    await byId(page, 'sheet-close').click();
+    await expect(byId(page, 'sheet-close')).toBeHidden();
+    await button(page, words['passage.else.title']!).click();
+    await expect(byId(page, 'header-close')).toBeVisible();
+    cutWords.push(...await cut(page, code, 'Something else?'));
+    await byId(page, 'header-close').click();
+    await expect(primary(page)).toBeVisible();
     await primary(page).click();
     await expect(byId(page, 'record-button')).toBeVisible();
     problems.push(...await gaps(page, code, 'the recording workspace'));
+    cutWords.push(...await cut(page, code, 'the recording workspace'));
     await home(page);
     await tab(page, 'me').click();
     await expect(button(page, new RegExp(`^${esc(words['uiLanguage.row']!)}`))).toBeVisible();
     problems.push(...await gaps(page, code, 'Me'));
+    cutWords.push(...await cut(page, code, 'Me'));
 
     await rev.page.evaluate((c) => localStorage.setItem('ui-language:v1', c), code);
     await home(rev.page);
@@ -474,10 +516,12 @@ test('A11Y-019 every interface language fills the key screens without gaps', asy
     await expect(byId(rev.page, 'header-close')).toBeVisible();
     await expect(rev.page.getByRole('slider').locator('visible=true').first()).toBeVisible();
     problems.push(...await gaps(rev.page, code, 'back translation (REV)'));
+    cutWords.push(...await cut(rev.page, code, 'back translation (REV)'));
   }
   await rev.context.close();
   expect.soft(consoleGaps, 'missing keys reported by i18next').toEqual([]);
   expect(problems, 'raw keys or English left on screen (language, screen, text)').toEqual([]);
+  expect(cutWords, 'words cut off at 360 pt (language, screen, text, how)').toEqual([]);
 });
 
 test('A11Y-020 the browser language picks the app language', async ({ browser }) => {

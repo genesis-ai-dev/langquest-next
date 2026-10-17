@@ -26,7 +26,7 @@ import { useSyncStatus } from '../sync/useSyncStatus';
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
 import { useOrgSummary } from '../reports/useOrgSummary';
-import { Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, StepMarks } from '../ui/kit';
+import { Badge, Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, StepMarks } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { mayWriteLibrary } from '../library/model';
@@ -118,12 +118,16 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
   const beside = useOpenDetail();
   const { present } = useSyncStatus();
   const offline = keptOfflineMap(ctx, present).get(e.unitId);
+  const marks = e.s.recorded && e.s.steps.length > 0;
+  // With the step marks at the end too, "for you" goes under the title so the title keeps its room.
+  const badgeBelow = !!props.mine && marks;
   return (
     <Row testID={`row-${e.unitId}`} label={title} sub={summary} last={props.last} onPress={props.onPress}
       help={rowHelp(e.s, { mine: props.mine, offline, changed: !!props.changed })}
       current={beside?.screen === 'passage_record' && beside.params['unitId'] === e.unitId}
       accessibilityLabel={sentences([title, summary, ...(props.mine ? [t('map.forYou')] : []), ...(props.changed ? [t('map.changedSinceRecorded')] : []), offlineWords(offline)])}
-      {...(props.mine ? { badge: t('map.forYou'), badgeTone: 'amber' as const } : {})}
+      {...(props.mine && !badgeBelow ? { badge: t('map.forYou'), badgeTone: 'amber' as const } : {})}
+      {...(badgeBelow ? { below: <View style={{ alignSelf: 'flex-start', maxWidth: '100%' }}><Badge label={t('map.forYou')} tone="amber" /></View> } : {})}
       leading={(
         <View>
           <PassageDisc s={e.s} />
@@ -132,7 +136,7 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
           {props.changed ? <ChangedMark /> : null}
         </View>
       )}
-      {...(e.s.recorded && e.s.steps.length > 0
+      {...(marks
         ? { right: <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} /> }
         : {})} />
   );
@@ -222,7 +226,7 @@ function FunnelRows(props: { progress: LanguageProgress; stepNames?: string[] })
           <View key={`${r.label}-${i}`} style={styles.legendItem}>
             <View style={[styles.swatch, { backgroundColor: r.color }]} />
             {r.checkpoint ? <Ico name="lock" size={12} color={TINT.amberText} /> : null}
-            <Text style={txt.smMuted} numberOfLines={1}>{r.label}</Text>
+            <Text style={[txt.smMuted, { flexShrink: 1 }]}>{r.label}</Text>
             <Text style={[txt.sm, { fontWeight: '700' }]}>{fmt(r.n)}</Text>
           </View>
         ))}
@@ -297,7 +301,8 @@ export function StatusHome(ctx: Ctx) {
             {known.length === inView.length ? t('map.status.across', { count: inView.length }) : t('map.status.counted', { count: inView.length, known: fmt(known.length) })} · {t('map.passages', { count: total })}
           </Text>
           {asOf ? <Text style={txt.smMuted}>{t('map.status.asOf', { ago: agoWords(asOf) })}</Text> : null}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.xl }}>
+          {/* Three figures side by side while their words fit; the last moves down a line when they do not. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', columnGap: space.xl, rowGap: space.sm }}>
             <View>
               <Text style={[styles.bigNumber, { color: C.primary }]}>{formatPercent(percent(recorded, total))}</Text>
               <Text style={txt.smMuted}>{t('map.status.recorded')}</Text>
@@ -326,7 +331,7 @@ export function StatusHome(ctx: Ctx) {
               <View style={styles.code}><Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{l.code}</Text></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
-                <Text style={txt.smMuted} numberOfLines={1}>{t('map.passages', { count: l.progress.total })} · {l.flow}</Text>
+                <Text style={txt.smMuted}>{t('map.passages', { count: l.progress.total })} · {l.flow}</Text>
               </View>
               {l.progress.waiting > 0 ? <IconCount icon="clock" n={l.progress.waiting} tone="brand" /> : null}
               <Ico name="right" size={24} color={C.muted} />
@@ -347,7 +352,7 @@ export function StatusHome(ctx: Ctx) {
               <View style={styles.code}><Ico name="download" size={20} color={C.primary} /></View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{l.name}</Text>
-                <Text style={txt.smMuted} numberOfLines={1}>
+                <Text style={txt.smMuted}>
                   {l.progress ? t('map.status.passagesAsOf', { count: l.progress.total, ago: agoWords(l.asOf!) }) : t('map.status.openToBring')}
                 </Text>
               </View>
@@ -763,7 +768,7 @@ const styles = StyleSheet.create({
   iconCount: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 4 },
   bigNumber: { fontSize: T.display, fontWeight: '700' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', columnGap: space.md, rowGap: 4 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1, maxWidth: '100%' },
   swatch: { width: 10, height: 10, borderRadius: 3 },
   code: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }
 });

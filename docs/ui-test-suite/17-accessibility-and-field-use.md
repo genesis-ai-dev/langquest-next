@@ -398,11 +398,15 @@ Expected:
 - Scripts render with the right font: Ethiopic, Devanagari, Bengali, Thai and Myanmar, with no tofu (□).
 
 Web: the test picks each language from Me → Language and reads My Work, the
-passage record, the workspace and Me as TRANS, and REV's back translation
-(Review it's Listen needs a request to REV that A11Y-015 uses up). It fails
-on a raw key in any text or spoken name, and on any whole text that is an
-English catalog word the language translates. Cut-off labels and fonts stay
-a person's check on the screenshots.
+passage record (with a check's choices and Something else?), the workspace
+and Me as TRANS, and REV's back translation
+(Review it's Listen needs a request to REV that A11Y-015 uses up), on a
+360 pt wide phone. It fails on a raw key in any text or spoken name, on any
+whole text that is an English catalog word the language translates, and on
+words cut off (decision 139): any text running past its box or the screen's
+side, and any of the app's own words shortened with "…" or a clamp (people's
+names and notes may be shortened in a list). Fonts stay a person's check on
+the screenshots.
 
 ### A11Y-020 Choosing the phone's language picks the app's
 Roles: GUEST · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto

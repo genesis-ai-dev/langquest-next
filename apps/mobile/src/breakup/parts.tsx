@@ -80,7 +80,7 @@ export function WayCard(props: {
         {goes ? (
           <View style={styles.goes}>
             <Ico name="layers" size={14} color={C.muted} />
-            <Text style={[txt.xs, { color: C.muted }]}>{t('breakup.way.comesWith', { pattern: goes })}</Text>
+            <Text style={[txt.xs, { color: C.muted, flexShrink: 1 }]}>{t('breakup.way.comesWith', { pattern: goes })}</Text>
           </View>
         ) : null}
         {row.later && !props.oneBook ? null : <PieceBar doc={doc} v11n={props.v11n} book={props.oneBook ?? SAMPLE_BOOK} />}
@@ -145,7 +145,7 @@ export function LessonSheet(props: { visible: boolean; onClose: () => void; wayD
       footer={<>
         <PrimaryBtn label={last ? t('common.done') : t('common.next')} icon={last ? 'check' : 'right'} onPress={() => (last ? close() : setN(n + 1))}
           help={last ? t('breakup.lesson.doneHelp') : t('breakup.lesson.nextHelp')} />
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.lg }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.sm }}>
           {n > 0 ? <GhostBtn label={t('common.back')} icon="left" help={t('breakup.lesson.backHelp')} onPress={() => setN(n - 1)} /> : null}
           {last ? null : <GhostBtn label={t('breakup.lesson.skip')} icon="close" help={t('breakup.lesson.skipHelp')} onPress={close} />}
         </View>

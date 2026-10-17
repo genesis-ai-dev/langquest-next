@@ -6791,7 +6791,6 @@
       "openReference": "Abrir la referencia",
       "barTitle": "Biblia",
       "barTitleWith": "Biblia · {{abbr}}",
-      "barSub": "Desliza hacia abajo para ver la guía, las palabras clave, las notas y las grabaciones anteriores",
       "onlyBibleHelp": "La Biblia de estos versículos. Es la única que se ofrece aquí.",
       "rowHelp": "Reproduce y muestra el pasaje en esta Biblia en su lugar.",
       "rowOnHelp": "Marcada: la Biblia que se reproduce y se muestra aquí ahora.",

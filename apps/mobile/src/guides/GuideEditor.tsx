@@ -586,8 +586,8 @@ function StepRow(props: { step: DraftStep; index: number; count: number; on: boo
         style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row }, pressed && s.pressed]}>
         <View style={s.stepNum}><Text style={[txt.sm, { fontWeight: '800', color: C.primary }]}>{formatNumber(n)}</Text></View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={1}>{st.title || t('guides.steps.untitled')}</Text>
-          <Text style={txt.xs} numberOfLines={1}>{sub}</Text>
+          <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={2}>{st.title || t('guides.steps.untitled')}</Text>
+          <Text style={txt.xs}>{sub}</Text>
         </View>
         <HelpBadge spot={open} inset />
       </Pressable>

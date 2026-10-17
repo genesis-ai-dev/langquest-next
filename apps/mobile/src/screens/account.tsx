@@ -429,12 +429,12 @@ export function SettingsMore(ctx: Ctx) {
         <View style={styles.profile}>
           <PersonAvatar look={personLook(s.actorId, name)} size={52} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={txt.h3} numberOfLines={1}>{name}</Text>
+            <Text style={txt.h3}>{name}</Text>
             {/* A looked-after account's address means nothing to the person (decisions.md 59). */}
-            <Text style={[txt.xs, (!s.email || s.isManaged) && { color: TINT.amberText }]} numberOfLines={1}>
+            <Text style={[txt.xs, (!s.email || s.isManaged) && { color: TINT.amberText }]}>
               {s.isManaged || !s.email ? t('account.more.noEmail') : s.email}
             </Text>
-            <Text style={[txt.xs, { color: C.primary, fontWeight: '600' }]} numberOfLines={1}>{roleName} · {orgName}</Text>
+            <Text style={[txt.xs, { color: C.primary, fontWeight: '600' }]}>{roleName} · {orgName}</Text>
           </View>
         </View>
         {s.isManaged ? (
@@ -642,7 +642,7 @@ export function OrgSwitcher(ctx: Ctx) {
               <View style={styles.profile}>
                 <View style={styles.tile}><Ico name="building" size={24} color={active ? C.primary : C.muted} /></View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[txt.body, { fontWeight: '600' }]} numberOfLines={1}>{r.name}</Text>
+                  <Text style={[txt.body, { fontWeight: '600' }]}>{r.name}</Text>
                 </View>
                 {active ? <View style={styles.check}><Ico name="check" size={16} color={C.white} strokeWidth={3} /></View> : null}
               </View>
@@ -967,7 +967,9 @@ function Transfer(props: { icon: IconName; pending: number; peak: number; rate: 
         <View style={styles.profile}>
           <Ico name={props.icon} size={22} color={idle ? C.muted : C.primary} />
           <Text style={[txt.sm, { flex: 1, fontWeight: '600' }]}>{props.label}</Text>
-          {idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
+          <View style={{ flexShrink: 1, maxWidth: '50%', alignItems: 'flex-end' }}>
+            {idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
+          </View>
         </View>
         {idle ? null : <ProgressBar value={total ? (done / total) * 100 : 100} />}
       </View>

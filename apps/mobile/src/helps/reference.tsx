@@ -102,7 +102,7 @@ export function BiblePane(props: {
           under={many ? (
             <View style={styles.under}>
               <BiblePick label={abbr} onPress={() => setPicking(true)} />
-              <Text style={[txt.smMuted, { flex: 1 }]} numberOfLines={1}>{bible.audioAbsent ? t('recording.player.notOnDeviceYet') : bible.time()}</Text>
+              <Text style={[txt.smMuted, { flexGrow: 1, flexShrink: 1 }]}>{bible.audioAbsent ? t('recording.player.notOnDeviceYet') : bible.time()}</Text>
             </View>
           ) : undefined}
           {...(props.canNote ? { onNote: note } : {})}
@@ -272,8 +272,8 @@ function BibleRow(props: { label: string; sub: string; on?: boolean; more?: bool
       style={({ pressed }) => [styles.bibleRow, !props.last && ps.rowBorder, pressed && ps.pressed]}>
       <Ico name={props.more ? 'plus' : 'book'} size={20} color={C.primary} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.body, { fontWeight: '700', color: props.more ? C.primary : C.dark }]} numberOfLines={1}>{props.label}</Text>
-        <Text style={txt.xs} numberOfLines={2}>{props.sub}</Text>
+        <Text style={[txt.body, { fontWeight: '700', color: props.more ? C.primary : C.dark }]}>{props.label}</Text>
+        <Text style={txt.xs}>{props.sub}</Text>
       </View>
       {props.on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : null}
       <HelpBadge spot={spot} />
@@ -289,8 +289,8 @@ export function BibleBar(props: { bible: Bible; onOpen: () => void }) {
     <View style={styles.bar}>
       <PlayBtn playing={bible.player.playing} available={bible.hasAudio && !bible.player.loading} none={!bible.hasAudio && !bible.passage.notOnDevice && !bible.audioAbsent} label={t('reference.bible.play')} onPress={bible.player.toggle} />
       <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={t('reference.bible.openReference')} style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && ps.pressed]}>
-        <Text style={ps.miniTitle} numberOfLines={1}>{bible.option ? t('reference.bible.barTitleWith', { abbr: bible.option.abbreviation }) : t('reference.bible.barTitle')}</Text>
-        <Text style={txt.smMuted} numberOfLines={2}>{t('reference.bible.barSub')}</Text>
+        {/* The bar is 80 pt tall: the Bible's name only. How to open the rest is help mode's to say, where it has room. */}
+        <Text style={ps.miniTitle} numberOfLines={2}>{bible.option ? t('reference.bible.barTitleWith', { abbr: bible.option.abbreviation }) : t('reference.bible.barTitle')}</Text>
         <HelpBadge spot={open} />
       </Pressable>
       <Back10 onPress={() => bible.player.skip(-10)} disabled={!bible.player.started} />
@@ -365,12 +365,12 @@ function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boole
         accessibilityLabel={rendering ? t('reference.keyWords.termLabelWord', { term: term.term, refs: props.refs, word: rendering }) : t('reference.keyWords.termLabel', { term: term.term, refs: props.refs })}
         style={({ pressed }) => [{ flex: 1, minWidth: 0, minHeight: target.min, justifyContent: 'center' }, pressed && ps.pressed]}>
         <Text style={styles.termName} numberOfLines={1}>{term.term}</Text>
-        <Text style={txt.smMuted} numberOfLines={1}>{props.refs}{rendering && voice ? ` · ${rendering}` : ''}</Text>
+        <Text style={txt.smMuted}>{props.refs}{rendering && voice ? ` · ${rendering}` : ''}</Text>
         <HelpBadge spot={open} />
       </Pressable>
       {voice ? <YourWord ctx={props.ctx} hash={voice} term={term.term} />
         : rendering ? <Text style={[styles.yourWord, { maxWidth: 120 }]} numberOfLines={2}>{rendering}</Text>
-        : props.canEdit ? <SayYours onPress={props.onSay} term={term.term} /> : null}
+        : props.canEdit ? <View style={{ flexShrink: 1, maxWidth: '40%' }}><SayYours onPress={props.onSay} term={term.term} /></View> : null}
     </View>
   );
 }
@@ -395,7 +395,7 @@ function SayYours(props: { onPress: () => void; term: string }) {
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.sayYoursLabel', { term: props.term })}
       style={({ pressed }) => [styles.wordBtn, pressed && ps.pressed]}>
       <Ico name="mic" size={16} color={C.primary} />
-      <Text style={[styles.yourWord, { color: C.primary }]}>{t('reference.keyWords.sayYours')}</Text>
+      <Text style={[styles.yourWord, { color: C.primary, flexShrink: 1 }]}>{t('reference.keyWords.sayYours')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -536,7 +536,7 @@ function NoteItem(props: { ctx: Ctx; note: PassageNote; label: string; older?: s
     <Authored ctx={ctx} by={n.by}>
       <View style={styles.noteCard}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Text style={[txt.label, { flex: 1, letterSpacing: 0.6 }]} numberOfLines={2}>{props.label}{props.older ? ` · ${props.older}` : ''}</Text>
+          <Text style={[txt.label, { flex: 1, letterSpacing: 0.6 }]}>{props.label}{props.older ? ` · ${props.older}` : ''}</Text>
           <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />
         </View>
         {n.text ? <Text style={styles.noteText}>{n.text}</Text> : null}
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
   dotText: { fontSize: T.sm, fontWeight: '800', color: C.muted },
   dotNotes: { position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: TINT.amberText },
   term: { fontWeight: '700', color: C.primary, textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
-  under: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 2 },
+  under: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm, marginTop: 2 },
   pick: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: TINT.noteBorder, backgroundColor: TINT.note,
     flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110 },
   bibleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.sm },

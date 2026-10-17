@@ -154,7 +154,7 @@ export function QuietLink(props: { icon: AdminIcon; label: string; onPress: () =
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.quietLink, pressed && styles.pressed]}>
       <Glyph name={props.icon} size={16} color={C.muted} />
-      <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{props.label}</Text>
+      <Text style={[txt.sm, { color: C.muted, fontWeight: '700', flexShrink: 1 }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -237,7 +237,7 @@ export function NumberedSteps(props: { items: { label: string; lock?: boolean }[
       {props.items.map((s, i) => (
         <View key={`${s.label}-${i}`} style={styles.numbered}>
           <View style={styles.num}><Text style={styles.numText}>{formatNumber(i + 1)}</Text></View>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: C.dark }}>{s.label}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: C.dark, flexShrink: 1 }}>{s.label}</Text>
           {s.lock ? <Ico name="lock" size={15} color={C.muted} /> : null}
         </View>
       ))}
@@ -310,7 +310,7 @@ export function DashedRow(props: { icon: AdminIcon; label: string; onPress: () =
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.dashed, props.centred && { justifyContent: 'center' }, pressed && styles.pressed]}>
       <Glyph name={props.icon} size={20} />
-      <Text style={[txt.body, { color: C.primary, fontWeight: '700' }]}>{props.label}</Text>
+      <Text style={[txt.body, { color: C.primary, fontWeight: '700', flexShrink: 1 }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );

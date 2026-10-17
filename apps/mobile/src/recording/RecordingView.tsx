@@ -118,12 +118,12 @@ export function RecordingView(props: {
         {props.tile ? <View style={styles.tile}>{props.tile}</View> : null}
         <HelpInfo style={{ flex: 1, minWidth: 0 }} label={`${props.title}. ${status}`} detail={listening ? t('recording.vad.statusPausedHelp') : stopped ? t('recording.recorder.stoppedHelp') : t('recording.recorder.nextRecordingHelp')}>
           <View accessible accessibilityLabel={t('recording.recorder.nextLabel', { part: props.title, status })}>
-            <Text style={[styles.title, { color: fg }]} numberOfLines={1}>{props.title}</Text>
+            <Text style={[styles.title, { color: fg }]} numberOfLines={2}>{props.title}</Text>
           </View>
           {/* Read politely as it changes, with how many are kept so far (the waveform's boxes show it; screen readers hear it). */}
           <View style={styles.statusRow} accessible accessibilityLiveRegion="polite" accessibilityLabel={loopStatus(props.phase, rec.vadCapturing, props.count, props.noun)}>
             {listening ? <Ico name="pause" size={14} color={fg} /> : stopped ? <View style={styles.stop} /> : <PulsingDot on={capturing} />}
-            <Text style={[styles.status, { color: fg }]} numberOfLines={1}>{status}</Text>
+            <Text style={[styles.status, { color: fg, flexShrink: 1 }]}>{status}</Text>
           </View>
         </HelpInfo>
         <Elapsed running={props.phase === 'recording'} color={fg} />
