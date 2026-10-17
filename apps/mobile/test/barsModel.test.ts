@@ -1,7 +1,7 @@
 // A part's sound as bars (audio/barsModel.ts): even slices up to the part's
 // loudest, fitted to a row, and kept as short text.
 import { describe, expect, it } from 'vitest';
-import { barsFromChannels, barsFromPcm, fitBars, packBars, unpackBars } from '../src/audio/barsModel';
+import { barsFromChannels, barsFromLevels, barsFromPcm, fitBars, packBars, unpackBars } from '../src/audio/barsModel';
 
 const tone = (n: number, amp: number) => Int16Array.from({ length: n }, (_, k) => Math.round(Math.sin(k / 5) * amp * 32767));
 
@@ -53,5 +53,25 @@ describe('a part\'s bars', () => {
     expect(unpackBars('')).toBeNull();
     expect(unpackBars('xyz!')).toBeNull();
     expect(unpackBars(null)).toBeNull();
+  });
+
+  it('comes from the levels the recording screen showed, without the file', () => {
+    // 128 frames (about 6 s): loud, then soft, then loud again.
+    const db = [...Array(43).fill(-12), ...Array(42).fill(-30), ...Array(43).fill(-12)];
+    const bars = barsFromLevels(db)!;
+    expect(bars).toHaveLength(64);
+    expect(bars[0]).toBeCloseTo(1, 2);
+    expect(bars[32]!).toBeLessThan(0.3);
+    expect(bars[63]).toBeCloseTo(1, 2);
+    // A part quiet all through stays low, as one read from its file does.
+    for (const b of barsFromLevels(Array(100).fill(-45))!) expect(b).toBeLessThan(0.4);
+  });
+
+  it('gives a short part a bar a frame, and a part with no frames none', () => {
+    const bars = barsFromLevels([-20, -40, -20])!;
+    expect(bars).toHaveLength(3);
+    expect(bars[1]!).toBeLessThan(bars[0]!);
+    expect(fitBars(bars, 6)).toHaveLength(6);
+    expect(barsFromLevels([])).toBeNull();
   });
 });
