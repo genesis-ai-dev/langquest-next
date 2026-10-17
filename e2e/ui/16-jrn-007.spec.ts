@@ -97,13 +97,15 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await tab(page, 'manage').click();
   await button(page, /^Journey Language/).click();
   // Until its translators are invited the page is the Get ready checklist, where the checks are "Who checks the recordings?".
-  const checks = page.getByRole('button', { name: /^Checks/ }).locator('visible=true');
+  const checks = page.getByRole('button', { name: /^Review flow/ }).locator('visible=true');
   await expect(checks.first().or(button(page, /^Who checks the recordings\?/))).toBeVisible();
   // The page turns from the checklist to the language's page when step 7's code arrives, which can
   // be after it first shows: if it turns mid-tap, look again at whichever page it settled on.
   await expect(async () => {
     if (await checks.count()) {
+      // Its Review flow, then Edit: the checks themselves (decision 138).
       await checks.first().click({ timeout: 5_000 });
+      await text(page, 'Edit').click({ timeout: 5_000 });
       for (const check of ['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval']) {
         await expect(text(page, new RegExp(`^${check}`))).toBeVisible({ timeout: 5_000 });
       }

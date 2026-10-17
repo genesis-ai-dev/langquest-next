@@ -328,7 +328,6 @@
     "flows_home": "የግምገማ ሂደቶች",
     "flow_editor": "ሂደት ማስተካከያ",
     "templates_home": "የይዘት አብነቶች",
-    "template_picker": "አብነት ይምረጡ",
     "template_editor": "የአብነቱ አወቃቀር",
     "book_structure": "መጽሐፍ ይከፋፍሉ",
     "reference_home": "የማጣቀሻ ቤተ መጻሕፍት",
@@ -685,15 +684,14 @@
       "rolesSub_other": "በዚህ ደረጃና ከዚያ በላይ {{count, number}} ሚናዎች",
       "summary": {
         "templates": "የይዘት አብነቶች",
-        "referenceFirst": "ማጣቀሻ",
-        "reference": "ማጣቀሻ",
+        "referenceFirst": "የማጣቀሻ ጽሑፎች",
+        "reference": "የማጣቀሻ ጽሑፎች",
         "flowsFirst": "የግምገማ ሂደቶች",
         "flows": "የግምገማ ሂደቶች",
         "rolesFirst": "ሚናዎች",
-        "roles": "ሚናዎች",
-        "nameAndLicense": "ስምና ፈቃድ"
+        "roles": "ሚናዎች"
       },
-      "titleHelp": "አንድ ጊዜ የሚዘጋጀውንና አልፎ አልፎ የሚለወጠውን ያሳያል፦ ሚናዎች፣ ስሙ፣ ፈቃዱ።",
+      "titleHelp": "አንድ ጊዜ የሚዘጋጀውንና ብዙም የማይቀየረውን ያሳያል፦ የይዘት አብነቶች፣ የማጣቀሻ ጽሑፎች፣ የግምገማ ሂደቶች እና ሚናዎች።",
       "templatesHelp": "ሥራውን በክፍሎች የመከፋፈያ መንገዶችን፣ እያንዳንዱ ቋንቋም የትኛውን እንደሚጠቀም ይከፍታል።",
       "referenceHelp": "ለተርጓሚዎች የሚቀርቡትን መጽሐፍ ቅዱሶች፣ የጥናት መመሪያዎች፣ ጥያቄዎችና ቁልፍ ቃላት ይከፍታል።",
       "flowsHelp": "ቀረጻዎች የሚፈተሹባቸውን መንገዶች፣ እያንዳንዱ ቋንቋም የትኛውን እንደሚጠቀም ይከፍታል።",
@@ -727,7 +725,6 @@
     },
     "rename": {
       "done": "ስሙ ወደ {{name}} ተቀይሯል።",
-      "row": "ስም",
       "save": "ስሙን ያስቀምጡ",
       "taken": "ያ ስም እዚህ ተይዟል",
       "failed": "ስሙ አልተቀየረም",
@@ -740,7 +737,6 @@
     },
     "link": {
       "done": "{{name}} ከ{{linked}} ጋር ተገናኝቷል።",
-      "row": "በቋንቋዎች ዝርዝር ውስጥ",
       "linkedTo": "ከ{{name}} ጋር ተገናኝቷል · {{code}}",
       "linked": "ከእሱ ጋር ተገናኝቷል · {{code}}",
       "notLinked": "ገና አልተገናኘም፦ ከመስመር ውጭ የታከለ ወይም እዚያ ያልተገኘ",
@@ -767,14 +763,19 @@
       "addFirst": "መጀመሪያ ከድርጅቱ መነሻ ቋንቋ ያክሉ።",
       "readyStatus_one": "ዝግጁ · {{count, number}} ተርጓሚ",
       "readyStatus_other": "ዝግጁ · {{count, number}} ተርጓሚዎች",
-      "theyRecord": "የሚቀርጹት",
-      "whatHelps": "የሚረዳቸው",
       "nothingOffered": "እስካሁን ምንም አልቀረበም · ጥቂት ያክሉ",
       "peopleSub_one": "{{count, number}} ተርጓሚ · ተጨማሪ ይጋብዙ",
       "peopleSub_other": "{{count, number}} ተርጓሚዎች · ተጨማሪ ይጋብዙ",
-      "theyRecordHelp": "ለመቀየር የሚተረጉሙትን ይከፍታል።",
-      "whatHelpsHelp": "ለመቀየር ለእነሱ የቀረቡትን መጽሐፍ ቅዱሶች፣ መመሪያዎችና ማስታወሻዎች ይከፍታል።",
-      "checksHelp": "ለመቀየር እያንዳንዱ ቀረጻ የሚያልፍባቸውን ፍተሻዎች ይከፍታል።"
+      "checksHelp": "ለመቀየር እያንዳንዱ ቀረጻ የሚያልፍባቸውን ፍተሻዎች ይከፍታል።",
+      "contentTemplate": "የይዘት አብነት",
+      "referenceMaterial": "የማጣቀሻ ጽሑፎች",
+      "reviewFlow": "የግምገማ ሂደት",
+      "contentTemplateHelp": "የሚጠቀመውን የይዘት አብነት፣ ሊጠቀምባቸው የሚችላቸውን ሌሎች እና ሁሉንም ይከፍታል።",
+      "referenceMaterialHelp": "የሚጠቀማቸውን መጽሐፍ ቅዱሶች፣ መመሪያዎችና ማስታወሻዎች ለመጨመር ወይም ለማስወገድ ይከፍታል።",
+      "reviewFlowHelp": "የሚጠቀማቸውን ፍተሻዎች፣ ሊጠቀምባቸው የሚችሉ የተዘጋጁ ሂደቶች እና ሁሉንም ይከፍታል።",
+      "rolesSub_one": "{{count, number}} ሚና",
+      "rolesSub_other": "{{count, number}} ሚናዎች",
+      "upHelp": "የድርጅቱን ገጽ ይከፍታል።"
     },
     "join": {
       "wantsToJoin": "{{name}} መቀላቀል ይፈልጋል",
@@ -793,33 +794,8 @@
       "sayNoHelp": "ጥያቄያቸውን ወዲያውኑ ውድቅ ያደርጋል። እንዲገቡ አይፈቀድላቸውም።"
     },
     "more": {
-      "title": "ተጨማሪ",
-      "summary": {
-        "progress": "እድገት",
-        "members": "አባላት",
-        "roles": "ሚናዎች",
-        "publicListing": "የሕዝብ ዝርዝር",
-        "name": "ስም",
-        "languageList": "የቋንቋዎች ዝርዝር",
-        "cluster": "ቡድን"
-      },
-      "orgAndCode": "{{org}} · ኮድ {{code}}",
       "seeWork": "ሥራቸውን ይመልከቱ",
-      "seeWorkSub": "እያንዳንዱ ክፍልና ምን ያህል እንደደረሰ",
-      "membersSub_one": "በ{{language}} {{count, number}} ሚና ተሰጥቷል",
-      "membersSub_other": "በ{{language}} {{count, number}} ሚና ተሰጥቷቸዋል",
-      "rolesSub_one": "{{count, number}} ሚና · እያንዳንዱ ምን ማድረግ እንደሚችል",
-      "rolesSub_other": "{{count, number}} ሚናዎች · እያንዳንዱ ምን ማድረግ እንደሚችል",
-      "templates": "ሥራውን የመከፋፈያ መንገዶች ሁሉ",
-      "templatesSub": "የድርጅቱ የክፍሎችና የአወቃቀሮች ቤተ መጻሕፍት",
-      "reference": "መጽሐፍ ቅዱሶች፣ መመሪያዎችና ማስታወሻዎች",
-      "referenceSub": "በቤተ መጻሕፍቱ ውስጥ ያለው ሁሉ፣ ሽፋንና ማጋራት",
-      "flows": "የመፈተሻ መንገዶች ሁሉ",
-      "flowsSub": "የድርጅቱ የግምገማ ሂደቶች",
       "publicList": "በሕዝብ ዝርዝር ላይ ያሳዩ",
-      "publicListSub": "የቋንቋው ስምና እድገቱ ብቻ",
-      "orgPage": "የድርጅቱ ገጽ",
-      "titleHelp": "ቀሪውን ያሳያል፦ እድገት፣ ሰዎች፣ ሚናዎች፣ ስሙና ሌሎችም።",
       "seeWorkHelp": "ካርታውን ይከፍታል፦ እያንዳንዱ ክፍልና ምን ያህል እንደደረሰ።",
       "publicListOnHelp": "በርቷል፦ ስሙና እድገቱ በሕዝብ ዝርዝር ላይ ናቸው። ለማንሳት ይንኩ።",
       "publicListOffHelp": "ጠፍቷል። ስሙንና እድገቱን በሕዝብ ዝርዝር ላይ ለማድረግ ይንኩ።"
@@ -963,7 +939,7 @@
       "needsPermission": "ቋንቋ ማከል ለመላው ድርጅት አብነቶችንና የግምገማ ሂደቶችን የማስተዳደር ፈቃድ ይፈልጋል።",
       "templateMissing": "አብነቱ ገና በዚህ መሣሪያ ላይ የለም። ኢንተርኔት ሲገናኝ እንደገና ይሞክሩ።",
       "added": "{{language}} ወደ {{org}} ታክሏል።",
-      "addedNotOffered": "{{language}} ወደ {{org}} ታክሏል። በመስመር ላይ ሲሆኑ {{offers}}ን በየሚረዳቸው ሥር ያቅርቡ።",
+      "addedNotOffered": "{{language}} ወደ {{org}} ታክሏል። በመስመር ላይ ሲሆኑ {{offers}}ን በማጣቀሻ ጽሑፎች ሥር ያቅርቡ።",
       "step": "ደረጃ {{step}} ከ{{total}}",
       "called": "ቋንቋው ምን ተብሎ ይጠራል?",
       "namePlaceholder": "ለምሳሌ ሀዲይኛ",
@@ -983,8 +959,8 @@
       "suggested": "የተጠቆመ · {{from}}",
       "howChecked": "ቀረጻዎች እንዴት ይፈተሻሉ?",
       "noWays": "እስካሁን የሚመረጥ የመፈተሻ መንገድ የለም።",
-      "offerNote": "ለ{{language}} ተርጓሚዎች {{offers}} እናቀርባለን። ይህን በማንኛውም ጊዜ በ<b>የሚረዳቸው</b> ሥር ይቀይሩ።",
-      "offerNoteFia": "ለ{{language}} ተርጓሚዎች {{offers}} እናቀርባለን። የFIA መመሪያዎች ከመረጧቸው የFIA ክፍሎች ጋር አብረው ይሄዳሉ። ይህን በማንኛውም ጊዜ በ<b>የሚረዳቸው</b> ሥር ይቀይሩ።",
+      "offerNote": "ለ{{language}} ተርጓሚዎች {{offers}} እናቀርባለን። ይህን በማንኛውም ጊዜ በ<b>የማጣቀሻ ጽሑፎች</b> ሥር ይቀይሩ።",
+      "offerNoteFia": "ለ{{language}} ተርጓሚዎች {{offers}} እናቀርባለን። የFIA መመሪያዎች ከመረጧቸው የFIA ክፍሎች ጋር አብረው ይሄዳሉ። ይህን በማንኛውም ጊዜ በ<b>የማጣቀሻ ጽሑፎች</b> ሥር ይቀይሩ።",
       "notAdded": "አልታከለም",
       "inviteLater": "የ{{language}} ተርጓሚዎችን በኋላ ከገጹ ይጋብዙ።",
       "later": "በኋላ",
@@ -998,7 +974,7 @@
         "keepOpen": "ይህ እስኪያልቅ ድረስ መተግበሪያውን ክፍት ያድርጉት።",
         "wait": "{{language}} አሁንም እየታከለ ነው። እባክዎ ይጠብቁ።"
       },
-      "offerNothing": "LangQuest እስካሁን በ{{reads}} መጽሐፍ ቅዱስም ሆነ የጥናት መመሪያ የለውም። ለ{{language}} ተርጓሚዎች መጽሐፍ ቅዱስ ይፈልጉ ወይም ማስታወሻ ይጻፉ፤ በ<b>የሚረዳቸው</b> ሥር።",
+      "offerNothing": "LangQuest እስካሁን በ{{reads}} መጽሐፍ ቅዱስም ሆነ የጥናት መመሪያ የለውም። ለ{{language}} ተርጓሚዎች መጽሐፍ ቅዱስ ይፈልጉ ወይም ማስታወሻ ይጻፉ፤ በ<b>የማጣቀሻ ጽሑፎች</b> ሥር።",
       "nameHelp": "ስሙን ይጻፉ፦ ከቋንቋዎች ዝርዝር የሚመሳሰሉት ከታች ይታያሉ።",
       "continueHelp": "ወደ ቀጣዩ ጥያቄ ይቀጥላል።",
       "addHelp": "{{language}}ን በእነዚህ መልሶች ያክላል። ከዚያ ተርጓሚዎቹን መጋበዝ ይችላሉ።",
@@ -1010,6 +986,14 @@
       "guides": "የ{{name}} የጥናት መመሪያዎች",
       "theBible": "{{name}}",
       "guidesIn": "የ{{name}} የጥናት መመሪያዎች በ{{language}}"
+    },
+    "languages": {
+      "row": "ቋንቋዎች",
+      "rowSub": "{{target}} · {{understood}}",
+      "rowHelp": "የሚተረጉሙበትን ቋንቋ እና የሚረዷቸውን ቋንቋዎች ይከፍታል።",
+      "target": "የሚተረጉሙት ወደ",
+      "understood": "የሚረዱት",
+      "understoodHelp": "የመጽሐፍ ቅዱሶቻቸውንና የመመሪያዎቻቸውን ቋንቋዎች ለመቀየር ይከፍታል።"
     }
   },
   "admin": {
@@ -1321,7 +1305,9 @@
       "findBibleHelp": "ለቡድኑ አንዱን ለማቅረብ ሌሎች የሚያጋሯቸውን መጽሐፍ ቅዱሶች ይፈልጉ።",
       "openBibleHelp": "ለማዳመጥና ለማንበብ ይከፍተዋል።",
       "setHelp": "ቋንቋዎቹን ይከፍታል፦ ቡድኑ የትኛውን እንደሚያገኝ ይምረጡ፣ ወይም ያጥፉት።",
-      "patternOnHelp": "ለእሱ በተመረጠው ቋንቋ ለቡድኑ ቀርቧል።"
+      "patternOnHelp": "ለእሱ በተመረጠው ቋንቋ ለቡድኑ ቀርቧል።",
+      "all": "ሁሉም የማጣቀሻ ጽሑፎች",
+      "allHelp": "በድርጅቱ ቤተ መጻሕፍት ያለውን ሁሉ እና ለእያንዳንዱ ቋንቋ የቀረበውን ይከፍታል።"
     },
     "page": {
       "title": "የሚረዳቸው",
@@ -1383,7 +1369,22 @@
     "nextHelp": "ወደ ቀጣዩ ጥያቄ ይቀጥላል።",
     "nextPageHelp": "ወደዚህ ጥያቄ ቀጣይ ክፍል ይቀጥላል።",
     "nextQuestionHelp": "ገና ያልተመለሰውን ቀጣይ ጥያቄ ይከፍታል።",
-    "backHelp": "አንድ ገጽ ወደ ኋላ ይመለሳል። የመረጡት እንደተመረጠ ይቆያል።"
+    "backHelp": "አንድ ገጽ ወደ ኋላ ይመለሳል። የመረጡት እንደተመረጠ ይቆያል።",
+    "template": {
+      "eachBook": "የእያንዳንዱ መጽሐፍ ክፍሎች",
+      "eachBookHelp": "ክፍሎቹ የሚጀምሩበትንና የሚያልቁበትን ለመቀየር እያንዳንዱን መጽሐፍ ይከፍታል።",
+      "whichBooks": "የትኞቹ መጻሕፍት",
+      "whichBooksHelp": "የሚተረጉሙትን ይከፍታል፣ መጻሕፍቱን ለመምረጥ።",
+      "optionViewHelp": "ከድርጅቱ የይዘት አብነቶች አንዱ። ቋንቋዎችን የሚያዘጋጅ ሊመርጠው ይችላል።",
+      "chooseOne": "ከታች አንዱን ይምረጡ።",
+      "all": "ሁሉም የይዘት አብነቶች",
+      "allHelp": "የድርጅቱን የይዘት አብነቶች እና እያንዳንዱ ቋንቋ የሚጠቀመውን ይከፍታል።"
+    },
+    "flow": {
+      "all": "ሁሉም የግምገማ ሂደቶች",
+      "allHelp": "የድርጅቱን የግምገማ ሂደቶች እና እያንዳንዱ ቋንቋ የሚጠቀመውን ይከፍታል።",
+      "optionViewHelp": "የተዘጋጀ ሂደት። ፍተሻዎችን የሚያዘጋጅ እዚህ ሊጠቀምበት ይችላል።"
+    }
   },
   "content": {
     "chapterChip": "ምዕ. {{chapter}}",
@@ -1497,9 +1498,7 @@
       "copySub": "ለመለወጥ የእኛ ያድርጉት።"
     },
     "language": {
-      "title": "የይዘት አብነት",
       "noLanguageSub": "አንድ ቋንቋ የሚቀርጽበትን አወቃቀር ለማየት የይዘት አብነቶችን ከቋንቋው ይክፈቱ።",
-      "recordsAgainst": "{{language}} የሚቀርጽበት",
       "itsTemplate": "አብነቱ",
       "version": "ስሪት {{n}}",
       "versionFrom": "ስሪት {{n}} · ከ{{org}}",
@@ -1514,45 +1513,26 @@
       "recorded_other": "{{count, number}} ተቀርጸዋል",
       "newerOut": "ስሪት {{n}} ወጥቷል። {{language}} በራሱ ወደ እሱ ይሸጋገራል።",
       "movesToNew": "{{language}} ወደ አዲሱ የ{{name}} ስሪት ይሸጋገራል።",
-      "editTemplate": "አብነቱን ያርትዑ",
-      "viewTemplate": "አብነቱን ይመልከቱ",
-      "changeTemplate": "አብነቱን ይቀይሩ",
-      "chooseStructure": "{{language}} የሚቀርጽበትን አወቃቀር ይምረጡ። ክፍሎቹ የሚመጡት ከአብነቱ ነው።",
       "whoeverChooses": "{{language}} የሚቀርጽበትን አወቃቀር የሚመርጠው የይዘት አብነቶችን የሚያስተዳድር ሰው ነው።",
-      "chooseTemplate": "አብነት ይምረጡ",
       "setAsideTitle_one": "{{count, number}} የተቀረጸ ንዑስ ክፍል ወደ ጎን ተትቷል",
       "setAsideTitle_other": "{{count, number}} የተቀረጹ ንዑስ ክፍሎች ወደ ጎን ተትተዋል",
       "setAsideBody_one": "{{language}} አሁን በሚጠቀምበት አብነት ውስጥ የለም። ወደ ጎን ተትቷል እንጂ አልተሰረዘም፦ ለመመለስ ወደ ቀድሞው ይቀይሩ።",
       "setAsideBody_other": "{{language}} አሁን በሚጠቀምበት አብነት ውስጥ የሉም። ወደ ጎን ተትተዋል እንጂ አልተሰረዙም፦ ለመመለስ ወደ ቀድሞው ይቀይሩ።",
-      "divideInto": "በ{{parts}} ይከፋፍሉ",
-      "openABook": "እያንዳንዱ {{part}} የት እንደሚጀምር ለማየት መጽሐፍ ከፍተው ያንብቡ፤ የFIA ክፍፍሎች እንደ ጥቆማ ምልክት ተደርገዋል።",
       "findBook": "መጽሐፍ ይፈልጉ",
       "noBookMatches": "ከ«{{query}}» ጋር የሚመሳሰል መጽሐፍ የለም።",
       "editTemplateHelp": "ለመቀየር አብነቱን ይከፍታል። የሚጠቀሙበት ቋንቋዎች አዲሱን ስሪት ያገኛሉ።",
-      "changeTemplateHelp": "ለ{{language}} ሌላ አብነት ይምረጡ። የተቀረጸ ምንም ነገር አይሰረዝም።",
       "bookHelp": "አንብበው እያንዳንዱ {{part}} የት እንደሚጀምር ለማየት ይከፍተዋል።",
       "bookWaitingHelp": "ገና አልተከፋፈለም። እንዴት ሊከፋፈል እንደሚችል ለማየት ይከፍተዋል።"
     },
     "picker": {
-      "title": "አብነት ይምረጡ",
-      "noLanguageSub": "ከአንድ ቋንቋ የይዘት አብነት ላይ አብነት ይምረጡ።",
-      "itsTemplate": "አብነቱ",
       "nowUses": "{{language}} አሁን {{name}}ን ይጠቀማል።",
-      "inUseLabel": "{{name}}፣ በጥቅም ላይ",
-      "inUseTitle": "{{name}} · በጥቅም ላይ",
-      "for": "ለ{{language}}",
-      "forNow": "ለ{{language}} · አሁን {{template}}",
       "hidden": "የ{{language}} አሁን ያሉት {{parts}} ተደብቀዋል እንጂ አልተሰረዙም።",
       "hiddenRecorded_one": "የ{{language}} አሁን ያሉት {{parts}} ተደብቀዋል እንጂ አልተሰረዙም። {{count, number}} ንዑስ ክፍል ቀረጻዎች አሉት — እነሱን ለመመለስ ወደዚህ አብነት ይመለሱ።",
       "hiddenRecorded_other": "የ{{language}} አሁን ያሉት {{parts}} ተደብቀዋል እንጂ አልተሰረዙም። {{count, number}} ንዑስ ክፍሎች ቀረጻዎች አሏቸው — እነሱን ለመመለስ ወደዚህ አብነት ይመለሱ።",
       "willRecord": "{{language}} በ{{name}} ላይ ይቀርጻል። በኋላ መለወጥ ይችላሉ፤ የተቀረጸ ምንም ነገር ፈጽሞ አይሰረዝም።",
       "followsIt": "ድርጅትዎ ይከተለዋል፤ ስለዚህ የ{{org}} አዳዲስ ስሪቶች በራሳቸው {{language}} ጋር ይደርሳሉ።",
       "use": "{{name}}ን ይጠቀሙ",
-      "noneOurs": "ድርጅትዎ እስካሁን አብነቶች የሉትም። ሌላ ድርጅት የሚያጋራውን ይምረጡ።",
-      "makeOwnHelp": "ራስዎ የሚገነቡትን አዲስ አብነት ይጀምራል።",
-      "cardHelp": "ይመርጠዋል፣ ደረጃዎቹንም ያሳያል። ከዚያ ከታች ያለው አዝራር ጥቅም ላይ ያውለዋል።",
-      "pickedHelp": "ምልክቱ እንደሚያሳየው ተመርጧል። ምርጫውን ለመቀልበስ እንደገና ይንኩ።",
-      "inUseHelp": "{{language}} አሁን የሚጠቀመው አብነት።"
+      "cardHelp": "ይመርጠዋል፣ ደረጃዎቹንም ያሳያል። ከዚያ ከታች ያለው አዝራር ጥቅም ላይ ያውለዋል።"
     },
     "editor": {
       "levelShownByReference": "ይቀረጻል · በማጣቀሻ ይታያል",
@@ -7104,21 +7084,20 @@
       "keepHelp": "ይህን ይዘጋል። ቡድኑ እንዳለ ይቆያል።"
     },
     "language": {
-      "label": "ቡድን",
-      "none": "በቡድን ውስጥ የለም",
       "sheetTitle": "በየትኛው ቡድን ውስጥ ነው?",
       "count_one": "{{count, number}} ቋንቋ",
       "count_other": "{{count, number}} ቋንቋዎች",
       "newLabel": "ወይም አዲስ ቡድን",
       "firstLabel": "በአዲስ ቡድን ውስጥ አስገባው",
-      "note": "አንድ ቋንቋ ከአንድ በላይ ቡድን ውስጥ ሊሆን ይችላል፣ ወይም በምንም ውስጥ ላይሆን ይችላል። በቋንቋው ላይ ምንም አይቀየርም።",
       "done": "ተጠናቋል",
       "saved": "የ{{language}} ቡድኖች ተቀምጠዋል።",
       "rowHelp": "በየትኞቹ ቡድኖች ውስጥ እንዳለ ይምረጡ፣ ወይም በአዲስ ቡድን ውስጥ ያስገቡት።",
       "inHelp": "በዚህ ቡድን ውስጥ ነው። ለማውጣት ይንኩ።",
       "outHelp": "በዚህ ቡድን ውስጥ የለም። ለማስገባት ይንኩ።",
       "newHelp": "ስም ይጻፉ፦ በዚያ ስም በአዲስ ቡድን ውስጥ ይገባል።",
-      "doneHelp": "በየትኞቹ ቡድኖች ውስጥ እንዳለ ያስቀምጣል።"
+      "doneHelp": "በየትኞቹ ቡድኖች ውስጥ እንዳለ ያስቀምጣል።",
+      "add": "ቡድን",
+      "chipHelp": "ያለበት ቡድኖች።"
     },
     "newLanguage": {
       "what": "ምን እየጨመርክ ነው?",
@@ -7151,8 +7130,8 @@
       "forNew_other": "በ{{cluster}} ውስጥ ላሉት {{count, number}} አዲስ ቋንቋዎች። እያንዳንዳቸው በኋላ የራሳቸውን መቀየር ይችላሉ።",
       "added_one": "{{count, number}} ቋንቋ ወደ {{org}} ተጨምሯል፣ በ{{cluster}} ውስጥ።",
       "added_other": "{{count, number}} ቋንቋዎች ወደ {{org}} ተጨምረዋል፣ በ{{cluster}} ውስጥ።",
-      "addedNotOffered_one": "{{count, number}} ቋንቋ ወደ {{org}} ተጨምሯል፣ በ{{cluster}} ውስጥ። መስመር ላይ ስትሆን {{offers}}ን በሚረዳቸው ስር አቅርብ።",
-      "addedNotOffered_other": "{{count, number}} ቋንቋዎች ወደ {{org}} ተጨምረዋል፣ በ{{cluster}} ውስጥ። መስመር ላይ ስትሆን {{offers}}ን በሚረዳቸው ስር አቅርብ።",
+      "addedNotOffered_one": "{{count, number}} ቋንቋ ወደ {{org}} ተጨምሯል፣ በ{{cluster}} ውስጥ። መስመር ላይ ስትሆን {{offers}}ን በማጣቀሻ ጽሑፎች ሥር አቅርብ።",
+      "addedNotOffered_other": "{{count, number}} ቋንቋዎች ወደ {{org}} ተጨምረዋል፣ በ{{cluster}} ውስጥ። መስመር ላይ ስትሆን {{offers}}ን በማጣቀሻ ጽሑፎች ሥር አቅርብ።",
       "notMade": "አልተጨመረም",
       "making": {
         "adding": "{{language}}ን በመጨመር ላይ",

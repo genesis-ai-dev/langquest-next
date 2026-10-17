@@ -9,7 +9,7 @@ import {
   back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, openAs, openSignedOut, primary, screenText, syncNow, tab, test,
   text, useWorld, waitForApp
 } from './support';
-import { closeSheet, addBareLanguage, expectNotOnScreen, expectOnScreen, expectOrgSent, goBack, languagePage, more, orgHome, listingOf, openAsIn, orgRefused, publiclyListed, setup, switchNamed } from './setup-helpers';
+import { closeSheet, addBareLanguage, contentTemplate, eachBook, expectNotOnScreen, expectOnScreen, expectOrgSent, goBack, languageChecks, languagePage, orgHome, listingOf, openAsIn, orgRefused, publiclyListed, referenceLibrary, referenceMaterial, reviewFlows, setup, switchNamed } from './setup-helpers';
 
 const world = useWorld();
 
@@ -21,10 +21,12 @@ test('SETUP-001 Org home shows the organization, its languages and its setup', a
   await expectOnScreen(page, '2 languages · 8 members', 'Invite people', 'Alpha', 'Bravo', 'New language', 'Members', '3 at org level · 8 total');
   await expectOnScreen(page, /Alpha Standard Bible Flow · \d+ of \d+ recorded · \d+ done/);
   await setup(page);
-  await expectOnScreen(page, 'Content Templates', 'Reference Material', 'Review Flows', 'Roles', '7 roles at this level and above', 'Name', 'All rights reserved');
+  await expectOnScreen(page, 'Content templates', 'Reference material', 'Review flows', 'Roles', '7 roles at this level and above', 'All rights reserved');
+  // The name and licence are changed beside the name, not in Setup (decision 138).
+  await expect(byId(page, 'org-rename')).toBeVisible();
   await expect(text(page, w.orgName).first()).toBeVisible();
   await text(page, 'Alpha').click();
-  await expect(text(page, 'They record')).toBeVisible();
+  await expect(text(page, 'Content template')).toBeVisible();
   await expect(back(page)).toBeVisible();
 
   // COORD sees the same home.
@@ -39,24 +41,19 @@ test('SETUP-002 Only an organization admin renames the organization and changes 
   // COORD: Org home from the Manage tab.
   await openAs(page, w, 'COORD');
   await orgHome(page, w);
-  await setup(page);
-  await text(page, 'Name').click();
-  await expect(text(page, 'Rename the organization')).toHaveCount(0);
+  await expect(page.getByTestId('org-rename')).toHaveCount(0);
   await button(page, /^(License: )?All rights reserved/).click();
   await expectOnScreen(page, 'Who may use your work', 'Only an organization admin can change this.');
   await expectNotOnScreen(page, 'Open to ', 'Pick a more open license');
 
-  // LADMIN: Org home from Alpha's page → More → the organization's row.
+  // LADMIN: Org home from Alpha's page, where Back would be (decision 138).
   const lead = await deviceFor(page.context().browser()!, w, 'LADMIN');
   const p = lead.page;
   await tab(p, 'manage').click();
-  await more(p);
-  await text(p, 'The organization\'s page').click();
+  await byId(p, 'header-up').click();
   await expect(text(p, w.orgName).first()).toBeVisible();
   await expect(text(p, 'New language or cluster')).toHaveCount(0);
-  await setup(p);
-  await text(p, 'Name').click();
-  await expect(text(p, 'Rename the organization')).toHaveCount(0);
+  await expect(p.getByTestId('org-rename')).toHaveCount(0);
   await button(p, /^(License: )?All rights reserved/).click();
   await expectOnScreen(p, 'Only an organization admin can change this.');
   await closeSheet(p);
@@ -70,8 +67,7 @@ test('SETUP-003 Rename the organization', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
-  await setup(page);
-  await text(page, 'Name').click();
+  await byId(page, 'org-rename').click();
   await expectOnScreen(page, 'Rename the organization', 'Its members see the new name, and so does anyone asking to join it.');
   const save = button(page, 'Save the name');
   await expect(save).toBeDisabled();
@@ -93,7 +89,7 @@ test('SETUP-003 Rename the organization', async ({ page }) => {
   await trans.context.close();
 
   // Put it back.
-  await text(page, 'Name').click();
+  await byId(page, 'org-rename').click();
   await field(page, 'Its name').fill(w.orgName);
   await button(page, 'Save the name').click();
   await expectToast(page, `Renamed to ${w.orgName}.`);
@@ -115,9 +111,9 @@ for (const who of ['ADMIN', 'COORD'] as const) {
     await expect(primary(p)).toContainText('What will they record?');
     // "How this works" is offered on the checklist; tapping it turns help on and says how (decision 71, amended 2026-10-10).
     await expect(text(p, /How this works · 0:40/)).toBeVisible();
-    await expectOnScreen(p, 'More', /Progress, members, roles, public listing, name, language list/);
-    await more(p);
-    await expectOnScreen(p, 'See their work');
+    // No More: See their work, Roles, Languages and the public list are on the page (decision 138).
+    await expectOnScreen(p, 'See their work', 'Roles', 'Languages', 'Show on the public list');
+    await expectNotOnScreen(p, 'More');
     await text(p, 'What will help them?').click();
     await expectOnScreen(p, 'Get Bravo ready', '2 of 4');
     if (who !== 'ADMIN') await (d as { context: { close(): Promise<void> } }).context.close();
@@ -132,22 +128,28 @@ for (const who of ['ADMIN', 'COORD', 'LADMIN'] as const) {
     if (!d) await openAs(p, w, who);
     if (who === 'LADMIN') {
       await tab(p, 'manage').click();
-      await expect(text(p, 'They record')).toBeVisible();
+      await expect(text(p, 'Content template')).toBeVisible();
       await expect(back(p)).toHaveCount(0);
+      await expect(byId(p, 'header-up')).toHaveAccessibleName(w.orgName);
     } else {
       await languagePage(p, w, 'Alpha');
     }
     // TRANS, TREV and KEPT translate at Alpha; people who also assign work are not counted.
-    await expectOnScreen(p, 'Alpha', 'Ready · 3 translators', 'They record', 'What helps them', 'Checks', 'People', '3 translators · invite more');
-    // The Checks row says the order of the checks (decision 91).
-    await expectOnScreen(p, /Checks Peer check \+ back translation → Community check → Consultant check → Final approval/);
-    await text(p, 'Checks').click();
+    // One name for each thing, its line this language's pick (decision 138).
+    await expectOnScreen(p, 'Alpha', 'Ready · 3 translators', 'Content template', 'Reference material', 'Review flow', 'People', '3 translators · invite more', 'Roles');
+    // The Review flow row says the order of the checks (decision 91).
+    await expectOnScreen(p, /Review flow Peer check \+ back translation → Community check → Consultant check → Final approval/);
+    await languageChecks(p);
     await expectOnScreen(p, 'A translator records a version', 'Add a check');
     await expect(text(p, 'Alpha')).toBeVisible();
-    await goBack(p, 'They record');
-    await text(p, 'They record').click();
+    await goBack(p, 'All review flows');
+    await goBack(p, 'Content template');
+    await contentTemplate(p);
+    await expectOnScreen(p, 'FIA passages (English)', 'Each book\'s passages', 'Which books', 'All content templates');
+    await text(p, 'Which books').click();
     await expectOnScreen(p, 'What to translate', 'What will Alpha translate?');
-    await goBack(p, 'They record');
+    await goBack(p, 'All content templates');
+    await goBack(p, 'Content template');
     await primary(p).click();
     await expect.poll(() => screenText(p)).toMatch(/Luke/);
     if (d) await d.context.close();
@@ -155,30 +157,43 @@ for (const who of ['ADMIN', 'COORD', 'LADMIN'] as const) {
 }
 
 for (const who of ['ADMIN', 'LADMIN'] as const) {
-  test(`SETUP-006 ${who} More holds the rest of a language\'s settings`, async ({ page }) => {
+  test(`SETUP-006 ${who} A ready language\'s page holds its settings, with no More`, async ({ page }) => {
     const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
     // While Alpha's events are still arriving the page can read as not ready; wait for the language as it is.
     await expect(text(p, 'Ready · 3 translators')).toBeVisible({ timeout: 60_000 });
-    await more(p);
-    await expectOnScreen(p, `${w.orgName} · Code ALP`, 'Recorded', 'Done', 'Members', '5 given a role in Alpha', 'Roles', '7 roles · what each can do',
-      'Every way to divide the work', 'Bibles, guides and notes', 'Every way to check', 'Show on the public list', 'The organization\'s page', 'Name', 'In the language list');
-    // Review groups left with decision 91: a check's people are on the check.
-    await expectNotOnScreen(p, 'Review groups', 'See their work Every passage');
+    // Seven rows (decision 138): the work, the people, the language itself. No More, nothing twice.
+    await expectOnScreen(p, 'Content template', 'Reference material', 'Review flow', 'People', 'Roles', '7 roles', 'Languages', 'Show on the public list');
+    await expectNotOnScreen(p, 'More', 'Members', 'Every way to divide the work', 'Bibles, guides and notes', 'Every way to check', 'In the language list',
+      'The organization\'s page', 'Review groups');
+    // Its name and clusters are at the top, where they show: a pencil, and a chip to put it in a cluster.
+    if (who === 'ADMIN') await expectOnScreen(p, 'Cluster');
+    await expect(byId(p, 'title-rename')).toBeVisible();
     await text(p, 'Roles').click();
     await expectOnScreen(p, 'Roles', who === 'ADMIN' ? 'Organization' : 'Language');
-    await goBack(p, 'Every way to divide the work');
-    await text(p, 'Every way to divide the work').click();
-    await expectOnScreen(p, 'Content Template', 'Alpha records against');
-    await goBack(p, 'Bibles, guides and notes');
-    await text(p, 'Bibles, guides and notes').click();
-    await expectOnScreen(p, 'Reference Material', 'What translators are offered');
-    await goBack(p, 'Every way to check');
-    await text(p, 'Every way to check').click();
-    await expectOnScreen(p, 'Review Flows', 'Alpha uses');
-    await goBack(p, 'Every way to check');
+    await goBack(p, 'Content template');
+    // Each pick ends with the organization's whole shelf.
+    await contentTemplate(p);
+    await text(p, 'All content templates').click();
+    await expectOnScreen(p, 'Content templates', 'By language');
+    await goBack(p, 'All content templates');
+    await goBack(p, 'Reference material');
+    await referenceLibrary(p);
+    await expectOnScreen(p, 'Reference material', 'What translators are offered');
+    await goBack(p, 'All reference material');
+    await goBack(p, 'Review flow');
+    await reviewFlows(p);
+    await expectOnScreen(p, 'Review flows', 'Alpha uses');
+    await goBack(p, 'All review flows');
+    await goBack(p, 'Languages');
+    // Languages: the one they translate into, and the ones they understand.
+    await text(p, 'Languages').click();
+    await expectOnScreen(p, 'They translate into', 'They understand');
+    await text(p, 'They understand').click();
+    await expectOnScreen(p, 'Which languages should Alpha\'s Bibles and study guides be in?');
+    await goBack(p, 'Content template');
     if (d) await d.context.close();
   });
 }
@@ -191,8 +206,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
     // Let the organization's stream catch up first: the earlier renames arriving would redraw the page under the sheet.
     await syncNow(p);
-    await more(p);
-    await text(p, 'Name').click();
+    await byId(p, 'title-rename').click();
     await expectOnScreen(p, 'Rename Alpha', `Everyone in ${w.orgName} sees the new name. Its code, ALP, stays.`);
     await field(p, 'Its name').fill('Bravo');
     await expectOnScreen(p, 'That name is taken here', 'Bravo (BRA) already has this name. Two languages with one name are hard to tell apart.');
@@ -201,7 +215,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await button(p, 'Save the name').click();
     await expectToast(p, 'Renamed to Alpha Renamed.');
     await expect(text(p, 'Alpha Renamed').first()).toBeVisible();
-    await text(p, 'Name').click();
+    await byId(p, 'title-rename').click();
     await field(p, 'Its name').fill('Alpha');
     await button(p, 'Save the name').click();
     await expectToast(p, 'Renamed to Alpha.');
@@ -215,9 +229,10 @@ test('SETUP-008 Link a language to the language list', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Bravo');
-  await more(page);
-  await expectOnScreen(page, 'In the language list', 'Not linked yet: added offline, or not found there', 'Link it');
-  await text(page, 'In the language list').click();
+  await expectOnScreen(page, 'Languages', 'Link it');
+  await text(page, 'Languages').click();
+  await expectOnScreen(page, 'They translate into', 'Not linked yet: added offline, or not found there');
+  await text(page, 'They translate into').click();
   await expectOnScreen(page, 'Link Bravo', 'Find it by any of its names or its code. It keeps the name Bravo here, and takes the list\'s code.');
   await field(page, 'Its name or code').fill('bra');
   // The local language list is empty (the languoid tables are not seeded locally): nothing is found.
@@ -233,10 +248,8 @@ test('SETUP-009 Show a language on the public list', async ({ page, browser }) =
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
   const listed = switchNamed(page, /Show on the public list/);
   await expect(listed).toBeChecked({ timeout: 20_000 });
-  await expectOnScreen(page, 'Only the language\'s name and progress');
 
   // Signed out, Explore reads the public listing (decision 66).
   const guest = await browser.newContext({ viewport: { width: 430, height: 932 } });
@@ -294,7 +307,7 @@ test('SETUP-022 Get a language ready, question by question @p0', async ({ page, 
   await expectOnScreen(page, '4 of 4', 'Invite your translators', 'Translate', 'Check', 'Back-translate', 'Help run the team', 'Something else');
   await expectOnScreen(page, 'Ask them to scan this', 'Share as a link');
   await text(page, 'Done').click();
-  await expectOnScreen(page, 'Bravo', 'Ready · 0 translators', 'They record', 'What helps them', 'Checks', 'People');
+  await expectOnScreen(page, 'Bravo', 'Ready · 0 translators', 'Content template', 'Reference material', 'Review flow', 'People');
 
   // TRANS has no role at Bravo: nothing about it reaches their phone.
   const trans = await deviceFor(browser, w, 'TRANS');
@@ -345,7 +358,9 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
-    await text(p, 'They record').click();
+    // Content template › Which books: the question that chose it (decision 138).
+    await contentTemplate(p);
+    await text(p, 'Which books').click();
     await expectOnScreen(p, 'What to translate', 'Alpha');
     await primary(p).click();
     await primary(p).click();
@@ -356,7 +371,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await primary(p).click();
     await expectToast(p, /^Alpha translates .*\./);
     // No toast offers Undo (decision 134): the same step chooses the New Testament again.
-    await text(p, 'They record').click();
+    await text(p, 'Which books').click();
     await expectOnScreen(p, 'What to translate', 'Alpha');
     await primary(p).click();
     await primary(p).click();
@@ -365,6 +380,7 @@ for (const who of ['ADMIN', 'LADMIN'] as const) {
     await expect(primary(p)).toContainText('Use this');
     await primary(p).click();
     await expectToast(p, /^Alpha translates .*New Testament.*\./);
+    await goBack(p, 'Content template');
     await expectOnScreen(p, 'Bible stories · New Testament');
     await expectSent(p, w);
     await expectNothingRefused(p, w);
@@ -376,8 +392,8 @@ test('SETUP-026 What will help them: FIA\'s language', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await text(page, 'What helps them').click();
-  await expectOnScreen(page, 'What helps them', 'FIA study guides');
+  await referenceMaterial(page);
+  await expectOnScreen(page, 'Reference material', 'FIA study guides');
   // The guide set's row: its switch opens the language sheet.
   await text(page, 'FIA study guides').click();
   await expectOnScreen(page, 'Which language should FIA be in?', 'It comes in 5 languages. Choose the one Alpha\'s team reads best.', 'Keep English', 'Don\'t offer FIA');
@@ -398,7 +414,7 @@ test('SETUP-027 What will help them: Bibles, study guides and notes', async ({ p
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await text(page, 'What helps them').click();
+  await referenceMaterial(page);
   // No Bible is in the local library (no source@1): the Bible rows, ticking and the play button need the preview environment.
   await expectOnScreen(page, 'No Bibles yet');
   // A guide that is not a set turns off and on with the same row; no toast offers Undo (decision 134).
@@ -417,15 +433,17 @@ test('SETUP-027 What will help them: Bibles, study guides and notes', async ({ p
   await expectNothingRefused(page, w);
 });
 
-test('SETUP-028 The "What helps them" page and "Add more"', async ({ page }) => {
+test('SETUP-028 The "Reference material" page and "Add more"', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await text(page, 'What helps them').click();
-  await expectOnScreen(page, 'What helps them', 'Bibles', 'Study guides', 'Key words', 'Key terms', /\d+ words? · \d+ with a Alpha word/, 'Notes for translators');
-  await expectOnScreen(page, 'No Bibles yet', 'No notes yet', 'Add more to offer some', /passages? covered/);
+  await referenceMaterial(page);
+  await expectOnScreen(page, 'Reference material', 'Bibles', 'Study guides', 'Key words', 'Key terms', /\d+ words? · \d+ with a Alpha word/, 'Notes for translators');
+  // Last, the organization's whole shelf (decision 138), not a row in Add more.
+  await expectOnScreen(page, 'No Bibles yet', 'No notes yet', 'Add more to offer some', /passages? covered/, 'All reference material');
   await text(page, 'Add more').click();
-  await expectOnScreen(page, 'A Bible', 'A study guide', 'A note for translators', 'Key words', 'Everything in your library');
+  await expectOnScreen(page, 'A Bible', 'A study guide', 'A note for translators', 'Key words');
+  await expectNotOnScreen(page, 'Everything in your library');
   await text(page, 'Words to say the same way every time').click();
   await expectOnScreen(page, 'Key Terms');
 });
@@ -483,12 +501,12 @@ test('SETUP-030 What counts as ready', async ({ page }) => {
 
 // ---- Content templates ---------------------------------------------------------------------------
 
-/** Org home → Setup → Content Templates. */
+/** Org home → Setup → Content templates. */
 async function contentTemplates(page: import('@playwright/test').Page, w: ReturnType<typeof world>): Promise<void> {
   await orgHome(page, w);
   await setup(page);
-  await text(page, 'Content Templates').click();
-  await expectOnScreen(page, 'Content Templates', 'A template is the structure a language records against');
+  await text(page, 'Content templates').click();
+  await expectOnScreen(page, 'Content templates', 'A template is the structure a language records against');
 }
 
 /** A kit Card holding this title and a button with this name. */
@@ -497,7 +515,7 @@ const cardWith = (page: import('@playwright/test').Page, title: string, name: st
   .filter({ has: page.getByRole('button', { name, exact: true }) }).last();
 
 for (const who of ['ADMIN', 'COORD'] as const) {
-  test(`SETUP-031 ${who} Content Templates for the organization`, async ({ page, browser }) => {
+  test(`SETUP-031 ${who} Content templates for the organization`, async ({ page, browser }) => {
     const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(browser, w, who);
     const p = d?.page ?? page;
@@ -516,14 +534,15 @@ for (const who of ['ADMIN', 'COORD'] as const) {
   });
 }
 
-test('SETUP-032 "By language" rows on Content Templates', async ({ page }) => {
+test('SETUP-032 "By language" rows on Content templates', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'ADMIN');
   await contentTemplates(page, w);
   await page.getByText('Alpha', { exact: true }).last().click();
   // Known issue: flow.ts has no templates_home → templates_home edge.
   await expect(page.getByTestId('toast').filter({ hasText: 'That can\'t be opened from here.' })).toHaveCount(0);
-  await expectOnScreen(page, 'Content Template', 'Alpha records against');
+  // A language's row opens its books, each to divide (decision 138).
+  await expectOnScreen(page, 'Each book\'s passages', 'Alpha', 'Luke');
 });
 
 test('SETUP-033 Follow or copy a template another organization shares', async ({ page }) => {
@@ -562,7 +581,7 @@ test('SETUP-033 Follow or copy a template another organization shares', async ({
   // Offline, the list this device saw.
   await page.context().setOffline(true);
   await back(page).click();
-  await text(page, 'Content Templates').click();
+  await text(page, 'Content templates').click();
   await expectOnScreen(page, 'Could not refresh this list', 'Showing the list this device saved.');
   await page.context().setOffline(false);
 });
@@ -602,16 +621,17 @@ test('SETUP-034 Share, let follow and archive a template', async ({ page }) => {
 });
 
 for (const who of ['ADMIN', 'LADMIN'] as const) {
-  test(`SETUP-035 ${who} A language\'s own template view`, async ({ page }) => {
+  test(`SETUP-035 ${who} A language\'s content template, and each book\'s passages`, async ({ page }) => {
     const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(page.context().browser()!, w, who);
     const p = d?.page ?? page;
     if (!d) { await openAs(p, w, who); await languagePage(p, w, 'Alpha'); } else await tab(p, 'manage').click();
-    await more(p);
-    await text(p, 'Every way to divide the work').click();
-    await expectOnScreen(p, 'Content Template', 'Alpha records against', 'FIA passages (English)', /\d+ of its \d+ books · English versification/,
-      /\d+ passages · \d+ recorded/, 'Change template', /Divide into passages/i);
-    await expectOnScreen(p, who === 'ADMIN' ? 'View template' : 'View template');
+    // The pick on top with its facts and links, the others under it, the organization's shelf last (decision 138).
+    await contentTemplate(p);
+    await expectOnScreen(p, 'FIA passages (English)', /\d+ of its \d+ books · English versification/, /\d+ passages · \d+ recorded/,
+      'Each book\'s passages', 'Which books', 'View', 'All content templates');
+    await text(p, 'Each book\'s passages').click();
+    await expectOnScreen(p, 'Each book\'s passages', 'Alpha');
     await p.getByPlaceholder('Find a book').fill('Luk');
     await expectOnScreen(p, 'Luke');
     await p.getByPlaceholder('Find a book').fill('zzz');
@@ -627,18 +647,16 @@ test('SETUP-036 Choose a different template for a language', async ({ page }) =>
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to divide the work').click();
-  await text(page, 'Change template').click();
-  await expectOnScreen(page, 'Choose a Template', 'For Alpha · now FIA passages (English)', 'FIA passages (English) · in use');
+  // The others are listed under the one it uses (decision 138).
+  await contentTemplate(page);
+  await expectOnScreen(page, 'FIA passages (English)', 'OpenBible: long sections');
   // LangQuest's older templates are not offered, nor its ways in other numberings (decision 107).
   await expectNotOnScreen(page, 'Bible books (English)', 'Bible chapters (Russian Orthodox)');
   await text(page, 'OpenBible: long sections').click();
   await expectOnScreen(page, /Alpha's current passages are hidden, not deleted\. \d+ parts have recordings — change back to this template to bring them back\./);
   await button(page, 'Use OpenBible: long sections').click();
   await expectToast(page, 'Alpha now uses OpenBible: long sections.');
-  // No toast offers Undo (decision 134): choosing the template it used before puts it back.
-  await text(page, 'Change template').click();
+  // No toast offers Undo (decision 134): choosing the template it used before puts it back, from the same list.
   await text(page, 'FIA passages (English)').click();
   await button(page, 'Use FIA passages (English)').click();
   await expectToast(page, 'Alpha now uses FIA passages (English).');
@@ -701,7 +719,7 @@ test('SETUP-038 Edit a template; leaving keeps the draft', async ({ page }) => {
   await expect(byId(page, 'saved-mark')).toHaveAttribute('aria-label', 'Saved');
   // Back leaves at once: nothing asks, and nothing is published.
   await back(page).click();
-  await expectOnScreen(page, 'Content Templates');
+  await expectOnScreen(page, 'Content templates');
   await expect(byId(page, 'toast')).toHaveCount(0);
   // Opening it again brings the change back; Done publishes it, as version 2 (leaving published nothing).
   await cardWith(page, name, 'Edit').getByRole('button', { name: 'Edit', exact: true }).click();
@@ -748,11 +766,7 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   await primary(page).click();
   await expectToast(page, /^Oscar translates/);
   await byId(page, 'header-close').click();
-  await more(page);
-  await text(page, 'Every way to divide the work').click();
-  // Books that wait are listed here too, and open the ways to divide them (decision 107); here it is divided from the map.
-  await page.getByPlaceholder('Find a book').fill('Proverbs');
-  await expectOnScreen(page, 'Proverbs', 'Waiting to be broken up');
+  // Oscar is not ready yet, so its page is the checklist: the book is divided from the map (decision 107).
   await page.goto('/');
   await waitForApp(page);
   await tab(page, 'map').click();
@@ -775,8 +789,7 @@ test('SETUP-042 What a language calls a book, and what translators see', async (
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to divide the work').click();
+  await eachBook(page);
   // The list shows eight books at a time; by now earlier tests have broken up enough that Luke is
   // past the first eight, so it is found by name, as a person would.
   await page.getByPlaceholder('Find a book').fill('Luke');

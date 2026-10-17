@@ -141,7 +141,7 @@ export function divisionLine(doc: TemplateDoc, book: string, way: string | null,
 
 /**
  * Whether one of another organization's shared templates belongs in a list
- * to choose from (Content Templates, Choose a Template). LangQuest's ways of
+ * to choose from (Content templates, a language's Content template page). LangQuest's ways of
  * breaking up the Bible are listed once, in the numbering given; its older
  * templates (`langquest.template.*`, kept for the languages that already use
  * them) and its ways in other numberings are left out, so the list is not

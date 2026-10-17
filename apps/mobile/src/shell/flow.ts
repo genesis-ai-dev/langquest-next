@@ -29,7 +29,7 @@ export const SCREEN_IDS = [
   'org_home', 'language_home', 'new_language', 'members_list', 'invite_member',
   'invite_qr', 'edit_member', 'roles_home', 'role_editor',
   // 8 Method and content
-  'flows_home', 'flow_editor', 'templates_home', 'template_picker', 'template_editor', 'book_structure',
+  'flows_home', 'flow_editor', 'templates_home', 'template_editor', 'book_structure',
   'reference_home', 'material_editor',
   // App only: the local log, realtime state and transfers; account deletion (store rules);
   // the Reports section on wide windows (docs/decisions.md 57)
@@ -46,7 +46,7 @@ export const SCREEN_IDS = [
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor',
-  // App only: something made from a version, by a step or brought over from v2 (decision 138)
+  // App only: something made from a version, by a step or brought over from v2 (decision 139)
   'made_detail',
   // App only: a cluster of languages, a name the organization puts on them (decision 108, demo ADR-045)
   'cluster_home'
@@ -66,7 +66,9 @@ export const DROPPED_SCREENS: Record<string, string> = {
   // i18n-ignore: reasons for developers, read by the parity tests
   review_teams: 'no review teams (docs/decisions.md 91): people are put on a check, on the check itself (check_editor)',
   // i18n-ignore: reasons for developers, read by the parity tests
-  review_team_editor: 'no review teams (docs/decisions.md 91): people are put on a check, on the check itself (check_editor)'
+  review_team_editor: 'no review teams (docs/decisions.md 91): people are put on a check, on the check itself (check_editor)',
+  // i18n-ignore: reasons for developers, read by the parity tests
+  template_picker: "a language's Content template page lists the other templates under the one it uses (docs/decisions.md 138)"
 };
 /**
  * Demo edges the app leaves out on purpose, with the reason. The parity test
@@ -257,11 +259,7 @@ export const EDGES: Edge[] = [
   e('role_editor', 'invite_qr', undefined, 'assigner'), // tap Invite someone as … (assigner)
   e('invite_qr', 'role_editor', 'back'), // tap Back (from a role)
   e('role_editor', 'edit_member', undefined, 'assigner'), // tap member with this role
-  e('templates_home', 'template_picker', undefined, 'manageTemplates'), // tap Change template
-  e('template_picker', 'templates_home', 'popTo'), // tap Use for this language
-  e('template_picker', 'templates_home', 'back'), // tap Back
   e('templates_home', 'template_editor', undefined, 'manageTemplates'), // tap Edit levels / a template / New template
-  e('template_picker', 'template_editor', undefined, 'manageTemplates'), // tap Make your own
   e('template_editor', 'templates_home', 'back'), // tap Save / Back
   e('templates_home', 'book_structure', undefined, 'shapeTemplates'), // tap a book / Open the outline
   e('book_structure', 'templates_home', 'back'), // tap Back
@@ -391,14 +389,14 @@ export const EDGES: Edge[] = [
   e('get_ready', 'material_editor', undefined, 'manageReference'),
   e('get_ready', 'key_terms'),
   e('get_ready', 'flow_editor', undefined, 'manageFlows'),
+  e('get_ready', 'flows_home', undefined, 'manageFlows'),
   e('get_ready', 'role_editor'),
   e('new_language', 'role_editor'), // Invite its translators: Something else, make a new role
   // App only: New language's questions make their own answer where none fits (decision 71):
   // an outline for something other than the Bible, and "I'll choose the steps"
   e('new_language', 'template_editor', undefined, 'manageTemplates'),
   e('new_language', 'flow_editor', undefined, 'manageFlows'),
-  // App only: a ready language's page (decision 71, demo ADR-039): who checks, and letting someone in
-  e('language_home', 'flow_editor', undefined, 'manageFlows'),
+  // App only: a ready language's page (decision 71, demo ADR-039): letting someone in. Its checks open from its Review flow (decision 138).
   e('language_home', 'edit_member', undefined, 'assigner'),
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.
   e('flow_editor', 'check_editor'),
@@ -421,14 +419,14 @@ export const EDGES: Edge[] = [
   e('cluster_home', 'org_home', 'back'),
   e('new_language', 'cluster_home', 'replace'),
   e('new_language', 'cluster_home', 'back'),
-  // Something made from a version (decision 138): from the passage's Reviews by version, and from the version.
+  // Something made from a version (decision 139): from the passage's Reviews by version, and from the version.
   e('passage_record', 'made_detail'),
   e('version_detail', 'made_detail'),
   e('made_detail', 'passage_record', 'back'),
   e('made_detail', 'version_detail', 'back'),
   e('made_detail', 'ask_someone'),
-  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 138)
-  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 138)
+  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 139)
+  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 139)
   e('back_translation', 'version_detail', 'back'),
   e('back_translation', 'made_detail', 'back'),
   // App only: a version's page edits it into a new draft, as the Versions page does (LAN-83)

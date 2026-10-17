@@ -328,7 +328,6 @@
     "flows_home": "Mitiririko ya Ukaguzi",
     "flow_editor": "Hariri Mtiririko",
     "templates_home": "Violezo vya Maudhui",
-    "template_picker": "Chagua Kiolezo",
     "template_editor": "Muhtasari wa Kiolezo",
     "book_structure": "Gawa Kitabu",
     "reference_home": "Maktaba ya Marejeo",
@@ -685,15 +684,14 @@
       "rolesSub_other": "Majukumu {{count, number}} katika ngazi hii na juu",
       "summary": {
         "templates": "Violezo vya maudhui",
-        "referenceFirst": "Marejeo",
-        "reference": "marejeo",
+        "referenceFirst": "Nyenzo za Marejeo",
+        "reference": "nyenzo za Marejeo",
         "flowsFirst": "Mitiririko ya ukaguzi",
         "flows": "mitiririko ya ukaguzi",
         "rolesFirst": "Majukumu",
-        "roles": "majukumu",
-        "nameAndLicense": "jina na leseni"
+        "roles": "majukumu"
       },
-      "titleHelp": "Huonyesha kinachowekwa mara moja na kubadilishwa mara chache: majukumu, jina, leseni.",
+      "titleHelp": "Huonyesha kinachoandaliwa mara moja na hubadilika mara chache: violezo vya maudhui, nyenzo za marejeo, mitiririko ya ukaguzi na majukumu.",
       "templatesHelp": "Hufungua njia za kugawa kazi katika vifungu, na ipi kila lugha inatumia.",
       "referenceHelp": "Hufungua Biblia, miongozo ya kujifunza, maswali na maneno muhimu wanayopewa watafsiri.",
       "flowsHelp": "Hufungua njia za kukagua rekodi, na ipi kila lugha inatumia.",
@@ -727,7 +725,6 @@
     },
     "rename": {
       "done": "Jina limebadilishwa kuwa {{name}}.",
-      "row": "Jina",
       "save": "Hifadhi jina",
       "taken": "Jina hilo tayari linatumika hapa",
       "failed": "Jina halijabadilishwa",
@@ -740,7 +737,6 @@
     },
     "link": {
       "done": "{{name}} imeunganishwa na {{linked}}.",
-      "row": "Katika orodha ya lugha",
       "linkedTo": "Imeunganishwa na {{name}} · {{code}}",
       "linked": "Imeunganishwa nayo · {{code}}",
       "notLinked": "Bado haijaunganishwa: iliongezwa nje ya mtandao, au haikupatikana huko",
@@ -767,14 +763,19 @@
       "addFirst": "Ongeza lugha kutoka kwenye ukurasa mkuu wa shirika kwanza.",
       "readyStatus_one": "Tayari · mtafsiri {{count, number}}",
       "readyStatus_other": "Tayari · watafsiri {{count, number}}",
-      "theyRecord": "Wanarekodi",
-      "whatHelps": "Kinachowasaidia",
       "nothingOffered": "Bado hakuna kilichotolewa · ongeza baadhi",
       "peopleSub_one": "Mtafsiri {{count, number}} · alika zaidi",
       "peopleSub_other": "Watafsiri {{count, number}} · alika zaidi",
-      "theyRecordHelp": "Hufungua wanachotafsiri, ili ukibadilishe.",
-      "whatHelpsHelp": "Hufungua Biblia, miongozo na madokezo wanayopewa, ili ubadilishe.",
-      "checksHelp": "Hufungua kaguzi ambazo kila rekodi hupitia, ili uzibadilishe."
+      "checksHelp": "Hufungua kaguzi ambazo kila rekodi hupitia, ili uzibadilishe.",
+      "contentTemplate": "Kiolezo cha maudhui",
+      "referenceMaterial": "Nyenzo za marejeo",
+      "reviewFlow": "Mtiririko wa ukaguzi",
+      "contentTemplateHelp": "Hufungua kiolezo cha maudhui kinachotumika, vingine vinavyowezekana, na vyote.",
+      "referenceMaterialHelp": "Hufungua Biblia, miongozo na maelezo inayotumia, ili kuongeza au kuondoa.",
+      "reviewFlowHelp": "Hufungua ukaguzi unaotumika, mitiririko iliyo tayari inayowezekana, na yote.",
+      "rolesSub_one": "Jukumu {{count, number}}",
+      "rolesSub_other": "Majukumu {{count, number}}",
+      "upHelp": "Hufungua ukurasa wa shirika."
     },
     "join": {
       "wantsToJoin": "{{name}} anataka kujiunga",
@@ -793,33 +794,8 @@
       "sayNoHelp": "Hukataa ombi lake mara moja. Haruhusiwi kuingia."
     },
     "more": {
-      "title": "Zaidi",
-      "summary": {
-        "progress": "Maendeleo",
-        "members": "wanachama",
-        "roles": "majukumu",
-        "publicListing": "orodha ya umma",
-        "name": "jina",
-        "languageList": "orodha ya lugha",
-        "cluster": "kundi"
-      },
-      "orgAndCode": "{{org}} · Msimbo {{code}}",
       "seeWork": "Ona kazi yao",
-      "seeWorkSub": "Kila kifungu, na kimefika wapi",
-      "membersSub_one": "{{count, number}} amepewa jukumu katika {{language}}",
-      "membersSub_other": "{{count, number}} wamepewa jukumu katika {{language}}",
-      "rolesSub_one": "Jukumu {{count, number}} · kila moja linaweza kufanya nini",
-      "rolesSub_other": "Majukumu {{count, number}} · kila moja linaweza kufanya nini",
-      "templates": "Kila njia ya kugawa kazi",
-      "templatesSub": "Maktaba ya shirika ya vifungu na mihtasari",
-      "reference": "Biblia, miongozo na madokezo",
-      "referenceSub": "Kila kitu katika maktaba, kinachopatikana na kushiriki",
-      "flows": "Kila njia ya kukagua",
-      "flowsSub": "Mitiririko ya ukaguzi ya shirika",
       "publicList": "Onyesha kwenye orodha ya umma",
-      "publicListSub": "Jina la lugha na maendeleo yake tu",
-      "orgPage": "Ukurasa wa shirika",
-      "titleHelp": "Huonyesha vilivyobaki: maendeleo, watu, majukumu, jina lake na zaidi.",
       "seeWorkHelp": "Hufungua ramani: kila kifungu, na kimefika wapi.",
       "publicListOnHelp": "Imewashwa: jina lake na maendeleo yake yako kwenye orodha ya umma. Gusa ili kuyaondoa.",
       "publicListOffHelp": "Imezimwa. Gusa ili kuweka jina lake na maendeleo yake kwenye orodha ya umma."
@@ -963,7 +939,7 @@
       "needsPermission": "Kuongeza lugha kunahitaji ruhusa ya kusimamia violezo na mitiririko ya ukaguzi kwa shirika zima.",
       "templateMissing": "Kiolezo chake bado hakipo kwenye kifaa hiki. Jaribu tena ukiunganishwa.",
       "added": "{{language}} imeongezwa kwenye {{org}}.",
-      "addedNotOffered": "{{language}} imeongezwa kwenye {{org}}. Toa {{offers}} chini ya Kinachowasaidia ukiwa mtandaoni.",
+      "addedNotOffered": "{{language}} imeongezwa kwenye {{org}}. Toa {{offers}} chini ya Nyenzo za marejeo ukiwa mtandaoni.",
       "step": "Hatua ya {{step}} kati ya {{total}}",
       "called": "Lugha inaitwaje?",
       "namePlaceholder": "k.m. Hadiyya",
@@ -983,8 +959,8 @@
       "suggested": "Inapendekezwa · {{from}}",
       "howChecked": "Rekodi zitakaguliwa vipi?",
       "noWays": "Bado hakuna njia za kukagua za kuchagua.",
-      "offerNote": "Tutawapa watafsiri wa {{language}} {{offers}}. Badilisha hilo wakati wowote chini ya <b>Kinachowasaidia</b>.",
-      "offerNoteFia": "Tutawapa watafsiri wa {{language}} {{offers}}. Miongozo ya FIA inaenda pamoja na vifungu vya FIA ulivyochagua. Badilisha hilo wakati wowote chini ya <b>Kinachowasaidia</b>.",
+      "offerNote": "Tutawapa watafsiri wa {{language}} {{offers}}. Badilisha hilo wakati wowote chini ya <b>Nyenzo za marejeo</b>.",
+      "offerNoteFia": "Tutawapa watafsiri wa {{language}} {{offers}}. Miongozo ya FIA inaenda pamoja na vifungu vya FIA ulivyochagua. Badilisha hilo wakati wowote chini ya <b>Nyenzo za marejeo</b>.",
       "notAdded": "Haijaongezwa",
       "inviteLater": "Waalike watafsiri wa {{language}} kutoka kwenye ukurasa wake baadaye.",
       "later": "Baadaye",
@@ -998,7 +974,7 @@
         "keepOpen": "Acha programu wazi hadi hili likamilike.",
         "wait": "Bado inaongeza {{language}}. Tafadhali subiri."
       },
-      "offerNothing": "LangQuest bado haina Biblia wala miongozo ya kujifunza kwa {{reads}}. Tafuta Biblia au andika madokezo kwa watafsiri wa {{language}} chini ya <b>Kinachowasaidia</b>.",
+      "offerNothing": "LangQuest bado haina Biblia wala miongozo ya kujifunza kwa {{reads}}. Tafuta Biblia au andika madokezo kwa watafsiri wa {{language}} chini ya <b>Nyenzo za marejeo</b>.",
       "nameHelp": "Andika jina lake: zinazolingana kutoka orodha ya lugha zinaonekana hapa chini.",
       "continueHelp": "Endelea kwenye swali linalofuata.",
       "addHelp": "Huongeza {{language}} kwa majibu haya. Kisha unaweza kuwaalika watafsiri wake.",
@@ -1010,6 +986,14 @@
       "guides": "miongozo ya kujifunza ya {{name}}",
       "theBible": "{{name}}",
       "guidesIn": "miongozo ya kujifunza ya {{name}} kwa {{language}}"
+    },
+    "languages": {
+      "row": "Lugha",
+      "rowSub": "{{target}} · {{understood}}",
+      "rowHelp": "Hufungua lugha wanayotafsiri kwayo, na lugha wanazoelewa.",
+      "target": "Wanatafsiri kwa",
+      "understood": "Wanaelewa",
+      "understoodHelp": "Hufungua lugha za Biblia na miongozo yao, ili kuzibadilisha."
     }
   },
   "admin": {
@@ -1321,7 +1305,9 @@
       "findBibleHelp": "Tafuta katika Biblia ambazo wengine wanashiriki, ili uipatie timu moja.",
       "openBibleHelp": "Huifungua, ili usikilize na usome.",
       "setHelp": "Hufungua lugha zake: chagua ipi timu itapata, au uizime.",
-      "patternOnHelp": "Inatolewa kwa timu, katika lugha iliyochaguliwa kwa ajili yake."
+      "patternOnHelp": "Inatolewa kwa timu, katika lugha iliyochaguliwa kwa ajili yake.",
+      "all": "Nyenzo zote za marejeo",
+      "allHelp": "Hufungua kila kitu kwenye maktaba ya shirika, na kinachotolewa kwa kila lugha."
     },
     "page": {
       "title": "Kinachowasaidia",
@@ -1383,7 +1369,22 @@
     "nextHelp": "Endelea kwenye swali linalofuata.",
     "nextPageHelp": "Endelea kwenye sehemu inayofuata ya swali hili.",
     "nextQuestionHelp": "Hufungua swali linalofuata ambalo bado halijajibiwa.",
-    "backHelp": "Rudi ukurasa mmoja. Ulichochagua kinabaki kimechaguliwa."
+    "backHelp": "Rudi ukurasa mmoja. Ulichochagua kinabaki kimechaguliwa.",
+    "template": {
+      "eachBook": "Vifungu vya kila kitabu",
+      "eachBookHelp": "Hufungua kila kitabu, ili kubadilisha mahali vifungu vyake vinapoanza na kuishia.",
+      "whichBooks": "Vitabu vipi",
+      "whichBooksHelp": "Hufungua wanachotafsiri, ili kuchagua vitabu.",
+      "optionViewHelp": "Moja ya violezo vya maudhui vya shirika. Anayeandaa lugha anaweza kukichagua.",
+      "chooseOne": "Chagua kimoja hapa chini.",
+      "all": "Violezo vyote vya maudhui",
+      "allHelp": "Hufungua violezo vya maudhui vya shirika, na kile ambacho kila lugha inatumia."
+    },
+    "flow": {
+      "all": "Mitiririko yote ya ukaguzi",
+      "allHelp": "Hufungua mitiririko ya ukaguzi ya shirika, na ule ambao kila lugha inatumia.",
+      "optionViewHelp": "Mtiririko ulio tayari. Anayeandaa ukaguzi anaweza kuutumia hapa."
+    }
   },
   "content": {
     "chapterChip": "Sura {{chapter}}",
@@ -1497,9 +1498,7 @@
       "copySub": "Kifanye kiwe chetu ili tukibadilishe."
     },
     "language": {
-      "title": "Kiolezo cha Maudhui",
       "noLanguageSub": "Fungua Violezo vya Maudhui kutoka kwenye lugha ili kuona muundo inaorekodi kwa kuufuata.",
-      "recordsAgainst": "{{language}} inarekodi kwa kufuata",
       "itsTemplate": "Kiolezo chake",
       "version": "Toleo la {{n}}",
       "versionFrom": "Toleo la {{n}} · kutoka {{org}}",
@@ -1514,45 +1513,26 @@
       "recorded_other": "{{count, number}} vimerekodiwa",
       "newerOut": "Toleo la {{n}} limetoka. {{language}} inahamia kwake yenyewe.",
       "movesToNew": "{{language}} inahamia toleo jipya la {{name}}.",
-      "editTemplate": "Hariri kiolezo",
-      "viewTemplate": "Tazama kiolezo",
-      "changeTemplate": "Badilisha kiolezo",
-      "chooseStructure": "Chagua muundo ambao {{language}} inarekodi kwa kuufuata. Vifungu vyake vinatoka kwenye kiolezo.",
       "whoeverChooses": "Anayesimamia violezo vya maudhui anachagua muundo ambao {{language}} inarekodi kwa kuufuata.",
-      "chooseTemplate": "Chagua kiolezo",
       "setAsideTitle_one": "Sehemu {{count, number}} iliyorekodiwa imewekwa kando",
       "setAsideTitle_other": "Sehemu {{count, number}} zilizorekodiwa zimewekwa kando",
       "setAsideBody_one": "Haipo katika kiolezo ambacho {{language}} inatumia sasa. Imewekwa kando, haijafutwa: rudisha kiolezo cha awali ili kuirudisha.",
       "setAsideBody_other": "Haziko katika kiolezo ambacho {{language}} inatumia sasa. Zimewekwa kando, hazijafutwa: rudisha kiolezo cha awali ili kuzirudisha.",
-      "divideInto": "Gawa katika {{parts}}",
-      "openABook": "Fungua kitabu ili kukisoma na kuona mahali kila {{part}} kinapoanzia, pamoja na migawanyo ya FIA ikiwa imewekwa alama kama mapendekezo.",
       "findBook": "Tafuta kitabu",
       "noBookMatches": "Hakuna kitabu kinacholingana na “{{query}}”.",
       "editTemplateHelp": "Hufungua kiolezo ili ukibadilishe. Lugha zinazokitumia zinapata toleo jipya.",
-      "changeTemplateHelp": "Chagua kiolezo kingine kwa {{language}}. Hakuna kilichorekodiwa kinachofutwa.",
       "bookHelp": "Hukifungua ili ukisome na kuona mahali kila {{part}} kinapoanzia.",
       "bookWaitingHelp": "Bado hakijagawanywa. Hukifungua ili kuona jinsi kinavyoweza kugawanywa."
     },
     "picker": {
-      "title": "Chagua Kiolezo",
-      "noLanguageSub": "Chagua kiolezo kutoka kwenye Kiolezo cha Maudhui cha lugha.",
-      "itsTemplate": "kiolezo chake",
       "nowUses": "{{language}} sasa inatumia {{name}}.",
-      "inUseLabel": "{{name}}, kinatumika",
-      "inUseTitle": "{{name}} · kinatumika",
-      "for": "Kwa {{language}}",
-      "forNow": "Kwa {{language}} · sasa {{template}}",
       "hidden": "{{parts}} za sasa za {{language}} zimefichwa, hazijafutwa.",
       "hiddenRecorded_one": "{{parts}} za sasa za {{language}} zimefichwa, hazijafutwa. Sehemu {{count, number}} ina rekodi — rudi kwenye kiolezo hiki ili kuzirudisha.",
       "hiddenRecorded_other": "{{parts}} za sasa za {{language}} zimefichwa, hazijafutwa. Sehemu {{count, number}} zina rekodi — rudi kwenye kiolezo hiki ili kuzirudisha.",
       "willRecord": "{{language}} itarekodi kwa kufuata {{name}}. Unaweza kubadilisha baadaye; hakuna kilichorekodiwa kinachofutwa kamwe.",
       "followsIt": "Shirika lako linakifuata, kwa hiyo matoleo mapya ya {{org}} yanafika kwa {{language}} yenyewe.",
       "use": "Tumia {{name}}",
-      "noneOurs": "Shirika lako bado halina violezo. Chagua kimoja ambacho shirika lingine linashiriki.",
-      "makeOwnHelp": "Huanzisha kiolezo kipya unachokijenga mwenyewe.",
-      "cardHelp": "Hukichagua na kuonyesha ngazi zake. Kisha kitufe kilicho chini huanza kukitumia.",
-      "pickedHelp": "Kimechaguliwa, kama alama ya vema inavyoonyesha. Gusa tena ili kuacha kukichagua.",
-      "inUseHelp": "Kiolezo ambacho {{language}} inatumia sasa."
+      "cardHelp": "Hukichagua na kuonyesha ngazi zake. Kisha kitufe kilicho chini huanza kukitumia."
     },
     "editor": {
       "levelShownByReference": "Kinarekodiwa · kinaonyeshwa kwa marejeo",
@@ -7104,21 +7084,20 @@
       "keepHelp": "Hufunga hapa. Kundi linabaki kama lilivyo."
     },
     "language": {
-      "label": "Kundi",
-      "none": "Haiko katika kundi",
       "sheetTitle": "Iko katika kundi gani?",
       "count_one": "Lugha {{count, number}}",
       "count_other": "Lugha {{count, number}}",
       "newLabel": "Au kundi jipya",
       "firstLabel": "Iweke katika kundi jipya",
-      "note": "Lugha inaweza kuwa katika kundi zaidi ya moja, au isiwe katika lolote. Hakuna kinachobadilika katika lugha.",
       "done": "Imekamilika",
       "saved": "Makundi ya {{language}} yamehifadhiwa.",
       "rowHelp": "Chagua iko katika makundi yapi, au iweke katika kundi jipya.",
       "inHelp": "Iko katika kundi hili. Gusa ili kuitoa.",
       "outHelp": "Haiko katika kundi hili. Gusa ili kuiweka.",
       "newHelp": "Andika jina: inaingia katika kundi jipya lenye jina hilo.",
-      "doneHelp": "Huhifadhi iko katika makundi yapi."
+      "doneHelp": "Huhifadhi iko katika makundi yapi.",
+      "add": "Kundi",
+      "chipHelp": "Makundi ilimo."
     },
     "newLanguage": {
       "what": "Unaongeza nini?",
@@ -7151,8 +7130,8 @@
       "forNew_other": "Kwa lugha mpya {{count, number}} za {{cluster}}. Kila moja inaweza kubadilisha yake baadaye.",
       "added_one": "Lugha {{count, number}} imeongezwa kwenye {{org}}, ndani ya {{cluster}}.",
       "added_other": "Lugha {{count, number}} zimeongezwa kwenye {{org}}, ndani ya {{cluster}}.",
-      "addedNotOffered_one": "Lugha {{count, number}} imeongezwa kwenye {{org}}, ndani ya {{cluster}}. Toa {{offers}} chini ya Kinachowasaidia ukiwa mtandaoni.",
-      "addedNotOffered_other": "Lugha {{count, number}} zimeongezwa kwenye {{org}}, ndani ya {{cluster}}. Toa {{offers}} chini ya Kinachowasaidia ukiwa mtandaoni.",
+      "addedNotOffered_one": "Lugha {{count, number}} imeongezwa kwenye {{org}}, ndani ya {{cluster}}. Toa {{offers}} chini ya Nyenzo za marejeo ukiwa mtandaoni.",
+      "addedNotOffered_other": "Lugha {{count, number}} zimeongezwa kwenye {{org}}, ndani ya {{cluster}}. Toa {{offers}} chini ya Nyenzo za marejeo ukiwa mtandaoni.",
       "notMade": "Haijaongezwa",
       "making": {
         "adding": "Inaongeza {{language}}",

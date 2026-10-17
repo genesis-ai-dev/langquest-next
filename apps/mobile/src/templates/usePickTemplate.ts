@@ -12,7 +12,7 @@ import type { Lib } from './useRunner';
  * picker switches it back the same way. Another organization's template is
  * followed first. Busy while it runs; a failure says why and stays to retry.
  */
-export function usePickTemplate(ctx: Ctx, lib: Lib, state: LanguageState | null, languageId: string | null) {
+export function usePickTemplate(ctx: Ctx, lib: Lib, state: LanguageState | null, languageId: string | null, after: () => void) {
   const [busy, setBusy] = useState(false);
 
   async function use(c: LibraryChoice) {
@@ -28,7 +28,7 @@ export function usePickTemplate(ctx: Ctx, lib: Lib, state: LanguageState | null,
       try {
         await ctx.act(specs, t('content.picker.nowUses', { language, name: c.name }));
       } catch { return; }
-      ctx.go('templates_home', { languageId: languageId! });
+      after();
     } catch (e) {
       ctx.toast(failureMessage('use template', e));
     } finally {

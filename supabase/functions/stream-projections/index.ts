@@ -21486,7 +21486,7 @@ function validateEvent(e) {
     case "v1.RecordingAdded":
       return str("recordingId", "unitId") ?? oneOf("kind", ["source", "target"]) ?? cards("cards");
     case "v1.TakeComposed":
-      return str("takeId", "unitId") ?? strArray("cardHashes") ?? (p["parentTakeId"] === null ? null : str("parentTakeId")) ?? // A take holds recorded parts or written ones, never both (decisions.md 138).
+      return str("takeId", "unitId") ?? strArray("cardHashes") ?? (p["parentTakeId"] === null ? null : str("parentTakeId")) ?? // A take holds recorded parts or written ones, never both (decisions.md 139).
       (oneMedium(p["cardHashes"]) ? null : "cardHashes must be all recorded or all written parts");
     case "v1.WritingAdded":
       return str("writingId", "unitId") ?? writtenPartsError(p["parts"]);

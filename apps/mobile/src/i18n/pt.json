@@ -330,7 +330,6 @@
     "flows_home": "Fluxos de revisão",
     "flow_editor": "Editar fluxo",
     "templates_home": "Modelos de conteúdo",
-    "template_picker": "Escolher um modelo",
     "template_editor": "Estrutura do modelo",
     "book_structure": "Dividir um livro",
     "reference_home": "Biblioteca de referência",
@@ -692,15 +691,14 @@
       "rolesSub_other": "{{count, number}} funções neste nível e acima",
       "summary": {
         "templates": "Modelos de conteúdo",
-        "referenceFirst": "Referência",
-        "reference": "referência",
+        "referenceFirst": "Material de referência",
+        "reference": "material de referência",
         "flowsFirst": "Fluxos de revisão",
         "flows": "fluxos de revisão",
         "rolesFirst": "Funções",
-        "roles": "funções",
-        "nameAndLicense": "nome e licença"
+        "roles": "funções"
       },
-      "titleHelp": "Mostra o que é configurado uma vez e raramente muda: funções, o nome, a licença.",
+      "titleHelp": "Mostra o que se configura uma vez e quase não muda: modelos de conteúdo, material de referência, fluxos de revisão e papéis.",
       "templatesHelp": "Abre as formas de dividir o trabalho em passagens, e qual delas cada idioma usa.",
       "referenceHelp": "Abre as Bíblias, os guias de estudo, as perguntas e os termos-chave oferecidos aos tradutores.",
       "flowsHelp": "Abre as formas de verificar as gravações, e qual delas cada idioma usa.",
@@ -737,7 +735,6 @@
     },
     "rename": {
       "done": "O nome mudou para {{name}}.",
-      "row": "Nome",
       "save": "Salvar o nome",
       "taken": "Esse nome já está em uso aqui",
       "failed": "O nome não mudou",
@@ -750,7 +747,6 @@
     },
     "link": {
       "done": "{{name}} está ligado a {{linked}}.",
-      "row": "Na lista de idiomas",
       "linkedTo": "Ligado a {{name}} · {{code}}",
       "linked": "Ligado · {{code}}",
       "notLinked": "Ainda não ligado: adicionado sem internet, ou não encontrado na lista",
@@ -778,15 +774,21 @@
       "readyStatus_one": "Pronto · {{count, number}} tradutor",
       "readyStatus_many": "Pronto · {{count, number}} de tradutores",
       "readyStatus_other": "Pronto · {{count, number}} tradutores",
-      "theyRecord": "O que gravam",
-      "whatHelps": "O que os ajuda",
       "nothingOffered": "Nada oferecido ainda · adicione algo",
       "peopleSub_one": "{{count, number}} tradutor · convidar mais",
       "peopleSub_many": "{{count, number}} de tradutores · convidar mais",
       "peopleSub_other": "{{count, number}} tradutores · convidar mais",
-      "theyRecordHelp": "Abre o que eles traduzem, para mudar.",
-      "whatHelpsHelp": "Abre as Bíblias, os guias e as notas oferecidos a eles, para mudar.",
-      "checksHelp": "Abre as verificações pelas quais cada gravação passa, para mudar."
+      "checksHelp": "Abre as verificações pelas quais cada gravação passa, para mudar.",
+      "contentTemplate": "Modelo de conteúdo",
+      "referenceMaterial": "Material de referência",
+      "reviewFlow": "Fluxo de revisão",
+      "contentTemplateHelp": "Abre o modelo de conteúdo que usa, os outros que poderia usar e todos.",
+      "referenceMaterialHelp": "Abre as Bíblias, guias e notas que usa, para adicionar ou tirar.",
+      "reviewFlowHelp": "Abre as verificações que usa, os fluxos prontos que poderia usar e todos.",
+      "rolesSub_one": "{{count, number}} função",
+      "rolesSub_many": "{{count, number}} de funções",
+      "rolesSub_other": "{{count, number}} funções",
+      "upHelp": "Abre a página da organização."
     },
     "join": {
       "wantsToJoin": "{{name}} quer entrar",
@@ -806,35 +808,8 @@
       "sayNoHelp": "Recusa o pedido na hora. A pessoa não entra."
     },
     "more": {
-      "title": "Mais",
-      "summary": {
-        "progress": "Progresso",
-        "members": "membros",
-        "roles": "funções",
-        "publicListing": "listagem pública",
-        "name": "nome",
-        "languageList": "lista de idiomas",
-        "cluster": "grupo"
-      },
-      "orgAndCode": "{{org}} · Código {{code}}",
       "seeWork": "Ver o trabalho deles",
-      "seeWorkSub": "Cada passagem e até onde ela chegou",
-      "membersSub_one": "{{count, number}} com função em {{language}}",
-      "membersSub_many": "{{count, number}} de pessoas com função em {{language}}",
-      "membersSub_other": "{{count, number}} com função em {{language}}",
-      "rolesSub_one": "{{count, number}} função · o que cada uma pode fazer",
-      "rolesSub_many": "{{count, number}} de funções · o que cada uma pode fazer",
-      "rolesSub_other": "{{count, number}} funções · o que cada uma pode fazer",
-      "templates": "Todas as formas de dividir o trabalho",
-      "templatesSub": "A biblioteca de passagens e roteiros da organização",
-      "reference": "Bíblias, guias e notas",
-      "referenceSub": "Tudo o que há na biblioteca, cobertura e compartilhamento",
-      "flows": "Todas as formas de verificar",
-      "flowsSub": "Os fluxos de revisão da organização",
       "publicList": "Mostrar na lista pública",
-      "publicListSub": "Só o nome do idioma e o progresso",
-      "orgPage": "A página da organização",
-      "titleHelp": "Mostra o resto: progresso, pessoas, funções, o nome e mais.",
       "seeWorkHelp": "Abre o mapa: cada passagem e até onde ela chegou.",
       "publicListOnHelp": "Ligado: o nome e o progresso estão na lista pública. Toque para tirar.",
       "publicListOffHelp": "Desligado. Toque para pôr o nome e o progresso na lista pública."
@@ -982,7 +957,7 @@
       "needsPermission": "Para adicionar um idioma, é preciso ter permissão para gerenciar modelos e fluxos de revisão de toda a organização.",
       "templateMissing": "O modelo dele ainda não está neste aparelho. Tente de novo quando tiver conexão.",
       "added": "{{language}} adicionado a {{org}}.",
-      "addedNotOffered": "{{language}} adicionado a {{org}}. Ofereça {{offers}} em O que os ajuda quando estiver on-line.",
+      "addedNotOffered": "{{language}} adicionado a {{org}}. Ofereça {{offers}} em Material de referência quando estiver on-line.",
       "step": "Etapa {{step}} de {{total}}",
       "called": "Como se chama o idioma?",
       "namePlaceholder": "ex.: Hadiyya",
@@ -1003,8 +978,8 @@
       "suggested": "Sugerido · {{from}}",
       "howChecked": "Como as gravações vão ser verificadas?",
       "noWays": "Ainda não há formas de verificação para escolher.",
-      "offerNote": "Vamos oferecer {{offers}} aos tradutores de {{language}}. Mude isso quando quiser em <b>O que os ajuda</b>.",
-      "offerNoteFia": "Vamos oferecer {{offers}} aos tradutores de {{language}}. Os guias do FIA acompanham as passagens do FIA que você escolheu. Mude isso quando quiser em <b>O que os ajuda</b>.",
+      "offerNote": "Vamos oferecer {{offers}} aos tradutores de {{language}}. Mude isso quando quiser em <b>Material de referência</b>.",
+      "offerNoteFia": "Vamos oferecer {{offers}} aos tradutores de {{language}}. Os guias do FIA acompanham as passagens do FIA que você escolheu. Mude isso quando quiser em <b>Material de referência</b>.",
       "notAdded": "Não foi adicionado",
       "inviteLater": "Convide os tradutores de {{language}} mais tarde, na página dele.",
       "later": "Mais tarde",
@@ -1018,7 +993,7 @@
         "keepOpen": "Mantenha o app aberto até terminar.",
         "wait": "Ainda adicionando {{language}}. Aguarde, por favor."
       },
-      "offerNothing": "O LangQuest ainda não tem Bíblias nem guias de estudo em {{reads}}. Encontre uma Bíblia ou escreva notas para os tradutores de {{language}} em <b>O que os ajuda</b>.",
+      "offerNothing": "O LangQuest ainda não tem Bíblias nem guias de estudo em {{reads}}. Encontre uma Bíblia ou escreva notas para os tradutores de {{language}} em <b>Material de referência</b>.",
       "nameHelp": "Digite o nome: os resultados da lista de idiomas aparecem abaixo.",
       "continueHelp": "Vai para a próxima pergunta.",
       "addHelp": "Adiciona {{language}} com estas respostas. Depois você pode convidar os tradutores.",
@@ -1030,6 +1005,14 @@
       "guides": "os guias de estudo de {{name}}",
       "theBible": "a {{name}}",
       "guidesIn": "os guias de estudo de {{name}} em {{language}}"
+    },
+    "languages": {
+      "row": "Idiomas",
+      "rowSub": "{{target}} · {{understood}}",
+      "rowHelp": "Abre o idioma para o qual traduzem e os idiomas que entendem.",
+      "target": "Traduzem para",
+      "understood": "Entendem",
+      "understoodHelp": "Abre os idiomas das Bíblias e guias deles, para mudá-los."
     }
   },
   "admin": {
@@ -1351,7 +1334,9 @@
       "findBibleHelp": "Pesquise as Bíblias que outros compartilham, para oferecer uma à equipe.",
       "openBibleHelp": "Abre, para ouvir e ler.",
       "setHelp": "Abre os idiomas disponíveis: escolha qual a equipe recebe, ou desative.",
-      "patternOnHelp": "Oferecido à equipe, no idioma escolhido para ele."
+      "patternOnHelp": "Oferecido à equipe, no idioma escolhido para ele.",
+      "all": "Todo o material de referência",
+      "allHelp": "Abre tudo na biblioteca da organização e o que é oferecido a cada idioma."
     },
     "page": {
       "title": "O que os ajuda",
@@ -1415,7 +1400,22 @@
     "nextHelp": "Vai para a próxima pergunta.",
     "nextPageHelp": "Vai para a próxima parte desta pergunta.",
     "nextQuestionHelp": "Abre a próxima pergunta que ainda falta responder.",
-    "backHelp": "Volta uma página. O que você escolheu continua escolhido."
+    "backHelp": "Volta uma página. O que você escolheu continua escolhido.",
+    "template": {
+      "eachBook": "As passagens de cada livro",
+      "eachBookHelp": "Abre cada livro, para mudar onde suas passagens começam e terminam.",
+      "whichBooks": "Quais livros",
+      "whichBooksHelp": "Abre o que traduzem, para escolher os livros.",
+      "optionViewHelp": "Um dos modelos de conteúdo da organização. Quem configura os idiomas pode escolhê-lo.",
+      "chooseOne": "Escolha um abaixo.",
+      "all": "Todos os modelos de conteúdo",
+      "allHelp": "Abre os modelos de conteúdo da organização e qual cada idioma usa."
+    },
+    "flow": {
+      "all": "Todos os fluxos de revisão",
+      "allHelp": "Abre os fluxos de revisão da organização e qual cada idioma usa.",
+      "optionViewHelp": "Um fluxo pronto. Quem configura as verificações pode usá-lo aqui."
+    }
   },
   "content": {
     "chapterChip": "Cap. {{chapter}}",
@@ -1534,9 +1534,7 @@
       "copySub": "Fazer uma cópia nossa para mudar."
     },
     "language": {
-      "title": "Modelo de conteúdo",
       "noLanguageSub": "Abra Modelos de conteúdo a partir de um idioma para ver a estrutura que ele usa para gravar.",
-      "recordsAgainst": "{{language}} grava com base em",
       "itsTemplate": "O modelo dele",
       "version": "Versão {{n}}",
       "versionFrom": "Versão {{n}} · de {{org}}",
@@ -1553,36 +1551,21 @@
       "recorded_other": "{{count, number}} com gravação",
       "newerOut": "A versão {{n}} saiu. {{language}} passa para ela automaticamente.",
       "movesToNew": "{{language}} passa para a nova versão de {{name}}.",
-      "editTemplate": "Editar modelo",
-      "viewTemplate": "Ver modelo",
-      "changeTemplate": "Trocar modelo",
-      "chooseStructure": "Escolha a estrutura que {{language}} usa para gravar. As passagens vêm do modelo.",
       "whoeverChooses": "Quem gerencia os modelos de conteúdo escolhe a estrutura que {{language}} usa para gravar.",
-      "chooseTemplate": "Escolher um modelo",
       "setAsideTitle_one": "{{count, number}} parte gravada deixada de lado",
       "setAsideTitle_many": "{{count, number}} de partes gravadas deixadas de lado",
       "setAsideTitle_other": "{{count, number}} partes gravadas deixadas de lado",
       "setAsideBody_one": "Ela não está no modelo que {{language}} usa agora. Foi deixada de lado, não excluída: volte ao modelo anterior para trazê-la de volta.",
       "setAsideBody_many": "Elas não estão no modelo que {{language}} usa agora. Foram deixadas de lado, não excluídas: volte ao modelo anterior para trazê-las de volta.",
       "setAsideBody_other": "Elas não estão no modelo que {{language}} usa agora. Foram deixadas de lado, não excluídas: volte ao modelo anterior para trazê-las de volta.",
-      "divideInto": "Dividir em {{parts}}",
-      "openABook": "Abra um livro para lê-lo e ver onde começa cada {{part}}, com as divisões do FIA marcadas como sugestões.",
       "findBook": "Encontrar um livro",
       "noBookMatches": "Nenhum livro corresponde a “{{query}}”.",
       "editTemplateHelp": "Abre o modelo para mudar. Os idiomas que o usam recebem a versão nova.",
-      "changeTemplateHelp": "Escolha outro modelo para {{language}}. Nada do que foi gravado é excluído.",
       "bookHelp": "Abre para ler e ver onde começa cada {{part}}.",
       "bookWaitingHelp": "Ainda não dividido. Abre para ver como pode ser dividido."
     },
     "picker": {
-      "title": "Escolher um modelo",
-      "noLanguageSub": "Escolha um modelo a partir do Modelo de conteúdo de um idioma.",
-      "itsTemplate": "o modelo dele",
       "nowUses": "{{language}} agora usa {{name}}.",
-      "inUseLabel": "{{name}}, em uso",
-      "inUseTitle": "{{name}} · em uso",
-      "for": "Para {{language}}",
-      "forNow": "Para {{language}} · agora {{template}}",
       "hidden": "O que {{language}} tem agora ({{parts}}) fica escondido, não excluído.",
       "hiddenRecorded_one": "O que {{language}} tem agora ({{parts}}) fica escondido, não excluído. {{count, number}} parte tem gravações: volte para este modelo para trazê-las de volta.",
       "hiddenRecorded_many": "O que {{language}} tem agora ({{parts}}) fica escondido, não excluído. {{count, number}} de partes têm gravações: volte para este modelo para trazê-las de volta.",
@@ -1590,11 +1573,7 @@
       "willRecord": "{{language}} vai gravar com base em {{name}}. Você pode mudar depois; nada do que foi gravado é excluído.",
       "followsIt": "A sua organização segue este modelo, então as novas versões de {{org}} chegam a {{language}} automaticamente.",
       "use": "Usar {{name}}",
-      "noneOurs": "A sua organização ainda não tem modelos. Escolha um que outra organização compartilha.",
-      "makeOwnHelp": "Começa um modelo novo que você mesmo monta.",
-      "cardHelp": "Escolhe e mostra os níveis dele. Depois, o botão abaixo coloca em uso.",
-      "pickedHelp": "Escolhido, como o visto mostra. Toque de novo para desfazer a escolha.",
-      "inUseHelp": "O modelo que {{language}} usa agora."
+      "cardHelp": "Escolhe e mostra os níveis dele. Depois, o botão abaixo coloca em uso."
     },
     "editor": {
       "levelShownByReference": "Gravado · mostrado pela referência",
@@ -7404,22 +7383,21 @@
       "keepHelp": "Fecha. O grupo continua como está."
     },
     "language": {
-      "label": "Grupo",
-      "none": "Não está em um grupo",
       "sheetTitle": "Em qual grupo ele está?",
       "count_one": "{{count, number}} idioma",
       "count_many": "{{count, number}} idiomas",
       "count_other": "{{count, number}} idiomas",
       "newLabel": "Ou um grupo novo",
       "firstLabel": "Colocar em um grupo novo",
-      "note": "Um idioma pode estar em mais de um grupo, ou em nenhum. Nada no idioma muda.",
       "done": "Pronto",
       "saved": "Grupos de {{language}} salvos.",
       "rowHelp": "Escolha em quais grupos ele está, ou coloque em um grupo novo.",
       "inHelp": "Neste grupo. Toque para tirar.",
       "outHelp": "Fora deste grupo. Toque para colocar.",
       "newHelp": "Digite um nome: ele vai para um grupo novo com esse nome.",
-      "doneHelp": "Salva em quais grupos ele está."
+      "doneHelp": "Salva em quais grupos ele está.",
+      "add": "Grupo",
+      "chipHelp": "Os grupos em que está."
     },
     "newLanguage": {
       "what": "O que você vai adicionar?",
@@ -7456,9 +7434,9 @@
       "added_one": "{{count, number}} idioma adicionado a {{org}}, em {{cluster}}.",
       "added_many": "{{count, number}} idiomas adicionados a {{org}}, em {{cluster}}.",
       "added_other": "{{count, number}} idiomas adicionados a {{org}}, em {{cluster}}.",
-      "addedNotOffered_one": "{{count, number}} idioma adicionado a {{org}}, em {{cluster}}. Ofereça {{offers}} em O que ajuda quando estiver on-line.",
-      "addedNotOffered_many": "{{count, number}} idiomas adicionados a {{org}}, em {{cluster}}. Ofereça {{offers}} em O que ajuda quando estiver on-line.",
-      "addedNotOffered_other": "{{count, number}} idiomas adicionados a {{org}}, em {{cluster}}. Ofereça {{offers}} em O que ajuda quando estiver on-line.",
+      "addedNotOffered_one": "{{count, number}} idioma adicionado a {{org}}, em {{cluster}}. Ofereça {{offers}} em Material de referência quando estiver on-line.",
+      "addedNotOffered_many": "{{count, number}} idiomas adicionados a {{org}}, em {{cluster}}. Ofereça {{offers}} em Material de referência quando estiver on-line.",
+      "addedNotOffered_other": "{{count, number}} idiomas adicionados a {{org}}, em {{cluster}}. Ofereça {{offers}} em Material de referência quando estiver on-line.",
       "notMade": "Não foi adicionado",
       "making": {
         "adding": "Adicionando {{language}}",

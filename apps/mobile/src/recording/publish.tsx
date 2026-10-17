@@ -36,9 +36,9 @@ export type DoneAsk = { kindId: string; questions: QuestionSpec[] } | { someoneE
 export function PublishScreen(props: {
   ctx: Ctx; v: PassageView; n: number; first: boolean; cards: string[]; totalMs: number | undefined; bible: string | undefined;
   busy: boolean; answers: ReviewView[]; tied: number; revisingKind?: string;
-  /** A step makes this version (a final recording, decisions.md 138): the step says what it is, so no change note. */
+  /** A step makes this version (a final recording, decisions.md 139): the step says what it is, so no change note. */
   making?: boolean;
-  /** Writing (decisions.md 138): its words to look over instead of a recording to hear, and what it is when not a version. */
+  /** Writing (decisions.md 139): its words to look over instead of a recording to hear, and what it is when not a version. */
   preview?: ReactNode;
   title?: string;
   /** Where what is said here is kept until it is done (drafts/draftModel.ts). */

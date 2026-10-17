@@ -31,7 +31,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Done, interruptions | `REC` | 51 |
 | 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 49 |
 | 08 | [08-study-and-reference.md](08-study-and-reference.md) | The study, key words, Bibles beside a passage, reference for one passage | `STUDY` | 36 |
-| 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 67 |
+| 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 68 |
 | 10 | [10-people-and-roles.md](10-people-and-roles.md) | Members, invites, join requests, editing members, roles, review teams, the limits on granting | `PEOPLE` | 48 |
 | 11 | [11-account-and-settings.md](11-account-and-settings.md) | Me, More settings, profile, notifications, switching organization, app language, help mode, signing out, deleting an account | `ACCT` | 51 |
 | 12 | [12-sync-and-offline.md](12-sync-and-offline.md) | The Sync screen, offline work, Ready for offline, handing over, two devices, refused work, the update banner | `SYNC` | 32 |
@@ -41,7 +41,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 16 | [16-role-journeys.md](16-role-journeys.md) | Whole jobs per role, and the passage lifecycle across every role | `JRN` | 14 |
 | 17 | [17-accessibility-and-field-use.md](17-accessibility-and-field-use.md) | Screen readers, target sizes, text size, colour, RTL, outdoor and low-end use | `A11Y` | 24 |
 
-**659 tests in all.**
+**660 tests in all.**
 
 ## How a test is written
 
@@ -437,7 +437,11 @@ the world under the tests after it: the world is kept for the whole run
 
 **Selectors.** Tests find things by the words on screen and by a few
 `testID`s:
-- `header-back`, `header-close`, `header-help` for the header buttons.
+- `header-back`, `header-close`, `header-help` for the header buttons, and
+  `header-up` for the organization's name where Back would be on a language
+  lead's language page (decision 138).
+- `title-rename` for the pencil beside a language's title, and
+  `org-rename` for the one beside the organization's name on Org home.
 - `primary-action` for the main button.
 - `record-button` and `publish-button` in the recorder.
 - `toast` for the toast (it has no Undo; its close ✕ is "Close"), and
@@ -548,7 +552,7 @@ note, until each is resolved.
 | REV-019, REV-031, REV-047 | The docs and the app disagree. `docs/ux/screen-path.md` still names "Can't answer this?" and "Save back translation"; the app says "Skip" and "Done". An older review footer that can never show is still in the code. |
 | PEOPLE-039 | Retiring a role is not built. |
 | NAV-051 | No screen offers a forbidden move, so the permission refusal can only be checked through the dev hook `__langquestGo`. |
-| SETUP-026, MOD-018, SYNC-018 | Seen once while automating, not reproduced in the full run of 2026-10-13: a book change followed by the toast's Undo upsetting "What helps them" (that Undo is gone since decision 134: SETUP-024 now puts the books back by choosing them again in "They record", and whether that upsets it is not yet known); a removed note showing on a fresh device until the next snapshot (decision 88's design); a translator removed from their only language landing on "Join your team". |
+| SETUP-026, MOD-018, SYNC-018 | Seen once while automating, not reproduced in the full run of 2026-10-13: a book change followed by the toast's Undo upsetting "What helps them", now "Reference material" (that Undo is gone since decision 134: SETUP-024 now puts the books back by choosing them again in "Content template" → "Which books", decision 138, and whether that upsets it is not yet known); a removed note showing on a fresh device until the next snapshot (decision 88's design); a translator removed from their only language landing on "Join your team". |
 
 ## Run sheets
 

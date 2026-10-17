@@ -1,5 +1,5 @@
 // What made things and ready-made making steps are called, in the language
-// showing (decisions.md 138).
+// showing (decisions.md 139).
 import type { MadeView } from '@langquest-next/core';
 import { t } from '../i18n';
 import { languageLabel } from '../admin/adminModel';
