@@ -6,7 +6,7 @@ import {
   CHANGES_PAGE, CHANGES_PAGE_MAX, DELIVERIES_KEPT, DELIVERY_TIMEOUT_MS, SECRET_PREFIX, UNIT_IDS_PER_DELIVERY, WEBHOOK_EVENTS, WEBHOOKS_PER_TOKEN
 } from './webhooks';
 import {
-  API_STATUSES, EXTERNAL_DATA_MAX_BYTES, EXTERNAL_VALUES_PAGE, MAX_VOICE_NOTES, PASSAGE_INCLUDES, PASSAGES_PAGE, PASSAGES_PAGE_MAX
+  API_STATUSES, EXTERNAL_DATA_MAX_BYTES, EXTERNAL_VALUES_PAGE, MAX_VOICE_NOTES, MEDIA, PASSAGE_INCLUDES, PASSAGES_PAGE, PASSAGES_PAGE_MAX, TEAM_ONLY
 } from './view';
 
 /**
@@ -64,20 +64,27 @@ function schemas(): Record<string, Schema> {
     order: text('Sorts passages into display order, compared as plain strings.'),
     reference: nullable(ref('PassageReference')),
     status: ref('Status'),
-    version: nullable(obj({ n: int(), takeId: text(), submittedAt: time(), durationMs: int() }, [],
-      'The version this token hears: the latest with read, the approved one with read:published alone. Null when there is none.')),
-    approvedVersion: nullable(obj({ n: int(), takeId: text() }, [], 'The newest version every step approved; what a listening app should play.')),
+    version: nullable(obj({
+      n: int(), takeId: text(), submittedAt: time(),
+      durationMs: int('The length of what audio plays: the version\'s own recording, or for a written version the recording added to it; 0 when there is none.'),
+      medium: ref('Medium'),
+      madeBy: ref('MadeBy'),
+      added: list(ref('Added'), 'What steps added to this version, one entry per medium; present when a step added something. It belongs to the version.')
+    }, ['madeBy', 'added'], 'The version this token hears: the latest with read, the approved one with read:published alone. Null when there is none.')),
+    approvedVersion: nullable(obj({ n: int(), takeId: text(), medium: ref('Medium') }, [], 'The newest version every step approved; what a listening app should play.')),
     releases: list(ref('Release'), 'Where a version is live, one entry per channel.'),
     listenerFeedback: obj({ looksGood: int(), needsChanges: int() }, [], 'Listener feedback on version.'),
-    updatedAt: nullable(time('The newest version, review or release; pass it back as changedSince.'))
+    updatedAt: nullable(time('The newest version, review, release, or thing a step made or added; pass it back as changedSince.'))
   };
   const includes: Record<(typeof PASSAGE_INCLUDES)[number], Schema> = {
-    audio: list(ref('AudioCard'), 'version\'s cards in playing order; empty when there is none.'),
+    audio: list(ref('AudioCard'), 'What version plays, in order: a recorded version\'s own cards, or the recording a step added to a written version. Empty when there is none.'),
+    text: list(ref('TextPart'), 'version\'s words, in order: a written version\'s own parts, or the words a step added to a recorded version. Parts whose words have not arrived are left out; empty when there are none.'),
     reviews: list(ref('Review'), 'With read: every review of every version. With read:published alone: listener reviews of version.'),
     steps: list(ref('Step'), 'The language\'s review flow and where the passage is in it. Needs read.'),
     requests: list(ref('Request'), 'Work asked for and not done yet, oldest first. Needs read.'),
-    versions: list(obj({ n: int(), takeId: text(), submittedAt: time() }), 'Every version, oldest first. Needs read.'),
-    approvedAudio: list(ref('AudioCard'), 'approvedVersion\'s cards in playing order, so a listening app keeps playing what it published while a newer version is in review; empty when nothing is approved. Needs read.')
+    versions: list(obj({ n: int(), takeId: text(), submittedAt: time(), medium: ref('Medium'), madeBy: ref('MadeBy') }, ['madeBy']), 'Every version, oldest first. Needs read.'),
+    approvedAudio: list(ref('AudioCard'), 'What approvedVersion plays, in playing order (as audio is for version), so a listening app keeps playing what it published while a newer version is in review; empty when nothing is approved. Needs read.'),
+    made: list(ref('Made'), 'What was made beside the passage\'s versions (back translations, written copies), and added to them, oldest first; never a version a step made. Needs read.')
   };
   const passage = (optional: string[], description: string) => obj({ ...summary, ...includes }, optional, description);
 
@@ -175,8 +182,35 @@ function schemas(): Record<string, Schema> {
       requestId: text(), what: text(undefined, { enum: ['record', 'review'] }), kindId: text('A review of this kind answers it.'), kind: text(),
       forYou: bool('Asked of the token\'s person, or a team they are in.'), team: text(), note: text(), askedAt: time()
     }, ['kindId', 'kind', 'team', 'note']),
+    Medium: text('A version, or something made, is recorded (audio) or written (text).', { enum: [...MEDIA] }),
+    MadeBy: obj({
+      kindId: text('The step that made it.'), kind: text('The step\'s name, such as "Final recording".'),
+      fromVersionN: int('The version it was made from. The checks before that step count from that version.')
+    }, [], 'A step made this version from an earlier one, which it replaces. Absent when someone published it by hand.'),
+    Added: obj({
+      medium: ref('Medium'),
+      kindId: text('The step that added it.'), kind: text(),
+      addedAt: time('When this medium was first added to the version.'),
+      changedAt: time('When it last changed, if it changed after it was first added.'),
+      changedAfterReview: obj({ kindId: text(), kind: text(), at: time() }, [],
+        'The newest review of the version given after it was first added and before it last changed: the content changed after that review. The approval stands; the team decides whether it needs another review.')
+    }, ['kindId', 'kind', 'changedAt', 'changedAfterReview'], 'Words a step added to a recording, or a recording added to writing. The latest holds.'),
+    TextPart: obj({
+      text: text('The words of one written part, usually a verse.'),
+      verses: obj({ from: text('chapter:verse'), to: text('chapter:verse') }, [], 'The verses it holds, when someone set them.')
+    }, ['verses']),
+    Made: obj({
+      madeId: text(), kindId: text('The step that made it; absent when none did (brought over from LangQuest v2).'), kind: text(),
+      medium: ref('Medium'),
+      language: text('The language it is in, when not the team\'s own (ISO 639-3 or a glottocode).'),
+      fromVersionN: int('The version it was made from, directly or from something made from it.'),
+      added: bool('It was added to that version, which holds it (version.added).'),
+      at: time(),
+      text: list(ref('TextPart'), 'Its words, when written.'),
+      audio: list(ref('AudioCard'), 'Its recording, when recorded.')
+    }, ['kindId', 'kind', 'language', 'text', 'audio'], 'Something a step made from a version. It stays with that version and is never out of date.'),
     PassageListItem: passage([...PASSAGE_INCLUDES], 'A passage\'s summary, with the fields include named.'),
-    PassageDetail: passage(['steps', 'requests', 'versions', 'approvedAudio'], 'Everything the token may see of one passage; steps, requests, versions and approvedAudio need read.'),
+    PassageDetail: passage([...TEAM_ONLY], `Everything the token may see of one passage; ${TEAM_ONLY.join(', ')} need read.`),
     PassagePage: obj({
       passages: list(ref('PassageListItem')),
       nextAfter: nullable(text('Pass it as after for the next page; null when nothing more matches.'))
@@ -270,7 +304,7 @@ function paths(): Record<string, Schema> {
       get: {
         ...auth, operationId: 'listPassages',
         summary: 'Passages in display order, a page at a time.',
-        description: 'A token with read:published alone sees approved passages only. include adds fields of one passage to every passage on the page, and links are signed only for the page; steps, requests, versions and approvedAudio need read (403 scope otherwise).',
+        description: `A token with read:published alone sees approved passages only. include adds fields of one passage to every passage on the page, and links are signed only for the page; ${TEAM_ONLY.join(', ')} need read (403 scope otherwise).`,
         parameters: [
           LANGUAGE_ID,
           { name: 'status', in: 'query', schema: ref('Status'), description: 'Only passages with this status.' },
@@ -451,7 +485,7 @@ export function openApi(origin: string): Schema {
     info: {
       title: 'LangQuest API',
       version: '1',
-      summary: 'Oral Bible translation work: languages, passages recorded as audio, their reviews and releases.',
+      summary: 'Oral Bible translation work: languages, passages recorded as audio or written, their reviews and releases.',
       description: 'For apps and agents, with an access token. The guide is docs/agent-api.md: https://github.com/genesis-ai-dev/langquest-next/blob/main/docs/agent-api.md'
     },
     servers: [{ url: `${origin}/api/v1` }],

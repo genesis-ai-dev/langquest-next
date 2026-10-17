@@ -205,6 +205,37 @@ export function applyLanguageEvent(state: LanguageState, event: AnyEvent): Langu
       break;
     }
 
+    case 'v1.WritingAdded': {
+      // A part's id is the hash of its words (validated), so every event that
+      // names it carries the same words: keeping the first seen is enough.
+      const writings = (state.writings ??= {});
+      for (const part of event.payload.parts) writings[part.id] ??= part.text;
+      break;
+    }
+
+    case 'v1.MediaAllowedSet': {
+      const { recording, writing, first } = event.payload;
+      const cur = state.mediaAllowed ?? null;
+      state.mediaAllowed = set(cur, event, { recording, writing, first });
+      break;
+    }
+
+    case 'v1.StepMakesSet': {
+      const { kindId, makes } = event.payload;
+      lww(state.stepMakes ??= {}, kindId, event, makes ? { ...makes } : null);
+      break;
+    }
+
+    case 'v1.CheckLooksAtSet':
+      lww(state.checkLooksAt ??= {}, event.payload.kindId, event, event.payload.makerKindId);
+      break;
+
+    case 'v1.Made': {
+      const { madeId, ...rest } = event.payload;
+      firstWins(state.made ??= {}, madeId, event, { ...rest, ...(rest.parts ? { parts: rest.parts.map((c) => ({ ...c })) } : {}), id: madeId });
+      break;
+    }
+
     case 'v1.ResponseRecorded': {
       const { takeId, respondsToTakeId, note, blobHash } = event.payload;
       const prior = state.responses[takeId];

@@ -30,4 +30,5 @@ export * from './references';
 export * from './timingPublication';
 export * from './verses';
 export * from './checks';
+export * from './writing';
 export * from './quiet';

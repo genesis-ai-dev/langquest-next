@@ -6,7 +6,7 @@
 // published ones are deleted by whoever published them (LAN-83). Deleting
 // a draft or a version asks first (ConfirmDelete). The footer starts a new
 // version from nothing. The record's history follows.
-import { canDeleteVersion, commands, draftsBy, type DraftView, type Version } from '@langquest-next/core';
+import { canDeleteVersion, commands, draftsBy, partsMedium, writtenText, type DraftView, type Version } from '@langquest-next/core';
 import { deleteVersion } from './deleteVersion';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import * as Crypto from 'expo-crypto';
@@ -26,7 +26,7 @@ import { useClip } from '../audio/useClip';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
-import { C, radius, space, target } from '../ui/theme';
+import { C, radius, space, target, TINT } from '../ui/theme';
 import { versionReviewsSummary } from './record';
 import { draftName, startedFrom } from './versionsModel';
 import { useVersesHeld } from './useVerses';
@@ -46,8 +46,9 @@ export function VersionsPage(props: {
   const mine = draftsBy(p, me);
   const durations = cardDurations(state, unitId);
   const versesHeld = useVersesHeld(ctx, state, unitId);
-  // "2 parts · 0:17", and the verses they hold when they have any: "2 parts · 0:17 · Verses 1–2".
-  const length = (hashes: readonly string[]) => [t('recording.parts.groupSub', { count: hashes.length, length: mmss(totalMs(hashes.map((h) => durations.get(h)))) }), versesHeld(hashes)].filter(Boolean).join(' · ');
+  // "2 parts · 0:17", and the verses they hold when they have any: "2 parts · 0:17 · Verses 1–2". Written: "3 verses written" (decisions.md 139).
+  const length = (hashes: readonly string[]) => partsMedium(hashes) === 'writing' ? t('writing.publishSub', { count: hashes.length })
+    : [t('recording.parts.groupSub', { count: hashes.length, length: mmss(totalMs(hashes.map((h) => durations.get(h)))) }), versesHeld(hashes)].filter(Boolean).join(' · ');
   const saved = (hlc: string) => {
     const w = when(hlc);
     return w === t('time.justNow') ? t('passage.versions.savedJustNow') : t('passage.versions.saved', { when: w });
@@ -95,7 +96,7 @@ export function VersionsPage(props: {
           <VersionCard ctx={ctx} v={v} ver={ver} latest={ver.takeId === p.latest?.takeId} length={length(ver.cardHashes)}
             canRecord={props.canRecord} {...(ver.takeId === p.latest?.takeId && props.ask ? { ask: props.ask } : {})}
             {...(props.canRecord && canDeleteVersion(p, ver.takeId, me) ? { onDelete: () => setAsking({ name: versionTitle(ver.n), sub: length(ver.cardHashes), go: () => deleteVersion(ctx, v, ver) }) } : {})}
-            onOpen={() => props.go('version_detail', { takeId: ver.takeId })} onEdit={() => props.go('workspace', { from: ver.takeId })} />
+            onOpen={() => props.go('version_detail', { takeId: ver.takeId })} onEdit={() => props.go('workspace', ver.medium === 'writing' ? { write: '1' } : { from: ver.takeId })} />
         </HelpRow>
       ))}
       {props.history}
@@ -132,7 +133,10 @@ function ItemCard(props: {
   ctx: Ctx; hashes: string[]; title: string; lines: string[]; badge?: string | undefined; trailing?: ReactNode;
   onOpen?: () => void; children?: ReactNode;
 }) {
-  const clip = useClip(props.ctx.language, props.hashes);
+  const written = partsMedium(props.hashes) === 'writing';
+  const clip = useClip(props.ctx.language, written ? [] : props.hashes);
+  // A written version shows its first words, and a pen where a recording has play (decision 139).
+  const words = written ? props.hashes.map((h) => writtenText(props.ctx.language.state!, h) ?? '').join(' ').trim() : '';
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: props.title }) : t('recording.player.playTitle', { title: props.title });
   const play = useHelpSpot(playLabel, undefined, clip.toggle);
   const openLabel = t('passage.versions.open', { title: props.title });
@@ -143,17 +147,24 @@ function ItemCard(props: {
         <Text style={styles.title} numberOfLines={1}>{props.title}</Text>
         {props.badge ? <Badge label={props.badge} tone="brand" /> : null}
       </View>
+      {words ? <Text style={txt.sm} numberOfLines={2}>{words}</Text> : null}
       {props.lines.map((l, i) => <Text key={i} style={txt.smMuted} numberOfLines={2}>{l}</Text>)}
     </>
   );
   return (
     <View style={styles.card}>
       <View style={styles.head}>
-        <Pressable onPress={play.onPress} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={playLabel}
-          style={({ pressed }) => [styles.play, !clip.available && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}>
-          <Ico name={clip.playing ? 'pause' : 'play'} size={20} color={C.primary} strokeWidth={2.6} fill={C.primary} />
-          <HelpBadge spot={play} />
-        </Pressable>
+        {written ? (
+          <View style={[styles.play, { backgroundColor: TINT.green }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            <Ico name="edit" size={20} color={TINT.greenText} />
+          </View>
+        ) : (
+          <Pressable onPress={play.onPress} disabled={!clip.available} accessibilityRole="button" accessibilityLabel={playLabel}
+            style={({ pressed }) => [styles.play, !clip.available && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}>
+            <Ico name={clip.playing ? 'pause' : 'play'} size={20} color={C.primary} strokeWidth={2.6} fill={C.primary} />
+            <HelpBadge spot={play} />
+          </Pressable>
+        )}
         {props.onOpen ? (
           <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={openLabel}
             style={({ pressed }) => [{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' }, pressed && { opacity: 0.7 }]}>

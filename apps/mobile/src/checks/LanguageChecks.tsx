@@ -1,7 +1,7 @@
 // A language's own checks (decision 91): the list, with who is on each and its
 // helps, as the flow editor and New language show it (screens/config.tsx).
 // screens/checks.tsx edits one check.
-import { checkHelps, checkPeople, checkShows, commands, deriveFlow, kindOf, languageName, questionsForKind, RECORD_STEP, type EventSpec, type KindDef, type LanguageState } from '@langquest-next/core';
+import { checkHelps, checkPeople, checkShows, commands, deriveFlow, kindOf, languageName, questionsForKind, RECORD_STEP, type EventSpec, type KindDef, type LanguageState, type MakesSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useRef, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
@@ -13,7 +13,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, EmptyState, Field, Group, Header, Ico, KindIcon, PrimaryBtn, Row, Screen, Sheet, Toggle } from '../ui/kit';
+import { Banner, EmptyState, Field, Group, Header, Ico, KindIcon, PrimaryBtn, Row, Screen, SectionLabel, Sheet, Toggle } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { failureMessage } from '../diagnostics/report';
 import { C, space, TINT } from '../ui/theme';
@@ -29,6 +29,8 @@ import { PeopleLine } from './parts';
 import { newKindId } from '../config/model';
 import { saveRows } from './checkActions';
 import { styles } from './checkStyles';
+import { teamLanguage } from '../reference/languages';
+import { MakeStepSheet, MakingPresets } from '../writing/StepMaking';
 import { anyFrom, shownLine } from './showsModel';
 
 /** The grip's press while help is on: it explains itself; dragging waits until help is off. */
@@ -199,12 +201,23 @@ function CheckList(props: {
   );
 }
 
-/** Add a check: one the organization knows, or a new one by name. */
-function AddCheckSheet(props: { visible: boolean; kinds: KindDef[]; taken: string[]; onClose: () => void; onPick: (k: KindDef, isNew: boolean) => void }) {
+/** Add a check: one the organization knows, or a new one by name; with `making`, a step that makes something first (decisions.md 139). */
+function AddCheckSheet(props: {
+  visible: boolean; kinds: KindDef[]; taken: string[]; onClose: () => void; onPick: (k: KindDef, isNew: boolean) => void;
+  making?: { own: string; reference: string; onPick: (k: KindDef, makes: MakesSpec) => void; onOwn: () => void };
+}) {
   const [name, setName] = useState('');
-  const left = props.kinds.filter((k) => !props.taken.includes(k.id));
+  const left = props.kinds.filter((k) => !props.taken.includes(k.id) && !k.makes);
   return (
     <Sheet visible={props.visible} title={t('checks.addCheck')} onClose={props.onClose}>
+      {props.making ? (
+        <>
+          {/* The shipped back translation, when the language has it, stands for the said one (decision 139). */}
+          <MakingPresets taken={[...props.taken, ...props.kinds.map((k) => k.id), ...(props.taken.includes('bt') ? ['make-bt-said'] : [])]} own={props.making.own} reference={props.making.reference}
+            onPick={props.making.onPick} onOwn={props.making.onOwn} />
+          <SectionLabel label={t('writing.step.checkIt')} />
+        </>
+      ) : null}
       {left.length ? (
         <Group>
           {left.map((k, i) => (
@@ -255,6 +268,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   const known = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const rows = useMemo(() => (state ? rowsOf(deriveFlow(state).steps) : []), [state]);
   const [adding, setAdding] = useState(false);
+  const [owning, setOwning] = useState(false);
   const [flows, setFlows] = useState(false);
   const canManage = ctx.session.can('manage_flows');
   const startFlow = useHelpSpot(t('checks.flows.start'), t('checks.flows.startHelp'), canManage ? () => setFlows(true) : undefined);
@@ -264,6 +278,13 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   }
   // A save is a step on the header's Undo (useChecksUndo hears it).
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);
+  const reference = teamLanguage(ctx.org.state, state, languageId);
+  /** A step that makes something: its kind, what it makes, and its row (decisions.md 139). */
+  const addMaking = (k: KindDef, makes: MakesSpec) => {
+    const c = commands(state, indexesFor(state));
+    const define = state.reviewKinds[k.id] ? [] : c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer });
+    save(addRow(rows, k.id), [...define, ...c.setStepMakes({ commandId: Crypto.randomUUID(), kindId: k.id, makes })]);
+  };
   return (
     <Screen header={<Header title={t('checks.title')} sub={language} onBack={ctx.back} action={canManage ? <UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} /> : undefined} />}>
       {!canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.viewOnlyBody')} /> : null}
@@ -288,6 +309,14 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
         const c = commands(state, indexesFor(state));
         const define = isNew ? c.defineKind({ commandId: Crypto.randomUUID(), kindId: k.id, name: k.name, description: k.description, usualReviewer: k.usualReviewer }) : [];
         save(addRow(rows, k.id), define);
+      }} making={{
+        own: language, reference,
+        onPick: (k, makes) => { setAdding(false); addMaking(k, makes); },
+        onOwn: () => { setAdding(false); setOwning(true); }
+      }} />
+      <MakeStepSheet visible={owning} own={language} reference={reference} onClose={() => setOwning(false)} onAdd={(name, makes) => {
+        setOwning(false);
+        addMaking({ id: newKindId(name, known.map((x) => x.id)), name, description: '', usualReviewer: '' }, makes);
       }} />
       <FlowsSheet ctx={ctx} visible={flows} kinds={known} language={language} onClose={() => setFlows(false)} onUse={(e, kinds) => {
         setFlows(false);

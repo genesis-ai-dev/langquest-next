@@ -28,7 +28,7 @@
 // the saved mark in the header. Back and ✕ leave and keep it; opening the
 // same review again brings it back where it was left; sending it drops it.
 import {
-  checkShows, commands, keyTermLinksFor, languageName, questionsForKind, RECORD_STEP, SHOWN,
+  addedTo, checkShows, commands, keyTermLinksFor, languageName, questionsForKind, RECORD_STEP, SHOWN,
   type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -39,6 +39,9 @@ import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import { ClipPlayer } from '../audio/clipPlayer';
 import { VersionParts } from '../passage/versionParts';
+import { WrittenReader } from '../writing/WrittenText';
+import { usePassageVerses } from '../writing/usePassageVerses';
+import { readsFor } from '../writing/model';
 import type { Ctx } from '../shell/ctx';
 import { screenTitle } from '../shell/flow';
 import { t } from '../i18n';
@@ -114,6 +117,7 @@ export function AddRecord(ctx: Ctx) {
 function Capture(props: { ctx: Ctx; logged: boolean }) {
   const { ctx, logged } = props;
   const v = usePassage(ctx);
+  const verseKeys = usePassageVerses(ctx, v?.unitId ?? '', v?.languageId ?? '');
   const actorId = ctx.session.actorId;
   const kindId = ctx.params['kindId'] ?? (v ? v.p.next?.step.kindIds[0] ?? v.p.flow.steps[0]?.kindIds[0] ?? 'peer' : 'peer');
   const kind = v?.kind(kindId);
@@ -242,7 +246,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const r = readiness(questions, captured.answers, skipped, comment, feedback?.hash ?? null);
   const group = isGroupKind(kind.id);
   const asker = request?.by ? ctx.name(request.by) : undefined;
-  const stages = reviewStages({ questions: questions.length, logged, makes: !!makes });
+  // What this check reads (decision 139): what an earlier step made from this version, or the version; writing is read.
+  const reads = readsFor(v.p, kind, version);
+  const stages = reviewStages({ questions: questions.length, logged, makes: !!makes, reads: reads.medium === 'writing' });
   const at = stageAt(stages, stageId);
   const stage = stages[at]!.id;
   const next = stages[at + 1];
@@ -378,11 +384,35 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         </Text>
       ) : null}
       {directions ? <RequestBanner ctx={ctx} request={request} /> : null}
-      <ClipPlayer language={ctx.language} hashes={version.cardHashes} big
-        title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
-        {...(makes ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
+      {reads.made ? (
+        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('writing.review.readsMade', { what: v.kind(reads.made.kindId ?? '').name, version: versionTitle(version.n) })}</Text>
+      ) : null}
+      {reads.medium === 'writing' ? (
+        <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={reads.parts} verseKeys={verseKeys}
+          {...(reads.made && version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
+      ) : (
+        <ClipPlayer language={ctx.language} hashes={reads.parts} big
+          title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
+          {...(makes || reads.made ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
+      )}
       {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
-      <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered />
+      {!reads.made && reads.medium === 'recording' ? <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered /> : null}
+      {/* What a step added to the version is part of it: a check hears and reads them together (decision 139). */}
+      {!reads.made ? addedTo(v.p, version).map((a) => (
+        <HelpRow key={a.medium} of="review.added">
+          <View style={{ gap: space.sm }}>
+            <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
+              {!a.made.kindId ? (a.medium === 'writing' ? t('writing.version.itsWords') : t('writing.version.itsRecording'))
+                : a.medium === 'writing' ? t('writing.review.itsWords', { version: versionTitle(version.n), step: v.kind(a.made.kindId).name })
+                : t('writing.review.itsRecording', { version: versionTitle(version.n), step: v.kind(a.made.kindId).name })}
+            </Text>
+            {a.medium === 'writing' ? (
+              <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={a.made.parts.map((c) => c.hash)} verseKeys={verseKeys}
+                {...(version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
+            ) : <AudioClip language={ctx.language} hashes={a.made.parts.map((c) => c.hash)} label={t('writing.version.itsRecording')} />}
+          </View>
+        </HelpRow>
+      )) : null}
       <MomentList ctx={ctx} moments={moments} onRemove={(h) => setMoments((m) => m.filter((x) => x.hash !== h))} />
       {changed ? (
         <Card>

@@ -27,8 +27,12 @@ Core workflows, in priority order:
 4. **See status.** Translators see their passages and what is pending.
    Coordinators see the whole org.
 
+A passage may also be written, verse by verse, and a step in a language's
+checks can turn recording or writing into either, in its language or
+another: written down, read aloud, back-translated, translated (decision 139).
+
 Non-goals for v1: real-time co-editing of one recording, waveform editing,
-text-first translation (that is Aquila), public browsing of everything.
+public browsing of everything.
 
 ## 2. What we learned from Codex, Aquila, and LangQuest v2
 
@@ -90,8 +94,9 @@ Agents: treat each of these as a test you must not break.
    any permutation folds to the same state. Enforced by property tests in
    `packages/core`.
 3. **Fold is idempotent.** Applying an event twice equals applying it once.
-4. **Audio is never mutated.** Cards and takes are immutable. Any edit is a
-   new take that may reference existing cards.
+4. **Recorded and written parts are never mutated.** Cards, written parts
+   and takes are immutable. Any edit is a new take that may reference
+   existing parts (decision 139).
 5. **Status is derived, never stored.** No `status` or `approved` column
    anywhere. Ask the reducer.
 6. **Streams are self-contained.** An event in stream S references only
@@ -212,6 +217,10 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.ReferencesUsed` | unitId, takeId? or reviewId?, items[] | grow-only |
 | `v1.BlobStored` / `v1.BlobInvalidated` | hash, size / hash, reason | register per hash (LWW by clock); server-only |
 | `v1.CardVerseSet` | unitId, hash, mark (next, join, set, none), from?, to? | register per (unit, card); which verses a recorded part holds, worked out down a take's cards (verses.ts, decisions.md 82) |
+| `v1.WritingAdded` | writingId, unitId, parts[{id, text}] | grow-only, one event per id, earliest wins; a written part is named `w:` + the SHA-256 of its words, and a take lists written parts or recorded cards, never both (decisions.md 139) |
+| `v1.MediaAllowedSet` | recording, writing, first | register; what the language's team may make and which leads (decisions.md 139) |
+| `v1.StepMakesSet` / `v1.CheckLooksAtSet` | kindId, makes {from, to, language, otherLanguage?, fromKindId?, result: beside|added|version} or null / kindId, makerKindId or null | register per kind; a step that turns recording or writing into either, in any language, and a check that reads what such a step made (decisions.md 139) |
+| `v1.Made` | madeId, unitId, kindId?, fromTakeId or fromMadeId, language?, parts or takeId, added?, requestId? | grow-only; what a step made stays with the version it came from; with takeId, the step made the passage's next version; with added, it is part of that version (decisions.md 139) |
 | `v1.AudioFormatSet` | hash, format | one event per hash, earliest wins (decisions.md 75); a voice note's format when not m4a (decisions.md 77) |
 | `v1.ExternalValueSet` | key, data (object or null) | register per key (later clock, then higher id); a third-party app's own value, kept and never acted on; only the app's Worker appends it, for a token with the `external_values` scope (decisions.md 79) |
 | `v1.Redacted` | eventId, reason | grow-only set; the target is never folded; a redaction is never itself redacted (decisions.md 16) |

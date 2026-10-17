@@ -6,7 +6,7 @@
 // later" finish it too. What is said here is kept as you go, like the parts,
 // so leaving loses nothing.
 import { checkPeople, questionsForKind, type KindStatus, type QuestionSpec, type ReviewView } from '@langquest-next/core';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { ClipPlayer } from '../audio/clipPlayer';
@@ -36,6 +36,11 @@ export type DoneAsk = { kindId: string; questions: QuestionSpec[] } | { someoneE
 export function PublishScreen(props: {
   ctx: Ctx; v: PassageView; n: number; first: boolean; cards: string[]; totalMs: number | undefined; bible: string | undefined;
   busy: boolean; answers: ReviewView[]; tied: number; revisingKind?: string;
+  /** A step makes this version (a final recording, decisions.md 139): the step says what it is, so no change note. */
+  making?: boolean;
+  /** Writing (decisions.md 139): its words to look over instead of a recording to hear, and what it is when not a version. */
+  preview?: ReactNode;
+  title?: string;
   /** Where what is said here is kept until it is done (drafts/draftModel.ts). */
   draftKey: string | null;
   /** The checks it can go to next (recordModel `nextAfterDone`), with whoever usually does each. */
@@ -45,14 +50,14 @@ export function PublishScreen(props: {
   onDone: (note: string, hash: string | null, ask: DoneAsk) => Promise<boolean>;
 }) {
   const { ctx, v } = props;
-  const title = versionTitle(props.n);
+  const title = props.title ?? versionTitle(props.n);
   // A first draft of the note, in the person's words: they can change it, and it is kept as they leave it.
   const empty: NoteDraft = { text: props.revisingKind ? t('recording.publish.revisedAfter', { kind: props.revisingKind }) : '', hash: null };
   const draft = useDraft(props.draftKey, empty, isNoteDraft);
   const { text, hash } = draft.value;
   const setText = (f: (prev: string) => string) => draft.set((d) => ({ ...d, text: f(d.text) }));
   const [saying, setSaying] = useState(false);
-  const needsNote = !props.first;
+  const needsNote = !props.first && !props.making;
   // Which of the checks next it goes to: the first, unless another is picked (decision 91).
   const [kindId, setKindId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSpec[]>([]);
@@ -86,9 +91,11 @@ export function PublishScreen(props: {
     <Screen
       header={<Header title={v.title} sub={title} onBack={props.onClose} close action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />} />}
       footer={footer}>
-      <ClipPlayer language={ctx.language} hashes={props.cards} title={title} sub={sub}
-        onNote={(at) => { setText((prev) => `${prev.trim() ? `${prev.trim()} ` : ''}${t('recording.publish.atMoment', { time: mmss(at * 1000) })} `); setSaying(true); }} />
-      <SayRow said={said} needsNote={needsNote} text={text} hasVoice={!!hash} prior={props.n - 1} onPress={() => setSaying(true)} />
+      {props.preview ?? (
+        <ClipPlayer language={ctx.language} hashes={props.cards} title={title} sub={sub}
+          onNote={(at) => { setText((prev) => `${prev.trim() ? `${prev.trim()} ` : ''}${t('recording.publish.atMoment', { time: mmss(at * 1000) })} `); setSaying(true); }} />
+      )}
+      {props.making ? null : <SayRow said={said} needsNote={needsNote} text={text} hasVoice={!!hash} prior={props.n - 1} onPress={() => setSaying(true)} />}
       {props.answers.length > 0 || props.tied > 0 ? (
         <View style={{ gap: space.xs, paddingHorizontal: space.xs }}>
           {props.answers.map((r) => (

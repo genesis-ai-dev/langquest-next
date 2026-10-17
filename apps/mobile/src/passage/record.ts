@@ -6,7 +6,7 @@
 // Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
 // ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
-  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, LISTENER_KIND, membershipsOf, privilegesFor, releasesOf, scopeCovers,
+  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, LISTENER_KIND, madeVersionOf, membershipsOf, privilegesFor, releasesOf, scopeCovers,
   type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version, withdrawnBy
@@ -268,13 +268,15 @@ export function kindRowActions(o: {
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = kindCleared(o.status, o.step);
   // Nobody checks their own version unless they were asked to (the role matrix: Review, "not their own version unless asked").
-  const doIt: RowAction | undefined = o.can.review && (!o.isAuthor || askedMe)
-    ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
+  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 139).
+  const doIt: RowAction | undefined = o.can.review && (!o.isAuthor || askedMe || !!o.kind.makes)
+    ? { id: 'do', label: o.kind.makes ? o.kind.name : o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
   const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
     ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
     ? { id: 'ask', label: s === 'addressed' ? t('passage.record.actions.askAgain') : send ? t('passage.record.actions.sendElsewhere') : t('passage.record.actions.askSomeone') } : undefined;
-  const log: RowAction | undefined = o.can.log ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
+  // What a step makes is made here, not logged afterwards (decision 139).
+  const log: RowAction | undefined = o.can.log && !o.kind.makes ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
   const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: t('passage.record.actions.setAside') } : undefined;
   const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
   const second = s === 'asked' ? undefined : send && primary === send ? ask : log;
@@ -457,6 +459,20 @@ export function describeEntry(e: RecordEntry, o: {
         icon: 'note', color: TINT.amberText, title: t('passage.record.entry.note', { anchor: o.anchor(n) }),
         sub: said(n.text ?? (n.blobHash ? t('common.voiceNote') : n.photoHash ? t('passage.record.entry.photo') : '')), who
       };
+    }
+    case 'made': {
+      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 139).
+      const m = e.made;
+      const of = o.p.versions.find((x) => x.takeId === madeVersionOf(o.p, m));
+      const version = of ? versionTitle(of.n) : t('passage.record.anchor.aVersion');
+      const step = m.kindId ? kindName(kinds, m.kindId) : '';
+      const words = m.medium === 'writing';
+      const changed = !!m.added && !!of?.added.some((x) => x.medium === m.medium && x.hlc < m.hlc);
+      const title = !m.added ? t('writing.history.madeFrom', { what: step || (words ? t('writing.made.writtenDown') : t('writing.made.recordedAgain')), version })
+        : changed ? (words ? t('writing.history.wordsChanged', { version }) : t('writing.history.recordingChanged', { version }))
+        : words ? t('writing.history.wordsAdded', { version }) : t('writing.history.recordingAdded', { version });
+      const after = e.changedAfter ? t('writing.history.changedAfter', { check: kindName(kinds, e.changedAfter.kindId) }) : '';
+      return { icon: words ? 'edit' : 'mic', color: e.changedAfter ? TINT.amberText : TINT.greenText, title, sub: [after, m.added ? step : ''].filter(Boolean).join(' · '), who };
     }
     case 'study': {
       const i = o.guide?.id === e.guideId ? o.guide.steps.findIndex((s) => s.id === e.stepId) : -1;

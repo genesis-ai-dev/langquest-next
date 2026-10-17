@@ -4,7 +4,7 @@
 // 'language'`, or New language's draft with `draft: '1'`); `CheckEditor` is
 // one check. Every change saves as it is made; the list's header Undo takes a
 // save back, one made here too, and removing a check asks first (decision 134).
-import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, commands, deriveFlow, formatQuestionField, kindOf, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, shownFrom, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type QuestionSpec, type ShownWhat } from '@langquest-next/core';
+import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, commands, deriveFlow, formatQuestionField, kindOf, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, shownFrom, type CheckHelp, type EventSpec, type KindDef, type LanguageState, type MakesSpec, type OrgState, type QuestionSpec, type ShownWhat } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -26,7 +26,7 @@ import { usePerson } from '../ui/usePerson';
 import { checkName } from '../admin/adminModel';
 import { groupOf, removeRow, rowNumbers, rowsOf, sameTimeOf, setCheckpoint, setSameTime } from '../checks/model';
 import { newKindId, nextFieldId, referenceKindName } from '../config/model';
-import { docLanguage, inLanguages, teamLanguages } from '../reference/languages';
+import { docLanguage, inLanguages, teamLanguage, teamLanguages } from '../reference/languages';
 import { saveRows } from '../checks/checkActions';
 import { styles } from '../checks/checkStyles';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -34,6 +34,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { ShowsSection } from '../checks/ShowsSection';
 import { setParts } from '../checks/showActions';
 import { isAudio, partsOf, type ShowPart } from '../checks/showsModel';
+import { MakesFields } from '../writing/StepMaking';
 
 // ---- shared parts ------------------------------------------------------------------------
 
@@ -200,6 +201,26 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const checkers = rows.filter((r, j) => j !== i && !kindOf(state, r.kindId).produces);
   const checkedByName = kind.produces ? checkName(kind.produces.checkedBy, known) : '';
 
+  // A step that makes something (decisions.md 139): what it turns, into what, in which language, and what happens to it.
+  const makes = kind.makes;
+  const reference = teamLanguage(ctx.org.state, state, languageId);
+  const setMakes = (next: MakesSpec) => {
+    const s = ctx.language.state;
+    if (!s) return;
+    // No Undo: the same choices change it back (decision 134).
+    void ctx.act(commands(s, indexesFor(s)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: next }), t('checks.saved', { language })).catch(() => {});
+  };
+  // Words added here, before a step that makes the next version, stay with the older version (decision 139).
+  const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
+  // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
+  const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);
+  const looksAt = kind.looksAt ?? null;
+  const setLooksAt = (maker: string | null) => {
+    const s = ctx.language.state;
+    if (!s || maker === looksAt) return;
+    void ctx.act(commands(s, indexesFor(s)).setCheckLooksAt({ commandId: Crypto.randomUUID(), kindId, makerKindId: maker }), t('checks.saved', { language })).catch(() => {});
+  };
+
   // What can be linked: the language's own notes, and the organization's notes, guides and Bibles.
   const ownNotes = materialsFor(state).filter((m) => !['questions', 'key_terms', 'fia_study'].includes(m.kind));
   const all = items.map((it) => ({ it, kind: refKindOf(docs.get(it.current)), language: docLanguage(docs.get(it.current)) }))
@@ -213,6 +234,23 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
 
   return (
     <Screen header={<Header title={name} sub={t('checks.checkOf', { n: formatNumber(number), language })} onBack={ctx.back} />}>
+      {makes ? (
+        <>
+          <SectionLabel label={t('writing.step.whatItMakes')} />
+          <MakesFields makes={makes} own={language} reference={reference} onChange={setMakes} disabled={!mayFlows}
+            {...(laterVersion ? { warning: t('writing.step.addedBeforeVersion', { step: laterVersion.name }) } : {})} />
+        </>
+      ) : makersBefore.length > 0 ? (
+        <>
+          <SectionLabel label={t('writing.step.reads')} />
+          <ChipRow>
+            <Chip label={t('writing.step.theVersion')} on={!looksAt} help={t('writing.help.readsVersion')} onPress={() => mayFlows && setLooksAt(null)} />
+            {/* help-each: each chip is a different thing for the check to read */}
+            {makersBefore.map((m) => <Chip key={m.id} label={t('writing.step.whatMade', { step: m.name })} icon={m.makes!.to === 'writing' ? 'edit' : 'mic'}
+              help={t('writing.help.readsMade', { step: m.name })} on={looksAt === m.id} onPress={() => mayFlows && setLooksAt(m.id)} />)}
+          </ChipRow>
+        </>
+      ) : null}
       <Group>
         <Row icon="people" label={t('checks.people')} sub={people.length ? people.map((id) => ctx.name(id)).join(', ') : t('checks.anyone')}
           help={t('checks.peopleOpenHelp')} onPress={() => open('people')} />

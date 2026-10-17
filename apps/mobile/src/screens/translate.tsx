@@ -38,7 +38,8 @@
 // listen to the latest version and what you save is content for the next
 // check, not a version.
 import {
-  checkShows, commands, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, RECORD_STEP, skippedVerses, versesInChapter, type PartLabel,
+  checkShows, commands, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, latestDraftBy, partMarksFor, partsMedium, RECORD_STEP, skippedVerses,
+  versesInChapter, versionHeardAt, type PartLabel,
   type EventSpec, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -103,6 +104,11 @@ import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote 
 import { useBible } from '../helps/useBible';
 import { useUsage } from '../sources/useUsage';
 import { useStudyGuide } from '../study/useStudyGuides';
+import { WritingWorkspace } from '../writing/WritingWorkspace';
+import { MakeChoice } from '../writing/MakeChoice';
+import { makingLanguage, makingSource } from '../writing/model';
+import { teamLanguage } from '../reference/languages';
+import { languageLabel } from '../admin/adminModel';
 import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
@@ -124,6 +130,8 @@ const say = (message: string) => AccessibilityInfo.announceForAccessibility(mess
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
+  // Writing the passage instead of recording it (decisions.md 139).
+  if (ctx.params['write'] === '1') return <WritingWorkspace key={`${v.unitId}:${v.languageId}:write`} ctx={ctx} v={v} mode={{ kind: 'version' }} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
   // Notes written while recording are the recording's (decisions.md 130).
@@ -138,7 +146,10 @@ function Missing(props: { ctx: Ctx; title: string; text?: string }) {
   );
 }
 
-function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
+/** A step whose result is the passage's next version (a final recording, decisions.md 139): what it is made from. */
+interface MakingVersion { kindId: string; name: string; fromTakeId: string; requestId?: string }
+
+function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: MakingVersion }) {
   const { state, unitId, languageId, p } = v;
   const me = ctx.session.actorId;
   const idx = indexesFor(state);
@@ -152,8 +163,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // `fresh` an empty one; with none of them, their latest draft, else a new
   // one from the latest version. `root` names the draft once it is saved;
   // `tip` is its newest take seen here, which the next change continues.
-  const fromParam = ctx.params['from'];
-  const fresh = ctx.params['fresh'] === '1';
+  const fromParam = making ? undefined : ctx.params['from'];
+  // A final recording starts empty: it is said again, not edited (decisions.md 139).
+  const fresh = ctx.params['fresh'] === '1' || !!making;
   const mine = useMemo(() => draftsBy(p, me), [p, me]);
   const draftId = ctx.params['draftId'];
   const startsNew = !!fromParam || fresh;
@@ -171,7 +183,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // What the draft started from: a version's parts, or nothing.
   const startFrom = draft || tipRef.current ? (draft?.basedOnTakeId ?? (rootRef.current ? state.takes[rootRef.current]?.parentTakeId ?? undefined : undefined))
     : fromParam && state.submissions[fromParam] ? fromParam : fresh ? undefined : latest?.takeId;
-  const startCards = startFrom ? state.takes[startFrom]?.cardHashes : undefined;
+  // A written version is a version to say again, not parts to keep (decision 139): recording from it starts empty.
+  const startCards = startFrom && partsMedium(state.takes[startFrom]?.cardHashes ?? []) === 'recording' ? state.takes[startFrom]?.cardHashes : undefined;
   /** What the next change continues: this draft's newest take, else what it starts from. */
   const parentNow = useCallback(() => (tipRef.current && stateRef.current.takes[tipRef.current] ? tipRef.current : startFrom ?? null), [startFrom]);
   /** This draft in a later state (an Undo runs after the record moved on). */
@@ -605,10 +618,16 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     let message = t('translate.versionPublished', { n: nextN });
     try {
       const c = commands(state, idx);
-      specs = c.publishVersion({
-        commandId, unitId, cardHashes: list, actorId: me, parentTakeId: draft?.takeId ?? parentNow(),
-        ...(note.trim() ? { note: note.trim() } : {}), ...(noteBlobHash ? { noteBlobHash } : {})
-      });
+      // A step that makes the next version (a final recording) says which step made it (decisions.md 139).
+      specs = making
+        ? c.makeVersion({
+          commandId, unitId, kindId: making.kindId, fromTakeId: making.fromTakeId, cardHashes: list, actorId: me, parentTakeId: draft?.takeId ?? parentNow(),
+          ...(making.requestId ? { requestId: making.requestId } : {})
+        })
+        : c.publishVersion({
+          commandId, unitId, cardHashes: list, actorId: me, parentTakeId: draft?.takeId ?? parentNow(),
+          ...(note.trim() ? { note: note.trim() } : {}), ...(noteBlobHash ? { noteBlobHash } : {})
+        });
       if (canTie) specs = [...specs, ...tieTermsSpecs(state, specs, tied, commandId)];
       const takeId = specs.find((x) => x.type === 'v1.TakeSubmitted')?.payload as { takeId: string } | undefined;
       if (takeId) specs = [...specs, ...c.referencesUsed({ commandId, unitId, takeId: takeId.takeId, items: usage.items() })];
@@ -680,9 +699,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     return (
       <PublishScreen ctx={ctx} v={v} n={nextN} first={isFirst} cards={list} totalMs={totalMs(parts.map((x) => x.durationMs))}
         bible={bible.option?.abbreviation} busy={publishing} answers={answers} tied={canTie ? tied.size : 0}
-        {...(revising ? { revisingKind: checkName(revising.kindId, v.kinds) } : {})}
+        {...(revising ? { revisingKind: checkName(revising.kindId, v.kinds) } : {})} {...(making ? { making: true } : {})}
         draftKey={draftKey('publish', me, languageId, unitId, rootRef.current ?? 'new')}
-        next={nextUp ? { kinds: nextUp.kinds, targets } : null}
+        next={nextUp && !making ? { kinds: nextUp.kinds, targets } : null}
         onClose={() => (publishParam ? ctx.back() : setConfirming(false))} onDone={publish} />
     );
   }
@@ -690,7 +709,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   // Which draft this is, when the person keeps more than one, and the version it started from when not the latest.
   const fromN = startedFrom(p.versions, startFrom);
   const several = mine.length + (draft ? 0 : 1) > 1;
-  const recordingName = several ? name : t('translate.recordingVersion', { n: nextN });
+  const recordingName = making ? t('writing.makingFrom', { step: making.name, version: versionTitle(p.versions.find((x) => x.takeId === making.fromTakeId)?.n ?? nextN - 1) })
+    : several ? name : t('translate.recordingVersion', { n: nextN });
   const recordingSub = fromN && fromN !== latest?.n ? t('passage.versions.nameFrom', { name: recordingName, version: versionTitle(fromN) }) : recordingName;
   const recorderLine = split >= 1;
   return (
@@ -784,9 +804,46 @@ export function BackTranslation(ctx: Ctx) {
   const kindId = ctx.params['kindId'] ?? '';
   if (!v) return <Missing ctx={ctx} title={screenTitle('back_translation')} />;
   const kind = v.kind(kindId);
+  if (kind.makes) return <Making key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} />;
   if (!v.p.latest || !kind.produces) return <Missing ctx={ctx} title={screenTitle('back_translation')} text={t('backTranslation.noRecording')} />;
   // The same split workspace, with only the version being back-translated on top (simple/btWorkspace.tsx).
   return <NoteStepContext.Provider value={kind.id}><BackTranslationBody key={`${v.unitId}:${v.languageId}:${kindId}`} ctx={ctx} v={v} kind={kind} of={v.p.latest} /></NoteStepContext.Provider>;
+}
+
+/**
+ * A step that makes something (decisions.md 139): turn the latest version,
+ * or what an earlier step made, into recording or writing, in the team's
+ * language or another. When the step lets the person pick, they say which
+ * first. Writing opens the writing workspace; recording, the back
+ * translation's recorder, or for a final recording the recording workspace.
+ */
+function Making({ ctx, v, kind }: { ctx: Ctx; v: PassageView; kind: KindDef }) {
+  const makes = kind.makes!;
+  const [picked, setPicked] = useState<'recording' | 'writing' | null>(null);
+  // Changing what a step added to a version opens on that version (decision 139). A step that adds
+  // works on the version it counts for: the latest, or, before a step that makes a newer one, the one before.
+  const stepIndex = v.p.flow.steps.findIndex((st) => st.kindIds.includes(kind.id));
+  const onVersion = v.p.versions.find((x) => x.takeId === ctx.params['fromTakeId'])
+    ?? (makes.result === 'added' && v.p.latest && stepIndex >= 0 ? versionHeardAt(v.p, v.p.latest, stepIndex) : undefined);
+  const source = onVersion ? { kind: 'version' as const, version: onVersion } : makingSource(v.p, makes);
+  if (!source) return <Missing ctx={ctx} title={kind.name} text={makes.fromKindId ? t('writing.nothingMadeYet', { step: v.kind(makes.fromKindId).name }) : t('backTranslation.noRecording')} />;
+  const to = makes.to === 'either' ? picked : makes.to;
+  const language = makingLanguage(makes, teamLanguage(ctx.org.state, v.state, v.languageId));
+  const requestId = ctx.params['requestId'] ?? v.p.openRequests.find((r) => r.what === 'review' && r.kindId === kind.id && r.profileId === ctx.session.actorId)?.id;
+  if (!to) return <MakeChoice ctx={ctx} v={v} kind={kind} language={language} onPick={setPicked} />;
+  if (to === 'writing') {
+    if (makes.result === 'version' && source.kind === 'version') {
+      return <WritingWorkspace ctx={ctx} v={v} mode={{ kind: 'final', step: kind, source: source.version, ...(requestId ? { requestId } : {}) }} />;
+    }
+    return <WritingWorkspace ctx={ctx} v={v} mode={{ kind: 'make', step: kind, makes, source, ...(language ? { language } : {}), ...(requestId ? { requestId } : {}),
+      ...(makes.result === 'added' && source.kind === 'version' && !language ? { added: true } : {}) }} />;
+  }
+  if (source.kind !== 'version') return <Missing ctx={ctx} title={kind.name} text={t('writing.recordFromMadeLater')} />;
+  if (makes.result === 'version') {
+    return <WorkspaceBody ctx={ctx} v={v} making={{ kindId: kind.id, name: kind.name, fromTakeId: source.version.takeId, ...(requestId ? { requestId } : {}) }} />;
+  }
+  return <BackTranslationBody ctx={ctx} v={v} kind={kind} of={source.version}
+    make={{ into: language ? languageLabel(language) : v.language, ...(language ? { language } : {}), ...(makes.result === 'added' && !language ? { added: true } : {}) }} />;
 }
 
 const styles = StyleSheet.create({

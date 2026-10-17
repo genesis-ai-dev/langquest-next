@@ -1,5 +1,6 @@
 import type { Card } from './events';
 import type { Hlc } from './hlc';
+import type { MakesSpec } from './writing';
 
 /**
  * The passage record (UX demo `domain/record.ts`, ADR-004..016).
@@ -156,6 +157,44 @@ export type RecordEvents = {
   'v1.NoteWithdrawn': { noteId: string };
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
+  /**
+   * A kind that makes something (decisions.md 139): it turns recording or
+   * writing into recording or writing, in the same language or another, and
+   * may make the passage's next version. `null` makes it an ordinary check
+   * again. Register per kind.
+   */
+  'v1.StepMakesSet': { kindId: string; makes: MakesSpec | null };
+  /**
+   * A check that reads what an earlier making step made instead of the
+   * version (a spelling check of what "Write it down" made). `null` reads the
+   * version again. Its reviews still name the version. Register per kind.
+   */
+  'v1.CheckLooksAtSet': { kindId: string; makerKindId: string | null };
+  /**
+   * Something made from a version, or from something made from one
+   * (decisions.md 139): exactly one of `fromTakeId` and `fromMadeId`, and
+   * exactly one of `parts` (recorded cards or written parts, one kind) and
+   * `takeId` (it became the passage's next version). `kindId` is the step
+   * that made it, absent when none did (brought over from LangQuest v2);
+   * `language` is the language it is in when not the team's own. It stays
+   * with what it came from and is never marked out of date. `added`: it was
+   * added to the version it came from (`fromTakeId`, with `parts` of the
+   * other kind, in the team's own language), so that version holds both; a
+   * later one added to the same version replaces it there, and the record
+   * keeps both. Grow-only.
+   */
+  'v1.Made': {
+    madeId: string;
+    unitId: string;
+    kindId?: string;
+    fromTakeId?: string;
+    fromMadeId?: string;
+    language?: string;
+    parts?: Card[];
+    takeId?: string;
+    added?: true;
+    requestId?: string;
+  };
 };
 
 // ---- folded state ------------------------------------------------------------
@@ -167,6 +206,10 @@ export interface KindDef {
   usualReviewer: string;
   withholdsContext?: boolean;
   produces?: ProducesSpec;
+  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 139); read from the fold, never a field of ReviewKindDefined. */
+  makes?: MakesSpec;
+  /** The making kind whose output it reads, when it checks one (v1.CheckLooksAtSet). */
+  looksAt?: string;
 }
 
 interface FlowStepDef {
@@ -229,6 +272,19 @@ export interface RecordState {
   withdrawnNotes: Record<string, Undo>;
   /** `${unitId}:${guideId}:${stepId}` -> done register */
   studyMarks: Record<string, { value: { done: boolean; by: string }; hlc: Hlc; eventId: string }>;
+  /** kindId -> what it makes (v1.StepMakesSet); absent in older snapshots. */
+  stepMakes?: Record<string, { value: MakesSpec | null; hlc: Hlc; eventId: string }>;
+  /** kindId -> the making kind whose output it reads (v1.CheckLooksAtSet); absent in older snapshots. */
+  checkLooksAt?: Record<string, { value: string | null; hlc: Hlc; eventId: string }>;
+  /** madeId -> what was made (v1.Made, first wins); absent in older snapshots. */
+  made?: Record<string, MadeRecord>;
+}
+
+export interface MadeRecord extends Omit<RecordEvents['v1.Made'], 'madeId'> {
+  id: string;
+  by: string;
+  hlc: Hlc;
+  eventId: string;
 }
 
 export function emptyRecordState(): RecordState {

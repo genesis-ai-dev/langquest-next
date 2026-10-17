@@ -1,5 +1,6 @@
 import type { AnyEvent, EventEnvelope, EventPayloads, EventType } from '../src/events';
 import { HlcClock } from '../src/hlc';
+import { writtenPartId } from '../src/writing';
 
 /**
  * Builds a realistic event history from several devices. Every event type in
@@ -242,6 +243,41 @@ export function buildRecordFixture(): AnyEvent[] {
     { itemId: 'biblebrain.ENGESV', name: 'English Standard Version', kind: 'source', detail: 'ENGESVN1DA', opened: true }] });
   emit('dF', 'bt1', 'v1.ReferencesUsed', { unitId: 'luke1', reviewId: 'rv1', items: [{ itemId: 'guidelines', name: 'Translation Guidelines', kind: 'note', opened: false }] });
 
+  // Writing beside recording (decisions.md 139): two devices write overlapping
+  // verses, a written version is composed, labelled and published; the
+  // language's switches are set from two devices; a kind becomes a making
+  // step and another reads what it made; things are made from a version,
+  // from something made, and as the next version.
+  const w4 = { id: writtenPartId('Ŋa lo kɔn i ka ti ɛ kine mia gelɛ?'), text: 'Ŋa lo kɔn i ka ti ɛ kine mia gelɛ?' };
+  const w5 = { id: writtenPartId('Ku lɔ yinga ŋutu ti a nyɔ.'), text: 'Ku lɔ yinga ŋutu ti a nyɔ.' };
+  const e5 = { id: writtenPartId('When he finds it, he is glad.'), text: 'When he finds it, he is glad.' };
+  emit('dB', 't1', 'v1.WritingAdded', { writingId: 'wr1', unitId: 'luke1', parts: [w4, w5] });
+  emit('dG', 't2', 'v1.WritingAdded', { writingId: 'wr2', unitId: 'luke1', parts: [w5] });
+  emit('dB', 't1', 'v1.TakeComposed', { takeId: 'takeW', unitId: 'luke1', cardHashes: [w4.id, w5.id], parentTakeId: 'take2' });
+  emit('dB', 't1', 'v1.CardVerseSet', { unitId: 'luke1', hash: w4.id, mark: 'set', from: '15:4', to: '15:4' });
+  emit('dB', 't1', 'v1.TakeSubmitted', { takeId: 'takeW' });
+  emit('dA', 'lead', 'v1.MediaAllowedSet', { recording: true, writing: true, first: 'recording' });
+  emit('dE', 'lead2', 'v1.MediaAllowedSet', { recording: false, writing: true, first: 'writing' });
+  emit('dA', 'lead', 'v1.ReviewKindDefined', { kindId: 'writedown', name: 'Write it down' });
+  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'writedown', makes: { from: 'recording', to: 'writing', language: 'same', result: 'beside' } });
+  emit('dE', 'lead2', 'v1.StepMakesSet', { kindId: 'writedown', makes: null });
+  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'btw', makes: { from: 'either', to: 'writing', language: 'other', otherLanguage: 'eng', result: 'beside' } });
+  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'polish', makes: { from: 'recording', to: 'recording', language: 'same', result: 'version' } });
+  emit('dA', 'lead', 'v1.CheckLooksAtSet', { kindId: 'spelling', makerKindId: 'writedown' });
+  emit('dE', 'lead2', 'v1.CheckLooksAtSet', { kindId: 'spelling', makerKindId: null });
+  emit('dB', 't1', 'v1.Made', { madeId: 'm1', unitId: 'luke1', kindId: 'writedown', fromTakeId: 'take2', parts: [{ hash: w4.id, durationMs: 0 }, { hash: w5.id, durationMs: 0 }] });
+  emit('dF', 'bt1', 'v1.WritingAdded', { writingId: 'wr3', unitId: 'luke1', parts: [e5] });
+  emit('dF', 'bt1', 'v1.Made', { madeId: 'm2', unitId: 'luke1', kindId: 'btw', fromMadeId: 'm1', language: 'eng', parts: [{ hash: e5.id, durationMs: 0 }] });
+  emit('dF', 'bt1', 'v1.Made', { madeId: 'm3', unitId: 'luke1', fromTakeId: 'take2', language: 'eng', parts: [{ hash: 'b7', durationMs: 3100, format: 'm4a', atMs: 0 }] });
+  emit('dB', 't1', 'v1.TakeComposed', { takeId: 'takeFinal', unitId: 'luke1', cardHashes: ['c1', 'c3', 'c4'], parentTakeId: 'take2' });
+  emit('dB', 't1', 'v1.TakeSubmitted', { takeId: 'takeFinal' });
+  emit('dB', 't1', 'v1.Made', { madeId: 'm4', unitId: 'luke1', kindId: 'polish', fromTakeId: 'take2', takeId: 'takeFinal' });
+  // Words added to the final recording, checked, then changed (decisions.md 139).
+  emit('dA', 'lead', 'v1.StepMakesSet', { kindId: 'transcribe', makes: { from: 'recording', to: 'writing', language: 'same', result: 'added' } });
+  emit('dB', 't1', 'v1.Made', { madeId: 'm5', unitId: 'luke1', kindId: 'transcribe', fromTakeId: 'takeFinal', added: true, parts: [{ hash: w4.id, durationMs: 0 }, { hash: w5.id, durationMs: 0 }] });
+  emit('dC', 'r1', 'v1.ReviewRecorded', { reviewId: 'rvFinal', takeId: 'takeFinal', kindId: 'community', outcome: 'looks_good', via: 'app' });
+  emit('dB', 't1', 'v1.Made', { madeId: 'm6', unitId: 'luke1', kindId: 'transcribe', fromTakeId: 'takeFinal', added: true, parts: [{ hash: w5.id, durationMs: 0 }] });
+
   // Ties the merge rules must settle without looking at arrival order
   // (event-sourced-sync, "Tests to write"): the same review id from two
   // devices, once at the same clock; two people undoing the same departure,
@@ -280,6 +316,8 @@ export function buildRecordFixture(): AnyEvent[] {
   raw('tie-u', 't1', 'dG', `${tie}dB`, 'v1.TakeSubmitted', { takeId: 'take1', questionSetIds: ['q-luke1'] });
   raw('tie-v', 't1', 'dB', `${tie}dB`, 'v1.MaterialDefined', { materialId: 'notes-luke', kind: 'tg', title: 'Luke notes', scope: { unitId: 'luke' } });
   raw('tie-w', 'lead', 'dA', `${tie}dB`, 'v1.MaterialDefined', { materialId: 'notes-luke', kind: 'tg', title: 'Notes on Luke', scope: { unitId: 'luke' } });
+  raw('tie-x', 't1', 'dB', `${tie}dB`, 'v1.Made', { madeId: 'mTie', unitId: 'luke1', fromTakeId: 'take2', parts: [{ hash: 'b8', durationMs: 1000 }] });
+  raw('tie-y', 't2', 'dG', `${tie}dB`, 'v1.Made', { madeId: 'mTie', unitId: 'luke1', fromTakeId: 'take2', language: 'eng', parts: [{ hash: 'b9', durationMs: 2000 }] });
   return events;
 }
 

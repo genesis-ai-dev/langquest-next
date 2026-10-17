@@ -103,7 +103,7 @@ export function footHint(r: Readiness, makes?: { what: string; has: boolean }): 
 // ---- stages (REV-0, ADR-029; demo SIMPLE-10) ------------------------------------------------
 
 export type StageId = 'listen' | 'questions' | 'decide';
-export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | 'check' | 'mic' }
+export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | 'check' | 'mic' | 'edit' }
 
 /**
  * Reviewing is three short stages under the header: Listen, Questions (one
@@ -111,9 +111,10 @@ export interface Stage { id: StageId; label: string; icon: 'listen' | 'help' | '
  * that makes content (a back translation logged afterwards) ends in "Record
  * it" instead of a verdict.
  */
-export function reviewStages(opts: { questions: number; logged: boolean; makes: boolean }): Stage[] {
+export function reviewStages(opts: { questions: number; logged: boolean; makes: boolean; reads?: boolean }): Stage[] {
   return [
-    { id: 'listen', label: t('review.capture.stages.listen'), icon: 'listen' },
+    // Checking writing reads instead of listening (decisions.md 139).
+    opts.reads ? { id: 'listen', label: t('writing.review.read'), icon: 'edit' } : { id: 'listen', label: t('review.capture.stages.listen'), icon: 'listen' },
     ...(opts.questions > 0 ? [{ id: 'questions' as const, label: t('review.capture.stages.questions'), icon: 'help' as const }] : []),
     opts.makes ? { id: 'decide', label: t('review.capture.stages.recordIt'), icon: 'mic' } : { id: 'decide', label: t('review.capture.stages.decide'), icon: 'check' }
   ];

@@ -6,7 +6,7 @@
 // the screen only draws them.
 import {
   draftsBy, feedbackIsMine, isCompleteState,
-  type FlowStepStatus, type KindDef, type KindStatus, type LanguageState, type OrgState, type PassageNote, type PassageState,
+  type FlowStepStatus, type Hlc, type KindDef, type KindStatus, type LanguageState, type Medium, type OrgState, type PassageNote, type PassageState,
   type RecordEntry, type ReviewView, type Version
 } from '@langquest-next/core';
 import { edgeFor, type ScreenId } from '../shell/flow';
@@ -75,10 +75,12 @@ export function usualTargets(
 export function recordPathInput(o: {
   p: PassageState; kinds: KindDef[]; me: string; name: NameFn; teamName: (teamId: string) => string | undefined;
   study?: PathInput['study']; latestSeconds?: number; latestVerses?: string | null;
+  /** How the passage goes on: recording or writing (decisions.md 139). */
+  lead?: Medium;
 }): PathInput {
   const { p } = o;
   return {
-    p, kinds: o.kinds, me: o.me, name: o.name, when,
+    p, kinds: o.kinds, me: o.me, name: o.name, when, ...(o.lead ? { lead: o.lead } : {}),
     study: o.study ?? null,
     latestSeconds: o.latestSeconds ?? 0,
     latestVerses: o.latestVerses ?? null,
@@ -95,9 +97,10 @@ export function recordPathInput(o: {
 /** The record's one main button: what it says and where it goes (the screen holds the going). */
 export type RecordMain =
   | { id: 'hearFeedback'; label: string; icon: IconName; reviewId: string }
-  | { id: 'check'; label: string; icon: IconName; kindId: string; produces: boolean; requestId?: string }
+  | { id: 'check'; label: string; icon: IconName; kindId: string; produces: boolean; requestId?: string; makes?: boolean }
   | { id: 'study'; label: string; icon: IconName }
-  | { id: 'record'; label: string; icon: IconName }
+  /** `write`: the passage goes on in writing (decisions.md 139). */
+  | { id: 'record'; label: string; icon: IconName; write?: boolean }
   | { id: 'ask'; label: string; icon: IconName; kindId: string };
 
 export interface RecordModel {
@@ -123,6 +126,8 @@ export function recordModel(o: {
   p: PassageState; kinds: KindDef[]; kind: (id: string) => KindDef; me: string; can: RecordCan; steps: PathStep[]; mine: MineFn;
   /** Whoever just published, or the version's author. */
   asker: boolean;
+  /** How the passage goes on: recording or writing (decisions.md 139). */
+  lead?: Medium;
   /** The next check picked on the ask page. */
   askKindId?: string | null;
   isAuthor: boolean;
@@ -145,7 +150,12 @@ export function recordModel(o: {
   // feedback waits on the translator, since the next check is best done on the version they keep.
   const openCheck = openCheckFor(p, { isAuthor: o.isAuthor, canReview: can.review });
   const check = (kindId: string, requestId?: string): RecordMain => {
-    const produces = !!o.kind(kindId).produces;
+    const kind = o.kind(kindId);
+    // A step that makes something is called by its name and drawn as what it makes (decisions.md 139).
+    if (kind.makes) {
+      return { id: 'check', kindId, produces: false, makes: true, ...(requestId ? { requestId } : {}), label: kind.name, icon: kind.makes.to === 'writing' ? 'edit' : 'mic' };
+    }
+    const produces = !!kind.produces;
     return {
       id: 'check', kindId, produces, ...(requestId ? { requestId } : {}),
       label: produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(nameOf(kindId)) }),
@@ -160,6 +170,8 @@ export function recordModel(o: {
     main = check(myCheck.k.kindId, myCheck.k.request?.id);
   } else if (lit?.kind === 'study') {
     main = { id: 'study', label: t('passage.page.main.study'), icon: 'star' };
+  } else if (lit?.kind === 'record' && can.record && o.lead === 'writing') {
+    main = { id: 'record', label: t('writing.path.write'), icon: 'edit', write: true };
   } else if (lit?.kind === 'record' && can.record) {
     main = { id: 'record', label: myDraft ? t('passage.page.continueRecording') : t('passage.page.main.record'), icon: 'mic' };
   } else if (nextKind && can.ask) {
@@ -193,8 +205,9 @@ export function currentCheck(p: PassageState, currentStepId: string | undefined)
   return step && kind ? { step, kind } : undefined;
 }
 
-export type ElseOptionId = 'recordSomeone' | 'checkSomeone' | 'already' | 'notNow' | 'newVersion' | 'movePast';
-export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon: IconName; kindId?: string; stepId?: string }
+export type ElseOptionId = 'recordSomeone' | 'checkSomeone' | 'already' | 'notNow' | 'newVersion' | 'writeInstead' | 'recordInstead' | 'movePast';
+/** `write`: a new version is written, not recorded (decisions.md 139). */
+export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon: IconName; kindId?: string; stepId?: string; write?: boolean }
 
 /**
  * The ways forward on "Something else?" (demo a-else), top to bottom: someone
@@ -205,6 +218,8 @@ export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon
 export function elseOptions(o: {
   p: PassageState; kinds: KindDef[]; can: RecordCan; current: { step: FlowStepStatus; kind: KindStatus } | undefined;
   answersMine: boolean; myDraft: boolean;
+  /** How the passage goes on, and the other way the language allows (decisions.md 139). */
+  lead?: Medium; other?: Medium | null;
 }): ElseOption[] {
   const { p, can, current } = o;
   const nameOf = (kindId: string) => checkName(kindId, o.kinds);
@@ -223,9 +238,14 @@ export function elseOptions(o: {
     out.push({ id: 'notNow', icon: 'clock', label: t('common.notNow'), sub: t('passage.else.notNowSub', { check: kindInSentence(nameOf(current.kind.kindId)) }),
       kindId: current.kind.kindId, stepId: current.step.step.id });
   }
-  if (can.record && p.recorded && !o.answersMine) {
+  if (can.record && p.recorded && !o.answersMine && o.lead === 'writing') {
+    out.push({ id: 'newVersion', icon: 'edit', label: t('writing.path.newVersion'), sub: t('writing.path.newVersionSub'), write: true });
+  } else if (can.record && p.recorded && !o.answersMine) {
     out.push({ id: 'newVersion', icon: 'mic', label: o.myDraft ? t('passage.page.continueRecording') : t('passage.else.newVersion'), sub: t('passage.else.newVersionSub') });
   }
+  // The other way the language allows (decisions.md 139): write it instead, or record it instead.
+  if (can.record && o.other === 'writing') out.push({ id: 'writeInstead', icon: 'edit', label: t('writing.path.writeInstead'), sub: t('writing.path.writeInsteadSub'), write: true });
+  if (can.record && o.other === 'recording') out.push({ id: 'recordInstead', icon: 'mic', label: t('writing.path.recordInstead'), sub: t('writing.path.recordInsteadSub') });
   // Moving past is offered at the checkpoint itself, when it is the step the passage is at.
   const locked = can.override && current?.step.step.checkpoint && !current.step.complete && !current.step.override ? current.step : undefined;
   if (locked) {
@@ -240,9 +260,23 @@ export function lockedNameFor(p: PassageState, step: FlowStepStatus, kinds: Kind
   return gate ? stepTitle(gate.step.kindIds, kinds) : undefined;
 }
 
+/** What a making step made here last (decisions.md 139): beside a version, or a version it made (a final recording). */
+export interface MadeByStep { madeId?: string; takeId?: string; by: string; hlc: Hlc; medium: Medium }
+
+export function madeByStep(p: PassageState, kindId: string): MadeByStep | undefined {
+  const m = [...p.made].reverse().find((x) => x.kindId === kindId);
+  const ver = [...p.versions].reverse().find((x) => x.madeByKindId === kindId);
+  if (ver && (!m || ver.hlc > m.hlc)) return { takeId: ver.takeId, by: ver.by, hlc: ver.hlc, medium: ver.medium };
+  return m ? { madeId: m.id, by: m.by, hlc: m.hlc, medium: m.medium } : undefined;
+}
+
 export interface SheetRow {
   status: KindStatus;
   name: string;
+  /** A making step that is done: what it made, to open (decisions.md 139). */
+  made?: MadeByStep;
+  /** The step's icon when not its kind's: a pen or a microphone for a step that makes something. */
+  icon?: IconName;
   /** The line under its name: state, who, advice. */
   sub: string;
   acts: ReturnType<typeof kindRowActions>;
@@ -282,11 +316,16 @@ export function stepSheet(o: {
     const waitFor = fbKindIds.length && !fbKindIds.includes(status.kindId) ? fbNames : undefined;
     const checkedBy = kind.produces ? nameOf(kind.produces.checkedBy) : undefined;
     const acts = kindRowActions({ status, kind, step, can: o.can, isAuthor: o.isAuthor, me: o.me, mine: o.mine, ...(target ? { sendTo: sendTargetLabel(target, o.name) } : {}) });
-    const sub = kindRowSub({
+    // A making step that is done says who made it and when, and opens what it made (decisions.md 139).
+    const made = kind.makes && isCompleteState(status.state) ? madeByStep(p, status.kindId) : undefined;
+    const sub = made ? `${o.name(made.by)} · ${when(made.hlc)}` : kindRowSub({
       status, kind, step, me: o.me, name: o.name, mine: o.mine, teamName: o.teamName,
       ...(checkedBy ? { checkedBy } : {}), ...(waitFor ? { waitFor } : {}), ...(lockedName ? { lockedName } : {})
     });
-    return { status, name: nameOf(status.kindId), sub, acts, waits: !!waitFor };
+    return {
+      status, name: nameOf(status.kindId), sub, acts, waits: !!waitFor,
+      ...(made ? { made } : {}), ...(kind.makes ? { icon: (kind.makes.to === 'writing' ? 'edit' : 'mic') as IconName } : {})
+    };
   });
   return {
     title: stepTitle(step.step.kindIds, kinds),
@@ -313,9 +352,9 @@ const goTo = (to: ScreenId, extra: Record<string, string> = {}): RecordMove => (
 /** Where the main button goes. */
 export function mainMove(m: RecordMain): RecordMove {
   if (m.id === 'hearFeedback') return goTo('review_detail', { reviewId: m.reviewId });
-  if (m.id === 'check') return goTo(m.produces ? 'back_translation' : 'review_capture', { kindId: m.kindId, ...(m.requestId ? { requestId: m.requestId } : {}) });
+  if (m.id === 'check') return goTo(m.produces || m.makes ? 'back_translation' : 'review_capture', { kindId: m.kindId, ...(m.requestId ? { requestId: m.requestId } : {}) });
   if (m.id === 'study') return goTo('study_guide');
-  if (m.id === 'record') return { id: 'recordOrPick' };
+  if (m.id === 'record') return m.write ? goTo('workspace', { write: '1' }) : { id: 'recordOrPick' };
   return { id: 'openAsk' };
 }
 
@@ -324,12 +363,13 @@ export function mainMove(m: RecordMain): RecordMove {
  * made, the study, the feedback, or the person's draft. An earlier section
  * (decision 80) is kept to be heard, not worked on: only its version opens.
  */
-export function stepMove(st: PathStep, o: { p: PassageState; can: RecordCan; earlier: boolean; feedbackReview: ReviewView | undefined }): RecordMove | undefined {
+export function stepMove(st: PathStep, o: { p: PassageState; can: RecordCan; earlier: boolean; feedbackReview: ReviewView | undefined; lead?: Medium }): RecordMove | undefined {
   const { p, can } = o;
   const doneVersion = (): RecordMove | undefined => (st.state === 'done' && p.latest ? goTo('version_detail', { takeId: p.latest.takeId }) : undefined);
   if (o.earlier) return st.kind === 'record' || st.kind === 'publish' ? doneVersion() : undefined;
   if (st.kind === 'study') return goTo('study_guide');
-  if (st.kind === 'record') return doneVersion() ?? (can.record ? { id: 'recordOrPick' } : undefined);
+  // A passage that goes on in writing opens the writing boxes (decisions.md 139).
+  if (st.kind === 'record') return doneVersion() ?? (can.record ? (o.lead === 'writing' ? goTo('workspace', { write: '1' }) : { id: 'recordOrPick' }) : undefined);
   if (st.kind === 'publish') return doneVersion() ?? (can.record && p.drafting ? { id: 'recordOrPick' } : undefined);
   if ((st.kind === 'feedback' || st.kind === 'fix') && o.feedbackReview) return goTo('review_detail', { reviewId: o.feedbackReview.id });
   return undefined;
@@ -358,7 +398,7 @@ export function elseMove(o: ElseOption): ElseMove {
   if (o.id === 'checkSomeone') return goTo('ask_someone', { what: 'review', kindId: o.kindId! });
   if (o.id === 'already') return goTo('add_record', { kindId: o.kindId! });
   if (o.id === 'notNow') return { id: 'skip', kindId: o.kindId!, stepId: o.stepId! };
-  if (o.id === 'newVersion') return { id: 'recordOrPick' };
+  if (o.id === 'newVersion' || o.id === 'writeInstead' || o.id === 'recordInstead') return o.write ? goTo('workspace', { write: '1' }) : { id: 'recordOrPick' };
   return { id: 'override', stepId: o.stepId! };
 }
 
@@ -427,6 +467,7 @@ export function historyMove(e: RecordEntry): RecordMove | undefined {
   if (e.type === 'version') return goTo('version_detail', { takeId: e.version.takeId });
   if (e.type === 'review' || e.type === 'response') return goTo('review_detail', { reviewId: e.review.id });
   if (e.type === 'study') return goTo('study_step', { stepId: e.stepId });
+  if (e.type === 'made') return goTo('made_detail', { madeId: e.made.id });
   return undefined;
 }
 

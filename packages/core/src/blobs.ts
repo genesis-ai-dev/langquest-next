@@ -3,6 +3,7 @@ import { unitAncestry } from './materials';
 import { unitsAskedOf } from './passage';
 import { stateRevision } from './reducer';
 import type { LanguageState } from './state';
+import { isWrittenPart } from './writing';
 
 /**
  * Blob work lists, derived on every pass (PLAN.md section 14 rule 1).
@@ -166,6 +167,11 @@ function collectRefs(state: LanguageState): Map<string, BlobRef> {
     const unitId = state.takes[r.takeId]?.unitId ?? '';
     add(r.commentBlobHash, unitId);
     for (const c of r.artifacts ?? []) add(c.hash, unitId, c.format ?? 'wav');
+  }
+  // What a making step recorded (decisions.md 139), named only by its v1.Made,
+  // like a back translation. Written parts are words in the log, never files.
+  for (const m of Object.values(state.made ?? {})) {
+    for (const c of m.parts ?? []) if (!isWrittenPart(c.hash)) add(c.hash, m.unitId, c.format ?? 'wav');
   }
   return out;
 }
