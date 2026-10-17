@@ -446,7 +446,7 @@ function PaneBar(props: { icon: IconName; text: ReactNode; label: string; help: 
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
       <Ico name={props.icon} size={18} color={C.primary} />
-      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} {...(props.oneLine ? { numberOfLines: 1 } : {})}>{props.text}</Text>
+      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} {...(props.oneLine ? { numberOfLines: 2 } : {})}>{props.text}</Text>
       <Text style={[txt.xsStrong, { color: C.primary }]}>{t('backTranslation.open')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   footSide: { flex: 1, alignItems: 'flex-start' },
   halo: { width: 96, height: 96, borderRadius: 48, backgroundColor: withAlpha(C.red, 0.12), alignItems: 'center', justifyContent: 'center' },
   record: { width: 76, height: 76, borderRadius: 38, backgroundColor: C.red, alignItems: 'center', justifyContent: 'center', ...lift({ color: C.red, opacity: 0.35, radius: 12, y: 6, elevation: 4 }) },
-  publish: { minWidth: 96, minHeight: target.primary, paddingHorizontal: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
-  publishLabel: { fontSize: T.base, fontWeight: '800', color: C.primary },
+  publish: { minWidth: 96, maxWidth: '100%', minHeight: target.primary, paddingHorizontal: space.md, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  publishLabel: { fontSize: T.base, fontWeight: '800', color: C.primary, textAlign: 'center' },
   checks: { backgroundColor: C.light, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.xs }
 });

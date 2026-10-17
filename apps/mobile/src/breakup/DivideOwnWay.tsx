@@ -534,7 +534,7 @@ function Pill(props: { icon?: IconName; label: string; help?: boolean; down?: bo
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} accessibilityState={props.on === undefined ? undefined : { expanded: props.on }}
       style={({ pressed }) => [styles.pill, props.help && styles.pillHelp, pressed && { opacity: 0.7 }]}>
       {props.icon ? <Ico name={props.icon} size={16} color={color} /> : null}
-      <Text style={[txt.sm, { fontWeight: '700', color, flexShrink: 1 }]} numberOfLines={1}>{props.label}</Text>
+      <Text style={[txt.sm, { fontWeight: '700', color, flexShrink: 1 }]}>{props.label}</Text>
       {props.down ? <Ico name="down" size={16} color={color} /> : null}
       <HelpBadge spot={spot} />
     </Pressable>
@@ -543,7 +543,7 @@ function Pill(props: { icon?: IconName; label: string; help?: boolean; down?: bo
 
 const styles = StyleSheet.create({
   headerActs: { flexDirection: 'row', alignItems: 'center' },
-  tools: { flexDirection: 'row', gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.sm, borderBottomWidth: 1, borderColor: C.border },
+  tools: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.sm, borderBottomWidth: 1, borderColor: C.border },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexShrink: 1 },
   pillHelp: { borderColor: TINT.noteBorder, backgroundColor: TINT.note },
   key: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start', paddingTop: space.xs },
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   tile: { width: 60, height: 60, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', gap: 1 },
   pane: { gap: space.sm, maxHeight: 380 },
-  tabs: { flexDirection: 'row', gap: space.sm },
+  tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   tab: { height: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, justifyContent: 'center' },
   tabOn: { borderColor: TINT.amberText, backgroundColor: TINT.amberText },
   note: { padding: space.md, borderRadius: radius.lg, backgroundColor: TINT.amber, gap: 6 },

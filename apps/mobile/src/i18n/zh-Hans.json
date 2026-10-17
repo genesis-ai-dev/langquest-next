@@ -6241,7 +6241,6 @@
       "openReference": "打开参考资料",
       "barTitle": "圣经",
       "barTitleWith": "圣经 · {{abbr}}",
-      "barSub": "向下拖动，查看指南、关键词、备注和之前的录音",
       "onlyBibleHelp": "这些经节所在的圣经。这里只提供这一本。",
       "rowHelp": "改用这本圣经播放和显示这个经段。",
       "rowOnHelp": "已勾选：这里现在播放和显示的圣经。",

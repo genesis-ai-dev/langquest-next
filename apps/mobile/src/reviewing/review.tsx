@@ -77,7 +77,7 @@ function StripStep(props: { stage: Stage; index: number; count: number; done: bo
       <View style={[styles.stepMark, done ? { backgroundColor: C.green } : current ? { backgroundColor: C.primary } : styles.stepLater]}>
         <Ico name={icon} size={20} color={done || current ? C.white : C.muted} strokeWidth={done ? 3 : 2.2} />
       </View>
-      <Text style={[styles.stepLabel, { color: fg }]} numberOfLines={1}>{stage.label}</Text>
+      <Text style={[styles.stepLabel, { color: fg }]}>{stage.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -318,7 +318,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
           {(
             <Pressable onPress={pick.onPress} accessibilityRole="button" accessibilityLabel={option ? t('review.simple.chooseBibleNow', { bible: option.name }) : t('review.simple.chooseBible')}
               accessibilityState={{ expanded: picking }} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
-              <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]} numberOfLines={1}>{option?.abbreviation ?? t('review.simple.bibles')}</Text>
+              <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText, flexShrink: 1 }]} numberOfLines={2}>{option?.abbreviation ?? t('review.simple.bibles')}</Text>
               <Ico name={picking ? 'up' : 'down'} size={18} color={TINT.amberText} strokeWidth={2.6} />
               <HelpBadge spot={pick} />
             </Pressable>
@@ -622,10 +622,11 @@ const styles = StyleSheet.create({
   off: { opacity: 0.4 },
   empty: { paddingHorizontal: space.xs, paddingVertical: space.md },
   strip: { flexDirection: 'row', justifyContent: 'center', paddingHorizontal: space.lg, paddingBottom: space.sm, backgroundColor: C.bg },
-  step: { width: 78, minHeight: target.row, alignItems: 'center', gap: 4, paddingTop: space.xs },
+  // An equal share of the strip each, so a long word has room rather than being cut (decisions.md 139).
+  step: { flex: 1, maxWidth: 120, minHeight: target.row, alignItems: 'center', gap: 4, paddingTop: space.xs, paddingHorizontal: 2 },
   stepMark: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   stepLater: { backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border },
-  stepLabel: { fontSize: T.xs, fontWeight: '800' },
+  stepLabel: { fontSize: T.xs, fontWeight: '800', textAlign: 'center' },
   dots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: space.xs },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: withAlpha(C.primary, 0.2) },
   dotNow: { width: 24, backgroundColor: C.primary },
@@ -647,7 +648,7 @@ const styles = StyleSheet.create({
   thumb: { position: 'absolute', width: 22, height: 22, marginLeft: -11, borderRadius: 11, backgroundColor: C.white, borderWidth: 3, borderColor: C.primary },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
   time: { width: 40 },
-  side: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+  side: { minWidth: 52, height: 52, paddingHorizontal: 6, borderRadius: 26, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   sideLabel: { fontSize: T.xs, fontWeight: '800', color: C.dark },
   play: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', ...lift({ color: C.primary, opacity: 0.3, radius: 12, y: 6 }) },
   verse: { borderRadius: radius.md, paddingHorizontal: space.xs, paddingVertical: 4, gap: space.xs },
@@ -667,7 +668,7 @@ const styles = StyleSheet.create({
   choiceRow: { flexDirection: 'row', gap: space.sm },
   choice: { flex: 1, minHeight: 72, borderRadius: radius.lg + 2, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', gap: space.xs },
   choiceLabel: { fontSize: T.xxl, fontWeight: '800' },
-  skip: { width: 84, minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  skip: { minWidth: 84, paddingHorizontal: space.sm, minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(15,18,28,0.45)' },
   tall: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '80%', backgroundColor: C.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingTop: space.sm, ...lift({ opacity: 0.2, radius: 30, y: -10 }) },
   dialogFrame: { alignItems: 'center', justifyContent: 'center', padding: space.xl },

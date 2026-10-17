@@ -132,7 +132,7 @@ export function Journey(props: {
         <Pressable onPress={toLatest.onPress} accessibilityRole="button"
           style={({ pressed }) => [styles.backToLatest, pressed && styles.pressed]}>
           <Ico name="history" size={16} color={TINT.amberText} />
-          <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('passage.journey.backToLatest')}</Text>
+          <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText, flexShrink: 1 }]}>{t('passage.journey.backToLatest')}</Text>
           <HelpBadge spot={toLatest} />
         </Pressable>
       ) : null}
@@ -163,7 +163,7 @@ export function Journey(props: {
                       {isNext && feedback.length === 0 ? <Pill label={t('passage.journey.pill.next')} bg={C.primary} fg={C.white} /> : null}
                       {feedback.length > 0 ? <Pill label={t('passage.journey.pill.feedback')} bg={TINT.amber} fg={TINT.amberText} /> : null}
                     </View>
-                    {!open ? <Text style={txt.smMuted} numberOfLines={2}>{summary}</Text> : null}
+                    {!open ? <Text style={txt.smMuted}>{summary}</Text> : null}
                     {open && st.kindIds.length > 1 ? <Text style={txt.xs}>{st.kindIds.length === 2 ? t('passage.journey.eitherOrder') : t('passage.journey.anyOrder')}</Text> : null}
                   </View>
                   <View style={styles.chev}><Ico name={open ? 'up' : 'down'} size={18} color={C.muted} /></View>
@@ -229,7 +229,7 @@ function StepOptions(props: { step: string; onPress: () => void }) {
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('passage.journey.allOptions', { step: props.step })}
       style={({ pressed }) => [styles.softBtn, pressed && styles.pressed]}>
       <Ico name="settings" size={18} color={C.dark} />
-      <Text style={[txt.sm, { fontWeight: '700' }]}>{t('passage.journey.stepOptions')}</Text>
+      <Text style={[txt.sm, { fontWeight: '700', flexShrink: 1 }]}>{t('passage.journey.stepOptions')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -312,7 +312,7 @@ function VersionCard(props: {
       <View style={styles.rowCenter}>
         <AudioClip language={ctx.language} hashes={version.cardHashes} label={t('passage.journey.playVersion', { version: versionTitle(version.n) })} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.sm, { fontWeight: '600' }]} numberOfLines={1}>{ctx.name(version.by)} · {when(version.hlc)}</Text>
+          <Text style={[txt.sm, { fontWeight: '600' }]}>{ctx.name(version.by)} · {when(version.hlc)}</Text>
           <Text style={txt.xs}>{t('passage.journey.parts', { count: version.cardHashes.length })}</Text>
         </View>
       </View>
@@ -395,7 +395,7 @@ function ClipRow(props: { ctx: Ctx; hashes: string[]; label: string; playLabel: 
   return (
     <View style={styles.rowCenter}>
       <AudioClip language={props.ctx.language} hashes={props.hashes} label={props.playLabel} />
-      <Text style={[txt.sm, { fontWeight: '600', flex: 1 }]} numberOfLines={1}>{props.label}</Text>
+      <Text style={[txt.sm, { fontWeight: '600', flex: 1 }]}>{props.label}</Text>
     </View>
   );
 }

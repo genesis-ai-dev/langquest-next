@@ -99,7 +99,7 @@ export function PassageOfflineLine(props: { ctx: Ctx; unitId: string }) {
   return (
     <View style={styles.line} accessible accessibilityLabel={v.short}>
       <Ico name={v.icon} size={16} color={v.tint} />
-      <Text style={[txt.xsStrong, { color: v.tint, flex: 1 }]} numberOfLines={1}>{v.short}</Text>
+      <Text style={[txt.xsStrong, { color: v.tint, flex: 1 }]}>{v.short}</Text>
     </View>
   );
 }

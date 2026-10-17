@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   body: { padding: space.lg, gap: space.md, paddingBottom: space.xxl },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chips: { gap: space.sm, paddingVertical: 2 },
-  chapterStep: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }
+  chapterStep: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: space.md }
 });
 
 export const contracts = contractsFor('bible_explore');

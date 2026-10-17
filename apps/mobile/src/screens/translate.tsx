@@ -771,7 +771,7 @@ function ReferenceBar(props: { onOpen: () => void }) {
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('translate.openReference')} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
       <Ico name="book" size={18} color={C.primary} />
-      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{t('translate.dragDown')}</Text>
+      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={3}>{t('translate.dragDown')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );

@@ -163,7 +163,7 @@ function HomeProgressBars(props: { p: HomeProgress }) {
     <HelpInfo label={t('org.progress.label')} detail={t('org.progress.help')} style={{ gap: space.sm }}>
       {([[t('org.progress.recorded'), props.p.recorded, C.primary], [t('org.progress.done'), props.p.done, C.green]] as const).map(([label, n, color]) => (
         <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Text style={[txt.xsStrong, { width: 72 }]}>{label}</Text>
+          <Text style={[txt.xsStrong, { minWidth: 72 }]}>{label}</Text>
           <View style={{ flex: 1 }}><ProgressBar value={pct(n)} color={color} /></View>
           <Text style={[txt.xsStrong, { color: C.dark, minWidth: 72, textAlign: 'right' }]}>
             {formatNumber(n)}/{formatNumber(props.p.total)}

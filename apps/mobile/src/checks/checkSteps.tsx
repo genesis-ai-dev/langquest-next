@@ -100,7 +100,7 @@ export function CheckSteps(props: {
     <View style={{ gap: space.sm + 2 }}>
       <View style={styles.start}>
         <View style={styles.mic}><Ico name="mic" size={18} color={C.white} /></View>
-        <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{t('review.checkSteps.translatorRecords')}</Text>
+        <Text style={[txt.sm, { color: C.muted, fontWeight: '700', flexShrink: 1 }]}>{t('review.checkSteps.translatorRecords')}</Text>
       </View>
       {steps.length === 0 ? (
         <View style={[styles.card, { justifyContent: 'center' }]}>

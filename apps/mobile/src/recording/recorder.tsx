@@ -368,9 +368,10 @@ const styles = StyleSheet.create({
   meterBar: { flex: 1, borderRadius: 2, backgroundColor: C.red },
   resume: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: TINT.amberText },
   bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, backgroundColor: C.card, borderTopWidth: 1, borderColor: C.border },
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
+  // Gaps of 8 leave each side 120 pt at 360 pt: room for the longest Done (Swahili "Nimemaliza") whole (decisions.md 139).
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
   // Each side takes half of what the red button leaves, so it stays centred and Done fits its word whole ("Nimemaliza" in Swahili).
   sideBox: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
-  publish: { minHeight: target_.min, minWidth: 96, borderRadius: radius.md + 2, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.md },
-  publishLabel: { fontSize: T.base, fontWeight: '800', color: C.primary }
+  publish: { minHeight: target_.min, minWidth: 96, maxWidth: '100%', borderRadius: radius.md + 2, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.sm },
+  publishLabel: { fontSize: T.base, fontWeight: '800', color: C.primary, textAlign: 'center' }
 });

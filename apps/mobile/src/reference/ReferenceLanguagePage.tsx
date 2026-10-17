@@ -96,7 +96,7 @@ export function ReferenceLanguageChip(props: { languages: readonly string[]; onP
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={`${label}. ${t('referenceLanguage.change')}`}
       style={({ pressed }) => [styles.chip, pressed && { opacity: 0.75 }]}>
       <Ico name="globe" size={18} color={C.primary} />
-      <Text style={styles.chipText} numberOfLines={2}>{label}</Text>
+      <Text style={styles.chipText}>{label}</Text>
       <Text style={styles.chipChange}>{t('referenceLanguage.change')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>

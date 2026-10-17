@@ -14,7 +14,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Chip, ChipRow, EmptyState, Field, Group, Header, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SectionLabel, Sheet, Toggle } from '../ui/kit';
+import { Banner, Chip, ChipWrap, EmptyState, Field, Group, Header, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SectionLabel, Sheet, Toggle } from '../ui/kit';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { refKindOf } from '../reference/model';
 import { failureMessage } from '../diagnostics/report';
@@ -470,10 +470,10 @@ function QuestionsPage({ ctx }: { ctx: Ctx }) {
           <>
             <Field value={question.text} onChangeText={(text) => setQuestion({ ...question, text })} placeholder={t('checks.questionPlaceholder')} multiline
               help={t('checks.questionFieldHelp')} />
-            <ChipRow>
+            <ChipWrap>
               {/* help-each: each type asks for a different kind of answer */}
               {questionTypes().map((x) => <Chip key={x.id} label={x.label} on={question.type === x.id} help={x.help} onPress={() => setQuestion({ ...question, type: x.id })} />)}
-            </ChipRow>
+            </ChipWrap>
             <Group>
               <Row icon="lock" label={t('common.required')} role="switch" checked={question.required} last
                 right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')}

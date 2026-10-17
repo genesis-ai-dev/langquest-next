@@ -51,7 +51,7 @@ import { bookName } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField, SectionLabel, SmallBtn, Sheet, ShowMore, Toggle } from '../ui/kit';
+import { Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField, SectionLabel, SmallBtn, Sheet, ShowMore, Toggle } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
@@ -686,13 +686,13 @@ function TemplateEditorForm({ ctx, lib, item, initial, draft }: { ctx: Ctx; lib:
           {perBook ? null : (
             <>
               <SectionLabel label={t('content.editor.divideInto')} />
-              <ChipRow>
+              <ChipWrap>
                 <Chip label={t('content.editor.wholeBooks')} on={f.divide === 'books'} help={t('content.editor.eachBook')} onPress={() => !readOnly && set({ divide: 'books', levels: levelsForDivide(f.levels, 'books') })} />
                 <Chip label={t('content.editor.chapters')} on={f.divide === 'chapters'} help={t('content.editor.eachChapter')} onPress={() => !readOnly && set({ divide: 'chapters', levels: levelsForDivide(f.levels, 'chapters') })} />
                 {f.passages.length > 0 ? (
                   <Chip label={t('content.editor.passages')} on={f.divide === 'passages'} help={t('content.editor.passagesHelp')} onPress={() => !readOnly && set({ divide: 'passages', levels: levelsForDivide(f.levels, 'passages') })} />
                 ) : null}
-              </ChipRow>
+              </ChipWrap>
               <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
                 {f.divide === 'passages'
                   ? t('content.editor.passagesNote', { count: f.passages.length })
@@ -791,11 +791,11 @@ function LevelSheet(props: { level: TemplateForm['levels'][number]; last: boolea
       {props.last && props.bible ? (
         <>
           <Text style={txt.xsStrong}>{t('content.levelSheet.showBy')}</Text>
-          <ChipRow>
+          <ChipWrap>
             <Chip label={t('content.levelSheet.reference')} on={display === 'reference'} help={t('content.levelSheet.referenceHelp', { example })} onPress={() => setDisplay('reference')} />
             <Chip label={t('content.name')} on={display === 'name'} help={t('content.levelSheet.byNameHelp')} onPress={() => setDisplay('name')} />
             <Chip label={t('content.levelSheet.both')} on={display === 'both'} help={t('content.levelSheet.bothHelp')} onPress={() => setDisplay('both')} />
-          </ChipRow>
+          </ChipWrap>
           <Text style={txt.smMuted}>{displayExample(display, example)}</Text>
         </>
       ) : null}
@@ -1144,7 +1144,7 @@ const styles = StyleSheet.create({
   level: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   tile: { width: tile.sm, height: tile.sm, borderRadius: 14, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
-  cardActions: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  cardActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
   pair: { flexDirection: 'row', gap: space.sm },
   outlineIndent: { marginLeft: space.lg, paddingLeft: space.md, borderLeftWidth: 2, borderColor: C.border },
   outlineHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.min, paddingTop: space.sm },

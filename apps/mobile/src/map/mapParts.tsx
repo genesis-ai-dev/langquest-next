@@ -34,7 +34,7 @@ export function NextLink(props: { title: string; icon: IconName; onPress: () => 
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.next, pressed && styles.pressed]}>
       <View style={styles.nextDisc}><Ico name={props.icon} size={22} color={C.white} /></View>
-      <Text style={styles.nextText} numberOfLines={2}>{label}</Text>
+      <Text style={styles.nextText}>{label}</Text>
       <Ico name="right" size={22} color={C.muted} />
       <HelpBadge spot={spot} />
     </Pressable>
@@ -59,7 +59,7 @@ function Pill(props: { label: string; on: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
       style={({ pressed }) => [styles.pill, props.on && styles.pillOn, pressed && styles.pressed]}>
-      <Text style={[styles.pillText, props.on && { color: C.white }]} numberOfLines={1}>{props.label}</Text>
+      <Text style={[styles.pillText, props.on && { color: C.white }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -90,8 +90,8 @@ export function BookBar(props: {
     return (
       <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
         style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, pressed && styles.pressed]}>
-        <Text style={styles.bookName} numberOfLines={2}>{props.name}</Text>
-        <Text style={[styles.waiting]} numberOfLines={1}>{t('map.waiting')}</Text>
+        <Text style={styles.bookName}>{props.name}</Text>
+        <Text style={[styles.waiting]}>{t('map.waiting')}</Text>
         <HelpBadge spot={spot} />
       </Pressable>
     );
@@ -100,7 +100,7 @@ export function BookBar(props: {
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.accessibilityLabel}
       accessibilityState={props.current ? { selected: true } : undefined}
       style={({ pressed }) => [styles.book, !props.last && styles.bookBorder, props.current && { backgroundColor: C.light }, pressed && styles.pressed]}>
-      <Text style={styles.bookName} numberOfLines={2}>{props.name}</Text>
+      <Text style={styles.bookName}>{props.name}</Text>
       <View style={styles.track}>
         <View style={{ width: pct(props.done), backgroundColor: C.green }} />
         <View style={{ width: pct(props.recorded - props.done), backgroundColor: C.primary }} />
@@ -195,7 +195,7 @@ export function QuietIconLink(props: { icon: IconName; label: string; onPress: (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label}
       style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Ico name={props.icon} size={18} color={color} />
-      <Text style={[styles.quietText, { color }]} numberOfLines={1}>{props.label}</Text>
+      <Text style={[styles.quietText, { color, flexShrink: 1 }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -212,21 +212,22 @@ const styles = StyleSheet.create({
   pill: { flex: 1, minHeight: target.min, borderRadius: radius.full, borderWidth: 1, borderColor: C.border, backgroundColor: C.card,
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.sm },
   pillOn: { backgroundColor: C.primary, borderColor: C.primary },
-  pillText: { fontSize: T.sm, fontWeight: '700', color: C.dark },
+  pillText: { fontSize: T.sm, fontWeight: '700', color: C.dark, textAlign: 'center' },
   book: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 60, paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: C.card },
   bookBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
-  bookName: { width: 120, fontSize: T.base, fontWeight: '700', color: C.dark },
+  // At least the old 120 pt column; a longer book name takes up to half the row and wraps there.
+  bookName: { minWidth: 120, maxWidth: '50%', flexShrink: 1, fontSize: T.base, fontWeight: '700', color: C.dark },
   track: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden', flexDirection: 'row', backgroundColor: C.light },
   bookCount: { width: 64, textAlign: 'right', fontSize: T.sm, color: C.muted, fontVariant: ['tabular-nums'] },
   tile: { flex: 1, height: 60, borderRadius: radius.lg, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', gap: 2 },
   tileNumber: { fontSize: T.lg, fontWeight: '800' },
   tileDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary, marginVertical: 4 },
-  key: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  key: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.lg, rowGap: space.xs },
   keyItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   keyText: { fontSize: T.sm, color: C.muted },
   keyLine: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   keyTile: { width: 28, height: 28, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   keyLabel: { fontSize: T.sm, fontWeight: '700', color: C.dark },
-  quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm },
+  quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm, flexShrink: 1, maxWidth: '100%' },
   quietText: { fontSize: T.sm, fontWeight: '700' }
 });

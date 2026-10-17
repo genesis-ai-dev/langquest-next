@@ -94,7 +94,7 @@ function CheckCard(props: {
             </View>
           ) : null}
           {props.checkedAt ? (
-            <View style={styles.metaPart}><Ico name="arrowR" size={15} color={C.muted} /><Text style={styles.metaText} numberOfLines={1}>{props.checkedAt}</Text></View>
+            <View style={styles.metaPart}><Ico name="arrowR" size={15} color={C.muted} /><Text style={[styles.metaText, { flexShrink: 1 }]}>{props.checkedAt}</Text></View>
           ) : null}
           {props.hidden ? <HiddenLine {...props.hidden} /> : null}
         </View>

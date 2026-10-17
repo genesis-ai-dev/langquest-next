@@ -440,6 +440,12 @@ short:
   button; background and history behind one-line summaries.
 - **Built for the field.** 48pt targets, 56pt primary actions, 13pt minimum
   text, status colours that never change and never carry meaning alone.
+- **Words are never cut off** (decision 139): in every interface language,
+  on a 360pt phone, the app's own words show in full. A label longer than
+  its place wraps onto another line, side-by-side things move under each
+  other when they no longer fit, and a few choices wrap rather than sit past
+  the edge. Only people's own content (names, notes, titles) may be shortened
+  in a list, and it shows in full where it opens.
 - **A to-do opens the task itself** (demo principle 11): a My Work row, an
   update, a Get ready step or a warning opens the thing to do in its language,
   book or passage, never a list to search, and says why it is there.

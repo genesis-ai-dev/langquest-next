@@ -718,7 +718,7 @@ export function GuestReview(ctx: Ctx) {
           <View style={styles.brand}><Ico name="globe" size={18} color={C.white} /></View>
           {/* i18n-ignore: the product's name, the same in every language */}
           <Text style={[txt.sm, { fontWeight: '800', flex: 1 }]}>LangQuest</Text>
-          <Badge label={t('review.guest.noAccount')} />
+          <View style={{ flexShrink: 1, maxWidth: '55%' }}><Badge label={t('review.guest.noAccount')} /></View>
         </View>
         <Text style={txt.title}>{headline}</Text>
         <Text style={txt.xs}>{v.language} · {checkName(kind.id, v.kinds)}</Text>
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
   verdictRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.md },
   answer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', gap: space.lg, paddingVertical: space.xl },
   qFoot: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  partRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.md },
+  partRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: space.md },
   brand: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   voiceOff: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.sm,
     borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: TINT.gray, opacity: 0.7 },

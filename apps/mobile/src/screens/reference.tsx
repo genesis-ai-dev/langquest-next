@@ -26,7 +26,7 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
 import { HelpRow } from '../helpMode/helpBadge';
-import { Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, GhostBtn, Group, Header, PrimaryBtn, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn } from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, GhostBtn, Group, Header, PrimaryBtn, ProgressBar, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { sourceLine, type SharedItem } from '../library/model';
@@ -139,7 +139,7 @@ export function ReferenceBibles(ctx: Ctx) {
           onPress={() => ctx.go('reference_source', { itemId: r.it.itemId, ...levelParams(level) })} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}
           help={t('reference.bibles.cardHelp')}>
           <View style={styles.titleRow}>
-            <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
+            <Text style={[txt.h3, styles.titleText]}>{r.it.name}</Text>
             <Badge label={label} tone={recTone(st)} />
           </View>
           <Text style={txt.xs}>{[doc.abbreviation, languageLabel(doc.language), providerName(doc.provider.kind), sourceLine(r.it)].join(' · ')}</Text>
@@ -272,10 +272,10 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
         </>
       ) : (
         <>
-          <ChipRow>
+          <ChipWrap>
             <Chip label={t('reference.addBible.fromLangQuest')} on={tab === 'ready'} help={t('reference.addBible.fromLangQuestHelp')} onPress={() => setTab('ready')} />
             <Chip label={providerName('biblebrain')} icon="search" on={tab === 'biblebrain'} help={t('reference.addBible.bibleBrainHelp')} onPress={() => setTab('biblebrain')} />
-          </ChipRow>
+          </ChipWrap>
           {tab === 'ready' ? (
             !shared.loaded ? <Text style={txt.smMuted}>{t('common.loading')}</Text>
               : ready.length === 0 ? <Text style={txt.smMuted}>{shared.error ? t('reference.addBible.listNotLoaded') : t('reference.addBible.nothingMore')}</Text>
@@ -398,7 +398,7 @@ export function ReferenceSource(ctx: Ctx) {
       footer={mayAsk ? <PrimaryBtn label={t('reference.source.generate')} icon="clock" help={t('reference.source.generateHelp')} onPress={() => void ask()} busy={asking} /> : undefined}>
       <Card>
         <View style={styles.titleRow}>
-          <Text style={[txt.h3, { flex: 1 }]}>{levelName(ctx, level)}</Text>
+          <Text style={[txt.h3, styles.titleText]}>{levelName(ctx, level)}</Text>
           <Badge label={label} tone={recTone(r)} />
         </View>
         {canAct ? <RecButtons ctx={ctx} level={level} itemId={it.itemId} name={it.name} rec={rec} /> : null}
@@ -452,7 +452,7 @@ function JobCard(props: { ctx: Ctx; job: TimingJob; outcome?: JobOutcome; onRetr
   return (
     <Card>
       <View style={styles.titleRow}>
-        <Text style={[txt.h3, { flex: 1 }]}>{what}</Text>
+        <Text style={[txt.h3, styles.titleText]}>{what}</Text>
         <Badge label={badge} tone={tone} />
       </View>
       <Text style={txt.sm}>{state}</Text>
@@ -537,7 +537,7 @@ export function ReferenceGuides(ctx: Ctx) {
             : ctx.go('material_editor', { itemId: r.it.itemId, ...levelParams(level) }))} accessibilityLabel={t('reference.itemLabel', { name: r.it.name, state: label })}
           help={r.doc?.format === 'study@2' && r.it.source !== 'subscription' ? t('reference.guides.editHelp') : t('reference.guides.openHelp')}>
           <View style={styles.titleRow}>
-            <Text style={[txt.h3, { flex: 1 }]}>{r.it.name}</Text>
+            <Text style={[txt.h3, styles.titleText]}>{r.it.name}</Text>
             <Badge label={label} tone={recTone(st)} />
           </View>
           <Text style={txt.xs}>{guideLine(r, reach ? itemReaches(reach, r.it.itemId) : null)}</Text>
@@ -780,7 +780,9 @@ export function PassageReference(ctx: Ctx) {
 
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.xs },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  // The badge sits beside the title while both fit, else under it: neither is squeezed.
+  titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
+  titleText: { flexGrow: 1, flexShrink: 1 },
   words: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }
 });
 
