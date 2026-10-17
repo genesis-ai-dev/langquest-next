@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   choice: { padding: 14, borderRadius: radius.xl, backgroundColor: C.card, borderWidth: 2, borderColor: C.border, gap: 10 },
   choiceOn: { borderColor: C.primary },
   pickLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  pickLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.light },
+  pickLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.light },
   pickLinkText: { fontSize: T.sm, fontWeight: '700', color: C.primary },
   choiceOwn: { borderStyle: 'dashed', borderColor: C.primary, backgroundColor: C.light },
   choiceHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },

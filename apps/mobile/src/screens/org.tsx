@@ -58,7 +58,7 @@ import { useLanguoidName, useLanguoidSearch } from '../org/useLanguoids';
 import type { LanguoidHit } from '../org/languoidModel';
 import { edgeAllowed } from '../shell/session';
 import { shareText } from '../ui/share';
-import { C, radius, space, tile, TINT } from '../ui/theme';
+import { C, radius, space, target, tile, TINT } from '../ui/theme';
 import { useOrgSummary } from '../reports/useOrgSummary';
 import { useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
@@ -601,13 +601,14 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
         <Text style={[txt.h3, { flexShrink: 1 }]}>{name}</Text>
         {mayRename ? (
           <Pressable testID="org-rename" onPress={pencil.onPress} accessibilityRole="button" accessibilityLabel={t('org.rename.orgTitle')} hitSlop={8}
-            style={({ pressed }) => [{ padding: space.xs }, pressed && { opacity: 0.7 }]}>
+            style={({ pressed }) => [{ width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
             <Ico name="edit" size={18} color={C.primary} />
             <HelpBadge spot={pencil} />
           </Pressable>
         ) : null}
       </View>
-      <Pressable testID="org-license" onPress={license.onPress} accessibilityRole="button" style={({ pressed }) => [{ alignSelf: 'flex-start' }, pressed && { opacity: 0.7 }]}
+      <Pressable testID="org-license" onPress={license.onPress} accessibilityRole="button"
+        style={({ pressed }) => [{ alignSelf: 'flex-start', minHeight: target.min, justifyContent: 'center' }, pressed && { opacity: 0.7 }]}
         accessibilityLabel={t('shell.license.rowLabel', { name: licenseText(current).name, short: licenseText(current).short })}>
         <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{licenseText(current).name} · {licenseText(current).short}</Text>
         <HelpBadge spot={license} />

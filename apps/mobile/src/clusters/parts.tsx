@@ -15,7 +15,7 @@ import { CheckRow, IconTile } from '../admin/admin';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Text } from '../ui/text';
-import { radius, space, TINT, type as T } from '../ui/theme';
+import { radius, space, target, TINT, type as T } from '../ui/theme';
 import { clusterEvents, clusterNamed, newClusterId, type ClusterEvent } from './model';
 import { clusterSub, appendClusterEvents } from './clusterActions';
 
@@ -82,10 +82,13 @@ export function LanguageClustersChip(props: { ctx: Ctx; languageId: string; lang
   }
   return (
     <>
+      {/* The pill is drawn small; the tap target around it is 48 high (A11Y-009). */}
       <Pressable testID="language-clusters" onPress={spot.onPress} disabled={!spot.onPress} accessibilityRole="button" accessibilityLabel={label}
-        style={({ pressed }) => [styles.chip, pressed && { opacity: 0.75 }]}>
-        <Ico name={mine.length ? 'layers' : 'plus'} size={16} color={TINT.amberText} />
-        <Text style={styles.chipText} numberOfLines={2}>{label}</Text>
+        style={({ pressed }) => [styles.chipTarget, pressed && { opacity: 0.75 }]}>
+        <View style={styles.chip}>
+          <Ico name={mine.length ? 'layers' : 'plus'} size={16} color={TINT.amberText} />
+          <Text style={styles.chipText} numberOfLines={2}>{label}</Text>
+        </View>
         <HelpBadge spot={spot} />
       </Pressable>
       <Sheet visible={open} title={t('clusters.language.sheetTitle')} sub={props.language} onClose={() => setOpen(false)}
@@ -110,7 +113,7 @@ export function LanguageClustersChip(props: { ctx: Ctx; languageId: string; lang
 }
 
 const styles = StyleSheet.create({
-  chip: { flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', minHeight: 32, marginTop: space.xs,
-    paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: TINT.amber },
+  chipTarget: { alignSelf: 'flex-start', minHeight: target.min, justifyContent: 'center' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 32, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: TINT.amber },
   chipText: { flexShrink: 1, fontSize: T.sm, fontWeight: '700', color: TINT.amberText }
 });
