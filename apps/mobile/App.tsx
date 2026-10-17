@@ -116,7 +116,7 @@ const loadGuideEditor = () => import('./src/screens/guideEditor');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
-  scan_qr: Entry.ScanQr, vision: Entry.Vision, intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
+  scan_qr: Entry.ScanQr, forgot_password: Entry.ForgotPassword, new_password: Entry.NewPassword, vision: Entry.Vision, intent_chooser: Entry.IntentChooser, create_org: Entry.CreateOrg,
   request_access: Entry.RequestAccess, welcome: Onboarding.Welcome, welcome_back: Onboarding.WelcomeBack,
   my_work: Work.MyWork,
   status_home: MapScreens.StatusHome, map_home: MapScreens.MapHome, book_map: MapScreens.BookMap,

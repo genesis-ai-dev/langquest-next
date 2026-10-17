@@ -49,7 +49,9 @@ export const SCREEN_IDS = [
   // App only: a cluster of languages, a name the organization puts on them (decision 108, demo ADR-045)
   'cluster_home',
   // App only: LangQuest support's authenticator and every organization, read-only (decision 158)
-  'global_viewer'
+  'global_viewer',
+  // App only: Forgot password, and the new password its emailed link opens (decision 200)
+  'forgot_password', 'new_password'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -437,7 +439,17 @@ export const EDGES: Edge[] = [
   e('inbox_home', 'review_capture', undefined, 'reviewer'),
   e('inbox_home', 'back_translation', undefined, 'reviewer'),
   // App only: a browser's sign-out held back by unsent work shows what is waiting (UI audit, finding 115)
-  e('sign_out_confirm', 'sync_status')
+  e('sign_out_confirm', 'sync_status'),
+  // App only: Forgot password (decision 200, docs/invites-and-accounts.md flow G). Sign In asks for a link;
+  // the link (or pasting it on Scan a code) opens New password, signed in or not.
+  e('sign_in', 'forgot_password', undefined, 'guest'), // tap Forgot password?
+  e('forgot_password', 'sign_in', 'back', 'guest'), // tap Back
+  e('forgot_password', 'scan_qr', undefined, 'guest'), // a sign-in name has no email: tap Scan a code
+  e('scan_qr', 'new_password'), // paste or scan a Forgot password link
+  e('new_password', 'forgot_password'), // the link expired: tap Send a new link
+  e('new_password', 'terms_privacy', undefined, 'guest'), // tap the terms line
+  e('new_password', 'sign_in', 'reset', 'guest'), // tap Back with nothing under it
+  e('new_password', 'home_hub', 'reset') // tap Back with nothing under it, or Done
 ];
 
 /**

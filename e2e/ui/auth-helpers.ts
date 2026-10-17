@@ -102,6 +102,24 @@ export async function expireSignInCode(code: string): Promise<void> {
   if (error) throw new Error(`expire sign-in code: ${error.message}`);
 }
 
+/**
+ * A Forgot password code for `email`, kept as the password-reset function
+ * keeps it (password_reset_begin, counted like any request); the email that
+ * would carry it is not read here. Throws when the address has no account.
+ */
+export async function issueResetCode(email: string): Promise<string> {
+  const code = randomHex();
+  const rows = await rpc<{ outcome: string }[]>(service(), 'password_reset_begin', { p_email: email, p_ip: null, p_code_hash: sha256(code) });
+  if (rows[0]?.outcome !== 'issued') throw new Error(`reset code for ${email}: ${rows[0]?.outcome}`);
+  return code;
+}
+
+/** Make a Forgot password code more than an hour old. */
+export async function expireResetCode(code: string): Promise<void> {
+  const { error } = await service().from('password_resets').update({ expires_at: new Date(Date.now() - 60_000).toISOString() }).eq('code_hash', sha256(code));
+  if (error) throw new Error(`expire reset code: ${error.message}`);
+}
+
 export interface Fresh { id: string; email: string; password: string; name: string; session: Session; sb: SupabaseClient }
 
 let made = 0;

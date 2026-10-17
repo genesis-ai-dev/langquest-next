@@ -1,5 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
-import { invitationContent, parseCodeMessage, parseMessage, verificationCodeContent, type CodeMessage, type InviteMessage } from './message';
+import {
+  invitationContent, minutesLeft, parseCodeMessage, parseMessage, parseResetMessage, passwordResetContent, resetLink, verificationCodeContent,
+  type CodeMessage, type InviteMessage, type ResetMessage
+} from './message';
 
 const reply = (body: unknown, status = 200) => Response.json(body, { status });
 type Delivery = { fingerprint: string; status: string; messageId: string | null };
@@ -110,10 +113,30 @@ async function sendCode(p: CodeMessage, env: Env): Promise<Response> {
   }
 }
 
+/**
+ * A Forgot password email (supabase/functions/password-reset, decisions.md
+ * 140). No delivery object either: each request carries a new code, and the
+ * function drops the code when this fails, so a retry is a new email.
+ */
+async function sendReset(p: ResetMessage, env: Env): Promise<Response> {
+  try {
+    await env.EMAIL.send({
+      to: p.email,
+      from: { email: env.INVITE_FROM, name: 'LangQuest' },
+      ...passwordResetContent({ email: p.email, link: resetLink(p.code, env.APP_URL), minutes: minutesLeft(p.expiresAt), ...(p.locale ? { locale: p.locale } : {}) })
+    });
+    return reply({ sent: true });
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : 'unknown';
+    console.error(JSON.stringify({ event: 'reset_email_failed', code }));
+    return reply({ error: 'Email delivery failed.', code: /^[A-Za-z0-9_.:-]{1,80}$/.test(code) ? code : 'unknown' }, 502);
+  }
+}
+
 export default {
   async fetch(request, env): Promise<Response> {
     const path = new URL(request.url).pathname;
-    if (path !== '/send-invite' && path !== '/send-code') return new Response('Not found', { status: 404 });
+    if (path !== '/send-invite' && path !== '/send-code' && path !== '/send-reset') return new Response('Not found', { status: 404 });
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
     const actual = new TextEncoder().encode(request.headers.get('Authorization') ?? '');
     const expected = new TextEncoder().encode(`Bearer ${env.INVITE_RELAY_SECRET}`);
@@ -128,6 +151,10 @@ export default {
     if (path === '/send-code') {
       const c = parseCodeMessage(body);
       return c ? sendCode(c, env) : reply({ error: 'Invalid details' }, 400);
+    }
+    if (path === '/send-reset') {
+      const r = parseResetMessage(body);
+      return r ? sendReset(r, env) : reply({ error: 'Invalid details' }, 400);
     }
     const p: InviteMessage | null = parseMessage(body);
     if (!p) return reply({ error: 'Invalid invitation details' }, 400);

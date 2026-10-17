@@ -1,4 +1,4 @@
-import { invitationContent, parseCodeMessage, parseMessage, passwordResetContent, verificationCodeContent } from '../src/message';
+import { invitationContent, minutesLeft, parseCodeMessage, parseMessage, parseResetMessage, passwordResetContent, resetLink, verificationCodeContent } from '../src/message';
 import { EMAIL_CATALOGS } from '../src/text';
 
 const now = Date.parse('2026-09-17T12:00:00Z');
@@ -98,5 +98,38 @@ describe('blue check code email (decisions.md 173)', () => {
     const ar = verificationCodeContent(parseCodeMessage({ ...code, locale: 'ar' }, now)!, now);
     expect(ar.html).toContain('dir="rtl"');
     expect(ar.html).toContain('<strong dir="ltr">042917</strong>');
+  });
+});
+
+describe('Forgot password email (docs/invites-and-accounts.md flow G)', () => {
+  const reset = { email: 'Person@Example.com', code: 'B'.repeat(64), expiresAt: '2026-09-17T13:00:00Z' };
+  it('normalizes valid details and keeps a known language', () => {
+    expect(parseResetMessage(reset, now)).toEqual({ email: 'person@example.com', code: 'b'.repeat(64), expiresAt: '2026-09-17T13:00:00.000Z' });
+    expect(parseResetMessage({ ...reset, locale: 'fr' }, now)?.locale).toBe('fr');
+    expect(parseResetMessage({ ...reset, locale: 'xx<script>' }, now)).not.toHaveProperty('locale');
+  });
+  it('rejects a code that is not one, a link already over or lasting too long, and header injection', () => {
+    expect(parseResetMessage({ ...reset, code: 'not-a-code' }, now)).toBeNull();
+    for (const expiresAt of ['2026-09-17T11:59:00Z', 'invalid', '2026-09-17T15:00:01Z']) expect(parseResetMessage({ ...reset, expiresAt }, now)).toBeNull();
+    for (const email of ['a@example.com\r\nBcc: b@example.com', 'a@example.com,b@example.com', '<a@example.com>']) {
+      expect(parseResetMessage({ ...reset, email }, now)).toBeNull();
+    }
+    expect(parseResetMessage(null, now)).toBeNull();
+  });
+  it('links to the app\'s sign-in address, which app links open, with the code after the #', () => {
+    expect(resetLink('c'.repeat(64), 'https://next.langquest.org/')).toBe(`https://next.langquest.org/signin#reset=${'c'.repeat(64)}`);
+    expect(resetLink('c'.repeat(64))).toBe(`langquestnext://signin?reset=${'c'.repeat(64)}`);
+  });
+  it('says how long the link works, in whole minutes', () => {
+    expect(minutesLeft('2026-09-17T13:00:00Z', now)).toBe(60);
+    expect(minutesLeft('2026-09-17T12:59:40Z', now)).toBe(60);
+    expect(minutesLeft('2026-09-17T12:00:10Z', now)).toBe(1);
+  });
+  it('writes the email in the language the app showed, with the link', () => {
+    const p = parseResetMessage({ ...reset, locale: 'es' }, now)!;
+    const content = passwordResetContent({ email: p.email, link: resetLink(p.code, 'https://next.langquest.org'), minutes: minutesLeft(p.expiresAt, now), locale: p.locale! });
+    expect(content.text).toContain(`https://next.langquest.org/signin#reset=${'b'.repeat(64)}`);
+    expect(content.html).toContain('lang="es"');
+    expect(content.subject).not.toBe('Choose a new LangQuest password');
   });
 });
