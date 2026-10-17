@@ -325,13 +325,12 @@
     "edit_member": "Edit Member Role",
     "roles_home": "Roles",
     "role_editor": "Role Editor",
-    "flows_home": "Review Flows",
+    "flows_home": "Review flows",
     "flow_editor": "Flow Editor",
-    "templates_home": "Content Templates",
-    "template_picker": "Choose a Template",
+    "templates_home": "Content templates",
     "template_editor": "Template Outline",
     "book_structure": "Divide a Book",
-    "reference_home": "Reference Library",
+    "reference_home": "Reference material",
     "material_editor": "Edit Material",
     "sync_status": "Sync",
     "delete_account": "Delete Account",
@@ -675,24 +674,23 @@
       "noLanguages": "No languages yet",
       "languages_one": "{{count, number}} language",
       "languages_other": "{{count, number}} languages",
-      "templates": "Content Templates",
-      "reference": "Reference Material",
+      "templates": "Content templates",
+      "reference": "Reference material",
       "referenceSub": "{{study}} study · {{questions}} question sets · {{terms}} key terms",
-      "flows": "Review Flows",
+      "flows": "Review flows",
       "roles": "Roles",
       "rolesSub_one": "{{count, number}} role at this level and above",
       "rolesSub_other": "{{count, number}} roles at this level and above",
       "summary": {
         "templates": "Content templates",
-        "referenceFirst": "Reference",
-        "reference": "reference",
+        "referenceFirst": "Reference material",
+        "reference": "reference material",
         "flowsFirst": "Review flows",
         "flows": "review flows",
         "rolesFirst": "Roles",
-        "roles": "roles",
-        "nameAndLicense": "name and license"
+        "roles": "roles"
       },
-      "titleHelp": "Shows what is set up once and seldom changed: roles, the name, the license.",
+      "titleHelp": "Shows what is set up once and seldom changed: content templates, reference material, review flows and roles.",
       "templatesHelp": "Opens the ways to divide the work into passages, and which one each language uses.",
       "referenceHelp": "Opens the Bibles, study guides, questions and key terms offered to translators.",
       "flowsHelp": "Opens the ways recordings get checked, and which one each language uses.",
@@ -726,7 +724,6 @@
     },
     "rename": {
       "done": "Renamed to {{name}}.",
-      "row": "Name",
       "save": "Save the name",
       "taken": "That name is taken here",
       "failed": "Not renamed",
@@ -739,7 +736,6 @@
     },
     "link": {
       "done": "{{name}} is linked to {{linked}}.",
-      "row": "In the language list",
       "linkedTo": "Linked to {{name}} · {{code}}",
       "linked": "Linked to it · {{code}}",
       "notLinked": "Not linked yet: added offline, or not found there",
@@ -766,14 +762,19 @@
       "addFirst": "Add a language from the organization home first.",
       "readyStatus_one": "Ready · {{count, number}} translator",
       "readyStatus_other": "Ready · {{count, number}} translators",
-      "theyRecord": "They record",
-      "whatHelps": "What helps them",
       "nothingOffered": "Nothing offered yet · add some",
       "peopleSub_one": "{{count, number}} translator · invite more",
       "peopleSub_other": "{{count, number}} translators · invite more",
-      "theyRecordHelp": "Opens what they translate, to change it.",
-      "whatHelpsHelp": "Opens the Bibles, guides and notes offered to them, to change them.",
-      "checksHelp": "Opens the checks each recording goes through, to change them."
+      "checksHelp": "Opens the checks each recording goes through, to change them.",
+      "contentTemplate": "Content template",
+      "referenceMaterial": "Reference material",
+      "reviewFlow": "Review flow",
+      "contentTemplateHelp": "Opens the content template it uses, the others it could use, and all of them.",
+      "referenceMaterialHelp": "Opens the Bibles, guides and notes it uses, to add or take some away.",
+      "reviewFlowHelp": "Opens the checks it uses, the ready-made flows it could use, and all of them.",
+      "rolesSub_one": "{{count, number}} role",
+      "rolesSub_other": "{{count, number}} roles",
+      "upHelp": "Opens the organization's page."
     },
     "join": {
       "wantsToJoin": "{{name}} wants to join",
@@ -792,33 +793,8 @@
       "sayNoHelp": "Turns down their request at once. They are not let in."
     },
     "more": {
-      "title": "More",
-      "summary": {
-        "progress": "Progress",
-        "members": "members",
-        "roles": "roles",
-        "publicListing": "public listing",
-        "name": "name",
-        "languageList": "language list",
-        "cluster": "cluster"
-      },
-      "orgAndCode": "{{org}} · Code {{code}}",
       "seeWork": "See their work",
-      "seeWorkSub": "Every passage, and how far it has come",
-      "membersSub_one": "{{count, number}} given a role in {{language}}",
-      "membersSub_other": "{{count, number}} given a role in {{language}}",
-      "rolesSub_one": "{{count, number}} role · what each can do",
-      "rolesSub_other": "{{count, number}} roles · what each can do",
-      "templates": "Every way to divide the work",
-      "templatesSub": "The organization's library of passages and outlines",
-      "reference": "Bibles, guides and notes",
-      "referenceSub": "Everything in the library, coverage and sharing",
-      "flows": "Every way to check",
-      "flowsSub": "The organization's review flows",
       "publicList": "Show on the public list",
-      "publicListSub": "Only the language's name and progress",
-      "orgPage": "The organization's page",
-      "titleHelp": "Shows the rest: progress, people, roles, its name and more.",
       "seeWorkHelp": "Opens the map: every passage, and how far it has come.",
       "publicListOnHelp": "On: its name and progress are on the public list. Tap to take them off.",
       "publicListOffHelp": "Off. Tap to put its name and progress on the public list."
@@ -962,7 +938,7 @@
       "needsPermission": "Adding a language needs permission to manage templates and review flows for the whole organization.",
       "templateMissing": "Its template is not on this device yet. Try again when connected.",
       "added": "{{language}} added to {{org}}.",
-      "addedNotOffered": "{{language}} added to {{org}}. Offer {{offers}} under What helps once you are online.",
+      "addedNotOffered": "{{language}} added to {{org}}. Offer {{offers}} under Reference material once you are online.",
       "step": "Step {{step}} of {{total}}",
       "called": "What is the language called?",
       "namePlaceholder": "e.g. Hadiyya",
@@ -982,8 +958,8 @@
       "suggested": "Suggested · {{from}}",
       "howChecked": "How will recordings get checked?",
       "noWays": "No ways to check to choose from yet.",
-      "offerNote": "We'll offer {{offers}} to {{language}}'s translators. Change that any time under <b>What helps</b>.",
-      "offerNoteFia": "We'll offer {{offers}} to {{language}}'s translators. FIA's guides go with the FIA passages you chose. Change that any time under <b>What helps</b>.",
+      "offerNote": "We'll offer {{offers}} to {{language}}'s translators. Change that any time under <b>Reference material</b>.",
+      "offerNoteFia": "We'll offer {{offers}} to {{language}}'s translators. FIA's guides go with the FIA passages you chose. Change that any time under <b>Reference material</b>.",
       "notAdded": "Not added",
       "inviteLater": "Invite {{language}}'s translators from its page later.",
       "later": "Later",
@@ -997,7 +973,7 @@
         "keepOpen": "Keep the app open until this is done.",
         "wait": "Still adding {{language}}. Please wait."
       },
-      "offerNothing": "LangQuest has no Bibles or study guides in {{reads}} yet. Find a Bible or write notes for {{language}}'s translators under <b>What helps</b>.",
+      "offerNothing": "LangQuest has no Bibles or study guides in {{reads}} yet. Find a Bible or write notes for {{language}}'s translators under <b>Reference material</b>.",
       "nameHelp": "Type its name: matches from the language list show below.",
       "continueHelp": "On to the next question.",
       "addHelp": "Adds {{language}} with these answers. Then you can invite its translators.",
@@ -1009,6 +985,14 @@
       "guides": "{{name}}'s study guides",
       "theBible": "the {{name}}",
       "guidesIn": "{{name}}'s study guides in {{language}}"
+    },
+    "languages": {
+      "row": "Languages",
+      "rowSub": "{{target}} · {{understood}}",
+      "rowHelp": "Opens the language they translate into, and the languages they understand.",
+      "target": "They translate into",
+      "understood": "They understand",
+      "understoodHelp": "Opens the languages their Bibles and guides are in, to change them."
     }
   },
   "admin": {
@@ -1320,7 +1304,9 @@
       "findBibleHelp": "Search the Bibles others share, to offer one to the team.",
       "openBibleHelp": "Opens it, to listen and read.",
       "setHelp": "Opens its languages: choose which one the team gets, or turn it off.",
-      "patternOnHelp": "Offered to the team, in the language chosen for it."
+      "patternOnHelp": "Offered to the team, in the language chosen for it.",
+      "all": "All reference material",
+      "allHelp": "Opens everything in the organization’s library, and what each language is offered."
     },
     "page": {
       "title": "What helps them",
@@ -1382,7 +1368,22 @@
     "nextHelp": "On to the next question.",
     "nextPageHelp": "On to the next part of this question.",
     "nextQuestionHelp": "Opens the next question still to answer.",
-    "backHelp": "Back one page. What you chose stays chosen."
+    "backHelp": "Back one page. What you chose stays chosen.",
+    "template": {
+      "eachBook": "Each book's passages",
+      "eachBookHelp": "Opens each book, to change where its passages start and end.",
+      "whichBooks": "Which books",
+      "whichBooksHelp": "Opens what they translate, to choose the books.",
+      "optionViewHelp": "One of the organization’s content templates. Whoever sets up languages can choose it.",
+      "chooseOne": "Choose one below.",
+      "all": "All content templates",
+      "allHelp": "Opens the organization’s content templates, and which one each language uses."
+    },
+    "flow": {
+      "all": "All review flows",
+      "allHelp": "Opens the organization’s review flows, and which one each language uses.",
+      "optionViewHelp": "A ready-made flow. Whoever sets up checks can use it here."
+    }
   },
   "content": {
     "chapterChip": "Ch {{chapter}}",
@@ -1428,7 +1429,7 @@
       "saved": "Showing the list this device saved."
     },
     "library": {
-      "title": "Content Templates",
+      "title": "Content templates",
       "addTemplate": "Template",
       "intro": "A template is the structure a language records against — books and passages, or lessons, or stories. Each language uses one version of one, and moves to the next when the template changes.",
       "usedBy": "Used by {{names}}",
@@ -1496,9 +1497,7 @@
       "copySub": "Make it ours to change."
     },
     "language": {
-      "title": "Content Template",
       "noLanguageSub": "Open Content Templates from a language to see the structure it records against.",
-      "recordsAgainst": "{{language}} records against",
       "itsTemplate": "Its template",
       "version": "Version {{n}}",
       "versionFrom": "Version {{n}} · from {{org}}",
@@ -1513,45 +1512,26 @@
       "recorded_other": "{{count, number}} recorded",
       "newerOut": "Version {{n}} is out. {{language}} moves to it by itself.",
       "movesToNew": "{{language}} moves to the new version of {{name}}.",
-      "editTemplate": "Edit template",
-      "viewTemplate": "View template",
-      "changeTemplate": "Change template",
-      "chooseStructure": "Choose the structure {{language}} records against. Its passages come from the template.",
       "whoeverChooses": "Whoever manages content templates chooses the structure {{language}} records against.",
-      "chooseTemplate": "Choose a template",
       "setAsideTitle_one": "{{count, number}} recorded part set aside",
       "setAsideTitle_other": "{{count, number}} recorded parts set aside",
       "setAsideBody_one": "It is not in the template {{language}} uses now. Set aside, not deleted: change back to bring it back.",
       "setAsideBody_other": "They are not in the template {{language}} uses now. Set aside, not deleted: change back to bring them back.",
-      "divideInto": "Divide into {{parts}}",
-      "openABook": "Open a book to read through it and see where each {{part}} starts, with FIA's breaks marked as suggestions.",
       "findBook": "Find a book",
       "noBookMatches": "No book matches “{{query}}”.",
       "editTemplateHelp": "Opens the template to change it. Languages using it get the new version.",
-      "changeTemplateHelp": "Choose another template for {{language}}. Nothing recorded is deleted.",
       "bookHelp": "Opens it to read through and see where each {{part}} starts.",
       "bookWaitingHelp": "Not divided yet. Opens it to see how it can be divided."
     },
     "picker": {
-      "title": "Choose a Template",
-      "noLanguageSub": "Choose a template from a language's Content Template.",
-      "itsTemplate": "its template",
       "nowUses": "{{language}} now uses {{name}}.",
-      "inUseLabel": "{{name}}, in use",
-      "inUseTitle": "{{name}} · in use",
-      "for": "For {{language}}",
-      "forNow": "For {{language}} · now {{template}}",
       "hidden": "{{language}}'s current {{parts}} are hidden, not deleted.",
       "hiddenRecorded_one": "{{language}}'s current {{parts}} are hidden, not deleted. {{count, number}} part has recordings — change back to this template to bring them back.",
       "hiddenRecorded_other": "{{language}}'s current {{parts}} are hidden, not deleted. {{count, number}} parts have recordings — change back to this template to bring them back.",
       "willRecord": "{{language}} will record against {{name}}. You can change it later; nothing recorded is ever deleted.",
       "followsIt": "Your organization follows it, so {{org}}'s new versions reach {{language}} by themselves.",
       "use": "Use {{name}}",
-      "noneOurs": "Your organization has no templates yet. Choose one another organization shares.",
-      "makeOwnHelp": "Starts a new template you build yourself.",
-      "cardHelp": "Picks it and shows its levels. The button below then puts it in use.",
-      "pickedHelp": "Picked, as the tick shows. Tap again to undo the pick.",
-      "inUseHelp": "The template {{language}} uses now."
+      "cardHelp": "Picks it and shows its levels. The button below then puts it in use."
     },
     "editor": {
       "levelShownByReference": "Recorded · shown by reference",
@@ -2413,7 +2393,7 @@
       "reviewFlow": "Review flow",
       "noneChosen": "No flow chosen yet",
       "noReviews": "No reviews: done once recorded",
-      "title": "Review Flows",
+      "title": "Review flows",
       "addFlow": "Flow",
       "noLanguages": "No languages yet",
       "noLanguagesSub": "Add a language, then choose how its passages get checked.",
@@ -2485,7 +2465,7 @@
     },
     "reference": {
       "languageTeam": "{{language}} team",
-      "title": "Reference Material",
+      "title": "Reference material",
       "locked": "Locked",
       "addMaterial": "Add material",
       "introLanguage": "{{language}}'s own material adds to what the organization recommends; nothing is copied. Translators see it in the workspace tray; reviewers see the questions for their kind of review.",
@@ -7103,21 +7083,20 @@
       "keepHelp": "Closes this. The cluster stays as it is."
     },
     "language": {
-      "label": "Cluster",
-      "none": "Not in a cluster",
       "sheetTitle": "Which cluster is it in?",
       "count_one": "{{count, number}} language",
       "count_other": "{{count, number}} languages",
       "newLabel": "Or a new cluster",
       "firstLabel": "Put it in a new cluster",
-      "note": "A language can be in more than one cluster, or none. Nothing about the language changes.",
       "done": "Done",
       "saved": "{{language}}'s clusters saved.",
       "rowHelp": "Choose which clusters it is in, or put it in a new one.",
       "inHelp": "In this cluster. Tap to take it out.",
       "outHelp": "Not in this cluster. Tap to put it in.",
       "newHelp": "Type a name: it goes in a new cluster by that name.",
-      "doneHelp": "Saves which clusters it is in."
+      "doneHelp": "Saves which clusters it is in.",
+      "add": "Cluster",
+      "chipHelp": "The clusters it is in."
     },
     "newLanguage": {
       "what": "What are you adding?",
@@ -7150,8 +7129,8 @@
       "forNew_other": "For the {{count, number}} new languages in {{cluster}}. Each one can change its own later.",
       "added_one": "{{count, number}} language added to {{org}}, in {{cluster}}.",
       "added_other": "{{count, number}} languages added to {{org}}, in {{cluster}}.",
-      "addedNotOffered_one": "{{count, number}} language added to {{org}}, in {{cluster}}. Offer {{offers}} under What helps once you are online.",
-      "addedNotOffered_other": "{{count, number}} languages added to {{org}}, in {{cluster}}. Offer {{offers}} under What helps once you are online.",
+      "addedNotOffered_one": "{{count, number}} language added to {{org}}, in {{cluster}}. Offer {{offers}} under Reference material once you are online.",
+      "addedNotOffered_other": "{{count, number}} languages added to {{org}}, in {{cluster}}. Offer {{offers}} under Reference material once you are online.",
       "notMade": "Not added",
       "making": {
         "adding": "Adding {{language}}",

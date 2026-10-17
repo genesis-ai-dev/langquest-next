@@ -1008,8 +1008,7 @@ test('PEOPLE-031 A language lead cannot act at organization scope', async ({ pag
   const w = world();
   await openAs(page, w, 'LADMIN');
   await alphaPage(page, w, { lead: true });
-  await text(page, 'More').click();
-  await text(page, w.orgName).click();
+  await byId(page, 'header-up').click();
   await expect(text(page, 'Invite people')).toBeVisible();
   await text(page, 'Invite people').click();
   await expect(text(page, 'Invite someone')).toBeVisible();

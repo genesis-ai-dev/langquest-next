@@ -7,22 +7,21 @@ import {
   back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, openAs, primary, screenText, syncNow, test, text,
   useWorld
 } from './support';
-import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, languagePage, more, orgHome, orgRefused, setup } from './setup-helpers';
+import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, languagePage, orgHome, orgRefused, referenceLibrary, setup } from './setup-helpers';
 
 const world = useWorld();
 
-/** Alpha's page → More → Bibles, guides and notes. */
+/** Alpha's page → Reference material → All reference material (decision 138). */
 async function alphaReference(page: Page, who: 'ADMIN' | 'COORD' = 'ADMIN'): Promise<void> {
   const w = world();
   await openAs(page, w, who);
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Bibles, guides and notes').click();
-  await expectOnScreen(page, 'Reference Material', 'What translators are offered');
+  await referenceLibrary(page);
+  await expectOnScreen(page, 'Reference material', 'What translators are offered');
 }
 
 for (const who of ['ADMIN', 'COORD'] as const) {
-  test(`SETUP-049 ${who} Reference Material for a language`, async ({ page, browser }) => {
+  test(`SETUP-049 ${who} Reference material for a language`, async ({ page, browser }) => {
     const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(browser, w, who);
     const p = d?.page ?? page;
@@ -42,14 +41,13 @@ test('SETUP-050 Bibles: the organization\'s and a language\'s', async ({ page })
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
   await setup(page);
-  await text(page, 'Reference Material').click();
+  await text(page, 'Reference material').click();
   await text(page, 'Bibles').click();
   await expectOnScreen(page, 'What the organization recommends to every language.', /Recommended · \d+/i);
   await back(page).click();
   await back(page).click();
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Bibles, guides and notes').click();
+  await referenceLibrary(page);
   await text(page, 'Bibles').click();
   await expectOnScreen(page, 'What this language’s team is offered', /Recommended · \d+/i);
   // No Bible is in the local library: Recommend, Hide and Follow organization need the preview environment.
@@ -144,7 +142,7 @@ test('SETUP-055 Library material: verses and numbering', async ({ page }) => {
   await openAs(page, w, 'ADMIN');
   await orgHome(page, w);
   await setup(page);
-  await text(page, 'Reference Material').click();
+  await text(page, 'Reference material').click();
   await button(page, 'New').click();
   await expectOnScreen(page, /Verses|verses/);
   const verses = page.getByLabel(/Verses/).or(page.getByPlaceholder(/RUT 1:1-16|LUK/)).first();

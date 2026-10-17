@@ -791,7 +791,8 @@ Preconditions (in addition to the global ones):
 - None.
 
 Steps:
-1. Alpha's page → More → "UI Test Org". Tap "Invite people".
+1. Alpha's page → "UI Test Org" above its title, where Back would be
+   (decision 138). Tap "Invite people".
 2. Back on Org home → People → "Members".
 3. Tap COORD's row.
 
@@ -947,7 +948,7 @@ Preconditions (in addition to the global ones):
 - None.
 
 Steps:
-1. Alpha's page → More → "Roles".
+1. Alpha's page → "Roles" (on the page; there is no More, decision 138).
 2. Open "Language Lead".
 
 Expected:
@@ -995,7 +996,7 @@ Preconditions (in addition to the global ones):
 - None.
 
 Steps:
-1. Alpha's page → "Checks".
+1. Alpha's page → "Review flow" → "Edit" (decision 138).
 2. Read the list. Tap "Peer check".
 
 Expected:

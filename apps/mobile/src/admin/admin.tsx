@@ -67,9 +67,19 @@ export function HelpButton() {
  * tab's root. While help is on, the ? is filled and stays lit, as in the
  * kit's header.
  */
-export function BigTop(props: { onBack?: () => void; over?: string; title: string; status?: string; statusTone?: 'green' | 'amber' | 'muted' }) {
+export function BigTop(props: {
+  onBack?: () => void; over?: string; title: string; status?: string; statusTone?: 'green' | 'amber' | 'muted';
+  /** A pencil beside the title that opens its rename: the name is changed where it is shown. */
+  rename?: { label: string; help: string; onPress: () => void };
+  /** Under the title, before the status: what it belongs to, such as its clusters. */
+  below?: ReactNode;
+  /** Where Back would be on a tab's root: the page above it (a language lead's language, up to the organization). */
+  up?: { label: string; help: string; onPress: () => void };
+}) {
   const tone = props.statusTone === 'green' ? TINT.greenText : props.statusTone === 'amber' ? TINT.amberText : C.muted;
   const back = useHelpSpot(t('common.back'), t('help.details.back'), props.onBack);
+  const pencil = useHelpSpot(props.rename?.label ?? '', props.rename?.help ?? '', props.rename?.onPress);
+  const up = useHelpSpot(props.up?.label ?? '', props.up?.help ?? '', props.up?.onPress);
   return (
     <View style={styles.bigTop}>
       <View style={styles.bigTopBar}>
@@ -78,11 +88,28 @@ export function BigTop(props: { onBack?: () => void; over?: string; title: strin
             <Ico name="arrowL" size={24} color={C.dark} />
             <HelpBadge spot={back} />
           </Pressable>
+        ) : props.up ? (
+          <Pressable testID="header-up" onPress={up.onPress} accessibilityRole="button" accessibilityLabel={props.up.label}
+            style={({ pressed }) => [styles.upLink, pressed && styles.pressed]}>
+            <Ico name="arrowL" size={20} color={C.dark} />
+            <Text style={styles.upText} numberOfLines={1}>{props.up.label}</Text>
+            <HelpBadge spot={up} />
+          </Pressable>
         ) : <View />}
         <HelpButton />
       </View>
       {props.over ? <Text style={styles.over}>{props.over}</Text> : null}
-      <Text style={styles.bigTitle} accessibilityRole="header">{props.title}</Text>
+      <View style={styles.bigTitleLine}>
+        <Text style={[styles.bigTitle, { flexShrink: 1 }]} accessibilityRole="header">{props.title}</Text>
+        {props.rename ? (
+          <Pressable testID="title-rename" onPress={pencil.onPress} accessibilityRole="button" accessibilityLabel={props.rename.label} hitSlop={8}
+            style={({ pressed }) => [styles.pencil, pressed && styles.pressed]}>
+            <Ico name="edit" size={20} color={C.primary} />
+            <HelpBadge spot={pencil} />
+          </Pressable>
+        ) : null}
+      </View>
+      {props.below}
       {props.status ? <Text style={[styles.status, { color: tone }]}>{props.status}</Text> : null}
     </View>
   );
@@ -239,6 +266,44 @@ export function RadioRow(props: { icon: AdminIcon; label: string; sub?: string; 
   );
 }
 
+/**
+ * What a language uses now, above the others it could use (decision 138): a
+ * lit radio, its name and facts, what it holds, and links into it (its
+ * books, its edit). The others are RadioRows under it, and the last row
+ * opens the organization's whole shelf.
+ */
+export function PickCard(props: { title: string; sub?: string; children?: ReactNode; links?: { label: string; help: string; onPress: () => void }[] }) {
+  return (
+    <View style={[styles.choice, styles.choiceOn]} accessibilityLabel={`${props.title}${props.sub ? `. ${props.sub}` : ''}`}>
+      <View style={styles.choiceHead}>
+        <Radio on size={26} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.choiceTitle}>{props.title}</Text>
+          {props.sub ? <Text style={[txt.xs, { fontSize: 14, color: C.muted, marginTop: 1 }]}>{props.sub}</Text> : null}
+        </View>
+      </View>
+      {props.children}
+      {props.links?.length ? (
+        <View style={styles.pickLinks}>
+          {/* help-each: each link opens a different part of the pick */}
+          {props.links.map((l) => <PickLink key={l.label} {...l} />)}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function PickLink(props: { label: string; help: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} style={({ pressed }) => [styles.pickLink, pressed && styles.pressed]}>
+      <Text style={styles.pickLinkText}>{props.label}</Text>
+      <Ico name="right" size={16} color={C.primary} />
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
 /** A dashed action ("Add a step", "Something else: make a new role"). */
 export function DashedRow(props: { icon: AdminIcon; label: string; onPress: () => void; detail?: string; centred?: boolean }) {
   const spot = useHelpSpot(props.label, props.detail, props.onPress);
@@ -376,6 +441,11 @@ const styles = StyleSheet.create({
   bigTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.sm },
   over: { fontSize: 14, fontWeight: '700', color: C.muted },
   bigTitle: { fontSize: 28, fontWeight: '800', color: C.dark, marginTop: 2 },
+  bigTitleLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  pencil: { width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' },
+  upLink: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: target.min, maxWidth: '75%', paddingHorizontal: space.md, borderRadius: target.min / 2,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border },
+  upText: { flexShrink: 1, fontSize: T.sm, fontWeight: '700', color: C.dark },
   status: { fontSize: T.sm, fontWeight: '700', marginTop: 2 },
   work: { gap: space.md, paddingTop: space.sm, paddingHorizontal: space.xs },
   workRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 32 },
@@ -392,6 +462,9 @@ const styles = StyleSheet.create({
   radio: { borderWidth: 2, borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
   choice: { padding: 14, borderRadius: radius.xl, backgroundColor: C.card, borderWidth: 2, borderColor: C.border, gap: 10 },
   choiceOn: { borderColor: C.primary },
+  pickLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  pickLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.light },
+  pickLinkText: { fontSize: T.sm, fontWeight: '700', color: C.primary },
   choiceOwn: { borderStyle: 'dashed', borderColor: C.primary, backgroundColor: C.light },
   choiceHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   choiceTitle: { fontSize: T.base, fontWeight: '800', color: C.dark, lineHeight: 25 },

@@ -10,18 +10,18 @@ import {
   back, button, byId, deviceFor, expect, expectNothingRefused, expectSent, expectToast, field, languageArrived, openAs, primary, screenText, tab, test, text,
   useWorld, type AccountKey, type UiWorld
 } from './support';
-import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, goBack, languagePage, more, orgRefused } from './setup-helpers';
+import { closeSheet, expectNotOnScreen, expectOnScreen, expectOrgSent, goBack, languageChecks, languagePage, orgRefused, reviewFlow, reviewFlows } from './setup-helpers';
 
 const world = useWorld();
 
 const ORDER = /Peer check \+ back translation → Community check → Consultant check → Final approval/;
 
-/** Alpha's Checks screen: from Alpha's page (the Manage tab's root for LADMIN). */
+/** Alpha's Checks screen: from Alpha's page (the Manage tab's root for LADMIN), Review flow › Edit (decision 138). */
 async function checks(page: Page, w: UiWorld, who: AccountKey): Promise<void> {
   await openAs(page, w, who);
   if (who === 'LADMIN') await tab(page, 'manage').click();
   else await languagePage(page, w, 'Alpha');
-  await text(page, 'Checks').click();
+  await languageChecks(page);
   await expectOnScreen(page, 'A translator records a version', 'Add a check');
 }
 
@@ -43,7 +43,7 @@ const cardWith = (page: Page, title: string, button: string) => page.locator('di
   .filter({ has: page.getByRole('button', { name: button, exact: true }) }).last();
 
 /**
- * A flow's card on Review Flows, once the device holds the flow's version:
+ * A flow's card on Review flows, once the device holds the flow's version:
  * the card draws the version's steps where it said "Loading…" (config.tsx
  * `DocSteps`), and only then does its Use have a version to copy. The
  * listing arrives first; the version document is a separate fetch
@@ -67,15 +67,14 @@ async function onCheck(page: Page): Promise<string> {
 const toggle = (page: Page, name: string) => page.locator('input[role="switch"]').and(page.getByRole('switch', { name, exact: true })).last();
 
 for (const who of ['ADMIN', 'COORD'] as const) {
-  test(`SETUP-043 ${who} Review Flows home`, async ({ page, browser }) => {
+  test(`SETUP-043 ${who} Review flows home`, async ({ page, browser }) => {
     const w = world();
     const d = who === 'ADMIN' ? null : await deviceFor(browser, w, who);
     const p = d?.page ?? page;
     if (!d) await openAs(p, w, who);
     await languagePage(p, w, 'Alpha');
-    await more(p);
-    await text(p, 'Every way to check').click();
-    await expectOnScreen(p, 'Review Flows', 'Alpha', 'Flow');
+    await reviewFlows(p);
+    await expectOnScreen(p, 'Review flows', 'Alpha', 'Flow');
     // Alpha's checks were copied from Standard Bible Flow (decision 91): they are its own.
     await expectOnScreen(p, 'Alpha uses', 'Custom flow', 'Peer Review', 'Back Translation', 'Community Check', 'Consultant Check', 'Final Approval', 'Add to your flows');
     await expectOnScreen(p, /Your organization · 0/i, 'No flows here yet. Follow or copy one another organization shares, or make your own.');
@@ -91,8 +90,7 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page);
   // "Use" copies the flow's checks into Alpha (decision 91); Quick Check is a peer check, then sign-off.
   // The copy replaces the checks this device holds: Alpha's record must have arrived (a fresh device pulls
   // it in pages), or the old checks stay beside the new ones.
@@ -106,22 +104,22 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   await back(page).click();
   await back(page).click().catch(() => undefined);
   await languagePage(page, w, 'Alpha');
-  await expectOnScreen(page, /Checks Peer check → Final approval/);
+  await expectOnScreen(page, /Review flow Peer check → Final approval/);
   await expectSent(page, w);
   // Passages read against the new checks; nothing recorded or reviewed is lost (decision 32).
   const rev = await deviceFor(browser, w, 'REV');
   await expect.poll(() => screenText(rev.page)).not.toContain('Something went wrong');
   await rev.context.close();
   // Back to Alpha's checks: Standard Bible Flow again, the same way (no toast offers Undo, decision 134).
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page);
   const standard = await flowCard(page, 'Standard Bible Flow', 'Consultant Check', 'Final Approval');
   await standard.getByRole('button', { name: 'Use', exact: true }).click();
   await expectToast(page, 'Alpha now uses Standard Bible Flow.');
+  // Back on Alpha's Review flow: its checks are the pick.
   await back(page).click();
   await expectOnScreen(page, ORDER);
   // The Checks list's own Undo and Redo take a change back and put it back while the screen is open.
-  await text(page, 'Checks').click();
+  await text(page, 'Edit').click();
   const lock = (state: 'can be set aside' | 'must pass before the next steps') => page.getByLabel(`Community check ${state}`).locator('visible=true').first();
   await lock('can be set aside').click();
   await expect(lock('must pass before the next steps')).toBeVisible();
@@ -131,19 +129,41 @@ test('SETUP-044 Use a ready-made flow for a language @p0', async ({ page, browse
   await expect(lock('must pass before the next steps')).toBeVisible();
   // Changed, Alpha's checks are its own: a ready-made set over them asks first, and Cancel keeps them.
   await back(page).click();
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await text(page, 'All review flows').click();
   const quickAgain = await flowCard(page, 'Quick Check', 'Peer Review', 'Final Approval');
   await quickAgain.getByRole('button', { name: 'Use', exact: true }).click();
   await expect(text(page, 'Replace Alpha\'s own checks with Quick Check?')).toBeVisible();
   await button(page, 'Cancel').click();
   // Put back with the same lock.
   await back(page).click();
-  await text(page, 'Checks').click();
+  await text(page, 'Edit').click();
   await lock('must pass before the next steps').click();
   await expect(lock('can be set aside')).toBeVisible();
   await back(page).click();
   await expectOnScreen(page, ORDER);
+  await expectSent(page, w);
+  await expectNothingRefused(page, w);
+});
+
+test('SETUP-075 A ready language\'s Review flow: its checks, the others, and the organization\'s', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'ADMIN');
+  await languagePage(page, w, 'Alpha');
+  // Its checks on top, named as its page names them; the ready-made flows under them; the organization's last (decision 138).
+  await reviewFlow(page);
+  await languageArrived(page);
+  await expectOnScreen(page, ORDER, '4 checks', 'Edit', 'Peer check → Final approval', 'All review flows');
+  await text(page, 'Peer check → Final approval').click();
+  await button(page, 'Use Peer check → Final approval').click();
+  await expectToast(page, 'Alpha now starts from Peer check → Final approval');
+  // Still as a ready-made flow made them: the one it used before is listed, and Use asks nothing (decision 134).
+  await expect(text(page, 'Peer check → Final approval')).toBeVisible();
+  await text(page, 'Peer check + back translation → Community check → Consultant check → Final approval').click();
+  await button(page, 'Use Peer check + back translation → Community check → Consultant check → Final approval').click();
+  await expectToast(page, /^Alpha now starts from Peer check \+ back translation/);
+  await expect(text(page, /^Replace Alpha's own checks/)).toHaveCount(0);
+  await back(page).click();
+  await expectOnScreen(page, /Review flow Peer check \+ back translation → Community check → Consultant check → Final approval/);
   await expectSent(page, w);
   await expectNothingRefused(page, w);
 });
@@ -153,8 +173,7 @@ test('SETUP-045 Make a review flow in the library', async ({ page }) => {
   const name = `Community first ${w.run.slice(-4)}`;
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page);
   await text(page, 'Flow').click();
   await expectOnScreen(page, 'New way to check', 'New · your organization');
   await field(page, 'Name').fill(name);
@@ -211,8 +230,7 @@ test('SETUP-048 Follow, update, stop following and copy a shared flow', async ({
   const w = world();
   await openAs(page, w, 'ADMIN');
   await languagePage(page, w, 'Alpha');
-  await more(page);
-  await text(page, 'Every way to check').click();
+  await reviewFlows(page);
   await cardWith(page, 'Oral Review Path', 'Follow').getByRole('button', { name: 'Follow', exact: true }).click();
   await text(page, 'I\'ll take updates').click();
   await expectToast(page, 'Following Oral Review Path. You choose when to take updates.');

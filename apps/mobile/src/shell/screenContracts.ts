@@ -91,7 +91,6 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     'v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved'],reads:['checkPeople','checkHelps','checkShows','questionsForKind','deriveFlow','library'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
-  template_picker: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // Publishes template versions; languages move to them by themselves (library/follow.ts).
   template_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // Library items (docs/library.md): the organization's, and what others share.
@@ -137,13 +136,13 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   reports_language: { emits:['v1.LanguageCountrySet','v1.LanguageTargetSet'],reads:['orgReports'] },
   // Bible Brain through the Worker (docs/reference-material.md); My Bibles are kept on the phone.
   bible_explore: { reads:['bibleBrain','library'],rpcs:['library_get_documents'] },
-  // Get a language ready (decision 71): what they record (a template, as template_picker applies it), what helps
+  // Get a language ready (decision 71), and a ready language's three picks (decision 138): what they record (a template, as its Content template page applies it, and its update), what helps
   // them (recommendations, as reference_bibles and reference_guides write them), who checks (a flow, as flows_home
   // chooses it), and a group invite code (as invite_qr issues it).
   get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',
     'v1.ReferenceRecommended','v1.ReferenceSet','v1.ReferenceLanguageSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
     reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
-    rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users'] },
+    rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users','library_updates'] },
   // Breaking up a book (decision 74): the language's template moves to its next version, or to a copy split off for the
   // languages chosen (each moved there by its own TemplateSelected); and what the language calls the book, offered
   // from what its Bibles and the organization's other languages call it (demo ADR-042).
