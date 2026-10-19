@@ -7,7 +7,7 @@ import type { JobName, JobRun } from '../../../server/jobRuns';
  * without Cloudflare.
  */
 
-/** A job the image runs (decisions.md 140). */
+/** A job the image runs (decisions.md 141). */
 export interface JobSpec {
   /** Its name in `diag.job_schedule`. */
   job: JobName;
@@ -22,9 +22,9 @@ export interface JobSpec {
 }
 
 export const JOBS = {
-  // The projection pass, every language (decisions.md 68, 140). The workflow gave it 30 minutes.
+  // The projection pass, every language (decisions.md 68, 141). The workflow gave it 30 minutes.
   projection: { job: 'projection', entrypoint: ['node', 'projections.mjs'], timeLimitMs: 45 * 60_000 },
-  // LangQuest v2 → Next (decisions.md 94, 140); `--all` reads every confirmed project whole. The workflow gave it 340 minutes.
+  // LangQuest v2 → Next (decisions.md 94, 141); `--all` reads every confirmed project whole. The workflow gave it 340 minutes.
   'v2-import': { job: 'v2_import', entrypoint: ['node', 'v2.mjs', 'sync'], timeLimitMs: 340 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
 

@@ -253,7 +253,7 @@ describe('OrgFolder across evictions (decision 44, amended 2026-10-03)', () => {
   });
 });
 
-describe('OrgFolder with the report inputs the projection pass stored (decision 141)', () => {
+describe('OrgFolder with the report inputs the projection pass stored (decision 142)', () => {
   const at = Date.UTC(2026, 9, 19, 12);
 
   /** The log, plus what the pass would have stored: each listed language's inputs at its head, written at `writtenAt`. */

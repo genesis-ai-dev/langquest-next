@@ -44,11 +44,11 @@ Deno.serve(async (request) => {
   // Push delivery calls this every minute (20261019110000_projection_pass_in_container.sql),
   // so a phone hears of a join request without waiting for a pass (decisions.md 68).
   // The projection pass runs in the job container behind the dashboard
-  // Worker (decisions.md 140); only a local stack still calls this for it,
+  // Worker (decisions.md 141); only a local stack still calls this for it,
   // every minute (scripts/local-db.mjs), since wrangler dev fires no cron.
   const body = await request.json().catch(() => ({})) as { task?: string };
   if (body.task !== 'pushes' && !isLocal(url)) {
-    return Response.json({ error: 'The projection pass runs in the job container (decisions.md 140).' }, { status: 410 });
+    return Response.json({ error: 'The projection pass runs in the job container (decisions.md 141).' }, { status: 410 });
   }
   const counts: ProjectionCounts = { orgs: 0, projected: 0 };
   try {

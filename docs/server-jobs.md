@@ -1,6 +1,6 @@
 # Plan: the server's jobs, and where the heavy ones run
 
-Status: steps one to three and the report inputs built (decisions 140, 141); F waits for the big-languages plan · Carl Sauder, with Claude · 2026-10-16, 2026-10-19
+Status: steps one to three and the report inputs built (decisions 141, 142); F waits for the big-languages plan · Carl Sauder, with Claude · 2026-10-16, 2026-10-19
 
 Companion to `docs/big-languages-plan.md`, the phone side, whose option F
 (the server folds a language whole and cuts the snapshot by passage) is
@@ -20,7 +20,7 @@ Before this plan (2026-10-16):
 | Verse timings, grant cleanup, webhook catch-up | the Worker's cron | 128 MB | 10 min | the Worker's cron |
 | Inbox purge | pg_cron | in Postgres | daily | pg_cron |
 
-Now, on a hosted project (decisions 140, 141):
+Now, on a hosted project (decisions 141, 142):
 
 | Job | Host | Memory | Cadence | Trigger |
 | --- | --- | --- | --- | --- |
@@ -125,7 +125,7 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   `standard-2` (6 GiB) if the peak passes 3 GiB. Every pass records its
   peak resident memory, the heap's limit and the language that raised the
   peak in its job run, so production gives the numbers before F does.
-- **Report inputs** (decision 141): each time the pass folds a language it
+- **Report inputs** (decision 142): each time the pass folds a language it
   stores what the language's report is made from (core `reportInputs`) in
   `language_report_inputs`, and the Durable Object renders the report for
   the day from it (`renderLanguageReport`), folding only a language with
@@ -145,10 +145,10 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
 
 | Order | Piece | Status |
 | --- | --- | --- |
-| 1 | Step one: the large pass into the container, `projections.yml` gone | built (140) |
-| 2 | Step two: one pass for every language in the container, every 5 minutes; pg_cron keeps push delivery only | built (140, amended 2026-10-19), without the couple of weeks of step one proven alone, at Carl's word |
-| 3 | Report inputs: the pass stores each language's, the object renders reports from them | built (141) |
-| 4 | Step three: the v2 import into the container, `v2-import.yml` gone | built (140, 94 amended); its cutover needs the order below |
+| 1 | Step one: the large pass into the container, `projections.yml` gone | built (141) |
+| 2 | Step two: one pass for every language in the container, every 5 minutes; pg_cron keeps push delivery only | built (141, amended 2026-10-19), without the couple of weeks of step one proven alone, at Carl's word |
+| 3 | Report inputs: the pass stores each language's, the object renders reports from them | built (142) |
+| 4 | Step three: the v2 import into the container, `v2-import.yml` gone | built (141, 94 amended); its cutover needs the order below |
 | in parallel | E: rebase PR 120 and meet the big-languages plan's 4.1 conditions | the big-languages plan |
 | last | F: the server cut, `LINES_VERSION`, `snapshots.state` off, the object reads the cut and a passage's rows | waits for E |
 
@@ -184,7 +184,7 @@ What that plan takes from this one (its section 2):
    reducer bumps and refolds from zero after a redaction fold whole and
    then cut. No streaming fold with spilled state.
 2. The pass is the one producer of per-language aggregates, versioned by
-   `REPORT_VERSION`: the report inputs (decision 141). No server consumer
+   `REPORT_VERSION`: the report inputs (decision 142). No server consumer
    folds a whole language for a report; the agent view still does until F
    gives it a passage's rows.
 3. Decision 3 stands: a phone folds the units it opens from its own log.
@@ -229,7 +229,7 @@ keeping the trigger and the lock.
 
 ## 9. Decision log
 
-- Decision 140 records the job container, supersedes 103, and is amended
+- Decision 141 records the job container, supersedes 103, and is amended
   on 2026-10-19 for step two and the import; 68 and 94 are amended with it.
-- Decision 141 records the report inputs, and amends 44.
+- Decision 142 records the report inputs, and amends 44.
 - F's entry is the big-languages plan's (its section 6).

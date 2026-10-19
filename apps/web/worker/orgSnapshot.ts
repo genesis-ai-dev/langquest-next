@@ -181,7 +181,7 @@ export class OrgSnapshot extends DurableObject<Env> {
         snapshotMeta: transport.snapshotMeta.bind(transport),
         snapshotChunk: transport.snapshotChunk.bind(transport),
         heads: (org: string) => this.heads(org),
-        // What the projection pass stored (decisions.md 141), for this report version only.
+        // What the projection pass stored (decisions.md 142), for this report version only.
         reportHeads: async (org: string) => {
           const { data, error } = await service.from('language_report_inputs').select('language_id,seq,updated_at')
             .eq('org_id', org).eq('report_version', REPORT_VERSION);

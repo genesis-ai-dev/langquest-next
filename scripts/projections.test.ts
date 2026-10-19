@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { deliverPushes, isLarge, LARGE } from '../server/projectionWorker';
 
-describe('which languages a local stack\'s Edge pass leaves out (decisions.md 103, 140)', () => {
+describe('which languages a local stack\'s Edge pass leaves out (decisions.md 103, 141)', () => {
   it('a language is large from a 10 MB snapshot, or 25,000 events past it', () => {
     // Why: a run of the Edge Function gets 256 MB and 2 s of CPU. From
     // 15:30 on 2026-10-14 the pass died on the biggest imported languages

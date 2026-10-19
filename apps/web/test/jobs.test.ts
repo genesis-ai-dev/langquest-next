@@ -1,7 +1,7 @@
 import { deadRun, entrypointFor, exitCodeOf, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue } from '../worker/jobsModel';
 
 /**
- * The job runner's pure part (decision 140): which jobs a tick starts, what
+ * The job runner's pure part (decision 141): which jobs a tick starts, what
  * each container is handed, and what a container's stop leaves in
  * diag.job_runs. The Durable Object itself (worker/jobs.ts) is driven by
  * wrangler dev, not here.

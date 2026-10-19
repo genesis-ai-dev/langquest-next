@@ -1,4 +1,4 @@
-// The job runner's bundles (docs/server-jobs.md, decisions.md 140): each
+// The job runner's bundles (docs/server-jobs.md, decisions.md 141): each
 // server job the container image runs, bundled for Node 24 into
 // apps/web/jobs/dist, which the Dockerfile copies and git ignores. Built
 // before every deploy of the dashboard Worker (apps/web/package.json, build)

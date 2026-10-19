@@ -54,10 +54,10 @@ Run it locally, not against production without explicit authorization.
 
 The projection pass (`server/projectionWorker.ts`: Inbox rows, the public
 listing, server snapshots and each language's report inputs, decisions.md
-68 and 141) runs for every language in the job container behind the
+68 and 142) runs for every language in the job container behind the
 dashboard Worker, every five minutes, with `server/projections.ts`,
 started by the Worker's job tick through the `JobRunner` Durable Object
-(`apps/web/worker/jobs.ts`, `docs/server-jobs.md`, decisions.md 140). It
+(`apps/web/worker/jobs.ts`, `docs/server-jobs.md`, decisions.md 141). It
 skips languages that have not changed (`projection_marks`).
 `npm run worker:build` bundles `projectionEdge.ts` and the shared core for
 the `stream-projections` Edge Function, which delivers pushes every minute
@@ -96,7 +96,7 @@ job. `diag.jobs()` says which are stale or failing; `diag.job_schedule`
 holds each job's schedule, so change it with the file that sets the cron.
 
 Dashboard reports (decision 44) are not stored here, only what each
-language's report is made from (`language_report_inputs`, decision 141),
+language's report is made from (`language_report_inputs`, decision 142),
 which the dashboard's Worker (`apps/web/worker`) renders for the day. It
 folds a language itself, from the server snapshots this worker writes and
 the tail through `pull_events` with the service role, only when no row is

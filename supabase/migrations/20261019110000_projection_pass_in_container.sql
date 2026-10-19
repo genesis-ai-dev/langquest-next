@@ -1,6 +1,6 @@
 -- One projection pass, every language, in the job container behind the
 -- dashboard Worker, started by its job tick every five minutes
--- (decisions.md 140). The Edge Function keeps push delivery, every minute
+-- (decisions.md 141). The Edge Function keeps push delivery, every minute
 -- (decisions.md 68). This replaces 20261007200001_schedule_push_delivery.sql
 -- as the schedule npm run secrets runs again after setting the Vault
 -- secrets (scripts/secrets.mjs SCHEDULE_MIGRATION), so it must stay safe to
@@ -49,5 +49,5 @@ update diag.job_schedule
   where job = 'v2_import';
 -- Kept for its old runs, never flagged: the one pass is `projection` now.
 update diag.job_schedule
-  set runs_on = 'retired 2026-10-19: one pass for every language, job projection (decisions.md 140)', every = null
+  set runs_on = 'retired 2026-10-19: one pass for every language, job projection (decisions.md 141)', every = null
   where job = 'projection_large';

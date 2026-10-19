@@ -62,7 +62,7 @@ export function onlyQuietEvents(events: Iterable<{ type: string }>): boolean {
 
 /**
  * The quiet types that cannot change a language's report inputs either
- * (`reportInputs`, decisions.md 141), which the projection pass now writes
+ * (`reportInputs`, decisions.md 142), which the projection pass now writes
  * beside the Inbox rows. Recordings, cards and stored files are left out:
  * an upload changes the report's uploads, ledger, activity and alerts, so
  * a tail holding one is folded like any other.

@@ -23915,7 +23915,7 @@ Deno.serve(async (request) => {
   const startedAt = Date.now();
   const body = await request.json().catch(() => ({}));
   if (body.task !== "pushes" && !isLocal(url)) {
-    return Response.json({ error: "The projection pass runs in the job container (decisions.md 140)." }, { status: 410 });
+    return Response.json({ error: "The projection pass runs in the job container (decisions.md 141)." }, { status: 410 });
   }
   const counts = { orgs: 0, projected: 0 };
   try {

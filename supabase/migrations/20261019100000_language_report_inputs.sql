@@ -1,4 +1,4 @@
--- What a language's report is made from (decisions.md 141): the projection
+-- What a language's report is made from (decisions.md 142): the projection
 -- pass extracts it each time it folds a language (core reportInputs) and the
 -- dashboard's Durable Object renders reports from it for any day, so no
 -- server consumer folds a whole language for a report. A read model like

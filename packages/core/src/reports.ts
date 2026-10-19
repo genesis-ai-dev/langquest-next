@@ -207,7 +207,7 @@ function monthsEndingAt(now: number, n: number): string[] {
 
 /**
  * What a language's report is made from, with no date and nothing from the
- * organization stream (decisions.md 141): the projection pass extracts it
+ * organization stream (decisions.md 142): the projection pass extracts it
  * when it folds the language and stores it, and the dashboard's server
  * renders a report from it for any day (`renderLanguageReport`), so no
  * server consumer folds a whole language for a report and a report never

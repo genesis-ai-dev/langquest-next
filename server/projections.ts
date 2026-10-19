@@ -1,5 +1,5 @@
 /**
- * The projection pass (decisions.md 68, 140): Inbox rows, the public
+ * The projection pass (decisions.md 68, 141): Inbox rows, the public
  * listing, server snapshots and report inputs for every language that
  * changed. The job container behind the dashboard Worker runs it every five
  * minutes from the Worker's job tick (`apps/web/worker/jobs.ts`;

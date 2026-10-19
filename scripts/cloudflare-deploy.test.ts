@@ -57,7 +57,7 @@ describe('cloudflare deploy', () => {
     }
   });
 
-  // The job runner (docs/server-jobs.md, decisions.md 140).
+  // The job runner (docs/server-jobs.md, decisions.md 141).
   it('runs the job container in both environments, one instance per job, through the object that locks each', () => {
     const config = parseJsonc(read('apps/web/wrangler.jsonc'));
     for (const env of ['production', 'preview']) {

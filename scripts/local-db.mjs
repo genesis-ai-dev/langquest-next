@@ -8,7 +8,7 @@
  *
  * The rest: the projection pass scheduled every minute on the local Edge
  * Function (decisions.md 42), which a hosted database runs in the dashboard
- * Worker's job container instead (decisions.md 140) and which wrangler dev
+ * Worker's job container instead (decisions.md 141) and which wrangler dev
  * never fires on its own; push delivery every minute, as on a hosted one
  * (decisions.md 68); and the
  * LangQuest library seeded when the database has none of its items. Both

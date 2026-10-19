@@ -1,7 +1,7 @@
 -- The scheduled jobs (decision 42): push delivery, created by the schedule
 -- migration where the Vault secrets exist. The projection pass is not on
 -- pg_cron in a hosted database: it runs in the dashboard Worker's job
--- container (decisions.md 140), and only a local stack schedules it, after
+-- container (decisions.md 141), and only a local stack schedules it, after
 -- the migration (scripts/local-db.mjs). A reset
 -- leaves neither, so scripts/db-test.mjs sets the secrets and runs the
 -- migration before this file; it cleans up after itself. The Inbox purge

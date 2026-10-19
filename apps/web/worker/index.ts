@@ -85,7 +85,7 @@ export default {
   },
   // The Worker's crons (wrangler.jsonc). The job tick, every five minutes,
   // starts the server's heavy jobs in their container (jobs.ts, decisions.md
-  // 140): the projection pass each time, the v2 import every 15 minutes. The
+  // 141): the projection pass each time, the v2 import every 15 minutes. The
   // other, every ten, publishes verse timings asked for LangQuest's own
   // sources (worker/timings.ts), deletes expired device grants and catches up
   // webhooks. Each part's failure is caught on its own, so one does not stop

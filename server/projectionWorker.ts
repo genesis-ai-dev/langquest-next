@@ -34,7 +34,7 @@ const UPDATE_TITLES: Record<Update['kind'], string> = {
  * Bump the number when what a pass writes changes (a title above, a listing
  * column), so the next pass redoes every language rather than skipping
  * the unchanged ones. A new reducer or report version does the same: 2 added
- * the report inputs (decisions.md 141), so every language gets them once.
+ * the report inputs (decisions.md 142), so every language gets them once.
  */
 const PROJECTION_VERSION = `${REDUCER_VERSION}:${REPORT_VERSION}:2`;
 
@@ -45,7 +45,7 @@ const PROJECTION_VERSION = `${REDUCER_VERSION}:${REPORT_VERSION}:2`;
  * snapshot is `chars` long or more, or when `events` or more have arrived
  * since it (all of its log when it has none). Hosted environments run the
  * whole pass in the job container (`server/projections.ts`, decisions.md
- * 140); only a local stack's Edge pass, every minute, leaves these out
+ * 141); only a local stack's Edge pass, every minute, leaves these out
  * (`server/projectionEdge.ts`), and `npx tsx server/projections.ts` runs them.
  */
 export const LARGE = { chars: 10_000_000, events: 25_000 };
@@ -200,7 +200,7 @@ export async function runProjections(
     if (shouldWriteSnapshot({ existing: true, newEvents: head - snap.seq, redaction: false, ageMs })) return false;
     try {
       const tail = await transport.pull(orgId, streamId, Number(m.seq), 1000);
-      // Quiet for the report too (decisions.md 141): an upload changes the report, so it is folded.
+      // Quiet for the report too (decisions.md 142): an upload changes the report, so it is folded.
       if (tail.length === 0 || !onlyEventsThatLeaveTheReport(tail)) return false;
       const seq = tail[tail.length - 1]!.serverSeq!;
       // The stored report inputs hold for the tail too; saying so keeps Reports from calling them old.
@@ -246,7 +246,7 @@ export async function runProjections(
     check(await service.rpc('reconcile_notifications', {
       p_org: snapshot.orgId, p_language: languageId, p_rows: notifications
     }), 'reconcile_notifications');
-    // What the language's report is made from, for the dashboard's server to render (decisions.md 141).
+    // What the language's report is made from, for the dashboard's server to render (decisions.md 142).
     check(await service.from('language_report_inputs').upsert({
       org_id: snapshot.orgId, language_id: languageId, seq: snapshot.serverSeq, report_version: REPORT_VERSION,
       inputs: reportInputs(state, Date.now(), idx), updated_at: new Date().toISOString()

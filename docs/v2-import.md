@@ -211,7 +211,7 @@ the rest.
   open on; `npm run v2 -- sync` does one pass from the command line; and
   the job container behind the dashboard Worker runs a pass every 15
   minutes and a whole read at 03:15 UTC against production (decisions.md
-  94, 140; `docs/server-jobs.md`), while the Worker's var
+  94, 141; `docs/server-jobs.md`), while the Worker's var
   `V2_IMPORT_ENABLED` is "true" (Caleb's go-ahead, given 2026-10-14) and
   v2's key is a Worker secret (`npm run secrets`); it refuses to start
   without it. v2's read-only login, when `.env.production` has it, goes
@@ -301,7 +301,7 @@ In order; each step is safe to stop after.
    `npm run secrets -- production`, which puts it in the Edge Function and
    on the dashboard Worker. The scheduled sync runs while the Worker's var
    `V2_IMPORT_ENABLED` in `apps/web/wrangler.jsonc` is "true" (decision
-   140); until 2026-10-19 the switch and keys were GitHub's, set by
+   141); until 2026-10-19 the switch and keys were GitHub's, set by
    `scripts/v2-go-live.sh`, now gone.
 4. **Place and transfer:** `npm run v2 -- board --production`. Drag
    projects into organizations, choose the languages the suggestions are

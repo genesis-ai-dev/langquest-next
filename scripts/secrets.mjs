@@ -12,7 +12,7 @@
 // Worker's secrets, the Edge Function secrets, the two Vault secrets the
 // push delivery cron job reads, and that job itself (by running its
 // scheduling migration again, which also keeps the projection pass off
-// pg_cron: it runs in the Worker's job container, decisions.md 140). Every
+// pg_cron: it runs in the Worker's job container, decisions.md 141). Every
 // step is idempotent.
 // Supabase values are compared by SHA-256 digest; Worker secrets cannot be
 // read back, so only their presence is compared and apply always sets them.
@@ -31,7 +31,7 @@ import { HOSTED, decrypt, envKeyNames, parseJsonc, projectRef, root, secretsPath
 /**
  * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted) and never
  * pushed; V2_DATABASE_URL (scripts/v2-access.sh) goes to the dashboard Worker for the v2 import's job
- * (decisions.md 140) and is read on a laptop by npm run v2 -- --production.
+ * (decisions.md 141) and is read on a laptop by npm run v2 -- --production.
  */
 export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET'];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET'];
@@ -70,7 +70,7 @@ export const relayUrl = (environment) =>
 export const CRON_JOB = 'langquest-stream-projections';
 /** Sends what the database queued for phones, every minute (decisions.md 68). */
 export const PUSH_JOB = 'langquest-push-delivery';
-/** Schedules push delivery where the Vault secrets exist, and unschedules the projection job; safe to run again (decisions 42, 140). */
+/** Schedules push delivery where the Vault secrets exist, and unschedules the projection job; safe to run again (decisions 42, 141). */
 export const SCHEDULE_MIGRATION = 'supabase/migrations/20261019110000_projection_pass_in_container.sql';
 
 /** Every secret, by where it goes. */

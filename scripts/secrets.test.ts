@@ -50,7 +50,7 @@ describe('secrets', () => {
     const { vault } = destinations('preview', values, 'abc', 'k');
     for (const name of Object.keys(vault)) expect(sql).toMatch(new RegExp(`name\\s*=\\s*'${name}'`));
     expect(vault.langquest_project_url).toBe('https://abc.supabase.co');
-    // Why: hosted projects run the pass in the Worker's job container (decisions.md 140);
+    // Why: hosted projects run the pass in the Worker's job container (decisions.md 141);
     // a pg_cron pass as well would run it twice, racing the container's writes.
     expect(sql).toMatch(/cron\.unschedule[\s\S]*'langquest-stream-projections'/);
     expect(sql).not.toMatch(/cron\.schedule\(\s*'langquest-stream-projections'/);

@@ -8,7 +8,7 @@
 #
 # Run it yourself: it adds a role to v2's production database. It prints no
 # secret, and commits .env.production alone. Then npm run secrets -- production
-# puts it on the dashboard Worker for the scheduled sync (decisions.md 140).
+# puts it on the dashboard Worker for the scheduled sync (decisions.md 141).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

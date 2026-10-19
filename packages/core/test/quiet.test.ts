@@ -51,7 +51,7 @@ describe('eventsThatCannotChangeInbox (decisions.md 68)', () => {
     );
   });
 
-  it('a tail of only report-quiet events leaves the report inputs unchanged too (decisions.md 141)', () => {
+  it('a tail of only report-quiet events leaves the report inputs unchanged too (decisions.md 142)', () => {
     // Why: the pass skips folding a language whose new events are all of
     // these, so its stored report inputs must not have needed them.
     const reportQuiet = language.filter((e) => eventsThatCannotChangeReport.has(e.type));

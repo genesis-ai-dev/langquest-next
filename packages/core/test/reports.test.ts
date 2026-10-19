@@ -266,7 +266,7 @@ describe('coverage, uploads and the ledger', () => {
   });
 });
 
-describe('report inputs (decisions.md 141)', () => {
+describe('report inputs (decisions.md 142)', () => {
   // Why: the projection pass extracts a language's inputs when it folds the
   // language and stores them as JSON; the dashboard's server renders reports
   // from them on later days without folding. A report rendered that way must

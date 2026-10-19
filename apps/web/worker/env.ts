@@ -5,7 +5,7 @@ import type { JobRunner } from './jobs';
 export interface Env {
   ASSETS: Fetcher;
   ORG_SNAPSHOTS: DurableObjectNamespace<OrgSnapshot>;
-  /** The job runner (jobs.ts, decisions.md 140): one object per server job, started by the cron. */
+  /** The job runner (jobs.ts, decisions.md 141): one object per server job, started by the cron. */
   JOBS: DurableObjectNamespace<JobRunner>;
   /** Recordings and guide media (blobs.ts, decisions.md 69). */
   BLOBS: R2Bucket;
@@ -26,7 +26,7 @@ export interface Env {
   /** The same for the job container in local development (host.docker.internal), like JOBS_SUPABASE_URL. */
   JOBS_API_URL?: string;
   /**
-   * "true" runs the v2 import from the job tick (docs/v2-import.md, decisions.md 140);
+   * "true" runs the v2 import from the job tick (docs/v2-import.md, decisions.md 141);
    * anything else leaves it off. A plain var: the switch Caleb's go-ahead set on GitHub.
    */
   V2_IMPORT_ENABLED?: string;

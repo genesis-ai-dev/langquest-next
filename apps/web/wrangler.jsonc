@@ -14,7 +14,7 @@
   // Every ten minutes: verse timings asked for LangQuest's own sources
   // (worker/timings.ts), expired device grants, webhook catch-up. Every five:
   // the job tick, which starts the projection pass and the v2 import in the
-  // job container (worker/jobs.ts, decisions.md 140; jobsModel.ts JOB_TICK).
+  // job container (worker/jobs.ts, decisions.md 141; jobsModel.ts JOB_TICK).
   "triggers": { "crons": ["*/10 * * * *", "*/5 * * * *"] },
   // The app's web export (npm run export:web in apps/mobile, decisions.md
   // 57): the page, its bundles, version.json and _headers. Only /api/* and
@@ -49,7 +49,7 @@
   "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
   // One per organization (decision 44): reports and recent folds in memory,
   // a rebuildable cache of them in its own SQLite. JobRunner (worker/jobs.ts,
-  // decision 140): one per server job, the object that starts the job's
+  // decision 141): one per server job, the object that starts the job's
   // container from the cron and keeps two runs from overlapping.
   "durable_objects": {
     "bindings": [
