@@ -34,6 +34,8 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { ShowsSection } from '../checks/ShowsSection';
 import { setParts } from '../checks/showActions';
 import { isAudio, partsOf, type ShowPart } from '../checks/showsModel';
+import { useDraftAware } from '../checks/useDraftAware';
+import { IntoSheet } from '../checks/IntoSheet';
 
 // ---- shared parts ------------------------------------------------------------------------
 
@@ -100,7 +102,9 @@ function RecordEditor({ ctx }: { ctx: Ctx }) {
  * One check, or one of its parts as a page of its own (`part`): its people,
  * its questions, and each help with parts inside it (decisions.md 130).
  */
-export function CheckEditor(ctx: Ctx) {
+export function CheckEditor(props: Ctx) {
+  // New language's checks before it exists are its draft's (decisions.md 141).
+  const ctx = useDraftAware(props);
   const part = ctx.params['part'];
   if (part === 'people') return <PeoplePage ctx={ctx} />;
   if (part === 'questions') return <QuestionsPage ctx={ctx} />;
@@ -137,6 +141,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const [writing, setWriting] = useState<{ title: string; text: string } | null>(null);
   const [together, setTogether] = useState<string[] | null>(null);
   const [checking, setChecking] = useState(false);
+  const [choosingInto, setChoosingInto] = useState(false);
   const [removing, setRemoving] = useState(false);
   const items = lib.items('material').filter((it) => it.current && !it.archived);
   const docs = useLibraryDocs(lib.orgId, items.map((it) => it.current), { deps: false });
@@ -150,6 +155,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const mayWrite = ctx.session.can('manage_reference');
   const kind = kindOf(state, kindId);
   const others = sameTimeOf(rows, i);
+  const drafting = ctx.params['draft'] === '1';
   const open = (part: string) => ctx.go('check_editor', { languageId, kindId, part });
 
   async function setHelp(help: CheckHelp, linked: boolean, before: EventSpec[] = []) {
@@ -197,6 +203,16 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
     const next = own ? [...rows.slice(0, group.at(-1)! + 1), { kindId: own.id, together: false, checkpoint: false }, ...rows.slice(group.at(-1)! + 1)] : rows;
     void saveRows(ctx, next, t('checks.saved', { language }), before);
   }
+  /** The language a step that makes something makes it in (decisions.md 141): a back translation's. */
+  function setInto(into: string) {
+    const s = ctx.language.state;
+    if (!s || !kind.produces || into === kind.produces.into) return;
+    const specs = commands(s, indexesFor(s)).defineKind({
+      commandId: Crypto.randomUUID(), kindId, name: kind.name, description: kind.description, usualReviewer: kind.usualReviewer,
+      ...(kind.withholdsContext ? { withholdsContext: true } : {}), produces: { ...kind.produces, into }
+    });
+    void ctx.act(specs, t('checks.into.saved', { check: name, language: into })).catch(() => {});
+  }
   const checkers = rows.filter((r, j) => j !== i && !kindOf(state, r.kindId).produces);
   const checkedByName = kind.produces ? checkName(kind.produces.checkedBy, known) : '';
 
@@ -214,10 +230,15 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   return (
     <Screen header={<Header title={name} sub={t('checks.checkOf', { n: formatNumber(number), language })} onBack={ctx.back} />}>
       <Group>
-        <Row icon="people" label={t('checks.people')} sub={people.length ? people.map((id) => ctx.name(id)).join(', ') : t('checks.anyone')}
+        {/* Before the language exists its people are chosen as they are invited (decisions.md 141). */}
+        <Row icon="people" label={t('checks.people')} sub={people.length ? people.map((id) => ctx.name(id)).join(', ') : drafting ? t('checks.peopleWhenInvited') : t('checks.anyone')}
           help={t('checks.peopleOpenHelp')} onPress={() => open('people')} />
         <Row icon="chat" label={t('checks.questions')} sub={questions.length ? t('checks.questionsCount', { count: questions.length }) : t('checks.noQuestions')}
-          help={t('checks.questionsOpenHelp')} onPress={() => open('questions')} last />
+          help={t('checks.questionsOpenHelp')} onPress={() => open('questions')} last={!kind.produces} />
+        {kind.produces ? (
+          <Row icon="globe" label={t('checks.into.row')} sub={kind.produces.into} help={t('checks.into.rowHelp')} last
+            {...(mayFlows ? { onPress: () => setChoosingInto(true) } : {})} />
+        ) : null}
       </Group>
 
       <ShowsSection ctx={ctx} kindId={kindId} name={name} canEdit={mayFlows} />
@@ -277,6 +298,11 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
           })}
         </Group>
       </Sheet>
+
+      {kind.produces ? (
+        <IntoSheet visible={choosingInto} check={name} current={kind.produces.into} languages={teamLanguages(ctx.org.state, state, languageId)}
+          onClose={() => setChoosingInto(false)} onPick={(into) => { setChoosingInto(false); setInto(into); }} />
+      ) : null}
 
       <Sheet visible={checking} title={t('checks.checkedAt')} sub={name} onClose={() => setChecking(false)}>
         <Group>

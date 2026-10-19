@@ -391,9 +391,9 @@ export const EDGES: Edge[] = [
   e('get_ready', 'role_editor'),
   e('new_language', 'role_editor'), // Invite its translators: Something else, make a new role
   // App only: New language's questions make their own answer where none fits (decision 71):
-  // an outline for something other than the Bible, and "I'll choose the steps"
+  // an outline for something other than the Bible; and its checks open on their own pages before it exists (decision 141)
   e('new_language', 'template_editor', undefined, 'manageTemplates'),
-  e('new_language', 'flow_editor', undefined, 'manageFlows'),
+  e('new_language', 'check_editor', undefined, 'manageFlows'),
   // App only: a ready language's page (decision 71, demo ADR-039): letting someone in. Its checks open from its Review flow (decision 138).
   e('language_home', 'edit_member', undefined, 'assigner'),
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.

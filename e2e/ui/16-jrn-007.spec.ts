@@ -38,7 +38,9 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   expect(await screenText(page)).not.toMatch(/Skip for now|Get started/);
   expect(await tabsShown(page)).toEqual(['work', 'map', 'manage', 'me']);
 
-  // Step 5: New language, with FIA passages (the New Testament) and the Standard Bible Flow.
+  // Step 5: New language, with FIA passages (the New Testament) and the Standard Bible Flow. Its six steps show first (decision 141).
+  await primary(page).click();
+  await expect(text(page, '6 steps')).toBeVisible();
   await primary(page).click();
   await page.getByPlaceholder('e.g. Hadiyya').fill('Journey Language');
   await primary(page).click();
@@ -49,16 +51,20 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await expect(page.getByRole('radio', { name: /^FIA passages\./ })).toBeVisible();
   await page.getByRole('radio', { name: /^FIA passages\./ }).click();
   await primary(page).click();
+  // Reference material before the review flow (decision 141). As many languages as the team reads (decision 130): English is ticked already.
+  await expect(page.getByRole('checkbox', { name: /^English/ })).toBeChecked();
+  await primary(page).click();
+  await expect(text(page, 'What will help Journey Language’s team?')).toBeVisible();
+  await primary(page).click();
   await expect(text(page, 'How will recordings get checked?')).toBeVisible();
   await page.getByRole('radio', { name: /^Standard Bible Flow\./ }).click();
   await primary(page).click();
-  // As many languages as the team reads (decision 130): English is ticked already.
-  await expect(page.getByRole('checkbox', { name: /^English/ })).toBeChecked();
+  await expect(text(page, 'Journey Language’s checks')).toBeVisible();
   await primary(page).click();
   // The progress names each part as it starts; it ends on inviting the language's people.
   await expect(text(page, /^(Setting up Journey Language|Getting the passages|Getting the review steps|Saving Journey Language's passages)/)).toBeVisible();
   await expectToast(page, `Journey Language added to ${orgName}.`);
-  await expect(text(page, 'Invite someone')).toBeVisible();
+  await expect(text(page, 'Time to invite people')).toBeVisible();
   await button(page, 'Later').click();
   // The Map shows the books in scope.
   await tab(page, 'map').click();
@@ -82,13 +88,16 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await back(page).click();
   await tab(page, 'manage').click();
   await primary(page).click(); // Invite people
-  await expect(text(page, 'What will they do?')).toBeVisible();
+  await expect(text(page, 'Who are you inviting?')).toBeVisible();
   const others = button(page, /^Other roles/);
   if (await others.isVisible().catch(() => false)) await others.click();
-  await page.getByRole('radio', { name: 'Community Checker' }).click();
   const journeyScope = page.getByRole('button', { name: 'Journey Language' }).locator('visible=true');
   if (await journeyScope.count()) await journeyScope.first().click();
-  await primary(page).click();
+  // Its card's own Invite (decision 141); a role that checks may be put on some checks first, none here.
+  await page.getByTestId('invite-role-Community Checker').locator('visible=true').first().getByRole('button', { name: 'Invite', exact: true }).click();
+  const asked = text(page, 'Which checks will they do?');
+  await expect(asked.or(text(page, 'Ask them to scan this'))).toBeVisible();
+  if (await asked.isVisible()) await primary(page).click();
   await expect(text(page, 'Ask them to scan this')).toBeVisible();
   await expect(text(page, /^Community Checker/)).toBeVisible();
   await button(page, 'Done').click();

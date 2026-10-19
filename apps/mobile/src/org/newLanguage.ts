@@ -1,7 +1,8 @@
 import {
-  CommandError, commands, emptyLanguageState, isTemplateDoc, privilegesFor,
-  type EventPayloads, type EventSpec, type KindDef, type LanguageState, type LibraryDoc, type OrgState
+  CommandError, emptyLanguageState, isTemplateDoc, privilegesFor,
+  type EventPayloads, type EventSpec, type LanguageState, type LibraryDoc, type OrgState
 } from '@langquest-next/core';
+import { draftSpecsFor } from '../checks/languageDraftModel';
 import { clusterEvents, type ClusterEvent } from '../clusters/model';
 import { t } from '../i18n';
 import type { SharedItem } from '../library/model';
@@ -23,6 +24,9 @@ export interface ClusterTarget { clusterId: string; name?: string; existing?: re
 
 /** Something a new language's team is offered from the start: an item here, or one another organization shares. */
 export interface Offer { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember }
+
+/** One thing New language can give a new team, on its Reference material step (decision 141): a Bible, a set of study guides, a note. */
+export type MaterialChoice = Offer & { key: string; kind: 'source' | 'guide' | 'note'; sub: string };
 
 /**
  * The parts Continue goes through: helps only when something is offered.
@@ -69,13 +73,20 @@ type NewLanguageInput = {
   org: OrgState | null; actorId: string; reads: string;
   /** Other languages its reference material may be in, beside `reads` (decision 130). */
   alsoReads?: readonly string[];
-  scope: LanguageScope; chosenBooks: ReadonlySet<string>; checks: { name?: string | undefined; kinds: readonly KindDef[]; steps: readonly { kindIds: readonly string[]; checkpoint?: boolean }[] }; offers: Offer[];
+  scope: LanguageScope; chosenBooks: ReadonlySet<string>;
+  /**
+   * Its checks as New language's draft holds them (decisions.md 141): a flow
+   * copied in (decision 91), then whatever was set on each check's pages.
+   */
+  checks: readonly EventSpec[];
+  offers: Offer[];
 };
 
 /**
- * Add a language (ORG-2, decisions 63, 71, 76, 84, 91): listed in the
+ * Add a language (ORG-2, decisions 63, 71, 76, 84, 91, 141): listed in the
  * organization's stream first, then its own stream starts with the
- * template, its own copy of the checks, and what its team is offered.
+ * template, its checks as they were set up before it existed, and what
+ * its team is offered.
  * The new language has no members yet, so its first events go in under
  * org-scope privileges. What helps is never required and a language can be
  * added offline: an offer that could not be followed is named, not fatal.
@@ -142,12 +153,11 @@ export async function createLanguages(input: NewLanguageInput & {
     const languoid = one.code.trim() || languageName.slice(0, 3);
     const languageId = newLanguageId(languoid, deps.newId());
     const fresh = emptyLanguageState();
-    // A ready-made flow is copied into the language, its checks the language's own (decision 91).
-    const flowSpecs = commands(fresh).copyFlow({ commandId: `${languageId}:checks`, name: input.checks.name ?? '', kinds: input.checks.kinds, steps: input.checks.steps });
+    // Its checks are its own (decision 91), each language of a cluster its own copy of the draft's.
     const plan = addLanguage(input.org, {
       languageId, code: languoid, name: languageName, languoidId: one.languoidId, sourceCode: input.reads,
       template: await deps.applySpecs(use.itemId, { docHash: use.docHash, into: fresh, ...(books ? { books } : {}) }),
-      flow: flowSpecs
+      flow: draftSpecsFor(languageId, input.checks)
     });
     await deps.appendOrg('v1.LanguageAdded', plan.added);
     if (plan.link) await deps.appendOrg('v1.LanguageCodeSet', plan.link);

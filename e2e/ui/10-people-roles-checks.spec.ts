@@ -3,7 +3,7 @@
 // world, so the role counts are the fixture's.
 import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
-import { alphaMembers, alphaPage, deviceAs, memberships, orgHome, quietReloads } from './people-helpers';
+import { alphaMembers, alphaPage, deviceAs, inviteRole, memberships, orgHome, quietReloads } from './people-helpers';
 import { clientAs, send } from './fixture';
 import { back, button, byId, expect, expectToast, field, openAs, primary, screenText, test, text, useWorld } from './support';
 
@@ -213,6 +213,7 @@ test('PEOPLE-037 A coordinator cannot make or change roles', async ({ page }) =>
   await text(page, 'Invite people').click();
   await text(page, /^Other roles · \d+$/).click();
   await expect(text(page, 'Something else: make a new role')).toHaveCount(0);
+  await inviteRole(page, 'Translators');
   await text(page, 'One person, by name').click();
   await back(page).click();
   await expect(text(page, 'Step 1 of 3 — Role')).toBeVisible();

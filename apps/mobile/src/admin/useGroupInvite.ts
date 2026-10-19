@@ -8,18 +8,21 @@ import { inviteFailureText, GROUP_USES } from './inviteText';
 
 export type InviteState = { uri: string } | { error: string } | null;
 
+const NO_CHECKS: readonly string[] = [];
+
 /**
  * A group code for one role at one scope, issued when first shown (the same
  * RPC as Invite by QR) and kept while the screen is up, so switching back to
  * a role shows the code already made. Offline, it says so.
  */
-export function useGroupInvite(orgId: string, roleId: string | null, scope: Scope | null, label: string): InviteState {
+export function useGroupInvite(orgId: string, roleId: string | null, scope: Scope | null, label: string, checks: readonly string[] = NO_CHECKS): InviteState {
   const [made, setMade] = useState<Record<string, InviteState>>({});
-  const key = roleId && scope ? `${roleId}|${scopeKey(scope)}` : '';
+  // A code that puts people on checks (decisions.md 141) is another code.
+  const key = roleId && scope ? `${roleId}|${scopeKey(scope)}|${[...checks].sort().join(',')}` : '';
   useEffect(() => {
     if (!key || !roleId || !scope || made[key]) return;
     let live = true;
-    void issueInvite(orgId, roleId, scope, { label, maxUses: GROUP_USES })
+    void issueInvite(orgId, roleId, scope, { label, maxUses: GROUP_USES, ...(checks.length ? { checks } : {}) })
       .then((inv) => { if (live) setMade((m) => ({ ...m, [key]: { uri: inviteUri(orgId, inv.token, APP_URL) } })); })
       .catch((e: unknown) => {
         // Offline or refused by the server: its words say which.

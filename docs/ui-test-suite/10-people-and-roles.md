@@ -111,8 +111,9 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. ADMIN: Alpha's page → "People" → "Invite".
-2. Read the screen. Leave "Translate" chosen.
-3. Tap "Show the code to scan".
+2. Read the screen.
+3. On "Translators" tap "Invite". Under "Which checks will they do?" tick
+   nothing and tap "Show the code to scan".
 4. Tap "Share as a link" and keep the link.
 5. Second device: Sign In → "Scan a code" → paste the link.
 6. Type the name "UI Joiner {run}". Tap "Join".
@@ -121,17 +122,20 @@ Steps:
 9. ADMIN: open Alpha's page.
 
 Expected:
-- Step 2: header "Invite someone" with the sub "Alpha"; "What will they
-  do?" with "Translate", "Check recordings", "Back-translate", "Help run
-  the team" and "Other roles · 3"; the dashed "Something else: make a new
-  role"; "In which language?" with "Alpha" and "Bravo" (from a language's
-  Members an invite is at a language; "All of them" is offered from Org
-  home's "Invite people"); the quiet links "By email" and "One person, by
-  name".
-- The group code is the first way offered (decision 71).
-- Step 3: "{what} · Alpha" ("Translate · Alpha"), "Making the code…", then
+- Step 2: header "Invite someone" with the sub "Alpha"; "Who are you
+  inviting?" with a card per role, "Translators", "Checkers",
+  "Back-translators", "Team leads", each with its line, "What they may do"
+  and its own "Invite", no radio buttons (decision 141); "Other roles · 3";
+  the dashed "Something else: make a new role"; "In which language?" with
+  "Alpha" and "Bravo" (from a language's Members an invite is at a
+  language; "All of them" is offered from Org home's "Invite people").
+- The group code is the first way offered (decisions 71, 141). A role that
+  does checks is asked "Which checks will they do?" first; ticking none
+  skips it.
+- Step 3: "{who} · Alpha" ("Translators · Alpha"), "Making the code…", then
   "Ask them to scan this", a QR, and "No password needed. Works for a whole
-  group."; "Done", "Share as a link" and "Someone else".
+  group."; "Done", "Share as a link", "By email", "One person, by name" and
+  "Someone else".
 - Step 4: the share sheet, or the toast "Invite link copied. Paste it into
   a message."
 - Steps 5–6: the card names UI Test Org and the role; a group code asks for
@@ -258,7 +262,8 @@ Preconditions (in addition to the global ones):
 Steps:
 1. Org home → "Invite people".
 2. Under "In which language?" tap "Bravo".
-3. Tap "One person, by name". Pick a role, name someone, Continue.
+3. On "Translators" tap "Invite" (and "Show the code to scan" if it asks
+   which checks). Tap "One person, by name", name someone, Continue.
 4. Read the role line on step 3; check the invite's scope on the server.
 
 Expected:
@@ -278,14 +283,14 @@ Steps:
 1. Alpha's members → "Invite". Tap "Something else: make a new role".
 2. Name it "Storyteller {run}". Turn on "Record" and "Ask for checks". Tap
    Save.
-3. Back on "Invite someone", read the roles. Tap Continue ("Show the code to
-   scan").
+3. Back on "Invite someone", read the roles. Tap the new role's "Invite".
 
 Expected:
 - The role editor opens on a new role ("What is it called?").
 - Toast "Storyteller {run} created."
-- "Storyteller {run}" comes back chosen, with the other roles open (the
-  "Other roles · n" link is gone), and shows as a code.
+- "Storyteller {run}" comes back opened ("What they may do": Record, Ask for
+  checks), with the other roles shown (the "Other roles · n" link is gone),
+  and its Invite shows a code at once (it does no checks).
 - Updated (2026-10-13): main's "Ready-made choices come with your own,
   starting from the one picked" (4b9c582, design principle 12): the new role
   used to be found under "Other roles · 4" and tapped.
@@ -304,9 +309,9 @@ Preconditions (in addition to the global ones):
 
 Steps:
 1. Turn the network off.
-2. Alpha's members → "Invite" → "Show the code to scan".
-3. Tap "Someone else" → "One person, by name" → a role → a name →
-   "Continue".
+2. Alpha's members → "Invite" → "Translators" → "Invite" → "Show the code
+   to scan".
+3. Tap "One person, by name" → a name → "Continue".
 
 Expected:
 - Step 2: "No code was made. Try again when connected."
@@ -734,16 +739,16 @@ Preconditions (in addition to the global ones):
 - None.
 
 Steps:
-1. Org home → "Invite people". Read "What will they do?" and "Other
+1. Org home → "Invite people". Read "Who are you inviting?" and "Other
    roles".
-2. Tap "One person, by name". Read the role list.
+2. On "Team leads" tap "Invite". Tap "One person, by name", then Back. Read
+   the role list.
 3. Org home → Members → VIEW. Read "What will they do?".
 
 Expected:
 - "Other roles · {n}" holds Viewer, Language Lead and any role made
   earlier in this run; Organization Admin is never offered.
-- "Help run the team" gives Coordinator (COORD holds every privilege of
-  it).
+- "Team leads" gives Coordinator (COORD holds every privilege of it).
 - Invite by QR lists every role but Organization Admin.
 - VIEW's page offers every role but Organization Admin.
 - The server refuses an Organization Admin invite from COORD with "you may
@@ -757,10 +762,10 @@ Preconditions (in addition to the global ones):
 - Resets: changes TRANS's role and changes it back.
 
 Steps:
-1. Alpha's page → "People" → "Invite". Read the choices.
-2. Tap "Help run the team". Tap "Show the code to scan". Tap "Someone
-   else".
-3. Tap "One person, by name". Read the role list.
+1. Alpha's page → "People" → "Invite". Read the roles.
+2. On "Team leads" tap "Invite" (and "Show the code to scan" if asked which
+   checks).
+3. Tap "One person, by name", then Back. Read the role list.
 4. Back in Members, open TRANS. Read "What will they do?" and "Where?".
 5. Choose "Reviewer". Tap "Save Assignment".
 6. Open TRANS again. Choose "Translator". Tap "Save Assignment".
@@ -768,13 +773,13 @@ Steps:
 Expected:
 - The header sub is "Alpha"; there is no "In which language?" (one scope)
   and no "All of them".
-- The choices are "Translate" (Translator), "Check recordings" (Reviewer),
-  "Back-translate" (Translator-Reviewer), "Help run the team" (Language
-  Lead), and "Other roles · {n}" (Viewer, and roles made earlier in this
-  run). Coordinator and Organization Admin are never offered.
+- The role cards are "Translators" (Translator), "Checkers" (Reviewer),
+  "Back-translators" (Translator-Reviewer), "Team leads" (Language Lead),
+  and "Other roles · {n}" (Viewer, and roles made earlier in this run).
+  Coordinator and Organization Admin are never offered.
 - There is no "Something else: make a new role".
 - The code for Language Lead is made; the shown screen's question reads
-  "Help run the team" (no " · Alpha", as there is one scope).
+  "Team leads" (no " · Alpha", as there is one scope).
 - Invite by QR lists Language Lead, Reviewer, Translator,
   Translator-Reviewer and Viewer, each "{n} privileges".
 - TRANS's page offers only "Language" under "Where?", and the same five

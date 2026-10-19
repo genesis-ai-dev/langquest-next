@@ -35,6 +35,21 @@ export function checkTeams(state: LanguageState, kindId: string): string[] {
   ];
 }
 
+/**
+ * What a check's own team needs before people are put on it from outside
+ * the check's page (an invite that names the check, decisions.md 141): its
+ * name, said as the check is, and the check it is for. Nothing when it
+ * already has both.
+ */
+export function checkTeamSpecs(state: LanguageState, c: { commandId: string; kindId: string; name: string }): EventSpec[] {
+  const teamId = checkTeamId(c.kindId);
+  const team = state.teams[teamId];
+  const specs: EventSpec[] = [];
+  if (!team || team.name.value !== c.name) specs.push({ id: `${c.commandId}:team`, type: 'v1.ReviewTeamDefined', payload: { teamId, name: c.name } });
+  if (team?.kindId?.value !== c.kindId) specs.push({ id: `${c.commandId}:kind`, type: 'v1.ReviewTeamKindSet', payload: { teamId, kindId: c.kindId } });
+  return specs;
+}
+
 /** Everyone on a check, by profile id, sorted. */
 export function checkPeople(state: LanguageState, kindId: string): string[] {
   return [...new Set(checkTeams(state, kindId).flatMap((id) => members(state, id)))].sort();

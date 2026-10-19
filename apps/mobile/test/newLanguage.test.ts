@@ -1,5 +1,5 @@
 import {
-  BIBLE_BOOKS, CommandError, DEFAULT_KINDS, privilegesFor, selectTemplateSpecs,
+  BIBLE_BOOKS, checkShowsSpecs, CommandError, commands, DEFAULT_KINDS, emptyLanguageState, privilegesFor, selectTemplateSpecs,
   type EventSpec, type LanguageState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import type { SharedItem } from '../src/library/model';
@@ -16,7 +16,9 @@ const doc: TemplateDoc = {
   bible: { versification: V11N, books: [{ book: 'GEN', name: 'Genesis' }, { book: 'LUK', name: 'Luke' }], divide: 'chapters' },
   deps: [V11N]
 };
-const checks = { name: 'Quick Check', kinds: DEFAULT_KINDS, steps: [{ kindIds: ['peer'] }, { kindIds: ['final'] }] };
+// Its checks as New language's draft holds them (decision 141): Quick Check copied in, then the recording set to hide the Bible's words.
+const flowSpecs = commands(emptyLanguageState()).copyFlow({ commandId: 'draft', name: 'Quick Check', kinds: DEFAULT_KINDS, steps: [{ kindIds: ['peer'] }, { kindIds: ['final'] }] });
+const checks = [...flowSpecs, ...checkShowsSpecs(emptyLanguageState(), { commandId: 'shows', kindId: 'record', what: 'bibleText', shown: false })];
 const shared = (name: string) => ({ org_id: 'langquest', item_id: name, name, subscribable: true } as unknown as SharedItem);
 
 /** Someone in ORG who holds both privileges a new language's first events need. */
@@ -64,6 +66,10 @@ describe('adding a language (ORG-2, decisions 63, 76, 84, 91)', () => {
     expect(language[0]!.languageId).toBe(made.languageId);
     expect(types).toContain('v1.TemplateSelected');
     expect(types).toContain('v1.FlowSelected');
+    // What was set on its checks before it existed comes with them, under ids of this language (decision 141).
+    const shows = language[0]!.specs.filter((s) => s.type === 'v1.CheckShowsSet');
+    expect(shows.map((s) => s.payload)).toEqual([{ kindId: 'record', what: 'bibleText', shown: false }]);
+    expect(shows[0]!.id.startsWith(`${made.languageId}:`)).toBe(true);
     expect(language[0]!.specs.filter((s) => s.type === 'v1.ReferenceSet').map((s) => s.payload)).toEqual([{ itemId: 'web', state: 'recommended' }]);
   });
 
@@ -113,6 +119,9 @@ describe('a cluster of new languages (createLanguages, decision 108)', () => {
     expect(parts).toEqual(newLanguageParts(true, { each: 2, cluster: true }));
     expect(language.map((l) => l.languageId)).toEqual(made.languages.map((l) => l.languageId));
     for (const l of language) expect(l.specs.filter((s) => s.type === 'v1.FlowSelected')).toHaveLength(1);
+    // Each its own copy of the draft: the same events, under ids of its own (event ids are unique across streams).
+    for (const l of language) expect(l.specs.filter((s) => s.id.startsWith(`${l.languageId}:d`)).map((s) => s.type)).toEqual(checks.map((s) => s.type));
+    for (const l of language) expect(l.specs.filter((s) => s.type === 'v1.CheckShowsSet').map((s) => s.payload)).toEqual([{ kindId: 'record', what: 'bibleText', shown: false }]);
     const grouping = org.filter((e) => e.type === 'v1.ClusterNamed' || e.type === 'v1.LanguageClusterSet');
     expect(grouping).toEqual([
       { type: 'v1.ClusterNamed', payload: { clusterId: 'cl-dinka', name: 'Dinka cluster' } },
