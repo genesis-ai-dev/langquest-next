@@ -37,6 +37,7 @@ export function StagesPath() {
   }, [still, shown]);
   return (
     <View style={styles.path} accessibilityRole="list">
+      {/* help-each: each stage is a different step of adding a language */}
       {STAGES.map((s, i) => (
         <Animated.View key={s} style={{ opacity: shown[i], transform: [{ translateY: shown[i]!.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
           <StageStop stage={s} n={i + 1} last={i === STAGES.length - 1} />
