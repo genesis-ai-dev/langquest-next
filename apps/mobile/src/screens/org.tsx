@@ -1663,7 +1663,8 @@ export function NewLanguage(ctx: Ctx) {
       <Screen header={header()} bodyStyle={bodyStyle}
         footer={<>
           <PrimaryBtn label={t('org.continue')} icon="right" disabled={materialPage === 'languages' && refs.loading} help={t('org.newLanguage.continueHelp')}
-            onPress={() => (materialPage === 'languages' ? setMaterialPage('material') : setStep(4))} />
+            // Someone who may not choose reference material is not asked what the team will have.
+            onPress={() => (materialPage === 'languages' && material.may ? setMaterialPage('material') : setStep(4))} />
           {back}
         </>}>
         {materialPage === 'languages' ? (
