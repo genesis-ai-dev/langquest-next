@@ -184,10 +184,10 @@ in-app messages", the screenshot "Photos", the name, email and install ID
 their own rows, all optional and for app functionality; nothing is shared. If
 the team ever emails someone back about their feedback, "Developer
 communications" must be added to Email address's purposes first.
-`react-native-view-shot` takes the screenshot: it draws the app's own window
-on the phone (and the page with `html2canvas` on the web, loaded only when
-feedback is sent), needs no permission, reads no other app or file and sends
-nothing itself, so no Play Console answer changes.
+`react-native-view-shot` takes the screenshot on a phone: it draws the app's
+own window, needs no permission, reads no other app or file and sends nothing
+itself. On the web `html-to-image` draws the page instead, loaded only when
+feedback is sent. No Play Console answer changes.
 
 Not collected: location, financial info, health, files, calendar, contacts,
 web browsing, app interactions beyond diagnostics, other personal info.
@@ -235,7 +235,7 @@ this block.
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-secure-store", "expo-sqlite", "expo-status-bar", "expo-updates",
-    "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
+    "html-to-image", "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",
     "react-native-url-polyfill", "react-native-view-shot", "react-native-web", "topojson-client", "world-atlas"
   ],

@@ -5664,9 +5664,11 @@ screenshot of the screen they were on.
   → Customer Support (linked, not tracking, App Functionality). The privacy
   policy says what is kept, who sees it, for how long, and that deleting
   the account deletes it.
-- `react-native-view-shot` takes the picture: a native module, so phones
-  get it with the next store build, not an update; on the web it loads
-  `html2canvas` only when feedback is sent.
+- `react-native-view-shot` takes the picture on a phone: a native module,
+  so phones get it with the next store build, not an update. On the web
+  `html-to-image` draws the page, loaded only when feedback is sent
+  (view-shot's own web drawing, html2canvas, put the web app's chunks
+  83 KB over their 6.5 MB cap).
 Reverse if: people need to send feedback before they can sign in (a report
 that sign-in itself fails would wait); that needs a way in without an
 account, which 112 turned down for diagnostics.

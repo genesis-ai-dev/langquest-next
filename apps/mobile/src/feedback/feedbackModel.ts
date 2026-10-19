@@ -15,6 +15,12 @@ export const MAX_FEEDBACK_CHARS = 4000;
 export const SHOT_WIDTH = 720;
 export const SHOT_QUALITY = 0.6;
 
+/** A screenshot: a JPEG as base64, with its size (capture.ts, capture.web.ts). */
+export interface Shot { base64: string; width: number; height: number }
+
+/** Longer than a slow phone takes to draw its window, short enough that the sheet still opens promptly. */
+export const CAPTURE_MS = 4000;
+
 /** What a report says about itself, as queued in the account outbox. Never a name or an email: the server reads those, if shared. */
 export interface FeedbackPayload {
   kind: FeedbackKind;

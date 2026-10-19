@@ -26,6 +26,7 @@
     "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.24",
+    "html-to-image": "1.11.13",
     "i18n-iso-countries": "^7.14.0",
     "i18next": "^26.4.2",
     "lucide-react-native": "^1.52.0",

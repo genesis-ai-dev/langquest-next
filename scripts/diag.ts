@@ -256,7 +256,9 @@ function feedbackReport(): void {
     const who = f.shared_name || f.shared_email ? ` · ${[f.shared_name, f.shared_email].filter(Boolean).join(' · ')}` : '';
     console.log([
       `## ${f.kind === 'bug' ? 'Problem' : 'Idea'} · ${f.created_at} · ${f.status}${who}`,
-      `id ${f.id} · install ${f.install_id} · ${c.screen ?? '?'} · ${c.os ?? '?'} ${c.osVersion ?? ''} · ${c.model ?? ''} · app ${c.runtimeVersion ?? '?'} (${c.channel ?? '?'}) · ${c.uiLanguage ?? '?'}${f.has_screenshot ? ` · screenshot: --shot ${f.id}` : ''}`,
+      [`id ${f.id}`, `install ${f.install_id}`, c.screen, [c.os, c.osVersion].filter(Boolean).join(' '), c.model,
+        `app ${c.runtimeVersion ?? '?'} (${c.channel ?? '?'})`, c.uiLanguage, f.has_screenshot ? `screenshot: --shot ${f.id}` : undefined]
+        .filter(Boolean).join(' · '),
       '',
       f.body,
       '',

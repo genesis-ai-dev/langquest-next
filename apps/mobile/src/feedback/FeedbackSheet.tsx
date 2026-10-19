@@ -18,9 +18,9 @@ import { failureMessage } from '../diagnostics/report';
 import { t } from '../i18n';
 import { lift } from '../ui/shadow';
 import { C, radius, space } from '../ui/theme';
-import { captureWindow, type Shot } from './capture';
+import { captureWindow } from './capture';
 import { adoptWaitingFeedback, sendFeedback } from './feedbackData';
-import { bodyPlaceholder, FEEDBACK_KINDS, feedbackReady, kindLabel, profileChoice, sentMessage, type FeedbackKind } from './feedbackModel';
+import { bodyPlaceholder, FEEDBACK_KINDS, feedbackReady, kindLabel, profileChoice, sentMessage, type FeedbackKind, type Shot } from './feedbackModel';
 
 /** Two frames: the dimming has gone from the screen before it is taken. */
 const afterPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
