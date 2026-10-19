@@ -128,7 +128,9 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   days, like records.
 - Writers: the projection pass (`projection`, every 5 minutes in the job
   container behind the dashboard Worker, decisions.md 140; every minute on
-  a local stack's Edge Function; `projection_large` is retired), the
+  a local stack's Edge Function; `projection_large` is retired; its numbers
+  include `peakRssMb` and `heapLimitMb`, and a run without a failure
+  names the language that raised its peak memory), the
   Worker's job tick (`job_starts`: jobs started, found running, switched
   off, or that could not start), push delivery
   (`push_delivery`, every minute: claimed, sent, no token, failed by cause,

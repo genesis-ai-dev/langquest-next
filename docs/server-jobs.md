@@ -122,7 +122,9 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   (`max_instances` 2), with Node's heap at 3 GiB. Under F the pass holds
   the fold and then builds the rows and lines from it, so measure the peak
   of fold plus cut on a Santhali-size fixture before F lands, and move to
-  `standard-2` (6 GiB) if the peak passes 3 GiB.
+  `standard-2` (6 GiB) if the peak passes 3 GiB. Every pass records its
+  peak resident memory, the heap's limit and the language that raised the
+  peak in its job run, so production gives the numbers before F does.
 - **Report inputs** (decision 141): each time the pass folds a language it
   stores what the language's report is made from (core `reportInputs`) in
   `language_report_inputs`, and the Durable Object renders the report for
@@ -216,7 +218,7 @@ What this plan takes from that one, under F:
 | A tail the pass skips cannot change the report inputs | `packages/core/test/quiet.test.ts` | in place |
 | The object renders stored inputs without folding, and folds a language without them | `apps/web/test/worker.test.ts` | in place |
 | A job is stale when its last success is older than two ticks plus slack | `diag.jobs()` (`npm run diag -- jobs`) | in place |
-| Peak heap of fold plus cut on the biggest language, against the instance's memory | a measurement recorded in `performance-audit.md`, repeated per release | with F |
+| Peak memory of every pass against the heap's limit, and the language that set it | the `projection` job run (`peakRssMb`, `heapLimitMb`, its language), `npm run diag -- jobs` | in place; F's fold plus cut shows in it |
 
 ## 8. Reverse if
 

@@ -23526,7 +23526,7 @@ var ProjectionFailed = class extends Error {
   streamId;
   name = "ProjectionFailed";
 };
-async function runProjections(service, scope2 = "all", counts = { orgs: 0, projected: 0 }) {
+async function runProjections(service, scope2 = "all", counts = { orgs: 0, projected: 0 }, projected) {
   const transport = new SupabaseTransport(service);
   const orgs = /* @__PURE__ */ new Map();
   async function orgState(orgId) {
@@ -23678,6 +23678,7 @@ async function runProjections(service, scope2 = "all", counts = { orgs: 0, proje
       }
       await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
       counts.projected += 1;
+      projected?.(snapshot.orgId, languageId);
     },
     async (orgId, streamId) => inScope2(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)) && !await skipQuiet(orgId, streamId),
     // The whole pass goes on past a language that fails, so the next waits only

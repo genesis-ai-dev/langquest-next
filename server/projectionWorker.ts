@@ -115,7 +115,9 @@ export class ProjectionFailed extends Error {
  * have passed, the language is folded and its snapshot written as before.
  */
 export async function runProjections(
-  service: SupabaseClient, scope: ProjectionScope = 'all', counts: ProjectionCounts = { orgs: 0, projected: 0 }
+  service: SupabaseClient, scope: ProjectionScope = 'all', counts: ProjectionCounts = { orgs: 0, projected: 0 },
+  /** Called as each language's projection is written, for what the caller measures per language (server/projections.ts). */
+  projected?: (orgId: string, streamId: string) => void
 ): Promise<{ languages: number; snapshots: number; quiet: number; failed: { orgId: string; streamId: string; error: unknown }[] }> {
   const transport = new SupabaseTransport(service);
   const orgs = new Map<string, { org: OrgState; seq: number }>();
@@ -269,6 +271,7 @@ export async function runProjections(
     }
     await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
     counts.projected += 1;
+    projected?.(snapshot.orgId, languageId);
   }, async (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId))
     && !(await skipQuiet(orgId, streamId)),
   // The whole pass goes on past a language that fails, so the next waits only
