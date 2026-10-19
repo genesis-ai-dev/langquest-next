@@ -34,7 +34,7 @@ export interface Env {
   V2_IMPORT_CONCURRENCY?: string;
   /** v2's publishable key, for reading v2 (secret, optional: `npm run secrets`). */
   V2_SUPABASE_ANON_KEY?: string;
-  /** A read-only login on v2's database, for people's names (secret, optional: scripts/v2-access.sh, `npm run secrets`). */
+  /** A read-only login on v2's database, for people's names (secret, optional: scripts/v2-access.sh, `npm run secrets`); without it they come over by id. */
   V2_DATABASE_URL?: string;
   /** The public key the app ships with; the connect page signs in with it (agent/connectPage.ts). */
   SUPABASE_ANON_KEY?: string;

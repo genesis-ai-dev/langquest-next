@@ -943,6 +943,16 @@ fold is let go once it is in the cache (`apps/web/worker/orgFolder.ts`). A
 language is recomputed when the UTC day turns (performance-audit-app.md
 V4). The limits are not yet measured against a real isolate.
 
+Amended (2026-10-19, Carl Sauder): a report no longer needs a fold here
+when the projection pass has stored the language's report inputs (141):
+the object renders the report from them and the organization stream, and
+folds only a language with none (before the pass first reaches it, or when
+the table cannot be read). The folds this entry describes now serve the
+access-token API (70) and that fallback. Reports lag the pass by up to its
+five minutes, and `asOf` says so when a language's stream has moved past
+its stored inputs; what an admin saves on the organization stream (a name,
+country or target) still shows at once with `?fresh=1`.
+
 ## 45. Merging to main ships Android to Google Play's internal testing track
 
 Date: 2026-09-30 · By: Caleb Koster · Status: accepted
@@ -1956,6 +1966,17 @@ only when something it shows changed, and the snapshot's age comes from the
 list the pass already read (performance-audit-app.md V2). Reverse if a
 skipped language's Inbox rows are found stale: take that type out of the
 set.
+
+Amended (2026-10-19, Carl Sauder): the pass runs for every language in the
+job container behind the dashboard Worker, every five minutes (140), and
+pg_cron on a hosted project schedules push delivery alone
+(`20261019110000_projection_pass_in_container.sql`). A local stack keeps the
+Edge pass every minute, scheduled by `scripts/local-db.mjs`, since wrangler
+dev fires no cron and the web UI tests wait for it. The pass also writes
+each language's report inputs (141), so a quiet tail must leave those alone
+too: it skips a language only when every new event is in
+`eventsThatCannotChangeReport`, the quiet list without recordings, cards and
+stored files, and moves the stored inputs' position with the mark.
 
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
@@ -3572,6 +3593,18 @@ earlier version stays. This replaces taking back by hiding, removing or
 out, a link's move, an organization admin dropped on the dashboard, and FIA
 guides no longer offered. A member who leaves a v2 project keeps their
 place here until an admin removes them.
+
+Amended (2026-10-19, Carl Sauder): the scheduled passes run in the job
+container behind the dashboard Worker (140), not GitHub Actions: every 15
+minutes from its job tick, and the whole read at 03:15 UTC, owed until a
+run starts with it, so a long pass never drops it. The switch is the
+Worker's `V2_IMPORT_ENABLED` var ("true" in production, as Caleb set the
+GitHub variable on 2026-10-14; "false" in preview). v2's key goes on the
+Worker with `npm run secrets`, and the job refuses to start without it;
+v2's read-only login is optional there as it was on GitHub, which never
+had it, so people come over by id until they sign in. `npm run v2` by
+hand and the board are unchanged; `scripts/v2-go-live.sh`, which gave the
+workflow its secrets, is gone.
 
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
@@ -5595,3 +5628,60 @@ than 12 GiB; then the same image goes to Cloud Run Jobs, the object keeping
 the trigger and the lock. Or if Workers Builds cannot build the image; then
 the deploy command builds and pushes it from a laptop, as the Workers are
 deployed off Workers Builds today.
+
+Amended (2026-10-19, Carl Sauder): steps two and three are built, in
+`docs/server-jobs.md`'s order, without waiting the couple of weeks it gave
+step one, at Carl's word. The job tick (`*/5 * * * *`, `jobsModel.ts`
+`jobsDue`) starts one pass for every language each time and the v2 import
+every 15 minutes, with its whole read at 03:15 UTC; the ten-minute cron
+keeps timings, grants and webhooks. Each job has its own object, time limit
+(45 minutes for the pass, 340 for the import) and container instance
+(`max_instances` 2); the tick leaves a `job_starts` run and each job its
+own (`projection`, `v2_import`; `projection_large` is retired). Hosted
+projects schedule only push delivery on pg_cron, and the Edge Function
+refuses the pass there (410); a local stack keeps the Edge pass every
+minute (68). The import's job needs `V2_SUPABASE_ANON_KEY` on the
+dashboard Worker, and uses `V2_DATABASE_URL` for people's names when it is
+there; `npm run secrets` now puts both there from `.env.production` (94).
+psql is the image's one system package, for those names.
+`v2-import.yml` is gone, and `scripts/workflows.test.ts` holds that no
+workflow holds a production key. The cutover has an order: run
+`npm run secrets -- production` before the merge, so the import's first
+tick in the container finds its key; `docs/server-jobs.md` section 5 has
+the steps.
+
+## 141. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
+
+Date: 2026-10-19 · By: Carl Sauder · Status: accepted
+
+Reason: the organization's Durable Object folded every language to answer
+Reports (44), in a 128 MB isolate that a Bible-size language does not fit
+(132), and folded every language again when the UTC day turned, because a
+report's windows (53 weeks, 90 days of progress, 35 of uploads, 13 months,
+the 14-day stuck alert) end today. `docs/server-jobs.md` makes the pass, on
+the job host that folds every language anyway (140), the one producer of
+per-language aggregates. A stored report would go stale at midnight for a
+language nobody touched, so the pass stores the report's inputs instead:
+core `reportInputs` extracts from the fold everything `languageReport`
+reads, keyed by day, week and month for all time and with nothing from the
+organization stream, and `renderLanguageReport` makes the report for any
+day from them; `languageReport` is the two composed, so every report test
+holds them equal, and a test holds inputs stored as JSON and rendered up to
+400 days later equal to a fold on that day. Two things are summarized where
+a list would grow: the upload log keeps only the days it can still show,
+and cards already stuck when extracted are a count, the oldest and their
+passages (two imported languages held 89,000, 7 MB a row). Rows live in
+`language_report_inputs` (service role only), written each time the pass
+folds a language; an upload is no longer quiet for the pass (68). The
+object renders from them, folding only a language with no row. Checked on
+the local database: 105 languages, every stored row renders the report a
+fold of the same events gives, today and 20 days on; the largest row was
+750 KB of text.
+Not chosen: storing the rendered report and refolding every language once
+a day (decision 40's way; a daily snapshot download per language, and stale
+figures between midnight and the next pass); a per-language people list
+(who may see a language comes from the organization stream, which the
+object folds itself, small).
+Reverse if: the object reads stored inputs often enough to cost more than
+the folds did, or the inputs of a language outgrow a few megabytes (then
+store them in pieces, as snapshots are, or summarize more of them).

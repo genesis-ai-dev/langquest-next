@@ -35,10 +35,13 @@ describe('job runner', () => {
     expect(jobEnv('projection', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'projection' } });
   });
 
-  it('runs the import only while it is switched on, and refuses it without v2\'s keys rather than import without names', () => {
+  it('runs the import only while it is switched on, refuses it without v2\'s key, and names people only with the read-only login', () => {
     expect(jobEnv('v2-import', { ...v2, V2_IMPORT_ENABLED: 'false' })).toEqual({ skip: 'disabled' });
     expect(jobEnv('v2-import', { ...v2, V2_IMPORT_ENABLED: undefined })).toEqual({ skip: 'disabled' });
-    expect(jobEnv('v2-import', { ...v2, V2_DATABASE_URL: undefined })).toEqual({ refuse: expect.stringContaining('V2_DATABASE_URL') });
+    expect(jobEnv('v2-import', { ...v2, V2_SUPABASE_ANON_KEY: undefined })).toEqual({ refuse: expect.stringContaining('V2_SUPABASE_ANON_KEY') });
+    // As on GitHub, which never had it: without the login, people come over by id until they sign in.
+    const unnamed = jobEnv('v2-import', { ...v2, V2_DATABASE_URL: undefined });
+    expect('env' in unnamed && unnamed.env).not.toHaveProperty('V2_DATABASE_URL');
     const ok = jobEnv('v2-import', v2);
     expect(ok).toEqual({ env: expect.objectContaining({
       API_URL: 'https://next.langquest.org', V2_SUPABASE_ANON_KEY: 'anon', V2_DATABASE_URL: 'postgres://ro',

@@ -126,9 +126,11 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   only through `public.diag_job_ingest`, which only the service role may
   call (`server/jobRuns.ts`; writing never fails or slows the job). Kept 90
   days, like records.
-- Writers: the projection pass (`projection`, every 5 minutes on the Edge;
-  `projection_large`, every 10 in the job container behind the dashboard
-  Worker, decisions.md 140), push delivery
+- Writers: the projection pass (`projection`, every 5 minutes in the job
+  container behind the dashboard Worker, decisions.md 140; every minute on
+  a local stack's Edge Function; `projection_large` is retired), the
+  Worker's job tick (`job_starts`: jobs started, found running, switched
+  off, or that could not start), push delivery
   (`push_delivery`, every minute: claimed, sent, no token, failed by cause,
   receipts), the v2 import (`v2_import`), the dashboard Worker's cron
   (`worker_cron`), webhook delivery per batch (`webhook_dispatch`), the

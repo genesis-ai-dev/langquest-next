@@ -1,22 +1,42 @@
 # Plan: the server's jobs, and where the heavy ones run
 
-Status: step one built (decision 140); the rest proposed · Carl Sauder, with Claude · 2026-10-16
+Status: steps one to three and the report inputs built (decisions 140, 141); F waits for the big-languages plan · Carl Sauder, with Claude · 2026-10-16, 2026-10-19
 
 Companion to `docs/big-languages-plan.md`, the phone side, whose option F
 (the server folds a language whole and cuts the snapshot by passage) is
 assumed here. Section 6 is what the two plans settle for each other.
 
-## 1. The jobs today
+## 1. The jobs
+
+Before this plan (2026-10-16):
 
 | Job | Host | Memory | Cadence | Trigger |
 | --- | --- | --- | --- | --- |
 | Projection pass, small languages (Inbox rows, listing, snapshots) | Edge Function `stream-projections` | 256 MB, 2 s CPU | 5 min | pg_cron → pg_net |
-| Projection pass, large languages | the job container behind the dashboard Worker (was `.github/workflows/projections.yml`, decision 103) | 4 GiB | 10 min | the Worker's cron |
-| v2 import | GitHub Actions `v2-import.yml` | 6 GB heap | 15 min, nightly whole | GitHub schedule |
+| Projection pass, large languages | GitHub Actions `projections.yml` (decision 103) | 6 GB heap | 10 min | GitHub schedule |
+| v2 import | GitHub Actions `v2-import.yml` | runner's heap | 15 min, nightly whole | GitHub schedule |
 | Push delivery | Edge Function | 256 MB | 1 min | pg_cron |
-| Reports and the agent API | Durable Object `OrgSnapshot` | 128 MB isolate (decision 132) | on request | HTTP |
+| Reports and the agent API | Durable Object `OrgSnapshot`, folding every language | 128 MB isolate (decision 132) | on request | HTTP |
 | Verse timings, grant cleanup, webhook catch-up | the Worker's cron | 128 MB | 10 min | the Worker's cron |
 | Inbox purge | pg_cron | in Postgres | daily | pg_cron |
+
+Now, on a hosted project (decisions 140, 141):
+
+| Job | Host | Memory | Cadence | Trigger |
+| --- | --- | --- | --- | --- |
+| Projection pass, every language (Inbox rows, listing, snapshots, report inputs) | job container `JobRunner` projection | 4 GiB | 5 min | the Worker's job tick |
+| v2 import | job container `JobRunner` v2-import | 4 GiB | 15 min, whole at 03:15 UTC | the Worker's job tick |
+| Push delivery | Edge Function `stream-projections` | 256 MB | 1 min | pg_cron |
+| Reports | Durable Object `OrgSnapshot`, rendering stored report inputs | 128 MB isolate | on request | HTTP |
+| The agent API | Durable Object `OrgSnapshot`, folding (until F) | 128 MB isolate | on request | HTTP |
+| Verse timings, grant cleanup, webhook catch-up | the Worker's cron | 128 MB | 10 min | the Worker's cron |
+| Inbox purge | pg_cron | in Postgres | daily | pg_cron |
+
+A local stack differs in one place: the Edge Function still runs the pass,
+every minute, for the languages it can fold (`scripts/local-db.mjs`),
+because `wrangler dev` fires no cron and the web UI tests wait for the
+pass. `npm run web:dev` runs the container when the job tick is fired by
+hand (`docs/cloudflare.md`).
 
 The same wall shows up three times. A language folds into one state
 object, a parsed object costs several times its text, and a Bible-size
@@ -67,55 +87,92 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
 ## 4. The shape
 
 - **One image**, `apps/web/jobs/Dockerfile`: Node 24 and one bundle per
-  job, built by `scripts/build-jobs.mjs` before every deploy and before
-  `wrangler dev`. The image installs nothing: the dependency tree is never
-  beside the service key. Each job is a bundle the object names as the
-  container's entrypoint, so the import is one more bundle later.
+  job (`projections.mjs`, `v2.mjs`), built by `scripts/build-jobs.mjs`
+  before every deploy and before `wrangler dev`. No npm package is
+  installed: the dependency tree is never beside the service key. Its one
+  system package is psql, which the import reads people's names with.
 - **One Durable Object per job**, `JobRunner` in `apps/web/worker/jobs.ts`,
   named by the job, driving the container through the object's own
   container API (`ctx.container`: `start`, `monitor`, `signal`), not the
   `@cloudflare/containers` class, which starts containers for requests and
   starts a short batch job twice. The object is the lock: a tick that finds
-  a run under way starts nothing. It hands the container the Worker's
-  `SUPABASE_URL` and service key as environment, nothing new to set. The
-  process writes its own `diag.job_runs` row, as it did on GitHub; the
-  object writes one only when the process died without the chance (killed,
-  out of memory, stopped at the time limit), so a dead run is never silent.
-  A pending `monitor` keeps the object in memory for up to 15 minutes, so
-  a longer run's exit can go unobserved; its own job run is then the record.
-- **The Worker's cron is the trigger.** It already fires every ten
-  minutes; the tick starts the job and does not wait for it. The
-  container's inactivity timeout and an alarm, both `JOB_TIME_LIMIT_MS`
-  (45 minutes), are the pass's time limit, as the workflow's 30 minutes
-  were: the alarm sends SIGTERM to a run still going.
-- **Instance type** `standard-1` (4 GiB) for now, with Node's heap at
-  3 GiB. Under F the pass holds the fold and then builds the rows and
-  lines from it, so measure the peak of fold plus cut on a Santhali-size
-  fixture before F lands, and move to `standard-2` (6 GiB) if the peak
-  passes 3 GiB.
+  a run under way starts nothing. What a job is, when it is due and what
+  its container is handed are pure functions in `jobsModel.ts`. The
+  process writes its own `diag.job_runs` row; the object writes one only
+  when the process died without the chance (killed, out of memory, stopped
+  at the time limit), so a dead run is never silent. A pending `monitor`
+  keeps the object in memory for up to 15 minutes, so a longer run's exit
+  can go unobserved; its own job run is then the record.
+- **The job tick is the trigger**, a second Worker cron, every five
+  minutes: the pass each time, the import every 15 minutes, and the
+  import's whole read at 03:15 UTC, owed until a run starts with it. The
+  tick never waits for a run, and leaves a `job_starts` run of what it
+  started, found running, found switched off or could not start. The
+  container's inactivity timeout and an alarm are each job's time limit
+  (45 minutes for the pass, 340 for the import, both under the platform's
+  six hours): the alarm sends SIGTERM to a run still going.
+- **What a container gets**: the Worker's `SUPABASE_URL` and service key,
+  and for the import the Worker's own address (`API_URL`, where files go),
+  v2's key (a Worker secret from `npm run secrets`), v2's read-only login
+  when it is there (for people's names; GitHub never had it, so without
+  it people come over by id) and its concurrency. The import runs only
+  while the Worker's `V2_IMPORT_ENABLED` is "true" and refuses to start
+  without v2's key.
+- **Instance type** `standard-1` (4 GiB) for both, one instance each
+  (`max_instances` 2), with Node's heap at 3 GiB. Under F the pass holds
+  the fold and then builds the rows and lines from it, so measure the peak
+  of fold plus cut on a Santhali-size fixture before F lands, and move to
+  `standard-2` (6 GiB) if the peak passes 3 GiB.
+- **Report inputs** (decision 141): each time the pass folds a language it
+  stores what the language's report is made from (core `reportInputs`) in
+  `language_report_inputs`, and the Durable Object renders the report for
+  the day from it (`renderLanguageReport`), folding only a language with
+  no stored inputs. They hold no date window and nothing from the
+  organization stream, so a report never goes stale at midnight and an
+  admin's saved name, country or target shows at once.
 - **Placement.** A container starts near where the cron fires, not near
   the database. The pass reads in pages of a thousand events, so the
   distance costs seconds per large language, not minutes.
 - **Cost**, rough, at list prices beside the Workers Paid plan ($5 a
-  month): the pass, two minutes every ten on 4 GiB, about $7 a month; the
-  import's nightly whole read, five hours on 6 GiB, about $20 at the high
-  end.
+  month): the pass, a minute or two every five on 4 GiB, about $10 a
+  month; the import's nightly whole read, up to five hours on 4 GiB, about
+  $15 at the high end. The import's uploads to the Worker are container
+  egress: free up to 1 TB a month, then $0.025 a GB.
 
 ## 5. Steps, in order with the big-languages plan
 
-| Order | Piece | Waits for |
+| Order | Piece | Status |
 | --- | --- | --- |
-| now, in parallel | **Step one: the large pass into the container, `projections.yml` gone** (decision 140, this branch) | nothing |
-| now, in parallel | E: rebase PR 120 and meet the big-languages plan's 4.1 conditions | nothing |
-| next | Step two: one pass for every language in the container, every 5 minutes; the Edge Function keeps push delivery only | step one proven for a couple of weeks |
-| next | Aggregates: the pass writes each language's progress, people and report inputs, versioned by `REPORT_VERSION`; the object reads them for reports and stops folding for them | step one |
-| any time after step one | Step three: the v2 import into the container, the last job out of GitHub: `psql` in the image, v2's two secrets onto the Worker through `scripts/secrets.mjs`, one nightly whole run proven before the workflow is disabled | step one |
-| last | F: the server cut, `LINES_VERSION`, `snapshots.state` off, the object reads the cut and a passage's rows | E merged, step two, aggregates |
+| 1 | Step one: the large pass into the container, `projections.yml` gone | built (140) |
+| 2 | Step two: one pass for every language in the container, every 5 minutes; pg_cron keeps push delivery only | built (140, amended 2026-10-19), without the couple of weeks of step one proven alone, at Carl's word |
+| 3 | Report inputs: the pass stores each language's, the object renders reports from them | built (141) |
+| 4 | Step three: the v2 import into the container, `v2-import.yml` gone | built (140, 94 amended); its cutover needs the order below |
+| in parallel | E: rebase PR 120 and meet the big-languages plan's 4.1 conditions | the big-languages plan |
+| last | F: the server cut, `LINES_VERSION`, `snapshots.state` off, the object reads the cut and a passage's rows | waits for E |
 
-E merging first puts the cut functions on `main`, so the fold-plus-cut
-measurement runs on the job host with real code during step two.
-Aggregates landing before F means F's change to the Durable Object is only
-the cut.
+**The import's cutover**, in this order, so GitHub's last run is the one
+before the container's first and the first finds its key:
+
+1. Optional, for people's names (GitHub's runs never had them):
+   `scripts/v2-access.sh`, which keeps v2's read-only login in
+   `.env.production` as `V2_DATABASE_URL`.
+2. `npm run secrets -- production`: puts `V2_SUPABASE_ANON_KEY` (already
+   in `.env.production`) and `V2_DATABASE_URL` when present on the
+   dashboard Worker, and runs the new schedule.
+3. Merge. The Supabase integration applies the migrations (the projection
+   job leaves pg_cron), Workers Builds deploys the Worker and the image,
+   and the job tick starts the pass within five minutes and the import
+   within fifteen. `npm run diag -- jobs` shows `projection`,
+   `v2_import` and `job_starts`.
+4. Afterwards, delete the GitHub secrets `V3_SERVICE_ROLE_KEY` and
+   `V2_SUPABASE_ANON_KEY` and the variables `V2_IMPORT_ENABLED` and
+   `V2_IMPORT_CONCURRENCY`: nothing reads them.
+
+A GitHub import run already going at the merge may overlap the
+container's first. Both name each event the same way
+(`v2:<project>:<fact>#<n>`, docs/v2-import.md) and the server takes an id
+once (decision 75), so the overlap repeats work and appends nothing twice.
+The pause between the two is at most one tick.
 
 ## 6. The seam with the big-languages plan
 
@@ -125,15 +182,17 @@ What that plan takes from this one (its section 2):
    reducer bumps and refolds from zero after a redaction fold whole and
    then cut. No streaming fold with spilled state.
 2. The pass is the one producer of per-language aggregates, versioned by
-   `REPORT_VERSION`. No server consumer, the Durable Object included,
-   folds a whole language once they exist.
+   `REPORT_VERSION`: the report inputs (decision 141). No server consumer
+   folds a whole language for a report; the agent view still does until F
+   gives it a passage's rows.
 3. Decision 3 stands: a phone folds the units it opens from its own log.
 
 What this plan takes from that one, under F:
 
 - The pass is the unit of work. The container runs one entry point and
-  holds no per-language assumption; `isLarge` and the 10 MB threshold go
-  with step two, and the cut lands inside `runProjections`.
+  holds no per-language assumption; `isLarge` and the 10 MB threshold
+  remain only for a local stack's Edge pass, and the cut lands inside
+  `runProjections`.
 - Fold plus cut sizes the instance (section 4).
 - A snapshot write under F carries the state, the pieces and the unit
   rows until `snapshots.state` stops being written: tens of megabytes
@@ -148,11 +207,15 @@ What this plan takes from that one, under F:
 
 | Holds | Where | Status |
 | --- | --- | --- |
-| No production job is scheduled in GitHub Actions (the allowlist shrinks to nothing with step three) | `scripts/workflows.test.ts` | step one |
-| The job container, its object and its migration are declared the same way for production and preview, one instance | `scripts/cloudflare-deploy.test.ts` | step one |
-| The image installs nothing | `scripts/cloudflare-deploy.test.ts` | step one |
-| A process killed, out of memory or stopped at the time limit leaves a job run | `apps/web/test/jobs.test.ts` | step one |
-| The job is stale when its last success is older than two ticks plus slack | `diag.jobs()` (`npm run diag -- jobs`) | in place |
+| No workflow holds a production key; the scheduled ones are the test runs | `scripts/workflows.test.ts` | in place |
+| The job container, its object, the job tick and the import's switch are declared for production and preview, one instance per job | `scripts/cloudflare-deploy.test.ts` | in place |
+| The image installs no npm package; psql is its one system package | `scripts/cloudflare-deploy.test.ts` | in place |
+| Which jobs a tick starts, what each container gets, and that a process killed, out of memory or stopped at the time limit leaves a job run | `apps/web/test/jobs.test.ts` | in place |
+| Hosted projects schedule only push delivery on pg_cron | `server/cronSmoke.sql`, `scripts/secrets.test.ts` | in place |
+| Stored report inputs, rendered on any later day, equal the report folded that day | `packages/core/test/reports.test.ts` | in place |
+| A tail the pass skips cannot change the report inputs | `packages/core/test/quiet.test.ts` | in place |
+| The object renders stored inputs without folding, and folds a language without them | `apps/web/test/worker.test.ts` | in place |
+| A job is stale when its last success is older than two ticks plus slack | `diag.jobs()` (`npm run diag -- jobs`) | in place |
 | Peak heap of fold plus cut on the biggest language, against the instance's memory | a measurement recorded in `performance-audit.md`, repeated per release | with F |
 
 ## 8. Reverse if
@@ -164,10 +227,7 @@ keeping the trigger and the lock.
 
 ## 9. Decision log
 
-- Decision 140 records step one and supersedes 103.
-- Step two amends 140 (one pass, one host) and 68 (the pass's cadence
-  and host).
-- Aggregates get an entry of their own: the pass as the one producer of
-  per-language aggregates, amending 44 (the object reads them).
-- Step three amends 94 (where the import runs).
+- Decision 140 records the job container, supersedes 103, and is amended
+  on 2026-10-19 for step two and the import; 68 and 94 are amended with it.
+- Decision 141 records the report inputs, and amends 44.
 - F's entry is the big-languages plan's (its section 6).

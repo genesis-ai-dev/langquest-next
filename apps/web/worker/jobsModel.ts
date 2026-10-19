@@ -99,17 +99,19 @@ export interface JobSettings {
 /**
  * The container's environment for a job, or why it must not start: the
  * import waits for its switch (Caleb's go-ahead, docs/v2-import.md) and
- * refuses to run without v2's keys rather than import without people's names.
+ * cannot read v2 without its key. v2's read-only login is optional, as it
+ * was on GitHub: without it people come over by id until they sign in.
  */
 export function jobEnv(key: JobKey, s: JobSettings): { env: Record<string, string> } | { skip: 'disabled' } | { refuse: string } {
   const env: Record<string, string> = { SUPABASE_URL: s.SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: s.SUPABASE_SERVICE_ROLE_KEY, LANGQUEST_JOB: key };
   if (key === 'projection') return { env };
   if (s.V2_IMPORT_ENABLED !== 'true') return { skip: 'disabled' };
-  const missing = (['API_URL', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL'] as const).filter((k) => !s[k]);
+  const missing = (['API_URL', 'V2_SUPABASE_ANON_KEY'] as const).filter((k) => !s[k]);
   if (missing.length) return { refuse: `v2 import: ${missing.join(', ')} not set on the Worker (npm run secrets)` };
   return {
     env: {
-      ...env, API_URL: s.API_URL!, V2_SUPABASE_ANON_KEY: s.V2_SUPABASE_ANON_KEY!, V2_DATABASE_URL: s.V2_DATABASE_URL!,
+      ...env, API_URL: s.API_URL!, V2_SUPABASE_ANON_KEY: s.V2_SUPABASE_ANON_KEY!,
+      ...(s.V2_DATABASE_URL ? { V2_DATABASE_URL: s.V2_DATABASE_URL } : {}),
       // Logs carry ids only, as on CI; the run is the schedule's, not a person's.
       CI: 'true', V2_IMPORT_BY: 'the scheduled sync', V2_IMPORT_CONCURRENCY: s.V2_IMPORT_CONCURRENCY || '8'
     }

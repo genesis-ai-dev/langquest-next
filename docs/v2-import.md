@@ -209,12 +209,15 @@ the rest.
   file names) never download it again.
 - **Where it runs.** The dashboard runs a transfer on the computer it is
   open on; `npm run v2 -- sync` does one pass from the command line; and
-  `.github/workflows/v2-import.yml` runs a pass every 15 minutes and a
-  whole read every night against production, once Caleb sets the
-  repository variable `V2_IMPORT_ENABLED` (and its two secrets), never
-  before. All three write the same progress and log. A pass that stops is
-  finished by the next. CI logs name projects by id only, since the
-  repository is public.
+  the job container behind the dashboard Worker runs a pass every 15
+  minutes and a whole read at 03:15 UTC against production (decisions.md
+  94, 140; `docs/server-jobs.md`), while the Worker's var
+  `V2_IMPORT_ENABLED` is "true" (Caleb's go-ahead, given 2026-10-14) and
+  v2's key is a Worker secret (`npm run secrets`); it refuses to start
+  without it. v2's read-only login, when `.env.production` has it, goes
+  there too and names people.
+  All three write the same progress and log. A pass that stops is finished
+  by the next. The job's logs name projects by id only, as CI's did.
 - **How much audio.** Measured on 2026-10-12 from v2's `storage.objects`
   (`metadata->>'size'`): the `assets` bucket holds 808,198 files, 232 GB
   (215 GB WAV, 12 GB m4a, 300 kB on average). Live recordings name
@@ -287,16 +290,19 @@ In order; each step is safe to stop after.
 2. **Names (optional, once):** `scripts/v2-access.sh` adds `v2_reader` to
    v2's production database, a login that may read each person's id,
    username and email and nothing else, and keeps its address encrypted in
-   `.env.production`. The scheduled sync needs it to name people. The
+   `.env.production`; `npm run secrets -- production` puts it on the
+   dashboard Worker. The scheduled sync needs it to name people. The
    dashboard shows each project's people with their usernames and emails
    through it, or else through the Supabase CLI you are logged in with
    (read only, on your machine); with neither, people show by id until
    they sign in.
 3. **Keys and the switch:** `npm run env:update -- production
    V2_SUPABASE_ANON_KEY` (v2's publishable key), then
-   `scripts/v2-go-live.sh`, which gives the workflow its secrets, puts v2's
-   key in the Edge Function (`npm run secrets -- production`) and, when
-   asked, sets `V2_IMPORT_ENABLED`.
+   `npm run secrets -- production`, which puts it in the Edge Function and
+   on the dashboard Worker. The scheduled sync runs while the Worker's var
+   `V2_IMPORT_ENABLED` in `apps/web/wrangler.jsonc` is "true" (decision
+   140); until 2026-10-19 the switch and keys were GitHub's, set by
+   `scripts/v2-go-live.sh`, now gone.
 4. **Place and transfer:** `npm run v2 -- board --production`. Drag
    projects into organizations, choose the languages the suggestions are
    not sure of, and press Transfer; or confirm them and let the scheduled

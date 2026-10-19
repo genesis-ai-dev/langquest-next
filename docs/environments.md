@@ -60,11 +60,11 @@ declares:
 
 | Destination | Gets |
 | --- | --- |
-| dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY` and `WEBHOOK_POKE_SECRET` when the file has them. Its job container gets `SUPABASE_URL` and the key from the Worker at each start (`docs/server-jobs.md`) |
+| dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too (`docs/server-jobs.md`) |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PROJECTION_WORKER_SECRET`, `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_projection_worker_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the dashboard Worker's route) |
-| pg_cron | the projection and push-delivery jobs: their migration (`20261007200001_schedule_push_delivery.sql`) schedules them only where Vault already has the secrets, so this runs that migration again |
+| pg_cron | the push-delivery job: its migration (`20261019110000_projection_pass_in_container.sql`) schedules it only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
 
 Worker secrets stay on the Worker across deploys, and wrangler refuses a
 deploy while one in `secrets.required` is missing, so a forgotten secret
