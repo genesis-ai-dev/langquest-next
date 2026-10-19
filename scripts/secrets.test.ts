@@ -45,11 +45,22 @@ describe('secrets', () => {
     expect(destinations('production', values, 'ref', 'k').functions).not.toHaveProperty('V2_SUPABASE_ANON_KEY');
   });
 
-  it('writes the Vault names the projection cron job reads', () => {
+  it('writes the Vault names the push delivery job reads, and the schedule leaves the pass off pg_cron', () => {
     const sql = read(SCHEDULE_MIGRATION);
     const { vault } = destinations('preview', values, 'abc', 'k');
     for (const name of Object.keys(vault)) expect(sql).toMatch(new RegExp(`name\\s*=\\s*'${name}'`));
     expect(vault.langquest_project_url).toBe('https://abc.supabase.co');
+    // Why: hosted projects run the pass in the Worker's job container (decisions.md 141);
+    // a pg_cron pass as well would run it twice, racing the container's writes.
+    expect(sql).toMatch(/cron\.unschedule[\s\S]*'langquest-stream-projections'/);
+    expect(sql).not.toMatch(/cron\.schedule\(\s*'langquest-stream-projections'/);
+  });
+
+  it('gives the dashboard Worker v2\'s keys for the import\'s job, only when the file has them', () => {
+    const wanted = destinations('production', { ...values, V2_SUPABASE_ANON_KEY: 'v2', V2_DATABASE_URL: 'postgres://ro' }, 'ref', 'k');
+    expect(wanted.workers.dashboard).toMatchObject({ V2_SUPABASE_ANON_KEY: 'v2', V2_DATABASE_URL: 'postgres://ro' });
+    expect(Object.keys(destinations('production', values, 'ref', 'k').workers.dashboard)).not.toContain('V2_DATABASE_URL');
+    expect(OPTIONAL_KEYS).toContain('V2_DATABASE_URL');
   });
 
   it('gives the webhook poke one secret at both ends and the Worker\'s own address, only when the file has it', () => {

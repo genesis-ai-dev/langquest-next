@@ -160,9 +160,9 @@ begin
     '{"claimed": 3, "sent": 2.6, "note": "free text", "bad key!": 1, "nested": {"a": 1}}'::jsonb,
     'canceling statement due to statement timeout', 'dg_org', null);
   perform set_config('dg.job_a', v_id::text, false);
-  v_id := public.diag_job_ingest('projection_large', now() - interval '3 hours', 9000, 'ok', '{"projected": 1}', null, null, null);
+  v_id := public.diag_job_ingest('projection', now() - interval '3 hours', 9000, 'ok', '{"projected": 1}', null, null, null);
   perform set_config('dg.job_c', v_id::text, false);
-  v_id := public.diag_job_ingest('projection_large', now() - interval '1 minute', 4000, 'error',
+  v_id := public.diag_job_ingest('projection', now() - interval '1 minute', 4000, 'error',
     '{"projected": 0, "failed": 1}', 'DbError:57014', 'dg_org', 'dg_lang');
   perform set_config('dg.job_b', v_id::text, false);
   begin
@@ -231,17 +231,17 @@ begin
     raise exception 'inbox_health: %', v;
   end if;
   perform * from diag.v2_import_status();
-  perform * from diag.job_history('projection_large');
+  perform * from diag.job_history('projection');
   perform * from diag.job_runs;
   select * into r from diag.jobs() j where j.job = 'push_delivery';
   if r.runs < 1 or r.stale or (r.totals->>'claimed')::int < 3 then raise exception 'jobs push_delivery: %', to_jsonb(r); end if;
-  select * into r from diag.jobs() j where j.job = 'projection_large';
+  select * into r from diag.jobs() j where j.job = 'projection';
   if r.last_outcome <> 'error' or r.last_error_class <> 'DbError:57014' or r.streak < 1 then
-    raise exception 'jobs projection_large: %', to_jsonb(r);
+    raise exception 'jobs projection: %', to_jsonb(r);
   end if;
-  -- Its last good run is three hours old against a ten-minute schedule; a
-  -- real large pass in this database in the last hour would make it fresh.
-  if not r.stale and r.last_ok_at < now() - interval '1 hour' then raise exception 'projection_large should be stale: %', to_jsonb(r); end if;
+  -- Its last good run is three hours old against a five-minute schedule; a
+  -- real pass in this database in the last hour would make it fresh.
+  if not r.stale and r.last_ok_at < now() - interval '1 hour' then raise exception 'projection should be stale: %', to_jsonb(r); end if;
   begin
     perform diag.job_ingest('projection', now(), 1, 'ok');
     raise exception 'diag_reader should not write a job run';
