@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, onlyQuietEvents, ORG_STREAM, orgLicense, PERSON_ORG,
-  REDUCER_VERSION, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
+import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, onlyEventsThatLeaveTheReport, ORG_STREAM, orgLicense, PERSON_ORG,
+  REDUCER_VERSION, REPORT_VERSION, reportInputs, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
 import { runSnapshotWorker, shouldWriteSnapshot, SNAPSHOT_SCHEDULE } from '../packages/sync/src/snapshotWorker';
 import { SupabaseTransport } from '../packages/sync/src/supabaseTransport';
 import { listStreams } from '../packages/sync/src/listStreams';
@@ -33,9 +33,10 @@ const UPDATE_TITLES: Record<Update['kind'], string> = {
 /**
  * Bump the number when what a pass writes changes (a title above, a listing
  * column), so the next pass redoes every language rather than skipping
- * the unchanged ones. A new reducer does the same.
+ * the unchanged ones. A new reducer or report version does the same: 2 added
+ * the report inputs (decisions.md 141), so every language gets them once.
  */
-const PROJECTION_VERSION = `${REDUCER_VERSION}:1`;
+const PROJECTION_VERSION = `${REDUCER_VERSION}:${REPORT_VERSION}:2`;
 
 /**
  * Languages too big for the Edge Function (decisions.md 103). A run there
@@ -196,8 +197,13 @@ export async function runProjections(
     if (shouldWriteSnapshot({ existing: true, newEvents: head - snap.seq, redaction: false, ageMs })) return false;
     try {
       const tail = await transport.pull(orgId, streamId, Number(m.seq), 1000);
-      if (tail.length === 0 || !onlyQuietEvents(tail)) return false;
-      await mark(orgId, streamId, tail[tail.length - 1]!.serverSeq!, Number(m.org_seq), m.listed);
+      // Quiet for the report too (decisions.md 141): an upload changes the report, so it is folded.
+      if (tail.length === 0 || !onlyEventsThatLeaveTheReport(tail)) return false;
+      const seq = tail[tail.length - 1]!.serverSeq!;
+      // The stored report inputs hold for the tail too; saying so keeps Reports from calling them old.
+      check(await service.from('language_report_inputs').update({ seq, updated_at: new Date().toISOString() })
+        .eq('org_id', orgId).eq('language_id', streamId).eq('report_version', REPORT_VERSION), 'language_report_inputs');
+      await mark(orgId, streamId, seq, Number(m.org_seq), m.listed);
     } catch {
       return false;
     }
@@ -238,6 +244,11 @@ export async function runProjections(
     check(await service.rpc('reconcile_notifications', {
       p_org: snapshot.orgId, p_language: languageId, p_rows: notifications
     }), 'reconcile_notifications');
+    // What the language's report is made from, for the dashboard's server to render (decisions.md 141).
+    check(await service.from('language_report_inputs').upsert({
+      org_id: snapshot.orgId, language_id: languageId, seq: snapshot.serverSeq, report_version: REPORT_VERSION,
+      inputs: reportInputs(state, Date.now(), idx), updated_at: new Date().toISOString()
+    }), 'language_report_inputs');
     const isListed = listed.has(streamKey(snapshot.orgId, languageId));
     const info = languageInfo(org, languageId);
     if (isListed && info) {

@@ -1,6 +1,6 @@
 import {
   emptyLanguageState, emptyOrgState, foldLanguage, foldOrg, languageInfo, languageReport, mayViewLanguage, ORG_STREAM, orgLanguages,
-  REDUCER_VERSION, REPORT_VERSION, type AnyEvent, type LanguageReport, type LanguageState, type OrgState
+  REDUCER_VERSION, renderLanguageReport, REPORT_VERSION, type AnyEvent, type LanguageReport, type LanguageState, type OrgState, type ReportInputs
 } from '@langquest-next/core';
 import { fetchSnapshot, type Transport } from '@langquest-next/sync';
 import type { OrgReportsResponse } from '@langquest-next/core';
@@ -13,7 +13,19 @@ export type Source = Pick<Transport, 'pull' | 'snapshotMeta' | 'snapshotChunk'> 
    * stream's tail to find out whether it moved.
    */
   heads?(orgId: string): Promise<Record<string, number>>;
+  /**
+   * The report inputs the projection pass stored for this REPORT_VERSION
+   * (`language_report_inputs`, decisions.md 141): each language's stream
+   * position and when they were written, in one query. Optional: without
+   * it, or for a language it does not list, the report is folded.
+   */
+  reportHeads?(orgId: string): Promise<Record<string, StoredInputs>>;
+  /** One language's stored report inputs, or null when there are none for this REPORT_VERSION. */
+  reportInputs?(orgId: string, languageId: string): Promise<(StoredInputs & { inputs: ReportInputs }) | null>;
 };
+
+/** Where a language's stored report inputs stand: the stream position they were extracted at, and when (ms). */
+export interface StoredInputs { seq: number; at: number }
 
 /**
  * Text the folder keeps across evictions: the object's own SQLite in
@@ -79,6 +91,10 @@ interface Summary {
   report: LanguageReport | null;
   /** Serialized size of the fold when the summary was made; decides whether a pass refreshes the language alone. Absent in summaries written before it existed (treated as large). */
   bytes?: number;
+  /** Rendered from the inputs the projection pass stored, not from a fold here; `cursor` is the inputs' stream position. */
+  fromInputs?: true;
+  /** How current the report is (ms): the inputs' writing when the stream has moved past them. Absent: as of the pass. */
+  asOf?: number;
 }
 
 const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
@@ -134,12 +150,17 @@ export class OrgFolder {
     await this.refresh(fresh);
     const org = this.org!.state;
     const rows: OrgReportsResponse['rows'] = [];
+    // The oldest figures shown: a report rendered from inputs the stream has since passed is as of their writing.
+    let asOf = this.refreshedAt;
     for (const { languageId } of orgLanguages(org)) {
-      const report = this.summaries.get(languageId)?.report;
-      if (report && mayViewLanguage(org, profileId, languageId)) rows.push({ languageId, report });
+      const summary = this.summaries.get(languageId);
+      if (summary?.report && mayViewLanguage(org, profileId, languageId)) {
+        rows.push({ languageId, report: summary.report });
+        asOf = Math.min(asOf, summary.asOf ?? this.refreshedAt);
+      }
     }
     if (rows.length === 0 && !this.knows(profileId)) return null;
-    return { rows, asOf: new Date(this.refreshedAt).toISOString() };
+    return { rows, asOf: new Date(asOf).toISOString() };
   }
 
   /** Is this person in the organization at all (any membership, active or not)? */
@@ -226,7 +247,10 @@ export class OrgFolder {
       const restored = await this.restoreSummary(id);
       if (restored) this.summaries.set(id, restored);
     }
-    const run = (id: string) => this.refreshLanguage(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt);
+    // What the projection pass stored (decisions.md 141). Before its table
+    // exists, or when the read fails, every language is folded as before.
+    const stored = this.source.reportHeads ? await this.source.reportHeads(this.orgId).catch(() => null) : null;
+    const run = (id: string) => this.refreshLanguage(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt, stored?.[id]);
     let batch: string[] = [];
     const flush = async () => {
       const now = batch;
@@ -234,7 +258,8 @@ export class OrgFolder {
       await Promise.all(now.map(run));
     };
     for (const id of ids) {
-      if (this.isLarge(id)) {
+      // Rendering stored inputs folds nothing, so it never needs to run alone.
+      if (!stored?.[id] && this.isLarge(id)) {
         await flush();
         await run(id);
       } else {
@@ -251,13 +276,37 @@ export class OrgFolder {
     return bytes === undefined || bytes >= this.largeState;
   }
 
-  /** Bring one language's summary up to date, folding only when it moved, the day turned or the organization changed. */
-  private async refreshLanguage(id: string, head: number | undefined, day: string, at: number): Promise<void> {
+  /**
+   * Bring one language's summary up to date. With inputs the projection pass
+   * stored, render the report from them (decisions.md 141), reading them
+   * again only when they moved, the day turned or the organization changed;
+   * otherwise fold, only when the language moved, the day turned or the
+   * organization changed.
+   */
+  private async refreshLanguage(id: string, head: number | undefined, day: string, at: number, stored?: StoredInputs): Promise<void> {
     const org = this.org!;
     const summary = this.summaries.get(id) ?? (await this.restoreSummary(id));
     if (summary) this.summaries.set(id, summary);
+    if (stored && this.source.reportInputs) {
+      const asOf = (s: StoredInputs) => (head !== undefined && s.seq >= head ? at : s.at);
+      if (summary?.fromInputs && summary.day === day && summary.orgCursor === org.cursor && summary.cursor === stored.seq) {
+        summary.asOf = asOf(stored);
+        return;
+      }
+      const read = await this.source.reportInputs(this.orgId, id);
+      if (read) {
+        const info = languageInfo(org.state, id);
+        const next: Summary = {
+          cursor: read.seq, orgCursor: org.cursor, day, report: info ? renderLanguageReport(read.inputs, info, at) : null,
+          fromInputs: true, asOf: asOf(read)
+        };
+        this.summaries.set(id, next);
+        await this.cache.put(`summary:${id}`, JSON.stringify({ v: REDUCER_VERSION, rv: REPORT_VERSION, ...next }));
+        return;
+      }
+    }
     let peeked: AnyEvent[] | undefined;
-    if (summary && summary.day === day && summary.orgCursor === org.cursor) {
+    if (summary && !summary.fromInputs && summary.day === day && summary.orgCursor === org.cursor) {
       if (head !== undefined && head <= summary.cursor) return;
       if (head === undefined) {
         peeked = await this.pullAll(id, summary.cursor);
