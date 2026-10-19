@@ -31,7 +31,13 @@ export interface BibleDetail extends BibleSummary {
   offline: { text: boolean; audio: boolean };
 }
 
-export interface BibleLanguage { code: string; name: string; autonym?: string; bibles: number }
+export interface BibleLanguage {
+  code: string;
+  name: string;
+  autonym?: string;
+  /** Bible Brain's own count, which takes in Bibles our key cannot open: for order only (useBibleBrainBibles counts what opens). */
+  bibles: number;
+}
 interface AudioLink { url: string; durationMs?: number; bytes?: number; expiresAt: string; offline: boolean }
 type VerseText = [number, number, string];
 

@@ -3076,6 +3076,18 @@ becomes a pick-many and `bestGuide` ranks the team's languages), or teams
 want another language's guide where theirs has none (then `chosenOnly`
 keeps the rest of the set as a fallback).
 
+Amended (2026-10-19, Caleb Koster): a language's Bibles on the reference
+language page are every Bible the team could add, not only the library's.
+Caleb asked why English showed 5 Bibles and other languages 1 when Bible
+Brain has more: the page counted only LangQuest's seeded sources. It now
+adds Bible Brain's Bibles in that language that the library does not have
+(`biblesFor`, each edition counted once; English 21, French 6, Portuguese
+12). Wherever a language shows a Bible count from Bible Brain (Add a
+Bible's chips, the translator's More Bibles), the count is the length of
+the list that opens for it (`useBibleBrainBibles`), because Bible Brain's
+language search counts Bibles our key cannot open (English 51, of which
+20 open); its number is kept for order only.
+
 ## 85. The passage list pages, picks passages by id, and includes any part of one passage
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted

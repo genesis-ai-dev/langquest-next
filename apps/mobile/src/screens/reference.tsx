@@ -57,6 +57,7 @@ import { DashedBtn } from '../recording/blocks';
 import { useBible } from '../helps/useBible';
 import { contractsFor } from '../shell/screenContracts';
 import { bibleErrorText } from '../sources/bibleBrain';
+import { useBibleBrainBibles } from '../sources/useBibleBrainBibles';
 import { space, TINT } from '../ui/theme';
 
 const STEP = 25;
@@ -193,6 +194,8 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   const [bibles, setBibles] = useState<BibleSummary[] | null>(null);
   const [picked, setPicked] = useState<BibleDetail | null>(null);
   const [error, setError] = useState('');
+  // Each chip counts the Bibles that open when it is tapped, once Bible Brain says (useBibleBrainBibles).
+  const opens = useBibleBrainBibles(languages.slice(0, 8).map((l) => l.code));
 
   useEffect(() => {
     if (tab !== 'biblebrain' || !bibleSearchAvailable) return;
@@ -302,7 +305,7 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
                 <ChipRow>
                   {languages.slice(0, 8).map((l) => (
                     <HelpRow key={l.code} of="reference.bibleLanguage">
-                      <Chip label={`${l.name} · ${l.code}`} count={l.bibles} on={l.code === lang} help={t('reference.addBible.languageHelp')} onPress={() => setLang(l.code)} />
+                      <Chip label={`${l.name} · ${l.code}`} count={opens.get(l.code)?.length} on={l.code === lang} help={t('reference.addBible.languageHelp')} onPress={() => setLang(l.code)} />
                     </HelpRow>
                   ))}
                 </ChipRow>

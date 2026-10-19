@@ -26,6 +26,7 @@ import { bibleErrorText, type BibleDetail, type BibleLanguage, type BibleSummary
 import { offersFor, offlineAllowed, refText, type SourceOption } from '../sources/model';
 import { SourceView } from '../sources/SourceReader';
 import { bibleBrain, type MyBible } from '../sources/store';
+import { useBibleBrainBibles } from '../sources/useBibleBrainBibles';
 import { useMyBibles } from '../sources/useMyBibles';
 import { C, space } from '../ui/theme';
 
@@ -82,6 +83,9 @@ export function BibleExplore(ctx: Ctx) {
     return () => { live = false; clearTimeout(timer); };
   }, [query]);
 
+  // Each language counts the Bibles that open when it is tapped, once Bible Brain says (useBibleBrainBibles).
+  const opens = useBibleBrainBibles((languages ?? []).slice(0, 30).map((l) => l.code));
+
   // Sources in this organization's library, to choose one nobody recommended.
   const libraryItemsList = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material').filter((i) => i.current && !i.archived), [ctx.org.state]);
   const docs = useLibraryDocs(ctx.language.orgId, libraryItemsList.map((i) => i.current));
@@ -113,7 +117,7 @@ export function BibleExplore(ctx: Ctx) {
               {languages.length === 0 ? <Row label={t('sources.explore.noLanguages')} sub={problem || t('sources.explore.noLanguagesSub')} last /> : null}
               {languages.slice(0, 30).map((l, i, all) => (
                 <HelpRow key={l.code} of="sources.language">
-                  <Row label={l.autonym && l.autonym !== l.name ? `${l.name} · ${l.autonym}` : l.name} sub={t('sources.explore.languageBibles', { code: l.code, count: l.bibles })}
+                  <Row label={l.autonym && l.autonym !== l.name ? `${l.name} · ${l.autonym}` : l.name} sub={opens.has(l.code) ? t('sources.explore.languageBibles', { code: l.code, count: opens.get(l.code)!.length }) : l.code}
                     help={t('sources.explore.languageHelp')} onPress={() => { setLang({ code: l.code, name: l.name }); setQuery(''); }} last={i === all.length - 1} />
                 </HelpRow>
               ))}

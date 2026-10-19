@@ -3,6 +3,8 @@
 // asks it first. Each language says what is there to read in it (a guide
 // set's passages, Bibles, other guides), so the admin sees the gaps before
 // choosing; any other language can be found in the language list (online).
+// Its Bibles are every one the team could add: the library's and Bible
+// Brain's (`biblesFor`), as Add a Bible lists them.
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -16,14 +18,15 @@ import { useLanguoidSearch } from '../org/useLanguoids';
 import { Question, QuietLink, RadioRow } from '../admin/admin';
 import { guideShortName, joinAnd, languageLabel } from '../admin/adminModel';
 import { C, radius, space, type as T } from '../ui/theme';
-import type { LanguageChoice } from './languageChoices';
-import { readerLanguage, sameLanguage } from './languages';
+import { useBibleBrainBibles } from '../sources/useBibleBrainBibles';
+import { biblesFor, type LanguageChoice } from './languageChoices';
+import { readerLanguage, sameCodes, sameLanguage } from './languages';
 
-/** "FIA guides for 294 passages · 2 Bibles", or that nothing is in it yet. */
-function whatIsThere(c: LanguageChoice): string {
+/** "FIA guides for 294 passages · 21 Bibles", or that nothing is in it yet. */
+function whatIsThere(c: LanguageChoice, bibles: number): string {
   const parts = [
     ...c.sets.map((s) => t('referenceLanguage.setPassages', { name: guideShortName(s.name), count: s.passages })),
-    ...(c.bibles ? [t('referenceLanguage.bibles', { count: c.bibles })] : []),
+    ...(bibles ? [t('referenceLanguage.bibles', { count: bibles })] : []),
     ...(c.other ? [t('referenceLanguage.otherGuides', { count: c.other })] : [])
   ];
   return parts.length ? parts.join(' · ') : t('referenceLanguage.nothing');
@@ -48,6 +51,7 @@ export function ReferenceLanguagePage(props: {
   // A language found by search keeps the list's name for it, for codes the app has no name for.
   const [found, setFound] = useState<Record<string, string>>({});
   const search = useLanguoidSearch(q, searching);
+  const bibleBrain = useBibleBrainBibles(props.choices.flatMap((c) => sameCodes(c.language)));
   const label = (code: string) => found[code] ?? languageLabel(code);
   const lead = props.first ? props.choices.filter((c) => props.first!.some((f) => sameLanguage(c.language, f))) : [];
   const ordered = [...lead, ...props.choices.filter((c) => !lead.includes(c))];
@@ -64,7 +68,7 @@ export function ReferenceLanguagePage(props: {
         <HelpRow key={c.language} of="referenceLanguage.language">
           <RadioRow icon="globe" label={label(c.language)} on={on(c.language)} onPress={() => toggle(c.language)} subLines={4} many
             help={t('referenceLanguage.rowHelp')}
-            sub={[whatIsThere(c), sameLanguage(c.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
+            sub={[whatIsThere(c, biblesFor(c, bibleBrain)), sameLanguage(c.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
         </HelpRow>
       ))}
       {props.loading ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('common.loading')}</Text> : null}
