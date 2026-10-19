@@ -56,7 +56,7 @@ export function searchListedOrganizations(query: string) {
  * person signed in, or under a session kept for someone who handed this
  * phone on (handOver.ts). A refusal the server will repeat is permanent.
  */
-export async function deliverAccountAction(actorId: string, action: AccountAction): Promise<void> {
+export async function deliverAccountAction(actorId: string, action: AccountAction, screenshot: string | null = null): Promise<void> {
   const { data } = await supabase.auth.getSession();
   const client = data.session?.user.id === actorId ? supabase : sendingAs(actorId);
   if (!client) {
@@ -79,9 +79,15 @@ export async function deliverAccountAction(actorId: string, action: AccountActio
         })
         : action.kind === 'block'
           ? await client.rpc('set_blocked', { p_profile: p.profileId, p_blocked: p.blocked })
-          : await client.rpc('record_user_event', {
-            p_id: action.id, p_type: p.type, p_payload: p.payload
-          });
+          : action.kind === 'feedback'
+            // Feedback from help mode (decisions.md 141): the server reads the name and email itself, if shared.
+            ? await client.rpc('feedback_submit', {
+              p_id: action.id, p_kind: p.kind, p_body: p.body, p_install: p.installId, p_context: p.context ?? {},
+              p_share_profile: p.shareProfile === true, p_screenshot: screenshot
+            })
+            : await client.rpc('record_user_event', {
+              p_id: action.id, p_type: p.type, p_payload: p.payload
+            });
   if (error) {
     const permanent = ['22023', '42501', '23514'].includes(error.code);
     throw new DeliveryError(error.message, !permanent, error.code || undefined);

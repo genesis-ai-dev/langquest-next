@@ -48,8 +48,12 @@ export async function setDiagnosticsEnabled(on: boolean): Promise<void> {
   await saveDiagnosticsOn(await getStore(), diagnostics, lazyStore, on);
 }
 
-/** The phone and build, as the allowlist permits. The install id is the event envelope's deviceId. */
-async function context(): Promise<DiagContext> {
+/**
+ * The phone and build, as the allowlist permits. The install id is the event
+ * envelope's deviceId. Feedback carries it too, so support can open the
+ * same install's diagnostics (feedback/feedbackData.ts).
+ */
+export async function phoneContext(): Promise<DiagContext> {
   const installId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
   const c = Platform.constants as { Model?: string; Release?: string; osVersion?: string };
   return sanitizeContext({
@@ -137,7 +141,7 @@ export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsW
     n.diagQueued = await diagnostics.pendingCount();
     n.diagDropped = diagnostics.takeDropped();
     diagnostics.record('device', { n });
-    const ctx = await context();
+    const ctx = await phoneContext();
     await diagnostics.flush(async (records) => {
       const { error } = await ingestDiagnostics(ctx, records);
       if (error) throw new Error(error.message);

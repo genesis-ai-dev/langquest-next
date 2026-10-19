@@ -3044,7 +3044,8 @@
         "report": "Laporan",
         "block": "Blokir",
         "unblock": "Buka blokir",
-        "onboarding": "Pengenalan"
+        "onboarding": "Pengenalan",
+        "feedback": "Masukan"
       },
       "failedSub": "{{reason}} · Ketuk untuk mencoba lagi",
       "waiting": "Menunggu dikirim",
@@ -6850,5 +6851,35 @@
     "help": "Tersimpan selagi Anda bekerja: lingkaran berputar saat sedang disimpan, lalu centang. Tidak perlu menyimpan apa pun.",
     "failed": "Tidak tersimpan",
     "saved": "Tersimpan"
+  },
+  "feedback": {
+    "open": "Kirim masukan",
+    "title": "Masukan",
+    "send": "Kirim",
+    "kind": {
+      "bug": "Ada yang salah",
+      "idea": "Sebuah ide"
+    },
+    "placeholder": {
+      "bug": "Apa yang terjadi?",
+      "idea": "Apa yang akan membantu?"
+    },
+    "addScreenshot": "Tambahkan tangkapan layar ini",
+    "addNameAndEmail": "Tambahkan nama dan email saya",
+    "addNameAndSignIn": "Tambahkan nama dan nama pengguna saya",
+    "addName": "Tambahkan nama saya",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "Masalah: ada yang rusak, macet, atau terlihat salah.",
+      "idea": "Ide: sesuatu yang membuat LangQuest lebih baik untuk Anda.",
+      "body": "Katakan dengan kata-kata Anda sendiri, dalam bahasa apa pun.",
+      "screenshot": "Mengirim gambar layar tempat Anda berada. Mati sampai Anda menyalakannya.",
+      "profile": "Mengirim nama Anda dan cara Anda masuk, agar tim LangQuest tahu siapa yang menulis. Mati sampai Anda menyalakannya."
+    },
+    "toast": {
+      "sent": "Terkirim. Terima kasih!",
+      "saved": "Tersimpan. Dikirim saat Anda terhubung.",
+      "savedUntilSignIn": "Tersimpan. Dikirim setelah Anda masuk."
+    }
   }
 }

@@ -4,13 +4,22 @@ import { DurableOutbox, type AccountAction } from '@langquest-next/sync';
 import * as server from '../server/account';
 import { noteOutboxFailure } from '../auth/authDiag';
 import { RpcError } from '../auth/authOutcome';
+import { dropShot, readShot } from '../feedback/feedbackShots';
+
+/** One queued change to the server. Feedback carries its screenshot, kept beside it until it has gone (decisions.md 141). */
+async function deliver(actorId: string, action: AccountAction): Promise<void> {
+  if (action.kind !== 'feedback') return server.deliverAccountAction(actorId, action);
+  const shot = action.payload['shot'] === true ? await readShot(action.id) : null;
+  await server.deliverAccountAction(actorId, action, shot);
+  if (shot) await dropShot(action.id);
+}
 
 const outboxes = new Map<string, DurableOutbox>();
 export function accountOutbox(actorId: string): DurableOutbox {
   let outbox = outboxes.get(actorId);
   if (!outbox) {
     // A change that keeps failing is told to diagnostics by its kind and code, never its contents.
-    outbox = new DurableOutbox(actorId, AsyncStorage, (action) => server.deliverAccountAction(actorId, action), { onFailure: noteOutboxFailure });
+    outbox = new DurableOutbox(actorId, AsyncStorage, (action) => deliver(actorId, action), { onFailure: noteOutboxFailure });
     outboxes.set(actorId, outbox);
   }
   return outbox;

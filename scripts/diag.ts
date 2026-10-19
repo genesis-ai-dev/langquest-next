@@ -9,14 +9,19 @@
 //   npm run diag -- v2                                   the v2 import, per project
 //   npm run diag -- error <E-XXXXXX>
 //   npm run diag -- timeline <installId> [--days 2]
+//   npm run diag -- feedback [--days 30] [--install <id>] [--shot <feedbackId>]
 //   npm run diag -- --hosted …    the same against the hosted database
 //
 // Reads through the `diag` schema only, as `diag_reader` on a hosted
 // database (DIAG_DATABASE_URL) or as postgres on the local one. Nothing it
 // prints is content: ids, counts, timings, error class names and frames.
+// The one exception is `feedback`, which is what people chose to send the
+// LangQuest team from help mode (decisions.md 141): their words, and a name,
+// an email and a screenshot only where they turned those on.
 // --hosted decrypts DIAG_DATABASE_URL from .env.production for this run
 // (scripts/diag-access.sh puts it there once).
 import { spawnSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 import { REDUCER_VERSION } from '../packages/core/src/index';
 import { jobSignals, signals, throughput, type InstallSummary, type JobStat, type Member, type LanguageHealth, type RpcStat } from './diagSignals';
 
@@ -223,6 +228,44 @@ function personReport(profileId: string): void {
   console.log(out.join('\n'));
 }
 
+interface Feedback {
+  id: string; created_at: string; kind: 'bug' | 'idea'; body: string; status: string; install_id: string;
+  context: Record<string, string>; has_screenshot: boolean; shared_name: string | null; shared_email: string | null;
+}
+
+/** Feedback from help mode, newest first; `--shot <id>` saves one report's screenshot beside you. */
+function feedbackReport(): void {
+  const shot = flag('shot');
+  if (shot) {
+    const b64 = query<string | null>(`select to_jsonb(encode(diag.feedback_screenshot(:'id'::uuid), 'base64'))`, { id: shot });
+    if (!b64) throw new Error(`Feedback ${shot} has no screenshot.`);
+    const file = `feedback-${shot}.jpg`;
+    writeFileSync(file, Buffer.from(b64.replace(/\s+/g, ''), 'base64'));
+    console.log(`saved ${file}`);
+    return;
+  }
+  const rows = query<Feedback[]>(`select coalesce(jsonb_agg(f), '[]') from diag.feedback(:'since'::interval, nullif(:'install', '')) f`,
+    { since: `${Number(flag('days', '30'))} days`, install: flag('install', '')! });
+  if (asJson) {
+    console.log(JSON.stringify(rows, null, 2));
+    return;
+  }
+  if (rows.length === 0) console.log('No feedback in that time.');
+  for (const f of rows) {
+    const c = f.context;
+    const who = f.shared_name || f.shared_email ? ` · ${[f.shared_name, f.shared_email].filter(Boolean).join(' · ')}` : '';
+    console.log([
+      `## ${f.kind === 'bug' ? 'Problem' : 'Idea'} · ${f.created_at} · ${f.status}${who}`,
+      `id ${f.id} · install ${f.install_id} · ${c.screen ?? '?'} · ${c.os ?? '?'} ${c.osVersion ?? ''} · ${c.model ?? ''} · app ${c.runtimeVersion ?? '?'} (${c.channel ?? '?'}) · ${c.uiLanguage ?? '?'}${f.has_screenshot ? ` · screenshot: --shot ${f.id}` : ''}`,
+      '',
+      f.body,
+      '',
+      `diagnostics: npm run diag -- timeline ${f.install_id} --days 2`,
+      ''
+    ].join('\n'));
+  }
+}
+
 function main(): void {
   switch (command) {
     case 'find':
@@ -260,8 +303,11 @@ function main(): void {
     case 'timeline':
       console.log(JSON.stringify(query(`select coalesce(jsonb_agg(x), '[]') from diag.timeline(:'install', :'since'::interval) x`, { install: rest[0] ?? '', since: `${Number(flag('days', '2'))} days` }), null, 2));
       return;
+    case 'feedback':
+      feedbackReport();
+      return;
     default:
-      console.log('usage: npm run diag -- find <text> | report <org> <language> | org <org> | person <profileId> | jobs | inbox <org> | v2 | error <id> | timeline <installId>');
+      console.log('usage: npm run diag -- find <text> | report <org> <language> | org <org> | person <profileId> | jobs | inbox <org> | v2 | error <id> | timeline <installId> | feedback');
   }
 }
 

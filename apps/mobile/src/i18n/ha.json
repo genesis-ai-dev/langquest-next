@@ -3135,7 +3135,8 @@
         "report": "Ƙara",
         "block": "Toshewa",
         "unblock": "Cire toshewa",
-        "onboarding": "Shigar da sabon memba"
+        "onboarding": "Shigar da sabon memba",
+        "feedback": "Ra'ayi"
       },
       "failedSub": "{{reason}} · Taɓa don sake gwadawa",
       "waiting": "Yana jiran a aika",
@@ -7155,5 +7156,35 @@
     "help": "Ana ajiyewa yayin da kuke aiki: da'ira mai juyawa yayin da ake ajiyewa, sannan alamar ✓. Ba sai kun ajiye ba.",
     "failed": "Ba a ajiye ba",
     "saved": "An ajiye"
+  },
+  "feedback": {
+    "open": "Aika ra'ayi",
+    "title": "Ra'ayi",
+    "send": "Aika",
+    "kind": {
+      "bug": "Akwai matsala",
+      "idea": "Shawara"
+    },
+    "placeholder": {
+      "bug": "Me ya faru?",
+      "idea": "Me zai taimaka?"
+    },
+    "addScreenshot": "Ƙara wannan hoton allo",
+    "addNameAndEmail": "Ƙara sunana da imel",
+    "addNameAndSignIn": "Ƙara sunana da sunan shiga",
+    "addName": "Ƙara sunana",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "Matsala: wani abu ya karye, ya tsaya ko yana nuna ba daidai ba.",
+      "idea": "Shawara: wani abu da zai sa LangQuest ya fi muku kyau.",
+      "body": "Faɗa da kalmominku, da kowane harshe.",
+      "screenshot": "Yana aika hoton allon da kuke kai. A kashe yake har sai kun kunna shi.",
+      "profile": "Yana aika sunanku da yadda kuke shiga, don ƙungiyar LangQuest ta san wanda ya rubuta. A kashe yake har sai kun kunna shi."
+    },
+    "toast": {
+      "sent": "An aika. Na gode!",
+      "saved": "An ajiye. Za a aika idan kuna da intanet.",
+      "savedUntilSignIn": "An ajiye. Za a aika bayan kun shiga."
+    }
   }
 }
