@@ -11,4 +11,7 @@ cd "$ROOT"
 NO_SPEECH_MODEL=1 npm run export:web -w mobile -- development
 npx tsx scripts/web-dev-vars.ts
 cd apps/web
-exec npx wrangler dev --port "${1:-${UI_PORT:-8787}}"
+# No job container: the UI tests never fire the job tick (the local Edge pass
+# projects, scripts/local-db.mjs), and building its image would need the job
+# bundles and Docker (decisions.md 141).
+exec npx wrangler dev --port "${1:-${UI_PORT:-8787}}" --enable-containers=false

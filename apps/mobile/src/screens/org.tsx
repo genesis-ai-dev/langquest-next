@@ -1420,7 +1420,7 @@ const CHOOSE_STEPS = 'choose';
 const NEW_CLUSTER = 'new';
 
 /**
- * A new language (ORG-2, decisions 63, 71, 141; the prototype's NewLang and
+ * A new language (ORG-2, decisions 63, 71, 143; the prototype's NewLang and
  * NewLangFlow): an overview of its six stages, then one question per page,
  * the likely answer picked, the stages lit along the top.
  *   0 the overview: the six stages down one path, then Start
@@ -1498,7 +1498,7 @@ export function NewLanguage(ctx: Ctx) {
   const choosing = flowKey === CHOOSE_STEPS;
   const flow = choosing ? null : chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
   const flowChoice = choosing ? CHOOSE_STEPS : flow?.c.key ?? null;
-  // Its checks before it exists (decision 141): the draft its checks pages work on, through a ctx whose language it is.
+  // Its checks before it exists (decision 143): the draft its checks pages work on, through a ctx whose language it is.
   const snap = useChecksDraft();
   const draftContext = useMemo(() => (snap ? draftCtx(ctx, snap) : null), [ctx, snap]);
   const undo = useChecksUndo(draftContext ?? ctx);
@@ -1855,7 +1855,7 @@ export function NewLanguage(ctx: Ctx) {
     );
   }
 
-  // Its checks, on the pages a ready language sets them up on (decision 141): opening one opens its page, on the draft.
+  // Its checks, on the pages a ready language sets them up on (decision 143): opening one opens its page, on the draft.
   if (flowPage === 'checks' && draftContext) {
     return (
       <Screen header={header(<UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} />)} bodyStyle={bodyStyle}
@@ -1929,7 +1929,7 @@ function flowFrom(c: LibraryChoice): string {
 
 /**
  * What a new language's team can be given from the start, in the languages
- * chosen for its reference material (decisions 84, 130, 141): the Bibles,
+ * chosen for its reference material (decisions 84, 130, 143): the Bibles,
  * study guides and notes the organization has or LangQuest shares in them,
  * a guide set (FIA) once, in the main language. Suggested, as before: one
  * Bible (the organization's own first, the World English Bible first of
@@ -1998,7 +1998,7 @@ function bibleOffer(name: string): string {
 }
 
 /**
- * Last: time to invite people (decision 141, the prototype's Invite after
+ * Last: time to invite people (decision 143, the prototype's Invite after
  * NewLangFlow): each role with what it lets them do, and a code that can
  * put them on the language's checks. After a cluster, its new languages are
  * chips: a code is for one language, as a membership is (decision 108: a

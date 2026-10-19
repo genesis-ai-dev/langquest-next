@@ -17,7 +17,7 @@ const NO_CHECKS: readonly string[] = [];
  */
 export function useGroupInvite(orgId: string, roleId: string | null, scope: Scope | null, label: string, checks: readonly string[] = NO_CHECKS): InviteState {
   const [made, setMade] = useState<Record<string, InviteState>>({});
-  // A code that puts people on checks (decisions.md 141) is another code.
+  // A code that puts people on checks (decisions.md 143) is another code.
   const key = roleId && scope ? `${roleId}|${scopeKey(scope)}|${[...checks].sort().join(',')}` : '';
   useEffect(() => {
     if (!key || !roleId || !scope || made[key]) return;

@@ -103,7 +103,7 @@ function RecordEditor({ ctx }: { ctx: Ctx }) {
  * its questions, and each help with parts inside it (decisions.md 130).
  */
 export function CheckEditor(props: Ctx) {
-  // New language's checks before it exists are its draft's (decisions.md 141).
+  // New language's checks before it exists are its draft's (decisions.md 143).
   const ctx = useDraftAware(props);
   const part = ctx.params['part'];
   if (part === 'people') return <PeoplePage ctx={ctx} />;
@@ -203,7 +203,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
     const next = own ? [...rows.slice(0, group.at(-1)! + 1), { kindId: own.id, together: false, checkpoint: false }, ...rows.slice(group.at(-1)! + 1)] : rows;
     void saveRows(ctx, next, t('checks.saved', { language }), before);
   }
-  /** The language a step that makes something makes it in (decisions.md 141): a back translation's. */
+  /** The language a step that makes something makes it in (decisions.md 143): a back translation's. */
   function setInto(into: string) {
     const s = ctx.language.state;
     if (!s || !kind.produces || into === kind.produces.into) return;
@@ -230,7 +230,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   return (
     <Screen header={<Header title={name} sub={t('checks.checkOf', { n: formatNumber(number), language })} onBack={ctx.back} />}>
       <Group>
-        {/* Before the language exists its people are chosen as they are invited (decisions.md 141). */}
+        {/* Before the language exists its people are chosen as they are invited (decisions.md 143). */}
         <Row icon="people" label={t('checks.people')} sub={people.length ? people.map((id) => ctx.name(id)).join(', ') : drafting ? t('checks.peopleWhenInvited') : t('checks.anyone')}
           help={t('checks.peopleOpenHelp')} onPress={() => open('people')} />
         <Row icon="chat" label={t('checks.questions')} sub={questions.length ? t('checks.questionsCount', { count: questions.length }) : t('checks.noQuestions')}

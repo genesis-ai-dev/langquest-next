@@ -64,7 +64,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   guide_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
   invite_qr: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
-  // A code may put whoever joins on checks of its language, whose teams are named first (decisions.md 141).
+  // A code may put whoever joins on checks of its language, whose teams are named first (decisions.md 143).
   invite_member: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamKindSet'],rpcs:['issue_invite_v3','issue_invite_v4'],reads:['org.roles'] },
   members_list: { rpcs:['decide_join_request_v2'],reads:['org.members','join_requests','profiles'] },
   // A new role at the same scope is another MemberAdded (one role per scope).
@@ -76,7 +76,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // And what its team is offered from the start (decision 71), and its first group invite code.
   // Its name is looked up in the language list as it is typed (docs/languoids.md).
   // One language or a cluster of several, and the cluster it joins (decision 108).
-  // Its checks as set up on their own pages before it exists (its draft, decisions.md 141), and codes that put people on them.
+  // Its checks as set up on their own pages before it exists (its draft, decisions.md 143), and codes that put people on them.
   new_language: { emits:['v1.LanguageAdded','v1.LanguageCodeSet','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
     'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet','v1.ReferenceLanguageAdded','v1.ClusterNamed','v1.LanguageClusterSet',
     'v1.CheckShowsSet','v1.CheckHelpSet','v1.ReviewTeamDefined','v1.ReviewTeamKindSet','v1.ReviewTeamMemberSet','v1.MaterialDefined','v1.MaterialFieldSet'],

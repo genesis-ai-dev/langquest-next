@@ -38,7 +38,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   expect(await screenText(page)).not.toMatch(/Skip for now|Get started/);
   expect(await tabsShown(page)).toEqual(['work', 'map', 'manage', 'me']);
 
-  // Step 5: New language, with FIA passages (the New Testament) and the Standard Bible Flow. Its six steps show first (decision 141).
+  // Step 5: New language, with FIA passages (the New Testament) and the Standard Bible Flow. Its six steps show first (decision 143).
   await primary(page).click();
   await expect(text(page, '6 steps')).toBeVisible();
   await primary(page).click();
@@ -51,7 +51,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   await expect(page.getByRole('radio', { name: /^FIA passages\./ })).toBeVisible();
   await page.getByRole('radio', { name: /^FIA passages\./ }).click();
   await primary(page).click();
-  // Reference material before the review flow (decision 141). As many languages as the team reads (decision 130): English is ticked already.
+  // Reference material before the review flow (decision 143). As many languages as the team reads (decision 130): English is ticked already.
   await expect(page.getByRole('checkbox', { name: /^English/ })).toBeChecked();
   await primary(page).click();
   await expect(text(page, 'What will help Journey Language’s team?')).toBeVisible();
@@ -93,7 +93,7 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   if (await others.isVisible().catch(() => false)) await others.click();
   const journeyScope = page.getByRole('button', { name: 'Journey Language' }).locator('visible=true');
   if (await journeyScope.count()) await journeyScope.first().click();
-  // Its card's own Invite (decision 141); a role that checks may be put on some checks first, none here.
+  // Its card's own Invite (decision 143); a role that checks may be put on some checks first, none here.
   await page.getByTestId('invite-role-Community Checker').locator('visible=true').first().getByRole('button', { name: 'Invite', exact: true }).click();
   const asked = text(page, 'Which checks will they do?');
   await expect(asked.or(text(page, 'Ask them to scan this'))).toBeVisible();

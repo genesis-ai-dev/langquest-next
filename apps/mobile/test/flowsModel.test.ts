@@ -61,7 +61,7 @@ describe('the kinds a flow editor knows', () => {
     expect(known[1]!.name).toBe('ELDER');
   });
 
-  it('adds those made in this session, and one changed here takes the known one\'s place (decision 141)', () => {
+  it('adds those made in this session, and one changed here takes the known one\'s place (decision 143)', () => {
     const known = [kind('peer'), kind('bt')];
     const changed = kind('bt', { produces: { what: 'back translation', into: 'French', action: 'Back-translate it', checkedBy: 'consultant' } });
     const out = withAddedKinds(known, [changed, kind('new')]);

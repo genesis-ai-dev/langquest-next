@@ -1,4 +1,4 @@
-// New language's draft (decisions.md 141, checks/languageDraftModel.ts): one at a
+// New language's draft (decisions.md 143, checks/languageDraftModel.ts): one at a
 // time, held here while New language and the check pages it opens are up,
 // and forgotten when the language is added or New language closes.
 import type { EventSpec, LanguageState } from '@langquest-next/core';

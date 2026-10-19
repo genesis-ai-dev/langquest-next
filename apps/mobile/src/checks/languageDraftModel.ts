@@ -1,4 +1,4 @@
-// New language's draft (decisions.md 141): the events a new language will
+// New language's draft (decisions.md 143): the events a new language will
 // start with, made on the pages a ready language sets its checks up on (the
 // list of checks and each check's own pages) before the language exists, and
 // folded as its stream would fold them. Continue sends them in each new

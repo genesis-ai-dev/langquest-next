@@ -1,4 +1,4 @@
-// A check page opened with `draft: '1'` works on New language's draft (decisions.md 141).
+// A check page opened with `draft: '1'` works on New language's draft (decisions.md 143).
 import { useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { draftCtx, goneCtx } from './draftCtx';

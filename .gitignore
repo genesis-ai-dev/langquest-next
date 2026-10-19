@@ -35,3 +35,6 @@ stryker.log
 
 # Isolated listening demo: its event log, audio and token
 .listening-demo/
+
+# The job runner's bundles (scripts/build-jobs.mjs), built before each deploy and dev run.
+apps/web/jobs/dist/
