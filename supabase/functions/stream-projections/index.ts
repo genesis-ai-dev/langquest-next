@@ -22853,6 +22853,9 @@ function onlyQuietEvents(events) {
   for (const e of events) if (!eventsThatCannotChangeInbox.has(e.type)) return false;
   return true;
 }
+var eventsThatCannotChangeReport = new Set(
+  [...eventsThatCannotChangeInbox].filter((t) => !["v1.RecordingAdded", "v1.CardVerseSet", "v1.BlobStored", "v1.BlobInvalidated"].includes(t))
+);
 
 // packages/sync/src/types.ts
 var OfflineError = class extends Error {
