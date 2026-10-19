@@ -101,14 +101,19 @@ let jwt = null, orgs = [];
 
 function say(text, tone) { $('out').innerHTML = text ? '<p class="notice ' + (tone || '') + '">' + esc(text) + '</p>' : ''; }
 
+// The dashboard's session goes stale while the dashboard is closed, so each
+// source is checked on its own: a stale one must not hide a live one.
 function appSession() {
-  try {
-    const ref = new URL(CFG.supabaseUrl).hostname.split('.')[0];
-    const raw = localStorage.getItem('sb-' + ref + '-auth-token') || sessionStorage.getItem('lq-connect-session');
-    const s = raw ? JSON.parse(raw) : null;
-    if (s && s.access_token && (s.expires_at || 0) * 1000 > Date.now() + 60000) return s;
-  } catch {}
-  return null;
+  const live = (read) => {
+    try {
+      const raw = read();
+      const s = raw ? JSON.parse(raw) : null;
+      if (s && s.access_token && (s.expires_at || 0) * 1000 > Date.now() + 60000) return s;
+    } catch {}
+    return null;
+  };
+  return live(() => localStorage.getItem('sb-' + new URL(CFG.supabaseUrl).hostname.split('.')[0] + '-auth-token'))
+    || live(() => sessionStorage.getItem('lq-connect-session'));
 }
 
 async function api(path, init) {
