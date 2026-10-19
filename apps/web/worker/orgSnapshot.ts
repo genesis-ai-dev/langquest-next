@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { SupabaseTransport } from '@langquest-next/sync';
-import type { OrgReportsResponse } from '@langquest-next/core';
+import { REPORT_VERSION, type OrgReportsResponse, type ReportInputs } from '@langquest-next/core';
 import { serviceClient, type Env } from './env';
 import { OrgFolder } from './orgFolder';
 import { AgentOrg, type AgentQuery, type AgentWrite, type OrgAccess } from './agent/org';
@@ -180,7 +180,22 @@ export class OrgSnapshot extends DurableObject<Env> {
         pull: transport.pull.bind(transport),
         snapshotMeta: transport.snapshotMeta.bind(transport),
         snapshotChunk: transport.snapshotChunk.bind(transport),
-        heads: (org: string) => this.heads(org)
+        heads: (org: string) => this.heads(org),
+        // What the projection pass stored (decisions.md 142), for this report version only.
+        reportHeads: async (org: string) => {
+          const { data, error } = await service.from('language_report_inputs').select('language_id,seq,updated_at')
+            .eq('org_id', org).eq('report_version', REPORT_VERSION);
+          if (error) throw new Error(`language_report_inputs: ${error.message}`);
+          return Object.fromEntries(((data ?? []) as { language_id: string; seq: number; updated_at: string }[])
+            .map((r) => [r.language_id, { seq: Number(r.seq), at: Date.parse(r.updated_at) }]));
+        },
+        reportInputs: async (org: string, languageId: string) => {
+          const { data, error } = await service.from('language_report_inputs').select('seq,updated_at,inputs')
+            .eq('org_id', org).eq('language_id', languageId).eq('report_version', REPORT_VERSION).maybeSingle();
+          if (error) throw new Error(`language_report_inputs: ${error.message}`);
+          const row = data as { seq: number; updated_at: string; inputs: ReportInputs } | null;
+          return row ? { seq: Number(row.seq), at: Date.parse(row.updated_at), inputs: row.inputs } : null;
+        }
       };
       const storage = this.ctx.storage;
       this.folder = new OrgFolder(source, orgId, new SqlCache({

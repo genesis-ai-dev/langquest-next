@@ -52,23 +52,31 @@ See [the rollout checklist](../docs/invitation-rollout.md) before deployment.
 `accountSmoke.sql` uses isolated identifiers and rolls back its test writes.
 Run it locally, not against production without explicit authorization.
 
+The projection pass (`server/projectionWorker.ts`: Inbox rows, the public
+listing, server snapshots and each language's report inputs, decisions.md
+68 and 142) runs for every language in the job container behind the
+dashboard Worker, every five minutes, with `server/projections.ts`,
+started by the Worker's job tick through the `JobRunner` Durable Object
+(`apps/web/worker/jobs.ts`, `docs/server-jobs.md`, decisions.md 141). It
+skips languages that have not changed (`projection_marks`).
 `npm run worker:build` bundles `projectionEdge.ts` and the shared core for
-the `stream-projections` Edge Function. Migration 20261007200001 schedules
-it twice wherever the Vault secrets `langquest_project_url` and
-`langquest_projection_worker_secret` exist: the projection pass every five
-minutes, which skips languages that have not changed (`projection_marks`),
-and push delivery every minute (`{"task":"pushes"}`, decisions.md 68).
+the `stream-projections` Edge Function, which delivers pushes every minute
+(`{"task":"pushes"}`, decisions.md 68). Migration
+`20261019110000_projection_pass_in_container.sql` schedules that wherever
+the Vault secrets `langquest_project_url` and
+`langquest_projection_worker_secret` exist, and keeps the pass off pg_cron;
 `npm run secrets` sets them and runs it again, which is how preview and
-production get the jobs. Locally,
-`npm run db:start` and `npm run db:reset` do the same (`scripts/local-db.mjs`:
-a local secret in the ignored `supabase/functions/.env`, the Vault values, the
-job every minute) and seed the library when there is none. `npm run db:test`
-resets with `supabase db reset` directly, so no pass runs under its smokes. `select * from cron.job` shows the one job,
-`net._http_response` its answers.
-The Edge pass leaves out languages too big for its 256 MB (a 10 MB snapshot,
-or 25,000 events past it); `.github/workflows/projections.yml` projects
-those every ten minutes with `server/projections.ts` (decisions.md 103).
-Locally, run `npx tsx server/projections.ts` after importing a large language.
+production get the job. On a hosted project the function refuses the pass.
+Locally, `npm run db:start` and `npm run db:reset` do the same
+(`scripts/local-db.mjs`: a local secret in the ignored
+`supabase/functions/.env`, the Vault values) and also schedule the Edge
+pass every minute, since `wrangler dev` fires no cron and the web UI tests
+wait for it; that pass leaves out languages too big for an Edge Function (a
+10 MB snapshot, or 25,000 events past it), which
+`npx tsx server/projections.ts` projects by hand. They seed the library
+when there is none. `npm run db:test` resets with `supabase db reset`
+directly, so no pass runs under its smokes. `select * from cron.job` shows
+the jobs, `net._http_response` their answers.
 `send-invite` validates the caller and invite before contacting the
 Cloudflare email Worker in `apps/invite-email`. The Worker sends through
 its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object
@@ -87,10 +95,13 @@ tally. They write through `public.diag_job_ingest` (service role only) with
 job. `diag.jobs()` says which are stale or failing; `diag.job_schedule`
 holds each job's schedule, so change it with the file that sets the cron.
 
-Dashboard reports (decision 44) are not stored here. The dashboard's own
-Worker (`apps/web/worker`) reads the server snapshots this worker writes and
-the tail through `pull_events` with the service role, and computes the
-reports itself (there are no report tables, decision 40 is superseded by 44). For local demo data, `npm run sample:org -- --history` adds
+Dashboard reports (decision 44) are not stored here, only what each
+language's report is made from (`language_report_inputs`, decision 142),
+which the dashboard's Worker (`apps/web/worker`) renders for the day. It
+folds a language itself, from the server snapshots this worker writes and
+the tail through `pull_events` with the service role, only when no row is
+stored yet, and for the access-token API (there are no report tables,
+decision 40 is superseded by 44). For local demo data, `npm run sample:org -- --history` adds
 months of back-dated work to the sample org (local database only). Join it
 in the dev app with one of the invite codes it prints, and sign in to the
 dashboard (`npm run web:dev`) with the same account.

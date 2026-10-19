@@ -6,9 +6,11 @@
  *   npm run db:reset    supabase db reset, then the rest below
  *   npm run dev:local   db:start, then the web Worker on :8787 until Ctrl-C
  *
- * The rest: the projection worker scheduled every minute (decisions.md 42),
- * as `npm run secrets` schedules it every five on a hosted database (push
- * delivery runs every minute on both, decisions.md 68), and the
+ * The rest: the projection pass scheduled every minute on the local Edge
+ * Function (decisions.md 42), which a hosted database runs in the dashboard
+ * Worker's job container instead (decisions.md 141) and which wrangler dev
+ * never fires on its own; push delivery every minute, as on a hosted one
+ * (decisions.md 68); and the
  * LangQuest library seeded when the database has none of its items. Both
  * are gone after a reset, which is why reset does them again.
  *
@@ -61,12 +63,25 @@ function ensureSecret() {
   return { secret, fresh: true };
 }
 
+/** The local stack's projection job: the Edge Function's pass, every minute (scripts/local-db.mjs only). */
+const LOCAL_PROJECTION_JOB = `select cron.schedule('${CRON_JOB}', '* * * * *', $job$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'langquest_project_url') || '/functions/v1/stream-projections',
+    headers := jsonb_build_object('Content-Type', 'application/json',
+      'x-worker-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'langquest_projection_worker_secret')),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 180000
+  );
+$job$);`;
+
 /** What a reset drops: the worker's Vault values and job, and the library. */
 function prepare(secret) {
   psql(vaultSql({ langquest_project_url: FROM_DB, langquest_projection_worker_secret: secret }));
   psql(readFileSync(join(root, SCHEDULE_MIGRATION), 'utf8'));
-  // Every minute here, so what one phone asks shows on the other without waiting.
-  const scheduled = psql(`select cron.schedule(jobname, '* * * * *', command) from cron.job where jobname = '${CRON_JOB}';`).trim();
+  // The pass every minute here, so what one phone asks shows on the other
+  // without waiting, and the web UI tests find Inbox rows and listings.
+  // The schedule above leaves it out: hosted projects run it in a container.
+  const scheduled = psql(LOCAL_PROJECTION_JOB).trim();
   if (!scheduled) throw new Error(`${CRON_JOB} was not scheduled`);
   console.log(`✓ projection worker and push delivery every minute (select * from net._http_response shows their answers)`);
   // LangQuest's own items: the server smokes leave other orgs' rows behind.
