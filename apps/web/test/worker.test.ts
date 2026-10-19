@@ -4,7 +4,7 @@ import {
   type AnyEvent, type OrgReportsResponse, type ReportInputs
 } from '@langquest-next/core';
 import { handleApi, type ApiDeps } from '../worker/api';
-import { MemoryCache, OrgFolder, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
+import { FOLD_ON_CATCH_UP_EVENTS, MemoryCache, OrgFolder, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
 import { SqlCache, splitText } from '../worker/sqlCache';
 
 /**
@@ -317,6 +317,35 @@ describe('OrgFolder with the report inputs the projection pass stored (decision 
     const tomorrow = await folder.reportsFor('admin');
     expect(reads()).toBe(6);
     expect(report(tomorrow).activity.at(-1)!.weekStart <= '2026-10-20').toBe(true);
+    expect(languagePulls(log)).toEqual([]);
+  });
+
+  it('a catch-up folds a small language whose stored inputs are behind, and a plain read after it keeps the newer figures', async () => {
+    // Why: "Catch up with the server" (fresh) promises the log's tail now; a
+    // coordinator who just asked someone to record looks for it on Reports
+    // (JRN-005). The stored inputs lag until the next projection pass.
+    const log = orgLog();
+    const { source } = withInputs(log, ['din', 'nus']);
+    let now = at;
+    const folder = new OrgFolder(source, ORG, new MemoryCache(), () => now);
+    await folder.reportsFor('admin');
+    log.add('din', 'v1.UnitAdded', unit('d2'));
+    now += 61_000;
+    expect(report(await folder.reportsFor('admin')).progress.total).toBe(1);
+    expect(languagePulls(log)).toEqual([]);
+    const caught = await folder.reportsFor('admin', true);
+    expect(report(caught).progress.total).toBe(2);
+    expect(languagePulls(log).map((p) => p.streamId)).toEqual(['din']);
+    now += 61_000;
+    expect(report(await folder.reportsFor('admin')).progress.total).toBe(2);
+  });
+
+  it('a catch-up leaves a language past the limit on its stored inputs', async () => {
+    const log = orgLog();
+    const { source } = withInputs(log, ['din', 'nus']);
+    const heads = source.heads!;
+    source.heads = async (org) => ({ ...(await heads(org)), din: FOLD_ON_CATCH_UP_EVENTS + 1 });
+    await new OrgFolder(source, ORG, new MemoryCache(), () => at).reportsFor('admin', true);
     expect(languagePulls(log)).toEqual([]);
   });
 

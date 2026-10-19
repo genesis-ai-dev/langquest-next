@@ -129,9 +129,11 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   stores what the language's report is made from (core `reportInputs`) in
   `language_report_inputs`, and the Durable Object renders the report for
   the day from it (`renderLanguageReport`), folding only a language with
-  no stored inputs. They hold no date window and nothing from the
-  organization stream, so a report never goes stale at midnight and an
-  admin's saved name, country or target shows at once.
+  no stored inputs, or on a catch-up ("Catch up with the server") one
+  whose inputs are behind its stream and that has at most 25,000 events.
+  They hold no date window and nothing from the organization stream, so a
+  report never goes stale at midnight and an admin's saved name, country
+  or target shows at once.
 - **Placement.** A container starts near where the cron fires, not near
   the database. The pass reads in pages of a thousand events, so the
   distance costs seconds per large language, not minutes.

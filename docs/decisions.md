@@ -948,10 +948,14 @@ when the projection pass has stored the language's report inputs (142):
 the object renders the report from them and the organization stream, and
 folds only a language with none (before the pass first reaches it, or when
 the table cannot be read). The folds this entry describes now serve the
-access-token API (70) and that fallback. Reports lag the pass by up to its
-five minutes, and `asOf` says so when a language's stream has moved past
-its stored inputs; what an admin saves on the organization stream (a name,
-country or target) still shows at once with `?fresh=1`.
+access-token API (70) and that fallback. A plain read lags the pass by up
+to its five minutes, and `asOf` says so when a language's stream has moved
+past its stored inputs. A catch-up (`?fresh=1`, "Catch up with the
+server") still folds the log's tail at once for a language whose stored
+inputs are behind, up to 25,000 events (`FOLD_ON_CATCH_UP_EVENTS`), and a
+later plain read keeps those newer figures; a larger language answers from
+its stored inputs until the next pass. What an admin saves on the
+organization stream (a name, country or target) shows at once either way.
 
 ## 45. Merging to main ships Android to Google Play's internal testing track
 
@@ -5748,7 +5752,10 @@ and cards already stuck when extracted are a count, the oldest and their
 passages (two imported languages held 89,000, 7 MB a row). Rows live in
 `language_report_inputs` (service role only), written each time the pass
 folds a language; an upload is no longer quiet for the pass (68). The
-object renders from them, folding only a language with no row. Checked on
+object renders from them, folding only a language with no row, or, on a
+catch-up, one whose row is behind its stream and that has at most 25,000
+events (44's amendment), so "Catch up with the server" still shows what
+was just done. Checked on
 the local database: 105 languages, every stored row renders the report a
 fold of the same events gives, today and 20 days on; the largest row was
 750 KB of text.

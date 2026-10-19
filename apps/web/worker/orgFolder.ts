@@ -61,6 +61,13 @@ export const STATE_BUDGET_BYTES = 12_000_000;
 /** A language whose fold is at least this big is refreshed alone; smaller ones run PARALLEL at a time. */
 export const LARGE_STATE_BYTES = 2_000_000;
 const PAGE = 1000;
+/**
+ * A catch-up folds a language whose stored report inputs are behind its
+ * stream only up to this many events (decision 142): about 7 MB of fold at
+ * the sizes decision 132 measured, inside its budget. A larger one answers
+ * from its stored inputs until the next projection pass.
+ */
+export const FOLD_ON_CATCH_UP_EVENTS = 25_000;
 const PARALLEL = 4;
 
 /** Memory limits; tests set small ones. */
@@ -177,17 +184,17 @@ export class OrgFolder {
    */
   refresh(force = false): Promise<void> {
     if (!force && this.org && this.now() - this.refreshedAt < this.maxAgeMs) return Promise.resolve();
-    if (!this.running) return this.start();
+    if (!this.running) return this.start(force);
     if (!force) return this.running;
     this.queued ??= this.running.catch(() => undefined).then(() => {
       this.queued = null;
-      return this.start();
+      return this.start(true);
     });
     return this.queued;
   }
 
-  private start(): Promise<void> {
-    this.running = this.exclusive(() => this.pass()).finally(() => { this.running = null; });
+  private start(force: boolean): Promise<void> {
+    this.running = this.exclusive(() => this.pass(force)).finally(() => { this.running = null; });
     return this.running;
   }
 
@@ -255,7 +262,7 @@ export class OrgFolder {
     this.org = next;
   }
 
-  private async pass(): Promise<void> {
+  private async pass(force: boolean): Promise<void> {
     const startedAt = this.now();
     const day = isoDay(startedAt);
     const heads = (await this.source.heads?.(this.orgId)) ?? null;
@@ -274,7 +281,7 @@ export class OrgFolder {
     // What the projection pass stored (decisions.md 142). Before its table
     // exists, or when the read fails, every language is folded as before.
     const stored = this.source.reportHeads ? await this.source.reportHeads(this.orgId).catch(() => null) : null;
-    const run = (id: string) => this.refreshLanguage(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt, stored?.[id]);
+    const run = (id: string) => this.refreshLanguage(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt, stored?.[id], force);
     let batch: string[] = [];
     const flush = async () => {
       const now = batch;
@@ -307,11 +314,17 @@ export class OrgFolder {
    * otherwise fold, only when the language moved, the day turned or the
    * organization changed.
    */
-  private async refreshLanguage(id: string, head: number | undefined, day: string, at: number, stored?: StoredInputs): Promise<void> {
+  private async refreshLanguage(id: string, head: number | undefined, day: string, at: number, stored?: StoredInputs, force = false): Promise<void> {
     const org = this.org!;
     const summary = this.summaries.get(id) ?? (await this.restoreSummary(id));
     if (summary) this.summaries.set(id, summary);
-    if (stored && this.source.reportInputs) {
+    // Stored inputs serve unless a fold here is newer than they are, or a
+    // catch-up (`fresh`, "Catch up with the server") finds them behind the
+    // stream: then a language small enough is folded now, as before 142, and
+    // a larger one still answers from them, saying how old they are.
+    const foldedFurther = !!summary && !summary.fromInputs && !!stored && summary.cursor > stored.seq;
+    const catchUp = force && !!stored && head !== undefined && stored.seq < head && head <= FOLD_ON_CATCH_UP_EVENTS;
+    if (stored && this.source.reportInputs && !foldedFurther && !catchUp) {
       const asOf = (s: StoredInputs) => (head !== undefined && s.seq >= head ? at : s.at);
       if (summary?.fromInputs && summary.day === day && summary.orgCursor === org.cursor && summary.cursor === stored.seq) {
         summary.asOf = asOf(stored);
