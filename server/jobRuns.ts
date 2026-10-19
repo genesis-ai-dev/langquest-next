@@ -16,7 +16,7 @@
 
 /** The jobs `diag.job_schedule` knows; the database refuses any other. */
 export type JobName =
-  | 'projection' | 'projection_large' | 'push_delivery' | 'v2_import'
+  | 'projection' | 'push_delivery' | 'v2_import' | 'job_starts'
   | 'webhook_dispatch' | 'invite_email' | 'worker_requests' | 'worker_cron';
 
 export interface JobRun {

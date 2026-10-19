@@ -39,13 +39,14 @@ const UPDATE_TITLES: Record<Update['kind'], string> = {
 const PROJECTION_VERSION = `${REDUCER_VERSION}:${REPORT_VERSION}:2`;
 
 /**
- * Languages too big for the Edge Function (decisions.md 103). A run there
+ * Languages too big for an Edge Function (decisions.md 103). A run there
  * gets 256 MB and 2 s of CPU; folding Santhali (225,000 events, a 61 MB
  * state) took about 850 MB in Node. A language is large when its newest
  * snapshot is `chars` long or more, or when `events` or more have arrived
- * since it (all of its log when it has none). The Edge pass leaves those
- * out, and the job container behind the dashboard Worker
- * (`server/projections.ts`, decisions.md 140) runs the pass for only those.
+ * since it (all of its log when it has none). Hosted environments run the
+ * whole pass in the job container (`server/projections.ts`, decisions.md
+ * 140); only a local stack's Edge pass, every minute, leaves these out
+ * (`server/projectionEdge.ts`), and `npx tsx server/projections.ts` runs them.
  */
 export const LARGE = { chars: 10_000_000, events: 25_000 };
 
@@ -53,8 +54,8 @@ export function isLarge(o: { chars: number; head: number; snapshotSeq: number },
   return o.chars >= limits.chars || o.head - o.snapshotSeq >= limits.events;
 }
 
-/** Which languages a pass covers: every one, or only the small or the large ones. */
-export type ProjectionScope = 'all' | 'small' | 'large';
+/** Which languages a pass covers: every one (the job container), or only the small ones (a local stack's Edge Function). */
+export type ProjectionScope = 'all' | 'small';
 
 /** What the last pass wrote for a stream (`projection_marks`). */
 interface Mark { org_id: string; stream_id: string; seq: number; org_seq: number; listed: boolean; version: string }
@@ -158,7 +159,7 @@ export async function runProjections(
     const snap = snapshotOf.get(streamKey(orgId, streamId));
     return isLarge({ chars: snap?.chars ?? 0, head: heads.get(streamKey(orgId, streamId)) ?? 0, snapshotSeq: snap?.seq ?? 0 });
   };
-  const inScope = (orgId: string, streamId: string) => scope === 'all' || (scope === 'large') === large(orgId, streamId);
+  const inScope = (orgId: string, streamId: string) => scope === 'all' || !large(orgId, streamId);
   const snapshotDue = (orgId: string, streamId: string) => {
     const snap = snapshotOf.get(streamKey(orgId, streamId));
     const head = heads.get(streamKey(orgId, streamId)) ?? 0;
@@ -212,10 +213,9 @@ export async function runProjections(
   };
 
   // The organizations' own rows first: they are quick, and admins wait on them.
-  // The pass for large languages leaves them to the Edge pass.
   for (const [key, head] of heads) {
     const [orgId, streamId] = JSON.parse(key) as [string, string];
-    if (scope === 'large' || streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
+    if (streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
     check(await service.rpc('refresh_org_notifications', { p_org: orgId }), 'refresh_org_notifications');
     await mark(orgId, ORG_STREAM, head, head, false);
     counts.orgs += 1;
@@ -271,11 +271,11 @@ export async function runProjections(
     counts.projected += 1;
   }, async (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId))
     && !(await skipQuiet(orgId, streamId)),
-  // The large pass goes on past a language that fails, so the next waits only
-  // for its own turn; the Edge pass stops at the first error, as before, and
-  // says which language it stopped at.
+  // The whole pass goes on past a language that fails, so the next waits only
+  // for its own turn; a local Edge pass stops at the first error, as before,
+  // and says which language it stopped at.
   (orgId, streamId, error) => {
-    if (scope !== 'large') throw new ProjectionFailed(orgId, streamId, error);
+    if (scope === 'small') throw new ProjectionFailed(orgId, streamId, error);
     failed.push({ orgId, streamId, error });
   },
   // The age of the snapshot the pass already read, so folding does not ask again.

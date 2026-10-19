@@ -43,6 +43,8 @@ if (bibleBrain) config.secrets = { required: [...new Set([...(config.secrets?.re
 // the secrets the config requires; production's config has no such var.
 const jobsUrl = new URL(LOCAL_URL);
 jobsUrl.hostname = 'host.docker.internal';
-config.vars = { ...config.vars, JOBS_SUPABASE_URL: jobsUrl.origin };
+// The same for the Worker's own address (the v2 import puts files there), and
+// no v2 import here: a local stack has no v2 keys (npm run v2 imports by hand).
+config.vars = { ...config.vars, JOBS_SUPABASE_URL: jobsUrl.origin, JOBS_API_URL: 'http://host.docker.internal:8787', V2_IMPORT_ENABLED: 'false' };
 writeFileSync(new URL('../apps/web/.wrangler.dev.jsonc', import.meta.url), JSON.stringify(config, null, 1));
 mkdirSync(new URL('../apps/mobile/dist', import.meta.url), { recursive: true });

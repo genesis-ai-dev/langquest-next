@@ -21,6 +21,21 @@ export interface Env {
    * scripts/web-dev-vars.ts). Unset in production.
    */
   JOBS_SUPABASE_URL?: string;
+  /** This Worker's own address, where the v2 import puts files (`/api/blobs`). A plain var per environment. */
+  API_URL?: string;
+  /** The same for the job container in local development (host.docker.internal), like JOBS_SUPABASE_URL. */
+  JOBS_API_URL?: string;
+  /**
+   * "true" runs the v2 import from the job tick (docs/v2-import.md, decisions.md 140);
+   * anything else leaves it off. A plain var: the switch Caleb's go-ahead set on GitHub.
+   */
+  V2_IMPORT_ENABLED?: string;
+  /** Files the import copies at once (8 when unset). */
+  V2_IMPORT_CONCURRENCY?: string;
+  /** v2's publishable key, for reading v2 (secret, optional: `npm run secrets`). */
+  V2_SUPABASE_ANON_KEY?: string;
+  /** A read-only login on v2's database, for people's names (secret, optional: scripts/v2-access.sh, `npm run secrets`). */
+  V2_DATABASE_URL?: string;
   /** The public key the app ships with; the connect page signs in with it (agent/connectPage.ts). */
   SUPABASE_ANON_KEY?: string;
   /** Reads every stream; never sent to the browser. */

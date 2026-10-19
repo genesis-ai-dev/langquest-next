@@ -314,7 +314,10 @@ describe('report inputs (decisions.md 141)', () => {
     expect(Object.keys(inputs.weeks)).toContain('2025-09-29');
     expect(inputs.passageDays[0]![0]).toBe('2025-10-01');
     expect(inputs.uploadDays.map(([day]) => day)).toEqual(['2026-08-02', '2026-09-30']);
-    expect(inputs.unstored.map(([, unitId]) => unitId)).toEqual(['john4']);
+    // A card already stuck when extracted is counted, not listed; a recent one keeps its time.
+    expect(inputs.stuck).toMatchObject({ cards: 1, unitIds: ['john4'] });
+    expect(new Date(inputs.stuck.since!).toISOString().slice(0, 10)).toBe('2026-07-30');
+    expect(inputs.unstored).toEqual([]);
     // The log keeps only the days it can still show.
     expect(inputs.log.map((e) => e.day)).toEqual(['2026-09-30']);
   });

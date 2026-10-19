@@ -12,6 +12,11 @@ declare const Deno: {
   env: { get(name: string): string | undefined };
   serve(handler: (request: Request) => Promise<Response>): void;
 };
+/** A local stack's address as its functions see it (kong:8000, or 127.0.0.1), never a hosted project's. */
+function isLocal(url: string): boolean {
+  return !new URL(url).hostname.endsWith('.supabase.co');
+}
+
 /** Compared by digest, so the time taken says nothing about the secret (as apps/web/worker/index.ts does). */
 async function sameSecret(given: string, expected: string): Promise<boolean> {
   const digest = async (text: string) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
@@ -36,10 +41,15 @@ Deno.serve(async (request) => {
   // after a few seconds.
   const record = jobRunSink(url, key);
   const startedAt = Date.now();
-  // Two cron jobs call this (20261007200001_schedule_push_delivery.sql): the
-  // projection pass every five minutes, and push delivery every minute, so a
-  // phone hears of a join request without waiting for a pass (decisions.md 68).
+  // Push delivery calls this every minute (20261019110000_projection_pass_in_container.sql),
+  // so a phone hears of a join request without waiting for a pass (decisions.md 68).
+  // The projection pass runs in the job container behind the dashboard
+  // Worker (decisions.md 140); only a local stack still calls this for it,
+  // every minute (scripts/local-db.mjs), since wrangler dev fires no cron.
   const body = await request.json().catch(() => ({})) as { task?: string };
+  if (body.task !== 'pushes' && !isLocal(url)) {
+    return Response.json({ error: 'The projection pass runs in the job container (decisions.md 140).' }, { status: 410 });
+  }
   const counts: ProjectionCounts = { orgs: 0, projected: 0 };
   try {
     if (body.task === 'pushes') {
@@ -52,7 +62,7 @@ Deno.serve(async (request) => {
         ...(allFailed ? { errorClass: commonest(pushes) } : {})
       });
     } else {
-      // Large languages are projected by the scheduled job instead (decisions.md 103).
+      // A local stack's Edge runtime has an Edge Function's memory: large languages are left to `npx tsx server/projections.ts`.
       const done = await runProjections(service, 'small', counts);
       await record({
         job: 'projection', startedAt, ms: Date.now() - startedAt, outcome: 'ok',

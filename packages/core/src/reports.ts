@@ -243,7 +243,14 @@ export interface ReportInputs {
   log: LogEntry[];
   /** By month (`YYYY-MM`): chapters whose first audio reached the server, by book index, ascending. */
   ledger: Record<string, [bookIndex: number, chapters: number][]>;
-  /** Cards the server does not have: when each was recorded, and its passage. */
+  /**
+   * Cards the server does not have that were already stuck when the inputs
+   * were extracted (recorded STUCK_AFTER_DAYS before): they stay stuck on
+   * every later day, so a count, the oldest and their passages are enough.
+   * An imported language can hold tens of thousands of them.
+   */
+  stuck: { cards: number; since: number | null; unitIds: string[] };
+  /** Cards the server does not have, recorded too recently to be stuck yet when extracted: when, and the passage. */
   unstored: [recordedAt: number, unitId: string][];
   invalidCards: number;
 }
@@ -362,6 +369,8 @@ export function reportInputs(state: LanguageState, asOf: number, idx: Indexes = 
   const log = new Map<string, LogEntry>();
   const unitFirstUpload = new Map<string, number>();
   const unstored: [number, string][] = [];
+  const stuckBefore = asOf - STUCK_AFTER_DAYS * DAY_MS;
+  const stuck = { cards: 0, since: Infinity, unitIds: new Set<string>() };
   let invalidCards = 0, cardsOnServer = 0, firstAt = Infinity, lastAt = 0;
 
   for (const rec of Object.values(state.recordings)) {
@@ -370,7 +379,12 @@ export function reportInputs(state: LanguageState, asOf: number, idx: Indexes = 
       const blob = state.blobs[card.hash];
       if (!blob?.stored) {
         if (blob && !blob.stored) invalidCards += 1;
-        unstored.push([wallOf(rec.hlc), rec.unitId]);
+        const recorded = wallOf(rec.hlc);
+        if (recorded < stuckBefore) {
+          stuck.cards += 1;
+          stuck.since = Math.min(stuck.since, recorded);
+          stuck.unitIds.add(rec.unitId);
+        } else unstored.push([recorded, rec.unitId]);
         continue;
       }
       const at = wallOf(blob.hlc);
@@ -437,6 +451,7 @@ export function reportInputs(state: LanguageState, asOf: number, idx: Indexes = 
     uploadDays: [...uploadDays].map(([day, d]): [string, number, number] => [day, d.cards, d.chapters.size]).sort(byKey),
     log: [...log.values()],
     ledger: Object.fromEntries([...byMonth].map(([month, perBook]) => [month, [...perBook].sort(([a], [b]) => a - b)])),
+    stuck: { cards: stuck.cards, since: Number.isFinite(stuck.since) ? stuck.since : null, unitIds: [...stuck.unitIds].sort() },
     unstored,
     invalidCards
   };
@@ -502,9 +517,10 @@ export function renderLanguageReport(inputs: ReportInputs, info: LanguageInfo, n
     };
   });
 
+  // Stuck when extracted stays stuck; a recent card becomes stuck once now is far enough past it.
   const stuckBefore = now - STUCK_AFTER_DAYS * DAY_MS;
-  const stuckPassages = new Set<string>();
-  let stuckCards = 0, stuckSince = Infinity;
+  const stuckPassages = new Set<string>(inputs.stuck.unitIds);
+  let stuckCards = inputs.stuck.cards, stuckSince = inputs.stuck.since ?? Infinity;
   for (const [recorded, unitId] of inputs.unstored) {
     if (recorded >= stuckBefore) continue;
     stuckCards += 1;

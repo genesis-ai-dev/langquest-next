@@ -22993,6 +22993,7 @@ function unitChapters(state, unitId) {
 // packages/core/src/reports.ts
 var REPORT_VERSION = 5;
 var LOG_DAYS = 14;
+var STUCK_AFTER_DAYS = 14;
 var MILESTONES = [25, 50, 75, 100];
 var DAY_MS = 864e5;
 var WEEK_MS = 7 * DAY_MS;
@@ -23109,6 +23110,8 @@ function reportInputs(state, asOf, idx = buildIndexes(state)) {
   const log = /* @__PURE__ */ new Map();
   const unitFirstUpload = /* @__PURE__ */ new Map();
   const unstored = [];
+  const stuckBefore = asOf - STUCK_AFTER_DAYS * DAY_MS;
+  const stuck = { cards: 0, since: Infinity, unitIds: /* @__PURE__ */ new Set() };
   let invalidCards = 0, cardsOnServer = 0, firstAt = Infinity, lastAt = 0;
   for (const rec of Object.values(state.recordings)) {
     if (rec.kind !== "target") continue;
@@ -23116,7 +23119,12 @@ function reportInputs(state, asOf, idx = buildIndexes(state)) {
       const blob = state.blobs[card.hash];
       if (!blob?.stored) {
         if (blob && !blob.stored) invalidCards += 1;
-        unstored.push([wallOf(rec.hlc), rec.unitId]);
+        const recorded2 = wallOf(rec.hlc);
+        if (recorded2 < stuckBefore) {
+          stuck.cards += 1;
+          stuck.since = Math.min(stuck.since, recorded2);
+          stuck.unitIds.add(rec.unitId);
+        } else unstored.push([recorded2, rec.unitId]);
         continue;
       }
       const at = wallOf(blob.hlc);
@@ -23183,6 +23191,7 @@ function reportInputs(state, asOf, idx = buildIndexes(state)) {
     uploadDays: [...uploadDays].map(([day, d]) => [day, d.cards, d.chapters.size]).sort(byKey),
     log: [...log.values()],
     ledger: Object.fromEntries([...byMonth].map(([month, perBook]) => [month, [...perBook].sort(([a], [b]) => a - b)])),
+    stuck: { cards: stuck.cards, since: Number.isFinite(stuck.since) ? stuck.since : null, unitIds: [...stuck.unitIds].sort() },
     unstored,
     invalidCards
   };
@@ -23562,7 +23571,7 @@ async function runProjections(service, scope2 = "all", counts = { orgs: 0, proje
     const snap = snapshotOf.get(streamKey(orgId, streamId));
     return isLarge({ chars: snap?.chars ?? 0, head: heads.get(streamKey(orgId, streamId)) ?? 0, snapshotSeq: snap?.seq ?? 0 });
   };
-  const inScope2 = (orgId, streamId) => scope2 === "all" || scope2 === "large" === large(orgId, streamId);
+  const inScope2 = (orgId, streamId) => scope2 === "all" || !large(orgId, streamId);
   const snapshotDue = (orgId, streamId) => {
     const snap = snapshotOf.get(streamKey(orgId, streamId));
     const head2 = heads.get(streamKey(orgId, streamId)) ?? 0;
@@ -23608,7 +23617,7 @@ async function runProjections(service, scope2 = "all", counts = { orgs: 0, proje
   };
   for (const [key, head2] of heads) {
     const [orgId, streamId] = JSON.parse(key);
-    if (scope2 === "large" || streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
+    if (streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
     check(await service.rpc("refresh_org_notifications", { p_org: orgId }), "refresh_org_notifications");
     await mark(orgId, ORG_STREAM, head2, head2, false);
     counts.orgs += 1;
@@ -23671,11 +23680,11 @@ async function runProjections(service, scope2 = "all", counts = { orgs: 0, proje
       counts.projected += 1;
     },
     async (orgId, streamId) => inScope2(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)) && !await skipQuiet(orgId, streamId),
-    // The large pass goes on past a language that fails, so the next waits only
-    // for its own turn; the Edge pass stops at the first error, as before, and
-    // says which language it stopped at.
+    // The whole pass goes on past a language that fails, so the next waits only
+    // for its own turn; a local Edge pass stops at the first error, as before,
+    // and says which language it stopped at.
     (orgId, streamId, error) => {
-      if (scope2 !== "large") throw new ProjectionFailed(orgId, streamId, error);
+      if (scope2 === "small") throw new ProjectionFailed(orgId, streamId, error);
       failed.push({ orgId, streamId, error });
     },
     // The age of the snapshot the pass already read, so folding does not ask again.
@@ -23882,6 +23891,9 @@ function commonest(p) {
   const codes = { http_4xx: p.failHttp4xx, http_5xx: p.failHttp5xx, timeout: p.failTimeout, unreachable: p.failUnreachable, ticket_error: p.failTicket };
   return Object.entries(codes).sort((a, b) => b[1] - a[1])[0][0];
 }
+function isLocal(url) {
+  return !new URL(url).hostname.endsWith(".supabase.co");
+}
 async function sameSecret(given, expected) {
   const digest = async (text) => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
   const [a, b] = await Promise.all([digest(given), digest(expected)]);
@@ -23901,6 +23913,9 @@ Deno.serve(async (request) => {
   const record = jobRunSink(url, key);
   const startedAt = Date.now();
   const body = await request.json().catch(() => ({}));
+  if (body.task !== "pushes" && !isLocal(url)) {
+    return Response.json({ error: "The projection pass runs in the job container (decisions.md 140)." }, { status: 410 });
+  }
   const counts = { orgs: 0, projected: 0 };
   try {
     if (body.task === "pushes") {

@@ -1,17 +1,17 @@
 import { DurableObject } from 'cloudflare:workers';
 import { jobRunSink } from '../../../server/jobRuns';
 import type { Env } from './env';
-import { deadRun, exitCodeOf, isJobKey, JOB_TIME_LIMIT_MS, JOBS, type Exit, type JobKey, type RunMark } from './jobsModel';
+import { deadRun, entrypointFor, exitCodeOf, isJobKey, jobEnv, JOBS, type Exit, type JobKey, type RunMark } from './jobsModel';
 
 /**
  * The job runner (docs/server-jobs.md, decisions.md 140): one container
  * image (jobs/Dockerfile) holding a Node bundle per server job
- * (scripts/build-jobs.mjs), started by the Worker's cron through this
+ * (scripts/build-jobs.mjs), started by the Worker's job tick through this
  * Durable Object. One object per job, named by the job, so a run is never
  * started twice: a tick that finds the run still going starts nothing. The
- * process writes its own `diag.job_runs` row, as it did on GitHub; the
- * object writes one only when the process died without the chance (killed,
- * out of memory, stopped at the time limit), so a dead run is never silent.
+ * process writes its own `diag.job_runs` row; the object writes one only
+ * when the process died without the chance (killed, out of memory, stopped
+ * at the time limit), so a dead run is never silent.
  *
  * It drives the container through the object's own API
  * (`ctx.container`), not the `@cloudflare/containers` class: that class
@@ -41,22 +41,28 @@ export class JobRunner extends DurableObject<Env> {
     return container;
   }
 
-  /** Start the job unless a run is under way. Answers once the start is issued, not when the run ends. */
-  async run(): Promise<'started' | 'running'> {
+  /**
+   * Start the job unless a run is under way. `all` owes the import a whole
+   * read: it is kept until a run starts with it, so a tick that finds a run
+   * going leaves it for the next. Answers once the start is issued.
+   */
+  async run(opts: { all?: boolean } = {}): Promise<'started' | 'running' | 'disabled'> {
     const key = this.key;
+    const settings = jobEnv(key, { ...this.env, SUPABASE_URL: this.env.JOBS_SUPABASE_URL ?? this.env.SUPABASE_URL, API_URL: this.env.JOBS_API_URL ?? this.env.API_URL });
+    if ('skip' in settings) return 'disabled';
+    if ('refuse' in settings) throw new Error(settings.refuse);
+    if (opts.all) await this.ctx.storage.put('allDue', true);
     const container = this.container;
     if (container.running) return 'running';
     const stale = await this.ctx.storage.get<RunMark>('run');
     if (stale) console.warn(`job ${key}: the run started at ${new Date(stale.startedAt).toISOString()} ended unobserved`);
+    const all = (await this.ctx.storage.get<boolean>('allDue')) === true;
     await this.ctx.storage.put<RunMark>('run', { startedAt: Date.now() });
-    container.start({
-      entrypoint: [...JOBS[key].entrypoint],
-      env: { SUPABASE_URL: this.env.JOBS_SUPABASE_URL ?? this.env.SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: this.env.SUPABASE_SERVICE_ROLE_KEY },
-      enableInternet: true
-    });
+    container.start({ entrypoint: entrypointFor(key, all), env: settings.env, enableInternet: true });
+    if (all) await this.ctx.storage.delete('allDue');
     // The container outlives the object's idle spells up to the time limit; the alarm stops a run past it.
-    await container.setInactivityTimeout(JOB_TIME_LIMIT_MS);
-    await this.ctx.storage.setAlarm(Date.now() + JOB_TIME_LIMIT_MS);
+    await container.setInactivityTimeout(JOBS[key].timeLimitMs);
+    await this.ctx.storage.setAlarm(Date.now() + JOBS[key].timeLimitMs);
     this.watch();
     return 'started';
   }
