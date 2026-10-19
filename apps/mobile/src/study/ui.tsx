@@ -81,12 +81,13 @@ export function AudioBar(props: { audio: StudyAudio; label: string; sub?: string
         <HelpBadge spot={play} />
       </Pressable>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]} numberOfLines={1}>{props.label}</Text>
+        {/* The clock moves under the label when both do not fit on one line (decisions.md 139). */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.sm }}>
+          <Text style={[txt.sm, { fontWeight: '700', flexGrow: 1, flexShrink: 1 }]}>{props.label}</Text>
           <Text style={[txt.xs, { fontVariant: ['tabular-nums'] }]}>{shownClock(a.time)} / {shownClock(a.duration)}</Text>
         </View>
         <Scrubber value={a.time} max={a.duration} label={props.label} onSeek={a.seek} />
-        {props.sub ? <Text style={[txt.xs, { marginTop: -2 }]} numberOfLines={2}>{props.sub}</Text> : null}
+        {props.sub ? <Text style={[txt.xs, { marginTop: -2 }]}>{props.sub}</Text> : null}
       </View>
       <Pressable onPress={back.onPress} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
         style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
@@ -406,7 +407,7 @@ function AddNoteHere(props: { label: string; onPress: () => void }) {
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
       <Ico name="note" size={16} color={C.white} />
-      <Text style={[txt.sm, { fontWeight: '700', color: C.white }]}>{props.label}</Text>
+      <Text style={[txt.sm, { fontWeight: '700', color: C.white, flexShrink: 1 }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );

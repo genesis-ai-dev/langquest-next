@@ -206,7 +206,7 @@ function ShowHideBtn(props: { on: boolean; icon: IconName; label: string; help: 
     <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="radio" accessibilityState={{ selected: props.on, disabled: props.disabled }}
       style={({ pressed }) => [styles.showBtn, props.on && styles.showBtnOn, pressed && ps.pressed]}>
       <Ico name={props.icon} size={18} color={props.on ? C.primary : C.muted} />
-      <Text style={[styles.showLabel, { color: props.on ? C.primary : C.muted }]} numberOfLines={1}>{props.label}</Text>
+      <Text style={[styles.showLabel, { color: props.on ? C.primary : C.muted }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   showBtn: { flex: 1, minHeight: target.min, borderRadius: radius.md + 2, borderWidth: 2, borderColor: C.border, backgroundColor: C.card,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: space.sm },
   showBtnOn: { borderColor: C.primary, backgroundColor: C.light },
-  showLabel: { fontSize: T.sm, fontWeight: '700' },
+  showLabel: { fontSize: T.sm, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   wordChip: { minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: TINT.amber, justifyContent: 'center' },
   wordChipText: { fontSize: T.sm, fontWeight: '700', color: C.dark, textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: TINT.amberText },
   hint: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xs },

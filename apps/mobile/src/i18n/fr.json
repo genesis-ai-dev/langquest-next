@@ -6792,7 +6792,6 @@
       "openReference": "Ouvrir la référence",
       "barTitle": "Bible",
       "barTitleWith": "Bible · {{abbr}}",
-      "barSub": "Tirez vers le bas pour le guide, les mots clés, les notes et les enregistrements précédents",
       "onlyBibleHelp": "La Bible où se trouvent ces versets. C’est la seule proposée ici.",
       "rowHelp": "Lit et affiche le passage dans cette Bible à la place.",
       "rowOnHelp": "Cochée : la Bible lue et affichée ici maintenant.",

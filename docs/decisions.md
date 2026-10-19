@@ -5116,6 +5116,47 @@ Reverse if: Cloudflare raises the isolate limit, folds move out of the
 heap (then the budget can grow), or production shows an organization the
 test's shapes do not cover (then add that shape to the test).
 
+Amended (2026-10-19, Ryder Wishart): the test now holds every memory user
+in the object, not only the folder, and its shapes are known not to cover
+the largest real organization.
+- What `OrgSnapshot` keeps per organization: the folder's org fold,
+  per-language summaries and saved cursors (grow with the number of
+  languages, small) and its held folds (the 12 MB budget); the folds'
+  derived indexes (core's WeakMaps, alive as long as a fold is held and
+  outside the budget's count: about 11 MB more on the API path at
+  60 × 300); the webhook dispatcher only a promise chain, with digests,
+  the feed and the outbox in SQLite, and while scanning one language's
+  fold and two digests at a time; `AgentOrg`'s write and upload counters,
+  at most an hour of timestamps per key (600 writes, 100 uploads) but one
+  key for every token and link that wrote since the object woke, never
+  forgotten; and nothing else (no response or link caches). A partner API
+  answer is at most 500 passages (0.7 MB of JSON at 5,000 passages a
+  language).
+- `orgFolderHeap.ts` runs one path per child process (fold, webhooks, api,
+  reports, writes) over 12 × 2,000, 6 × 5,000 and 60 × 300 (many small
+  languages). Each path also runs against the regression its bound stops
+  (no fold budget; a dispatcher that keeps what it compared; a response
+  cache; counters that keep every timestamp) and must fail there, so a
+  check that can no longer fail fails.
+- The budget is not enough on its own. After this decision was deployed,
+  `/connect` still failed for Every Language (decision 140): 37 languages,
+  ten over 89,000 events, the largest 230,430. In the harness one
+  language of that shape no longer fits in 112 MB somewhere between about
+  100,000 and 130,000 events (8,000 passages fit, 10,000 do not), however
+  few are held. The test's shapes stop at 65,000 events a language, so
+  they show the budget and the paths work for organizations up to that
+  size, not that every real organization fits. Decision 140 took access
+  checks off the full pass; reports, passage reads, writes and webhooks
+  for a language past that size still do not fit, and need their own
+  decision. When one exists, add a 1 × 18,000 shape (Every Language's
+  largest) to the test.
+- A post-deploy canary (`docs/routines/do-memory-canary.md`) is proposed
+  beside the test, because Every Language showed what only production
+  has: it reads a passage page of each of the largest real organizations
+  once after each production deploy (every object is cold then) and reads
+  the Worker log for "exceeded its memory limit". It is not running; it
+  needs per-organization read tokens and a read-only Cloudflare token.
+
 ## 133. The recording screen has its own Undo and Redo, parts move by a grip, a place opens on the line between parts, and no Undo there runs out
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -5372,6 +5413,18 @@ Reverse if: people delete by accident while scrolling, cannot find how to
 delete without the hint, or the low even line on older phone parts reads as
 silence.
 
+Amended (2026-10-17, Caleb Koster): a session's parts take their bars from
+the levels the recording screen showed for their boxes (`barsFromLevels`),
+read as the session is left, so leaving no longer reads every part's WAV in
+JavaScript before saving it. Caleb saw parts fill the list slowly, one by
+one, after leaving a session; in Hermes on a Mac that read took about 390 ms
+for ten 8 s parts, and the levels take under a millisecond. The live levels
+were set aside above because they are gone once the session is left; they
+are read just before it goes. A hold-to-record take, and a part found again
+after a restart, still read their WAV. The bars are each slice's level from
+the frames' loudest samples rather than every sample, so a row can look a
+little fuller than one read from its file.
+
 ## 137. Android's Back goes one step back, inside a screen's steps too, and leaves the app only from the first screen
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -5483,9 +5536,89 @@ Reverse if: people cannot find the organization's templates, reference
 material or review flows from a language, or look for the name or clusters
 in a More that is no longer there.
 
-## 139. A passage may be written as well as recorded, and a step can turn either into either, in any language
+## 139. Words are never cut off: a label wraps, side-by-side things move under each other, and a few choices wrap
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-16): on the passage page, under "Continue
+recording", "Something else?" and "Versions and …" were cut off; "Go
+through the app and look for cutoff text in all languages on all pages and
+resolve." Walking every screen reachable from each role at 360 pt in the 15
+interface languages (and reading every layout) found cut-off words in the
+kit and in 40 screens' and parts' files, many in English too: the kit and screens shortened words with "…"
+(`numberOfLines`), left a label beside other things with no room to wrap
+(React Native does not shrink a child by default, and Android clips what
+runs past its parent), fixed widths that a word in Swahili or Burmese
+outgrows, and choices of two or three in a row that scrolls sideways, the
+last one past the edge. The rule, in the kit so screens get it by default:
+- **The app's own words show in full.** `Row` labels and subs, `Disclosure`
+  summaries (still short, but they wrap: this narrows PLAN.md's one-line
+  summaries), `Header` titles and subs, `Badge`, and the labels of
+  `PrimaryBtn`, `GhostBtn`, `SmallBtn`, `QuietLinks` and `Chip` wrap instead
+  of taking "…"; the buttons shrink to their place and their words wrap in
+  them. People's own content (names, notes, titles) may still be shortened
+  in a list; it shows in full where it opens.
+- **Side by side while it fits, else under.** A `Row`'s badge and right-hand
+  part keep the label most of the row (`rowBadge`, `rowRight`); a header
+  whose action carries words or is wider than one round button puts the
+  title on its own line under the buttons; button groups, figures, keys,
+  pills and title-with-badge lines wrap.
+- **A few choices wrap** (`ChipWrap`), so every option is in sight; a
+  `ChipRow` that scrolls sideways stays for filters among many.
+- **The reviews grid** sizes every column to the longest word in any head,
+  so a head breaks only between words, and a head is a check's whole name
+  where two checks share their first word (Spanish "Verificación …"), so no
+  two read alike (`gridColumnNames`).
+- **The recording screen's collapsed reference bar** (80 pt) shows the
+  Bible's name only: its "Drag down for the guide, key words, notes and
+  earlier recordings" never fit in any language, and help mode says it.
+- **On Android, bold text set with a line height is drawn at weight 600**
+  (`ui/text.tsx`). Caleb's cut was Android's own: on an emulator sized like
+  his Pixel 10 Pro, "Versions and history" lost "history" at weight 700 with
+  `txt.sm`'s line height, kept it at 600 or without the line height, and the
+  kit's wrapping alone did not help. Android draws 600 and 700 near enough
+  alike in its system font.
+The recording screen's part rows and its footer are 136's: they were being
+rebuilt alongside this, and its Done and one-line bar now fit their words.
+Reverse if: a screen needs a fixed-size label to stay readable at a glance
+(a tab bar), and wrapping makes it worse than an abbreviation would.
+
+## 140. Access checks read the organization stream alone, never a pass over its languages
+
+Date: 2026-10-19 · By: Ryder Wishart · Status: accepted
+
+Reason: after decision 132 was deployed, `/connect` still answered 502 for
+people in Every Language (`org-v2-everylanguage`, reported 2026-10-18 and
+2026-10-19; reproduced 2026-10-19 with the Worker log: "Durable Object's
+isolate exceeded its memory limit and was reset" on `agentAccess`). That
+organization has 1.75 million events in 37 languages, ten of them over
+89,000 events and the largest 230,430. In the memory harness a single
+language of that shape stops fitting in 112 MB between about 100,000 and
+130,000 events, so no fold budget helps: one language alone is too big.
+`/connect` asks only who may see what, which the organization stream
+answers, but `AgentOrg.access` read `OrgFolder.orgState()`, which first runs
+a full pass that folds every language.
+- `OrgFolder.orgOnly()` catches up the organization stream alone (restored
+  from the cache, then the log past it when its head moved, at most once a
+  minute like a pass) and folds no language.
+- `AgentOrg.access` (`/connect`'s `session/orgs`), the `languages` read
+  (a token's `/me` and `GET /languages`), `linkOpen` and `mayRevokeLink`
+  use it. Reports, passage reads, writes and the webhook dispatcher still
+  need language folds and still use the pass.
+- `apps/web/test/memory/orgAccess.test.ts` runs those checks over Every
+  Language's real shape (its 37 languages' sizes) with a source that fails
+  on any read of a language stream. Against the code before this change it
+  fails.
+This fixes `/connect` and token management only. Every Language's reports,
+partner API passage reads and webhooks still fold languages too big for
+the isolate; that needs its own decision (fold large languages outside the
+object, or keep a smaller fold).
+Reverse if: an access check needs something only a language fold has; then
+that piece belongs in the organization stream or a summary, not a pass.
+
+## 141. A passage may be written as well as recorded, and a step can turn either into either, in any language
+
+Date: 2026-10-19 · By: Caleb Koster · Status: accepted
 
 Reason: Caleb asked how the app would hold written translations beside
 audio, and chose (thread "Written translations alongside audio", plan page

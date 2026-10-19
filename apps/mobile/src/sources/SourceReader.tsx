@@ -163,11 +163,11 @@ export function SourceView(props: SourceReaderProps & {
             label={player.playing ? t('common.pause') : t('sources.reader.playIn', { abbr })} help={t('recording.player.playHelp')} onPress={player.toggle} />
           <IconBtn name="skip" label={t('sources.reader.forwardTen')} help={t('sources.reader.forwardHelp')} size={target.min} bg={C.light} color={C.primary} disabled={!player.started} onPress={() => player.skip(10)} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={1}>
+            <Text style={[txt.sm, { fontWeight: '700' }]}>
               {player.loading ? t('common.loading') : player.playing ? (player.current ? t('sources.reader.playingVerse', { verse: player.current.key }) : t('sources.reader.playing'))
                 : player.started ? t('sources.reader.paused') : t('sources.reader.playPassage')}
             </Text>
-            <Text style={txt.xs} numberOfLines={1}>{src?.chapters.some((c) => c.local) ? t('sources.reader.onDevice', { abbr }) : abbr}</Text>
+            <Text style={txt.xs}>{src?.chapters.some((c) => c.local) ? t('sources.reader.onDevice', { abbr }) : abbr}</Text>
           </View>
         </View>
       ) : (

@@ -50,7 +50,7 @@ export function BigVoice(props: {
       <View style={styles.done}>
         <View style={styles.heard}>
           <AudioClip language={props.ctx.language} hashes={[props.hash]} label={t('recording.bigVoice.playWhatYouSaid')} />
-          <Text style={[txt.body, { fontWeight: '800', color: TINT.greenText }]}>{secs > 0 ? t('recording.bigVoice.whatYouSaidLength', { length: clock(secs) }) : t('recording.bigVoice.whatYouSaid')}</Text>
+          <Text style={[txt.body, { fontWeight: '800', color: TINT.greenText, flexShrink: 1 }]}>{secs > 0 ? t('recording.bigVoice.whatYouSaidLength', { length: clock(secs) }) : t('recording.bigVoice.whatYouSaid')}</Text>
         </View>
         <Pressable onPress={again.onPress} accessibilityRole="button" style={({ pressed }) => [styles.again, pressed && { opacity: 0.7 }]}>
           <Ico name="restart" size={18} color={C.dark} />

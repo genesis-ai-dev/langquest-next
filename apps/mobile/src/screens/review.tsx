@@ -246,7 +246,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const r = readiness(questions, captured.answers, skipped, comment, feedback?.hash ?? null);
   const group = isGroupKind(kind.id);
   const asker = request?.by ? ctx.name(request.by) : undefined;
-  // What this check reads (decision 139): what an earlier step made from this version, or the version; writing is read.
+  // What this check reads (decision 141): what an earlier step made from this version, or the version; writing is read.
   const reads = readsFor(v.p, kind, version);
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes, reads: reads.medium === 'writing' });
   const at = stageAt(stages, stageId);
@@ -397,7 +397,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       )}
       {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
       {!reads.made && reads.medium === 'recording' ? <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered /> : null}
-      {/* What a step added to the version is part of it: a check hears and reads them together (decision 139). */}
+      {/* What a step added to the version is part of it: a check hears and reads them together (decision 141). */}
       {!reads.made ? addedTo(v.p, version).map((a) => (
         <HelpRow key={a.medium} of="review.added">
           <View style={{ gap: space.sm }}>
@@ -748,7 +748,7 @@ export function GuestReview(ctx: Ctx) {
           <View style={styles.brand}><Ico name="globe" size={18} color={C.white} /></View>
           {/* i18n-ignore: the product's name, the same in every language */}
           <Text style={[txt.sm, { fontWeight: '800', flex: 1 }]}>LangQuest</Text>
-          <Badge label={t('review.guest.noAccount')} />
+          <View style={{ flexShrink: 1, maxWidth: '55%' }}><Badge label={t('review.guest.noAccount')} /></View>
         </View>
         <Text style={txt.title}>{headline}</Text>
         <Text style={txt.xs}>{v.language} · {checkName(kind.id, v.kinds)}</Text>
@@ -788,7 +788,7 @@ const styles = StyleSheet.create({
   verdictRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.md },
   answer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', gap: space.lg, paddingVertical: space.xl },
   qFoot: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  partRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.md },
+  partRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: space.md },
   brand: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   voiceOff: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.sm,
     borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: TINT.gray, opacity: 0.7 },

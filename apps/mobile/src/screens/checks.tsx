@@ -14,7 +14,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Chip, ChipRow, EmptyState, Field, Group, Header, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SectionLabel, Sheet, Toggle } from '../ui/kit';
+import { Banner, Chip, ChipWrap, EmptyState, Field, Group, Header, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SectionLabel, Sheet, Toggle } from '../ui/kit';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { refKindOf } from '../reference/model';
 import { failureMessage } from '../diagnostics/report';
@@ -201,7 +201,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const checkers = rows.filter((r, j) => j !== i && !kindOf(state, r.kindId).produces);
   const checkedByName = kind.produces ? checkName(kind.produces.checkedBy, known) : '';
 
-  // A step that makes something (decisions.md 139): what it turns, into what, in which language, and what happens to it.
+  // A step that makes something (decisions.md 141): what it turns, into what, in which language, and what happens to it.
   const makes = kind.makes;
   const reference = teamLanguage(ctx.org.state, state, languageId);
   const setMakes = (next: MakesSpec) => {
@@ -210,7 +210,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
     // No Undo: the same choices change it back (decision 134).
     void ctx.act(commands(s, indexesFor(s)).setStepMakes({ commandId: Crypto.randomUUID(), kindId, makes: next }), t('checks.saved', { language })).catch(() => {});
   };
-  // Words added here, before a step that makes the next version, stay with the older version (decision 139).
+  // Words added here, before a step that makes the next version, stay with the older version (decision 141).
   const laterVersion = makes?.result === 'added' ? rows.slice(i + 1).map((r) => known.find((k) => k.id === r.kindId)).find((k) => k?.makes?.result === 'version') : undefined;
   // A check may read what an earlier step made instead of the version (a spelling check of what was written down).
   const makersBefore = rows.slice(0, i).map((r) => known.find((k) => k.id === r.kindId)).filter((k): k is KindDef => !!k?.makes);
@@ -243,12 +243,12 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
       ) : makersBefore.length > 0 ? (
         <>
           <SectionLabel label={t('writing.step.reads')} />
-          <ChipRow>
+          <ChipWrap>
             <Chip label={t('writing.step.theVersion')} on={!looksAt} help={t('writing.help.readsVersion')} onPress={() => mayFlows && setLooksAt(null)} />
             {/* help-each: each chip is a different thing for the check to read */}
             {makersBefore.map((m) => <Chip key={m.id} label={t('writing.step.whatMade', { step: m.name })} icon={m.makes!.to === 'writing' ? 'edit' : 'mic'}
               help={t('writing.help.readsMade', { step: m.name })} on={looksAt === m.id} onPress={() => mayFlows && setLooksAt(m.id)} />)}
-          </ChipRow>
+          </ChipWrap>
         </>
       ) : null}
       <Group>
@@ -508,10 +508,10 @@ function QuestionsPage({ ctx }: { ctx: Ctx }) {
           <>
             <Field value={question.text} onChangeText={(text) => setQuestion({ ...question, text })} placeholder={t('checks.questionPlaceholder')} multiline
               help={t('checks.questionFieldHelp')} />
-            <ChipRow>
+            <ChipWrap>
               {/* help-each: each type asks for a different kind of answer */}
               {questionTypes().map((x) => <Chip key={x.id} label={x.label} on={question.type === x.id} help={x.help} onPress={() => setQuestion({ ...question, type: x.id })} />)}
-            </ChipRow>
+            </ChipWrap>
             <Group>
               <Row icon="lock" label={t('common.required')} role="switch" checked={question.required} last
                 right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')}

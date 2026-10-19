@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   stroke: { flex: 1, height: 5, borderRadius: 3, backgroundColor: C.dark, opacity: 0.55 },
   strokeHeading: { backgroundColor: C.faint, opacity: 1 },
   other: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, minHeight: 56, borderRadius: radius.lg, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card, paddingHorizontal: space.md },
-  otherText: { color: C.primary, fontWeight: '800', fontSize: T.base },
+  otherText: { color: C.primary, fontWeight: '800', fontSize: T.base, flexShrink: 1 },
   quote: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: C.border, paddingVertical: space.xl, paddingHorizontal: space.lg, alignItems: 'center' },
   quoteText: { fontSize: T.xl, fontWeight: '700', color: C.dark, textAlign: 'center', fontStyle: 'italic' },
   tileRow: { flexDirection: 'row', gap: space.md },

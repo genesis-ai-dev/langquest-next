@@ -61,6 +61,19 @@ export function barsFromChannels(channels: Float32Array[], count = BAR_COUNT): n
   return b.bars();
 }
 
+/**
+ * Bars from the levels the recording screen showed while the part was said
+ * (livePartsModel.ts: each frame's loudest sample, dB), so leaving a session
+ * draws its parts without reading their files. A part shorter than `count`
+ * frames gets a bar a frame (fitBars spreads them); none, when it has none.
+ */
+export function barsFromLevels(db: readonly number[], count = BAR_COUNT): number[] | null {
+  if (db.length === 0) return null;
+  const b = barsBuilder(db.length, Math.min(count, db.length));
+  for (const d of db) b.add(10 ** (d / 20));
+  return b.bars();
+}
+
 /** `bars` fitted to `n` places: each place takes the loudest bar it covers, or repeats one when there are more places than bars. */
 export function fitBars(bars: readonly number[], n: number): number[] {
   if (n <= 0 || bars.length === 0) return [];

@@ -1,4 +1,4 @@
-// Steps that make something (decisions.md 139; demo branch
+// Steps that make something (decisions.md 141; demo branch
 // caleb-written-translations wStepPick, wStepOwn, wStepFinal): in a
 // language's checks, a step can turn recording or writing into recording or
 // writing, in the team's language or another. What it makes stays beside
@@ -18,7 +18,7 @@ import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Chip, ChipRow, Field, Group, Ico, PrimaryBtn, Row, SectionLabel, Sheet, type IconName } from '../ui/kit';
+import { Chip, ChipWrap, Field, Group, Ico, PrimaryBtn, Row, SectionLabel, Sheet, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { languageLabel } from '../admin/adminModel';
 import { C, radius, space, TINT } from '../ui/theme';
@@ -41,7 +41,7 @@ export function MakesLine({ makes, language }: { makes: Pick<MakesSpec, 'from' |
       {dot(makes.from)}
       <Ico name="arrowR" size={14} color={C.muted} />
       {dot(makes.to)}
-      <View style={styles.lang}><Text style={styles.langText} numberOfLines={1}>{language}</Text></View>
+      <View style={styles.lang}><Text style={styles.langText}>{language}</Text></View>
     </View>
   );
 }
@@ -92,16 +92,16 @@ export function MakesFields(props: { makes: MakesSpec; own: string; reference: s
   const set = (patch: Partial<MakesSpec>) => {
     const next = { ...makes, ...patch };
     if (next.language === 'same') delete next.otherLanguage;
-    // The result follows the choices until someone picks it (decisions.md 139); it never stays where it cannot be.
+    // The result follows the choices until someone picks it (decisions.md 141); it never stays where it cannot be.
     const result: MakesResult = 'result' in patch ? patch.result! : ('from' in patch || 'to' in patch || 'language' in patch) ? defaultResult(next) : next.result;
     props.onChange({ ...next, result: resultAllowed(next, result) ? result : 'beside' });
   };
   const sides = (value: Side, onPick: (s: Side) => void, last: string, help: string) => (
-    <ChipRow>
+    <ChipWrap>
       <Chip label={t('writing.step.recording')} icon="mic" on={value === 'recording'} help={help} onPress={() => !props.disabled && onPick('recording')} />
       <Chip label={t('writing.step.writing')} icon="edit" on={value === 'writing'} help={help} onPress={() => !props.disabled && onPick('writing')} />
       <Chip label={last} on={value === 'either'} help={help} onPress={() => !props.disabled && onPick('either')} />
-    </ChipRow>
+    </ChipWrap>
   );
   const option = (result: MakesResult, icon: IconName, title: string, sub: string, off: string) => {
     const allowed = resultAllowed(makes, result);
@@ -117,10 +117,10 @@ export function MakesFields(props: { makes: MakesSpec; own: string; reference: s
       <SectionLabel label={t('writing.step.into')} />
       {sides(makes.to, (to) => set({ to }), t('writing.step.theyPick'), t('writing.help.into'))}
       <SectionLabel label={t('writing.step.in')} />
-      <ChipRow>
+      <ChipWrap>
         <Chip label={props.own} on={makes.language === 'same'} help={t('writing.help.inOwn')} onPress={() => !props.disabled && set({ language: 'same' })} />
         <Chip label={languageLabel(makes.otherLanguage ?? props.reference)} icon="globe" on={makes.language === 'other'} help={t('writing.help.inOther')} onPress={() => !props.disabled && set({ language: 'other' })} />
-      </ChipRow>
+      </ChipWrap>
       <SectionLabel label={t('writing.step.result.title')} />
       <View style={{ gap: space.sm }} accessibilityRole="radiogroup">
         {option('beside', 'layers', t('writing.step.result.beside'), t('writing.step.result.besideSub'), '')}
@@ -175,10 +175,11 @@ export function MakeStepSheet(props: { visible: boolean; own: string; reference:
 }
 
 const styles = StyleSheet.create({
-  line: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  line: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 },
   dot: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   either: { fontSize: 16, fontWeight: '800', color: C.muted },
-  lang: { marginLeft: 4, maxWidth: 88, paddingHorizontal: 7, height: 24, borderRadius: radius.sm, backgroundColor: TINT.gray, justifyContent: 'center' },
+  // The language's name in full, on a line of its own when it is long (decision 139).
+  lang: { marginLeft: 4, flexShrink: 1, paddingHorizontal: 7, paddingVertical: 2, minHeight: 24, borderRadius: radius.sm, backgroundColor: TINT.gray, justifyContent: 'center' },
   langText: { fontSize: 12, fontWeight: '800', color: C.dark },
   dashed: { minHeight: 52, borderRadius: radius.lg, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm },
   preview: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.lg, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border },

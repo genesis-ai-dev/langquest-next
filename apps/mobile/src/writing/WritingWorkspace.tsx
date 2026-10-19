@@ -1,4 +1,4 @@
-// Writing a passage (decisions.md 139; demo branch caleb-written-translations,
+// Writing a passage (decisions.md 141; demo branch caleb-written-translations,
 // simple/writing.tsx wWrite, wType, wPublish, wFirstWrite, wBtWrite): the
 // recording workspace's split, with the reference on top and one box per
 // verse below. On top: what is being written from (a version heard verse by
@@ -334,7 +334,7 @@ function SourceBar({ title, icon, onOpen }: { title: string; icon: 'listen' | 'b
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('writing.openReference')} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
       <Ico name={icon} size={18} color={C.primary} />
-      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{title}</Text>
+      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]}>{title}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );

@@ -46,7 +46,7 @@ export function VersionsPage(props: {
   const mine = draftsBy(p, me);
   const durations = cardDurations(state, unitId);
   const versesHeld = useVersesHeld(ctx, state, unitId);
-  // "2 parts · 0:17", and the verses they hold when they have any: "2 parts · 0:17 · Verses 1–2". Written: "3 verses written" (decisions.md 139).
+  // "2 parts · 0:17", and the verses they hold when they have any: "2 parts · 0:17 · Verses 1–2". Written: "3 verses written" (decisions.md 141).
   const length = (hashes: readonly string[]) => partsMedium(hashes) === 'writing' ? t('writing.publishSub', { count: hashes.length })
     : [t('recording.parts.groupSub', { count: hashes.length, length: mmss(totalMs(hashes.map((h) => durations.get(h)))) }), versesHeld(hashes)].filter(Boolean).join(' · ');
   const saved = (hlc: string) => {
@@ -135,7 +135,7 @@ function ItemCard(props: {
 }) {
   const written = partsMedium(props.hashes) === 'writing';
   const clip = useClip(props.ctx.language, written ? [] : props.hashes);
-  // A written version shows its first words, and a pen where a recording has play (decision 139).
+  // A written version shows its first words, and a pen where a recording has play (decision 141).
   const words = written ? props.hashes.map((h) => writtenText(props.ctx.language.state!, h) ?? '').join(' ').trim() : '';
   const playLabel = clip.playing ? t('recording.recorder.pausePart', { part: props.title }) : t('recording.player.playTitle', { title: props.title });
   const play = useHelpSpot(playLabel, undefined, clip.toggle);
@@ -144,11 +144,12 @@ function ItemCard(props: {
   const body = (
     <>
       <View style={styles.titleRow}>
-        <Text style={styles.title} numberOfLines={1}>{props.title}</Text>
+        <Text style={[styles.title, { flexShrink: 1 }]}>{props.title}</Text>
         {props.badge ? <Badge label={props.badge} tone="brand" /> : null}
       </View>
+      {/* The team's own words, shortened in the list; they show in full where the version opens (decision 139). */}
       {words ? <Text style={txt.sm} numberOfLines={2}>{words}</Text> : null}
-      {props.lines.map((l, i) => <Text key={i} style={txt.smMuted} numberOfLines={2}>{l}</Text>)}
+      {props.lines.map((l, i) => <Text key={i} style={txt.smMuted}>{l}</Text>)}
     </>
   );
   return (
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, padding: space.md, gap: space.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   play: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
   title: { fontSize: 18, fontWeight: '800', color: C.dark, flexShrink: 1 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingLeft: target.min + space.md }
 });

@@ -6517,7 +6517,6 @@
       "openReference": "Open the reference",
       "barTitle": "Bible",
       "barTitleWith": "Bible · {{abbr}}",
-      "barSub": "Drag down for the guide, key words, notes and earlier recordings",
       "onlyBibleHelp": "The Bible these verses are in. It is the only one offered here.",
       "rowHelp": "Plays and shows the passage in this Bible instead.",
       "rowOnHelp": "Ticked: the Bible playing and showing here now.",

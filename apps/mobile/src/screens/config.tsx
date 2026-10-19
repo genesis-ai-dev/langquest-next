@@ -32,7 +32,7 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { cachedDoc } from '../library/docStore';
@@ -1196,10 +1196,10 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
                   <>
                     <Field value={q.text} onChangeText={(v) => setQuestion(i, { text: v })} placeholder={t('config.material.questionPlaceholder')} multiline
                       help={t('config.material.questionHelp')} />
-                    <ChipRow>
+                    <ChipWrap>
                       {/* help-each: each type asks in a different way */}
                       {questionTypes().map((type) => <Chip key={type.id} label={type.label} on={q.type === type.id} help={questionTypeHelp(type.id)} onPress={() => setQuestion(i, { type: type.id })} />)}
-                    </ChipRow>
+                    </ChipWrap>
                     <View style={styles.checkpoint}>
                       <View style={{ flex: 1 }}>
                         <Text style={[txt.sm, { fontWeight: '700' }]}>{q.required ? t('common.required') : t('config.material.suggested')}</Text>
