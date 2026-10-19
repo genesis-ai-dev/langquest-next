@@ -10,7 +10,7 @@ import { checkTeamFor } from './checks';
 import { sourceChapters } from './sourceBibles';
 import type { LanguageState } from './state';
 import { changesSince, liveStateOf, sameFields, stateRevision, watchChanges, type Touched } from './changes';
-import { madeGroup, madeIn, partsMedium, type MadeView, type Medium } from './writing';
+import { madeGroup, madeViewsOf, NO_MADE, partsMedium, type MadeView, type Medium } from './writing';
 import { LISTENER_KIND, type MadeRecord } from './record';
 
 /**
@@ -287,6 +287,8 @@ interface RecordIndexes {
   madeVersions: Map<string, MadeRecord>;
   /** unitId -> its v1.Made, any */
   madeByUnit: Map<string, MadeRecord[]>;
+  /** The flow's kinds that make something, the same for every passage, so they share one list. */
+  makingKindIds: string[];
 }
 
 /**
@@ -402,9 +404,12 @@ function buildRecordIndexes(state: LanguageState, idx: Indexes): RecordIndexes {
     push(madeByUnit, m.unitId, m);
     if (m.takeId && !madeVersions.has(m.takeId)) madeVersions.set(m.takeId, m);
   }
+  const kinds = deriveKinds(state);
+  const flow = deriveFlow(state);
+  const makingKindIds = flow.steps.flatMap((st) => st.kindIds).filter((id) => !!kinds.find((k) => k.id === id)?.makes);
   return {
-    idx, kinds: deriveKinds(state), flow: deriveFlow(state), versions, drafts, children, reviewsByTake, withdrawnByTake,
-    departures, requests, requestsTo, requestsBy, notes, changeNotes, passages: new Map(), madeVersions, madeByUnit
+    idx, kinds, flow, versions, drafts, children, reviewsByTake, withdrawnByTake,
+    departures, requests, requestsTo, requestsBy, notes, changeNotes, passages: new Map(), madeVersions, madeByUnit, makingKindIds
   };
 }
 
@@ -534,7 +539,9 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
   if (hit) return hit;
   const flow = ri.flow;
 
-  const madeViews = madeIn(state, key);
+  const madeRecords = ri.madeByUnit.get(key);
+  const madeViews = madeRecords ? madeViewsOf(state, madeRecords) : NO_MADE;
+  const someMade = (list: MadeView[]) => (list.length ? list : NO_MADE);
   const everyVersion: Version[] = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId]!;
     const response = state.responses[takeId];
@@ -545,7 +552,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     return {
       takeId, n: i + 1, by: state.submissions[takeId]?.actorId ?? t.actorId, hlc: state.submissions[takeId]!.hlc,
       cardHashes: t.cardHashes, parentTakeId: t.parentTakeId, medium: partsMedium(t.cardHashes),
-      added: madeViews.filter((m) => m.added && m.fromTakeId === takeId),
+      added: madeViews.length ? someMade(madeViews.filter((m) => m.added && m.fromTakeId === takeId)) : NO_MADE,
       ...(madeBy?.kindId ? { madeByKindId: madeBy.kindId } : {}), ...(madeBy?.fromTakeId ? { madeFromTakeId: madeBy.fromTakeId } : {}),
       ...(note ? { changeNote: note } : {}), ...(blob ? { changeBlobHash: blob } : {})
     };
@@ -667,8 +674,8 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     done: recorded && steps.every((s) => s.complete || !!s.override),
     awaitingResponse: reviews.filter((r) => r.outcome === 'needs_changes' && !r.response && r.versionN === latest?.n),
     notes: ri.notes.get(key) ?? [],
-    made: madeViews.filter((m) => !m.takeId),
-    makingKindIds: flow.steps.flatMap((st) => st.kindIds).filter((id) => !!ri.kinds.find((k) => k.id === id)?.makes),
+    made: madeViews.length ? someMade(madeViews.filter((m) => !m.takeId)) : NO_MADE,
+    makingKindIds: ri.makingKindIds,
     ...(latest ? { latest } : {}),
     ...(draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId]!.actorId } : {}),
     ...(next ? { next } : {})

@@ -21177,13 +21177,12 @@ function resultAllowed(m, result) {
   if (m.language !== "same" || m.to === "either") return false;
   return result === "version" || m.from !== "either" && m.from !== m.to;
 }
-function madeIn(state, unitId) {
-  const out = [];
-  for (const m of Object.values(state.made ?? {})) {
-    if (m.unitId !== unitId) continue;
+var NO_MADE = Object.freeze([]);
+function madeViewsOf(state, records) {
+  return records.map((m) => {
     const parts = m.parts ?? [];
     const take = m.takeId ? state.takes[m.takeId] : void 0;
-    out.push({
+    return {
       id: m.id,
       unitId: m.unitId,
       by: m.by,
@@ -21196,9 +21195,8 @@ function madeIn(state, unitId) {
       ...m.language !== void 0 ? { language: m.language } : {},
       ...m.takeId !== void 0 ? { takeId: m.takeId } : {},
       ...m.added ? { added: true } : {}
-    });
-  }
-  return out.sort((a, b) => a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : a.id < b.id ? -1 : 1);
+    };
+  });
 }
 var K = new Uint32Array([
   1116352408,
@@ -22418,10 +22416,13 @@ function buildRecordIndexes(state, idx) {
     push(madeByUnit, m.unitId, m);
     if (m.takeId && !madeVersions.has(m.takeId)) madeVersions.set(m.takeId, m);
   }
+  const kinds = deriveKinds(state);
+  const flow = deriveFlow(state);
+  const makingKindIds = flow.steps.flatMap((st) => st.kindIds).filter((id) => !!kinds.find((k) => k.id === id)?.makes);
   return {
     idx,
-    kinds: deriveKinds(state),
-    flow: deriveFlow(state),
+    kinds,
+    flow,
     versions,
     drafts,
     children,
@@ -22435,7 +22436,8 @@ function buildRecordIndexes(state, idx) {
     changeNotes,
     passages: /* @__PURE__ */ new Map(),
     madeVersions,
-    madeByUnit
+    madeByUnit,
+    makingKindIds
   };
 }
 function edit(m, key, f) {
@@ -22543,7 +22545,9 @@ function derivePassage(state, unitId, idx) {
   const hit = ri.passages.get(key);
   if (hit) return hit;
   const flow = ri.flow;
-  const madeViews = madeIn(state, key);
+  const madeRecords = ri.madeByUnit.get(key);
+  const madeViews = madeRecords ? madeViewsOf(state, madeRecords) : NO_MADE;
+  const someMade = (list) => list.length ? list : NO_MADE;
   const everyVersion = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId];
     const response = state.responses[takeId];
@@ -22559,7 +22563,7 @@ function derivePassage(state, unitId, idx) {
       cardHashes: t.cardHashes,
       parentTakeId: t.parentTakeId,
       medium: partsMedium(t.cardHashes),
-      added: madeViews.filter((m) => m.added && m.fromTakeId === takeId),
+      added: madeViews.length ? someMade(madeViews.filter((m) => m.added && m.fromTakeId === takeId)) : NO_MADE,
       ...madeBy?.kindId ? { madeByKindId: madeBy.kindId } : {},
       ...madeBy?.fromTakeId ? { madeFromTakeId: madeBy.fromTakeId } : {},
       ...note ? { changeNote: note } : {},
@@ -22674,8 +22678,8 @@ function derivePassage(state, unitId, idx) {
     done: recorded && steps.every((s) => s.complete || !!s.override),
     awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest3?.n),
     notes: ri.notes.get(key) ?? [],
-    made: madeViews.filter((m) => !m.takeId),
-    makingKindIds: flow.steps.flatMap((st) => st.kindIds).filter((id) => !!ri.kinds.find((k) => k.id === id)?.makes),
+    made: madeViews.length ? someMade(madeViews.filter((m) => !m.takeId)) : NO_MADE,
+    makingKindIds: ri.makingKindIds,
     ...latest3 ? { latest: latest3 } : {},
     ...draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId].actorId } : {},
     ...next ? { next } : {}

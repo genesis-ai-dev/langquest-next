@@ -173,14 +173,21 @@ export interface MadeView {
   hlc: Hlc;
 }
 
-/** Everything made in a passage, oldest first. */
-export function madeIn(state: LanguageState, unitId: string): MadeView[] {
-  const out: MadeView[] = [];
-  for (const m of Object.values(state.made ?? {})) {
-    if (m.unitId !== unitId) continue;
+type MadeRecord = NonNullable<LanguageState['made']>[string];
+
+/**
+ * Nothing made: one shared, frozen list, so the many passages and versions
+ * with nothing made from them hold no list of their own (a cached passage
+ * view lives as long as its language's fold; apps/web memory test).
+ */
+export const NO_MADE: MadeView[] = Object.freeze([]) as unknown as MadeView[];
+
+/** Views of the fold's made records, in the order given. */
+export function madeViewsOf(state: LanguageState, records: readonly MadeRecord[]): MadeView[] {
+  return records.map((m) => {
     const parts = m.parts ?? [];
     const take = m.takeId ? state.takes[m.takeId] : undefined;
-    out.push({
+    return {
       id: m.id, unitId: m.unitId, by: m.by, hlc: m.hlc,
       medium: partsMedium(take ? take.cardHashes : parts.map((p) => p.hash)),
       parts: [...parts],
@@ -190,9 +197,14 @@ export function madeIn(state: LanguageState, unitId: string): MadeView[] {
       ...(m.language !== undefined ? { language: m.language } : {}),
       ...(m.takeId !== undefined ? { takeId: m.takeId } : {}),
       ...(m.added ? { added: true as const } : {})
-    });
-  }
-  return out.sort((a, b) => (a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : a.id < b.id ? -1 : 1));
+    };
+  });
+}
+
+/** Everything made in a passage, oldest first. */
+export function madeIn(state: LanguageState, unitId: string): MadeView[] {
+  return madeViewsOf(state, Object.values(state.made ?? {}).filter((m) => m.unitId === unitId))
+    .sort((a, b) => (a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : a.id < b.id ? -1 : 1));
 }
 
 /** The version a made thing comes from, following earlier made things back. */
