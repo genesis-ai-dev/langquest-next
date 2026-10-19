@@ -55,7 +55,7 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 | --- | --- | --- |
 | invite email | `INVITE_FROM` | `INVITE_RELAY_SECRET` |
 | dashboard | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
-| admin | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, which account, projects, team and app each section reads | `DIAG_DATABASE_URL`; optional `ADMIN_PROFILE_IDS` and `ADMIN_*_TOKEN` |
+| admin | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, which account, projects, team and app each section reads | `DIAG_DATABASE_URL`; optional `ADMIN_PROFILE_IDS` and the provider tokens and keys (`ADMIN_*`) |
 
 ## Recordings and guide media (R2)
 

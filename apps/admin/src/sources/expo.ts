@@ -8,11 +8,13 @@ import { getJson, ok, off, type Alert, type Section } from '../section';
 
 export interface ExpoBuild { platform: string; profile: string | null; status: string; at: string; appVersion: string | null; runtime: string | null }
 export interface ExpoUpdate { branch: string; platform: string | null; runtime: string | null; group: string | null; at: string }
-export interface Expo { builds: ExpoBuild[]; updates: ExpoUpdate[] }
+export interface ExpoSubmission { platform: string; status: string; at: string; error: string | null; version: string | null }
+export interface Expo { builds: ExpoBuild[]; submissions: ExpoSubmission[]; updates: ExpoUpdate[] }
 
 export const EXPO_QUERY = `query ($id: String!) {
   app { byId(appId: $id) {
     builds(offset: 0, limit: 12) { id status platform createdAt buildProfile appVersion runtime { version } }
+    submissions(filter: {}, offset: 0, limit: 8) { status platform createdAt error { errorCode message } submittedBuild { appVersion } }
     updateBranches(offset: 0, limit: 10) { name updateGroups(offset: 0, limit: 1) { group platform createdAt runtime { version } } }
   } }
 }`;
@@ -20,6 +22,7 @@ export const EXPO_QUERY = `query ($id: String!) {
 interface Answer {
   data?: { app?: { byId?: {
     builds?: { status: string; platform: string; createdAt: string; buildProfile?: string | null; appVersion?: string | null; runtime?: { version?: string | null } | null }[];
+    submissions?: { status: string; platform: string; createdAt: string; error?: { errorCode?: string | null; message?: string | null } | null; submittedBuild?: { appVersion?: string | null } | null }[];
     updateBranches?: { name: string; updateGroups?: { group?: string | null; platform?: string | null; createdAt: string; runtime?: { version?: string | null } | null }[][] }[];
   } } };
   errors?: { message: string }[];
@@ -36,7 +39,12 @@ export function expoFrom(answer: Answer): Expo {
     if (!first) return [];
     return [{ branch: br.name, platform: group.map((u) => u.platform).filter(Boolean).join(', ') || null, runtime: first.runtime?.version ?? null, group: first.group ?? null, at: first.createdAt }];
   }).sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
-  return { builds, updates };
+  const submissions = (app?.submissions ?? []).map((s) => ({
+    platform: s.platform, status: s.status, at: s.createdAt,
+    error: s.error ? [s.error.errorCode, s.error.message?.slice(0, 160)].filter(Boolean).join(': ') || null : null,
+    version: s.submittedBuild?.appVersion ?? null
+  })).sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  return { builds, submissions, updates };
 }
 
 /** The newest build of each platform and profile, when it failed. */
@@ -48,6 +56,12 @@ export function expoAlerts(e: Expo): Alert[] {
     if (seen.has(key)) continue;
     seen.add(key);
     if (b.status === 'ERRORED') out.push({ level: 'watch', text: `The latest ${b.platform.toLowerCase()} ${b.profile ?? ''} build failed on EAS.` });
+  }
+  const latest = new Set<string>();
+  for (const s of e.submissions) {
+    if (latest.has(s.platform)) continue;
+    latest.add(s.platform);
+    if (s.status === 'ERRORED') out.push({ level: 'watch', text: `The latest ${s.platform.toLowerCase()} store submission failed on EAS${s.error ? ` (${s.error.split(':')[0]})` : ''}.` });
   }
   return out;
 }

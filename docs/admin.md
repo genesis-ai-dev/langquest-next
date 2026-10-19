@@ -39,7 +39,9 @@ address.
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next and LangQuest v2: project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx) | `ADMIN_SUPABASE_TOKEN` |
 | Vercel | the FrontierRND team's projects (the website, the v2 web app, the dev docs, the partner demo): latest production deploy and last failed one | `ADMIN_VERCEL_TOKEN` |
-| App builds and updates | EAS builds and the newest update on each branch | `ADMIN_EXPO_TOKEN` |
+| App builds and updates | EAS builds, store submissions and the newest update on each branch | `ADMIN_EXPO_TOKEN` |
+| Google Play | Android vitals for the last 7 days Play has (user-perceived crash and ANR rates, 7-day user-weighted as Play Console shows them, against Play's bad-behaviour lines, 1.09% and 0.47%), the top crash and ANR clusters, and the last week's reviews | `ADMIN_GOOGLE_PLAY_KEY` |
+| App Store | each recent App Store version and where it stands in review, the latest builds and whether Apple processed them, TestFlight testers' crash reports (device and system only), recent customer reviews | `ADMIN_APP_STORE_KEY` |
 
 A section without its token says "Not connected" and what to add; one whose
 service fails says "Could not read" and why. Neither holds up the others.
@@ -49,8 +51,9 @@ Provider answers are kept a minute per Worker isolate; Refresh skips that.
 
 The same rule as diagnostics (decisions.md 39): ids, counts, timings and
 codes. No email, username or name from any service: deploy and build
-authors, workflow actors and log lines are left out, and logs are only
-counted, because a log line can quote what someone typed. Feedback shows a
+authors, workflow actors, reviewers' names and log lines are left out, and
+logs are only counted, because a log line can quote what someone typed.
+Store reviews are shown, since they are public already, without the name. Feedback shows a
 person's name and email only when they chose to share them. Install and
 project ids are shortened on screen.
 
@@ -88,6 +91,21 @@ Each step is done once, by someone with access to the service named.
      genesis-ai-dev/langquest-next with Actions: read and Contents: read.
    - `ADMIN_EXPO_TOKEN`: an access token for a robot user on the Expo
      account that owns the app.
+   - `ADMIN_GOOGLE_PLAY_KEY`: a Google Cloud service account with the
+     Google Play Developer Reporting API and the Google Play Android
+     Developer API turned on, invited in Play Console (Users and
+     permissions) for this app with "View app information (read-only)".
+     Google's guide asks for "Reply to reviews" as well before the API
+     lists reviews; add it only if you want reviews here, knowing it lets
+     the key reply. Without it the section shows vitals and says reviews
+     were refused. Its key file is JSON on several lines, so
+     pass it as one line: `npm run env:update -- production
+     ADMIN_GOOGLE_PLAY_KEY "$(jq -c . key.json)"`, then delete the file.
+   - `ADMIN_APP_STORE_KEY`: an App Store Connect API key (Users and Access,
+     Integrations) with the Developer role, the least that reads builds,
+     versions and reviews (no key role is read-only), as JSON: `npm run env:update -- production ADMIN_APP_STORE_KEY "$(jq -cn
+     --arg i <issuer id> --arg k <key id> --rawfile p AuthKey_<key id>.p8
+     '{issuerId: $i, keyId: $k, privateKey: $p}')"`, then delete the .p8.
 
 For sign-in from a single-sign-on account and a second factor on top of the
 password, Cloudflare Access can sit in front of `admin.langquest.org`; the
@@ -111,9 +129,14 @@ that decide alerts pure, test them with a fetch that answers by URL
 (`apps/admin/test/sources.test.ts`), add a renderer in `src/page.ts`, and
 add its token to `ADMIN_KEYS` in `scripts/secrets.mjs`.
 
+Not tried against the real services yet (no keys were at hand): Play's
+rates are read as fractions (0.0109 is 1.09%), and the first real answer
+should confirm it.
+
 ## Not built yet
 
-- Crash and ANR rates from Google Play and App Store Connect.
+- iOS crash counts: App Store Connect gives them only as daily analytics
+  reports, which have to be requested once and read the next day.
 - Seen and Done on feedback (needs `public.feedback_set_status` and the
   service-role key, which this Worker does not hold).
 - History: every section shows now and the last day or week, not trends.

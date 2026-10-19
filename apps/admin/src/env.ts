@@ -13,6 +13,9 @@ export interface Env {
   GITHUB_REPO: string;
   VERCEL_TEAM_ID: string;
   EXPO_PROJECT_ID: string;
+  GOOGLE_PLAY_PACKAGE: string;
+  /** The app's Apple id in App Store Connect (eas.json submit.production.ios.ascAppId). */
+  APP_STORE_APP_ID: string;
 
   /** diag_reader's login (scripts/diag-access.sh): reads `diag` and nothing else, and cannot write. */
   DIAG_DATABASE_URL: string;
@@ -27,8 +30,12 @@ export interface Env {
   ADMIN_VERCEL_TOKEN?: string;
   /** Read-only, for Actions runs; without it GitHub's anonymous limit applies, which a Worker shares. */
   ADMIN_GITHUB_TOKEN?: string;
-  /** An Expo robot's access token, for builds and updates. */
+  /** An Expo robot's access token, for builds, submissions and updates. */
   ADMIN_EXPO_TOKEN?: string;
+  /** A Google service account's key file (JSON) that Play Console lets view app information. */
+  ADMIN_GOOGLE_PLAY_KEY?: string;
+  /** An App Store Connect API key as JSON: issuerId, keyId and the .p8 privateKey. */
+  ADMIN_APP_STORE_KEY?: string;
 
   ADMIN_RATE_LIMIT?: RateLimit;
 }

@@ -32,7 +32,8 @@ import { HOSTED, decrypt, envKeyNames, parseJsonc, projectRef, root, secretsPath
  * ADMIN_* so none stands in for a CLI's own login (SUPABASE_ACCESS_TOKEN,
  * GITHUB_TOKEN, EXPO_TOKEN) when a script runs with this file's values.
  */
-export const ADMIN_KEYS = ['ADMIN_PROFILE_IDS', 'ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'ADMIN_VERCEL_TOKEN', 'ADMIN_GITHUB_TOKEN', 'ADMIN_EXPO_TOKEN'];
+export const ADMIN_KEYS = ['ADMIN_PROFILE_IDS', 'ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'ADMIN_VERCEL_TOKEN', 'ADMIN_GITHUB_TOKEN', 'ADMIN_EXPO_TOKEN',
+  'ADMIN_GOOGLE_PLAY_KEY', 'ADMIN_APP_STORE_KEY'];
 
 /**
  * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted) and by

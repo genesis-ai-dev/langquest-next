@@ -2,7 +2,8 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   // LangQuest operations in one page, for staff (docs/admin.md, decisions.md
   // 141): what phones and the server's jobs report in `diag`, and what
-  // Cloudflare, Supabase, Vercel, GitHub and Expo say about their part.
+  // Cloudflare, Supabase, Vercel, GitHub, Expo, Google Play and the App
+  // Store say about their part.
   "name": "langquest-next-admin",
   "main": "src/index.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
@@ -30,7 +31,10 @@
     "GITHUB_REPO": "genesis-ai-dev/langquest-next",
     "VERCEL_TEAM_ID": "team_R3BIc0ITN0zAHSKdUhJsr3c9",
     // apps/mobile/app.json extra.eas.projectId
-    "EXPO_PROJECT_ID": "582d3757-4245-419a-9087-e269e3bf4c4d"
+    "EXPO_PROJECT_ID": "582d3757-4245-419a-9087-e269e3bf4c4d",
+    // apps/mobile/app.json android.package, and eas.json submit.production.ios.ascAppId
+    "GOOGLE_PLAY_PACKAGE": "com.frontierrnd.langquestnext",
+    "APP_STORE_APP_ID": "6812492008"
   },
   // Set on the Worker by `npm run secrets -- production`, never at deploy; a
   // deploy fails while it is missing. DIAG_DATABASE_URL is diag_reader's

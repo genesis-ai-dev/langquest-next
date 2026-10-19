@@ -5,7 +5,9 @@ import { page, SECURITY_HEADERS } from './page';
 import { settle, type Section } from './section';
 import { cloudflareSection } from './sources/cloudflare';
 import { diagSections, errorText, lookup, SCREENSHOT_SQL } from './sources/diag';
+import { appStoreSection } from './sources/appstore';
 import { expoSection } from './sources/expo';
+import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
 import { supabaseSection } from './sources/supabase';
 import { vercelSection } from './sources/vercel';
@@ -34,7 +36,9 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   cloudflare: (env) => cloudflareSection(env),
   supabase: (env) => supabaseSection(env),
   vercel: (env) => vercelSection(env),
-  expo: (env) => expoSection(env)
+  expo: (env) => expoSection(env),
+  googleplay: (env) => googlePlaySection(env),
+  appstore: (env) => appStoreSection(env)
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

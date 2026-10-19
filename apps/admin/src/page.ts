@@ -197,7 +197,9 @@ const SECTIONS = [
   { id: 'supabase', title: 'Supabase', src: 'Project health, Edge Functions and log counts, last 24 h' },
   { id: 'database', title: 'Database', src: 'Size, connections and RPC timings (pg_stat_statements)' },
   { id: 'vercel', title: 'Vercel', src: 'Latest production deploy of each FrontierRND project' },
-  { id: 'expo', title: 'App builds and updates', src: 'EAS builds and over-the-air updates' },
+  { id: 'expo', title: 'App builds and updates', src: 'EAS builds, store submissions and over-the-air updates' },
+  { id: 'googleplay', title: 'Google Play', src: 'Android vitals (crashes and ANRs) and reviews' },
+  { id: 'appstore', title: 'App Store', src: 'App Store Connect: versions in review, builds and reviews' },
   { id: 'v2', title: 'v2 import', src: 'diag.v2_import_status: the latest transfer of each v2 project' },
   { id: 'feedback', title: 'Feedback', src: 'What people sent from the help button, last 30 days', wide: true },
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an install id, or an organization or language name' }
@@ -400,10 +402,52 @@ const RENDER = {
       { h: 'Status', v: (b) => '<span class="' + (b.status === 'FINISHED' ? 'good' : b.status === 'ERRORED' ? 'bad' : 'warn') + '">' + esc(b.status) + '</span>' },
       { h: 'When', v: (b) => when(b.at) }
     ], d.builds);
+    if (d.submissions && d.submissions.length) h += '<h3>Store submissions</h3>' + table([
+      { h: 'Submission', v: (x) => esc(x.platform) + (x.error ? '<br><small class="bad">' + esc(x.error) + '</small>' : '') },
+      { h: 'Status', v: (x) => '<span class="' + (x.status === 'FINISHED' ? 'good' : x.status === 'ERRORED' ? 'bad' : 'warn') + '">' + esc(x.status) + '</span>' },
+      { h: 'When', v: (x) => when(x.at) }
+    ], d.submissions);
     h += '<h3>Latest updates</h3>' + table([
       { h: 'Branch', v: (u) => esc(u.branch) + '<br><small>' + esc(u.platform || '') + (u.runtime ? ' · runtime ' + esc(u.runtime) : '') + '</small>' },
       { h: 'Group', v: (u) => short(u.group) }, { h: 'When', v: (u) => when(u.at) }
     ], d.updates);
+    return h;
+  },
+  googleplay(d) {
+    const rate = (m, line) => m ? '<span class="' + (m.userPerceived >= line ? 'bad' : m.userPerceived >= line / 2 ? 'warn' : '') + '">' + pct(m.userPerceived) + '</span>' : '–';
+    let h = '<div class="stats">' + stat(rate(d.crash, 0.0109), 'user-perceived crashes, 7 days') + stat(rate(d.anr, 0.0047), 'user-perceived ANRs, 7 days') +
+      stat(d.reviews ? num(d.reviews.lowWeek) : '–', '1–2 star reviews, 7 days', d.reviews && d.reviews.lowWeek ? 'warn' : '') +
+      stat(d.reviews && d.reviews.average !== null ? d.reviews.average.toFixed(1) + ' ★' : '–', 'average of recent reviews') + '</div>';
+    if (d.freshThrough) h += '<p class="muted">Vitals from Play run through ' + esc(d.freshThrough) + '. Bad behaviour starts at 1.09% crashes and 0.47% ANRs.</p>';
+    if (d.issues && d.issues.length) h += '<h3>Top crashes and ANRs, 7 days</h3>' + table([
+      { h: 'Issue', v: (i) => '<span class="tag ' + (i.type === 'CRASH' || i.type === 'ANR' ? 'bad' : '') + '">' + esc(i.type) + '</span>' + (i.uri ? '<a href="' + esc(i.uri) + '" target="_blank" rel="noopener">' + esc(i.cause || 'issue') + '</a>' : esc(i.cause || 'issue')) + '<br><small>' + esc(i.location || '') + '</small>' },
+      { h: 'Reports', n: true, v: (i) => num(i.reports) }, { h: 'Users', n: true, v: (i) => num(i.users) }, { h: 'Last', v: (i) => when(i.lastAt) }
+    ], d.issues);
+    if (d.reviews && d.reviews.recent.length) h += '<h3>Recent reviews</h3>' + d.reviews.recent.map((r) => '<p><b>' + '★'.repeat(r.stars) + '</b> <small>' + when(r.at) + (r.version ? ' · ' + esc(r.version) : '') + '</small><br>' + esc(r.text) + '</p>').join('');
+    if (d.notes && d.notes.length) h += '<p class="muted">' + d.notes.map(esc).join('<br>') + '</p>';
+    return h;
+  },
+  appstore(d) {
+    let h = '<h3>App Store versions</h3>' + table([
+      { h: 'Version', v: (v) => esc(v.version) + ' <small>' + esc(v.platform || '') + '</small>' },
+      { h: 'State', v: (v) => '<span class="' + (/REJECTED|INVALID/.test(v.state) ? 'bad' : v.state === 'READY_FOR_SALE' || v.state === 'READY_FOR_DISTRIBUTION' ? 'good' : 'warn') + '">' + esc(String(v.state).toLowerCase().replace(/_/g, ' ')) + '</span>' },
+      { h: 'Created', v: (v) => when(v.at) }
+    ], d.versions);
+    h += '<h3>Latest builds</h3>' + table([
+      { h: 'Build', v: (b) => esc(b.version || '?') + (b.build ? ' (' + esc(b.build) + ')' : '') },
+      { h: 'Processing', v: (b) => '<span class="' + (b.state === 'VALID' ? 'good' : b.state === 'PROCESSING' ? '' : 'bad') + '">' + esc(String(b.state).toLowerCase()) + '</span>' + (b.expired ? ' <small>expired</small>' : '') },
+      { h: 'Uploaded', v: (b) => when(b.uploadedAt) }
+    ], d.builds);
+    if (d.testflightCrashes) {
+      h += '<h3>TestFlight crash reports</h3><div class="stats">' + stat(num(d.testflightCrashes.week), 'from testers, 7 days', d.testflightCrashes.week ? 'warn' : '') + '</div>';
+      if (d.testflightCrashes.recent.length) h += table([{ h: 'Device', v: (c) => esc(c.device || '?') + ' <small>' + esc(c.os || '') + '</small>' }, { h: 'When', v: (c) => when(c.at) }], d.testflightCrashes.recent);
+    }
+    if (d.reviews) {
+      h += '<div class="stats">' + stat(num(d.reviews.lowWeek), '1–2 star reviews, 7 days', d.reviews.lowWeek ? 'warn' : '') +
+        stat(d.reviews.average !== null ? d.reviews.average.toFixed(1) + ' ★' : '–', 'average of recent reviews') + '</div>';
+      if (d.reviews.recent.length) h += d.reviews.recent.map((r) => '<p><b>' + '★'.repeat(r.stars) + '</b> <small>' + when(r.at) + (r.territory ? ' · ' + esc(r.territory) : '') + '</small><br>' + (r.title ? '<b>' + esc(r.title) + '</b> ' : '') + esc(r.text) + '</p>').join('');
+    }
+    if (d.notes && d.notes.length) h += '<p class="muted">' + d.notes.map(esc).join('<br>') + '</p>';
     return h;
   },
   v2(d) {
@@ -488,7 +532,7 @@ async function load(fresh) {
   const fail = (ids) => (err) => { if (err.message !== 'Signed out' && err.message !== 'Not an admin') for (const id of ids) show(id, { state: 'error', alerts: [], error: err.message }); };
   const jobs = [
     api('/api/diag' + q).then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); }).catch(fail(['jobs', 'clients', 'database', 'v2', 'feedback'])),
-    ...['code', 'cloudflare', 'supabase', 'vercel', 'expo'].map((id) => api('/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
+    ...['code', 'cloudflare', 'supabase', 'vercel', 'expo', 'googleplay', 'appstore'].map((id) => api('/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
   ];
   await Promise.all(jobs);
   $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

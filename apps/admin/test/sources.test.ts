@@ -228,9 +228,17 @@ describe('Vercel and Expo', () => {
         { status: 'ERRORED', platform: 'ANDROID', createdAt: hAgo(1), buildProfile: 'production', appVersion: '1.0.3', runtime: { version: '1.0.3' } },
         { status: 'FINISHED', platform: 'ANDROID', createdAt: hAgo(9), buildProfile: 'production', appVersion: '1.0.2', runtime: null }
       ],
+      submissions: [
+        { status: 'ERRORED', platform: 'IOS', createdAt: hAgo(3), error: { errorCode: 'SUBMISSION_SERVICE_ERROR', message: 'App Store Connect refused the build' }, submittedBuild: { appVersion: '1.0.3' } },
+        { status: 'FINISHED', platform: 'IOS', createdAt: hAgo(30), error: null, submittedBuild: { appVersion: '1.0.2' } }
+      ],
       updateBranches: [{ name: 'production', updateGroups: [[{ group: 'g1', platform: 'android', createdAt: hAgo(2), runtime: { version: '1.0.2' } }, { group: 'g1', platform: 'ios', createdAt: hAgo(2), runtime: { version: '1.0.2' } }]] }, { name: 'empty', updateGroups: [] }]
     } } } });
     expect(e.updates).toEqual([{ branch: 'production', platform: 'android, ios', runtime: '1.0.2', group: 'g1', at: hAgo(2) }]);
-    expect(expoAlerts(e)).toEqual([{ level: 'watch', text: 'The latest android production build failed on EAS.' }]);
+    expect(e.submissions[0]).toEqual({ platform: 'IOS', status: 'ERRORED', at: hAgo(3), error: 'SUBMISSION_SERVICE_ERROR: App Store Connect refused the build', version: '1.0.3' });
+    expect(expoAlerts(e)).toEqual([
+      { level: 'watch', text: 'The latest android production build failed on EAS.' },
+      { level: 'watch', text: 'The latest ios store submission failed on EAS (SUBMISSION_SERVICE_ERROR).' }
+    ]);
   });
 });

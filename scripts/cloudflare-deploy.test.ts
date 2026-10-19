@@ -56,7 +56,13 @@ describe('cloudflare deploy', () => {
     expect(admin.vars.SUPABASE_ANON_KEY).toBe(web.vars.SUPABASE_ANON_KEY);
     expect([admin.account_id, admin.vars.CLOUDFLARE_ACCOUNT_ID]).toEqual([web.account_id, web.account_id]);
     expect(admin.vars.CLOUDFLARE_WORKERS.split(',')).toEqual(expect.arrayContaining([web.name, admin.name]));
-    expect(Object.keys(admin.vars).filter((k) => /TOKEN|SECRET|PASSWORD|DATABASE_URL|PROFILE_IDS/.test(k))).toEqual([]);
+    expect(Object.keys(admin.vars).filter((k) => /TOKEN|SECRET|PASSWORD|DATABASE_URL|PROFILE_IDS|_KEY$/.test(k) && k !== 'SUPABASE_ANON_KEY')).toEqual([]);
+    // The app the store and Expo sections read is the one the app's own config names.
+    const app = JSON.parse(read('apps/mobile/app.json')).expo;
+    const eas = JSON.parse(read('apps/mobile/eas.json'));
+    expect(admin.vars.GOOGLE_PLAY_PACKAGE).toBe(app.android.package);
+    expect(admin.vars.EXPO_PROJECT_ID).toBe(app.extra.eas.projectId);
+    expect(admin.vars.APP_STORE_APP_ID).toBe(eas.submit.production.ios.ascAppId);
   });
 
   it('keeps every secret out of vars, where a deploy would publish it', () => {

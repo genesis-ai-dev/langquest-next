@@ -5629,8 +5629,9 @@ at the services' own dashboards together: every Workers Build failed from
 2026-10-16 to 10-19, and no page showed it. Chosen:
 - **A Worker of its own**, `langquest-next-admin` on `admin.langquest.org`
   (`apps/admin`, `docs/admin.md`), not routes on the app's Worker: the
-  read tokens it holds for Cloudflare, Supabase, Vercel, GitHub and Expo
-  never sit on the Worker that answers the public, and the app Worker's
+  read tokens and keys it holds for Cloudflare, Supabase, Vercel, GitHub,
+  Expo, Google Play and App Store Connect never sit on the Worker that
+  answers the public, and the app Worker's
   static assets answer `/` on every host before the Worker runs. It has no
   preview copy.
 - **It reads `diag` as `diag_reader`** (its existing login,
@@ -5646,6 +5647,7 @@ at the services' own dashboards together: every Workers Build failed from
   for a CLI's own login. A section without its token says what to add.
 - **The content rule of 39 holds**: ids, counts, timings and codes; no
   names, emails or usernames from any service, and logs only counted.
+  Store reviews are shown without the reviewer's name, being public.
 Reverse if: staff need to act from the page (mark feedback, retry a job),
 which needs a writer's key and its own decision; or the list of staff
 grows past a few people, when it belongs in the database or behind

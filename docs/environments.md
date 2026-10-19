@@ -64,7 +64,7 @@ declares:
 | --- | --- |
 | dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY` and `WEBHOOK_POKE_SECRET` when the file has them |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
-| admin Worker (production only) | `DIAG_DATABASE_URL`; `ADMIN_PROFILE_IDS` and each `ADMIN_*_TOKEN` when the file has them (`docs/admin.md`). Never the service-role key |
+| admin Worker (production only) | `DIAG_DATABASE_URL`; `ADMIN_PROFILE_IDS` and each provider token or key (`ADMIN_*`) when the file has them (`docs/admin.md`). Never the service-role key |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PROJECTION_WORKER_SECRET`, `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_projection_worker_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the dashboard Worker's route) |
 | pg_cron | the projection and push-delivery jobs: their migration (`20261007200001_schedule_push_delivery.sql`) schedules them only where Vault already has the secrets, so this runs that migration again |
