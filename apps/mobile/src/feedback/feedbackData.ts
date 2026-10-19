@@ -36,6 +36,7 @@ function changeWaiting<T>(fn: (raw: string | null) => Promise<T>): Promise<T> {
   return next;
 }
 
+/** The report as queued; read before its screenshot is kept, so a failure here leaves no file behind. */
 async function payloadOf(d: FeedbackDraft, shot: boolean): Promise<FeedbackPayload> {
   const { installId, ...phone } = await phoneContext();
   return {
@@ -55,11 +56,12 @@ async function payloadOf(d: FeedbackDraft, shot: boolean): Promise<FeedbackPaylo
  */
 export async function sendFeedback(actorId: string | null, draft: FeedbackDraft, waitMs = 4000): Promise<boolean> {
   const id = Crypto.randomUUID();
+  const words = await payloadOf(draft, false);
   let shot = false;
   if (draft.shot) {
     try { await keepShot(id, draft.shot); shot = true; } catch (e) { noteExpected('feedback: keep screenshot', e); }
   }
-  const payload = await payloadOf(draft, shot);
+  const payload = { ...words, shot };
   if (actorId === null) {
     // Before sign-in there is no profile to share.
     const waiting = { id, payload: { ...payload, shareProfile: false }, queuedAt: Date.now() };

@@ -23,7 +23,7 @@ import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
 import type { HelpSpot } from '../helpMode/helpContext';
-import { useHelpInfo, useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
+import { useHelpInfo, useHelpMode, useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpBadge, HelpClip, HelpHost, HelpLit, HelpRow } from '../helpMode/helpBadge';
@@ -102,6 +102,9 @@ export function Screen(props: {
   const reportFooter = useContext(FooterHeightContext);
   const hasFooter = !!props.footer;
   useEffect(() => { if (reportFooter && !hasFooter) reportFooter(0); }, [reportFooter, hasFooter]);
+  // In help mode, Send feedback waits at the foot of the screen (decisions.md 141): the end of
+  // the screen can still scroll out from under it.
+  const helpOn = useHelpOn();
   return (
     <KeyboardSafe style={styles.screen}>
       {props.header}
@@ -109,7 +112,7 @@ export function Screen(props: {
         {props.fixed ? (
           <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle, helpOn && styles.helpFootRoom]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {props.children}
           </ScrollView>
         )}
@@ -1038,6 +1041,8 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   body: { padding: space.lg, gap: space.md, paddingBottom: space.xxl },
+  /** Send feedback's height (48) and the space under and over it. */
+  helpFootRoom: { paddingBottom: 48 + space.lg * 2 + space.xxl },
   footer: { paddingHorizontal: space.lg, paddingTop: space.md, gap: space.sm, backgroundColor: C.card, borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   column: { width: '100%', maxWidth: measure.column, alignSelf: 'center' },
   footerActions: { width: '100%', maxWidth: measure.action, alignSelf: 'center', gap: space.sm },

@@ -55,11 +55,13 @@ export async function setDiagnosticsEnabled(on: boolean): Promise<void> {
  */
 export async function phoneContext(): Promise<DiagContext> {
   const installId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
-  const c = Platform.constants as { Model?: string; Release?: string; osVersion?: string };
+  // react-native-web has no Platform.constants (nor a Version): reading through it threw, so a
+  // browser never delivered its records (found with feedback, decisions.md 141).
+  const c = (Platform.constants ?? {}) as { Model?: string; Release?: string; osVersion?: string };
   return sanitizeContext({
     installId,
     os: Platform.OS,
-    osVersion: c.Release ?? c.osVersion ?? String(Platform.Version),
+    osVersion: c.Release ?? c.osVersion ?? (Platform.Version !== undefined ? String(Platform.Version) : undefined),
     model: c.Model,
     // A browser has no expo-updates: its build is the commit the page was built from (webBuild.ts).
     runtimeVersion: Platform.OS === 'web' ? BUILD_ID || undefined : Updates.runtimeVersion,
