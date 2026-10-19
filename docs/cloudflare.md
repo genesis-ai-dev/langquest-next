@@ -78,7 +78,8 @@ Locally, `npm run web:dev` needs Docker Desktop running: `wrangler dev`
 builds the image, the container reaches the local database through
 `host.docker.internal` (`JOBS_SUPABASE_URL`, a var `scripts/web-dev-vars.ts`
 adds to the local config copy; unset in production), and the cron is fired
-by hand:
+by hand at wrangler's `/__scheduled`, which the copy sends to the Worker
+ahead of the page:
 
 ```bash
 curl 'http://localhost:8787/__scheduled?cron=*/10+*+*+*+*'

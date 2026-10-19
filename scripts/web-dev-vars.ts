@@ -27,8 +27,15 @@ writeFileSync(new URL('../apps/web/.dev.vars', import.meta.url),
 // production. Without one, the request keeps the address it came in on:
 // localhost:8787 here, 10.0.2.2:8787 from the Android emulator.
 const config = JSON.parse(readFileSync(new URL('../apps/web/wrangler.jsonc', import.meta.url), 'utf8')
-  .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')) as { secrets?: { required?: string[] }; routes?: unknown; vars?: Record<string, string> };
+  .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')) as {
+    secrets?: { required?: string[] }; routes?: unknown; vars?: Record<string, string>; assets?: { run_worker_first?: string[] }
+  };
 delete config.routes;
+// Wrangler's endpoint for firing the cron by hand (`--test-scheduled`),
+// /__scheduled, is a path the app's export does not have, so the assets
+// layer would answer it with the page; the Worker gets it first. Production
+// has no such endpoint.
+config.assets = { ...config.assets, run_worker_first: [...(config.assets?.run_worker_first ?? []), '/__scheduled'] };
 if (bibleBrain) config.secrets = { required: [...new Set([...(config.secrets?.required ?? []), 'BIBLE_BRAIN_ACCESS_KEY'])] };
 // The job container (worker/jobs.ts) runs in Docker, where 127.0.0.1 is the
 // container itself; it reaches the local database through Docker's name for
