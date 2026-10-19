@@ -109,6 +109,84 @@ export async function smallText(page: Page, min = 13): Promise<SmallText[]> {
   }, min);
 }
 
+export interface CutOff { text: string; how: 'ellipsis' | 'clamped' | 'outside' | 'offscreen'; by: number }
+
+/**
+ * Words on the screen showing that are cut off (decision 139): shortened with
+ * "…" or a line clamp that hides lines, running more than 3 px past a box that
+ * holds them (a phone clips there, or they land on something else), or past
+ * the window's side with nothing to scroll them back. Words in a scroll area
+ * are checked up to it; a box placed on its own (a badge, a tooltip) against
+ * itself. A sheet covers the screen under it: then only the sheet counts.
+ */
+export async function cutOff(page: Page): Promise<CutOff[]> {
+  return page.evaluate(() => {
+    const shown = (el: Element): boolean => {
+      for (let e: Element | null = el; e && e !== document.documentElement; e = e.parentElement) {
+        const s = getComputedStyle(e);
+        if (s.display === 'none' || s.visibility === 'hidden' || Number(s.opacity) === 0) return false;
+        if (e.getAttribute('aria-hidden') === 'true') return false;
+      }
+      return true;
+    };
+    const modals = [...document.querySelectorAll('[aria-modal="true"],[role=dialog]')].filter(shown);
+    const top = modals.length ? modals[modals.length - 1]! : null;
+    const out: { text: string; how: 'ellipsis' | 'clamped' | 'outside' | 'offscreen'; by: number }[] = [];
+    const scrolls = (s: CSSStyleDeclaration, axis: 'x' | 'y') => ['auto', 'scroll'].includes(axis === 'x' ? s.overflowX : s.overflowY);
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const text = (n.textContent ?? '').replace(/\s+/g, ' ').trim();
+      const el = n.parentElement;
+      if (!text || !el || el.closest('script,style,noscript,input,textarea')) continue;
+      if ((top && !top.contains(el)) || !shown(el)) continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      const r = range.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0 || r.right <= 0 || r.left >= innerWidth) continue;
+      // Behind something else (the stack's previous screen): keep it only when a scroll area holds it.
+      const cy = r.top + r.height / 2;
+      if (cy > 0 && cy < innerHeight) {
+        const hit = document.elementFromPoint(Math.min(Math.max(r.left + Math.min(r.width, 20) / 2, 1), innerWidth - 1), cy);
+        if (hit && !el.contains(hit) && !hit.contains(el)) {
+          let held = false;
+          for (let e: Element | null = el.parentElement; e; e = e.parentElement) if (scrolls(getComputedStyle(e), 'y') && e.scrollHeight > e.clientHeight) { held = true; break; }
+          if (!held) continue;
+        }
+      }
+      let clamp: 'ellipsis' | 'clamped' | null = null;
+      let shortened = false;
+      for (let e: Element | null = el; e && e !== document.body; e = e.parentElement) {
+        const s = getComputedStyle(e);
+        const lines = s.webkitLineClamp && s.webkitLineClamp !== 'none';
+        if (s.textOverflow === 'ellipsis' || lines) {
+          clamp = lines ? 'clamped' : 'ellipsis';
+          shortened = e.scrollWidth > e.clientWidth + 1 || e.scrollHeight > e.clientHeight + 1;
+          break;
+        }
+        if (s.display !== 'inline') break;
+      }
+      if (clamp) { if (shortened) out.push({ text: text.slice(0, 80), how: clamp, by: 0 }); continue; }
+      let found = false;
+      for (let e: Element | null = el.parentElement; e && e !== document.body; e = e.parentElement) {
+        const s = getComputedStyle(e);
+        const b = e.getBoundingClientRect();
+        if (b.width === 0 && b.height === 0) continue;
+        const past = Math.max(
+          scrolls(s, 'x') ? 0 : Math.max(b.left + parseFloat(s.borderLeftWidth) - r.left, r.right - (b.right - parseFloat(s.borderRightWidth))),
+          scrolls(s, 'y') ? 0 : Math.max(b.top + parseFloat(s.borderTopWidth) - r.top, r.bottom - (b.bottom - parseFloat(s.borderBottomWidth))));
+        if (past > 6) { out.push({ text: text.slice(0, 80), how: 'outside', by: Math.round(past) }); found = true; break; }
+        if (scrolls(s, 'x') || scrolls(s, 'y') || s.position === 'absolute' || s.position === 'fixed') break;
+      }
+      if (!found && (r.right > innerWidth + 3 || r.left < -3)) {
+        let back = false;
+        for (let e: Element | null = el.parentElement; e; e = e.parentElement) if (scrolls(getComputedStyle(e), 'x') && e.scrollWidth > e.clientWidth) { back = true; break; }
+        if (!back) out.push({ text: text.slice(0, 80), how: 'offscreen', by: Math.round(Math.max(r.right - innerWidth, -r.left)) });
+      }
+    }
+    return out;
+  });
+}
+
 export interface AxeFinding { rule: string; impact: string; count: number; sample: string }
 
 /** Serious and critical axe findings (WCAG 2 A and AA), as the web smoke test reads them. */

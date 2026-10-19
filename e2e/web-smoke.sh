@@ -6,7 +6,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/e2e/env.sh" || { echo "local Supabase is not running (npm run db:start)" >&2; exit 1; }
 cd "$ROOT"
-npm run export:web -w mobile -- development
+# The model is left out: the test microphones are tones, which split as they always have only without it (decision 135).
+NO_SPEECH_MODEL=1 npm run export:web -w mobile -- development
 npx tsx scripts/web-dev-vars.ts
 cd apps/web
 exec npx wrangler dev --port "${1:-${SMOKE_PORT:-8787}}"

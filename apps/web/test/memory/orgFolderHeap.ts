@@ -12,7 +12,9 @@
  * heap is what the object itself keeps.
  *
  * Paths, each what one kind of request makes the object do:
- * - fold: /connect's access check (a full pass), then every language's fold.
+ * - fold: a cold object's first full pass (a report or a passage read), then
+ *   every language's fold. Access checks (/connect, /me) fold no language
+ *   (decisions.md 140; orgAccess.test.ts).
  * - webhooks: a webhook over every language; the first scan, the log grows, a
  *   second scan that finds changes everywhere, deliveries, a feed read per language.
  * - api: a token lists every passage of every language with include=audio,reviews.
@@ -187,7 +189,7 @@ const extra: Record<string, unknown> = {};
 
 const paths: Record<string, () => Promise<void>> = {
   async fold() {
-    // A cold object's first request: /connect asks for the organization (a full pass).
+    // A cold object's first full pass: a report or a passage read asks for every language.
     await folder.orgState();
     // Then the partner API and the dashboard read each language's whole fold.
     for (const id of languageIds) await folder.languageState(id);

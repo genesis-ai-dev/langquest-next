@@ -6,7 +6,6 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
 import type { PassageView } from '../passage/passageView';
-import { undoNote } from '../passage/recordInputsModel';
 import { noteExpected, reportError } from '../diagnostics/report';
 
 /**
@@ -30,11 +29,25 @@ export async function saveNote(ctx: Ctx, v: Pick<PassageView, 'unitId'>, anchor:
     return false;
   }
   try {
-    const sent = specs;
-    await ctx.act(specs, message, () => undoNote(sent)(commands(state)));
+    await ctx.act(specs, message);
     return true;
   } catch (e) {
     noteExpected('study: save note', e);
     return false;
+  }
+}
+
+/**
+ * Take back your own note on a study step (decision 134): these notes are
+ * not in the passage's History, so the way back is on the note itself, and
+ * never runs out as a toast's Undo did.
+ */
+export async function takeBackNote(ctx: Ctx, noteId: string): Promise<void> {
+  const state = ctx.language.state;
+  if (!state) return;
+  try {
+    await ctx.act(commands(state, indexesFor(state)).withdrawNote({ commandId: Crypto.randomUUID(), noteId }), t('common.undone'));
+  } catch (e) {
+    noteExpected('study: take back note', e);
   }
 }

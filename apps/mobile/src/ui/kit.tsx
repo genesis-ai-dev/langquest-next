@@ -10,11 +10,11 @@ import {
   ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, CloudCheck, CloudOff, Download, Filter, Flag, Folder, Globe, History,
   House, Image, Inbox, LayoutTemplate, Link, Lock, Map as MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
-  ThumbsUp, Trash2, Undo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
+  ThumbsUp, Trash2, Undo2, Redo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, FileText, Eye, EyeOff
+  ChevronsUpDown, FileText, Eye, EyeOff, Menu
 } from 'lucide-react-native';
-import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
   type StyleProp, type TextStyle, type ViewStyle
@@ -26,7 +26,7 @@ import type { HelpSpot } from '../helpMode/helpContext';
 import { useHelpInfo, useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
 import { isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { HelpBadge, HelpClip, HelpHost, HelpLit } from '../helpMode/helpBadge';
+import { HelpBadge, HelpClip, HelpHost, HelpLit, HelpRow } from '../helpMode/helpBadge';
 import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
@@ -47,9 +47,9 @@ const ICONS = {
   mic: Mic, note: StickyNote, notif: Bell, pause: Pause, people: Users, place: MapPin, play: Play, plus: Plus,
   progress: ChartColumn, qr: QrCode, restart: RotateCcw, right: ChevronRight, search: Search, settings: Settings,
   share: Share2, skip: SkipForward, sound: Volume2, sparkle: Sparkles, star: Star, stop: Square, swap: ArrowLeftRight,
-  template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, up: ChevronUp, user: User, video: Video,
+  template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, redo: Redo2, up: ChevronUp, user: User, video: Video,
   work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, info: Info, onPhone: CloudCheck, notOnPhone: CloudOff,
-  arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, sliders: SlidersHorizontal, done: CircleCheck,
+  arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, handle: Menu, sliders: SlidersHorizontal, done: CircleCheck,
   warning: TriangleAlert, join: ChevronsUpDown, file: FileText,
   // Show here / Hide here on a passage's helps (demo ADR-042).
   eye: Eye, eyeOff: EyeOff
@@ -66,7 +66,7 @@ function inputDirection(): TextStyle | null {
 }
 
 /** Icons that point along the line of reading, so right to left mirrors them (media controls stay as they are). */
-const MIRRORED = new Set<IconName>(['arrowR', 'arrowL', 'left', 'right', 'send', 'undo']);
+const MIRRORED = new Set<IconName>(['arrowR', 'arrowL', 'left', 'right', 'send', 'undo', 'redo']);
 
 export function Ico(props: { name: IconName; size?: number; color?: string; strokeWidth?: number; fill?: string }) {
   const Icon = ICONS[props.name];
@@ -185,6 +185,7 @@ export function Header(props: {
   const back = useHelpSpot(props.close ? t('common.close') : t('common.back'), props.backHelp ?? (props.close ? t('help.details.close') : t('help.details.back')), props.onBack);
   const crumbs = props.crumbs && props.crumbs.length > 0 && wide ? (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.crumbs}>
+      {/* help-each: each crumb goes back to a different place */}
       {props.crumbs.map((c, i) => (
         <View key={`${c.label}-${i}`} style={styles.crumb}>
           {i > 0 ? <Ico name="right" size={14} color={C.muted} /> : null}
@@ -193,18 +194,42 @@ export function Header(props: {
       ))}
     </ScrollView>
   ) : null;
+  const [actionWidth, setActionWidth] = useState(0);
+  const action = props.action ? <View onLayout={(e) => setActionWidth(e.nativeEvent.layout.width)}>{props.action}</View> : null;
+  const backBtn = (
+    <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={back.onPress} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
+      style={({ pressed }) => [styles.roundBtn, pressed && styles.pressed]}>
+      <Ico name={props.close ? 'close' : 'arrowL'} size={24} color={C.dark} />
+      <HelpBadge spot={back} />
+    </Pressable>
+  );
+  // Title and sub show in full, however long the language makes them (decisions.md 139).
+  const centredTitle = (
+    <View style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
+      <Text style={styles.centredTitle} accessibilityRole="header">{props.title}</Text>
+      {props.sub ? <Text style={[txt.xs, { marginTop: 2, textAlign: 'center' }]}>{props.sub}</Text> : null}
+    </View>
+  );
+  // A worded button, or several buttons, beside the title would leave the title a sliver:
+  // the title takes its own line under the buttons (decisions.md 139).
+  if (centred && (worded(props.action) || actionWidth > WIDE_ACTION)) {
+    return (
+      <View style={styles.headerCentredTall}>
+        <View style={styles.headerTop}>
+          {backBtn}
+          <View style={{ flex: 1 }} />
+          {action}
+          {helpBtn}
+        </View>
+        <View style={styles.headerUnder}>{centredTitle}</View>
+      </View>
+    );
+  }
   const content = centred ? (
     <>
-      <Pressable testID={props.close ? 'header-close' : 'header-back'} onPress={back.onPress} accessibilityRole="button" accessibilityLabel={props.close ? t('common.close') : t('common.back')}
-        style={({ pressed }) => [styles.roundBtn, pressed && styles.pressed]}>
-        <Ico name={props.close ? 'close' : 'arrowL'} size={24} color={C.dark} />
-        <HelpBadge spot={back} />
-      </Pressable>
-      <View style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
-        <Text style={styles.centredTitle} numberOfLines={2} accessibilityRole="header">{props.title}</Text>
-        {props.sub ? <Text style={[txt.xs, { marginTop: 2, textAlign: 'center' }]} numberOfLines={2}>{props.sub}</Text> : null}
-      </View>
-      {props.action}
+      {backBtn}
+      {centredTitle}
+      {action}
       {helpBtn ?? <View style={{ width: 48 }} />}
     </>
   ) : (
@@ -218,8 +243,8 @@ export function Header(props: {
       ) : null}
       <View style={{ flex: 1, minWidth: 0, paddingLeft: props.onBack ? 0 : space.xs }}>
         {crumbs}
-        <Text style={wide || props.onBack ? txt.title : styles.homeTitle} numberOfLines={2} accessibilityRole="header">{props.title}</Text>
-        {props.sub ? <Text style={[txt.xs, { marginTop: 2 }]} numberOfLines={2}>{props.sub}</Text> : null}
+        <Text style={wide || props.onBack ? txt.title : styles.homeTitle} accessibilityRole="header">{props.title}</Text>
+        {props.sub ? <Text style={[txt.xs, { marginTop: 2 }]}>{props.sub}</Text> : null}
       </View>
       {props.action}
       {helpBtn}
@@ -228,6 +253,17 @@ export function Header(props: {
   // Wide: the white bar spans the window, its contents line up with the body's column.
   if (wide) return <View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>;
   return <View style={centred ? styles.headerCentred : styles.headerHome}>{content}</View>;
+}
+
+/** Wider than one round button and its gap: two buttons, or a mark and a button. */
+const WIDE_ACTION = 64;
+
+/** Whether a header's action carries words (a worded button or a badge), alone or among others. */
+function worded(node: ReactNode): boolean {
+  if (Array.isArray(node)) return node.some(worded);
+  if (!isValidElement(node)) return false;
+  if (node.type === SmallBtn || node.type === Badge) return true;
+  return node.type === Fragment && worded((node.props as { children?: ReactNode }).children);
 }
 
 /**
@@ -296,7 +332,7 @@ export function Group(props: { children: ReactNode; style?: StyleProp<ViewStyle>
 export function SectionLabel(props: { label: string; action?: ReactNode }) {
   return (
     <View style={styles.sectionLabel}>
-      <Text style={txt.label}>{props.label}</Text>
+      <Text style={[txt.label, { flexShrink: 1 }]}>{props.label}</Text>
       {props.action}
     </View>
   );
@@ -337,8 +373,7 @@ export function Row(props: {
   struck?: boolean;
   /**
    * How a screen reader should treat it: a choice among several is a radio, a pick-many a checkbox.
-   * A switch is the whole row (a 48pt target, not just the thumb) showing `checked` as a switch;
-   * its sub says what the setting does, so it wraps in full.
+   * A switch is the whole row (a 48pt target, not just the thumb) showing `checked` as a switch.
    */
   role?: 'button' | 'radio' | 'checkbox' | 'link' | 'switch';
   selected?: boolean;
@@ -377,12 +412,14 @@ export function Row(props: {
         </View>
       ) : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.body, { fontWeight: '600' }, (props.muted || props.struck) && { color: C.muted }, props.struck && { textDecorationLine: 'line-through' }]} numberOfLines={2}>{marked(props.label, props.highlight)}</Text>
-        {props.sub ? <Text style={[txt.smMuted, { marginTop: 1 }]} numberOfLines={props.role === 'switch' ? undefined : 2}>{marked(props.sub, props.highlight)}</Text> : null}
+        {/* Label and sub show in full, however long the language makes them (decisions.md 139). */}
+        <Text style={[txt.body, { fontWeight: '600' }, (props.muted || props.struck) && { color: C.muted }, props.struck && { textDecorationLine: 'line-through' }]}>{marked(props.label, props.highlight)}</Text>
+        {props.sub ? <Text style={[txt.smMuted, { marginTop: 1 }]}>{marked(props.sub, props.highlight)}</Text> : null}
         {props.below ? <View style={{ marginTop: space.sm }}>{props.below}</View> : null}
       </View>
-      {props.badge ? <Badge label={props.badge} {...(props.badgeTone ? { tone: props.badgeTone } : {})} /> : null}
-      {right}
+      {/* A long badge wraps rather than squeezing the label to nothing. */}
+      {props.badge ? <View style={styles.rowBadge}><Badge label={props.badge} {...(props.badgeTone ? { tone: props.badgeTone } : {})} /></View> : null}
+      {right ? <View style={styles.rowRight}>{right}</View> : null}
     </>
   );
   const style = [styles.row, !props.last && styles.rowBorder, props.current && styles.rowCurrent];
@@ -423,7 +460,7 @@ export function Disclosure(props: { icon: IconName; title: string; summary: stri
         <View style={styles.iconTile}><Ico name={props.icon} size={20} color={C.primary} /></View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.body, { fontWeight: '600' }]}>{props.title}</Text>
-          <Text style={[txt.xs, { marginTop: 2 }]} numberOfLines={1}>{props.summary}</Text>
+          <Text style={[txt.xs, { marginTop: 2 }]}>{props.summary}</Text>
         </View>
         <Text style={txt.link}>{props.open ? t('shell.kit.hide') : t('shell.kit.show')}</Text>
         <Ico name={props.open ? 'up' : 'down'} size={20} color={C.primary} />
@@ -488,7 +525,7 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
-      <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]} numberOfLines={1}>{props.label}</Text>
+      <Text style={[styles.smallLabel, { color: filled ? C.white : C.primary }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -521,6 +558,7 @@ export function QuietLinks(props: { items: { label: string; icon: IconName; onPr
   /** What help mode says it does; else "Another way forward, less often needed." */ help?: string }[] }) {
   return (
     <View style={styles.quietRow}>
+      {/* help-each: each link does something different */}
       {props.items.map((it) => <QuietLink key={it.label} {...it} />)}
     </View>
   );
@@ -532,7 +570,7 @@ function QuietLink(props: { label: string; icon: IconName; onPress: () => void; 
   return (
     <Pressable onPress={onPress} accessibilityRole="button" hitSlop={4} style={({ pressed }) => [styles.quiet, pressed && styles.pressed]}>
       <Ico name={props.icon} size={18} color={C.muted} />
-      <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{props.label}</Text>
+      <Text style={[txt.sm, styles.quietLabel]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -573,6 +611,14 @@ export function Chip(props: { label: string; on: boolean; onPress: () => void; i
 /** Pills in a row that scrolls sideways (filters, tabs within a screen). */
 export function ChipRow(props: { children: ReactNode }) {
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingVertical: 2 }}>{props.children}</ScrollView>;
+}
+
+/**
+ * A choice among a few: pills that wrap onto more lines, so every choice is
+ * in sight in every language rather than one sitting past the edge (decisions.md 139).
+ */
+export function ChipWrap(props: { children: ReactNode }) {
+  return <View style={styles.chipWrap}>{props.children}</View>;
 }
 
 export function Toggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean; testID?: string;
@@ -700,7 +746,7 @@ export function Badge(props: { label: string; tone?: 'default' | 'green' | 'ambe
   }[props.tone ?? 'default'];
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
-      <Text style={[txt.xsStrong, { color: fg }]} numberOfLines={1}>{props.label}</Text>
+      <Text style={[txt.xsStrong, { color: fg, textAlign: 'center' }]}>{props.label}</Text>
     </View>
   );
 }
@@ -850,12 +896,14 @@ export function Banner(props: { icon: IconName; title: string; body?: string; to
  * node. On a wide window it is a centred dialog instead (decisions.md 55).
  */
 export function Sheet(props: { visible: boolean; title: string; sub?: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
-  /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode }) {
+  /** Beside the title, before ? and ✕: the saved mark of what the sheet keeps as you go (SavedMark.tsx). */ action?: ReactNode;
+  /** A phone's Back in a sheet of several steps: the step before, as its own Back does (decision 137). Else Back closes it. */
+  onBack?: () => void }) {
   const insets = useSafeAreaInsets();
   const wide = useLayout().kind !== 'phone';
   const host = useHelpHost(props.visible);
   return (
-    <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onClose}>
+    <Modal visible={props.visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={props.onBack ?? props.onClose}>
       <HelpHost id={host}>
       <KeyboardSafe style={[{ flex: 1 }, wide && styles.dialogFrame]}>
         {/* help-ignore: the darkened backdrop; tapping outside the sheet closes it, as everywhere */}
@@ -910,7 +958,7 @@ export function ReasonSheet(props: {
         // i18n-ignore: stored in the event log as the reason when only a voice note was given; stays English like the rest of the log
         onPress={() => { props.onConfirm({ reason: reason.trim() || 'Explained in a voice note.', ...(hash ? { blobHash: hash } : {}) }); setReason(''); setHash(null); }} />}>
       {props.quickReasons.length > 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-        {props.quickReasons.map((q) => <QuickReason key={q} reason={q} on={reason === q} onPick={() => setReason(q)} />)}
+        {props.quickReasons.map((q) => <HelpRow key={q} of="kit.reason"><QuickReason reason={q} on={reason === q} onPick={() => setReason(q)} /></HelpRow>)}
       </View> : null}
       {props.voice ? props.voice({ hash, onChange: setHash }) : null}
       <Field value={reason} onChangeText={setReason} placeholder={props.quickReasons.length ? t('shell.kit.orTypeReason') : t('common.orTypeIt')} multiline />
@@ -925,7 +973,7 @@ function QuickReason(props: { reason: string; on: boolean; onPick: () => void })
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityState={{ selected: props.on }}
       style={({ pressed }) => [styles.quickReason, props.on ? { backgroundColor: C.dark, borderColor: C.dark } : null, pressed && styles.pressed]}>
-      <Text style={[txt.sm, { fontWeight: '600', color: props.on ? C.white : C.dark }]}>{props.reason}</Text>
+      <Text style={[txt.sm, { fontWeight: '600', color: props.on ? C.white : C.dark, flexShrink: 1 }]}>{props.reason}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -936,25 +984,25 @@ function QuickReason(props: { reason: string; on: boolean; onPick: () => void })
 export interface ToastSpec {
   id: number;
   message: string;
-  /** Offered for about 7 s (CORE-5). */
-  undo?: () => void | Promise<void>;
   /** How long it shows, for the bar that counts down to its going (the host sets it). */
   ms?: number;
 }
 
 /**
- * What changed, and Undo when it can be (CORE-5). The message and Undo are
- * separate elements so a screen reader can reach Undo, and the message is
- * announced as it appears. A bar along its foot shrinks until it goes, and
- * a big X (or tapping the message) closes it sooner. The host places it
- * above the screen's buttons, never over them.
+ * What changed (CORE-5), and nothing to do about it: a toast never offers
+ * Undo, which would run out with it (Caleb, 2026-10-16; decision 134). The
+ * way back stays where the thing is: its own Undo and Redo, its history row,
+ * or the same control. The message is announced as it appears. A bar along
+ * its foot shrinks until it goes, and a big X (or tapping the message)
+ * closes it sooner. The host places it above the screen's buttons, never
+ * over them.
  */
 export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => void; bottom: number }) {
   const toast = props.toast;
   const wide = useLayout().kind !== 'phone';
   const left = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (toast) AccessibilityInfo.announceForAccessibility(toast.undo ? t('shell.toast.announceUndo', { message: toast.message }) : toast.message);
+    if (toast) AccessibilityInfo.announceForAccessibility(toast.message);
   }, [toast?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- announced once per toast: its words do not change for its id
   useEffect(() => {
     if (!toast?.ms) return;
@@ -973,13 +1021,6 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
           <Ico name="check" size={20} color={C.green} />
           <Text style={[txt.sm, { color: C.white, flex: 1, fontWeight: '600' }]}>{toast.message}</Text>
         </Pressable>
-        {toast.undo ? (
-          // help-ignore: the toast's Undo, gone in a few seconds with the toast
-          <Pressable testID="toast-undo" onPress={() => { void Promise.resolve(toast.undo?.()).catch(() => undefined); props.onDismiss(); }} hitSlop={10}
-            accessibilityRole="button" accessibilityLabel={t('shell.toast.undo')} style={styles.toastUndo}>
-            <Text style={[txt.sm, { color: C.light, fontWeight: '800' }]}>{t('shell.toast.undo')}</Text>
-          </Pressable>
-        ) : null}
         {/* help-ignore: the toast's close, gone in a few seconds with the toast */}
         <IconBtn name="close" label={t('common.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
         {toast.ms ? (
@@ -1003,6 +1044,9 @@ const styles = StyleSheet.create({
   headerBar: { backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
   headerCentred: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.sm, backgroundColor: C.bg },
+  headerCentredTall: { gap: space.xs, paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.sm, backgroundColor: C.bg },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  headerUnder: { flexDirection: 'row', paddingHorizontal: space.sm },
   headerHome: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.sm, backgroundColor: C.bg },
   homeTitle: { fontSize: T.xxl, fontWeight: '800', color: C.dark },
   centredTitle: { fontSize: T.lg, fontWeight: '800', color: C.dark, textAlign: 'center' },
@@ -1015,7 +1059,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, padding: space.lg, gap: space.md, ...shadow },
   cardCurrent: { borderColor: C.primary, borderWidth: 2 },
   group: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden', ...shadow },
-  sectionLabel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.xs, paddingTop: space.md },
+  sectionLabel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm, paddingHorizontal: space.xs, paddingTop: space.md },
   orDivider: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.xs },
   orRule: { flex: 1, height: StyleSheet.hairlineWidth * 2, backgroundColor: C.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
@@ -1025,24 +1069,29 @@ const styles = StyleSheet.create({
   disclosure: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: C.border, overflow: 'hidden', ...shadow },
   disclosureHead: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.md },
   disclosureBody: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
-  primary: { minHeight: target.primary, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.lg },
-  primaryLabel: { color: C.white, fontSize: T.base, fontWeight: '700' },
-  ghost: { minHeight: target.primary, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.lg },
-  ghostLabel: { fontSize: T.base, fontWeight: '700' },
-  small: { minHeight: target.min, borderRadius: radius.md, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: space.md },
-  smallLabel: { fontSize: T.sm, fontWeight: '700' },
+  primary: { minHeight: target.primary, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.xs, flexShrink: 1, maxWidth: '100%' },
+  // A label longer than its button wraps inside it, never past its edge (decisions.md 139).
+  primaryLabel: { color: C.white, fontSize: T.base, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
+  ghost: { minHeight: target.primary, borderRadius: radius.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, paddingHorizontal: space.lg, paddingVertical: space.xs, flexShrink: 1, maxWidth: '100%' },
+  ghostLabel: { fontSize: T.base, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
+  small: { minHeight: target.min, borderRadius: radius.md, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: space.md, paddingVertical: space.xs, flexShrink: 1, maxWidth: '100%' },
+  smallLabel: { fontSize: T.sm, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   linkBtn: { minHeight: target.min, justifyContent: 'center' },
   helpTop: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: space.lg, paddingTop: space.sm },
   helpBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, backgroundColor: C.card },
   quietRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.xs },
-  quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm },
-  chip: { minHeight: target.min, borderRadius: radius.full, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg },
-  chipLabel: { fontSize: T.sm, fontWeight: '700' },
+  quiet: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: target.min, paddingHorizontal: space.sm, flexShrink: 1, maxWidth: '100%' },
+  quietLabel: { color: C.muted, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
+  chip: { minHeight: target.min, borderRadius: radius.full, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.lg, flexShrink: 1 },
+  chipLabel: { fontSize: T.sm, fontWeight: '700', flexShrink: 1 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   field: { minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.lg, fontSize: T.base, color: C.dark },
   search: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, paddingLeft: space.lg, paddingRight: space.xs },
   searchInput: { flex: 1, fontSize: T.base, color: C.dark, paddingVertical: space.md },
   showMore: { minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
-  badge: { borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'center' },
+  badge: { borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'center', flexShrink: 1, maxWidth: '100%' },
+  rowBadge: { flexShrink: 1, maxWidth: '40%' },
+  rowRight: { flexShrink: 1, maxWidth: '45%', alignItems: 'flex-end' },
   empty: { alignItems: 'center', gap: space.sm, paddingVertical: space.xxl, paddingHorizontal: space.xl },
   note: { backgroundColor: TINT.note, borderWidth: 1, borderColor: TINT.noteBorder, borderRadius: radius.lg, paddingHorizontal: space.lg, paddingVertical: space.md },
   noteTag: { backgroundColor: TINT.noteBorder, borderRadius: radius.full, paddingHorizontal: 6, paddingVertical: 1 },
@@ -1054,11 +1103,10 @@ const styles = StyleSheet.create({
   dialog: { backgroundColor: C.bg, borderRadius: radius.sheet, width: '100%', maxWidth: measure.sheet, maxHeight: '80%', paddingTop: space.md, paddingBottom: space.xl, gap: space.sm, ...lift({ opacity: 0.2 }) },
   sheetGrip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.border },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingHorizontal: space.xl, paddingTop: space.sm },
-  quickReason: { borderRadius: radius.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.min, justifyContent: 'center' },
+  quickReason: { borderRadius: radius.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: target.min, justifyContent: 'center', maxWidth: '100%' },
   toastWrap: { position: 'absolute', left: space.lg, right: space.lg, alignItems: 'center' },
   toast: { flexDirection: 'row', alignItems: 'center', gap: space.sm, backgroundColor: C.dark, borderRadius: radius.lg, paddingLeft: space.lg, paddingRight: space.xs, paddingTop: space.xs, paddingBottom: space.xs + 4, minHeight: 56, width: '100%', overflow: 'hidden', ...lift({ opacity: 0.25 }) },
   toastTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(255,255,255,0.15)' },
   toastLeft: { height: 4, backgroundColor: C.light },
   toastMessage: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48, paddingVertical: space.xs },
-  toastUndo: { minHeight: 48, minWidth: 64, alignItems: 'center', justifyContent: 'center' }
 });

@@ -10,7 +10,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
@@ -18,7 +18,6 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Chip, ChipRow, Field, HelpInfo, Ico, LinkBtn, NoteCard, PrimaryBtn, ProgressBar, Row, Sheet, ShowMore, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from '../passage/passageView';
-import { undoNote } from '../passage/recordInputsModel';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { recordTarget } from '../moderation/reportTargets';
 import type { StudyProgress } from '../study/progress';
@@ -140,14 +139,16 @@ function TermsTab(props: { ctx: Ctx; v: PassageView; terms: KeyTermView[]; tied:
         const renderings = term.renderings.map((r) => r.rendering).filter(Boolean);
         const rendered = renderings.length ? renderings.join(', ') : t('recording.tray.noRendering');
         return (
-          <View key={term.termId} style={styles.item}>
-            <TermHead term={term.term} tied={tied} label={tied ? t('recording.tray.termLabelTied', { term: term.term, rendered }) : t('recording.tray.termLabel', { term: term.term, rendered })}
-              renderings={renderings} language={v.language} onPress={() => ctx.go('key_term_detail', { ...scope, termId: term.termId })} />
-            {!tied && props.canTie ? (
-              <SmallBtn label={tying === term.termId ? t('recording.tray.tying') : t('recording.tray.tie')} icon="link" help={t('recording.tray.tieHelp')}
-                disabled={!props.draftTakeId || props.disabled || !!tying} onPress={() => void tie(term.termId)} />
-            ) : null}
-          </View>
+          <HelpRow key={term.termId} of="tray.term">
+            <View style={styles.item}>
+              <TermHead term={term.term} tied={tied} label={tied ? t('recording.tray.termLabelTied', { term: term.term, rendered }) : t('recording.tray.termLabel', { term: term.term, rendered })}
+                renderings={renderings} language={v.language} onPress={() => ctx.go('key_term_detail', { ...scope, termId: term.termId })} />
+              {!tied && props.canTie ? (
+                <SmallBtn label={tying === term.termId ? t('recording.tray.tying') : t('recording.tray.tie')} icon="link" help={t('recording.tray.tieHelp')}
+                  disabled={!props.draftTakeId || props.disabled || !!tying} onPress={() => void tie(term.termId)} />
+              ) : null}
+            </View>
+          </HelpRow>
         );
       })}
       <ShowMore remaining={props.terms.length - shown} step={TERM_STEP} onMore={() => setShown((n) => n + TERM_STEP)} />
@@ -193,8 +194,10 @@ function StudyTab(props: { ctx: Ctx; v: PassageView; study: StudyProgress }) {
       </View>
       <View style={styles.list}>
         {study.steps.map((s, i) => (
-          <Row key={s.step.id} leading={<StepMark status={s} />} label={s.step.title} sub={stepLine(ctx, s)}
-            last={i === study.steps.length - 1} onPress={() => ctx.go('study_step', { ...scope, stepId: s.step.id })} />
+          <HelpRow key={s.step.id} of="tray.studyStep">
+            <Row leading={<StepMark status={s} />} label={s.step.title} sub={stepLine(ctx, s)}
+              last={i === study.steps.length - 1} onPress={() => ctx.go('study_step', { ...scope, stepId: s.step.id })} />
+          </HelpRow>
         ))}
       </View>
       <LinkBtn label={t('recording.tray.openStudy')} help={t('recording.tray.openStudyHelp')} onPress={() => ctx.go('study_guide', scope)} style={styles.pad} />
@@ -234,12 +237,14 @@ function NotesTab(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disab
       {newest.slice(0, shown).map((n) => {
         const older = n.onTakeId && n.onTakeId !== latestId ? versionN.get(n.onTakeId) : undefined;
         return (
-          <Authored key={n.id} ctx={ctx} by={n.by}>
-            <NoteCard anchor={anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
-              {...(older ? { olderVersion: versionTitle(older) } : {})}
-              {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('recording.voiceNote.play')} /> } : {})}
-              action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
-          </Authored>
+          <HelpRow key={n.id} of="tray.note">
+            <Authored ctx={ctx} by={n.by}>
+              <NoteCard anchor={anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
+                {...(older ? { olderVersion: versionTitle(older) } : {})}
+                {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('recording.voiceNote.play')} /> } : {})}
+                action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
+            </Authored>
+          </HelpRow>
         );
       })}
       <ShowMore remaining={newest.length - shown} step={NOTE_STEP} onMore={() => setShown((x) => x + NOTE_STEP)} />
@@ -263,7 +268,8 @@ function NoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void }) {
         commandId: Crypto.randomUUID(), unitId: v.unitId, anchor: { kind: 'passage' }, ...(step ? { kindId: step } : {}),
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
       });
-      await ctx.act(specs, t('recording.tray.noteAdded'), () => undoNote(specs)(commands(state)));
+      // No toast offers Undo (decision 134): History's Undo on your own note takes it back.
+      await ctx.act(specs, t('recording.tray.noteAdded'));
       props.onClose();
     } catch { /* ctx.act said what went wrong */ }
     finally { setBusy(false); }
@@ -287,11 +293,13 @@ function HistoryTab(props: { ctx: Ctx; v: PassageView }) {
   return (
     <>
       {versions.slice(0, shown).map((x) => (
-        <View key={x.takeId} style={styles.history}>
-          <Text style={[txt.sm, { fontWeight: '700' }]}>{versionTitle(x.n)} <Text style={[txt.sm, { fontWeight: '400', color: C.muted }]}>· {ctx.name(x.by)} · {when(x.hlc)}</Text></Text>
-          <Text style={[txt.sm, { marginTop: 2 }]}>{x.changeNote ?? (x.n === 1 ? t('recording.tray.firstRecording') : t('recording.tray.saidInVoiceNote'))}</Text>
-          {x.changeBlobHash ? <View style={{ marginTop: space.xs }}><AudioClip language={ctx.language} hashes={[x.changeBlobHash]} label={t('recording.tray.playWhatChanged', { version: versionTitle(x.n) })} /></View> : null}
-        </View>
+        <HelpRow key={x.takeId} of="tray.version">
+          <View style={styles.history}>
+            <Text style={[txt.sm, { fontWeight: '700' }]}>{versionTitle(x.n)} <Text style={[txt.sm, { fontWeight: '400', color: C.muted }]}>· {ctx.name(x.by)} · {when(x.hlc)}</Text></Text>
+            <Text style={[txt.sm, { marginTop: 2 }]}>{x.changeNote ?? (x.n === 1 ? t('recording.tray.firstRecording') : t('recording.tray.saidInVoiceNote'))}</Text>
+            {x.changeBlobHash ? <View style={{ marginTop: space.xs }}><AudioClip language={ctx.language} hashes={[x.changeBlobHash]} label={t('recording.tray.playWhatChanged', { version: versionTitle(x.n) })} /></View> : null}
+          </View>
+        </HelpRow>
       ))}
       <ShowMore remaining={versions.length - shown} step={HISTORY_STEP} onMore={() => setShown((n) => n + HISTORY_STEP)} />
     </>

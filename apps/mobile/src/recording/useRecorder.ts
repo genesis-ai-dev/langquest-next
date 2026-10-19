@@ -15,6 +15,9 @@ import { getRecordingJournal, liveParts } from './recordingJournal';
 import { RecordingSession } from './recordingSession';
 import { liveKept, liveKeptCount, liveNext } from './livePartsModel';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
+import { barsOfFile } from '../audio/barsOfFile';
+import { barsFromLevels } from '../audio/barsModel';
+import { rememberBars } from '../audio/barsStore';
 import { noteExpected } from '../diagnostics/report';
 import { cachedHeardLevels, keepHeardLevels, loadHeardLevels } from '../mic/heardLevels';
 import type { JournalTarget } from './recordingJournalModel';
@@ -66,6 +69,8 @@ interface PendingFile {
   uri: string;
   format: BlobRef['format'];
   durationMs: number;
+  /** Its bars, when the session's levels gave them (barsFromLevels); otherwise they are read from the WAV. */
+  bars?: number[] | null;
   card?: RecordedCard;
 }
 
@@ -164,6 +169,9 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
           } else {
             let wavKept = false;
             await journal.put(previous ?? { ...entry(), stage: 'recorded' });
+            // Its bars for the list of parts: a session's part brings them from the levels it showed; a
+            // take, or a part found again after a restart, reads them from the WAV before a phone encodes it (barsStore.ts).
+            const bars = file.bars ?? (file.format === 'wav' ? await barsOfFile(file.uri, 'wav').catch(() => null) : null);
             // A phone keeps AAC, about a fifth of the WAV (decisions.md 106). The
             // journal names the AAC copy before the WAV goes, so a restart finds
             // one of them; if encoding fails, the WAV is kept as it is.
@@ -184,6 +192,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
             const { ref, size } = await store.ingest(file.uri, file.format, (ref, size) =>
               journal.put({ ...entry(), stage: 'recorded', hash: ref.hash, size }));
             if (wavKept) count('wavKept');
+            if (bars) rememberBars(ref.hash, bars);
             file.card = { id: file.id, ref, size, durationMs: entry().durationMs };
           }
         }
@@ -460,7 +469,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
             const target = targetRef.current;
             if (!WEB && target) await journal.put({ id, uri, format: 'wav', durationMs: Math.round(durationMs), stage: 'recorded', target });
             liveParts.delete(id);
-            cut.push({ id, uri, format: 'wav', durationMs });
+            cut.push({ id, uri, format: 'wav', durationMs, bars: barsFromLevels(k.levels) });
           } catch (e) {
             failed = true;
             liveParts.delete(id);
@@ -522,6 +531,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
 
   useEffect(() => {
     mounted.current = true;
+    // The speech model (decision 135) loads while the screen is looked at, not when record is tapped.
+    MicrophoneEnergy.prepareSpeech().catch((e: unknown) => noteExpected('recorder: speech model', e));
     const subscriptions = [
       // The module's own report, from its threads (a part's file that could not be written).
       // Every recorder hears it; only the one whose session it is counts it.

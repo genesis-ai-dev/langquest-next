@@ -21,6 +21,12 @@
 // (LAN-83). While the parts are still a version's, the card is named for it. Done is its own screen inside this one, so
 // nothing recorded or offered is lost on the way. Parts split by what the
 // microphone hears, the room and the voice, with nothing to set (LAN-82).
+// Parts are dragged up and down by a grip (the moved part loses its verses,
+// to be labelled again), a mark on the line between two parts opens a place
+// there to record into, the parts just recorded are shaded until the next
+// recording, and Undo and Redo take back and bring back any change to the
+// parts as new events: nothing here offers an Undo that runs out (Caleb,
+// 2026-10-16).
 //
 // Every change persists: each part is kept as the draft on the record, so
 // nothing is lost if you leave; the saved mark in the header turns from a
@@ -37,7 +43,7 @@ import {
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { screenTitle } from '../shell/flow';
@@ -59,10 +65,17 @@ import { RecordingView } from '../recording/RecordingView';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, labelAt, removeCardSpecs, sameCards, slotRows, targetNumber,
-  type RecordTarget, type SlotRow,
+  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, labelAt, marksKeepingLabels, marksOf, movedList,
+  removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber,
+  changedParts, historyFits, parsePartsHistory, partsHistoryKey,
+  type PartsHistory, type PartsSnap, type RecordTarget, type SlotRow,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
+import { DragScrollContext } from '../recording/useDragRows';
+import { useDragScroll } from '../recording/useDragScroll';
+import { useUndoHistory } from '../drafts/useUndoHistory';
+import { forgetUndoHistory } from '../drafts/undoHistory';
+import { didStep, emptyHistory, redoStep, undoStep } from '../ui/undoModel';
 import { getReferenceSlides } from '../passage/passageResources';
 import { pendingPassageCards } from '../recording/recordingFlow';
 import { failureMessage } from '../diagnostics/report';
@@ -85,6 +98,7 @@ import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
 import { useSaveStatus } from '../ui/useSaveStatus';
 import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../recording/recorder';
+import type { UndoRedoProps } from '../ui/undoRedo';
 import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote } from '../helps/reference';
 import { useBible } from '../helps/useBible';
 import { useUsage } from '../sources/useUsage';
@@ -97,8 +111,15 @@ import { anyFrom, fromFilter } from '../checks/showsModel';
 
 // ---- Workspace ---------------------------------------------------------------------
 
-/** Where what is said next goes, by card (LAN-83): the end, before a part (a gap), or over a part. */
-type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark } | { kind: 'over'; hash: string; n: number; mark?: PartMark };
+/**
+ * Where what is said next goes, by card (LAN-83): the end, before a part (a
+ * gap), or over a part. `insert`: a place opened on the line between two
+ * parts, where what is said has no verses yet.
+ */
+type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark; insert?: true } | { kind: 'over'; hash: string; n: number; mark?: PartMark };
+
+/** Said to a screen reader where a toast used to say it: the change shows on the card. */
+const say = (message: string) => AccessibilityInfo.announceForAccessibility(message);
 
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
@@ -252,16 +273,24 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       // A part recorded into a gap takes the next verse, so it fills the gap;
       // in a deleted or replaced part's place, the first takes that part's verses and the rest are more of them.
       const aimMark = aim.kind === 'end' ? undefined : aim.mark;
-      if (insertBefore && verseKeysRef.current.length > 0) {
+      const verses = verseKeysRef.current;
+      if (insertBefore && verses.length > 0) {
         const fresh = new Set(pending);
-        let first = true;
-        const marks = partMarksFor(state, unitId, list, verseKeysRef.current).map((m, i) => {
-          if (!fresh.has(list[i]!) || m) return m;
-          const mark: PartMark = aimMark ? (first ? aimMark : { t: 'join' }) : { t: 'next' };
-          first = false;
-          return mark;
-        });
-        specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards: list, marks, verses: verseKeysRef.current })];
+        let marks: PartMark[];
+        if (aim.kind === 'gap' && aim.insert) {
+          // Said between two parts: it has no verses yet, and the parts around it keep theirs.
+          const old = list.filter((h) => !fresh.has(h));
+          marks = marksKeepingLabels({ list: old, marks: partMarksFor(state, unitId, old, verses) }, list, verses.length);
+        } else {
+          let first = true;
+          marks = partMarksFor(state, unitId, list, verses).map((m, i) => {
+            if (!fresh.has(list[i]!) || m) return m;
+            const mark: PartMark = aimMark ? (first ? aimMark : { t: 'join' }) : { t: 'next' };
+            first = false;
+            return mark;
+          });
+        }
+        specs = [...specs, ...commands(state, idx).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards: list, marks, verses })];
       }
     } catch (e) {
       composeLock.current = false;
@@ -271,30 +300,21 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     }
     adopt(specs);
     // Recorded over a part: the part is gone from the draft now, so what comes
-    // next goes after what was just said, and Undo brings the old part back.
-    let undo: (() => EventSpec[]) | undefined;
-    let replacedLabel = '';
+    // next goes after what was just said. Undo brings the old part back.
     if (aim.kind === 'over') {
       const fresh = new Set(pending);
       const first = list.findIndex((h) => fresh.has(h));
       const after = list.slice(first).find((h) => !fresh.has(h)) ?? null;
-      const before = [...list.slice(0, first).filter((h) => !fresh.has(h)), aim.hash, ...list.slice(first).filter((h) => !fresh.has(h))];
-      replacedLabel = partLabel(aim.n - 1);
       // The hole was before the part just replaced: it is before what replaced it now.
       if (hole?.before === aim.hash && list[first]) setHole({ ...hole, before: list[first]! });
-      undo = () => {
-        const s = stateRef.current;
-        // This draft as it is now (as `draftIn`), read here so the effect depends on nothing that changes every render.
-        const now = draftOf(draftsBy(derivePassage(s, unitId), me), rootRef.current);
-        return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me, parentTakeId: now?.takeId ?? parentNow() });
-      };
+      say(t('translate.partReplaced', { part: partLabel(aim.n - 1) }));
       setAim(after ? { kind: 'gap', before: after, ...(aim.mark ? { mark: { t: 'join' } } : {}) } : { kind: 'end' });
     } else if (aim.kind === 'gap') {
       // Parts said after the first in a place are more of its verses; the hole is filled.
       if (aim.mark) setAim({ ...aim, mark: { t: 'join' } });
       if (hole?.before === aim.before) setHole(null);
     }
-    (undo ? latestCtx.current.act(specs, t('translate.partReplaced', { part: replacedLabel }), undo) : ctx.language.run(specs))
+    ctx.language.run(specs)
       .catch((e: unknown) => setComposeError(t('translate.partsNotInDraft', { reason: failureMessage('workspace: save draft', e) })))
       .finally(() => { composeLock.current = false; setComposing(false); });
     // `composing` is a dependency so a card that landed mid-compose is composed next.
@@ -314,9 +334,29 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   stateRef.current = state;
   const saving = rec.busy || composing || working;
   const blocked = saving || recording;
+  /**
+   * Writes a change to the parts; says what went wrong, and puts the list back, when it is not kept.
+   * `quiet`: a verse label, which shows at once and blocks nothing while it is written.
+   */
+  async function change(specs: EventSpec[], step: { before: PartsSnap; after: PartsSnap }, message: string, nowCleared = cleared, quiet = false) {
+    const wasCleared = cleared;
+    adopt(specs);
+    if (!quiet) setWorking(true);
+    // Set first so the list does not flash back to the latest version's takes.
+    setCleared(nowCleared);
+    try {
+      await ctx.language.run(specs);
+      setHistory((h) => didStep(h, { ...step, what: message }));
+      say(message);
+      return true;
+    } catch (e) {
+      setCleared(wasCleared);
+      ctx.toast(t('common.notSaved', { reason: failureMessage('workspace: change parts', e) }));
+      return false;
+    } finally { if (!quiet) setWorking(false); }
+  }
   async function remove(hash: string, label = partLabel(Math.max(0, list.indexOf(hash)))) {
     if (blocked) return;
-    const before = list;
     // Its place stays open, chosen: what is said next goes there, taking its verses (LAN-83).
     const at = list.indexOf(hash);
     const was = { aim, hole };
@@ -328,29 +368,15 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       commandId: Crypto.randomUUID(), unitId, actorId: me, list, hash, pending: new Set(pending), parentTakeId: parentNow(),
       ...(draft ? { draftTakeId: draft.takeId } : {}), ...(startCards ? { latestCards: startCards } : {})
     });
-    const wasCleared = cleared;
-    adopt(specs);
-    setWorking(true);
-    // Set first so the list does not flash back to the latest version's takes.
-    setCleared(nowCleared);
-    try {
-      await ctx.act(specs, t('translate.partDeleted', { part: label }), () => {
-        setCleared(false);
-        setAim(was.aim);
-        setHole(was.hole);
-        if (startCards && sameCards(before, startCards)) return [];
-        const s = stateRef.current;
-        return commands(s, indexesFor(s)).keepTake({ commandId: Crypto.randomUUID(), unitId, cardHashes: before, actorId: me,
-          parentTakeId: draftIn(s)?.takeId ?? parentNow() });
-      });
-    } catch {
-      setCleared(wasCleared); // ctx.act said what went wrong
+    const before = snapNow();
+    const left = list.filter((h) => h !== hash);
+    if (!await change(specs, { before, after: { list: left, marks: marksOf(left, before) } }, t('translate.partDeleted', { part: label }), nowCleared)) {
       setAim(was.aim);
       setHole(was.hole);
-    } finally { setWorking(false); }
+    }
   }
 
-  /** Every part off the list, to start over (LAN-83), once the person said yes. */
+  /** Every part off the list, to start over (LAN-83), once the person said yes. Undo brings them all back. */
   const [askingAll, setAskingAll] = useState(false);
   async function removeAll() {
     if (blocked || list.length === 0) return;
@@ -358,14 +384,70 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const specs = clearListSpecs(state, idx, {
       commandId: Crypto.randomUUID(), unitId, list, pending: new Set(pending), parentTakeId: parentNow(), ...(draft ? { draftTakeId: draft.takeId } : {})
     });
+    setAim({ kind: 'end' });
+    setHole(null);
+    await change(specs, { before: snapNow(), after: { list: [], marks: [] } }, t('translate.partDeleted', { part: label }), true);
+  }
+
+  /**
+   * A part dragged by its grip (Caleb, 2026-10-16): the list in its new order
+   * becomes the draft, and the moved part loses its verses, to be labelled
+   * again where it is now; every other part keeps the verses it showed.
+   */
+  async function move(from: number, to: number) {
+    if (blocked || from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return;
+    const before = snapNow();
+    const moved = movedList(list, from, to);
+    const hash = list[from]!;
+    const after: PartsSnap = { list: moved, marks: verseKeys.length > 0 ? marksKeepingLabels(before, moved, verseKeys.length, new Set([hash])) : marksOf(moved, before) };
+    const { specs } = restoreSpecs(state, idx, {
+      commandId: Crypto.randomUUID(), unitId, actorId: me, to: after, verses: verseKeys, parentTakeId: parentNow(),
+      ...(draft ? { draftTakeId: draft.takeId } : {}), ...(startCards ? { latestCards: startCards } : {})
+    });
+    // A deleted part's place is not kept across a move; what was chosen by a part stays with it.
+    setHole(null);
+    if (aim.kind === 'gap' && !aim.insert && hole?.before === aim.before) setAim({ kind: 'end' });
+    await change(specs, { before, after }, t('translate.partMoved', { part: partLabel(from), place: partLabel(to) }));
+  }
+
+  // ---- undo and redo (Caleb, 2026-10-16) ----
+  // Every change to the parts on this screen can be taken back and brought
+  // back again while it is open: each is written as new events that put the
+  // parts as they were, never by removing what was written.
+  // Kept with the draft on this phone until it is published (usePartsHistory.ts).
+  const historyKey = rootRef.current ? partsHistoryKey({ languageId, actorId: me, unitId, draftId: rootRef.current }) : null;
+  const { history: storedHistory, loaded: historyLoaded, set: setHistory } = useUndoHistory(historyKey, parsePartsHistory);
+  // The recorder pane scrolls while a part is held near its top or bottom.
+  const dragScroll = useDragScroll();
+  const snapNow = (): PartsSnap => ({ list: [...list], marks: list.map((_, i) => marks[i] ?? null) });
+  async function travel(which: 'undo' | 'redo') {
+    if (blocked || !historyLoaded) return;
+    const step = which === 'undo' ? undoStep(history) : redoStep(history);
+    if (!step) return;
+    const s = stateRef.current;
+    const now = snapNow();
+    const { specs, cleared: nowCleared } = restoreSpecs(s, indexesFor(s), {
+      commandId: Crypto.randomUUID(), unitId, actorId: me, to: step.to, from: step.from, now, verses: verseKeys, parentTakeId: draftIn(s)?.takeId ?? parentNow(),
+      ...(draft ? { draftTakeId: draft.takeId } : {}), ...(startCards ? { latestCards: startCards } : {})
+    });
+    const wasCleared = cleared;
+    adopt(specs);
     setWorking(true);
-    setCleared(true);
+    setCleared(nowCleared);
     setAim({ kind: 'end' });
     setHole(null);
     try {
-      await ctx.act(specs, t('translate.partDeleted', { part: label }));
-    } catch {
-      setCleared(false);
+      await ctx.language.run(specs);
+      setHistory(step.history);
+      // What changed is shaded, as a new recording is, and brought into view, so the tap visibly did something.
+      const changedNow = changedParts(now, step.to);
+      setJustSaid(new Set(changedNow));
+      if (changedNow[0]) setShow({ hash: changedNow[0], at: Date.now() });
+      say(step.what ? t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what })
+        : which === 'undo' ? t('common.undone') : t('translate.redone'));
+    } catch (e) {
+      setCleared(wasCleared);
+      ctx.toast(t(which === 'undo' ? 'common.notUndone' : 'common.notSaved', { reason: failureMessage(`workspace: ${which}`, e) }));
     } finally { setWorking(false); }
   }
 
@@ -399,8 +481,31 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const [shownMarks, setShownMarks] = useState<{ list: string[]; marks: PartMark[] } | null>(null);
   useEffect(() => { setShownMarks(null); }, [state]);
   const marks = shownMarks && sameCards(shownMarks.list, list) ? shownMarks.marks : storedMarks;
+
+  // ---- what was just recorded (Caleb, 2026-10-16) ----
+  // A recording session is one change: its parts are shaded on the card
+  // until the next session starts, and Undo takes the whole session back.
+  const session0 = useRef<PartsSnap | null>(null);
+  const [justSaid, setJustSaid] = useState<ReadonlySet<string>>(() => new Set());
+  const [show, setShow] = useState<{ hash: string; at: number } | null>(null);
+  const settling = recording || rec.busy || composing || pending.length > 0;
+  // A history the draft has moved on from (changed on another phone) would undo that work: it is not offered.
+  const history: PartsHistory = historyFits(storedHistory, list) || settling || working ? storedHistory : emptyHistory;
+  if (recording && !session0.current) session0.current = { list: [...list], marks: list.map((_, i) => marks[i] ?? null) };
+  const sessionNew = session0.current ? list.filter((h) => !session0.current!.list.includes(h)) : null;
+  useEffect(() => {
+    const start = session0.current;
+    if (!start || !sessionNew) return;
+    setJustSaid((was) => (was.size === sessionNew.length && sessionNew.every((h) => was.has(h)) ? was : new Set(sessionNew)));
+    if (settling) return;
+    session0.current = null;
+    // Back from the red view, the first part just said is brought into view on the open card.
+    if (sessionNew[0]) setShow({ hash: sessionNew[0], at: Date.now() });
+    setHistory((h) => didStep(h, { before: start, after: { list: [...list], marks: list.map((_, i) => marks[i] ?? null) }, what: t('translate.newRecording') }));
+  }, [sessionNew?.join(), settling, list, marks]); // eslint-disable-line react-hooks/exhaustive-deps -- sessionNew is read by its joined value
+  // A verse label is plain to see and easy to change again, so it says nothing (Caleb, 2026-10-16); Undo takes it back.
   const setMarks = (next: PartMark[], message: string) => {
-    const before = marks;
+    const before = snapNow();
     const cards = list;
     let specs: EventSpec[];
     try {
@@ -411,8 +516,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     }
     if (specs.length === 0) return;
     setShownMarks({ list: cards, marks: next });
-    ctx.act(specs, message, () => commands(stateRef.current, indexesFor(stateRef.current)).setCardVerses({ commandId: Crypto.randomUUID(), unitId, cards, marks: before, verses: verseKeys }))
-      .catch(() => setShownMarks(null));
+    void change(specs, { before, after: { list: [...cards], marks: next } }, message, cleared, true).then((kept) => { if (!kept) setShownMarks(null); });
   };
   // Tapping the end, a gap or a part chooses where what is said next goes; tapping it again goes back to the end.
   const choose = (to: RecordTarget) => {
@@ -425,7 +529,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       if (!before) return;
       // A deleted part's verses, or the verses the gap leaves out.
       const row = rowsRef.current.find((r) => r.kind === 'gap' && r.before === to.before);
-      const label = row?.kind === 'gap' ? row.label : null;
+      // No gap there: the mark on the line above a part opens one (Caleb, 2026-10-16).
+      if (!row) { setAim({ kind: 'gap', before, insert: true }); return; }
+      const label = row.kind === 'gap' ? row.label : null;
       const mark: PartMark | undefined = hole?.before === before ? hole.mark : label ? { t: 'set', s: label.s, e: label.e } : undefined;
       setAim({ kind: 'gap', before, ...(mark ? { mark } : {}) });
       return;
@@ -497,7 +603,6 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     let specs: EventSpec[];
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
     let message = t('translate.versionPublished', { n: nextN });
-    let requestId: string | undefined;
     try {
       const c = commands(state, idx);
       specs = c.publishVersion({
@@ -507,10 +612,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       if (canTie) specs = [...specs, ...tieTermsSpecs(state, specs, tied, commandId)];
       const takeId = specs.find((x) => x.type === 'v1.TakeSubmitted')?.payload as { takeId: string } | undefined;
       if (takeId) specs = [...specs, ...c.referencesUsed({ commandId, unitId, takeId: takeId.takeId, items: usage.items() })];
-      // Sent on in the same write, so it is never published and forgotten (one Undo takes the asking back).
+      // Sent on in the same write, so it is never published and forgotten (History's Withdraw takes the asking back).
       if (ask && 'kindId' in ask && sendTo) {
         const asked = c.ask({ ...sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }), ...(ask.questions.length ? { questions: ask.questions } : {}) });
-        requestId = (asked.find((x) => x.type === 'v1.RequestMade')?.payload as { requestId: string } | undefined)?.requestId;
         specs = [...specs, ...asked];
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
       }
@@ -520,8 +624,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     }
     setPublishing(true);
     try {
-      const undo = requestId ? () => { const now = ctx.language.state ?? state; return commands(now, indexesFor(now)).withdrawRequest({ commandId: Crypto.randomUUID(), requestId: requestId! }); } : undefined;
-      await ctx.act(specs, message, undo);
+      // Taken back from the record's History (Withdraw), not a toast (decision 134).
+      await ctx.act(specs, message);
+      // Done: the draft is over, and so is its undo history.
+      if (historyKey) forgetUndoHistory(historyKey);
       // The voice note said on the Done screen was kept while uploads waited: send it now.
       ctx.language.triggerUpload();
       setConfirming(false);
@@ -538,7 +644,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const verseLabels = verseKeys.length > 0 ? derivePartVerses(marks, verseKeys.length).labels : [];
   const dataGaps = skippedVerses(verseLabels).map((g) => ({ before: g.before, label: { s: g.s, e: g.e, kind: 'set' as const } }));
   const holeAt = hole ? list.indexOf(hole.before) : -1;
-  const rows = slotRows(list.length, dataGaps, holeAt >= 0 ? { before: holeAt, label: labelAt(marks, holeAt, hole?.mark, verseKeys.length) } : null);
+  const openAt = aim.kind === 'gap' && aim.insert ? list.indexOf(aim.before) : -1;
+  const rows = slotRows(list.length, dataGaps, holeAt >= 0 ? { before: holeAt, label: labelAt(marks, holeAt, hole?.mark, verseKeys.length) } : null,
+    openAt >= 0 ? openAt : null);
   const target: RecordTarget = aim.kind === 'gap' && list.includes(aim.before) ? { kind: 'gap', before: list.indexOf(aim.before) }
     : aim.kind === 'over' && list.includes(aim.hash) ? { kind: 'over', index: list.indexOf(aim.hash) } : { kind: 'end' };
   const targetN = targetNumber(rows, target);
@@ -557,6 +665,13 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     : rec.error ? <SaveProblem message={rec.error} /> : null;
   const record = () => void loop.toggle();
   const scope = { unitId, languageId };
+  const lastDone = history.done[history.done.length - 1];
+  const lastUndone = history.undone[history.undone.length - 1];
+  const undoRedo: UndoRedoProps = {
+    canUndo: !!lastDone && !blocked && historyLoaded, canRedo: !!lastUndone && !blocked && historyLoaded,
+    ...(lastDone?.what ? { undoWhat: lastDone.what } : {}), ...(lastUndone?.what ? { redoWhat: lastUndone.what } : {}),
+    onUndo: () => void travel('undo'), onRedo: () => void travel('redo')
+  };
 
   // Every change is kept as it happens: the mark turns from a spinner to a check as each part is kept.
   const savedStatus = useSaveStatus(saving, list.length > 0 && !(startCards && sameCards(list, startCards)) || !!draft, rec.failureCount > 0 || !!composeError);
@@ -584,7 +699,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
         action={<SavedMark status={savedStatus} help={t('saved.draftHelp')} />} />}
       footer={recorderLine ? undefined : (
         <RecorderFooter count={list.length} nextIndex={sessionIndex} phase={loop.phase} recordDisabled={saving || rec.failureCount > 0}
-          publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} />
+          publishDisabled={!changed || blocked || rec.failureCount > 0} onRecord={record} onPublish={() => setConfirming(true)} undo={undoRedo} />
       )}>
       <SplitPane memoryKey="workspace" minBottom={session ? MIN_BOTTOM_RECORDING : MIN_BOTTOM} onFraction={setSplit}
         topStyle={styles.refPane} bottomStyle={styles.wsRecordPane}
@@ -628,17 +743,19 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
           <RecordingView rec={rec} phase={loop.phase} title={partLabel(sessionIndex)} partNumber={targetN} count={list.length + rec.sessionKept} noun="part" onLeave={() => void loop.finish()} onResume={loop.resumeNow} onStop={loop.stop} onDiscard={() => void loop.discard()}
             {...(slotTile ? { tile: slotTile } : {})} />
         ) : compact ? (
-          <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} />
+          <RecorderBar count={list.length} nextIndex={nextIndex} phase={loop.phase} disabled={saving || rec.failureCount > 0} onRecord={record} onOpen={open} undo={undoRedo} />
         ) : (
           <HelpClip style={{ flex: 1 }}>
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.recordBody} accessibilityLabel={t('translate.yourRecording')}>
-              {problem}
-              <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
-                onDelete={(h, label) => void remove(h, label)} onDeleteAll={() => setAskingAll(true)} onRoom={room} onResume={loop.resumeNow}
-                {...(recorderGroupTitle ? { title: recorderGroupTitle } : {})}
-                rows={rows} target={target} onChoose={choose}
-                verses={{ keys: verseKeys, marks, onMarks: setMarks }} />
-            </ScrollView>
+            <DragScrollContext.Provider value={dragScroll.scroll}>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.recordBody} accessibilityLabel={t('translate.yourRecording')} {...dragScroll.props}>
+                {problem}
+                <RecorderPane ctx={ctx} parts={parts} phase={loop.phase} capturing={rec.vadCapturing} small={height < 360} disabled={blocked}
+                  onDelete={(h, label) => void remove(h, label)} onDeleteAll={() => setAskingAll(true)} onRoom={room} onResume={loop.resumeNow}
+                  {...(recorderGroupTitle ? { title: recorderGroupTitle } : {})}
+                  rows={rows} target={target} onChoose={choose} onMove={(from, to) => void move(from, to)} fresh={justSaid} show={show}
+                  verses={{ keys: verseKeys, marks, onMarks: setMarks }} />
+              </ScrollView>
+            </DragScrollContext.Provider>
           </HelpClip>
         )} />
       <ConfirmDelete visible={askingAll} name={recorderLines(list.length).group} title={t('recording.recorder.deleteAllAsk')} confirmLabel={t('recording.recorder.deleteAll')}
@@ -654,7 +771,7 @@ function ReferenceBar(props: { onOpen: () => void }) {
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('translate.openReference')} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
       <Ico name="book" size={18} color={C.primary} />
-      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{t('translate.dragDown')}</Text>
+      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={3}>{t('translate.dragDown')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );

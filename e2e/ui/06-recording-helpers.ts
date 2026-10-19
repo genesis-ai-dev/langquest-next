@@ -218,10 +218,10 @@ export const verseSpace = (page: Page, n: number): Locator =>
  * until the sheet opens, not for a fixed time: on a busy page (a part just recorded, the list
  * settling) the timer that turns a press into a hold runs late, so a press let go at the threshold
  * lands as a tap and gives the part a verse instead (JRN-002 failed so in CI). A press that lands
- * as a tap anyway is undone with its toast's Undo, and held again.
+ * as a tap anyway is undone with the footer's Undo, and held again.
  */
 export async function holdPart(page: Page, n: number): Promise<void> {
-  // The hold sheet's own tool ("None"): every part row has its own "Delete Part n" too.
+  // The hold sheet's own tool ("None"): a row slid open on its bin has a "Delete Part n" too.
   const sheet = page.getByRole('button', { name: 'None', exact: true }).locator('visible=true').first();
   for (let attempt = 0; attempt < 3; attempt++) {
     const space = verseSpace(page, n);
@@ -233,14 +233,36 @@ export async function holdPart(page: Page, n: number): Promise<void> {
     await sheet.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => undefined);
     await page.mouse.up();
     if (await sheet.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true, () => false)) return;
-    const undo = byId(page, 'toast-undo');
-    if (await undo.isVisible().catch(() => false)) await undo.click();
+    const undo = undoButton(page);
+    if (await undo.isEnabled().catch(() => false)) await undo.click();
   }
   await expect(sheet, 'holding the part opens its sheet').toBeVisible();
 }
 
-/** Delete a part as a person does: the bin at the end of its row (LAN-83). */
-export async function deletePart(page: Page, n: number): Promise<void> {
+/** Undo and Redo by the red button (Caleb, 2026-10-16). */
+export const undoButton = (page: Page): Locator => byId(page, 'undo');
+export const redoButton = (page: Page): Locator => byId(page, 'redo');
+
+/** Slide a part's row sideways (`by` points: right is positive) by its bars, as a finger does. */
+export async function swipePart(page: Page, n: number, by = 110): Promise<void> {
+  // A row slides only while nothing is recording or saving.
+  await expectIdle(page);
+  const bars = page.getByRole('button', { name: `Record Part ${n} again`, exact: true }).locator('visible=true').first();
+  await expect(bars).not.toHaveAttribute('aria-disabled', 'true');
+  await bars.scrollIntoViewIfNeeded();
+  await expectStill(bars);
+  const box = (await bars.boundingBox())!;
+  const y = box.y + box.height / 2;
+  const x = box.x + (by > 0 ? 16 : box.width - 16);
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(x + (by * i) / 10, y + 1);
+  await page.mouse.up();
+}
+
+/** Delete a part as a person does: slide its row aside, and tap the bin it shows (Caleb, 2026-10-16). */
+export async function deletePart(page: Page, n: number, by = 110): Promise<void> {
+  await swipePart(page, n, by);
   await page.getByRole('button', { name: `Delete Part ${n}`, exact: true }).locator('visible=true').first().click();
 }
 

@@ -430,12 +430,22 @@ short:
   server's `may_emit`) say who may act; the flow never does.
 - **One place for what's next.** Everyone who does or asks for work lands
   on My Work; the Map finds any passage at whole-Bible scale; the passage
-  record is where every loop closes, with a toast (and Undo) after every
-  action.
+  record is where every loop closes, with a toast after every action and
+  its way back in the record's History.
+- **No Undo that runs out** (decisions 133, 134): a toast says what
+  happened and nothing more. The way back stays with the thing: History's
+  Undo or Withdraw, the same control, or Undo and Redo arrows on screens
+  where people build something. What cannot come back asks first.
 - **Simple on the surface, deep in the record.** One next step and one main
   button; background and history behind one-line summaries.
 - **Built for the field.** 48pt targets, 56pt primary actions, 13pt minimum
   text, status colours that never change and never carry meaning alone.
+- **Words are never cut off** (decision 139): in every interface language,
+  on a 360pt phone, the app's own words show in full. A label longer than
+  its place wraps onto another line, side-by-side things move under each
+  other when they no longer fit, and a few choices wrap rather than sit past
+  the edge. Only people's own content (names, notes, titles) may be shortened
+  in a list, and it shows in full where it opens.
 - **A to-do opens the task itself** (demo principle 11): a My Work row, an
   update, a Get ready step or a warning opens the thing to do in its language,
   book or passage, never a list to search, and says why it is there.
@@ -452,8 +462,12 @@ short:
   everything a person can tap, type in or switch lights up and says what
   tapping it does instead of doing it, sheets included, and a mark that means
   something without words (a coloured dot, a tick, a bar) says what it means.
-  A new control gets its line (`help`, or a Row's `sub`) when it is built;
-  `apps/mobile/test/helpParts.ts` holds it.
+  In a list, one row speaks for the rest: only the first row in sight takes
+  numbers, the others stay dim and still explain when tapped (`HelpRow`), so
+  a list of twenty never shows twenty sets; items that each do something
+  different (tabs, filters) keep a number each. A new control gets its line
+  (`help`, or a Row's `sub`) and a new list its `HelpRow` when it is built;
+  `apps/mobile/test/helpParts.ts` holds both.
 - **What you make needs no saving** (decision 127): nothing asks "Leave
   without saving?". What someone makes (a recording, a review, a
   note, an editor's changes) is kept as they go, only for them, and a small

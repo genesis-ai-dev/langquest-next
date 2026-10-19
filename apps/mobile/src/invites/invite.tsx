@@ -17,6 +17,8 @@ import { useGroupInvite } from '../admin/useGroupInvite';
 import { usePlainRoles } from '../admin/useReadySummary';
 import { shareInvite } from './shareInvite';
 import { plainRoleHelp } from '../admin/readyText';
+import { HelpRow } from '../helpMode/helpBadge';
+import { useHardwareBack } from '../ui/useHardwareBack';
 
 export interface InviteScope {
   key: string;
@@ -48,6 +50,8 @@ export function InviteSomeone(props: {
   const roles = usePlainRoles(ctx, scope?.scope ?? null);
   const roleId = roles.choices.find((c) => c.id === choice)?.roleId ?? roles.others.find((r) => r.id === choice)?.id ?? null;
   const making = shown && sent;
+  // A phone's Back from the code goes back to who it is for, as the header's arrow does (decision 137).
+  useHardwareBack(shown, () => setShown(false));
   const invite = useGroupInvite(ctx.language.orgId, making ? roleId : null, making && scope ? scope.scope : null, scope ? props.label(scope) : '');
   function show() {
     setShown(true);
@@ -91,18 +95,25 @@ export function InviteSomeone(props: {
       <Question>{t('admin.invite.whatWillTheyDo')}</Question>
       {/* Making a new role comes first, set apart from the roles there are (design principle 12). */}
       {newRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={newRole} /> : null}
+      {/* help-each: each plain role does different work */}
       {roles.choices.map((c) => (
         <RadioRow key={c.id} tile icon={c.icon as IconName} label={c.label} help={plainRoleHelp(c.id)} on={choice === c.id} onPress={() => setChoice(c.id)} />
       ))}
       {roles.others.length ? (others ? roles.others.map((r) => (
-        <RadioRow key={r.id} tile icon="star" label={r.name} help={t('admin.invite.pickRoleHelp')} on={choice === r.id} onPress={() => setChoice(r.id)} />
+        <HelpRow key={r.id} of="invite.otherRole">
+          <RadioRow tile icon="star" label={r.name} help={t('admin.invite.pickRoleHelp')} on={choice === r.id} onPress={() => setChoice(r.id)} />
+        </HelpRow>
       )) : <QuietLink icon="down" label={t('admin.invite.otherRoles', { total: formatNumber(roles.others.length) })} detail={t('admin.invite.otherRolesHelp')}
         onPress={() => setOthers(true)} />) : null}
       {props.scopes.length > 1 ? (
         <>
           <SectionLabel label={t('admin.invite.whichLanguage')} />
-          <Pills>{props.scopes.map((s) => <Chip key={s.key} label={s.label} on={scopeKey === s.key} onPress={() => setScopeKey(s.key)}
-            help={s.scope.level === 'org' ? t('admin.invite.scopeOrgHelp') : t('admin.invite.scopeLanguageHelp')} />)}</Pills>
+          <Pills>{props.scopes.map((s) => (
+            <HelpRow key={s.key} of={s.scope.level === 'org' ? 'invite.scopeOrg' : 'invite.scopeLanguage'}>
+              <Chip label={s.label} on={scopeKey === s.key} onPress={() => setScopeKey(s.key)}
+                help={s.scope.level === 'org' ? t('admin.invite.scopeOrgHelp') : t('admin.invite.scopeLanguageHelp')} />
+            </HelpRow>
+          ))}</Pills>
         </>
       ) : null}
       {props.disabled ? <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{props.disabled}</Text> : null}

@@ -16,7 +16,7 @@
 import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { commands, derivePassage } from '@langquest-next/core';
-import { button, byId, deviceEvents, expect, expectSent, expectStill, expectSyncIdle, field, primary, screenText, test, text, undoToast } from './support';
+import { button, byId, deviceEvents, expect, expectSent, expectStill, expectSyncIdle, field, primary, screenText, test, text } from './support';
 import { recordButton, publishButton, recordParts } from './06-recording-helpers';
 import { GLOSSARY_WORD, offerStudyWorld, OWN_BIBLE } from './study-helpers';
 import { act, device, langAs, open, openLabel, openRecord, recordedFor, sawToast, uploadVoice, useRunWorld, visible } from './reviewing-helpers';
@@ -131,18 +131,19 @@ test('STUDY-003 Done with this step @p0', async ({ page, browser }) => {
   await openStudy(page);
   await primary(page).click();
   await sawToast(page, 'Hear and Heart done · 1 of 6');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(stepBar(page, 2)).toBeVisible();
   await button(page, 'Previous step').click();
   await expect(text(page, /^Done by (you|Tom Translator) · just now$/i)).toBeVisible();
+  // No toast offers Undo (decision 134): a done step keeps its own Undo.
+  await expect(button(page, 'Undo')).toBeVisible();
   await expect(button(page, 'Next: Setting the Stage')).toBeVisible();
   await button(page, 'Next step').click();
   await primary(page).click();
   await sawToast(page, 'Setting the Stage done · 2 of 6');
-  await undoToast(page);
-  await sawToast(page, 'Undone.');
   await button(page, 'Previous step').click();
   await expect(stepBar(page, 2)).toBeVisible();
+  await button(page, 'Undo').click();
+  await sawToast(page, 'Undone.');
   await expect(primary(page)).toHaveText('Done with this step');
   await stepBar(page, 2).click();
   await expect(text(page, /^1 of 6 done · by (you|You|Tom Translator)$/)).toBeVisible();
@@ -171,7 +172,6 @@ test('STUDY-004 The last step, then "Record the first draft"', async ({ page }) 
     if (n < 6) await sawToast(page, `${STEPS[n - 1]} done · ${n} of 6`);
   }
   await sawToast(page, 'Every step is done');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   // P-SUBMITTED has a version.
   await expect(button(page, 'Open the recording workspace')).toBeVisible();
   await byId(page, 'header-close').click();
@@ -387,8 +387,6 @@ test('STUDY-016 Add a key word', async ({ page }) => {
   await expect(button(page, 'Add the word')).toBeEnabled();
   await button(page, 'Add the word').click();
   await sawToast(page, 'heaven added.');
-  // Key terms are grow-only (core materials.ts): adding one offers no Undo.
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expect(button(page, /^heaven\. /)).toBeVisible();
   await tabChip(page, 'Bible').click();
   await expect(visible(page.getByRole('link', { name: /^heaven, key word/ })).first()).toBeVisible();
@@ -427,7 +425,6 @@ test('STUDY-018 Say your word for a key word', async ({ page }) => {
   await speakInto(page, 'Say it');
   await button(page, 'Add your word').click();
   await sawToast(page, 'Your word for son is saved.');
-  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   await expect(button(page, 'Play your word for son')).toBeVisible();
   await expectSent(page, world());
 });
@@ -652,7 +649,7 @@ async function openOwnBible(page: Page): Promise<void> {
 
 const ownBibleChoice = (page: Page) => visible(page.getByRole('radio', { name: new RegExp(OWN_BIBLE) }));
 
-test('STUDY-031 Add to My Bibles, then Undo', async ({ page }) => {
+test('STUDY-031 Add to My Bibles, then Remove', async ({ page }) => {
   // Bible Brain's Swahili Bibles need a real key (STUDY-030); the same screen adds a Bible from the organization's library.
   await openOwnBible(page);
   await expect(text(page, `${OWN_BIBLE} · eng`)).toBeVisible();
@@ -662,8 +659,19 @@ test('STUDY-031 Add to My Bibles, then Undo', async ({ page }) => {
   await button(page, 'Add to My Bibles').click();
   await sawToast(page, `${OWN_BIBLE} added to My Bibles`);
   await expect(text(page, /^Recording Version \d+$/)).toBeVisible();
-  // Undo takes it out again: the Bible picker does not list it.
-  await undoToast(page);
+  // No toast offers Undo (decision 134): the Bible's own "Remove from My Bibles" takes it out again.
+  await tabChip(page, 'Bible').click();
+  await button(page, 'Other Bibles').click();
+  await button(page, new RegExp(`^${OWN_BIBLE} · Test Library Bible`)).click();
+  await expect(button(page, 'In My Bibles')).toBeDisabled();
+  await button(page, 'Remove from My Bibles').click();
+  await sawToast(page, `${OWN_BIBLE} removed from My Bibles`);
+  await expect(button(page, 'Add to My Bibles')).toBeVisible();
+  // Back in the workspace (the Bible's back goes to the list, the list's to the workspace), the Bible picker does not list it.
+  await byId(page, 'header-back').click();
+  await expect(button(page, new RegExp(`^${OWN_BIBLE} · Test Library Bible`))).toBeVisible();
+  await byId(page, 'header-back').click();
+  await expect(text(page, /^Recording Version \d+$/)).toBeVisible();
   await tabChip(page, 'Bible').click();
   await button(page, 'Bible: BSB. Choose another').click();
   await expect(text(page, 'Choose a Bible')).toBeVisible();

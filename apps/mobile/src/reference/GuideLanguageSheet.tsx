@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
+import { HelpRow } from '../helpMode/helpBadge';
 import { GhostBtn, PrimaryBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { RadioRow } from '../admin/admin';
@@ -41,9 +42,11 @@ export function GuideLanguageSheet(props: {
         {props.onOff ? <GhostBtn label={t('reference.setLanguage.off', { name: short })} disabled={props.busy} help={t('reference.setLanguage.offHelp')} onPress={props.onOff} /> : null}
       </>}>
       {set.members.map((m) => (
-        <RadioRow key={m.language} icon="globe" label={languageLabel(m.language)} on={m.language === picked.language} onPress={() => setLanguage(m.language)}
-          help={t('reference.setLanguage.rowHelp')}
-          sub={[t('reference.setLanguage.passages', { count: m.passages }), sameLanguage(m.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
+        <HelpRow key={m.language} of="reference.setLanguage">
+          <RadioRow icon="globe" label={languageLabel(m.language)} on={m.language === picked.language} onPress={() => setLanguage(m.language)}
+            help={t('reference.setLanguage.rowHelp')}
+            sub={[t('reference.setLanguage.passages', { count: m.passages }), sameLanguage(m.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
+        </HelpRow>
       ))}
       <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>
         {t('reference.setLanguage.gaps', { name: short, language: languageLabel(picked.language), count: picked.passages })}

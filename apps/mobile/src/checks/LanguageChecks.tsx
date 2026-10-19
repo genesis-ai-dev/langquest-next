@@ -9,7 +9,7 @@ import { Text } from '../ui/text';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
@@ -23,7 +23,8 @@ import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, type CheckRow } from './model';
 import { setChecksDraft } from './draft';
 import { useChecksDraft } from './useChecksDraft';
-import { restoreChecks } from './undo';
+import { useChecksUndo } from './useChecksUndo';
+import { UndoRedo } from '../ui/undoRedo';
 import { PeopleLine } from './parts';
 import { newKindId } from '../config/model';
 import { saveRows } from './checkActions';
@@ -93,7 +94,7 @@ function CheckCard(props: {
             </View>
           ) : null}
           {props.checkedAt ? (
-            <View style={styles.metaPart}><Ico name="arrowR" size={15} color={C.muted} /><Text style={styles.metaText} numberOfLines={1}>{props.checkedAt}</Text></View>
+            <View style={styles.metaPart}><Ico name="arrowR" size={15} color={C.muted} /><Text style={[styles.metaText, { flexShrink: 1 }]}>{props.checkedAt}</Text></View>
           ) : null}
           {props.hidden ? <HiddenLine {...props.hidden} /> : null}
         </View>
@@ -157,14 +158,16 @@ function CheckList(props: {
   const card = (i: number) => {
     const r = rows[i]!;
     return (
-      <CheckCard key={`${r.kindId}#${i}`} ctx={props.ctx} row={r} i={i} n={numbers[i]!} count={rows.length} kinds={props.kinds}
-        people={props.peopleOf ? props.peopleOf(r.kindId) : null} questions={props.questionsOf?.(r.kindId) ?? 0} helps={props.helpsOf?.(r.kindId) ?? 0}
-        readOnly={props.readOnly} height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
-        {...(props.hiddenOf ? { hidden: props.hiddenOf(r.kindId) } : {})}
-        {...(props.checkedAtOf?.(r.kindId) ? { checkedAt: props.checkedAtOf(r.kindId)! } : {})}
-        onMove={(to) => props.onChange(moveRow(rows, i, to))}
-        onLock={() => props.onChange(setCheckpoint(rows, i, !r.checkpoint))}
-        {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} {...(props.openHelp ? { openHelp: props.openHelp } : {})} />
+      <HelpRow key={`${r.kindId}#${i}`} of="checks.check">
+        <CheckCard ctx={props.ctx} row={r} i={i} n={numbers[i]!} count={rows.length} kinds={props.kinds}
+          people={props.peopleOf ? props.peopleOf(r.kindId) : null} questions={props.questionsOf?.(r.kindId) ?? 0} helps={props.helpsOf?.(r.kindId) ?? 0}
+          readOnly={props.readOnly} height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
+          {...(props.hiddenOf ? { hidden: props.hiddenOf(r.kindId) } : {})}
+          {...(props.checkedAtOf?.(r.kindId) ? { checkedAt: props.checkedAtOf(r.kindId)! } : {})}
+          onMove={(to) => props.onChange(moveRow(rows, i, to))}
+          onLock={() => props.onChange(setCheckpoint(rows, i, !r.checkpoint))}
+          {...(props.onOpen ? { onOpen: () => props.onOpen!(i) } : {})} {...(props.openHelp ? { openHelp: props.openHelp } : {})} />
+      </HelpRow>
     );
   };
   return (
@@ -205,7 +208,9 @@ function AddCheckSheet(props: { visible: boolean; kinds: KindDef[]; taken: strin
       {left.length ? (
         <Group>
           {left.map((k, i) => (
-            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={checkName(k.id, props.kinds)} help={t('checks.addThisHelp')} onPress={() => props.onPick(k, false)} last={i === left.length - 1} />
+            <HelpRow key={k.id} of="checks.addKind">
+              <Row leading={<KindIcon kindId={k.id} size={40} />} label={checkName(k.id, props.kinds)} help={t('checks.addThisHelp')} onPress={() => props.onPick(k, false)} last={i === left.length - 1} />
+            </HelpRow>
           ))}
         </Group>
       ) : null}
@@ -230,7 +235,9 @@ function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; langu
       footer={on ? <PrimaryBtn label={t('checks.flows.use', { name: on.c.name })} help={t('checks.flows.useHelp', { language: props.language })} onPress={() => props.onUse(on, chk.kindsOf(on.doc))} /> : undefined}>
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
       {chk.entries.map((e) => (
-        <ChoiceCard key={e.c.key} on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
+        <HelpRow key={e.c.key} of="checks.flow">
+          <ChoiceCard on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
+        </HelpRow>
       ))}
     </Sheet>
   );
@@ -251,12 +258,14 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   const [flows, setFlows] = useState(false);
   const canManage = ctx.session.can('manage_flows');
   const startFlow = useHelpSpot(t('checks.flows.start'), t('checks.flows.startHelp'), canManage ? () => setFlows(true) : undefined);
+  const undo = useChecksUndo(ctx);
   if (!state) {
     return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
   }
+  // A save is a step on the header's Undo (useChecksUndo hears it).
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);
   return (
-    <Screen header={<Header title={t('checks.title')} sub={language} onBack={ctx.back} />}>
+    <Screen header={<Header title={t('checks.title')} sub={language} onBack={ctx.back} action={canManage ? <UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} /> : undefined} />}>
       {!canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.viewOnlyBody')} /> : null}
       <CheckList ctx={ctx} rows={rows} kinds={known} readOnly={!canManage}
         peopleOf={(k) => checkPeople(state, k)}
@@ -290,11 +299,8 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
           ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) })); // i18n-ignore: log label
           return;
         }
-        const undo = () => {
-          const s = ctx.language.state;
-          return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
-        };
-        void ctx.act(specs, t('checks.flows.used', { name: e.c.name, language }), undo).catch(() => {});
+        const said = t('checks.flows.used', { name: e.c.name, language });
+        void ctx.act(specs, said).then(() => undo.did(previous, said), () => {});
       }} />
     </Screen>
   );

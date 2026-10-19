@@ -11,7 +11,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
@@ -102,7 +102,7 @@ export function BiblePane(props: {
           under={many ? (
             <View style={styles.under}>
               <BiblePick label={abbr} onPress={() => setPicking(true)} />
-              <Text style={[txt.smMuted, { flex: 1 }]} numberOfLines={1}>{bible.audioAbsent ? t('recording.player.notOnDeviceYet') : bible.time()}</Text>
+              <Text style={[txt.smMuted, { flexGrow: 1, flexShrink: 1 }]}>{bible.audioAbsent ? t('recording.player.notOnDeviceYet') : bible.time()}</Text>
             </View>
           ) : undefined}
           {...(props.canNote ? { onNote: note } : {})}
@@ -113,8 +113,10 @@ export function BiblePane(props: {
       {src?.rows && !read ? (
         <VerseDots>
           {src.rows.map((row) => (
-            <VerseDot key={row.key} row={row} here={player.started && player.current?.key === row.key} notes={count(row)}
-              {...(hear && bible.hasAudio && bible.timed ? { onPress: () => tap(row) } : {})} />
+            <HelpRow key={row.key} of="reference.verseDot">
+              <VerseDot row={row} here={player.started && player.current?.key === row.key} notes={count(row)}
+                {...(hear && bible.hasAudio && bible.timed ? { onPress: () => tap(row) } : {})} />
+            </HelpRow>
           ))}
         </VerseDots>
       ) : src?.rows ? (
@@ -126,18 +128,20 @@ export function BiblePane(props: {
             const parts = markTerms(row.text, terms);
             const termIds = parts.flatMap((p) => (p.termId ? [p.termId] : []));
             return (
-              <Verse key={row.key} row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}
-                terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}>
-                {parts.map((part, i) => {
-                  if (!part.termId) return <Text key={i}>{part.text}</Text>;
-                  const tied = props.tied?.has(part.termId) ?? false;
-                  return (
-                    <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
-                      accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
-                      style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? ' ✓' : ''}</Text>
-                  );
-                })}
-              </Verse>
+              <HelpRow key={row.key} of="reference.verse">
+                <Verse row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}
+                  terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}>
+                  {parts.map((part, i) => {
+                    if (!part.termId) return <Text key={i}>{part.text}</Text>;
+                    const tied = props.tied?.has(part.termId) ?? false;
+                    return (
+                      <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
+                        accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
+                        style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? ' ✓' : ''}</Text>
+                    );
+                  })}
+                </Verse>
+              </HelpRow>
             );
           })}
         </View>
@@ -223,7 +227,9 @@ export function VerseDot(props: { row: VerseRow; here: boolean; notes: number; o
 
 function VerseNotes(props: { ctx: Ctx; notes: PassageNote[] }) {
   if (props.notes.length === 0) return null;
-  return <View style={{ gap: space.sm }}>{props.notes.map((n) => <NoteItem key={n.id} ctx={props.ctx} note={n} label={noteLabel(props.ctx, n)} />)}</View>;
+  return <View style={{ gap: space.sm }}>{props.notes.map((n) => (
+    <HelpRow key={n.id} of="reference.note"><NoteItem ctx={props.ctx} note={n} label={noteLabel(props.ctx, n)} /></HelpRow>
+  ))}</View>;
 }
 
 function BiblePick(props: { label: string; onPress: () => void }) {
@@ -246,9 +252,11 @@ export function BibleSheet(props: { ctx: Ctx; bible: Bible; onClose: () => void;
     <Sheet visible title={t('reference.bible.choose')} sub={t('reference.bible.chooseSub')} onClose={props.onClose}>
       <View style={styles.card}>
         {bible.passage.options.map((o, i, all) => (
-          <BibleRow key={o.itemId} label={chipLabel(o, all)} sub={[o.name, languageLabel(o.language), ...(marks[o.itemId] ?? [])].filter(Boolean).join(' · ')} on={o.itemId === bible.option?.itemId}
-            help={o.itemId === bible.option?.itemId ? t('reference.bible.rowOnHelp') : t('reference.bible.rowHelp')}
-            last={i === all.length - 1 && !props.onMoreBibles} onPress={() => { bible.choose(o); props.onClose(); }} />
+          <HelpRow key={o.itemId} of="reference.bible">
+            <BibleRow label={chipLabel(o, all)} sub={[o.name, languageLabel(o.language), ...(marks[o.itemId] ?? [])].filter(Boolean).join(' · ')} on={o.itemId === bible.option?.itemId}
+              help={o.itemId === bible.option?.itemId ? t('reference.bible.rowOnHelp') : t('reference.bible.rowHelp')}
+              last={i === all.length - 1 && !props.onMoreBibles} onPress={() => { bible.choose(o); props.onClose(); }} />
+          </HelpRow>
         ))}
         {props.onMoreBibles ? <BibleRow label={t('sources.reader.moreBibles')} sub={t('reference.bible.moreBiblesSub')} more last onPress={props.onMoreBibles} /> : null}
       </View>
@@ -264,8 +272,8 @@ function BibleRow(props: { label: string; sub: string; on?: boolean; more?: bool
       style={({ pressed }) => [styles.bibleRow, !props.last && ps.rowBorder, pressed && ps.pressed]}>
       <Ico name={props.more ? 'plus' : 'book'} size={20} color={C.primary} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.body, { fontWeight: '700', color: props.more ? C.primary : C.dark }]} numberOfLines={1}>{props.label}</Text>
-        <Text style={txt.xs} numberOfLines={2}>{props.sub}</Text>
+        <Text style={[txt.body, { fontWeight: '700', color: props.more ? C.primary : C.dark }]}>{props.label}</Text>
+        <Text style={txt.xs}>{props.sub}</Text>
       </View>
       {props.on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : null}
       <HelpBadge spot={spot} />
@@ -281,8 +289,8 @@ export function BibleBar(props: { bible: Bible; onOpen: () => void }) {
     <View style={styles.bar}>
       <PlayBtn playing={bible.player.playing} available={bible.hasAudio && !bible.player.loading} none={!bible.hasAudio && !bible.passage.notOnDevice && !bible.audioAbsent} label={t('reference.bible.play')} onPress={bible.player.toggle} />
       <Pressable onPress={open.onPress} accessibilityRole="button" accessibilityLabel={t('reference.bible.openReference')} style={({ pressed }) => [{ flex: 1, minWidth: 0 }, pressed && ps.pressed]}>
-        <Text style={ps.miniTitle} numberOfLines={1}>{bible.option ? t('reference.bible.barTitleWith', { abbr: bible.option.abbreviation }) : t('reference.bible.barTitle')}</Text>
-        <Text style={txt.smMuted} numberOfLines={2}>{t('reference.bible.barSub')}</Text>
+        {/* The bar is 80 pt tall: the Bible's name only. How to open the rest is help mode's to say, where it has room. */}
+        <Text style={ps.miniTitle} numberOfLines={2}>{bible.option ? t('reference.bible.barTitleWith', { abbr: bible.option.abbreviation }) : t('reference.bible.barTitle')}</Text>
         <HelpBadge spot={open} />
       </Pressable>
       <Back10 onPress={() => bible.player.skip(-10)} disabled={!bible.player.started} />
@@ -324,9 +332,11 @@ export function KeyWordsPane(props: {
           {props.terms.map((term, i) => {
             const keys = where(term);
             return (
-              <TermRow key={term.termId} ctx={ctx} term={term} refs={keys.length ? `${book} ${verseRefs(keys)}` : term.gloss || t('reference.keyWords.elsewhere')} last={i === props.terms.length - 1}
-                onHear={() => props.onHear(keys[0] ?? null)} canEdit={canEdit && !props.disabled} onSay={() => setSaying(term)}
-                onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: term.termId, ...(props.draftTakeId ? { draftId: props.draftTakeId } : {}) })} />
+              <HelpRow key={term.termId} of="reference.keyWord">
+                <TermRow ctx={ctx} term={term} refs={keys.length ? `${book} ${verseRefs(keys)}` : term.gloss || t('reference.keyWords.elsewhere')} last={i === props.terms.length - 1}
+                  onHear={() => props.onHear(keys[0] ?? null)} canEdit={canEdit && !props.disabled} onSay={() => setSaying(term)}
+                  onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: term.termId, ...(props.draftTakeId ? { draftId: props.draftTakeId } : {}) })} />
+              </HelpRow>
             );
           })}
         </View>
@@ -355,12 +365,12 @@ function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boole
         accessibilityLabel={rendering ? t('reference.keyWords.termLabelWord', { term: term.term, refs: props.refs, word: rendering }) : t('reference.keyWords.termLabel', { term: term.term, refs: props.refs })}
         style={({ pressed }) => [{ flex: 1, minWidth: 0, minHeight: target.min, justifyContent: 'center' }, pressed && ps.pressed]}>
         <Text style={styles.termName} numberOfLines={1}>{term.term}</Text>
-        <Text style={txt.smMuted} numberOfLines={1}>{props.refs}{rendering && voice ? ` · ${rendering}` : ''}</Text>
+        <Text style={txt.smMuted}>{props.refs}{rendering && voice ? ` · ${rendering}` : ''}</Text>
         <HelpBadge spot={open} />
       </Pressable>
       {voice ? <YourWord ctx={props.ctx} hash={voice} term={term.term} />
         : rendering ? <Text style={[styles.yourWord, { maxWidth: 120 }]} numberOfLines={2}>{rendering}</Text>
-        : props.canEdit ? <SayYours onPress={props.onSay} term={term.term} /> : null}
+        : props.canEdit ? <View style={{ flexShrink: 1, maxWidth: '40%' }}><SayYours onPress={props.onSay} term={term.term} /></View> : null}
     </View>
   );
 }
@@ -385,7 +395,7 @@ function SayYours(props: { onPress: () => void; term: string }) {
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('reference.keyWords.sayYoursLabel', { term: props.term })}
       style={({ pressed }) => [styles.wordBtn, pressed && ps.pressed]}>
       <Ico name="mic" size={16} color={C.primary} />
-      <Text style={[styles.yourWord, { color: C.primary }]}>{t('reference.keyWords.sayYours')}</Text>
+      <Text style={[styles.yourWord, { color: C.primary, flexShrink: 1 }]}>{t('reference.keyWords.sayYours')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -496,8 +506,10 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
           <Text style={txt.xsStrong}>{t('keyTerms.others.suggest')}</Text>
           <View style={styles.wordRow}>
             {suggestions.map((x) => (
-              <WordChip key={x.termId} label={x.term} help={t('keyTerms.others.suggestHelp', { languages: joinAnd(x.languages) })}
-                onPress={() => put({ term: x.term, gloss: x.gloss, taken: { termId: x.termId, term: x.term } })} />
+              <HelpRow key={x.termId} of="reference.suggestedWord">
+                <WordChip label={x.term} help={t('keyTerms.others.suggestHelp', { languages: joinAnd(x.languages) })}
+                  onPress={() => put({ term: x.term, gloss: x.gloss, taken: { termId: x.termId, term: x.term } })} />
+              </HelpRow>
             ))}
           </View>
         </View>
@@ -524,7 +536,7 @@ function NoteItem(props: { ctx: Ctx; note: PassageNote; label: string; older?: s
     <Authored ctx={ctx} by={n.by}>
       <View style={styles.noteCard}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Text style={[txt.label, { flex: 1, letterSpacing: 0.6 }]} numberOfLines={2}>{props.label}{props.older ? ` · ${props.older}` : ''}</Text>
+          <Text style={[txt.label, { flex: 1, letterSpacing: 0.6 }]}>{props.label}{props.older ? ` · ${props.older}` : ''}</Text>
           <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />
         </View>
         {n.text ? <Text style={styles.noteText}>{n.text}</Text> : null}
@@ -560,7 +572,11 @@ export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[
       ) : null}
       {newest.map((n) => {
         const older = n.onTakeId && n.onTakeId !== latestId ? versionN.get(n.onTakeId) : undefined;
-        return <NoteItem key={n.id} ctx={ctx} note={n} label={noteLabel(ctx, n, (id) => versionN.get(id))} {...(older ? { older: t('reference.notes.madeWith', { version: versionTitle(older) }) } : {})} />;
+        return (
+          <HelpRow key={n.id} of="reference.note">
+            <NoteItem ctx={ctx} note={n} label={noteLabel(ctx, n, (id) => versionN.get(id))} {...(older ? { older: t('reference.notes.madeWith', { version: versionTitle(older) }) } : {})} />
+          </HelpRow>
+        );
       })}
       {props.canAdd !== false ? <DashedBtn label={t('common.addNote')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.notes.addHint')} /> : null}
       {adding && props.canAdd !== false ? <NoteSheet ctx={ctx} v={v} title={t('common.addNote')} where={t('reference.notes.whereWhole', { passage: v.title })} anchor={{ kind: 'passage' }} onClose={() => setAdding(false)} /> : null}
@@ -666,7 +682,7 @@ export function EarlierPane(props: { ctx: Ctx; v: PassageView; focusReviewId?: s
   if (items.length === 0) return <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.earlier.empty')}</Text>;
   return (
     <View style={styles.card}>
-      {items.map((it, i) => <EarlierRow key={it.key} ctx={ctx} item={it} last={i === items.length - 1} />)}
+      {items.map((it, i) => <HelpRow key={it.key} of="reference.earlier"><EarlierRow ctx={ctx} item={it} last={i === items.length - 1} /></HelpRow>)}
     </View>
   );
 }
@@ -711,7 +727,7 @@ const styles = StyleSheet.create({
   dotText: { fontSize: T.sm, fontWeight: '800', color: C.muted },
   dotNotes: { position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: TINT.amberText },
   term: { fontWeight: '700', color: C.primary, textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
-  under: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 2 },
+  under: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm, marginTop: 2 },
   pick: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: TINT.noteBorder, backgroundColor: TINT.note,
     flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110 },
   bibleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.sm },

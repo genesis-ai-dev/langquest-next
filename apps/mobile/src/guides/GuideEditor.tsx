@@ -16,22 +16,25 @@
 // versification follow it first ('v1.LibrarySubscribed', 'v1.LibraryPinned').
 // Drafts stay on the device (draftStore.ts), the writer's own, until Done
 // publishes them; the saved mark in the header shows they are kept
-// (decision 127).
+// (decision 127). Undo and Redo beside it take back and put back every
+// change, typing in one field joined into one step, kept with the draft
+// until it is published; no toast offers Undo (decision 134).
 import {
   CALLOUT_KINDS, LICENSES, isLicense, orgLicense, subscriptionItemId, unitPrefixOf, unitTitle,
   type CalloutKind, type MediaRef, type StudyDoc, type StudyDoc2, type VersificationDoc
 } from '@langquest-next/core';
 import { Bold, List, TextQuote, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
+import { AccessibilityInfo, Image, Pressable, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
 import { Text } from '../ui/text';
 import { licenseText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { Badge, Banner, Card, Chip, ChipRow, EmptyState, Field, Group, Header, HelpInfo, Ico, IconBtn, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, SmallBtn } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
@@ -46,6 +49,10 @@ import { CALLOUT_LOOK, calloutLabel, mediaKindLabel, shownClock } from '../study
 import { useStudyAudio } from '../study/useStudyAudio';
 import { C, measure, radius, space, target, TINT, type as T } from '../ui/theme';
 import { SavedMark } from '../ui/SavedMark';
+import { UndoRedo, type UndoRedoProps } from '../ui/undoRedo';
+import { useUndoHistory } from '../drafts/useUndoHistory';
+import { forgetUndoHistory } from '../drafts/undoHistory';
+import { didEdit, redoStep, undoStep } from '../ui/undoModel';
 import { useSaveStatus } from '../ui/useSaveStatus';
 import type { SaveStatus } from '../ui/savedModel';
 import { VoiceNote } from '../audio/voiceNote';
@@ -53,11 +60,13 @@ import {
   boldText, buildDoc, calloutText, draftFromDoc, draftProblems, draftReducer, linkText, listText, newDraft, nextId, untitledResource,
   type DraftAction, type DraftMedia, type DraftPanel, type DraftProblem, type DraftResource, type DraftStep, type DraftTerm, type GuideDraft, type Selection
 } from './draft';
-import { draftKey, dropDraft, loadDraft, saveDraft, unownedDraftKey } from './draftStore';
+import { draftKey, dropDraft, guideHistoryKey, loadDraft, parseGuideHistory, saveDraft, unownedDraftKey } from './draftStore';
+import { editKey } from './draft';
 import { canPickFiles, FileProblem, keepPicked, mediaKindFor, pickFile, uploadDraftFiles, type PickKind } from './files';
 import { BLANK_METHOD, FIA_METHOD, methodFromDoc, type Method } from './methods';
 
-type Dispatch = (a: DraftAction) => void;
+/** A change to the draft; `what` names it for a screen reader ("Step 3 removed") when Undo takes it back. */
+type Dispatch = (a: DraftAction, what?: string) => void;
 
 const PANELS: { id: DraftPanel; icon: 'edit' | 'sparkle' | 'media' | 'book' }[] = [
   { id: 'details', icon: 'edit' },
@@ -118,10 +127,33 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
   const key = draftKey(orgId, ctx.session.actorId, which);
   const unowned = unownedDraftKey(orgId, which);
 
-  const [draft, setDraft] = useState<GuideDraft | null>(null);
+  const [draft, setDraftState] = useState<GuideDraft | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [looked, setLooked] = useState(false);
-  const dispatch = useCallback<Dispatch>((a) => setDraft((d) => (d ? draftReducer(d, a) : d)), []);
+  const draftRef = useRef<GuideDraft | null>(null);
+  const setDraft = useCallback((d: GuideDraft) => { draftRef.current = d; setDraftState(d); }, []);
+  // Undo and Redo (decision 134): every change, kept with the draft on this device until it is published.
+  const historyKey = guideHistoryKey(key);
+  const undo = useUndoHistory(historyKey, parseGuideHistory);
+  const setHistory = undo.set;
+  const dispatch = useCallback<Dispatch>((a, what) => {
+    const d = draftRef.current;
+    if (!d) return;
+    const next = draftReducer(d, a);
+    if (next === d) return;
+    setDraft(next);
+    setHistory((h) => didEdit(h, { before: d, after: next, ...(what ? { what } : {}) }, editKey(a), Date.now()));
+  }, [setDraft, setHistory]);
+  const travel = (which: 'undo' | 'redo') => {
+    const step = which === 'undo' ? undoStep(undo.history) : redoStep(undo.history);
+    if (!step) return;
+    setDraft(step.to);
+    setHistory(step.history);
+    AccessibilityInfo.announceForAccessibility(step.what ? t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what })
+      : which === 'undo' ? t('common.undone') : t('translate.redone'));
+  };
+  const lastDone = undo.history.done[undo.history.done.length - 1];
+  const lastUndone = undo.history.undone[undo.history.undone.length - 1];
 
   // This person's draft on this device wins; otherwise start from the guide being edited or adapted, or a new one.
   useEffect(() => {
@@ -133,7 +165,7 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
       setLooked(true);
     }).catch(() => { if (live) setLooked(true); });
     return () => { live = false; };
-  }, [key, unowned]);
+  }, [key, unowned, setDraft]);
   useEffect(() => {
     if (!looked || draft) return;
     if (!sourceHash) { setDraft(newDraft({ method: FIA_METHOD, orgName, license, language: readerLanguage() })); return; }
@@ -143,7 +175,7 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
         ...(itemId && it?.source !== 'subscription' ? { itemId } : { adapt: { orgName, license } })
       }));
     }
-  }, [looked, draft, sourceHash, source, itemId, it?.source, orgName, license]);
+  }, [looked, draft, sourceHash, source, itemId, it?.source, orgName, license, setDraft]);
 
   // Kept on the device a moment after each change, and at once on leaving, so a closed tab loses nothing.
   // The saved mark spins while a change waits to be kept and turns into a check once it is.
@@ -174,12 +206,13 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
     if (left) void saveDraft(key, left).catch((e: unknown) => { reportError('guide draft: save', e); });
   }, [key]);
   const status = useSaveStatus(writing, savedAt !== null, failed);
-  /** Published: the draft is forgotten, with any change still waiting to be kept. */
+  /** Published: the draft is forgotten, with any change still waiting to be kept, and its undo history. */
   const finished = useCallback(async () => {
     round.current++;
     pending.current = null;
     await dropDraft(key);
-  }, [key]);
+    forgetUndoHistory(historyKey);
+  }, [key, historyKey]);
 
   if (!canManage) return <Waiting ctx={ctx} title={t('guides.editor.notAllowed')} />;
   if (!draft) {
@@ -187,7 +220,9 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
     return <Waiting ctx={ctx} title={gone ? t('guides.editor.notAGuide') : t('common.loading')} {...(itemId && !it && ctx.org.state ? { sub: t('guides.editor.gone') } : {})} />;
   }
   return (
-    <Editor ctx={ctx} draft={draft} setDraft={setDraft} dispatch={dispatch} status={status} finished={finished}
+    <Editor ctx={ctx} draft={draft} dispatch={dispatch} status={status} finished={finished}
+      undo={{ canUndo: !!lastDone && undo.loaded, canRedo: !!lastUndone && undo.loaded, ...(lastDone?.what ? { undoWhat: lastDone.what } : {}),
+        ...(lastUndone?.what ? { redoWhat: lastUndone.what } : {}), onUndo: () => travel('undo'), onRedo: () => travel('redo') }}
       own={own.flatMap((i) => { const d = docs.get(i.current); return isStudy(d) && i.current !== sourceHash ? [methodFromDoc(i.itemId, d)] : []; })}
       isNew={!sourceHash} title={itemId ? t('guides.editor.editGuide') : from ? t('guides.editor.adaptGuide') : t('guides.editor.writeGuide')}
       newer={!!(itemId && it?.current && draft.basis?.docHash && draft.basis.docHash !== it.current)} />
@@ -195,7 +230,7 @@ export function GuideEditorScreen({ ctx }: { ctx: Ctx }) {
 }
 
 function Editor(props: {
-  ctx: Ctx; draft: GuideDraft; setDraft: (d: GuideDraft) => void; dispatch: Dispatch;
+  ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; undo: UndoRedoProps;
   /** How keeping the draft on this device is going, for the saved mark. */
   status: SaveStatus;
   /** Forgets the draft once it is published. */
@@ -259,7 +294,12 @@ function Editor(props: {
   return (
     <Screen fixed={false} columnWidth={wide ? measure.report : undefined}
       header={<Header title={draft.title.trim() || props.title} {...(draft.title.trim() ? { sub: props.title } : {})} onBack={ctx.back} columnWidth={wide ? measure.report : undefined}
-        action={<SavedMark status={props.status} help={t('saved.draftHelp')} />} />}
+        action={(
+          <View style={s.headerActs}>
+            <UndoRedo {...props.undo} help={{ undo: t('guides.editor.undoHelp'), redo: t('common.redoHelp') }} />
+            <SavedMark status={props.status} help={t('saved.draftHelp')} />
+          </View>
+        )} />}
       footer={<PrimaryBtn label={busy ?? t('common.done')} icon="check" onPress={() => void publish()} disabled={!!busy}
         help={t('guides.editor.publishHelp')} />}>
       {/* Forms keep the reading width; only the steps use the whole window, side by side. */}
@@ -267,6 +307,7 @@ function Editor(props: {
         {/* Tabs within the screen (kit ChipRow): they scroll sideways on a phone instead of shrinking. */}
         <View accessibilityRole="tablist">
           <ChipRow>
+            {/* help-each: each tab shows a different part of the guide */}
             {PANELS.map((p) => (
               <Chip key={p.id} icon={p.icon} label={panelLabel(p.id)} on={panel === p.id} onPress={() => setPanel(p.id)} help={panelHelp(p.id)}
                 {...(counts[p.id] !== null ? { count: counts[p.id]! } : {})} />
@@ -278,10 +319,10 @@ function Editor(props: {
         ) : null}
         {tried && problems.length > 0 ? <Problems problems={problems} current={panel} onPick={goTo} /> : null}
         {tried && problems.length === 0 ? <Banner icon="check" tone="green" title={t('guides.editor.ready')} /> : null}
-        {panel === 'details' ? <DetailsPanel ctx={ctx} draft={draft} dispatch={dispatch} isNew={props.isNew} own={props.own} setDraft={props.setDraft} /> : null}
-        {panel === 'steps' ? <StepsPanel ctx={ctx} draft={draft} dispatch={dispatch} stepId={stepId} setStepId={setStepId} preview={preview} setDraft={props.setDraft} /> : null}
-        {panel === 'media' ? <MediaPanel ctx={ctx} draft={draft} dispatch={dispatch} setDraft={props.setDraft} /> : null}
-        {panel === 'glossary' ? <GlossaryPanel ctx={ctx} draft={draft} dispatch={dispatch} setDraft={props.setDraft} /> : null}
+        {panel === 'details' ? <DetailsPanel ctx={ctx} draft={draft} dispatch={dispatch} isNew={props.isNew} own={props.own} /> : null}
+        {panel === 'steps' ? <StepsPanel ctx={ctx} draft={draft} dispatch={dispatch} stepId={stepId} setStepId={setStepId} preview={preview} /> : null}
+        {panel === 'media' ? <MediaPanel ctx={ctx} draft={draft} dispatch={dispatch} /> : null}
+        {panel === 'glossary' ? <GlossaryPanel ctx={ctx} draft={draft} dispatch={dispatch} /> : null}
       </View>
     </Screen>
   );
@@ -292,7 +333,9 @@ function Problems(props: { problems: DraftProblem[]; current: DraftPanel; onPick
     <View style={s.problems} accessibilityRole="alert">
       <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText }]}>{t('guides.editor.beforePublishing')}</Text>
       {props.problems.map((p, i) => (
-        <ProblemRow key={`${p.panel}-${p.id ?? ''}-${i}`} problem={p} current={props.current} onPick={props.onPick} />
+        <HelpRow key={`${p.panel}-${p.id ?? ''}-${i}`} of="guide.problem">
+          <ProblemRow problem={p} current={props.current} onPick={props.onPick} />
+        </HelpRow>
       ))}
     </View>
   );
@@ -314,24 +357,21 @@ function ProblemRow(props: { problem: DraftProblem; current: DraftPanel; onPick:
 
 // ─── Details ───────────────────────────────────────────────────────────────────
 
-/** What Undo's toast says after a method replaced the steps. */
+/** What a method replacing the steps is called, for Undo. */
 function replacedWith(m: Method): string {
   if (m === FIA_METHOD) return t('guides.details.replacedFia');
   if (m === BLANK_METHOD) return t('guides.details.replacedBlank');
   return t('guides.details.replacedStepsOf', { title: m.from ?? m.label });
 }
 
-function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; isNew: boolean; own: Method[]; setDraft: (d: GuideDraft) => void }) {
+function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; isNew: boolean; own: Method[] }) {
   const { ctx, draft, dispatch } = props;
   const set = (patch: Extract<DraftAction, { type: 'set' }>['patch']) => dispatch({ type: 'set', patch });
   const methods = [FIA_METHOD, BLANK_METHOD, ...props.own];
   const written = draft.steps.some((st) => st.text.trim() || st.audio);
   const shareAlike = draft.basis?.shareAlike;
-  const pickMethod = (m: Method) => {
-    const before = draft;
-    dispatch({ type: 'useMethod', method: m });
-    if (written) ctx.toast(replacedWith(m), () => props.setDraft(before));
-  };
+  // Steps already written are replaced, and Undo brings them back.
+  const pickMethod = (m: Method) => dispatch({ type: 'useMethod', method: m }, written ? replacedWith(m) : undefined);
   return (
     <View style={{ gap: space.md }}>
       {draft.basis?.adapted ? (
@@ -343,7 +383,9 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
       <SectionLabel label={t('guides.details.method')} />
       <ChipRow>
         {[...new Set(['FIA', ...props.own.map((m) => m.pattern).filter(Boolean), draft.pattern].filter(Boolean))].map((p) => (
-          <Chip key={p} label={p} on={draft.pattern === p} help={t('guides.details.methodHelp')} onPress={() => set({ pattern: p })} />
+          <HelpRow key={p} of="guide.method">
+            <Chip label={p} on={draft.pattern === p} help={t('guides.details.methodHelp')} onPress={() => set({ pattern: p })} />
+          </HelpRow>
         ))}
       </ChipRow>
       <Field label={t('guides.details.ownMethod')} value={draft.pattern} onChangeText={(v) => set({ pattern: v })} placeholder={t('guides.details.ownMethodPlaceholder')} autoCapitalize="words"
@@ -352,7 +394,9 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
         <>
           <Text style={txt.xsStrong}>{t('guides.details.startWith')}</Text>
           <ChipRow>
-            {methods.map((m) => <Chip key={m.id} label={m.label} on={false} help={t('guides.details.startWithHelp')} onPress={() => pickMethod(m)} />)}
+            {methods.map((m) => (
+              <HelpRow key={m.id} of="guide.startWith"><Chip label={m.label} on={false} help={t('guides.details.startWithHelp')} onPress={() => pickMethod(m)} /></HelpRow>
+            ))}
           </ChipRow>
           <Text style={txt.xs}>{written ? t('guides.details.choosingReplaces') : t('guides.details.nowSteps', { count: draft.steps.length })}</Text>
         </>
@@ -376,6 +420,7 @@ function DetailsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; 
       ) : (
         <>
           <ChipRow>
+            {/* help-each: each license means something different */}
             {LICENSES.map((l) => <Chip key={l} label={licenseText(l).name} on={draft.license === l} help={licenseText(l).means} onPress={() => set({ license: l })} />)}
           </ChipRow>
           {isLicense(draft.license) ? <Text style={txt.xs}>{licenseText(draft.license).means}</Text> : null}
@@ -429,16 +474,22 @@ function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
         <>
           <Text style={txt.xsStrong}>{t('guides.placement.numberedAs')}</Text>
           <ChipRow>
-            {choices.map((c) => <Chip key={c.key} label={c.label} on={draft.versification === c.hash} help={t('guides.placement.numberingHelp')} onPress={() => dispatch({ type: 'set', patch: { versification: c.hash } })} />)}
+            {choices.map((c) => (
+              <HelpRow key={c.key} of="guide.numbering">
+                <Chip label={c.label} on={draft.versification === c.hash} help={t('guides.placement.numberingHelp')} onPress={() => dispatch({ type: 'set', patch: { versification: c.hash } })} />
+              </HelpRow>
+            ))}
           </ChipRow>
         </>
       ) : null}
       {draft.parts.length ? (
         <Group>
           {draft.parts.map((p, i) => (
-            <Row key={`${p.template}/${p.node}`} icon="template" label={partLabel(p)} sub={t('guides.placement.partSub')} last={i === draft.parts.length - 1}
-              right={<IconBtn name="close" label={t('guides.editor.remove', { name: partLabel(p) })} bg={C.light} color={C.primary} help={t('guides.placement.removeHelp')}
-                onPress={() => dispatch({ type: 'set', patch: { parts: draft.parts.filter((_, j) => j !== i) } })} />} />
+            <HelpRow key={`${p.template}/${p.node}`} of="guide.part">
+              <Row icon="template" label={partLabel(p)} sub={t('guides.placement.partSub')} last={i === draft.parts.length - 1}
+                right={<IconBtn name="close" label={t('guides.editor.remove', { name: partLabel(p) })} bg={C.light} color={C.primary} help={t('guides.placement.removeHelp')}
+                  onPress={() => dispatch({ type: 'set', patch: { parts: draft.parts.filter((_, j) => j !== i) } })} />} />
+            </HelpRow>
           ))}
         </Group>
       ) : null}
@@ -449,12 +500,14 @@ function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
         {units.length === 0 ? <Text style={txt.smMuted}>{q ? t('common.nothingMatches', { query: q }) : t('guides.placement.noTemplate')}</Text> : null}
         <Group>
           {units.map((u, i) => (
-            <Row key={u.unitId} icon="template" label={u.label} last={i === units.length - 1} help={t('guides.placement.unitHelp')} onPress={() => {
-              const slash = u.unitId.indexOf('/');
-              const part = { template: u.unitId.slice(0, slash), node: u.unitId.slice(slash + 1) };
-              if (!draft.parts.some((p) => p.template === part.template && p.node === part.node)) dispatch({ type: 'set', patch: { parts: [...draft.parts, part] } });
-              setPicking(false);
-            }} />
+            <HelpRow key={u.unitId} of="guide.unit">
+              <Row icon="template" label={u.label} last={i === units.length - 1} help={t('guides.placement.unitHelp')} onPress={() => {
+                const slash = u.unitId.indexOf('/');
+                const part = { template: u.unitId.slice(0, slash), node: u.unitId.slice(slash + 1) };
+                if (!draft.parts.some((p) => p.template === part.template && p.node === part.node)) dispatch({ type: 'set', patch: { parts: [...draft.parts, part] } });
+                setPicking(false);
+              }} />
+            </HelpRow>
           ))}
         </Group>
       </Sheet>
@@ -464,17 +517,18 @@ function Placement(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
 
 // ─── Steps ─────────────────────────────────────────────────────────────────────
 
-function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; stepId: string | null; setStepId: (id: string | null) => void; preview: StudyGuide; setDraft: (d: GuideDraft) => void }) {
+function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; stepId: string | null; setStepId: (id: string | null) => void; preview: StudyGuide }) {
   const { ctx, draft, dispatch } = props;
   const layout = useLayout();
   const sideBySide = layout.kind !== 'phone' && layout.contentWidth >= 960;
   const step = draft.steps.find((st) => st.id === props.stepId) ?? null;
   const index = step ? draft.steps.indexOf(step) : -1;
+  // On a phone one step is open at a time: Back goes to all the steps, as "All steps" does (decision 137).
+  const setStepId = props.setStepId;
+  useHardwareBack(!sideBySide && !!step, () => setStepId(null));
   const remove = (st: DraftStep) => {
-    const before = draft;
-    dispatch({ type: 'deleteStep', id: st.id });
+    dispatch({ type: 'deleteStep', id: st.id }, st.title ? t('guides.editor.removed', { name: st.title }) : t('guides.steps.stepRemoved'));
     if (props.stepId === st.id) props.setStepId(null);
-    ctx.toast(st.title ? t('guides.editor.removed', { name: st.title }) : t('guides.steps.stepRemoved'), () => props.setDraft(before));
   };
   const add = () => {
     // The reducer names a new step the same way, so it can be opened straight away.
@@ -487,8 +541,10 @@ function StepsPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; st
     <View style={{ gap: space.sm }}>
       <Group>
         {draft.steps.map((st, i) => (
-          <StepRow key={st.id} step={st} index={i} count={draft.steps.length} on={st.id === props.stepId} last={i === draft.steps.length - 1}
-            onOpen={() => props.setStepId(st.id)} onMove={(by) => dispatch({ type: 'moveStep', id: st.id, by })} onDelete={() => remove(st)} />
+          <HelpRow key={st.id} of="guide.step">
+            <StepRow step={st} index={i} count={draft.steps.length} on={st.id === props.stepId} last={i === draft.steps.length - 1}
+              onOpen={() => props.setStepId(st.id)} onMove={(by) => dispatch({ type: 'moveStep', id: st.id, by })} onDelete={() => remove(st)} />
+          </HelpRow>
         ))}
       </Group>
       {draft.steps.length === 0 ? <Text style={txt.smMuted}>{t('guides.steps.none')}</Text> : null}
@@ -530,8 +586,8 @@ function StepRow(props: { step: DraftStep; index: number; count: number; on: boo
         style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row }, pressed && s.pressed]}>
         <View style={s.stepNum}><Text style={[txt.sm, { fontWeight: '800', color: C.primary }]}>{formatNumber(n)}</Text></View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={1}>{st.title || t('guides.steps.untitled')}</Text>
-          <Text style={txt.xs} numberOfLines={1}>{sub}</Text>
+          <Text style={[txt.sm, { fontWeight: '700' }]} numberOfLines={2}>{st.title || t('guides.steps.untitled')}</Text>
+          <Text style={txt.xs}>{sub}</Text>
         </View>
         <HelpBadge spot={open} inset />
       </Pressable>
@@ -568,7 +624,9 @@ function StepEditor(props: { ctx: Ctx; draft: GuideDraft; step: DraftStep; index
           help={t('guides.steps.titleHelp')} />
         <Field label={t('guides.steps.phase')} value={step.phase} onChangeText={(v) => update({ phase: v })} placeholder={t('guides.steps.phasePlaceholder')} autoCapitalize="words" />
         {phases.length > 1 ? (
-          <ChipRow>{phases.map((p) => <Chip key={p} label={p} on={step.phase.trim() === p} help={t('guides.steps.phaseHelp')} onPress={() => update({ phase: p })} />)}</ChipRow>
+          <ChipRow>
+            {phases.map((p) => <HelpRow key={p} of="guide.phase"><Chip label={p} on={step.phase.trim() === p} help={t('guides.steps.phaseHelp')} onPress={() => update({ phase: p })} /></HelpRow>)}
+          </ChipRow>
         ) : null}
         <Field label={t('guides.steps.purpose')} value={step.purpose} onChangeText={(v) => update({ purpose: v })} placeholder={t('guides.steps.purposePlaceholder')} autoCapitalize="sentences" />
       </Card>
@@ -649,14 +707,16 @@ function TextEditor(props: { draft: GuideDraft; text: string; onChange: (text: s
       </View>
       {tray === 'callout' ? (
         <View style={s.tray}>
-          {CALLOUT_KINDS.map((k) => <CalloutChoice key={k} kind={k} onPress={() => apply(calloutText(props.text, sel.current, k))} />)}
+          {CALLOUT_KINDS.map((k) => <HelpRow key={k} of="guide.callout"><CalloutChoice kind={k} onPress={() => apply(calloutText(props.text, sel.current, k))} /></HelpRow>)}
         </View>
       ) : null}
       {tray === 'link' ? (
         <View style={s.tray}>
           {linkables.length === 0 ? <Text style={txt.smMuted}>{t('guides.text.nothingToLink')}</Text> : null}
           {linkables.map((l) => (
-            <SmallBtn key={l.ref} label={`${l.title} · #${l.ref}`} icon={l.icon} help={t('guides.text.linkToHelp')} onPress={() => apply(linkText(props.text, sel.current, l.ref, l.title))} />
+            <HelpRow key={l.ref} of="guide.linkable">
+              <SmallBtn label={`${l.title} · #${l.ref}`} icon={l.icon} help={t('guides.text.linkToHelp')} onPress={() => apply(linkText(props.text, sel.current, l.ref, l.title))} />
+            </HelpRow>
           ))}
         </View>
       ) : null}
@@ -736,7 +796,7 @@ function MediaPlayer(props: { orgId: string; audio: MediaRef; label: string }) {
 
 // ─── Media ─────────────────────────────────────────────────────────────────────
 
-function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; setDraft: (d: GuideDraft) => void }) {
+function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
   const { ctx, draft, dispatch } = props;
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -757,18 +817,18 @@ function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; se
       setBusy(false);
     }
   }
-  const remove = (r: DraftResource) => {
-    const before = draft;
-    dispatch({ type: 'deleteResource', ref: r.ref });
-    ctx.toast(r.title ? t('guides.editor.removed', { name: r.title }) : t('guides.media.removed'), () => props.setDraft(before));
-  };
+  const remove = (r: DraftResource) => dispatch({ type: 'deleteResource', ref: r.ref }, r.title ? t('guides.editor.removed', { name: r.title }) : t('guides.media.removed'));
   const section = (kind: 'media' | 'map') => draft.resources.filter((r) => r.kind === kind);
   return (
     <View style={{ gap: space.md }}>
       {!canPickFiles ? <Banner icon="globe" title={t('guides.media.onWeb')} body={t('guides.media.onWebBody')} /> : null}
       {error ? <Text style={txt.error}>{error}</Text> : null}
       <SectionLabel label={t('guides.media.picturesAndFilms', { n: section('media').length })} />
-      {section('media').map((r) => <ResourceCard key={r.ref} ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('media', kind, r)} />)}
+      {section('media').map((r) => (
+        <HelpRow key={r.ref} of="guide.pictures">
+          <ResourceCard ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('media', kind, r)} />
+        </HelpRow>
+      ))}
       {canPickFiles ? (
         <View style={s.buttons}>
           <SmallBtn label={t('guides.media.addPicture')} icon="camera" help={t('guides.media.addPictureHelp')} onPress={() => void add('media', 'image')} disabled={busy} />
@@ -776,7 +836,11 @@ function MediaPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; se
         </View>
       ) : null}
       <SectionLabel label={t('guides.media.maps', { n: section('map').length })} />
-      {section('map').map((r) => <ResourceCard key={r.ref} ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('map', kind, r)} />)}
+      {section('map').map((r) => (
+        <HelpRow key={r.ref} of="guide.map">
+          <ResourceCard ctx={ctx} r={r} dispatch={dispatch} onRemove={() => remove(r)} onAdd={(kind) => void add('map', kind, r)} />
+        </HelpRow>
+      ))}
       {canPickFiles ? <SmallBtn label={t('guides.media.addMap')} icon="map" help={t('guides.media.addMapHelp')} onPress={() => void add('map', 'image')} disabled={busy} /> : null}
       <Text style={txt.xs}>
         {busy ? t('guides.media.keeping') : t('guides.media.copies', { pixels: formatNumber(500) })}
@@ -800,7 +864,7 @@ function ResourceCard(props: { ctx: Ctx; r: DraftResource; dispatch: Dispatch; o
         help={t('guides.media.titleHelp')} />
       <Field label={t('guides.media.description')} value={r.description} onChangeText={(v) => dispatch({ type: 'updateResource', ref: r.ref, patch: { description: v } })}
         placeholder={t('guides.media.descriptionPlaceholder')} autoCapitalize="sentences" />
-      {r.media.map((m) => <MediaItem key={m.id} ctx={props.ctx} r={r} m={m} dispatch={dispatch} />)}
+      {r.media.map((m) => <HelpRow key={m.id} of="guide.mediaItem"><MediaItem ctx={props.ctx} r={r} m={m} dispatch={dispatch} /></HelpRow>)}
       {canPickFiles && r.kind === 'media' ? <SmallBtn label={t('guides.media.addAnother')} icon="plus" help={t('guides.media.addAnotherHelp')} onPress={() => props.onAdd('image')} /> : null}
     </Card>
   );
@@ -825,6 +889,7 @@ function MediaItem(props: { ctx: Ctx; r: DraftResource; m: DraftMedia; dispatch:
         </View>
         {r.kind === 'media' && m.kind !== 'video' ? (
           <ChipRow>
+            {/* help-each: a photo and an illustration are explained differently */}
             {(['photo', 'illustration'] as const).map((k) => <Chip key={k} label={mediaKindLabel(k)} on={m.kind === k} help={k === 'photo' ? t('guides.media.photoHelp') : t('guides.media.illustrationHelp')} onPress={() => patch({ kind: k })} />)}
           </ChipRow>
         ) : null}
@@ -842,18 +907,14 @@ function ThumbImage(props: { uri: string; label: string }) {
 
 // ─── Glossary ──────────────────────────────────────────────────────────────────
 
-function GlossaryPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch; setDraft: (d: GuideDraft) => void }) {
+function GlossaryPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch }) {
   const { ctx, draft, dispatch } = props;
-  const remove = (term: DraftTerm) => {
-    const before = draft;
-    dispatch({ type: 'deleteTerm', id: term.id });
-    ctx.toast(term.term ? t('guides.editor.removed', { name: term.term }) : t('guides.glossary.removed'), () => props.setDraft(before));
-  };
+  const remove = (term: DraftTerm) => dispatch({ type: 'deleteTerm', id: term.id }, term.term ? t('guides.editor.removed', { name: term.term }) : t('guides.glossary.removed'));
   return (
     <View style={{ gap: space.md }}>
       {draft.terms.length === 0 ? <Text style={txt.smMuted}>{t('guides.glossary.none')}</Text> : null}
       {draft.terms.map((term) => (
-        <Card key={term.id}>
+        <HelpRow key={term.id} of="guide.term"><Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
             <HelpInfo label={`#${term.id}`} detail={t('guides.editor.refHelp')}><Badge label={`#${term.id}`} tone="brand" /></HelpInfo>
             <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{term.term || t('guides.glossary.newTerm')}</Text>
@@ -867,7 +928,7 @@ function GlossaryPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch;
             help={t('guides.glossary.meaningPlaceholder')} />
           <AudioSlot ctx={ctx} label={t('guides.glossary.audio')} removeLabel={t('guides.glossary.removeAudio')} recordLabel={t('guides.glossary.record')} audio={term.audio}
             onChange={(audio) => dispatch({ type: 'setTermAudio', id: term.id, audio })} />
-        </Card>
+        </Card></HelpRow>
       ))}
       <SmallBtn label={t('guides.glossary.add')} icon="plus" help={t('guides.glossary.addHelp')} onPress={() => dispatch({ type: 'addTerm' })} />
     </View>
@@ -875,6 +936,7 @@ function GlossaryPanel(props: { ctx: Ctx; draft: GuideDraft; dispatch: Dispatch;
 }
 
 const s = StyleSheet.create({
+  headerActs: { flexDirection: 'row', alignItems: 'center' },
   pressed: { opacity: 0.7 },
   reading: { width: '100%', maxWidth: measure.column, alignSelf: 'center' },
   problems: { backgroundColor: TINT.amber, borderRadius: radius.lg, padding: space.md, gap: space.xs },

@@ -793,6 +793,24 @@ Expected:
 
 Resets: set the language back to "Same as this phone".
 
+### ACCT-051 In a list, one row takes the help numbers
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: None.
+
+Steps:
+1. Tap "Map", then "Luke". Tap the "?" in the header.
+2. Tap chapter 5.
+3. Tap the "?" again.
+
+Expected:
+- Step 1: only the first chapter in sight has a number; the other chapters
+  stay dim with none. The same holds on any list (passages, people, parts
+  on the recording screen): one row speaks for the rest.
+- Step 2: chapter 5 lights, and a tooltip says what it is and what tapping
+  it does. The app does not open the chapter.
+- Step 3: the dimming and numbers go.
+
 ---
 
 ## Signing out

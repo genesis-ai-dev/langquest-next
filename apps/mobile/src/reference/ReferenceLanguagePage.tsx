@@ -7,7 +7,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Ico, SearchField } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -61,9 +61,11 @@ export function ReferenceLanguagePage(props: {
     <View style={{ gap: 14 }}>
       <Question>{t('referenceLanguage.question', { language: props.team })}</Question>
       {ordered.map((c) => (
-        <RadioRow key={c.language} icon="globe" label={label(c.language)} on={on(c.language)} onPress={() => toggle(c.language)} subLines={4} many
-          help={t('referenceLanguage.rowHelp')}
-          sub={[whatIsThere(c), sameLanguage(c.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
+        <HelpRow key={c.language} of="referenceLanguage.language">
+          <RadioRow icon="globe" label={label(c.language)} on={on(c.language)} onPress={() => toggle(c.language)} subLines={4} many
+            help={t('referenceLanguage.rowHelp')}
+            sub={[whatIsThere(c), sameLanguage(c.language, reader) ? t('reference.setLanguage.yours') : ''].filter(Boolean).join(' · ')} />
+        </HelpRow>
       ))}
       {props.loading ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('common.loading')}</Text> : null}
       {searching ? (
@@ -94,7 +96,7 @@ export function ReferenceLanguageChip(props: { languages: readonly string[]; onP
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={`${label}. ${t('referenceLanguage.change')}`}
       style={({ pressed }) => [styles.chip, pressed && { opacity: 0.75 }]}>
       <Ico name="globe" size={18} color={C.primary} />
-      <Text style={styles.chipText} numberOfLines={2}>{label}</Text>
+      <Text style={styles.chipText}>{label}</Text>
       <Text style={styles.chipChange}>{t('referenceLanguage.change')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>

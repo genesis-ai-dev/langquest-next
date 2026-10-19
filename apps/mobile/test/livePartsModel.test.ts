@@ -161,6 +161,19 @@ describe('editing a stopped session (livePartsModel.ts)', () => {
     expect(kept[1]!.toMs - kept[1]!.fromMs).toBeCloseTo(26 * MS, 0);
   });
 
+  it('gives each kept part the levels its box shows, for its bars, and follows a dragged edge', () => {
+    let s = twoParts();
+    const box = s.parts[0]!;
+    const levels = liveKept(s).find((k) => k.fromMs === box.fromMs)!.levels;
+    expect(levels).toHaveLength(box.to! - box.from);
+    expect(levels.slice(0, 20).every((db) => Math.abs(db + 20) < 0.01)).toBe(true);
+    expect(levels.slice(20).every((db) => Math.abs(db + 52) < 0.01)).toBe(true);
+    s = liveEdge(s, 0, 'from', box.from - 4);
+    const moved = liveKept(s).find((k) => k.toMs === box.toMs)!.levels;
+    expect(moved).toHaveLength(box.to! - box.from + 4);
+    expect(moved.slice(0, 4).every((db) => Math.abs(db + 52) < 0.01)).toBe(true);
+  });
+
   it('shows a dropped part as not kept', () => {
     let s = twoParts();
     s = liveDrop(s, 0);

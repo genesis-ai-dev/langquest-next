@@ -215,7 +215,12 @@ export function gridCellLabel(kindName: string, review: ReviewView, count: numbe
     : t('passage.grid.cell', { kind: kindName, who: feedbackSource(review, name) });
 }
 
-/** The column heading for a check: its first word. */
-export function gridColumnName(kind: Pick<KindDef, 'name'>): string {
-  return kind.name.split(' ')[0] ?? '';
+/**
+ * The column headings for a row of checks: each one's first word, or its
+ * whole name where two checks share that first word (Spanish "Verificación
+ * comunitaria" and "Verificación del consultor"), so no two heads read alike.
+ */
+export function gridColumnNames(kinds: readonly Pick<KindDef, 'name'>[]): string[] {
+  const first = kinds.map((k) => k.name.split(' ')[0] ?? '');
+  return kinds.map((k, i) => (first.filter((f) => f === first[i]).length > 1 ? k.name : first[i]!));
 }

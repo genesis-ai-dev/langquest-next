@@ -20,17 +20,6 @@ export function payloadField(specs: EventSpec[], field: 'departureId' | 'request
   return String((specs[0]?.payload as Record<string, unknown> | undefined)?.[field] ?? '');
 }
 
-/** Every review a save recorded (one per passage a logged check covered), to take them all back with one Undo (decisions.md 111). */
-export function recordedReviewIds(specs: EventSpec[]): string[] {
-  return specs.filter((s) => s.type === 'v1.ReviewRecorded').map((s) => String((s.payload as { reviewId: string }).reviewId));
-}
-
-/** Undo of a save that recorded reviews: its author takes them back. */
-export const undoReviews = (applied: EventSpec[]) => (c: Commands) => c.withdrawReviews({ commandId: `undo:${applied[0]?.id ?? ''}`, reviewIds: recordedReviewIds(applied) });
-
-/** Undo of a note: its author takes it back. */
-export const undoNote = (applied: EventSpec[]) => (c: Commands) => c.withdrawNote({ commandId: `undo:${applied[0]?.id ?? ''}`, noteId: payloadField(applied, 'noteId') });
-
 /** Setting a check aside, with the reason the person gave (CORE-2). */
 export function skipInput(o: { commandId: string; unitId: string; kindId: string; stepId: string; reason: GivenReason }): DepartInput {
   return { commandId: o.commandId, unitId: o.unitId, type: 'skip', kindId: o.kindId, stepId: o.stepId, reason: o.reason.reason, ...withReasonBlob(o.reason) };

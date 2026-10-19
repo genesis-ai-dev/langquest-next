@@ -30,6 +30,7 @@ import { HelpClip } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { indexesFor } from '../sync/indexes';
 import { EmptyState, GhostBtn, Header, Ico, PrimaryBtn, Screen, SmallBtn } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import type { PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
@@ -89,7 +90,15 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const bible = useBible(ctx, v?.unitId ?? null, v?.languageId ?? null, shows ? { shows: { audio: shows.bibleAudio, text: shows.bibleText } } : {});
   const [chipState, setChip] = useState<RefChip>('guide');
   // Moving on changes the step, not the screen (STUDY-4).
-  const [indexState, setIndex] = useState<number | null>(null);
+  const [indexState, setIndexState] = useState<number | null>(null);
+  // The steps this screen showed before, so a phone's Back retraces them (decision 137).
+  const [trail, setTrail] = useState<number[]>([]);
+  // Back: from Bible, Key words or Notes to the guide, as "Back to the guide" does; then the step before; then out.
+  useHardwareBack(chipState !== 'guide' || trail.length > 0, () => {
+    if (chipState !== 'guide') { setChip('guide'); return; }
+    setIndexState(trail[trail.length - 1] ?? null);
+    setTrail(trail.slice(0, -1));
+  });
   const [verse, setVerse] = useState<string | null>(null);
   const state = ctx.language.state;
   const sourceWords = useMemo(() => (bible.rows ? bible.rows.map((r) => r.text).join(' ') : null), [bible.rows]);
@@ -109,6 +118,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   const canContribute = canStudy || ctx.session.can('review') || ctx.session.can('fill_reference');
   const named = props.stepId ? sp.steps.findIndex((st) => st.step.id === props.stepId) : -1;
   const index = Math.min(sp.steps.length - 1, Math.max(0, indexState ?? (named >= 0 ? named : sp.next?.index ?? 0)));
+  const setIndex = (i: number) => { if (i === index) return; setTrail([...trail, index]); setIndexState(i); };
   const status = sp.steps[index]!;
   const chipIds = refChips('study', {
     guide: true, bible: bible.hasVerses && (shows?.bibleAudio !== false || shows?.bibleText !== false),
@@ -135,7 +145,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
     const next = stepAfterDone(sp.steps.map((st) => ({ done: !!st.done })), index);
     try {
       const said = next !== null ? t('study.screen.stepDone', { step: status.step.title, done: sp.doneCount + 1, total: sp.steps.length }) : t('study.screen.allDone');
-      await ctx.act(mark(true), said, () => mark(false));
+      await ctx.act(mark(true), said);
     } catch (e) {
       // ctx.act already said "Not saved"; stay on this step.
       noteExpected('study: mark step', e);
@@ -147,7 +157,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
   async function undoDone() {
     if (!state || !status.done) return;
     try {
-      await ctx.act(mark(false), t('common.undone'), () => mark(true));
+      await ctx.act(mark(false), t('common.undone'));
     } catch (e) {
       noteExpected('study: unmark step', e);
     }

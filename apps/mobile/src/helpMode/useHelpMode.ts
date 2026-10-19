@@ -1,6 +1,6 @@
 // Help mode's contexts and the hooks that read them (helpMode/helpMode.tsx provides them).
 import { createContext, useContext, useEffect, useId, type ReactNode } from 'react';
-import type { HelpMode, HelpSpot } from './helpContext';
+import type { HelpMode, HelpRowAt, HelpSpot } from './helpContext';
 
 /**
  * Which layer a part is drawn in: null for the screen, a sheet's host id
@@ -11,6 +11,9 @@ export const HelpHostContext = createContext<string | null>(null);
 
 /** The help layer while a sheet is on top: drawn inside that sheet (HelpHostLayer), since a sheet is a window of its own. */
 export const HelpLayerContext = createContext<{ host: string; layer: ReactNode } | null>(null);
+
+/** The rows of lists that what is drawn here is in, the outermost first (see HelpRow). */
+export const HelpRowContext = createContext<readonly HelpRowAt[] | undefined>(undefined);
 
 /** The area that parts inside it scroll in, by its lit id (see HelpClip). */
 export const HelpClipContext = createContext<string | undefined>(undefined);

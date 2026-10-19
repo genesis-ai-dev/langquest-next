@@ -3,13 +3,13 @@
 // InviteNow, PickTemplate and Helps). An admin who knows nothing about the
 // app's model gets a language ready with four plain questions, each with the
 // likely answer already picked:
-//   1 What will they record?   the language's content template (as New Language and template_picker apply it)
+//   1 What will they record?   the language's content template (as New Language and its Content template page apply it)
 //   2 What will help them?     Bibles and study guides offered to its team (the recommendations reference_bibles/guides write)
 //   3 Who checks the recordings? its review flow (chosen as flows_home chooses it; "I'll choose the steps" opens the flow editor)
 //   4 Invite your translators  a group code to scan (the invite RPC Invite by QR uses)
 // Params: `languageId` (opens that language) and `step`: none for the
 // checklist, '1'..'4' for the questions (Next walks on through the rest),
-// 'helps' for What helps them on a ready language. `only: '1'` opens
+// 'template', 'helps' and 'flow' for a ready language's three picks (decision 138). `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
   commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, languageProgress, materialsFor,
@@ -17,6 +17,7 @@ import {
   type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
@@ -24,13 +25,14 @@ import type { LibraryChoice } from '../templates/contentTemplates';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { useHelpMode } from '../helpMode/useHelpMode';
+import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
 import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SectionLabel, Sheet } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { sourceLine, type SharedItem } from '../library/model';
-import { restoreChecks } from '../checks/undo';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { booksInScope, LANGUAGE_SCOPES, languageScopeLabel, mayGrantAt, type LanguageScope } from '../org/orgAdmin';
 import { recState, refKindOf, sourceFacts, type RefKind } from '../reference/model';
@@ -49,6 +51,7 @@ import { C, space } from '../ui/theme';
 import { BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, InviteCode, NumberedSteps, Pills, Question, QuietLink } from '../admin/admin';
 import { useGroupInvite } from '../admin/useGroupInvite';
 import {
+  sameChecks,
   flowSub, flowTitle, flowWho, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, recordSummary, scopeOfBooks,
   type PlainRoleId } from '../admin/adminModel';
 import { shareInvite } from '../invites/shareInvite';
@@ -59,6 +62,8 @@ import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { NumberingNote, RedoSheet } from '../breakup/parts';
+import { ContentTemplatePage } from '../templates/ContentTemplatePage';
+import { ReviewFlowPage } from '../checks/ReviewFlowPage';
 import { useVerseNumbering } from '../breakup/useBreakup';
 
 const PAD = { paddingHorizontal: 20, gap: 14 } as const;
@@ -68,7 +73,10 @@ export function GetReady(ctx: Ctx) {
   if (!ctx.language.state || !ctx.org.state) {
     return <Screen header={<Header title={t('getReady.loading.title')} onBack={ctx.back} close />}><EmptyState icon="cloud" title={t('getReady.loading.empty')} sub={t('getReady.loading.sub')} /></Screen>;
   }
+  // A ready language's three picks (decision 138): what it uses, its other options, and the organization's shelf.
+  if (step === 'template') return <ContentTemplatePage ctx={ctx} />;
   if (step === 'helps') return <HelpsPage ctx={ctx} />;
+  if (step === 'flow') return <ReviewFlowPage ctx={ctx} />;
   const n = Number(step);
   if (n >= 1 && n <= 4) return <Questions ctx={ctx} start={n} only={ctx.params['only'] === '1'} />;
   return <Overview ctx={ctx} />;
@@ -108,9 +116,11 @@ function Questions({ ctx, start, only }: { ctx: Ctx; start: number; only: boolea
   const [n, setN] = useState(start);
   const lang = languageName(ctx.org.state, ctx.language.languageId);
   const header = only
-    ? <Header title={n === 2 ? t('getReady.page.title') : t('getReady.whatToTranslate')} sub={lang} onBack={ctx.back} />
+    ? <Header title={n === 2 ? t('org.languages.row') : t('getReady.whatToTranslate')} sub={lang} onBack={ctx.back} />
     : <Header title={t('getReady.title', { language: lang })} sub={t('getReady.stepOf', { step: formatNumber(n), total: formatNumber(4) })} onBack={ctx.back} close />;
   const next = () => (only || n >= 4 ? ctx.back() : setN(n + 1));
+  // A phone's Back goes to the question before, down to the one this opened on, then leaves; ✕ leaves at once (decision 137).
+  useHardwareBack(n > start, () => setN(n - 1));
   const props: StepProps = { ctx, lang, header, next, only };
   switch (n) {
     case 1: return <RecordStep {...props} />;
@@ -144,6 +154,8 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   // Any work at all, published or not: a change of numbering moves it (decision 80).
   const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
   const [warn, setWarn] = useState(false);
+  // A phone's Back goes back a page of the question, as the Back under it does (decision 137); from the first, it leaves.
+  useHardwareBack(tq.page !== 'what', () => { tq.retreat(); });
 
   async function answer(confirmed = false) {
     if (busy) return;
@@ -155,15 +167,10 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
     if (wanted && wanted.length === 0) { ctx.toast(t('getReady.record.chooseABook')); return; }
     setBusy(true);
     try {
-      const prev = state.template?.value;
-      // Undo re-applies what it used before (none when that version is not on this device).
-      const undo = prev?.itemId && prev.docHash
-        ? await lib.applySpecs(prev.itemId, { docHash: prev.docHash, ...(prev.books ? { books: prev.books } : {}) }).catch(() => null)
-        : null;
       const use = await tq.resolve();
       const specs = await lib.applySpecs(use.itemId, { docHash: use.docHash, ...(wanted ? { books: wanted } : {}), ...(use.unitPrefix ? { unitPrefix: use.unitPrefix } : {}) });
       try {
-        await ctx.act(specs, t('getReady.record.saved', { language: lang, what: recordSummary(use.doc, wanted, use.doc.name) }), undo ? () => undo : undefined);
+        await ctx.act(specs, t('getReady.record.saved', { language: lang, what: recordSummary(use.doc, wanted, use.doc.name) }));
       } catch { setBusy(false); return; }
       setBusy(false);
       next();
@@ -191,6 +198,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
         <>
           <SectionLabel label={t('getReady.record.whichPart')} />
           <Pills>
+            {/* help-each: each choice is a different part of the Bible */}
             {LANGUAGE_SCOPES.map((sc) => (
               <Chip key={sc} label={languageScopeLabel(sc)} on={pills === sc} help={sc === 'custom' ? t('getReady.record.chooseBooksHelp') : t('getReady.record.partHelp')}
                 onPress={() => { setScope(sc); if (sc === 'custom' && !chosen) setChosen(new Set(wanted ?? templateBooks(doc).map((b) => b.book))); }} />
@@ -199,8 +207,10 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
           {pills === 'custom' ? (
             <Pills>
               {templateBooks(doc).map((b) => (
-                <Chip key={b.book} label={b.name || b.book} on={books.has(b.book)} help={books.has(b.book) ? t('getReady.record.bookOnHelp') : t('getReady.record.bookOffHelp')}
-                  onPress={() => setChosen(() => { const nextSet = new Set(books); if (nextSet.has(b.book)) nextSet.delete(b.book); else nextSet.add(b.book); return nextSet; })} />
+                <HelpRow key={b.book} of="getReady.book">
+                  <Chip label={b.name || b.book} on={books.has(b.book)} help={books.has(b.book) ? t('getReady.record.bookOnHelp') : t('getReady.record.bookOffHelp')}
+                    onPress={() => setChosen(() => { const nextSet = new Set(books); if (nextSet.has(b.book)) nextSet.delete(b.book); else nextSet.add(b.book); return nextSet; })} />
+                </HelpRow>
               ))}
             </Pills>
           ) : null}
@@ -265,12 +275,12 @@ function useHelpItems(ctx: Ctx) {
       setBusy(false);
     }
   }
-  /** Language-stream writes for one set's says, with Undo, in one step. */
-  async function sayAll(plan: { says: ReferenceSay[]; undo: ReferenceSay[] }, message: string) {
+  /** Language-stream writes for one set's says, in one step; the same row changes it back (decision 134). */
+  async function sayAll(plan: { says: ReferenceSay[] }, message: string) {
     const specs = (list: ReferenceSay[]) => list.map((p) => ({ id: Crypto.randomUUID(), type: 'v1.ReferenceSet', payload: p } as EventSpec));
     if (!plan.says.length) return;
     try {
-      await ctx.act(specs(plan.says), message, () => specs(plan.undo));
+      await ctx.act(specs(plan.says), message);
     } catch {
       // ctx.act has already said "Not saved" and why.
     }
@@ -380,8 +390,10 @@ function useComesWith(ctx: Ctx) {
 /** What will help them: the language of their reference material on a page of its own, then what is offered in it (decision 84). */
 function HelpsStep(props: StepProps) {
   const [page, setPage] = useState<'language' | 'helps'>('language');
-  // Opened from a ready language's What helps them to change the language: back there once it is saved.
+  // Opened from a ready language's Reference material (or its Languages) to change the language: back there once it is saved.
   const languageOnly = props.only && props.ctx.params['page'] === 'language';
+  // A phone's Back from what is offered goes back to the language, the page before (decision 137).
+  useHardwareBack(page === 'helps', () => setPage('language'));
   return page === 'language'
     ? <ReferenceLanguageStep {...props} onDone={() => (languageOnly ? props.next() : setPage('helps'))} />
     : <HelpsList {...props} onLanguage={() => setPage('language')} />;
@@ -411,7 +423,6 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
     if (!may || !moved) { onDone(); return; }
     setBusy(true);
     const says: { type: 'v1.ReferenceLanguageSet' | 'v1.ReferenceLanguageAdded' | 'v1.ReferenceSet'; payload: object }[] = languagesSays(current, values);
-    const undo: typeof says = languagesSays(values, current);
     try {
       // A guide set follows the main language only.
       for (const set of sameLanguage(value, current[0]) ? [] : refs.sets) {
@@ -423,7 +434,6 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
         const held = { ...set, members: set.members.map((x) => (x === m ? { ...x, itemId, shared: null } : x)) };
         const plan = chooseSetLanguage(held, itemId, ctx.language.state);
         says.push(...plan.says.map((p) => ({ type: 'v1.ReferenceSet' as const, payload: p })));
-        undo.push(...plan.undo.map((p) => ({ type: 'v1.ReferenceSet' as const, payload: p })));
       }
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: referenceFailure('reference language', e) })); // i18n-ignore: log label
@@ -432,7 +442,8 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
     }
     const specs = (list: typeof says) => list.map((x) => ({ id: Crypto.randomUUID(), ...x } as EventSpec));
     try {
-      await ctx.act(specs(says), t('getReady.language.saved', { team: lang, language: joinAnd(values.map(languageLabel)) }), () => specs(undo));
+      // Choosing the earlier languages again changes it back (decision 134).
+      await ctx.act(specs(says), t('getReady.language.saved', { team: lang, language: joinAnd(values.map(languageLabel)) }));
     } catch {
       // ctx.act has already said "Not saved" and why.
       setBusy(false);
@@ -470,9 +481,11 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
         {bibles.map((b) => {
           const doc = b.doc as SourceDoc;
           return (
-            <CheckRow key={b.key} label={`${languageLabel(doc.language)} · ${doc.abbreviation}`} sub={mediaText(mediaOf(doc, h.get))} checked={b.on}
-              disabled={!h.may || h.busy} onToggle={() => void h.toggle(b)} playLabel={t('admin.checkRow.hear', { name: b.name })} playHelp={t('getReady.helps.openBibleHelp')}
-              {...(b.itemId ? { onPlay: () => ctx.go('reference_source', { itemId: b.itemId!, languageId }) } : {})} />
+            <HelpRow key={b.key} of="getReady.bible">
+              <CheckRow label={`${languageLabel(doc.language)} · ${doc.abbreviation}`} sub={mediaText(mediaOf(doc, h.get))} checked={b.on}
+                disabled={!h.may || h.busy} onToggle={() => void h.toggle(b)} playLabel={t('admin.checkRow.hear', { name: b.name })} playHelp={t('getReady.helps.openBibleHelp')}
+                {...(b.itemId ? { onPlay: () => ctx.go('reference_source', { itemId: b.itemId!, languageId }) } : {})} />
+            </HelpRow>
           );
         })}
         <Row icon="search" label={t('getReady.helps.findBible')} sub={bibles.length ? undefined : t('getReady.helps.noneChosen')} last
@@ -481,9 +494,11 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
       {guides.length ? (
         <Group>
           {guides.map((g, i) => (
-            <SwitchRow key={g.key} icon="star" label={guides.length === 1 ? t('getReady.helps.studyGuides') : t('getReady.helps.namedGuides', { name: guideShortName(g.name) })}
-              sub={[guides.length === 1 ? guideShortName(g.name) : fromLine(g), guideLanguageLine(g), g.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'), comes(g)].filter(Boolean).join(' · ')}
-              on={g.on} disabled={!h.may || h.busy} help={helpItemLine(g, h.items)} onToggle={() => onHelpPress(g, h.items, sheet.open, (x) => void h.toggle(x))} last={i === guides.length - 1} />
+            <HelpRow key={g.key} of="getReady.guide">
+              <SwitchRow icon="star" label={guides.length === 1 ? t('getReady.helps.studyGuides') : t('getReady.helps.namedGuides', { name: guideShortName(g.name) })}
+                sub={[guides.length === 1 ? guideShortName(g.name) : fromLine(g), guideLanguageLine(g), g.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'), comes(g)].filter(Boolean).join(' · ')}
+                on={g.on} disabled={!h.may || h.busy} help={helpItemLine(g, h.items)} onToggle={() => onHelpPress(g, h.items, sheet.open, (x) => void h.toggle(x))} last={i === guides.length - 1} />
+            </HelpRow>
           ))}
         </Group>
       ) : h.loading ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : null}
@@ -493,8 +508,10 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
           <SectionLabel label={t('getReady.helps.notesForTranslators')} />
           <Group>
             {notes.map((x, i) => (
-              <SwitchRow key={x.key} icon="note" label={x.name} sub={[x.on ? t('getReady.helps.on') : t('getReady.helps.off'), languagesLine([docLanguage(x.doc)])].join(' · ')} on={x.on} disabled={!h.may || h.busy}
-                help={helpItemLine(x, h.items)} onToggle={() => void h.toggle(x)} last={i === notes.length - 1} />
+              <HelpRow key={x.key} of="getReady.note">
+                <SwitchRow icon="note" label={x.name} sub={[x.on ? t('getReady.helps.on') : t('getReady.helps.off'), languagesLine([docLanguage(x.doc)])].join(' · ')} on={x.on} disabled={!h.may || h.busy}
+                  help={helpItemLine(x, h.items)} onToggle={() => void h.toggle(x)} last={i === notes.length - 1} />
+              </HelpRow>
             ))}
           </Group>
         </>
@@ -505,7 +522,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
   );
 }
 
-/** What helps them, on a ready language: every kind of help with a switch each, and Add more. */
+/** Reference material, on a ready language: every kind of help with a switch each, Add more, and the organization's whole shelf (decision 138). */
 function HelpsPage({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state!;
   const languageId = ctx.language.languageId;
@@ -517,8 +534,10 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const terms = useMemo(() => keyTermsFor(state), [state]);
   const written = useMemo(() => materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms' && m.kind !== 'fia_study'), [state]);
   const switchRow = (x: HelpItem, last: boolean, sub: string) => (
-    <SwitchRow key={x.key} label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} help={helpItemLine(x, h.items)}
-      onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
+    <HelpRow key={x.key} of={`getReady.${x.kind}`}>
+      <SwitchRow label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} help={helpItemLine(x, h.items)}
+        onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
+    </HelpRow>
   );
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
   // Only what is in the team's language, and what the team already has (decision 130 amended).
@@ -529,7 +548,7 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
   const rendered = terms.filter((term) => term.renderings.length > 0).length;
   const go = (to: Parameters<Ctx['go']>[0], params: Record<string, string>) => { setAdding(false); ctx.go(to, params); };
   return (
-    <Screen header={<Header title={t('getReady.page.title')} sub={lang} onBack={ctx.back} />} bodyStyle={{ gap: space.sm }}
+    <Screen header={<Header title={t('org.language.referenceMaterial')} sub={lang} onBack={ctx.back} />} bodyStyle={{ gap: space.sm }}
       footer={h.may ? <PrimaryBtn label={t('getReady.page.addMore')} icon="plus" help={t('getReady.page.addMoreHelp')} onPress={() => setAdding(true)} /> : undefined}>
       <ReferenceLanguageChip languages={h.languages} onPress={() => ctx.go('get_ready', { languageId, step: '2', only: '1', page: 'language' })} />
       <SectionLabel label={t('getReady.page.bibles')} />
@@ -556,18 +575,25 @@ function HelpsPage({ ctx }: { ctx: Ctx }) {
       <Group>
         {notes.map((x, i) => switchRow(x, i === notes.length - 1 && written.length === 0, [x.owner, languagesLine([docLanguage(x.doc)])].filter(Boolean).join(' · ')))}
         {written.map((m, i) => (
-          <Row key={m.materialId} label={m.title} sub={t('getReady.page.writtenHere')} last={i === written.length - 1} help={t('getReady.page.noteHelp')}
-            onPress={h.may ? () => ctx.go('material_editor', { materialId: m.materialId, languageId }) : undefined} />
+          <HelpRow key={m.materialId} of="getReady.writtenNote">
+            <Row label={m.title} sub={t('getReady.page.writtenHere')} last={i === written.length - 1} help={t('getReady.page.noteHelp')}
+              onPress={h.may ? () => ctx.go('material_editor', { materialId: m.materialId, languageId }) : undefined} />
+          </HelpRow>
         ))}
         {notes.length + written.length === 0 ? none(t('getReady.page.noNotes')) : null}
       </Group>
+      {/* Last, the organization's whole shelf (decision 138). */}
+      {ctx.session.can('manage_reference') ? (
+        <Group>
+          <Row icon="layers" label={t('getReady.helps.all')} help={t('getReady.helps.allHelp')} last onPress={() => ctx.go('reference_home', { languageId })} />
+        </Group>
+      ) : null}
       <Sheet visible={adding} title={t('getReady.page.addMore')} sub={t('getReady.add.sub', { language: lang })} onClose={() => setAdding(false)}>
         <Group>
           <Row icon="search" label={t('getReady.add.bible')} sub={t('getReady.add.bibleSub')} onPress={() => go('reference_bibles', { languageId })} />
           <Row icon="star" label={t('getReady.add.guide')} sub={t('getReady.add.guideSub')} onPress={() => go('reference_guides', { languageId })} />
           <Row icon="note" label={t('getReady.add.note')} sub={t('getReady.add.noteSub')} onPress={() => go('material_editor', { itemId: 'new', kind: 'note', languageId })} />
-          <Row icon="key" label={t('getReady.page.keyWords')} sub={t('getReady.add.keyWordsSub')} onPress={() => go('key_terms', { languageId })} />
-          <Row icon="layers" label={t('getReady.add.library')} sub={t('getReady.add.librarySub')} last onPress={() => go('reference_home', { languageId })} />
+          <Row icon="key" label={t('getReady.page.keyWords')} sub={t('getReady.add.keyWordsSub')} last onPress={() => go('key_terms', { languageId })} />
         </Group>
       </Sheet>
       {sheet.sheet}
@@ -610,12 +636,19 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
   const key = picked ?? (custom ? 'custom' : first?.c.key ?? null);
   const canUse = ctx.session.can('manage_flows');
 
+  // Its own checks would be gone for good: it asks before a ready-made set replaces them (decision 134).
+  const [replacing, setReplacing] = useState<FlowEntry | null>(null);
   async function answer() {
     if (busy) return;
     if (key === 'choose') { ctx.go('flow_editor', { languageId, steps: 'language' }); onChoose(); return; }
     const pick = entries.find((e) => e.c.key === key);
     if (!pick || pick.c === current || key === 'custom') { next(); return; }
     if (!canUse) { ctx.toast(t('getReady.checks.onlyChoosers')); return; }
+    // Checks still as a ready-made set made them can be chosen again: only the language's own are asked about.
+    if (custom && flow.steps.length > 0 && !entries.some((e) => sameChecks(flow.steps, e.doc.steps))) { setReplacing(pick); return; }
+    await takeFlow(pick);
+  }
+  async function takeFlow(pick: FlowEntry) {
     setBusy(true);
     let specs: EventSpec[];
     try {
@@ -626,14 +659,8 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
       setBusy(false);
       return;
     }
-    // Undo goes back to the checks it had, whose steps were never removed (core restoreFlow).
-    const previous = state.flow?.value ? { flow: state.flow.value, steps: flow.steps } : null;
-    const undo = previous ? () => {
-      const s = ctx.language.state;
-      return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
-    } : undefined;
     try {
-      await ctx.act(specs, t('getReady.checks.saved', { title: titleOf(pick.doc) }), undo);
+      await ctx.act(specs, t('getReady.checks.saved', { title: titleOf(pick.doc) }));
     } catch { setBusy(false); return; }
     setBusy(false);
     next();
@@ -643,9 +670,11 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     const on = key === e.c.key;
     const sub = e.c === current ? t('getReady.checks.inUse') : e === starter && i === 0 ? t('getReady.checks.suggested') : flowSub(e.doc.steps);
     return (
-      <ChoiceCard key={e.c.key} on={on} icon="people" title={titleOf(e.doc)} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setPicked(e.c.key)}>
-        {on && e.doc.steps.length ? <NumberedSteps items={flowWho(e.doc.steps, kindsOf(e.doc))} /> : null}
-      </ChoiceCard>
+      <HelpRow key={e.c.key} of="getReady.way">
+        <ChoiceCard on={on} icon="people" title={titleOf(e.doc)} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setPicked(e.c.key)}>
+          {on && e.doc.steps.length ? <NumberedSteps items={flowWho(e.doc.steps, kindsOf(e.doc))} /> : null}
+        </ChoiceCard>
+      </HelpRow>
     );
   };
   return (
@@ -674,6 +703,9 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
         ) : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} detail={t('getReady.checks.otherWaysHelp')} onPress={() => setMore(true)} />
       ) : null}
       {entries.length === 0 ? <Text style={txt.smMuted}>{loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
+      <ConfirmDelete visible={!!replacing} name={replacing ? titleOf(replacing.doc) : ''} replaces
+        title={t('checks.flows.replaceAsk', { language: languageName(ctx.org.state, languageId), name: replacing ? titleOf(replacing.doc) : '' })} confirmLabel={t('checks.flows.use', { name: replacing ? titleOf(replacing.doc) : '' })}
+        onClose={() => setReplacing(null)} onConfirm={() => { const r = replacing; setReplacing(null); if (r) void takeFlow(r); }} />
     </Screen>
   );
 }
@@ -702,8 +734,13 @@ function InviteStep({ ctx, lang, header, next }: StepProps) {
         <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={() => ctx.go('role_editor', { roleId: 'new' })} />
       ) : null}
       <Pills>
+        {/* help-each: each plain role does different work */}
         {roles.choices.map((c) => <Chip key={c.id} label={c.chip} on={choice === c.id} help={plainRoleHelp(c.id)} onPress={() => setChoice(c.id)} />)}
-        {more ? roles.others.map((r) => <Chip key={r.id} label={r.name} on={choice === r.id} help={t('admin.invite.pickRoleHelp')} onPress={() => setChoice(r.id)} />) : null}
+        {more ? roles.others.map((r) => (
+          <HelpRow key={r.id} of="getReady.otherRole">
+            <Chip label={r.name} on={choice === r.id} help={t('admin.invite.pickRoleHelp')} onPress={() => setChoice(r.id)} />
+          </HelpRow>
+        )) : null}
         {!more && roles.others.length ? <Chip label={t('getReady.invite.somethingElse')} icon="plus" on={false} help={t('admin.invite.otherRolesHelp')} onPress={() => setMore(true)} /> : null}
       </Pills>
       {may ? <InviteCode state={invite} /> : (

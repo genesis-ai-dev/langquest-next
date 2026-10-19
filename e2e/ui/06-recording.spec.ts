@@ -17,13 +17,13 @@ import { randomUUID } from 'node:crypto';
 import { derivePassage, draftsBy, type LanguageState } from '@langquest-next/core';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import {
-  chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, leaveSession, mic, openWorkspace, draftParts, partCount, partsTitle,
-  publishButton, recordButton, recordSaid, recordStep, savedMark, say, secondDevice, startFromRecord, stopRecording, verseSpace, workspaceSub,
+  chip, deletePart, swipePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, leaveSession, mic, openWorkspace, draftParts, partCount, partsTitle,
+  publishButton, recordButton, recordSaid, recordStep, redoButton, savedMark, say, secondDevice, startFromRecord, stopRecording, undoButton, verseSpace, workspaceSub,
   useFileWorld
 } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
 import {
-  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, openAs, openPassage, primary, screenText, syncNow, tab, test, text, undoToast, waitForApp,
+  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, openAs, openPassage, primary, screenText, syncNow, tab, test, text, waitForApp,
   type UiWorld
 } from './support';
 
@@ -72,7 +72,7 @@ test('REC-001 Record opens the workspace for a passage nobody has recorded', asy
   await expect(chip(page, /^Bible/)).toHaveAttribute('aria-selected', 'true');
   // The recorder: Part 1 lit, the hint. Nothing about the microphone to set (LAN-82).
   await expect(page.getByLabel('Part 1. Recording next')).toBeVisible();
-  await expect(text(page, 'Tap the red button and speak. Pause between parts: each part is kept by itself.')).toBeVisible();
+  // No line explains it (decision 124): the lit part says where the next one goes.
   await expect(button(page, 'Set up the microphone')).toHaveCount(0);
   // The footer: Part 1, the red button, Publish disabled.
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Record');
@@ -131,7 +131,8 @@ test('REC-004 Record parts with voice detection @p0', async ({ page, browser }) 
   await m.mode('tone');
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
-  await expect(text(page, 'Part 1…')).toBeVisible();
+  // The recording view names the part being said; the footer holds Undo and Redo, out of the way while recording (decision 133).
+  await expect(page.getByLabel(/^Part 1\. /)).toBeVisible();
   await expect(text(page, 'Listening for you · pause between parts')).toBeVisible();
   await expect(publishButton(page)).toHaveCount(0);
   for (const [i, ms] of [4000, 4000, 3000].entries()) {
@@ -206,26 +207,44 @@ test('REC-005 Parts can be heard together and one by one', async ({ page }) => {
   expect((await mic(page).counts()).opened).toBe(opened);
 });
 
-test('REC-007 Delete a part, then Undo @p0', async ({ page }) => {
+test('REC-007 Delete a part, then Undo and Redo @p0', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'TRANS');
   await openWorkspace(page, w, 'P-NEW', 'Continue recording');
   await expectParts(page, 3);
   const before = await lastComposed(page, w, 'P-NEW');
   const original = before.length === 3 ? before : (await onServer(w, 'P-NEW')).drafts[0]!.cardHashes;
+  // A part slides either way to its bin, and nothing goes until the bin is tapped; a tap on the row closes it.
+  const bin = page.getByRole('button', { name: 'Delete Part 2', exact: true }).locator('visible=true');
+  await expect(bin).toHaveCount(0);
+  await swipePart(page, 2, -110);
+  await expect(bin).toHaveCount(1);
+  const row = (await page.getByRole('button', { name: 'Record Part 2 again', exact: true }).locator('visible=true').first().boundingBox())!;
+  await page.mouse.click(row.x + row.width / 2, row.y + row.height / 2);
+  await expect(bin).toHaveCount(0);
+  await expectParts(page, 3);
   await deletePart(page, 2);
-  const toast = await expectToast(page, 'Part 2 deleted.');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
+  // No toast with an Undo that runs out (Caleb, 2026-10-16): the arrows by the red button stay.
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(undoButton(page)).toHaveAttribute('aria-label', 'Undo: Part 2 deleted.');
+  await expect(redoButton(page)).toHaveAttribute('aria-disabled', 'true');
   // The deleted part's place stays, numbered, so the card reads three places and two parts (LAN-83).
   await expect(page.getByRole('button', { name: /^Parts 1–3, 2 parts · / })).toBeVisible();
   await expect(button(page, 'Record Part 2 here')).toBeVisible();
   await expect.poll(() => lastComposed(page, w, 'P-NEW')).toEqual([original[0], original[2]]);
-  // The toast stays for 7 seconds; Undo inside them.
-  await page.waitForTimeout(4000); // sleep: the toast's own 7 s life; Undo must still work 4 s in
-  await expect(toast).toBeVisible();
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
+  // Undo is still there after leaving the workspace and coming back.
+  await back(page).click();
+  await startFromRecord(page, 'Continue recording');
+  await expectParts(page, 2);
+  await undoButton(page).click();
   await expectParts(page, 3);
+  await expect.poll(() => lastComposed(page, w, 'P-NEW')).toEqual(original);
+  // Redo deletes it again, and Undo brings it back once more: each a new change on the record.
+  await redoButton(page).click();
+  await expectParts(page, 2);
+  await undoButton(page).click();
+  await expectParts(page, 3);
+  await expect(redoButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await expect.poll(() => lastComposed(page, w, 'P-NEW')).toEqual(original);
   await expectUploaded(page, w);
   // A second device: the same three parts in the same order.
@@ -270,13 +289,11 @@ test('REC-009 Deleting the only part leaves nothing to publish', async ({ page }
   await recordSaid(page, [3000]);
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await deletePart(page, 1);
-  await expectToast(page, 'Part 1 deleted.');
   await expectParts(page, 0);
   await expect(page.getByLabel('Part 1. Recording next')).toBeVisible();
-  await expect(text(page, 'Tap the red button and speak. Pause between parts: each part is kept by itself.')).toBeVisible();
+  // No line explains it (decision 124): the lit part says where the next one goes.
   await expect(publishButton(page)).toHaveAttribute('aria-disabled', 'true');
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
+  await undoButton(page).click();
   await expectParts(page, 1);
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await expectUploaded(page, w);
@@ -345,11 +362,11 @@ test('REC-011 Done, then ask the usual people for the peer check @p0', async ({ 
   await expect(button(page, 'Someone else')).toBeVisible();
   await expect(button(page, 'Send later')).toBeVisible();
   const target = (await primary(page).innerText()).trim().replace(/^Ask /, '');
-  // One tap publishes and asks, with Undo for the asking.
+  // One tap publishes and asks; the asking is taken back from History (Withdraw), not the toast (decision 134).
   await primary(page).click();
   const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   await expectToast(page, new RegExp(`^Sent to ${escaped} — (anyone on it|they) will see it on My Work`));
-  await expect(byId(page, 'toast-undo')).toBeVisible();
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   // Back on the record, which says the version and who was asked; no "published" page in between.
   await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
   await expect.poll(async () => (await pathRows(page)).join('\n')).toMatch(/asked /);
@@ -543,7 +560,7 @@ test('REC-018 Changing a published version\'s parts makes a new draft', async ({
   await expectParts(page, 2);
   const v2 = (await onServer(w, 'P-Q2')).versions[1]!.cardHashes;
   await deletePart(page, 2);
-  await expectToast(page, 'Part 2 deleted.');
+  await expectParts(page, 1);
   await expect(publishButton(page)).not.toHaveAttribute('aria-disabled', 'true');
   await expect(savedMark(page)).toHaveAttribute('aria-label', 'Saved');
   await back(page).click();
@@ -582,13 +599,18 @@ test('REC-019 Several drafts of one passage', async ({ page }) => {
   await expect(button(page, 'Edit').first()).toBeVisible();
   const before = (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes);
   expect(before).toHaveLength(2);
+  // A whole draft asks first (decision 124); Cancel keeps it, and once deleted there is no Undo.
   await button(page, 'Delete Draft 2').click();
-  await expectToast(page, 'Draft 2 deleted.');
-  await expect(button(page, 'Delete Draft 2')).toHaveCount(0);
-  await undoToast(page);
+  await expect(text(page, 'Delete Draft 2?')).toBeVisible();
+  await button(page, 'Cancel').click();
   await expect(button(page, 'Delete Draft 2')).toBeVisible();
+  await button(page, 'Delete Draft 2').click();
+  await page.getByRole('button', { name: 'Delete Draft 2', exact: true }).locator('visible=true').last().click();
+  await expectToast(page, 'Draft 2 deleted.');
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(button(page, 'Delete Draft 2')).toHaveCount(0);
   await expectUploaded(page, w);
-  await expect.poll(async () => (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes), { timeout: 30_000 }).toEqual(before);
+  await expect.poll(async () => (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes), { timeout: 30_000 }).toEqual([before[0]]);
 });
 
 // ---- Interruptions and field conditions --------------------------------------------
@@ -687,9 +709,8 @@ test('REC-033 Record and publish in airplane mode @p0', async ({ page, context }
   await recordSaid(page, [3000, 3000]);
   await expectParts(page, 4);
   await deletePart(page, 3);
-  await expectToast(page, 'Part 3 deleted.');
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
+  await expectParts(page, 3);
+  await undoButton(page).click();
   await expectParts(page, 4);
   await publishButton(page).click();
   await button(page, 'Send later').click();
@@ -889,19 +910,18 @@ test('REC-041 Tap a part\'s space to give it the next verse', async ({ page }) =
   await openWorkspace(page, w, 'P-Q3', 'Continue recording');
   expect(await partCount(page)).toBeGreaterThanOrEqual(3);
   await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, no verse yet');
+  // A verse is plain to see and easy to change again: no toast (Caleb, 2026-10-16). Undo takes one back.
   await verseSpace(page, 1).click();
-  await expectToast(page, 'Part 1 is verse 22.');
-  await expect(byId(page, 'toast-undo')).toBeVisible();
+  await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, Verse 22');
+  await expect(byId(page, 'toast')).toHaveCount(0);
+  await verseSpace(page, 2).click();
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
+  await undoButton(page).click();
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, no verse yet');
   await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, Verse 22');
   await verseSpace(page, 2).click();
-  await expectToast(page, 'Part 2 is verse 23.');
-  await undoToast(page);
-  await expectToast(page, 'Undone.');
-  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, no verse yet');
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
   await verseSpace(page, 2).click();
-  await expectToast(page, 'Part 2 is verse 23.');
-  await verseSpace(page, 2).click();
-  await expectToast(page, 'Part 2 is more of verse 22.');
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 22, same as the part above');
   await expectUploaded(page, w);
   // On the record: a second device reads the same marks.
@@ -918,18 +938,21 @@ test('REC-042 Hold a part to choose its verses, Auto, None or Delete', async ({ 
   await holdPart(page, 3);
   await expect(text(page, 'Part 3')).toBeVisible();
   for (const name of ['Auto', 'None', 'Delete Part 3']) await expect(button(page, name)).toBeVisible();
+  // Every tap applies at once, with no toast: each is a verse mark on the record.
+  const marks = async () => (await deviceLog(page, w.languages.A.orgId, w.languages.A.languageId)).filter((e) => e.type === 'v1.CardVerseSet');
+  const set = async (expected: Record<string, unknown>) => expect.poll(async () => (await marks()).at(-1)?.payload).toMatchObject(expected);
   await page.getByRole('button', { name: /^Verse 25$/ }).click();
-  await expectToast(page, 'Part 3 is verse 25.');
+  await set({ mark: 'set', from: '13:25', to: '13:25' });
   await page.getByRole('button', { name: /^Verse 26$/ }).click();
-  await expectToast(page, 'Part 3 is verses 25–26.');
+  await set({ mark: 'set', from: '13:25', to: '13:26' });
   await button(page, 'Auto').click();
-  await expectToast(page, 'Part 3 follows the order.');
+  await set({ mark: 'next' });
   await button(page, 'None').click();
-  await expectToast(page, 'Part 3 has no verse.');
+  await set({ mark: 'none' });
+  await expect(byId(page, 'toast')).toHaveCount(0);
   await button(page, 'Delete Part 3').click();
-  await expectToast(page, 'Part 3 deleted.');
   await expectParts(page, parts - 1);
-  await undoToast(page);
+  await undoButton(page).click();
   await expectParts(page, parts);
   await expectUploaded(page, w);
 });
@@ -1046,6 +1069,99 @@ test('REC-054 Throw away a session: the ✕ asks first, then nothing said in it 
   await expect(page.getByRole('button', { name: new RegExp(`^Parts 1–${before}, ${before} parts · `) })).toBeVisible();
   expect(await eventCount(page, w), 'nothing is written').toBe(events);
   await m.mode('file');
+});
+
+// ---- Moving parts, recording between them, Undo and Redo (Caleb, 2026-10-16) ----------------
+
+/** Drag a part by its grip until it sits where `to` is now. */
+async function dragPart(page: Page, from: number, to: number) {
+  const grip = page.getByLabel(`Move Part ${from}`, { exact: true }).locator('visible=true').first();
+  const target = page.getByLabel(`Move Part ${to}`, { exact: true }).locator('visible=true').first();
+  const a = (await grip.boundingBox())!;
+  const b = (await target.boundingBox())!;
+  const x = a.x + a.width / 2;
+  const dy = b.y - a.y + (to < from ? -8 : 8);
+  await page.mouse.move(x, a.y + a.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(x, a.y + a.height / 2 + (dy * i) / 12);
+  await page.mouse.up();
+}
+
+test('REC-055 Drag a part by its grip; it loses its verse, the others keep theirs; Undo and Redo', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  // REC-053 leaves TRANS a draft of P-S with three parts; run alone, this test records them.
+  if ((await onServer(w, 'P-S')).drafts.length === 0) {
+    await openWorkspace(page, w, 'P-S', 'Record');
+    await recordSaid(page, [2000, 2000, 2000]);
+  } else {
+    await openWorkspace(page, w, 'P-S', 'Continue recording');
+  }
+  await expect.poll(async () => (await lastComposed(page, w, 'P-S')).length).toBe(3);
+  for (const n of [1, 2, 3]) {
+    if ((await verseSpace(page, n).getAttribute('aria-label'))?.endsWith('no verse yet')) await verseSpace(page, n).click();
+  }
+  await expect(verseSpace(page, 3)).toHaveAttribute('aria-label', 'Part 3, Verse 37');
+  const order = await lastComposed(page, w, 'P-S');
+  await dragPart(page, 3, 1);
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual([order[2], order[0], order[1]]);
+  await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, no verse yet');
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 35');
+  await expect(verseSpace(page, 3)).toHaveAttribute('aria-label', 'Part 3, Verse 36');
+  await expect(byId(page, 'toast')).toHaveCount(0);
+  await undoButton(page).click();
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual(order);
+  await expect(verseSpace(page, 3)).toHaveAttribute('aria-label', 'Part 3, Verse 37');
+  await redoButton(page).click();
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual([order[2], order[0], order[1]]);
+  await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, no verse yet');
+  await expectUploaded(page, w);
+});
+
+test('REC-056 Record between two parts with the mark on the line; Undo takes the whole recording back', async ({ page }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  // REC-055 leaves TRANS a draft of P-S; run alone, this test records one.
+  if ((await onServer(w, 'P-S')).drafts.length === 0) {
+    await openWorkspace(page, w, 'P-S', 'Record');
+    await recordSaid(page, [2000, 2000]);
+  } else {
+    await openWorkspace(page, w, 'P-S', 'Continue recording');
+  }
+  await expect.poll(async () => (await lastComposed(page, w, 'P-S')).length).toBeGreaterThanOrEqual(2);
+  const before = await lastComposed(page, w, 'P-S');
+  await button(page, 'Record a new part before Part 2').click();
+  // The line opens: a place numbered as the part will be, chosen.
+  await expect(button(page, 'Record Part 2 here')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Record Part 3 again', exact: true }).locator('visible=true')).toBeVisible();
+  // Two parts said into the place: boxed on the waveform as Parts 2 and 3.
+  const m = mic(page);
+  await m.mode('tone');
+  await m.speak(false);
+  await recordButton(page).click();
+  for (const n of [2, 3]) {
+    await say(page, 2000);
+    await expect(byId(page, `live-part-${n}`)).toBeVisible({ timeout: 10_000 });
+  }
+  await stopRecording(page);
+  await leaveSession(page);
+  await m.mode('file');
+  await expect.poll(async () => (await lastComposed(page, w, 'P-S')).length).toBe(before.length + 2);
+  const after = await lastComposed(page, w, 'P-S');
+  expect(after[0]).toBe(before[0]);
+  expect(after.slice(3)).toEqual(before.slice(1));
+  // Back from the red view the card is open, with the first part just said in view.
+  await expect(button(page, 'Hide the parts')).toBeVisible();
+  await expect(verseSpace(page, 2)).toBeInViewport();
+  // What was said between them has no verse; the parts around it keep theirs.
+  await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, no verse yet');
+  // One Undo takes back the whole recording, however many parts it made.
+  await expect(undoButton(page)).toHaveAttribute('aria-label', 'Undo: New recording');
+  await undoButton(page).click();
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual(before);
+  await redoButton(page).click();
+  await expect.poll(() => lastComposed(page, w, 'P-S')).toEqual(after);
+  await expectUploaded(page, w);
 });
 
 // ---- Who may record -----------------------------------------------------------------

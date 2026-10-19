@@ -61,7 +61,7 @@ function overflow(r: Awaited<ReturnType<typeof run>>): string | null {
  */
 const PATHS: { path: Path; what: string; shapes: [number, number][]; regression: { shape: [number, number]; what: string } }[] = [
   {
-    path: 'fold', what: '/connect on a cold object, then every language\'s fold',
+    path: 'fold', what: 'a cold object\'s first full pass, then every language\'s fold',
     shapes: [[12, 2000], [6, 5000], [60, 300]],
     regression: { shape: [60, 300], what: 'folds kept without a budget' }
   },

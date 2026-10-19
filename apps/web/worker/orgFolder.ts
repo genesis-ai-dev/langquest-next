@@ -102,6 +102,8 @@ export class OrgFolder {
   private readonly saved = new Map<string, number>();
   private restored = false;
   private refreshedAt = 0;
+  /** When orgOnly last caught the organization stream up. */
+  private orgCheckedAt = 0;
   private running: Promise<void> | null = null;
   private queued: Promise<void> | null = null;
   private chain: Promise<unknown> = Promise.resolve();
@@ -201,20 +203,42 @@ export class OrgFolder {
     });
   }
 
-  private async pass(): Promise<void> {
-    const startedAt = this.now();
-    const day = isoDay(startedAt);
-    const heads = (await this.source.heads?.(this.orgId)) ?? null;
+  /**
+   * The organization stream alone, caught up when older than a pass would
+   * be, without folding any language: who belongs, with which role, in
+   * which languages. Access checks need nothing more. A full pass folds
+   * every language first, and a language too big to fold inside the
+   * isolate made /connect answer 502 for its whole organization
+   * (2026-10-19, decisions.md 140).
+   */
+  async orgOnly(): Promise<OrgState> {
+    if (this.org && this.now() - Math.max(this.refreshedAt, this.orgCheckedAt) < this.maxAgeMs) return this.org.state;
+    return this.exclusive(async () => {
+      const checkedAt = this.now();
+      await this.catchUpOrg((await this.source.heads?.(this.orgId)) ?? null);
+      this.orgCheckedAt = checkedAt;
+      return this.org!.state;
+    });
+  }
+
+  /** Restore the organization's fold once, then fold what the log has past it, when the log moved (or its head is unknown). */
+  private async catchUpOrg(heads: Record<string, number> | null): Promise<void> {
     if (!this.restored) {
       this.org = await this.restore<OrgState>('org');
       this.restored = true;
     }
     const orgMoved = !this.org || heads === null || (heads[ORG_STREAM] ?? 0) > this.org.cursor;
-    if (orgMoved) {
-      const next = await this.catchUp(ORG_STREAM, this.org, emptyOrgState, foldOrg);
-      if (next !== this.org && next.cursor > 0) await this.cache.put('org', this.pack(next));
-      this.org = next;
-    }
+    if (!orgMoved) return;
+    const next = await this.catchUp(ORG_STREAM, this.org, emptyOrgState, foldOrg);
+    if (next !== this.org && next.cursor > 0) await this.cache.put('org', this.pack(next));
+    this.org = next;
+  }
+
+  private async pass(): Promise<void> {
+    const startedAt = this.now();
+    const day = isoDay(startedAt);
+    const heads = (await this.source.heads?.(this.orgId)) ?? null;
+    await this.catchUpOrg(heads);
     const ids = orgLanguages(this.org!.state).map((l) => l.languageId);
     // Small languages run PARALLEL at a time; a large one (by the size its
     // last summary recorded) runs alone, since one parsed fold can fill the

@@ -1,11 +1,14 @@
 import {
-  buildIndexes, commands, derivePassage, emptyLanguageState, foldLanguage, keyTermLinksFor,
-  type AnyEvent, type EventPayloads, type EventSpec, type EventType
+  buildIndexes, commands, derivePartVerses, derivePassage, emptyLanguageState, foldLanguage, keyTermLinksFor,
+  type AnyEvent, type EventPayloads, type EventSpec, type EventType, type PartMark
 } from '@langquest-next/core';
 import {
   backTranslationDraftKey, canPublish, cardDurations, draftToOpen, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
-  termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards, slotRows, targetNumber
+  termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards, slotRows, targetNumber,
+  changedParts, historyFits, marksAfterMove, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, restoreSpecs,
+  type PartsSnap
 } from '../src/recording/workspaceModel';
+import { didStep, emptyHistory, redoStep, undoStep } from '../src/ui/undoModel';
 import { pendingPassageCards } from '../src/recording/recordingFlow';
 
 function history() {
@@ -277,5 +280,163 @@ describe('where the next part goes (LAN-83)', () => {
     // Why: what is said after the first part in a place goes there too, numbered next.
     const rows = slotRows(5, [], null);
     expect(targetNumber(rows, { kind: 'gap', before: 3 })).toBe(4);
+  });
+});
+
+describe('opening a place between two parts (Caleb, 2026-10-16)', () => {
+  it('opens a numbered place before a part, and the parts after it are numbered as they will be', () => {
+    // Why: tapping the line between Part 2 and Part 3 records the next part there, as Part 3.
+    const rows = slotRows(4, [], null, 2);
+    expect(rows.map((r) => (r.kind === 'gap' ? `gap${r.n}` : `p${r.index}:${r.n}`))).toEqual(['p0:1', 'p1:2', 'gap3', 'p2:4', 'p3:5']);
+    expect(targetNumber(rows, { kind: 'gap', before: 2 })).toBe(3);
+  });
+
+  it('never opens a second place where a gap already is', () => {
+    const rows = slotRows(3, [], { before: 1, label: null }, 1);
+    expect(rows.filter((r) => r.kind === 'gap')).toHaveLength(1);
+  });
+
+  it('puts a mark on the line above each part that has a part or the top above it', () => {
+    // Why: a gap is already a place to record into, so the lines beside it carry no mark.
+    const rows = slotRows(3, [{ before: 1, label: { s: 1, e: 1, kind: 'set' } }], null);
+    expect(rows.map((_, k) => opensAbove(rows, k))).toEqual([true, false, false, true]);
+  });
+});
+
+describe('moving a part (Caleb, 2026-10-16)', () => {
+  const next = { t: 'next' } as const;
+  it('moves one part to where it was dropped', () => {
+    expect(movedList(['a', 'b', 'c', 'd'], 3, 0)).toEqual(['d', 'a', 'b', 'c']);
+    expect(movedList(['a', 'b', 'c', 'd'], 0, 2)).toEqual(['b', 'c', 'a', 'd']);
+    expect(movedList(['a', 'b'], 5, 0)).toEqual(['a', 'b']);
+  });
+
+  it('clears the moved part\'s verses and keeps every other part\'s', () => {
+    // Why: Part 4 said verse 4; moved to the top it is labelled again, and Part 5 still says verse 5.
+    const marks = [next, next, next, next, next];
+    const after = marksAfterMove(marks, 3, 0, 6);
+    expect(after[0]).toBeNull();
+    expect(derivePartVerses(after, 6).labels.map((l) => l && l.s + 1)).toEqual([null, 1, 2, 3, 5]);
+  });
+
+  it('keeps a part said in pieces on its verse when the part above it moves away', () => {
+    // Why: "more of verse 3" stays verse 3, not the verse of whatever is above it now.
+    const marks = [next, next, next, { t: 'join' } as const];
+    const after = marksAfterMove(marks, 2, 0, 5);
+    expect(derivePartVerses(after, 5).labels.map((l) => l && l.s + 1)).toEqual([null, 1, 2, 3]);
+  });
+});
+
+describe('undo and redo on the recording screen (Caleb, 2026-10-16)', () => {
+  const snap = (list: string[]): PartsSnap => ({ list, marks: list.map(() => null) });
+  it('undoes the newest change, redoes it, and forgets what was undone once something new is done', () => {
+    let h = didStep(emptyHistory, { before: snap(['a']), after: snap(['a', 'b']) });
+    h = didStep(h, { before: snap(['a', 'b']), after: snap(['b', 'a']) });
+    const u = undoStep(h)!;
+    expect(u.to.list).toEqual(['a', 'b']);
+    const r = redoStep(u.history)!;
+    expect(r.to.list).toEqual(['b', 'a']);
+    const again = undoStep(r.history)!;
+    const fresh = didStep(again.history, { before: snap(['a', 'b']), after: snap(['a']) });
+    expect(redoStep(fresh)).toBeNull();
+    expect(undoStep(emptyHistory)).toBeNull();
+  });
+
+  it('is not a change when nothing changed', () => {
+    expect(didStep(emptyHistory, { before: snap(['a']), after: snap(['a']) })).toBe(emptyHistory);
+  });
+
+  it('brings parts back with new events, never by removing any', () => {
+    // Why: the record only grows; an undo is a new take continuing the draft.
+    const h = history();
+    h.record('a');
+    h.record('b');
+    h.run(h.cmd().keepTake({ commandId: 'k1', unitId: 'passage', cardHashes: ['a', 'b'], actorId: 'me' }));
+    const draft = passage(h.state()).drafts[0]!;
+    const s = h.state();
+    const { specs, cleared } = restoreSpecs(s, buildIndexes(s), {
+      commandId: 'u1', unitId: 'passage', actorId: 'me', to: snap(['b', 'a']), verses: [], draftTakeId: draft.takeId, parentTakeId: draft.takeId
+    });
+    expect(cleared).toBe(false);
+    expect(specs.map((x) => x.type)).toEqual(['v1.TakeComposed', 'v1.TakeArchived']);
+    h.run(specs);
+    expect(passage(h.state()).drafts[0]!.cardHashes).toEqual(['b', 'a']);
+  });
+
+  it('sets the draft aside when undoing back to nothing', () => {
+    const h = history();
+    h.record('a');
+    h.run(h.cmd().keepTake({ commandId: 'k1', unitId: 'passage', cardHashes: ['a'], actorId: 'me' }));
+    const draft = passage(h.state()).drafts[0]!;
+    const s = h.state();
+    const { specs, cleared } = restoreSpecs(s, buildIndexes(s), { commandId: 'u1', unitId: 'passage', actorId: 'me', to: snap([]), verses: [], draftTakeId: draft.takeId });
+    expect(cleared).toBe(true);
+    h.run(specs);
+    expect(passage(h.state()).drafts).toEqual([]);
+  });
+
+  it('reads each part\'s mark from the list it was shown with', () => {
+    expect(marksOf(['b', 'c'], { list: ['a', 'b'], marks: [{ t: 'next' }, { t: 'join' }] })).toEqual([{ t: 'join' }, null]);
+  });
+});
+
+describe('what an undo or redo shows (Caleb, 2026-10-16)', () => {
+  const s = (list: string[], marks: PartMark[] = list.map(() => null)): PartsSnap => ({ list, marks });
+  it('shades the parts that came back, moved or changed their verses', () => {
+    expect(changedParts(s(['a', 'b']), s(['a', 'x', 'b']))).toEqual(['x']);
+    expect(changedParts(s(['a', 'b', 'c', 'd']), s(['d', 'a', 'b', 'c']))).toEqual(['d']);
+    expect(changedParts(s(['a', 'b', 'c']), s(['a', 'c', 'b']))).toEqual(['c']);
+    expect(changedParts(s(['a', 'b'], [null, null]), s(['a', 'b'], [null, { t: 'next' }]))).toEqual(['b']);
+    expect(changedParts(s(['a', 'b']), s(['a']))).toEqual([]);
+  });
+
+  it('keeps a history only while the list is where it left it', () => {
+    const h = didStep(emptyHistory, { before: s(['a']), after: s(['a', 'b']) });
+    expect(historyFits(h, ['a', 'b'])).toBe(true);
+    expect(historyFits(h, ['a', 'b', 'c'])).toBe(false);
+    expect(historyFits(undoStep(h)!.history, ['a'])).toBe(true);
+    expect(historyFits(emptyHistory, ['z'])).toBe(true);
+  });
+
+  it('reads back what it stored, and nothing from what it cannot read', () => {
+    const h = didStep(emptyHistory, { before: s(['a']), after: s(['a', 'b'], [{ t: 'set', s: 0, e: 1 }, { t: 'join' }]), what: 'New recording' });
+    expect(parsePartsHistory(JSON.stringify(h))).toEqual(h);
+    expect(parsePartsHistory(null)).toEqual(emptyHistory);
+    expect(parsePartsHistory('{')).toEqual(emptyHistory);
+    expect(parsePartsHistory('{"done":[{"before":{"list":[1],"marks":[null]}}],"undone":[]}')).toEqual(emptyHistory);
+  });
+
+  it('leaves a verse that changed since the step as it is now', () => {
+    // Why: undo takes back only what was done here; a label given later (or in another draft sharing the part) stays.
+    const h = history();
+    h.record('a');
+    h.record('b');
+    h.run(h.cmd().keepTake({ commandId: 'k1', unitId: 'passage', cardHashes: ['a', 'b'], actorId: 'me' }));
+    const st = h.state();
+    const verses = ['1:1', '1:2', '1:3'];
+    const { specs } = restoreSpecs(st, buildIndexes(st), {
+      commandId: 'u1', unitId: 'passage', actorId: 'me', verses, to: s(['a', 'b'], [{ t: 'next' }, { t: 'next' }]),
+      from: s(['a', 'b'], [null, null]), now: s(['a', 'b'], [null, { t: 'set', s: 2, e: 2 }])
+    });
+    const set = specs.filter((x) => x.type === 'v1.CardVerseSet').map((x) => (x.payload as { hash: string; mark: string }));
+    expect(set).toEqual([expect.objectContaining({ hash: 'a', mark: 'next' }), expect.objectContaining({ hash: 'b', mark: 'set' })]);
+  });
+});
+
+describe('recording between two parts (Caleb, 2026-10-16)', () => {
+  const next = { t: 'next' } as const;
+  it('leaves the new part without verses and every other part on its own', () => {
+    // Why: Part 3 is verse 3 and Part 4 verse 4; what is said between them is not labelled for the person, and nothing is renumbered.
+    const before = { list: ['a', 'b', 'c', 'd'], marks: [next, next, next, next] as PartMark[] };
+    const marks = marksKeepingLabels(before, ['a', 'b', 'c', 'x', 'd'], 5);
+    expect(marks[3]).toBeNull();
+    expect(derivePartVerses(marks, 5).labels.map((l) => l && l.s + 1)).toEqual([1, 2, 3, null, 4]);
+  });
+
+  it('makes what is said inside a verse said in pieces more of that verse', () => {
+    // Why: between two pieces of verse 3, the new part is verse 3 too, and the piece after it stays verse 3.
+    const before = { list: ['a', 'b', 'c', 'd'], marks: [next, next, next, { t: 'join' }] as PartMark[] };
+    const marks = marksKeepingLabels(before, ['a', 'b', 'c', 'x', 'y', 'd'], 5);
+    expect(derivePartVerses(marks, 5).labels.map((l) => l && l.s + 1)).toEqual([1, 2, 3, 3, 3, 3]);
   });
 });

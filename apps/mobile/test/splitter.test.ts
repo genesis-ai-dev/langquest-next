@@ -11,8 +11,11 @@ const energy = (db: number) => 10 ** (db / 20);
 
 interface Kept { from: number; to: number; discarded: boolean }
 
-/** Run levels (dB per frame) through a splitter; each part as the frames [from, to) its file holds. */
-function split(levels: number[], remembered: ConstructorParameters<typeof Splitter>[1] = null): { parts: Kept[]; s: Splitter } {
+/**
+ * Run levels (dB per frame) through a splitter, with the speech model's score for each frame where
+ * given; each part as the frames [from, to) its file holds.
+ */
+function split(levels: number[], remembered: ConstructorParameters<typeof Splitter>[1] = null, scores?: number[]): { parts: Kept[]; s: Splitter } {
   const s = new Splitter(FRAME_MS, remembered);
   const parts: Kept[] = [];
   let open: number | null = null;
@@ -23,7 +26,7 @@ function split(levels: number[], remembered: ConstructorParameters<typeof Splitt
       open = null;
     }
   };
-  levels.forEach((db, f) => take(s.step(energy(db), (f + 1) * FRAME_MS), f));
+  levels.forEach((db, f) => take(s.step(energy(db), (f + 1) * FRAME_MS, scores ? scores[f]! : null), f));
   take(s.finish(levels.length * FRAME_MS), levels.length - 1);
   return { parts, s };
 }
@@ -109,5 +112,66 @@ describe('where parts split (splitter.ts)', () => {
     expect(r.room).toBeCloseTo(ROOM, 0);
     expect(r.voice).toBeGreaterThan(-24);
     expect(r.pause).toBe(SPLIT.pauseMs);
+  });
+});
+
+// With the speech model (decision 135): a part is sound out of the room that is also speech.
+// Each stretch below is [seconds, level dB, speech score].
+type Stretch = [number, number, number];
+function heard(stretches: Stretch[], remembered: ConstructorParameters<typeof Splitter>[1] = null) {
+  const levels: number[] = [];
+  const scores: number[] = [];
+  for (const [seconds, db, score] of stretches) for (const level of frames(seconds, db)) { levels.push(level); scores.push(score); }
+  return split(levels, remembered, scores);
+}
+/** A cafe: chatter and clinks rising and falling between -42 and -28 dB, never speech to the model. */
+function cafe(seconds: number): Stretch[] {
+  const out: Stretch[] = [];
+  for (let t = 0, i = 0; t < seconds; t += 0.25, i++) out.push([0.25, -42 + ((i * 7) % 15), 0.08]);
+  return out;
+}
+
+describe('where parts split, with the speech model (splitter.ts)', () => {
+  it('makes no part of steady noise, however loud', () => {
+    // A fan at -30 dB after a quiet room remembered from last time: today that is one long part.
+    const { parts } = heard([[12, -30, 0.03]], { room: -55, voice: -22, pause: 1000 });
+    expect(kept(parts)).toHaveLength(0);
+  });
+
+  it('boxes only the reader in a cafe', () => {
+    const { parts } = heard([...cafe(4), [2, -18, 0.95], ...cafe(3), [2, -18, 0.95], ...cafe(3), [2, -18, 0.95], ...cafe(3)]);
+    expect(kept(parts)).toHaveLength(3);
+    for (const p of kept(parts)) expect((p.to - p.from) * FRAME_MS).toBeLessThan(3200);
+  });
+
+  it('trusts the room it hears now over a quieter one remembered', () => {
+    const { s } = heard([[1, -34, 0.05]], { room: -55, voice: -22, pause: 1000 });
+    expect(s.levels().room).toBeGreaterThan(-36);
+  });
+
+  it('never lets someone who reads on without pausing become the room', () => {
+    // Over 20 s of reading: syllables at -18 dB, the dips between them at -30, all speech to the model.
+    const reading: Stretch[] = [];
+    for (let i = 0; i < 100; i++) reading.push([0.15, -18, 0.95], [0.1, -30, 0.9]);
+    const readingFrames = reading.reduce((n, [seconds]) => n + frames(seconds, 0).length, 0);
+    const { parts } = heard([[2, ROOM, 0.02], ...reading, [3, ROOM, 0.02]]);
+    expect(kept(parts)).toHaveLength(1);
+    const lead = frames(2, ROOM).length;
+    expect(kept(parts)[0]!.from).toBeLessThanOrEqual(lead);
+    expect(kept(parts)[0]!.to).toBeGreaterThanOrEqual(lead + readingFrames);
+  });
+
+  it('starts at once for a reader who speaks as the microphone opens', () => {
+    const { parts } = heard([[3, -20, 0.95], [2, ROOM, 0.02], [2, -20, 0.95], [2, ROOM, 0.02]]);
+    expect(kept(parts)).toHaveLength(2);
+    expect(kept(parts)[0]!.from).toBe(0);
+  });
+
+  it('ends a part when the speech stops, though the noise goes on', () => {
+    // A reader stops, and a radio at the same level carries on.
+    const { parts } = heard([[2, ROOM, 0.02], [3, -20, 0.95], [6, -20, 0.1], [2, ROOM, 0.02]]);
+    expect(kept(parts)).toHaveLength(1);
+    const lead = frames(2, ROOM).length;
+    expect(kept(parts)[0]!.to).toBeLessThan(lead + frames(3 + 1.5, 0).length);
   });
 });

@@ -17,7 +17,9 @@ organization's Durable Object inside a 112 MB heap over synthetic
 organizations. It cannot see what only production has: a real
 organization's shape (a language bigger or stranger than the test's), the
 isolate's memory outside V8's heap, or a runtime change on Cloudflare's side.
-On 2026-10-16 the first sign was people's `/connect` answering 502. A deploy
+On 2026-10-16 the first sign was people's `/connect` answering 502, and on
+2026-10-19 it was still failing for Every Language, whose largest language
+is past what any fold budget can fit (decisions.md 140). A deploy
 resets every object, so the first request after it is the coldest one an
 object sees, and the canary can make that request itself, before people do.
 
@@ -38,10 +40,13 @@ deploy, and that none was reset for memory. Report; change nothing.
    `npx wrangler tail langquest-next-dashboard --format json` into a file,
    in the background. Then, for each organization, one at a time:
    - `GET https://next.langquest.org/api/v1/me` with that organization's
-     canary token. On a cold object this folds every language (a full
-     pass), which is what `/connect` does.
+     canary token: what `/connect` asks. It reads the organization stream
+     only (decisions.md 140), so it must answer quickly however large the
+     languages are.
    - Then one page of the largest language:
-     `GET /api/v1/languages/<id>/passages?include=audio&limit=500`.
+     `GET /api/v1/languages/<id>/passages?include=audio&limit=500`. On a
+     cold object this runs a full pass, folding every language, which is
+     what a report or a partner app's first read does.
    Allow 60 seconds for each answer. Record status and time, never the body.
 4. Stop the tail 30 seconds after the last answer. Search it for
    `exceeded its memory limit`, `exceededMemory` and `Durable Object reset`.
@@ -90,3 +95,6 @@ organization's admin can see and revoke theirs, so this proposal uses them.
 - The canary tokens, from each organization's admin.
 - A Cloudflare API token with the read permissions above.
 - A routine in Claude made from this file, once a person has reviewed it.
+- A fold for languages too big for the isolate (decisions.md 140). Until
+  then Every Language's passage read fails on every deploy, which says
+  nothing new; check only its `/me` until that decision lands.

@@ -26,7 +26,7 @@ import type { Ctx } from '../shell/ctx';
 import { edgeFor, screenTitle, type ScreenId } from '../shell/flow';
 import { t, Trans } from '../i18n';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
+import { Badge, Card, Chip, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
 import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
@@ -34,12 +34,12 @@ import { PassagePath } from '../passage/path';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
 import {
-  answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnName, gridModel, hasFeedback, notesSummary, responseLine,
+  answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnNames, gridModel, hasFeedback, notesSummary, responseLine,
   revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor, versionName,
   type OutcomeTone
 } from '../passage/reviewModel';
 import {
-  hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText, undoNote
+  hasWords, keepInput, keepPageInput, noteInput, overrideInput, skipInput, undoneText
 } from '../passage/recordInputsModel';
 import { VersionsPage } from '../passage/versions';
 import { deleteVersion } from '../passage/deleteVersion';
@@ -57,7 +57,7 @@ import {
 } from '../passage/recordModel';
 import { clipSeconds, clock as clockOf } from '../audio/clipTime';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn } from '../passage/sendTarget';
 import { feedbackSource, isJustNow, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
@@ -95,6 +95,8 @@ function overrideReasons(): string[] {
 }
 const HISTORY_STEP = 20;
 const GRID_STEP = 10;
+/** A grid column is never narrower than its 48 pt mark plus a little air. */
+const GRID_COL_MIN = 56;
 const PEOPLE_STEP = 25;
 /** iOS will not present a sheet while another is still sliding away. */
 const SHEET_GAP_MS = 400;
@@ -111,17 +113,10 @@ function canGo(ctx: Ctx, from: ScreenId, to: ScreenId): boolean {
  * Build a command's events against the fold and apply them. A command the
  * fold refuses says why in a toast instead of throwing; anything else is a
  * fault, reported with an id the person can read out. A failed write was
- * already shown by ctx.act. `undo` builds the inverse from the specs that
- * were applied (their ids).
+ * already shown by ctx.act. The toast offers no Undo (decision 134): what is
+ * done here is taken back from the record's History (Undo, Withdraw).
  */
-async function perform(
-  ctx: Ctx,
-  build: (c: Commands) => EventSpec[],
-  message: string,
-  undo?: (applied: EventSpec[]) => (c: Commands) => EventSpec[],
-  /** What Undo says once it has undone (ctx.act's default is "Undone."). */
-  undone?: string
-): Promise<boolean> {
+async function perform(ctx: Ctx, build: (c: Commands) => EventSpec[], message: string): Promise<boolean> {
   const state = ctx.language.state;
   if (!state) return false;
   let specs: EventSpec[];
@@ -133,10 +128,7 @@ async function perform(
     return false;
   }
   try {
-    await ctx.act(specs, message, undo ? () => {
-      const now = ctx.language.state ?? state;
-      return undo(specs)(commands(now, indexesFor(now)));
-    } : undefined, undone);
+    await ctx.act(specs, message);
     return true;
   } catch (e) {
     // ctx.act already said "Not saved"; only the caller's busy state is left to reset.
@@ -144,9 +136,6 @@ async function perform(
     return false;
   }
 }
-
-/** Undo of a departure: the step, checkpoint or feedback is back as it was (CORE-2). */
-const undoDepart = (applied: EventSpec[]) => (c: Commands) => c.undoDeparture({ commandId: newId(), departureId: payloadField(applied, 'departureId') });
 
 function Missing(props: { ctx: Ctx; id: ScreenId; crumbsOf?: PassageView; text?: string }) {
   const { ctx } = props;
@@ -162,8 +151,8 @@ function PlayRow(props: { ctx: Ctx; hashes: string[]; label: string; sub?: strin
     <View style={styles.playRow}>
       <AudioClip language={props.ctx.language} hashes={props.hashes} label={props.label} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.sm, { fontWeight: '600' }]} numberOfLines={1}>{props.label}</Text>
-        {props.sub ? <Text style={txt.xs} numberOfLines={1}>{props.sub}</Text> : null}
+        <Text style={[txt.sm, { fontWeight: '600' }]}>{props.label}</Text>
+        {props.sub ? <Text style={txt.xs}>{props.sub}</Text> : null}
       </View>
     </View>
   );
@@ -298,8 +287,7 @@ export function PassageRecord(ctx: Ctx) {
     setOpenStepId(null);
     const label = sendTargetLabel(target, ctx.name);
     void perform(ctx, (c) => c.ask({ ...sendToInput({ commandId: newId(), unitId, kindId, target }), ...(questions.length ? { questions } : {}) }),
-      sentText(target, label),
-      (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
+      sentText(target, label));
   };
   /** Carry out a move the record's models decided (recordModel.ts `RecordMove`). */
   const doMove = (mv: RecordMove) => {
@@ -366,8 +354,10 @@ export function PassageRecord(ctx: Ctx) {
       {openSheet && openStep ? (
         <Sheet visible title={openSheet.title} sub={openSheet.sub || undefined} onClose={() => setOpenStepId(null)}>
           <Group>{openSheet.rows.map((row, i) => (
-            <KindActionRow key={row.status.kindId} row={row} step={openStep} first={i === 0} compact={false}
-              onAction={onRowAction} onMore={() => setOpenStepId(openStep.step.id)} />
+            <HelpRow key={row.status.kindId} of="passage.stepCheck">
+              <KindActionRow row={row} step={openStep} first={i === 0} compact={false}
+                onAction={onRowAction} onMore={() => setOpenStepId(openStep.step.id)} />
+            </HelpRow>
           ))}</Group>
           {openSheet.movePast ? (
             <GhostBtn label={t('passage.page.movePastThis')} tone="red" help={t('passage.page.movePastHelp')} onPress={() => afterSheet(() => setOverriding(openStep.step.id))} />
@@ -382,7 +372,7 @@ export function PassageRecord(ctx: Ctx) {
             const { kindId, stepId } = skipping;
             setSkipping(null);
             void perform(ctx, (c) => c.depart(skipInput({ commandId: newId(), unitId, kindId, stepId, reason: r })),
-              t('passage.page.skip.done', { kind: nameOf(kindId) }), undoDepart);
+              t('passage.page.skip.done', { kind: nameOf(kindId) }));
           }} />
       ) : null}
       {overriding ? (
@@ -393,7 +383,7 @@ export function PassageRecord(ctx: Ctx) {
             const stepId = overriding;
             setOverriding(null);
             void perform(ctx, (c) => c.depart(overrideInput({ commandId: newId(), unitId, stepId, reason: r })),
-              t('passage.page.override.done'), undoDepart);
+              t('passage.page.override.done'));
           }} />
       ) : null}
       {noting ? <AddNoteSheet ctx={ctx} v={v} say={noting === 'say'} onClose={() => setNoting(null)} /> : null}
@@ -418,6 +408,7 @@ export function PassageRecord(ctx: Ctx) {
           </View>
         ) : undefined}>
         <View style={{ gap: space.md }}>
+          {/* help-each: each option does something different */}
           {options.map((o) => <BigOption key={o.id} testID={`else-${o.id}${o.kindId ? `-${o.kindId}` : ''}`} icon={o.icon} label={o.label} sub={o.sub} onPress={() => onOption(o)} />)}
           <View style={styles.tiles}>
             {can.note ? <SmallOption testID="else-note" icon="chat" label={t('common.addNote')} help={t('passage.else.addNoteHelp')} onPress={() => setNoting('note')} /> : null}
@@ -452,8 +443,10 @@ export function PassageRecord(ctx: Ctx) {
           <View style={{ gap: space.sm }}>
             <Text style={txt.label}>{t('passage.published.nextAsk')}</Text>
             {nextKinds.map((k) => (
-              <AskCheckCard key={k.kindId} ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, kinds)} on={k.kindId === nextKind.kindId} radio={nextKinds.length > 1}
-                people={checkPeople(v.state, k.kindId).filter((id) => id !== me)} onPress={() => setAskKindId(k.kindId)} />
+              <HelpRow key={k.kindId} of="ask.check">
+                <AskCheckCard ctx={ctx} kindId={k.kindId} name={checkName(k.kindId, kinds)} on={k.kindId === nextKind.kindId} radio={nextKinds.length > 1}
+                  people={checkPeople(v.state, k.kindId).filter((id) => id !== me)} onPress={() => setAskKindId(k.kindId)} />
+              </HelpRow>
             ))}
             {/* With someone to send it to, the questions they'll answer, and more to add. With nobody yet, the button opens Someone else, which has them. */}
             {can.ask && targets[nextKind.kindId] ? <TheyAnswer asked={questionsForKind(v.state, nextKind.kindId)} questions={askQuestions} setQuestions={setAskQuestions}
@@ -492,14 +485,18 @@ export function PassageRecord(ctx: Ctx) {
           summary={listenersLine(live, listened)}
           {...ctx.details(`passage:${unitId}:${languageId}:listeners`)}>
           {live.map((r) => (
-            <Row key={r.channel} icon="check" iconColor={TINT.greenText} label={t('passage.page.liveIn', { channel: r.channel, version: versionTitle(r.versionN) })}
-              sub={when(r.hlc)} onPress={() => go('version_detail', { takeId: r.takeId })} last={listened.length === 0 && r === live[live.length - 1]} />
+            <HelpRow key={r.channel} of="passage.live">
+              <Row icon="check" iconColor={TINT.greenText} label={t('passage.page.liveIn', { channel: r.channel, version: versionTitle(r.versionN) })}
+                sub={when(r.hlc)} onPress={() => go('version_detail', { takeId: r.takeId })} last={listened.length === 0 && r === live[live.length - 1]} />
+            </HelpRow>
           ))}
           {listened.map((r, i) => (
-            <Row key={r.id} icon={r.outcome === 'needs_changes' ? 'chat' : 'check'}
-              label={listenerLabel(r)}
-              sub={[feedbackSource(r, ctx.name), versionTitle(r.versionN), when(r.hlc)].join(' · ')}
-              onPress={() => go('review_detail', { reviewId: r.id })} last={i === listened.length - 1} />
+            <HelpRow key={r.id} of="passage.listener">
+              <Row icon={r.outcome === 'needs_changes' ? 'chat' : 'check'}
+                label={listenerLabel(r)}
+                sub={[feedbackSource(r, ctx.name), versionTitle(r.versionN), when(r.hlc)].join(' · ')}
+                onPress={() => go('review_detail', { reviewId: r.id })} last={i === listened.length - 1} />
+            </HelpRow>
           ))}
         </Disclosure>
       ) : null}
@@ -514,13 +511,19 @@ export function PassageRecord(ctx: Ctx) {
             // so is someone else's request with words of its own (recordModel.ts `historyAction`).
             const act = historyAction(e, { can, me, assigns: s.can('assign_work') });
             let trailing: ReactNode = null;
-            if (act?.id === 'undo') trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('help.details.undo')} onPress={() => undoFromHistory(act.departureId, act.type)} />;
-            if (act?.id === 'withdraw') trailing = <SmallBtn label={t('passage.page.withdraw')} help={t('passage.page.withdrawHelp')} onPress={() => withdraw(act.requestId)} />;
-            if (act?.id === 'undoReview') trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.actionHelp.undo')} onPress={() => takeBackReview(act.reviewId)} />;
-            if (act?.id === 'undoNote') trailing = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.undoNoteHelp')} onPress={() => takeBackNote(act.noteId)} />;
+            // A worded button goes under the entry, so a long word for it never squeezes the entry to a sliver.
+            let below: ReactNode = null;
+            if (act?.id === 'undo') below = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('help.details.undo')} onPress={() => undoFromHistory(act.departureId, act.type)} />;
+            if (act?.id === 'withdraw') below = <SmallBtn label={t('passage.page.withdraw')} help={t('passage.page.withdrawHelp')} onPress={() => withdraw(act.requestId)} />;
+            if (act?.id === 'undoReview') below = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.actionHelp.undo')} onPress={() => takeBackReview(act.reviewId)} />;
+            if (act?.id === 'undoNote') below = <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.undoNoteHelp')} onPress={() => takeBackNote(act.noteId)} />;
             if (act?.id === 'reportNote') trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', act.noteId, act.by, unitId)} size={36} />;
             if (act?.id === 'reportRequest') trailing = <ReportFlag ctx={ctx} target={recordTarget(ctx, 'request', act.requestId, act.by, unitId)} size={36} />;
-            return <HistoryRow key={`${e.type}-${e.hlc}-${i}`} text={entry} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} {...(onPress ? { onPress } : {})} {...(help ? { help } : {})} />;
+            return (
+              <HelpRow key={`${e.type}-${e.hlc}-${i}`} of="passage.history">
+                <HistoryRow text={entry} when={when(e.hlc)} last={i === Math.min(historyShown, timeline.length) - 1} trailing={trailing} below={below} {...(onPress ? { onPress } : {})} {...(help ? { help } : {})} />
+              </HelpRow>
+            );
           })}
           <View style={{ paddingHorizontal: space.md, paddingBottom: historyShown < timeline.length ? space.md : 0 }}>
             <ShowMore remaining={timeline.length - historyShown} step={HISTORY_STEP} onMore={() => setHistoryShown((n) => n + HISTORY_STEP)} />
@@ -629,7 +632,7 @@ function KeepSheet(props: { ctx: Ctx; v: PassageView; reviewId: string; onClose:
       onConfirm={(r) => {
         props.onClose();
         void perform(ctx, (c) => c.depart(keepInput({ commandId: newId(), unitId: v.unitId, reviewId: props.reviewId, reason: r })),
-          t('passage.keep.done'), undoDepart, t('passage.page.undone.keep'));
+          t('passage.keep.done'));
       }} />
   );
 }
@@ -642,7 +645,7 @@ function AddNoteSheet(props: { ctx: Ctx; v: PassageView; onClose: () => void; sa
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
-    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'), undoNote);
+    const ok = await perform(ctx, (c) => c.addNote(noteInput({ commandId: newId(), unitId: v.unitId, text, hash })), t('passage.addNote.done'));
     setBusy(false);
     if (ok) { await draft.clear(); props.onClose(); }
   };
@@ -690,10 +693,10 @@ function KindActionRow(props: {
         </HelpInfo>
       </View>
       {compactButtons ? (
-        <View style={styles.btnRow}>
-          {acts.primary ? <View style={{ flex: 1 }}>{btn(acts.primary, row.waits ? 'plain' : 'primary')}</View> : null}
+        <View style={styles.btnWrap}>
+          {acts.primary ? <View style={styles.btnCell}>{btn(acts.primary, row.waits ? 'plain' : 'primary')}</View> : null}
           {others > 0 ? (
-            <View style={acts.primary ? undefined : { flex: 1 }}>
+            <View style={acts.primary ? styles.btnSide : styles.btnCell}>
               <SmallBtn label={acts.primary ? t('passage.page.more') : t('passage.page.options')} help={t('passage.page.moreHelp')} onPress={props.onMore} />
             </View>
           ) : null}
@@ -705,18 +708,12 @@ function KindActionRow(props: {
         </View>
       ) : null}
       {!props.compact && rowButtons(acts).length ? (
-        <View style={{ gap: space.sm }}>
-          {acts.primary || acts.second ? (
-            <View style={styles.btnRow}>
-              {acts.primary ? <View style={{ flex: 1 }}>{btn(acts.primary, row.waits ? 'plain' : 'primary')}</View> : null}
-              {acts.second ? <View style={{ flex: 1 }}>{btn(acts.second, 'plain')}</View> : null}
-            </View>
-          ) : null}
-          {acts.rest.length ? (
-            <View style={[styles.btnRow, { flexWrap: 'wrap' }]}>
-              {acts.rest.map((a) => <View key={a.id} style={{ flexGrow: 1, flexBasis: '45%' }}>{btn(a, 'plain')}</View>)}
-            </View>
-          ) : null}
+        // Two to a line while their words fit; a longer one takes the line (decisions.md 139).
+        <View style={styles.btnWrap}>
+          {acts.primary ? <View style={styles.btnCell}>{btn(acts.primary, row.waits ? 'plain' : 'primary')}</View> : null}
+          {acts.second ? <View style={styles.btnCell}>{btn(acts.second, 'plain')}</View> : null}
+          {/* help-each: each button does something different */}
+          {acts.rest.map((a) => <View key={a.id} style={styles.btnCell}>{btn(a, 'plain')}</View>)}
         </View>
       ) : null}
     </View>
@@ -729,7 +726,9 @@ function StudyRows(props: { ctx: Ctx; study: StudyProgress; onOpen: (stepId: str
   return (
     <>
       {props.study.steps.map((st) => (
-        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} help={t('passage.page.openStudyStepHelp')} onPress={() => props.onOpen(st.step.id)} />
+        <HelpRow key={st.step.id} of="passage.studyStep">
+          <Row leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} help={t('passage.page.openStudyStepHelp')} onPress={() => props.onOpen(st.step.id)} />
+        </HelpRow>
       ))}
     </>
   );
@@ -741,47 +740,64 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
   const [shown, setShown] = useState(GRID_STEP);
   const grid = gridModel(v.p, kindIds, v.kind);
   const { rows, producing } = grid;
+  // Every column is as wide as the longest word in any head, so no check's name is cut off
+  // (a head breaks only between words); a language whose words run long scrolls the grid sideways.
+  const heads = gridColumnNames(kindIds.map((id) => v.kind(id)));
+  const words = [...new Set(heads.flatMap((h) => h.split(' ')))];
+  const [wordWidths, setWordWidths] = useState<Record<string, number>>({});
+  const colWidth = Math.max(GRID_COL_MIN, ...words.map((w) => Math.ceil(wordWidths[w] ?? 0) + space.sm));
+  const col = { flexGrow: 1, flexBasis: colWidth, minWidth: colWidth };
   return (
     <View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
         <View style={{ flexGrow: 1 }}>
+          {/* The heads' words at their own width, unseen: what sizes the columns. */}
+          <View style={styles.gridMeasure} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" aria-hidden>
+            {words.map((word) => (
+              <Text key={word} style={styles.gridHead} onLayout={(e) => { const w = e.nativeEvent.layout.width; setWordWidths((m) => (m[word] === w ? m : { ...m, [word]: w })); }}>{word}</Text>
+            ))}
+          </View>
           {/* The column heads: which check each column is. In help mode they say how the grid reads. */}
           <HelpInfo label={t('passage.page.reviewsByVersion')} detail={t('passage.grid.gridHelp')}>
             <View style={[styles.gridRow, { paddingTop: space.md, paddingBottom: space.sm }]}>
               <View style={{ width: 76 }} />
-              {kindIds.map((id) => (
-                <View key={id} style={styles.gridCol}>
+              {kindIds.map((id, i) => (
+                <View key={id} style={[styles.gridCol, col]}>
                   <Ico name={kindIcon(id)} size={16} color={C.muted} />
-                  <Text style={[txt.xs, { fontWeight: '600', textAlign: 'center' }]} numberOfLines={1}>{gridColumnName(v.kind(id))}</Text>
+                  <Text style={styles.gridHead}>{heads[i]}</Text>
                 </View>
               ))}
             </View>
           </HelpInfo>
           {rows.slice(0, shown).map((row, ri) => (
-            <View key={row.version.takeId} style={[styles.gridRow, styles.topBorder]}>
-              <GridVersion n={row.version.n} hlc={row.version.hlc} onPress={() => props.onVersion(row.version.takeId)} />
-              {row.cells.map((cell) => {
-                const kind = { ...v.kind(cell.kindId), name: checkName(cell.kindId, v.kinds) };
-                const shown = gridCell(cell, { newest: ri === 0, grid, produces: !!kind.produces });
-                return (
-                  <View key={cell.kindId} style={styles.gridCol}>
-                    {shown.id === 'review' ? (
-                      <GridCell label={gridCellLabel(kind.name, shown.review, shown.count, props.ctx.name)}
-                        help={shown.produced ? t('passage.grid.madeHelp', { kind: kindInSentence(kind.name) }) : t('passage.grid.cellHelp', { mark: markHelp(reviewMark(shown.review)) })}
-                        onPress={() => props.onReview(shown.review.id)}>
-                        {shown.produced
-                          // Made content, not a verdict: its own mark, never a "looks good" tick.
-                          ? <View style={[styles.producedMark]}><Ico name={kindIcon(cell.kindId)} size={14} color={C.primary} /></View>
-                          : <StateMark state={reviewMark(shown.review)} size={24} />}
-                        {shown.count > 1 ? <View style={styles.countBadge}><Text style={[txt.xsStrong, { color: C.white }]}>{shown.count}</Text></View> : null}
-                      </GridCell>
-                    ) : shown.id === 'skipped' ? <HelpInfo label={stateLabel('skipped')} detail={markHelp('skipped')}><StateMark state="skipped" size={24} /></HelpInfo>
-                      : shown.id === 'asked' ? <HelpInfo label={stateLabel('asked')} detail={markHelp('asked')}><StateMark state="asked" size={24} /></HelpInfo>
-                      : <View style={styles.gridEmpty} />}
-                  </View>
-                );
-              })}
-            </View>
+            <HelpRow key={row.version.takeId} of="grid.version">
+              <View style={[styles.gridRow, styles.topBorder]}>
+                <GridVersion n={row.version.n} hlc={row.version.hlc} onPress={() => props.onVersion(row.version.takeId)} />
+                {row.cells.map((cell) => {
+                  const kind = { ...v.kind(cell.kindId), name: checkName(cell.kindId, v.kinds) };
+                  const shown = gridCell(cell, { newest: ri === 0, grid, produces: !!kind.produces });
+                  return (
+                    <HelpRow key={cell.kindId} of={`grid.${shown.id}`}>
+                      <View style={[styles.gridCol, col]}>
+                        {shown.id === 'review' ? (
+                          <GridCell label={gridCellLabel(kind.name, shown.review, shown.count, props.ctx.name)}
+                            help={shown.produced ? t('passage.grid.madeHelp', { kind: kindInSentence(kind.name) }) : t('passage.grid.cellHelp', { mark: markHelp(reviewMark(shown.review)) })}
+                            onPress={() => props.onReview(shown.review.id)}>
+                            {shown.produced
+                              // Made content, not a verdict: its own mark, never a "looks good" tick.
+                              ? <View style={[styles.producedMark]}><Ico name={kindIcon(cell.kindId)} size={14} color={C.primary} /></View>
+                              : <StateMark state={reviewMark(shown.review)} size={24} />}
+                            {shown.count > 1 ? <View style={styles.countBadge}><Text style={[txt.xsStrong, { color: C.white }]}>{shown.count}</Text></View> : null}
+                          </GridCell>
+                        ) : shown.id === 'skipped' ? <HelpInfo label={stateLabel('skipped')} detail={markHelp('skipped')}><StateMark state="skipped" size={24} /></HelpInfo>
+                          : shown.id === 'asked' ? <HelpInfo label={stateLabel('asked')} detail={markHelp('asked')}><StateMark state="asked" size={24} /></HelpInfo>
+                          : <View style={styles.gridEmpty} />}
+                      </View>
+                    </HelpRow>
+                  );
+                })}
+              </View>
+            </HelpRow>
           ))}
         </View>
       </ScrollView>
@@ -816,7 +832,7 @@ function GridVersion(props: { n: number; hlc: string; onPress: () => void }) {
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label}
       style={({ pressed }) => [styles.gridVersion, pressed && { opacity: 0.6 }]}>
       <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{t('passage.grid.versionShort', { n: props.n })}</Text>
-      <Text style={txt.xs} numberOfLines={1}>{when(props.hlc)}</Text>
+      <Text style={txt.xs}>{when(props.hlc)}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -835,7 +851,7 @@ function GridCell(props: { label: string; help: string; onPress: () => void; chi
 }
 
 /** One entry of the passage's history: who and when first, so a long reason never hides them. */
-function HistoryRow(props: { text: EntryText; when: string; last: boolean; trailing: ReactNode; onPress?: () => void; help?: string }) {
+function HistoryRow(props: { text: EntryText; when: string; last: boolean; trailing: ReactNode; below?: ReactNode; onPress?: () => void; help?: string }) {
   const { text } = props;
   return (
     <Row label={text.title} sub={`${text.who} · ${props.when}${text.sub ? ` — ${text.sub}` : ''}`} last={props.last} {...(text.struck ? { struck: true } : {})}
@@ -844,7 +860,7 @@ function HistoryRow(props: { text: EntryText; when: string; last: boolean; trail
           <Ico name={text.icon} size={16} color={text.color} />
         </View>
       )}
-      {...(props.trailing ? { right: props.trailing } : {})} {...(props.onPress ? { onPress: props.onPress } : {})} {...(props.help ? { help: props.help } : {})} />
+      {...(props.trailing ? { right: props.trailing } : {})} {...(props.below ? { below: <View style={{ alignSelf: 'flex-start', maxWidth: '100%' }}>{props.below}</View> } : {})} {...(props.onPress ? { onPress: props.onPress } : {})} {...(props.help ? { help: props.help } : {})} />
   );
 }
 
@@ -894,8 +910,10 @@ export function VersionDetail(ctx: Ctx) {
           {version.changeBlobHash ? <PlayRow ctx={ctx} hashes={[version.changeBlobHash]} label={t('passage.version.changeAloud')} /> : null}
         </Authored>
         {prompted.map((r) => (
-          <InResponseLink key={r.id} label={t('passage.version.inResponseTo', { kind: checkName(r.kindId, v.kinds), who: feedbackSource(r, ctx.name) })}
-            onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} />
+          <HelpRow key={r.id} of="version.inResponse">
+            <InResponseLink label={t('passage.version.inResponseTo', { kind: checkName(r.kindId, v.kinds), who: feedbackSource(r, ctx.name) })}
+              onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} />
+          </HelpRow>
         ))}
       </Card>
 
@@ -911,9 +929,11 @@ export function VersionDetail(ctx: Ctx) {
           summary={termsTiedSummary(terms)}
           {...ctx.details(key('terms'))}>
           {terms.map(({ term, note }, i) => (
-            <Row key={term.termId} icon="book" label={termLabel(term)} {...(note ? { sub: note } : {})}
-              help={t('passage.version.termHelp')}
-              onPress={() => ctx.go('key_term_detail', { ...params, termId: term.termId })} last={i === terms.length - 1} />
+            <HelpRow key={term.termId} of="version.term">
+              <Row icon="book" label={termLabel(term)} {...(note ? { sub: note } : {})}
+                help={t('passage.version.termHelp')}
+                onPress={() => ctx.go('key_term_detail', { ...params, termId: term.termId })} last={i === terms.length - 1} />
+            </HelpRow>
           ))}
         </Disclosure>
       ) : null}
@@ -922,10 +942,12 @@ export function VersionDetail(ctx: Ctx) {
           {reviews.map((r, i) => {
             const kind = { ...v.kind(r.kindId), name: checkName(r.kindId, v.kinds) };
             return (
-              <Row key={r.id} leading={kind.produces ? <KindIcon kindId={r.kindId} size={36} /> : <StateMark state={reviewMark(r)} size={24} />}
-                label={`${kind.name} · ${outcomeText(kind, r.outcome)}`} sub={`${feedbackSource(r, ctx.name)} · ${when(r.hlc)} · ${viaText(r, ctx.name)}`}
-                help={t('passage.page.openReviewHelp')}
-                onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} last={i === reviews.length - 1} />
+              <HelpRow key={r.id} of="version.review">
+                <Row leading={kind.produces ? <KindIcon kindId={r.kindId} size={36} /> : <StateMark state={reviewMark(r)} size={24} />}
+                  label={`${kind.name} · ${outcomeText(kind, r.outcome)}`} sub={`${feedbackSource(r, ctx.name)} · ${when(r.hlc)} · ${viaText(r, ctx.name)}`}
+                  help={t('passage.page.openReviewHelp')}
+                  onPress={() => ctx.go('review_detail', { ...params, reviewId: r.id })} last={i === reviews.length - 1} />
+              </HelpRow>
             );
           })}
         </Disclosure>
@@ -937,12 +959,14 @@ export function VersionDetail(ctx: Ctx) {
           summary={notesSummary(notes, (by, text) => authoredText(ctx, by, text))} {...ctx.details(key('notes'))}>
           <View style={{ padding: space.md, gap: space.sm }}>
             {notes.map((n) => (
-              <Authored key={n.id} ctx={ctx} by={n.by}>
-                <NoteCard anchor={anchorLabel(n, { state: v.state, p, guide })} by={ctx.name(n.by)} when={when(n.hlc)}
-                  {...(n.text ? { text: n.text } : {})}
-                  {...(n.blobHash ? { audio: <PlayRow ctx={ctx} hashes={[n.blobHash]} label={t('common.voiceNote')} /> } : {})}
-                  action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, unitId)} size={36} />} />
-              </Authored>
+              <HelpRow key={n.id} of="version.note">
+                <Authored ctx={ctx} by={n.by}>
+                  <NoteCard anchor={anchorLabel(n, { state: v.state, p, guide })} by={ctx.name(n.by)} when={when(n.hlc)}
+                    {...(n.text ? { text: n.text } : {})}
+                    {...(n.blobHash ? { audio: <PlayRow ctx={ctx} hashes={[n.blobHash]} label={t('common.voiceNote')} /> } : {})}
+                    action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, unitId)} size={36} />} />
+                </Authored>
+              </HelpRow>
             ))}
           </View>
         </Disclosure>
@@ -979,7 +1003,7 @@ function KeepPage(props: { ctx: Ctx; v: PassageView; review: ReviewView; source:
   const keep = async () => {
     setBusy(true);
     const ok = await perform(ctx, (c) => c.depart(keepPageInput({ commandId: newId(), unitId: v.unitId, reviewId: review.id, text, hash })),
-      t('passage.keep.done'), undoDepart, t('passage.page.undone.keep'));
+      t('passage.keep.done'));
     setBusy(false);
     if (ok) ctx.back();
   };
@@ -1039,7 +1063,7 @@ export function ReviewDetail(ctx: Ctx) {
         <View style={{ alignItems: 'center', gap: space.sm, paddingTop: space.xl }}>
           <View style={styles.amberPill}>
             <Ico name="chat" size={16} color={TINT.amberText} />
-            <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]}>{t('passage.path.feedbackSub', { kind: checkName(review.kindId, v.kinds) })}</Text>
+            <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText, flexShrink: 1, textAlign: 'center' }]}>{t('passage.path.feedbackSub', { kind: checkName(review.kindId, v.kinds) })}</Text>
           </View>
           <View style={{ marginTop: space.md }}><PersonAvatar look={look(review.by)} size={72} /></View>
           <Text style={[txt.h2, { fontWeight: '800' }]}>{source}</Text>
@@ -1218,17 +1242,18 @@ export function AskSomeone(ctx: Ctx) {
     if (!ready) return;
     setBusy(true);
     const ok = await perform(ctx, (c) => c.ask(askInput({ commandId: newId(), unitId: v.unitId, what, model, picks, channel, note, noteHash, questions })),
-    askDoneText(model),
-    (applied) => (c) => c.withdrawRequest({ commandId: newId(), requestId: payloadField(applied, 'requestId') }));
+    askDoneText(model));
     setBusy(false);
     if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId, asked: String(Date.now()) });
   };
   const personRow = (c: { profileId: string; sub: string }, last: boolean) => {
     const on = who === c.profileId;
     return (
-      <Row key={c.profileId} testID={`ask-person-${c.profileId}`} leading={<PersonAvatar look={look(c.profileId)} size={36} />} label={ctx.name(c.profileId)} sub={c.sub}
-        help={t('passage.ask.personHelp')} onPress={() => setWho(c.profileId)} last={last} role="radio" selected={on}
-        right={<View style={[styles.radio, on && { backgroundColor: C.primary, borderColor: C.primary }]}>{on ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
+      <HelpRow key={c.profileId} of="ask.person">
+        <Row testID={`ask-person-${c.profileId}`} leading={<PersonAvatar look={look(c.profileId)} size={36} />} label={ctx.name(c.profileId)} sub={c.sub}
+          help={t('passage.ask.personHelp')} onPress={() => setWho(c.profileId)} last={last} role="radio" selected={on}
+          right={<View style={[styles.radio, on && { backgroundColor: C.primary, borderColor: C.primary }]}>{on ? <Ico name="check" size={14} color={C.white} strokeWidth={3} /> : null}</View>} />
+      </HelpRow>
     );
   };
 
@@ -1246,10 +1271,10 @@ export function AskSomeone(ctx: Ctx) {
 
       <SectionLabel label={t('passage.ask.who')} />
       {!isRecord ? (
-        <ChipRow>
+        <ChipWrap>
           <Chip label={t('passage.ask.onTeam')} on={mode === 'team'} help={t('passage.ask.onTeamHelp')} onPress={() => setMode('team')} />
           <Chip label={t('passage.ask.withoutApp')} on={mode === 'outside'} help={t('passage.ask.withoutAppHelp')} onPress={() => setMode('outside')} />
-        </ChipRow>
+        </ChipWrap>
       ) : null}
       {!outside ? (
         <Group>
@@ -1308,7 +1333,7 @@ const OUTCOME_TINT: Record<OutcomeTone, { bg: string; fg: string }> = {
 
 const styles = StyleSheet.create({
   versionFooter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  amberPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.full, backgroundColor: TINT.amber },
+  amberPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.full, backgroundColor: TINT.amber, maxWidth: '100%' },
   feedbackCard: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: TINT.noteBorder, padding: space.lg, gap: space.md },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   tile: { flexGrow: 1, flexBasis: '45%', flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 56, paddingHorizontal: space.md,
@@ -1316,6 +1341,9 @@ const styles = StyleSheet.create({
   notePill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, borderRadius: radius.lg, backgroundColor: TINT.amber },
   rowCenter: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   btnRow: { flexDirection: 'row', gap: space.sm },
+  btnWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  btnCell: { flexGrow: 1, flexBasis: 'auto', maxWidth: '100%' },
+  btnSide: { flexGrow: 0, maxWidth: '100%' },
   toneDot: { width: 10, height: 10, borderRadius: 5 },
   body: { padding: space.lg, paddingBottom: space.xxl },
   headerMore: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 48, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: C.bg },
@@ -1327,7 +1355,9 @@ const styles = StyleSheet.create({
   topBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   roundTile: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   gridRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.sm },
-  gridCol: { flex: 1, minWidth: 56, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  gridCol: { alignItems: 'center', justifyContent: 'center', gap: 2 },
+  gridHead: { fontSize: txt.xs.fontSize, lineHeight: txt.xs.lineHeight, color: C.muted, fontWeight: '600', textAlign: 'center' },
+  gridMeasure: { position: 'absolute', top: 0, left: 0, flexDirection: 'row', opacity: 0, pointerEvents: 'none' },
   gridVersion: { width: 76, minHeight: 48, justifyContent: 'center', paddingHorizontal: 4 },
   gridCell: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   gridEmpty: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
