@@ -148,33 +148,42 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
 | 1 | Step one: the large pass into the container, `projections.yml` gone | built (141) |
 | 2 | Step two: one pass for every language in the container, every 5 minutes; pg_cron keeps push delivery only | built (141, amended 2026-10-19), without the couple of weeks of step one proven alone, at Carl's word |
 | 3 | Report inputs: the pass stores each language's, the object renders reports from them | built (142) |
-| 4 | Step three: the v2 import into the container, `v2-import.yml` gone | built (141, 94 amended); its cutover needs the order below |
+| 4 | Step three: the v2 import into the container, `v2-import.yml` gone | built (141, 94 amended); its cutover follows the order below |
 | in parallel | E: rebase PR 120 and meet the big-languages plan's 4.1 conditions | the big-languages plan |
 | last | F: the server cut, `LINES_VERSION`, `snapshots.state` off, the object reads the cut and a passage's rows | waits for E |
 
-**The import's cutover**, in this order, so GitHub's last run is the one
-before the container's first and the first finds its key:
+**The cutover**, in this order:
 
 1. Optional, for people's names (GitHub's runs never had them):
    `scripts/v2-access.sh`, which keeps v2's read-only login in
    `.env.production` as `V2_DATABASE_URL`.
-2. `npm run secrets -- production`: puts `V2_SUPABASE_ANON_KEY` (already
-   in `.env.production`) and `V2_DATABASE_URL` when present on the
-   dashboard Worker, and runs the new schedule.
-3. Merge. The Supabase integration applies the migrations (the projection
-   job leaves pg_cron), Workers Builds deploys the Worker and the image,
-   and the job tick starts the pass within five minutes and the import
-   within fifteen. `npm run diag -- jobs` shows `projection`,
-   `v2_import` and `job_starts`.
-4. Afterwards, delete the GitHub secrets `V3_SERVICE_ROLE_KEY` and
+2. Merge. The Supabase integration applies the migrations (the projection
+   job leaves pg_cron), and Workers Builds deploys the Worker and the
+   image. The job tick starts the pass within five minutes, with the
+   service key the Worker already has. GitHub's import workflow is gone,
+   and the container's import refuses to start until v2's key is on the
+   Worker (`job_starts` counts it as failed).
+3. Right after, from the updated `main`: `npm run secrets -- production`.
+   It puts `V2_SUPABASE_ANON_KEY` (already in `.env.production`) and
+   `V2_DATABASE_URL` when present on the dashboard Worker, and runs the new
+   schedule again. The next 15-minute tick starts the import.
+4. `npm run diag -- jobs` shows `projection`, `v2_import` and
+   `job_starts` running.
+5. Afterwards, delete the GitHub secrets `V3_SERVICE_ROLE_KEY` and
    `V2_SUPABASE_ANON_KEY` and the variables `V2_IMPORT_ENABLED` and
    `V2_IMPORT_CONCURRENCY`: nothing reads them.
 
-A GitHub import run already going at the merge may overlap the
-container's first. Both name each event the same way
+Not before the merge: run from the branch, the script would apply the new
+schedule to production at once and take the pass off pg_cron while the
+container that replaces it is not yet deployed, leaving small languages
+with no pass until the merge; run from `main`, it would not know v2's key
+belongs on the Worker. After the merge the only gap is the import's, from
+the merge until the secrets are set plus up to one tick. The import says
+what v2 says now (decision 94), so the next pass picks up whatever changed
+in the gap. A GitHub import run still going at the merge may overlap
+the container's first: both name each event the same way
 (`v2:<project>:<fact>#<n>`, docs/v2-import.md) and the server takes an id
 once (decision 75), so the overlap repeats work and appends nothing twice.
-The pause between the two is at most one tick.
 
 ## 6. The seam with the big-languages plan
 

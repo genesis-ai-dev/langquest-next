@@ -5720,9 +5720,10 @@ there; `npm run secrets` now puts both there from `.env.production` (94).
 psql is the image's one system package, for those names.
 `v2-import.yml` is gone, and `scripts/workflows.test.ts` holds that no
 workflow holds a production key. The cutover has an order: run
-`npm run secrets -- production` before the merge, so the import's first
-tick in the container finds its key; `docs/server-jobs.md` section 5 has
-the steps.
+`npm run secrets -- production` from `main` right after the merge, not
+before: run from the branch earlier, it would take the pass off pg_cron
+before the container is deployed. The import pauses from the merge until
+then; `docs/server-jobs.md` section 5 has the steps.
 
 ## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
 
