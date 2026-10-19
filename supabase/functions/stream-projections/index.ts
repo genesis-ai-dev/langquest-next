@@ -22337,6 +22337,7 @@ function push(m, k, v) {
   if (list) list.push(v);
   else m.set(k, [v]);
 }
+var NO_RECORDS = Object.freeze([]);
 var byHlc = (a, b) => a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? "") < (b.id ?? "") ? -1 : (a.id ?? "") > (b.id ?? "") ? 1 : 0;
 var versionOrder = (state) => {
   const at = (id) => state.submissions[id]?.hlc ?? "";
@@ -22605,7 +22606,7 @@ function derivePassage(state, unitId, idx) {
     const response = keptResponse && revisedResponse ? keptResponse.hlc < revisedResponse.hlc ? keptResponse : revisedResponse : keptResponse ?? revisedResponse;
     return response ? { ...r, response } : r;
   });
-  const madeHere = ri.madeByUnit.get(key) ?? [];
+  const madeHere = ri.madeByUnit.get(key) ?? NO_RECORDS;
   const requests = (ri.requests.get(key) ?? []).map(({ eventId: _e, ...r }) => {
     let status = "open";
     if (state.withdrawnRequests[r.id]) status = "withdrawn";
@@ -22620,7 +22621,8 @@ function derivePassage(state, unitId, idx) {
     const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== "link"));
     const request = openRequests.find((r) => r.what === "review" && r.kindId === kindId);
     const departure = active((d) => d.type === "skip" && d.kindId === kindId);
-    const makes = ri.kinds.find((k) => k.id === kindId)?.makes;
+    const kind = ri.kinds.find((k) => k.id === kindId);
+    const makes = kind?.makes;
     if (makes) {
       const last = versions.at(-1);
       const heard = makes.result === "added" && last ? versionHeardAt({ versions, flow }, last, stepIndex).takeId : void 0;
@@ -22630,7 +22632,7 @@ function derivePassage(state, unitId, idx) {
       return { kindId, state: "todo" };
     }
     const base = { kindId, ...review ? { review } : {} };
-    const producing = !!ri.kinds.find((k) => k.id === kindId)?.produces;
+    const producing = !!kind?.produces;
     if (review && (review.outcome === "looks_good" || review.outcome === "recorded" && producing)) {
       return { ...base, state: "approved", ...request ? { request } : {} };
     }
@@ -22781,6 +22783,7 @@ function updatesFor(state, actorId, idx) {
   return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 function versionHeardAt(s, v, stepIndex) {
+  if (!v.madeByKindId) return v;
   let cur = v;
   const seen = /* @__PURE__ */ new Set();
   while (cur.madeByKindId && cur.madeFromTakeId && !seen.has(cur.takeId)) {

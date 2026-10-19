@@ -313,6 +313,9 @@ function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
   else m.set(k, [v]);
 }
 
+/** No made records for a passage: shared, so most passages allocate nothing for them. */
+const NO_RECORDS: readonly MadeRecord[] = Object.freeze([]);
+
 /** Clock order, then id, so equal clocks never leave the order to arrival. */
 const byHlc = <T extends { hlc: string; id?: string }>(a: T, b: T) =>
   a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? '') < (b.id ?? '') ? -1 : (a.id ?? '') > (b.id ?? '') ? 1 : 0;
@@ -596,7 +599,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
       return response ? { ...r, response } : r;
     });
 
-  const madeHere = ri.madeByUnit.get(key) ?? [];
+  const madeHere: readonly MadeRecord[] = ri.madeByUnit.get(key) ?? NO_RECORDS;
   const requests: RequestView[] = (ri.requests.get(key) ?? []).map(({ eventId: _e, ...r }) => {
     let status: RequestStatus = 'open';
     if (state.withdrawnRequests[r.id]) status = 'withdrawn';
@@ -617,7 +620,8 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     // date. What it adds to a version is part of that version, so a step
     // that adds is done only for the version it counts for here (the latest,
     // or the one a later step made it into).
-    const makes = ri.kinds.find((k) => k.id === kindId)?.makes;
+    const kind = ri.kinds.find((k) => k.id === kindId);
+    const makes = kind?.makes;
     if (makes) {
       const last = versions.at(-1);
       const heard = makes.result === 'added' && last ? versionHeardAt({ versions, flow }, last, stepIndex).takeId : undefined;
@@ -629,7 +633,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     const base = { kindId, ...(review ? { review } : {}) };
     // "Recorded" completes only a kind that makes content; anywhere else it
     // is not a verdict, so it reads as not done yet.
-    const producing = !!ri.kinds.find((k) => k.id === kindId)?.produces;
+    const producing = !!kind?.produces;
     if (review && (review.outcome === 'looks_good' || (review.outcome === 'recorded' && producing))) {
       return { ...base, state: 'approved', ...(request ? { request } : {}) };
     }
@@ -1269,6 +1273,8 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
  * approved, so this is what the access-token API serves and may be released.
  */
 export function approvedVersion(s: PassageState): Version | null {
+  // Without making steps or anything made, every check reads each version itself, as before writing (decisions.md 141).
+  const making = s.makingKindIds.length > 0 || s.made.length > 0 || s.versions.some((x) => !!x.madeByKindId);
   for (let i = s.versions.length - 1; i >= 0; i -= 1) {
     const v = s.versions[i]!;
     const cleared = s.steps.every((st, si) => !!st.override || st.step.kindIds.every((kindId, k) => {
@@ -1276,8 +1282,8 @@ export function approvedVersion(s: PassageState): Version | null {
       if (status?.state === 'skipped') return true;
       // A version a step made (a final recording) answers for the steps
       // before that step with the version it was made from (decisions.md 141).
-      const heard = versionHeardAt(s, v, si);
-      if (isMakingStatus(s, kindId)) return madeFrom(s, kindId, heard) || v.madeByKindId === kindId;
+      const heard = making ? versionHeardAt(s, v, si) : v;
+      if (making && isMakingStatus(s, kindId)) return madeFrom(s, kindId, heard) || v.madeByKindId === kindId;
       let last: ReviewView | undefined;
       // Reviews are in clock order; a link review does not count where the step does not take links.
       for (const r of s.reviews) if (r.kindId === kindId && r.takeId === heard.takeId && (st.linksAllowed || r.via !== 'link')) last = r;
@@ -1297,6 +1303,8 @@ export function approvedVersion(s: PassageState): Version | null {
  * (decisions.md 141).
  */
 export function versionHeardAt(s: Pick<PassageState, 'versions' | 'flow'>, v: Version, stepIndex: number): Version {
+  // A version published by hand is heard as itself: the common case, with nothing to allocate.
+  if (!v.madeByKindId) return v;
   let cur = v;
   const seen = new Set<string>();
   while (cur.madeByKindId && cur.madeFromTakeId && !seen.has(cur.takeId)) {

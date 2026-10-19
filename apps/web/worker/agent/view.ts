@@ -340,12 +340,23 @@ function addedOut(state: LanguageState, s: PassageState, v: Version): AddedOut[]
 }
 
 function versionOut(state: LanguageState, s: PassageState, v: Version): VersionOut {
-  const madeBy = madeByOf(state, s, v);
-  const added = addedOut(state, s, v);
+  const madeBy = v.madeByKindId ? madeByOf(state, s, v) : undefined;
+  const added = v.added.length ? addedOut(state, s, v) : [];
   return {
-    n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: playedCards(state, s, v).reduce((t, c) => t + c.durationMs, 0), medium: v.medium,
+    n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: playedMs(state, s, v), medium: v.medium,
     ...(madeBy ? { madeBy } : {}), ...(added.length ? { added } : {})
   };
+}
+
+/** How long what a version plays lasts; a recorded version with nothing added is summed in place, as most are. */
+function playedMs(state: LanguageState, s: PassageState, v: Version): number {
+  if (v.medium === 'recording') {
+    const cards = cardsOf(state);
+    let ms = 0;
+    for (const h of v.cardHashes) ms += cards.get(h)?.durationMs ?? 0;
+    return ms;
+  }
+  return playedCards(state, s, v).reduce((t, c) => t + c.durationMs, 0);
 }
 
 function pathOf(state: LanguageState, unitId: string): string[] {
@@ -517,12 +528,24 @@ async function passageOut(
     }
     return audio;
   };
+  // A recorded version plays its own cards, read in place as most are; a written one plays what was added to it.
+  const versionAudio = async (ver: Version): Promise<AudioCard[]> => {
+    if (ver.medium !== 'recording') return audioOf(playedCards(state, s, ver));
+    const cards = cardsOf(state);
+    const audio: AudioCard[] = [];
+    for (const hash of ver.cardHashes) {
+      const card = cards.get(hash);
+      const format = card?.format ?? 'wav';
+      audio.push({ hash, format, durationMs: card?.durationMs ?? 0, ...(await link(hash, format)) });
+    }
+    return audio;
+  };
   const v = heard(grant, s);
-  if (include.has('audio')) out.audio = v ? await audioOf(playedCards(state, s, v)) : [];
+  if (include.has('audio')) out.audio = v ? await versionAudio(v) : [];
   if (include.has('text')) out.text = v ? versionText(state, s, v) : [];
   if (include.has('approvedAudio')) {
     const approved = approvedVersion(s);
-    out.approvedAudio = approved ? await audioOf(playedCards(state, s, approved)) : [];
+    out.approvedAudio = approved ? await versionAudio(approved) : [];
   }
   if (include.has('reviews')) {
     const all = canRead(grant, true);
@@ -537,10 +560,11 @@ async function passageOut(
       const notes: Card[] = [
         ...(r.commentBlobHash ? [{ hash: r.commentBlobHash, durationMs: 0, format: state.audioFormats[r.commentBlobHash]?.value ?? 'm4a' }] : []),
         ...(r.outcome !== 'recorded' ? r.artifacts ?? [] : [])
-      ].filter((n) => !isWrittenPart(n.hash));
-      if (notes.length) {
+      ];
+      // Written parts a reviewer made are words, never files: they are not voice notes.
+      if (notes.some((n) => !isWrittenPart(n.hash))) {
         review.voiceNotes = [];
-        for (const n of notes) review.voiceNotes.push({ ...(await link(n.hash, n.format ?? 'wav')), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) });
+        for (const n of notes) if (!isWrittenPart(n.hash)) review.voiceNotes.push({ ...(await link(n.hash, n.format ?? 'wav')), durationMs: n.durationMs, ...(n.atMs !== undefined ? { atMs: n.atMs } : {}) });
       }
       out.reviews.push(review);
     }
