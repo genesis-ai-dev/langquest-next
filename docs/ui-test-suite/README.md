@@ -27,13 +27,13 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 02 | [02-no-organization.md](02-no-organization.md) | "Join your team", starting an organization, asking to join | `NOORG` | 26 |
 | 03 | [03-home-and-navigation.md](03-home-and-navigation.md) | Tabs per role, My Work, the bell, the Inbox, the viewer's overview, flow gates | `NAV` | 37 |
 | 04 | [04-map.md](04-map.md) | All languages, a language's map, books, chapters, search, filter | `MAP` | 21 |
-| 05 | [05-passage-record.md](05-passage-record.md) | The passage record, Something else?, Ask someone, Already happened, versions and history, set aside, checkpoints, Undo | `PASS` | 64 |
+| 05 | [05-passage-record.md](05-passage-record.md) | The passage record, Something else?, Ask someone, Already happened, versions and history, set aside, checkpoints, Undo and Withdraw in History | `PASS` | 64 |
 | 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Done, interruptions | `REC` | 51 |
 | 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 49 |
 | 08 | [08-study-and-reference.md](08-study-and-reference.md) | The study, key words, Bibles beside a passage, reference for one passage | `STUDY` | 36 |
-| 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 67 |
+| 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 68 |
 | 10 | [10-people-and-roles.md](10-people-and-roles.md) | Members, invites, join requests, editing members, roles, review teams, the limits on granting | `PEOPLE` | 48 |
-| 11 | [11-account-and-settings.md](11-account-and-settings.md) | Me, More settings, profile, notifications, switching organization, app language, help mode, signing out, deleting an account | `ACCT` | 50 |
+| 11 | [11-account-and-settings.md](11-account-and-settings.md) | Me, More settings, profile, notifications, switching organization, app language, help mode, signing out, deleting an account | `ACCT` | 51 |
 | 12 | [12-sync-and-offline.md](12-sync-and-offline.md) | The Sync screen, offline work, Ready for offline, handing over, two devices, refused work, the update banner | `SYNC` | 32 |
 | 13 | [13-moderation.md](13-moderation.md) | Reporting, blocking, hidden content, removal, reports in the Inbox | `MOD` | 24 |
 | 14 | [14-reports.md](14-reports.md) | The Reports section on wide windows | `RPT` | 22 |
@@ -41,7 +41,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 16 | [16-role-journeys.md](16-role-journeys.md) | Whole jobs per role, and the passage lifecycle across every role | `JRN` | 14 |
 | 17 | [17-accessibility-and-field-use.md](17-accessibility-and-field-use.md) | Screen readers, target sizes, text size, colour, RTL, outdoor and low-end use | `A11Y` | 24 |
 
-**658 tests in all.**
+**660 tests in all.**
 
 ## How a test is written
 
@@ -174,8 +174,13 @@ These are the invariants a screen can break:
 3. Within 30 seconds online, "waiting to upload" returns to 0.
 4. Every write the test made can be seen on a second device signed in as
    another member, after Sync now.
-5. Every toast offering Undo really undoes when tapped. This is checked
-   where a test says "Undo".
+5. No toast offers Undo (decision 134): a toast only says what happened,
+   with a close ✕. The way back is where the thing is: History's "Undo" or
+   "Withdraw" on a passage, a study step's own "Undo", the Undo and Redo
+   arrows of the screens where something is built (recording, back
+   translation, the guide editor, Divide your own way, a language's checks),
+   or the same control again. Where a test says "Undo", it really takes the
+   change back.
 6. Controls the role may not use are not offered. If one is reached by any
    route, the app shows "You don't have permission to open that." and does
    not crash.
@@ -432,10 +437,15 @@ the world under the tests after it: the world is kept for the whole run
 
 **Selectors.** Tests find things by the words on screen and by a few
 `testID`s:
-- `header-back`, `header-close`, `header-help` for the header buttons.
+- `header-back`, `header-close`, `header-help` for the header buttons, and
+  `header-up` for the organization's name where Back would be on a language
+  lead's language page (decision 138).
+- `title-rename` for the pencil beside a language's title, and
+  `org-rename` for the one beside the organization's name on Org home.
 - `primary-action` for the main button.
 - `record-button` and `publish-button` in the recorder.
-- `toast` and `toast-undo` for the toast.
+- `toast` for the toast (it has no Undo; its close ✕ is "Close"), and
+  `undo` and `redo` for the Undo and Redo arrows.
 - `tab-work`, `tab-map`, `tab-reports`, `tab-manage`, `tab-inbox` and
   `tab-me` for the tabs.
 - `feedback-text` for a review's typed feedback.
@@ -498,7 +508,10 @@ its test. Among the larger ones:
 - A language lead could open a language they hold no role in, and was then
   treated as having no organization.
 - A language lead was offered library writes that the server refuses.
-- Undo of a removed check did not bring it back.
+- Undo of a removed check did not bring it back. (That was the toast's
+  Undo, gone since decision 134; on a language's list of checks the
+  header's Undo arrow now brings a removed check back, as a new step of the
+  same checks.)
 - Looked-after accounts could not join once a name's thousand sign-in names
   were used.
 - Get ready named only the first of two checks made at the same time.
@@ -539,7 +552,7 @@ note, until each is resolved.
 | REV-019, REV-031, REV-047 | The docs and the app disagree. `docs/ux/screen-path.md` still names "Can't answer this?" and "Save back translation"; the app says "Skip" and "Done". An older review footer that can never show is still in the code. |
 | PEOPLE-039 | Retiring a role is not built. |
 | NAV-051 | No screen offers a forbidden move, so the permission refusal can only be checked through the dev hook `__langquestGo`. |
-| SETUP-026, MOD-018, SYNC-018 | Seen once while automating, not reproduced in the full run of 2026-10-13: a book change followed by Undo upsetting "What helps them"; a removed note showing on a fresh device until the next snapshot (decision 88's design); a translator removed from their only language landing on "Join your team". |
+| SETUP-026, MOD-018, SYNC-018 | Seen once while automating, not reproduced in the full run of 2026-10-13: a book change followed by the toast's Undo upsetting "What helps them", now "Reference material" (that Undo is gone since decision 134: SETUP-024 now puts the books back by choosing them again in "Content template" → "Which books", decision 138, and whether that upsets it is not yet known); a removed note showing on a fresh device until the next snapshot (decision 88's design); a translator removed from their only language landing on "Join your team". |
 
 ## Run sheets
 

@@ -33,6 +33,13 @@ public class MicrophoneEnergyModule: Module {
     private var segmentWriter: SegmentWriter?
     /// A session's parts and the room around them (Chunks.swift, LAN-82): the open chunk's file streams to disk as it is heard.
     private var chunks: Chunks?
+    /// Is this sound speech? (Speech.swift, decision 135): loaded once, before the microphone opens; nil where it cannot load, and parts split by levels alone.
+    private var speechModel: SpeechModel?
+    private var speechTried = false
+    private let speechQueue = DispatchQueue(label: "MicrophoneEnergy.speech")
+    private var resampler: Resampler?
+    private let speechChunks = SpeechChunks()
+    private var lastScore = 0.0
     private var chunkWriter: SegmentWriter?
     // All WAV writes share one queue. Stop waits for this queue so the JS
     // promise cannot resolve before the final completion event is enqueued.
@@ -53,6 +60,7 @@ public class MicrophoneEnergyModule: Module {
         Name("MicrophoneEnergy")
         Events("onEnergyResult", "onError", "onSegmentComplete", "onSegmentStart", "onChunkComplete")
         
+        AsyncFunction("prepareSpeech") { () -> Void in self.speechQueue.async { self.loadSpeech() } }
         AsyncFunction("startEnergyDetection") { () -> Void in try await self.startEnergyDetection() }
         AsyncFunction("stopEnergyDetection") { () -> Void in try await self.stopEnergyDetection() }
         AsyncFunction("configureVAD") { (config: [String: Any?]) -> Void in self.configureVAD(config: config) }
@@ -63,7 +71,17 @@ public class MicrophoneEnergyModule: Module {
         AsyncFunction("encodeAac") { (uri: String) -> String in try AacEncoder.encode(uri: uri) }
     }
     
+    /// On speechQueue: the speech model, loaded once by whichever asks first (prepareSpeech, or the microphone opening).
+    private func loadSpeech() {
+        if speechTried { return }
+        speechTried = true
+        let model = SpeechModel.load()
+        configLock.lock(); speechModel = model; configLock.unlock()
+    }
+
     private func startEnergyDetection() async throws {
+        // The model loads before the microphone opens (prepareSpeech usually has it ready), so every frame of a session is judged the same way.
+        speechQueue.sync { loadSpeech() }
         if isActive { await stopEnergyDetectionInternal() }
         ringBuffer.removeAll()
         if let stale = segmentWriter { wavWriteQueue.async { stale.discard() } }
@@ -188,6 +206,8 @@ public class MicrophoneEnergyModule: Module {
         splitter?.pauseListening()
         // What the microphone heard while the detector was off (a source playing) never heads a part.
         ringBuffer.removeAll()
+        // Nor is it the model's: the next chunk starts a new stretch.
+        resampler = nil; speechChunks.reset(); speechModel?.reset(); lastScore = 0
         configLock.unlock()
     }
     
@@ -267,7 +287,7 @@ public class MicrophoneEnergyModule: Module {
             if splitter == nil { splitter = Splitter(frameMs: frameMs, remembered: remembered) }
             if chunks == nil { chunks = Chunks(frameMs: frameMs, sampleRate: Int(sampleRate)) }
             if let sp = splitter, let ch = chunks {
-                let action = sp.step(energy: Double(normalizedAmplitude), now: clockMs)
+                let action = sp.step(energy: Double(normalizedAmplitude), now: clockMs, speech: scoreSpeech(bufferCopy))
                 handleSplit(sp, action)
                 keep(ch.step(samples: frameLength, action: action, now: clockMs))
                 event["quiet"] = sp.levels().quiet
@@ -276,6 +296,36 @@ public class MicrophoneEnergyModule: Module {
         sendEvent("onEnergyResult", event)
     }
     
+    /// Called with configLock held: the speech model's score for one frame (Speech.swift), or nil without a model.
+    private func scoreSpeech(_ buffer: AVAudioPCMBuffer) -> Double? {
+        guard let model = speechModel else { return nil }
+        let r = resampler ?? Resampler(inRate: buffer.format.sampleRate)
+        resampler = r
+        let n = Int(buffer.frameLength)
+        var floats = [Float](repeating: 0, count: n)
+        if let int16 = buffer.int16ChannelData {
+            for i in 0..<n { floats[i] = Float(int16.pointee[i]) / 32768 }
+        } else if let f32 = buffer.floatChannelData {
+            for i in 0..<n { floats[i] = f32.pointee[i] }
+        } else { return nil }
+        var scores: [Double] = []
+        do {
+            var failure: Error?
+            r.push(floats) { x in
+                guard failure == nil, let chunk = speechChunks.push(x) else { return }
+                do { scores.append(try model.score(chunk)) } catch { failure = error }
+            }
+            if let failure { throw failure }
+        } catch {
+            // The model failed mid-session: from here parts split by levels alone.
+            NSLog("MicrophoneEnergy: speech model failed (\(error)); parts split by levels alone")
+            speechModel = nil
+            return nil
+        }
+        lastScore = frameScore(scores, lastScore)
+        return lastScore
+    }
+
     /// Called with configLock held: a part starts or ends, as the splitter says.
     private func handleSplit(_ sp: Splitter, _ action: Splitter.Action?) {
         switch action {

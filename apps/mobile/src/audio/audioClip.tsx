@@ -160,7 +160,11 @@ export function AudioClip(props: {
         {props.seekControls ? <IconBtn name="skip" label={t('recording.player.forwardSource')} help={t('recording.player.forwardHelp')} size={target.min}
           bg={C.light} color={C.primary} disabled={props.disabled || !available} onPress={() => void seek(10)} /> : null}
       </View>
-      {error ? <Text accessibilityRole="alert" style={txt.error}>{error}</Text> : null}
+      {/* Wraps under the buttons rather than widening the clip and squeezing the words beside it. */}
+      {error ? <Text accessibilityRole="alert" style={[txt.error, { maxWidth: ERROR_WIDTH }]}>{error}</Text> : null}
     </View>
   );
 }
+
+/** About two play buttons wide. */
+const ERROR_WIDTH = 160;

@@ -24,7 +24,7 @@ secrets `npm run secrets` set on it (decisions.md 51).
 The dashboard's include paths cover `server/*` and `scripts/build-jobs.mjs`
 because the job image (The job runner, below) is built from them: without
 them a change to the pass alone would not rebuild the image. Set on
-2026-10-16 with decision 134; check it in the Cloudflare dashboard if a
+2026-10-16 with decision 140; check it in the Cloudflare dashboard if a
 pass change does not reach the container.
 
 Leave the default dependency install on. The web app's deploy command builds
@@ -56,7 +56,7 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 ## The job runner (containers)
 
 The dashboard Worker also runs the server jobs too big for an Edge
-Function (`docs/server-jobs.md`, decisions.md 134): today the projection
+Function (`docs/server-jobs.md`, decisions.md 140): today the projection
 pass for large languages (`server/projections.ts`), later the v2 import.
 `apps/web/jobs/Dockerfile` is the image: Node 24 and one bundle per job
 from `scripts/build-jobs.mjs` (`npm run jobs:build`, run by the Worker's

@@ -4,7 +4,7 @@ import type { Env } from './env';
 import { deadRun, exitCodeOf, isJobKey, JOB_TIME_LIMIT_MS, JOBS, type Exit, type JobKey, type RunMark } from './jobsModel';
 
 /**
- * The job runner (docs/server-jobs.md, decisions.md 134): one container
+ * The job runner (docs/server-jobs.md, decisions.md 140): one container
  * image (jobs/Dockerfile) holding a Node bundle per server job
  * (scripts/build-jobs.mjs), started by the Worker's cron through this
  * Durable Object. One object per job, named by the job, so a run is never

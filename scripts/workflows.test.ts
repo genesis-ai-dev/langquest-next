@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 
 // No production job runs in GitHub Actions (docs/server-jobs.md, decisions.md
-// 134): a schedule there is delayed or dropped under load, switched off after
+// 140): a schedule there is delayed or dropped under load, switched off after
 // 60 idle days in a public repository, and holds the production key in the
 // repository's secrets. Server jobs run in the job container behind the
 // dashboard Worker, or in the Edge Function when they fit it. A production

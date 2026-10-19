@@ -14,7 +14,7 @@ import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
 import { Text } from '../ui/text';
 import { t, Trans } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Chip, ChipRow, HelpInfo, IconBtn, LinkBtn, SearchField, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -96,11 +96,12 @@ function ClusterPanel(p: SectionProps) {
       {p.clusters.map((c) => {
         const totals = orgTotals(c.languageIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])));
         return (
-          <ListLine key={c.clusterId}
-            right={<Text style={txt.xs}>{t('reports.clusters.languages', { count: c.languageIds.length })}</Text>}>
-            <ClusterLink name={c.name} onPick={() => p.pickCluster(c.clusterId)} />
-            <ProgressPair total={totals.total} recorded={totals.recorded} done={totals.done} />
-          </ListLine>
+          <HelpRow key={c.clusterId} of="reports.cluster">
+            <ListLine right={<Text style={txt.xs}>{t('reports.clusters.languages', { count: c.languageIds.length })}</Text>}>
+              <ClusterLink name={c.name} onPick={() => p.pickCluster(c.clusterId)} />
+              <ProgressPair total={totals.total} recorded={totals.recorded} done={totals.done} />
+            </ListLine>
+          </HelpRow>
         );
       })}
     </Panel>
@@ -201,6 +202,7 @@ export function Activity(p: SectionProps & { days: 7 | 14; setDays: (d: 7 | 14) 
   return (
     <>
       <ChipRow>
+        {/* help-each: each chip counts over a different number of days */}
         {([7, 14] as const).map((d) => <Chip key={d} label={t('reports.lastDays', { count: d })} help={t('reports.activity.daysHelp')} on={days === d} onPress={() => p.setDays(d)} />)}
       </ChipRow>
       <Panel>
@@ -223,15 +225,16 @@ export function Activity(p: SectionProps & { days: 7 | 14; setDays: (d: 7 | 14) 
             <Panel key={d.day} {...(d.day === today ? { eyebrow: t('reports.activity.today') } : {})} title={longDay(d.day)}
               sub={[t('reports.counts.passages', { count: d.passages }), t('reports.counts.languages', { count: d.languages }), t('reports.counts.recordings', { count: d.cards })].join(' · ')}>
               {d.entries.map((e) => (
-                <ListLine key={`${e.row.languageId}-${e.unitId}`}
-                  right={<><Rec count={e.cards} /><Text style={txt.xs}>{e.verses ? t('reports.counts.verses', { count: e.verses }) : '—'}</Text></>}>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.xs }}>
-                    <Text style={txt.xs}>{utcTime(e.at)}</Text>
-                    <LanguageLink row={e.row} open={p.open} />
-                    <Text style={txt.smMuted}>/ {e.label}</Text>
-                  </View>
-                  <Text style={txt.xs}>{e.row.report.country ? countryName(e.row.report.country) : t('reports.noCountry')}</Text>
-                </ListLine>
+                <HelpRow key={`${e.row.languageId}-${e.unitId}`} of="reports.activityEntry">
+                  <ListLine right={<><Rec count={e.cards} /><Text style={txt.xs}>{e.verses ? t('reports.counts.verses', { count: e.verses }) : '—'}</Text></>}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.xs }}>
+                      <Text style={txt.xs}>{utcTime(e.at)}</Text>
+                      <LanguageLink row={e.row} open={p.open} />
+                      <Text style={txt.smMuted}>/ {e.label}</Text>
+                    </View>
+                    <Text style={txt.xs}>{e.row.report.country ? countryName(e.row.report.country) : t('reports.noCountry')}</Text>
+                  </ListLine>
+                </HelpRow>
               ))}
             </Panel>
           ))}
@@ -240,16 +243,18 @@ export function Activity(p: SectionProps & { days: 7 | 14; setDays: (d: 7 | 14) 
           {top.length === 0 ? <Text style={txt.smMuted}>{t('reports.activity.nobodyUploaded')}</Text> : top.map((x, i) => {
             const place = x.row.report.country ? countryName(x.row.report.country) : t('reports.noCountry');
             return (
-              <ListLine key={x.row.languageId} right={<Text style={[txt.sm, { fontWeight: '700' }]}>{num(x.cards)}</Text>}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                  <Text style={[txt.xsStrong, { width: 20 }]}>{num(i + 1)}</Text>
-                  <LanguageLink row={x.row} open={p.open} />
-                </View>
-                <RankBar value={x.cards} max={maxTop} />
-                <Text style={txt.xs}>
-                  {x.row.report.uploads.lastAt ? t('reports.activity.placeLast', { place, date: shortDate(x.row.report.uploads.lastAt) }) : place}
-                </Text>
-              </ListLine>
+              <HelpRow key={x.row.languageId} of="reports.topLanguage">
+                <ListLine right={<Text style={[txt.sm, { fontWeight: '700' }]}>{num(x.cards)}</Text>}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <Text style={[txt.xsStrong, { width: 20 }]}>{num(i + 1)}</Text>
+                    <LanguageLink row={x.row} open={p.open} />
+                  </View>
+                  <RankBar value={x.cards} max={maxTop} />
+                  <Text style={txt.xs}>
+                    {x.row.report.uploads.lastAt ? t('reports.activity.placeLast', { place, date: shortDate(x.row.report.uploads.lastAt) }) : place}
+                  </Text>
+                </ListLine>
+              </HelpRow>
             );
           })}
         </Panel>
@@ -285,15 +290,18 @@ export function Languages(p: SectionProps) {
       <Panel eyebrow={t('reports.languages.watchList')} title={watch.length ? t('reports.languages.toContact', { count: watch.length }) : t('reports.languages.nobodyToChase')}
         sub={watch.length ? t('reports.languages.watchSub') : t('reports.languages.watchEmptySub')}>
         {watch.map((w) => (
-          <ListLine key={w.row.languageId} right={<><ToneBadge tone={RECENCY_TONE[w.band]} label={recencyLabel(w.band)} /><Text style={txt.xs}>{t('reports.languages.inactiveIn', { count: w.untilInactive })}</Text></>}>
-            <LanguageLink row={w.row} open={p.open} />
-            <Text style={txt.xs}>{t('reports.languages.daysSince', { count: w.days })}{w.row.report.country ? ` · ${countryName(w.row.report.country)}` : ''}</Text>
-            <Text style={txt.sm}>{recencyAdvice(w.band)}</Text>
-          </ListLine>
+          <HelpRow key={w.row.languageId} of="reports.watch">
+            <ListLine right={<><ToneBadge tone={RECENCY_TONE[w.band]} label={recencyLabel(w.band)} /><Text style={txt.xs}>{t('reports.languages.inactiveIn', { count: w.untilInactive })}</Text></>}>
+              <LanguageLink row={w.row} open={p.open} />
+              <Text style={txt.xs}>{t('reports.languages.daysSince', { count: w.days })}{w.row.report.country ? ` · ${countryName(w.row.report.country)}` : ''}</Text>
+              <Text style={txt.sm}>{recencyAdvice(w.band)}</Text>
+            </ListLine>
+          </HelpRow>
         ))}
       </Panel>
       <Panel title={t('reports.languages.all')}>
         <ChipRow>
+          {/* help-each: each filter shows different languages */}
           {filters.map(([v, label]) => <Chip key={v} label={label} help={v === 'all' ? t('reports.languages.filterAllHelp') : t('reports.languages.filterHelp')} on={status === v} onPress={() => setStatus(v)} />)}
         </ChipRow>
         <LanguageTable rows={shown} now={now} open={p.open} clustersOf={p.clustersOf} />
@@ -348,10 +356,12 @@ function LanguageTable(props: { rows: LanguageRow[]; now: number; open: (row: La
             {COLUMNS.map((c) => {
               const active = c.key !== null && sort.key === c.key;
               const label = columnLabel(c.id);
-              if (!c.key) return <View key={c.id} style={{ flex: c.flex, padding: space.xs }}><Text style={txt.xsStrong}>{label}</Text></View>;
+              if (!c.key) return <HelpRow key={c.id} of="reports.column"><View style={{ flex: c.flex, padding: space.xs }}><Text style={txt.xsStrong}>{label}</Text></View></HelpRow>;
               return (
-                <SortHeader key={c.id} label={label} flex={c.flex} dir={active ? sort.dir : null}
-                  onPress={() => setSort(active ? { key: c.key!, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key: c.key!, dir: c.firstDir })} />
+                <HelpRow key={c.id} of="reports.column">
+                  <SortHeader label={label} flex={c.flex} dir={active ? sort.dir : null}
+                    onPress={() => setSort(active ? { key: c.key!, dir: sort.dir === 'asc' ? 'desc' : 'asc' } : { key: c.key!, dir: c.firstDir })} />
+                </HelpRow>
               );
             })}
           </View>
@@ -360,22 +370,24 @@ function LanguageTable(props: { rows: LanguageRow[]; now: number; open: (row: La
             const weeks = weeklyCards(r);
             const attention = attentionCount(r);
             return (
-              <View key={`${row.languageId}/${row.languageId}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, borderBottomWidth: 1, borderColor: C.border }}>
-                {cell(2, <><LanguageLink row={row} open={props.open} /><Text style={txt.xs}>
-                  {[r.code.toUpperCase(), r.country ? countryName(r.country) : t('reports.noCountry'), ...props.clustersOf(row.languageId)].join(' · ')}</Text></>)}
-                {cell(1.5, <><View style={{ alignSelf: 'flex-start' }}><RecencyBadge report={r} now={props.now} /></View>
-                  <Text style={txt.xs}>{r.uploads.lastAt ? `${shortDate(r.uploads.lastAt)} · ${ago(r.uploads.lastAt, props.now)}` : t('reports.languages.never')}</Text></>)}
-                {cell(1.6, <CoverageMini coverage={r.coverage.recorded} name={r.name} />)}
-                {cell(1.6, <ProgressPair total={r.progress.total} recorded={r.progress.recorded} done={r.progress.done} />)}
-                {cell(0.9, <Text style={[txt.sm, { fontWeight: '700' }]}>{num(r.uploads.cards)}</Text>, true)}
-                {cell(1.3, <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-                  <Sparkline values={weeks} label={t('reports.languages.perWeekSpoken', { name: r.name })} />
-                  <Text style={txt.xs}>
-                    <Trans i18nKey="reports.languages.perWeek" values={{ value: num(weeks.at(-1) ?? 0) }} components={{ b: <Text style={{ fontWeight: '700', color: C.dark }} /> }} />
-                  </Text>
-                </View>)}
-                {cell(0.8, attention > 0 ? <View style={{ alignSelf: 'flex-start' }}><ToneBadge tone="amber" label={num(attention)} /></View> : <Text style={txt.xs}>—</Text>)}
-              </View>
+              <HelpRow key={`${row.languageId}/${row.languageId}`} of="reports.languageRow">
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: space.sm, borderBottomWidth: 1, borderColor: C.border }}>
+                  {cell(2, <><LanguageLink row={row} open={props.open} /><Text style={txt.xs}>
+                    {[r.code.toUpperCase(), r.country ? countryName(r.country) : t('reports.noCountry'), ...props.clustersOf(row.languageId)].join(' · ')}</Text></>)}
+                  {cell(1.5, <><View style={{ alignSelf: 'flex-start' }}><RecencyBadge report={r} now={props.now} /></View>
+                    <Text style={txt.xs}>{r.uploads.lastAt ? `${shortDate(r.uploads.lastAt)} · ${ago(r.uploads.lastAt, props.now)}` : t('reports.languages.never')}</Text></>)}
+                  {cell(1.6, <CoverageMini coverage={r.coverage.recorded} name={r.name} />)}
+                  {cell(1.6, <ProgressPair total={r.progress.total} recorded={r.progress.recorded} done={r.progress.done} />)}
+                  {cell(0.9, <Text style={[txt.sm, { fontWeight: '700' }]}>{num(r.uploads.cards)}</Text>, true)}
+                  {cell(1.3, <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+                    <Sparkline values={weeks} label={t('reports.languages.perWeekSpoken', { name: r.name })} />
+                    <Text style={txt.xs}>
+                      <Trans i18nKey="reports.languages.perWeek" values={{ value: num(weeks.at(-1) ?? 0) }} components={{ b: <Text style={{ fontWeight: '700', color: C.dark }} /> }} />
+                    </Text>
+                  </View>)}
+                  {cell(0.8, attention > 0 ? <View style={{ alignSelf: 'flex-start' }}><ToneBadge tone="amber" label={num(attention)} /></View> : <Text style={txt.xs}>—</Text>)}
+                </View>
+              </HelpRow>
             );
           })}
         </View>
@@ -430,6 +442,7 @@ export function Geography(p: SectionProps) {
   return (
     <>
       <ChipRow>
+        {/* help-each: each measure shades the map by something different */}
         {measures.map(([v, label]) => <Chip key={v} label={label} help={t('reports.geography.measureHelp')} on={measure === v} onPress={() => setMeasure(v)} />)}
       </ChipRow>
       <Panel title={t('reports.counts.countries', { count: countryCounts(rows).filter((c) => c.country).length })}
@@ -440,16 +453,18 @@ export function Geography(p: SectionProps) {
       </Panel>
       <Panel title={t('reports.geography.byCountry')}>
         {table.map((x) => (
-          <ListLine key={x.country ?? 'none'}
-            right={<>
-              <Text style={txt.sm}><Trans i18nKey="reports.geography.active" values={{ value: num(x.active) }} components={{ b: bold }} /></Text>
-              <Text style={txt.xs}>{t('reports.geography.figures', { recent: num(x.recent), all: num(x.all), nt: pctText(x.nt) })}</Text>
-            </>}>
-            {x.country ? <LinkBtn label={countryName(x.country)} help={t('reports.geography.countryHelp')} onPress={() => p.show('languages', x.country!)} style={{ alignSelf: 'flex-start', minHeight: 32 }} />
-              : <Text style={txt.smMuted}>{countryName(null)}</Text>}
-            <RankBar value={x.list.length} max={max} />
-            <Text style={txt.xs}>{t('reports.geography.languageList', { count: x.list.length, names: x.list.map((r) => r.report.name).join(', ') })}</Text>
-          </ListLine>
+          <HelpRow key={x.country ?? 'none'} of="reports.country">
+            <ListLine
+              right={<>
+                <Text style={txt.sm}><Trans i18nKey="reports.geography.active" values={{ value: num(x.active) }} components={{ b: bold }} /></Text>
+                <Text style={txt.xs}>{t('reports.geography.figures', { recent: num(x.recent), all: num(x.all), nt: pctText(x.nt) })}</Text>
+              </>}>
+              {x.country ? <LinkBtn label={countryName(x.country)} help={t('reports.geography.countryHelp')} onPress={() => p.show('languages', x.country!)} style={{ alignSelf: 'flex-start', minHeight: 32 }} />
+                : <Text style={txt.smMuted}>{countryName(null)}</Text>}
+              <RankBar value={x.list.length} max={max} />
+              <Text style={txt.xs}>{t('reports.geography.languageList', { count: x.list.length, names: x.list.map((r) => r.report.name).join(', ') })}</Text>
+            </ListLine>
+          </HelpRow>
         ))}
       </Panel>
     </>
@@ -485,6 +500,7 @@ export function FieldReport(p: SectionProps) {
   return (
     <>
       <ChipRow>
+        {/* help-each: each period reports on different days */}
         {periods.map(([v, label]) => <Chip key={v} label={label} help={t('reports.field.periodHelp')} on={period === v} onPress={() => setPeriod(v)} />)}
       </ChipRow>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, alignItems: 'center' }}>
@@ -520,22 +536,24 @@ export function FieldReport(p: SectionProps) {
 
         <H>{t('reports.field.coverageAdvanced')}</H>
         {fr.advanced.length === 0 ? <Text style={txt.smMuted}>{t('reports.field.noCoverageMoved')}</Text> : fr.advanced.map((a) => (
-          <View key={a.row.languageId} style={{ gap: 4, paddingVertical: space.xs }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
-              <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{a.row.report.name}</Text><Text style={{ color: C.muted }}> {a.row.report.country ? `${countryName(a.row.report.country)} · ` : ''}{scopeLabel(a.scope)}</Text></Text>
-              <Text style={[txt.sm, { fontWeight: '700', color: C.green }]}>
-                {t('reports.field.pointsGained', { gain: formatNumber(Math.round(10 * (a.after - a.before)) / 10, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}
-              </Text>
-            </View>
-            <HelpInfo label={t('reports.field.advancedFromTo', { before: pctText(a.before), after: pctText(a.after), scope: scopeLabel(a.scope) })}
-              detail={t('reports.field.advancedBarHelp')}>
-              <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: C.border }}>
-                <View style={{ width: `${a.before}%`, backgroundColor: C.primary }} />
-                <View style={{ width: `${a.after - a.before}%`, backgroundColor: C.green }} />
+          <HelpRow key={a.row.languageId} of="reports.advanced">
+            <View style={{ gap: 4, paddingVertical: space.xs }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>
+                <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{a.row.report.name}</Text><Text style={{ color: C.muted }}> {a.row.report.country ? `${countryName(a.row.report.country)} · ` : ''}{scopeLabel(a.scope)}</Text></Text>
+                <Text style={[txt.sm, { fontWeight: '700', color: C.green }]}>
+                  {t('reports.field.pointsGained', { gain: formatNumber(Math.round(10 * (a.after - a.before)) / 10, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })}
+                </Text>
               </View>
-            </HelpInfo>
-            <Text style={txt.xs}>{t('reports.field.advancedFromTo', { before: pctText(a.before), after: pctText(a.after), scope: scopeLabel(a.scope) })}</Text>
-          </View>
+              <HelpInfo label={t('reports.field.advancedFromTo', { before: pctText(a.before), after: pctText(a.after), scope: scopeLabel(a.scope) })}
+                detail={t('reports.field.advancedBarHelp')}>
+                <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: C.border }}>
+                  <View style={{ width: `${a.before}%`, backgroundColor: C.primary }} />
+                  <View style={{ width: `${a.after - a.before}%`, backgroundColor: C.green }} />
+                </View>
+              </HelpInfo>
+              <Text style={txt.xs}>{t('reports.field.advancedFromTo', { before: pctText(a.before), after: pctText(a.after), scope: scopeLabel(a.scope) })}</Text>
+            </View>
+          </HelpRow>
         ))}
 
         <H>{t('reports.field.dayByDay')}</H>
@@ -671,18 +689,20 @@ export function Ledger(p: SectionProps) {
               const top = [...line.books].sort((a, b) => b.chapters - a.chapters);
               const summary = top.slice(0, 3).map((b) => `${bookOf(b)} ${num(b.chapters)}`).join(' · ') + (top.length > 3 ? ` +${num(top.length - 3)}` : '');
               return (
-                <ListLine key={line.row.languageId}
-                  right={<>
-                    {lp ? <ToneBadge tone={PACE_TONE[lp.band]} label={t('reports.pace.badge', { label: paceLabel(lp.band), gap: signed(lp.gap) })} /> : null}
-                    <Text style={txt.sm}>
-                      <Trans i18nKey="reports.ledger.lineFigures" count={line.chapters}
-                        values={{ chapters: num(line.chapters), books: t('reports.counts.books', { count: line.books.length }) }} components={{ b: bold }} />
-                    </Text>
-                  </>}>
-                  <LanguageLink row={line.row} open={p.open} />
-                  <Text style={txt.xs}>{summary}</Text>
-                  <RankBar value={line.chapters} max={l.lines[0]!.chapters} />
-                </ListLine>
+                <HelpRow key={line.row.languageId} of="reports.ledgerLine">
+                  <ListLine
+                    right={<>
+                      {lp ? <ToneBadge tone={PACE_TONE[lp.band]} label={t('reports.pace.badge', { label: paceLabel(lp.band), gap: signed(lp.gap) })} /> : null}
+                      <Text style={txt.sm}>
+                        <Trans i18nKey="reports.ledger.lineFigures" count={line.chapters}
+                          values={{ chapters: num(line.chapters), books: t('reports.counts.books', { count: line.books.length }) }} components={{ b: bold }} />
+                      </Text>
+                    </>}>
+                    <LanguageLink row={line.row} open={p.open} />
+                    <Text style={txt.xs}>{summary}</Text>
+                    <RankBar value={line.chapters} max={l.lines[0]!.chapters} />
+                  </ListLine>
+                </HelpRow>
               );
             })}
           </View>
@@ -693,10 +713,12 @@ export function Ledger(p: SectionProps) {
           {idle.map((r) => {
             const { days } = recencyOf(r.report, now);
             return (
-              <ListLine key={r.languageId}
-                right={<Text style={txt.xs}>{r.report.uploads.lastAt ? t('reports.ledger.lastUpload', { date: shortDate(r.report.uploads.lastAt), count: days ?? 0 }) : recencyLabel('not_started')}</Text>}>
-                <LanguageLink row={r} open={p.open} strong={false} />
-              </ListLine>
+              <HelpRow key={r.languageId} of="reports.idle">
+                <ListLine
+                  right={<Text style={txt.xs}>{r.report.uploads.lastAt ? t('reports.ledger.lastUpload', { date: shortDate(r.report.uploads.lastAt), count: days ?? 0 }) : recencyLabel('not_started')}</Text>}>
+                  <LanguageLink row={r} open={p.open} strong={false} />
+                </ListLine>
+              </HelpRow>
             );
           })}
         </Panel>
@@ -718,6 +740,7 @@ export function Pace(p: SectionProps) {
         <PaceStrip items={withTarget.map((i) => ({ name: i.row.report.name, gap: i.pace!.gap, band: i.pace!.band }))} />
       </Panel>
       <Stats>
+        {/* help-each: each stat counts a different pace */}
         {(['ahead', 'on_pace', 'behind', 'stalled'] as const).map((b) => {
           const count = groups.find((g) => g.band === b)!.items.length;
           const tone: Tone | undefined = count === 0 ? undefined : b === 'stalled' ? 'red' : b === 'behind' ? 'amber' : b === 'ahead' ? 'green' : 'brand';
@@ -735,24 +758,26 @@ export function Pace(p: SectionProps) {
               const target = row.report.target;
               const finish = pace?.projectedFinish && pace.band !== 'complete' ? pace.projectedFinish : null;
               return (
-                <ListLine key={row.languageId}
-                  right={pace ? (
-                    <>
-                      <Text style={[txt.sm, { fontWeight: '700' }]}>{t('reports.pace.points', { gap: signed(pace.gap) })}</Text>
-                      <Text style={txt.xs}>
-                        {finish ? t('reports.pace.ofPlanFinishes', { actual: pctText(pace.actual), expected: pctText(pace.expected), date: dayYear(finish) })
-                          : t('reports.pace.ofPlan', { actual: pctText(pace.actual), expected: pctText(pace.expected) })}
-                      </Text>
-                    </>
-                  ) : <Text style={txt.xs}>{t('reports.pace.setTarget')}</Text>}>
-                  <LanguageLink row={row} open={p.open} />
-                  <Text style={txt.xs}>
-                    {row.report.country ? `${countryName(row.report.country)} · ` : ''}
-                    {target ? t('reports.pace.targetRange', { scope: scopeLabel(target.scope), from: dayYear(target.startDate), to: dayYear(target.targetDate) }) : paceLabel('no_target')}
-                  </Text>
-                  {pace ? <Bar value={pace.actual} tick={pace.expected} tone={PACE_TONE[pace.band]}
-                    label={t('reports.pace.barNamed', { name: row.report.name, actual: pctText(pace.actual), expected: pctText(pace.expected) })} /> : null}
-                </ListLine>
+                <HelpRow key={row.languageId} of="reports.paceLine">
+                  <ListLine
+                    right={pace ? (
+                      <>
+                        <Text style={[txt.sm, { fontWeight: '700' }]}>{t('reports.pace.points', { gap: signed(pace.gap) })}</Text>
+                        <Text style={txt.xs}>
+                          {finish ? t('reports.pace.ofPlanFinishes', { actual: pctText(pace.actual), expected: pctText(pace.expected), date: dayYear(finish) })
+                            : t('reports.pace.ofPlan', { actual: pctText(pace.actual), expected: pctText(pace.expected) })}
+                        </Text>
+                      </>
+                    ) : <Text style={txt.xs}>{t('reports.pace.setTarget')}</Text>}>
+                    <LanguageLink row={row} open={p.open} />
+                    <Text style={txt.xs}>
+                      {row.report.country ? `${countryName(row.report.country)} · ` : ''}
+                      {target ? t('reports.pace.targetRange', { scope: scopeLabel(target.scope), from: dayYear(target.startDate), to: dayYear(target.targetDate) }) : paceLabel('no_target')}
+                    </Text>
+                    {pace ? <Bar value={pace.actual} tick={pace.expected} tone={PACE_TONE[pace.band]}
+                      label={t('reports.pace.barNamed', { name: row.report.name, actual: pctText(pace.actual), expected: pctText(pace.expected) })} /> : null}
+                  </ListLine>
+                </HelpRow>
               );
             })}
           </View>
@@ -780,18 +805,20 @@ export function Alerts(p: SectionProps) {
             <Text style={txt.sm}>{words.body}</Text>
             <Text style={txt.sm}><Trans i18nKey="reports.alerts.whatToDo" values={{ action: words.action }} components={{ b: bold }} /></Text>
             {a.rows.map((r) => (
-              <ListLine key={r.languageId}>
-                <LanguageLink row={r} open={p.open} />
-                <Text style={txt.xs}>
-                  {a.id === 'stuck' ? t('reports.alerts.stuckRow', {
-                    recordings: t('reports.counts.recordings', { count: r.report.alerts.stuckCards }),
-                    passages: t('reports.counts.passages', { count: r.report.alerts.stuckPassages }),
-                    date: r.report.alerts.stuckSince ? shortDate(r.report.alerts.stuckSince) : '?'
-                  }) : null}
-                  {a.id === 'invalid' ? t('reports.counts.recordings', { count: r.report.alerts.invalidCards }) : null}
-                  {a.id === 'stale' ? t('reports.alerts.refreshed', { when: dateTime(r.updatedAt) }) : null}
-                </Text>
-              </ListLine>
+              <HelpRow key={r.languageId} of="reports.alertLanguage">
+                <ListLine>
+                  <LanguageLink row={r} open={p.open} />
+                  <Text style={txt.xs}>
+                    {a.id === 'stuck' ? t('reports.alerts.stuckRow', {
+                      recordings: t('reports.counts.recordings', { count: r.report.alerts.stuckCards }),
+                      passages: t('reports.counts.passages', { count: r.report.alerts.stuckPassages }),
+                      date: r.report.alerts.stuckSince ? shortDate(r.report.alerts.stuckSince) : '?'
+                    }) : null}
+                    {a.id === 'invalid' ? t('reports.counts.recordings', { count: r.report.alerts.invalidCards }) : null}
+                    {a.id === 'stale' ? t('reports.alerts.refreshed', { when: dateTime(r.updatedAt) }) : null}
+                  </Text>
+                </ListLine>
+              </HelpRow>
             ))}
           </Panel>
         );

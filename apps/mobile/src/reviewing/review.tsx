@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot, useHelpHost } from '../helpMode/useHelpMode';
-import { HelpBadge, HelpClip, HelpHost } from '../helpMode/helpBadge';
+import { HelpBadge, HelpClip, HelpHost, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
@@ -26,7 +26,6 @@ import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import type { PassageView } from '../passage/passageView';
 import { when } from '../passage/passageView';
-import { undoNote } from '../passage/recordInputsModel';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { recordTarget } from '../moderation/reportTargets';
 import { clockMs, questionSource, YES_NO, yesNoLabel, type Stage, type StageId } from './capture';
@@ -57,7 +56,9 @@ export function StepStrip(props: { stages: Stage[]; at: number; onGo: (id: Stage
   return (
     <View style={styles.strip} accessibilityLabel={t('review.simple.stepsLabel')}>
       {props.stages.map((st, i) => (
-        <StripStep key={st.id} stage={st} index={i} count={props.stages.length} done={i < props.at} current={i === props.at} onGo={props.onGo} />
+        <HelpRow key={st.id} of="review.step">
+          <StripStep stage={st} index={i} count={props.stages.length} done={i < props.at} current={i === props.at} onGo={props.onGo} />
+        </HelpRow>
       ))}
     </View>
   );
@@ -76,7 +77,7 @@ function StripStep(props: { stage: Stage; index: number; count: number; done: bo
       <View style={[styles.stepMark, done ? { backgroundColor: C.green } : current ? { backgroundColor: C.primary } : styles.stepLater]}>
         <Ico name={icon} size={20} color={done || current ? C.white : C.muted} strokeWidth={done ? 3 : 2.2} />
       </View>
-      <Text style={[styles.stepLabel, { color: fg }]} numberOfLines={1}>{stage.label}</Text>
+      <Text style={[styles.stepLabel, { color: fg }]}>{stage.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -191,6 +192,7 @@ export function BackgroundSheet(props: {
   return (
     <TallSheet title={t('review.parts.background')} onClose={props.onClose}>
       <ChipRow>
+        {/* help-each: each tab shows something different */}
         {chips.map((c) => <Chip key={c.id} label={c.label} help={c.help} {...(c.count !== undefined ? { count: c.count } : {})} on={tab === c.id} onPress={() => setTab(c.id)} />)}
       </ChipRow>
       {tab === 'passage' ? (
@@ -207,12 +209,14 @@ export function BackgroundSheet(props: {
             {[...data.notes].reverse().map((n) => {
               const older = data.olderVersion(n);
               return (
-                <Authored key={n.id} ctx={ctx} by={n.by}>
-                  <NoteCard anchor={data.anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
-                    {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
-                    {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> } : {})}
-                    action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
-                </Authored>
+                <HelpRow key={n.id} of="review.note">
+                  <Authored ctx={ctx} by={n.by}>
+                    <NoteCard anchor={data.anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
+                      {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
+                      {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> } : {})}
+                      action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
+                  </Authored>
+                </HelpRow>
               );
             })}
           </View>
@@ -224,8 +228,10 @@ export function BackgroundSheet(props: {
             {data.terms.map((term, i) => {
               const rendering = term.renderings.at(-1)?.rendering;
               return (
-                <Row key={term.termId} icon="key" label={term.term} sub={rendering ? t('review.simple.theirWord', { word: rendering }) : t('review.simple.noWordYet')}
-                  help={t('passage.version.termHelp')} last={i === data.terms.length - 1} onPress={() => props.onOpenTerm(term.termId)} />
+                <HelpRow key={term.termId} of="review.termRow">
+                  <Row icon="key" label={term.term} sub={rendering ? t('review.simple.theirWord', { word: rendering }) : t('review.simple.noWordYet')}
+                    help={t('passage.version.termHelp')} last={i === data.terms.length - 1} onPress={() => props.onOpenTerm(term.termId)} />
+                </HelpRow>
               );
             })}
           </Group>
@@ -312,7 +318,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
           {(
             <Pressable onPress={pick.onPress} accessibilityRole="button" accessibilityLabel={option ? t('review.simple.chooseBibleNow', { bible: option.name }) : t('review.simple.chooseBible')}
               accessibilityState={{ expanded: picking }} style={({ pressed }) => [styles.picker, pressed && styles.pressed]}>
-              <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]} numberOfLines={1}>{option?.abbreviation ?? t('review.simple.bibles')}</Text>
+              <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText, flexShrink: 1 }]} numberOfLines={2}>{option?.abbreviation ?? t('review.simple.bibles')}</Text>
               <Ico name={picking ? 'up' : 'down'} size={18} color={TINT.amberText} strokeWidth={2.6} />
               <HelpBadge spot={pick} />
             </Pressable>
@@ -321,10 +327,12 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
         {picking ? (
           <View style={styles.pickList}>
             {passage.options.map((o, i) => (
-              <Row key={o.itemId} label={o.abbreviation} role="radio" selected={o.itemId === option?.itemId}
-                sub={o.itemId !== theirs ? o.name : props.translatorIsYou ? t('review.simple.youUsedIt', { bible: o.name }) : t('review.simple.nameUsedIt', { bible: o.name, name: props.translator })}
-                right={o.itemId === option?.itemId ? <Ico name="check" size={20} color={C.primary} /> : <View />} help={t('review.simple.bibleRowHelp')}
-                onPress={() => { setChosen(o.itemId); usage.open(o.itemId); setPicking(false); }} />
+              <HelpRow key={o.itemId} of="review.bible">
+                <Row label={o.abbreviation} role="radio" selected={o.itemId === option?.itemId}
+                  sub={o.itemId !== theirs ? o.name : props.translatorIsYou ? t('review.simple.youUsedIt', { bible: o.name }) : t('review.simple.nameUsedIt', { bible: o.name, name: props.translator })}
+                  right={o.itemId === option?.itemId ? <Ico name="check" size={20} color={C.primary} /> : <View />} help={t('review.simple.bibleRowHelp')}
+                  onPress={() => { setChosen(o.itemId); usage.open(o.itemId); setPicking(false); }} />
+              </HelpRow>
             ))}
             {read ? <Row icon="plus" label={t('review.simple.moreBibles')} sub={t('review.simple.moreBiblesSub')} onPress={props.onMoreBibles} last /> : null}
           </View>
@@ -376,8 +384,10 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
         src?.rows ? (
           <VerseDots>
             {src.rows.map((row) => (
-              <VerseDot key={row.key} row={row} here={player.started && player.current?.key === row.key} notes={(verseNotes.get(row.key) ?? []).length}
-                {...(plan ? { onPress: () => { player.playFrom(row); } } : {})} />
+              <HelpRow key={row.key} of="review.verseDot">
+                <VerseDot row={row} here={player.started && player.current?.key === row.key} notes={(verseNotes.get(row.key) ?? []).length}
+                  {...(plan ? { onPress: () => { player.playFrom(row); } } : {})} />
+              </HelpRow>
             ))}
           </VerseDots>
         ) : <Text style={[txt.smMuted, styles.empty]}>{src?.loading || !src ? t('common.loading') : src.textProblem}</Text>
@@ -388,33 +398,38 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
             const here = player.started && player.current?.key === row.key;
             const open = openVerse === row.key;
             const isPicked = picked === row.key && !player.playing;
+            // A verse with notes has a button the others lack, and an open one its notes: each kind speaks for its own.
             return (
-              <View key={row.key} style={[styles.verse, notes.length ? styles.verseNoted : here ? styles.versePlaying : null, isPicked && styles.versePicked]}>
-                <VerseTap verse={row.key} selected={isPicked} plays={!!plan}
-                  accessibilityLabel={notes.length ? t('review.simple.verseWithNotes', { verse: row.key, text: row.text, count: notes.length }) : t('review.simple.verseA11y', { verse: row.key, text: row.text })}
-                  onPress={() => {
-                    if (player.playFrom(row)) return;
-                    setPicked(isPicked ? null : row.key);
-                    if (notes.length) setOpenVerse(open ? null : row.key);
-                  }}>
-                  <Text style={styles.verseText}>
-                    <Text style={styles.verseNum}>{row.key.split(':')[1] ?? row.key} </Text>{row.text}
-                  </Text>
-                </VerseTap>
-                {notes.length ? (
-                  <NotesBy open={open} label={open ? t('review.simple.hideNotes', { count: notes.length, verse: row.key }) : t('review.simple.showNotes', { count: notes.length, verse: row.key })}
-                    names={[...new Set(notes.map((n) => ctx.name(n.by).split(' ')[0]))].join(', ')} onPress={() => setOpenVerse(open ? null : row.key)} />
-                ) : null}
-                {open ? notes.map((n) => (
-                  <Authored key={n.id} ctx={ctx} by={n.by}>
-                    <View style={{ gap: space.xs }}>
-                      {n.text ? <Text style={txt.sm}>{n.text}</Text> : null}
-                      {n.blobHash ? <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> : null}
-                      <Text style={txt.xs}>{ctx.name(n.by)} · {when(n.hlc)}{n.anchor.kind === 'verse' && n.anchor.at ? ` · ${t('review.simple.atTime', { time: n.anchor.at })}` : ''}</Text>
-                    </View>
-                  </Authored>
-                )) : null}
-              </View>
+              <HelpRow key={row.key} of={open ? 'review.openVerse' : notes.length ? 'review.notedVerse' : 'review.verse'}>
+                <View style={[styles.verse, notes.length ? styles.verseNoted : here ? styles.versePlaying : null, isPicked && styles.versePicked]}>
+                  <VerseTap verse={row.key} selected={isPicked} plays={!!plan}
+                    accessibilityLabel={notes.length ? t('review.simple.verseWithNotes', { verse: row.key, text: row.text, count: notes.length }) : t('review.simple.verseA11y', { verse: row.key, text: row.text })}
+                    onPress={() => {
+                      if (player.playFrom(row)) return;
+                      setPicked(isPicked ? null : row.key);
+                      if (notes.length) setOpenVerse(open ? null : row.key);
+                    }}>
+                    <Text style={styles.verseText}>
+                      <Text style={styles.verseNum}>{row.key.split(':')[1] ?? row.key} </Text>{row.text}
+                    </Text>
+                  </VerseTap>
+                  {notes.length ? (
+                    <NotesBy open={open} label={open ? t('review.simple.hideNotes', { count: notes.length, verse: row.key }) : t('review.simple.showNotes', { count: notes.length, verse: row.key })}
+                      names={[...new Set(notes.map((n) => ctx.name(n.by).split(' ')[0]))].join(', ')} onPress={() => setOpenVerse(open ? null : row.key)} />
+                  ) : null}
+                  {open ? notes.map((n) => (
+                    <HelpRow key={n.id} of="review.verseNote">
+                      <Authored ctx={ctx} by={n.by}>
+                        <View style={{ gap: space.xs }}>
+                          {n.text ? <Text style={txt.sm}>{n.text}</Text> : null}
+                          {n.blobHash ? <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> : null}
+                          <Text style={txt.xs}>{ctx.name(n.by)} · {when(n.hlc)}{n.anchor.kind === 'verse' && n.anchor.at ? ` · ${t('review.simple.atTime', { time: n.anchor.at })}` : ''}</Text>
+                        </View>
+                      </Authored>
+                    </HelpRow>
+                  )) : null}
+                </View>
+              </HelpRow>
             );
           }) : <Text style={[txt.smMuted, styles.empty]}>{src?.loading || !src ? t('common.loading') : src.textProblem}</Text>}
           {src && (src.copyright.text || src.copyright.audio) ? (
@@ -475,7 +490,7 @@ function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string;
         anchor: { kind: 'verse', verse: props.verse, ...(props.translation ? { translation: props.translation } : {}), ...(props.at ? { at: props.at } : {}) },
         ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
       });
-      await ctx.act(specs, t('review.simple.noteAdded'), () => undoNote(specs)(commands(state)));
+      await ctx.act(specs, t('review.simple.noteAdded'));
       await draft.clear();
       props.onDone();
     } catch { /* ctx.act said what went wrong */ } finally { setBusy(false); }
@@ -506,14 +521,16 @@ export function MomentList(props: { ctx: Ctx; moments: { hash: string; durationM
   return (
     <Group>
       {props.moments.map((m, i) => (
-        <View key={m.hash} style={[styles.moment, i > 0 && styles.momentTop]}>
-          <AudioClip language={props.ctx.language} hashes={[m.hash]} label={t('review.simple.playYourNoteAt', { time: formatClock(m.atMs) })} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[txt.body, { fontWeight: '700' }]}>{t('review.simple.yourNoteAt', { time: formatClock(m.atMs) })}</Text>
-            <Text style={txt.xs}>{t('review.simple.goesWithReview', { length: formatClock(m.durationMs) })}</Text>
+        <HelpRow key={m.hash} of="review.moment">
+          <View style={[styles.moment, i > 0 && styles.momentTop]}>
+            <AudioClip language={props.ctx.language} hashes={[m.hash]} label={t('review.simple.playYourNoteAt', { time: formatClock(m.atMs) })} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[txt.body, { fontWeight: '700' }]}>{t('review.simple.yourNoteAt', { time: formatClock(m.atMs) })}</Text>
+              <Text style={txt.xs}>{t('review.simple.goesWithReview', { length: formatClock(m.durationMs) })}</Text>
+            </View>
+            <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.simple.removeNoteHelp')} accessibilityLabel={t('review.simple.removeNoteAt', { time: formatClock(m.atMs) })} onPress={() => props.onRemove(m.hash)} />
           </View>
-          <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.simple.removeNoteHelp')} accessibilityLabel={t('review.simple.removeNoteAt', { time: formatClock(m.atMs) })} onPress={() => props.onRemove(m.hash)} />
-        </View>
+        </HelpRow>
       ))}
     </Group>
   );
@@ -525,6 +542,7 @@ export function BigChoices(props: { type: 'rating' | 'yesno'; value: string | un
     return (
       <View style={{ alignSelf: 'stretch', gap: space.sm }}>
         <View style={styles.choiceRow} accessibilityRole="radiogroup">
+          {/* help-each: each score is a different answer */}
           {['1', '2', '3', '4', '5'].map((n) => <BigChoice key={n} label={n} on={props.value === n} onPress={() => props.onChange(n)} />)}
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: space.xs }}>
@@ -536,6 +554,7 @@ export function BigChoices(props: { type: 'rating' | 'yesno'; value: string | un
   }
   return (
     <View style={[styles.choiceRow, { alignSelf: 'stretch' }]} accessibilityRole="radiogroup">
+      {/* help-each: yes and no are different answers */}
       {YES_NO.map((v) => <BigChoice key={v} label={yesNoLabel(v)} icon={v === 'Yes' ? 'check' : 'close'} tall on={props.value === v} onPress={() => props.onChange(v)} />)}
     </View>
   );
@@ -603,10 +622,11 @@ const styles = StyleSheet.create({
   off: { opacity: 0.4 },
   empty: { paddingHorizontal: space.xs, paddingVertical: space.md },
   strip: { flexDirection: 'row', justifyContent: 'center', paddingHorizontal: space.lg, paddingBottom: space.sm, backgroundColor: C.bg },
-  step: { width: 78, minHeight: target.row, alignItems: 'center', gap: 4, paddingTop: space.xs },
+  // An equal share of the strip each, so a long word has room rather than being cut (decisions.md 139).
+  step: { flex: 1, maxWidth: 120, minHeight: target.row, alignItems: 'center', gap: 4, paddingTop: space.xs, paddingHorizontal: 2 },
   stepMark: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   stepLater: { backgroundColor: C.card, borderWidth: 1.5, borderColor: C.border },
-  stepLabel: { fontSize: T.xs, fontWeight: '800' },
+  stepLabel: { fontSize: T.xs, fontWeight: '800', textAlign: 'center' },
   dots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingVertical: space.xs },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: withAlpha(C.primary, 0.2) },
   dotNow: { width: 24, backgroundColor: C.primary },
@@ -628,7 +648,7 @@ const styles = StyleSheet.create({
   thumb: { position: 'absolute', width: 22, height: 22, marginLeft: -11, borderRadius: 11, backgroundColor: C.white, borderWidth: 3, borderColor: C.primary },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
   time: { width: 40 },
-  side: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+  side: { minWidth: 52, height: 52, paddingHorizontal: 6, borderRadius: 26, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   sideLabel: { fontSize: T.xs, fontWeight: '800', color: C.dark },
   play: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', ...lift({ color: C.primary, opacity: 0.3, radius: 12, y: 6 }) },
   verse: { borderRadius: radius.md, paddingHorizontal: space.xs, paddingVertical: 4, gap: space.xs },
@@ -648,7 +668,7 @@ const styles = StyleSheet.create({
   choiceRow: { flexDirection: 'row', gap: space.sm },
   choice: { flex: 1, minHeight: 72, borderRadius: radius.lg + 2, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center', gap: space.xs },
   choiceLabel: { fontSize: T.xxl, fontWeight: '800' },
-  skip: { width: 84, minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  skip: { minWidth: 84, paddingHorizontal: space.sm, minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(15,18,28,0.45)' },
   tall: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '80%', backgroundColor: C.card, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingTop: space.sm, ...lift({ opacity: 0.2, radius: 30, y: -10 }) },
   dialogFrame: { alignItems: 'center', justifyContent: 'center', padding: space.xl },

@@ -44,7 +44,7 @@ const PROJECTION_VERSION = `${REDUCER_VERSION}:1`;
  * snapshot is `chars` long or more, or when `events` or more have arrived
  * since it (all of its log when it has none). The Edge pass leaves those
  * out, and the job container behind the dashboard Worker
- * (`server/projections.ts`, decisions.md 134) runs the pass for only those.
+ * (`server/projections.ts`, decisions.md 140) runs the pass for only those.
  */
 export const LARGE = { chars: 10_000_000, events: 25_000 };
 

@@ -2,8 +2,8 @@
 // its own people, questions and helps. `LanguageChecks` (src/checks) is the list (the
 // flow editor for a language's own steps, `flow_editor` with `steps:
 // 'language'`, or New language's draft with `draft: '1'`); `CheckEditor` is
-// one check. Every change saves as it is made, with Undo, like the rest of
-// the app's lists.
+// one check. Every change saves as it is made; the list's header Undo takes a
+// save back, one made here too, and removing a check asks first (decision 134).
 import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, commands, deriveFlow, formatQuestionField, kindOf, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, shownFrom, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type QuestionSpec, type ShownWhat } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
@@ -14,10 +14,11 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Chip, ChipRow, EmptyState, Field, Group, Header, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SectionLabel, Sheet, Toggle } from '../ui/kit';
+import { Banner, Chip, ChipWrap, EmptyState, Field, Group, Header, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SectionLabel, Sheet, Toggle } from '../ui/kit';
 import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { refKindOf } from '../reference/model';
 import { failureMessage } from '../diagnostics/report';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { contractsFor } from '../shell/screenContracts';
 import { C, TINT } from '../ui/theme';
 import { PersonAvatar } from '../ui/UserChip';
@@ -29,7 +30,7 @@ import { docLanguage, inLanguages, teamLanguages } from '../reference/languages'
 import { saveRows } from '../checks/checkActions';
 import { styles } from '../checks/checkStyles';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { ShowsSection } from '../checks/ShowsSection';
 import { setParts } from '../checks/showActions';
 import { isAudio, partsOf, type ShowPart } from '../checks/showsModel';
@@ -136,6 +137,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   const [writing, setWriting] = useState<{ title: string; text: string } | null>(null);
   const [together, setTogether] = useState<string[] | null>(null);
   const [checking, setChecking] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const items = lib.items('material').filter((it) => it.current && !it.archived);
   const docs = useLibraryDocs(lib.orgId, items.map((it) => it.current), { deps: false });
   if (!state || i < 0) return <Gone ctx={ctx} name={name} loading={!state} />;
@@ -225,8 +227,10 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
         {helps.map((h) => {
           const l = helpLabel(state, lib, h);
           return (
-            <Row key={'itemId' in h ? h.itemId : h.materialId} icon={l.icon} label={l.name} sub={l.kind || undefined}
-              right={mayFlows ? <IconBtn name="close" label={t('checks.removeHelp', { name: l.name })} help={t('checks.unlinkHelp')} onPress={() => void setHelp(h, false)} bg="transparent" color={C.muted} /> : undefined} />
+            <HelpRow key={'itemId' in h ? h.itemId : h.materialId} of="checks.help">
+              <Row icon={l.icon} label={l.name} sub={l.kind || undefined}
+                right={mayFlows ? <IconBtn name="close" label={t('checks.removeHelp', { name: l.name })} help={t('checks.unlinkHelp')} onPress={() => void setHelp(h, false)} bg="transparent" color={C.muted} /> : undefined} />
+            </HelpRow>
           );
         })}
         {helps.length === 0 && !mayFlows ? <Row label={t('checks.noHelps')} last /> : null}
@@ -246,9 +250,13 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
             <Row icon="arrowR" label={t('checks.checkedAt')} sub={checkedByName} help={t('checks.checkedAtHelp')} onPress={() => setChecking(true)} />
           ) : null}
           <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} help={t('checks.removeCheckHelp')} last
-            onPress={() => { void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((ok) => { if (ok) ctx.back(); }); }} />
+            onPress={() => setRemoving(true)} />
         </Group>
       ) : null}
+      {/* A whole check goes: it asks first, and back on the list its Undo puts it back. */}
+      <ConfirmDelete visible={removing} name={name} title={t('checks.removeAsk', { check: name })} sub={t('checks.checkOf', { n: formatNumber(number), language })}
+        confirmLabel={t('checks.remove')} onClose={() => setRemoving(false)}
+        onConfirm={() => { setRemoving(false); void saveRows(ctx, removeRow(rows, i), t('checks.removed', { check: name })).then((was) => { if (was) ctx.back(); }); }} />
 
       <Sheet visible={together !== null} title={t('checks.sameTimeRow')} sub={name} onClose={() => setTogether(null)}
         footer={<PrimaryBtn label={t('common.done')} help={t('checks.sameTimeDoneHelp')} onPress={() => {
@@ -260,9 +268,11 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
           {rows.filter((_, j) => j !== i).map((r, j, a) => {
             const on = (together ?? []).includes(r.kindId);
             return (
-              <Row key={r.kindId} leading={<KindIcon kindId={r.kindId} size={40} />} label={checkName(r.kindId, known)} role="checkbox" checked={on} right={tick(on)}
-                help={on ? t('checks.sameTimeOnHelp2') : t('checks.sameTimeOffHelp2')} last={j === a.length - 1}
-                onPress={() => setTogether((cur) => (cur ?? []).includes(r.kindId) ? (cur ?? []).filter((x) => x !== r.kindId) : [...(cur ?? []), r.kindId])} />
+              <HelpRow key={r.kindId} of="checks.sameTime">
+                <Row leading={<KindIcon kindId={r.kindId} size={40} />} label={checkName(r.kindId, known)} role="checkbox" checked={on} right={tick(on)}
+                  help={on ? t('checks.sameTimeOnHelp2') : t('checks.sameTimeOffHelp2')} last={j === a.length - 1}
+                  onPress={() => setTogether((cur) => (cur ?? []).includes(r.kindId) ? (cur ?? []).filter((x) => x !== r.kindId) : [...(cur ?? []), r.kindId])} />
+              </HelpRow>
             );
           })}
         </Group>
@@ -273,9 +283,11 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
           {checkers.map((r) => {
             const on = kind.produces?.checkedBy === r.kindId;
             return (
-              <Row key={r.kindId} leading={<KindIcon kindId={r.kindId} size={40} />} label={checkName(r.kindId, known)} role="radio" selected={on}
-                right={on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : undefined} help={t('checks.checkedAtPickHelp')}
-                onPress={() => { setChecking(false); if (!on) setCheckedBy(r.kindId); }} />
+              <HelpRow key={r.kindId} of="checks.checker">
+                <Row leading={<KindIcon kindId={r.kindId} size={40} />} label={checkName(r.kindId, known)} role="radio" selected={on}
+                  right={on ? <Ico name="check" size={20} color={C.primary} strokeWidth={3} /> : undefined} help={t('checks.checkedAtPickHelp')}
+                  onPress={() => { setChecking(false); if (!on) setCheckedBy(r.kindId); }} />
+              </HelpRow>
             );
           })}
           <Row icon="plus" label={t('checks.ownCheck')} help={t('checks.ownCheckHelp')} last onPress={() => { setChecking(false); setCheckedBy('own'); }} />
@@ -288,11 +300,19 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
         <Group>
           {ownNotes.map((m) => {
             const on = linked.has(`material:${m.materialId}`);
-            return <Row key={m.materialId} icon="note" label={m.title} sub={referenceKindName(m.kind)} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ materialId: m.materialId }, !on)} />;
+            return (
+              <HelpRow key={m.materialId} of="checks.linkHelp">
+                <Row icon="note" label={m.title} sub={referenceKindName(m.kind)} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ materialId: m.materialId }, !on)} />
+              </HelpRow>
+            );
           })}
           {library.filter((x) => x.kind === 'note' || x.kind === 'other').map(({ it }) => {
             const on = linked.has(`item:${it.itemId}`);
-            return <Row key={it.itemId} icon="note" label={it.name} sub={it.description || undefined} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
+            return (
+              <HelpRow key={it.itemId} of="checks.linkHelp">
+                <Row icon="note" label={it.name} sub={it.description || undefined} role="checkbox" checked={on} right={tick(on)} help={linkedHelp(on)} onPress={() => void setHelp({ itemId: it.itemId }, !on)} />
+              </HelpRow>
+            );
           })}
           {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} help={t('checks.writeNoteHelp')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
         </Group>
@@ -302,8 +322,12 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
             <Group>
               {library.filter((x) => x.kind === 'guide' || x.kind === 'source').map(({ it, kind: k }, j, a) => {
                 const on = linked.has(`item:${it.itemId}`);
-                return <Row key={it.itemId} icon={k === 'source' ? 'book' : 'sparkle'} label={it.name} role="checkbox" checked={on} right={tick(on)} last={j === a.length - 1} help={linkedHelp(on)}
-                  onPress={() => void setHelp({ itemId: it.itemId }, !on)} />;
+                return (
+                  <HelpRow key={it.itemId} of="checks.linkHelp">
+                    <Row icon={k === 'source' ? 'book' : 'sparkle'} label={it.name} role="checkbox" checked={on} right={tick(on)} last={j === a.length - 1} help={linkedHelp(on)}
+                      onPress={() => void setHelp({ itemId: it.itemId }, !on)} />
+                  </HelpRow>
+                );
               })}
             </Group>
           </>
@@ -347,9 +371,11 @@ function PeoplePage({ ctx }: { ctx: Ctx }) {
     <Screen header={<Header title={t('checks.people')} sub={name} onBack={ctx.back} />}>
       <Group>
         {people.map((id, j) => (
-          <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={ctx.name(id)} sub={roleIn(org, id, languageId) || undefined}
-            right={mayTeams ? <IconBtn name="close" label={t('checks.removePerson', { name: ctx.name(id) })} help={t('checks.removePersonHelp')} onPress={() => void setPeople(people.filter((p) => p !== id))} bg="transparent" color={C.muted} /> : undefined}
-            last={!mayTeams && j === people.length - 1} />
+          <HelpRow key={id} of="checks.person">
+            <Row leading={<PersonAvatar look={look(id)} size={36} />} label={ctx.name(id)} sub={roleIn(org, id, languageId) || undefined}
+              right={mayTeams ? <IconBtn name="close" label={t('checks.removePerson', { name: ctx.name(id) })} help={t('checks.removePersonHelp')} onPress={() => void setPeople(people.filter((p) => p !== id))} bg="transparent" color={C.muted} /> : undefined}
+              last={!mayTeams && j === people.length - 1} />
+          </HelpRow>
         ))}
         {people.length === 0 && !mayTeams ? <Row label={t('checks.anyone')} last /> : null}
         {mayTeams ? <Row icon="plus" label={t('checks.addPeople')} help={t('checks.addPeopleHelp')} onPress={() => setPicking(people)} last /> : null}
@@ -361,10 +387,12 @@ function PeoplePage({ ctx }: { ctx: Ctx }) {
             {eligible.map((id, j) => {
               const on = (picking ?? []).includes(id);
               return (
-                <Row key={id} leading={<PersonAvatar look={look(id)} size={36} />} label={id === ctx.session.actorId ? t('checks.you') : ctx.name(id)}
-                  sub={roleIn(org, id, languageId) || undefined} role="checkbox" checked={on} right={<Tick on={on} />} last={j === eligible.length - 1}
-                  help={on ? t('checks.personOnHelp') : t('checks.personOffHelp')}
-                  onPress={() => setPicking((cur) => (cur ?? []).includes(id) ? (cur ?? []).filter((x) => x !== id) : [...(cur ?? []), id])} />
+                <HelpRow key={id} of="checks.pickPerson">
+                  <Row leading={<PersonAvatar look={look(id)} size={36} />} label={id === ctx.session.actorId ? t('checks.you') : ctx.name(id)}
+                    sub={roleIn(org, id, languageId) || undefined} role="checkbox" checked={on} right={<Tick on={on} />} last={j === eligible.length - 1}
+                    help={on ? t('checks.personOnHelp') : t('checks.personOffHelp')}
+                    onPress={() => setPicking((cur) => (cur ?? []).includes(id) ? (cur ?? []).filter((x) => x !== id) : [...(cur ?? []), id])} />
+                </HelpRow>
               );
             })}
           </Group>
@@ -419,9 +447,11 @@ function QuestionsPage({ ctx }: { ctx: Ctx }) {
           const editable = sq.source === 'language' && mayQuestions && !!materialId && !!fieldId && !state.materials[materialId]?.locked.value;
           const type = questionTypes().find((x) => x.id === sq.q.type)?.label ?? '';
           return (
-            <Row key={sq.q.id} icon="chat" label={sq.q.text}
-              sub={[type, sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
-              {...(editable ? { onPress: () => setQuestion({ materialId: materialId!, fieldId: fieldId!, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
+            <HelpRow key={sq.q.id} of="checks.question">
+              <Row icon="chat" label={sq.q.text}
+                sub={[type, sq.required ? t('common.required') : ''].filter(Boolean).join(' · ')} help={t('checks.editQuestionHelp')}
+                {...(editable ? { onPress: () => setQuestion({ materialId: materialId!, fieldId: fieldId!, text: sq.q.text, type: sq.q.type, required: sq.required }) } : {})} />
+            </HelpRow>
           );
         })}
         {questions.length === 0 && !mayQuestions ? <Row label={t('checks.noQuestions')} last /> : null}
@@ -440,9 +470,10 @@ function QuestionsPage({ ctx }: { ctx: Ctx }) {
           <>
             <Field value={question.text} onChangeText={(text) => setQuestion({ ...question, text })} placeholder={t('checks.questionPlaceholder')} multiline
               help={t('checks.questionFieldHelp')} />
-            <ChipRow>
+            <ChipWrap>
+              {/* help-each: each type asks for a different kind of answer */}
               {questionTypes().map((x) => <Chip key={x.id} label={x.label} on={question.type === x.id} help={x.help} onPress={() => setQuestion({ ...question, type: x.id })} />)}
-            </ChipRow>
+            </ChipWrap>
             <Group>
               <Row icon="lock" label={t('common.required')} role="switch" checked={question.required} last
                 right={<Toggle testID="toggle-required" on={question.required} label={t('common.required')}
@@ -477,6 +508,7 @@ function ShowsPage({ ctx, part }: { ctx: Ctx; part: 'bible' | 'guide' | 'notes' 
     <Screen header={<Header title={title} sub={name} onBack={ctx.back} />}>
       {part === 'notes' || part === 'earlier' ? <SectionLabel label={part === 'notes' ? t('checks.shows.notesFrom') : t('checks.shows.earlierFrom')} /> : null}
       <Group>
+        {/* help-each: each switch shows or hides a different part */}
         {parts.map((p, j) => {
           const leading = iconOf(p);
           return (

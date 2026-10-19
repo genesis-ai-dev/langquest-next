@@ -10,6 +10,7 @@ import { currentLocale, t } from '../i18n';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { Disclosure, Group, Ico, Row } from '../ui/kit';
+import { HelpRow } from '../helpMode/helpBadge';
 import { txt } from '../ui/textStyles';
 import { C, space, TINT } from '../ui/theme';
 import { isEarlierSection, numberedLike } from './earlierSections';
@@ -36,7 +37,9 @@ export function EarlierNote(props: { ctx: Ctx; unitId: string; languageId: strin
       {now.length ? (
         <Group>
           {now.map((u, i) => (
-            <Row key={u} icon="right" label={unitTitle(state, u)} sub={t('breakup.earlier.whereNow')} last={i === now.length - 1} onPress={() => ctx.openPassage(u, props.languageId)} />
+            <HelpRow key={u} of="breakup.sectionNow">
+              <Row icon="right" label={unitTitle(state, u)} sub={t('breakup.earlier.whereNow')} last={i === now.length - 1} onPress={() => ctx.openPassage(u, props.languageId)} />
+            </HelpRow>
           ))}
         </Group>
       ) : null}
@@ -75,9 +78,11 @@ export function EarlierSections(props: { ctx: Ctx; unitId: string; languageId: s
         {earlier.map((u, i) => {
           const n = versions(u);
           return (
-            <Row key={u} icon="history" label={unitTitle(state, u)} sub={t('breakup.earlier.row', { how: found.numbered.get(u) ?? t('breakup.earlier.anEarlier'), versions: t('breakup.earlier.versions', { count: n }) })} last={i === earlier.length - 1}
-              help={t('breakup.earlier.openHelp')}
-              onPress={() => ctx.openPassage(u, props.languageId)} />
+            <HelpRow key={u} of="breakup.earlierSection">
+              <Row icon="history" label={unitTitle(state, u)} sub={t('breakup.earlier.row', { how: found.numbered.get(u) ?? t('breakup.earlier.anEarlier'), versions: t('breakup.earlier.versions', { count: n }) })} last={i === earlier.length - 1}
+                help={t('breakup.earlier.openHelp')}
+                onPress={() => ctx.openPassage(u, props.languageId)} />
+            </HelpRow>
           );
         })}
         <Text style={[txt.xs, { color: C.muted }]}>{t('breakup.earlier.openOne')}</Text>

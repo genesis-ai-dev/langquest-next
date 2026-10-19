@@ -128,7 +128,7 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   days, like records.
 - Writers: the projection pass (`projection`, every 5 minutes on the Edge;
   `projection_large`, every 10 in the job container behind the dashboard
-  Worker, decisions.md 134), push delivery
+  Worker, decisions.md 140), push delivery
   (`push_delivery`, every minute: claimed, sent, no token, failed by cause,
   receipts), the v2 import (`v2_import`), the dashboard Worker's cron
   (`worker_cron`), webhook delivery per batch (`webhook_dispatch`), the

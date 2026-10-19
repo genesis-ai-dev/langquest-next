@@ -1,7 +1,7 @@
 import { deadRun, exitCodeOf, isJobKey, JOB_TIME_LIMIT_MS, JOBS } from '../worker/jobsModel';
 
 /**
- * The job runner's pure part (decision 134): what a container's stop leaves
+ * The job runner's pure part (decision 140): what a container's stop leaves
  * in diag.job_runs, and which jobs the image has bundles for. The Durable
  * Object itself (worker/jobs.ts) is driven by wrangler dev, not here.
  */

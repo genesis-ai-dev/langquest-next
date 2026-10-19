@@ -17,13 +17,13 @@ import { randomUUID } from 'node:crypto';
 import { derivePassage, draftsBy, type LanguageState } from '@langquest-next/core';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import {
-  chip, deletePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, leaveSession, mic, openWorkspace, draftParts, partCount, partsTitle,
+  chip, deletePart, swipePart, deviceLog, expectIdle, expectUploaded, expectParts, holdPart, installMicControl, lastComposed, leaveSession, mic, openWorkspace, draftParts, partCount, partsTitle,
   publishButton, recordButton, recordSaid, recordStep, redoButton, savedMark, say, secondDevice, startFromRecord, stopRecording, undoButton, verseSpace, workspaceSub,
   useFileWorld
 } from './06-recording-helpers';
 import { clientAs, send } from './fixture';
 import {
-  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, openAs, openPassage, primary, screenText, syncNow, tab, test, text, undoToast, waitForApp,
+  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, openAs, openPassage, primary, screenText, syncNow, tab, test, text, waitForApp,
   type UiWorld
 } from './support';
 
@@ -214,6 +214,15 @@ test('REC-007 Delete a part, then Undo and Redo @p0', async ({ page }) => {
   await expectParts(page, 3);
   const before = await lastComposed(page, w, 'P-NEW');
   const original = before.length === 3 ? before : (await onServer(w, 'P-NEW')).drafts[0]!.cardHashes;
+  // A part slides either way to its bin, and nothing goes until the bin is tapped; a tap on the row closes it.
+  const bin = page.getByRole('button', { name: 'Delete Part 2', exact: true }).locator('visible=true');
+  await expect(bin).toHaveCount(0);
+  await swipePart(page, 2, -110);
+  await expect(bin).toHaveCount(1);
+  const row = (await page.getByRole('button', { name: 'Record Part 2 again', exact: true }).locator('visible=true').first().boundingBox())!;
+  await page.mouse.click(row.x + row.width / 2, row.y + row.height / 2);
+  await expect(bin).toHaveCount(0);
+  await expectParts(page, 3);
   await deletePart(page, 2);
   // No toast with an Undo that runs out (Caleb, 2026-10-16): the arrows by the red button stay.
   await expect(byId(page, 'toast-undo')).toHaveCount(0);
@@ -353,11 +362,11 @@ test('REC-011 Done, then ask the usual people for the peer check @p0', async ({ 
   await expect(button(page, 'Someone else')).toBeVisible();
   await expect(button(page, 'Send later')).toBeVisible();
   const target = (await primary(page).innerText()).trim().replace(/^Ask /, '');
-  // One tap publishes and asks, with Undo for the asking.
+  // One tap publishes and asks; the asking is taken back from History (Withdraw), not the toast (decision 134).
   await primary(page).click();
   const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   await expectToast(page, new RegExp(`^Sent to ${escaped} — (anyone on it|they) will see it on My Work`));
-  await expect(byId(page, 'toast-undo')).toBeVisible();
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
   // Back on the record, which says the version and who was asked; no "published" page in between.
   await expect(page.getByRole('heading', { name: 'Version 1 published' })).toHaveCount(0);
   await expect.poll(async () => (await pathRows(page)).join('\n')).toMatch(/asked /);
@@ -590,13 +599,18 @@ test('REC-019 Several drafts of one passage', async ({ page }) => {
   await expect(button(page, 'Edit').first()).toBeVisible();
   const before = (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes);
   expect(before).toHaveLength(2);
+  // A whole draft asks first (decision 124); Cancel keeps it, and once deleted there is no Undo.
   await button(page, 'Delete Draft 2').click();
-  await expectToast(page, 'Draft 2 deleted.');
-  await expect(button(page, 'Delete Draft 2')).toHaveCount(0);
-  await undoToast(page);
+  await expect(text(page, 'Delete Draft 2?')).toBeVisible();
+  await button(page, 'Cancel').click();
   await expect(button(page, 'Delete Draft 2')).toBeVisible();
+  await button(page, 'Delete Draft 2').click();
+  await page.getByRole('button', { name: 'Delete Draft 2', exact: true }).locator('visible=true').last().click();
+  await expectToast(page, 'Draft 2 deleted.');
+  await expect(byId(page, 'toast-undo')).toHaveCount(0);
+  await expect(button(page, 'Delete Draft 2')).toHaveCount(0);
   await expectUploaded(page, w);
-  await expect.poll(async () => (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes), { timeout: 30_000 }).toEqual(before);
+  await expect.poll(async () => (await onServer(w, 'P-Q2')).drafts.map((d) => d.cardHashes), { timeout: 30_000 }).toEqual([before[0]]);
 });
 
 // ---- Interruptions and field conditions --------------------------------------------

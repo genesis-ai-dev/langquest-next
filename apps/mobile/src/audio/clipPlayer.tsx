@@ -281,8 +281,8 @@ export function ClipPlayer(props: {
     <View style={[!props.bare && styles.card]}>
       <View style={styles.head}>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.body, { fontWeight: '800' }]} numberOfLines={1}>{props.title}</Text>
-          {props.sub ? <Text style={txt.xs} numberOfLines={2}>{props.sub}</Text> : null}
+          <Text style={[txt.body, { fontWeight: '800' }]}>{props.title}</Text>
+          {props.sub ? <Text style={txt.xs}>{props.sub}</Text> : null}
         </View>
         {props.right}
       </View>
@@ -302,8 +302,12 @@ export function ClipPlayer(props: {
           </Pressable>
         ) : null}
       </View>
+      {/* The times under the bar's two ends, so the buttons between have room for their words in every language. */}
+      <View style={styles.times}>
+        <Text style={txt.xs}>{clock(elapsed)}</Text>
+        <Text style={txt.xs}>{clock(total)}</Text>
+      </View>
       <View style={styles.controls}>
-        <Text style={[txt.xs, styles.time]}>{clock(elapsed)}</Text>
         <Pressable onPress={back10.onPress} disabled={!available || props.disabled} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
           style={({ pressed }) => [styles.side, pressed && styles.pressed, (!available || props.disabled) && styles.off]}>
           <Ico name="restart" size={20} color={C.dark} />
@@ -324,7 +328,6 @@ export function ClipPlayer(props: {
             <HelpBadge spot={note} />
           </Pressable>
         ) : <View style={{ width: 52 }} />}
-        <Text style={[txt.xs, styles.time, { textAlign: 'right' }]}>{clock(total)}</Text>
       </View>
       {error ? <Text accessibilityRole="alert" style={txt.error}>{error}</Text> : null}
     </View>
@@ -340,8 +343,8 @@ const styles = StyleSheet.create({
   fill: { position: 'absolute', left: 0, height: 6, borderRadius: 3 },
   thumb: { position: 'absolute', width: 22, height: 22, marginLeft: -11, borderRadius: 11, backgroundColor: C.white, borderWidth: 3 },
   controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.lg },
-  time: { width: 40 },
-  side: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+  times: { flexDirection: 'row', justifyContent: 'space-between', marginTop: -space.xs },
+  side: { minWidth: 52, height: 52, paddingHorizontal: 6, borderRadius: 26, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   sideLabel: { fontSize: T.xs, fontWeight: '800', color: C.dark },
   pressed: { opacity: 0.7 },
   off: { opacity: 0.4 }

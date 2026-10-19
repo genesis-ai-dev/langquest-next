@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
+import { HelpRow } from '../helpMode/helpBadge';
 import { Chip, ChipRow, SearchField } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { LanguoidPicker } from '../org/languoidPicker';
@@ -28,7 +29,11 @@ export function LanguageField(props: { label: string; value: string | null; onCh
     <View style={{ gap: space.xs }}>
       <Text style={txt.xsStrong}>{props.label}</Text>
       <ChipRow>
-        {chips.map((c) => <Chip key={c} label={found[c] ?? languageLabel(c)} on={sameLanguage(c, props.value)} help={t('reference.language.chipHelp')} onPress={() => choose(c)} />)}
+        {chips.map((c) => (
+          <HelpRow key={c} of="reference.language">
+            <Chip label={found[c] ?? languageLabel(c)} on={sameLanguage(c, props.value)} help={t('reference.language.chipHelp')} onPress={() => choose(c)} />
+          </HelpRow>
+        ))}
         {props.disabled ? null : <Chip label={t('reference.language.another')} icon="search" on={searching} help={t('reference.language.anotherHelp')} onPress={() => setSearching(!searching)} />}
       </ChipRow>
       {searching ? (

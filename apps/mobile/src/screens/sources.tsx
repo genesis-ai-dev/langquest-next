@@ -14,9 +14,11 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { teamLanguage } from '../reference/languages';
 import { screenTitle } from '../shell/flow';
+import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Badge, Card, Chip, EmptyState, Group, Header, LinkBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { contractsFor } from '../shell/screenContracts';
@@ -90,6 +92,8 @@ export function BibleExplore(ctx: Ctx) {
 
   const passageLabel = unitId && state?.units[unitId] ? state.units[unitId]!.label : undefined;
   const back = () => (picked ? setPicked(null) : ctx.back());
+  // A phone's Back from one Bible goes back to the list, as the header's arrow does (decision 137).
+  useHardwareBack(!!picked, () => setPicked(null));
   const header = <Header title={screenTitle('bible_explore')} sub={passageLabel ? t('sources.explore.forPassage', { passage: passageLabel }) : t('sources.explore.sub')} onBack={back} />;
 
   if (picked) {
@@ -108,8 +112,10 @@ export function BibleExplore(ctx: Ctx) {
             <Group>
               {languages.length === 0 ? <Row label={t('sources.explore.noLanguages')} sub={problem || t('sources.explore.noLanguagesSub')} last /> : null}
               {languages.slice(0, 30).map((l, i, all) => (
-                <Row key={l.code} label={l.autonym && l.autonym !== l.name ? `${l.name} · ${l.autonym}` : l.name} sub={t('sources.explore.languageBibles', { code: l.code, count: l.bibles })}
-                  help={t('sources.explore.languageHelp')} onPress={() => { setLang({ code: l.code, name: l.name }); setQuery(''); }} last={i === all.length - 1} />
+                <HelpRow key={l.code} of="sources.language">
+                  <Row label={l.autonym && l.autonym !== l.name ? `${l.name} · ${l.autonym}` : l.name} sub={t('sources.explore.languageBibles', { code: l.code, count: l.bibles })}
+                    help={t('sources.explore.languageHelp')} onPress={() => { setLang({ code: l.code, name: l.name }); setQuery(''); }} last={i === all.length - 1} />
+                </HelpRow>
               ))}
             </Group>
           ) : null}
@@ -119,9 +125,11 @@ export function BibleExplore(ctx: Ctx) {
           ) : (
             <Group>
               {bibles.map((b, i) => (
-                <Row key={b.bibleId} label={`${b.abbreviation} · ${b.name}`} sub={mediaLine(b)} help={t('sources.explore.bibleHelp')}
-                  {...(mine.has(`biblebrain.${b.bibleId}`) ? { badge: t('sources.explore.myBible'), badgeTone: 'brand' as const } : {})}
-                  onPress={() => setPicked({ kind: 'biblebrain', bibleId: b.bibleId })} last={i === bibles.length - 1} />
+                <HelpRow key={b.bibleId} of="sources.bible">
+                  <Row label={`${b.abbreviation} · ${b.name}`} sub={mediaLine(b)} help={t('sources.explore.bibleHelp')}
+                    {...(mine.has(`biblebrain.${b.bibleId}`) ? { badge: t('sources.explore.myBible'), badgeTone: 'brand' as const } : {})}
+                    onPress={() => setPicked({ kind: 'biblebrain', bibleId: b.bibleId })} last={i === bibles.length - 1} />
+                </HelpRow>
               ))}
             </Group>
           )}
@@ -132,10 +140,12 @@ export function BibleExplore(ctx: Ctx) {
           <SectionLabel label={t('sources.explore.inLibrary')} />
           <Group>
             {librarySources.map((s, i) => (
-              <Row key={s.itemId} label={`${s.doc.abbreviation} · ${s.doc.name}`} sub={s.doc.offline === 'allowed' ? t('sources.explore.keptOffline') : t('sources.explore.streamsOnlyLine')}
-                help={t('sources.explore.bibleHelp')}
-                {...(mine.has(s.itemId) ? { badge: t('sources.explore.myBible'), badgeTone: 'brand' as const } : {})}
-                onPress={() => setPicked({ kind: 'library', itemId: s.itemId })} last={i === librarySources.length - 1} />
+              <HelpRow key={s.itemId} of="sources.bible">
+                <Row label={`${s.doc.abbreviation} · ${s.doc.name}`} sub={s.doc.offline === 'allowed' ? t('sources.explore.keptOffline') : t('sources.explore.streamsOnlyLine')}
+                  help={t('sources.explore.bibleHelp')}
+                  {...(mine.has(s.itemId) ? { badge: t('sources.explore.myBible'), badgeTone: 'brand' as const } : {})}
+                  onPress={() => setPicked({ kind: 'library', itemId: s.itemId })} last={i === librarySources.length - 1} />
+              </HelpRow>
             ))}
           </Group>
         </>
@@ -194,19 +204,18 @@ function BibleDetailView(props: {
     setBusy(true);
     try {
       await mine.add(entry(option));
-      ctx.toast(t('sources.explore.added', { abbr: option.abbreviation }), () => mine.remove(option.itemId));
+      ctx.toast(t('sources.explore.added', { abbr: option.abbreviation }));
       ctx.back();
     } catch {
       ctx.toast(t('sources.explore.notAdded'));
     } finally { setBusy(false); }
   }
-  // Removing says so and can be undone, as adding does (STUDY-032).
+  // Removing says so; the footer then offers Add to My Bibles again (STUDY-032).
   async function remove() {
     if (!option) return;
-    const was = entry(option);
     try {
       await mine.remove(option.itemId);
-      ctx.toast(t('sources.explore.removed', { abbr: option.abbreviation }), () => mine.add(was));
+      ctx.toast(t('sources.explore.removed', { abbr: option.abbreviation }));
     } catch {
       ctx.toast(t('sources.explore.notRemoved'));
     }
@@ -236,13 +245,19 @@ function BibleDetailView(props: {
             </Card>
             {books.length > 1 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {books.map((b) => <Chip key={b.book} label={b.name} on={b.book === current} help={t('sources.explore.bookHelp')} onPress={() => { setBook(b.book); setChapter(1); }} />)}
+                {books.map((b) => (
+                  <HelpRow key={b.book} of="sources.book">
+                    <Chip label={b.name} on={b.book === current} help={t('sources.explore.bookHelp')} onPress={() => { setBook(b.book); setChapter(1); }} />
+                  </HelpRow>
+                ))}
               </ScrollView>
             ) : null}
             {chapters > 1 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
                 {Array.from({ length: chapters }, (_, i) => i + 1).map((c) => (
-                  <Chip key={c} label={formatNumber(c)} on={c === chapter} accessibilityLabel={t('sources.explore.chapter', { n: c })} help={t('sources.explore.chapterHelp', { n: c })} onPress={() => setChapter(c)} />
+                  <HelpRow key={c} of="sources.chapter">
+                    <Chip label={formatNumber(c)} on={c === chapter} accessibilityLabel={t('sources.explore.chapter', { n: c })} help={t('sources.explore.chapterHelp', { n: c })} onPress={() => setChapter(c)} />
+                  </HelpRow>
                 ))}
               </ScrollView>
             ) : picked.kind === 'library' ? (
@@ -267,7 +282,7 @@ const styles = StyleSheet.create({
   body: { padding: space.lg, gap: space.md, paddingBottom: space.xxl },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chips: { gap: space.sm, paddingVertical: 2 },
-  chapterStep: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }
+  chapterStep: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: space.md }
 });
 
 export const contracts = contractsFor('bible_explore');

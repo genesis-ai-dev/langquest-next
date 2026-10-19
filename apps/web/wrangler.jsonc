@@ -39,7 +39,7 @@
   "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
   // One per organization (decision 44): reports and recent folds in memory,
   // a rebuildable cache of them in its own SQLite. JobRunner (worker/jobs.ts,
-  // decision 134): one per server job, the object that starts the job's
+  // decision 140): one per server job, the object that starts the job's
   // container from the cron and keeps two runs from overlapping.
   "durable_objects": {
     "bindings": [

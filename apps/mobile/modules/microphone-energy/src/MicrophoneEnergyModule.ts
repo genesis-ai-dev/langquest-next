@@ -42,6 +42,11 @@ export type MicrophoneEnergyModuleEvents = {
 };
 
 declare class MicrophoneEnergyModule extends NativeModule<MicrophoneEnergyModuleEvents> {
+  /**
+   * Starts loading the speech model (speech.ts, decision 135) without waiting for it, so it is
+   * ready when the microphone opens. The microphone also loads it, first, if this was never called.
+   */
+  prepareSpeech(): Promise<void>;
   startEnergyDetection(): Promise<void>;
   stopEnergyDetection(): Promise<void>;
   configureVAD(config: VADConfig): Promise<void>;

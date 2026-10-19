@@ -10,7 +10,7 @@
 import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { BackHandler, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import {
   cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
@@ -34,6 +34,7 @@ import { redeemSignInCode } from '../invites/invites';
 import { useRequestOutcome } from '../invites/useInviteRequests';
 import { latestRequest } from '../invites/requestOutcome';
 import { Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, HelpTop, Header, HelpInfo, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, ShowMore, SmallBtn, type IconName } from '../ui/kit';
+import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { PRIVACY_URL } from '../auth/legal';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
@@ -50,7 +51,7 @@ import { lift } from '../ui/shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { LanguageChip } from '../i18n/uiLanguage';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 
 /**
@@ -225,6 +226,8 @@ export function Vision(ctx: Ctx) {
   const [step, setStep] = useState(0);
   const current = VISION_STEPS[step]!;
   const last = step === VISION_STEPS.length - 1;
+  // A phone's Back goes back a card, as the header's arrow does (decision 137).
+  useHardwareBack(step > 0, () => setStep(step - 1));
   return (
     <Screen
       header={<Header title={t('entry.vision.title')} sub={t('entry.vision.step', { current: step + 1, total: VISION_STEPS.length })} onBack={step === 0 ? ctx.back : () => setStep(step - 1)}
@@ -301,20 +304,22 @@ export function ExploreHome(ctx: Ctx) {
         // A license this build does not know yet is simply not shown.
         const license = isLicense(p.license) ? { ...licenseText(p.license), terms: LICENSE_INFO[p.license].terms } : null;
         return (
-          <Card key={`${p.org_id}:${p.language_id}`} accessibilityLabel={t('entry.explore.cardLabel', { name: p.name, percent: formatPercent(pct) })}
-            help={guest ? t('entry.explore.cardGuestHelp') : t('entry.explore.cardHelp')}
-            onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id })}>
-            <View style={{ gap: 2 }}>
-              <Text style={txt.h3}>{p.name}</Text>
-              {p.code ? <Text style={txt.smMuted}>{p.code}</Text> : null}
-            </View>
-            {license ? <View style={{ flexDirection: 'row' }}><Badge label={`${license.name} · ${license.short}`} tone={license.terms.outsidersMayView ? 'green' : 'default'} /></View> : null}
-            <ProgressBar value={pct} />
-            <View style={styles.between}>
-              <Text style={txt.xs}>{t('entry.explore.recorded')}</Text>
-              <Text style={[txt.xsStrong, { color: C.primary }]}>{formatPercent(pct)}</Text>
-            </View>
-          </Card>
+          <HelpRow key={`${p.org_id}:${p.language_id}`} of="entry.listedLanguage">
+            <Card accessibilityLabel={t('entry.explore.cardLabel', { name: p.name, percent: formatPercent(pct) })}
+              help={guest ? t('entry.explore.cardGuestHelp') : t('entry.explore.cardHelp')}
+              onPress={guest ? () => ctx.go('sign_in') : () => ctx.go('request_access', { orgId: p.org_id })}>
+              <View style={{ gap: 2 }}>
+                <Text style={txt.h3}>{p.name}</Text>
+                {p.code ? <Text style={txt.smMuted}>{p.code}</Text> : null}
+              </View>
+              {license ? <View style={{ flexDirection: 'row' }}><Badge label={`${license.name} · ${license.short}`} tone={license.terms.outsidersMayView ? 'green' : 'default'} /></View> : null}
+              <ProgressBar value={pct} />
+              <View style={styles.between}>
+                <Text style={txt.xs}>{t('entry.explore.recorded')}</Text>
+                <Text style={[txt.xsStrong, { color: C.primary }]}>{formatPercent(pct)}</Text>
+              </View>
+            </Card>
+          </HelpRow>
         );
       })}
       <ShowMore remaining={listed.length - shown} step={EXPLORE_STEP} onMore={() => setShown(shown + EXPLORE_STEP)} />
@@ -467,20 +472,10 @@ export function ScanQr(ctx: Ctx) {
 
   // A link opens this screen on its own (flow D), with nothing under it to go
   // back to: Back then leads where the person would otherwise be, Sign In or
-  // their home, and the held invite stays held.
+  // their home, and the held invite stays held. Android's Back does the same
+  // on any screen with nothing under it (shell/useRootBack.ts).
   const alone = () => !(navRef.isReady() && navRef.canGoBack());
   const leave = () => { if (!alone()) ctx.back(); else if (guest) ctx.go('sign_in'); else ctx.home(); };
-  const leaveRef = useRef(leave);
-  leaveRef.current = leave;
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (!alone()) return false;
-      leaveRef.current();
-      return true;
-    });
-    return () => sub.remove();
-  }, []);
 
   // What the server says about the held key; null when it cannot be asked.
   const { preview, asked } = useInvitePreview(invite);
@@ -757,6 +752,7 @@ export function IntentChooser(ctx: Ctx) {
           <SectionLabel label={t('entry.intent.meanwhile')} />
         </>
       ) : null}
+      {/* help-each: each choice goes somewhere different */}
       {main.map((o, i) => (
         <Card key={o.to} onPress={() => ctx.go(o.to)} accessibilityLabel={o.label} help={o.help} current={i === 0 && !waiting}>
           <View style={styles.optionRow}>
@@ -946,10 +942,12 @@ export function RequestAccess(ctx: Ctx) {
       {matches.length > 0 ? (
         <Group>
           {matches.slice(0, shown).map((o, i, all) => (
-            <Row key={o.org_id} label={o.name} sub={o.languages.join(' · ')} help={t('entry.request.rowHelp')} last={i === all.length - 1}
-              accessibilityLabel={t('entry.request.askRowLabel', { org: o.name })}
-              right={<Text style={[txt.link, { fontSize: 16 }]}>{busy && picked?.org_id === o.org_id ? t('entry.request.asking') : t('entry.request.askToJoin')}</Text>}
-              onPress={() => { setPicked(o); void sendTo(o); }} />
+            <HelpRow key={o.org_id} of="entry.organization">
+              <Row label={o.name} sub={o.languages.join(' · ')} help={t('entry.request.rowHelp')} last={i === all.length - 1}
+                accessibilityLabel={t('entry.request.askRowLabel', { org: o.name })}
+                right={<Text style={[txt.link, { fontSize: 16 }]}>{busy && picked?.org_id === o.org_id ? t('entry.request.asking') : t('entry.request.askToJoin')}</Text>}
+                onPress={() => { setPicked(o); void sendTo(o); }} />
+            </HelpRow>
           ))}
         </Group>
       ) : null}

@@ -58,7 +58,7 @@ export function UpdateBanner() {
   ) : (
     <View style={[styles.banner, ready ? styles.ready : styles.quiet]}>
       {status.kind === 'busy' ? <ActivityIndicator size="small" color={C.muted} /> : null}
-      <Text style={[styles.text, ready && styles.readyText]} numberOfLines={2}>
+      <Text style={[styles.text, ready && styles.readyText]}>
         {status.text}
       </Text>
     </View>

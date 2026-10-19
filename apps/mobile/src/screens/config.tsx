@@ -16,12 +16,13 @@
 // Pure reading lives in config/model.ts and the feature models (roles/, flows/,
 // keyTerms/, reference/materialModel.ts); the screens here lay it out.
 import {
-  CommandError, commands, derivePassage, keyTermsFor, keyTermView, languageName,
+  CommandError, commands, CUSTOM_FLOW, deriveFlow, derivePassage, keyTermsFor, keyTermView, languageName,
   materialView, privilegesFor, recommendedFor, subscriptionItemId,
   unitTitle,
   type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
+import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -31,12 +32,11 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Badge, Banner, Card, Chip, ChipRow, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
+import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { cachedDoc } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
-import { restoreChecks } from '../checks/undo';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { when } from '../passage/passageView';
 import { failureMessage } from '../diagnostics/report';
@@ -63,21 +63,22 @@ import { bookOf } from '../recording/model';
 import { useBible } from '../helps/useBible';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
 import { LanguageChecks } from '../checks/LanguageChecks';
+import { HelpRow } from '../helpMode/helpBadge';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
 import {
   adjustDuringTake, adjustmentNote, adjustmentReady, defineTermInput, EMPTY_TERM_DRAFT, groupTerms, termDraftReady, termUsedIn, tieState,
   versionOfTake, type TermDraft
 } from '../keyTerms/model';
 import {
-  addPart, baseVersificationChoice, defineMaterialInput, fieldRestores, fieldWrites, libraryMaterialDoc, LIBRARY_MATERIAL_KINDS,
+  addPart, baseVersificationChoice, defineMaterialInput, fieldWrites, libraryMaterialDoc, LIBRARY_MATERIAL_KINDS,
   materialChanges, materialFieldIds, materialReady, materialScopeName, partOfUnit, questionTypes, sortQuestionSets, templatePartChoices,
   versificationChoices, type VersificationChoice
 } from '../reference/materialModel';
-import { privilegesOn, roleDefinition, roleDirty, roleSnapshot } from '../roles/model';
+import { privilegesOn, roleDefinition, roleDirty } from '../roles/model';
 import { SwitchRow } from '../admin/admin';
-import { flipSwitch, ROLE_SWITCHES, stepTitle, switchState } from '../admin/adminModel';
+import { flipSwitch, ROLE_SWITCHES, sameChecks, stepTitle, switchState } from '../admin/adminModel';
 import {
-  fieldLabel, flowDocFrom, flowLabel, flowUndoFor, flowUse, holdersOf, isFiaTerm,
+  fieldLabel, flowDocFrom, flowLabel, flowUse, holdersOf, isFiaTerm,
   levelLabel, libraryMaterialLine, libraryQuestions, materialDocFrom, materialItemId, moveStep, newKindId,
   nextFieldId, parseRefLinks, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
   referenceKinds, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
@@ -98,7 +99,7 @@ const failure = failureMessage;
  * refuses (CommandError) is said in a toast; ctx.act says "Not saved" and
  * why by itself, so nothing is said twice. True when it was saved.
  */
-async function actCommand(ctx: Ctx, where: string, build: () => EventSpec[], message: string, undo?: () => EventSpec[]): Promise<boolean> {
+async function actCommand(ctx: Ctx, where: string, build: () => EventSpec[], message: string): Promise<boolean> {
   let specs: EventSpec[];
   try {
     specs = build();
@@ -107,19 +108,12 @@ async function actCommand(ctx: Ctx, where: string, build: () => EventSpec[], mes
     return false;
   }
   try {
-    await ctx.act(specs, message, undo);
+    await ctx.act(specs, message);
     return true;
   } catch {
     // ctx.act has already said "Not saved" and why.
     return false;
   }
-}
-
-/** The latest value, for an Undo that runs after the screen has re-rendered with the change. */
-function useLatest<T>(value: T) {
-  const ref = useRef(value);
-  ref.current = value;
-  return ref;
 }
 
 function Intro(props: { children: ReactNode }) {
@@ -219,15 +213,17 @@ export function RolesHome(ctx: Ctx) {
           <SectionLabel label={t('config.roles.definedAtOrg')} />
           <Group>
             {rows.map((r, i) => (
-              <Row key={r.roleId} icon={r.inherited ? 'lock' : r.builtIn ? 'people' : 'star'}
-                iconColor={r.inherited ? TINT.grayText : C.primary} iconBg={r.inherited ? TINT.gray : undefined}
-                label={r.name} muted={r.inherited}
-                sub={r.inherited ? t('config.roles.inheritedSub')
-                  : `${t('config.roles.members', { count: r.members })} · ${t('config.roles.privileges', { count: r.privileges.length })}`}
-                badge={r.inherited ? t('common.viewOnly') : undefined}
-                help={r.inherited ? t('config.roles.inheritedRoleHelp') : r.builtIn ? t('config.roles.builtInRoleHelp') : t('config.roles.ownRoleHelp')}
-                onPress={() => ctx.go('role_editor', { roleId: r.roleId, level })} last={i === rows.length - 1}
-                current={beside?.screen === 'role_editor' && beside.params['roleId'] === r.roleId} />
+              <HelpRow key={r.roleId} of="config.role">
+                <Row icon={r.inherited ? 'lock' : r.builtIn ? 'people' : 'star'}
+                  iconColor={r.inherited ? TINT.grayText : C.primary} iconBg={r.inherited ? TINT.gray : undefined}
+                  label={r.name} muted={r.inherited}
+                  sub={r.inherited ? t('config.roles.inheritedSub')
+                    : `${t('config.roles.members', { count: r.members })} · ${t('config.roles.privileges', { count: r.privileges.length })}`}
+                  badge={r.inherited ? t('common.viewOnly') : undefined}
+                  help={r.inherited ? t('config.roles.inheritedRoleHelp') : r.builtIn ? t('config.roles.builtInRoleHelp') : t('config.roles.ownRoleHelp')}
+                  onPress={() => ctx.go('role_editor', { roleId: r.roleId, level })} last={i === rows.length - 1}
+                  current={beside?.screen === 'role_editor' && beside.params['roleId'] === r.roleId} />
+              </HelpRow>
             ))}
           </Group>
         </>
@@ -266,13 +262,10 @@ export function RoleEditor(ctx: Ctx) {
   async function save() {
     if (readOnly || busy || !label.trim()) return;
     const next = roleDefinition(roleId, label, privileges);
-    const prev = roleSnapshot(roleId, existing);
     setBusy(true);
     try {
       await ctx.org.append('v1.RoleDefined', next);
-      ctx.toast(isNew ? t('config.roleEditor.created', { name: next.name }) : t('config.roleEditor.saved', { name: next.name }), prev ? async () => {
-        try { await ctx.org.append('v1.RoleDefined', prev); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: failure('undo role', e) })); }
-      } : undefined);
+      ctx.toast(isNew ? t('config.roleEditor.created', { name: next.name }) : t('config.roleEditor.saved', { name: next.name }));
       ctx.back();
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failure('save role', e) }));
@@ -294,6 +287,7 @@ export function RoleEditor(ctx: Ctx) {
         <View key={g.title} style={{ gap: space.sm }}>
           <SectionLabel label={g.title} />
           <Group>
+            {/* help-each: each switch allows different work */}
             {g.rows.map((row, i) => {
               const state = switchState(privileges, row);
               return (
@@ -336,17 +330,15 @@ function libraryFailure(where: string, e: unknown): string {
   return failure(where, e);
 }
 
-/** Run a library write, then say what changed, with Undo when it is a simple flip back. True when it was saved. */
-async function libraryAct(ctx: Ctx, where: string, action: () => Promise<unknown>, message: string, undo?: () => Promise<unknown>): Promise<boolean> {
+/** Run a library write, then say what changed; the same control changes it back. True when it was saved. */
+async function libraryAct(ctx: Ctx, where: string, action: () => Promise<unknown>, message: string): Promise<boolean> {
   try {
     await action();
   } catch (e) {
     ctx.toast(t('common.notSaved', { reason: libraryFailure(where, e) }));
     return false;
   }
-  ctx.toast(message, undo ? async () => {
-    try { await undo(); ctx.toast(t('common.undone')); } catch (e) { ctx.toast(t('common.notUndone', { reason: libraryFailure(`undo ${where}`, e) })); }
-  } : undefined);
+  ctx.toast(message);
   return true;
 }
 
@@ -364,17 +356,13 @@ function SharedItems(props: {
   const [following, setFollowing] = useState<SharedItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [n, setN] = useState(STEP);
-  // Undo runs later, once the new subscription is in the library.
-  const live = useLatest(lib);
   const rows = shared.rows.filter((s) => !lib.item(subscriptionItemId(s.org_id, s.item_id))?.subscription?.active);
 
   async function follow(s: SharedItem, autoUpdate: boolean) {
     setFollowing(null);
     setBusy(true);
-    let itemId = '';
-    await libraryAct(ctx, 'follow', async () => { itemId = await lib.subscribe(s, autoUpdate); },
-      autoUpdate ? t('config.library.followingAuto', { name: s.name }) : t('config.library.followingManual', { name: s.name }),
-      () => live.current.follow(itemId, { active: false }));
+    await libraryAct(ctx, 'follow', () => lib.subscribe(s, autoUpdate),
+      autoUpdate ? t('config.library.followingAuto', { name: s.name }) : t('config.library.followingManual', { name: s.name }));
     setBusy(false);
   }
   async function copy(s: SharedItem) {
@@ -392,19 +380,21 @@ function SharedItems(props: {
       {!shared.loaded ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('common.loading')}</Text>
         : rows.length === 0 && !shared.error ? <Card><Text style={txt.smMuted}>{t('config.library.nothingShared')}</Text></Card> : null}
       {rows.slice(0, n).map((s) => (
-        <Card key={`${s.org_id}/${s.item_id}`}>
-          <Text style={txt.h3}>{s.name}</Text>
-          <Text style={txt.xsStrong}>{`${s.org_name} · ${t('config.library.versions', { count: s.version_count })}`}</Text>
-          {s.description ? <Text style={txt.smMuted}>{s.description}</Text> : null}
-          {props.detail?.(s)}
-          {props.canManage || props.use ? (
-            <View style={styles.actions}>
-              {props.use ? <SmallBtn label={props.use.label} tone="primary" disabled={busy || props.use.disabled} help={props.use.help} onPress={() => props.use!.onUse(s)} /> : null}
-              {props.canManage && s.subscribable ? <SmallBtn label={t('config.library.follow')} icon="link" disabled={busy} help={t('config.library.followHelp')} onPress={() => setFollowing(s)} /> : null}
-              {props.canManage ? <SmallBtn label={t('common.copy')} icon="plus" disabled={busy} help={t('config.library.copyHelp')} onPress={() => void copy(s)} /> : null}
-            </View>
-          ) : null}
-        </Card>
+        <HelpRow key={`${s.org_id}/${s.item_id}`} of="library.sharedItem">
+          <Card>
+            <Text style={txt.h3}>{s.name}</Text>
+            <Text style={txt.xsStrong}>{`${s.org_name} · ${t('config.library.versions', { count: s.version_count })}`}</Text>
+            {s.description ? <Text style={txt.smMuted}>{s.description}</Text> : null}
+            {props.detail?.(s)}
+            {props.canManage || props.use ? (
+              <View style={styles.actions}>
+                {props.use ? <SmallBtn label={props.use.label} tone="primary" disabled={busy || props.use.disabled} help={props.use.help} onPress={() => props.use!.onUse(s)} /> : null}
+                {props.canManage && s.subscribable ? <SmallBtn label={t('config.library.follow')} icon="link" disabled={busy} help={t('config.library.followHelp')} onPress={() => setFollowing(s)} /> : null}
+                {props.canManage ? <SmallBtn label={t('common.copy')} icon="plus" disabled={busy} help={t('config.library.copyHelp')} onPress={() => void copy(s)} /> : null}
+              </View>
+            ) : null}
+          </Card>
+        </HelpRow>
       ))}
       <ShowMore remaining={rows.length - n} step={STEP} onMore={() => setN(n + STEP)} />
 
@@ -428,11 +418,10 @@ function SharedItems(props: {
 function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemView; canManage: boolean; update?: string; onCopied: () => void }) {
   const { ctx, lib, it, canManage } = props;
   const [busy, setBusy] = useState(false);
-  const live = useLatest(lib);
-  const run = async (where: string, action: () => Promise<unknown>, message: string, undo?: () => Promise<unknown>) => {
+  const run = async (where: string, action: () => Promise<unknown>, message: string) => {
     if (busy) return false;
     setBusy(true);
-    const ok = await libraryAct(ctx, where, action, message, undo);
+    const ok = await libraryAct(ctx, where, action, message);
     setBusy(false);
     return ok;
   };
@@ -447,8 +436,7 @@ function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemVie
             <ToggleRow label={t('config.library.updateAutomatically')} desc={t('config.library.takeEachVersion', { org: sub.sourceOrgName })} on={sub.autoUpdate}
               disabled={!canManage || busy || !sub.active} last
               onToggle={() => void run('follow updates', () => lib.follow(it.itemId, { autoUpdate: !sub.autoUpdate }), // i18n-ignore: log label
-                sub.autoUpdate ? t('config.library.youChooseUpdates') : t('config.library.updatesAutomatically'),
-                () => live.current.follow(it.itemId, { autoUpdate: sub.autoUpdate }))} />
+                sub.autoUpdate ? t('config.library.youChooseUpdates') : t('config.library.updatesAutomatically'))} />
           </Group>
           {props.update && canManage ? (
             <GhostBtn label={t('config.library.takeUpdate')} icon="download" disabled={busy} help={t('config.library.takeUpdateHelp')}
@@ -461,8 +449,8 @@ function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemVie
                 onPress={() => void run('copy', () => lib.copyFollowed(it), t('config.library.copied', { name: it.name })).then((ok) => ok && props.onCopied())} />
               {sub.active ? (
                 <GhostBtn label={t('config.library.stopFollowing')} tone="red" disabled={busy} help={t('config.library.stopFollowingHelp')}
-                  onPress={() => void run('stop following', () => lib.follow(it.itemId, { active: false }), t('config.library.stoppedFollowing'), // i18n-ignore: log label
-                    () => live.current.follow(it.itemId, { active: true }))} />
+                  onPress={() => void run('stop following', // i18n-ignore: log label
+                    () => lib.follow(it.itemId, { active: false }), t('config.library.stoppedFollowing'))} />
               ) : (
                 <GhostBtn label={t('config.library.followAgain')} disabled={busy} help={t('config.library.followAgainHelp')} onPress={() => void run('follow', () => lib.follow(it.itemId, { active: true }), t('config.library.followingAgain', { org: sub.sourceOrgName }))} />
               )}
@@ -474,22 +462,19 @@ function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemVie
           <Group>
             <ToggleRow label={t('config.library.share')} desc={t('config.library.shareDesc')} on={it.shared} disabled={!canManage || busy} last={!it.shared}
               onToggle={() => void run('share', () => lib.setSharing(it, !it.shared, it.subscribable),
-                it.shared ? t('config.library.unshared') : t('config.library.shared'),
-                () => lib.setSharing(it, it.shared, it.subscribable))} />
+                it.shared ? t('config.library.unshared') : t('config.library.shared'))} />
             {it.shared ? (
               <ToggleRow label={t('config.library.letFollow')} desc={t('config.library.letFollowDesc')} on={it.subscribable}
                 disabled={!canManage || busy} last
                 onToggle={() => void run('share', () => lib.setSharing(it, true, !it.subscribable),
-                  it.subscribable ? t('config.library.noLongerFollowable') : t('config.library.followableNow'),
-                  () => lib.setSharing(it, true, it.subscribable))} />
+                  it.subscribable ? t('config.library.noLongerFollowable') : t('config.library.followableNow'))} />
             ) : null}
           </Group>
           {canManage ? (
             <GhostBtn label={it.archived ? t('config.library.unarchive') : t('config.library.archive')} icon="folder" disabled={busy}
               help={it.archived ? t('config.library.unarchiveHelp') : t('config.library.archiveHelp')}
               onPress={() => void run('archive', () => lib.archive(it, !it.archived),
-                it.archived ? t('config.library.unarchived', { name: it.name }) : t('config.library.archived', { name: it.name }),
-                () => lib.archive(it, it.archived))} />
+                it.archived ? t('config.library.unarchived', { name: it.name }) : t('config.library.archived', { name: it.name }))} />
           ) : null}
         </>
       )}
@@ -548,7 +533,6 @@ export function FlowsHome(ctx: Ctx) {
   const [shown, setShown] = useState(STEP);
   const current = useMemo(() => (state ? flowUse(state) : null), [state]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
-  const live = useLatest(ctx);
   // Using a flow copies its checks into the language, the language's own (decision 91); making, following or
   // copying a flow writes the organization's library, at organization scope (library/model.ts `mayWriteLibrary`).
   const canManage = ctx.session.can('manage_flows');
@@ -561,23 +545,27 @@ export function FlowsHome(ctx: Ctx) {
 
   /**
    * Use a flow for the language: its checks are copied into the language
-   * and are the language's own from then on (decision 91). Undo goes back to
-   * the checks it had (core `restoreFlow`).
+   * and are the language's own from then on (decision 91). When the
+   * language's checks are already its own, it asks first (decision 134):
+   * they could not be chosen again afterwards.
    */
+  const [replacing, setReplacing] = useState<{ target: { itemId: string } | { shared: SharedItem }; name: string } | null>(null);
+  function chooseFlow(target: { itemId: string } | { shared: SharedItem }) {
+    if (!state || !language || busy) return;
+    const name = 'shared' in target ? target.shared.name : lib.item(target.itemId)?.name ?? '';
+    const steps = deriveFlow(state).steps;
+    // Checks still as a ready-made set made them can be chosen again: only the language's own are asked about.
+    const known = [...flows.map((f) => docs.get<FlowDoc>(f.current)), ...shared.rows.map((s) => docs.get<FlowDoc>(s.latest_hash))];
+    const own = state.flow?.value?.flowId === CUSTOM_FLOW && steps.length > 0 && !known.some((d) => !!d && sameChecks(steps, d.steps));
+    if (own) setReplacing({ target, name });
+    else void adopt(target);
+  }
   async function adopt(target: { itemId: string } | { shared: SharedItem }) {
     if (!state || !language || busy) return;
     setBusy(true);
     let specs: EventSpec[];
     let name: string;
-    let undo: (() => EventSpec[]) | undefined;
     try {
-      const previous = flowUndoFor(state);
-      if (previous) {
-        undo = () => {
-          const s = live.current.language.state;
-          return s ? restoreChecks(s, previous, Crypto.randomUUID()) : [];
-        };
-      }
       const hash = 'shared' in target ? target.shared.latest_hash : lib.item(target.itemId)?.current;
       const doc = docs.get<FlowDoc>(hash);
       if (!doc) throw new CommandError(t('config.errors.flowHasNoVersion'));
@@ -589,7 +577,7 @@ export function FlowsHome(ctx: Ctx) {
       return;
     }
     try {
-      await ctx.act(specs, t('config.flows.nowUses', { language, flow: name }), undo);
+      await ctx.act(specs, t('config.flows.nowUses', { language, flow: name }));
     } catch {
       // ctx.act has already said "Not saved" and why.
     }
@@ -629,34 +617,39 @@ export function FlowsHome(ctx: Ctx) {
           {flows.slice(0, shown).map((f) => {
             const on = !!current && current.itemId === f.itemId;
             return (
-              <Card key={f.itemId} onPress={open(f.itemId)} accessibilityLabel={t('config.flows.openNamed', { name: f.name })}
-                help={updates[f.itemId] && !f.archived ? t('config.library.openUpdateHelp') : t('config.flows.flowCardHelp')}
-                style={on ? { borderColor: C.primary, borderWidth: 1.5 } : undefined}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={txt.h3}>{f.name}</Text>
-                    <Text style={txt.xs}>{sourceLine(f)}</Text>
-                    {f.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{f.description}</Text> : null}
+              <HelpRow key={f.itemId} of="flows.flow">
+                <Card onPress={open(f.itemId)} accessibilityLabel={t('config.flows.openNamed', { name: f.name })}
+                  help={updates[f.itemId] && !f.archived ? t('config.library.openUpdateHelp') : t('config.flows.flowCardHelp')}
+                  style={on ? { borderColor: C.primary, borderWidth: 1.5 } : undefined}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={txt.h3}>{f.name}</Text>
+                      <Text style={txt.xs}>{sourceLine(f)}</Text>
+                      {f.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{f.description}</Text> : null}
+                    </View>
+                    {f.archived ? <Badge label={t('config.library.archivedBadge')} />
+                      : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
+                    {on
+                      ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" help={t('config.flows.inUseHelp')} onPress={() => {}} />
+                      : language && !f.archived ? <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => chooseFlow({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
                   </View>
-                  {f.archived ? <Badge label={t('config.library.archivedBadge')} />
-                    : updates[f.itemId] ? <Badge label={t('config.library.updateBadge')} tone="amber" /> : null}
-                  {on
-                    ? <SmallBtn label={t('config.flows.inUse')} icon="check" tone="primary" help={t('config.flows.inUseHelp')} onPress={() => {}} />
-                    : language && !f.archived ? <SmallBtn label={t('config.flows.use')} help={t('config.flows.useHelp', { language })} onPress={() => void adopt({ itemId: f.itemId })} disabled={!canManage || busy || !f.current} /> : null}
-                </View>
-                {/* Inside a card that opens, the card says what the steps mean. */}
-                <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} explain={!canManage} />
-              </Card>
+                  {/* Inside a card that opens, the card says what the steps mean. */}
+                  <DocSteps doc={docs.get<FlowDoc>(f.current)} kinds={kinds} explain={!canManage} />
+                </Card>
+              </HelpRow>
             );
           })}
           <ShowMore remaining={flows.length - shown} step={STEP} onMore={() => setShown(shown + STEP)} />
 
           <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canWrite}
             detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} explain />}
-            {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => void adopt({ shared: s }), disabled: busy,
+            {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => chooseFlow({ shared: s }), disabled: busy,
               help: t('config.flows.useHelp', { language }) } } : {})} />
         </>
       )}
+      <ConfirmDelete visible={!!replacing} name={replacing?.name ?? ''} replaces
+        title={t('checks.flows.replaceAsk', { language: language ?? '', name: replacing?.name ?? '' })} confirmLabel={t('checks.flows.use', { name: replacing?.name ?? '' })}
+        onClose={() => setReplacing(null)} onConfirm={() => { const r = replacing; setReplacing(null); if (r) void adopt(r.target); }} />
     </Screen>
   );
 }
@@ -677,8 +670,10 @@ function StepSheet(props: {
         <>
           <Group>
             {st.kindIds.map((id, j) => (
-              <Row key={id} leading={<KindIcon kindId={id} size={40} />} label={name(id)} last={j === st.kindIds.length - 1}
-                right={st.kindIds.length > 1 ? <IconBtn name="close" label={t('config.flowEditor.removeCheck', { name: name(id) })} help={t('config.flowEditor.removeCheckHelp')} onPress={() => props.onChange({ ...st, kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : undefined} />
+              <HelpRow key={id} of="flowEditor.stepCheck">
+                <Row leading={<KindIcon kindId={id} size={40} />} label={name(id)} last={j === st.kindIds.length - 1}
+                  right={st.kindIds.length > 1 ? <IconBtn name="close" label={t('config.flowEditor.removeCheck', { name: name(id) })} help={t('config.flowEditor.removeCheckHelp')} onPress={() => props.onChange({ ...st, kindIds: st.kindIds.filter((k) => k !== id) })} bg={C.light} color={C.primary} /> : undefined} />
+              </HelpRow>
             ))}
           </Group>
           <Group>
@@ -822,9 +817,11 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
       <Sheet visible={pickFor !== null} title={pickFor === 'new' ? t('config.flowEditor.addStep') : t('config.flowEditor.addAlongside')} sub={t('config.flowEditor.kindsSub')} onClose={() => setPickFor(null)}>
         <Group>
           {kinds.filter((k) => !(picking?.kindIds ?? []).includes(k.id)).map((k, i, a) => (
-            <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} sub={k.description || k.usualReviewer || undefined}
-              help={pickFor === 'new' ? t('config.flowEditor.pickNewHelp') : t('config.flowEditor.pickAlongsideHelp')}
-              onPress={() => pick(k.id)} last={i === a.length - 1} />
+            <HelpRow key={k.id} of="flowEditor.kind">
+              <Row leading={<KindIcon kindId={k.id} size={40} />} label={k.name} sub={k.description || k.usualReviewer || undefined}
+                help={pickFor === 'new' ? t('config.flowEditor.pickNewHelp') : t('config.flowEditor.pickAlongsideHelp')}
+                onPress={() => pick(k.id)} last={i === a.length - 1} />
+            </HelpRow>
           ))}
         </Group>
         <Field label={t('config.flowEditor.newKindLabel')} value={newKind} onChangeText={setNewKind} placeholder={t('config.flowEditor.newKindPlaceholder')} autoCapitalize="words"
@@ -1064,8 +1061,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     const saved = await actCommand(ctx, 'save material', () => (isNew // i18n-ignore: log label
       ? c.defineMaterial(defineMaterialInput({ commandId: Crypto.randomUUID(), materialId: id, materialKind, title, changes, isQuestions, reviewKind }))
       : c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields })),
-    isNew ? t('config.material.added', { title: title.trim() }) : t('config.material.saved'),
-    isNew ? undefined : () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields: fieldRestores(changes) }));
+    isNew ? t('config.material.added', { title: title.trim() }) : t('config.material.saved'));
     if (!saved) { setBusy(false); return; }
     await draft.clear();
     ctx.back();
@@ -1090,8 +1086,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     const to = !locked;
     const c = commands(state!, indexesFor(state!));
     void actCommand(ctx, 'lock material', () => c.lockMaterial({ commandId: Crypto.randomUUID(), materialId: existing.materialId, locked: to }), // i18n-ignore: log label
-      to ? t('config.material.lockedToast') : t('config.material.unlockedToast'),
-      () => c.lockMaterial({ commandId: Crypto.randomUUID(), materialId: existing.materialId, locked: !to }));
+      to ? t('config.material.lockedToast') : t('config.material.unlockedToast'));
   }
 
   const setQuestions = (next: QuestionDraft[]) => edit({ questions: next });
@@ -1111,8 +1106,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     if (changes.length) {
       const c = commands(state!, indexesFor(state!));
       const written = await actCommand(ctx, 'save material', // i18n-ignore: log label
-        () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: existing.materialId, fields: fieldWrites(changes) }), t('config.material.saved'),
-        () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: existing.materialId, fields: fieldRestores(changes) }));
+        () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: existing.materialId, fields: fieldWrites(changes) }), t('config.material.saved'));
       if (!written) { setBusy(false); return; }
       draft.set(null);
       await draft.clear();
@@ -1151,9 +1145,11 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
           <SectionLabel label={t('config.material.whatKind')} />
           <Group>
             {referenceKinds().filter((k) => k.id !== 'key_terms' && (canManage || k.id === 'questions')).map((k, i, a) => (
-              <Row key={k.id} label={k.name} sub={k.code} help={t('config.material.kindHelp')} onPress={() => edit({ kind: k.id })} last={i === a.length - 1}
-                role="radio" selected={kind === k.id}
-                right={kind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+              <HelpRow key={k.id} of="material.kind">
+                <Row label={k.name} sub={k.code} help={t('config.material.kindHelp')} onPress={() => edit({ kind: k.id })} last={i === a.length - 1}
+                  role="radio" selected={kind === k.id}
+                  right={kind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+              </HelpRow>
             ))}
           </Group>
           <Field label={t('config.material.titleLabel')} value={title} onChangeText={(v) => edit({ title: v })} placeholder={isQuestions ? t('config.material.questionsTitlePlaceholder') : t('config.material.titlePlaceholder')} autoCapitalize="sentences" />
@@ -1178,9 +1174,11 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
               <SectionLabel label={t('config.material.forWhichKind')} />
               <Group>
                 {kinds.map((k, i) => (
-                  <Row key={k.id} leading={<KindIcon kindId={k.id} size={40} />} label={k.name} help={t('config.material.reviewKindHelp')} onPress={() => edit({ reviewKind: k.id })} last={i === kinds.length - 1}
-                    role="radio" selected={reviewKind === k.id}
-                    right={reviewKind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+                  <HelpRow key={k.id} of="material.reviewKind">
+                    <Row leading={<KindIcon kindId={k.id} size={40} />} label={k.name} help={t('config.material.reviewKindHelp')} onPress={() => edit({ reviewKind: k.id })} last={i === kinds.length - 1}
+                      role="radio" selected={reviewKind === k.id}
+                      right={reviewKind === k.id ? <Ico name="check" size={22} color={C.primary} /> : <View style={{ width: 22 }} />} />
+                  </HelpRow>
                 ))}
               </Group>
             </>
@@ -1192,33 +1190,36 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
         <>
           <SectionLabel label={withCount(t('config.material.questions'), qs.filter((q) => q.text.trim()).length)} />
           {qs.map((q, i) => (
-            <Card key={q.fieldId}>
-              {canFill ? (
-                <>
-                  <Field value={q.text} onChangeText={(v) => setQuestion(i, { text: v })} placeholder={t('config.material.questionPlaceholder')} multiline
-                    help={t('config.material.questionHelp')} />
-                  <ChipRow>
-                    {questionTypes().map((type) => <Chip key={type.id} label={type.label} on={q.type === type.id} help={questionTypeHelp(type.id)} onPress={() => setQuestion(i, { type: type.id })} />)}
-                  </ChipRow>
-                  <View style={styles.checkpoint}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[txt.sm, { fontWeight: '700' }]}>{q.required ? t('common.required') : t('config.material.suggested')}</Text>
-                      <Text style={txt.xs}>{q.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')}</Text>
+            <HelpRow key={q.fieldId} of="material.question">
+              <Card>
+                {canFill ? (
+                  <>
+                    <Field value={q.text} onChangeText={(v) => setQuestion(i, { text: v })} placeholder={t('config.material.questionPlaceholder')} multiline
+                      help={t('config.material.questionHelp')} />
+                    <ChipWrap>
+                      {/* help-each: each type asks in a different way */}
+                      {questionTypes().map((type) => <Chip key={type.id} label={type.label} on={q.type === type.id} help={questionTypeHelp(type.id)} onPress={() => setQuestion(i, { type: type.id })} />)}
+                    </ChipWrap>
+                    <View style={styles.checkpoint}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[txt.sm, { fontWeight: '700' }]}>{q.required ? t('common.required') : t('config.material.suggested')}</Text>
+                        <Text style={txt.xs}>{q.required ? t('config.material.requiredHelp') : t('config.material.suggestedHelp')}</Text>
+                      </View>
+                      <Toggle testID="toggle-required" on={q.required} label={t('common.required')} help={t('config.material.requiredSwitchHelp')} onToggle={() => setQuestion(i, { required: !q.required })} />
                     </View>
-                    <Toggle testID="toggle-required" on={q.required} label={t('common.required')} help={t('config.material.requiredSwitchHelp')} onToggle={() => setQuestion(i, { required: !q.required })} />
-                  </View>
-                  <SmallBtn label={t('config.material.removeQuestion')} icon="trash" help={t('config.material.removeQuestionHelp')} onPress={() => setQuestions(qs.filter((_, j) => j !== i))} />
-                </>
-              ) : (
-                <>
-                  <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
-                    <Text style={txt.label}>{questionTypes().find((type) => type.id === q.type)?.label}</Text>
-                    {q.required ? <Badge label={t('common.required')} tone="brand" /> : null}
-                  </View>
-                  <Text style={txt.body}>{q.text}</Text>
-                </>
-              )}
-            </Card>
+                    <SmallBtn label={t('config.material.removeQuestion')} icon="trash" help={t('config.material.removeQuestionHelp')} onPress={() => setQuestions(qs.filter((_, j) => j !== i))} />
+                  </>
+                ) : (
+                  <>
+                    <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
+                      <Text style={txt.label}>{questionTypes().find((type) => type.id === q.type)?.label}</Text>
+                      {q.required ? <Badge label={t('common.required')} tone="brand" /> : null}
+                    </View>
+                    <Text style={txt.body}>{q.text}</Text>
+                  </>
+                )}
+              </Card>
+            </HelpRow>
           ))}
           {qs.length === 0 && !canFill ? <Card><Text style={txt.smMuted}>{t('config.material.noQuestions')}</Text></Card> : null}
           {canFill ? <GhostBtn label={t('config.material.addQuestion')} icon="plus" help={t('config.material.addQuestionHelp')} onPress={() => setQuestions([...qs, { fieldId: nextFieldId([...qs.map((x) => x.fieldId), ...(existing?.fields.map((f) => f.fieldId) ?? [])]), text: '', type: 'text', required: false }])} /> : null}
@@ -1227,13 +1228,15 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
         <>
           <SectionLabel label={withCount(t('config.material.sections'), fieldIds.length)} />
           {fieldIds.slice(0, shown).map((fieldId) => (
-            <Card key={fieldId}>
-              <Text style={txt.h3}>{fieldTitle(fieldId)}</Text>
-              {canFill
-                ? <Field value={valueOf(fieldId)} onChangeText={(v) => edit({ texts: { ...texts, [fieldId]: v } })} placeholder={t('config.material.guidanceFor', { section: fieldTitle(fieldId) })} multiline
-                  help={t('config.material.sectionHelp')} />
-                : <Text style={valueOf(fieldId) ? txt.body : txt.bodyMuted}>{valueOf(fieldId) || t('config.material.notFilled')}</Text>}
-            </Card>
+            <HelpRow key={fieldId} of="material.section">
+              <Card>
+                <Text style={txt.h3}>{fieldTitle(fieldId)}</Text>
+                {canFill
+                  ? <Field value={valueOf(fieldId)} onChangeText={(v) => edit({ texts: { ...texts, [fieldId]: v } })} placeholder={t('config.material.guidanceFor', { section: fieldTitle(fieldId) })} multiline
+                    help={t('config.material.sectionHelp')} />
+                  : <Text style={valueOf(fieldId) ? txt.body : txt.bodyMuted}>{valueOf(fieldId) || t('config.material.notFilled')}</Text>}
+              </Card>
+            </HelpRow>
           ))}
           <ShowMore remaining={fieldIds.length - shown} step={STEP} onMore={() => setShown(shown + STEP)} />
           {canFill ? (
@@ -1363,7 +1366,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
       return;
     }
     const kindLabel = kinds.find((x) => x.id === material.reviewKindId)?.name ?? material.reviewKindId;
-    void ctx.act(plan.specs, t('config.libraryMaterial.reviewersSee', { kind: kindLabel }), () => plan.undo).catch(() => {
+    void ctx.act(plan.specs, t('config.libraryMaterial.reviewersSee', { kind: kindLabel })).catch(() => {
       // ctx.act has already said "Not saved" and why.
     });
   }
@@ -1404,7 +1407,11 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
           <>
             <SectionLabel label={t('config.material.whatKind')} />
             <ChipRow>
-              {[...new Set([...LIBRARY_MATERIAL_KINDS, k])].map((id) => <Chip key={id} label={referenceKindName(id)} on={k === id} help={t('config.libraryMaterial.kindHelp')} onPress={() => setKind(id)} />)}
+              {[...new Set([...LIBRARY_MATERIAL_KINDS, k])].map((id) => (
+                <HelpRow key={id} of="libraryMaterial.kind">
+                  <Chip label={referenceKindName(id)} on={k === id} help={t('config.libraryMaterial.kindHelp')} onPress={() => setKind(id)} />
+                </HelpRow>
+              ))}
             </ChipRow>
             <Field label={t('config.material.titleLabel')} value={titleText} onChangeText={setTitle} placeholder={t('config.libraryMaterial.titlePlaceholder')} autoCapitalize="sentences" />
             <LanguageField label={t('reference.language.writtenIn')} value={lang} onChange={setLanguage} />
@@ -1419,7 +1426,9 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
                 <Text style={txt.xsStrong}>{t('config.libraryMaterial.numberedAs')}</Text>
                 <ChipRow>
                   {[...choices, ...(choices.some((c) => c.key === chosen.key) ? [] : [chosen])].map((c) => (
-                    <Chip key={c.key} label={c.label} on={c.key === chosen.key} help={t('config.libraryMaterial.numberingHelp')} onPress={() => setV11n(c)} />
+                    <HelpRow key={c.key} of="libraryMaterial.numbering">
+                      <Chip label={c.label} on={c.key === chosen.key} help={t('config.libraryMaterial.numberingHelp')} onPress={() => setV11n(c)} />
+                    </HelpRow>
                   ))}
                 </ChipRow>
               </>
@@ -1427,9 +1436,11 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
             {linked.length ? (
               <Group>
                 {linked.map((l, i) => (
-                  <Row key={`${l.template}/${l.node}`} icon="template" label={partLabel(l)} sub={t('config.libraryMaterial.templatePart')} last={i === linked.length - 1}
-                    right={<IconBtn name="close" label={t('config.libraryMaterial.removePart', { name: partLabel(l) })} help={t('config.libraryMaterial.removePartHelp')}
-                      onPress={() => setParts(linked.filter((_, j) => j !== i))} bg={C.light} color={C.primary} />} />
+                  <HelpRow key={`${l.template}/${l.node}`} of="libraryMaterial.linkedPart">
+                    <Row icon="template" label={partLabel(l)} sub={t('config.libraryMaterial.templatePart')} last={i === linked.length - 1}
+                      right={<IconBtn name="close" label={t('config.libraryMaterial.removePart', { name: partLabel(l) })} help={t('config.libraryMaterial.removePartHelp')}
+                        onPress={() => setParts(linked.filter((_, j) => j !== i))} bg={C.light} color={C.primary} />} />
+                  </HelpRow>
                 ))}
               </Group>
             ) : null}
@@ -1695,12 +1706,14 @@ export function KeyTermDetail(ctx: Ctx) {
           {adjustments.map((a, i) => {
             const v = versionOf(a.duringTakeId);
             return (
-              <View key={a.adjustmentId} style={[styles.adjustment, i < adjustments.length - 1 && styles.rowBorder]}>
-                <Text style={txt.xs}>{ctx.name(a.actorId)} · {when(a.hlc)}{v ? ` · ${v.title}` : ''}</Text>
-                <Text style={txt.sm}>{adjustmentNote(a.note)}</Text>
-                {a.blobHash ? <AudioClip language={ctx.language} hashes={[a.blobHash]} label={t('config.keyTerm.playExplanation')} /> : null}
-                {v && v.n !== null ? <SmallBtn label={t('config.keyTerm.openVersion', { n: v.n })} icon="mic" help={t('config.keyTerm.openVersionHelp')} onPress={() => openVersion(v)} /> : null}
-              </View>
+              <HelpRow key={a.adjustmentId} of="keyTerm.adjustment">
+                <View style={[styles.adjustment, i < adjustments.length - 1 && styles.rowBorder]}>
+                  <Text style={txt.xs}>{ctx.name(a.actorId)} · {when(a.hlc)}{v ? ` · ${v.title}` : ''}</Text>
+                  <Text style={txt.sm}>{adjustmentNote(a.note)}</Text>
+                  {a.blobHash ? <AudioClip language={ctx.language} hashes={[a.blobHash]} label={t('config.keyTerm.playExplanation')} /> : null}
+                  {v && v.n !== null ? <SmallBtn label={t('config.keyTerm.openVersion', { n: v.n })} icon="mic" help={t('config.keyTerm.openVersionHelp')} onPress={() => openVersion(v)} /> : null}
+                </View>
+              </HelpRow>
             );
           })}
         </Disclosure>
@@ -1709,9 +1722,11 @@ export function KeyTermDetail(ctx: Ctx) {
         <Disclosure icon="mic" title={t('config.keyTerm.whereUsed')} open={used.open} onToggle={used.onToggle}
           summary={`${t('config.keyTerm.versions', { count: usedIn.length })} · ${listOf([...new Set(usedIn.map((u) => u.title))].slice(0, 2))}${usedIn.length > 2 ? '…' : ''}`}>
           {usedIn.slice(0, usedShown).map((u, i, a) => (
-            <Row key={u.takeId} icon="mic" label={t('config.keyTerm.usedTitle', { title: u.title, n: u.n })} sub={u.note ?? `${ctx.name(u.by)} · ${when(u.hlc)}`}
-              badge={u.adjustmentId ? t('config.keyTerm.changedHere') : undefined} onPress={() => openVersion(u)} last={i === a.length - 1}
-              help={u.adjustmentId ? t('config.keyTerm.usedChangedHelp') : t('config.keyTerm.usedHelp')} />
+            <HelpRow key={u.takeId} of="keyTerm.usedIn">
+              <Row icon="mic" label={t('config.keyTerm.usedTitle', { title: u.title, n: u.n })} sub={u.note ?? `${ctx.name(u.by)} · ${when(u.hlc)}`}
+                badge={u.adjustmentId ? t('config.keyTerm.changedHere') : undefined} onPress={() => openVersion(u)} last={i === a.length - 1}
+                help={u.adjustmentId ? t('config.keyTerm.usedChangedHelp') : t('config.keyTerm.usedHelp')} />
+            </HelpRow>
           ))}
           <ShowMore remaining={usedIn.length - usedShown} step={STEP} onMore={() => setUsedShown(usedShown + STEP)} />
         </Disclosure>

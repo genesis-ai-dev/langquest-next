@@ -14,7 +14,7 @@ import type { BlobFile } from '../sync/blobs';
 import { useStreamedUri } from './useStreamedUri';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Field, Header, Ico, LinkBtn, PrimaryBtn, Screen, SectionLabel, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -206,7 +206,7 @@ function ShowHideBtn(props: { on: boolean; icon: IconName; label: string; help: 
     <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="radio" accessibilityState={{ selected: props.on, disabled: props.disabled }}
       style={({ pressed }) => [styles.showBtn, props.on && styles.showBtnOn, pressed && ps.pressed]}>
       <Ico name={props.icon} size={18} color={props.on ? C.primary : C.muted} />
-      <Text style={[styles.showLabel, { color: props.on ? C.primary : C.muted }]} numberOfLines={1}>{props.label}</Text>
+      <Text style={[styles.showLabel, { color: props.on ? C.primary : C.muted }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );
@@ -291,7 +291,7 @@ export function PassageNoteEditor({ ctx }: { ctx: Ctx }) {
             const on = !!run && i >= Math.min(run[0], run[1]) && i <= Math.max(run[0], run[1]);
             const top = on && i === Math.min(run[0], run[1]);
             const bottom = on && i === Math.max(run[0], run[1]);
-            return <VerseTap key={row.key} row={row} on={on} top={top} bottom={bottom} onPress={() => setRun(tapVerse(run, i))} />;
+            return <HelpRow key={row.key} of="notes.verse"><VerseTap row={row} on={on} top={top} bottom={bottom} onPress={() => setRun(tapVerse(run, i))} /></HelpRow>;
           })}
         </View>
       ) : <Text style={txt.smMuted}>{textMissing(bible)}</Text>}
@@ -362,7 +362,7 @@ export function OthersSay(props: { ctx: Ctx; items: readonly OtherSays[]; loadin
       <SectionLabel label={t('keyTerms.others.title')} />
       {props.loading ? <Text style={[txt.smMuted, styles.pad]}>{t('common.loading')}</Text>
         : props.items.length === 0 ? <Text style={[txt.smMuted, styles.pad]}>{t('keyTerms.others.none', { word: props.word.trim() })}</Text>
-        : props.items.map((o) => <OtherCard key={o.languageId} ctx={props.ctx} o={o} />)}
+        : props.items.map((o) => <HelpRow key={o.languageId} of="terms.other"><OtherCard ctx={props.ctx} o={o} /></HelpRow>)}
     </>
   );
 }
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   showBtn: { flex: 1, minHeight: target.min, borderRadius: radius.md + 2, borderWidth: 2, borderColor: C.border, backgroundColor: C.card,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: space.sm },
   showBtnOn: { borderColor: C.primary, backgroundColor: C.light },
-  showLabel: { fontSize: T.sm, fontWeight: '700' },
+  showLabel: { fontSize: T.sm, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   wordChip: { minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: TINT.amber, justifyContent: 'center' },
   wordChipText: { fontSize: T.sm, fontWeight: '700', color: C.dark, textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: TINT.amberText },
   hint: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xs },

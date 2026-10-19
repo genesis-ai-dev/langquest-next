@@ -25,6 +25,12 @@ the test that creates it.
 - "The record" is the passage record (`passage_record`).
 - "Speak for N seconds" follows G8.
 - A "part" is one stretch of speech that voice detection kept by itself.
+  Voice detection asks a speech model whether the sound is speech (decision
+  135). The test microphones (G8's tone, the web suite's tones) are not
+  speech to it, so the web suites' builds leave the model out
+  (`NO_SPEECH_MODEL=1`) and parts follow the level alone. The phones always
+  carry the model: the flows tagged `voice` make no parts until G8 plays a
+  recorded voice.
 - `{TRANS-name}` and similar are the fixture accounts' display names.
 
 ---
@@ -132,14 +138,14 @@ Steps:
 1. In the workspace, tap the play button on the "Parts 1–3" card ("Play Parts 1–3").
 2. While it plays, tap it again ("Pause").
 3. Look at the parts under the card (they show by themselves).
-4. Tap the play button on "Part 2 · 0:04" ("Play Part 2").
+4. Tap Part 2's play button ("Play Part 2").
 5. Tap "Hide the parts", then "Show the parts".
 
 Expected:
 - Step 1 plays the three parts one after another, without gaps longer than half a second between them.
 - Step 2 pauses playback.
-- In step 3, each part is a row: its verse space on the left (decision 82), then "Part 1 · 0:04", "Part 2 · 0:04", "Part 3 · 0:03", each with a play button. Deleting a part is in the sheet that holding its verse space opens ("Delete Part 2"; decision 82), not a trash button on the row.
-- Step 4 plays Part 2 only.
+- In step 3, each part is a row that reads as a voice message: its verse space on the left (decision 82), a play button, the part's sound as bars with its length ("0:04", "0:04", "0:03"), and the grip (three lines) at the right end. No row shows a name or a bin: a part is deleted by sliding its row aside to its bin, or from the sheet that holding its verse space opens ("Delete Part 2"; decision 82).
+- Step 4 plays Part 2 only, its bars filling from the left as it plays.
 - Step 5 folds the rows into the card and opens them again.
 - No playback starts the microphone. The record button stays "Record".
 
@@ -170,19 +176,21 @@ Preconditions:
 
 Steps:
 1. In the workspace, look at the parts (tap "Show the parts" if they are folded).
-2. Tap the bin at the end of Part 2's row.
+2. Slide Part 2's row to the left, then tap the row. Slide it to the right and tap the red bin it shows ("Delete Part 2").
 3. Close the workspace with ✕, then open it again with "Continue recording".
 4. Tap the Undo arrow left of the red button.
 5. Tap the Redo arrow beside it, then Undo again.
 
 Expected:
-- After step 2 no toast shows. Part 2's place stays, numbered ("Record Part 2 here"), and the card reads "Parts 1–3, 2 parts". The Undo arrow is dark (its label "Undo: Part 2 deleted."), Redo is grey.
+- In step 2, sliding either way shows a red bin behind the row and stops there; a tap on the row closes it and nothing is deleted. Only a tap on the bin deletes.
+- After step 2 no toast shows. Part 2's place stays, numbered ("Record Part 2 here"), as a pill with space around it, and the card reads "Parts 1–3, 2 parts". The Undo arrow is dark (its label "Undo: Part 2 deleted."), Redo is grey.
 - After step 3 Undo is still dark: the history is kept with the draft on this phone, through leaving the screen and the app being closed, until the draft is published or deleted.
 - After step 4 the card reads three parts again, in the original order, and Part 2 is shaded faintly red. Redo is dark. Playing Part 2 plays the second sentence again.
 - Step 5 deletes Part 2 again, then brings it back. Each Undo and Redo is a new change on the record, never a removed one.
 - Every step is on the record: a second device, after Sync now, shows the same three parts in the same order (G10.4, G10.5).
 
 Changed (2026-10-16, decision 133): no toast offers an Undo that runs out; the recording screen has its own Undo and Redo.
+Changed (2026-10-16, decision 136): a part is deleted by sliding its row to its bin; no row has a bin of its own.
 
 ### REC-008 Parts cannot be deleted while recording
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -193,8 +201,8 @@ Preconditions:
 Steps:
 1. In the workspace, look at the parts (tap "Show the parts" if they are folded).
 2. Tap the red button to start recording, and stay silent.
-3. Try to hold Part 1's verse space (where "Delete Part 1" is).
-4. Try to tap play on "Part 1 · 0:04".
+3. Try to hold Part 1's verse space (where "Delete Part 1" is), and to slide its row aside.
+4. Try to tap Part 1's play button.
 5. Tap stop.
 
 Expected:
@@ -211,7 +219,7 @@ Preconditions:
 Steps:
 1. Open P-Q2 and tap "Record" (or the Record step row).
 2. Record one part: speak for 3 seconds, then stop.
-3. Tap the bin at the end of Part 1's row.
+3. Slide Part 1's row aside and tap its bin.
 4. Tap the Undo arrow left of the red button.
 
 Expected:
@@ -257,7 +265,7 @@ Expected:
 - A row "Say something about it" with the sub "Optional · the team hears it with this version". The row has no amber border.
 - "Next check", with a card for each check that comes next ("Peer check" and "Back translation", decision 91) and its people (in the fixture "Trevor Both, Rita Reviewer"). No sentence explains publishing.
 - The footer offers "Ask {usual target}" (in the fixture "Ask the Peer check team"), enabled, then quiet links "Someone else" and "Send later".
-- Step 3 publishes Version 1 and asks for the peer check in one write: the toast reads "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with Undo (which takes the asking back, not the version).
+- Step 3 publishes Version 1 and asks for the peer check in one write: the toast reads "Sent to {target} — anyone on it will see it on My Work" (a team) or "Sent to {target} — they will see it on My Work" (a person), with no Undo: the asking is taken back from History ("Withdraw"), the version is not (decision 134).
 - It returns to the record's path; there is no "Version 1 published" page.
 - The draft is gone from Versions and history; Version 1 is listed under "Published" with "Latest".
 - Within 30 seconds, Sync shows nothing waiting to upload (G10.3). On a second device as REV, after Sync now, P-NEW's record shows Version 1 and its audio plays.
@@ -410,7 +418,7 @@ Expected:
 - Step 1 opens an empty workspace with the header sub "New draft"; once its first part is kept it reads "Draft 2" (the person now keeps more than one).
 - Step 2 goes back to the Versions page, which lists "Your drafts" with both (the saved mark had shown the part kept).
 - In step 3 the record still leads with "Ask for the peer check" (Version 2 is not asked yet), so "Continue recording" is not offered; Versions and history lists "Your drafts" with both, each with play, Edit, Done and Delete. (Record with several drafts opening this page is PASS-059's.)
-- Deleting one shows "{name} deleted." with Undo, and Undo brings it back with the same parts.
+- Deleting one asks first ("Delete {name}?", with Delete and Cancel; decision 124). Once deleted it shows "{name} deleted." with no Undo (decision 134), and the other draft stays.
 
 ---
 
@@ -972,7 +980,7 @@ Preconditions:
 - TRANS's draft of P-S has three parts (REC-053), labelled verses 35, 36 and 37 (tap each space once).
 
 Steps:
-1. Press the six-dot grip at the left of Part 3 and drag it up above Part 1, then let go.
+1. Press the grip (three lines) at the right end of Part 3's row and drag it up above Part 1, then let go.
 2. Tap the Undo arrow left of the red button.
 3. Tap the Redo arrow beside it.
 
@@ -996,8 +1004,8 @@ Steps:
 4. Tap the Redo arrow.
 
 Expected:
-- Each line between two parts (and above the first) has a small + at its left end, before the grips, labelled "Record a new part before Part 2". A line beside a place already open has none.
-- After step 1 the line opens into a place "Part 2 · Recording next" with the purple microphone, and the parts after it are numbered as they will be (the old Part 2 reads "Part 3").
+- Each line between two parts (and above the first) has a small + on the card's right edge, half off the card, labelled "Record a new part before Part 2". A line beside a place already open has none.
+- After step 1 the line opens into a place: a pill with space all around it, the purple microphone, "Part 2" and "Recording next", unlike any part. The parts after it are numbered as they will be (the old Part 2 is now "Part 3").
 - After step 2 the card is open, whatever the split, with the first new part in view. The two new parts are Parts 2 and 3, faintly red-shaded until the next recording, with no verses; the parts around them keep theirs. Undo's label reads "Undo: New recording".
 - Step 3 takes both new parts back in one tap; step 4 puts both back.
 - A part said between two pieces of one verse is labelled as more of that verse, so the piece after it keeps its verse.

@@ -211,14 +211,13 @@ export function helpCards(c: {
   byId: Map<string, RefItem>; studies: { get(hash: string | null | undefined): LibraryDoc | null | undefined };
   guideFor: Map<string, string>; verseText: string; get: Get; detail: (bibleId: string) => Parameters<typeof sourceFacts>[2];
   notes: PassageNote[]; inApp: MaterialView[]; termsHere: Pick<KeyTermView, 'termId' | 'term'>[];
-  onLink: (itemId: string, linked: boolean, message: string, undo: boolean | null) => void;
+  onLink: (itemId: string, linked: boolean, message: string) => void;
 }): HelpRow[] {
   const studyFor = (itemId: string) => c.studies.get(c.guideFor.get(itemId));
   const libraryRow = (r: Pick<Reach, 'itemId' | 'kind'>, why: string, shown: boolean): HelpRow => {
     const item = c.byId.get(r.itemId);
     const name = item?.it.name ?? r.itemId;
     const steps = r.kind === 'guide' ? studySteps(studyFor(r.itemId)) : null;
-    const prior = passageLink(c.state, c.unitId, r.itemId);
     return {
       key: r.itemId, order: ORDER[r.kind], icon: refIcon(r.kind), name, shown,
       sub: [steps ? t('reference.passageText.steps', { count: steps }) : null, languagesLine([docLanguage(item?.doc)]), shown ? why : t('reference.passage.hiddenHere')].filter(Boolean).join(' · '),
@@ -226,8 +225,8 @@ export function helpCards(c: {
       ...(c.canManage ? {
         onSet: (on: boolean) => {
           if (on === shown) return;
-          if (on) c.onLink(r.itemId, true, t('reference.passage.shownAgain', { name }), false);
-          else c.onLink(r.itemId, false, t('reference.passage.hidden', { name }), prior ?? true);
+          if (on) c.onLink(r.itemId, true, t('reference.passage.shownAgain', { name }));
+          else c.onLink(r.itemId, false, t('reference.passage.hidden', { name }));
         }
       } : {})
     };

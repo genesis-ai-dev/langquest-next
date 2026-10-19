@@ -1,4 +1,4 @@
-# The job runner's image (docs/server-jobs.md, decisions.md 134): Node 24
+# The job runner's image (docs/server-jobs.md, decisions.md 140): Node 24
 # and one bundle per server job, built by scripts/build-jobs.mjs before each
 # deploy into dist/ beside this file. Nothing is installed here: the image
 # never holds the dependency tree beside the service key. The JobRunner

@@ -11,11 +11,11 @@ import { openContentLink } from '../ui/share';
 import { AudioClip } from '../audio/audioClip';
 import { studyUri } from './studyFiles';
 import type { Ctx } from '../shell/ctx';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { Field, HelpInfo, Ico, NoteCard, PrimaryBtn, Sheet, type IconName } from '../ui/kit';
+import { Field, HelpInfo, Ico, NoteCard, PrimaryBtn, Sheet, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { when, type PassageView } from '../passage/passageView';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
@@ -28,7 +28,7 @@ import { useStudyFileUri } from './useStudyFileUri';
 import type { StudyStepStatus } from './progress';
 import { inlineParts, isCallout, isQuestion, studySections, type StudySection } from './text';
 import { shownClock, mediaKindLabel, CALLOUT_LOOK, calloutLabel } from './studyText';
-import { saveNote } from './studyActions';
+import { saveNote, takeBackNote } from './studyActions';
 import { styles } from './studyStyles';
 import { useStudyAudio, type StudyAudio } from './useStudyAudio';
 import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
@@ -81,12 +81,13 @@ export function AudioBar(props: { audio: StudyAudio; label: string; sub?: string
         <HelpBadge spot={play} />
       </Pressable>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Text style={[txt.sm, { fontWeight: '700', flex: 1 }]} numberOfLines={1}>{props.label}</Text>
+        {/* The clock moves under the label when both do not fit on one line (decisions.md 139). */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.sm }}>
+          <Text style={[txt.sm, { fontWeight: '700', flexGrow: 1, flexShrink: 1 }]}>{props.label}</Text>
           <Text style={[txt.xs, { fontVariant: ['tabular-nums'] }]}>{shownClock(a.time)} / {shownClock(a.duration)}</Text>
         </View>
         <Scrubber value={a.time} max={a.duration} label={props.label} onSeek={a.seek} />
-        {props.sub ? <Text style={[txt.xs, { marginTop: -2 }]} numberOfLines={2}>{props.sub}</Text> : null}
+        {props.sub ? <Text style={[txt.xs, { marginTop: -2 }]}>{props.sub}</Text> : null}
       </View>
       <Pressable onPress={back.onPress} accessibilityRole="button" accessibilityLabel={t('common.backTenSeconds')}
         style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}>
@@ -105,6 +106,7 @@ export function ViewSwitch<T extends string>(props: { views: { id: T; label: str
   return (
     <View style={styles.switchWrap}>
       <View style={styles.switch} accessibilityRole="tablist">
+        {/* help-each: each tab shows a different view */}
         {props.views.map((v) => {
           const on = props.active === v.id;
           return (
@@ -145,7 +147,9 @@ export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }
       <NoteCard anchor={n.photoHash ? t('study.note.withPhoto', { anchor }) : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
         icon={n.blobHash ? 'mic' : 'note'}
         audio={n.blobHash ? <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label={t('study.note.playVoiceNote')} /> : undefined}
-        action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
+        action={n.by === props.ctx.session.actorId
+          ? <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.undoNoteHelp')} onPress={() => void takeBackNote(props.ctx, n.id)} />
+          : <ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
     </Authored>
   );
 }
@@ -231,18 +235,20 @@ export function MediaSheet(props: { resource: StudyResource; source: string; org
     <Sheet visible title={props.resource.title} sub={kinds ? `${kinds} · ${props.source}` : props.source} onClose={props.onClose}>
       {props.resource.description ? <Text style={txt.body}>{props.resource.description}</Text> : null}
       {items.map((item) => (
-        <View key={item.id} style={{ gap: space.xs }}>
-          {item.kind === 'map' && item.url ? (
-            <MapFullSize item={item} url={item.url} orgId={props.orgId} />
-          ) : (
-            <View style={styles.imageWrap}><MediaImage item={item} orgId={props.orgId} /></View>
-          )}
-          {item.caption || (items.length > 1 && item.title) ? (
-            <Text style={txt.smMuted}>
-              {items.length > 1 ? <Text style={{ fontWeight: '700', color: C.dark }}>{item.title}. </Text> : null}{item.caption}
-            </Text>
-          ) : null}
-        </View>
+        <HelpRow key={item.id} of="study.mediaItem">
+          <View style={{ gap: space.xs }}>
+            {item.kind === 'map' && item.url ? (
+              <MapFullSize item={item} url={item.url} orgId={props.orgId} />
+            ) : (
+              <View style={styles.imageWrap}><MediaImage item={item} orgId={props.orgId} /></View>
+            )}
+            {item.caption || (items.length > 1 && item.title) ? (
+              <Text style={txt.smMuted}>
+                {items.length > 1 ? <Text style={{ fontWeight: '700', color: C.dark }}>{item.title}. </Text> : null}{item.caption}
+              </Text>
+            ) : null}
+          </View>
+        </HelpRow>
       ))}
       <Text style={txt.xs}>
         {tapMap && noCopy ? t('study.media.lowResMapFilm') : tapMap ? t('study.media.lowResMap') : noCopy ? t('study.media.lowResFilm') : t('study.media.lowRes')}
@@ -376,7 +382,7 @@ export function PassageReader(props: { ctx: Ctx; v: PassageView; canContribute: 
                 ) : null}
                 {here.map((n) => {
                   const a = n.anchor.kind === 'verse' ? [n.anchor.translation, n.anchor.at].filter(Boolean).join(' · ') : '';
-                  return <StudyNote key={n.id} ctx={ctx} note={n} label={a || t('study.reader.verse', { verse: row.key })} />;
+                  return <HelpRow key={n.id} of="study.note"><StudyNote ctx={ctx} note={n} label={a || t('study.reader.verse', { verse: row.key })} /></HelpRow>;
                 })}
               </View>
             );
@@ -401,7 +407,7 @@ function AddNoteHere(props: { label: string; onPress: () => void }) {
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" style={({ pressed }) => [styles.addBtn, pressed && styles.pressed]}>
       <Ico name="note" size={16} color={C.white} />
-      <Text style={[txt.sm, { fontWeight: '700', color: C.white }]}>{props.label}</Text>
+      <Text style={[txt.sm, { fontWeight: '700', color: C.white, flexShrink: 1 }]}>{props.label}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );

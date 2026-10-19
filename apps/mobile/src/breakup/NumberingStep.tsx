@@ -11,7 +11,7 @@ import { formatNumber } from '../i18n/format';
 import { t } from '../i18n';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { GhostBtn, Ico, SearchField, type IconName } from '../ui/kit';
 import { ChoiceCard, Question, RadioRow } from '../admin/admin';
 import { C, radius, space, TINT, type as T } from '../ui/theme';
@@ -107,13 +107,19 @@ export function FindBiblePage(props: {
     <>
       <Question>{t('breakup.numberingStep.find.question')}</Question>
       {used.map(({ n, langs }) => (
-        <ChoiceCard key={n!.code} on={false} icon="people" title={shortName(n!.name)} sub={t('breakup.usedIn.one', { name: langs.join(t('admin.list.separator')) })}
-          help={t('breakup.numberingStep.find.usedHelp')} onPress={() => props.onPick(n!.code)} />
+        <HelpRow key={n!.code} of="numbering.used">
+          <ChoiceCard on={false} icon="people" title={shortName(n!.name)} sub={t('breakup.usedIn.one', { name: langs.join(t('admin.list.separator')) })}
+            help={t('breakup.numberingStep.find.usedHelp')} onPress={() => props.onPick(n!.code)} />
+        </HelpRow>
       ))}
       <SearchField value={q} onChangeText={setQ} placeholder={t('breakup.numberingStep.find.placeholder')} help={t('breakup.numberingStep.find.searchHelp')} />
       {note ? <Text style={[txt2.note]}>{note}</Text> : null}
       <View style={{ gap: space.sm }}>
-        {shown.map((b) => <RadioRow key={b.abbr} icon="book" label={b.name} sub={bibleLanguage(b.language)} on={false} help={t('breakup.numberingStep.find.bibleHelp')} onPress={() => choose(b)} />)}
+        {shown.map((b) => (
+          <HelpRow key={b.abbr} of="numbering.bible">
+            <RadioRow icon="book" label={b.name} sub={bibleLanguage(b.language)} on={false} help={t('breakup.numberingStep.find.bibleHelp')} onPress={() => choose(b)} />
+          </HelpRow>
+        ))}
         {!q.trim() && !all ? <GhostBtn label={t('breakup.numberingStep.find.showAll', { count: KNOWN_BIBLES.length })} icon="down" help={t('breakup.numberingStep.find.showAllHelp')} onPress={() => setAll(true)} /> : null}
         {q.trim() && shown.length === 0 ? <Text style={txt2.muted}>{t('breakup.numberingStep.find.notFound')}</Text> : null}
       </View>
@@ -157,6 +163,7 @@ export function QuizPage(props: {
       ) : null}
       {q.picture === 'psalm3' ? (
         <View style={{ gap: space.md }}>
+          {/* help-each: each answer leads somewhere different */}
           {q.options.map((o, i) => (
             <Answer key={o.label} label={o.label} onPress={() => answer(o)} style={styles.page}>
               <Text style={styles.pageTitle}>{t('breakup.numberingStep.psalm3.title')}</Text>
@@ -166,6 +173,7 @@ export function QuizPage(props: {
         </View>
       ) : tiles ? (
         <View style={styles.tileRow}>
+          {/* help-each: each answer leads somewhere different */}
           {q.options.map((o) => (
             <Answer key={o.label} label={o.label} onPress={() => answer(o)} style={styles.answer}>
               <Text style={styles.answerText}>{o.tile}</Text>
@@ -174,6 +182,7 @@ export function QuizPage(props: {
         </View>
       ) : (
         <View style={{ gap: space.sm }}>
+          {/* help-each: each answer leads somewhere different */}
           {q.options.map((o) => <RadioRow key={o.label} icon="building" label={o.label} on={false} help={t('breakup.numberingStep.quiz.answerHelp')} onPress={() => answer(o)} />)}
         </View>
       )}
@@ -204,15 +213,17 @@ export function NumberingListPage(props: { numberings: NumberingChoice[]; factsF
       {props.numberings.map((n) => {
         const f = props.factsFor(n);
         return (
-          <ChoiceCard key={n.code} on={false} icon="book" title={shortName(n.name)} help={t('breakup.numberingStep.list.pickHelp')} onPress={() => props.onPick(n.code)}>
-            {f ? (
-              <View style={styles.chips}>
-                <Text style={styles.chip}>{t('breakup.numberingStep.facts.booksCount', { count: f.books })}</Text>
-                <Text style={styles.chip}>{t('breakup.numberingStep.list.malachi', { book: bookName('mal'), n: formatNumber(f.malachi) })}</Text>
-                <Text style={styles.chip}>{f.headings ? t('breakup.numberingStep.list.headingsNumbered') : t('breakup.numberingStep.list.headingsUnnumbered')}</Text>
-              </View>
-            ) : null}
-          </ChoiceCard>
+          <HelpRow key={n.code} of="numbering.choice">
+            <ChoiceCard on={false} icon="book" title={shortName(n.name)} help={t('breakup.numberingStep.list.pickHelp')} onPress={() => props.onPick(n.code)}>
+              {f ? (
+                <View style={styles.chips}>
+                  <Text style={styles.chip}>{t('breakup.numberingStep.facts.booksCount', { count: f.books })}</Text>
+                  <Text style={styles.chip}>{t('breakup.numberingStep.list.malachi', { book: bookName('mal'), n: formatNumber(f.malachi) })}</Text>
+                  <Text style={styles.chip}>{f.headings ? t('breakup.numberingStep.list.headingsNumbered') : t('breakup.numberingStep.list.headingsUnnumbered')}</Text>
+                </View>
+              ) : null}
+            </ChoiceCard>
+          </HelpRow>
         );
       })}
       {props.numberings.length === 0 ? <Text style={txt2.muted}>{t('breakup.numberingStep.list.connect')}</Text> : null}
@@ -271,7 +282,7 @@ const styles = StyleSheet.create({
   stroke: { flex: 1, height: 5, borderRadius: 3, backgroundColor: C.dark, opacity: 0.55 },
   strokeHeading: { backgroundColor: C.faint, opacity: 1 },
   other: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm, minHeight: 56, borderRadius: radius.lg, borderWidth: 2, borderColor: C.primary, backgroundColor: C.card, paddingHorizontal: space.md },
-  otherText: { color: C.primary, fontWeight: '800', fontSize: T.base },
+  otherText: { color: C.primary, fontWeight: '800', fontSize: T.base, flexShrink: 1 },
   quote: { backgroundColor: C.card, borderRadius: radius.xl, borderWidth: 1, borderColor: C.border, paddingVertical: space.xl, paddingHorizontal: space.lg, alignItems: 'center' },
   quoteText: { fontSize: T.xl, fontWeight: '700', color: C.dark, textAlign: 'center', fontStyle: 'italic' },
   tileRow: { flexDirection: 'row', gap: space.md },

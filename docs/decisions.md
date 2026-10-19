@@ -2306,6 +2306,40 @@ Reverse if: people stop using help because the extra numbers crowd a screen
 (then number only the parts in reach of the ? first), or a line per part
 costs more to translate and record than field tests show it saves.
 
+Amended (2026-10-16, Caleb Koster): one row speaks for a list. Caleb, with a
+screenshot of the recording screen in help mode ("Holy help references
+batman"): every row of the parts list had its own bubbles, 51 numbers on one
+screen, and having them "on just one row would be sufficient". The crowding
+the entry above warned of had come from lists, where every row repeats the
+same parts. Now each row a list draws is a `HelpRow` (`helpBadge.tsx`) naming
+its kind (`of`). While help is on, the first row of each kind in sight speaks
+for the list (`helpContext.ts` `chooseRows`: a row wholly in sight before one
+cut off at an edge, then top to bottom): its parts light and take numbers.
+The other rows stay dim and unnumbered, and a tap on one of their parts still
+explains it, lighting it with its tooltip, so nothing acts in help mode. The
+row keeps speaking while it is on the screen; when a list that draws only
+what shows scrolls it away, the next row in sight takes over. In a list in
+a list (a guide's sections and their pictures), the first inner row in sight
+speaks for its kind, whichever outer row holds it. Lists whose items
+each do something different (tabs, filters, crumbs, a menu of actions) keep
+a number on every item and say why with a `help-each:` comment.
+`apps/mobile/test/helpParts.ts` fails on a list whose rows hold parts with
+neither. The recording screen went from 51 numbers to 27.
+Reverse if: people miss what a row does because the row that speaks for its
+list is not the one they look at (then let the row last tapped speak), or
+same-shaped rows turn out to need different explanations.
+
+Amended (2026-10-16, Caleb Koster): one first-time motion, which Caleb asked
+for: the first time a phone shows a list of parts, its top part slides right
+to show its bin, then back. It has no words, covers nothing and opens no help
+(decision 136).
+
+Amended (2026-10-16, Caleb Koster): a ready language's page no longer
+summarises the four questions as They record, What helps them, Checks and
+People with the rest under More. It names each thing as the organization's
+page does (Content template, Reference material, Review flow), with seven
+rows and no More; see 138.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -3860,7 +3894,7 @@ report a weekly digest from scripts/ui-flakes.mjs instead).
 
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
-Date: 2026-10-14 · By: Caleb Koster · Status: superseded by 134
+Date: 2026-10-14 · By: Caleb Koster · Status: superseded by 140
 
 Reason: the projection pass (decisions.md 68) runs in the
 `stream-projections` Edge Function, and a run there gets 256 MB and 2 s of
@@ -4347,6 +4381,8 @@ only to its author.
 
 Amended (2026-10-16, Caleb Koster): on the recording screen and in back translation, Undo is two arrows by the red button, not a toast (decision 133).
 
+Amended (2026-10-16, Caleb Koster): no toast offers Undo anywhere (decision 134); History, the step sheet and the review page keep theirs.
+
 ## 112. Diagnostics reach us without waiting on a stuck upload, cover sign-in, recording and the server's own jobs, and stay counts and codes
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
@@ -4708,6 +4744,10 @@ people miss the end of the list as the default place to record.
 
 Amended (2026-10-16, Caleb Koster): one part is deleted at once with no toast; the recording screen's Undo arrow brings it back, and also a whole set of parts deleted after asking (decision 133).
 
+Amended (2026-10-16, Caleb Koster): one part is deleted by sliding its row
+aside and tapping the bin it shows; the rows have no bin of their own
+(decision 136).
+
 ## 125. Parts split by the room and the voice the microphone hears, nothing said is thrown away, and there is no microphone setup
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -4758,6 +4798,11 @@ Reverse if: parts run together where other people talk nearby (their voices
 are out of the room), taps or bumps start parts often, or a phone's frames
 are so long that the head reaches too far (iOS can tap 100 ms buffers; the
 splitter counts in that phone's own frames).
+
+Amended (2026-10-16, Caleb Koster): a part is now sound out of the room that a
+speech model also calls speech, and the room is how loud it usually is rather
+than the quietest moment, so a cafe or a fan is not boxed (135). Without the
+model the rules above hold exactly.
 
 ## 126. Due dates are gone
 
@@ -5137,7 +5182,367 @@ Reverse if: people undo by accident (the arrows sit beside the red button),
 a history kept on the phone undoes work they expected kept, or the grip is
 dragged by mistake while scrolling a long list.
 
-## 134. Server jobs too big for an Edge Function run in a container behind the dashboard Worker, started by its cron, and no production job runs in GitHub Actions
+Amended (2026-10-16, Caleb Koster): the grip is now at a part's right end
+and the + marks sit on the card's right edge, half off it, not in a rail at
+the left; a part is deleted by sliding its row to its bin (decision 136).
+
+## 134. No toast offers Undo: the way back stays with the thing, building screens get their own arrows, and what cannot come back asks first
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-16): "I don't like the undo toast at all. It's
+irritating because if I want to undo something, I have 5 seconds or so to
+read the toast message and then my chance is gone forever - it induces panic
+and frustration with users." He asked for each place to be decided from the
+research ("Undo and redo in recording", which lists every place) and common
+sense. A toast's Undo lasted 7 seconds and the next toast replaced it, so
+after two quick changes the first could not be taken back; Material and
+GitLab's design systems took actions out of toasts for the same reason, and
+a disappearing button fails people using a screen reader or a magnifier.
+Supersedes 111's toast Undo (its History, step-sheet and review-page Undo
+stay) and extends 133 beyond the recording screen. What was built:
+- **Toasts only say what happened.** `ToastSpec` has no `undo`, `ctx.toast`
+  and `ctx.act` take a message and nothing to undo with, and a toast shows
+  3.5 s (twice that with a screen reader).
+- **The way back is where the thing is.** On a passage it is History's Undo
+  and Withdraw (111), the step sheet and the review page; a study step has
+  its own Undo, and your own note on a study step now has one on the note
+  (`StudyNote`; those notes are not in History). Settings, helps, library
+  items, templates, roles and My Bibles change back with the same control; a
+  template you stopped following offers Follow again in its options, as the
+  library's settings did.
+- **Screens where you build something get Undo and Redo** in the header, as
+  the recording screen has them by the red button (`ui/undoRedo.tsx`,
+  `ui/undoModel.ts`): the guide editor (every change, typing in one field
+  joined into one step, kept with the draft on the phone until it is
+  published, the newest hundred), Divide your own way (each section start,
+  join or outline used, for the visit; it replaces its one Undo link) and a
+  language's list of checks (each save of the list or a ready-made set
+  used, for the visit, written back with `restoreChecks`; a save made on a
+  check's own page opened from the list is a step there too,
+  `checks/checksHistory.ts`).
+- **What cannot come back asks first.** Removing a member (they come back
+  only by joining again) and using a ready-made set of checks over a
+  language's own (its own checks cannot be chosen again): a sheet names it
+  and waits (`ConfirmDelete`, with `replaces` for the second). Removing one
+  of a language's checks asks first too, as a whole thing does (124): its
+  way back is the list's Undo, not on the check's page where it was tapped
+  (agreed with "Combining check settings", PR 155).
+Considered: a toast whose Undo does not go by itself (it still covers the
+screen and is still replaced by the next one); asking first everywhere (it
+slows down every reversible change to guard a few).
+Reverse if: people take back things by accident with the header arrows, or
+miss a change made by mistake that the same control would have reversed
+because nothing points at it.
+
+## 135. A part is speech, not only sound out of the room: Silero VAD scores what the microphone hears on the phone and the web
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb found a loud cafe, or steady noise, boxed as parts (LAN-82,
+2026-10-16): his phone boxed a steady background noise as one long part, and
+with chatter around him one box swallowed the whole session. 125's splitter
+knows only levels, so any sound out of the room is a part, and a cafe's room
+never falls quiet enough to show where speech ends. After a research report
+(Silero VAD v6 the lead option) he chose to put it in and try it. Narrows 125:
+a part is now sound that is out of the room and that a speech model calls
+speech; nothing else changes about where parts split or what is kept.
+- **The model.** Silero VAD v6.2.3, the 16 kHz opset-15 file (1.3 MB, MIT,
+  `modules/microphone-energy/models/`), scores each 32 ms as speech, 0 to 1.
+  The microphone's 44.1 kHz is brought down to 16 kHz with a windowed-sinc
+  filter and cut into the model's chunks (`src/speech.ts`, ported line for line
+  to `Speech.kt` and `Speech.swift`, the same samples from the same sound); a
+  frame's score is the surest chunk that ended in it.
+- **The rules with a model** (`src/splitter.ts`, `Splitter.kt`,
+  `Splitter.swift`, the same parts from the same frames and scores). A part
+  starts when the level would start one and two of the last three frames
+  score 0.5 or more; a frame is heard when it is out of the room and scores
+  0.35 or more; a part ends on the median of the last five frames' level, or
+  when the score falls under 0.35, after the pause. The room is the level a
+  fifth of the last 8 s fall under, not the quietest moment; in the first
+  0.6 s the room heard now replaces a quieter one remembered, when it is not
+  speech; and while a part is open the room stays 10 dB under its loud end, so
+  someone who reads on without pausing never becomes the room. Without a
+  model (it failed to load, or a test build leaves it out) the rules are 125's
+  exactly.
+- **Where it runs.** ONNX Runtime: `onnxruntime-android` (Gradle) and
+  `onnxruntime-objc` (CocoaPods) in the microphone module, held at 1.22.0
+  because from 1.29.0 the runtime starts Microsoft's telemetry at launch (on
+  Android a content provider that reads the Android ID and adds the INTERNET
+  permission), which docs/play-store-declarations.md rules out; on the web
+  `onnxruntime-web` 1.29.0's WebAssembly build, one thread, which has none. The
+  phones ship the model in the module; the web export serves it and the
+  runtime as files (`/models/`, `/ort/`), outside the JavaScript budgets.
+  Every platform starts loading it when a recording screen opens
+  (`prepareSpeech`), and the microphone waits for it before opening (on the web
+  at most 3 s; on a slow network the model joins at the next stretch), so a
+  stretch of listening is judged one way throughout.
+- **Costs, measured.** Android arm64: the runtime is 18.2 MB installed, about
+  6.5 MB to download (1.29.0 was 32 MB); the iPhone framework is 36.9 MB
+  before linking (its share of the app not yet measured); the web fetches
+  14 MB of WebAssembly and the model once, when a recording screen first opens.
+  Speed on a phone is not yet measured (Silero gives 0.19 ms a chunk on one
+  desktop core).
+- **Measured on recordings** (real narration over simulated cafe babble and
+  clinks, a fan, and a quiet room, through today's rules and the new ones,
+  scratch measurements in the LAN-82 thread): in three cafes, 93 s each, today
+  makes one part of everything, the new rules 15 or 16 parts with at most
+  4.9 s of noise inside them, and 0.19 to 0.65 s of speech edges left outside
+  a part (still in the room kept around it, so dragging the edge brings it
+  back, 129). A fan or clinks alone: today one or two parts of 3.5 to 13 s,
+  now none. A quiet room and 60 s of unbroken reading: the same parts as
+  today. A second mix (a Yoruba reading over other readings, 98 s) agrees:
+  in a cafe today makes 2 or 3 parts, the longest 59 to 71 s, the model 16,
+  none over 6.8 s. In the web app, 40 s of that loud cafe gave two boxes
+  over everything today and six with the model; 20 s of fan, one box and
+  none.
+- **Tests.** The UI tests' microphones are tones, which the model rightly
+  hears as no one speaking, so their builds leave the model out
+  (`NO_SPEECH_MODEL=1` in `e2e/ui-web.sh` and `e2e/web-smoke.sh`) and their
+  parts are timed by level as before; unit tests hold the rules with scores,
+  the resampler and chunks, and the shipped model's file and inputs. The
+  phones' Maestro flows tagged `voice` play the same tone and will make no
+  parts with the model; they need a recorded voice before they run again.
+- **Not yet: is it the reader?** The model calls any voice speech, a talker
+  at the next table too (the research found Silero marks most loud
+  background speech as speech). The simulated cafe's talkers were further and
+  duller than the reader and scored low; a clear nearby talker can still be
+  boxed. A gate on the reader's own learned level is the next step if that
+  shows in the field.
+Considered: TEN VAD (smaller, but a license with conditions), WebRTC VAD
+(passes noise as speech), neural noise suppression before the splitter (changes the
+recording that is kept; masters stay raw), Android's VOICE_RECOGNITION
+source (left for its own change), a voice gate on the reader's own level
+alone (does not tell speech from a loud fan).
+Reverse if: parts miss words a person said in a quiet room, the model's
+scores differ by phone so parts differ, the runtime's size or the web's first
+download keeps people from recording, or a later ONNX Runtime without
+telemetry makes 1.22.0 worth leaving.
+## 136. A part's row reads as a voice message: verse, play, its bars and length, and the grip; it slides aside to its bin, and the + hangs off the card's edge
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-16), choosing from the "Recording row order" research
+page: "I like replacing the name with a voice message waveform image", with
+the verse label, a line, play, the bars and length, a hamburger grip, and
+"half-hanging off the end of the card at the line intersections is the small
+plus icon". Then: "Can we have the user swipe left/right to trash a
+recording? Then we don't have to have a garbage icon on each row at all -
+more space then", deletion with a confirmation, a one-time animation of a
+part sliding to show the bin, and an opened place that looks "different -
+like a pill with space around it". The research found most apps put the grip
+at the right and keep delete behind a swipe or a menu, not on every row.
+What was built:
+- **The row.** The verse space, a line, play, the part's bars and its
+  length (`partBars.tsx`; the name is gone from sight, and a screen reader
+  still hears "Part 2"), the grip (three lines) at the right end. Tapping
+  the bars chooses the part to record over, as tapping its name did.
+- **The bars.** Each part's sound in 64 even slices, as tall as its
+  loudest allows, a quiet part staying low (`audio/barsModel.ts`), kept on
+  the phone by the audio's hash (AsyncStorage `bars:v1:…`, `barsStore.ts`):
+  worked out from the WAV when a part is recorded, before a phone encodes it
+  to AAC (`useRecorder`), and for a part recorded before, read once from its
+  file (`barsOfFile.ts`: a WAV on a phone, anything the browser decodes on
+  the web). A phone has no AAC decoder, so an AAC part it did not record
+  shows a low even line until a native reader is added. Bars are not
+  events: they are worked out again from the audio wherever they are needed.
+  They fill from the left as the part plays.
+- **Deleting.** A row slides either way, by finger or mouse, to show a red
+  bin behind it, and stays open on it (`swipeRow.tsx`); tapping the bin is
+  the confirmation, and the footer's Undo brings the part back (133). A tap
+  on the open row closes it; one row is open at a time. A screen reader
+  opens it from the part's "Delete Part 2" action, and the hold sheet keeps
+  its delete. The first time a phone shows a list of parts, the top one
+  slides right to show the bin, then back (`useSwipeHint`, once per phone,
+  not with reduced motion).
+- **The + marks.** On the card's right edge at each line, half off the card.
+  Each 48 pt target is centred on the edge: the rows and the header leave
+  the 24 points inside it with nothing to tap, the card sits 8 points
+  further in from the screen's right edge so the target ends at the screen's
+  edge, and the card's box reaches past its drawn edge so a phone delivers
+  the taps (A11Y-009). The header keeps a band under its buttons for the
+  first +. An opened place is a pill with the microphone and space all
+  around it, dashed until chosen.
+Considered: a bin on every row, or the no-entry icon at its left (the row
+needs the room, and Caleb chose the swipe); deleting on a long swipe with no
+bin (no confirmation); bars from the recording session's live levels (they
+are gone once the session is left, and older parts never had them); a new
+event carrying the bars (they come from the audio, so nothing needs to sync).
+Reverse if: people delete by accident while scrolling, cannot find how to
+delete without the hint, or the low even line on older phone parts reads as
+silence.
+
+Amended (2026-10-17, Caleb Koster): a session's parts take their bars from
+the levels the recording screen showed for their boxes (`barsFromLevels`),
+read as the session is left, so leaving no longer reads every part's WAV in
+JavaScript before saving it. Caleb saw parts fill the list slowly, one by
+one, after leaving a session; in Hermes on a Mac that read took about 390 ms
+for ten 8 s parts, and the levels take under a millisecond. The live levels
+were set aside above because they are gone once the session is left; they
+are read just before it goes. A hold-to-record take, and a part found again
+after a restart, still read their WAV. The bars are each slice's level from
+the frames' loudest samples rather than every sample, so a row can look a
+little fuller than one read from its file.
+
+## 137. Android's Back goes one step back, inside a screen's steps too, and leaves the app only from the first screen
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-16): "Sometimes I find myself in the middle of a
+multi-step process and the android back navigation will exit me from the
+entire process (not what I intended). Also, on some pages back will
+completely exit the app (shouldn't be a thing)." Two causes. A tab is
+opened by a reset, so a tab's page (Map, Manage, Me, Inbox, Reports), the
+practice passage and a link to the scanner had nothing under them, and Back
+left the app. And many screens show their steps in place (New language, Get
+ready's questions and their pages, reviewing's stages and questions, a
+study's steps, the recording view, Divide your own way, invites, a new
+template), which the navigator cannot see, so Back popped the whole screen.
+What was built:
+- **One listener answers Back** (`shell/useRootBack.ts`, added by the
+  component that draws the navigator, so it is asked before the navigator's):
+  a step open on the screen goes back one step; else the screen underneath
+  comes back; with nothing underneath, Back goes to the person's first
+  screen (their home, "Join your team", or Sign In signed out) and leaves the
+  app only from there, or from the welcome a first sign-in shows
+  (`shell/backModel.ts`), and only when pressed twice: the first Back there
+  shows "Press Back again to leave LangQuest", and a second one while it
+  shows (3.5 seconds) leaves (Caleb, 2026-10-16: "have it say press back
+  again to leave"). A Back arrow with nothing under it goes to the first
+  screen too.
+  `test/hardwareBack.test.ts` keeps every other `BackHandler` listener out.
+- **A step registers its own way back** with `useHardwareBack(active, onBack)`
+  (`ui/hardwareBack.ts`): the newest step open on the screen showing answers
+  first, by when it opened, so a page inside a wizard answers before the
+  wizard. Each does what that step's own Back does: the Back under New
+  language's steps (and a page of its question first; while it is being
+  added, the same "please wait" as ✕), the question before in Get ready and
+  in a review (then the stage before; Listen leaves, and the draft stays),
+  the step before in a study (as it was reached) and "Back to the guide",
+  the recording view's ✓ (it keeps every part), the helps or the verse
+  picked in Divide your own way, then its header's arrow. ✕ still leaves a
+  task at once.
+- **A sheet of several steps** takes `onBack` (Add a Bible, Report, the
+  license's "This can't be undone", the lesson on breaking up material):
+  Back goes to its step before; otherwise Back closes a sheet, as before.
+- Help mode turns off on Back, as its ? does.
+Not covered: iOS has no Back button, and its edge swipe still pops a screen
+past its steps. NAV-061 now expects the first screen, then the message,
+not leaving the app at once.
+Reverse if: people expect Back on a tab's page to leave the app, as before,
+or find stepping back through a long task slower than they want (✕ still
+leaves it at once).
+
+## 138. One name for each thing on a language's page: its pick under each, the others and the organization's shelf behind it, and no More
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-16), on a language's page in Manage: under More,
+Members, "Every way to divide the work", "Bibles, guides and notes" and
+"Every way to check" looked like People, They record, What helps them and
+Checks above them, and "The connection between the pairs of options isn't
+really obvious in the list." He asked for the name as "a pencil by big title
+on top of page", the cluster "below the big page title", one "Languages"
+entry, and no organization row ("they can just go back"). Layout research
+(apps such as Revolut Business, Notion and Settings show the pick where you
+are and open the library from the bottom of the picker) found each pair was
+one thing under three names: a language's choice, and the organization's
+shelf it picks from. Caleb approved the layout ("Looks great, please go
+ahead"). What was built:
+- **One name each, everywhere:** Content template(s), Reference material and
+  Review flow(s), on a language's page, its pages, and the organization's
+  Setup and shelves (which were Content Templates, Reference Material, Review
+  Flows). A row's second line is this language's pick, never an explanation.
+- **A ready language's page has seven rows and no More** (`LanguageHome`):
+  Content template, Reference material and Review flow; People and Roles,
+  with join requests under them; Languages and Show on the public list.
+  Members (People's own screen), the three shelf rows, the organization's
+  row, Name, In the language list, Cluster, and More's progress bars and
+  code line are gone; progress is on See their work and the organization's
+  list. A language that is not ready keeps its checklist, then See their
+  work and Roles, then Languages and the public list.
+- **Each pick opens the same way** (get_ready `step` 'template', 'helps',
+  'flow'): what it uses on top (`PickCard`: a lit radio, its facts, links
+  into it), the others under it as radio rows with an explicit Use (others
+  see the choice, so it is not saved on tap), and last a row to the
+  organization's whole shelf ("All content templates", "All reference
+  material", "All review flows"). The content template's links are Each
+  book's passages (the language's books, which was its template view),
+  Which books (question 1), and Edit or View; its version and Take update
+  moved onto it. The review flow's link is Edit (the Checks screen); using a
+  ready-made flow over its own checks asks first (134). Reference material is
+  What helps them renamed, ending with its shelf instead of Add more's
+  library row. The demo's Choose a Template screen (`template_picker`) is
+  dropped: the Content template page lists the choices itself.
+- **The name and clusters change where they show:** a pencil beside the big
+  title (the rename keeps Save the name, since everyone sees it, 76), and an
+  amber chip under it with the clusters it is in, "+ Cluster" for whoever may
+  group languages while it is in none (108).
+- **Languages** is one row (`LanguagesRow`): its sheet has They translate
+  into (its link to the language list) and They understand (the languages
+  its Bibles and guides are in, 130).
+- **Up instead of a row:** a language lead's Manage tab opens on their
+  language with no Back, so the organization's name sits where Back would be
+  and opens its page (`BigTop` `up`).
+- **The organization's page, the same way:** a pencil beside its name in the
+  top card, and its licence under the name opens the licence sheet; Setup
+  loses Name and the licence row.
+Alternatives: keeping the pairs with standard titles and a line under each
+saying what it is (Caleb's first idea): the line repeats on every visit,
+must be translated and fit 360 wide in 15 languages, and the project keeps
+explanatory text out of the UI; the pick says what the row is about.
+Reverse if: people cannot find the organization's templates, reference
+material or review flows from a language, or look for the name or clusters
+in a More that is no longer there.
+
+## 139. Words are never cut off: a label wraps, side-by-side things move under each other, and a few choices wrap
+
+Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-16): on the passage page, under "Continue
+recording", "Something else?" and "Versions and …" were cut off; "Go
+through the app and look for cutoff text in all languages on all pages and
+resolve." Walking every screen reachable from each role at 360 pt in the 15
+interface languages (and reading every layout) found cut-off words in the
+kit and in 40 screens' and parts' files, many in English too: the kit and screens shortened words with "…"
+(`numberOfLines`), left a label beside other things with no room to wrap
+(React Native does not shrink a child by default, and Android clips what
+runs past its parent), fixed widths that a word in Swahili or Burmese
+outgrows, and choices of two or three in a row that scrolls sideways, the
+last one past the edge. The rule, in the kit so screens get it by default:
+- **The app's own words show in full.** `Row` labels and subs, `Disclosure`
+  summaries (still short, but they wrap: this narrows PLAN.md's one-line
+  summaries), `Header` titles and subs, `Badge`, and the labels of
+  `PrimaryBtn`, `GhostBtn`, `SmallBtn`, `QuietLinks` and `Chip` wrap instead
+  of taking "…"; the buttons shrink to their place and their words wrap in
+  them. People's own content (names, notes, titles) may still be shortened
+  in a list; it shows in full where it opens.
+- **Side by side while it fits, else under.** A `Row`'s badge and right-hand
+  part keep the label most of the row (`rowBadge`, `rowRight`); a header
+  whose action carries words or is wider than one round button puts the
+  title on its own line under the buttons; button groups, figures, keys,
+  pills and title-with-badge lines wrap.
+- **A few choices wrap** (`ChipWrap`), so every option is in sight; a
+  `ChipRow` that scrolls sideways stays for filters among many.
+- **The reviews grid** sizes every column to the longest word in any head,
+  so a head breaks only between words, and a head is a check's whole name
+  where two checks share their first word (Spanish "Verificación …"), so no
+  two read alike (`gridColumnNames`).
+- **The recording screen's collapsed reference bar** (80 pt) shows the
+  Bible's name only: its "Drag down for the guide, key words, notes and
+  earlier recordings" never fit in any language, and help mode says it.
+- **On Android, bold text set with a line height is drawn at weight 600**
+  (`ui/text.tsx`). Caleb's cut was Android's own: on an emulator sized like
+  his Pixel 10 Pro, "Versions and history" lost "history" at weight 700 with
+  `txt.sm`'s line height, kept it at 600 or without the line height, and the
+  kit's wrapping alone did not help. Android draws 600 and 700 near enough
+  alike in its system font.
+The recording screen's part rows and its footer are 136's: they were being
+rebuilt alongside this, and its Done and one-line bar now fit their words.
+Reverse if: a screen needs a fixed-size label to stay readable at a glance
+(a tab bar), and wrapping makes it worse than an abbreviation would.
+
+## 140. Server jobs too big for an Edge Function run in a container behind the dashboard Worker, started by its cron, and no production job runs in GitHub Actions
 
 Date: 2026-10-16 · By: Carl Sauder · Status: accepted
 

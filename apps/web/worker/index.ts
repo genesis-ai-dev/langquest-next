@@ -61,7 +61,7 @@ export default {
   // The Worker's cron (wrangler.jsonc, every ten minutes): verse timings
   // asked for LangQuest's own sources (worker/timings.ts), expired device
   // grants, webhook catch-up, and the projection pass for the languages the
-  // Edge Function leaves out (jobs.ts, decisions.md 134). Each part's
+  // Edge Function leaves out (jobs.ts, decisions.md 140). Each part's
   // failure is caught on its own, so one does not stop the others, and the
   // tick leaves a job run (diag.jobs `worker_cron`) saying which failed and how.
   async scheduled(_event, env, ctx) {

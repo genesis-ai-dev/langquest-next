@@ -5,7 +5,7 @@ import type { JobRunner } from './jobs';
 export interface Env {
   ASSETS: Fetcher;
   ORG_SNAPSHOTS: DurableObjectNamespace<OrgSnapshot>;
-  /** The job runner (jobs.ts, decisions.md 134): one object per server job, started by the cron. */
+  /** The job runner (jobs.ts, decisions.md 140): one object per server job, started by the cron. */
   JOBS: DurableObjectNamespace<JobRunner>;
   /** Recordings and guide media (blobs.ts, decisions.md 69). */
   BLOBS: R2Bucket;

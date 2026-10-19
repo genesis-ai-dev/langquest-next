@@ -1,6 +1,6 @@
 # Plan: the server's jobs, and where the heavy ones run
 
-Status: step one built (decision 134); the rest proposed · Carl Sauder, with Claude · 2026-10-16
+Status: step one built (decision 140); the rest proposed · Carl Sauder, with Claude · 2026-10-16
 
 Companion to `docs/big-languages-plan.md`, the phone side, whose option F
 (the server folds a language whole and cuts the snapshot by passage) is
@@ -105,7 +105,7 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
 
 | Order | Piece | Waits for |
 | --- | --- | --- |
-| now, in parallel | **Step one: the large pass into the container, `projections.yml` gone** (decision 134, this branch) | nothing |
+| now, in parallel | **Step one: the large pass into the container, `projections.yml` gone** (decision 140, this branch) | nothing |
 | now, in parallel | E: rebase PR 120 and meet the big-languages plan's 4.1 conditions | nothing |
 | next | Step two: one pass for every language in the container, every 5 minutes; the Edge Function keeps push delivery only | step one proven for a couple of weeks |
 | next | Aggregates: the pass writes each language's progress, people and report inputs, versioned by `REPORT_VERSION`; the object reads them for reports and stops folding for them | step one |
@@ -164,8 +164,8 @@ keeping the trigger and the lock.
 
 ## 9. Decision log
 
-- Decision 134 records step one and supersedes 103.
-- Step two amends 134 (one pass, one host) and 68 (the pass's cadence
+- Decision 140 records step one and supersedes 103.
+- Step two amends 140 (one pass, one host) and 68 (the pass's cadence
   and host).
 - Aggregates get an entry of their own: the pass as the one producer of
   per-language aggregates, amending 44 (the object reads them).

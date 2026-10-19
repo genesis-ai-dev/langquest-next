@@ -43,17 +43,17 @@ import type { Ctx } from '../shell/ctx';
 import { screenTitle } from '../shell/flow';
 import { t } from '../i18n';
 import { formatClock } from '../i18n/format';
+import { HelpRow } from '../helpMode/helpBadge';
 import { indexesFor } from '../sync/indexes';
 import { Badge, Banner, Card, Chip, EmptyState, Field, GhostBtn, Group, Header, Ico, LinkBtn, PrimaryBtn, ReasonSheet, Row, Screen, Sheet, SectionLabel } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
 import { passageCrumbs, passageView as passageViewOf, versionTitle, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
-import { undoReviews } from '../passage/recordInputsModel';
 import { failureMessage } from '../diagnostics/report';
 import {
   canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
-  noteAnchorText, readiness, requestFor, reviewCapture, reviewStages, stageAt, summaryLine, toCompareFor, verdictQuestion, versionFor,
+  noteAnchorText, readiness, requestFor, reviewCapture, reviewStages, stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor,
   type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
 import {
@@ -62,7 +62,7 @@ import {
 import { contractsFor } from '../shell/screenContracts';
 import { AgainBtn, BigMic, DashedRow, PlayChip, SpeakBtn } from '../reviewing/reviewVoice';
 import { checkName } from '../admin/adminModel';
-import { useCheckHelpRows, type HelpRow } from '../checks/useCheckHelpRows';
+import { useCheckHelpRows, type HelpRow as CheckHelpRow } from '../checks/useCheckHelpRows';
 import { BackgroundSheet, BigChoices, Centre, DecideCard, MomentList, OutcomePill, QuestionCard, QuestionDots, SkipBtn, StepStrip } from '../reviewing/review';
 import { backgroundLine } from '../reviewing/reviewText';
 import { useOfferedSources } from '../sources/useSourceChoice';
@@ -144,15 +144,13 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
-  const openHelp = (h: HelpRow) => {
+  const openHelp = (h: CheckHelpRow) => {
     if ('bible' in h.open) { setBible(h.open.bible); setSheet('background'); return; }
     if (h.open.screen === 'study_guide') return ctx.go('study_guide', { unitId: v!.unitId, languageId: v!.languageId });
     ctx.go('material_editor', h.open.params);
   };
   // A wide window names the passage in the crumbs above the title, so the title is the kind.
   const wide = useLayout().kind !== 'phone';
-  // A phone's Back does what the header's arrow does: from "What should change?" to Decide, else it leaves (the draft stays).
-  useHardwareBack(why, () => setWhy(false));
 
   const version = v ? versionFor(v.p, takeId) : undefined;
 
@@ -204,6 +202,14 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   useEffect(() => {
     if (shown && guide && guideItem) usage.offer([{ itemId: guideItem, name: `${guide.pattern} · ${guide.passage}`, kind: 'guide', opened: false, ref: guide.passage }]);
   }, [shown, guide, guideItem, usage]);
+
+  // A phone's Back goes one step back (decision 137): from "What should change?" to Decide, as its arrow does;
+  // else the question before, then the stage before. From Listen it leaves, and the draft stays.
+  const stepBack = stageBack(reviewStages({ questions: questions.length, logged, makes: !!makes }), stageId, qi, questions.length);
+  useHardwareBack(why || !!stepBack, () => {
+    if (why) setWhy(false);
+    else if (stepBack) { setStageId(stepBack.stage); setQi(stepBack.qi); }
+  });
 
   if (!v || !kind) {
     return (
@@ -314,8 +320,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     }
     setBusy(true);
     try {
-      const sent = specs;
-      await ctx.act(specs, message, () => undoReviews(sent)(commands(state)));
+      await ctx.act(specs, message);
     } catch {
       setBusy(false);
       return;
@@ -391,7 +396,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           <SectionLabel label={t('checks.forCheck', { check })} />
           <Group>
             {helps.map((h, i) => (
-              <Row key={h.key} icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last={i === helps.length - 1} />
+              <HelpRow key={h.key} of="review.checkHelp">
+                <Row icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last={i === helps.length - 1} />
+              </HelpRow>
             ))}
           </Group>
         </>
@@ -462,10 +469,12 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         <BigMic language={ctx.language} label={made.length ? t('review.screen.recordAnotherPart') : t('review.screen.tapAndSpeak')} onClip={(clip) => setMade((m) => (m.some((x) => x.hash === clip.hash) ? m : [...m, voiceCard(clip.hash, clip)]))} />
       </View>
       {made.map((c, i) => (
-        <View key={c.hash} style={styles.partRow}>
-          <PlayChip ctx={ctx} clip={{ hash: c.hash, durationMs: c.durationMs, format: c.format ?? 'm4a' }} label={t('review.screen.part', { n: i + 1 })} tone="brand" />
-          <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.screen.removePartHelp')} accessibilityLabel={t('review.screen.removePart', { n: i + 1 })} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
-        </View>
+        <HelpRow key={c.hash} of="review.madePart">
+          <View style={styles.partRow}>
+            <PlayChip ctx={ctx} clip={{ hash: c.hash, durationMs: c.durationMs, format: c.format ?? 'm4a' }} label={t('review.screen.part', { n: i + 1 })} tone="brand" />
+            <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.screen.removePartHelp')} accessibilityLabel={t('review.screen.removePart', { n: i + 1 })} onPress={() => setMade((m) => m.filter((x) => x.hash !== c.hash))} />
+          </View>
+        </HelpRow>
       ))}
       <DashedRow icon="chatDots" label={t('review.screen.whatHappened')} sub={comment.trim() || (feedback ? t('review.screen.saidInVoiceNoteCap') : t('review.screen.whatWasHard'))}
         right={comment.trim() || feedback ? t('review.shared.change') : t('review.shared.optional')} help={t('review.screen.whatHappenedHelp')}
@@ -570,7 +579,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             <Block label={t('review.screen.whichVersion')}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
                 {[...v.p.versions].reverse().map((x) => (
-                  <Chip key={x.takeId} label={versionTitle(x.n)} on={x.takeId === version.takeId} help={t('review.screen.whichVersionHelp')} onPress={() => setTakeId(x.takeId)} />
+                  <HelpRow key={x.takeId} of="review.version">
+                    <Chip label={versionTitle(x.n)} on={x.takeId === version.takeId} help={t('review.screen.whichVersionHelp')} onPress={() => setTakeId(x.takeId)} />
+                  </HelpRow>
                 ))}
               </View>
             </Block>
@@ -623,7 +634,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 }
 
 /** What opening one of the check's helps does (decision 91), as help mode says it. */
-function helpRowHelp(h: HelpRow): string {
+function helpRowHelp(h: CheckHelpRow): string {
   if ('bible' in h.open) return t('review.screen.helpBibleHelp');
   return h.open.screen === 'study_guide' ? t('review.screen.helpGuideHelp') : t('review.screen.helpNoteHelp');
 }
@@ -707,7 +718,7 @@ export function GuestReview(ctx: Ctx) {
           <View style={styles.brand}><Ico name="globe" size={18} color={C.white} /></View>
           {/* i18n-ignore: the product's name, the same in every language */}
           <Text style={[txt.sm, { fontWeight: '800', flex: 1 }]}>LangQuest</Text>
-          <Badge label={t('review.guest.noAccount')} />
+          <View style={{ flexShrink: 1, maxWidth: '55%' }}><Badge label={t('review.guest.noAccount')} /></View>
         </View>
         <Text style={txt.title}>{headline}</Text>
         <Text style={txt.xs}>{v.language} · {checkName(kind.id, v.kinds)}</Text>
@@ -721,10 +732,12 @@ export function GuestReview(ctx: Ctx) {
         </Card>
       ) : <EmptyState icon="mic" title={t('review.guest.noRecording')} />}
       {questions.map((q) => (
-        <Card key={q.q.id}>
-          <Text style={[txt.body, { fontWeight: '600' }]}>{q.q.text}</Text>
-          <AnswerInput type={q.q.type} value={answers[q.q.id]} onChange={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} />
-        </Card>
+        <HelpRow key={q.q.id} of={`guest.${q.q.type}Question`}>
+          <Card>
+            <Text style={[txt.body, { fontWeight: '600' }]}>{q.q.text}</Text>
+            <AnswerInput type={q.q.type} value={answers[q.q.id]} onChange={(val) => setAnswers((a) => ({ ...a, [q.q.id]: val }))} />
+          </Card>
+        </HelpRow>
       ))}
       <Block label={t('review.guest.tellUs')}>
         {/* A voice reply would be saved to the language's record; a preview must not write, so it is shown, not live. */}
@@ -745,7 +758,7 @@ const styles = StyleSheet.create({
   verdictRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.md },
   answer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', gap: space.lg, paddingVertical: space.xl },
   qFoot: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  partRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.md },
+  partRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: space.md },
   brand: { width: 32, height: 32, borderRadius: 10, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
   voiceOff: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: space.md, paddingVertical: space.sm,
     borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: TINT.gray, opacity: 0.7 },

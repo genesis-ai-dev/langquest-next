@@ -70,7 +70,7 @@ or 25,000 events past it); the job container behind the dashboard Worker
 projects those every ten minutes with `server/projections.ts`, started by
 the Worker's cron through the `JobRunner` Durable Object
 (`apps/web/worker/jobs.ts`, `docs/server-jobs.md`, decisions.md 103 and
-134). Locally, run `npx tsx server/projections.ts` after importing a large
+140). Locally, run `npx tsx server/projections.ts` after importing a large
 language, or let `npm run web:dev` run the container on its cron
 (`docs/cloudflare.md`, The job runner).
 `send-invite` validates the caller and invite before contacting the

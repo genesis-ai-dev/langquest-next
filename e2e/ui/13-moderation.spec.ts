@@ -14,7 +14,7 @@ import {
 import { send, signIn, type UiWorld } from './fixture';
 import {
   back, button, byId, expect, expectNothingRefused, expectToast, field, languageArrived, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
-  undoToast, useWorld, type AccountKey
+  useWorld, type AccountKey
 } from './support';
 
 const world = useWorld();
@@ -292,7 +292,7 @@ test('MOD-007 Report a person', async ({ page, browser }) => {
   await admin.context.close();
 });
 
-test('MOD-008 Block someone, with Undo', async ({ page }) => {
+test('MOD-008 Block someone, then Unblock', async ({ page }) => {
   const w = world();
   await openAs(page, w, 'REV');
   await openVersion(page);
@@ -300,15 +300,18 @@ test('MOD-008 Block someone, with Undo', async ({ page }) => {
   await row(page, `Block ${nameOf('TRANS')}`).click();
   await expect(text(page, 'Report or block')).toHaveCount(0);
   await expectToast(page, `Blocked ${nameOf('TRANS')}. What they add is hidden for you.`);
-  await expect(byId(page, 'toast-undo')).toBeVisible();
   await expect(text(page, `Hidden because you blocked ${nameOf('TRANS')}`)).toBeVisible();
   await expect(button(page, 'Play Version 1')).toHaveCount(0);
-  await undoToast(page);
+  // No toast offers Undo (decision 134): the same flag unblocks them.
+  await button(page, `Show what ${nameOf('TRANS')} added`).click();
+  await flagOf(page, 'TRANS').click();
+  await row(page, `Unblock ${nameOf('TRANS')}`).click();
+  await expectToast(page, `Unblocked ${nameOf('TRANS')}.`);
   await expect(button(page, 'Play Version 1')).toBeVisible();
   await openMore(page);
   await expect(text(page, 'Sync')).toBeVisible();
   expect(await screenText(page)).not.toContain('Blocked people');
-  // Block again and let the toast go (about 7 seconds).
+  // Block again and let the toast go (about 3.5 seconds).
   await openVersion(page);
   await flagOf(page, 'TRANS').click();
   await row(page, `Block ${nameOf('TRANS')}`).click();
@@ -402,9 +405,11 @@ test('MOD-011 Unblock from the flag', async ({ page }) => {
     await expect(row(page, `Unblock ${nameOf('TRANS')}`)).toContainText('Show what they add again');
     await row(page, `Unblock ${nameOf('TRANS')}`).click();
     await expectToast(page, `Unblocked ${nameOf('TRANS')}.`);
-    await expect(byId(page, 'toast-undo')).toBeVisible();
     await expect(button(page, 'Play Version 1')).toBeVisible();
-    await undoToast(page);
+    // No toast offers Undo (decision 134): the same flag blocks them again.
+    await flagOf(page, 'TRANS').click();
+    await row(page, `Block ${nameOf('TRANS')}`).click();
+    await expectToast(page, `Blocked ${nameOf('TRANS')}.`);
     // Blocked again: leaving and coming back hides the version.
     await back(page).click();
     await text(page, 'Version 1', false).click();
