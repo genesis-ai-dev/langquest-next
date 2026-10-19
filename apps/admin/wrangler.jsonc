@@ -1,0 +1,47 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // LangQuest operations in one page, for staff (docs/admin.md, decisions.md
+  // 141): what phones and the server's jobs report in `diag`, and what
+  // Cloudflare, Supabase, Vercel, GitHub and Expo say about their part.
+  "name": "langquest-next-admin",
+  "main": "src/index.ts",
+  "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
+  "compatibility_date": "2026-10-01",
+  // global_fetch_strictly_public: next.langquest.org is another Worker on the
+  // same zone, which a Worker can fetch only over the public path.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": false,
+  "preview_urls": false,
+  // On the langquest.org zone in this account, like the app's own address; a
+  // deploy attaches it and makes its DNS record.
+  "routes": [{ "pattern": "admin.langquest.org", "custom_domain": true }],
+  "observability": { "enabled": true },
+  // Public settings: which project, account, team and app each section reads.
+  // The anon key is the one every app build carries; the page signs in with it.
+  "vars": {
+    "SUPABASE_URL": "https://xymxnebdwtbkfxlbylch.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50",
+    // LangQuest Next, then LangQuest v2 (read by the v2 import), for the Supabase section.
+    "SUPABASE_PROJECTS": "xymxnebdwtbkfxlbylch:LangQuest Next,unsxkmlcyxgtgmtzfonb:LangQuest v2",
+    "CLOUDFLARE_ACCOUNT_ID": "6a80496d1e59948a9cbaa3c643ba81d7",
+    "CLOUDFLARE_WORKERS": "langquest-next-dashboard,langquest-next-invite-email,langquest-next-admin",
+    // Its /version.json names the commit it was built from (apps/mobile/scripts/export-web.mjs).
+    "APP_URL": "https://next.langquest.org",
+    "GITHUB_REPO": "genesis-ai-dev/langquest-next",
+    "VERCEL_TEAM_ID": "team_R3BIc0ITN0zAHSKdUhJsr3c9",
+    // apps/mobile/app.json extra.eas.projectId
+    "EXPO_PROJECT_ID": "582d3757-4245-419a-9087-e269e3bf4c4d"
+  },
+  // Set on the Worker by `npm run secrets -- production`, never at deploy; a
+  // deploy fails while it is missing. DIAG_DATABASE_URL is diag_reader's
+  // read-only login (scripts/diag-access.sh). Optional, from the same file:
+  // ADMIN_PROFILE_IDS, who may open the page (until it is set, no one can,
+  // and the page tells whoever signs in their profile id), and one token per
+  // provider, each section saying what it needs until its token is there
+  // (docs/admin.md).
+  "secrets": { "required": ["DIAG_DATABASE_URL"] },
+  // Per address, on the page's API (every call checks a sign-in with Supabase).
+  "ratelimits": [
+    { "name": "ADMIN_RATE_LIMIT", "namespace_id": "7005", "simple": { "limit": 120, "period": 60 } }
+  ]
+}

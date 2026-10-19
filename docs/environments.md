@@ -43,7 +43,9 @@ not the app.
 
 The secrets file holds `INVITE_RELAY_SECRET` and `PROJECTION_WORKER_SECRET`,
 and production also `DIAG_DATABASE_URL` (read on a laptop by
-`npm run diag -- --hosted`, never pushed). It may also hold
+`npm run diag -- --hosted`, and by the admin page's Worker). Production may
+also hold the admin page's `ADMIN_*` keys: who may open it and one
+read-only token per provider, each optional (`docs/admin.md`). It may also hold
 `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By Hearing's key for the Worker's
 Bible routes (`docs/reference-material.md`). That one is optional: it is not
 in the Worker's `secrets.required`, so a deploy never waits for it, and
@@ -62,6 +64,7 @@ declares:
 | --- | --- |
 | dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY` and `WEBHOOK_POKE_SECRET` when the file has them |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
+| admin Worker (production only) | `DIAG_DATABASE_URL`; `ADMIN_PROFILE_IDS` and each `ADMIN_*_TOKEN` when the file has them (`docs/admin.md`). Never the service-role key |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PROJECTION_WORKER_SECRET`, `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_projection_worker_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the dashboard Worker's route) |
 | pg_cron | the projection and push-delivery jobs: their migration (`20261007200001_schedule_push_delivery.sql`) schedules them only where Vault already has the secrets, so this runs that migration again |
