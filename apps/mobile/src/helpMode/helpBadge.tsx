@@ -5,8 +5,8 @@
 // Drawn only: taps go to the part.
 import { useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import type { HelpLit, HelpSpot } from './helpContext';
-import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, useHelpOn } from './useHelpMode';
+import type { HelpLit, HelpRowAt, HelpSpot } from './helpContext';
+import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, HelpRowContext, useHelpOn } from './useHelpMode';
 
 /** Tell the help layer where the view holding this ref is, every frame while help is on. */
 function useLit(what: HelpLit | null, id: string) {
@@ -32,9 +32,10 @@ function useLit(what: HelpLit | null, id: string) {
 export function HelpBadge(props: { spot: HelpSpot<unknown>; inset?: boolean }) {
   const id = useId();
   const clip = useContext(HelpClipContext);
+  const rows = useContext(HelpRowContext);
   const part = props.spot.id;
-  const what = useMemo<HelpLit | null>(() => (part ? { kind: 'part', part, mark: props.inset ? 'inset' : 'corner', ...(clip ? { clip } : {}) } : null),
-    [part, props.inset, clip]);
+  const what = useMemo<HelpLit | null>(() => (part ? { kind: 'part', part, mark: props.inset ? 'inset' : 'corner', ...(clip ? { clip } : {}), ...(rows ? { rows } : {}) } : null),
+    [part, props.inset, clip, rows]);
   const ref = useLit(what, id);
   return part ? <View ref={ref} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
 }
@@ -47,6 +48,22 @@ export function HelpLit() {
   const what = useMemo<HelpLit | null>(() => (on ? { kind: 'lit', ...(clip ? { clip } : {}) } : null), [on, clip]);
   const ref = useLit(what, id);
   return what ? <View ref={ref} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
+}
+
+/**
+ * One of a list's same-shaped rows (a passage, a person, a part): while help
+ * is on, only the first row of each kind in sight numbers its parts, so a
+ * list of twenty passages shows one passage's numbers, not twenty (decision
+ * 71 as amended 2026-10-16). The other rows stay dim and still explain when
+ * tapped. `of` names the kind of row; lists of the same kind on one screen
+ * share the one row. A list whose items each do something different (tabs,
+ * filters) has no HelpRow.
+ */
+export function HelpRow(props: { of: string; children: ReactNode }) {
+  const row = useId();
+  const outer = useContext(HelpRowContext);
+  const rows = useMemo<readonly HelpRowAt[]>(() => [...(outer ?? []), { of: props.of, row }], [outer, props.of, row]);
+  return <HelpRowContext.Provider value={rows}>{props.children}</HelpRowContext.Provider>;
 }
 
 /**
@@ -69,15 +86,17 @@ export function HelpClip(props: { style?: StyleProp<ViewStyle>; children: ReactN
 
 /**
  * What a sheet draws (kit's Sheet, from useHelpHost): its parts belong to it,
- * not to the screen under it (nor to the area that screen scrolls in), and
- * help draws inside it while it is on top.
+ * not to the screen under it (nor to the area that screen scrolls in, nor to
+ * a row of a list there), and help draws inside it while it is on top.
  */
 export function HelpHost(props: { id: string; children: ReactNode }) {
   return (
     <HelpHostContext.Provider value={props.id}>
       <HelpClipContext.Provider value={undefined}>
-        {props.children}
-        <HelpHostLayer id={props.id} />
+        <HelpRowContext.Provider value={undefined}>
+          {props.children}
+          <HelpHostLayer id={props.id} />
+        </HelpRowContext.Provider>
       </HelpClipContext.Provider>
     </HelpHostContext.Provider>
   );

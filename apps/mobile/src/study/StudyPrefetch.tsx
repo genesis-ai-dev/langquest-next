@@ -13,7 +13,7 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   const kept = ctx.language.blobs.keptUnits;
   const scopeNow = ctx.language.blobs.scope;
   // Worked out when the scope or the kept units change, not on every render of the app root.
-  // The default scope comes worked out from the phone's table too (decisions.md 134).
+  // The default scope comes worked out from the phone's table too (decisions.md 140).
   const key = useMemo(() => {
     if (!state || !STUDY_FILES_OFFLINE) return '';
     const scope = new Set(scopeNow);

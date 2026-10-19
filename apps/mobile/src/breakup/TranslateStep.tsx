@@ -13,6 +13,7 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { Chip, SectionLabel } from '../ui/kit';
+import { HelpRow } from '../helpMode/helpBadge';
 import { txt } from '../ui/textStyles';
 import { useLibraryDocs } from '../library/useLibrary';
 import { FindBiblePage, NumberingChosenPage, NumberingContext, NumberingListPage, QuizPage, type NumberingChoice } from './NumberingStep';
@@ -73,11 +74,13 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
         ) : null}
         {own && ready.length ? <SectionLabel label={t('breakup.own.orReadyMade')} /> : null}
         {ready.map((r) => (
-          <WayCard key={r.choice.key} row={r} doc={q.ways.docOf(r.choice)} v11n={q.ways.v11nOf(q.ways.docOf(r.choice))} on={q.row === r}
-            onPress={() => q.setKey(r.choice.key)} onPreview={() => setPeek(r)}
-            note={q.row === r && q.empty.length ? (
-              <Text style={txt.smMuted}>{t('breakup.leftOut.wait', { count: q.empty.length, books: emptyLine(q.doc!) })}</Text>
-            ) : null} />
+          <HelpRow key={r.choice.key} of="breakup.way">
+            <WayCard row={r} doc={q.ways.docOf(r.choice)} v11n={q.ways.v11nOf(q.ways.docOf(r.choice))} on={q.row === r}
+              onPress={() => q.setKey(r.choice.key)} onPreview={() => setPeek(r)}
+              note={q.row === r && q.empty.length ? (
+                <Text style={txt.smMuted}>{t('breakup.leftOut.wait', { count: q.empty.length, books: emptyLine(q.doc!) })}</Text>
+              ) : null} />
+          </HelpRow>
         ))}
         {q.ways.rows.length === 0 ? <Text style={txt.smMuted}>{q.ways.loaded ? t('breakup.translate.nothingYet') : t('common.loading')}</Text> : null}
         <QuietLink icon="help" label={t('breakup.translate.howBrokenUp')} detail={t('breakup.translate.howBrokenUpDetail')} onPress={() => setLesson(true)} />
@@ -101,7 +104,11 @@ export function TranslateQuestion(props: { ctx: Ctx; t: Translate; lang: string;
             <>
               <SectionLabel label={t('breakup.translate.ourOwn')} />
               <View style={{ gap: space.xs }}>
-                {q.outlines.map((c) => <Chip key={c.key} label={c.name} on={q.outline === c} help={t('breakup.translate.outlineHelp')} onPress={() => q.setOutlineKey(c.key)} />)}
+                {q.outlines.map((c) => (
+                  <HelpRow key={c.key} of="breakup.outline">
+                    <Chip label={c.name} on={q.outline === c} help={t('breakup.translate.outlineHelp')} onPress={() => q.setOutlineKey(c.key)} />
+                  </HelpRow>
+                ))}
               </View>
             </>
           ) : <Text style={txt.smMuted}>{t('breakup.translate.noneReady')}</Text>}

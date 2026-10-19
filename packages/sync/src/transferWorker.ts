@@ -19,7 +19,7 @@ import type { BlobRef } from '@langquest-next/core';
  * finishing together cannot spike a weak phone.
  */
 interface TransferWorkerOptions {
-  /** The work list; a language that keeps recordings on disk works it out from there (decisions.md 134). */
+  /** The work list; a language that keeps recordings on disk works it out from there (decisions.md 140). */
   work: () => BlobRef[] | Promise<BlobRef[]>;
   transfer: (ref: BlobRef) => Promise<void>;
   isOnline: () => boolean;

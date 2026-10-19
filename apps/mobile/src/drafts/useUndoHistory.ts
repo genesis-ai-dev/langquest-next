@@ -1,5 +1,5 @@
-// Undo and Redo's memory on the recording screens (Caleb, 2026-10-16): the
-// changes made to a draft's parts, kept on this phone (AsyncStorage, keyed by
+// Undo and Redo's memory (decisions 133 and 134): the changes made to a
+// draft (its parts, its guide, its sections), kept on this phone (AsyncStorage, keyed by
 // language, person, passage and draft; workspaceModel.ts) so it lasts
 // through leaving the screen and the phone closing the app, until the draft
 // is published or deleted. It does not sync: it only says which parts were in
@@ -8,7 +8,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { noteExpected } from '../diagnostics/report';
-import { emptyHistory, type History } from './workspaceModel';
+import { emptyHistory, type History } from '../ui/undoModel';
 
 /**
  * The history of the draft stored under `key`; null while the draft has no
@@ -29,11 +29,12 @@ export function useUndoHistory<S>(key: string | null, parse: (raw: string | null
     if (!key || readKey.current === key) return;
     readKey.current = key;
     let live = true;
-    // What was done here before the draft had a name is kept, after what was stored.
-    const unsaved = current.current;
     void AsyncStorage.getItem(key).then((raw) => {
       if (!live) return;
       const stored = parseRef.current(raw);
+      // What was done here before the stored history came back (before the draft had a name, or
+      // while the read was slow) is kept, after what was stored: read now, not when the read began.
+      const unsaved = current.current;
       const merged = unsaved.done.length > 0 || unsaved.undone.length > 0
         ? { done: [...stored.done, ...unsaved.done], undone: unsaved.undone } : stored;
       current.current = merged;

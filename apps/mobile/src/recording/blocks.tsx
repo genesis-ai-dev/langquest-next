@@ -6,7 +6,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico, Sheet, type IconName } from '../ui/kit';
@@ -37,6 +37,7 @@ export function RefChips<T extends string>(props: { items: ChipItem<T>[]; value:
   if (props.items.length < 2) return null;
   return (
     <ScrollView ref={scroll} horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chips} accessibilityRole="tablist">
+      {/* help-each: each tab shows something different */}
       {props.items.map((it) => (
         <View key={it.id} onLayout={(e) => {
           const x = e.nativeEvent.layout.x;
@@ -124,8 +125,8 @@ export function MiniPlayer(props: {
       <View style={styles.miniRow}>
         <PlayBtn playing={props.playing} available={props.available} label={t('recording.player.playTitle', { title: props.title })} onPress={props.onToggle} {...(props.none ? { none: true } : {})} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={styles.miniTitle} numberOfLines={1}>{props.title}</Text>
-          {props.under ?? (props.sub ? <Text style={txt.smMuted} numberOfLines={2}>{props.sub}</Text> : null)}
+          <Text style={styles.miniTitle} numberOfLines={2}>{props.title}</Text>
+          {props.under ?? (props.sub ? <Text style={txt.smMuted}>{props.sub}</Text> : null)}
         </View>
         {props.right}
         <Back10 onPress={props.onBack10} disabled={props.backDisabled ?? !props.available} />
@@ -142,8 +143,8 @@ export function Dock(props: { title: string; sub: string; playing: boolean; avai
     <View style={styles.dock}>
       <PlayBtn playing={props.playing} available={props.available} label={t('recording.player.playTitle', { title: props.title })} onPress={props.onToggle} {...(props.none ? { none: true } : {})} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.miniTitle} numberOfLines={1}>{props.title}</Text>
-        <Text style={txt.smMuted} numberOfLines={1}>{props.sub}</Text>
+        <Text style={styles.miniTitle} numberOfLines={2}>{props.title}</Text>
+        <Text style={txt.smMuted} numberOfLines={2}>{props.sub}</Text>
       </View>
       <Back10 onPress={props.onBack10} disabled={props.backDisabled} tone="white" />
     </View>
@@ -165,8 +166,8 @@ export function PlayRow(props: { title: string; sub: string; playing: boolean; a
         <Ico name={!props.available ? 'download' : props.playing ? 'pause' : 'play'} size={22} color={props.available ? C.primary : C.faint} strokeWidth={2.4} fill={props.available ? C.primary : undefined} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.rowTitle} numberOfLines={2}>{props.title}</Text>
-        <Text style={txt.smMuted} numberOfLines={2}>{props.sub}</Text>
+        <Text style={styles.rowTitle}>{props.title}</Text>
+        <Text style={txt.smMuted}>{props.sub}</Text>
         {props.error ? <Text style={txt.error}>{props.error}</Text> : null}
       </View>
       <HelpBadge spot={spot} />
@@ -260,7 +261,11 @@ export function StepsSheet(props: { title: string; sub?: string; steps: StepList
       {groups.map((g, gi) => (
         <View key={`${g.phase}-${gi}`} style={{ gap: 2 }}>
           {g.phase ? <Text style={[txt.label, { paddingHorizontal: space.xs, paddingBottom: space.xs }]}>{g.phase}</Text> : null}
-          {g.items.map(({ s, i }) => <StepRow key={i} n={i + 1} title={s.title} state={s.done ? 'done' : i === props.current ? 'now' : 'later'} onPress={() => props.onPick(i)} />)}
+          {g.items.map(({ s, i }) => (
+            <HelpRow key={i} of="recording.step">
+              <StepRow n={i + 1} title={s.title} state={s.done ? 'done' : i === props.current ? 'now' : 'later'} onPress={() => props.onPick(i)} />
+            </HelpRow>
+          ))}
         </View>
       ))}
       {props.children}

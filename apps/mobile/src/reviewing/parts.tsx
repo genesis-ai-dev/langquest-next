@@ -13,7 +13,7 @@ import { Text } from '../ui/text';
 import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { Badge, Banner, Card, Chip, Disclosure, Field, Ico, LinkBtn, NoteCard, Row, SectionLabel, ShowMore } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout } from '../ui/useLayout';
@@ -52,6 +52,7 @@ export function AnswerInput(props: { type: SourcedQuestion['q']['type']; value?:
   if (props.type === 'rating') {
     return (
       <View style={styles.choices} accessibilityRole="radiogroup">
+        {/* help-each: each score is a different answer */}
         {['1', '2', '3', '4', '5'].map((n) => <Choice key={n} label={n} big on={props.value === n} onPress={() => props.onChange(n)} />)}
       </View>
     );
@@ -59,6 +60,7 @@ export function AnswerInput(props: { type: SourcedQuestion['q']['type']; value?:
   if (props.type === 'yesno') {
     return (
       <View style={styles.choices} accessibilityRole="radiogroup">
+        {/* help-each: yes and no are different answers */}
         {YES_NO.map((v) => <Choice key={v} label={yesNoLabel(v)} on={props.value === v} onPress={() => props.onChange(v)} />)}
       </View>
     );
@@ -87,24 +89,26 @@ export function QuestionList(props: {
         const unanswered = !(answers[id] ?? '').trim();
         const waiting = sq.required && unanswered && skip === undefined;
         return (
-          <Card key={id} style={waiting ? { borderColor: withAlpha(C.primary, 0.5), borderWidth: 1.5 } : null}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-              <Text style={txt.label}>{questionSource(sq, props.asker)}</Text>
-              {sq.required ? <Badge label={t('common.required')} tone="brand" /> : null}
-            </View>
-            <Text style={[txt.body, { fontWeight: '600' }]}>{sq.q.text}</Text>
-            {skip !== undefined ? (
+          <HelpRow key={id} of={`review.${sq.q.type}Question`}>
+            <Card style={waiting ? { borderColor: withAlpha(C.primary, 0.5), borderWidth: 1.5 } : null}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                <Text style={[txt.smMuted, { flex: 1 }]}><Text style={{ fontWeight: '700' }}>{t('review.parts.leftUnanswered')}</Text> {skip}</Text>
-                <LinkBtn label={t('review.parts.answer')} help={t('review.screen.answerItHelp')} onPress={() => props.onUnskip(id)} />
+                <Text style={txt.label}>{questionSource(sq, props.asker)}</Text>
+                {sq.required ? <Badge label={t('common.required')} tone="brand" /> : null}
               </View>
-            ) : (
-              <>
-                <AnswerInput type={sq.q.type} value={answers[id]} onChange={(v) => props.onAnswer(id, v)} />
-                {sq.required && unanswered ? <LinkBtn label={t('review.parts.cantAnswer')} color={C.muted} help={t('review.parts.cantAnswerHelp')} onPress={() => props.onSkip(id)} /> : null}
-              </>
-            )}
-          </Card>
+              <Text style={[txt.body, { fontWeight: '600' }]}>{sq.q.text}</Text>
+              {skip !== undefined ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                  <Text style={[txt.smMuted, { flex: 1 }]}><Text style={{ fontWeight: '700' }}>{t('review.parts.leftUnanswered')}</Text> {skip}</Text>
+                  <LinkBtn label={t('review.parts.answer')} help={t('review.screen.answerItHelp')} onPress={() => props.onUnskip(id)} />
+                </View>
+              ) : (
+                <>
+                  <AnswerInput type={sq.q.type} value={answers[id]} onChange={(v) => props.onAnswer(id, v)} />
+                  {sq.required && unanswered ? <LinkBtn label={t('review.parts.cantAnswer')} color={C.muted} help={t('review.parts.cantAnswerHelp')} onPress={() => props.onSkip(id)} /> : null}
+                </>
+              )}
+            </Card>
+          </HelpRow>
         );
       })}
     </View>
@@ -241,7 +245,7 @@ export function EarlierReviewsPart(props: { ctx: Ctx; reviews: ReviewView[]; kin
   return (
     <View>
       <PartLabel label={t('review.parts.earlierReviews', { kinds: names.join(', ') })} />
-      {list.map((r, i) => <EarlierReview key={r.id} ctx={props.ctx} review={r} kind={props.kind(r.kindId)} last={i === list.length - 1} />)}
+      {list.map((r, i) => <HelpRow key={r.id} of="review.earlier"><EarlierReview ctx={props.ctx} review={r} kind={props.kind(r.kindId)} last={i === list.length - 1} /></HelpRow>)}
       {props.reviews.length > shown ? (
         <View style={{ padding: space.md }}>
           <ShowMore remaining={props.reviews.length - shown} step={EARLIER_STEP} onMore={() => setShown((n) => n + EARLIER_STEP)} />
@@ -269,19 +273,25 @@ function FromTranslatorPart(props: {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
           {props.terms.map((term) => {
             const rendering = term.renderings.at(-1)?.rendering;
-            return <Chip key={term.termId} icon="book" label={`${term.term}${rendering ? ` · ${rendering}` : ''}`} on={false} help={t('passage.version.termHelp')} onPress={() => props.onOpenTerm(term.termId)} />;
+            return (
+              <HelpRow key={term.termId} of="review.term">
+                <Chip icon="book" label={`${term.term}${rendering ? ` · ${rendering}` : ''}`} on={false} help={t('passage.version.termHelp')} onPress={() => props.onOpenTerm(term.termId)} />
+              </HelpRow>
+            );
           })}
         </View>
       ) : null}
       {notes.map((n) => {
         const older = props.olderVersion(n);
         return (
-          <Authored key={n.id} ctx={props.ctx} by={n.by}>
-            <NoteCard anchor={props.anchor(n)} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
-              {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
-              {...(n.blobHash ? { audio: <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> } : {})}
-              action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
-          </Authored>
+          <HelpRow key={n.id} of="review.note">
+            <Authored ctx={props.ctx} by={n.by}>
+              <NoteCard anchor={props.anchor(n)} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
+                {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
+                {...(n.blobHash ? { audio: <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> } : {})}
+                action={<ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
+            </Authored>
+          </HelpRow>
         );
       })}
       {props.notes.length > shown ? <ShowMore remaining={props.notes.length - shown} step={EARLIER_STEP} onMore={() => setShown((x) => x + EARLIER_STEP)} /> : null}
@@ -300,7 +310,9 @@ export function TeamStudyPart(props: { ctx: Ctx; study: StudyProgress; onOpenSte
         {t('review.parts.studyIntro', { summary: started ? studySummary(s) : t('review.parts.notStarted') })}
       </Text>
       {s.steps.map((st) => (
-        <Row key={st.step.id} leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} help={t('passage.page.openStudyStepHelp')} onPress={() => props.onOpenStep(st.step.id)} />
+        <HelpRow key={st.step.id} of="review.studyStep">
+          <Row leading={<StepMark status={st} />} label={st.step.title} sub={stepLine(props.ctx, st)} help={t('passage.page.openStudyStepHelp')} onPress={() => props.onOpenStep(st.step.id)} />
+        </HelpRow>
       ))}
       <Row icon="sparkle" label={t('review.parts.openStudy')} help={t('passage.page.openStudyHelp')} onPress={props.onOpenStudy} last />
     </View>
@@ -371,7 +383,7 @@ export function StageStrip(props: { stages: Stage[]; at: number; onGo: (id: Stag
   return (
     <View style={styles.strip}>
       <View style={[styles.stripRow, wide && { maxWidth: measure.column, alignSelf: 'center', width: '100%' }]} accessibilityLabel={t('review.parts.stagesLabel')}>
-        {props.stages.map((st, i) => <StageTab key={st.id} stage={st} index={i} count={props.stages.length} at={props.at} onGo={props.onGo} />)}
+        {props.stages.map((st, i) => <HelpRow key={st.id} of="review.stage"><StageTab stage={st} index={i} count={props.stages.length} at={props.at} onGo={props.onGo} /></HelpRow>)}
       </View>
     </View>
   );
@@ -419,7 +431,7 @@ export function PeopleCounter(props: { value: number; onChange: (n: number) => v
       </Pressable>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
         <Ico name="people" size={22} color={C.muted} />
-        <Text style={[txt.body, { fontWeight: '600', color: n ? C.dark : C.muted }]}>{n ? t('review.parts.people', { count: n }) : t('review.parts.howManyListened')}</Text>
+        <Text style={[txt.body, { fontWeight: '600', color: n ? C.dark : C.muted, flexShrink: 1, textAlign: 'center' }]}>{n ? t('review.parts.people', { count: n }) : t('review.parts.howManyListened')}</Text>
       </View>
       <Pressable onPress={more.onPress} accessibilityRole="button" accessibilityLabel={t('review.parts.oneMore')}
         style={({ pressed }) => [styles.counterBtn, pressed && { opacity: 0.6 }]}>

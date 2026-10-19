@@ -11,7 +11,7 @@ import type { LanguageHandle } from '../sync/useLanguage';
  * What is waiting and what happened (WORK-1, INBOX-1): the work for this
  * person, the record's updates and which of them this device has shown,
  * and, for whoever may act on them, open reports and people asking to join.
- * Both read off the passages' lines (decisions.md 134): the updates from
+ * Both read off the passages' lines (decisions.md 140): the updates from
  * the passages whose line says they concern this person, read again only
  * when that line changes.
  */

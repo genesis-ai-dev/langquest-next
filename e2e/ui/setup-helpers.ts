@@ -33,10 +33,47 @@ export async function openDisclosure(page: Page, title: string): Promise<void> {
   await expect(visible(page.getByText('Hide', { exact: true })).first()).toBeVisible();
 }
 
-/** The More card on a language's page, open. */
-export async function more(page: Page): Promise<void> {
-  if (await visible(page.getByText('Hide', { exact: true })).count()) return;
-  await openDisclosure(page, 'More');
+/** A ready language's Content template page: the one it uses, its other options, All content templates (decision 138). */
+export async function contentTemplate(page: Page): Promise<void> {
+  await text(page, 'Content template').click();
+  await expect(text(page, 'Content template')).toBeVisible();
+}
+
+/** A language's books, each to divide: Content template › Each book's passages (decision 138). */
+export async function eachBook(page: Page): Promise<void> {
+  await contentTemplate(page);
+  await text(page, 'Each book\'s passages').click();
+}
+
+/** A ready language's Reference material page: its Bibles, guides and notes, each with a switch (decision 138). */
+export async function referenceMaterial(page: Page): Promise<void> {
+  await text(page, 'Reference material').click();
+  await expect(text(page, 'Add more')).toBeVisible();
+}
+
+/** The organization's reference material, as a language sees it: Reference material › All reference material (decision 138). */
+export async function referenceLibrary(page: Page): Promise<void> {
+  await referenceMaterial(page);
+  await text(page, 'All reference material').click();
+}
+
+/** A ready language's Review flow page: its checks, the ready-made flows, All review flows (decision 138). */
+export async function reviewFlow(page: Page): Promise<void> {
+  await text(page, 'Review flow').click();
+  await expect(text(page, 'Review flow')).toBeVisible();
+}
+
+/** The organization's review flows, with the open language's: Review flow › All review flows (decision 138). */
+export async function reviewFlows(page: Page): Promise<void> {
+  await reviewFlow(page);
+  await text(page, 'All review flows').click();
+}
+
+/** A language's own checks, to change: Review flow › Edit (decision 138). */
+export async function languageChecks(page: Page): Promise<void> {
+  await reviewFlow(page);
+  await text(page, 'Edit').click();
+  await expect(text(page, 'Add a check')).toBeVisible();
 }
 
 /** Setup on Org home, open. */

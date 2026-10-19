@@ -25,7 +25,7 @@ import { useSyncStatus } from './useSyncStatus';
  * Offline counts for these passages, recomputed when files arrive, leave,
  * or a passage is kept. A kept passage's come from the counts worked out
  * from the phone's table (useLanguage); another is on screen, so its
- * recordings are in memory (decisions.md 134).
+ * recordings are in memory (decisions.md 140).
  */
 function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
   const state = ctx.language.state;
@@ -107,7 +107,7 @@ export function PassageOfflineLine(props: { ctx: Ctx; unitId: string }) {
   return (
     <View style={styles.line} accessible accessibilityLabel={v.short}>
       <Ico name={v.icon} size={16} color={v.tint} />
-      <Text style={[txt.xsStrong, { color: v.tint, flex: 1 }]} numberOfLines={1}>{v.short}</Text>
+      <Text style={[txt.xsStrong, { color: v.tint, flex: 1 }]}>{v.short}</Text>
     </View>
   );
 }

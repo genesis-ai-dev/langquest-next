@@ -132,7 +132,7 @@ language (New language, step 1) searches languages and dialects as its name
 is typed (`apps/mobile/src/org/languoidPicker.tsx`); picking one fills in the
 name and gives the language the languoid's code and a `LanguageCodeSet`
 linking it. Offline, or when nothing fits, the typed name and code are added
-unlinked. A language's page (More, In the language list) says whether it is
+unlinked. A language's page (Languages, They translate into) says whether it is
 linked, and whoever may rename it links it there, or links it again. Not
 built yet: sending a missing language to us as a request (agreed
 2026-10-07).

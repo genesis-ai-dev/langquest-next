@@ -567,8 +567,9 @@ Roles: ADMIN · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
 
 Preconditions:
 - Offline. More than 200 events waiting (watch "waiting to upload"): make
-  them by repeated work, such as notes and "Already happened" with Undo, or
-  any developer tool that writes ordinary events.
+  them by repeated work, such as notes and "Already happened", each taken
+  back with "Undo" in "Versions and history" → "History", or any developer
+  tool that writes ordinary events.
 
 Steps:
 1. Note "waiting to upload" (for example 250).
@@ -579,6 +580,8 @@ Expected:
 - "waiting to upload" falls to 0 within a few minutes, in steps.
 - No single request carries more than 200 events.
 - "refused by the server" stays 0. COORD sees all of the work.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; History's Undo takes back each note and logged check.
 
 ### SYNC-025 Kept audio plays offline, other audio says it needs a connection
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android · Run: Device

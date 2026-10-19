@@ -82,9 +82,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
   async function toggleBlock() {
     try {
       await ctx.blocks.set(target.profileId, !blocked);
-      ctx.toast(blocked ? t('moderation.toast.unblocked', { name: who }) : t('moderation.toast.blocked', { name: who }), async () => {
-        await ctx.blocks.set(target.profileId, blocked);
-      });
+      ctx.toast(blocked ? t('moderation.toast.unblocked', { name: who }) : t('moderation.toast.blocked', { name: who }));
       props.onClose();
     } catch (e) {
       ctx.toast(failureMessage('block person', e));
@@ -109,14 +107,17 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
     }
   }
 
+  // A phone's Back from a step goes back to the menu it was opened from, as Cancel does (decision 137).
+  const toMenu = props.startAt === 'report' ? undefined : () => setStep({ at: 'menu' });
   if (step.at === 'report') {
     const of = step.of;
     const ready = !!reason && (reason !== 'other' || details.trim().length > 0);
     return (
       <Sheet visible title={of.kind === 'person' ? t('moderation.reportPerson', { name: who }) : reportThingLabel(of.kind)}
-        sub={t('moderation.report.whatIsWrong')} onClose={props.onClose}
+        sub={t('moderation.report.whatIsWrong')} onClose={props.onClose} onBack={toMenu}
         footer={<PrimaryBtn label={t('moderation.report.send')} icon="flag" disabled={!ready || busy} busy={busy} onPress={() => void send(of)} />}>
         <Group>
+          {/* help-each: each reason means something different */}
           {REPORT_REASON_IDS.map((id, i) => (
             <Row key={id} label={reasonLabel(id)} sub={reasonSub(id)} role="radio" selected={reason === id} last={i === REPORT_REASON_IDS.length - 1}
               right={<View style={[styles.radio, reason === id && styles.radioOn]}>{reason === id ? <Ico name="check" size={16} color={C.white} /> : null}</View>}
@@ -139,7 +140,7 @@ function ReportSheet(props: { ctx: Ctx; target: ReportTarget; onClose: () => voi
   // Only something someone made can be removed; a person is removed under Members.
   if (step.at === 'remove' && target.kind !== 'person') {
     return (
-      <Sheet visible title={removeThingTitle(target.kind)} sub={t('moderation.remove.sub')} onClose={props.onClose}
+      <Sheet visible title={removeThingTitle(target.kind)} sub={t('moderation.remove.sub')} onClose={props.onClose} onBack={() => setStep({ at: 'menu' })}
         footer={(
           <>
             <PrimaryBtn label={t('moderation.remove.confirm')} icon="trash" tone="red" disabled={busy} busy={busy} onPress={() => void remove()} />

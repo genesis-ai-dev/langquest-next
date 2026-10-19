@@ -25,7 +25,7 @@ import { mmss, totalMs } from '../recording/model';
 import { useClip } from '../audio/useClip';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { C, radius, space, target } from '../ui/theme';
 import { versionReviewsSummary } from './record';
 import { draftName, startedFrom } from './versionsModel';
@@ -75,24 +75,28 @@ export function VersionsPage(props: {
         const from = startedFrom(p.versions, d.basedOnTakeId);
         const unchanged = !!p.latest && sameCards(d.cardHashes, p.latest.cardHashes);
         return (
-          <ItemCard key={d.takeId} ctx={ctx} hashes={d.cardHashes} title={name}
-            lines={[from && from !== p.latest?.n ? t('passage.versions.lengthFrom', { length: length(d.cardHashes), version: versionTitle(from) }) : length(d.cardHashes), saved(d.hlc)]}
-            trailing={<IconBtn name="trash" label={t('passage.versions.delete', { name })} help={t('passage.versions.deleteHelp')} bg="transparent" color={C.muted} size={44}
-              onPress={() => setAsking({ name, sub: length(d.cardHashes), go: () => remove(d, name) })} />}>
-            {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editDraftHelp')} onPress={() => props.go('workspace', { draftId: d.rootTakeId })} /> : null}
-            {props.canRecord ? (
-              <SmallBtn label={t('common.done')} icon="send" tone="primary" disabled={unchanged} help={t('passage.versions.doneHelp')}
-                onPress={() => props.go('workspace', { draftId: d.rootTakeId, publish: '1' })} />
-            ) : null}
-          </ItemCard>
+          <HelpRow key={d.takeId} of="versions.draft">
+            <ItemCard ctx={ctx} hashes={d.cardHashes} title={name}
+              lines={[from && from !== p.latest?.n ? t('passage.versions.lengthFrom', { length: length(d.cardHashes), version: versionTitle(from) }) : length(d.cardHashes), saved(d.hlc)]}
+              trailing={<IconBtn name="trash" label={t('passage.versions.delete', { name })} help={t('passage.versions.deleteHelp')} bg="transparent" color={C.muted} size={44}
+                onPress={() => setAsking({ name, sub: length(d.cardHashes), go: () => remove(d, name) })} />}>
+              {props.canRecord ? <SmallBtn label={t('common.edit')} icon="edit" help={t('passage.versions.editDraftHelp')} onPress={() => props.go('workspace', { draftId: d.rootTakeId })} /> : null}
+              {props.canRecord ? (
+                <SmallBtn label={t('common.done')} icon="send" tone="primary" disabled={unchanged} help={t('passage.versions.doneHelp')}
+                  onPress={() => props.go('workspace', { draftId: d.rootTakeId, publish: '1' })} />
+              ) : null}
+            </ItemCard>
+          </HelpRow>
         );
       })}
       {p.versions.length > 0 ? <SectionLabel label={t('passage.versions.published')} /> : null}
       {[...p.versions].reverse().map((ver) => (
-        <VersionCard key={ver.takeId} ctx={ctx} v={v} ver={ver} latest={ver.takeId === p.latest?.takeId} length={length(ver.cardHashes)}
-          canRecord={props.canRecord} {...(ver.takeId === p.latest?.takeId && props.ask ? { ask: props.ask } : {})}
-          {...(props.canRecord && canDeleteVersion(p, ver.takeId, me) ? { onDelete: () => setAsking({ name: versionTitle(ver.n), sub: length(ver.cardHashes), go: () => deleteVersion(ctx, v, ver) }) } : {})}
-          onOpen={() => props.go('version_detail', { takeId: ver.takeId })} onEdit={() => props.go('workspace', { from: ver.takeId })} />
+        <HelpRow key={ver.takeId} of="versions.version">
+          <VersionCard ctx={ctx} v={v} ver={ver} latest={ver.takeId === p.latest?.takeId} length={length(ver.cardHashes)}
+            canRecord={props.canRecord} {...(ver.takeId === p.latest?.takeId && props.ask ? { ask: props.ask } : {})}
+            {...(props.canRecord && canDeleteVersion(p, ver.takeId, me) ? { onDelete: () => setAsking({ name: versionTitle(ver.n), sub: length(ver.cardHashes), go: () => deleteVersion(ctx, v, ver) }) } : {})}
+            onOpen={() => props.go('version_detail', { takeId: ver.takeId })} onEdit={() => props.go('workspace', { from: ver.takeId })} />
+        </HelpRow>
       ))}
       {props.history}
       <ConfirmDelete visible={!!asking} name={asking?.name ?? ''} {...(asking?.sub ? { sub: asking.sub } : {})}
@@ -136,10 +140,10 @@ function ItemCard(props: {
   const body = (
     <>
       <View style={styles.titleRow}>
-        <Text style={styles.title} numberOfLines={1}>{props.title}</Text>
+        <Text style={[styles.title, { flexShrink: 1 }]}>{props.title}</Text>
         {props.badge ? <Badge label={props.badge} tone="brand" /> : null}
       </View>
-      {props.lines.map((l, i) => <Text key={i} style={txt.smMuted} numberOfLines={2}>{l}</Text>)}
+      {props.lines.map((l, i) => <Text key={i} style={txt.smMuted}>{l}</Text>)}
     </>
   );
   return (
@@ -174,7 +178,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: C.card, borderRadius: radius.lg, borderWidth: 1, borderColor: C.border, padding: space.md, gap: space.sm },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   play: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
   title: { fontSize: 18, fontWeight: '800', color: C.dark, flexShrink: 1 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, paddingLeft: target.min + space.md }
 });

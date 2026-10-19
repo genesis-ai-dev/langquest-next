@@ -11,7 +11,7 @@ import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -110,19 +110,21 @@ export function GuideStep(props: {
 
       {atMoment.length > 0 ? (
         <View style={{ gap: space.sm }}>
-          {atMoment.map((n) => <StudyNote key={n.id} ctx={ctx} note={n} label={t('study.guide.at', { time: shownClock(momentOf(n)) })} />)}
+          {atMoment.map((n) => <HelpRow key={n.id} of="study.note"><StudyNote ctx={ctx} note={n} label={t('study.guide.at', { time: shownClock(momentOf(n)) })} /></HelpRow>)}
         </View>
       ) : null}
 
       {props.read === false ? null : sections.map((sec) => (
-        <SectionView key={sec.id} ctx={ctx} section={sec} resources={guide.resources} notes={onSection(sec.id)} orgId={ctx.language.orgId}
-          selected={selected === sec.id} canContribute={props.canContribute}
-          onSelect={() => setSelected((cur) => (cur === sec.id ? null : sec.id))}
-          onAdd={() => setAdding({ sectionId: sec.id, quote: sectionLabel(sec, 120), answer: isQuestion(sec) })}
-          onOpenRef={openRef} />
+        <HelpRow key={sec.id} of="study.section">
+          <SectionView ctx={ctx} section={sec} resources={guide.resources} notes={onSection(sec.id)} orgId={ctx.language.orgId}
+            selected={selected === sec.id} canContribute={props.canContribute}
+            onSelect={() => setSelected((cur) => (cur === sec.id ? null : sec.id))}
+            onAdd={() => setAdding({ sectionId: sec.id, quote: sectionLabel(sec, 120), answer: isQuestion(sec) })}
+            onOpenRef={openRef} />
+        </HelpRow>
       ))}
 
-      {onStep.length > 0 ? <View style={{ gap: space.sm }}>{onStep.map((n) => <StudyNote key={n.id} ctx={ctx} note={n} />)}</View> : null}
+      {onStep.length > 0 ? <View style={{ gap: space.sm }}>{onStep.map((n) => <HelpRow key={n.id} of="study.note"><StudyNote ctx={ctx} note={n} /></HelpRow>)}</View> : null}
 
       {adding ? (
         <ContributeSheet ctx={ctx} unitId={v.unitId} languageId={v.languageId} title={adding.answer ? t('study.guide.yourAnswer') : t('common.addNote')}
@@ -216,8 +218,8 @@ function SectionView(props: {
             help={question ? t('study.guide.answerHelp') : t('study.guide.addNoteHelp')} />
         </View>
       ) : null}
-      {media.map((r) => <MediaCard key={r.ref} resource={r} orgId={props.orgId} onPress={() => props.onOpenRef(r.ref)} />)}
-      {props.notes.map((n) => <StudyNote key={n.id} ctx={props.ctx} note={n} label={question ? t('study.guide.answerNote') : undefined} />)}
+      {media.map((r) => <HelpRow key={r.ref} of="study.picture"><MediaCard resource={r} orgId={props.orgId} onPress={() => props.onOpenRef(r.ref)} /></HelpRow>)}
+      {props.notes.map((n) => <HelpRow key={n.id} of="study.note"><StudyNote ctx={props.ctx} note={n} label={question ? t('study.guide.answerNote') : undefined} /></HelpRow>)}
     </View>
   );
 }

@@ -10,7 +10,7 @@ import { useRef, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico } from '../ui/kit';
 import { txt } from '../ui/textStyles';
@@ -100,18 +100,20 @@ export function CheckSteps(props: {
     <View style={{ gap: space.sm + 2 }}>
       <View style={styles.start}>
         <View style={styles.mic}><Ico name="mic" size={18} color={C.white} /></View>
-        <Text style={[txt.sm, { color: C.muted, fontWeight: '700' }]}>{t('review.checkSteps.translatorRecords')}</Text>
+        <Text style={[txt.sm, { color: C.muted, fontWeight: '700', flexShrink: 1 }]}>{t('review.checkSteps.translatorRecords')}</Text>
       </View>
       {steps.length === 0 ? (
         <View style={[styles.card, { justifyContent: 'center' }]}>
           <Text style={[txt.sm, { color: C.muted, flex: 1, textAlign: 'center' }]}>{t('review.checkSteps.noChecks')}</Text>
         </View>
       ) : steps.map((st, i) => (
-        <StepCard key={st.key} step={st} i={i} count={steps.length} kinds={props.kinds} usually={props.usually(st.kindIds)} readOnly={props.readOnly}
-          height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
-          onMove={(to) => props.onChange(moveTo(steps, i, to))}
-          onLock={() => props.onChange(steps.map((s, j) => (j === i ? { ...s, checkpoint: !s.checkpoint } : s)))}
-          onOpen={() => props.onOpen(i)} />
+        <HelpRow key={st.key} of="checks.step">
+          <StepCard step={st} i={i} count={steps.length} kinds={props.kinds} usually={props.usually(st.kindIds)} readOnly={props.readOnly}
+            height={height + space.sm + 2} onLayout={(h) => { if (Math.abs(h - height) > 1) setHeight(h); }}
+            onMove={(to) => props.onChange(moveTo(steps, i, to))}
+            onLock={() => props.onChange(steps.map((s, j) => (j === i ? { ...s, checkpoint: !s.checkpoint } : s)))}
+            onOpen={() => props.onOpen(i)} />
+        </HelpRow>
       ))}
       {props.readOnly ? null : <DashedRow icon="plus" label={t('review.checkSteps.addStep')} centred onPress={props.onAdd} detail={t('review.checkSteps.addStepDetail')} />}
       <View style={styles.legend}>

@@ -65,16 +65,17 @@ import { RecordingView } from '../recording/RecordingView';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { VerseTile } from '../recording/verseParts';
 import {
-  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, didStep, draftToOpen, emptyHistory, labelAt, marksKeepingLabels, marksOf, movedList,
-  redoStep, removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber, undoStep,
+  backTranslationDraftKey, canPublish, cardDurations, clearListSpecs, draftToOpen, labelAt, marksKeepingLabels, marksOf, movedList,
+  removeCardSpecs, restoreSpecs, sameCards, slotRows, targetNumber,
   changedParts, historyFits, parsePartsHistory, partsHistoryKey,
   type PartsHistory, type PartsSnap, type RecordTarget, type SlotRow,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, workingCards
 } from '../recording/workspaceModel';
 import { DragScrollContext } from '../recording/useDragRows';
 import { useDragScroll } from '../recording/useDragScroll';
-import { useUndoHistory } from '../recording/useUndoHistory';
-import { forgetUndoHistory } from '../recording/undoHistory';
+import { useUndoHistory } from '../drafts/useUndoHistory';
+import { forgetUndoHistory } from '../drafts/undoHistory';
+import { didStep, emptyHistory, redoStep, undoStep } from '../ui/undoModel';
 import { getReferenceSlides } from '../passage/passageResources';
 import { pendingPassageCards } from '../recording/recordingFlow';
 import { failureMessage } from '../diagnostics/report';
@@ -96,7 +97,8 @@ import { sendToInput } from '../passage/sendTarget';
 import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
 import { useSaveStatus } from '../ui/useSaveStatus';
-import { RecorderBar, RecorderFooter, RecorderPane, type Part, type UndoRedoProps } from '../recording/recorder';
+import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../recording/recorder';
+import type { UndoRedoProps } from '../ui/undoRedo';
 import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote } from '../helps/reference';
 import { useBible } from '../helps/useBible';
 import { useUsage } from '../sources/useUsage';
@@ -441,7 +443,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       const changedNow = changedParts(now, step.to);
       setJustSaid(new Set(changedNow));
       if (changedNow[0]) setShow({ hash: changedNow[0], at: Date.now() });
-      say(step.what ? t(which === 'undo' ? 'recording.recorder.undoneWhat' : 'recording.recorder.redoneWhat', { what: step.what })
+      say(step.what ? t(which === 'undo' ? 'common.undoneWhat' : 'common.redoneWhat', { what: step.what })
         : which === 'undo' ? t('common.undone') : t('translate.redone'));
     } catch (e) {
       setCleared(wasCleared);
@@ -602,7 +604,6 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     let specs: EventSpec[];
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
     let message = t('translate.versionPublished', { n: nextN });
-    let requestId: string | undefined;
     try {
       const c = commands(state, idx);
       specs = c.publishVersion({
@@ -612,10 +613,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       if (canTie) specs = [...specs, ...tieTermsSpecs(state, specs, tied, commandId)];
       const takeId = specs.find((x) => x.type === 'v1.TakeSubmitted')?.payload as { takeId: string } | undefined;
       if (takeId) specs = [...specs, ...c.referencesUsed({ commandId, unitId, takeId: takeId.takeId, items: usage.items() })];
-      // Sent on in the same write, so it is never published and forgotten (one Undo takes the asking back).
+      // Sent on in the same write, so it is never published and forgotten (History's Withdraw takes the asking back).
       if (ask && 'kindId' in ask && sendTo) {
         const asked = c.ask({ ...sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }), ...(ask.questions.length ? { questions: ask.questions } : {}) });
-        requestId = (asked.find((x) => x.type === 'v1.RequestMade')?.payload as { requestId: string } | undefined)?.requestId;
         specs = [...specs, ...asked];
         message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
       }
@@ -625,8 +625,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     }
     setPublishing(true);
     try {
-      const undo = requestId ? () => { const now = ctx.language.state ?? state; return commands(now, indexesFor(now)).withdrawRequest({ commandId: Crypto.randomUUID(), requestId: requestId! }); } : undefined;
-      await ctx.act(specs, message, undo);
+      // Taken back from the record's History (Withdraw), not a toast (decision 134).
+      await ctx.act(specs, message);
       // Done: the draft is over, and so is its undo history.
       if (historyKey) forgetUndoHistory(historyKey);
       // The voice note said on the Done screen was kept while uploads waited: send it now.
@@ -772,7 +772,7 @@ function ReferenceBar(props: { onOpen: () => void }) {
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={t('translate.openReference')} style={({ pressed }) => [styles.bar, pressed && { opacity: 0.7 }]}>
       <Ico name="book" size={18} color={C.primary} />
-      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>{t('translate.dragDown')}</Text>
+      <Text style={[txt.sm, { flex: 1, fontWeight: '700' }]} numberOfLines={3}>{t('translate.dragDown')}</Text>
       <HelpBadge spot={spot} />
     </Pressable>
   );

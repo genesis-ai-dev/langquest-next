@@ -35,6 +35,12 @@ tags:
     visible: "(?i)Then the team"
     timeout: 30000
 - assertVisible: "Consultant check, .*"
+# The team's checks are cards, and the Consultant check's can sit under the
+# bottom bar, where a tap on its middle lands on the bar: bring it up first.
+- scrollUntilVisible:
+    element: "Consultant check, .*"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Consultant check, .*"
 - assertVisible: "Checkpoint — later steps wait for this one\\."
 - assertNotVisible: "Move past this checkpoint…"
@@ -70,6 +76,10 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
+- scrollUntilVisible:
+    element: "Consultant check, .*"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Consultant check, .*"
 - tapOn: "Move past this checkpoint…"
 - tapOn: ".*Or type the reason.*"
@@ -84,12 +94,12 @@ tags:
 - extendedWaitUntil:
     visible: "Moved past the checkpoint · reason saved.*"
     timeout: 20000
-- assertVisible:
-    id: "toast-undo"
 - assertVisible: "Consultant check, moved past"
 - tapOn: "Versions and history"
 - tapOn: "History.*"
 - assertVisible: ".*Consultant visit postponed to March.*"
+# No toast offers Undo (decision 134): the way back is History's Undo on it.
+- assertVisible: "Undo"
 - assertVisible: ".*${COORD_FIRST}.*|.*You.*"
 - tapOn:
     id: "header-close"

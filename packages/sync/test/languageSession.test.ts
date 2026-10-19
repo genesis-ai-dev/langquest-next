@@ -213,7 +213,7 @@ describe('LanguageSession: what tells a screen to redraw', () => {
   });
 });
 
-describe('LanguageSession: a language kept on disk (decisions.md 134)', () => {
+describe('LanguageSession: a language kept on disk (decisions.md 140)', () => {
   it('counts what is offline from the phone\'s table, and sends a recording made here', async () => {
     const { files, uploaded, open } = phone({ keepOnDisk: true });
     const session = await open();
@@ -231,7 +231,7 @@ describe('LanguageSession: a language kept on disk (decisions.md 134)', () => {
   });
 });
 
-describe('LanguageSession: lists of passages read lines (decisions.md 134)', () => {
+describe('LanguageSession: lists of passages read lines (decisions.md 140)', () => {
   /** A passage recorded by akol, reviewed by lead with feedback, and asked of akol again; another merely drafted. */
   async function team(session: LanguageSession, server: FakeServer) {
     await session.append('v1.UnitAdded', unit('Luke 1'));

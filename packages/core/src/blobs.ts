@@ -73,7 +73,7 @@ type Verdict = LanguageState['blobs'][string];
  * bumps a state's revision with every event it applies, so a hit is never
  * stale.
  *
- * A phone that keeps a language on disk (decisions.md 134) makes its own
+ * A phone that keeps a language on disk (decisions.md 140) makes its own
  * plan (`filePlan`) from the files memory names and those its table lists
  * for the passages or files a question is about, so planning never needs
  * the records themselves.

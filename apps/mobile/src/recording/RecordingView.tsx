@@ -24,6 +24,7 @@ import { mmss } from './workspaceModel';
 import { LiveParts } from './LiveParts';
 import { liveKept } from './livePartsModel';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
+import { useHardwareBack } from '../ui/useHardwareBack';
 
 type Recorder = ReturnType<typeof useRecorder>;
 
@@ -108,6 +109,8 @@ export function RecordingView(props: {
     void props.onStop();
   };
   const resume = useHelpSpot(t('recording.resumeNow'), t('recording.vad.resumeHelp'), listening ? props.onResume : undefined);
+  // A phone's Back is the ✓ (decision 137): it keeps every part said and goes back to the parts, never out of the screen.
+  useHardwareBack(true, props.onLeave);
   return (
     <View style={[styles.panel, { backgroundColor: listening ? TINT.red : capturing ? C.red : TINT.redText }]}>
       <View style={styles.head}>
@@ -115,12 +118,12 @@ export function RecordingView(props: {
         {props.tile ? <View style={styles.tile}>{props.tile}</View> : null}
         <HelpInfo style={{ flex: 1, minWidth: 0 }} label={`${props.title}. ${status}`} detail={listening ? t('recording.vad.statusPausedHelp') : stopped ? t('recording.recorder.stoppedHelp') : t('recording.recorder.nextRecordingHelp')}>
           <View accessible accessibilityLabel={t('recording.recorder.nextLabel', { part: props.title, status })}>
-            <Text style={[styles.title, { color: fg }]} numberOfLines={1}>{props.title}</Text>
+            <Text style={[styles.title, { color: fg }]} numberOfLines={2}>{props.title}</Text>
           </View>
           {/* Read politely as it changes, with how many are kept so far (the waveform's boxes show it; screen readers hear it). */}
           <View style={styles.statusRow} accessible accessibilityLiveRegion="polite" accessibilityLabel={loopStatus(props.phase, rec.vadCapturing, props.count, props.noun)}>
             {listening ? <Ico name="pause" size={14} color={fg} /> : stopped ? <View style={styles.stop} /> : <PulsingDot on={capturing} />}
-            <Text style={[styles.status, { color: fg }]} numberOfLines={1}>{status}</Text>
+            <Text style={[styles.status, { color: fg, flexShrink: 1 }]}>{status}</Text>
           </View>
         </HelpInfo>
         <Elapsed running={props.phase === 'recording'} color={fg} />

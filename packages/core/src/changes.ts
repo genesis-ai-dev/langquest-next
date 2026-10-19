@@ -205,7 +205,7 @@ export function countEvent(state: LanguageState, event: AnyEvent | null): void {
 
 /**
  * Say a state changed outside the fold: a phone that keeps a language on
- * disk (decisions.md 134) brought a passage's records into it, or let them
+ * disk (decisions.md 140) brought a passage's records into it, or let them
  * go. The revision moves, so caches keyed on it rebuild; and since nothing
  * here says which passages came or went, a view watching the state is told
  * `all`, so one carried from an earlier copy rebuilds in full (decision 120).

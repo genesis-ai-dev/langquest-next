@@ -61,22 +61,29 @@ Expected:
 - Step 2: the Inbox tab speaks its unread count.
 - Step 3: the bell speaks "Updates" or "Updates, {n} new".
 
-### A11Y-003 Toasts are announced, and Undo stays up longer
+### A11Y-003 Toasts are announced, and stay up longer
 Roles: TRANS · Priority: P0 · Platforms: iOS, Android · Run: Manual
 
 Preconditions:
 - The screen reader is on.
-- P-DRAFT is open in the workspace.
+- P-S (Luke 12:35-48) is not kept on this device (PASS-035).
+- P-DRAFT has TRANS's draft (two parts, as in the fixture).
 
 Steps:
-1. Delete Part 2.
+1. Open P-S. Tap "Something else?", then "Keep offline".
 2. Time how long the toast stays.
-3. Move focus to "Undo" and activate it.
+3. Tap "Stop keeping offline". While its toast shows, move focus to the toast's close ✕ and activate it.
+4. Open P-DRAFT in the workspace. On Part 2's bars ("Record Part 2 again"), choose the "Delete Part 2" action, then activate the bin it shows.
+5. Move focus to the Undo arrow left of the red button and activate it.
 
 Expected:
-- Step 1: the reader speaks "Part 2 deleted. Undo available.".
-- Step 2: the toast stays about 14 seconds, double the 7 seconds it stays without a screen reader.
-- Step 3: the part is back. The reader speaks "Undone.".
+- Step 1: the reader speaks the toast's message, "Kept on this device. It downloads while you are connected.", and nothing about Undo. The toast has no Undo.
+- Step 2: the toast stays about 7 seconds, double the 3.5 seconds it stays without a screen reader.
+- Step 3: the ✕ is spoken "Close", and closes the toast at once.
+- Step 4: the action slides the row aside; the bin is spoken "Delete Part 2". Once it is activated no toast shows: the reader speaks "Part 2 deleted.", and the Undo arrow is spoken "Undo: Part 2 deleted.".
+- Step 5: the part is back. The reader speaks "Undone: Part 2 deleted.".
+
+Changed (2026-10-16, decision 134): no toast offers Undo; a toast lasts 3.5 s (7 s with a screen reader on a phone), and the recording screen's Undo arrow brings a deleted part back.
 
 ### A11Y-004 The split divider and the cutoff line can be moved without dragging
 Roles: TRANS, REV · Priority: P1 · Platforms: iOS, Android · Run: Manual
@@ -240,7 +247,9 @@ Expected:
 - The main action and ✕ are reachable on every screen.
 - The footer is not pushed off screen with no scroll.
 - In the workspace, the record button is reachable at every divider snap.
-- Toasts and their Undo stay readable and tappable.
+- A toast's message stays readable (it wraps), and its close ✕ stays tappable.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; only the toast's message and its close ✕ are checked here.
 
 ### A11Y-012 Colour never carries meaning alone
 Roles: TRANS, VIEW · Priority: P1 · Platforms: iOS, Android · Run: Manual
@@ -389,11 +398,15 @@ Expected:
 - Scripts render with the right font: Ethiopic, Devanagari, Bengali, Thai and Myanmar, with no tofu (□).
 
 Web: the test picks each language from Me → Language and reads My Work, the
-passage record, the workspace and Me as TRANS, and REV's back translation
-(Review it's Listen needs a request to REV that A11Y-015 uses up). It fails
-on a raw key in any text or spoken name, and on any whole text that is an
-English catalog word the language translates. Cut-off labels and fonts stay
-a person's check on the screenshots.
+passage record (with a check's choices and Something else?), the workspace
+and Me as TRANS, and REV's back translation
+(Review it's Listen needs a request to REV that A11Y-015 uses up), on a
+360 pt wide phone. It fails on a raw key in any text or spoken name, on any
+whole text that is an English catalog word the language translates, and on
+words cut off (decision 139): any text running past its box or the screen's
+side, and any of the app's own words shortened with "…" or a clamp (people's
+names and notes may be shortened in a list). Fonts stay a person's check on
+the screenshots.
 
 ### A11Y-020 Choosing the phone's language picks the app's
 Roles: GUEST · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto

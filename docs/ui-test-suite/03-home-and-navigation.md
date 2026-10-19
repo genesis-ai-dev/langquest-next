@@ -713,6 +713,7 @@ Steps:
 4. Tap "Something else?", "Someone else should do this", then press back
    twice.
 5. Press back on the record, then on the chapter grid, then on the map.
+6. Press back on My Work, then again straight away.
 
 Expected:
 - Back from "Something else?" and from "Versions" returns to the record's
@@ -720,8 +721,17 @@ Expected:
 - Back from Ask someone returns to "Something else?", where it was opened,
   with nothing sent; back again returns to the path.
 - Back from the record returns to the chapter grid, then to the map.
-- Back on a tab's root (the map, which is TRANS's Map tab) leaves the app or
-  goes to the previous tab, as Android does. It never shows a blank screen.
+- Back on a tab's own page (the map, which is TRANS's Map tab) goes to My
+  Work, TRANS's first screen (decision 137). It never leaves the app or
+  shows a blank screen.
+- The first back on My Work stays and says "Press Back again to leave
+  LangQuest" above the tab bar, covering no button; the second, while those
+  words show, leaves the app. Sign In, Join your team and the welcome do the
+  same.
+- Inside a screen's steps (New language, Get ready, a review's questions, a
+  study's steps, the recording view), back goes one step back, as the
+  step's own Back does; on the first step it leaves the screen. ✕ leaves at
+  once.
 
 ## The crash screen
 
@@ -750,44 +760,53 @@ Expected:
   shared file).
 - The code is found by `npm run diag` (G9).
 
-## Toasts and Undo
+## Toasts
 
-### NAV-080 How long a toast stays, with and without Undo
+### NAV-080 How long a toast stays
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android · Run: Device
 
 Steps:
 1. Open P-SUBMITTED. Open "Versions and history" → "History" and tap
    "Withdraw" on the open request. Time the toast.
 2. Open P-Q4 (Luke 13:31-35). Tap its first "Then the team" row and set the
-   Back Translation aside with "Not needed for this passage" (PASS-023). Time
+   Back translation aside with "Not needed for this passage" (PASS-023). Time
    the toast without tapping it.
 3. Turn on VoiceOver (iOS) or TalkBack (Android). Repeat step 2 on P-Q3, and
-   this time tap "Undo".
+   time the toast again.
+4. Still on P-Q3, open "Versions and history" → "History" and tap "Undo" on
+   "Back translation set aside".
 
 Resets: undo P-Q4's set aside from "Versions and history" → "History", and
 ask REV again for P-SUBMITTED's Peer check.
 
 Expected:
-- "Request withdrawn" has no Undo and lasts about 3.5 s.
-- "Back Translation set aside · reason saved" has "Undo" and lasts about 7
-  s.
-- With a screen reader on, both last twice as long. The toast is announced
-  as "{message} Undo available."
-- Tapping "Undo" brings the step back and shows "Undone." (G10.5).
+- Every toast lasts about 3.5 s: "Request withdrawn" and "Back translation
+  set aside · reason saved" alike. Neither has "Undo": each has only a close
+  ✕ ("Close"), and a bar along its foot counts down until it goes.
+- With a screen reader on, the toast lasts about 7 s, twice as long. The
+  reader speaks the message only, "Back translation set aside · reason
+  saved", with nothing about Undo.
+- Step 4 brings the step back: the toast reads "Brought back — it's a
+  suggested step again", and the entry reads "… · brought back just now"
+  (G10.5).
 - On web, toasts are never doubled (the web cannot tell if a screen reader
   is on).
+
+Changed (2026-10-16, decision 134): no toast offers Undo; every toast lasts 3.5 s (7 s with a screen reader on a phone), and History's Undo brings a set-aside step back.
 
 ### NAV-081 A toast never covers the main button
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual
 
 Steps:
-1. On P-NEEDS's record, set a check aside so that a toast with Undo shows.
+1. On P-NEEDS's record, set a check aside so that its toast shows.
 2. While it shows, look at the footer.
 
 Expected:
 - The toast sits above the footer. "Something else?" and "Versions and
   history" stay visible and can be tapped.
 - A new toast replaces the old one. They do not stack.
+
+Changed (2026-10-16, decision 134): no toast offers Undo; any toast will do here, and History's Undo brings the check back.
 
 ## Notifications
 

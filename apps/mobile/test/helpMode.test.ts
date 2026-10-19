@@ -3,8 +3,8 @@
 // lit places and the tooltip go.
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { clipRect, helpLine, litShape, markAt, numberParts, tooltipPlace, type FirstSeen, type HelpRect } from '../src/helpMode/helpContext';
-import { findUnexplained, scanHelp } from './helpParts';
+import { chooseRows, clipRect, helpLine, litShape, markAt, numberParts, speaks, tooltipPlace, type FirstSeen, type HelpRect, type RowPart } from '../src/helpMode/helpContext';
+import { findUnexplained, findUnlistedRows, scanHelp, scanRows } from './helpParts';
 
 const box = (x: number, y: number, width = 100, height = 48): HelpRect => ({ x, y, width, height });
 
@@ -34,6 +34,47 @@ describe('numbering the parts', () => {
   it('numbers parts scrolled into view after those on screen, so numbers never move', () => {
     const n = numberParts(seen([['record', 0, box(150, 760)], ['verse 1', 0, box(16, 300)], ['verse 3', 40, box(16, 310)]]));
     expect([...n]).toEqual([['verse 1', 1], ['record', 2], ['verse 3', 3]]);
+  });
+});
+
+describe('one row speaks for a list', () => {
+  const part = (of: string, row: string, rect: HelpRect, visible: HelpRect | null = rect): RowPart => ({ rows: [{ of, row }], rect, visible });
+
+  it('picks the first row in sight of each kind, and leaves parts in no list alone', () => {
+    const chosen = chooseRows([
+      part('part', 'r2', box(16, 300)), part('part', 'r2', box(200, 300)),
+      part('part', 'r1', box(16, 200)), part('part', 'r3', box(16, 400)),
+      part('person', 'p1', box(16, 600)), { rect: box(16, 20), visible: box(16, 20) }
+    ], new Map());
+    expect([...chosen]).toEqual([['part', 'r1'], ['person', 'p1']]);
+    expect(speaks([{ of: 'part', row: 'r1' }], chosen)).toBe(true);
+    expect(speaks([{ of: 'part', row: 'r2' }], chosen)).toBe(false);
+    expect(speaks(undefined, chosen)).toBe(true);
+  });
+
+  it('prefers a row wholly in sight to one cut off at an edge, and skips rows out of sight', () => {
+    const chosen = chooseRows([
+      part('part', 'r0', box(16, 0), null),
+      part('part', 'r1', box(16, 80), box(16, 100, 100, 28)),
+      part('part', 'r2', box(16, 140))
+    ], new Map());
+    expect(chosen.get('part')).toBe('r2');
+  });
+
+  it('keeps the row it chose, and chooses none while no row is in sight', () => {
+    const was = new Map([['part', 'r3']]);
+    expect(chooseRows([part('part', 'r1', box(16, 100)), part('part', 'r3', box(16, 300))], was).get('part')).toBe('r3');
+    expect(chooseRows([part('part', 'r1', box(16, 900), null)], new Map()).has('part')).toBe(false);
+  });
+
+  it('lets the first inner row in sight speak for a list in a list, whichever outer row it is in', () => {
+    const outer = (row: string, y: number): RowPart => ({ rows: [{ of: 'section', row }], rect: box(16, y), visible: box(16, y) });
+    const inner = (o: string, row: string, y: number): RowPart =>
+      ({ rows: [{ of: 'section', row: o }, { of: 'picture', row }], rect: box(16, y), visible: box(16, y) });
+    const chosen = chooseRows([outer('s1', 100), outer('s2', 300), inner('s2', 'p1', 350), inner('s2', 'p2', 450)], new Map());
+    expect([...chosen]).toEqual([['section', 's1'], ['picture', 'p1']]);
+    expect(speaks([{ of: 'section', row: 's2' }], chosen)).toBe(false);
+    expect(speaks([{ of: 'section', row: 's2' }, { of: 'picture', row: 'p1' }], chosen)).toBe(true);
   });
 });
 
@@ -78,6 +119,38 @@ describe('every part explains itself', { timeout: 30_000 }, () => {
     // `npx tsx apps/mobile/test/helpParts.ts` lists them. Give each a line (useHelpSpot, or the kit
     // control's `help`), or a `help-ignore:` comment saying why it needs none.
     expect(scanHelp(join(import.meta.dirname, '..')).map((f) => `${f.file}:${f.line} ${f.text}`)).toEqual([]);
+  });
+
+  it('gives every list of rows that hold parts one row to speak for it', () => {
+    expect(scanRows(join(import.meta.dirname, '..')).map((f) => `${f.file}:${f.line} ${f.text}`)).toEqual([]);
+  });
+
+  it('finds list rows without a HelpRow, through the components they draw', () => {
+    const rows = `
+      function PersonRow(p: { name: string; go: () => void }) { return <Row label={p.name} sub="Opens them." onPress={p.go} />; }
+      function Plain(p: { name: string }) { return <Text>{p.name}</Text>; }
+      export function A(p: { people: string[]; go: () => void }) {
+        return (<View>
+          {p.people.map((n) => <PersonRow key={n} name={n} go={p.go} />)}
+          {p.people.map((n) => <HelpRow key={n} of="person"><PersonRow name={n} go={p.go} /></HelpRow>)}
+          {p.people.map((n) => <Plain key={n} name={n} />)}
+          {p.people.map((n) => <Row key={n} label={n} />)}
+          {/* help-each: each does something different */}
+          {p.people.map((n) => <IconBtn key={n} name="x" label={n} help="Does it." onPress={p.go} />)}
+          {p.people.map((n) => <View key={n}>{[1, 2].map((i) => <Chip key={i} label={n} on={false} help="Picks it." onPress={p.go} />)}</View>)}
+          {p.people.map(card)}
+          {p.people.map((n) => <View key={n}>{card(n)}</View>)}
+          {p.people.map(listed)}
+        </View>);
+        function card(n: string) { return <PersonRow key={n} name={n} go={p.go} />; }
+        function listed(n: string) { return <HelpRow key={n} of="person"><PersonRow name={n} go={p.go} /></HelpRow>; }
+      }`;
+    expect(findUnlistedRows([{ path: 'src/a.tsx', source: rows }]).map((f) => `${f.line} ${f.text}`)).toEqual([
+      '6 list rows hold parts without a HelpRow',
+      '12 list rows hold parts without a HelpRow',
+      '13 list rows hold parts without a HelpRow',
+      '14 list rows hold parts without a HelpRow'
+    ]);
   });
 
   it('finds what does not explain itself, and passes what does', () => {

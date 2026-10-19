@@ -75,6 +75,7 @@ import { useRecentPassages } from './src/shell/useRecentPassages';
 import { usePassagesInMemory } from './src/shell/usePassagesInMemory';
 import { usePassageReady } from './src/shell/usePassageReady';
 import { useRouting } from './src/shell/useRouting';
+import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
 
@@ -108,7 +109,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   edit_member: lazyScreen(loadOrg, 'EditMember'), check_editor: lazyScreen(loadChecks, 'CheckEditor'),
   roles_home: lazyScreen(loadConfig, 'RolesHome'), role_editor: lazyScreen(loadConfig, 'RoleEditor'), reference_home: lazyScreen(loadConfig, 'ReferenceHome'), material_editor: lazyScreen(loadConfig, 'MaterialEditor'),
   flows_home: lazyScreen(loadConfig, 'FlowsHome'), flow_editor: lazyScreen(loadConfig, 'FlowEditor'),
-  templates_home: lazyScreen(loadContent, 'TemplatesHome'), template_picker: lazyScreen(loadContent, 'TemplatePicker'), template_editor: lazyScreen(loadContent, 'TemplateEditor'),
+  templates_home: lazyScreen(loadContent, 'TemplatesHome'), template_editor: lazyScreen(loadContent, 'TemplateEditor'),
   book_structure: lazyScreen(loadContent, 'BookStructure'),
   reports_home: lazyScreen(loadReports, 'ReportsHome'), reports_language: lazyScreen(loadReports, 'ReportsLanguage'),
   reference_bibles: lazyScreen(loadReference, 'ReferenceBibles'), reference_source: lazyScreen(loadReference, 'ReferenceSource'), reference_guides: lazyScreen(loadReference, 'ReferenceGuides'),
@@ -437,6 +438,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const canSwitchPersona = maySwitchPersona(props.email, IS_DEV);
 
   const home = useCallback(() => nav.reset({ screen: homeScreenFor(session) }), [nav, session]);
+  // Android's Back for the whole app, and a Back arrow with nothing under it: to the first screen (useRootBack.ts).
+  // Here, not in a child: this component's effects run after the navigator's, so its listener is asked first.
+  const backFromRoot = useRootBack(nav, session, toast);
+  const navBack = nav.back;
+  const back = useCallback(() => { if (navRef.isReady() && navRef.canGoBack()) navBack(); else backFromRoot(); }, [navBack, backFromRoot]);
   const acceptTerms = useCallback((actorId = props.actorId) => recordUserEvent(actorId, 'v1.TermsAccepted'), [props.actorId]);
   const openDev = useCallback(() => setDevOpen(true), []);
   const inboxView = useMemo(
@@ -456,7 +462,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     session,
     params,
     go,
-    back: nav.back,
+    back,
     home,
     languageId,
     setLanguage,
@@ -478,7 +484,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     openDev,
     isDev: IS_DEV,
     canSwitchPersona
-  }), [language, org, session, params, go, nav.back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
+  }), [language, org, session, params, go, back, home, languageId, setLanguage, languages, act, toast, details, recent, openPassage,
     name, blocks, inboxView, welcomeView, markWelcomed, acceptTerms, invite, openOrganization, openDev, canSwitchPersona]);
   const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 
@@ -596,20 +602,17 @@ const styles = StyleSheet.create({
 });
 
 /**
- * Shows one toast at a time for about 7 s with Undo, 3.5 s without, and
- * twice as long while a screen reader is on, so Undo can be reached.
- */
-/**
  * The toast showing now, kept outside any component: signing in or opening an
  * organization remounts the shell, and with it the host, right after the
  * screen that said what happened ("Signed in", "… is ready to grow"). The new
- * host shows it for the rest of its time (AUTH-049, NOORG-009). Its Undo is
- * not carried: the shell remounts when the account or the organization
- * changes, and an Undo from before would then act for the account or in the
- * organization that was left.
+ * host shows it for the rest of its time (AUTH-049, NOORG-009).
  */
 let showing: { message: string; until: number } | null = null;
 
+/**
+ * Shows one toast at a time for 3.5 s, twice as long while a screen reader
+ * is on. A toast only says what happened: it never offers Undo (decision 134).
+ */
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
   const [spec, setSpec] = useState<ToastSpec | null>(() => {
     const left = showing ? showing.until - Date.now() : 0;
@@ -630,7 +633,7 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     register((next) => {
       if (timer.current) clearTimeout(timer.current);
-      const ms = (next.undo ? 7000 : 3500) * (reader.current ? 2 : 1);
+      const ms = 3500 * (reader.current ? 2 : 1);
       showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);

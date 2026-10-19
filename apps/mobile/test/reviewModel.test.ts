@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnName, gridModel, hasFeedback, notesSummary, responseLine,
+  answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnNames, gridModel, hasFeedback, notesSummary, responseLine,
   revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor
 } from '../src/passage/reviewModel';
 import { gridKindIds } from '../src/passage/record';
@@ -164,7 +164,8 @@ describe('the reviews grid', () => {
     const r = v.p.reviews.find((x) => x.kindId === 'peer')!;
     expect(gridCellLabel('Peer check', r, 1, w.nameFor('COORD'))).toContain('Peer check');
     expect(gridCellLabel('Peer check', r, 3, w.nameFor('COORD'))).not.toBe(gridCellLabel('Peer check', r, 1, w.nameFor('COORD')));
-    expect(gridColumnName({ name: 'Peer check' })).toBe('Peer');
-    expect(gridColumnName({ name: 'Final' })).toBe('Final');
+    expect(gridColumnNames([{ name: 'Peer check' }, { name: 'Final' }])).toEqual(['Peer', 'Final']);
+    expect(gridColumnNames([{ name: 'Retrotraducción' }, { name: 'Verificación comunitaria' }, { name: 'Verificación del consultor' }]))
+      .toEqual(['Retrotraducción', 'Verificación comunitaria', 'Verificación del consultor']);
   });
 });

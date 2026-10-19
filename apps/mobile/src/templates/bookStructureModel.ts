@@ -23,7 +23,7 @@ export function bookStructureData(
   state: LanguageState, idx: Indexes, book: BibleBook, org: OrgState | null, languageId: string, lines: PassageLines = languageLines(state, idx)
 ): BookStructureData {
   const segments = bookSegments(state, idx, book);
-  // Which are recorded, read off the passages' lines (decisions.md 134).
+  // Which are recorded, read off the passages' lines (decisions.md 140).
   const recorded = new Set(segments.filter((s) => lines.get(s.unitId).recorded).map((s) => s.unitId));
   // The words, where the app has them (scripture.ts); verse numbers otherwise.
   const text = new Map<string, string>();
