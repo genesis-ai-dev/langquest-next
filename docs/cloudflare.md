@@ -27,7 +27,15 @@ them a change to the pass alone would not rebuild the image. Set on
 2026-10-16 with decision 141; check it in the Cloudflare dashboard if a
 pass change does not reach the container.
 
-Leave the default dependency install on. The web app's deploy command builds
+Leave the default dependency install on. It is `npm clean-install` with the
+build image's npm, 10.9.2 since Cloudflare's 2026-10-14 image update, not
+the npm 11 we use, and npm 10 refuses a lockfile with a peer it would
+resolve differently. Every build failed from 2026-10-16 to 2026-10-19 on
+`Missing: typescript@5.9.3 from lock file`, because eas-cli's
+`@expo/require-utils` asks for TypeScript 5. The `overrides` entry in
+`package.json` gives eas-cli our TypeScript, which is what npm 11 already
+installed. After changing dependencies, check that npm 10 accepts the
+lockfile: `npx npm@10 ci --dry-run --ignore-scripts`. The web app's deploy command builds
 the Expo web export first (`npm run export:web`, a few minutes), reading
 `apps/mobile/.env.<env>` and the commit from `WORKERS_CI_COMMIT_SHA`; it fails
 if the JavaScript is over its budget. Its custom domains,
