@@ -71,9 +71,7 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
   const [withShot, setWithShot] = useState(false);
   const [withProfile, setWithProfile] = useState(false);
   const [busy, setBusy] = useState(false);
-  const profiles = useAccountActions(me).filter((a) => a.kind === 'profile');
-  const names = useDisplayNames(me);
-  const profile = props.signedIn ? profileChoice(ownName(profiles, names[me], ctx.session.email, t('common.you')), ctx.session.email) : null;
+  const profile = props.signedIn;
   const ready = feedbackReady(kind, body);
 
   async function send() {
@@ -81,7 +79,7 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
     setBusy(true);
     try {
       const sent = await sendFeedback(props.signedIn ? me : null, {
-        kind, body, shareProfile: withProfile && !!profile, shot: withShot && shot ? shot.base64 : null, screen: props.screen
+        kind, body, shareProfile: withProfile && profile, shot: withShot && shot ? shot.base64 : null, screen: props.screen
       });
       ctx.toast(sentMessage(sent, props.signedIn));
       props.onClose();
@@ -110,13 +108,22 @@ function FeedbackSheet(props: { ctx: Ctx; screen: string; shot: Shot | null; sig
               leading={<Image source={{ uri: `data:image/jpeg;base64,${shot.base64}` }} style={[styles.thumb, { height: Math.round((THUMB * shot.height) / shot.width) }]}
                 accessibilityIgnoresInvertColors />} />
           ) : null}
-          {profile ? (
-            <Row testID="feedback-profile" icon="user" label={profile.label} sub={profile.sub} role="switch" checked={withProfile}
-              onPress={() => setWithProfile((v) => !v)} help={t('feedback.help.profile')} last />
-          ) : null}
+          {profile ? <ProfileSwitch ctx={ctx} on={withProfile} onToggle={() => setWithProfile((v) => !v)} /> : null}
         </Group>
       ) : null}
     </Sheet>
+  );
+}
+
+/** Add my name and email, showing what that would send. Only for someone signed in. */
+function ProfileSwitch(props: { ctx: Ctx; on: boolean; onToggle: () => void }) {
+  const { actorId, email } = props.ctx.session;
+  const profiles = useAccountActions(actorId).filter((a) => a.kind === 'profile');
+  const names = useDisplayNames(actorId);
+  const choice = profileChoice(ownName(profiles, names[actorId], email, t('common.you')), email);
+  return (
+    <Row testID="feedback-profile" icon="user" label={choice.label} sub={choice.sub} role="switch" checked={props.on}
+      onPress={props.onToggle} help={t('feedback.help.profile')} last />
   );
 }
 
