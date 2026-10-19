@@ -3087,6 +3087,19 @@ Bible's chips, the translator's More Bibles), the count is the length of
 the list that opens for it (`useBibleBrainBibles`), because Bible Brain's
 language search counts Bibles our key cannot open (English 51, of which
 20 open); its number is kept for order only.
+Then (Caleb, 2026-10-19: "allow the user to type in the language, but have
+a dropdown similar when selecting a language from the glottolog-based
+languoid system ... only shows languages ... that have translations"):
+Add a Bible, More Bibles and the reference language page's Another
+language find a language by typing it, in the language list's own
+dropdown (`LanguoidPicker`) narrowed to languages that have something to
+pick (`useOfferedLanguageSearch`, `offeredLanguagesModel.ts`). What is on
+offer comes from the data: every language Bible Brain has Bibles in
+(`/api/bible/languages/all`, kept a day) and the languages the library's
+material is in. A language is found by the world list's names and aliases
+(Glottolog) and by its own names where a word starts; each says its code
+and what it has ("FRA · 6 Bibles"), and one none of whose Bibles open is
+dropped. Add a Bible opens on the team's language with its Bibles listed.
 
 ## 85. The passage list pages, picks passages by id, and includes any part of one passage
 

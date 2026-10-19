@@ -2,10 +2,11 @@
 // (decision 84): New language asks it as a step, and What will help them
 // asks it first. Each language says what is there to read in it (a guide
 // set's passages, Bibles, other guides), so the admin sees the gaps before
-// choosing; any other language can be found in the language list (online).
-// Its Bibles are every one the team could add: the library's and Bible
-// Brain's (`biblesFor`), as Add a Bible lists them.
-import { useState, type ReactNode } from 'react';
+// choosing; any other language with Bibles or guides can be found by typing
+// it (online), in the language list's dropdown narrowed to those
+// (useOfferedLanguageSearch). Its Bibles are every one the team could add:
+// the library's and Bible Brain's (`biblesFor`), as Add a Bible lists them.
+import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
@@ -14,11 +15,14 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Ico, SearchField } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { LanguoidPicker } from '../org/languoidPicker';
-import { useLanguoidSearch } from '../org/useLanguoids';
 import { Question, QuietLink, RadioRow } from '../admin/admin';
 import { guideShortName, joinAnd, languageLabel } from '../admin/adminModel';
 import { C, radius, space, type as T } from '../ui/theme';
 import { useBibleBrainBibles } from '../sources/useBibleBrainBibles';
+import { useBibleBrainLanguages } from '../sources/useBibleBrainLanguages';
+import { offeredBibleLanguages } from './biblesModel';
+import { namesOf, withoutEmpty } from './offeredLanguagesModel';
+import { useOfferedLanguageSearch } from './useOfferedLanguageSearch';
 import { biblesFor, type LanguageChoice } from './languageChoices';
 import { readerLanguage, sameCodes, sameLanguage } from './languages';
 
@@ -50,9 +54,25 @@ export function ReferenceLanguagePage(props: {
   const [q, setQ] = useState('');
   // A language found by search keeps the list's name for it, for codes the app has no name for.
   const [found, setFound] = useState<Record<string, string>>({});
-  const search = useLanguoidSearch(q, searching);
-  const bibleBrain = useBibleBrainBibles(props.choices.flatMap((c) => sameCodes(c.language)));
   const label = (code: string) => found[code] ?? languageLabel(code);
+  // Typing offers the languages listed here and every one Bible Brain has Bibles in, nothing else.
+  const bibleLanguages = useBibleBrainLanguages(searching);
+  const offered = useMemo(() => [
+    ...props.choices.map((c) => ({ code: c.language, names: namesOf(label(c.language)) })),
+    ...(bibleLanguages ? offeredBibleLanguages(bibleLanguages).filter((l) => !props.choices.some((c) => sameLanguage(c.language, l.code))) : [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the choices' languages and Bible Brain's list say when it changes
+  ], [props.choices.map((c) => c.language).join(), bibleLanguages]);
+  const typed = useOfferedLanguageSearch(q, offered, searching);
+  const bibleBrain = useBibleBrainBibles([...props.choices.flatMap((c) => sameCodes(c.language)), ...typed.hits.slice(0, 12).map((h) => h.code)]);
+  // A language found by typing that turns out to have no Bible that opens, and nothing else, goes.
+  const search = withoutEmpty(typed, (code) => !props.choices.some((c) => sameLanguage(c.language, code)) && bibleBrain.get(code)?.length === 0);
+  /** What a language found by typing has: a listed one's line, else its Bibles once Bible Brain says. */
+  const has = (code: string) => {
+    const c = props.choices.find((x) => sameLanguage(x.language, code));
+    if (c) return whatIsThere(c, biblesFor(c, bibleBrain));
+    const n = bibleBrain.get(code)?.length;
+    return n === undefined ? null : t('referenceLanguage.bibles', { count: n });
+  };
   const lead = props.first ? props.choices.filter((c) => props.first!.some((f) => sameLanguage(c.language, f))) : [];
   const ordered = [...lead, ...props.choices.filter((c) => !lead.includes(c))];
   const on = (code: string) => props.value.some((v) => sameLanguage(v, code));
@@ -75,7 +95,8 @@ export function ReferenceLanguagePage(props: {
       {searching ? (
         <>
           <SearchField value={q} onChangeText={setQ} placeholder={t('reference.language.searchPlaceholder')} />
-          <LanguoidPicker search={search} picked={null} unlisted={t('reference.language.unlisted')} unreachable={t('reference.language.unreachable')}
+          <LanguoidPicker search={search} picked={null} detail={(h) => has(h.code)}
+            unlisted={t('referenceLanguage.listed')} noMatch={t('referenceLanguage.noMatch')} unreachable={t('reference.language.unreachable')}
             onPick={(h) => {
               if (!h) return;
               setFound({ ...found, [h.code]: h.name });
