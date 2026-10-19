@@ -150,16 +150,34 @@ export interface SyncClientOptions<S = LanguageState> {
   /**
    * A language stream only: keep its recordings and file verdicts on the
    * phone rather than in memory, and hold in memory only the passages
-   * `loadUnits` asks for (decisions.md 134).
+   * `loadUnits` asks for (decisions.md 140).
    */
   keepOnDisk?: boolean;
   /**
    * The build of the app this runs in. A language kept on disk keeps a line
    * per passage that this code works out, so a line kept by another build is
    * worked out again: a change to what a passage's status means reaches
-   * every passage after an update, with no migration (decisions.md 134).
+   * every passage after an update, with no migration (decisions.md 140).
    */
   build?: string;
+}
+
+/**
+ * The local checkpoint of a language kept on disk is not the whole language:
+ * its passages' records are in the phone's `kept_rows` (decisions.md 140). It is
+ * tagged `reducerVersion * 100 + KEPT_CHECKPOINT_FORMAT`, which no build that
+ * holds the whole checkpoint matches, so such a build (an update rolled back)
+ * drops it with the stream's cursor, as for another reducer (decisions.md 110),
+ * and takes the server's snapshot, instead of reading it as the whole
+ * language and saving that. Raise the format whenever what a kept checkpoint
+ * leaves out changes (the server's cut, option F, does); server snapshots keep
+ * the plain reducer version.
+ */
+export const KEPT_CHECKPOINT_FORMAT = 1;
+
+/** The version a kept language's local checkpoint carries, for this reducer. */
+export function keptCheckpointVersion(reducerVersion: number): number {
+  return reducerVersion * 100 + KEPT_CHECKPOINT_FORMAT;
 }
 
 /** Per store and stream, the sync, push, pull or refold running now; the next waits for it (`SyncClient.exclusive`). */
@@ -239,6 +257,8 @@ export class SyncClient<S = LanguageState> {
   private linesAt: ReturnType<typeof setTimeout> | undefined;
   /** A sync asked for and not started yet: everyone who asks meanwhile shares it. */
   private nextSync: Promise<SyncResult> | null = null;
+  /** What this client's local checkpoint is tagged with: the reducer version, or a kept language's format (`keptCheckpointVersion`). */
+  private readonly checkpointVersion: number;
 
   constructor(private readonly opts: SyncClientOptions<S>) {
     this.m = opts.materializer ?? (LANGUAGE_MATERIALIZER as unknown as Materializer<S>);
@@ -255,6 +275,7 @@ export class SyncClient<S = LanguageState> {
     this.pullBudgetMs = opts.pullBudgetMs ?? 2_000;
     this.checkpointEvery = opts.checkpointEvery ?? 2000;
     this.kept = opts.keepOnDisk ? new KeptLanguage(opts.store, opts.orgId, opts.streamId) : null;
+    this.checkpointVersion = this.kept ? keptCheckpointVersion(this.m.version) : this.m.version;
     this.lines = this.kept
       ? new KeptLines(opts.store, opts.orgId, opts.streamId, this.kept, (b) => this.commit(b), () => this.state as unknown as LanguageState, opts.build ?? '')
       : null;
@@ -286,7 +307,7 @@ export class SyncClient<S = LanguageState> {
       const events = locals.map((l) => l.event);
       const checkpoint = await this.storedCheckpoint();
       const readMs = this.elapsed() - started;
-      const staleSeq = checkpoint && checkpoint.reducerVersion !== this.m.version ? checkpoint.serverSeq : null;
+      const staleSeq = checkpoint && !this.readable(checkpoint.reducerVersion) ? checkpoint.serverSeq : null;
       if (staleSeq !== null) {
         await this.dropStaleCheckpoint();
         this.reducerDropped = true;
@@ -301,11 +322,13 @@ export class SyncClient<S = LanguageState> {
         // A checkpoint from before the language kept records on disk: move them there once, with a checkpoint without them.
         // Every checkpoint keeps the entries whose passage cannot be found yet; with only those, there is nothing to move,
         // and working out every line again on each open would cost a big language seconds.
-        const split = await this.kept.split(snapshot.state);
+        // It holds the whole language, so rows left on disk from before (a build rolled back and forward again) are
+        // older than it: they are replaced, not combined in, in the same write as the checkpoint that leaves them out.
+        const split = await this.kept.split(snapshot.state, { whole: true });
         if (split.placed.length > 0) {
           snapshot.state = split.lite;
           this.lines.invalidate();
-          await this.commit({ meta: { ...this.snapshotMeta(snapshot).meta, ...this.lines.owed() }, kept: { ...this.stream(), upsert: split.rows } });
+          await this.commit({ meta: { ...this.snapshotMeta(snapshot).meta, ...this.lines.owed() }, kept: { ...this.stream(), clear: true, upsert: split.rows } });
         }
       }
       return this.foldLocal(snapshot, events, { started, readMs, staleSeq, reason });
@@ -472,13 +495,24 @@ export class SyncClient<S = LanguageState> {
   }
 
   /** What writes a checkpoint: the snapshot and, beside it, its seq; and how long the snapshot's text is, for diagnostics. */
-  private snapshotMeta(snap: Snapshot, stateText?: string): { meta: Record<string, string>; chars: number } {
+  private snapshotMeta(given: Snapshot, stateText?: string): { meta: Record<string, string>; chars: number } {
+    // Every local checkpoint carries this client's tag: a kept language's format, not the server's reducer version (`readable`).
+    const snap = given.reducerVersion === this.checkpointVersion ? given : { ...given, reducerVersion: this.checkpointVersion };
     // `stateText` is `snap.state` as the server sent it: the row is built around it, byte for byte what
     // `JSON.stringify(snap)` writes, without serializing the language again.
     const text = stateText === undefined
       ? JSON.stringify(snap)
       : `{"orgId":${JSON.stringify(snap.orgId)},"streamId":${JSON.stringify(snap.streamId)},"reducerVersion":${snap.reducerVersion},"serverSeq":${snap.serverSeq},"state":${stateText}}`;
     return { meta: { [this.snapshotKey()]: text, [this.snapshotSeqKey()]: `${snap.reducerVersion}:${snap.serverSeq}` }, chars: text.length };
+  }
+
+  /**
+   * Can this client read a local checkpoint tagged `version`? Its own tag; and, for a language kept on
+   * disk, a whole checkpoint of the same reducer, written before the language was kept on disk (or by a
+   * build rolled back to), which `refold` moves onto disk the first time it opens.
+   */
+  private readable(version: number): boolean {
+    return version === this.checkpointVersion || (!!this.kept && version === this.m.version);
   }
 
   /** The local checkpoint's seq, or null when there is none for this reducer. */
@@ -490,10 +524,10 @@ export class SyncClient<S = LanguageState> {
       if (!raw) return null;
       const snap = JSON.parse(raw) as Snapshot;
       await this.commit({ meta: { [this.snapshotSeqKey()]: `${snap.reducerVersion}:${snap.serverSeq}` } });
-      return snap.reducerVersion === this.m.version ? snap.serverSeq : null;
+      return this.readable(snap.reducerVersion) ? snap.serverSeq : null;
     }
     const [version, seq] = kept.split(':');
-    return kept !== '' && Number(version) === this.m.version ? Number(seq) : null;
+    return kept !== '' && this.readable(Number(version)) ? Number(seq) : null;
   }
 
   private minSnapshotKey(): string {
@@ -508,7 +542,7 @@ export class SyncClient<S = LanguageState> {
 
   private async localSnapshot(): Promise<Snapshot | null> {
     const snap = await this.storedCheckpoint();
-    return snap?.reducerVersion === this.m.version ? snap : null;
+    return snap && this.readable(snap.reducerVersion) ? snap : null;
   }
 
   /**
@@ -525,7 +559,7 @@ export class SyncClient<S = LanguageState> {
    * partial. A redaction waiting on the old checkpoint waits no more: it is
    * gone, and `snapshotMinSeq` still turns away a snapshot from before it.
    * The rows a language keeps on disk and every line came from this
-   * checkpoint, so they go with it (decisions.md 134).
+   * checkpoint, so they go with it (decisions.md 140).
    */
   private async dropStaleCheckpoint(): Promise<void> {
     await this.commit({
@@ -539,7 +573,7 @@ export class SyncClient<S = LanguageState> {
    * Save a checkpoint, move the cursor to it and prune behind it. Answers
    * the length of its text. `stateText` is the state as the server sent it;
    * `kept` and `meta` are what a language kept on disk writes beside the
-   * checkpoint, in the same commit (decisions.md 134).
+   * checkpoint, in the same commit (decisions.md 140).
    */
   private async saveSnapshot(
     snap: Snapshot,
@@ -694,7 +728,7 @@ export class SyncClient<S = LanguageState> {
   /**
    * Read a downloaded snapshot back one piece at a time, writing each
    * passage's records and the file verdicts to disk as they pass
-   * (decisions.md 134). Returns what the whole language shares, which is
+   * (decisions.md 140). Returns what the whole language shares, which is
    * what memory keeps. The records go under a stream id of their own, and
    * the checkpoint that follows moves them in, so a phone that dies part-way
    * still has the language it had.
@@ -764,7 +798,7 @@ export class SyncClient<S = LanguageState> {
       let placed: Awaited<ReturnType<KeptLanguage['split']>>['placed'] = [];
       let owed: Record<string, string> = {};
       if (this.kept && this.lines) {
-        // Each passage's records and the verdicts go to disk with this checkpoint (decisions.md 134), taken as they are now.
+        // Each passage's records and the verdicts go to disk with this checkpoint (decisions.md 140), taken as they are now.
         const split = await this.kept.split(state);
         // Something was folded while the stored copies were read: the state is no longer the confirmed one; next time.
         if (revision !== this.revision || this.writer.size !== 0) return null;
@@ -812,7 +846,7 @@ export class SyncClient<S = LanguageState> {
 
   /**
    * Hold these passages' recordings in memory, for a screen that shows them
-   * and the passages next to it (decisions.md 134). A language that keeps
+   * and the passages next to it (decisions.md 140). A language that keeps
    * everything in memory has nothing to do.
    */
   async loadUnits(unitIds: readonly string[]): Promise<void> {
@@ -1194,7 +1228,7 @@ export class SyncClient<S = LanguageState> {
         meta: this.clockMeta()
       });
       this.opts.onPullProgress?.(total);
-      // A language kept on disk checkpoints as it goes (decisions.md 134): its checkpoint is the small shared
+      // A language kept on disk checkpoints as it goes (decisions.md 140): its checkpoint is the small shared
       // part, and each one moves the passages folded so far onto disk and out of memory, so a pull of the whole
       // log from the start (a reducer bump before the server has a snapshot for it, a redaction waited out)
       // never holds the whole language. Not once a redaction was pulled in this slice: the refold below undoes

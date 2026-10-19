@@ -60,7 +60,7 @@ export function fileRow(hash: string, v: Verdict, json = JSON.stringify(v)): Kep
   return { kind: FILE, id: hash, unitId: '', ref: '', json };
 }
 
-/** Does this state hold entries of the parts or verdicts that belong on disk (a checkpoint from before decision 134)? */
+/** Does this state hold entries of the parts or verdicts that belong on disk (a checkpoint from before decision 140)? */
 export function holdsKept(state: LanguageState): boolean {
   for (const _ in state.blobs) return true;
   for (const part of PASSAGE_PARTS) for (const _ in state[part.map] ?? {}) return true;
@@ -124,7 +124,7 @@ export class KeptLanguage {
    * memory or the rows already kept can name, each combined with the copy
    * already kept; and what the checkpoint itself holds.
    */
-  async split(state: LanguageState): Promise<Split> {
+  async split(state: LanguageState, opts: { whole?: boolean } = {}): Promise<Split> {
     const entries = [...partEntries(state)];
     // A passage memory can name, else the one the rows say for what an entry hangs on.
     const onDisk = new Map<string, Map<string, string>>();
@@ -150,7 +150,8 @@ export class KeptLanguage {
     }
     // The kept copies of entries memory does not hold whole (passages not loaded), to combine with.
     const priors = new Map<string, unknown>();
-    const toRead = placed.filter((p) => !this.ready.has(p.unitId)).map((p) => ({ kind: p.part.kind, id: p.id }));
+    // A whole language (a checkpoint from a build that held it all) is every copy there is: rows on disk are older, never combined in.
+    const toRead = opts.whole ? [] : placed.filter((p) => !this.ready.has(p.unitId)).map((p) => ({ kind: p.part.kind, id: p.id }));
     for (const [kind, ids] of groupBy(toRead)) {
       for (const r of await this.store.keptById(this.orgId, this.streamId, kind, ids)) priors.set(`${kind}\u0000${r.id}`, JSON.parse(r.json));
     }
@@ -160,7 +161,7 @@ export class KeptLanguage {
       rows.push(...entryRows(p.part, p.id, p.unitId, prior === undefined ? p.value : p.part.merge(prior, p.value)));
     }
     const hashes = Object.keys(state.blobs);
-    const priorVerdicts = new Map((await this.store.keptById(this.orgId, this.streamId, FILE, hashes)).map((r) => [r.id, JSON.parse(r.json) as Verdict]));
+    const priorVerdicts = new Map(opts.whole ? [] : (await this.store.keptById(this.orgId, this.streamId, FILE, hashes)).map((r) => [r.id, JSON.parse(r.json) as Verdict]));
     for (const hash of hashes) {
       const prior = priorVerdicts.get(hash);
       const here = state.blobs[hash]!;

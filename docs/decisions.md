@@ -5655,3 +5655,23 @@ language of Santhali's size, an estimated one to two minutes), which F
 removes. Still open from the plan: folding the local log in pages rather
 than from one array (`store.all`), and moving the whole-language guard
 (`apps/mobile/test/wholeLanguage.test.ts`) into lint.
+
+Amended (2026-10-19, Carl Sauder): merged with main again, and the
+entry is 140 (main took 134 to 139). A kept language's local checkpoint
+leaves its passages out, so a build from before this one (an update rolled
+back) would read it as the whole language at the same reducer version,
+show passages empty and save that. Carl chose not to bump
+`REDUCER_VERSION` for it, since the fold's output is unchanged and option F
+changes the local format again soon: two forced downloads of every
+language for no change to the fold. Instead the local checkpoint is tagged
+`reducerVersion * 100 + KEPT_CHECKPOINT_FORMAT` (`keptCheckpointVersion` in
+`packages/sync/src/syncClient.ts`). A build that only knows whole
+checkpoints matches no such tag, so it drops the checkpoint with the
+stream's cursor (110) and takes the server's snapshot, which keeps the
+plain reducer version. This build reads its own tag, and also a whole
+checkpoint of its reducer, which it moves onto disk on open, replacing
+any rows left from before rather than combining with them, since a
+redaction may have come between. `KEPT_CHECKPOINT_FORMAT` is raised
+whenever what a kept checkpoint leaves out changes; F raises it.
+`keptLanguage.test.ts` holds a rollback and a roll-forward across a
+redaction. A reducer bump stays for changes to the fold's output.

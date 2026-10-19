@@ -1,6 +1,6 @@
 # Plan: big languages on a 2 GB phone
 
-Status: E merged onto main as branch `carl/big-languages-e` (decision 134, 2026-10-16); F not started · Carl Sauder, with Claude · 2026-10-16
+Status: E merged onto main as branch `carl/big-languages-e` (decision 140, 2026-10-16); F not started · Carl Sauder, with Claude · 2026-10-16
 
 Written against `origin/main` at `583f744c` and pull request 120
 (`caleb/unit-loading` at `ded635a1`). Companion to the server host plan
@@ -162,7 +162,7 @@ restarts, a first download, an old checkpoint and a redaction, and
    is 75 files (+4,290, −528). A trial merge (`git merge-tree`) conflicts in
    30 files, the real ones being `passage.ts`, `syncClient.ts`,
    `languageSession.ts`, `useLanguage.ts` and the fleet. Its decision is
-   numbered 110, which `main` has used; the next free number is 134.
+   numbered 110, which `main` has used; the next free number is 140.
 2. **Meet decision 120 (incremental views) in `passage.ts`.** `main` now
    patches passage views per published copy from a change log
    (`changes.ts`, `touchedBy`). The branch's `markChanged`, called when
@@ -240,6 +240,12 @@ E's phone.
   Worker and the agent view until they read rows too; V7's double storage
   is then three copies, and `snapshots.state` should stop being written
   (performance-audit-app.md V7) in the same change.
+- **The phone's local format changes again.** A phone part-way through a
+  fill holds only some passages' rows, so F raises `KEPT_CHECKPOINT_FORMAT`
+  (decision 140, amended 2026-10-19): an E build rolled back from F drops
+  the checkpoint and fetches the stream again, rather than reading a
+  partial fill as complete. No `REDUCER_VERSION` bump: the fold's output
+  does not change.
 - **Lines carry a version.** A line is core's `derivePassage` of its
   passage. E stamps lines with the app's build because a build may read a
   passage differently. Under F a phone that holds only some passages'
@@ -420,7 +426,7 @@ checkpoint already did.
 
 ## 6. Decision log
 
-- Pull request 120's entry becomes 134 on the rebase; its amendment to 19
+- Pull request 120's entry becomes 140 on the rebase; its amendment to 19
   (lines are views kept on the phone) stands.
 - F gets an entry of its own when it is built: the server cuts the
   snapshot by passage, lines carry `LINES_VERSION`, and `snapshots.state`

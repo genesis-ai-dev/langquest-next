@@ -1,13 +1,13 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  buildIndexes, derivePassage, emptyLanguageState, foldLanguage, HlcClock, keptVerdict, languageLines, PART_OF_KIND, putEntry, updatesFor, withOwnParts,
+  buildIndexes, derivePassage, emptyLanguageState, foldLanguage, HlcClock, REDUCER_VERSION, keptVerdict, languageLines, PART_OF_KIND, putEntry, updatesFor, withOwnParts,
   type LanguageState
 } from '@langquest-next/core';
 import { PART_KINDS } from '../src/keptLanguage';
 import { MemoryStore } from '../src/memoryStore';
 import { SqliteStore, type SqlDriver } from '../src/sqliteStore';
 import type { EventStore } from '../src/types';
-import { SyncClient } from '../src/syncClient';
+import { keptCheckpointVersion, SyncClient } from '../src/syncClient';
 import { LanguageFiles } from '../src/languageFiles';
 import { FakeServer } from '../src/testing/fakeServer';
 
@@ -15,7 +15,7 @@ import { FakeServer } from '../src/testing/fakeServer';
  * A big language keeps each passage's records (recordings, versions,
  * reviews, notes, requests and the rest) and the file verdicts on the
  * phone, not in memory, and holds in memory only the passages a screen has
- * open, with a line per passage for lists (decisions.md 134). Why these tests: memory must shrink without the
+ * open, with a line per passage for lists (decisions.md 140). Why these tests: memory must shrink without the
  * phone's language ever differing from what folding everything in memory
  * gives, whatever order things arrive in, and without losing anything to a
  * dropped link, an old checkpoint or a redaction.
@@ -460,6 +460,45 @@ describe('a language that keeps its recordings on disk', () => {
     expect(comparable(await whole(updated.client, store))).toEqual(full);
     await updated.client.settleLines();
     expect(linesOf(updated.client.passageLines(), Object.keys(full.units))).toEqual(linesOf(languageLines(full), Object.keys(full.units)));
+  });
+
+  it('an update rolled back drops the checkpoint it cannot read, and rolled forward again keeps the language whole', async () => {
+    // Why: a kept language's checkpoint leaves its passages out. A build from before (an update rolled back) read it
+    // as the whole language, showed passages empty and saved that, at the same reducer version (decisions.md 140).
+    const server = new FakeServer();
+    const lead = await language(server, 20);
+    const store = makeStore();
+    const kept = phone(server, 'dB', 'r1', { store, keepOnDisk: true, checkpointEvery: 5 });
+    await kept.client.load();
+    await kept.client.pull();
+    const tagged = JSON.parse((await store.meta('snapshot:org1/p1'))!) as { reducerVersion: number };
+    expect(tagged.reducerVersion).toBe(keptCheckpointVersion(REDUCER_VERSION));
+    expect(tagged.reducerVersion).not.toBe(REDUCER_VERSION);
+
+    // Rolled back: the old build drops the checkpoint with the cursor and fetches the stream again.
+    const old = phone(server, 'dB', 'r1', { store, checkpointEvery: 5 });
+    await old.client.load();
+    await old.client.pull();
+    const server1 = comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState()));
+    expect(comparable(old.client.getState())).toEqual(server1);
+
+    // Something on disk from before is redacted meanwhile; the old build takes the server's snapshot past it.
+    const target = server.log.find((e) => e.type === 'v1.RecordingAdded' && e.payload.recordingId === 'r2')!;
+    await lead.client.append('v1.Redacted', { eventId: target.id });
+    await lead.client.sync();
+    server.makeSnapshot('org1', 'p1');
+    await old.client.pull();
+    await old.client.pull();
+    expect(old.client.getState().recordings['r2']).toBeUndefined();
+    expect(await store.keptById('org1', 'p1', 'recording', ['r2'])).toHaveLength(1);
+
+    // Rolled forward: the whole checkpoint goes onto disk, replacing the rows left from before, not combined with them.
+    const again = phone(server, 'dB', 'r1', { store, keepOnDisk: true, checkpointEvery: 5 });
+    await again.client.load();
+    await again.client.pull();
+    expect(await store.keptById('org1', 'p1', 'recording', ['r2'])).toHaveLength(0);
+    expect(await store.keptCount('org1', 'p1', 'recording')).toBe(19);
+    expect(comparable(await whole(again.client, store))).toEqual(comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState())));
   });
 
   it('a recording redacted after it went to disk disappears once the new snapshot arrives', async () => {
