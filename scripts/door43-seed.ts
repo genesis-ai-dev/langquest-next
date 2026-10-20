@@ -609,8 +609,8 @@ export async function buildDoor43(opts: {
   const choices = choose(catalog);
   // The Hebrew and Greek always come: every other language's notes find their quotes in them.
   const taken = choices.filter((c): c is Taken => 'role' in c && (c.role === 'original' || !opts.only || opts.only(c)))
-    .sort((a, b) => ORDER.indexOf(a.role) - ORDER.indexOf(b.role) || (a.entry.owner === 'unfoldingWord' ? -1 : b.entry.owner === 'unfoldingWord' ? 1 : 0) ||
-      a.language.localeCompare(b.language) || a.entry.name.localeCompare(b.entry.name));
+    .sort((a, b) => ORDER.indexOf(a.role) - ORDER.indexOf(b.role) || Number(b.entry.owner === 'unfoldingWord') - Number(a.entry.owner === 'unfoldingWord') ||
+      a.language.localeCompare(b.language) || a.entry.owner.localeCompare(b.entry.owner) || a.entry.name.localeCompare(b.entry.name));
   const report: BuildReport = {
     items: [],
     skipped: choices.filter((c): c is Extract<Choice, { skip: string }> => 'skip' in c).map((c) => ({ entry: `${c.entry.owner}/${c.entry.name}@${c.entry.tag}`, subject: c.entry.subject, reason: c.skip })),

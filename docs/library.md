@@ -16,7 +16,7 @@ An item is one of four kinds:
 | --- | --- | --- |
 | `template` | `template@1`, `template@2` (a Bible broken up book by book, decision 74) | Manage Content Templates |
 | `flow` | `flow@1` | Manage Review Flows |
-| `material` | `study@1`, `study@2`, `collection@1`, `material@1` | Manage Reference Material (guides: Write a guide) |
+| `material` | `study@1`, `study@2`, `collection@1`, `material@1`, `source@1` (with `sourceBook@1`, `timing@1`, `alignment@1`), `helps@1` (with `helpBook@1`), `contents@1` | Manage Reference Material (guides: Write a guide) |
 | `versification` | `versification@1` (Copenhagen Alliance JSON) | Manage Content Templates |
 
 A version is an immutable JSON **document** named by the SHA-256 of its
@@ -62,9 +62,12 @@ Before either, `library_adopt` gives the organization access to the version
 and everything it depends on. That copy of access is what makes it
 self-contained (PLAN.md invariant 6): no live link to the other organization.
 The phone then fetches the version's document and what it depends on,
-except a Bible source's books and a collection's guides: only their
-numbering comes, and each book or guide is fetched by its own hash when a
-passage reads it (`loadDocs`; decisions.md 71, amended 2026-10-11).
+except a Bible source's books, a collection's guides, a set of helps'
+books and a contents list's articles: only their numbering comes, and each
+book, guide or article is fetched by its own hash when a passage reads it
+(`loadDocs`; decisions.md 71, amended 2026-10-11, and 144). Those pieces
+count toward the phone's storage; outside the person's kept passages they
+go first when it fills (`docStore.evictDocs`).
 
 ## Languages
 
@@ -150,6 +153,44 @@ by `_apply_org_event`), `library_documents` (hash, format, body, deps) and
 | `library_adopt(p_org, p_source_org, p_source_item, p_hash)` | a member of `p_org` who manages that kind | gives `p_org` access to one version of a shared item and its deps |
 | `library_updates(p_org)` | a member of `p_org` | each active subscription's newest available version |
 | `library_seed_document` / `library_seed_events` | service role only | how `scripts/library-seed.ts` publishes the LangQuest organization |
+
+## Translation helps (decisions 144 to 146)
+
+Notes, questions and key-word links are one format placed by coordinates
+(core `helpDocs.ts`): a `helps@1` (kind `notes`, `questions` or
+`wordLinks`) lists its books, a big one in parts by chapter, and each book
+is a `helpBook@1` of rows (`ref` such as `3:16`, `3:intro`, `front:intro`,
+or a story's `1:3`; the words quoted and the Hebrew or Greek found for
+them; the text; a question's answer; a key word's article; the article a
+note cites). A word-aligned Bible's `source@1` names each book's
+`alignment@1` beside its text. A `contents@1` lists articles (kind
+`words`, `academy`, `grammar`, or `stories` placed on an outline
+template), each its own `material@1` or `study@2`. A `flow@1` may carry
+`helps` and `shows` per check and a `pattern`; copying it writes
+`v1.CheckHelpSet` and `v1.CheckShowsSet`, and a check asks the questions of
+the sets linked to it that sit on the passage.
+
+## unfoldingWord's material from Door43 (decision 143)
+
+`npm run library:seed -- --door43` adds unfoldingWord's published material
+to the LangQuest organization, from Door43's catalog (stage `prod`) and each
+release's zipball (`scripts/door43-*.ts`): its Bibles and the versions made
+from them, with their word alignment, the Hebrew Bible and Greek New
+Testament, Translation Notes, Questions, Words, Word Links and Academy, the
+grammars, Open Bible Stories (a template, `langquest.door43.obs`, and each
+language's stories) with their helps, and a review flow per Checking
+Manual. Item ids are `langquest.door43.<owner>.<repository>`; names never
+carry unfoldingWord's name, and each item has its license and credit.
+
+| Option | What it does |
+| --- | --- |
+| `--dry-run` | builds and checks every document, stores nothing, and reports items, documents and sizes by resource and language |
+| `--door43-language <iso>` | only these languages (the Hebrew and Greek always come) |
+| `--door43-pictures` | puts the story pictures into R2 by hash, both sizes, through the Worker (`API_URL`) |
+| `--share-door43` | shares the items; without it they are published unshared, as they stay until unfoldingWord's written OK |
+
+Releases are cached in the OS temp directory (`langquest-door43/`), read in
+memory, and a real build keeps its documents there before publishing them.
 
 ## Content in this repository
 

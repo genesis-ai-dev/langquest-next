@@ -54,6 +54,21 @@ reference material review and design" (2026-10-05).
   opened or played. It is the record, not the work, so it never leaves the
   organization (decision 38).
 
+## Translation helps from the library (decisions 144 to 146)
+
+A passage gets notes, questions and key words from the library the way it
+gets its guide: recommended or linked sets first, else the organization's
+own in the team's languages (`helps/libraryHelpsModel.ts`). The recorder's
+Notes shows each set's notes under the verse they are on, with the
+manual's article each cites a tap away; Key words shows the passage's key
+words, each opening its article, with Add to our key words to make it one
+of the language's own; and the Bible underlines, where the chosen Bible is
+word-aligned, the words they are about. A review opens a check's linked
+notes and key words on the passage, and asks the questions of its linked
+question sets that sit there, with the suggested answer for whoever asks.
+A story of Open Bible Stories finds its story's frames and pictures as a
+guide, and its notes and questions by frame.
+
 ## Bible Brain
 
 Faith Comes By Hearing's API ([license](https://www.faithcomesbyhearing.com/bible-brain/license),

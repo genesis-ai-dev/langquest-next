@@ -3423,6 +3423,13 @@ on a check's page (its people, its helps, what its step shows) say what
 happened without an Undo button (Caleb, 2026-10-16: no timed undo toasts);
 each is reversed the way it was made.
 
+Amended (2026-10-19, Caleb Koster): premade questions are not forbidden.
+Only LangQuest's own AI-written sets were out, because no translation body
+recognizes them; unfoldingWord's Translation Questions belong in the
+unfoldingWord flows (Caleb, 2026-10-19). Questions are also reference
+material now: a check asks the question sets linked to it that sit on the
+passage under review, beside the ones its team wrote (decision 146).
+
 ## 92. A phone writes down the files it keeps, and a file it loses behind the app's back is an alarm
 
 Date: 2026-10-12 · By: Caleb Koster · Status: accepted
@@ -5820,3 +5827,134 @@ object folds itself, small).
 Reverse if: the object reads stored inputs often enough to cost more than
 the folds did, or the inputs of a language outgrow a few megabytes (then
 store them in pieces, as snapshots are, or summarize more of them).
+
+## 143. unfoldingWord's published material comes into LangQuest's library from Door43's releases, unshared until unfoldingWord gives its written OK
+
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb approved bringing all of unfoldingWord's published material
+into LangQuest's library (2026-10-19), hidden until unfoldingWord gives its
+written OK. Asked whether to build the first feature flag for it (decision
+53) or keep the items unshared, he chose to keep them unshared: the seed
+publishes every item from the LangQuest organization with
+`v1.LibrarySharingSet` shared and subscribable false, so no other
+organization can see or adopt them, and `--share-door43` shares them once
+the OK comes. No flag is built. `npm run library:seed -- --door43` reads
+Door43's catalog (stage `prod`) and each release's zipball, never a
+branch (`scripts/door43-*.ts`): the Literal and Simplified Texts and the
+gateway Bibles made from them, the older Unlocked Literal and Dynamic
+Bibles in every language, unfoldingWord's Translation for Translators,
+Unlocked English Bible and French ULB, and the Hebrew Bible and Greek New
+Testament they are aligned to; Translation Notes, Questions, Word Links,
+Words and Academy, and the Hebrew, Greek and Aramaic grammars; Open Bible
+Stories (decision 145) with its notes, questions, word links, study notes
+and questions and the Theological Formation guide; and a review flow per
+Checking Manual (decision 146). Teams' own translations, copies and mirrors
+(ru_gt's English ULT, Door43-Catalog's copies), never-released resources,
+test repositories and `und-x-` codes are left out, each with its reason in
+the run's report. Two publishers' sets for one language both come in,
+named with their publisher. Names never carry unfoldingWord's name, since
+its license asks a changed copy to drop the trademark; each item has its
+license and the credit the license file asks for ("The original work by …
+is available from …"), and says it was converted for LangQuest. Codes are
+ISO 639-3 (`es-419` is `spa`, `el-x-koine` `grc`, private-use suffixes
+dropped). Story pictures (Sweet Publishing, CC BY-SA 3.0, their own credit)
+go into R2 by hash at full size and phone size, and phones show the small
+one. The dry run of 2026-10-20: 612 items, 57,794 documents, 1.2 GB of
+JSON, the largest document 1.2 MB, from 455 MB of releases; pictures 47 MB
+at phone size and 784 MB at full size. Seeding the hosted database waits for
+Caleb's own go-ahead.
+Reverse if: unfoldingWord asks for its material to stay out of copies, or
+publishes it in a form a phone can read from them directly.
+
+## 144. Notes, questions and key-word links are one format placed by coordinates, book by book, and a word-aligned Bible names each book's alignment
+
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb's model (2026-10-20): questions are reference material placed
+by verse or story frame, and notes, questions and key-word links share one
+per-book format (core `helpDocs.ts`). A `helpBook@1` is a book's rows (a
+place, the words quoted and which time they occur, the Hebrew or Greek
+words found for them, the text, a question's answer, a key word's article,
+the manual's article a note cites); a `helps@1` of kind notes, questions or
+wordLinks is one set, listing its books the way `source@1` lists its
+`sourceBook@1`s, a big book in parts by chapter of about 1 MB (English
+Psalms notes are 3.9 MB whole, near the server's 4 MB). An `alignment@1`
+per book joins each verse's words to the original words they stand for
+(USFM `\zaln` milestones), and `source@1` names it beside the book
+(`books[].alignment`): left out of `deps`, so phones from before still read
+the source, and counted as a dependency by the server so sharing and
+adopting carry it (`_library_store`, migration 20261020010000). A
+`contents@1` lists articles (key words, a manual, a grammar, as `material@1`
+kind document; stories, decision 145), each fetched when someone opens it.
+Quotes were matched to the Hebrew and Greek when converted (96% of 1.28
+million), so the app underlines the words of an aligned Bible without
+reading Greek (`alignedSpans`). A passage gets its helps the way it gets
+its guide (decision 62's three levels, `reference/offered.ts`): the
+recorder's Notes shows the notes on their verses with the article each
+cites, Key words the passage's key words with their articles and Add to our
+key words, and the Bible a solid line under the words they are about
+(`helps/libraryHelps.tsx`, `useLibraryHelps.ts`). Phones fetch only the
+pieces a passage needs (`loadDocs` follows neither a set's books nor a
+list's articles), the offline pass takes kept passages' pieces with them,
+and fetched pieces (sources' and helps' books, alignments, articles) count
+toward the phone's storage: over 256 MB, or under 500 MB free, those
+outside the kept passages and the organization's own items go first,
+least lately used, never one waiting for the server (`docStore.evictDocs`).
+Guides and timings are not evicted yet; the offline pass does not yet know
+which a kept passage needs.
+Reverse if: teams need helps for many passages at once (then a set goes
+offline per book), or rows need editing one by one (then each row becomes
+a register, as material fields are, decision 26).
+
+## 145. Open Bible Stories is an outline content template, and each language's stories are reading material placed on its stories
+
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+
+Reason: in the brief Caleb approved (2026-10-19), Open Bible Stories comes
+in as a content template: `langquest.door43.obs`, a `template@2` outline of
+the 50 stories, each one part, titled from English. Each of its 189
+languages' stories is a `contents@1` of kind stories listing one `study@2`
+per story, placed on the template's node (`links`), each frame a step with
+its text and its picture; a story passage finds its story as a passage
+finds its guide (`bestGuide`). The stories' notes, questions and key-word
+links use decision 144's format with `book` `OBS`, placed on the template
+(`template`), story and frame for chapter and verse, and frame 0 the
+story's title.
+Reverse if: teams want each frame as a part of its own (then the
+template's stories get children, and the stories' helps follow the frames).
+
+## 146. A check asks the question sets linked to it that sit on the passage, with their suggested answers, and a ready-made flow brings its checks' helps and what they show
+
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-20): questions are reference material that can be
+tied to Bible passages and to a review flow's stage, and the flow ties
+unfoldingWord's set together across its languages. A help linked to a check
+(`v1.CheckHelpSet`, decision 91) may be a question set: `questionsForKind`
+takes the questions of linked `helps@1` sets on the passage's verses
+(`passageQuestions`), with the answer someone who understood would give,
+shown to whoever asks, and every question of a linked `material@1` set,
+for every passage. A library question's id is its set, its book and its
+row (`helpQuestionId`), stable across the set's versions, since answers are
+kept by it. `flow@1` gains optional `helps` (library items per check),
+`shows` (what each check puts on the screen, decision 130) and `pattern`;
+copying a flow writes them as the existing events where the language has
+not set them (`commands.copyFlow`), following first the items the
+organization lacks (`useFlowHelps`). The Checking Manual's flows have the
+shape Caleb chose (2026-10-20): Oral Partner Check; Team Oral Chunk Check
+with the passage's notes and key words; Language Community Check with no
+Bible text or audio, the passage's Translation Questions and the manual's
+evaluation form; Church Leader Check with notes and key words, the
+affirmation of accuracy as its questions, must pass; Back Translation; and
+Quality Check, must pass, without its whole-book questions until a check
+can cover a book. Formatting and publishing are left out. Each manual gives
+its checks their names; the seven older manuals with no team check article
+(Hindi, Gujarati, Marathi, Odia, Croatian, Russian, French) name it in
+LangQuest's own words, said so in the flow (Caleb, 2026-10-20). A
+language with story questions also gets an Open Bible Stories flow. Flows
+of one pattern from one organization are one choice in the team's
+language, switched among the languages they are offered in
+(`admin/flowSetsModel.ts`), after decision 84's narrowing by language.
+Reverse if: a check needs questions over a whole chapter or book (then a
+set says what it covers), or a team needs a flow in two languages at once.
