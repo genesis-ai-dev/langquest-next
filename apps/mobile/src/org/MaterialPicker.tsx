@@ -48,6 +48,7 @@ export function MaterialPicker(props: {
       <Question>{t('org.newLanguage.material.question', { language: props.team })}</Question>
       {section('source', t('getReady.page.bibles'))}
       {section('guide', t('getReady.helps.studyGuides'))}
+      {section('words', t('getReady.page.keyWords'))}
       {section('note', t('getReady.helps.notesForTranslators'))}
       {props.items.length === 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>

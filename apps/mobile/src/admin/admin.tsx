@@ -15,6 +15,7 @@ import { HelpBadge, HelpLit } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpInfo, Ico, type IconName } from '../ui/kit';
+import { markedParts } from '../ui/textMatch';
 import { txt } from '../ui/textStyles';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
@@ -323,7 +324,8 @@ export function Pills(props: { children: ReactNode }) {
 
 /** A pick-many row with a checkbox, and a play button that opens what it is. */
 export function CheckRow(props: { label: string; sub?: string; checked: boolean; onToggle: () => void; onPlay?: () => void; playLabel?: string; last?: boolean; disabled?: boolean; detail?: string;
-  /** What help mode says the play button does. */ playHelp?: string }) {
+  /** What help mode says the play button does. */ playHelp?: string;
+  /** Words someone searched for: lit where they appear in the label. */ highlight?: string }) {
   const onToggle = useHelpSpot(props.label, props.detail ?? (props.checked ? t('admin.checkRow.offered') : t('admin.checkRow.notOffered')), props.onToggle);
   const playLabel = props.playLabel ?? t('admin.checkRow.hear', { name: props.label });
   const onPlay = useHelpSpot(playLabel, props.playHelp, props.onPlay);
@@ -337,7 +339,7 @@ export function CheckRow(props: { label: string; sub?: string; checked: boolean;
           {props.checked ? <Ico name="check" size={20} color={C.white} strokeWidth={3} /> : null}
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={[txt.body, { fontWeight: '700' }]} numberOfLines={2}>{props.label}</Text>
+          <Text style={[txt.body, { fontWeight: '700' }]} numberOfLines={2}>{marked(props.label, props.highlight)}</Text>
           {props.sub ? <Text style={[txt.sm, { color: C.muted }]}>{props.sub}</Text> : null}
         </View>
         <HelpBadge spot={onToggle} />
@@ -362,24 +364,56 @@ export function Pill(props: { on: boolean; disabled?: boolean }) {
   );
 }
 
-/** A row that is one switch: the whole row takes the tap (a 64pt target) and speaks as the switch. */
+/**
+ * A row that is one switch: the whole row takes the tap (a 64pt target) and speaks as the switch.
+ * `below` sits under its words, outside the switch, so a link there is a tap of its own.
+ */
 export function SwitchRow(props: { label: string; sub?: string; on: boolean; onToggle: () => void; disabled?: boolean; last?: boolean; icon?: AdminIcon;
-  /** What help mode says it turns on, where on or off alone does not say it. */ help?: string }) {
+  /** What help mode says it turns on, where on or off alone does not say it. */ help?: string;
+  /** The icon's colour, where the kind of thing has its own (a key word's key). */ iconColor?: string;
+  /** Words someone searched for: lit where they appear in the label. */ highlight?: string;
+  below?: ReactNode }) {
   const spot = useHelpSpot(props.label, props.help ?? (props.on ? t('admin.switchRow.on') : t('admin.switchRow.off')), props.onToggle);
-  return (
+  const row = (
     <Pressable onPress={spot.onPress} disabled={props.disabled} accessibilityRole="switch" accessibilityState={{ checked: props.on, disabled: !!props.disabled }}
       // The web reads its state from aria-* (react-native-web ignores accessibilityState there).
       aria-checked={props.on} aria-disabled={!!props.disabled}
-      accessibilityLabel={props.label} style={({ pressed }) => [styles.switchRow, !props.last && styles.rowBorder, pressed && styles.pressed]}>
-      {props.icon ? <IconTile icon={props.icon} /> : null}
+      accessibilityLabel={props.label} style={({ pressed }) => [styles.switchRow, props.below ? styles.switchRowAbove : !props.last && styles.rowBorder, pressed && styles.pressed]}>
+      {props.icon ? <IconTile icon={props.icon} {...(props.iconColor ? { color: props.iconColor } : {})} /> : null}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[txt.body, { fontWeight: '700' }]}>{props.label}</Text>
+        <Text style={[txt.body, { fontWeight: '700' }]}>{marked(props.label, props.highlight)}</Text>
         {props.sub ? <Text style={[txt.sm, { fontSize: 14, color: C.muted }]}>{props.sub}</Text> : null}
       </View>
       <Pill on={props.on} disabled={props.disabled} />
       <HelpBadge spot={spot} />
     </Pressable>
   );
+  if (!props.below) return row;
+  return (
+    <View style={[styles.switchRowBox, !props.last && styles.rowBorder]}>
+      {row}
+      <View style={[styles.switchBelow, props.icon ? { paddingLeft: space.lg + 44 + space.md } : null]}>{props.below}</View>
+    </View>
+  );
+}
+
+/** A link under a row's words: bold brand words and a chevron, 48pt tall ("1 related resource turned on ›"). */
+export function RowLink(props: { label: string; onPress: () => void;
+  /** What help mode says tapping it does. */ help: string }) {
+  const spot = useHelpSpot(props.label, props.help, props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} style={({ pressed }) => [styles.rowLink, pressed && styles.pressed]}>
+      <Text style={[txt.sm, { color: C.primary, fontWeight: '700', flexShrink: 1 }]}>{props.label}</Text>
+      <Ico name="right" size={16} color={C.primary} strokeWidth={2.6} />
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** `text` with what a search found in it lit, or `text` as it is. */
+function marked(text: string, query: string | undefined): ReactNode {
+  if (!query?.trim()) return text;
+  return markedParts(text, query).map((p, i) => (p.match ? <Text key={i} style={styles.match}>{p.text}</Text> : p.text));
 }
 
 /** A count on a solid amber disc (join requests waiting). */
@@ -488,6 +522,11 @@ const styles = StyleSheet.create({
   pill: { width: 50, height: 30, borderRadius: 15, justifyContent: 'center' },
   knob: { position: 'absolute', width: 24, height: 24, borderRadius: 12, backgroundColor: C.white },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: C.card },
+  switchRowAbove: { paddingBottom: 0 },
+  switchRowBox: { backgroundColor: C.card },
+  switchBelow: { paddingLeft: space.lg, paddingRight: space.lg, paddingBottom: space.sm, alignItems: 'flex-start' },
+  rowLink: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: target.min, maxWidth: '100%' },
+  match: { backgroundColor: TINT.match, borderRadius: 3 },
   count: { minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 6, backgroundColor: TINT.amberText, alignItems: 'center', justifyContent: 'center' },
   lock: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.faint, alignItems: 'center', justifyContent: 'center' },
   lockOn: { borderWidth: 0, backgroundColor: TINT.amber },

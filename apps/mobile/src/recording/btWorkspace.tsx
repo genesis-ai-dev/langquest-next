@@ -331,7 +331,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
                 ) : top === 'guide' && study && guide ? (
                   <GuideStep key={study.steps[gStep]!.step.id} ctx={ctx} v={v} guide={guide} status={study.steps[gStep]!} spoken={shows.guideAudio} read={shows.guideText} canContribute={!recording} />
                 ) : top === 'terms' ? (
-                  <KeyWordsPane ctx={ctx} v={v} terms={unitTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={undefined} canTie={false} disabled={blocked}
+                  <KeyWordsPane ctx={ctx} v={v} terms={unitTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={undefined} canTie={false} disabled={blocked}
                     onHear={(key) => { setTop('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
                 ) : top === 'notes' ? (
                   <NotesPane ctx={ctx} v={v} notes={passageNotes} disabled={blocked} />

@@ -6615,3 +6615,68 @@ that run's function secret and its Vault write, a minute's push may be
 refused and is delivered the next minute. A local stack's
 `supabase/functions/.env` keeps its value under the new name
 (`scripts/local-db.mjs`).
+
+## 149. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
+
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+
+Reason: FIA's guides already carried each passage's Master Glossary words,
+but only as tappable words inside a guide step: they never reached the
+team's key words, and reviewers never saw them. Caleb (2026-10-20): FIA's
+key words should be usable without FIA's guides, a team turning on the
+guides should see at once that the words go with them, words should show on
+a passage where its verses are linked to them or where a translation says
+them, and reference material should be searchable ("FIA" finds FIA's items
+among a hundred from twenty organizations).
+- **Format.** The library's unused key-word list (`material@1` of kind
+  `key_terms`) is filled in rather than a new format made: each word
+  (`KeyWordDoc`) may carry its full meaning in markdown (`[mercy](#t91)`
+  links another word, as guides link terms), a recording (`MediaRef`) and the
+  verses it belongs to (`links`); the list may say the method it goes with
+  (`pattern: 'FIA'`, as FIA's guide collections do) and its credit line.
+  One document per language holds the whole list (English 752 KB, about
+  190 KB compressed), so its words show and search offline once it has
+  come; recordings stay on FIA's server and play when tapped, as guide audio
+  does.
+- **Import.** FIA's `get_terms.py` (genesis-ai-dev/fia) writes every term with
+  its translations and linked pericopes; `scripts/fia-terms.ts` makes a list
+  per language that has meanings (English 302 words, French 237, Portuguese
+  237, Indonesian 236, Mandarin 155, Spanish 10; Russian has names alone and
+  is left out), placing each pericope by FIA's passage list. `npm run
+  library:seed -- --fia-terms <file>` publishes `langquest.fia-words.<lang>`;
+  without it the seed uses the Genesis 2 sample in `library/fia`.
+- **Picking.** Key-word lists are their own kind of reference material
+  (`RefKind` `words`) with their own row and switch. A method's lists form a
+  set by language like its guide collections (`guideSets.ts`, set key
+  `<origin>|FIA|words`), chosen with the same per-language
+  `v1.ReferenceSet` writes; no new event. Items from the same organization
+  that follow the same method are related (`HelpItem.family`): turning on
+  FIA's guides turns on FIA's key words in the same language (else English),
+  and New language ticks them with the guides it suggests; the first row of
+  the family that is on says how many related resources came on, and tapping
+  that line filters the list to them, each with its own switch. Turning one
+  off never turns off the others.
+- **Search.** Every list of reference material has a search bar matching
+  name, description, organization, language, kind and method, every typed
+  word in any order (`matchesHelpItem`). A search reaches past the team's
+  language (typing "French" finds French material) and lists what the
+  organization does not have yet last, under "Not in your library yet".
+  The Key words screen searches the team's words and every list by word,
+  short meaning and full meaning.
+- **On a passage.** A list's word shows when one of its links meets the
+  passage's verses (each side in its own numbering, as guides are matched) or
+  when the word or another form of it (the list's `match`, and simple English
+  endings) is a whole word in a Bible the team reads in the list's language
+  (`keyTerms/listsModel.ts` `wordsOnPassage`). Words the team has made its
+  own show with the team's words instead.
+- **The team's own.** Adding a list's word makes an ordinary key term whose
+  id is `fia:<FIA's id>` (the prefix `isFiaTerm` already read), so the
+  team's word and FIA's stay one word and its page shows FIA's meaning.
+- **Checks.** A key-word list is a library item, so a check can link it as
+  a help (decision 91); the reviewer sees each of the list's words in the
+  passage with the team's word, whether the translator marked it in this
+  version, or that the team has no word yet.
+Reverse if: lists grow past what one document per language holds (then a
+list goes book by book, as `helps@1` does on the Door43 branch), or teams
+need to edit a library list's words one by one (then each word becomes a
+register).

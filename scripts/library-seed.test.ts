@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   canonicalJson, FIA_PERICOPES, foldOrg, libraryItemView, referencedDocs, templateUnits, validateEvent,
-  type CollectionDoc, type FlowDoc, type TemplateDoc, type VersificationDoc
+  type CollectionDoc, type FlowDoc, type MaterialDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { buildLibrary, onlyItems, seedEvents, SEED_ORG } from './library-seed';
 
@@ -126,6 +126,17 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
     expect(eng.entries.every((e) => doc(e.doc).format === 'study@1')).toBe(true);
     const fra = doc(item('langquest.fia.fra').docHash) as CollectionDoc;
     expect(fra.entries.map((e) => e.ref)).toEqual(['GEN 2:4-25']);
+  });
+
+  it("publishes FIA's key words as one list per language, placed on FIA's passages (decision 149)", () => {
+    const eng = doc(item('langquest.fia-words.eng').docHash) as MaterialDoc;
+    expect(item('langquest.fia-words.eng').name).toBe('FIA key words (English)');
+    expect(eng).toMatchObject({ format: 'material@1', kind: 'key_terms', language: 'eng', pattern: 'FIA', versification: item('langquest.versification.eng').docHash });
+    expect(eng.terms!.map((w) => w.term)).toEqual(['evil', 'generations', 'heaven', 'Yahweh']);
+    // Each word is linked to the FIA passages it comes up in, as FIA's passage list numbers them.
+    expect(eng.terms!.every((w) => w.links?.some((l) => 'ref' in l && l.ref === 'GEN 2:4-25'))).toBe(true);
+    // Russian has word names but no meanings yet, so there is no Russian list.
+    expect(build.items.some((i) => i.itemId === 'langquest.fia-words.rus')).toBe(false);
   });
 
   it('publishes through valid events whose ids do not depend on when it runs', () => {

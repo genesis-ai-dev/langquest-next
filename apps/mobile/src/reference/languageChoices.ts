@@ -1,11 +1,12 @@
 // The languages a team's reference material can be in, and what is there in
-// each (decision 84): a guide set's passages (FIA), Bibles and other guides,
+// each (decision 84): a guide set's passages (FIA), a key-word list's words
+// (decision 149), Bibles and other guides,
 // from the organization's library and what other organizations share, and
 // Bible Brain's Bibles beside the library's (`biblesFor`). The
 // reference language page lists them so an admin sees, before choosing,
 // whether their team will have anything to read. Pure, so it is tested.
 import type { LibraryDoc } from '@langquest-next/core';
-import type { GuideSet, SetMember } from './guideSets';
+import { isWordSet, type GuideSet, type SetMember } from './guideSets';
 import { docLanguage, sameCodes, sameLanguage } from './languages';
 
 export interface LanguageChoice {
@@ -13,6 +14,8 @@ export interface LanguageChoice {
   language: string;
   /** Each guide set in this language, with its passages. */
   sets: { name: string; passages: number }[];
+  /** Each set of key-word lists in this language (FIA's key words), with its words. */
+  words: { name: string; words: number }[];
   bibles: number;
   /** The Bible Brain editions among `bibles`, by id: each is counted once, here and beside Bible Brain's own. */
   bibleIds: string[];
@@ -20,8 +23,8 @@ export interface LanguageChoice {
   other: number;
 }
 
-const blank = (language: string): LanguageChoice => ({ language, sets: [], bibles: 0, bibleIds: [], other: 0 });
-const amount = (c: LanguageChoice) => c.sets.reduce((n, s) => n + s.passages, 0) * 10 + c.bibles * 5 + c.other;
+const blank = (language: string): LanguageChoice => ({ language, sets: [], words: [], bibles: 0, bibleIds: [], other: 0 });
+const amount = (c: LanguageChoice) => c.sets.reduce((n, s) => n + s.passages, 0) * 10 + c.bibles * 5 + c.words.length + c.other;
 
 /**
  * One choice per language anything is in, the most to read first; `keep`
@@ -36,7 +39,12 @@ export function languageChoices(sets: readonly GuideSet[], docs: readonly (Libra
     if (!c) { c = blank(language); out.push(c); }
     return c;
   };
-  for (const set of sets) for (const m of set.members) at(m.language).sets.push({ name: set.name, passages: m.passages });
+  for (const set of sets) {
+    for (const m of set.members) {
+      if (isWordSet(set)) at(m.language).words.push({ name: set.name, words: m.passages });
+      else at(m.language).sets.push({ name: set.name, passages: m.passages });
+    }
+  }
   for (const doc of docs) {
     const language = docLanguage(doc);
     if (!doc || !language) continue;
@@ -69,7 +77,7 @@ export function biblesFor(c: LanguageChoice, bibleBrain: ReadonlyMap<string, rea
 }
 
 /** Does anything wait in this language? */
-export const hasMaterial = (c: LanguageChoice | undefined) => !!c && (c.sets.length > 0 || c.bibles > 0 || c.other > 0);
+export const hasMaterial = (c: LanguageChoice | undefined) => !!c && (c.sets.length > 0 || c.words.length > 0 || c.bibles > 0 || c.other > 0);
 
 /** The language to start from: the reader's when there is anything in it, else English. */
 export function startingLanguage(choices: readonly LanguageChoice[], reader: string): string {

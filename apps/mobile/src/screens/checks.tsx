@@ -4,7 +4,7 @@
 // 'language'`, or New language's draft with `draft: '1'`); `CheckEditor` is
 // one check. Every change saves as it is made; the list's header Undo takes a
 // save back, one made here too, and removing a check asks first (decision 134).
-import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, commands, deriveFlow, formatQuestionField, kindOf, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, shownFrom, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type QuestionSpec, type ShownWhat } from '@langquest-next/core';
+import { checkHelps, checkHelpSpecs, checkPeople, checkPeopleSpecs, checkShows, checkShowsSpecs, commands, deriveFlow, formatQuestionField, kindOf, languageName, languagePeople, materialsFor, membershipsOf, questionsForKind, RECORD_STEP, scopeCovers, shownFrom, type CheckHelp, type EventSpec, type LanguageState, type OrgState, type LibraryDoc, type QuestionSpec, type ShownWhat } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -46,14 +46,15 @@ function roleIn(org: OrgState | null, profileId: string, languageId: string): st
   return m ? org.roles[m.roleId.value]!.name.value : '';
 }
 
-/** A help as a row: its name and what it is. */
-function helpLabel(state: LanguageState, lib: ReturnType<typeof useLibrary>, h: CheckHelp): { name: string; kind: string; icon: 'note' | 'book' | 'sparkle' } {
+/** A help as a row: its name and what it is; a key-word list (decision 149) by its key. */
+function helpLabel(state: LanguageState, lib: ReturnType<typeof useLibrary>, h: CheckHelp, get: (hash: string | null | undefined) => LibraryDoc | null): { name: string; kind: string; icon: 'note' | 'book' | 'sparkle' | 'key' } {
   if ('materialId' in h) {
     const m = state.materials[h.materialId];
     return { name: m?.title ?? t('checks.helpGone'), kind: m ? referenceKindName(m.kind) : '', icon: 'note' };
   }
   const it = lib.item(h.itemId);
-  return { name: it?.name ?? t('checks.helpGone'), kind: it?.description ?? '', icon: 'book' };
+  const words = refKindOf(get(it?.current)) === 'words';
+  return { name: it?.name ?? t('checks.helpGone'), kind: words ? t('reference.kind.words') : it?.description ?? '', icon: words ? 'key' : 'book' };
 }
 
 // ---- the list ----------------------------------------------------------------------------
@@ -219,7 +220,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
   // What can be linked: the language's own notes, and the organization's notes, guides and Bibles.
   const ownNotes = materialsFor(state).filter((m) => !['questions', 'key_terms', 'fia_study'].includes(m.kind));
   const all = items.map((it) => ({ it, kind: refKindOf(docs.get(it.current)), language: docLanguage(docs.get(it.current)) }))
-    .filter((x) => x.kind === 'note' || x.kind === 'other' || x.kind === 'guide' || x.kind === 'source');
+    .filter((x) => x.kind === 'note' || x.kind === 'other' || x.kind === 'guide' || x.kind === 'source' || x.kind === 'words');
   // Helps are offered in the language the team's material is in, set once for the language (Caleb, 2026-10-16).
   const team = teamLanguages(ctx.org.state, state, languageId);
   const library = all.filter((x) => inLanguages(x.language, team));
@@ -246,7 +247,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
       <SectionLabel label={t('checks.helps')} />
       <Group>
         {helps.map((h) => {
-          const l = helpLabel(state, lib, h);
+          const l = helpLabel(state, lib, h, docs.get);
           return (
             <HelpRow key={'itemId' in h ? h.itemId : h.materialId} of="checks.help">
               <Row icon={l.icon} label={l.name} sub={l.kind || undefined}
@@ -342,6 +343,23 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
           })}
           {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} help={t('checks.writeNoteHelp')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
         </Group>
+        {/* Key-word lists (decision 149): a reviewer sees the list's words on the passage beside the team's. */}
+        {library.some((x) => x.kind === 'words') ? (
+          <>
+            <SectionLabel label={t('reference.kind.words')} />
+            <Group>
+              {library.filter((x) => x.kind === 'words').map(({ it }, j, a) => {
+                const on = linked.has(`item:${it.itemId}`);
+                return (
+                  <HelpRow key={it.itemId} of="checks.linkHelp">
+                    <Row icon="key" label={it.name} role="checkbox" checked={on} right={tick(on)} last={j === a.length - 1} help={linkedHelp(on)}
+                      onPress={() => void setHelp({ itemId: it.itemId }, !on)} />
+                  </HelpRow>
+                );
+              })}
+            </Group>
+          </>
+        ) : null}
         {library.some((x) => x.kind === 'guide' || x.kind === 'source') ? (
           <>
             <SectionLabel label={t('checks.guidesAndBibles')} />

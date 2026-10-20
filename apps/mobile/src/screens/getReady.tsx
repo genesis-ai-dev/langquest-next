@@ -4,7 +4,8 @@
 // app's model gets a language ready with four plain questions, each with the
 // likely answer already picked:
 //   1 What will they record?   the language's content template (as New Language and its Content template page apply it)
-//   2 What will help them?     Bibles and study guides offered to its team (the recommendations reference_bibles/guides write)
+//   2 What will help them?     Bibles, study guides and key words offered to its team (the recommendations reference_bibles/guides write),
+//                              searched from a bar at the top, and what goes with what (FIA's guides and key words, decision 149)
 //   3 Who checks the recordings? its review flow (chosen as flows_home chooses it; "I'll choose the steps" opens the flow editor)
 //   4 Invite your translators  a group code to scan (the invite RPC Invite by QR uses)
 // Params: `languageId` (opens that language) and `step`: none for the
@@ -29,7 +30,7 @@ import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SectionLabel, Sheet } from '../ui/kit';
+import { Badge, Banner, Chip, EmptyState, Group, Header, PrimaryBtn, QuietLinks, Row, Screen, SearchField, SectionLabel, Sheet } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { sourceLine, type SharedItem } from '../library/model';
@@ -37,18 +38,20 @@ import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrar
 import { booksInScope, LANGUAGE_SCOPES, languageScopeLabel, mayGrantAt, type LanguageScope } from '../org/orgAdmin';
 import { recState, refKindOf, sourceFacts, type RefKind } from '../reference/model';
 import { useRecommend } from '../reference/useReference';
-import { guidesArriving, helpItems, type HelpItem } from '../reference/helpItemsModel';
+import {
+  guidesArriving, helpItems, helpSections, inLibrary, matchesWords, relatedLinks, searchHelps, turnOnSay, turnOnWith, type HelpItem, type TurnOn
+} from '../reference/helpItemsModel';
 import { referenceFailure } from '../reference/failureModel';
 import { GuideLanguageSheet } from '../reference/GuideLanguageSheet';
-import { chooseSetLanguage, guideSets, hideSet, originOf, patternOf, setKeyOf, setReach, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
+import { chooseSetLanguage, guideSets, hideSet, isWordSet, originOf, patternOf, setKeyOf, setReach, type GuideSet, type ReferenceSay, type SetMember } from '../reference/guideSets';
 import { docLanguage, inLanguages, languagesLine, languagesSays, readerLanguage, sameLanguage, teamLanguage, teamLanguages } from '../reference/languages';
 import { memberIn } from '../reference/languageChoices';
 import { ReferenceLanguageChip, ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
 import { useReferenceLanguages } from '../reference/useReferenceLanguages';
 import { failureMessage } from '../diagnostics/report';
 import { contractsFor } from '../shell/screenContracts';
-import { C, space } from '../ui/theme';
-import { BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, InviteCode, NumberedSteps, Pills, Question, QuietLink } from '../admin/admin';
+import { C, space, TINT } from '../ui/theme';
+import { BigTop, CheckRow, SwitchRow, ChoiceCard, DashedRow, InviteCode, NumberedSteps, Pills, Question, QuietLink, RowLink } from '../admin/admin';
 import { useGroupInvite } from '../admin/useGroupInvite';
 import {
   sameChecks,
@@ -230,9 +233,10 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
 
 /**
  * Everything that can help a language's team: the organization's Bibles,
- * guides and notes, and the Bibles and guides (in the language its team
- * reads) that other organizations share. On means recommended to this
- * language, as Bibles and Guides and Notes write it.
+ * guides, key words and notes, and the Bibles, guides and key words (in the
+ * language its team reads) that other organizations share. On means
+ * recommended to this language, as Bibles and Guides and Notes write it.
+ * Turning one on turns on what goes with it (decision 149).
  */
 function useHelpItems(ctx: Ctx) {
   const lib = useLibrary(ctx);
@@ -256,14 +260,42 @@ function useHelpItems(ctx: Ctx) {
     items, others, doc: docs.get, itemOf: lib.item, recommendations: org?.recommendations, state, offered, reads, reader, guidesIncoming
   });
   const may = ctx.session.can('manage_reference');
+  const readsName = languageLabel(reads);
+  /** Its item in the library: another organization's is followed first, with automatic updates (copied when it may not be followed). */
+  const take = async (x: { itemId: string | null; shared: SharedItem | null }) =>
+    x.itemId ?? (x.shared!.subscribable ? await lib.subscribe(x.shared!, true) : await lib.copy(x.shared!));
+  /** The says that turn on what goes with something turned on (decision 149): a set in the language `turnOnWith` chose, anything else as its switch would. */
+  async function withSays(plan: readonly TurnOn[]): Promise<ReferenceSay[]> {
+    const level = { kind: 'language' as const, languageId };
+    const now = ctx.language.state;
+    const says: ReferenceSay[] = [];
+    for (const { item, member } of plan) {
+      if (item.set && member) {
+        const itemId = await take(member);
+        const set = { ...item.set.set, members: item.set.set.members.map((x) => (x === member ? { ...x, itemId, shared: null } : x)) };
+        says.push(...chooseSetLanguage(set, itemId, now).says);
+      } else {
+        const itemId = await take(item);
+        says.push(turnOnSay(itemId, item.kind, recState(org?.recommendations, now, level, itemId)));
+      }
+    }
+    return says;
+  }
+  const withMessage = (h: HelpItem, plan: readonly TurnOn[]) =>
+    t('getReady.helps.turnedOnWith', { name: helpName(h, readsName), related: joinAnd(plan.map((p) => helpName(p.item, readsName))) });
   async function toggle(h: HelpItem) {
     if (busy || !may || !languageId) return;
     setBusy(true);
     try {
-      // Another organization's is followed first, with automatic updates (copied when it may not be followed).
-      const itemId = h.itemId ?? (h.shared!.subscribable ? await lib.subscribe(h.shared!, true) : await lib.copy(h.shared!));
+      const itemId = await take(h);
       const level = { kind: 'language' as const, languageId };
       const r = recState(org?.recommendations, state, level, itemId);
+      // Turned on, what goes with it comes on too, in one step that its switch takes back (decisions 134, 149); off touches nothing else.
+      const plan = turnOnWith(h, out, docLanguage(h.doc), reader);
+      if (plan.length) {
+        await sayAll({ says: [turnOnSay(itemId, h.kind, r), ...await withSays(plan)] }, withMessage(h, plan));
+        return;
+      }
       // Off: a Bible stops being recommended here (hidden when the organization recommends it); a guide or note is hidden here.
       // On: what was hidden follows the organization again, else it is recommended here.
       const action = h.on
@@ -286,15 +318,23 @@ function useHelpItems(ctx: Ctx) {
       // ctx.act has already said "Not saved" and why.
     }
   }
-  /** Offer a guide set in one language: taken into the library first when it is another organization's, then the team's only language of it. */
+  /**
+   * Offer a guide set (or FIA's key words) in one language: taken into the library first when it is another organization's,
+   * then the team's only language of it. Turned on, what goes with it comes on too, in this language as far as it can (decision 149).
+   */
   async function chooseLanguage(h: HelpItem, m: SetMember) {
     if (busy || !may || !languageId || !h.set) return;
     setBusy(true);
     try {
-      const itemId = m.itemId ?? (m.shared!.subscribable ? await lib.subscribe(m.shared!, true) : await lib.copy(m.shared!));
+      const itemId = await take(m);
       const set = { ...h.set.set, members: h.set.set.members.map((x) => (x === m ? { ...x, itemId, shared: null } : x)) };
       const now = ctx.language.state;
-      await sayAll(chooseSetLanguage(set, itemId, now), t('getReady.helps.setChosen', { name: guideShortName(set.name), language: languageLabel(m.language) }));
+      const plan = turnOnWith(h, out, m.language, reader);
+      const says = [...chooseSetLanguage(set, itemId, now).says, ...await withSays(plan)];
+      const message = plan.length ? withMessage(h, plan)
+        : isWordSet(set) ? t('getReady.helps.wordSetChosen', { name: set.name, language: languageLabel(m.language) })
+        : t('getReady.helps.setChosen', { name: guideShortName(set.name), language: languageLabel(m.language) });
+      await sayAll({ says }, message);
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: referenceFailure('choose guide language', e) })); // i18n-ignore: log label
     } finally {
@@ -305,7 +345,9 @@ function useHelpItems(ctx: Ctx) {
   async function setOff(h: HelpItem) {
     if (busy || !may || !languageId || !h.set) return;
     setBusy(true);
-    await sayAll(hideSet(h.set.set, ctx.language.state), t('getReady.helps.setOff', { name: guideShortName(h.set.set.name) }));
+    await sayAll(hideSet(h.set.set, ctx.language.state), isWordSet(h.set.set)
+      ? t('getReady.helps.wordSetOff', { name: h.set.set.name })
+      : t('getReady.helps.setOff', { name: guideShortName(h.set.set.name) }));
     setBusy(false);
   }
   return { items: out, toggle, chooseLanguage, setOff, busy, may, reads, languages, loading: guidesIncoming, get: docs.get };
@@ -331,7 +373,7 @@ function helpItemLine(x: HelpItem, items: readonly HelpItem[]): string {
   return x.on ? t('admin.checkRow.offered') : t('admin.checkRow.notOffered');
 }
 
-/** What a guide row says of its language: the set's languages chosen, or how many it comes in; a single guide's own. */
+/** What a guide or key-word row says of its language: the set's languages chosen, or how many it comes in; a single one's own. */
 function guideLanguageLine(h: HelpItem): string {
   if (h.set) return h.set.reach.length ? languagesLine(h.set.reach.map((m) => m.language)) : t('getReady.helps.inLanguages', { count: h.set.set.members.length });
   return languagesLine([docLanguage(h.doc)]);
@@ -462,127 +504,266 @@ function ReferenceLanguageStep({ ctx, lang, header, onDone }: StepProps & { onDo
   );
 }
 
+/** A "Goes with" filter in the search bar: the family it shows, the row whose link put it there, and that row's name. */
+interface GoesWith { family: string; key: string; name: string }
+
+const NO_LINKS: ReadonlyMap<string, number> = new Map();
+
+/**
+ * The search bar over a list of helps (decision 149): words typed, and a
+ * "Goes with" filter a row's related link puts in it; the two combine.
+ * Either one looks through everything, past the team's language, with what
+ * the organization does not have yet listed last (`helpSections`).
+ */
+function useHelpSearch(items: readonly HelpItem[]) {
+  const [query, setQuery] = useState('');
+  const [goesWith, setGoesWith] = useState<GoesWith | null>(null);
+  const searching = !!query.trim() || !!goesWith;
+  const found = searching ? searchHelps(items, query, goesWith?.family ?? null) : [];
+  const filter = goesWith ? {
+    filter: {
+      label: t('getReady.helps.goesWithFilter', { name: goesWith.name }), clearLabel: t('getReady.helps.clearGoesWith'),
+      clearHelp: t('getReady.helps.clearGoesWithHelp'), onClear: () => setGoesWith(null)
+    }
+  } : {};
+  const bar = (
+    <View style={{ gap: space.xs }}>
+      <SearchField value={query} onChangeText={setQuery} placeholder={t('getReady.helps.search')} help={t('getReady.helps.searchHelp')} {...filter} />
+      {goesWith ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('getReady.helps.familyNote', { name: goesWith.name })}</Text>
+        : searching ? <Text style={[txt.xs, { paddingHorizontal: space.xs }]}>{t('getReady.helps.searchHint')}</Text> : null}
+    </View>
+  );
+  /**
+   * Under a row: while "Goes with" filters the list, that it goes with the
+   * row the filter names; otherwise, on the row `links` names, how many
+   * related resources are on, a tap from showing only them.
+   */
+  const below = (x: HelpItem, name: string, links: ReadonlyMap<string, number>): ReactNode => {
+    if (goesWith) {
+      return x.key !== goesWith.key && x.family === goesWith.family
+        ? <View style={{ flexDirection: 'row' }}><Badge label={t('getReady.helps.goesWithFilter', { name: goesWith.name })} tone="brand" /></View>
+        : undefined;
+    }
+    const n = links.get(x.key);
+    return n && x.family ? <RowLink label={t('getReady.helps.relatedOn', { count: n })} help={t('getReady.helps.relatedHelp')}
+      onPress={() => setGoesWith({ family: x.family!, key: x.key, name })} /> : undefined;
+  };
+  /** Nothing found: what was typed, or the filter. */
+  const nothing = query.trim() ? t('common.nothingMatches', { query: query.trim() }) : t('reference.guides.nothingMatches');
+  return { query, searching, found, goesWith, bar, below, nothing };
+}
+
+/** A help's name as its row shows it, for a toast: "FIA study guides", "FIA key words", without the team's language. */
+function helpName(x: HelpItem, reads: string): string {
+  return x.kind === 'guide' ? t('getReady.helps.namedGuides', { name: guideShortName(x.name) }) : plainName(x.name, reads);
+}
+
+/** "302 words": a key-word set's, in the language chosen (nothing while it is off); a single list's own. */
+function wordsLine(x: HelpItem): string {
+  const count = x.set ? x.set.reach.reduce((n, m) => Math.max(n, m.passages), 0) : x.doc.format === 'material@1' ? x.doc.terms?.length ?? 0 : 0;
+  return count ? t('reference.words', { count }) : '';
+}
+
 function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLanguage: () => void }) {
   const languageId = ctx.language.languageId;
   const h = useHelpItems(ctx);
   const sheet = useSetSheet(h, lang);
   const numbering = useVerseNumbering(ctx);
   const comes = useComesWith(ctx);
-  // Only what is in the team's language, and what the team already has (decision 130 amended).
-  const offered = h.items.filter((x) => inTeamLanguage(x, h.languages));
-  const bibles = offered.filter((x) => x.kind === 'source');
-  const guides = offered.filter((x) => x.kind === 'guide');
-  const notes = offered.filter((x) => x.kind === 'note' || x.kind === 'other');
+  const search = useHelpSearch(h.items);
+  const reads = languageLabel(h.reads);
+  // Only what is in the team's language, and what the team already has (decision 130 amended); a search looks through everything.
+  const s = search.searching ? helpSections(search.found, true) : helpSections(h.items.filter((x) => inTeamLanguage(x, h.languages)), false);
+  const links = search.searching ? NO_LINKS : relatedLinks([...s.bibles, ...s.guides, ...s.words, ...s.notes], h.items);
+  const press = (x: HelpItem) => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item));
+  const onOff = (x: HelpItem) => (x.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'));
+  const bibleRow = (b: HelpItem, last: boolean) => {
+    const doc = b.doc as SourceDoc;
+    return (
+      <HelpRow key={b.key} of="getReady.bible">
+        <CheckRow label={`${languageLabel(doc.language)} · ${doc.abbreviation}`} sub={mediaText(mediaOf(doc, h.get))} checked={b.on} highlight={search.query} last={last}
+          disabled={!h.may || h.busy} onToggle={() => void h.toggle(b)} playLabel={t('admin.checkRow.hear', { name: b.name })} playHelp={t('getReady.helps.openBibleHelp')}
+          {...(b.itemId ? { onPlay: () => ctx.go('reference_source', { itemId: b.itemId!, languageId }) } : {})} />
+      </HelpRow>
+    );
+  };
+  const guideRow = (g: HelpItem, last: boolean) => {
+    const label = t('getReady.helps.namedGuides', { name: guideShortName(g.name) });
+    return (
+      <HelpRow key={g.key} of="getReady.guide">
+        <SwitchRow icon="star" label={label} highlight={search.query} sub={[fromLine(g), guideLanguageLine(g), onOff(g), comes(g)].filter(Boolean).join(' · ')}
+          on={g.on} disabled={!h.may || h.busy} help={helpItemLine(g, h.items)} onToggle={() => press(g)} last={last} below={search.below(g, label, links)} />
+      </HelpRow>
+    );
+  };
+  const wordRow = (x: HelpItem, last: boolean) => {
+    const label = plainName(x.name, reads);
+    return (
+      <HelpRow key={x.key} of="getReady.words">
+        <SwitchRow icon="key" iconColor={TINT.amberText} label={label} highlight={search.query} sub={[fromLine(x), guideLanguageLine(x), wordsLine(x), onOff(x)].filter(Boolean).join(' · ')}
+          on={x.on} disabled={!h.may || h.busy} help={helpItemLine(x, h.items)} onToggle={() => press(x)} last={last} below={search.below(x, label, links)} />
+      </HelpRow>
+    );
+  };
+  const noteRow = (x: HelpItem, last: boolean) => (
+    <HelpRow key={x.key} of="getReady.note">
+      <SwitchRow icon="note" label={x.name} highlight={search.query}
+        sub={[inLibrary(x) ? '' : fromLine(x), x.on ? t('getReady.helps.on') : t('getReady.helps.off'), languagesLine([docLanguage(x.doc)])].filter(Boolean).join(' · ')}
+        on={x.on} disabled={!h.may || h.busy} help={helpItemLine(x, h.items)} onToggle={() => press(x)} last={last} below={search.below(x, x.name, links)} />
+    </HelpRow>
+  );
+  const rowOf = (x: HelpItem, last: boolean) => (x.kind === 'source' ? bibleRow(x, last) : x.kind === 'guide' ? guideRow(x, last) : x.kind === 'words' ? wordRow(x, last) : noteRow(x, last));
   return (
     <Screen header={header} bodyStyle={PAD} footer={<PrimaryBtn label={t('common.next')} icon="right" help={t('getReady.nextHelp')} onPress={next} />}>
       <ReferenceLanguageChip languages={h.languages} onPress={onLanguage} />
       <Question>{questionLabel('helps')}</Question>
-      <SectionLabel label={t('getReady.helps.biblesTheyUnderstand')} />
-      <Group>
-        {bibles.map((b) => {
-          const doc = b.doc as SourceDoc;
-          return (
-            <HelpRow key={b.key} of="getReady.bible">
-              <CheckRow label={`${languageLabel(doc.language)} · ${doc.abbreviation}`} sub={mediaText(mediaOf(doc, h.get))} checked={b.on}
-                disabled={!h.may || h.busy} onToggle={() => void h.toggle(b)} playLabel={t('admin.checkRow.hear', { name: b.name })} playHelp={t('getReady.helps.openBibleHelp')}
-                {...(b.itemId ? { onPlay: () => ctx.go('reference_source', { itemId: b.itemId!, languageId }) } : {})} />
-            </HelpRow>
-          );
-        })}
-        <Row icon="search" label={t('getReady.helps.findBible')} sub={bibles.length ? undefined : t('getReady.helps.noneChosen')} last
-          help={t('getReady.helps.findBibleHelp')} onPress={() => ctx.go('reference_bibles', { languageId })} />
-      </Group>
-      {guides.length ? (
-        <Group>
-          {guides.map((g, i) => (
-            <HelpRow key={g.key} of="getReady.guide">
-              <SwitchRow icon="star" label={guides.length === 1 ? t('getReady.helps.studyGuides') : t('getReady.helps.namedGuides', { name: guideShortName(g.name) })}
-                sub={[guides.length === 1 ? guideShortName(g.name) : fromLine(g), guideLanguageLine(g), g.on ? t('getReady.helps.onInline') : t('getReady.helps.offInline'), comes(g)].filter(Boolean).join(' · ')}
-                on={g.on} disabled={!h.may || h.busy} help={helpItemLine(g, h.items)} onToggle={() => onHelpPress(g, h.items, sheet.open, (x) => void h.toggle(x))} last={i === guides.length - 1} />
-            </HelpRow>
-          ))}
-        </Group>
-      ) : h.loading ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : null}
-      {numbering.clash ? <NumberingNote clash={numbering.clash} onIgnore={numbering.ignore} /> : null}
-      {notes.length ? (
+      {search.bar}
+      {s.bibles.length || !search.searching ? (
         <>
-          <SectionLabel label={t('getReady.helps.notesForTranslators')} />
+          <SectionLabel label={t('getReady.helps.biblesTheyUnderstand')} />
           <Group>
-            {notes.map((x, i) => (
-              <HelpRow key={x.key} of="getReady.note">
-                <SwitchRow icon="note" label={x.name} sub={[x.on ? t('getReady.helps.on') : t('getReady.helps.off'), languagesLine([docLanguage(x.doc)])].join(' · ')} on={x.on} disabled={!h.may || h.busy}
-                  help={helpItemLine(x, h.items)} onToggle={() => void h.toggle(x)} last={i === notes.length - 1} />
-              </HelpRow>
-            ))}
+            {s.bibles.map((b, i) => bibleRow(b, search.searching && i === s.bibles.length - 1))}
+            {/* Finding another Bible belongs to the whole list, not to a search of it. */}
+            {!search.searching ? (
+              <Row icon="search" label={t('getReady.helps.findBible')} sub={s.bibles.length ? undefined : t('getReady.helps.noneChosen')} last
+                help={t('getReady.helps.findBibleHelp')} onPress={() => ctx.go('reference_bibles', { languageId })} />
+            ) : null}
           </Group>
         </>
       ) : null}
+      {s.guides.length ? (
+        <>
+          <SectionLabel label={t('getReady.helps.studyGuides')} />
+          <Group>{s.guides.map((g, i) => guideRow(g, i === s.guides.length - 1))}</Group>
+        </>
+      ) : h.loading && !search.searching ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : null}
+      {numbering.clash && !search.searching ? <NumberingNote clash={numbering.clash} onIgnore={numbering.ignore} /> : null}
+      {s.words.length ? (
+        <>
+          <SectionLabel label={t('getReady.page.keyWords')} />
+          <Group>{s.words.map((x, i) => wordRow(x, i === s.words.length - 1))}</Group>
+        </>
+      ) : null}
+      {s.notes.length ? (
+        <>
+          <SectionLabel label={t('getReady.helps.notesForTranslators')} />
+          <Group>{s.notes.map((x, i) => noteRow(x, i === s.notes.length - 1))}</Group>
+        </>
+      ) : null}
+      {s.notYet.length ? (
+        <>
+          <SectionLabel label={t('getReady.helps.notInLibrary')} />
+          <Group>{s.notYet.map((x, i) => rowOf(x, i === s.notYet.length - 1))}</Group>
+        </>
+      ) : null}
+      {search.searching && !search.found.length ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{search.nothing}</Text> : null}
       {!h.may ? <Banner icon="lock" title={t('common.viewOnly')} body={t('getReady.helps.viewOnly')} /> : null}
       {sheet.sheet}
     </Screen>
   );
 }
 
-/** Reference material, on a ready language: every kind of help with a switch each, Add more, and the organization's whole shelf (decision 138). */
+/**
+ * Reference material, on a ready language: every kind of help with a switch each, Add more, and the organization's whole shelf (decision 138),
+ * searched from a bar at the top, the team's own key terms beside the key-word lists (decision 149).
+ */
 function HelpsPage({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state!;
   const languageId = ctx.language.languageId;
   const lang = languageName(ctx.org.state, languageId);
   const h = useHelpItems(ctx);
   const sheet = useSetSheet(h, lang);
+  const search = useHelpSearch(h.items);
   const reads = languageLabel(h.reads);
   const [adding, setAdding] = useState(false);
   const terms = useMemo(() => keyTermsFor(state), [state]);
   const written = useMemo(() => materialsFor(state).filter((m) => m.kind !== 'questions' && m.kind !== 'key_terms' && m.kind !== 'fia_study'), [state]);
-  const switchRow = (x: HelpItem, last: boolean, sub: string) => (
-    <HelpRow key={x.key} of={`getReady.${x.kind}`}>
-      <SwitchRow label={plainName(x.name, reads)} sub={sub} on={x.on} disabled={!h.may || h.busy} help={helpItemLine(x, h.items)}
-        onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} />
-    </HelpRow>
-  );
+  // Only what is in the team's language, and what the team already has (decision 130 amended); a search looks through everything.
+  const s = search.searching ? helpSections(search.found, true) : helpSections(h.items.filter((x) => inTeamLanguage(x, h.languages)), false);
+  const links = search.searching ? NO_LINKS : relatedLinks([...s.bibles, ...s.guides, ...s.words, ...s.notes], h.items);
+  const switchRow = (x: HelpItem, last: boolean, sub: string) => {
+    const label = plainName(x.name, reads);
+    return (
+      <HelpRow key={x.key} of={`getReady.${x.kind}`}>
+        <SwitchRow label={label} sub={sub} on={x.on} highlight={search.query} disabled={!h.may || h.busy} help={helpItemLine(x, h.items)}
+          onToggle={() => onHelpPress(x, h.items, sheet.open, (item) => void h.toggle(item))} last={last} below={search.below(x, label, links)} />
+      </HelpRow>
+    );
+  };
+  const bibleRow = (b: HelpItem, last: boolean) => {
+    const doc = b.doc as SourceDoc;
+    return switchRow(b, last, `${languageLabel(doc.language)} · ${mediaText(mediaOf(doc, h.get), true)}`);
+  };
+  const guideRow = (g: HelpItem, last: boolean) => {
+    // A set counts the passages of the languages chosen; off, none.
+    const entries = g.set ? g.set.reach.reduce((n, m) => Math.max(n, m.passages), 0) : g.doc.format === 'collection@1' ? (g.doc as CollectionDoc).entries.length : 0;
+    return switchRow(g, last, [fromLine(g), guideLanguageLine(g), entries ? t('getReady.page.passagesCovered', { count: entries }) : ''].filter(Boolean).join(' · '));
+  };
+  const wordRow = (x: HelpItem, last: boolean) => switchRow(x, last, [fromLine(x), guideLanguageLine(x), wordsLine(x)].filter(Boolean).join(' · '));
+  const noteRow = (x: HelpItem, last: boolean) => switchRow(x, last, [x.owner, languagesLine([docLanguage(x.doc)])].filter(Boolean).join(' · '));
+  const rowOf = (x: HelpItem, last: boolean) => (x.kind === 'source' ? bibleRow(x, last) : x.kind === 'guide' ? guideRow(x, last) : x.kind === 'words' ? wordRow(x, last) : noteRow(x, last));
   const none = (label: string) => <Row label={label} sub={t('getReady.page.addToOffer')} muted last />;
-  // Only what is in the team's language, and what the team already has (decision 130 amended).
-  const offered = h.items.filter((x) => inTeamLanguage(x, h.languages));
-  const bibles = offered.filter((x) => x.kind === 'source');
-  const guides = offered.filter((x) => x.kind === 'guide');
-  const notes = offered.filter((x) => x.kind === 'note' || x.kind === 'other');
+  // While searching, the team's own key terms and the notes written here show when the words typed are in them; "Goes with" shows neither.
+  const showTerms = !search.goesWith && matchesWords(`${t('getReady.page.keyTerms')} ${t('getReady.page.keyWords')}`, search.query);
+  const ownNotes = search.goesWith ? [] : written.filter((m) => matchesWords(m.title, search.query));
   const rendered = terms.filter((term) => term.renderings.length > 0).length;
+  const found = search.found.length + ownNotes.length + (showTerms ? 1 : 0);
   const go = (to: Parameters<Ctx['go']>[0], params: Record<string, string>) => { setAdding(false); ctx.go(to, params); };
   return (
     <Screen header={<Header title={t('org.language.referenceMaterial')} sub={lang} onBack={ctx.back} />} bodyStyle={{ gap: space.sm }}
       footer={h.may ? <PrimaryBtn label={t('getReady.page.addMore')} icon="plus" help={t('getReady.page.addMoreHelp')} onPress={() => setAdding(true)} /> : undefined}>
       <ReferenceLanguageChip languages={h.languages} onPress={() => ctx.go('get_ready', { languageId, step: '2', only: '1', page: 'language' })} />
-      <SectionLabel label={t('getReady.page.bibles')} />
-      <Group>
-        {bibles.length ? bibles.map((b, i) => {
-          const doc = b.doc as SourceDoc;
-          return switchRow(b, i === bibles.length - 1, `${languageLabel(doc.language)} · ${mediaText(mediaOf(doc, h.get), true)}`);
-        }) : none(t('getReady.page.noBibles'))}
-      </Group>
-      <SectionLabel label={t('getReady.helps.studyGuides')} />
-      <Group>
-        {guides.length ? guides.map((g, i) => {
-          // A set counts the passages of the languages chosen; off, none.
-          const entries = g.set ? g.set.reach.reduce((n, m) => Math.max(n, m.passages), 0) : g.doc.format === 'collection@1' ? (g.doc as CollectionDoc).entries.length : 0;
-          return switchRow(g, i === guides.length - 1, [fromLine(g), guideLanguageLine(g), entries ? t('getReady.page.passagesCovered', { count: entries }) : ''].filter(Boolean).join(' · '));
-        }) : h.loading ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : none(t('getReady.page.noGuides'))}
-      </Group>
-      <SectionLabel label={t('getReady.page.keyWords')} />
-      <Group>
-        <Row label={t('getReady.page.keyTerms')} sub={t('getReady.page.keyTermsSub', { count: terms.length, rendered: formatNumber(rendered), language: lang })} last
-          help={t('getReady.page.keyTermsHelp')} onPress={() => ctx.go('key_terms', { languageId })} />
-      </Group>
-      <SectionLabel label={t('getReady.helps.notesForTranslators')} />
-      <Group>
-        {notes.map((x, i) => switchRow(x, i === notes.length - 1 && written.length === 0, [x.owner, languagesLine([docLanguage(x.doc)])].filter(Boolean).join(' · ')))}
-        {written.map((m, i) => (
-          <HelpRow key={m.materialId} of="getReady.writtenNote">
-            <Row label={m.title} sub={t('getReady.page.writtenHere')} last={i === written.length - 1} help={t('getReady.page.noteHelp')}
-              onPress={h.may ? () => ctx.go('material_editor', { materialId: m.materialId, languageId }) : undefined} />
-          </HelpRow>
-        ))}
-        {notes.length + written.length === 0 ? none(t('getReady.page.noNotes')) : null}
-      </Group>
+      {search.bar}
+      {s.bibles.length || !search.searching ? (
+        <>
+          <SectionLabel label={t('getReady.page.bibles')} />
+          <Group>{s.bibles.length ? s.bibles.map((b, i) => bibleRow(b, i === s.bibles.length - 1)) : none(t('getReady.page.noBibles'))}</Group>
+        </>
+      ) : null}
+      {s.guides.length || !search.searching ? (
+        <>
+          <SectionLabel label={t('getReady.helps.studyGuides')} />
+          <Group>
+            {s.guides.length ? s.guides.map((g, i) => guideRow(g, i === s.guides.length - 1))
+              : h.loading ? <Text style={txt.smMuted}>{t('getReady.helps.lookingForGuides')}</Text> : none(t('getReady.page.noGuides'))}
+          </Group>
+        </>
+      ) : null}
+      {s.words.length || showTerms ? (
+        <>
+          <SectionLabel label={t('getReady.page.keyWords')} />
+          <Group>
+            {/* The team's own words first, then the lists it is offered (FIA's key words). */}
+            {showTerms ? (
+              <Row label={t('getReady.page.keyTerms')} sub={t('getReady.page.keyTermsSub', { count: terms.length, rendered: formatNumber(rendered), language: lang })} last={!s.words.length}
+                help={t('getReady.page.keyTermsHelp')} onPress={() => ctx.go('key_terms', { languageId })} />
+            ) : null}
+            {s.words.map((x, i) => wordRow(x, i === s.words.length - 1))}
+          </Group>
+        </>
+      ) : null}
+      {s.notes.length || ownNotes.length || !search.searching ? (
+        <>
+          <SectionLabel label={t('getReady.helps.notesForTranslators')} />
+          <Group>
+            {s.notes.map((x, i) => noteRow(x, i === s.notes.length - 1 && ownNotes.length === 0))}
+            {ownNotes.map((m, i) => (
+              <HelpRow key={m.materialId} of="getReady.writtenNote">
+                <Row label={m.title} sub={t('getReady.page.writtenHere')} last={i === ownNotes.length - 1} help={t('getReady.page.noteHelp')}
+                  onPress={h.may ? () => ctx.go('material_editor', { materialId: m.materialId, languageId }) : undefined} />
+              </HelpRow>
+            ))}
+            {s.notes.length + ownNotes.length === 0 ? none(t('getReady.page.noNotes')) : null}
+          </Group>
+        </>
+      ) : null}
+      {s.notYet.length ? (
+        <>
+          <SectionLabel label={t('getReady.helps.notInLibrary')} />
+          <Group>{s.notYet.map((x, i) => rowOf(x, i === s.notYet.length - 1))}</Group>
+        </>
+      ) : null}
+      {search.searching && !found ? <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{search.nothing}</Text> : null}
       {/* Last, the organization's whole shelf (decision 138). */}
       {ctx.session.can('manage_reference') ? (
         <Group>

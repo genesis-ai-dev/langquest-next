@@ -4,7 +4,7 @@
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
 // lit, a note on a verse or a moment), key words (hear each, your word or
 // say yours, add a word), notes, and everything recorded so far.
-import { commands, keyTermsFor, RECORD_STEP, type KeyTermView, type NoteAnchor, type PassageNote } from '@langquest-next/core';
+import { commands, keyTermsFor, RECORD_STEP, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -15,7 +15,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Field, Ico, LinkBtn, PrimaryBtn, Sheet } from '../ui/kit';
+import { Field, Ico, LinkBtn, PrimaryBtn, SectionLabel, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { versionTitle, when, type PassageView } from '../passage/passageView';
 import { markTerms } from '../recording/workspaceModel';
@@ -43,6 +43,10 @@ import type { useBible } from './useBible';
 import { draftKey, EMPTY_NOTE, isNoteDraft, isRecord } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
+import { usePassageKeyWords } from '../keyTerms/usePassageKeyWords';
+import { KeyWordSheet } from '../keyTerms/KeyWordSheet';
+import { ListWordRow } from '../keyTerms/KeyWordRows';
+import { ownTermId, shortName, type KeyWordList, type WordHere } from '../keyTerms/listsModel';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
@@ -309,44 +313,115 @@ function voiceOf(term: KeyTermView): string | undefined {
  * The Key words chip (a-wsTerms): each word with where it is in the passage,
  * a listen icon that plays its verse, and the language's word: "Your word"
  * plays it, "Say yours" records it (TERM-5, adjustKeyTermRendering). A tap
- * on the word opens it (renderings, why, Tie to your draft).
+ * on the word opens it (renderings, why, Tie to your draft). Under the
+ * team's words, a section per key-word list the team uses ("From FIA ·
+ * English", decision 149): its words on this passage, each with its short
+ * meaning, the verses it is in and ▶ for the list's recording; a tap opens
+ * the word's sheet, where it can be made the team's own. A list's word the
+ * team already has shows with the team's words.
  */
 export function KeyWordsPane(props: {
   ctx: Ctx; v: PassageView; terms: KeyTermView[]; rows: VerseRow[] | null; draftTakeId: string | undefined;
   canTie: boolean; onHear: (verseKey: string | null) => void; allTerms?: () => void; disabled?: boolean;
   /** The Bible the verses are in ("WEB"), for Add a key word's verses. */
   bibleName?: string;
+  /** ISO 639-3: the language of `rows`, so a list in that language finds its words in them. */
+  bibleLanguage?: string;
 }) {
   const { ctx, v } = props;
   const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
   const [saying, setSaying] = useState<KeyTermView | null>(null);
   const [adding, setAdding] = useState(false);
+  const [opened, setOpened] = useState<WordHere | null>(null);
   const book = bookOf(v.title);
   const where = (term: KeyTermView): string[] => (props.rows ?? []).filter((r) => markTerms(r.text, [term]).some((p) => p.termId)).map((r) => r.key);
+  const fromLists = usePassageKeyWords(ctx, v.unitId, { rows: props.rows, rowsLanguage: props.bibleLanguage ?? null });
+  // The team's words here, and those a list places here that the team made its own elsewhere.
+  const terms = useMemo(() => {
+    const shown = new Set(props.terms.map((x) => x.termId));
+    return [...props.terms, ...fromLists.own.filter((x) => !shown.has(x.termId))];
+  }, [props.terms, fromLists.own]);
+  const sections = fromLists.lists
+    .map((list) => ({ list, words: fromLists.words.filter((w) => w.list === list) }))
+    .filter((s) => s.words.length > 0);
+  const hereLine = (w: WordHere): string => {
+    if (!w.verses.length) return t('keyTerms.lists.inPassage');
+    const verses = `${book} ${verseRefs(w.verses)}`;
+    return w.form ? t('keyTerms.lists.saidAs', { verses, form: w.form }) : verses;
+  };
   return (
     <View style={{ gap: space.md }}>
-      {props.terms.length === 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{canEdit ? t('reference.keyWords.noneAdd') : t('reference.keyWords.none')}</Text>
+      {canEdit ? <DashedBtn label={t('reference.keyWords.add')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.keyWords.addHint')} /> : null}
+      {terms.length === 0 ? (
+        sections.length ? null : <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{canEdit ? t('reference.keyWords.noneAdd') : t('reference.keyWords.none')}</Text>
       ) : (
-        <View style={styles.card}>
-          {props.terms.map((term, i) => {
-            const keys = where(term);
-            return (
-              <HelpRow key={term.termId} of="reference.keyWord">
-                <TermRow ctx={ctx} term={term} refs={keys.length ? `${book} ${verseRefs(keys)}` : term.gloss || t('reference.keyWords.elsewhere')} last={i === props.terms.length - 1}
-                  onHear={() => props.onHear(keys[0] ?? null)} canEdit={canEdit && !props.disabled} onSay={() => setSaying(term)}
-                  onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: term.termId, ...(props.draftTakeId ? { draftId: props.draftTakeId } : {}) })} />
-              </HelpRow>
-            );
-          })}
+        <View style={{ gap: space.sm }}>
+          {sections.length ? <SectionLabel label={t('keyTerms.lists.here')} /> : null}
+          <View style={styles.card}>
+            {terms.map((term, i) => {
+              const keys = where(term);
+              return (
+                <HelpRow key={term.termId} of="reference.keyWord">
+                  <TermRow ctx={ctx} term={term} refs={keys.length ? `${book} ${verseRefs(keys)}` : term.gloss || t('reference.keyWords.elsewhere')} last={i === terms.length - 1}
+                    onHear={() => props.onHear(keys[0] ?? null)} canEdit={canEdit && !props.disabled} onSay={() => setSaying(term)}
+                    onOpen={() => ctx.go('key_term_detail', { unitId: v.unitId, languageId: v.languageId, termId: term.termId, ...(props.draftTakeId ? { draftId: props.draftTakeId } : {}) })} />
+                </HelpRow>
+              );
+            })}
+          </View>
         </View>
       )}
-      {canEdit ? <DashedBtn label={t('reference.keyWords.add')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.keyWords.addHint')} /> : null}
+      {sections.map((s) => (
+        <View key={s.list.itemId} style={{ gap: space.sm }}>
+          <SectionLabel label={t('keyTerms.lists.from', { name: shortName(s.list), language: languageLabel(s.list.language) })}
+            action={<Text style={[txt.xsStrong, { color: C.primary }]}>{t('keyTerms.lists.words', { count: s.words.length })}</Text>} />
+          <View style={styles.card}>
+            {s.words.map((w, i) => (
+              <HelpRow key={w.word.id} of="reference.listWord">
+                <ListWordRow ctx={ctx} list={w.list} word={w.word} refs={hereLine(w)} last={i === s.words.length - 1} onOpen={() => setOpened(w)} />
+              </HelpRow>
+            ))}
+          </View>
+        </View>
+      ))}
       {props.allTerms ? <LinkBtn label={t('reference.keyWords.all')} style={{ alignSelf: 'center' }} help={t('reference.keyWords.allHelp')} onPress={props.allTerms} /> : null}
       {saying ? <SayYoursSheet ctx={ctx} v={v} term={saying} draftTakeId={props.draftTakeId} canTie={props.canTie} onClose={() => setSaying(null)} /> : null}
       {adding ? <AddWordSheet ctx={ctx} v={v} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''} onClose={() => setAdding(false)} /> : null}
+      {opened ? (
+        <ListWordSheet ctx={ctx} list={opened.list} word={opened.word} place={v} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''}
+          disabled={props.disabled} onClose={() => setOpened(null)}
+          {...(opened.verses.length ? { verses: { keys: opened.verses, book, onPlay: (key: string) => { setOpened(null); props.onHear(key); } } } : {})} />
+      ) : null}
     </View>
   );
+}
+
+/**
+ * A key-word list's word in its sheet (keyTerms/KeyWordSheet.tsx), with Add
+ * to our key words for someone who may edit key words (decision 149): the
+ * sheet gives way to Add a key word with the word, its short meaning and
+ * the list's id for it, so the team's word and the list's stay one word
+ * (`ownTermId`: FIA's t104 becomes `fia:t104`). `place` is the passage it is
+ * added on, or none.
+ */
+export function ListWordSheet(props: {
+  ctx: Ctx; list: KeyWordList; word: KeyWordDoc; place: WordPlace; onClose: () => void;
+  verses?: Parameters<typeof KeyWordSheet>[0]['verses'];
+  /** For Add a key word: the draft it may be tied to, and the passage's verses in a Bible ("WEB"). */
+  draftTakeId?: string | undefined; rows?: VerseRow[] | null; bibleName?: string;
+  /** Recording now: nothing can be added. */
+  disabled?: boolean;
+}) {
+  const { ctx, list } = props;
+  const canEdit = (ctx.session.can('fill_reference') || ctx.session.can('manage_reference')) && !props.disabled;
+  const [adding, setAdding] = useState<KeyWordDoc | null>(null);
+  if (adding) {
+    return (
+      <AddWordSheet ctx={ctx} v={props.place} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''} onClose={props.onClose}
+        prefill={{ term: adding.term, gloss: adding.gloss, taken: { termId: ownTermId(list, adding), term: adding.term } }} />
+    );
+  }
+  return <KeyWordSheet ctx={ctx} list={list} word={props.word} onClose={props.onClose} {...(props.verses ? { verses: props.verses } : {})} {...(canEdit ? { onAdd: setAdding } : {})} />;
 }
 
 function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boolean; canEdit: boolean; onHear: () => void; onSay: () => void; onOpen: () => void }) {
@@ -456,23 +531,42 @@ function isNewWordDraft(x: unknown): x is NewWordDraft {
 }
 
 /**
+ * Where a key word is added: the passage it is added on (the recorder, a
+ * study, a passage's helps), or, from the Key words screen, none (`unitId`
+ * null): then it is for every passage.
+ */
+export type WordPlace = Pick<PassageView, 'languageId' | 'language'> & {
+  unitId: string | null;
+  /** "Luke 13:31–35"; '' for none. */
+  title: string;
+  p: Pick<PassageState, 'latest'> | null;
+};
+
+/**
  * Add a key word (TERM-6; demo ADR-042 `KeyWord`): the word, with what the
  * organization's other languages already use in these verses offered first
  * (principle 14); then where it is in the passage, marked, and how other
  * languages say it, before saying or typing this language's own. A word
  * taken from another language keeps that language's id, so the two stay
- * one key term.
+ * one key term. `prefill` opens it with a key-word list's word in it
+ * (decision 149), its draft kept apart from a word typed from nothing.
  */
-function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | undefined; rows: VerseRow[] | null; bibleName: string; onClose: () => void }) {
-  const { ctx, v } = props;
+export function AddWordSheet(props: {
+  ctx: Ctx; v: WordPlace; draftTakeId: string | undefined; bibleName: string; onClose: () => void;
+  /** The passage's verses in a Bible (null while they load); not given where no Bible is open (a study guide). */
+  rows?: VerseRow[] | null;
+  prefill?: { term: string; gloss: string; taken: { termId: string; term: string } };
+}) {
+  const { ctx, v, prefill } = props;
   // What is typed, said or taken is kept as a draft only you see until Add the word (decision 127).
-  const draft = useDraft(draftKey('word', ctx.session.actorId, v.languageId, v.unitId, 'new'), EMPTY_WORD, isNewWordDraft);
+  const draft = useDraft(draftKey('word', ctx.session.actorId, v.languageId, v.unitId, prefill ? `new:${prefill.taken.termId}` : 'new'),
+    prefill ? { ...EMPTY_WORD, ...prefill } : EMPTY_WORD, isNewWordDraft);
   const { term, gloss, hash, rendering, taken } = draft.value;
   const put = (change: Partial<NewWordDraft>) => draft.set((d) => ({ ...d, ...change }));
   const [busy, setBusy] = useState(false);
   const others = useOtherLanguageTerms(ctx, true);
   const own = useMemo(() => (ctx.language.state ? keyTermsFor(ctx.language.state) : []), [ctx.language.state]);
-  const suggestions = useMemo(() => suggestedWords(others.languages, props.rows, own).slice(0, 6), [others.languages, props.rows, own]);
+  const suggestions = useMemo(() => suggestedWords(others.languages, props.rows ?? null, own).slice(0, 6), [others.languages, props.rows, own]);
   const word = term.trim();
   // A word taken from another language and not changed since.
   const from = taken && taken.term.toLowerCase() === word.toLowerCase() ? taken : null;
@@ -481,13 +575,13 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
   async function save() {
     const state = ctx.language.state;
     if (!state || busy || !ready) return;
-    const book = state.units[v.unitId]?.parentUnitId ?? v.unitId;
-    const duringTakeId = props.draftTakeId ?? v.p.latest?.takeId;
+    const book = v.unitId ? state.units[v.unitId]?.parentUnitId ?? v.unitId : null;
+    const duringTakeId = props.draftTakeId ?? v.p?.latest?.takeId;
     setBusy(true);
     try {
       // TERM-6: the word, how the language says it (said, typed or both), recorded as its first adjustment.
       await ctx.act(commands(state, indexesFor(state)).defineKeyTerm({
-        commandId: Crypto.randomUUID(), termId: from?.termId ?? `kt-${Crypto.randomUUID()}`, term, gloss, unitScope: [book],
+        commandId: Crypto.randomUUID(), termId: from?.termId ?? `kt-${Crypto.randomUUID()}`, term, gloss, unitScope: book ? [book] : [],
         // i18n-ignore: the term's first note is stored in the event log
         rendering, note: rendering.trim() ? `First rendering: ${rendering.trim()}.` : 'Said in a voice note.',
         ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {})
@@ -518,7 +612,7 @@ function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | u
       <Field value={gloss} onChangeText={(x) => put({ gloss: x })} placeholder={t('reference.keyWords.meaningPlaceholder')} autoCapitalize="sentences" />
       {word.length > 1 ? (
         <>
-          <WhereItIs rows={props.rows} book={bookOf(v.title)} word={word} bibleName={props.bibleName} missing={t('common.loading')} max={3} />
+          {v.unitId && props.rows !== undefined ? <WhereItIs rows={props.rows} book={bookOf(v.title)} word={word} bibleName={props.bibleName} missing={t('common.loading')} max={3} /> : null}
           <OthersSay ctx={ctx} items={say} loading={others.loading} word={word} />
         </>
       ) : null}

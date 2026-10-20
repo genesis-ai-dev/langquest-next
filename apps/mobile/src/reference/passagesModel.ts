@@ -198,6 +198,8 @@ export interface HelpRow {
   onSet?: (shown: boolean) => void;
   /** The key words to show as chips under this card, when it is the key words card. */
   terms?: Pick<KeyTermView, 'termId' | 'term'>[];
+  /** And the words of key-word lists the team uses that are on this passage (decision 149), after the team's. */
+  words?: { key: string; term: string }[];
 }
 
 /**
@@ -211,6 +213,8 @@ export function helpCards(c: {
   byId: Map<string, RefItem>; studies: { get(hash: string | null | undefined): LibraryDoc | null | undefined };
   guideFor: Map<string, string>; verseText: string; get: Get; detail: (bibleId: string) => Parameters<typeof sourceFacts>[2];
   notes: PassageNote[]; inApp: MaterialView[]; termsHere: Pick<KeyTermView, 'termId' | 'term'>[];
+  /** Key-word lists' words on this passage that the team has not made its own (keyTerms/listsModel.ts `wordsOnPassage`). */
+  wordsHere?: { key: string; term: string }[];
   onLink: (itemId: string, linked: boolean, message: string) => void;
 }): HelpRow[] {
   const studyFor = (itemId: string) => c.studies.get(c.guideFor.get(itemId));
@@ -253,10 +257,12 @@ export function helpCards(c: {
     const first = m.fields.find((f) => f.text?.trim())?.text;
     cards.push({ key: m.materialId, order: 2, icon: 'note', name: m.title, sub: t('reference.passage.placedInApp'), shown: true, preview: first ? { text: plain(first) } : null });
   }
-  if (c.termsHere.length) {
+  const words = c.wordsHere ?? [];
+  if (c.termsHere.length || words.length) {
     cards.push({
       key: 'terms', order: 5, icon: 'key', name: t('reference.passageText.keyWords'), shown: true,
-      sub: t('reference.passageText.keyWordsSub', { count: c.termsHere.length }), preview: null, terms: c.termsHere
+      sub: t('reference.passageText.keyWordsSub', { count: c.termsHere.length + words.length }), preview: null, terms: c.termsHere,
+      ...(words.length ? { words } : {})
     });
   }
   return cards.sort((a, b) => a.order - b.order);

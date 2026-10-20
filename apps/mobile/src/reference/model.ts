@@ -23,7 +23,7 @@ export function orgLevelCan(org: OrgState | null, profileId: string, p: Privileg
 /** Where a screen is: the organization, or one language (whose state is the open language's). */
 export type Level = { kind: 'org' } | { kind: 'language'; languageId: string };
 
-interface RecState {
+export interface RecState {
   /** The organization recommends it. */
   org: boolean;
   /** The language's own say, when it has one other than following the organization. */

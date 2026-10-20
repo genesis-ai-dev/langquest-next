@@ -81,7 +81,7 @@ import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { InviteSomeone } from '../invites/invite';
 import { refKindOf } from '../reference/model';
-import type { GuideSet } from '../reference/guideSets';
+import { isWordSet, setName as setBaseName, type GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
 import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguages } from '../reference/languages';
 import { ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
@@ -1990,15 +1990,21 @@ function useNewLanguageOffers(ctx: Ctx, readsAll: readonly string[], sets: reado
   const inSets = new Set(sets.flatMap((set) => set.members.map((m) => m.itemId ?? (m.shared ? sharedKey(m.shared) : ''))));
   const setRows: MaterialChoice[] = [...sets].sort((a, b) => fia(a.name) - fia(b.name)).flatMap((set) => {
     const member = memberIn(set, reads);
+    // A method's key words are a set of their own (decision 149), offered under Key words.
+    const words = isWordSet(set);
     return member ? [{
-      key: `set:${set.key}`, kind: 'guide' as const, itemId: member.itemId, shared: member.shared, name: member.name, set, member,
-      label: t('org.offers.guidesIn', { name: guideShortName(set.name), language: languageLabel(member.language) }),
-      sub: t('referenceLanguage.setPassages', { name: guideShortName(set.name), count: member.passages })
+      key: `set:${set.key}`, kind: words ? 'words' as const : 'guide' as const, itemId: member.itemId, shared: member.shared, name: member.name, set, member,
+      label: words
+        ? t('org.offers.wordsIn', { name: setBaseName(set.name), language: languageLabel(member.language) })
+        : t('org.offers.guidesIn', { name: guideShortName(set.name), language: languageLabel(member.language) }),
+      sub: words
+        ? t('referenceLanguage.setWords', { name: setBaseName(set.name), count: member.passages })
+        : t('referenceLanguage.setPassages', { name: guideShortName(set.name), count: member.passages })
     }] : [];
   });
   const kindOf = (doc: LibraryDoc | null): MaterialChoice['kind'] | null => {
     const k = refKindOf(doc);
-    return k === 'source' ? 'source' : k === 'guide' ? 'guide' : k === 'note' || k === 'other' ? 'note' : null;
+    return k === 'source' ? 'source' : k === 'guide' ? 'guide' : k === 'words' ? 'words' : k === 'note' || k === 'other' ? 'note' : null;
   };
   const row = (key: string, itemId: string | null, s: SharedItem | null, name: string, doc: LibraryDoc | null, kind: MaterialChoice['kind'], owner: string): MaterialChoice => ({
     key, kind, itemId, shared: s, name,
@@ -2020,8 +2026,10 @@ function useNewLanguageOffers(ctx: Ctx, readsAll: readonly string[], sets: reado
   // What is ticked until someone changes it: the organization's own Bible first, else the World English Bible; FIA's guides.
   const firstBy = (list: MaterialChoice[], rank: (n: string) => number) => [...list].sort((a, b) => rank(a.name) - rank(b.name))[0];
   const bible = firstBy(ownRows.filter((x) => x.kind === 'source'), web) ?? firstBy(sharedRows.filter((x) => x.kind === 'source'), web);
-  const guide = setRows[0] ?? firstBy(ownRows.filter((x) => x.kind === 'guide'), fia) ?? firstBy(sharedRows.filter((x) => x.kind === 'guide'), fia);
-  const suggested = new Set([bible?.key, guide?.key].filter((k): k is string => !!k));
+  const guide = setRows.find((x) => x.kind === 'guide') ?? firstBy(ownRows.filter((x) => x.kind === 'guide'), fia) ?? firstBy(sharedRows.filter((x) => x.kind === 'guide'), fia);
+  // The key words that go with the guides suggested come ticked with them (decision 149).
+  const words = guide?.set ? setRows.find((x) => x.set?.key === `${guide.set!.key}|words`) : undefined;
+  const suggested = new Set([bible?.key, guide?.key, words?.key].filter((k): k is string => !!k));
   return { items: may ? items : [], suggested, may, loading: !shared.loaded };
 }
 

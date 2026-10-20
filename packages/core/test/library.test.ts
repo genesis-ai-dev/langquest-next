@@ -5,7 +5,7 @@ import { foldLanguage as fold } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';
 import { buildOrgFixture, shuffle } from './fixtures';
 import { libraryItems, libraryItemView } from '../src/library';
-import { canonicalJson, validateDoc, withDeps, type CollectionDoc, type FlowDoc, type TemplateDoc } from '../src/libraryDocs';
+import { canonicalJson, validateDoc, withDeps, type CollectionDoc, type FlowDoc, type MaterialDoc, type TemplateDoc } from '../src/libraryDocs';
 import { libraryFlowId, selectFlowSpecs, selectTemplateSpecs, studyEntriesFor, templateUnits } from '../src/libraryApply';
 import { deriveFlow, unitPlace } from '../src/passage';
 import { languagePassages, buildIndexes } from '../src/indexes';
@@ -73,6 +73,21 @@ describe('documents', () => {
     expect(validateDoc(t)).toMatch(/deps/);
     expect(validateDoc(withDeps(t))).toBeNull();
     expect(validateDoc({ ...withDeps(t), bible: { ...t.bible!, passages: [{ ref: 'Ruth one' }] } })).toMatch(/readable ref/);
+  });
+
+  it('carry a key-word list with each word\'s meaning, recording and verses (decision 149)', () => {
+    const list: MaterialDoc = withDeps({
+      format: 'material@1', kind: 'key_terms', title: 'FIA key words (English)', language: 'eng', pattern: 'FIA', source: 'fia.bible', versification: H('e'),
+      terms: [{ id: 't104', term: 'prophet', gloss: 'a person who gives messages from God', match: ['prophets'], body: 'Gives [messages](#t91).', audio: { url: 'https://example.org/t104.mp3' }, links: [{ ref: 'LUK 13:31-35' }] }],
+      deps: []
+    });
+    expect(validateDoc(list)).toBeNull();
+    // A list from before words carried meanings still reads.
+    expect(validateDoc({ ...list, terms: [{ id: 'k1', term: 'grace', gloss: '' }] })).toBeNull();
+    expect(validateDoc({ ...list, terms: [{ id: 't1', term: 'x', gloss: 'y', links: [{ ref: 'Luke thirteen' }] }] })).toMatch(/ref/);
+    expect(validateDoc({ ...list, terms: [{ id: 't1', term: 'x', gloss: 'y', audio: {} }] })).toMatch(/audio/);
+    expect(validateDoc({ ...list, terms: [{ id: 't1', term: '', gloss: 'y' }] })).toMatch(/key word/);
+    expect(validateDoc({ ...list, pattern: 3 })).toMatch(/pattern/);
   });
 });
 
