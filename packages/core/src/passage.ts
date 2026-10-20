@@ -907,18 +907,29 @@ export function upNext(state: LanguageState, opts: { canRecord: boolean; canRevi
 
 export interface SourcedQuestion {
   q: QuestionSpec;
-  /** The check's own, as the language's team wrote them, or the asker's for this request. */
-  source: 'language' | 'request';
+  /**
+   * The check's own, as the language's team wrote them; from a question set
+   * in the library linked to the check (`v1.CheckHelpSet`); or the asker's
+   * for this request.
+   */
+  source: 'language' | 'library' | 'request';
   required: boolean;
+  /** A library question's suggested answer, shown to whoever asks it. */
+  answer?: string;
+  /** Where on the passage a library question is: `"3:16"`. */
+  at?: string;
 }
 
 /**
  * Questions for a kind of review (REV-2): the language's question-set
- * materials for the kind (`scope.stepId` = kind id), then the asker's own.
- * LangQuest's checks come with no questions (LAN-85): a team writes its own
- * on each check.
+ * materials for the kind (`scope.stepId` = kind id), then the questions of
+ * the library sets linked to the check that sit on this passage (worked out
+ * from their documents, `passageQuestions`, and passed in), then the
+ * asker's own. LangQuest's own checks come with no questions (LAN-85);
+ * a published set such as unfoldingWord's Translation Questions comes
+ * linked to the check its flow puts it on (decision 91, amended 2026-10-19).
  */
-export function questionsForKind(state: LanguageState, kindId: string, request?: RequestView): SourcedQuestion[] {
+export function questionsForKind(state: LanguageState, kindId: string, request?: RequestView, linked: readonly SourcedQuestion[] = []): SourcedQuestion[] {
   const out: SourcedQuestion[] = [];
   const sets = Object.entries(state.materials).filter(([, m]) => m.kind === 'questions' && m.scope.stepId === kindId && !m.scope.unitId)
     .sort(([a], [b]) => (a < b ? -1 : 1));
@@ -930,6 +941,8 @@ export function questionsForKind(state: LanguageState, kindId: string, request?:
       out.push({ q: { id: `${id}#${fieldId}`, text: body, type, ...(required ? { required } : {}) }, source: 'language', required });
     }
   }
+  const seen = new Set(out.map((x) => x.q.id));
+  for (const x of linked) if (!seen.has(x.q.id)) { seen.add(x.q.id); out.push({ ...x, source: 'library' }); }
   for (const q of request?.questions ?? []) out.push({ q, source: 'request', required: !!q.required });
   return out;
 }

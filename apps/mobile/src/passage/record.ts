@@ -516,6 +516,7 @@ function formatAnswer(type: QuestionSpec['type'], value: string): string {
 function questionSource(source: SourcedQuestion['source']): string {
   switch (source) {
     case 'language': return t('passage.record.questionFrom.language');
+    case 'library': return t('passage.record.questionFrom.library');
     case 'request': return t('passage.record.questionFrom.request');
   }
 }

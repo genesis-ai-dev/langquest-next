@@ -1,4 +1,4 @@
-import type { Card, EventPayloads, EventType } from './events';
+import type { Card, EventPayloads, EventType, ShownWhat } from './events';
 import { buildIndexes, type Indexes } from './indexes';
 import { TG_MATERIAL_ID } from './materials';
 import type { FlowSelection, LanguageState } from './state';
@@ -117,8 +117,15 @@ export interface Commands {
    * kinds the language lacks, then its steps as the language's own (the
    * `custom` prefix), so later edits stay with the language and nothing
    * follows the flow's new versions. `name` says where they came from.
+   * The helps it links to its checks and what each shows come too
+   * (`v1.CheckHelpSet`, `v1.CheckShowsSet`), where the language has not
+   * already set them.
    */
-  copyFlow(c: { commandId: string; name: string; kinds: readonly KindDef[]; steps: readonly { kindIds: readonly string[]; checkpoint?: boolean }[] }): EventSpec[];
+  copyFlow(c: {
+    commandId: string; name: string; kinds: readonly KindDef[]; steps: readonly { kindIds: readonly string[]; checkpoint?: boolean }[];
+    helps?: readonly { kindId: string; itemId: string }[];
+    shows?: readonly { kindId: string; what: ShownWhat; shown: boolean }[];
+  }): EventSpec[];
   /**
    * Put the language's flow back as it was (the Undo of choosing a flow or
    * saving steps): the flow it had chosen, whose steps were never removed
@@ -351,9 +358,16 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
           ...(k.withholdsContext ? { withholdsContext: true } : {}), ...(k.produces ? { produces: k.produces } : {})
         }) as RecordEvents['v1.ReviewKindDefined']
       }));
+      const used = new Set(c.steps.flatMap((st) => st.kindIds));
+      const helps = (c.helps ?? []).filter((h) => used.has(h.kindId) && state.checkHelps?.[h.kindId]?.[`item:${h.itemId}`] === undefined)
+        .map((h, i): EventSpec => ({ id: `${c.commandId}:help:${i}`, type: 'v1.CheckHelpSet', payload: { kindId: h.kindId, itemId: h.itemId, linked: true } }));
+      const shows = (c.shows ?? []).filter((x) => used.has(x.kindId) && state.checkShows?.[x.kindId]?.[x.what] === undefined)
+        .map((x, i): EventSpec => ({ id: `${c.commandId}:shows:${i}`, type: 'v1.CheckShowsSet', payload: { kindId: x.kindId, what: x.what, shown: x.shown } }));
       return [
         ...defined,
-        ...this.saveFlowSteps({ commandId: c.commandId, name: c.name, steps: c.steps.map((st) => ({ kindIds: [...st.kindIds], checkpoint: !!st.checkpoint })) })
+        ...this.saveFlowSteps({ commandId: c.commandId, name: c.name, steps: c.steps.map((st) => ({ kindIds: [...st.kindIds], checkpoint: !!st.checkpoint })) }),
+        ...helps,
+        ...shows
       ];
     },
 

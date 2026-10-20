@@ -1,3 +1,4 @@
+import { helpDocError, helpReferencedDocs, type HelpDoc } from './helpDocs';
 import type { KindDef, QuestionSpec } from './record';
 import { parseRef, type VersificationDoc } from './versification';
 
@@ -163,13 +164,25 @@ export function asTemplateV2(doc: TemplateDoc): TemplateDocV2 {
   };
 }
 
-/** A review flow (FLOW-1..3), carrying the kinds it uses so it travels whole. */
+/** What a check puts on its reviewer's screen (`v1.CheckShowsSet`, decision 130). */
+export const CHECK_SHOWS = ['bibleAudio', 'bibleText', 'guideAudio', 'guideText', 'terms', 'notes', 'earlier'] as const;
+
+/**
+ * A review flow (FLOW-1..3), carrying the kinds it uses so it travels whole,
+ * and what each check comes with: helps its reviewers see first and the
+ * questions it asks (library items, `v1.CheckHelpSet`), and what it shows
+ * (`v1.CheckShowsSet`). Copying the flow into a language writes those too.
+ * Flows of one `pattern` from one organization are one set, as a guide set is.
+ */
 export interface FlowDoc {
   format: 'flow@1';
   name: string;
   description: string;
   kinds: KindDef[];
   steps: { stepId: string; kindIds: string[]; checkpoint?: boolean }[];
+  helps?: { kindId: string; itemId: string }[];
+  shows?: { kindId: string; what: (typeof CHECK_SHOWS)[number]; shown: boolean }[];
+  pattern?: string;
   deps: string[];
 }
 
@@ -313,8 +326,12 @@ export interface SourceDoc {
   offline: 'allowed' | 'stream';
   copyright: { text?: string; audio?: string };
   license?: string;
-  /** The books it has, in canon order; `doc` is the book's `sourceBook@1` when it carries text, audio or timings here. */
-  books: { book: string; name: string; doc?: string }[];
+  /**
+   * The books it has, in canon order; `doc` is the book's `sourceBook@1` when it carries text, audio or timings here,
+   * and `alignment` its `alignment@1` when it is word-aligned. An alignment is not in `deps`, so a phone that came
+   * before alignments still reads the source; the server shares it with the source all the same (`_library_store`).
+   */
+  books: { book: string; name: string; doc?: string; alignment?: string }[];
   deps: string[];
 }
 
@@ -355,7 +372,7 @@ export interface TimingDoc {
   deps: string[];
 }
 
-export type LibraryDoc = TemplateDocV1 | TemplateDocV2 | FlowDoc | StudyDoc | StudyDoc2 | CollectionDoc | MaterialDoc | SourceDoc | SourceBookDoc | TimingDoc | VersificationDoc;
+export type LibraryDoc = TemplateDocV1 | TemplateDocV2 | FlowDoc | StudyDoc | StudyDoc2 | CollectionDoc | MaterialDoc | SourceDoc | SourceBookDoc | TimingDoc | VersificationDoc | HelpDoc;
 
 /** The library kind a document is published under. */
 export function kindOfDoc(doc: LibraryDoc): LibraryKind {
@@ -417,6 +434,9 @@ export function referencedDocs(doc: LibraryDoc): string[] {
       for (const c of doc.chapters) if (c.timing) out.add(c.timing);
       break;
     case 'timing@1': out.add(doc.versification); break;
+    case 'helpBook@1': case 'helps@1': case 'alignment@1': case 'contents@1':
+      for (const h of helpReferencedDocs(doc)) out.add(h);
+      break;
     default: break;
   }
   return [...out].sort();
@@ -521,6 +541,14 @@ export function validateDoc(value: unknown): string | null {
         if (!Array.isArray(s['kindIds']) || (s['kindIds'] as unknown[]).length === 0) return 'a step needs at least one kind';
         for (const k of s['kindIds'] as unknown[]) if (!kinds.has(k as string)) return `step kind ${String(k)} is not defined in the flow`;
       }
+      if (d['helps'] !== undefined && !(Array.isArray(d['helps']) && (d['helps'] as unknown[]).every((h) => isObj(h) && kinds.has(h['kindId'] as string) && str(h['itemId'])))) {
+        return 'helps name a kind of the flow and a library item';
+      }
+      if (d['shows'] !== undefined && !(Array.isArray(d['shows']) && (d['shows'] as unknown[]).every((h) => isObj(h) && kinds.has(h['kindId'] as string) &&
+        (CHECK_SHOWS as readonly unknown[]).includes(h['what']) && typeof h['shown'] === 'boolean'))) {
+        return 'shows name a kind of the flow, what it shows and whether';
+      }
+      if (!optStr(d['pattern'])) return 'pattern must be text';
       break;
     }
     case 'study@1':
@@ -574,7 +602,8 @@ export function validateDoc(value: unknown): string | null {
       if (!isObj(pv) || (pv['kind'] !== 'library' && !(pv['kind'] === 'biblebrain' && str(pv['bibleId'])))) return 'provider must be library or biblebrain with a bibleId';
       if (d['offline'] !== 'allowed' && d['offline'] !== 'stream') return 'offline must be allowed or stream';
       if (!isObj(d['copyright'])) return 'copyright must be an object';
-      if (!Array.isArray(d['books']) || !(d['books'] as unknown[]).every((b) => isObj(b) && /^[A-Z0-9]{3}$/.test(String(b['book'])) && str(b['name']) && (b['doc'] === undefined || isHash(b['doc'])))) {
+      if (!Array.isArray(d['books']) || !(d['books'] as unknown[]).every((b) => isObj(b) && /^[A-Z0-9]{3}$/.test(String(b['book'])) && str(b['name']) &&
+        (b['doc'] === undefined || isHash(b['doc'])) && (b['alignment'] === undefined || isHash(b['alignment'])))) {
         return 'books need a USFM code and a name';
       }
       break;
@@ -616,8 +645,11 @@ export function validateDoc(value: unknown): string | null {
         return 'moreMappedVerses must be pairs of refs';
       }
       return null;
-    default:
-      return `unknown document format ${String(d['format'])}`;
+    default: {
+      const help = helpDocError(d);
+      if (help === undefined) return `unknown document format ${String(d['format'])}`;
+      if (help) return help;
+    }
   }
   const want = referencedDocs(d as unknown as LibraryDoc);
   const have = [...(d['deps'] as string[])].sort();

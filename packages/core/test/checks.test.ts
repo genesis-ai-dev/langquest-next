@@ -188,6 +188,25 @@ describe('a ready-made flow', () => {
     p.apply('lead', specs);
     expect(deriveFlow(p.state()).steps).toMatchObject([{ kindIds: ['elder'], checkpoint: true }]);
   });
+
+  it('brings the helps and what each check shows, without undoing what the language set', () => {
+    const p = language();
+    const kinds = [{ id: 'team', name: 'Team check', description: '', usualReviewer: '' }, { id: 'village', name: 'Community check', description: '', usualReviewer: '' }];
+    const steps = [{ kindIds: ['team'] }, { kindIds: ['village'] }];
+    p.apply('lead', checkShowsSpecs(p.state(), { commandId: 'mine', kindId: 'village', what: 'notes', shown: false }));
+    const specs = commands(p.state()).copyFlow({
+      commandId: 'use', name: 'Checking Manual', kinds, steps,
+      helps: [{ kindId: 'team', itemId: 'notes.hin' }, { kindId: 'village', itemId: 'tq.hin' }, { kindId: 'gone', itemId: 'x' }],
+      shows: [{ kindId: 'village', what: 'bibleText', shown: false }, { kindId: 'village', what: 'notes', shown: true }]
+    });
+    p.apply('lead', specs);
+    expect(checkHelps(p.state(), 'team')).toEqual([{ itemId: 'notes.hin' }]);
+    expect(checkHelps(p.state(), 'village')).toEqual([{ itemId: 'tq.hin' }]);
+    expect(checkShows(p.state(), 'village')).toMatchObject({ bibleText: false, bibleAudio: true, notes: false });
+    // Copying it again writes no help or show twice.
+    const again = commands(p.state()).copyFlow({ commandId: 'again', name: 'Checking Manual', kinds, steps, helps: [{ kindId: 'team', itemId: 'notes.hin' }], shows: [{ kindId: 'village', what: 'bibleText', shown: false }] });
+    expect(again.filter((e) => e.type === 'v1.CheckHelpSet' || e.type === 'v1.CheckShowsSet')).toEqual([]);
+  });
 });
 
 describe('the Translator role', () => {

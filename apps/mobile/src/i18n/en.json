@@ -3655,7 +3655,8 @@
       },
       "questionFrom": {
         "language": "Language",
-        "request": "Asked for this review"
+        "request": "Asked for this review",
+        "library": "Questions for this passage"
       },
       "candidate": {
         "member": "Member",
@@ -5788,7 +5789,8 @@
       "source": {
         "language": "Language team",
         "fromName": "From {{name}}",
-        "fromWhoeverAsked": "From whoever asked"
+        "fromWhoeverAsked": "From whoever asked",
+        "library": "Questions for this passage"
       },
       "anchor": {
         "passage": "Whole passage",

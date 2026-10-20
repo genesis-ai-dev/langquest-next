@@ -5,6 +5,7 @@
  *   npm run library:seed -- [--fia-dir <dir>]... [--hosted]
  *   npm run library:seed -- --sources [--timings <dir>] [--bsb-text <file>]
  *   npm run library:seed -- --only <itemId>... [--dry-run | --hosted]
+ *   npm run library:seed -- --door43 [--door43-language <iso>]... [--share-door43] [--dry-run]
  *
  * The official LangQuest organization (`langquest`) hosts the starters:
  * the six standard versifications, Bible and FIA templates, the standard
@@ -41,6 +42,7 @@ import {
   type TemplateBook, type TemplateDocV1, type TemplateDocV2, type VersificationDoc
 } from '@langquest-next/core';
 import { FIA_ATTRIBUTION, fiaLanguages, fiaPericope, fiaStudyDoc } from './fia-adapter';
+import { buildDoor43, countingSink, diskSink, DOC_DIR, itemKind, measurePictures, reportLines } from './door43-seed';
 import { sourcesFor } from './sources-seed';
 
 export const SEED_ORG = { id: 'langquest', name: 'LangQuest' } as const;
@@ -454,7 +456,7 @@ const short = (value: unknown) => createHash('sha256').update(canonicalJson(valu
  * the order given, so a new version is the item's latest (the server
  * restamps them with its own clock, in the same order).
  */
-export function seedEvents(build: SeedBuild, now: number): AnyEvent[] {
+export function seedEvents(build: SeedBuild, now: number, opts: { unshared?: ReadonlySet<string> } = {}): AnyEvent[] {
   let counter = 0;
   const envelope = (id: string, type: string, payload: Record<string, unknown>) => ({
     id, type, orgId: SEED_ORG.id, streamId: ORG_STREAM, actorId: 'service', deviceId: 'library-seed',
@@ -463,7 +465,9 @@ export function seedEvents(build: SeedBuild, now: number): AnyEvent[] {
   const out: AnyEvent[] = [envelope(`seed:${SEED_ORG.id}:created`, 'v1.OrgCreated', { name: SEED_ORG.name })];
   for (const it of build.items) {
     const defined = { itemId: it.itemId, kind: it.kind, name: it.name, description: it.description };
-    const sharing = { itemId: it.itemId, kind: it.kind, shared: true, subscribable: true };
+    // Door43's items stay unshared until unfoldingWord gives its written OK; `--share-door43` shares them.
+    const open = !opts.unshared?.has(it.itemId);
+    const sharing = { itemId: it.itemId, kind: it.kind, shared: open, subscribable: open };
     out.push(envelope(`seed:${it.itemId}:defined:${short(defined)}`, 'v1.LibraryItemDefined', defined));
     out.push(envelope(`seed:${it.itemId}:${it.docHash}`, 'v1.LibraryVersionPublished', { itemId: it.itemId, kind: it.kind, docHash: it.docHash }));
     out.push(envelope(`seed:${it.itemId}:sharing:${short(sharing)}`, 'v1.LibrarySharingSet', sharing));
@@ -500,9 +504,34 @@ async function main(argv: string[]) {
   }
   const only = values('only');
   const build = only.length ? onlyItems(all, only) : all;
-  const events = seedEvents(build, Date.now());
+  const dry = argv.includes('--dry-run');
+
+  // unfoldingWord's published material from Door43 (scripts/door43-seed.ts): built into documents on disk,
+  // or only counted in a dry run, and published after LangQuest's own, which it depends on.
+  let door43: { order: string[]; items: SeedItem[] } | null = null;
+  if (argv.includes('--door43')) {
+    const v = (code: string) => {
+      const it = all.items.find((i) => i.itemId === `langquest.versification.${code}`)!;
+      return { hash: it.docHash, doc: all.documents.find((d) => d.hash === it.docHash)!.body as VersificationDoc };
+    };
+    const languages = values('door43-language');
+    const sink = dry ? countingSink() : diskSink(DOC_DIR);
+    const report = await buildDoor43({
+      sink, versifications: { eng: v('eng').hash, org: v('org').hash, engDoc: v('eng').doc },
+      ...(languages.length ? { only: (c) => languages.includes(c.language) } : {})
+    });
+    if (dry) report.pictures = await measurePictures(report.pictureUrls, console.log);
+    console.log(reportLines(report).join('\n'));
+    console.log(`door43: ${sink.unique.docs} distinct documents, ${(sink.unique.bytes / 1048576).toFixed(1)} MB`);
+    door43 = {
+      order: 'order' in sink ? (sink as { order: string[] }).order : [],
+      items: report.items.map((it) => ({ itemId: it.itemId, kind: itemKind(it), name: it.name, description: it.description, docHash: it.docHash }))
+    };
+  }
+  const unshared = new Set(argv.includes('--share-door43') ? [] : (door43?.items ?? []).map((i) => i.itemId));
+  const events = seedEvents({ documents: build.documents, items: [...build.items, ...(door43?.items ?? [])] }, Date.now(), { unshared });
   console.log(summary(build, events));
-  if (argv.includes('--dry-run')) return;
+  if (dry) return;
 
   const url = process.env['SUPABASE_URL'] ?? LOCAL_URL;
   if (!isLocalUrl(url) && !argv.includes('--hosted')) {
@@ -519,6 +548,17 @@ async function main(argv: string[]) {
     if (data !== d.hash) throw new Error(`the server named ${d.body.format} ${d.hash} ${String(data)}`);
   }
   console.log(`documents: ${build.documents.length} stored`);
+  if (door43) {
+    let n = 0;
+    for (const hash of door43.order) {
+      const body = readFileSync(join(DOC_DIR, `${hash}.json`), 'utf8');
+      const { data, error } = await db.rpc('library_seed_document', { p_org: SEED_ORG.id, p_body: body });
+      if (error) throw new Error(`library_seed_document ${hash}: ${error.message}`);
+      if (data !== hash) throw new Error(`the server named Door43 document ${hash} ${String(data)}`);
+      if (++n % 2000 === 0) console.log(`door43: ${n} of ${door43.order.length} documents stored`);
+    }
+    console.log(`door43: ${n} documents stored`);
+  }
 
   // The server stamps its own clock, in the order sent, and skips ids it already has.
   let appended = 0;

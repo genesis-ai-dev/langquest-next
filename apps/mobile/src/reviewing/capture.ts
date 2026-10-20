@@ -283,6 +283,7 @@ export function cleanSkips(questions: SourcedQuestion[], answers: Answers, skipp
 export function questionSource(q: SourcedQuestion, asker?: string): string {
   switch (q.source) {
     case 'language': return t('review.capture.source.language');
+    case 'library': return t('review.capture.source.library');
     case 'request': return asker ? t('review.capture.source.fromName', { name: asker }) : t('review.capture.source.fromWhoeverAsked');
   }
 }

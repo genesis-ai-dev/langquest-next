@@ -163,3 +163,20 @@ export function sourceLine(it: ReturnType<typeof libraryItemView>): string {
   }
   return n ? t('library.sourceLine.version', { version: n }) : t('library.sourceLine.notPublished');
 }
+
+/**
+ * Which documents to drop to bring the pieces on disk under `capBytes`:
+ * those not in `keep`, least lately used first, never one in `keep`
+ * (docStore.ts `evictDocs`; source audio does the same, sourceEvictions).
+ */
+export function evictionOrder(entries: Record<string, { bytes: number; at: number }>, keep: ReadonlySet<string>, capBytes: number): string[] {
+  let total = Object.values(entries).reduce((n, e) => n + e.bytes, 0);
+  const out: string[] = [];
+  const order = Object.entries(entries).filter(([k]) => !keep.has(k)).sort(([, a], [, b]) => a.at - b.at);
+  for (const [k, e] of order) {
+    if (total <= capBytes) break;
+    out.push(k);
+    total -= e.bytes;
+  }
+  return out;
+}
