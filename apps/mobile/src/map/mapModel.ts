@@ -103,7 +103,7 @@ export function toneLabel(tone: ChapterTone): string {
 export interface Entry {
   unitId: string;
   place: UnitPlace;
-  /** The passage as its line reads (decisions.md 140): what a list needs, never the whole record. */
+  /** The passage as its line reads (decisions.md 143): what a list needs, never the whole record. */
   s: PassageGlance;
 }
 

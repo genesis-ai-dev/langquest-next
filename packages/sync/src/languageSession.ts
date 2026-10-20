@@ -72,7 +72,7 @@ export interface LanguageStatus {
   /**
    * Each passage's line: what lists of passages read (Map, Progress, My
    * Work), so none of them needs every passage's record in memory
-   * (decisions.md 140). A new object whenever any line changed.
+   * (decisions.md 143). A new object whenever any line changed.
    */
   lines: PassageLines;
 }
@@ -109,7 +109,7 @@ export interface LanguageSessionOptions {
   scheduler?: { pollMs?: number };
   /**
    * Keep the language's recordings and file verdicts on disk, holding in
-   * memory only the passages `loadUnits` asks for (decisions.md 140).
+   * memory only the passages `loadUnits` asks for (decisions.md 143).
    */
   keepOnDisk?: boolean;
   /** The app's build: lines kept by another build are worked out again (`SyncClientOptions.build`). */
@@ -388,7 +388,7 @@ export class LanguageSession {
 
   /**
    * Hold these passages' recordings in memory: the one a screen shows and
-   * those next to it (decisions.md 140). Others stay on the phone's disk.
+   * those next to it (decisions.md 143). Others stay on the phone's disk.
    */
   async loadUnits(unitIds: readonly string[]): Promise<void> {
     await this.client.loadUnits(unitIds);
@@ -488,7 +488,7 @@ export class LanguageSession {
    * download waiting longest has, in minutes. A recording's age is from
    * when it was recorded (its event's clock) while its recording is in
    * memory, so it survives a restart; for a recording on disk
-   * (decisions.md 140), or a file no recording names, from when this
+   * (decisions.md 143), or a file no recording names, from when this
    * session first saw it. A language kept on disk answers with the upload
    * worker's last list, since the list is worked out from the phone's table.
    */

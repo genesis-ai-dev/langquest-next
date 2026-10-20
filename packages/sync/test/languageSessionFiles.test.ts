@@ -66,7 +66,7 @@ describe('LanguageSession: files arriving (performance-audit-app.md R2)', () => 
     const { files, counts } = countingFiles();
     const session = await openWith(files);
     session.start();
-    // start() reclaims, once its plan is read (decisions.md 140); a burst right after it is gathered into one more pass at the window's end.
+    // start() reclaims, once its plan is read (decisions.md 143); a burst right after it is gathered into one more pass at the window's end.
     await until(() => counts.reclaims === 1);
     const atStart = counts.reclaims;
     for (let i = 0; i < 300; i++) files.arrive(`h${i}`);

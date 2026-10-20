@@ -66,7 +66,8 @@ export class AgentOrg {
   }
 
   async access(profileId: string): Promise<OrgAccess | null> {
-    const org = await this.folder.orgState();
+    // The organization stream alone: /connect asks every organization of a person, and must not fold their languages (decisions.md 140).
+    const org = await this.folder.orgOnly();
     if (!org.members[profileId]) return null;
     return {
       orgId: this.orgId, name: org.org?.value.name ?? '',
@@ -80,7 +81,7 @@ export class AgentOrg {
   }
 
   async read(grant: Grant, q: AgentQuery): Promise<Answer<LanguageView[] | LanguageView['can'] | { passages: PassageListItem[]; nextAfter: string | null } | PassageDetail | ExternalValueOut | ReturnType<typeof externalValuesFor>>> {
-    if (q.op === 'languages') return yes(languagesFor(grant, await this.folder.orgState()));
+    if (q.op === 'languages') return yes(languagesFor(grant, await this.folder.orgOnly()));
     const held = await this.folder.languageState(q.languageId);
     const can = held ? languageAccess(grant, held.org, q.languageId) : null;
     if (!held || !can) return no({ status: 404, code: 'no_language', error: 'This token cannot open that language.' });
@@ -193,12 +194,12 @@ export class AgentOrg {
 
   /** Is the link open now: not revoked or expired, and its sharer can still record what it takes? */
   async linkOpen(link: ReviewLink): Promise<boolean> {
-    return linkIsOpen(link, await this.folder.orgState(), this.now());
+    return linkIsOpen(link, await this.folder.orgOnly(), this.now());
   }
 
   /** May this person take back a link someone else shared in the language? */
   async mayRevokeLink(profileId: string, link: ReviewLink): Promise<boolean> {
-    return mayRevokeLinks(await this.folder.orgState(), profileId, link.languageId);
+    return mayRevokeLinks(await this.folder.orgOnly(), profileId, link.languageId);
   }
 
   async linkInfo(link: ReviewLink): Promise<Answer<LinkView>> {

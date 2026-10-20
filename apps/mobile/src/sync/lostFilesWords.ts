@@ -16,7 +16,7 @@ export interface LostFilesWords {
   morePassages: number;
 }
 
-/** What the alert says, from the open language and the files lost. `view` comes from the phone's table for a language kept on disk (decisions.md 140). */
+/** What the alert says, from the open language and the files lost. `view` comes from the phone's table for a language kept on disk (decisions.md 143). */
 export function lostFilesWords(state: LanguageState, lost: readonly LostFile[], view: LostFilesView = lostFilesView(state, lost.map((l) => l.hash))): LostFilesWords {
   return {
     total: lost.length,

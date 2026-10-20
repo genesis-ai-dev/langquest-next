@@ -157,7 +157,7 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
   if (!state || !language.languageId || language.online === false || isRecording()) return;
   const store = language.blobs.store ?? (await getBlobStore());
   const idx = await loadIndex();
-  // The default scope comes worked out from the phone's table too (decisions.md 140).
+  // The default scope comes worked out from the phone's table too (decisions.md 143).
   const scope = new Set(language.blobs.scope);
   for (const u of language.blobs.keptUnits) scope.add(u);
 

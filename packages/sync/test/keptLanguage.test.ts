@@ -15,7 +15,7 @@ import { FakeServer } from '../src/testing/fakeServer';
  * A big language keeps each passage's records (recordings, versions,
  * reviews, notes, requests and the rest) and the file verdicts on the
  * phone, not in memory, and holds in memory only the passages a screen has
- * open, with a line per passage for lists (decisions.md 140). Why these tests: memory must shrink without the
+ * open, with a line per passage for lists (decisions.md 143). Why these tests: memory must shrink without the
  * phone's language ever differing from what folding everything in memory
  * gives, whatever order things arrive in, and without losing anything to a
  * dropped link, an old checkpoint or a redaction.
@@ -464,7 +464,7 @@ describe('a language that keeps its recordings on disk', () => {
 
   it('an update rolled back drops the checkpoint it cannot read, and rolled forward again keeps the language whole', async () => {
     // Why: a kept language's checkpoint leaves its passages out. A build from before (an update rolled back) read it
-    // as the whole language, showed passages empty and saved that, at the same reducer version (decisions.md 140).
+    // as the whole language, showed passages empty and saved that, at the same reducer version (decisions.md 143).
     const server = new FakeServer();
     const lead = await language(server, 20);
     const store = makeStore();

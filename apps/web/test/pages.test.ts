@@ -10,7 +10,7 @@ const keys = (o: Tree, prefix = ''): string[] => Object.entries(o).flatMap(([k, 
 const marked = (o: Tree): Tree => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'string' ? v.replace(/[^{}\s]+(?![^{]*\}\})/g, 'ж') : marked(v)]));
 
 /** Runs a page's inline script once, against stand-ins for the browser, and throws what it throws at load. */
-function runPageScript(script: string) {
+function runPageScript(script: string, given: Record<string, unknown> = {}) {
   const element = (): Record<string, unknown> => new Proxy({ addEventListener() {}, value: '', checked: false, hidden: false, innerHTML: '', textContent: '' }, {
     get: (t, k) => (k in t ? t[k as keyof typeof t] : element()),
     set: () => true
@@ -22,7 +22,8 @@ function runPageScript(script: string) {
     localStorage: storage, sessionStorage: storage,
     navigator: { clipboard: { writeText: async () => {} } },
     fetch: () => new Promise(() => {}),
-    window: { scrollTo() {} }
+    window: { scrollTo() {} },
+    ...given
   };
   new Function(...Object.keys(browser), script)(...Object.values(browser));
 }
@@ -76,6 +77,25 @@ describe('pages the Worker serves, in the reader’s language', () => {
       }
     });
   }
+
+  it('uses the session signed in on /connect even when the dashboard left an expired one', async () => {
+    // The dashboard's session in localStorage goes stale whenever the
+    // dashboard is closed. Signing in on /connect must not be undone by it.
+    const html = await connectPage({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, 'en').text();
+    const script = /<script>([\s\S]*)<\/script>/.exec(html)?.[1] ?? '';
+    const now = Math.floor(Date.now() / 1000);
+    const stored = (value: unknown) => ({ getItem: () => JSON.stringify(value), setItem() {}, removeItem() {} });
+    const sent: string[] = [];
+    runPageScript(script, {
+      localStorage: stored({ access_token: 'stale', expires_at: now - 60 }),
+      sessionStorage: stored({ access_token: 'fresh', expires_at: now + 3600 }),
+      fetch: (_url: string, init: { headers: Record<string, string> }) => {
+        sent.push(init.headers.authorization!);
+        return new Promise(() => {});
+      }
+    });
+    expect(sent).toEqual(['Bearer fresh']);
+  });
 
   it('has the same words in every language as in English', () => {
     const want = keys(PAGE_CATALOGS.en as unknown as Tree);

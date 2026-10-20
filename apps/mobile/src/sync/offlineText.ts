@@ -17,7 +17,7 @@ export function withStudy(u: UnitOffline, unitId: string): KeptOffline {
  * Counts for every kept passage, for marks on long lists. A passage missing
  * from the map is not kept. Shared by every row drawn from the same inputs.
  * Worked out from the phone's table after changes (useLanguage), not on
- * every draw (decisions.md 140).
+ * every draw (decisions.md 143).
  */
 export function keptOfflineMap(ctx: Ctx): Map<string, KeptOffline> {
   const counted = ctx.language.blobs.keptOffline;

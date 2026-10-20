@@ -175,7 +175,7 @@ export function MyWork(ctx: Ctx) {
 
   // Everything here is in the open language: its stream is the one on this phone.
   const languageId = ctx.languageId;
-  // Read off each passage's line (decisions.md 140), never every passage's record.
+  // Read off each passage's line (decisions.md 143), never every passage's record.
   const lines = ctx.language.lines;
   const lists = useMemo(() => {
     if (!state) return null;

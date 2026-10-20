@@ -6,7 +6,7 @@ import type { Ctx } from '../shell/ctx';
 import type { IconName } from '../ui/kit';
 import { forYouIds, nextPassage } from './mapModel';
 
-/** Passages with something for this person on My Work: marked on the map, not listed (ADR-017). Read off the lines (decisions.md 140). */
+/** Passages with something for this person on My Work: marked on the map, not listed (ADR-017). Read off the lines (decisions.md 143). */
 export function useForYou(ctx: Ctx, state: LanguageState | null): Set<string> {
   const canRecord = ctx.session.can('translate');
   const canReview = ctx.session.can('review');

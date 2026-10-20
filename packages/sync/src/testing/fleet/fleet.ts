@@ -50,7 +50,7 @@ export interface FleetOptions {
    */
   unlistedUntil?: number;
   /**
-   * Phones that keep the language on disk (decisions.md 140): every one, or
+   * Phones that keep the language on disk (decisions.md 143): every one, or
    * every other one, so the fleet's agreement covers both kinds of phone.
    */
   keepOnDisk?: boolean | 'half';

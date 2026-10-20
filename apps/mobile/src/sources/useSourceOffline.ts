@@ -20,7 +20,7 @@ export function useSourceOffline(language: LanguageHandle, org: OrgHandle, sessi
   const revision = language.revision;
   const libraryKey = org.state ? Object.keys(org.state.recommendations ?? {}).length + ':' + Object.keys(org.state.library ?? {}).length : '';
   const kept = [...language.blobs.keptUnits].sort().join(',');
-  // The default scope comes worked out from the phone's table (decisions.md 140), so a pass runs when it changes.
+  // The default scope comes worked out from the phone's table (decisions.md 143), so a pass runs when it changes.
   const scope = [...language.blobs.scope].sort().join(',');
 
   useEffect(() => {

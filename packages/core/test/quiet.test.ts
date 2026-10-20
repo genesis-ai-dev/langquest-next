@@ -3,7 +3,8 @@ import type { AnyEvent } from '../src/events';
 import { buildIndexes } from '../src/indexes';
 import { unitTitle, updatesFor } from '../src/passage';
 import { languageProgress } from '../src/passageLines';
-import { eventsThatCannotChangeInbox, onlyQuietEvents } from '../src/quiet';
+import { eventsThatCannotChangeInbox, eventsThatCannotChangeReport, onlyEventsThatLeaveTheReport, onlyQuietEvents } from '../src/quiet';
+import { reportInputs } from '../src/reports';
 import { foldLanguage } from '../src/reducer';
 import { emptyLanguageState, type LanguageState } from '../src/state';
 import { buildFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
@@ -49,6 +50,26 @@ describe('eventsThatCannotChangeInbox (decisions.md 68)', () => {
       }),
       { numRuns: 300 }
     );
+  });
+
+  it('a tail of only report-quiet events leaves the report inputs unchanged too (decisions.md 142)', () => {
+    // Why: the pass skips folding a language whose new events are all of
+    // these, so its stored report inputs must not have needed them.
+    const reportQuiet = language.filter((e) => eventsThatCannotChangeReport.has(e.type));
+    const reportLoud = language.filter((e) => !eventsThatCannotChangeReport.has(e.type));
+    const asOf = Date.UTC(2026, 9, 1);
+    const pick = (pool: AnyEvent[]) => fc.shuffledSubarray(pool, { minLength: 0, maxLength: pool.length });
+    fc.assert(
+      fc.property(pick(reportLoud), pick(reportQuiet), pick(reportQuiet), (loudPart, before, tail) => {
+        const wanted = reportInputs(foldLanguage([...loudPart, ...before], emptyLanguageState()), asOf);
+        expect(reportInputs(foldLanguage([...loudPart, ...before, ...tail], emptyLanguageState()), asOf)).toEqual(wanted);
+      }),
+      { numRuns: 300 }
+    );
+    expect(reportQuiet.length).toBeGreaterThan(0);
+    // Every report-quiet type is quiet for the Inbox; an upload never is quiet for the report.
+    for (const t of eventsThatCannotChangeReport) expect(eventsThatCannotChangeInbox.has(t), t).toBe(true);
+    expect(onlyEventsThatLeaveTheReport([{ type: 'v1.BlobStored' }])).toBe(false);
   });
 
   it('the people checked are not empty, and the loud events do change the rows', () => {

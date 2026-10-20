@@ -8,7 +8,7 @@ const LAUNCH = `launch:${Date.now()}`;
 /**
  * This build of the app: the commit a web page was built from, or a
  * phone's runtime and update. What the phone keeps that this code works
- * out (a passage's line, decisions.md 140) is worked out again under a new
+ * out (a passage's line, decisions.md 143) is worked out again under a new
  * one, so an update that reads a passage differently reaches every passage
  * with no migration.
  */

@@ -56,4 +56,36 @@ describe('cloudflare deploy', () => {
       }
     }
   });
+
+  // The job runner (docs/server-jobs.md, decisions.md 141).
+  it('runs the job container in both environments, one instance per job, through the object that locks each', () => {
+    const config = parseJsonc(read('apps/web/wrangler.jsonc'));
+    for (const env of ['production', 'preview']) {
+      const c = wranglerFor(config, env);
+      expect(c.containers, env).toEqual([
+        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 2, constraints: { regions: ['ENAM'] } }
+      ]);
+      expect(c.durable_objects?.bindings, env).toContainEqual({ name: 'JOBS', class_name: 'JobRunner' });
+    }
+    // The job tick starts the jobs; preview never imports from v2.
+    expect(config.triggers.crons).toContain('*/5 * * * *');
+    expect(wranglerFor(config, 'production').vars?.V2_IMPORT_ENABLED).toBe('true');
+    expect(wranglerFor(config, 'preview').vars?.V2_IMPORT_ENABLED).toBe('false');
+    for (const env of ['production', 'preview']) expect(wranglerFor(config, env).vars?.API_URL, env).toBe(`https://${wranglerFor(config, env).routes[0].pattern}`);
+    const classes = (config.migrations as { new_sqlite_classes?: string[] }[]).flatMap((m) => m.new_sqlite_classes ?? []);
+    expect(classes).toContain('JobRunner');
+  });
+
+  it('builds the job image from bundles alone, never installing the dependency tree beside the key', () => {
+    // Its instructions, without the comments that explain them.
+    const dockerfile = read('apps/web/jobs/Dockerfile').split('\n').filter((l) => !l.startsWith('#')).join('\n');
+    expect(dockerfile).not.toMatch(/\b(npm|npx|yarn|pnpm|corepack)\b/);
+    // The one system package: psql, for the v2 import's people (server/v2.ts).
+    expect(dockerfile.match(/^RUN .*/gm)).toEqual([expect.stringMatching(/^RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client && /)]);
+    expect(dockerfile).toMatch(/^COPY dist\/ /m);
+    // The bundles are built before every deploy and dev run, not committed.
+    const scripts = (JSON.parse(read('apps/web/package.json')) as { scripts: Record<string, string> }).scripts;
+    for (const name of ['dev', 'build', 'build:preview']) expect(scripts[name], name).toContain('build-jobs.mjs');
+    expect(read('.gitignore')).toContain('apps/web/jobs/dist/');
+  });
 });

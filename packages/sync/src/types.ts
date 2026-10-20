@@ -22,7 +22,7 @@ export interface WriteBatch {
 
 /**
  * One record a big language keeps on the phone rather than in memory
- * (decisions.md 140): an entry of a map the language is cut into by
+ * (decisions.md 143): an entry of a map the language is cut into by
  * passage (a recording, a take, a review, a note; core `PASSAGE_PARTS`),
  * the server's verdict on an audio file (`file`), which record names an
  * audio file (`audio`), or a passage's line for lists (`line`). `json` is

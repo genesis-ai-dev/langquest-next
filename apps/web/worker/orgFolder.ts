@@ -1,6 +1,6 @@
 import {
   emptyLanguageState, emptyOrgState, foldLanguage, foldOrg, languageInfo, languageReport, mayViewLanguage, ORG_STREAM, orgLanguages,
-  REDUCER_VERSION, REPORT_VERSION, type AnyEvent, type LanguageReport, type LanguageState, type OrgState
+  REDUCER_VERSION, renderLanguageReport, REPORT_VERSION, type AnyEvent, type LanguageReport, type LanguageState, type OrgState, type ReportInputs
 } from '@langquest-next/core';
 import { fetchSnapshot, type Transport } from '@langquest-next/sync';
 import type { OrgReportsResponse } from '@langquest-next/core';
@@ -13,7 +13,19 @@ export type Source = Pick<Transport, 'pull' | 'snapshotMeta' | 'snapshotChunk'> 
    * stream's tail to find out whether it moved.
    */
   heads?(orgId: string): Promise<Record<string, number>>;
+  /**
+   * The report inputs the projection pass stored for this REPORT_VERSION
+   * (`language_report_inputs`, decisions.md 142): each language's stream
+   * position and when they were written, in one query. Optional: without
+   * it, or for a language it does not list, the report is folded.
+   */
+  reportHeads?(orgId: string): Promise<Record<string, StoredInputs>>;
+  /** One language's stored report inputs, or null when there are none for this REPORT_VERSION. */
+  reportInputs?(orgId: string, languageId: string): Promise<(StoredInputs & { inputs: ReportInputs }) | null>;
 };
+
+/** Where a language's stored report inputs stand: the stream position they were extracted at, and when (ms). */
+export interface StoredInputs { seq: number; at: number }
 
 /**
  * Text the folder keeps across evictions: the object's own SQLite in
@@ -49,6 +61,13 @@ export const STATE_BUDGET_BYTES = 12_000_000;
 /** A language whose fold is at least this big is refreshed alone; smaller ones run PARALLEL at a time. */
 export const LARGE_STATE_BYTES = 2_000_000;
 const PAGE = 1000;
+/**
+ * A catch-up folds a language whose stored report inputs are behind its
+ * stream only up to this many events (decision 142): about 7 MB of fold at
+ * the sizes decision 132 measured, inside its budget. A larger one answers
+ * from its stored inputs until the next projection pass.
+ */
+export const FOLD_ON_CATCH_UP_EVENTS = 25_000;
 const PARALLEL = 4;
 
 /** Memory limits; tests set small ones. */
@@ -79,6 +98,10 @@ interface Summary {
   report: LanguageReport | null;
   /** Serialized size of the fold when the summary was made; decides whether a pass refreshes the language alone. Absent in summaries written before it existed (treated as large). */
   bytes?: number;
+  /** Rendered from the inputs the projection pass stored, not from a fold here; `cursor` is the inputs' stream position. */
+  fromInputs?: true;
+  /** How current the report is (ms): the inputs' writing when the stream has moved past them. Absent: as of the pass. */
+  asOf?: number;
 }
 
 const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
@@ -102,6 +125,8 @@ export class OrgFolder {
   private readonly saved = new Map<string, number>();
   private restored = false;
   private refreshedAt = 0;
+  /** When orgOnly last caught the organization stream up. */
+  private orgCheckedAt = 0;
   private running: Promise<void> | null = null;
   private queued: Promise<void> | null = null;
   private chain: Promise<unknown> = Promise.resolve();
@@ -134,12 +159,17 @@ export class OrgFolder {
     await this.refresh(fresh);
     const org = this.org!.state;
     const rows: OrgReportsResponse['rows'] = [];
+    // The oldest figures shown: a report rendered from inputs the stream has since passed is as of their writing.
+    let asOf = this.refreshedAt;
     for (const { languageId } of orgLanguages(org)) {
-      const report = this.summaries.get(languageId)?.report;
-      if (report && mayViewLanguage(org, profileId, languageId)) rows.push({ languageId, report });
+      const summary = this.summaries.get(languageId);
+      if (summary?.report && mayViewLanguage(org, profileId, languageId)) {
+        rows.push({ languageId, report: summary.report });
+        asOf = Math.min(asOf, summary.asOf ?? this.refreshedAt);
+      }
     }
     if (rows.length === 0 && !this.knows(profileId)) return null;
-    return { rows, asOf: new Date(this.refreshedAt).toISOString() };
+    return { rows, asOf: new Date(asOf).toISOString() };
   }
 
   /** Is this person in the organization at all (any membership, active or not)? */
@@ -154,17 +184,17 @@ export class OrgFolder {
    */
   refresh(force = false): Promise<void> {
     if (!force && this.org && this.now() - this.refreshedAt < this.maxAgeMs) return Promise.resolve();
-    if (!this.running) return this.start();
+    if (!this.running) return this.start(force);
     if (!force) return this.running;
     this.queued ??= this.running.catch(() => undefined).then(() => {
       this.queued = null;
-      return this.start();
+      return this.start(true);
     });
     return this.queued;
   }
 
-  private start(): Promise<void> {
-    this.running = this.exclusive(() => this.pass()).finally(() => { this.running = null; });
+  private start(force: boolean): Promise<void> {
+    this.running = this.exclusive(() => this.pass(force)).finally(() => { this.running = null; });
     return this.running;
   }
 
@@ -201,20 +231,42 @@ export class OrgFolder {
     });
   }
 
-  private async pass(): Promise<void> {
-    const startedAt = this.now();
-    const day = isoDay(startedAt);
-    const heads = (await this.source.heads?.(this.orgId)) ?? null;
+  /**
+   * The organization stream alone, caught up when older than a pass would
+   * be, without folding any language: who belongs, with which role, in
+   * which languages. Access checks need nothing more. A full pass folds
+   * every language first, and a language too big to fold inside the
+   * isolate made /connect answer 502 for its whole organization
+   * (2026-10-19, decisions.md 141).
+   */
+  async orgOnly(): Promise<OrgState> {
+    if (this.org && this.now() - Math.max(this.refreshedAt, this.orgCheckedAt) < this.maxAgeMs) return this.org.state;
+    return this.exclusive(async () => {
+      const checkedAt = this.now();
+      await this.catchUpOrg((await this.source.heads?.(this.orgId)) ?? null);
+      this.orgCheckedAt = checkedAt;
+      return this.org!.state;
+    });
+  }
+
+  /** Restore the organization's fold once, then fold what the log has past it, when the log moved (or its head is unknown). */
+  private async catchUpOrg(heads: Record<string, number> | null): Promise<void> {
     if (!this.restored) {
       this.org = await this.restore<OrgState>('org');
       this.restored = true;
     }
     const orgMoved = !this.org || heads === null || (heads[ORG_STREAM] ?? 0) > this.org.cursor;
-    if (orgMoved) {
-      const next = await this.catchUp(ORG_STREAM, this.org, emptyOrgState, foldOrg);
-      if (next !== this.org && next.cursor > 0) await this.cache.put('org', this.pack(next));
-      this.org = next;
-    }
+    if (!orgMoved) return;
+    const next = await this.catchUp(ORG_STREAM, this.org, emptyOrgState, foldOrg);
+    if (next !== this.org && next.cursor > 0) await this.cache.put('org', this.pack(next));
+    this.org = next;
+  }
+
+  private async pass(force: boolean): Promise<void> {
+    const startedAt = this.now();
+    const day = isoDay(startedAt);
+    const heads = (await this.source.heads?.(this.orgId)) ?? null;
+    await this.catchUpOrg(heads);
     const ids = orgLanguages(this.org!.state).map((l) => l.languageId);
     // Small languages run PARALLEL at a time; a large one (by the size its
     // last summary recorded) runs alone, since one parsed fold can fill the
@@ -226,7 +278,10 @@ export class OrgFolder {
       const restored = await this.restoreSummary(id);
       if (restored) this.summaries.set(id, restored);
     }
-    const run = (id: string) => this.refreshLanguage(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt);
+    // What the projection pass stored (decisions.md 142). Before its table
+    // exists, or when the read fails, every language is folded as before.
+    const stored = this.source.reportHeads ? await this.source.reportHeads(this.orgId).catch(() => null) : null;
+    const run = (id: string) => this.refreshLanguage(id, heads ? (heads[id] ?? 0) : undefined, day, startedAt, stored?.[id], force);
     let batch: string[] = [];
     const flush = async () => {
       const now = batch;
@@ -234,7 +289,8 @@ export class OrgFolder {
       await Promise.all(now.map(run));
     };
     for (const id of ids) {
-      if (this.isLarge(id)) {
+      // Rendering stored inputs folds nothing, so it never needs to run alone.
+      if (!stored?.[id] && this.isLarge(id)) {
         await flush();
         await run(id);
       } else {
@@ -251,13 +307,43 @@ export class OrgFolder {
     return bytes === undefined || bytes >= this.largeState;
   }
 
-  /** Bring one language's summary up to date, folding only when it moved, the day turned or the organization changed. */
-  private async refreshLanguage(id: string, head: number | undefined, day: string, at: number): Promise<void> {
+  /**
+   * Bring one language's summary up to date. With inputs the projection pass
+   * stored, render the report from them (decisions.md 142), reading them
+   * again only when they moved, the day turned or the organization changed;
+   * otherwise fold, only when the language moved, the day turned or the
+   * organization changed.
+   */
+  private async refreshLanguage(id: string, head: number | undefined, day: string, at: number, stored?: StoredInputs, force = false): Promise<void> {
     const org = this.org!;
     const summary = this.summaries.get(id) ?? (await this.restoreSummary(id));
     if (summary) this.summaries.set(id, summary);
+    // Stored inputs serve unless a fold here is newer than they are, or a
+    // catch-up (`fresh`, "Catch up with the server") finds them behind the
+    // stream: then a language small enough is folded now, as before 142, and
+    // a larger one still answers from them, saying how old they are.
+    const foldedFurther = !!summary && !summary.fromInputs && !!stored && summary.cursor > stored.seq;
+    const catchUp = force && !!stored && head !== undefined && stored.seq < head && head <= FOLD_ON_CATCH_UP_EVENTS;
+    if (stored && this.source.reportInputs && !foldedFurther && !catchUp) {
+      const asOf = (s: StoredInputs) => (head !== undefined && s.seq >= head ? at : s.at);
+      if (summary?.fromInputs && summary.day === day && summary.orgCursor === org.cursor && summary.cursor === stored.seq) {
+        summary.asOf = asOf(stored);
+        return;
+      }
+      const read = await this.source.reportInputs(this.orgId, id);
+      if (read) {
+        const info = languageInfo(org.state, id);
+        const next: Summary = {
+          cursor: read.seq, orgCursor: org.cursor, day, report: info ? renderLanguageReport(read.inputs, info, at) : null,
+          fromInputs: true, asOf: asOf(read)
+        };
+        this.summaries.set(id, next);
+        await this.cache.put(`summary:${id}`, JSON.stringify({ v: REDUCER_VERSION, rv: REPORT_VERSION, ...next }));
+        return;
+      }
+    }
     let peeked: AnyEvent[] | undefined;
-    if (summary && summary.day === day && summary.orgCursor === org.cursor) {
+    if (summary && !summary.fromInputs && summary.day === day && summary.orgCursor === org.cursor) {
       if (head !== undefined && head <= summary.cursor) return;
       if (head === undefined) {
         peeked = await this.pullAll(id, summary.cursor);

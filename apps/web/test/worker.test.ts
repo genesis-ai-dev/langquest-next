@@ -1,7 +1,10 @@
 import { DatabaseSync } from 'node:sqlite';
-import { encodeHlc, REDUCER_VERSION, REPORT_VERSION, SEED_ROLES, takeSnapshot, type AnyEvent, type OrgReportsResponse } from '@langquest-next/core';
+import {
+  emptyLanguageState, encodeHlc, foldLanguage, REDUCER_VERSION, REPORT_VERSION, reportInputs, SEED_ROLES, takeSnapshot,
+  type AnyEvent, type OrgReportsResponse, type ReportInputs
+} from '@langquest-next/core';
 import { handleApi, type ApiDeps } from '../worker/api';
-import { MemoryCache, OrgFolder, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
+import { FOLD_ON_CATCH_UP_EVENTS, MemoryCache, OrgFolder, STATE_SAVE_EVERY, type Source } from '../worker/orgFolder';
 import { SqlCache, splitText } from '../worker/sqlCache';
 
 /**
@@ -247,6 +250,122 @@ describe('OrgFolder across evictions (decision 44, amended 2026-10-03)', () => {
     const cache = new MemoryCache();
     expect(await new OrgFolder(new FakeLog(), 'nobody', cache).reportsFor('admin')).toBeNull();
     expect(cache.data.size).toBe(0);
+  });
+});
+
+describe('OrgFolder with the report inputs the projection pass stored (decision 142)', () => {
+  const at = Date.UTC(2026, 9, 19, 12);
+
+  /** The log, plus what the pass would have stored: each listed language's inputs at its head, written at `writtenAt`. */
+  function withInputs(log: FakeLog, languages: string[], writtenAt = at - 60_000) {
+    const stored = new Map<string, { seq: number; at: number; inputs: ReportInputs }>();
+    const store = (id: string) => {
+      const events = log.streams.get(id) ?? [];
+      stored.set(id, { seq: events.length, at: writtenAt, inputs: reportInputs(foldLanguage(events, emptyLanguageState()), writtenAt) });
+    };
+    for (const id of languages) store(id);
+    let reads = 0;
+    const source: Source = {
+      pull: log.pull.bind(log), snapshotMeta: log.snapshotMeta.bind(log), snapshotChunk: log.snapshotChunk.bind(log), heads: log.heads.bind(log),
+      reportHeads: async () => Object.fromEntries([...stored].map(([id, s]) => [id, { seq: s.seq, at: s.at }])),
+      reportInputs: async (_org, id) => { reads += 1; return stored.get(id) ?? null; }
+    };
+    return { source, store, reads: () => reads };
+  }
+  const languagePulls = (log: FakeLog) => log.pulls.filter((p) => p.streamId !== '_org');
+
+  it('renders a stored language without pulling or folding it, and the report is the one a fold gives', async () => {
+    const log = orgLog();
+    const { source } = withInputs(log, ['din', 'nus']);
+    const out = await new OrgFolder(source, ORG, new MemoryCache(), () => at).reportsFor('admin');
+    expect(languagePulls(log)).toEqual([]);
+    const folded = await new OrgFolder(orgLog(), ORG, new MemoryCache(), () => at).reportsFor('admin');
+    expect(out!.rows).toEqual(folded!.rows);
+  });
+
+  it('folds a language the pass has not stored yet, as before', async () => {
+    const log = orgLog();
+    const { source } = withInputs(log, ['din']);
+    const out = await new OrgFolder(source, ORG, new MemoryCache(), () => at).reportsFor('admin');
+    expect(languagePulls(log).map((p) => p.streamId)).toEqual(['nus']);
+    expect(languages(out)).toEqual(['din', 'nus']);
+  });
+
+  it('folds every language when the stored inputs cannot be read', async () => {
+    const log = orgLog();
+    const { source } = withInputs(log, ['din', 'nus']);
+    source.reportHeads = async () => { throw new Error('relation "language_report_inputs" does not exist'); };
+    await new OrgFolder(source, ORG, new MemoryCache(), () => at).reportsFor('admin');
+    expect(languagePulls(log).map((p) => p.streamId).sort()).toEqual(['din', 'nus']);
+  });
+
+  it('renders again when the day turns or the organization changes, reading the inputs and never the stream', async () => {
+    const log = orgLog();
+    const { source, reads } = withInputs(log, ['din', 'nus']);
+    const cache = new MemoryCache();
+    let now = at;
+    const folder = new OrgFolder(source, ORG, cache, () => now);
+    await folder.reportsFor('admin');
+    expect(reads()).toBe(2);
+    now += 61_000;
+    await folder.reportsFor('admin');
+    expect(reads()).toBe(2);
+    log.add('_org', 'v1.LanguageRenamed', { languageId: 'din', name: 'Thuɔŋjäŋ' });
+    expect(report(await folder.reportsFor('admin', true)).name).toBe('Thuɔŋjäŋ');
+    expect(reads()).toBe(4);
+    now += 86_400_000;
+    const tomorrow = await folder.reportsFor('admin');
+    expect(reads()).toBe(6);
+    expect(report(tomorrow).activity.at(-1)!.weekStart <= '2026-10-20').toBe(true);
+    expect(languagePulls(log)).toEqual([]);
+  });
+
+  it('a catch-up folds a small language whose stored inputs are behind, and a plain read after it keeps the newer figures', async () => {
+    // Why: "Catch up with the server" (fresh) promises the log's tail now; a
+    // coordinator who just asked someone to record looks for it on Reports
+    // (JRN-005). The stored inputs lag until the next projection pass.
+    const log = orgLog();
+    const { source } = withInputs(log, ['din', 'nus']);
+    let now = at;
+    const folder = new OrgFolder(source, ORG, new MemoryCache(), () => now);
+    await folder.reportsFor('admin');
+    log.add('din', 'v1.UnitAdded', unit('d2'));
+    now += 61_000;
+    expect(report(await folder.reportsFor('admin')).progress.total).toBe(1);
+    expect(languagePulls(log)).toEqual([]);
+    const caught = await folder.reportsFor('admin', true);
+    expect(report(caught).progress.total).toBe(2);
+    expect(languagePulls(log).map((p) => p.streamId)).toEqual(['din']);
+    now += 61_000;
+    expect(report(await folder.reportsFor('admin')).progress.total).toBe(2);
+  });
+
+  it('a catch-up leaves a language past the limit on its stored inputs', async () => {
+    const log = orgLog();
+    const { source } = withInputs(log, ['din', 'nus']);
+    const heads = source.heads!;
+    source.heads = async (org) => ({ ...(await heads(org)), din: FOLD_ON_CATCH_UP_EVENTS + 1 });
+    await new OrgFolder(source, ORG, new MemoryCache(), () => at).reportsFor('admin', true);
+    expect(languagePulls(log)).toEqual([]);
+  });
+
+  it('says the figures are as of the inputs\' writing once the stream has moved past them', async () => {
+    const log = orgLog();
+    const writtenAt = at - 5 * 60_000;
+    const { source, store } = withInputs(log, ['din', 'nus'], writtenAt);
+    let now = at;
+    const folder = new OrgFolder(source, ORG, new MemoryCache(), () => now);
+    expect((await folder.reportsFor('admin'))!.asOf).toBe(new Date(at).toISOString());
+    log.add('din', 'v1.UnitAdded', unit('d2'));
+    now += 61_000;
+    expect((await folder.reportsFor('admin'))!.asOf).toBe(new Date(writtenAt).toISOString());
+    // A member who sees only that language is told the same.
+    expect((await folder.reportsFor('dinka'))!.asOf).toBe(new Date(writtenAt).toISOString());
+    store('din');
+    now += 61_000;
+    const caught = await folder.reportsFor('admin');
+    expect(caught!.asOf).toBe(new Date(now).toISOString());
+    expect(report(caught).progress.total).toBe(2);
   });
 });
 

@@ -9,7 +9,7 @@ import { stateRevision } from './reducer';
 import type { LanguageState } from './state';
 
 /**
- * One line per passage (decisions.md 140): what every list of passages
+ * One line per passage (decisions.md 143): what every list of passages
  * reads of it, so Map, Progress, My Work and the Inbox badge never need
  * every passage's record in memory. A line is worked out from the
  * passage's record by `derivePassage` and nothing else, so it cannot
@@ -155,7 +155,7 @@ const linesCache = new WeakMap<LanguageState, { revision: number; lines: Passage
 // ---- what the whole language reads off its lines ---------------------------------
 
 /** Several counts, not one number (`LanguageProgress`), over the passages the language works on. */
-export function progressOf(lines: PassageLines, passages: readonly string[], state: Pick<LanguageState, 'flow' | 'flowSteps' | 'removedSteps' | 'reviewKinds'>): LanguageProgress {
+export function progressOf(lines: { get(unitId: string): PassageGlance }, passages: readonly string[], state: Pick<LanguageState, 'flow' | 'flowSteps' | 'removedSteps' | 'reviewKinds'>): LanguageProgress {
   const flow = deriveFlow(state as LanguageState);
   const kinds = deriveKinds(state as LanguageState);
   const all = passages.map((u) => lines.get(u));
@@ -291,8 +291,15 @@ export function concerning(lines: PassageLines, actorId: string): string[] {
 
 // ---- the same, for a language held whole in memory ---------------------------------
 
+/**
+ * A language held whole reads each passage's derived state directly: the
+ * counts need nothing a line adds, and building and caching a line per
+ * passage beside the passage views doubled what a server holding many whole
+ * languages keeps between requests (the Durable Object, decision 132).
+ */
 export function languageProgress(state: LanguageState, idx?: Indexes): LanguageProgress {
-  return progressOf(languageLines(state, idx), (idx ?? buildIndexes(state)).passages, state);
+  const at = idx ?? buildIndexes(state);
+  return progressOf({ get: (unitId) => derivePassage(state, unitId, at) }, at.passages, state);
 }
 
 export function highlightsFor(state: LanguageState, actorId: string, opts: { canRecord: boolean; canReview: boolean }, idx?: Indexes): Highlight[] {

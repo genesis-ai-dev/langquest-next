@@ -43,7 +43,7 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
   // Picking another stays here, on what the language uses now.
   const { busy, use } = usePickTemplate(ctx, lib, state, languageId, () => setPicked(null));
   const lines = ctx.language.lines;
-  // Progress, set-aside and recorded counts are read off each passage's line (decisions.md 140).
+  // Progress, set-aside and recorded counts are read off each passage's line (decisions.md 143).
   const data = useMemo(() => {
     const idx = indexesFor(state);
     return {

@@ -42,7 +42,7 @@ Rules specific to this folder:
   so adding the event to the fixture list is enough;
   `scripts/record-parity-sql.ts` checks SQL against core. An event that
   touches a map cut by passage also needs its place in `PASSAGE_PARTS` or
-  `eventPassage` (`packages/core/src/passageParts.ts`, decision 140);
+  `eventPassage` (`packages/core/src/passageParts.ts`, decision 143);
   `passageParts.test.ts` fails until every map says whether it is cut by
   passage and how two copies of an entry combine.
 - User-facing screens follow the partner demo in `ng-langquest-ux` (its

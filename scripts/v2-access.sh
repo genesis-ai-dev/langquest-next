@@ -7,8 +7,8 @@
 #   scripts/v2-access.sh       once; running it again rotates the password
 #
 # Run it yourself: it adds a role to v2's production database. It prints no
-# secret, and commits .env.production alone. Add the same V2_DATABASE_URL as
-# the repository secret of that name for the scheduled sync.
+# secret, and commits .env.production alone. Then npm run secrets -- production
+# puts it on the dashboard Worker for the scheduled sync (decisions.md 141).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -45,4 +45,4 @@ DOTENVX_NO_NATIVE=true npx dotenvx set V2_DATABASE_URL \
   "postgresql://v2_reader.$ref:$pw@$host:5432/postgres" -f "$file" -fk .env.keys > /dev/null
 git add "$file"
 git commit -q -m "Read-only v2 access for the v2 import" -- "$file"
-echo "✓ V2_DATABASE_URL encrypted in $file and committed"
+echo "✓ V2_DATABASE_URL encrypted in $file and committed; npm run secrets -- production puts it on the dashboard Worker"

@@ -150,21 +150,21 @@ export interface SyncClientOptions<S = LanguageState> {
   /**
    * A language stream only: keep its recordings and file verdicts on the
    * phone rather than in memory, and hold in memory only the passages
-   * `loadUnits` asks for (decisions.md 140).
+   * `loadUnits` asks for (decisions.md 143).
    */
   keepOnDisk?: boolean;
   /**
    * The build of the app this runs in. A language kept on disk keeps a line
    * per passage that this code works out, so a line kept by another build is
    * worked out again: a change to what a passage's status means reaches
-   * every passage after an update, with no migration (decisions.md 140).
+   * every passage after an update, with no migration (decisions.md 143).
    */
   build?: string;
 }
 
 /**
  * The local checkpoint of a language kept on disk is not the whole language:
- * its passages' records are in the phone's `kept_rows` (decisions.md 140). It is
+ * its passages' records are in the phone's `kept_rows` (decisions.md 143). It is
  * tagged `reducerVersion * 100 + KEPT_CHECKPOINT_FORMAT`, which no build that
  * holds the whole checkpoint matches, so such a build (an update rolled back)
  * drops it with the stream's cursor, as for another reducer (decisions.md 110),
@@ -559,7 +559,7 @@ export class SyncClient<S = LanguageState> {
    * partial. A redaction waiting on the old checkpoint waits no more: it is
    * gone, and `snapshotMinSeq` still turns away a snapshot from before it.
    * The rows a language keeps on disk and every line came from this
-   * checkpoint, so they go with it (decisions.md 140).
+   * checkpoint, so they go with it (decisions.md 143).
    */
   private async dropStaleCheckpoint(): Promise<void> {
     await this.commit({
@@ -573,7 +573,7 @@ export class SyncClient<S = LanguageState> {
    * Save a checkpoint, move the cursor to it and prune behind it. Answers
    * the length of its text. `stateText` is the state as the server sent it;
    * `kept` and `meta` are what a language kept on disk writes beside the
-   * checkpoint, in the same commit (decisions.md 140).
+   * checkpoint, in the same commit (decisions.md 143).
    */
   private async saveSnapshot(
     snap: Snapshot,
@@ -728,7 +728,7 @@ export class SyncClient<S = LanguageState> {
   /**
    * Read a downloaded snapshot back one piece at a time, writing each
    * passage's records and the file verdicts to disk as they pass
-   * (decisions.md 140). Returns what the whole language shares, which is
+   * (decisions.md 143). Returns what the whole language shares, which is
    * what memory keeps. The records go under a stream id of their own, and
    * the checkpoint that follows moves them in, so a phone that dies part-way
    * still has the language it had.
@@ -798,7 +798,7 @@ export class SyncClient<S = LanguageState> {
       let placed: Awaited<ReturnType<KeptLanguage['split']>>['placed'] = [];
       let owed: Record<string, string> = {};
       if (this.kept && this.lines) {
-        // Each passage's records and the verdicts go to disk with this checkpoint (decisions.md 140), taken as they are now.
+        // Each passage's records and the verdicts go to disk with this checkpoint (decisions.md 143), taken as they are now.
         const split = await this.kept.split(state);
         // Something was folded while the stored copies were read: the state is no longer the confirmed one; next time.
         if (revision !== this.revision || this.writer.size !== 0) return null;
@@ -846,7 +846,7 @@ export class SyncClient<S = LanguageState> {
 
   /**
    * Hold these passages' recordings in memory, for a screen that shows them
-   * and the passages next to it (decisions.md 140). A language that keeps
+   * and the passages next to it (decisions.md 143). A language that keeps
    * everything in memory has nothing to do.
    */
   async loadUnits(unitIds: readonly string[]): Promise<void> {
@@ -1228,7 +1228,7 @@ export class SyncClient<S = LanguageState> {
         meta: this.clockMeta()
       });
       this.opts.onPullProgress?.(total);
-      // A language kept on disk checkpoints as it goes (decisions.md 140): its checkpoint is the small shared
+      // A language kept on disk checkpoints as it goes (decisions.md 143): its checkpoint is the small shared
       // part, and each one moves the passages folded so far onto disk and out of memory, so a pull of the whole
       // log from the start (a reducer bump before the server has a snapshot for it, a redaction waited out)
       // never holds the whole language. Not once a redaction was pulled in this slice: the refold below undoes

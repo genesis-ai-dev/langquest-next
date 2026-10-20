@@ -56,7 +56,7 @@ export interface AskModel {
 export function askModel(o: {
   v: PassageView; org: OrgState | null; me: string; name: NameFn; what: 'record' | 'review'; kindId: string | undefined;
   candidates: Candidate[]; picks: AskPicks;
-  /** The passages' lines: who usually reviews a check is read off them (decisions.md 140). */
+  /** The passages' lines: who usually reviews a check is read off them (decisions.md 143). */
   lines: PassageLines;
 }): AskModel {
   const { v, kindId, picks } = o;

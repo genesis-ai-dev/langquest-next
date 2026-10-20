@@ -440,7 +440,7 @@ type Verdict = LanguageState['blobs'][string];
 /**
  * Of two copies of one recording, the one `v1.RecordingAdded` keeps: the
  * earliest, ties as `earlier` breaks them. A phone that keeps recordings on
- * disk (decisions.md 140) combines a stored copy with one just folded by
+ * disk (decisions.md 143) combines a stored copy with one just folded by
  * this, so the result is the fold's whichever arrived first.
  */
 export function keptRecording(a: Recording, b: Recording): Recording {

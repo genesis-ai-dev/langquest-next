@@ -25,7 +25,7 @@ import { useSyncStatus } from './useSyncStatus';
  * Offline counts for these passages, recomputed when files arrive, leave,
  * or a passage is kept. A kept passage's come from the counts worked out
  * from the phone's table (useLanguage); another is on screen, so its
- * recordings are in memory (decisions.md 140).
+ * recordings are in memory (decisions.md 143).
  */
 function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
   const state = ctx.language.state;

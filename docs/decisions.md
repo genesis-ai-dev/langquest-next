@@ -286,7 +286,7 @@ state would have to be kept coherent by the reducer, which is exactly the
 trigger-maintained rollup PLAN.md section 2 warns against.
 
 Amended (2026-10-14, Caleb Koster): a phone that keeps a big language on
-disk (decision 140) also keeps one line per passage there, so lists never
+disk (decision 143) also keeps one line per passage there, so lists never
 need every passage's record in memory. The lines are still views: outside
 the state, never snapshotted or synced, and worked out by core's own
 `derivePassage` from the passage's records whenever an event touches that
@@ -949,6 +949,20 @@ fold is let go once it is in the cache (`apps/web/worker/orgFolder.ts`). A
 14 MB snapshot parses to well over 100 MB in a 128 MB isolate, and every
 language is recomputed when the UTC day turns (performance-audit-app.md
 V4). The limits are not yet measured against a real isolate.
+
+Amended (2026-10-19, Carl Sauder): a report no longer needs a fold here
+when the projection pass has stored the language's report inputs (142):
+the object renders the report from them and the organization stream, and
+folds only a language with none (before the pass first reaches it, or when
+the table cannot be read). The folds this entry describes now serve the
+access-token API (70) and that fallback. A plain read lags the pass by up
+to its five minutes, and `asOf` says so when a language's stream has moved
+past its stored inputs. A catch-up (`?fresh=1`, "Catch up with the
+server") still folds the log's tail at once for a language whose stored
+inputs are behind, up to 25,000 events (`FOLD_ON_CATCH_UP_EVENTS`), and a
+later plain read keeps those newer figures; a larger language answers from
+its stored inputs until the next pass. What an admin saves on the
+organization stream (a name, country or target) shows at once either way.
 
 ## 45. Merging to main ships Android to Google Play's internal testing track
 
@@ -1963,6 +1977,17 @@ only when something it shows changed, and the snapshot's age comes from the
 list the pass already read (performance-audit-app.md V2). Reverse if a
 skipped language's Inbox rows are found stale: take that type out of the
 set.
+
+Amended (2026-10-19, Carl Sauder): the pass runs for every language in the
+job container behind the dashboard Worker, every five minutes (141), and
+pg_cron on a hosted project schedules push delivery alone
+(`20261019110000_projection_pass_in_container.sql`). A local stack keeps the
+Edge pass every minute, scheduled by `scripts/local-db.mjs`, since wrangler
+dev fires no cron and the web UI tests wait for it. The pass also writes
+each language's report inputs (142), so a quiet tail must leave those alone
+too: it skips a language only when every new event is in
+`eventsThatCannotChangeReport`, the quiet list without recordings, cards and
+stored files, and moves the stored inputs' position with the mark.
 
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
@@ -3580,6 +3605,18 @@ out, a link's move, an organization admin dropped on the dashboard, and FIA
 guides no longer offered. A member who leaves a v2 project keeps their
 place here until an admin removes them.
 
+Amended (2026-10-19, Carl Sauder): the scheduled passes run in the job
+container behind the dashboard Worker (141), not GitHub Actions: every 15
+minutes from its job tick, and the whole read at 03:15 UTC, owed until a
+run starts with it, so a long pass never drops it. The switch is the
+Worker's `V2_IMPORT_ENABLED` var ("true" in production, as Caleb set the
+GitHub variable on 2026-10-14; "false" in preview). v2's key goes on the
+Worker with `npm run secrets`, and the job refuses to start without it;
+v2's read-only login is optional there as it was on GitHub, which never
+had it, so people come over by id until they sign in. `npm run v2` by
+hand and the board are unchanged; `scripts/v2-go-live.sh`, which gave the
+workflow its secrets, is gone.
+
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
 Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 102
@@ -3901,7 +3938,7 @@ report a weekly digest from scripts/ui-flakes.mjs instead).
 
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
-Date: 2026-10-14 · By: Caleb Koster · Status: accepted
+Date: 2026-10-14 · By: Caleb Koster · Status: superseded by 141
 
 Reason: the projection pass (decisions.md 68) runs in the
 `stream-projections` Edge Function, and a run there gets 256 MB and 2 s of
@@ -5123,6 +5160,47 @@ Reverse if: Cloudflare raises the isolate limit, folds move out of the
 heap (then the budget can grow), or production shows an organization the
 test's shapes do not cover (then add that shape to the test).
 
+Amended (2026-10-19, Ryder Wishart): the test now holds every memory user
+in the object, not only the folder, and its shapes are known not to cover
+the largest real organization.
+- What `OrgSnapshot` keeps per organization: the folder's org fold,
+  per-language summaries and saved cursors (grow with the number of
+  languages, small) and its held folds (the 12 MB budget); the folds'
+  derived indexes (core's WeakMaps, alive as long as a fold is held and
+  outside the budget's count: about 11 MB more on the API path at
+  60 × 300); the webhook dispatcher only a promise chain, with digests,
+  the feed and the outbox in SQLite, and while scanning one language's
+  fold and two digests at a time; `AgentOrg`'s write and upload counters,
+  at most an hour of timestamps per key (600 writes, 100 uploads) but one
+  key for every token and link that wrote since the object woke, never
+  forgotten; and nothing else (no response or link caches). A partner API
+  answer is at most 500 passages (0.7 MB of JSON at 5,000 passages a
+  language).
+- `orgFolderHeap.ts` runs one path per child process (fold, webhooks, api,
+  reports, writes) over 12 × 2,000, 6 × 5,000 and 60 × 300 (many small
+  languages). Each path also runs against the regression its bound stops
+  (no fold budget; a dispatcher that keeps what it compared; a response
+  cache; counters that keep every timestamp) and must fail there, so a
+  check that can no longer fail fails.
+- The budget is not enough on its own. After this decision was deployed,
+  `/connect` still failed for Every Language (decision 140): 37 languages,
+  ten over 89,000 events, the largest 230,430. In the harness one
+  language of that shape no longer fits in 112 MB somewhere between about
+  100,000 and 130,000 events (8,000 passages fit, 10,000 do not), however
+  few are held. The test's shapes stop at 65,000 events a language, so
+  they show the budget and the paths work for organizations up to that
+  size, not that every real organization fits. Decision 140 took access
+  checks off the full pass; reports, passage reads, writes and webhooks
+  for a language past that size still do not fit, and need their own
+  decision. When one exists, add a 1 × 18,000 shape (Every Language's
+  largest) to the test.
+- A post-deploy canary (`docs/routines/do-memory-canary.md`) is proposed
+  beside the test, because Every Language showed what only production
+  has: it reads a passage page of each of the largest real organizations
+  once after each production deploy (every object is cold then) and reads
+  the Worker log for "exceeded its memory limit". It is not running; it
+  needs per-organization read tokens and a read-only Cloudflare token.
+
 ## 133. The recording screen has its own Undo and Redo, parts move by a grip, a place opens on the line between parts, and no Undo there runs out
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -5549,9 +5627,173 @@ rebuilt alongside this, and its Done and one-line bar now fit their words.
 Reverse if: a screen needs a fixed-size label to stay readable at a glance
 (a tab bar), and wrapping makes it worse than an abbreviation would.
 
-## 140. A big language keeps each passage's record on the phone's disk; memory holds the passages on screen, and lists read one line per passage
+## 140. Access checks read the organization stream alone, never a pass over its languages
 
-Date: 2026-10-16 · By: Caleb Koster · Status: accepted
+Date: 2026-10-19 · By: Ryder Wishart · Status: accepted
+
+Reason: after decision 132 was deployed, `/connect` still answered 502 for
+people in Every Language (`org-v2-everylanguage`, reported 2026-10-18 and
+2026-10-19; reproduced 2026-10-19 with the Worker log: "Durable Object's
+isolate exceeded its memory limit and was reset" on `agentAccess`). That
+organization has 1.75 million events in 37 languages, ten of them over
+89,000 events and the largest 230,430. In the memory harness a single
+language of that shape stops fitting in 112 MB between about 100,000 and
+130,000 events, so no fold budget helps: one language alone is too big.
+`/connect` asks only who may see what, which the organization stream
+answers, but `AgentOrg.access` read `OrgFolder.orgState()`, which first runs
+a full pass that folds every language.
+- `OrgFolder.orgOnly()` catches up the organization stream alone (restored
+  from the cache, then the log past it when its head moved, at most once a
+  minute like a pass) and folds no language.
+- `AgentOrg.access` (`/connect`'s `session/orgs`), the `languages` read
+  (a token's `/me` and `GET /languages`), `linkOpen` and `mayRevokeLink`
+  use it. Reports, passage reads, writes and the webhook dispatcher still
+  need language folds and still use the pass.
+- `apps/web/test/memory/orgAccess.test.ts` runs those checks over Every
+  Language's real shape (its 37 languages' sizes) with a source that fails
+  on any read of a language stream. Against the code before this change it
+  fails.
+This fixes `/connect` and token management only. Every Language's reports,
+partner API passage reads and webhooks still fold languages too big for
+the isolate; that needs its own decision (fold large languages outside the
+object, or keep a smaller fold).
+Reverse if: an access check needs something only a language fold has; then
+that piece belongs in the organization stream or a summary, not a pass.
+
+## 141. Server jobs too big for an Edge Function run in a container behind the dashboard Worker, started by its cron, and no production job runs in GitHub Actions
+
+Date: 2026-10-19 · By: Carl Sauder · Status: accepted
+
+Reason: decision 103 put the projection pass for large languages in a
+scheduled GitHub Actions workflow as a temporary measure, and the v2 import
+runs there too. Carl ruled (2026-10-16) that no production job belongs in
+GitHub: a scheduled run is delayed under load and can be dropped; a public
+repository's schedules are switched off after 60 days without a push; the
+production service-role key sat in the repository's secrets beside a freshly
+installed dependency tree; a job is capped at six hours; and it is a CI
+system, with public logs and `concurrency` as its only lock. The host chosen
+is Cloudflare Containers behind the dashboard Worker (`docs/server-jobs.md`
+weighs it against Cloud Run Jobs, a VPS, fitting the fold into 256 MB,
+Workflows and folding in Postgres): the same account and `wrangler.jsonc`,
+Workers Builds builds the image with the Worker, `npm run secrets` and
+`diag.job_runs` are unchanged, and a container is billed only while it
+runs. This entry is step one of that plan, the pass for large languages:
+- `apps/web/jobs/Dockerfile` is the image: Node 24 and one bundle per job
+  (`scripts/build-jobs.mjs`, run by the Worker's build and by `npm run
+  web:dev`), nothing installed, so the dependency tree never sits beside
+  the key. The object names a job's bundle as the entrypoint, so a later
+  job is one more bundle.
+- `JobRunner` (`apps/web/worker/jobs.ts`) is one Durable Object per job,
+  named by the job, and the lock: the Worker's cron starts it every ten
+  minutes, a tick that finds the run under way starts nothing, and the
+  tick never waits for the run. It drives the container through the
+  object's own container API rather than the `@cloudflare/containers`
+  class, which starts containers for requests and ran a sub-second pass
+  twice while reporting a failed start. The container gets `SUPABASE_URL`
+  and the service key from the Worker's own env. The process writes its
+  own job run as before; the object writes one when the process died
+  without the chance (`killed:137`, `exit:143` at the 45-minute limit,
+  `stopped` without a code), so a dead run is never silent. A pending
+  monitor keeps the object in memory for up to 15 minutes, so a longer
+  run's exit can go unobserved; its own job run is then the record.
+- `standard-1` (4 GiB) with Node's heap at 3 GiB, for Santhali's 850 MB
+  fold. Under the big-languages plan's option F the pass will also cut the
+  fold into rows, so the peak is measured before F lands and the instance
+  type follows it.
+- `.github/workflows/projections.yml` is gone, and
+  `scripts/workflows.test.ts` holds the allowlist of scheduled workflows to
+  `v2-import.yml`, which the import's move empties.
+Not changed yet, in order (`docs/server-jobs.md` section 5): one pass for
+every language in the container with the Edge Function keeping push
+delivery only; the pass as the one producer of per-language aggregates the
+Durable Object reads; the v2 import. Supersedes 103.
+Reverse if: a run longer than its time limit is needed and cannot be split,
+a container is evicted mid-run often enough to matter, or a fold needs more
+than 12 GiB; then the same image goes to Cloud Run Jobs, the object keeping
+the trigger and the lock. Or if Workers Builds cannot build the image; then
+the deploy command builds and pushes it from a laptop, as the Workers are
+deployed off Workers Builds today.
+
+Amended (2026-10-19, Carl Sauder): steps two and three are built, in
+`docs/server-jobs.md`'s order, without waiting the couple of weeks it gave
+step one, at Carl's word. The job tick (`*/5 * * * *`, `jobsModel.ts`
+`jobsDue`) starts one pass for every language each time and the v2 import
+every 15 minutes, with its whole read at 03:15 UTC; the ten-minute cron
+keeps timings, grants and webhooks. Each job has its own object, time limit
+(45 minutes for the pass, 340 for the import) and container instance
+(`max_instances` 2); the tick leaves a `job_starts` run and each job its
+own (`projection`, `v2_import`; `projection_large` is retired). Hosted
+projects schedule only push delivery on pg_cron, and the Edge Function
+refuses the pass there (410); a local stack keeps the Edge pass every
+minute (68). The import's job needs `V2_SUPABASE_ANON_KEY` on the
+dashboard Worker, and uses `V2_DATABASE_URL` for people's names when it is
+there; `npm run secrets` now puts both there from `.env.production` (94).
+psql is the image's one system package, for those names.
+`v2-import.yml` is gone, and `scripts/workflows.test.ts` holds that no
+workflow holds a production key. The cutover has an order: run
+`npm run secrets -- production` from `main` right after the merge, not
+before: run from the branch earlier, it would take the pass off pg_cron
+before the container is deployed. The import pauses from the merge until
+then; `docs/server-jobs.md` section 5 has the steps.
+
+Amended (2026-10-19, Carl Sauder): the first hour in production showed the
+job runner's watch does not hold. The tick's call to an object ended after
+73 seconds, so nothing was left to record how a run ended; a restarted
+object held no keep-alive for its running container (Cloudflare's docs say
+to set it again in the constructor), so runs were stopped minutes in, and
+neither the pass nor the import wrote a row for an hour. Unpinned, the
+containers also started near the cron, in Mumbai, far from the database.
+Now: while a run lasts, an alarm brings the object back every minute
+(`jobsModel.ts` `heartbeat`, `HEARTBEAT_MS`): it renews the keep-alive for
+the time the run has left, sends SIGTERM at the limit, and records a run
+that has ended by asking the stopped container how; the constructor renews
+the keep-alive too. The pass and the import record their own row when sent
+SIGTERM (`sigterm`, exit 0, the code that says the row is written), the
+pass logs its progress every 25 languages, and `constraints.regions` pins
+the containers to ENAM, beside the database and R2.
+
+## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
+
+Date: 2026-10-19 · By: Carl Sauder · Status: accepted
+
+Reason: the organization's Durable Object folded every language to answer
+Reports (44), in a 128 MB isolate that a Bible-size language does not fit
+(132), and folded every language again when the UTC day turned, because a
+report's windows (53 weeks, 90 days of progress, 35 of uploads, 13 months,
+the 14-day stuck alert) end today. `docs/server-jobs.md` makes the pass, on
+the job host that folds every language anyway (141), the one producer of
+per-language aggregates. A stored report would go stale at midnight for a
+language nobody touched, so the pass stores the report's inputs instead:
+core `reportInputs` extracts from the fold everything `languageReport`
+reads, keyed by day, week and month for all time and with nothing from the
+organization stream, and `renderLanguageReport` makes the report for any
+day from them; `languageReport` is the two composed, so every report test
+holds them equal, and a test holds inputs stored as JSON and rendered up to
+400 days later equal to a fold on that day. Two things are summarized where
+a list would grow: the upload log keeps only the days it can still show,
+and cards already stuck when extracted are a count, the oldest and their
+passages (two imported languages held 89,000, 7 MB a row). Rows live in
+`language_report_inputs` (service role only), written each time the pass
+folds a language; an upload is no longer quiet for the pass (68). The
+object renders from them, folding only a language with no row, or, on a
+catch-up, one whose row is behind its stream and that has at most 25,000
+events (44's amendment), so "Catch up with the server" still shows what
+was just done. Checked on
+the local database: 105 languages, every stored row renders the report a
+fold of the same events gives, today and 20 days on; the largest row was
+750 KB of text.
+Not chosen: storing the rendered report and refolding every language once
+a day (decision 40's way; a daily snapshot download per language, and stale
+figures between midnight and the next pass); a per-language people list
+(who may see a language comes from the organization stream, which the
+object folds itself, small).
+Reverse if: the object reads stored inputs often enough to cost more than
+the folds did, or the inputs of a language outgrow a few megabytes (then
+store them in pieces, as snapshots are, or summarize more of them).
+
+## 143. A big language keeps each passage's record on the phone's disk; memory holds the passages on screen, and lists read one line per passage
+
+Date: 2026-10-19 · By: Caleb Koster · Status: accepted
 
 Reason: a phone held a whole language in memory. On a 2 GB test emulator
 Koro Miyan (37,000 recordings, 541 versions) added about 235 MB once open,
@@ -5657,7 +5899,7 @@ than from one array (`store.all`), and moving the whole-language guard
 (`apps/mobile/test/wholeLanguage.test.ts`) into lint.
 
 Amended (2026-10-19, Carl Sauder): merged with main again, and the
-entry is 140 (main took 134 to 139). A kept language's local checkpoint
+entry is 143 (main took 134 to 142). A kept language's local checkpoint
 leaves its passages out, so a build from before this one (an update rolled
 back) would read it as the whole language at the same reducer version,
 show passages empty and save that. Carl chose not to bump

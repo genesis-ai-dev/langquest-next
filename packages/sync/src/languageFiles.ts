@@ -11,7 +11,7 @@ type Verdict = LanguageState['blobs'][string];
 
 /**
  * Which audio files to send, fetch or free, and how much of each passage
- * is on the phone (decisions.md 140). Each answer is core's own
+ * is on the phone (decisions.md 143). Each answer is core's own
  * (`uploadWorkOf` and the rest), worked out from a plan of the files in
  * question: those memory names, and, for a language kept on disk, those
  * its table lists for the passages or files a question is about. The

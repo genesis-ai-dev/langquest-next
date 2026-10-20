@@ -60,7 +60,7 @@ export function fileRow(hash: string, v: Verdict, json = JSON.stringify(v)): Kep
   return { kind: FILE, id: hash, unitId: '', ref: '', json };
 }
 
-/** Does this state hold entries of the parts or verdicts that belong on disk (a checkpoint from before decision 140)? */
+/** Does this state hold entries of the parts or verdicts that belong on disk (a checkpoint from before decision 143)? */
 export function holdsKept(state: LanguageState): boolean {
   for (const _ in state.blobs) return true;
   for (const part of PASSAGE_PARTS) for (const _ in state[part.map] ?? {}) return true;

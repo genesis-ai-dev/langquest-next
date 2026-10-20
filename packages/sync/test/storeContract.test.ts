@@ -245,7 +245,7 @@ describe.each(impls)('%s batch and rejected contract', (_name, make) => {
     expect((await s.rejected('o', 'p')).map((e) => e.event.id)).toEqual(['x', 'y']);
   });
 
-  it('keeps a language\'s records out of memory, found by passage, id, second key or kind (decisions.md 140)', async () => {
+  it('keeps a language\'s records out of memory, found by passage, id, second key or kind (decisions.md 143)', async () => {
     const s = await make();
     const rec = (id: string, unitId: string, ref = 'a', kind = 'recording') => ({ kind, id, unitId, ref, json: `{"id":"${id}"}` });
     await s.commit({ kept: { orgId: 'o', streamId: 'p', upsert: [rec('r1', 'u1'), rec('r2', 'u2', 'b'), rec('t1', 'u4', 'b', 'take'), { kind: 'file', id: 'h1', unitId: '', ref: '', json: '{"size":1}' }] } });

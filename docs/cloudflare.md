@@ -19,9 +19,23 @@ secrets `npm run secrets` set on it (decisions.md 51).
 | Build command | | | | |
 | Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` |
 | Build variables and secrets | none | none | none | none |
-| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | as invite email | as dashboard |
+| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as dashboard |
 
-Leave the default dependency install on. The web app's deploy command builds
+The dashboard's include paths cover `server/*` and `scripts/build-jobs.mjs`
+because the job image (The job runner, below) is built from them: without
+them a change to the pass alone would not rebuild the image. Set on
+2026-10-16 with decision 141; check it in the Cloudflare dashboard if a
+pass change does not reach the container.
+
+Leave the default dependency install on. It is `npm clean-install` with the
+build image's npm, 10.9.2 since Cloudflare's 2026-10-14 image update, not
+the npm 11 we use, and npm 10 refuses a lockfile with a peer it would
+resolve differently. Every build failed from 2026-10-16 to 2026-10-19 on
+`Missing: typescript@5.9.3 from lock file`, because eas-cli's
+`@expo/require-utils` asks for TypeScript 5. The `overrides` entry in
+`package.json` gives eas-cli our TypeScript, which is what npm 11 already
+installed. After changing dependencies, check that npm 10 accepts the
+lockfile: `npx npm@10 ci --dry-run --ignore-scripts`. The web app's deploy command builds
 the Expo web export first (`npm run export:web`, a few minutes), reading
 `apps/mobile/.env.<env>` and the commit from `WORKERS_CI_COMMIT_SHA`; it fails
 if the JavaScript is over its budget. Its custom domains,
@@ -46,6 +60,57 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 | --- | --- | --- |
 | invite email | `INVITE_FROM` | `INVITE_RELAY_SECRET` |
 | dashboard | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
+
+## The job runner (containers)
+
+The dashboard Worker also runs the server jobs too big for an Edge
+Function (`docs/server-jobs.md`, decisions.md 141): the projection pass
+for every language (`server/projections.ts`) and the v2 import
+(`server/v2.ts`). `apps/web/jobs/Dockerfile` is the image: Node 24 and one
+bundle per job from `scripts/build-jobs.mjs` (`npm run jobs:build`, run by
+the Worker's build and by `npm run web:dev`), and psql for the import. No
+npm package is installed, so the dependency tree is never beside the
+service key. `wrangler deploy` builds the image with Docker and pushes it
+to Cloudflare's registry, on Workers Builds as on a laptop. The Worker goes
+live before the image rolls out, so a tick in between may find the old
+image; the next tick finds the new one.
+
+The job tick, the Worker's `*/5 * * * *` cron, starts the pass every time
+and the import every 15 minutes, with its whole read at 03:15 UTC
+(`worker/jobsModel.ts`). One `JobRunner` Durable Object per job
+(`worker/jobs.ts`) starts that job's container, one instance each
+(`standard-1`, 4 GiB; containers need the Workers Paid plan), and starts
+nothing while a run is going. A container gets `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` from the Worker's own env; the import also
+gets the Worker's `API_URL` and the optional secrets `V2_SUPABASE_ANON_KEY`
+and `V2_DATABASE_URL` (`npm run secrets`), and runs only while the var
+`V2_IMPORT_ENABLED` is "true" (production; preview is "false"). A run
+that is killed or reaches its limit (45 minutes for the pass, 340 for the
+import) leaves a job run with `sigterm`, `killed:137` or `stopped` as
+its error class, and each tick a `job_starts` run (`npm run diag -- jobs`).
+While a run lasts, an alarm wakes its object every minute to renew the
+container's keep-alive and to record the run's end: an object is held only
+about a minute after a call, and a restarted one holds no keep-alive until
+it sets it again. The containers are pinned to ENAM (`constraints.regions`),
+beside the database and R2. Their own output, including the pass's
+`progress:` lines, is in the Worker's logs in the dashboard
+(Observability), since `wrangler` has no command for container logs.
+
+Locally, `npm run web:dev` needs Docker Desktop running: `wrangler dev`
+builds the image, the container reaches the local database through
+`host.docker.internal` (`JOBS_SUPABASE_URL` and `JOBS_API_URL`, vars
+`scripts/web-dev-vars.ts` adds to the local config copy; unset in
+production), the import is off (no v2 keys locally; `npm run v2` imports by
+hand), and the job tick is fired by hand at wrangler's `/__scheduled`,
+which the copy sends to the Worker ahead of the page:
+
+```bash
+curl 'http://localhost:8787/__scheduled?cron=*/5+*+*+*+*'
+```
+
+The local stack's own Edge Function still runs the pass every minute
+(`scripts/local-db.mjs`), so the container is only needed to try the
+job runner itself.
 
 ## Recordings and guide media (R2)
 

@@ -97,7 +97,7 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
   });
 
   it('phones that keep the language on disk end with the same language, and move the same audio', async () => {
-    // Why: a phone that keeps a big language on disk (decisions.md 140) folds
+    // Why: a phone that keeps a big language on disk (decisions.md 143) folds
     // what arrives for a passage it does not hold, and combines it with the
     // stored copy at its next checkpoint. Across days offline, snapshots and
     // reinstalls, it must still end where the server's log does, and still

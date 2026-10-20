@@ -6,7 +6,7 @@ import { onStudyFiles, studyRevision } from '../study/studyFiles';
 
 /**
  * The whole scope: the audio counts worked out from the phone's table after
- * changes (decisions.md 140), with passages counted ready only once their
+ * changes (decisions.md 143), with passages counted ready only once their
  * study files are here too. Null until first counted.
  */
 export function useOfflineSummary(ctx: Ctx): OfflineOverview | null {
