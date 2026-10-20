@@ -61,11 +61,10 @@ project ids are shortened on screen.
 
 Each step is done once, by someone with access to the service named.
 
-1. **The address.** `admin.langquest.org` has an old DNS record pointing at
-   Vercel (no FrontierRND Vercel project uses it, and its certificate has
-   expired). Delete it in Cloudflare (langquest.org, DNS), so the first
-   deploy can attach the address to this Worker, as `next.langquest.org`
-   was.
+1. **The address.** Nothing to do: langquest.org has a wildcard record
+   pointing at Vercel, which answers for `admin` today, and the first
+   deploy adds this Worker's own `admin` record, which takes precedence.
+   Keep the wildcard; other addresses may rely on it.
 2. **Deploys.** In Workers Builds, connect `langquest-next-admin` to this
    repository as in the table in `docs/cloudflare.md`. Until then,
    `npm run admin:deploy` deploys from a laptop.
