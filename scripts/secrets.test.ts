@@ -45,6 +45,11 @@ describe('secrets', () => {
     expect(destinations('production', values, 'ref', 'k').functions).not.toHaveProperty('V2_SUPABASE_ANON_KEY');
   });
 
+  it('unsets a retired function secret without the CLI\'s prompt, which unsets nothing when unanswered', () => {
+    // Why: `npm run secrets -- production` left PROJECTION_WORKER_SECRET set twice (2026-10-20).
+    expect(read('scripts/secrets.mjs')).toMatch(/run\('supabase', \['secrets', 'unset', '--yes',/);
+  });
+
   it('writes the Vault names the push delivery job reads, and the schedule leaves the pass off pg_cron', () => {
     const sql = read(SCHEDULE_MIGRATION);
     const { vault } = destinations('preview', values, 'abc', 'k');

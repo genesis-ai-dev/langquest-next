@@ -313,7 +313,8 @@ async function main() {
   }
   withTempFile('functions.env', Object.entries(wanted.functions).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join('\n') + '\n',
     (f) => run('supabase', ['secrets', 'set', '--project-ref', ref, '--env-file', f]));
-  if (before.retired?.length) run('supabase', ['secrets', 'unset', '--project-ref', ref, ...before.retired]);
+  // --yes: the CLI asks before unsetting, and with no answer it unsets nothing yet exits 0 (2026-10-20).
+  if (before.retired?.length) run('supabase', ['secrets', 'unset', '--yes', '--project-ref', ref, ...before.retired]);
   query(ref, vaultSql(wanted.vault));
   // The migration ran before Vault had these on a new project, so it
   // scheduled nothing; it unschedules by name first, so running it again is safe.
