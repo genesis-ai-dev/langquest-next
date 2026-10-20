@@ -66,9 +66,9 @@ export interface OrgEventPayloads extends LibraryEvents, ReferenceOrgEvents {
    * no event of this type names is unlinked.
    */
   'v1.LanguageCodeSet': { languageId: string; code: string; languoidId: string | null };
-  /** Where a language's work happens (ISO 3166-1 alpha-2, "SS"), for the dashboard's geography. Register per language. */
+  /** Where a language's work happens (ISO 3166-1 alpha-2, "SS"), for Reports' geography. Register per language. */
   'v1.LanguageCountrySet': { languageId: string; country: string };
-  /** What a language aims to record, from when and by when, for the dashboard's pace (decision 41). Register per language. */
+  /** What a language aims to record, from when and by when, for Reports' pace (decision 41). Register per language. */
   'v1.LanguageTargetSet': { languageId: string } & LanguageTarget;
   /**
    * A cluster's name: a group the organization puts some of its languages
@@ -161,7 +161,7 @@ export const EVENT_PRIVILEGE: Record<EventType, EventPrivilege | 'by_kind'> = {
   'v1.TakeArchived': 'translate',
   'v1.CardVerseSet': 'translate',
   'v1.TakeSubmitted': 'translate',
-  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 144).
+  // Written parts belong to a version (translate) or to something a step made, which reviewers make too (decisions.md 145).
   'v1.WritingAdded': ['translate', 'review'],
   // What the team makes is part of what it records, like its template.
   'v1.MediaAllowedSet': 'manage_templates',

@@ -3,7 +3,7 @@ import type { Hlc } from './hlc';
 import type { LanguageState } from './state';
 
 /**
- * Writing beside recording (decisions.md 144).
+ * Writing beside recording (decisions.md 145).
  *
  * A written part is the counterpart of a recorded part: a short piece of
  * text, usually one verse, named by its content and never changed. Its name
@@ -132,7 +132,7 @@ export const MAKING_PRESETS: readonly { id: string; name: string; makes: MakesSp
 ];
 
 /**
- * Where the choice starts (decisions.md 144): a step that makes the same
+ * Where the choice starts (decisions.md 145): a step that makes the same
  * kind in the same language makes the next version; anything else stays
  * beside the version it came from. Being added to the version is never the
  * default: an admin picks it.

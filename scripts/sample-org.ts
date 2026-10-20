@@ -22,8 +22,8 @@
  * - invite codes for teammates, printed at the end.
  *
  * With --history (local database only), four more languages and months of
- * back-dated recording, review and upload behind all six, for the web
- * dashboard: see scripts/sample-history.ts.
+ * back-dated recording, review and upload behind all six, for
+ * Reports: see scripts/sample-history.ts.
  *
  * Running it again changes nothing but the invite codes it prints.
  */
@@ -47,7 +47,7 @@ const SAMPLE_LANGUAGES = [
   { languageId: 'L-nus-sample', code: 'nus', name: 'Nuer', template: 'Bible chapters (Original)' }
 ] as const;
 
-/** The languages --history adds, so the dashboard has a quiet one, a stuck one and an inactive one to show. */
+/** The languages --history adds, so Reports has a quiet one, a stuck one and an inactive one to show. */
 const HISTORY_LANGUAGES = [
   { languageId: 'L-bfa-sample', code: 'bfa', name: 'Bari', template: 'FIA passages (English)' },
   { languageId: 'L-kcg-sample', code: 'kcg', name: 'Tyap', template: 'Bible chapters (Original)' },
@@ -176,7 +176,7 @@ async function main(argv: string[]) {
   }
   await org.sync();
 
-  // 4. Months of work behind each language, for the web dashboard.
+  // 4. Months of work behind each language, for Reports.
   if (history) {
     const service = createClient(url, supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url), { auth: { persistSession: false, autoRefreshToken: false } });
     await addHistory({ sb, service, orgId: SAMPLE_ORG.id, actorId: userId, languageIds: languages.map((l) => l.languageId) });

@@ -65,7 +65,7 @@ let sessionLive: ((sessionId: string) => Promise<boolean>) | null = null;
 let profileOfCached: ((token: string) => Promise<string | null>) | null = null;
 let blobAccessCached: ((key: string, profileId: string, write: boolean) => Promise<boolean>) | null = null;
 
-/** The dashboard's server: `/api/*` here, everything else is the built page. */
+/** The app's Worker: `/api/*` here, everything else is the built page. */
 export default {
   async fetch(request, env, ctx) {
     const route = routeClass(request.method, new URL(request.url).pathname);

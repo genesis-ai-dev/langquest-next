@@ -1,4 +1,4 @@
-// Writing beside recording (decisions.md 144): what the writing screens read
+// Writing beside recording (decisions.md 145): what the writing screens read
 // from the record (writing/model.ts, writing/namesModel.ts), against real
 // folds of the event log.
 import { describe, expect, it } from 'vitest';

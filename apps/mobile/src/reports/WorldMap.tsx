@@ -23,7 +23,7 @@ function shapes() {
 }
 
 /**
- * Countries shaded by a count (ported from the web dashboard). The count is
+ * Countries shaded by a count (ported from the old web dashboard). The count is
  * always in the words below the map and in its accessibility label, and a
  * country too small for the map is listed.
  */

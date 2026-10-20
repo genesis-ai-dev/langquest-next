@@ -100,7 +100,7 @@ const failure = failureMessage;
  * Names and progress for the open organization, derived once per fold.
  * Every language the organization lists is here (docs/decisions.md 63). A
  * phone pulls just the language it has open, so the others' progress comes
- * from the dashboard's server when it can be reached (decision 44).
+ * from the app's Worker when it can be reached (decision 44).
  */
 function useOrgView(ctx: Ctx) {
   const state = ctx.language.state;
@@ -113,7 +113,7 @@ function useOrgView(ctx: Ctx) {
     return out;
   }, [state, ctx.language.lines, openId]);
   const languages = useMemo(() => ctx.languages.map((l) => l.languageId), [ctx.languages]);
-  // The open language from this phone's fold, the others from the dashboard's server (decision 44).
+  // The open language from this phone's fold, the others from the app's Worker (decision 44).
   const progress = useMemo(() => new Map([...languageFigures(languages, local, summary)].map(([id, f]) => [id, f.progress])), [languages, local, summary]);
   const orgName = org?.org?.value.name ?? t('org.home.title');
   const label = (languageId: string) => languageName(org, languageId);
@@ -261,7 +261,7 @@ function Loading(props: { title: string; onBack?: () => void }) {
  * The organization and its languages (demo OrgHome with ProjectHome's
  * language list folded in): its languages, what they use and who is
  * assigned. Each language is its own stream (decision 63): the open one's
- * progress is folded here, the others' come from the dashboard's server.
+ * progress is folded here, the others' come from the app's Worker.
  */
 export function OrgHome(ctx: Ctx) {
   const v = useOrgView(ctx);

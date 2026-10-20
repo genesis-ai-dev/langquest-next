@@ -5104,7 +5104,7 @@
       "couldNotRead": "无法读取报告。",
       "signIn": "你的登录已过期。请重新登录。",
       "notMember": "你不是这个机构的成员。",
-      "busy": "仪表板暂时无法读取这个机构。请重试。",
+      "busy": "服务器暂时无法读取这个机构。请重试。",
       "serverAnswered": "服务器返回了 {{status}}。"
     },
     "countries": {

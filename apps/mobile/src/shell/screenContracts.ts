@@ -50,16 +50,16 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   add_record: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
-  // Writing the passage instead (decision 144): its words, and its verses.
+  // Writing the passage instead (decision 145): its words, and its verses.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted','v1.WritingAdded',
     'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.NoteWithdrawn','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
-  // A step that makes something (decision 144): what it made stays with its version (v1.Made); written, its words and verses;
+  // A step that makes something (decision 145): what it made stays with its version (v1.Made); written, its words and verses;
   // a final recording is published as the next version, as the workspace does.
   back_translation: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn','v1.Made','v1.WritingAdded','v1.CardVerseSet','v1.NoteAdded','v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted'],
     reads:['derivePassage'],rpcs:REPORTS },
-  // Something made from a version (decision 144): read or heard, never marked out of date.
+  // Something made from a version (decision 145): read or heard, never marked out of date.
   made_detail: { reads:['derivePassage'] },
   // One reader for both nodes (decision 71): steps, the Bible, key words and notes.
   study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.NoteWithdrawn','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
@@ -135,7 +135,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   settings_more: { rpcs:['register_push_token','set_blocked','my_organizations'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
   delete_account: { rpcs:['delete_my_account'] },
-  // Read from the dashboard's server, not the local fold (decisions.md 44, 57).
+  // Read from the app's Worker, not the local fold (decisions.md 44, 57).
   // A language's country and target go straight to the organization's
   // stream on the server, so the report can catch up with them at once.
   reports_home: { reads:['orgReports'] },
