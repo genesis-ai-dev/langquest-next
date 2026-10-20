@@ -1,11 +1,11 @@
-// The checks being drafted, for a screen to follow (checks/draft.ts holds them).
+// New language's draft, for a screen to follow (checks/draft.ts holds it).
 import { useSyncExternalStore } from 'react';
-import { draft, listeners, type ChecksDraft } from './draft';
+import { getDraft, listeners, type DraftSnapshot } from './draft';
 
-export function useChecksDraft(): ChecksDraft | null {
+export function useChecksDraft(): DraftSnapshot | null {
   return useSyncExternalStore(
     (l) => { listeners.add(l); return () => { listeners.delete(l); }; },
-    () => draft,
-    () => draft
+    getDraft,
+    getDraft
   );
 }

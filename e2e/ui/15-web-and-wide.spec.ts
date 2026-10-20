@@ -12,6 +12,7 @@ import {
   type AccountKey, type UiWorld
 } from './support';
 import { browserStateFor } from './fixture';
+import { inviteRole } from './people-helpers';
 import { addNote, caughtUp, deviceAs, openRecord, openSync, quietReloads, setOffline, SYNC_CLEAR, syncChip, toTab } from './sync-helpers';
 
 const world = useWorld();
@@ -553,7 +554,7 @@ test('WEB-022 Sharing without a share sheet copies instead', async ({ page, cont
   await page.getByRole('button', { name: /^Alpha / }).locator('visible=true').first().click();
   await text(page, 'People').click();
   await button(page, 'Invite').click();
-  await text(page, 'Translate').click();
+  await inviteRole(page, 'Translators');
   await text(page, 'One person, by name').click();
   await field(page, 'Name').fill('Web Share Person');
   await primary(page).click();

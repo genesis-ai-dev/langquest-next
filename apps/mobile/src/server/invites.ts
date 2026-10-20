@@ -1,11 +1,16 @@
 import type { Scope } from '@langquest-next/core';
 import { supabase } from './supabase';
 
-/** An invite the server keeps by its token's hash; the label is shown to whoever scans it, never put in the log. */
+/**
+ * An invite the server keeps by its token's hash; the label is shown to
+ * whoever scans it, never put in the log. One that names checks of its
+ * language puts whoever joins with it on them (decisions.md 146).
+ */
 export function issueInvite(i: {
   orgId: string; inviteId: string; tokenHash: string; roleId: string; scope: Scope; expiresAt: string; label: string | null; maxUses: number;
+  checks?: readonly string[];
 }) {
-  return supabase.rpc('issue_invite_v3', {
+  const args = {
     p_org: i.orgId,
     p_invite_id: i.inviteId,
     p_token_hash: i.tokenHash,
@@ -14,7 +19,8 @@ export function issueInvite(i: {
     p_expires_at: i.expiresAt,
     p_label: i.label,
     p_max_uses: i.maxUses
-  });
+  };
+  return i.checks?.length ? supabase.rpc('issue_invite_v4', { ...args, p_checks: [...i.checks] }) : supabase.rpc('issue_invite_v3', args);
 }
 
 /** Join with an invite, as the person joining. Answers the organization joined. */
