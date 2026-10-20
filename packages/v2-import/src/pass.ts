@@ -65,6 +65,10 @@ export const FIA_GUIDES = 'langquest.fia';
 const OVERLAP_MS = 24 * 3600_000;
 /** A file v2 did not have is looked for again for this long. */
 const RECHECK_MS = 7 * 24 * 3600_000;
+/** For this long a missing file is looked for on every pass: a phone's upload can trail its rows. */
+const TRAILING_MS = 3600_000;
+/** A whole read cut off (a deploy's rollout) resumes for this long after it began; later, the next starts over. */
+const RESUME_MS = 24 * 3600_000;
 
 /** What an event adds, in the words the log uses; events not named here are left out of the summary. */
 const ADDS: Partial<Record<AnyEvent['type'], string>> = {
@@ -88,7 +92,7 @@ export async function sync(deps: PassDeps, opts: { all?: boolean; projects?: str
   const passed = new Set(plan.passes.map((p) => p.project_id));
   let ids: string[];
   if (opts.projects?.length) ids = opts.projects.filter((id) => confirmed.includes(id));
-  else if (opts.all) ids = confirmed;
+  else if (opts.all) ids = await wholeRead(deps, plan.passes, confirmed, started);
   else {
     const since = await deps.target.cursor('changes');
     const changed = since ? await deps.v2.changedSince(new Date(since.getTime() - OVERLAP_MS)) : null;
@@ -96,7 +100,8 @@ export async function sync(deps: PassDeps, opts: { all?: boolean; projects?: str
   }
   deps.print?.('', 'info', `${ids.length} of ${confirmed.length} confirmed projects to read`);
   const summaries = new Map((opts.summaries ?? (await deps.v2.projects())).map((p) => [p.id, p]));
-  const run = new Run(deps, plan, summaries);
+  // A whole read, or projects someone named, looks again for files missing up to a week; a 15-minute pass does not.
+  const run = new Run(deps, plan, summaries, !!opts.all || !!opts.projects?.length);
   const reports: ProjectReport[] = [];
   let failed = 0;
   let stopped = false;
@@ -114,8 +119,44 @@ export async function sync(deps: PassDeps, opts: { all?: boolean; projects?: str
     }
   }
   // Only a pass that read everything it meant to moves the cursor; otherwise the next looks again.
-  if (!opts.projects?.length && failed === 0 && !stopped) await deps.target.cursor('changes', started);
+  if (!opts.projects?.length && failed === 0 && !stopped) {
+    await deps.target.cursor('changes', started);
+    if (opts.all) await deps.target.cursor('whole_done', new Date(now()));
+  }
   return reports;
+}
+
+/**
+ * Whether a pass asks v2's storage for a file. One never looked for, yes;
+ * one missing under an hour, on every pass, since a phone's upload can
+ * trail its rows; one missing up to a week, only in the nightly whole read
+ * (or a transfer someone started for the project), so about once a day: on 2026-10-20 the 15-minute pass asked again for some
+ * 10,000 absent files every time and took 10 of its 15 minutes. Older, no.
+ */
+export function looksFor(known: CopiedFile | { missingSince: string } | undefined, now: number, whole: boolean): boolean {
+  if (!known) return true;
+  if (!('missingSince' in known)) return false;
+  const age = now - Date.parse(known.missingSince);
+  return age < TRAILING_MS || (whole && age < RECHECK_MS);
+}
+
+/**
+ * The projects a whole read still has to read. A whole read begun less than
+ * a day ago and never finished (a deploy's rollout stopped it, decisions.md
+ * 141) resumes: a project read since it began, by it or by a 15-minute pass,
+ * was read whole then and is not read again. Otherwise a new one begins.
+ */
+async function wholeRead(deps: PassDeps, passes: Plan['passes'], confirmed: string[], started: Date): Promise<string[]> {
+  const begun = await deps.target.cursor('whole');
+  const done = await deps.target.cursor('whole_done');
+  if (begun && (!done || done < begun) && started.getTime() - begun.getTime() < RESUME_MS) {
+    const readSince = new Set(passes.filter((p) => Date.parse(p.finished_at) >= begun.getTime()).map((p) => p.project_id));
+    const ids = confirmed.filter((id) => !readSince.has(id));
+    deps.print?.('', 'info', `resuming the whole read begun ${begun.toISOString()}: ${confirmed.length - ids.length} projects already read since`);
+    return ids;
+  }
+  await deps.target.cursor('whole', started);
+  return confirmed;
 }
 
 class Run {
@@ -133,7 +174,7 @@ class Run {
     return new Map((this.plan.links ?? []).filter((l) => l.active === false).map((l) => [l.v2_id, l.next_id]));
   }
 
-  constructor(private deps: PassDeps, private plan: Plan, private summaries: Map<string, V2ProjectSummary>) {}
+  constructor(private deps: PassDeps, private plan: Plan, private summaries: Map<string, V2ProjectSummary>, private whole = false) {}
 
   private now() { return (this.deps.now ?? Date.now)(); }
 
@@ -358,10 +399,7 @@ class Run {
     let storedNow = 0;
     const map = new Map<string, CopiedFile>();
     for (const [name, f] of known) if (!('missingSince' in f)) map.set(name, f);
-    const todo = names.filter((n) => {
-      const f = known.get(n);
-      return !f || ('missingSince' in f && this.now() - Date.parse(f.missingSince) < RECHECK_MS);
-    });
+    const todo = names.filter((n) => looksFor(known.get(n), this.now(), this.whole));
     const found: { name: string; file: CopiedFile | null }[] = [];
     let saved = 0;
     await progress({ step: 'files', done: 0, total: todo.length });
