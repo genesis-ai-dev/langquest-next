@@ -205,8 +205,65 @@ function monthsEndingAt(now: number, n: number): string[] {
   return out;
 }
 
-/** A language's report: its work from its own stream, what defines it from the organization's (`languageInfo`). */
-export function languageReport(state: LanguageState, info: LanguageInfo, now: number, idx: Indexes = buildIndexes(state)): LanguageReport {
+/**
+ * What a language's report is made from, with no date and nothing from the
+ * organization stream (decisions.md 142): the projection pass extracts it
+ * when it folds the language and stores it, and the dashboard's server
+ * renders a report from it for any day (`renderLanguageReport`), so no
+ * server consumer folds a whole language for a report and a report never
+ * goes stale at midnight. Everything that depends on the date is kept by
+ * day, week or month, all time; the upload log keeps only the days it can
+ * still show.
+ */
+export interface ReportInputs {
+  /** The REPORT_VERSION it was extracted under. */
+  v: number;
+  /** Start of the first day the upload log holds: the log's first day when it was extracted. */
+  logFrom: number;
+  flowName: string;
+  progress: LanguageProgress;
+  work: Record<PassageWork, number>;
+  stages: StageCount[];
+  bottleneck: string | null;
+  attention: LanguageReport['attention'];
+  books: BookReport[];
+  lastActivity: string | null;
+  /** By week (its Monday, `YYYY-MM-DD`): cards that reached the server, versions, reviews and requests. */
+  weeks: Record<string, [cards: number, versions: number, reviews: number, requests: number]>;
+  coverage: { recorded: Coverage; done: Coverage };
+  /** By scope: each day's verses first covered by a published version, days ascending. */
+  coverageDays: Record<TargetScope, [day: string, verses: number][]>;
+  milestones: Milestone[];
+  /** Passages first published and passages finished, by day, days ascending. */
+  passageDays: [day: string, recorded: number, done: number][];
+  uploads: { cards: number; chapters: number; firstAt: string | null; lastAt: string | null };
+  /** Cards that reached the server and the distinct chapters they gave audio to, by day, days ascending. */
+  uploadDays: [day: string, cards: number, chapters: number][];
+  /** The upload log's entries from `logFrom` on. */
+  log: LogEntry[];
+  /** By month (`YYYY-MM`): chapters whose first audio reached the server, by book index, ascending. */
+  ledger: Record<string, [bookIndex: number, chapters: number][]>;
+  /**
+   * Cards the server does not have that were already stuck when the inputs
+   * were extracted (recorded STUCK_AFTER_DAYS before): they stay stuck on
+   * every later day, so a count, the oldest and their passages are enough.
+   * An imported language can hold tens of thousands of them.
+   */
+  stuck: { cards: number; since: number | null; unitIds: string[] };
+  /** Cards the server does not have, recorded too recently to be stuck yet when extracted: when, and the passage. */
+  unstored: [recordedAt: number, unitId: string][];
+  invalidCards: number;
+}
+
+const dayStart = (ms: number): number => Math.floor(ms / DAY_MS) * DAY_MS;
+const byKey = <T extends [string, ...unknown[]]>(a: T, b: T): number => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+
+/**
+ * A language's report inputs: everything `languageReport` reads from the
+ * fold. `asOf` only says which days of the upload log to keep; render the
+ * inputs for a day at or after it.
+ */
+export function reportInputs(state: LanguageState, asOf: number, idx: Indexes = buildIndexes(state)): ReportInputs {
   const flow = deriveFlow(state);
   const kinds = deriveKinds(state);
   const passages = idx.passages.map((unitId) => derivePassage(state, unitId, idx));
@@ -215,28 +272,25 @@ export function languageReport(state: LanguageState, info: LanguageInfo, now: nu
   const atStep = new Map<string, number>();
   const attention = { feedback: 0, openRequests: 0, atCheckpoint: 0 };
   const books = new Map<string, BookReport & { canon: number }>();
-  const firstWeek = weekStartOf(now) - (REPORT_WEEKS - 1) * WEEK_MS;
-  const weeks: ActivityWeek[] = Array.from({ length: REPORT_WEEKS }, (_, i) => ({
-    weekStart: isoDay(firstWeek + i * WEEK_MS), cards: 0, versions: 0, reviews: 0, requests: 0
-  }));
+  const weeks: ReportInputs['weeks'] = {};
+  const weekOf = (ms: number) => (weeks[isoDay(weekStartOf(ms))] ??= [0, 0, 0, 0]);
   let last = 0;
-  const week = (ms: number) => {
-    const i = Math.floor((ms - firstWeek) / WEEK_MS);
-    return i >= 0 && i < REPORT_WEEKS ? weeks[i]! : null;
-  };
-  const count = (hlc: string, field: 'versions' | 'reviews' | 'requests') => {
+  const count = (hlc: string, field: 1 | 2 | 3) => {
     const ms = wallOf(hlc);
     if (ms > last) last = ms;
-    const w = week(ms);
-    if (w) w[field] += 1;
+    weekOf(ms)[field] += 1;
   };
 
   // Verse index -> when a passage covering it was first published; and verses in done passages.
   const recordedAt = new Map<number, number>();
   const doneVerses = new Set<number>();
-  // Per passage: when its first version was published, and when the review or departure that finished it landed.
-  const passageRecorded: number[] = [];
-  const passageDone: number[] = [];
+  const passageDays = new Map<string, [string, number, number]>();
+  const passageDay = (ms: number) => {
+    const day = isoDay(ms);
+    let row = passageDays.get(day);
+    if (!row) passageDays.set(day, row = [day, 0, 0]);
+    return row;
+  };
 
   for (const s of passages) {
     const w = passageWork(s);
@@ -256,15 +310,15 @@ export function languageReport(state: LanguageState, info: LanguageInfo, now: nu
     if (s.done) book.done += 1;
     books.set(key, book);
 
-    for (const v of s.versions) count(v.hlc, 'versions');
-    for (const r of s.reviews) count(r.hlc, 'reviews');
-    for (const r of s.requests) count(r.hlc, 'requests');
+    for (const v of s.versions) count(v.hlc, 1);
+    for (const r of s.reviews) count(r.hlc, 2);
+    for (const r of s.requests) count(r.hlc, 3);
 
     const first = s.versions[0];
     if (first) {
       const at = wallOf(first.hlc);
-      passageRecorded.push(at);
-      if (s.done) passageDone.push(Math.max(at, ...s.reviews.map((r) => wallOf(r.hlc)), ...s.departures.map((d) => wallOf(d.hlc))));
+      passageDay(at)[1] += 1;
+      if (s.done) passageDay(Math.max(at, ...s.reviews.map((r) => wallOf(r.hlc)), ...s.departures.map((d) => wallOf(d.hlc))))[2] += 1;
       for (const v of unitVerses(state, s.unitId)) {
         const prior = recordedAt.get(v);
         if (prior === undefined || at < prior) recordedAt.set(v, at);
@@ -283,13 +337,18 @@ export function languageReport(state: LanguageState, info: LanguageInfo, now: nu
   const timesByScope = Object.fromEntries(TARGET_SCOPES.map((s) => [s, [] as number[]])) as Record<TargetScope, number[]>;
   for (const [v, at] of recordedAt) for (const s of TARGET_SCOPES) if (inScope(s, bookOfVerse(v))) timesByScope[s].push(at);
   for (const s of TARGET_SCOPES) timesByScope[s].sort((a, b) => a - b);
-  const coverageAt = (t: number): Coverage => Object.fromEntries(TARGET_SCOPES.map((s) => {
-    const times = timesByScope[s];
-    let lo = 0, hi = times.length;
-    while (lo < hi) { const mid = (lo + hi) >> 1; if (times[mid]! <= t) lo = mid + 1; else hi = mid; }
-    return [s, pct(lo, SCOPE_VERSES[s])];
-  })) as Coverage;
-  const doneCoverage = Object.fromEntries(TARGET_SCOPES.map((s) => {
+  const recorded = Object.fromEntries(TARGET_SCOPES.map((s) => [s, pct(timesByScope[s].length, SCOPE_VERSES[s])])) as Coverage;
+  const coverageDays = Object.fromEntries(TARGET_SCOPES.map((s) => {
+    const days: [string, number][] = [];
+    for (const at of timesByScope[s]) {
+      const day = isoDay(at);
+      const lastDay = days[days.length - 1];
+      if (lastDay?.[0] === day) lastDay[1] += 1;
+      else days.push([day, 1]);
+    }
+    return [s, days];
+  })) as ReportInputs['coverageDays'];
+  const done = Object.fromEntries(TARGET_SCOPES.map((s) => {
     let n = 0;
     for (const v of doneVerses) if (inScope(s, bookOfVerse(v))) n += 1;
     return [s, pct(n, SCOPE_VERSES[s])];
@@ -304,55 +363,42 @@ export function languageReport(state: LanguageState, info: LanguageInfo, now: nu
   }
   milestones.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
 
-  passageRecorded.sort((a, b) => a - b);
-  passageDone.sort((a, b) => a - b);
-  const progressStart = Math.floor(now / DAY_MS) * DAY_MS - (PROGRESS_DAYS - 1) * DAY_MS;
-  let ri = 0, di = 0;
-  const progressDaily: ProgressDay[] = Array.from({ length: PROGRESS_DAYS }, (_, i) => {
-    const end = progressStart + (i + 1) * DAY_MS - 1;
-    while (ri < passageRecorded.length && passageRecorded[ri]! <= end) ri += 1;
-    while (di < passageDone.length && passageDone[di]! <= end) di += 1;
-    return { day: isoDay(progressStart + i * DAY_MS), recorded: ri, done: di };
-  });
-
   // ---- uploads, ledger, alerts --------------------------------------------
-  const firstDay = Math.floor(now / DAY_MS) * DAY_MS - (REPORT_DAYS - 1) * DAY_MS;
-  const daily = Array.from({ length: REPORT_DAYS }, (_, i) => ({ day: isoDay(firstDay + i * DAY_MS), cards: 0, chapters: new Set<number>() }));
-  const logStart = Math.floor(now / DAY_MS) * DAY_MS - (LOG_DAYS - 1) * DAY_MS;
+  const logFrom = dayStart(asOf) - (LOG_DAYS - 1) * DAY_MS;
+  const uploadDays = new Map<string, { cards: number; chapters: Set<number> }>();
   const log = new Map<string, LogEntry>();
   const unitFirstUpload = new Map<string, number>();
-  const stuck = { stuckCards: 0, stuckPassages: new Set<string>(), stuckSince: Infinity, invalidCards: 0 };
-  let cardsOnServer = 0, firstAt = Infinity, lastAt = 0;
-  const stuckBefore = now - STUCK_AFTER_DAYS * DAY_MS;
+  const unstored: [number, string][] = [];
+  const stuckBefore = asOf - STUCK_AFTER_DAYS * DAY_MS;
+  const stuck = { cards: 0, since: Infinity, unitIds: new Set<string>() };
+  let invalidCards = 0, cardsOnServer = 0, firstAt = Infinity, lastAt = 0;
 
   for (const rec of Object.values(state.recordings)) {
     if (rec.kind !== 'target') continue;
     for (const card of rec.cards) {
       const blob = state.blobs[card.hash];
       if (!blob?.stored) {
-        if (blob && !blob.stored) stuck.invalidCards += 1;
+        if (blob && !blob.stored) invalidCards += 1;
         const recorded = wallOf(rec.hlc);
         if (recorded < stuckBefore) {
-          stuck.stuckCards += 1;
-          stuck.stuckPassages.add(rec.unitId);
-          stuck.stuckSince = Math.min(stuck.stuckSince, recorded);
-        }
+          stuck.cards += 1;
+          stuck.since = Math.min(stuck.since, recorded);
+          stuck.unitIds.add(rec.unitId);
+        } else unstored.push([recorded, rec.unitId]);
         continue;
       }
       const at = wallOf(blob.hlc);
       cardsOnServer += 1;
       firstAt = Math.min(firstAt, at);
       lastAt = Math.max(lastAt, at);
-      const w = week(at);
-      if (w) w.cards += 1;
+      weekOf(at)[0] += 1;
       unitFirstUpload.set(rec.unitId, Math.min(unitFirstUpload.get(rec.unitId) ?? Infinity, at));
-      const d = Math.floor((at - firstDay) / DAY_MS);
-      if (d >= 0 && d < REPORT_DAYS) {
-        daily[d]!.cards += 1;
-        for (const c of unitChapters(state, rec.unitId)) daily[d]!.chapters.add(c);
-      }
-      if (at >= logStart) {
-        const day = isoDay(at);
+      const day = isoDay(at);
+      let d = uploadDays.get(day);
+      if (!d) uploadDays.set(day, d = { cards: 0, chapters: new Set() });
+      d.cards += 1;
+      for (const c of unitChapters(state, rec.unitId)) d.chapters.add(c);
+      if (at >= logFrom) {
         const key = `${day}\u0000${rec.unitId}`;
         const entry = log.get(key) ?? {
           day, at: new Date(at).toISOString(), unitId: rec.unitId, label: state.units[rec.unitId]?.label ?? rec.unitId,
@@ -370,29 +416,18 @@ export function languageReport(state: LanguageState, info: LanguageInfo, now: nu
   for (const [unitId, at] of unitFirstUpload) {
     for (const c of unitChapters(state, unitId)) chapterFirst.set(c, Math.min(chapterFirst.get(c) ?? Infinity, at));
   }
-  const months = monthsEndingAt(now, LEDGER_MONTHS);
-  const byMonth = new Map(months.map((m) => [m, new Map<number, number>()]));
+  const byMonth = new Map<string, Map<number, number>>();
   for (const [c, at] of chapterFirst) {
-    const books = byMonth.get(isoMonth(at));
-    if (!books) continue;
-    books.set(bookOfChapter(c), (books.get(bookOfChapter(c)) ?? 0) + 1);
+    const month = isoMonth(at);
+    let perBook = byMonth.get(month);
+    if (!perBook) byMonth.set(month, perBook = new Map());
+    perBook.set(bookOfChapter(c), (perBook.get(bookOfChapter(c)) ?? 0) + 1);
   }
-  const ledger: LedgerMonth[] = months.map((month) => {
-    const perBook = [...byMonth.get(month)!].sort(([a], [b]) => a - b);
-    return {
-      month,
-      chapters: perBook.reduce((n, [, k]) => n + k, 0),
-      books: perBook.map(([bi, chapters]) => ({ bookId: bookId(bi), label: bookLabel(bi), chapters }))
-    };
-  });
 
   return {
-    languageId: info.languageId,
-    name: info.name,
-    code: info.code,
-    country: info.country,
+    v: REPORT_VERSION,
+    logFrom,
     flowName: flow.name,
-    target: info.target ? { ...info.target } : null,
     progress: languageProgress(state, idx),
     work,
     stages,
@@ -401,34 +436,130 @@ export function languageReport(state: LanguageState, info: LanguageInfo, now: nu
     books: [...books.values()]
       .sort((a, b) => a.canon - b.canon || (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
       .map(({ canon: _c, ...b }) => b),
-    activity: weeks,
     lastActivity: last > 0 ? new Date(last).toISOString() : null,
-    coverage: {
-      recorded: coverageAt(Infinity),
-      done: doneCoverage,
-      weekly: weeks.map((w) => {
-        const end = Date.parse(`${w.weekStart}T00:00:00Z`) + WEEK_MS - 1;
-        return { weekEnd: isoDay(end), recorded: coverageAt(end) };
-      })
-    },
+    weeks,
+    coverage: { recorded, done },
+    coverageDays,
     milestones,
-    progressDaily,
+    passageDays: [...passageDays.values()].sort(byKey),
     uploads: {
       cards: cardsOnServer,
       chapters: chapterFirst.size,
       firstAt: Number.isFinite(firstAt) ? new Date(firstAt).toISOString() : null,
-      lastAt: lastAt > 0 ? new Date(lastAt).toISOString() : null,
-      daily: daily.map((d) => ({ day: d.day, cards: d.cards, chapters: d.chapters.size })),
-      log: [...log.values()].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.unitId < b.unitId ? -1 : 1)).slice(0, LOG_LIMIT)
+      lastAt: lastAt > 0 ? new Date(lastAt).toISOString() : null
     },
+    uploadDays: [...uploadDays].map(([day, d]): [string, number, number] => [day, d.cards, d.chapters.size]).sort(byKey),
+    log: [...log.values()],
+    ledger: Object.fromEntries([...byMonth].map(([month, perBook]) => [month, [...perBook].sort(([a], [b]) => a - b)])),
+    stuck: { cards: stuck.cards, since: Number.isFinite(stuck.since) ? stuck.since : null, unitIds: [...stuck.unitIds].sort() },
+    unstored,
+    invalidCards
+  };
+}
+
+/**
+ * A language's report for the day that holds `now`, from its inputs and what
+ * defines it on the organization stream (`languageInfo`). Cheap: it walks
+ * days, weeks and months, never the fold. `now` should be at or after the
+ * inputs' extraction; the upload log holds nothing older.
+ */
+export function renderLanguageReport(inputs: ReportInputs, info: LanguageInfo, now: number): LanguageReport {
+  const firstWeek = weekStartOf(now) - (REPORT_WEEKS - 1) * WEEK_MS;
+  const weeks: ActivityWeek[] = Array.from({ length: REPORT_WEEKS }, (_, i) => {
+    const weekStart = isoDay(firstWeek + i * WEEK_MS);
+    const [cards, versions, reviews, requests] = inputs.weeks[weekStart] ?? [0, 0, 0, 0];
+    return { weekStart, cards, versions, reviews, requests };
+  });
+
+  // Recorded coverage at the end of each week: verses first covered on or before its Sunday.
+  const weekly: CoverageWeek[] = [];
+  const cursor = Object.fromEntries(TARGET_SCOPES.map((s) => [s, { i: 0, n: 0 }])) as Record<TargetScope, { i: number; n: number }>;
+  for (const w of weeks) {
+    const weekEnd = isoDay(Date.parse(`${w.weekStart}T00:00:00Z`) + WEEK_MS - 1);
+    const recorded = Object.fromEntries(TARGET_SCOPES.map((s) => {
+      const days = inputs.coverageDays[s];
+      const c = cursor[s];
+      while (c.i < days.length && days[c.i]![0] <= weekEnd) c.n += days[c.i++]![1];
+      return [s, pct(c.n, SCOPE_VERSES[s])];
+    })) as Coverage;
+    weekly.push({ weekEnd, recorded });
+  }
+
+  // Passages recorded and done by the end of each of the last PROGRESS_DAYS days.
+  const progressStart = dayStart(now) - (PROGRESS_DAYS - 1) * DAY_MS;
+  let pi = 0, recordedSoFar = 0, doneSoFar = 0;
+  const progressDaily: ProgressDay[] = Array.from({ length: PROGRESS_DAYS }, (_, i) => {
+    const day = isoDay(progressStart + i * DAY_MS);
+    while (pi < inputs.passageDays.length && inputs.passageDays[pi]![0] <= day) {
+      recordedSoFar += inputs.passageDays[pi]![1];
+      doneSoFar += inputs.passageDays[pi]![2];
+      pi += 1;
+    }
+    return { day, recorded: recordedSoFar, done: doneSoFar };
+  });
+
+  const uploadsByDay = new Map(inputs.uploadDays.map(([day, cards, chapters]) => [day, { cards, chapters }]));
+  const firstDay = dayStart(now) - (REPORT_DAYS - 1) * DAY_MS;
+  const daily: UploadDay[] = Array.from({ length: REPORT_DAYS }, (_, i) => {
+    const day = isoDay(firstDay + i * DAY_MS);
+    return { day, ...(uploadsByDay.get(day) ?? { cards: 0, chapters: 0 }) };
+  });
+  const logStart = isoDay(dayStart(now) - (LOG_DAYS - 1) * DAY_MS);
+  const log = inputs.log.filter((e) => e.day >= logStart)
+    .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.unitId < b.unitId ? -1 : 1)).slice(0, LOG_LIMIT);
+
+  const ledger: LedgerMonth[] = monthsEndingAt(now, LEDGER_MONTHS).map((month) => {
+    const perBook = inputs.ledger[month] ?? [];
+    return {
+      month,
+      chapters: perBook.reduce((n, [, k]) => n + k, 0),
+      books: perBook.map(([bi, chapters]) => ({ bookId: bookId(bi), label: bookLabel(bi), chapters }))
+    };
+  });
+
+  // Stuck when extracted stays stuck; a recent card becomes stuck once now is far enough past it.
+  const stuckBefore = now - STUCK_AFTER_DAYS * DAY_MS;
+  const stuckPassages = new Set<string>(inputs.stuck.unitIds);
+  let stuckCards = inputs.stuck.cards, stuckSince = inputs.stuck.since ?? Infinity;
+  for (const [recorded, unitId] of inputs.unstored) {
+    if (recorded >= stuckBefore) continue;
+    stuckCards += 1;
+    stuckPassages.add(unitId);
+    stuckSince = Math.min(stuckSince, recorded);
+  }
+
+  return {
+    languageId: info.languageId,
+    name: info.name,
+    code: info.code,
+    country: info.country,
+    flowName: inputs.flowName,
+    target: info.target ? { ...info.target } : null,
+    progress: inputs.progress,
+    work: inputs.work,
+    stages: inputs.stages,
+    bottleneck: inputs.bottleneck,
+    attention: inputs.attention,
+    books: inputs.books,
+    activity: weeks,
+    lastActivity: inputs.lastActivity,
+    coverage: { recorded: inputs.coverage.recorded, done: inputs.coverage.done, weekly },
+    milestones: inputs.milestones,
+    progressDaily,
+    uploads: { ...inputs.uploads, daily, log },
     ledger,
     alerts: {
-      stuckCards: stuck.stuckCards,
-      stuckPassages: stuck.stuckPassages.size,
-      stuckSince: Number.isFinite(stuck.stuckSince) ? new Date(stuck.stuckSince).toISOString() : null,
-      invalidCards: stuck.invalidCards
+      stuckCards,
+      stuckPassages: stuckPassages.size,
+      stuckSince: Number.isFinite(stuckSince) ? new Date(stuckSince).toISOString() : null,
+      invalidCards: inputs.invalidCards
     }
   };
+}
+
+/** A language's report: its work from its own stream, what defines it from the organization's (`languageInfo`). */
+export function languageReport(state: LanguageState, info: LanguageInfo, now: number, idx: Indexes = buildIndexes(state)): LanguageReport {
+  return renderLanguageReport(reportInputs(state, now, idx), info, now);
 }
 
 /**

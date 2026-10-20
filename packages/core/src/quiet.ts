@@ -59,3 +59,21 @@ export function onlyQuietEvents(events: Iterable<{ type: string }>): boolean {
   for (const e of events) if (!eventsThatCannotChangeInbox.has(e.type as EventType)) return false;
   return true;
 }
+
+/**
+ * The quiet types that cannot change a language's report inputs either
+ * (`reportInputs`, decisions.md 142), which the projection pass now writes
+ * beside the Inbox rows. Recordings, cards and stored files are left out:
+ * an upload changes the report's uploads, ledger, activity and alerts, so
+ * a tail holding one is folded like any other.
+ * `packages/core/test/quiet.test.ts` holds the claim.
+ */
+export const eventsThatCannotChangeReport: ReadonlySet<EventType> = new Set<EventType>(
+  [...eventsThatCannotChangeInbox].filter((t) => !['v1.RecordingAdded', 'v1.CardVerseSet', 'v1.BlobStored', 'v1.BlobInvalidated'].includes(t))
+);
+
+/** True when every event is one of `eventsThatCannotChangeReport`: the pass may skip the language's fold. */
+export function onlyEventsThatLeaveTheReport(events: Iterable<{ type: string }>): boolean {
+  for (const e of events) if (!eventsThatCannotChangeReport.has(e.type as EventType)) return false;
+  return true;
+}

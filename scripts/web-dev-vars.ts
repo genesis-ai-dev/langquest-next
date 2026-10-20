@@ -27,8 +27,24 @@ writeFileSync(new URL('../apps/web/.dev.vars', import.meta.url),
 // production. Without one, the request keeps the address it came in on:
 // localhost:8787 here, 10.0.2.2:8787 from the Android emulator.
 const config = JSON.parse(readFileSync(new URL('../apps/web/wrangler.jsonc', import.meta.url), 'utf8')
-  .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')) as { secrets?: { required?: string[] }; routes?: unknown };
+  .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')) as {
+    secrets?: { required?: string[] }; routes?: unknown; vars?: Record<string, string>; assets?: { run_worker_first?: string[] }
+  };
 delete config.routes;
+// Wrangler's endpoint for firing the cron by hand (`--test-scheduled`),
+// /__scheduled, is a path the app's export does not have, so the assets
+// layer would answer it with the page; the Worker gets it first. Production
+// has no such endpoint.
+config.assets = { ...config.assets, run_worker_first: [...(config.assets?.run_worker_first ?? []), '/__scheduled'] };
 if (bibleBrain) config.secrets = { required: [...new Set([...(config.secrets?.required ?? []), 'BIBLE_BRAIN_ACCESS_KEY'])] };
+// The job container (worker/jobs.ts) runs in Docker, where 127.0.0.1 is the
+// container itself; it reaches the local database through Docker's name for
+// the host. A plain var in the copy, since wrangler reads from .dev.vars only
+// the secrets the config requires; production's config has no such var.
+const jobsUrl = new URL(LOCAL_URL);
+jobsUrl.hostname = 'host.docker.internal';
+// The same for the Worker's own address (the v2 import puts files there), and
+// no v2 import here: a local stack has no v2 keys (npm run v2 imports by hand).
+config.vars = { ...config.vars, JOBS_SUPABASE_URL: jobsUrl.origin, JOBS_API_URL: 'http://host.docker.internal:8787', V2_IMPORT_ENABLED: 'false' };
 writeFileSync(new URL('../apps/web/.wrangler.dev.jsonc', import.meta.url), JSON.stringify(config, null, 1));
 mkdirSync(new URL('../apps/mobile/dist', import.meta.url), { recursive: true });
