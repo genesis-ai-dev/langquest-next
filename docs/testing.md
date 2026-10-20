@@ -131,8 +131,24 @@ These keep the suite fast enough to run and stable enough to trust.
 - **Zero retries, quarantine instead.** `retries: 0` stays. A test that
   fails without a product cause is tagged `@quarantine`, runs in its own job,
   and has an owner and an issue (for a test the nightly run caught, the
-  issue it opened). `scripts/ui-flakes.mjs` reads the kept reports and
-  lists pass rates per test.
+  issue it opened). `scripts/ui-flakes.mjs` reads kept reports and lists
+  pass rates per test. The nightly does this itself
+  (`scripts/ui-flake-report.mjs`, job `nightly-flakes`): it downloads the
+  `ui-web-p0-results-*` artifacts of the last 40 pull request and push runs,
+  prints the tests under 95% of their runs (seen in at least 5) and keeps
+  one Linear issue for them, `Nightly: the web UI tests that do not pass
+  every run`, commenting when the list changes. A pull request that broke a
+  test and fixed it later counts as failures there, so read the failing runs
+  before quarantining. Run it by hand with `--dry-run` (it uses the `gh`
+  sign-in). A report in which more than 15 tests failed is left out: that is
+  the stack being down, not 15 flakes.
+- **A red run may be the runner.** Before filing a UI failure as a product
+  bug, read the job's `load/` files in the results artifact
+  (`ui-web-p0-results-N`): `vmstat.log` (run queue `r` above the 4 vCPUs for
+  long, `wa` disk wait, `st` steal, `si`/`so` swap), `busiest.log` (the
+  busiest processes every 30 s) and `machine.txt`. A job that failed in
+  "Start the local stack" with `toomanyrequests` is a registry limit, not
+  the code (see "CI infrastructure" below).
 - **Own world per file, no order between files.** Inside a file, tests may
   build on earlier ones only when the spec says so under "Resets".
 - **Phones run the P0 smoke set and phone-only behaviour.** A test that can
@@ -151,7 +167,7 @@ These keep the suite fast enough to run and stable enough to trust.
 | PR (CI `checks`) | typecheck, `npm test`, coverage thresholds, worker bundle parity | under 10 min |
 | PR (CI `server`) | `db:test`, `test:integration` | under 15 min |
 | PR (CI `web-smoke`) | the export in three engines | under 20 min |
-| PR (CI `ui-web`) | `@p0` web tests on the export, in two shards | under 20 min |
+| PR (CI `ui-web`) | `@p0` web tests on the export, in four shards of two browsers, cut by recorded duration | under 20 min |
 | Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | not blocking; failures filed in Linear, unassigned (`scripts/nightly-report.mjs`) |
 | `npm run ship` | typecheck, then `@p0` web tests on the local stack (`SHIP_UNTESTED=1` skips, loudly) | |
 | Store release | full web suite, every Maestro flow on both phones, the run sheet | |
@@ -160,6 +176,33 @@ The four PR jobs start together, so a PR waits for the slowest of them
 (about 6 minutes, the `ui-web` shards), not for `checks` and then the rest.
 A job that needs the local stack starts it in the background while it
 installs the browsers.
+
+### CI infrastructure (decision 102, amended 2026-10-20)
+
+- **Sharding.** `ui-web` runs four shards with `UI_WORKERS=2` each. Playwright's
+  `--shard` splits by test count, which is not time, so
+  `scripts/ui-shards.mjs <n> 4 --tag @p0` deals spec files largest first by
+  their seconds in `scripts/ui-shard-weights.json` and the job passes those
+  files to Playwright. A file not in the table weighs the median. Refresh the
+  table when the suite has changed a lot: download the `ui-web-p0-results-N`
+  artifacts of a few runs into one folder per artifact named `<run>-<n>` and
+  run `node scripts/ui-shards.mjs weights <folder> > scripts/ui-shard-weights.json`.
+  `uiShards.test.ts` holds that every file is in exactly one shard and the
+  four are within a fifth of each other.
+- **Registries.** ECR Public (the Supabase CLI's images) and Docker Hub (the
+  job container's base image, wrangler's egress image) ration anonymous
+  pulls per IP address, which a hosted runner shares. Jobs restore the
+  images from `actions/cache` and save them when the cache was not an exact
+  hit (`.github/actions/docker-images`, `scripts/ci-docker-images.sh`; the
+  key is the Supabase CLI version and `supabase/config.toml`), and a start
+  the registry turned away is retried (`scripts/ci-retry-pull.sh`). The
+  repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`, when set,
+  sign in to Docker Hub for a higher limit; nothing requires them.
+- **Load.** Each UI job logs `nproc` and `free -m` and samples `vmstat` and the
+  busiest processes (`scripts/ci-load.sh`) into its results artifact.
+- **Concurrency.** A pull request or push run is cancelled by a newer one for
+  the same ref; the scheduled and manual runs are a group of their own and
+  neither cancel nor are cancelled.
 
 ## Running each layer here
 
