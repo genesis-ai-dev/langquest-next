@@ -5291,6 +5291,18 @@ the largest real organization.
   the Worker log for "exceeded its memory limit". It is not running; it
   needs per-organization read tokens and a read-only Cloudflare token.
 
+Amended (2026-10-20, Carl Sauder): the budget is now kept before a fold
+is made, not only after. `keep` let go of older folds once the new one
+was folded, so a fold of about the budget stayed held while the next
+language was read from the cache or folded from its events: two folds,
+the second's events and its measuring text at once. The fold path at
+6 × 5,000 then ran out of its 112 MB heap on 4 runs in 10, on main as on
+any branch, and failed pull requests at random. `stateOf` now makes room
+for the language's recorded size first (`makeRoom`), counting a size not
+recorded yet as large, as `isLarge` does; 16 runs in 16 passed. A unit
+test in `worker.test.ts` holds the order: nothing the budget cannot hold
+beside the next fold is held while it is folded.
+
 ## 133. The recording screen has its own Undo and Redo, parts move by a grip, a place opens on the line between parts, and no Undo there runs out
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -6091,7 +6103,12 @@ reads the syntax, so it caught a loop the regular expression missed
 (`Object.values(state.kindReviews ?? {})` in `workspaceModel.ts`, which
 runs on the passage on screen and is listed). It also reports a listed
 read that is gone. `wholeLanguage.test.ts` holds the rule's lists equal to
-core's `PASSAGE_PARTS` and `READS_EVERY_PASSAGE`.
+core's `PASSAGE_PARTS` and `READS_EVERY_PASSAGE`. And a redaction pulled
+on the same page as its target no longer reads as one inside the
+checkpoint: the pull looked the target up in the store before the page
+was written, so the phone waited for a fresh server snapshot, skipped its
+checkpoint and asked again on every pull, for a target a refold of its
+own log removes. The page's own events are looked at first.
 
 ## 144. The Worker in `apps/web` is "the app's Worker"; "dashboard" names it only as history
 
