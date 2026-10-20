@@ -6,8 +6,8 @@
 // Requirements REC-1..8 (REC-2/2a: the path top to bottom, per version),
 // ASK-2, ASK-4; ADR-012, 013, 014, 015, 016, 020, 029, 030.
 import {
-  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, LISTENER_KIND, madeVersionOf, membershipsOf, privilegesFor, releasesOf, scopeCovers,
-  type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageNote, type PassageState,
+  checkPeople, feedbackIsMine, isCompleteState, keyTermView, languagePeople, LISTENER_KIND, madeVersionOf, membershipsOf, privilegesFor, releasesOf, reviewersOf, scopeCovers,
+  type FlowStepStatus, type KindDef, type KindStatus, type OrgState, type PassageLines, type PassageNote, type PassageState,
   type Privilege, type LanguageState, type QuestionSpec, type RecordEntry, type RequestView, type ReviewView, type SourcedQuestion,
   type Version, withdrawnBy
 } from '@langquest-next/core';
@@ -268,14 +268,14 @@ export function kindRowActions(o: {
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = kindCleared(o.status, o.step);
   // Nobody checks their own version unless they were asked to (the role matrix: Review, "not their own version unless asked").
-  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 143).
+  // A step that makes something is not a check: the translator may write their own recording down (decisions.md 144).
   const doIt: RowAction | undefined = o.can.review && (!o.isAuthor || askedMe || !!o.kind.makes)
     ? { id: 'do', label: o.kind.makes ? o.kind.name : o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
   const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
     ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
     ? { id: 'ask', label: s === 'addressed' ? t('passage.record.actions.askAgain') : send ? t('passage.record.actions.sendElsewhere') : t('passage.record.actions.askSomeone') } : undefined;
-  // What a step makes is made here, not logged afterwards (decision 143).
+  // What a step makes is made here, not logged afterwards (decision 144).
   const log: RowAction | undefined = o.can.log && !o.kind.makes ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
   const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: t('passage.record.actions.setAside') } : undefined;
   const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
@@ -461,7 +461,7 @@ export function describeEntry(e: RecordEntry, o: {
       };
     }
     case 'made': {
-      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 143).
+      // Made beside a version, or added to it; a change to what was added says which review it came after (decision 144).
       const m = e.made;
       const of = o.p.versions.find((x) => x.takeId === madeVersionOf(o.p, m));
       const version = of ? versionTitle(of.n) : t('passage.record.anchor.aVersion');
@@ -576,13 +576,11 @@ interface AskCandidate {
 export function askCandidates(
   state: LanguageState,
   org: OrgState | null,
-  o: { languageId: string; what: 'record' | 'review'; kindId?: string; me: string }
+  o: { languageId: string; what: 'record' | 'review'; kindId?: string; me: string; lines: PassageLines }
 ): AskCandidate[] {
   const need: Privilege = o.what === 'record' ? 'translate' : 'review';
-  const reviewedHere = new Set<string>();
-  if (o.what === 'review' && o.kindId) {
-    for (const r of Object.values(state.kindReviews)) if (r.kindId === o.kindId && !withdrawnBy(state.withdrawnReviews, r.id, r)) reviewedHere.add(r.by);
-  }
+  // Who did this kind here before, read off the passages' lines (decisions.md 143).
+  const reviewedHere = new Set<string>(o.what === 'review' && o.kindId ? reviewersOf(o.lines, o.kindId).keys() : []);
   // The check's people come first (decision 91): admins put them on the check, and they are the top choices when someone asks for it.
   const onCheck = new Set(o.what === 'review' && o.kindId ? checkPeople(state, o.kindId) : []);
   const rank = (c: AskCandidate) => (onCheck.has(c.profileId) ? 0 : c.usual ? 1 : 2);

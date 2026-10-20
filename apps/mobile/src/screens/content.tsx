@@ -26,7 +26,7 @@ import { readerLanguage } from '../reference/languages';
 import { languageLabel } from '../admin/adminModel';
 import { LanguageField } from '../reference/LanguageField';
 import {
-  bookParts, chaptersInBook, languageName, languageProgress, libraryItemView, usfmOf,
+  bookParts, chaptersInBook, languageName, libraryItemView, progressOf, usfmOf,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { BookHead, BreakUpBook } from '../breakup/BreakUpBook';
@@ -982,8 +982,8 @@ export function BookStructure(ctx: Ctx) {
 
   const data = useMemo(() => {
     if (!state || !open || !book) return null;
-    return bookStructureData(state, indexesFor(state), book, ctx.org.state, languageId!);
-  }, [state, open, languageId, book, ctx.org.state]);
+    return bookStructureData(state, indexesFor(state), book, ctx.org.state, languageId!, ctx.language.lines);
+  }, [state, ctx.language.lines, open, languageId, book, ctx.org.state]);
   const textOf = useCallback((c: number, v: number) => data?.textOf(c, v) ?? (bookText.byAt.get(atOf(c, v)) || undefined), [data, bookText.byAt]);
   const sourceName = bookText.option ? sourceChip(bookText.option, bookText.options) : undefined;
 

@@ -3,7 +3,7 @@
 // who the request goes to, whether Ask is enabled, and the ask
 // command's input. Pure, so the choices are held by tests
 // (test/askModel.test.ts) and the screen only draws and collects them.
-import { checkPeople, questionsForKind, type Commands, type OrgState, type QuestionSpec } from '@langquest-next/core';
+import { checkPeople, questionsForKind, type Commands, type OrgState, type PassageLines, type QuestionSpec } from '@langquest-next/core';
 import { checkName } from '../admin/adminModel';
 import { t } from '../i18n';
 import type { PassageView } from './passageView';
@@ -56,6 +56,8 @@ export interface AskModel {
 export function askModel(o: {
   v: PassageView; org: OrgState | null; me: string; name: NameFn; what: 'record' | 'review'; kindId: string | undefined;
   candidates: Candidate[]; picks: AskPicks;
+  /** The passages' lines: who usually reviews a check is read off them (decisions.md 143). */
+  lines: PassageLines;
 }): AskModel {
   const { v, kindId, picks } = o;
   const isRecord = o.what === 'record';
@@ -66,7 +68,7 @@ export function askModel(o: {
   const byName = (a: { profileId: string }, b: { profileId: string }) => o.name(a.profileId).localeCompare(o.name(b.profileId));
   const usual = o.candidates.filter((c) => c.usual).sort((a, b) => Number(b.onCheck) - Number(a.onCheck) || byName(a, b));
   const others = o.candidates.filter((c) => !c.usual).sort(byName);
-  const usualTo = !isRecord && kindId ? usualTargetFor(v.state, o.org, { languageId: v.languageId, kindId, me: o.me }) : undefined;
+  const usualTo = !isRecord && kindId ? usualTargetFor(v.state, o.org, { languageId: v.languageId, kindId, me: o.me, lines: o.lines }) : undefined;
   const team = usualTo && 'teamId' in usualTo ? usualTo : undefined;
   const teamPeople = team && kindId ? checkPeople(v.state, kindId).filter((id) => id !== o.me) : [];
   const chosen = picks.who ?? (team ? TEAM : null);

@@ -246,7 +246,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const r = readiness(questions, captured.answers, skipped, comment, feedback?.hash ?? null);
   const group = isGroupKind(kind.id);
   const asker = request?.by ? ctx.name(request.by) : undefined;
-  // What this check reads (decision 143): what an earlier step made from this version, or the version; writing is read.
+  // What this check reads (decision 144): what an earlier step made from this version, or the version; writing is read.
   const reads = readsFor(v.p, kind, version);
   const stages = reviewStages({ questions: questions.length, logged, makes: !!makes, reads: reads.medium === 'writing' });
   const at = stageAt(stages, stageId);
@@ -267,8 +267,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const whoTitle = logged && !group ? t('review.screen.whoReviewed') : logged ? t('review.parts.howManyListened') : t('review.screen.whoIsListening');
 
   async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
-    const state = ctx.language.state;
-    if (!state || !v || !version || !kind || busy) return;
+    const live = ctx.language.state;
+    if (!live || !v || !version || !kind || busy) return;
+    const state = live;
     const cmd = Crypto.randomUUID();
     const c = commands(state, indexesFor(state));
     const text = comment.trim();
@@ -397,7 +398,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       )}
       {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
       {!reads.made && reads.medium === 'recording' ? <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered /> : null}
-      {/* What a step added to the version is part of it: a check hears and reads them together (decision 143). */}
+      {/* What a step added to the version is part of it: a check hears and reads them together (decision 144). */}
       {!reads.made ? addedTo(v.p, version).map((a) => (
         <HelpRow key={a.medium} of="review.added">
           <View style={{ gap: space.sm }}>

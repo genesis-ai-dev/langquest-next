@@ -1,4 +1,4 @@
-// Writing a passage (decisions.md 143; demo branch caleb-written-translations,
+// Writing a passage (decisions.md 144; demo branch caleb-written-translations,
 // simple/writing.tsx wWrite, wType, wPublish, wFirstWrite, wBtWrite): the
 // recording workspace's split, with the reference on top and one box per
 // verse below. On top: what is being written from (a version heard verse by
@@ -148,7 +148,8 @@ export function WritingWorkspace({ ctx, v, mode }: { ctx: Ctx; v: PassageView; m
   // A step that makes the next version leaves the asking to the record, as a final recording does.
   const nextUp = useMemo(() => (!ask || mode.kind === 'final' ? undefined
     : mode.kind === 'version' ? nextAfterDone(p, { publishing: true }) : nextAfterDone(p, { recordedKindId: mode.step.id })), [ask, mode, p]);
-  const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true }) : {}), [nextUp, state, orgState, p, languageId, me]);
+  const lines = ctx.language.lines;
+  const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true, lines }) : {}), [nextUp, state, orgState, p, languageId, me, lines]);
   async function publish(note: string, noteBlobHash: string | null, asked: DoneAsk): Promise<boolean> {
     const commandId = Crypto.randomUUID();
     const sendTo = asked && 'kindId' in asked ? targets[asked.kindId] : undefined;

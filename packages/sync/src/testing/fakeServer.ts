@@ -49,6 +49,13 @@ export class FakeServer {
   private replaced = new Map<string, { snapshot: Snapshot; replacedAt: number }[]>();
   /** Snapshot state is served in pieces of this many characters. */
   chunkChars = 1_000_000;
+  /**
+   * The order a snapshot's text gives each object's keys. Postgres keeps a
+   * snapshot as jsonb and cuts its pieces from that text (decision 89), and
+   * jsonb orders keys by length, then by their bytes, not as they were
+   * written. 'reversed' puts what hangs on another entry ahead of it.
+   */
+  keyOrder: 'insertion' | 'jsonb' | 'reversed' = 'insertion';
   /** Chunk fetches after this many throw (link dropped mid-snapshot). */
   failChunkAfter = Infinity;
   chunkCalls = 0;
@@ -181,9 +188,22 @@ export class FakeServer {
   private textOf(s: Snapshot): string {
     let text = this.snapshotText.get(s);
     if (text === undefined) {
-      text = JSON.stringify(s.state);
+      text = this.keyOrder === 'insertion' ? JSON.stringify(s.state) : JSON.stringify(s.state, keysIn(this.keyOrder));
       this.snapshotText.set(s, text);
     }
     return text;
   }
+}
+
+/** A JSON.stringify replacer that writes every plain object's keys in another order. */
+function keysIn(order: 'jsonb' | 'reversed'): (key: string, value: unknown) => unknown {
+  const jsonb = (a: string, b: string) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0);
+  return (_key, value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    const keys = Object.keys(value);
+    const ordered = order === 'jsonb' ? [...keys].sort(jsonb) : [...keys].reverse();
+    const out: Record<string, unknown> = {};
+    for (const k of ordered) out[k] = (value as Record<string, unknown>)[k];
+    return out;
+  };
 }

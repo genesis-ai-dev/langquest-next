@@ -1,5 +1,10 @@
-import { defaultOfflineScope, deriveDownloadWork, deriveUploadWork, type AnyEvent, type BlobRef } from '@langquest-next/core';
+import {
+  defaultOfflineScope, deriveDownloadWork, deriveUploadWork, keptVerdict, PART_OF_KIND, putEntry, withOwnParts,
+  type AnyEvent, type BlobRef, type LanguageState
+} from '@langquest-next/core';
 import { Diagnostics, MemoryDiagStore } from '../../diagnostics';
+import { FILE, PART_KINDS } from '../../keptLanguage';
+import { LanguageFiles } from '../../languageFiles';
 import { MemoryStore } from '../../memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient } from '../../syncClient';
 import { SyncScheduler } from '../../syncScheduler';
@@ -41,6 +46,8 @@ export interface FleetContext {
   audio: { bytesPerSecond: number } | null;
   /** When each audio file was recorded, for the time until it is on the server and on another phone. */
   recordedAt: Map<string, number>;
+  /** Does the phone at this place in the fleet keep the language on disk (decisions.md 143)? */
+  keepsOnDisk: (index: number) => boolean;
 }
 
 /** One device's numbers. CPU is real milliseconds in this process; delays are simulated milliseconds. */
@@ -119,8 +126,31 @@ export class SimDevice {
     readonly work: WorkPattern,
     public link: Link,
     private readonly fleet: FleetContext,
-    private readonly random: Random
+    private readonly random: Random,
+    private readonly index = 0
   ) {}
+
+  private files: LanguageFiles | null = null;
+
+  /** Keeps the language on disk, as the app does (decisions.md 143)? */
+  get keepsOnDisk(): boolean {
+    return this.fleet.keepsOnDisk(this.index);
+  }
+
+  /** The language as this phone has it: memory, and for a phone that keeps it on disk, every kept row combined in. */
+  async wholeState(): Promise<LanguageState> {
+    const live = this.client.getState();
+    if (!this.keepsOnDisk) return live;
+    const s = withOwnParts(structuredClone(live));
+    const { orgId, streamId } = this.fleet;
+    for (const kind of PART_KINDS) for (const row of await this.store.keptAll(orgId, streamId, kind)) putEntry(s, PART_OF_KIND.get(kind)!, row.id, JSON.parse(row.json));
+    for (const row of await this.store.keptAll(orgId, streamId, FILE)) {
+      const kept = JSON.parse(row.json) as LanguageState['blobs'][string];
+      const here = s.blobs[row.id];
+      s.blobs[row.id] = here ? keptVerdict(kept, here) : kept;
+    }
+    return s;
+  }
 
   /** Install the app and open the language. */
   async install(): Promise<void> {
@@ -145,6 +175,7 @@ export class SimDevice {
       deviceId: `${this.id}.${this.installs}`,
       store: this.store,
       materializer: { ...LANGUAGE_MATERIALIZER, version: this.reducerVersion },
+      ...(this.keepsOnDisk ? { keepOnDisk: true } : {}),
       ...(this.fleet.checkpointEvery !== undefined ? { checkpointEvery: this.fleet.checkpointEvery } : {}),
       transport: this.observed(shaped),
       now: time.now,
@@ -152,6 +183,7 @@ export class SimDevice {
       diag: new Diagnostics({ store: this.diag, newId: () => this.random.uuid(), now: time.now, maxRecords: Infinity })
     });
     await this.client.load();
+    this.files = this.keepsOnDisk ? new LanguageFiles(this.client, this.store, this.fleet.orgId, this.fleet.streamId) : null;
     this.scheduler = new SyncScheduler({
       run: () => this.run(),
       setTimeout: time.setTimeout,
@@ -186,26 +218,36 @@ export class SimDevice {
     };
     this.up = new TransferWorker({
       ...UPLOAD_DEFAULTS, ...common,
-      work: () => this.workList(() => deriveUploadWork(this.client.getState(), this.present, this.sizes)),
+      work: () => this.workList(() => this.uploadWork()),
       transfer: (ref) => this.upload(ref)
     });
     this.down = new TransferWorker({
       ...DOWNLOAD_DEFAULTS, ...common,
-      work: () => this.workList(() => deriveDownloadWork(this.client.getState(), this.present, this.offlineScope())),
+      work: () => this.workList(() => this.downloadWork()),
       transfer: (ref) => this.download(ref)
     });
     this.up.start();
     this.down.start();
   }
 
-  private workList(derive: () => BlobRef[]): BlobRef[] {
+  private async workList(derive: () => BlobRef[] | Promise<BlobRef[]>): Promise<BlobRef[]> {
     const started = performance.now();
     try {
-      return derive();
+      return await derive();
     } finally {
       this.metrics.workListCpuMs += performance.now() - started;
       this.metrics.workLists += 1;
     }
+  }
+
+  /** What to send: from memory, or for a phone keeping the language on disk, from its file lists (the app's LanguageFiles). */
+  private uploadWork(): BlobRef[] | Promise<BlobRef[]> {
+    return this.files ? this.files.upload(this.present, this.sizes) : deriveUploadWork(this.client.getState(), this.present, this.sizes);
+  }
+
+  private async downloadWork(): Promise<BlobRef[]> {
+    const scope = await this.offlineScope();
+    return this.files ? this.files.download(this.present, scope) : deriveDownloadWork(this.client.getState(), this.present, scope);
   }
 
   /** PUT to the Worker: the bytes cross the link, then the server keeps the file and says so (v1.BlobStored). */
@@ -291,14 +333,12 @@ export class SimDevice {
     const view = await this.client.inspect();
     const events = view.pending.length === 0 && view.cursor >= this.fleet.server.head(this.fleet.orgId, this.fleet.streamId);
     if (!events || !this.fleet.audio) return events;
-    const state = this.client.getState();
-    return deriveUploadWork(state, this.present, this.sizes).length === 0
-      && deriveDownloadWork(state, this.present, this.offlineScope()).length === 0;
+    return (await this.uploadWork()).length === 0 && (await this.downloadWork()).length === 0;
   }
 
   /** What the app keeps offline for this person, plus what they chose to keep (useLanguage scopeNow). */
-  private offlineScope(): Set<string> {
-    const scope = defaultOfflineScope(this.client.getState(), this.actorId);
+  private async offlineScope(): Promise<Set<string>> {
+    const scope = this.files ? await this.files.scope(this.actorId) : defaultOfflineScope(this.client.getState(), this.actorId);
     for (const unitId of this.persona.wants?.() ?? []) scope.add(unitId);
     return scope;
   }
@@ -310,8 +350,9 @@ export class SimDevice {
    * contact came after the first snapshot never saw the language's
    * passages, and its person never worked.
    */
-  private observeFold(): void {
-    const s = this.client.getState();
+  private async observeFold(): Promise<void> {
+    // A phone that keeps the language on disk reads it all back: the person looks through every screen.
+    const s = this.keepsOnDisk ? await this.client.withPassages(Object.keys(this.client.getState().units)) : this.client.getState();
     const seen = (type: string, payload: unknown, actorId = '', id = '') => this.persona.observe({ id, type, payload, actorId } as AnyEvent);
     for (const [unitId, u] of Object.entries(s.units)) seen('v1.UnitAdded', { unitId, ...u });
     for (const [takeId, t] of Object.entries(s.takes)) if (t.unitId) seen('v1.TakeComposed', { takeId, unitId: t.unitId, cardHashes: t.cardHashes, parentTakeId: t.parentTakeId }, t.actorId);
@@ -422,7 +463,7 @@ export class SimDevice {
     }
     this.snapshotsSeen = records.length;
     if (adopted) {
-      this.observeFold();
+      await this.observeFold();
       this.maxSeen = Math.max(this.maxSeen, (await this.client.inspect()).cursor);
     }
   }

@@ -12,7 +12,7 @@
 // 'template', 'helps' and 'flow' for a ready language's three picks (decision 138). `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
-  commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, languageProgress, materialsFor,
+  commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, materialsFor,
   goesWith, isTemplateDoc, mediaAllowed, recommendedFor, subscriptionItemId, templateBooks,
   type CollectionDoc, type EventSpec, type LibraryDoc, type MediaAllowed, type SourceDoc
 } from '@langquest-next/core';
@@ -152,9 +152,10 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   const changed = tq.ready && (!inUse || !same(wanted, sel?.books));
   const canUse = ctx.session.can('manage_templates');
   // Any work at all, published or not: a change of numbering moves it (decision 80).
-  const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
+  const lines = ctx.language.lines;
+  const worked = useMemo(() => { for (const u of lines.worked()) if (lines.get(u).worked) return true; return false; }, [lines]);
   const [warn, setWarn] = useState(false);
-  // What the team may make (decisions.md 143): recordings, writing or both, and which leads.
+  // What the team may make (decisions.md 144): recordings, writing or both, and which leads.
   const allowed = mediaAllowed(state);
   const [media, setMedia] = useState<MediaAllowed>(allowed);
   const mediaChanged = media.recording !== allowed.recording || media.writing !== allowed.writing || media.first !== allowed.first;

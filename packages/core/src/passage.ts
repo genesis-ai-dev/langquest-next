@@ -37,7 +37,7 @@ export function deriveKinds(state: LanguageState): KindDef[] {
   // Shipped kinds keep their order; the language's own follow by id, so the
   // list never depends on the order events arrived in.
   for (const id of Object.keys(state.reviewKinds).sort()) out.set(id, state.reviewKinds[id]!.value);
-  // What a kind makes or reads (decisions.md 143) is its own register, so a
+  // What a kind makes or reads (decisions.md 144) is its own register, so a
   // shipped kind can become a making step without redefining it.
   for (const [id, reg] of Object.entries(state.stepMakes ?? {})) {
     const k = out.get(id);
@@ -105,13 +105,13 @@ export interface Version {
   takeId: string;
   /** 1-based, in order of publishing. */
   n: number;
-  /** Recorded or written (decisions.md 143): read from its parts. */
+  /** Recorded or written (decisions.md 144): read from its parts. */
   medium: Medium;
   /** The step that made it, when a step made the passage's next version (a final recording). */
   madeByKindId?: string;
   /** The version it was made from, then. */
   madeFromTakeId?: string;
-  /** What steps added to it (decisions.md 143): words for a recording, a recording for writing; oldest first. */
+  /** What steps added to it (decisions.md 144): words for a recording, a recording for writing; oldest first. */
   added: MadeView[];
   by: string;
   hlc: Hlc;
@@ -246,9 +246,9 @@ export interface PassageState {
   /** Feedback on the latest version nobody answered yet. */
   awaitingResponse: ReviewView[];
   notes: PassageNote[];
-  /** What was made from its versions, by steps or brought over from v2 (decisions.md 143), oldest first; versions a step made are not here. */
+  /** What was made from its versions, by steps or brought over from v2 (decisions.md 144), oldest first; versions a step made are not here. */
   made: MadeView[];
-  /** The flow's kinds that make something rather than judge (decisions.md 143). */
+  /** The flow's kinds that make something rather than judge (decisions.md 144). */
   makingKindIds: string[];
 }
 
@@ -615,7 +615,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== 'link'));
     const request = openRequests.find((r) => r.what === 'review' && r.kindId === kindId);
     const departure = active((d) => d.type === 'skip' && d.kindId === kindId);
-    // A making step (decisions.md 143) is done once it made something, from
+    // A making step (decisions.md 144) is done once it made something, from
     // any version: what it made stays with that version and is never out of
     // date. What it adds to a version is part of that version, so a step
     // that adds is done only for the version it counts for here (the latest,
@@ -722,7 +722,7 @@ export function latestDraftBy(s: Pick<PassageState, 'drafts'>, actorId: string):
 }
 
 /** Feedback waits on whoever recorded the latest version: only they can answer it (REC-5). */
-export function feedbackIsMine(s: PassageState, actorId: string): boolean {
+export function feedbackIsMine(s: Pick<PassageState, 'awaitingResponse'> & { latest?: Pick<Version, 'by'> }, actorId: string): boolean {
   return s.awaitingResponse.length > 0 && s.latest?.by === actorId;
 }
 
@@ -791,13 +791,15 @@ export function usualTarget(
   state: LanguageState,
   kindId: string,
   me: string,
-  opts: { eligible?: (profileId: string) => boolean } = {}
+  opts: { eligible?: (profileId: string) => boolean; reviewers?: ReadonlyMap<string, boolean> } = {}
 ): UsualTarget | undefined {
   const ok = (id: string) => id !== me && (opts.eligible?.(id) ?? true);
   const teamId = checkTeamFor(state, kindId, me, opts.eligible);
   if (teamId) return { teamId, name: state.teams[teamId]!.name.value };
   const did = new Set<string>();
-  for (const r of Object.values(state.kindReviews)) if (r.kindId === kindId && r.via === 'app' && !withdrawnBy(state.withdrawnReviews, r.id, r)) did.add(r.by);
+  // A language kept on disk passes who reviewed what, read off its lines (`reviewersOf`); a review taken back does not count (decisions.md 111).
+  if (opts.reviewers) for (const [by, app] of opts.reviewers) { if (app) did.add(by); }
+  else for (const r of Object.values(state.kindReviews)) if (r.kindId === kindId && r.via === 'app' && !withdrawnBy(state.withdrawnReviews, r.id, r)) did.add(r.by);
   const people = [...did].filter(ok);
   return people.length === 1 ? { profileId: people[0]! } : undefined;
 }
@@ -806,7 +808,7 @@ export function usualTarget(
  * The one-line state of a passage, worded for the person looking. `name`
  * turns a profile id into a display name ("you" for the viewer).
  */
-export function passageSummary(s: PassageState, kinds: KindDef[], actorId: string, name: (id: string) => string): string {
+export function passageSummary(s: Pick<PassageState, 'done' | 'recorded' | 'drafting' | 'awaitingResponse'> & { latest?: Pick<Version, 'n' | 'by'>; steps: { kinds: Pick<KindStatus, 'kindId' | 'state' | 'request'>[] }[]; next?: Pick<FlowStepStatus, 'step'> }, kinds: KindDef[], actorId: string, name: (id: string) => string): string {
   if (s.done) return s.steps.length === 0 ? 'Recorded · done' : 'Done';
   if (!s.recorded) return s.drafting ? 'Recording in progress' : 'Not started';
   if (s.awaitingResponse.length) {
@@ -838,137 +840,8 @@ export interface LanguageProgress {
   feedback: number;
 }
 
-export function languageProgress(state: LanguageState, idx?: Indexes): LanguageProgress {
-  const ri = recordIndexes(state, idx);
-  const flow = ri.flow;
-  const states = ri.idx.passages.map((u) => derivePassage(state, u, ri.idx));
-  return {
-    total: states.length,
-    recorded: states.filter((s) => s.recorded).length,
-    done: states.filter((s) => s.done).length,
-    steps: flow.steps.map((step, i) => ({
-      name: stepName(ri.kinds, step),
-      cleared: states.filter((s) => s.recorded && s.steps[i]?.complete).length,
-      checkpoint: step.checkpoint
-    })),
-    waiting: states.filter((s) => s.openRequests.some((r) => r.what === 'review')).length,
-    feedback: states.filter((s) => s.awaitingResponse.length > 0).length
-  };
-}
-
 export function percent(n: number, total: number): number {
   return total === 0 ? 0 : Math.round((n / total) * 100);
-}
-
-// ---- My Work ---------------------------------------------------------------------
-
-type HighlightKind = 'respond' | 'record' | 'review' | 'produce' | 'draft';
-
-export interface Highlight {
-  id: string;
-  kind: HighlightKind;
-  unitId: string;
-  request?: RequestView;
-  review?: ReviewView;
-  hlc: Hlc;
-}
-
-/**
- * What is waiting for this person (WORK-1): requests to them, feedback on
- * versions they recorded, their unsaved drafts. Ordered: requests, then
- * drafts, then feedback, each newest first. Visits only the passages the
- * person is involved in, never the whole language.
- */
-export function highlightsFor(
-  state: LanguageState,
-  actorId: string,
-  opts: { canRecord: boolean; canReview: boolean },
-  idx?: Indexes
-): Highlight[] {
-  const ri = recordIndexes(state, idx);
-  const out: Highlight[] = [];
-  for (const r of ri.requestsTo.get(actorId) ?? []) {
-    if (!state.units[r.unitId]) continue;
-    const s = derivePassage(state, r.unitId, ri.idx);
-    const view = s.requests.find((x) => x.id === r.id);
-    if (!view || view.status !== 'open') continue;
-    if (r.what === 'record' && opts.canRecord) {
-      out.push({ id: `req-${r.id}`, kind: 'record', unitId: r.unitId, request: view, hlc: r.hlc });
-    } else if (r.what === 'review' && opts.canReview) {
-      const kind = ri.kinds.find((k) => k.id === r.kindId);
-      out.push({ id: `req-${r.id}`, kind: kind?.produces || kind?.makes ? 'produce' : 'review', unitId: r.unitId, request: view, hlc: r.hlc });
-    }
-  }
-  if (opts.canRecord) {
-    const asked = new Set(out.map((h) => h.unitId));
-    for (const [unitId, drafts] of ri.drafts) {
-      // Their own newest draft, even when a teammate changed theirs since.
-      const mine = drafts.find((id) => state.takes[id]!.actorId === actorId);
-      if (!mine) continue;
-      const t = state.takes[mine]!;
-      if (asked.has(unitId)) continue;
-      out.push({ id: `draft-${unitId}`, kind: 'draft', unitId, hlc: t.hlc });
-    }
-    for (const [unitId, takeIds] of ri.versions) {
-      const latestId = takeIds.at(-1)!;
-      if ((state.submissions[latestId]?.actorId ?? state.takes[latestId]!.actorId) !== actorId) continue;
-      const s = derivePassage(state, unitId, ri.idx);
-      for (const r of s.awaitingResponse) {
-        out.push({ id: `resp-${unitId}-${r.id}`, kind: 'respond', unitId, review: r, hlc: r.hlc });
-      }
-    }
-  }
-  const rank = (h: Highlight) => (h.kind === 'record' || h.kind === 'review' || h.kind === 'produce' ? 0 : h.kind === 'draft' ? 1 : 2);
-  // The id settles equal clocks, so the order never rests on how the indexes were built.
-  return out.sort((a, b) => rank(a) - rank(b) || (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-}
-
-/** Passages with an open request to this person, to record or to review (their own or their team's). */
-export function unitsAskedOf(state: LanguageState, actorId: string, idx?: Indexes): Set<string> {
-  const ri = recordIndexes(state, idx);
-  const out = new Set<string>();
-  for (const r of ri.requestsTo.get(actorId) ?? []) {
-    if (out.has(r.unitId) || !state.units[r.unitId]) continue;
-    if (derivePassage(state, r.unitId, ri.idx).openRequests.some((x) => x.id === r.id)) out.add(r.unitId);
-  }
-  return out;
-}
-
-export interface Waiting {
-  id: string;
-  unitId: string;
-  request: RequestView;
-}
-
-/** What a person asked of someone else that is not done yet, newest first (WORK-3). */
-export function waitingOn(state: LanguageState, actorId: string, idx?: Indexes): Waiting[] {
-  const ri = recordIndexes(state, idx);
-  const out: Waiting[] = [];
-  for (const r of ri.requestsBy.get(actorId) ?? []) {
-    if (r.profileId === actorId || !state.units[r.unitId]) continue;
-    const view = derivePassage(state, r.unitId, ri.idx).requests.find((x) => x.id === r.id);
-    if (view?.status === 'open') out.push({ id: `wait-${r.id}`, unitId: r.unitId, request: view });
-  }
-  return out.reverse();
-}
-
-/**
- * Something real to do when nothing is waiting (ONB-7): a translator gets
- * the first passage nobody recorded; a reviewer the first recording nobody
- * checked.
- */
-export function upNext(state: LanguageState, opts: { canRecord: boolean; canReview: boolean }, idx?: Indexes): { kind: 'record' | 'review'; unitId: string } | null {
-  const ri = recordIndexes(state, idx);
-  const units = ri.idx.passages;
-  if (opts.canRecord) {
-    const u = units.find((id) => { const s = derivePassage(state, id, ri.idx); return !s.recorded && !s.drafting; });
-    if (u) return { kind: 'record', unitId: u };
-  }
-  if (opts.canReview) {
-    const u = units.find((id) => { const s = derivePassage(state, id, ri.idx); return s.recorded && s.reviews.length === 0 && s.steps.length > 0; });
-    if (u) return { kind: 'review', unitId: u };
-  }
-  return null;
 }
 
 // ---- review questions: one combined list, labelled by source ------------------------
@@ -1050,7 +923,7 @@ export function recordTimeline(state: LanguageState, s: PassageState): RecordEnt
 }
 
 /**
- * What steps added to a version (decisions.md 143), one per kind: the latest
+ * What steps added to a version (decisions.md 144), one per kind: the latest
  * holds, and `first` is when that kind was first added. `changedAfter` is
  * the newest review of the version that saw an earlier one: the content
  * changed after it. The approval stands either way (Caleb, 2026-10-13: the
@@ -1273,7 +1146,7 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
  * approved, so this is what the access-token API serves and may be released.
  */
 export function approvedVersion(s: PassageState): Version | null {
-  // Without making steps or anything made, every check reads each version itself, as before writing (decisions.md 143).
+  // Without making steps or anything made, every check reads each version itself, as before writing (decisions.md 144).
   const making = s.makingKindIds.length > 0 || s.made.length > 0 || s.versions.some((x) => !!x.madeByKindId);
   for (let i = s.versions.length - 1; i >= 0; i -= 1) {
     const v = s.versions[i]!;
@@ -1281,7 +1154,7 @@ export function approvedVersion(s: PassageState): Version | null {
       const status = st.kinds[k];
       if (status?.state === 'skipped') return true;
       // A version a step made (a final recording) answers for the steps
-      // before that step with the version it was made from (decisions.md 143).
+      // before that step with the version it was made from (decisions.md 144).
       const heard = making ? versionHeardAt(s, v, si) : v;
       if (making && isMakingStatus(s, kindId)) return madeFrom(s, kindId, heard) || v.madeByKindId === kindId;
       let last: ReviewView | undefined;
@@ -1300,7 +1173,7 @@ export function approvedVersion(s: PassageState): Version | null {
  * The version whose reviews count for step `stepIndex` when `v` is checked:
  * `v` itself, unless a step made `v` from an earlier version and this step
  * comes before that one; then the earlier version, and so on back
- * (decisions.md 143).
+ * (decisions.md 144).
  */
 export function versionHeardAt(s: Pick<PassageState, 'versions' | 'flow'>, v: Version, stepIndex: number): Version {
   // A version published by hand is heard as itself: the common case, with nothing to allocate.
@@ -1351,7 +1224,7 @@ export interface MadeColumn {
 
 /**
  * What was made from each version, for Reviews by version (decisions.md
- * 143): a column per step that made something, and per kind of thing no
+ * 144): a column per step that made something, and per kind of thing no
  * step made (v2's transcriptions and translations), only where some exist.
  */
 export function madeGrid(s: PassageState): { columns: MadeColumn[]; byVersion: Map<string, Map<string, MadeView[]>> } {
