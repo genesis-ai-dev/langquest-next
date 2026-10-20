@@ -6021,7 +6021,8 @@ screenshot of the screen they were on.
   web in the browser's storage), not in the outbox, whose single stored row
   would otherwise grow past what Android keeps in one. Written before
   sign-in, it waits in its own list (at most 10) and joins the outbox of
-  whoever signs in next: no endpoint takes anything without an account (112).
+  whoever signs in next: no endpoint takes anything without an account (112;
+  Caleb agreed on 2026-10-20 that only signed-in people send feedback).
 - **The server.** `diag.feedback`, beside diagnostics but not one of them
   (they stay counts and codes): kind, words, install id, the diag context
   plus the screen and the app's language, the name and email read from the
