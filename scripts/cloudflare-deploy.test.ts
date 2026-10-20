@@ -63,9 +63,12 @@ describe('cloudflare deploy', () => {
     for (const env of ['production', 'preview']) {
       const c = wranglerFor(config, env);
       expect(c.containers, env).toEqual([
-        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 2, constraints: { regions: ['ENAM'] } }
+        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 2, constraints: { regions: ['ENAM'] }, rollout_active_grace_period: 5400 }
       ]);
       expect(c.durable_objects?.bindings, env).toContainEqual({ name: 'JOBS', class_name: 'JobRunner' });
+      // Why: evening merges' rollouts cut off the 03:15 whole read again and again (2026-10-20);
+      // the grace covers its 40 to 70 minutes on GitHub, plus the drain's 15 after SIGTERM.
+      expect(c.containers[0].rollout_active_grace_period * 1000, env).toBeGreaterThan(75 * 60_000);
     }
     // The job tick starts the jobs; preview never imports from v2.
     expect(config.triggers.crons).toContain('*/5 * * * *');
