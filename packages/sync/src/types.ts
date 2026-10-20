@@ -83,6 +83,12 @@ export interface EventStore {
   count(orgId: string, streamId: string): Promise<number>;
   /** Every non-rejected event for a stream (confirmed then pending is fine). */
   all(orgId: string, streamId: string): Promise<LocalEvent[]>;
+  /**
+   * Non-rejected events of a stream a page at a time, in id order, after
+   * `afterId` (null for the first page); with `type`, only events of that
+   * type. The client folds its log this way, so it is never held whole.
+   */
+  page(orgId: string, streamId: string, afterId: string | null, limit: number, type?: string): Promise<LocalEvent[]>;
   /** Highest confirmed server_seq seen for a stream, 0 if none. */
   cursor(orgId: string, streamId: string): Promise<number>;
   setCursor(orgId: string, streamId: string, seq: number): Promise<void>;

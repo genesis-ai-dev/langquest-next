@@ -114,6 +114,13 @@ export class MemoryStore implements EventStore {
     return this.stream(orgId, streamId).filter((e) => e.status !== 'rejected');
   }
 
+  async page(orgId: string, streamId: string, afterId: string | null, limit: number, type?: string): Promise<LocalEvent[]> {
+    return this.stream(orgId, streamId)
+      .filter((e) => e.status !== 'rejected' && (type === undefined || e.event.type === type) && (afterId === null || e.event.id > afterId))
+      .sort((a, b) => (a.event.id < b.event.id ? -1 : a.event.id > b.event.id ? 1 : 0))
+      .slice(0, limit);
+  }
+
   async cursor(orgId: string, streamId: string): Promise<number> {
     return this.cursors.get(`${orgId}/${streamId}`) ?? 0;
   }

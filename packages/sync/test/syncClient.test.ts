@@ -1,4 +1,4 @@
-import { HlcClock, ORG_STREAM, REDUCER_VERSION, derivePassage, type LanguageState, type OrgState } from '@langquest-next/core';
+import { HlcClock, ORG_STREAM, REDUCER_VERSION, derivePassage, emptyLanguageState, foldLanguage, type LanguageState, type OrgState } from '@langquest-next/core';
 import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { MemoryStore } from '../src/memoryStore';
 import { LANGUAGE_MATERIALIZER, SyncClient, type Materializer } from '../src/syncClient';
@@ -350,6 +350,64 @@ describe('SyncClient redaction', () => {
     expect(a.client.getState().recordings['r1']).toBeUndefined();
     await b.client.sync();
     expect(b.client.getState().recordings['r1']).toBeUndefined();
+  });
+});
+
+describe('SyncClient folds its log a page at a time (decisions.md 143)', () => {
+  // Why: a phone back from a month offline holds tens of thousands of its own
+  // events; reading them into one array held them all at once beside the state.
+  function phone(server: FakeServer, wall: { t: number }) {
+    const store = new MemoryStore();
+    let k = 0;
+    const mk = () => new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store,
+      transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1)),
+      newId: () => `dA-${++k}`, checkpointEvery: 5, logPageSize: 2
+    });
+    return { store, mk };
+  }
+
+  it('loads the state a whole fold gives, with a redaction pages away from its target', async () => {
+    const server = new FakeServer();
+    server.offline = true;
+    const wall = { t: 0 };
+    const p = phone(server, wall);
+    const a = p.mk();
+    await a.load();
+    const target = await a.append('v1.UnitAdded', unit(0));
+    for (let i = 1; i < 6; i++) await a.append('v1.UnitAdded', unit(i));
+    await a.append('v1.Redacted', { eventId: target.id });
+    const log = (await p.store.all('org1', 'p1')).map((l) => l.event);
+    expect(log).toHaveLength(7);
+
+    const relaunched = p.mk();
+    await relaunched.load();
+    expect(Object.keys(relaunched.getState().units).sort()).toEqual(['u1', 'u2', 'u3', 'u4', 'u5']);
+    expect(relaunched.getState()).toEqual(foldLanguage(log, emptyLanguageState()));
+    expect(relaunched.getState()).toEqual(a.getState());
+  });
+
+  it('folds only confirmed events onto the checkpoint when something is still unsent (the slow path)', async () => {
+    const server = new FakeServer();
+    const wall = { t: 0 };
+    const b = device(server, 'dB', 'lead', wall);
+    await b.client.load();
+    for (let i = 0; i < 6; i++) await b.client.append('v1.UnitAdded', unit(i));
+    await b.client.sync();
+
+    const p = phone(server, wall);
+    const a = p.mk();
+    await a.load();
+    // One of its own still unsent, so the checkpoint the pull takes cannot save the live state.
+    await a.append('v1.UnitAdded', unit(9));
+    await a.pull();
+    expect(await a.inspect()).toMatchObject({ checkpointSeq: 6, total: 1 });
+
+    const relaunched = p.mk();
+    await relaunched.load();
+    expect(Object.keys(relaunched.getState().units).sort()).toEqual(['u0', 'u1', 'u2', 'u3', 'u4', 'u5', 'u9']);
+    await relaunched.sync();
+    expect(Object.keys(relaunched.getState().units)).toHaveLength(7);
   });
 });
 

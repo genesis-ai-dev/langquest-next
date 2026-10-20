@@ -1,6 +1,7 @@
 import {
   applyLanguageEvent,
   emptyLanguageState,
+  eventPassage,
   eventSizeError,
   foldLanguage,
   LINES_VERSION,
@@ -25,6 +26,10 @@ import { KeptLines, lineRow } from './keptLines';
 import { CutGoneError, KeptFill } from './keptFill';
 import { stateSplitter } from './stateSplit';
 import type { KeptRecord } from './types';
+
+/** Local events folded at once when the log is read a page at a time (`foldLog`). */
+const LOG_PAGE = 500;
+const REDACTED = 'v1.Redacted';
 
 /** Why a first download took the whole snapshot when it could have filled: the `fill` record's `reason`. */
 type FillFallback = Exclude<(typeof DIAG_SCHEMA.fill.t.reason)[number], 'cut_gone'>;
@@ -132,6 +137,8 @@ export interface SyncClientOptions<S = LanguageState> {
   pullBudgetMs?: number;
   /** Confirmed events since the last local checkpoint before taking a new one. */
   checkpointEvery?: number;
+  /** Local events folded at once when the log is read back (`foldLog`); small in tests, so a fold spans many pages. */
+  logPageSize?: number;
   /**
    * Called between pull pages so a long catch-up shares the thread with
    * the screen (mobile passes a macrotask yield). Nothing is folded while it
@@ -351,9 +358,6 @@ export class SyncClient<S = LanguageState> {
         this.clockOffsetMs = Number((await this.opts.store.meta(this.offsetKey())) ?? 0);
         this.clock = new HlcClock(this.opts.deviceId, this.wall, seed ?? null);
       }
-      // A fold applies redactions first, so the store's order does not matter.
-      const locals = await this.opts.store.all(this.opts.orgId, this.opts.streamId);
-      const events = locals.map((l) => l.event);
       const checkpoint = await this.storedCheckpoint();
       const readMs = this.elapsed() - started;
       const staleSeq = checkpoint && !this.readable(checkpoint.reducerVersion) ? checkpoint.serverSeq : null;
@@ -385,17 +389,23 @@ export class SyncClient<S = LanguageState> {
         // what a fill of before says is still to come belongs to a checkpoint that build dropped (decisions.md 147).
         await this.commit({ meta: this.fill.clear() });
       }
-      return this.foldLocal(snapshot, events, { started, readMs, staleSeq, reason });
+      return this.foldLocal(snapshot, { started, readMs, staleSeq, reason });
     });
   }
 
   /** The end of a load: fold the local log onto `snapshot` (or from empty), bring in what a language kept on disk needs, keep it, record it, publish. */
   private async foldLocal(
-    snapshot: Snapshot | null, events: AnyEvent[],
+    snapshot: Snapshot | null,
     o: { started: number; readMs: number; staleSeq: number | null; reason: LoadReason }
   ): Promise<S> {
     const folding = this.elapsed();
-    this.state = snapshot ? this.resume(snapshot, events) : this.m.fold(events, this.m.empty());
+    // What each folded event names, for the lines it owes; kept instead of the events.
+    const named: ReturnType<typeof eventPassage>[] = [];
+    const folded = await this.foldLog(snapshot ? (snapshot.state as unknown as S) : this.m.empty(), {
+      ...(snapshot ? { after: snapshot.serverSeq } : {}),
+      ...(this.lines ? { seen: (page: readonly AnyEvent[]) => { for (const e of page) { const of = eventPassage(e); if (of !== null && of !== 'settings') named.push(of); } } } : {})
+    });
+    this.state = folded.state;
     if (this.kept && this.lines) {
       const lang = this.state as unknown as LanguageState;
       await this.kept.hydrate(lang);
@@ -404,7 +414,7 @@ export class SyncClient<S = LanguageState> {
       this.fillRunning = !!this.fill?.active();
       // The lines of what was folded again (and of what was refused, now out of the fold) are owed,
       // and worked out before anything is shown, so no list reads the language ahead of its lines.
-      this.lines.touched(lang, events);
+      this.lines.touchedAt(lang, named);
       this.lines.touched(lang, (await this.opts.store.rejected(this.opts.orgId, this.opts.streamId)).map((l) => l.event));
       await this.lines.refresh().catch(() => { /* owed still; the next change tries again */ });
     }
@@ -415,7 +425,7 @@ export class SyncClient<S = LanguageState> {
     this.opts.diag?.record('load', {
       ...this.stream(),
       n: {
-        ms, events: events.length, fromSnapshot: snapshot ? 1 : 0, readMs: o.readMs, foldMs,
+        ms, events: folded.count, fromSnapshot: snapshot ? 1 : 0, readMs: o.readMs, foldMs,
         ...(o.staleSeq !== null ? { staleCheckpointSeq: o.staleSeq } : {})
       },
       t: { reason: o.reason, checkpoint: o.staleSeq !== null ? 'old_reducer' : snapshot ? 'ok' : 'none' }
@@ -521,17 +531,39 @@ export class SyncClient<S = LanguageState> {
     if (this.lines && await this.lines.refresh()) this.publish();
   }
 
-  /** core `resume` for any materializer: snapshot state plus events after its seq. */
   /**
-   * Both callers pass a checkpoint `localSnapshot` has just parsed, which
-   * nothing else holds, so its state is folded onto in place: cloning it
-   * first copied the whole language on every load and refold
-   * (performance-audit.md item 7).
+   * Fold the local log onto `initial` a page at a time, so the log is
+   * never held whole (decisions.md 143): a phone back from a month
+   * offline can hold tens of thousands of events of its own. Redactions
+   * go first, as a whole fold applies them, so a target on any page is
+   * never applied; the fold is order-independent otherwise (invariant 2).
+   * `after` skips what a checkpoint at that seq holds. `initial` is folded
+   * onto in place: callers pass a checkpoint just parsed, which nothing
+   * else holds (cloning it copied the whole language on every load,
+   * performance-audit.md item 7).
    */
-  private resume(snapshot: Snapshot, tail: Iterable<AnyEvent>): S {
-    const state = snapshot.state as unknown as S;
-    const newer = [...tail].filter((e) => e.serverSeq === undefined || e.serverSeq > snapshot.serverSeq);
-    return this.m.fold(newer, state);
+  private async foldLog(
+    initial: S, o: { after?: number; confirmedOnly?: boolean; seen?: (page: readonly AnyEvent[]) => void } = {}
+  ): Promise<{ state: S; count: number }> {
+    const keep = (l: LocalEvent) => (!o.confirmedOnly || l.status === 'confirmed')
+      && (o.after === undefined || l.event.serverSeq === undefined || l.event.serverSeq > o.after);
+    let state = initial;
+    let count = 0;
+    for (const type of [REDACTED, undefined]) {
+      for (let after: string | null = null; ;) {
+        const size = this.opts.logPageSize ?? LOG_PAGE;
+        const page = await this.opts.store.page(this.opts.orgId, this.opts.streamId, after, size, type);
+        if (page.length === 0) break;
+        after = page[page.length - 1]!.event.id;
+        // On the second round the redactions come again: they are applied already, and folding one twice is a no-op (invariant 3).
+        const events = page.filter(keep).map((l) => l.event).filter((e) => type !== undefined || e.type !== REDACTED);
+        state = this.m.fold(events, state);
+        count += events.length;
+        o.seen?.(events);
+        if (page.length < size) break;
+      }
+    }
+    return { state, count };
   }
 
   // ---- checkpoints -------------------------------------------------------
@@ -779,8 +811,7 @@ export class SyncClient<S = LanguageState> {
       // The checkpoint is committed: fold the local tail onto the state already parsed, rather than reading it back and parsing it again.
       await this.inPhase('load', async () => {
         const started = this.elapsed();
-        const events = (await this.opts.store.all(this.opts.orgId, this.opts.streamId)).map((l) => l.event);
-        await this.foldLocal(snap, events, { started, readMs: this.elapsed() - started, staleSeq: null, reason: 'snapshot' });
+        await this.foldLocal(snap, { started, readMs: 0, staleSeq: null, reason: 'snapshot' });
       });
     } else {
       // A language kept on disk reads its small checkpoint back and brings the passages on screen in with it.
@@ -1044,10 +1075,7 @@ export class SyncClient<S = LanguageState> {
       serverSeq: 0,
       state: this.m.empty() as unknown as LanguageState
     };
-    const confirmed = (await this.opts.store.all(this.opts.orgId, this.opts.streamId))
-      .filter((l) => l.status === 'confirmed')
-      .map((l) => l.event);
-    const state = this.resume(base, confirmed);
+    const { state } = await this.foldLog(base.state as unknown as S, { after: base.serverSeq, confirmedOnly: true });
     this.m.compact(state);
     if (this.kept && this.lines) {
       const split = await this.kept.split(state as unknown as LanguageState);
