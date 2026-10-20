@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { jobRunSink } from '../../../server/jobRuns';
 import type { Env } from './env';
 import {
-  deadRun, entrypointFor, exitCodeOf, heartbeat, HEARTBEAT_MS, isJobKey, jobEnv, JOBS, type Exit, type JobKey, type RunMark
+  deadRun, entrypointFor, exitCodeOf, heartbeat, HEARTBEAT_MS, isJobKey, jobEnv, JOBS, stillOwesWholeRead, type Exit, type JobKey, type RunMark
 } from './jobsModel';
 
 /** How long to wait for a stopped container to say how it ended. */
@@ -72,7 +72,7 @@ export class JobRunner extends DurableObject<Env> {
     // A run that ended between beats is recorded before the next starts.
     if (await this.ctx.storage.get<RunMark>('run')) await this.recordEnd();
     const all = (await this.ctx.storage.get<boolean>('allDue')) === true;
-    await this.ctx.storage.put<RunMark>('run', { startedAt: Date.now() });
+    await this.ctx.storage.put<RunMark>('run', all ? { startedAt: Date.now(), all: true } : { startedAt: Date.now() });
     container.start({ entrypoint: entrypointFor(key, all), env: settings.env, enableInternet: true });
     if (all) await this.ctx.storage.delete('allDue');
     await container.setInactivityTimeout(JOBS[key].timeLimitMs);
@@ -122,6 +122,8 @@ export class JobRunner extends DurableObject<Env> {
     if (!mark) return;
     await this.ctx.storage.delete('run');
     await this.ctx.storage.deleteAlarm();
+    // A whole read cut off (a deploy's rollout, a kill) is owed to the next tick, not to the next night.
+    if (stillOwesWholeRead(mark, exit)) await this.ctx.storage.put('allDue', true);
     const row = deadRun(this.key, mark, exit, Date.now());
     if (!row) return;
     console.error(`job ${this.key} died: ${row.errorClass}`);

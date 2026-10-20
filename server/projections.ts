@@ -38,7 +38,8 @@ const startRssMb = peakRssMb();
  * so the peak is read after each language rather than sampled during it.
  */
 let peak: { mb: number; orgId: string | null; streamId: string | null } = { mb: startRssMb, orgId: null, streamId: null };
-const memory = () => ({ peakRssMb: peakRssMb(), startRssMb, heapUsedMb: mb(process.memoryUsage().heapUsed), heapLimitMb: mb(getHeapStatistics().heap_size_limit) });
+// Named max…: diag.totals keeps the window's largest of a max field and sums every other one.
+const memory = () => ({ maxPeakRssMb: peakRssMb(), maxStartRssMb: startRssMb, maxHeapUsedMb: mb(process.memoryUsage().heapUsed), maxHeapLimitMb: mb(getHeapStatistics().heap_size_limit) });
 
 const started = Date.now();
 const counts: ProjectionCounts = { orgs: 0, projected: 0 };
@@ -52,18 +53,19 @@ const projected = (orgId: string, streamId: string) => {
   }
 };
 
-// Stopped from outside (the job runner at the time limit, or the platform):
-// record how far it got, then exit 0, the code that says the row is written.
+// Stopped from outside (a deploy's container rollout, the job runner at the
+// time limit): the platform allows 15 minutes before SIGKILL, so the pass
+// finishes the language in hand, stops before the next, records how far it
+// got and exits 75, the code that says it stopped early with its row written
+// (apps/web/worker/jobsModel.ts STOPPED_EARLY).
+let stopping = false;
 process.once('SIGTERM', () => {
-  console.error(`stopped by SIGTERM after ${counts.projected} languages`);
-  void record({
-    job: 'projection', startedAt: started, ms: Date.now() - started,
-    outcome: counts.projected > 0 ? 'partial' : 'error', errorClass: 'sigterm', n: { ...counts, ...memory() }
-  }).finally(() => process.exit(0));
+  stopping = true;
+  console.error(`SIGTERM after ${counts.projected} languages: finishing the one in hand`);
 });
 let done: Awaited<ReturnType<typeof runProjections>>;
 try {
-  done = await runProjections(createClient(url, key, { auth: { persistSession: false } }), 'all', counts, projected);
+  done = await runProjections(createClient(url, key, { auth: { persistSession: false } }), 'all', counts, projected, () => stopping);
 } catch (error) {
   await record({ job: 'projection', startedAt: started, ms: Date.now() - started, outcome: 'error', errorClass: errorClassOf(error), n: { ...counts, ...memory() } });
   throw error;
@@ -71,15 +73,17 @@ try {
 const first = done.failed[0];
 await record({
   job: 'projection', startedAt: started, ms: Date.now() - started,
-  outcome: done.failed.length === 0 ? 'ok' : counts.projected > 0 ? 'partial' : 'error',
+  outcome: stopping ? (counts.projected > 0 ? 'partial' : 'error') : done.failed.length === 0 ? 'ok' : counts.projected > 0 ? 'partial' : 'error',
   n: { ...counts, languages: done.languages, snapshots: done.snapshots, quiet: done.quiet, failed: done.failed.length, ...memory() },
-  // The first failure's language; with none, the language that raised the peak (docs/diagnostics.md).
-  ...(first ? { errorClass: errorClassOf(first.error), orgId: first.orgId, streamId: first.streamId }
+  // Stopped early, or the first failure's language; with neither, the language that raised the peak (docs/diagnostics.md).
+  ...(stopping ? { errorClass: 'sigterm' }
+    : first ? { errorClass: errorClassOf(first.error), orgId: first.orgId, streamId: first.streamId }
     : peak.streamId ? { orgId: peak.orgId, streamId: peak.streamId } : {})
 });
 const m = memory();
 console.log(`languages: ${counts.projected} projected (${done.languages} with new events), ${done.quiet} quiet, ${done.snapshots} new snapshots, ${done.failed.length} failed, ${Math.round((Date.now() - started) / 1000)} s`);
-console.log(`memory: peak ${m.peakRssMb} MB resident (from ${m.startRssMb}), heap limit ${m.heapLimitMb} MB${peak.streamId ? `, peak set by ${peak.streamId}` : ''}`);
+console.log(`memory: peak ${m.maxPeakRssMb} MB resident (from ${m.maxStartRssMb}), heap limit ${m.maxHeapLimitMb} MB${peak.streamId ? `, peak set by ${peak.streamId}` : ''}`);
 // Ids only, never a language's name.
 for (const f of done.failed) console.error(`failed ${f.streamId}: ${f.error instanceof Error ? f.error.message : String(f.error)}`);
+if (stopping) process.exit(75);
 if (done.failed.length) process.exit(1);

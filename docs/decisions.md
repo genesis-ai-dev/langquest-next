@@ -5789,6 +5789,22 @@ SIGTERM (`sigterm`, exit 0, the code that says the row is written), the
 pass logs its progress every 25 languages, and `constraints.regions` pins
 the containers to ENAM, beside the database and R2.
 
+Amended (2026-10-19, Carl Sauder): SIGTERM now drains instead of stopping
+at once. Every deploy rolls the containers out: SIGTERM, then SIGKILL up to
+15 minutes later. A merge's deploy at 03:02 UTC on 2026-10-20 cut off the
+whole v2 read begun two minutes earlier, and the object had cleared its
+flag at the start, so the read waited a night. Now the pass finishes the
+language in hand and the import the project in hand (`PassDeps.stop`, the
+`stop` argument of `runProjections`), the rest wait for the next run, and
+the import's cursor does not move. The row says `partial` (`error` when
+nothing was done) with `sigterm`, and the process exits 75
+(`jobsModel.ts` `STOPPED_EARLY`), under 128, so the object writes no row
+of its own. A whole read that ends 75, 128 or over, or without a code is
+owed again (`stillOwesWholeRead`): the next tick reads everything. The
+pass's memory fields are named `maxPeakRssMb`, `maxStartRssMb`,
+`maxHeapUsedMb` and `maxHeapLimitMb`, because `diag.totals` keeps the
+largest of a `max…` field and sums every other one.
+
 ## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
 
 Date: 2026-10-19 · By: Carl Sauder · Status: accepted
