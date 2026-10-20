@@ -465,7 +465,8 @@ const RENDER = {
     if (!d.items.length) return '<p class="muted">No feedback in the last 30 days.</p>';
     return d.items.map((f) => '<div class="fb"><span class="tag ' + (f.kind === 'bug' ? 'bad' : 'good') + '">' + esc(f.kind) + '</span><span class="tag">' + esc(f.status || 'new') + '</span>' +
       '<small>' + when(f.created_at) + (f.context && f.context.screen ? ' · ' + esc(f.context.screen) : '') + (f.context ? ' · ' + esc([f.context.os, f.context.appVersion, f.context.channel].filter(Boolean).join(' ')) : '') + '</small>' +
-      '<p>' + esc(f.body) + '</p>' +
+      '<p>' + (f.body ? esc(f.body) : '<i class="muted">(voice note)</i>') + '</p>' +
+      (f.voice_format ? '<p><button class="link" data-voice="' + esc(f.id) + '">Play the voice note' + (f.voice_ms ? ' (' + ms(f.voice_ms) + ')' : '') + '</button></p>' : '') +
       (f.shared_name || f.shared_email ? '<p><small>From ' + esc([f.shared_name, f.shared_email].filter(Boolean).join(', ')) + ' (shared by them)</small></p>' : '') +
       (f.install_id ? '<p><button class="link" data-q="' + esc(f.install_id) + '">This install\\'s diagnostics</button></p>' : '') +
       (f.has_screenshot ? '<p><button class="link" data-shot="' + esc(f.id) + '">Show screenshot</button></p>' : '') + '</div>').join('');
@@ -515,6 +516,21 @@ function wireScreenshots() {
         img.src = URL.createObjectURL(await res.blob());
         b.replaceWith(img);
       } catch (err) { b.textContent = 'Could not load the screenshot (' + err.message + ')'; }
+    }, { once: true });
+  }
+  for (const b of document.querySelectorAll('[data-voice]')) {
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try {
+        const t = await token();
+        const res = await fetch('/api/feedback/' + encodeURIComponent(b.dataset.voice) + '/voice', { headers: { authorization: 'Bearer ' + t } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = URL.createObjectURL(await res.blob());
+        b.replaceWith(audio);
+        audio.play().catch(() => {});
+      } catch (err) { b.textContent = 'Could not load the voice note (' + err.message + ')'; }
     }, { once: true });
   }
 }
@@ -580,6 +596,7 @@ export function csp(supabaseUrl: string, nonce: string): string {
     `script-src 'nonce-${nonce}'`,
     `style-src 'nonce-${nonce}'`,
     "img-src 'self' blob:",
+    'media-src blob:',
     `connect-src 'self' ${new URL(supabaseUrl).origin}`,
     "base-uri 'none'",
     "form-action 'none'",

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { byWorker, cloudflareAlerts, cloudflareSection } from '../src/sources/cloudflare';
-import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, v2Section, type Clients, type JobRow, type V2Project } from '../src/sources/diag';
+import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, mediaType, v2Section, type Clients, type JobRow, type V2Project } from '../src/sources/diag';
 import { expoAlerts, expoFrom } from '../src/sources/expo';
 import { codeAlerts, codeSection, latestPerWorkflow, type Code } from '../src/sources/github';
 import { projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
@@ -85,6 +85,14 @@ describe('the database and the v2 import', () => {
     expect(s.data!.projects.map((x) => x.project_id).slice(0, 2)).toEqual(['b', 'd']);
     expect(s.data!.projects).toHaveLength(7);
     expect(s.alerts).toHaveLength(2);
+  });
+
+  it("tells a feedback's JPEG, WAV and m4a apart by their first bytes, and nothing else passes", () => {
+    const bytes = (...parts: (string | number[])[]) => Uint8Array.from(parts.flatMap((p) => typeof p === 'string' ? [...p].map((c) => c.charCodeAt(0)) : p));
+    expect(mediaType(bytes([0xff, 0xd8, 0xff, 0xe0]))).toBe('image/jpeg');
+    expect(mediaType(bytes('RIFF', [0, 0, 0, 0], 'WAVE'))).toBe('audio/wav');
+    expect(mediaType(bytes([0, 0, 0, 0x20], 'ftypM4A '))).toBe('audio/mp4');
+    expect(mediaType(bytes('<svg onload=alert(1)>'))).toBeNull();
   });
 
   it('keeps a connection string out of an error', () => {

@@ -33,7 +33,7 @@ address.
 | Phones and browsers | `diag.records` and `diag.installs`, every install together: installs heard from, sync outcomes and error codes, errors and crashes with the latest code a person would read out, transfers and their failures, recording, sign-in trouble, each phone's latest state, builds in the field | `DIAG_DATABASE_URL` |
 | Database | size, connections, cache hits and deadlocks (`pg_stat_database`), RPC timings (`diag.rpc_stats()`) | `DIAG_DATABASE_URL` |
 | v2 import | `diag.v2_import_status()` | `DIAG_DATABASE_URL` |
-| Feedback | `diag.feedback()` and `diag.feedback_screenshot()`, once the feedback store's migration is on the database; until then the section says so | `DIAG_DATABASE_URL` |
+| Feedback | `diag.feedback()`, `diag.feedback_screenshot()` and `diag.feedback_voice()`, once the feedback store's migration is on the database; until then the section says so. Screenshots and voice notes load when asked for, and only as JPEG, WAV or m4a | `DIAG_DATABASE_URL` |
 | Look up | an error code (`diag.error`), an install's last three days (`diag.timeline`), or an organization or language by name (`diag.find`) | `DIAG_DATABASE_URL` |
 | Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |

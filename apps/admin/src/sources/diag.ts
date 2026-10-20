@@ -201,6 +201,8 @@ export function v2Section(projects: V2Project[]): Section<{ projects: V2Project[
 export interface Feedback {
   id: string; created_at: string; kind: 'bug' | 'idea'; body: string; status: 'new' | 'seen' | 'done' | null;
   install_id: string | null; context: Record<string, string> | null; has_screenshot: boolean;
+  /** A voice note, when there is one; `body` may then be empty. */
+  voice_format: 'm4a' | 'wav' | null; voice_ms: number | null;
   /** Null unless the person chose to share them with staff. */
   shared_name: string | null; shared_email: string | null;
 }
@@ -214,6 +216,16 @@ export const FEEDBACK_SQL = `select coalesce(jsonb_agg(to_jsonb(f) order by f.cr
 from diag.feedback($1::interval) f`;
 
 export const SCREENSHOT_SQL = `select diag.feedback_screenshot($1::uuid) as v`;
+export const VOICE_SQL = `select diag.feedback_voice($1::uuid) as v`;
+
+/** What a feedback file is, from its first bytes: the app sends JPEG screenshots and m4a or WAV voice notes. */
+export function mediaType(bytes: Uint8Array): string | null {
+  const ascii = (from: number, to: number) => String.fromCharCode(...bytes.subarray(from, to));
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return 'image/jpeg';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WAVE') return 'audio/wav';
+  if (ascii(4, 8) === 'ftyp') return 'audio/mp4';
+  return null;
+}
 
 // ---- one page load ----------------------------------------------------------------------------
 

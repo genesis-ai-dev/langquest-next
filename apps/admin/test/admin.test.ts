@@ -59,6 +59,7 @@ describe('the page', () => {
     expect(policy).toContain("script-src 'nonce-n0nce'");
     expect(policy).toContain("connect-src 'self' https://example.supabase.co");
     expect(policy).toContain("frame-ancestors 'none'");
+    expect(policy).toContain('media-src blob:');
     const html = await response.text();
     expect(html).toContain('<script nonce="n0nce">');
     expect(html).not.toMatch(/ style="/);
