@@ -28,7 +28,7 @@ Now, on a hosted project (decisions 141, 142):
 | v2 import | job container `JobRunner` v2-import | 4 GiB | 15 min, whole at 03:15 UTC | the Worker's job tick |
 | Push delivery | Edge Function `push-delivery` | 256 MB | 1 min | pg_cron |
 | Reports | Durable Object `OrgSnapshot`, rendering stored report inputs | 128 MB isolate | on request | HTTP |
-| The agent API | Durable Object `OrgSnapshot`, folding (until F) | 128 MB isolate | on request | HTTP |
+| The agent API, MCP, review links, webhooks | Durable Object `OrgSnapshot`, reading each passage's records from the server's cut, never a whole language (decision 147) | 128 MB isolate | on request | HTTP |
 | Verse timings, grant cleanup, webhook catch-up | the Worker's cron | 128 MB | 10 min | the Worker's cron |
 | Inbox purge | pg_cron | in Postgres | daily | pg_cron |
 
