@@ -6469,6 +6469,19 @@ fallbacks, restarts and a fill unfinished a day on are a watch, and a fill
 that took over a day is noted. Field names and values are enums and
 counts, so no Play declaration changes.
 
+Amended (2026-10-20, Carl Sauder): the fill puts a page's rows in memory
+after its write, for the passages memory holds by then. It used to decide
+before the write and then wait for it. A screen that opened a passage in
+that wait read the disk before the rows landed and was told the passage
+was ready, and the write then marked it filled. The passage read as loaded
+with its records in neither memory nor disk's answer, and the passage
+screen, which shows a passage once it reads as loaded, drew it as never
+recorded. Web UI tests REV-017 and REC-011 failed this way on CI, where
+each world has a cut by the time a fresh browser opens its language.
+Putting an entry twice is a join, so a passage that also read those rows
+from disk loses nothing. `keptFill.test.ts` holds the write open while the
+passage opens.
+
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
