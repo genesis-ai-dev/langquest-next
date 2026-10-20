@@ -11,7 +11,7 @@
 // list: the map is books (grouped, with progress), then a chapter grid per
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
-import { languageName, languageProgress, libraryItemView, percent, unitTitle, type KindDef, type LanguageProgress, type PassageState, type LanguageState } from '@langquest-next/core';
+import { languageName, libraryItemView, percent, progressOf, unitTitle, type KindDef, type LanguageProgress, type PassageGlance, type LanguageState } from '@langquest-next/core';
 import { useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -22,7 +22,7 @@ import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { formatNumber, formatPercent } from '../i18n/format';
 import { OfflineMark } from '../sync/offline';
-import { useSyncStatus } from '../sync/useSyncStatus';
+
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
 import { useOrgSummary } from '../reports/useOrgSummary';
@@ -76,7 +76,7 @@ function IconCount(props: { icon: 'chat' | 'clock'; n: number; tone: 'amber' | '
 }
 
 /** Where a passage stands as one glyph: not started, recording, in review (steps cleared), done. Never colour alone. */
-function PassageDisc(props: { s: PassageState }) {
+function PassageDisc(props: { s: PassageGlance }) {
   const s = props.s;
   if (s.done) return <View style={[styles.disc, { backgroundColor: onColor.green }]}><Ico name="check" size={22} color={C.white} /></View>;
   if (!s.recorded) {
@@ -96,7 +96,7 @@ function PassageDisc(props: { s: PassageState }) {
 }
 
 /** What a passage's row says in help mode: it opens, and what each mark on it means (rule 3). */
-function rowHelp(s: PassageState, o: { mine: boolean; offline: KeptOffline | undefined; changed: boolean }): string {
+function rowHelp(s: PassageGlance, o: { mine: boolean; offline: KeptOffline | undefined; changed: boolean }): string {
   const disc = s.done ? t('map.row.doneHelp')
     : !s.recorded ? (s.drafting ? t('map.row.draftingHelp') : t('map.row.notRecordedHelp'))
     : s.awaitingResponse.length > 0 ? t('map.row.feedbackHelp')
@@ -116,8 +116,7 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
   const title = unitTitle(props.state, e.unitId);
   const summary = passageSummary(e.s, props.kinds, me, (id) => ctx.name(id, true));
   const beside = useOpenDetail();
-  const { present } = useSyncStatus();
-  const offline = keptOfflineMap(ctx, present).get(e.unitId);
+  const offline = keptOfflineMap(ctx).get(e.unitId);
   const marks = e.s.recorded && e.s.steps.length > 0;
   // With the step marks at the end too, "for you" goes under the title so the title keeps its room.
   const badgeBelow = !!props.mine && marks;
@@ -263,8 +262,8 @@ export function StatusHome(ctx: Ctx) {
   const actorNow = ctx.session.actorId;
   const listed = useMemo(() => openableIn(orgNow, actorNow, allLanguages), [orgNow, actorNow, allLanguages]);
   const languages = useMemo(
-    () => statusLanguages({ listed, state, openId: ctx.language.languageId, org: ctx.org.state, summary }),
-    [state, listed, ctx.language.languageId, ctx.org.state, summary]);
+    () => statusLanguages({ listed, state, lines: ctx.language.lines, openId: ctx.language.languageId, org: ctx.org.state, summary }),
+    [state, ctx.language.lines, listed, ctx.language.languageId, ctx.org.state, summary]);
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const header = <Header title={t('map.status.title')} sub={[orgName, t('map.status.allLanguages')].filter(Boolean).join(' · ')} />;
   if (!state) return <Screen header={header}><EmptyState icon="progress" title={t('common.loading')} /></Screen>;
@@ -441,7 +440,7 @@ export function MapHome(ctx: Ctx) {
   const [testament, setTestament] = useState<Testament | null>(null);
   const forYou = useForYou(ctx, state);
   const next = useNextPassage(ctx, state);
-  const entries = useMemo(() => (state ? languageEntries(state) : []), [state]);
+  const entries = useMemo(() => (state ? languageEntries(state, ctx.language.lines) : []), [state, ctx.language.lines]);
   // Books not broken up yet (decision 74), by the app's book id.
   const waiting = useMemo(() => (state ? waitingBooks(state) : []), [state]);
   const books = useMemo(() => summarizeBooks(entries, filter, forYou, waiting), [entries, filter, forYou, waiting]);
@@ -450,7 +449,7 @@ export function MapHome(ctx: Ctx) {
   // Sections whose divisions changed since work was recorded on them (decision 80).
   const earlier = useEarlierSections(ctx, state);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
-  const progress = useMemo(() => (state ? languageProgress(state, indexesFor(state)) : null), [state]);
+  const progress = useMemo(() => (state ? progressOf(ctx.language.lines, indexesFor(state).passages, state) : null), [state, ctx.language.lines]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
 
   const language = languageId ? languageName(ctx.org.state, languageId) : t('map.home.title');
@@ -627,8 +626,7 @@ function Tile(props: { c: ChapterTile; testID?: string; onPress: () => void; cur
 export function BookMap(ctx: Ctx) {
   const languageId = ctx.params['languageId'] ?? ctx.languageId;
   const state = openState(ctx.language, languageId);
-  const { present } = useSyncStatus();
-  const offline = keptOfflineMap(ctx, present);
+  const offline = keptOfflineMap(ctx);
   const bookId = ctx.params['bookId'] ?? '';
   const initial = ctx.params['filter'];
   const [filter, setFilter] = useState<MapFilter>(isMapFilter(initial) ? initial : 'all');
@@ -640,7 +638,7 @@ export function BookMap(ctx: Ctx) {
   const layout = useLayout();
   const beside = useOpenDetail();
   const book = canonBook(bookId);
-  const entries = useMemo(() => (state ? bookEntries(languageEntries(state), bookId) : []), [state, bookId]);
+  const entries = useMemo(() => (state ? bookEntries(languageEntries(state, ctx.language.lines), bookId) : []), [state, ctx.language.lines, bookId]);
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   const chapters = useMemo(() => (book ? chapterTiles(book, entries, forYou, filter) : []), [book, entries, forYou, filter]);

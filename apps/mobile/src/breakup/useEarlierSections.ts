@@ -18,12 +18,14 @@ export function useEarlierSections(ctx: Ctx, state: LanguageState | null): Earli
   const current = state?.template?.value;
   const hashes = [...Object.keys(history), current?.docHash];
   const docs = useLibraryDocs(ctx.language.orgId, hashes);
+  const lines = ctx.language.lines;
   return useMemo(() => {
     const out: Earlier = { over: new Map(), numbered: new Map() };
     if (!state || !current) return out;
     const idx = indexesFor(state);
     const now = new Set(idx.passages);
-    const worked = new Set([...Object.values(state.recordings).map((r) => r.unitId), ...Object.values(state.takes).map((take) => take.unitId)]);
+    // Sections with anything recorded or composed, read off their lines (decisions.md 143).
+    const worked = new Set([...lines.worked()].filter((u) => lines.get(u).worked));
     const expired = [...worked].filter((u) => !now.has(u) && state.units[u] && unitPrefixOf(u) !== null && !idx.containers.includes(u));
     if (expired.length === 0) return out;
     const want = new Set(expired);
@@ -43,5 +45,5 @@ export function useEarlierSections(ctx: Ctx, state: LanguageState | null): Earli
     out.over = earlierSections({ current: idx.passages, expired, currentNumbering: numbering, numberingOf: (u) => madeIn.get(u) ?? null });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- docs.get changes when documents arrive
-  }, [state, current, docs.get]);
+  }, [state, lines, current, docs.get]);
 }

@@ -40,7 +40,11 @@ Rules specific to this folder:
   and `event_privilege` (a new migration), and coverage in the
   order-independence and idempotence tests. The tests generate permutations,
   so adding the event to the fixture list is enough;
-  `scripts/record-parity-sql.ts` checks SQL against core.
+  `scripts/record-parity-sql.ts` checks SQL against core. An event that
+  touches a map cut by passage also needs its place in `PASSAGE_PARTS` or
+  `eventPassage` (`packages/core/src/passageParts.ts`, decision 143);
+  `passageParts.test.ts` fails until every map says whether it is cut by
+  passage and how two copies of an entry combine.
 - User-facing screens follow the partner demo in `ng-langquest-ux` (its
   flow, look and capabilities). Read PLAN.md section 12 and
   `docs/ux/demo-parity.md` before changing a screen. `apps/mobile/src/shell/flow.ts`

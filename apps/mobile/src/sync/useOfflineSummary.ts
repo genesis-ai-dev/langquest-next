@@ -1,25 +1,23 @@
 // What is kept on this phone, for screens to follow (sync/offline.tsx).
-import { offlineSummary } from '@langquest-next/core';
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import type { Ctx } from '../shell/ctx';
-import { useSyncStatus } from './useSyncStatus';
 import { keptOfflineMap, type OfflineOverview } from './offlineText';
-import { useSyncExternalStore } from 'react';
 import { onStudyFiles, studyRevision } from '../study/studyFiles';
 
+/**
+ * The whole scope: the audio counts worked out from the phone's table after
+ * changes (decisions.md 143), with passages counted ready only once their
+ * study files are here too. Null until first counted.
+ */
 export function useOfflineSummary(ctx: Ctx): OfflineOverview | null {
-  const state = ctx.language.state;
-  const { present } = useSyncStatus();
-  const { keptUnits } = ctx.language.blobs;
-  const me = ctx.session.actorId;
+  const { offlineSummary: audio, keptOffline } = ctx.language.blobs;
   const rev = useStudyRevision();
   return useMemo(() => {
-    if (!state) return null;
-    const audio = offlineSummary(state, present, me, keptUnits);
-    const kept = [...keptOfflineMap(ctx, present).values()];
+    if (!audio) return null;
+    const kept = [...keptOfflineMap(ctx).values()];
     return { ...audio, ready: kept.filter((u) => u.ready).length, studyToFetch: kept.reduce((n, u) => n + u.studyTotal - u.studyHere, 0) };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ctx is read for the same inputs listed here
-  }, [state, present, keptUnits, me, rev]);
+  }, [audio, keptOffline, rev]);
 }
 
 /** Re-render when a study file arrives or the prefetcher learns a guide. */

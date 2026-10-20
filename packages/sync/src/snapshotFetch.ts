@@ -34,26 +34,51 @@ export async function fetchSnapshot(
   const meta = opts.meta ?? (await transport.snapshotMeta(orgId, streamId, reducerVersion));
   if (!meta) return null;
   const pieces = new Array<string>(meta.chunks);
+  for (const [i, text] of opts.saved ?? []) pieces[i] = text;
+  const complete = await downloadPieces(transport, orgId, streamId, reducerVersion, meta, {
+    have: (i) => pieces[i] !== undefined,
+    onChunk: async (serverSeq, i, text) => {
+      await opts.onChunk?.(serverSeq, i, text);
+      pieces[i] = text;
+    },
+    inFlight: opts.inFlight
+  });
+  if (!complete) return null;
+  const text = pieces.join('');
+  opts.onJoined?.(text);
+  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(text) as LanguageState };
+}
+
+/**
+ * Fetch every piece of a snapshot that `have` says is missing, `inFlight`
+ * at a time, handing each to `onChunk` (which saves it) as it arrives.
+ * Nothing is held: a caller that reads the pieces back one by one never has
+ * the whole text in memory. False when the snapshot rolled forward
+ * mid-fetch; the caller retries.
+ */
+export async function downloadPieces(
+  transport: Pick<Transport, 'snapshotChunk'>,
+  orgId: string,
+  streamId: string,
+  reducerVersion: number,
+  meta: SnapshotMeta,
+  opts: { have: (index: number) => boolean; onChunk: (serverSeq: number, index: number, text: string) => Promise<void>; inFlight?: number | undefined }
+): Promise<boolean> {
   let next = 0;
-  // The snapshot rolled forward mid-fetch (the caller retries), or a piece failed: start no more.
+  // The snapshot rolled forward mid-fetch, or a piece failed: start no more.
   let stale = false;
   let failed = false;
   const fetchPieces = async (): Promise<void> => {
     while (!stale && !failed && next < meta.chunks) {
       const i = next++;
-      const saved = opts.saved?.get(i);
-      if (saved !== undefined) {
-        pieces[i] = saved;
-        continue;
-      }
+      if (opts.have(i)) continue;
       try {
         const text = await transport.snapshotChunk(orgId, streamId, reducerVersion, meta.serverSeq, i);
         if (text === null) {
           stale = true;
           return;
         }
-        await opts.onChunk?.(meta.serverSeq, i, text);
-        pieces[i] = text;
+        await opts.onChunk(meta.serverSeq, i, text);
       } catch (error) {
         failed = true;
         throw error;
@@ -64,8 +89,5 @@ export async function fetchSnapshot(
   const runs = await Promise.allSettled(Array.from({ length: Math.max(1, opts.inFlight ?? 1) }, fetchPieces));
   const failure = runs.find((r): r is PromiseRejectedResult => r.status === 'rejected');
   if (failure) throw failure.reason;
-  if (stale) return null;
-  const text = pieces.join('');
-  opts.onJoined?.(text);
-  return { orgId, streamId, reducerVersion, serverSeq: meta.serverSeq, state: JSON.parse(text) as LanguageState };
+  return !stale;
 }

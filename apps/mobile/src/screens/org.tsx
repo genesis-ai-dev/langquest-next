@@ -12,7 +12,7 @@
 // ADR-045) is a name on some of them, with a page of its own (ClusterHome).
 import {
   clusterName, mayManageClusters, orgClusters,
-  decodeHlc, deriveFlow, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, languageProgress,
+  decodeHlc, deriveFlow, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, progressOf as linesProgress,
   leavesNoRoleManager, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
   subscriptionItemId, templateBooks, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
@@ -109,9 +109,9 @@ function useOrgView(ctx: Ctx) {
   const summary = useOrgSummary(ctx.session.actorId, ctx.language.orgId);
   const local = useMemo(() => {
     const out = new Map<string, LanguageProgress>();
-    if (state && openId) out.set(openId, languageProgress(state, indexesFor(state)));
+    if (state && openId) out.set(openId, linesProgress(ctx.language.lines, indexesFor(state).passages, state));
     return out;
-  }, [state, openId]);
+  }, [state, ctx.language.lines, openId]);
   const languages = useMemo(() => ctx.languages.map((l) => l.languageId), [ctx.languages]);
   // The open language from this phone's fold, the others from the dashboard's server (decision 44).
   const progress = useMemo(() => new Map([...languageFigures(languages, local, summary)].map(([id, f]) => [id, f.progress])), [languages, local, summary]);

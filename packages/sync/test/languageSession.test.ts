@@ -2,7 +2,21 @@ import { HlcClock, type BlobRef } from '@langquest-next/core';
 import { LanguageSession, type LanguageSessionOptions, type LocalFiles } from '../src/languageSession';
 import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { MemoryStore } from '../src/memoryStore';
+import { SyncClient } from '../src/syncClient';
 import { FakeServer } from '../src/testing/fakeServer';
+import type { EventPayloads, EventType } from '@langquest-next/core';
+
+let remoteIds = 1000;
+/** Someone else's phone: one event, sent at once. */
+async function from<T extends EventType>(server: FakeServer, actorId: string, type: T, payload: EventPayloads[T]) {
+  const c = new SyncClient({
+    orgId: 'org1', streamId: 'luke', actorId, deviceId: `d-${actorId}`, store: new MemoryStore(), transport: server.transportFor(),
+    clock: new HlcClock(`d-${actorId}`, () => (remoteIds += 1)), newId: () => `x${(remoteIds += 1)}`
+  });
+  await c.load();
+  await c.append(type, payload);
+  await c.push();
+}
 
 /** A phone's files in memory: what is here, how big, and who asked to be told of changes. */
 function memoryFiles(): LocalFiles & { put(hash: string, size: number): void; reclaimed: string[][] } {
@@ -106,11 +120,12 @@ describe('LanguageSession: one language kept and moved (decisions.md 104)', () =
     session.start();
     files.put('h1', 10);
     await session.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
-    expect(session.unsent().map((r) => r.hash)).toEqual(['h1']);
+    expect((await session.unsent()).map((r) => r.hash)).toEqual(['h1']);
     session.triggerUpload();
     await until(() => uploaded.includes('h1'));
     await session.sync();
-    await until(() => session.unsent().length === 0);
+    let left = 1;
+    await until(() => { void session.unsent().then((u) => { left = u.length; }); return left === 0; });
     session.close();
   });
 
@@ -198,6 +213,83 @@ describe('LanguageSession: what tells a screen to redraw', () => {
   });
 });
 
+describe('LanguageSession: a language kept on disk (decisions.md 143)', () => {
+  it('counts what is offline from the phone\'s table, and sends a recording made here', async () => {
+    const { files, uploaded, open } = phone({ keepOnDisk: true });
+    const session = await open();
+    session.start();
+    files.put('h1', 10);
+    await session.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    await until(() => session.status.keptOffline !== null && session.status.scope.has('Luke 1'));
+    expect(session.status.keptOffline?.get('Luke 1')).toMatchObject({ audio: 1, here: 1, reason: 'worked' });
+    expect(await session.hasRecording('r1')).toBe(true);
+    session.triggerUpload();
+    await until(() => uploaded.includes('h1'));
+    await session.loadUnits(['Luke 1']);
+    expect(session.state.recordings['r1']).toBeDefined();
+    session.close();
+  });
+});
+
+describe('LanguageSession: lists of passages read lines (decisions.md 143)', () => {
+  /** A passage recorded by akol, reviewed by lead with feedback, and asked of akol again; another merely drafted. */
+  async function team(session: LanguageSession, server: FakeServer) {
+    await session.append('v1.UnitAdded', unit('Luke 1'));
+    await session.append('v1.UnitAdded', unit('Luke 2'));
+    await session.append('v1.TakeComposed', { takeId: 't1', unitId: 'Luke 1', cardHashes: ['c1'], parentTakeId: null });
+    await session.append('v1.TakeSubmitted', { takeId: 't1' });
+    await session.append('v1.TakeComposed', { takeId: 'd2', unitId: 'Luke 2', cardHashes: ['c2'], parentTakeId: null });
+    await session.append('v1.KeyTermLinked', { takeId: 't1', termId: 'logos' });
+    await session.sync();
+    await from(server, 'lead', 'v1.ReviewRecorded', { reviewId: 'r1', takeId: 't1', kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'slower' });
+    await from(server, 'lead', 'v1.RequestMade', { requestId: 'q1', unitId: 'Luke 1', what: 'record', profileId: 'akol' });
+    await session.sync();
+  }
+
+  for (const keepOnDisk of [false, true]) {
+    it(`Map, My Work and the Inbox read the same from lines (${keepOnDisk ? 'kept on disk' : 'kept in memory'})`, async () => {
+      const { server, open } = phone(keepOnDisk ? { keepOnDisk: true } : {});
+      const session = await open();
+      session.start();
+      await team(session, server);
+      await session.client.settleLines();
+      await until(() => session.status.lines.get('Luke 1').awaitingResponse.length === 1);
+      const line = session.status.lines.get('Luke 1');
+      expect(line).toMatchObject({ recorded: true, latest: { n: 1, by: 'akol' } });
+      expect(line.people).toEqual(['akol', 'lead']);
+      expect(session.status.lines.get('Luke 2')).toMatchObject({ recorded: false, drafting: true, draftsBy: { akol: expect.any(String) } });
+      expect([...session.status.lines.worked()].sort()).toEqual(['Luke 1', 'Luke 2']);
+      // The Inbox: lead's review of akol's version, and lead's request.
+      expect((await session.updatesFor('akol')).map((u) => u.id).sort()).toEqual(['request:q1', 'review:r1']);
+      expect(await session.updatesFor('nobody')).toEqual([]);
+      expect(await session.passagesLinkingTerm('logos')).toEqual(['Luke 1']);
+      expect(await session.passageOfTake('d2')).toBe('Luke 2');
+      session.close();
+    });
+  }
+
+  it('reads an Inbox passage from disk again only when its line changed', async () => {
+    const { server, store, open } = phone({ keepOnDisk: true });
+    const session = await open();
+    session.start();
+    await team(session, server);
+    await session.client.settleLines();
+    await session.updatesFor('akol');
+    let reads = 0;
+    const keptByUnit = store.keptByUnit.bind(store);
+    store.keptByUnit = (...a) => { reads += 1; return keptByUnit(...a); };
+    await session.updatesFor('akol');
+    expect(reads).toBe(0);
+    await from(server, 'lead', 'v1.RequestWithdrawn', { requestId: 'q1' });
+    await session.sync();
+    await session.client.settleLines();
+    reads = 0;
+    expect((await session.updatesFor('akol')).map((u) => u.id).sort()).toEqual(['request:q1', 'review:r1']);
+    expect(reads).toBe(1);
+    session.close();
+  });
+});
+
 describe('LanguageSession: when diagnostics may go', () => {
   const recording = { recordingId: 'r1', unitId: 'Luke 1', kind: 'target' as const, cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' as const }] };
 
@@ -260,6 +352,43 @@ describe('LanguageSession: when diagnostics may go', () => {
     expect(settled).toEqual([]);
     session.close();
   });
+});
+
+describe('LanguageSession: uploads keep moving while sync runs again and again', () => {
+  /** A store like a browser's: one lock for every read and write, each a few ms. */
+  function lockedStore() {
+    const inner = new MemoryStore();
+    let lock: Promise<unknown> = Promise.resolve();
+    const exclusive = <T,>(fn: () => Promise<T>): Promise<T> => {
+      const next = lock.then(async () => { await new Promise((r) => setTimeout(r, 8)); return fn(); });
+      lock = next.catch(() => {});
+      return next;
+    };
+    return new Proxy(inner, {
+      get: (t, k) => {
+        const v = (t as unknown as Record<string, unknown>)[k as string];
+        return typeof v === 'function' ? (...a: unknown[]) => exclusive(() => (v as (...x: unknown[]) => Promise<unknown>).apply(t, a)) : v;
+      }
+    });
+  }
+
+  for (const keepOnDisk of [false, true]) {
+    it(`a recording goes up between syncs (${keepOnDisk ? 'kept on disk' : 'kept in memory'})`, async () => {
+      // Why: an upload waits while a pull runs. A work list read from the
+      // phone's table each time waited behind the sync's own writes, and by
+      // then the next sync had started: on the web UI tests, whose probe
+      // syncs again and again, a recording made offline never went up.
+      const { files, uploaded, open } = phone({ store: lockedStore(), keepOnDisk });
+      const session = await open();
+      session.start();
+      files.put('h1', 10);
+      await session.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+      const started = Date.now();
+      while (!uploaded.includes('h1') && Date.now() - started < 3000) await session.sync();
+      session.close();
+      expect(uploaded).toContain('h1');
+    });
+  }
 });
 
 describe('LanguageSession: the open record', () => {
