@@ -35,7 +35,7 @@ import { PartBars } from './partBars';
 import { useSwipeHint } from './useSwipeHint';
 import { useBars } from '../audio/useBars';
 import { UndoRedo, type UndoRedoProps } from '../ui/undoRedo';
-import { opensAbove, rowKeys } from './workspaceModel';
+import { helpBinRow, opensAbove, rowKeys } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
 import { useDragRows } from './useDragRows';
 import { lift } from '../ui/shadow';
@@ -158,6 +158,7 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
   const [open, setOpen] = useState<{ key: string; side: SwipeSide } | null>(null);
   const hint = useSwipeHint(parts.length > 0 && !props.disabled);
   const firstPart = rows.findIndex((r) => r.kind === 'part');
+  const binRow = helpBinRow(rows);
   return (
     <View style={styles.list}>
       {rows.map((r, k) => {
@@ -174,7 +175,7 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
           <PartRow ctx={props.ctx} part={parts[r.index]!} n={r.n} disabled={props.disabled} first={k === 0} last={k === rows.length - 1}
             onDelete={(hash, label) => { setOpen(null); props.onDelete(hash, label); }}
             open={!props.disabled && !drag.dragging && open?.key === key ? open.side : 0} onOpen={(side) => setOpen(side ? { key, side } : null)}
-            hint={hint.show && k === firstPart} onHinted={hint.done}
+            hint={hint.show && k === firstPart} onHinted={hint.done} helpBin={k === binRow}
             fresh={props.fresh.has(parts[r.index]!.hash)} lifted={lifted}
             grip={<PartGrip part={name} handlers={drag.grip(key)} disabled={props.disabled} canUp={r.index > 0} canDown={r.index < parts.length - 1} at={r.index + 1} of={parts.length}
               onStep={(by) => props.onMove(r.index, r.index + by)} />}
@@ -193,7 +194,7 @@ function PlainParts(props: { ctx: Ctx; parts: Part[]; disabled: boolean; onDelet
 
 function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; chosen: boolean; onChoose: () => void; onDelete: (hash: string, label: string) => void;
   first: boolean; last: boolean; fresh: boolean; lifted: boolean; grip: ReactNode;
-  open: SwipeSide; onOpen: (side: SwipeSide) => void; hint: boolean; onHinted: () => void }) {
+  open: SwipeSide; onOpen: (side: SwipeSide) => void; hint: boolean; onHinted: () => void; helpBin: boolean }) {
   const label = partLabel(props.n - 1);
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
   const bars = useBars(props.ctx.language, props.part.hash);
@@ -202,7 +203,7 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
   const choose = useHelpSpot(t('recording.recorder.recordOver', { part: label }), t('recording.recorder.recordOverHelp'), props.onChoose);
   return (
     <SwipeRow name={label} disabled={props.disabled} open={props.open} onOpen={props.onOpen} onDelete={() => props.onDelete(props.part.hash, label)} last={props.last}
-      {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})}>
+      {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})} helpBin={props.helpBin}>
     <View style={[styles.partRow, !props.first && styles.rowBorder, props.fresh && styles.fresh, props.chosen && styles.chosenRow, props.lifted && styles.liftedRow]}>
       <Pressable onPress={play.onPress} disabled={!clip.available || props.disabled} accessibilityRole="button" accessibilityLabel={playLabel}
         style={({ pressed }) => [styles.playTap, (!clip.available || props.disabled) && ps.off, pressed && ps.pressed]}>

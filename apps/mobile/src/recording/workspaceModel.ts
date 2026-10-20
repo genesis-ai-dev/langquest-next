@@ -308,6 +308,16 @@ export function opensAbove(rows: readonly SlotRow[], k: number): boolean {
 }
 
 /**
+ * The row that stands open on its bin while help is on, so help can show how
+ * a part is deleted: the second part, leaving the first row's own parts in
+ * sight to speak for the list, or the only one; -1 with no parts.
+ */
+export function helpBinRow(rows: readonly SlotRow[]): number {
+  const parts = rows.flatMap((r, k) => (r.kind === 'part' ? [k] : []));
+  return parts[1] ?? parts[0] ?? -1;
+}
+
+/**
  * A stable key for each row: a part by its recording (a second copy of the
  * same recording counted on), a gap by the part it is before. A part keeps
  * its key when it moves, so its row is moved, not drawn again.

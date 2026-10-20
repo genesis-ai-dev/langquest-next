@@ -5559,6 +5559,20 @@ after a restart, still read their WAV. The bars are each slice's level from
 the frames' loudest samples rather than every sample, so a row can look a
 little fuller than one read from its file.
 
+Amended (2026-10-20, Caleb Koster): help mode shows a part's bin. Caleb did
+not see the slide on a first recording and asked whether the ? explains
+swiping to delete; it did only in the second sentence of the sound bars'
+bubble ("Record Part 1 again"), where someone looking for delete would not
+tap. While help is on, the list's second part (its only one, when there is
+one) stands open on its left-hand bin, so the first row keeps its own
+numbers in sight (`helpBinRow`), and the bin has a number of its own: "Slide
+any part aside to show its bin, then tap the bin. Undo brings it back." The
+row closes when help goes off. The bars' bubble keeps only what a tap on them
+does. The slide itself was checked, not changed: on a device that never saw
+it, the first recording's parts slide once and it is kept as seen; builds 22
+and 23 and every update since carry it, so a phone that recorded on any of
+them has had its one showing.
+
 ## 137. Android's Back goes one step back, inside a screen's steps too, and leaves the app only from the first screen
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
