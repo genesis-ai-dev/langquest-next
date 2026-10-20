@@ -3,7 +3,7 @@ import {
   canonicalJson, FIA_PERICOPES, foldOrg, libraryItemView, referencedDocs, templateUnits, validateEvent,
   type CollectionDoc, type FlowDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
-import { buildLibrary, onlyItems, seedEvents, SEED_ORG } from './library-seed';
+import { againWhereChanged, buildLibrary, onlyItems, seedEvents, SEED_ORG } from './library-seed';
 
 const build = buildLibrary();
 const doc = (hash: string) => build.documents.find((d) => d.hash === hash)!.body;
@@ -144,5 +144,21 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
         kind: it.kind, name: it.name, source: 'own', shared: true, subscribable: true, current: it.docHash
       });
     }
+  });
+
+  it('sends a value an item had before again, and leaves alone what the server already says', () => {
+    // Why: ids are content, so shared, then unshared, then shared again (Door43's items, decision 143)
+    // made an id the log held, and the server skipped it: the item stayed unshared.
+    const it = build.items[0]!;
+    const events = seedEvents({ documents: build.documents, items: [it] }, 1_700_000_000_000);
+    const now = { kind: it.kind, name: it.name, description: it.description, shared: true, subscribable: true };
+    const same = againWhereChanged(events, new Map([[it.itemId, now]]), 42);
+    expect(same.map((e) => e.id)).toEqual(events.map((e) => e.id));
+    const unshared = againWhereChanged(events, new Map([[it.itemId, { ...now, shared: false, subscribable: false, name: 'Old name' }]]), 42);
+    const changed = unshared.filter((e, i) => e.id !== events[i]!.id).map((e) => e.type);
+    expect(changed).toEqual(['v1.LibraryItemDefined', 'v1.LibrarySharingSet']);
+    expect(unshared.find((e) => e.type === 'v1.LibrarySharingSet')!.id).toMatch(/:42$/);
+    // An item the server has not got yet keeps its ids.
+    expect(againWhereChanged(events, new Map(), 42).map((e) => e.id)).toEqual(events.map((e) => e.id));
   });
 });

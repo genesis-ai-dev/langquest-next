@@ -476,6 +476,31 @@ export function seedEvents(build: SeedBuild, now: number, opts: { unshared?: Rea
   return out;
 }
 
+/** What one of the organization's items says on the server now (library_items). */
+export interface ItemNow { kind: string | null; name: string | null; description: string | null; shared: boolean; subscribable: boolean }
+
+/**
+ * The events to send, given what the server's items say now. An id is its
+ * content, so a value an item had before (shared, then not, then shared
+ * again; a name put back) has an id the log already holds, and the server
+ * would skip it: a name or sharing its item does not say now gets an id of
+ * its own, from `at`. One saying what the item already says keeps its id
+ * (and the server skips it), so a second run still sends nothing new. A
+ * version stays where it was first published, so an older document is
+ * never made current again this way.
+ */
+export function againWhereChanged(events: readonly AnyEvent[], items: ReadonlyMap<string, ItemNow>, at: number): AnyEvent[] {
+  return events.map((e) => {
+    const p = e.payload as unknown as Record<string, unknown>;
+    const it = typeof p['itemId'] === 'string' ? items.get(p['itemId']) : undefined;
+    if (!it) return e;
+    const differs = e.type === 'v1.LibraryItemDefined' ? it.kind !== p['kind'] || it.name !== p['name'] || (it.description ?? '') !== (p['description'] ?? '')
+      : e.type === 'v1.LibrarySharingSet' ? it.shared !== p['shared'] || it.subscribable !== p['subscribable']
+      : false;
+    return differs ? ({ ...e, id: `${e.id}:${at}` } as AnyEvent) : e;
+  });
+}
+
 // ---- publishing -----------------------------------------------------------------------
 
 function summary(build: SeedBuild, events: AnyEvent[]): string {
@@ -577,15 +602,27 @@ async function main(argv: string[]) {
     console.log(`door43: ${n} documents stored`);
   }
 
+  // What the items say now, so a value one had before is sent again (againWhereChanged).
+  const items = new Map<string, ItemNow>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from('library_items').select('item_id,kind,name,description,shared,subscribable').eq('org_id', SEED_ORG.id).order('item_id').range(from, from + 999);
+    if (error) throw new Error(`library_items: ${error.message}`);
+    for (const r of data as { item_id: string; kind: string | null; name: string | null; description: string | null; shared: boolean; subscribable: boolean }[]) {
+      items.set(r.item_id, { kind: r.kind, name: r.name, description: r.description, shared: r.shared, subscribable: r.subscribable });
+    }
+    if (data.length < 1000) break;
+  }
+  const sending = againWhereChanged(events, items, Date.now());
+
   // The server stamps its own clock, in the order sent, and skips ids it already has.
   let appended = 0;
-  for (let i = 0; i < events.length; i += 200) {
-    const batch = events.slice(i, i + 200).map((e) => ({ id: e.id, type: e.type, actorId: e.actorId, payload: e.payload }));
+  for (let i = 0; i < sending.length; i += 200) {
+    const batch = sending.slice(i, i + 200).map((e) => ({ id: e.id, type: e.type, actorId: e.actorId, payload: e.payload }));
     const { data, error } = await db.rpc('library_seed_events', { p_org: SEED_ORG.id, p_events: batch });
     if (error) throw new Error(`library_seed_events: ${error.message}`);
     appended += Number(data ?? 0);
   }
-  console.log(`events: ${events.length} sent, ${appended} new`);
+  console.log(`events: ${sending.length} sent, ${appended} new`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -596,6 +596,36 @@ function buildObsTemplate(ctx: Ctx, english: Story[], credit: string): string {
 
 // ---- the whole build ------------------------------------------------------------------------------
 
+/** A Checking Manual read from an academy set, and who its flows are named for. */
+interface Manual { c: Taken; itemId: string; publisher: string; who: string; languageName: string; credit: string; license: string; manual: CheckingManual }
+
+/**
+ * What rival sets (one language, one role) are told apart by: the publisher
+ * each manifest names, and where two name the same one ("Bussard" for two
+ * French sets), the Door43 organizations that publish them.
+ */
+async function rivalNames(competing: Taken[]): Promise<Map<Taken, string>> {
+  const found: { c: Taken; publisher: string }[] = [];
+  for (const c of competing) {
+    let manifest: string | undefined;
+    try { manifest = dublin(release(await zipOf(c.entry))).publisher as string | undefined; } catch { manifest = undefined; }
+    found.push({ c, publisher: publisherName(c.entry, typeof manifest === 'string' ? manifest : undefined) });
+  }
+  // Some manifests name only the organization's code ("ar_gt"), where its other sets give its name ("TextTree movement").
+  const code = (x: { c: Taken; publisher: string }) => x.publisher.toLowerCase() === x.c.entry.owner.toLowerCase();
+  for (const x of found) {
+    if (!code(x)) continue;
+    const named = found.find((y) => y.c.entry.owner === x.c.entry.owner && !code(y));
+    if (named) x.publisher = named.publisher;
+  }
+  const out = new Map<Taken, string>();
+  for (const x of found) {
+    const shared = found.some((y) => y !== x && y.c.language === x.c.language && y.c.role === x.c.role && y.publisher === x.publisher);
+    out.set(x.c, shared ? publisherName(x.c.entry) : x.publisher);
+  }
+  return out;
+}
+
 /** Roles built first: the originals (their words find quotes), then Bibles, then English stories (they make the template). */
 const ORDER: Role[] = ['original', 'bible', 'stories', 'notes', 'questions', 'wordLinks', 'words', 'academy', 'grammar', 'storyNotes', 'storyQuestions', 'storyWordLinks', 'storyStudyNotes', 'storyStudyQuestions', 'formation'];
 
@@ -623,7 +653,8 @@ export async function buildDoor43(opts: {
     pictureUrls: [],
     formationPictures: { count: 0, bytes: 0 }
   };
-  const manuals: { c: Taken; itemId: string; publisher: string; languageName: string; credit: string; license: string; manual: CheckingManual }[] = [];
+  const manuals: Manual[] = [];
+  const rivals = await rivalNames(taken.filter((c) => c.competing));
   const ctx: Ctx = { sink: opts.sink, versifications: opts.versifications, originals: new Map(), log, stats: { docs: 0, bytes: 0, largest: 0 }, pictures: new Map(), itemLargest: 0 };
   const seen = new Map<string, string>();
   let english: Story[] | null = null;
@@ -656,8 +687,7 @@ export async function buildDoor43(opts: {
       const publisher = publisherName(c.entry, typeof dc['publisher'] === 'string' ? dc['publisher'] : undefined);
       const credit = creditOf(r.read('LICENSE.md'), { owner: c.entry.owner, ownerName: publisher, url: c.entry.url });
       const languageName = languageLabel(c.entry, c.language);
-      // Rival sets are told apart by the organization that publishes each on Door43: two may name one publisher.
-      const name = itemName(c, languageName, publisherName(c.entry));
+      const name = itemName(c, languageName, rivals.get(c) ?? publisher);
       log(`  ${label}: ${name}`);
       const meta = { license, credit, name, languageName, publisher };
       const before = { ...ctx.stats };
@@ -688,7 +718,7 @@ export async function buildDoor43(opts: {
       const copy = seen.get(built.docHash);
       if (copy) { report.skipped.push({ entry: label, subject: c.entry.subject, reason: `the same as ${copy}` }); continue; }
       seen.set(built.docHash, label);
-      if (built.manual) manuals.push({ c, itemId: itemIdOf(c.entry), publisher, languageName, credit, license, manual: built.manual });
+      if (built.manual) manuals.push({ c, itemId: itemIdOf(c.entry), publisher, who: rivals.get(c) ?? publisher, languageName, credit, license, manual: built.manual });
       report.items.push({
         itemId: itemIdOf(c.entry), name: c.role === 'grammar' && built.nameHint ? plainTitle(built.nameHint) : name, description: built.description, docHash: built.docHash,
         role: c.role, language: c.language, publisher, entry: label,
@@ -711,7 +741,7 @@ export async function buildDoor43(opts: {
  * language's notes, key words and questions (the same publisher's first),
  * and the manual's two forms as question sets of their own.
  */
-function buildFlows(ctx: Ctx, report: BuildReport, manuals: { c: Taken; itemId: string; publisher: string; languageName: string; credit: string; license: string; manual: CheckingManual }[]) {
+function buildFlows(ctx: Ctx, report: BuildReport, manuals: Manual[]) {
   const english = manuals.find((m) => m.c.language === 'eng' && m.c.entry.owner === 'unfoldingWord')?.manual.names ?? {};
   const pick = (m: (typeof manuals)[number], role: Role) => {
     const same = report.items.filter((i) => i.role === role && i.language === m.c.language && !i.kind);
@@ -719,6 +749,8 @@ function buildFlows(ctx: Ctx, report: BuildReport, manuals: { c: Taken; itemId: 
   };
   for (const m of manuals) {
     const before = { ...ctx.stats };
+    // Rival manuals in one language are told apart as their items are (rivalNames).
+    const publisherNote = m.c.competing ? `, ${m.who}` : '';
     const forms: { evaluation?: string; affirmation?: string } = {};
     const formItem = (key: 'evaluation' | 'affirmation', kindId: CheckId) => {
       const f = m.manual[key];
@@ -726,12 +758,11 @@ function buildFlows(ctx: Ctx, report: BuildReport, manuals: { c: Taken; itemId: 
       const doc = formQuestions({ title: f.title, language: m.c.language, kindId, affirm: f.affirm, ...('answer' in f ? { answer: f.answer } : {}) });
       const itemId = `${m.itemId}.${key}`;
       const docHash = put(ctx, doc);
-      report.items.push({ itemId, name: `${plainTitle(f.title)} (${m.languageName})`, description: `${f.title}. ${m.credit}`, docHash, role: 'academy', language: m.c.language, publisher: m.publisher, entry: m.c.entry.owner + '/' + m.c.entry.name, docs: 1, bytes: Buffer.byteLength(canonicalJson(doc)), largest: Buffer.byteLength(canonicalJson(doc)), zipBytes: 0 });
+      report.items.push({ itemId, name: `${plainTitle(f.title)} (${m.languageName}${publisherNote})`, description: `${f.title}. ${m.credit}`, docHash, role: 'academy', language: m.c.language, publisher: m.publisher, entry: m.c.entry.owner + '/' + m.c.entry.name, docs: 1, bytes: Buffer.byteLength(canonicalJson(doc)), largest: Buffer.byteLength(canonicalJson(doc)), zipBytes: 0 });
       forms[key] = itemId;
     };
     formItem('evaluation', 'community');
     formItem('affirmation', 'leader');
-    const publisherNote = m.c.competing ? `, ${m.publisher}` : '';
     for (const stories of [false, true]) {
       const helps: FlowHelps = stories
         ? { notes: pick(m, 'storyNotes'), wordLinks: pick(m, 'storyWordLinks'), words: pick(m, 'words'), questions: pick(m, 'storyQuestions'), ...forms }
