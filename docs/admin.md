@@ -3,7 +3,7 @@
 `https://admin.langquest.org` shows staff what is going on with LangQuest in
 one page: what phones and browsers report, how the server's own jobs are
 doing, and what each service LangQuest runs on says about its part. It is a
-Worker of its own, `langquest-next-admin` (`apps/admin`, decisions.md 141),
+Worker of its own, `langquest-next-admin` (`apps/admin`, decisions.md 143),
 beside the app's Worker rather than inside it, so the read tokens it holds
 never sit on the Worker that answers the public.
 

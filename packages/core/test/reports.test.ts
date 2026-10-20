@@ -7,7 +7,10 @@ import { derivePassage } from '../src/passage';
 import { encodeHlc } from '../src/hlc';
 import { foldOrg, languageInfo, SEED_ROLES, type LanguageInfo } from '../src/org';
 import { flowTemplate, instantiateFlow } from '../src/record';
-import { languageReport, mayViewLanguage, paceOf, PROGRESS_DAYS, recencyOf, REPORT_WEEKS, summarizeReports, weekStartOf } from '../src/reports';
+import {
+  languageReport, mayViewLanguage, paceOf, PROGRESS_DAYS, recencyOf, renderLanguageReport, REPORT_VERSION, REPORT_WEEKS, reportInputs,
+  summarizeReports, weekStartOf, type ReportInputs
+} from '../src/reports';
 import { SCOPE_VERSES } from '../src/coverage';
 import { buildFixture, buildRecordFixture, buildStep11Fixture, shuffle } from './fixtures';
 
@@ -260,6 +263,70 @@ describe('coverage, uploads and the ledger', () => {
     expect([r.languageId, r.name, r.code]).toEqual(['din', 'Thuɔŋjäŋ', 'din']);
     expect(r.country).toBe('SS');
     expect(r.target).toEqual({ scope: 'nt', startDate: '2026-01-01', targetDate: '2027-07-01' });
+  });
+});
+
+describe('report inputs (decisions.md 142)', () => {
+  // Why: the projection pass extracts a language's inputs when it folds the
+  // language and stores them as JSON; the dashboard's server renders reports
+  // from them on later days without folding. A report rendered that way must
+  // be the report a fold on that day would give, or Reports would drift
+  // from the phone's Status screen until the language next changed.
+  const card = (hash: string) => ({ hash, durationMs: 4000 });
+  function busy() {
+    const p = language();
+    p.emit('lead', 'v1.UnitAdded', { unitId: 'mark', parentUnitId: null, kind: 'passage', label: 'Mark 1-16', order: 'c1' });
+    p.at(Date.UTC(2025, 9, 1));
+    publish(p, 'luke15', ['old']);
+    p.at(Date.UTC(2026, 6, 30, 23, 59));
+    p.run('akol', (c) => c.addRecording({ commandId: 'rec:h1', unitId: 'john3', recordingId: 'r:h1', kind: 'target', card: card('h1') }));
+    p.run('akol', (c) => c.addRecording({ commandId: 'rec:stuck', unitId: 'john4', recordingId: 'r:stuck', kind: 'target', card: card('stuck') }));
+    p.at(Date.UTC(2026, 7, 2, 9));
+    p.emit('server', 'v1.BlobStored', { hash: 'h1', size: 100 });
+    publish(p, 'john3', ['a']);
+    p.at(Date.UTC(2026, 8, 10, 9));
+    publish(p, 'mark', ['m']);
+    const takeId = derivePassage(p.state(), 'john3').latest!.takeId;
+    p.run('ayen', (c) => c.recordReview({ commandId: 'rv', takeIds: [takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
+    p.at(Date.UTC(2026, 8, 30, 18));
+    p.run('akol', (c) => c.addRecording({ commandId: 'rec:h2', unitId: 'john4', recordingId: 'r:h2', kind: 'target', card: card('h2') }));
+    p.emit('server', 'v1.BlobStored', { hash: 'h2', size: 100 });
+    publish(p, 'john4', ['b']);
+    return p;
+  }
+
+  it('rendered on any later day, after a trip through JSON, equal the report folded that day', () => {
+    const p = busy();
+    const state = p.state();
+    const extracted = p.now();
+    const stored = JSON.parse(JSON.stringify(reportInputs(state, extracted))) as ReportInputs;
+    // Same moment, the next minute, a day and a week on, across the stuck
+    // cutoff and the log's last day, across month and year ends, and a year on.
+    for (const later of [0, 60_000, DAY, 7 * DAY, 13 * DAY + 3_600_000, 14 * DAY, 15 * DAY, 32 * DAY, 92 * DAY, 400 * DAY]) {
+      const now = extracted + later;
+      expect(renderLanguageReport(stored, DINKA, now), `rendered ${later / DAY} days on`).toEqual(languageReport(state, DINKA, now));
+    }
+  });
+
+  it('carry no date-dependent window, so the store holds every day, week and month the report can reach', () => {
+    const inputs = reportInputs(busy().state(), Date.UTC(2026, 8, 30, 18));
+    expect(inputs.v).toBe(REPORT_VERSION);
+    expect(Object.keys(inputs.weeks)).toContain('2025-09-29');
+    expect(inputs.passageDays[0]![0]).toBe('2025-10-01');
+    expect(inputs.uploadDays.map(([day]) => day)).toEqual(['2026-08-02', '2026-09-30']);
+    // A card already stuck when extracted is counted, not listed; a recent one keeps its time.
+    expect(inputs.stuck).toMatchObject({ cards: 1, unitIds: ['john4'] });
+    expect(new Date(inputs.stuck.since!).toISOString().slice(0, 10)).toBe('2026-07-30');
+    expect(inputs.unstored).toEqual([]);
+    // The log keeps only the days it can still show.
+    expect(inputs.log.map((e) => e.day)).toEqual(['2026-09-30']);
+  });
+
+  it('any permutation of the log gives the same inputs', () => {
+    const p = busy();
+    const at = p.now();
+    const wanted = reportInputs(p.state(), at);
+    for (let i = 0; i < 5; i++) expect(reportInputs(fold(shuffle(p.events, i + 1), emptyState()), at)).toEqual(wanted);
   });
 });
 

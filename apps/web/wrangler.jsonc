@@ -11,8 +11,11 @@
   // account.
   "routes": [{ "pattern": "next.langquest.org", "custom_domain": true }],
   "observability": { "enabled": true },
-  // Publishes verse timings asked for LangQuest's own sources (worker/timings.ts).
-  "triggers": { "crons": ["*/10 * * * *"] },
+  // Every ten minutes: verse timings asked for LangQuest's own sources
+  // (worker/timings.ts), expired device grants, webhook catch-up. Every five:
+  // the job tick, which starts the projection pass and the v2 import in the
+  // job container (worker/jobs.ts, decisions.md 141; jobsModel.ts JOB_TICK).
+  "triggers": { "crons": ["*/10 * * * *", "*/5 * * * *"] },
   // The app's web export (npm run export:web in apps/mobile, decisions.md
   // 57): the page, its bundles, version.json and _headers. Only /api/* and
   // /connect (the access-token page, agent/connectPage.ts) reach the Worker
@@ -32,17 +35,42 @@
   // page signs in with it.
   "vars": {
     "SUPABASE_URL": "https://xymxnebdwtbkfxlbylch.supabase.co",
+    // This Worker's own address, where the v2 import's job puts files.
+    "API_URL": "https://next.langquest.org",
+    // The v2 import runs from the job tick only while this is "true"
+    // (docs/v2-import.md: Caleb's go-ahead, given 2026-10-14 as the GitHub
+    // variable it replaces), with this many files copied at once.
+    "V2_IMPORT_ENABLED": "true",
+    "V2_IMPORT_CONCURRENCY": "64",
     "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50"
   },
   // Set on the Worker by `npm run secrets -- production`, never at deploy;
   // a deploy fails while one is missing.
   "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
   // One per organization (decision 44): reports and recent folds in memory,
-  // a rebuildable cache of them in its own SQLite.
+  // a rebuildable cache of them in its own SQLite. JobRunner (worker/jobs.ts,
+  // decision 141): one per server job, the object that starts the job's
+  // container from the cron and keeps two runs from overlapping.
   "durable_objects": {
-    "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
+    "bindings": [
+      { "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" },
+      { "name": "JOBS", "class_name": "JobRunner" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["OrgSnapshot"] },
+    { "tag": "v2", "new_sqlite_classes": ["JobRunner"] }
+  ],
+  // The job runner's container (docs/server-jobs.md): the image is built
+  // from jobs/Dockerfile at deploy, on Workers Builds as on a laptop, around
+  // the bundles scripts/build-jobs.mjs writes. One instance per job (the
+  // projection pass, the v2 import), each run alone by its object.
+  // standard-1 is 4 GiB, for Santhali's 850 MB fold (decision 103). ENAM keeps
+  // them beside the database and R2 (eastern North America, docs/cloudflare.md):
+  // unpinned they started near the cron, in Mumbai.
+  "containers": [
+    { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] } }
+  ],
   // Recordings and guide media (worker/blobs.ts, decisions.md 69). Private:
   // no public access and no r2.dev address; everything goes through
   // /api/blobs. Created by scripts/r2-buckets.mjs; `wrangler dev` keeps a
@@ -62,11 +90,18 @@
     "preview": {
       "routes": [{ "pattern": "next-preview.langquest.org", "custom_domain": true }],
       // The preview app build's public key (apps/mobile/.env.preview).
-      "vars": { "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50" },
+      // Preview never imports from v2: it has no v2 keys.
+      "vars": { "API_URL": "https://next-preview.langquest.org", "V2_IMPORT_ENABLED": "false", "V2_IMPORT_CONCURRENCY": "8", "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50" },
       "secrets": { "required": ["SUPABASE_SERVICE_ROLE_KEY"] },
       "durable_objects": {
-        "bindings": [{ "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" }]
+        "bindings": [
+          { "name": "ORG_SNAPSHOTS", "class_name": "OrgSnapshot" },
+          { "name": "JOBS", "class_name": "JobRunner" }
+        ]
       },
+      "containers": [
+        { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] } }
+      ],
       "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs-preview" }],
       "ratelimits": [
         { "name": "DEVICE_RATE_LIMIT", "namespace_id": "7002", "simple": { "limit": 20, "period": 60 } },

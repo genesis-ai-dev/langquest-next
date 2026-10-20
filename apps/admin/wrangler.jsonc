@@ -1,7 +1,7 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   // LangQuest operations in one page, for staff (docs/admin.md, decisions.md
-  // 141): what phones and the server's jobs report in `diag`, and what
+  // 143): what phones and the server's jobs report in `diag`, and what
   // Cloudflare, Supabase, Vercel, GitHub, Expo, Google Play and the App
   // Store say about their part.
   "name": "langquest-next-admin",

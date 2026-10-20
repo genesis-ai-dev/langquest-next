@@ -10,8 +10,10 @@
 // in supabase/config.toml [remotes.<env>], and the project's service-role key,
 // read from Supabase each time rather than stored. Destinations: each
 // Worker's secrets, the Edge Function secrets, the two Vault secrets the
-// projection cron job reads, and that job itself (by running its
-// scheduling migration again). Every step is idempotent.
+// push delivery cron job reads, and that job itself (by running its
+// scheduling migration again, which also keeps the projection pass off
+// pg_cron: it runs in the Worker's job container, decisions.md 141). Every
+// step is idempotent.
 // Supabase values are compared by SHA-256 digest; Worker secrets cannot be
 // read back, so only their presence is compared and apply always sets them.
 // Nothing is printed but names.
@@ -37,8 +39,8 @@ export const ADMIN_KEYS = ['ADMIN_PROFILE_IDS', 'ADMIN_CLOUDFLARE_TOKEN', 'ADMIN
 
 /**
  * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted) and by
- * the admin Worker; V2_DATABASE_URL by the v2 import (npm run v2 -- --production, scripts/v2-access.sh),
- * and never pushed.
+ * the admin Worker; V2_DATABASE_URL (scripts/v2-access.sh) goes to the dashboard Worker for the v2
+ * import's job (decisions.md 141) and is read on a laptop by npm run v2 -- --production.
  */
 export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET'];
@@ -47,7 +49,7 @@ export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET']
  * them (the Bible routes say 503), so neither a deploy nor this script waits
  * for one. Not in the Worker's `secrets.required` for the same reason.
  */
-export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'WEBHOOK_POKE_SECRET'];
+export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET'];
 
 /** LangQuest v2's production project, read (never written) by the v2 import and v2-sign-in (docs/v2-import.md). */
 export const V2_SUPABASE_URL = 'https://unsxkmlcyxgtgmtzfonb.supabase.co';
@@ -78,11 +80,12 @@ const inviteEmailName = parseJsonc(readFileSync(join(root, WORKERS['invite-email
 export const relayUrl = (environment) =>
   `https://${inviteEmailName}${environment === 'production' ? '' : `-${environment}`}.${WORKERS_SUBDOMAIN}.workers.dev/send-invite`;
 
+/** The projection pass's pg_cron job: on a local stack only (scripts/local-db.mjs); hosted ones run the pass in the Worker's job container. */
 export const CRON_JOB = 'langquest-stream-projections';
 /** Sends what the database queued for phones, every minute (decisions.md 68). */
 export const PUSH_JOB = 'langquest-push-delivery';
-/** Schedules both jobs where the Vault secrets exist; safe to run again (decision 42). */
-export const SCHEDULE_MIGRATION = 'supabase/migrations/20261007200001_schedule_push_delivery.sql';
+/** Schedules push delivery where the Vault secrets exist, and unschedules the projection job; safe to run again (decisions 42, 141). */
+export const SCHEDULE_MIGRATION = 'supabase/migrations/20261019110000_projection_pass_in_container.sql';
 
 /** Every secret, by where it goes. */
 export function destinations(environment, values, ref, serviceRoleKey) {
@@ -91,7 +94,10 @@ export function destinations(environment, values, ref, serviceRoleKey) {
       dashboard: {
         SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
         ...(values.BIBLE_BRAIN_ACCESS_KEY ? { BIBLE_BRAIN_ACCESS_KEY: values.BIBLE_BRAIN_ACCESS_KEY } : {}),
-        ...(values.WEBHOOK_POKE_SECRET ? { WEBHOOK_POKE_SECRET: values.WEBHOOK_POKE_SECRET } : {})
+        ...(values.WEBHOOK_POKE_SECRET ? { WEBHOOK_POKE_SECRET: values.WEBHOOK_POKE_SECRET } : {}),
+        // The v2 import's job reads v2 with these (apps/web/worker/jobsModel.ts jobEnv); without them it refuses to start.
+        ...(values.V2_SUPABASE_ANON_KEY ? { V2_SUPABASE_ANON_KEY: values.V2_SUPABASE_ANON_KEY } : {}),
+        ...(values.V2_DATABASE_URL ? { V2_DATABASE_URL: values.V2_DATABASE_URL } : {})
       },
       'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET },
       // Reads with diag_reader's login, never the service-role key (docs/admin.md).
@@ -111,7 +117,7 @@ export function destinations(environment, values, ref, serviceRoleKey) {
       // v2's publishable key is public (its app ships it); without it, signing in with a v2 account answers 503.
       ...(values.V2_SUPABASE_ANON_KEY ? { V2_SUPABASE_URL, V2_SUPABASE_ANON_KEY: values.V2_SUPABASE_ANON_KEY } : {})
     },
-    // Read by the projection job (SCHEDULE_MIGRATION).
+    // Read by the push delivery job (SCHEDULE_MIGRATION).
     vault: {
       langquest_project_url: `https://${ref}.supabase.co`,
       langquest_projection_worker_secret: values.PROJECTION_WORKER_SECRET,
@@ -214,8 +220,9 @@ function hostedState(environment, ref, wanted) {
   const functionDigests = Object.fromEntries(listed.map((s) => [s.name, s.value ?? s.digest]));
   const vaultDigests = Object.fromEntries(
     query(ref, vaultDigestSql(Object.keys(wanted.vault))).map((r) => [r.name, r.digest]));
-  const scheduled = query(ref,
-    `select jobname from cron.job where jobname in (${literal(CRON_JOB)}, ${literal(PUSH_JOB)});`).length === 2;
+  // Push delivery scheduled, and the projection pass not: it runs in the Worker's job container.
+  const jobs = query(ref, `select jobname from cron.job where jobname in (${literal(CRON_JOB)}, ${literal(PUSH_JOB)});`).map((r) => r.jobname);
+  const scheduled = jobs.includes(PUSH_JOB) && !jobs.includes(CRON_JOB);
   const workers = Object.fromEntries(Object.keys(wanted.workers).map((worker) => {
     const present = workerSecretNames(WORKERS[worker], environment);
     return [worker, Object.fromEntries(Object.keys(wanted.workers[worker]).map((name) =>
@@ -246,7 +253,7 @@ export function summarize(state) {
       if (s !== 'same') behind = true;
     }
   }
-  lines.push(`  ${state.scheduled ? '✓' : '+'} cron jobs ${CRON_JOB}, ${PUSH_JOB}${state.scheduled ? '' : ' (missing)'}`);
+  lines.push(`  ${state.scheduled ? '✓' : '+'} cron job ${PUSH_JOB}, and no ${CRON_JOB}${state.scheduled ? '' : ' (not yet)'}`);
   if (!state.scheduled) behind = true;
   return { lines, behind };
 }

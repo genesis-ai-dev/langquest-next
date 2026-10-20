@@ -10,4 +10,6 @@ cd "$ROOT"
 NO_SPEECH_MODEL=1 npm run export:web -w mobile -- development
 npx tsx scripts/web-dev-vars.ts
 cd apps/web
-exec npx wrangler dev --port "${1:-${SMOKE_PORT:-8787}}"
+# No job container: the smoke never fires the job tick, and building its
+# image would need the job bundles and Docker (decisions.md 141).
+exec npx wrangler dev --port "${1:-${SMOKE_PORT:-8787}}" --enable-containers=false
