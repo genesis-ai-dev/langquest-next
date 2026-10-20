@@ -26,6 +26,8 @@ import { CutGoneError, KeptFill } from './keptFill';
 import { stateSplitter } from './stateSplit';
 import type { KeptRecord } from './types';
 
+/** Why a first download took the whole snapshot when it could have filled: the `fill` record's `reason`. */
+type FillFallback = Exclude<(typeof DIAG_SCHEMA.fill.t.reason)[number], 'cut_gone'>;
 /** Why the local log is folded again: the `load` record's `reason`. Only `open` is a person waiting on a screen. */
 export type LoadReason = (typeof DIAG_SCHEMA.load.t.reason)[number];
 /** Where a sync that ended in `error` failed. */
@@ -399,6 +401,7 @@ export class SyncClient<S = LanguageState> {
       await this.kept.hydrate(lang);
       await this.lines.open();
       await this.fill?.open();
+      this.fillRunning = !!this.fill?.active();
       // The lines of what was folded again (and of what was refused, now out of the fold) are owed,
       // and worked out before anything is shown, so no list reads the language ahead of its lines.
       this.lines.touched(lang, events);
@@ -686,8 +689,11 @@ export class SyncClient<S = LanguageState> {
     const started = this.elapsed();
     const minSeq = Number((await this.opts.store.meta(this.minSnapshotKey())) ?? 0);
     // The server's cut first: the shared part and the lines, then the passages filled in behind (decisions.md 147).
+    this.fillFallback = null;
     const cut = await this.adoptServerCut(why, minSeq, started);
     if (cut !== null) return cut;
+    const fallback = this.fillFallback;
+    this.fillFallback = null;
     const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.streamId, this.m.version);
     if (!meta) {
       // A cold device with no snapshot for its reducer folds the whole log: the first thing to check when a first download is slow.
@@ -703,6 +709,7 @@ export class SyncClient<S = LanguageState> {
       this.recordSnapshot({ ms: this.elapsed() - started, seq: meta.serverSeq }, 'stale', why);
       return 0;
     }
+    if (fallback) this.opts.diag?.record('fill', { ...this.stream(), t: { event: 'fallback', why, reason: fallback } });
     let index: { seq: number; chunks: number; version: number } = { seq: 0, chunks: 0, version: 0 };
     try {
       const parsed = JSON.parse((await this.opts.store.meta(this.chunkKey())) || '{}') as Partial<typeof index>;
@@ -797,17 +804,29 @@ export class SyncClient<S = LanguageState> {
    */
   private async adoptServerCut(why: SnapshotWhy, minSeq: number, started: number): Promise<number | null> {
     const t = this.opts.transport;
-    if (!this.kept || !this.lines || !this.fill?.possible || !t.snapshotHead) return null;
+    if (!this.kept || !this.lines || !this.fill) return null;
+    // Each way back to the whole snapshot says why, so support sees a phone that should have filled and did not.
+    // Recorded once the whole snapshot is taken: a language with no snapshot at all is the `snapshot` record's `none`.
+    const fallback = (reason: FillFallback): null => {
+      this.fillFallback = reason;
+      return null;
+    };
+    if (!this.fill.possible || !t.snapshotHead) return fallback('no_rpc');
     let head: Awaited<ReturnType<NonNullable<Transport['snapshotHead']>>>;
+    let failed = false;
     try {
       head = await t.snapshotHead(this.opts.orgId, this.opts.streamId, this.m.version, LINES_VERSION, true);
     } catch (err) {
       // Offline, refused or too old: as for any call. A failure of the cut alone leaves the whole snapshot to download.
       if (err instanceof OfflineError || err instanceof NotAuthorizedError || err instanceof ClientTooOldError) throw err;
       head = null;
+      failed = true;
     }
     this.net.pull += this.elapsed() - started;
-    if (!head || head.shared === undefined || !head.lines || head.lines.seq < head.serverSeq) return null;
+    if (failed) return fallback('error');
+    if (!head || head.shared === undefined) return fallback('no_cut');
+    if (!head.lines) return fallback('no_lines');
+    if (head.lines.seq < head.serverSeq) return fallback('old_lines');
     const lines = head.lines;
     const bytes = JSON.stringify(head).length;
     if (head.serverSeq < minSeq) {
@@ -824,13 +843,19 @@ export class SyncClient<S = LanguageState> {
     // Pieces of a whole-snapshot download cut short are no use now.
     await this.dropChunks();
     await this.commit({
-      meta: { ...this.snapshotMeta(snap).meta, ...this.lines.adopt(serverLines, shared), ...this.fill.begin({ ...head, lines }) },
+      meta: { ...this.snapshotMeta(snap).meta, ...this.lines.adopt(serverLines, shared), ...this.fill.begin({ ...head, lines }, this.elapsed()) },
       cursor: { orgId, streamId, seq: head.serverSeq },
       prune: { orgId, streamId, uptoSeq: head.serverSeq },
       kept: { ...this.stream(), clear: true, upsert: serverLines.map(lineRow) }
     });
     // The Map opens on the shared part and the lines.
     await this.refold('snapshot');
+    const extent = this.fill.extent();
+    this.opts.diag?.record('fill', {
+      ...this.stream(),
+      n: { msToMap: this.elapsed() - started, headKb: Math.round(bytes / 1024), passages: extent.passages, rows: extent.rows },
+      t: { event: 'start', why }
+    });
     // Passages the phone's own events touch (its unsent work, events pulled before) are filled in while the link is up;
     // a small language is filled in whole.
     try {
@@ -862,6 +887,8 @@ export class SyncClient<S = LanguageState> {
    */
   private async cutGone(): Promise<void> {
     this.startedOver += 1;
+    this.opts.diag?.record('fill', { ...this.stream(), t: { event: 'restart', reason: 'cut_gone' } });
+    this.fillRunning = false;
     await this.dropStaleCheckpoint();
     await this.refold('other');
   }
@@ -878,6 +905,24 @@ export class SyncClient<S = LanguageState> {
     this.revision += 1;
     await this.lines?.refresh().catch(() => { /* owed still; the next change tries again */ });
     this.publish();
+    this.noteFillDone();
+  }
+
+  /** Why the cut was not taken on this attempt, for the `fill` record once the whole snapshot is. */
+  private fillFallback: FillFallback | null = null;
+
+  /** A fill seen running in this session: its end is recorded once, when the last passage's rows arrive. */
+  private fillRunning = false;
+
+  private noteFillDone(): void {
+    if (!this.fillRunning || !this.fill || this.fill.active()) return;
+    this.fillRunning = false;
+    const extent = this.fill.extent();
+    this.opts.diag?.record('fill', {
+      ...this.stream(),
+      n: { passages: extent.passages, rows: extent.rows, ...(extent.startedAt !== undefined ? { ms: this.elapsed() - extent.startedAt } : {}) },
+      t: { event: 'done' }
+    });
   }
 
   /** Forget pieces kept from a whole-snapshot download. */
@@ -1392,6 +1437,7 @@ export class SyncClient<S = LanguageState> {
         const asking = this.elapsed();
         try {
           await this.fill.beforeFold(page);
+          this.noteFillDone();
         } catch (err) {
           if (!(err instanceof CutGoneError)) throw err;
           await this.cutGone();

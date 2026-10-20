@@ -70,6 +70,24 @@ export const DIAG_SCHEMA = {
     t: { outcome: ['ok', 'none', 'stale'], why: ['cold', 'redaction', 'reducer'] }
   },
   /**
+   * A big language's first download by fill (decisions.md 147). `start`:
+   * the head is taken and the Map opens (`msToMap` from asking, `headKb`,
+   * and the `passages` and `rows` still to fill). `done`: every passage's
+   * rows are on the phone (`ms` since the start, across sessions).
+   * `fallback`: the phone downloads the whole snapshot instead, with the
+   * `reason` (`no_rpc` an older server, `no_cut` none for the newest
+   * snapshot, `no_lines` or `old_lines` none of this build's lines at or
+   * past it, `error` the head could not be read). `restart`: the cut it
+   * filled from went away and the language starts over (`cut_gone`).
+   */
+  fill: {
+    n: ['ms', 'msToMap', 'headKb', 'passages', 'rows'],
+    t: {
+      event: ['start', 'done', 'fallback', 'restart'], why: ['cold', 'redaction', 'reducer'],
+      reason: ['no_rpc', 'no_cut', 'no_lines', 'old_lines', 'error', 'cut_gone']
+    }
+  },
+  /**
    * Blob transfers in one direction from one source, tallied over a window
    * rather than one record per file. Failures by cause; HTTP refusals the
    * Worker gives a meaning to have their own field (401/403 auth, 404,

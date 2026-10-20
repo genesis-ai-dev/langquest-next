@@ -123,6 +123,21 @@ describe('diagnostic signals', () => {
     expect(t.join('\n')).toMatch(/dropped its checkpoint 1 time and fetched the stream again/);
   });
 
+  it('reads a big language first download by fill: a fallback, a restart, and a fill still running a day on (decisions.md 147)', () => {
+    const releases = [{ updateId: null, from: '2026-10-20T00:00:00Z', to: '2026-10-22T00:00:00Z', records: 9 }];
+    const t = texts({
+      a: install({ releases, fills: [{ at: '2026-10-20T00:00:00Z', event: 'fallback', reason: 'no_cut', why: 'cold' }] }),
+      b: install({ releases, fills: [{ at: '2026-10-20T00:00:00Z', event: 'start', passages: 652, rows: 90_000 }, { at: '2026-10-19T00:00:00Z', event: 'restart', reason: 'cut_gone' }] }),
+      c: install({ releases, fills: [{ at: '2026-10-21T00:00:00Z', event: 'done', ms: 30 * 3600_000, passages: 652 }, { at: '2026-10-20T00:00:00Z', event: 'start' }] })
+    });
+    expect(t).toContain('problem: At 2026-10-20T00:00:00Z a first download took the whole snapshot: the server had no cut or lines for this language (no_cut). Check the projection pass on the job host.');
+    expect(t).toContain('watch: A fill started over 1 time: the cut it filled from went away (a server rolled back, or a snapshot dropped).');
+    expect(t).toContain('watch: A fill began 2026-10-20T00:00:00Z and had not finished 2 days later (652 passages, 90000 rows): the phone is rarely online long enough. Its lists are exact; passages not reached open as their line offline.');
+    expect(t).toContain('info: A fill took 30 h to finish (652 passages).');
+    // A fill that finished within the day says nothing.
+    expect(texts({ d: install({ releases, fills: [{ at: '2026-10-21T00:00:00Z', event: 'done', ms: 3600_000 }, { at: '2026-10-21T00:00:00Z', event: 'start' }] }) })).toEqual([]);
+  });
+
   it('runs without a language, for the organization report', () => {
     expect(signals(null, [], { a: install({ errors: [{ name: 'TypeError', where: 'x', code: null, count: 1, lastErrorId: 'E-1', lastAt: 'T' }] }) }, [])
       .map((s) => s.text)).toEqual(['1× TypeError at "x" (latest E-1, T).']);

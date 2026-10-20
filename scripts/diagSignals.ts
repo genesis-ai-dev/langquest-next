@@ -41,6 +41,8 @@ export interface InstallSummary {
   checkpoints?: null | { count: number; p95Ms: number; maxKb: number | null; pruned: number | null };
   opens?: null | { at: string; streamId: string; cold?: string; ms?: number; syncs?: number; pulled?: number; snapshotMs?: number; loadMs?: number }[];
   snapshots: null | { at: string; outcome: string; why?: string | null; ms?: number; chunks?: number; resumedChunks?: number; bytes?: number }[];
+  /** A big language's first download by fill (decisions.md 147), newest first. */
+  fills?: null | FillRecord[];
   device: null | {
     freeDiskMb?: number; totalDiskMb?: number; blobCacheMb?: number; blobsWanted?: number; at: string;
     lostFiles?: number; lostRecordings?: number; journalPending?: number; journalFailed?: number; uploadsWaiting?: number;
@@ -53,6 +55,38 @@ export interface InstallSummary {
     | 'interrupted' | 'plays' | 'playFail' | 'playNotHere' | 'streamFail', number>>;
   auth?: null | AuthGroup[];
   releases: null | { updateId: string | null; from: string; to: string; records: number }[];
+}
+
+export interface FillRecord {
+  at: string; event: 'start' | 'done' | 'fallback' | 'restart'; why?: string | null; reason?: string | null; streamId?: string;
+  ms?: number; msToMap?: number; headKb?: number; passages?: number; rows?: number;
+}
+
+/**
+ * What the fill records say about one phone (decisions.md 147): a first
+ * download that took the whole snapshot though it could have filled, a
+ * fill that started over, one that has run for more than a day by the
+ * phone's last word, and how long a finished one took.
+ */
+export function fillSignals(fills: readonly FillRecord[], lastHeard: string | null): { level: Signal['level']; text: string }[] {
+  const out: { level: Signal['level']; text: string }[] = [];
+  const fallback = fills.find((f) => f.event === 'fallback');
+  if (fallback) {
+    const server = ['no_cut', 'no_lines', 'old_lines'].includes(fallback.reason ?? '');
+    out.push(server
+      ? { level: 'problem', text: `At ${fallback.at} a first download took the whole snapshot: the server had no cut or lines for this language (${fallback.reason}). Check the projection pass on the job host.` }
+      : { level: 'watch', text: `At ${fallback.at} a first download took the whole snapshot instead of filling (${fallback.reason ?? '?'}).` });
+  }
+  const restarts = fills.filter((f) => f.event === 'restart').length;
+  if (restarts) out.push({ level: 'watch', text: `A fill started over ${restarts} time${restarts === 1 ? '' : 's'}: the cut it filled from went away (a server rolled back, or a snapshot dropped).` });
+  const latest = fills.find((f) => f.event === 'start' || f.event === 'done' || f.event === 'restart');
+  if (latest?.event === 'start' && lastHeard) {
+    const ms = Date.parse(lastHeard) - Date.parse(latest.at);
+    if (ms > 24 * 3600_000) out.push({ level: 'watch', text: `A fill began ${latest.at} and had not finished ${secs(ms)} later (${latest.passages ?? '?'} passages, ${latest.rows ?? '?'} rows): the phone is rarely online long enough. Its lists are exact; passages not reached open as their line offline.` });
+  }
+  const done = fills.find((f) => f.event === 'done');
+  if (done?.ms !== undefined && done.ms > 24 * 3600_000) out.push({ level: 'info', text: `A fill took ${secs(done.ms)} to finish (${done.passages ?? '?'} passages).` });
+  return out;
 }
 
 export interface LanguageHealth {
@@ -243,6 +277,8 @@ export function signals(health: LanguageHealth | null, members: Member[], summar
     for (const snap of s.snapshots ?? []) {
       if (snap.outcome === 'none') { add('problem', install, `At ${snap.at} this phone found no snapshot and folded the log from the start.`); break; }
     }
+    const lastHeard = (s.releases ?? []).reduce<string | null>((max, r) => (!max || r.to > max ? r.to : max), null);
+    for (const f of fillSignals(s.fills ?? [], lastHeard)) add(f.level, install, f.text);
     const resumed = (s.snapshots ?? []).filter((x) => (x.resumedChunks ?? 0) > 0).length;
     if (resumed) add('info', install, `A snapshot download resumed after a dropped link ${resumed} time${resumed === 1 ? '' : 's'}.`);
     if (s.device?.freeDiskMb !== undefined && s.device.freeDiskMb < 500) add('problem', install, `Only ${s.device.freeDiskMb} MB free on the phone.`);
