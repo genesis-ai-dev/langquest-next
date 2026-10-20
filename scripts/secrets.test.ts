@@ -2,11 +2,11 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  CRON_JOB, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
+  CRON_JOB, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-const values = { INVITE_RELAY_SECRET: 'relay', PROJECTION_WORKER_SECRET: 'proj' };
+const values = { INVITE_RELAY_SECRET: 'relay', PUSH_DELIVERY_SECRET: 'push' };
 
 describe('secrets', () => {
   it('sets exactly the secrets each Worker requires, so a deploy never stops for one', () => {
@@ -39,7 +39,7 @@ describe('secrets', () => {
         .filter((file) => file.endsWith('.ts'))
         .map((file) => `supabase/functions/${dir}/${file}`))
       .flatMap((file) => [...read(file).matchAll(/Deno\.env\.get\(['"]([A-Z0-9_]+)['"]\)/g)].map((m) => m[1]))
-      .filter((name) => !name.startsWith('SUPABASE_'));
+      .filter((name) => !name.startsWith('SUPABASE_') && !RETIRED_FUNCTION_SECRETS.includes(name));
     expect(Object.keys(destinations('production', { ...values, V2_SUPABASE_ANON_KEY: 'v2' }, 'ref', 'k').functions).sort()).toEqual([...new Set(names)].sort());
     // Without v2's key, signing in with a v2 account is simply not set up.
     expect(destinations('production', values, 'ref', 'k').functions).not.toHaveProperty('V2_SUPABASE_ANON_KEY');

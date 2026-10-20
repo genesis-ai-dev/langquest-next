@@ -24,13 +24,14 @@ async function sameSecret(given: string, expected: string): Promise<boolean> {
 
 /**
  * The Edge Function `push-delivery`: pg_cron calls it every minute
- * (supabase/migrations/20261020160000_push_delivery_function.sql), so a
+ * (supabase/migrations/20261020170000_push_delivery_secret.sql), so a
  * phone hears of a join request without waiting for a pass (decisions.md
  * 68). The projection pass runs in the job container behind the app's
  * Worker, locally too (decisions.md 141, 148).
  */
 Deno.serve(async (request) => {
-  const secret = Deno.env.get('PROJECTION_WORKER_SECRET');
+  // PROJECTION_WORKER_SECRET is the name before 2026-10-20 (decisions.md 148), read until npm run secrets sets the new one and unsets it.
+  const secret = Deno.env.get('PUSH_DELIVERY_SECRET') ?? Deno.env.get('PROJECTION_WORKER_SECRET');
   if (!secret || !(await sameSecret(request.headers.get('x-worker-secret') ?? '', secret))) {
     return new Response('Unauthorized', { status: 401 });
   }

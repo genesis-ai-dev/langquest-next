@@ -66,9 +66,9 @@ Inbox rows from work, listings or snapshots.
 `npm run worker:build` bundles `pushDeliveryEdge.ts` and `pushDelivery.ts`
 for the `push-delivery` Edge Function, which sends what the database queued
 for phones every minute (decisions.md 68). Migration
-`20261020160000_push_delivery_function.sql` schedules that wherever the
+`20261020170000_push_delivery_secret.sql` schedules that wherever the
 Vault secrets `langquest_project_url` and
-`langquest_projection_worker_secret` exist, and keeps the pass off pg_cron;
+`langquest_push_delivery_secret` exist, and keeps the pass off pg_cron;
 `npm run secrets` sets them and runs it again, which is how preview and
 production get the job. Locally, `npm run db:start` and `npm run db:reset`
 do the same (`scripts/local-db.mjs`: a local secret in the ignored

@@ -20995,7 +20995,7 @@ async function sameSecret(given, expected) {
   return diff === 0;
 }
 Deno.serve(async (request) => {
-  const secret = Deno.env.get("PROJECTION_WORKER_SECRET");
+  const secret = Deno.env.get("PUSH_DELIVERY_SECRET") ?? Deno.env.get("PROJECTION_WORKER_SECRET");
   if (!secret || !await sameSecret(request.headers.get("x-worker-secret") ?? "", secret)) {
     return new Response("Unauthorized", { status: 401 });
   }

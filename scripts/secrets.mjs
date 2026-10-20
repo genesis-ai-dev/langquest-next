@@ -33,8 +33,8 @@ import { HOSTED, decrypt, envKeyNames, parseJsonc, projectRef, root, secretsPath
  * pushed; V2_DATABASE_URL (scripts/v2-access.sh) goes to the app's Worker for the v2 import's job
  * (decisions.md 141) and is read on a laptop by npm run v2 -- --production.
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET'];
-export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET'];
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET'];
+export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
  * them (the Bible routes say 503), so neither a deploy nor this script waits
@@ -74,7 +74,14 @@ export const PUSH_FUNCTION = '/functions/v1/push-delivery';
 /** The projection pass's old pg_cron job; the pass runs in the Worker's job container, locally too (decisions.md 141, 148). */
 export const RETIRED_JOB = 'langquest-stream-projections';
 /** Schedules push delivery where the Vault secrets exist, and unschedules the old projection job; safe to run again (decisions 42, 148). */
-export const SCHEDULE_MIGRATION = 'supabase/migrations/20261020160000_push_delivery_function.sql';
+export const SCHEDULE_MIGRATION = 'supabase/migrations/20261020170000_push_delivery_secret.sql';
+/**
+ * Function secrets no function needs any more, unset when found. Push
+ * delivery's secret was PROJECTION_WORKER_SECRET until 2026-10-20
+ * (decisions.md 148); the function still accepts it until this script sets
+ * PUSH_DELIVERY_SECRET and unsets it.
+ */
+export const RETIRED_FUNCTION_SECRETS = ['PROJECTION_WORKER_SECRET'];
 
 /** Every secret, by where it goes. */
 export function destinations(environment, values, ref, serviceRoleKey) {
@@ -95,14 +102,14 @@ export function destinations(environment, values, ref, serviceRoleKey) {
     functions: {
       INVITE_RELAY_URL: relayUrl(environment),
       INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET,
-      PROJECTION_WORKER_SECRET: values.PROJECTION_WORKER_SECRET,
+      PUSH_DELIVERY_SECRET: values.PUSH_DELIVERY_SECRET,
       // v2's publishable key is public (its app ships it); without it, signing in with a v2 account answers 503.
       ...(values.V2_SUPABASE_ANON_KEY ? { V2_SUPABASE_URL, V2_SUPABASE_ANON_KEY: values.V2_SUPABASE_ANON_KEY } : {})
     },
     // Read by the push delivery job (SCHEDULE_MIGRATION).
     vault: {
       langquest_project_url: `https://${ref}.supabase.co`,
-      langquest_projection_worker_secret: values.PROJECTION_WORKER_SECRET,
+      langquest_push_delivery_secret: values.PUSH_DELIVERY_SECRET,
       // Read by events_notify (WEBHOOK_MIGRATION); without them it pokes nobody and the cron catches up.
       ...(values.WEBHOOK_POKE_SECRET ? { langquest_dashboard_url: appUrl(environment), langquest_webhook_poke_secret: values.WEBHOOK_POKE_SECRET } : {})
     }
@@ -212,6 +219,7 @@ function hostedState(environment, ref, wanted) {
   }));
   return {
     functions: drift(wanted.functions, functionDigests),
+    retired: RETIRED_FUNCTION_SECRETS.filter((name) => name in functionDigests),
     vault: drift(wanted.vault, vaultDigests),
     workers,
     scheduled
@@ -234,6 +242,10 @@ export function summarize(state) {
       lines.push(`  ${mark(s)} ${label} ${name}${s === 'same' ? '' : ` (${s})`}`);
       if (s !== 'same') behind = true;
     }
+  }
+  for (const name of state.retired ?? []) {
+    lines.push(`  - function secret ${name} (retired; unset)`);
+    behind = true;
   }
   lines.push(`  ${state.scheduled ? '✓' : '+'} cron job ${CRON_JOB} calling push-delivery, and no ${RETIRED_JOB}${state.scheduled ? '' : ' (not yet)'}`);
   if (!state.scheduled) behind = true;
@@ -301,6 +313,7 @@ async function main() {
   }
   withTempFile('functions.env', Object.entries(wanted.functions).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join('\n') + '\n',
     (f) => run('supabase', ['secrets', 'set', '--project-ref', ref, '--env-file', f]));
+  if (before.retired?.length) run('supabase', ['secrets', 'unset', '--project-ref', ref, ...before.retired]);
   query(ref, vaultSql(wanted.vault));
   // The migration ran before Vault had these on a new project, so it
   // scheduled nothing; it unschedules by name first, so running it again is safe.

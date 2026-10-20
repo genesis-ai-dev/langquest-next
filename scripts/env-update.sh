@@ -4,7 +4,7 @@
 #
 #   npm run env:update -- preview EXPO_PUBLIC_FOO 'value'           public: plain in apps/mobile/.env.preview, then EAS
 #   npm run env:update -- preview INVITE_RELAY_SECRET               secret: asks (hidden), encrypts into .env.preview
-#   npm run env:update -- production PROJECTION_WORKER_SECRET "$(openssl rand -hex 32)"
+#   npm run env:update -- production PUSH_DELIVERY_SECRET "$(openssl rand -hex 32)"
 #
 # The key's name picks the file: EXPO_PUBLIC_* is public and goes in the
 # app's file; anything else is a secret and goes in the root .env.<env>,
