@@ -16,12 +16,12 @@ Locally:
 - `npm run web:dev` runs the Worker on :8787 against the local database,
   serving whatever is in `apps/mobile/dist`, and fires its job tick every
   minute, so the projection pass runs in the job container in Docker
-  (`scripts/job-tick.mjs`, decisions.md 148). `npm run dev:local` (repo
+  (`scripts/job-tick.mjs`, decisions.md 148). `npm run dev` (repo
   root) starts the local database and then this, in one command.
 - For day-to-day work on screens, run the app with Metro instead
   (`npm run web -w mobile`) and point it at the Worker for Reports:
   `EXPO_PUBLIC_API_URL=http://localhost:8787`.
-- `npm run test:web` builds the release export for the local stack and runs
+- `npm run test:web-smoke` builds the release export for the local stack and runs
   the browser smoke test (e2e/web-smoke) against it.
 
 `npm run web:deploy[:preview]` is what Workers Builds runs (docs/cloudflare.md).

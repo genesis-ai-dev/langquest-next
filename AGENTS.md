@@ -57,7 +57,7 @@ Rules specific to this folder:
   (`apps/mobile/src/screens/reports.tsx`, parts in `src/reports/`), and
   report logic is `packages/core/src/portfolio.ts`. Web-only code goes behind
   `Platform.OS === 'web'` or in a `.web.tsx` file, and
-  `npm run test:web` (e2e/web-smoke) must pass.
+  `npm run test:web-smoke` (e2e/web-smoke) must pass.
 - No `status` columns. Status comes from `passage.ts`.
 - No local versus synced tables. Sync status is a column on the events table.
 - Run `npm run guardrails` in this folder before pushing (see Guardrails
@@ -68,6 +68,9 @@ Rules specific to this folder:
   everything else a module in `.ts`.
   `docs/testing.md` says which layer a new test belongs in and the rules the
   end-to-end suites keep (no sleeps, one role per test, IDs for structure).
+- A root npm script gets a line in its group in `scripts/commands.mjs`
+  (`npm run help`) and the same place in `package.json`;
+  `scripts/commands.test.ts` fails until it has both.
 - Put the Linear issue ID (`LAN-12`) in the commit message of work that comes
   from an issue. The pipeline moves that issue to Deploying, then Live or
   Outage (`scripts/linear-sync.mjs`, decisions.md 53). No ID, no status change.
@@ -88,7 +91,7 @@ pull request, on the pull request merged with `main`, not on the branch alone:
 | --- | --- | --- |
 | `checks` | typecheck; lint (what may import what); a unit, property or model test (over its timeout in `vitest.config.ts`); coverage under its threshold; the push delivery bundle behind its source | `npm run guardrails` |
 | `server` | SQL smokes, SQL-to-core parity, the client integration test | `npm run guardrails -- --all` (Docker) |
-| `web-smoke` | the release web export (and its JavaScript size budget in `apps/mobile/scripts/export-web.mjs`) in Chromium, Firefox, WebKit | `npm run guardrails -- --web` for the build and budget, `npm run test:web` for the browsers |
+| `web-smoke` | the release web export (and its JavaScript size budget in `apps/mobile/scripts/export-web.mjs`) in Chromium, Firefox, WebKit | `npm run guardrails -- --web` for the build and budget, `npm run test:web-smoke` for the browsers |
 | `ui-web` | a `@p0` web UI test on the export (zero retries) | `npm run guardrails -- --all`, or one file: `npm run test:ui:web -- e2e/ui/<file>` |
 
 Before pushing:

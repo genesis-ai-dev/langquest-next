@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 BUNDLE=supabase/functions/push-delivery/index.ts
 if git diff --cached --name-only | grep -qE '^(server/|scripts/build-push-delivery\.mjs$)'; then
-  npm run --silent worker:build
+  npm run --silent build:push-delivery
   if ! git diff --quiet -- "$BUNDLE"; then
     git add "$BUNDLE"
     echo "pre-commit: rebuilt $BUNDLE and added it to this commit"

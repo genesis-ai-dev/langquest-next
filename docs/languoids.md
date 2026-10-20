@@ -98,7 +98,7 @@ stored. The globe shades each nation by its languoids and draws every
 languoid with a location as a dot; click a country to open it, zoom in to
 click a languoid, or use "See it on the globe" from a languoid. It is
 `apps/mobile/explorer/globe.mjs`, bundled with d3-geo and the Reports map's
-shapes into `public/languages-globe.js` by `npm run explorer:build` (a test
+shapes into `public/languages-globe.js` by `npm run build:explorer` (a test
 holds the committed file to its source).
 `npm run languoids -- explore` writes the same page with a release's
 tables inside it, to check a release before loading it; it needs no

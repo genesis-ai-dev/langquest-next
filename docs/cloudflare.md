@@ -70,7 +70,7 @@ The app's Worker also runs the server jobs too big for an Edge
 Function (`docs/server-jobs.md`, decisions.md 141): the projection pass
 for every language (`server/projections.ts`) and the v2 import
 (`server/v2.ts`). `apps/web/jobs/Dockerfile` is the image: Node 24 and one
-bundle per job from `scripts/build-jobs.mjs` (`npm run jobs:build`, run by
+bundle per job from `scripts/build-jobs.mjs` (`npm run build:jobs`, run by
 the Worker's build and by `npm run web:dev`), and psql for the import. No
 npm package is installed, so the dependency tree is never beside the
 service key. `wrangler deploy` builds the image with Docker and pushes it
@@ -130,10 +130,9 @@ minutes at most). `wrangler dev` keeps a local bucket in
 `apps/web/.wrangler/state`, so `npm run web:dev` needs nothing from
 Cloudflare.
 
-The Supabase Storage bucket that held the files before is copied once with
-`npm run blobs:copy` (export `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and
-`API_URL` for the environment), then emptied and deleted with
-`npm run blobs:copy -- --remove`.
+The Supabase Storage bucket that held the files before was copied once,
+then emptied and deleted (decisions.md 69); the script that did it is in
+git history (`server/copyBlobsToR2.ts`).
 
 A deploy fails while a secret in `secrets.required` is missing on the
 Worker; run `npm run secrets -- <environment>`. The web app reads

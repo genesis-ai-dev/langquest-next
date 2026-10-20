@@ -10,12 +10,15 @@ Requires Docker via colima (`colima start`) and Node 24 (npm 11, which the lockf
 ```bash
 npm install
 npm run db:start      # local Supabase on http://127.0.0.1:54421, Postgres on 54422
-npm run dev:local     # or: db:start, then the web Worker on :8787 (Reports, the projection pass) until Ctrl-C
+npm run dev           # or: db:start, then the web Worker on :8787 (Reports, the projection pass) until Ctrl-C
 npm test              # core + client unit tests (integration test skips if db is down)
 npm run db:test       # applies migrations to a fresh db and exercises the append/pull RPCs
 npm run test:integration  # two real users syncing through local Supabase
 npm run db:stop
 ```
+
+`npm run help` lists every script by group, with what each is for
+(`npm run help -- deploy` narrows it).
 
 Mobile app: see `apps/mobile/README.md`.
 

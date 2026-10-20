@@ -1,7 +1,7 @@
 // The language explorer's globe (public/languages.html, docs/languoids.md):
 // countries shaded by how many languoids Glottolog places in them, and every
 // languoid with a location as a dot. Drag to turn it, scroll or pinch to zoom,
-// click a country or a dot to open it. `npm run explorer:build` bundles this
+// click a country or a dot to open it. `npm run build:explorer` bundles this
 // with d3-geo and the Reports map's shapes (world-atlas) into
 // public/languages-globe.js, which the page loads beside languages.js.
 import { geoCentroid, geoContains, geoDistance, geoGraticule10, geoInterpolate, geoOrthographic, geoPath } from 'd3-geo';
