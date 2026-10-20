@@ -10,8 +10,11 @@ cd "$ROOT"
 # The model is left out: the test microphones are tones, which split as they always have only without it (decision 135).
 NO_SPEECH_MODEL=1 npm run export:web -w mobile -- development
 npx tsx scripts/web-dev-vars.ts
+# The projection pass runs in the job container, as on a hosted project, its
+# tick fired every minute (decisions.md 148): the job bundles, Docker, and the
+# local config copy, which reaches the database from the container and sends
+# /__scheduled to the Worker.
+node scripts/build-jobs.mjs
+PORT="${1:-${UI_PORT:-8787}}"
 cd apps/web
-# No job container: the UI tests never fire the job tick (the local Edge pass
-# projects, scripts/local-db.mjs), and building its image would need the job
-# bundles and Docker (decisions.md 141).
-exec npx wrangler dev --port "${1:-${UI_PORT:-8787}}" --enable-containers=false
+exec node ../../scripts/job-tick.mjs "$PORT" -- npx wrangler dev -c .wrangler.dev.jsonc --port "$PORT" --test-scheduled

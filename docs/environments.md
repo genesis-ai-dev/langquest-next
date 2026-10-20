@@ -82,9 +82,11 @@ app or its Worker locally needs none. The Bible routes locally need the
 Bible Brain key in your shell when `npm run web:dev` starts
 (`scripts/web-dev-vars.ts` copies it into the ignored `apps/web/.dev.vars`
 without printing it); without it they answer 503. `npm run db:start` and
-`npm run db:reset` also schedule the projection worker locally, every minute,
-with a local secret of its own, and seed the library (`server/README.md`).
-Plain `supabase start` or `supabase db reset` skip both.
+`npm run db:reset` also schedule push delivery locally, every minute, with a
+local secret of its own, and seed the library (`server/README.md`). Plain
+`supabase start` or `supabase db reset` skip both. The projection pass runs
+in the Worker's job container while `npm run web:dev` runs (Docker needed),
+as on a hosted project (decision 148).
 
 Workers Builds still keeps branch builds off on every Worker, so a branch
 never deploys over preview or production.

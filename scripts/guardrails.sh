@@ -49,7 +49,7 @@ npm run --silent lint
 step "Unit, property and model tests, with coverage thresholds"
 npm run --silent test:coverage
 
-step "Projection worker bundle matches its source"
+step "Push delivery bundle matches its source"
 npm run --silent worker:build
 if ! git diff --quiet -- supabase/functions; then
   echo "x the bundle was behind its source; it is rebuilt now. Commit supabase/functions."
@@ -72,10 +72,10 @@ npm run --silent db:test
 npm run --silent test:integration
 
 # db:test reset the database with a bare `supabase db reset`, which drops the
-# library and the projection worker's Vault values and cron job. The ui-web
+# library and push delivery's Vault values and cron job. The ui-web
 # job starts from `npm run db:start`, so put back what it leaves (on a running
 # stack that is only scripts/local-db.mjs prepare()).
-step "Library and projection worker back after the reset (npm run db:start)"
+step "Library and push delivery back after the reset (npm run db:start)"
 npm run --silent db:start
 
 step "P0 web UI tests on the export (ui-web)"

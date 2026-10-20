@@ -14,7 +14,9 @@ The Cloudflare Worker that serves LangQuest on the web (decisions.md 58):
 Locally:
 
 - `npm run web:dev` runs the Worker on :8787 against the local database,
-  serving whatever is in `apps/mobile/dist`. `npm run dev:local` (repo
+  serving whatever is in `apps/mobile/dist`, and fires its job tick every
+  minute, so the projection pass runs in the job container in Docker
+  (`scripts/job-tick.mjs`, decisions.md 148). `npm run dev:local` (repo
   root) starts the local database and then this, in one command.
 - For day-to-day work on screens, run the app with Metro instead
   (`npm run web -w mobile`) and point it at the Worker for Reports:

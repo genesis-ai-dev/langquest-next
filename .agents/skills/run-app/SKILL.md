@@ -116,10 +116,11 @@ Shrink with `sips -Z 800` before viewing.
 
 Bring the local stack up with `npm run dev:local`: `npm run db:start`, then
 the web Worker on :8787 in the foreground, which Reports needs (without it
-Reports says "You are offline"). Never plain `supabase start` (and whoever
-owns the database resets it with `npm run db:reset`): these also run the
-projection worker every minute (server Inbox rows, pushes, snapshots) and
-seed the library. If another session already serves :8787, `dev:local` uses
+Reports says "You are offline") and which runs the projection pass every
+minute in its job container (server Inbox rows, listings, snapshots; Docker
+must be running). Never plain `supabase start` (and whoever owns the
+database resets it with `npm run db:reset`): these also schedule push
+delivery and seed the library. If another session already serves :8787, `dev:local` uses
 it and returns. The iOS simulator never receives pushes. After pulling a branch that adds or renames an Edge
 Function, restart the local stack (`npx supabase stop && npx supabase
 start`, which keeps the database): the functions served are fixed when it

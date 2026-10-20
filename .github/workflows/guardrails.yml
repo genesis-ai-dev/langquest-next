@@ -6,7 +6,8 @@
 # web-smoke: the release web build in three browser engines (e2e/web-smoke).
 # ui-web:   the P0 web UI tests (e2e/ui, `@p0`) on the release export
 #           served by the Worker, against a local Supabase with the library
-#           seeded and the projection worker scheduled (docs/testing.md),
+#           seeded and push delivery scheduled; the Worker runs the
+#           projection pass in its job container (docs/testing.md),
 #           in two shards.
 # nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
 #           on a schedule; not blocking, but each job files its failures in
@@ -71,15 +72,15 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: node scripts/linear-sync.mjs lane --name checks --status failed --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-      # Supabase deploys the committed worker bundle on merge (server/README.md,
+      # Supabase deploys the committed push delivery bundle on merge (server/README.md,
       # Deploying); refuse one that is behind its source. The pre-commit and
       # post-merge hooks (.githooks, enabled by npm install) rebuild it, so
       # this fails only for a commit made without them (or a rebase).
-      - name: Worker bundle matches its source
+      - name: Push delivery bundle matches its source
         run: |
           npm run worker:build
           git diff --exit-code -- supabase/functions || {
-            echo "::error::The projection worker's bundle is behind its source. Run npm run worker:build and commit supabase/functions, or run npm install once so the git hooks in .githooks rebuild it on every commit."
+            echo "::error::The push delivery function's bundle (supabase/functions/push-delivery) is behind its source. Run npm run worker:build and commit supabase/functions, or run npm install once so the git hooks in .githooks rebuild it on every commit."
             exit 1
           }
 
@@ -143,8 +144,10 @@ jobs:
   ui-web:
     # The P0 web UI tests on the release export (docs/testing.md, layer 4):
     # the build people get, served by the Worker, against a local Supabase
-    # with the library and the projection worker as `npm run db:start` leaves
-    # them. Zero retries; a red run is a finding, not a flake to hide.
+    # with the library and push delivery as `npm run db:start` leaves them,
+    # and the projection pass in the Worker's job container, its tick fired
+    # every minute (e2e/ui-web.sh, decisions.md 148). Zero retries; a red
+    # run is a finding, not a flake to hide.
     # Two shards, each on its own runner: the tests are most of the job.
     # Playwright splits by test count, in file order, with the `wide` project
     # first (e2e/ui.config.ts), so the longest test starts at once.
@@ -163,7 +166,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
-      - name: Start the local stack in the background (migrations, library, projection worker)
+      - name: Start the local stack in the background (migrations, library, push delivery)
         run: nohup bash -c 'npm run db:start > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
       - run: npx playwright install --with-deps chromium
       - name: Wait for the local stack
@@ -200,7 +203,7 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Start the local stack (migrations, library, projection worker)
+      - name: Start the local stack (migrations, library, push delivery)
         run: npm run db:start
       - name: The whole web UI suite
         shell: bash
@@ -240,7 +243,7 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Start the local stack (migrations, library, projection worker)
+      - name: Start the local stack (migrations, library, push delivery)
         run: npm run db:start
       - name: Quarantined web UI tests
         shell: bash

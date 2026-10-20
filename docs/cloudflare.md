@@ -104,16 +104,15 @@ builds the image, the container reaches the local database through
 `host.docker.internal` (`JOBS_SUPABASE_URL` and `JOBS_API_URL`, vars
 `scripts/web-dev-vars.ts` adds to the local config copy; unset in
 production), the import is off (no v2 keys locally; `npm run v2` imports by
-hand), and the job tick is fired by hand at wrangler's `/__scheduled`,
-which the copy sends to the Worker ahead of the page:
+hand), and `scripts/job-tick.mjs` fires the job tick every minute at
+wrangler's `/__scheduled`, which the copy sends to the Worker ahead of the
+page. That is the local stack's projection pass (decision 148): nothing
+else runs it locally. `e2e/ui-web.sh` does the same for the UI tests. To
+fire it once more by hand:
 
 ```bash
 curl 'http://localhost:8787/__scheduled?cron=*/5+*+*+*+*'
 ```
-
-The local stack's own Edge Function still runs the pass every minute
-(`scripts/local-db.mjs`), so the container is only needed to try the
-job runner itself.
 
 ## Recordings and guide media (R2)
 

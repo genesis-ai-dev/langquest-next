@@ -26,17 +26,17 @@ Now, on a hosted project (decisions 141, 142):
 | --- | --- | --- | --- | --- |
 | Projection pass, every language (Inbox rows, listing, snapshots, report inputs) | job container `JobRunner` projection | 4 GiB | 5 min | the Worker's job tick |
 | v2 import | job container `JobRunner` v2-import | 4 GiB | 15 min, whole at 03:15 UTC | the Worker's job tick |
-| Push delivery | Edge Function `stream-projections` | 256 MB | 1 min | pg_cron |
+| Push delivery | Edge Function `push-delivery` | 256 MB | 1 min | pg_cron |
 | Reports | Durable Object `OrgSnapshot`, rendering stored report inputs | 128 MB isolate | on request | HTTP |
 | The agent API | Durable Object `OrgSnapshot`, folding (until F) | 128 MB isolate | on request | HTTP |
 | Verse timings, grant cleanup, webhook catch-up | the Worker's cron | 128 MB | 10 min | the Worker's cron |
 | Inbox purge | pg_cron | in Postgres | daily | pg_cron |
 
-A local stack differs in one place: the Edge Function still runs the pass,
-every minute, for the languages it can fold (`scripts/local-db.mjs`),
-because `wrangler dev` fires no cron and the web UI tests wait for the
-pass. `npm run web:dev` runs the container when the job tick is fired by
-hand (`docs/cloudflare.md`).
+A local stack runs the same jobs on the same hosts (decision 148), with
+one difference: `wrangler dev` fires no cron, so `npm run web:dev` fires the
+job tick itself every minute (`scripts/job-tick.mjs`), and the pass runs in
+the container in Docker while the Worker runs (`docs/cloudflare.md`). The
+Edge Function was named `stream-projections` until it lost the pass.
 
 The same wall shows up three times. A language folds into one state
 object, a parsed object costs several times its text, and a Bible-size
@@ -209,8 +209,8 @@ What that plan takes from this one (its section 2):
 What this plan takes from that one, under F:
 
 - The pass is the unit of work. The container runs one entry point and
-  holds no per-language assumption; `isLarge` and the 10 MB threshold
-  remain only for a local stack's Edge pass, and the cut lands inside
+  holds no per-language assumption (`isLarge` and the 10 MB threshold are
+  gone with the local Edge pass, decision 148), and the cut lands inside
   `runProjections`.
 - Fold plus cut sizes the instance (section 4).
 - A snapshot write under F carries the state, the pieces and the unit

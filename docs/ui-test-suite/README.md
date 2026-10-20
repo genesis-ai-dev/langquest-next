@@ -103,8 +103,8 @@ These hold for every test unless the test says otherwise.
 - The build's `/version.json` or update id is noted in the run sheet.
 
 **G2. Server**
-- The local stack is running (`npm run dev:local`): Supabase, the Worker on
-  :8787, and the projection worker running every minute.
+- The local stack is running (`npm run dev:local`): Supabase, and the Worker
+  on :8787 running the projection pass every minute in its job container.
 - The library is seeded (`npm run library:seed`).
 - A release candidate is run a second time against the preview environment.
 - Never run against production or "LangQuest Sample", because Play's
@@ -305,8 +305,10 @@ The automated tests live beside the app (decision 95):
   does every phone run.
 
 Before a run, have the local stack up: `npm run dev:local`, or
-`npm run db:start` with `npm run web:dev`. `db:start` also schedules the
-projection worker that public listings, the Inbox and Reports need. Then:
+`npm run db:start` with `npm run web:dev`. The Worker runs the projection
+pass that public listings, the Inbox and Reports need, every minute in its
+job container (Docker must be running); the suite's own Worker
+(`e2e/ui-web.sh`) does too. Then:
 
 ```bash
 npm run test:ui:web

@@ -63,9 +63,9 @@ export async function issueInvite(world: UiWorld, base: string, opts: {
 
 /**
  * A language's row on Explore and Find your organization, as the projection
- * worker writes it once a minute (server/projectionWorker.ts) for a language
+ * pass writes it once a minute (server/projectionWorker.ts) for a language
  * listed publicly. Written here so a test does not wait on, or depend on,
- * the worker running (`npm run dev:local` starts it; a bare stack does not).
+ * the pass running (the Worker's job tick runs it; a bare stack does not).
  */
 export async function projectListing(world: UiWorld, key: 'A' | 'C'): Promise<void> {
   const { orgId, languageId, name } = world.languages[key];

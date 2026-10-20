@@ -1,5 +1,5 @@
 #!/bin/bash
-# After a merge commit made here: the projection worker's bundle follows its
+# After a merge commit made here: the push delivery function's bundle follows its
 # source (pre-commit). Two branches that each kept it current can merge into
 # one that is not, and git does not take changes a pre-merge-commit hook
 # stages, so this amends the merge commit it just made instead. A
@@ -13,8 +13,8 @@ cd "$(git rev-parse --show-toplevel)"
 [ "$(git rev-list --parents -n 1 HEAD | wc -w)" -ge 3 ] || exit 0
 [ "$(git rev-parse HEAD^1)" = "$(git rev-parse -q --verify ORIG_HEAD || true)" ] || exit 0
 [ -z "$(git branch -r --contains HEAD 2>/dev/null)" ] || exit 0
-BUNDLE=supabase/functions/stream-projections/index.ts
-if git diff --name-only HEAD^1 HEAD | grep -qE '^(server/|packages/(core|sync)/src/|scripts/build-projection-worker\.mjs$)'; then
+BUNDLE=supabase/functions/push-delivery/index.ts
+if git diff --name-only HEAD^1 HEAD | grep -qE '^(server/|scripts/build-push-delivery\.mjs$)'; then
   npm run --silent worker:build
   if ! git diff --quiet HEAD -- "$BUNDLE"; then
     # Git still counts the merge as in progress here and refuses --amend, so
@@ -24,7 +24,7 @@ if git diff --name-only HEAD^1 HEAD | grep -qE '^(server/|packages/(core|sync)/s
     for p in $(git rev-list --parents -n 1 HEAD | cut -d' ' -f2-); do parents+=(-p "$p"); done
     commit=$(GIT_AUTHOR_NAME="$(git log -1 --format=%an)" GIT_AUTHOR_EMAIL="$(git log -1 --format=%ae)" GIT_AUTHOR_DATE="$(git log -1 --format=%aD)" \
       git commit-tree "$(git write-tree)" "${parents[@]}" -m "$(git log -1 --format=%B)")
-    git update-ref -m "post-merge: rebuilt the projection worker's bundle" HEAD "$commit"
+    git update-ref -m "post-merge: rebuilt the push delivery bundle" HEAD "$commit"
     echo "post-merge: rebuilt $BUNDLE and added it to the merge commit"
   fi
 fi

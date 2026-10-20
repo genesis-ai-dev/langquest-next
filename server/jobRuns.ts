@@ -87,7 +87,7 @@ function numbersOnly(n: Record<string, number>): Record<string, number> {
 export function errorClassOf(error: unknown): string {
   if (!error || typeof error !== 'object') return 'unknown';
   const e = error as { name?: unknown; code?: unknown; op?: unknown; message?: unknown; cause?: unknown; streamId?: unknown };
-  // A wrapper that names the language it stopped at (ProjectionFailed) says nothing itself.
+  // A wrapper that names the language it stopped at says nothing itself.
   if (typeof e.streamId === 'string' && e.cause) return errorClassOf(e.cause);
   const code = typeof e.code === 'string' && /^[0-9A-Z]{5}$|^PGRST\d{3}$|^E_[A-Z_]{1,60}$/.test(e.code) ? e.code : null;
   const op = typeof e.op === 'string' ? e.op

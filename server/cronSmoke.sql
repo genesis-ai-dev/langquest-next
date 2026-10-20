@@ -1,8 +1,8 @@
--- The scheduled jobs (decision 42): push delivery, created by the schedule
--- migration where the Vault secrets exist. The projection pass is not on
--- pg_cron in a hosted database: it runs in the app's Worker's job
--- container (decisions.md 141), and only a local stack schedules it, after
--- the migration (scripts/local-db.mjs). A reset
+-- The scheduled jobs (decision 42): push delivery, which calls the Edge
+-- Function push-delivery, created by the schedule migration where the Vault
+-- secrets exist. The projection pass is never on pg_cron: it runs in the
+-- app's Worker's job container, on a local stack too (decisions.md 141,
+-- 148). A reset
 -- leaves neither, so scripts/db-test.mjs sets the secrets and runs the
 -- migration before this file; it cleans up after itself. The Inbox purge
 -- (decision 122) needs no secret: its migration schedules it, so a reset
@@ -11,7 +11,7 @@
 
 do $$ declare j record; begin
   for j in select * from (values
-    ('langquest-push-delivery', '* * * * *', '"task":"pushes"'),
+    ('langquest-push-delivery', '* * * * *', '/functions/v1/push-delivery'),
     ('langquest-purge-notifications', '17 3 * * *', 'delete from public.notifications')
   ) as t(name, schedule, fragment) loop
     if (select count(*) from cron.job where jobname = j.name) <> 1 then raise exception 'expected exactly one cron job %', j.name; end if;
