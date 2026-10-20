@@ -5,11 +5,13 @@
 // footer's Undo brings the part back. A tap on the open row closes it. A
 // screen reader opens it from the part's own actions. The first time parts
 // show on a phone, the top one slides right once to show the bin, then
-// back: no words, just the motion.
+// back: no words, just the motion. Help mode shows the bin too: while help
+// is on, one part stands open on it, and the bin explains itself (Caleb,
+// 2026-10-20: "is the swipe to delete explained in the question mark icon").
 import { useEffect, useRef, type ReactNode } from 'react';
 import { AccessibilityInfo, Animated, PanResponder, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { useHelpSpot } from '../helpMode/useHelpMode';
-import { HelpBadge } from '../helpMode/helpBadge';
+import { useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
+import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Ico } from '../ui/kit';
 import { C, radius } from '../ui/theme';
@@ -34,6 +36,8 @@ export function SwipeRow(props: {
   /** Slide once to show the bin (the first time parts show on this phone), then call `onHinted`. */
   hint?: boolean;
   onHinted?: () => void;
+  /** While help is on, stand open on the left-hand bin, so help can show how a part is deleted. */
+  helpBin?: boolean;
   /** The card's last row: its bottom corners follow the card's. */
   last?: boolean;
   children: ReactNode;
@@ -58,6 +62,16 @@ export function SwipeRow(props: {
     base.current = props.open * BIN;
     Animated.spring(x, { toValue: props.open * BIN, useNativeDriver: Platform.OS !== 'web', bounciness: 0, speed: 20 }).start();
   }, [props.open, x]);
+
+  // Help on: open on the bin while it lasts; help off: back to where the row was.
+  const helpOn = useHelpOn();
+  const showing = !!props.helpBin && helpOn && !props.disabled;
+  useEffect(() => {
+    const to = showing ? BIN : latest.current.open * BIN;
+    if (base.current === to) return;
+    base.current = to;
+    Animated.spring(x, { toValue: to, useNativeDriver: Platform.OS !== 'web', bounciness: 0, speed: 20 }).start();
+  }, [showing, x]);
 
   // The first time: right, a moment on the bin, and back.
   useEffect(() => {
@@ -141,20 +155,25 @@ export function SwipeRow(props: {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- reads only refs (latest, base, x), so the first draw's copies stay right
 
-  const bin = useHelpSpot(t('recording.deleteItem', { item: props.name }), t('recording.recorder.deletePartHelp'), props.onDelete);
+  // Shown by help, the bin says how to reach it; slid open by hand, what it does.
+  const bin = useHelpSpot(t('recording.deleteItem', { item: props.name }),
+    t(showing && props.open !== 1 ? 'recording.recorder.slideToDeleteHelp' : 'recording.recorder.deletePartHelp'), props.onDelete);
   const close = () => settleTo(0);
   return (
     <View ref={box} style={[styles.box, props.last && styles.last]}>
       {/* The bins behind the row: one on each side, as it slides either way. */}
-      <View style={styles.under} accessibilityElementsHidden={props.open === 0} importantForAccessibility={props.open === 0 ? 'no-hide-descendants' : 'auto'}>
+      <View style={styles.under} accessibilityElementsHidden={props.open === 0 && !showing} importantForAccessibility={props.open === 0 && !showing ? 'no-hide-descendants' : 'auto'}>
         {/* help-each: one bin on each side, and only the one the row slid to shows and acts */}
         {[1, -1].map((side) => (
-          props.open === side ? (
-            <Pressable key={side} onPress={bin.onPress} accessibilityRole="button" accessibilityLabel={t('recording.deleteItem', { item: props.name })}
-              style={({ pressed }) => [styles.bin, pressed && { opacity: 0.8 }]}>
-              <Ico name="trash" size={22} color={C.white} />
-              <HelpBadge spot={bin} />
-            </Pressable>
+          props.open === side || (showing && side === 1) ? (
+            // Its own kind of row: the bin help shows is numbered whichever part row speaks for the list.
+            <HelpRow key={side} of="recording.bin">
+              <Pressable onPress={bin.onPress} accessibilityRole="button" accessibilityLabel={t('recording.deleteItem', { item: props.name })}
+                style={({ pressed }) => [styles.bin, pressed && { opacity: 0.8 }]}>
+                <Ico name="trash" size={22} color={C.white} />
+                <HelpBadge spot={bin} />
+              </Pressable>
+            </HelpRow>
           ) : (
             <View key={side} style={styles.bin}>
               <Ico name="trash" size={22} color={C.white} />
