@@ -343,6 +343,35 @@ do $$ begin
   exception when sqlstate '42501' then null; end;
 end $$;
 
+-- 7c. Translation helps (decisions.md 146): notes, questions and word links
+--     in book parts, an aligned Bible, article contents. A source's
+--     alignments are its dependencies here, though its deps leave them out.
+select set_config('request.jwt.claim.sub', 'alice', false);
+select pg_temp.body('HB', '{"book":"TIT","deps":[],"format":"helpBook@1","rows":[{"id":"a1","ref":"1:1","text":"A note."}]}');
+select pg_temp.body('HS', format('{"books":[{"book":"TIT","doc":"%s"}],"credit":"c","deps":["%s"],"format":"helps@1","kind":"notes","language":"eng","license":"CC-BY-SA-4.0","title":"Notes","versification":"%s"}', pg_temp.h('HB'), pg_temp.h('HB'), pg_temp.h('V')));
+select pg_temp.body('AL', format('{"book":"TIT","chapters":[],"deps":["%s"],"format":"alignment@1","original":"grc","text":"%s"}', pg_temp.h('V'), pg_temp.h('V')));
+select pg_temp.body('CT', '{"credit":"c","deps":[],"entries":[],"format":"contents@1","kind":"words","language":"eng","license":"CC-BY-SA-4.0","title":"Key words"}');
+select pg_temp.body('SA', format('{"books":[{"alignment":"%s","book":"TIT","doc":"%s","name":"Titus"}],"deps":["%s"],"format":"source@1","language":"eng","name":"Literal","versification":"%s"}', pg_temp.h('AL'), pg_temp.h('V'), pg_temp.h('V'), pg_temp.h('V')));
+do $$ declare d text[]; begin
+  perform pg_temp.put('libA', 'HB');
+  perform pg_temp.put('libA', 'HS');
+  perform pg_temp.put('libA', 'AL');
+  perform pg_temp.put('libA', 'CT');
+  perform pg_temp.put('libA', 'SA');
+  if (select count(*) from public.library_documents where hash in (pg_temp.h('HB'), pg_temp.h('HS'), pg_temp.h('AL'), pg_temp.h('CT'))) <> 4 then raise exception 'help formats not stored'; end if;
+  select deps into d from public.library_documents where hash = pg_temp.h('SA');
+  if not (pg_temp.h('AL') = any (d) and pg_temp.h('V') = any (d)) then raise exception 'a source''s alignment is not its dependency: %', d; end if;
+  begin perform public.library_put_document('libA', '{"books":[{"alignment":"nope","book":"TIT","doc":"x"}],"deps":[],"format":"source@1"}'); raise exception 'a source with a bad alignment accepted';
+  exception when sqlstate '22023' then null; end;
+end $$;
+-- Another organization cannot name an alignment it cannot read.
+select set_config('request.jwt.claim.sub', 'bob', false);
+do $$ begin
+  begin perform public.library_put_document('libB', format('{"books":[{"alignment":"%s","book":"TIT","doc":"%s"}],"deps":[],"format":"source@1"}', pg_temp.h('AL'), pg_temp.h('V')));
+    raise exception 'an unreadable alignment accepted';
+  exception when sqlstate '42501' then null; end;
+end $$;
+
 -- 8. Clients cannot reach the tables or the service functions.
 do $$ begin
   if has_table_privilege('authenticated', 'public.library_documents', 'select')
