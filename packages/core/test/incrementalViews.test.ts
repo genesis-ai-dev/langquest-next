@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import type { AnyEvent, EventType } from '../src/events';
-import { publishedCopy } from '../src/changes';
+import { markChanged, publishedCopy } from '../src/changes';
+import { dropEntry, PASSAGE_PART, putEntry } from '../src/passageParts';
 import { buildIndexes, indexesOf } from '../src/indexes';
 import { EVENT_PRIVILEGE, ORG_EVENT_TYPES } from '../src/org';
 import { derivePassage, updatesFor } from '../src/passage';
@@ -253,6 +254,30 @@ describe('one change re-derives only what it touched', () => {
     expect(indexesOf(after)).not.toBe(indexesOf(before));
     expect(recomputed(before, after)).toHaveLength(units.length);
     expect(indexesOf(after)).toEqual(buildIndexes(live));
+  });
+
+  it('records a phone lets go of, or brings back from disk, rebuild every passage, and equal a full rebuild', () => {
+    // Why: a language kept on disk (decisions.md 143) takes passages' records out of the live state at a
+    // checkpoint and puts them back when a screen opens the passage, with no event. A view carried from the
+    // copy before would still show them, or still miss them: `markChanged` must count as an `all` touch.
+    const [takeId, take] = Object.entries(live.takes).find(([, t]) => t.unitId === 'p800')!;
+    const sub = live.submissions[takeId];
+    const before = publish();
+    expect(derivePassage(before, 'p800').versions.some((v) => v.takeId === takeId) || !sub).toBe(true);
+    dropEntry(live, PASSAGE_PART.takes, takeId);
+    if (sub) dropEntry(live, PASSAGE_PART.submissions, takeId);
+    markChanged(live);
+    const shed = publish();
+    expect(recomputed(before, shed)).toHaveLength(units.length);
+    expect(derivePassage(shed, 'p800')).toEqual(derivePassage({ ...live }, 'p800', buildIndexes(live)));
+    expect(languageProgress(shed)).toEqual(languageProgress({ ...live }, buildIndexes(live)));
+
+    putEntry(live, PASSAGE_PART.takes, takeId, take);
+    if (sub) putEntry(live, PASSAGE_PART.submissions, takeId, sub);
+    markChanged(live);
+    const back = publish();
+    expect(derivePassage(back, 'p800')).toEqual(derivePassage(before, 'p800'));
+    expect(derivePassage(back, 'p800')).toEqual(derivePassage({ ...live }, 'p800', buildIndexes(live)));
   });
 
   it('a long catch-up between two copies rebuilds, and equals a full rebuild', () => {
