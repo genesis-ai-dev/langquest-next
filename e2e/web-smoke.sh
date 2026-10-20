@@ -1,6 +1,6 @@
 #!/bin/bash
 # The web smoke test's server (decisions.md 58): the app's release web build
-# for the local stack, served by the dashboard's Worker with its headers and
+# for the local stack, served by the app's Worker with its headers and
 # /api, as production serves it. Needs the local Supabase (npm run db:start).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

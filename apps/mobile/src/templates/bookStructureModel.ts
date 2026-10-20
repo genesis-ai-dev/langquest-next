@@ -1,7 +1,7 @@
 // What the Divide a Book screen derives from the open language: the book's
 // parts, which are recorded, the words under each verse, and the chapter
 // jump grid. Pure: no React, no I/O (decision 105; TPL-5, ADR-027).
-import { derivePassage, languageName, type Indexes, type LanguageState, type OrgState } from '@langquest-next/core';
+import { languageLines, languageName, type Indexes, type LanguageState, type OrgState, type PassageLines } from '@langquest-next/core';
 import { bookRows, bookSegments, fiaStarts, type BibleBook, type Segment } from './contentTemplates';
 import { bookName } from '../i18n/coreText';
 import { t } from '../i18n';
@@ -19,9 +19,12 @@ export interface BookStructureData {
 }
 
 /** The book as the open language divides it, with the words of each verse where the app has them. */
-export function bookStructureData(state: LanguageState, idx: Indexes, book: BibleBook, org: OrgState | null, languageId: string): BookStructureData {
+export function bookStructureData(
+  state: LanguageState, idx: Indexes, book: BibleBook, org: OrgState | null, languageId: string, lines: PassageLines = languageLines(state, idx)
+): BookStructureData {
   const segments = bookSegments(state, idx, book);
-  const recorded = new Set(segments.filter((s) => derivePassage(state, s.unitId, idx).recorded).map((s) => s.unitId));
+  // Which are recorded, read off the passages' lines (decisions.md 143).
+  const recorded = new Set(segments.filter((s) => lines.get(s.unitId).recorded).map((s) => s.unitId));
   // The words, where the app has them (scripture.ts); verse numbers otherwise.
   const text = new Map<string, string>();
   const translation = new Map<number, string>();

@@ -129,7 +129,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   settings_more: { rpcs:['register_push_token','set_blocked','my_organizations'],reads:['user_blocks'] },
   sign_out_confirm: { rpcs:['unregister_push_token'] },
   delete_account: { rpcs:['delete_my_account'] },
-  // Read from the dashboard's server, not the local fold (decisions.md 44, 57).
+  // Read from the app's Worker, not the local fold (decisions.md 44, 57).
   // A language's country and target go straight to the organization's
   // stream on the server, so the report can catch up with them at once.
   reports_home: { reads:['orgReports'] },

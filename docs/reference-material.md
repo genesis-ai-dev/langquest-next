@@ -54,7 +54,7 @@ reference material review and design" (2026-10-05).
   opened or played. It is the record, not the work, so it never leaves the
   organization (decision 38).
 
-## Translation helps from the library (decisions 144 to 146)
+## Translation helps from the library (decisions 146 to 148)
 
 A passage gets notes, questions and key words from the library the way it
 gets its guide: recommended or linked sets first, else the organization's

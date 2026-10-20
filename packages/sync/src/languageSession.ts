@@ -1,7 +1,10 @@
 import {
-  audioFormatsFor, decodeHlc, defaultOfflineScope, deriveDownloadWork, deriveUploadWork, evictableBlobs, stateRevision,
-  type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState
+  audioFormatsFor, concerning, decodeHlc, filePlanOf, languageLines, updatesFor, uploadWorkOf,
+  type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
+  type LostFilesView, type OfflineSummary, type PassageLine, type PassageLines, type UnitOffline, type Update
 } from '@langquest-next/core';
+import { RECORD_KINDS } from './keptLanguage';
+import { LanguageFiles } from './languageFiles';
 import { SyncClient, type SyncClientOptions, type SyncResult } from './syncClient';
 import { SyncScheduler } from './syncScheduler';
 import { DOWNLOAD_DEFAULTS, TransferWorker, UPLOAD_DEFAULTS, type TransferBudget } from './transferWorker';
@@ -57,6 +60,21 @@ export interface LanguageStatus {
   present: ReadonlySet<string>;
   /** Units this person chose to keep offline, beyond their own work. */
   keptUnits: ReadonlySet<string>;
+  /**
+   * The passages kept offline and how much of each one's audio is here,
+   * the whole scope at a glance, and the passages this person keeps by
+   * default (asked of them or worked in); worked out after changes, so a
+   * screen reads them without waiting. Null and empty until first counted.
+   */
+  keptOffline: ReadonlyMap<string, UnitOffline> | null;
+  offlineSummary: OfflineSummary | null;
+  scope: ReadonlySet<string>;
+  /**
+   * Each passage's line: what lists of passages read (Map, Progress, My
+   * Work), so none of them needs every passage's record in memory
+   * (decisions.md 143). A new object whenever any line changed.
+   */
+  lines: PassageLines;
 }
 
 export interface LanguageSessionOptions {
@@ -89,8 +107,19 @@ export interface LanguageSessionOptions {
   onSettled?: (o: { blobsWanted: number }) => void;
   /** Poll interval and backoff for the scheduler; its defaults otherwise. */
   scheduler?: { pollMs?: number };
+  /**
+   * Keep the language's recordings and file verdicts on disk, holding in
+   * memory only the passages `loadUnits` asks for (decisions.md 143).
+   */
+  keepOnDisk?: boolean;
+  /** The app's build: lines kept by another build are worked out again (`SyncClientOptions.build`). */
+  build?: string;
 }
 
+/** How long after a change the offline counts are worked out again: one count for a burst of changes. */
+const OFFLINE_RECOUNT_MS = 750;
+/** Passages read from disk at once for the Inbox: a bounded slice of the language in memory. */
+const INBOX_PASSAGES_PER_READ = 25;
 /** How long file arrivals are gathered before screens are told, and between storage reclaims. */
 export const FILE_NEWS_MS = 500;
 
@@ -115,14 +144,17 @@ export class LanguageSession {
   private pulling = false;
   private current: LanguageStatus;
   private closed = false;
+  /** Which files to send, fetch or free, from memory and, for a language kept on disk, the phone's table. */
+  private readonly plan: LanguageFiles;
+  private recountAt: ReturnType<typeof setTimeout> | undefined;
+  /** The upload worker's last work list: what `probe` reports for a language kept on disk. */
+  private lastUnsent: BlobRef[] = [];
   /** Trailing timers: the file set shown to screens, and reclaim after file changes. */
   private presentTimer: ReturnType<typeof setTimeout> | null = null;
   private reclaimTimer: ReturnType<typeof setTimeout> | null = null;
   private lastReclaim = -Infinity;
   /** The file set last published, to skip a copy when nothing changed since. */
   private publishedVersion: number | undefined;
-  /** The scope worked out for one fold revision and set of kept units: the same Set until either changes. */
-  private scopeCache: { state: LanguageState; revision: number; kept: ReadonlySet<string>; scope: Set<string> } | null = null;
 
   static async open(o: LanguageSessionOptions): Promise<LanguageSession> {
     const client = new SyncClient({
@@ -133,7 +165,9 @@ export class LanguageSession {
       deviceId: o.deviceId,
       store: o.store,
       transport: o.transport,
-      ...(o.isDeferred ? { deferCheckpoint: o.isDeferred } : {})
+      ...(o.isDeferred ? { deferCheckpoint: o.isDeferred } : {}),
+      ...(o.keepOnDisk ? { keepOnDisk: true } : {}),
+      ...(o.build ? { build: o.build } : {})
     });
     await client.trackOpen();
     await client.load('open');
@@ -145,23 +179,26 @@ export class LanguageSession {
     this.current = {
       revision: client.publishedRevision, pending: 0, refusedEvents: 0, lastSync: 'never',
       online: null, tooOld: false, refused: null, pulled: false, live: false,
-      pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept
+      pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
+      keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines()
     };
     this.publishedVersion = o.files.version;
     const files = o.files;
+    const plan = new LanguageFiles(client, o.store, o.orgId, o.languageId);
+    this.plan = plan;
     const common = {
       isOnline: () => this.current.online !== false,
       isPulling: () => this.pulling,
       ...(o.isDeferred ? { isDeferred: o.isDeferred } : {}),
       ...(o.budget ? { budget: o.budget } : {}),
       // Upload size from disk; download size from the server's confirmation.
-      sizeOf: (ref: BlobRef) => files.sizeOf(ref.hash) ?? client.getState().blobs[ref.hash]?.size
+      sizeOf: (ref: BlobRef) => files.sizeOf(ref.hash) ?? plan.sizeOf(ref.hash)
     };
     this.up = new TransferWorker({
       ...UPLOAD_DEFAULTS,
       ...common,
       // Size from the confirmation versus the file here: a mismatch reopens the upload.
-      work: () => deriveUploadWork(client.getState(), this.here(), files.sizes()),
+      work: async () => { const list = await plan.upload(this.here(), files.sizes()); this.lastUnsent = list; return list; },
       transfer: o.upload,
       onChange: (n) => this.set({ pendingUp: n, peakUp: n === 0 ? 0 : Math.max(this.current.peakUp, n) })
     });
@@ -170,7 +207,7 @@ export class LanguageSession {
       ...common,
       // Rule 10: by scope, never the whole language. Scope is the actor's
       // own units plus what they explicitly chose to keep offline.
-      work: () => deriveDownloadWork(client.getState(), this.here(), this.scope()),
+      work: async () => plan.download(this.here(), await this.scope()),
       transfer: o.download,
       onChange: (n) => this.set({ pendingDown: n, peakDown: n === 0 ? 0 : Math.max(this.current.peakDown, n) })
     });
@@ -190,7 +227,7 @@ export class LanguageSession {
     // screen follows the fold's revision, not the call sites. Nothing on
     // screen shows that a write is still on its way to disk, so that news
     // changes nothing here: it redrew the whole app twice per commit.
-    this.stops.push(client.subscribe((s) => this.set({ revision: s.revision })));
+    this.stops.push(client.subscribe((s) => { this.set({ revision: s.revision, lines: s.lines ?? languageLines(s.state) }); this.recount(); }));
     this.up.start();
     this.down.start();
     this.stops.push(files.onChange(() => {
@@ -199,8 +236,8 @@ export class LanguageSession {
     }));
     // Storage pressure must never reach the recorder: after any change to
     // what is on disk, give back out-of-scope files the server still has.
-    this.reclaim();
-    this.stops.push(files.onChange(() => this.reclaimSoon()));
+    void this.reclaim();
+    this.stops.push(files.onChange(() => { this.reclaimSoon(); this.recount(); }));
     // What is on this device, for the offline marks on passages and in Settings.
     // Told once per window however many files landed in it: a copy per file
     // (and a redraw per copy) made a full download quadratic.
@@ -211,12 +248,14 @@ export class LanguageSession {
     });
     if (unwatch) this.stops.push(unwatch);
     void this.counts();
+    this.recount();
     this.scheduler.start();
   }
 
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    if (this.recountAt) clearTimeout(this.recountAt);
     for (const stop of this.stops.splice(0)) stop();
     this.up.stop();
     this.down.stop();
@@ -280,8 +319,10 @@ export class LanguageSession {
       if (!r.offline && !r.more && o.onSettled) {
         const settled = () => o.onSettled?.({ blobsWanted: this.current.pendingDown });
         if (r.refused !== null || r.tooOld) settled();
-        else if (this.up.untried() === 0) {
-          void client.pendingCount().then((n) => { if (n === 0) settled(); }).catch(() => {});
+        else {
+          void this.up.untried()
+            .then(async (untried) => { if (untried === 0 && (await client.pendingCount()) === 0) settled(); })
+            .catch(() => {});
         }
       }
       // New confirmations may have arrived: re-derive. Reconnect retries now,
@@ -342,6 +383,89 @@ export class LanguageSession {
     this.set({ keptUnits: next });
     await this.o.store.setMeta(keepKey(this.o.orgId, this.o.languageId), JSON.stringify([...next]));
     this.down.nudge();
+    this.recount();
+  }
+
+  /**
+   * Hold these passages' recordings in memory: the one a screen shows and
+   * those next to it (decisions.md 143). Others stay on the phone's disk.
+   */
+  async loadUnits(unitIds: readonly string[]): Promise<void> {
+    await this.client.loadUnits(unitIds);
+  }
+
+  /** Is this passage's whole record in memory, so a screen may read it from `state`? */
+  isLoaded(unitId: string): boolean {
+    return this.client.isLoaded(unitId);
+  }
+
+  /**
+   * The language with these passages' records read in from disk, for a
+   * screen that lists a few passages beyond those in memory. The session's
+   * own state is not changed.
+   */
+  withPassages(unitIds: readonly string[]): Promise<LanguageState> {
+    return this.client.withPassages(unitIds);
+  }
+
+  /** The passage a take is in, from memory or disk; null when it is nowhere. */
+  passageOfTake(takeId: string): Promise<string | null> {
+    const kept = this.client.keptRecords();
+    if (!kept) return Promise.resolve(this.client.getState().takes[takeId]?.unitId || null);
+    return kept.passageOf(this.client.getState(), { take: takeId });
+  }
+
+  /** Passages whose versions tied in this key term (TERM-5): its uses are read from them. */
+  async passagesLinkingTerm(termId: string): Promise<string[]> {
+    const state = this.client.getState();
+    const units = new Set<string>();
+    for (const [takeId, byTerm] of Object.entries(state.keyTermLinks)) {
+      if (!byTerm[termId]) continue;
+      const u = await this.passageOfTake(takeId);
+      if (u) units.add(u);
+    }
+    if (this.client.keptRecords()) {
+      for (const r of await this.o.store.keptByRef(this.o.orgId, this.o.languageId, 'termLink', [termId])) units.add(r.unitId);
+    }
+    return [...units];
+  }
+
+  /** What each passage's Inbox entries were worked out from: its line then. */
+  private inbox = { actorId: '', byUnit: new Map<string, { line: PassageLine; updates: Update[] }>() };
+
+  /**
+   * What happened that concerns this person (core `updatesFor`), newest
+   * first. A language kept on disk reads only the passages whose line says
+   * they concern the person, a slice at a time, and reads a passage again
+   * only when its line changed.
+   */
+  async updatesFor(actorId: string): Promise<Update[]> {
+    if (!this.client.keptRecords()) return updatesFor(this.client.getState(), actorId);
+    if (this.inbox.actorId !== actorId) this.inbox = { actorId, byUnit: new Map() };
+    const lines = this.client.passageLines();
+    const units = concerning(lines, actorId);
+    const known = this.inbox.byUnit;
+    const need = units.filter((u) => known.get(u)?.line !== lines.get(u));
+    for (let i = 0; i < need.length; i += INBOX_PASSAGES_PER_READ) {
+      const slice = need.slice(i, i + INBOX_PASSAGES_PER_READ);
+      const view = await this.client.withPassages(slice, RECORD_KINDS);
+      const found = updatesFor(view, actorId);
+      for (const u of slice) known.set(u, { line: lines.get(u), updates: found.filter((x) => x.unitId === u) });
+    }
+    const wanted = new Set(units);
+    for (const u of [...known.keys()]) if (!wanted.has(u)) known.delete(u);
+    return units.flatMap((u) => known.get(u)?.updates ?? [])
+      .sort((a, b) => (a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+
+  /** Does the language hold this recording, in memory or on disk? (A recovered recording's check.) */
+  hasRecording(id: string): Promise<boolean> {
+    return this.plan.hasRecording(id);
+  }
+
+  /** What these files a phone lost were (decisions.md 92). */
+  lost(hashes: readonly string[]): Promise<LostFilesView> {
+    return this.plan.lost(hashes);
   }
 
   /** After recording: clear upload backoff and start a pass now. */
@@ -350,8 +474,8 @@ export class LanguageSession {
   }
 
   /** Recordings here the server has not confirmed: what a hand-over must still send. */
-  unsent(): BlobRef[] {
-    return deriveUploadWork(this.client.getState(), this.here(), this.o.files.sizes());
+  unsent(): Promise<BlobRef[]> {
+    return this.plan.upload(this.o.files.snapshot(), this.o.files.sizes());
   }
 
   inspect(): Promise<SyncInspection> {
@@ -362,11 +486,14 @@ export class LanguageSession {
    * This language's part of the `device` diagnostics record: recordings
    * waiting to go up, how long the oldest has waited, and how long the
    * download waiting longest has, in minutes. A recording's age is from
-   * when it was recorded (its event's clock), so it survives a restart; a
-   * file no recording names counts from when this session first saw it.
+   * when it was recorded (its event's clock) while its recording is in
+   * memory, so it survives a restart; for a recording on disk
+   * (decisions.md 143), or a file no recording names, from when this
+   * session first saw it. A language kept on disk answers with the upload
+   * worker's last list, since the list is worked out from the phone's table.
    */
   probe(): { uploadsWaiting: number; oldestUnsentMin?: number; wantedStuckMin?: number } {
-    const unsent = this.unsent();
+    const unsent = this.client.keptRecords() ? this.lastUnsent : uploadWorkOf(filePlanOf(this.client.getState()), this.here(), this.o.files.sizes());
     const now = this.o.client?.now?.() ?? Date.now();
     const minutes = (ms: number) => Math.max(0, Math.round(ms / 60_000));
     const out: { uploadsWaiting: number; oldestUnsentMin?: number; wantedStuckMin?: number } = { uploadsWaiting: unsent.length };
@@ -390,29 +517,43 @@ export class LanguageSession {
     return this.o.files.presentView?.() ?? this.o.files.snapshot();
   }
 
-  /**
-   * The offline scope: the actor's own units plus those kept. The same Set
-   * until the fold or the kept units change, so core's per-revision cache
-   * finds it again by identity instead of sorting and joining 61,000 ids.
-   * Callers must not change it.
-   */
-  private scope(): Set<string> {
-    const state = this.client.getState();
-    const revision = stateRevision(state);
-    const hit = this.scopeCache;
-    if (hit && hit.state === state && hit.revision === revision && hit.kept === this.current.keptUnits) return hit.scope;
-    const scope = defaultOfflineScope(state, this.o.actorId);
+  /** The passages kept offline: this person's own and asked-of, and the ones they chose. */
+  private async scope(): Promise<Set<string>> {
+    const scope = await this.plan.scope(this.o.actorId);
     for (const u of this.current.keptUnits) scope.add(u);
-    this.scopeCache = { state, revision, kept: this.current.keptUnits, scope };
     return scope;
   }
 
-  private reclaim(): void {
+  private async reclaim(): Promise<void> {
     const files = this.o.files;
     this.lastReclaim = Date.now();
     try {
-      files.reclaim(evictableBlobs(this.client.getState(), this.here(), this.scope(), files.sizes()), this.o.limits);
+      const scope = await this.scope();
+      const evictable = await this.plan.evictable(this.here(), scope, files.sizes());
+      // The plan was read from the phone's table; a session closed meanwhile frees nothing.
+      if (this.closed) return;
+      files.reclaim(evictable, this.o.limits);
     } catch { /* disk queries can fail on some devices; try again next change */ }
+  }
+
+  /** The offline marks and Settings' summary, worked out after a burst of changes rather than on every draw. */
+  private recount(): void {
+    if (this.closed) return;
+    if (this.recountAt) clearTimeout(this.recountAt);
+    this.recountAt = setTimeout(() => {
+      void (async () => {
+        // The window's published copy of the files here (`presentSoon`), not another copy per recount.
+        const present = this.current.present;
+        const own = await this.plan.scope(this.o.actorId);
+        const kept = await this.scope();
+        const chosen = this.current.keptUnits;
+        const [keptOffline, offlineSummary] = await Promise.all([
+          this.plan.byUnit([...kept], present, this.o.actorId, chosen),
+          this.plan.summary(present, this.o.actorId, chosen)
+        ]);
+        this.set({ keptOffline, offlineSummary, scope: own });
+      })().catch(() => { /* counted again after the next change */ });
+    }, OFFLINE_RECOUNT_MS);
   }
 
   /**
@@ -423,8 +564,8 @@ export class LanguageSession {
   private reclaimSoon(): void {
     if (this.closed || this.reclaimTimer) return;
     const wait = this.lastReclaim + FILE_NEWS_MS - Date.now();
-    if (wait <= 0) { this.reclaim(); return; }
-    this.reclaimTimer = setTimeout(() => { this.reclaimTimer = null; if (!this.closed) this.reclaim(); }, wait);
+    if (wait <= 0) { void this.reclaim(); return; }
+    this.reclaimTimer = setTimeout(() => { this.reclaimTimer = null; if (!this.closed) void this.reclaim(); }, wait);
   }
 
   /** Tell screens which files are here, once per window. */

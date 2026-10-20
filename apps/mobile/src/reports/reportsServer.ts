@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { accessToken } from '../server/auth';
 
 /**
- * Where the dashboard's server is (decision 44). The web build is served by
+ * Where the app's Worker is (decision 44). The web build is served by
  * it, so there it is the page's own origin unless a setting says otherwise;
  * a phone build without the setting shows only what it folds itself.
  */

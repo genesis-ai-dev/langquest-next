@@ -209,7 +209,7 @@ the rest.
   file names) never download it again.
 - **Where it runs.** The dashboard runs a transfer on the computer it is
   open on; `npm run v2 -- sync` does one pass from the command line; and
-  the job container behind the dashboard Worker runs a pass every 15
+  the job container behind the app's Worker runs a pass every 15
   minutes and a whole read at 03:15 UTC against production (decisions.md
   94, 141; `docs/server-jobs.md`), while the Worker's var
   `V2_IMPORT_ENABLED` is "true" (Caleb's go-ahead, given 2026-10-14) and
@@ -291,7 +291,7 @@ In order; each step is safe to stop after.
    v2's production database, a login that may read each person's id,
    username and email and nothing else, and keeps its address encrypted in
    `.env.production`; `npm run secrets -- production` puts it on the
-   dashboard Worker. The scheduled sync needs it to name people. The
+   app's Worker. The scheduled sync needs it to name people. The
    dashboard shows each project's people with their usernames and emails
    through it, or else through the Supabase CLI you are logged in with
    (read only, on your machine); with neither, people show by id until
@@ -299,7 +299,7 @@ In order; each step is safe to stop after.
 3. **Keys and the switch:** `npm run env:update -- production
    V2_SUPABASE_ANON_KEY` (v2's publishable key), then
    `npm run secrets -- production`, which puts it in the Edge Function and
-   on the dashboard Worker. The scheduled sync runs while the Worker's var
+   on the app's Worker. The scheduled sync runs while the Worker's var
    `V2_IMPORT_ENABLED` in `apps/web/wrangler.jsonc` is "true" (decision
    141); until 2026-10-19 the switch and keys were GitHub's, set by
    `scripts/v2-go-live.sh`, now gone.

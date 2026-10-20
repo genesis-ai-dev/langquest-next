@@ -64,7 +64,7 @@ export function EarlierSections(props: { ctx: Ctx; unitId: string; languageId: s
   const earlier = found.over.get(props.unitId) ?? [];
   const [open, setOpen] = useState(false);
   if (!state || earlier.length === 0) return null;
-  const versions = (u: string) => Object.values(state.takes).filter((take) => take.unitId === u && !take.archived).length;
+  const versions = (u: string) => ctx.language.lines.get(u).takes;
   return (
     <View style={{ gap: space.sm }}>
       <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' }}>

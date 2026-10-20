@@ -7,7 +7,7 @@ import { formatPercent } from '../i18n/format';
 import type { Tone } from './format';
 
 /**
- * Words and tones for the report's bands, as the web dashboard had them
+ * Words and tones for the report's bands, as the old web dashboard had them
  * (decision 41), in the language showing. Core's report data is English
  * (`SCOPE_LABEL`, `milestoneText`, alert texts, stage names); the app says
  * them from their ids here instead.

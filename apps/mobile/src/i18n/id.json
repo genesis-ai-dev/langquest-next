@@ -5104,7 +5104,7 @@
       "couldNotRead": "Laporan tidak dapat dibaca.",
       "signIn": "Sesi Anda sudah berakhir. Masuk lagi.",
       "notMember": "Anda bukan anggota organisasi ini.",
-      "busy": "Dasbor tidak dapat membaca organisasi ini barusan. Coba lagi.",
+      "busy": "Server tidak dapat membaca organisasi ini barusan. Coba lagi.",
       "serverAnswered": "Server menjawab {{status}}."
     },
     "countries": {

@@ -1,7 +1,7 @@
 import { emptyLanguageState, type LanguageState, type OrgState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
 import type { SourceOption } from '../src/sources/model';
 import {
-  audioFormatOf, bbKey, bookHashesFor, libAudioKey, offlineOptions, offlineScope, sourceHashes, wantedChapters
+  audioFormatOf, bbKey, bookHashesFor, libAudioKey, offlineOptions, sourceHashes, wantedChapters
 } from '../src/sources/offlineModel';
 
 /**
@@ -39,14 +39,6 @@ function org(items: Record<string, string>, recommended: string[] = []): Pick<Or
     recommendations: Object.fromEntries(recommended.map((id) => [id, reg(true)])) as OrgState['recommendations']
   };
 }
-
-describe('the scope', () => {
-  it('is the passages the person has worked on plus the ones they keep offline', () => {
-    const s: LanguageState = { ...state, recordings: { r1: { actorId: 'me', unitId: 'item/GEN.1' }, r2: { actorId: 'you', unitId: 'item/GEN.9' } } as never };
-    expect([...offlineScope(s, 'me', ['item/EXO.2'])].sort()).toEqual(['item/EXO.2', 'item/GEN.1']);
-    expect([...offlineScope(state, 'me', [])]).toEqual([]);
-  });
-});
 
 describe('which sources are offered for keeping', () => {
   const get = (docs: Record<string, SourceDoc>) => (h: string) => docs[h] ?? null;

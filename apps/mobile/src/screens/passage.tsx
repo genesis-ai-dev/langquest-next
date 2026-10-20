@@ -250,9 +250,10 @@ export function PassageRecord(ctx: Ctx) {
   const asker = isAuthor;
   // Where each of the flow's kinds usually goes; only its author sends a version on (ADR-029).
   const orgState = ctx.org.state;
+  const lines = ctx.language.lines;
   const targets = useMemo(
-    () => (vState && vp && vLanguageId !== undefined ? usualTargets(vState, orgState, { p: vp, languageId: vLanguageId, me, asker }) : {}),
-    [vState, vLanguageId, vp, orgState, me, asker]
+    () => (vState && vp && vLanguageId !== undefined ? usualTargets(vState, orgState, { p: vp, languageId: vLanguageId, me, asker, lines }) : {}),
+    [vState, vLanguageId, vp, orgState, me, asker, lines]
   );
   if (!v) return <Missing ctx={ctx} id="passage_record" />;
 
@@ -1228,8 +1229,9 @@ export function AskSomeone(ctx: Ctx) {
   const vState = v?.state;
   const vLanguageId = v?.languageId;
   const orgState = ctx.org.state;
-  const candidates = useMemo(() => (vState && vLanguageId !== undefined ? askCandidates(vState, orgState, { languageId: vLanguageId, what, ...(kindId ? { kindId } : {}), me }) : []),
-    [vState, vLanguageId, orgState, what, kindId, me]);
+  const lines = ctx.language.lines;
+  const candidates = useMemo(() => (vState && vLanguageId !== undefined ? askCandidates(vState, orgState, { languageId: vLanguageId, what, ...(kindId ? { kindId } : {}), me, lines }) : []),
+    [vState, vLanguageId, orgState, what, kindId, me, lines]);
   if (!v) return <Missing ctx={ctx} id="ask_someone" />;
   if (what === 'review' && !kindId) {
     return <Missing ctx={ctx} id="ask_someone" crumbsOf={v} text={t('passage.ask.fromItsStep')} />;
@@ -1237,7 +1239,7 @@ export function AskSomeone(ctx: Ctx) {
 
   const kind = kindId ? v.kind(kindId) : undefined;
   const picks: AskPicks = { mode, who, guestName, contact };
-  const model = askModel({ v, org: ctx.org.state, me, name: ctx.name, what, kindId, candidates, picks });
+  const model = askModel({ v, org: ctx.org.state, me, name: ctx.name, what, kindId, candidates, picks, lines });
   // The check's team (decision 91): everyone on it gets the request, and it is the first choice.
   const { isRecord, check, title, usual, others, team, teamPeople, chosen, asked, outside, ready } = model;
 

@@ -1,6 +1,6 @@
 # Durable Object memory canary (proposed, not running)
 
-Runs: after each production deploy of the dashboard Worker
+Runs: after each production deploy of the app's Worker
 (`langquest-next-dashboard`), found the way `post-deploy-smoke.md` finds Live
 issues: every 15 minutes, for a deployment it has not checked yet.
 Tools: `wrangler` (deployments, tail), `curl`, `npm run diag -- --hosted`

@@ -1,6 +1,6 @@
 // What the lost-files notice says (sync/lostFiles.tsx).
 import type { LostFile } from '@langquest-next/sync';
-import { lostFilesView, unitTitle, type LanguageState } from '@langquest-next/core';
+import { lostFilesView, unitTitle, type LanguageState, type LostFilesView } from '@langquest-next/core';
 
 /** Passages named in the alert; the rest are counted. */
 export const NAMED = 4;
@@ -16,9 +16,8 @@ export interface LostFilesWords {
   morePassages: number;
 }
 
-/** What the alert says, from the open language and the files lost. */
-export function lostFilesWords(state: LanguageState, lost: readonly LostFile[]): LostFilesWords {
-  const view = lostFilesView(state, lost.map((l) => l.hash));
+/** What the alert says, from the open language and the files lost. `view` comes from the phone's table for a language kept on disk (decisions.md 143). */
+export function lostFilesWords(state: LanguageState, lost: readonly LostFile[], view: LostFilesView = lostFilesView(state, lost.map((l) => l.hash))): LostFilesWords {
   return {
     total: lost.length,
     unsent: view.unsent,

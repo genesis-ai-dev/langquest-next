@@ -35,7 +35,7 @@ import type { LanguageHandle } from '../sync/useLanguage';
 import { isRecording } from '../recording/recorderState';
 import { BibleError } from './bibleBrain';
 import { offlineAllowed, sourceEvictions, type SourceOption } from './model';
-import { audioFormatOf, bbKey, bookHashesFor, libAudioKey, offlineOptions, offlineScope, sourceHashes, wantedChapters, type AudioFormat, type Want } from './offlineModel';
+import { audioFormatOf, bbKey, bookHashesFor, libAudioKey, offlineOptions, sourceHashes, wantedChapters, type AudioFormat, type Want } from './offlineModel';
 import { bibleBrain, type MyBible } from './store';
 
 // The key and format helpers are offlineModel.ts's; other files still import them from here.
@@ -201,7 +201,9 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
   if (!state || !language.languageId || language.online === false || isRecording()) return;
   const store = language.blobs.store ?? (await getBlobStore());
   const idx = await loadIndex();
-  const scope = offlineScope(state, session.actorId, language.blobs.keptUnits);
+  // The default scope comes worked out from the phone's table too (decisions.md 143).
+  const scope = new Set(language.blobs.scope);
+  for (const u of language.blobs.keptUnits) scope.add(u);
 
   const languageId = language.languageId;
   const mineRaw = await AsyncStorage.getItem(`my-bibles:${session.actorId}:${language.orgId}:${languageId}`).catch(() => null);

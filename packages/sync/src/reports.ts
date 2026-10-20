@@ -4,7 +4,7 @@ import { SyncClient } from './syncClient';
 import { OfflineError, type Transport } from './types';
 
 /**
- * The dashboard's server from a device (decision 44): the reports of the
+ * The app's Worker from a device (decision 44): the reports of the
  * languages this person may see in one organization. Only HTTP; the caller
  * supplies where the server is and the person's access token.
  */

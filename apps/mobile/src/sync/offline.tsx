@@ -21,22 +21,30 @@ import { offlineLine, type KeptOffline, type OfflineOverview, withStudy } from '
 import { useStudyRevision } from './useOfflineSummary';
 import { useSyncStatus } from './useSyncStatus';
 
-/** Offline counts for these passages, recomputed when files arrive, leave, or a passage is kept. */
+/**
+ * Offline counts for these passages, recomputed when files arrive, leave,
+ * or a passage is kept. A kept passage's come from the counts worked out
+ * from the phone's table (useLanguage); another is on screen, so its
+ * recordings are in memory (decisions.md 143).
+ */
 function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
   const state = ctx.language.state;
   const { present } = useSyncStatus();
-  const { keptUnits } = ctx.language.blobs;
+  const { keptUnits, keptOffline } = ctx.language.blobs;
   const me = ctx.session.actorId;
   const rev = useStudyRevision();
   const key = unitIds.join(',');
   return useMemo(() => {
     const out = new Map<string, KeptOffline>();
     if (!state) return out;
-    for (const [id, u] of offlineByUnit(state, unitIds, present, me, keptUnits)) out.set(id, withStudy(u, id));
+    const counted = unitIds.filter((id) => keptOffline?.has(id));
+    for (const id of counted) out.set(id, withStudy(keptOffline!.get(id)!, id));
+    const rest = unitIds.filter((id) => !out.has(id));
+    if (rest.length) for (const [id, u] of offlineByUnit(state, rest, present, me, keptUnits)) out.set(id, withStudy(u, id));
     return out;
   },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- unitIds is read through its key, so a new array with the same passages does not recompute
-    [state, present, keptUnits, me, key, rev]);
+    [state, present, keptUnits, keptOffline, me, key, rev]);
 }
 
 /** Why a passage is kept on this device. */

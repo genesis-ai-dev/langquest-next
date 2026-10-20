@@ -4,7 +4,7 @@
 // and what the person picked, this says which chapters of which sources
 // fall inside the offline scope. Fetching, hashing and the index are
 // offline.ts; nothing here touches storage, files or the network.
-import { defaultOfflineScope, isHash, libraryItemView, recommendedFor, type LanguageState, type OrgState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
+import { isHash, libraryItemView, recommendedFor, type LanguageState, type OrgState, type SourceBookDoc, type SourceDoc } from '@langquest-next/core';
 import type { BlobFile } from '../sync/blobs';
 import { chaptersOf, filesetsFor, unitCoordinates, type SourceOption } from './model';
 
@@ -37,13 +37,6 @@ export interface Want {
   fileset?: string;
   book: string;
   chapter: number;
-}
-
-/** The passages to keep audio for: the default scope plus the units the person keeps offline. */
-export function offlineScope(state: LanguageState, actorId: string, keptUnits: Iterable<string>): Set<string> {
-  const scope = defaultOfflineScope(state, actorId);
-  for (const u of keptUnits) scope.add(u);
-  return scope;
 }
 
 /** The current document hash of every recommended library item and every pick of the person's. */

@@ -38,7 +38,7 @@ not the app.
 | --- | --- | --- |
 | The app's public config (`EXPO_PUBLIC_*`), plain | `apps/mobile/.env.<env>` | `npm run env:eas -- push <env>` (EAS builds and updates); the web build (`npm run export:web`) reads it too |
 | Worker public config, plain | `vars` in each `wrangler.jsonc` (top level is production, `env.preview` is preview) | every deploy |
-| Hosted Supabase project refs, plain | `[remotes.<env>] project_id` in `supabase/config.toml` | read by scripts; the dashboard's `SUPABASE_URL` var must match (a test checks) |
+| Hosted Supabase project refs, plain | `[remotes.<env>] project_id` in `supabase/config.toml` | read by scripts; the app Worker's `SUPABASE_URL` var must match (a test checks) |
 | Secrets, encrypted | `.env.preview`, `.env.production` at the repository root | `npm run secrets -- <env>` |
 
 The secrets file holds `INVITE_RELAY_SECRET` and `PROJECTION_WORKER_SECRET`,
@@ -60,10 +60,10 @@ declares:
 
 | Destination | Gets |
 | --- | --- |
-| dashboard Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too (`docs/server-jobs.md`) |
+| app's Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too (`docs/server-jobs.md`) |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PROJECTION_WORKER_SECRET`, `INVITE_RELAY_URL` (public, derived from the Worker's name) |
-| Vault | `langquest_project_url`, `langquest_projection_worker_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the dashboard Worker's route) |
+| Vault | `langquest_project_url`, `langquest_projection_worker_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the app's Worker's route) |
 | pg_cron | the push-delivery job: its migration (`20261019110000_projection_pass_in_container.sql`) schedules it only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
 
 Worker secrets stay on the Worker across deploys, and wrangler refuses a
@@ -78,7 +78,7 @@ Two private keys, `DOTENV_PRIVATE_KEY_PREVIEW` and
 `DOTENV_PRIVATE_KEY_PRODUCTION`, each in its own password-manager entry and in
 the `.env.keys` of whoever changes or applies that environment's secrets.
 Nothing else holds a key: not GitHub, Cloudflare, Supabase or EAS. Running the
-app or the dashboard locally needs none. The Bible routes locally need the
+app or its Worker locally needs none. The Bible routes locally need the
 Bible Brain key in your shell when `npm run web:dev` starts
 (`scripts/web-dev-vars.ts` copies it into the ignored `apps/web/.dev.vars`
 without printing it); without it they answer 503. `npm run db:start` and

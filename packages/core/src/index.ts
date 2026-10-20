@@ -16,6 +16,8 @@ export * from './commands';
 export * from './sourceBibles';
 export * from './record';
 export * from './passage';
+export * from './passageLines';
+export * from './passageParts';
 export * from './coverage';
 export * from './reports';
 export * from './portfolio';

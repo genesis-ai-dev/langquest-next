@@ -14,8 +14,8 @@ import { countEvent } from './changes';
  */
 export const REDUCER_VERSION = 19;
 
-// The revision and the change log live in changes.ts; re-exported for the callers that read it here.
-export { stateRevision } from './changes';
+// The revision and the change log live in changes.ts; re-exported for the callers that read them here.
+export { markChanged, stateRevision } from './changes';
 
 /**
  * Apply one language-stream event. Must be deterministic, order-independent,
@@ -432,6 +432,25 @@ function earliestUndo(table: Record<string, Undo>, key: string, event: EventEnve
   const prior = table[key];
   if (prior && (prior.hlc < event.hlc || (prior.hlc === event.hlc && prior.by <= event.actorId))) return;
   table[key] = { by: event.actorId, hlc: event.hlc };
+}
+
+type Recording = LanguageState['recordings'][string];
+type Verdict = LanguageState['blobs'][string];
+
+/**
+ * Of two copies of one recording, the one `v1.RecordingAdded` keeps: the
+ * earliest, ties as `earlier` breaks them. A phone that keeps recordings on
+ * disk (decisions.md 143) combines a stored copy with one just folded by
+ * this, so the result is the fold's whichever arrived first.
+ */
+export function keptRecording(a: Recording, b: Recording): Recording {
+  const content = ({ actorId: _a, hlc: _h, ...rest }: Recording) => rest;
+  return earlier({ hlc: a.hlc, actorId: a.actorId } as EventEnvelope, content(a), b, content(b)) ? a : b;
+}
+
+/** Of two server verdicts on one file, the one the fold keeps: the latest, ties by event id (`blobVerdict`). */
+export function keptVerdict(a: Verdict, b: Verdict): Verdict {
+  return a.hlc > b.hlc || (a.hlc === b.hlc && a.eventId > b.eventId) ? a : b;
 }
 
 /** Latest server verdict on a blob wins; ties by event id. */

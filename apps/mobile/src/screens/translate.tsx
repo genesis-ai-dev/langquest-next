@@ -603,7 +603,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   const can = recordCan(ctx.session);
   const orgState = ctx.org.state;
   const nextUp = useMemo(() => (can.ask ? nextAfterDone(p, { publishing: true }) : undefined), [p, can.ask]);
-  const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true }) : {}), [nextUp, state, orgState, p, languageId, me]);
+  const lines = ctx.language.lines;
+  const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true, lines }) : {}), [nextUp, state, orgState, p, languageId, me, lines]);
   async function publish(note: string, noteBlobHash: string | null, ask: DoneAsk): Promise<boolean> {
     const commandId = Crypto.randomUUID();
     let specs: EventSpec[];

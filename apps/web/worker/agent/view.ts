@@ -7,7 +7,7 @@ import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from '.
 
 /**
  * What a token may see and write, read from the same folded state the
- * dashboard reports come from (decision 44). Pure apart from hashing and
+ * Reports come from (decision 44). Pure apart from hashing and
  * the link signer it is handed, so tests drive it with an in-memory log.
  */
 

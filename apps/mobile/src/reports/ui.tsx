@@ -13,7 +13,7 @@ import { RECENCY_TONE, recencyLabel, scopeLabel, scopeShort } from './labels';
 import { type Tone, TONE_FILL, num, pctText, signed, dateTime, ago, partOf } from './format';
 
 /**
- * The Reports section's primitives (ported from the web dashboard, decision
+ * The Reports section's primitives (ported from the old web dashboard, decision
  * 44): status colours never carry meaning alone, so every coloured mark sits
  * beside its words and number.
  */
@@ -25,7 +25,7 @@ export function ToneBadge(props: { tone: Tone; label: string }) {
   return <Badge tone={BADGE_TONE[props.tone]} label={props.label} />;
 }
 
-/** A card with a heading: what the web dashboard calls a card. */
+/** A card with a heading: what the old web dashboard called a card. */
 export function Panel(props: { title?: string; eyebrow?: string; sub?: string; right?: ReactNode; children?: ReactNode }) {
   return (
     <Card style={{ gap: space.md }}>
