@@ -3435,7 +3435,7 @@ Only LangQuest's own AI-written sets were out, because no translation body
 recognizes them; unfoldingWord's Translation Questions belong in the
 unfoldingWord flows (Caleb, 2026-10-19). Questions are also reference
 material now: a check asks the question sets linked to it that sit on the
-passage under review, beside the ones its team wrote (decision 149).
+passage under review, beside the ones its team wrote (decision 150).
 
 ## 92. A phone writes down the files it keeps, and a file it loses behind the app's back is an alarm
 
@@ -6077,7 +6077,75 @@ Reverse if: people need to send feedback before they can sign in (a report
 that sign-in itself fails would wait); that needs a way in without an
 account, which 112 turned down for diagnostics.
 
-## 146. unfoldingWord's published material comes into LangQuest's library from Door43's releases, unshared until unfoldingWord gives its written OK
+## 146. New language shows its six steps first, asks for reference material before the review flow, sets its checks up on their own pages, and its invite can put people on checks
+
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-19): New language felt like an endless set of steps
+with no idea of what comes next; its custom review setup still had a switch
+joining a check to the one above, unlike a ready language's checks, where
+each check picks any others it runs alongside; the review flow came before
+the reference material, so it could only be picked, never said what each
+check sees; and the last page, "What will they do?", read as choosing one
+kind of person. He asked for the material before the review flow, for each
+check to choose what of it (and of earlier checks' output) its people see,
+for people to be put on checks while inviting (skippable), and for a
+slideshow that reveals one thing at a time. Built:
+- An overview first: the six steps (Language, Content, Split into pieces,
+  Reference material, Review flow, People) down one path, each with a small
+  picture, coming in one after another (none of it moves with reduce
+  motion), then Start. Every page after it carries the six as a bar, done
+  ones ticked and its own lit (`org/NewLanguageStages.tsx`,
+  `org/stagesModel.ts`). Help mode says what each step is; the pages carry
+  no sentences explaining it.
+- Reference material comes before the review flow: the languages it is in
+  (decision 130), then what the team will have in them, a tick per Bible,
+  set of study guides and note, the old suggestion ticked
+  (`org/MaterialPicker.tsx`, `useNewLanguageOffers` in `screens/org.tsx`).
+- The review flow: a ready-made flow to start from (only flows in the
+  team's languages or saying none, decision 84 as amended 2026-10-20, now
+  that those languages are asked first), or none ("I'll choose the
+  checks"), then the language's checks on the pages a ready language
+  sets them up on (the list with Add a check, each check's page with its
+  people, questions, what is on their screen, helps, must pass, same time as
+  any others, and checked at). The language does not exist yet, so those
+  pages work on a draft: the events it will start with, folded as its stream
+  would fold them (`checks/languageDraftModel.ts`, held by `checks/draft.ts`), given
+  to the same screen code through a ctx whose language is the draft
+  (`checks/draftCtx.ts`, `useDraftAware`; `draft: '1'` on `check_editor`).
+  Its people are the organization's own until people are invited. Adding the
+  language sends the draft's events in its stream under ids of that language
+  (`draftSpecsFor`), each language of a cluster its own copy, in place of
+  the flow copied at the end (decision 91). Choosing another flow after
+  changing the checks asks first. The draft's old Checks screen
+  (`DraftChecks`, its "Same time as" switch) is gone.
+- A step that makes something (back translation) says the language it is
+  made in, on its check's page and on a library flow's step sheet, from the
+  team's reference languages or the language list (`checks/IntoSheet.tsx`):
+  `produces.into`, as `v1.ReviewKindDefined` and a flow's kinds already
+  carry it; no new event. Caleb asked for this the same day.
+- Inviting, here and from Members: "Time to invite people" (New language) or
+  "Who are you inviting?" over a card per role, each with what it brings
+  ("Translators"), what it lets them do one tap open (its role's switches
+  that are on, and where), and its own Invite button; no radio buttons. A
+  role that does checks can then be put on some of the open language's
+  checks (skippable), and the code carries them: a new invite column
+  `checks` and `issue_invite_v4` (migration 20261019220000), which needs
+  Manage teams in that language and a role with Review; joining appends
+  `v1.ReviewTeamMemberSet` for each check to the language's stream as the
+  server (`redeem_invite_for`), while the inviter may still manage teams
+  there. The inviter's phone names each check's team first (core
+  `checkTeamSpecs`). Email invites and a code for one person by name do not
+  carry checks yet.
+Not built: per-Bible choices on a check's screen (a check turns the team's
+Bibles on or off together, and adds a particular one as its own help);
+Get ready's invite question keeps its role chips (it makes a code as it
+opens, which is what counts the language as ready).
+Reverse if: admins skip the overview so often it is only in the way, or
+teams need checks set up before reference material is known; then the order
+can change without touching the draft, which works for any step order.
+
+## 147. unfoldingWord's published material comes into LangQuest's library from Door43's releases, unshared until unfoldingWord gives its written OK
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 
@@ -6096,9 +6164,9 @@ Bibles in every language, unfoldingWord's Translation for Translators,
 Unlocked English Bible and French ULB, and the Hebrew Bible and Greek New
 Testament they are aligned to; Translation Notes, Questions, Word Links,
 Words and Academy, and the Hebrew, Greek and Aramaic grammars; Open Bible
-Stories (decision 148) with its notes, questions, word links, study notes
+Stories (decision 149) with its notes, questions, word links, study notes
 and questions and the Theological Formation guide; and a review flow per
-Checking Manual (decision 149). Teams' own translations, copies and mirrors
+Checking Manual (decision 150). Teams' own translations, copies and mirrors
 (ru_gt's English ULT, Door43-Catalog's copies), never-released resources,
 test repositories and `und-x-` codes are left out, each with its reason in
 the run's report. Two publishers' sets for one language both come in,
@@ -6116,7 +6184,7 @@ Caleb's own go-ahead.
 Reverse if: unfoldingWord asks for its material to stay out of copies, or
 publishes it in a form a phone can read from them directly.
 
-## 147. Notes, questions and key-word links are one format placed by coordinates, book by book, and a word-aligned Bible names each book's alignment
+## 148. Notes, questions and key-word links are one format placed by coordinates, book by book, and a word-aligned Bible names each book's alignment
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 
@@ -6135,7 +6203,7 @@ per book joins each verse's words to the original words they stand for
 the source, and counted as a dependency by the server so sharing and
 adopting carry it (`_library_store`, migration 20261020010000). A
 `contents@1` lists articles (key words, a manual, a grammar, as `material@1`
-kind document; stories, decision 148), each fetched when someone opens it.
+kind document; stories, decision 149), each fetched when someone opens it.
 Quotes were matched to the Hebrew and Greek when converted (96% of 1.28
 million), so the app underlines the words of an aligned Bible without
 reading Greek (`alignedSpans`). A passage gets its helps the way it gets
@@ -6156,7 +6224,7 @@ Reverse if: teams need helps for many passages at once (then a set goes
 offline per book), or rows need editing one by one (then each row becomes
 a register, as material fields are, decision 26).
 
-## 148. Open Bible Stories is an outline content template, and each language's stories are reading material placed on its stories
+## 149. Open Bible Stories is an outline content template, and each language's stories are reading material placed on its stories
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 
@@ -6167,13 +6235,13 @@ languages' stories is a `contents@1` of kind stories listing one `study@2`
 per story, placed on the template's node (`links`), each frame a step with
 its text and its picture; a story passage finds its story as a passage
 finds its guide (`bestGuide`). The stories' notes, questions and key-word
-links use decision 147's format with `book` `OBS`, placed on the template
+links use decision 148's format with `book` `OBS`, placed on the template
 (`template`), story and frame for chapter and verse, and frame 0 the
 story's title.
 Reverse if: teams want each frame as a part of its own (then the
 template's stories get children, and the stories' helps follow the frames).
 
-## 149. A check asks the question sets linked to it that sit on the passage, with their suggested answers, and a ready-made flow brings its checks' helps and what they show
+## 150. A check asks the question sets linked to it that sit on the passage, with their suggested answers, and a ready-made flow brings its checks' helps and what they show
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 

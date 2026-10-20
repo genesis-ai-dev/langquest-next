@@ -60,7 +60,7 @@ export async function issueInvite(
   orgId: string,
   roleId: string,
   scope: Scope = { level: 'org' },
-  options: { label?: string; maxUses?: number; ttlDays?: number } = {}
+  options: { label?: string; maxUses?: number; ttlDays?: number; checks?: readonly string[] } = {}
 ): Promise<NewInvite> {
   const inviteId = Crypto.randomUUID();
   const token = newToken();
@@ -75,7 +75,8 @@ export async function issueInvite(
     scope,
     expiresAt,
     label: options.label?.trim() || null,
-    maxUses: options.maxUses ?? 1
+    maxUses: options.maxUses ?? 1,
+    ...(options.checks?.length ? { checks: options.checks } : {})
   });
   if (error) throw new RpcError(error);
   return { inviteId, token, expiresAt };

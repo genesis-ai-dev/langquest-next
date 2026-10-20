@@ -45,9 +45,9 @@ export function knownKinds(languageKinds: KindDef[], docKinds: KindDef[], seedKi
   return [...out.values()];
 }
 
-/** The known kinds and those made in this session. */
+/** The known kinds and those made or changed in this session (a back translation's language, decisions.md 146): a changed one in its place. */
 export function withAddedKinds(known: KindDef[], added: KindDef[]): KindDef[] {
-  return [...known, ...added.filter((k) => !known.some((x) => x.id === k.id))];
+  return [...known.map((k) => added.find((a) => a.id === k.id) ?? k), ...added.filter((k) => !known.some((x) => x.id === k.id))];
 }
 
 /** What Save may do: `dirty` when the form differs from where it started, `canSave` when Save is enabled. */

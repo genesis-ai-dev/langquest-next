@@ -13,7 +13,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { indexesFor } from '../sync/indexes';
-import { Banner, EmptyState, Field, Group, Header, Ico, KindIcon, PrimaryBtn, Row, Screen, Sheet, Toggle } from '../ui/kit';
+import { Banner, EmptyState, Field, Group, Header, Ico, KindIcon, PrimaryBtn, Row, Screen, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { failureMessage } from '../diagnostics/report';
 import { C, space, TINT } from '../ui/theme';
@@ -23,9 +23,8 @@ import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { useFlowHelps } from './useFlowHelps';
 import { FlowLanguageLink } from '../helps/lazyHelps';
 import { teamLanguages } from '../reference/languages';
-import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, type CheckRow } from './model';
-import { setChecksDraft } from './draft';
-import { useChecksDraft } from './useChecksDraft';
+import { addRow, moveRow, rowNumbers, rowsOf, setCheckpoint, type CheckRow } from './model';
+import { useDraftAware } from './useDraftAware';
 import { useChecksUndo } from './useChecksUndo';
 import { UndoRedo } from '../ui/undoRedo';
 import { PeopleLine } from './parts';
@@ -248,13 +247,33 @@ function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; langu
 }
 
 export function LanguageChecks({ ctx }: { ctx: Ctx }) {
-  if (ctx.params['draft'] === '1') return <DraftChecks ctx={ctx} />;
-  return <OwnChecks ctx={ctx} />;
+  // New language's checks before it exists are its draft's (decisions.md 146).
+  const c = useDraftAware(ctx);
+  return <OwnChecks ctx={c} />;
 }
 
 function OwnChecks({ ctx }: { ctx: Ctx }) {
   // A ready-made flow's helps are followed and linked to its checks as it is copied in.
   const flowHelps = useFlowHelps(ctx);
+  const state = ctx.language.state;
+  const language = languageName(ctx.org.state, ctx.language.languageId);
+  const canManage = ctx.session.can('manage_flows');
+  const undo = useChecksUndo(ctx);
+  const draft = ctx.params['draft'] === '1';
+  return (
+    <Screen header={<Header title={t('checks.title')} sub={state ? language : undefined} onBack={ctx.back} action={canManage && state ? <UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} /> : undefined} />}
+      {...(draft && state ? { footer: <PrimaryBtn label={t('common.done')} icon="check" help={t('checks.draftDoneHelp')} onPress={ctx.back} /> } : {})}>
+      {state ? <ChecksContent ctx={ctx} undo={undo} /> : <EmptyState icon="flow" title={t('common.loading')} />}
+    </Screen>
+  );
+}
+
+/**
+ * A language's checks, as cards in order, with Add a check and a ready-made
+ * flow to start from (`startFrom`): on its Checks screen, and on New
+ * language's page of them, where the draft is the language (decisions.md 146).
+ */
+export function ChecksContent({ ctx, undo, startFrom = true }: { ctx: Ctx; undo: ReturnType<typeof useChecksUndo>; startFrom?: boolean }) {
   const state = ctx.language.state;
   const languageId = ctx.language.languageId;
   const language = languageName(ctx.org.state, languageId);
@@ -264,14 +283,11 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
   const [flows, setFlows] = useState(false);
   const canManage = ctx.session.can('manage_flows');
   const startFlow = useHelpSpot(t('checks.flows.start'), t('checks.flows.startHelp'), canManage ? () => setFlows(true) : undefined);
-  const undo = useChecksUndo(ctx);
-  if (!state) {
-    return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
-  }
+  if (!state) return null;
   // A save is a step on the header's Undo (useChecksUndo hears it).
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);
   return (
-    <Screen header={<Header title={t('checks.title')} sub={language} onBack={ctx.back} action={canManage ? <UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} /> : undefined} />}>
+    <>
       {!canManage ? <Banner icon="lock" title={t('common.viewOnly')} body={t('config.flowEditor.viewOnlyBody')} /> : null}
       <CheckList ctx={ctx} rows={rows} kinds={known} readOnly={!canManage}
         peopleOf={(k) => checkPeople(state, k)}
@@ -282,7 +298,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
         onChange={save} onOpen={(i) => ctx.go('check_editor', { languageId, kindId: rows[i]!.kindId })}
         onOpenRecord={() => ctx.go('check_editor', { languageId, kindId: RECORD_STEP })} />
       {canManage ? <DashedRow icon="plus" label={t('checks.addCheck')} detail={t('checks.addCheckHelp')} centred onPress={() => setAdding(true)} /> : null}
-      {canManage ? (
+      {canManage && startFrom ? (
         <Pressable onPress={startFlow.onPress} accessibilityRole="button" style={({ pressed }) => [styles.quiet, pressed && { opacity: 0.7 }]}>
           <Ico name="flow" size={20} color={C.muted} />
           <Text style={styles.quietText}>{t('checks.flows.start')}</Text>
@@ -310,50 +326,6 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
           void ctx.act(specs, said).then(() => undo.did(previous, said), () => {});
         });
       }} />
-    </Screen>
-  );
-}
-
-/** New language's own checks, before the language exists: the same list, kept in the draft until Continue. */
-function DraftChecks({ ctx }: { ctx: Ctx }) {
-  const draft = useChecksDraft();
-  const [adding, setAdding] = useState(false);
-  // A check of the draft, opened: what one check's page offers before the language exists (no people,
-  // questions or helps yet, since those are the language's own records).
-  const [open, setOpen] = useState<number | null>(null);
-  const title = ctx.params['name'] ?? '';
-  if (!draft) return <Screen header={<Header title={t('checks.title')} onBack={ctx.back} />}><EmptyState icon="flow" title={t('common.loading')} /></Screen>;
-  const set = (rows: CheckRow[]) => setChecksDraft({ ...draft, rows });
-  const row = open !== null ? draft.rows[open] ?? null : null;
-  const name = row ? checkName(row.kindId, draft.kinds) : '';
-  const previous = open !== null && open > 0 ? checkName(draft.rows[open - 1]!.kindId, draft.kinds) : '';
-  return (
-    <Screen header={<Header title={t('checks.title')} sub={title} onBack={ctx.back} />}
-      footer={<PrimaryBtn label={t('common.done')} icon="check" help={t('checks.draftDoneHelp')} onPress={ctx.back} />}>
-      <CheckList ctx={ctx} rows={draft.rows} kinds={draft.kinds} readOnly={false} onChange={set} onOpen={setOpen} openHelp={t('checks.openDraftHelp')} />
-      <DashedRow icon="plus" label={t('checks.addCheck')} detail={t('checks.addCheckHelp')} centred onPress={() => setAdding(true)} />
-      <AddCheckSheet visible={adding} kinds={draft.kinds} taken={draft.rows.map((r) => r.kindId)} onClose={() => setAdding(false)} onPick={(k) => {
-        setAdding(false);
-        setChecksDraft({ kinds: draft.kinds.some((x) => x.id === k.id) ? draft.kinds : [...draft.kinds, k], rows: addRow(draft.rows, k.id) });
-      }} />
-      <Sheet visible={row !== null} title={name} sub={open !== null ? t('checks.checkOf', { n: formatNumber(rowNumbers(draft.rows)[open]!), language: title }) : undefined}
-        onClose={() => setOpen(null)}>
-        {row && open !== null ? (
-          <Group>
-            <Row icon="lock" label={t('checks.mustPass')} role="switch" checked={row.checkpoint}
-              right={<Toggle testID="toggle-must-pass" on={row.checkpoint} label={t('checks.mustPass')} help={row.checkpoint ? t('admin.lock.on') : t('admin.lock.off')}
-                onToggle={() => set(setCheckpoint(draft.rows, open, !row.checkpoint))} />} />
-            {open > 0 ? (
-              <Row icon="swap" label={t('checks.sameTimeAs', { check: previous })} role="switch" checked={row.together}
-                right={<Toggle testID="toggle-same-time" on={row.together} label={t('checks.sameTimeAs', { check: previous })}
-                  help={row.together ? t('checks.sameTimeOnHelp', { check: previous }) : t('checks.sameTimeOffHelp', { check: previous })}
-                  onToggle={() => set(setTogether(draft.rows, open, !row.together))} />} />
-            ) : null}
-            <Row icon="trash" iconColor={TINT.redText} iconBg={TINT.red} label={t('checks.remove')} help={t('checks.removeCheckHelp')} last
-              onPress={() => { set(removeRow(draft.rows, open)); setOpen(null); }} />
-          </Group>
-        ) : null}
-      </Sheet>
-    </Screen>
+    </>
   );
 }

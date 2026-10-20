@@ -343,7 +343,7 @@ do $$ begin
   exception when sqlstate '42501' then null; end;
 end $$;
 
--- 7c. Translation helps (decisions.md 147): notes, questions and word links
+-- 7c. Translation helps (decisions.md 148): notes, questions and word links
 --     in book parts, an aligned Bible, article contents. A source's
 --     alignments are its dependencies here, though its deps leave them out.
 select set_config('request.jwt.claim.sub', 'alice', false);
