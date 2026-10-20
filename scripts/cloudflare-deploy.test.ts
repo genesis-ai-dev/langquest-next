@@ -32,7 +32,7 @@ describe('cloudflare deploy', () => {
     }
   });
 
-  it('points each dashboard at the project supabase/config.toml names for its environment', () => {
+  it('points the app\'s Worker at the project supabase/config.toml names for its environment', () => {
     const toml = read('supabase/config.toml');
     const config = parseJsonc(read('apps/web/wrangler.jsonc'));
     for (const env of ['production', 'preview']) {

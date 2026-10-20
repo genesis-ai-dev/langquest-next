@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { LOCAL_URL, localKey } from './local-supabase';
 
 /**
- * `npm run web:dev` runs the dashboard's Worker against the local Supabase.
+ * `npm run web:dev` runs the app's Worker against the local Supabase.
  * Wrangler reads its settings for that from `apps/web/.dev.vars` (ignored by
  * git), written here from `supabase status` on every start, so it follows a
  * reset of the local database and never holds a hosted key.

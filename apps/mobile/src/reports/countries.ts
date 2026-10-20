@@ -17,7 +17,7 @@ import { currentLanguage, currentLocale, t, type UiLanguage } from '../i18n';
 /**
  * Countries as ISO 3166-1 alpha-2 codes, named in the language showing from
  * tables that ship with the app: Hermes on a phone has no
- * `Intl.DisplayNames`, which the web dashboard used. The package has no
+ * `Intl.DisplayNames`, which the old web dashboard used. The package has no
  * Nepali or Burmese table; those show English names.
  */
 for (const table of [en, es, pt, fr, ar, sw, ha, am, hi, bn, id, zh, th]) countries.registerLocale(table);

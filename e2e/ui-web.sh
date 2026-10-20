@@ -1,6 +1,6 @@
 #!/bin/bash
 # The UI suite's default server (decisions.md 102): the release export of the
-# local stack, served by the dashboard's Worker with its headers and /api, as
+# local stack, served by the app's Worker with its headers and /api, as
 # production serves it. Same build as web-smoke.sh. Needs the local Supabase.
 # The export bakes in the page's own origin for /api, so any port works.
 set -euo pipefail

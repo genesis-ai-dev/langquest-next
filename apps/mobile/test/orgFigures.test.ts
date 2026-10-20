@@ -1,7 +1,7 @@
 import type { LanguageProgress } from '@langquest-next/core';
 import { languageFigures, oldestAsOf } from '../src/org/orgFigures';
 
-// An overview's figures: this phone's fold for what it has, the dashboard's server for the rest (decisions.md 44, 63).
+// An overview's figures: this phone's fold for what it has, the app's Worker for the rest (decisions.md 44, 63).
 
 const p = (total: number, recorded = 0): LanguageProgress => ({ total, recorded, done: 0, steps: [], waiting: 0, feedback: 0 });
 const asOf = '2026-10-03T12:00:00.000Z';

@@ -5493,7 +5493,7 @@
       "couldNotRead": "Não foi possível ler os relatórios.",
       "signIn": "A sua sessão terminou. Entre de novo.",
       "notMember": "Você não é membro desta organização.",
-      "busy": "O painel não conseguiu ler esta organização agora. Tente de novo.",
+      "busy": "O servidor não conseguiu ler esta organização agora. Tente de novo.",
       "serverAnswered": "O servidor respondeu {{status}}."
     },
     "countries": {
