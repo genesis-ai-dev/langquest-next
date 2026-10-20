@@ -69,7 +69,7 @@ function ensureSecret() {
   if (old) {
     // The running edge runtime still has the old name, which push-delivery also reads, so nothing needs a restart.
     writeFileSync(FUNCTIONS_ENV, text.replace(old[0], `${KEY}=${old[1]}`));
-    return { secret: old[1]!.replace(/^"|"$/g, ''), fresh: false };
+    return { secret: old[1].replace(/^"|"$/g, ''), fresh: false };
   }
   const secret = randomBytes(32).toString('hex');
   writeFileSync(FUNCTIONS_ENV, `${text}${text && !text.endsWith('\n') ? '\n' : ''}${KEY}=${secret}\n`);
