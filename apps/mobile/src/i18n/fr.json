@@ -6452,12 +6452,17 @@
     },
     "notesOn": {
       "addOn": "Ajouter une note sur {{what}}",
-      "addOnHelp": "Ajoute une note sur cet élément, dite ou écrite. Elle s’affiche dessous pour tout le monde.",
+      "addOnHelp": "Ajoute une note sur cet élément, dite ou écrite. Elle accompagne votre révision.",
       "noteOn": "Note sur {{what}}",
       "reply": "Répondre",
       "replyHelp": "Répond à la note de {{name}}. Votre réponse s’affiche en dessous.",
       "replyTitle": "Répondre à {{name}}",
-      "at": "À {{time}}"
+      "withReview": "Avec votre révision",
+      "removeFrom": "Retirer votre note : {{what}}",
+      "goWith_one": "{{count, number}} note accompagne votre révision",
+      "goWith_many": "{{count, number}} notes accompagnent votre révision",
+      "goWith_other": "{{count, number}} notes accompagnent votre révision",
+      "added": "Ajoutée à votre révision."
     }
   },
   "backTranslation": {

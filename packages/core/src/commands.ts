@@ -88,12 +88,13 @@ export interface Commands {
   /** Ask someone (ASK-1..5): a teammate, a guest by link, or a review team (ADR-029). */
   ask(c: Omit<RecordEvents['v1.RequestMade'], 'requestId'> & { commandId: string }): EventSpec[];
   withdrawRequest(c: { commandId: string; requestId: string }): EventSpec[];
-  /** Take back reviews you recorded (decisions.md 111): one Undo can take back a check logged on several passages. */
+  /** Take back reviews you recorded (decisions.md 111): one Undo can take back a check logged on several passages, and the notes sent with them (149). */
   withdrawReviews(c: { commandId: string; reviewIds: string[] }): EventSpec[];
   /** Take back a note you added (decisions.md 111). */
   withdrawNote(c: { commandId: string; noteId: string }): EventSpec[];
   /** `kindId`: the step it is written at (`record` or a check, decisions.md 130). */
-  addNote(c: { commandId: string; unitId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string; kindId?: string }): EventSpec[];
+  /** `reviewId`: the review it is sent with (decisions.md 149). */
+  addNote(c: { commandId: string; unitId: string; anchor: NoteAnchor; text?: string; blobHash?: string; photoHash?: string; kindId?: string; reviewId?: string }): EventSpec[];
   markStudyStep(c: { commandId: string; unitId: string; guideId: string; stepId: string; done: boolean }): EventSpec[];
   defineKind(c: RecordEvents['v1.ReviewKindDefined'] & { commandId: string }): EventSpec[];
   /** Tie key terms to a take (TERM-4): the draft being recorded, or a version as it is published. */
@@ -309,7 +310,13 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
 
     withdrawReviews(c) {
       const next = ids(c.commandId);
-      return c.reviewIds.map((reviewId) => ({ id: next(), type: 'v1.ReviewWithdrawn' as const, payload: { reviewId } }));
+      const taken = new Set(c.reviewIds);
+      // The notes that went with them go too (decisions.md 149).
+      const notes = Object.values(state.notes ?? {}).filter((n) => typeof n.reviewId === 'string' && taken.has(n.reviewId) && !state.withdrawnNotes?.[n.id]);
+      return [
+        ...c.reviewIds.map((reviewId) => ({ id: next(), type: 'v1.ReviewWithdrawn' as const, payload: { reviewId } })),
+        ...notes.map((n) => ({ id: next(), type: 'v1.NoteWithdrawn' as const, payload: { noteId: n.id } }))
+      ];
     },
 
     withdrawNote(c) {
@@ -327,7 +334,7 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
         payload: {
           noteId: `note:${c.commandId}`, unitId: c.unitId, anchor: c.anchor,
           ...(text ? { text } : {}), ...(c.blobHash ? { blobHash: c.blobHash } : {}), ...(c.photoHash ? { photoHash: c.photoHash } : {}),
-          ...(onTake ? { onTakeId: onTake } : {}), ...(c.kindId ? { kindId: c.kindId } : {})
+          ...(onTake ? { onTakeId: onTake } : {}), ...(c.kindId ? { kindId: c.kindId } : {}), ...(c.reviewId ? { reviewId: c.reviewId } : {})
         }
       }];
     },

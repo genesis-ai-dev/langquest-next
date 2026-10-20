@@ -5942,12 +5942,15 @@
     },
     "notesOn": {
       "addOn": "对{{what}}添加备注",
-      "addOnHelp": "对这一项添加一条语音或文字备注。它会显示在这一项下面，大家都能看到。",
+      "addOnHelp": "对这一项添加一条语音或文字备注。它会和你的审核放在一起。",
       "noteOn": "{{what}}的备注",
       "reply": "回复",
       "replyHelp": "回复{{name}}的备注。你的回复会显示在它下面。",
       "replyTitle": "回复{{name}}",
-      "at": "在 {{time}} 处"
+      "withReview": "和你的审核一起",
+      "removeFrom": "移除你的备注：{{what}}",
+      "goWith_other": "{{count, number}} 条备注会和你的审核一起发出",
+      "added": "已添加到你的审核。"
     }
   },
   "backTranslation": {

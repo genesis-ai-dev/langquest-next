@@ -176,6 +176,8 @@ export function BackgroundSheet(props: {
   /** A note on a key word, or a reply to a note (decisions.md 149): the screen's note sheet opens over this one. */
   onNote: (anchor: NoteAnchor, title: string, where: string) => void;
   onReply: (n: PassageNote) => void;
+  /** A note on a verse, written here: it goes with the review. */
+  onAddNote: (anchor: NoteAnchor, c: { text: string; hash: string | null }) => void;
   /** A Bible to open on, from the check's helps (decision 91). */
   bible?: string;
   /** What the check shows (decisions.md 130); a Bible from its helps opens whatever it says. */
@@ -201,6 +203,7 @@ export function BackgroundSheet(props: {
       </ChipRow>
       {tab === 'passage' ? (
         <BiblePassage ctx={ctx} v={v} takeId={props.takeId} translator={props.translator} translatorIsYou={props.translatorIsYou} usage={props.usage} onMoreBibles={props.onMoreBibles}
+          onAdd={props.onAddNote}
           hear={shows.bibleAudio || !!props.bible} read={shows.bibleText || !!props.bible}
           {...(props.bible ? { bible: props.bible } : {})} />
       ) : null}
@@ -247,6 +250,7 @@ function topNotes(notes: PassageNote[]): PassageNote[] {
 // ---- the passage in the Bible the translator used --------------------------------------------
 
 function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; translator: string; translatorIsYou: boolean; usage: Usage; onMoreBibles: () => void; bible?: string;
+  onAdd: (anchor: NoteAnchor, c: { text: string; hash: string | null }) => void;
   /** What the check shows (decisions.md 130): the player when heard, the words when read. */ hear: boolean; read: boolean }) {
   const { ctx, v, usage, hear, read } = props;
   const all = useSources(ctx, v.unitId, v.languageId);
@@ -378,7 +382,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
       </View>
 
       {noting ? (
-        <VerseNote ctx={ctx} v={v} verse={noting.verse} at={noting.at} translation={option?.abbreviation ?? ''} onDone={() => setNoting(null)} />
+        <VerseNote ctx={ctx} v={v} verse={noting.verse} at={noting.at} translation={option?.abbreviation ?? ''} onDone={() => setNoting(null)} onAdd={props.onAdd} />
       ) : null}
 
       {option && !read ? (
@@ -473,28 +477,19 @@ function NotesBy(props: { open: boolean; label: string; names: string; onPress: 
  * A note on a verse of the Bible, where it was paused: it follows the passage
  * (a verse note, as the study and the recorder leave). What is said or typed
  * is kept as a draft only you see (decision 127): Close keeps it for the next
- * note on this verse, Add note puts it on the record and drops it.
+ * note on this verse; Add note puts it with the review being made, to be
+ * sent with the verdict (decisions.md 149).
  */
-function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string; translation: string; onDone: () => void }) {
+function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string; translation: string; onDone: () => void;
+  /** It goes with the review being made, sent with the verdict (decisions.md 149). */ onAdd: (anchor: NoteAnchor, c: { text: string; hash: string | null }) => void }) {
   const { ctx, v } = props;
   const draft = useDraft(draftKey('note', ctx.session.actorId, v.languageId, v.unitId, `verse:${props.verse}`), EMPTY_NOTE, isNoteDraft);
   const { text, hash } = draft.value;
-  const [busy, setBusy] = useState(false);
-  const step = useNoteStep();
   async function add() {
-    const state = ctx.language.state;
-    if (!state || busy) return;
-    setBusy(true);
-    try {
-      const specs = commands(state, indexesFor(state)).addNote({
-        commandId: Crypto.randomUUID(), unitId: v.unitId, ...(step ? { kindId: step } : {}),
-        anchor: { kind: 'verse', verse: props.verse, ...(props.translation ? { translation: props.translation } : {}), ...(props.at ? { at: props.at } : {}) },
-        ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
-      });
-      await ctx.act(specs, t('review.simple.noteAdded'));
-      await draft.clear();
-      props.onDone();
-    } catch { /* ctx.act said what went wrong */ } finally { setBusy(false); }
+    props.onAdd({ kind: 'verse', verse: props.verse, ...(props.translation ? { translation: props.translation } : {}), ...(props.at ? { at: props.at } : {}) },
+      { text: text.trim(), hash });
+    await draft.clear();
+    props.onDone();
   }
   return (
     <View style={styles.noteBox}>
@@ -508,7 +503,7 @@ function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string;
       <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
       <View style={{ flexDirection: 'row', gap: space.sm }}>
         <View style={{ flex: 1 }}><GhostBtn label={t('common.close')} help={t('review.simple.closeNoteHelp')} onPress={props.onDone} /></View>
-        <View style={{ flex: 1 }}><PrimaryBtn label={t('common.addNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void add()} /></View>
+        <View style={{ flex: 1 }}><PrimaryBtn label={t('common.addNote')} disabled={!text.trim() && !hash} onPress={() => void add()} /></View>
       </View>
     </View>
   );

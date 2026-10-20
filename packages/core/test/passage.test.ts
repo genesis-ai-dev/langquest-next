@@ -6,7 +6,7 @@ import { referencedBlobs } from '../src/blobs';
 import { emptyLanguageState as emptyState, type LanguageState } from '../src/state';
 import {
   deriveFlow, deriveKinds, derivePassage, formatQuestionField, helpNotesFor, notePart, partNotesFor, passageSummary, questionsForKind, recordTimeline, repliesTo, replyOf,
-  reviewGrid, studyMarksFor, termNotesFor, unitPlace, updatesFor
+  reviewGrid, reviewNotesFor, studyMarksFor, termNotesFor, unitPlace, updatesFor
 } from '../src/passage';
 import { highlightsFor, languageProgress, unitsAskedOf, upNext, waitingOn } from '../src/passageLines';
 import { flowTemplate, instantiateFlow } from '../src/record';
@@ -588,6 +588,28 @@ describe('notes on what a check shows (decisions.md 149)', () => {
     // Taken back by its author, a reply goes too (decision 111).
     p.run('akol', (c) => c.withdrawNote({ commandId: 'w', noteId: 'note:r' }));
     expect(repliesTo(derivePassage(p.state(), 'john3'), 'note:t')).toEqual([]);
+  });
+
+  it('notes sent with a review are its own: listed with it, not as History entries of their own, and taken back with it', () => {
+    const p = language();
+    record(p, ['c1', 'c2']);
+    const v1 = derivePassage(p.state(), 'john3').latest!.takeId;
+    p.run('ayen', (c) => [
+      ...c.recordReview({ commandId: 'r', takeIds: [v1], kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'See my notes' }),
+      ...c.addNote({ commandId: 'r:note:0', unitId: 'john3', anchor: { kind: 'version', takeId: v1, part: 'c2', at: '0:01' }, text: 'Too fast.', kindId: 'peer', reviewId: 'review:r:0' }),
+      ...c.addNote({ commandId: 'r:note:1', unitId: 'john3', anchor: { kind: 'term', termId: 'k1' }, text: 'Same word.', kindId: 'peer', reviewId: 'review:r:0' }),
+      ...c.addNote({ commandId: 'r:note:2', unitId: 'john3', anchor: { kind: 'passage', replyTo: 'note:tom' }, text: 'Agreed.', kindId: 'peer', reviewId: 'review:r:0' })
+    ]);
+    const s = derivePassage(p.state(), 'john3');
+    // A reply to someone else's note is one of the review's notes too.
+    expect(reviewNotesFor(s, 'review:r:0').map((n) => n.id)).toEqual(['note:r:note:0', 'note:r:note:1', 'note:r:note:2']);
+    expect(partNotesFor(s, 'c2').map((n) => n.id)).toEqual(['note:r:note:0']);
+    expect(recordTimeline(p.state(), s).filter((e) => e.type === 'note')).toEqual([]);
+    // Taking the review back takes its notes back too (only its author's count, decision 111).
+    p.run('ayen', (c) => c.withdrawReviews({ commandId: 'w', reviewIds: ['review:r:0'] }));
+    const after = derivePassage(p.state(), 'john3');
+    expect(reviewNotesFor(after, 'review:r:0')).toEqual([]);
+    expect(partNotesFor(after, 'c2')).toEqual([]);
   });
 
   it('what the server lets through and the fold ignores: part, at, help and replyTo that are not strings', () => {

@@ -6452,12 +6452,17 @@
     },
     "notesOn": {
       "addOn": "Agregar una nota sobre {{what}}",
-      "addOnHelp": "Agrega una nota sobre esto, hablada o escrita. Aparece debajo para todos.",
+      "addOnHelp": "Agrega una nota sobre esto, hablada o escrita. Va con tu revisión.",
       "noteOn": "Nota sobre {{what}}",
       "reply": "Responder",
       "replyHelp": "Responde a la nota de {{name}}. Tu respuesta aparece debajo.",
       "replyTitle": "Responder a {{name}}",
-      "at": "En {{time}}"
+      "withReview": "Con tu revisión",
+      "removeFrom": "Quitar tu nota: {{what}}",
+      "goWith_one": "{{count, number}} nota va con tu revisión",
+      "goWith_many": "{{count, number}} notas van con tu revisión",
+      "goWith_other": "{{count, number}} notas van con tu revisión",
+      "added": "Se agregó a tu revisión."
     }
   },
   "backTranslation": {

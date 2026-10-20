@@ -4,7 +4,7 @@ import { isReviewDraft, isStoredReview, reviewDraftOf, reviewStateOf, saysSometh
 
 const empty: ReviewState = {
   takeId: undefined, stage: 'listen', qi: 0, answers: {}, voice: {}, typing: {}, skipped: {}, comment: '', feedback: null, typeFeedback: false,
-  moments: [], people: 0, givenBy: '', place: '', evidence: null, made: []
+  moments: [], notes: [], people: 0, givenBy: '', place: '', evidence: null, made: []
 };
 const clip = (hash: string) => ({ hash, durationMs: 4200, format: 'm4a' as const });
 
@@ -16,10 +16,18 @@ describe('a review kept as a draft (decision 127)', () => {
     expect(saysSomething({ ...empty, answers: { q1: 'Yes' } })).toBe(true);
     for (const said of [
       { voice: { q1: clip('a') } }, { skipped: { q1: 'Nobody knew' } }, { comment: 'Clear' }, { feedback: clip('b') }, { moments: [{ ...clip('c'), atMs: 1200 }] },
+      { notes: [{ id: 'n', anchor: { kind: 'version' as const, takeId: 't2', part: 'p2', at: '0:04' }, text: 'Too fast' }] },
       { people: 3 }, { givenBy: 'Mary' }, { place: 'Church' }, { evidence: clip('d') }, { made: [{ hash: 'e', durationMs: 900, format: 'm4a' as const }] }
     ]) {
       expect(reviewDraftOf({ ...empty, ...said }, 't2', undefined)).not.toBeNull();
     }
+  });
+
+  it('reads a draft from before notes went with the review: it has none (decisions.md 149)', () => {
+    const { notes: _none, ...older } = reviewDraftOf({ ...empty, comment: 'Clear' }, 't2', undefined)!;
+    expect(isReviewDraft(older)).toBe(true);
+    expect(reviewStateOf(older, ['t2'], undefined, 't2')!.notes).toEqual([]);
+    expect(isReviewDraft({ ...older, notes: [{ id: 'n', anchor: 'verse' }] })).toBe(false);
   });
 
   it('reads a draft an earlier version kept with other passages picked (decision 128)', () => {
@@ -46,7 +54,8 @@ describe('a review kept as a draft (decision 127)', () => {
   it('comes back as it was left, and built again reads the same (so opening it writes nothing)', () => {
     const state: ReviewState = {
       ...empty, stage: 'decide', qi: 2, answers: { q1: 'Yes', q3: 'Mostly' }, voice: { q2: clip('v') }, skipped: { q4: 'Not asked' }, comment: 'Good',
-      feedback: clip('f'), typeFeedback: true, moments: [{ ...clip('m'), atMs: 42_000 }], people: 4, place: 'Juba'
+      feedback: clip('f'), typeFeedback: true, moments: [{ ...clip('m'), atMs: 42_000 }], people: 4, place: 'Juba',
+      notes: [{ id: 'n1', anchor: { kind: 'version', takeId: 't2', part: 'p2', at: '0:04' }, hash: 'vn' }, { id: 'n2', anchor: { kind: 'term', termId: 'k' }, text: 'Same word' }]
     };
     const d = reviewDraftOf(state, 't2', undefined)!;
     const read = parseDraft(serializeDraft(d, 1000), isStoredReview)!.value!;

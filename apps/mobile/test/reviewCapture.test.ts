@@ -5,7 +5,7 @@ import {
 } from '@langquest-next/core';
 import {
   canLeave, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, footHint, isGroupKind, kindLabel, listenLine,
-  noteAnchorText, nextLabel, openRequired, partAt, questionSource, readiness, replyAnchor, requestFor, reviewCapture, reviewStages,
+  clockToMs, momentIn, noteAnchorText, nextLabel, openRequired, partAt, questionSource, readiness, replyAnchor, requestFor, reviewCapture, reviewStages,
   stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor
 } from '../src/reviewing/capture';
 
@@ -247,6 +247,19 @@ describe('notes on what a check shows (decisions.md 149)', () => {
     expect(noteAnchorText({ kind: 'passage', help: 'material:m' }, look)).toBe('“What to listen for”');
     expect(noteAnchorText({ kind: 'term', termId: 'k', replyTo: 'note:n' }, look)).toBe('Reply to Akol');
     expect(noteAnchorText({ kind: 'version', takeId: 't' }, look)).toBe('Version 2');
+  });
+
+  it('a note on a part reads back as the moment in the whole version the reviewer heard', () => {
+    const lengths = new Map([['p1', 3000], ['p2', 3000], ['p3', 3000]]);
+    expect(clockToMs('0:04')).toBe(4000);
+    expect(clockToMs('1:02:05')).toBe(3_725_000);
+    expect(clockToMs('soon')).toBeNull();
+    expect(momentIn(['p1', 'p2', 'p3'], lengths, 'p2', '0:01')).toBe(4000);
+    expect(momentIn(['p1', 'p2', 'p3'], lengths, 'p3', undefined)).toBe(6000);
+    expect(momentIn(['p1', 'p2'], lengths, 'p3', '0:01')).toBeNull();
+    // And back: the player's moment is the part and the time in it.
+    const at = partAt([3000, 3000, 3000], 4000);
+    expect(momentIn(['p1', 'p2', 'p3'], lengths, ['p1', 'p2', 'p3'][at.index]!, clockMs(at.atMs))).toBe(4000);
   });
 
   it('a reply is on what its note is on, answering that note', () => {

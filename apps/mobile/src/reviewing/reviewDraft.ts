@@ -7,12 +7,20 @@
 //
 // Pure: screens/review.tsx builds a draft from its state and restores its
 // state from one with these.
-import type { Card } from '@langquest-next/core';
+import type { Card, NoteAnchor } from '@langquest-next/core';
 import { isRecord } from '../drafts/draftModel';
 import type { Answers, Skips, StageId, VoiceAnswer } from './capture';
 
-/** A note said at a moment of the version, while listening. */
+/** A note said at a moment of the version, while listening (before decisions.md 149: still sent from older drafts). */
 export type Moment = VoiceAnswer & { atMs: number };
+
+/**
+ * A note written while reviewing (decisions.md 149): said or typed, on a
+ * moment of the version (kept as its part), a help, a key word, a verse or
+ * another note. It is part of the review: kept here until the verdict is
+ * sent, then sent with it.
+ */
+export interface ReviewNote { id: string; anchor: NoteAnchor; text?: string; hash?: string }
 
 /** What the review screen holds. `takeId` is a version chosen (or brought back) other than the one the screen opened on. */
 export interface ReviewState {
@@ -29,6 +37,7 @@ export interface ReviewState {
   feedback: VoiceAnswer | null;
   typeFeedback: boolean;
   moments: Moment[];
+  notes: ReviewNote[];
   people: number;
   givenBy: string;
   place: string;
@@ -36,12 +45,12 @@ export interface ReviewState {
   made: Card[];
 }
 
-/** A review's draft: the screen's state, with the version it is about. */
-export type ReviewDraft = Omit<ReviewState, 'takeId'> & { takeId: string };
+/** A review's draft: the screen's state, with the version it is about. Older drafts have no `notes`. */
+export type ReviewDraft = Omit<ReviewState, 'takeId' | 'notes'> & { takeId: string; notes?: ReviewNote[] };
 
 /** Anything said, answered, skipped, chosen or recorded. Where you are, or a field opened, is not something said. */
 export function saysSomething(s: Omit<ReviewState, 'takeId'>): boolean {
-  return s.moments.length > 0 || Object.values(s.answers).some((a) => !!a.trim()) || Object.keys(s.voice).length > 0
+  return s.moments.length > 0 || s.notes.length > 0 || Object.values(s.answers).some((a) => !!a.trim()) || Object.keys(s.voice).length > 0
     || Object.keys(s.skipped).length > 0 || !!s.comment.trim() || !!s.feedback || !!s.evidence || s.people > 0 || !!s.place.trim()
     || !!s.givenBy.trim() || s.made.length > 0;
 }
@@ -57,7 +66,7 @@ export function reviewDraftOf(s: ReviewState, about: string | undefined, opened:
   // One order of fields, so a draft brought back and built again reads the same.
   return {
     takeId: about, stage: s.stage, qi: s.qi, answers: s.answers, voice: s.voice, typing: s.typing, skipped: s.skipped,
-    comment: s.comment, feedback: s.feedback, typeFeedback: s.typeFeedback, moments: s.moments, people: s.people,
+    comment: s.comment, feedback: s.feedback, typeFeedback: s.typeFeedback, moments: s.moments, notes: s.notes, people: s.people,
     givenBy: s.givenBy, place: s.place, evidence: s.evidence, made: s.made
   };
 }
@@ -70,7 +79,8 @@ export function reviewDraftOf(s: ReviewState, about: string | undefined, opened:
  */
 export function reviewStateOf(d: ReviewDraft, versions: readonly string[], opened: string | undefined, shown: string | undefined): ReviewState | null {
   if (!versions.includes(d.takeId)) return null;
-  return { ...d, takeId: d.takeId === shown ? opened : d.takeId };
+  // A draft from before notes went with the review has none.
+  return { ...d, notes: d.notes ?? [], takeId: d.takeId === shown ? opened : d.takeId };
 }
 
 const STAGES: readonly StageId[] = ['listen', 'questions', 'decide'];
@@ -84,6 +94,11 @@ function isVoice(x: unknown): x is VoiceAnswer {
 
 function isMoment(x: unknown): x is Moment {
   return isVoice(x) && isRecord(x) && typeof x['atMs'] === 'number';
+}
+
+function isReviewNote(x: unknown): x is ReviewNote {
+  return isRecord(x) && typeof x['id'] === 'string' && isRecord(x['anchor']) && typeof x['anchor']['kind'] === 'string'
+    && (x['text'] === undefined || typeof x['text'] === 'string') && (x['hash'] === undefined || typeof x['hash'] === 'string');
 }
 
 function isCard(x: unknown): x is Card {
@@ -108,7 +123,7 @@ export function isReviewDraft(x: unknown): x is ReviewDraft {
   return typeof x['takeId'] === 'string' && STAGES.includes(x['stage'] as StageId) && isCount(x['qi'])
     && isMap(x['answers'], isString) && isMap(x['voice'], isVoice) && isMap(x['typing'], isBool) && isMap(x['skipped'], isString)
     && typeof x['comment'] === 'string' && (x['feedback'] === null || isVoice(x['feedback'])) && typeof x['typeFeedback'] === 'boolean'
-    && isList(x['moments'], isMoment) && isCount(x['people'])
+    && isList(x['moments'], isMoment) && (x['notes'] === undefined || isList(x['notes'], isReviewNote)) && isCount(x['people'])
     && typeof x['givenBy'] === 'string' && typeof x['place'] === 'string' && (x['evidence'] === null || isVoice(x['evidence']))
     && isList(x['made'], isCard);
 }

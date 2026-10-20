@@ -6197,12 +6197,16 @@
     },
     "notesOn": {
       "addOn": "በ{{what}} ላይ ማስታወሻ ያክሉ",
-      "addOnHelp": "በዚህ ላይ በድምፅ ወይም በጽሑፍ ማስታወሻ ያክላል። ለሁሉም ከሥሩ ይታያል።",
+      "addOnHelp": "በዚህ ላይ በድምፅ ወይም በጽሑፍ ማስታወሻ ያክላል። ከግምገማዎ ጋር ይሄዳል።",
       "noteOn": "በ{{what}} ላይ ማስታወሻ",
       "reply": "ምላሽ ይስጡ",
       "replyHelp": "የ{{name}}ን ማስታወሻ ይመልሳል። ምላሽዎ ከሥሩ ይታያል።",
       "replyTitle": "ለ{{name}} ምላሽ ይስጡ",
-      "at": "በ{{time}}"
+      "withReview": "ከግምገማዎ ጋር",
+      "removeFrom": "ማስታወሻዎን ያስወግዱ፦ {{what}}",
+      "goWith_one": "{{count, number}} ማስታወሻ ከግምገማዎ ጋር ይሄዳል",
+      "goWith_other": "{{count, number}} ማስታወሻዎች ከግምገማዎ ጋር ይሄዳሉ",
+      "added": "ወደ ግምገማዎ ታክሏል።"
     }
   },
   "backTranslation": {

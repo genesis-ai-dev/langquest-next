@@ -6197,12 +6197,16 @@
     },
     "notesOn": {
       "addOn": "Ongeza dokezo kwenye {{what}}",
-      "addOnHelp": "Huongeza dokezo kwenye kitu hiki, kwa sauti au kwa maandishi. Linaonekana chini yake kwa kila mtu.",
+      "addOnHelp": "Huongeza dokezo kwenye kitu hiki, kwa sauti au kwa maandishi. Linaenda pamoja na ukaguzi wako.",
       "noteOn": "Dokezo kwenye {{what}}",
       "reply": "Jibu",
       "replyHelp": "Hujibu dokezo la {{name}}. Jibu lako linaonekana chini yake.",
       "replyTitle": "Jibu kwa {{name}}",
-      "at": "Kwenye {{time}}"
+      "withReview": "Pamoja na ukaguzi wako",
+      "removeFrom": "Ondoa dokezo lako: {{what}}",
+      "goWith_one": "Dokezo {{count, number}} linaenda pamoja na ukaguzi wako",
+      "goWith_other": "Madokezo {{count, number}} yanaenda pamoja na ukaguzi wako",
+      "added": "Limeongezwa kwenye ukaguzi wako."
     }
   },
   "backTranslation": {

@@ -7217,12 +7217,20 @@
     },
     "notesOn": {
       "addOn": "أضف ملاحظة على {{what}}",
-      "addOnHelp": "يضيف ملاحظة على هذا، بالصوت أو بالكتابة. تظهر تحته للجميع.",
+      "addOnHelp": "يضيف ملاحظة على هذا، بالصوت أو بالكتابة. تُضاف مع مراجعتك.",
       "noteOn": "ملاحظة على {{what}}",
       "reply": "ردّ",
       "replyHelp": "يرد على ملاحظة {{name}}. يظهر ردّك تحتها.",
       "replyTitle": "الرد على {{name}}",
-      "at": "عند {{time}}"
+      "withReview": "مع مراجعتك",
+      "removeFrom": "إزالة ملاحظتك: {{what}}",
+      "goWith_zero": "{{count, number}} ملاحظة تُرسل مع مراجعتك",
+      "goWith_one": "ملاحظة واحدة تُرسل مع مراجعتك",
+      "goWith_two": "ملاحظتان تُرسلان مع مراجعتك",
+      "goWith_few": "{{count, number}} ملاحظات تُرسل مع مراجعتك",
+      "goWith_many": "{{count, number}} ملاحظة تُرسل مع مراجعتك",
+      "goWith_other": "{{count, number}} ملاحظة تُرسل مع مراجعتك",
+      "added": "أُضيفت إلى مراجعتك."
     }
   },
   "backTranslation": {

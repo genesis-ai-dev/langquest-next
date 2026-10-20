@@ -6197,12 +6197,16 @@
     },
     "notesOn": {
       "addOn": "Add a note on {{what}}",
-      "addOnHelp": "Adds a note on this, said or typed. It shows under it for everyone.",
+      "addOnHelp": "Adds a note on this, said or typed. It goes with your review.",
       "noteOn": "Note on {{what}}",
       "reply": "Reply",
       "replyHelp": "Answers {{name}}'s note. Your reply shows under it.",
       "replyTitle": "Reply to {{name}}",
-      "at": "At {{time}}"
+      "withReview": "With your review",
+      "removeFrom": "Remove your note: {{what}}",
+      "goWith_one": "{{count, number}} note goes with your review",
+      "goWith_other": "{{count, number}} notes go with your review",
+      "added": "Added to your review."
     }
   },
   "backTranslation": {

@@ -1,20 +1,24 @@
-// Notes on what a check shows (decisions.md 149; Caleb, 2026-10-20: a
-// reviewer comments on a part of the recording and on any help the check
-// shows). A part of the recording, one of the check's helps, a key word and
-// another note each get a note button beside them and their notes under
-// them. A note is the passage note every screen already reads
-// (v1.NoteAdded, said or typed), written at this check (useNoteStep) and on
-// the record at once, like a note on a verse; only its author takes it back,
-// with Undo on the note itself (decision 111). Built from kit.tsx and the
-// study's note card; every press explains itself in help mode.
+// Notes on what a check shows (decisions.md 149; Caleb, 2026-10-20). A
+// reviewer notes a moment of the recording (the player's Note: the moment is
+// kept as the part it falls in, so the fix records over that part), one of
+// the check's helps, a key word, a verse or another note. Everything noted
+// while reviewing is part of the one review: it waits in the review's draft,
+// listed together under "With your review", and is sent with the verdict,
+// never before. Once sent they are passage notes (v1.NoteAdded) carrying the
+// review; only their author takes one back (decision 111). Built from kit.tsx
+// and the study's note card; every press explains itself in help mode.
 import { repliesTo, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../ui/text';
+import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Ico, SmallBtn } from '../ui/kit';
+import { Ico, LinkBtn, SmallBtn } from '../ui/kit';
+import { txt } from '../ui/textStyles';
+import type { ReviewNote } from './reviewDraft';
 import { StudyNote } from '../study/ui';
 import { NoteSheet } from '../helps/reference';
 import type { PassageView } from '../passage/passageView';
@@ -32,13 +36,53 @@ export function NoteBtn(props: { label: string; help: string; onPress: () => voi
   );
 }
 
-/** A note about to be written: what it goes on, its sheet's title, and the line that says where. */
-export interface Noting { anchor: NoteAnchor; title: string; where: string }
+/** A note about to be written: what it goes on, its sheet's title, the line that says where, and the line under the title. */
+export interface Noting { anchor: NoteAnchor; title: string; where: string; sub?: string }
 
-/** The sheet for the note being written, or nothing. */
-export function NotingSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; noting: Noting | null; onClose: () => void }) {
-  if (!props.noting) return null;
-  return <NoteSheet ctx={props.ctx} v={props.v} title={props.noting.title} where={props.noting.where} anchor={props.noting.anchor} onClose={props.onClose} plain />;
+/**
+ * The sheet for the note being written, or nothing. With `onAdd` the note
+ * goes to the review being made instead of onto the record.
+ */
+export function NotingSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; noting: Noting | null; onClose: () => void;
+  onAdd?: (anchor: NoteAnchor, c: { text: string; hash: string | null }) => void }) {
+  const { noting, onAdd } = props;
+  if (!noting) return null;
+  return <NoteSheet ctx={props.ctx} v={props.v} title={noting.title} where={noting.where} anchor={noting.anchor} onClose={props.onClose}
+    {...(noting.sub ? { sub: noting.sub } : {})} {...(onAdd ? { onAdd: (c: { text: string; hash: string | null }) => onAdd(noting.anchor, c) } : {})} />;
+}
+
+/**
+ * Everything noted in the review, together, in one dashed amber box headed
+ * "With your review": each says what it is on, plays or reads, and can be
+ * removed. Nobody else sees them until the verdict is sent with them.
+ */
+export function ReviewNotes(props: { ctx: Ctx; notes: ReviewNote[]; label: (anchor: NoteAnchor) => string; onRemove: (id: string) => void; children?: ReactNode }) {
+  if (props.notes.length === 0 && !props.children) return null;
+  return (
+    <View style={styles.bundle} testID="review-notes">
+      <View style={styles.bundleHead}>
+        <Ico name="send" size={16} color={TINT.amberText} />
+        <Text style={[txt.sm, { fontWeight: '800', color: TINT.amberText }]} accessibilityRole="header">{t('review.notesOn.withReview')}</Text>
+      </View>
+      {props.notes.map((n) => {
+        const label = props.label(n.anchor);
+        return (
+          <HelpRow key={n.id} of="review.reviewNote">
+            <View style={styles.item}>
+              <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                <Text style={[txt.xsStrong, { color: TINT.amberText }]}>{label}</Text>
+                {n.text ? <Text style={txt.sm}>{n.text}</Text> : null}
+                {n.hash ? <AudioClip language={props.ctx.language} hashes={[n.hash]} label={t('review.parts.playNote')} /> : null}
+              </View>
+              <LinkBtn label={t('common.remove')} color={C.muted} help={t('review.simple.removeNoteHelp')} accessibilityLabel={t('review.notesOn.removeFrom', { what: label })}
+                onPress={() => props.onRemove(n.id)} />
+            </View>
+          </HelpRow>
+        );
+      })}
+      {props.children}
+    </View>
+  );
 }
 
 /**
@@ -107,5 +151,8 @@ const styles = StyleSheet.create({
   notedBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   notedTop: { flexDirection: 'row', alignItems: 'center' },
   notedBtn: { paddingRight: space.sm },
-  notedNotes: { paddingHorizontal: space.md, paddingBottom: space.md }
+  notedNotes: { paddingHorizontal: space.md, paddingBottom: space.md },
+  bundle: { gap: space.sm, padding: space.md, borderRadius: radius.lg, borderWidth: 1.5, borderStyle: 'dashed', borderColor: TINT.amberText, backgroundColor: TINT.amber },
+  bundleHead: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  item: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.sm, borderRadius: radius.md, backgroundColor: C.card }
 });

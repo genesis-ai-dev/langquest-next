@@ -135,35 +135,43 @@ test('REV-003 Looks good @p0', async ({ page, browser }) => {
   await trans.context.close();
 });
 
-test('REV-004 A note on a part while listening', async ({ page }) => {
+test('REV-004 A note at a moment while listening, kept with the review', async ({ page }) => {
   await open(page, world(), 'REV');
   await startCheck(page, 'P-Q1');
-  // The player's Note goes on the part playing: Part 1 before it plays (decisions.md 149). Said or typed.
+  const before = await eventCount(page);
+  // The player's Note: a moment of the whole version, said or typed (decisions.md 149).
   await button(page, 'Add a note at this moment').click();
-  await expect(text(page, 'Note on Part 1')).toBeVisible();
+  await expect(text(page, 'A note at 0:00')).toBeVisible();
+  await expect(text(page, `Say what you noticed here. ${TOM_FIRST} hears it with your review.`)).toBeVisible();
   await field(page, 'Or type it').fill('Starts too quietly');
   await button(page, 'Add a note').click();
-  await sawToast(page, 'Note added.');
+  await sawToast(page, 'Added to your review.');
+  // Listed with the review, not sent: nothing reaches the server until the verdict.
+  await expect(text(page, 'With your review')).toBeVisible();
+  await expect(text(page, 'Your note at 0:00')).toBeVisible();
   await expect(text(page, 'Starts too quietly')).toBeVisible();
-  // On the record at once, and taken back with Undo on the note itself (decisions 111, 134).
-  await button(page, 'Undo').click();
+  expect(await eventCount(page)).toBe(before);
+  await button(page, 'Remove your note: Your note at 0:00').click();
   await expect(text(page, 'Starts too quietly')).toHaveCount(0);
-  // Each part has its own button: a voice note under Part 2.
-  await button(page, 'Add a note on Part 2').click();
-  await expect(text(page, 'Note on Part 2')).toBeVisible();
+  await expect(text(page, 'With your review')).toHaveCount(0);
+  // A voice note at the moment.
+  await button(page, 'Add a note at this moment').click();
   await speakInto(page, 'Say it');
   await button(page, 'Add a note').click();
-  await sawToast(page, 'Note added.');
-  await expect(text(page, 'Voice note')).toBeVisible();
-  await expectSent(page, world());
+  await expect(text(page, 'Your note at 0:00')).toBeVisible();
+  await expect(button(page, 'Play note')).toBeVisible();
+  expect(await eventCount(page)).toBe(before);
 });
 
 test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await open(page, world(), 'REV');
   await startCheck(page, 'P-Q1');
-  // REV-004's voice note sits under Part 2.
-  await expect(text(page, 'Voice note')).toBeVisible();
+  // A note at a moment, which goes with the verdict (decisions.md 149).
+  await button(page, 'Add a note at this moment').click();
+  await field(page, 'Or type it').fill('Slow down here');
+  await button(page, 'Add a note').click();
   await primary(page).click();
+  await expect(text(page, '1 note goes with your review')).toBeVisible();
   await button(page, 'Needs changes').click();
   await expect(text(page, 'What should change?')).toBeVisible();
   await expect(text(page, `Say it in your words. ${TOM_FIRST} will hear it.`)).toBeVisible();
@@ -178,6 +186,7 @@ test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await button(page, 'Or type it').click();
   await field(page, 'Or type it — what worked, what didn\'t').fill('Verse 12 is too fast');
   await expect(button(page, 'Record a listener retelling, optional')).toBeVisible();
+  await expect(text(page, '1 note goes with your review')).toBeVisible();
   await primary(page).click();
   await sawToast(page, `Feedback sent to ${TOM}`);
   await expect(button(page, 'Versions and history')).toBeVisible();
@@ -190,13 +199,14 @@ test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await primary(trans.page).click();
   await expect(text(trans.page, '“Verse 12 is too fast”')).toBeVisible();
   await expect(button(trans.page, new RegExp(`^Play ${RITA}'s feedback`))).toBeVisible();
-  // The check's notes, under the parts they are on (decisions.md 149).
+  // The review's note, named by the part it fell in (decisions.md 149).
   await expect(text(trans.page, 'Notes from Peer check')).toBeVisible();
-  await expect(text(trans.page, 'Voice note')).toBeVisible();
-  // Where it is fixed, Part 2 carries the note, and it opens there.
+  await expect(text(trans.page, 'Part 1 · 0:00')).toBeVisible();
+  await expect(text(trans.page, 'Slow down here')).toBeVisible();
+  // Where it is fixed, Part 1 carries the note, and it opens there.
   await button(trans.page, 'Record a fix').click();
-  await button(trans.page, '1 note on Part 2').click();
-  await expect(text(trans.page, 'Notes on Part 2')).toBeVisible();
+  await button(trans.page, '1 note on Part 1').click();
+  await expect(text(trans.page, 'Notes on Part 1')).toBeVisible();
   await expect(button(trans.page, 'Reply')).toBeVisible();
   await trans.context.close();
 });
@@ -326,7 +336,8 @@ test('REV-011 Background', async ({ page }) => {
   await button(page, 'Add a note on the verse playing').click();
   await field(page, 'Or type it').fill('Is \'heaven\' clear here?');
   await button(page, 'Add a note').click();
-  await sawToast(page, 'Note added — it follows this passage');
+  // It goes with the review, sent with the verdict below (decisions.md 149).
+  await sawToast(page, 'Added to your review.');
   await button(page, /^Choose a Bible/).click();
   await button(page, /^More Bibles/).click();
   await expect(text(page, 'More Bibles')).toBeVisible();
@@ -1094,33 +1105,43 @@ test('REV-050 Notes on a check\'s help, a key word, and a reply', async ({ page 
   await open(page, w, 'REV');
   await openLabel(page, unit.label);
   await doCheck(page, 'peer').click();
+  const before = await eventCount(page);
   // The check's help (decisions.md 149).
   await button(page, 'Add a note on What to listen for').click();
   await expect(text(page, 'Note on What to listen for')).toBeVisible();
   await field(page, 'Or type it').fill('Ask about the names too');
   await button(page, 'Add a note').click();
-  await sawToast(page, 'Note added.');
-  await expect(text(page, 'Ask about the names too')).toBeVisible();
+  await sawToast(page, 'Added to your review.');
   // A key word.
   await button(page, /^Background/).click();
   await button(page, 'Key words · 1').click();
   await button(page, 'Add a note on feast').click();
   await field(page, 'Or type it').fill('Use the same word in every verse');
   await button(page, 'Add a note').click();
-  await sawToast(page, 'Note added.');
-  await expect(text(page, 'Use the same word in every verse')).toBeVisible();
-  // A reply to TRANS's note, under it.
+  await sawToast(page, 'Added to your review.');
+  // A reply to TRANS's note.
   await button(page, /^Notes · \d+$/).click();
   await button(page, 'Reply').click();
   await expect(text(page, `Reply to ${TOM_FIRST}`)).toBeVisible();
   await field(page, 'Or type it').fill('The names sound right');
   await button(page, 'Add a note').click();
-  await sawToast(page, 'Note added.');
-  await expect(text(page, 'The names sound right')).toBeVisible();
+  await sawToast(page, 'Added to your review.');
+  await button(page, 'Close').click();
+  // All three wait together with the review; nothing is sent before the verdict.
+  await expect(text(page, 'With your review')).toBeVisible();
+  for (const on of ['“What to listen for”', 'Key term · feast', `Reply to ${TOM_FIRST}`]) await expect(text(page, on)).toBeVisible();
+  expect(await eventCount(page)).toBe(before);
+  await primary(page).click();
+  await expect(text(page, '3 notes go with your review')).toBeVisible();
+  await button(page, 'Looks good').click();
+  await sawToast(page, `Looks good · sent to ${TOM}`);
   await expectSent(page, w);
-  // On the server, as TRANS's phone will read them: on the help, on the word, and answering TRANS's note.
-  const notes = Object.values((await langAs(w, 'TRANS')).getState().notes).filter((n) => n.by === w.accounts.REV.id && n.unitId === unitId).map((n) => n.anchor);
-  expect(notes).toEqual(expect.arrayContaining([
+  // On the server, as TRANS's phone will read them: with the review, on the help, the word, and TRANS's note.
+  const after = (await langAs(w, 'TRANS')).getState();
+  const review = Object.values(after.kindReviews).find((r) => r.by === w.accounts.REV.id && after.takes[r.takeId]?.unitId === unitId)!;
+  const notes = Object.values(after.notes).filter((n) => n.by === w.accounts.REV.id && n.unitId === unitId);
+  expect(notes.map((n) => n.reviewId)).toEqual([review.id, review.id, review.id]);
+  expect(notes.map((n) => n.anchor)).toEqual(expect.arrayContaining([
     { kind: 'passage', help: `material:${materialId}` },
     { kind: 'term', termId },
     expect.objectContaining({ kind: 'passage', replyTo: expect.stringMatching(/^note:/) })

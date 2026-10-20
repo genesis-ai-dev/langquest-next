@@ -6197,12 +6197,16 @@
     },
     "notesOn": {
       "addOn": "Ƙara bayani a kan {{what}}",
-      "addOnHelp": "Yana ƙara bayani a kan wannan, da murya ko rubutu. Kowa yana ganinsa a ƙarƙashinsa.",
+      "addOnHelp": "Yana ƙara bayani a kan wannan, da murya ko rubutu. Yana tafiya tare da bitarku.",
       "noteOn": "Bayani a kan {{what}}",
       "reply": "Amsa",
       "replyHelp": "Yana amsa bayanin {{name}}. Amsarku tana bayyana a ƙarƙashinsa.",
       "replyTitle": "Amsa wa {{name}}",
-      "at": "A {{time}}"
+      "withReview": "Tare da bitarku",
+      "removeFrom": "Cire bayaninku: {{what}}",
+      "goWith_one": "Bayani {{count, number}} yana tafiya tare da bitarku",
+      "goWith_other": "Bayanai {{count, number}} suna tafiya tare da bitarku",
+      "added": "An ƙara a bitarku."
     }
   },
   "backTranslation": {

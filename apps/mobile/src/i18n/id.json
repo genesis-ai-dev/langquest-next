@@ -5942,12 +5942,15 @@
     },
     "notesOn": {
       "addOn": "Tambah catatan pada {{what}}",
-      "addOnHelp": "Menambah catatan pada hal ini, diucapkan atau diketik. Catatan ini muncul di bawahnya untuk semua orang.",
+      "addOnHelp": "Menambah catatan pada hal ini, diucapkan atau diketik. Catatan ini disertakan dengan pemeriksaan Anda.",
       "noteOn": "Catatan pada {{what}}",
       "reply": "Balas",
       "replyHelp": "Membalas catatan {{name}}. Balasan Anda muncul di bawahnya.",
       "replyTitle": "Balas {{name}}",
-      "at": "Di {{time}}"
+      "withReview": "Bersama pemeriksaan Anda",
+      "removeFrom": "Hapus catatan Anda: {{what}}",
+      "goWith_other": "{{count, number}} catatan disertakan dengan pemeriksaan Anda",
+      "added": "Ditambahkan ke pemeriksaan Anda."
     }
   },
   "backTranslation": {

@@ -338,6 +338,26 @@ export function replyAnchor(n: { id: string; anchor: NoteAnchor }): NoteAnchor {
   return { ...on, replyTo: n.id };
 }
 
+/** "0:14" or "1:02:05" as written by `clockMs`, in milliseconds; null when it is not a clock. */
+export function clockToMs(clock: string): number | null {
+  const m = /^(?:(\d+):)?(\d+):(\d{2})$/.exec(clock.trim());
+  if (!m) return null;
+  return ((Number(m[1] ?? 0) * 60 + Number(m[2])) * 60 + Number(m[3])) * 1000;
+}
+
+/**
+ * Where a note on a part sits in the whole version (decisions.md 149): the
+ * parts before it, then how far into it. Null when the part is not one of
+ * the version's. The reviewer hears and names the whole; the note keeps the
+ * part, so whoever fixes it records over that part.
+ */
+export function momentIn(hashes: readonly string[], lengths: ReadonlyMap<string, number>, part: string, at: string | undefined): number | null {
+  const i = hashes.indexOf(part);
+  if (i < 0) return null;
+  const before = hashes.slice(0, i).reduce((n, h) => n + (lengths.get(h) ?? 0), 0);
+  return before + (at ? clockToMs(at) ?? 0 : 0);
+}
+
 /**
  * The part playing `ms` into a version whose parts last `lengths` (in order),
  * and how far into that part: where a note from the big player goes
