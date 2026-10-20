@@ -4,7 +4,8 @@
 // a few screen steps both files share.
 import { createHash, randomUUID } from 'node:crypto';
 import { commands, derivePassage, type EventSpec, type LanguageState, type OrgState } from '@langquest-next/core';
-import { blobKey, workerBlobs, type SyncClient } from '@langquest-next/sync';
+import { blobKey, type SyncClient } from '@langquest-next/sync';
+import { setupBlobs } from './blob-upload';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -80,7 +81,7 @@ export async function uploadVoice(world: UiWorld, who: AccountKey, voicedSeconds
   const hash = createHash('sha256').update(bytes).digest('hex');
   const { session } = await signIn(world, who);
   const A = world.languages.A;
-  await workerBlobs(world.apiUrl, session.access_token).put(blobKey(A.orgId, A.languageId, hash, 'wav'), bytes);
+  await setupBlobs(world.apiUrl, session.access_token).put(blobKey(A.orgId, A.languageId, hash, 'wav'), bytes);
   return { hash, durationMs: Math.round(totalSeconds * 1000), format: 'wav' as const };
 }
 

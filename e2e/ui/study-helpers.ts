@@ -4,7 +4,8 @@
 // items (an admin's, as the guide editor and the library screens make them),
 // built per world, so the shared library seed stays what production seeds.
 import { canonicalJson, ORG_STREAM, validateDoc, withDeps, type LibraryDoc, type OrgState, type SourceBookDoc, type SourceDoc, type StudyDoc, type StudyDoc2 } from '@langquest-next/core';
-import { blobKey, workerBlobs, type SyncClient } from '@langquest-next/sync';
+import { blobKey, type SyncClient } from '@langquest-next/sync';
+import { setupBlobs } from './blob-upload';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { VOICE_WAV } from '../fixtures/voice';
@@ -31,7 +32,7 @@ type Row = { hash: string; body: string };
  */
 export async function offerStudyWorld(world: UiWorld): Promise<void> {
   const { sb, session } = await signIn(world, 'ADMIN');
-  const blobs = workerBlobs(world.apiUrl, session.access_token);
+  const blobs = setupBlobs(world.apiUrl, session.access_token);
   const rpc = async <T>(fn: string, args: Record<string, unknown>): Promise<T> => {
     const { data, error } = await sb.rpc(fn, args);
     if (error) throw new Error(`${fn}: ${error.message}`);

@@ -7,6 +7,7 @@ import type { Page } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { commands, derivePassage } from '@langquest-next/core';
 import type { SyncClient } from '@langquest-next/sync';
+import { setupBlobs } from './blob-upload';
 import {
   expectAccountSent, languageAs, languageLoaded, newAccount, noteAs, openHistory, outboxRows, quietDevice, quietDevServer,
   reportAs, serverBlocks, setBlocked, toTabs
@@ -778,7 +779,7 @@ test('MOD-023 Reports need a connection to read and to act on', async ({ page })
 
 /** A short WAV uploaded where the app keeps the language's files, for a version made through the server. */
 async function uploadVoice(w: UiWorld, key: AccountKey) {
-  const { blobKey, workerBlobs } = await import('@langquest-next/sync');
+  const { blobKey } = await import('@langquest-next/sync');
   const { createHash } = await import('node:crypto');
   const { signIn } = await import('./fixture');
   const rate = 16000;
@@ -793,7 +794,7 @@ async function uploadVoice(w: UiWorld, key: AccountKey) {
   for (let k = 0; k < rate; k++) view.setInt16(44 + k * 2, Math.round(0.5 * Math.sin(2 * Math.PI * pitch * (k / rate)) * 32767), true);
   const hash = createHash('sha256').update(bytes).digest('hex');
   const { session } = await signIn(w, key);
-  await workerBlobs(w.apiUrl, session.access_token).put(blobKey(w.orgId, w.languages.A.languageId, hash, 'wav'), bytes);
+  await setupBlobs(w.apiUrl, session.access_token).put(blobKey(w.orgId, w.languages.A.languageId, hash, 'wav'), bytes);
   return { hash, durationMs: 2000, format: 'wav' as const };
 }
 

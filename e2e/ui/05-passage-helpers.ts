@@ -2,7 +2,8 @@
 // Pages per role are kept for a whole spec file (one browser context each), so
 // a test that reads a passage as six roles does not sign six people in again.
 import { commands, derivePassage, type Commands, type EventSpec, type LanguageState } from '@langquest-next/core';
-import { blobKey, workerBlobs, type SyncClient } from '@langquest-next/sync';
+import { blobKey, type SyncClient } from '@langquest-next/sync';
+import { setupBlobs } from './blob-upload';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { clientAs, localServer, send, signIn } from './fixture';
@@ -295,7 +296,7 @@ export async function recordings(world: UiWorld, who: AccountKey, count: number)
   const out = [];
   for (let i = 0; i < count; i++) {
     const v = tone();
-    await workerBlobs(localServer().api, session.access_token).put(blobKey(world.orgId, world.languages.A.languageId, v.hash, 'wav'), v.bytes);
+    await setupBlobs(localServer().api, session.access_token).put(blobKey(world.orgId, world.languages.A.languageId, v.hash, 'wav'), v.bytes);
     out.push({ hash: v.hash, durationMs: v.durationMs, format: 'wav' as const });
   }
   return out;
