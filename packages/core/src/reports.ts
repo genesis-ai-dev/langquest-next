@@ -652,6 +652,12 @@ export interface OrgReportsResponse {
   rows: { languageId: string; report: LanguageReport }[];
   /** When the app's Worker last caught up with the log, ISO. */
   asOf: string;
+  /**
+   * Languages whose report the projection pass has not stored yet and that
+   * are too big for the Worker to fold (decisions.md 142, 147): their report
+   * shows within a pass, a few minutes. Absent from servers before this.
+   */
+  preparing?: { languageId: string; name: string }[];
 }
 
 /** One language's progress alone, for a phone's overview of languages it has not opened. */

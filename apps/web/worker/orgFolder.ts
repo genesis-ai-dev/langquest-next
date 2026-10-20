@@ -62,10 +62,13 @@ export const STATE_BUDGET_BYTES = 12_000_000;
 export const LARGE_STATE_BYTES = 2_000_000;
 const PAGE = 1000;
 /**
- * A catch-up folds a language whose stored report inputs are behind its
- * stream only up to this many events (decision 142): about 7 MB of fold at
- * the sizes decision 132 measured, inside its budget. A larger one answers
- * from its stored inputs until the next projection pass.
+ * The most events a language may have for the Worker to fold it for a
+ * report (decisions 142, 147): about 7 MB of fold at the sizes decision 132
+ * measured, inside its budget. A catch-up folds a language whose stored
+ * inputs are behind its stream only up to this; a larger one answers from
+ * its stored inputs until the next projection pass, and one with no stored
+ * inputs yet is "being prepared" until the pass stores them. A Bible-size
+ * language is never folded whole here.
  */
 export const FOLD_ON_CATCH_UP_EVENTS = 25_000;
 const PARALLEL = 4;
@@ -102,6 +105,8 @@ interface Summary {
   fromInputs?: true;
   /** How current the report is (ms): the inputs' writing when the stream has moved past them. Absent: as of the pass. */
   asOf?: number;
+  /** Too big to fold here and no stored inputs yet: the report is being prepared by the projection pass. Never cached. */
+  preparing?: true;
 }
 
 const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
@@ -159,17 +164,19 @@ export class OrgFolder {
     await this.refresh(fresh);
     const org = this.org!.state;
     const rows: OrgReportsResponse['rows'] = [];
+    const preparing: NonNullable<OrgReportsResponse['preparing']> = [];
     // The oldest figures shown: a report rendered from inputs the stream has since passed is as of their writing.
     let asOf = this.refreshedAt;
-    for (const { languageId } of orgLanguages(org)) {
+    for (const { languageId, name } of orgLanguages(org)) {
       const summary = this.summaries.get(languageId);
-      if (summary?.report && mayViewLanguage(org, profileId, languageId)) {
+      if (!summary || !mayViewLanguage(org, profileId, languageId)) continue;
+      if (summary.report) {
         rows.push({ languageId, report: summary.report });
         asOf = Math.min(asOf, summary.asOf ?? this.refreshedAt);
-      }
+      } else if (summary.preparing) preparing.push({ languageId, name });
     }
-    if (rows.length === 0 && !this.knows(profileId)) return null;
-    return { rows, asOf: new Date(asOf).toISOString() };
+    if (rows.length === 0 && preparing.length === 0 && !this.knows(profileId)) return null;
+    return { rows, asOf: new Date(asOf).toISOString(), ...(preparing.length ? { preparing } : {}) };
   }
 
   /** Is this person in the organization at all (any membership, active or not)? */
@@ -327,7 +334,9 @@ export class OrgFolder {
     // catch-up (`fresh`, "Catch up with the server") finds them behind the
     // stream: then a language small enough is folded now, as before 142, and
     // a larger one still answers from them, saying how old they are.
-    const foldedFurther = !!summary && !summary.fromInputs && !!stored && summary.cursor > stored.seq;
+    // Too big to fold inside the isolate: stored inputs only, whatever else holds (decision 147).
+    const big = head !== undefined && head > FOLD_ON_CATCH_UP_EVENTS;
+    const foldedFurther = !big && !!summary && !summary.fromInputs && !!stored && summary.cursor > stored.seq;
     const catchUp = force && !!stored && head !== undefined && stored.seq < head && head <= FOLD_ON_CATCH_UP_EVENTS;
     if (stored && this.source.reportInputs && !foldedFurther && !catchUp) {
       const asOf = (s: StoredInputs) => (head !== undefined && s.seq >= head ? at : s.at);
@@ -346,6 +355,13 @@ export class OrgFolder {
         await this.cache.put(`summary:${id}`, JSON.stringify({ v: REDUCER_VERSION, rv: REPORT_VERSION, ...next }));
         return;
       }
+    }
+    if (big) {
+      // No stored inputs for this REPORT_VERSION yet (the pass has not reached the language, or not since a new
+      // version): say the report is being prepared rather than fold a language the isolate cannot hold.
+      this.summaries.set(id, { cursor: summary?.cursor ?? 0, orgCursor: org.cursor, day, report: null, preparing: true });
+      this.states.delete(id);
+      return;
     }
     let peeked: AnyEvent[] | undefined;
     if (summary && !summary.fromInputs && summary.day === day && summary.orgCursor === org.cursor) {

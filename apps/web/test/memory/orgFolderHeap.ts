@@ -308,7 +308,10 @@ const paths: Record<string, () => Promise<void>> = {
 
   async reports() {
     const cold = await folder.reportsFor('admin');
-    if (!cold || cold.rows.length !== languageIds.length) throw new Error(`reports: ${cold?.rows.length ?? 'none'} of ${languageIds.length} languages`);
+    // A language past the Worker's fold limit with no stored inputs is being prepared, never folded here (decision 147).
+    const answered = (cold?.rows.length ?? 0) + (cold?.preparing?.length ?? 0);
+    if (!cold || answered !== languageIds.length) throw new Error(`reports: ${answered} of ${languageIds.length} languages`);
+    extra['preparing'] = cold.preparing?.length ?? 0;
     now += 60_000;
     await folder.reportsFor('admin', true);
   },

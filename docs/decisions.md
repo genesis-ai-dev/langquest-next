@@ -970,8 +970,10 @@ Each language is sync's own kept client over the object's SQLite
 (`LanguageRecordsKeeper`, `apps/web/worker/languageRecords.ts`): what the
 whole language shares and its lines in memory, its rows first downloaded
 from the server's cut and read a few passages at a time. Reports keep this
-entry's folds only for a language the pass has stored no inputs for (142),
-and access checks and the webhook scan read the organization stream alone.
+entry's folds only for a language of at most 25,000 events the pass has
+stored no inputs for (142); a bigger one is "being prepared" until the pass
+stores them. Access checks and the webhook scan read the organization
+stream alone.
 The capped-heap test lists and scans a Bible-size language (4,000 passages
 of 15 versions, about 48 MB of fold) inside the isolate; folded whole, the
 same language runs out of memory.
@@ -5877,6 +5879,16 @@ Reverse if: the object reads stored inputs often enough to cost more than
 the folds did, or the inputs of a language outgrow a few megabytes (then
 store them in pieces, as snapshots are, or summarize more of them).
 
+Amended (2026-10-20, Carl Sauder): the object no longer folds a language of
+more than 25,000 events (`FOLD_ON_CATCH_UP_EVENTS`) for a report at all
+(147). With no stored inputs for this REPORT_VERSION (before the pass first
+reaches it, or after a new version until the pass rewrites it), the answer
+names it in `preparing` and Reports says its report is being prepared and
+shows within a few minutes; it renders from its inputs once the pass stores
+them. A Bible-size language folded whole does not fit the isolate, and the
+report needs every passage's record, which the shared part of the cut does
+not hold. Smaller languages fold as before when they have no inputs.
+
 ## 143. A big language keeps each passage's record on the phone's disk; memory holds the passages on screen, and lists read one line per passage
 
 Date: 2026-10-19 · By: Caleb Koster · Status: accepted
@@ -6292,7 +6304,14 @@ does).
   listing every passage of a Bible-size language (4,000 passages of 15
   versions, about 48 MB of fold) peaks at 80 MB and keeps 18 MB, and a
   webhook scan of it peaks at 97 MB and keeps 20 MB; folded whole, the same
-  language runs out of memory.
+  language runs out of memory. Reports need every passage's record, so
+  they are never made from the shared part: they render from the inputs the
+  pass stores (142), and a language past 25,000 events with none stored yet
+  is named as being prepared rather than folded (142's amendment).
+- A small language (at most 2,000 rows to fill) is filled in whole in its
+  first sync, right after its Map opens, so it is whole on the device when
+  that sync ends, as before the cut; only bigger languages have the fill's
+  window.
 Numbers. Before its Map opens a phone now downloads the head: for Koro,
 the shared part (0.13 MB) and lines (0.37 MB) that 143 measured on Koro
 itself, 0.5 MB as JSON, about four minutes at 2 KB/s against 40 MB and five

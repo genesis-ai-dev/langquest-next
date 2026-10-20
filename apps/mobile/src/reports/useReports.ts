@@ -12,7 +12,11 @@ import { reportsServer } from './reportsServer';
  */
 type Loaded =
   | { status: 'loading' }
-  | { status: 'ready'; rows: LanguageRow[]; asOf: string; refreshing: boolean }
+  | {
+    status: 'ready'; rows: LanguageRow[]; asOf: string; refreshing: boolean;
+    /** Languages whose report the server is still preparing (decisions.md 147): named, not shown. */
+    preparing: { languageId: string; name: string }[];
+  }
   | { status: 'error'; message: string; offline: boolean };
 
 interface Entry {
@@ -55,7 +59,10 @@ function loadReports(orgId: string, fresh = false): Promise<void> {
       if (answer.status === 'changed') {
         e.etag = answer.etag;
         const { rows, asOf } = answer.body;
-        set(e, { status: 'ready', asOf, refreshing: false, rows: rows.map((r) => ({ orgId, languageId: r.languageId, updatedAt: asOf, report: r.report })) });
+        set(e, {
+          status: 'ready', asOf, refreshing: false, preparing: answer.body.preparing ?? [],
+          rows: rows.map((r) => ({ orgId, languageId: r.languageId, updatedAt: asOf, report: r.report }))
+        });
       } else if (e.state.status === 'ready') {
         const asOf = answer.asOf;
         set(e, { ...e.state, asOf, refreshing: false, rows: e.state.rows.map((r) => ({ ...r, updatedAt: asOf })) });

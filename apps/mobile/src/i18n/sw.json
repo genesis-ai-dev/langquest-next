@@ -5460,7 +5460,9 @@
       "clusterHelp": "Huonyesha tu lugha za kundi hili. Namba ni idadi yake.",
       "noClusterHelp": "Huonyesha tu lugha zisizo katika kundi lolote. Namba ni idadi yake.",
       "allCountriesHelp": "Huonyesha lugha katika kila nchi.",
-      "countryHelp": "Huonyesha tu lugha katika nchi hii."
+      "countryHelp": "Huonyesha tu lugha katika nchi hii.",
+      "preparingTitle": "Ripoti zinaandaliwa",
+      "preparingBody": "{{names}}. Seva inaandaa ripoti hizi ndani ya dakika chache, kisha zitaonekana hapa."
     },
     "overview": {
       "across_one": "Katika lugha {{count, number}} · {{recent}} katika wiki nne zilizopita",

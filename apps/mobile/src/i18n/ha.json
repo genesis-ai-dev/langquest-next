@@ -5460,7 +5460,9 @@
       "clusterHelp": "Yana nuna harsunan wannan rukuni kaɗai. Lambar ita ce yawansu.",
       "noClusterHelp": "Yana nuna harsunan da ba sa cikin kowane rukuni kaɗai. Lambar ita ce yawansu.",
       "allCountriesHelp": "Yana nuna harsuna a kowace ƙasa.",
-      "countryHelp": "Yana nuna harsunan da ke wannan ƙasa kaɗai."
+      "countryHelp": "Yana nuna harsunan da ke wannan ƙasa kaɗai.",
+      "preparingTitle": "Ana shirya rahotanni",
+      "preparingBody": "{{names}}. Sabar tana shirya waɗannan rahotannin cikin 'yan mintuna, sannan za su bayyana a nan."
     },
     "overview": {
       "across_one": "A cikin harshe {{count, number}} · {{recent}} a makonni huɗu na ƙarshe",

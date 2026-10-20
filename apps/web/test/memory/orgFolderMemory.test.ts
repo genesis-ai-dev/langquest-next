@@ -97,8 +97,9 @@ const PATHS: { path: Path; what: string; shapes: [number, number, number?][]; re
     regression: { shape: [1, BIBLE, BIBLE_TAKES], what: 'a Bible-size language folded whole, as before the cut' }
   },
   {
+    // A language past the fold limit with no stored inputs is "being prepared" (decision 147): never folded here.
     path: 'reports', what: 'the Reports screen, cold and then fresh',
-    shapes: [[12, 2000], [60, 300]],
+    shapes: [[12, 1900], [60, 300], [1, BIBLE, BIBLE_TAKES]],
     regression: { shape: [60, 300], what: 'folds kept without a budget' }
   },
   {

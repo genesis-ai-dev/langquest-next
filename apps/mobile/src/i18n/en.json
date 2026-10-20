@@ -5460,7 +5460,9 @@
       "clusterHelp": "Shows only this cluster's languages. The number is how many.",
       "noClusterHelp": "Shows only languages in no cluster. The number is how many.",
       "allCountriesHelp": "Shows languages in every country.",
-      "countryHelp": "Shows only languages in this country."
+      "countryHelp": "Shows only languages in this country.",
+      "preparingTitle": "Reports being prepared",
+      "preparingBody": "{{names}}. The server works these reports out within a few minutes, and they show here then."
     },
     "overview": {
       "across_one": "Across {{count, number}} language · {{recent}} in the last four weeks",
