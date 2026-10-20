@@ -1,4 +1,6 @@
-import { deadRun, entrypointFor, exitCodeOf, HEAP_LIMIT_MB, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue } from '../worker/jobsModel';
+import {
+  deadRun, entrypointFor, exitCodeOf, HEAP_LIMIT_MB, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue, stillOwesWholeRead, STOPPED_EARLY
+} from '../worker/jobsModel';
 
 /**
  * The job runner's pure part (decision 141): which jobs a tick starts, what
@@ -76,6 +78,19 @@ describe('job runner', () => {
       const got = jobEnv(key, v2);
       expect('env' in got && got.env.NODE_OPTIONS, key).toBe('--max-old-space-size=3072');
     }
+  });
+
+  it('owes the whole read again when the run carrying it stops early, not when it finishes or fails', () => {
+    // Why: on 2026-10-20 a merge's deploy cut off the 03:15 whole read
+    // within two minutes, and it was not tried again until the next night.
+    const whole = { startedAt: 1_000, all: true as const };
+    expect(STOPPED_EARLY).toBe(75);
+    for (const exit of [STOPPED_EARLY, 137, 143, null]) expect(stillOwesWholeRead(whole, exit), String(exit)).toBe(true);
+    for (const exit of [0, 1, 2]) expect(stillOwesWholeRead(whole, exit), String(exit)).toBe(false);
+    expect(stillOwesWholeRead({ startedAt: 1_000 }, STOPPED_EARLY)).toBe(false);
+    expect(stillOwesWholeRead(undefined, null)).toBe(false);
+    // A run stopped early wrote its own row, so the object writes none.
+    expect(deadRun('v2-import', whole, STOPPED_EARLY, 5_000)).toBeNull();
   });
 
   it('leaves no row for a plain exit, which wrote its own', () => {

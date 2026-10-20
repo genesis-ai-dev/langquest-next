@@ -117,7 +117,13 @@ export class ProjectionFailed extends Error {
 export async function runProjections(
   service: SupabaseClient, scope: ProjectionScope = 'all', counts: ProjectionCounts = { orgs: 0, projected: 0 },
   /** Called as each language's projection is written, for what the caller measures per language (server/projections.ts). */
-  projected?: (orgId: string, streamId: string) => void
+  projected?: (orgId: string, streamId: string) => void,
+  /**
+   * Asked before each organization and language. True stops the pass there:
+   * the one in hand finishes, the rest wait for the next pass (the job
+   * container asks to stop on SIGTERM, decisions.md 141).
+   */
+  stop?: () => boolean
 ): Promise<{ languages: number; snapshots: number; quiet: number; failed: { orgId: string; streamId: string; error: unknown }[] }> {
   const transport = new SupabaseTransport(service);
   const orgs = new Map<string, { org: OrgState; seq: number }>();
@@ -217,6 +223,7 @@ export async function runProjections(
   // The organizations' own rows first: they are quick, and admins wait on them.
   for (const [key, head] of heads) {
     const [orgId, streamId] = JSON.parse(key) as [string, string];
+    if (stop?.()) break;
     if (streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
     check(await service.rpc('refresh_org_notifications', { p_org: orgId }), 'refresh_org_notifications');
     await mark(orgId, ORG_STREAM, head, head, false);
@@ -272,7 +279,7 @@ export async function runProjections(
     await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
     counts.projected += 1;
     projected?.(snapshot.orgId, languageId);
-  }, async (orgId, streamId) => inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId))
+  }, async (orgId, streamId) => !stop?.() && inScope(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId))
     && !(await skipQuiet(orgId, streamId)),
   // The whole pass goes on past a language that fails, so the next waits only
   // for its own turn; a local Edge pass stops at the first error, as before,

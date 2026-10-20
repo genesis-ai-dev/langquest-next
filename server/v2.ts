@@ -177,27 +177,32 @@ if (command === 'sync') {
   // counts over the projects read, never a project's name. One for chosen
   // projects, by hand, would hide whether the schedule still runs.
   const record = projects.length ? noJobRuns : jobRunSink(url, serviceKey);
-  // In the job container (LANGQUEST_JOB), a stop from outside (the time limit,
-  // or the platform) leaves a row before the process goes, and exits 0: the
-  // code that tells the job runner the row is written (apps/web/worker/jobs.ts).
+  // In the job container (LANGQUEST_JOB), a stop from outside (a deploy's
+  // container rollout, the time limit) gets 15 minutes before SIGKILL: the
+  // pass finishes the project in hand, leaves the rest for the next pass,
+  // records how far it got and exits 75, the code that tells the job runner it
+  // stopped early with its row written (apps/web/worker/jobsModel.ts
+  // STOPPED_EARLY), so a whole read it carried is still owed.
+  let stopping = false;
   if (process.env['LANGQUEST_JOB']) {
     process.once('SIGTERM', () => {
-      console.error('stopped by SIGTERM');
-      void record({ job: 'v2_import', startedAt, ms: Date.now() - startedAt, outcome: 'error', errorClass: 'sigterm' })
-        .finally(() => process.exit(0));
+      stopping = true;
+      console.error('SIGTERM: finishing the project in hand');
     });
   }
   let reports: Awaited<ReturnType<typeof sync>>;
   try {
-    reports = await sync(deps, { all: flag('all'), projects });
+    reports = await sync({ ...deps, stop: () => stopping }, { all: flag('all'), projects });
   } catch (e) {
     await record({ job: 'v2_import', startedAt, ms: Date.now() - startedAt, outcome: 'error', errorClass: errorClassOf(e) });
     throw e;
   }
-  await record(v2ImportRun(reports, startedAt));
+  const ran = v2ImportRun(reports, startedAt);
+  await record(stopping ? { ...ran, outcome: reports.length > 0 ? 'partial' : 'error', errorClass: 'sigterm' } : ran);
   const refused = reports.filter((r) => r.rejected?.length || r.skipped?.startsWith('failed'));
   for (const r of refused) console.log(`${r.projectId}: ${r.skipped ?? r.rejected!.slice(0, 5).map((x) => `${x.id} (${x.reason})`).join('; ')}`);
   if (refused.length) process.exitCode = 2;
+  if (stopping) process.exitCode = 75;
 } else if (command === 'try') {
   await tryProjects(values('project'));
 } else if (command === 'board') {
