@@ -45,6 +45,23 @@ const impls: [string, () => Promise<EventStore>][] = [
 ];
 
 describe.each(impls)('%s contract', (_name, make) => {
+  it('page reads the log in id order after a cursor, by type when asked, never a rejected event (decisions.md 143)', async () => {
+    const s = await make();
+    await s.put({ event: ev('c', '1', 1), status: 'confirmed' });
+    await s.put({ event: ev('a', '2'), status: 'pending' });
+    await s.put({ event: { ...ev('b', '3'), type: 'v1.Redacted', payload: { eventId: 'a', reason: 'x' } } as AnyEvent, status: 'pending' });
+    await s.put({ event: ev('d', '4'), status: 'rejected', rejectReason: 'no' });
+    await s.put({ event: { ...ev('e', '5'), streamId: 'q' }, status: 'pending' });
+    const ids = (p: { event: AnyEvent }[]) => p.map((l) => l.event.id);
+    expect(ids(await s.page('o', 'p', null, 2))).toEqual(['a', 'b']);
+    expect(ids(await s.page('o', 'p', 'b', 2))).toEqual(['c']);
+    expect(ids(await s.page('o', 'p', 'c', 2))).toEqual([]);
+    expect(ids(await s.page('o', 'p', null, 10, 'v1.Redacted'))).toEqual(['b']);
+    expect(ids(await s.page('o', 'p', 'b', 10, 'v1.Redacted'))).toEqual([]);
+    // Status and serverSeq come back with each event.
+    expect((await s.page('o', 'p', 'b', 1))[0]).toMatchObject({ status: 'confirmed', event: { serverSeq: 1 } });
+  });
+
   it('pendingCountBy counts one person\'s unsent events only (a shared phone)', async () => {
     const s = await make();
     await s.put({ event: ev('a1', '1'), status: 'pending' });

@@ -9,6 +9,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import boundaries from 'eslint-plugin-boundaries';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
+import wholeLanguage from './scripts/lint/wholeLanguage.mjs';
 
 const D104 = 'decisions.md 104';
 const D105 = 'decisions.md 105';
@@ -160,6 +161,10 @@ export default [
   { files: ['apps/mobile/src/ui/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, uiLayer) } },
   { files: ['apps/mobile/App.tsx'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage) } },
   { files: MODELS, rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, pure) } },
+
+  // A language kept on disk holds only the passages on screen: the app never reads every passage from
+  // memory, but where the list in scripts/lint/wholeLanguage.mjs says why it may (decisions.md 143).
+  { files: [APP, 'apps/mobile/App.tsx'], plugins: { 'whole-language': wholeLanguage }, rules: { 'whole-language/no-every-passage': 'error' } },
 
   // Each file one role: what it may import (by role) and what it may export.
   {

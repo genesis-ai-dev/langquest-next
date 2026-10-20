@@ -168,6 +168,31 @@ describe('a language that keeps its recordings on disk', () => {
     expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState())));
   });
 
+  it('a checkpoint lets go of the guard against applying an event twice, but for the events still in the log', async () => {
+    // Why: the live guard kept an id per event pulled in a session, the most a pull of the whole log held
+    // (11 MB of 40 in the capped-heap test). A relaunch loads the checkpoint with an empty guard; so may memory.
+    const server = new FakeServer();
+    await language(server, 60);
+    const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true, checkpointEvery: 25, pullPageSize: 10 });
+    await client.load();
+    // Ours, sent and not yet pulled: its pull at the end must still find it applied.
+    const mine = await client.append('v1.RecordingAdded', { recordingId: 'mine', unitId: 'u1', kind: 'target', cards: [{ hash: 'm', durationMs: 9 }] });
+    await client.push();
+    let peak = 0;
+    let keptMine = true;
+    const stop = client.subscribe((s) => {
+      const guard = (s.state as Lang).appliedEventIds;
+      peak = Math.max(peak, Object.keys(guard).length);
+      keptMine &&= guard[mine.id] === true;
+    });
+    await client.pull();
+    stop();
+    expect(peak).toBeLessThan(45);
+    expect(keptMine).toBe(true);
+    expect(Object.keys(client.getState().appliedEventIds).sort()).toEqual((await store.all('org1', 'p1')).map((l) => l.event.id).sort());
+    expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState())));
+  });
+
   it('agrees with a phone that keeps everything in memory, through checkpoints, in any order', async () => {
     const server = new FakeServer();
     await language(server, 30);

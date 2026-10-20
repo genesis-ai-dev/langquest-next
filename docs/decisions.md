@@ -5291,6 +5291,18 @@ the largest real organization.
   the Worker log for "exceeded its memory limit". It is not running; it
   needs per-organization read tokens and a read-only Cloudflare token.
 
+Amended (2026-10-20, Carl Sauder): the budget is now kept before a fold
+is made, not only after. `keep` let go of older folds once the new one
+was folded, so a fold of about the budget stayed held while the next
+language was read from the cache or folded from its events: two folds,
+the second's events and its measuring text at once. The fold path at
+6 × 5,000 then ran out of its 112 MB heap on 4 runs in 10, on main as on
+any branch, and failed pull requests at random. `stateOf` now makes room
+for the language's recorded size first (`makeRoom`), counting a size not
+recorded yet as large, as `isLarge` does; 16 runs in 16 passed. A unit
+test in `worker.test.ts` holds the order: nothing the budget cannot hold
+beside the next fold is held while it is folded.
+
 ## 133. The recording screen has its own Undo and Redo, parts move by a grip, a place opens on the line between parts, and no Undo there runs out
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
@@ -6072,6 +6084,32 @@ whenever what a kept checkpoint leaves out changes; F raises it.
 `keptLanguage.test.ts` holds a rollback and a roll-forward across a
 redaction. A reducer bump stays for changes to the fold's output.
 
+Amended (2026-10-20, Carl Sauder): the two items left open are done, and
+the live duplicate guard is compacted. The local log is folded a page at a
+time (`EventStore.page`, in id order after a cursor, by type when asked;
+SQLite indexes `(org_id, stream_id, id)`), on load, on a snapshot adopt
+and on the slow checkpoint path, so a phone back from a long offline
+stretch never holds its log in one array. Redactions are read first, as a
+whole fold applies them, so a target on any page is never applied; the
+rest of the fold is order-independent (invariant 2). After a fast
+checkpoint of a kept language, the live state's `appliedEventIds` keeps
+only the events still in the log, as a relaunch has it: a pull asks for
+what is past the cursor, and a refold starts from the checkpoint, whose
+guard is empty. Our own events pushed and not yet pulled stay in the log,
+so their pull is still skipped. The capped-heap pull of a whole log now
+retains 2 MB, down from 11 (`keptMemory.test.ts`). The guard is now lint,
+`whole-language/no-every-passage` (`scripts/lint/wholeLanguage.mjs`): it
+reads the syntax, so it caught a loop the regular expression missed
+(`Object.values(state.kindReviews ?? {})` in `workspaceModel.ts`, which
+runs on the passage on screen and is listed). It also reports a listed
+read that is gone. `wholeLanguage.test.ts` holds the rule's lists equal to
+core's `PASSAGE_PARTS` and `READS_EVERY_PASSAGE`. And a redaction pulled
+on the same page as its target no longer reads as one inside the
+checkpoint: the pull looked the target up in the store before the page
+was written, so the phone waited for a fresh server snapshot, skipped its
+checkpoint and asked again on every pull, for a target a refold of its
+own log removes. The page's own events are looked at first.
+
 ## 144. The Worker in `apps/web` is "the app's Worker"; "dashboard" names it only as history
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
@@ -6390,6 +6428,46 @@ Reverse if: a first download's head outgrows a slow link (then page the
 lines too), phones rarely finish a fill and live on transients, or keeping
 the rows beside the pieces outgrows the database plan (then the pieces go,
 once no build reads them).
+
+Amended (2026-10-20, Carl Sauder): the fill does not narrow decision 3.
+Decision 3 leaves cold start to the server, and a cold start is any start
+from the server, not only a phone's first download: an update that changes
+the reducer or the kept checkpoint's format drops the checkpoint and puts
+the cursor back to 0 (110, 143's amendment), as does a redaction the phone
+waited out, and a reinstall has nothing at all. Ever since phones prune
+their log behind a checkpoint, such a phone held its own unsent events but
+not the pruned history (the passages' `UnitAdded`, the flow, earlier
+versions), so it could not show that work in place or usefully carry on
+until a whole snapshot or the whole log came down: hours on a weak link
+for a big language, before 143 and under it. The fill shortens that
+window to the head; the one thing it adds, a person's own unsent work on a
+passage not filled yet reaching lists once that passage fills, falls
+inside it. Heads measured in production on 2026-10-20 (reducer 19, lines
+version 1, as JSON; at 2 KB/s): Santhali omt bible 0.18 MB shared and
+0.47 MB of lines for 652 passages against a 64.6 MB snapshot, about five
+minutes against nine hours; Halbi 0.51 MB against 50.7 MB; Kuturmi Iwingo
+EL 0.69 MB against 50.0 MB; Bhujel 1.12 MB (1,173 passages) against
+43.8 MB; Meche 0.47 MB against 40.8 MB. Santhali's real head is under half
+the 1.5 MB the synthetic language gave. All 370 languages at reducer 19 had
+their cut and lines. Snapshots of reducer versions 15 to 18 are still kept
+(88 expires older snapshots of the same version only); whether they expire
+is open.
+
+Amended (2026-10-20, Carl Sauder): a fill reports itself in field
+diagnostics, so support sees one that should have run and did not. A
+`fill` record (`DIAG_SCHEMA`, migration `20261020180000_diag_fill.sql`)
+says `start` when the Map opens (ms to the Map, head size, passages and
+rows to fill, why), `done` once every passage's rows are here (ms since
+the start, across sessions), `fallback` when the phone took the whole
+snapshot instead (`no_rpc`, `no_cut`, `no_lines`, `old_lines`, `error`),
+and `restart` when its cut went away. A fallback is recorded only once the
+whole snapshot is taken, so a language with no snapshot at all stays the
+`snapshot` record's `none`. `diag.install_summary` carries a phone's last
+20, and `scripts/diagSignals.ts` reads them: a fallback the server caused
+(no cut or lines) is a problem pointing at the projection pass, other
+fallbacks, restarts and a fill unfinished a day on are a watch, and a fill
+that took over a day is noted. Field names and values are enums and
+counts, so no Play declaration changes.
 
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 

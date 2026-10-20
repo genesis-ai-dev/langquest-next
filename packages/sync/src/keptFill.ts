@@ -39,6 +39,8 @@ export interface FillMeta {
   todo: [string, number][];
   /** The newest snapshot any row came from: a redaction of an event at or before it waits for a snapshot past it. */
   rowsSeq: number;
+  /** When the fill began (ms, the client's clock), for how long it took to finish; absent in a fill begun by an earlier build. */
+  startedAt?: number;
   /**
    * What every line says changed after `linesSeq` (a flow, kind or team
    * event at this seq), or this build reads lines of another
@@ -125,6 +127,13 @@ export class KeptFill {
     return { filled: this.total - left, total: this.total };
   }
 
+  /** What the fill set out to do, for field diagnostics: passages with rows, every row, and when it began. */
+  extent(): { passages: number; rows: number; startedAt: number | undefined } {
+    let rows = 0;
+    for (const [, n] of this.meta?.todo ?? []) rows += n;
+    return { passages: this.total, rows, startedAt: this.meta?.startedAt };
+  }
+
   /** Rows still to fill in, by the server's count when the fill began. */
   rowsLeft(): number {
     let n = 0;
@@ -146,10 +155,11 @@ export class KeptFill {
    * The meta a first download writes beside its checkpoint, taken from the
    * server's head; the in-memory state follows it once `open` reads it back.
    */
-  begin(head: SnapshotHead & { lines: { seq: number; lines: unknown[] } }): Record<string, string> {
+  begin(head: SnapshotHead & { lines: { seq: number; lines: unknown[] } }, startedAt?: number): Record<string, string> {
     const meta: FillMeta = {
       base: head.serverSeq, linesSeq: head.lines.seq, linesVersion: LINES_VERSION,
-      todo: head.units.map((u) => [u.unitId, u.rows]), rowsSeq: 0, stale: null
+      todo: head.units.map((u) => [u.unitId, u.rows]), rowsSeq: 0, stale: null,
+      ...(startedAt !== undefined ? { startedAt } : {})
     };
     return { [this.key()]: JSON.stringify(meta) };
   }
