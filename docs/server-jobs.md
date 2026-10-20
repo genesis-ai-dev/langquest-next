@@ -104,9 +104,13 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   only about a minute after a call, and a container's keep-alive belongs
   to one live instance of it, so while a run lasts an alarm brings the
   object back every minute (`heartbeat`): it renews the keep-alive, stops
-  a run past its limit, and records one that ended. The processes record
-  their own row on SIGTERM too, and the pass logs its progress every 25
-  languages to the container's logs.
+  a run past its limit, and records one that ended; it watches a run once
+  per instance and records one end at a time. The processes drain on
+  SIGTERM (the language or project in hand) and record their own row, and
+  the pass logs its progress every 25 languages to the container's logs.
+  A deploy's rollout leaves a run alone for its first 90 minutes
+  (`rollout_active_grace_period`), so the nightly whole read is not cut
+  off by evening merges; one stopped all the same resumes.
 - **The job tick is the trigger**, a second Worker cron, every five
   minutes: the pass each time, the import every 15 minutes, and the
   import's whole read at 03:15 UTC, owed until a run starts with it. The
@@ -157,8 +161,8 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
 | 2 | Step two: one pass for every language in the container, every 5 minutes; pg_cron keeps push delivery only | built (141, amended 2026-10-19), without the couple of weeks of step one proven alone, at Carl's word |
 | 3 | Report inputs: the pass stores each language's, the object renders reports from them | built (142) |
 | 4 | Step three: the v2 import into the container, `v2-import.yml` gone | built (141, 94 amended); its cutover follows the order below |
-| in parallel | E: rebase PR 120 and meet the big-languages plan's 4.1 conditions | the big-languages plan |
-| last | F: the server cut, `LINES_VERSION`, `snapshots.state` off, the object reads the cut and a passage's rows | waits for E |
+| in parallel | E: rebase PR 120 and meet the big-languages plan's 4.1 conditions | merged (PR 177, decision 143) |
+| last | F: the server cut, `LINES_VERSION`, `snapshots.state` off, the object reads the cut and a passage's rows | merged (PR 185); its first pass refolded and cut 369 languages in 9.5 minutes, peak 882 MB |
 
 **The cutover**, in this order:
 
@@ -230,6 +234,9 @@ What this plan takes from that one, under F:
 | The job container, its object, the job tick and the import's switch are declared for production and preview, one instance per job | `scripts/cloudflare-deploy.test.ts` | in place |
 | The image installs no npm package; psql is its one system package | `scripts/cloudflare-deploy.test.ts` | in place |
 | Which jobs a tick starts, what each container gets, and that a process killed, out of memory or stopped at the time limit leaves a job run | `apps/web/test/jobs.test.ts` | in place |
+| The object, made again mid-run, drained, killed or past its limit, writes one row only when the process could not, and keeps a cut-off whole read owed | `apps/web/test/jobRunner.test.ts` | in place |
+| A rollout leaves a run alone longer than the whole read takes | `scripts/cloudflare-deploy.test.ts` | in place |
+| A whole read stopped within a day resumes; a missing file is asked for every pass only in its first hour | `packages/v2-import/test/resume.test.ts` | in place |
 | Hosted projects schedule only push delivery on pg_cron | `server/cronSmoke.sql`, `scripts/secrets.test.ts` | in place |
 | Stored report inputs, rendered on any later day, equal the report folded that day | `packages/core/test/reports.test.ts` | in place |
 | A tail the pass skips cannot change the report inputs | `packages/core/test/quiet.test.ts` | in place |

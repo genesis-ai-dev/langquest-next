@@ -70,9 +70,12 @@
   // projection pass, the v2 import), each run alone by its object.
   // standard-1 is 4 GiB, for Santhali's 850 MB fold (decision 103). ENAM keeps
   // them beside the database and R2 (eastern North America, docs/cloudflare.md):
-  // unpinned they started near the cron, in Mumbai.
+  // unpinned they started near the cron, in Mumbai. A deploy's rollout leaves
+  // a run alone for its first 90 minutes (rollout_active_grace_period), then
+  // sends SIGTERM and allows 15 more, so the nightly whole v2 read (40 to 70
+  // minutes) finishes instead of starting over at every evening merge.
   "containers": [
-    { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] } }
+    { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
   ],
   // Recordings and guide media (worker/blobs.ts, decisions.md 69). Private:
   // no public access and no r2.dev address; everything goes through
@@ -103,7 +106,7 @@
         ]
       },
       "containers": [
-        { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] } }
+        { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
       ],
       "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs-preview" }],
       "ratelimits": [

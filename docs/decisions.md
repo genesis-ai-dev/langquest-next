@@ -3694,6 +3694,19 @@ had it, so people come over by id until they sign in. `npm run v2` by
 hand and the board are unchanged; `scripts/v2-go-live.sh`, which gave the
 workflow its secrets, is gone.
 
+Amended (2026-10-20, Carl Sauder): a whole read resumes, and a file v2
+does not have is asked for less often. A whole read records when it began
+(cursor `whole`) and when one last finished (`whole_done`); one begun less
+than a day ago and not finished skips the projects read since it began,
+by it or by a 15-minute pass, since each of those was read whole then, so
+a whole read a deploy stops (141) resumes rather than starting over. A
+missing file was asked for on every pass for a week, and on 2026-10-20
+the 15-minute pass asked again for some 10,000 absent files each time and
+took 10 of its 15 minutes. Now one missing under an hour is asked for on
+every pass, since a phone's upload can trail its rows; up to a week, only
+by the whole read or a transfer someone starts for its project, so about
+once a day; older, never, as before (`looksFor` in `pass.ts`).
+
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
 Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 102
@@ -5861,6 +5874,23 @@ not say whether it is a signal number or 128 plus one, so a number under
 143); either reading lands at 128 or more, which the object records
 (`killed:137`, `exit:143`) and which keeps a whole read owed. An
 `exitCode` property, which newer workerd sets, is still read first.
+
+Amended (2026-10-20, Carl Sauder): deploys stop cutting off the nightly
+whole v2 read, and a kill gets one row. The whole read took 40 to 70
+minutes on GitHub and has never finished in the container: 03:15 UTC is
+the team's evening, when merges deploy (five deploys from 03:02 to 04:47
+on 2026-10-20), and every rollout stopped it and it began again. The job
+container now sets `rollout_active_grace_period` to 5400 seconds: a
+rollout leaves a run alone for its first 90 minutes, then sends SIGTERM
+and allows 15 more (Cloudflare's rollout docs, which give no maximum),
+held by `scripts/cloudflare-deploy.test.ts`. A whole read stopped all the
+same resumes where it was (94). The object, tested for the first time
+against fakes of the platform's events (`apps/web/test/jobRunner.test.ts`:
+made again mid-run, a drain, a kill, the time limit, an end nobody
+watched), added a watcher at every minute's beat, so a killed run would
+have had a row from each; it now watches once per instance and records
+one end at a time, and the second finds the run recorded. The whole read
+stays at 03:15 UTC.
 
 Amended (2026-10-20, Carl Sauder): a local stack runs the pass in the
 container as well, and the Edge Function, renamed `push-delivery`, keeps
