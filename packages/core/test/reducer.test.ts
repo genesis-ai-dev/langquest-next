@@ -3,7 +3,8 @@ import type { AnyEvent, EventType } from '../src/events';
 import { foldLanguage } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
 import { EVENT_PRIVILEGE, foldOrg, emptyOrgState, ORG_EVENT_TYPES } from '../src/org';
-import { derivePassage, languageProgress } from '../src/passage';
+import { derivePassage } from '../src/passage';
+import { languageProgress } from '../src/passageLines';
 import { emptyLanguageState } from '../src/state';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from './fixtures';
 

@@ -1,4 +1,4 @@
-// New language's six stages (decisions.md 143), in the order it asks them:
+// New language's six stages (decisions.md 144), in the order it asks them:
 // the overview shows them all before the first question, and every page
 // after it lights the one it belongs to.
 import { t } from '../i18n';

@@ -19,7 +19,7 @@ import {
   CommandError, commands, CUSTOM_FLOW, deriveFlow, derivePassage, keyTermsFor, keyTermView, languageName,
   materialView, privilegesFor, recommendedFor, subscriptionItemId,
   unitTitle,
-  type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
+  type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LanguageState, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
@@ -667,7 +667,7 @@ export function FlowsHome(ctx: Ctx) {
 function StepSheet(props: {
   step: DraftStep | null; i: number; count: number; kinds: KindDef[]; title: string;
   onClose: () => void; onChange: (s: DraftStep) => void; onAdd: () => void; onMove: (dir: -1 | 1) => void; onRemove: () => void;
-  /** A check that makes something (back translation): the language it is made in (decisions.md 143). */
+  /** A check that makes something (back translation): the language it is made in (decisions.md 144). */
   onInto: (kind: KindDef) => void;
 }) {
   const st = props.step;
@@ -741,7 +741,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const edit = (patch: Partial<FlowEdits>) => draft.set((prev) => editorDraft({ ...(prev?.form ?? NO_FLOW_EDITS), ...patch }, NO_FLOW_EDITS, prev?.basis ?? it?.current ?? null));
   const [open, setOpen] = useState<number | null>(null);
   const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
-  // A back translation's language, from a step's sheet (decisions.md 143).
+  // A back translation's language, from a step's sheet (decisions.md 144).
   const [intoFor, setIntoFor] = useState<KindDef | null>(null);
   const [newKind, setNewKind] = useState('');
   const [busy, setBusy] = useState(false);
@@ -1614,6 +1614,27 @@ export function KeyTerms(ctx: Ctx) {
   );
 }
 
+/** The language with every passage a key term was tied in or changed during read in, for its uses; null until read. */
+function useTermPassages(ctx: Ctx, termId: string, term: KeyTermView | null): LanguageState | null {
+  const [view, setView] = useState<LanguageState | null>(null);
+  const { state, passagesLinkingTerm, passageOfTake, withPassages } = ctx.language;
+  useEffect(() => {
+    if (!state || !term) return;
+    let current = true;
+    void (async () => {
+      const units = new Set(await passagesLinkingTerm(termId));
+      for (const a of term.adjustments) {
+        const u = a.duringTakeId ? await passageOfTake(a.duringTakeId) : null;
+        if (u) units.add(u);
+      }
+      const read = await withPassages([...units]);
+      if (current) setView(read);
+    })().catch(() => { /* read again on the next change */ });
+    return () => { current = false; };
+  }, [state, term, termId, passagesLinkingTerm, passageOfTake, withPassages]);
+  return view;
+}
+
 export function KeyTermDetail(ctx: Ctx) {
   const state = ctx.language.state;
   const termId = ctx.params['termId'] ?? '';
@@ -1621,7 +1642,9 @@ export function KeyTermDetail(ctx: Ctx) {
   const term = useMemo(() => (state ? keyTermView(state, termId) : null), [state, termId]);
   const languageId = ctx.language.languageId;
   const passage = useMemo(() => (state && unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null), [state, unitId]);
-  const usedIn = useMemo(() => (state ? termUsedIn(state, termId) : []), [state, termId]);
+  // The versions that tied the term in, and those its changes were made during, may be in passages not in memory (decisions.md 143).
+  const uses = useTermPassages(ctx, termId, term);
+  const usedIn = useMemo(() => (uses ? termUsedIn(uses, termId) : []), [uses, termId]);
   const [adjusting, setAdjusting] = useState(false);
   // A new rendering, or a change and why, is kept on this phone as it is made, there when the sheet opens again (decision 127).
   const adjust = useDraft<RenderingDraft>(languageId ? draftKey('word', ctx.session.actorId, languageId, 'adjust', termId) : null, EMPTY_RENDERING, isRenderingDraft);
@@ -1647,7 +1670,7 @@ export function KeyTermDetail(ctx: Ctx) {
   const { canTie, isLinked } = tieState(state, termId, draftTakeId, ctx.params['takeId'], { translate: ctx.session.can('translate'), edit: canEdit });
   const passageLabel = passage ? unitTitle(state, passage.unitId) : null;
   const adjustments = [...term.adjustments].reverse();
-  const versionOf = (takeId?: string) => versionOfTake(state, takeId);
+  const versionOf = (takeId?: string) => versionOfTake(uses ?? state, takeId);
   const openVersion = (v: { unitId: string; takeId: string }) => ctx.go('version_detail', { unitId: v.unitId, languageId, takeId: v.takeId });
 
   async function tie() {

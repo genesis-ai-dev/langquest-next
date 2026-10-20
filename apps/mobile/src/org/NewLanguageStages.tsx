@@ -1,4 +1,4 @@
-// New language's six stages as pictures (decisions.md 143): the overview
+// New language's six stages as pictures (decisions.md 144): the overview
 // before the first question, each stage revealed in turn down one path with
 // a small picture of what it sets, and the bar of stages every page after it
 // carries, its own stage lit. No sentences: help mode says what each is.

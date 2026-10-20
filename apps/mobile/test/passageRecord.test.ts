@@ -1,3 +1,4 @@
+import { languageLines } from '@langquest-next/core';
 import {
   commands, deriveKinds, derivePassage, emptyLanguageState, flowTemplate, foldLanguage, foldOrg, HlcClock, instantiateFlow, ORG_STREAM,
   recordTimeline, SEED_ROLES, type AnyEvent, type EventPayloads, type EventType, type OrgState, type Scope
@@ -262,13 +263,13 @@ describe('asking someone', () => {
       ['elsewhere', 'rev', { level: 'language', languageId: 'other' }]
     ]);
 
-    const review = askCandidates(p.state(), org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
+    const review = askCandidates(p.state(), org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead', lines: languageLines(p.state()) });
     // Translators hold Review too (decisions.md 91): a peer check is often another translator.
     expect(review.map((c) => c.profileId).sort()).toEqual(['akol', 'ayen', 'deng', 'nyibol']);
     expect(review.find((c) => c.profileId === 'deng')).toMatchObject({ usual: true, sub: 'Reviewer · Has done this here before' });
     expect(review.find((c) => c.profileId === 'nyibol')).toMatchObject({ usual: false, sub: 'Community Reviewer' });
 
-    const rec = askCandidates(p.state(), org, { languageId: 'din', what: 'record', me: 'lead' });
+    const rec = askCandidates(p.state(), org, { languageId: 'din', what: 'record', me: 'lead', lines: languageLines(p.state()) });
     expect(rec.map((c) => c.profileId)).toEqual(['akol']);
   });
 
@@ -279,9 +280,9 @@ describe('asking someone', () => {
     const state = p.state();
     const reg = <T,>(value: T) => ({ value, hlc: '0', eventId: 'e' });
     state.teams['t1'] = { name: reg('Community group'), members: { nyibol: reg(true) }, kindId: reg('peer') } as never;
-    const review = askCandidates(state, org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead' });
+    const review = askCandidates(state, org, { languageId: 'din', what: 'review', kindId: 'peer', me: 'lead', lines: languageLines(state) });
     expect(review[0]).toMatchObject({ profileId: 'nyibol', usual: true, onCheck: true, sub: 'Community Reviewer' });
-    const other = askCandidates(state, org, { languageId: 'din', what: 'review', kindId: 'consultant', me: 'lead' });
+    const other = askCandidates(state, org, { languageId: 'din', what: 'review', kindId: 'consultant', me: 'lead', lines: languageLines(state) });
     expect(other.find((c) => c.profileId === 'nyibol')).toMatchObject({ usual: false, onCheck: false, sub: 'Community Reviewer' });
   });
 
@@ -314,12 +315,12 @@ describe('sending to the usual reviewer (ADR-029)', () => {
   it('finds the one person who reviewed this kind here, and sends to them in one command', () => {
     const p = language();
     record(p, 'v1', ['c1']);
-    expect(usualTargetFor(p.state(), team(), { languageId: 'din', kindId: 'peer', me: 'akol' })).toBeUndefined();
+    expect(usualTargetFor(p.state(), team(), { languageId: 'din', kindId: 'peer', me: 'akol', lines: languageLines(p.state()) })).toBeUndefined();
     p.run('ayen', (c) => c.recordReview({ commandId: 'r1', takeIds: [p.passage().latest!.takeId], kindId: 'peer', outcome: 'looks_good', via: 'app' }));
-    const target = usualTargetFor(p.state(), team(), { languageId: 'din', kindId: 'peer', me: 'akol' });
+    const target = usualTargetFor(p.state(), team(), { languageId: 'din', kindId: 'peer', me: 'akol', lines: languageLines(p.state()) });
     expect(target).toEqual({ profileId: 'ayen' });
     // Who may review comes from the organization's roles: with none loaded, nobody does.
-    expect(usualTargetFor(p.state(), null, { languageId: 'din', kindId: 'peer', me: 'akol' })).toBeUndefined();
+    expect(usualTargetFor(p.state(), null, { languageId: 'din', kindId: 'peer', me: 'akol', lines: languageLines(p.state()) })).toBeUndefined();
     record(p, 'v2', ['c2'], 'Clearer');
     p.run('akol', (c) => c.ask(sendToInput({ commandId: 's1', unitId: 'john3', kindId: 'peer', target: target! })));
     const sent = p.passage().openRequests.find((r) => r.kindId === 'peer')!;

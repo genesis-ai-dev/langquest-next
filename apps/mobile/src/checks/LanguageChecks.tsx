@@ -244,7 +244,7 @@ function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; langu
 }
 
 export function LanguageChecks({ ctx }: { ctx: Ctx }) {
-  // New language's checks before it exists are its draft's (decisions.md 143).
+  // New language's checks before it exists are its draft's (decisions.md 144).
   const c = useDraftAware(ctx);
   return <OwnChecks ctx={c} />;
 }
@@ -266,7 +266,7 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
 /**
  * A language's checks, as cards in order, with Add a check and a ready-made
  * flow to start from (`startFrom`): on its Checks screen, and on New
- * language's page of them, where the draft is the language (decisions.md 143).
+ * language's page of them, where the draft is the language (decisions.md 144).
  */
 export function ChecksContent({ ctx, undo, startFrom = true }: { ctx: Ctx; undo: ReturnType<typeof useChecksUndo>; startFrom?: boolean }) {
   const state = ctx.language.state;

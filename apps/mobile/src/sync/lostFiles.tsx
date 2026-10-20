@@ -5,7 +5,7 @@
 // can miss it: over every screen, until someone taps "I understand". It
 // says what can come back and which passages need recording again.
 import type { LostFile } from '@langquest-next/sync';
-import type { LanguageState } from '@langquest-next/core';
+import type { LanguageState, LostFilesView } from '@langquest-next/core';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { getBlobStore, type BlobStore } from './blobs';
@@ -42,11 +42,19 @@ function useLostFiles(): { lost: LostFile[]; store: BlobStore | null } {
  * Drawn once, above the app. Waits for the open language, which says what
  * each lost file was; with no language open every file is simply counted.
  */
-export function LostFilesAlert(props: { state: LanguageState | null }) {
+export function LostFilesAlert(props: { state: LanguageState | null; whatWere: (hashes: readonly string[]) => Promise<LostFilesView> }) {
   const { lost, store } = useLostFiles();
-  const state = props.state;
+  const { state, whatWere } = props;
+  // What the files were comes from the phone's table for a language kept on disk (decisions.md 143).
+  const [view, setView] = useState<LostFilesView | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (!state || lost.length === 0) { setView(null); return; }
+    void whatWere(lost.map((l) => l.hash)).then((v) => { if (active) setView(v); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [state, lost, whatWere]);
   // One walk of the language's files per change, not per render.
-  const words = useMemo(() => (state && lost.length ? lostFilesWords(state, lost) : null), [state, lost]);
+  const words = useMemo(() => (state && view && lost.length ? lostFilesWords(state, lost, view) : null), [state, lost, view]);
   // Field diagnostics read the counts at each delivery (the `device` record): files lost that
   // nobody has seen the alert for, and of them the open language's recordings that never
   // reached the server. Phones only, like the ledger (decisions.md 92).

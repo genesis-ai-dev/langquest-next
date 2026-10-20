@@ -14,7 +14,7 @@
 // the Map. Getting started is gone: help mode (the ? in the header) explains
 // each part for field workers, and the Get ready card leads coordinators.
 import {
-  checkPeople, derivePassage, highlightsFor, languageName, libraryItemView, membershipsOf, recommendedFor, unitPlace, unitTitle, upNext, waitingOn,
+  checkPeople, highlightsOf, languageName, libraryItemView, membershipsOf, recommendedFor, unitPlace, unitTitle, upNextOf, waitingOf,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
@@ -175,18 +175,19 @@ export function MyWork(ctx: Ctx) {
 
   // Everything here is in the open language: its stream is the one on this phone.
   const languageId = ctx.languageId;
+  // Read off each passage's line (decisions.md 143), never every passage's record.
+  const lines = ctx.language.lines;
   const lists = useMemo(() => {
     if (!state) return null;
-    const idx = indexesFor(state);
-    const forYou = highlightsFor(state, actorId, { canRecord, canReview }, idx);
-    const waiting = waitingOn(state, actorId, idx);
+    const forYou = highlightsOf(lines, state, actorId, { canRecord, canReview });
+    const waiting = waitingOf(lines, state, actorId);
     const listed = new Set([...forYou, ...waiting].map((x) => x.unitId));
     const recent = ctx.recent
       .filter((r) => r.languageId === languageId && state.units[r.unitId] && !listed.has(r.unitId))
       .slice(0, RECENT_CAP)
-      .map((r) => ({ ...r, s: derivePassage(state, r.unitId, idx) }));
+      .map((r) => ({ ...r, s: lines.get(r.unitId) }));
     return { forYou, waiting, recent, kinds: deriveKinds(state) };
-  }, [state, actorId, canRecord, canReview, ctx.recent, languageId]);
+  }, [state, lines, actorId, canRecord, canReview, ctx.recent, languageId]);
 
   const orgName = ctx.org.state?.org?.value.name ?? '';
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
@@ -269,11 +270,11 @@ export function MyWork(ctx: Ctx) {
       ) } : {})} />;
   } else if (languageId) {
     // ONB-7: something real to do when nothing is waiting, instead of an empty list.
-    const next = upNext(state, isAdminOnly ? { canRecord: true, canReview: false } : { canRecord, canReview }, idx);
+    const next = upNextOf(lines, idx.passages, isAdminOnly ? { canRecord: true, canReview: false } : { canRecord, canReview });
     if (next) {
       suggested = true;
       const title = unitTitle(state, next.unitId);
-      const by = next.kind === 'review' ? derivePassage(state, next.unitId, idx).latest?.by : undefined;
+      const by = next.kind === 'review' ? lines.get(next.unitId).latest?.by : undefined;
       const sub = isAdminOnly ? t('work.lead.notRecordedAdmin')
         : next.kind === 'record' ? t('work.lead.notRecorded')
         : t('work.lead.notChecked', { name: by ? ctx.name(by) : t('common.someone') });
@@ -291,7 +292,7 @@ export function MyWork(ctx: Ctx) {
   // Sections whose divisions changed after they were recorded (decision 80): their verses need recording again,
   // and the earlier recordings wait on their pages. For those who record, and those who divide.
   const again = (canRecord || ctx.session.can('manage_templates')) && languageId
-    ? [...earlier.over.keys()].filter((u) => state.units[u] && !derivePassage(state, u, idx).recorded) : [];
+    ? [...earlier.over.keys()].filter((u) => state.units[u] && !lines.get(u).recorded) : [];
   if (again.length && languageId) {
     tasks.push({ id: 'again', icon: 'mic', tone: 'amber', title: t('work.again.title', { passage: unitTitle(state, again[0]!) }),
       sub: t('work.again.sub', { count: again.length }), help: t('work.again.help'), onPress: () => ctx.openPassage(again[0]!, languageId) });

@@ -45,7 +45,7 @@ export function knownKinds(languageKinds: KindDef[], docKinds: KindDef[], seedKi
   return [...out.values()];
 }
 
-/** The known kinds and those made or changed in this session (a back translation's language, decisions.md 143): a changed one in its place. */
+/** The known kinds and those made or changed in this session (a back translation's language, decisions.md 144): a changed one in its place. */
 export function withAddedKinds(known: KindDef[], added: KindDef[]): KindDef[] {
   return [...known.map((k) => added.find((a) => a.id === k.id) ?? k), ...added.filter((k) => !known.some((x) => x.id === k.id))];
 }
