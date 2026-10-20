@@ -43,7 +43,7 @@ import {
   type EventSpec, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -104,7 +104,8 @@ import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote 
 import { useBible } from '../helps/useBible';
 import { useUsage } from '../sources/useUsage';
 import { useStudyGuide } from '../study/useStudyGuides';
-import { WritingWorkspace } from '../writing/WritingWorkspace';
+import type { WritingMode } from '../writing/WritingWorkspace';
+import { readModule, registerLoader } from '../shell/lazyModules';
 import { MakeChoice } from '../writing/MakeChoice';
 import { makingLanguage, makingSource } from '../writing/model';
 import { teamLanguage } from '../reference/languages';
@@ -126,6 +127,24 @@ type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark; ins
 
 /** Said to a screen reader where a toast used to say it: the change shows on the card. */
 const say = (message: string) => AccessibilityInfo.announceForAccessibility(message);
+
+// Writing loads the first time someone writes, as screens most people never open do (decisions.md 123
+// and 146): a team that only records never fetches it, and the web fetches it once the app has settled.
+const loadWriting = () => import('../writing/WritingWorkspace');
+registerLoader(loadWriting);
+
+function WritingLoaded(props: { ctx: Ctx; v: PassageView; mode: WritingMode }) {
+  const { WritingWorkspace: Loaded } = readModule(loadWriting);
+  return <Loaded {...props} />;
+}
+
+function WritingWorkspace(props: { ctx: Ctx; v: PassageView; mode: WritingMode }) {
+  return (
+    <Suspense fallback={<View style={{ flex: 1, backgroundColor: C.bg }} />}>
+      <WritingLoaded {...props} />
+    </Suspense>
+  );
+}
 
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);

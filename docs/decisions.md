@@ -6153,6 +6153,11 @@ Chosen:
   version's words, or the words added to a recording, with their verses;
   `audio` never names a written part; a new `made` include (team only)
   lists what was made beside versions. `approvedVersion` keeps its meaning.
+- The writing screen loads the first time someone writes, as the screens
+  most people never open do (123), so a first visit stays under its 5.7 MB
+  (5.69 MB); the cap on every file together rises from 6.5 to 6.6 MB, since
+  writing joined Silero, help-mode feedback and big languages kept on disk
+  at 6.53 MB in all.
 - People ask each other for what they need in other languages; there is no
   language feature for it (Caleb). No AI help for now.
 Not yet: the shipped back translation still records through
