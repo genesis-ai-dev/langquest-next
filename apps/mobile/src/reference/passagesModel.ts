@@ -81,7 +81,7 @@ export function coverageShown<P extends { unitId: string }>(passages: P[], map: 
   });
 }
 
-const COVER_ORDER: Record<RefKind, number> = { source: 0, guide: 1, note: 2, other: 3, questions: 4 };
+const COVER_ORDER: Record<RefKind, number> = { source: 0, guide: 1, note: 2, words: 3, other: 4, questions: 5 };
 
 /** One passage's row: what reaches it (Bibles, then guides, notes and the rest, by name) and whether no guide or note does. */
 export function coverageRow(reach: Reach[], names: Map<string, string>): { what: string[]; bare: boolean } {
@@ -107,9 +107,9 @@ export function whyLabel(why: ReachWhy): string {
 }
 
 /** Guides first, then notes and other material; the Bibles, which the text above already opens, last. */
-const ORDER: Record<RefKind, number> = { guide: 0, note: 1, other: 3, questions: 4, source: 6 };
+const ORDER: Record<RefKind, number> = { guide: 0, note: 1, words: 2, other: 3, questions: 4, source: 6 };
 
-export const refIcon = (kind: RefKind): IconName => (kind === 'source' ? 'book' : kind === 'guide' ? 'sparkle' : kind === 'note' ? 'note' : 'layers');
+export const refIcon = (kind: RefKind): IconName => (kind === 'source' ? 'book' : kind === 'guide' ? 'sparkle' : kind === 'note' ? 'note' : kind === 'words' ? 'key' : 'layers');
 
 /** What reaches one passage: shown here, and recommended but hidden here by hand. */
 export function passageHelps(state: LanguageState, passage: LanguagePassages['passages'][number], v11n: VersificationDoc | null, offered: Map<string, RecommendationSource>, rows: RefItem[], get: Get) {

@@ -99,15 +99,15 @@ export function recMessage(name: string, action: RecAction, level: Level): strin
 
 // ---- what kind of reference an item is -------------------------------------------
 
-export type RefKind = 'source' | 'guide' | 'note' | 'questions' | 'other';
+export type RefKind = 'source' | 'guide' | 'note' | 'questions' | 'words' | 'other';
 
-/** What a document is to a translator: a Bible, a guide, a note, a question set or other material. */
+/** What a document is to a translator: a Bible, a guide, a note, a question set, a key-word list (decision 149) or other material. */
 export function refKindOf(doc: LibraryDoc | null | undefined): RefKind | null {
   if (!doc) return null;
   switch (doc.format) {
     case 'source@1': return 'source';
     case 'study@1': case 'study@2': case 'collection@1': return 'guide';
-    case 'material@1': return doc.kind === 'note' ? 'note' : doc.kind === 'questions' ? 'questions' : 'other';
+    case 'material@1': return doc.kind === 'note' ? 'note' : doc.kind === 'questions' ? 'questions' : doc.kind === 'key_terms' ? 'words' : 'other';
     default: return null;
   }
 }
@@ -119,6 +119,7 @@ export function refKindLabel(kind: RefKind): string {
     case 'guide': return t('reference.kind.guide');
     case 'note': return t('reference.kind.note');
     case 'questions': return t('reference.kind.questions');
+    case 'words': return t('reference.kind.words');
     case 'other': return t('reference.kind.other');
   }
 }

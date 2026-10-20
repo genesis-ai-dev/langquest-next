@@ -7,7 +7,7 @@
 // the way (`chosenOnly`). Pure, so it is tested (test/guideSets.test.ts).
 import {
   recommendedFor,
-  type CollectionDoc, type LanguageRecommendation, type LanguageState, type LibraryDoc, type LibraryItemView, type Register
+  type CollectionDoc, type LanguageRecommendation, type LanguageState, type LibraryDoc, type LibraryItemView, type MaterialDoc, type Register
 } from '@langquest-next/core';
 import type { SharedItem } from '../library/model';
 import { sameLanguage } from './languages';
@@ -17,17 +17,34 @@ export function originOf(it: Pick<LibraryItemView, 'subscription' | 'copiedFrom'
   return it.subscription?.sourceOrgId ?? it.copiedFrom?.orgId ?? '';
 }
 
-/** The method a collection follows ("FIA"): the document says, or an older one's title does. */
-export function patternOf(doc: CollectionDoc): string | null {
-  return doc.pattern || (/\bFIA\b/.test(doc.title) ? 'FIA' : null);
+/** The method a collection or key-word list follows ("FIA"): the document says, or an older collection's title does. */
+export function patternOf(doc: CollectionDoc | MaterialDoc): string | null {
+  return doc.pattern || (doc.format === 'collection@1' && /\bFIA\b/.test(doc.title) ? 'FIA' : null);
 }
 
-/** The set a document belongs to: a collection in one language that follows a method; null for anything else. */
+/** A document that can be one language of a set: a guide collection, or a key-word list (decision 149). */
+type SetDoc = CollectionDoc | MaterialDoc;
+const setDoc = (doc: LibraryDoc | null | undefined): SetDoc | null =>
+  doc?.format === 'collection@1' || (doc?.format === 'material@1' && doc.kind === 'key_terms') ? doc : null;
+
+/**
+ * The set a document belongs to: a collection, or a key-word list, in one
+ * language that follows a method; null for anything else. A method's guides
+ * and its key words are two sets (`FIA` and `FIA|words`), chosen apart.
+ */
 export function setKeyOf(origin: string, doc: LibraryDoc | null | undefined): string | null {
-  if (doc?.format !== 'collection@1' || !doc.language) return null;
-  const pattern = patternOf(doc);
-  return pattern ? `${origin}|${pattern}` : null;
+  const d = setDoc(doc);
+  if (!d?.language) return null;
+  const pattern = patternOf(d);
+  if (!pattern) return null;
+  return d.format === 'collection@1' ? `${origin}|${pattern}` : `${origin}|${pattern}|words`;
 }
+
+/** Whether a set's members are key-word lists (its rows count words, not passages). */
+export const isWordSet = (set: Pick<GuideSet, 'key'>): boolean => set.key.endsWith('|words');
+
+/** How much a member holds: a collection's passages, or a list's words. */
+const sizeOf = (d: SetDoc): number => (d.format === 'collection@1' ? d.entries.length : d.terms?.length ?? 0);
 
 export interface SetMember {
   /** This organization's library item, once it has the member. */
@@ -37,7 +54,7 @@ export interface SetMember {
   name: string;
   /** ISO 639-3. */
   language: string;
-  /** How many passages it has a guide for. */
+  /** How many passages it has a guide for; for a key-word list, how many words. */
   passages: number;
 }
 
@@ -66,18 +83,20 @@ export function guideSets(
   shared: readonly { s: SharedItem; doc: LibraryDoc | null }[]
 ): GuideSet[] {
   const sets = new Map<string, GuideSet>();
-  const add = (key: string, doc: CollectionDoc, m: SetMember) => {
+  const add = (key: string, doc: SetDoc, m: SetMember) => {
     const set = sets.get(key) ?? { key, pattern: patternOf(doc)!, name: setName(m.name), members: [] };
     if (!set.members.some((x) => sameLanguage(x.language, m.language))) set.members.push(m);
     sets.set(key, set);
   };
   for (const { it, doc } of own) {
     const key = setKeyOf(originOf(it), doc);
-    if (key && !it.archived) add(key, doc as CollectionDoc, { itemId: it.itemId, shared: null, name: it.name, language: (doc as CollectionDoc).language!, passages: (doc as CollectionDoc).entries.length });
+    const d = setDoc(doc);
+    if (key && d && !it.archived) add(key, d, { itemId: it.itemId, shared: null, name: it.name, language: d.language!, passages: sizeOf(d) });
   }
   for (const { s, doc } of shared) {
     const key = setKeyOf(s.org_id, doc);
-    if (key) add(key, doc as CollectionDoc, { itemId: null, shared: s, name: s.name, language: (doc as CollectionDoc).language!, passages: (doc as CollectionDoc).entries.length });
+    const d = setDoc(doc);
+    if (key && d) add(key, d, { itemId: null, shared: s, name: s.name, language: d.language!, passages: sizeOf(d) });
   }
   return [...sets.values()]
     .filter((set) => set.members.length > 1)
