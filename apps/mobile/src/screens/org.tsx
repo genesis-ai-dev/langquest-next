@@ -12,9 +12,9 @@
 // ADR-045) is a name on some of them, with a page of its own (ClusterHome).
 import {
   clusterName, mayManageClusters, orgClusters,
-  decodeHlc, deriveFlow, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, progressOf as linesProgress,
+  commands, decodeHlc, deriveFlow, emptyLanguageState, goesWith, isMoreOpen, keyTermsFor, languageInfo, languageName, progressOf as linesProgress,
   leavesNoRoleManager, libraryItemView, materialsFor, mayChangeLicense, mayChangeMembership, mayGrantRole, mayRenameLanguage, mayRenameOrg, orgLicense, orgName, privilegesFor, SEED_ROLES,
-  subscriptionItemId, templateBooks, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
+  subscriptionItemId, templateBooks, type EventSpec, type LanguageProgress, type LibraryDoc, type License, type Scope, type ScopeLevel, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -47,7 +47,7 @@ import {
 import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
 import { appendToLanguage } from '../sync/languageWriter';
-import { createLanguages, newLanguageParts, type Making, type NewOne, type Offer } from '../org/newLanguage';
+import { createLanguages, newLanguageParts, type Making, type MaterialChoice, type NewOne } from '../org/newLanguage';
 import { emailInvite } from '../org/emailInvite';
 import { liveRoles, looksLikeEmail, signInFailure } from '../org/model';
 import { usePublicListing } from '../org/usePublicListing';
@@ -66,16 +66,24 @@ import { AmberNote, BigTop, CheckRow, ChoiceCard, CountBadge, DashedRow, IconTil
 import { inviteFailureText } from '../admin/inviteText';
 import { askedAgo, firstName, flowSub, guideShortName, joinAnd, languageLabel, QUESTIONS, questionLabel, stepTitle } from '../admin/adminModel';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
-import { rowsOf, stepsOf } from '../checks/model';
-import { setChecksDraft } from '../checks/draft';
+import { clearDraft, setDraftAnswers, startDraft } from '../checks/draft';
+import { draftChanged } from '../checks/languageDraftModel';
+import { draftCtx } from '../checks/draftCtx';
 import { useChecksDraft } from '../checks/useChecksDraft';
+import { useChecksUndo } from '../checks/useChecksUndo';
+import { ChecksContent } from '../checks/LanguageChecks';
+import { UndoRedo } from '../ui/undoRedo';
+import { StageBar, StagesPath } from '../org/NewLanguageStages';
+import { stageOf } from '../org/stagesModel';
+import { MaterialPicker } from '../org/MaterialPicker';
+import type { SharedItem } from '../library/model';
 import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { InviteSomeone } from '../invites/invite';
 import { refKindOf } from '../reference/model';
 import type { GuideSet } from '../reference/guideSets';
 import { memberIn, startingLanguage } from '../reference/languageChoices';
-import { docLanguage, readerLanguage, sameLanguage, teamLanguages } from '../reference/languages';
+import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguages } from '../reference/languages';
 import { ReferenceLanguagePage } from '../reference/ReferenceLanguagePage';
 import { useReferenceLanguages } from '../reference/useReferenceLanguages';
 import { ReadyChecklist } from '../admin/ready';
@@ -995,13 +1003,13 @@ export function InviteMember(ctx: Ctx) {
   return (
     <>
       <InviteSomeone ctx={ctx} scopes={scopes} initialScope={initial}
-        header={(_shown, back, s) => <Header title={t('org.invite.title')} sub={!s ? v.orgName : s.scope.level === 'org' ? v.orgName : s.label} onBack={back} />}
+        header={(back, s) => <Header title={t('org.invite.title')} sub={!s ? v.orgName : s.scope.level === 'org' ? v.orgName : s.label} onBack={back} />}
         label={(s) => t('admin.invite.teamLabel', { name: s.scope.level === 'org' ? v.orgName : s.label })}
         onDone={ctx.back}
         {...(ctx.session.can('manage_roles') ? { onNewRole: () => ctx.go('role_editor', { roleId: 'new' }) } : {})}
         disabled={scopes.length === 0 ? t('org.invite.cannot') : undefined}
         links={(roleId, s) => [
-          ...(roleId && s ? [{ label: t('org.invite.byEmail'), icon: 'send' as const, help: t('org.invite.byEmailHelp'), onPress: () => setEmail({ roleId, scope: s.scope }) }] : []),
+          { label: t('org.invite.byEmail'), icon: 'send' as const, help: t('org.invite.byEmailHelp'), onPress: () => setEmail({ roleId, scope: s.scope }) },
           { label: t('org.invite.byName'), icon: 'user' as const, help: t('org.invite.byNameHelp'), onPress: () => ctx.go('invite_qr', params(roleId, s)) }
         ]} />
       <Sheet visible={!!email} title={t('org.invite.emailTitle')} sub={email ? `${roleName(ctx, email.roleId)} · ${email.scope.level === 'org' ? v.orgName : v.label(email.scope.languageId)}` : undefined}
@@ -1405,39 +1413,37 @@ export function InviteQr(ctx: Ctx) {
 
 // ---- New language --------------------------------------------------------------------------
 
-/** Use a library choice here: ours as it is, a shared one followed with automatic updates (copied when its owner does not allow following). */
-async function adoptChoice(lib: ReturnType<typeof useLibrary>, c: LibraryChoice): Promise<string> {
-  if (c.source === 'ours') return c.item.itemId;
-  return c.shared.subscribable ? lib.subscribe(c.shared, true) : lib.copy(c.shared);
-}
-
-/** Step 3's "I'll choose the steps" card. */
+/** "I'll choose the checks": the language's own checks, starting from none. */
 const CHOOSE_STEPS = 'choose';
 
 /** "In a cluster?" on one language: a new cluster, named below it. */
 const NEW_CLUSTER = 'new';
 
 /**
- * A new language (ORG-2, decision 63; decision 71 and the prototype's
- * NewLang and NewLangFlow): one question per step, the likely answer picked.
+ * A new language (ORG-2, decisions 63, 71, 146; the prototype's NewLang and
+ * NewLangFlow): an overview of its six stages, then one question per page,
+ * the likely answer picked, the stages lit along the top.
+ *   0 the overview: the six stages down one path, then Start
  *   1 its name, found in the language list as it is typed (online), or
  *     a name and code of its own, unlinked until someone links it
- *   2 what it will translate (its template, and which part of the Bible)
- *   3 how recordings get checked (its review flow, or one made here with
- *     "I'll choose the steps"); Continue adds it, and offers its team the
- *     Bible and study guides named in the note, saying what it is doing
- *     part by part under a bar that keeps moving
- *   4 invite its translators (a group code to scan)
+ *   2 what it will translate (its template), then how it is broken up and
+ *     which part of the Bible
+ *   3 its reference material: the languages it is in (decision 130), then
+ *     what its team will have in them, ticked
+ *   4 its review flow: a ready-made one, or none to start from ("I'll choose
+ *     the checks"), then its checks on the pages a ready language sets them
+ *     up on, as a draft the language starts with (checks/languageDraftModel.ts);
+ *     Continue adds it, saying what it is doing part by part under a bar
+ *     that keeps moving
+ *   5 time to invite people: each role with what it lets them do, and a code
+ *     that can put them on its checks
  * It is listed in the organization's stream first; its own stream then
- * starts with the template, the flow and what it is offered.
+ * starts with the template, its checks and what it is offered.
  */
-/** Name, what it translates, how it is checked, the language of its reference material, invite (decision 84 added the fourth). */
-const STEPS = 5;
-
 export function NewLanguage(ctx: Ctx) {
   const state = ctx.language.state;
   const lib = useLibrary(ctx);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   // Picked from the language list (docs/languoids.md); none leaves it unlinked, to link from its page later.
@@ -1458,9 +1464,17 @@ export function NewLanguage(ctx: Ctx) {
   const madeRef = useRef(new Map<string, { languageId: string; name: string }>());
   const [scope, setScope] = useState<LanguageScope>('nt');
   const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
+  // Reference material, two pages: its languages, then what its team will have in them.
+  const [materialPage, setMaterialPage] = useState<'languages' | 'material'>('languages');
+  // Material ticked or unticked by hand; the rest keeps what is suggested.
+  const [ticked, setTicked] = useState<Record<string, boolean>>({});
+  // The review flow, two pages: which to start from, then its checks.
+  const [flowPage, setFlowPage] = useState<'pick' | 'checks'>('pick');
   const [flowKey, setFlowKey] = useState<string | null>(null);
   const [moreFlows, setMoreFlows] = useState(false);
-  // What Continue is doing now, of the parts it will do (the step 3 screen shows them while it runs).
+  // Another flow picked after its checks were changed: asked first, since the changes go (decision 134).
+  const [startAgain, setStartAgain] = useState(false);
+  // What Continue is doing now, of the parts it will do (the checks page shows them while it runs).
   const [making, setMaking] = useState<{ parts: Making[]; now: Making } | null>(null);
   const [created, setCreated] = useState<{ languages: { languageId: string; name: string }[]; cluster: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1468,7 +1482,6 @@ export function NewLanguage(ctx: Ctx) {
   // What it translates and how the Bible is broken up (decision 74); what other languages here use comes first.
   const tq = useTranslate(ctx, null);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
-  const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds);
   // The language its Bibles and study guides are in, a step of its own (decision 84): the admin's own when there is anything in it, else English.
   const [readsPicked, setReadsPicked] = useState<string[] | null>(null);
   const reader = readerLanguage();
@@ -1476,23 +1489,27 @@ export function NewLanguage(ctx: Ctx) {
   // The languages its Bibles and guides may be in, the main one first (decision 130).
   const readsAll = readsPicked ?? [startingLanguage(refs.choices, reader)];
   const reads = readsAll[0]!;
-  const offers = useNewLanguageOffers(ctx, reads, refs.sets);
+  // Flows in the languages the team reads, or saying none (decision 84, amended 2026-10-20): asked on the page before.
+  const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds, readsAll);
+  const material = useNewLanguageOffers(ctx, readsAll, refs.sets);
+  const isOn = (key: string) => ticked[key] ?? material.suggested.has(key);
+  const offers = material.items.filter((x) => isOn(x.key));
+  const offerNames = offers.map((o) => o.label);
   const doc = tq.doc;
-  // "I'll choose the checks": the language's own checks, edited on the Checks screen before it exists
-  // (checks/draft.ts, decision 91), starting from the way picked before that.
   const choosing = flowKey === CHOOSE_STEPS;
   const flow = choosing ? null : chk.entries.find((e) => e.c.key === (flowKey ?? chk.first?.c.key)) ?? null;
-  const lastFlow = useRef<FlowEntry | null>(null);
-  if (flow) lastFlow.current = flow;
-  const draft = useChecksDraft();
+  const flowChoice = choosing ? CHOOSE_STEPS : flow?.c.key ?? null;
+  // Its checks before it exists (decision 146): the draft its checks pages work on, through a ctx whose language it is.
+  const snap = useChecksDraft();
+  const draftContext = useMemo(() => (snap ? draftCtx(ctx, snap) : null), [ctx, snap]);
+  const undo = useChecksUndo(draftContext ?? ctx);
   // A draft left from an earlier New language is not this one's.
-  useEffect(() => { setChecksDraft(null); return () => setChecksDraft(null); }, []);
-  // What the language starts with: the way picked, copied (decision 91), or its own checks.
-  const checks = choosing
-    ? (draft ? { name: undefined, kinds: draft.kinds, steps: stepsOf(draft.rows) } : null)
-    : flow ? { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } : null;
+  useEffect(() => { clearDraft(); return () => clearDraft(); }, []);
   const orgName = ctx.org.state?.org?.value.name ?? t('org.newLanguage.theOrganization');
   const title = many ? clusterTitle.trim() || t('clusters.newLanguage.theCluster') : name.trim() || t('org.newLanguage.theLanguage');
+  // The draft's pages name it and read its reference languages as they are answered.
+  const readsKey = readsAll.join('|');
+  useEffect(() => { setDraftAnswers({ name: title, reads: readsKey.split('|') }); }, [title, readsKey]);
   // What Continue adds: the one language, or each new one of the cluster.
   const toMake: NewOne[] = many ? batch : [{ key: 'one', name: name.trim(), code: (picked?.code ?? code).trim(), languoidId: picked?.id ?? null }];
   const clusters = orgClusters(ctx.org.state);
@@ -1501,12 +1518,26 @@ export function NewLanguage(ctx: Ctx) {
   const theCode = picked?.code ?? code;
   const alike = useMemo(() => similarLanguages(ctx.org.state, { code: theCode, name }), [ctx.org.state, theCode, name]);
 
-  function chooseSteps() {
-    if (!draft) {
-      const from = lastFlow.current;
-      setChecksDraft({ kinds: from ? chk.kindsOf(from.doc) : kinds, rows: from ? rowsOf(from.doc.steps) : [] });
+  /** The checks page, from the flow picked: a new draft when it is another flow than the draft's. */
+  function toChecks(again = false) {
+    if (!flowChoice) return;
+    if (snap && snap.draft.from === flowChoice) { setFlowPage('checks'); return; }
+    if (snap && draftChanged(snap.draft) && !again) { setStartAgain(true); return; }
+    const fresh = commands(emptyLanguageState());
+    const commandId = Crypto.randomUUID();
+    let specs: EventSpec[];
+    try {
+      specs = choosing || !flow
+        ? fresh.saveFlowSteps({ commandId, steps: [] })
+        // The flow's own kinds first; a kind is defined once.
+        : fresh.copyFlow({ commandId, name: flow.c.name, kinds: chk.kindsOf(flow.doc).filter((k, i, all) => all.findIndex((x) => x.id === k.id) === i), steps: flow.doc.steps });
+    } catch (e) {
+      setError(failure('new language checks', e));
+      return;
     }
-    ctx.go('flow_editor', { draft: '1', name: title });
+    startDraft({ name: title, reads: readsAll, actorId: ctx.session.actorId, from: flowChoice, specs, nowMs: Date.now() });
+    setStartAgain(false);
+    setFlowPage('checks');
   }
 
   /** The cluster the new languages go in: one already here (by id, or by the same name), or a new one with its name. */
@@ -1540,15 +1571,16 @@ export function NewLanguage(ctx: Ctx) {
 
   async function create() {
     const list = toMake;
+    const checks = snap?.draft.specs;
     if (list.length === 0 || list.some((l) => !l.name) || busy || !tq.ready || !checks) return;
     setBusy(true);
     setError('');
     const target = clusterTarget();
     // Each part is named on screen before it starts, and the screen is drawn before the work goes on.
-    const parts = newLanguageParts(offers.items.length > 0, { ...(many ? { each: list.length } : {}), cluster: !!target });
+    const parts = newLanguageParts(offers.length > 0, { ...(many ? { each: list.length } : {}), cluster: !!target });
     try {
       const made = await createLanguages({
-        org: ctx.org.state, actorId: ctx.session.actorId, reads, alsoReads: readsAll.slice(1), scope, chosenBooks, checks, offers: offers.items,
+        org: ctx.org.state, actorId: ctx.session.actorId, reads, alsoReads: readsAll.slice(1), scope, chosenBooks, checks, offers,
         languages: list, each: many, done: madeRef.current,
         cluster: target ? { ...target, ...(many ? { existing: [...existing] } : {}) } : null
       }, {
@@ -1578,7 +1610,7 @@ export function NewLanguage(ctx: Ctx) {
       // The language this person works in is the one the app opens: a cluster's first.
       ctx.setLanguage(first.languageId);
       setCreated({ languages: made.languages, cluster: many ? group : null });
-      setChecksDraft(null);
+      clearDraft();
       setStep(5);
     } catch (e) {
       setError(many ? failure('new cluster', e) : failure('new language', e));
@@ -1588,47 +1620,60 @@ export function NewLanguage(ctx: Ctx) {
     }
   }
 
-  const header = (
+  const stage = stageOf(step, tq.page);
+  const header = (action?: ReactNode) => (
     <View style={{ backgroundColor: C.bg }}>
       {/* Leaving while it is being added would leave it half made: ✕ says to wait until it is done. */}
-      <Header title={t('org.home.newLanguage')} sub={t('org.newLanguage.step', { step: formatNumber(step), total: formatNumber(STEPS) })}
-        onBack={making ? () => ctx.toast(t('org.newLanguage.making.wait', { language: title })) : ctx.back} close />
+      <Header title={t('org.home.newLanguage')} sub={step > 1 ? title : undefined}
+        onBack={making ? () => ctx.toast(t('org.newLanguage.making.wait', { language: title })) : ctx.back} close {...(action ? { action } : {})} />
       <View style={{ paddingHorizontal: 20, paddingBottom: space.sm }}>
-        <Segments total={STEPS} current={step - 1} done={(i) => i < step - 1} />
+        <StageBar stage={stage} />
       </View>
     </View>
   );
-  const back = step > 1 && step < 5 ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: () => setStep(step - 1) }]} /> : null;
-  // A phone's Back goes one step back, as the Back under each step does: on step 2 a page of its question first
-  // (decision 137). While it is being added, it says to wait, as ✕ does.
-  useHardwareBack(!!making || (step > 1 && step < 5), () => {
+  /** One page back: a page of this step's question first, then the step before. */
+  function goBack() {
     if (making) { ctx.toast(t('org.newLanguage.making.wait', { language: title })); return; }
     if (step === 2 && tq.retreat()) return;
+    if (step === 3 && materialPage === 'material') { setMaterialPage('languages'); return; }
+    if (step === 4 && flowPage === 'checks') { setFlowPage('pick'); return; }
     setStep(step - 1);
-  });
+  }
+  const back = step > 1 && step < 5 ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: goBack }]} /> : null;
+  // A phone's Back goes one page back, as the Back under each page does (decision 137). While it is being added, it says to wait, as ✕ does.
+  useHardwareBack(!!making || (step > 1 && step < 5), goBack);
   const bodyStyle = { paddingHorizontal: 20, gap: 14 } as const;
 
-  if (step === 5 && created) return <NewLanguageInvite ctx={ctx} languages={created.languages} cluster={created.cluster} />;
-
-  // Step 4: the language of its Bibles and study guides, and what will be offered in it.
-  if (step === 4 && !making) {
+  // The overview: the six stages, one after another, then Start.
+  if (step === 0) {
     return (
-      <Screen header={header} bodyStyle={bodyStyle}
-        footer={<><PrimaryBtn label={t('org.continue')} icon="right" busy={busy} disabled={!checks || !tq.ready || !ready1}
-          help={many ? t('clusters.newLanguage.addHelp', { cluster: title }) : t('org.newLanguage.addHelp', { language: title })} onPress={() => void create()} />{back}</>}>
-        <ReferenceLanguagePage team={title} choices={refs.choices} value={readsAll} first={[startingLanguage(refs.choices, reader)]} onChange={setReadsPicked} loading={refs.loading}>
-          {offers.names.length ? (
-            <AmberNote icon="layers">
-              <Trans i18nKey={goesWith(tq.doc, 'FIA') && offers.names.some((n) => /FIA/.test(n)) ? 'org.newLanguage.offerNoteFia' : 'org.newLanguage.offerNote'}
-                values={{ offers: joinAnd(offers.names), language: title }} components={{ b: <Text style={{ fontWeight: '800' }} /> }} />
-            </AmberNote>
-          ) : offers.may && !refs.loading ? (
-            <AmberNote icon="layers">
-              <Trans i18nKey="org.newLanguage.offerNothing" values={{ reads: languageLabel(reads), language: title }} components={{ b: <Text style={{ fontWeight: '800' }} /> }} />
-            </AmberNote>
-          ) : null}
-        </ReferenceLanguagePage>
-        {error ? <Banner icon="flag" tone="amber" title={t('org.newLanguage.notAdded')} body={error} /> : null}
+      <Screen header={<Header title={t('org.home.newLanguage')} sub={t('org.newLanguage.stagesCount', { count: 6 })} onBack={ctx.back} close />} bodyStyle={bodyStyle}
+        footer={<PrimaryBtn label={t('org.newLanguage.start')} icon="right" help={t('org.newLanguage.startHelp')} onPress={() => setStep(1)} />}>
+        <StagesPath />
+      </Screen>
+    );
+  }
+
+  if (step === 5 && created) {
+    return <NewLanguageInvite ctx={ctx} languages={created.languages} cluster={created.cluster} top={<StageBar stage="people" />} />;
+  }
+
+  // Reference material: the languages it is in, then what its team will have in them.
+  if (step === 3) {
+    return (
+      <Screen header={header()} bodyStyle={bodyStyle}
+        footer={<>
+          <PrimaryBtn label={t('org.continue')} icon="right" disabled={materialPage === 'languages' && refs.loading} help={t('org.newLanguage.continueHelp')}
+            // Someone who may not choose reference material is not asked what the team will have.
+            onPress={() => (materialPage === 'languages' && material.may ? setMaterialPage('material') : setStep(4))} />
+          {back}
+        </>}>
+        {materialPage === 'languages' ? (
+          <ReferenceLanguagePage team={title} choices={refs.choices} value={readsAll} first={[startingLanguage(refs.choices, reader)]} onChange={setReadsPicked} loading={refs.loading} />
+        ) : (
+          <MaterialPicker team={title} languages={readsAll} items={material.items} on={isOn} loading={material.loading}
+            onToggle={(key) => setTicked((cur) => ({ ...cur, [key]: !isOn(key) }))} onLanguages={() => setMaterialPage('languages')} />
+        )}
       </Screen>
     );
   }
@@ -1645,7 +1690,7 @@ export function NewLanguage(ctx: Ctx) {
     };
     const onlyExisting = many && batch.length === 0 && existing.size > 0;
     return (
-      <Screen header={header} bodyStyle={bodyStyle}
+      <Screen header={header()} bodyStyle={bodyStyle}
         footer={onlyExisting
           ? <PrimaryBtn label={t('clusters.newLanguage.make')} icon="layers" busy={busy} disabled={!clusterTitle.trim()} onPress={() => void groupOnly()} />
           : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!ready1} help={t('org.newLanguage.continueHelp')} onPress={() => setStep(2)} />}>
@@ -1741,7 +1786,6 @@ export function NewLanguage(ctx: Ctx) {
                   placeholder={t('clusters.newLanguage.clusterPlaceholder')} autoCapitalize="words" /> : null}
               </>
             ) : null}
-            <Text style={[txt.sm, { color: C.muted }]}>{t('org.newLanguage.goesIn', { org: orgName })}</Text>
             {alike.length ? (
               <Banner icon="flag" tone="amber" title={t('org.newLanguage.alikeTitle', { org: orgName })}
                 body={t('org.newLanguage.alikeBody', { count: alike.length, languages: alike.map((l) => `${l.name} (${l.code.toUpperCase()})`).join(t('admin.list.separator')) })} />
@@ -1755,7 +1799,7 @@ export function NewLanguage(ctx: Ctx) {
 
   if (step === 2) {
     return (
-      <Screen header={header} bodyStyle={bodyStyle}
+      <Screen header={header()} bodyStyle={bodyStyle}
         footer={<>
           {tq.showContinue ? <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.last ? !tq.ready : !tq.canContinue} help={t('org.newLanguage.continueHelp')}
             onPress={() => { if (!tq.advance()) setStep(3); }} /> : null}
@@ -1787,7 +1831,6 @@ export function NewLanguage(ctx: Ctx) {
                 ))}
               </Pills>
             ) : null}
-            <Text style={[txt.sm, { color: C.muted }]}>{t('org.newLanguage.breakUpLater')}</Text>
           </>
         ) : null}
       </Screen>
@@ -1798,17 +1841,34 @@ export function NewLanguage(ctx: Ctx) {
     const at = making.parts.indexOf(making.now);
     const label = (p: Making) => p === 'passages' ? t('org.newLanguage.making.passages')
       : p === 'checks' ? t('org.newLanguage.making.checks')
-        : p === 'helps' ? t('org.newLanguage.making.helps', { offers: joinAnd(offers.names) })
+        : p === 'helps' ? t('org.newLanguage.making.helps', { offers: joinAnd(offerNames) })
           : p === 'listing' ? t('org.newLanguage.making.listing', { language: title, org: orgName })
             : p === 'saving' ? t('org.newLanguage.making.saving', { language: title })
               : p === 'cluster' ? t('clusters.newLanguage.making.grouping', { cluster: many ? title : joins === NEW_CLUSTER ? newCluster.trim() : clusterName(ctx.org.state, joins ?? '') ?? '' })
                 : t('clusters.newLanguage.making.adding', { language: toMake[Number(p.slice('language:'.length))]?.name ?? '' });
     return (
-      <Screen header={header} bodyStyle={bodyStyle}>
+      <Screen header={header()} bodyStyle={bodyStyle}>
         <Question>{t('org.newLanguage.making.title', { language: title })}</Question>
         <MovingBar height={8} />
         <WorkSteps items={making.parts.map((p, i) => ({ key: p, label: label(p), state: i < at ? 'done' : i === at ? 'now' : 'later' }))} />
         <Text style={[txt.sm, { color: C.muted, paddingHorizontal: space.xs }]}>{t('org.newLanguage.making.keepOpen')}</Text>
+      </Screen>
+    );
+  }
+
+  // Its checks, on the pages a ready language sets them up on (decision 146): opening one opens its page, on the draft.
+  if (flowPage === 'checks' && draftContext) {
+    return (
+      <Screen header={header(<UndoRedo {...undo.props} help={{ undo: t('checks.undoHelp'), redo: t('common.redoHelp') }} />)} bodyStyle={bodyStyle}
+        footer={<>
+          <PrimaryBtn label={t('org.newLanguage.addIt', { language: title })} icon="check" busy={busy}
+            disabled={!tq.ready || !ready1} help={many ? t('clusters.newLanguage.addHelp', { cluster: title }) : t('org.newLanguage.addHelp', { language: title })}
+            onPress={() => void create()} />
+          {back}
+        </>}>
+        <Question>{t('org.newLanguage.theChecks', { language: title })}</Question>
+        <ChecksContent ctx={draftContext} undo={undo} startFrom={false} />
+        {error ? <Banner icon="flag" tone="amber" title={t('org.newLanguage.notAdded')} body={error} /> : null}
       </Screen>
     );
   }
@@ -1829,31 +1889,28 @@ export function NewLanguage(ctx: Ctx) {
       </HelpRow>
     );
   };
+  const startingFrom = choosing ? t('getReady.checks.illChoose') : flow?.c.name ?? '';
   return (
-    <Screen header={header} bodyStyle={bodyStyle}
+    <Screen header={header()} bodyStyle={bodyStyle}
       footer={<>
-        {choosing && !draft ? <PrimaryBtn label={t('getReady.checks.chooseSteps')} icon="right" onPress={chooseSteps} />
-          : <PrimaryBtn label={t('org.continue')} icon="right" disabled={!checks || !tq.ready || !ready1} help={t('org.newLanguage.continueHelp')} onPress={() => setStep(4)} />}
+        <PrimaryBtn label={t('org.continue')} icon="right" disabled={!flowChoice} help={t('org.newLanguage.toChecksHelp')} onPress={() => toChecks()} />
         {back}
       </>}>
       <Question>{t('org.newLanguage.howChecked')}</Question>
       {many ? <Text style={[txt.sm, { color: C.muted }]}>{t('clusters.newLanguage.forNew', { count: batch.length, cluster: title })}</Text> : null}
       {/* Making your own comes first, set apart, so the ready-made list below can grow (design principle 12). */}
       {ctx.session.can('manage_flows') && chk.loaded ? (
-        <ChoiceCard own on={choosing} icon="edit" title={t('getReady.checks.illChoose')} help={t('getReady.checks.illChooseHelp')} onPress={() => setFlowKey(CHOOSE_STEPS)}>
-          {choosing && draft ? (
-            <>
-              <NumberedSteps items={stepsOf(draft.rows).map((st) => ({ label: stepTitle(st.kindIds, draft.kinds), lock: st.checkpoint }))} />
-              <QuietLink icon="edit" label={t('checks.change')} detail={t('org.newLanguage.changeChecksHelp')} onPress={chooseSteps} />
-            </>
-          ) : null}
-        </ChoiceCard>
+        <ChoiceCard own on={choosing} icon="edit" title={t('getReady.checks.illChoose')} help={t('org.newLanguage.illChooseHelp')} onPress={() => setFlowKey(CHOOSE_STEPS)} />
       ) : null}
       {[...chk.main, ...spoken].map(flowCard)}
       {rest.length ? (moreFlows ? rest.map(flowCard)
         : <QuietLink icon="down" label={t('getReady.checks.otherWaysCount', { total: formatNumber(rest.length) })} detail={t('getReady.checks.otherWaysHelp')}
           onPress={() => setMoreFlows(true)} />) : null}
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('org.newLanguage.noWays') : t('common.loading')}</Text> : null}
+      {error ? <Banner icon="flag" tone="amber" title={t('org.newLanguage.notAdded')} body={error} /> : null}
+      {/* Its checks were changed by hand: starting from another flow drops those changes, so it asks first (decision 134). */}
+      <ConfirmDelete visible={startAgain} name={startingFrom} title={t('org.newLanguage.startAgainAsk', { flow: startingFrom })}
+        confirmLabel={t('org.newLanguage.startAgain')} replaces onClose={() => setStartAgain(false)} onConfirm={() => toChecks(true)} />
     </Screen>
   );
 }
@@ -1872,50 +1929,62 @@ function flowFrom(c: LibraryChoice): string {
 }
 
 /**
- * What a new language's team is offered from the start, in the language
- * chosen for its reference material (decision 84): a Bible and study
- * guides, FIA's first, the organization's own when it has them, else what
- * LangQuest shares. A guide set (FIA) is offered in that language when it
- * has it; nothing is offered in a language it is not in.
+ * What a new language's team can be given from the start, in the languages
+ * chosen for its reference material (decisions 84, 130, 146): the Bibles,
+ * study guides and notes the organization has or LangQuest shares in them,
+ * a guide set (FIA) once, in the main language. Suggested, as before: one
+ * Bible (the organization's own first, the World English Bible first of
+ * those shared) and one set of guides (FIA's first).
  */
-function useNewLanguageOffers(ctx: Ctx, reads: string, sets: readonly GuideSet[]) {
+function useNewLanguageOffers(ctx: Ctx, readsAll: readonly string[], sets: readonly GuideSet[]) {
+  const reads = readsAll[0]!;
   const lib = useLibrary(ctx);
   const shared = useSharedItems('material', lib.orgId);
   const own = lib.items('material').filter((it) => it.current && !it.archived);
   const others = shared.rows.filter((s) => s.latest_hash && !ctx.org.state?.library[subscriptionItemId(s.org_id, s.item_id)]);
   const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
+  const may = ctx.session.can('manage_reference');
   const fia = (n: string) => (/fia/i.test(n) ? 0 : /example/i.test(n) ? 2 : 1);
   const web = (n: string) => (/world english/i.test(n) ? 0 : 1);
-  const pickSet = (): Offer | null => {
-    for (const set of [...sets].sort((a, b) => fia(a.name) - fia(b.name))) {
-      const member = memberIn(set, reads);
-      if (member) {
-        return { itemId: member.itemId, shared: member.shared, name: member.name, set, member,
-          label: t('org.offers.guidesIn', { name: guideShortName(set.name), language: languageLabel(member.language) }) };
-      }
-    }
-    return null;
+  const inTeam = (doc: LibraryDoc | null) => !!doc && readsAll.some((l) => sameLanguage(docLanguage(doc) ?? 'eng', l));
+  // A set's members are its one row, not rows of their own.
+  const sharedKey = (s: { org_id: string; item_id: string }) => `${s.org_id}/${s.item_id}`;
+  const inSets = new Set(sets.flatMap((set) => set.members.map((m) => m.itemId ?? (m.shared ? sharedKey(m.shared) : ''))));
+  const setRows: MaterialChoice[] = [...sets].sort((a, b) => fia(a.name) - fia(b.name)).flatMap((set) => {
+    const member = memberIn(set, reads);
+    return member ? [{
+      key: `set:${set.key}`, kind: 'guide' as const, itemId: member.itemId, shared: member.shared, name: member.name, set, member,
+      label: t('org.offers.guidesIn', { name: guideShortName(set.name), language: languageLabel(member.language) }),
+      sub: t('referenceLanguage.setPassages', { name: guideShortName(set.name), count: member.passages })
+    }] : [];
+  });
+  const kindOf = (doc: LibraryDoc | null): MaterialChoice['kind'] | null => {
+    const k = refKindOf(doc);
+    return k === 'source' ? 'source' : k === 'guide' ? 'guide' : k === 'note' || k === 'other' ? 'note' : null;
   };
-  const pick = (kind: 'source' | 'guide', rank: (n: string) => number): Offer | null => {
-    // A guide still on its way is known by its name ("FIA study guides (English)"), so FIA's is offered even before it loads.
-    const named = (n: string) => kind === 'guide' && reads === 'eng' && /study guides?/i.test(n) && /\(English\)/.test(n);
-    const fits = (doc: LibraryDoc | null, n: string) => (doc ? refKindOf(doc) === kind && sameLanguage(docLanguage(doc) ?? 'eng', reads) : named(n));
-    const mine = own.map((it) => ({ it, doc: docs.get(it.current) })).filter((x) => fits(x.doc, x.it.name))
-      .sort((a, b) => rank(a.it.name) - rank(b.it.name))[0];
-    if (mine) return { itemId: mine.it.itemId, shared: null, name: mine.it.name, label: kind === 'source' ? bibleOffer(mine.it.name) : guidesOffer(mine.it.name, mine.doc) };
-    const theirs = others.map((s) => ({ s, doc: docs.get(s.latest_hash) }))
-      .filter((x) => fits(x.doc, x.s.name))
-      .sort((a, b) => rank(a.s.name) - rank(b.s.name))[0];
-    if (theirs) {
-      return { itemId: null, shared: theirs.s, name: theirs.s.name,
-        label: kind === 'source' ? bibleOffer((theirs.doc as SourceDoc | null)?.name || theirs.s.name) : guidesOffer(theirs.s.name, theirs.doc) };
-    }
-    return null;
-  };
-  const guide = pickSet() ?? pick('guide', fia);
-  const items = [pick('source', web), guide].filter((o): o is Offer => !!o);
-  const may = ctx.session.can('manage_reference');
-  return { items: may ? items : [], names: may ? items.map((o) => o.label) : [], guide: may ? guide : null, may };
+  const row = (key: string, itemId: string | null, s: SharedItem | null, name: string, doc: LibraryDoc | null, kind: MaterialChoice['kind'], owner: string): MaterialChoice => ({
+    key, kind, itemId, shared: s, name,
+    label: kind === 'source' ? bibleOffer((doc as SourceDoc | null)?.name || name) : kind === 'guide' ? guidesOffer(name, doc) : name,
+    sub: [languagesLine([docLanguage(doc)]), owner].filter(Boolean).join(' · ')
+  });
+  const ownRows = own.flatMap((it) => {
+    const doc = docs.get(it.current);
+    const kind = kindOf(doc);
+    return kind && inTeam(doc) && !inSets.has(it.itemId) ? [row(it.itemId, it.itemId, null, it.name, doc, kind, '')] : [];
+  });
+  const sharedRows = others.flatMap((s) => {
+    const doc = docs.get(s.latest_hash);
+    const kind = kindOf(doc);
+    return kind && inTeam(doc) && !inSets.has(sharedKey(s)) ? [row(sharedKey(s), null, s, s.name, doc, kind, s.org_name)] : [];
+  });
+  const items = [...ownRows.filter((x) => x.kind === 'source'), ...sharedRows.filter((x) => x.kind === 'source'), ...setRows,
+    ...ownRows.filter((x) => x.kind !== 'source'), ...sharedRows.filter((x) => x.kind !== 'source')];
+  // What is ticked until someone changes it: the organization's own Bible first, else the World English Bible; FIA's guides.
+  const firstBy = (list: MaterialChoice[], rank: (n: string) => number) => [...list].sort((a, b) => rank(a.name) - rank(b.name))[0];
+  const bible = firstBy(ownRows.filter((x) => x.kind === 'source'), web) ?? firstBy(sharedRows.filter((x) => x.kind === 'source'), web);
+  const guide = setRows[0] ?? firstBy(ownRows.filter((x) => x.kind === 'guide'), fia) ?? firstBy(sharedRows.filter((x) => x.kind === 'guide'), fia);
+  const suggested = new Set([bible?.key, guide?.key].filter((k): k is string => !!k));
+  return { items: may ? items : [], suggested, may, loading: !shared.loaded };
 }
 
 /** Study guides as the offer note names them: "FIA's study guides in English", or without the language when they give none. */
@@ -1930,22 +1999,24 @@ function bibleOffer(name: string): string {
 }
 
 /**
- * Last: invite the new language's translators (the prototype's Invite, after
- * NewLangFlow). After a cluster, its new languages are chips: a code is for
- * one language, as a membership is (decision 108: a cluster is no scope).
+ * Last: time to invite people (decision 146, the prototype's Invite after
+ * NewLangFlow): each role with what it lets them do, and a code that can
+ * put them on the language's checks. After a cluster, its new languages are
+ * chips: a code is for one language, as a membership is (decision 108: a
+ * cluster is no scope).
  */
-function NewLanguageInvite(props: { ctx: Ctx; languages: { languageId: string; name: string }[]; cluster: string | null }) {
+function NewLanguageInvite(props: { ctx: Ctx; languages: { languageId: string; name: string }[]; cluster: string | null; top: ReactNode }) {
   const { ctx } = props;
   const scopes = props.languages.map((l) => ({ key: l.languageId, label: l.name, scope: { level: 'language', languageId: l.languageId } as Scope }));
   const first = props.languages[0]!;
   const may = ctx.session.can('invite_members') && scopes.every((s) => mayGrantAt(ctx.org.state, ctx.session.actorId, s.scope));
   const names = props.cluster ?? first.name;
   return (
-    <InviteSomeone ctx={ctx} scopes={scopes} initialScope={first.languageId}
-      header={(shown, back) => <Header title={t('org.invite.title')} sub={names} onBack={shown ? back : ctx.back} />}
+    <InviteSomeone ctx={ctx} scopes={scopes} initialScope={first.languageId} welcome top={props.top}
+      header={(back) => <Header title={t('org.home.newLanguage')} sub={names} onBack={back} />}
       label={(scope) => t('admin.invite.teamLabel', { name: scope.label })} onDone={ctx.back}
       disabled={may ? undefined : t('org.newLanguage.inviteLater', { language: names })}
-      links={() => [{ label: t('org.newLanguage.later'), icon: 'clock', help: t('org.newLanguage.laterHelp'), onPress: ctx.back }]}
+      later={{ label: t('org.newLanguage.later'), help: t('org.newLanguage.laterHelp'), onPress: ctx.back }}
       {...(ctx.session.can('manage_roles') ? { onNewRole: () => ctx.go('role_editor', { roleId: 'new' }) } : {})} />
   );
 }

@@ -25,10 +25,12 @@ page: one name for each thing, no More).
   the Manage tab's root for LADMIN, and for others it is reached from Org
   home → Languages → "Alpha". LADMIN reaches Org home from "UI Test Org"
   above Alpha's title, where Back would be (`header-up`, decision 138).
-- New language has **five** steps on screen ("Step n of 5"): name, what
-  they translate, how recordings get checked, the language of the Bibles
-  and guides (added by decision 84), and invite. Decision 71's amendment
-  says four; the fifth is the invite screen after the language is made.
+- New language opens on its **six** steps (decision 146), then shows them
+  as a bar on every page ("n of 6 · name"): the language, its content, how
+  it is split into pieces, its reference material (its languages, then
+  what the team will have), its review flow (a flow to start from, then
+  its checks on their own pages), and people (the invite, after the
+  language is made).
 - A language is **ready** when it has a template, a review flow, and either
   someone given a role that translates at that language or an invite issued
   for it. "What will help them" is asked but never required. Organization-
@@ -308,8 +310,9 @@ Preconditions (in addition to the global ones):
 - Resets: adds a language "Charlie {run}".
 
 Steps:
-1. Open Org home and tap "New language or cluster". Leave "One language"
-   chosen under "What are you adding?".
+1. Open Org home and tap "New language or cluster". Read the six steps,
+   then tap "Start". Leave "One language" chosen under "What are you
+   adding?".
 2. Type "Charlie {run}" in "Its name". Do not pick a list entry. Type
    "chr" in "Its code, if it has one". Tap "Continue".
 3. Tap "The Bible". Choose the numbering: type "World English" under "Which
@@ -317,29 +320,39 @@ Steps:
    study guides"; not "FIA passages (English)", Alpha's) under "How
    should the Bible be broken up?". Leave "New Testament" chosen. Tap
    "Continue".
-4. Leave the first card ("Standard Bible Flow", "Suggested · from
+4. Under "Which languages should Charlie {run}'s Bibles and study guides
+   be in?" leave "English" ticked. Tap "Continue". Under "What will help
+   Charlie {run}'s team?" leave what is ticked. Tap "Continue".
+5. Leave the first card ("Standard Bible Flow", "Suggested · from
    LangQuest") chosen under "How will recordings get checked?". Tap
-   "Continue".
-5. Under "Which languages should Charlie {run}'s Bibles and study guides
-   be in?" leave "English" ticked. Tap "Continue".
-6. Wait until the invite screen shows.
-7. Leave "Translate" chosen. Tap "Show the code to scan". Tap "Done".
+   "Continue". On "Charlie {run}'s checks" tap "Add Charlie {run}".
+6. Wait until "Time to invite people" shows.
+7. On "Translators" tap "What they may do", then its "Invite". Under
+   "Which checks will they do?" tick "Peer check" and tap "Show the code to
+   scan". Tap "Done".
 8. Open Org home.
 
 Expected:
-- The header is "New language" with "Step 1 of 5" … "Step 5 of 5" and a
-  segmented bar.
-- Step 1 says "It goes in UI Test Org. You can invite its translators at
-  the end."
-- Step 5's amber note says "We'll offer {Bible and guides} to Charlie
-  {run}'s translators. FIA's guides go with the FIA passages you chose.
-  Change that any time under Reference material."
+- New language opens on its six steps (decision 146): "6 steps", then
+  Language, Content, Split into pieces, Reference material, Review flow and
+  People, each with a small picture, and "Start".
+- Every step after that has the six as a bar under the header, done ones
+  ticked, its own lit and named: "1 of 6 · Language" … "6 of 6 · People".
+- Reference material comes before the review flow. "What will help Charlie
+  {run}'s team?" ticks FIA's study guides in English (and a Bible when the
+  library has one).
+- "Charlie {run}'s checks" lists Standard Bible Flow's checks under "A
+  translator records a version", each opening its own page; the main
+  button is "Add Charlie {run}".
 - While it is made, see SETUP-016 for the progress screen.
 - Toast "Charlie {run} added to UI Test Org."
-- The invite screen is "Invite someone" with the sub "Charlie {run}", the
-  question "What will they do?" and the quiet link "Later".
-- After step 7, "Ask them to scan this", a QR code and "Share as a link"
-  show once the server has made the code.
+- "Time to invite people" has a card per role ("Translators", "Checkers",
+  "Back-translators", "Team leads"), each with its line, "What they may do"
+  (open: the role's switches that are on, and "Only in Charlie {run}") and
+  its own "Invite"; no radio buttons; "Later" under them.
+- After step 7, "Translators" with a "Peer check" tag, "Ask them to scan
+  this", a QR code and "Share as a link" show once the server has made the
+  code.
 - On Org home "Charlie {run}" is listed. Its page shows "Ready · 0
   translators" (it has a template, a flow and an invite).
 - Its page → "Languages" says "Not linked yet: added offline, or not found
@@ -502,8 +515,9 @@ Preconditions (in addition to the global ones):
 - Resets: adds a language.
 
 Steps:
-1. Set up a new language "Golf {run}" as in SETUP-010, up to step 4.
-2. Tap "Continue".
+1. Set up a new language "Golf {run}" as in SETUP-010, up to its checks
+   (step 5).
+2. Tap "Add Golf {run}".
 3. While the bar moves, tap the header ✕.
 4. Wait until it finishes.
 
@@ -544,38 +558,37 @@ Expected:
   from here." (decision 71, amended 2026-10-11).
 - After saving, "Songs {run}" is offered under "Your organization's own".
 
-### SETUP-018 "I'll choose the checks" edits the new language's own checks
-Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+### SETUP-018 A new language's checks are set up on their own pages before it exists
+Roles: ADMIN · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
 - Resets: adds a language "Hotel {run}".
 
 Steps:
-1. Org home → "New language". Name it "Hotel {run}". Finish step 2.
-2. On "How will recordings get checked?" tap "Standard Bible Flow", then
-   "I'll choose the checks".
-3. Tap "Choose the checks".
-4. On Checks, tap "Final approval" → "Remove this check". "Add a check" →
-   "Retelling". Tap "Done".
-5. Read step 3 again. Finish, and tap "Later". Open its page.
+1. Org home → "New language" → "Start". Name it "Hotel {run}". Finish the
+   steps up to "How will recordings get checked?" as in SETUP-010.
+2. Tap "Standard Bible Flow", then "Continue".
+3. On "Hotel {run}'s checks" tap "Final approval" → "Remove this check",
+   and confirm.
+4. "Add a check" → "Retelling".
+5. Tap "Community check" → "Same time as" → tick "Retelling" → "Done".
+6. Tap "Bible" and switch "Text" off. Go back twice.
+7. Tap "Add Hotel {run}". Tap "Later". Open its page.
+8. Open "Who checks the recordings?" → "I'll choose the checks" → "Choose
+   the checks".
 
 Expected:
-- With "I'll choose the checks" chosen, the main button reads "Choose the
-  checks".
-- Checks opens with the sub "Hotel {run}", starting from Standard Bible
-  Flow's checks, with no "Start from a ready-made flow" (decision 91).
-- Tapping a check opens a sheet with "Must pass", "Same time as {check}"
-  and "Remove this check".
-- Back on step 3, "I'll choose the checks" shows the chosen checks
-  numbered, without Final approval, with "Change the checks"; "Continue" is
-  enabled.
-- The page's "Who checks the recordings?" reads "Peer check + back
-  translation → Community check → Consultant check → Retelling". Nothing is
+- The checks start from Standard Bible Flow's (decision 91), with no
+  "Start from a ready-made flow" (the step before chose it).
+- A check opens the same page a ready language's check has (decision 146):
+  "People" ("Choose them as you invite"), "Questions", "On their screen",
+  "Helps", "Must pass", "Same time as" (any other checks, ticked), "Remove
+  this check". Removing asks first.
+- After step 6 the Community check's card says "Bible text" by a struck eye.
+- Its page's "Review flow" reads "Peer check + back translation → Community
+  check + retelling → Consultant check", without Final approval. Nothing is
   added to the library: the checks are the language's own.
-
-Fixed (2026-10-12): a check could not be removed from the draft (its cards
-did nothing when tapped); `DraftChecks` in screens/checks.tsx now opens a
-sheet per check.
+- Step 8: the Community check's card says "Bible text" by a struck eye.
 
 ### SETUP-019 The language of a new team's Bibles and guides
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -584,10 +597,11 @@ Preconditions (in addition to the global ones):
 - None. (Leave with ✕ at the end.)
 
 Steps:
-1. Org home → "New language". Finish steps 1–3.
-2. Read step 4.
-3. Tap a language that says "Nothing in this language yet".
-4. Tap "Another language" and search "French".
+1. Org home → "New language" → "Start". Finish the steps up to how the
+   Bible is broken up.
+2. Read "Which languages should …".
+3. Tap "Another language" and search "French".
+4. Tap "Continue".
 
 Expected:
 - The question is "Which languages should {language}'s Bibles and study
@@ -597,9 +611,9 @@ Expected:
   · {n} Bibles · {n} other guides or notes".
 - The app's own language is marked as yours and chosen first when it has
   anything; otherwise English (decision 84).
-- At step 3 the amber note says "LangQuest has no Bibles or study guides in
-  {reads} yet. Find a Bible or write notes for {language}'s translators
-  under Reference material."
+- Step 4: "What will help {language}'s team?" under the chip "Bibles and
+  guides in English · Change", with FIA's study guides in English ticked
+  (decision 146).
 
 ### SETUP-020 New language's invite step, or later
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -654,15 +668,16 @@ Preconditions (in addition to the global ones):
   ungroups the cluster, so Bravo ends as it began.
 
 Steps:
-1. Open Org home and tap "New language or cluster".
+1. Open Org home, tap "New language or cluster", then "Start".
 2. Tap "A cluster of languages". Type "Cluster {run}" in "The cluster's
    name".
 3. Type "Kilo {run}" in "Add a language" and tap "Add “Kilo {run}”" (the
    local language list finds nothing). Tap "Bravo" under "Already in UI
    Test Org". Tap "Continue".
 4. Choose the Bible and FIA passages as in SETUP-010. Tap "Continue" under
-   "How will recordings get checked?" and under the Bibles' language.
-5. Wait for the invite screen and tap "Later".
+   the Bibles' language and what will help, then under "How will
+   recordings get checked?". Tap "Add Cluster {run}".
+5. Wait for "Time to invite people" and tap "Later".
 6. Open Org home, then "Cluster {run}".
 7. Tap "Ungroup", then "Ungroup" in the sheet. Open Org home.
 
