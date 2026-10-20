@@ -6330,9 +6330,11 @@
       "bibleBrainHelp": "Search Bible Brain for Bibles by language.",
       "bibleHelp": "Shows what it has before you add it.",
       "fromLangQuestHelp": "Shows the Bibles LangQuest has ready to follow.",
-      "languageHelp": "Shows its Bibles from Bible Brain. The number counts them.",
       "readyHelp": "Adds it to your library and recommends it here.",
-      "searchHelp": "Type a language’s name or code to find its Bibles."
+      "searchHelp": "Type a language’s name or code to find its Bibles.",
+      "listed": "Only languages with Bibles in Bible Brain are listed.",
+      "noMatch": "No language by that name has a Bible in Bible Brain.",
+      "unreachable": "Finding a language needs a connection the first time."
     },
     "source": {
       "title": "Bible",
@@ -6778,10 +6780,6 @@
       "notSetUp": "Bible Brain isn't set up on this device",
       "notSetUpSub": "Your organization's library still works. Ask whoever runs LangQuest for your team to connect the server.",
       "searchPlaceholder": "Search for a language",
-      "noLanguages": "No languages found",
-      "noLanguagesSub": "Try the name in English, or its three-letter code.",
-      "languageBibles_one": "{{code}} · {{count, number}} Bible",
-      "languageBibles_other": "{{code}} · {{count, number}} Bibles",
       "biblesIn": "Bibles in {{language}}",
       "noBibles": "No Bibles in this language on Bible Brain.",
       "myBible": "My Bible",
@@ -6806,7 +6804,6 @@
       "bibleHelp": "Opens it to read and hear a chapter, before you add it.",
       "bookHelp": "Shows a chapter of this book.",
       "chapterHelp": "Shows chapter {{n, number}} to read and hear.",
-      "languageHelp": "Shows its Bibles below.",
       "nextChapterHelp": "Reads and plays the chapter after this one.",
       "previousChapterHelp": "Reads and plays the chapter before this one.",
       "removeHelp": "Takes it out of your Bibles on this device. You can add it again here.",
@@ -6825,7 +6822,9 @@
     "chip": "Bibles and guides in {{language}}",
     "chipHelp": "The language of their Bibles and study guides. Tap to change it.",
     "change": "Change",
-    "rowHelp": "Adds this language for the team’s Bibles and guides, or takes it away. The line says what it has."
+    "rowHelp": "Adds this language for the team’s Bibles and guides, or takes it away. The line says what it has.",
+    "listed": "Only languages with Bibles or study guides are listed.",
+    "noMatch": "No language by that name has Bibles or study guides yet."
   },
   "checks": {
     "title": "Checks",

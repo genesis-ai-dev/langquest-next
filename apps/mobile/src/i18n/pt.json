@@ -6587,9 +6587,11 @@
       "bibleBrainHelp": "Pesquise Bíblias por idioma no Bible Brain.",
       "bibleHelp": "Mostra o que ela tem antes de você adicionar.",
       "fromLangQuestHelp": "Mostra as Bíblias que o LangQuest tem prontas para seguir.",
-      "languageHelp": "Mostra as Bíblias dele no Bible Brain. O número conta quantas são.",
       "readyHelp": "Adiciona à sua biblioteca e recomenda aqui.",
-      "searchHelp": "Digite o nome ou o código de um idioma para encontrar as Bíblias dele."
+      "searchHelp": "Digite o nome ou o código de um idioma para encontrar as Bíblias dele.",
+      "listed": "Só aparecem idiomas com Bíblias no Bible Brain.",
+      "noMatch": "Nenhum idioma com esse nome tem uma Bíblia no Bible Brain.",
+      "unreachable": "Para encontrar um idioma pela primeira vez é preciso conexão."
     },
     "source": {
       "title": "Bíblia",
@@ -7061,11 +7063,6 @@
       "notSetUp": "O Bible Brain não está configurado neste aparelho",
       "notSetUpSub": "A biblioteca da sua organização continua funcionando. Peça a quem cuida do LangQuest para a sua equipe que conecte o servidor.",
       "searchPlaceholder": "Pesquisar um idioma",
-      "noLanguages": "Nenhum idioma encontrado",
-      "noLanguagesSub": "Tente o nome em inglês, ou o código de três letras.",
-      "languageBibles_one": "{{code}} · {{count, number}} Bíblia",
-      "languageBibles_many": "{{code}} · {{count, number}} de Bíblias",
-      "languageBibles_other": "{{code}} · {{count, number}} Bíblias",
       "biblesIn": "Bíblias em {{language}}",
       "noBibles": "Não há Bíblias neste idioma no Bible Brain.",
       "myBible": "Minha Bíblia",
@@ -7090,7 +7087,6 @@
       "bibleHelp": "Abre para ler e ouvir um capítulo, antes de você adicionar.",
       "bookHelp": "Mostra um capítulo deste livro.",
       "chapterHelp": "Mostra o capítulo {{n, number}} para ler e ouvir.",
-      "languageHelp": "Mostra as Bíblias dele abaixo.",
       "nextChapterHelp": "Lê e toca o capítulo seguinte.",
       "previousChapterHelp": "Lê e toca o capítulo anterior.",
       "removeHelp": "Tira das suas Bíblias neste aparelho. Você pode adicionar de novo aqui.",
@@ -7112,7 +7108,9 @@
     "chip": "Bíblias e guias em {{language}}",
     "chipHelp": "O idioma das Bíblias e dos guias de estudo deles. Toque para mudar.",
     "change": "Mudar",
-    "rowHelp": "Adiciona este idioma para as Bíblias e guias da equipe, ou o tira. A linha diz o que há nele."
+    "rowHelp": "Adiciona este idioma para as Bíblias e guias da equipe, ou o tira. A linha diz o que há nele.",
+    "listed": "Só aparecem idiomas com Bíblias ou guias de estudo.",
+    "noMatch": "Nenhum idioma com esse nome tem Bíblias ou guias de estudo ainda."
   },
   "checks": {
     "title": "Verificações",

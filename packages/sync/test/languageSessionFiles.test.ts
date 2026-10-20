@@ -66,16 +66,17 @@ describe('LanguageSession: files arriving (performance-audit-app.md R2)', () => 
     const { files, counts } = countingFiles();
     const session = await openWith(files);
     session.start();
-    // start() reclaims; a burst right after it is gathered into one more pass at the window's end.
+    // start() reclaims, once its plan is read (decisions.md 143); a burst right after it is gathered into one more pass at the window's end.
+    await until(() => counts.reclaims === 1);
     const atStart = counts.reclaims;
     for (let i = 0; i < 300; i++) files.arrive(`h${i}`);
     expect(counts.reclaims).toBe(atStart);
     await until(() => counts.reclaims === atStart + 1);
     await new Promise((r) => setTimeout(r, FILE_NEWS_MS + 50));
     expect(counts.reclaims).toBe(atStart + 1);
-    // Quiet for a window: the next change is answered straight away.
+    // Quiet for a window: the next change is answered without waiting for one, only for the plan.
     files.arrive('late');
-    expect(counts.reclaims).toBe(atStart + 2);
+    await until(() => counts.reclaims === atStart + 2);
     session.close();
   });
 

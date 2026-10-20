@@ -10,7 +10,36 @@ export interface WriteBatch {
   meta?: Record<string, string>;
   /** Drop confirmed events at or below `uptoSeq`; a checkpoint holds them now. */
   prune?: { orgId: string; streamId: string; uptoSeq: number };
+  /**
+   * Records a language keeps on the phone instead of in memory (decisions.md
+   * 110): upsert these. `clear` first drops every kept record of the
+   * stream; `replaceFrom` then moves in the records written under another
+   * stream id while a fresh snapshot was read, so the language switches to
+   * them in the same commit as its new checkpoint.
+   */
+  kept?: { orgId: string; streamId: string; clear?: boolean; replaceFrom?: string; upsert?: KeptRecord[] };
 }
+
+/**
+ * One record a big language keeps on the phone rather than in memory
+ * (decisions.md 143): an entry of a map the language is cut into by
+ * passage (a recording, a take, a review, a note; core `PASSAGE_PARTS`),
+ * the server's verdict on an audio file (`file`), which record names an
+ * audio file (`audio`), or a passage's line for lists (`line`). `json` is
+ * the entry as the state holds it.
+ */
+export interface KeptRecord {
+  kind: KeptKind;
+  id: string;
+  /** The passage it belongs to; '' for a file verdict. */
+  unitId: string;
+  /** A second key it is found by: who made a recording or a take, the term of a key-term link; '' otherwise. */
+  ref: string;
+  json: string;
+}
+
+/** A row kind: a part's (core `PassagePart.kind`), or `file`, `audio`, `line`. */
+export type KeptKind = string;
 
 /** An event as held on the device: the envelope plus sync bookkeeping. */
 export interface LocalEvent {
@@ -59,6 +88,18 @@ export interface EventStore {
   setCursor(orgId: string, streamId: string, seq: number): Promise<void>;
   /** Drop confirmed events at or below `uptoSeq`; they live in a checkpoint now. */
   prune(orgId: string, streamId: string, uptoSeq: number): Promise<void>;
+  /** Kept records of these kinds whose passage is one of these. */
+  keptByUnit(orgId: string, streamId: string, kinds: readonly KeptKind[], unitIds: readonly string[]): Promise<KeptRecord[]>;
+  /** Kept records of one kind with these ids. */
+  keptById(orgId: string, streamId: string, kind: KeptKind, ids: readonly string[]): Promise<KeptRecord[]>;
+  /** Kept records of one kind with one of these second keys (`ref`). */
+  keptByRef(orgId: string, streamId: string, kind: KeptKind, refs: readonly string[]): Promise<KeptRecord[]>;
+  /** Every kept record of one kind (a language's lines). */
+  keptAll(orgId: string, streamId: string, kind: KeptKind): Promise<KeptRecord[]>;
+  /** Passages holding a kept record of these kinds; with `ref`, only records with that second key (a person's recordings). */
+  keptUnits(orgId: string, streamId: string, kinds: readonly KeptKind[], ref?: string): Promise<string[]>;
+  /** How many records of one kind a stream keeps. */
+  keptCount(orgId: string, streamId: string, kind: KeptKind): Promise<number>;
   /** Small device-level key/value state: device id, persisted clocks. */
   meta(key: string): Promise<string | undefined>;
   setMeta(key: string, value: string): Promise<void>;

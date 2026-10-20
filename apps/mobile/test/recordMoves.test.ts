@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recordTimeline } from '@langquest-next/core';
+import { languageLines, recordTimeline } from '@langquest-next/core';
 import { pathSteps } from '../src/passage/pathModel';
 import {
   askButtonLabel, askForLabel, elseMove, historyAction, historyMove, listenerLabel, listenersLine, mainMove, nothingToAsk, passageNoteFor,
@@ -23,7 +23,7 @@ function record(who: WorldRole, k: WorldPassage) {
   const isAuthor = !!p.latest && p.latest.by === me;
   const steps = pathSteps(recordPathInput({ p, kinds, me, name: w.nameFor(who), teamName: teamNameIn(w.state) }));
   const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine: requestIsMine(w.state, me), asker: isAuthor, isAuthor });
-  const targets = usualTargets(w.state, w.org, { p, languageId: w.languageId, me, asker: isAuthor });
+  const targets = usualTargets(w.state, w.org, { p, languageId: w.languageId, me, asker: isAuthor, lines: languageLines(w.state) });
   return { v, p, kinds, can, me, steps, model, isAuthor, targets, s };
 }
 

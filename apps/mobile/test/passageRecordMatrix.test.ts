@@ -1,3 +1,4 @@
+import { languageLines } from '@langquest-next/core';
 import { describe, expect, it } from 'vitest';
 import { askCandidates, currentStepId } from '../src/passage/record';
 import { pathSteps, teamSteps } from '../src/passage/pathModel';
@@ -33,7 +34,7 @@ function record(who: WorldRole, k: WorldPassage) {
   const mine = requestIsMine(w.state, me);
   const teamName = teamNameIn(w.state);
   const isAuthor = !!p.latest && p.latest.by === me;
-  const targets = usualTargets(w.state, w.org, { p, languageId: w.languageId, me, asker: isAuthor });
+  const targets = usualTargets(w.state, w.org, { p, languageId: w.languageId, me, asker: isAuthor, lines: languageLines(w.state) });
   const input = recordPathInput({ p, kinds, me, name: nameFn, teamName });
   const steps = pathSteps(input);
   const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker: isAuthor, isAuthor });
@@ -256,7 +257,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
   it('PASS-028 Someone else should record it', () => {
     for (const who of ['COORD', 'TRANS'] as const) {
       expect(record(who, 'P-S').else.ids, who).toContain('recordSomeone');
-      const people = askCandidates(w.state, w.org, { languageId: w.languageId, what: 'record', me: ID[who] }).map((c) => NAMES[(Object.keys(ID) as WorldRole[]).find((r) => ID[r] === c.profileId)!]);
+      const people = askCandidates(w.state, w.org, { languageId: w.languageId, what: 'record', me: ID[who], lines: languageLines(w.state) }).map((c) => NAMES[(Object.keys(ID) as WorldRole[]).find((r) => ID[r] === c.profileId)!]);
       const can = (['ADMIN', 'COORD', 'LADMIN', 'TRANS', 'TREV', 'KEPT'] as WorldRole[]).filter((k) => k !== who).map(name).sort();
       expect([...people].sort(), who).toEqual(can);
     }

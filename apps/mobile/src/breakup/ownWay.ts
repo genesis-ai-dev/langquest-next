@@ -101,7 +101,7 @@ export function ownWayDoc(c: {
     if (changed.length) out.renumbered = changed;
   }
   return {
-    format: 'template@2', name: c.base.name, description: c.base.description, structure: 'bible', levels: c.base.levels,
+    format: 'template@2', name: c.base.name, description: c.base.description, ...(c.base.language ? { language: c.base.language } : {}), structure: 'bible', levels: c.base.levels,
     bible: { versification: c.base.bible!.versification, books: [out], ...(numbering ? { numbering } : {}) },
     deps: []
   };

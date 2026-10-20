@@ -23,7 +23,8 @@ export function useReferenceLanguages(ctx: Ctx, keep: readonly string[]) {
     ...own.map((it) => docs.get(it.current)).filter((d, i) => !setKeys.has(setKeyOf(originOf(own[i]!), d) ?? '')),
     ...others.map((s) => docs.get(s.latest_hash)).filter((d, i) => !setKeys.has(setKeyOf(others[i]!.org_id, d) ?? ''))
   ];
-  const signature = [sets.map((s) => `${s.key}:${s.members.length}`).join(), rest.length, keepKey].join('|');
+  // Documents arrive after their items: count those in, or a Bible that loads late is never counted.
+  const signature = [sets.map((s) => `${s.key}:${s.members.length}`).join(), rest.length, rest.filter(Boolean).length, keepKey].join('|');
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature says when they change
   const choices = useMemo(() => languageChoices(sets, rest, keep), [signature]);
   return { sets, choices, loading: !shared.loaded };

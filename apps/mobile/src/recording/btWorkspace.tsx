@@ -233,7 +233,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const askCan = recordCan(ctx.session).ask;
   const orgState = ctx.org.state;
   const nextUp = useMemo(() => (askCan ? nextAfterDone(p, { recordedKindId: kind.id }) : undefined), [p, askCan, kind.id]);
-  const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true }) : {}), [nextUp, state, orgState, p, languageId, me]);
+  const lines = ctx.language.lines;
+  const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true, lines }) : {}), [nextUp, state, orgState, p, languageId, me, lines]);
   async function publish(extra: string, ask: DoneAsk) {
     const note = noteText(notes, extra);
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;

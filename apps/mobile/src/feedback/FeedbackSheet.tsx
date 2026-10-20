@@ -1,4 +1,4 @@
-// Feedback from help mode (decisions.md 143). While help is on for a screen,
+// Feedback from help mode (decisions.md 144). While help is on for a screen,
 // a green Send feedback button waits in a strip the screen leaves at its foot
 // (kit's Screen, HELP_FOOT_ROOM), above the tabs, so it covers nothing; it can
 // also be dragged anywhere out of the way. Green, with a grip, so it is not taken for

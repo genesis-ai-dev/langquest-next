@@ -131,6 +131,9 @@ describe('a language using library versions', () => {
       steps: [{ stepId: 's1', kindIds: ['elder'] }, { stepId: 's2', kindIds: ['final'], checkpoint: true }]
     };
     expect(validateDoc(flow)).toBeNull();
+    // A flow may say the language its words are in (decision 84), as a code.
+    expect(validateDoc({ ...flow, language: 'fra' })).toBeNull();
+    expect(validateDoc({ ...flow, language: 3 })).toMatch(/language/);
     const specs = selectFlowSpecs(emptyLanguageState(), { commandId: 'f', itemId: 'elders', docHash: H('9'), doc: flow });
     const state = fold(specs.map((s, i) => ({ ...s, orgId: 'o', streamId: 'L1', actorId: 'a', deviceId: 'd', hlc: `${String(i + 1).padStart(15, '0')}:000000:d` }) as AnyEvent));
     const f = deriveFlow(state);

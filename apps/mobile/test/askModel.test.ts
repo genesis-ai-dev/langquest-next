@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { languageLines } from '@langquest-next/core';
 import { askDoneText, askInput, askModel, TEAM, type AskPicks } from '../src/passage/askModel';
 import { askCandidates } from '../src/passage/record';
 import { passageView } from '../src/passage/passageView';
@@ -14,8 +15,9 @@ const picks = (over: Partial<AskPicks> = {}): AskPicks => ({
 function ask(who: WorldRole, k: WorldPassage, what: 'record' | 'review', kindId: string | undefined, p: AskPicks) {
   const v = passageView(w.state, unitOf(k), w.languageId, 'Alpha');
   const me = ID[who];
-  const candidates = askCandidates(w.state, w.org, { languageId: w.languageId, what, ...(kindId ? { kindId } : {}), me });
-  return { v, model: askModel({ v, org: w.org, me, name: w.nameFor(who), what, kindId, candidates, picks: p }) };
+  const lines = languageLines(w.state);
+  const candidates = askCandidates(w.state, w.org, { languageId: w.languageId, what, ...(kindId ? { kindId } : {}), me, lines });
+  return { v, model: askModel({ v, org: w.org, me, name: w.nameFor(who), what, kindId, candidates, picks: p, lines }) };
 }
 
 describe('Someone else: who is listed and what Ask says (askModel.ts)', () => {

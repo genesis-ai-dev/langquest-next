@@ -1,4 +1,4 @@
--- Feedback from help mode (migration *_feedback.sql, decisions.md 143). Run by
+-- Feedback from help mode (migration *_feedback.sql, decisions.md 144). Run by
 -- `npm run db:test`. Repeatable; every write rolls back.
 \set ON_ERROR_STOP on
 begin;

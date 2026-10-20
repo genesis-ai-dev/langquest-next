@@ -16,7 +16,8 @@ import {
 } from '../config/model';
 
 /** What the editor starts from, before anything is changed. */
-export interface FlowBase { name: string; description: string; steps: DraftStep[] }
+/** A flow as the editor starts from it; `language` is what its words are in, when it says (decision 84). */
+export interface FlowBase { name: string; description: string; steps: DraftStep[]; language?: string | null }
 
 /**
  * Where a new flow starts: the language's own steps (made a library flow), or
@@ -34,7 +35,7 @@ export function flowEditorSeed(
 
 /** What a flow already stored starts the editor from; null while its document loads. */
 export function flowEditorBase(isNew: boolean, seed: FlowBase, doc: FlowDoc | null): FlowBase | null {
-  return isNew ? seed : doc ? { name: doc.name, description: doc.description, steps: draftFromDoc(doc) } : null;
+  return isNew ? seed : doc ? { name: doc.name, description: doc.description, steps: draftFromDoc(doc), language: doc.language ?? null } : null;
 }
 
 /** The kinds known here: the language's, then those the flow and its seed carry (the first of an id wins). */
@@ -51,11 +52,12 @@ export function withAddedKinds(known: KindDef[], added: KindDef[]): KindDef[] {
 
 /** What Save may do: `dirty` when the form differs from where it started, `canSave` when Save is enabled. */
 export function flowEditorStatus(c: {
-  readOnly: boolean; isNew: boolean; base: FlowBase | null; label: string; desc: string; steps: DraftStep[]; added: KindDef[];
+  readOnly: boolean; isNew: boolean; base: FlowBase | null; label: string; desc: string; steps: DraftStep[]; added: KindDef[]; language?: string | null;
 }): { dirty: boolean; canSave: boolean } {
   const { base } = c;
   const dirty = !c.readOnly && base !== null
-    && (c.label.trim() !== base.name || c.desc.trim() !== base.description || draftChanged(base.steps, c.steps) || c.added.length > 0);
+    && (c.label.trim() !== base.name || c.desc.trim() !== base.description || draftChanged(base.steps, c.steps) || c.added.length > 0
+      || (c.language ?? null) !== (base.language ?? null));
   // A new flow can be saved as it starts: it is not in the library yet.
   return { dirty, canSave: !c.readOnly && !!c.label.trim() && (dirty || (c.isNew && base !== null)) };
 }

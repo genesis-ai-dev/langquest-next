@@ -203,6 +203,25 @@ export function countEvent(state: LanguageState, event: AnyEvent | null): void {
   log.entries.push(event ? touchedBy(state, event) : NOTHING);
 }
 
+/**
+ * Say a state changed outside the fold: a phone that keeps a language on
+ * disk (decisions.md 143) brought a passage's records into it, or let them
+ * go. The revision moves, so caches keyed on it rebuild; and since nothing
+ * here says which passages came or went, a view watching the state is told
+ * `all`, so one carried from an earlier copy rebuilds in full (decision 120).
+ */
+export function markChanged(state: object): void {
+  const before = REVISIONS.get(state) ?? 0;
+  REVISIONS.set(state, before + 1);
+  const log = LOGS.get(state);
+  if (!log?.entries) return;
+  if (log.entries.length >= MAX_ENTRIES || log.from + log.entries.length !== before) {
+    log.entries = null;
+    return;
+  }
+  log.entries.push('all');
+}
+
 /** A view (`consumer`) was built from `live` at `revision`: log what changes after it. */
 export function watchChanges(live: LanguageState, consumer: string, revision: number): void {
   let log = LOGS.get(live);

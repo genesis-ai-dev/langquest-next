@@ -261,8 +261,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const whoTitle = logged && !group ? t('review.screen.whoReviewed') : logged ? t('review.parts.howManyListened') : t('review.screen.whoIsListening');
 
   async function save(outcome: 'looks_good' | 'needs_changes' | 'recorded') {
-    const state = ctx.language.state;
-    if (!state || !v || !version || !kind || busy) return;
+    const live = ctx.language.state;
+    if (!live || !v || !version || !kind || busy) return;
+    const state = live;
     const cmd = Crypto.randomUUID();
     const c = commands(state, indexesFor(state));
     const text = comment.trim();

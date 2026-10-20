@@ -1,8 +1,8 @@
 // The choices behind the Map (decision 71; screens/map.tsx). Pure, so the
 // rules are tested without a screen.
 import {
-  deriveFlow, derivePassage, highlightsFor, languageInfo, languageProgress, orgClusters, privilegesFor, unitPlace, upNext,
-  type LanguageProgress, type LanguageState, type OrgState, type PassageState, type UnitPlace
+  deriveFlow, highlightsOf, languageInfo, orgClusters, privilegesFor, progressOf, unitPlace, upNextOf,
+  type LanguageProgress, type LanguageState, type OrgState, type PassageGlance, type PassageLines, type UnitPlace
 } from '@langquest-next/core';
 import {
   bookMatches, canonBook, canonBooks, chapterTone, matchesFilter, parseQuery, placeMatches,
@@ -103,44 +103,45 @@ export function toneLabel(tone: ChapterTone): string {
 export interface Entry {
   unitId: string;
   place: UnitPlace;
-  s: PassageState;
+  /** The passage as its line reads (decisions.md 143): what a list needs, never the whole record. */
+  s: PassageGlance;
 }
 
-const entryCache = new WeakMap<LanguageState, Entry[]>();
+/** Entries per set of lines, for the state they were read with: the lines change without the state, and the state without the lines. */
+const entryCache = new WeakMap<PassageLines, { state: LanguageState; entries: Entry[] }>();
 
 /** Books of the language waiting to be broken up (decision 74), as the app's book ids ("rut"). */
 export function waitingBooks(state: LanguageState): string[] {
   return indexesFor(state).waiting.map((unitId) => unitPlace(state, unitId).bookId).filter((b): b is string => !!b);
 }
 
-/** Every passage the open language works on, with where it sits and where it stands; shared by the map and its books. */
-export function languageEntries(state: LanguageState): Entry[] {
-  const hit = entryCache.get(state);
-  if (hit) return hit;
+/** Every passage the open language works on, with where it sits and where it stands, read off its line; shared by the map and its books. */
+export function languageEntries(state: LanguageState, lines: PassageLines): Entry[] {
+  const hit = entryCache.get(lines);
+  if (hit && hit.state === state) return hit.entries;
   const idx = indexesFor(state);
-  const out = idx.passages.map((unitId) => ({ unitId, place: unitPlace(state, unitId), s: derivePassage(state, unitId, idx) }));
-  entryCache.set(state, out);
-  return out;
+  const entries = idx.passages.map((unitId) => ({ unitId, place: unitPlace(state, unitId), s: lines.get(unitId) }));
+  entryCache.set(lines, { state, entries });
+  return entries;
 }
 
 /** What this person may do on a language, as the highlights ask for it. */
 export interface MapCaps { canRecord: boolean; canReview: boolean }
 
 /** Passages with something for this person on My Work: marked on the map, not listed (ADR-017). */
-export function forYouIds(state: LanguageState | null, actorId: string, caps: MapCaps): Set<string> {
-  return new Set(state ? highlightsFor(state, actorId, caps, indexesFor(state)).map((h) => h.unitId) : []);
+export function forYouIds(state: LanguageState | null, lines: PassageLines, actorId: string, caps: MapCaps): Set<string> {
+  return new Set(state ? highlightsOf(lines, state, actorId, caps).map((h) => h.unitId) : []);
 }
 
 /**
  * This person's next passage on the map (demo Map's "Next"): the first thing
  * waiting on them, as on My Work, or else a good place to start.
  */
-export function nextPassage(state: LanguageState | null, actorId: string, caps: MapCaps): { unitId: string; icon: IconName } | null {
+export function nextPassage(state: LanguageState | null, lines: PassageLines, actorId: string, caps: MapCaps): { unitId: string; icon: IconName } | null {
   if (!state || (!caps.canRecord && !caps.canReview)) return null;
-  const idx = indexesFor(state);
-  const first = highlightsFor(state, actorId, caps, idx)[0];
+  const first = highlightsOf(lines, state, actorId, caps)[0];
   if (first) return { unitId: first.unitId, icon: workIcon(first.kind).icon };
-  const next = upNext(state, caps, idx);
+  const next = upNextOf(lines, indexesFor(state).passages, caps);
   return next ? { unitId: next.unitId, icon: next.kind === 'record' ? 'mic' : 'check' } : null;
 }
 
@@ -183,13 +184,13 @@ export interface StatusLanguage {
  * English), the rest with the server's, as of when it last caught up.
  */
 export function statusLanguages(o: {
-  listed: readonly { languageId: string; name: string }[]; state: LanguageState | null; openId: string | null;
+  listed: readonly { languageId: string; name: string }[]; state: LanguageState | null; lines: PassageLines; openId: string | null;
   org: OrgState | null; summary: Parameters<typeof languageFigures>[2];
 }): StatusLanguage[] {
   const { state, org } = o;
   const openId = state ? o.openId : null;
   const ids = o.listed.map((l) => l.languageId);
-  const local = new Map(state && openId ? [[openId, languageProgress(state, indexesFor(state))]] : []);
+  const local = new Map(state && openId ? [[openId, progressOf(o.lines, indexesFor(state).passages, state)]] : []);
   const figures = languageFigures(ids, local, o.summary);
   const stepNames = state ? deriveFlow(state).steps.map((st) => stepName(deriveKinds(state), st)) : undefined;
   return o.listed.map(({ languageId, name }) => {

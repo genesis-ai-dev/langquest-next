@@ -53,7 +53,7 @@ const ICONS = {
   warning: TriangleAlert, join: ChevronsUpDown, file: FileText,
   // Show here / Hide here on a passage's helps (demo ADR-042).
   eye: Eye, eyeOff: EyeOff,
-  // Feedback from help mode: a problem, an idea (decisions.md 143).
+  // Feedback from help mode: a problem, an idea (decisions.md 144).
   bug: Bug, idea: Lightbulb
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
@@ -103,7 +103,7 @@ export function Screen(props: {
   const hasFooter = !!props.footer;
   useEffect(() => { if (reportFooter && !hasFooter) reportFooter(0); }, [reportFooter, hasFooter]);
   // In help mode, Send feedback waits in a strip of its own at the foot of the screen
-  // (decisions.md 143): the screen, its footer too, ends above it, so it covers nothing.
+  // (decisions.md 144): the screen, its footer too, ends above it, so it covers nothing.
   const helpOn = useHelpOn();
   return (
     <KeyboardSafe style={[styles.screen, helpOn && { paddingBottom: HELP_FOOT_ROOM }]}>

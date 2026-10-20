@@ -1,4 +1,4 @@
-// Feedback from help mode (decisions.md 143): when a report may be sent, how
+// Feedback from help mode (decisions.md 144): when a report may be sent, how
 // big its screenshot is, what waits before anyone signs in, and what the
 // sheet and its toasts say.
 import { describe, expect, it } from 'vitest';

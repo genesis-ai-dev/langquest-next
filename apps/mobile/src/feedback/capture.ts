@@ -1,4 +1,4 @@
-// The screenshot a report may carry (decisions.md 143): the whole window as
+// The screenshot a report may carry (decisions.md 144): the whole window as
 // the person saw it, taken after help mode's dimming is gone and before the
 // feedback sheet opens. On a phone react-native-view-shot draws the window;
 // the web draws the page with html-to-image instead (capture.web.ts).

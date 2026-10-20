@@ -81,6 +81,7 @@ organization), JSON. `503 {"error"}` when the Worker has no
 | Route | Answer |
 | --- | --- |
 | `/api/bible/languages?q=fra` | `{ languages: [{ code, name, autonym?, bibles }] }` (ISO 639-3 codes) |
+| `/api/bible/languages/all` | the same for every language Bible Brain has Bibles in, most Bibles first (cached a day; about 18 FCBH calls). `bibles` is FCBH's own count, which takes in Bibles our key cannot open, so the app shows the length of `/bibles?lang=` instead |
 | `/api/bible/bibles?lang=fra` | `{ bibles: [BibleSummary] }` |
 | `/api/bible/bibles/:bibleId` | `{ bible: BibleDetail }` |
 | `/api/bible/text/:filesetId/:book/:chapter` | `{ verses: [[verseStart, verseEnd, text], …] }` |

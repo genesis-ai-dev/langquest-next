@@ -1,4 +1,4 @@
-// A report's screenshot while it waits to be sent (decisions.md 143): a JPEG
+// A report's screenshot while it waits to be sent (decisions.md 144): a JPEG
 // file beside the app's other documents, named by the report's id, so the
 // account outbox holds only words and a phone can keep reports for months.
 // The web keeps it in the browser's storage (feedbackShots.web.ts).

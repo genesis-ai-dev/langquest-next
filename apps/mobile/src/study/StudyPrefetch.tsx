@@ -2,7 +2,6 @@
 // mounted once with the app, it finds each kept passage's guide and hands
 // its addresses to `studyFiles.ts`, which downloads what is missing while
 // connected. Draws nothing.
-import { defaultOfflineScope } from '@langquest-next/core';
 import { useEffect, useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { useStudyGuides } from './useStudyGuides';
@@ -12,14 +11,15 @@ export function StudyPrefetch(props: { ctx: Ctx }) {
   const { ctx } = props;
   const state = ctx.language.state;
   const kept = ctx.language.blobs.keptUnits;
-  const me = ctx.session.actorId;
-  // Worked out when the fold, the person or the kept units change, not on every render of the app root.
+  const scopeNow = ctx.language.blobs.scope;
+  // Worked out when the scope or the kept units change, not on every render of the app root.
+  // The default scope comes worked out from the phone's table too (decisions.md 143).
   const key = useMemo(() => {
     if (!state || !STUDY_FILES_OFFLINE) return '';
-    const scope = defaultOfflineScope(state, me);
+    const scope = new Set(scopeNow);
     for (const u of kept) scope.add(u);
     return [...scope].sort().join(',');
-  }, [state, me, kept]);
+  }, [state, scopeNow, kept]);
   // Keyed by the scope's members, so a new fold with the same scope finds the same guides.
   const unitIds = useMemo(() => (key ? key.split(',') : []), [key]);
   const guides = useStudyGuides(ctx, unitIds);

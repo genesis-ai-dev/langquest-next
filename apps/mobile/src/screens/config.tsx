@@ -19,7 +19,7 @@ import {
   CommandError, commands, CUSTOM_FLOW, deriveFlow, derivePassage, keyTermsFor, keyTermView, languageName,
   materialView, privilegesFor, recommendedFor, subscriptionItemId,
   unitTitle,
-  type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
+  type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LanguageState, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
@@ -76,7 +76,7 @@ import {
 } from '../reference/materialModel';
 import { privilegesOn, roleDefinition, roleDirty } from '../roles/model';
 import { SwitchRow } from '../admin/admin';
-import { flipSwitch, ROLE_SWITCHES, sameChecks, stepTitle, switchState } from '../admin/adminModel';
+import { flipSwitch, languageLabel, ROLE_SWITCHES, sameChecks, stepTitle, switchState } from '../admin/adminModel';
 import {
   fieldLabel, flowDocFrom, flowLabel, flowUse, holdersOf, isFiaTerm,
   levelLabel, libraryMaterialLine, libraryQuestions, materialDocFrom, materialItemId, moveStep, newKindId,
@@ -624,7 +624,7 @@ export function FlowsHome(ctx: Ctx) {
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
                     <View style={{ flex: 1 }}>
                       <Text style={txt.h3}>{f.name}</Text>
-                      <Text style={txt.xs}>{sourceLine(f)}</Text>
+                      <Text style={txt.xs}>{[sourceLine(f), flowLanguage(docs.get<FlowDoc>(f.current))].filter(Boolean).join(' · ')}</Text>
                       {f.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{f.description}</Text> : null}
                     </View>
                     {f.archived ? <Badge label={t('config.library.archivedBadge')} />
@@ -642,7 +642,12 @@ export function FlowsHome(ctx: Ctx) {
           <ShowMore remaining={flows.length - shown} step={STEP} onMore={() => setShown(shown + STEP)} />
 
           <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canWrite}
-            detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} explain />}
+            detail={(s) => (
+              <>
+                {flowLanguage(docs.get<FlowDoc>(s.latest_hash)) ? <Text style={txt.xs}>{flowLanguage(docs.get<FlowDoc>(s.latest_hash))}</Text> : null}
+                <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} explain />
+              </>
+            )}
             {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => chooseFlow({ shared: s }), disabled: busy,
               help: t('config.flows.useHelp', { language }) } } : {})} />
         </>
@@ -697,6 +702,9 @@ function StepSheet(props: {
  * changes, whose Done publishes a new version that the languages using it
  * move to.
  */
+/** The language a flow's words are in, when it says (decision 84). */
+const flowLanguage = (doc: FlowDoc | null | undefined) => (doc?.language ? languageLabel(doc.language) : null);
+
 export function FlowEditor(ctx: Ctx) {
   // A language's own checks, or New language's before it exists (screens/checks.tsx, decision 91).
   if (ctx.params['steps'] === 'language' || ctx.params['draft'] === '1') return <LanguageChecks ctx={ctx} />;
@@ -720,7 +728,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   // A new flow's draft is the one begun from the same start (`languageId`, `from`).
   const draft = useDraft<FlowDraft | null>(
     draftKey('editor', ctx.session.actorId, lib.orgId, 'flow', requested, ...(isNew ? [ctx.params['languageId'], ctx.params['from']] : [])), null, isFlowDraft);
-  const { name, description, steps: edited, added } = draft.value?.form ?? NO_FLOW_EDITS;
+  const { name, description, steps: edited, added, language: editedLanguage } = draft.value?.form ?? NO_FLOW_EDITS;
   const edit = (patch: Partial<FlowEdits>) => draft.set((prev) => editorDraft({ ...(prev?.form ?? NO_FLOW_EDITS), ...patch }, NO_FLOW_EDITS, prev?.basis ?? it?.current ?? null));
   const [open, setOpen] = useState<number | null>(null);
   const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
@@ -735,7 +743,9 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const steps = edited ?? base?.steps ?? [];
   const label = name ?? base?.name ?? '';
   const desc = description ?? base?.description ?? '';
-  const { canSave } = flowEditorStatus({ readOnly, isNew, base, label, desc, steps, added });
+  // What its words are in (decision 84): a new flow starts in the writer's app language.
+  const writtenIn = editedLanguage ?? base?.language ?? (isNew ? readerLanguage() : null);
+  const { canSave } = flowEditorStatus({ readOnly, isNew, base, label, desc, steps, added, language: writtenIn });
   // Done publishes what changed, or with nothing changed just closes.
   const canFinish = !readOnly && base !== null && draft.loaded && !!label.trim();
   const newer = draftBehind(draft.value, it?.current);
@@ -766,7 +776,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
       ctx.back();
       return;
     }
-    const flowDoc = flowDocFrom({ name: label, description: desc, steps, kinds });
+    const flowDoc = flowDocFrom({ name: label, description: desc, language: writtenIn, steps, kinds });
     setBusy(true);
     const saved = await libraryAct(ctx, 'save flow', // i18n-ignore: log label
       () => lib.publish({ kind: 'flow', ...(it ? { itemId: it.itemId } : {}), name: flowDoc.name, description: flowDoc.description, doc: flowDoc }),
@@ -792,6 +802,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
             <>
               <Field label={t('config.flowEditor.nameLabel')} value={label} onChangeText={(v) => edit({ name: v })} placeholder={t('config.flowEditor.namePlaceholder')} autoCapitalize="words" />
               <Field label={t('config.flowEditor.descriptionLabel')} value={desc} onChangeText={(v) => edit({ description: v })} placeholder={t('config.flowEditor.descriptionPlaceholder')} autoCapitalize="sentences" multiline />
+              <LanguageField label={t('reference.language.writtenIn')} value={writtenIn} onChange={(code) => edit({ language: code })} />
             </>
           )}
           <CheckSteps steps={steps} kinds={kinds} readOnly={readOnly} usually={usuallyFor(state, kinds, ctx.name)} onChange={change}
@@ -1582,6 +1593,27 @@ export function KeyTerms(ctx: Ctx) {
   );
 }
 
+/** The language with every passage a key term was tied in or changed during read in, for its uses; null until read. */
+function useTermPassages(ctx: Ctx, termId: string, term: KeyTermView | null): LanguageState | null {
+  const [view, setView] = useState<LanguageState | null>(null);
+  const { state, passagesLinkingTerm, passageOfTake, withPassages } = ctx.language;
+  useEffect(() => {
+    if (!state || !term) return;
+    let current = true;
+    void (async () => {
+      const units = new Set(await passagesLinkingTerm(termId));
+      for (const a of term.adjustments) {
+        const u = a.duringTakeId ? await passageOfTake(a.duringTakeId) : null;
+        if (u) units.add(u);
+      }
+      const read = await withPassages([...units]);
+      if (current) setView(read);
+    })().catch(() => { /* read again on the next change */ });
+    return () => { current = false; };
+  }, [state, term, termId, passagesLinkingTerm, passageOfTake, withPassages]);
+  return view;
+}
+
 export function KeyTermDetail(ctx: Ctx) {
   const state = ctx.language.state;
   const termId = ctx.params['termId'] ?? '';
@@ -1589,7 +1621,9 @@ export function KeyTermDetail(ctx: Ctx) {
   const term = useMemo(() => (state ? keyTermView(state, termId) : null), [state, termId]);
   const languageId = ctx.language.languageId;
   const passage = useMemo(() => (state && unitId && state.units[unitId] ? derivePassage(state, unitId, indexesFor(state)) : null), [state, unitId]);
-  const usedIn = useMemo(() => (state ? termUsedIn(state, termId) : []), [state, termId]);
+  // The versions that tied the term in, and those its changes were made during, may be in passages not in memory (decisions.md 143).
+  const uses = useTermPassages(ctx, termId, term);
+  const usedIn = useMemo(() => (uses ? termUsedIn(uses, termId) : []), [uses, termId]);
   const [adjusting, setAdjusting] = useState(false);
   // A new rendering, or a change and why, is kept on this phone as it is made, there when the sheet opens again (decision 127).
   const adjust = useDraft<RenderingDraft>(languageId ? draftKey('word', ctx.session.actorId, languageId, 'adjust', termId) : null, EMPTY_RENDERING, isRenderingDraft);
@@ -1615,7 +1649,7 @@ export function KeyTermDetail(ctx: Ctx) {
   const { canTie, isLinked } = tieState(state, termId, draftTakeId, ctx.params['takeId'], { translate: ctx.session.can('translate'), edit: canEdit });
   const passageLabel = passage ? unitTitle(state, passage.unitId) : null;
   const adjustments = [...term.adjustments].reverse();
-  const versionOf = (takeId?: string) => versionOfTake(state, takeId);
+  const versionOf = (takeId?: string) => versionOfTake(uses ?? state, takeId);
   const openVersion = (v: { unitId: string; takeId: string }) => ctx.go('version_detail', { unitId: v.unitId, languageId, takeId: v.takeId });
 
   async function tie() {

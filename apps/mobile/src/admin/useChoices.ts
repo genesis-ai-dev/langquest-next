@@ -11,6 +11,7 @@ import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { STARTER_FLOW } from '../org/orgAdmin';
 import { flowTitle, recordKind, type RecordKind } from './adminModel';
+import { inLanguages } from '../reference/languages';
 
 /** A flow with one check by the community, by the title flowTitle gives it in the language showing ("Just the community"). */
 const communityOnly = () => flowTitle([{ kindIds: ['community'] }], []);
@@ -39,8 +40,13 @@ export interface FlowEntry {
   doc: FlowDoc;
 }
 
-/** Flows as plain answers: the one in use or suggested, a single community check, the organization's own; the rest one tap deeper. */
-export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined, kinds: readonly KindDef[]) {
+/**
+ * Flows as plain answers: the one in use or suggested, a single community
+ * check, the organization's own; the rest one tap deeper. Given the team's
+ * `languages`, only flows written in one of them (or saying no language)
+ * are offered, and the one in use always (decision 84).
+ */
+export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined, kinds: readonly KindDef[], languages?: readonly string[]) {
   const lib = useLibrary(ctx);
   const libItems = lib.items;
   const library = ctx.org.state?.library;
@@ -48,7 +54,8 @@ export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined
   const choices = useMemo(() => libraryChoices(library ?? {}, libItems('flow'), shared.rows, STARTER_FLOW.name), [library, libItems, shared.rows]);
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
   const current = choices.find((c) => c.source === 'ours' && c.item.itemId === inUseItemId) ?? null;
-  const entries = choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc);
+  const entries = choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc)
+    .filter((e) => !languages || e.c === current || inLanguages(e.doc.language, languages));
   const kindsOf = (doc: FlowDoc): KindDef[] => [...doc.kinds, ...kinds];
   const titleOf = (doc: FlowDoc) => flowTitle(doc.steps, kindsOf(doc));
   const starter = entries.find((e) => e.c.name === STARTER_FLOW.name || (e.c.source === 'ours' && e.c.item.name === STARTER_FLOW.name)) ?? null;

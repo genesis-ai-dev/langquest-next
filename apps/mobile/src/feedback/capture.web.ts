@@ -1,4 +1,4 @@
-// The screenshot a report may carry, on the web (decisions.md 143): the page
+// The screenshot a report may carry, on the web (decisions.md 144): the page
 // as the person saw it, drawn by html-to-image, a few kilobytes loaded only
 // when feedback is sent. react-native-view-shot's web drawing (html2canvas)
 // would add a quarter of a megabyte to the web app (capture.ts on phones).

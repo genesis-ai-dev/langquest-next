@@ -227,7 +227,7 @@ the install's timeline to pick the time window.
 ## Feedback from help mode
 
 What people choose to tell us is not a diagnostics record, and nothing above
-changes for it (decisions.md 143). While help is on, Send feedback opens a
+changes for it (decisions.md 144). While help is on, Send feedback opens a
 sheet for a problem or an idea, typed or said in a voice note (at most two
 minutes); the report is an account change (it waits
 offline and goes as its author, like a profile change) and arrives in
