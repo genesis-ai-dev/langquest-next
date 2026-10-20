@@ -281,8 +281,10 @@ export class KeptFill {
       const page = await this.transport.snapshotRows!(this.orgId, this.streamId, this.reducerVersion, meta.base, asked, after, this.pageRows);
       // No snapshot at or past the shared part's has a cut any more: nothing can fill this checkpoint in.
       if (!page) throw new CutGoneError(`no cut at or past ${meta.base}`);
-      // Passages before the next page's first are complete.
-      const complete = page.next ? [...pending].filter((u) => u < page.next!.unitId) : [...pending];
+      // A passage seen on this page is complete unless the next page goes on with it; with no next page, every one is.
+      // Asked of the page, not compared as strings, so the server's byte order and the phone's never have to agree.
+      const seen = new Set(page.rows.map((r) => r.unitId));
+      const complete = page.next ? [...pending].filter((u) => seen.has(u) && u !== page.next!.unitId) : [...pending];
       await this.keep(page.rows, complete, Math.max(meta.rowsSeq, page.serverSeq));
       for (const u of complete) pending.delete(u);
       done.push(...complete);
