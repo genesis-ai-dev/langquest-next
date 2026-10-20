@@ -526,16 +526,18 @@ function readStories(r: Release): Story[] {
 function buildStories(ctx: Ctx, c: Taken, stories: Story[], meta: { license: string; credit: string; name: string; languageName: string; publisher: string }): Built & { stories: Story[] } {
   if (!stories.length) throw new Error('no stories read');
   const credit = `${meta.credit} ${OBS_PICTURE_CREDIT}`;
+  // A frame by its number as people say it, "1-3": the step, and its picture, linked from the start of its text like a verse number.
+  const frameLabel = (id: string) => id.replace(/^0?(\d+)-0?(\d+)$/, '$1-$2');
   const entries = stories.map((s) => {
     const node = String(s.story).padStart(2, '0');
     const resources = s.frames.filter((f) => f.image).map((f) => {
       const url = pictureUrl(f.image!);
-      return { ref: `p${f.id}`, kind: 'media', title: f.id, media: [{ id: `p${f.id}`, kind: 'illustration', title: f.id, caption: '', file: pictureFile(ctx, url) }] };
+      return { ref: `p${f.id}`, kind: 'media', title: frameLabel(f.id), media: [{ id: `p${f.id}`, kind: 'illustration', title: frameLabel(f.id), caption: '', file: pictureFile(ctx, url) }] };
     });
     const doc = put(ctx, {
       format: 'study@2', title: s.title, pattern: 'OBS', about: s.reference ?? '', source: `Door43 · ${meta.publisher}`, language: c.language,
       links: [{ template: OBS_TEMPLATE_ID, node }], license: meta.license, credit,
-      steps: s.frames.map((f) => ({ id: f.id, title: f.id.replace(/^0?(\d+)-0?(\d+)$/, '$1-$2'), text: f.image ? `[${f.id}](#p${f.id})\n\n${f.text}` : f.text })),
+      steps: s.frames.map((f) => ({ id: f.id, title: frameLabel(f.id), text: f.image ? `[${frameLabel(f.id)}](#p${f.id}) ${f.text}` : f.text })),
       resources, terms: [], deps: []
     });
     return { id: node, title: s.title, doc };

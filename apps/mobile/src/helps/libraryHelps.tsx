@@ -39,11 +39,11 @@ function placeLabel(at: string): string {
 }
 
 /** One note: the words it is about, then what it says, and the article it cites. */
-function LibraryNote(props: { row: HelpsRow; onOpenRef: (ref: string) => void }) {
+function LibraryNote(props: { row: HelpsRow; quote: string | undefined; onOpenRef: (ref: string) => void }) {
   const r = props.row;
   return (
     <View style={styles.note}>
-      {r.quote ? <Text style={styles.quote}>{r.quote}</Text> : null}
+      {props.quote ? <Text style={styles.quote}>{props.quote}</Text> : null}
       <HelpText text={r.text} onOpenRef={props.onOpenRef} />
       {r.support ? (
         <LinkBtn label={t('helps.library.supportLink')} style={{ alignSelf: 'flex-start' }} help={t('helps.library.supportHelp')}
@@ -53,8 +53,12 @@ function LibraryNote(props: { row: HelpsRow; onOpenRef: (ref: string) => void })
   );
 }
 
-/** Each set's notes on the passage, under the verse each is on, with the set's credit. */
-export function LibraryNotes(props: { groups: readonly NoteGroup[]; onOpenRef: (ref: string) => void }) {
+/**
+ * Each set's notes on the passage, under the verse each is on, with the
+ * set's credit. `quoteOf` gives a note's heading (noteQuote: the chosen
+ * Bible's words for it); without it, the note's own quote.
+ */
+export function LibraryNotes(props: { groups: readonly NoteGroup[]; onOpenRef: (ref: string) => void; quoteOf?: ((row: HelpsRow, at: string) => string | undefined) | undefined }) {
   if (!props.groups.length) return null;
   return (
     <View style={{ gap: space.lg }}>
@@ -64,7 +68,7 @@ export function LibraryNotes(props: { groups: readonly NoteGroup[]; onOpenRef: (
           {g.byVerse.map(([at, rows]) => (
             <View key={at || 'intro'} style={{ gap: space.xs }}>
               <Text style={txt.xsStrong}>{placeLabel(at)}</Text>
-              {rows.map((r) => <HelpRow key={r.id} of="helps.libraryNote"><LibraryNote row={r} onOpenRef={props.onOpenRef} /></HelpRow>)}
+              {rows.map((r) => <HelpRow key={r.id} of="helps.libraryNote"><LibraryNote row={r} quote={props.quoteOf ? props.quoteOf(r, at) : r.quote} onOpenRef={props.onOpenRef} /></HelpRow>)}
             </View>
           ))}
           <Text style={txt.xs}>{g.credit}</Text>

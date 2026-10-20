@@ -4,7 +4,7 @@
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
 // lit, a note on a verse or a moment), key words (hear each, your word or
 // say yours, add a word), notes, and everything recorded so far.
-import { commands, keyTermsFor, markSpans, RECORD_STEP, type KeyTermView, type NoteAnchor, type PassageNote } from '@langquest-next/core';
+import { commands, keyTermsFor, markSpans, RECORD_STEP, type HelpRow as LibraryHelpRow, type KeyTermView, type NoteAnchor, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -44,6 +44,7 @@ import { draftKey, EMPTY_NOTE, isNoteDraft, isRecord } from '../drafts/draftMode
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import { ArticleSheet, LibraryKeyWords, LibraryNotes } from './libraryHelps';
+import { noteQuote } from './libraryHelpsModel';
 import { useArticleSheet } from './useArticleSheet';
 import type { LibraryHelps } from './useLibraryHelps';
 
@@ -343,7 +344,8 @@ export function KeyWordsPane(props: {
   return (
     <View style={{ gap: space.md }}>
       {props.terms.length === 0 ? (
-        <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{canEdit ? t('reference.keyWords.noneAdd') : t('reference.keyWords.none')}</Text>
+        // "None yet" only when the library has none for the passage either: its list follows.
+        fromLibrary.length ? null : <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{canEdit ? t('reference.keyWords.noneAdd') : t('reference.keyWords.none')}</Text>
       ) : (
         <View style={styles.card}>
           {props.terms.map((term, i) => {
@@ -583,11 +585,15 @@ function VoiceClip(props: { ctx: Ctx; hash: string; sub: string }) {
 /** The Notes chip (a-studyDoc): the passage's notes, newest first, and Add a note. */
 /** `canAdd` false: the notes to read, without "Add a note" (a viewer, whose note the server would refuse; STUDY-006). */
 export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disabled?: boolean; top?: ReactNode; canAdd?: boolean;
-  /** Notes for translators from the library, on the verses they are about, under the team's own. */ library?: LibraryHelps }) {
+  /** Notes for translators from the library, on the verses they are about, under the team's own. */ library?: LibraryHelps;
+  /** The chosen Bible's verses: a note is headed with its words there, where that Bible is word-aligned. */ rows?: readonly VerseRow[] }) {
   const { ctx, v } = props;
   const [adding, setAdding] = useState(false);
   const articles = useArticleSheet(props.library?.sets ?? { academy: [], words: [] });
   const libraryNotes = props.library?.notes ?? [];
+  const alignment = props.library?.alignment ?? null;
+  const rows = props.rows;
+  const quoteOf = useMemo(() => (rows ? (r: LibraryHelpRow, at: string) => noteQuote(r, at, alignment, rows) : undefined), [alignment, rows]);
   const versionN = useMemo(() => new Map(v.p.versions.map((x) => [x.takeId, x.n])), [v.p.versions]);
   const latestId = v.p.latest?.takeId;
   const newest = [...props.notes].reverse();
@@ -606,7 +612,7 @@ export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[
         );
       })}
       {props.canAdd !== false ? <DashedBtn label={t('common.addNote')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.notes.addHint')} /> : null}
-      <LibraryNotes groups={libraryNotes} onOpenRef={articles.openRef} />
+      <LibraryNotes groups={libraryNotes} onOpenRef={articles.openRef} quoteOf={quoteOf} />
       {articles.open && props.library ? <ArticleSheet ctx={ctx} open={articles.open} sets={props.library.sets} onClose={articles.close} /> : null}
       {adding && props.canAdd !== false ? <NoteSheet ctx={ctx} v={v} title={t('common.addNote')} where={t('reference.notes.whereWhole', { passage: v.title })} anchor={{ kind: 'passage' }} onClose={() => setAdding(false)} /> : null}
     </View>

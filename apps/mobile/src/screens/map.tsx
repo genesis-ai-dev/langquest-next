@@ -399,7 +399,8 @@ function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; l
         return (
           <HelpRow key={name} of="map.section">
             <View style={{ gap: space.sm }}>
-              <SectionLabel label={name} />
+              {/* A flat outline (Open Bible Stories' 50) has one section, which needs no name. */}
+              {sections.length > 1 ? <SectionLabel label={name} /> : null}
               <Group>
                 {shown.map((e, i) => (
                   <HelpRow key={e.unitId} of="map.passage">

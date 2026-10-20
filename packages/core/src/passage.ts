@@ -1044,9 +1044,10 @@ export function unitPlace(state: LanguageState, unitId: string): UnitPlace {
   const chapters = sourceChapters(unitId);
   let bookId: string | null = chapters[0]?.book ?? null;
   if (!bookId) {
-    // A hand-added unit: its parent book unit, or a label like "Luke 15:11-32".
+    // A hand-added unit: its parent book unit, or a label like "Luke 15:11-32". A chapter must follow the
+    // book's name: an outline's "John Baptizes Jesus" (Open Bible Stories) is in no book.
     const label = state.units[unitId]?.label ?? '';
-    const book = BIBLE_BOOKS.find((b) => label === b.label || label.startsWith(`${b.label} `));
+    const book = BIBLE_BOOKS.find((b) => label === b.label || (label.startsWith(`${b.label} `) && /^\d/.test(label.slice(b.label.length + 1))));
     bookId = book?.itemId ?? null;
     const m = book ? /^(\d+)(?::\d+)?(?:[–-](?:(\d+):)?\d+)?/.exec(label.slice(book.label.length + 1)) : null;
     if (m) {

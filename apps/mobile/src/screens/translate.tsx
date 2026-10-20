@@ -736,7 +736,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                     onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
                     allTerms={() => ctx.go('key_terms', scope)} />
                 ) : chip === 'notes' ? (
-                  <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} library={library} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
+                  <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} library={library} rows={bible.rows ?? undefined} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
                 ) : chip === 'earlier' ? (
                   <EarlierPane ctx={ctx} v={v} from={revising ? (s) => s === revising.kindId || earlierFrom(s) : earlierFrom} {...(revising ? { focusReviewId: revising.id } : {})} />
                 ) : null}

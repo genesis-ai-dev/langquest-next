@@ -4,7 +4,7 @@ import {
   type AlignmentDoc, type ContentsDoc, type HelpBookDoc, type HelpsDoc, type LibraryDoc, type LibraryItemState, type LanguageState, type MaterialDoc, type SourceDoc
 } from '@langquest-next/core';
 import {
-  alignmentHash, articleEntry, helpLink, helpsPassage, linkedQuestions, offeredHelps, offlineHelpDocs, partsFor, passageKeyWords, passageNotes, usesTemplate, verseMarks
+  alignmentHash, articleEntry, helpLink, helpsPassage, linkedQuestions, noteQuote, offeredHelps, offlineHelpDocs, partsFor, passageKeyWords, passageNotes, usesTemplate, verseMarks
 } from '../src/helps/libraryHelpsModel';
 import type { VerseRow } from '../src/sources/model';
 
@@ -126,6 +126,13 @@ describe('notes and key words on a passage', () => {
     expect(verseMarks(row, al, notes, [])).toEqual([[16, 22]]);
     expect(verseMarks(row, al, [], [{ article: 'names/paul', title: 'Paul', at: ['1:1'], words: ['Παῦλος:1'] }])).toEqual([[0, 4]]);
     expect(verseMarks(row, null, notes, [])).toEqual([]);
+    // A note is headed with the Bible's words for it; without them, with its own quote.
+    const note = { id: 'n', ref: '1:1', quote: 'Θεοῦ', words: ['Θεοῦ:1'], text: 'God the Father' };
+    expect(noteQuote(note, '1:1', al, [row])).toBe('of God');
+    expect(noteQuote(note, '1:1', null, [row])).toBe('Θεοῦ');
+    expect(noteQuote(note, '1:1', al, [])).toBe('Θεοῦ');
+    expect(noteQuote({ ...note, words: [] }, '1:1', al, [row])).toBe('Θεοῦ');
+    expect(noteQuote({ id: 'i', ref: 'front:intro', text: 'About Titus' }, '', al, [row])).toBeUndefined();
     const src = { books: [{ book: 'TIT', name: 'Titus', doc: H('s'), alignment: H('t') }] } as unknown as SourceDoc;
     expect(alignmentHash(src, 'TIT')).toBe(H('t'));
     expect(alignmentHash(src, 'GEN')).toBeUndefined();
@@ -161,6 +168,8 @@ describe('a check\'s questions from the library', () => {
       { q: { id: 'tq/TIT/y5pp', text: 'Why?', type: 'text' }, source: 'library', required: false, answer: 'Because.', at: '1:1' },
       { q: { id: 'form/a1', text: 'We checked with old and young.', type: 'yesno' }, source: 'library', required: false }
     ]);
+    // The passage's own questions come first, whichever order the sets are linked in.
+    expect(linkedQuestions(tit(1, 1, 1, 4), [{ itemId: 'form', doc: form }, { itemId: 'tq', doc: tq }], get).map((q) => q.q.id)).toEqual(['tq/TIT/y5pp', 'form/a1']);
     // A story or a passage without verses still asks every passage's questions.
     expect(linkedQuestions(null, [{ itemId: 'tq', doc: tq }, { itemId: 'form', doc: form }], get).map((q) => q.q.id)).toEqual(['form/a1']);
   });

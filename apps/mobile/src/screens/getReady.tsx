@@ -60,6 +60,7 @@ import { ReadyChecklist } from '../admin/ready';
 import { howItWorks, plainRoleHelp } from '../admin/readyText';
 import { usePlainRoles, useReadySummary } from '../admin/useReadySummary';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
+import { FlowLanguageLink } from '../checks/FlowLanguage';
 import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { NumberingNote, RedoSheet } from '../breakup/parts';
@@ -630,7 +631,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
   const kinds = useMemo(() => deriveKinds(state), [state]);
   const flow = useMemo(() => deriveFlow(state), [state]);
   const custom = flow.flowId === CUSTOM_FLOW;
-  const { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded } = useCheckChoices(ctx, flow.itemId, kinds, teamLanguages(ctx.org.state, state, languageId));
+  const { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded, chooseIn } = useCheckChoices(ctx, flow.itemId, kinds, teamLanguages(ctx.org.state, state, languageId));
   const [picked, setPicked] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -673,10 +674,12 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
     const on = key === e.c.key;
     const sub = e.c === current ? t('getReady.checks.inUse') : e === starter && i === 0 ? t('getReady.checks.suggested') : flowSub(e.doc.steps);
     return (
-      <HelpRow key={e.c.key} of="getReady.way">
+      <HelpRow key={e.set?.key ?? e.c.key} of="getReady.way">
         <ChoiceCard on={on} icon="people" title={titleOf(e.doc)} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setPicked(e.c.key)}>
           {on && e.doc.steps.length ? <NumberedSteps items={flowWho(e.doc.steps, kindsOf(e.doc))} /> : null}
         </ChoiceCard>
+        {/* A ready-made flow in several languages: the one in the team's language, the others a tap away. */}
+        <FlowLanguageLink entry={e} onPick={(k) => { chooseIn(e.set!.key, k); if (on) setPicked(k); }} />
       </HelpRow>
     );
   };

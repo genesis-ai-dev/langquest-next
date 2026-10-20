@@ -101,6 +101,23 @@ export function alignedSpans(alignment: AlignmentDoc | null | undefined, chapter
   return out;
 }
 
+/**
+ * The words of an aligned Bible's verse that stand for `originals`, in
+ * order: what a note is about, in the Bible the team reads. Punctuation
+ * between them is kept; other words left out are shown as "…". Null when
+ * none of them is aligned there.
+ */
+export function alignedQuote(alignment: AlignmentDoc | null | undefined, chapter: number, verse: number, originals: readonly string[], text: string): string | null {
+  const spans = alignedSpans(alignment, chapter, verse, originals, text);
+  if (!spans.length) return null;
+  let out = text.slice(spans[0]![0], spans[0]![1]);
+  for (let i = 1; i < spans.length; i++) {
+    const gap = text.slice(spans[i - 1]![1], spans[i]![0]);
+    out += (/^[\s\p{P}]*$/u.test(gap) ? gap : ' … ') + text.slice(spans[i]![0], spans[i]![1]);
+  }
+  return out.trim() || null;
+}
+
 /** A verse's text cut where `spans` mark it, for drawing the marked words. */
 export function markSpans(text: string, spans: readonly [number, number][]): { text: string; marked: boolean }[] {
   const out: { text: string; marked: boolean }[] = [];

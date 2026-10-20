@@ -22504,7 +22504,7 @@ function unitPlace(state, unitId) {
   let bookId2 = chapters[0]?.book ?? null;
   if (!bookId2) {
     const label = state.units[unitId]?.label ?? "";
-    const book = BIBLE_BOOKS.find((b) => label === b.label || label.startsWith(`${b.label} `));
+    const book = BIBLE_BOOKS.find((b) => label === b.label || label.startsWith(`${b.label} `) && /^\d/.test(label.slice(b.label.length + 1)));
     bookId2 = book?.itemId ?? null;
     const m = book ? /^(\d+)(?::\d+)?(?:[–-](?:(\d+):)?\d+)?/.exec(label.slice(book.label.length + 1)) : null;
     if (m) {

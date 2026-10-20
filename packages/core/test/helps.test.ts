@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  alignedSpans, canonicalJson, emptyLanguageState, helpBookDocs, helpPlace, helpQuestionId, markSpans, passageQuestions, questionsForKind, referencedDocs, rowsByVerse, rowsOnPassage,
+  alignedQuote, alignedSpans, canonicalJson, emptyLanguageState, helpBookDocs, helpPlace, helpQuestionId, markSpans, passageQuestions, questionsForKind, referencedDocs, rowsByVerse, rowsOnPassage,
   validateDoc, withDeps,
   type AlignmentDoc, type ContentsDoc, type FlowDoc, type HelpBookDoc, type HelpsDoc, type LibraryDoc, type SourceDoc, type VersificationDoc
 } from '../src';
@@ -171,6 +171,11 @@ describe('helps on a passage', () => {
     expect(alignedSpans(al, 1, 2, ['Παῦλος:1'], text)).toEqual([]);
     expect(alignedSpans(null, 1, 1, ['Παῦλος:1'], text)).toEqual([]);
     expect(alignedSpans(al, 1, 1, [], text)).toEqual([]);
+    expect(alignedQuote(al, 1, 1, ['δοῦλος:1', 'Θεοῦ:1'], text)).toBe('a servant of God');
+    expect(alignedQuote(al, 1, 1, ['Παῦλος:1', 'Θεοῦ:1'], text)).toBe('Paul … of God');
+    expect(alignedQuote(al, 1, 2, ['Παῦλος:1'], text)).toBeNull();
+    // Punctuation between the words is kept, not taken for words left out.
+    expect(alignedQuote(al, 1, 1, ['Παῦλος:1', 'δοῦλος:1'], text)).toBe('Paul, a servant');
     expect(markSpans('abc', [[1, 2], [0, 5]])).toEqual([{ text: 'a', marked: false }, { text: 'b', marked: true }, { text: 'c', marked: false }]);
   });
 

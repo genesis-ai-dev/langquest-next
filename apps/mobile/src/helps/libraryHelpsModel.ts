@@ -7,7 +7,7 @@
 // team's languages. Pure, so it is tested (test/libraryHelpsModel.test.ts);
 // useLibraryHelps.ts gathers the documents.
 import {
-  alignedSpans, helpBookDocs, helpsQuestionSpec, passageQuestions, rowsByVerse, rowsOnPassage,
+  alignedQuote, alignedSpans, helpBookDocs, helpsQuestionSpec, passageQuestions, rowsByVerse, rowsOnPassage,
   type AlignmentDoc, type ContentsDoc, type HelpBookDoc, type HelpRow, type HelpsDoc, type HelpsPassage, type LibraryDoc, type LibraryItemState,
   type LanguageState, type MaterialDoc, type SourcedQuestion, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
@@ -178,6 +178,17 @@ export function verseMarks(row: VerseRow, alignment: AlignmentDoc | null, notes:
   return alignedSpans(alignment, row.chapter, row.verseStart, [...new Set(originals)], row.text);
 }
 
+/**
+ * A note's heading: the words of the chosen Bible it is about, where that
+ * Bible is word-aligned and the passage shows the verse, else the note's own
+ * quote (Hebrew or Greek).
+ */
+export function noteQuote(row: HelpRow, at: string, alignment: AlignmentDoc | null, rows: readonly VerseRow[]): string | undefined {
+  const [chapter, verse] = at.split(':').map(Number);
+  const v = rows.find((r) => r.chapter === chapter && r.verseStart === verse);
+  return (v && row.words?.length ? alignedQuote(alignment, chapter!, verse!, row.words, v.text) : null) ?? row.quote;
+}
+
 /** A link in help text: an article of the manual (`ta:`), a key word (`tw:`), or a Bible place. */
 export type HelpLink = { kind: 'academy' | 'words'; id: string } | { kind: 'bible'; ref: string };
 
@@ -202,24 +213,26 @@ export function articleEntry(sets: readonly OfferedSet<ContentsDoc>[], id: strin
  * to it (`v1.CheckHelpSet`): a set placed by verse asks those on the
  * passage, with their suggested answers; a question set for every passage
  * (`material@1` kind `questions`, like the manual's forms) asks all of its.
+ * The passage's own questions come first: the forms ask how the check went.
  */
 export function linkedQuestions(p: HelpsPassage | null, linked: readonly { itemId: string; doc: LibraryDoc | null }[], get: Get): SourcedQuestion[] {
-  const out: SourcedQuestion[] = [];
+  const onPassage: SourcedQuestion[] = [];
+  const forms: SourcedQuestion[] = [];
   for (const { itemId, doc } of linked) {
     if (!doc) continue;
     if (doc.format === 'material@1' && doc.kind === 'questions') {
-      for (const q of (doc as MaterialDoc).questions ?? []) out.push({ q: helpsQuestionSpec(itemId, q), source: 'library', required: !!q.required });
+      for (const q of (doc as MaterialDoc).questions ?? []) forms.push({ q: helpsQuestionSpec(itemId, q), source: 'library', required: !!q.required });
     } else if (doc.format === 'helps@1' && doc.kind === 'questions' && p) {
       const { book, chapters } = passagePlace(p);
       for (const h of helpBookDocs(doc, book, chapters)) {
         const b = get(h) as HelpBookDoc | null;
         for (const x of passageQuestions(itemId, doc, b, p, v11nOf(doc, get))) {
-          out.push({ q: x.q, source: 'library', required: false, ...(x.answer ? { answer: x.answer } : {}), ...(x.at ? { at: x.at } : {}) });
+          onPassage.push({ q: x.q, source: 'library', required: false, ...(x.answer ? { answer: x.answer } : {}), ...(x.at ? { at: x.at } : {}) });
         }
       }
     }
   }
-  return out;
+  return [...onPassage, ...forms];
 }
 
 /**

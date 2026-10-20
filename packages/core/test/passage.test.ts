@@ -398,6 +398,12 @@ describe('passage record', () => {
     const s: LanguageState = fold([...buildFixture(), ...buildStep11Fixture()], emptyState());
     expect(unitPlace(s, 'luke1')).toMatchObject({ bookId: 'luk', chapters: [1], testament: 'nt' });
     expect(unitPlace(s, 'fia@1/gen-p1')).toMatchObject({ bookId: 'gen', chapters: [1, 2], testament: 'ot' });
+    // A label is a book only with a chapter after its name: a story called "John Baptizes Jesus" is in none.
+    const unit = (label: string) => ({ parentUnitId: null, kind: 'passage', label, order: '1', hlc: s.units['luke1']!.hlc });
+    const stories: LanguageState = { ...s, units: { ...s.units, john3: unit('John 3:1-21'), obs24: unit('John Baptizes Jesus'), john: unit('John') } };
+    expect(unitPlace(stories, 'john3')).toMatchObject({ bookId: 'joh', chapters: [3] });
+    expect(unitPlace(stories, 'obs24')).toMatchObject({ bookId: null, testament: null });
+    expect(unitPlace(stories, 'john')).toMatchObject({ bookId: 'joh' });
   });
 
   it('reads the flow in force: its steps, less the removed ones, never another flow\'s', () => {
