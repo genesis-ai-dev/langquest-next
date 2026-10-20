@@ -1,6 +1,6 @@
 # The LangQuest API, review links, and MCP
 
-Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document), 101 (webhooks and the change feed) and 109 (a listening app's approved audio).
+Other apps, AI agents and people without an account can take part in a translation's review. Why it is built this way: `docs/decisions.md` 70 (tokens), 72 (reviews, releases, review links), 79 (external values), 85 (the passage list), 86 (the OpenAPI document), 101 (webhooks and the change feed), 109 (a listening app's approved audio) and 147 (written versions, and steps that make something).
 
 - **Partner apps and agents** use an access token. They read passages, record reviews, report where a version is published, and store values of their own with a language.
 - **Anyone with a review link** (`/r/<code>`, shared on WhatsApp, say) can hear one version and answer, with any name.
@@ -29,7 +29,7 @@ A token belongs to one person in one organization. **It can never do more than t
 
 | Scope | Gives | The person needs |
 | --- | --- | --- |
-| `read:published` | Each passage's approved version only, with its audio. | to view the language |
+| `read:published` | Each passage's approved version only, with its audio and words. | to view the language |
 | `read` | Every passage shared for review: versions, reviews, the flow's steps. | to view the language |
 | `review` | Record reviews: listener feedback, or a flow step, with a comment or voice note. Share review links (with `read`). | to review or translate |
 | `release` | Report where a version is published, or taken down. | to assign work (a coordinator) |
@@ -42,7 +42,7 @@ A token can be limited to some languages. It never expires unless given an expir
 A token inside a phone app or a web page can be read by anyone who wants it. They can watch the traffic or unpack the app.
 
 - **`review`, `release` and `external_values` tokens belong on a server.** A listening app should send its listeners' reactions to its own backend. The backend checks its own users and limits, then calls this API with the token. It passes its user id as `reviewerId`.
-- **A `read:published` token alone** exposes only approved audio, so it may ship inside an app if the organization's license allows. The audio links play without a token anyway.
+- **A `read:published` token alone** exposes only approved audio and words, so it may ship inside an app if the organization's license allows. The audio links play without a token anyway.
 
 ### Making one
 
@@ -70,14 +70,31 @@ curl -H "$T" https://next.langquest.org/api/v1/languages/LANG/passages/UNIT     
   - `version` is the latest version with `read`, and the approved one with `read:published` alone.
   - **Pages:** 100 passages at a time, or `limit` (1 to 500). Pass `nextAfter` as `after` for the next page. `nextAfter` is null when nothing more matches.
   - **Filters:** `status`, `changedSince`, and `unitIds` for particular passages. Repeat `unitIds` once per id, since an id may hold a comma. Ids that do not exist, or that the token cannot see, are left out.
-  - **`include`** adds fields of one passage (below) to every passage on the page, comma-separated: `audio`, `reviews`, `steps`, `requests`, `versions`, `approvedAudio`. Links are signed only for the page. `steps`, `requests`, `versions` and `approvedAudio` need `read`; with `read:published` alone they are refused (`403`, `scope`).
+  - **`include`** adds fields of one passage (below) to every passage on the page, comma-separated: `audio`, `text`, `reviews`, `steps`, `requests`, `versions`, `approvedAudio`, `made`. Links are signed only for the page. `steps`, `requests`, `versions`, `approvedAudio` and `made` need `read`; with `read:published` alone they are refused (`403`, `scope`).
 - **`reference`** is the verses the passage holds, read from its unit id so you need not parse `GEN.1.1-2.3~org`: `{ book, chapter, verse, endChapter, endVerse }`, in the template's own numbering. A whole chapter has null verses, a whole book null chapters too. It is null for a unit someone made by hand.
-- **Following changes:** pass the newest `updatedAt` you have seen as `changedSince`. Versions, reviews and releases all count as changes. The server catches up with the log at least once a minute. `changedSince` never sees a passage leave the list or change its label; follow the change feed (below) for those.
-- **One passage** has everything the token may see of it: the list's fields, `audio` and `reviews`, plus `steps`, `requests` and `versions` with `read`. It is the list with every include, for one unit.
-  - `audio` is `version`'s cards in playing order. Each has a `url` that plays without a token for ten minutes, with Range support.
-  - `approvedAudio` (with `read`) is `approvedVersion`'s cards, so an app keeps playing the version it published while a newer one is in review. It is empty when nothing is approved.
+- **Following changes:** pass the newest `updatedAt` you have seen as `changedSince`. Versions, reviews, releases and what steps made or added all count as changes. The server catches up with the log at least once a minute. `changedSince` never sees a passage leave the list or change its label; follow the change feed (below) for those.
+- **One passage** has everything the token may see of it: the list's fields, `audio`, `text` and `reviews`, plus `steps`, `requests`, `versions`, `approvedAudio` and `made` with `read`. It is the list with every include, for one unit.
+  - `audio` is what `version` plays, in order: its own cards, or for a written version the recording added to it. Each has a `url` that plays without a token for ten minutes, with Range support.
+  - `text` is `version`'s words, in order: a written version's own, or the words added to a recording (below).
+  - `approvedAudio` (with `read`) is what `approvedVersion` plays, as `audio` is for `version`, so an app keeps playing the version it published while a newer one is in review. It is empty when nothing is approved.
   - Each step lists its `kinds`: `kindId` (what a review of it sends), `name`, `state`, and `apiReviewCounts`, whether a review through this API completes it. It does on an ordinary step that takes links, never on a checkpoint.
   - `requests` are the ones not done yet: `requestId`, `what` (`review` or `record`), `kindId` and `kind`, `forYou` (to the token's person, or a team they are in), `team`, `note` and `askedAt`.
+
+## What an approved passage holds
+
+A version is **recorded or written**. `version.medium` and `approvedVersion.medium` say which.
+
+- A recorded version plays its own cards (`audio`).
+- A written version is its words (`text`), usually one part to a verse. Each part has its words and, when someone set them, the verses it holds (`verses.from` and `verses.to`, as `chapter:verse`). Words are not files, so `audio` never lists them. A part whose words have not reached the server yet is left out.
+- `version.durationMs` is the length of what `audio` plays: 0 for a written version with no recording added.
+
+**A step may replace the version.** A flow may end with a step such as "Final recording", which makes the passage's next version from the one the checks heard. That version has `madeBy`: the step (`kindId`, `kind`) and the version it was made from (`fromVersionN`). The checks before that step count from the version it was made from, so the new version can be the approved one. A version someone published by hand has no `madeBy` and inherits nothing.
+
+**A step may add to the version.** It may write a recording down, or read the writing aloud, and add the result to that version. `version.added` lists what was added, one entry per medium, with the step and `addedAt`. The added content belongs to the version: a recorded version's `text` is the words added to it, and a written version's `audio` is the recording added to it. The latest addition holds.
+
+**Changing added content after a review keeps the approval.** Whoever changes it decides whether it needs another review. The entry then has `changedAt`, and `changedAfterReview`: the kind and time of the newest review given before the change. Show it wherever the words or recording are shown as checked.
+
+**Things made beside a version are the team's.** A back translation, or a written copy kept beside a recording, stays with the version it was made from and is never out of date. They are under `made`, which needs `read`. Each has `madeId`, the step, `medium`, `language` when it is not the team's own, `fromVersionN`, `added`, and its `text` or `audio`. `made` also lists what was added to versions (`added: true`). A version a step made is a version, not something made.
 
 ## Writing
 
@@ -282,4 +299,5 @@ The device endpoints use OAuth's error codes.
 | Voice note checks | `apps/web/worker/agent/voice.ts` |
 | Tables (service role only) | `supabase/migrations/20261008000000_api_tokens.sql`, `20261008140000_review_links_releases.sql`, `20261013120000_api_webhooks.sql` (also the poke) |
 | Approved version, releases, links per step | core `approvedVersion`, `releasesOf`, `stepAllowsLinks`; events `v1.VersionReleased`, `v1.FlowStepLinksSet` |
+| Written parts, what steps make or add | core `writing.ts`, `addedTo`, `madeVersionOf`; events `v1.WritingAdded`, `v1.Made`, `v1.CardVerseSet` |
 | Tests | `apps/web/test/agentApi.test.ts`, `packages/core/test/externalReview.test.ts` |

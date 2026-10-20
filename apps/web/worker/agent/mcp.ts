@@ -2,7 +2,7 @@ import type { OrgStub } from './http';
 import type { Answer } from './org';
 import { canRead, canReadValues, SCOPE_TEXT, type Grant } from './tokens';
 import {
-  API_STATUSES, isRefusal, PASSAGE_INCLUDES, PASSAGES_PAGE, PASSAGES_PAGE_MAX, parseExternalValue, parsePassageQuery, parseRelease, parseReview, type ExternalValueFilter
+  API_STATUSES, isRefusal, PASSAGE_INCLUDES, PASSAGES_PAGE, PASSAGES_PAGE_MAX, parseExternalValue, parsePassageQuery, parseRelease, parseReview, TEAM_ONLY, type ExternalValueFilter
 } from './view';
 
 /**
@@ -60,7 +60,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'list_passages',
-    description: 'Passages of a language in display order, a page at a time ({ passages, nextAfter }; pass nextAfter as after for the next page, null means no more), with status (not_started, drafting, in_review, feedback, approved), the version this token hears, the approved version, where it is released, and listener feedback counts. include adds get_passage\'s fields to every passage, so one call can answer, say, where every passage in review stands. A token with only read:published sees approved passages alone.',
+    description: 'Passages of a language in display order, a page at a time ({ passages, nextAfter }; pass nextAfter as after for the next page, null means no more), with status (not_started, drafting, in_review, feedback, approved), the version this token hears (recorded or written, the step that made it if one did, and what steps added to it), the approved version, where it is released, and listener feedback counts. include adds get_passage\'s fields to every passage, so one call can answer, say, where every passage in review stands. A token with only read:published sees approved passages alone.',
     inputSchema: obj({
       languageId: LANGUAGE,
       status: s('Only passages with this status.', { enum: [...API_STATUSES] }),
@@ -68,7 +68,7 @@ const TOOLS: Tool[] = [
       unitIds: { type: 'array', items: { type: 'string' }, maxItems: PASSAGES_PAGE_MAX, description: 'Only these passages (still in display order); ids that do not exist or this token cannot see are left out.' },
       include: {
         type: 'array', items: { type: 'string', enum: [...PASSAGE_INCLUDES] }, uniqueItems: true,
-        description: 'Fields of get_passage to add to each passage. audio: playable links; reviews; steps: where it is in the review flow; requests: work asked for, forYou marking the token person\'s; versions. steps, requests and versions need the read scope.'
+        description: `Fields of get_passage to add to each passage. audio: playable links; text: the version's words, with verses; reviews; steps: where it is in the review flow; requests: work asked for, forYou marking the token person's; versions; made: back translations and other things made beside a version or added to it. ${TEAM_ONLY.join(', ')} need the read scope.`
       },
       limit: { type: 'integer', minimum: 1, maximum: PASSAGES_PAGE_MAX, description: `Passages per page; ${PASSAGES_PAGE} when left out.` },
       after: s('The nextAfter of the page before.')
@@ -81,7 +81,7 @@ const TOOLS: Tool[] = [
   },
   {
     name: 'get_passage',
-    description: 'One passage: its latest version\'s audio (links that play for ten minutes, in order), its reviews and, with the read scope, its steps (each kind\'s kindId, and whether a review through this API counts there), the requests not done yet (forYou marks the ones asked of this token\'s person) and its versions. For several passages, or only some of this, use list_passages with unitIds and include.',
+    description: 'One passage: its version\'s audio (links that play for ten minutes, in order) and words (a written version\'s own, or words a step added to a recording), its reviews and, with the read scope, its steps (each kind\'s kindId, and whether a review through this API counts there), the requests not done yet (forYou marks the ones asked of this token\'s person), its versions and what was made from them (made). For several passages, or only some of this, use list_passages with unitIds and include.',
     inputSchema: obj({ languageId: LANGUAGE, unitId: UNIT }, ['languageId', 'unitId']),
     allowed: (g) => canRead(g),
     run: (a, g, org) => org.read(g, { op: 'passage', languageId: str(a['languageId']), unitId: str(a['unitId']) })
@@ -183,7 +183,7 @@ async function one(m: Rpc, grant: Grant, org: OrgStub, label: Labeler): Promise<
         protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: 'langquest', version: '1.0.0' },
-        instructions: 'LangQuest holds oral Bible translations: languages, passages recorded as audio, and their reviews. Start with list_languages, then list_passages; get_passage gives playable audio links. Writes are recorded as the person who made this token and are visible to their team.'
+        instructions: 'LangQuest holds oral Bible translations: languages, passages recorded as audio or written, and their reviews. Start with list_languages, then list_passages; get_passage gives playable audio links and the words. Writes are recorded as the person who made this token and are visible to their team.'
       });
     }
     case 'ping':

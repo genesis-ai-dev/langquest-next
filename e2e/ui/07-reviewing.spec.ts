@@ -1054,6 +1054,10 @@ test('REV-049 Take back a review @p0', async ({ page }) => {
   await expect(visible(page.getByText(/undone just now/))).toHaveCount(2);
   await visible(page.getByRole('button', { name: 'Undo', exact: true })).first().click();
   await expect(visible(page.getByText(/undone just now/))).toHaveCount(3);
+  // The screen moves as soon as a write is queued (SyncClient.applyLocal), before it is in
+  // the device's log, so wait for the third take-back there before asking what is left to send.
+  const a = world().languages.A;
+  await expect.poll(async () => (await deviceEvents(page, a.orgId, a.languageId)).filter((r) => r.type === 'v1.ReviewWithdrawn').length).toBe(3);
   await expectSent(page, world());
   await expectNothingRefused(page, world());
   // The check is open again, and the request is back with REV.

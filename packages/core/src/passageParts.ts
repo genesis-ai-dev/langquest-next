@@ -22,7 +22,7 @@ import { earlier } from './ties';
 export type PassageMap =
   | 'recordings' | 'takes' | 'submissions' | 'responses' | 'kindReviews' | 'departures' | 'undoneDepartures'
   | 'requests' | 'withdrawnRequests' | 'notes' | 'studyMarks' | 'cardVerses' | 'passageLinks' | 'referencesUsed'
-  | 'keyTermLinks' | 'releases' | 'withdrawnReviews' | 'withdrawnNotes';
+  | 'keyTermLinks' | 'releases' | 'withdrawnReviews' | 'withdrawnNotes' | 'made';
 
 /**
  * Where an entry's passage comes from: the entry itself, or the take,
@@ -147,7 +147,10 @@ export const PASSAGE_PARTS: readonly PassagePart[] = [
   { map: 'passageLinks', kind: 'passageLinks', depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a as Record<string, Reg>, b as Record<string, Reg>) },
   { map: 'referencesUsed', kind: 'used', depth: 1, passage: (k) => usedSubject(k), merge: (a, b) => byKey(keptUse)(a as Record<string, Used>, b as Record<string, Used>) },
   { map: 'keyTermLinks', kind: 'termLink', depth: 2, passage: (k) => ({ take: k }), merge: (a, b) => keptTermLink(a as TermLink, b as TermLink), ref: (_k, _v, term) => term ?? '' },
-  { map: 'releases', kind: 'release', depth: 1, passage: (k) => ({ take: k }), merge: (a, b) => byKey(laterRegister)(a as Record<string, Reg>, b as Record<string, Reg>) }
+  { map: 'releases', kind: 'release', depth: 1, passage: (k) => ({ take: k }), merge: (a, b) => byKey(laterRegister)(a as Record<string, Reg>, b as Record<string, Reg>) },
+  // What a step made from a version (decisions.md 147) names its passage; the first made under an id stands (reducer `firstWins`).
+  // A written part's words (`writings`) are shared by the whole language: one id is the same words wherever they are written.
+  { map: 'made', kind: 'made', depth: 1, passage: (_k, m) => ({ unitId: (m as Entry<'made'>).unitId }), merge: (a, b) => firstOf(a as Reg, b as Reg) }
 ];
 
 export const PASSAGE_PART: Readonly<Record<PassageMap, PassagePart>> =
@@ -199,6 +202,8 @@ export function eventPassage(e: AnyEvent): PassageOf | 'settings' | null {
     case 'v1.ReferencesUsed':
     case 'v1.UnitAdded':
     case 'v1.UnitHidden':
+    case 'v1.WritingAdded':
+    case 'v1.Made':
       return { unitId: e.payload.unitId };
     case 'v1.TakeArchived':
     case 'v1.TakeSubmitted':
@@ -223,6 +228,10 @@ export function eventPassage(e: AnyEvent): PassageOf | 'settings' | null {
     case 'v1.ReviewTeamDefined':
     case 'v1.ReviewTeamMemberSet':
     case 'v1.ReviewTeamKindSet':
+    // What a language makes, and its steps that make something or read what one made (decisions.md 147), change how every passage reads.
+    case 'v1.MediaAllowedSet':
+    case 'v1.StepMakesSet':
+    case 'v1.CheckLooksAtSet':
       return 'settings';
     default:
       return null;

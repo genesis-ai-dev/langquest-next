@@ -649,7 +649,7 @@ export function Toggle(props: { on: boolean; onToggle: () => void; label: string
  * switch): takes its tap so it explains itself instead of opening the
  * keyboard or switching, and lights and numbers it.
  */
-function HelpCover(props: { spot: HelpSpot<(() => void) | undefined>; label: string; inset?: boolean }) {
+export function HelpCover(props: { spot: HelpSpot<(() => void) | undefined>; label: string; inset?: boolean }) {
   if (!props.spot.id) return null;
   return (
     <Pressable onPress={props.spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} style={StyleSheet.absoluteFill}>
@@ -854,11 +854,11 @@ export function StepMarks(props: { steps: { kinds: { kindId: string; state: Kind
   );
 }
 
-export function KindIcon(props: { kindId: string; size?: number }) {
+export function KindIcon(props: { kindId: string; size?: number; icon?: IconName }) {
   const size = props.size ?? 44;
   return (
     <View style={[styles.iconTile, { width: size, height: size }]}>
-      <Ico name={kindIcon(props.kindId)} size={Math.round(size * 0.5)} color={C.primary} />
+      <Ico name={props.icon ?? kindIcon(props.kindId)} size={Math.round(size * 0.5)} color={C.primary} />
     </View>
   );
 }

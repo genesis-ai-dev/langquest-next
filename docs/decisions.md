@@ -6153,3 +6153,111 @@ opens, which is what counts the language as ready).
 Reverse if: admins skip the overview so often it is only in the way, or
 teams need checks set up before reference material is known; then the order
 can change without touching the draft, which works for any step order.
+
+## 147. A passage may be written as well as recorded, and a step can turn either into either, in any language
+
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked how the app would hold written translations beside
+audio, and chose (thread "Written translations alongside audio", plan page
+https://claude.ai/artifact/Fj4Serxb9kWDQGsbjwPPvF) to make writing a second
+way to hold a passage, with the words kept in the log. He then widened back
+translation into one kind of step: "(text or audio) is turned into (text or
+audio) in the (same or different) language". PLAN.md section 1 listed
+text-first translation as a non-goal ("that is Aquila"); that line is gone.
+Chosen:
+- A written part is a short piece of text, usually a verse, named `w:` and
+  the SHA-256 of its UTF-8 words (core `writing.ts`). Its words travel inside
+  `v1.WritingAdded`, never as a file: they are small, every phone holding
+  the language holds them through months offline, and nothing that handles
+  files (uploads, eviction, the missing-file alarm, decision 92) can mistake
+  one for a blob, whose names are 64 hex characters; `addWriting` splits
+  them into events of at most 100 parts and 64 KB (115). `validate_payload` and
+  core both check each name against its words. A take holds recorded parts
+  or written ones, never both, so a version's kind is known from the take
+  alone in any order; drafts, publishing, verse labels (one `set` label per
+  written verse, so an empty verse never shifts the next) and releases are
+  unchanged. What is typed is a draft on the phone, only for its writer, until
+  Done (127): Done shows the words verse by verse, takes what changed (said
+  or typed), and asks whoever does the next check in the same write, as the
+  recorder's Done does. On a phone that keeps a language on disk (143),
+  what a step made is cut by passage like the rest of a passage's record
+  (`PASSAGE_PARTS`), and a written part's words stay with what the whole
+  language shares: one id is the same words wherever they are written. The
+  writing screen shows what its step shows (130):
+  a version is written at the recording's step, what a making step makes at
+  that step.
+- What a language's team may make, recordings, writing or both, and which
+  leads on a passage, is `v1.MediaAllowedSet`, asked in Get ready's first
+  question; recording only until set. With both, the other is under
+  "Something else?".
+- A making step is a kind with `v1.StepMakesSet { from, to, language,
+  otherLanguage?, fromKindId?, result }`: it turns recording or
+  writing (or either) into recording or writing (or the person picks), in the
+  same language or another. A flow many languages share never names a
+  language (Caleb): "another" is the team's reference language (decision 84)
+  unless the language's own copy of the step names one. Ready-made ones come
+  first in Add a step (back translation said and written, write it down, read
+  it aloud, final recording); "Make your own" sets the choices.
+- What a step makes stays with the version it came from (`v1.Made`), in
+  any language, and is never marked out of date when a newer version
+  arrives (Caleb: a transformation's quality is its own, "don't punish the
+  children for the sins of their fathers"). Reviews by version gains a
+  column for each step that made something, and for each kind of thing made
+  with no step (LangQuest v2's transcriptions and translations), only where
+  some exist; a version lists what was made from it. A check can read what
+  an earlier step made instead of the version (`v1.CheckLooksAtSet`).
+- What a step makes does one of three things (`result`), chosen on the
+  step. It stays beside the version (`beside`, the default for anything
+  but the same kind in the same language). It becomes the passage's next
+  version (`version`, a final recording after the consultant, which one
+  partner treats as the validated translation; only in the same language,
+  and the default for the same kind there, Caleb's answer 11a); the checks
+  before that step then count from the version it was made from
+  (`versionHeardAt`, `approvedVersion`), so the final version can be the
+  approved one, and a version recorded by hand inherits nothing. Or it is
+  added to the version (`added`, Caleb, 13 October): only when it turns a
+  recording into writing or writing into a recording, in the team's own
+  language, so one version holds a recording and its words verse by verse;
+  `v1.Made { added: true }` says so, fixed when it is made, and the take
+  stays all recorded or all written. The checks after that step hear and
+  read both, and the version is approved with its words when one of them
+  looks good. Words added before a step that makes the next version stay
+  with the older version; the step's editor says so.
+- Content can change after a review (Caleb, 13 October: "give translators
+  more freedom and record what happened"). Changing what was added to a
+  version keeps the approval; the person changing it decides whether it
+  needs another review, and the history says it changed after that review
+  (core `addedTo`, `changedAfter`). Whether a new recording of an approved
+  passage may keep the approval in the same way is open (it would change
+  70 and 72, where only a version reviewed itself is approved).
+- The access-token API (70, 72, 85, 86) says what each passage's version
+  holds: `medium`, `madeBy` when a step replaced it, and `added` (what steps
+  added, with `changedAfterReview`); a new `text` include gives a written
+  version's words, or the words added to a recording, with their verses;
+  `audio` never names a written part; a new `made` include (team only)
+  lists what was made beside versions. `approvedVersion` keeps its meaning.
+- Writing loads the first time someone writes or a written version is
+  read, as the screens most people never open do (123): the writing boxes,
+  Say it or write it, and the reader come as one file, and the step-making
+  part of a language's checks as another, since Metro moves whatever two
+  lazily loaded files share into the file every first visit downloads. A
+  first visit stays under its 5.7 MB (5.69 MB with main's New language six
+  steps); the cap on every file together rises from 6.5 to 6.6 MB, since
+  writing joined Silero, help-mode feedback and big languages kept on disk
+  at 6.55 MB in all.
+- People ask each other for what they need in other languages; there is no
+  language feature for it (Caleb). No AI help for now.
+Not yet: the shipped back translation still records through
+`v1.ReviewRecorded` (its English is a word, not a language); exporting a
+book's writing (USFM); recording from something a step made (a step that
+records works from a version); letters an admin adds to the strip above
+the keyboard (the strip learns from what the team writes); New language's
+own question about writing (Get ready asks it); a final recording left
+unpublished is kept as an ordinary draft, so publishing it from Versions
+makes a version by hand; fonts for scripts the phone lacks; the review
+link page (72) for a written version.
+Reverse if: a written New Testament with its edits makes the fold too heavy
+on the slowest partner phones (then keep the words in a SQLite read model
+and only their names in the fold), or teams need one step's output reviewed
+as a version of its own.

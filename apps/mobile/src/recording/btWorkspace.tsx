@@ -77,9 +77,13 @@ import { useStudyGuide } from '../study/useStudyGuides';
 import { studyProgress } from '../study/progress';
 import { GuideNav, GuideStep } from '../study/guide';
 
-export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: PassageView; kind: KindDef; of: Version }) {
+export function BackTranslationBody({ ctx, v, kind, of, make }: {
+  ctx: Ctx; v: PassageView; kind: KindDef; of: Version;
+  /** A step that makes recording (decisions.md 147): what it says it into, and the language it is in when not the team's own. */
+  make?: { into: string; language?: string; added?: boolean };
+}) {
   const { state, unitId, languageId, p } = v;
-  const produces = kind.produces!;
+  const produces = kind.produces ?? { what: kind.name, into: make?.into ?? v.language, action: kind.name, checkedBy: '' };
   const shipped = shippedBackTranslation(kind);
   const me = ctx.session.actorId;
   // One name for a check on every screen (decision 91): "The Consultant check listens to it next."
@@ -242,10 +246,20 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     let specs: EventSpec[];
     try {
       const c = commands(state, indexesFor(state));
-      specs = c.produceContent({
-        commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: pieces,
-        ...(note ? { note } : {}), ...(noteHash ? { noteBlobHash: noteHash } : {}), ...(request ? { requestId: request.id } : {})
-      });
+      specs = make
+        // What a making step said stays with the version it came from (v1.Made); its notes go on the passage.
+        ? [
+          ...c.make({
+            commandId: Crypto.randomUUID(), unitId, kindId: kind.id, fromTakeId: of.takeId, parts: pieces,
+            ...(make.language ? { language: make.language } : {}), ...(make.added ? { added: true } : {}), ...(request ? { requestId: request.id } : {})
+          }),
+          ...(note || noteHash ? c.addNote({ commandId: Crypto.randomUUID(), unitId, anchor: { kind: 'version', takeId: of.takeId },
+            ...(note ? { text: note } : {}), ...(noteHash ? { blobHash: noteHash } : {}) }) : [])
+        ]
+        : c.produceContent({
+          commandId: Crypto.randomUUID(), fromTakeId: of.takeId, kindId: kind.id, cards: pieces,
+          ...(note ? { note } : {}), ...(noteHash ? { noteBlobHash: noteHash } : {}), ...(request ? { requestId: request.id } : {})
+        });
       if (ask && 'kindId' in ask && sendTo) {
         const asked = c.ask(sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }));
         specs = [...specs, ...asked];

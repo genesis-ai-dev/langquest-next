@@ -7,7 +7,7 @@
 // Pure: the hook in useDraft.ts reads and writes AsyncStorage with these.
 
 /** What is being made: one draft per maker, per thing. */
-export type DraftKind = 'note' | 'review' | 'publish' | 'bt' | 'word' | 'editor';
+export type DraftKind = 'note' | 'review' | 'publish' | 'bt' | 'word' | 'editor' | 'writing';
 
 /**
  * A draft's storage key. `actorId` is in every key: account deletion removes

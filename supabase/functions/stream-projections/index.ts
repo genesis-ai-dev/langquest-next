@@ -20840,7 +20840,9 @@ function emptyRecordState() {
     withdrawnReviews: {},
     notes: {},
     withdrawnNotes: {},
-    studyMarks: {}
+    studyMarks: {},
+    // Cut by passage on a phone that keeps a language on disk (decisions.md 143), so always present, as the other parts are.
+    made: {}
   };
 }
 var studyMarkKey = (unitId, guideId, stepId) => `${unitId}:${guideId}:${stepId}`;
@@ -21161,6 +21163,172 @@ function licenseRank(license) {
   return LICENSES.indexOf(license);
 }
 
+// packages/core/src/writing.ts
+var WRITTEN_PART_MAX = 2e3;
+var WRITTEN_PARTS_PER_EVENT = 100;
+var WRITTEN_PREFIX = "w:";
+function isWrittenPart(id) {
+  return id.startsWith(WRITTEN_PREFIX);
+}
+function writtenPartId(text) {
+  return WRITTEN_PREFIX + sha256Hex(text);
+}
+function partsMedium(parts) {
+  return parts.length > 0 && isWrittenPart(parts[0]) ? "writing" : "recording";
+}
+var MAKES_RESULTS = ["beside", "added", "version"];
+function resultAllowed(m, result) {
+  if (result === "beside") return true;
+  if (m.language !== "same" || m.to === "either") return false;
+  return result === "version" || m.from !== "either" && m.from !== m.to;
+}
+var NO_MADE = Object.freeze([]);
+function madeViewsOf(state, records) {
+  return records.map((m) => {
+    const parts = m.parts ?? [];
+    const take = m.takeId ? state.takes[m.takeId] : void 0;
+    return {
+      id: m.id,
+      unitId: m.unitId,
+      by: m.by,
+      hlc: m.hlc,
+      medium: partsMedium(take ? take.cardHashes : parts.map((p) => p.hash)),
+      parts: [...parts],
+      ...m.kindId !== void 0 ? { kindId: m.kindId } : {},
+      ...m.fromTakeId !== void 0 ? { fromTakeId: m.fromTakeId } : {},
+      ...m.fromMadeId !== void 0 ? { fromMadeId: m.fromMadeId } : {},
+      ...m.language !== void 0 ? { language: m.language } : {},
+      ...m.takeId !== void 0 ? { takeId: m.takeId } : {},
+      ...m.added ? { added: true } : {}
+    };
+  });
+}
+var K = new Uint32Array([
+  1116352408,
+  1899447441,
+  3049323471,
+  3921009573,
+  961987163,
+  1508970993,
+  2453635748,
+  2870763221,
+  3624381080,
+  310598401,
+  607225278,
+  1426881987,
+  1925078388,
+  2162078206,
+  2614888103,
+  3248222580,
+  3835390401,
+  4022224774,
+  264347078,
+  604807628,
+  770255983,
+  1249150122,
+  1555081692,
+  1996064986,
+  2554220882,
+  2821834349,
+  2952996808,
+  3210313671,
+  3336571891,
+  3584528711,
+  113926993,
+  338241895,
+  666307205,
+  773529912,
+  1294757372,
+  1396182291,
+  1695183700,
+  1986661051,
+  2177026350,
+  2456956037,
+  2730485921,
+  2820302411,
+  3259730800,
+  3345764771,
+  3516065817,
+  3600352804,
+  4094571909,
+  275423344,
+  430227734,
+  506948616,
+  659060556,
+  883997877,
+  958139571,
+  1322822218,
+  1537002063,
+  1747873779,
+  1955562222,
+  2024104815,
+  2227730452,
+  2361852424,
+  2428436474,
+  2756734187,
+  3204031479,
+  3329325298
+]);
+function utf8(text) {
+  const out = [];
+  for (const ch of text) {
+    let c = ch.codePointAt(0);
+    if (c >= 55296 && c <= 57343) c = 65533;
+    if (c < 128) out.push(c);
+    else if (c < 2048) out.push(192 | c >> 6, 128 | c & 63);
+    else if (c < 65536) out.push(224 | c >> 12, 128 | c >> 6 & 63, 128 | c & 63);
+    else out.push(240 | c >> 18, 128 | c >> 12 & 63, 128 | c >> 6 & 63, 128 | c & 63);
+  }
+  return Uint8Array.from(out);
+}
+function sha256Hex(text) {
+  const bytes = utf8(text);
+  const bitLen = bytes.length * 8;
+  const padded = new Uint8Array(bytes.length + 9 + 63 >> 6 << 6);
+  padded.set(bytes);
+  padded[bytes.length] = 128;
+  const view = new DataView(padded.buffer);
+  view.setUint32(padded.length - 8, Math.floor(bitLen / 4294967296));
+  view.setUint32(padded.length - 4, bitLen >>> 0);
+  const h = new Uint32Array([1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]);
+  const w = new Uint32Array(64);
+  for (let off = 0; off < padded.length; off += 64) {
+    for (let i = 0; i < 16; i++) w[i] = view.getUint32(off + i * 4);
+    for (let i = 16; i < 64; i++) {
+      const a2 = w[i - 15], b2 = w[i - 2];
+      const s0 = (a2 >>> 7 | a2 << 25) ^ (a2 >>> 18 | a2 << 14) ^ a2 >>> 3;
+      const s1 = (b2 >>> 17 | b2 << 15) ^ (b2 >>> 19 | b2 << 13) ^ b2 >>> 10;
+      w[i] = w[i - 16] + s0 + w[i - 7] + s1 >>> 0;
+    }
+    let a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
+    for (let i = 0; i < 64; i++) {
+      const S1 = (e >>> 6 | e << 26) ^ (e >>> 11 | e << 21) ^ (e >>> 25 | e << 7);
+      const ch = e & f ^ ~e & g;
+      const t1 = hh + S1 + ch + K[i] + w[i] >>> 0;
+      const S0 = (a >>> 2 | a << 30) ^ (a >>> 13 | a << 19) ^ (a >>> 22 | a << 10);
+      const maj = a & b ^ a & c ^ b & c;
+      const t2 = S0 + maj >>> 0;
+      hh = g;
+      g = f;
+      f = e;
+      e = d + t1 >>> 0;
+      d = c;
+      c = b;
+      b = a;
+      a = t1 + t2 >>> 0;
+    }
+    h[0] = h[0] + a >>> 0;
+    h[1] = h[1] + b >>> 0;
+    h[2] = h[2] + c >>> 0;
+    h[3] = h[3] + d >>> 0;
+    h[4] = h[4] + e >>> 0;
+    h[5] = h[5] + f >>> 0;
+    h[6] = h[6] + g >>> 0;
+    h[7] = h[7] + hh >>> 0;
+  }
+  return Array.from(h, (x) => x.toString(16).padStart(8, "0")).join("");
+}
+
 // packages/core/src/validate.ts
 var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 var OBJECT_MEMBER_NAMES = [
@@ -21321,7 +21489,18 @@ function validateEvent(e) {
     case "v1.RecordingAdded":
       return str("recordingId", "unitId") ?? oneOf("kind", ["source", "target"]) ?? cards("cards");
     case "v1.TakeComposed":
-      return str("takeId", "unitId") ?? strArray("cardHashes") ?? (p["parentTakeId"] === null ? null : str("parentTakeId"));
+      return str("takeId", "unitId") ?? strArray("cardHashes") ?? (p["parentTakeId"] === null ? null : str("parentTakeId")) ?? // A take holds recorded parts or written ones, never both (decisions.md 147).
+      (oneMedium(p["cardHashes"]) ? null : "cardHashes must be all recorded or all written parts");
+    case "v1.WritingAdded":
+      return str("writingId", "unitId") ?? writtenPartsError(p["parts"]);
+    case "v1.MediaAllowedSet":
+      return bool("recording") ?? bool("writing") ?? oneOf("first", ["recording", "writing"]) ?? (p["recording"] || p["writing"] ? null : "recording or writing must be allowed") ?? (p[p["first"]] ? null : "first must be allowed");
+    case "v1.StepMakesSet":
+      return str("kindId") ?? (p["makes"] === null ? null : makesError(p["makes"]));
+    case "v1.CheckLooksAtSet":
+      return str("kindId") ?? nullableStr("makerKindId");
+    case "v1.Made":
+      return str("madeId", "unitId") ?? optNonEmpty(p, "kindId", "fromTakeId", "fromMadeId", "takeId", "requestId") ?? (p["fromTakeId"] === void 0 === (p["fromMadeId"] === void 0) ? "exactly one of fromTakeId, fromMadeId" : null) ?? (p["parts"] === void 0 === (p["takeId"] === void 0) ? "exactly one of parts, takeId" : null) ?? (p["language"] === void 0 || languageCode(p["language"]) ? null : "language must be a language code") ?? (p["added"] === void 0 ? null : p["added"] !== true ? "added must be true when present" : p["fromTakeId"] === void 0 || p["parts"] === void 0 || p["language"] !== void 0 ? "added needs fromTakeId and parts, in the team's own language" : null) ?? (p["parts"] === void 0 ? null : cards("parts") ?? (p["parts"].length > 0 ? null : "parts must not be empty") ?? (oneMedium(p["parts"].map((c) => c.hash)) ? null : "parts must be all recorded or all written"));
     case "v1.TakeArchived":
       return str("takeId");
     case "v1.TakeSubmitted":
@@ -21452,6 +21631,45 @@ function cardVerseError(p) {
   const b = verseRefOrder(p["to"]);
   if (a === null || b === null) return "from and to must be chapter:verse";
   return a <= b ? null : "from must not come after to";
+}
+function oneMedium(ids) {
+  if (ids.length === 0) return true;
+  const written = isWrittenPart(ids[0]);
+  return ids.every((id) => isWrittenPart(id) === written);
+}
+function languageCode(v) {
+  return typeof v === "string" && v !== "" && [...v].length <= 40;
+}
+function optNonEmpty(p, ...keys) {
+  for (const k of keys) if (p[k] !== void 0 && (typeof p[k] !== "string" || p[k] === "")) return `${k} must be a non-empty string`;
+  return null;
+}
+function writtenPartsError(v) {
+  if (!Array.isArray(v) || v.length === 0) return "parts must be a non-empty array";
+  if (v.length > WRITTEN_PARTS_PER_EVENT) return `parts may hold at most ${WRITTEN_PARTS_PER_EVENT}`;
+  for (const part of v) {
+    if (!isObject(part)) return "parts entries must be objects";
+    const { id, text } = part;
+    if (typeof id !== "string" || !/^w:[0-9a-f]{64}$/.test(id)) return "parts need an id: w: and a SHA-256 hex digest";
+    if (typeof text !== "string" || text === "") return "parts need text";
+    if ([...text].length > WRITTEN_PART_MAX) return `text must be at most ${WRITTEN_PART_MAX} characters`;
+    if (writtenPartId(text) !== id) return "id must be w: and the SHA-256 of the text";
+  }
+  return null;
+}
+function makesError(v) {
+  if (!isObject(v)) return "makes must be an object or null";
+  const m = v;
+  const kinds = ["recording", "writing", "either"];
+  if (!kinds.includes(m["from"])) return "makes.from must be one of recording, writing, either";
+  if (!kinds.includes(m["to"])) return "makes.to must be one of recording, writing, either";
+  if (m["language"] !== "same" && m["language"] !== "other") return "makes.language must be one of same, other";
+  if (!MAKES_RESULTS.includes(m["result"])) return "makes.result must be one of beside, added, version";
+  if (m["otherLanguage"] !== void 0 && (m["language"] !== "other" || !languageCode(m["otherLanguage"]))) return "makes.otherLanguage must be a language code, for another language only";
+  if (m["fromKindId"] !== void 0 && (typeof m["fromKindId"] !== "string" || m["fromKindId"] === "")) return "makes.fromKindId must be a non-empty string";
+  if (m["result"] === "version" && !resultAllowed(m, "version")) return "only a step that makes recording or writing in the same language can make the next version";
+  if (m["result"] === "added" && !resultAllowed(m, "added")) return "only a step that turns recording into writing, or writing into recording, in the same language can add to the version";
+  return null;
 }
 var EVENT_PAYLOAD_MAX_BYTES = 64 * 1024;
 
@@ -21756,6 +21974,30 @@ function applyLanguageEvent(state, event) {
       if (!prior || earlier(event, { questionSetIds }, prior, { questionSetIds: prior.questionSetIds })) {
         state.submissions[takeId] = { takeId, actorId: event.actorId, hlc: event.hlc, questionSetIds };
       }
+      break;
+    }
+    case "v1.WritingAdded": {
+      const writings = state.writings ??= {};
+      for (const part of event.payload.parts) writings[part.id] ??= part.text;
+      break;
+    }
+    case "v1.MediaAllowedSet": {
+      const { recording, writing, first } = event.payload;
+      const cur = state.mediaAllowed ?? null;
+      state.mediaAllowed = set(cur, event, { recording, writing, first });
+      break;
+    }
+    case "v1.StepMakesSet": {
+      const { kindId, makes } = event.payload;
+      lww(state.stepMakes ??= {}, kindId, event, makes ? { ...makes } : null);
+      break;
+    }
+    case "v1.CheckLooksAtSet":
+      lww(state.checkLooksAt ??= {}, event.payload.kindId, event, event.payload.makerKindId);
+      break;
+    case "v1.Made": {
+      const { madeId, ...rest } = event.payload;
+      firstWins(state.made ??= {}, madeId, event, { ...rest, ...rest.parts ? { parts: rest.parts.map((c) => ({ ...c })) } : {}, id: madeId });
       break;
     }
     case "v1.ResponseRecorded": {
@@ -22103,6 +22345,14 @@ function sourceChapters(unitId) {
 function deriveKinds(state) {
   const out = new Map(DEFAULT_KINDS.map((k) => [k.id, k]));
   for (const id of Object.keys(state.reviewKinds).sort()) out.set(id, state.reviewKinds[id].value);
+  for (const [id, reg2] of Object.entries(state.stepMakes ?? {})) {
+    const k = out.get(id);
+    if (k && reg2.value) out.set(id, { ...k, makes: reg2.value });
+  }
+  for (const [id, reg2] of Object.entries(state.checkLooksAt ?? {})) {
+    const k = out.get(id);
+    if (k && reg2.value) out.set(id, { ...k, looksAt: reg2.value });
+  }
   return [...out.values()];
 }
 function humanize(id) {
@@ -22133,6 +22383,7 @@ function push(m, k, v) {
   if (list) list.push(v);
   else m.set(k, [v]);
 }
+var NO_RECORDS = Object.freeze([]);
 var byHlc = (a, b) => a.hlc < b.hlc ? -1 : a.hlc > b.hlc ? 1 : (a.id ?? "") < (b.id ?? "") ? -1 : (a.id ?? "") > (b.id ?? "") ? 1 : 0;
 var versionOrder = (state) => {
   const at = (id) => state.submissions[id]?.hlc ?? "";
@@ -22206,10 +22457,19 @@ function buildRecordIndexes(state, idx) {
     }
     push(notes, n.unitId, n);
   }
+  const madeVersions = /* @__PURE__ */ new Map();
+  const madeByUnit = /* @__PURE__ */ new Map();
+  for (const m of Object.values(state.made ?? {}).sort(byHlc)) {
+    push(madeByUnit, m.unitId, m);
+    if (m.takeId && !madeVersions.has(m.takeId)) madeVersions.set(m.takeId, m);
+  }
+  const kinds = deriveKinds(state);
+  const flow = deriveFlow(state);
+  const makingKindIds = flow.steps.flatMap((st) => st.kindIds).filter((id) => !!kinds.find((k) => k.id === id)?.makes);
   return {
     idx,
-    kinds: deriveKinds(state),
-    flow: deriveFlow(state),
+    kinds,
+    flow,
     versions,
     drafts,
     children,
@@ -22221,7 +22481,10 @@ function buildRecordIndexes(state, idx) {
     requestsBy,
     notes,
     changeNotes,
-    passages: /* @__PURE__ */ new Map()
+    passages: /* @__PURE__ */ new Map(),
+    madeVersions,
+    madeByUnit,
+    makingKindIds
   };
 }
 function edit(m, key, f) {
@@ -22329,13 +22592,16 @@ function derivePassage(state, unitId, idx) {
   const hit = ri.passages.get(key);
   if (hit) return hit;
   const flow = ri.flow;
+  const madeRecords = ri.madeByUnit.get(key);
+  const madeViews = madeRecords ? madeViewsOf(state, madeRecords) : NO_MADE;
+  const someMade = (list) => list.length ? list : NO_MADE;
   const everyVersion = (ri.versions.get(key) ?? []).map((takeId, i) => {
     const t = state.takes[takeId];
     const response = state.responses[takeId];
     const change = ri.changeNotes.get(takeId);
     const note = response?.note ?? change?.text;
     const blob = response?.blobHash ?? change?.blobHash;
-    return {
+    const v = {
       takeId,
       n: i + 1,
       by: state.submissions[takeId]?.actorId ?? t.actorId,
@@ -22345,6 +22611,15 @@ function derivePassage(state, unitId, idx) {
       ...note ? { changeNote: note } : {},
       ...blob ? { changeBlobHash: blob } : {}
     };
+    if (partsMedium(t.cardHashes) === "writing") v.medium = "writing";
+    if (madeViews.length) {
+      const added = madeViews.filter((m) => m.added && m.fromTakeId === takeId);
+      if (added.length) v.added = added;
+    }
+    const madeBy = ri.madeVersions.size ? ri.madeVersions.get(takeId) : void 0;
+    if (madeBy?.kindId) v.madeByKindId = madeBy.kindId;
+    if (madeBy?.fromTakeId) v.madeFromTakeId = madeBy.fromTakeId;
+    return v;
   });
   const deletedVersions = everyVersion.flatMap((v) => {
     const t = state.takes[v.takeId];
@@ -22381,21 +22656,33 @@ function derivePassage(state, unitId, idx) {
     const response = keptResponse && revisedResponse ? keptResponse.hlc < revisedResponse.hlc ? keptResponse : revisedResponse : keptResponse ?? revisedResponse;
     return response ? { ...r, response } : r;
   });
+  const madeHere = ri.madeByUnit.get(key) ?? NO_RECORDS;
   const requests = (ri.requests.get(key) ?? []).map(({ eventId: _e, ...r }) => {
     let status = "open";
     if (state.withdrawnRequests[r.id]) status = "withdrawn";
     else if (r.what === "record" && versions.some((v) => v.hlc > r.hlc)) status = "done";
     else if (r.what === "review" && reviews.some((x) => x.requestId === r.id || x.kindId === r.kindId && x.hlc > r.hlc)) status = "done";
+    else if (r.what === "review" && madeHere.some((m) => m.requestId === r.id || m.kindId === r.kindId && m.hlc > r.hlc)) status = "done";
     const team = r.teamId ? { name: state.teams[r.teamId]?.name.value ?? "", memberIds: teamMemberIds(state, r.teamId).filter((id) => id !== r.by) } : void 0;
     return { ...r, status, ...team ? { team } : {} };
   });
   const openRequests = requests.filter((r) => r.status === "open");
-  const kindStatus = (kindId, linksAllowed) => {
+  const kindStatus = (kindId, linksAllowed, stepIndex) => {
     const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== "link"));
     const request = openRequests.find((r) => r.what === "review" && r.kindId === kindId);
     const departure = active((d) => d.type === "skip" && d.kindId === kindId);
+    const kind = ri.kinds.find((k) => k.id === kindId);
+    const makes = kind?.makes;
+    if (makes) {
+      const last = versions.at(-1);
+      const heard = makes.result === "added" && last ? versionHeardAt({ versions, flow }, last, stepIndex).takeId : void 0;
+      if (madeHere.some((m) => m.kindId === kindId && (!heard || m.added && m.fromTakeId === heard))) return { kindId, state: "approved", ...request ? { request } : {} };
+      if (request) return { kindId, state: "asked", request };
+      if (departure) return { kindId, state: "skipped", departure };
+      return { kindId, state: "todo" };
+    }
     const base = { kindId, ...review ? { review } : {} };
-    const producing = !!ri.kinds.find((k) => k.id === kindId)?.produces;
+    const producing = !!kind?.produces;
     if (review && (review.outcome === "looks_good" || review.outcome === "recorded" && producing)) {
       return { ...base, state: "approved", ...request ? { request } : {} };
     }
@@ -22409,7 +22696,7 @@ function derivePassage(state, unitId, idx) {
   let gate;
   flow.steps.forEach((step, index) => {
     const linksAllowed = stepAllowsLinks(state, step);
-    const statuses = step.kindIds.map((kindId) => kindStatus(kindId, linksAllowed));
+    const statuses = step.kindIds.map((kindId) => kindStatus(kindId, linksAllowed, index));
     const override = active((d) => d.type === "override" && d.stepId === step.id);
     const lockedBy = gate;
     const kindsShown = lockedBy ? statuses.map((s) => s.state === "todo" ? { ...s, state: "locked" } : s) : statuses;
@@ -22443,6 +22730,8 @@ function derivePassage(state, unitId, idx) {
     done: recorded && steps.every((s) => s.complete || !!s.override),
     awaitingResponse: reviews.filter((r) => r.outcome === "needs_changes" && !r.response && r.versionN === latest3?.n),
     notes: ri.notes.get(key) ?? [],
+    made: madeViews.length ? someMade(madeViews.filter((m) => !m.takeId)) : NO_MADE,
+    makingKindIds: ri.makingKindIds,
     ...latest3 ? { latest: latest3 } : {},
     ...draftTakeId ? { draftTakeId, draftBy: state.takes[draftTakeId].actorId } : {},
     ...next ? { next } : {}
@@ -22550,6 +22839,20 @@ function updatesFor(state, actorId, idx) {
     }
   }
   return out.sort((a, b) => a.hlc < b.hlc ? 1 : a.hlc > b.hlc ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+function versionHeardAt(s, v, stepIndex) {
+  if (!v.madeByKindId) return v;
+  let cur = v;
+  const seen = /* @__PURE__ */ new Set();
+  while (cur.madeByKindId && cur.madeFromTakeId && !seen.has(cur.takeId)) {
+    seen.add(cur.takeId);
+    const maker = s.flow.steps.findIndex((st) => st.kindIds.includes(cur.madeByKindId));
+    if (maker < 0 || stepIndex >= maker) break;
+    const parent = s.versions.find((x) => x.takeId === cur.madeFromTakeId);
+    if (!parent) break;
+    cur = parent;
+  }
+  return cur;
 }
 function stepAllowsLinks(state, step) {
   return state.stepLinks?.[step.id]?.value ?? !step.checkpoint;

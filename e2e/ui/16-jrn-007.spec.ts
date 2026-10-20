@@ -108,19 +108,23 @@ test('JRN-007 An organization admin starts from nothing @p0', async ({ page }) =
   // Until its translators are invited the page is the Get ready checklist, where the checks are "Who checks the recordings?".
   const checks = page.getByRole('button', { name: /^Review flow/ }).locator('visible=true');
   await expect(checks.first().or(button(page, /^Who checks the recordings\?/))).toBeVisible();
-  if (await checks.count()) {
-    // Its Review flow, then Edit: the checks themselves (decision 138).
-    await checks.first().click();
-    await text(page, 'Edit').click();
-    for (const check of ['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval']) {
-      await expect(text(page, new RegExp(`^${check}`))).toBeVisible();
+  // The page turns from the checklist to the language's page when step 7's code arrives, which can
+  // be after it first shows: if it turns mid-tap, look again at whichever page it settled on.
+  await expect(async () => {
+    if (await checks.count()) {
+      // Its Review flow, then Edit: the checks themselves (decision 138).
+      await checks.first().click({ timeout: 5_000 });
+      await text(page, 'Edit').click({ timeout: 5_000 });
+      for (const check of ['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval']) {
+        await expect(text(page, new RegExp(`^${check}`))).toBeVisible({ timeout: 5_000 });
+      }
+    } else {
+      // The checklist's question shows the copied flow as the language's own steps, chosen.
+      await button(page, /^Who checks the recordings\?/).click({ timeout: 5_000 });
+      await expect(text(page, 'In use · your own steps')).toBeVisible({ timeout: 5_000 });
+      for (const step of ['Another translator', 'The community', 'A consultant', 'You approve']) await expect(text(page, step)).toBeVisible({ timeout: 5_000 });
     }
-  } else {
-    // The checklist's question shows the copied flow as the language's own steps, chosen.
-    await button(page, /^Who checks the recordings\?/).click();
-    await expect(text(page, 'In use · your own steps')).toBeVisible();
-    for (const step of ['Another translator', 'The community', 'A consultant', 'You approve']) await expect(text(page, step)).toBeVisible();
-  }
+  }).toPass({ timeout: 40_000 });
 
   // Step 9: Switch Organization lists only Journey Org.
   await backToTabs(page);

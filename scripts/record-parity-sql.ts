@@ -10,6 +10,7 @@ import {
   EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
   validateEvent, type AnyEvent, type Role
 } from '@langquest-next/core';
+import { writtenPartId } from '../packages/core/src/writing';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
 
 const sql = (v: unknown) => `'${JSON.stringify(v).replaceAll("'", "''")}'::jsonb`;
@@ -47,7 +48,8 @@ const OPTIONAL: Partial<Record<string, string[]>> = {
   'v1.KeyTermAdjusted': ['blobHash', 'duringTakeId'],
   'v1.KeyTermLinked': ['note', 'adjustmentId'],
   'v1.Redacted': ['reason'],
-  'v1.BlobInvalidated': ['reason']
+  'v1.BlobInvalidated': ['reason'],
+  'v1.Made': ['kindId', 'fromTakeId', 'fromMadeId', 'language', 'parts', 'takeId', 'requestId']
 };
 const HASH = 'a'.repeat(64);
 const GUEST = { name: 'n', channel: 'sms', contact: 'c' };
@@ -143,7 +145,55 @@ const broken: AnyEvent[] = events.flatMap((e) => {
     case 'v1.UnitAdded':
     case 'v1.TakeComposed':
       variants.push({ ...p, parentUnitId: 'x', parentTakeId: 'x' });
+      // A take holds recorded parts or written ones, never both (decisions.md 147).
+      if (e.type === 'v1.TakeComposed') variants.push({ ...p, cardHashes: [HASH, writtenPartId('x')] }, { ...p, cardHashes: [writtenPartId('x'), writtenPartId('y')] }, { ...p, cardHashes: [] });
       break;
+    case 'v1.WritingAdded': {
+      const part = (text: string) => ({ id: writtenPartId(text), text });
+      variants.push({ ...p, parts: [{ id: writtenPartId('other words'), text: 'words' }] }, { ...p, parts: [{ id: `w:${'A'.repeat(64)}`, text: 'words' }] },
+        { ...p, parts: [{ id: HASH, text: 'words' }] }, { ...p, parts: [{ ...part('x'), text: '' }] }, { ...p, parts: [part('x'.repeat(2000))] },
+        { ...p, parts: [part('x'.repeat(2001))] }, { ...p, parts: [part('ŋ'.repeat(2000))] }, { ...p, parts: [part('Ŋa lo kɔn ሰላም 😀')] },
+        { ...p, parts: Array.from({ length: 100 }, (_, i) => part(`v${i}`)) }, { ...p, parts: Array.from({ length: 101 }, (_, i) => part(`v${i}`)) },
+        { ...p, parts: [] }, { ...p, parts: [5] }, { ...p, parts: [{ id: writtenPartId('x') }] });
+      break;
+    }
+    case 'v1.MediaAllowedSet':
+      for (const recording of [true, false]) for (const writing of [true, false]) for (const first of ['recording', 'writing', 'video']) {
+        variants.push({ recording, writing, first });
+      }
+      variants.push({ ...p, recording: 'yes' });
+      break;
+    case 'v1.StepMakesSet': {
+      const m = { from: 'recording', to: 'writing', language: 'same', result: 'beside' };
+      variants.push({ ...p, makes: m }, { ...p, makes: { ...m, result: 'version' } }, { ...p, makes: { ...m, to: 'recording', result: 'version' } },
+        { ...p, makes: { ...m, to: 'either', result: 'version' } }, { ...p, makes: { ...m, language: 'other', to: 'recording', result: 'version' } },
+        { ...p, makes: { ...m, result: 'added' } }, { ...p, makes: { ...m, to: 'recording', result: 'added' } }, { ...p, makes: { ...m, from: 'either', result: 'added' } },
+        { ...p, makes: { ...m, to: 'either', result: 'added' } }, { ...p, makes: { ...m, language: 'other', result: 'added' } },
+        { ...p, makes: { ...m, from: 'writing', to: 'recording', result: 'added' } },
+        { ...p, makes: { ...m, otherLanguage: 'eng' } }, { ...p, makes: { ...m, language: 'other', otherLanguage: 'eng' } },
+        { ...p, makes: { ...m, language: 'other', otherLanguage: '' } }, { ...p, makes: { ...m, language: 'other', otherLanguage: 'x'.repeat(41) } },
+        { ...p, makes: { ...m, from: 'video' } }, { ...p, makes: { ...m, to: 5 } }, { ...p, makes: { ...m, language: 'English' } },
+        { ...p, makes: { ...m, result: 'no' } }, { ...p, makes: { ...m, result: true } }, { ...p, makes: { from: 'recording', to: 'writing', language: 'same' } },
+        { ...p, makes: { ...m, fromKindId: 'write' } }, { ...p, makes: { ...m, fromKindId: '' } },
+        { ...p, makes: [] }, { ...p, makes: 'write' });
+      break;
+    }
+    case 'v1.CheckLooksAtSet':
+      variants.push({ ...p, makerKindId: 'write' }, { ...p, makerKindId: '' }, { ...p, makerKindId: 5 });
+      break;
+    case 'v1.Made': {
+      const { fromTakeId: _f, fromMadeId: _g, parts: _p, takeId: _t, ...base } = p;
+      const parts = [{ hash: 'b', durationMs: 1 }];
+      variants.push({ ...base, fromTakeId: 't', parts }, { ...base, fromMadeId: 'm', parts }, { ...base, fromTakeId: 't', fromMadeId: 'm', parts }, { ...base, parts },
+        { ...base, fromTakeId: 't', takeId: 't2' }, { ...base, fromTakeId: 't', takeId: 't2', parts }, { ...base, fromTakeId: 't' },
+        { ...base, fromTakeId: 't', parts: [] }, { ...base, fromTakeId: 't', parts: [{ hash: 'b', durationMs: 1 }, { hash: writtenPartId('x'), durationMs: 0 }] },
+        { ...base, fromTakeId: 't', parts: [{ hash: writtenPartId('x'), durationMs: 0 }] }, { ...base, fromTakeId: 't', parts: [{ hash: 'b' }] },
+        { ...base, fromTakeId: 't', parts, language: 'eng' }, { ...base, fromTakeId: 't', parts, language: 'x'.repeat(40) }, { ...base, fromTakeId: 't', parts, language: 'x'.repeat(41) },
+        { ...base, fromTakeId: 't', parts: [{ hash: 'b', durationMs: 1, atMs: -1 }] },
+        { ...base, fromTakeId: 't', parts, added: true }, { ...base, fromTakeId: 't', parts, added: false }, { ...base, fromTakeId: 't', parts, added: 'yes' },
+        { ...base, fromMadeId: 'm', parts, added: true }, { ...base, fromTakeId: 't', takeId: 't2', added: true }, { ...base, fromTakeId: 't', parts, language: 'eng', added: true });
+      break;
+    }
     case 'v1.FlowSelected':
       for (const flowId of ['a/b', 'a@b', 'a b']) variants.push({ ...p, flowId });
       variants.push({ ...p, docHash: 'abc' }, { ...p, docHash: HASH });

@@ -50,11 +50,17 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   add_record: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
-  workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted',
+  // Writing the passage instead (decision 147): its words, and its verses.
+  workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted','v1.WritingAdded',
     'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.NoteWithdrawn','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
-  back_translation: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn'],reads:['derivePassage'],rpcs:REPORTS },
+  // A step that makes something (decision 147): what it made stays with its version (v1.Made); written, its words and verses;
+  // a final recording is published as the next version, as the workspace does.
+  back_translation: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn','v1.Made','v1.WritingAdded','v1.CardVerseSet','v1.NoteAdded','v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted'],
+    reads:['derivePassage'],rpcs:REPORTS },
+  // Something made from a version (decision 147): read or heard, never marked out of date.
+  made_detail: { reads:['derivePassage'] },
   // One reader for both nodes (decision 71): steps, the Bible, key words and notes.
   study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.NoteWithdrawn','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
     reads:['studyMarksFor','studyNotesFor','keyTermsForUnit'],rpcs:REPORTS },
@@ -91,7 +97,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // One check (decision 91): its people (one review team per check), its questions (a question set for the kind),
   // its helps, and its place in the language's steps.
   check_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet','v1.CheckHelpSet','v1.CheckShowsSet','v1.MaterialDefined','v1.MaterialFieldSet',
-    'v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined'],reads:['checkPeople','checkHelps','checkShows','questionsForKind','deriveFlow','library'] },
+    'v1.StepMakesSet','v1.CheckLooksAtSet','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined'],reads:['checkPeople','checkHelps','checkShows','questionsForKind','deriveFlow','library'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // Publishes template versions; languages move to them by themselves (library/follow.ts).
@@ -118,7 +124,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
     reads:['deriveFlow','library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // Publishes flow versions; languages move to them by themselves (library/follow.ts).
   // With `steps: 'language'` it saves the open language's own checks (core saveFlowSteps, decision 71).
-  flow_editor: { emits:['v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
+  flow_editor: { emits:['v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined','v1.StepMakesSet','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],
     reads:['deriveKinds','library'],rpcs:['library_get_documents','library_adopt','library_updates','library_put_document'] },
   // A note for translators on a passage's verses, written under its text, is a passage note (demo ADR-042).
   material_editor: { emits:['v1.MaterialDefined','v1.MaterialFieldSet','v1.MaterialLocked','v1.ReferenceRecommended','v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned','v1.NoteAdded'],
@@ -142,7 +148,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // Get a language ready (decision 71), and a ready language's three picks (decision 138): what they record (a template, as its Content template page applies it, and its update), what helps
   // them (recommendations, as reference_bibles and reference_guides write them), who checks (a flow, as flows_home
   // chooses it), and a group invite code (as invite_qr issues it).
-  get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',
+  get_ready: { emits:['v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.MediaAllowedSet','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined',
     'v1.ReferenceRecommended','v1.ReferenceSet','v1.ReferenceLanguageSet','v1.LibrarySubscribed','v1.LibraryPinned','v1.LibraryItemDefined','v1.LibraryVersionPublished'],
     reads:['library','recommendedFor','deriveFlow','org.roles','join_requests'],
     rpcs:['issue_invite_v3','library_shared_items','library_get_documents','library_adopt','library_put_document','library_template_users','library_updates'] },

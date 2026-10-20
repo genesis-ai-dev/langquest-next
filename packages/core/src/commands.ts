@@ -5,6 +5,8 @@ import type { FlowSelection, LanguageState } from './state';
 import { canDeleteVersion, derivePassage, latestDraftBy, type PassageState } from './passage';
 import type { UsedReference } from './references';
 import { cardVerseEvents, type PartMark } from './verses';
+import { EVENT_PAYLOAD_MAX_BYTES, jsonbTextBytes } from './validate';
+import { isWrittenPart, partsMedium, resultAllowed, WRITTEN_PARTS_PER_EVENT, type MakesSpec, type MediaAllowed, type WrittenPart } from './writing';
 import { CUSTOM_FLOW, flowStepId, flowStepPrefix, type DepartureType, type KindDef, type NoteAnchor, type QuestionSpec, type RecordEvents, type ReviewOutcome, type ReviewVia } from './record';
 
 /**
@@ -125,6 +127,31 @@ export interface Commands {
    * (decision 32), else its steps as a custom flow.
    */
   restoreFlow(c: { commandId: string; previous: { flow: FlowSelection | null; steps: { id: string; kindIds: string[]; checkpoint: boolean }[] } }): EventSpec[];
+
+  // ---- writing, and steps that make something (writing.ts, decisions.md 147) ----
+
+  /** Written parts the log lacks, at most 100 an event. Ids are the caller's `writtenPartId` of NFC text. */
+  addWriting(c: { commandId: string; unitId: string; parts: readonly WrittenPart[] }): EventSpec[];
+  /** What the team may make, and which leads. */
+  setMediaAllowed(c: { commandId: string } & MediaAllowed): EventSpec[];
+  /** Make a kind a making step, or an ordinary check again (`null`). */
+  setStepMakes(c: { commandId: string; kindId: string; makes: MakesSpec | null }): EventSpec[];
+  /** A check reads what an earlier making step made, or the version again (`null`). */
+  setCheckLooksAt(c: { commandId: string; kindId: string; makerKindId: string | null }): EventSpec[];
+  /**
+   * Save what a making step made from a version, or from something made
+   * from one: its parts, recorded or written. It stays with what it came
+   * from. `language`: the language it is in, when not the team's own.
+   * `added`: it is added to the version `fromTakeId`, which then holds both
+   * (the other kind, in the team's own language).
+   */
+  make(c: { commandId: string; unitId: string; kindId?: string; fromTakeId?: string; fromMadeId?: string; language?: string; parts: Card[]; added?: boolean; requestId?: string }): EventSpec[];
+  /**
+   * A making step whose output is the passage's next version (a final
+   * recording): publish it as a version made from `fromTakeId`, and record
+   * which step made it, so the checks before that step count from there.
+   */
+  makeVersion(c: { commandId: string; unitId: string; kindId: string; fromTakeId: string; cardHashes: string[]; actorId: string; parentTakeId?: string | null; requestId?: string }): EventSpec[];
 
   // ---- reference material (references.ts) ----
 
@@ -435,6 +462,95 @@ export function commands(state: LanguageState, idx: Indexes = buildIndexes(state
 
     lockMaterial(c) {
       return [{ id: ids(c.commandId)(), type: 'v1.MaterialLocked', payload: { materialId: c.materialId, locked: c.locked } }];
+    },
+
+    addWriting(c) {
+      const seen = new Set<string>();
+      const fresh = c.parts.filter((x) => {
+        if (state.writings?.[x.id] !== undefined || seen.has(x.id)) return false;
+        seen.add(x.id);
+        return true;
+      });
+      const out: EventSpec[] = [];
+      const payload = (parts: WrittenPart[]) => ({ writingId: `writing:${c.commandId}:${out.length}`, unitId: c.unitId, parts });
+      let parts: WrittenPart[] = [];
+      let bytes = 0;
+      const flush = () => {
+        if (parts.length) out.push({ id: `${c.commandId}:${out.length}`, type: 'v1.WritingAdded', payload: payload(parts) });
+        parts = [];
+      };
+      // At most WRITTEN_PARTS_PER_EVENT parts and 64 KB an event (decisions.md 115):
+      // a part adds its own bytes, and a comma and a space after the first.
+      for (const x of fresh) {
+        const part = { id: x.id, text: x.text };
+        const size = jsonbTextBytes(part);
+        if (parts.length === WRITTEN_PARTS_PER_EVENT || (parts.length && bytes + 2 + size > EVENT_PAYLOAD_MAX_BYTES)) flush();
+        bytes = parts.length ? bytes + 2 + size : jsonbTextBytes(payload([])) + size;
+        parts.push(part);
+      }
+      flush();
+      return out;
+    },
+
+    setMediaAllowed(c) {
+      if (!c.recording && !c.writing) throw new CommandError('Allow recording, writing or both.');
+      const first = c[c.first] ? c.first : c.recording ? 'recording' : 'writing';
+      return [{ id: ids(c.commandId)(), type: 'v1.MediaAllowedSet', payload: { recording: c.recording, writing: c.writing, first } }];
+    },
+
+    setStepMakes(c) {
+      if (c.makes && !resultAllowed(c.makes, c.makes.result)) {
+        throw new CommandError(c.makes.result === 'added'
+          ? 'Only a step that turns recording into writing, or writing into recording, in the same language can add to the version.'
+          : 'Only a step in the same language can make the next version.');
+      }
+      const makes = c.makes ? clean({ ...c.makes }) as MakesSpec : null;
+      return [{ id: ids(c.commandId)(), type: 'v1.StepMakesSet', payload: { kindId: c.kindId, makes } }];
+    },
+
+    setCheckLooksAt(c) {
+      return [{ id: ids(c.commandId)(), type: 'v1.CheckLooksAtSet', payload: { kindId: c.kindId, makerKindId: c.makerKindId } }];
+    },
+
+    make(c) {
+      if (c.parts.length === 0) throw new CommandError('Make something before saving.');
+      if (!c.fromTakeId === !c.fromMadeId) throw new CommandError('Say what it was made from.');
+      if (c.fromTakeId && !state.submissions[c.fromTakeId]) throw new CommandError('Only a published version can be turned into something.');
+      if (c.fromMadeId && !state.made?.[c.fromMadeId]) throw new CommandError('That is not here yet.');
+      const written = isWrittenPart(c.parts[0]!.hash);
+      if (c.parts.some((x) => isWrittenPart(x.hash) !== written)) throw new CommandError('Recorded and written parts are kept apart.');
+      if (c.added) {
+        const take = c.fromTakeId ? state.takes[c.fromTakeId] : undefined;
+        if (!take || c.language) throw new CommandError('Only something in the team\'s own language can be added to a version.');
+        if (partsMedium(take.cardHashes) === (written ? 'writing' : 'recording')) throw new CommandError('A version can only gain the other kind: words for a recording, a recording for writing.');
+      }
+      return [{
+        id: ids(c.commandId)(), type: 'v1.Made', payload: {
+          madeId: `made:${c.commandId}`, unitId: c.unitId,
+          parts: c.parts.map((x) => ({ hash: x.hash, durationMs: written ? 0 : x.durationMs, ...(x.format ? { format: x.format } : {}), ...(x.atMs !== undefined ? { atMs: Math.max(0, Math.round(x.atMs)) } : {}) })),
+          ...(c.kindId ? { kindId: c.kindId } : {}), ...(c.fromTakeId ? { fromTakeId: c.fromTakeId } : {}), ...(c.fromMadeId ? { fromMadeId: c.fromMadeId } : {}),
+          ...(c.language ? { language: c.language } : {}), ...(c.added ? { added: true } : {}), ...(c.requestId ? { requestId: c.requestId } : {})
+        }
+      }];
+    },
+
+    makeVersion(c) {
+      if (c.cardHashes.length === 0) throw new CommandError('Make something before publishing.');
+      if (!state.submissions[c.fromTakeId]) throw new CommandError('Only a published version can be turned into something.');
+      const passage = derivePassage(state, c.unitId, idx);
+      const latest = passage.latest;
+      if (latest && same(latest.cardHashes, c.cardHashes)) throw new CommandError('Nothing changed since the last version.');
+      const next = ids(c.commandId);
+      const takeId = `take:${c.commandId}`;
+      // The draft it continues, else the version it is made from (decisions.md 83).
+      const { parent, retire } = continuing(passage, { unitId: c.unitId, actorId: c.actorId, parentTakeId: c.parentTakeId ?? c.fromTakeId });
+      const out: EventSpec[] = [
+        { id: next(), type: 'v1.TakeComposed', payload: { takeId, unitId: c.unitId, cardHashes: [...c.cardHashes], parentTakeId: parent } }
+      ];
+      if (retire) out.push({ id: next(), type: 'v1.TakeArchived', payload: { takeId: retire } });
+      out.push({ id: next(), type: 'v1.TakeSubmitted', payload: { takeId, questionSetIds: [] } });
+      out.push({ id: next(), type: 'v1.Made', payload: { madeId: `made:${c.commandId}`, unitId: c.unitId, kindId: c.kindId, fromTakeId: c.fromTakeId, takeId, ...(c.requestId ? { requestId: c.requestId } : {}) } });
+      return out;
     },
 
     referencesUsed(c) {
