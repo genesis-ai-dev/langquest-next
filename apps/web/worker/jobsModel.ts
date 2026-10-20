@@ -119,10 +119,32 @@ export function heartbeat(key: JobKey, mark: RunMark | undefined, running: boole
 /** How a run ended: its exit code, or null when the container stopped without one (it failed to start, or the platform stopped it). */
 export type Exit = number | null;
 
-/** The exit code a failed monitor carries (a nonzero exit), or null for a stop without one. */
+/**
+ * The exit code a failed `container.monitor()` carries, or null for a stop
+ * without one. The platform's Error holds the code only in its message
+ * (`@cloudflare/containers` reads it the same way, `getExitCodeFromError`),
+ * in two forms, matched lower-cased:
+ * - "Container exited with unexpected exit code: 75": the process's own code.
+ * - "Runtime signalled the container to exit: 9": the runtime stopped it.
+ *   The library hands that number on as the code; whether it is a signal
+ *   number (9, 15) or already 128 plus one is not documented, so a number
+ *   under 128 is read as a signal and becomes 128 plus it (137 killed, 143
+ *   terminated). Either reading ends at 128 or more, a stop the object records.
+ * A newer runtime also sets `exitCode` on the Error; that is read first.
+ */
 export function exitCodeOf(error: unknown): Exit {
-  const code = (error as { exitCode?: unknown } | null)?.exitCode;
-  return typeof code === 'number' ? code : null;
+  const property = (error as { exitCode?: unknown } | null)?.exitCode;
+  if (typeof property === 'number') return property;
+  if (!(error instanceof Error)) return null;
+  const message = error.message.toLowerCase();
+  const exited = /container exited with unexpected exit code:\s*(\d+)/.exec(message);
+  if (exited) return Number(exited[1]);
+  const signalled = /runtime signalled the container to exit:\s*(\d+)/.exec(message);
+  if (signalled) {
+    const n = Number(signalled[1]);
+    return n > 0 && n < 128 ? 128 + n : n;
+  }
+  return null;
 }
 
 /**
