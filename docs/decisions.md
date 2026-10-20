@@ -4026,6 +4026,47 @@ The quarantine job stays unreported: its tests already have an issue.
 Reverse if: a night's issues are mostly noise (then raise the bar, or
 report a weekly digest from scripts/ui-flakes.mjs instead).
 
+Amended (2026-10-20, Carl Sauder): the `ui-web`, `web-smoke` and nightly
+jobs failed for reasons outside the code, found over 144 pull request and
+push runs on 2026-10-20, and the workflow changed in four ways.
+(1) Concurrency: one group per ref let a push to main cancel the
+scheduled run (nightly run 39360456537 was cancelled at 03:02 by push
+39362023629). Pull request and push runs still cancel the run they
+replace; the scheduled and manual runs have a group of their own and
+neither cancel nor are cancelled. (2) Registries: `web-smoke` (run
+39473313915, "toomanyrequests: Data limit exceeded") and
+`nightly-quarantine` (run 39360456537, "Rate exceeded") failed pulling the
+Supabase CLI's images from ECR Public, which rations anonymous pulls per IP
+address, shared on a hosted runner; the job container's base image and
+wrangler's egress image come from Docker Hub, which does the same. Jobs now
+restore the images from `actions/cache` (docker save and load, keyed by the
+CLI version and `supabase/config.toml`), save them when the cache was not an
+exact hit, retry a start a registry turned away, and leave out the services
+no test uses (studio, imgproxy; `SUPABASE_EXCLUDE`). Docker Hub sign-in is
+used only if the secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` exist.
+(3) Load: each `ui-web` shard ran the stack (about twelve containers),
+wrangler dev, the job container and four browsers on 4 vCPUs, and the same
+tests ran 2 to 9 times slower than on a laptop (REV-003 2.6 s locally,
+14.8 s in CI); the shard with the recording, reviewing, sync and journey
+files had 19 of the last 21 `ui-web` failures. `ui-web` now runs four
+shards of `UI_WORKERS=2`, so wall time stays about the same with half the
+browsers per runner and twice the runners (free on a public repository),
+and the shards are cut by recorded duration rather than Playwright's test
+count: over three runs the two count-based shards took 160 to 200 s and 250
+to 315 s, and the same files dealt by `scripts/ui-shards.mjs` weigh 283 to
+286 s of test time in each of four shards. Every UI job keeps `nproc`,
+`free -m`, `vmstat` and the busiest processes in its results artifact, so
+the next question about load has numbers. (4) Flakes: with retries off a
+flake only shows over many runs, and `ui-flakes.mjs` had to be fed by hand;
+the nightly job `nightly-flakes` now reads the report artifacts of the last
+40 runs, and files the tests under 95% of their runs (seen in at least 5) as
+one Linear issue, by the code that files the nightly failures. The weights
+table must be refreshed when the suite changes a lot (`docs/testing.md`);
+a stale table still shards correctly, only less evenly. Reverse if: the
+load files show four shards of two browsers are still starved (then larger
+runners, which cost money), or the cache costs more than the pulls it
+saves.
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: superseded by 141
