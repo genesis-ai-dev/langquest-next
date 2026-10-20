@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { deliverPushes } from '../server/projectionWorker';
+import { deliverPushes } from '../server/pushDelivery';
 
 /**
  * Just enough of supabase-js for deliverPushes: the claim, tokens, receipts,
@@ -74,5 +74,41 @@ describe('push delivery (decisions.md 68) leaves what support needs (diag.inbox_
       return to === 'ta' ? Response.json({ data: { status: 'ok', id: 't1' } }) : new Response('no', { status: 400 });
     });
     expect(updates).toEqual([{ values: { pushed_at: expect.any(String), push_lease_until: null }, id: 'n1' }]);
+  });
+});
+
+describe('push delivery (performance-audit-app.md V9)', () => {
+  it('looks up every claimed person\'s phones in one query', async () => {
+    // Why: the job runs every minute and used one query per claimed row.
+    const queries: string[] = [];
+    const sent: string[] = [];
+    const ok = { data: [], error: null };
+    const table = (name: string) => {
+      const q: Record<string, unknown> = {};
+      const chain = (result: unknown) => new Proxy(q, {
+        get: (_t, prop) => prop === 'then' ? (resolve: (v: unknown) => void) => resolve(result) : () => chain(result)
+      });
+      if (name === 'push_tokens') {
+        return { select: () => ({ in: (_c: string, ids: string[]) => {
+          queries.push(`tokens for ${ids.sort().join(',')}`);
+          return Promise.resolve({ data: [
+            { profile_id: 'a', token: 't1' }, { profile_id: 'a', token: 't2' }, { profile_id: 'b', token: 't3' }
+          ], error: null });
+        } }) };
+      }
+      return chain(ok);
+    };
+    const service = {
+      rpc: async () => ({ data: [{ id: 'n1', profile_id: 'a' }, { id: 'n2', profile_id: 'b' }, { id: 'n3', profile_id: 'a' }, { id: 'n4', profile_id: 'c' }], error: null }),
+      from: table
+    } as unknown as SupabaseClient;
+    const fetcher = (async (_url: string, init: { body: string }) => {
+      sent.push(JSON.parse(init.body).to);
+      return { ok: true, json: async () => ({ data: { status: 'ok', id: 'ticket' } }) };
+    }) as unknown as typeof fetch;
+    await deliverPushes(service, fetcher);
+    expect(queries).toEqual(['tokens for a,b,c']);
+    // n1 and n3 (person a) go to both of a's phones, n2 to b's; n4 has no phone yet.
+    expect(sent.sort()).toEqual(['t1', 't1', 't2', 't2', 't3']);
   });
 });

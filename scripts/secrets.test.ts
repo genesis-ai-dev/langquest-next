@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  FILE_KEYS, OPTIONAL_KEYS, REQUIRED_KEYS, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
+  CRON_JOB, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -50,10 +50,13 @@ describe('secrets', () => {
     const { vault } = destinations('preview', values, 'abc', 'k');
     for (const name of Object.keys(vault)) expect(sql).toMatch(new RegExp(`name\\s*=\\s*'${name}'`));
     expect(vault.langquest_project_url).toBe('https://abc.supabase.co');
-    // Why: hosted projects run the pass in the Worker's job container (decisions.md 141);
+    // Why: the pass runs in the Worker's job container, hosted and local (decisions.md 141, 148);
     // a pg_cron pass as well would run it twice, racing the container's writes.
-    expect(sql).toMatch(/cron\.unschedule[\s\S]*'langquest-stream-projections'/);
-    expect(sql).not.toMatch(/cron\.schedule\(\s*'langquest-stream-projections'/);
+    expect(sql).toMatch(new RegExp(`cron\\.unschedule[\\s\\S]*'${RETIRED_JOB}'`));
+    expect(sql).not.toMatch(new RegExp(`cron\\.schedule\\(\\s*'${RETIRED_JOB}'`));
+    // Push delivery calls its own function (decisions.md 148), under the name npm run secrets checks.
+    expect(sql).toMatch(new RegExp(`cron\\.schedule\\(\\s*'${CRON_JOB}'[\\s\\S]*'${PUSH_FUNCTION}'`));
+    expect(sql).not.toMatch(/functions\/v1\/stream-projections/);
   });
 
   it('gives the app\'s Worker v2\'s keys for the import\'s job, only when the file has them', () => {

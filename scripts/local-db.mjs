@@ -6,27 +6,32 @@
  *   npm run db:reset    supabase db reset, then the rest below
  *   npm run dev:local   db:start, then the web Worker on :8787 until Ctrl-C
  *
- * The rest: the projection pass scheduled every minute on the local Edge
- * Function (decisions.md 42), which a hosted database runs in the dashboard
- * Worker's job container instead (decisions.md 141) and which wrangler dev
- * never fires on its own; push delivery every minute, as on a hosted one
- * (decisions.md 68); and the
+ * The rest: push delivery every minute on the local Edge Function
+ * `push-delivery`, as on a hosted database (decisions.md 68), and the
  * LangQuest library seeded when the database has none of its items. Both
  * are gone after a reset, which is why reset does them again.
  *
- * `npm run db:test` resets with `supabase db reset` directly, so no worker
- * pass runs under its smokes (they count snapshots and Inbox rows);
+ * The projection pass is not scheduled here: it runs in the app's Worker's
+ * job container, as on a hosted project, while `npm run web:dev` fires the
+ * job tick every minute (scripts/job-tick.mjs, decisions.md 141, 148). A
+ * database without the Worker running gets no Inbox rows from work, no
+ * listings and no server snapshots; `dev:local` starts both.
+ *
+ * `npm run db:test` resets with `supabase db reset` directly, so no push job
+ * runs under its smokes; a web Worker left running would still project
+ * (they count snapshots and Inbox rows), so stop it first.
  * `npm run guardrails -- --all` runs db:start after it, before the UI tests.
  * Nothing here is in `seed.sql`, which preview branches run too.
  *
  * `dev:local` is the whole local stack in one command: the web Worker serves
- * Reports and the Bible routes (apps/web, `npm run web:dev`), which the app
- * reaches at EXPO_PUBLIC_API_URL. Ctrl-C stops the Worker; the database keeps
+ * Reports and the Bible routes and runs the projection pass (apps/web,
+ * `npm run web:dev`, which needs Docker for the job container); the app
+ * reaches it at EXPO_PUBLIC_API_URL. Ctrl-C stops the Worker; the database keeps
  * running (`npm run db:stop`). If another session already serves :8787, its
  * Worker is used. The invite-email Worker is not run: it sends through
  * Cloudflare's email binding, which has no local stand-in.
  *
- * The worker's secret is local only, in `supabase/functions/.env` (git
+ * Push delivery's secret is local only, in `supabase/functions/.env` (git
  * ignores it), which the local Edge Functions read when the stack starts.
  */
 import { randomBytes } from 'node:crypto';
@@ -63,27 +68,13 @@ function ensureSecret() {
   return { secret, fresh: true };
 }
 
-/** The local stack's projection job: the Edge Function's pass, every minute (scripts/local-db.mjs only). */
-const LOCAL_PROJECTION_JOB = `select cron.schedule('${CRON_JOB}', '* * * * *', $job$
-  select net.http_post(
-    url := (select decrypted_secret from vault.decrypted_secrets where name = 'langquest_project_url') || '/functions/v1/stream-projections',
-    headers := jsonb_build_object('Content-Type', 'application/json',
-      'x-worker-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'langquest_projection_worker_secret')),
-    body := '{}'::jsonb,
-    timeout_milliseconds := 180000
-  );
-$job$);`;
-
-/** What a reset drops: the worker's Vault values and job, and the library. */
+/** What a reset drops: push delivery's Vault values and job, and the library. */
 function prepare(secret) {
   psql(vaultSql({ langquest_project_url: FROM_DB, langquest_projection_worker_secret: secret }));
+  // Also unschedules the Edge pass an older checkout scheduled here (decisions.md 148).
   psql(readFileSync(join(root, SCHEDULE_MIGRATION), 'utf8'));
-  // The pass every minute here, so what one phone asks shows on the other
-  // without waiting, and the web UI tests find Inbox rows and listings.
-  // The schedule above leaves it out: hosted projects run it in a container.
-  const scheduled = psql(LOCAL_PROJECTION_JOB).trim();
-  if (!scheduled) throw new Error(`${CRON_JOB} was not scheduled`);
-  console.log(`✓ projection worker and push delivery every minute (select * from net._http_response shows their answers)`);
+  if (psql(`select count(*) from cron.job where jobname = '${CRON_JOB}';`).trim() !== '1') throw new Error(`${CRON_JOB} was not scheduled`);
+  console.log(`✓ push delivery every minute (select * from net._http_response shows its answers); the projection pass runs while npm run web:dev does`);
   // LangQuest's own items: the server smokes leave other orgs' rows behind.
   if (Number(psql("select count(*) from public.library_items where org_id = 'langquest';").trim()) === 0) sh('npx', ['tsx', 'scripts/library-seed.ts']);
   else console.log('✓ library already seeded');

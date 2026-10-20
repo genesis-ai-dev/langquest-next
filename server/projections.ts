@@ -65,7 +65,7 @@ process.once('SIGTERM', () => {
 });
 let done: Awaited<ReturnType<typeof runProjections>>;
 try {
-  done = await runProjections(createClient(url, key, { auth: { persistSession: false } }), 'all', counts, projected, () => stopping);
+  done = await runProjections(createClient(url, key, { auth: { persistSession: false } }), counts, projected, () => stopping);
 } catch (error) {
   await record({ job: 'projection', startedAt: started, ms: Date.now() - started, outcome: 'error', errorClass: errorClassOf(error), n: { ...counts, ...memory() } });
   throw error;

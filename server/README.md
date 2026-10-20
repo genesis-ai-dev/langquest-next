@@ -59,24 +59,24 @@ app's Worker, every five minutes, with `server/projections.ts`,
 started by the Worker's job tick through the `JobRunner` Durable Object
 (`apps/web/worker/jobs.ts`, `docs/server-jobs.md`, decisions.md 141). It
 skips languages that have not changed (`projection_marks`).
-`npm run worker:build` bundles `projectionEdge.ts` and the shared core for
-the `stream-projections` Edge Function, which delivers pushes every minute
-(`{"task":"pushes"}`, decisions.md 68). Migration
-`20261019110000_projection_pass_in_container.sql` schedules that wherever
-the Vault secrets `langquest_project_url` and
+A local stack runs it the same way: `npm run web:dev` (and `dev:local`)
+fires the job tick every minute (`scripts/job-tick.mjs`, decisions.md 148),
+so the pass needs the Worker and Docker running; a database alone gets no
+Inbox rows from work, listings or snapshots.
+`npm run worker:build` bundles `pushDeliveryEdge.ts` and `pushDelivery.ts`
+for the `push-delivery` Edge Function, which sends what the database queued
+for phones every minute (decisions.md 68). Migration
+`20261020160000_push_delivery_function.sql` schedules that wherever the
+Vault secrets `langquest_project_url` and
 `langquest_projection_worker_secret` exist, and keeps the pass off pg_cron;
 `npm run secrets` sets them and runs it again, which is how preview and
-production get the job. On a hosted project the function refuses the pass.
-Locally, `npm run db:start` and `npm run db:reset` do the same
-(`scripts/local-db.mjs`: a local secret in the ignored
-`supabase/functions/.env`, the Vault values) and also schedule the Edge
-pass every minute, since `wrangler dev` fires no cron and the web UI tests
-wait for it; that pass leaves out languages too big for an Edge Function (a
-10 MB snapshot, or 25,000 events past it), which
-`npx tsx server/projections.ts` projects by hand. They seed the library
-when there is none. `npm run db:test` resets with `supabase db reset`
-directly, so no pass runs under its smokes. `select * from cron.job` shows
-the jobs, `net._http_response` their answers.
+production get the job. Locally, `npm run db:start` and `npm run db:reset`
+do the same (`scripts/local-db.mjs`: a local secret in the ignored
+`supabase/functions/.env`, the Vault values) and seed the library when there
+is none. `npm run db:test` resets with `supabase db reset` directly, so no
+push job runs under its smokes; stop a running `web:dev` first, or its pass
+will. `select * from cron.job` shows the jobs, `net._http_response` their
+answers.
 `send-invite` validates the caller and invite before contacting the
 Cloudflare email Worker in `apps/invite-email`. The Worker sends through
 its email binding as `LangQuest <invites@frontierrnd.com>`. A Durable Object

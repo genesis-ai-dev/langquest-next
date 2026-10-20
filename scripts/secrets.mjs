@@ -12,8 +12,8 @@
 // Worker's secrets, the Edge Function secrets, the two Vault secrets the
 // push delivery cron job reads, and that job itself (by running its
 // scheduling migration again, which also keeps the projection pass off
-// pg_cron: it runs in the Worker's job container, decisions.md 141). Every
-// step is idempotent.
+// pg_cron: it runs in the Worker's job container, decisions.md 141, 148).
+// Every step is idempotent.
 // Supabase values are compared by SHA-256 digest; Worker secrets cannot be
 // read back, so only their presence is compared and apply always sets them.
 // Nothing is printed but names.
@@ -67,12 +67,14 @@ const inviteEmailName = parseJsonc(readFileSync(join(root, WORKERS['invite-email
 export const relayUrl = (environment) =>
   `https://${inviteEmailName}${environment === 'production' ? '' : `-${environment}`}.${WORKERS_SUBDOMAIN}.workers.dev/send-invite`;
 
-/** The projection pass's pg_cron job: on a local stack only (scripts/local-db.mjs); hosted ones run the pass in the Worker's job container. */
-export const CRON_JOB = 'langquest-stream-projections';
-/** Sends what the database queued for phones, every minute (decisions.md 68). */
-export const PUSH_JOB = 'langquest-push-delivery';
-/** Schedules push delivery where the Vault secrets exist, and unschedules the projection job; safe to run again (decisions 42, 141). */
-export const SCHEDULE_MIGRATION = 'supabase/migrations/20261019110000_projection_pass_in_container.sql';
+/** The one pg_cron job that needs these secrets: it calls the Edge Function push-delivery every minute (decisions.md 68, 148). */
+export const CRON_JOB = 'langquest-push-delivery';
+/** The function it calls, which the schedule must name. */
+export const PUSH_FUNCTION = '/functions/v1/push-delivery';
+/** The projection pass's old pg_cron job; the pass runs in the Worker's job container, locally too (decisions.md 141, 148). */
+export const RETIRED_JOB = 'langquest-stream-projections';
+/** Schedules push delivery where the Vault secrets exist, and unschedules the old projection job; safe to run again (decisions 42, 148). */
+export const SCHEDULE_MIGRATION = 'supabase/migrations/20261020160000_push_delivery_function.sql';
 
 /** Every secret, by where it goes. */
 export function destinations(environment, values, ref, serviceRoleKey) {
@@ -200,9 +202,9 @@ function hostedState(environment, ref, wanted) {
   const functionDigests = Object.fromEntries(listed.map((s) => [s.name, s.value ?? s.digest]));
   const vaultDigests = Object.fromEntries(
     query(ref, vaultDigestSql(Object.keys(wanted.vault))).map((r) => [r.name, r.digest]));
-  // Push delivery scheduled, and the projection pass not: it runs in the Worker's job container.
-  const jobs = query(ref, `select jobname from cron.job where jobname in (${literal(CRON_JOB)}, ${literal(PUSH_JOB)});`).map((r) => r.jobname);
-  const scheduled = jobs.includes(PUSH_JOB) && !jobs.includes(CRON_JOB);
+  // Push delivery scheduled on its own function, and the projection pass not: it runs in the Worker's job container.
+  const jobs = query(ref, `select jobname from cron.job where (jobname = ${literal(CRON_JOB)} and command like ${literal(`%${PUSH_FUNCTION}%`)}) or jobname = ${literal(RETIRED_JOB)};`).map((r) => r.jobname);
+  const scheduled = jobs.includes(CRON_JOB) && !jobs.includes(RETIRED_JOB);
   const workers = Object.fromEntries(Object.entries(WORKERS).map(([worker, config]) => {
     const present = workerSecretNames(config, environment);
     return [worker, Object.fromEntries(Object.keys(wanted.workers[worker]).map((name) =>
@@ -233,7 +235,7 @@ export function summarize(state) {
       if (s !== 'same') behind = true;
     }
   }
-  lines.push(`  ${state.scheduled ? '✓' : '+'} cron job ${PUSH_JOB}, and no ${CRON_JOB}${state.scheduled ? '' : ' (not yet)'}`);
+  lines.push(`  ${state.scheduled ? '✓' : '+'} cron job ${CRON_JOB} calling push-delivery, and no ${RETIRED_JOB}${state.scheduled ? '' : ' (not yet)'}`);
   if (!state.scheduled) behind = true;
   return { lines, behind };
 }

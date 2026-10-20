@@ -5,8 +5,9 @@
 //   node scripts/db-test.mjs --parity   the parity check alone, on the database as it is
 //
 // It resets with `supabase db reset` directly, not `npm run db:reset`, so no
-// projection worker pass runs under the smokes (they count snapshots and
-// Inbox rows; scripts/local-db.mjs). The parity check holds the SQL
+// push job runs under the smokes; the projection pass runs only while a web
+// Worker does (scripts/job-tick.mjs), so stop one first (they count
+// snapshots and Inbox rows; scripts/local-db.mjs). The parity check holds the SQL
 // validate_payload, event_privilege and language_of_org_event to core for
 // every event type (scripts/record-parity-sql.ts).
 //

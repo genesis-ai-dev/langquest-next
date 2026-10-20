@@ -2013,6 +2013,11 @@ too: it skips a language only when every new event is in
 `eventsThatCannotChangeReport`, the quiet list without recordings, cards and
 stored files, and moves the stored inputs' position with the mark.
 
+Amended (2026-10-20, Carl Sauder): a local stack no longer keeps the Edge
+pass: it runs the pass in the job container too, its tick fired every
+minute by `npm run web:dev`, and push delivery's function is
+`push-delivery` (148).
+
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -5887,6 +5892,10 @@ have had a row from each; it now watches once per instance and records
 one end at a time, and the second finds the run recorded. The whole read
 stays at 03:15 UTC.
 
+Amended (2026-10-20, Carl Sauder): a local stack runs the pass in the
+container as well, and the Edge Function, renamed `push-delivery`, keeps
+push delivery alone (148).
+
 ## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
 
 Date: 2026-10-19 · By: Carl Sauder · Status: accepted
@@ -6381,3 +6390,54 @@ Reverse if: a first download's head outgrows a slow link (then page the
 lines too), phones rarely finish a fill and live on transients, or keeping
 the rows beside the pieces outgrows the database plan (then the pieces go,
 once no build reads them).
+
+## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
+
+Date: 2026-10-20 · By: Carl Sauder · Status: accepted
+
+Reason: after 141 the Edge Function `stream-projections` only delivered
+pushes on a hosted project and refused the pass there (410). Only a local
+stack still ran the pass through it, every minute (68's amendment of
+2026-10-19), on a path production no longer took: small languages only
+(`isLarge`, a 10 MB snapshot or 25,000 events past it), stopping at the
+first failing language, inside an Edge runtime's memory. So local runs and
+the web UI tests checked a pass production did not run, and the function's
+name said it projected. Carl chose (2026-10-20) to run the pass locally as
+production does:
+- `npm run web:dev` and `e2e/ui-web.sh` (the UI suite's Worker, and so CI's
+  ui-web job) build the job bundles and start `wrangler dev` with the job
+  container under `scripts/job-tick.mjs`, which fires the job tick at
+  `/__scheduled` every minute while the Worker runs. Every minute, not the
+  Worker's five, so one phone's ask reaches the other soon and the UI tests
+  find Inbox rows and listings (68). JobRunner stays the lock. The UI suite's
+  Worker runs from the local config copy (`scripts/web-dev-vars.ts`), which
+  sends `/__scheduled` to the Worker and points the container at the
+  database through `host.docker.internal`; workerd maps that name to the
+  host on Linux too.
+- `scripts/local-db.mjs` schedules no pass; the schedule migration
+  unschedules the one an older checkout left.
+- The function is `push-delivery`, built from `server/pushDeliveryEdge.ts`
+  and `server/pushDelivery.ts` alone, so its bundle carries no core or fold.
+  `isLarge`, `LARGE`, `ProjectionScope` and `ProjectionFailed` are gone; the
+  pass always goes on past a failing language. Migration
+  `20261020160000_push_delivery_function.sql` reschedules
+  `langquest-push-delivery` to `/functions/v1/push-delivery`
+  (`scripts/secrets.mjs` `SCHEDULE_MIGRATION`, `CRON_JOB`), and
+  `npm run secrets` checks the job calls it. The secret and Vault names
+  (`PROJECTION_WORKER_SECRET`, `langquest_projection_worker_secret`) stay,
+  so no secret is reset.
+Cost: the local pass needs the Worker and Docker running. A database
+started alone (`npm run db:start` without `web:dev`) gets push delivery but
+no Inbox rows from work, listings or server snapshots; `dev:local` starts
+both. The first `web:dev` builds the job image, and CI's ui-web job builds
+it on each runner. A `web:dev` left running projects under `npm run
+db:test`'s smokes, which count snapshots and Inbox rows, so stop it first.
+Cutover: Supabase's GitHub integration applies migrations before it deploys
+functions, so for about a minute after the merge the push job calls a
+function that does not exist yet, and the rows wait for the next minute.
+The integration never deletes a function: `stream-projections` is deleted
+by hand once `push-delivery` answers.
+Reverse if: the container cannot run on CI's runners reliably, or building
+the image makes `web:dev` too slow for daily work; then a local stack goes
+back to running `server/projections.ts` (still the container's entry
+point) from a Node process the tick starts, not to an Edge pass.

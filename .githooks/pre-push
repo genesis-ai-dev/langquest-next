@@ -3,7 +3,7 @@
 # (order-independence and idempotence property tests, the event registry's
 # "no shipped event removed" checks, the rest of the unit suite), the
 # typecheck, the lint that holds what may import what (eslint.config.mjs),
-# and the projection worker's bundle against its source. About 15 s, no
+# and the push delivery function's bundle against its source. About 15 s, no
 # keys, no servers. The UI suite runs in CI (.github/workflows/guardrails.yml)
 # and before `npm run ship`; `npm run guardrails` runs the CI jobs here
 # (docs/testing.md).
@@ -18,8 +18,8 @@ npx vitest run --reporter=dot
 # a commit made with --no-verify, or a branch started before those hooks
 # skips them, and the guardrails `checks` job then fails. Only when the
 # source it is built from is committed, so the build is of what is pushed.
-BUNDLE=supabase/functions/stream-projections/index.ts
-if git diff --quiet HEAD -- server packages/core/src packages/sync/src scripts/build-projection-worker.mjs "$BUNDLE"; then
+BUNDLE=supabase/functions/push-delivery/index.ts
+if git diff --quiet HEAD -- server scripts/build-push-delivery.mjs "$BUNDLE"; then
   npm run --silent worker:build
   if ! git diff --quiet HEAD -- "$BUNDLE"; then
     echo "pre-push: $BUNDLE was behind its source and is rebuilt now. Commit it and push again." >&2

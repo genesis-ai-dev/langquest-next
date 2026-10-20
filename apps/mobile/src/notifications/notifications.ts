@@ -81,7 +81,7 @@ export async function cachedInbox(actorId: string): Promise<RemoteNotification[]
 /**
  * The Inbox row a tapped push is about, from this phone's copy of the Inbox,
  * else from the server: the push carries only the row's id, so nothing
- * about the work shows on the lock screen (server/projectionWorker.ts).
+ * about the work shows on the lock screen (server/pushDelivery.ts).
  * Null offline when the row has not been seen yet.
  */
 export async function findNotification(actorId: string, id: string): Promise<RemoteNotification | null> {
