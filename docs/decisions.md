@@ -5987,6 +5987,16 @@ Reverse if: never for the words. The Cloudflare names change when a rename
 path is chosen; then amend this entry and rename to `langquest-next`, which
 matches the domain.
 
+Amended (2026-10-20, Carl Sauder): the Cloudflare names change too, to a
+fresh Worker `langquest-next` (its preview `langquest-next-preview`, its
+container application `langquest-next-jobrunner`). The only webhook was
+Frontier's own EveryBible prototype site, quiet since 2026-10-16, whose
+owner will start its change feed over, so Carl chose a fresh Worker over
+the transfer handoff. Organizations' report caches rebuild on first use;
+webhook state starts over; the webhooks, the domain, R2, the Vault values
+and the database carry on. `docs/cloudflare.md`, "Renaming the app's
+Worker", is the cutover; `scripts/cloudflare-deploy.test.ts` holds the name.
+
 ## 145. New language shows its six steps first, asks for reference material before the review flow, sets its checks up on their own pages, and its invite can put people on checks
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted

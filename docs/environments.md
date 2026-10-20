@@ -9,8 +9,8 @@ change; deploys never carry them, so no build system holds a key
 | Environment | Git branch | Supabase | Cloudflare Workers | App (EAS) |
 | --- | --- | --- | --- | --- |
 | development | your branch | local (`npm run db:start`) | `npm run web:dev` (the Worker, local); `npm run dev:local` starts both | `npm run app`, development channel |
-| preview | `develop` | persistent branch `develop` of the hosted project | `langquest-next-dashboard-preview`, `langquest-next-invite-email-preview` | `preview` channel and profile |
-| production | `main` | the hosted project `xymxnebdwtbkfxlbylch` | `langquest-next-dashboard`, `langquest-next-invite-email` | `production` channel, TestFlight and Play internal |
+| preview | `develop` | persistent branch `develop` of the hosted project | `langquest-next-preview`, `langquest-next-invite-email-preview` | `preview` channel and profile |
+| production | `main` | the hosted project `xymxnebdwtbkfxlbylch` | `langquest-next`, `langquest-next-invite-email` | `production` channel, TestFlight and Play internal |
 
 Pull requests target `develop`. Merging one deploys preview. A release is a
 pull request from `develop` to `main`, merged with a merge commit (not
