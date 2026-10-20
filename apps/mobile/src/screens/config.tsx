@@ -63,6 +63,7 @@ import { bookOf } from '../recording/model';
 import { useBible } from '../helps/useBible';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
 import { LanguageChecks } from '../checks/LanguageChecks';
+import { useFlowHelps } from '../checks/useFlowHelps';
 import { IntoSheet } from '../checks/IntoSheet';
 import { HelpRow } from '../helpMode/helpBadge';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
@@ -543,6 +544,8 @@ export function FlowsHome(ctx: Ctx) {
   const { updates } = useLibraryUpdates(lib.orgId);
   const docs = useLibraryDocs(lib.orgId, [...flows.map((f) => f.current), ...shared.rows.map((s) => s.latest_hash)]);
   const language = openLanguageName(ctx);
+  // A ready-made flow's helps are followed and linked to its checks as it is copied in.
+  const flowHelps = useFlowHelps(ctx);
 
   /**
    * Use a flow for the language: its checks are copied into the language
@@ -571,7 +574,9 @@ export function FlowsHome(ctx: Ctx) {
       const doc = docs.get<FlowDoc>(hash);
       if (!doc) throw new CommandError(t('config.errors.flowHasNoVersion'));
       name = 'shared' in target ? target.shared.name : lib.item(target.itemId)?.name ?? doc.name;
-      specs = copyFlowSpecs(state, { commandId: Crypto.randomUUID(), name, doc, kinds });
+      const it = 'shared' in target ? null : lib.item(target.itemId);
+      const from = 'shared' in target ? target.shared.org_id : it?.subscription?.sourceOrgId ?? it?.copiedFrom?.orgId;
+      specs = copyFlowSpecs(state, { commandId: Crypto.randomUUID(), name, doc, kinds, ...(await flowHelps({ doc, from })) });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) })); // i18n-ignore: log label
       setBusy(false);

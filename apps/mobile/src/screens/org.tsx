@@ -72,6 +72,8 @@ import { draftCtx } from '../checks/draftCtx';
 import { useChecksDraft } from '../checks/useChecksDraft';
 import { useChecksUndo } from '../checks/useChecksUndo';
 import { ChecksContent } from '../checks/LanguageChecks';
+import { useFlowHelps } from '../checks/useFlowHelps';
+import { FlowLanguageLink } from '../helps/lazyHelps';
 import { UndoRedo } from '../ui/undoRedo';
 import { StageBar, StagesPath } from '../org/NewLanguageStages';
 import { stageOf } from '../org/stagesModel';
@@ -1491,6 +1493,7 @@ export function NewLanguage(ctx: Ctx) {
   const reads = readsAll[0]!;
   // Flows in the languages the team reads, or saying none (decision 84, amended 2026-10-20): asked on the page before.
   const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds, readsAll);
+  const flowHelps = useFlowHelps(ctx);
   const material = useNewLanguageOffers(ctx, readsAll, refs.sets);
   const isOn = (key: string) => ticked[key] ?? material.suggested.has(key);
   const offers = material.items.filter((x) => isOn(x.key));
@@ -1519,10 +1522,12 @@ export function NewLanguage(ctx: Ctx) {
   const alike = useMemo(() => similarLanguages(ctx.org.state, { code: theCode, name }), [ctx.org.state, theCode, name]);
 
   /** The checks page, from the flow picked: a new draft when it is another flow than the draft's. */
-  function toChecks(again = false) {
+  async function toChecks(again = false) {
     if (!flowChoice) return;
     if (snap && snap.draft.from === flowChoice) { setFlowPage('checks'); return; }
     if (snap && draftChanged(snap.draft) && !again) { setStartAgain(true); return; }
+    // What a ready-made flow brings besides its checks: its helps, followed first, and what each check shows.
+    const extras = choosing || !flow ? null : await flowHelps(flow);
     const fresh = commands(emptyLanguageState());
     const commandId = Crypto.randomUUID();
     let specs: EventSpec[];
@@ -1530,7 +1535,7 @@ export function NewLanguage(ctx: Ctx) {
       specs = choosing || !flow
         ? fresh.saveFlowSteps({ commandId, steps: [] })
         // The flow's own kinds first; a kind is defined once.
-        : fresh.copyFlow({ commandId, name: flow.c.name, kinds: chk.kindsOf(flow.doc).filter((k, i, all) => all.findIndex((x) => x.id === k.id) === i), steps: flow.doc.steps });
+        : fresh.copyFlow({ commandId, name: flow.c.name, kinds: chk.kindsOf(flow.doc).filter((k, i, all) => all.findIndex((x) => x.id === k.id) === i), steps: flow.doc.steps, ...extras });
     } catch (e) {
       setError(failure('new language checks', e));
       return;
@@ -1882,10 +1887,12 @@ export function NewLanguage(ctx: Ctx) {
     // A long description would push the rest off the screen: then its number of checks says enough.
     const sub = e === chk.first ? t('org.newLanguage.suggested', { from }) : e.doc.description && e.doc.description.length <= 60 ? e.doc.description : `${flowSub(e.doc.steps)} · ${from}`;
     return (
-      <HelpRow key={e.c.key} of="newLanguage.way">
+      <HelpRow key={e.set?.key ?? e.c.key} of="newLanguage.way">
         <ChoiceCard on={on} icon="route" title={e.c.name} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setFlowKey(e.c.key)}>
           {on && e.doc.steps.length ? <NumberedSteps items={e.doc.steps.map((st) => ({ label: stepTitle(st.kindIds, chk.kindsOf(e.doc)), lock: !!st.checkpoint }))} /> : null}
         </ChoiceCard>
+        {/* A ready-made flow in several languages: the one in the team's language, the others a tap away. */}
+        <FlowLanguageLink entry={e} onPick={(k) => { chk.chooseIn(e.set!.key, k); if (on) setFlowKey(k); }} />
       </HelpRow>
     );
   };
@@ -1893,7 +1900,7 @@ export function NewLanguage(ctx: Ctx) {
   return (
     <Screen header={header()} bodyStyle={bodyStyle}
       footer={<>
-        <PrimaryBtn label={t('org.continue')} icon="right" disabled={!flowChoice} help={t('org.newLanguage.toChecksHelp')} onPress={() => toChecks()} />
+        <PrimaryBtn label={t('org.continue')} icon="right" disabled={!flowChoice} help={t('org.newLanguage.toChecksHelp')} onPress={() => void toChecks()} />
         {back}
       </>}>
       <Question>{t('org.newLanguage.howChecked')}</Question>
@@ -1910,7 +1917,7 @@ export function NewLanguage(ctx: Ctx) {
       {error ? <Banner icon="flag" tone="amber" title={t('org.newLanguage.notAdded')} body={error} /> : null}
       {/* Its checks were changed by hand: starting from another flow drops those changes, so it asks first (decision 134). */}
       <ConfirmDelete visible={startAgain} name={startingFrom} title={t('org.newLanguage.startAgainAsk', { flow: startingFrom })}
-        confirmLabel={t('org.newLanguage.startAgain')} replaces onClose={() => setStartAgain(false)} onConfirm={() => toChecks(true)} />
+        confirmLabel={t('org.newLanguage.startAgain')} replaces onClose={() => setStartAgain(false)} onConfirm={() => void toChecks(true)} />
     </Screen>
   );
 }

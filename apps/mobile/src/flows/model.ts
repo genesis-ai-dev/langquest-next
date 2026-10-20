@@ -3,7 +3,7 @@
 // steps, who usually does a step, and the events that using a flow for a
 // language writes. Pure: no React, so it is tested (test/flowsModel.test.ts).
 import {
-  commands, type EventSpec, type FlowDoc, type KindDef, type LanguageState, type LibraryDoc, type LibraryItemView
+  commands, type EventSpec, type FlowDoc, type KindDef, type LanguageState, type LibraryDoc, type LibraryItemView, type ShownWhat
 } from '@langquest-next/core';
 import { localKind } from '../i18n/coreText';
 import { t } from '../i18n';
@@ -94,8 +94,12 @@ export function usuallyFor(state: LanguageState, kinds: KindDef[], nameOf: (prof
  * the language's own from then on (decision 91). Throws a CommandError when
  * the command refuses.
  */
-export function copyFlowSpecs(state: LanguageState, c: { commandId: string; name: string; doc: FlowDoc; kinds: KindDef[] }): EventSpec[] {
-  return commands(state, indexesFor(state)).copyFlow({ commandId: c.commandId, name: c.name, kinds: [...c.doc.kinds, ...c.kinds], steps: c.doc.steps });
+export function copyFlowSpecs(state: LanguageState, c: { commandId: string; name: string; doc: FlowDoc; kinds: KindDef[];
+  /** What the flow brings besides its checks (checks/useFlowHelps.ts). */ helps?: { kindId: string; itemId: string }[]; shows?: { kindId: string; what: ShownWhat; shown: boolean }[] }): EventSpec[] {
+  return commands(state, indexesFor(state)).copyFlow({
+    commandId: c.commandId, name: c.name, kinds: [...c.doc.kinds, ...c.kinds], steps: c.doc.steps,
+    ...(c.helps ? { helps: c.helps } : {}), ...(c.shows ? { shows: c.shows } : {})
+  });
 }
 
 /** "Version 2 · Moving to the newest version · Made here": what to say under the flow a language uses, when it is a library item. */

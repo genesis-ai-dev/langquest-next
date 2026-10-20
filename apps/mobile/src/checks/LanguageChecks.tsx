@@ -253,8 +253,6 @@ export function LanguageChecks({ ctx }: { ctx: Ctx }) {
 }
 
 function OwnChecks({ ctx }: { ctx: Ctx }) {
-  // A ready-made flow's helps are followed and linked to its checks as it is copied in.
-  const flowHelps = useFlowHelps(ctx);
   const state = ctx.language.state;
   const language = languageName(ctx.org.state, ctx.language.languageId);
   const canManage = ctx.session.can('manage_flows');
@@ -283,6 +281,8 @@ export function ChecksContent({ ctx, undo, startFrom = true }: { ctx: Ctx; undo:
   const [flows, setFlows] = useState(false);
   const canManage = ctx.session.can('manage_flows');
   const startFlow = useHelpSpot(t('checks.flows.start'), t('checks.flows.startHelp'), canManage ? () => setFlows(true) : undefined);
+  // A ready-made flow's helps are followed and linked to its checks as it is copied in.
+  const flowHelps = useFlowHelps(ctx);
   if (!state) return null;
   // A save is a step on the header's Undo (useChecksUndo hears it).
   const save = (next: CheckRow[], before: EventSpec[] = []) => void saveRows(ctx, next, t('checks.saved', { language }), before);

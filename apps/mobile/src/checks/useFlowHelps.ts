@@ -15,8 +15,9 @@ export interface FlowExtras {
 }
 
 /**
- * A function that readies a flow's helps for copying into a language: each
- * item as this organization has it (its own, or its follow of the flow's
+ * A function that readies a flow's helps for copying into a language (a
+ * flow entry, or a flow and the organization it comes from): each item as
+ * this organization has it (its own, or its follow of the flow's
  * organization's), following any it lacks. A help that cannot be had
  * (offline, or no longer shared) is left out; the checks still come.
  */
@@ -24,10 +25,10 @@ export function useFlowHelps(ctx: Ctx) {
   const lib = useLibrary(ctx);
   const shared = useSharedItems('material', lib.orgId);
   const { item, subscribe } = lib;
-  return useCallback(async (e: FlowEntry): Promise<FlowExtras> => {
+  return useCallback(async (e: FlowEntry | { doc: FlowDoc; from: string | undefined }): Promise<FlowExtras> => {
     const doc: FlowDoc = e.doc;
     const shows = (doc.shows ?? []).map((x) => ({ kindId: x.kindId, what: x.what as ShownWhat, shown: x.shown }));
-    const from = e.c.source === 'shared' ? e.c.shared.org_id : e.c.item.subscription?.sourceOrgId ?? e.c.item.copiedFrom?.orgId;
+    const from = 'from' in e ? e.from : e.c.source === 'shared' ? e.c.shared.org_id : e.c.item.subscription?.sourceOrgId ?? e.c.item.copiedFrom?.orgId;
     const helps: FlowExtras['helps'] = [];
     for (const h of doc.helps ?? []) {
       if (item(h.itemId)) { helps.push(h); continue; }
