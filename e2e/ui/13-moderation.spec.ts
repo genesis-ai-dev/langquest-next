@@ -13,6 +13,7 @@ import {
   reportAs, serverBlocks, setBlocked, toTabs
 } from './account-helpers';
 import { send, signIn, type UiWorld } from './fixture';
+import { projectionPass } from './pass-helpers';
 import {
   back, button, byId, expect, expectNothingRefused, expectToast, field, languageArrived, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
   useWorld, type AccountKey
@@ -144,7 +145,8 @@ test('MOD-002 No flag on your own work, and none for guests', async ({ page, bro
   await expect(page.getByRole('button', { name: /^Report or block/ })).toHaveCount(0);
   await openNeedsReview(page);
   await expect(flagOf(page, 'REV')).toBeVisible();
-  // A guest browsing public work: no flag anywhere.
+  // A guest browsing public work: no flag anywhere. Explore lists what the projection pass has listed: have it run first.
+  await projectionPass();
   const guest = await browser.newContext({ viewport: { width: 430, height: 932 } });
   await quietDevServer(guest);
   const g = await guest.newPage();

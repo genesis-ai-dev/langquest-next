@@ -9,11 +9,17 @@
 import type { Browser, Page, Route } from '@playwright/test';
 import { button, expect, openAs, screenText, tab, tabsShown, test, testState, text, useWorld, type AccountKey, type UiWorld } from './support';
 import { browserStateFor } from './fixture';
+import { projectionPass } from './pass-helpers';
 import {
   atA, createEmptyOrgFor, orgWrite, publishAs, quietReloads, setMembership, setOffline
 } from './sync-helpers';
 
 const world = useWorld();
+
+// Reports renders from the inputs the projection pass stores (decision 142), and a plain read answers
+// from them as they are. A pass that ran while the world was being built stored half of it: run one now
+// that the world is whole, so every figure below starts from the world as built (RPT-007 counts on it).
+test.beforeAll(async () => { await projectionPass(); });
 
 // The shared dev server's hot reloads must not reload the app under a test.
 test.beforeEach(async ({ context }) => { await quietReloads(context); });
@@ -173,6 +179,9 @@ test('RPT-007 Catch up with the server shows new work @wide', async ({ page }) =
   const w = world();
   await openAs(page, w, 'COORD');
   await openReports(page);
+  // Catch up first, so the figure below is the log's whatever the pass stored (the pass is not what this test is about).
+  await catchUp(page).click();
+  await expect(catchUp(page)).toBeEnabled({ timeout: 30_000 });
   await section(page, 'Languages');
   const before = await alphaRecorded(page);
   // Device 2 (TRANS) records and publishes Version 1 of P-NEW; it reaches the server.

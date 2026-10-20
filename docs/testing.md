@@ -89,6 +89,31 @@ These keep the suite fast enough to run and stable enough to trust.
   builds (`__langquestTestState`: sync idle, pending count, last pull).
   `page.waitForTimeout` is forbidden; the hygiene test fails on one unless
   the line carries `// sleep: <why nothing observable exists>`.
+- **Ask for the pass, do not wait for the clock.** A test that needs what
+  the server's projection pass writes (the public listing behind Explore and
+  Find your organization, Reports' stored inputs, server snapshots and their
+  cuts) calls `projectionPass()` (`e2e/ui/pass-helpers.ts`) and then expects
+  with the default timeout. It fires the Worker's job tick
+  (`/__scheduled`) and returns when a `diag.job_runs` row for a 'projection'
+  run that started after the call exists, sending the tick again every few
+  seconds because a tick during a running pass starts nothing; any number of
+  Playwright workers may call at once and share the run. A file calls it once
+  in `beforeAll`, not in every test (each call waits for a fresh run). Do not
+  call it for what the pass does not write: Inbox updates are the phone's
+  own fold, and join requests and reports reach the Inbox through database
+  triggers and `join_requests`, so those wait for the phone's sync, not the
+  pass. `UI_PASS=direct` runs `server/projections.ts` in the test process
+  instead (one at a time, locked under `e2e/results`): for a local run
+  without the job container, where another checkout may share the stack and
+  its Worker. Never use it in CI or beside a Worker that runs passes.
+- **Audio is real time, so assert structure.** Chromium's fake microphone
+  speaks in wall-clock time, and a loaded runner stretches it. A test checks
+  that a length is shown (`\d+:\d\d`), how many parts there are, and that
+  each part is at least a second, not that three parts last `0:1x`. Where
+  the clock is the point (a note stamped about 5 s into playback), the window
+  is wide enough for a slow runner and a comment says so. A setup step that
+  uploads a file (`e2e/ui/blob-upload.ts`) retries a transient 5xx; an
+  assertion never retries.
 - **One test, one role.** A spec that names several roles becomes one test
   per role, titled `ID role`, so each stays under about a minute, failures
   isolate, and files shard. The default timeout (`ui.config.ts`) is the
