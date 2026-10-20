@@ -361,6 +361,32 @@ jobs:
         if: always()
         with: { phase: save, job-images: 'true' }
 
+  nightly-flakes:
+    # The tests that do not pass every run. Retries are off, so a flake only
+    # shows over many runs: this reads the ui-web report artifacts of the last
+    # 40 pull request and push runs (scripts/ui-flake-report.mjs), prints the
+    # tests under 95% (seen in at least 5 runs) and keeps one Linear issue for
+    # them, commenting when the list changes. Not blocking, and it needs no
+    # dependency, so no npm ci.
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    permissions:
+      contents: read
+      # Lists runs and downloads their artifacts; nothing is written to GitHub.
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24 }
+      - name: Pass rates of the last runs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
+        run: node scripts/ui-flake-report.mjs --runs 40 --threshold 0.95 --min 5 --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY
+
   nightly-fleet:
     # A fleet of phones on simulated time (docs/fleet-simulation.md): the
     # sync code's cost, kept as a number to compare with docs/fleet-baselines.md.

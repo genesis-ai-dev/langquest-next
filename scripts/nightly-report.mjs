@@ -186,7 +186,7 @@ export function linearApi(key, fetchImpl = fetch) {
       const data = await gql(
         `query($key: String!, $prefix: String!) { issues(first: 250, filter: {
            team: { key: { eq: $key } }, title: { startsWith: $prefix } }) {
-           nodes { id identifier title createdAt state { type }
+           nodes { id identifier title description createdAt state { type }
              comments(first: 100) { nodes { body createdAt } } } } }`,
         { key: TEAM_KEY, prefix: PREFIX }
       );
@@ -194,6 +194,7 @@ export function linearApi(key, fetchImpl = fetch) {
         id: n.id,
         identifier: n.identifier,
         title: n.title,
+        description: n.description ?? '',
         createdAt: n.createdAt,
         stateType: n.state.type,
         comments: [...n.comments.nodes].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map((c) => c.body)
@@ -215,7 +216,7 @@ export function linearApi(key, fetchImpl = fetch) {
 }
 
 /** Prints instead of calling Linear, as if no nightly issue were open. */
-function dryApi() {
+export function dryApi() {
   let n = 0;
   return {
     issues: async () => [],
@@ -229,7 +230,7 @@ function dryApi() {
 
 // --- CLI --------------------------------------------------------------------
 
-function flags(argv) {
+export function flags(argv) {
   const out = {};
   for (let i = 0; i < argv.length; i++) {
     if (!argv[i].startsWith('--')) continue;
