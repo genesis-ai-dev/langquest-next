@@ -38,14 +38,29 @@ const startRssMb = peakRssMb();
  * so the peak is read after each language rather than sampled during it.
  */
 let peak: { mb: number; orgId: string | null; streamId: string | null } = { mb: startRssMb, orgId: null, streamId: null };
-const projected = (orgId: string, streamId: string) => {
-  const now = peakRssMb();
-  if (now > peak.mb) peak = { mb: now, orgId, streamId };
-};
 const memory = () => ({ peakRssMb: peakRssMb(), startRssMb, heapUsedMb: mb(process.memoryUsage().heapUsed), heapLimitMb: mb(getHeapStatistics().heap_size_limit) });
 
 const started = Date.now();
 const counts: ProjectionCounts = { orgs: 0, projected: 0 };
+/** Every this many languages a progress line goes to the log (the container's logs in Cloudflare), ids and counts only. */
+const PROGRESS_EVERY = 25;
+const projected = (orgId: string, streamId: string) => {
+  const now = peakRssMb();
+  if (now > peak.mb) peak = { mb: now, orgId, streamId };
+  if (counts.projected % PROGRESS_EVERY === 0) {
+    console.log(`progress: ${counts.projected} projected, ${Math.round((Date.now() - started) / 1000)} s, peak ${peak.mb} MB resident, last ${streamId}`);
+  }
+};
+
+// Stopped from outside (the job runner at the time limit, or the platform):
+// record how far it got, then exit 0, the code that says the row is written.
+process.once('SIGTERM', () => {
+  console.error(`stopped by SIGTERM after ${counts.projected} languages`);
+  void record({
+    job: 'projection', startedAt: started, ms: Date.now() - started,
+    outcome: counts.projected > 0 ? 'partial' : 'error', errorClass: 'sigterm', n: { ...counts, ...memory() }
+  }).finally(() => process.exit(0));
+});
 let done: Awaited<ReturnType<typeof runProjections>>;
 try {
   done = await runProjections(createClient(url, key, { auth: { persistSession: false } }), 'all', counts, projected);
