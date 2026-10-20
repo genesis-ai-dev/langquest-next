@@ -198,6 +198,11 @@ installs the browsers.
   the registry turned away is retried (`scripts/ci-retry-pull.sh`). The
   repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`, when set,
   sign in to Docker Hub for a higher limit; nothing requires them.
+- **Ports.** The stack's ports (54420 to 54429) lie in the range Linux hands
+  out to outbound connections, and a start pulling a dozen images could
+  find one taken ("address already in use", run 39490187431). Each job
+  reserves them before the stack starts (`scripts/ci-reserve-ports.sh`), and
+  the retry script retries that error too.
 - **Load.** Each UI job logs `nproc` and `free -m` and samples `vmstat` and the
   busiest processes (`scripts/ci-load.sh`) into its results artifact.
 - **Concurrency.** A pull request or push run is cancelled by a newer one for
