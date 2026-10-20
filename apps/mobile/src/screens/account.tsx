@@ -22,7 +22,7 @@ import { deriveKinds, kindOf } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
-import { OfflineCard } from '../sync/offline';
+import { FillBanner, OfflineCard } from '../sync/offline';
 import { useOfflineSummary } from '../sync/useOfflineSummary';
 import { useSyncStatus } from '../sync/useSyncStatus';
 import { offlineCount, moreSettingsSub } from '../account/meModel';
@@ -830,6 +830,7 @@ export function SyncStatus(ctx: Ctx) {
         {language.refused || language.tooOld ? <Text style={txt.smMuted}>{language.refused ? t('account.sync.refused') : t('account.sync.tooOld')}</Text> : null}
       </Card>
       {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
+      <FillBanner ctx={ctx} />
       <OfflineCard ctx={ctx} s={offlineSummaryNow} />
       <Card>
         <SyncLine icon="up" label={t('account.sync.toSend')} value={pendingEvents + sync.pendingUp} rate={sync.pendingUp ? rates.up : 0} help={t('account.sync.help.toSend')} />

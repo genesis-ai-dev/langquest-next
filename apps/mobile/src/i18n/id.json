@@ -4361,7 +4361,18 @@
       "barHelp": "Berapa banyak perikop yang Anda simpan sudah lengkap ada di perangkat ini."
     },
     "keepHelp": "Menyimpan audionya di perangkat ini, agar bisa dipakai tanpa koneksi.",
-    "stopKeepingHelp": "Membiarkan perangkat ini menghapus audionya lagi saat perlu ruang."
+    "stopKeepingHelp": "Membiarkan perangkat ini menghapus audionya lagi saat perlu ruang.",
+    "fill": {
+      "title": "Mengunduh bahasa ini",
+      "count": "{{filled, number}} dari {{total, number}} perikop ada di perangkat ini.",
+      "barHelp": "Terisi saat perikop tiba di perangkat ini."
+    },
+    "notHere": {
+      "title": "Belum ada di perangkat ini",
+      "body": "Versi, tinjauan, dan riwayatnya masih diunduh bersama bagian lain bahasa ini. Sambungkan untuk mengunduh.",
+      "latest": "Terbaru: versi {{n, number}}, oleh {{name}}.",
+      "requests": "Permintaan terbuka: {{n, number}}."
+    }
   },
   "moderation": {
     "flagLabel": "Laporkan atau blokir {{name}}",

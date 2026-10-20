@@ -1,8 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import {
-  derivePassage, deriveUploadWork, isStored, ORG_STREAM, SEED_ROLES,
-  type OrgState, type Scope
+  derivePassage, deriveUploadWork, isStored, languageLines, LINES_VERSION, ORG_STREAM, PART_OF_KIND, putEntry, REDUCER_VERSION, SEED_ROLES, withOwnParts,
+  type LanguageState, type OrgState, type Scope
 } from '@langquest-next/core';
+import { PART_KINDS, SnapshotRows, SPLIT_MAPS } from '../src/keptLanguage';
+import { keptRowsOf } from '../src/serverCut';
+import { stateSplitter } from '../src/stateSplit';
+import type { KeptRecord, SnapshotRowsPage } from '../src/types';
 import { MemoryStore } from '../src/memoryStore';
 import { runSnapshotWorker } from '../src/snapshotWorker';
 import { runProjections } from '../../../server/projectionWorker';
@@ -252,6 +256,70 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     // A second worker pass with nothing new is a no-op for this language.
     const again = await runSnapshotWorker(service);
     expect(again.find((d) => d.streamId === languageId)?.serverSeq).toBe(6);
+  });
+
+  it('the pass cuts a snapshot in Postgres as the phone cuts its pieces, and a phone kept on disk fills the language from the cut', async () => {
+    // Why: decisions.md 147. The rows a phone fills its passages from must be the rows it would cut from the
+    // snapshot's text itself, read in the key order Postgres gives jsonb, through the RPCs a phone calls.
+    const stamp = Date.now();
+    const lead = await signUp(`cut-${stamp}@example.test`);
+    const orgId = `org-c-${stamp}`;
+    const languageId = `lc-${stamp}`;
+    await newOrg(lead, orgId, languageId);
+    const a = languageClient(orgId, languageId, lead, 'dA');
+    await a.load();
+    for (let i = 0; i < 4; i++) {
+      const unitId = `u${i}`;
+      await a.append('v1.UnitAdded', { unitId, parentUnitId: null, kind: 'passage', label: `P${i}`, order: `a${i}` });
+      await a.append('v1.RecordingAdded', { recordingId: `r${i}`, unitId, kind: 'target', cards: [{ hash: `${i}`.repeat(64), durationMs: 900 }] });
+      await a.append('v1.TakeComposed', { takeId: `t${i}`, unitId, cardHashes: [`${i}`.repeat(64)], parentTakeId: null });
+      await a.append('v1.ReviewRecorded', { reviewId: `rv${i}`, takeId: `t${i}`, kindId: 'peer', outcome: 'needs_changes', via: 'app', comment: 'slower' });
+      await a.append('v1.NoteAdded', { noteId: `n${i}`, unitId, anchor: { kind: 'passage' }, text: 'ŋäɔ' });
+    }
+    await a.append('v1.TakeArchived', { takeId: 'never-composed' });
+    expect((await a.sync()).rejected).toBe(0);
+    const service = createClient(URL, SERVICE, { auth: { persistSession: false } });
+    await runSnapshotWorker(service, 1000, undefined, (o, l) => o === orgId && l === languageId);
+
+    const t = new SupabaseTransport(lead.sb);
+    const head = (await t.snapshotHead(orgId, languageId, REDUCER_VERSION, LINES_VERSION))!;
+    expect(head.units.map((u) => u.unitId)).toEqual(['u0', 'u1', 'u2', 'u3']);
+    const server: KeptRecord[] = [];
+    for (let after: Parameters<typeof t.snapshotRows>[5] = null; ;) {
+      const page: SnapshotRowsPage = (await t.snapshotRows(orgId, languageId, REDUCER_VERSION, 0, head.units.map((u) => u.unitId), after, 3))!;
+      server.push(...page.rows);
+      after = page.next;
+      if (!after) break;
+    }
+    // The phone's own cut of the same snapshot's pieces, as Postgres hands them out.
+    const meta = (await t.snapshotMeta(orgId, languageId, REDUCER_VERSION))!;
+    const rows: KeptRecord[] = [];
+    const placing = new SnapshotRows();
+    const splitter = stateSplitter(SPLIT_MAPS, (map, id, json) => { rows.push(...placing.entry(map, id, json)); });
+    for (let i = 0; i < meta.chunks; i++) splitter.push((await t.snapshotChunk(orgId, languageId, REDUCER_VERSION, meta.serverSeq, i))!);
+    const shared = JSON.parse(splitter.end()) as LanguageState;
+    rows.push(...placing.end(shared));
+    const byKey = (list: KeptRecord[]) => new Map(list.map((r) => [`${r.kind}\u0000${r.id}`, { ...r, json: JSON.parse(r.json) as unknown }]));
+    expect(byKey(server.flatMap((r) => keptRowsOf(r)))).toEqual(byKey(rows));
+    expect({ ...(head.shared as LanguageState), appliedEventIds: {} }).toEqual({ ...shared, appliedEventIds: {} });
+    expect(head.lines!.seq).toBe(meta.serverSeq);
+    expect((await t.snapshotPassages(orgId, languageId, REDUCER_VERSION, [{ kind: 'review', id: 'rv2' }, { kind: 'take', id: 'nowhere' }]))).toEqual([{ kind: 'review', id: 'rv2', unitId: 'u2' }]);
+
+    // A phone kept on disk takes the shared part and the lines, then fills every passage in.
+    const store = new MemoryStore();
+    const kept = new SyncClient({ orgId, streamId: languageId, actorId: lead.userId, deviceId: 'dK', store, transport: t, keepOnDisk: true });
+    await kept.load();
+    for (let i = 0; i < 10; i++) {
+      const r = await kept.sync();
+      if (!r.more && !r.filling) break;
+      if (!r.more) await kept.fillSome();
+    }
+    expect(kept.fillProgress()).toBeNull();
+    const whole = withOwnParts(structuredClone(kept.getState()) as LanguageState);
+    for (const kind of PART_KINDS) for (const row of await store.keptAll(orgId, languageId, kind)) putEntry(whole, PART_OF_KIND.get(kind)!, row.id, JSON.parse(row.json));
+    const truth = a.getState();
+    expect({ ...whole, appliedEventIds: {}, blobs: {} }).toEqual({ ...truth, appliedEventIds: {}, blobs: {} });
+    for (const u of ['u0', 'u1', 'u2', 'u3']) expect(JSON.parse(JSON.stringify(kept.passageLines().get(u)))).toEqual(JSON.parse(JSON.stringify(languageLines(truth).get(u))));
   });
 
   it('the projection pass moves past quiet events without a snapshot download, and folds on any other', async () => {

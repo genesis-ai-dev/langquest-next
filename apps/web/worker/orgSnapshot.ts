@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
-import { SupabaseTransport } from '@langquest-next/sync';
-import { REPORT_VERSION, type OrgReportsResponse, type ReportInputs } from '@langquest-next/core';
+import { SqliteStore, SupabaseTransport } from '@langquest-next/sync';
+import { languageInfo, REPORT_VERSION, type OrgReportsResponse, type ReportInputs } from '@langquest-next/core';
 import { serviceClient, type Env } from './env';
 import { OrgFolder } from './orgFolder';
 import { AgentOrg, type AgentQuery, type AgentWrite, type OrgAccess } from './agent/org';
@@ -10,14 +10,17 @@ import { WebhookDispatcher } from './agent/dispatch';
 import { supabaseAgentStore, type WebhookRecord } from './agent/store';
 import { COALESCE_MS } from './agent/webhooks';
 import { readPath } from './blobs';
-import { SqlCache } from './sqlCache';
+import { SqlCache, type SqlStore } from './sqlCache';
+import { LanguageRecordsKeeper, objectSqlDriver } from './languageRecords';
 import { jobRunSink } from '../../../server/jobRuns';
 
 /**
  * One per organization, named by its id, so every request for an
  * organization reaches the same folded state (decision 44). Between
  * evictions it keeps reports and recent folds in memory; across them, in its
- * own SQLite, so waking costs one heads query rather than a rebuild.
+ * own SQLite, so waking costs one heads query rather than a rebuild. The
+ * access-token API, MCP, review links and webhooks read each language as
+ * records kept in that SQLite, never whole in memory (decisions.md 147).
  */
 export class OrgSnapshot extends DurableObject<Env> {
   private folder: OrgFolder | null = null;
@@ -137,8 +140,8 @@ export class OrgSnapshot extends DurableObject<Env> {
         transactionSync: (fn) => storage.transactionSync(fn)
       }, orgId, {
         store: supabaseAgentStore(serviceClient(this.env)),
-        orgState: () => folder.orgState(true),
-        languageState: (languageId) => folder.languageState(languageId),
+        orgState: () => folder.orgOnly(true),
+        languageRecords: async (languageId) => (languageInfo(await folder.orgOnly(), languageId) ? this.recordsFor(orgId).records(languageId) : null),
         heads: () => this.heads(orgId),
         fetch: (url, init) => fetch(url, init),
         now: Date.now,
@@ -166,10 +169,27 @@ export class OrgSnapshot extends DurableObject<Env> {
           const { path, expiresAt } = await readPath(key, { serviceKey: this.env.SUPABASE_SERVICE_ROLE_KEY });
           return { url: `${this.origin}${path}`, expiresAt };
         },
-        webhooks: this.dispatcherFor(orgId)
+        webhooks: this.dispatcherFor(orgId),
+        records: (languageId) => this.recordsFor(orgId).records(languageId)
       });
     }
     return this.agent;
+  }
+
+  private keeper: LanguageRecordsKeeper | null = null;
+
+  /** Each language as records in the object's SQLite: sync's kept client per language, over the service role (decisions.md 147). */
+  private recordsFor(orgId: string): LanguageRecordsKeeper {
+    if (!this.keeper) {
+      const transport = new SupabaseTransport(serviceClient(this.env));
+      this.keeper = new LanguageRecordsKeeper(transport, orgId, () => SqliteStore.open(objectSqlDriver(this.sql())));
+    }
+    return this.keeper;
+  }
+
+  private sql(): SqlStore {
+    const storage = this.ctx.storage;
+    return { exec: (query, ...bindings) => storage.sql.exec(query, ...bindings), transactionSync: (fn) => storage.transactionSync(fn) };
   }
 
   private folderFor(orgId: string): OrgFolder {

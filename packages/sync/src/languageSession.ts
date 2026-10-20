@@ -75,6 +75,12 @@ export interface LanguageStatus {
    * (decisions.md 143). A new object whenever any line changed.
    */
   lines: PassageLines;
+  /**
+   * Passages filled in of those the server has rows for, while a first
+   * download fills them in (decisions.md 147): the Map's and Settings'
+   * "Downloading this language". Null when every passage is here.
+   */
+  fill: { filled: number; total: number } | null;
 }
 
 export interface LanguageSessionOptions {
@@ -157,7 +163,10 @@ export class LanguageSession {
   private publishedVersion: number | undefined;
 
   static async open(o: LanguageSessionOptions): Promise<LanguageSession> {
+    // The person's offline scope fills in first, after what a screen asks for (decisions.md 61, 147).
+    let session: LanguageSession | null = null;
     const client = new SyncClient({
+      fillFirst: () => session?.fillFirst() ?? [],
       ...o.client,
       orgId: o.orgId,
       streamId: o.languageId,
@@ -172,7 +181,14 @@ export class LanguageSession {
     await client.trackOpen();
     await client.load('open');
     const kept = new Set<string>(JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[]);
-    return new LanguageSession(o, client, kept);
+    session = new LanguageSession(o, client, kept);
+    return session;
+  }
+
+  /** What fills in first: the passages this person keeps offline, by default and by choice, and those whose record concerns them. */
+  private fillFirst(): string[] {
+    const lines = this.client.passageLines();
+    return [...this.current.scope, ...this.current.keptUnits, ...concerning(lines, this.o.actorId)];
   }
 
   private constructor(private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>) {
@@ -180,7 +196,7 @@ export class LanguageSession {
       revision: client.publishedRevision, pending: 0, refusedEvents: 0, lastSync: 'never',
       online: null, tooOld: false, refused: null, pulled: false, live: false,
       pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
-      keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines()
+      keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines(), fill: client.fillProgress()
     };
     this.publishedVersion = o.files.version;
     const files = o.files;
@@ -227,7 +243,7 @@ export class LanguageSession {
     // screen follows the fold's revision, not the call sites. Nothing on
     // screen shows that a write is still on its way to disk, so that news
     // changes nothing here: it redrew the whole app twice per commit.
-    this.stops.push(client.subscribe((s) => { this.set({ revision: s.revision, lines: s.lines ?? languageLines(s.state) }); this.recount(); }));
+    this.stops.push(client.subscribe((s) => { this.set({ revision: s.revision, lines: s.lines ?? languageLines(s.state), fill: s.fill ?? null }); this.recount(); }));
     this.up.start();
     this.down.start();
     this.stops.push(files.onChange(() => {
@@ -292,6 +308,12 @@ export class LanguageSession {
       this.pulling = false;
       more = r.more;
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
+      // Up to date with passages still to fill in: a slice of the fill, outside the pull, so audio moves meanwhile (decisions.md 147).
+      if (r.filling && !r.offline && !r.more && r.refused === null) {
+        const f = await client.fillSome();
+        more = f.filling && !f.offline;
+        if (f.filled > 0) changed = true;
+      }
       const wasOnline = this.current.online;
       // Online is exactly "the server answered". A refusal is an answer, so a
       // device whose membership is missing is online and says so; it must not
@@ -397,6 +419,11 @@ export class LanguageSession {
   /** Is this passage's whole record in memory, so a screen may read it from `state`? */
   isLoaded(unitId: string): boolean {
     return this.client.isLoaded(unitId);
+  }
+
+  /** Are all this passage's rows on this device, or still on the server while the language fills in (decisions.md 147)? */
+  isFilled(unitId: string): boolean {
+    return this.client.isFilled(unitId);
   }
 
   /**
@@ -547,11 +574,20 @@ export class LanguageSession {
         const own = await this.plan.scope(this.o.actorId);
         const kept = await this.scope();
         const chosen = this.current.keptUnits;
-        const [keptOffline, offlineSummary] = await Promise.all([
+        const [counted, summary] = await Promise.all([
           this.plan.byUnit([...kept], present, this.o.actorId, chosen),
           this.plan.summary(present, this.o.actorId, chosen)
         ]);
-        this.set({ keptOffline, offlineSummary, scope: own });
+        // "On this device" is a passage's rows as well as its audio (decisions.md 147): one a first download has not reached is not ready.
+        let waiting = 0;
+        const keptOffline = new Map(counted);
+        for (const [u, x] of counted) {
+          if (!x.ready || this.client.isFilled(u)) continue;
+          keptOffline.set(u, { ...x, ready: false });
+          waiting += 1;
+        }
+        const offlineSummary = waiting ? { ...summary, ready: Math.max(0, summary.ready - waiting) } : summary;
+        this.set({ keptOffline: waiting ? keptOffline : counted, offlineSummary, scope: own });
       })().catch(() => { /* counted again after the next change */ });
     }, OFFLINE_RECOUNT_MS);
   }

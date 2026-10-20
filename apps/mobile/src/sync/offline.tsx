@@ -1,16 +1,19 @@
 // What this phone has for use without a connection, said where people look:
 // on each passage, as a mark on the Map, and in Settings (decisions.md 61).
-// Text, status and history of the open language are always here; audio
+// Text, status and history of the open language are here once its first
+// download has filled every passage in (decisions.md 147; until then the Map
+// says it is downloading, and a passage not reached yet shows its line); audio
 // (core `offlineByUnit`) and, on a phone, study pictures and audio
 // (study/studyFiles.ts) are here only for passages kept offline. The worry this
 // answers: someone browses passages online, plays their audio, and finds out
 // in the field that none of it came along.
-import { languageName, offlineByUnit, type UnitOffline } from '@langquest-next/core';
+import { languageName, offlineByUnit, unitTitle, type UnitOffline } from '@langquest-next/core';
+import { deriveKinds, passageSummary } from '../i18n/coreText';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Card, HelpInfo, Ico, ProgressBar, SmallBtn, type IconName } from '../ui/kit';
+import { Card, Header, HelpInfo, Ico, ProgressBar, Screen, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { endsSentence } from '../helpMode/helpContext';
 import { t } from '../i18n';
@@ -144,6 +147,57 @@ export function OfflineMark(props: { u: KeptOffline | undefined; corner?: boolea
     <View style={[styles.mark, props.corner && styles.corner, { backgroundColor: u.ready ? onColor.green : C.primary }]}>
       <Ico name={u.ready ? 'onPhone' : 'download'} size={11} color={C.white} />
     </View>
+  );
+}
+
+/**
+ * While a first download fills a language in (decisions.md 147): how many
+ * passages are on this device, with decision 61's progress bar. The Map
+ * and the Sync screen show it; it goes once every passage is here.
+ */
+export function FillBanner(props: { ctx: Ctx }) {
+  const fill = props.ctx.language.fill;
+  if (!fill || fill.total === 0) return null;
+  const offline = props.ctx.language.online === false;
+  const count = t('offline.fill.count', { filled: fill.filled, total: fill.total });
+  const body = sentences(count, offline ? t('offline.connectToFinish') : t('offline.stayConnected'));
+  return (
+    <Card accessibilityLabel={t('shell.a11y.labelDetail', { label: t('offline.fill.title'), detail: body })}>
+      <Block icon="download" tint={offline ? TINT.amberText : C.primary} bg={offline ? TINT.amber : C.light} title={t('offline.fill.title')} body={body} />
+      <HelpInfo label={t('offline.fill.title')} detail={t('offline.fill.barHelp')}>
+        <ProgressBar value={(fill.filled / fill.total) * 100} />
+      </HelpInfo>
+    </Card>
+  );
+}
+
+/**
+ * A passage the first download has not reached, opened without a
+ * connection (decisions.md 147): what its line knows (where it stands, its
+ * latest version and by whom, open requests), and that the rest comes once
+ * the device is connected.
+ */
+export function PassageNotHere(props: { ctx: Ctx; unitId: string }) {
+  const { ctx, unitId } = props;
+  const state = ctx.language.state;
+  const line = ctx.language.lines.get(unitId);
+  const title = state ? unitTitle(state, unitId) : '';
+  const status = state ? passageSummary(line, deriveKinds(state), ctx.session.actorId, (id) => ctx.name(id, true)) : '';
+  // One fact a line: where it stands, its latest version and by whom, its open requests.
+  const facts = [
+    status,
+    line.latest ? t('offline.notHere.latest', { n: line.latest.n, name: ctx.name(line.latest.by, true) }) : null,
+    line.openRequests.length ? t('offline.notHere.requests', { n: line.openRequests.length }) : null
+  ].filter((f): f is string => !!f);
+  return (
+    <Screen header={<Header title={title} onBack={ctx.back} />}>
+      <Card accessibilityLabel={t('shell.a11y.labelDetail', { label: title, detail: facts.join(' ') })}>
+        {facts.map((f) => <Text key={f} style={txt.body}>{f}</Text>)}
+      </Card>
+      <Card>
+        <Block icon="notOnPhone" tint={TINT.amberText} bg={TINT.amber} title={t('offline.notHere.title')} body={t('offline.notHere.body')} />
+      </Card>
+    </Screen>
   );
 }
 

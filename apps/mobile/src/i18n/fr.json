@@ -4661,7 +4661,18 @@
       "barHelp": "Combien de vos passages gardés sont entièrement sur cet appareil."
     },
     "keepHelp": "Garde son audio sur cet appareil, pour qu’il fonctionne sans connexion.",
-    "stopKeepingHelp": "Laisse cet appareil retirer à nouveau son audio quand il a besoin de place."
+    "stopKeepingHelp": "Laisse cet appareil retirer à nouveau son audio quand il a besoin de place.",
+    "fill": {
+      "title": "Téléchargement de cette langue",
+      "count": "{{filled, number}} passages sur {{total, number}} sont sur cet appareil.",
+      "barHelp": "Se remplit à mesure que les passages arrivent sur cet appareil."
+    },
+    "notHere": {
+      "title": "Pas encore sur cet appareil",
+      "body": "Ses versions, ses relectures et son historique sont encore en cours de téléchargement avec le reste de cette langue. Connectez-vous pour le télécharger.",
+      "latest": "Dernière : version {{n, number}}, par {{name}}.",
+      "requests": "Demandes ouvertes : {{n, number}}."
+    }
   },
   "moderation": {
     "flagLabel": "Signaler ou bloquer {{name}}",

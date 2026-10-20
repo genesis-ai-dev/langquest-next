@@ -273,6 +273,10 @@ below is the contract they satisfy; a Workers front end can wrap them later.
   (`get_snapshot`) returns the newest snapshot for exactly that version.
   `get_snapshot_meta` and `get_snapshot_chunk` serve the same snapshot in
   256 KB pieces; the client persists each piece so a dropped link resumes.
+  For a phone that keeps a language on disk, `get_snapshot_head`,
+  `get_snapshot_rows` and `get_snapshot_passages` serve the snapshot cut
+  by passage and every passage's line, which it fills in behind the Map
+  (decisions.md 147).
   `put_snapshot` and `list_streams` are service-role only and are what
   `server/snapshotWorker.ts` uses (`npm run snapshot`).
 - Every call carries `CLIENT_PROTOCOL_VERSION`; below

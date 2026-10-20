@@ -265,15 +265,20 @@ export class SqliteStore implements EventStore {
     return this.keptWhere('ref', orgId, streamId, [kind], refs);
   }
 
-  /** In slices, so no statement carries more parameters than SQLite allows. */
+  /**
+   * In slices, each list handed over as one JSON array: four parameters a
+   * statement, whatever the list's length, since a Durable Object's SQLite
+   * takes far fewer bound parameters than a phone's (decisions.md 147).
+   */
   private async keptWhere(column: 'unit_id' | 'id' | 'ref', orgId: string, streamId: string, kinds: readonly KeptKind[], values: readonly string[]): Promise<KeptRecord[]> {
     const out: KeptRecord[] = [];
     if (kinds.length === 0) return out;
     for (let i = 0; i < values.length; i += KEPT_SLICE) {
       const slice = values.slice(i, i + KEPT_SLICE);
       const rows = await this.db.all<KeptRow>(
-        `select kind, id, unit_id, ref, json from kept_rows where org_id = ? and stream_id = ? and kind in (${kinds.map(() => '?').join(',')}) and ${column} in (${slice.map(() => '?').join(',')})`,
-        [orgId, streamId, ...kinds, ...slice]
+        `select kind, id, unit_id, ref, json from kept_rows where org_id = ? and stream_id = ?
+           and kind in (select value from json_each(?)) and ${column} in (select value from json_each(?))`,
+        [orgId, streamId, JSON.stringify(kinds), JSON.stringify(slice)]
       );
       for (const r of rows) out.push(keptRecord(r));
     }
@@ -291,8 +296,8 @@ export class SqliteStore implements EventStore {
   async keptUnits(orgId: string, streamId: string, kinds: readonly KeptKind[], ref?: string): Promise<string[]> {
     if (kinds.length === 0) return [];
     const rows = await this.db.all<{ unit_id: string }>(
-      `select distinct unit_id from kept_rows where org_id = ? and stream_id = ? and kind in (${kinds.map(() => '?').join(',')})${ref === undefined ? '' : ' and ref = ?'}`,
-      [orgId, streamId, ...kinds, ...(ref === undefined ? [] : [ref])]
+      `select distinct unit_id from kept_rows where org_id = ? and stream_id = ? and kind in (select value from json_each(?))${ref === undefined ? '' : ' and ref = ?'}`,
+      [orgId, streamId, JSON.stringify(kinds), ...(ref === undefined ? [] : [ref])]
     );
     return rows.map((r) => r.unit_id);
   }
@@ -347,8 +352,8 @@ export class SqliteStore implements EventStore {
   }
 }
 
-/** Ids per lookup: well under SQLite's parameter limit. */
-const KEPT_SLICE = 400;
+/** Ids per lookup. */
+const KEPT_SLICE = 1_000;
 /** Kept rows written per statement. */
 const KEPT_ROWS_PER_STATEMENT = 1_000;
 

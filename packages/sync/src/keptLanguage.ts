@@ -85,6 +85,14 @@ export class KeptLanguage {
   private readonly ready = new Set<string>();
   /** Passages with any row on disk; read when the language opens, added to by each checkpoint. */
   private readonly onDisk = new Set<string>();
+  /**
+   * Passages whose rows the server has and the fill has not brought yet
+   * (decisions.md 147): what the phone holds of them is part of their
+   * record, so it never works out their lines or shows them as whole.
+   */
+  private readonly unfilled = new Set<string>();
+  /** Of those, the ones a screen or this phone's own work asked for: filled first. */
+  private readonly wanted = new Set<string>();
   private revision = 0;
 
   constructor(
@@ -102,12 +110,47 @@ export class KeptLanguage {
 
   /** Is this passage's whole record in memory, so a screen may read it from the state? */
   isLoaded(unitId: string): boolean {
+    return this.ready.has(unitId) && !this.unfilled.has(unitId);
+  }
+
+  /** Does memory hold everything the disk holds of this passage (it was brought in), whether or not all its rows are here yet? */
+  isHeld(unitId: string): boolean {
     return this.ready.has(unitId);
   }
 
-  /** Is everything this passage's record holds in memory: brought in, or never written to disk? Its line can then be read off memory. */
+  /** Is everything this passage's record holds in memory: brought in, or never written to disk, and none of it still on the server? Its line can then be read off memory. */
   isWhole(unitId: string): boolean {
-    return this.ready.has(unitId) || !this.onDisk.has(unitId);
+    return !this.unfilled.has(unitId) && (this.ready.has(unitId) || !this.onDisk.has(unitId));
+  }
+
+  /** Are all this passage's rows on this phone: filled in, or never waiting on the server (decisions.md 147)? */
+  isFilled(unitId: string): boolean {
+    return !this.unfilled.has(unitId);
+  }
+
+  /** The passages still to fill in, read from the fill's record when the language opens. */
+  setUnfilled(unitIds: Iterable<string>): void {
+    this.unfilled.clear();
+    this.wanted.clear();
+    for (const u of unitIds) this.unfilled.add(u);
+  }
+
+  unfilledCount(): number {
+    return this.unfilled.size;
+  }
+
+  /** These passages' rows are all here now. */
+  filled(unitIds: Iterable<string>): void {
+    for (const u of unitIds) { this.unfilled.delete(u); this.wanted.delete(u); }
+  }
+
+  /** Fill these first, of those not filled in. */
+  want(unitIds: Iterable<string>): void {
+    for (const u of unitIds) if (this.unfilled.has(u)) this.wanted.add(u);
+  }
+
+  wantedUnits(): string[] {
+    return [...this.wanted];
   }
 
   /** Bumped whenever the rows on disk change (a checkpoint, a fresh snapshot), so lookups cached from them start again. */
@@ -200,6 +243,8 @@ export class KeptLanguage {
    * checkpoint. True when a passage became ready.
    */
   async load(state: LanguageState, unitIds: readonly string[]): Promise<boolean> {
+    // A passage a screen opens before its rows arrive is filled next (decisions.md 147).
+    this.want(unitIds);
     const fresh = unitIds.filter((u) => !this.open.includes(u));
     this.open = [...this.open.filter((u) => !unitIds.includes(u)), ...unitIds].slice(-this.limit);
     for (const u of [...this.ready]) if (!this.open.includes(u)) this.ready.delete(u);

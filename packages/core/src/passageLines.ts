@@ -18,6 +18,17 @@ import type { LanguageState } from './state';
  * the passages an event touches.
  */
 
+/**
+ * What a line says, as a version beside `REDUCER_VERSION` (decisions.md
+ * 147). The server works out every passage's line in its pass and a phone
+ * part-way through filling a language in shows the server's line for a
+ * passage whose rows have not arrived, so the two must be the same code's
+ * answer: a phone takes server lines of its own `LINES_VERSION` only.
+ * Bump it when `passage.ts` or this file changes what a line says;
+ * `linesVersion.test.ts` holds it to a hash of both files' text.
+ */
+export const LINES_VERSION = 1;
+
 /** What a passage's place in a list reads: a part of `PassageState`, so a derived passage can stand in for its line. */
 export interface PassageGlance {
   unitId: string;

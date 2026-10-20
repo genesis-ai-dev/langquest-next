@@ -77,6 +77,12 @@ export function shapeTransport(inner: Transport, o: ShapeOptions): Transport {
     snapshotMeta: (orgId, streamId, version) => call(REQUEST_BYTES, () => inner.snapshotMeta(orgId, streamId, version), jsonBytes),
     snapshotChunk: (orgId, streamId, version, seq, index) =>
       call(REQUEST_BYTES, () => inner.snapshotChunk(orgId, streamId, version, seq, index), (text) => text?.length ?? 4),
+    ...(inner.snapshotHead ? { snapshotHead: (orgId: string, streamId: string, version: number, linesVersion: number, withShared?: boolean) =>
+      call(REQUEST_BYTES, () => inner.snapshotHead!(orgId, streamId, version, linesVersion, withShared), jsonBytes) } : {}),
+    ...(inner.snapshotRows ? { snapshotRows: (...a: Parameters<NonNullable<Transport['snapshotRows']>>) =>
+      call(REQUEST_BYTES + jsonBytes(a[4]), () => inner.snapshotRows!(...a), jsonBytes) } : {}),
+    ...(inner.snapshotPassages ? { snapshotPassages: (...a: Parameters<NonNullable<Transport['snapshotPassages']>>) =>
+      call(REQUEST_BYTES + jsonBytes(a[3]), () => inner.snapshotPassages!(...a), jsonBytes) } : {}),
     ...(inner.watch ? { watch: inner.watch.bind(inner) } : {})
   };
 }

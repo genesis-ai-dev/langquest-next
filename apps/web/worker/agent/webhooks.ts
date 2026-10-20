@@ -1,5 +1,6 @@
 import { buildIndexes, derivePassage, passageWork, approvedVersion, type LanguageState } from '@langquest-next/core';
 import type { ApiStatus } from './view';
+import { inSlices, type LanguageRecords } from '../languageRecords';
 
 /**
  * Webhooks and the change feed (docs/agent-api.md, decisions.md 101). A
@@ -134,9 +135,25 @@ function pathKey(state: LanguageState, unitId: string): string {
 
 /** Every passage the list shows, by unit id. */
 export function digestOf(state: LanguageState): Digest {
+  return digestOfPassages(state, buildIndexes(state).passages);
+}
+
+/**
+ * The same, read a slice of passages at a time from the object's records of
+ * the language (decisions.md 147), so a Bible-size language is never whole
+ * in memory while its changes are looked for.
+ */
+export async function digestOfRecords(records: LanguageRecords): Promise<Digest> {
+  const out: Digest = {};
+  for await (const { unitIds, state } of inSlices(records)) Object.assign(out, digestOfPassages(state, unitIds));
+  return out;
+}
+
+/** These passages' marks, from a state that holds their records. */
+function digestOfPassages(state: LanguageState, unitIds: readonly string[]): Digest {
   const idx = buildIndexes(state);
   const out: Digest = {};
-  for (const unitId of idx.passages) {
+  for (const unitId of unitIds) {
     const u = state.units[unitId]!;
     const s = derivePassage(state, unitId, idx);
     const work = passageWork(s);

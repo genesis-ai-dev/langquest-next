@@ -1,8 +1,9 @@
-import { ORG_STREAM, PERSON_ORG, REDUCER_VERSION, emptyLanguageState, foldLanguage, resume, type AnyEvent, type Snapshot } from '@langquest-next/core';
+import { LINES_VERSION, ORG_STREAM, PERSON_ORG, REDUCER_VERSION, emptyLanguageState, foldLanguage, resume, type AnyEvent, type LanguageState, type Snapshot } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseTransport } from './supabaseTransport';
 import { fetchSnapshot } from './snapshotFetch';
 import { listStreams } from './listStreams';
+import { cutRows, languageLinesOf, NO_UNIT, SHARED, sharedPart } from './serverCut';
 
 interface SnapshotResult {
   orgId: string;
@@ -95,6 +96,8 @@ async function snapshotOne(
   const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
   const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
   if (tail.length === 0) {
+    // Nothing new, but a snapshot from before the cut, or lines of another LINES_VERSION, get theirs (decisions.md 147).
+    if (existing) await completeCut(service, existing);
     if (existing && observe) await observe(existing);
     return { orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false, written: false };
   }
@@ -131,6 +134,8 @@ async function snapshotOne(
   }
   const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
   if (written) {
+    // The rows a phone fills its passages from, moved in with the snapshot (decisions.md 147).
+    await stageCut(service, snapshot);
     const put = await service.rpc('put_snapshot', {
       p_org_id: orgId,
       p_stream_id: streamId,
@@ -140,8 +145,72 @@ async function snapshotOne(
     });
     if (put.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put.error.message}`);
   }
+  // Every passage's line, each time the language is folded, not only with a snapshot.
+  await putLines(service, snapshot.orgId, snapshot.streamId, snapshot.serverSeq, snapshot.state);
   if (observe) await observe(snapshot);
   return { orgId, streamId, serverSeq: snapshot.serverSeq, updated: true, written };
+}
+
+/** Rows sent per call when the pass stages a snapshot's cut: about half a megabyte at Koro's 250 bytes a row. */
+export const STAGE_ROWS = 2_000;
+
+/**
+ * Cut the fold by passage (core `partEntries`, the phone's `entryRows`) and
+ * send the rows, a batch at a time, to wait for `put_snapshot`, which moves
+ * them in with the snapshot. The shared part goes last, once the rows have
+ * taken what has a passage.
+ */
+async function stageCut(service: SupabaseClient, snapshot: Snapshot): Promise<void> {
+  const { orgId, streamId, serverSeq, state } = snapshot;
+  const shared = sharedPart(state);
+  let batch: unknown[] = [];
+  const send = async () => {
+    if (batch.length === 0) return;
+    const r = await service.rpc('stage_snapshot_units', {
+      p_org_id: orgId, p_stream_id: streamId, p_reducer_version: REDUCER_VERSION, p_server_seq: serverSeq, p_rows: batch
+    });
+    if (r.error) throw new Error(`stage_snapshot_units ${orgId}/${streamId}: ${r.error.message}`);
+    batch = [];
+  };
+  for (const row of cutRows(state, shared)) {
+    batch.push([row.kind, row.id, row.unitId, row.ref, JSON.parse(row.json)]);
+    if (batch.length >= STAGE_ROWS) await send();
+  }
+  batch.push([SHARED, '', NO_UNIT, '', shared]);
+  await send();
+}
+
+/** Write every passage's line of this LINES_VERSION, held at `seq`; the database rewrites only those that changed. */
+async function putLines(service: SupabaseClient, orgId: string, streamId: string, seq: number, state: LanguageState): Promise<void> {
+  const r = await service.rpc('put_passage_lines', {
+    p_org_id: orgId, p_stream_id: streamId, p_lines_version: LINES_VERSION, p_server_seq: seq, p_lines: languageLinesOf(state)
+  });
+  if (r.error) throw new Error(`put_passage_lines ${orgId}/${streamId}: ${r.error.message}`);
+}
+
+/**
+ * A language with nothing new: give its newest snapshot a cut if it was
+ * written before the server cut snapshots, and write its lines if the
+ * pass has none of this LINES_VERSION at its seq (after a deploy that
+ * changed what a line says).
+ */
+async function completeCut(service: SupabaseClient, snapshot: Snapshot): Promise<void> {
+  const { orgId, streamId, serverSeq } = snapshot;
+  const cut = await service.from('snapshot_units').select('server_seq')
+    .eq('org_id', orgId).eq('stream_id', streamId).eq('reducer_version', REDUCER_VERSION).eq('kind', SHARED).eq('server_seq', serverSeq).limit(1);
+  if (cut.error) throw new Error(`snapshot_units ${orgId}/${streamId}: ${cut.error.message}`);
+  if ((cut.data ?? []).length === 0) {
+    await stageCut(service, snapshot);
+    const put = await service.rpc('put_snapshot', {
+      p_org_id: orgId, p_stream_id: streamId, p_reducer_version: REDUCER_VERSION, p_server_seq: serverSeq, p_state: snapshot.state
+    });
+    if (put.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put.error.message}`);
+  }
+  const lines = await service.from('passage_lines').select('server_seq')
+    .eq('org_id', orgId).eq('stream_id', streamId).eq('lines_version', LINES_VERSION).eq('unit_id', NO_UNIT).limit(1);
+  if (lines.error) throw new Error(`passage_lines ${orgId}/${streamId}: ${lines.error.message}`);
+  const at = (lines.data?.[0] as { server_seq?: number } | undefined)?.server_seq;
+  if (at === undefined || Number(at) < serverSeq) await putLines(service, orgId, streamId, serverSeq, snapshot.state);
 }
 
 async function pullAll(transport: SupabaseTransport, orgId: string, streamId: string, after: number, pageSize: number): Promise<AnyEvent[]> {

@@ -3,11 +3,13 @@ import {
   emptyLanguageState,
   eventSizeError,
   foldLanguage,
+  LINES_VERSION,
   REDUCER_VERSION,
   type AnyEvent,
   type EventPayloads,
   type EventType,
   type LanguageState,
+  type PassageLine,
   type PassageLines,
   type Snapshot,
   HlcClock,
@@ -19,7 +21,8 @@ import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
 import type { DIAG_SCHEMA, Diagnostics } from './diagnostics';
 import { holdsKept, KeptLanguage, LINE, PART_KINDS, SnapshotRows, SPLIT_MAPS } from './keptLanguage';
-import { KeptLines } from './keptLines';
+import { KeptLines, lineRow } from './keptLines';
+import { CutGoneError, KeptFill } from './keptFill';
 import { stateSplitter } from './stateSplit';
 import type { KeptRecord } from './types';
 
@@ -79,6 +82,8 @@ interface PublishedState<S = LanguageState> {
   saving: number;
   /** Each passage's line, for a language kept on disk (`passageLines`). */
   lines?: PassageLines;
+  /** Passages filled in of those the server has rows for, while a fill runs (decisions.md 147). */
+  fill?: { filled: number; total: number } | null;
 }
 
 /** What one `sync()` attempt did, and why it did nothing when it did nothing. */
@@ -94,6 +99,12 @@ export interface SyncResult {
   refused: string | null;
   /** The run stopped at a push or pull budget with work left; run again soon. */
   more: boolean;
+  /**
+   * Passages' rows are still to fill in from the server (decisions.md 147):
+   * the language is up to date and every line exact, and the next sync
+   * fills in more. Run again soon while online.
+   */
+  filling: boolean;
 }
 
 export interface SyncClientOptions<S = LanguageState> {
@@ -160,6 +171,20 @@ export interface SyncClientOptions<S = LanguageState> {
    * every passage after an update, with no migration (decisions.md 143).
    */
   build?: string;
+  /**
+   * The passages to fill in first after those a screen or this phone's own
+   * work asked for: the person's offline scope (decision 61). Read at each
+   * fill step.
+   */
+  fillFirst?: () => Iterable<string>;
+  /** Wall time one `sync()` may spend filling in passages' rows once the language is up to date. */
+  fillBudgetMs?: number;
+  /** A first download fills a language of at most this many rows in at once (`FILL_AT_ONCE_ROWS`); a test sets 0 to watch a fill run. */
+  fillAtOnceRows?: number;
+  /** Rows a fill asks for at once (`ROWS_PER_PAGE`); a test makes it small. */
+  fillPageRows?: number;
+  /** The kept checkpoint format this build writes; a test sets an older one to play a build from before. */
+  keptFormat?: number;
 }
 
 /**
@@ -173,11 +198,19 @@ export interface SyncClientOptions<S = LanguageState> {
  * leaves out changes (the server's cut, option F, does); server snapshots keep
  * the plain reducer version.
  */
-export const KEPT_CHECKPOINT_FORMAT = 1;
+export const KEPT_CHECKPOINT_FORMAT = 2;
+
+/**
+ * Kept formats this build reads. 1 (decision 143): every passage's rows are
+ * on disk. 2 (decision 147): some passages' rows may still be on the server,
+ * and the fill's record (`fill:<org>/<stream>`) says which; a build that
+ * reads only format 1 would take such a checkpoint for the whole language.
+ */
+const KEPT_FORMATS_READ: readonly number[] = [1, 2];
 
 /** The version a kept language's local checkpoint carries, for this reducer. */
-export function keptCheckpointVersion(reducerVersion: number): number {
-  return reducerVersion * 100 + KEPT_CHECKPOINT_FORMAT;
+export function keptCheckpointVersion(reducerVersion: number, format = KEPT_CHECKPOINT_FORMAT): number {
+  return reducerVersion * 100 + format;
 }
 
 /** Per store and stream, the sync, push, pull or refold running now; the next waits for it (`SyncClient.exclusive`). */
@@ -193,6 +226,13 @@ const NO_SNAPSHOT_RECHECK_MS = 5 * 60 * 1000;
  * pieces; few enough that a dropped link wastes little.
  */
 const SNAPSHOT_PIECES_IN_FLIGHT = 3;
+/**
+ * A first download from the server's cut fills a language with at most this
+ * many rows in at once, right after its Map opens (two requests): most
+ * languages are this small, and are then whole on the device as soon as the
+ * first sync ends, as before the cut (decisions.md 147).
+ */
+const FILL_AT_ONCE_ROWS = 2_000;
 /** Kept records written per commit while a snapshot is read: bounded memory, few transactions. */
 const KEPT_ROWS_PER_COMMIT = 2_000;
 /** How long after a change the passages' lines are worked out: once for a burst of events (a pull's pages), not per page. */
@@ -259,6 +299,9 @@ export class SyncClient<S = LanguageState> {
   private nextSync: Promise<SyncResult> | null = null;
   /** What this client's local checkpoint is tagged with: the reducer version, or a kept language's format (`keptCheckpointVersion`). */
   private readonly checkpointVersion: number;
+  /** Filling in passages' rows from the server's cut (decisions.md 147), for a language kept on disk. */
+  private readonly fill: KeptFill | null;
+  private readonly fillBudgetMs: number;
 
   constructor(private readonly opts: SyncClientOptions<S>) {
     this.m = opts.materializer ?? (LANGUAGE_MATERIALIZER as unknown as Materializer<S>);
@@ -275,10 +318,14 @@ export class SyncClient<S = LanguageState> {
     this.pullBudgetMs = opts.pullBudgetMs ?? 2_000;
     this.checkpointEvery = opts.checkpointEvery ?? 2000;
     this.kept = opts.keepOnDisk ? new KeptLanguage(opts.store, opts.orgId, opts.streamId) : null;
-    this.checkpointVersion = this.kept ? keptCheckpointVersion(this.m.version) : this.m.version;
+    this.checkpointVersion = this.kept ? keptCheckpointVersion(this.m.version, opts.keptFormat) : this.m.version;
     this.lines = this.kept
       ? new KeptLines(opts.store, opts.orgId, opts.streamId, this.kept, (b) => this.commit(b), () => this.state as unknown as LanguageState, opts.build ?? '')
       : null;
+    this.fill = this.kept && this.lines && (opts.keptFormat ?? KEPT_CHECKPOINT_FORMAT) >= 2
+      ? new KeptFill(opts.store, opts.transport, opts.orgId, opts.streamId, this.m.version, this.kept, this.lines, (b) => this.commit(b), () => this.state as unknown as LanguageState, opts.fillPageRows)
+      : null;
+    this.fillBudgetMs = opts.fillBudgetMs ?? 2_000;
   }
 
   /**
@@ -316,7 +363,7 @@ export class SyncClient<S = LanguageState> {
       if (this.kept && this.lines && !snapshot) {
         // Rows kept on disk belong to a checkpoint; with none here (a first download cut short, a
         // checkpoint dropped or from another reducer) they are not to be trusted.
-        await this.commit({ kept: { ...this.stream(), clear: true }, meta: { [this.lines.owedKey()]: '' } });
+        await this.commit({ kept: { ...this.stream(), clear: true }, meta: { [this.lines.owedKey()]: '', ...(this.fill?.clear() ?? {}) } });
       }
       if (this.kept && this.lines && snapshot && holdsKept(snapshot.state)) {
         // A checkpoint from before the language kept records on disk: move them there once, with a checkpoint without them.
@@ -328,8 +375,13 @@ export class SyncClient<S = LanguageState> {
         if (split.placed.length > 0) {
           snapshot.state = split.lite;
           this.lines.invalidate();
-          await this.commit({ meta: { ...this.snapshotMeta(snapshot).meta, ...this.lines.owed() }, kept: { ...this.stream(), clear: true, upsert: split.rows } });
+          await this.commit({ meta: { ...this.snapshotMeta(snapshot).meta, ...this.lines.owed(), ...(this.fill?.clear() ?? {}) }, kept: { ...this.stream(), clear: true, upsert: split.rows } });
         }
+      }
+      if (this.fill && snapshot && snapshot.reducerVersion !== this.checkpointVersion) {
+        // A checkpoint a build without the fill wrote (a whole one, or a kept one of format 1) has every passage's rows:
+        // what a fill of before says is still to come belongs to a checkpoint that build dropped (decisions.md 147).
+        await this.commit({ meta: this.fill.clear() });
       }
       return this.foldLocal(snapshot, events, { started, readMs, staleSeq, reason });
     });
@@ -346,6 +398,7 @@ export class SyncClient<S = LanguageState> {
       const lang = this.state as unknown as LanguageState;
       await this.kept.hydrate(lang);
       await this.lines.open();
+      await this.fill?.open();
       // The lines of what was folded again (and of what was refused, now out of the fold) are owed,
       // and worked out before anything is shown, so no list reads the language ahead of its lines.
       this.lines.touched(lang, events);
@@ -431,7 +484,10 @@ export class SyncClient<S = LanguageState> {
   }
 
   private publish(): void {
-    const snap = { state: this.state, revision: this.revision, saving: this.writer.size, ...(this.lines ? { lines: this.lines.view() } : {}) };
+    const snap = {
+      state: this.state, revision: this.revision, saving: this.writer.size,
+      ...(this.lines ? { lines: this.lines.view() } : {}), ...(this.fill ? { fill: this.fill.progress() } : {})
+    };
     for (const l of this.listeners) l(snap);
   }
 
@@ -512,7 +568,10 @@ export class SyncClient<S = LanguageState> {
    * build rolled back to), which `refold` moves onto disk the first time it opens.
    */
   private readable(version: number): boolean {
-    return version === this.checkpointVersion || (!!this.kept && version === this.m.version);
+    if (version === this.checkpointVersion) return true;
+    if (!this.kept) return false;
+    // A whole checkpoint of this reducer, or a kept one of a format this build reads (a format-1 one is filled).
+    return version === this.m.version || KEPT_FORMATS_READ.some((f) => f <= (this.opts.keptFormat ?? KEPT_CHECKPOINT_FORMAT) && version === keptCheckpointVersion(this.m.version, f));
   }
 
   /** The local checkpoint's seq, or null when there is none for this reducer. */
@@ -563,7 +622,7 @@ export class SyncClient<S = LanguageState> {
    */
   private async dropStaleCheckpoint(): Promise<void> {
     await this.commit({
-      meta: { [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.redactionKey()]: '', ...(this.lines ? { [this.lines.owedKey()]: '' } : {}) },
+      meta: { [this.snapshotKey()]: '', [this.snapshotSeqKey()]: '', [this.redactionKey()]: '', ...(this.lines ? { [this.lines.owedKey()]: '' } : {}), ...(this.fill?.clear() ?? {}) },
       cursor: { orgId: this.opts.orgId, streamId: this.opts.streamId, seq: 0 },
       ...(this.kept ? { kept: { ...this.stream(), clear: true } } : {})
     });
@@ -626,6 +685,9 @@ export class SyncClient<S = LanguageState> {
   private async fetchServerSnapshot(why: SnapshotWhy): Promise<number> {
     const started = this.elapsed();
     const minSeq = Number((await this.opts.store.meta(this.minSnapshotKey())) ?? 0);
+    // The server's cut first: the shared part and the lines, then the passages filled in behind (decisions.md 147).
+    const cut = await this.adoptServerCut(why, minSeq, started);
+    if (cut !== null) return cut;
     const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.streamId, this.m.version);
     if (!meta) {
       // A cold device with no snapshot for its reducer folds the whole log: the first thing to check when a first download is slow.
@@ -698,7 +760,7 @@ export class SyncClient<S = LanguageState> {
       const into = first ? this.opts.streamId : this.incomingStream();
       snap.state = await this.readKept(meta.serverSeq, meta.chunks, into);
       // Every passage's line, worked out before the language opens, so no list shows it half known.
-      owed = await this.lines.build(snap.state, into);
+      owed = { ...await this.lines.build(snap.state, into), ...(this.fill?.clear() ?? {}) };
       if (!first) kept = { ...this.stream(), replaceFrom: this.incomingStream() };
     }
     await this.clearChunks(index);
@@ -718,6 +780,113 @@ export class SyncClient<S = LanguageState> {
       await this.refold('snapshot');
     }
     return snap.serverSeq;
+  }
+
+  /**
+   * A first download from the server's cut (decisions.md 147): what the
+   * whole language shares and every passage's line, from the newest
+   * snapshot, kept as the checkpoint in one write that replaces whatever
+   * the phone kept of the language before; then the Map opens, and the
+   * passages' rows are filled in behind. Null when the server has no cut
+   * of the newest snapshot, or no lines of this LINES_VERSION that hold at
+   * or past it: the whole snapshot is then read in pieces as before.
+   *
+   * The cursor goes back to the snapshot, even below a checkpoint the
+   * phone had (a redaction's new snapshot): the events past it are pulled
+   * again, since the rows that held them are gone.
+   */
+  private async adoptServerCut(why: SnapshotWhy, minSeq: number, started: number): Promise<number | null> {
+    const t = this.opts.transport;
+    if (!this.kept || !this.lines || !this.fill?.possible || !t.snapshotHead) return null;
+    let head: Awaited<ReturnType<NonNullable<Transport['snapshotHead']>>>;
+    try {
+      head = await t.snapshotHead(this.opts.orgId, this.opts.streamId, this.m.version, LINES_VERSION, true);
+    } catch (err) {
+      // Offline, refused or too old: as for any call. A failure of the cut alone leaves the whole snapshot to download.
+      if (err instanceof OfflineError || err instanceof NotAuthorizedError || err instanceof ClientTooOldError) throw err;
+      head = null;
+    }
+    this.net.pull += this.elapsed() - started;
+    if (!head || head.shared === undefined || !head.lines || head.lines.seq < head.serverSeq) return null;
+    const lines = head.lines;
+    const bytes = JSON.stringify(head).length;
+    if (head.serverSeq < minSeq) {
+      this.recordSnapshot({ ms: this.elapsed() - started, seq: head.serverSeq }, 'stale', why);
+      return 0;
+    }
+    this.recordSnapshot({ ms: this.elapsed() - started, chunks: 0, resumedChunks: 0, bytes, seq: head.serverSeq }, 'ok', why);
+    this.reducerDropped = false;
+    const shared = head.shared as LanguageState;
+    shared.appliedEventIds ??= {};
+    const serverLines = lines.lines as PassageLine[];
+    const snap: Snapshot = { orgId: this.opts.orgId, streamId: this.opts.streamId, reducerVersion: this.m.version, serverSeq: head.serverSeq, state: shared };
+    const { orgId, streamId } = this.opts;
+    // Pieces of a whole-snapshot download cut short are no use now.
+    await this.dropChunks();
+    await this.commit({
+      meta: { ...this.snapshotMeta(snap).meta, ...this.lines.adopt(serverLines, shared), ...this.fill.begin({ ...head, lines }) },
+      cursor: { orgId, streamId, seq: head.serverSeq },
+      prune: { orgId, streamId, uptoSeq: head.serverSeq },
+      kept: { ...this.stream(), clear: true, upsert: serverLines.map(lineRow) }
+    });
+    // The Map opens on the shared part and the lines.
+    await this.refold('snapshot');
+    // Passages the phone's own events touch (its unsent work, events pulled before) are filled in while the link is up;
+    // a small language is filled in whole.
+    try {
+      const filled = this.fill.rowsLeft() <= (this.opts.fillAtOnceRows ?? FILL_AT_ONCE_ROWS) ? await this.fill.step(Infinity) : await this.fill.fillWanted();
+      if (filled.length > 0) await this.afterFill();
+    } catch (err) {
+      // Offline, or the cut went away this instant: the fill goes on (or starts over) at the next step.
+      if (!(err instanceof OfflineError) && !(err instanceof CutGoneError)) throw err;
+    }
+    return head.serverSeq;
+  }
+
+  /** Run a fill step; if the cut it fills from is gone, start the language over (`cutGone`) and say nothing was filled. */
+  private async fillOrStartOver(step: () => Promise<string[]>): Promise<string[]> {
+    try {
+      return await step();
+    } catch (err) {
+      if (!(err instanceof CutGoneError)) throw err;
+      await this.cutGone();
+      return [];
+    }
+  }
+
+  /**
+   * The server no longer has a cut this checkpoint can be filled from (a
+   * server rolled back to before the cut): drop the checkpoint and the rows,
+   * as for another reducer's, so the next pull downloads the language again
+   * from whatever the server has. Unsent work stays in the log.
+   */
+  private async cutGone(): Promise<void> {
+    this.startedOver += 1;
+    await this.dropStaleCheckpoint();
+    await this.refold('other');
+  }
+
+  private startedOver = 0;
+
+  /** How many times this client dropped its language to download it again because the cut it was filling from went away. */
+  get restarts(): number {
+    return this.startedOver;
+  }
+
+  /** Lines of passages just filled in are worked out, and screens told. */
+  private async afterFill(): Promise<void> {
+    this.revision += 1;
+    await this.lines?.refresh().catch(() => { /* owed still; the next change tries again */ });
+    this.publish();
+  }
+
+  /** Forget pieces kept from a whole-snapshot download. */
+  private async dropChunks(): Promise<void> {
+    try {
+      const parsed = JSON.parse((await this.opts.store.meta(this.chunkKey())) || '{}') as { seq?: number; chunks?: number };
+      if (typeof parsed.seq === 'number' && typeof parsed.chunks === 'number') await this.clearChunks({ seq: parsed.seq, chunks: parsed.chunks });
+    } catch { /* nothing to clear */ }
+    await this.opts.store.commit({ meta: { [this.chunkKey()]: '' } });
   }
 
   /** Where a fresh snapshot's kept records are written until its checkpoint switches to them. */
@@ -855,6 +1024,37 @@ export class SyncClient<S = LanguageState> {
       this.revision += 1;
       this.publish();
     }
+    // A passage whose rows are still on the server is filled in now, if the server can be reached (decisions.md 147).
+    if (this.fill?.active() && this.kept.wantedUnits().length > 0) {
+      await this.exclusive(async () => {
+        if ((await this.fillOrStartOver(() => this.fill!.fillWanted())).length > 0) await this.afterFill();
+      }).catch(() => { /* offline: the screen says the passage is not on this device yet */ });
+    }
+  }
+
+  /**
+   * Fill these passages in now, if their rows are still on the server, without
+   * holding them in memory: for a reader that then reads them from disk
+   * (`withPassages`), such as the organization's Durable Object answering
+   * for a few passages (decisions.md 147). Throws `OfflineError` when the
+   * server cannot be reached.
+   */
+  fillUnits(unitIds: readonly string[]): Promise<void> {
+    if (!this.fill?.active() || !this.kept || unitIds.every((u) => this.kept!.isFilled(u))) return Promise.resolve();
+    return this.exclusive(async () => {
+      this.kept!.want(unitIds);
+      if ((await this.fillOrStartOver(() => this.fill!.fillWanted())).length > 0) await this.afterFill();
+    });
+  }
+
+  /** Are all this passage's rows on this device (decisions.md 147)? Always, for a language held in memory or filled in. */
+  isFilled(unitId: string): boolean {
+    return !this.kept || this.kept.isFilled(unitId);
+  }
+
+  /** Passages filled in of those the server has rows for, while a fill runs; null otherwise. */
+  fillProgress(): { filled: number; total: number } | null {
+    return this.fill?.progress() ?? null;
   }
 
   /** What this language keeps on disk, for the file planner; null when it keeps everything in memory. */
@@ -1187,6 +1387,18 @@ export class SyncClient<S = LanguageState> {
       );
       this.net.pull += this.elapsed() - asked;
       this.net.pages += 1;
+      // Passages this page has news of past the server's lines are filled in before it is folded, so no list shows them stale.
+      if (this.fill?.active()) {
+        const asking = this.elapsed();
+        try {
+          await this.fill.beforeFold(page);
+        } catch (err) {
+          if (!(err instanceof CutGoneError)) throw err;
+          await this.cutGone();
+          return { pulled: total, more: true };
+        }
+        this.net.pull += this.elapsed() - asking;
+      }
       const writes: LocalEvent[] = [];
       let folded = 0;
       for (const event of page) {
@@ -1200,8 +1412,12 @@ export class SyncClient<S = LanguageState> {
         if (event.type === 'v1.Redacted') {
           redacted = true;
           // The target is not in the local log: it lives inside the checkpoint,
-          // which cannot be edited. Only a fresh snapshot removes it.
-          if (!(await this.opts.store.get(event.payload.eventId))) {
+          // which cannot be edited. Only a fresh snapshot removes it. So too
+          // when rows the fill brought hold it, or the server's lines of
+          // passages not filled in yet do (decisions.md 147).
+          const target = await this.opts.store.get(event.payload.eventId);
+          const fromServer = this.fill ? Math.max(this.fill.rowsSeq, this.fill.active() ? this.fill.linesSeq : 0) : 0;
+          if (!target || (target.event.serverSeq ?? Infinity) <= fromServer) {
             redactedInsideCheckpoint = true;
             redactionSeq = Math.max(redactionSeq, seq);
           }
@@ -1340,7 +1556,7 @@ export class SyncClient<S = LanguageState> {
   }
 
   private async syncNow(): Promise<SyncResult> {
-    const idle = { pushed: 0, rejected: 0, pulled: 0, tooOld: false, offline: false, refused: null, more: false };
+    const idle = { pushed: 0, rejected: 0, pulled: 0, tooOld: false, offline: false, refused: null, more: false, filling: false };
     const started = this.elapsed();
     this.net = { push: 0, pull: 0, pages: 0 };
     this.refusals = {};
@@ -1350,7 +1566,11 @@ export class SyncClient<S = LanguageState> {
     try {
       const { accepted, rejected, more: morePush } = await this.inPhase('push', () => this.pushNow());
       const { pulled, more: morePull } = await this.inPhase('pull', () => this.pullNow(this.pullBudgetMs));
-      result = { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull };
+      // Up to date: passages a screen or this phone's own work asked for are filled in now (decisions.md 147); the rest by `fillSome`.
+      if (!morePull && this.fill?.active() && this.kept?.wantedUnits().length) {
+        if ((await this.inPhase('snapshot', () => this.fillOrStartOver(() => this.fill!.fillWanted()))).length > 0) await this.afterFill();
+      }
+      result = { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull, filling: !!this.fill?.active() };
     } catch (err) {
       unrenewed = err instanceof UnrenewedError;
       if (err instanceof OfflineError) result = { ...idle, offline: true };
@@ -1370,6 +1590,27 @@ export class SyncClient<S = LanguageState> {
     await this.recordSync(started, result, outcome);
     this.recordOpen(result);
     return result;
+  }
+
+  /**
+   * Fill in passages' rows for a while, once a sync has read the language up
+   * to date (decisions.md 147): what a screen or this phone's own work asked
+   * for, then `fillFirst` (the person's offline scope), then the rest. A
+   * session calls it between syncs while `filling`, so audio transfers,
+   * which wait while a sync pulls, share the link with it.
+   */
+  fillSome(budgetMs: number = this.fillBudgetMs): Promise<{ filled: number; filling: boolean; offline: boolean }> {
+    return this.exclusive(async () => {
+      if (!this.fill?.active() || !this.loaded) return { filled: 0, filling: false, offline: false };
+      try {
+        const filled = await this.inPhase('snapshot', () => this.fillOrStartOver(() => this.fill!.step(budgetMs, this.opts.fillFirst, this.elapsed)));
+        if (filled.length > 0) await this.afterFill();
+        return { filled: filled.length, filling: this.fill.active(), offline: false };
+      } catch (err) {
+        if (err instanceof OfflineError) return { filled: 0, filling: this.fill.active(), offline: true };
+        throw err;
+      }
+    });
   }
 
   /** The first sync since `trackOpen` that read the stream up to date: what opening it cost, once. */

@@ -101,6 +101,13 @@ export interface LanguageHandle {
   loadUnits: (unitIds: readonly string[]) => void;
   /** Is this passage's whole record in memory, so a screen may read it from `state`? */
   isLoaded: (unitId: string) => boolean;
+  /** Are all this passage's rows on this device, rather than still on the server while the language fills in (decisions.md 147)? */
+  isFilled: (unitId: string) => boolean;
+  /**
+   * Passages on this device of those the server has rows for, while a first
+   * download fills them in (decisions.md 147); null once all are here.
+   */
+  fill: { filled: number; total: number } | null;
   /** The language with these passages' records read in from disk, for a screen that lists a few passages beyond those in memory. */
   withPassages: (unitIds: readonly string[]) => Promise<LanguageState | null>;
   /** The passages whose versions tied in this key term. */
@@ -135,7 +142,7 @@ const NO_LINES: PassageLines = languageLines(emptyLanguageState());
 const NOTHING_YET: LanguageStatus = {
   revision: 0, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
   refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0,
-  present: new Set(), keptUnits: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES
+  present: new Set(), keptUnits: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES, fill: null
 };
 
 /**
@@ -319,6 +326,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const loadUnits = useCallback((unitIds: readonly string[]) => { void sessionRef.current?.loadUnits(unitIds); }, []);
   // A language with no stream yet (none opened) is empty and whole.
   const isLoaded = useCallback((unitId: string) => sessionRef.current?.isLoaded(unitId) ?? !openId, [openId]);
+  const isFilled = useCallback((unitId: string) => sessionRef.current?.isFilled(unitId) ?? true, []);
   const withPassages = useCallback(async (unitIds: readonly string[]) => (sessionRef.current ? sessionRef.current.withPassages(unitIds) : null), []);
   const passagesLinkingTerm = useCallback(async (termId: string) => sessionRef.current?.passagesLinkingTerm(termId) ?? [], []);
   const passageOfTake = useCallback(async (takeId: string) => sessionRef.current?.passageOfTake(takeId) ?? null, []);
@@ -341,14 +349,18 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const { online, tooOld, refused, refusedEvents, pulled, live, revision } = status;
 
   const { lines } = status;
+  // A new object only when a count moves, not on every publish.
+  const filled = status.fill?.filled;
+  const total = status.fill?.total;
+  const fill = useMemo(() => (filled === undefined || total === undefined ? null : { filled, total }), [filled, total]);
   // One object until something it shows changes, so `ctx` can be one too.
   return useMemo(
     () => ({
       orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, syncStatus, blobs,
-      lines, loadUnits, isLoaded, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync
+      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync
     }),
     [orgId, languageId, state, online, tooOld, refused, refusedEvents, pulled, live, revision, inspect, syncStatus, blobs,
-      lines, loadUnits, isLoaded, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync]
+      lines, loadUnits, isLoaded, isFilled, fill, withPassages, passagesLinkingTerm, passageOfTake, updatesFor, triggerUpload, append, appendMany, run, sync]
   );
 }
 
@@ -356,7 +368,8 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
 function slowSame(a: LanguageStatus, b: LanguageStatus): boolean {
   return a.revision === b.revision && a.refusedEvents === b.refusedEvents && a.online === b.online && a.tooOld === b.tooOld
     && a.refused === b.refused && a.pulled === b.pulled && a.live === b.live && a.keptUnits === b.keptUnits
-    && a.keptOffline === b.keptOffline && a.offlineSummary === b.offlineSummary && a.scope === b.scope && a.lines === b.lines;
+    && a.keptOffline === b.keptOffline && a.offlineSummary === b.offlineSummary && a.scope === b.scope && a.lines === b.lines
+    && a.fill?.filled === b.fill?.filled && a.fill?.total === b.fill?.total;
 }
 
 /** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */

@@ -35,6 +35,17 @@ describe('SupabaseTransport calls', () => {
     ]);
   });
 
+  it('the server\'s cut: a server without the function answers no head, and rows come back as the phone keeps them', async () => {
+    // Why: an app can reach a server from before the cut (decisions.md 147); it must download the whole snapshot, not fail.
+    expect(await client(() => ({ data: null, error: { message: 'Could not find the function', code: 'PGRST202' } })).transport.snapshotHead('o', 's', 1, 1)).toBeNull();
+    const { transport, calls } = client(() => ({
+      data: { server_seq: 9, rows: [['take', 't1', 'u1', 'a', { unitId: 'u1' }]], next: ['u1', 'take', 't1'] }, error: null
+    }));
+    const page = await transport.snapshotRows('o', 's', 1, 5, ['u1'], { unitId: 'u0', kind: 'file', id: 'h' }, 10);
+    expect(calls[0]!.args).toMatchObject({ p_min_seq: 5, p_unit_ids: ['u1'], p_after: ['u0', 'file', 'h'], p_limit: 10 });
+    expect(page).toEqual({ serverSeq: 9, rows: [{ kind: 'take', id: 't1', unitId: 'u1', ref: 'a', json: '{"unitId":"u1"}' }], next: { unitId: 'u1', kind: 'take', id: 't1' } });
+  });
+
   it('snapshotMeta is null when the server has none, and the numbers when it has one', async () => {
     expect(await client(() => ({ data: [], error: null })).transport.snapshotMeta('o', 's', 1)).toBeNull();
     expect(await client(() => ({ data: null, error: null })).transport.snapshotMeta('o', 's', 1)).toBeNull();

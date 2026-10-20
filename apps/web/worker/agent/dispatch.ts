@@ -1,11 +1,12 @@
-import type { LanguageState, OrgState } from '@langquest-next/core';
+import type { OrgState } from '@langquest-next/core';
+import type { LanguageRecords } from '../languageRecords';
 import { errorClassOf, statusClass, type JobRun } from '../../../../server/jobRuns';
 import { SqlCache, type SqlStore } from '../sqlCache';
 import type { AgentStore, TokenRecord, WebhookRecord } from './store';
 import type { Grant } from './tokens';
 import { languagesFor } from './view';
 import {
-  CHANGES_KEPT_MS, DELIVERIES_KEPT, DELIVERY_TIMEOUT_MS, diffDigests, digestOf, newEventId, RETRY_AT_MS, signature, UNIT_IDS_PER_DELIVERY,
+  CHANGES_KEPT_MS, DELIVERIES_KEPT, DELIVERY_TIMEOUT_MS, diffDigests, digestOfRecords, newEventId, RETRY_AT_MS, signature, UNIT_IDS_PER_DELIVERY,
   type ChangeType, type Digest, type WebhookEvent
 } from './webhooks';
 
@@ -26,7 +27,8 @@ import {
 export interface DispatchDeps {
   store: Pick<AgentStore, 'liveWebhooks' | 'webhooksByIds' | 'disableWebhooks'>;
   orgState(): Promise<OrgState>;
-  languageState(languageId: string): Promise<{ org: OrgState; state: LanguageState } | null>;
+  /** A language's records, caught up now; null when the organization does not list it (decisions.md 147). */
+  languageRecords(languageId: string): Promise<LanguageRecords | null>;
   /** Each stream's newest server seq, or null when it cannot be read; a language that has not moved is not compared again. */
   heads(): Promise<Record<string, number> | null>;
   fetch(url: string, init: RequestInit): Promise<Response>;
@@ -115,9 +117,9 @@ export class WebhookDispatcher {
   private async catchUp(languageId: string, head: number | undefined): Promise<void> {
     const row = this.db.exec('select head from wh_lang where language_id = ?', languageId).toArray()[0];
     if (row && head !== undefined && head <= Number(row['head'])) return;
-    const held = await this.deps.languageState(languageId);
-    if (!held) return;
-    const next = digestOf(held.state);
+    const records = await this.deps.languageRecords(languageId);
+    if (!records) return;
+    const next = await digestOfRecords(records);
     const key = `webhooks:digest:${languageId}`;
     const before = row ? await this.digests.get(key) : null;
     const at = this.deps.now();

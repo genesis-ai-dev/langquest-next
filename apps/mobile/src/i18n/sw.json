@@ -4511,7 +4511,18 @@
       "barHelp": "Vifungu vingapi kati ya ulivyohifadhi viko kikamilifu kwenye kifaa hiki."
     },
     "keepHelp": "Huhifadhi sauti yake kwenye kifaa hiki, ili kifanye kazi bila mtandao.",
-    "stopKeepingHelp": "Huruhusu kifaa hiki kuondoa sauti yake tena kinapohitaji nafasi."
+    "stopKeepingHelp": "Huruhusu kifaa hiki kuondoa sauti yake tena kinapohitaji nafasi.",
+    "fill": {
+      "title": "Inapakua lugha hii",
+      "count": "Vifungu {{filled, number}} kati ya {{total, number}} viko kwenye kifaa hiki.",
+      "barHelp": "Hujaa kadiri vifungu vinavyofika kwenye kifaa hiki."
+    },
+    "notHere": {
+      "title": "Bado haiko kwenye kifaa hiki",
+      "body": "Matoleo yake, mapitio na historia bado vinapakuliwa pamoja na sehemu nyingine ya lugha hii. Unganisha ili kupakua.",
+      "latest": "Ya karibuni: toleo {{n, number}}, la {{name}}.",
+      "requests": "Maombi yaliyo wazi: {{n, number}}."
+    }
   },
   "moderation": {
     "flagLabel": "Ripoti au zuia {{name}}",

@@ -57,6 +57,12 @@ export interface FleetOptions {
   /** Confirmed events between a phone's checkpoints; the app's is 2000. Fewer puts more through them in a short run. */
   /** Each phone's `checkpointEvery` (the app's is 2000), so a short run checkpoints and prunes. */
   checkpointEvery?: number;
+  /**
+   * The pass cuts each snapshot by passage and writes every line each run
+   * (decisions.md 147), so phones that keep the language on disk take a
+   * first download by fill. Off, the server is one from before.
+   */
+  serverCut?: boolean;
 }
 
 /**
@@ -82,6 +88,7 @@ export class Fleet {
   constructor(readonly options: FleetOptions) {
     this.random = seededRandom(options.seed);
     this.server.chunkChars = options.chunkChars ?? 256 * 1024;
+    this.server.serverCut = options.serverCut ?? false;
     this.context = {
       time: this.time,
       server: this.server,
@@ -151,6 +158,9 @@ export class Fleet {
         this.lastSnapshotSeq = head;
         this.lastSnapshotAt = this.time.now();
         this.snapshotsTaken += 1;
+      } else if (this.server.serverCut && head > (this.server.lines.get(`${this.orgId}/${this.streamId}`)?.seq ?? 0)) {
+        // The pass folds every changed language and writes its lines, with or without a snapshot.
+        this.server.writeLines(this.orgId, this.streamId);
       }
       this.snapshotPass(o);
     }, o.everyMs);
@@ -231,11 +241,13 @@ export class Fleet {
         appendCalls: this.server.appendCalls,
         pullCalls: this.server.pullCalls,
         snapshotChunkCalls: this.server.chunkCalls,
-        snapshotsTaken: this.snapshotsTaken
+        snapshotsTaken: this.snapshotsTaken,
+        snapshotRowsCalls: this.server.rowsCalls
       },
       phones: {
         syncs: sum((d) => d.metrics.syncs),
         offlineSyncs: sum((d) => d.metrics.offlineSyncs),
+        fills: sum((d) => d.metrics.fills),
         syncErrors: sum((d) => d.metrics.syncErrors),
         syncCpuMs: stats(flat((d) => d.metrics.syncCpuMs)),
         appendCpuMs: stats(flat((d) => d.metrics.appendCpuMs)),
@@ -295,10 +307,12 @@ export interface FleetReport {
   realSeconds: number;
   heapMb: number;
   events: { appended: number; onServer: number };
-  server: { appendCalls: number; pullCalls: number; snapshotChunkCalls: number; snapshotsTaken: number };
+  server: { appendCalls: number; pullCalls: number; snapshotChunkCalls: number; snapshotsTaken: number; snapshotRowsCalls: number };
   phones: {
     syncs: number;
     offlineSyncs: number;
+    /** Passages filled in from the server's cut. */
+    fills: number;
     syncErrors: number;
     syncCpuMs: Stats;
     appendCpuMs: Stats;
