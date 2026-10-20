@@ -1,4 +1,4 @@
-import { deadRun, entrypointFor, exitCodeOf, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue } from '../worker/jobsModel';
+import { deadRun, entrypointFor, exitCodeOf, HEAP_LIMIT_MB, heartbeat, HEARTBEAT_MS, isJobKey, JOB_TICK, jobEnv, JOBS, jobsDue } from '../worker/jobsModel';
 
 /**
  * The job runner's pure part (decision 141): which jobs a tick starts, what
@@ -32,7 +32,7 @@ describe('job runner', () => {
   });
 
   it('hands the pass the database alone, and names the job so the process records its run', () => {
-    expect(jobEnv('projection', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'projection' } });
+    expect(jobEnv('projection', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'projection', NODE_OPTIONS: '--max-old-space-size=3072' } });
   });
 
   it('runs the import only while it is switched on, refuses it without v2\'s key, and names people only with the read-only login', () => {
@@ -45,7 +45,8 @@ describe('job runner', () => {
     const ok = jobEnv('v2-import', v2);
     expect(ok).toEqual({ env: expect.objectContaining({
       API_URL: 'https://next.langquest.org', V2_SUPABASE_ANON_KEY: 'anon', V2_DATABASE_URL: 'postgres://ro',
-      CI: 'true', V2_IMPORT_BY: 'the scheduled sync', V2_IMPORT_CONCURRENCY: '8', LANGQUEST_JOB: 'v2-import'
+      CI: 'true', V2_IMPORT_BY: 'the scheduled sync', V2_IMPORT_CONCURRENCY: '8', LANGQUEST_JOB: 'v2-import',
+      NODE_OPTIONS: '--max-old-space-size=3072'
     }) });
     expect(jobEnv('v2-import', { ...v2, V2_IMPORT_CONCURRENCY: '64' })).toEqual({ env: expect.objectContaining({ V2_IMPORT_CONCURRENCY: '64' }) });
   });
@@ -65,6 +66,16 @@ describe('job runner', () => {
     const pastLimit = start.startedAt + 45 * 60_000;
     expect(heartbeat('projection', start, true, pastLimit)).toEqual({ do: 'stop', next: pastLimit + 60_000 });
     expect(heartbeat('v2-import', start, true, pastLimit)).toMatchObject({ do: 'renew' });
+  });
+
+  it('gives every job the heap limit itself, since a container\'s environment replaces the image\'s', () => {
+    // Why: production reported a 13,056 MB heap limit in a 4 GiB instance (2026-10-20);
+    // a language too big would have the container killed instead of failing its fold.
+    expect(HEAP_LIMIT_MB).toBe(3072);
+    for (const key of Object.keys(JOBS) as (keyof typeof JOBS)[]) {
+      const got = jobEnv(key, v2);
+      expect('env' in got && got.env.NODE_OPTIONS, key).toBe('--max-old-space-size=3072');
+    }
   });
 
   it('leaves no row for a plain exit, which wrote its own', () => {

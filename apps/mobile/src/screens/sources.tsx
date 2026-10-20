@@ -26,6 +26,12 @@ import { bibleErrorText, type BibleDetail, type BibleLanguage, type BibleSummary
 import { offersFor, offlineAllowed, refText, type SourceOption } from '../sources/model';
 import { SourceView } from '../sources/SourceReader';
 import { bibleBrain, type MyBible } from '../sources/store';
+import { useBibleBrainBibles } from '../sources/useBibleBrainBibles';
+import { useBibleBrainLanguages } from '../sources/useBibleBrainLanguages';
+import { useOfferedLanguageSearch } from '../reference/useOfferedLanguageSearch';
+import { offeredBibleLanguages } from '../reference/biblesModel';
+import { withoutEmpty } from '../reference/offeredLanguagesModel';
+import { LanguoidPicker } from '../org/languoidPicker';
 import { useMyBibles } from '../sources/useMyBibles';
 import { C, space } from '../ui/theme';
 
@@ -57,7 +63,6 @@ export function BibleExplore(ctx: Ctx) {
   const sourceLanguage = teamLanguage(ctx.org.state, languageId === ctx.language.languageId ? state : null, languageId);
   const [lang, setLang] = useState<{ code: string; name: string }>({ code: ctx.params['lang'] ?? sourceLanguage, name: '' });
   const [query, setQuery] = useState('');
-  const [languages, setLanguages] = useState<BibleLanguage[] | null>(null);
   const [bibles, setBibles] = useState<BibleSummary[] | null>(null);
   const [problem, setProblem] = useState('');
   const [picked, setPicked] = useState<Picked | null>(null);
@@ -72,15 +77,13 @@ export function BibleExplore(ctx: Ctx) {
     return () => { live = false; };
   }, [lang.code]);
 
-  // Languages matching what is typed, after a pause.
-  useEffect(() => {
-    if (!bibleBrain || query.trim().length < 2) { setLanguages(null); return; }
-    let live = true;
-    const timer = setTimeout(() => {
-      bibleBrain!.languages(query.trim()).then((l) => { if (live) setLanguages(l); }).catch((e: unknown) => { if (live) { setLanguages([]); setProblem(bibleErrorText(e)); } });
-    }, 350);
-    return () => { live = false; clearTimeout(timer); };
-  }, [query]);
+  // Typing finds another language among only those Bible Brain has Bibles in (useOfferedLanguageSearch).
+  const bibleLanguages = useBibleBrainLanguages(!!bibleBrain && query.trim().length > 0);
+  const offered = useMemo(() => (bibleLanguages ? offeredBibleLanguages(bibleLanguages) : null), [bibleLanguages]);
+  const found = useOfferedLanguageSearch(query, offered, !!bibleBrain);
+  // Each language says how many Bibles open when it is picked, once Bible Brain says (useBibleBrainBibles); one with none goes.
+  const opens = useBibleBrainBibles(found.hits.slice(0, 12).map((h) => h.code));
+  const search = withoutEmpty(found, (code) => opens.get(code)?.length === 0);
 
   // Sources in this organization's library, to choose one nobody recommended.
   const libraryItemsList = useMemo(() => libraryItems(ctx.org.state?.library ?? {}, 'material').filter((i) => i.current && !i.archived), [ctx.org.state]);
@@ -108,17 +111,9 @@ export function BibleExplore(ctx: Ctx) {
       ) : (
         <>
           <SearchField value={query} onChangeText={setQuery} placeholder={t('sources.explore.searchPlaceholder')} help={t('sources.explore.searchHelp')} />
-          {languages ? (
-            <Group>
-              {languages.length === 0 ? <Row label={t('sources.explore.noLanguages')} sub={problem || t('sources.explore.noLanguagesSub')} last /> : null}
-              {languages.slice(0, 30).map((l, i, all) => (
-                <HelpRow key={l.code} of="sources.language">
-                  <Row label={l.autonym && l.autonym !== l.name ? `${l.name} · ${l.autonym}` : l.name} sub={t('sources.explore.languageBibles', { code: l.code, count: l.bibles })}
-                    help={t('sources.explore.languageHelp')} onPress={() => { setLang({ code: l.code, name: l.name }); setQuery(''); }} last={i === all.length - 1} />
-                </HelpRow>
-              ))}
-            </Group>
-          ) : null}
+          <LanguoidPicker search={search} picked={null} onPick={(h) => { if (h) { setLang({ code: h.code, name: h.name }); setQuery(''); } }}
+            detail={(h) => (opens.has(h.code) ? t('referenceLanguage.bibles', { count: opens.get(h.code)!.length }) : null)}
+            unlisted={t('reference.addBible.listed')} noMatch={t('reference.addBible.noMatch')} unreachable={t('reference.addBible.unreachable')} />
           <SectionLabel label={t('sources.explore.biblesIn', { language: lang.name || languageOf(bibles) || lang.code })} />
           {bibles === null ? <Text style={txt.smMuted}>{t('common.loading')}</Text> : bibles.length === 0 ? (
             <Card><Text style={txt.smMuted}>{problem || t('sources.explore.noBibles')}</Text></Card>

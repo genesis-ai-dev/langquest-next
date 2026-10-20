@@ -185,7 +185,8 @@ export function convertWay(
   const src = templateBooks(way);
   const byBook = new Map(src.map((b) => [b.book, b]));
   const goes = way.format === 'template@2' && way.goesWith ? { goesWith: way.goesWith } : {};
-  const base = { format: 'template@2' as const, name: way.name, description: way.description, structure: 'bible' as const, levels: way.levels, ...goes, deps: [] as string[] };
+  const lang = way.language ? { language: way.language } : {};
+  const base = { format: 'template@2' as const, name: way.name, description: way.description, ...lang, structure: 'bible' as const, levels: way.levels, ...goes, deps: [] as string[] };
   if (from.code === to.doc.code) {
     const books = to.books.map((b): TemplateBook => {
       const s = byBook.get(b.book);

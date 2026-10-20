@@ -237,6 +237,8 @@ export function choiceLine(c: LibraryChoice, sourceLine: (it: LibraryItemView) =
 export interface TemplateForm {
   name: string;
   description: string;
+  /** ISO 639-3 language its names are in ("Written in"); empty when not said. */
+  language?: string;
   structure: 'bible' | 'outline';
   levels: { name: string; display?: LevelDisplay }[];
   /** Hash of the versification document (Bible). */
@@ -261,7 +263,7 @@ export interface TemplateForm {
 
 export function formFromDoc(doc: TemplateDoc, name = doc.name, description = doc.description): TemplateForm {
   return {
-    name, description, structure: doc.structure,
+    name, description, ...(doc.language ? { language: doc.language } : {}), structure: doc.structure,
     levels: doc.levels.map((l) => ({ ...l })),
     versification: doc.bible?.versification ?? null,
     books: sortBooks((doc.bible?.books ?? []).map((b) => ({ book: b.book, name: b.name }))),
@@ -276,7 +278,7 @@ export function formFromDoc(doc: TemplateDoc, name = doc.name, description = doc
 
 /** The document for a form; `deps` are filled in when it is published (prepareDoc). */
 export function docFromForm(f: TemplateForm): TemplateDoc {
-  const base = { format: 'template@1' as const, name: f.name.trim(), description: f.description.trim(), structure: f.structure, levels: f.levels, deps: [] };
+  const base = { format: 'template@1' as const, name: f.name.trim(), description: f.description.trim(), ...(f.language ? { language: f.language } : {}), structure: f.structure, levels: f.levels, deps: [] };
   if (f.structure === 'outline') return { ...base, outline: f.outline };
   if (f.bookParts) {
     // Each book keeps how it is broken up; a book added here waits to be broken up.

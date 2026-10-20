@@ -120,6 +120,9 @@ describe('review flows', () => {
       { stepId: 's2', kindIds: ['final'], checkpoint: true }, { stepId: 's1', kindIds: ['peer'] }, { stepId: 'step1', kindIds: ['elder_review', 'peer'] }
     ]);
     expect(doc.kinds.map((k) => k.id)).toEqual(['final', 'peer', 'elder_review']);
+    // The language its words are in, when the editor says (decision 84).
+    expect(doc.language).toBeUndefined();
+    expect(flowDocFrom({ name: 'Elders', description: '', language: 'fra', steps: edited, kinds: [...quick.kinds, elder] }).language).toBe('fra');
     // A language using it gets the new kind and the steps.
     const p = language();
     p.run(selectFlowSpecs(p.state(), { commandId: 'a', itemId: 'elders.x1', docHash: H1, doc }));

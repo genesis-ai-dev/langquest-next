@@ -52,6 +52,13 @@ function bibleBrain(): Upstream {
     const audioRow = (fs: string, book: string, ch: string) => ({ book_id: book, chapter_start: Number(ch), path: signed(`${fs}_${book}_${ch}.mp3`), duration: 342, filesize_in_bytes: 2765464 });
     let m: RegExpExecArray | null;
     if (path === '/languages' && url.searchParams.get('language_code') === 'eng') return ok({ data: [{ iso: 'eng', name: 'English', autonym: 'English', bibles: 40 }] });
+    if (path === '/languages' && !url.searchParams.get('language_code')) {
+      const page = Number(url.searchParams.get('page'));
+      const data = page === 1
+        ? [{ iso: 'eng', name: 'English: British', bibles: 3 }, { iso: 'eng', name: 'English: USA', autonym: 'English', bibles: 50 }, { iso: 'fra', name: 'French', autonym: 'Français', bibles: 13 }]
+        : [{ iso: 'swh', name: 'Kiswahili', bibles: 6 }, { iso: 'xyz', name: 'None yet', bibles: 0 }, { iso: 'e1', name: 'Not a code', bibles: 2 }];
+      return ok({ data, meta: { pagination: { total_pages: 2, per_page: 150 } } });
+    }
     if (path === '/languages/search/eng') return ok({ data: [{ iso: 'eng', name: 'English: USA', bibles: 3 }, { iso: 'enm', name: 'Middle English', bibles: 1 }, { iso: 'xxx', name: 'None', bibles: 0 }] });
     if (path === '/timestamps') return ok([{ fileset_id: 'ENGESVO1DA' }, { fileset_id: 'ENGWEBN2DA' }]);
     if (path === '/bibles' && url.searchParams.get('language_code') === 'eng') {
@@ -187,6 +194,17 @@ describe('the Bible routes', () => {
     expect((await call('/api/bible/text/ENGESVO_ET/GEN/1', 'good', { method: 'POST' })).status).toBe(405);
     expect((await call('/api/bible/bibles?lang=English')).status).toBe(400);
     expect((await call('/api/bible/languages?q=e')).status).toBe(400);
+  });
+
+  it('lists every language with Bibles, one row per ISO code with the name of its most Bibles, most first', async () => {
+    const { call } = setup();
+    const res = await call('/api/bible/languages/all');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ languages: [
+      { code: 'eng', name: 'English: USA', autonym: 'English', bibles: 50 },
+      { code: 'fra', name: 'French', autonym: 'Français', bibles: 13 },
+      { code: 'swh', name: 'Kiswahili', bibles: 6 }
+    ] });
   });
 
   it('finds languages by code or name, one row per ISO code, the exact code first', async () => {

@@ -6073,9 +6073,11 @@
       "bibleBrainHelp": "Cari Alkitab di Bible Brain menurut bahasa.",
       "bibleHelp": "Menampilkan isinya sebelum Anda menambahkannya.",
       "fromLangQuestHelp": "Menampilkan Alkitab yang sudah disiapkan LangQuest untuk diikuti.",
-      "languageHelp": "Menampilkan Alkitab dalam bahasa ini dari Bible Brain. Angkanya menunjukkan jumlahnya.",
       "readyHelp": "Menambahkannya ke perpustakaan Anda dan merekomendasikannya di sini.",
-      "searchHelp": "Ketik nama atau kode bahasa untuk menemukan Alkitabnya."
+      "searchHelp": "Ketik nama atau kode bahasa untuk menemukan Alkitabnya.",
+      "listed": "Hanya bahasa yang punya Alkitab di Bible Brain yang ditampilkan.",
+      "noMatch": "Tidak ada bahasa dengan nama itu yang punya Alkitab di Bible Brain.",
+      "unreachable": "Mencari bahasa butuh koneksi untuk pertama kalinya."
     },
     "source": {
       "title": "Alkitab",
@@ -6495,9 +6497,6 @@
       "notSetUp": "Bible Brain belum diatur di perangkat ini",
       "notSetUpSub": "Perpustakaan organisasi Anda tetap berfungsi. Minta orang yang mengelola LangQuest untuk tim Anda menyambungkan server.",
       "searchPlaceholder": "Cari bahasa",
-      "noLanguages": "Tidak ada bahasa yang ditemukan",
-      "noLanguagesSub": "Coba namanya dalam bahasa Inggris, atau kode tiga hurufnya.",
-      "languageBibles_other": "{{code}} · {{count, number}} Alkitab",
       "biblesIn": "Alkitab dalam {{language}}",
       "noBibles": "Tidak ada Alkitab dalam bahasa ini di Bible Brain.",
       "myBible": "Alkitab Saya",
@@ -6522,7 +6521,6 @@
       "bibleHelp": "Membukanya untuk membaca dan mendengar satu pasal, sebelum Anda menambahkannya.",
       "bookHelp": "Menampilkan satu pasal dari kitab ini.",
       "chapterHelp": "Menampilkan pasal {{n, number}} untuk dibaca dan didengar.",
-      "languageHelp": "Menampilkan Alkitabnya di bawah.",
       "nextChapterHelp": "Menampilkan dan memutar pasal sesudah ini.",
       "previousChapterHelp": "Menampilkan dan memutar pasal sebelum ini.",
       "removeHelp": "Mengeluarkannya dari Alkitab Anda di perangkat ini. Anda bisa menambahkannya lagi di sini.",
@@ -6538,7 +6536,9 @@
     "chip": "Alkitab dan panduan dalam bahasa {{language}}",
     "chipHelp": "Bahasa Alkitab dan panduan studi mereka. Ketuk untuk mengubahnya.",
     "change": "Ubah",
-    "rowHelp": "Menambahkan bahasa ini untuk Alkitab dan panduan tim, atau menghapusnya. Barisnya menyebut isinya."
+    "rowHelp": "Menambahkan bahasa ini untuk Alkitab dan panduan tim, atau menghapusnya. Barisnya menyebut isinya.",
+    "listed": "Hanya bahasa yang punya Alkitab atau panduan belajar yang ditampilkan.",
+    "noMatch": "Belum ada bahasa dengan nama itu yang punya Alkitab atau panduan belajar."
   },
   "checks": {
     "title": "Pemeriksaan",

@@ -8,8 +8,8 @@ import {
 } from '@langquest-next/core';
 import type { SharedItem } from '../src/library/model';
 import { chooseSetLanguage, chosenOnly, guideSets, hideSet, setReach, suggestedMember, type GuideSet } from '../src/reference/guideSets';
-import { languageChoices, memberIn, startingLanguage } from '../src/reference/languageChoices';
-import { docLanguage, languagesLine, readerLanguage, sameLanguage, teamLanguage } from '../src/reference/languages';
+import { biblesFor, languageChoices, memberIn, startingLanguage } from '../src/reference/languageChoices';
+import { docLanguage, languagesLine, readerLanguage, sameCodes, sameLanguage, teamLanguage } from '../src/reference/languages';
 import { helpsSummary, languageLabel } from '../src/admin/adminModel';
 
 const H = (c: string) => c.repeat(64);
@@ -186,10 +186,27 @@ describe('the language a team’s reference material is in', () => {
     const questions = { format: 'material@1', kind: 'questions', title: 'Checks', language: 'amh', deps: [] } as LibraryDoc;
     const choices = languageChoices(sets, [bible, note, questions, null], ['amh', 'eng']);
     expect(choices.map((c) => c.language)).toEqual(['eng', 'fra', 'swh', 'amh']);
-    expect(choices[1]).toEqual({ language: 'fra', sets: [{ name: 'FIA study guides', passages: 12 }], bibles: 0, other: 1 });
-    expect(choices[3]).toEqual({ language: 'amh', sets: [], bibles: 0, other: 0 });
+    expect(choices[1]).toEqual({ language: 'fra', sets: [{ name: 'FIA study guides', passages: 12 }], bibles: 0, bibleIds: [], other: 1 });
+    expect(choices[3]).toEqual({ language: 'amh', sets: [], bibles: 0, bibleIds: [], other: 0 });
     // Swahili is one language whether FIA or Bible Brain wrote it.
     expect(languageChoices(sets, [bible], ['swa']).filter((c) => sameLanguage(c.language, 'swa'))).toHaveLength(1);
+  });
+
+  it('counts every Bible a team could add: the library’s, each once, and Bible Brain’s that the library lacks', () => {
+    const source = (bibleId: string | null, language = 'eng') => ({
+      format: 'source@1', name: bibleId ?? 'BSB read by Frederick Surrey', abbreviation: 'X', language, versification: H('e'),
+      provider: bibleId ? { kind: 'biblebrain', bibleId } : { kind: 'library' }, offline: 'allowed', copyright: {}, books: [], deps: []
+    }) as LibraryDoc;
+    // LangQuest's ESV and the organization's own copy of it are one Bible.
+    const [eng, swa] = languageChoices([], [source('ENGESV'), source('ENGESV'), source('ENGKJV'), source(null), source('SWHSUV', 'swa')], []);
+    expect(eng).toMatchObject({ language: 'eng', bibles: 3, bibleIds: ['ENGESV', 'ENGKJV'] });
+    expect(biblesFor(eng!, new Map())).toBe(3);
+    // Bible Brain's English adds what the library lacks; Swahili written `swa` takes Bible Brain's `swh`.
+    const found = new Map([['eng', ['ENGESV', 'ENGKJV', 'ENGWEB', 'ENGNLT']], ['swh', ['SWHSUV', 'SWHBTK']]]);
+    expect(biblesFor(eng!, found)).toBe(5);
+    expect(biblesFor(swa!, found)).toBe(2);
+    expect(sameCodes('SWA')).toEqual(['swa', 'swh']);
+    expect(sameCodes('eng')).toEqual(['eng']);
   });
 
   it('starts from the reader’s language when there is anything in it, else English', () => {

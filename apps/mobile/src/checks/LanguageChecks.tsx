@@ -20,6 +20,7 @@ import { C, space, TINT } from '../ui/theme';
 import { ChoiceCard, DashedRow, LockToggle } from '../admin/admin';
 import { checkName, checksLine, dropIndex } from '../admin/adminModel';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
+import { teamLanguages } from '../reference/languages';
 import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, type CheckRow } from './model';
 import { setChecksDraft } from './draft';
 import { useChecksDraft } from './useChecksDraft';
@@ -240,7 +241,7 @@ function AddCheckSheet(props: {
 
 /** Start from a ready-made flow: its checks replace the language's. */
 function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; language: string; onClose: () => void; onUse: (e: FlowEntry, kinds: KindDef[]) => void }) {
-  const chk = useCheckChoices(props.ctx, null, props.kinds);
+  const chk = useCheckChoices(props.ctx, null, props.kinds, teamLanguages(props.ctx.org.state, props.ctx.language.state, props.ctx.language.languageId));
   const [picked, setPicked] = useState<string | null>(null);
   const on = chk.entries.find((e) => e.c.key === picked) ?? null;
   return (

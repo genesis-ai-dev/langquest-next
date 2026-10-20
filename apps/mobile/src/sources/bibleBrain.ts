@@ -31,7 +31,13 @@ export interface BibleDetail extends BibleSummary {
   offline: { text: boolean; audio: boolean };
 }
 
-export interface BibleLanguage { code: string; name: string; autonym?: string; bibles: number }
+export interface BibleLanguage {
+  code: string;
+  name: string;
+  autonym?: string;
+  /** Bible Brain's own count, which takes in Bibles our key cannot open: for order only (useBibleBrainBibles counts what opens). */
+  bibles: number;
+}
 interface AudioLink { url: string; durationMs?: number; bytes?: number; expiresAt: string; offline: boolean }
 type VerseText = [number, number, string];
 
@@ -63,6 +69,8 @@ export const CACHE_PREFIX = 'biblebrain:';
 
 /** A Bible's detail is asked again after this long when connected: FCBH may withdraw `/download`. */
 const DETAIL_FRESH_MS = 24 * 60 * 60 * 1000;
+/** Bible Brain's whole language list is asked again after this long when connected. */
+const LANGUAGES_FRESH_MS = 24 * 60 * 60 * 1000;
 
 export class BibleBrainClient {
   constructor(private readonly server: BibleBrainServer, private readonly cache: JsonCache, private readonly now: () => number = Date.now) {}
@@ -119,6 +127,11 @@ export class BibleBrainClient {
 
   languages(q: string): Promise<BibleLanguage[]> {
     return this.fresh<{ languages: BibleLanguage[] }>(`languages:${q.toLowerCase()}`, `languages?q=${encodeURIComponent(q)}`).then((r) => r.languages);
+  }
+
+  /** Every language Bible Brain has Bibles in, most Bibles first: what a language list offers to pick from. */
+  allLanguages(): Promise<BibleLanguage[]> {
+    return this.fresh<{ languages: BibleLanguage[] }>('languages-all', 'languages/all', LANGUAGES_FRESH_MS).then((r) => r.languages);
   }
 
   bibles(lang: string): Promise<BibleSummary[]> {
