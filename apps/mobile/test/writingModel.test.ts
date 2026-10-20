@@ -1,4 +1,4 @@
-// Writing beside recording (decisions.md 146): what the writing screens read
+// Writing beside recording (decisions.md 147): what the writing screens read
 // from the record (writing/model.ts, writing/namesModel.ts), against real
 // folds of the event log.
 import { describe, expect, it } from 'vitest';
@@ -6,9 +6,9 @@ import {
   buildIndexes, commands, derivePassage, foldLanguage, HlcClock, writtenPartId, type AnyEvent, type EventSpec, type KindDef, type MakesSpec
 } from '@langquest-next/core';
 import {
-  boxesChanged, boxesFor, EMPTY_WRITING, heardByVerse, isWritingDraft, writingDraftFor, isMaking, isPartKey, leadMedium, makingLanguage, makingSource, nfc, otherMedium, partIdFor, partKey,
-  readsFor, sourceMedium, teamLetters, writingSpecs, writtenByVerse
-} from '../src/writing/model';
+  boxesChanged, boxesFor, EMPTY_WRITING, heardByVerse, isWritingDraft, writingDraftFor, isPartKey, nfc, partIdFor, partKey, teamLetters, writingSpecs, writtenByVerse
+} from '../src/writing/boxesModel';
+import { isMaking, leadMedium, makingLanguage, makingSource, otherMedium, readsFor, sourceMedium } from '../src/writing/model';
 import { madeTitle, presetName } from '../src/writing/namesModel';
 
 const VERSES = ['15:1', '15:2', '15:3'];

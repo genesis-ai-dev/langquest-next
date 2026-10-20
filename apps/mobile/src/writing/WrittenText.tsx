@@ -1,4 +1,4 @@
-// Reading writing, and hearing a recording verse by verse (decisions.md 146;
+// Reading writing, and hearing a recording verse by verse (decisions.md 147;
 // demo branch caleb-written-translations wCheck, wMadeRead, wConsult): each
 // verse as a grey tile and its words, with a play button for the same verse
 // of a recording when there is one, so whoever reads hears it too.
@@ -14,7 +14,7 @@ import { PlayBtn } from '../recording/blocks';
 import { useClip } from '../audio/useClip';
 import { verseName } from '../recording/verseModel';
 import { C, radius, space, TINT } from '../ui/theme';
-import { heardByVerse, isPartKey, writtenByVerse } from './model';
+import { heardByVerse, isPartKey, writtenByVerse } from './boxesModel';
 
 /** A verse of a recording: its grey tile, a play button, and a line for how long. */
 export function VersePlayRow({ ctx, hashes, label, lit }: { ctx: Ctx; hashes: string[]; label: string; lit?: boolean }) {

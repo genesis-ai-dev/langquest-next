@@ -242,11 +242,11 @@ Steps:
 2. On "Join your team", tap "Start a new one".
 3. Name it "Journey Org {run}". Choose the licence "CC BY-NC-SA 4.0", then tap "Use this license".
 4. Tap "Create Organization".
-5. On My Work, tap "Add a language". Complete New language with the name "Journey Language", the Bible (numbered like the NIV), FIA passages for the New Testament, the Standard Bible Flow and English helps. On "Invite someone", tap "Later".
+5. On My Work, tap "Add a language", read its six steps and tap "Start". Complete New language with the name "Journey Language", the Bible (numbered like the NIV), FIA passages for the New Testament, English helps (what will help as suggested), the Standard Bible Flow and its checks as they come ("Add Journey Language"). On "Time to invite people", tap "Later".
 6. Manage → Setup → Roles → "Role":
    - Name it "Community Checker".
    - Turn on "Check recordings" only, and save.
-7. Manage → "Invite people": choose Community Checker (under "Other roles"), then "Show the code to scan".
+7. Manage → "Invite people": open "Other roles", choose the language, then tap Community Checker's "Invite" (and "Show the code to scan" if it asks which checks).
 8. (Decision 91: Review teams are gone.) Manage → Journey Language → "Review flow" → "Edit" (Checks, decision 138): the Standard Bible Flow's checks are the language's own. Until its translators are invited the page is the Get ready checklist, where they show under "Who checks the recordings?" ("In use · your own steps").
 9. Me → More settings → Switch Organization: check that only Journey Org is listed (the account has no other).
 

@@ -36,7 +36,7 @@ const APP_ONLY: Record<string, string> = {
   'get_ready->role_editor': 'Invite your translators: Something else, make a new role (decision 71, demo ADR-039, amended 2026-10-08)',
   'new_language->template_editor': 'New language, what they translate: Something else, Make your own (decision 71, amended 2026-10-11)',
   'new_language->role_editor': 'New language, invite its translators: Something else, make a new role, as on Get ready and Invite (design principle 12)',
-  'new_language->flow_editor': "New language, how recordings get checked: I'll choose the steps (decision 71, amended 2026-10-11)",
+  'new_language->check_editor': 'New language, its review flow: each check opens on its own pages before the language exists (decision 146)',
   'language_home->edit_member': 'a ready language lists join requests: tap to let them in (decision 71, demo ADR-039)',
   'intent_chooser->sign_out_confirm': 'signing out of Join your team asks first and hands over what waits, as Me does (NOORG-004, decision 60)',
   'templates_home->templates_home': "Content Templates' By language rows open that language's template view (TPL-1, SETUP-032)",
@@ -96,11 +96,11 @@ const APP_ONLY: Record<string, string> = {
   'cluster_home->language_home': "a cluster's page lists its languages (decision 108, demo ADR-045)",
   'cluster_home->new_language': 'Add a language to it: a new one, already in the cluster (decision 108, demo ADR-045)',
   'new_language->cluster_home': 'a cluster made of languages already here opens its page (decision 108, demo ADR-045)',
-  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 146)",
-  'version_detail->made_detail': 'a version lists what was made from it (decision 146)',
-  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 146)',
-  'version_detail->back_translation': 'change the words a step added to a version (decision 146)',
-  'made_detail->back_translation': 'change the words a step added to a version (decision 146)',
+  'passage_record->made_detail': "Reviews by version opens something made from a version (decision 147)",
+  'version_detail->made_detail': 'a version lists what was made from it (decision 147)',
+  'made_detail->ask_someone': 'ask for the check that reads what a step made (decision 147)',
+  'version_detail->back_translation': 'change the words a step added to a version (decision 147)',
+  'made_detail->back_translation': 'change the words a step added to a version (decision 147)',
   'version_detail->workspace': 'a version\'s page edits it into a new draft, as the Versions page does (LAN-83)'
 };
 

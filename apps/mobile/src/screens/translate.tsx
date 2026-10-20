@@ -43,7 +43,7 @@ import {
   type EventSpec, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -104,9 +104,7 @@ import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote 
 import { useBible } from '../helps/useBible';
 import { useUsage } from '../sources/useUsage';
 import { useStudyGuide } from '../study/useStudyGuides';
-import type { WritingMode } from '../writing/WritingWorkspace';
-import { readModule, registerLoader } from '../shell/lazyModules';
-import { MakeChoice } from '../writing/MakeChoice';
+import { MakeChoice, WritingWorkspace } from '../writing/LazyWriting';
 import { makingLanguage, makingSource } from '../writing/model';
 import { teamLanguage } from '../reference/languages';
 import { languageLabel } from '../admin/adminModel';
@@ -128,28 +126,10 @@ type Aim = { kind: 'end' } | { kind: 'gap'; before: string; mark?: PartMark; ins
 /** Said to a screen reader where a toast used to say it: the change shows on the card. */
 const say = (message: string) => AccessibilityInfo.announceForAccessibility(message);
 
-// Writing loads the first time someone writes, as screens most people never open do (decisions.md 123
-// and 146): a team that only records never fetches it, and the web fetches it once the app has settled.
-const loadWriting = () => import('../writing/WritingWorkspace');
-registerLoader(loadWriting);
-
-function WritingLoaded(props: { ctx: Ctx; v: PassageView; mode: WritingMode }) {
-  const { WritingWorkspace: Loaded } = readModule(loadWriting);
-  return <Loaded {...props} />;
-}
-
-function WritingWorkspace(props: { ctx: Ctx; v: PassageView; mode: WritingMode }) {
-  return (
-    <Suspense fallback={<View style={{ flex: 1, backgroundColor: C.bg }} />}>
-      <WritingLoaded {...props} />
-    </Suspense>
-  );
-}
-
 export function Workspace(ctx: Ctx) {
   const v = usePassage(ctx);
   if (!v) return <Missing ctx={ctx} title={screenTitle('workspace')} />;
-  // Writing the passage instead of recording it (decisions.md 146).
+  // Writing the passage instead of recording it (decisions.md 147).
   if (ctx.params['write'] === '1') return <WritingWorkspace key={`${v.unitId}:${v.languageId}:write`} ctx={ctx} v={v} mode={{ kind: 'version' }} />;
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
@@ -165,7 +145,7 @@ function Missing(props: { ctx: Ctx; title: string; text?: string }) {
   );
 }
 
-/** A step whose result is the passage's next version (a final recording, decisions.md 146): what it is made from. */
+/** A step whose result is the passage's next version (a final recording, decisions.md 147): what it is made from. */
 interface MakingVersion { kindId: string; name: string; fromTakeId: string; requestId?: string }
 
 function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: MakingVersion }) {
@@ -183,7 +163,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // one from the latest version. `root` names the draft once it is saved;
   // `tip` is its newest take seen here, which the next change continues.
   const fromParam = making ? undefined : ctx.params['from'];
-  // A final recording starts empty: it is said again, not edited (decisions.md 146).
+  // A final recording starts empty: it is said again, not edited (decisions.md 147).
   const fresh = ctx.params['fresh'] === '1' || !!making;
   const mine = useMemo(() => draftsBy(p, me), [p, me]);
   const draftId = ctx.params['draftId'];
@@ -202,7 +182,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
   // What the draft started from: a version's parts, or nothing.
   const startFrom = draft || tipRef.current ? (draft?.basedOnTakeId ?? (rootRef.current ? state.takes[rootRef.current]?.parentTakeId ?? undefined : undefined))
     : fromParam && state.submissions[fromParam] ? fromParam : fresh ? undefined : latest?.takeId;
-  // A written version is a version to say again, not parts to keep (decision 146): recording from it starts empty.
+  // A written version is a version to say again, not parts to keep (decision 147): recording from it starts empty.
   const startCards = startFrom && partsMedium(state.takes[startFrom]?.cardHashes ?? []) === 'recording' ? state.takes[startFrom]?.cardHashes : undefined;
   /** What the next change continues: this draft's newest take, else what it starts from. */
   const parentNow = useCallback(() => (tipRef.current && stateRef.current.takes[tipRef.current] ? tipRef.current : startFrom ?? null), [startFrom]);
@@ -638,7 +618,7 @@ function WorkspaceBody({ ctx, v, making }: { ctx: Ctx; v: PassageView; making?: 
     let message = t('translate.versionPublished', { n: nextN });
     try {
       const c = commands(state, idx);
-      // A step that makes the next version (a final recording) says which step made it (decisions.md 146).
+      // A step that makes the next version (a final recording) says which step made it (decisions.md 147).
       specs = making
         ? c.makeVersion({
           commandId, unitId, kindId: making.kindId, fromTakeId: making.fromTakeId, cardHashes: list, actorId: me, parentTakeId: draft?.takeId ?? parentNow(),
@@ -831,7 +811,7 @@ export function BackTranslation(ctx: Ctx) {
 }
 
 /**
- * A step that makes something (decisions.md 146): turn the latest version,
+ * A step that makes something (decisions.md 147): turn the latest version,
  * or what an earlier step made, into recording or writing, in the team's
  * language or another. When the step lets the person pick, they say which
  * first. Writing opens the writing workspace; recording, the back
@@ -840,7 +820,7 @@ export function BackTranslation(ctx: Ctx) {
 function Making({ ctx, v, kind }: { ctx: Ctx; v: PassageView; kind: KindDef }) {
   const makes = kind.makes!;
   const [picked, setPicked] = useState<'recording' | 'writing' | null>(null);
-  // Changing what a step added to a version opens on that version (decision 146). A step that adds
+  // Changing what a step added to a version opens on that version (decision 147). A step that adds
   // works on the version it counts for: the latest, or, before a step that makes a newer one, the one before.
   const stepIndex = v.p.flow.steps.findIndex((st) => st.kindIds.includes(kind.id));
   const onVersion = v.p.versions.find((x) => x.takeId === ctx.params['fromTakeId'])

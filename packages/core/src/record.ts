@@ -158,7 +158,7 @@ export type RecordEvents = {
   /** Someone finished (or un-finished) a study step for a passage (ADR-018). Register per (unit, guide, step). */
   'v1.StudyStepMarked': { unitId: string; guideId: string; stepId: string; done: boolean };
   /**
-   * A kind that makes something (decisions.md 146): it turns recording or
+   * A kind that makes something (decisions.md 147): it turns recording or
    * writing into recording or writing, in the same language or another, and
    * may make the passage's next version. `null` makes it an ordinary check
    * again. Register per kind.
@@ -172,7 +172,7 @@ export type RecordEvents = {
   'v1.CheckLooksAtSet': { kindId: string; makerKindId: string | null };
   /**
    * Something made from a version, or from something made from one
-   * (decisions.md 146): exactly one of `fromTakeId` and `fromMadeId`, and
+   * (decisions.md 147): exactly one of `fromTakeId` and `fromMadeId`, and
    * exactly one of `parts` (recorded cards or written parts, one kind) and
    * `takeId` (it became the passage's next version). `kindId` is the step
    * that made it, absent when none did (brought over from LangQuest v2);
@@ -206,7 +206,7 @@ export interface KindDef {
   usualReviewer: string;
   withholdsContext?: boolean;
   produces?: ProducesSpec;
-  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 146); read from the fold, never a field of ReviewKindDefined. */
+  /** What it makes, when it is a making step (v1.StepMakesSet, decisions.md 147); read from the fold, never a field of ReviewKindDefined. */
   makes?: MakesSpec;
   /** The making kind whose output it reads, when it checks one (v1.CheckLooksAtSet). */
   looksAt?: string;

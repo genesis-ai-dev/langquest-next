@@ -63,6 +63,7 @@ import { bookOf } from '../recording/model';
 import { useBible } from '../helps/useBible';
 import { useOtherLanguageTerms } from '../reference/useOtherLanguageTerms';
 import { LanguageChecks } from '../checks/LanguageChecks';
+import { IntoSheet } from '../checks/IntoSheet';
 import { HelpRow } from '../helpMode/helpBadge';
 import { addPickedKind, copyFlowSpecs, currentFlowLine, flowEditorBase, flowEditorSeed, flowEditorStatus, knownKinds, newKindDef, usuallyFor, withAddedKinds } from '../flows/model';
 import {
@@ -666,6 +667,8 @@ export function FlowsHome(ctx: Ctx) {
 function StepSheet(props: {
   step: DraftStep | null; i: number; count: number; kinds: KindDef[]; title: string;
   onClose: () => void; onChange: (s: DraftStep) => void; onAdd: () => void; onMove: (dir: -1 | 1) => void; onRemove: () => void;
+  /** A check that makes something (back translation): the language it is made in (decisions.md 146). */
+  onInto: (kind: KindDef) => void;
 }) {
   const st = props.step;
   const name = (id: string) => props.kinds.find((k) => k.id === id)?.name ?? id;
@@ -681,6 +684,12 @@ function StepSheet(props: {
               </HelpRow>
             ))}
           </Group>
+          {/* help-each: each is a different check's language */}
+          {st.kindIds.map((id) => props.kinds.find((k) => k.id === id)).filter((k): k is KindDef => !!k?.produces).map((k) => (
+            <Group key={`into-${k.id}`}>
+              <Row icon="globe" label={t('checks.into.row')} sub={`${name(k.id)} · ${k.produces!.into}`} help={t('checks.into.rowHelp')} onPress={() => props.onInto(k)} last />
+            </Group>
+          ))}
           <Group>
             <Row icon="plus" label={t('config.flowEditor.addAlongside')} sub={t('config.flowEditor.addAlongsideSub')} onPress={props.onAdd} />
             {props.i > 0 ? <Row icon="up" label={t('config.flowEditor.moveUp')} help={t('config.flowEditor.moveUpHelp')} onPress={() => props.onMove(-1)} /> : null}
@@ -732,6 +741,8 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const edit = (patch: Partial<FlowEdits>) => draft.set((prev) => editorDraft({ ...(prev?.form ?? NO_FLOW_EDITS), ...patch }, NO_FLOW_EDITS, prev?.basis ?? it?.current ?? null));
   const [open, setOpen] = useState<number | null>(null);
   const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
+  // A back translation's language, from a step's sheet (decisions.md 146).
+  const [intoFor, setIntoFor] = useState<KindDef | null>(null);
   const [newKind, setNewKind] = useState('');
   const [busy, setBusy] = useState(false);
   const known = useMemo(() => knownKinds(state ? deriveKinds(state) : [], doc?.kinds ?? [], seed.kinds), [state, doc, seed]);
@@ -824,7 +835,17 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
         onChange={(st) => open !== null && change(steps.map((s, j) => (j === open ? st : s)))}
         onAdd={() => { const i = open; setOpen(null); setPickFor(i); }}
         onMove={(dir) => { if (open === null) return; change(moveStep(steps, open, dir)); setOpen(open + dir); }}
-        onRemove={() => { if (open === null) return; change(steps.filter((_, j) => j !== open)); setOpen(null); }} />
+        onRemove={() => { if (open === null) return; change(steps.filter((_, j) => j !== open)); setOpen(null); }}
+        onInto={(k) => { setOpen(null); setIntoFor(k); }} />
+      {intoFor?.produces ? (
+        <IntoSheet visible check={intoFor.name} current={intoFor.produces.into} languages={[readerLanguage(), 'eng']}
+          onClose={() => setIntoFor(null)}
+          onPick={(into) => {
+            const k = intoFor;
+            setIntoFor(null);
+            if (k.produces && into !== k.produces.into) edit({ added: [...added.filter((a) => a.id !== k.id), { ...k, produces: { ...k.produces, into } }] });
+          }} />
+      ) : null}
       <Sheet visible={pickFor !== null} title={pickFor === 'new' ? t('config.flowEditor.addStep') : t('config.flowEditor.addAlongside')} sub={t('config.flowEditor.kindsSub')} onClose={() => setPickFor(null)}>
         <Group>
           {kinds.filter((k) => !(picking?.kindIds ?? []).includes(k.id)).map((k, i, a) => (

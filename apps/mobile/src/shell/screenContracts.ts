@@ -50,16 +50,16 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   add_record: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn','v1.ReferencesUsed','v1.NoteAdded'],reads:['derivePassage','questionsForKind','recommendedFor'] },
   // What was offered and used goes on the record with the version (docs/reference-material.md).
   // Key words grow during the work (decision 71): say yours, add a word.
-  // Writing the passage instead (decision 146): its words, and its verses.
+  // Writing the passage instead (decision 147): its words, and its verses.
   workspace: { emits:['v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted','v1.WritingAdded',
     'v1.ResponseRecorded','v1.CardVerseSet','v1.NoteAdded','v1.NoteWithdrawn','v1.KeyTermLinked','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted','v1.ReferencesUsed'],
     reads:['derivePassage','keyTermsForUnit','recommendedFor','studyMarksFor'],rpcs:[...REPORTS,'library_get_documents','library_shared_items'] },
   // Its parts are the review's artifacts, not recordings (docs/decisions.md 30).
-  // A step that makes something (decision 146): what it made stays with its version (v1.Made); written, its words and verses;
+  // A step that makes something (decision 147): what it made stays with its version (v1.Made); written, its words and verses;
   // a final recording is published as the next version, as the workspace does.
   back_translation: { emits:['v1.ReviewRecorded','v1.ReviewWithdrawn','v1.Made','v1.WritingAdded','v1.CardVerseSet','v1.NoteAdded','v1.RecordingAdded','v1.TakeComposed','v1.TakeArchived','v1.TakeSubmitted'],
     reads:['derivePassage'],rpcs:REPORTS },
-  // Something made from a version (decision 146): read or heard, never marked out of date.
+  // Something made from a version (decision 147): read or heard, never marked out of date.
   made_detail: { reads:['derivePassage'] },
   // One reader for both nodes (decision 71): steps, the Bible, key words and notes.
   study_guide: { emits:['v1.StudyStepMarked','v1.NoteAdded','v1.NoteWithdrawn','v1.KeyTermDefined','v1.KeyTermRenderingAdded','v1.KeyTermAdjusted'],
@@ -70,7 +70,8 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   guide_editor: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],
     rpcs:['library_shared_items','library_get_documents','library_adopt','library_put_document'] },
   invite_qr: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
-  invite_member: { rpcs:['issue_invite_v3'],reads:['org.roles'] },
+  // A code may put whoever joins on checks of its language, whose teams are named first (decisions.md 146).
+  invite_member: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamKindSet'],rpcs:['issue_invite_v3','issue_invite_v4'],reads:['org.roles'] },
   members_list: { rpcs:['decide_join_request_v2'],reads:['org.members','join_requests','profiles'] },
   // A new role at the same scope is another MemberAdded (one role per scope).
   edit_member: { emits:['v1.MemberAdded','v1.MemberRemoved'],rpcs:['decide_join_request_v2','can_help_sign_in','issue_sign_in_code'] },
@@ -81,9 +82,11 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // And what its team is offered from the start (decision 71), and its first group invite code.
   // Its name is looked up in the language list as it is typed (docs/languoids.md).
   // One language or a cluster of several, and the cluster it joins (decision 108).
-  new_language: { emits:['v1.LanguageAdded','v1.LanguageCodeSet','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
-    'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet','v1.ClusterNamed','v1.LanguageClusterSet'],
-    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3','library_template_users','search_languoids'] },
+  // Its checks as set up on their own pages before it exists (its draft, decisions.md 146), and codes that put people on them.
+  new_language: { emits:['v1.LanguageAdded','v1.LanguageCodeSet','v1.TemplateSelected','v1.UnitAdded','v1.UnitHidden','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined','v1.LibrarySubscribed','v1.LibraryPinned',
+    'v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.ReferenceSet','v1.ReferenceLanguageAdded','v1.ClusterNamed','v1.LanguageClusterSet',
+    'v1.CheckShowsSet','v1.CheckHelpSet','v1.ReviewTeamDefined','v1.ReviewTeamKindSet','v1.ReviewTeamMemberSet','v1.MaterialDefined','v1.MaterialFieldSet'],
+    rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document','issue_invite_v3','issue_invite_v4','library_template_users','search_languoids'] },
   // The public listing is per language (docs/streams-and-languages.md).
   // Opening the organization's license (docs/licensing.md).
   org_home: { emits:['v1.LicenseSet','v1.OrgRenamed'],rpcs:['set_language_visibility'],reads:['language_visibility','orgLicense'] },
@@ -94,7 +97,7 @@ const declarations: Partial<Record<ScreenId, Partial<ScreenContract>>> = {
   // One check (decision 91): its people (one review team per check), its questions (a question set for the kind),
   // its helps, and its place in the language's steps.
   check_editor: { emits:['v1.ReviewTeamDefined','v1.ReviewTeamMemberSet','v1.ReviewTeamKindSet','v1.CheckHelpSet','v1.CheckShowsSet','v1.MaterialDefined','v1.MaterialFieldSet',
-    'v1.StepMakesSet','v1.CheckLooksAtSet','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved'],reads:['checkPeople','checkHelps','checkShows','questionsForKind','deriveFlow','library'] },
+    'v1.StepMakesSet','v1.CheckLooksAtSet','v1.FlowSelected','v1.FlowStepSet','v1.FlowStepRemoved','v1.ReviewKindDefined'],reads:['checkPeople','checkHelps','checkShows','questionsForKind','deriveFlow','library'] },
   // The organization's template library and a language's template (docs/library.md).
   templates_home: { emits:['v1.LibraryItemDefined','v1.LibraryVersionPublished','v1.LibrarySharingSet','v1.LibraryItemArchived','v1.LibrarySubscribed','v1.LibraryPinned'],reads:['library'],rpcs:['library_shared_items','library_get_documents','library_adopt','library_updates','library_put_document'] },
   // Publishes template versions; languages move to them by themselves (library/follow.ts).

@@ -46,7 +46,7 @@ export const SCREEN_IDS = [
   'settings_more',
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor',
-  // App only: something made from a version, by a step or brought over from v2 (decision 146)
+  // App only: something made from a version, by a step or brought over from v2 (decision 147)
   'made_detail',
   // App only: a cluster of languages, a name the organization puts on them (decision 108, demo ADR-045)
   'cluster_home'
@@ -393,9 +393,9 @@ export const EDGES: Edge[] = [
   e('get_ready', 'role_editor'),
   e('new_language', 'role_editor'), // Invite its translators: Something else, make a new role
   // App only: New language's questions make their own answer where none fits (decision 71):
-  // an outline for something other than the Bible, and "I'll choose the steps"
+  // an outline for something other than the Bible; and its checks open on their own pages before it exists (decision 146)
   e('new_language', 'template_editor', undefined, 'manageTemplates'),
-  e('new_language', 'flow_editor', undefined, 'manageFlows'),
+  e('new_language', 'check_editor', undefined, 'manageFlows'),
   // App only: a ready language's page (decision 71, demo ADR-039): letting someone in. Its checks open from its Review flow (decision 138).
   e('language_home', 'edit_member', undefined, 'assigner'),
   // A language's checks (decision 91): one check, and a help a reviewer opens from it.
@@ -419,14 +419,14 @@ export const EDGES: Edge[] = [
   e('cluster_home', 'org_home', 'back'),
   e('new_language', 'cluster_home', 'replace'),
   e('new_language', 'cluster_home', 'back'),
-  // Something made from a version (decision 146): from the passage's Reviews by version, and from the version.
+  // Something made from a version (decision 147): from the passage's Reviews by version, and from the version.
   e('passage_record', 'made_detail'),
   e('version_detail', 'made_detail'),
   e('made_detail', 'passage_record', 'back'),
   e('made_detail', 'version_detail', 'back'),
   e('made_detail', 'ask_someone'),
-  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 146)
-  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 146)
+  e('version_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 147)
+  e('made_detail', 'back_translation', undefined, 'reviewer'), // tap Change the words (decision 147)
   e('back_translation', 'version_detail', 'back'),
   e('back_translation', 'made_detail', 'back'),
   // App only: a version's page edits it into a new draft, as the Versions page does (LAN-83)

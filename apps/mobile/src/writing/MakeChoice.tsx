@@ -1,4 +1,4 @@
-// Say it, or write it? (decisions.md 146; demo branch caleb-written-translations
+// Say it, or write it? (decisions.md 147; demo branch caleb-written-translations
 // wBtHow): a making step that lets the person pick asks once, with a big
 // picture each, and opens the recorder or the writing boxes.
 import type { KindDef } from '@langquest-next/core';

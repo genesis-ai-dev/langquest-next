@@ -37,7 +37,7 @@ export function deriveKinds(state: LanguageState): KindDef[] {
   // Shipped kinds keep their order; the language's own follow by id, so the
   // list never depends on the order events arrived in.
   for (const id of Object.keys(state.reviewKinds).sort()) out.set(id, state.reviewKinds[id]!.value);
-  // What a kind makes or reads (decisions.md 146) is its own register, so a
+  // What a kind makes or reads (decisions.md 147) is its own register, so a
   // shipped kind can become a making step without redefining it.
   for (const [id, reg] of Object.entries(state.stepMakes ?? {})) {
     const k = out.get(id);
@@ -106,7 +106,7 @@ export interface Version {
   /** 1-based, in order of publishing. */
   n: number;
   /**
-   * Written (decisions.md 146), read from its parts; absent when recorded.
+   * Written (decisions.md 147), read from its parts; absent when recorded.
    * Present only when it says something, so a language that only records
    * holds its versions as before (a cached view lives as long as its fold;
    * apps/web memory test). `versionMedium` reads it.
@@ -116,7 +116,7 @@ export interface Version {
   madeByKindId?: string;
   /** The version it was made from, then. */
   madeFromTakeId?: string;
-  /** What steps added to it (decisions.md 146): words for a recording, a recording for writing; oldest first. Absent when nothing was. */
+  /** What steps added to it (decisions.md 147): words for a recording, a recording for writing; oldest first. Absent when nothing was. */
   added?: MadeView[];
   by: string;
   hlc: Hlc;
@@ -251,9 +251,9 @@ export interface PassageState {
   /** Feedback on the latest version nobody answered yet. */
   awaitingResponse: ReviewView[];
   notes: PassageNote[];
-  /** What was made from its versions, by steps or brought over from v2 (decisions.md 146), oldest first; versions a step made are not here. */
+  /** What was made from its versions, by steps or brought over from v2 (decisions.md 147), oldest first; versions a step made are not here. */
   made: MadeView[];
-  /** The flow's kinds that make something rather than judge (decisions.md 146). */
+  /** The flow's kinds that make something rather than judge (decisions.md 147). */
   makingKindIds: string[];
 }
 
@@ -318,7 +318,7 @@ function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
   else m.set(k, [v]);
 }
 
-/** Recorded or written (decisions.md 146). */
+/** Recorded or written (decisions.md 147). */
 export function versionMedium(v: Pick<Version, 'medium'>): Medium {
   return v.medium ?? 'recording';
 }
@@ -567,7 +567,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
       ...(note ? { changeNote: note } : {}), ...(blob ? { changeBlobHash: blob } : {})
     };
     // Writing's fields only where they say something, added after: spreads in the literal above
-    // would size every version for them (apps/web memory test; decisions.md 146).
+    // would size every version for them (apps/web memory test; decisions.md 147).
     if (partsMedium(t.cardHashes) === 'writing') v.medium = 'writing';
     if (madeViews.length) {
       const added = madeViews.filter((m) => m.added && m.fromTakeId === takeId);
@@ -633,7 +633,7 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     const review = [...reviews].reverse().find((r) => r.kindId === kindId && (linksAllowed || r.via !== 'link'));
     const request = openRequests.find((r) => r.what === 'review' && r.kindId === kindId);
     const departure = active((d) => d.type === 'skip' && d.kindId === kindId);
-    // A making step (decisions.md 146) is done once it made something, from
+    // A making step (decisions.md 147) is done once it made something, from
     // any version: what it made stays with that version and is never out of
     // date. What it adds to a version is part of that version, so a step
     // that adds is done only for the version it counts for here (the latest,
@@ -941,7 +941,7 @@ export function recordTimeline(state: LanguageState, s: PassageState): RecordEnt
 }
 
 /**
- * What steps added to a version (decisions.md 146), one per kind: the latest
+ * What steps added to a version (decisions.md 147), one per kind: the latest
  * holds, and `first` is when that kind was first added. `changedAfter` is
  * the newest review of the version that saw an earlier one: the content
  * changed after it. The approval stands either way (Caleb, 2026-10-13: the
@@ -1164,7 +1164,7 @@ export function recordAudioHashes(state: LanguageState): Set<string> {
  * approved, so this is what the access-token API serves and may be released.
  */
 export function approvedVersion(s: PassageState): Version | null {
-  // Without making steps or anything made, every check reads each version itself, as before writing (decisions.md 146).
+  // Without making steps or anything made, every check reads each version itself, as before writing (decisions.md 147).
   const making = s.makingKindIds.length > 0 || s.made.length > 0 || s.versions.some((x) => !!x.madeByKindId);
   for (let i = s.versions.length - 1; i >= 0; i -= 1) {
     const v = s.versions[i]!;
@@ -1172,7 +1172,7 @@ export function approvedVersion(s: PassageState): Version | null {
       const status = st.kinds[k];
       if (status?.state === 'skipped') return true;
       // A version a step made (a final recording) answers for the steps
-      // before that step with the version it was made from (decisions.md 146).
+      // before that step with the version it was made from (decisions.md 147).
       const heard = making ? versionHeardAt(s, v, si) : v;
       if (making && isMakingStatus(s, kindId)) return madeFrom(s, kindId, heard) || v.madeByKindId === kindId;
       let last: ReviewView | undefined;
@@ -1191,7 +1191,7 @@ export function approvedVersion(s: PassageState): Version | null {
  * The version whose reviews count for step `stepIndex` when `v` is checked:
  * `v` itself, unless a step made `v` from an earlier version and this step
  * comes before that one; then the earlier version, and so on back
- * (decisions.md 146).
+ * (decisions.md 147).
  */
 export function versionHeardAt(s: Pick<PassageState, 'versions' | 'flow'>, v: Version, stepIndex: number): Version {
   // A version published by hand is heard as itself: the common case, with nothing to allocate.
@@ -1242,7 +1242,7 @@ export interface MadeColumn {
 
 /**
  * What was made from each version, for Reviews by version (decisions.md
- * 146): a column per step that made something, and per kind of thing no
+ * 147): a column per step that made something, and per kind of thing no
  * step made (v2's transcriptions and translations), only where some exist.
  */
 export function madeGrid(s: PassageState): { columns: MadeColumn[]; byVersion: Map<string, Map<string, MadeView[]>> } {

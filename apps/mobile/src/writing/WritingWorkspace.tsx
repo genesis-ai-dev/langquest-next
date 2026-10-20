@@ -1,4 +1,4 @@
-// Writing a passage (decisions.md 146; demo branch caleb-written-translations,
+// Writing a passage (decisions.md 147; demo branch caleb-written-translations,
 // simple/writing.tsx wWrite, wType, wPublish, wFirstWrite, wBtWrite): the
 // recording workspace's split, with the reference on top and one box per
 // verse below. On top: what is being written from (a version heard verse by
@@ -52,9 +52,14 @@ import { languageLabel } from '../admin/adminModel';
 import { C, radius, space, target, TINT } from '../ui/theme';
 import {
   boxesChanged, boxesFor, EMPTY_WRITING, heardByVerse, isPartKey, isWritingDraft, teamLetters, writingDraftFor, writingSpecs, writtenByVerse,
-  type MakingSource, type VerseText
-} from './model';
+  type VerseText
+} from './boxesModel';
+import type { MakingSource } from './model';
 import { VersePlayRow } from './WrittenText';
+
+// The reader of a written version, and Say it or write it, come in the same file (LazyWriting.tsx).
+export { WrittenReader } from './WrittenText';
+export { MakeChoice } from './MakeChoice';
 
 export type WritingMode =
   | { kind: 'version' }
