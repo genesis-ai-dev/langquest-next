@@ -59,52 +59,123 @@ project ids are shortened on screen.
 
 ## Setting it up
 
-Each step is done once, by someone with access to the service named.
+Done once, in this order, by someone who can sign in to each service
+named. Every command runs from the repository root, with `.env.keys`
+present and the Supabase CLI linked to production
+(`npx supabase link --project-ref xymxnebdwtbkfxlbylch`). Nothing to do
+for the address: langquest.org's wildcard record answers for `admin`
+until the first deploy adds the Worker's own record, which takes
+precedence. Keep the wildcard; other addresses may rely on it.
 
-1. **The address.** Nothing to do: langquest.org has a wildcard record
-   pointing at Vercel, which answers for `admin` today, and the first
-   deploy adds this Worker's own `admin` record, which takes precedence.
-   Keep the wildcard; other addresses may rely on it.
-2. **Deploys.** In Workers Builds, connect `langquest-next-admin` to this
-   repository as in the table in `docs/cloudflare.md`. Until then,
-   `npm run admin:deploy` deploys from a laptop.
-3. **Its database login.** `npm run secrets -- production` puts
-   `DIAG_DATABASE_URL` (diag_reader's read-only login, already in
-   `.env.production`) on the Worker.
-4. **Who may open it.** Open the page and sign in. It says your profile id.
-   Then `npm run env:update -- production ADMIN_PROFILE_IDS` (it asks for
-   the value: ids separated by commas) and `npm run secrets -- production`.
-5. **Tokens, each optional.** Make each one read-only and only as wide as it
-   needs, with an expiry where the service allows one, then
-   `npm run env:update -- production <NAME>` (it asks for the value, hidden)
-   and `npm run secrets -- production`:
-   - `ADMIN_CLOUDFLARE_TOKEN`: a **user** API token (My Profile > API
-     Tokens; the Builds API refuses account tokens) for this account with
-     Account Analytics Read, Workers Scripts Read and Workers CI Read.
-   - `ADMIN_SUPABASE_TOKEN`: a scoped access token (Account > Access
-     Tokens) for the LangQuest Next and v2 projects, read only, with
-     Project Settings, Edge Functions and Logs.
-   - `ADMIN_VERCEL_TOKEN`: a token scoped to the FrontierRND team, with an
-     expiry. Vercel has no read-only token.
-   - `ADMIN_GITHUB_TOKEN`: a fine-grained token for
-     genesis-ai-dev/langquest-next with Actions: read and Contents: read.
-   - `ADMIN_EXPO_TOKEN`: an access token for a robot user on the Expo
-     account that owns the app.
-   - `ADMIN_GOOGLE_PLAY_KEY`: a Google Cloud service account with the
-     Google Play Developer Reporting API and the Google Play Android
-     Developer API turned on, invited in Play Console (Users and
-     permissions) for this app with "View app information (read-only)".
-     Google's guide asks for "Reply to reviews" as well before the API
-     lists reviews; add it only if you want reviews here, knowing it lets
-     the key reply. Without it the section shows vitals and says reviews
-     were refused. Its key file is JSON on several lines, so
-     pass it as one line: `npm run env:update -- production
-     ADMIN_GOOGLE_PLAY_KEY "$(jq -c . key.json)"`, then delete the file.
-   - `ADMIN_APP_STORE_KEY`: an App Store Connect API key (Users and Access,
-     Integrations) with the Developer role, the least that reads builds,
-     versions and reviews (no key role is read-only), as JSON: `npm run env:update -- production ADMIN_APP_STORE_KEY "$(jq -cn
-     --arg i <issuer id> --arg k <key id> --rawfile p AuthKey_<key id>.p8
-     '{issuerId: $i, keyId: $k, privateKey: $p}')"`, then delete the .p8.
+### 1. Make the Worker and give it its database login
+
+From the admin page's branch (before it merges), run
+`npm run secrets -- production`. It compares, lists what it will set
+(names only) and asks `Apply to production? [y/N]`; answer `y`. Among the
+rest it creates the Worker `langquest-next-admin` and gives it
+`DIAG_DATABASE_URL`, diag_reader's read-only login, already in
+`.env.production`. The Worker has no code yet, so nothing answers.
+
+### 2. Connect it to Workers Builds
+
+In the Cloudflare console (the LangQuest account): Workers & Pages >
+`langquest-next-admin` > Settings > Build > Connect, then:
+
+- Git repository: `genesis-ai-dev/langquest-next`
+- Production branch: `main`; builds for other branches: off
+- Root directory: empty (the repository root)
+- Build command: empty
+- Deploy command: `npm run admin:deploy`
+- Build variables and secrets: none
+- Build watch paths, include: `apps/admin/*`, `scripts/diagSignals.ts`,
+  `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`
+
+A build of `main` fails until the admin page's pull request merges
+(`main` has no `admin:deploy` yet); that is expected.
+
+### 3. Merge the pull request
+
+Workers Builds then deploys the Worker and attaches `admin.langquest.org`.
+The app's Worker rebuilds too, because `package-lock.json` changed; that is
+harmless. Check: `curl -s -o /dev/null -w '%{http_code}\n'
+https://admin.langquest.org` says `200` (a new address's certificate can
+take a few minutes).
+
+### 4. Let yourself in
+
+Open `https://admin.langquest.org` and sign in with your LangQuest account.
+The page says no one is on the admin list yet and shows your profile id.
+Copy it, then:
+
+1. `npm run env:update -- production ADMIN_PROFILE_IDS`; at the hidden
+   prompt paste the id (several people: ids separated by commas). It
+   encrypts the value into `.env.production` and commits that file on the
+   branch you are on; push it as you push other env changes.
+2. `npm run secrets -- production`, answer `y`.
+3. Reload the page: the database sections fill in. The others say "Not
+   connected" until step 5.
+
+### 5. Tokens, each optional
+
+Each one fills in one section. Make each read-only, as narrow as the
+service allows and with an expiry where it offers one. Store each with
+`npm run env:update -- production <NAME>`, which asks for the value
+without showing it, and once you have the ones you want, run
+`npm run secrets -- production` and Refresh the page.
+
+- **`ADMIN_CLOUDFLARE_TOKEN`** (Cloudflare section). My Profile > API
+  Tokens > Create Token > Create Custom Token. It must be a token on your
+  user profile, not an account token: the Builds API refuses those.
+  Permissions, all Account-level: Account Analytics Read, Workers Scripts
+  Read, Workers CI Read. Account Resources: include only the LangQuest
+  account. Set an end date.
+- **`ADMIN_SUPABASE_TOKEN`** (Supabase section). supabase.com > Account >
+  Access Tokens > Generate new token, as a scoped token: the LangQuest
+  Next and LangQuest v2 projects only; Read for Project Settings, Edge
+  Functions and Logs; an expiry.
+- **`ADMIN_VERCEL_TOKEN`** (Vercel section). vercel.com > Account Settings
+  > Tokens > Create. Scope: the FrontierRND team; expiration: up to a year.
+  Vercel has no read-only token, so keep it to that team.
+- **`ADMIN_GITHUB_TOKEN`** (Code and deploys; works without one, but a
+  Worker shares GitHub's anonymous limit). github.com > Settings >
+  Developer settings > Fine-grained tokens > Generate. Resource owner
+  `genesis-ai-dev` (the organization may have to approve it); only the
+  `langquest-next` repository; Repository permissions: Actions Read and
+  Contents Read; an expiry.
+- **`ADMIN_EXPO_TOKEN`** (App builds and updates). On expo.dev, open the
+  account that owns LangQuest Next > Settings > Robot users > Create
+  robot, role Viewer (if builds then show "Could not read", give it
+  Developer), then create an access token for it.
+- **`ADMIN_GOOGLE_PLAY_KEY`** (Google Play).
+  1. Google Cloud console, the project linked to Play Console (Play
+     Console > Setup > API access names it): APIs & Services > Library,
+     enable "Google Play Developer Reporting API" and "Google Play Android
+     Developer API".
+  2. IAM & Admin > Service accounts > Create service account, for example
+     `langquest-admin-page`, with no roles. Open it > Keys > Add key >
+     Create new key > JSON; a key file downloads.
+  3. Play Console > Users and permissions > Invite new users: the service
+     account's email; App permissions: add LangQuest Next with "View app
+     information (read-only)". Add "Reply to reviews" only if you want
+     reviews on the page (Google's guide asks for it before the API lists
+     them; it also lets the key reply). Invite. Google can take up to a
+     day to let a new service account in.
+  4. The key file is JSON on several lines, so store it as one:
+     `npm run env:update -- production ADMIN_GOOGLE_PLAY_KEY "$(jq -c . ~/Downloads/<key file>.json)"`,
+     then delete the key file.
+- **`ADMIN_APP_STORE_KEY`** (App Store).
+  1. App Store Connect > Users and Access > Integrations > App Store
+     Connect API > Team Keys > Generate API Key (an Admin or the Account
+     Holder can). Name it, Access: Developer, the least role that reads
+     builds, versions and reviews; no role is read-only.
+  2. Download the `.p8` (Apple offers it once) and note its Key ID and the
+     Issuer ID shown above the list.
+  3. Store the three together:
+     `npm run env:update -- production ADMIN_APP_STORE_KEY "$(jq -cn --arg i <issuer id> --arg k <key id> --rawfile p ~/Downloads/AuthKey_<key id>.p8 '{issuerId: $i, keyId: $k, privateKey: $p}')"`,
+     then delete the `.p8`.
+
+A section whose token is refused says "Could not read" with the service's
+answer, usually a missing permission.
 
 For sign-in from a single-sign-on account and a second factor on top of the
 password, Cloudflare Access can sit in front of `admin.langquest.org`; the
