@@ -147,7 +147,7 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
   });
 
   it('sends a value an item had before again, and leaves alone what the server already says', () => {
-    // Why: ids are content, so shared, then unshared, then shared again (Door43's items, decision 145)
+    // Why: ids are content, so shared, then unshared, then shared again (Door43's items, decision 146)
     // made an id the log held, and the server skipped it: the item stayed unshared.
     const it = build.items[0]!;
     const events = seedEvents({ documents: build.documents, items: [it] }, 1_700_000_000_000);

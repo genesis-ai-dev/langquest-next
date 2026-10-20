@@ -3226,7 +3226,8 @@
         "report": "Reporte",
         "block": "Bloquear",
         "unblock": "Desbloquear",
-        "onboarding": "Primeros pasos"
+        "onboarding": "Primeros pasos",
+        "feedback": "Comentarios"
       },
       "failedSub": "{{reason}} · Toca para intentarlo de nuevo",
       "waiting": "Esperando para enviar",
@@ -7467,6 +7468,37 @@
     "help": "Se guarda mientras trabajas: un círculo que gira mientras se guarda, y luego una marca. No hace falta guardar nada.",
     "failed": "No guardado",
     "saved": "Guardado"
+  },
+  "feedback": {
+    "open": "Enviar comentarios",
+    "title": "Comentarios",
+    "send": "Enviar",
+    "kind": {
+      "bug": "Algo está mal",
+      "idea": "Una idea"
+    },
+    "placeholder": {
+      "bug": "¿Qué pasó?",
+      "idea": "¿Qué ayudaría?"
+    },
+    "addScreenshot": "Añadir esta captura de pantalla",
+    "addNameAndEmail": "Añadir mi nombre y correo",
+    "addNameAndSignIn": "Añadir mi nombre y nombre de usuario",
+    "addName": "Añadir mi nombre",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "Un problema: algo se rompió, se congeló o se ve mal.",
+      "idea": "Una idea: algo que haría LangQuest mejor para ti.",
+      "body": "Dilo con tus propias palabras, en cualquier idioma.",
+      "screenshot": "Envía una imagen de la pantalla en la que estabas. Apagado hasta que lo enciendas.",
+      "profile": "Envía tu nombre y cómo inicias sesión, para que el equipo de LangQuest sepa quién escribió. Apagado hasta que lo enciendas."
+    },
+    "toast": {
+      "sent": "Enviado. ¡Gracias!",
+      "saved": "Guardado. Se envía cuando tengas conexión.",
+      "savedUntilSignIn": "Guardado. Se envía cuando inicies sesión.",
+      "voiceTooLong": "Demasiado largo: una nota de voz puede durar hasta 2 minutos."
+    }
   },
   "helps": {
     "library": {

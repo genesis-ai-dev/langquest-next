@@ -3435,7 +3435,7 @@ Only LangQuest's own AI-written sets were out, because no translation body
 recognizes them; unfoldingWord's Translation Questions belong in the
 unfoldingWord flows (Caleb, 2026-10-19). Questions are also reference
 material now: a check asks the question sets linked to it that sit on the
-passage under review, beside the ones its team wrote (decision 148).
+passage under review, beside the ones its team wrote (decision 149).
 
 ## 92. A phone writes down the files it keeps, and a file it loses behind the app's back is an alarm
 
@@ -5994,7 +5994,90 @@ Reverse if: never for the words. The Cloudflare names change when a rename
 path is chosen; then amend this entry and rename to `langquest-next`, which
 matches the domain.
 
-## 145. unfoldingWord's published material comes into LangQuest's library from Door43's releases, unshared until unfoldingWord gives its written OK
+Amended (2026-10-20, Carl Sauder): the Cloudflare names change too, to a
+fresh Worker `langquest-next` (its preview `langquest-next-preview`, its
+container application `langquest-next-jobrunner`). The only webhook was
+Frontier's own EveryBible prototype site, quiet since 2026-10-16, whose
+owner will start its change feed over, so Carl chose a fresh Worker over
+the transfer handoff. Organizations' report caches rebuild on first use;
+webhook state starts over; the webhooks, the domain, R2, the Vault values
+and the database carry on. `docs/cloudflare.md`, "Renaming the app's
+Worker", is the cutover; `scripts/cloudflare-deploy.test.ts` holds the name.
+
+## 145. Feedback is sent from help mode as an account change, with the install id, and a screenshot and profile only when switched on
+
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (2026-10-19) that the ? in the corner also let people
+send a bug report or a feature request directly, with a non-PII id that
+leads to the phone's diagnostics, and optionally their profile and a
+screenshot of the screen they were on.
+- **Where.** While help is on for a screen (not a sheet), a lit Send
+  feedback button waits at the foot of the screen, above the tabs
+  (`feedback/FeedbackSheet.tsx`). It is green with a white
+  ring and a grip, so it is not taken for one of the screen's own purple
+  buttons, and it can be dragged anywhere in the screen's area (kept there
+  while the app runs). A screen in help mode ends above a strip it leaves
+  at its foot for the button (kit's `Screen`, `HELP_FOOT_ROOM`), its footer
+  too, so the button covers nothing where it starts. Like the ?, it acts rather
+  than explains (71): it turns help off, takes the window, then opens a
+  sheet: a problem or an idea, what happened (typed, said in a voice note
+  of up to two minutes, or both), and two switches, both off,
+  for the screenshot (its thumbnail) and the person's name and email or
+  sign-in name (what would be sent is shown). Help in a sheet has no button:
+  a sheet is its own window on Android, so its picture would be the screen
+  under it, and the feedback sheet would open over another sheet.
+- **The id.** The install id diagnostics already use (39, the event
+  envelope's `deviceId`), not a new one. It is pseudonymous: the server also
+  knows the account that sent the report, as for diagnostics. With
+  diagnostics turned off it still comes, with nothing behind it.
+- **Offline and shared phones.** A report is an account change
+  (`AccountAction` kind `feedback`): it waits in the account outbox for
+  months, holds sign-out like any saved change, goes with a hand-over and is
+  sent as its author (60). Its screenshot waits beside it as a file (on the
+  web in the browser's storage), not in the outbox, whose single stored row
+  would otherwise grow past what Android keeps in one. Written before
+  sign-in, it waits in its own list (at most 10) and joins the outbox of
+  whoever signs in next: no endpoint takes anything without an account (112;
+  Caleb agreed on 2026-10-20 that only signed-in people send feedback).
+- **The server.** `diag.feedback`, beside diagnostics but not one of them
+  (they stay counts and codes): kind, words, install id, the diag context
+  plus the screen and the app's language, the name and email read from the
+  account only when shared, the screenshot as a JPEG of about 720 px (at
+  most 1 MB) and the voice note (a phone's AAC; the web's WAV written again
+  at 16 kHz; at most 4 MB) in the row, so deleting the account (`_delete_account`)
+  deletes it with one line and no storage policy or signing key is
+  involved. One way in, `public.feedback_submit` (signed in, idempotent by
+  id, 20 a day per account, refused with 54000 past that, which the phone
+  retries later); read only through `diag.feedback()` and
+  `diag.feedback_screenshot()` and `diag.feedback_voice()` (diag_reader: `npm run diag -- feedback`
+  and the admin page); New, Seen and Done are `seen_at`/`done_at`, set by
+  `public.feedback_set_status` (service role). Kept a year.
+- **Stores.** Google Play: no new answer (other in-app messages, photos,
+  name, email and device ID are declared, optional, for app functionality;
+  docs/play-store-declarations.md). Replying by email would add "Developer
+  communications" to Email address. Apple: no new row either. Apple's
+  closest type is User Content → Customer Support ("data generated by the
+  user during a customer support request"), but these reports are one-way,
+  with no support conversation, so they are filed under Other User Content,
+  already declared; the screenshot is a picture of the app, not the
+  person's photos (Caleb's rule: no change forces a new store declaration;
+  he chose this on 2026-10-20). The voice note is Audio Data (Apple) and
+  Voice or sound recordings (Play), both declared.
+  If replies or a support conversation are ever added, Customer Support
+  must be declared first. The privacy
+  policy says what is kept, who sees it, for how long, and that deleting
+  the account deletes it.
+- `react-native-view-shot` takes the picture on a phone: a native module,
+  so phones get it with the next store build, not an update. On the web
+  `html-to-image` draws the page, loaded only when feedback is sent
+  (view-shot's own web drawing, html2canvas, put the web app's chunks
+  83 KB over their 6.5 MB cap).
+Reverse if: people need to send feedback before they can sign in (a report
+that sign-in itself fails would wait); that needs a way in without an
+account, which 112 turned down for diagnostics.
+
+## 146. unfoldingWord's published material comes into LangQuest's library from Door43's releases, unshared until unfoldingWord gives its written OK
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 
@@ -6013,9 +6096,9 @@ Bibles in every language, unfoldingWord's Translation for Translators,
 Unlocked English Bible and French ULB, and the Hebrew Bible and Greek New
 Testament they are aligned to; Translation Notes, Questions, Word Links,
 Words and Academy, and the Hebrew, Greek and Aramaic grammars; Open Bible
-Stories (decision 147) with its notes, questions, word links, study notes
+Stories (decision 148) with its notes, questions, word links, study notes
 and questions and the Theological Formation guide; and a review flow per
-Checking Manual (decision 148). Teams' own translations, copies and mirrors
+Checking Manual (decision 149). Teams' own translations, copies and mirrors
 (ru_gt's English ULT, Door43-Catalog's copies), never-released resources,
 test repositories and `und-x-` codes are left out, each with its reason in
 the run's report. Two publishers' sets for one language both come in,
@@ -6033,7 +6116,7 @@ Caleb's own go-ahead.
 Reverse if: unfoldingWord asks for its material to stay out of copies, or
 publishes it in a form a phone can read from them directly.
 
-## 146. Notes, questions and key-word links are one format placed by coordinates, book by book, and a word-aligned Bible names each book's alignment
+## 147. Notes, questions and key-word links are one format placed by coordinates, book by book, and a word-aligned Bible names each book's alignment
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 
@@ -6052,7 +6135,7 @@ per book joins each verse's words to the original words they stand for
 the source, and counted as a dependency by the server so sharing and
 adopting carry it (`_library_store`, migration 20261020010000). A
 `contents@1` lists articles (key words, a manual, a grammar, as `material@1`
-kind document; stories, decision 147), each fetched when someone opens it.
+kind document; stories, decision 148), each fetched when someone opens it.
 Quotes were matched to the Hebrew and Greek when converted (96% of 1.28
 million), so the app underlines the words of an aligned Bible without
 reading Greek (`alignedSpans`). A passage gets its helps the way it gets
@@ -6073,7 +6156,7 @@ Reverse if: teams need helps for many passages at once (then a set goes
 offline per book), or rows need editing one by one (then each row becomes
 a register, as material fields are, decision 26).
 
-## 147. Open Bible Stories is an outline content template, and each language's stories are reading material placed on its stories
+## 148. Open Bible Stories is an outline content template, and each language's stories are reading material placed on its stories
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 
@@ -6084,13 +6167,13 @@ languages' stories is a `contents@1` of kind stories listing one `study@2`
 per story, placed on the template's node (`links`), each frame a step with
 its text and its picture; a story passage finds its story as a passage
 finds its guide (`bestGuide`). The stories' notes, questions and key-word
-links use decision 146's format with `book` `OBS`, placed on the template
+links use decision 147's format with `book` `OBS`, placed on the template
 (`template`), story and frame for chapter and verse, and frame 0 the
 story's title.
 Reverse if: teams want each frame as a part of its own (then the
 template's stories get children, and the stories' helps follow the frames).
 
-## 148. A check asks the question sets linked to it that sit on the passage, with their suggested answers, and a ready-made flow brings its checks' helps and what they show
+## 149. A check asks the question sets linked to it that sit on the passage, with their suggested answers, and a ready-made flow brings its checks' helps and what they show
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 

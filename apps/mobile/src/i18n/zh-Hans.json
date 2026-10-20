@@ -3044,7 +3044,8 @@
         "report": "举报",
         "block": "屏蔽",
         "unblock": "取消屏蔽",
-        "onboarding": "入门引导"
+        "onboarding": "入门引导",
+        "feedback": "反馈"
       },
       "failedSub": "{{reason}} · 点按重试",
       "waiting": "等待发送",
@@ -6859,6 +6860,37 @@
     "help": "边做边自动保存：保存时显示转动的圆圈，保存好后显示勾。不用另外保存。",
     "failed": "未保存",
     "saved": "已保存"
+  },
+  "feedback": {
+    "open": "发送反馈",
+    "title": "反馈",
+    "send": "发送",
+    "kind": {
+      "bug": "出了问题",
+      "idea": "一个想法"
+    },
+    "placeholder": {
+      "bug": "发生了什么？",
+      "idea": "什么会有帮助？"
+    },
+    "addScreenshot": "附上这张截图",
+    "addNameAndEmail": "附上我的名字和邮箱",
+    "addNameAndSignIn": "附上我的名字和登录名",
+    "addName": "附上我的名字",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "问题：有东西坏了、卡住了或显示不对。",
+      "idea": "想法：能让 LangQuest 对你更好用的东西。",
+      "body": "用你自己的话说，任何语言都可以。",
+      "screenshot": "发送你刚才所在屏幕的图片。你打开之前一直是关闭的。",
+      "profile": "发送你的名字和登录方式，让 LangQuest 团队知道是谁写的。你打开之前一直是关闭的。"
+    },
+    "toast": {
+      "sent": "已发送。谢谢你！",
+      "saved": "已保存。联网后会发送。",
+      "savedUntilSignIn": "已保存。登录后会发送。",
+      "voiceTooLong": "太长了：语音留言最长 2 分钟。"
+    }
   },
   "helps": {
     "library": {

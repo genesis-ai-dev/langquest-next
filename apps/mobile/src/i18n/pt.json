@@ -3226,7 +3226,8 @@
         "report": "Denúncia",
         "block": "Bloqueio",
         "unblock": "Desbloqueio",
-        "onboarding": "Boas-vindas"
+        "onboarding": "Boas-vindas",
+        "feedback": "Comentários"
       },
       "failedSub": "{{reason}} · Toque para tentar de novo",
       "waiting": "Esperando para enviar",
@@ -7467,6 +7468,37 @@
     "help": "Fica guardado enquanto você trabalha: um círculo girando enquanto guarda, depois um visto. Não é preciso salvar nada.",
     "failed": "Não salvo",
     "saved": "Salvo"
+  },
+  "feedback": {
+    "open": "Enviar comentários",
+    "title": "Comentários",
+    "send": "Enviar",
+    "kind": {
+      "bug": "Algo está errado",
+      "idea": "Uma ideia"
+    },
+    "placeholder": {
+      "bug": "O que aconteceu?",
+      "idea": "O que ajudaria?"
+    },
+    "addScreenshot": "Adicionar esta captura de tela",
+    "addNameAndEmail": "Adicionar meu nome e e-mail",
+    "addNameAndSignIn": "Adicionar meu nome e nome de acesso",
+    "addName": "Adicionar meu nome",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "Um problema: algo quebrou, travou ou parece errado.",
+      "idea": "Uma ideia: algo que deixaria o LangQuest melhor para você.",
+      "body": "Diga com suas próprias palavras, em qualquer idioma.",
+      "screenshot": "Envia uma imagem da tela em que você estava. Desligado até você ligar.",
+      "profile": "Envia seu nome e como você entra, para a equipe do LangQuest saber quem escreveu. Desligado até você ligar."
+    },
+    "toast": {
+      "sent": "Enviado. Obrigado!",
+      "saved": "Salvo. É enviado quando você estiver conectado.",
+      "savedUntilSignIn": "Salvo. É enviado depois que você entrar.",
+      "voiceTooLong": "Longo demais: uma mensagem de voz pode ter até 2 minutos."
+    }
   },
   "helps": {
     "library": {

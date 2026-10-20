@@ -154,7 +154,7 @@ by `_apply_org_event`), `library_documents` (hash, format, body, deps) and
 | `library_updates(p_org)` | a member of `p_org` | each active subscription's newest available version |
 | `library_seed_document` / `library_seed_events` | service role only | how `scripts/library-seed.ts` publishes the LangQuest organization |
 
-## Translation helps (decisions 146 to 148)
+## Translation helps (decisions 147 to 149)
 
 Notes, questions and key-word links are one format placed by coordinates
 (core `helpDocs.ts`): a `helps@1` (kind `notes`, `questions` or
@@ -170,7 +170,7 @@ template), each its own `material@1` or `study@2`. A `flow@1` may carry
 `v1.CheckHelpSet` and `v1.CheckShowsSet`, and a check asks the questions of
 the sets linked to it that sit on the passage.
 
-## unfoldingWord's material from Door43 (decision 145)
+## unfoldingWord's material from Door43 (decision 146)
 
 `npm run library:seed -- --door43` adds unfoldingWord's published material
 to the LangQuest organization, from Door43's catalog (stage `prod`) and each
