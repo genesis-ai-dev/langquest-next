@@ -678,7 +678,9 @@ Steps:
    the Bibles' language and what will help, then under "How will
    recordings get checked?". Tap "Add Cluster {run}".
 5. Wait for "Time to invite people" and tap "Later".
-6. Open Org home, then "Cluster {run}".
+6. Open Org home. Open the "Cluster {run}" heading if it is closed (groups
+   start closed past 20 languages), then tap it to fold it, then tap "⋯"
+   ("Open Cluster {run}") on it.
 7. Tap "Ungroup", then "Ungroup" in the sheet. Open Org home.
 
 Expected:
@@ -689,8 +691,9 @@ Expected:
 - Step 4 says "For the new language in Cluster {run}. It can change its own
   later."
 - Toast "1 language added to UI Test Org, in Cluster {run}."
-- Org home lists "Cluster {run}" (amber) with "2 languages · Bravo, Kilo
-  {run}", and Bravo no longer on its own.
+- Org home groups the languages under headings: "Cluster {run}" (amber,
+  "2") over Bravo and Kilo {run}, then "Not in a cluster" over the rest;
+  Bravo shows once. Tapping the heading folds its two languages away.
 - The cluster's page: "Cluster · 2 languages", Bravo and Kilo {run} under
   "Its languages", and "Add a language to it".
 - The sheet says "Its 2 languages stay, with their people, recordings and

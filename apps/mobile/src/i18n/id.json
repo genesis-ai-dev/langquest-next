@@ -710,7 +710,11 @@
       "languageHelp": "Membuka halamannya: siapkan bahasanya, lihat pekerjaan dan orang-orangnya.",
       "licenseHelp": "Lisensi yang berlaku untuk pekerjaan tim Anda. Pengaturan menjelaskan apa yang diizinkannya.",
       "newLanguageHelp": "Menambahkan bahasa ke organisasi, atau rumpun bahasa-bahasa yang berkerabat.",
-      "roleHelp": "Peran Anda di organisasi ini. Peran ini menentukan apa yang boleh Anda lakukan di sini."
+      "roleHelp": "Peran Anda di organisasi ini. Peran ini menentukan apa yang boleh Anda lakukan di sini.",
+      "clusterGroupHelp": "Bahasa-bahasa dalam rumpun ini. Ketuk untuk menampilkan atau menyembunyikannya.",
+      "looseGroupHelp": "Bahasa-bahasa yang tidak masuk rumpun mana pun. Ketuk untuk menampilkan atau menyembunyikannya.",
+      "openCluster": "Buka {{cluster}}",
+      "openClusterHelp": "Membuka rumpun: bahasa-bahasanya dan perkembangan mereka bersama-sama. Di sana Anda bisa menambahkan bahasa, mengganti nama, atau memisahkannya."
     },
     "rename": {
       "done": "Nama diganti menjadi {{name}}.",
@@ -6803,11 +6807,6 @@
     }
   },
   "clusters": {
-    "row": {
-      "sub_other": "{{count, number}} bahasa · {{names}}",
-      "namesMore": "{{names}}…",
-      "openHelp": "Membuka rumpun: bahasa-bahasanya dan perkembangan mereka bersama-sama."
-    },
     "home": {
       "sub_other": "Rumpun · {{count, number}} bahasa",
       "together": "Bersama",

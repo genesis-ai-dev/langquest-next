@@ -720,7 +720,11 @@
       "languageHelp": "Yana buɗe shafinsa: ku shirya shi, ku ga aikinsa da mutanensa.",
       "licenseHelp": "Lasisin da aikin tawagarku yake ƙarƙashinsa. Tsari yana faɗin abin da ya yarda da shi.",
       "newLanguageHelp": "Yana ƙara harshe ga ƙungiyar, ko rukunin harsuna masu dangantaka.",
-      "roleHelp": "Matsayinku a wannan ƙungiya. Shi ne yake ƙayyade abin da za ku iya yi a nan."
+      "roleHelp": "Matsayinku a wannan ƙungiya. Shi ne yake ƙayyade abin da za ku iya yi a nan.",
+      "clusterGroupHelp": "Harsunan wannan rukuni. Taɓa don nuna su ko ɓoye su.",
+      "looseGroupHelp": "Harsunan da ba sa cikin kowane rukuni. Taɓa don nuna su ko ɓoye su.",
+      "openCluster": "Buɗe {{cluster}}",
+      "openClusterHelp": "Yana buɗe rukunin: harsunansa da ci gabansu gaba ɗaya. A can za ka iya ƙara harshe, canza suna ko raba rukunin."
     },
     "rename": {
       "done": "An sake suna zuwa {{name}}.",
@@ -7098,12 +7102,6 @@
     }
   },
   "clusters": {
-    "row": {
-      "sub_one": "Harshe {{count, number}} · {{names}}",
-      "sub_other": "Harsuna {{count, number}} · {{names}}",
-      "namesMore": "{{names}}…",
-      "openHelp": "Yana buɗe rukunin: harsunansa da ci gabansu gaba ɗaya."
-    },
     "home": {
       "sub_one": "Rukuni · harshe {{count, number}}",
       "sub_other": "Rukuni · harsuna {{count, number}}",

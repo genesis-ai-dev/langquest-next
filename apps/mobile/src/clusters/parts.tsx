@@ -1,35 +1,70 @@
-// Clusters on screen (decision 108, demo ADR-045): a cluster's tile and row
-// (amber, so it never reads as a language), and a language's cluster chip
-// under its page's title, which opens the clusters it is in to change them. The model is
+// Clusters on screen (decision 108, demo ADR-045): the groups the
+// organization's home lists its languages in, a cluster's tile (amber, so it
+// never reads as a language), and a language's cluster chip under its page's
+// title, which opens the clusters it is in to change them. The model is
 // clusters/model.ts; the cluster's own page is ClusterHome (screens/org.tsx).
-import { clustersOf, mayManageClusters, orgClusters, type ClusterInfo } from '@langquest-next/core';
+import { clustersOf, mayManageClusters, orgClusters } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
-import { Field, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
+import { formatNumber } from '../i18n/format';
+import { Field, Group, Ico, PrimaryBtn, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { failureMessage } from '../diagnostics/report';
 import { CheckRow, IconTile } from '../admin/admin';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Text } from '../ui/text';
-import { radius, space, target, TINT, type as T } from '../ui/theme';
-import { clusterEvents, clusterNamed, newClusterId, type ClusterEvent } from './model';
-import { clusterSub, appendClusterEvents } from './clusterActions';
+import { C, radius, space, target, TINT, type as T } from '../ui/theme';
+import { clusterEvents, clusterNamed, newClusterId, type ClusterEvent, type LanguageGroup } from './model';
+import { appendClusterEvents } from './clusterActions';
 
 /** A cluster's tile: layers, in amber. */
 export function ClusterTile(props: { size?: number }) {
   return <IconTile icon="layers" size={props.size ?? 44} bg={TINT.amber} color={TINT.amberText} />;
 }
 
-/** A cluster as a row of the organization's languages: tapping it opens its page. */
-export function ClusterRow(props: { ctx: Ctx; c: ClusterInfo; current?: boolean; last?: boolean }) {
-  const { ctx, c } = props;
+/**
+ * One group of the organization's languages on its home (decision 108,
+ * amended 2026-10-20): a heading in the group's colour (amber for a
+ * cluster, grey for the languages in none) with its name and count, which
+ * folds its rows away and back, and, for a cluster, a ⋯ that opens the
+ * cluster's page. Its rows are the children.
+ */
+export function LanguageGroupCard(props: { group: LanguageGroup; open: boolean; onToggle: () => void; onOpenCluster?: () => void; current?: boolean; children: ReactNode }) {
+  const { group } = props;
+  const cluster = group.kind === 'cluster';
+  const title = cluster ? group.name : t('clusters.status.none');
+  const count = group.languageIds.length;
+  const toggle = useHelpSpot(title, cluster ? t('org.home.clusterGroupHelp') : t('org.home.looseGroupHelp'), props.onToggle);
+  const open = useHelpSpot(t('org.home.openCluster', { cluster: title }), t('org.home.openClusterHelp'), props.onOpenCluster);
+  const [bg, fg] = cluster ? [TINT.amber, TINT.amberText] : [TINT.gray, TINT.grayText];
   return (
-    <Row leading={<ClusterTile />} label={c.name} sub={clusterSub(ctx.org.state, c)} current={!!props.current} last={!!props.last}
-      testID={`cluster-${c.clusterId}`} help={t('clusters.row.openHelp')} onPress={() => ctx.go('cluster_home', { clusterId: c.clusterId })} />
+    <Group style={props.current ? styles.groupCurrent : undefined}>
+      <View style={[styles.head, { backgroundColor: bg }, props.open && styles.headOpen]}>
+        <Pressable testID={`language-group-${group.key}`} onPress={toggle.onPress} accessibilityRole="button" accessibilityState={{ expanded: props.open }}
+          // The web reads only aria-*: whether its languages show.
+          aria-expanded={props.open}
+          accessibilityLabel={t('shell.a11y.labelDetail', { label: title, detail: t('clusters.language.count', { count }) })}
+          accessibilityHint={props.open ? t('shell.kit.hidesDetails') : t('shell.kit.showsDetails')}
+          style={({ pressed }) => [styles.toggle, pressed && styles.pressed]}>
+          <Ico name={props.open ? 'down' : 'right'} size={22} color={fg} />
+          <Text style={styles.title}>{title}</Text>
+          <View style={styles.count}><Text style={[txt.xsStrong, { color: fg }]}>{formatNumber(count)}</Text></View>
+          <HelpBadge spot={toggle} inset />
+        </Pressable>
+        {props.onOpenCluster ? (
+          <Pressable testID={`language-group-open-${group.key}`} onPress={open.onPress} accessibilityRole="button" accessibilityLabel={t('org.home.openCluster', { cluster: title })}
+            style={({ pressed }) => [styles.more, pressed && styles.pressed]}>
+            <Ico name="more" size={24} color={fg} />
+            <HelpBadge spot={open} />
+          </Pressable>
+        ) : null}
+      </View>
+      {props.open ? props.children : null}
+    </Group>
   );
 }
 
@@ -113,6 +148,14 @@ export function LanguageClustersChip(props: { ctx: Ctx; languageId: string; lang
 }
 
 const styles = StyleSheet.create({
+  head: { flexDirection: 'row', alignItems: 'center', minHeight: target.primary, paddingEnd: space.xs },
+  headOpen: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  toggle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.primary, paddingVertical: space.sm, paddingStart: space.lg, paddingEnd: space.sm },
+  title: { flexShrink: 1, fontSize: T.base, fontWeight: '700', color: C.dark },
+  count: { minWidth: 28, paddingHorizontal: space.sm, paddingVertical: 2, borderRadius: radius.full, backgroundColor: C.card, alignItems: 'center' },
+  more: { width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center', borderRadius: radius.full },
+  pressed: { opacity: 0.7 },
+  groupCurrent: { borderColor: C.primary, borderWidth: 2 },
   chipTarget: { alignSelf: 'flex-start', minHeight: target.min, justifyContent: 'center' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 32, paddingHorizontal: space.md, borderRadius: radius.full, backgroundColor: TINT.amber },
   chipText: { flexShrink: 1, fontSize: T.sm, fontWeight: '700', color: TINT.amberText }

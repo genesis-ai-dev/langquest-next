@@ -730,7 +730,11 @@
       "languageHelp": "Abre a página do idioma: preparar, ver o trabalho e as pessoas dele.",
       "licenseHelp": "A licença do trabalho da sua equipe. Configuração diz o que ela permite.",
       "newLanguageHelp": "Adiciona um idioma à organização, ou um grupo de idiomas aparentados.",
-      "roleHelp": "A sua função nesta organização. Ela decide o que você pode fazer aqui."
+      "roleHelp": "A sua função nesta organização. Ela decide o que você pode fazer aqui.",
+      "clusterGroupHelp": "Os idiomas deste grupo. Toque para mostrá-los ou escondê-los.",
+      "looseGroupHelp": "Os idiomas que não estão em nenhum grupo. Toque para mostrá-los ou escondê-los.",
+      "openCluster": "Abrir {{cluster}}",
+      "openClusterHelp": "Abre o grupo: os idiomas dele e o progresso de todos juntos. Lá você pode adicionar um idioma, renomear ou desagrupar."
     },
     "rename": {
       "done": "O nome mudou para {{name}}.",
@@ -7393,13 +7397,6 @@
     }
   },
   "clusters": {
-    "row": {
-      "sub_one": "{{count, number}} idioma · {{names}}",
-      "sub_many": "{{count, number}} idiomas · {{names}}",
-      "sub_other": "{{count, number}} idiomas · {{names}}",
-      "namesMore": "{{names}}…",
-      "openHelp": "Abre o grupo: os idiomas dele e o progresso de todos juntos."
-    },
     "home": {
       "sub_one": "Grupo · {{count, number}} idioma",
       "sub_many": "Grupo · {{count, number}} idiomas",
