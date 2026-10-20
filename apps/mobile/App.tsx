@@ -572,8 +572,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
               </Stack.Navigator>
             </NavigationContainer>
             {toastHost(toastAbove)}
-            {/* Feedback from help mode, at the toast's place (decisions.md 141). */}
-            <FeedbackHost ctx={ctx} screen={screen} bottom={toastAbove} signedIn={props.signedIn} />
+            {/* Feedback from help mode, in the strip a screen leaves at its foot (decisions.md 141). */}
+            <FeedbackHost ctx={ctx} screen={screen} signedIn={props.signedIn} />
             </View>
           </CtxContext.Provider>
           </FooterReportContext.Provider>

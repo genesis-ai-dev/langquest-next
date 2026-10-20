@@ -1,8 +1,7 @@
 // Feedback from help mode (decisions.md 141). While help is on for a screen,
-// a green Send feedback button waits at the foot of it, where toasts show,
-// so it never covers the header, the tabs or the screen's own buttons; the
-// screen's end scrolls out from under it (kit's Screen), and it can be
-// dragged anywhere out of the way. Green, with a grip, so it is not taken for
+// a green Send feedback button waits in a strip the screen leaves at its foot
+// (kit's Screen, HELP_FOOT_ROOM), above the tabs, so it covers nothing; it can
+// also be dragged anywhere out of the way. Green, with a grip, so it is not taken for
 // one of the screen's own purple buttons. Like the ?, it acts rather than
 // explains: it turns help off, takes the window as the person saw it, and
 // opens a sheet to say, type or both what is wrong or what would help. The
@@ -12,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PanResponder, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Chip, ChipWrap, Field, Group, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
+import { Chip, ChipWrap, Field, Group, HELP_FOOT_ROOM, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
 import { VoiceNote } from '../audio/voiceNote';
 import { HelpLit } from '../helpMode/helpBadge';
 import { useHelpMode } from '../helpMode/useHelpMode';
@@ -41,7 +40,7 @@ let kept = { dx: 0, dy: 0 };
 type Size = { width: number; height: number };
 
 /** The Feedback button over a screen in help mode, and the sheet it opens. */
-export function FeedbackHost(props: { ctx: Ctx; screen: string; bottom: number; signedIn: boolean }) {
+export function FeedbackHost(props: { ctx: Ctx; screen: string; signedIn: boolean }) {
   const help = useHelpMode();
   const [open, setOpen] = useState<{ shot: Shot | null } | null>(null);
   const [taking, setTaking] = useState(false);
@@ -53,9 +52,11 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; bottom: number; 
   useEffect(() => { if (props.signedIn) void adoptWaitingFeedback(actorId); }, [props.signedIn, actorId]);
   const showing = !!help?.on && help.top === null && !taking;
 
-  const place = area && pill ? pillPlace(area, pill, props.bottom, drag) : null;
-  const latest = useRef({ place, area, pill, bottom: props.bottom });
-  latest.current = { place, area, pill, bottom: props.bottom };
+  // Centred in the strip the screen leaves for it.
+  const bottom = pill ? Math.max(0, (HELP_FOOT_ROOM - pill.height) / 2) : space.sm;
+  const place = area && pill ? pillPlace(area, pill, bottom, drag) : null;
+  const latest = useRef({ place, area, pill, bottom });
+  latest.current = { place, area, pill, bottom };
   const from = useRef(kept);
   const moved = useRef(false);
   const [pressed, setPressed] = useState(false);

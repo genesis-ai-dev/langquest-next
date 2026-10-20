@@ -102,17 +102,17 @@ export function Screen(props: {
   const reportFooter = useContext(FooterHeightContext);
   const hasFooter = !!props.footer;
   useEffect(() => { if (reportFooter && !hasFooter) reportFooter(0); }, [reportFooter, hasFooter]);
-  // In help mode, Send feedback waits at the foot of the screen (decisions.md 141): the end of
-  // the screen can still scroll out from under it.
+  // In help mode, Send feedback waits in a strip of its own at the foot of the screen
+  // (decisions.md 141): the screen, its footer too, ends above it, so it covers nothing.
   const helpOn = useHelpOn();
   return (
-    <KeyboardSafe style={styles.screen}>
+    <KeyboardSafe style={[styles.screen, helpOn && { paddingBottom: HELP_FOOT_ROOM }]}>
       {props.header}
       <HelpClip style={{ flex: 1 }}>
         {props.fixed ? (
           <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle, helpOn && styles.helpFootRoom]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {props.children}
           </ScrollView>
         )}
@@ -259,6 +259,9 @@ export function Header(props: {
   if (wide) return <View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>;
   return <View style={centred ? styles.headerCentred : styles.headerHome}>{content}</View>;
 }
+
+/** The strip a screen leaves at its foot while help is on, for Send feedback (52 pt) and a little air (feedback/FeedbackSheet.tsx). */
+export const HELP_FOOT_ROOM = 52 + space.sm * 2;
 
 /** Wider than one round button and its gap: two buttons, or a mark and a button. */
 const WIDE_ACTION = 64;
@@ -1041,8 +1044,6 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   body: { padding: space.lg, gap: space.md, paddingBottom: space.xxl },
-  /** Send feedback's height (48) and the space under and over it. */
-  helpFootRoom: { paddingBottom: 48 + space.lg * 2 + space.xxl },
   footer: { paddingHorizontal: space.lg, paddingTop: space.md, gap: space.sm, backgroundColor: C.card, borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   column: { width: '100%', maxWidth: measure.column, alignSelf: 'center' },
   footerActions: { width: '100%', maxWidth: measure.action, alignSelf: 'center', gap: space.sm },

@@ -5625,12 +5625,13 @@ send a bug report or a feature request directly, with a non-PII id that
 leads to the phone's diagnostics, and optionally their profile and a
 screenshot of the screen they were on.
 - **Where.** While help is on for a screen (not a sheet), a lit Send
-  feedback button waits where toasts show, above the screen's own buttons
-  and the tabs (`feedback/FeedbackSheet.tsx`). It is green with a white
+  feedback button waits at the foot of the screen, above the tabs
+  (`feedback/FeedbackSheet.tsx`). It is green with a white
   ring and a grip, so it is not taken for one of the screen's own purple
   buttons, and it can be dragged anywhere in the screen's area (kept there
-  while the app runs). A screen in help mode leaves room at its foot, so
-  its end scrolls out from under the button (kit's `Screen`). Like the ?, it acts rather
+  while the app runs). A screen in help mode ends above a strip it leaves
+  at its foot for the button (kit's `Screen`, `HELP_FOOT_ROOM`), its footer
+  too, so the button covers nothing where it starts. Like the ?, it acts rather
   than explains (71): it turns help off, takes the window, then opens a
   sheet: a problem or an idea, what happened (typed, said in a voice note
   of up to two minutes, or both), and two switches, both off,
