@@ -25,6 +25,7 @@ import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail, FooterHeightContext } from './src/ui/useLayout';
 import { EmptyState, GhostBtn, ToastView, type ToastSpec } from './src/ui/kit';
+import { FeedbackHost } from './src/feedback/FeedbackSheet';
 import { txt } from './src/ui/textStyles';
 import { installGlobalHandlers, reportError } from './src/diagnostics/report';
 import { t } from './src/i18n';
@@ -577,6 +578,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
               </Stack.Navigator>
             </NavigationContainer>
             {toastHost(toastAbove)}
+            {/* Feedback from help mode, in the strip a screen leaves at its foot (decisions.md 145). */}
+            <FeedbackHost ctx={ctx} screen={screen} signedIn={props.signedIn} />
             </View>
           </CtxContext.Provider>
           </FooterReportContext.Provider>

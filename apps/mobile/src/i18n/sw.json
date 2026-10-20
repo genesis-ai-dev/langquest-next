@@ -3135,7 +3135,8 @@
         "report": "Ripoti",
         "block": "Zuia",
         "unblock": "Acha kuzuia",
-        "onboarding": "Kujiunga"
+        "onboarding": "Kujiunga",
+        "feedback": "Maoni"
       },
       "failedSub": "{{reason}} · Gusa ili kujaribu tena",
       "waiting": "Inasubiri kutumwa",
@@ -7154,5 +7155,36 @@
     "help": "Huhifadhiwa unapoendelea: duara linalozunguka wakati inahifadhiwa, kisha alama ya vema. Huhitaji kuhifadhi.",
     "failed": "Haijahifadhiwa",
     "saved": "Imehifadhiwa"
+  },
+  "feedback": {
+    "open": "Tuma maoni",
+    "title": "Maoni",
+    "send": "Tuma",
+    "kind": {
+      "bug": "Kuna tatizo",
+      "idea": "Wazo"
+    },
+    "placeholder": {
+      "bug": "Nini kilitokea?",
+      "idea": "Nini kingesaidia?"
+    },
+    "addScreenshot": "Ongeza picha hii ya skrini",
+    "addNameAndEmail": "Ongeza jina langu na barua pepe",
+    "addNameAndSignIn": "Ongeza jina langu na jina la kuingia",
+    "addName": "Ongeza jina langu",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "Tatizo: kitu kimeharibika, kimekwama au kinaonekana vibaya.",
+      "idea": "Wazo: kitu kitakachofanya LangQuest iwe bora kwako.",
+      "body": "Sema kwa maneno yako mwenyewe, kwa lugha yoyote.",
+      "screenshot": "Hutuma picha ya skrini uliyokuwa. Imezimwa hadi uiwashe.",
+      "profile": "Hutuma jina lako na jinsi unavyoingia, ili timu ya LangQuest ijue nani aliandika. Imezimwa hadi uiwashe."
+    },
+    "toast": {
+      "sent": "Imetumwa. Asante!",
+      "saved": "Imehifadhiwa. Itatumwa ukiunganishwa.",
+      "savedUntilSignIn": "Imehifadhiwa. Itatumwa baada ya kuingia.",
+      "voiceTooLong": "Ni ndefu mno: ujumbe wa sauti unaweza kuwa hadi dakika 2."
+    }
   }
 }

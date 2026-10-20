@@ -24,6 +24,17 @@ const HARNESS = fileURLToPath(new URL('./orgFolderHeap.ts', import.meta.url));
 const HEAP_MB = 112;
 /** Held between requests: the fold budget (about twice its bytes once parsed) and the rest of the object, with room to spare. */
 const RETAINED_MB = 48;
+/**
+ * How long one case may run. Time is not what this test measures: the
+ * capped heap makes a case spend most of its time collecting garbage (58%
+ * of the API path's 6 × 5,000 case, profiled 2026-10-20), and the file runs
+ * its cases side by side. That case takes about 20 s alone on a laptop, and
+ * 63 to 107 s on CI's runners (main, 2026-10-19 and 2026-10-20); on
+ * 2026-10-20 it reached the old 120 s limit and was killed. Twice the
+ * slowest CI time, so a slow runner is not a red check; a case that loops
+ * forever still ends.
+ */
+const CASE_MS = 240_000;
 
 type Path = 'fold' | 'webhooks' | 'api' | 'reports' | 'writes';
 interface Out { retainedHeapMb: number; peakHeapMb: number }
@@ -32,7 +43,7 @@ function run(path: Path, a: number, b: number, unbounded = false): Promise<{ sta
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [
       `--max-old-space-size=${HEAP_MB}`, '--expose-gc', '--no-warnings', '--import', 'tsx', HARNESS, path, String(a), String(b), ...(unbounded ? ['unbounded'] : [])
-    ], { timeout: 120_000 });
+    ], { timeout: CASE_MS });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });
@@ -92,10 +103,10 @@ describe.concurrent('an organization Durable Object stays inside its isolate', (
     for (const [a, b] of shapes) {
       it(`${path}: ${what} (${a} × ${b})`, async () => {
         expect(overflow(await run(path, a, b))).toBeNull();
-      }, 150_000);
+      }, CASE_MS + 30_000);
     }
     it(`${path}: the check fails with ${regression.what}`, async () => {
       expect(overflow(await run(path, ...regression.shape, true))).not.toBeNull();
-    }, 150_000);
+    }, CASE_MS + 30_000);
   }
 });

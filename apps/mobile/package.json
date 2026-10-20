@@ -26,6 +26,7 @@
     "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.24",
+    "html-to-image": "1.11.13",
     "i18n-iso-countries": "^7.14.0",
     "i18next": "^26.4.2",
     "lucide-react-native": "^1.52.0",
@@ -39,6 +40,7 @@
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "^4.0.0",
+    "react-native-view-shot": "5.1.0",
     "react-native-web": "^0.21.2",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2"

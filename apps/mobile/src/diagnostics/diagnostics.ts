@@ -48,14 +48,20 @@ export async function setDiagnosticsEnabled(on: boolean): Promise<void> {
   await saveDiagnosticsOn(await getStore(), diagnostics, lazyStore, on);
 }
 
-/** The phone and build, as the allowlist permits. The install id is the event envelope's deviceId. */
-async function context(): Promise<DiagContext> {
+/**
+ * The phone and build, as the allowlist permits. The install id is the event
+ * envelope's deviceId. Feedback carries it too, so support can open the
+ * same install's diagnostics (feedback/feedbackData.ts).
+ */
+export async function phoneContext(): Promise<DiagContext> {
   const installId = await ensureDeviceId(await getStore(), () => Crypto.randomUUID());
-  const c = Platform.constants as { Model?: string; Release?: string; osVersion?: string };
+  // react-native-web has no Platform.constants (nor a Version): reading through it threw, so a
+  // browser never delivered its records (found with feedback, decisions.md 145).
+  const c = (Platform.constants ?? {}) as { Model?: string; Release?: string; osVersion?: string };
   return sanitizeContext({
     installId,
     os: Platform.OS,
-    osVersion: c.Release ?? c.osVersion ?? String(Platform.Version),
+    osVersion: c.Release ?? c.osVersion ?? (Platform.Version !== undefined ? String(Platform.Version) : undefined),
     model: c.Model,
     // A browser has no expo-updates: its build is the commit the page was built from (webBuild.ts).
     runtimeVersion: Platform.OS === 'web' ? BUILD_ID || undefined : Updates.runtimeVersion,
@@ -137,7 +143,7 @@ export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsW
     n.diagQueued = await diagnostics.pendingCount();
     n.diagDropped = diagnostics.takeDropped();
     diagnostics.record('device', { n });
-    const ctx = await context();
+    const ctx = await phoneContext();
     await diagnostics.flush(async (records) => {
       const { error } = await ingestDiagnostics(ctx, records);
       if (error) throw new Error(error.message);
