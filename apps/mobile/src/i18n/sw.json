@@ -6195,16 +6195,11 @@
       "gripHelp": "Buruta juu au chini ili kusogeza hatua hii."
     },
     "notesOn": {
-      "onPart": "Ongeza dokezo kwenye {{part}}",
-      "onPartHelp": "Huongeza dokezo kwenye sehemu hii, kwa sauti au kwa maandishi. Linaonekana chini ya sehemu hiyo kwa kila mtu.",
-      "onHelp": "Ongeza dokezo kwenye {{help}}",
-      "onHelpHelp": "Huongeza dokezo kwenye kisaidizi hiki, kwa sauti au kwa maandishi. Linaonekana chini ya kisaidizi hicho kwa kila mtu.",
-      "onTerm": "Ongeza dokezo kwenye {{term}}",
-      "onTermHelp": "Huongeza dokezo kwenye neno hili muhimu, kwa sauti au kwa maandishi. Linaonekana chini ya neno hilo kwa kila mtu.",
+      "addOn": "Ongeza dokezo kwenye {{what}}",
+      "addOnHelp": "Huongeza dokezo kwenye kitu hiki, kwa sauti au kwa maandishi. Linaonekana chini yake kwa kila mtu.",
       "noteOn": "Dokezo kwenye {{what}}",
       "reply": "Jibu",
       "replyHelp": "Hujibu dokezo la {{name}}. Jibu lako linaonekana chini yake.",
-      "replyTo": "Jibu kwa {{name}}",
       "replyTitle": "Jibu kwa {{name}}",
       "at": "Kwenye {{time}}"
     }

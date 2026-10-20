@@ -440,7 +440,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
               <HelpRow key={h.key} of="review.checkHelp">
                 <NotedRow last={i === helps.length - 1}
                   row={<Row icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last />}
-                  note={{ label: t('review.notesOn.onHelp', { help: h.name }), help: t('review.notesOn.onHelpHelp'), onPress: () => noteOn({ kind: 'passage', help: h.help }, t('review.notesOn.noteOn', { what: h.name }), h.name) }}
+                  note={{ label: t('review.notesOn.addOn', { what: h.name }), help: t('review.notesOn.addOnHelp'), onPress: () => noteOn({ kind: 'passage', help: h.help }, t('review.notesOn.noteOn', { what: h.name }), h.name) }}
                   notes={<NotesUnder ctx={ctx} p={v.p} notes={helpNotesFor(v.p, h.help)} onReply={replyOn} />} />
               </HelpRow>
             ))}

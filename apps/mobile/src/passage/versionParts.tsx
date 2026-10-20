@@ -99,7 +99,7 @@ function PartRow(props: {
         <Text style={txt.smMuted}>{mmss(props.durationMs)}</Text>
         <HelpBadge spot={play} />
       </Pressable>
-      {props.onNote ? <View style={styles.noteBtn}><NoteBtn label={t('review.notesOn.onPart', { part: name })} help={t('review.notesOn.onPartHelp')} onPress={props.onNote} /></View> : null}
+      {props.onNote ? <View style={styles.noteBtn}><NoteBtn label={t('review.notesOn.addOn', { what: name })} help={t('review.notesOn.addOnHelp')} onPress={props.onNote} /></View> : null}
       {clip.error ? <Text style={[txt.error, styles.error]}>{clip.error}</Text> : null}
       {props.notes ? <View style={styles.notes}>{props.notes}</View> : null}
     </View>

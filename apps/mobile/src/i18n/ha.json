@@ -6195,16 +6195,11 @@
       "gripHelp": "Ku ja sama ko ƙasa don matsar da wannan mataki."
     },
     "notesOn": {
-      "onPart": "Ƙara bayani a kan {{part}}",
-      "onPartHelp": "Yana ƙara bayani a kan wannan sashe, da murya ko rubutu. Kowa yana ganinsa a ƙarƙashin sashen.",
-      "onHelp": "Ƙara bayani a kan {{help}}",
-      "onHelpHelp": "Yana ƙara bayani a kan wannan abin taimako, da murya ko rubutu. Kowa yana ganinsa a ƙarƙashin abin taimakon.",
-      "onTerm": "Ƙara bayani a kan {{term}}",
-      "onTermHelp": "Yana ƙara bayani a kan wannan muhimmiyar kalma, da murya ko rubutu. Kowa yana ganinsa a ƙarƙashin kalmar.",
+      "addOn": "Ƙara bayani a kan {{what}}",
+      "addOnHelp": "Yana ƙara bayani a kan wannan, da murya ko rubutu. Kowa yana ganinsa a ƙarƙashinsa.",
       "noteOn": "Bayani a kan {{what}}",
       "reply": "Amsa",
       "replyHelp": "Yana amsa bayanin {{name}}. Amsarku tana bayyana a ƙarƙashinsa.",
-      "replyTo": "Amsa wa {{name}}",
       "replyTitle": "Amsa wa {{name}}",
       "at": "A {{time}}"
     }

@@ -6195,16 +6195,11 @@
       "gripHelp": "Drag up or down to move this step."
     },
     "notesOn": {
-      "onPart": "Add a note on {{part}}",
-      "onPartHelp": "Adds a note on this part, said or typed. It shows under the part for everyone.",
-      "onHelp": "Add a note on {{help}}",
-      "onHelpHelp": "Adds a note on this help, said or typed. It shows under the help for everyone.",
-      "onTerm": "Add a note on {{term}}",
-      "onTermHelp": "Adds a note on this key word, said or typed. It shows under the word for everyone.",
+      "addOn": "Add a note on {{what}}",
+      "addOnHelp": "Adds a note on this, said or typed. It shows under it for everyone.",
       "noteOn": "Note on {{what}}",
       "reply": "Reply",
       "replyHelp": "Answers {{name}}'s note. Your reply shows under it.",
-      "replyTo": "Reply to {{name}}",
       "replyTitle": "Reply to {{name}}",
       "at": "At {{time}}"
     }

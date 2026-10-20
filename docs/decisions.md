@@ -6651,7 +6651,10 @@ check's helps were read only.
 - No sentence explains any of it on screen: the note sheets drop their sub
   line, and help mode says what each button does.
 Cost: a note is on the record when it is added, so a translator can see a
-reviewer's notes before the verdict, as with verse notes. Notes on Earlier's
+reviewer's notes before the verdict, as with verse notes. The web app's
+cap on all its JavaScript rose from 6.5 to 6.55 MB (`export-web.mjs`):
+with this it is 6.51 MB, of which the new lines in 15 languages are 15 KB;
+the first visit stays under its 5.7 MB. Notes on Earlier's
 versions and feedback are not offered: Earlier is history, and the version
 being checked is the one notes are for.
 Reverse if: teams want a reviewer's notes held until the verdict; then the

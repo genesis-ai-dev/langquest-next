@@ -223,7 +223,7 @@ export function BackgroundSheet(props: {
                   <NotedRow last={i === data.terms.length - 1}
                     row={<Row icon="key" label={term.term} sub={rendering ? t('review.simple.theirWord', { word: rendering }) : t('review.simple.noWordYet')}
                       help={t('passage.version.termHelp')} last onPress={() => props.onOpenTerm(term.termId)} />}
-                    note={{ label: t('review.notesOn.onTerm', { term: term.term }), help: t('review.notesOn.onTermHelp'),
+                    note={{ label: t('review.notesOn.addOn', { what: term.term }), help: t('review.notesOn.addOnHelp'),
                       onPress: () => props.onNote({ kind: 'term', termId: term.termId }, t('review.notesOn.noteOn', { what: term.term }), term.term) }}
                     notes={<NotesUnder ctx={ctx} p={v.p} notes={termNotesFor(v.p, term.termId)} onReply={props.onReply} />} />
                 </HelpRow>

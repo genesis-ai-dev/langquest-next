@@ -6450,16 +6450,11 @@
       "gripHelp": "Arraste para cima ou para baixo para mover esta etapa."
     },
     "notesOn": {
-      "onPart": "Adicionar uma nota na {{part}}",
-      "onPartHelp": "Adiciona uma nota nesta parte, falada ou digitada. Ela aparece abaixo da parte para todos.",
-      "onHelp": "Adicionar uma nota em {{help}}",
-      "onHelpHelp": "Adiciona uma nota nesta ajuda, falada ou digitada. Ela aparece abaixo da ajuda para todos.",
-      "onTerm": "Adicionar uma nota em {{term}}",
-      "onTermHelp": "Adiciona uma nota nesta palavra-chave, falada ou digitada. Ela aparece abaixo da palavra para todos.",
+      "addOn": "Adicionar uma nota em {{what}}",
+      "addOnHelp": "Adiciona uma nota nisto, falada ou digitada. Ela aparece abaixo para todos.",
       "noteOn": "Nota em {{what}}",
       "reply": "Responder",
       "replyHelp": "Responde à nota de {{name}}. A sua resposta aparece abaixo dela.",
-      "replyTo": "Resposta a {{name}}",
       "replyTitle": "Resposta a {{name}}",
       "at": "Em {{time}}"
     }

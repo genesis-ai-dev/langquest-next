@@ -69,7 +69,7 @@ export function NotesUnder(props: {
             {replies.length ? (
               <View style={styles.replies}>
                 {replies.map((r) => (
-                  <HelpRow key={r.id} of="review.reply"><StudyNote ctx={props.ctx} note={r} label={t('review.notesOn.replyTo', { name: first })} /></HelpRow>
+                  <HelpRow key={r.id} of="review.reply"><StudyNote ctx={props.ctx} note={r} label={t('review.capture.anchor.replyTo', { name: first })} /></HelpRow>
                 ))}
               </View>
             ) : null}
