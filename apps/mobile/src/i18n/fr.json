@@ -3274,7 +3274,8 @@
         "report": "Signalement",
         "block": "Blocage",
         "unblock": "Déblocage",
-        "onboarding": "Accueil"
+        "onboarding": "Accueil",
+        "feedback": "Avis"
       },
       "failedSub": "{{reason}} · Touchez pour réessayer",
       "waiting": "En attente d’envoi",
@@ -7513,5 +7514,36 @@
     "help": "Gardé au fur et à mesure : un cercle qui tourne pendant la sauvegarde, puis une coche. Vous n’avez rien à sauvegarder.",
     "failed": "Non sauvegardé",
     "saved": "Sauvegardé"
+  },
+  "feedback": {
+    "open": "Envoyer un avis",
+    "title": "Avis",
+    "send": "Envoyer",
+    "kind": {
+      "bug": "Quelque chose ne va pas",
+      "idea": "Une idée"
+    },
+    "placeholder": {
+      "bug": "Que s’est-il passé ?",
+      "idea": "Qu’est-ce qui aiderait ?"
+    },
+    "addScreenshot": "Ajouter cette capture d’écran",
+    "addNameAndEmail": "Ajouter mon nom et mon e-mail",
+    "addNameAndSignIn": "Ajouter mon nom et mon nom de connexion",
+    "addName": "Ajouter mon nom",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "Un problème : quelque chose a cassé, s’est figé ou s’affiche mal.",
+      "idea": "Une idée : quelque chose qui rendrait LangQuest meilleur pour vous.",
+      "body": "Dites-le avec vos mots, dans n’importe quelle langue.",
+      "screenshot": "Envoie une image de l’écran où vous étiez. Désactivé tant que vous ne l’activez pas.",
+      "profile": "Envoie votre nom et votre façon de vous connecter, pour que l’équipe LangQuest sache qui a écrit. Désactivé tant que vous ne l’activez pas."
+    },
+    "toast": {
+      "sent": "Envoyé. Merci !",
+      "saved": "Sauvegardé. C’est envoyé quand vous êtes connecté.",
+      "savedUntilSignIn": "Sauvegardé. C’est envoyé après votre connexion.",
+      "voiceTooLong": "Trop long : une note vocale peut durer jusqu’à 2 minutes."
+    }
   }
 }

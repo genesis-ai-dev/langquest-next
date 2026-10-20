@@ -151,7 +151,7 @@ test('PEOPLE-003 Invite by group code, and the person joins on a second device @
   await openAs(page, w, 'ADMIN');
   await alphaMembers(page, w);
   await button(page, 'Invite').click();
-  // Step 2: who, as a card per role with its own Invite, in which language; the group code is the first way offered (decisions 71, 145).
+  // Step 2: who, as a card per role with its own Invite, in which language; the group code is the first way offered (decisions 71, 146).
   await expect(text(page, 'Invite someone')).toBeVisible();
   await expect(text(page, 'Alpha')).toBeVisible();
   await expectInOrder(page, 'Who are you inviting?', 'Translators', 'Checkers', 'Back-translators', 'Team leads');
@@ -367,7 +367,7 @@ test('PEOPLE-008 Invite by QR targets the language chosen on Invite someone', as
   await text(page, 'Invite people').click();
   await expect(text(page, 'In which language?')).toBeVisible();
   await page.getByRole('button', { name: 'Bravo', exact: true }).locator('visible=true').first().click();
-  // A role's card, then its code, where the other ways to invite are (decision 145).
+  // A role's card, then its code, where the other ways to invite are (decision 146).
   await inviteRole(page, 'Translators');
   await expect(text(page, 'Translators · Bravo')).toBeVisible();
   await text(page, 'One person, by name').click();

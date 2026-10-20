@@ -232,7 +232,7 @@ export async function openMember(page: Page, name: string): Promise<void> {
 
 /**
  * Invite someone: the Invite on one role's card ("Translators", or a role's
- * own name; decision 145), then its code. A role that does checks is asked
+ * own name; decision 146), then its code. A role that does checks is asked
  * first which checks; `checks` are ticked there, none by default.
  */
 export async function inviteRole(page: Page, title: string, checks: readonly string[] = []): Promise<void> {

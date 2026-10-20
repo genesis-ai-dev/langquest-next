@@ -4,13 +4,30 @@ import { DurableOutbox, type AccountAction } from '@langquest-next/sync';
 import * as server from '../server/account';
 import { noteOutboxFailure } from '../auth/authDiag';
 import { RpcError } from '../auth/authOutcome';
+import { dropShot, readShot } from '../feedback/feedbackShots';
+import { dropVoice, voiceForServer } from '../feedback/voiceBytes';
+import type { VoiceRef } from '../feedback/feedbackModel';
+
+/**
+ * One queued change to the server. Feedback carries its screenshot and voice
+ * note, kept on the phone beside it until it has gone (decisions.md 145).
+ */
+async function deliver(actorId: string, action: AccountAction): Promise<void> {
+  if (action.kind !== 'feedback') return server.deliverAccountAction(actorId, action);
+  const shot = action.payload['shot'] === true ? await readShot(action.id) : null;
+  const voiceRef = (action.payload['voice'] ?? null) as VoiceRef | null;
+  const voice = voiceRef ? await voiceForServer(voiceRef) : null;
+  await server.deliverAccountAction(actorId, action, { screenshot: shot, voice });
+  if (shot) await dropShot(action.id);
+  if (voiceRef) await dropVoice(voiceRef);
+}
 
 const outboxes = new Map<string, DurableOutbox>();
 export function accountOutbox(actorId: string): DurableOutbox {
   let outbox = outboxes.get(actorId);
   if (!outbox) {
     // A change that keeps failing is told to diagnostics by its kind and code, never its contents.
-    outbox = new DurableOutbox(actorId, AsyncStorage, (action) => server.deliverAccountAction(actorId, action), { onFailure: noteOutboxFailure });
+    outbox = new DurableOutbox(actorId, AsyncStorage, (action) => deliver(actorId, action), { onFailure: noteOutboxFailure });
     outboxes.set(actorId, outbox);
   }
   return outbox;

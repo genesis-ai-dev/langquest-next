@@ -39,7 +39,7 @@ async function createAccountAndOrg(page: Page, email: string): Promise<void> {
   await vis(page, `input[aria-label="What's it called?"]`).fill('Smoke Org');
   await button(page, 'Create Organization').click();
   await button(page, /Add a language/).click({ timeout: 60_000 });
-  // New Language shows its six steps first (decision 145): its name, what they record and how it is
+  // New Language shows its six steps first (decision 146): its name, what they record and how it is
   // broken up, the language of its Bibles and guides and what they will have, its review flow and its
   // checks (each with the suggestion picked), then inviting, which can wait.
   await button(page, 'Start').click({ timeout: 60_000 });

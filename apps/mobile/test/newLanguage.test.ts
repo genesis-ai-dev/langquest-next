@@ -16,7 +16,7 @@ const doc: TemplateDoc = {
   bible: { versification: V11N, books: [{ book: 'GEN', name: 'Genesis' }, { book: 'LUK', name: 'Luke' }], divide: 'chapters' },
   deps: [V11N]
 };
-// Its checks as New language's draft holds them (decision 145): Quick Check copied in, then the recording set to hide the Bible's words.
+// Its checks as New language's draft holds them (decision 146): Quick Check copied in, then the recording set to hide the Bible's words.
 const flowSpecs = commands(emptyLanguageState()).copyFlow({ commandId: 'draft', name: 'Quick Check', kinds: DEFAULT_KINDS, steps: [{ kindIds: ['peer'] }, { kindIds: ['final'] }] });
 const checks = [...flowSpecs, ...checkShowsSpecs(emptyLanguageState(), { commandId: 'shows', kindId: 'record', what: 'bibleText', shown: false })];
 const shared = (name: string) => ({ org_id: 'langquest', item_id: name, name, subscribable: true } as unknown as SharedItem);
@@ -66,7 +66,7 @@ describe('adding a language (ORG-2, decisions 63, 76, 84, 91)', () => {
     expect(language[0]!.languageId).toBe(made.languageId);
     expect(types).toContain('v1.TemplateSelected');
     expect(types).toContain('v1.FlowSelected');
-    // What was set on its checks before it existed comes with them, under ids of this language (decision 145).
+    // What was set on its checks before it existed comes with them, under ids of this language (decision 146).
     const shows = language[0]!.specs.filter((s) => s.type === 'v1.CheckShowsSet');
     expect(shows.map((s) => s.payload)).toEqual([{ kindId: 'record', what: 'bibleText', shown: false }]);
     expect(shows[0]!.id.startsWith(`${made.languageId}:`)).toBe(true);

@@ -25,7 +25,7 @@ export interface ClusterTarget { clusterId: string; name?: string; existing?: re
 /** Something a new language's team is offered from the start: an item here, or one another organization shares. */
 export interface Offer { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember }
 
-/** One thing New language can give a new team, on its Reference material step (decision 145): a Bible, a set of study guides, a note. */
+/** One thing New language can give a new team, on its Reference material step (decision 146): a Bible, a set of study guides, a note. */
 export type MaterialChoice = Offer & { key: string; kind: 'source' | 'guide' | 'note'; sub: string };
 
 /**
@@ -75,7 +75,7 @@ type NewLanguageInput = {
   alsoReads?: readonly string[];
   scope: LanguageScope; chosenBooks: ReadonlySet<string>;
   /**
-   * Its checks as New language's draft holds them (decisions.md 145): a flow
+   * Its checks as New language's draft holds them (decisions.md 146): a flow
    * copied in (decision 91), then whatever was set on each check's pages.
    */
   checks: readonly EventSpec[];
@@ -83,7 +83,7 @@ type NewLanguageInput = {
 };
 
 /**
- * Add a language (ORG-2, decisions 63, 71, 76, 84, 91, 145): listed in the
+ * Add a language (ORG-2, decisions 63, 71, 76, 84, 91, 146): listed in the
  * organization's stream first, then its own stream starts with the
  * template, its checks as they were set up before it existed, and what
  * its team is offered.

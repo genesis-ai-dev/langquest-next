@@ -36,7 +36,7 @@ const APP_ONLY: Record<string, string> = {
   'get_ready->role_editor': 'Invite your translators: Something else, make a new role (decision 71, demo ADR-039, amended 2026-10-08)',
   'new_language->template_editor': 'New language, what they translate: Something else, Make your own (decision 71, amended 2026-10-11)',
   'new_language->role_editor': 'New language, invite its translators: Something else, make a new role, as on Get ready and Invite (design principle 12)',
-  'new_language->check_editor': 'New language, its review flow: each check opens on its own pages before the language exists (decision 145)',
+  'new_language->check_editor': 'New language, its review flow: each check opens on its own pages before the language exists (decision 146)',
   'language_home->edit_member': 'a ready language lists join requests: tap to let them in (decision 71, demo ADR-039)',
   'intent_chooser->sign_out_confirm': 'signing out of Join your team asks first and hands over what waits, as Me does (NOORG-004, decision 60)',
   'templates_home->templates_home': "Content Templates' By language rows open that language's template view (TPL-1, SETUP-032)",

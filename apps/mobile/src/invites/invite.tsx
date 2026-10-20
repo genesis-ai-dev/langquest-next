@@ -1,4 +1,4 @@
-// Invite someone (decision 71, demo ADR-039; decision 145): the roles as
+// Invite someone (decision 71, demo ADR-039; decision 146): the roles as
 // cards, each with what it lets them do one tap open and its own Invite, so
 // it reads as inviting several kinds of people, not choosing one. A role that
 // does checks can be put on some of the language's checks first (skippable),
@@ -50,7 +50,7 @@ export function InviteSomeone(props: {
   /** Quieter ways to invite, under a role's code (by email, one person by name). */
   links?: (roleId: string, scope: InviteScope) => { label: string; icon: IconName; onPress: () => void; help?: string }[];
   disabled?: string;
-  /** New language's first look at inviting (decision 145): "Time to invite people" over the roles. */
+  /** New language's first look at inviting (decision 146): "Time to invite people" over the roles. */
   welcome?: boolean;
   /** Under the roles: New language's Later. */
   later?: { label: string; help: string; onPress: () => void };
@@ -75,7 +75,7 @@ export function InviteSomeone(props: {
   const uri = invite && 'uri' in invite ? invite.uri : null;
 
   // The checks a code can put people on: the open language's, when the code is for it, for a role that does checks,
-  // by someone who may choose who does them (decision 145).
+  // by someone who may choose who does them (decision 146).
   const state = ctx.language.state;
   const forOpen = scope?.scope.level === 'language' && scope.scope.languageId === ctx.language.languageId && !!state;
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);

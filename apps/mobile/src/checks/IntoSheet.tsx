@@ -1,5 +1,5 @@
 // The language a step that makes something (back translation) makes it in
-// (decisions.md 145): the team's reference languages first, the one it has
+// (decisions.md 146): the team's reference languages first, the one it has
 // now among them, any other found in the language list or typed.
 import { useState } from 'react';
 import { View } from 'react-native';
