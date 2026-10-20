@@ -126,8 +126,13 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   only through `public.diag_job_ingest`, which only the service role may
   call (`server/jobRuns.ts`; writing never fails or slows the job). Kept 90
   days, like records.
-- Writers: the projection pass (`projection`, every 5 minutes on the Edge;
-  `projection_large`, every 10 in GitHub Actions), push delivery
+- Writers: the projection pass (`projection`, every 5 minutes in the job
+  container behind the dashboard Worker, decisions.md 141; every minute on
+  a local stack's Edge Function; `projection_large` is retired; its numbers
+  include `peakRssMb` and `heapLimitMb`, and a run without a failure
+  names the language that raised its peak memory), the
+  Worker's job tick (`job_starts`: jobs started, found running, switched
+  off, or that could not start), push delivery
   (`push_delivery`, every minute: claimed, sent, no token, failed by cause,
   receipts), the v2 import (`v2_import`), the dashboard Worker's cron
   (`worker_cron`), webhook delivery per batch (`webhook_dispatch`), the
@@ -222,7 +227,7 @@ the install's timeline to pick the time window.
 ## Feedback from help mode
 
 What people choose to tell us is not a diagnostics record, and nothing above
-changes for it (decisions.md 141). While help is on, Send feedback opens a
+changes for it (decisions.md 143). While help is on, Send feedback opens a
 sheet for a problem or an idea, typed or said in a voice note (at most two
 minutes); the report is an account change (it waits
 offline and goes as its author, like a profile change) and arrives in

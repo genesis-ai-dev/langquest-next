@@ -10,7 +10,7 @@ import type { VoiceRef } from '../feedback/feedbackModel';
 
 /**
  * One queued change to the server. Feedback carries its screenshot and voice
- * note, kept on the phone beside it until it has gone (decisions.md 141).
+ * note, kept on the phone beside it until it has gone (decisions.md 143).
  */
 async function deliver(actorId: string, action: AccountAction): Promise<void> {
   if (action.kind !== 'feedback') return server.deliverAccountAction(actorId, action);

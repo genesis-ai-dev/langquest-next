@@ -1,4 +1,4 @@
-// Feedback from help mode (decisions.md 141). A report is an account change:
+// Feedback from help mode (decisions.md 143). A report is an account change:
 // it waits in the account outbox as the person who wrote it, so it survives
 // months offline and a restart, holds sign-out like any saved change, goes
 // with a shared phone's hand-over and is sent as its author (decisions.md
