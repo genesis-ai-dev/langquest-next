@@ -22,6 +22,7 @@
 // template), `new` (start one), or `languageId` (that language's template).
 // book_structure: `languageId`, `bookId`. A `languageId` param opens that
 // language, so its state is the open language's.
+import { readerLanguage } from '../reference/languages';
 import { languageLabel } from '../admin/adminModel';
 import { LanguageField } from '../reference/LanguageField';
 import {
@@ -517,7 +518,8 @@ function LibraryTemplate({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
 function NewTemplate({ ctx }: { ctx: Ctx }) {
   const lib = useLibrary(ctx);
   // Opened from "Something else: Make your own" (`kind: 'outline'`): the outline, without asking again.
-  const [form, setForm] = useState<TemplateForm | null>(() => (ctx.params['kind'] === 'outline' ? newTemplateForm('outline') : null));
+  // A new template starts in the writer's app language (decision 84), as a new flow does.
+  const [form, setForm] = useState<TemplateForm | null>(() => (ctx.params['kind'] === 'outline' ? { ...newTemplateForm('outline'), language: readerLanguage() } : null));
   const [bible, setBible] = useState(false);
   const tq = useTranslate(ctx, null);
   // A new template begun before opens as it was left, without asking again.
@@ -534,7 +536,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   const begin = () => {
     if (!tq.doc?.bible) return;
     // The way's books and how it divides them, its levels and numbering; the name and purpose are the admin's own.
-    setForm({ ...formFromDoc(tq.doc, '', ''), name: '', description: '' });
+    setForm({ ...formFromDoc(tq.doc, '', ''), name: '', description: '', language: readerLanguage() });
   };
 
   if (bible) {
@@ -560,7 +562,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
           </View>
         </View>
       </Card>
-      <Card onPress={() => setForm(newTemplateForm('outline'))} accessibilityLabel={t('content.newTemplate.else')} help={t('content.newTemplate.elseHelp')}>
+      <Card onPress={() => setForm({ ...newTemplateForm('outline'), language: readerLanguage() })} accessibilityLabel={t('content.newTemplate.else')} help={t('content.newTemplate.elseHelp')}>
         <View style={styles.head}>
           <View style={styles.tile}><Ico name="folder" size={22} color={C.primary} /></View>
           <View style={{ flex: 1 }}>
