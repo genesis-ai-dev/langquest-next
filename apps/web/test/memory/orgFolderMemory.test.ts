@@ -39,10 +39,11 @@ const CASE_MS = 240_000;
 type Path = 'fold' | 'webhooks' | 'api' | 'reports' | 'writes';
 interface Out { retainedHeapMb: number; peakHeapMb: number }
 
-function run(path: Path, a: number, b: number, unbounded = false): Promise<{ status: number | null; signal: string | null; out: Out | null; stderr: string }> {
+function run(path: Path, a: number, b: number, unbounded = false, takes?: number): Promise<{ status: number | null; signal: string | null; out: Out | null; stderr: string }> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [
-      `--max-old-space-size=${HEAP_MB}`, '--expose-gc', '--no-warnings', '--import', 'tsx', HARNESS, path, String(a), String(b), ...(unbounded ? ['unbounded'] : [])
+      `--max-old-space-size=${HEAP_MB}`, '--expose-gc', '--no-warnings', '--import', 'tsx', HARNESS, path, String(a), String(b),
+      ...(takes ? [`takes=${takes}`] : []), ...(unbounded ? ['unbounded'] : [])
     ], { timeout: CASE_MS });
     let stdout = '';
     let stderr = '';
@@ -64,13 +65,21 @@ function overflow(r: Awaited<ReturnType<typeof run>>): string | null {
 }
 
 /**
+ * A Bible-size language: 4,000 passages of 15 versions each, about 48 MB of
+ * fold (Koro Miyan's snapshot is 40 MB), which the isolate cannot hold whole.
+ * The API and webhooks read it as records (decisions.md 147).
+ */
+const BIBLE = 4_000;
+const BIBLE_TAKES = 15;
+
+/**
  * Each path, the organizations it runs over (languages × passages; for
  * writes, tokens and links), and the one its regression is shown on.
  * - 12 × 2,000: about 5 MB of fold per language. 6 × 5,000: about 12 MB,
  *   none with a recorded size yet. 60 × 300: many small languages, which
  *   the folder holds many of at once.
  */
-const PATHS: { path: Path; what: string; shapes: [number, number][]; regression: { shape: [number, number]; what: string } }[] = [
+const PATHS: { path: Path; what: string; shapes: [number, number, number?][]; regression: { shape: [number, number, number?]; what: string } }[] = [
   {
     path: 'fold', what: 'a cold object\'s first full pass, then every language\'s fold',
     shapes: [[12, 2000], [6, 5000], [60, 300]],
@@ -78,13 +87,14 @@ const PATHS: { path: Path; what: string; shapes: [number, number][]; regression:
   },
   {
     path: 'webhooks', what: 'a webhook scan over every language, deliveries, and each language\'s change feed',
-    shapes: [[6, 5000], [60, 300]],
-    regression: { shape: [60, 300], what: 'the dispatcher keeping each fold and digest it compared' }
+    shapes: [[6, 5000], [60, 300], [1, BIBLE, BIBLE_TAKES]],
+    regression: { shape: [60, 300], what: 'the dispatcher keeping each language whole and each digest it compared' }
   },
   {
+    // Read as records the object keeps in its SQLite, a few passages at a time (decisions.md 147).
     path: 'api', what: 'a token listing every passage of every language with include=audio,reviews',
-    shapes: [[6, 5000], [60, 300]],
-    regression: { shape: [60, 300], what: 'every answered page kept (a response cache)' }
+    shapes: [[6, 5000], [60, 300], [1, BIBLE, BIBLE_TAKES]],
+    regression: { shape: [1, BIBLE, BIBLE_TAKES], what: 'a Bible-size language folded whole, as before the cut' }
   },
   {
     path: 'reports', what: 'the Reports screen, cold and then fresh',
@@ -100,13 +110,14 @@ const PATHS: { path: Path; what: string; shapes: [number, number][]; regression:
 
 describe.concurrent('an organization Durable Object stays inside its isolate', () => {
   for (const { path, what, shapes, regression } of PATHS) {
-    for (const [a, b] of shapes) {
-      it(`${path}: ${what} (${a} × ${b})`, async () => {
-        expect(overflow(await run(path, a, b))).toBeNull();
+    for (const [a, b, takes] of shapes) {
+      it(`${path}: ${what} (${a} × ${b}${takes ? ` × ${takes} versions` : ''})`, async () => {
+        expect(overflow(await run(path, a, b, false, takes))).toBeNull();
       }, CASE_MS + 30_000);
     }
     it(`${path}: the check fails with ${regression.what}`, async () => {
-      expect(overflow(await run(path, ...regression.shape, true))).not.toBeNull();
+      const [a, b, takes] = regression.shape;
+      expect(overflow(await run(path, a, b, true, takes))).not.toBeNull();
     }, CASE_MS + 30_000);
   }
 });

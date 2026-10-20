@@ -17,16 +17,22 @@
  *   (decisions.md 140; orgAccess.test.ts).
  * - webhooks: a webhook over every language; the first scan, the log grows, a
  *   second scan that finds changes everywhere, deliveries, a feed read per language.
- * - api: a token lists every passage of every language with include=audio,reviews.
+ * - api: a token lists every passage of every language with include=audio,reviews,
+ *   read as records the object keeps in its SQLite (decisions.md 147).
  * - reports: the Reports screen, cold and then fresh.
  * - writes: the hourly write and upload counters, for many tokens over six hours.
  *
  * `unbounded` swaps in the regression each path's bound exists to stop, so the
  * test can show it catches it: fold and reports keep every fold (no budget);
- * webhooks keep each fold and digest they compare; api keeps every page it
- * answered (a response cache); writes keep every timestamp.
+ * webhooks keep each language whole and each digest they compare; api reads
+ * each language folded whole, as it did before the cut; writes keep every
+ * timestamp.
  *
- * Usage: orgFolderHeap.ts <path> <languages> <passagesPerLanguage> [unbounded]
+ * The server also has each language's cut by passage (decisions.md 147), made
+ * one passage at a time from the generator, as the projection pass makes it
+ * from a fold: the API and webhook paths read languages as records from it.
+ *
+ * Usage: orgFolderHeap.ts <path> <languages> <passagesPerLanguage> [takes=<n>] [unbounded]
  * Prints one JSON line: { ok, path, peakHeapMb, retainedHeapMb, heldLanguages, foldMb, ... }.
  * Run with --expose-gc for retainedHeapMb.
  */
@@ -34,8 +40,10 @@ import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'no
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { encodeHlc, ORG_STREAM, SEED_ROLES, type AnyEvent, type LanguageState, type OrgState } from '@langquest-next/core';
+import { emptyLanguageState, encodeHlc, foldLanguage, ORG_STREAM, SEED_ROLES, type AnyEvent, type LanguageState } from '@langquest-next/core';
 import { OrgFolder, MemoryCache, type OrgCache, type Source } from '../../worker/orgFolder';
+import { LanguageRecordsKeeper, objectSqlDriver, wholeRecords, type LanguageRecords } from '../../worker/languageRecords';
+import { cutLanguage, languageLinesOf, sharedPart, SqliteStore, type KeptRecord, type RowCursor } from '@langquest-next/sync';
 import { AgentOrg, UPLOADS_PER_HOUR } from '../../worker/agent/org';
 import { WebhookDispatcher } from '../../worker/agent/dispatch';
 import { WEBHOOK_EVENTS } from '../../worker/agent/webhooks';
@@ -49,7 +57,8 @@ const [path, ...rest] = process.argv.slice(2);
 const [languages, passages] = rest.slice(0, 2).map(Number);
 const unbounded = rest.includes('unbounded');
 const orgId = 'heap-test-org';
-const TAKES = 3;
+/** Versions per passage, each recorded, shared and reviewed: `takes=<n>` makes passages as heavy as a Bible-size language's. */
+const TAKES = Number(rest.find((a) => a.startsWith('takes='))?.slice(6) ?? 3);
 const PER_PASSAGE = 1 + TAKES * 4;
 const T0 = 1_790_000_000_000;
 const languageIds = Array.from({ length: languages! }, (_, i) => `lang-${i}`);
@@ -95,7 +104,21 @@ function languageEvent(streamId: string, seq: number): AnyEvent {
 let grown = 0;
 const languageLength = () => 1 + (passages! + grown) * PER_PASSAGE;
 
-const source: Source = {
+/** One passage's events, by seq: a passage's events are contiguous. */
+function passageEvents(streamId: string, p: number): AnyEvent[] {
+  const first = 2 + p * PER_PASSAGE;
+  return [languageEvent(streamId, 1), ...Array.from({ length: PER_PASSAGE }, (_, i) => languageEvent(streamId, first + i))];
+}
+
+const byRow = (a: KeptRecord, b: KeptRecord) => (a.unitId < b.unitId ? -1 : a.unitId > b.unitId ? 1 : a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+/** Where the server's snapshot of each language stands: the log's length when first asked for. */
+const snapshotAt = new Map<string, number>();
+const snapshotPassages = (streamId: string) => {
+  if (!snapshotAt.has(streamId)) snapshotAt.set(streamId, passages! + grown);
+  return snapshotAt.get(streamId)!;
+};
+
+const source: Source & RecordsCut = {
   async pull(_org, streamId, after, limit) {
     if (streamId === ORG_STREAM) return orgEvents.slice(after, after + limit);
     const out: AnyEvent[] = [];
@@ -106,7 +129,51 @@ const source: Source = {
   async snapshotChunk() { return null; },
   async heads() {
     return Object.fromEntries([[ORG_STREAM, orgEvents.length], ...languageIds.map((id) => [id, languageLength()])]);
-  }
+  },
+  // The cut, made on demand a passage at a time, so the server's side holds one passage at once.
+  async snapshotHead(_org, streamId, _rv, linesVersion, withShared = true) {
+    if (streamId === ORG_STREAM) return null;
+    const n = snapshotPassages(streamId);
+    const seq = 1 + n * PER_PASSAGE;
+    const units = foldLanguage([languageEvent(streamId, 1), ...Array.from({ length: n }, (_, p) => languageEvent(streamId, 2 + p * PER_PASSAGE))], emptyLanguageState());
+    const lines: unknown[] = [];
+    let rows = 0;
+    for (let p = 0; p < n; p++) {
+      const state = foldLanguage(passageEvents(streamId, p), emptyLanguageState());
+      lines.push(...languageLinesOf(state));
+      if (p === 0) rows = cutLanguage(state).rows.length;
+    }
+    void linesVersion;
+    return {
+      serverSeq: seq, ...(withShared ? { shared: sharedPart(units) } : {}),
+      units: Array.from({ length: n }, (_, p) => ({ unitId: `u${p}`, rows })).sort((a, b) => (a.unitId < b.unitId ? -1 : 1)),
+      lines: { seq, lines }
+    };
+  },
+  async snapshotRows(_org, streamId, _rv, _min, unitIds, after, limit) {
+    const n = snapshotPassages(streamId);
+    const out: KeptRecord[] = [];
+    for (const u of [...unitIds].sort()) {
+      const p = Number(u.slice(1));
+      if (!(p < n)) continue;
+      for (const r of cutLanguage(foldLanguage(passageEvents(streamId, p), emptyLanguageState())).rows.sort(byRow)) {
+        if (after && byRow(r, after as KeptRecord) <= 0) continue;
+        out.push(r);
+        if (out.length > limit) break;
+      }
+      if (out.length > limit) break;
+    }
+    const page = out.slice(0, limit);
+    const last = page.at(-1);
+    return { serverSeq: 1 + n * PER_PASSAGE, rows: page, next: out.length > limit && last ? { unitId: last.unitId, kind: last.kind, id: last.id } : null };
+  },
+  async snapshotPassages() { return []; }
+};
+
+type RecordsCut = {
+  snapshotHead(o: string, s: string, rv: number, lv: number, withShared?: boolean): Promise<{ serverSeq: number; shared?: unknown; units: { unitId: string; rows: number }[]; lines: { seq: number; lines: unknown[] } } | null>;
+  snapshotRows(o: string, s: string, rv: number, min: number, unitIds: readonly string[], after: RowCursor | null, limit: number): Promise<{ serverSeq: number; rows: KeptRecord[]; next: RowCursor | null } | null>;
+  snapshotPassages(): Promise<{ kind: string; id: string; unitId: string }[]>;
 };
 
 /** Saved folds live on disk, as they do in the Durable Object's SQLite. */
@@ -152,10 +219,17 @@ const sign = async (key: string) => {
   return { url: `https://langquest.example${p}`, expiresAt };
 };
 
-/** What the regression keeps in the webhook path: every fold and digest the dispatcher compared. */
-const compared = new Map<string, { org: OrgState; state: LanguageState }>();
-/** What the regression keeps in the api path: every page it answered (a response cache). */
-const answers: unknown[] = [];
+/** What the regression keeps in the webhook path: every language the dispatcher compared, whole, and its digest. */
+const compared = new Map<string, LanguageState>();
+
+/** Each language as records in the object's SQLite (on disk here too), read a few passages at a time. */
+const keeper = new LanguageRecordsKeeper({ ...source, append: async () => [] }, orgId, () => SqliteStore.open(objectSqlDriver(sqlite())), { fillInBackground: false });
+
+/** The API's records of a language; the regression folds it whole, as the object did before the cut. */
+async function recordsOf(id: string): Promise<LanguageRecords> {
+  if (unbounded && path === 'api') return wholeRecords((await folder.languageState(id))!.state);
+  return keeper.records(id);
+}
 
 function dispatcher(): WebhookDispatcher {
   const d = new WebhookDispatcher(sqlite(), orgId, {
@@ -164,11 +238,11 @@ function dispatcher(): WebhookDispatcher {
       async webhooksByIds(ids) { return ids.includes(webhook.id) ? [webhook] : []; },
       async disableWebhooks() {}
     },
-    orgState: () => folder.orgState(true),
-    languageState: async (id) => {
-      const held = await folder.languageState(id);
-      if (unbounded && held) compared.set(id, held);
-      return held;
+    orgState: () => folder.orgOnly(true),
+    languageRecords: async (id) => {
+      const records = await keeper.records(id);
+      if (unbounded) compared.set(id, await records.view(records.passages));
+      return records;
     },
     heads: () => source.heads!(orgId),
     fetch: async (_url, init) => {
@@ -183,7 +257,7 @@ function dispatcher(): WebhookDispatcher {
 
 // As OrgSnapshot keeps them: one dispatcher and one AgentOrg for the object's life, over the one folder.
 const webhooks = dispatcher();
-const agent = new AgentOrg(folder, orgId, { append: async () => [], sign, now: () => now, webhooks });
+const agent = new AgentOrg(folder, orgId, { append: async () => [], sign, now: () => now, webhooks, records: recordsOf });
 
 const extra: Record<string, unknown> = {};
 
@@ -222,7 +296,6 @@ const paths: Record<string, () => Promise<void>> = {
         const answer = await agent.read(grant, { op: 'passages', languageId: id, query: { filter: {}, include: ['audio', 'reviews'], limit: PASSAGES_PAGE_MAX, ...(after ? { after } : {}) } });
         if (!answer.ok) throw new Error(`passages ${id}: ${answer.code}`);
         const page = answer.data as { passages: unknown[]; nextAfter: string | null };
-        if (unbounded) answers.push(page);
         // The answer leaves the object as a copy (RPC to the Worker, then JSON).
         largestPageMb = Math.max(largestPageMb, JSON.stringify(page).length / 1e6);
         listed += page.passages.length;

@@ -218,7 +218,11 @@ export class OrgFolder {
   /**
    * A language's whole fold, caught up to the log's tail now: a fold read
    * back from the cache can be up to STATE_SAVE_EVERY events behind its
-   * summary. Null when the organization does not list the language.
+   * summary. Null when the organization does not list the language. The
+   * reports' own fold, for a language the projection pass has not stored
+   * report inputs for; the access-token API, MCP, review links and webhooks
+   * read records instead (`languageRecords.ts`, decisions.md 147), which a
+   * Bible-size language fits in.
    */
   async languageState(languageId: string, fresh = false): Promise<{ org: OrgState; state: LanguageState } | null> {
     await this.refresh(fresh);
@@ -237,10 +241,11 @@ export class OrgFolder {
    * which languages. Access checks need nothing more. A full pass folds
    * every language first, and a language too big to fold inside the
    * isolate made /connect answer 502 for its whole organization
-   * (2026-10-19, decisions.md 141).
+   * (2026-10-19, decisions.md 141). `fresh` catches it up whatever its age:
+   * a webhook scan must see who gained or lost a language just now.
    */
-  async orgOnly(): Promise<OrgState> {
-    if (this.org && this.now() - Math.max(this.refreshedAt, this.orgCheckedAt) < this.maxAgeMs) return this.org.state;
+  async orgOnly(fresh = false): Promise<OrgState> {
+    if (!fresh && this.org && this.now() - Math.max(this.refreshedAt, this.orgCheckedAt) < this.maxAgeMs) return this.org.state;
     return this.exclusive(async () => {
       const checkedAt = this.now();
       await this.catchUpOrg((await this.source.heads?.(this.orgId)) ?? null);

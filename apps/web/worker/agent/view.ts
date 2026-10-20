@@ -1,13 +1,14 @@
 import {
   approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, kindOf, languageInfo, libraryUnitRange, LISTENER_KIND, mayViewLanguage, orgLanguages, passageWork,
-  privilegesFor, referencedBlobs, releasesOf, stateRevision, stepAllowsLinks, validateEvent,
+  privilegesFor, releasesOf, stateRevision, stepAllowsLinks, validateEvent,
   type AnyEvent, type Card, type KindState, type LanguageState, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
 import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from './tokens';
+import { inSlices, type LanguageRecords } from '../languageRecords';
 
 /**
- * What a token may see and write, read from the same folded state the
- * Reports come from (decision 44). Pure apart from hashing and
+ * What a token may see and write, read from the organization object's
+ * records of each language (decisions.md 44 and 147). Pure apart from hashing and
  * the link signer it is handed, so tests drive it with an in-memory log.
  */
 
@@ -292,43 +293,49 @@ export function parsePassageQuery(raw: { status?: unknown; changedSince?: unknow
 /**
  * One page of passages in display order, each with what the caller
  * included. Links are signed only for the page given, and `nextAfter` is
- * null when no passage after the page matches.
+ * null when no passage after the page matches. The language is read a
+ * slice of passages at a time (decisions.md 147), so a Bible-size one is
+ * never whole in the object's memory.
  */
 export async function passagesFor(
-  grant: Grant, orgId: string, languageId: string, state: LanguageState, q: PassageListQuery, sign: Signer
+  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, q: PassageListQuery, sign: Signer
 ): Promise<{ passages: PassageListItem[]; nextAfter: string | null } | Refusal> {
   const teamOnly = q.include.filter((i) => TEAM_ONLY.includes(i));
   if (teamOnly.length && !canRead(grant, true)) return refuse(403, 'scope', `${teamOnly.join(' and ')} need the read scope; read:published shows approved passages only.`);
-  const idx = buildIndexes(state);
-  const start = q.after === undefined ? -1 : idx.passages.indexOf(q.after);
+  const order = records.passages;
+  const start = q.after === undefined ? -1 : order.indexOf(q.after);
   if (q.after !== undefined && start === -1) return refuse(400, 'bad_request', 'after is not a passage in this language. Start again without it.');
   const wanted = q.filter.unitIds ? new Set(q.filter.unitIds) : null;
-  const page: { s: PassageState; sum: PassageSummary }[] = [];
-  let nextAfter: string | null = null;
-  for (let i = start + 1; i < idx.passages.length; i++) {
-    const unitId = idx.passages[i]!;
-    if (wanted && !wanted.has(unitId)) continue;
-    const s = derivePassage(state, unitId, idx);
-    if (!visible(grant, s)) continue;
-    const sum = summarize(grant, state, s);
-    if (q.filter.status && sum.status !== q.filter.status) continue;
-    if (q.filter.changedSince && (!sum.updatedAt || sum.updatedAt <= q.filter.changedSince)) continue;
-    if (page.length === q.limit) {
-      nextAfter = page[page.length - 1]!.s.unitId;
-      break;
-    }
-    page.push({ s, sum });
-  }
   const include = new Set(q.include);
   const passages: PassageListItem[] = [];
-  for (const { s, sum } of page) passages.push(await passageOut(grant, orgId, languageId, state, s, sum, include, sign));
+  let nextAfter: string | null = null;
+  // A language held whole hands back the same state for every slice: index it once.
+  const indexes = new WeakMap<LanguageState, ReturnType<typeof buildIndexes>>();
+  scan: for await (const { unitIds, state } of inSlices(records, order.slice(start + 1).filter((u) => !wanted || wanted.has(u)))) {
+    let idx = indexes.get(state);
+    if (!idx) indexes.set(state, (idx = buildIndexes(state)));
+    for (const unitId of unitIds) {
+      const s = derivePassage(state, unitId, idx);
+      if (!visible(grant, s)) continue;
+      const sum = summarize(grant, state, s);
+      if (q.filter.status && sum.status !== q.filter.status) continue;
+      if (q.filter.changedSince && (!sum.updatedAt || sum.updatedAt <= q.filter.changedSince)) continue;
+      if (passages.length === q.limit) {
+        nextAfter = passages[passages.length - 1]!.unitId;
+        break scan;
+      }
+      passages.push(await passageOut(grant, orgId, languageId, state, s, sum, include, sign));
+    }
+  }
   return { passages, nextAfter };
 }
 
 /** One passage with everything the token may see; the list with every include, for one unit. */
 export async function passageFor(
-  grant: Grant, orgId: string, languageId: string, state: LanguageState, unitId: string, sign: Signer
+  grant: Grant, orgId: string, languageId: string, records: LanguageRecords, unitId: string, sign: Signer
 ): Promise<PassageDetail | Refusal> {
+  if (!records.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const state = await records.view([unitId]);
   const idx = buildIndexes(state);
   if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const s = derivePassage(state, unitId, idx);
@@ -443,7 +450,7 @@ export interface ReleaseInput {
 interface WriteContext {
   grant: Grant;
   org: OrgState;
-  state: LanguageState;
+  records: LanguageRecords;
   languageId: string;
   unitId: string;
   now: number;
@@ -517,14 +524,14 @@ export const VOICE_NOTE_FRESH_MS = 6 * 60 * 60 * 1000;
  * is stamped with the server's clock, and a re-upload of the same bytes
  * keeps the first one, decisions.md 77). A note not folded in yet is new.
  */
-const fresh = (state: LanguageState, notes: VoiceNote[] | undefined, now: number) => {
+async function fresh(records: LanguageRecords, notes: VoiceNote[] | undefined, now: number): Promise<boolean> {
   if (!notes?.length) return true;
-  const known = referencedBlobs(state);
+  const { named, stored } = await records.files(notes.map((n) => n.hash));
   return !notes.some((n) => {
-    const stored = state.blobs[n.hash];
-    return known.has(n.hash) || (!!stored && decodeHlc(stored.hlc).wallMs < now - VOICE_NOTE_FRESH_MS);
+    const at = stored.get(n.hash);
+    return named.has(n.hash) || (at !== undefined && decodeHlc(at).wallMs < now - VOICE_NOTE_FRESH_MS);
   });
-};
+}
 
 /**
  * The payload every outside review shares: given by link, by whoever is
@@ -555,11 +562,13 @@ function envelope(orgId: string, languageId: string, actorId: string, device: st
  * once and one reviewer cannot pile up answers on a version.
  */
 export async function reviewEvent(ctx: WriteContext, input: ReviewInput): Promise<AnyEvent | Refusal> {
-  const { grant, org, state, languageId, unitId } = ctx;
+  const { grant, org, records, languageId, unitId } = ctx;
   if (!grant.scopes.includes('review')) return refuse(403, 'scope', 'This token was not given the "review" scope.');
   const can = languageAccess(grant, org, languageId);
   if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
   if (!can.review) return refuse(403, 'privilege', 'The account behind this token cannot review or translate in this language.');
+  if (!records.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const state = await records.view([unitId]);
   const idx = buildIndexes(state);
   if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const s = derivePassage(state, unitId, idx);
@@ -572,7 +581,7 @@ export async function reviewEvent(ctx: WriteContext, input: ReviewInput): Promis
   const kindId = input.kindId ?? LISTENER_KIND;
   // A review from outside is given by link: where its step takes no links it is kept but completes nothing (passage.ts, decisions.md 77).
   if (!reviewableKinds(state, unitId).has(kindId)) return refuse(400, 'no_kind', `kindId must be "${LISTENER_KIND}" or a kind in this language's flow.`);
-  if (!fresh(state, input.voiceNotes, ctx.now)) return refuse(400, 'bad_request', 'voiceNotes must be ones you just uploaded.');
+  if (!(await fresh(records, input.voiceNotes, ctx.now))) return refuse(400, 'bad_request', 'voiceNotes must be ones you just uploaded.');
   const reviewer = (await sha256Hex(`${grant.tokenId}\n${input.reviewerId}`)).slice(0, 16);
   const reviewId = `${kindId === LISTENER_KIND ? LISTENER_KIND : 'review'}-${(await sha256Hex([grant.tokenId, takeId, reviewer, kindId, input.submissionId ?? input.outcome].join('\n'))).slice(0, 32)}`;
   const givenBy = input.reviewerName?.trim() || `Listener ${reviewer.slice(0, 6)}`;
@@ -582,11 +591,13 @@ export async function reviewEvent(ctx: WriteContext, input: ReviewInput): Promis
 
 /** Live or taken down on a channel. Going live needs the approved version; anything may be taken down. */
 export async function releaseEvent(ctx: WriteContext, input: ReleaseInput): Promise<AnyEvent | Refusal> {
-  const { grant, org, state, languageId, unitId } = ctx;
+  const { grant, org, records, languageId, unitId } = ctx;
   if (!grant.scopes.includes('release')) return refuse(403, 'scope', 'This token was not given the "release" scope.');
   const can = languageAccess(grant, org, languageId);
   if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
   if (!can.release) return refuse(403, 'privilege', 'The account behind this token cannot assign work in this language, which reporting releases needs.');
+  if (!records.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  const state = await records.view([unitId]);
   const idx = buildIndexes(state);
   if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const s = derivePassage(state, unitId, idx);
@@ -666,7 +677,9 @@ export function parseExternalValue(body: unknown): { data: Record<string, unknow
 
 /** A value stored (or a key deleted, with null) as the token's person, from the token's device. Only this ever appends v1.ExternalValueSet. */
 export function externalValueEvent(ctx: Omit<WriteContext, 'unitId'>, key: string, data: Record<string, unknown> | null): AnyEvent | Refusal {
-  const { grant, org, state, languageId } = ctx;
+  const { grant, org, records, languageId } = ctx;
+  // External values are the whole language's, held in memory with what it shares.
+  const state = records.shared;
   if (!grant.scopes.includes('external_values')) return refuse(403, 'scope', 'This token was not given the "external_values" scope.');
   const can = languageAccess(grant, org, languageId);
   if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
@@ -837,11 +850,14 @@ export function parseLinkReview(body: unknown): LinkReviewInput | Refusal {
  * answer from a browser is the one that stands, and the counts below come
  * from the log itself, so they survive the object's evictions.
  */
-export async function linkReviewEvent(link: ReviewLink, org: OrgState, state: LanguageState, input: LinkReviewInput, now: number): Promise<AnyEvent | Refusal> {
+export async function linkReviewEvent(link: ReviewLink, org: OrgState, records: LanguageRecords, input: LinkReviewInput, now: number): Promise<AnyEvent | Refusal> {
   if (!linkIsOpen(link, org, now)) return refuse(410, 'closed', 'This review link has closed. Ask whoever sent it for a new one.');
+  if (!records.passages.includes(link.unitId)) return refuse(404, 'gone', 'This passage is no longer here.');
+  // Every review on the link is of its version, so the link's passage holds them all.
+  const state = await records.view([link.unitId]);
   const s = derivePassage(state, link.unitId);
   if (!s.versions.some((v) => v.takeId === link.takeId)) return refuse(404, 'gone', 'This passage is no longer here.');
-  if (!fresh(state, input.voiceNotes, now)) return refuse(400, 'bad_request', 'A voice note was not uploaded here. Record it again.');
+  if (!(await fresh(records, input.voiceNotes, now))) return refuse(400, 'bad_request', 'A voice note was not uploaded here. Record it again.');
   const linkKey = link.id.replace(/-/g, '').slice(0, 12);
   const browser = (await sha256Hex(`${link.id}\n${input.browserId}`)).slice(0, 12);
   const prefix = `link-${linkKey}-`;

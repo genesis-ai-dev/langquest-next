@@ -1,8 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
 import {
-  encodeHlc, foldOrg, privilegeAllows, privilegeFor, privilegesFor, SEED_ROLES, type AnyEvent
+  encodeHlc, foldOrg, languageInfo, privilegeAllows, privilegeFor, privilegesFor, SEED_ROLES, type AnyEvent
 } from '@langquest-next/core';
-import type { AppendResult } from '@langquest-next/sync';
+import { MemoryStore as EventMemoryStore, type AppendResult } from '@langquest-next/sync';
 import { handleAgentApi, type AgentDeps, type OrgStub } from '../worker/agent/http';
 import { AgentOrg } from '../worker/agent/org';
 import type { AgentStore, DeviceGrant, NewToken, NewWebhook, TokenRecord, WebhookRecord } from '../worker/agent/store';
@@ -14,6 +14,7 @@ import { hashSecret } from '../worker/agent/tokens';
 import type { ReviewLink } from '../worker/agent/view';
 import { sniffVoiceNote } from '../worker/agent/voice';
 import { MemoryCache, OrgFolder, type Source } from '../worker/orgFolder';
+import { LanguageRecordsKeeper } from '../worker/languageRecords';
 import { check, compileAll, openApiProblems, uncovered } from './openapiCheck';
 
 /**
@@ -226,14 +227,16 @@ function setup() {
   let now = T0 + 10_000_000;
   let signed = 0;
   const folder = new OrgFolder(log, ORG, new MemoryCache(), () => now, 0);
+  // Each language as the object reads it for the API: records kept in its store, never whole in memory (decisions.md 147).
+  const keeper = new LanguageRecordsKeeper(log, ORG, async () => new EventMemoryStore(), { fillInBackground: false });
   const received: Received[] = [];
   // What the app's server answers; a status, or 'down' for no answer at all.
   let answerWith: number | 'down' = 200;
   const runs: JobRun[] = [];
   const dispatcher = new WebhookDispatcher(sqlite(), ORG, {
     store,
-    orgState: () => folder.orgState(true),
-    languageState: (id) => folder.languageState(id),
+    orgState: () => folder.orgOnly(true),
+    languageRecords: async (id) => (languageInfo(await folder.orgOnly(true), id) ? keeper.records(id) : null),
     heads: async () => Object.fromEntries([...log.streams].map(([id, list]) => [id, list.length])),
     fetch: async (url, init) => {
       const raw = init.body as string;
@@ -251,7 +254,8 @@ function setup() {
       return { url: `https://lq.test/api/blobs/${key}?sig=x`, expiresAt: now + 600_000 };
     },
     now: () => now,
-    webhooks: dispatcher
+    webhooks: dispatcher,
+    records: (id) => keeper.records(id)
   });
   const deps: AgentDeps = {
     store,

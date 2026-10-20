@@ -849,8 +849,16 @@ export class SyncClient<S = LanguageState> {
    * from whatever the server has. Unsent work stays in the log.
    */
   private async cutGone(): Promise<void> {
+    this.startedOver += 1;
     await this.dropStaleCheckpoint();
     await this.refold('other');
+  }
+
+  private startedOver = 0;
+
+  /** How many times this client dropped its language to download it again because the cut it was filling from went away. */
+  get restarts(): number {
+    return this.startedOver;
   }
 
   /** Lines of passages just filled in are worked out, and screens told. */
@@ -1010,6 +1018,21 @@ export class SyncClient<S = LanguageState> {
         if ((await this.fillOrStartOver(() => this.fill!.fillWanted())).length > 0) await this.afterFill();
       }).catch(() => { /* offline: the screen says the passage is not on this device yet */ });
     }
+  }
+
+  /**
+   * Fill these passages in now, if their rows are still on the server, without
+   * holding them in memory: for a reader that then reads them from disk
+   * (`withPassages`), such as the organization's Durable Object answering
+   * for a few passages (decisions.md 147). Throws `OfflineError` when the
+   * server cannot be reached.
+   */
+  fillUnits(unitIds: readonly string[]): Promise<void> {
+    if (!this.fill?.active() || !this.kept || unitIds.every((u) => this.kept!.isFilled(u))) return Promise.resolve();
+    return this.exclusive(async () => {
+      this.kept!.want(unitIds);
+      if ((await this.fillOrStartOver(() => this.fill!.fillWanted())).length > 0) await this.afterFill();
+    });
   }
 
   /** Are all this passage's rows on this device (decisions.md 147)? Always, for a language held in memory or filled in. */
