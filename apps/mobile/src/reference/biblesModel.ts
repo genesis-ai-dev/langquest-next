@@ -1,13 +1,15 @@
 // What the Bibles screen and its Add a Bible sheet decide (screens/reference.tsx;
 // docs/reference-material.md): which Bibles sit under Recommended, Hidden and
 // Not recommended, which of LangQuest's ready sources can still be added, how
-// a Bible Brain search result reads, and which language a search settles on.
+// a Bible Brain search result reads, and the languages Bible Brain offers.
 // Pure: no React, so it is tested.
 import type { LanguageState, LibraryDoc, LibraryItemView, Register } from '@langquest-next/core';
 import { t } from '../i18n';
 import type { BibleLanguage, BibleSummary } from '../sources/bibleBrain';
 import type { SharedItem } from '../library/model';
 import { recState, type Level, type RefKind } from './model';
+import { namesOf, type OfferedLanguage } from './offeredLanguagesModel';
+import { languageLabel } from '../admin/adminModel';
 
 /** A list of short things ("GEN, EXO"), with the language's separator. */
 export const list = (items: string[]) => items.join(t('reference.listSeparator'));
@@ -50,13 +52,15 @@ export function readySources(
 }
 
 /**
- * The language a Bible Brain search settles on: the one the person has
- * chosen while it is still among the results, else the result whose code is
- * what they typed, else the first.
+ * Bible Brain's languages as a language list offers them (offeredLanguagesModel.ts):
+ * shown by the app's name for each when it has one, and found by Bible
+ * Brain's own ("English: USA") and the language's name for itself too.
  */
-export function settledLanguage(found: readonly BibleLanguage[], needle: string, current: string | null): string | null {
-  const exact = found.find((l) => l.code === needle.toLowerCase()) ?? found[0];
-  return current && found.some((l) => l.code === current) ? current : exact?.code ?? null;
+export function offeredBibleLanguages(languages: readonly BibleLanguage[]): OfferedLanguage[] {
+  return languages.map((l) => {
+    const label = languageLabel(l.code);
+    return { code: l.code, names: namesOf(label.toLowerCase() === l.code ? null : label, l.name, l.autonym) };
+  });
 }
 
 /** The description a Bible Brain source is published with, stored in the organization's library (its event log), not shown through `t`. */

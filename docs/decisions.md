@@ -3101,6 +3101,43 @@ becomes a pick-many and `bestGuide` ranks the team's languages), or teams
 want another language's guide where theirs has none (then `chosenOnly`
 keeps the rest of the set as a fallback).
 
+Amended (2026-10-19, Caleb Koster): a language's Bibles on the reference
+language page are every Bible the team could add, not only the library's.
+Caleb asked why English showed 5 Bibles and other languages 1 when Bible
+Brain has more: the page counted only LangQuest's seeded sources. It now
+adds Bible Brain's Bibles in that language that the library does not have
+(`biblesFor`, each edition counted once; English 21, French 6, Portuguese
+12). Wherever a language shows a Bible count from Bible Brain (Add a
+Bible's chips, the translator's More Bibles), the count is the length of
+the list that opens for it (`useBibleBrainBibles`), because Bible Brain's
+language search counts Bibles our key cannot open (English 51, of which
+20 open); its number is kept for order only.
+Then (Caleb, 2026-10-19: "allow the user to type in the language, but have
+a dropdown similar when selecting a language from the glottolog-based
+languoid system ... only shows languages ... that have translations"):
+Add a Bible, More Bibles and the reference language page's Another
+language find a language by typing it, in the language list's own
+dropdown (`LanguoidPicker`) narrowed to languages that have something to
+pick (`useOfferedLanguageSearch`, `offeredLanguagesModel.ts`). What is on
+offer comes from the data: every language Bible Brain has Bibles in
+(`/api/bible/languages/all`, kept a day) and the languages the library's
+material is in. A language is found by the world list's names and aliases
+(Glottolog) and by its own names where a word starts; each says its code
+and what it has ("FRA · 6 Bibles"), and one none of whose Bibles open is
+dropped. Add a Bible opens on the team's language with its Bibles listed.
+Then (Caleb, 2026-10-20: should flows and templates be linked to languages
+"in the backend ... yes, absolutely"): `flow@1`, `template@1` and
+`template@2` take the same optional `language` as `material@1`, in the
+document (no new event). The flow and template editors ask "Written in"
+(a new flow starts in the writer's app language). A language's Checks,
+review flow page and Get ready's checks offer only flows in the team's
+languages or saying none, and always the one in use (`useCheckChoices`).
+The organization's Templates and Flows lists name each one's language.
+Template choices in New language and Get ready are not narrowed: the
+template is picked before the team's languages are asked (Caleb's setup
+order). LangQuest's own flows and templates say no language until the
+library seed gives them one.
+
 ## 85. The passage list pages, picks passages by id, and includes any part of one passage
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted

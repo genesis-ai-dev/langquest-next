@@ -6072,9 +6072,11 @@
       "bibleBrainHelp": "在 Bible Brain 中按语言搜索圣经。",
       "bibleHelp": "在你添加之前，显示它包含什么。",
       "fromLangQuestHelp": "显示 LangQuest 准备好可以关注的圣经。",
-      "languageHelp": "显示 Bible Brain 中它的圣经。数字表示有多少本。",
       "readyHelp": "把它添加到你的资料库，并在这里推荐。",
-      "searchHelp": "输入语言的名称或代码，查找它的圣经。"
+      "searchHelp": "输入语言的名称或代码，查找它的圣经。",
+      "listed": "只列出在 Bible Brain 中有圣经的语言。",
+      "noMatch": "没有这个名称的语言在 Bible Brain 中有圣经。",
+      "unreachable": "第一次查找语言需要联网。"
     },
     "source": {
       "title": "圣经",
@@ -6494,9 +6496,6 @@
       "notSetUp": "本设备上没有设置 Bible Brain",
       "notSetUpSub": "你的机构的资料库仍然可以使用。请负责为你的团队运行 LangQuest 的人连接服务器。",
       "searchPlaceholder": "搜索语言",
-      "noLanguages": "没有找到语言",
-      "noLanguagesSub": "试试用英文名称，或者它的三字母代码。",
-      "languageBibles_other": "{{code}} · {{count, number}} 本圣经",
       "biblesIn": "{{language}}圣经",
       "noBibles": "Bible Brain 上没有这个语言的圣经。",
       "myBible": "我的圣经",
@@ -6521,7 +6520,6 @@
       "bibleHelp": "在添加之前，打开它读一章、听一章。",
       "bookHelp": "显示这卷书的一章。",
       "chapterHelp": "显示第 {{n, number}} 章，可以读和听。",
-      "languageHelp": "在下面显示它的圣经。",
       "nextChapterHelp": "阅读和播放下一章。",
       "previousChapterHelp": "阅读和播放上一章。",
       "removeHelp": "在本设备上把它从你的圣经中移除。可以在这里重新添加。",
@@ -6537,7 +6535,9 @@
     "chip": "{{language}}的圣经和指南",
     "chipHelp": "他们的圣经和学习指南所用的语言。点按即可更改。",
     "change": "更改",
-    "rowHelp": "为团队的圣经和指南添加这种语言，或去掉它。这一行说明其中有什么。"
+    "rowHelp": "为团队的圣经和指南添加这种语言，或去掉它。这一行说明其中有什么。",
+    "listed": "只列出有圣经或学习指南的语言。",
+    "noMatch": "还没有这个名称的语言有圣经或学习指南。"
   },
   "checks": {
     "title": "检查",

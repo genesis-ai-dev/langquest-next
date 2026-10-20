@@ -21,6 +21,12 @@ const SAME: readonly (readonly string[])[] = [
   ['swa', 'swh'], ['arb', 'ara'], ['npi', 'nep'], ['cmn', 'zho'], ['fas', 'pes'], ['msa', 'zsm']
 ];
 
+/** Every code a reader takes for this language: the code itself first, then the others it is taken for. */
+export function sameCodes(code: string): string[] {
+  const c = code.toLowerCase();
+  return [c, ...(SAME.find((g) => g.includes(c)) ?? []).filter((x) => x !== c)];
+}
+
 /** Do two codes name the same language for a reader? */
 export function sameLanguage(a: string | null | undefined, b: string | null | undefined): boolean {
   if (!a || !b) return false;
@@ -39,6 +45,7 @@ export function docLanguage(doc: LibraryDoc | null | undefined): string | null {
   switch (doc.format) {
     case 'source@1': case 'study@1': case 'study@2': return doc.language || null;
     case 'collection@1': case 'material@1': return doc.language || null;
+    case 'flow@1': case 'template@1': case 'template@2': return doc.language || null;
     default: return null;
   }
 }

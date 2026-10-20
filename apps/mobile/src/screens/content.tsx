@@ -22,6 +22,9 @@
 // template), `new` (start one), or `languageId` (that language's template).
 // book_structure: `languageId`, `bookId`. A `languageId` param opens that
 // language, so its state is the open language's.
+import { readerLanguage } from '../reference/languages';
+import { languageLabel } from '../admin/adminModel';
+import { LanguageField } from '../reference/LanguageField';
 import {
   bookParts, chaptersInBook, languageName, languageProgress, libraryItemView, usfmOf,
   type LibraryItemView, type TemplateDoc, type VersificationDoc
@@ -144,6 +147,9 @@ export function TemplatesHome(ctx: Ctx) {
   return <TemplateLibraryView ctx={ctx} />;
 }
 
+/** A template's line with the language its names are in, when it says (decision 84). */
+const withLanguage = (line: string, doc: TemplateDoc | null | undefined) => [line, doc?.language ? languageLabel(doc.language) : null].filter(Boolean).join(' · ');
+
 /** The organization: its templates, what others share, and what each language uses (TPL-1). */
 function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state;
@@ -180,7 +186,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
             <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={txt.h3}>{it.name}</Text>
-              <Text style={[txt.sm, { fontWeight: '600', color: C.primary }]}>{sourceLine(it)}</Text>
+              <Text style={[txt.sm, { fontWeight: '600', color: C.primary }]}>{withLanguage(sourceLine(it), doc)}</Text>
               {it.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{it.description}</Text> : null}
             </View>
           </View>
@@ -243,7 +249,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
                 <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={txt.h3}>{c.name}</Text>
-                  <Text style={[txt.sm, { color: C.muted }]}>{choiceLine(c, sourceLine)}</Text>
+                  <Text style={[txt.sm, { color: C.muted }]}>{withLanguage(choiceLine(c, sourceLine), doc)}</Text>
                   {c.shared.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{c.shared.description}</Text> : null}
                 </View>
                 <Ico name="right" size={22} color={C.muted} />
@@ -512,7 +518,8 @@ function LibraryTemplate({ ctx, itemId }: { ctx: Ctx; itemId: string }) {
 function NewTemplate({ ctx }: { ctx: Ctx }) {
   const lib = useLibrary(ctx);
   // Opened from "Something else: Make your own" (`kind: 'outline'`): the outline, without asking again.
-  const [form, setForm] = useState<TemplateForm | null>(() => (ctx.params['kind'] === 'outline' ? newTemplateForm('outline') : null));
+  // A new template starts in the writer's app language (decision 84), as a new flow does.
+  const [form, setForm] = useState<TemplateForm | null>(() => (ctx.params['kind'] === 'outline' ? { ...newTemplateForm('outline'), language: readerLanguage() } : null));
   const [bible, setBible] = useState(false);
   const tq = useTranslate(ctx, null);
   // A new template begun before opens as it was left, without asking again.
@@ -529,7 +536,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   const begin = () => {
     if (!tq.doc?.bible) return;
     // The way's books and how it divides them, its levels and numbering; the name and purpose are the admin's own.
-    setForm({ ...formFromDoc(tq.doc, '', ''), name: '', description: '' });
+    setForm({ ...formFromDoc(tq.doc, '', ''), name: '', description: '', language: readerLanguage() });
   };
 
   if (bible) {
@@ -555,7 +562,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
           </View>
         </View>
       </Card>
-      <Card onPress={() => setForm(newTemplateForm('outline'))} accessibilityLabel={t('content.newTemplate.else')} help={t('content.newTemplate.elseHelp')}>
+      <Card onPress={() => setForm({ ...newTemplateForm('outline'), language: readerLanguage() })} accessibilityLabel={t('content.newTemplate.else')} help={t('content.newTemplate.elseHelp')}>
         <View style={styles.head}>
           <View style={styles.tile}><Ico name="folder" size={22} color={C.primary} /></View>
           <View style={{ flex: 1 }}>
@@ -654,6 +661,8 @@ function TemplateEditorForm({ ctx, lib, item, initial, draft }: { ctx: Ctx; lib:
           <Field label={t('content.name')} value={f.name} onChangeText={(name) => set({ name })} placeholder={t('content.editor.namePlaceholder')} autoCapitalize="words"
             help={t('content.editor.nameHelp')} />
           <Field label={t('content.editor.whatFor')} value={f.description} onChangeText={(description) => set({ description })} placeholder={t('content.editor.whatForPlaceholder')} multiline />
+          {/* What its names are in (decision 84): lists inside a language show it to teams that read it. */}
+          <LanguageField label={t('reference.language.writtenIn')} value={f.language ?? null} onChange={(language) => set({ language })} />
         </>
       )}
       {users.length > 0 ? (

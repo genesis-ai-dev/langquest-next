@@ -629,7 +629,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
   const kinds = useMemo(() => deriveKinds(state), [state]);
   const flow = useMemo(() => deriveFlow(state), [state]);
   const custom = flow.flowId === CUSTOM_FLOW;
-  const { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded } = useCheckChoices(ctx, flow.itemId, kinds);
+  const { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded } = useCheckChoices(ctx, flow.itemId, kinds, teamLanguages(ctx.org.state, state, languageId));
   const [picked, setPicked] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
