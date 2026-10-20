@@ -1,5 +1,7 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
+  // The app's Worker (decision 144). The name is from when it served only the
+  // reports dashboard; renaming would start its Durable Objects empty.
   "name": "langquest-next-dashboard",
   "main": "worker/index.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",

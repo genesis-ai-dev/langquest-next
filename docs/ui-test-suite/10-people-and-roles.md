@@ -125,11 +125,11 @@ Expected:
 - Step 2: header "Invite someone" with the sub "Alpha"; "Who are you
   inviting?" with a card per role, "Translators", "Checkers",
   "Back-translators", "Team leads", each with its line, "What they may do"
-  and its own "Invite", no radio buttons (decision 144); "Other roles · 3";
+  and its own "Invite", no radio buttons (decision 145); "Other roles · 3";
   the dashed "Something else: make a new role"; "In which language?" with
   "Alpha" and "Bravo" (from a language's Members an invite is at a
   language; "All of them" is offered from Org home's "Invite people").
-- The group code is the first way offered (decisions 71, 144). A role that
+- The group code is the first way offered (decisions 71, 145). A role that
   does checks is asked "Which checks will they do?" first; ticking none
   skips it.
 - Step 3: "{who} · Alpha" ("Translators · Alpha"), "Making the code…", then

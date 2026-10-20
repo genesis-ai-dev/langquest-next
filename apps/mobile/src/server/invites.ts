@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 /**
  * An invite the server keeps by its token's hash; the label is shown to
  * whoever scans it, never put in the log. One that names checks of its
- * language puts whoever joins with it on them (decisions.md 144).
+ * language puts whoever joins with it on them (decisions.md 145).
  */
 export function issueInvite(i: {
   orgId: string; inviteId: string; tokenHash: string; roleId: string; scope: Scope; expiresAt: string; label: string | null; maxUses: number;

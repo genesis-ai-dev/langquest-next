@@ -5,7 +5,7 @@ import type { TargetScope } from '@langquest-next/core';
  * What `npm run sample:org -- --history` records, planned without I/O so it
  * can be tested: each sample language's months of work as a timeline of
  * recordings and reviews ending now, and the tiny silent audio each
- * recording's cards are. The profiles cover what the dashboard shows:
+ * recording's cards are. The profiles cover what Reports shows:
  * steady work, a language that went quiet, one to send a reminder, one
  * whose audio is stuck on a phone, one inactive, one without a target.
  */

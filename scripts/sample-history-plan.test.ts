@@ -1,7 +1,7 @@
 import { HISTORY_PROFILES, planHistory, silentWav, uploadedAt } from './sample-history-plan';
 
 /**
- * The sample history must show each state the dashboard reads, relative to
+ * The sample history must show each state Reports reads, relative to
  * whenever it is run: these check the plan says what the profile promises.
  */
 

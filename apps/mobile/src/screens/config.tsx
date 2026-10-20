@@ -667,7 +667,7 @@ export function FlowsHome(ctx: Ctx) {
 function StepSheet(props: {
   step: DraftStep | null; i: number; count: number; kinds: KindDef[]; title: string;
   onClose: () => void; onChange: (s: DraftStep) => void; onAdd: () => void; onMove: (dir: -1 | 1) => void; onRemove: () => void;
-  /** A check that makes something (back translation): the language it is made in (decisions.md 144). */
+  /** A check that makes something (back translation): the language it is made in (decisions.md 145). */
   onInto: (kind: KindDef) => void;
 }) {
   const st = props.step;
@@ -741,7 +741,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const edit = (patch: Partial<FlowEdits>) => draft.set((prev) => editorDraft({ ...(prev?.form ?? NO_FLOW_EDITS), ...patch }, NO_FLOW_EDITS, prev?.basis ?? it?.current ?? null));
   const [open, setOpen] = useState<number | null>(null);
   const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
-  // A back translation's language, from a step's sheet (decisions.md 144).
+  // A back translation's language, from a step's sheet (decisions.md 145).
   const [intoFor, setIntoFor] = useState<KindDef | null>(null);
   const [newKind, setNewKind] = useState('');
   const [busy, setBusy] = useState(false);

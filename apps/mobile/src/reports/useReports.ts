@@ -6,7 +6,7 @@ import { reportsServer } from './reportsServer';
 
 /**
  * An organization's reports for the Reports section (decision 44): every
- * language this person may see, from the dashboard's server, loaded once and
+ * language this person may see, from the app's Worker, loaded once and
  * shared by the section and a language's page. Held in memory only: these
  * are read online, and a reopened section asks again with its ETag.
  */

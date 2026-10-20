@@ -25,7 +25,7 @@ tags:
 - tapOn: "Invite"
 - assertVisible: "Who are you inviting\\?"
 - tapOn: "${LANG_A}"
-# A role's card has its own Invite (decision 144); a role that checks is asked which checks first.
+# A role's card has its own Invite (decision 145); a role that checks is asked which checks first.
 - tapOn:
     text: "Invite"
     childOf:

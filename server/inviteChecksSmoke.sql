@@ -1,4 +1,4 @@
--- An invite that names checks (decisions.md 144): whoever joins with it is
+-- An invite that names checks (decisions.md 145): whoever joins with it is
 -- put on those checks of its language, as the server; only someone who may
 -- choose who does checks there may name them, only for a role that reviews,
 -- and only on an invite to one language. Every test write rolls back.

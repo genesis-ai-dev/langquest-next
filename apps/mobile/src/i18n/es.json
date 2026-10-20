@@ -5541,7 +5541,7 @@
       "couldNotRead": "No se pudieron leer los informes.",
       "signIn": "Tu sesión terminó. Vuelve a iniciar sesión.",
       "notMember": "No eres miembro de esta organización.",
-      "busy": "El panel no pudo leer esta organización en este momento. Inténtalo de nuevo.",
+      "busy": "El servidor no pudo leer esta organización en este momento. Inténtalo de nuevo.",
       "serverAnswered": "El servidor respondió {{status}}."
     },
     "countries": {

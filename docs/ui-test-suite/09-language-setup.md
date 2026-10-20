@@ -25,7 +25,7 @@ page: one name for each thing, no More).
   the Manage tab's root for LADMIN, and for others it is reached from Org
   home → Languages → "Alpha". LADMIN reaches Org home from "UI Test Org"
   above Alpha's title, where Back would be (`header-up`, decision 138).
-- New language opens on its **six** steps (decision 144), then shows them
+- New language opens on its **six** steps (decision 145), then shows them
   as a bar on every page ("n of 6 · name"): the language, its content, how
   it is split into pieces, its reference material (its languages, then
   what the team will have), its review flow (a flow to start from, then
@@ -333,7 +333,7 @@ Steps:
 8. Open Org home.
 
 Expected:
-- New language opens on its six steps (decision 144): "6 steps", then
+- New language opens on its six steps (decision 145): "6 steps", then
   Language, Content, Split into pieces, Reference material, Review flow and
   People, each with a small picture, and "Start".
 - Every step after that has the six as a bar under the header, done ones
@@ -580,7 +580,7 @@ Steps:
 Expected:
 - The checks start from Standard Bible Flow's (decision 91), with no
   "Start from a ready-made flow" (the step before chose it).
-- A check opens the same page a ready language's check has (decision 144):
+- A check opens the same page a ready language's check has (decision 145):
   "People" ("Choose them as you invite"), "Questions", "On their screen",
   "Helps", "Must pass", "Same time as" (any other checks, ticked), "Remove
   this check". Removing asks first.
@@ -613,7 +613,7 @@ Expected:
   anything; otherwise English (decision 84).
 - Step 4: "What will help {language}'s team?" under the chip "Bibles and
   guides in English · Change", with FIA's study guides in English ticked
-  (decision 144).
+  (decision 145).
 
 ### SETUP-020 New language's invite step, or later
 Roles: ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

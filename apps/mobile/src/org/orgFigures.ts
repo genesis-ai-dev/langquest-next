@@ -2,8 +2,8 @@ import type { LanguageProgress, LanguageSummary } from '@langquest-next/core';
 
 /**
  * A language's figures on an overview, and where they came from. A phone
- * folds only the languages it has open (decision 63); the dashboard's
- * server sums the rest (decision 44). The local fold wins for a language
+ * folds only the languages it has open (decision 63); the app's
+ * Worker sums the rest (decision 44). The local fold wins for a language
  * this phone has: it is the reducer's own answer, fresher, and offline.
  */
 interface LanguageFigures {

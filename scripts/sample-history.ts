@@ -11,10 +11,10 @@ import { HISTORY_PROFILES, planHistory, seeded, silentWav, uploadedAt } from './
 
 /**
  * `npm run sample:org -- --history`: months of recording and review behind
- * each sample language, so every page of the web dashboard has something to
+ * each sample language, so every page of Reports has something to
  * show (decisions 41 and 43). Local only, and for one reason: a real upload
  * is confirmed by the Worker at the moment it lands (decisions.md 69), and
- * the dashboard needs uploads from weeks ago. So the script writes each
+ * Reports needs uploads from weeks ago. So the script writes each
  * `v1.BlobStored` itself, back-dated, straight into the local database
  * through Docker, then uploads the real (silent) audio through the local
  * Worker (`npm run web:dev`, or API_URL); its record_blob finds the

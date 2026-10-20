@@ -1,4 +1,4 @@
-// New language's Reference material (decisions.md 144): what its team will
+// New language's Reference material (decisions.md 145): what its team will
 // have, ticked, in the languages chosen on the page before. It comes before
 // the review flow, so each check can then say what of it its people see.
 import { View } from 'react-native';

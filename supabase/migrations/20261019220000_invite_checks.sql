@@ -1,5 +1,5 @@
 -- An invite to a language may put whoever joins with it on some of that
--- language's checks (decisions.md 144): New language, and Invite, ask which
+-- language's checks (decisions.md 145): New language, and Invite, ask which
 -- checks a code's people will do, and joining puts them there. A check's
 -- people are its team's members (`check:<kindId>`, decision 91), so redeeming
 -- appends `v1.ReviewTeamMemberSet` to the language's stream as the server,

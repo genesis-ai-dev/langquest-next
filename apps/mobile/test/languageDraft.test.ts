@@ -1,4 +1,4 @@
-// New language's draft (decision 144): the events a new language starts with, made on its check pages before it exists.
+// New language's draft (decision 145): the events a new language starts with, made on its check pages before it exists.
 import { checkShows, checkShowsSpecs, commands, deriveFlow, DEFAULT_KINDS, emptyLanguageState } from '@langquest-next/core';
 import { DRAFT_LANGUAGE, draftChanged, draftSpecsFor, foldDraft, newDraft, orgWithDraft } from '../src/checks/languageDraftModel';
 import { ORG } from './sessions';
@@ -6,7 +6,7 @@ import { ORG } from './sessions';
 const flow = commands(emptyLanguageState()).copyFlow({ commandId: 'c1', name: 'Quick Check', kinds: DEFAULT_KINDS, steps: [{ kindIds: ['peer'] }, { kindIds: ['final'], checkpoint: true }] });
 const draft = newDraft({ name: 'Lopit', reads: ['eng', 'grc'], actorId: 'admin', from: 'quick', specs: flow, nowMs: 1_760_000_000_000 });
 
-describe('New language’s draft (decision 144)', () => {
+describe('New language’s draft (decision 145)', () => {
   it('folds as the language’s stream would: its checks, in order, and its reference languages', () => {
     const state = foldDraft(draft);
     expect(Object.keys(state.invalidEvents)).toEqual([]);

@@ -13,7 +13,7 @@ import { Legend } from './ui';
 import { num, pctText, shortDate, signed, TONE_FILL, weekday, type Tone } from './format';
 
 /**
- * Small SVG charts, ported from the web dashboard. Each one says its numbers
+ * Small SVG charts, ported from the old web dashboard. Each one says its numbers
  * in words beside the marks (a legend with counts, the numbers on request,
  * an accessibility label), so colour is never the only way to read it.
  */

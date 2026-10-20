@@ -416,12 +416,15 @@ checkpoint already did.
 | A phone kept on disk equals one in memory on every record and line | `keptLanguage.test.ts` | on the branch |
 | Half a fleet on disk ends with the server's language and lines | `fleet.test.ts` | on the branch |
 | App code never reads every passage from memory outside the list | `wholeLanguage.test.ts`, later a lint rule | on the branch |
-| Loading or shedding a passage counts as an `all` touch for incremental views | `incrementalViews.test.ts` | to add on the rebase |
-| A stale checkpoint takes its rows and lines with it | `syncClient.test.ts` | to add on the rebase |
-| A pull from zero with no server snapshot keeps the passages in memory under the limit throughout | `keptLanguage.test.ts` | to add on the rebase |
+| Loading or shedding a passage counts as an `all` touch for incremental views | `incrementalViews.test.ts` | done |
+| A stale checkpoint takes its rows and lines with it; a build rolled back drops a kept checkpoint | `keptLanguage.test.ts`, `fleet.test.ts` | done |
+| A pull from zero with no server snapshot keeps the passages in memory under the limit throughout | `keptLanguage.test.ts` | done |
+| A first download reads the snapshot in the server's jsonb key order, and in an order that puts what hangs on another entry first | `keptLanguage.test.ts` | done |
+| A checkpoint with unsent work (the slow path) keeps the passages on disk | `keptLanguage.test.ts` | done |
 | The server's rows for a snapshot equal the phone's cut of its text | a parity test in `packages/sync/test` | with F |
 | `LINES_VERSION` changes when what a line says changes | a source-hash test like the worker bundle's | with F |
 | During a fill, every line a list shows is the phone's own derivation, or the server's for a passage no pulled event has touched since its snapshot | `keptLanguage.test.ts`: a fill interrupted at every point against the in-memory twin | with F |
+| A kept phone opens a 30 MB-snapshot language in a 40 MB heap, by snapshot and by log; held whole it runs out of memory there | `packages/sync/test/memory/keptMemory.test.ts` | done |
 | Peak memory on the 2 GB emulator, release build, Koro and Koro × 4 | a measurement recorded in `performance-audit-app.md`, repeated per release | manual |
 
 ## 6. Decision log

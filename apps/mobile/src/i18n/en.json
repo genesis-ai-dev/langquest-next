@@ -5345,7 +5345,7 @@
       "couldNotRead": "The reports could not be read.",
       "signIn": "Your session has ended. Sign in again.",
       "notMember": "You are not a member of this organization.",
-      "busy": "The dashboard could not read this organization just now. Try again.",
+      "busy": "The server could not read this organization just now. Try again.",
       "serverAnswered": "The server answered {{status}}."
     },
     "countries": {

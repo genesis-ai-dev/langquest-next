@@ -95,7 +95,17 @@ describe('a language cut by passage', () => {
       ev('m1', 'v1.VersionReleased', { takeId: 'T', channel: 'web', live: true }, '0020'),
       ev('m2', 'v1.VersionReleased', { takeId: 'T', channel: 'web', live: false }, '0021'),
       ev('n1', 'v1.RecordingAdded', { recordingId: 'r', unitId: 'u1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1 }] }, '0022'),
-      ev('n2', 'v1.RecordingAdded', { recordingId: 'r', unitId: 'u1', kind: 'target', cards: [{ hash: 'h2', durationMs: 1 }] }, '0021')
+      ev('n2', 'v1.RecordingAdded', { recordingId: 'r', unitId: 'u1', kind: 'target', cards: [{ hash: 'h2', durationMs: 1 }] }, '0021'),
+      // A take archived twice: the first archive names who and when (decision 124).
+      ev('a4', 'v1.TakeArchived', { takeId: 'T' }, '0001', 't0'),
+      ev('a5', 'v1.TakeArchived', { takeId: 'T' }, '0030', 't2'),
+      // A review and a note each taken back more than once, at the same and different clocks (decision 111): the first undo stands.
+      ev('o1', 'v1.ReviewWithdrawn', { reviewId: 'R' }, '0023', 't2'),
+      ev('o2', 'v1.ReviewWithdrawn', { reviewId: 'R' }, '0023', 't1'),
+      ev('o3', 'v1.ReviewWithdrawn', { reviewId: 'R' }, '0024', 't0'),
+      ev('p1', 'v1.NoteWithdrawn', { noteId: 'N' }, '0025', 't2'),
+      ev('p2', 'v1.NoteWithdrawn', { noteId: 'N' }, '0025', 't1'),
+      ev('p3', 'v1.NoteWithdrawn', { noteId: 'N' }, '0026', 't0')
     ];
     const all = fold(colliding);
     fc.assert(
