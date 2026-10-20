@@ -377,9 +377,15 @@ designed above, with these choices and corrections:
   on reconnecting offline). Offline such a passage opens as its line with
   "Not on this device yet", so nobody records into it; work made on it from
   another screen (a request from the Map) waits for the fill to show.
-- *Not done here:* the Durable Object and the agent view still fold from the
-  snapshot's pieces (decision 44's amendment names the step); the emulator
-  measurement below.
+- *The organization's Durable Object* reads languages as a phone does: a
+  kept `SyncClient` per language over its own SQLite
+  (`apps/web/worker/languageRecords.ts`), first downloaded from the cut. The
+  access-token API, MCP, review links and webhooks read a few passages at a
+  time; Reports keep their stored inputs (decision 142). A Bible-size
+  language (4,000 passages of 15 versions) lists and scans inside the
+  isolate's heap; folded whole it runs out of memory
+  (`apps/web/test/memory/orgFolderMemory.test.ts`).
+- *Not done here:* the emulator measurement below.
 - *Measured.* Koro's head is the shared part and lines decision 143 measured
   on Koro (0.13 + 0.37 MB): about four minutes to the first Map at 2 KB/s,
   against 40 MB and five and a half hours. Santhali was not measured on its
@@ -484,6 +490,7 @@ checkpoint already did.
 | An E build drops a partly filled checkpoint; F reads E's | `keptFill.test.ts` | done |
 | A fleet whose phones take their first download by fill ends with the server's language and lines | `fleet.test.ts` | done |
 | A first download by fill stays inside the 40 MB heap | `packages/sync/test/memory/keptMemory.test.ts` | done |
+| The organization object answers the API and webhooks for a Bible-size language inside its isolate, as a whole fold answers | `apps/web/test/memory/orgFolderMemory.test.ts`, `apps/web/test/languageRecords.test.ts` | done |
 | A kept phone opens a 30 MB-snapshot language in a 40 MB heap, by snapshot and by log; held whole it runs out of memory there | `packages/sync/test/memory/keptMemory.test.ts` | done |
 | Peak memory on the 2 GB emulator, release build, Koro and Koro × 4 | a measurement recorded in `performance-audit-app.md`, repeated per release | manual |
 
@@ -494,6 +501,6 @@ checkpoint already did.
 - F is decision 147: the server cuts the snapshot by passage, lines carry
   `LINES_VERSION`, and `snapshots.state` stops being written. It amends 88
   and 89 (what a snapshot is stored as), 61 (what "on this device" means
-  while a fill runs) and 44 (the object can read the cut next).
+  while a fill runs) and 44 (the object reads languages from the cut).
 - The host plan's entry (the job host, and the pass as the one producer of
   aggregates) is the host plan's to add.

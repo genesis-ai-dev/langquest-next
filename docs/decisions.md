@@ -964,12 +964,17 @@ later plain read keeps those newer figures; a larger language answers from
 its stored inputs until the next pass. What an admin saves on the
 organization stream (a name, country or target) shows at once either way.
 
-Amended (2026-10-20, Carl Sauder): the projection pass now also stores
-each language's newest snapshot cut by passage and every passage's line
-(147). The object still starts its folds from the snapshot's pieces; the
-access-token API (70), MCP and the agent view on a Bible-size language can
-read the shared part, the lines and a passage's rows instead, which is the
-next step and is not taken here.
+Amended (2026-10-20, Carl Sauder): the access-token API (70), MCP, review
+links and webhooks (101) no longer fold a language in the object (147).
+Each language is sync's own kept client over the object's SQLite
+(`LanguageRecordsKeeper`, `apps/web/worker/languageRecords.ts`): what the
+whole language shares and its lines in memory, its rows first downloaded
+from the server's cut and read a few passages at a time. Reports keep this
+entry's folds only for a language the pass has stored no inputs for (142),
+and access checks and the webhook scan read the organization stream alone.
+The capped-heap test lists and scans a Bible-size language (4,000 passages
+of 15 versions, about 48 MB of fold) inside the isolate; folded whole, the
+same language runs out of memory.
 
 ## 45. Merging to main ships Android to Google Play's internal testing track
 
@@ -6256,6 +6261,22 @@ does).
   once its rows and its audio are; offline, a passage not reached yet shows
   where it stands, its latest version and by whom, and its open requests,
   with "Not on this device yet".
+- The organization's Durable Object (44) reads languages the same way for
+  the access-token API (70), MCP, review links and webhooks (101): sync's
+  `SyncClient` per language, kept on disk in the object's own SQLite
+  (`LanguageRecordsKeeper`, `apps/web/worker/languageRecords.ts`, its
+  driver gathering a transaction's statements into `transactionSync`),
+  four languages open at once, the fill running between answers. The
+  passage list, the webhook digest and a token's writes read slices of 25
+  passages (`inSlices`); one passage, a review link and a write read that
+  passage; whether a voice note is new reads the kept `audio` and `file`
+  rows of the whole language, filled in first. `SqliteStore` hands id
+  lists to SQLite as one JSON array, since a Durable Object takes few bound
+  parameters. Under the 112 MB heap of `orgFolderMemory.test.ts`, a token
+  listing every passage of a Bible-size language (4,000 passages of 15
+  versions, about 48 MB of fold) peaks at 80 MB and keeps 18 MB, and a
+  webhook scan of it peaks at 97 MB and keeps 20 MB; folded whole, the same
+  language runs out of memory.
 Numbers. Before its Map opens a phone now downloads the head: for Koro,
 the shared part (0.13 MB) and lines (0.37 MB) that 143 measured on Koro
 itself, 0.5 MB as JSON, about four minutes at 2 KB/s against 40 MB and five
