@@ -1064,8 +1064,10 @@ export class SyncClient<S = LanguageState> {
         ...(kept ? { kept } : {})
       });
       // Memory lets go of what is on disk now and not open, unless something was folded meanwhile.
-      if (this.kept && revision === this.revision && this.state === live) this.kept.shed(live as unknown as LanguageState, placed);
-      else this.kept?.stored(placed);
+      if (this.kept && revision === this.revision && this.state === live) {
+        this.kept.shed(live as unknown as LanguageState, placed);
+        await this.compactGuard(live as unknown as LanguageState, revision);
+      } else this.kept?.stored(placed);
       return { chars, path: 'fast' };
     }
     const base = (await this.localSnapshot()) ?? {
@@ -1084,6 +1086,29 @@ export class SyncClient<S = LanguageState> {
       return { chars, path: 'slow' };
     }
     return { chars: await this.saveSnapshot({ ...base, serverSeq: cursor, state: state as unknown as LanguageState }), path: 'slow' };
+  }
+
+  /**
+   * After a checkpoint of a language kept on disk, the live state's guard
+   * against applying an event twice keeps only the events still in the log,
+   * as a relaunch has it (decisions.md 143). The ids inside the checkpoint
+   * are never needed again: a pull asks for what is past the cursor, and a
+   * refold starts from the checkpoint, whose guard is empty. Kept, the guard
+   * grew by an id per event pulled in a session, the most a pull of the
+   * whole log held. Our own events pushed but not yet pulled stay in the log
+   * and in the guard, so their pull is not folded twice. Skipped when
+   * something was folded while the log was read: the next checkpoint does it.
+   */
+  private async compactGuard(live: LanguageState, revision: number): Promise<void> {
+    const ids: Record<string, true> = {};
+    for (let after: string | null = null; ;) {
+      const size = this.opts.logPageSize ?? LOG_PAGE;
+      const page = await this.opts.store.page(this.opts.orgId, this.opts.streamId, after, size);
+      for (const l of page) ids[l.event.id] = true;
+      if (page.length < size) break;
+      after = page[page.length - 1]!.event.id;
+    }
+    if (revision === this.revision && (this.state as unknown) === live) live.appliedEventIds = ids;
   }
 
   /**

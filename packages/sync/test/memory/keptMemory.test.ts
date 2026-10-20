@@ -69,8 +69,9 @@ describe('a phone holds a big language kept on disk inside a small heap', { time
     expect(r.status, r.stderr).toBe(0);
     expect(r.out).toMatchObject({ ok: true });
     expect(r.out!.recordingsInMemory).toBe(180);
-    // What stays is the live state's guard against applying an event twice: an id per event pulled this session.
-    expect(r.out!.retainedHeapMb).toBeLessThan(20);
+    // Each checkpoint lets go of the guard against applying an event twice (decisions.md 143); kept, an id per
+    // event pulled this session stayed, 11 MB here.
+    expect(r.out!.retainedHeapMb).toBeLessThan(8);
   });
 
   it('a first download by fill from the server\'s cut, ending with every passage\'s rows on disk', async () => {
