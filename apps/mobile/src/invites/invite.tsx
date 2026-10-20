@@ -82,6 +82,10 @@ export function InviteSomeone(props: {
   const rows = useMemo(() => (state && forOpen ? rowsOf(deriveFlow(state).steps) : []), [state, forOpen]);
   const reviews = (roleId: string) => (ctx.org.state?.roles[roleId]?.privileges.value ?? []).includes('review');
   const offersChecks = (o: RoleOffer) => forOpen && rows.length > 0 && reviews(o.roleId) && ctx.session.can('manage_teams');
+  // A code for the language being opened (New language opens the one it just added) waits until it is read from
+  // this phone: before that its checks are unknown, and the code would skip "Which checks will they do?".
+  const opening = scope?.scope.level === 'language' && scope.scope.languageId === ctx.languageId
+    && (ctx.language.languageId !== ctx.languageId || !state);
 
   // A phone's Back goes back a page, as the header's arrow does (decision 137).
   useHardwareBack(page !== 'roles', () => back());
@@ -102,6 +106,7 @@ export function InviteSomeone(props: {
   const newRole = props.onNewRole ? () => { rolesBefore.current = new Set(roles.others.map((r) => r.id)); props.onNewRole!(); } : undefined;
 
   function pick(o: RoleOffer) {
+    if (opening) return;
     setChosen(o);
     setChecks([]);
     if (offersChecks(o)) setPage('checks');
@@ -186,13 +191,13 @@ export function InviteSomeone(props: {
       {newRole ? <DashedRow icon="plus" label={t('admin.invite.newRole')} detail={t('admin.invite.newRoleHelp')} onPress={newRole} /> : null}
       {/* help-each: each role does different work */}
       {offers.map((o) => (
-        <RoleCard key={o.key} offer={o} scope={scope} open={openCard === o.key} disabled={!!props.disabled || !scope}
+        <RoleCard key={o.key} offer={o} scope={scope} open={openCard === o.key} disabled={!!props.disabled || !scope || opening}
           onOpen={() => setOpenCard(openCard === o.key ? null : o.key)} onInvite={() => pick(o)}
           privileges={ctx.org.state?.roles[o.roleId]?.privileges.value ?? []} />
       ))}
       {more.length ? (others ? more.map((o) => (
         <HelpRow key={o.key} of="invite.otherRole">
-          <RoleCard offer={o} scope={scope} open={openCard === o.key} disabled={!!props.disabled || !scope}
+          <RoleCard offer={o} scope={scope} open={openCard === o.key} disabled={!!props.disabled || !scope || opening}
             onOpen={() => setOpenCard(openCard === o.key ? null : o.key)} onInvite={() => pick(o)}
             privileges={ctx.org.state?.roles[o.roleId]?.privileges.value ?? []} />
         </HelpRow>
