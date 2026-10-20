@@ -185,12 +185,14 @@ export async function handleBible(request: Request, deps: BibleDeps): Promise<Re
 
 type Route =
   | { name: 'languages' }
+  | { name: 'allLanguages' }
   | { name: 'bibles' }
   | { name: 'bible'; bibleId: string }
   | { name: 'text' | 'audio' | 'timestamps'; fileset: string; book: string; chapter: number };
 
 function matchRoute(path: string): Route | null {
   if (path === '/languages') return { name: 'languages' };
+  if (path === '/languages/all') return { name: 'allLanguages' };
   if (path === '/bibles') return { name: 'bibles' };
   let m = /^\/bibles\/([^/]+)$/.exec(path);
   if (m) return ID.test(m[1]!) ? { name: 'bible', bibleId: m[1]! } : null;
@@ -227,6 +229,7 @@ class BibleBrain {
   async answer(route: Route, q: URLSearchParams): Promise<{ body: unknown; maxAge: number }> {
     switch (route.name) {
       case 'languages': return { body: { languages: await this.languages(q.get('q') ?? '') }, maxAge: 3600 };
+      case 'allLanguages': return { body: { languages: await this.allLanguages() }, maxAge: 3600 };
       case 'bibles': return { body: { bibles: await this.bibles(q.get('lang') ?? '') }, maxAge: 3600 };
       case 'bible': return { body: { bible: await this.bible(route.bibleId) }, maxAge: 3600 };
       case 'text': return { body: { verses: await this.text(route.fileset, route.book, route.chapter) }, maxAge: 3600 };
@@ -321,6 +324,39 @@ class BibleBrain {
       return [...byCode.values()].filter((l) => l.bibles > 0)
         .sort((a, b) => Number(b.code === code) - Number(a.code === code) || b.bibles - a.bibles || (a.name < b.name ? -1 : 1))
         .slice(0, 50);
+    });
+  }
+
+  /**
+   * Every language Bible Brain has Bibles in, one row per ISO code (the most
+   * Bibles' name), most Bibles first, cached a day: what a language list
+   * offers before anyone types. FCBH lists 150 languages a page, so this is
+   * about 18 calls. Its count takes in Bibles our key cannot open: the app
+   * counts a language's own list for the number it shows.
+   */
+  private allLanguages() {
+    return this.cached('languages-all', DAY, async () => {
+      const byCode = new Map<string, { code: string; name: string; autonym?: string; bibles: number }>();
+      for (let page = 1; page <= 40; page++) {
+        const r = await this.dbp('/languages', { limit: '150', page: String(page) });
+        if (r.status !== 200) {
+          if (page === 1) throw upstreamFailed();
+          break;
+        }
+        const body = r.body as { data?: unknown; meta?: { pagination?: { total_pages?: number; last_page?: number } } };
+        for (const row of arr(body.data)) {
+          const code = typeof row['iso'] === 'string' ? row['iso'] : '';
+          const bibles = Number(row['bibles'] ?? 0) || 0;
+          if (!/^[a-z]{3}$/.test(code) || bibles <= 0) continue;
+          const seen = byCode.get(code);
+          if (seen && seen.bibles >= bibles) continue;
+          const autonym = typeof row['autonym'] === 'string' && row['autonym'] ? row['autonym'] : seen?.autonym;
+          byCode.set(code, { code, name: String(row['name'] ?? code), ...(autonym ? { autonym } : {}), bibles: Math.max(bibles, seen?.bibles ?? 0) });
+        }
+        const last = Number(body.meta?.pagination?.total_pages ?? body.meta?.pagination?.last_page ?? 1);
+        if (page >= last || arr(body.data).length === 0) break;
+      }
+      return [...byCode.values()].sort((a, b) => b.bibles - a.bibles || (a.code < b.code ? -1 : 1));
     });
   }
 

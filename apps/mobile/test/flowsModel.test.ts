@@ -90,6 +90,10 @@ describe('when Save is enabled', () => {
     expect(flowEditorStatus({ ...same, desc: 'More' }).dirty).toBe(true);
     expect(flowEditorStatus({ ...same, steps: [] }).dirty).toBe(true);
     expect(flowEditorStatus({ ...same, added: [kind('new')] }).dirty).toBe(true);
+    // Saying the language its words are in is a change (decision 84); saying none as before is not.
+    expect(flowEditorStatus({ ...same, language: 'fra' }).dirty).toBe(true);
+    expect(flowEditorStatus({ ...same, language: null }).dirty).toBe(false);
+    expect(flowEditorStatus({ ...same, base: { ...base, language: 'eng' }, language: 'eng' }).dirty).toBe(false);
   });
 
   it('never without a name', () => {

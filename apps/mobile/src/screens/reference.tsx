@@ -32,13 +32,14 @@ import { useOpenDetail } from '../ui/useLayout';
 import { sourceLine, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { noteExpected } from '../diagnostics/report';
-import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, searchLanguages, type BibleDetail, type BibleLanguage, type BibleSummary } from '../sources/bibleBrainAdmin';
+import { BibleError, bibleDetail, biblesIn, bibleSearchAvailable, heldDetail, type BibleDetail, type BibleSummary } from '../sources/bibleBrainAdmin';
 import { coverageSummary, itemReaches } from '../reference/coverage';
 import {
   biblebrainItemId, offlineLine, orgLevelCan, recActions, recLabel, recState, recTone,
   sourceFacts, sourceFromBible, sourceSummary, testamentLines, timingsNeeded, type Level
 } from '../reference/model';
-import { bibleBrainDescription, bibleBrainIds, bibleLine, providerName, readySources, settledLanguage, splitBibles } from '../reference/biblesModel';
+import { bibleBrainDescription, bibleBrainIds, bibleLine, offeredBibleLanguages, providerName, readySources, splitBibles } from '../reference/biblesModel';
+import { withoutEmpty } from '../reference/offeredLanguagesModel';
 import { timingsOffer, bookTimingLine, failReason, jobView, publicationLine, timedBookCount, type JobOutcome } from '../reference/timingsModel';
 import { KIND_FILTERS, activeFilterCount, filterGuides, filterOptions, guideItems, guideLine, guideRows, kindFilterLabel, type KindFilter } from '../reference/guidesModel';
 import {
@@ -57,6 +58,11 @@ import { DashedBtn } from '../recording/blocks';
 import { useBible } from '../helps/useBible';
 import { contractsFor } from '../shell/screenContracts';
 import { bibleErrorText } from '../sources/bibleBrain';
+import { useBibleBrainBibles } from '../sources/useBibleBrainBibles';
+import { useBibleBrainLanguages } from '../sources/useBibleBrainLanguages';
+import { useOfferedLanguageSearch } from '../reference/useOfferedLanguageSearch';
+import { LanguoidPicker } from '../org/languoidPicker';
+import type { LanguoidHit } from '../org/languoidModel';
 import { space, TINT } from '../ui/theme';
 
 const STEP = 25;
@@ -186,34 +192,30 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
   const sharedV = useSharedItems('versification', lib.orgId);
   const readyDocs = useLibraryDocs(lib.orgId, shared.rows.map((s) => s.latest_hash));
   const ready = readySources(shared.rows, readyDocs, lib.items('material'));
+  // The team's language to start, its Bibles listed; Change types another, from only the languages Bible Brain has Bibles in.
   const fallback = teamLanguage(ctx.org.state, ctx.language.state, ctx.language.languageId);
-  const [q, setQ] = useState(fallback);
-  const [languages, setLanguages] = useState<BibleLanguage[]>([]);
-  const [lang, setLang] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+  const [lang, setLang] = useState<LanguoidHit | null>(() => ({ id: `picked:${fallback}`, name: languageLabel(fallback), dialect: false, parentName: null, alsoCalled: null, code: fallback }));
   const [bibles, setBibles] = useState<BibleSummary[] | null>(null);
   const [picked, setPicked] = useState<BibleDetail | null>(null);
   const [error, setError] = useState('');
+  const searching = tab === 'biblebrain' && bibleSearchAvailable && !lang;
+  const bibleLanguages = useBibleBrainLanguages(searching);
+  const offered = useMemo(() => (bibleLanguages ? offeredBibleLanguages(bibleLanguages) : null), [bibleLanguages]);
+  const found = useOfferedLanguageSearch(q, offered, searching);
+  // Each language says how many Bibles open when it is picked, once Bible Brain says (useBibleBrainBibles); one with none goes.
+  const opens = useBibleBrainBibles(found.hits.slice(0, 12).map((h) => h.code));
+  const search = withoutEmpty(found, (code) => opens.get(code)?.length === 0);
+  const count = (h: LanguoidHit) => {
+    const n = h.code === lang?.code ? bibles?.length : opens.get(h.code)?.length;
+    return n === undefined ? null : t('referenceLanguage.bibles', { count: n });
+  };
 
-  useEffect(() => {
-    if (tab !== 'biblebrain' || !bibleSearchAvailable) return;
-    const needle = q.trim();
-    if (needle.length < 2) { setLanguages([]); return; }
-    let active = true;
-    const t = setTimeout(() => {
-      searchLanguages(needle).then((ls) => {
-        if (!active) return;
-        setLanguages(ls);
-        setError('');
-        setLang((cur) => settledLanguage(ls, needle, cur));
-      }).catch((e: unknown) => { if (active) setError(searchFailure(e)); });
-    }, 350);
-    return () => { active = false; clearTimeout(t); };
-  }, [tab, q]);
   useEffect(() => {
     if (!lang) { setBibles(null); return; }
     let active = true;
     setBibles(null);
-    biblesIn(lang).then((bs) => { if (active) setBibles(bs); }).catch((e: unknown) => { if (active) setError(searchFailure(e)); });
+    biblesIn(lang.code).then((bs) => { if (active) setBibles(bs); }).catch((e: unknown) => { if (active) setError(searchFailure(e)); });
     return () => { active = false; };
   }, [lang]);
 
@@ -296,17 +298,10 @@ function AddBibleSheet(props: { ctx: Ctx; level: Level; shared: ReturnType<typeo
             <Text style={txt.smMuted}>{t('reference.addBible.noServer')}</Text>
           ) : (
             <>
-              <SearchField value={q} onChangeText={(v) => { setQ(v); setLang(null); }} placeholder={t('reference.addBible.searchPlaceholder')} help={t('reference.addBible.searchHelp')} />
+              {lang ? null : <SearchField value={q} onChangeText={setQ} placeholder={t('reference.addBible.searchPlaceholder')} help={t('reference.addBible.searchHelp')} />}
               {error ? <Text style={txt.error}>{error}</Text> : null}
-              {languages.length ? (
-                <ChipRow>
-                  {languages.slice(0, 8).map((l) => (
-                    <HelpRow key={l.code} of="reference.bibleLanguage">
-                      <Chip label={`${l.name} · ${l.code}`} count={l.bibles} on={l.code === lang} help={t('reference.addBible.languageHelp')} onPress={() => setLang(l.code)} />
-                    </HelpRow>
-                  ))}
-                </ChipRow>
-              ) : null}
+              <LanguoidPicker search={search} picked={lang} onPick={(h) => { setLang(h); setQ(''); setError(''); }} detail={count}
+                unlisted={t('reference.addBible.listed')} noMatch={t('reference.addBible.noMatch')} unreachable={t('reference.addBible.unreachable')} />
               {lang && bibles === null && !error ? <Text style={txt.smMuted}>{t('common.loading')}</Text> : null}
               {bibles && bibles.length === 0 ? <Text style={txt.smMuted}>{t('reference.addBible.noneInLanguage')}</Text> : null}
               {bibles && bibles.length ? (

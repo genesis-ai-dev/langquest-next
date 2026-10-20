@@ -205,7 +205,7 @@ const STEP_ID = /^[^/@\s]+$/;
  * `step2`, ...; and every kind its steps use, from the kinds known here, so
  * the flow travels whole (docs/library.md).
  */
-export function flowDocFrom(c: { name: string; description: string; steps: DraftStep[]; kinds: KindDef[] }): FlowDoc {
+export function flowDocFrom(c: { name: string; description: string; language?: string | null; steps: DraftStep[]; kinds: KindDef[] }): FlowDoc {
   const steps = c.steps.filter((s) => s.kindIds.length > 0);
   const taken = new Set<string>();
   const kept = steps.map((s) => {
@@ -228,7 +228,7 @@ export function flowDocFrom(c: { name: string; description: string; steps: Draft
     };
   });
   return {
-    format: 'flow@1', name: c.name.trim(), description: c.description.trim(), kinds,
+    format: 'flow@1', name: c.name.trim(), description: c.description.trim(), ...(c.language ? { language: c.language } : {}), kinds,
     steps: steps.map((s, i) => ({ stepId: ids[i]!, kindIds: [...s.kindIds], ...(s.checkpoint ? { checkpoint: true } : {}) })),
     deps: []
   };

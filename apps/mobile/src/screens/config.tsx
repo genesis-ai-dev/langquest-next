@@ -77,7 +77,7 @@ import {
 } from '../reference/materialModel';
 import { privilegesOn, roleDefinition, roleDirty } from '../roles/model';
 import { SwitchRow } from '../admin/admin';
-import { flipSwitch, ROLE_SWITCHES, sameChecks, stepTitle, switchState } from '../admin/adminModel';
+import { flipSwitch, languageLabel, ROLE_SWITCHES, sameChecks, stepTitle, switchState } from '../admin/adminModel';
 import {
   fieldLabel, flowDocFrom, flowLabel, flowUse, holdersOf, isFiaTerm,
   levelLabel, libraryMaterialLine, libraryQuestions, materialDocFrom, materialItemId, moveStep, newKindId,
@@ -625,7 +625,7 @@ export function FlowsHome(ctx: Ctx) {
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
                     <View style={{ flex: 1 }}>
                       <Text style={txt.h3}>{f.name}</Text>
-                      <Text style={txt.xs}>{sourceLine(f)}</Text>
+                      <Text style={txt.xs}>{[sourceLine(f), flowLanguage(docs.get<FlowDoc>(f.current))].filter(Boolean).join(' · ')}</Text>
                       {f.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{f.description}</Text> : null}
                     </View>
                     {f.archived ? <Badge label={t('config.library.archivedBadge')} />
@@ -643,7 +643,12 @@ export function FlowsHome(ctx: Ctx) {
           <ShowMore remaining={flows.length - shown} step={STEP} onMore={() => setShown(shown + STEP)} />
 
           <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canWrite}
-            detail={(s) => <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} explain />}
+            detail={(s) => (
+              <>
+                {flowLanguage(docs.get<FlowDoc>(s.latest_hash)) ? <Text style={txt.xs}>{flowLanguage(docs.get<FlowDoc>(s.latest_hash))}</Text> : null}
+                <DocSteps doc={docs.get<FlowDoc>(s.latest_hash)} kinds={kinds} explain />
+              </>
+            )}
             {...(language && canManage ? { use: { label: t('config.flows.use'), onUse: (s: SharedItem) => chooseFlow({ shared: s }), disabled: busy,
               help: t('config.flows.useHelp', { language }) } } : {})} />
         </>
@@ -706,6 +711,9 @@ function StepSheet(props: {
  * changes, whose Done publishes a new version that the languages using it
  * move to.
  */
+/** The language a flow's words are in, when it says (decision 84). */
+const flowLanguage = (doc: FlowDoc | null | undefined) => (doc?.language ? languageLabel(doc.language) : null);
+
 export function FlowEditor(ctx: Ctx) {
   // A language's own checks, or New language's before it exists (screens/checks.tsx, decision 91).
   if (ctx.params['steps'] === 'language' || ctx.params['draft'] === '1') return <LanguageChecks ctx={ctx} />;
@@ -729,7 +737,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   // A new flow's draft is the one begun from the same start (`languageId`, `from`).
   const draft = useDraft<FlowDraft | null>(
     draftKey('editor', ctx.session.actorId, lib.orgId, 'flow', requested, ...(isNew ? [ctx.params['languageId'], ctx.params['from']] : [])), null, isFlowDraft);
-  const { name, description, steps: edited, added } = draft.value?.form ?? NO_FLOW_EDITS;
+  const { name, description, steps: edited, added, language: editedLanguage } = draft.value?.form ?? NO_FLOW_EDITS;
   const edit = (patch: Partial<FlowEdits>) => draft.set((prev) => editorDraft({ ...(prev?.form ?? NO_FLOW_EDITS), ...patch }, NO_FLOW_EDITS, prev?.basis ?? it?.current ?? null));
   const [open, setOpen] = useState<number | null>(null);
   const [pickFor, setPickFor] = useState<number | 'new' | null>(null);
@@ -746,7 +754,9 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
   const steps = edited ?? base?.steps ?? [];
   const label = name ?? base?.name ?? '';
   const desc = description ?? base?.description ?? '';
-  const { canSave } = flowEditorStatus({ readOnly, isNew, base, label, desc, steps, added });
+  // What its words are in (decision 84): a new flow starts in the writer's app language.
+  const writtenIn = editedLanguage ?? base?.language ?? (isNew ? readerLanguage() : null);
+  const { canSave } = flowEditorStatus({ readOnly, isNew, base, label, desc, steps, added, language: writtenIn });
   // Done publishes what changed, or with nothing changed just closes.
   const canFinish = !readOnly && base !== null && draft.loaded && !!label.trim();
   const newer = draftBehind(draft.value, it?.current);
@@ -777,7 +787,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
       ctx.back();
       return;
     }
-    const flowDoc = flowDocFrom({ name: label, description: desc, steps, kinds });
+    const flowDoc = flowDocFrom({ name: label, description: desc, language: writtenIn, steps, kinds });
     setBusy(true);
     const saved = await libraryAct(ctx, 'save flow', // i18n-ignore: log label
       () => lib.publish({ kind: 'flow', ...(it ? { itemId: it.itemId } : {}), name: flowDoc.name, description: flowDoc.description, doc: flowDoc }),
@@ -803,6 +813,7 @@ function LibraryFlowEditor({ ctx }: { ctx: Ctx }) {
             <>
               <Field label={t('config.flowEditor.nameLabel')} value={label} onChangeText={(v) => edit({ name: v })} placeholder={t('config.flowEditor.namePlaceholder')} autoCapitalize="words" />
               <Field label={t('config.flowEditor.descriptionLabel')} value={desc} onChangeText={(v) => edit({ description: v })} placeholder={t('config.flowEditor.descriptionPlaceholder')} autoCapitalize="sentences" multiline />
+              <LanguageField label={t('reference.language.writtenIn')} value={writtenIn} onChange={(code) => edit({ language: code })} />
             </>
           )}
           <CheckSteps steps={steps} kinds={kinds} readOnly={readOnly} usually={usuallyFor(state, kinds, ctx.name)} onChange={change}

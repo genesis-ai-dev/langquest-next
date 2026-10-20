@@ -1482,7 +1482,6 @@ export function NewLanguage(ctx: Ctx) {
   // What it translates and how the Bible is broken up (decision 74); what other languages here use comes first.
   const tq = useTranslate(ctx, null);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
-  const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds);
   // The language its Bibles and study guides are in, a step of its own (decision 84): the admin's own when there is anything in it, else English.
   const [readsPicked, setReadsPicked] = useState<string[] | null>(null);
   const reader = readerLanguage();
@@ -1490,6 +1489,8 @@ export function NewLanguage(ctx: Ctx) {
   // The languages its Bibles and guides may be in, the main one first (decision 130).
   const readsAll = readsPicked ?? [startingLanguage(refs.choices, reader)];
   const reads = readsAll[0]!;
+  // Flows in the languages the team reads, or saying none (decision 84, amended 2026-10-20): asked on the page before.
+  const chk = useCheckChoices(ctx, state?.flow?.value.itemId ?? null, kinds, readsAll);
   const material = useNewLanguageOffers(ctx, readsAll, refs.sets);
   const isOn = (key: string) => ticked[key] ?? material.suggested.has(key);
   const offers = material.items.filter((x) => isOn(x.key));
