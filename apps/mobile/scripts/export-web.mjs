@@ -97,8 +97,12 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // together (6.21 MB then). That cap rose to 6.5 MB when main's security fixes
 // and field diagnostics merged with the split (6.26 MB in all, a first visit
 // 5.46 MB): it catches growth that runs away, and what a visit pays is held
-// by the first-visit budget (decision 123).
-const TOTAL_BUDGET_BYTES = 6.5 * 1024 * 1024;
+// by the first-visit budget (decision 123). It rose to 6.6 MB when
+// unfoldingWord's translation helps (decisions 148 to 150) joined main's
+// help-mode feedback and big languages: 6.51 MB in all. Their notes, key
+// words and article reader load the first time one is drawn
+// (src/helps/lazyHelps.tsx), so a first visit stays under its 5.7 MB.
+const TOTAL_BUDGET_BYTES = 6.6 * 1024 * 1024;
 const FIRST_VISIT_BUDGET_BYTES = 5.7 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
