@@ -64,7 +64,8 @@ export function isTemplateForm(x: unknown): x is TemplateForm {
     && (x['divide'] === 'books' || x['divide'] === 'chapters' || x['divide'] === 'passages')
     && listOf(isPassage)(x['passages']) && listOf(isOutlineNode)(x['outline'])
     && optional(x['bookParts'], listOf((b) => isRecord(b) && isString(b['book'])))
-    && optional(x['numbering'], isString) && optional(x['goesWith'], (g) => isRecord(g) && isString(g['pattern']));
+    && optional(x['numbering'], isString) && optional(x['goesWith'], (g) => isRecord(g) && isString(g['pattern']))
+    && optional(x['language'], isString);
 }
 
 export type TemplateDraft = EditorDraft<TemplateForm>;
@@ -79,15 +80,18 @@ export interface FlowEdits {
   steps: DraftStep[] | null;
   /** Kinds of check named in the editor. */
   added: KindDef[];
+  /** The language its words are in ("Written in"); absent in drafts kept before it was asked. */
+  language?: string | null;
 }
 
-export const NO_FLOW_EDITS: FlowEdits = { name: null, description: null, steps: null, added: [] };
+export const NO_FLOW_EDITS: FlowEdits = { name: null, description: null, steps: null, added: [], language: null };
 
 const isStep = (x: unknown) => isRecord(x) && isString(x['key']) && optional(x['stepId'], isString) && isStringList(x['kindIds']) && isBool(x['checkpoint']);
 const isKind = (x: unknown) => isRecord(x) && isString(x['id']) && isString(x['name']) && isString(x['description']) && isString(x['usualReviewer']);
 
 export function isFlowEdits(x: unknown): x is FlowEdits {
-  return isRecord(x) && isStringOrNull(x['name']) && isStringOrNull(x['description']) && listOrNull(isStep)(x['steps']) && listOf(isKind)(x['added']);
+  return isRecord(x) && isStringOrNull(x['name']) && isStringOrNull(x['description']) && listOrNull(isStep)(x['steps']) && listOf(isKind)(x['added'])
+    && optional(x['language'], isStringOrNull);
 }
 
 export type FlowDraft = EditorDraft<FlowEdits>;

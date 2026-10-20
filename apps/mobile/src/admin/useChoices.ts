@@ -12,7 +12,7 @@ import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrar
 import { STARTER_FLOW } from '../org/orgAdmin';
 import { flowTitle, recordKind, type RecordKind } from './adminModel';
 import { collapseFlowSets, type FlowSetMember } from './flowSetsModel';
-import { teamLanguages } from '../reference/languages';
+import { inLanguages, teamLanguages } from '../reference/languages';
 
 /** A flow with one check by the community, by the title flowTitle gives it in the language showing ("Just the community"). */
 const communityOnly = () => flowTitle([{ kindIds: ['community'] }], []);
@@ -43,8 +43,13 @@ export interface FlowEntry {
   set?: { key: string; members: FlowSetMember<FlowEntry>[] };
 }
 
-/** Flows as plain answers: the one in use or suggested, a single community check, the organization's own; the rest one tap deeper. */
-export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined, kinds: readonly KindDef[]) {
+/**
+ * Flows as plain answers: the one in use or suggested, a single community
+ * check, the organization's own; the rest one tap deeper. Given the team's
+ * `languages`, only flows written in one of them (or saying no language)
+ * are offered, and the one in use always (decision 84).
+ */
+export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined, kinds: readonly KindDef[], languages?: readonly string[]) {
   const lib = useLibrary(ctx);
   const libItems = lib.items;
   const library = ctx.org.state?.library;
@@ -52,10 +57,13 @@ export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined
   const choices = useMemo(() => libraryChoices(library ?? {}, libItems('flow'), shared.rows, STARTER_FLOW.name), [library, libItems, shared.rows]);
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
   const current = choices.find((c) => c.source === 'ours' && c.item.itemId === inUseItemId) ?? null;
-  // A set of flows in several languages is one choice, in the team's language first (decision 84's way, for flows).
-  const reads = useMemo(() => teamLanguages(ctx.org.state, ctx.language.state, ctx.language.languageId), [ctx.org.state, ctx.language.state, ctx.language.languageId]);
+  // A set of flows in several languages (a Checking Manual's) is one choice, in the team's language first,
+  // switched among the languages it is offered in (decision 84's way, for flows).
+  const reads = useMemo(() => languages ?? teamLanguages(ctx.org.state, ctx.language.state, ctx.language.languageId),
+    [languages, ctx.org.state, ctx.language.state, ctx.language.languageId]);
   const [chosen, setChosen] = useState<Record<string, string>>({});
-  const entries: FlowEntry[] = collapseFlowSets(choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc), reads, chosen);
+  const entries: FlowEntry[] = collapseFlowSets(choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc)
+    .filter((e) => !languages || e.c === current || inLanguages(e.doc.language, languages)), reads, chosen);
   /** Show a set of flows in another of its languages. */
   const chooseIn = (setKey: string, entryKey: string) => setChosen((m) => ({ ...m, [setKey]: entryKey }));
   const kindsOf = (doc: FlowDoc): KindDef[] => [...doc.kinds, ...kinds];

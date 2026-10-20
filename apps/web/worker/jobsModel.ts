@@ -56,8 +56,47 @@ export function entrypointFor(key: JobKey, all: boolean): string[] {
   return key === 'v2-import' && all ? [...JOBS[key].entrypoint, '--all'] : [...JOBS[key].entrypoint];
 }
 
+/**
+ * Node's heap limit in a job's container, MB: room under the instance's 4 GiB
+ * (standard-1, wrangler.jsonc) for what Node keeps outside the heap, so a
+ * language too big fails its own fold instead of the container being killed.
+ */
+export const HEAP_LIMIT_MB = 3072;
+
 /** What the object remembers about the run under way. */
 export interface RunMark { startedAt: number }
+
+/**
+ * How often the object wakes while a run lasts. A Durable Object is held
+ * only about 70 seconds after a call (production showed the tick's call
+ * ending at 73 s), and the platform stops a container soon after its object
+ * goes idle, so a run longer than that was cut off and its end went unseen.
+ * An alarm every minute keeps the object coming back: it renews the
+ * container's keep-alive, stops a run past its limit, and records a run that
+ * has ended.
+ */
+export const HEARTBEAT_MS = 60_000;
+
+/** What a heartbeat does for the run under way. */
+export type Beat =
+  | { do: 'none' }
+  | { do: 'record' }
+  | { do: 'renew'; keepAliveMs: number; next: number }
+  | { do: 'stop'; next: number };
+
+/**
+ * A heartbeat's decision: nothing when no run is marked; record a run whose
+ * container has stopped; send SIGTERM to one past its time limit (and come
+ * back to record it); otherwise renew the keep-alive for the time it has left
+ * (never less than two beats) and come back in a minute.
+ */
+export function heartbeat(key: JobKey, mark: RunMark | undefined, running: boolean, now: number): Beat {
+  if (!mark) return { do: 'none' };
+  if (!running) return { do: 'record' };
+  const left = mark.startedAt + JOBS[key].timeLimitMs - now;
+  if (left <= 0) return { do: 'stop', next: now + HEARTBEAT_MS };
+  return { do: 'renew', keepAliveMs: Math.max(left, 2 * HEARTBEAT_MS), next: now + HEARTBEAT_MS };
+}
 
 /** How a run ended: its exit code, or null when the container stopped without one (it failed to start, or the platform stopped it). */
 export type Exit = number | null;
@@ -103,7 +142,12 @@ export interface JobSettings {
  * was on GitHub: without it people come over by id until they sign in.
  */
 export function jobEnv(key: JobKey, s: JobSettings): { env: Record<string, string> } | { skip: 'disabled' } | { refuse: string } {
-  const env: Record<string, string> = { SUPABASE_URL: s.SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: s.SUPABASE_SERVICE_ROLE_KEY, LANGQUEST_JOB: key };
+  const env: Record<string, string> = {
+    SUPABASE_URL: s.SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: s.SUPABASE_SERVICE_ROLE_KEY, LANGQUEST_JOB: key,
+    // A container's environment at start replaces the image's ENV, so the heap
+    // limit comes from here: production reported 13,056 MB in a 4 GiB instance.
+    NODE_OPTIONS: `--max-old-space-size=${HEAP_LIMIT_MB}`
+  };
   if (key === 'projection') return { env };
   if (s.V2_IMPORT_ENABLED !== 'true') return { skip: 'disabled' };
   const missing = (['API_URL', 'V2_SUPABASE_ANON_KEY'] as const).filter((k) => !s[k]);

@@ -21,6 +21,7 @@ import { checksLine, flowSub, flowWho, sameChecks } from '../admin/adminModel';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { useFlowHelps } from './useFlowHelps';
 import { FlowLanguageLink } from './FlowLanguage';
+import { teamLanguages } from '../reference/languages';
 
 const PAD = { paddingHorizontal: 20, gap: 14 } as const;
 
@@ -30,7 +31,7 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
   const language = languageName(ctx.org.state, languageId);
   const kinds = useMemo(() => deriveKinds(state), [state]);
   const flow = useMemo(() => deriveFlow(state), [state]);
-  const { entries, current, kindsOf, loaded, chooseIn } = useCheckChoices(ctx, flow.itemId, kinds);
+  const { entries, current, kindsOf, loaded, chooseIn } = useCheckChoices(ctx, flow.itemId, kinds, teamLanguages(ctx.org.state, state, languageId));
   const flowHelps = useFlowHelps(ctx);
   // Each named as the language's page names its checks: in order (decision 138).
   const nameOf = (e: FlowEntry) => checksLine(e.doc.steps, kindsOf(e.doc));

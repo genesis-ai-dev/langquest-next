@@ -1,11 +1,12 @@
 // The languages a team's reference material can be in, and what is there in
 // each (decision 84): a guide set's passages (FIA), Bibles and other guides,
-// from the organization's library and what other organizations share. The
+// from the organization's library and what other organizations share, and
+// Bible Brain's Bibles beside the library's (`biblesFor`). The
 // reference language page lists them so an admin sees, before choosing,
 // whether their team will have anything to read. Pure, so it is tested.
 import type { LibraryDoc } from '@langquest-next/core';
 import type { GuideSet, SetMember } from './guideSets';
-import { docLanguage, sameLanguage } from './languages';
+import { docLanguage, sameCodes, sameLanguage } from './languages';
 
 export interface LanguageChoice {
   /** ISO 639-3 (or a glottocode for a language searched for). */
@@ -13,11 +14,13 @@ export interface LanguageChoice {
   /** Each guide set in this language, with its passages. */
   sets: { name: string; passages: number }[];
   bibles: number;
+  /** The Bible Brain editions among `bibles`, by id: each is counted once, here and beside Bible Brain's own. */
+  bibleIds: string[];
   /** Study guides and notes outside a set. */
   other: number;
 }
 
-const blank = (language: string): LanguageChoice => ({ language, sets: [], bibles: 0, other: 0 });
+const blank = (language: string): LanguageChoice => ({ language, sets: [], bibles: 0, bibleIds: [], other: 0 });
 const amount = (c: LanguageChoice) => c.sets.reduce((n, s) => n + s.passages, 0) * 10 + c.bibles * 5 + c.other;
 
 /**
@@ -37,12 +40,32 @@ export function languageChoices(sets: readonly GuideSet[], docs: readonly (Libra
   for (const doc of docs) {
     const language = docLanguage(doc);
     if (!doc || !language) continue;
-    if (doc.format === 'source@1') at(language).bibles++;
-    else if (doc.format !== 'material@1' || doc.kind !== 'questions') at(language).other++;
+    if (doc.format === 'source@1') {
+      const c = at(language);
+      if (doc.provider.kind === 'biblebrain') {
+        // The organization's own copy of a Bible LangQuest shares too is one Bible.
+        if (c.bibleIds.includes(doc.provider.bibleId)) continue;
+        c.bibleIds.push(doc.provider.bibleId);
+      }
+      c.bibles++;
+    } else if (doc.format !== 'material@1' || doc.kind !== 'questions') at(language).other++;
   }
   const sorted = out.sort((a, b) => amount(b) - amount(a) || a.language.localeCompare(b.language));
   for (const language of keep) if (language && !sorted.some((c) => sameLanguage(c.language, language))) sorted.push(blank(language));
   return sorted;
+}
+
+/**
+ * Every Bible a team could read in this language: the library's, and Bible
+ * Brain's that the library does not have, so the number is what Add a Bible
+ * opens. `bibleBrain` holds Bible Brain's Bibles by id for each code it has
+ * answered (`swh` for Swahili written `swa`); until it answers, the
+ * library's alone.
+ */
+export function biblesFor(c: LanguageChoice, bibleBrain: ReadonlyMap<string, readonly string[]>): number {
+  const more = new Set(sameCodes(c.language).flatMap((code) => bibleBrain.get(code) ?? []));
+  for (const id of c.bibleIds) more.delete(id);
+  return c.bibles + more.size;
 }
 
 /** Does anything wait in this language? */

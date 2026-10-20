@@ -100,9 +100,13 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   its container is handed are pure functions in `jobsModel.ts`. The
   process writes its own `diag.job_runs` row; the object writes one only
   when the process died without the chance (killed, out of memory, stopped
-  at the time limit), so a dead run is never silent. A pending `monitor`
-  keeps the object in memory for up to 15 minutes, so a longer run's exit
-  can go unobserved; its own job run is then the record.
+  at the time limit), so a dead run is never silent. An object is held
+  only about a minute after a call, and a container's keep-alive belongs
+  to one live instance of it, so while a run lasts an alarm brings the
+  object back every minute (`heartbeat`): it renews the keep-alive, stops
+  a run past its limit, and records one that ended. The processes record
+  their own row on SIGTERM too, and the pass logs its progress every 25
+  languages to the container's logs.
 - **The job tick is the trigger**, a second Worker cron, every five
   minutes: the pass each time, the import every 15 minutes, and the
   import's whole read at 03:15 UTC, owed until a run starts with it. The
@@ -134,9 +138,9 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   They hold no date window and nothing from the organization stream, so a
   report never goes stale at midnight and an admin's saved name, country
   or target shows at once.
-- **Placement.** A container starts near where the cron fires, not near
-  the database. The pass reads in pages of a thousand events, so the
-  distance costs seconds per large language, not minutes.
+- **Placement.** Unpinned, a container starts near where the cron fires
+  (Mumbai, on the first night), so `constraints.regions` pins both to
+  ENAM, beside the database and R2.
 - **Cost**, rough, at list prices beside the Workers Paid plan ($5 a
   month): the pass, a minute or two every five on 4 GiB, about $10 a
   month; the import's nightly whole read, up to five hours on 4 GiB, about

@@ -25,6 +25,13 @@ sorted, no whitespace). The log never carries a document, only its hash.
 Documents that refer to others list them in `deps` (a template its
 versification, a collection its study guides) so they are shared together.
 
+Templates, flows, guides, collections and `material@1` may say the language
+their words are in, as an ISO 639-3 `language` ("eng", "fra"; decision 84).
+It is what a team reads, not the language being translated. Lists inside a
+language offer only what is in one of the team's languages, or says none;
+lists of the whole organization's library name it. The editors ask for it
+("Written in"), and an import writes it into each document it publishes.
+
 Events, all in the organization stream (`packages/core/src/library.ts`):
 
 | Event | Merge |

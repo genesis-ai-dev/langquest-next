@@ -6334,9 +6334,11 @@
       "bibleBrainHelp": "Tafuta Biblia kwa lugha katika Bible Brain.",
       "bibleHelp": "Huonyesha ilicho nacho kabla hujaiongeza.",
       "fromLangQuestHelp": "Huonyesha Biblia ambazo LangQuest inazo tayari kufuatwa.",
-      "languageHelp": "Huonyesha Biblia zake kutoka Bible Brain. Namba ni idadi yake.",
       "readyHelp": "Huiongeza kwenye maktaba yako na kuipendekeza hapa.",
-      "searchHelp": "Andika jina au msimbo wa lugha ili kupata Biblia zake."
+      "searchHelp": "Andika jina au msimbo wa lugha ili kupata Biblia zake.",
+      "listed": "Lugha zenye Biblia katika Bible Brain pekee ndizo zinaonyeshwa.",
+      "noMatch": "Hakuna lugha kwa jina hilo yenye Biblia katika Bible Brain.",
+      "unreachable": "Kupata lugha kunahitaji mtandao mara ya kwanza."
     },
     "source": {
       "title": "Biblia",
@@ -6783,10 +6785,6 @@
       "notSetUp": "Bible Brain haijaandaliwa kwenye kifaa hiki",
       "notSetUpSub": "Maktaba ya shirika lako bado inafanya kazi. Mwombe anayeendesha LangQuest kwa timu yako aunganishe seva.",
       "searchPlaceholder": "Tafuta lugha",
-      "noLanguages": "Hakuna lugha zilizopatikana",
-      "noLanguagesSub": "Jaribu jina kwa Kiingereza, au msimbo wake wa herufi tatu.",
-      "languageBibles_one": "{{code}} · Biblia {{count, number}}",
-      "languageBibles_other": "{{code}} · Biblia {{count, number}}",
       "biblesIn": "Biblia katika {{language}}",
       "noBibles": "Hakuna Biblia katika lugha hii kwenye Bible Brain.",
       "myBible": "Biblia Yangu",
@@ -6811,7 +6809,6 @@
       "bibleHelp": "Huifungua ili usome na usikie sura, kabla hujaiongeza.",
       "bookHelp": "Huonyesha sura ya kitabu hiki.",
       "chapterHelp": "Huonyesha sura ya {{n, number}} ili usome na usikie.",
-      "languageHelp": "Huonyesha Biblia zake hapa chini.",
       "nextChapterHelp": "Husoma na kucheza sura inayofuata.",
       "previousChapterHelp": "Husoma na kucheza sura iliyotangulia.",
       "removeHelp": "Huiondoa kwenye Biblia zako kwenye kifaa hiki. Unaweza kuiongeza tena hapa.",
@@ -6830,7 +6827,9 @@
     "chip": "Biblia na miongozo kwa {{language}}",
     "chipHelp": "Lugha ya Biblia na miongozo yao ya kujifunza. Gusa ili kuibadilisha.",
     "change": "Badilisha",
-    "rowHelp": "Inaongeza lugha hii kwa Biblia na miongozo ya timu, au inaiondoa. Mstari unasema kilichomo."
+    "rowHelp": "Inaongeza lugha hii kwa Biblia na miongozo ya timu, au inaiondoa. Mstari unasema kilichomo.",
+    "listed": "Lugha zenye Biblia au miongozo ya kujifunza pekee ndizo zinaonyeshwa.",
+    "noMatch": "Hakuna lugha kwa jina hilo yenye Biblia au miongozo ya kujifunza bado."
   },
   "checks": {
     "title": "Kaguzi",

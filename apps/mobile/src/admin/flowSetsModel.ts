@@ -5,12 +5,11 @@
 // tested (test/flowSetsModel.test.ts).
 import type { FlowDoc } from '@langquest-next/core';
 import type { LibraryChoice } from '../templates/contentTemplates';
-import { sameLanguage } from '../reference/languages';
+import { docLanguage, sameLanguage } from '../reference/languages';
 
-/** A flow's language: the `language` beside its name (flows and templates gain it with PR 175; read directly until `docLanguage()` is on main). */
+/** A flow's language: the `language` its words are in (decision 84, as flows gained it). */
 export function flowLanguage(doc: FlowDoc): string | undefined {
-  const l = (doc as FlowDoc & { language?: unknown }).language;
-  return typeof l === 'string' && l ? l : undefined;
+  return docLanguage(doc) ?? undefined;
 }
 
 /** The organization a choice comes from: the one sharing it, or the one this organization follows or copied it from. */

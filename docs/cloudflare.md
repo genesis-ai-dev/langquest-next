@@ -86,8 +86,15 @@ gets the Worker's `API_URL` and the optional secrets `V2_SUPABASE_ANON_KEY`
 and `V2_DATABASE_URL` (`npm run secrets`), and runs only while the var
 `V2_IMPORT_ENABLED` is "true" (production; preview is "false"). A run
 that is killed or reaches its limit (45 minutes for the pass, 340 for the
-import) leaves a job run with `killed:137`, `exit:143` or `stopped` as
+import) leaves a job run with `sigterm`, `killed:137` or `stopped` as
 its error class, and each tick a `job_starts` run (`npm run diag -- jobs`).
+While a run lasts, an alarm wakes its object every minute to renew the
+container's keep-alive and to record the run's end: an object is held only
+about a minute after a call, and a restarted one holds no keep-alive until
+it sets it again. The containers are pinned to ENAM (`constraints.regions`),
+beside the database and R2. Their own output, including the pass's
+`progress:` lines, is in the Worker's logs in the dashboard
+(Observability), since `wrangler` has no command for container logs.
 
 Locally, `npm run web:dev` needs Docker Desktop running: `wrangler dev`
 builds the image, the container reaches the local database through
