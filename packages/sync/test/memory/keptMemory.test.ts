@@ -26,7 +26,7 @@ const RECORDINGS = 60;
 /** Well under what the whole language takes (it runs out of memory here), with room above what a kept phone needs. */
 const HEAP_MB = 40;
 
-interface Out { ok: boolean; peakHeapMb: number; retainedHeapMb: number; snapshotMb: number; recordingsInMemory: number }
+interface Out { ok: boolean; peakHeapMb: number; retainedHeapMb: number; snapshotMb: number; recordingsInMemory: number; mbToFirstMap?: number; mbDown?: number; filled?: boolean }
 
 function run(args: string[], heapMb?: number): Promise<{ status: number | null; out: Out | null; stderr: string }> {
   return new Promise((resolve) => {
@@ -71,6 +71,18 @@ describe('a phone holds a big language kept on disk inside a small heap', { time
     expect(r.out!.recordingsInMemory).toBe(180);
     // What stays is the live state's guard against applying an event twice: an id per event pulled this session.
     expect(r.out!.retainedHeapMb).toBeLessThan(20);
+  });
+
+  it('a first download by fill from the server\'s cut, ending with every passage\'s rows on disk', async () => {
+    // Why: under option F (decisions.md 145) the phone takes the shared part and the lines, opens the Map,
+    // then fills every passage's rows in. The end state is the first download's; so must the heap be.
+    const r = await run(['open', dir, String(PASSAGES), String(RECORDINGS), 'kept', 'fill'], HEAP_MB);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.out).toMatchObject({ ok: true, filled: true });
+    expect(r.out!.recordingsInMemory).toBe(180);
+    expect(r.out!.retainedHeapMb).toBeLessThan(8);
+    // The Map came up on a small part of what the whole download moves.
+    expect(r.out!.mbToFirstMap!).toBeLessThan(r.out!.mbDown! / 10);
   });
 
   it('the check fails with the language held whole', async () => {

@@ -123,4 +123,31 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
       expect(Object.values(d.client.getState().takes).filter((t) => t.unitId).length, d.id).toBeLessThan(5);
     }
   });
+
+  it('phones that keep the language on disk take their first download by fill and end with the same language and lines', async () => {
+    // Why: under option F (decisions.md 145) a phone's first download is the shared part and the lines, then
+    // the passages' rows filled in behind while people keep working, snapshots keep rolling, links drop and
+    // phones reinstall. Every such phone must still end where the server's log does, with every passage's
+    // rows on its disk and every line the server's own.
+    const fleet = new Fleet({ seed: 13, keepOnDisk: 'half', serverCut: true, checkpointEvery: 25, audio: { bytesPerSecond: 16_000 }, crew: { passages: 24, translators: 3, reviewers: 3, link: mixed } });
+    await fleet.start();
+    // A day in, with snapshots and lines on the server, the phones that keep the language on disk are installed afresh.
+    for (const [i, d] of fleet.devices.filter((x) => x.keepsOnDisk).entries()) fleet.at(TIME.DAY + i * 20 * TIME.MINUTE, () => d.reinstall());
+    await fleet.runFor(3 * TIME.DAY);
+    const r = fleet.report(await fleet.settle(), 0);
+    expect(r.errors).toEqual([]);
+    expect(r.agreement).toMatchObject({ caughtUp: true, agree: true, disagree: [] });
+    expect(r.audio).toMatchObject({ lost: 0 });
+    // Phones kept on disk filled from the cut; the whole snapshot went only to phones that hold it in memory.
+    expect(r.phones.fills).toBeGreaterThan(0);
+    expect(r.server.snapshotRowsCalls).toBeGreaterThan(0);
+    const server = foldLanguage(fleet.server.stream(fleet.orgId, fleet.streamId), emptyLanguageState());
+    const units = Object.keys(server.units);
+    const lines = (l: { get(u: string): unknown }) => JSON.parse(JSON.stringify(units.map((u) => l.get(u))));
+    for (const d of fleet.devices.filter((x) => x.keepsOnDisk)) {
+      await d.client.settleLines();
+      expect(d.client.fillProgress(), d.id).toBeNull();
+      expect(lines(d.client.passageLines()), d.id).toEqual(lines(languageLines(server)));
+    }
+  });
 });

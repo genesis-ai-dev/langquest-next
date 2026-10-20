@@ -4314,7 +4314,18 @@
       "barHelp": "你保存的经段中，有多少已完整下载到本设备上。"
     },
     "keepHelp": "把它的音频保存在本设备上，不联网也能用。",
-    "stopKeepingHelp": "本设备需要空间时，可以再次删除它的音频。"
+    "stopKeepingHelp": "本设备需要空间时，可以再次删除它的音频。",
+    "fill": {
+      "title": "正在下载此语言",
+      "count": "{{total, number}} 段中有 {{filled, number}} 段已在此设备上。",
+      "barHelp": "随着段落到达此设备而填满。"
+    },
+    "notHere": {
+      "title": "尚未在此设备上",
+      "body": "它的版本、审阅和历史记录仍在与此语言的其余部分一起下载。请连接网络以下载。",
+      "latest": "最新：第 {{n, number}} 版，由 {{name}} 录制。",
+      "requests": "待处理的请求：{{n, number}}。"
+    }
   },
   "moderation": {
     "flagLabel": "举报或屏蔽{{name}}",

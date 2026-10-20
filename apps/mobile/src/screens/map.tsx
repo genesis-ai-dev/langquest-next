@@ -21,7 +21,7 @@ import type { Ctx } from '../shell/ctx';
 import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { formatNumber, formatPercent } from '../i18n/format';
-import { OfflineMark } from '../sync/offline';
+import { FillBanner, OfflineMark } from '../sync/offline';
 
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
@@ -511,6 +511,7 @@ export function MapHome(ctx: Ctx) {
     return (
       <Screen header={header}>
         {languageChips}
+        <FillBanner ctx={ctx} />
         {nextLink}
         <OutlineMap ctx={ctx} state={state} kinds={kinds} languageId={languageId} entries={entries} forYou={forYou} />
       </Screen>
@@ -528,6 +529,8 @@ export function MapHome(ctx: Ctx) {
   return (
     <Screen header={header}>
       {languageChips}
+      {/* A first download still filling passages in (decisions.md 145): decision 61's progress, on the Map. */}
+      <FillBanner ctx={ctx} />
       <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder={t('map.home.find')} help={t('map.home.findHelp')} testID="map-search" />
 
       {searching ? (

@@ -54,6 +54,8 @@ export interface FleetContext {
 export class DeviceMetrics {
   syncs = 0;
   offlineSyncs = 0;
+  /** Passages filled in from the server's cut (decisions.md 145). */
+  fills = 0;
   syncErrors = 0;
   /** Real CPU per sync run, network waits excluded. */
   syncCpuMs: number[] = [];
@@ -331,7 +333,9 @@ export class SimDevice {
   /** Has this phone everything the server has, and sent everything it made? */
   async caughtUp(): Promise<boolean> {
     const view = await this.client.inspect();
-    const events = view.pending.length === 0 && view.cursor >= this.fleet.server.head(this.fleet.orgId, this.fleet.streamId);
+    // A first download is done when every passage's rows are here too (decisions.md 145).
+    const events = view.pending.length === 0 && view.cursor >= this.fleet.server.head(this.fleet.orgId, this.fleet.streamId)
+      && this.client.fillProgress() === null;
     if (!events || !this.fleet.audio) return events;
     return (await this.uploadWork()).length === 0 && (await this.downloadWork()).length === 0;
   }
@@ -373,6 +377,13 @@ export class SimDevice {
     try {
       this.pulling = true;
       const r = await this.client.sync().finally(() => { this.pulling = false; });
+      // As LanguageSession: up to date with passages still to fill in, a slice of the fill outside the pull (decisions.md 145).
+      let more = r.more;
+      if (r.filling && !r.offline && !r.more && r.refused === null) {
+        const f = await this.client.fillSome();
+        more = f.filling && !f.offline;
+        this.metrics.fills += f.filled;
+      }
       // As useLanguage: back online after an offline run retries transfers now; otherwise a nudge.
       const was = this.online;
       this.online = !r.offline;
@@ -384,7 +395,7 @@ export class SimDevice {
       this.metrics.syncCpuMs.push(performance.now() - started - (this.netWallMs - net));
       this.metrics.maxPending = Math.max(this.metrics.maxPending, await this.client.pendingCount());
       await this.checkColdStart();
-      return { offline: r.offline, more: r.more };
+      return { offline: r.offline, more };
     } catch (err) {
       this.metrics.syncErrors += 1;
       this.fleet.time.errors.push(err);
@@ -430,7 +441,19 @@ export class SimDevice {
         const text = await timed(() => t.snapshotChunk(...a));
         this.metrics.bytesDown += text?.length ?? 0;
         return text;
-      }
+      },
+      // The server's cut (decisions.md 145): what a first download by fill takes instead of the pieces.
+      ...(t.snapshotHead ? { snapshotHead: async (...a: Parameters<NonNullable<Transport['snapshotHead']>>) => {
+        const head = await timed(() => t.snapshotHead!(...a));
+        this.metrics.bytesDown += JSON.stringify(head)?.length ?? 0;
+        return head;
+      } } : {}),
+      ...(t.snapshotRows ? { snapshotRows: async (...a: Parameters<NonNullable<Transport['snapshotRows']>>) => {
+        const page = await timed(() => t.snapshotRows!(...a));
+        this.metrics.bytesDown += JSON.stringify(page)?.length ?? 0;
+        return page;
+      } } : {}),
+      ...(t.snapshotPassages ? { snapshotPassages: (...a: Parameters<NonNullable<Transport['snapshotPassages']>>) => timed(() => t.snapshotPassages!(...a)) } : {})
     };
   }
 

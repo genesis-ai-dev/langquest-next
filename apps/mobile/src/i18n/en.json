@@ -4463,7 +4463,18 @@
       "barHelp": "How many of your kept passages are fully on this device."
     },
     "keepHelp": "Keeps its audio on this device, so it works without a connection.",
-    "stopKeepingHelp": "Lets this device remove its audio again when it needs room."
+    "stopKeepingHelp": "Lets this device remove its audio again when it needs room.",
+    "fill": {
+      "title": "Downloading this language",
+      "count": "{{filled, number}} of {{total, number}} passages are on this device.",
+      "barHelp": "Fills as passages reach this device."
+    },
+    "notHere": {
+      "title": "Not on this device yet",
+      "body": "Its versions, reviews and history are still downloading with the rest of this language. Connect to download.",
+      "latest": "Latest: version {{n, number}}, by {{name}}.",
+      "requests": "Open requests: {{n, number}}."
+    }
   },
   "moderation": {
     "flagLabel": "Report or block {{name}}",

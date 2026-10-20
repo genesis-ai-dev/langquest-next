@@ -9,12 +9,16 @@ import type { Ctx } from './ctx';
  * started. Asked until the passage first arrives; a screen once shown
  * stays, even if a later passage pushes this one out of memory behind it.
  */
-export function usePassageReady(ctx: Ctx | null, params: Record<string, string> | undefined): boolean {
+export function usePassageReady(ctx: Ctx | null, params: Record<string, string> | undefined): 'ready' | 'waiting' | 'notHere' {
   const shown = useRef(false);
-  if (shown.current || !ctx) return true;
+  if (shown.current || !ctx) return 'ready';
   const unitId = params?.['unitId'];
   const languageId = params?.['languageId'] ?? ctx.language.languageId;
   const waiting = !!unitId && languageId === ctx.language.languageId && !!ctx.language.state?.units[unitId] && !ctx.language.isLoaded(unitId);
-  if (!waiting) shown.current = true;
-  return !waiting;
+  if (!waiting) {
+    shown.current = true;
+    return 'ready';
+  }
+  // A passage whose rows are still on the server, with no connection to fetch them (decisions.md 145): say so rather than wait.
+  return ctx.language.online === false && !ctx.language.isFilled(unitId) ? 'notHere' : 'waiting';
 }

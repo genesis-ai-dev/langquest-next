@@ -4612,7 +4612,18 @@
       "barHelp": "Quantas das suas passagens guardadas estão inteiras neste aparelho."
     },
     "keepHelp": "Guarda o áudio dela neste aparelho, para funcionar sem internet.",
-    "stopKeepingHelp": "Deixa este aparelho remover o áudio dela de novo quando precisar de espaço."
+    "stopKeepingHelp": "Deixa este aparelho remover o áudio dela de novo quando precisar de espaço.",
+    "fill": {
+      "title": "Baixando este idioma",
+      "count": "{{filled, number}} de {{total, number}} passagens estão neste dispositivo.",
+      "barHelp": "Enche à medida que as passagens chegam a este dispositivo."
+    },
+    "notHere": {
+      "title": "Ainda não está neste dispositivo",
+      "body": "Suas versões, revisões e histórico ainda estão sendo baixados com o resto deste idioma. Conecte-se para baixar.",
+      "latest": "Última: versão {{n, number}}, por {{name}}.",
+      "requests": "Pedidos abertos: {{n, number}}."
+    }
   },
   "moderation": {
     "flagLabel": "Denunciar ou bloquear {{name}}",

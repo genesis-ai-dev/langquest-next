@@ -4463,7 +4463,18 @@
       "barHelp": "Nawa ne daga cikin nassosin da kuka adana suke cikakku a wannan na'ura."
     },
     "keepHelp": "Yana adana sautinsa a wannan na'ura, don ya yi aiki ba tare da intanet ba.",
-    "stopKeepingHelp": "Yana bar wannan na'ura ta sake cire sautinsa idan tana buƙatar wuri."
+    "stopKeepingHelp": "Yana bar wannan na'ura ta sake cire sautinsa idan tana buƙatar wuri.",
+    "fill": {
+      "title": "Ana sauke wannan harshe",
+      "count": "Sassa {{filled, number}} cikin {{total, number}} suna kan wannan na'ura.",
+      "barHelp": "Yana cika yayin da sassa ke isowa wannan na'ura."
+    },
+    "notHere": {
+      "title": "Bai iso wannan na'ura ba tukuna",
+      "body": "Ana ci gaba da sauke juzu'oinsa, bita da tarihinsa tare da sauran wannan harshe. Ka haɗa don saukewa.",
+      "latest": "Na ƙarshe: juzu'i {{n, number}}, na {{name}}.",
+      "requests": "Buƙatun da ke buɗe: {{n, number}}."
+    }
   },
   "moderation": {
     "flagLabel": "Kai ƙara ko toshe {{name}}",

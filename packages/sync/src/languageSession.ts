@@ -574,11 +574,20 @@ export class LanguageSession {
         const own = await this.plan.scope(this.o.actorId);
         const kept = await this.scope();
         const chosen = this.current.keptUnits;
-        const [keptOffline, offlineSummary] = await Promise.all([
+        const [counted, summary] = await Promise.all([
           this.plan.byUnit([...kept], present, this.o.actorId, chosen),
           this.plan.summary(present, this.o.actorId, chosen)
         ]);
-        this.set({ keptOffline, offlineSummary, scope: own });
+        // "On this device" is a passage's rows as well as its audio (decisions.md 145): one a first download has not reached is not ready.
+        let waiting = 0;
+        const keptOffline = new Map(counted);
+        for (const [u, x] of counted) {
+          if (!x.ready || this.client.isFilled(u)) continue;
+          keptOffline.set(u, { ...x, ready: false });
+          waiting += 1;
+        }
+        const offlineSummary = waiting ? { ...summary, ready: Math.max(0, summary.ready - waiting) } : summary;
+        this.set({ keptOffline: waiting ? keptOffline : counted, offlineSummary, scope: own });
       })().catch(() => { /* counted again after the next change */ });
     }, OFFLINE_RECOUNT_MS);
   }

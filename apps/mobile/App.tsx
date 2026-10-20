@@ -74,6 +74,7 @@ import { useOpenOrganization, type Arrival } from './src/shell/useOpenOrganizati
 import { useRecentPassages } from './src/shell/useRecentPassages';
 import { usePassagesInMemory } from './src/shell/usePassagesInMemory';
 import { usePassageReady } from './src/shell/usePassageReady';
+import { PassageNotHere } from './src/sync/offline';
 import { useRouting } from './src/shell/useRouting';
 import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
@@ -175,7 +176,9 @@ function hostFor(id: ScreenId) {
     if (!ctx) return null;
     if (pane && props.route.key === pane.key) return <PaneEmpty spec={pane.empty} />;
     // A passage's screen waits the moment it takes to bring the passage in from the phone's disk.
-    if (!ready) return <View style={styles.root} accessibilityLabel={t('common.loading')} />;
+    if (ready === 'waiting') return <View style={styles.root} accessibilityLabel={t('common.loading')} />;
+    // Offline, a passage the first download has not reached yet shows what its line knows (decisions.md 145).
+    if (ready === 'notHere') return <PassageNotHere ctx={ctx} unitId={props.route.params?.['unitId'] ?? ''} />;
     // One boundary per screen (error-tracking): a crash in a study guide
     // never takes the recorder, or the rest of the app, down with it.
     return (
