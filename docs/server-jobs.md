@@ -235,7 +235,7 @@ What this plan takes from that one, under F:
 | A tail the pass skips cannot change the report inputs | `packages/core/test/quiet.test.ts` | in place |
 | The object renders stored inputs without folding, and folds a language without them | `apps/web/test/worker.test.ts` | in place |
 | A job is stale when its last success is older than two ticks plus slack | `diag.jobs()` (`npm run diag -- jobs`) | in place |
-| Peak memory of every pass against the heap's limit, and the language that set it | the `projection` job run (`peakRssMb`, `heapLimitMb`, its language), `npm run diag -- jobs` | in place; F's fold plus cut shows in it |
+| Peak memory of every pass against the heap's limit, and the language that set it | the `projection` job run (`maxPeakRssMb`, `maxHeapLimitMb`, its language), `npm run diag -- jobs` | in place; F's fold plus cut shows in it |
 
 ## 8. Reverse if
 

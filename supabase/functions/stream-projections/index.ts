@@ -23956,7 +23956,7 @@ var ProjectionFailed = class extends Error {
   streamId;
   name = "ProjectionFailed";
 };
-async function runProjections(service, scope2 = "all", counts = { orgs: 0, projected: 0 }, projected) {
+async function runProjections(service, scope2 = "all", counts = { orgs: 0, projected: 0 }, projected, stop) {
   const transport = new SupabaseTransport(service);
   const orgs = /* @__PURE__ */ new Map();
   async function orgState(orgId) {
@@ -24047,6 +24047,7 @@ async function runProjections(service, scope2 = "all", counts = { orgs: 0, proje
   };
   for (const [key, head2] of heads) {
     const [orgId, streamId] = JSON.parse(key);
+    if (stop?.()) break;
     if (streamId !== ORG_STREAM || orgId === PERSON_ORG || !changed(orgId, ORG_STREAM)) continue;
     check(await service.rpc("refresh_org_notifications", { p_org: orgId }), "refresh_org_notifications");
     await mark(orgId, ORG_STREAM, head2, head2, false);
@@ -24110,7 +24111,7 @@ async function runProjections(service, scope2 = "all", counts = { orgs: 0, proje
       counts.projected += 1;
       projected?.(snapshot.orgId, languageId);
     },
-    async (orgId, streamId) => inScope2(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)) && !await skipQuiet(orgId, streamId),
+    async (orgId, streamId) => !stop?.() && inScope2(orgId, streamId) && (changed(orgId, streamId) || snapshotDue(orgId, streamId)) && !await skipQuiet(orgId, streamId),
     // The whole pass goes on past a language that fails, so the next waits only
     // for its own turn; a local Edge pass stops at the first error, as before,
     // and says which language it stopped at.

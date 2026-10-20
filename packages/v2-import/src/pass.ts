@@ -29,6 +29,12 @@ export interface PassDeps {
   concurrency?: number;
   /** How a retry waits (tests pass one that does not). */
   wait?: (ms: number) => Promise<void>;
+  /**
+   * Asked before each project. True stops the pass there (the job container
+   * asks to stop on SIGTERM, decisions.md 141): the project in hand finishes,
+   * the rest wait for the next pass, and the cursor does not move.
+   */
+  stop?: () => boolean;
 }
 
 export interface ProjectReport {
@@ -93,7 +99,13 @@ export async function sync(deps: PassDeps, opts: { all?: boolean; projects?: str
   const run = new Run(deps, plan, summaries);
   const reports: ProjectReport[] = [];
   let failed = 0;
+  let stopped = false;
   for (const id of ids) {
+    if (deps.stop?.()) {
+      stopped = true;
+      deps.print?.('', 'info', `stopped after ${reports.length} of ${ids.length} projects`);
+      break;
+    }
     try {
       reports.push(await run.project(id));
     } catch (e) {
@@ -102,7 +114,7 @@ export async function sync(deps: PassDeps, opts: { all?: boolean; projects?: str
     }
   }
   // Only a pass that read everything it meant to moves the cursor; otherwise the next looks again.
-  if (!opts.projects?.length && failed === 0) await deps.target.cursor('changes', started);
+  if (!opts.projects?.length && failed === 0 && !stopped) await deps.target.cursor('changes', started);
   return reports;
 }
 

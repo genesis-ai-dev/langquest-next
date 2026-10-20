@@ -63,8 +63,26 @@ export function entrypointFor(key: JobKey, all: boolean): string[] {
  */
 export const HEAP_LIMIT_MB = 3072;
 
-/** What the object remembers about the run under way. */
-export interface RunMark { startedAt: number }
+/** What the object remembers about the run under way: when it started, and whether it carries the import's whole read. */
+export interface RunMark { startedAt: number; all?: true }
+
+/**
+ * The exit code of a run that stopped early on SIGTERM after recording its
+ * own row (server/projections.ts, server/v2.ts): it finished the language or
+ * project in hand and left the rest for the next run. Under 128, so the
+ * object writes no row of its own.
+ */
+export const STOPPED_EARLY = 75;
+
+/**
+ * Is the import's whole read still owed after this run? Yes when the run
+ * carried it and stopped before finishing: early on SIGTERM, killed, or
+ * stopped without a code. A run that finished, or failed on its own (exit
+ * 1, or 2 for refused events), does not owe it again: the next night's does.
+ */
+export function stillOwesWholeRead(mark: RunMark | undefined, exit: Exit): boolean {
+  return !!mark?.all && (exit === null || exit === STOPPED_EARLY || exit >= 128);
+}
 
 /**
  * How often the object wakes while a run lasts. A Durable Object is held
@@ -116,6 +134,7 @@ export function exitCodeOf(error: unknown): Exit {
  * from the stop.
  */
 export function deadRun(key: JobKey, mark: RunMark | undefined, exit: Exit, now: number): JobRun | null {
+  // 75 is STOPPED_EARLY: the process recorded its own row.
   if (exit !== null && exit < 128) return null;
   const startedAt = mark?.startedAt ?? now;
   return {
