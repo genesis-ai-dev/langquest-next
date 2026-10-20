@@ -1500,6 +1500,8 @@ export class SyncClient<S = LanguageState> {
       }
       const writes: LocalEvent[] = [];
       let folded = 0;
+      /** Each event on this page by id, with its seq: where a redaction on the page finds a target pulled with it. */
+      const inPage = new Map<string, number | undefined>(page.map((e) => [e.id, e.serverSeq]));
       for (const event of page) {
         const seq = event.serverSeq;
         if (seq === undefined) continue;
@@ -1514,9 +1516,12 @@ export class SyncClient<S = LanguageState> {
           // which cannot be edited. Only a fresh snapshot removes it. So too
           // when rows the fill brought hold it, or the server's lines of
           // passages not filled in yet do (decisions.md 147).
-          const target = await this.opts.store.get(event.payload.eventId);
+          // This page is written after the loop: a target on it is in the log too, not in the checkpoint.
+          const target = inPage.has(event.payload.eventId)
+            ? { seq: inPage.get(event.payload.eventId) }
+            : await this.opts.store.get(event.payload.eventId).then((l) => (l ? { seq: l.event.serverSeq } : null));
           const fromServer = this.fill ? Math.max(this.fill.rowsSeq, this.fill.active() ? this.fill.linesSeq : 0) : 0;
-          if (!target || (target.event.serverSeq ?? Infinity) <= fromServer) {
+          if (!target || (target.seq ?? Infinity) <= fromServer) {
             redactedInsideCheckpoint = true;
             redactionSeq = Math.max(redactionSeq, seq);
           }

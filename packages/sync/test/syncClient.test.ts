@@ -351,6 +351,33 @@ describe('SyncClient redaction', () => {
     await b.client.sync();
     expect(b.client.getState().recordings['r1']).toBeUndefined();
   });
+
+  it('a redaction pulled on the same page as its target is undone from the log, with no wait for a server snapshot', async () => {
+    // Why: the target was looked for in the store before the page was written, so it read as inside the
+    // checkpoint. The phone then waited for a fresh server snapshot, skipped its checkpoint and asked again
+    // on every pull, for a target a refold of its own log removes.
+    const server = new FakeServer();
+    const wall = { t: 0 };
+    const b = device(server, 'dB', 'lead', wall);
+    await b.client.load();
+    const target = await b.client.append('v1.UnitAdded', unit(0));
+    for (let i = 1; i < 6; i++) await b.client.append('v1.UnitAdded', unit(i));
+    await b.client.append('v1.Redacted', { eventId: target.id });
+    await b.client.sync();
+
+    const store = new MemoryStore();
+    const a = new SyncClient({
+      orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store,
+      transport: server.transportFor(), clock: new HlcClock('dA', () => (wall.t += 1)), checkpointEvery: 5
+    });
+    await a.load();
+    await a.pull();
+    expect(a.getState().units['u0']).toBeUndefined();
+    expect(Object.keys(a.getState().units)).toHaveLength(5);
+    expect(await store.meta('redactionPending:org1/p1')).toBeUndefined();
+    expect(await store.meta('snapshotMinSeq:org1/p1')).toBeUndefined();
+    expect(await a.inspect()).toMatchObject({ checkpointSeq: 7 });
+  });
 });
 
 describe('SyncClient folds its log a page at a time (decisions.md 143)', () => {
