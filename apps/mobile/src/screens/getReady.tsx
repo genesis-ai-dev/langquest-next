@@ -155,7 +155,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   const lines = ctx.language.lines;
   const worked = useMemo(() => { for (const u of lines.worked()) if (lines.get(u).worked) return true; return false; }, [lines]);
   const [warn, setWarn] = useState(false);
-  // What the team may make (decisions.md 145): recordings, writing or both, and which leads.
+  // What the team may make (decisions.md 146): recordings, writing or both, and which leads.
   const allowed = mediaAllowed(state);
   const [media, setMedia] = useState<MediaAllowed>(allowed);
   const mediaChanged = media.recording !== allowed.recording || media.writing !== allowed.writing || media.first !== allowed.first;

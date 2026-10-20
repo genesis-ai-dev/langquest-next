@@ -211,7 +211,7 @@ export function highlightsOf(
         asked.add(unitId);
       } else if (r.what === 'review' && opts.canReview) {
         const kind = kinds.find((k) => k.id === r.kindId);
-        // A step that makes something is asked to make it, as a back translation is (decisions.md 145).
+        // A step that makes something is asked to make it, as a back translation is (decisions.md 146).
         out.push({ id: `req-${r.id}`, kind: kind?.produces || kind?.makes ? 'produce' : 'review', unitId, request: r, hlc: r.hlc });
         asked.add(unitId);
       }

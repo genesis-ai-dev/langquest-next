@@ -62,7 +62,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   };
   'v1.TakeArchived': { takeId: string };
   /**
-   * Written parts of a passage (decisions.md 145): short pieces of text,
+   * Written parts of a passage (decisions.md 146): short pieces of text,
    * usually a verse each, named `w:` + the SHA-256 of their words
    * (writing.ts). The words travel here, not as files. A take may list them
    * as it lists recorded cards; a take holds one kind or the other. Grow-only,
@@ -71,7 +71,7 @@ export interface EventPayloads extends OrgEventPayloads, MaterialEvents, RecordE
   'v1.WritingAdded': { writingId: string; unitId: string; parts: WrittenPart[] };
   /**
    * What the language's team may make, recordings, writing or both, and
-   * which leads on a passage (decisions.md 145). Register; recording only
+   * which leads on a passage (decisions.md 146). Register; recording only
    * until set.
    */
   'v1.MediaAllowedSet': { recording: boolean; writing: boolean; first: Medium };

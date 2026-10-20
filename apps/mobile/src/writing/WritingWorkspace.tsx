@@ -1,4 +1,4 @@
-// Writing a passage (decisions.md 145; demo branch caleb-written-translations,
+// Writing a passage (decisions.md 146; demo branch caleb-written-translations,
 // simple/writing.tsx wWrite, wType, wPublish, wFirstWrite, wBtWrite): the
 // recording workspace's split, with the reference on top and one box per
 // verse below. On top: what is being written from (a version heard verse by

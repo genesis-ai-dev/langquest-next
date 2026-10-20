@@ -39,7 +39,7 @@ describe('a language cut by passage', () => {
       'units', 'blobs', 'audioFormats', 'appliedEventIds', 'invalidEvents', 'redactions', 'template', 'templateHistory',
       'hiddenUnits', 'bookNames', 'flow', 'teams', 'checkHelps', 'stepLinks', 'externalValues', 'materials', 'keyTerms',
       'reviewKinds', 'flowSteps', 'removedSteps', 'languageReferences', 'referenceLanguage',
-      // Writing (decisions.md 145): a written part's words are one entry wherever they are written; the rest are the language's settings.
+      // Writing (decisions.md 146): a written part's words are one entry wherever they are written; the rest are the language's settings.
       'writings', 'mediaAllowed', 'stepMakes', 'checkLooksAt'
     ]);
     const cut = new Set(PASSAGE_PARTS.map((p) => p.map as string));

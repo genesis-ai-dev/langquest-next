@@ -320,7 +320,7 @@ export function PassageRecord(ctx: Ctx) {
 
   // ---- the path ----
   const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
-  // A passage goes on the way its latest version was made, else the way the language leads (decision 145).
+  // A passage goes on the way its latest version was made, else the way the language leads (decision 146).
   const media = mediaAllowed(v.state);
   const lead = p.latest && media[versionMedium(p.latest)] ? versionMedium(p.latest) : leadMedium(v.state);
   const other = media.recording && media.writing ? (lead === 'writing' ? 'recording' : 'writing') : null;
@@ -687,7 +687,7 @@ function KindActionRow(props: {
   compact: boolean;
   onAction: (a: RowAction, k: KindStatus, step: FlowStepStatus, askedMe: boolean) => void;
   onMore: () => void;
-  /** Open what a making step made: the made thing, or the version it made (decision 145). */
+  /** Open what a making step made: the made thing, or the version it made (decision 146). */
   onOpenMade?: (m: { madeId?: string; takeId?: string }) => void;
 }) {
   const { row, step } = props;
@@ -764,7 +764,7 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
   const { v } = props;
   const [shown, setShown] = useState(GRID_STEP);
   // Steps that make something are columns of what they made, a version they made among it (a final
-  // recording); what no step made (v2's) gets a column only where some exists (decision 145).
+  // recording); what no step made (v2's) gets a column only where some exists (decision 146).
   const made = madeGrid(v.p);
   const makingIds = [...new Set([...props.kindIds.filter((id) => !!v.kind(id).makes), ...made.columns.flatMap((c) => (c.kindId ? [c.kindId] : []))])];
   const madeColumns: MadeColumn[] = [
@@ -776,7 +776,7 @@ function ReviewGrid(props: { ctx: Ctx; v: PassageView; kindIds: string[]; onVers
   const { rows, producing } = grid;
   // Every column is as wide as the longest word in any head, so no check's name is cut off
   // (a head breaks only between words); a language whose words run long scrolls the grid sideways.
-  // The made columns' heads are named the same way, among the checks' (decision 145).
+  // The made columns' heads are named the same way, among the checks' (decision 146).
   const madeNames = madeColumns.map((c) => ({ name: c.kindId ? v.kind(c.kindId).name : madeTitle(v, { medium: c.medium, ...(c.language ? { language: c.language } : {}) }) }));
   const allHeads = gridColumnNames([...kindIds.map((id) => v.kind(id)), ...madeNames]);
   const heads = allHeads.slice(0, kindIds.length);
@@ -970,7 +970,7 @@ export function VersionDetail(ctx: Ctx) {
   const gone = p.deletedVersions.find((x) => x.takeId === version.takeId);
   const key = (part: string) => `version:${unitId}:${languageId}:${version.takeId}:${part}`;
   const params = { unitId, languageId };
-  // What was made from this version, by steps or brought over (decision 145); it stays here, never out of date.
+  // What was made from this version, by steps or brought over (decision 146); it stays here, never out of date.
   // What a step added to it (words for a recording) is part of it, and shows with it.
   const made = p.made.filter((m) => !m.added && madeVersionOf(p, m) === version.takeId);
   const added = addedTo(p, version);
@@ -1013,7 +1013,7 @@ export function VersionDetail(ctx: Ctx) {
       <SectionLabel label={version.medium === 'writing' ? t('writing.version.words') : t('passage.version.recording')} />
       <Authored ctx={ctx} by={version.by}>
         {version.medium === 'writing' ? (
-          // A written version reads verse by verse (decision 145).
+          // A written version reads verse by verse (decision 146).
           <WrittenReader ctx={ctx} state={v.state} unitId={unitId} parts={version.cardHashes} verseKeys={verseKeys} />
         ) : (
           <VersionRecording ctx={ctx} state={v.state} unitId={unitId} title={title} hashes={version.cardHashes} />
@@ -1098,7 +1098,7 @@ export function VersionDetail(ctx: Ctx) {
 }
 
 /**
- * What a step added to a version (decision 145; demo wJoinVersion): its words
+ * What a step added to a version (decision 146; demo wJoinVersion): its words
  * read verse by verse with the recording, or the recording added to
  * writing. Approved with them when a check after they were added looked
  * good; changing them later keeps the approval, and says so.
@@ -1140,7 +1140,7 @@ function AddedSection(props: { ctx: Ctx; v: PassageView; version: Version; added
   );
 }
 
-// ---- made_detail (decision 145): something made from a version ------------------------------
+// ---- made_detail (decision 146): something made from a version ------------------------------
 
 export function MadeDetail(ctx: Ctx) {
   return <MadeDetailScreen {...ctx} />;

@@ -108,10 +108,10 @@ every type.
 | Personal info | User IDs (the sign-in name of an account made by invite) | Yes | No | Optional | App functionality, Account management |
 | Personal info | Name | Yes | No | Required | App functionality, Account management |
 | Personal info | Phone number (a guest reviewer's contact, typed in by a user) | Yes | No | Optional | App functionality |
-| Messages | Other in-app messages (review comments, join request messages) | Yes | No | Optional | App functionality |
+| Messages | Other in-app messages (review comments, join request messages, feedback sent from help mode) | Yes | No | Optional | App functionality |
 | Audio | Voice or sound recordings | Yes | No | Required | App functionality |
-| App activity | Other user-generated content (written translations, transcriptions and back translations, decisions.md 145; reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
-| Photos and videos | Photos (pictures and maps an admin adds to a study guide) | Yes | No | Optional | App functionality |
+| App activity | Other user-generated content (written translations, transcriptions and back translations, decisions.md 146; reviews, notes, answers, reports of content or people, blocked people, which Bibles and guides were used for a version or review) | Yes | No | Required | App functionality |
+| Photos and videos | Photos (pictures and maps an admin adds to a study guide; a screenshot of the app someone chooses to add to feedback) | Yes | No | Optional | App functionality |
 | Photos and videos | Videos (films an admin adds to a study guide) | Yes | No | Optional | App functionality |
 | Audio | Other audio files (step and glossary audio an admin uploads to a study guide) | Yes | No | Optional | App functionality |
 | App info and performance | Crash logs | Yes | No | Optional (Settings switch) | App functionality, Analytics |
@@ -173,6 +173,24 @@ Bible Brain's CDN or openbible.com by plain links, as a browser fetches a
 file. That is content coming in, not data going out, so it adds no data
 type and no sharing.
 
+Feedback from help mode (decisions.md 145): while help is on, Send feedback
+opens a sheet where someone types or says (a voice note) what is wrong or what
+would help. It goes to
+the LangQuest team only (`diag.feedback`, read by support), never to the
+organization, and carries the random install ID diagnostics use. Two switches,
+both off until the person turns them on, add a screenshot of the app's own
+screen and their name and email (or sign-in name), which the server reads from
+the account itself. These are types already declared: the words are "Other
+in-app messages", the voice note "Voice or sound recordings", the screenshot
+"Photos", the name, email and install ID
+their own rows, all optional and for app functionality; nothing is shared. If
+the team ever emails someone back about their feedback, "Developer
+communications" must be added to Email address's purposes first.
+`react-native-view-shot` takes the screenshot on a phone: it draws the app's
+own window, needs no permission, reads no other app or file and sends nothing
+itself. On the web `html-to-image` draws the page instead, loaded only when
+feedback is sent. No Play Console answer changes.
+
 Not collected: location, financial info, health, files, calendar, contacts,
 web browsing, app interactions beyond diagnostics, other personal info.
 
@@ -219,9 +237,9 @@ this block.
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-secure-store", "expo-sqlite", "expo-status-bar", "expo-updates",
-    "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
+    "html-to-image", "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",
-    "react-native-url-polyfill", "react-native-web", "topojson-client", "world-atlas"
+    "react-native-url-polyfill", "react-native-view-shot", "react-native-web", "topojson-client", "world-atlas"
   ],
   "diagnostics": {
     "context": ["appVersion", "channel", "embedded", "installId", "model", "os", "osVersion", "protocolVersion", "reducerVersion", "runtimeVersion", "updateId"],
