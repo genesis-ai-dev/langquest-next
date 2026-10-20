@@ -5,7 +5,7 @@
  *   npm run library:seed -- [--fia-dir <dir>]... [--hosted]
  *   npm run library:seed -- --sources [--timings <dir>] [--bsb-text <file>]
  *   npm run library:seed -- --only <itemId>... [--dry-run | --hosted]
- *   npm run library:seed -- --door43 [--door43-language <iso>]... [--share-door43] [--dry-run]
+ *   npm run library:seed -- --door43 [--door43-language <iso>]... [--door43-pictures] [--share-door43] [--dry-run]
  *
  * The official LangQuest organization (`langquest`) hosts the starters:
  * the six standard versifications, Bible and FIA templates, the standard
@@ -35,6 +35,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
+import { workerBlobs } from '@langquest-next/sync';
 import {
   bookOrder, canonicalJson, convertWay, DEFAULT_KINDS, encodeHlc, FIA_PERICOPES, FLOWS, kindOfDoc, missingMappings, numberingOf, ORG_STREAM, paratextMappings, parseRef,
   USFM_BOOKS, usfmOf, validateDoc, withDeps,
@@ -42,7 +43,7 @@ import {
   type TemplateBook, type TemplateDocV1, type TemplateDocV2, type VersificationDoc
 } from '@langquest-next/core';
 import { FIA_ATTRIBUTION, fiaLanguages, fiaPericope, fiaStudyDoc } from './fia-adapter';
-import { buildDoor43, countingSink, diskSink, DOC_DIR, itemKind, measurePictures, reportLines } from './door43-seed';
+import { buildDoor43, countingSink, diskSink, DOC_DIR, itemKind, measurePictures, reportLines, storePictures } from './door43-seed';
 import { sourcesFor } from './sources-seed';
 
 export const SEED_ORG = { id: 'langquest', name: 'LangQuest' } as const;
@@ -516,9 +517,17 @@ async function main(argv: string[]) {
     };
     const languages = values('door43-language');
     const sink = dry ? countingSink() : diskSink(DOC_DIR);
+    // A real build puts the story pictures into R2 through the Worker (API_URL, the local one by default) with the service key.
+    let pictures: Parameters<typeof buildDoor43>[0]['pictures'];
+    if (!dry && argv.includes('--door43-pictures')) {
+      const url = process.env['SUPABASE_URL'] ?? LOCAL_URL;
+      const r2 = workerBlobs(process.env['API_URL'] ?? 'http://127.0.0.1:8787', supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url));
+      pictures = storePictures((key, bytes) => r2.put(key, bytes), console.log);
+    }
     const report = await buildDoor43({
       sink, versifications: { eng: v('eng').hash, org: v('org').hash, engDoc: v('eng').doc },
-      ...(languages.length ? { only: (c) => languages.includes(c.language) } : {})
+      ...(languages.length ? { only: (c) => languages.includes(c.language) } : {}),
+      ...(pictures ? { pictures } : {})
     });
     if (dry) report.pictures = await measurePictures(report.pictureUrls, console.log);
     console.log(reportLines(report).join('\n'));

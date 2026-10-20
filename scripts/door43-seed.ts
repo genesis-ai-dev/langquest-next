@@ -456,15 +456,55 @@ export function pictureUrl(written: string): string {
   return written.replace(/[?#].*$/, '');
 }
 
-/** A picture as a study guide's media: its blob hashes once fetched, the address until then. */
+/** A picture as a study guide's media: its address, and its blob hashes once stored (full size, and the phone's copy). */
 function pictureFile(ctx: Ctx, url: string) {
   const known = ctx.pictures.get(url);
   if (!ctx.pictures.has(url)) ctx.pictures.set(url, {});
-  return known?.hash ? { hash: known.hash, ...(known.lowHash ? { lowHash: known.lowHash } : {}), format: 'jpg' } : { url, format: 'jpg' };
+  return { url, ...(known?.hash ? { hash: known.hash } : {}), ...(known?.lowHash ? { lowHash: known.lowHash } : {}), format: 'jpg' };
 }
 
-/** Open Bible Stories in one language: each story a `study@2` placed on the template's story, and the contents that list them. */
-function buildStories(ctx: Ctx, c: Taken, r: Release, meta: { license: string; credit: string; name: string; languageName: string; publisher: string }): Built & { stories: Story[] } {
+/**
+ * Door43's story pictures in our blob store, by hash: each at full size
+ * and at phone size, downloaded once into the OS temp directory and put
+ * through the Worker (`put`, as `langquest/_org/<hash>.jpg`), so a story
+ * names both and a phone takes the small one (study/guideMatch.ts).
+ */
+export function storePictures(put: (key: string, bytes: Uint8Array) => Promise<void>, log: (m: string) => void) {
+  const stored = new Set<string>();
+  const fetchOnce = async (url: string): Promise<Buffer> => {
+    const file = join(CACHE, 'pictures', url.replace(/^https:\/\//, '').replace(/[^a-z0-9._-]/gi, '_'));
+    if (existsSync(file)) return readFileSync(file);
+    const res = await fetchRetry(url);
+    if (!res.ok) throw new Error(`${url}: ${res.status}`);
+    const bytes = Buffer.from(await res.arrayBuffer());
+    mkdirSync(join(CACHE, 'pictures'), { recursive: true });
+    writeFileSync(file, bytes);
+    return bytes;
+  };
+  const keep = async (bytes: Buffer) => {
+    const hash = createHash('sha256').update(bytes).digest('hex');
+    if (!stored.has(hash)) { await put(`langquest/_org/${hash}.jpg`, bytes); stored.add(hash); }
+    return hash;
+  };
+  return async (ctx: { pictures: Map<string, { hash?: string; lowHash?: string }> }, urls: string[]) => {
+    const todo = [...new Set(urls)].filter((u) => !ctx.pictures.get(u)?.hash);
+    for (let i = 0; i < todo.length; i += 6) {
+      await Promise.all(todo.slice(i, i + 6).map(async (url) => {
+        try {
+          const phone = await keep(await fetchOnce(url));
+          const full = await keep(await fetchOnce(url.replace(`/${PICTURE_SIZES.phone}/`, `/${PICTURE_SIZES.full}/`)));
+          ctx.pictures.set(url, { hash: full, lowHash: phone });
+        } catch (e) {
+          log(`  picture ${url}: ${e instanceof Error ? e.message : String(e)}; named by its address`);
+        }
+      }));
+    }
+    if (todo.length) log(`  ${todo.length} pictures stored`);
+  };
+}
+
+/** A release's stories, in either layout, in order. */
+function readStories(r: Release): Story[] {
   let stories: Story[] = [];
   const md = r.files.filter((f) => /^(?:content\/)?\d{2}\.md$/.test(f));
   if (md.length) {
@@ -477,7 +517,11 @@ function buildStories(ctx: Ctx, c: Taken, r: Release, meta: { license: string; c
   } else {
     stories = folderStories(r.files.filter((f) => /(?:^|\/)\d{2}\/[a-z0-9]+\.txt$/i.test(f)).map((p) => ({ path: p, text: r.read(p) ?? '' })));
   }
-  stories.sort((a, b) => a.story - b.story);
+  return stories.sort((a, b) => a.story - b.story);
+}
+
+/** Open Bible Stories in one language: each story a `study@2` placed on the template's story, and the contents that list them. */
+function buildStories(ctx: Ctx, c: Taken, stories: Story[], meta: { license: string; credit: string; name: string; languageName: string; publisher: string }): Built & { stories: Story[] } {
   if (!stories.length) throw new Error('no stories read');
   const credit = `${meta.credit} ${OBS_PICTURE_CREDIT}`;
   const entries = stories.map((s) => {
@@ -557,6 +601,8 @@ export async function buildDoor43(opts: {
   catalog?: CatalogEntry[];
   only?: (c: Taken) => boolean;
   log?: (m: string) => void;
+  /** Store the story pictures these addresses name before their stories are built (`storePictures`). */
+  pictures?: (ctx: { pictures: Map<string, { hash?: string; lowHash?: string }> }, urls: string[]) => Promise<void>;
 }): Promise<BuildReport> {
   const log = opts.log ?? console.log;
   const catalog = opts.catalog ?? (await fetchCatalog(log));
@@ -619,7 +665,10 @@ export async function buildDoor43(opts: {
         case 'wordLinks': case 'storyWordLinks': built = buildBookHelps(ctx, c, r, 'wordLinks', meta); break;
         case 'words': case 'academy': case 'grammar': built = buildArticles(ctx, c, r, meta); break;
         case 'stories': {
-          const s = buildStories(ctx, c, r, meta);
+          const stories = readStories(r);
+          // Pictures first, so the stories name them by hash (a real build); a dry run names them by address.
+          if (opts.pictures) await opts.pictures(ctx, stories.flatMap((st) => st.frames.flatMap((f) => (f.image ? [pictureUrl(f.image)] : []))));
+          const s = buildStories(ctx, c, stories, meta);
           if (!english && c.language === 'eng' && c.entry.owner === 'unfoldingWord') {
             english = s.stories;
             const t = buildObsTemplate(ctx, english, credit);
