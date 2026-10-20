@@ -5838,6 +5838,23 @@ pass's memory fields are named `maxPeakRssMb`, `maxStartRssMb`,
 `maxHeapUsedMb` and `maxHeapLimitMb`, because `diag.totals` keeps the
 largest of a `max…` field and sums every other one.
 
+Amended (2026-10-20, Carl Sauder): the object never saw an exit code.
+`ctx.container.monitor()` rejects with a plain Error that carries the code
+only in its message (`Container exited with unexpected exit code: 75`, or
+`Runtime signalled the container to exit: 9`), and `exitCodeOf` read a
+property that was not there, so every non-zero exit read as a stop without
+a code and the object wrote a false `error` / `stopped` row 0.6 s after the
+process's own `partial` / `sigterm` row (six pairs in production on
+2026-10-20, from 03:00 to 04:49 UTC, one per deploy rollout; a real OOM
+kill would also have shown only as `stopped`, never `killed:137`).
+`exitCodeOf` now parses both messages as `@cloudflare/containers` does. The
+library passes the number of a signalled stop on as the exit code and does
+not say whether it is a signal number or 128 plus one, so a number under
+128 there is read as a signal and becomes 128 plus it (9 is 137, 15 is
+143); either reading lands at 128 or more, which the object records
+(`killed:137`, `exit:143`) and which keeps a whole read owed. An
+`exitCode` property, which newer workerd sets, is still read first.
+
 ## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
 
 Date: 2026-10-19 · By: Carl Sauder · Status: accepted

@@ -110,11 +110,42 @@ describe('job runner', () => {
       .toEqual({ job: 'projection', startedAt: 5_000, ms: 0, outcome: 'error', errorClass: 'stopped' });
   });
 
-  it('reads the exit code a failed monitor carries, and nothing from any other failure', () => {
-    expect(exitCodeOf(Object.assign(new Error('container exited'), { exitCode: 137 }))).toBe(137);
+  it('reads the exit code from the message of a failed monitor, as Cloudflare words it', () => {
+    const exited = (n: number) => new Error(`Container exited with unexpected exit code: ${n}`);
+    expect(exitCodeOf(exited(75))).toBe(STOPPED_EARLY);
+    expect(exitCodeOf(exited(1))).toBe(1);
+    expect(exitCodeOf(exited(137))).toBe(137);
+    expect(exitCodeOf(exited(143))).toBe(143);
+  });
+
+  it('reads a runtime signal as 128 plus its number, and an exit code of 128 or more as it is', () => {
+    const signalled = (n: number) => new Error(`Runtime signalled the container to exit: ${n}`);
+    expect(exitCodeOf(signalled(9))).toBe(137);
+    expect(exitCodeOf(signalled(15))).toBe(143);
+    expect(exitCodeOf(signalled(137))).toBe(137);
+  });
+
+  it('reads nothing from any other failure', () => {
     expect(exitCodeOf(new Error('no instance'))).toBeNull();
+    expect(exitCodeOf(new Error('Container exited with unexpected exit code: soon'))).toBeNull();
+    expect(exitCodeOf('Container exited with unexpected exit code: 137')).toBeNull();
     expect(exitCodeOf('destroyed')).toBeNull();
     expect(exitCodeOf(undefined)).toBeNull();
+  });
+
+  it('still reads an exitCode property when the runtime sets one', () => {
+    expect(exitCodeOf(Object.assign(new Error('container exited'), { exitCode: 137 }))).toBe(137);
+  });
+
+  it('turns each realistic failure into the row it should leave: none for 75 and 1, a killed or exit row for 137 and 143', () => {
+    const rowFor = (message: string) => deadRun('projection', mark, exitCodeOf(new Error(message)), 5_000)?.errorClass ?? null;
+    expect(rowFor('Container exited with unexpected exit code: 75')).toBeNull();
+    expect(rowFor('Container exited with unexpected exit code: 1')).toBeNull();
+    expect(rowFor('Container exited with unexpected exit code: 137')).toBe('killed:137');
+    expect(rowFor('Container exited with unexpected exit code: 143')).toBe('exit:143');
+    expect(rowFor('Runtime signalled the container to exit: 9')).toBe('killed:137');
+    expect(rowFor('Runtime signalled the container to exit: 15')).toBe('exit:143');
+    expect(rowFor('something else')).toBe('stopped');
   });
 
   it('writes an error class the database keeps (diag.is_code)', () => {
