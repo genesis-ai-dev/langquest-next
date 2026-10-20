@@ -9,7 +9,7 @@
 import {
   bookIdOf, bookOrder, canonicalJson, languagePassages, templateBooks, libraryUnitRange, subscriptionItemId, unitPlace, unitPrefixOf, USFM_BOOKS,
   type Indexes, type LevelDisplay, type LibraryItemState, type LibraryItemView, type OutlineNode, type LanguageState,
-  type TemplateBook, type TemplateDoc, type VersificationDoc
+  type PassageLines, type TemplateBook, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { latinDigits } from '../ui/textMatch';
 import { BIBLE_BOOKS, FIA_PERICOPES, type BibleBook } from '@langquest-next/core';
@@ -169,28 +169,29 @@ export function templateLine(state: LanguageState, item: (itemId: string) => Lib
  * version dropped them, or it narrowed its books. Switching back brings them
  * back; nothing was deleted.
  */
-export function setAsideCount(state: LanguageState): number {
+export function setAsideCount(state: LanguageState, lines: PassageLines): number {
   const sel = state.template?.value;
   if (!sel) return 0;
   const books = sel.books ? new Set(sel.books) : null;
-  const units = new Set<string>();
-  for (const take of Object.values(state.takes)) {
-    if (take.archived) continue;
-    const prefix = unitPrefixOf(take.unitId);
+  let n = 0;
+  // Read off each passage's line (decisions.md 143): its takes not archived.
+  for (const unitId of lines.worked()) {
+    if (lines.get(unitId).takes === 0) continue;
+    const prefix = unitPrefixOf(unitId);
     if (prefix === null) continue;
-    const book = libraryUnitRange(take.unitId)?.book;
-    if (prefix !== sel.unitPrefix) units.add(take.unitId);
-    else if (state.hiddenUnits[take.unitId]?.value === true) units.add(take.unitId);
-    else if (books && book && !books.has(book)) units.add(take.unitId);
+    const book = libraryUnitRange(unitId)?.book;
+    if (prefix !== sel.unitPrefix) n++;
+    else if (state.hiddenUnits[unitId]?.value === true) n++;
+    else if (books && book && !books.has(book)) n++;
   }
-  return units.size;
+  return n;
 }
 
 /** Parts of the language that already have a recording: they never move on their own. */
-export function recordedCount(state: LanguageState): number {
-  const units = new Set<string>();
-  for (const take of Object.values(state.takes)) if (!take.archived) units.add(take.unitId);
-  return units.size;
+export function recordedCount(lines: PassageLines): number {
+  let n = 0;
+  for (const unitId of lines.worked()) if (lines.get(unitId).takes > 0) n++;
+  return n;
 }
 
 // ---- choosing a template (TPL-1) -------------------------------------------------------------
@@ -237,6 +238,8 @@ export function choiceLine(c: LibraryChoice, sourceLine: (it: LibraryItemView) =
 export interface TemplateForm {
   name: string;
   description: string;
+  /** ISO 639-3 language its names are in ("Written in"); empty when not said. */
+  language?: string;
   structure: 'bible' | 'outline';
   levels: { name: string; display?: LevelDisplay }[];
   /** Hash of the versification document (Bible). */
@@ -261,7 +264,7 @@ export interface TemplateForm {
 
 export function formFromDoc(doc: TemplateDoc, name = doc.name, description = doc.description): TemplateForm {
   return {
-    name, description, structure: doc.structure,
+    name, description, ...(doc.language ? { language: doc.language } : {}), structure: doc.structure,
     levels: doc.levels.map((l) => ({ ...l })),
     versification: doc.bible?.versification ?? null,
     books: sortBooks((doc.bible?.books ?? []).map((b) => ({ book: b.book, name: b.name }))),
@@ -276,7 +279,7 @@ export function formFromDoc(doc: TemplateDoc, name = doc.name, description = doc
 
 /** The document for a form; `deps` are filled in when it is published (prepareDoc). */
 export function docFromForm(f: TemplateForm): TemplateDoc {
-  const base = { format: 'template@1' as const, name: f.name.trim(), description: f.description.trim(), structure: f.structure, levels: f.levels, deps: [] };
+  const base = { format: 'template@1' as const, name: f.name.trim(), description: f.description.trim(), ...(f.language ? { language: f.language } : {}), structure: f.structure, levels: f.levels, deps: [] };
   if (f.structure === 'outline') return { ...base, outline: f.outline };
   if (f.bookParts) {
     // Each book keeps how it is broken up; a book added here waits to be broken up.

@@ -3135,7 +3135,8 @@
         "report": "Ripoti",
         "block": "Zuia",
         "unblock": "Acha kuzuia",
-        "onboarding": "Kujiunga"
+        "onboarding": "Kujiunga",
+        "feedback": "Maoni"
       },
       "failedSub": "{{reason}} · Gusa ili kujaribu tena",
       "waiting": "Inasubiri kutumwa",
@@ -5298,7 +5299,7 @@
       "couldNotRead": "Ripoti hazikuweza kusomwa.",
       "signIn": "Muda wako wa kuingia umeisha. Ingia tena.",
       "notMember": "Wewe si mwanachama wa shirika hili.",
-      "busy": "Dashibodi haikuweza kusoma shirika hili sasa hivi. Jaribu tena.",
+      "busy": "Seva haikuweza kusoma shirika hili sasa hivi. Jaribu tena.",
       "serverAnswered": "Seva ilijibu {{status}}."
     },
     "countries": {
@@ -6329,9 +6330,11 @@
       "bibleBrainHelp": "Tafuta Biblia kwa lugha katika Bible Brain.",
       "bibleHelp": "Huonyesha ilicho nacho kabla hujaiongeza.",
       "fromLangQuestHelp": "Huonyesha Biblia ambazo LangQuest inazo tayari kufuatwa.",
-      "languageHelp": "Huonyesha Biblia zake kutoka Bible Brain. Namba ni idadi yake.",
       "readyHelp": "Huiongeza kwenye maktaba yako na kuipendekeza hapa.",
-      "searchHelp": "Andika jina au msimbo wa lugha ili kupata Biblia zake."
+      "searchHelp": "Andika jina au msimbo wa lugha ili kupata Biblia zake.",
+      "listed": "Lugha zenye Biblia katika Bible Brain pekee ndizo zinaonyeshwa.",
+      "noMatch": "Hakuna lugha kwa jina hilo yenye Biblia katika Bible Brain.",
+      "unreachable": "Kupata lugha kunahitaji mtandao mara ya kwanza."
     },
     "source": {
       "title": "Biblia",
@@ -6777,10 +6780,6 @@
       "notSetUp": "Bible Brain haijaandaliwa kwenye kifaa hiki",
       "notSetUpSub": "Maktaba ya shirika lako bado inafanya kazi. Mwombe anayeendesha LangQuest kwa timu yako aunganishe seva.",
       "searchPlaceholder": "Tafuta lugha",
-      "noLanguages": "Hakuna lugha zilizopatikana",
-      "noLanguagesSub": "Jaribu jina kwa Kiingereza, au msimbo wake wa herufi tatu.",
-      "languageBibles_one": "{{code}} · Biblia {{count, number}}",
-      "languageBibles_other": "{{code}} · Biblia {{count, number}}",
       "biblesIn": "Biblia katika {{language}}",
       "noBibles": "Hakuna Biblia katika lugha hii kwenye Bible Brain.",
       "myBible": "Biblia Yangu",
@@ -6805,7 +6804,6 @@
       "bibleHelp": "Huifungua ili usome na usikie sura, kabla hujaiongeza.",
       "bookHelp": "Huonyesha sura ya kitabu hiki.",
       "chapterHelp": "Huonyesha sura ya {{n, number}} ili usome na usikie.",
-      "languageHelp": "Huonyesha Biblia zake hapa chini.",
       "nextChapterHelp": "Husoma na kucheza sura inayofuata.",
       "previousChapterHelp": "Husoma na kucheza sura iliyotangulia.",
       "removeHelp": "Huiondoa kwenye Biblia zako kwenye kifaa hiki. Unaweza kuiongeza tena hapa.",
@@ -6824,7 +6822,9 @@
     "chip": "Biblia na miongozo kwa {{language}}",
     "chipHelp": "Lugha ya Biblia na miongozo yao ya kujifunza. Gusa ili kuibadilisha.",
     "change": "Badilisha",
-    "rowHelp": "Inaongeza lugha hii kwa Biblia na miongozo ya timu, au inaiondoa. Mstari unasema kilichomo."
+    "rowHelp": "Inaongeza lugha hii kwa Biblia na miongozo ya timu, au inaiondoa. Mstari unasema kilichomo.",
+    "listed": "Lugha zenye Biblia au miongozo ya kujifunza pekee ndizo zinaonyeshwa.",
+    "noMatch": "Hakuna lugha kwa jina hilo yenye Biblia au miongozo ya kujifunza bado."
   },
   "checks": {
     "title": "Kaguzi",
@@ -7155,5 +7155,36 @@
     "help": "Huhifadhiwa unapoendelea: duara linalozunguka wakati inahifadhiwa, kisha alama ya vema. Huhitaji kuhifadhi.",
     "failed": "Haijahifadhiwa",
     "saved": "Imehifadhiwa"
+  },
+  "feedback": {
+    "open": "Tuma maoni",
+    "title": "Maoni",
+    "send": "Tuma",
+    "kind": {
+      "bug": "Kuna tatizo",
+      "idea": "Wazo"
+    },
+    "placeholder": {
+      "bug": "Nini kilitokea?",
+      "idea": "Nini kingesaidia?"
+    },
+    "addScreenshot": "Ongeza picha hii ya skrini",
+    "addNameAndEmail": "Ongeza jina langu na barua pepe",
+    "addNameAndSignIn": "Ongeza jina langu na jina la kuingia",
+    "addName": "Ongeza jina langu",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "Tatizo: kitu kimeharibika, kimekwama au kinaonekana vibaya.",
+      "idea": "Wazo: kitu kitakachofanya LangQuest iwe bora kwako.",
+      "body": "Sema kwa maneno yako mwenyewe, kwa lugha yoyote.",
+      "screenshot": "Hutuma picha ya skrini uliyokuwa. Imezimwa hadi uiwashe.",
+      "profile": "Hutuma jina lako na jinsi unavyoingia, ili timu ya LangQuest ijue nani aliandika. Imezimwa hadi uiwashe."
+    },
+    "toast": {
+      "sent": "Imetumwa. Asante!",
+      "saved": "Imehifadhiwa. Itatumwa ukiunganishwa.",
+      "savedUntilSignIn": "Imehifadhiwa. Itatumwa baada ya kuingia.",
+      "voiceTooLong": "Ni ndefu mno: ujumbe wa sauti unaweza kuwa hadi dakika 2."
+    }
   }
 }

@@ -30,14 +30,14 @@ describe('secrets', () => {
     }
   });
 
-  it('passes the Bible Brain key to the dashboard only when the file has it, and never requires it', () => {
+  it('passes the Bible Brain key to the app\'s Worker only when the file has it, and never requires it', () => {
     const withKey = destinations('production', { ...values, BIBLE_BRAIN_ACCESS_KEY: 'bb' }, 'ref', 'service');
-    expect(withKey.workers.dashboard).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service', BIBLE_BRAIN_ACCESS_KEY: 'bb' });
-    expect(destinations('production', { ...values, BIBLE_BRAIN_ACCESS_KEY: '' }, 'ref', 'service').workers.dashboard).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service' });
+    expect(withKey.workers.app).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service', BIBLE_BRAIN_ACCESS_KEY: 'bb' });
+    expect(destinations('production', { ...values, BIBLE_BRAIN_ACCESS_KEY: '' }, 'ref', 'service').workers.app).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'service' });
     for (const key of OPTIONAL_KEYS) {
       expect(FILE_KEYS).toContain(key);
       expect(REQUIRED_KEYS).not.toContain(key);
-      for (const env of ['production', 'preview']) expect(wranglerFor(parseJsonc(read(WORKERS.dashboard)), env).secrets?.required ?? []).not.toContain(key);
+      for (const env of ['production', 'preview']) expect(wranglerFor(parseJsonc(read(WORKERS.app)), env).secrets?.required ?? []).not.toContain(key);
     }
   });
 
@@ -67,17 +67,17 @@ describe('secrets', () => {
     expect(sql).not.toMatch(/cron\.schedule\(\s*'langquest-stream-projections'/);
   });
 
-  it('gives the dashboard Worker v2\'s keys for the import\'s job, only when the file has them', () => {
+  it('gives the app\'s Worker v2\'s keys for the import\'s job, only when the file has them', () => {
     const wanted = destinations('production', { ...values, V2_SUPABASE_ANON_KEY: 'v2', V2_DATABASE_URL: 'postgres://ro' }, 'ref', 'k');
-    expect(wanted.workers.dashboard).toMatchObject({ V2_SUPABASE_ANON_KEY: 'v2', V2_DATABASE_URL: 'postgres://ro' });
-    expect(Object.keys(destinations('production', values, 'ref', 'k').workers.dashboard)).not.toContain('V2_DATABASE_URL');
+    expect(wanted.workers.app).toMatchObject({ V2_SUPABASE_ANON_KEY: 'v2', V2_DATABASE_URL: 'postgres://ro' });
+    expect(Object.keys(destinations('production', values, 'ref', 'k').workers.app)).not.toContain('V2_DATABASE_URL');
     expect(OPTIONAL_KEYS).toContain('V2_DATABASE_URL');
   });
 
   it('gives the webhook poke one secret at both ends and the Worker\'s own address, only when the file has it', () => {
     const sql = read(WEBHOOK_MIGRATION);
     const wanted = destinations('preview', { ...values, WEBHOOK_POKE_SECRET: 'poke' }, 'abc', 'k');
-    expect(wanted.vault.langquest_webhook_poke_secret).toBe(wanted.workers.dashboard.WEBHOOK_POKE_SECRET);
+    expect(wanted.vault.langquest_webhook_poke_secret).toBe(wanted.workers.app.WEBHOOK_POKE_SECRET);
     expect(wanted.vault.langquest_dashboard_url).toBe('https://next-preview.langquest.org');
     for (const name of ['langquest_dashboard_url', 'langquest_webhook_poke_secret']) expect(sql).toMatch(new RegExp(`name\\s*=\\s*'${name}'`));
     expect(destinations('production', { ...values, WEBHOOK_POKE_SECRET: 'poke' }, 'abc', 'k').vault.langquest_dashboard_url).toBe('https://next.langquest.org');
@@ -107,9 +107,9 @@ describe('secrets', () => {
   });
 
   it('reports a missing Worker secret or cron job as behind', () => {
-    const ok = { workers: { dashboard: { K: 'set' } }, functions: { A: 'same' }, vault: { V: 'same' }, scheduled: true };
+    const ok = { workers: { app: { K: 'set' } }, functions: { A: 'same' }, vault: { V: 'same' }, scheduled: true };
     expect(summarize(ok).behind).toBe(false);
-    expect(summarize({ ...ok, workers: { dashboard: { K: 'missing' } } }).behind).toBe(true);
+    expect(summarize({ ...ok, workers: { app: { K: 'missing' } } }).behind).toBe(true);
     expect(summarize({ ...ok, scheduled: false }).behind).toBe(true);
   });
 

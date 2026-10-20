@@ -1,7 +1,7 @@
 # Durable Object memory canary (proposed, not running)
 
-Runs: after each production deploy of the dashboard Worker
-(`langquest-next-dashboard`), found the way `post-deploy-smoke.md` finds Live
+Runs: after each production deploy of the app's Worker
+(`langquest-next`), found the way `post-deploy-smoke.md` finds Live
 issues: every 15 minutes, for a deployment it has not checked yet.
 Tools: `wrangler` (deployments, tail), `curl`, `npm run diag -- --hosted`
 (read-only). Writes: one comment per deployment on the digest issue (LAN-33),
@@ -37,7 +37,7 @@ deploy, and that none was reset for memory. Report; change nothing.
    "Needed first"). Add any organization in `CANARY_ORG_IDS` that is not
    among them.
 3. Start the log watch before any request:
-   `npx wrangler tail langquest-next-dashboard --format json` into a file,
+   `npx wrangler tail langquest-next --format json` into a file,
    in the background. Then, for each organization, one at a time:
    - `GET https://next.langquest.org/api/v1/me` with that organization's
      canary token: what `/connect` asks. It reads the organization stream

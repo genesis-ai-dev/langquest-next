@@ -107,7 +107,7 @@ interface Summary {
 const isoDay = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 /**
- * One organization's reports, kept by the dashboard's server (decision 44):
+ * One organization's reports, kept by the app's Worker (decision 44):
  * the organization stream and every language stream, folded with the same
  * reducer the phones run and caught up from the log's tail on request.
  * A language starts from the cache, else from the server snapshot the

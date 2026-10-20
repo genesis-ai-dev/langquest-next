@@ -1,7 +1,7 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
   // LangQuest operations in one page, for staff (docs/admin.md, decisions.md
-  // 143): what phones and the server's jobs report in `diag`, and what
+  // 146): what phones and the server's jobs report in `diag`, and what
   // Cloudflare, Supabase, Vercel, GitHub, Expo, Google Play and the App
   // Store say about their part.
   "name": "langquest-next-admin",
@@ -25,7 +25,7 @@
     // LangQuest Next, then LangQuest v2 (read by the v2 import), for the Supabase section.
     "SUPABASE_PROJECTS": "xymxnebdwtbkfxlbylch:LangQuest Next,unsxkmlcyxgtgmtzfonb:LangQuest v2",
     "CLOUDFLARE_ACCOUNT_ID": "6a80496d1e59948a9cbaa3c643ba81d7",
-    "CLOUDFLARE_WORKERS": "langquest-next-dashboard,langquest-next-invite-email,langquest-next-admin",
+    "CLOUDFLARE_WORKERS": "langquest-next,langquest-next-invite-email,langquest-next-admin",
     // Its /version.json names the commit it was built from (apps/mobile/scripts/export-web.mjs).
     "APP_URL": "https://next.langquest.org",
     "GITHUB_REPO": "genesis-ai-dev/langquest-next",

@@ -39,7 +39,7 @@ export const ADMIN_KEYS = ['ADMIN_PROFILE_IDS', 'ADMIN_CLOUDFLARE_TOKEN', 'ADMIN
 
 /**
  * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted) and by
- * the admin Worker; V2_DATABASE_URL (scripts/v2-access.sh) goes to the dashboard Worker for the v2
+ * the admin Worker; V2_DATABASE_URL (scripts/v2-access.sh) goes to the app's Worker for the v2
  * import's job (decisions.md 141) and is read on a laptop by npm run v2 -- --production.
  */
 export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PROJECTION_WORKER_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', ...ADMIN_KEYS];
@@ -54,9 +54,9 @@ export const OPTIONAL_KEYS = ['BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 
 /** LangQuest v2's production project, read (never written) by the v2 import and v2-sign-in (docs/v2-import.md). */
 export const V2_SUPABASE_URL = 'https://unsxkmlcyxgtgmtzfonb.supabase.co';
 
-/** Where the dashboard Worker answers in an environment, from its own routes. */
-export function dashboardUrl(environment) {
-  const config = parseJsonc(readFileSync(join(root, WORKERS.dashboard), 'utf8'));
+/** Where the app's Worker answers in an environment, from its own routes. */
+export function appUrl(environment) {
+  const config = parseJsonc(readFileSync(join(root, WORKERS.app), 'utf8'));
   const routes = environment === 'production' ? config.routes : config.env?.[environment]?.routes;
   return `https://${routes[0].pattern}`;
 }
@@ -65,7 +65,8 @@ export function dashboardUrl(environment) {
 export const WEBHOOK_MIGRATION = 'supabase/migrations/20261013120000_api_webhooks.sql';
 
 export const WORKERS = {
-  dashboard: 'apps/web/wrangler.jsonc',
+  // The app's Worker: the web app, /api, the job runner (apps/web; once named the dashboard).
+  app: 'apps/web/wrangler.jsonc',
   'invite-email': 'apps/invite-email/wrangler.jsonc',
   admin: 'apps/admin/wrangler.jsonc'
 };
@@ -91,11 +92,11 @@ export const SCHEDULE_MIGRATION = 'supabase/migrations/20261019110000_projection
 export function destinations(environment, values, ref, serviceRoleKey) {
   return {
     workers: {
-      dashboard: {
+      app: {
         SUPABASE_SERVICE_ROLE_KEY: serviceRoleKey,
         ...(values.BIBLE_BRAIN_ACCESS_KEY ? { BIBLE_BRAIN_ACCESS_KEY: values.BIBLE_BRAIN_ACCESS_KEY } : {}),
         ...(values.WEBHOOK_POKE_SECRET ? { WEBHOOK_POKE_SECRET: values.WEBHOOK_POKE_SECRET } : {}),
-        // The v2 import's job reads v2 with these (apps/web/worker/jobsModel.ts jobEnv); without them it refuses to start.
+        // The v2 import's job reads v2 with these (apps/web/worker/jobsModel.ts jobEnv): it refuses to start without the key, and names people only with the login.
         ...(values.V2_SUPABASE_ANON_KEY ? { V2_SUPABASE_ANON_KEY: values.V2_SUPABASE_ANON_KEY } : {}),
         ...(values.V2_DATABASE_URL ? { V2_DATABASE_URL: values.V2_DATABASE_URL } : {})
       },
@@ -122,7 +123,7 @@ export function destinations(environment, values, ref, serviceRoleKey) {
       langquest_project_url: `https://${ref}.supabase.co`,
       langquest_projection_worker_secret: values.PROJECTION_WORKER_SECRET,
       // Read by events_notify (WEBHOOK_MIGRATION); without them it pokes nobody and the cron catches up.
-      ...(values.WEBHOOK_POKE_SECRET ? { langquest_dashboard_url: dashboardUrl(environment), langquest_webhook_poke_secret: values.WEBHOOK_POKE_SECRET } : {})
+      ...(values.WEBHOOK_POKE_SECRET ? { langquest_dashboard_url: appUrl(environment), langquest_webhook_poke_secret: values.WEBHOOK_POKE_SECRET } : {})
     }
   };
 }

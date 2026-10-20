@@ -1,6 +1,9 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "langquest-next-dashboard",
+  // The app's Worker (decision 144): the web app, /api and the job runner.
+  // Named langquest-next-dashboard until 2026-10-20, when it served only the
+  // reports dashboard; the rename made a new Worker (docs/cloudflare.md).
+  "name": "langquest-next",
   "main": "worker/index.ts",
   "account_id": "6a80496d1e59948a9cbaa3c643ba81d7",
   "compatibility_date": "2026-09-29",
@@ -82,7 +85,7 @@
     // Review links (agent/links.ts): a whole WhatsApp group may share one address.
     { "name": "LINK_RATE_LIMIT", "namespace_id": "7003", "simple": { "limit": 300, "period": 60 } }
   ],
-  // The preview stack (docs/environments.md): langquest-next-dashboard-preview,
+  // The preview stack (docs/environments.md): langquest-next-preview,
   // deployed from develop. Vars, secrets and bindings are not inherited, so
   // they are repeated here. Add "vars": { "SUPABASE_URL": ... } with the
   // preview branch's ref once [remotes.preview] names it.

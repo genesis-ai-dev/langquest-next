@@ -15,7 +15,7 @@ import { SCOPE_VERSES } from '../src/coverage';
 import { buildFixture, buildRecordFixture, buildStep11Fixture, shuffle } from './fixtures';
 
 /**
- * The web dashboard's per-language report. It must say what the passage
+ * Reports' per-language report. It must say what the passage
  * record says (the phone's Status screen reads the same derivations), and
  * like every derivation it must not depend on the order events arrived in.
  */
@@ -268,7 +268,7 @@ describe('coverage, uploads and the ledger', () => {
 
 describe('report inputs (decisions.md 142)', () => {
   // Why: the projection pass extracts a language's inputs when it folds the
-  // language and stores them as JSON; the dashboard's server renders reports
+  // language and stores them as JSON; the app's Worker renders reports
   // from them on later days without folding. A report rendered that way must
   // be the report a fold on that day would give, or Reports would drift
   // from the phone's Status screen until the language next changed.

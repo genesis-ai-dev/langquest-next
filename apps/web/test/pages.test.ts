@@ -78,9 +78,9 @@ describe('pages the Worker serves, in the reader’s language', () => {
     });
   }
 
-  it('uses the session signed in on /connect even when the dashboard left an expired one', async () => {
-    // The dashboard's session in localStorage goes stale whenever the
-    // dashboard is closed. Signing in on /connect must not be undone by it.
+  it('uses the session signed in on /connect even when the web app left an expired one', async () => {
+    // The web app's session in localStorage goes stale whenever the
+    // web app is closed. Signing in on /connect must not be undone by it.
     const html = await connectPage({ supabaseUrl: 'https://x.supabase.co', anonKey: 'k' }, 'en').text();
     const script = /<script>([\s\S]*)<\/script>/.exec(html)?.[1] ?? '';
     const now = Math.floor(Date.now() / 1000);

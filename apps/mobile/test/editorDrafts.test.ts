@@ -44,6 +44,11 @@ describe('an editor’s draft', () => {
     const flow = editorDraft({ ...NO_FLOW_EDITS, steps: [{ key: 'a#0', stepId: 'peer', kindIds: ['peer'], checkpoint: true }],
       added: [{ id: 'elder', name: 'Elder check', description: 'Ours', usualReviewer: 'Elders' }] }, NO_FLOW_EDITS, 'f1');
     expect(round(flow, isFlowDraft)).toEqual(flow);
+    // A flow draft kept before "Written in" was asked still reads; one saying a language keeps it.
+    const { language: _l, ...older } = NO_FLOW_EDITS;
+    expect(isFlowDraft({ v: 1, form: { ...older, name: 'Ours' }, basis: 'f1' })).toBe(true);
+    const said = editorDraft({ ...NO_FLOW_EDITS, language: 'fra' }, NO_FLOW_EDITS, 'f1');
+    expect(round(said, isFlowDraft)).toEqual(said);
     const material = editorDraft({ ...NO_MATERIAL_EDITS, title: 'Names', forLanguage: false, texts: { body: 'Say it slowly' },
       questions: [{ fieldId: 'q1', text: 'Clear?', type: 'yesno', required: true }] }, NO_MATERIAL_EDITS, null);
     expect(round(material, isMaterialDraft)).toEqual(material);

@@ -3044,7 +3044,8 @@
         "report": "举报",
         "block": "屏蔽",
         "unblock": "取消屏蔽",
-        "onboarding": "入门引导"
+        "onboarding": "入门引导",
+        "feedback": "反馈"
       },
       "failedSub": "{{reason}} · 点按重试",
       "waiting": "等待发送",
@@ -5103,7 +5104,7 @@
       "couldNotRead": "无法读取报告。",
       "signIn": "你的登录已过期。请重新登录。",
       "notMember": "你不是这个机构的成员。",
-      "busy": "仪表板暂时无法读取这个机构。请重试。",
+      "busy": "服务器暂时无法读取这个机构。请重试。",
       "serverAnswered": "服务器返回了 {{status}}。"
     },
     "countries": {
@@ -6072,9 +6073,11 @@
       "bibleBrainHelp": "在 Bible Brain 中按语言搜索圣经。",
       "bibleHelp": "在你添加之前，显示它包含什么。",
       "fromLangQuestHelp": "显示 LangQuest 准备好可以关注的圣经。",
-      "languageHelp": "显示 Bible Brain 中它的圣经。数字表示有多少本。",
       "readyHelp": "把它添加到你的资料库，并在这里推荐。",
-      "searchHelp": "输入语言的名称或代码，查找它的圣经。"
+      "searchHelp": "输入语言的名称或代码，查找它的圣经。",
+      "listed": "只列出在 Bible Brain 中有圣经的语言。",
+      "noMatch": "没有这个名称的语言在 Bible Brain 中有圣经。",
+      "unreachable": "第一次查找语言需要联网。"
     },
     "source": {
       "title": "圣经",
@@ -6494,9 +6497,6 @@
       "notSetUp": "本设备上没有设置 Bible Brain",
       "notSetUpSub": "你的机构的资料库仍然可以使用。请负责为你的团队运行 LangQuest 的人连接服务器。",
       "searchPlaceholder": "搜索语言",
-      "noLanguages": "没有找到语言",
-      "noLanguagesSub": "试试用英文名称，或者它的三字母代码。",
-      "languageBibles_other": "{{code}} · {{count, number}} 本圣经",
       "biblesIn": "{{language}}圣经",
       "noBibles": "Bible Brain 上没有这个语言的圣经。",
       "myBible": "我的圣经",
@@ -6521,7 +6521,6 @@
       "bibleHelp": "在添加之前，打开它读一章、听一章。",
       "bookHelp": "显示这卷书的一章。",
       "chapterHelp": "显示第 {{n, number}} 章，可以读和听。",
-      "languageHelp": "在下面显示它的圣经。",
       "nextChapterHelp": "阅读和播放下一章。",
       "previousChapterHelp": "阅读和播放上一章。",
       "removeHelp": "在本设备上把它从你的圣经中移除。可以在这里重新添加。",
@@ -6537,7 +6536,9 @@
     "chip": "{{language}}的圣经和指南",
     "chipHelp": "他们的圣经和学习指南所用的语言。点按即可更改。",
     "change": "更改",
-    "rowHelp": "为团队的圣经和指南添加这种语言，或去掉它。这一行说明其中有什么。"
+    "rowHelp": "为团队的圣经和指南添加这种语言，或去掉它。这一行说明其中有什么。",
+    "listed": "只列出有圣经或学习指南的语言。",
+    "noMatch": "还没有这个名称的语言有圣经或学习指南。"
   },
   "checks": {
     "title": "检查",
@@ -6850,5 +6851,36 @@
     "help": "边做边自动保存：保存时显示转动的圆圈，保存好后显示勾。不用另外保存。",
     "failed": "未保存",
     "saved": "已保存"
+  },
+  "feedback": {
+    "open": "发送反馈",
+    "title": "反馈",
+    "send": "发送",
+    "kind": {
+      "bug": "出了问题",
+      "idea": "一个想法"
+    },
+    "placeholder": {
+      "bug": "发生了什么？",
+      "idea": "什么会有帮助？"
+    },
+    "addScreenshot": "附上这张截图",
+    "addNameAndEmail": "附上我的名字和邮箱",
+    "addNameAndSignIn": "附上我的名字和登录名",
+    "addName": "附上我的名字",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "问题：有东西坏了、卡住了或显示不对。",
+      "idea": "想法：能让 LangQuest 对你更好用的东西。",
+      "body": "用你自己的话说，任何语言都可以。",
+      "screenshot": "发送你刚才所在屏幕的图片。你打开之前一直是关闭的。",
+      "profile": "发送你的名字和登录方式，让 LangQuest 团队知道是谁写的。你打开之前一直是关闭的。"
+    },
+    "toast": {
+      "sent": "已发送。谢谢你！",
+      "saved": "已保存。联网后会发送。",
+      "savedUntilSignIn": "已保存。登录后会发送。",
+      "voiceTooLong": "太长了：语音留言最长 2 分钟。"
+    }
   }
 }

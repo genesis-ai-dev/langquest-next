@@ -127,14 +127,14 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   call (`server/jobRuns.ts`; writing never fails or slows the job). Kept 90
   days, like records.
 - Writers: the projection pass (`projection`, every 5 minutes in the job
-  container behind the dashboard Worker, decisions.md 141; every minute on
+  container behind the app's Worker, decisions.md 141; every minute on
   a local stack's Edge Function; `projection_large` is retired; its numbers
   include `peakRssMb` and `heapLimitMb`, and a run without a failure
   names the language that raised its peak memory), the
   Worker's job tick (`job_starts`: jobs started, found running, switched
   off, or that could not start), push delivery
   (`push_delivery`, every minute: claimed, sent, no token, failed by cause,
-  receipts), the v2 import (`v2_import`), the dashboard Worker's cron
+  receipts), the v2 import (`v2_import`), the app's Worker's cron
   (`worker_cron`), webhook delivery per batch (`webhook_dispatch`), the
   Worker's requests by route and status class, at most once a minute per
   isolate (`worker_requests`), and invitation email (`invite_email`, from
@@ -228,6 +228,30 @@ hypotheses drawn from the numbers:
 Server-side request logs (API gateway, storage, Postgres) are in Supabase's
 log explorer for the hosted project, kept for the plan's log retention; use
 the install's timeline to pick the time window.
+
+## Feedback from help mode
+
+What people choose to tell us is not a diagnostics record, and nothing above
+changes for it (decisions.md 145). While help is on, Send feedback opens a
+sheet for a problem or an idea, typed or said in a voice note (at most two
+minutes); the report is an account change (it waits
+offline and goes as its author, like a profile change) and arrives in
+`diag.feedback` with the **install id** above, so its phone's records are
+one lookup away. A screenshot and the person's name and email come only when
+they turn those switches on. `public.feedback_submit` is the one way in
+(signed in, 20 a day per account); `diag.feedback()` and
+`diag.feedback_screenshot()` and `diag.feedback_voice()` are for `diag_reader`:
+
+```sh
+npm run diag -- feedback --days 30                # newest first, with each install id
+npm run diag -- feedback --install <installId>    # one phone's
+npm run diag -- feedback --shot <feedbackId>      # saves its screenshot as feedback-<id>.jpg
+npm run diag -- feedback --voice <feedbackId>     # saves its voice note as feedback-<id>.m4a (or .wav)
+npm run diag -- timeline <installId> --days 2     # then what that phone recorded
+```
+
+Kept a year, and deleted with the account. Seen and done are set from the
+admin page (`public.feedback_set_status`, service role).
 
 ## Not built yet
 

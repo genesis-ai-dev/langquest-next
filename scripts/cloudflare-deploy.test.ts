@@ -32,7 +32,7 @@ describe('cloudflare deploy', () => {
     }
   });
 
-  it('points each dashboard at the project supabase/config.toml names for its environment', () => {
+  it('points the app\'s Worker at the project supabase/config.toml names for its environment', () => {
     const toml = read('supabase/config.toml');
     const config = parseJsonc(read('apps/web/wrangler.jsonc'));
     for (const env of ['production', 'preview']) {
@@ -47,7 +47,7 @@ describe('cloudflare deploy', () => {
     expect(parseJsonc(read('apps/web/wrangler.jsonc')).assets.directory).toBe('../mobile/dist');
   });
 
-  it('points the admin page at the production project and the dashboard\'s account, with no secret in its vars', () => {
+  it('points the admin page at the production project and the app Worker\'s account, with no secret in its vars', () => {
     const admin = parseJsonc(read('apps/admin/wrangler.jsonc'));
     const web = parseJsonc(read('apps/web/wrangler.jsonc'));
     const ref = projectRef(read('supabase/config.toml'), 'production');
@@ -92,6 +92,14 @@ describe('cloudflare deploy', () => {
     for (const env of ['production', 'preview']) expect(wranglerFor(config, env).vars?.API_URL, env).toBe(`https://${wranglerFor(config, env).routes[0].pattern}`);
     const classes = (config.migrations as { new_sqlite_classes?: string[] }[]).flatMap((m) => m.new_sqlite_classes ?? []);
     expect(classes).toContain('JobRunner');
+  });
+
+  it('names the app\'s Worker for the app, not the dashboard it once was (decision 144)', () => {
+    // Why: the Worker serves the web app, /api and the job runner; its name,
+    // and its container application's after it, are what the console shows.
+    const config = parseJsonc(read('apps/web/wrangler.jsonc'));
+    expect(config.name).toBe('langquest-next');
+    expect(JSON.stringify(wranglerFor(config, 'preview'))).not.toMatch(/"name":\s*"[^"]*dashboard/);
   });
 
   it('builds the job image from bundles alone, never installing the dependency tree beside the key', () => {

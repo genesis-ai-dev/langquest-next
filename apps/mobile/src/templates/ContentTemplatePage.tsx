@@ -2,7 +2,7 @@
 // its books, version and edit; the organization's others to choose from under
 // it; and, last, the organization's whole shelf (Content templates). Opened
 // from the language's page as get_ready `step: 'template'`.
-import { languageName, languageProgress, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { languageName, progressOf, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -42,10 +42,15 @@ export function ContentTemplatePage({ ctx }: { ctx: Ctx }) {
   const { busy: running, run } = useRunner(ctx);
   // Picking another stays here, on what the language uses now.
   const { busy, use } = usePickTemplate(ctx, lib, state, languageId, () => setPicked(null));
+  const lines = ctx.language.lines;
+  // Progress, set-aside and recorded counts are read off each passage's line (decisions.md 143).
   const data = useMemo(() => {
     const idx = indexesFor(state);
-    return { books: withWaitingBooks(bookRows(state, idx), state, idx), progress: languageProgress(state, idx), setAside: setAsideCount(state), recorded: recordedCount(state) };
-  }, [state]);
+    return {
+      books: withWaitingBooks(bookRows(state, idx), state, idx), progress: progressOf(lines, idx.passages, state),
+      setAside: setAsideCount(state, lines), recorded: recordedCount(lines)
+    };
+  }, [state, lines]);
   const canManage = ctx.session.can('manage_templates');
   const canWrite = lib.canWrite('template');
   const canShape = ctx.session.can('shape_templates') || canManage;

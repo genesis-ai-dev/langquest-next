@@ -1,28 +1,32 @@
 # Cloudflare
 
-Cloudflare Workers Builds deploys the invite-email Worker, the web app's
-Worker, `langquest-next-dashboard`, which serves the app's web export, the
-reports API and every recording and guide file the app moves (decisions.md
-43, 58, 69), and the staff admin page, `langquest-next-admin`
-(`docs/admin.md`, decisions.md 143): merging to `main` deploys the
-production Workers, and merging to `develop` deploys their `-preview`
-copies (decisions.md 50, `docs/environments.md`); the admin page has
-none. There is no GitHub Actions workflow and no API token in GitHub. Cloudflare generates the build token. Builds have no secrets at
+Cloudflare Workers Builds deploys the invite-email Worker and the app's
+Worker, `langquest-next`, which serves the app's web export, the reports
+API, every recording and guide file the app moves, the access-token API,
+and runs the server's jobs in containers (decisions.md 43, 58, 69, 70,
+141). Until 2026-10-20 it was `langquest-next-dashboard`, from when it
+served only the reports dashboard (decision 144; "Renaming the app's
+Worker" below says how it moved). Workers Builds also deploys the staff
+admin page, `langquest-next-admin` (`docs/admin.md`, decisions.md 146).
+Merging to `main` deploys the production Workers, and merging to
+`develop` deploys their `-preview` copies (decisions.md 50,
+`docs/environments.md`); the admin page has none. There is no GitHub Actions workflow and no API token
+in GitHub. Cloudflare generates the build token. Builds have no secrets at
 all: a deploy carries code and public `vars`, and the Worker keeps the
 secrets `npm run secrets` set on it (decisions.md 51).
 
-| | Invite email | Dashboard | Invite email preview | Dashboard preview | Admin |
+| | Invite email | App | Invite email preview | App preview | Admin |
 | --- | --- | --- | --- | --- | --- |
-| Worker name | `langquest-next-invite-email` | `langquest-next-dashboard` | `langquest-next-invite-email-preview` | `langquest-next-dashboard-preview` | `langquest-next-admin` |
+| Worker name | `langquest-next-invite-email` | `langquest-next` | `langquest-next-invite-email-preview` | `langquest-next-preview` | `langquest-next-admin` |
 | Root directory | repository root | repository root | repository root | repository root | repository root |
 | Production branch | `main` | `main` | `develop` | `develop` | `main` |
 | Non-production branch builds | off | off | off | off | off |
 | Build command | | | | | |
 | Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` | `npm run admin:deploy` |
 | Build variables and secrets | none | none | none | none | none |
-| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as dashboard | `apps/admin/*`, `scripts/diagSignals.ts`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` |
+| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as app | `apps/admin/*`, `scripts/diagSignals.ts`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` |
 
-The dashboard's include paths cover `server/*` and `scripts/build-jobs.mjs`
+The app Worker's include paths cover `server/*` and `scripts/build-jobs.mjs`
 because the job image (The job runner, below) is built from them: without
 them a change to the pass alone would not rebuild the image. Set on
 2026-10-16 with decision 141; check it in the Cloudflare dashboard if a
@@ -50,7 +54,7 @@ The preview Workers are the `env.preview` section of each wrangler file
 repeated there). `npm run secrets -- preview` creates each one if it does not
 exist yet, so its first deploy finds its secrets. If Workers Builds refuses
 a deploy because the wrangler file's top-level `name` is not the connected
-Worker's, add `"name": "langquest-next-dashboard-preview"` (or the invite-email
+Worker's, add `"name": "langquest-next-preview"` (or the invite-email
 one) to `env.preview`; it is the name `--env=preview` already deploys.
 
 The token Cloudflare creates has Workers Scripts edit but no email
@@ -60,12 +64,12 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 | Worker | Public `vars` (wrangler file) | Secrets (`npm run secrets`) |
 | --- | --- | --- |
 | invite email | `INVITE_FROM` | `INVITE_RELAY_SECRET` |
-| dashboard | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
+| app | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
 | admin | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, which account, projects, team and app each section reads | `DIAG_DATABASE_URL`; optional `ADMIN_PROFILE_IDS` and the provider tokens and keys (`ADMIN_*`) |
 
 ## The job runner (containers)
 
-The dashboard Worker also runs the server jobs too big for an Edge
+The app's Worker also runs the server jobs too big for an Edge
 Function (`docs/server-jobs.md`, decisions.md 141): the projection pass
 for every language (`server/projections.ts`) and the v2 import
 (`server/v2.ts`). `apps/web/jobs/Dockerfile` is the image: Node 24 and one
@@ -116,7 +120,7 @@ job runner itself.
 
 ## Recordings and guide media (R2)
 
-The dashboard Worker binds one private R2 bucket as `BLOBS`
+The app's Worker binds one private R2 bucket as `BLOBS`
 (`apps/web/wrangler.jsonc`, decisions.md 69): `langquest-next-blobs` for
 production, `langquest-next-blobs-preview` for preview, both with the
 location hint Eastern North America (`enam`), beside the Supabase project.
@@ -136,7 +140,7 @@ The Supabase Storage bucket that held the files before is copied once with
 `npm run blobs:copy -- --remove`.
 
 A deploy fails while a secret in `secrets.required` is missing on the
-Worker; run `npm run secrets -- <environment>`. The dashboard page reads
+Worker; run `npm run secrets -- <environment>`. The web app reads
 `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` from the
 plain `apps/mobile/.env.<environment>` at build time.
 
@@ -173,3 +177,55 @@ this is done through the repo's Supabase config and the CLI
 then the repo's way of applying Supabase config), never the dashboard. Switching
 rotates the keys, so existing sessions get new tokens on their next refresh;
 rotate the legacy secret out only after clients have refreshed.
+
+## Renaming the app's Worker
+
+A Worker's name is its identity: a deploy under a new name makes a new
+Worker, with its own empty Durable Objects, its own secrets, its own
+container application and its own Workers Builds connection. The app's
+Worker moved from `langquest-next-dashboard` to `langquest-next` this way
+on 2026-10-20 (decision 144). What starts over: each organization's object
+(its report cache rebuilds on first use; stored report inputs make that
+quick) and its webhook state, the change feed's numbering, each webhook's
+position, the outbox and the delivery history (decision 101). The webhooks
+themselves are rows in Supabase and carry on. The R2 bucket, the domain,
+the Vault values and the database are the same.
+
+The cutover, in order:
+
+1. The change that stops calling it the dashboard in code and docs
+   (decision 144) merges first, so the rename's pull request changes only
+   the name.
+2. Tell whoever runs the change feed's consumers to start over after the
+   cutover: drop the saved cursor and list the passages again. On
+   2026-10-20 that was EveryBible's prototype site, the only webhook.
+3. From the branch that renames, put the secrets on the new Worker; the
+   script creates the Worker when it does not exist yet:
+   `npm run secrets -- production`, then
+   `npm run secrets -- production --check`.
+4. In the Cloudflare console, connect Workers Builds to `langquest-next`
+   with the settings in the table above (production branch `main`,
+   deploy command `npm run web:deploy`, the same include paths,
+   non-production branch builds off), and disconnect it from the old
+   Worker. Until the merge, a build of `main` for the new Worker refuses,
+   because `main`'s config still names the old one.
+5. Merge. Workers Builds deploys `langquest-next`; a deploy that is not
+   interactive moves the custom domain to it in the same call, so
+   `next.langquest.org` never points nowhere. The first deploy also creates
+   the container application `langquest-next-jobrunner`.
+6. Check the new Worker answers and runs its jobs:
+   `curl -s -o /dev/null -w '%{http_code}\n' https://next.langquest.org/api/v1`
+   (200), `npx wrangler deployments list --name langquest-next`,
+   `npx wrangler containers list` (the new application), then within ten
+   minutes `npm run diag -- --hosted jobs`: `job_starts` and `projection`
+   from the new Worker, `v2_import` at the next quarter hour.
+7. Stop the old Worker, which still ticks its crons and would start a
+   second pass beside the new one: delete its container application
+   (`npx wrangler containers list`, then
+   `npx wrangler containers delete <its id>`), then the Worker
+   (`npx wrangler delete langquest-next-dashboard`). Both are permanent:
+   its logs, its objects and their webhook history go with it.
+
+Until step 7, going back is a redeploy of the old name from the commit
+before the rename (`npm run web:deploy`, which asks before moving the
+domain back). After it, fix forward.

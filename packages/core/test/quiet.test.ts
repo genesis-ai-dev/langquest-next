@@ -1,7 +1,8 @@
 import fc from 'fast-check';
 import type { AnyEvent } from '../src/events';
 import { buildIndexes } from '../src/indexes';
-import { languageProgress, unitTitle, updatesFor } from '../src/passage';
+import { unitTitle, updatesFor } from '../src/passage';
+import { languageProgress } from '../src/passageLines';
 import { eventsThatCannotChangeInbox, eventsThatCannotChangeReport, onlyEventsThatLeaveTheReport, onlyQuietEvents } from '../src/quiet';
 import { reportInputs } from '../src/reports';
 import { foldLanguage } from '../src/reducer';

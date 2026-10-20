@@ -136,7 +136,7 @@ describe('TransferWorker (PLAN.md section 14)', () => {
     await h.advance(UPLOAD_DEFAULTS.debounceMs);
     expect(sent).toEqual([]);
     expect(counts[0]).toBe(3);
-    expect(w.pending()).toBe(3);
+    expect(await w.pending()).toBe(3);
 
     online = true;
     pulling = true;
@@ -350,11 +350,11 @@ describe('TransferWorker: what diagnostics may wait for', () => {
       isPulling: () => false,
       ...h
     });
-    expect(w.untried()).toBe(2);
+    expect(await w.untried()).toBe(2);
     expect(w.oldestWaitingMs()).toBeNull();
     w.start();
     await h.advance(UPLOAD_DEFAULTS.debounceMs);
-    expect(w.untried()).toBe(0);
+    expect(await w.untried()).toBe(0);
     // First seen by the first pass, after the debounce.
     expect(w.waitingSince('bad')).toBe(UPLOAD_DEFAULTS.debounceMs);
     await h.advance(10 * 60_000);
@@ -362,10 +362,10 @@ describe('TransferWorker: what diagnostics may wait for', () => {
 
     // A new file has not had its turn; once 'good' is confirmed it no longer waits.
     work = ['bad', 'new'];
-    expect(w.untried()).toBe(1);
+    expect(await w.untried()).toBe(1);
     w.nudge();
     await h.advance(UPLOAD_DEFAULTS.debounceMs);
-    expect(w.untried()).toBe(0);
+    expect(await w.untried()).toBe(0);
     expect(w.waitingSince('good')).toBeUndefined();
     w.stop();
   });

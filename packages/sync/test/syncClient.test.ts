@@ -1371,10 +1371,11 @@ describe('SyncClient single writer', () => {
     await a.client.load();
     await a.client.append('v1.UnitAdded', unit(1));
     const composed = await a.client.append('v1.TakeComposed', { takeId: 'removed', unitId: 'u1', cardHashes: ['h'], parentTakeId: null });
-    const load = a.client.load.bind(a.client);
-    a.client.load = async () => { throw new Error('process stopped before refold'); };
+    const inner = a.client as unknown as { refold: () => Promise<unknown> };
+    const refold = inner.refold.bind(a.client);
+    inner.refold = async () => { throw new Error('process stopped before refold'); };
     await expect(a.client.append('v1.Redacted', { eventId: composed.id })).rejects.toThrow();
-    a.client.load = load;
+    inner.refold = refold;
     const restarted = new SyncClient({ orgId: 'org1', streamId: 'p1', actorId: 'lead', deviceId: 'dA', store: a.store, transport: server.transportFor() });
     await restarted.load();
     expect(restarted.getState().takes['removed']).toBeUndefined();

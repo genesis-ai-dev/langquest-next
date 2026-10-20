@@ -12,7 +12,7 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, Redo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, FileText, Eye, EyeOff, Menu
+  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb
 } from 'lucide-react-native';
 import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -23,7 +23,7 @@ import { Text } from './text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { KindState } from '@langquest-next/core';
 import type { HelpSpot } from '../helpMode/helpContext';
-import { useHelpInfo, useHelpMode, useHelpSpot } from '../helpMode/useHelpMode';
+import { useHelpInfo, useHelpMode, useHelpOn, useHelpSpot } from '../helpMode/useHelpMode';
 import { isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpBadge, HelpClip, HelpHost, HelpLit, HelpRow } from '../helpMode/helpBadge';
@@ -52,7 +52,9 @@ const ICONS = {
   arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, handle: Menu, sliders: SlidersHorizontal, done: CircleCheck,
   warning: TriangleAlert, join: ChevronsUpDown, file: FileText,
   // Show here / Hide here on a passage's helps (demo ADR-042).
-  eye: Eye, eyeOff: EyeOff
+  eye: Eye, eyeOff: EyeOff,
+  // Feedback from help mode: a problem, an idea (decisions.md 145).
+  bug: Bug, idea: Lightbulb
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 
@@ -100,8 +102,11 @@ export function Screen(props: {
   const reportFooter = useContext(FooterHeightContext);
   const hasFooter = !!props.footer;
   useEffect(() => { if (reportFooter && !hasFooter) reportFooter(0); }, [reportFooter, hasFooter]);
+  // In help mode, Send feedback waits in a strip of its own at the foot of the screen
+  // (decisions.md 145): the screen, its footer too, ends above it, so it covers nothing.
+  const helpOn = useHelpOn();
   return (
-    <KeyboardSafe style={styles.screen}>
+    <KeyboardSafe style={[styles.screen, helpOn && { paddingBottom: HELP_FOOT_ROOM }]}>
       {props.header}
       <HelpClip style={{ flex: 1 }}>
         {props.fixed ? (
@@ -254,6 +259,9 @@ export function Header(props: {
   if (wide) return <View style={styles.headerBar}><View style={[styles.headerRow, styles.column, props.columnWidth ? { maxWidth: props.columnWidth } : null]}>{content}</View></View>;
   return <View style={centred ? styles.headerCentred : styles.headerHome}>{content}</View>;
 }
+
+/** The strip a screen leaves at its foot while help is on, for Send feedback (52 pt) and a little air (feedback/FeedbackSheet.tsx). */
+export const HELP_FOOT_ROOM = 52 + space.sm * 2;
 
 /** Wider than one round button and its gap: two buttons, or a mark and a button. */
 const WIDE_ACTION = 64;

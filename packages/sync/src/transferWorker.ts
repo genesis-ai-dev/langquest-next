@@ -19,7 +19,8 @@ import type { BlobRef } from '@langquest-next/core';
  * finishing together cannot spike a weak phone.
  */
 interface TransferWorkerOptions {
-  work: () => BlobRef[];
+  /** The work list; a language that keeps recordings on disk works it out from there (decisions.md 143). */
+  work: () => BlobRef[] | Promise<BlobRef[]>;
   transfer: (ref: BlobRef) => Promise<void>;
   isOnline: () => boolean;
   isPulling: () => boolean;
@@ -97,8 +98,8 @@ export class TransferWorker {
   }
 
   /** Work outstanding right now, regardless of backoff. Honest even offline. */
-  pending(): number {
-    return this.o.work().length;
+  async pending(): Promise<number> {
+    return (await this.o.work()).length;
   }
 
   /**
@@ -106,8 +107,8 @@ export class TransferWorker {
    * that failed, or went and awaits the server's confirmation, has had its
    * turn; diagnostics wait only for files that have not (languageSession.ts).
    */
-  untried(): number {
-    return this.o.work().filter((r) => !this.attempts.has(r.hash)).length;
+  async untried(): Promise<number> {
+    return (await this.o.work()).filter((r) => !this.attempts.has(r.hash)).length;
   }
 
   /** When a file still waiting was first seen waiting by a pass; undefined when it is not waiting. */
@@ -166,7 +167,7 @@ export class TransferWorker {
   }
 
   private async pass(): Promise<void> {
-    const list = this.o.work();
+    const list = await this.o.work();
     // Drop attempt records for hashes that got confirmed or disappeared.
     const live = new Set(list.map((r) => r.hash));
     for (const h of [...this.attempts.keys()]) if (!live.has(h)) this.attempts.delete(h);
@@ -222,7 +223,7 @@ export class TransferWorker {
     // A pull or a recording that began mid-batch left files waiting: the same.
     if (queue.length > 0 && !this.stopped && (this.o.isPulling() || this.o.isDeferred?.())) this.requestPass(Math.max(this.o.debounceMs, HELD_RETRY_MS));
     // Re-derive at pass end so the published count is exact.
-    this.publish(this.o.work().length);
+    this.publish((await this.o.work()).length);
   }
 
   private publish(pending: number): void {

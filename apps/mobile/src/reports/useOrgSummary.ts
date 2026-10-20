@@ -16,7 +16,7 @@ const keyOf = (actorId: string, orgId: string) => `report-summary:${actorId}:${o
 
 /**
  * Every visible language's progress in the organization, from the
- * dashboard's server, for an overview that also lists languages this phone
+ * app's Worker, for an overview that also lists languages this phone
  * has not opened. Shows the last answer at once (kept on the device), then
  * asks again with its ETag. Offline or refused, it keeps what it had: these
  * are figures to glance at, never something to act on.

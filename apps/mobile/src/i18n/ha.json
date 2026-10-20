@@ -3135,7 +3135,8 @@
         "report": "Ƙara",
         "block": "Toshewa",
         "unblock": "Cire toshewa",
-        "onboarding": "Shigar da sabon memba"
+        "onboarding": "Shigar da sabon memba",
+        "feedback": "Ra'ayi"
       },
       "failedSub": "{{reason}} · Taɓa don sake gwadawa",
       "waiting": "Yana jiran a aika",
@@ -5298,7 +5299,7 @@
       "couldNotRead": "An kasa karanta rahotannin.",
       "signIn": "Zamanku ya ƙare. Ku sake shiga.",
       "notMember": "Ku ba memba ba ne na wannan ƙungiya.",
-      "busy": "Allon bayanai ya kasa karanta wannan ƙungiya yanzu. Ku sake gwadawa.",
+      "busy": "Sabar ta kasa karanta wannan ƙungiya yanzu. Ku sake gwadawa.",
       "serverAnswered": "Sabar ta amsa {{status}}."
     },
     "countries": {
@@ -6329,9 +6330,11 @@
       "bibleBrainHelp": "Ku nemi Littattafai Masu Tsarki a Bible Brain bisa harshe.",
       "bibleHelp": "Yana nuna abin da yake da shi kafin ku ƙara shi.",
       "fromLangQuestHelp": "Yana nuna Littattafai Masu Tsarki da LangQuest yake da su a shirye don a bi.",
-      "languageHelp": "Yana nuna Littattafai Masu Tsarkinsa daga Bible Brain. Lambar tana ƙidaya su.",
       "readyHelp": "Yana ƙara shi a ɗakin karatunku kuma yana ba da shawararsa a nan.",
-      "searchHelp": "Ku rubuta sunan harshe ko lambarsa don nemo Littattafai Masu Tsarkinsa."
+      "searchHelp": "Ku rubuta sunan harshe ko lambarsa don nemo Littattafai Masu Tsarkinsa.",
+      "listed": "Harsunan da ke da Littafi Mai Tsarki a Bible Brain kaɗai ake nunawa.",
+      "noMatch": "Babu harshe mai wannan suna da ke da Littafi Mai Tsarki a Bible Brain.",
+      "unreachable": "Neman harshe yana buƙatar haɗin intanet a karon farko."
     },
     "source": {
       "title": "Littafi Mai Tsarki",
@@ -6777,10 +6780,6 @@
       "notSetUp": "Ba a saita Bible Brain a wannan na'ura ba",
       "notSetUpSub": "Ɗakin karatun ƙungiyarku yana aiki har yanzu. Ku roƙi wanda ke gudanar da LangQuest don tawagarku ya haɗa sabar.",
       "searchPlaceholder": "Nemi harshe",
-      "noLanguages": "Ba a sami harsuna ba",
-      "noLanguagesSub": "Ku gwada sunan da Turanci, ko lambarsa mai haruffa uku.",
-      "languageBibles_one": "{{code}} · Littafi Mai Tsarki {{count, number}}",
-      "languageBibles_other": "{{code}} · Littattafai Masu Tsarki {{count, number}}",
       "biblesIn": "Littattafai Masu Tsarki a {{language}}",
       "noBibles": "Babu Littafi Mai Tsarki a wannan harshe a Bible Brain.",
       "myBible": "Littafi Mai Tsarki nawa",
@@ -6805,7 +6804,6 @@
       "bibleHelp": "Yana buɗe shi don karantawa da jin babi, kafin ku ƙara shi.",
       "bookHelp": "Yana nuna babi na wannan littafi.",
       "chapterHelp": "Yana nuna babi na {{n, number}} don karantawa da ji.",
-      "languageHelp": "Yana nuna Littattafai Masu Tsarkinsa a ƙasa.",
       "nextChapterHelp": "Yana nunawa da kunna babin da ke bayan wannan.",
       "previousChapterHelp": "Yana nunawa da kunna babin da ke gaban wannan.",
       "removeHelp": "Yana cire shi daga Littattafai Masu Tsarki naku a wannan na'ura. Kuna iya sake ƙara shi a nan.",
@@ -6824,7 +6822,9 @@
     "chip": "Littafi Mai Tsarki da jagorori cikin {{language}}",
     "chipHelp": "Harshen Littafi Mai Tsarki da jagororin nazarinsu. Taɓa don canja shi.",
     "change": "Canja",
-    "rowHelp": "Yana ƙara wannan harshe ga Littattafai Masu Tsarki da jagororin ƙungiyar, ko ya cire shi. Layin yana faɗin abin da ke ciki."
+    "rowHelp": "Yana ƙara wannan harshe ga Littattafai Masu Tsarki da jagororin ƙungiyar, ko ya cire shi. Layin yana faɗin abin da ke ciki.",
+    "listed": "Harsunan da ke da Littafi Mai Tsarki ko jagororin nazari kaɗai ake nunawa.",
+    "noMatch": "Babu harshe mai wannan suna da ke da Littafi Mai Tsarki ko jagororin nazari tukuna."
   },
   "checks": {
     "title": "Dubawa",
@@ -7155,5 +7155,36 @@
     "help": "Ana ajiyewa yayin da kuke aiki: da'ira mai juyawa yayin da ake ajiyewa, sannan alamar ✓. Ba sai kun ajiye ba.",
     "failed": "Ba a ajiye ba",
     "saved": "An ajiye"
+  },
+  "feedback": {
+    "open": "Aika ra'ayi",
+    "title": "Ra'ayi",
+    "send": "Aika",
+    "kind": {
+      "bug": "Akwai matsala",
+      "idea": "Shawara"
+    },
+    "placeholder": {
+      "bug": "Me ya faru?",
+      "idea": "Me zai taimaka?"
+    },
+    "addScreenshot": "Ƙara wannan hoton allo",
+    "addNameAndEmail": "Ƙara sunana da imel",
+    "addNameAndSignIn": "Ƙara sunana da sunan shiga",
+    "addName": "Ƙara sunana",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "Matsala: wani abu ya karye, ya tsaya ko yana nuna ba daidai ba.",
+      "idea": "Shawara: wani abu da zai sa LangQuest ya fi muku kyau.",
+      "body": "Faɗa da kalmominku, da kowane harshe.",
+      "screenshot": "Yana aika hoton allon da kuke kai. A kashe yake har sai kun kunna shi.",
+      "profile": "Yana aika sunanku da yadda kuke shiga, don ƙungiyar LangQuest ta san wanda ya rubuta. A kashe yake har sai kun kunna shi."
+    },
+    "toast": {
+      "sent": "An aika. Na gode!",
+      "saved": "An ajiye. Za a aika idan kuna da intanet.",
+      "savedUntilSignIn": "An ajiye. Za a aika bayan kun shiga.",
+      "voiceTooLong": "Ya yi tsawo: saƙon murya zai iya kai har minti 2."
+    }
   }
 }

@@ -248,6 +248,7 @@ export function InboxHome(ctx: Ctx) {
                 <Row icon={a.status === 'failed' ? 'flag' : 'cloud'} iconColor={a.status === 'failed' ? TINT.redText : C.primary}
                   label={a.kind === 'join_request' ? t('account.inbox.actions.joinRequest') : a.kind === 'profile' ? t('account.inbox.actions.profile')
                     : a.kind === 'report' ? t('account.inbox.actions.report')
+                    : a.kind === 'feedback' ? t('account.inbox.actions.feedback')
                     : a.kind === 'block' ? (a.payload.blocked ? t('account.inbox.actions.block') : t('account.inbox.actions.unblock')) : t('account.inbox.actions.onboarding')}
                   sub={a.status === 'failed' ? t('account.inbox.failedSub', { reason: outboxErrorText(a.error) }) : t('account.inbox.waiting')}
                   badge={a.status === 'failed' ? t('account.inbox.badgeNotSent') : t('account.inbox.badgeSaved')} last={i === all.length - 1}
@@ -694,7 +695,7 @@ export function SignOutConfirm(ctx: Ctx) {
     try {
       if (handsOver) {
         const { orgId, languageId } = ctx.language;
-        await signOutHandingOver(ctx.session.actorId, ctx.language.blobs.unsent().map((ref) => ({ orgId, languageId, ref })));
+        await signOutHandingOver(ctx.session.actorId, (await ctx.language.blobs.unsent()).map((ref) => ({ orgId, languageId, ref })));
         return;
       }
       if (HANDS_OVER) {

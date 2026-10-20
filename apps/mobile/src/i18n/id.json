@@ -3044,7 +3044,8 @@
         "report": "Laporan",
         "block": "Blokir",
         "unblock": "Buka blokir",
-        "onboarding": "Pengenalan"
+        "onboarding": "Pengenalan",
+        "feedback": "Masukan"
       },
       "failedSub": "{{reason}} · Ketuk untuk mencoba lagi",
       "waiting": "Menunggu dikirim",
@@ -5103,7 +5104,7 @@
       "couldNotRead": "Laporan tidak dapat dibaca.",
       "signIn": "Sesi Anda sudah berakhir. Masuk lagi.",
       "notMember": "Anda bukan anggota organisasi ini.",
-      "busy": "Dasbor tidak dapat membaca organisasi ini barusan. Coba lagi.",
+      "busy": "Server tidak dapat membaca organisasi ini barusan. Coba lagi.",
       "serverAnswered": "Server menjawab {{status}}."
     },
     "countries": {
@@ -6072,9 +6073,11 @@
       "bibleBrainHelp": "Cari Alkitab di Bible Brain menurut bahasa.",
       "bibleHelp": "Menampilkan isinya sebelum Anda menambahkannya.",
       "fromLangQuestHelp": "Menampilkan Alkitab yang sudah disiapkan LangQuest untuk diikuti.",
-      "languageHelp": "Menampilkan Alkitab dalam bahasa ini dari Bible Brain. Angkanya menunjukkan jumlahnya.",
       "readyHelp": "Menambahkannya ke perpustakaan Anda dan merekomendasikannya di sini.",
-      "searchHelp": "Ketik nama atau kode bahasa untuk menemukan Alkitabnya."
+      "searchHelp": "Ketik nama atau kode bahasa untuk menemukan Alkitabnya.",
+      "listed": "Hanya bahasa yang punya Alkitab di Bible Brain yang ditampilkan.",
+      "noMatch": "Tidak ada bahasa dengan nama itu yang punya Alkitab di Bible Brain.",
+      "unreachable": "Mencari bahasa butuh koneksi untuk pertama kalinya."
     },
     "source": {
       "title": "Alkitab",
@@ -6494,9 +6497,6 @@
       "notSetUp": "Bible Brain belum diatur di perangkat ini",
       "notSetUpSub": "Perpustakaan organisasi Anda tetap berfungsi. Minta orang yang mengelola LangQuest untuk tim Anda menyambungkan server.",
       "searchPlaceholder": "Cari bahasa",
-      "noLanguages": "Tidak ada bahasa yang ditemukan",
-      "noLanguagesSub": "Coba namanya dalam bahasa Inggris, atau kode tiga hurufnya.",
-      "languageBibles_other": "{{code}} · {{count, number}} Alkitab",
       "biblesIn": "Alkitab dalam {{language}}",
       "noBibles": "Tidak ada Alkitab dalam bahasa ini di Bible Brain.",
       "myBible": "Alkitab Saya",
@@ -6521,7 +6521,6 @@
       "bibleHelp": "Membukanya untuk membaca dan mendengar satu pasal, sebelum Anda menambahkannya.",
       "bookHelp": "Menampilkan satu pasal dari kitab ini.",
       "chapterHelp": "Menampilkan pasal {{n, number}} untuk dibaca dan didengar.",
-      "languageHelp": "Menampilkan Alkitabnya di bawah.",
       "nextChapterHelp": "Menampilkan dan memutar pasal sesudah ini.",
       "previousChapterHelp": "Menampilkan dan memutar pasal sebelum ini.",
       "removeHelp": "Mengeluarkannya dari Alkitab Anda di perangkat ini. Anda bisa menambahkannya lagi di sini.",
@@ -6537,7 +6536,9 @@
     "chip": "Alkitab dan panduan dalam bahasa {{language}}",
     "chipHelp": "Bahasa Alkitab dan panduan studi mereka. Ketuk untuk mengubahnya.",
     "change": "Ubah",
-    "rowHelp": "Menambahkan bahasa ini untuk Alkitab dan panduan tim, atau menghapusnya. Barisnya menyebut isinya."
+    "rowHelp": "Menambahkan bahasa ini untuk Alkitab dan panduan tim, atau menghapusnya. Barisnya menyebut isinya.",
+    "listed": "Hanya bahasa yang punya Alkitab atau panduan belajar yang ditampilkan.",
+    "noMatch": "Belum ada bahasa dengan nama itu yang punya Alkitab atau panduan belajar."
   },
   "checks": {
     "title": "Pemeriksaan",
@@ -6850,5 +6851,36 @@
     "help": "Tersimpan selagi Anda bekerja: lingkaran berputar saat sedang disimpan, lalu centang. Tidak perlu menyimpan apa pun.",
     "failed": "Tidak tersimpan",
     "saved": "Tersimpan"
+  },
+  "feedback": {
+    "open": "Kirim masukan",
+    "title": "Masukan",
+    "send": "Kirim",
+    "kind": {
+      "bug": "Ada yang salah",
+      "idea": "Sebuah ide"
+    },
+    "placeholder": {
+      "bug": "Apa yang terjadi?",
+      "idea": "Apa yang akan membantu?"
+    },
+    "addScreenshot": "Tambahkan tangkapan layar ini",
+    "addNameAndEmail": "Tambahkan nama dan email saya",
+    "addNameAndSignIn": "Tambahkan nama dan nama pengguna saya",
+    "addName": "Tambahkan nama saya",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "Masalah: ada yang rusak, macet, atau terlihat salah.",
+      "idea": "Ide: sesuatu yang membuat LangQuest lebih baik untuk Anda.",
+      "body": "Katakan dengan kata-kata Anda sendiri, dalam bahasa apa pun.",
+      "screenshot": "Mengirim gambar layar tempat Anda berada. Mati sampai Anda menyalakannya.",
+      "profile": "Mengirim nama Anda dan cara Anda masuk, agar tim LangQuest tahu siapa yang menulis. Mati sampai Anda menyalakannya."
+    },
+    "toast": {
+      "sent": "Terkirim. Terima kasih!",
+      "saved": "Tersimpan. Dikirim saat Anda terhubung.",
+      "savedUntilSignIn": "Tersimpan. Dikirim setelah Anda masuk.",
+      "voiceTooLong": "Terlalu panjang: catatan suara paling lama 2 menit."
+    }
   }
 }

@@ -20,6 +20,8 @@ export function useSourceOffline(language: LanguageHandle, org: OrgHandle, sessi
   const revision = language.revision;
   const libraryKey = org.state ? Object.keys(org.state.recommendations ?? {}).length + ':' + Object.keys(org.state.library ?? {}).length : '';
   const kept = [...language.blobs.keptUnits].sort().join(',');
+  // The default scope comes worked out from the phone's table (decisions.md 143), so a pass runs when it changes.
+  const scope = [...language.blobs.scope].sort().join(',');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -34,5 +36,5 @@ export function useSourceOffline(language: LanguageHandle, org: OrgHandle, sessi
     }, 4000);
     return () => clearTimeout(timer);
     // Revision covers the record; the key covers recommendations and items.
-  }, [revision, libraryKey, kept, language.online]);
+  }, [revision, libraryKey, kept, scope, language.online]);
 }

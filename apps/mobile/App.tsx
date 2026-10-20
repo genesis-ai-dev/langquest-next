@@ -25,6 +25,7 @@ import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail, FooterHeightContext } from './src/ui/useLayout';
 import { EmptyState, GhostBtn, ToastView, type ToastSpec } from './src/ui/kit';
+import { FeedbackHost } from './src/feedback/FeedbackSheet';
 import { txt } from './src/ui/textStyles';
 import { installGlobalHandlers, reportError } from './src/diagnostics/report';
 import { t } from './src/i18n';
@@ -72,6 +73,8 @@ import { useNavActions } from './src/shell/useNavActions';
 import { useOnboarding } from './src/shell/useOnboarding';
 import { useOpenOrganization, type Arrival } from './src/shell/useOpenOrganization';
 import { useRecentPassages } from './src/shell/useRecentPassages';
+import { usePassagesInMemory } from './src/shell/usePassagesInMemory';
+import { usePassageReady } from './src/shell/usePassageReady';
 import { useRouting } from './src/shell/useRouting';
 import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
@@ -169,8 +172,11 @@ function hostFor(id: ScreenId) {
     const report = useContext(FooterReportContext);
     const key = props.route.key;
     const onFooter = useMemo(() => (report ? (height: number) => report(key, height) : null), [report, key]);
+    const ready = usePassageReady(ctx, props.route.params);
     if (!ctx) return null;
     if (pane && props.route.key === pane.key) return <PaneEmpty spec={pane.empty} />;
+    // A passage's screen waits the moment it takes to bring the passage in from the phone's disk.
+    if (!ready) return <View style={styles.root} accessibilityLabel={t('common.loading')} />;
     // One boundary per screen (error-tracking): a crash in a study guide
     // never takes the recorder, or the rest of the app, down with it.
     return (
@@ -385,6 +391,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const nav = useNav({ screen: 'sign_in' });
   const { languageId, setLanguage, languages } = useWorkingLanguage(org.state, props.actorId, props.orgId, nav.current.params?.['languageId']);
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
+  usePassagesInMemory(language, nav.current.params?.['unitId']);
   useAccountSync(props.actorId);
   useProfileName(props.actorId, props.email);
   const blocks = useBlocks(props.actorId);
@@ -414,7 +421,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
     return people[id] ?? personLook(id).name;
   }, [people, props.actorId]);
-  const inbox = useInbox({ state: language.state, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
+  const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 
   const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
   useRouting({
@@ -571,6 +578,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
               </Stack.Navigator>
             </NavigationContainer>
             {toastHost(toastAbove)}
+            {/* Feedback from help mode, in the strip a screen leaves at its foot (decisions.md 145). */}
+            <FeedbackHost ctx={ctx} screen={screen} signedIn={props.signedIn} />
             </View>
           </CtxContext.Provider>
           </FooterReportContext.Provider>
@@ -581,7 +590,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       </PeopleContext.Provider>
       </SyncStatusContext.Provider>
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
-      <LostFilesAlert state={language.state} />
+      <LostFilesAlert state={language.state} whatWere={language.blobs.lost} />
       {canSwitchPersona ? (
         <DevMenu open={devOpen} onClose={() => setDevOpen(false)} language={language} org={org} currentEmail={props.email} isOwner={session.role === 'owner'} isDev={IS_DEV} jump={(s) => nav.reset({ screen: s })} />
       ) : null}

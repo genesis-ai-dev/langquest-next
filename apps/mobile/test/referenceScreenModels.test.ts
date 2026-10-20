@@ -5,7 +5,9 @@ import { foldLanguage, foldOrg, type AnyEvent, type LibraryDoc, type LibraryItem
 import { t } from '../src/i18n';
 import type { SharedItem } from '../src/library/model';
 import type { BibleLanguage, BibleSummary } from '../src/sources/bibleBrain';
-import { bibleBrainDescription, bibleBrainIds, bibleLine, list, providerName, readySources, settledLanguage, splitBibles } from '../src/reference/biblesModel';
+import { bibleBrainDescription, bibleBrainIds, bibleLine, list, offeredBibleLanguages, providerName, readySources, splitBibles } from '../src/reference/biblesModel';
+import { offeredHits, withoutEmpty } from '../src/reference/offeredLanguagesModel';
+import type { LanguoidHit } from '../src/org/languoidModel';
 import { activeFilterCount, filterGuides, filterOptions, guideItems, guideLine, guideRows, kindFilterLabel, KIND_FILTERS } from '../src/reference/guidesModel';
 import type { Reach } from '../src/reference/coverage';
 import {
@@ -60,12 +62,41 @@ describe('the Bibles screen', () => {
     expect(readySources([shared('a'), shared('b'), shared('c'), shared('d')], docs, followed).map((s) => s.item_id)).toEqual(['a', 'd']);
   });
 
-  it('settles a search on the chosen language while it is still found, else the typed code, else the first', () => {
-    const found = [{ code: 'eng' }, { code: 'din' }] as BibleLanguage[];
-    expect(settledLanguage(found, 'din', 'eng')).toBe('eng');
-    expect(settledLanguage(found, 'DIN', 'zzz')).toBe('din');
-    expect(settledLanguage(found, 'x', null)).toBe('eng');
-    expect(settledLanguage([], 'x', null)).toBeNull();
+  it('offers Bible Brain\u2019s languages by the app\u2019s name, found by Bible Brain\u2019s and their own too', () => {
+    const offered = offeredBibleLanguages([
+      { code: 'eng', name: 'English: USA', autonym: 'English', bibles: 50 },
+      { code: 'srn', name: 'Sranan Tongo', autonym: 'Sranantongo', bibles: 3 }
+    ] as BibleLanguage[]);
+    expect(offered[0]).toEqual({ code: 'eng', names: ['English', 'English: USA'] });
+    expect(offered[1]!.names).toContain('Sranan Tongo');
+    expect(offered[1]!.names).toContain('Sranantongo');
+  });
+
+  it('lists only offered languages as they are typed: the world list\u2019s matches first, then their own names, a full code first', () => {
+    const offered = [
+      { code: 'eng', names: ['English', 'English: USA'] },
+      { code: 'swh', names: ['Swahili', 'Kiswahili'] },
+      { code: 'fra', names: ['French', 'Français'] }
+    ];
+    const world = (code: string, name: string, alsoCalled: string | null = null): LanguoidHit => ({ id: `g-${code}`, name, dialect: false, parentName: null, alsoCalled, code });
+    // The world list finds Swahili written swa by an alias; it is offered as Bible Brain writes it.
+    expect(offeredHits(offered, [world('swa', 'Swahili', 'Kiswahili'), world('zul', 'Zulu')], 'kisw')).toEqual([{ ...world('swa', 'Swahili', 'Kiswahili'), code: 'swh' }]);
+    // Offline, the offered names alone: accents ignored, the matching name said when it is not the one shown.
+    expect(offeredHits(offered, [], 'franc').map((h) => [h.code, h.name, h.alsoCalled])).toEqual([['fra', 'French', 'Français']]);
+    expect(offeredHits(offered, [], 'ENG').map((h) => h.code)).toEqual(['eng']);
+    // Names that start with what is typed come before names that only contain it.
+    expect(offeredHits([{ code: 'aaa', names: ['Old English'] }, ...offered], [], 'engl').map((h) => h.code)).toEqual(['eng', 'aaa']);
+    expect(offeredHits(offered, [world('eng', 'English')], 'e')).toEqual([]);
+    expect(offeredHits(offered, [], 'zulu')).toEqual([]);
+    // A name is found where one of its words starts, not in the middle of a word.
+    const spanish = [{ code: 'spa', names: ['Spanish'] }, { code: 'miz', names: ['Mixteco, Coatzospan'] }, { code: 'ben', names: ['Bengali'] }];
+    expect(offeredHits(spanish, [], 'spa').map((h) => h.code)).toEqual(['spa']);
+    expect(offeredHits(spanish, [], 'coatz').map((h) => h.code)).toEqual(['miz']);
+    expect(offeredHits(spanish, [], 'eng')).toEqual([]);
+    // A language found to have nothing after all goes; with none left, nothing matched.
+    const search = { status: 'found' as const, hits: offeredHits(offered, [], 'en'), query: 'en', retry: () => undefined };
+    expect(withoutEmpty(search, (code) => code === 'eng')).toMatchObject({ status: 'none', hits: [] });
+    expect(withoutEmpty(search, () => false)).toBe(search);
   });
 
   it('describes a search result by text, audio and timings', () => {

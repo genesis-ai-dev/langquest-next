@@ -1,4 +1,4 @@
-import { REDUCER_VERSION } from '@langquest-next/core';
+import { emptyLanguageState, foldLanguage, languageLines, REDUCER_VERSION } from '@langquest-next/core';
 import { always, Fleet, FLEET_EPOCH, NETWORKS, offlineBetween, patchy, TIME, village, type Link } from '../src/testing';
 
 /**
@@ -94,5 +94,33 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
     expect(r.audio!.recorded).toBeGreaterThan(0);
     expect(r.audio!.onServer).toBe(r.audio!.recorded);
     expect(r.audio!.downloads).toBeGreaterThan(0);
+  });
+
+  it('phones that keep the language on disk end with the same language, and move the same audio', async () => {
+    // Why: a phone that keeps a big language on disk (decisions.md 143) folds
+    // what arrives for a passage it does not hold, and combines it with the
+    // stored copy at its next checkpoint. Across days offline, snapshots and
+    // reinstalls, it must still end where the server's log does, and still
+    // send every recording and fetch what its person needs.
+    const fleet = new Fleet({ seed: 11, keepOnDisk: 'half', checkpointEvery: 25, audio: { bytesPerSecond: 16_000 }, crew: { passages: 24, translators: 3, reviewers: 3, link: mixed } });
+    await fleet.start();
+    await fleet.runFor(3 * TIME.DAY);
+    const r = fleet.report(await fleet.settle(), 0);
+    expect(r.errors).toEqual([]);
+    expect(r.agreement).toMatchObject({ caughtUp: true, agree: true, disagree: [] });
+    expect(r.audio).toMatchObject({ lost: 0 });
+    expect(r.audio!.onServer).toBe(r.audio!.recorded);
+    const onDisk = fleet.devices.filter((d) => d.keepsOnDisk);
+    expect(onDisk.length).toBeGreaterThan(2);
+    // Their lists read the same as the server's log: every passage's line.
+    const server = foldLanguage(fleet.server.stream(fleet.orgId, fleet.streamId), emptyLanguageState());
+    const units = Object.keys(server.units);
+    const lines = (l: { get(u: string): unknown }) => JSON.parse(JSON.stringify(units.map((u) => l.get(u))));
+    for (const d of onDisk) {
+      await d.client.settleLines();
+      expect(lines(d.client.passageLines()), d.id).toEqual(lines(languageLines(server)));
+      // And memory holds none of the language's versions: they are on the phone's disk.
+      expect(Object.values(d.client.getState().takes).filter((t) => t.unitId).length, d.id).toBeLessThan(5);
+    }
   });
 });

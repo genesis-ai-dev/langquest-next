@@ -1,3 +1,4 @@
+import { languageLines } from '@langquest-next/core';
 import {
   commands, derivePassage, deriveKinds, emptyLanguageState, flowTemplate, foldLanguage, HlcClock, instantiateFlow,
   type AnyEvent, type EventPayloads, type EventType, type SourcedQuestion

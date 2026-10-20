@@ -1,5 +1,5 @@
 // What is kept on this phone, and how it is said (sync/offline.tsx).
-import { defaultOfflineScope, offlineByUnit, type OfflineSummary, type UnitOffline } from '@langquest-next/core';
+import type { OfflineSummary, UnitOffline } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatBytes } from '../i18n/format';
@@ -16,24 +16,22 @@ export function withStudy(u: UnitOffline, unitId: string): KeptOffline {
 /**
  * Counts for every kept passage, for marks on long lists. A passage missing
  * from the map is not kept. Shared by every row drawn from the same inputs.
+ * Worked out from the phone's table after changes (useLanguage), not on
+ * every draw (decisions.md 143).
  */
-export function keptOfflineMap(ctx: Ctx, present: ReadonlySet<string>): Map<string, KeptOffline> {
-  const state = ctx.language.state;
-  const { keptUnits } = ctx.language.blobs;
-  const me = ctx.session.actorId;
-  if (!state) return new Map();
+export function keptOfflineMap(ctx: Ctx): Map<string, KeptOffline> {
+  const counted = ctx.language.blobs.keptOffline;
+  if (!counted) return new Map();
   const rev = studyRevision();
   const last = keptCache;
-  if (last && last.state === state && last.present === present && last.kept === keptUnits && last.me === me && last.rev === rev) return last.map;
-  const scope = defaultOfflineScope(state, me);
-  for (const u of keptUnits) scope.add(u);
+  if (last && last.counted === counted && last.rev === rev) return last.map;
   const map = new Map<string, KeptOffline>();
-  for (const [id, u] of offlineByUnit(state, scope, present, me, keptUnits)) map.set(id, withStudy(u, id));
-  keptCache = { state, present, kept: keptUnits, me, rev, map };
+  for (const [id, u] of counted) map.set(id, withStudy(u, id));
+  keptCache = { counted, rev, map };
   return map;
 }
 
-export let keptCache: { state: object; present: ReadonlySet<string>; kept: ReadonlySet<string>; me: string; rev: number; map: Map<string, KeptOffline> } | null = null;
+export let keptCache: { counted: ReadonlyMap<string, UnitOffline>; rev: number; map: Map<string, KeptOffline> } | null = null;
 
 /** The whole scope: audio from core, with passages counted ready only once their study files are here too. */
 export type OfflineOverview = OfflineSummary & { studyToFetch: number };

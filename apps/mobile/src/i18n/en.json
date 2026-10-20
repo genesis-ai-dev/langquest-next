@@ -3135,7 +3135,8 @@
         "report": "Report",
         "block": "Block",
         "unblock": "Unblock",
-        "onboarding": "Onboarding"
+        "onboarding": "Onboarding",
+        "feedback": "Feedback"
       },
       "failedSub": "{{reason}} · Tap to try again",
       "waiting": "Waiting to send",
@@ -5298,7 +5299,7 @@
       "couldNotRead": "The reports could not be read.",
       "signIn": "Your session has ended. Sign in again.",
       "notMember": "You are not a member of this organization.",
-      "busy": "The dashboard could not read this organization just now. Try again.",
+      "busy": "The server could not read this organization just now. Try again.",
       "serverAnswered": "The server answered {{status}}."
     },
     "countries": {
@@ -6329,9 +6330,11 @@
       "bibleBrainHelp": "Search Bible Brain for Bibles by language.",
       "bibleHelp": "Shows what it has before you add it.",
       "fromLangQuestHelp": "Shows the Bibles LangQuest has ready to follow.",
-      "languageHelp": "Shows its Bibles from Bible Brain. The number counts them.",
       "readyHelp": "Adds it to your library and recommends it here.",
-      "searchHelp": "Type a language’s name or code to find its Bibles."
+      "searchHelp": "Type a language’s name or code to find its Bibles.",
+      "listed": "Only languages with Bibles in Bible Brain are listed.",
+      "noMatch": "No language by that name has a Bible in Bible Brain.",
+      "unreachable": "Finding a language needs a connection the first time."
     },
     "source": {
       "title": "Bible",
@@ -6777,10 +6780,6 @@
       "notSetUp": "Bible Brain isn't set up on this device",
       "notSetUpSub": "Your organization's library still works. Ask whoever runs LangQuest for your team to connect the server.",
       "searchPlaceholder": "Search for a language",
-      "noLanguages": "No languages found",
-      "noLanguagesSub": "Try the name in English, or its three-letter code.",
-      "languageBibles_one": "{{code}} · {{count, number}} Bible",
-      "languageBibles_other": "{{code}} · {{count, number}} Bibles",
       "biblesIn": "Bibles in {{language}}",
       "noBibles": "No Bibles in this language on Bible Brain.",
       "myBible": "My Bible",
@@ -6805,7 +6804,6 @@
       "bibleHelp": "Opens it to read and hear a chapter, before you add it.",
       "bookHelp": "Shows a chapter of this book.",
       "chapterHelp": "Shows chapter {{n, number}} to read and hear.",
-      "languageHelp": "Shows its Bibles below.",
       "nextChapterHelp": "Reads and plays the chapter after this one.",
       "previousChapterHelp": "Reads and plays the chapter before this one.",
       "removeHelp": "Takes it out of your Bibles on this device. You can add it again here.",
@@ -6824,7 +6822,9 @@
     "chip": "Bibles and guides in {{language}}",
     "chipHelp": "The language of their Bibles and study guides. Tap to change it.",
     "change": "Change",
-    "rowHelp": "Adds this language for the team’s Bibles and guides, or takes it away. The line says what it has."
+    "rowHelp": "Adds this language for the team’s Bibles and guides, or takes it away. The line says what it has.",
+    "listed": "Only languages with Bibles or study guides are listed.",
+    "noMatch": "No language by that name has Bibles or study guides yet."
   },
   "checks": {
     "title": "Checks",
@@ -7155,5 +7155,36 @@
     "help": "Kept as you go: a spinner while it is being kept, then a check. There is nothing to save.",
     "failed": "Not saved",
     "saved": "Saved"
+  },
+  "feedback": {
+    "open": "Send feedback",
+    "title": "Feedback",
+    "send": "Send",
+    "kind": {
+      "bug": "Something is wrong",
+      "idea": "An idea"
+    },
+    "placeholder": {
+      "bug": "What happened?",
+      "idea": "What would help?"
+    },
+    "addScreenshot": "Add this screenshot",
+    "addNameAndEmail": "Add my name and email",
+    "addNameAndSignIn": "Add my name and sign-in name",
+    "addName": "Add my name",
+    "nameAndHandle": "{{name}} · {{handle}}",
+    "help": {
+      "bug": "A problem: something broke, froze or looks wrong.",
+      "idea": "An idea: something that would make LangQuest better for you.",
+      "body": "Say it in your own words, in any language.",
+      "screenshot": "Sends a picture of the screen you were on. Off until you turn it on.",
+      "profile": "Sends your name and how you sign in, so the LangQuest team knows who wrote. Off until you turn it on."
+    },
+    "toast": {
+      "sent": "Sent. Thank you!",
+      "saved": "Saved. It is sent when you are connected.",
+      "savedUntilSignIn": "Saved. It is sent after you sign in.",
+      "voiceTooLong": "Too long: a voice note can be up to 2 minutes."
+    }
   }
 }

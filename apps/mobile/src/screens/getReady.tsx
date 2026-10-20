@@ -12,7 +12,7 @@
 // 'template', 'helps' and 'flow' for a ready language's three picks (decision 138). `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
-  commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, languageProgress, materialsFor,
+  commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, materialsFor,
   goesWith, isTemplateDoc, recommendedFor, subscriptionItemId, templateBooks,
   type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
@@ -152,7 +152,8 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
   const changed = tq.ready && (!inUse || !same(wanted, sel?.books));
   const canUse = ctx.session.can('manage_templates');
   // Any work at all, published or not: a change of numbering moves it (decision 80).
-  const worked = useMemo(() => Object.keys(state.recordings).length + Object.keys(state.takes).length > 0, [state]);
+  const lines = ctx.language.lines;
+  const worked = useMemo(() => { for (const u of lines.worked()) if (lines.get(u).worked) return true; return false; }, [lines]);
   const [warn, setWarn] = useState(false);
   // A phone's Back goes back a page of the question, as the Back under it does (decision 137); from the first, it leaves.
   useHardwareBack(tq.page !== 'what', () => { tq.retreat(); });
@@ -629,7 +630,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
   const kinds = useMemo(() => deriveKinds(state), [state]);
   const flow = useMemo(() => deriveFlow(state), [state]);
   const custom = flow.flowId === CUSTOM_FLOW;
-  const { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded } = useCheckChoices(ctx, flow.itemId, kinds);
+  const { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded } = useCheckChoices(ctx, flow.itemId, kinds, teamLanguages(ctx.org.state, state, languageId));
   const [picked, setPicked] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);

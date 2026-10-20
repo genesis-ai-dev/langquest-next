@@ -8,7 +8,7 @@ import { FOLD_ON_CATCH_UP_EVENTS, MemoryCache, OrgFolder, STATE_SAVE_EVERY, type
 import { SqlCache, splitText } from '../worker/sqlCache';
 
 /**
- * The dashboard's server (decision 44): who gets which languages, and how
+ * The app's Worker (decision 44): who gets which languages, and how
  * the per-organization state catches up. Driven by an in-memory log, so no
  * Cloudflare or Supabase is needed.
  */

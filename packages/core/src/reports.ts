@@ -1,17 +1,18 @@
 import { bookId, bookLabel, bookOfChapter, bookOfVerse, inScope, SCOPE_VERSES, unitChapters, unitVerses } from './coverage';
 import { buildIndexes, type Indexes } from './indexes';
 import {
-  deriveFlow, deriveKinds, derivePassage, languageProgress, stepName, unitPlace,
+  deriveFlow, deriveKinds, derivePassage, stepName, unitPlace,
   type LanguageProgress, type PassageState
 } from './passage';
+import { languageProgress } from './passageLines';
 import { privilegesFor, TARGET_SCOPES, type LanguageInfo, type LanguageTarget, type OrgState, type TargetScope } from './org';
 import type { LanguageState } from './state';
 
 /**
- * Progress reports for the web dashboard: one per language, read from the
+ * Progress reports for the app's Reports section: one per language, read from the
  * passage record the app shows (`derivePassage`, `languageProgress`), so a
  * coordinator's report and the phone's Status screen never disagree. A pure
- * function of the fold and a date; the dashboard's server computes it from
+ * function of the fold and a date; the app's Worker computes it from
  * its snapshot of the organization (decision 44), and nothing here is
  * authoritative.
  *
@@ -208,7 +209,7 @@ function monthsEndingAt(now: number, n: number): string[] {
 /**
  * What a language's report is made from, with no date and nothing from the
  * organization stream (decisions.md 142): the projection pass extracts it
- * when it folds the language and stores it, and the dashboard's server
+ * when it folds the language and stores it, and the app's Worker
  * renders a report from it for any day (`renderLanguageReport`), so no
  * server consumer folds a whole language for a report and a report never
  * goes stale at midnight. Everything that depends on the date is kept by
@@ -644,12 +645,12 @@ export function paceOf(r: LanguageReport, now: number): Pace | null {
   return { band, scope, actual, expected, gap, projectedFinish };
 }
 
-// ---- what the dashboard's server answers (decision 44) ----------------------------
+// ---- what the app's Worker answers (decision 44) ----------------------------
 
 /** `GET /api/orgs/:org/reports`: the languages this person may see. */
 export interface OrgReportsResponse {
   rows: { languageId: string; report: LanguageReport }[];
-  /** When the dashboard's server last caught up with the log, ISO. */
+  /** When the app's Worker last caught up with the log, ISO. */
   asOf: string;
 }
 
