@@ -23,9 +23,18 @@ tags:
     id: "tab-manage"
 - tapOn: "Members.*"
 - tapOn: "Invite"
-- assertVisible: "What will they do\\?"
-- tapOn: "Translate"
+- assertVisible: "Who are you inviting\\?"
 - tapOn: "${LANG_A}"
+# A role's card has its own Invite (decision 146); a role that checks is asked which checks first.
+- tapOn:
+    text: "Invite"
+    childOf:
+      id: "invite-role-Translators"
+- runFlow:
+    when:
+      visible: "Which checks will they do\\?"
+    commands:
+      - tapOn: "Show the code to scan"
 - tapOn: "One person, by name"
 - assertVisible: "Invite by QR"
 - tapOn: "e.g. Nyibol Deng"

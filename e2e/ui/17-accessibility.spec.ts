@@ -157,7 +157,7 @@ async function walk(browser: Browser, w: UiWorld): Promise<ScreenAudit[]> {
     await expect(button(page, 'Invite')).toBeVisible();
     await audit(page, 'Members', 'COORD');
     await button(page, 'Invite').click();
-    await expect(text(page, 'What will they do?')).toBeVisible();
+    await expect(text(page, 'Who are you inviting?')).toBeVisible();
     await audit(page, 'Members → Invite', 'COORD');
     await context.close();
   }
@@ -326,7 +326,7 @@ test('A11Y-015 the web app works by keyboard alone', async ({ browser }) => {
     await expect(button(page, 'Invite')).toBeVisible();
     await tabTo(page, trail, /^Invite$/);
     await page.keyboard.press('Enter');
-    await expect(text(page, 'What will they do?')).toBeVisible();
+    await expect(text(page, 'Who are you inviting?')).toBeVisible();
     await context.close();
   }
 

@@ -330,6 +330,8 @@ export function CheckRow(props: { label: string; sub?: string; checked: boolean;
   return (
     <View style={[styles.checkLine, !props.last && styles.rowBorder]}>
       <Pressable onPress={onToggle.onPress} disabled={props.disabled} accessibilityRole="checkbox" accessibilityState={{ checked: props.checked, disabled: !!props.disabled }}
+        // The web reads its state from aria-* (react-native-web ignores accessibilityState there).
+        aria-checked={props.checked} aria-disabled={!!props.disabled}
         accessibilityLabel={props.label} style={({ pressed }) => [styles.checkTap, pressed && styles.pressed]}>
         <View style={[styles.box, props.checked && { backgroundColor: C.primary, borderColor: C.primary }]}>
           {props.checked ? <Ico name="check" size={20} color={C.white} strokeWidth={3} /> : null}

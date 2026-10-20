@@ -230,6 +230,22 @@ export async function openMember(page: Page, name: string): Promise<void> {
   await expect(text(page, /^Pick a role|^This person created/)).toBeVisible();
 }
 
+/**
+ * Invite someone: the Invite on one role's card ("Translators", or a role's
+ * own name; decision 146), then its code. A role that does checks is asked
+ * first which checks; `checks` are ticked there, none by default.
+ */
+export async function inviteRole(page: Page, title: string, checks: readonly string[] = []): Promise<void> {
+  await page.getByTestId(`invite-role-${title}`).locator('visible=true').first().getByRole('button', { name: 'Invite', exact: true }).click();
+  const asked = text(page, 'Which checks will they do?');
+  await expect(asked.or(text(page, 'Ask them to scan this'))).toBeVisible();
+  if (await asked.isVisible()) {
+    for (const c of checks) await text(page, c).click();
+    await primary(page).click();
+  }
+  await expect(text(page, 'Ask them to scan this')).toBeVisible();
+}
+
 /** The radio choices under "What will they do?" on a member's page, in order. */
 export async function choicesUnder(page: Page, heading: string, until: string | RegExp): Promise<string[]> {
   const all = await screenText(page);

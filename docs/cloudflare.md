@@ -7,7 +7,7 @@ and runs the server's jobs in containers (decisions.md 43, 58, 69, 70,
 141). Until 2026-10-20 it was `langquest-next-dashboard`, from when it
 served only the reports dashboard (decision 144; "Renaming the app's
 Worker" below says how it moved). Workers Builds also deploys the staff
-admin page, `langquest-next-admin` (`docs/admin.md`, decisions.md 146).
+admin page, `langquest-next-admin` (`docs/admin.md`, decisions.md 147).
 Merging to `main` deploys the production Workers, and merging to
 `develop` deploys their `-preview` copies (decisions.md 50,
 `docs/environments.md`); the admin page has none. There is no GitHub Actions workflow and no API token
