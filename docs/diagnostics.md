@@ -129,7 +129,9 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
 - Writers: the projection pass (`projection`, every 5 minutes in the job
   container behind the app's Worker, decisions.md 141; every minute on
   a local stack's Edge Function; `projection_large` is retired; its numbers
-  include `peakRssMb` and `heapLimitMb`, and a run without a failure
+  include `maxPeakRssMb` and `maxHeapLimitMb` (named `max…` so the totals keep
+  the largest, not a sum), and a run stopped early by a deploy says `sigterm`
+  and exits 75; a run without a failure
   names the language that raised its peak memory), the
   Worker's job tick (`job_starts`: jobs started, found running, switched
   off, or that could not start), push delivery
