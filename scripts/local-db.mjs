@@ -46,7 +46,9 @@ const DB = 'supabase_db_langquest-next';
 /** The gateway as the database container reaches it (pg_net runs there). */
 const FROM_DB = 'http://kong:8000';
 const FUNCTIONS_ENV = join(root, 'supabase/functions/.env');
-const KEY = 'PROJECTION_WORKER_SECRET';
+const KEY = 'PUSH_DELIVERY_SECRET';
+/** Its name before 2026-10-20 (decisions.md 148): a stack made earlier keeps its value under the new name. */
+const OLD_KEY = 'PROJECTION_WORKER_SECRET';
 const WEB_PORT = 8787;
 const mode = process.argv[2];
 
@@ -63,6 +65,12 @@ function ensureSecret() {
   const text = existsSync(FUNCTIONS_ENV) ? readFileSync(FUNCTIONS_ENV, 'utf8') : '';
   const found = new RegExp(`^${KEY}=(.+)$`, 'm').exec(text)?.[1]?.replace(/^"|"$/g, '');
   if (found) return { secret: found, fresh: false };
+  const old = new RegExp(`^${OLD_KEY}=(.+)$`, 'm').exec(text);
+  if (old) {
+    // The running edge runtime still has the old name, which push-delivery also reads, so nothing needs a restart.
+    writeFileSync(FUNCTIONS_ENV, text.replace(old[0], `${KEY}=${old[1]}`));
+    return { secret: old[1].replace(/^"|"$/g, ''), fresh: false };
+  }
   const secret = randomBytes(32).toString('hex');
   writeFileSync(FUNCTIONS_ENV, `${text}${text && !text.endsWith('\n') ? '\n' : ''}${KEY}=${secret}\n`);
   return { secret, fresh: true };
@@ -70,7 +78,7 @@ function ensureSecret() {
 
 /** What a reset drops: push delivery's Vault values and job, and the library. */
 function prepare(secret) {
-  psql(vaultSql({ langquest_project_url: FROM_DB, langquest_projection_worker_secret: secret }));
+  psql(vaultSql({ langquest_project_url: FROM_DB, langquest_push_delivery_secret: secret }));
   // Also unschedules the Edge pass an older checkout scheduled here (decisions.md 148).
   psql(readFileSync(join(root, SCHEDULE_MIGRATION), 'utf8'));
   if (psql(`select count(*) from cron.job where jobname = '${CRON_JOB}';`).trim() !== '1') throw new Error(`${CRON_JOB} was not scheduled`);

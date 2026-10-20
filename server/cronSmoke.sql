@@ -25,4 +25,4 @@ end $$;
 
 -- Leave the database as a reset does.
 select cron.unschedule(jobid) from cron.job where jobname in ('langquest-stream-projections', 'langquest-push-delivery');
-delete from vault.secrets where name in ('langquest_project_url', 'langquest_projection_worker_secret');
+delete from vault.secrets where name in ('langquest_project_url', 'langquest_push_delivery_secret');

@@ -45,7 +45,7 @@ const SMOKES = [
 /** Smokes that need something a reset leaves out, set up first: the cron jobs exist only where the Vault secrets do. */
 const PREPARE = {
   'server/cronSmoke.sql': () => {
-    psql(vaultSql({ langquest_project_url: 'http://127.0.0.1:54321', langquest_projection_worker_secret: 'db-test' }), true);
+    psql(vaultSql({ langquest_project_url: 'http://127.0.0.1:54321', langquest_push_delivery_secret: 'db-test' }), true);
     psql(readFileSync(join(root, SCHEDULE_MIGRATION), 'utf8'), true);
   }
 };

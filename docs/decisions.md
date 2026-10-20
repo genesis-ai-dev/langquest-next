@@ -6441,3 +6441,18 @@ Reverse if: the container cannot run on CI's runners reliably, or building
 the image makes `web:dev` too slow for daily work; then a local stack goes
 back to running `server/projections.ts` (still the container's entry
 point) from a Node process the tick starts, not to an Edge pass.
+
+Amended (2026-10-20, Carl Sauder): the secret is named for push delivery
+after all, since nothing else reads it: `PUSH_DELIVERY_SECRET` in
+`.env.<env>` and as the function's secret, `langquest_push_delivery_secret`
+in Vault. Carl chose to rename rather than keep a name that points at the
+pass. Its value is new (`npm run env:update`), so no decrypted value was
+copied. Migration `20261020170000_push_delivery_secret.sql` renames the
+Vault secret in place and reschedules the job to read the new name; until
+`npm run secrets -- production` sets the new function secret, the function
+also accepts `PROJECTION_WORKER_SECRET`, which `npm run secrets` then
+unsets (`RETIRED_FUNCTION_SECRETS`), so push delivery never stops. Between
+that run's function secret and its Vault write, a minute's push may be
+refused and is delivered the next minute. A local stack's
+`supabase/functions/.env` keeps its value under the new name
+(`scripts/local-db.mjs`).

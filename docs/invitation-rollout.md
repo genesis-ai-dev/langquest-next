@@ -28,12 +28,12 @@ only before the QR screen. The QR screen confirms the chosen role.
 3. Run `npm run worker:build` and commit the bundle. Merging to `main` deploys `push-delivery` and `send-invite` (Supabase's GitHub integration, `server/README.md`).
    Both validate authorization inside their handlers. Their function config
    disables the gateway's legacy JWT verification.
-4. Set a random `PROJECTION_WORKER_SECRET` in the root `.env.<environment>`
-   (`npm run env:update -- <environment> PROJECTION_WORKER_SECRET "$(openssl rand -hex 32)"`).
+4. Set a random `PUSH_DELIVERY_SECRET` in the root `.env.<environment>`
+   (`npm run env:update -- <environment> PUSH_DELIVERY_SECRET "$(openssl rand -hex 32)"`).
 5. Run `npm run secrets -- <environment>`. It sets that secret as an
-   Edge Function secret and in Vault as `langquest_projection_worker_secret`,
+   Edge Function secret and in Vault as `langquest_push_delivery_secret`,
    stores the project URL in Vault as `langquest_project_url`, and runs the
-   body of migration `20261001000000_schedule_projections.sql` again. That
+   body of migration `20261020170000_push_delivery_secret.sql` again. That
    migration (applied on merge) enables `pg_cron` and `pg_net` and installs
    one job every five minutes, but only in a database whose Vault secrets
    already exist, so a new project gets its job from this step.

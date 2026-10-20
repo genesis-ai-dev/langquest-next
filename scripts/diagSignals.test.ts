@@ -129,19 +129,19 @@ describe('diagnostic signals', () => {
   });
 
   it("reads the server's own jobs: one that stopped, one that keeps failing, pushes that do not go", () => {
-    // Why: the projection passes, push delivery and the import ran where support could not see them.
+    // Why: the projection pass, push delivery and the import ran where support could not see them.
     const job = (over: Partial<JobStat>): JobStat => ({
       job: 'projection', every: '00:05:00', runs: 100, failures: 0, partials: 0, streak: 0, last_at: 'T', last_outcome: 'ok',
       last_error_class: null, last_ok_at: 'T', p95_ms: 1000, totals: null, orgs: 1, stale: false, ...over
     });
     const t = jobSignals([
-      job({}),
-      job({ job: 'projection_large', stale: true, last_ok_at: 'T0', last_outcome: 'error', last_error_class: '57014' }),
+      job({ job: 'job_starts' }),
+      job({ stale: true, last_ok_at: 'T0', last_outcome: 'error', last_error_class: '57014' }),
       job({ job: 'v2_import', streak: 4, failures: 4, last_error_class: 'TypeError' }),
       job({ job: 'push_delivery', totals: { claimed: 40, sent: 5, noToken: 30, failed: 5 } })
     ]).map((s) => `${s.level}: ${s.text}`);
     expect(t).toHaveLength(3);
-    expect(t[0]).toMatch(/^problem: Server job projection_large has not run successfully since T0 .* \(57014\)/);
+    expect(t[0]).toMatch(/^problem: Server job projection has not run successfully since T0 .* \(57014\)/);
     expect(t[1]).toBe('problem: Server job v2_import failed its last 4 runs (TypeError).');
     expect(t[2]).toBe('watch: Push delivery sent 5 of 40 notifications it claimed (30 with no push token, 5 failed).');
   });
