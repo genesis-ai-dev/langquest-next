@@ -720,7 +720,11 @@
       "languageHelp": "Hufungua ukurasa wake: iandae, ona kazi yake na watu wake.",
       "licenseHelp": "Leseni ambayo kazi ya timu yako iko chini yake. Maandalizi yanaeleza inaruhusu nini.",
       "newLanguageHelp": "Huongeza lugha kwenye shirika, au kundi la lugha zinazohusiana.",
-      "roleHelp": "Jukumu lako katika shirika hili. Linaamua unachoruhusiwa kufanya hapa."
+      "roleHelp": "Jukumu lako katika shirika hili. Linaamua unachoruhusiwa kufanya hapa.",
+      "clusterGroupHelp": "Lugha za kundi hili. Gusa ili kuzionyesha au kuzificha.",
+      "looseGroupHelp": "Lugha ambazo haziko katika kundi lolote. Gusa ili kuzionyesha au kuzificha.",
+      "openCluster": "Fungua {{cluster}}",
+      "openClusterHelp": "Hufungua kundi: lugha zake na maendeleo yao kwa pamoja. Huko unaweza kuongeza lugha, kubadilisha jina au kulitenganisha."
     },
     "rename": {
       "done": "Jina limebadilishwa kuwa {{name}}.",
@@ -7098,12 +7102,6 @@
     }
   },
   "clusters": {
-    "row": {
-      "sub_one": "Lugha {{count, number}} · {{names}}",
-      "sub_other": "Lugha {{count, number}} · {{names}}",
-      "namesMore": "{{names}}…",
-      "openHelp": "Hufungua kundi: lugha zake na maendeleo yao kwa pamoja."
-    },
     "home": {
       "sub_one": "Kundi · lugha {{count, number}}",
       "sub_other": "Kundi · lugha {{count, number}}",

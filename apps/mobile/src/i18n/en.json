@@ -720,7 +720,11 @@
       "languageHelp": "Opens its page: get it ready, see its work and its people.",
       "licenseHelp": "The license your team's work is under. Setup says what it allows.",
       "newLanguageHelp": "Adds a language to the organization, or a cluster of related languages.",
-      "roleHelp": "Your role in this organization. It decides what you may do here."
+      "roleHelp": "Your role in this organization. It decides what you may do here.",
+      "clusterGroupHelp": "This cluster's languages. Tap to show or hide them.",
+      "looseGroupHelp": "The languages in no cluster. Tap to show or hide them.",
+      "openCluster": "Open {{cluster}}",
+      "openClusterHelp": "Opens the cluster: its languages and their progress together. Add a language to it, rename it or ungroup it there."
     },
     "rename": {
       "done": "Renamed to {{name}}.",
@@ -7098,12 +7102,6 @@
     }
   },
   "clusters": {
-    "row": {
-      "sub_one": "{{count, number}} language · {{names}}",
-      "sub_other": "{{count, number}} languages · {{names}}",
-      "namesMore": "{{names}}…",
-      "openHelp": "Opens the cluster: its languages and their progress together."
-    },
     "home": {
       "sub_one": "Cluster · {{count, number}} language",
       "sub_other": "Cluster · {{count, number}} languages",

@@ -710,7 +710,11 @@
       "languageHelp": "打开它的页面：做好准备工作，查看它的工作和人员。",
       "licenseHelp": "你的团队的工作所用的许可协议。“设置”中说明了它允许什么。",
       "newLanguageHelp": "给机构添加一个语言，或者一个由相关语言组成的语言群。",
-      "roleHelp": "你在这个机构中的角色。它决定你在这里可以做什么。"
+      "roleHelp": "你在这个机构中的角色。它决定你在这里可以做什么。",
+      "clusterGroupHelp": "这个语言群里的语言。点一下可以显示或隐藏。",
+      "looseGroupHelp": "不在任何语言群中的语言。点一下可以显示或隐藏。",
+      "openCluster": "打开{{cluster}}",
+      "openClusterHelp": "打开语言群：查看其中的语言及其合计进展。还可以在那里加入语言、重命名或解散。"
     },
     "rename": {
       "done": "已重命名为{{name}}。",
@@ -6803,11 +6807,6 @@
     }
   },
   "clusters": {
-    "row": {
-      "sub_other": "{{count, number}} 种语言 · {{names}}",
-      "namesMore": "{{names}}…",
-      "openHelp": "打开语言群：查看其中的语言及其合计进展。"
-    },
     "home": {
       "sub_other": "语言群 · {{count, number}} 种语言",
       "together": "合计",

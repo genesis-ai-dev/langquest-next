@@ -1,5 +1,5 @@
 import { encodeHlc, foldOrg, type AnyEvent } from '@langquest-next/core';
-import { clusterEvents, clusterNamed, filterByCluster, inCluster, languagesOutsideClusters, newClusterId, ungroupEvents } from '../src/clusters/model';
+import { clusterEvents, clusterNamed, filterByCluster, inCluster, languageGroups, languagesOutsideClusters, newClusterId, ungroupEvents } from '../src/clusters/model';
 
 // Clusters (decision 108, demo ADR-045): a name on some of an organization's
 // languages. The screens append what these return; nothing else changes.
@@ -44,6 +44,23 @@ describe('clusters', () => {
     expect(filterByCluster(org, ids, { kind: 'all' })).toEqual(ids);
     expect(filterByCluster(org, ids, { kind: 'cluster', clusterId: 'dinka' })).toEqual(['dip']);
     expect(filterByCluster(org, ids, { kind: 'none' })).toEqual(['diw', 'nus']);
+  });
+
+  it('groups the home\'s languages under their clusters, then those in none', () => {
+    // Why: under "Languages" every row is a language; a cluster is a heading over its own (decision 108, amended 2026-10-20).
+    const ids = ['dip', 'diw', 'nus'];
+    expect(languageGroups(org, ids)).toEqual([
+      { kind: 'cluster', key: 'dinka', clusterId: 'dinka', name: 'Dinka cluster', languageIds: ['dip'] },
+      { kind: 'none', key: 'none', languageIds: ['diw', 'nus'] }
+    ]);
+    // A language in two clusters is under both; one in every cluster leaves no "none" group.
+    const two = foldOrg([...base, ev('v1.ClusterNamed', { clusterId: 'nilotic', name: 'Nilotic' }),
+      ...['dip', 'diw', 'nus'].map((languageId) => ev('v1.LanguageClusterSet', { languageId, clusterId: 'nilotic', inCluster: true }))]);
+    expect(languageGroups(two, ids).map((g) => [g.key, g.languageIds])).toEqual([['dinka', ['dip']], ['nilotic', ['dip', 'diw', 'nus']]]);
+    // Only the languages listed here; a cluster with none of them has no group.
+    expect(languageGroups(two, ['nus']).map((g) => g.key)).toEqual(['nilotic']);
+    // No clusters, no groups: the list stays one list.
+    expect(languageGroups(foldOrg(base.slice(0, 3)), ids)).toEqual([]);
   });
 
   it('a name already used joins that cluster, and new ids are valid and distinct', () => {

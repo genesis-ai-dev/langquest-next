@@ -12,7 +12,7 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, Redo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb
+  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis
 } from 'lucide-react-native';
 import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -50,7 +50,7 @@ const ICONS = {
   template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, redo: Redo2, up: ChevronUp, user: User, video: Video,
   work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, info: Info, onPhone: CloudCheck, notOnPhone: CloudOff,
   arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, handle: Menu, sliders: SlidersHorizontal, done: CircleCheck,
-  warning: TriangleAlert, join: ChevronsUpDown, file: FileText,
+  warning: TriangleAlert, join: ChevronsUpDown, file: FileText, more: Ellipsis,
   // Show here / Hide here on a passage's helps (demo ADR-042).
   eye: Eye, eyeOff: EyeOff,
   // Feedback from help mode: a problem, an idea (decisions.md 145).

@@ -4433,6 +4433,19 @@ not a stream. Or if people put each language in one cluster only and
 several clusters confuse them; then the picker becomes a single choice,
 with no change to the events.
 
+Amended (2026-10-20, Caleb Koster): Manage no longer lists a cluster as a
+row among the languages. Caleb found it confusing that cards under the
+"Languages" heading named clusters. With clusters, the organization's home
+groups its languages under them instead: one card per cluster with a
+heading in amber (its name, how many languages, a chevron that folds them
+away and a ⋯ that opens the cluster's page), then "Not in a cluster" in
+grey over the rest. A language in two clusters is under both. Groups start
+open while the organization has 20 languages or fewer, closed past that,
+and each keeps what it was toggled to across Back; a long group shows 20
+rows at a time. With no clusters the list is one list, as before. Map and
+Reports keep their cluster chips: they filter one list, so nothing there
+reads as a language (`clusters/model.ts` `languageGroups`).
+
 ## 109. A listening app keeps playing the approved version, hears changes by webhook, and the team sees its listeners on the passage
 
 Date: 2026-10-14 · By: Ryder Wishart · Status: partly superseded by 131
