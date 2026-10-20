@@ -198,6 +198,9 @@ restarts, a first download, an old checkpoint and a redaction, and
    never loops over passage records on the live state, outside a list that
    says why") is the kind `eslint.config.mjs` already holds for imports,
    and a rule's message says where the code belongs. Not a blocker.
+   Done on 2026-10-20: `whole-language/no-every-passage`
+   (`scripts/lint/wholeLanguage.mjs`), which found a loop the regular
+   expression missed; the test now holds the rule's lists equal to core's.
 8. **Record the first-download cost and where it goes next.** Every
    passage's line is worked out on the phone before the language opens
    (Koro × 4: 33 s; a Santhali-sized language, estimated one to two
@@ -220,6 +223,10 @@ restarts, a first download, an old checkpoint and a redaction, and
    fixture from zero with no server snapshot and holds the passages in
    memory under the limit throughout. Also drop `appliedEventIds` from
    the live state at each checkpoint, as `takeSnapshot` does.
+   Done: checkpoints during a catch-up with E; on 2026-10-20 the local log
+   is folded a page at a time, redactions first (`EventStore.page`), and a
+   checkpoint keeps in the live guard only the events still in the log.
+   The capped-heap whole-log pull now retains 2 MB, down from 11.
 
 ### 4.2 F: the server's cut, after E
 
@@ -480,7 +487,10 @@ checkpoint already did.
 | Combining two halves of any split of the fixtures equals folding all | `passageParts.test.ts` (fast-check) | on main |
 | A phone kept on disk equals one in memory on every record and line | `keptLanguage.test.ts` | on main |
 | Half a fleet on disk ends with the server's language and lines | `fleet.test.ts` | on main |
-| App code never reads every passage from memory outside the list | `wholeLanguage.test.ts`, later a lint rule | on main |
+| App code never reads every passage from memory outside the list | lint, `whole-language/no-every-passage`; `wholeLanguage.test.ts` holds its lists to core's | done |
+| The local log is folded a page at a time and gives what a whole fold gives, a redaction pages from its target included | `syncClient.test.ts`, `storeContract.test.ts` | done |
+| A checkpoint lets go of the duplicate guard but for the events still in the log | `keptLanguage.test.ts`; `keptMemory.test.ts` (retained heap under 8 MB after a whole-log pull) | done |
+| Support sees a fill that fell back, started over or did not finish | `keptFill.test.ts` (the `fill` records), `scripts/diagSignals.test.ts` (the signals) | done |
 | Loading or shedding a passage counts as an `all` touch for incremental views | `incrementalViews.test.ts` | done |
 | A stale checkpoint takes its rows and lines with it; a build rolled back drops a kept checkpoint | `keptLanguage.test.ts`, `fleet.test.ts` | done |
 | A pull from zero with no server snapshot keeps the passages in memory under the limit throughout | `keptLanguage.test.ts` | done |

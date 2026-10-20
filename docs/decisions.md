@@ -6072,6 +6072,27 @@ whenever what a kept checkpoint leaves out changes; F raises it.
 `keptLanguage.test.ts` holds a rollback and a roll-forward across a
 redaction. A reducer bump stays for changes to the fold's output.
 
+Amended (2026-10-20, Carl Sauder): the two items left open are done, and
+the live duplicate guard is compacted. The local log is folded a page at a
+time (`EventStore.page`, in id order after a cursor, by type when asked;
+SQLite indexes `(org_id, stream_id, id)`), on load, on a snapshot adopt
+and on the slow checkpoint path, so a phone back from a long offline
+stretch never holds its log in one array. Redactions are read first, as a
+whole fold applies them, so a target on any page is never applied; the
+rest of the fold is order-independent (invariant 2). After a fast
+checkpoint of a kept language, the live state's `appliedEventIds` keeps
+only the events still in the log, as a relaunch has it: a pull asks for
+what is past the cursor, and a refold starts from the checkpoint, whose
+guard is empty. Our own events pushed and not yet pulled stay in the log,
+so their pull is still skipped. The capped-heap pull of a whole log now
+retains 2 MB, down from 11 (`keptMemory.test.ts`). The guard is now lint,
+`whole-language/no-every-passage` (`scripts/lint/wholeLanguage.mjs`): it
+reads the syntax, so it caught a loop the regular expression missed
+(`Object.values(state.kindReviews ?? {})` in `workspaceModel.ts`, which
+runs on the passage on screen and is listed). It also reports a listed
+read that is gone. `wholeLanguage.test.ts` holds the rule's lists equal to
+core's `PASSAGE_PARTS` and `READS_EVERY_PASSAGE`.
+
 ## 144. The Worker in `apps/web` is "the app's Worker"; "dashboard" names it only as history
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
@@ -6414,6 +6435,22 @@ the 1.5 MB the synthetic language gave. All 370 languages at reducer 19 had
 their cut and lines. Snapshots of reducer versions 15 to 18 are still kept
 (88 expires older snapshots of the same version only); whether they expire
 is open.
+
+Amended (2026-10-20, Carl Sauder): a fill reports itself in field
+diagnostics, so support sees one that should have run and did not. A
+`fill` record (`DIAG_SCHEMA`, migration `20261020180000_diag_fill.sql`)
+says `start` when the Map opens (ms to the Map, head size, passages and
+rows to fill, why), `done` once every passage's rows are here (ms since
+the start, across sessions), `fallback` when the phone took the whole
+snapshot instead (`no_rpc`, `no_cut`, `no_lines`, `old_lines`, `error`),
+and `restart` when its cut went away. A fallback is recorded only once the
+whole snapshot is taken, so a language with no snapshot at all stays the
+`snapshot` record's `none`. `diag.install_summary` carries a phone's last
+20, and `scripts/diagSignals.ts` reads them: a fallback the server caused
+(no cut or lines) is a problem pointing at the projection pass, other
+fallbacks, restarts and a fill unfinished a day on are a watch, and a fill
+that took over a day is noted. Field names and values are enums and
+counts, so no Play declaration changes.
 
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
