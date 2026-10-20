@@ -1,6 +1,6 @@
 # Plan: big languages on a 2 GB phone
 
-Status: E merged onto main as branch `carl/big-languages-e` (decision 143, 2026-10-16); F built on branch `carl/big-languages-f` (decision 147, 2026-10-20), section 4.2 says what was built · Carl Sauder, with Claude · 2026-10-16
+Status: E on main (PR 177, decision 143) and F on main (PR 185, decision 147; heads measured in production on 2026-10-20, decision 147 amended) · Carl Sauder, with Claude · 2026-10-16
 
 Written against `origin/main` at `583f744c` and pull request 120
 (`caleb/unit-loading` at `ded635a1`). Companion to the server host plan
@@ -476,11 +476,11 @@ checkpoint already did.
 
 | Holds | Where | Status |
 | --- | --- | --- |
-| Every map of the state says whether it is cut by passage, and how two copies combine | `passageParts.test.ts` | on the branch |
-| Combining two halves of any split of the fixtures equals folding all | `passageParts.test.ts` (fast-check) | on the branch |
-| A phone kept on disk equals one in memory on every record and line | `keptLanguage.test.ts` | on the branch |
-| Half a fleet on disk ends with the server's language and lines | `fleet.test.ts` | on the branch |
-| App code never reads every passage from memory outside the list | `wholeLanguage.test.ts`, later a lint rule | on the branch |
+| Every map of the state says whether it is cut by passage, and how two copies combine | `passageParts.test.ts` | on main |
+| Combining two halves of any split of the fixtures equals folding all | `passageParts.test.ts` (fast-check) | on main |
+| A phone kept on disk equals one in memory on every record and line | `keptLanguage.test.ts` | on main |
+| Half a fleet on disk ends with the server's language and lines | `fleet.test.ts` | on main |
+| App code never reads every passage from memory outside the list | `wholeLanguage.test.ts`, later a lint rule | on main |
 | Loading or shedding a passage counts as an `all` touch for incremental views | `incrementalViews.test.ts` | done |
 | A stale checkpoint takes its rows and lines with it; a build rolled back drops a kept checkpoint | `keptLanguage.test.ts`, `fleet.test.ts` | done |
 | A pull from zero with no server snapshot keeps the passages in memory under the limit throughout | `keptLanguage.test.ts` | done |

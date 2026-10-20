@@ -6391,6 +6391,30 @@ lines too), phones rarely finish a fill and live on transients, or keeping
 the rows beside the pieces outgrows the database plan (then the pieces go,
 once no build reads them).
 
+Amended (2026-10-20, Carl Sauder): the fill does not narrow decision 3.
+Decision 3 leaves cold start to the server, and a cold start is any start
+from the server, not only a phone's first download: an update that changes
+the reducer or the kept checkpoint's format drops the checkpoint and puts
+the cursor back to 0 (110, 143's amendment), as does a redaction the phone
+waited out, and a reinstall has nothing at all. Ever since phones prune
+their log behind a checkpoint, such a phone held its own unsent events but
+not the pruned history (the passages' `UnitAdded`, the flow, earlier
+versions), so it could not show that work in place or usefully carry on
+until a whole snapshot or the whole log came down: hours on a weak link
+for a big language, before 143 and under it. The fill shortens that
+window to the head; the one thing it adds, a person's own unsent work on a
+passage not filled yet reaching lists once that passage fills, falls
+inside it. Heads measured in production on 2026-10-20 (reducer 19, lines
+version 1, as JSON; at 2 KB/s): Santhali omt bible 0.18 MB shared and
+0.47 MB of lines for 652 passages against a 64.6 MB snapshot, about five
+minutes against nine hours; Halbi 0.51 MB against 50.7 MB; Kuturmi Iwingo
+EL 0.69 MB against 50.0 MB; Bhujel 1.12 MB (1,173 passages) against
+43.8 MB; Meche 0.47 MB against 40.8 MB. Santhali's real head is under half
+the 1.5 MB the synthetic language gave. All 370 languages at reducer 19 had
+their cut and lines. Snapshots of reducer versions 15 to 18 are still kept
+(88 expires older snapshots of the same version only); whether they expire
+is open.
+
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
