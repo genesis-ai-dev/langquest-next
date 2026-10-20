@@ -258,6 +258,79 @@ describe('a language that keeps its recordings on disk', () => {
     expect(derivePassage(onDisk.client.getState(), 'u5')).toEqual(derivePassage(full, 'u5', idx));
   });
 
+  for (const order of ['insertion', 'jsonb', 'reversed'] as const) {
+    it(`a first download reads a whole team's work in ${order} key order, with what waits for what it hangs on`, async () => {
+      // Why: the server's snapshot text is jsonb, whose keys are ordered by length (decision 89), not as the
+      // fold wrote them, and its pieces are cut anywhere. Entries that hang on a take, review, departure, request
+      // or note must find their passage whichever comes first in the text; entries that hang on nothing that
+      // arrived (a take archived before its compose, an undo of a departure nobody made) stay with the
+      // checkpoint; and key-term links are rows per take and term (decisions.md 143).
+      const server = new FakeServer();
+      await language(server, 12);
+      for (let round = 0; round < 3; round++) {
+        const other = phone(server, `dX${round}`, `t${round}`);
+        await other.client.load();
+        await other.client.sync();
+        await work(other.client, `x${round}`, [`u${round}`, `u${round + 4}`]);
+        await other.client.append('v1.KeyTermLinked', { takeId: `t-x${round}`, termId: 'grace' });
+        await other.client.append('v1.ReviewWithdrawn', { reviewId: `rv-x${round}` });
+        await other.client.append('v1.NoteWithdrawn', { noteId: `n-x${round}` });
+        await other.client.sync();
+      }
+      server.makeSnapshot('org1', 'p1');
+      server.keyOrder = order;
+      server.chunkChars = 701;
+      const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true });
+      await client.load();
+      await client.pull();
+      const full = foldLanguage(server.stream('org1', 'p1'), emptyLanguageState());
+      expect(comparable(await whole(client, store))).toEqual(comparable(full));
+      expect(await store.keptCount('org1', 'p1', 'termLink')).toBe(6);
+      expect(await store.keptCount('org1', 'p1', 'withdrawnReview')).toBe(3);
+      expect(await store.keptCount('org1', 'p1', 'withdrawnNote')).toBe(3);
+      // What hangs on nothing that arrived waits with the checkpoint, in memory.
+      expect(Object.keys(client.getState().takes).sort()).toEqual(['late-x0', 'late-x1', 'late-x2']);
+      expect(Object.keys(client.getState().undoneDepartures).sort()).toEqual(['never-x0', 'never-x1', 'never-x2']);
+      const units = Object.keys(full.units);
+      expect(linesOf(client.passageLines(), units)).toEqual(linesOf(languageLines(full), units));
+    });
+  }
+
+  it('a checkpoint taken with work not yet sent keeps the passages on disk and the unsent work in the log', async () => {
+    // Why: with events still to send, the live state is not the confirmed fold, so a checkpoint folds the
+    // confirmed log onto the last checkpoint instead (the slow path). For a language kept on disk that state
+    // must be cut too, or the checkpoint would hold every passage again (decisions.md 143).
+    const server = new FakeServer();
+    await language(server, 20);
+    const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true, checkpointEvery: 5 });
+    await client.load();
+    await client.pull();
+    // Offline, this phone records in a passage; meanwhile others add work the next pull brings.
+    server.offline = true;
+    await client.append('v1.RecordingAdded', { recordingId: 'mine', unitId: 'u3', kind: 'target', cards: [{ hash: 'hm', durationMs: 9 }] });
+    server.offline = false;
+    const other = phone(server, 'dX', 't0');
+    await other.client.load();
+    await other.client.sync();
+    for (let i = 0; i < 8; i++) {
+      await other.client.append('v1.RecordingAdded', { recordingId: `o${i}`, unitId: `u${i + 10}`, kind: 'target', cards: [{ hash: `ho${i}`, durationMs: 5 }] });
+    }
+    await other.client.sync();
+    // A pull alone: the recording made here is still unsent when the checkpoint is taken.
+    await client.pull();
+    expect((await client.inspect()).pending).toHaveLength(1);
+    const checkpoint = JSON.parse((await store.meta('snapshot:org1/p1'))!) as { serverSeq: number; state: Lang };
+    expect(checkpoint.serverSeq).toBe(server.head('org1', 'p1'));
+    expect(Object.keys(checkpoint.state.recordings)).toEqual([]);
+    expect(await store.keptCount('org1', 'p1', 'recording')).toBe(28);
+    expect(await store.keptById('org1', 'p1', 'recording', ['mine'])).toHaveLength(0);
+    // The unsent recording is in the fold, and goes out and onto disk with the next sync and checkpoint.
+    expect(client.getState().recordings['mine']).toBeDefined();
+    await client.sync();
+    const full = foldLanguage(server.stream('org1', 'p1'), emptyLanguageState());
+    expect(comparable(await whole(client, store))).toEqual(comparable(full));
+  });
+
   it('a list reads each passage as the state shows it, without waiting for its line to be worked out', async () => {
     // Why: the web UI suite read the Map as soon as the language showed, and
     // lines worked out a moment later said "Not started" for recorded passages.
