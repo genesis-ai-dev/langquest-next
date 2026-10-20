@@ -25,7 +25,8 @@ import {
   type CollectionDoc, type EventSpec, type FlowDoc, type KindDef, type LanguageState, type LibraryDoc, type License, type OrgState,
   type Privilege, type Scope, type SourceDoc, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
-import { blobKey, MemoryStore, ORG_MATERIALIZER, SupabaseTransport, SyncClient, workerBlobs, type Materializer } from '@langquest-next/sync';
+import { blobKey, MemoryStore, ORG_MATERIALIZER, SupabaseTransport, SyncClient, type Materializer } from '@langquest-next/sync';
+import { setupBlobs } from './blob-upload';
 
 // ---- the world's shape ----------------------------------------------------------------
 
@@ -246,7 +247,7 @@ function audio(orgId: string, languageId: string) {
   let n = 0;
   return async (who: Person, voicedSeconds = 1.5, totalSeconds = 3) => {
     const v = voice(n++, voicedSeconds, totalSeconds);
-    await workerBlobs(localServer().api, who.session.access_token).put(blobKey(orgId, languageId, v.hash, 'wav'), v.bytes);
+    await setupBlobs(localServer().api, who.session.access_token).put(blobKey(orgId, languageId, v.hash, 'wav'), v.bytes);
     return { hash: v.hash, durationMs: v.durationMs, format: 'wav' as const };
   };
 }
