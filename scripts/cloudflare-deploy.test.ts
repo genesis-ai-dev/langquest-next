@@ -76,6 +76,14 @@ describe('cloudflare deploy', () => {
     expect(classes).toContain('JobRunner');
   });
 
+  it('names the app\'s Worker for the app, not the dashboard it once was (decision 144)', () => {
+    // Why: the Worker serves the web app, /api and the job runner; its name,
+    // and its container application's after it, are what the console shows.
+    const config = parseJsonc(read('apps/web/wrangler.jsonc'));
+    expect(config.name).toBe('langquest-next');
+    expect(JSON.stringify(wranglerFor(config, 'preview'))).not.toMatch(/"name":\s*"[^"]*dashboard/);
+  });
+
   it('builds the job image from bundles alone, never installing the dependency tree beside the key', () => {
     // Its instructions, without the comments that explain them.
     const dockerfile = read('apps/web/jobs/Dockerfile').split('\n').filter((l) => !l.startsWith('#')).join('\n');
