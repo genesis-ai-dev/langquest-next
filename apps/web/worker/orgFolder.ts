@@ -403,6 +403,9 @@ export class OrgFolder {
   private async stateOf(id: string): Promise<Held<LanguageState> | null> {
     const inMemory = this.states.get(id);
     if (inMemory) return inMemory;
+    // Room first: one held fold of about the budget, kept while this one is read or folded, put two in the isolate at once.
+    // A size not recorded yet counts as large, as `isLarge` counts it.
+    this.makeRoom(this.summaries.get(id)?.bytes ?? this.largeState);
     const cached = await this.restore<LanguageState>(`state:${id}`);
     if (cached) {
       this.saved.set(id, cached.cursor);
@@ -427,6 +430,24 @@ export class OrgFolder {
     for (const h of this.states.values()) total += h.bytes ?? 0;
     for (const [oldest, h] of this.states) {
       if (total <= this.stateBudget || this.states.size <= 1) break;
+      this.states.delete(oldest);
+      total -= h.bytes ?? 0;
+    }
+  }
+
+  /**
+   * Before a fold of `bytes` is read in or folded, let go of the least
+   * recently used until the held folds and it fit the budget. `keep` evicts
+   * only once the new fold is made, so without this a language of about the
+   * budget folded after another held two folds, the second's events and its
+   * measuring text at once: the 6 × 5000 case of `orgFolderMemory.test.ts`
+   * ran out of its 112 MB heap on some runs and not others (2026-10-20).
+   */
+  private makeRoom(bytes: number): void {
+    let total = bytes;
+    for (const h of this.states.values()) total += h.bytes ?? 0;
+    for (const [oldest, h] of this.states) {
+      if (total <= this.stateBudget) break;
       this.states.delete(oldest);
       total -= h.bytes ?? 0;
     }

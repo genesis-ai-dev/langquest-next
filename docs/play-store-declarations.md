@@ -250,6 +250,7 @@ this block.
       "device": ["blobCacheMb", "blobsWanted", "dbMb", "diagDropped", "diagQueued", "freeDiskMb", "journalFailed", "journalPending", "localEvents", "lostFiles", "lostRecordings", "oldestUnsentMin", "streams", "totalDiskMb", "uploadsWaiting", "wantedStuckMin"],
       "error": ["code", "errorId", "fatal", "name", "where"],
       "expected": ["code", "count", "name", "where"],
+      "fill": ["event", "headKb", "ms", "msToMap", "passages", "reason", "rows", "why"],
       "load": ["checkpoint", "events", "foldMs", "fromSnapshot", "ms", "readMs", "reason", "staleCheckpointSeq"],
       "open": ["cold", "loadMs", "ms", "pulled", "snapshotMs", "syncs"],
       "snapshot": ["bytes", "chunks", "ms", "outcome", "resumedChunks", "seq", "why"],

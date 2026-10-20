@@ -157,6 +157,25 @@ Two things these leave behind can pass for current:
   call fails (`failed to determine entrypoint` in the edge runtime's log).
   `npm run db:stop`, then `npm run db:start` from the checkout you are in.
 
+From a worktree, the local stack is shared with every other checkout on
+the machine, and two parts of it belong to the checkout that started them:
+
+- **Push delivery's secret.** Each checkout makes its own, in its
+  git-ignored `supabase/functions/.env`. The Edge runtime reads the one of
+  the checkout that started the stack, and `npm run db:start` writes this
+  checkout's into the database's Vault (`scripts/local-db.mjs`). So after a
+  `db:start` from another checkout, the push job's calls are refused until
+  the stack is stopped and started from one checkout. A worktree with no
+  secret yet restarts the stack itself, under any other session using it.
+  Push delivery only: the projection pass runs in the job container under
+  `web:dev` (decision 148) and reads no Edge secret.
+- **The Worker on :8787.** It serves the export of the checkout that
+  started it, and `db:start`, `dev:local` and the UI suite reuse whatever
+  already answers there. Run the UI suite on your own port, so Playwright
+  exports and serves this checkout:
+  `EXPO_PUBLIC_API_URL=http://localhost:8797 UI_PORT=8797 npm run test:ui:web -- --grep @p0`.
+  Never stop another session's Worker.
+
 ## Adding a test
 
 - Layer 1 to 3: beside the code's existing tests, titled with the spec ID

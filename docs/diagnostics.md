@@ -19,6 +19,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `checkpoint` | The phone rolls its confirmed prefix into a checkpoint and prunes | ms, size in KB, seq, events pruned, fast or slow path |
 | `open` | A stream is opened, until its first full pull | ms, syncs, events pulled, snapshot and load ms, whether it started cold |
 | `snapshot` | A server snapshot is fetched | fetch ms, pieces, pieces resumed after a dropped link, bytes, seq; `none` when there was none to use; why (`cold`, `redaction`, `reducer`) |
+| `fill` | A big language's first download by fill (decisions.md 147) | `start` when the Map opens: ms to the Map, head size in KB, passages and rows to fill, why (`cold`, `redaction`, `reducer`); `done` when every passage's rows are here: ms since the start, across sessions; `fallback` when the phone downloads the whole snapshot instead, with the reason (`no_rpc`, `no_cut`, `no_lines`, `old_lines`, `error`); `restart` when the cut it filled from went away (`cut_gone`) |
 | `transfer` | Blob uploads or downloads, tallied per minute or 50 files, per source | files, bytes, ms, slowest; download split into signing, network and verifying on the phone; failures by cause (link, sign-in refused 401/403, not found 404, too large 413, bad digest 422, other 4xx, 5xx, hash, gone from the device, disk, other); source (`lang`, `guide`, `handover`, `stream`, `source`, `help`, `study`) |
 | `device` | Each delivery | free and total disk (not on the web), audio cache size, files still wanted; files lost behind the app's back and unsent recordings among them (decision 92); takes mid-save and recoveries that failed; uploads waiting and the oldest unsent recording's age; the oldest wanted download's age; streams, events and database size held; diagnostics queued, and dropped past the 3000 bound |
 | `error` | A fault reaches `reportError` (`apps/mobile/src/diagnostics/report.ts`) | error class, where, the id shown to the person, fatal or not, a fixed code (a recorder's `nospace`, a SQLSTATE), stack frames |
@@ -189,6 +190,11 @@ hypotheses drawn from the numbers:
 
 - **No snapshot for the current reducer**, or one far behind: every new
   phone folds the log from the start. Check the snapshot worker.
+- **A fill that fell back, started over or will not finish**: a first
+  download that took the whole snapshot because the server had no cut or
+  lines for the language (check the projection pass on the job host), a
+  fill that started over because its cut went away, and one still running a
+  day after it began by the phone's last delivery (decisions.md 147).
 - **Slow link**: downloads under 20 KB/s on the network.
 - **Phone-bound**: verifying downloads (read and hash in JS) takes longer
   than fetching them, or a sync spends more time folding and writing than

@@ -61,6 +61,8 @@ export class SqliteStore implements EventStore {
       json text not null
     )`);
     await db.run(`create index if not exists events_stream_status on events (org_id, stream_id, status, hlc)`);
+    // The log read a page at a time in id order (`page`).
+    await db.run(`create index if not exists events_stream_id on events (org_id, stream_id, id)`);
     await db.run(`create table if not exists cursors (
       org_id text not null,
       stream_id text not null,
@@ -218,6 +220,15 @@ export class SqliteStore implements EventStore {
       `select * from events where org_id = ? and stream_id = ? and status <> 'rejected'
        order by server_seq is null, server_seq, hlc`,
       [orgId, streamId]
+    );
+    return rows.map(toLocal);
+  }
+
+  async page(orgId: string, streamId: string, afterId: string | null, limit: number, type?: string): Promise<LocalEvent[]> {
+    const rows = await this.db.all<Row>(
+      `select * from events where org_id = ? and stream_id = ? and status <> 'rejected' and id > ?
+       ${type === undefined ? '' : `and json_extract(json, '$.type') = ?`} order by id limit ?`,
+      [orgId, streamId, afterId ?? '', ...(type === undefined ? [] : [type]), limit]
     );
     return rows.map(toLocal);
   }
