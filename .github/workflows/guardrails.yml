@@ -8,15 +8,36 @@
 #           served by the Worker, against a local Supabase with the library
 #           seeded and push delivery scheduled; the Worker runs the
 #           projection pass in its job container (docs/testing.md),
-#           in two shards.
+#           in four shards of two browsers each (see ui-web below).
 # nightly:  the whole web UI suite, a fleet scenario and Stryker on core,
 #           on a schedule; not blocking, but each job files its failures in
-#           Linear (scripts/nightly-report.mjs; a dry run off main).
+#           Linear (scripts/nightly-report.mjs; a dry run off main). The
+#           flake tracker reads the last runs' reports and files the tests
+#           that do not pass every time (scripts/ui-flake-report.mjs).
 #
 # The four PR jobs start together rather than after `checks`: a PR waits for
 # the slowest job, not for `checks` plus it (decisions.md 102, amended
 # 2026-10-15). A job that needs the local stack starts it in the background
 # and installs the browsers meanwhile.
+#
+# What keeps these jobs from failing for reasons outside the code
+# (decisions.md 102, amended 2026-10-20):
+#  - Concurrency: a pull request or a push cancels the run it replaces, and
+#    nothing else cancels anything. The nightly has a group of its own, so a
+#    push to main no longer cancels it (run 39360456537 was cancelled so).
+#  - Registries: ECR Public and Docker Hub ration anonymous pulls per IP
+#    address, which a GitHub-hosted runner shares (runs 39473313915 and
+#    39360456537 failed with toomanyrequests). Each job that starts the stack
+#    restores the images from actions/cache first and saves them when the
+#    cache was not complete (.github/actions/docker-images), and a start the
+#    registry still turns away is retried (scripts/ci-retry-pull.sh). Optional
+#    secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN sign in to Docker Hub
+#    for a higher limit; without them pulls are anonymous.
+#  - Load: the stack is about a dozen containers, and wrangler dev, the job
+#    container and the browsers share a 4-vCPU runner. The stack leaves out
+#    what the tests do not use (SUPABASE_EXCLUDE), ui-web runs two browsers
+#    per runner, and every UI job records vmstat (scripts/ci-load.sh) into
+#    its results artifact, under load/.
 #
 # e2e/env.sh reads the local stack's URL and keys from `supabase
 # status`, so no dotenvx key is needed in any job.
@@ -41,9 +62,18 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request, or to main, replaces the run it leaves behind.
+# The scheduled and manual runs are a group of their own and are never
+# cancelled, so a push cannot cancel the nightly and the nightly cannot cancel
+# a push.
 concurrency:
-  group: guardrails-${{ github.ref }}
-  cancel-in-progress: true
+  group: guardrails-${{ contains(fromJSON('["pull_request","push"]'), github.event_name) && 'ci' || 'nightly' }}-${{ github.ref }}
+  cancel-in-progress: ${{ contains(fromJSON('["pull_request","push"]'), github.event_name) }}
+
+env:
+  # What `supabase start` leaves out in every job: none of it is used by the
+  # tests, and each is an image to pull and a container to run.
+  SUPABASE_EXCLUDE: studio,imgproxy,vector,logflare,supavisor
 
 jobs:
   checks:
@@ -95,12 +125,17 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - uses: ./.github/actions/docker-images
+        with: { phase: restore }
       - name: Start Supabase (applies every migration)
-        run: npx supabase start -x studio,imgproxy,vector,logflare,supavisor
+        run: bash scripts/ci-retry-pull.sh npx supabase start -x "$SUPABASE_EXCLUDE"
       - name: SQL smokes and parity
         run: npm run db:test
       - name: Client integration test
         run: npm run test:integration
+      - uses: ./.github/actions/docker-images
+        if: always()
+        with: { phase: save }
 
   web-smoke:
     # The web as a published platform (decisions.md 58): the release web
@@ -117,8 +152,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - name: Record the runner's load
+        run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
+      - uses: ./.github/actions/docker-images
+        with: { phase: restore }
       - name: Start Supabase in the background (applies every migration)
-        run: nohup bash -c 'npx supabase start -x studio,imgproxy,vector,logflare,supavisor > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
+        run: nohup bash -c 'bash scripts/ci-retry-pull.sh npx supabase start -x "$SUPABASE_EXCLUDE" > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
       - run: npx playwright install --with-deps chromium firefox webkit
       - name: Wait for Supabase
         run: |
@@ -132,6 +171,12 @@ jobs:
       - name: Smoke-test the web app
         shell: bash
         run: source e2e/env.sh && npx playwright test -c e2e/web-smoke.config.ts
+      - name: Keep the runner's load record
+        if: always()
+        run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/load
+      - uses: ./.github/actions/docker-images
+        if: always()
+        with: { phase: save }
       # What the page showed when a step failed (error-context.md), so a CI-only failure can be read.
       - name: Keep the smoke results
         if: failure()
@@ -148,35 +193,58 @@ jobs:
     # and the projection pass in the Worker's job container, its tick fired
     # every minute (e2e/ui-web.sh, decisions.md 148). Zero retries; a red
     # run is a finding, not a flake to hide.
-    # Two shards, each on its own runner: the tests are most of the job.
-    # Playwright splits by test count, in file order, with the `wide` project
-    # first (e2e/ui.config.ts), so the longest test starts at once.
+    # Four shards of two browsers each, one runner per shard. One runner
+    # held the stack (about a dozen containers), wrangler dev, the job
+    # container and four browsers on 4 vCPUs, and tests ran 2 to 9 times
+    # slower than on a laptop; the shard with the recording, reviewing, sync
+    # and journey files had 19 of the 21 failures in 144 runs. Half the
+    # browsers per runner and twice the runners keep the wall time about the
+    # same. The shards are cut by recorded duration, not by test count
+    # (Playwright's --shard deals by count in file order, which put 154 s of
+    # recording tests in one shard and 47 s of home-screen tests in the
+    # other): scripts/ui-shards.mjs deals spec files by their seconds in
+    # scripts/ui-shard-weights.json, which is refreshed from the reports of
+    # kept runs (its header says how).
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     env:
       CI: 'true'
       UI_PORT: '8787'
-      UI_WORKERS: '4'
+      UI_WORKERS: '2'
+      SHARDS: '4'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - name: Record the runner's load
+        run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
+      - uses: ./.github/actions/docker-images
+        with:
+          phase: restore
+          job-images: 'true'
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Start the local stack in the background (migrations, library, push delivery)
-        run: nohup bash -c 'npm run db:start > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
+        run: nohup bash -c 'bash scripts/ci-retry-pull.sh npm run db:start > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
       - run: npx playwright install --with-deps chromium
       - name: Wait for the local stack
         run: |
           while [ ! -f "$RUNNER_TEMP/stack.exit" ]; do sleep 2; done
           cat "$RUNNER_TEMP/stack.log"
           exit "$(cat "$RUNNER_TEMP/stack.exit")"
-      - name: P0 web UI tests on the export (shard ${{ matrix.shard }} of 2)
+      - name: P0 web UI tests on the export (shard ${{ matrix.shard }} of 4)
         shell: bash
-        run: npm run test:ui:web -- --grep @p0 --grep-invert @quarantine --shard=${{ matrix.shard }}/2
+        run: |
+          files="$(node scripts/ui-shards.mjs "${{ matrix.shard }}" "$SHARDS" --tag @p0)"
+          npm run test:ui:web -- --grep @p0 --grep-invert @quarantine $files
+      - name: Keep the runner's load record
+        if: always()
+        run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/ui/load
       - name: Keep the results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -184,9 +252,13 @@ jobs:
           name: ui-web-p0-results-${{ matrix.shard }}
           path: |
             e2e/results/ui/report.json
+            e2e/results/ui/load/*
             e2e/results/ui/**/*.png
             e2e/results/ui/**/error-context.md
           if-no-files-found: ignore
+      - uses: ./.github/actions/docker-images
+        if: always()
+        with: { phase: save, job-images: 'true' }
 
   nightly-ui-web:
     # The whole web UI suite, quarantine apart. Not blocking; its failures go to Linear.
@@ -196,18 +268,30 @@ jobs:
     env:
       CI: 'true'
       UI_PORT: '8787'
-      UI_WORKERS: '4'
+      # Two browsers, as in ui-web: the run is not waited for, so it can be slower and steadier.
+      UI_WORKERS: '2'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - name: Record the runner's load
+        run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
+      - uses: ./.github/actions/docker-images
+        with:
+          phase: restore
+          job-images: 'true'
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
       - run: npx playwright install --with-deps chromium
       - name: Start the local stack (migrations, library, push delivery)
-        run: npm run db:start
+        run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: The whole web UI suite
         shell: bash
         run: npm run test:ui:web -- --grep-invert @quarantine
+      - name: Keep the runner's load record
+        if: always()
+        run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/ui/load
       - name: Keep the results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -215,9 +299,13 @@ jobs:
           name: ui-web-nightly-results
           path: |
             e2e/results/ui/report.json
+            e2e/results/ui/load/*
             e2e/results/ui/**/*.png
             e2e/results/ui/**/error-context.md
           if-no-files-found: ignore
+      - uses: ./.github/actions/docker-images
+        if: always()
+        with: { phase: save, job-images: 'true' }
       # An issue per failing test, or one for the run when it broke as a whole.
       - name: Tell Linear
         if: always()
@@ -237,24 +325,41 @@ jobs:
     env:
       CI: 'true'
       UI_PORT: '8787'
+      UI_WORKERS: '2'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - name: Record the runner's load
+        run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
+      - uses: ./.github/actions/docker-images
+        with:
+          phase: restore
+          job-images: 'true'
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
       - run: npx playwright install --with-deps chromium
       - name: Start the local stack (migrations, library, push delivery)
-        run: npm run db:start
+        run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: Quarantined web UI tests
         shell: bash
         run: npm run test:ui:web -- --grep @quarantine
+      - name: Keep the runner's load record
+        if: always()
+        run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/ui/load
       - name: Keep the results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ui-web-quarantine-results
-          path: e2e/results/ui/report.json
+          path: |
+            e2e/results/ui/report.json
+            e2e/results/ui/load/*
           if-no-files-found: ignore
+      - uses: ./.github/actions/docker-images
+        if: always()
+        with: { phase: save, job-images: 'true' }
 
   nightly-fleet:
     # A fleet of phones on simulated time (docs/fleet-simulation.md): the
