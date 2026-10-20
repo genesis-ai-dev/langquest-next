@@ -9,7 +9,7 @@
 // screenshot and the person's name and email each go only if they turn them
 // on. Saved as an account change, it goes when the phone is online.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Image, PanResponder, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { Chip, ChipWrap, Field, Group, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
@@ -57,17 +57,28 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; bottom: number; 
   const latest = useRef({ place, area, pill, bottom: props.bottom });
   latest.current = { place, area, pill, bottom: props.bottom };
   const from = useRef(kept);
+  const moved = useRef(false);
+  const [pressed, setPressed] = useState(false);
+  const open_ = useRef<() => void>(() => {});
+  // The button is its own responder, for a tap and a drag alike: a press that
+  // moves past DRAG_SLOP moves it; one that does not opens feedback.
   const responder = useMemo(() => PanResponder.create({
-    // A tap goes to the button; once the press moves, it is a drag.
-    onMoveShouldSetPanResponderCapture: (_e, g) => Math.abs(g.dx) + Math.abs(g.dy) > DRAG_SLOP,
-    onPanResponderGrant: () => { from.current = latest.current.place?.drag ?? kept; },
-    onPanResponderMove: (_e, g) => setDrag({ dx: from.current.dx + g.dx, dy: from.current.dy + g.dy }),
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => { from.current = latest.current.place?.drag ?? kept; moved.current = false; setPressed(true); },
+    onPanResponderMove: (_e, g) => {
+      if (!moved.current && Math.abs(g.dx) + Math.abs(g.dy) <= DRAG_SLOP) return;
+      moved.current = true;
+      setDrag({ dx: from.current.dx + g.dx, dy: from.current.dy + g.dy });
+    },
     onPanResponderRelease: (_e, g) => {
+      setPressed(false);
+      if (!moved.current) { open_.current(); return; }
       const { area: a, pill: p, bottom } = latest.current;
       const next = { dx: from.current.dx + g.dx, dy: from.current.dy + g.dy };
       kept = a && p ? pillPlace(a, p, bottom, next).drag : next;
       setDrag(kept);
     },
+    onPanResponderTerminate: () => { setPressed(false); },
     onPanResponderTerminationRequest: () => false
   }), []);
 
@@ -80,22 +91,22 @@ export function FeedbackHost(props: { ctx: Ctx; screen: string; bottom: number; 
     setTaking(false);
     setOpen({ shot });
   }
+  open_.current = () => void start();
 
   return (
     <>
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none"
         onLayout={(e) => setArea({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}>
         {showing ? (
-          <View {...responder.panHandlers} onLayout={(e) => setPill({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
-            style={[styles.place, place ? { left: place.left, top: place.top } : styles.unplaced]}>
-            {/* help-ignore: help mode's own button, like the ?: it opens feedback rather than explaining */}
-            <Pressable testID="help-feedback" onPress={() => void start()} accessibilityRole="button" accessibilityLabel={t('feedback.open')}
-              style={({ pressed }) => [styles.pill, pressed && { opacity: 0.85 }]}>
-              <Ico name="grip" size={18} color="rgba(255,255,255,0.75)" />
-              <Ico name="chatDots" size={20} color={C.white} />
-              <Text style={styles.pillText}>{t('feedback.open')}</Text>
-              <HelpLit />
-            </Pressable>
+          // help-ignore: help mode's own button, like the ?: it opens feedback rather than explaining
+          <View {...responder.panHandlers} testID="help-feedback" accessible accessibilityRole="button" accessibilityLabel={t('feedback.open')}
+            onAccessibilityTap={() => void start()}
+            onLayout={(e) => setPill({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
+            style={[styles.place, styles.pill, place ? { left: place.left, top: place.top } : styles.unplaced, pressed && { opacity: 0.85 }]}>
+            <Ico name="grip" size={18} color="rgba(255,255,255,0.75)" />
+            <Ico name="chatDots" size={20} color={C.white} />
+            <Text style={styles.pillText}>{t('feedback.open')}</Text>
+            <HelpLit />
           </View>
         ) : null}
       </View>
