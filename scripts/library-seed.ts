@@ -558,10 +558,18 @@ async function main(argv: string[]) {
   }
   console.log(`documents: ${build.documents.length} stored`);
   if (door43) {
+    // Tens of thousands of calls: one the network drops is sent again, after 1, 2, 4 and 8 seconds. The server's own refusals are not.
+    const store = async (body: string) => {
+      for (let attempt = 0; ; attempt++) {
+        const r = await db.rpc('library_seed_document', { p_org: SEED_ORG.id, p_body: body });
+        if (!r.error || r.error.code || attempt === 4 || !/fetch failed|network|socket|timed? ?out|ECONN/i.test(r.error.message)) return r;
+        await new Promise((done) => setTimeout(done, 1000 * 2 ** attempt));
+      }
+    };
     let n = 0;
     for (const hash of door43.order) {
       const body = readFileSync(join(DOC_DIR, `${hash}.json`), 'utf8');
-      const { data, error } = await db.rpc('library_seed_document', { p_org: SEED_ORG.id, p_body: body });
+      const { data, error } = await store(body);
       if (error) throw new Error(`library_seed_document ${hash}: ${error.message}`);
       if (data !== hash) throw new Error(`the server named Door43 document ${hash} ${String(data)}`);
       if (++n % 2000 === 0) console.log(`door43: ${n} of ${door43.order.length} documents stored`);

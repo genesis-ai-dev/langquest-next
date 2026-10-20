@@ -29,6 +29,13 @@ describe('study text', () => {
       { type: 'bold', text: 'share' }, { type: 'text', text: ' or ' }, { type: 'bold', text: 'this' }, { type: 'text', text: '.' }
     ]);
     expect(sectionLabel({ id: 's0', kind: 'para', text: 'A [very](#m1) long sentence that runs past the limit of the label' }, 20)).toBe('A very long senten…');
+    // Italics, as translation helps write their examples; a lone star stays a star.
+    expect(inlineParts('*What are idioms?* He said, *You are a pig*. 5 * 3 and *a*.')).toEqual([
+      { type: 'italic', text: 'What are idioms?' }, { type: 'text', text: ' He said, ' }, { type: 'italic', text: 'You are a pig' },
+      { type: 'text', text: '. 5 * 3 and ' }, { type: 'italic', text: 'a' }, { type: 'text', text: '.' }
+    ]);
+    expect(inlineParts('a **bold** b')).toEqual([{ type: 'text', text: 'a ' }, { type: 'bold', text: 'bold' }, { type: 'text', text: ' b' }]);
+    expect(inlineParts('footnote*')).toEqual([{ type: 'text', text: 'footnote*' }]);
   });
 
   it('turns seconds into m:ss and back', () => {

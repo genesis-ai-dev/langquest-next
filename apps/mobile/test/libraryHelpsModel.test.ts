@@ -132,6 +132,7 @@ describe('notes and key words on a passage', () => {
     expect(noteQuote(note, '1:1', null, [row])).toBe('Θεοῦ');
     expect(noteQuote(note, '1:1', al, [])).toBe('Θεοῦ');
     expect(noteQuote({ ...note, words: [] }, '1:1', al, [row])).toBe('Θεοῦ');
+    expect(noteQuote({ ...note, quote: 'εἶπεν & τις αὐτῷ', words: [] }, '1:1', al, [row])).toBe('εἶπεν … τις αὐτῷ');
     expect(noteQuote({ id: 'i', ref: 'front:intro', text: 'About Titus' }, '', al, [row])).toBeUndefined();
     const src = { books: [{ book: 'TIT', name: 'Titus', doc: H('s'), alignment: H('t') }] } as unknown as SourceDoc;
     expect(alignmentHash(src, 'TIT')).toBe(H('t'));

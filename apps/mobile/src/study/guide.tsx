@@ -163,6 +163,7 @@ function Inline(props: { text: string; resources: StudyResource[]; onOpenRef: (r
       {inlineParts(props.text).map((p, i) => {
         if (p.type === 'text') return <Text key={i}>{p.text}</Text>;
         if (p.type === 'bold') return <Text key={i} style={{ fontWeight: '800' }}>{p.text}</Text>;
+        if (p.type === 'italic') return <Text key={i} style={{ fontStyle: 'italic' }}>{p.text}</Text>;
         const r = props.resources.find((x) => x.ref === p.ref);
         return (
           <Text key={i} onPress={helpOn ? undefined : () => props.onOpenRef(p.ref)} accessibilityRole="link" suppressHighlighting={false}

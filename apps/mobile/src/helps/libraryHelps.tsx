@@ -20,7 +20,8 @@ import { SectionBody } from '../study/ui';
 import { studySections } from '../study/text';
 import { styles as ps } from '../recording/blockStyles';
 import { keyLabel } from './helpsModel';
-import { articleEntry, helpLink, type NoteGroup, type OfferedSet, type PassageKeyWord } from './libraryHelpsModel';
+import { articleEntry, helpLink, noteQuote, type NoteGroup, type OfferedSet, type PassageKeyWord } from './libraryHelpsModel';
+import type { VerseRow } from '../sources/model';
 import { useArticle } from './useLibraryHelps';
 import { useArticleSheet, type ArticleOpen } from './useArticleSheet';
 import type { LibraryHelps } from './useLibraryHelps';
@@ -58,13 +59,14 @@ function LibraryNote(props: { row: HelpsRow; quote: string | undefined; onOpenRe
  * set's credit. `quoteOf` gives a note's heading (noteQuote: the chosen
  * Bible's words for it); without it, the note's own quote.
  */
-export function LibraryNotes(props: { groups: readonly NoteGroup[]; onOpenRef: (ref: string) => void; quoteOf?: ((row: HelpsRow, at: string) => string | undefined) | undefined }) {
+export function LibraryNotes(props: { groups: readonly NoteGroup[]; onOpenRef: (ref: string) => void; quoteOf?: ((row: HelpsRow, at: string) => string | undefined) | undefined;
+  /** False in a sheet already named for the set. */ titled?: boolean }) {
   if (!props.groups.length) return null;
   return (
     <View style={{ gap: space.lg }}>
       {props.groups.map((g) => (
         <View key={g.itemId} style={{ gap: space.sm }}>
-          <Text style={[txt.label, { letterSpacing: 0.6 }]}>{g.title}</Text>
+          {props.titled !== false ? <Text style={[txt.label, { letterSpacing: 0.6 }]}>{g.title}</Text> : null}
           {g.byVerse.map(([at, rows]) => (
             <View key={at || 'intro'} style={{ gap: space.xs }}>
               <Text style={txt.xsStrong}>{placeLabel(at)}</Text>
@@ -153,8 +155,11 @@ export function ArticleSheet(props: {
  * a manual the articles the passage's notes cite. An article opens in the
  * same sheet's place.
  */
-export function PassageHelpsSheet(props: { ctx: Ctx; library: LibraryHelps; itemId: string; title: string; book: string; onClose: () => void }) {
-  const { library, itemId } = props;
+export function PassageHelpsSheet(props: { ctx: Ctx; library: LibraryHelps; itemId: string; title: string; book: string;
+  /** The reviewer's Bible's verses: notes are headed with its words there (noteQuote). */ rows?: readonly VerseRow[] | undefined; onClose: () => void }) {
+  const { library, itemId, rows } = props;
+  const alignment = library.alignment;
+  const quoteOf = useMemo(() => (rows ? (r: HelpsRow, at: string) => noteQuote(r, at, alignment, rows) : undefined), [alignment, rows]);
   const articles = useArticleSheet(library.sets);
   const notes = library.notes.filter((g) => g.itemId === itemId);
   const words = library.sets.wordLinks.some((s) => s.itemId === itemId) || library.sets.words.some((s) => s.itemId === itemId) ? library.keyWords : [];
@@ -166,7 +171,7 @@ export function PassageHelpsSheet(props: { ctx: Ctx; library: LibraryHelps; item
   return (
     <Sheet visible title={props.title} onClose={props.onClose}>
       {empty ? <Text style={txt.smMuted}>{library.loading ? t('common.loading') : t('helps.library.nothingHere')}</Text> : null}
-      <LibraryNotes groups={notes} onOpenRef={articles.openRef} />
+      <LibraryNotes groups={notes} onOpenRef={articles.openRef} quoteOf={quoteOf} titled={false} />
       <LibraryKeyWords words={words} book={props.book} onOpen={articles.openWord} />
       {cited.length ? (
         <View style={styles.card}>

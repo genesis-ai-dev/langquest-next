@@ -5955,6 +5955,8 @@ LangQuest's own words, said so in the flow (Caleb, 2026-10-20). A
 language with story questions also gets an Open Bible Stories flow. Flows
 of one pattern from one organization are one choice in the team's
 language, switched among the languages they are offered in
-(`admin/flowSetsModel.ts`), after decision 84's narrowing by language.
+(`admin/flowSetsModel.ts`). Decision 84's narrowing by language applies to
+the set: it is offered while any of its languages is one of the team's, so
+it can still be switched to another, and a set in none of them is left out.
 Reverse if: a check needs questions over a whole chapter or book (then a
 set says what it covers), or a team needs a flow in two languages at once.

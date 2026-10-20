@@ -186,7 +186,8 @@ export function verseMarks(row: VerseRow, alignment: AlignmentDoc | null, notes:
 export function noteQuote(row: HelpRow, at: string, alignment: AlignmentDoc | null, rows: readonly VerseRow[]): string | undefined {
   const [chapter, verse] = at.split(':').map(Number);
   const v = rows.find((r) => r.chapter === chapter && r.verseStart === verse);
-  return (v && row.words?.length ? alignedQuote(alignment, chapter!, verse!, row.words, v.text) : null) ?? row.quote;
+  // Words left out of a Hebrew or Greek quote are marked "&" in the notes: shown as "…", as in the Bible's own words.
+  return (v && row.words?.length ? alignedQuote(alignment, chapter!, verse!, row.words, v.text) : null) ?? row.quote?.replace(/\s*&\s*/g, ' … ');
 }
 
 /** A link in help text: an article of the manual (`ta:`), a key word (`tw:`), or a Bible place. */

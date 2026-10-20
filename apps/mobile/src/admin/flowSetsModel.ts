@@ -5,7 +5,7 @@
 // tested (test/flowSetsModel.test.ts).
 import type { FlowDoc } from '@langquest-next/core';
 import type { LibraryChoice } from '../templates/contentTemplates';
-import { docLanguage, sameLanguage } from '../reference/languages';
+import { docLanguage, inLanguages, sameLanguage } from '../reference/languages';
 
 /** A flow's language: the `language` its words are in (decision 84, as flows gained it). */
 export function flowLanguage(doc: FlowDoc): string | undefined {
@@ -51,4 +51,17 @@ export function collapseFlowSets<T extends { c: LibraryChoice; doc: FlowDoc }>(e
     out.push(members.length > 1 ? { ...pick.entry, set: { key: k, members } } : pick.entry);
   }
   return out;
+}
+
+/**
+ * The flows offered to a team with `languages` (decision 84, as flows
+ * gained a language): sets made one first (`collapseFlowSets`), then only
+ * those in one of its languages, saying none, or `current`. A set stays
+ * when any of its languages is the team's, so the team can still switch it
+ * to another; a set in none of them is left out, as a single flow is.
+ */
+export function offeredFlows<T extends { c: LibraryChoice; doc: FlowDoc }>(entries: readonly T[], reads: readonly string[], chosen: Readonly<Record<string, string>>,
+  languages: readonly string[] | undefined, isCurrent: (e: T) => boolean): (T & { set?: { key: string; members: FlowSetMember<T>[] } })[] {
+  return collapseFlowSets(entries, reads, chosen).filter((e) => !languages || isCurrent(e) || inLanguages(flowLanguage(e.doc), languages)
+    || !!e.set?.members.some((m) => isCurrent(m.entry) || inLanguages(m.language, languages)));
 }

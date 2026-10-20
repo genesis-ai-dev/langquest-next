@@ -81,20 +81,28 @@ export function studySections(md: string): StudySection[] {
 type InlinePart =
   | { type: 'text'; text: string }
   | { type: 'bold'; text: string }
+  | { type: 'italic'; text: string }
   /** `ref` is the link target without its "#": "m387" pictures, "c47" a map, "t63" a glossary term. */
   | { type: 'link'; text: string; ref: string };
 
-/** `__bold__`, `**bold**` and `[label](#ref)`: all FIA's step text uses. */
+/**
+ * `__bold__`, `**bold**` and `[label](#ref)`, all FIA's step text uses, and
+ * `*italic*`, which translation helps use for examples: a star with a word
+ * right after it opens, one with a word right before it closes, so a lone
+ * star (a footnote's) stays a star.
+ */
 export function inlineParts(text: string): InlinePart[] {
   const parts: InlinePart[] = [];
-  const re = /\[([^\]]+)\]\(#?([^)]+)\)|__([^_]+)__|\*\*([^*]+)\*\*/g;
+  const re = /\[([^\]]+)\]\(#?([^)]+)\)|__([^_]+)__|\*\*([^*]+)\*\*|(^|[^*\w])\*(?![\s*])([^*\n]*?[^\s*])\*(?![*\w])/g;
   let last = 0;
   for (const m of text.matchAll(re)) {
-    const i = m.index ?? 0;
+    // An italic's match starts with the character before its star, which is text.
+    const i = (m.index ?? 0) + (m[6] !== undefined ? m[5]!.length : 0);
     if (i > last) parts.push({ type: 'text', text: text.slice(last, i) });
     if (m[1]) parts.push({ type: 'link', text: m[1], ref: m[2]! });
+    else if (m[6] !== undefined) parts.push({ type: 'italic', text: m[6] });
     else parts.push({ type: 'bold', text: (m[3] ?? m[4])! });
-    last = i + m[0].length;
+    last = (m.index ?? 0) + m[0].length;
   }
   if (last < text.length) parts.push({ type: 'text', text: text.slice(last) });
   return parts;

@@ -11,8 +11,8 @@ import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { STARTER_FLOW } from '../org/orgAdmin';
 import { flowTitle, recordKind, type RecordKind } from './adminModel';
-import { collapseFlowSets, type FlowSetMember } from './flowSetsModel';
-import { inLanguages, teamLanguages } from '../reference/languages';
+import { offeredFlows, type FlowSetMember } from './flowSetsModel';
+import { teamLanguages } from '../reference/languages';
 
 /** A flow with one check by the community, by the title flowTitle gives it in the language showing ("Just the community"). */
 const communityOnly = () => flowTitle([{ kindIds: ['community'] }], []);
@@ -62,8 +62,8 @@ export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined
   const reads = useMemo(() => languages ?? teamLanguages(ctx.org.state, ctx.language.state, ctx.language.languageId),
     [languages, ctx.org.state, ctx.language.state, ctx.language.languageId]);
   const [chosen, setChosen] = useState<Record<string, string>>({});
-  const entries: FlowEntry[] = collapseFlowSets(choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc)
-    .filter((e) => !languages || e.c === current || inLanguages(e.doc.language, languages)), reads, chosen);
+  const entries: FlowEntry[] = offeredFlows(choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc),
+    reads, chosen, languages, (e) => e.c === current);
   /** Show a set of flows in another of its languages. */
   const chooseIn = (setKey: string, entryKey: string) => setChosen((m) => ({ ...m, [setKey]: entryKey }));
   const kindsOf = (doc: FlowDoc): KindDef[] => [...doc.kinds, ...kinds];

@@ -290,13 +290,14 @@ export function GlossarySheet(props: { entry: GlossaryEntry; source: string; org
 
 // ---- a step's text: callouts, list items, headings and links -------------------------------
 
-/** Inline text: bold words and links to pictures, maps and glossary terms. */
+/** Inline text: bold and italic words, and links to pictures, maps and glossary terms. */
 function Inline(props: { text: string; onOpenRef?: (ref: string) => void }): ReactNode {
   // While help is on a link does not open: the text around it explains it (StepPreview).
   const helpOn = useHelpOn();
   return inlineParts(props.text).map((p, i) => {
     if (p.type === 'text') return p.text;
     if (p.type === 'bold') return <Text key={i} style={{ fontWeight: '700' }}>{p.text}</Text>;
+    if (p.type === 'italic') return <Text key={i} style={{ fontStyle: 'italic' }}>{p.text}</Text>;
     return (
       <Text key={i} onPress={props.onOpenRef && !helpOn ? () => props.onOpenRef!(p.ref) : undefined} accessibilityRole="link" suppressHighlighting={false}
         style={{ fontWeight: '700', color: C.primary, textDecorationLine: 'underline' }}>{p.text}</Text>

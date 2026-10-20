@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FlowDoc, LibraryItemView } from '@langquest-next/core';
-import { choiceOrigin, collapseFlowSets, flowLanguage } from '../src/admin/flowSetsModel';
+import { choiceOrigin, collapseFlowSets, flowLanguage, offeredFlows } from '../src/admin/flowSetsModel';
 import type { LibraryChoice } from '../src/templates/contentTemplates';
 import type { SharedItem } from '../src/library/model';
 
@@ -43,5 +43,26 @@ describe('flows in several languages', () => {
     // Switched to another of its languages.
     const key = hin[1]!.set!.key;
     expect(collapseFlowSets(entries, ['hin'], { [key]: 'cm.fra' })[1]!.c.key).toBe('cm.fra');
+  });
+
+  it('offers a team the flows in its languages, a set while any of its languages is one, so it can still be switched', () => {
+    const entries = [
+      { c: shared('standard'), doc: flow() },
+      { c: shared('cm.fra'), doc: flow('fra', 'door43-checking') },
+      { c: shared('cm.eng'), doc: flow('eng', 'door43-checking') },
+      { c: shared('solo.fra'), doc: flow('fra') },
+      { c: shared('obs.hin'), doc: flow('hin', 'door43-checking-obs') },
+      { c: shared('obs.ory'), doc: flow('ory', 'door43-checking-obs') }
+    ];
+    const none = () => false;
+    const eng = offeredFlows(entries, ['eng'], {}, ['eng'], none);
+    expect(eng.map((e) => e.c.key)).toEqual(['standard', 'cm.eng']);
+    expect(eng[1]!.set!.members.map((m) => m.language)).toEqual(['eng', 'fra']);
+    // Switched to French, the set is still offered; a lone French flow, or a set in neither language, is not.
+    const key = eng[1]!.set!.key;
+    expect(offeredFlows(entries, ['eng'], { [key]: 'cm.fra' }, ['eng'], none).map((e) => e.c.key)).toEqual(['standard', 'cm.fra']);
+    // The one in use is always offered; with no languages given, everything is.
+    expect(offeredFlows(entries, ['eng'], {}, ['eng'], (e) => e.c.key === 'solo.fra').map((e) => e.c.key)).toEqual(['standard', 'cm.eng', 'solo.fra']);
+    expect(offeredFlows(entries, ['eng'], {}, undefined, none)).toHaveLength(4);
   });
 });

@@ -80,6 +80,7 @@ import { NoteStepContext } from '../checks/noteStep';
 import { anyFrom, fromFilter } from '../checks/showsModel';
 import { useCheckQuestions, useLibraryHelps } from '../helps/useLibraryHelps';
 import { PassageHelpsSheet } from '../helps/libraryHelps';
+import { useBibleRows } from '../helps/useBibleRows';
 import { bookOf } from '../recording/model';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
@@ -150,7 +151,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // A check's notes, key words and articles from the library open on this passage (decision 91).
   const [libraryHelp, setLibraryHelp] = useState<{ itemId: string; title: string } | null>(null);
   const checkItems = useMemo(() => helps.flatMap((h) => ('passage' in h.open ? [h.open.passage] : [])), [helps]);
-  const library = useLibraryHelps(ctx, checkItems.length ? v?.unitId : null, null, checkItems);
+  // Its notes are headed with the words of the Bible the reviewer reads, where that Bible is word-aligned.
+  const bibleRows = useBibleRows(ctx, checkItems.length ? v?.unitId ?? null : null, v?.languageId ?? null);
+  const library = useLibraryHelps(ctx, checkItems.length ? v?.unitId : null, bibleRows.source, checkItems);
   const openHelp = (h: CheckHelpRow) => {
     if ('bible' in h.open) { setBible(h.open.bible); setSheet('background'); return; }
     if ('passage' in h.open) { setLibraryHelp({ itemId: h.open.passage, title: h.name }); return; }
@@ -570,7 +573,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       ) : null}
 
       {libraryHelp ? (
-        <PassageHelpsSheet ctx={ctx} library={library} itemId={libraryHelp.itemId} title={libraryHelp.title} book={bookOf(v.title)} onClose={() => setLibraryHelp(null)} />
+        <PassageHelpsSheet ctx={ctx} library={library} itemId={libraryHelp.itemId} title={libraryHelp.title} book={bookOf(v.title)} rows={bibleRows.rows ?? undefined} onClose={() => setLibraryHelp(null)} />
       ) : null}
 
       {sheet === 'who' ? (
