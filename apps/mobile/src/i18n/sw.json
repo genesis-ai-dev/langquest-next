@@ -3655,7 +3655,8 @@
       },
       "questionFrom": {
         "language": "Lugha",
-        "request": "Imeombwa kwa ukaguzi huu"
+        "request": "Imeombwa kwa ukaguzi huu",
+        "library": "Maswali ya kifungu hiki"
       },
       "candidate": {
         "member": "Mwanachama",
@@ -5788,7 +5789,8 @@
       "source": {
         "language": "Timu ya lugha",
         "fromName": "Kutoka kwa {{name}}",
-        "fromWhoeverAsked": "Kutoka kwa aliyeomba"
+        "fromWhoeverAsked": "Kutoka kwa aliyeomba",
+        "library": "Maswali ya kifungu hiki"
       },
       "anchor": {
         "passage": "Kifungu kizima",
@@ -5798,7 +5800,9 @@
         "version": "Toleo la {{n}}",
         "aVersion": "Toleo",
         "study": "Somo"
-      }
+      },
+      "suggestedAnswer": "Jibu linalopendekezwa: {{answer}}",
+      "questionAt": "Mstari {{verse}}"
     },
     "parts": {
       "yourAnswer": "Jibu lako",
@@ -5968,7 +5972,8 @@
       "helpGuideHelp": "Hufungua mwongozo wa kujifunza wa kifungu hiki.",
       "helpNoteHelp": "Hulifungua ili ulisome.",
       "howManyHelp": "Sema wangapi walisikiliza. Si lazima.",
-      "doneRecordedHelp": "Huweka {{what}} kwenye kumbukumbu za kifungu."
+      "doneRecordedHelp": "Huweka {{what}} kwenye kumbukumbu za kifungu.",
+      "helpLibraryHelp": "Hufungua kilichomo kwa ajili ya kifungu hiki."
     },
     "guest": {
       "previewSub": "Hakiki · kile anachoona mtu asiye na programu",
@@ -6523,7 +6528,8 @@
       "verseTermsHelp": "Maneno yaliyopigiwa mstari ni maneno muhimu: gusa moja ili kulifungua.",
       "verseTermsMarkedHelp": "Maneno yaliyopigiwa mstari ni maneno muhimu.",
       "verseTiedHelp": "Alama ya vema baada ya neno muhimu inamaanisha limeunganishwa na rasimu yako.",
-      "verseDotHelp": "Inacheza Biblia kuanzia mstari huu."
+      "verseDotHelp": "Inacheza Biblia kuanzia mstari huu.",
+      "verseAlignedHelp": "Mstari mzima chini ya maneno huonyesha kile ambacho madokezo na maneno muhimu ya hapa yanahusu."
     },
     "keyWords": {
       "none": "Bado hakuna maneno muhimu katika kifungu hiki.",
@@ -6849,7 +6855,10 @@
       "startHelp": "Huweka seti iliyo tayari badala ya kaguzi zilizopo, ili uzibadilishe upendavyo.",
       "useHelp": "Huweka hizi badala ya kaguzi za {{language}}. Tendua huzirudisha.",
       "pickHelp": "Huuchagua. Kisha Tumia, chini kabisa, huweka kaguzi zake badala ya zilizopo.",
-      "replaceAsk": "Weka {{name}} badala ya kaguzi za {{language}} zenyewe?"
+      "replaceAsk": "Weka {{name}} badala ya kaguzi za {{language}} zenyewe?",
+      "inLanguage": "Kwa {{language}} · lugha nyingine",
+      "inLanguageHelp": "Huonyesha lugha ambazo mtiririko huu ulio tayari unapatikana, ili kuutumia kwa nyingine.",
+      "languageTitle": "Lugha gani?"
     },
     "gone": "Ukaguzi huu haumo tena kwenye kaguzi za lugha",
     "checkOf": "Ukaguzi wa {{n}} · {{language}}",
@@ -7155,5 +7164,24 @@
     "help": "Huhifadhiwa unapoendelea: duara linalozunguka wakati inahifadhiwa, kisha alama ya vema. Huhitaji kuhifadhi.",
     "failed": "Haijahifadhiwa",
     "saved": "Imehifadhiwa"
+  },
+  "helps": {
+    "library": {
+      "intro": "Utangulizi",
+      "verse": "Mstari {{verse}}",
+      "supportLink": "Jinsi ya kutafsiri hili",
+      "supportHelp": "Hufungua makala ambayo dokezo hili linaelekeza, kuhusu kutafsiri jambo la aina hii.",
+      "keyWordsTitle": "Maneno muhimu hapa",
+      "keyWordHelp": "Hufungua maana ya neno hili muhimu na jinsi linavyoweza kutafsiriwa.",
+      "keyWordLabel": "{{word}}, {{where}}",
+      "addKeyWord": "Ongeza kwenye maneno yetu muhimu",
+      "addKeyWordHelp": "Huongeza neno hili kwenye maneno muhimu ya lugha yako, unaposema jinsi lugha yako inavyolisema.",
+      "backArticle": "Rudi kwa {{title}}",
+      "backArticleHelp": "Hurudi kwenye makala uliyokuwa ukisoma.",
+      "articleMissing": "Makala hii haimo katika misaada yako.",
+      "articleOffline": "Makala hii bado haiko kwenye simu hii. Inakuja ukiwa mtandaoni.",
+      "nothingHere": "Hakuna kitu cha hili kwa kifungu hiki.",
+      "title": "Kichwa"
+    }
   }
 }

@@ -31,10 +31,11 @@ function HelpText(props: { text: string; onOpenRef: (ref: string) => void }) {
   return <View style={{ gap: space.xs }}>{sections.map((sec) => <SectionBody key={sec.id} section={sec} onOpenRef={props.onOpenRef} />)}</View>;
 }
 
-/** "Verse 12", "12–14", or the introduction. */
+/** "Verse 12", "12–14", a psalm's title (verse 0), or the introduction. */
 function placeLabel(at: string): string {
   if (!at) return t('helps.library.intro');
-  return t('helps.library.verse', { verse: keyLabel(at.slice(at.indexOf(':') + 1)) });
+  const verse = at.slice(at.indexOf(':') + 1);
+  return verse === '0' ? t('helps.library.title') : t('helps.library.verse', { verse: keyLabel(verse) });
 }
 
 /** One note: the words it is about, then what it says, and the article it cites. */

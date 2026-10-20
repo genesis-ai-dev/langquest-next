@@ -247,9 +247,12 @@ export function publisherName(e: Pick<CatalogEntry, 'owner' | 'ownerName'>, mani
 
 /** The language as items name it: its English name, and the dialect when the code had one (`lbm-x-sabar`). */
 export function languageLabel(e: Pick<CatalogEntry, 'language' | 'languageTitle'>, code3: string): string {
-  const name = englishName(code3, e.languageTitle);
+  const known = englishName(code3);
   const dialect = /-x-([a-z0-9]+)$/i.exec(e.language)?.[1];
-  return dialect && e.language !== 'el-x-koine' ? `${name}, ${e.languageTitle && e.languageTitle !== name ? e.languageTitle : dialect}` : name;
+  if (!dialect || e.language === 'el-x-koine') return known === code3 ? englishName(code3, e.languageTitle) : known;
+  // A dialect: the language's name and the dialect's, or the catalog's own name for it when the language is not known by name.
+  const its = e.languageTitle?.trim() || dialect;
+  return known === code3 ? its : `${known}, ${its}`;
 }
 
 // ---- names, licenses, credits ----------------------------------------------------------------

@@ -3771,7 +3771,8 @@
       },
       "questionFrom": {
         "language": "Idioma",
-        "request": "Pedida para esta revisão"
+        "request": "Pedida para esta revisão",
+        "library": "Perguntas desta passagem"
       },
       "candidate": {
         "member": "Membro",
@@ -6032,7 +6033,8 @@
       "source": {
         "language": "Equipe do idioma",
         "fromName": "De {{name}}",
-        "fromWhoeverAsked": "De quem pediu"
+        "fromWhoeverAsked": "De quem pediu",
+        "library": "Perguntas desta passagem"
       },
       "anchor": {
         "passage": "Passagem inteira",
@@ -6042,7 +6044,9 @@
         "version": "Versão {{n}}",
         "aVersion": "Uma versão",
         "study": "Estudo"
-      }
+      },
+      "suggestedAnswer": "Resposta sugerida: {{answer}}",
+      "questionAt": "Versículo {{verse}}"
     },
     "parts": {
       "yourAnswer": "Sua resposta",
@@ -6218,7 +6222,8 @@
       "helpGuideHelp": "Abre o guia de estudo desta passagem.",
       "helpNoteHelp": "Abre para ler.",
       "howManyHelp": "Diga quantos ouviram. Opcional.",
-      "doneRecordedHelp": "Coloca a {{what}} na ficha da passagem."
+      "doneRecordedHelp": "Coloca a {{what}} na ficha da passagem.",
+      "helpLibraryHelp": "Abre o que isto tem para esta passagem."
     },
     "guest": {
       "previewSub": "Prévia · o que alguém sem o aplicativo vê",
@@ -6798,7 +6803,8 @@
       "verseTermsHelp": "As palavras sublinhadas são palavras-chave: toque em uma para abrir.",
       "verseTermsMarkedHelp": "As palavras sublinhadas são palavras-chave.",
       "verseTiedHelp": "Um visto depois de uma palavra-chave quer dizer que ela está ligada ao seu rascunho.",
-      "verseDotHelp": "Toca a Bíblia a partir deste versículo."
+      "verseDotHelp": "Toca a Bíblia a partir deste versículo.",
+      "verseAlignedHelp": "Uma linha contínua sob as palavras marca do que tratam as notas e palavras-chave daqui."
     },
     "keyWords": {
       "none": "Ainda não há palavras-chave nesta passagem.",
@@ -7138,7 +7144,10 @@
       "startHelp": "Troca as verificações por um conjunto pronto, para mudar como quiser.",
       "useHelp": "Substitui as verificações de {{language}} por estas. Desfazer traz de volta.",
       "pickHelp": "Escolhe. Depois, Usar, embaixo, troca as verificações pelas dele.",
-      "replaceAsk": "Substituir as verificações próprias de {{language}} por {{name}}?"
+      "replaceAsk": "Substituir as verificações próprias de {{language}} por {{name}}?",
+      "inLanguage": "Em {{language}} · outros idiomas",
+      "inLanguageHelp": "Mostra os idiomas em que este fluxo pronto vem, para usá-lo em outro.",
+      "languageTitle": "Qual idioma?"
     },
     "gone": "Esta não é mais uma das verificações do idioma",
     "checkOf": "Verificação {{n}} · {{language}}",
@@ -7460,5 +7469,24 @@
     "help": "Fica guardado enquanto você trabalha: um círculo girando enquanto guarda, depois um visto. Não é preciso salvar nada.",
     "failed": "Não salvo",
     "saved": "Salvo"
+  },
+  "helps": {
+    "library": {
+      "intro": "Introdução",
+      "verse": "Versículo {{verse}}",
+      "supportLink": "Como traduzir isto",
+      "supportHelp": "Abre o artigo que esta nota indica, sobre como traduzir algo assim.",
+      "keyWordsTitle": "Palavras-chave aqui",
+      "keyWordHelp": "Abre o que esta palavra-chave significa e como pode ser traduzida.",
+      "keyWordLabel": "{{word}}, {{where}}",
+      "addKeyWord": "Adicionar às nossas palavras-chave",
+      "addKeyWordHelp": "Adiciona esta palavra às palavras-chave do seu idioma, onde você diz como o seu idioma a diz.",
+      "backArticle": "Voltar a {{title}}",
+      "backArticleHelp": "Volta ao artigo que você estava lendo.",
+      "articleMissing": "Este artigo não está nas suas ajudas.",
+      "articleOffline": "Este artigo ainda não está neste telefone. Ele chega quando você estiver conectado.",
+      "nothingHere": "Nada disto para esta passagem.",
+      "title": "Título"
+    }
   }
 }

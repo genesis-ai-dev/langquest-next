@@ -70,7 +70,7 @@ export function markdownStory(story: number, md: string): Story | null {
     current.lines.push(line);
   }
   flush();
-  return frames.length ? { story, title, frames, ...(reference ? { reference } : {}) } : null;
+  return frames.length ? { story, title: title || String(story), frames, ...(reference ? { reference } : {}) } : null;
 }
 
 /**

@@ -66,12 +66,16 @@ const part = (s: string) => (/^\d+$/.test(s) ? String(Number(s)) : s.toLowerCase
 function refOf(row: Record<string, string>): string | null {
   const r = row['Reference'];
   if (r !== undefined && r !== '') {
-    const t = r.replace(/[–—]/g, '-').replace(/\s+/g, '');
+    const t = r.replace(/[–—]/g, '-').replace(/[\s"'“”]+/g, '');
     if (t === 'front') return 'front:intro';
+    // A psalm's title ("3:front") is its verse 0, as the Bible's text has it.
+    const title = /^(\d+):front$/.exec(t);
+    if (title) return `${Number(title[1])}:0`;
     const m = /^(front|\d+):(.+)$/.exec(t);
     if (!m) return /^\d+$/.test(t) ? part(t) : null;
-    // A list of verses ("2:3,5") is placed on its first.
-    return `${part(m[1]!)}:${part(m[2]!.split(',')[0]!)}`;
+    // A list of verses ("2:3,5") is placed on its first; a word for "introduction" in another language is one.
+    const verse = m[2]!.split(',')[0]!;
+    return `${part(m[1]!)}:${/^\d/.test(verse) ? part(verse) : 'intro'}`;
   }
   const c = row['Chapter'];
   const v = row['Verse'];
@@ -91,9 +95,9 @@ const articleOf = (s: string | undefined): string | undefined => {
   return m ? m[1] : undefined;
 };
 
-/** A row without its empty fields. */
+/** A row without its empty fields; its text stays, empty or not (a key word's link has none). */
 const withOptional = (row: Record<string, unknown>): HelpRow =>
-  Object.fromEntries(Object.entries(row).filter(([, v]) => v !== undefined && v !== '')) as unknown as HelpRow;
+  Object.fromEntries(Object.entries(row).filter(([k, v]) => k === 'text' || (v !== undefined && v !== ''))) as unknown as HelpRow;
 
 /** Translation Notes and story notes in TSV: the 7-column layout and the older 9-column one. */
 export function tsvNotes(text: string): HelpRow[] {
@@ -270,6 +274,7 @@ export function storyQuestionFiles(files: SourceFile[]): HelpRow[] {
 export function links(md: string): string {
   const target = (url: string): string | null => {
     const u = url.trim();
+    if (/^(ta|tw|bible):/.test(u)) return u;
     let m = /ta\/man\/([a-z0-9-]+)\/([a-z0-9-]+)/i.exec(u);
     if (m) return `ta:${m[1]}/${m[2]}`;
     m = /tw\/dict\/bible\/([a-z]+)\/([a-z0-9-]+)/i.exec(u);

@@ -3655,7 +3655,8 @@
       },
       "questionFrom": {
         "language": "ቋንቋ",
-        "request": "ለዚህ ግምገማ የተጠየቀ"
+        "request": "ለዚህ ግምገማ የተጠየቀ",
+        "library": "የዚህ ክፍል ጥያቄዎች"
       },
       "candidate": {
         "member": "አባል",
@@ -5788,7 +5789,8 @@
       "source": {
         "language": "የቋንቋ ቡድን",
         "fromName": "ከ{{name}}",
-        "fromWhoeverAsked": "ከጠየቀው ሰው"
+        "fromWhoeverAsked": "ከጠየቀው ሰው",
+        "library": "የዚህ ክፍል ጥያቄዎች"
       },
       "anchor": {
         "passage": "ሙሉ ክፍሉ",
@@ -5798,7 +5800,9 @@
         "version": "ስሪት {{n}}",
         "aVersion": "አንድ ስሪት",
         "study": "ጥናት"
-      }
+      },
+      "suggestedAnswer": "የተጠቆመ መልስ፦ {{answer}}",
+      "questionAt": "ቁጥር {{verse}}"
     },
     "parts": {
       "yourAnswer": "የእርስዎ መልስ",
@@ -5968,7 +5972,8 @@
       "helpGuideHelp": "ለዚህ ክፍል የጥናት መመሪያውን ይከፍታል።",
       "helpNoteHelp": "ለማንበብ ይከፍተዋል።",
       "howManyHelp": "ምን ያህል ሰዎች እንዳዳመጡ ይናገሩ። ካስፈለገ።",
-      "doneRecordedHelp": "{{what}}ን በክፍሉ መዝገብ ላይ ያሰፍራል።"
+      "doneRecordedHelp": "{{what}}ን በክፍሉ መዝገብ ላይ ያሰፍራል።",
+      "helpLibraryHelp": "ይህ ለዚህ ክፍል ያለውን ይከፍታል።"
     },
     "guest": {
       "previewSub": "ቅድመ እይታ · መተግበሪያው የሌለው ሰው የሚያየው",
@@ -6523,7 +6528,8 @@
       "verseTermsHelp": "የተሰመረባቸው ቃላት ዋና ቃላት ናቸው፦ ለመክፈት አንዱን ይንኩ።",
       "verseTermsMarkedHelp": "የተሰመረባቸው ቃላት ዋና ቃላት ናቸው።",
       "verseTiedHelp": "ከዋና ቃል በኋላ ያለ ምልክት ከረቂቅዎ ጋር ተያይዟል ማለት ነው።",
-      "verseDotHelp": "መጽሐፍ ቅዱሱን ከዚህ ቁጥር ጀምሮ ያጫውታል።"
+      "verseDotHelp": "መጽሐፍ ቅዱሱን ከዚህ ቁጥር ጀምሮ ያጫውታል።",
+      "verseAlignedHelp": "ከቃላት በታች ያለ ሙሉ መስመር እዚህ ያሉ ማስታወሻዎችና ዋና ቃላት ስለ ምን እንደሆኑ ያሳያል።"
     },
     "keyWords": {
       "none": "እስካሁን በዚህ ክፍል ውስጥ ዋና ቃላት የሉም።",
@@ -6849,7 +6855,10 @@
       "startHelp": "ፍተሻዎቹን እንደፈለጉ በሚለውጡት የተዘጋጀ ስብስብ ይተካል።",
       "useHelp": "የ{{language}} ፍተሻዎችን በእነዚህ ይተካል። «ይቀልብሱ» ይመልሳቸዋል።",
       "pickHelp": "ይመርጠዋል። ከዚያ ከታች ያለው «ይጠቀሙ» ፍተሻዎቹን በእሱ ፍተሻዎች ይተካል።",
-      "replaceAsk": "የ{{language}}ን የራሱ ፍተሻዎች በ{{name}} ይተኩ?"
+      "replaceAsk": "የ{{language}}ን የራሱ ፍተሻዎች በ{{name}} ይተኩ?",
+      "inLanguage": "በ{{language}} · ሌሎች ቋንቋዎች",
+      "inLanguageHelp": "ይህ የተዘጋጀ ሂደት የሚገኝባቸውን ቋንቋዎች ያሳያል፤ በሌላ ቋንቋ ለመጠቀም።",
+      "languageTitle": "የትኛው ቋንቋ?"
     },
     "gone": "ይህ ከአሁን በኋላ ከቋንቋው ፍተሻዎች አንዱ አይደለም",
     "checkOf": "ፍተሻ {{n}} · {{language}}",
@@ -7155,5 +7164,24 @@
     "help": "ሲሠሩ ይቀመጣል፦ እየተቀመጠ ሳለ የሚሽከረከር ክብ፣ ከዚያ ምልክት። ማስቀመጥ አያስፈልግዎትም።",
     "failed": "አልተቀመጠም",
     "saved": "ተቀምጧል"
+  },
+  "helps": {
+    "library": {
+      "intro": "መግቢያ",
+      "verse": "ቁጥር {{verse}}",
+      "supportLink": "ይህን እንዴት መተርጎም እንደሚቻል",
+      "supportHelp": "ይህ ማስታወሻ የሚጠቁመውን ጽሑፍ ይከፍታል፤ እንዲህ ያለውን ነገር ስለ መተርጎም።",
+      "keyWordsTitle": "እዚህ ያሉ ዋና ቃላት",
+      "keyWordHelp": "የዚህን ዋና ቃል ትርጉም እና እንዴት ሊተረጎም እንደሚችል ይከፍታል።",
+      "keyWordLabel": "{{word}}፣ {{where}}",
+      "addKeyWord": "ወደ ዋና ቃላታችን ያክሉ",
+      "addKeyWordHelp": "ይህን ቃል ወደ ቋንቋዎ ዋና ቃላት ያክላል፤ በዚያ ቋንቋዎ እንዴት እንደሚለው ይናገራሉ።",
+      "backArticle": "ወደ {{title}} ይመለሱ",
+      "backArticleHelp": "ሲያነቡት ወደነበረው ጽሑፍ ይመልሳል።",
+      "articleMissing": "ይህ ጽሑፍ በእርዳታዎችዎ ውስጥ የለም።",
+      "articleOffline": "ይህ ጽሑፍ ገና በዚህ ስልክ ላይ የለም። ከኢንተርኔት ጋር ሲገናኙ ይመጣል።",
+      "nothingHere": "ለዚህ ክፍል ከዚህ ምንም የለም።",
+      "title": "ርዕስ"
+    }
   }
 }

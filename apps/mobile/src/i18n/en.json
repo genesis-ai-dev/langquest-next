@@ -7180,7 +7180,8 @@
       "backArticleHelp": "Goes back to the article you were reading.",
       "articleMissing": "This article isn't in your helps.",
       "articleOffline": "This article isn't on this phone yet. It comes when you're online.",
-      "nothingHere": "Nothing of this for this passage."
+      "nothingHere": "Nothing of this for this passage.",
+      "title": "Title"
     }
   }
 }

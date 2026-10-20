@@ -3655,7 +3655,8 @@
       },
       "questionFrom": {
         "language": "Harshe",
-        "request": "An nema don wannan bita"
+        "request": "An nema don wannan bita",
+        "library": "Tambayoyin wannan nassi"
       },
       "candidate": {
         "member": "Memba",
@@ -5788,7 +5789,8 @@
       "source": {
         "language": "Tawagar harshe",
         "fromName": "Daga {{name}}",
-        "fromWhoeverAsked": "Daga wanda ya roƙa"
+        "fromWhoeverAsked": "Daga wanda ya roƙa",
+        "library": "Tambayoyin wannan nassi"
       },
       "anchor": {
         "passage": "Dukan nassin",
@@ -5798,7 +5800,9 @@
         "version": "Siga ta {{n}}",
         "aVersion": "Wata siga",
         "study": "Nazari"
-      }
+      },
+      "suggestedAnswer": "Amsar da aka shawarta: {{answer}}",
+      "questionAt": "Aya ta {{verse}}"
     },
     "parts": {
       "yourAnswer": "Amsarku",
@@ -5968,7 +5972,8 @@
       "helpGuideHelp": "Yana buɗe jagorar nazari ta wannan nassi.",
       "helpNoteHelp": "Yana buɗe shi don karantawa.",
       "howManyHelp": "Ku faɗi yawan waɗanda suka saurara. Ba dole ba.",
-      "doneRecordedHelp": "Yana sa {{what}} a tarihin nassin."
+      "doneRecordedHelp": "Yana sa {{what}} a tarihin nassin.",
+      "helpLibraryHelp": "Yana buɗe abin da wannan ke da shi don wannan nassi."
     },
     "guest": {
       "previewSub": "Duba farko · abin da wanda ba shi da manhajar yake gani",
@@ -6523,7 +6528,8 @@
       "verseTermsHelp": "Kalmomin da aka ja layi a ƙarƙashinsu muhimman kalmomi ne: taɓa ɗaya don buɗe ta.",
       "verseTermsMarkedHelp": "Kalmomin da aka ja layi a ƙarƙashinsu muhimman kalmomi ne.",
       "verseTiedHelp": "Alamar ✓ bayan muhimmiyar kalma tana nufin an haɗa ta da daftarinku.",
-      "verseDotHelp": "Yana kunna Littafi Mai Tsarki daga wannan aya."
+      "verseDotHelp": "Yana kunna Littafi Mai Tsarki daga wannan aya.",
+      "verseAlignedHelp": "Layi cikakke a ƙarƙashin kalmomi yana nuna abin da bayanai da muhimman kalmomin nan suke magana a kai."
     },
     "keyWords": {
       "none": "Babu muhimman kalmomi a wannan nassi tukuna.",
@@ -6849,7 +6855,10 @@
       "startHelp": "Yana maye gurbin dubawar da rukunin da aka shirya, don ku canja yadda kuke so.",
       "useHelp": "Yana maye gurbin dubawar {{language}} da waɗannan. Janye yana mayar da su.",
       "pickHelp": "Yana zaɓar sa. Sannan Yi amfani, a ƙasa, yana maye gurbin dubawar da tasa.",
-      "replaceAsk": "A maye gurbin dubawar {{language}} ta kanta da {{name}}?"
+      "replaceAsk": "A maye gurbin dubawar {{language}} ta kanta da {{name}}?",
+      "inLanguage": "Da {{language}} · wasu harsuna",
+      "inLanguageHelp": "Yana nuna harsunan da wannan tsari da aka shirya yake da su, don amfani da shi a wani.",
+      "languageTitle": "Wane harshe?"
     },
     "gone": "Wannan ba ya cikin dubawar harshen yanzu",
     "checkOf": "Dubawa ta {{n}} · {{language}}",
@@ -7155,5 +7164,24 @@
     "help": "Ana ajiyewa yayin da kuke aiki: da'ira mai juyawa yayin da ake ajiyewa, sannan alamar ✓. Ba sai kun ajiye ba.",
     "failed": "Ba a ajiye ba",
     "saved": "An ajiye"
+  },
+  "helps": {
+    "library": {
+      "intro": "Gabatarwa",
+      "verse": "Aya ta {{verse}}",
+      "supportLink": "Yadda ake fassara wannan",
+      "supportHelp": "Yana buɗe labarin da wannan bayani ke nuni, game da fassara irin wannan abu.",
+      "keyWordsTitle": "Muhimman kalmomi a nan",
+      "keyWordHelp": "Yana buɗe ma'anar wannan muhimmiyar kalma da yadda za a iya fassara ta.",
+      "keyWordLabel": "{{word}}, {{where}}",
+      "addKeyWord": "Ƙara cikin muhimman kalmominmu",
+      "addKeyWordHelp": "Yana ƙara wannan kalma cikin muhimman kalmomin harshenku, inda kuke faɗin yadda harshenku ke faɗin ta.",
+      "backArticle": "Koma zuwa {{title}}",
+      "backArticleHelp": "Yana komawa labarin da kuke karantawa.",
+      "articleMissing": "Wannan labarin ba ya cikin taimakonku.",
+      "articleOffline": "Wannan labarin bai iso wannan wayar ba tukuna. Zai zo idan kuna kan layi.",
+      "nothingHere": "Babu wani abu na wannan don wannan nassi.",
+      "title": "Take"
+    }
   }
 }

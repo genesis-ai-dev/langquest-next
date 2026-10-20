@@ -44,7 +44,7 @@ const PARAGRAPH = /^(p|m|pi\d?|q\d?|b|nb|pc|pm|pmo|pmc|pmr|mi|li\d?|lh|lf|qr|qc|
 interface Group { key: string; words: number[] }
 
 const attr = (attrs: string, name: string): string | undefined => {
-  const m = new RegExp(`(?:^|\\s)${name}="([^"]*)"`).exec(attrs);
+  const m = new RegExp(`(?:^|[\\s|])${name}="([^"]*)"`).exec(attrs);
   return m ? m[1] : undefined;
 };
 

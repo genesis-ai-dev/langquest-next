@@ -72,7 +72,8 @@ export interface CheckingManual {
 function nameIn(toc: TocEntry[], slug: string): string | null {
   const walk = (entries: TocEntry[], depth: number, parent: TocEntry | null): string | null => {
     for (const [i, e] of entries.entries()) {
-      if (e.link === slug) return parent && depth >= 2 && i === 0 && !parent.link ? parent.title : e.title;
+      // A section of its own groups a check's articles under the top-level ones ("Language Community Check").
+      if (e.link === slug) return parent && depth >= 3 && i === 0 && !parent.link ? parent.title : e.title;
       if (e.sections) {
         const found = walk(e.sections, depth + 1, e);
         if (found) return found;

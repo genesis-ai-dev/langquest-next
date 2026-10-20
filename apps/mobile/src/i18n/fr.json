@@ -3771,7 +3771,8 @@
       },
       "questionFrom": {
         "language": "Langue",
-        "request": "Demandée pour cette révision"
+        "request": "Demandée pour cette révision",
+        "library": "Questions de ce passage"
       },
       "candidate": {
         "member": "Membre",
@@ -6032,7 +6033,8 @@
       "source": {
         "language": "Équipe de la langue",
         "fromName": "De {{name}}",
-        "fromWhoeverAsked": "De la personne qui a demandé"
+        "fromWhoeverAsked": "De la personne qui a demandé",
+        "library": "Questions de ce passage"
       },
       "anchor": {
         "passage": "Tout le passage",
@@ -6042,7 +6044,9 @@
         "version": "Version {{n}}",
         "aVersion": "Une version",
         "study": "Étude"
-      }
+      },
+      "suggestedAnswer": "Réponse proposée : {{answer}}",
+      "questionAt": "Verset {{verse}}"
     },
     "parts": {
       "yourAnswer": "Votre réponse",
@@ -6218,7 +6222,8 @@
       "helpGuideHelp": "Ouvre le guide d’étude de ce passage.",
       "helpNoteHelp": "L’ouvre pour la lire.",
       "howManyHelp": "Dites combien de personnes ont écouté. Facultatif.",
-      "doneRecordedHelp": "Met la {{what}} dans l’historique du passage."
+      "doneRecordedHelp": "Met la {{what}} dans l’historique du passage.",
+      "helpLibraryHelp": "Ouvre ce que cela contient pour ce passage."
     },
     "guest": {
       "previewSub": "Aperçu · ce que voit quelqu’un sans l’application",
@@ -6798,7 +6803,8 @@
       "verseTermsHelp": "Les mots soulignés sont des mots clés : touchez-en un pour l’ouvrir.",
       "verseTermsMarkedHelp": "Les mots soulignés sont des mots clés.",
       "verseTiedHelp": "Une coche après un mot clé signifie qu’il est lié à votre brouillon.",
-      "verseDotHelp": "Lit la Bible à partir de ce verset."
+      "verseDotHelp": "Lit la Bible à partir de ce verset.",
+      "verseAlignedHelp": "Un trait plein sous des mots marque ce dont parlent les notes et les mots clés d’ici."
     },
     "keyWords": {
       "none": "Pas encore de mots clés dans ce passage.",
@@ -7138,7 +7144,10 @@
       "startHelp": "Remplace les vérifications par un ensemble tout prêt, à modifier comme vous voulez.",
       "useHelp": "Remplace les vérifications de {{language}} par celles-ci. Annuler les remet.",
       "pickHelp": "Le choisit. Utiliser, en bas, remplace ensuite les vérifications par les siennes.",
-      "replaceAsk": "Remplacer les vérifications propres à {{language}} par {{name}} ?"
+      "replaceAsk": "Remplacer les vérifications propres à {{language}} par {{name}} ?",
+      "inLanguage": "En {{language}} · autres langues",
+      "inLanguageHelp": "Montre les langues dans lesquelles ce circuit tout prêt existe, pour l’utiliser dans une autre.",
+      "languageTitle": "Quelle langue ?"
     },
     "gone": "Ceci ne fait plus partie des vérifications de la langue",
     "checkOf": "Vérification {{n}} · {{language}}",
@@ -7460,5 +7469,24 @@
     "help": "Gardé au fur et à mesure : un cercle qui tourne pendant la sauvegarde, puis une coche. Vous n’avez rien à sauvegarder.",
     "failed": "Non sauvegardé",
     "saved": "Sauvegardé"
+  },
+  "helps": {
+    "library": {
+      "intro": "Introduction",
+      "verse": "Verset {{verse}}",
+      "supportLink": "Comment traduire cela",
+      "supportHelp": "Ouvre l’article auquel renvoie cette note, sur la façon de traduire ce genre de chose.",
+      "keyWordsTitle": "Mots clés ici",
+      "keyWordHelp": "Ouvre ce que ce mot clé veut dire et comment on peut le traduire.",
+      "keyWordLabel": "{{word}}, {{where}}",
+      "addKeyWord": "Ajouter à nos mots clés",
+      "addKeyWordHelp": "Ajoute ce mot aux mots clés de votre langue, où vous dites comment votre langue le dit.",
+      "backArticle": "Retour à {{title}}",
+      "backArticleHelp": "Revient à l’article que vous lisiez.",
+      "articleMissing": "Cet article n’est pas dans vos aides.",
+      "articleOffline": "Cet article n’est pas encore sur ce téléphone. Il arrive quand vous êtes connecté.",
+      "nothingHere": "Rien de cela pour ce passage.",
+      "title": "Titre"
+    }
   }
 }

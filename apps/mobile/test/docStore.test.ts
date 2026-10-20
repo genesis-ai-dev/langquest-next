@@ -26,7 +26,7 @@ vi.mock('expo-crypto', () => ({
   digestStringAsync: async (_alg: string, text: string) => createHash('sha256').update(text).digest('hex')
 }));
 vi.mock('expo-file-system', () => ({
-  Paths: { document: 'doc' },
+  Paths: { document: 'doc', availableDiskSpace: 10 * 1024 * 1024 * 1024 },
   Directory: class { exists = true; constructor(..._p: unknown[]) {} create() {} },
   File: class {
     readonly path: string;
@@ -227,5 +227,35 @@ describe('loadDocs', () => {
     const out = await again.loadDocs('org1', [t.hash], { deps: false });
     expect([...out.keys()]).toEqual([t.hash]);
     expect(fake.get).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the storage limit for fetched documents', () => {
+  const sourceBook = (n: number) => ({ format: 'sourceBook@1' as const, book: 'MAL', chapters: [{ chapter: n, verses: [[1, 1, 'x'.repeat(100)] as [number, number, string]] }], deps: [] as string[] });
+
+  it('drops pieces outside what is kept, least lately used first, and never a whole item or one waiting for the server', async () => {
+    const s = await store();
+    const v = await s.prepareDoc(versification);
+    const a = await s.prepareDoc(sourceBook(1));
+    const b = await s.prepareDoc(sourceBook(2));
+    const c = await s.prepareDoc(sourceBook(3));
+    const bodies: Record<string, string> = { [v.hash]: v.text, [a.hash]: a.text, [b.hash]: b.text, [c.hash]: c.text };
+    fake.get.mockImplementation(async (_org, hashes) => ({ data: hashes.map((h) => ({ hash: h, body: bodies[h]! })), error: null }));
+    const now = vi.spyOn(Date, 'now');
+    for (const [i, h] of [v.hash, a.hash, b.hash].entries()) { now.mockReturnValue(1000 + i); await s.loadDocs('org1', [h], { deps: false }); }
+    // c waits for the server: it never goes.
+    await s.keepNewDoc('org1', c.text, c.hash);
+    now.mockRestore();
+    expect((await s.docBytes()).pieces).toBe(a.text.length + b.text.length + c.text.length);
+    // Over a cap of one piece (one waiting for the server does not count): the oldest outside `keep` goes first.
+    expect(await s.evictDocs(['org1'], new Set([b.hash]), { capBytes: b.text.length, lowSpace: false })).toBe(1);
+    expect(fake.disk.has(`${a.hash}.json`)).toBe(false);
+    expect(s.cachedDoc(a.hash)).toBeNull();
+    expect(fake.disk.has(`${v.hash}.json`)).toBe(true);
+    // Low on space: every piece outside `keep` goes, the kept one stays.
+    expect(await s.evictDocs(['org1'], new Set([b.hash]), { capBytes: 1e9, lowSpace: true })).toBe(0);
+    expect(await s.evictDocs(['org1'], new Set(), { capBytes: 1e9, lowSpace: true })).toBe(1);
+    expect(fake.disk.has(`${b.hash}.json`)).toBe(false);
+    expect(fake.disk.has(`${c.hash}.json`)).toBe(true);
   });
 });

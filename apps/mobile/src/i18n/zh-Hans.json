@@ -3539,7 +3539,8 @@
       },
       "questionFrom": {
         "language": "语言",
-        "request": "为这次审核提出"
+        "request": "为这次审核提出",
+        "library": "这段经文的问题"
       },
       "candidate": {
         "member": "成员",
@@ -5544,7 +5545,8 @@
       "source": {
         "language": "语言团队",
         "fromName": "来自{{name}}",
-        "fromWhoeverAsked": "来自请求的人"
+        "fromWhoeverAsked": "来自请求的人",
+        "library": "这段经文的问题"
       },
       "anchor": {
         "passage": "整个经段",
@@ -5554,7 +5556,9 @@
         "version": "第 {{n}} 版",
         "aVersion": "一个版本",
         "study": "学习"
-      }
+      },
+      "suggestedAnswer": "参考答案：{{answer}}",
+      "questionAt": "第 {{verse}} 节"
     },
     "parts": {
       "yourAnswer": "你的回答",
@@ -5718,7 +5722,8 @@
       "helpGuideHelp": "打开这个经段的学习指南。",
       "helpNoteHelp": "打开它进行阅读。",
       "howManyHelp": "说明有多少人听了。选填。",
-      "doneRecordedHelp": "把{{what}}写进经段记录。"
+      "doneRecordedHelp": "把{{what}}写进经段记录。",
+      "helpLibraryHelp": "打开它为这段经文提供的内容。"
     },
     "guest": {
       "previewSub": "预览 · 没有应用的人看到的样子",
@@ -6248,7 +6253,8 @@
       "verseTermsHelp": "带下划线的是关键词：点按可以打开。",
       "verseTermsMarkedHelp": "带下划线的是关键词。",
       "verseTiedHelp": "关键词后面有勾，表示它已关联到你的草稿。",
-      "verseDotHelp": "从这一节开始播放圣经。"
+      "verseDotHelp": "从这一节开始播放圣经。",
+      "verseAlignedHelp": "词语下面的实线标出这里的备注和关键词讲的是什么。"
     },
     "keyWords": {
       "none": "这个经段还没有关键词。",
@@ -6560,7 +6566,10 @@
       "startHelp": "用一套现成的检查替换现有检查，之后可以随意修改。",
       "useHelp": "用这些替换{{language}}的检查。“撤销”可以恢复。",
       "pickHelp": "选择它。然后点按底部的“使用”，用它的检查替换现有检查。",
-      "replaceAsk": "用{{name}}替换{{language}}自己的检查？"
+      "replaceAsk": "用{{name}}替换{{language}}自己的检查？",
+      "inLanguage": "{{language}} · 其他语言",
+      "inLanguageHelp": "显示这个现成流程有哪些语言，以便用另一种语言。",
+      "languageTitle": "哪种语言？"
     },
     "gone": "这项检查已不属于这个语言",
     "checkOf": "第 {{n}} 项检查 · {{language}}",
@@ -6850,5 +6859,24 @@
     "help": "边做边自动保存：保存时显示转动的圆圈，保存好后显示勾。不用另外保存。",
     "failed": "未保存",
     "saved": "已保存"
+  },
+  "helps": {
+    "library": {
+      "intro": "简介",
+      "verse": "第 {{verse}} 节",
+      "supportLink": "怎样翻译这里",
+      "supportHelp": "打开这条备注所指的文章，讲怎样翻译这类内容。",
+      "keyWordsTitle": "这里的关键词",
+      "keyWordHelp": "打开这个关键词的意思以及可以怎样翻译。",
+      "keyWordLabel": "{{word}}，{{where}}",
+      "addKeyWord": "加入我们的关键词",
+      "addKeyWordHelp": "把这个词加入你们语言的关键词，在那里说出你们的语言怎么说它。",
+      "backArticle": "回到 {{title}}",
+      "backArticleHelp": "回到你刚才在读的文章。",
+      "articleMissing": "这篇文章不在你的辅助资料里。",
+      "articleOffline": "这篇文章还没有在这部手机上。联网时会下载。",
+      "nothingHere": "这段经文没有这方面的内容。",
+      "title": "标题"
+    }
   }
 }

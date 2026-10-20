@@ -3771,7 +3771,8 @@
       },
       "questionFrom": {
         "language": "Idioma",
-        "request": "Pedida para esta revisión"
+        "request": "Pedida para esta revisión",
+        "library": "Preguntas de este pasaje"
       },
       "candidate": {
         "member": "Miembro",
@@ -6032,7 +6033,8 @@
       "source": {
         "language": "Equipo del idioma",
         "fromName": "De {{name}}",
-        "fromWhoeverAsked": "De quien lo pidió"
+        "fromWhoeverAsked": "De quien lo pidió",
+        "library": "Preguntas de este pasaje"
       },
       "anchor": {
         "passage": "Todo el pasaje",
@@ -6042,7 +6044,9 @@
         "version": "Versión {{n}}",
         "aVersion": "Una versión",
         "study": "Estudio"
-      }
+      },
+      "suggestedAnswer": "Respuesta sugerida: {{answer}}",
+      "questionAt": "Versículo {{verse}}"
     },
     "parts": {
       "yourAnswer": "Tu respuesta",
@@ -6218,7 +6222,8 @@
       "helpGuideHelp": "Abre la guía de estudio de este pasaje.",
       "helpNoteHelp": "La abre para leerla.",
       "howManyHelp": "Di cuántos escucharon. Opcional.",
-      "doneRecordedHelp": "Pone la {{what}} en el registro del pasaje."
+      "doneRecordedHelp": "Pone la {{what}} en el registro del pasaje.",
+      "helpLibraryHelp": "Abre lo que esto tiene para este pasaje."
     },
     "guest": {
       "previewSub": "Vista previa · lo que ve alguien sin la app",
@@ -6798,7 +6803,8 @@
       "verseTermsHelp": "Las palabras subrayadas son palabras clave: toca una para abrirla.",
       "verseTermsMarkedHelp": "Las palabras subrayadas son palabras clave.",
       "verseTiedHelp": "Una marca después de una palabra clave significa que está ligada a tu borrador.",
-      "verseDotHelp": "Reproduce la Biblia desde este versículo."
+      "verseDotHelp": "Reproduce la Biblia desde este versículo.",
+      "verseAlignedHelp": "Una línea continua bajo las palabras marca de qué tratan las notas y palabras clave de aquí."
     },
     "keyWords": {
       "none": "Todavía no hay palabras clave en este pasaje.",
@@ -7138,7 +7144,10 @@
       "startHelp": "Reemplaza las verificaciones por un grupo listo para usar, que puedes cambiar a tu gusto.",
       "useHelp": "Reemplaza las verificaciones de {{language}} por estas. Deshacer las vuelve a poner.",
       "pickHelp": "Lo elige. Luego, Usar, abajo, reemplaza las verificaciones por las suyas.",
-      "replaceAsk": "¿Reemplazar las verificaciones propias de {{language}} por {{name}}?"
+      "replaceAsk": "¿Reemplazar las verificaciones propias de {{language}} por {{name}}?",
+      "inLanguage": "En {{language}} · otros idiomas",
+      "inLanguageHelp": "Muestra los idiomas en que viene este flujo listo, para usarlo en otro.",
+      "languageTitle": "¿Qué idioma?"
     },
     "gone": "Esta ya no es una de las verificaciones del idioma",
     "checkOf": "Verificación {{n}} · {{language}}",
@@ -7460,5 +7469,24 @@
     "help": "Se guarda mientras trabajas: un círculo que gira mientras se guarda, y luego una marca. No hace falta guardar nada.",
     "failed": "No guardado",
     "saved": "Guardado"
+  },
+  "helps": {
+    "library": {
+      "intro": "Introducción",
+      "verse": "Versículo {{verse}}",
+      "supportLink": "Cómo traducir esto",
+      "supportHelp": "Abre el artículo al que remite esta nota, sobre cómo traducir algo así.",
+      "keyWordsTitle": "Palabras clave aquí",
+      "keyWordHelp": "Abre lo que significa esta palabra clave y cómo se puede traducir.",
+      "keyWordLabel": "{{word}}, {{where}}",
+      "addKeyWord": "Agregar a nuestras palabras clave",
+      "addKeyWordHelp": "Agrega esta palabra a las palabras clave de su idioma, donde dice cómo la dice su idioma.",
+      "backArticle": "Volver a {{title}}",
+      "backArticleHelp": "Vuelve al artículo que estaba leyendo.",
+      "articleMissing": "Este artículo no está entre sus ayudas.",
+      "articleOffline": "Este artículo todavía no está en este teléfono. Llega cuando tenga conexión.",
+      "nothingHere": "Nada de esto para este pasaje.",
+      "title": "Título"
+    }
   }
 }

@@ -3539,7 +3539,8 @@
       },
       "questionFrom": {
         "language": "Bahasa",
-        "request": "Diminta untuk pemeriksaan ini"
+        "request": "Diminta untuk pemeriksaan ini",
+        "library": "Pertanyaan untuk perikop ini"
       },
       "candidate": {
         "member": "Anggota",
@@ -5544,7 +5545,8 @@
       "source": {
         "language": "Tim bahasa",
         "fromName": "Dari {{name}}",
-        "fromWhoeverAsked": "Dari orang yang meminta"
+        "fromWhoeverAsked": "Dari orang yang meminta",
+        "library": "Pertanyaan untuk perikop ini"
       },
       "anchor": {
         "passage": "Seluruh perikop",
@@ -5554,7 +5556,9 @@
         "version": "Versi {{n}}",
         "aVersion": "Sebuah versi",
         "study": "Studi"
-      }
+      },
+      "suggestedAnswer": "Jawaban yang disarankan: {{answer}}",
+      "questionAt": "Ayat {{verse}}"
     },
     "parts": {
       "yourAnswer": "Jawaban Anda",
@@ -5718,7 +5722,8 @@
       "helpGuideHelp": "Membuka panduan studi untuk perikop ini.",
       "helpNoteHelp": "Membukanya untuk dibaca.",
       "howManyHelp": "Sebutkan berapa orang yang mendengarkan. Tidak wajib.",
-      "doneRecordedHelp": "Memasukkan {{what}} ke riwayat perikop."
+      "doneRecordedHelp": "Memasukkan {{what}} ke riwayat perikop.",
+      "helpLibraryHelp": "Membuka isinya untuk perikop ini."
     },
     "guest": {
       "previewSub": "Pratinjau · yang dilihat orang tanpa aplikasi",
@@ -6248,7 +6253,8 @@
       "verseTermsHelp": "Kata yang bergaris bawah adalah kata kunci: ketuk salah satunya untuk membukanya.",
       "verseTermsMarkedHelp": "Kata yang bergaris bawah adalah kata kunci.",
       "verseTiedHelp": "Centang setelah kata kunci berarti kata itu dikaitkan dengan draf Anda.",
-      "verseDotHelp": "Memutar Alkitab dari ayat ini."
+      "verseDotHelp": "Memutar Alkitab dari ayat ini.",
+      "verseAlignedHelp": "Garis penuh di bawah kata menandai hal yang dibahas oleh catatan dan kata kunci di sini."
     },
     "keyWords": {
       "none": "Belum ada kata kunci dalam perikop ini.",
@@ -6560,7 +6566,10 @@
       "startHelp": "Mengganti pemeriksaan dengan kumpulan siap pakai, untuk diubah sesuka Anda.",
       "useHelp": "Mengganti pemeriksaan {{language}} dengan yang ini. Urungkan mengembalikannya.",
       "pickHelp": "Memilihnya. Lalu ketuk Pakai di bagian bawah untuk mengganti pemeriksaan dengan pemeriksaannya.",
-      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?"
+      "replaceAsk": "Ganti pemeriksaan milik {{language}} sendiri dengan {{name}}?",
+      "inLanguage": "Dalam bahasa {{language}} · bahasa lain",
+      "inLanguageHelp": "Menampilkan bahasa-bahasa yang tersedia untuk alur siap pakai ini, untuk memakainya dalam bahasa lain.",
+      "languageTitle": "Bahasa yang mana?"
     },
     "gone": "Ini bukan lagi salah satu pemeriksaan bahasa ini",
     "checkOf": "Pemeriksaan {{n}} · {{language}}",
@@ -6850,5 +6859,24 @@
     "help": "Tersimpan selagi Anda bekerja: lingkaran berputar saat sedang disimpan, lalu centang. Tidak perlu menyimpan apa pun.",
     "failed": "Tidak tersimpan",
     "saved": "Tersimpan"
+  },
+  "helps": {
+    "library": {
+      "intro": "Pendahuluan",
+      "verse": "Ayat {{verse}}",
+      "supportLink": "Cara menerjemahkan ini",
+      "supportHelp": "Membuka artikel yang dirujuk catatan ini, tentang cara menerjemahkan hal seperti ini.",
+      "keyWordsTitle": "Kata kunci di sini",
+      "keyWordHelp": "Membuka arti kata kunci ini dan bagaimana kata ini bisa diterjemahkan.",
+      "keyWordLabel": "{{word}}, {{where}}",
+      "addKeyWord": "Tambahkan ke kata kunci kami",
+      "addKeyWordHelp": "Menambahkan kata ini ke kata kunci bahasa Anda, tempat Anda mengatakan bagaimana bahasa Anda menyebutnya.",
+      "backArticle": "Kembali ke {{title}}",
+      "backArticleHelp": "Kembali ke artikel yang tadi Anda baca.",
+      "articleMissing": "Artikel ini tidak ada dalam bantuan Anda.",
+      "articleOffline": "Artikel ini belum ada di ponsel ini. Akan datang saat Anda daring.",
+      "nothingHere": "Tidak ada dari ini untuk perikop ini.",
+      "title": "Judul"
+    }
   }
 }

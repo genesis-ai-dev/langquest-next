@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { bookOrder, canonicalJson, USFM_BOOKS, verseToOrg, type VersificationDoc } from '@langquest-next/core';
+import { bookOrder, canonicalJson, USFM_BOOKS, validateDoc, verseToOrg, type VersificationDoc } from '@langquest-next/core';
 import {
   abbreviationOf, CATALOG_URL, catalogEntry, choose, creditOf, itemIdOf, itemName, languageLabel, licenseOf, plainTitle, publisherName,
   ROLE_NAMES, type CatalogEntry, type Choice, type Role
@@ -181,6 +181,9 @@ interface Ctx {
 }
 
 const put = (ctx: Ctx, doc: Record<string, unknown>) => {
+  // Every document is checked as phones and the server check it, in a dry run too.
+  const invalid = validateDoc(doc);
+  if (invalid) throw new Error(`a ${String(doc['format'])} that is not valid: ${invalid}`);
   const text = canonicalJson(doc);
   const bytes = Buffer.byteLength(text);
   ctx.stats.docs++;
@@ -228,7 +231,8 @@ function originalWords(ctx: Ctx, book: string, ref: string): string[] | null {
   const verse = Number(m[2]);
   const byVerse = ctx.originals.get(book);
   if (!byVerse) return null;
-  const mapped = isOT(book) ? verseToOrg(ctx.versifications.engDoc, { book, chapter, verse }) : [{ book, chapter, verse }];
+  // A psalm's title is verse 0 in English numbering and verse 1 in the Hebrew.
+  const mapped = verse === 0 ? [{ book, chapter, verse: 1 }] : isOT(book) ? verseToOrg(ctx.versifications.engDoc, { book, chapter, verse }) : [{ book, chapter, verse }];
   const words = mapped.flatMap((v) => byVerse.get(`${v.chapter}:${v.verse}`) ?? []);
   return words.length ? words : byVerse.get(`${chapter}:${verse}`) ?? null;
 }
@@ -293,7 +297,7 @@ function buildBible(ctx: Ctx, c: Taken, r: Release, meta: { license: string; cre
     format: 'source@1', name: meta.name, abbreviation: abbreviationOf(c.entry), language: c.language, description,
     versification: original ? ctx.versifications.org : ctx.versifications.eng,
     provider: { kind: 'library' }, offline: 'allowed', copyright: { text: `${meta.credit} ${meta.license.replace(/-/g, ' ').replace(/ (\d)/, ' $1')}` },
-    license: meta.license, books, deps: [ctx.versifications[original ? 'org' : 'eng'], ...books.map((b) => b.doc)].sort()
+    license: meta.license, books, deps: [...new Set([ctx.versifications[original ? 'org' : 'eng'], ...books.map((b) => b.doc)])].sort()
   });
   ctx.log(`    ${books.length} books${aligned ? `, ${aligned} aligned` : ''}`);
   return { docHash, description };
@@ -308,7 +312,7 @@ const PART_BYTES = 1024 * 1024;
  * A book's rows in parts of whole chapters, each about PART_BYTES at most;
  * one part when it is small. The book's introduction goes with the first.
  */
-function partsByChapter(rows: HelpRow[]): { chapters: [number, number]; rows: HelpRow[] }[] {
+export function partsByChapter(rows: HelpRow[]): { chapters: [number, number]; rows: HelpRow[] }[] {
   const chapterOf = (r: HelpRow) => { const m = /^(\d+)/.exec(r.ref); return m ? Number(m[1]) : 0; };
   const byChapter = new Map<number, HelpRow[]>();
   for (const r of rows) byChapter.set(chapterOf(r), [...(byChapter.get(chapterOf(r)) ?? []), r]);
@@ -379,7 +383,7 @@ function buildBookHelps(ctx: Ctx, c: Taken, r: Release, kind: HelpKind, meta: { 
   const docHash = put(ctx, {
     format: 'helps@1', kind, title: meta.name, language: c.language, description, license: meta.license, credit: meta.credit,
     ...(stories ? { template: OBS_TEMPLATE_ID } : { versification: ctx.versifications.eng }),
-    books, deps: [...(stories ? [] : [ctx.versifications.eng]), ...books.map((b) => b.doc)].sort()
+    books, deps: [...new Set([...(stories ? [] : [ctx.versifications.eng]), ...books.map((b) => b.doc)])].sort()
   });
   ctx.log(`    ${books.length} books, ${[...byBook.values()].reduce((n, r) => n + r.length, 0)} rows${quoted ? `, ${found} of ${quoted} quotes found in the Hebrew or Greek` : ''}`);
   return { docHash, description };
@@ -439,7 +443,7 @@ function buildArticles(ctx: Ctx, c: Taken, r: Release, meta: { license: string; 
   const kind = c.role === 'words' ? 'words' : c.role === 'academy' ? 'academy' : 'grammar';
   const docHash = put(ctx, {
     format: 'contents@1', kind, title: meta.name, language: c.language, description, license: meta.license, credit: meta.credit,
-    entries, deps: entries.map((e) => e.doc).sort()
+    entries, deps: [...new Set(entries.map((e) => e.doc))].sort()
   });
   ctx.log(`    ${entries.length} articles${manualFound ? `, checks ${Object.keys(manualFound.names).join(' ')}` : ''}`);
   return { docHash, description, ...(nameHint ? { nameHint } : {}), ...(manualFound ? { manual: manualFound } : {}) };
@@ -493,7 +497,7 @@ function buildStories(ctx: Ctx, c: Taken, r: Release, meta: { license: string; c
   const description = `The 50 stories in ${meta.languageName}, each placed on its story of the Open Bible Stories template. ${credit}`;
   const docHash = put(ctx, {
     format: 'contents@1', kind: 'stories', title: meta.name, language: c.language, description, license: meta.license, credit,
-    template: OBS_TEMPLATE_ID, entries, deps: entries.map((e) => e.doc).sort()
+    template: OBS_TEMPLATE_ID, entries, deps: [...new Set(entries.map((e) => e.doc))].sort()
   });
   ctx.log(`    ${stories.length} stories, ${stories.reduce((n, s) => n + s.frames.length, 0)} frames`);
   return { docHash, description, stories };
@@ -527,7 +531,7 @@ function buildFormation(ctx: Ctx, c: Taken, r: Release, meta: { license: string;
   const description = `A guide to the theology of each story, in ${meta.languageName}. ${meta.credit}`;
   const docHash = put(ctx, {
     format: 'contents@1', kind: 'stories', title: meta.name, language: c.language, description, license: meta.license, credit: meta.credit,
-    template: OBS_TEMPLATE_ID, entries, deps: entries.map((e) => e.doc).sort()
+    template: OBS_TEMPLATE_ID, entries, deps: [...new Set(entries.map((e) => e.doc))].sort()
   });
   ctx.log(`    ${entries.length} stories`);
   return { docHash, description };
