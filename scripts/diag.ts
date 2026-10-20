@@ -16,7 +16,7 @@
 // database (DIAG_DATABASE_URL) or as postgres on the local one. Nothing it
 // prints is content: ids, counts, timings, error class names and frames.
 // The one exception is `feedback`, which is what people chose to send the
-// LangQuest team from help mode (decisions.md 144): their words, and a name,
+// LangQuest team from help mode (decisions.md 145): their words, and a name,
 // an email and a screenshot only where they turned those on.
 // --hosted decrypts DIAG_DATABASE_URL from .env.production for this run
 // (scripts/diag-access.sh puts it there once).

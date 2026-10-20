@@ -1,4 +1,4 @@
--- Feedback from help mode (decisions.md 144): a problem or an idea, typed or
+-- Feedback from help mode (decisions.md 145): a problem or an idea, typed or
 -- said (a voice note) by the person, with the install id that diagnostics
 -- already use, and, when they turn it on, a screenshot and their name and
 -- email.

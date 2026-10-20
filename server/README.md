@@ -55,7 +55,7 @@ Run it locally, not against production without explicit authorization.
 The projection pass (`server/projectionWorker.ts`: Inbox rows, the public
 listing, server snapshots and each language's report inputs, decisions.md
 68 and 142) runs for every language in the job container behind the
-dashboard Worker, every five minutes, with `server/projections.ts`,
+app's Worker, every five minutes, with `server/projections.ts`,
 started by the Worker's job tick through the `JobRunner` Durable Object
 (`apps/web/worker/jobs.ts`, `docs/server-jobs.md`, decisions.md 141). It
 skips languages that have not changed (`projection_marks`).
@@ -89,22 +89,22 @@ Field diagnostics (`*_field_diagnostics.sql`, docs/diagnostics.md): schema
 `diag-smoke.sql` covers it in `npm run db:test`.
 The server's own jobs leave one content-free row per run in `diag.job_runs`
 (`*_diag_jobs.sql`): the projection passes, push delivery, the v2 import,
-webhook dispatch, invite email, and the dashboard Worker's cron and request
+webhook dispatch, invite email, and the app's Worker's cron and request
 tally. They write through `public.diag_job_ingest` (service role only) with
 `server/jobRuns.ts`, which gives up after three seconds and never fails the
 job. `diag.jobs()` says which are stale or failing; `diag.job_schedule`
 holds each job's schedule, so change it with the file that sets the cron.
 
-Dashboard reports (decision 44) are not stored here, only what each
+Reports (decision 44) are not stored here, only what each
 language's report is made from (`language_report_inputs`, decision 142),
-which the dashboard's Worker (`apps/web/worker`) renders for the day. It
+which the app's Worker (`apps/web/worker`) renders for the day. It
 folds a language itself, from the server snapshots this worker writes and
 the tail through `pull_events` with the service role, only when no row is
 stored yet, and for the access-token API (there are no report tables,
 decision 40 is superseded by 44). For local demo data, `npm run sample:org -- --history` adds
 months of back-dated work to the sample org (local database only). Join it
 in the dev app with one of the invite codes it prints, and sign in to the
-dashboard (`npm run web:dev`) with the same account.
+web app (`npm run web:dev`) with the same account.
 
 A language's name, country and target (decision 41) are organization-stream
 events (`v1.LanguageRenamed`, `v1.LanguageCountrySet`, `v1.LanguageTargetSet`)

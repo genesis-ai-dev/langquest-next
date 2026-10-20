@@ -81,7 +81,7 @@ export async function deliverAccountAction(actorId: string, action: AccountActio
         : action.kind === 'block'
           ? await client.rpc('set_blocked', { p_profile: p.profileId, p_blocked: p.blocked })
           : action.kind === 'feedback'
-            // Feedback from help mode (decisions.md 144): the server reads the name and email itself, if shared.
+            // Feedback from help mode (decisions.md 145): the server reads the name and email itself, if shared.
             ? await client.rpc('feedback_submit', {
               p_id: action.id, p_kind: p.kind, p_body: p.body, p_install: p.installId, p_context: p.context ?? {},
               p_share_profile: p.shareProfile === true, p_screenshot: attached.screenshot ?? null,

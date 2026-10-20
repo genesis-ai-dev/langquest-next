@@ -251,7 +251,7 @@ export function StatusHome(ctx: Ctx) {
   // One cluster at a time (decision 108, demo ADR-045); opened from a cluster's page, that one.
   const [cluster, setCluster] = useState<ClusterFilter>(ctx.params['clusterId'] ? { kind: 'cluster', clusterId: ctx.params['clusterId'] } : { kind: 'all' });
   // Every language the organization has; each is its own stream (decision
-  // 63). This phone folds the one it has open; the dashboard's server
+  // 63). This phone folds the one it has open; the app's Worker
   // answers for the rest (decision 44), as of when it last caught up.
   const summary = useOrgSummary(ctx.session.actorId, ctx.language.orgId);
   // Only languages this person may open (a role at the organization or that

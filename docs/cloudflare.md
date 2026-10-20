@@ -1,16 +1,20 @@
 # Cloudflare
 
-Cloudflare Workers Builds deploys the invite-email Worker and the web app's
+Cloudflare Workers Builds deploys the invite-email Worker and the app's
 Worker, `langquest-next-dashboard`, which serves the app's web export, the
-reports API and every recording and guide file the app moves (decisions.md
-43, 58, 69): merging to `main` deploys the production Workers, and
+reports API, every recording and guide file the app moves, the
+access-token API, and runs the server's jobs in containers (decisions.md
+43, 58, 69, 70, 141). Its name is from when it served only the reports
+dashboard; a Worker's name is its identity, and renaming it would start its
+Durable Objects empty, the webhook change feed among them (decision 144), so
+the name stays and the repo calls it the app's Worker. Merging to `main` deploys the production Workers, and
 merging to `develop` deploys their `-preview` copies (decisions.md 50,
 `docs/environments.md`). There is no GitHub Actions workflow and no API token
 in GitHub. Cloudflare generates the build token. Builds have no secrets at
 all: a deploy carries code and public `vars`, and the Worker keeps the
 secrets `npm run secrets` set on it (decisions.md 51).
 
-| | Invite email | Dashboard | Invite email preview | Dashboard preview |
+| | Invite email | App | Invite email preview | App preview |
 | --- | --- | --- | --- | --- |
 | Worker name | `langquest-next-invite-email` | `langquest-next-dashboard` | `langquest-next-invite-email-preview` | `langquest-next-dashboard-preview` |
 | Root directory | repository root | repository root | repository root | repository root |
@@ -19,9 +23,9 @@ secrets `npm run secrets` set on it (decisions.md 51).
 | Build command | | | | |
 | Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` |
 | Build variables and secrets | none | none | none | none |
-| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as dashboard |
+| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as app |
 
-The dashboard's include paths cover `server/*` and `scripts/build-jobs.mjs`
+The app Worker's include paths cover `server/*` and `scripts/build-jobs.mjs`
 because the job image (The job runner, below) is built from them: without
 them a change to the pass alone would not rebuild the image. Set on
 2026-10-16 with decision 141; check it in the Cloudflare dashboard if a
@@ -59,11 +63,11 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 | Worker | Public `vars` (wrangler file) | Secrets (`npm run secrets`) |
 | --- | --- | --- |
 | invite email | `INVITE_FROM` | `INVITE_RELAY_SECRET` |
-| dashboard | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
+| app | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
 
 ## The job runner (containers)
 
-The dashboard Worker also runs the server jobs too big for an Edge
+The app's Worker also runs the server jobs too big for an Edge
 Function (`docs/server-jobs.md`, decisions.md 141): the projection pass
 for every language (`server/projections.ts`) and the v2 import
 (`server/v2.ts`). `apps/web/jobs/Dockerfile` is the image: Node 24 and one
@@ -114,7 +118,7 @@ job runner itself.
 
 ## Recordings and guide media (R2)
 
-The dashboard Worker binds one private R2 bucket as `BLOBS`
+The app's Worker binds one private R2 bucket as `BLOBS`
 (`apps/web/wrangler.jsonc`, decisions.md 69): `langquest-next-blobs` for
 production, `langquest-next-blobs-preview` for preview, both with the
 location hint Eastern North America (`enam`), beside the Supabase project.
@@ -134,7 +138,7 @@ The Supabase Storage bucket that held the files before is copied once with
 `npm run blobs:copy -- --remove`.
 
 A deploy fails while a secret in `secrets.required` is missing on the
-Worker; run `npm run secrets -- <environment>`. The dashboard page reads
+Worker; run `npm run secrets -- <environment>`. The web app reads
 `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` from the
 plain `apps/mobile/.env.<environment>` at build time.
 

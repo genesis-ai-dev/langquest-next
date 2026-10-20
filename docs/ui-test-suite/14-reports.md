@@ -224,7 +224,7 @@ Expected:
 - Each shows a red notice "The reports could not be read" with:
   - 401: "Your session has ended. Sign in again."
   - 403: "You are not a member of this organization."
-  - 502: "The dashboard could not read this organization just now. Try
+  - 502: "The server could not read this organization just now. Try
     again."
   - 418: "The server answered 418."
   - No server: "This build does not know where the reports server is."

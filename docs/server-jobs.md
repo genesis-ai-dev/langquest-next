@@ -77,7 +77,7 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
 | Option | Helps | Hurts | Verdict |
 | --- | --- | --- | --- |
 | Keep GitHub | nothing to build | every point above; 103 called it temporary | no |
-| **Cloudflare Containers behind the dashboard Worker** | same account, same `wrangler.jsonc`, Workers Builds builds the image with the Worker, same `npm run secrets`, same `diag.job_runs`; up to 12 GiB; billed only while running | GA since 2026-04-13 (Workers Paid plan); a deploy is not atomic (the Worker is live before the image rolls out); local runs need Docker; a run longer than its activity timeout is stopped | chosen |
+| **Cloudflare Containers behind the app's Worker** | same account, same `wrangler.jsonc`, Workers Builds builds the image with the Worker, same `npm run secrets`, same `diag.job_runs`; up to 12 GiB; billed only while running | GA since 2026-04-13 (Workers Paid plan); a deploy is not atomic (the Worker is live before the image rolls out); local runs need Docker; a run longer than its activity timeout is stopped | chosen |
 | Google Cloud Run Jobs | the biggest ceiling (32 GiB, timeouts in days), mature | a third provider: account, IAM, Terraform, a deploy path, a second secrets flow | the fallback |
 | A VPS or Fly machine | cheapest, simplest mental model | a pet to patch and watch, one box, not infrastructure-as-code without more tooling | no |
 | Make folds fit 256 MB (fold per unit on the server) | would let the Edge Function keep the pass | the big-languages plan chose folding whole and cutting (its 4.3), and the import, whole-log refolds and reducer bumps still need a host | no |
@@ -171,7 +171,7 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
    Worker (`job_starts` counts it as failed).
 3. Right after, from the updated `main`: `npm run secrets -- production`.
    It puts `V2_SUPABASE_ANON_KEY` (already in `.env.production`) and
-   `V2_DATABASE_URL` when present on the dashboard Worker, and runs the new
+   `V2_DATABASE_URL` when present on the app's Worker, and runs the new
    schedule again. The next 15-minute tick starts the import.
 4. `npm run diag -- jobs` shows `projection`, `v2_import` and
    `job_starts` running.

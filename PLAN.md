@@ -165,8 +165,8 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.LanguageAdded` | languageId, name, code, sourceCode | earliest wins; the language's stream accepts events only after this |
 | `v1.LanguageRenamed` | languageId, name | register per language |
 | `v1.LanguageCodeSet` | languageId, code, languoidId (a languoid's UUID, or null) | register per language; takes over `LanguageAdded`'s code and links the language to the language list; none means unlinked (decision 78) |
-| `v1.LanguageCountrySet` | languageId, country (ISO 3166-1 alpha-2) | register per language; the dashboard's geography (decision 41) |
-| `v1.LanguageTargetSet` | languageId, scope (gospels, nt, ot, bible), startDate, targetDate | register per language; the dashboard's pace (decision 41) |
+| `v1.LanguageCountrySet` | languageId, country (ISO 3166-1 alpha-2) | register per language; Reports' geography (decision 41) |
+| `v1.LanguageTargetSet` | languageId, scope (gospels, nt, ot, bible), startDate, targetDate | register per language; Reports' pace (decision 41) |
 | `v1.ClusterNamed` | clusterId, name | register per cluster: making one and renaming it; a cluster is a name on some languages, not a level (decision 108) |
 | `v1.LanguageClusterSet` | languageId, clusterId, inCluster | register per (language, cluster): a tag, so a language may be in several clusters or none; a cluster none is in is gone (decision 108) |
 | `v1.ReferenceRecommended` | itemId, recommended | register per item; recommended to every language (decision 62) |
@@ -342,7 +342,7 @@ langquest-next/
 6. Review UI driven entirely by `deriveTakeStatus`.
 7. **Snapshot worker done** (`packages/sync/src/snapshotWorker.ts`,
    incremental, refolds fully when a redaction targets the snapshot). Org
-   dashboard: step 14, folded by the dashboard's own server (decision 44).
+   Reports: step 14, rendered by the app's Worker (decision 44).
 8. **Done, and kept up to date.** LangQuest v2 comes over one way and keeps
    coming while v2 runs (`docs/v2-import.md`): `packages/v2-import` reads a
    v2 project whole, maps it to what it says now, compares that with what
@@ -394,7 +394,7 @@ langquest-next/
     app's flow machine, tokens and screens are the demo's.
 14. **Done:** web progress dashboard (`apps/web`, decisions 40 and 43). Core
     `reports.ts` derives one report per language from the passage record,
-    with 90 days of progress. The dashboard's Worker keeps one Durable
+    with 90 days of progress. The app's Worker keeps one Durable
     Object per organization (`apps/web/worker`) that starts from the server
     snapshots, catches up from the log's tail, and returns the reports
     `mayViewLane` allows; the page sums them into organization totals, with

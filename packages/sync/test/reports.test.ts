@@ -2,7 +2,7 @@ import { ORG_STREAM } from '@langquest-next/core';
 import { appendConfirmed, fetchOrgReports, fetchOrgSummary, NotSavedError, ReportsError, type ReportsServer } from '../src/reports';
 import { FakeServer } from '../src/testing/fakeServer';
 
-/** The dashboard's server as a device asks it (decision 44): HTTP only, faked here. */
+/** The app's Worker as a device asks it (decision 44): HTTP only, faked here. */
 
 const asOf = '2026-10-03T12:00:00.000Z';
 

@@ -1,4 +1,4 @@
-// Feedback from help mode (decisions.md 144), the parts with no I/O: what
+// Feedback from help mode (decisions.md 145), the parts with no I/O: what
 // makes a report ready to send, how big its screenshot is, what waits on a
 // phone before anyone has signed in, and what the sheet and its toasts say.
 import { t } from '../i18n';

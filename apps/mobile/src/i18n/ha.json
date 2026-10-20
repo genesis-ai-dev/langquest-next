@@ -5299,7 +5299,7 @@
       "couldNotRead": "An kasa karanta rahotannin.",
       "signIn": "Zamanku ya ƙare. Ku sake shiga.",
       "notMember": "Ku ba memba ba ne na wannan ƙungiya.",
-      "busy": "Allon bayanai ya kasa karanta wannan ƙungiya yanzu. Ku sake gwadawa.",
+      "busy": "Sabar ta kasa karanta wannan ƙungiya yanzu. Ku sake gwadawa.",
       "serverAnswered": "Sabar ta amsa {{status}}."
     },
     "countries": {

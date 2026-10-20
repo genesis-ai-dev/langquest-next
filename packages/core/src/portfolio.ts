@@ -6,7 +6,7 @@ import {
 } from './reports';
 import { TARGET_SCOPES, type TargetScope } from './org';
 
-/** One language's report, as an app holds it after asking the dashboard's server. */
+/** One language's report, as an app holds it after asking the app's Worker. */
 export interface LanguageRow {
   orgId: string;
   languageId: string;
@@ -478,7 +478,7 @@ const STALE_AFTER_MS = 15 * 60_000;
 
 /**
  * Checks on the data itself, in plain language. `asOf` is when the
- * dashboard's server last caught up with the log; it catches up on every
+ * app's Worker last caught up with the log; it catches up on every
  * load, so old figures mean the page has been open a while.
  */
 export function alertsFor(rows: LanguageRow[], asOf: string, now: number): Alert[] {

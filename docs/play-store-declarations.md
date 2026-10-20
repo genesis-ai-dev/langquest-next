@@ -173,7 +173,7 @@ Bible Brain's CDN or openbible.com by plain links, as a browser fetches a
 file. That is content coming in, not data going out, so it adds no data
 type and no sharing.
 
-Feedback from help mode (decisions.md 144): while help is on, Send feedback
+Feedback from help mode (decisions.md 145): while help is on, Send feedback
 opens a sheet where someone types or says (a voice note) what is wrong or what
 would help. It goes to
 the LangQuest team only (`diag.feedback`, read by support), never to the
