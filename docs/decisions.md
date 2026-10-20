@@ -5729,6 +5729,22 @@ before: run from the branch earlier, it would take the pass off pg_cron
 before the container is deployed. The import pauses from the merge until
 then; `docs/server-jobs.md` section 5 has the steps.
 
+Amended (2026-10-19, Carl Sauder): the first hour in production showed the
+job runner's watch does not hold. The tick's call to an object ended after
+73 seconds, so nothing was left to record how a run ended; a restarted
+object held no keep-alive for its running container (Cloudflare's docs say
+to set it again in the constructor), so runs were stopped minutes in, and
+neither the pass nor the import wrote a row for an hour. Unpinned, the
+containers also started near the cron, in Mumbai, far from the database.
+Now: while a run lasts, an alarm brings the object back every minute
+(`jobsModel.ts` `heartbeat`, `HEARTBEAT_MS`): it renews the keep-alive for
+the time the run has left, sends SIGTERM at the limit, and records a run
+that has ended by asking the stopped container how; the constructor renews
+the keep-alive too. The pass and the import record their own row when sent
+SIGTERM (`sigterm`, exit 0, the code that says the row is written), the
+pass logs its progress every 25 languages, and `constraints.regions` pins
+the containers to ENAM, beside the database and R2.
+
 ## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
 
 Date: 2026-10-19 · By: Carl Sauder · Status: accepted

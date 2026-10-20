@@ -177,6 +177,16 @@ if (command === 'sync') {
   // counts over the projects read, never a project's name. One for chosen
   // projects, by hand, would hide whether the schedule still runs.
   const record = projects.length ? noJobRuns : jobRunSink(url, serviceKey);
+  // In the job container (LANGQUEST_JOB), a stop from outside (the time limit,
+  // or the platform) leaves a row before the process goes, and exits 0: the
+  // code that tells the job runner the row is written (apps/web/worker/jobs.ts).
+  if (process.env['LANGQUEST_JOB']) {
+    process.once('SIGTERM', () => {
+      console.error('stopped by SIGTERM');
+      void record({ job: 'v2_import', startedAt, ms: Date.now() - startedAt, outcome: 'error', errorClass: 'sigterm' })
+        .finally(() => process.exit(0));
+    });
+  }
   let reports: Awaited<ReturnType<typeof sync>>;
   try {
     reports = await sync(deps, { all: flag('all'), projects });
