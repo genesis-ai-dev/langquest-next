@@ -5,6 +5,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signIn } from './fixture';
+import { projectionPass } from './pass-helpers';
 import { Devices, backToTabs, passageRow, syncUntil, watch } from './16-helpers';
 import { button, byId, expect, expectToast, field, openAs, openSignedOut, primary, screenText, tab, test, text, useWorld } from './support';
 
@@ -94,12 +95,13 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
     expect(await screenText(ben)).not.toMatch(/NEXT FOR YOU/i);
 
     // Step 4: NOORG finds UI Test Org and asks to join.
-    // Explore's list is the projection's (G2: it runs every minute): the organization is findable once its listed language reaches it.
+    // Explore's list is the projection's: the organization is findable once a pass has listed its language. Ask for one now.
     const { sb: noraSb } = await signIn(w, 'NOORG');
+    await projectionPass();
     await expect.poll(async () => {
       const { data } = await noraSb.rpc('listed_organizations_search', { p_query: w.orgName, p_limit: 5 });
       return ((data ?? []) as { org_id: string }[]).some((o) => o.org_id === w.orgId);
-    }, { timeout: 150_000, intervals: [3_000, 5_000], message: 'the projection lists the organization' }).toBe(true);
+    }, { timeout: 20_000, intervals: [1_000, 2_000], message: 'the projection lists the organization' }).toBe(true);
     const nora = await devices.open('NOORG');
     await button(nora, /^Find your organization/).click();
     await nora.getByPlaceholder('Name or language').fill(w.orgName);
@@ -170,6 +172,8 @@ test('JRN-005 A coordinator gets a language ready and starts its team @p0 @wide'
 
     // Step 7: on a wide window, Reports → Bravo: its template, its flow and one passage asked.
     await coord.setViewportSize({ width: 1280, height: 900 });
+    // Reports renders from the inputs the pass stores (decision 142): have them hold the request to Ben before it is first read.
+    await projectionPass();
     const reportsRead = (fresh: boolean) => coord.waitForResponse((r) =>
       r.url().includes(`/api/orgs/${w.orgId}/reports`) && r.url().includes('fresh=1') === fresh, { timeout: 30_000 });
     const opened = reportsRead(false);

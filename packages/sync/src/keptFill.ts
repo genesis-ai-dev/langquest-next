@@ -39,6 +39,8 @@ export interface FillMeta {
   todo: [string, number][];
   /** The newest snapshot any row came from: a redaction of an event at or before it waits for a snapshot past it. */
   rowsSeq: number;
+  /** When the fill began (ms, the client's clock), for how long it took to finish; absent in a fill begun by an earlier build. */
+  startedAt?: number;
   /**
    * What every line says changed after `linesSeq` (a flow, kind or team
    * event at this seq), or this build reads lines of another
@@ -125,6 +127,13 @@ export class KeptFill {
     return { filled: this.total - left, total: this.total };
   }
 
+  /** What the fill set out to do, for field diagnostics: passages with rows, every row, and when it began. */
+  extent(): { passages: number; rows: number; startedAt: number | undefined } {
+    let rows = 0;
+    for (const [, n] of this.meta?.todo ?? []) rows += n;
+    return { passages: this.total, rows, startedAt: this.meta?.startedAt };
+  }
+
   /** Rows still to fill in, by the server's count when the fill began. */
   rowsLeft(): number {
     let n = 0;
@@ -146,10 +155,11 @@ export class KeptFill {
    * The meta a first download writes beside its checkpoint, taken from the
    * server's head; the in-memory state follows it once `open` reads it back.
    */
-  begin(head: SnapshotHead & { lines: { seq: number; lines: unknown[] } }): Record<string, string> {
+  begin(head: SnapshotHead & { lines: { seq: number; lines: unknown[] } }, startedAt?: number): Record<string, string> {
     const meta: FillMeta = {
       base: head.serverSeq, linesSeq: head.lines.seq, linesVersion: LINES_VERSION,
-      todo: head.units.map((u) => [u.unitId, u.rows]), rowsSeq: 0, stale: null
+      todo: head.units.map((u) => [u.unitId, u.rows]), rowsSeq: 0, stale: null,
+      ...(startedAt !== undefined ? { startedAt } : {})
     };
     return { [this.key()]: JSON.stringify(meta) };
   }
@@ -307,35 +317,45 @@ export class KeptFill {
    * and never marks a passage it has not finished.
    */
   private async keep(rows: readonly KeptRecord[], complete: readonly string[], rowsSeq: number): Promise<void> {
-    const live = this.live();
     const priors = new Map<string, string>();
     for (const [kind, ids] of groupBy(rows.map((r) => ({ kind: r.kind, id: r.id })))) {
       for (const r of await this.store.keptById(this.orgId, this.streamId, kind, ids)) priors.set(`${kind}\u0000${r.id}`, r.json);
     }
     const out: KeptRecord[] = [];
-    const placed: { part: NonNullable<ReturnType<typeof PART_OF_KIND.get>>; id: string; unitId: string }[] = [];
-    let memory = false;
+    const placed: { part: NonNullable<ReturnType<typeof PART_OF_KIND.get>>; id: string; unitId: string; value: unknown }[] = [];
+    const verdicts: { hash: string; verdict: Verdict }[] = [];
     for (const row of rows) {
       const value = JSON.parse(row.json) as unknown;
       const prior = priors.get(`${row.kind}\u0000${row.id}`);
       if (row.kind === FILE) {
         const v = value as Verdict;
         out.push({ kind: FILE, id: row.id, unitId: '', ref: '', json: JSON.stringify(prior ? keptVerdict(JSON.parse(prior) as Verdict, v) : v) });
-        // A file memory names: its verdict there too.
-        const here = live.blobs[row.id];
-        if (here) { live.blobs[row.id] = keptVerdict(here, v); memory = true; }
+        verdicts.push({ hash: row.id, verdict: v });
         continue;
       }
       const part = PART_OF_KIND.get(row.kind);
       if (!part) continue;
       out.push(...entryRows(part, row.id, row.unitId, prior === undefined ? value : part.merge(JSON.parse(prior), value)));
-      placed.push({ part, id: row.id, unitId: row.unitId });
-      // A passage held whole in memory takes the row there too, so memory still holds all the disk does.
-      if (this.kept.isHeld(row.unitId)) { putEntry(live, part, row.id, value); memory = true; }
+      placed.push({ part, id: row.id, unitId: row.unitId, value });
     }
     for (const u of complete) out.push({ kind: FILLED, id: u, unitId: u, ref: '', json: '1' });
     const meta = { ...this.meta!, rowsSeq };
     await this.commit({ kept: { orgId: this.orgId, streamId: this.streamId, upsert: out }, meta: { [this.key()]: JSON.stringify(meta) } });
+    // Memory takes the rows once they are written, for the passages it holds now, before any reads as filled. Decided
+    // before the write, a passage a screen opened during it read the disk too early and was then told it was filled,
+    // its records in neither place (REV-017, REC-011 on CI, 2026-10-20). Putting an entry twice is a join, so a passage
+    // that read these rows from disk as well loses nothing.
+    const live = this.live();
+    let memory = false;
+    for (const { hash, verdict } of verdicts) {
+      // A file memory names: its verdict there too.
+      const here = live.blobs[hash];
+      if (here) { live.blobs[hash] = keptVerdict(here, verdict); memory = true; }
+    }
+    for (const p of placed) {
+      // A passage held whole in memory takes the row there too, so memory still holds all the disk does.
+      if (this.kept.isHeld(p.unitId)) { putEntry(live, p.part, p.id, p.value); memory = true; }
+    }
     this.meta = meta;
     this.kept.stored(placed);
     this.kept.changed();

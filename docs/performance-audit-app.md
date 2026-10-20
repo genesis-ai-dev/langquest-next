@@ -376,6 +376,15 @@ table never shrinks.** Confirmed. This is item 13 of
   - refresh big languages one at a time.
 - **Measure:** Durable Object memory and CPU at the first request after
   00:00 UTC, on a staging org with large languages.
+- **Done (2026-10-20).** Reports render from the inputs the projection
+  pass stores, so midnight refolds nothing, and a language past 25,000
+  events is never folded for a report (decision 142 and its amendment,
+  PR 186). Held folds are capped by bytes (`STATE_BUDGET_BYTES`), a large
+  one is refreshed alone (`LARGE_STATE_BYTES`), and the object's other
+  reads keep a big language on disk (decision 147).
+  `apps/web/test/memory/orgFolderMemory.test.ts` holds a Bible-size
+  language inside a 112 MB heap. A staging measurement after midnight is
+  still worth taking once.
 
 **V5. Agent API reads pull events even when nothing moved.** Confirmed.
 This is item 13 of `performance-audit.md`, still open.
@@ -471,7 +480,7 @@ endpoints return ETags and 304s; hashed blob responses are immutable.
 | 11 `appliedEventIds` in the live state | Open (`reducer.ts:33`), compacted only in the checkpoint | Do: about 65k ids at Bible scale |
 | 12 `validateEvent` closures, revision bump per event, `highlightsFor` | Open (`validate.ts:19-74`, `reducer.ts:35`, `passage.ts:635`) | Do: small, covered by existing tests |
 | 13 Notifications index | Open: V3 | Do |
-| 13 Durable Object cache | Open: V4 | Measure, then cap by bytes |
+| 13 Durable Object cache | Done: V4 (decisions 142, 147) | Measure once on staging after midnight |
 | 13 Agent reads pull when nothing moved | Open: V5 | Do |
 
 ## 7. Order of work

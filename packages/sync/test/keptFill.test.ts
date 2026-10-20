@@ -3,6 +3,7 @@ import {
   emptyLanguageState, foldLanguage, HlcClock, keptVerdict, languageLines, LINES_VERSION, PART_OF_KIND, putEntry, REDUCER_VERSION, withOwnParts,
   type AnyEvent, type LanguageState, type PassageLine
 } from '@langquest-next/core';
+import { Diagnostics, MemoryDiagStore } from '../src/diagnostics';
 import { FILLED } from '../src/keptFill';
 import { PART_KINDS } from '../src/keptLanguage';
 import { MemoryStore } from '../src/memoryStore';
@@ -39,7 +40,7 @@ function sqlite(): EventStore {
 
 let makeStore: () => EventStore = () => new MemoryStore();
 
-interface PhoneOpts { fillAtOnceRows?: number; fillPageRows?: number; keepOnDisk?: boolean; checkpointEvery?: number; pullPageSize?: number; store?: EventStore; fillFirst?: () => Iterable<string>; keptFormat?: number; fillBudgetMs?: number }
+interface PhoneOpts { diag?: Diagnostics; fillAtOnceRows?: number; fillPageRows?: number; keepOnDisk?: boolean; checkpointEvery?: number; pullPageSize?: number; store?: EventStore; fillFirst?: () => Iterable<string>; keptFormat?: number; fillBudgetMs?: number }
 
 function phone(server: FakeServer, deviceId: string, actorId: string, opts: PhoneOpts = {}) {
   const store = opts.store ?? makeStore();
@@ -52,6 +53,7 @@ function phone(server: FakeServer, deviceId: string, actorId: string, opts: Phon
     ...(opts.fillFirst ? { fillFirst: opts.fillFirst } : {}),
     ...(opts.keptFormat ? { keptFormat: opts.keptFormat } : {}),
     ...(opts.fillBudgetMs !== undefined ? { fillBudgetMs: opts.fillBudgetMs } : {}),
+    ...(opts.diag ? { diag: opts.diag } : {}),
     fillPageRows: opts.fillPageRows ?? 6,
     // These tests watch a fill run, so even a small language is filled a step at a time.
     fillAtOnceRows: opts.fillAtOnceRows ?? 0
@@ -182,6 +184,46 @@ describe('a first download by fill (decisions.md 147)', () => {
     await again.client.load();
     expect(again.client.fillProgress()).toBeNull();
     expect(units.every((u) => again.client.isFilled(u))).toBe(true);
+  });
+
+  it('a passage opened while the fill writes its rows is in memory once it reads as loaded', async () => {
+    // Why: the fill put rows into memory only for passages held when it built its page, then awaited its write.
+    // A screen opening the passage in that wait read the disk before the rows landed and was told the passage was
+    // ready; the write then marked it filled, so it read as loaded with its records in neither place, and the screen,
+    // which shows a passage once it reads as loaded, drew it as never recorded (REV-017, REC-011 on CI, 2026-10-20).
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 20);
+    server.makeSnapshot('org1', 'p1');
+    const base = makeStore();
+    let opened: Promise<void> | null = null;
+    let client: SyncClient | null = null;
+    const store = new Proxy(base, {
+      get(target, k) {
+        const value = (target as unknown as Record<string | symbol, unknown>)[k];
+        if (k !== 'commit') return typeof value === 'function' ? (value as (...a: unknown[]) => unknown).bind(target) : value;
+        return async (batch: Parameters<EventStore['commit']>[0]) => {
+          const fillsIt = (batch.kept?.upsert ?? []).some((r) => r.kind === FILLED && r.unitId === 'u06');
+          if (fillsIt && !opened) {
+            // The screen opens the passage now: its read of the disk happens before this write.
+            opened = client!.loadUnits(['u06']);
+            await new Promise((r) => setTimeout(r, 0));
+          }
+          return target.commit(batch);
+        };
+      }
+    });
+    const p = phone(server, 'dB', 'r1', { keepOnDisk: true, fillBudgetMs: 0, store });
+    client = p.client;
+    await client.load();
+    await client.sync();
+    expect(client.isFilled('u06')).toBe(false);
+    for (let i = 0; i < 50 && !client.isFilled('u06'); i++) await client.fillSome(0);
+    expect(opened).not.toBeNull();
+    await opened;
+    expect(client.isLoaded('u06')).toBe(true);
+    expect(Object.entries(client.getState().takes).filter(([, t]) => t.unitId === 'u06').map(([id]) => id)).toEqual(['t-w6']);
+    expect(Object.values(client.getState().recordings).filter((r) => r.unitId === 'u06')).toHaveLength(1);
   });
 
   it('fills what a screen opens first, then the person\'s own passages, then the rest', async () => {
@@ -369,6 +411,79 @@ describe('a server without the cut (decisions.md 147)', () => {
     expect(server.chunkCalls).toBeGreaterThan(0);
     expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage([...server.stream('org1', 'p1')], emptyLanguageState())));
     expect(server.log.some((e) => e.type === 'v1.NoteAdded' && e.payload.noteId === 'unsent')).toBe(true);
+  });
+});
+
+describe('field diagnostics for the fill (decisions.md 147)', () => {
+  /** A phone whose diagnostics are kept for the test to read: the records it would deliver. */
+  function watched(server: FakeServer, opts: PhoneOpts = {}) {
+    const diagStore = new MemoryDiagStore();
+    let id = 0;
+    const diag = new Diagnostics({ store: diagStore, newId: () => `d${++id}`, maxRecords: Infinity });
+    const p = phone(server, 'dB', 'r1', { keepOnDisk: true, ...opts, diag });
+    const fills = async () => { await diag.settle(); return diagStore.records.filter((r) => r.kind === 'fill'); };
+    return { ...p, fills };
+  }
+
+  it('records when a fill starts, with the Map open, and when its last passage arrives', async () => {
+    // Why: support could not tell a first open slow on a weak link from one where the job host never cut the language.
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 10);
+    server.makeSnapshot('org1', 'p1');
+    const { client, fills } = watched(server, { fillBudgetMs: 0 });
+    await client.load();
+    await client.sync();
+    const [start] = await fills();
+    expect(start).toMatchObject({ streamId: 'p1', t: { event: 'start', why: 'cold' }, n: { passages: 10 } });
+    expect(start!.n.rows).toBeGreaterThan(0);
+    expect(start!.n.headKb).toBeGreaterThanOrEqual(0);
+    expect(start!.n.msToMap).toBeGreaterThanOrEqual(0);
+    await settle(client);
+    const all = await fills();
+    expect(all.map((r) => r.t.event)).toEqual(['start', 'done']);
+    expect(all[1]).toMatchObject({ n: { passages: 10, rows: start!.n.rows } });
+    expect(all[1]!.n.ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('records why a first download took the whole snapshot, and a fill that started over', async () => {
+    const noCut = new FakeServer();
+    await language(noCut, 6);
+    noCut.makeSnapshot('org1', 'p1');
+    const a = watched(noCut);
+    await a.client.load();
+    await settle(a.client);
+    expect((await a.fills()).map((r) => r.t)).toEqual([{ event: 'fallback', why: 'cold', reason: 'no_cut' }]);
+
+    const failing = new FakeServer();
+    failing.serverCut = true;
+    await language(failing, 6);
+    failing.makeSnapshot('org1', 'p1');
+    failing.headError = 'canceling statement due to statement timeout';
+    const b = watched(failing);
+    await b.client.load();
+    await settle(b.client);
+    expect((await b.fills()).map((r) => r.t.reason)).toEqual(['error']);
+
+    // A language with no snapshot at all is the `snapshot` record's `none`, not a fallback.
+    const empty = new FakeServer();
+    await language(empty, 2);
+    const c = watched(empty);
+    await c.client.load();
+    await c.client.sync();
+    expect(await c.fills()).toEqual([]);
+
+    const rolledBack = new FakeServer();
+    rolledBack.serverCut = true;
+    await language(rolledBack, 12);
+    rolledBack.makeSnapshot('org1', 'p1');
+    const d = watched(rolledBack, { fillBudgetMs: 0 });
+    await d.client.load();
+    await d.client.sync();
+    rolledBack.dropCuts();
+    await d.client.fillSome(0);
+    await settle(d.client);
+    expect((await d.fills()).map((r) => r.t.event)).toEqual(['start', 'restart', 'fallback']);
   });
 });
 

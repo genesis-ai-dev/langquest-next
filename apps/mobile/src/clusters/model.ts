@@ -2,7 +2,7 @@
 // some of its languages. Nothing here touches a language's stream, people
 // or setup; a cluster is two kinds of organization event, a name and a tag
 // per (language, cluster). Pure: the screens append what this returns.
-import { clusterName, clustersOf, orgClusters, orgLanguages, type ClusterInfo, type EventPayloads, type OrgState } from '@langquest-next/core';
+import { clusterName, clustersOf, orgClusters, type ClusterInfo, type EventPayloads, type OrgState } from '@langquest-next/core';
 
 export type ClusterEvent =
   | { type: 'v1.ClusterNamed'; payload: EventPayloads['v1.ClusterNamed'] }
@@ -43,17 +43,36 @@ export function ungroupEvents(org: OrgState | null, clusterId: string): ClusterE
   return c ? clusterEvents(org, { clusterId, remove: c.languageIds }) : [];
 }
 
-/** The languages on the organization's home: those in no cluster, in the list's order. */
+/** The languages in no cluster, in the list's order. */
 export function languagesOutsideClusters(org: OrgState | null, languageIds: readonly string[]): string[] {
   const grouped = new Set(orgClusters(org).flatMap((c) => c.languageIds));
   return languageIds.filter((id) => !grouped.has(id));
 }
 
-/** A cluster's languages named, as a row under its name says them: the first few, then "…". */
-export function clusterNames(org: OrgState | null, c: ClusterInfo, max = 3): string[] {
-  const names = new Map(orgLanguages(org).map((l) => [l.languageId, l.name]));
-  return c.languageIds.slice(0, max).map((id) => names.get(id) ?? id);
+/**
+ * The organization's languages under the heading each is grouped by on its
+ * home: one group per cluster, in name order, then those in no cluster.
+ * A language in two clusters is under both. Each group keeps the list's
+ * order; a cluster with none of these languages has no group, nor does
+ * "in no cluster" when every language is in one. No clusters, no groups:
+ * the list stays one list.
+ */
+export type LanguageGroup =
+  | { kind: 'cluster'; key: string; clusterId: string; name: string; languageIds: string[] }
+  | { kind: 'none'; key: string; languageIds: string[] };
+
+export function languageGroups(org: OrgState | null, languageIds: readonly string[]): LanguageGroup[] {
+  const listed = new Set(languageIds);
+  const clusters = orgClusters(org)
+    .map((c) => ({ kind: 'cluster' as const, key: c.clusterId, clusterId: c.clusterId, name: c.name, languageIds: c.languageIds.filter((id) => listed.has(id)) }))
+    .filter((g) => g.languageIds.length > 0);
+  if (!clusters.length) return [];
+  const loose = languagesOutsideClusters(org, languageIds);
+  return loose.length ? [...clusters, { kind: 'none', key: 'none', languageIds: loose }] : clusters;
 }
+
+/** Groups start open while every language fits on one page of the list; past that they start closed, and each opens on its own. */
+export const GROUPS_OPEN_UP_TO = 20;
 
 /** A cluster with this name already, ignoring case and spaces at the ends: making it again joins that one. */
 export function clusterNamed(org: OrgState | null, name: string): ClusterInfo | null {

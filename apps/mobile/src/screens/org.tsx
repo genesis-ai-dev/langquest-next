@@ -92,8 +92,8 @@ import { usePendingRequests, usePlainRoles, useReadySummary } from '../admin/use
 import { personLook } from '../ui/people';
 import { PersonAvatar } from '../ui/UserChip';
 import { usePerson } from '../ui/usePerson';
-import { clusterEvents, clusterNamed, languagesOutsideClusters, newClusterId, ungroupEvents } from '../clusters/model';
-import { ClusterRow, ClusterTile, LanguageClustersChip } from '../clusters/parts';
+import { clusterEvents, clusterNamed, GROUPS_OPEN_UP_TO, languageGroups, newClusterId, ungroupEvents, type LanguageGroup } from '../clusters/model';
+import { ClusterTile, LanguageClustersChip, LanguageGroupCard } from '../clusters/parts';
 import { appendClusterEvents } from '../clusters/clusterActions';
 
 /**
@@ -282,9 +282,9 @@ export function OrgHome(ctx: Ctx) {
   const mayAdd = privilegesFor(v.org, ctx.session.actorId).has('manage_structure');
   // The demo's "Invite people" (gate assigner), and Invite itself, which a role may hold without assigning: it asks both.
   const canInvite = edgeAllowed(edgeFor('org_home', 'invite_member')!, ctx.session) && ctx.session.can('invite_members');
-  // Clusters first, then the languages in none (decision 108): a language in a cluster shows under it.
-  const clusters = orgClusters(v.org);
-  const loose = languagesOutsideClusters(v.org, v.languages);
+  // With clusters, the languages are grouped under them, then those in none (decision 108, amended 2026-10-20).
+  const groups = languageGroups(v.org, v.languages);
+  const addLanguage = mayAdd ? { label: t('org.home.newLanguageOrCluster'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined;
   return (
     <Screen header={<Header title={v.orgName} />}>
       <Card>
@@ -306,26 +306,64 @@ export function OrgHome(ctx: Ctx) {
         {v.languages.length && v.orgProgress ? <HomeProgressBars p={v.orgProgress} /> : null}
       </Card>
       {canInvite ? <HomePrimary label={t('org.home.invite')} icon="plus" help={t('org.home.inviteHelp')} onPress={() => ctx.go('invite_member', { level: 'org' })} /> : null}
-      <HomeSection label={t('org.home.languagesTitle')}
-        add={mayAdd ? { label: t('org.home.newLanguageOrCluster'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined}>
-        {v.languages.length === 0 ? (
-          <View style={{ padding: space.lg }}><Text style={txt.smMuted}>{t('org.home.noLanguages')}</Text></View>
-        ) : null}
-        {clusters.map((c) => (
-          <HelpRow key={c.clusterId} of="org.cluster">
-            <ClusterRow ctx={ctx} c={c} current={beside?.screen === 'cluster_home' && beside.params['clusterId'] === c.clusterId} />
-          </HelpRow>
-        ))}
-        {loose.slice(0, shown).map((languageId) => (
-          <HelpRow key={languageId} of="org.language">
-            <LanguageListRow ctx={ctx} v={v} languageId={languageId} />
-          </HelpRow>
-        ))}
-      </HomeSection>
-      <ShowMore remaining={loose.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
+      {groups.length ? (
+        <View>
+          <SectionLabel label={t('org.home.languagesTitle')} />
+          <View style={{ gap: space.md }}>
+            {groups.map((g) => (
+              <HelpRow key={g.key} of="org.languageGroup">
+                <OrgLanguageGroup ctx={ctx} v={v} group={g} openAtFirst={v.languages.length <= GROUPS_OPEN_UP_TO} />
+              </HelpRow>
+            ))}
+            {addLanguage ? <Group><Row icon="plus" label={addLanguage.label} help={addLanguage.help} onPress={addLanguage.onPress} last /></Group> : null}
+          </View>
+        </View>
+      ) : (
+        <>
+          <HomeSection label={t('org.home.languagesTitle')} add={addLanguage}>
+            {v.languages.length === 0 ? (
+              <View style={{ padding: space.lg }}><Text style={txt.smMuted}>{t('org.home.noLanguages')}</Text></View>
+            ) : null}
+            {v.languages.slice(0, shown).map((languageId) => (
+              <HelpRow key={languageId} of="org.language">
+                <LanguageListRow ctx={ctx} v={v} languageId={languageId} />
+              </HelpRow>
+            ))}
+          </HomeSection>
+          <ShowMore remaining={v.languages.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
+        </>
+      )}
       <PeopleRows ctx={ctx} level="org" />
       <HomeSetup ctx={ctx} from="org_home" level="org" languageIds={v.languages} />
     </Screen>
+  );
+}
+
+/**
+ * A group of the organization's languages on its home: a cluster's, or
+ * those in none. Open or closed is kept across Back; a group starts open
+ * while the whole list is short (GROUPS_OPEN_UP_TO). A long group shows 20
+ * rows at a time.
+ */
+function OrgLanguageGroup(props: { ctx: Ctx; v: ReturnType<typeof useOrgView>; group: LanguageGroup; openAtFirst: boolean }) {
+  const { ctx, v, group } = props;
+  const beside = useOpenDetail();
+  const [shown, setShown] = useState(20);
+  // What was toggled is kept; it flips the group's first state.
+  const toggled = ctx.details(`home:org_home:group:${group.key}`);
+  const open = props.openAtFirst !== toggled.open;
+  const ids = group.languageIds;
+  const clusterId = group.kind === 'cluster' ? group.clusterId : null;
+  return (
+    <LanguageGroupCard group={group} open={open} onToggle={toggled.onToggle}
+      {...(clusterId ? { onOpenCluster: () => ctx.go('cluster_home', { clusterId }), current: beside?.screen === 'cluster_home' && beside.params['clusterId'] === clusterId } : {})}>
+      {ids.slice(0, shown).map((languageId, i) => (
+        <HelpRow key={languageId} of="org.language">
+          <LanguageListRow ctx={ctx} v={v} languageId={languageId} last={i === Math.min(shown, ids.length) - 1} />
+        </HelpRow>
+      ))}
+      <ShowMore remaining={ids.length - shown} step={20} onMore={() => setShown((n) => n + 20)} />
+    </LanguageGroupCard>
   );
 }
 

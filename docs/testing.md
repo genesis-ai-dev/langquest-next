@@ -32,7 +32,7 @@ Beside them:
   thresholds for `packages/core` and `packages/sync`, which are pure and
   must stay near fully covered. The mobile screen models (`apps/mobile/src/**/model.ts`,
   `*Model.ts`) have a threshold of 88% lines (90% measured on 2026-10-15). CI fails under the threshold. On 2026-10-15 core was at 97% lines (85% branches) and sync at 97% (87%); thresholds are 95 and 95 lines, 83 and 85 branches, about two points under what is measured, so a gain is kept. Raise them when coverage rises.
-- **Mutation testing** (`npm run mutate:core`): Stryker over `packages/core`,
+- **Mutation testing** (`npm run test:mutation`): Stryker over `packages/core`,
   nightly. Coverage says a line ran; mutation says a test would notice it
   changing. Core holds the invariants, so it gets both. Baseline on 2026-10-14: 52.5%
   over all of `packages/core/src` (5,598 killed, 2,124 survived, 2,937 with no test reaching them), 7 minutes on
@@ -89,6 +89,31 @@ These keep the suite fast enough to run and stable enough to trust.
   builds (`__langquestTestState`: sync idle, pending count, last pull).
   `page.waitForTimeout` is forbidden; the hygiene test fails on one unless
   the line carries `// sleep: <why nothing observable exists>`.
+- **Ask for the pass, do not wait for the clock.** A test that needs what
+  the server's projection pass writes (the public listing behind Explore and
+  Find your organization, Reports' stored inputs, server snapshots and their
+  cuts) calls `projectionPass()` (`e2e/ui/pass-helpers.ts`) and then expects
+  with the default timeout. It fires the Worker's job tick
+  (`/__scheduled`) and returns when a `diag.job_runs` row for a 'projection'
+  run that started after the call exists, sending the tick again every few
+  seconds because a tick during a running pass starts nothing; any number of
+  Playwright workers may call at once and share the run. A file calls it once
+  in `beforeAll`, not in every test (each call waits for a fresh run). Do not
+  call it for what the pass does not write: Inbox updates are the phone's
+  own fold, and join requests and reports reach the Inbox through database
+  triggers and `join_requests`, so those wait for the phone's sync, not the
+  pass. `UI_PASS=direct` runs `server/projections.ts` in the test process
+  instead (one at a time, locked under `e2e/results`): for a local run
+  without the job container, where another checkout may share the stack and
+  its Worker. Never use it in CI or beside a Worker that runs passes.
+- **Audio is real time, so assert structure.** Chromium's fake microphone
+  speaks in wall-clock time, and a loaded runner stretches it. A test checks
+  that a length is shown (`\d+:\d\d`), how many parts there are, and that
+  each part is at least a second, not that three parts last `0:1x`. Where
+  the clock is the point (a note stamped about 5 s into playback), the window
+  is wide enough for a slow runner and a comment says so. A setup step that
+  uploads a file (`e2e/ui/blob-upload.ts`) retries a transient 5xx; an
+  assertion never retries.
 - **One test, one role.** A spec that names several roles becomes one test
   per role, titled `ID role`, so each stays under about a minute, failures
   isolate, and files shard. The default timeout (`ui.config.ts`) is the
@@ -106,8 +131,24 @@ These keep the suite fast enough to run and stable enough to trust.
 - **Zero retries, quarantine instead.** `retries: 0` stays. A test that
   fails without a product cause is tagged `@quarantine`, runs in its own job,
   and has an owner and an issue (for a test the nightly run caught, the
-  issue it opened). `scripts/ui-flakes.mjs` reads the kept reports and
-  lists pass rates per test.
+  issue it opened). `scripts/ui-flakes.mjs` reads kept reports and lists
+  pass rates per test. The nightly does this itself
+  (`scripts/ui-flake-report.mjs`, job `nightly-flakes`): it downloads the
+  `ui-web-p0-results-*` artifacts of the last 40 pull request and push runs,
+  prints the tests under 95% of their runs (seen in at least 5) and keeps
+  one Linear issue for them, `Nightly: the web UI tests that do not pass
+  every run`, commenting when the list changes. A pull request that broke a
+  test and fixed it later counts as failures there, so read the failing runs
+  before quarantining. Run it by hand with `--dry-run` (it uses the `gh`
+  sign-in). A report in which more than 15 tests failed is left out: that is
+  the stack being down, not 15 flakes.
+- **A red run may be the runner.** Before filing a UI failure as a product
+  bug, read the job's `load/` files in the results artifact
+  (`ui-web-p0-results-N`): `vmstat.log` (run queue `r` above the 4 vCPUs for
+  long, `wa` disk wait, `st` steal, `si`/`so` swap), `busiest.log` (the
+  busiest processes every 30 s) and `machine.txt`. A job that failed in
+  "Start the local stack" with `toomanyrequests` is a registry limit, not
+  the code (see "CI infrastructure" below).
 - **Own world per file, no order between files.** Inside a file, tests may
   build on earlier ones only when the spec says so under "Resets".
 - **Phones run the P0 smoke set and phone-only behaviour.** A test that can
@@ -126,7 +167,7 @@ These keep the suite fast enough to run and stable enough to trust.
 | PR (CI `checks`) | typecheck, `npm test`, coverage thresholds, worker bundle parity | under 10 min |
 | PR (CI `server`) | `db:test`, `test:integration` | under 15 min |
 | PR (CI `web-smoke`) | the export in three engines | under 20 min |
-| PR (CI `ui-web`) | `@p0` web tests on the export, in two shards | under 20 min |
+| PR (CI `ui-web`) | `@p0` web tests on the export, in four shards of two browsers, cut by recorded duration | under 20 min |
 | Nightly (CI) | the whole web suite, `@quarantine` apart; fleet `normalDay`; Stryker on core | not blocking; failures filed in Linear, unassigned (`scripts/nightly-report.mjs`) |
 | `npm run ship` | typecheck, then `@p0` web tests on the local stack (`SHIP_UNTESTED=1` skips, loudly) | |
 | Store release | full web suite, every Maestro flow on both phones, the run sheet | |
@@ -136,6 +177,38 @@ The four PR jobs start together, so a PR waits for the slowest of them
 A job that needs the local stack starts it in the background while it
 installs the browsers.
 
+### CI infrastructure (decision 102, amended 2026-10-20)
+
+- **Sharding.** `ui-web` runs four shards with `UI_WORKERS=2` each. Playwright's
+  `--shard` splits by test count, which is not time, so
+  `scripts/ui-shards.mjs <n> 4 --tag @p0` deals spec files largest first by
+  their seconds in `scripts/ui-shard-weights.json` and the job passes those
+  files to Playwright. A file not in the table weighs the median. Refresh the
+  table when the suite has changed a lot: download the `ui-web-p0-results-N`
+  artifacts of a few runs into one folder per artifact named `<run>-<n>` and
+  run `node scripts/ui-shards.mjs weights <folder> > scripts/ui-shard-weights.json`.
+  `uiShards.test.ts` holds that every file is in exactly one shard and the
+  four are within a fifth of each other.
+- **Registries.** ECR Public (the Supabase CLI's images) and Docker Hub (the
+  job container's base image, wrangler's egress image) ration anonymous
+  pulls per IP address, which a hosted runner shares. Jobs restore the
+  images from `actions/cache` and save them when the cache was not an exact
+  hit (`.github/actions/docker-images`, `scripts/ci-docker-images.sh`; the
+  key is the Supabase CLI version and `supabase/config.toml`), and a start
+  the registry turned away is retried (`scripts/ci-retry-pull.sh`). The
+  repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`, when set,
+  sign in to Docker Hub for a higher limit; nothing requires them.
+- **Ports.** The stack's ports (54420 to 54429) lie in the range Linux hands
+  out to outbound connections, and a start pulling a dozen images could
+  find one taken ("address already in use", run 39490187431). Each job
+  reserves them before the stack starts (`scripts/ci-reserve-ports.sh`), and
+  the retry script retries that error too.
+- **Load.** Each UI job logs `nproc` and `free -m` and samples `vmstat` and the
+  busiest processes (`scripts/ci-load.sh`) into its results artifact.
+- **Concurrency.** A pull request or push run is cancelled by a newer one for
+  the same ref; the scheduled and manual runs are a group of their own and
+  neither cancel nor are cancelled.
+
 ## Running each layer here
 
 | Layer | Command |
@@ -144,7 +217,7 @@ installs the browsers.
 | 2 | `npm run db:test`, `npm run test:integration`, `npm run fleet -- normalDay` (Docker, local stack) |
 | 4 | `npm run db:start`, then `npm run test:ui:web`; one file: `npm run test:ui:web -- e2e/ui/<file>` |
 | 5 | `npm run test:ui:build -- --platform ios --device <simulator udid>` (Android: `--platform android --device <AVD name>`), then `npm run test:ui:phone` (`-- --platform android`) |
-| Beside them | `npm run lint`, `npm run test:web` (web smoke), `npm run mutate:core` |
+| Beside them | `npm run lint`, `npm run test:web-smoke` (web smoke), `npm run test:mutation` |
 
 Two things these leave behind can pass for current:
 
@@ -156,6 +229,25 @@ Two things these leave behind can pass for current:
   started it. Started from a worktree that is later removed, every function
   call fails (`failed to determine entrypoint` in the edge runtime's log).
   `npm run db:stop`, then `npm run db:start` from the checkout you are in.
+
+From a worktree, the local stack is shared with every other checkout on
+the machine, and two parts of it belong to the checkout that started them:
+
+- **Push delivery's secret.** Each checkout makes its own, in its
+  git-ignored `supabase/functions/.env`. The Edge runtime reads the one of
+  the checkout that started the stack, and `npm run db:start` writes this
+  checkout's into the database's Vault (`scripts/local-db.mjs`). So after a
+  `db:start` from another checkout, the push job's calls are refused until
+  the stack is stopped and started from one checkout. A worktree with no
+  secret yet restarts the stack itself, under any other session using it.
+  Push delivery only: the projection pass runs in the job container under
+  `web:dev` (decision 148) and reads no Edge secret.
+- **The Worker on :8787.** It serves the export of the checkout that
+  started it, and `db:start`, `dev` and the UI suite reuse whatever
+  already answers there. Run the UI suite on your own port, so Playwright
+  exports and serves this checkout:
+  `EXPO_PUBLIC_API_URL=http://localhost:8797 UI_PORT=8797 npm run test:ui:web -- --grep @p0`.
+  Never stop another session's Worker.
 
 ## Adding a test
 

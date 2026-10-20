@@ -20,7 +20,7 @@ npx vitest run --reporter=dot
 # source it is built from is committed, so the build is of what is pushed.
 BUNDLE=supabase/functions/push-delivery/index.ts
 if git diff --quiet HEAD -- server scripts/build-push-delivery.mjs "$BUNDLE"; then
-  npm run --silent worker:build
+  npm run --silent build:push-delivery
   if ! git diff --quiet HEAD -- "$BUNDLE"; then
     echo "pre-push: $BUNDLE was behind its source and is rebuilt now. Commit it and push again." >&2
     exit 1

@@ -1,12 +1,12 @@
 // The language explorer's globe is a committed bundle (public/languages-globe.js,
-// docs/languoids.md); `npm run explorer:build` makes it from its source.
+// docs/languoids.md); `npm run build:explorer` makes it from its source.
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error a plain .mjs build script, without types
 import { bundleGlobe, GLOBE_FILE, worldWithCodes } from './build-explorer-globe.mjs';
 
 describe('the explorer globe', () => {
-  it('is built from its source: run npm run explorer:build after changing globe.mjs', async () => {
+  it('is built from its source: run npm run build:explorer after changing globe.mjs', async () => {
     expect(await bundleGlobe()).toBe(await readFile(GLOBE_FILE, 'utf8'));
   });
 

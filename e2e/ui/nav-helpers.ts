@@ -3,7 +3,8 @@
 // would make them, and a few ways to read the screen those two files share.
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { commands, derivePassage, ORG_STREAM, SEED_ROLES, type EventSpec, type LanguageState, type OrgState, type Scope } from '@langquest-next/core';
-import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs } from '@langquest-next/sync';
+import { blobKey, MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/sync';
+import { setupBlobs } from './blob-upload';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { clientAs, send, signIn } from './fixture';
 import { expect, openAs, type AccountKey, type PassageKey, type UiWorld } from './support';
@@ -115,7 +116,7 @@ export async function upload(world: UiWorld, who: AccountKey, n: number): Promis
   for (let k = 0; k < rate; k++) v.setInt16(44 + k * 2, Math.round(0.4 * Math.sin(2 * Math.PI * f * k / rate) * 32767), true);
   const hash = createHash('sha256').update(bytes).digest('hex');
   const { session } = await signIn(world, who);
-  await workerBlobs(world.apiUrl, session.access_token).put(blobKey(world.orgId, world.languages.A.languageId, hash, 'wav'), bytes);
+  await setupBlobs(world.apiUrl, session.access_token).put(blobKey(world.orgId, world.languages.A.languageId, hash, 'wav'), bytes);
   return { hash, durationMs: 2000, format: 'wav' };
 }
 

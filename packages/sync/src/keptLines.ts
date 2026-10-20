@@ -96,8 +96,12 @@ export class KeptLines {
 
   /** These events were folded: their passages' lines are owed. */
   touched(state: LanguageState, events: Iterable<AnyEvent>): void {
-    for (const e of events) {
-      const of = eventPassage(e);
+    this.touchedAt(state, (function* () { for (const e of events) yield eventPassage(e); })());
+  }
+
+  /** `touched`, from what each event names (core `eventPassage`): a fold of the log a page at a time keeps these, not the events. */
+  touchedAt(state: LanguageState, named: Iterable<ReturnType<typeof eventPassage>>): void {
+    for (const of of named) {
       if (of === null) continue;
       // A settings event changes the stamp `refresh` compares; nothing to mark.
       if (of === 'settings') continue;

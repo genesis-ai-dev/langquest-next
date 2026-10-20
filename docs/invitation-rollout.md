@@ -25,7 +25,7 @@ only before the QR screen. The QR screen confirms the chosen role.
    The repair preserves the legacy invitation overload. The new app uses
    `redeem_invite_v2`, leaving the old return shape available to old clients.
 2. Run `npm run db:check`. Every required API contract must exist.
-3. Run `npm run worker:build` and commit the bundle. Merging to `main` deploys `push-delivery` and `send-invite` (Supabase's GitHub integration, `server/README.md`).
+3. Run `npm run build:push-delivery` and commit the bundle. Merging to `main` deploys `push-delivery` and `send-invite` (Supabase's GitHub integration, `server/README.md`).
    Both validate authorization inside their handlers. Their function config
    disables the gateway's legacy JWT verification.
 4. Set a random `PUSH_DELIVERY_SECRET` in the root `.env.<environment>`

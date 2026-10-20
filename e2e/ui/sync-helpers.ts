@@ -5,7 +5,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { commands, derivePassage, ORG_STREAM, SEED_ROLES, type EventSpec, type LanguageState, type OrgState, type Scope } from '@langquest-next/core';
-import { blobKey, MemoryStore, SupabaseTransport, SyncClient, workerBlobs } from '@langquest-next/sync';
+import { blobKey, MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/sync';
+import { setupBlobs } from './blob-upload';
 import { clientAs, send, signIn } from './fixture';
 import { back, button, byId, expect, expectSyncIdle, expectToast, openAs, openPassage, primary, tab, text, type AccountKey, type PassageKey, type UiWorld } from './support';
 
@@ -244,7 +245,7 @@ export const atA = (world: UiWorld): Scope => ({ level: 'language', languageId: 
 /** Every file of these hashes is on the server (the Worker's R2), as `who` may read it. */
 export async function serverHasAudio(world: UiWorld, who: AccountKey, hashes: string[]): Promise<boolean> {
   const { session } = await signIn(world, who);
-  const files = workerBlobs(world.apiUrl, session.access_token);
+  const files = setupBlobs(world.apiUrl, session.access_token);
   const one = async (hash: string) => {
     for (const format of ['m4a', 'wav']) {
       const bytes = await files.get(blobKey(world.orgId, world.languages.A.languageId, hash, format)).catch(() => null);
@@ -279,7 +280,7 @@ export async function uploadWav(world: UiWorld, who: AccountKey, seconds: number
   const hash = createHash('sha256').update(bytes).digest('hex');
   const { session } = await signIn(world, who);
   const A = world.languages.A;
-  await workerBlobs(world.apiUrl, session.access_token).put(blobKey(A.orgId, A.languageId, hash, 'wav'), bytes);
+  await setupBlobs(world.apiUrl, session.access_token).put(blobKey(A.orgId, A.languageId, hash, 'wav'), bytes);
   return { hash, durationMs: Math.round(seconds * 1000), format: 'wav' };
 }
 

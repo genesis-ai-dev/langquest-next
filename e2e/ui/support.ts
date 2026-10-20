@@ -57,6 +57,30 @@ export function useWorld(opts: Parameters<typeof buildWorld>[0] = {}): () => UiW
  */
 export async function noHotReload(context: BrowserContext): Promise<void> {
   await context.routeWebSocket(/\/hot|\/message\?/, () => { /* no hot reloads from others' edits */ });
+  recordProblems(context);
+}
+
+/**
+ * What each page has said went wrong (console errors, uncaught errors, failed
+ * requests), kept from the page's creation, so a timeout waiting for the app
+ * (`waitForApp`) can say why it never opened its store.
+ */
+const problems = new WeakMap<Page, string[]>();
+const watchedContexts = new WeakSet<BrowserContext>();
+function watchPage(page: Page): void {
+  if (problems.has(page)) return;
+  const lines: string[] = [];
+  problems.set(page, lines);
+  const note = (line: string) => { if (lines.length < 40) lines.push(line.slice(0, 500)); };
+  page.on('console', (m) => { if (m.type() === 'error') note(`console.error: ${m.text()}`); });
+  page.on('pageerror', (e) => note(`pageerror: ${e.message}`));
+  page.on('requestfailed', (r) => note(`requestfailed: ${r.method()} ${r.url()} ${r.failure()?.errorText ?? ''}`));
+}
+function recordProblems(context: BrowserContext): void {
+  for (const page of context.pages()) watchPage(page);
+  if (watchedContexts.has(context)) return;
+  watchedContexts.add(context);
+  context.on('page', watchPage);
 }
 
 export const test = base.extend({
@@ -68,7 +92,16 @@ export const test = base.extend({
 
 /** The app's read-only device log probe, present once the store is open (dev web builds). */
 export async function waitForApp(page: Page): Promise<void> {
-  await page.waitForFunction(() => !!(globalThis as { __langquestLog?: unknown }).__langquestLog, undefined, { timeout: 120_000 });
+  watchPage(page);
+  try {
+    await page.waitForFunction(() => !!(globalThis as { __langquestLog?: unknown }).__langquestLog, undefined, { timeout: 120_000 });
+  } catch (error) {
+    const seen = problems.get(page) ?? [];
+    const shown = (await page.locator('body').innerText({ timeout: 2_000 }).catch(() => '(page not readable)')).replace(/\s+/g, ' ').slice(0, 300);
+    throw new Error(`The app never opened its store within 120 s at ${page.url()}.\n`
+      + `Page shows: ${shown}\n`
+      + `Console and page errors since the page opened (${seen.length}):\n${seen.join('\n') || '(none)'}\n${String(error)}`);
+  }
 }
 
 /**

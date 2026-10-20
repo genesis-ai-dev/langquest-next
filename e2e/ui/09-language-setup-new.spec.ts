@@ -432,11 +432,21 @@ test('SETUP-074 A cluster of a new language and one already here, then ungrouped
   await expect(text(page, 'Time to invite people')).toBeVisible({ timeout: 60_000 });
   await expectToast(page, `1 language added to ${w.orgName}, in ${cluster}.`);
   await text(page, 'Later').click();
-  // Org home: the cluster above the languages in none; Bravo is under it now.
+  // Org home: the cluster is a heading over its languages, then those in none (decision 108, amended 2026-10-20).
   await orgHome(page, w);
-  await expectOnScreen(page, cluster, `2 languages · Bravo, ${name}`);
-  await expect(text(page, 'Bravo')).toHaveCount(0);
-  await text(page, cluster).click();
+  const heading = button(page, `${cluster}. 2 languages`);
+  await expect(heading).toBeVisible();
+  // Groups start closed once the list is long (this file adds many languages).
+  if ((await heading.getAttribute('aria-expanded')) === 'false') await heading.click();
+  await expect(heading).toHaveAttribute('aria-expanded', 'true');
+  await expectOnScreen(page, 'Not in a cluster', name);
+  // Bravo is under the cluster now, not also under "Not in a cluster".
+  await expect(page.getByText('Bravo', { exact: true }).filter({ visible: true })).toHaveCount(1);
+  // Its heading folds its languages away.
+  await heading.click();
+  await expect(heading).toHaveAttribute('aria-expanded', 'false');
+  await expect(text(page, name)).toHaveCount(0);
+  await button(page, `Open ${cluster}`).click();
   await expectOnScreen(page, `Cluster · 2 languages`, 'Its languages', 'Bravo', name, 'Add a language to it');
   // Ungrouping takes the name off; both languages stay.
   await button(page, 'Ungroup').click();

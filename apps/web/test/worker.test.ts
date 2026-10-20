@@ -422,6 +422,26 @@ describe('OrgFolder memory limits (V4)', () => {
     expect(roomy.heldLanguages().sort()).toEqual(['din', 'nus']);
   });
 
+  it('lets go of what the budget cannot hold beside the next fold before folding it, not after', async () => {
+    // Why: a fold of about the budget was held while the next language was folded, two in the isolate at
+    // once; the 6 × 5000 case of test/memory ran out of memory on four runs in ten (2026-10-20).
+    const log = orgLog();
+    const heldAtFold: Record<string, string[]> = {};
+    let folder: OrgFolder | null = null;
+    const source: Source = {
+      ...withoutHeads(log), heads: log.heads.bind(log),
+      async pull(orgId, streamId, after, limit) {
+        if (streamId !== '_org' && after === 0) heldAtFold[streamId] = folder!.heldLanguages();
+        return log.pull(orgId, streamId, after, limit);
+      }
+    };
+    // One small fold fits; a language of unknown size counts as large, so it never shares the budget.
+    folder = new OrgFolder(source, ORG, new MemoryCache(), () => at, undefined, { stateBudgetBytes: 1_000_000, largeStateBytes: 1_000_000 });
+    await folder.reportsFor('admin');
+    expect(heldAtFold).toEqual({ din: [], nus: [] });
+    expect(folder.heldLanguages()).toEqual(['nus']);
+  });
+
   it('still answers for a language whose fold was dropped, reading it back from the cache', async () => {
     const log = orgLog();
     const folder = new OrgFolder(log, ORG, new MemoryCache(), () => at, undefined, { stateBudgetBytes: 1 });

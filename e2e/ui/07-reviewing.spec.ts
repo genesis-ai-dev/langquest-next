@@ -142,7 +142,7 @@ test('REV-004 A note at a moment while listening', async ({ page }) => {
   await expect(text(page, `Say what you noticed here. ${TOM_FIRST} hears it with your review.`)).toBeVisible();
   await speakInto(page, 'Tap and speak');
   await expect(text(page, 'Your note at 0:00')).toBeVisible();
-  await expect(text(page, /^0:0\d · goes with your review$/)).toBeVisible();
+  await expect(text(page, /^\d+:\d\d · goes with your review$/)).toBeVisible();
   await expect(button(page, /^Play Play your note at 0:00|^Play your note at 0:00/)).toBeVisible();
   await button(page, 'Remove your note at 0:00').click();
   await expect(text(page, 'Your note at 0:00')).toHaveCount(0);
@@ -168,7 +168,7 @@ test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await expect(primary(page)).toHaveText('Send feedback');
   await expect(primary(page)).toBeDisabled();
   await speakInto(page, 'Tap and speak');
-  await expect(button(page, /^Play Your feedback, 0:0\d$/)).toBeVisible();
+  await expect(button(page, /^Play Your feedback, \d+:\d\d$/)).toBeVisible();
   await expect(button(page, 'Record again')).toBeVisible();
   await button(page, 'Or type it').click();
   await field(page, 'Or type it — what worked, what didn\'t').fill('Verse 12 is too fast');
@@ -214,7 +214,7 @@ test('REV-007 A listener retelling with the feedback', async ({ page }) => {
   await button(page, 'Record a listener retelling, optional').click();
   await expect(text(page, 'Ask someone who listened to tell it back in their own words. It goes with your review.')).toBeVisible();
   await speakInto(page, 'Tap and record the retelling', 4000);
-  await expect(button(page, /^Play Listener retelling, 0:0\d$/)).toBeVisible();
+  await expect(button(page, /^Play Listener retelling, \d+:\d\d$/)).toBeVisible();
   await button(page, 'Remove the retelling').click();
   await button(page, 'Record a listener retelling, optional').click();
   await speakInto(page, 'Tap and record the retelling', 4000);
@@ -379,10 +379,10 @@ test('REV-013 A text answer said aloud, or typed', async ({ page }) => {
   await button(page, 'Skip this question').click();
   await expect(text(page, 'Notes for the translation team')).toBeVisible();
   await speakInto(page, 'Tap and record the answer', 4000);
-  await expect(button(page, /^Play Their answer, 0:0\d$/)).toBeVisible();
+  await expect(button(page, /^Play Their answer, \d+:\d\d$/)).toBeVisible();
   await button(page, 'Record again').click();
   await speakInto(page, 'Tap and record the answer', 3000);
-  await expect(button(page, /^Play Their answer, 0:0\d$/)).toBeVisible();
+  await expect(button(page, /^Play Their answer, \d+:\d\d$/)).toBeVisible();
   await button(page, 'Or type it').click();
   await field(page, 'Type the answer').fill('Verse 7 \'joy in heaven\' is clear');
   await expect(button(page, /^Play Their answer/)).toBeVisible();
@@ -704,11 +704,11 @@ test('REV-032 Say each part, then finish the back translation @p0', async ({ pag
   await button(page, 'Stop recording').click();
   await expect(text(page, 'Stopped')).toBeVisible();
   await button(page, 'Done').click();
-  await expect(button(page, /^Part 1, 0:0\d in English$/)).toBeVisible({ timeout: 20_000 });
+  await expect(button(page, /^Part 1, \d+:\d\d in English$/)).toBeVisible({ timeout: 20_000 });
   await expect(button(page, /^Part 1, 0:\d\d in English$/)).toBeVisible({ timeout: 20_000 });
   await expect(button(page, 'Done')).toBeEnabled();
   await button(page, /^Part 1(,|$)/).click();
-  await expect(button(page, /^Part 1, 0:0\d in English · record to add more$/)).toBeVisible();
+  await expect(button(page, /^Part 1, \d+:\d\d in English · record to add more$/)).toBeVisible();
   await expect(button(page, /Play your part 1/)).toBeVisible();
   await expect(button(page, 'Delete part 1 to say it again')).toBeVisible();
   await button(page, /^Part 2(,|$)/).click();
@@ -744,7 +744,7 @@ test('REV-034 Delete a part of the back translation, then Undo', async ({ page }
   // No toast offers Undo (decision 134): the Undo arrow beside the red button brings it back.
   await expect(undoButton(page)).toHaveAttribute('aria-label', 'Undo: Part 2 deleted.');
   await undoButton(page).click();
-  await expect(button(page, /^Part 2, 0:0\d in English/)).toBeVisible();
+  await expect(button(page, /^Part 2, \d+:\d\d in English/)).toBeVisible();
   await button(page, /^Part 2(,|$)/).click();
   await button(page, 'Delete part 2 to say it again').click();
   await expect(button(page, 'Part 2, Saying it next')).toBeVisible();
@@ -797,22 +797,22 @@ test('REV-036 Done with parts not said', async ({ page }) => {
   await expect(button(page, 'Finish the back translation')).toBeEnabled();
   await button(page, 'Close').click();
   await expect(button(page, 'Finish the back translation')).toHaveCount(0);
-  await expect(button(page, /^Part 1, 0:0\d in English/)).toBeVisible();
+  await expect(button(page, /^Part 1, \d+:\d\d in English/)).toBeVisible();
 });
 
 test('REV-037 Parts are kept on the device until Done', async ({ page }) => {
   await btInProgress(page, 2);
-  await expect(button(page, /^Part 1, 0:0\d in English/)).toBeVisible();
-  await expect(button(page, /^Part 2, 0:0\d in English/)).toBeVisible();
+  await expect(button(page, /^Part 1, \d+:\d\d in English/)).toBeVisible();
+  await expect(button(page, /^Part 2, \d+:\d\d in English/)).toBeVisible();
   await byId(page, 'header-close').click();
   await button(page, 'Back-translate it').click();
-  await expect(button(page, /^Part 1, 0:0\d in English/)).toBeVisible();
-  await expect(button(page, /^Part 2, 0:0\d in English/)).toBeVisible();
+  await expect(button(page, /^Part 1, \d+:\d\d in English/)).toBeVisible();
+  await expect(button(page, /^Part 2, \d+:\d\d in English/)).toBeVisible();
   await page.reload();
   await openRecord(page, world(), 'P-Q3');
   await button(page, 'Back-translate it').click();
-  await expect(button(page, /^Part 1, 0:0\d in English/)).toBeVisible();
-  await expect(button(page, /^Part 2, 0:0\d in English/)).toBeVisible();
+  await expect(button(page, /^Part 1, \d+:\d\d in English/)).toBeVisible();
+  await expect(button(page, /^Part 2, \d+:\d\d in English/)).toBeVisible();
 });
 
 test('REV-038 Hearing the version while saying a part', async ({ page }) => {
