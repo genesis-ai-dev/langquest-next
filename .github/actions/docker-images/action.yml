@@ -1,0 +1,82 @@
+name: Docker images
+description: >
+  Keep the container images a job pulls (the Supabase CLI's, from ECR Public;
+  with job-images, the job container's base image from Docker Hub) between
+  runs, so a registry's per-IP limit on anonymous pulls does not fail a job.
+  Use it twice: phase restore before the job starts its stack, phase save as
+  the job's last step (it saves only when the restore was not an exact hit).
+  Needs npm ci first. scripts/ci-docker-images.sh does the work.
+
+inputs:
+  phase:
+    description: restore or save
+    required: true
+  job-images:
+    description: "'true' for a job that runs wrangler dev with the job container (ui-web, nightly)"
+    default: 'false'
+  dockerhub-username:
+    description: Optional. With dockerhub-token, signs in to Docker Hub for a higher pull limit.
+    default: ''
+  dockerhub-token:
+    description: Optional. A Docker Hub access token with read-only access to public repositories.
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Work out the cache key
+      id: key
+      shell: bash
+      env:
+        JOBS: ${{ inputs.job-images == 'true' && 'jobs' || '' }}
+      run: |
+        echo "key=$(bash scripts/ci-docker-images.sh key $JOBS)" >> "$GITHUB_OUTPUT"
+        echo "prefix=$(bash scripts/ci-docker-images.sh prefix)" >> "$GITHUB_OUTPUT"
+
+    # --- restore: before the stack starts ---------------------------------
+    - name: Restore the cached images
+      if: inputs.phase == 'restore'
+      id: restore
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/docker-images.tar.zst
+        key: ${{ steps.key.outputs.key }}
+        # An older cache (a Supabase CLI or config change since) still has most images.
+        restore-keys: ${{ steps.key.outputs.prefix }}
+    - name: Load them into Docker
+      if: inputs.phase == 'restore'
+      shell: bash
+      run: |
+        echo "${{ steps.restore.outputs.cache-hit }}" > "$RUNNER_TEMP/docker-images.hit"
+        bash scripts/ci-docker-images.sh load
+    - name: Pull the job container's images (retrying)
+      if: inputs.phase == 'restore' && inputs.job-images == 'true'
+      shell: bash
+      env:
+        DOCKERHUB_USERNAME: ${{ inputs.dockerhub-username }}
+        DOCKERHUB_TOKEN: ${{ inputs.dockerhub-token }}
+      run: bash scripts/ci-docker-images.sh warm
+
+    # --- save: after the job's tests, so it never delays them --------------
+    - name: Was the cache complete?
+      if: inputs.phase == 'save'
+      id: needed
+      shell: bash
+      run: |
+        if [ "$(cat "$RUNNER_TEMP/docker-images.hit" 2> /dev/null)" = true ]; then echo "save=false" >> "$GITHUB_OUTPUT"; else echo "save=true" >> "$GITHUB_OUTPUT"; fi
+    - name: Pack the images this job pulled
+      if: inputs.phase == 'save' && steps.needed.outputs.save == 'true'
+      id: pack
+      shell: bash
+      env:
+        JOBS: ${{ inputs.job-images == 'true' && 'jobs' || '' }}
+      run: |
+        rm -f "$RUNNER_TEMP/docker-images.tar.zst"
+        bash scripts/ci-docker-images.sh save $JOBS
+        if [ -s "$RUNNER_TEMP/docker-images.tar.zst" ]; then echo "packed=true" >> "$GITHUB_OUTPUT"; fi
+    - name: Save them for the next run
+      if: inputs.phase == 'save' && steps.pack.outputs.packed == 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/docker-images.tar.zst
+        key: ${{ steps.key.outputs.key }}
