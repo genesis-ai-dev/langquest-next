@@ -35,7 +35,7 @@ import { useSwipeHint } from './useSwipeHint';
 import { useBars } from '../audio/useBars';
 import { useClip } from '../audio/useClip';
 import { partIs, spanName, spanShort } from './verseModel';
-import { opensAbove, rowKeys, type RecordTarget, type SlotRow } from './workspaceModel';
+import { helpBinRow, opensAbove, rowKeys, type RecordTarget, type SlotRow } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
 import { useDragRows } from './useDragRows';
 import { lift } from '../ui/shadow';
@@ -214,6 +214,7 @@ export function VerseParts(props: {
   const openSide = (key: string): SwipeSide => (!disabled && !drag.dragging && open?.key === key ? open.side : 0);
   const hint = useSwipeHint(parts.length > 0 && !disabled);
   const firstPart = rows.findIndex((r) => r.kind === 'part');
+  const binRow = helpBinRow(rows);
 
   return (
     <View ref={box} style={styles.list} onLayout={() => box.current?.measureInWindow((x) => { boxLeft.current = x; })} {...(Platform.OS === 'web' ? {} : responder.panHandlers)}>
@@ -234,7 +235,7 @@ export function VerseParts(props: {
             <PartRow ctx={props.ctx} part={part} first={k === 0} last={k === rows.length - 1} name={nameOf(i)} label={labels[i] ?? null} verses={verses} ghost={labels[i] ? null : ghost(i)}
               onDelete={() => { setOpen(null); props.onDelete(part.hash, nameOf(i)); }}
               open={openSide(key)} onOpen={(side) => setOpen(side ? { key, side } : null)}
-              hint={hint.show && k === firstPart} onHinted={hint.done}
+              hint={hint.show && k === firstPart} onHinted={hint.done} helpBin={k === binRow}
               chosen={target.kind === 'over' && target.index === i} onChoose={() => props.onChoose({ kind: 'over', index: i })}
               flash={flash.has(part.hash)} shake={shake === i} editing={sheet?.i === i} disabled={disabled} fresh={props.fresh.has(part.hash)} lifted={lifted}
               grip={<PartGrip part={nameOf(i)} handlers={drag.grip(key)} disabled={disabled} canUp={i > 0} canDown={i < parts.length - 1} at={i + 1} of={parts.length}
@@ -278,6 +279,8 @@ function PartRow(props: {
   grip: ReactNode;
   /** Slid open on its bin, and the first time's slide. */
   open: SwipeSide; onOpen: (side: SwipeSide) => void; hint: boolean; onHinted: () => void;
+  /** While help is on, it stands open on its bin (workspaceModel helpBinRow). */
+  helpBin: boolean;
 }) {
   const name = props.name;
   const clip = useClip(props.ctx.language, [props.part.hash], { disabled: props.disabled });
@@ -292,7 +295,7 @@ function PartRow(props: {
     t(!l ? 'recording.verses.spaceEmptyHelp' : l.kind === 'join' ? 'recording.verses.spaceSameHelp' : l.kind === 'set' ? 'recording.verses.spaceSetHelp' : 'recording.verses.spaceHelp'), props.onTap);
   return (
     <SwipeRow name={name} disabled={props.disabled} open={props.open} onOpen={props.onOpen} onDelete={props.onDelete} last={props.last}
-      {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})}>
+      {...(props.hint ? { hint: true, onHinted: props.onHinted } : {})} helpBin={props.helpBin}>
     <View style={[styles.row, !props.first && styles.rowBorder, props.fresh && styles.fresh, (props.flash || props.chosen) && { backgroundColor: C.light }, props.editing && styles.editing,
       props.lifted && styles.liftedRow]}>
       <Pressable ref={props.gutterRef} onPress={tap.onPress} onLongPress={tap.id ? undefined : props.onHold} delayLongPress={HOLD_MS}

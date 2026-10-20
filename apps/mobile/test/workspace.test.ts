@@ -5,7 +5,7 @@ import {
 import {
   backTranslationDraftKey, canPublish, cardDurations, draftToOpen, markTerms, mmss, parseBackTranslationDraft, removeCardSpecs,
   termsInText, tiedTermIds, tieTermsSpecs, unsavedParts, withoutPart, withPart, workingCards, slotRows, targetNumber,
-  changedParts, historyFits, marksAfterMove, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, restoreSpecs,
+  changedParts, helpBinRow, historyFits, marksAfterMove, marksKeepingLabels, marksOf, movedList, opensAbove, parsePartsHistory, restoreSpecs,
   type PartsSnap
 } from '../src/recording/workspaceModel';
 import { didStep, emptyHistory, redoStep, undoStep } from '../src/ui/undoModel';
@@ -300,6 +300,21 @@ describe('opening a place between two parts (Caleb, 2026-10-16)', () => {
     // Why: a gap is already a place to record into, so the lines beside it carry no mark.
     const rows = slotRows(3, [{ before: 1, label: { s: 1, e: 1, kind: 'set' } }], null);
     expect(rows.map((_, k) => opensAbove(rows, k))).toEqual([true, false, false, true]);
+  });
+});
+
+describe('the bin help shows (Caleb, 2026-10-20)', () => {
+  it('opens the second part, so the first row keeps its own numbers in sight', () => {
+    // Why: help speaks for the list from its first row; the row opened on its bin hides its grip.
+    expect(helpBinRow(slotRows(3, [], null))).toBe(1);
+    // A gap before the second part: the row after it.
+    const rows = slotRows(3, [{ before: 1, label: { s: 1, e: 1, kind: 'set' } }], null);
+    expect(rows[helpBinRow(rows)]).toMatchObject({ kind: 'part', index: 1 });
+  });
+
+  it('opens the only part when there is one, and none with no parts', () => {
+    expect(helpBinRow(slotRows(1, [], null))).toBe(0);
+    expect(helpBinRow(slotRows(0, [], null))).toBe(-1);
   });
 });
 
