@@ -126,6 +126,48 @@ export interface Transport {
    * carries no data; the client pulls through the authorized RPC.
    */
   watch?(orgId: string, streamId: string, handlers: WatchHandlers): () => void;
+  /**
+   * The server's cut of a language's newest snapshot (decisions.md 145):
+   * what the whole language shares, which passages have rows and how many,
+   * and every passage's line of this `LINES_VERSION`. Null when the newest
+   * snapshot was written before the server cut snapshots. Optional: a
+   * transport without it, or a server without the cut, gives the phone the
+   * whole snapshot in pieces as before (decisions.md 143).
+   */
+  snapshotHead?(orgId: string, streamId: string, reducerVersion: number, linesVersion: number, withShared?: boolean): Promise<SnapshotHead | null>;
+  /**
+   * These passages' rows in the newest snapshot at or past `minSeq`, a page
+   * at a time in (unit, kind, id) order from `after`. Null when there is no
+   * such snapshot.
+   */
+  snapshotRows?(orgId: string, streamId: string, reducerVersion: number, minSeq: number, unitIds: readonly string[], after: RowCursor | null, limit: number): Promise<SnapshotRowsPage | null>;
+  /** Which passage each of these takes, reviews, departures, requests or notes is in, by the newest snapshot; absent when it has none. */
+  snapshotPassages?(orgId: string, streamId: string, reducerVersion: number, items: readonly { kind: string; id: string }[]): Promise<{ kind: string; id: string; unitId: string }[]>;
+}
+
+/** Where a page of a snapshot's rows ends: the next page starts after it. */
+export interface RowCursor {
+  unitId: string;
+  kind: string;
+  id: string;
+}
+
+export interface SnapshotHead {
+  serverSeq: number;
+  /** What the whole language shares (`LanguageState` with its passages' maps empty); absent when not asked for. */
+  shared?: unknown;
+  /** Every passage with rows in this snapshot, and how many: the fill's work and its progress. `''` holds file verdicts no passage names. */
+  units: { unitId: string; rows: number }[];
+  /** The lines of the asked `LINES_VERSION` and the stream's seq they hold at; null when the server has none of that version yet. */
+  lines: { seq: number; lines: unknown[] } | null;
+}
+
+export interface SnapshotRowsPage {
+  /** The snapshot these rows are from. */
+  serverSeq: number;
+  /** Each a row as the phone keeps it, but a file verdict's `unitId` is the passage it was fetched with. */
+  rows: KeptRecord[];
+  next: RowCursor | null;
 }
 
 export interface WatchHandlers {

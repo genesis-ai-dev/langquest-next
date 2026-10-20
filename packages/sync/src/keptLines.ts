@@ -102,9 +102,44 @@ export class KeptLines {
       // A settings event changes the stamp `refresh` compares; nothing to mark.
       if (of === 'settings') continue;
       const unitId = passageInMemory(state, of);
-      if (unitId) this.dirty.add(unitId);
-      else this.unplaced.push(of);
+      if (!unitId) this.unplaced.push(of);
+      // A passage whose rows are still on the server keeps the server's line until they arrive, and is filled next (decisions.md 145).
+      else if (!this.kept.isFilled(unitId)) this.kept.want([unitId]);
+      else this.dirty.add(unitId);
     }
+  }
+
+  /** These passages' rows have all arrived: their lines are the phone's own from now on. */
+  filledIn(unitIds: Iterable<string>): void {
+    for (const u of unitIds) this.dirty.add(u);
+  }
+
+  /**
+   * A first download from the server's cut (decisions.md 145): its lines
+   * are every passage's until that passage's rows arrive. Answers what is
+   * written beside the checkpoint: nothing owed, under the shared part's
+   * settings, so a later change to them owes every filled passage's line.
+   */
+  adopt(lines: readonly PassageLine[], shared: LanguageState): Record<string, string> {
+    this.lines.clear();
+    for (const l of lines) this.lines.set(l.unitId, l);
+    this.dirty.clear();
+    this.unplaced = [];
+    this.all = false;
+    const owed: Owed = { settings: this.stamp(shared), all: false, dirty: [], unplaced: [] };
+    return { [this.owedKey()]: JSON.stringify(owed) };
+  }
+
+  /** The server's newer lines, for the passages not filled in yet; the rows to write. */
+  replaceUnfilled(lines: readonly PassageLine[]): KeptRecord[] {
+    const rows: KeptRecord[] = [];
+    for (const l of lines) {
+      if (this.kept.isFilled(l.unitId)) continue;
+      this.lines.set(l.unitId, l);
+      rows.push(lineRow(l));
+    }
+    if (rows.length > 0) this.current = this.makeView();
+    return rows;
   }
 
   /** Everything is owed: a fresh snapshot, a refold that undid an event. */
@@ -154,7 +189,8 @@ export class KeptLines {
       this.dirty.clear();
       this.unplaced = [];
       const every = new Set([...this.lines.keys(), ...await this.store.keptUnits(this.orgId, this.streamId, PART_KINDS), ...languageLines(live).worked()]);
-      units = [...every];
+      // A passage not filled in keeps the server's line: what the phone holds of it is only part of its record.
+      units = [...every].filter((u) => this.kept.isFilled(u));
     } else {
       const unplaced = this.unplaced;
       this.unplaced = [];
@@ -162,7 +198,8 @@ export class KeptLines {
         const u = await this.kept.passageOf(live, of);
         if (u) this.dirty.add(u);
       }
-      units = [...this.dirty];
+      units = [...this.dirty].filter((u) => this.kept.isFilled(u));
+      this.kept.want([...this.dirty].filter((u) => !this.kept.isFilled(u)));
       this.dirty.clear();
     }
     for (const u of units) this.inFlight.add(u);
@@ -263,7 +300,7 @@ export class KeptLines {
   }
 }
 
-function lineRow(line: PassageLine): KeptRecord {
+export function lineRow(line: PassageLine): KeptRecord {
   return { kind: LINE, id: line.unitId, unitId: line.unitId, ref: '', json: JSON.stringify(line) };
 }
 

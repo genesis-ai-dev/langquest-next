@@ -1,5 +1,6 @@
-import { CLIENT_PROTOCOL_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type Snapshot } from '@langquest-next/core';
-import type { AppendResult, Transport } from '../types';
+import { CLIENT_PROTOCOL_VERSION, emptyLanguageState, foldLanguage, LINES_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type PassageLine, type Snapshot } from '@langquest-next/core';
+import { cutLanguage, languageLinesOf, type ServerCut } from '../serverCut';
+import type { AppendResult, KeptRecord, RowCursor, Transport } from '../types';
 import { ClientTooOldError, NotAuthorizedError, OfflineError } from '../types';
 
 /**
@@ -60,6 +61,23 @@ export class FakeServer {
   failChunkAfter = Infinity;
   chunkCalls = 0;
   authorize: (e: AnyEvent) => string | null = () => null;
+  /**
+   * The pass cuts each snapshot by passage and writes every passage's line
+   * (decisions.md 145), as the server does from then on. Off, the server is
+   * one from before: phones download the whole snapshot in pieces.
+   */
+  serverCut = false;
+  /** The cut of each snapshot that has one. */
+  private cuts = new WeakMap<Snapshot, ServerCut & { units: { unitId: string; rows: number }[] }>();
+  /** Each stream's lines as the last pass wrote them: the LINES_VERSION, the seq they hold at, each passage's. */
+  readonly lines = new Map<string, { version: number; seq: number; byUnit: Map<string, PassageLine> }>();
+  /** The LINES_VERSION the pass writes; a test lowers or raises it to model a server and a phone on different builds. */
+  linesVersion = LINES_VERSION;
+  headCalls = 0;
+  rowsCalls = 0;
+  passageCalls = 0;
+  /** Row fetches after this many throw (link dropped mid-fill). */
+  failRowsAfter = Infinity;
 
   transportFor(): Transport {
     return {
@@ -98,6 +116,49 @@ export class FakeServer {
         const text = this.textOf(s);
         return text.slice(index * this.chunkChars, (index + 1) * this.chunkChars);
       },
+      snapshotHead: async (orgId, streamId, reducerVersion, linesVersion, withShared = true) => {
+        this.reach();
+        this.headCalls += 1;
+        const s = this.snapshots.get(`${orgId}/${streamId}`);
+        const cut = s && s.reducerVersion === reducerVersion ? this.cuts.get(s) : undefined;
+        if (!s || !cut) return null;
+        const l = this.lines.get(`${orgId}/${streamId}`);
+        return {
+          serverSeq: s.serverSeq,
+          ...(withShared ? { shared: JSON.parse(this.jsonOf(cut.shared)) as unknown } : {}),
+          units: cut.units.map((u) => ({ ...u })),
+          lines: l && l.version === linesVersion ? { seq: l.seq, lines: [...l.byUnit.values()].map((x) => JSON.parse(this.jsonOf(x)) as unknown) } : null
+        };
+      },
+      snapshotRows: async (orgId, streamId, reducerVersion, minSeq, unitIds, after, limit) => {
+        this.reach();
+        this.rowsCalls += 1;
+        if (this.rowsCalls > this.failRowsAfter) throw new OfflineError('fetch failed');
+        const key = `${orgId}/${streamId}`;
+        const s = [this.snapshots.get(key), ...(this.replaced.get(key) ?? []).map((r) => r.snapshot)]
+          .filter((x): x is Snapshot => !!x && x.reducerVersion === reducerVersion && x.serverSeq >= minSeq && this.cuts.has(x))
+          .sort((a, b) => b.serverSeq - a.serverSeq)[0];
+        if (!s) return null;
+        const wanted = new Set(unitIds);
+        const rows = this.cuts.get(s)!.rows.filter((r) => wanted.has(r.unitId) && (!after || afterCursor(r, after)));
+        const page = rows.slice(0, limit);
+        const last = page.at(-1);
+        return {
+          serverSeq: s.serverSeq,
+          // As jsonb hands it back: every object's keys in its order.
+          rows: page.map((r) => ({ ...r, json: this.jsonOf(JSON.parse(r.json)) })),
+          next: rows.length > limit && last ? { unitId: last.unitId, kind: last.kind, id: last.id } : null
+        };
+      },
+      snapshotPassages: async (orgId, streamId, reducerVersion, items) => {
+        this.reach();
+        this.passageCalls += 1;
+        const s = this.snapshots.get(`${orgId}/${streamId}`);
+        const cut = s && s.reducerVersion === reducerVersion ? this.cuts.get(s) : undefined;
+        if (!cut) return [];
+        const wanted = new Set(items.map((i) => `${i.kind}\u0000${i.id}`));
+        return cut.rows.filter((r) => wanted.has(`${r.kind}\u0000${r.id}`)).map((r) => ({ kind: r.kind, id: r.id, unitId: r.unitId }));
+      },
       pull: async (orgId, streamId, after, limit) => {
         if (this.offline) throw new OfflineError('offline');
         if (this.refuse) throw new NotAuthorizedError(this.refuse);
@@ -107,6 +168,22 @@ export class FakeServer {
         return (this.byStream.get(`${orgId}/${streamId}`) ?? []).slice(after, after + limit);
       }
     };
+  }
+
+  /** Offline or refused, as every RPC answers. */
+  private reach(): void {
+    if (this.offline) throw new OfflineError('offline');
+    if (this.refuse) throw new NotAuthorizedError(this.refuse);
+  }
+
+  /**
+   * What the pass writes each time it folds a language (decisions.md 145):
+   * every passage's line, held at the stream's head. Lines of another
+   * LINES_VERSION are replaced, as the pass writes its own.
+   */
+  writeLines(orgId: string, streamId: string, state = foldLanguage([...this.stream(orgId, streamId)], emptyLanguageState())): void {
+    const key = `${orgId}/${streamId}`;
+    this.lines.set(key, { version: this.linesVersion, seq: this.head(orgId, streamId), byUnit: new Map(languageLinesOf(state).map((l) => [l.unitId, l])) });
   }
 
   /** The highest seq in a stream, 0 when it has none. */
@@ -161,6 +238,15 @@ export class FakeServer {
       .filter((r) => this.retainMs > 0 && now - r.replacedAt < this.retainMs);
     this.replaced.set(key, kept);
     this.snapshots.set(key, s);
+    if (this.serverCut) {
+      const cut = cutLanguage(s.state);
+      const units = new Map<string, number>();
+      for (const r of cut.rows) units.set(r.unitId, (units.get(r.unitId) ?? 0) + 1);
+      // In the order the server keeps and pages them.
+      cut.rows.sort((a, b) => compareRows(a, b));
+      this.cuts.set(s, { ...cut, units: [...units].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([unitId, rows]) => ({ unitId, rows })) });
+      this.writeLines(orgId, streamId, s.state);
+    }
     return s;
   }
 
@@ -185,6 +271,11 @@ export class FakeServer {
     this.byStream.set(key, list);
   }
 
+  /** A value's JSON as the server hands it back: in jsonb's key order when `keyOrder` says so. */
+  private jsonOf(value: unknown): string {
+    return this.keyOrder === 'insertion' ? JSON.stringify(value) : JSON.stringify(value, keysIn(this.keyOrder));
+  }
+
   private textOf(s: Snapshot): string {
     let text = this.snapshotText.get(s);
     if (text === undefined) {
@@ -194,6 +285,13 @@ export class FakeServer {
     return text;
   }
 }
+
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+/** The server's order of a snapshot's rows: by passage, kind and id. */
+function compareRows(a: Pick<KeptRecord, 'unitId' | 'kind' | 'id'>, b: Pick<KeptRecord, 'unitId' | 'kind' | 'id'>): number {
+  return cmp(a.unitId, b.unitId) || cmp(a.kind, b.kind) || cmp(a.id, b.id);
+}
+const afterCursor = (r: KeptRecord, c: RowCursor) => compareRows(r, c) > 0;
 
 /** A JSON.stringify replacer that writes every plain object's keys in another order. */
 function keysIn(order: 'jsonb' | 'reversed'): (key: string, value: unknown) => unknown {

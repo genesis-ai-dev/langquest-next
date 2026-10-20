@@ -23295,6 +23295,53 @@ var SupabaseTransport = class {
     if (error) throw toError(error, status);
     return data ?? null;
   }
+  async snapshotHead(orgId, streamId, reducerVersion, linesVersion, withShared = true) {
+    const { data, error, status } = await this.supabase.rpc("get_snapshot_head", {
+      p_org_id: orgId,
+      p_stream_id: streamId,
+      p_reducer_version: reducerVersion,
+      p_lines_version: linesVersion,
+      p_with_shared: withShared
+    });
+    if (error) throw toError(error, status);
+    const head2 = data;
+    if (!head2) return null;
+    return {
+      serverSeq: Number(head2.server_seq),
+      ...head2.shared !== void 0 && head2.shared !== null ? { shared: head2.shared } : {},
+      units: head2.units.map(([unitId, rows]) => ({ unitId, rows: Number(rows) })),
+      lines: head2.lines ? { seq: Number(head2.lines.seq), lines: head2.lines.lines } : null
+    };
+  }
+  async snapshotRows(orgId, streamId, reducerVersion, minSeq, unitIds, after, limit) {
+    const { data, error, status } = await this.supabase.rpc("get_snapshot_rows", {
+      p_org_id: orgId,
+      p_stream_id: streamId,
+      p_reducer_version: reducerVersion,
+      p_min_seq: minSeq,
+      p_unit_ids: unitIds,
+      p_after: after ? [after.unitId, after.kind, after.id] : null,
+      p_limit: limit
+    });
+    if (error) throw toError(error, status);
+    const page = data;
+    if (!page) return null;
+    return {
+      serverSeq: Number(page.server_seq),
+      rows: page.rows.map(([kind, id, unitId, ref, json]) => ({ kind, id, unitId, ref, json: JSON.stringify(json) })),
+      next: page.next ? { unitId: page.next[0], kind: page.next[1], id: page.next[2] } : null
+    };
+  }
+  async snapshotPassages(orgId, streamId, reducerVersion, items) {
+    const { data, error, status } = await this.supabase.rpc("get_snapshot_passages", {
+      p_org_id: orgId,
+      p_stream_id: streamId,
+      p_reducer_version: reducerVersion,
+      p_items: items.map((i) => [i.kind, i.id])
+    });
+    if (error) throw toError(error, status);
+    return (data ?? []).map(([kind, id, unitId]) => ({ kind, id, unitId }));
+  }
   /**
    * A database trigger (events_notify) broadcasts a poke on
    * `events:<org>/<stream>` after every push. The channel is private: the
