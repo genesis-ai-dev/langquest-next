@@ -5989,7 +5989,7 @@ matches the domain.
 
 ## 145. Feedback is sent from help mode as an account change, with the install id, and a screenshot and profile only when switched on
 
-Date: 2026-10-19 · By: Caleb Koster · Status: accepted
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 
 Reason: Caleb asked (2026-10-19) that the ? in the corner also let people
 send a bug report or a feature request directly, with a non-PII id that
