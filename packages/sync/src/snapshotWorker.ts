@@ -96,7 +96,7 @@ async function snapshotOne(
   const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
   const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
   if (tail.length === 0) {
-    // Nothing new, but a snapshot from before the cut, or lines of another LINES_VERSION, get theirs (decisions.md 145).
+    // Nothing new, but a snapshot from before the cut, or lines of another LINES_VERSION, get theirs (decisions.md 147).
     if (existing) await completeCut(service, existing);
     if (existing && observe) await observe(existing);
     return { orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false, written: false };
@@ -134,7 +134,7 @@ async function snapshotOne(
   }
   const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
   if (written) {
-    // The rows a phone fills its passages from, moved in with the snapshot (decisions.md 145).
+    // The rows a phone fills its passages from, moved in with the snapshot (decisions.md 147).
     await stageCut(service, snapshot);
     const put = await service.rpc('put_snapshot', {
       p_org_id: orgId,

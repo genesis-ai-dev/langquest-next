@@ -40,7 +40,7 @@ export interface FillMeta {
 }
 
 /**
- * The fill (decisions.md 145): a phone downloads what the whole language
+ * The fill (decisions.md 147): a phone downloads what the whole language
  * shares and every passage's line, opens the Map on them, and fills in the
  * passages' rows behind, until every passage's rows are on disk, which is
  * where a phone under decision 143 ends anyway.
@@ -331,7 +331,7 @@ export class KeptFill {
    * every line says changed past the lines this phone has (a flow or team
    * change, a new LINES_VERSION). Taken only when they hold at or past the
    * phone's and no further than it has pulled; otherwise asked again next
-   * time, and until then the old lines stand (the transient decision 145
+   * time, and until then the old lines stand (the transient decision 147
    * names) or the fill reaches them.
    */
   private async refreshLines(meta: FillMeta): Promise<void> {

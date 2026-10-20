@@ -127,7 +127,7 @@ export interface Transport {
    */
   watch?(orgId: string, streamId: string, handlers: WatchHandlers): () => void;
   /**
-   * The server's cut of a language's newest snapshot (decisions.md 145):
+   * The server's cut of a language's newest snapshot (decisions.md 147):
    * what the whole language shares, which passages have rows and how many,
    * and every passage's line of this `LINES_VERSION`. Null when the newest
    * snapshot was written before the server cut snapshots. Optional: a

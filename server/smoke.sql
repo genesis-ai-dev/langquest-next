@@ -345,7 +345,7 @@ do $$ begin
   exception when insufficient_privilege then null;
   end;
 end $$;
--- 5g'. The server's cut (decisions.md 145): the pass stages a snapshot's rows
+-- 5g'. The server's cut (decisions.md 147): the pass stages a snapshot's rows
 -- and put_snapshot moves them in; the newest snapshot alone keeps rows; state
 -- is not kept; lines are rewritten only when they change; members read
 -- through the RPCs a phone calls, strangers cannot, nobody but the service writes.

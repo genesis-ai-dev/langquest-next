@@ -6,7 +6,7 @@ import { AUDIO, entryRows, FILE, fileRow } from './keptLanguage';
 import type { KeptRecord } from './types';
 
 /**
- * The server's cut of a language (decisions.md 145): the projection pass,
+ * The server's cut of a language (decisions.md 147): the projection pass,
  * on the job host that folds a whole language anyway (decision 141), cuts
  * the fold into the rows a phone keeps (decision 143) and stores them
  * beside the snapshot (`snapshot_units`), so a phone downloads what the

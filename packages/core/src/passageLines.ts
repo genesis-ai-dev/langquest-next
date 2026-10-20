@@ -20,7 +20,7 @@ import type { LanguageState } from './state';
 
 /**
  * What a line says, as a version beside `REDUCER_VERSION` (decisions.md
- * 145). The server works out every passage's line in its pass and a phone
+ * 147). The server works out every passage's line in its pass and a phone
  * part-way through filling a language in shows the server's line for a
  * passage whose rows have not arrived, so the two must be the same code's
  * answer: a phone takes server lines of its own `LINES_VERSION` only.

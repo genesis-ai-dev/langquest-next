@@ -54,7 +54,7 @@ export interface FleetContext {
 export class DeviceMetrics {
   syncs = 0;
   offlineSyncs = 0;
-  /** Passages filled in from the server's cut (decisions.md 145). */
+  /** Passages filled in from the server's cut (decisions.md 147). */
   fills = 0;
   syncErrors = 0;
   /** Real CPU per sync run, network waits excluded. */
@@ -333,7 +333,7 @@ export class SimDevice {
   /** Has this phone everything the server has, and sent everything it made? */
   async caughtUp(): Promise<boolean> {
     const view = await this.client.inspect();
-    // A first download is done when every passage's rows are here too (decisions.md 145).
+    // A first download is done when every passage's rows are here too (decisions.md 147).
     const events = view.pending.length === 0 && view.cursor >= this.fleet.server.head(this.fleet.orgId, this.fleet.streamId)
       && this.client.fillProgress() === null;
     if (!events || !this.fleet.audio) return events;
@@ -377,7 +377,7 @@ export class SimDevice {
     try {
       this.pulling = true;
       const r = await this.client.sync().finally(() => { this.pulling = false; });
-      // As LanguageSession: up to date with passages still to fill in, a slice of the fill outside the pull (decisions.md 145).
+      // As LanguageSession: up to date with passages still to fill in, a slice of the fill outside the pull (decisions.md 147).
       let more = r.more;
       if (r.filling && !r.offline && !r.more && r.refused === null) {
         const f = await this.client.fillSome();
@@ -442,7 +442,7 @@ export class SimDevice {
         this.metrics.bytesDown += text?.length ?? 0;
         return text;
       },
-      // The server's cut (decisions.md 145): what a first download by fill takes instead of the pieces.
+      // The server's cut (decisions.md 147): what a first download by fill takes instead of the pieces.
       ...(t.snapshotHead ? { snapshotHead: async (...a: Parameters<NonNullable<Transport['snapshotHead']>>) => {
         const head = await timed(() => t.snapshotHead!(...a));
         this.metrics.bytesDown += JSON.stringify(head)?.length ?? 0;

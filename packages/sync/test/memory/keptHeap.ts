@@ -16,7 +16,7 @@
  *     opens it: a first download from the snapshot, a pull of the whole log
  *     from the start (what a reducer bump does before the server has a snapshot
  *     for it), or a first download by fill from the server's cut (decisions.md
- *     145: the shared part and the lines, then every passage's rows), then works
+ *     147: the shared part and the lines, then every passage's rows), then works
  *     out every line and opens three passages.
  * Prints one JSON line: { ok, peakHeapMb, retainedHeapMb, snapshotMb, recordingsInMemory }.
  */

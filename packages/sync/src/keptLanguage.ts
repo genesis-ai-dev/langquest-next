@@ -87,7 +87,7 @@ export class KeptLanguage {
   private readonly onDisk = new Set<string>();
   /**
    * Passages whose rows the server has and the fill has not brought yet
-   * (decisions.md 145): what the phone holds of them is part of their
+   * (decisions.md 147): what the phone holds of them is part of their
    * record, so it never works out their lines or shows them as whole.
    */
   private readonly unfilled = new Set<string>();
@@ -123,7 +123,7 @@ export class KeptLanguage {
     return !this.unfilled.has(unitId) && (this.ready.has(unitId) || !this.onDisk.has(unitId));
   }
 
-  /** Are all this passage's rows on this phone: filled in, or never waiting on the server (decisions.md 145)? */
+  /** Are all this passage's rows on this phone: filled in, or never waiting on the server (decisions.md 147)? */
   isFilled(unitId: string): boolean {
     return !this.unfilled.has(unitId);
   }
@@ -243,7 +243,7 @@ export class KeptLanguage {
    * checkpoint. True when a passage became ready.
    */
   async load(state: LanguageState, unitIds: readonly string[]): Promise<boolean> {
-    // A passage a screen opens before its rows arrive is filled next (decisions.md 145).
+    // A passage a screen opens before its rows arrive is filled next (decisions.md 147).
     this.want(unitIds);
     const fresh = unitIds.filter((u) => !this.open.includes(u));
     this.open = [...this.open.filter((u) => !unitIds.includes(u)), ...unitIds].slice(-this.limit);

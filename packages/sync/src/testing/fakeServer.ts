@@ -63,7 +63,7 @@ export class FakeServer {
   authorize: (e: AnyEvent) => string | null = () => null;
   /**
    * The pass cuts each snapshot by passage and writes every passage's line
-   * (decisions.md 145), as the server does from then on. Off, the server is
+   * (decisions.md 147), as the server does from then on. Off, the server is
    * one from before: phones download the whole snapshot in pieces.
    */
   serverCut = false;
@@ -177,7 +177,7 @@ export class FakeServer {
   }
 
   /**
-   * What the pass writes each time it folds a language (decisions.md 145):
+   * What the pass writes each time it folds a language (decisions.md 147):
    * every passage's line, held at the stream's head. Lines of another
    * LINES_VERSION are replaced, as the pass writes its own.
    */

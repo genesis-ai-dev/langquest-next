@@ -125,7 +125,7 @@ describe('a fleet of phones on simulated time', { timeout: 60_000 }, () => {
   });
 
   it('phones that keep the language on disk take their first download by fill and end with the same language and lines', async () => {
-    // Why: under option F (decisions.md 145) a phone's first download is the shared part and the lines, then
+    // Why: under option F (decisions.md 147) a phone's first download is the shared part and the lines, then
     // the passages' rows filled in behind while people keep working, snapshots keep rolling, links drop and
     // phones reinstall. Every such phone must still end where the server's log does, with every passage's
     // rows on its disk and every line the server's own.

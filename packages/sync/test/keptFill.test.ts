@@ -12,7 +12,7 @@ import { FakeServer } from '../src/testing/fakeServer';
 import type { EventStore } from '../src/types';
 
 /**
- * Option F (decisions.md 145): a phone's first download of a big language
+ * Option F (decisions.md 147): a phone's first download of a big language
  * takes what the whole language shares and every passage's line from the
  * server's cut, opens the Map on them, and fills the passages' rows in
  * behind, the person's own first, until every passage's rows are on disk
@@ -143,7 +143,7 @@ async function expectExact(c: SyncClient, store: EventStore, server: FakeServer,
 describe.each([['memory', () => new MemoryStore() as EventStore], ['SQLite', sqlite]] as const)('on the %s store', (_name, make) => {
 beforeEach(() => { makeStore = make; });
 
-describe('a first download by fill (decisions.md 145)', () => {
+describe('a first download by fill (decisions.md 147)', () => {
   it('opens the Map on the shared part and the lines, then fills every passage in, ending where a phone holding it whole ends', async () => {
     const server = new FakeServer();
     server.serverCut = true;
@@ -315,7 +315,7 @@ describe('a first download by fill (decisions.md 145)', () => {
   });
 });
 
-describe('a build from before the fill (decisions.md 143, 145)', () => {
+describe('a build from before the fill (decisions.md 143, 147)', () => {
   it('drops a partly filled checkpoint it would read as whole, and a filled one from before is kept', async () => {
     const server = new FakeServer();
     server.serverCut = true;

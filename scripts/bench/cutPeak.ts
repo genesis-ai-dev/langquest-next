@@ -1,6 +1,6 @@
 /**
  * The projection pass's memory for one big language under option F
- * (decisions.md 145): the whole fold, then the cut by passage and every
+ * (decisions.md 147): the whole fold, then the cut by passage and every
  * line, as `snapshotWorker.ts` makes them (rows a batch at a time). Prints
  * the heap and resident peaks after the fold and after the cut, for the job
  * host's instance type (docs/server-jobs.md, decision 141).

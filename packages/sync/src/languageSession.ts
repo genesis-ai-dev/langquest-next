@@ -77,7 +77,7 @@ export interface LanguageStatus {
   lines: PassageLines;
   /**
    * Passages filled in of those the server has rows for, while a first
-   * download fills them in (decisions.md 145): the Map's and Settings'
+   * download fills them in (decisions.md 147): the Map's and Settings'
    * "Downloading this language". Null when every passage is here.
    */
   fill: { filled: number; total: number } | null;
@@ -163,7 +163,7 @@ export class LanguageSession {
   private publishedVersion: number | undefined;
 
   static async open(o: LanguageSessionOptions): Promise<LanguageSession> {
-    // The person's offline scope fills in first, after what a screen asks for (decisions.md 61, 145).
+    // The person's offline scope fills in first, after what a screen asks for (decisions.md 61, 147).
     let session: LanguageSession | null = null;
     const client = new SyncClient({
       fillFirst: () => session?.fillFirst() ?? [],
@@ -308,7 +308,7 @@ export class LanguageSession {
       this.pulling = false;
       more = r.more;
       changed = r.pushed > 0 || r.pulled > 0 || r.rejected > 0;
-      // Up to date with passages still to fill in: a slice of the fill, outside the pull, so audio moves meanwhile (decisions.md 145).
+      // Up to date with passages still to fill in: a slice of the fill, outside the pull, so audio moves meanwhile (decisions.md 147).
       if (r.filling && !r.offline && !r.more && r.refused === null) {
         const f = await client.fillSome();
         more = f.filling && !f.offline;
@@ -421,7 +421,7 @@ export class LanguageSession {
     return this.client.isLoaded(unitId);
   }
 
-  /** Are all this passage's rows on this device, or still on the server while the language fills in (decisions.md 145)? */
+  /** Are all this passage's rows on this device, or still on the server while the language fills in (decisions.md 147)? */
   isFilled(unitId: string): boolean {
     return this.client.isFilled(unitId);
   }
@@ -578,7 +578,7 @@ export class LanguageSession {
           this.plan.byUnit([...kept], present, this.o.actorId, chosen),
           this.plan.summary(present, this.o.actorId, chosen)
         ]);
-        // "On this device" is a passage's rows as well as its audio (decisions.md 145): one a first download has not reached is not ready.
+        // "On this device" is a passage's rows as well as its audio (decisions.md 147): one a first download has not reached is not ready.
         let waiting = 0;
         const keptOffline = new Map(counted);
         for (const [u, x] of counted) {

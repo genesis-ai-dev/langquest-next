@@ -1,6 +1,6 @@
 # Plan: big languages on a 2 GB phone
 
-Status: E merged onto main as branch `carl/big-languages-e` (decision 143, 2026-10-16); F not started · Carl Sauder, with Claude · 2026-10-16
+Status: E merged onto main as branch `carl/big-languages-e` (decision 143, 2026-10-16); F built on branch `carl/big-languages-f` (decision 147, 2026-10-20), section 4.2 says what was built · Carl Sauder, with Claude · 2026-10-16
 
 Written against `origin/main` at `583f744c` and pull request 120
 (`caleb/unit-loading` at `ded635a1`). Companion to the server host plan
@@ -129,7 +129,7 @@ it costs and what it leaves undone are in section 4.3.
 | Invariants 2, 3, 8 | kept | kept | 8 broken | kept; `merge` is a second statement of the reducer's rules, tested against it | kept; same | kept; 6 amended |
 | Server change | none | large | large | none | the pass writes a second cut; a table and two RPCs | a new stream kind through every stream-scoped rule (section 4.3) |
 | Fits the host plan | n/a | no | n/a | yes | it is the host plan's "split it into unit snapshots" | smaller folds per stream; the aggregates still per language |
-| State of the work | not started | | | built, tested, green on its base, 121 commits behind main | not started; most of its phone side is E | not started; contradicts decision 63 |
+| State of the work | not started | | | on main (decision 143) | built (decision 147, section 4.2) | not started; contradicts decision 63 |
 
 ## 4. Recommendation
 
@@ -334,6 +334,63 @@ Measure after F: bytes downloaded and seconds to first list for Koro and
 Santhali on the 2 GB emulator at 2 KB/s, against E's 40 MB; peak memory
 unchanged from E.
 
+**What was built (decision 147, branch `carl/big-languages-f`).** As
+designed above, with these choices and corrections:
+
+- *The cut* is `packages/sync/src/serverCut.ts` (`cutLanguage`, `cutRows`,
+  `languageLinesOf`): core's `partEntries` and the phone's `entryRows`. Two
+  phone rows are not stored: `audio` rows (the phone makes them again from
+  each entry) and a file verdict's passage, which is the first passage whose
+  record names the file, `''` when none does, so verdicts come with the
+  passage that plays them.
+- *Storage.* `snapshot_units` keeps only the newest snapshot's rows (a phone
+  fills from the newest snapshot at or past its own, never an older one),
+  with the shared part as one row (kind `shared`, unit `''`). The pass
+  stages rows in batches of 2,000 (`stage_snapshot_units`) and
+  `put_snapshot` moves them in, in the same transaction, so the call does
+  not carry a second copy of the state. Lines are their own table,
+  `passage_lines (org_id, stream_id, lines_version, unit_id, server_seq,
+  json)`, not `kind = 'line'` rows of the snapshot as sketched above,
+  because they change with every pass and with `LINES_VERSION`; the pass
+  writes them each time it folds the language, rewriting only those that
+  changed, and its `''` row says which seq they hold at. The RPCs are
+  `get_snapshot_head`, `get_snapshot_rows` (paged in unit, kind, id order)
+  and `get_snapshot_passages` (the "which passage is this" call).
+  `snapshots.state` is no longer written. Migration
+  `20261020150000_snapshot_units_and_passage_lines.sql`.
+- *Versions.* `LINES_VERSION` is in `passageLines.ts`, held by
+  `linesVersion.test.ts`; the pass's `PROJECTION_VERSION` includes it.
+  `KEPT_CHECKPOINT_FORMAT` is 2; this build reads a format-1 checkpoint as
+  filled, so phones on E do not download again when they update.
+- *The phone* is `packages/sync/src/keptFill.ts`. Fill order: passages a
+  pulled event past the lines' seq touches (before that page is folded), then
+  what a screen opens or this phone's own work touches, then the offline scope
+  and the passages whose record concerns the person, then the rest. The
+  background part runs between syncs (`SyncClient.fillSome`), outside the
+  pull, so audio transfers are not held up for hours. A redaction during a
+  fill, or of something the fill's rows or the server's lines hold, waits
+  for a snapshot past it and starts over from the cut. Without a cut, or
+  without lines of this `LINES_VERSION` at or past the snapshot, the phone
+  downloads the whole snapshot as under E.
+- *One limit beyond the plan's transient:* this phone's own work on a passage
+  not filled in yet shows in lists once the passage fills (at once online,
+  on reconnecting offline). Offline such a passage opens as its line with
+  "Not on this device yet", so nobody records into it; work made on it from
+  another screen (a request from the Map) waits for the fill to show.
+- *Not done here:* the Durable Object and the agent view still fold from the
+  snapshot's pieces (decision 44's amendment names the step); the emulator
+  measurement below.
+- *Measured.* Koro's head is the shared part and lines decision 143 measured
+  on Koro (0.13 + 0.37 MB): about four minutes to the first Map at 2 KB/s,
+  against 40 MB and five and a half hours. Santhali was not measured on its
+  own data; a synthetic language of its size (3,200 passages, 224,000 events,
+  58 MB) has a 1.5 MB head, about twelve minutes, against 61 MB and eight and
+  a half hours. `scripts/bench/fill.ts --org --language` measures a hosted
+  language (raw and gzipped); the 2 GB emulator run at 2 KB/s is still to do.
+  The pass's peak for a Santhali-size fold went from 318 MB of heap (533 MB
+  resident) to 353 MB (679 MB) with the cut and lines
+  (`scripts/bench/cutPeak.ts`).
+
 ### 4.3 Not chosen
 
 - Blocking E on F. Phones in the field hit this now; F is additive and the
@@ -421,9 +478,12 @@ checkpoint already did.
 | A pull from zero with no server snapshot keeps the passages in memory under the limit throughout | `keptLanguage.test.ts` | done |
 | A first download reads the snapshot in the server's jsonb key order, and in an order that puts what hangs on another entry first | `keptLanguage.test.ts` | done |
 | A checkpoint with unsent work (the slow path) keeps the passages on disk | `keptLanguage.test.ts` | done |
-| The server's rows for a snapshot equal the phone's cut of its text | a parity test in `packages/sync/test` | with F |
-| `LINES_VERSION` changes when what a line says changes | a source-hash test like the worker bundle's | with F |
-| During a fill, every line a list shows is the phone's own derivation, or the server's for a passage no pulled event has touched since its snapshot | `keptLanguage.test.ts`: a fill interrupted at every point against the in-memory twin | with F |
+| The server's rows for a snapshot equal the phone's cut of its text | `serverCut.test.ts` (jsonb, insertion and reversed key order), `integration.test.ts` (Postgres's rows against its own pieces) | done |
+| `LINES_VERSION` changes when what a line says changes | `packages/core/test/linesVersion.test.ts` | done |
+| During a fill, every line a list shows is the phone's own derivation, or the server's for a passage no pulled event has touched since its snapshot | `keptFill.test.ts`: a fill cut at every request for rows, against the server's log and the in-memory twin | done |
+| An E build drops a partly filled checkpoint; F reads E's | `keptFill.test.ts` | done |
+| A fleet whose phones take their first download by fill ends with the server's language and lines | `fleet.test.ts` | done |
+| A first download by fill stays inside the 40 MB heap | `packages/sync/test/memory/keptMemory.test.ts` | done |
 | A kept phone opens a 30 MB-snapshot language in a 40 MB heap, by snapshot and by log; held whole it runs out of memory there | `packages/sync/test/memory/keptMemory.test.ts` | done |
 | Peak memory on the 2 GB emulator, release build, Koro and Koro × 4 | a measurement recorded in `performance-audit-app.md`, repeated per release | manual |
 
@@ -431,9 +491,9 @@ checkpoint already did.
 
 - Pull request 120's entry becomes 143 on the rebase; its amendment to 19
   (lines are views kept on the phone) stands.
-- F gets an entry of its own when it is built: the server cuts the
-  snapshot by passage, lines carry `LINES_VERSION`, and `snapshots.state`
-  stops being written. It amends 88 and 89 (what a snapshot is stored as)
-  and 44 (the Durable Object reads the cut and the pass's aggregates).
+- F is decision 147: the server cuts the snapshot by passage, lines carry
+  `LINES_VERSION`, and `snapshots.state` stops being written. It amends 88
+  and 89 (what a snapshot is stored as), 61 (what "on this device" means
+  while a fill runs) and 44 (the object can read the cut next).
 - The host plan's entry (the job host, and the pass as the one producer of
   aggregates) is the host plan's to add.

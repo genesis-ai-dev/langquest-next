@@ -74,7 +74,7 @@ describe('a phone holds a big language kept on disk inside a small heap', { time
   });
 
   it('a first download by fill from the server\'s cut, ending with every passage\'s rows on disk', async () => {
-    // Why: under option F (decisions.md 145) the phone takes the shared part and the lines, opens the Map,
+    // Why: under option F (decisions.md 147) the phone takes the shared part and the lines, opens the Map,
     // then fills every passage's rows in. The end state is the first download's; so must the heap be.
     const r = await run(['open', dir, String(PASSAGES), String(RECORDINGS), 'kept', 'fill'], HEAP_MB);
     expect(r.status, r.stderr).toBe(0);

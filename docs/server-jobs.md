@@ -123,10 +123,12 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   while the Worker's `V2_IMPORT_ENABLED` is "true" and refuses to start
   without v2's key.
 - **Instance type** `standard-1` (4 GiB) for both, one instance each
-  (`max_instances` 2), with Node's heap at 3 GiB. Under F the pass holds
-  the fold and then builds the rows and lines from it, so measure the peak
-  of fold plus cut on a Santhali-size fixture before F lands, and move to
-  `standard-2` (6 GiB) if the peak passes 3 GiB. Every pass records its
+  (`max_instances` 2), with Node's heap at 3 GiB. Under F (decision 147)
+  the pass holds the fold and then builds the rows, a batch at a time, and
+  the lines from it: on a Santhali-size synthetic fixture the peak went from
+  318 MB of heap (533 MB resident) to 353 MB (679 MB)
+  (`scripts/bench/cutPeak.ts`), so `standard-1` stands; move to
+  `standard-2` (6 GiB) if a real language's peak passes 3 GiB. Every pass records its
   peak resident memory, the heap's limit and the language that raised the
   peak in its job run, so production gives the numbers before F does.
 - **Report inputs** (decision 142): each time the pass folds a language it

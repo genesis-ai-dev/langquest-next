@@ -529,7 +529,7 @@ export function MapHome(ctx: Ctx) {
   return (
     <Screen header={header}>
       {languageChips}
-      {/* A first download still filling passages in (decisions.md 145): decision 61's progress, on the Map. */}
+      {/* A first download still filling passages in (decisions.md 147): decision 61's progress, on the Map. */}
       <FillBanner ctx={ctx} />
       <SearchField value={query} onChangeText={(v) => { setQuery(v); setLimit(PAGE); }} placeholder={t('map.home.find')} help={t('map.home.findHelp')} testID="map-search" />
 

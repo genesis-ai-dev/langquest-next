@@ -1,5 +1,5 @@
 -- The server cuts a language's snapshot by passage, and keeps every
--- passage's line (decisions.md 145, option F of docs/big-languages-plan.md).
+-- passage's line (decisions.md 147, option F of docs/big-languages-plan.md).
 --
 -- A phone used to download a big language's whole snapshot (Koro Miyan:
 -- 40 MB) and cut it into per-passage rows itself (decision 143). Now the
@@ -141,7 +141,7 @@ begin
   update public.snapshots s set chunks = v_count
   where s.org_id = p_org_id and s.stream_id = p_stream_id and s.reducer_version = p_reducer_version
     and s.server_seq = p_server_seq;
-  -- The cut (decisions.md 145): this snapshot's rows, if the pass staged them; the newest snapshot alone keeps rows.
+  -- The cut (decisions.md 147): this snapshot's rows, if the pass staged them; the newest snapshot alone keeps rows.
   if exists (select 1 from public.snapshot_units_staged s
              where s.org_id = p_org_id and s.stream_id = p_stream_id and s.reducer_version = p_reducer_version
                and s.server_seq = p_server_seq) then
@@ -381,7 +381,7 @@ language sql stable security definer set search_path = public, pg_catalog as $$
           select x.chars from public.snapshots x
           where x.org_id = p_org and x.stream_id = p_language and x.reducer_version = s.reducer_version and x.server_seq = s.seq
         ) end,
-        -- The server's cut of it (decisions.md 145): how many rows, so a first download fills in.
+        -- The server's cut of it (decisions.md 147): how many rows, so a first download fills in.
         'units', (select count(*) from public.snapshot_units u
           where u.org_id = p_org and u.stream_id = p_language and u.reducer_version = s.reducer_version and u.server_seq = s.seq)
       ) order by s.reducer_version desc) from snap s), '[]'::jsonb),

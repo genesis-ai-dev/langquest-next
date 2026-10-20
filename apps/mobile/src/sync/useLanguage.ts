@@ -101,11 +101,11 @@ export interface LanguageHandle {
   loadUnits: (unitIds: readonly string[]) => void;
   /** Is this passage's whole record in memory, so a screen may read it from `state`? */
   isLoaded: (unitId: string) => boolean;
-  /** Are all this passage's rows on this device, rather than still on the server while the language fills in (decisions.md 145)? */
+  /** Are all this passage's rows on this device, rather than still on the server while the language fills in (decisions.md 147)? */
   isFilled: (unitId: string) => boolean;
   /**
    * Passages on this device of those the server has rows for, while a first
-   * download fills them in (decisions.md 145); null once all are here.
+   * download fills them in (decisions.md 147); null once all are here.
    */
   fill: { filled: number; total: number } | null;
   /** The language with these passages' records read in from disk, for a screen that lists a few passages beyond those in memory. */

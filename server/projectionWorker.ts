@@ -35,7 +35,7 @@ const UPDATE_TITLES: Record<Update['kind'], string> = {
  * column), so the next pass redoes every language rather than skipping
  * the unchanged ones. A new reducer, report or lines version does the same:
  * 2 added the report inputs (decisions.md 142), 3 the snapshot's cut by
- * passage and every passage's line (decisions.md 145), so every language
+ * passage and every passage's line (decisions.md 147), so every language
  * gets them once.
  */
 const PROJECTION_VERSION = `${REDUCER_VERSION}:${REPORT_VERSION}:${LINES_VERSION}:3`;

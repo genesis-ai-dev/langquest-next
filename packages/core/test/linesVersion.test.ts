@@ -6,7 +6,7 @@ import { LINES_VERSION } from '../src/passageLines';
 /**
  * Why: a phone part-way through filling in a big language shows the
  * server's line for a passage whose rows have not arrived (decisions.md
- * 145), and takes server lines only of its own `LINES_VERSION`. So the
+ * 147), and takes server lines only of its own `LINES_VERSION`. So the
  * server's line and the phone's must be the same code's answer: when
  * `passage.ts` or `passageLines.ts` changes, this fails until someone says
  * whether what a line says changed (bump `LINES_VERSION`, and the next pass
@@ -23,6 +23,6 @@ function sourceHash(): string {
 
 describe('LINES_VERSION', () => {
   it('is bumped, or its hash recorded again, whenever passage.ts or passageLines.ts changes', () => {
-    expect({ version: LINES_VERSION, hash: sourceHash() }).toEqual({ version: 1, hash: 'bae8a5e899fcccef' });
+    expect({ version: LINES_VERSION, hash: sourceHash() }).toEqual({ version: 1, hash: '3d4ccbe26297b867' });
   });
 });

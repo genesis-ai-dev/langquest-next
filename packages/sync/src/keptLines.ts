@@ -103,7 +103,7 @@ export class KeptLines {
       if (of === 'settings') continue;
       const unitId = passageInMemory(state, of);
       if (!unitId) this.unplaced.push(of);
-      // A passage whose rows are still on the server keeps the server's line until they arrive, and is filled next (decisions.md 145).
+      // A passage whose rows are still on the server keeps the server's line until they arrive, and is filled next (decisions.md 147).
       else if (!this.kept.isFilled(unitId)) this.kept.want([unitId]);
       else this.dirty.add(unitId);
     }
@@ -115,7 +115,7 @@ export class KeptLines {
   }
 
   /**
-   * A first download from the server's cut (decisions.md 145): its lines
+   * A first download from the server's cut (decisions.md 147): its lines
    * are every passage's until that passage's rows arrive. Answers what is
    * written beside the checkpoint: nothing owed, under the shared part's
    * settings, so a later change to them owes every filled passage's line.

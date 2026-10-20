@@ -411,7 +411,9 @@ language.** Confirmed.
   storage, WAL and backups.
 - **Fix:** make `snapshots.state` nullable and stop writing it once the
   pieces exist; reconsider how many to keep. This changes decision 88's
-  storage, so it needs an amendment there.
+  storage, so it needs an amendment there. Done with decision 147:
+  `state` is no longer written, and the rows cut by passage are kept for
+  the newest snapshot only.
 - **Measure:** `pg_total_relation_size` of both tables.
 
 **V8. Finding an organization costs an event lookup per listed org, per

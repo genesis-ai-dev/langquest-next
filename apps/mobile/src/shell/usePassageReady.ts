@@ -19,6 +19,6 @@ export function usePassageReady(ctx: Ctx | null, params: Record<string, string> 
     shown.current = true;
     return 'ready';
   }
-  // A passage whose rows are still on the server, with no connection to fetch them (decisions.md 145): say so rather than wait.
+  // A passage whose rows are still on the server, with no connection to fetch them (decisions.md 147): say so rather than wait.
   return ctx.language.online === false && !ctx.language.isFilled(unitId) ? 'notHere' : 'waiting';
 }

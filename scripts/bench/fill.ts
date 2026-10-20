@@ -1,6 +1,6 @@
 /**
  * What a phone downloads before its Map opens, with the server's cut
- * (decisions.md 145) and without it (decision 143): the head (what the
+ * (decisions.md 147) and without it (decision 143): the head (what the
  * whole language shares, which passages have rows, every passage's line)
  * against the whole snapshot, and what the fill moves after it, as JSON and
  * gzipped, and how long each takes on a slow link. Read-only.

@@ -1,7 +1,7 @@
 // What this phone has for use without a connection, said where people look:
 // on each passage, as a mark on the Map, and in Settings (decisions.md 61).
 // Text, status and history of the open language are here once its first
-// download has filled every passage in (decisions.md 145; until then the Map
+// download has filled every passage in (decisions.md 147; until then the Map
 // says it is downloading, and a passage not reached yet shows its line); audio
 // (core `offlineByUnit`) and, on a phone, study pictures and audio
 // (study/studyFiles.ts) are here only for passages kept offline. The worry this
@@ -151,7 +151,7 @@ export function OfflineMark(props: { u: KeptOffline | undefined; corner?: boolea
 }
 
 /**
- * While a first download fills a language in (decisions.md 145): how many
+ * While a first download fills a language in (decisions.md 147): how many
  * passages are on this device, with decision 61's progress bar. The Map
  * and the Sync screen show it; it goes once every passage is here.
  */
@@ -173,7 +173,7 @@ export function FillBanner(props: { ctx: Ctx }) {
 
 /**
  * A passage the first download has not reached, opened without a
- * connection (decisions.md 145): what its line knows (where it stands, its
+ * connection (decisions.md 147): what its line knows (where it stands, its
  * latest version and by whom, open requests), and that the rest comes once
  * the device is connected.
  */

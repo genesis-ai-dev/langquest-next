@@ -159,7 +159,7 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
     });
   });
 
-  describe('the server\'s cut (decisions.md 145)', () => {
+  describe('the server\'s cut (decisions.md 147)', () => {
     /** A language whose passages hold recordings, versions and reviews. */
     async function worked(server: FakeServer, n: number) {
       const client = await language(server, 'a', n);

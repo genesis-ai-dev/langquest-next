@@ -59,7 +59,7 @@ export interface FleetOptions {
   checkpointEvery?: number;
   /**
    * The pass cuts each snapshot by passage and writes every line each run
-   * (decisions.md 145), so phones that keep the language on disk take a
+   * (decisions.md 147), so phones that keep the language on disk take a
    * first download by fill. Off, the server is one from before.
    */
   serverCut?: boolean;

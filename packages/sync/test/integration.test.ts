@@ -259,7 +259,7 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
   });
 
   it('the pass cuts a snapshot in Postgres as the phone cuts its pieces, and a phone kept on disk fills the language from the cut', async () => {
-    // Why: decisions.md 145. The rows a phone fills its passages from must be the rows it would cut from the
+    // Why: decisions.md 147. The rows a phone fills its passages from must be the rows it would cut from the
     // snapshot's text itself, read in the key order Postgres gives jsonb, through the RPCs a phone calls.
     const stamp = Date.now();
     const lead = await signUp(`cut-${stamp}@example.test`);

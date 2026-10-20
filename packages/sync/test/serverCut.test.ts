@@ -9,7 +9,7 @@ import type { KeptRecord } from '../src/types';
 /**
  * Why: under option F the server cuts each snapshot into the rows a phone
  * keeps, and a phone fills its passages with them instead of cutting the
- * snapshot's text itself (decisions.md 145). The two cuts must be the same
+ * snapshot's text itself (decisions.md 147). The two cuts must be the same
  * rows, or a phone filled from the server holds a different language than
  * one that read the snapshot. The phone reads the text in the order
  * Postgres gives it (jsonb orders keys by length, then bytes), which puts
@@ -48,7 +48,7 @@ function phoneCut(text: string): { rows: KeptRecord[]; shared: LanguageState } {
 
 const byKey = (rows: KeptRecord[]) => new Map(rows.map((r) => [`${r.kind}\u0000${r.id}`, { ...r, json: JSON.parse(r.json) as unknown }]));
 
-describe('the server cuts a snapshot as the phone does (decisions.md 145)', () => {
+describe('the server cuts a snapshot as the phone does (decisions.md 147)', () => {
   it.each(['insertion', 'jsonb', 'reversed'] as const)('the server\'s rows, kept on a phone, equal the phone\'s cut of the snapshot read in %s key order', (keyOrder) => {
     const state = language();
     const server = new FakeServer();

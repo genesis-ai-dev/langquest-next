@@ -964,6 +964,13 @@ later plain read keeps those newer figures; a larger language answers from
 its stored inputs until the next pass. What an admin saves on the
 organization stream (a name, country or target) shows at once either way.
 
+Amended (2026-10-20, Carl Sauder): the projection pass now also stores
+each language's newest snapshot cut by passage and every passage's line
+(147). The object still starts its folds from the snapshot's pieces; the
+access-token API (70), MCP and the agent view on a Bible-size language can
+read the shared part, the lines and a passage's rows instead, which is the
+next step and is not taken here.
+
 ## 45. Merging to main ships Android to Google Play's internal testing track
 
 Date: 2026-09-30 · By: Caleb Koster · Status: accepted
@@ -1715,6 +1722,16 @@ only where it names phones on purpose: phone-number fields, and the guide
 editor's note that phones and tablets get a small copy of each picture. The
 demo already says "another device". Code identifiers (`onPhone`, the
 `'phone'` layout kind) keep their names.
+
+Amended (2026-10-20, Carl Sauder): a phone's first download of a big
+language fills its passages in behind the Map (147), so "text, status and
+history are always whole on the phone" holds once the fill is done. Until
+then each passage's line stands in for its record, the Map and the Sync
+screen say "Downloading this language" with how many passages are here,
+and "On this device" means a passage's rows and its audio: a kept passage
+whose rows have not arrived is not ready, and opened offline it shows its
+line and "Not on this device yet". The person's offline scope fills first,
+after whatever a screen opens.
 
 ## 62. Reference material is library documents placed by coordinates, recommended at three levels, and recorded where it was used
 
@@ -3295,6 +3312,12 @@ Reverse if: snapshot storage grows past what the database plan allows
 (then shorten the retention, or keep pieces in object storage), or cold
 starts spend more time on the tail than they saved.
 
+Amended (2026-10-20, Carl Sauder): `put_snapshot` also moves in the
+snapshot's rows cut by passage (147), which only the newest snapshot keeps,
+and the pass writes every passage's line each time it folds a language,
+whether or not a snapshot is due. Retention is unchanged; a snapshot's rows
+go with it.
+
 ## 89. A snapshot's pieces are cut once, when it is written, and kept in their own table
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted
@@ -3319,6 +3342,11 @@ diagnostics (`diag.language_health`) still read.
 Reverse if: snapshot storage outgrows the database plan (then the pieces
 move to object storage behind the Worker, or `state` stops being kept), or
 a snapshot write has to be faster than that.
+
+Amended (2026-10-20, Carl Sauder): `state` is no longer written (147):
+the pieces serve builds from before the cut and the Worker, and a cut by
+passage (`snapshot_units`) serves phones; `get_snapshot` puts the state
+together from the pieces, and the diagnostics read the size from the row.
 
 ## 90. A phone wakes sync when its network comes back, and with no signal polls at most every half hour
 
@@ -6137,3 +6165,116 @@ opens, which is what counts the language as ready).
 Reverse if: admins skip the overview so often it is only in the way, or
 teams need checks set up before reference material is known; then the order
 can change without touching the draft, which works for any step order.
+
+## 147. The server cuts each language's snapshot by passage and keeps every passage's line, and a phone's first download fills the passages in behind the Map
+
+Date: 2026-10-20 · By: Carl Sauder · Status: accepted
+
+Reason: under decision 143 a phone holds a big language on its disk, but
+its first download still moved the whole snapshot (Koro Miyan: 40 MB, about
+five and a half hours at the slow link's 2 KB/s) and worked out every
+passage's line on the phone before the language opened (a language four
+times Koro's size: 33 s). Carl chose option F of
+`docs/big-languages-plan.md` (sections 3, 4.2 and 5), with the host plan's
+settled points: the pass folds a whole language on the 4 GiB job host
+(141) and then cuts it; it is the one producer of per-language aggregates
+(142); decision 3 stands. The cut is the phone's own code: core
+`partEntries` places each entry and sync `entryRows` makes its row
+(`packages/sync/src/serverCut.ts`), as `SnapshotRows` does reading a
+snapshot's text; `serverCut.test.ts` holds the two equal with the text in
+jsonb's key order, and the integration test holds Postgres's rows equal to
+the phone's cut of the same snapshot's pieces. Two rows the phone keeps are
+not stored: which record names an audio file (`audio`, made again on the
+phone from the entry), and a file's verdict goes under the passage of the
+first record naming it, so it comes with that passage (`''` when none
+does).
+- Storage (migration `20261020150000_snapshot_units_and_passage_lines.sql`):
+  `snapshot_units` holds the rows of each language's newest snapshot, with
+  what the whole language shares as one row (kind `shared`, unit `''`). The
+  pass sends them in batches of 2,000 to `snapshot_units_staged`
+  (`stage_snapshot_units`) and `put_snapshot` moves them in, in the same
+  transaction as the snapshot; only the newest snapshot keeps rows, since a
+  phone fills from the newest snapshot at or past the one it started from,
+  and rows go with their snapshot (88). `passage_lines` holds every
+  passage's line of a `LINES_VERSION` (`put_passage_lines`, written each
+  time the pass folds the language, rewriting only lines that changed; its
+  `''` row is the seq every line holds at). Lines are their own table, not
+  rows of the snapshot (the plan's sketch), because they change with every
+  pass and with `LINES_VERSION`, not with the snapshot. A phone reads them
+  through three RPCs: the head (`get_snapshot_head`: the shared part, each
+  passage with rows and how many, and the lines), a few passages' rows a
+  page at a time in (unit, kind, id) order (`get_snapshot_rows`), and which
+  passage an entry is in (`get_snapshot_passages`). `snapshots.state` is no
+  longer written (performance-audit-app.md V7): builds from before and the
+  Worker read the pieces (89), and `get_snapshot` and
+  `diag.language_health` read the pieces and the size.
+- `LINES_VERSION` (core `passageLines.ts`) says what a line says, beside
+  `REDUCER_VERSION`; `linesVersion.test.ts` holds it to a hash of
+  `passage.ts` and `passageLines.ts`. The pass's `PROJECTION_VERSION`
+  includes it, so a bump writes every language's lines on the next pass,
+  and a language with nothing new gets the cut and the lines it lacks when
+  the pass visits it. A phone takes server lines only of its own
+  `LINES_VERSION`, and only lines that hold at or past the snapshot.
+- The fill (`packages/sync/src/keptFill.ts`): a first download takes the
+  head, keeps the shared part as its checkpoint and the lines as its lines
+  in one write, opens the Map, and pulls the tail. Before a pulled page is
+  folded, every passage an event past the lines' seq touches is filled
+  (an event on a take, review, departure, request or note the phone does
+  not hold asks `get_snapshot_passages`); so a line is either the phone's
+  own reading of rows it holds or the server's line of a passage nothing
+  pulled past that line has touched, and the Map is exact. Then, between
+  syncs while online (`SyncClient.fillSome`, outside the pull, so audio
+  moves meanwhile): what a screen opens or this phone's own work touches,
+  the person's offline scope (61) and the passages whose record concerns
+  them, then the rest in the server's order, about 1,000 rows a request.
+  Rows from any snapshot at or past the shared part's join what the phone
+  holds by each part's `merge` (143), so a snapshot rolling forward
+  mid-fill costs nothing. The end state is 143's: every passage's rows on
+  disk. The fill's record is kept beside the checkpoint
+  (`fill:<org>/<stream>`, and a `filled` row per passage written with its
+  last row). Without a cut, without lines of this `LINES_VERSION`, or with
+  lines older than the snapshot, the phone downloads the whole snapshot as
+  under 143.
+- Two transients, both named in the plan. A change to the flow, its kinds
+  or the teams past the server's lines changes what every line says: the
+  lines of passages not filled in stand until the pass writes new ones
+  (taken once they hold at or past the phone's and no further than it has
+  pulled) or the fill reaches them. And this phone's own work on a passage
+  not filled in yet (a request made from the Map, say) shows in lists once
+  the passage fills, which is at once online and on reconnecting offline;
+  offline, such a passage opens as its line ("Not on this device yet;
+  connect to download"), so no one records into it. A redaction while the
+  fill runs, or of an event the fill's rows or the server's lines hold,
+  waits for a snapshot past it and starts over from the cut.
+- The phone's checkpoint format is 2 (`KEPT_CHECKPOINT_FORMAT`, 143's
+  amendment): a build that knows only format 1 drops a partly filled
+  checkpoint and downloads the language again; this build reads a format-1
+  checkpoint as filled. No `REDUCER_VERSION` bump: the fold is unchanged.
+- Screens (decision 61's element, `docs/ux/demo-parity.md`): the Map and
+  the Sync screen show "Downloading this language" with how many passages
+  are on this device and the progress bar; a kept passage is on this device
+  once its rows and its audio are; offline, a passage not reached yet shows
+  where it stands, its latest version and by whom, and its open requests,
+  with "Not on this device yet".
+Numbers. Before its Map opens a phone now downloads the head: for Koro,
+the shared part (0.13 MB) and lines (0.37 MB) that 143 measured on Koro
+itself, 0.5 MB as JSON, about four minutes at 2 KB/s against 40 MB and five
+and a half hours. Santhali (61 MB, eight and a half hours) was not measured:
+a synthetic language of its size (3,200 passages, 224,000 events, a 58 MB
+state) has a 1.5 MB head, about twelve minutes. `scripts/bench/fill.ts
+--org --language` measures a hosted language's head and rows, raw and
+gzipped, with the bench's service key. In the capped-heap test (40 MB) a
+first download by fill peaks at 21 MB against 23 MB from the snapshot, with
+0.7 MB of its 32.7 MB moved before the Map opens; on the job host the cut
+and lines take the Santhali-size fold from 318 MB of heap (533 MB
+resident) to 353 MB (679 MB) (`scripts/bench/cutPeak.ts`), well inside
+`standard-1`.
+Not chosen: rows for every retained snapshot (only the newest is ever
+read); sending the rows inside `put_snapshot`'s call (a second copy of a
+61 MB body in one request); filling only the person's own passages and
+showing server lines for the rest (the Map would mix stale lines with
+exact ones; section 4.2).
+Reverse if: a first download's head outgrows a slow link (then page the
+lines too), phones rarely finish a fill and live on transients, or keeping
+the rows beside the pieces outgrows the database plan (then the pieces go,
+once no build reads them).

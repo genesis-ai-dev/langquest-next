@@ -82,7 +82,7 @@ interface PublishedState<S = LanguageState> {
   saving: number;
   /** Each passage's line, for a language kept on disk (`passageLines`). */
   lines?: PassageLines;
-  /** Passages filled in of those the server has rows for, while a fill runs (decisions.md 145). */
+  /** Passages filled in of those the server has rows for, while a fill runs (decisions.md 147). */
   fill?: { filled: number; total: number } | null;
 }
 
@@ -100,7 +100,7 @@ export interface SyncResult {
   /** The run stopped at a push or pull budget with work left; run again soon. */
   more: boolean;
   /**
-   * Passages' rows are still to fill in from the server (decisions.md 145):
+   * Passages' rows are still to fill in from the server (decisions.md 147):
    * the language is up to date and every line exact, and the next sync
    * fills in more. Run again soon while online.
    */
@@ -200,7 +200,7 @@ export const KEPT_CHECKPOINT_FORMAT = 2;
 
 /**
  * Kept formats this build reads. 1 (decision 143): every passage's rows are
- * on disk. 2 (decision 145): some passages' rows may still be on the server,
+ * on disk. 2 (decision 147): some passages' rows may still be on the server,
  * and the fill's record (`fill:<org>/<stream>`) says which; a build that
  * reads only format 1 would take such a checkpoint for the whole language.
  */
@@ -290,7 +290,7 @@ export class SyncClient<S = LanguageState> {
   private nextSync: Promise<SyncResult> | null = null;
   /** What this client's local checkpoint is tagged with: the reducer version, or a kept language's format (`keptCheckpointVersion`). */
   private readonly checkpointVersion: number;
-  /** Filling in passages' rows from the server's cut (decisions.md 145), for a language kept on disk. */
+  /** Filling in passages' rows from the server's cut (decisions.md 147), for a language kept on disk. */
   private readonly fill: KeptFill | null;
   private readonly fillBudgetMs: number;
 
@@ -371,7 +371,7 @@ export class SyncClient<S = LanguageState> {
       }
       if (this.fill && snapshot && snapshot.reducerVersion !== this.checkpointVersion) {
         // A checkpoint a build without the fill wrote (a whole one, or a kept one of format 1) has every passage's rows:
-        // what a fill of before says is still to come belongs to a checkpoint that build dropped (decisions.md 145).
+        // what a fill of before says is still to come belongs to a checkpoint that build dropped (decisions.md 147).
         await this.commit({ meta: this.fill.clear() });
       }
       return this.foldLocal(snapshot, events, { started, readMs, staleSeq, reason });
@@ -676,7 +676,7 @@ export class SyncClient<S = LanguageState> {
   private async fetchServerSnapshot(why: SnapshotWhy): Promise<number> {
     const started = this.elapsed();
     const minSeq = Number((await this.opts.store.meta(this.minSnapshotKey())) ?? 0);
-    // The server's cut first: the shared part and the lines, then the passages filled in behind (decisions.md 145).
+    // The server's cut first: the shared part and the lines, then the passages filled in behind (decisions.md 147).
     const cut = await this.adoptServerCut(why, minSeq, started);
     if (cut !== null) return cut;
     const meta = await this.opts.transport.snapshotMeta(this.opts.orgId, this.opts.streamId, this.m.version);
@@ -774,7 +774,7 @@ export class SyncClient<S = LanguageState> {
   }
 
   /**
-   * A first download from the server's cut (decisions.md 145): what the
+   * A first download from the server's cut (decisions.md 147): what the
    * whole language shares and every passage's line, from the newest
    * snapshot, kept as the checkpoint in one write that replaces whatever
    * the phone kept of the language before; then the Map opens, and the
@@ -975,7 +975,7 @@ export class SyncClient<S = LanguageState> {
       this.revision += 1;
       this.publish();
     }
-    // A passage whose rows are still on the server is filled in now, if the server can be reached (decisions.md 145).
+    // A passage whose rows are still on the server is filled in now, if the server can be reached (decisions.md 147).
     if (this.fill?.active() && this.kept.wantedUnits().length > 0) {
       await this.exclusive(async () => {
         if ((await this.fill!.fillWanted()).length > 0) await this.afterFill();
@@ -983,7 +983,7 @@ export class SyncClient<S = LanguageState> {
     }
   }
 
-  /** Are all this passage's rows on this device (decisions.md 145)? Always, for a language held in memory or filled in. */
+  /** Are all this passage's rows on this device (decisions.md 147)? Always, for a language held in memory or filled in. */
   isFilled(unitId: string): boolean {
     return !this.kept || this.kept.isFilled(unitId);
   }
@@ -1344,7 +1344,7 @@ export class SyncClient<S = LanguageState> {
           // The target is not in the local log: it lives inside the checkpoint,
           // which cannot be edited. Only a fresh snapshot removes it. So too
           // when rows the fill brought hold it, or the server's lines of
-          // passages not filled in yet do (decisions.md 145).
+          // passages not filled in yet do (decisions.md 147).
           const target = await this.opts.store.get(event.payload.eventId);
           const fromServer = this.fill ? Math.max(this.fill.rowsSeq, this.fill.active() ? this.fill.linesSeq : 0) : 0;
           if (!target || (target.event.serverSeq ?? Infinity) <= fromServer) {
@@ -1496,7 +1496,7 @@ export class SyncClient<S = LanguageState> {
     try {
       const { accepted, rejected, more: morePush } = await this.inPhase('push', () => this.pushNow());
       const { pulled, more: morePull } = await this.inPhase('pull', () => this.pullNow(this.pullBudgetMs));
-      // Up to date: passages a screen or this phone's own work asked for are filled in now (decisions.md 145); the rest by `fillSome`.
+      // Up to date: passages a screen or this phone's own work asked for are filled in now (decisions.md 147); the rest by `fillSome`.
       if (!morePull && this.fill?.active() && this.kept?.wantedUnits().length) {
         if ((await this.inPhase('snapshot', () => this.fill!.fillWanted())).length > 0) await this.afterFill();
       }
@@ -1524,7 +1524,7 @@ export class SyncClient<S = LanguageState> {
 
   /**
    * Fill in passages' rows for a while, once a sync has read the language up
-   * to date (decisions.md 145): what a screen or this phone's own work asked
+   * to date (decisions.md 147): what a screen or this phone's own work asked
    * for, then `fillFirst` (the person's offline scope), then the rest. A
    * session calls it between syncs while `filling`, so audio transfers,
    * which wait while a sync pulls, share the link with it.
