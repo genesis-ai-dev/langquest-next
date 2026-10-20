@@ -4116,6 +4116,15 @@
       "partHelp": "Hucheza sehemu hii peke yake.",
       "deleteVersionHelp": "Hufuta toleo hili kwa kila mtu. Ukaguzi uliokwisha kufanywa unabaki kwenye historia lakini hauhesabiwi tena.",
       "doneHelp": "Hufungua mtazamo wa mwisho wa rasimu hii, ili uimalize na kuituma kwenye ukaguzi wake unaofuata."
+    },
+    "partNotes": {
+      "title": "Madokezo kwenye {{part}}",
+      "mark_one": "Dokezo {{count, number}} kwenye {{part}}",
+      "mark_other": "Madokezo {{count, number}} kwenye {{part}}",
+      "markHelp": "Hufungua kile ambacho kaguzi zilisema kuhusu sehemu hii. Unaweza kujibu."
+    },
+    "checkNotes": {
+      "title": "Madokezo ya {{check}}"
     }
   },
   "work": {
@@ -5862,7 +5871,12 @@
         "someTerm": "neno",
         "version": "Toleo la {{n}}",
         "aVersion": "Toleo",
-        "study": "Somo"
+        "study": "Somo",
+        "replyTo": "Jibu kwa {{name}}",
+        "reply": "Jibu",
+        "aPart": "Sehemu",
+        "help": "“{{help}}”",
+        "aHelp": "Kisaidizi"
       }
     },
     "parts": {
@@ -6179,6 +6193,20 @@
       "addStepDetail": "Ongeza ukaguzi mwingine, baada ya ile mingine.",
       "legend": "= lazima ipite kabla ya hatua zinazofuata",
       "gripHelp": "Buruta juu au chini ili kusogeza hatua hii."
+    },
+    "notesOn": {
+      "onPart": "Ongeza dokezo kwenye {{part}}",
+      "onPartHelp": "Huongeza dokezo kwenye sehemu hii, kwa sauti au kwa maandishi. Linaonekana chini ya sehemu hiyo kwa kila mtu.",
+      "onHelp": "Ongeza dokezo kwenye {{help}}",
+      "onHelpHelp": "Huongeza dokezo kwenye kisaidizi hiki, kwa sauti au kwa maandishi. Linaonekana chini ya kisaidizi hicho kwa kila mtu.",
+      "onTerm": "Ongeza dokezo kwenye {{term}}",
+      "onTermHelp": "Huongeza dokezo kwenye neno hili muhimu, kwa sauti au kwa maandishi. Linaonekana chini ya neno hilo kwa kila mtu.",
+      "noteOn": "Dokezo kwenye {{what}}",
+      "reply": "Jibu",
+      "replyHelp": "Hujibu dokezo la {{name}}. Jibu lako linaonekana chini yake.",
+      "replyTo": "Jibu kwa {{name}}",
+      "replyTitle": "Jibu kwa {{name}}",
+      "at": "Kwenye {{time}}"
     }
   },
   "backTranslation": {
@@ -6648,7 +6676,9 @@
       "addHint": "Acha dokezo kwenye kifungu hiki, kwa sauti au kwa maandishi.",
       "sheetSub": "Linabaki na kifungu. Wakaguzi na mtafsiri anayefuata wanaliona.",
       "added": "Dokezo limeongezwa.",
-      "typeHelp": "Andika dokezo lako. Unaweza pia kulisema."
+      "typeHelp": "Andika dokezo lako. Unaweza pia kulisema.",
+      "onPart": "kwenye {{part}}",
+      "onHelp": "kwenye “{{help}}”"
     },
     "earlier": {
       "yours": "Zako",

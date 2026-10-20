@@ -4116,6 +4116,15 @@
       "partHelp": "Plays this part alone.",
       "deleteVersionHelp": "Deletes this version for everyone. Checks already made of it stay on the record but no longer count.",
       "doneHelp": "Opens this draft's last look, to finish it and send it to its next check."
+    },
+    "partNotes": {
+      "title": "Notes on {{part}}",
+      "mark_one": "{{count, number}} note on {{part}}",
+      "mark_other": "{{count, number}} notes on {{part}}",
+      "markHelp": "Opens what the checks said about this part. You can reply."
+    },
+    "checkNotes": {
+      "title": "Notes from {{check}}"
     }
   },
   "work": {
@@ -5862,7 +5871,12 @@
         "someTerm": "term",
         "version": "Version {{n}}",
         "aVersion": "A version",
-        "study": "Study"
+        "study": "Study",
+        "replyTo": "Reply to {{name}}",
+        "reply": "A reply",
+        "aPart": "A part",
+        "help": "“{{help}}”",
+        "aHelp": "A help"
       }
     },
     "parts": {
@@ -6179,6 +6193,20 @@
       "addStepDetail": "Add another check, after the others.",
       "legend": "= must pass before the next steps",
       "gripHelp": "Drag up or down to move this step."
+    },
+    "notesOn": {
+      "onPart": "Add a note on {{part}}",
+      "onPartHelp": "Adds a note on this part, said or typed. It shows under the part for everyone.",
+      "onHelp": "Add a note on {{help}}",
+      "onHelpHelp": "Adds a note on this help, said or typed. It shows under the help for everyone.",
+      "onTerm": "Add a note on {{term}}",
+      "onTermHelp": "Adds a note on this key word, said or typed. It shows under the word for everyone.",
+      "noteOn": "Note on {{what}}",
+      "reply": "Reply",
+      "replyHelp": "Answers {{name}}'s note. Your reply shows under it.",
+      "replyTo": "Reply to {{name}}",
+      "replyTitle": "Reply to {{name}}",
+      "at": "At {{time}}"
     }
   },
   "backTranslation": {
@@ -6648,7 +6676,9 @@
       "addHint": "Leave a note on this passage, by voice or text.",
       "sheetSub": "It stays with the passage. Reviewers and the next translator see it.",
       "added": "Note added.",
-      "typeHelp": "Type your note. You can say it too."
+      "typeHelp": "Type your note. You can say it too.",
+      "onPart": "on {{part}}",
+      "onHelp": "on “{{help}}”"
     },
     "earlier": {
       "yours": "Yours",

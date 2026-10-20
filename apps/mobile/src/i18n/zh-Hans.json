@@ -3990,6 +3990,14 @@
       "partHelp": "单独播放这一段。",
       "deleteVersionHelp": "为所有人删除这个版本。已经做过的检查仍留在记录里，但不再计算。",
       "doneHelp": "打开这份草稿最后看一遍，完成它并送去下一项检查。"
+    },
+    "partNotes": {
+      "title": "{{part}}的备注",
+      "mark_other": "{{part}}有 {{count, number}} 条备注",
+      "markHelp": "打开各项检查对这一段的备注。你可以回复。"
+    },
+    "checkNotes": {
+      "title": "{{check}}的备注"
     }
   },
   "work": {
@@ -5617,7 +5625,12 @@
         "someTerm": "术语",
         "version": "第 {{n}} 版",
         "aVersion": "一个版本",
-        "study": "学习"
+        "study": "学习",
+        "replyTo": "回复{{name}}",
+        "reply": "一条回复",
+        "aPart": "一段",
+        "help": "“{{help}}”",
+        "aHelp": "一份帮助资料"
       }
     },
     "parts": {
@@ -5925,6 +5938,20 @@
       "addStepDetail": "在其他检查之后再添加一项检查。",
       "legend": "= 必须通过后才能进行下一步",
       "gripHelp": "上下拖动可以移动这一步。"
+    },
+    "notesOn": {
+      "onPart": "对{{part}}添加备注",
+      "onPartHelp": "对这一段添加一条语音或文字备注。它会显示在这一段下面，大家都能看到。",
+      "onHelp": "对{{help}}添加备注",
+      "onHelpHelp": "对这份帮助资料添加一条语音或文字备注。它会显示在这份资料下面，大家都能看到。",
+      "onTerm": "对{{term}}添加备注",
+      "onTermHelp": "对这个关键词添加一条语音或文字备注。它会显示在这个词下面，大家都能看到。",
+      "noteOn": "{{what}}的备注",
+      "reply": "回复",
+      "replyHelp": "回复{{name}}的备注。你的回复会显示在它下面。",
+      "replyTo": "回复{{name}}",
+      "replyTitle": "回复{{name}}",
+      "at": "在 {{time}} 处"
     }
   },
   "backTranslation": {
@@ -6372,7 +6399,9 @@
       "addHint": "对这个经段留一条语音或文字备注。",
       "sheetSub": "它会留在经段上。审核人和下一位译者都会看到。",
       "added": "已添加备注。",
-      "typeHelp": "输入你的备注。也可以说出来。"
+      "typeHelp": "输入你的备注。也可以说出来。",
+      "onPart": "针对{{part}}",
+      "onHelp": "针对“{{help}}”"
     },
     "earlier": {
       "yours": "你的",

@@ -7,9 +7,10 @@
 // records it rather than judging), ADR-028 (Already happened is per step and
 // looks like reviewing it now), ADR-029.
 //
-// Three steps under the header: Listen (the version in the big player, Note
-// at a moment, Background one tap away as a sheet, "Who is listening?"
-// optional), Questions (one per screen, answered aloud, by choice or typed;
+// Three steps under the header: Listen (the version in the big player, its
+// parts each with a note button and their notes, Note on the part playing,
+// the check's helps with theirs (decisions.md 149), Background one tap away
+// as a sheet, "Who is listening?" optional), Questions (one per screen, answered aloud, by choice or typed;
 // a required one is answered or set aside with a reason), Decide (Looks good
 // sends it; Needs changes opens "What should change?", voice first, with an
 // optional listener retelling). Already happened is the same screens, with
@@ -28,8 +29,8 @@
 // the saved mark in the header. Back and ✕ leave and keep it; opening the
 // same review again brings it back where it was left; sending it drops it.
 import {
-  checkShows, commands, keyTermLinksFor, languageName, questionsForKind, RECORD_STEP, SHOWN,
-  type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
+  checkShows, commands, helpNotesFor, keyTermLinksFor, languageName, notePart as notePartOf, partNotesFor, questionsForKind, RECORD_STEP, SHOWN,
+  type Card as AudioCard, type EventSpec, type KindDef, type NoteAnchor, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -52,10 +53,13 @@ import { passageCrumbs, passageView as passageViewOf, versionTitle, type Passage
 import { usePassage } from '../passage/usePassage';
 import { failureMessage } from '../diagnostics/report';
 import {
-  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
-  noteAnchorText, readiness, requestFor, reviewCapture, reviewStages, stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor,
-  type Answers, type Skips, type StageId, type VoiceAnswer
+  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
+  noteAnchorText, partAt, readiness, replyAnchor, requestFor, reviewCapture, reviewStages, stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor,
+  type AnchorLook, type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
+import { NotedRow, NotesUnder, NotingSheet, type Noting } from '../reviewing/notesOn';
+import { cardDurations } from '../recording/workspaceModel';
+import { partLabel } from '../recording/model';
 import {
   AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner
 } from '../reviewing/parts';
@@ -140,7 +144,8 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [qi, setQi] = useState(0);
   const [why, setWhy] = useState(false);
   const [sheet, setSheet] = useState<'background' | 'who' | 'details' | 'say' | 'retell' | null>(null);
-  const [momentAt, setMomentAt] = useState<number | null>(null);
+  // A note being written on a part, a help or another note (decisions.md 149).
+  const [noting, setNoting] = useState<Noting | null>(null);
   // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
@@ -250,6 +255,39 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const mine = version.by === actorId;
   // The translator's first name, for sentences about them; when it is you, the sentences say so themselves.
   const translator = ctx.name(version.by).split(' ')[0] ?? ctx.name(version.by);
+
+  // ---- notes on what this check shows (decisions.md 149) ----
+  const look: AnchorLook = {
+    term: (id) => v.state.keyTerms[id]?.term,
+    versionN: (id) => v.p.versions.find((x) => x.takeId === id)?.n,
+    partN: (id, hash) => { const at = v.p.versions.find((x) => x.takeId === id)?.cardHashes.indexOf(hash) ?? -1; return at >= 0 ? at + 1 : undefined; },
+    help: (key) => helps.find((h) => h.help === key)?.name,
+    author: (id) => { const n = v.p.notes.find((x) => x.id === id); return n ? ctx.name(n.by).split(' ')[0] : undefined; }
+  };
+  const noteLabel = (n: PassageNote) => noteAnchorText(n.anchor, look);
+  const noteOn = (anchor: NoteAnchor, title: string, where: string) => setNoting({ anchor, title, where: summaryLine([v.title, where]) });
+  const replyOn = (n: PassageNote) => {
+    const name = ctx.name(n.by).split(' ')[0] ?? ctx.name(n.by);
+    noteOn(replyAnchor(n), t('review.notesOn.replyTitle', { name }), noteLabel(n));
+  };
+  /** A note on a part, at a moment in it when the player was there (its first second is the part itself). */
+  const notePart = (hash: string, index: number, atMs: number | null) => {
+    const at = atMs === null || atMs < 1000 ? undefined : clockMs(atMs);
+    const where = summaryLine([partLabel(index), at ? formatClock(atMs!) : null]);
+    noteOn({ kind: 'version', takeId: version.takeId, part: hash, ...(at ? { at } : {}) }, t('review.notesOn.noteOn', { what: where }), where);
+  };
+  /** Note from the big player: on the part playing, where it is in that part. */
+  const notePartAt = (ms: number) => {
+    const lengths = cardDurations(v.state, v.unitId);
+    const { index, atMs } = partAt(version.cardHashes.map((h) => lengths.get(h) ?? 0), ms);
+    const hash = version.cardHashes[index];
+    if (hash) notePart(hash, index, atMs);
+  };
+  const partNotes = (hash: string) => (
+    <NotesUnder ctx={ctx} p={v.p} notes={partNotesFor(v.p, hash)} onReply={replyOn}
+      label={(n) => { const at = notePartOf(n.anchor)?.at; return at ? t('review.notesOn.at', { time: at }) : undefined; }}
+      older={(n) => { const on = notePartOf(n.anchor); const at = on && on.takeId !== version.takeId ? look.versionN(on.takeId) : undefined; return at ? versionTitle(at) : undefined; }} />
+  );
   const q = questions[Math.min(qi, Math.max(0, questions.length - 1))];
   const openAt = firstOpenAt(questions, captured.answers, skipped, makes ? {} : voice);
   const afterSheet = (fn: () => void) => { setSheet(null); setTimeout(fn, SHEET_GAP_MS); };
@@ -381,9 +419,11 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {directions ? <RequestBanner ctx={ctx} request={request} /> : null}
       <ClipPlayer language={ctx.language} hashes={version.cardHashes} big
         title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
-        {...(makes ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
-      {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
-      <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered />
+        {...(makes ? {} : { onNote: (s: number) => notePartAt(Math.round(s * 1000)) })} />
+      {/* Its parts, with their verses when they have them and each part's notes, so a reviewer can say where (decisions.md 82, 149). */}
+      <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes}
+        noting={{ notes: partNotes, ...(makes ? {} : { onNote: (hash: string, i: number) => notePart(hash, i, null) }) }} />
+      {/* Notes at moments from a draft begun before notes went on the parts: they still go with the review. */}
       <MomentList ctx={ctx} moments={moments} onRemove={(h) => setMoments((m) => m.filter((x) => x.hash !== h))} />
       {changed ? (
         <Card>
@@ -398,7 +438,10 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           <Group>
             {helps.map((h, i) => (
               <HelpRow key={h.key} of="review.checkHelp">
-                <Row icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last={i === helps.length - 1} />
+                <NotedRow last={i === helps.length - 1}
+                  row={<Row icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last />}
+                  note={{ label: t('review.notesOn.onHelp', { help: h.name }), help: t('review.notesOn.onHelpHelp'), onPress: () => noteOn({ kind: 'passage', help: h.help }, t('review.notesOn.noteOn', { what: h.name }), h.name) }}
+                  notes={<NotesUnder ctx={ctx} p={v.p} notes={helpNotesFor(v.p, h.help)} onReply={replyOn} />} />
               </HelpRow>
             ))}
           </Group>
@@ -550,14 +593,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {why ? whyBody : stage === 'listen' ? listen : stage === 'questions' ? question : decide}
 
       {sheet === 'background' && context && shows ? (
-        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind} shows={shows}
+        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={{ ...context, anchor: noteLabel }} usage={usage} kind={v.kind} shows={shows}
           {...(earlierFrom ? { earlierFrom } : {})}
           {...(bible ? { bible } : {})}
           onClose={() => { setSheet(null); setBible(null); }}
           onOpenTerm={(termId) => afterSheet(() => ctx.go('key_term_detail', { termId, unitId: v.unitId, languageId: v.languageId }))}
           onOpenStep={(stepId) => afterSheet(() => { if (guideItem) usage.open(guideItem); ctx.go('study_step', { unitId: v.unitId, languageId: v.languageId, stepId }); })}
           onOpenStudy={() => afterSheet(() => { if (guideItem) usage.open(guideItem); ctx.go('study_guide', { unitId: v.unitId, languageId: v.languageId }); })}
-          onMoreBibles={() => afterSheet(() => ctx.go('bible_explore', { unitId: v.unitId, languageId: v.languageId }))} />
+          onMoreBibles={() => afterSheet(() => ctx.go('bible_explore', { unitId: v.unitId, languageId: v.languageId }))}
+          onNote={noteOn} onReply={replyOn} />
       ) : null}
 
       {sheet === 'who' ? (
@@ -614,15 +658,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         </Sheet>
       ) : null}
 
-      {momentAt !== null ? (
-        <Sheet visible title={t('review.screen.noteAt', { time: formatClock(momentAt) })}
-          sub={mine ? t('review.screen.noteAtSubMine') : t('review.screen.noteAtSub', { name: translator })}
-          onClose={() => setMomentAt(null)}>
-          <View style={{ paddingVertical: space.lg }}>
-            <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
-          </View>
-        </Sheet>
-      ) : null}
+      <NotingSheet ctx={ctx} v={v} noting={noting} onClose={() => setNoting(null)} />
 
       <ReasonSheet visible={skipFor !== null} title={t('review.screen.skipTitle')}
         sub={t('review.screen.skipSub')}

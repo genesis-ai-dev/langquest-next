@@ -33,6 +33,7 @@ import { SwipeRow, type SwipeSide } from './swipeRow';
 import { PartBars } from './partBars';
 import { useSwipeHint } from './useSwipeHint';
 import { useBars } from '../audio/useBars';
+import { PartNotesMark } from '../passage/PartNotes';
 import { useClip } from '../audio/useClip';
 import { partIs, spanName, spanShort } from './verseModel';
 import { opensAbove, rowKeys, type RecordTarget, type SlotRow } from './workspaceModel';
@@ -331,6 +332,8 @@ function PartRow(props: {
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
+      {/* What the checks said about this part (decisions.md 149). */}
+      <PartNotesMark hash={props.part.hash} label={name} />
       {props.grip}
       <View style={styles.edge} />
     </View>

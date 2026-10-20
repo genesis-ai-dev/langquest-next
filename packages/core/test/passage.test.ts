@@ -4,7 +4,10 @@ import { commands } from '../src/commands';
 import { applyLanguageEvent, foldLanguage as fold } from '../src/reducer';
 import { referencedBlobs } from '../src/blobs';
 import { emptyLanguageState as emptyState, type LanguageState } from '../src/state';
-import { deriveFlow, deriveKinds, derivePassage, formatQuestionField, passageSummary, questionsForKind, recordTimeline, reviewGrid, studyMarksFor, unitPlace, updatesFor } from '../src/passage';
+import {
+  deriveFlow, deriveKinds, derivePassage, formatQuestionField, helpNotesFor, notePart, partNotesFor, passageSummary, questionsForKind, recordTimeline, repliesTo, replyOf,
+  reviewGrid, studyMarksFor, termNotesFor, unitPlace, updatesFor
+} from '../src/passage';
 import { highlightsFor, languageProgress, unitsAskedOf, upNext, waitingOn } from '../src/passageLines';
 import { flowTemplate, instantiateFlow } from '../src/record';
 import { validateEvent } from '../src/validate';
@@ -553,5 +556,46 @@ describe('audit follow-ups', () => {
     const forward = deriveKinds(fold(p.events, emptyState())).map((k) => k.id);
     const backward = deriveKinds(fold([...p.events].reverse(), emptyState())).map((k) => k.id);
     expect(backward).toEqual(forward);
+  });
+});
+
+describe('notes on what a check shows (decisions.md 149)', () => {
+  it('a note on a part stays with that part in a later version that kept it, and not on the one recorded again', () => {
+    const p = language();
+    record(p, ['c1', 'c2', 'c3']);
+    const v1 = derivePassage(p.state(), 'john3').latest!.takeId;
+    p.run('ayen', (c) => c.addNote({ commandId: 'n1', unitId: 'john3', anchor: { kind: 'version', takeId: v1, part: 'c2', at: '0:04' }, text: 'Too fast.', kindId: 'peer' }));
+    p.run('ayen', (c) => c.addNote({ commandId: 'n2', unitId: 'john3', anchor: { kind: 'version', takeId: v1, part: 'c3' }, text: 'Good.', kindId: 'peer' }));
+    record(p, ['c1', 'c2b', 'c3'], 'Slower in part 2');
+    const s = derivePassage(p.state(), 'john3');
+    expect(partNotesFor(s, 'c2').map((n) => n.id)).toEqual(['note:n1']);
+    expect(partNotesFor(s, 'c2b')).toEqual([]);
+    expect(partNotesFor(s, 'c3').map((n) => n.id)).toEqual(['note:n2']);
+    expect(notePart(s.notes[0]!.anchor)).toEqual({ takeId: v1, part: 'c2', at: '0:04' });
+  });
+
+  it('notes on a help and a key word are found by what they are on; replies stay under their note', () => {
+    const p = language();
+    record(p, ['c1']);
+    p.run('ayen', (c) => c.addNote({ commandId: 'h', unitId: 'john3', anchor: { kind: 'passage', help: 'material:m1' }, text: 'Ask about names too.' }));
+    p.run('ayen', (c) => c.addNote({ commandId: 't', unitId: 'john3', anchor: { kind: 'term', termId: 'k1' }, text: 'Same word in 3:18.' }));
+    p.run('akol', (c) => c.addNote({ commandId: 'r', unitId: 'john3', anchor: { kind: 'term', termId: 'k1', replyTo: 'note:t' }, text: 'Done.' }));
+    const s = derivePassage(p.state(), 'john3');
+    expect(helpNotesFor(s, 'material:m1').map((n) => n.id)).toEqual(['note:h']);
+    expect(helpNotesFor(s, 'item:m1')).toEqual([]);
+    expect(termNotesFor(s, 'k1').map((n) => n.id)).toEqual(['note:t']);
+    expect(repliesTo(s, 'note:t').map((n) => n.id)).toEqual(['note:r']);
+    // Taken back by its author, a reply goes too (decision 111).
+    p.run('akol', (c) => c.withdrawNote({ commandId: 'w', noteId: 'note:r' }));
+    expect(repliesTo(derivePassage(p.state(), 'john3'), 'note:t')).toEqual([]);
+  });
+
+  it('what the server lets through and the fold ignores: part, at, help and replyTo that are not strings', () => {
+    const odd = { kind: 'version', takeId: 't', part: 5, at: {}, replyTo: '' } as never;
+    expect(notePart(odd)).toBeNull();
+    expect(replyOf(odd)).toBeNull();
+    expect(notePart({ kind: 'version', takeId: 't', part: 'h', at: 7 } as never)).toEqual({ takeId: 't', part: 'h' });
+    // The server's check of a note is unchanged: these are valid events.
+    expect(validateEvent({ id: 'e', type: 'v1.NoteAdded', orgId: 'o', streamId: 's', actorId: 'a', deviceId: 'a', hlc: '0', payload: { noteId: 'n', unitId: 'u', anchor: { kind: 'version', takeId: 't', part: 'h', at: '0:04' }, text: 'x' } } as never)).toBeNull();
   });
 });

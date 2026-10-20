@@ -34,6 +34,7 @@ import { SwipeRow, type SwipeSide } from './swipeRow';
 import { PartBars } from './partBars';
 import { useSwipeHint } from './useSwipeHint';
 import { useBars } from '../audio/useBars';
+import { PartNotesMark } from '../passage/PartNotes';
 import { UndoRedo, type UndoRedoProps } from '../ui/undoRedo';
 import { opensAbove, rowKeys } from './workspaceModel';
 import { partIndexAfter } from './dragModel';
@@ -219,6 +220,8 @@ function PartRow(props: { ctx: Ctx; part: Part; n: number; disabled: boolean; ch
         {props.chosen ? <ChosenMic /> : null}
         <HelpBadge spot={choose} />
       </Pressable>
+      {/* What the checks said about this part (decisions.md 149). */}
+      <PartNotesMark hash={props.part.hash} label={label} />
       {props.grip}
       <View style={{ width: EDGE }} />
     </View>

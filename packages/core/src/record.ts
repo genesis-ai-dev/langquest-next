@@ -35,14 +35,24 @@ export interface QuestionSpec {
   required?: boolean;
 }
 
-/** Where a note points (design principles, "Notes are anchored, not filed"). */
-export type NoteAnchor =
-  | { kind: 'passage' }
+/**
+ * Where a note points (design principles, "Notes are anchored, not filed").
+ * Anything a check lets someone hear or read can take a note (decisions.md
+ * 149): a part of a version (`part`, the part's audio hash, and `at`, how far
+ * into that part, "0:04"), one of the check's helps (`help`, as checks.ts
+ * `helpKey` names it), and another note (`replyTo`, shown under it).
+ * They are optional fields on the kinds there already were, so an app from
+ * before them shows such a note on its version or on the passage, and the
+ * server's check of a note is unchanged.
+ */
+export type NoteAnchor = (
+  | { kind: 'passage'; help?: string }
   /** A version; `role: 'change'` is the note saying what changed when it was published. */
-  | { kind: 'version'; takeId: string; role?: 'change' }
+  | { kind: 'version'; takeId: string; role?: 'change'; part?: string; at?: string }
   | { kind: 'verse'; verse: string; translation?: string; at?: string }
   | { kind: 'study'; guideId: string; stepId: string; sectionId?: string; at?: string }
-  | { kind: 'term'; termId: string };
+  | { kind: 'term'; termId: string }
+) & { replyTo?: string };
 
 export type ReviewVia = 'app' | 'link' | 'logged';
 export type ReviewOutcome = 'looks_good' | 'needs_changes' | 'recorded';

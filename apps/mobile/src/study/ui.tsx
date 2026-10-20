@@ -138,18 +138,24 @@ export function StepMark(props: { status: StudyStepStatus; size?: number }) {
   );
 }
 
-/** One note from the study or the passage reader, with its voice note when there is one. */
-export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string }) {
+/**
+ * One note from the study or the passage reader, with its voice note when
+ * there is one; `extra` goes before its Undo or flag (a Reply, decisions.md
+ * 149), and `older` names the version it was made on when that is not the
+ * one showing.
+ */
+export function StudyNote(props: { ctx: Ctx; note: PassageNote; label?: string; extra?: ReactNode; older?: string }) {
   const n = props.note;
   const anchor = props.label ?? (n.blobHash && !n.text ? t('common.voiceNote') : t('study.note.note'));
+  const own = n.by === props.ctx.session.actorId
+    ? <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.undoNoteHelp')} onPress={() => void takeBackNote(props.ctx, n.id)} />
+    : <ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />;
   return (
     <Authored ctx={props.ctx} by={n.by}>
       <NoteCard anchor={n.photoHash ? t('study.note.withPhoto', { anchor }) : anchor} {...(n.text ? { text: n.text } : {})} by={props.ctx.name(n.by)} when={when(n.hlc)}
-        icon={n.blobHash ? 'mic' : 'note'}
+        icon={n.blobHash ? 'mic' : 'note'} {...(props.older ? { olderVersion: props.older } : {})}
         audio={n.blobHash ? <AudioClip language={props.ctx.language} hashes={[n.blobHash]} label={t('study.note.playVoiceNote')} /> : undefined}
-        action={n.by === props.ctx.session.actorId
-          ? <SmallBtn label={t('passage.page.undo')} icon="undo" help={t('passage.page.undoNoteHelp')} onPress={() => void takeBackNote(props.ctx, n.id)} />
-          : <ReportFlag ctx={props.ctx} target={recordTarget(props.ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
+        action={props.extra ? <>{props.extra}{own}</> : own} />
     </Authored>
   );
 }

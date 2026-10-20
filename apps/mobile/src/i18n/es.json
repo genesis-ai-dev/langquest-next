@@ -4242,6 +4242,16 @@
       "partHelp": "Reproduce solo esta parte.",
       "deleteVersionHelp": "Borra esta versión para todos. Las revisiones que ya se hicieron quedan en el historial, pero ya no cuentan.",
       "doneHelp": "Abre este borrador para darle un último vistazo, terminarlo y enviarlo a su siguiente verificación."
+    },
+    "partNotes": {
+      "title": "Notas en {{part}}",
+      "mark_one": "{{count, number}} nota en {{part}}",
+      "mark_many": "{{count, number}} notas en {{part}}",
+      "mark_other": "{{count, number}} notas en {{part}}",
+      "markHelp": "Abre lo que se dijo sobre esta parte en las verificaciones. Puedes responder."
+    },
+    "checkNotes": {
+      "title": "Notas de {{check}}"
     }
   },
   "work": {
@@ -6107,7 +6117,12 @@
         "someTerm": "término",
         "version": "Versión {{n}}",
         "aVersion": "Una versión",
-        "study": "Estudio"
+        "study": "Estudio",
+        "replyTo": "Respuesta a {{name}}",
+        "reply": "Una respuesta",
+        "aPart": "Una parte",
+        "help": "“{{help}}”",
+        "aHelp": "Una ayuda"
       }
     },
     "parts": {
@@ -6433,6 +6448,20 @@
       "addStepDetail": "Agrega otra verificación, después de las demás.",
       "legend": "= debe aprobarse antes de los pasos siguientes",
       "gripHelp": "Desliza hacia arriba o hacia abajo para mover este paso."
+    },
+    "notesOn": {
+      "onPart": "Agregar una nota en {{part}}",
+      "onPartHelp": "Agrega una nota en esta parte, hablada o escrita. Aparece debajo de la parte para todos.",
+      "onHelp": "Agregar una nota sobre {{help}}",
+      "onHelpHelp": "Agrega una nota sobre esta ayuda, hablada o escrita. Aparece debajo de la ayuda para todos.",
+      "onTerm": "Agregar una nota sobre {{term}}",
+      "onTermHelp": "Agrega una nota sobre esta palabra clave, hablada o escrita. Aparece debajo de la palabra para todos.",
+      "noteOn": "Nota sobre {{what}}",
+      "reply": "Responder",
+      "replyHelp": "Responde a la nota de {{name}}. Tu respuesta aparece debajo.",
+      "replyTo": "Respuesta a {{name}}",
+      "replyTitle": "Responder a {{name}}",
+      "at": "En {{time}}"
     }
   },
   "backTranslation": {
@@ -6924,7 +6953,9 @@
       "addHint": "Deja una nota en este pasaje, por voz o por escrito.",
       "sheetSub": "Se queda con el pasaje. Los revisores y el próximo traductor la ven.",
       "added": "Nota agregada.",
-      "typeHelp": "Escribe tu nota. También puedes decirla."
+      "typeHelp": "Escribe tu nota. También puedes decirla.",
+      "onPart": "en {{part}}",
+      "onHelp": "sobre “{{help}}”"
     },
     "earlier": {
       "yours": "Tuyo",

@@ -1,7 +1,7 @@
 # 07 · Reviewing
 
-Review it (`review_capture`): Listen, Questions and Decide, notes at a
-moment, Background, "Looks good" and "Needs changes" with "What should
+Review it (`review_capture`): Listen, Questions and Decide, notes on a
+part, a help, a key word and another note (decision 149), Background, "Looks good" and "Needs changes" with "What should
 change?". Back translation (`back_translation`), said part by part and
 finished with Done for the next check. And the translator answering feedback:
 "Hear the feedback", then "Record a fix" or "Keep it, say why".
@@ -111,30 +111,33 @@ Expected:
 
 Changed (2026-10-16, decision 134): no toast offers Undo; REV's Undo on the review's page, the step sheet or History takes it back.
 
-### REV-004 A note at a moment while listening
+### REV-004 A note on a part while listening
 Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- P-Q1 has Version 1 by TRANS (REC-033), and nobody has reviewed it.
+- P-Q1 has Version 1 by TRANS (REC-033, three parts), and nobody has reviewed it.
 
 Steps:
 1. Open P-Q1 and tap "Do the peer check".
-2. Play the version, and at about 0:04 tap "Note".
-3. In the sheet "A note at 0:04", tap "Tap and speak", speak for 5 seconds, tap to stop. Close the sheet.
-4. Look under the player, then tap "Remove" on the note.
-5. Add the note again as in steps 2 and 3.
+2. Before playing, tap the player's "Note". In the sheet "Note on Part 1", type "Starts too quietly" under "Or type it" and tap "Add a note".
+3. Tap "Undo" on the note.
+4. Tap the note button on Part 2's row ("Add a note on Part 2"), tap "Say it", speak for 4 seconds, stop, and tap "Add a note".
 
 Expected:
-- The sheet's sub reads "Say what you noticed here. {TRANS first name} hears it with your review."
-- After step 3 the list under the player shows "Your note at 0:04" with "0:05 · goes with your review", a play button ("Play your note at 0:04") and "Remove".
-- Step 4 removes it with no toast.
-- Notes at moments are kept on this device as a draft only REV sees (decision 127), and go on the record only when the review is sent; REV-005 sends this one.
+- Every part is listed under the player, each with an amber note button (decision 149).
+- The player's Note opens a note on the part playing; while playing, the sheet's title names the moment in that part too ("Note on Part 2 · 0:04"). The sheet has no line under its title.
+- Step 2: the toast "Note added."; the note shows under Part 1, labelled "Note", with "You · Just now" and "Undo". It is on the record at once.
+- Step 3 takes it back: it shows nowhere.
+- Step 4: a "Voice note" with a play button shows under Part 2.
+- Resets: P-Q1's Part 2 has REV's voice note (REV-005 uses it).
+
+Changed (2026-10-20, decision 149): the player's Note was a voice clip at a time in the whole version, kept in the review's draft and sent with it; now it is a note on the part, said or typed, on the record at once.
 
 ### REV-005 Needs changes, said and typed
 Roles: REV · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
-- REV-004 has left one note at 0:04 on P-Q1's Review it, still open on Listen.
+- REV-004 has left a voice note on Part 2 of P-Q1's Version 1.
 
 Steps:
 1. Tap "Next: decide".
@@ -152,7 +155,8 @@ Expected:
 - Step 5 shows the toast "Feedback sent to {TRANS-name}", with no Undo (REV takes it back as in REV-049), and returns to P-Q1's record.
 - The record's first step reads Peer check "needs changes", with REV's name.
 - TRANS, on a second device after Sync now, sees an Inbox update that Peer check suggests changes ("… suggests changes — revise, or keep it and say why."), and P-Q1's main button reads "Hear the feedback".
-- In TRANS's "Hear the feedback", the voice feedback plays, "“Verse 12 is too fast”" shows, and the note at 0:04 is listed with the review.
+- In TRANS's "Hear the feedback", the voice feedback plays, "“Verse 12 is too fast”" shows, and under "Notes from Peer check" the version's parts are listed with REV's voice note under Part 2 (decision 149).
+- TRANS's "Record a fix": Part 2's row has an amber "1" ("1 note on Part 2"); tapping it opens "Notes on Part 2" with REV's note and "Reply".
 - Resets: P-Q1's Version 1 has needs-changes feedback from REV, not yet answered.
 
 Changed (2026-10-16, decision 134): no toast offers Undo; REV's Undo on the review's page, the step sheet or History takes it back.
@@ -496,7 +500,7 @@ Preconditions:
 - A version REV has not reviewed is open in Review it (P-NEW in the automated test).
 
 Steps:
-1. Leave a note at a moment. Tap "Next: decide", then "Needs changes", and type "Too quiet at the start" under "Or type it".
+1. Tap "Next: decide", then "Needs changes", and type "Too quiet at the start" under "Or type it".
 2. Tap the header's back arrow (to Decide), then ✕.
 3. Kill the app (iOS, Android) or reload (Web), relaunch, open the passage and tap "Do the peer check".
 4. Tap "Needs changes", then go back to Listen.
@@ -505,7 +509,7 @@ Expected:
 - While it is made, the header's saved mark turns from a spinner into a check: what is said, typed or answered is kept on this device as a draft only REV sees (decision 127).
 - Step 2 leaves at once, with nothing to answer first; nothing is sent (the device's log is unchanged). A phone's Back goes back a question or a stage instead (decision 137), and from Listen leaves the same way.
 - Step 3 opens the review where it was left, on Decide.
-- Step 4: the typed words are back in the field, and the note at a moment is listed under the player.
+- Step 4: the typed words are back in the field. (Notes on parts are on the record when added, not in the draft: decision 149.)
 - Sending the review drops the draft; a draft about a version that is gone is dropped and the review starts fresh.
 - The phone steps are in the Maestro flow `flows/REV-008.yaml` (after REV-008's Back).
 
@@ -978,3 +982,23 @@ Expected:
 - Nothing is refused by the server.
 
 Changed (2026-10-16, decision 134): no toast offers Undo; the review's page, the step sheet's row and History each have Undo.
+
+### REV-050 Notes on a check's help, a key word, and a reply
+Roles: REV · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- COORD has written a note "What to listen for" and linked it to the Peer check (decision 91).
+- On a passage nobody has recorded, TRANS added a key word "feast" (their word "big meal"), a note on the passage ("Not sure about the names"), and Version 1, with "feast" tied to it.
+
+Steps:
+1. REV: open the passage, tap "Do the peer check".
+2. Tap the note button beside "What to listen for" under "For peer check", type "Ask about the names too", tap "Add a note".
+3. Open Background, then Key words. Tap the note button beside "feast", type "Use the same word in every verse", tap "Add a note".
+4. Tap Notes. Tap "Reply" on TRANS's note, type "The names sound right", tap "Add a note".
+
+Expected:
+- Step 2: the sheet is "Note on What to listen for"; after it, "Note added." and the note shows under the help.
+- Step 3: the note shows under "feast".
+- Step 4: the sheet is "Reply to Tom"; the reply shows under TRANS's note, indented, labelled "Reply to Tom". REV's own notes have "Undo" and no "Reply".
+- On the server the three notes point at the help (`material:<id>`), the key word, and TRANS's note (`replyTo`).
+- Nothing is refused by the server.

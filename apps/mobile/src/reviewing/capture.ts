@@ -4,12 +4,14 @@
 // before an outcome can be sent, how notes are labelled, and the stages
 // the screen walks through (REV-0, ADR-029). No React and
 // no I/O here, so it is tested directly (test/reviewCapture.test.ts).
-import type {
-  Card, KindDef, NoteAnchor, PassageState,
-  RequestView, ReviewView, SourcedQuestion, Version
+import {
+  notePart, noteHelp, replyOf,
+  type Card, type KindDef, type NoteAnchor, type PassageState,
+  type RequestView, type ReviewView, type SourcedQuestion, type Version
 } from '@langquest-next/core';
 import { currentLanguage, t } from '../i18n';
 import { formatClock } from '../i18n/format';
+import { partLabel } from '../recording/model';
 
 /**
  * The demo's quick reasons for leaving a required question unanswered
@@ -289,8 +291,35 @@ export function questionSource(q: SourcedQuestion, asker?: string): string {
 
 // ---- notes ------------------------------------------------------------------------------------
 
-/** What a note is about, as the demo says it: "Verse 4", "Key term · Shepherd", "Whole passage". */
-export function noteAnchorText(anchor: NoteAnchor, look: { term: (termId: string) => string | undefined; versionN: (takeId: string) => number | undefined }): string {
+/** What a note's lookups need: a key term's word, a version's number, and (decisions.md 149) a part's place, a help's name, a note's author. */
+export interface AnchorLook {
+  term: (termId: string) => string | undefined;
+  versionN: (takeId: string) => number | undefined;
+  /** Where the part with this audio sits in that version, from 1. */
+  partN?: (takeId: string, hash: string) => number | undefined;
+  help?: (key: string) => string | undefined;
+  /** Who wrote the note a reply answers. */
+  author?: (noteId: string) => string | undefined;
+}
+
+/**
+ * What a note is about, as the demo says it: "Verse 4", "Key term · Shepherd",
+ * "Whole passage", and for what a check shows (decisions.md 149) "Part 2 · 0:04",
+ * a help's name, or "Reply to Tom".
+ */
+export function noteAnchorText(anchor: NoteAnchor, look: AnchorLook): string {
+  const reply = replyOf(anchor);
+  if (reply) {
+    const name = look.author?.(reply);
+    return name ? t('review.capture.anchor.replyTo', { name }) : t('review.capture.anchor.reply');
+  }
+  const part = notePart(anchor);
+  if (part) {
+    const n = look.partN?.(part.takeId, part.part);
+    return summaryLine([n ? partLabel(n - 1) : t('review.capture.anchor.aPart'), part.at]);
+  }
+  const help = noteHelp(anchor);
+  if (help) return t('review.capture.anchor.help', { help: look.help?.(help) ?? t('review.capture.anchor.aHelp') });
   switch (anchor.kind) {
     case 'passage': return t('review.capture.anchor.passage');
     case 'verse': return summaryLine([t('review.capture.anchor.verse', { verse: anchor.verse }), anchor.translation, anchor.at]);
@@ -301,6 +330,29 @@ export function noteAnchorText(anchor: NoteAnchor, look: { term: (termId: string
     }
     case 'study': return t('review.capture.anchor.study');
   }
+}
+
+/** A reply to a note (decisions.md 149): on what the note is on, answering it, so an app from before replies shows it there. */
+export function replyAnchor(n: { id: string; anchor: NoteAnchor }): NoteAnchor {
+  const { replyTo: _note, ...on } = n.anchor;
+  return { ...on, replyTo: n.id };
+}
+
+/**
+ * The part playing `ms` into a version whose parts last `lengths` (in order),
+ * and how far into that part: where a note from the big player goes
+ * (decisions.md 149). Past the end is the last part; lengths not known yet
+ * put it on the first.
+ */
+export function partAt(lengths: readonly number[], ms: number): { index: number; atMs: number } {
+  if (lengths.length === 0 || lengths.every((l) => !(l > 0))) return { index: 0, atMs: Math.max(0, ms) };
+  let start = 0;
+  for (let i = 0; i < lengths.length; i++) {
+    const end = start + Math.max(0, lengths[i] ?? 0);
+    if (ms < end || i === lengths.length - 1) return { index: i, atMs: Math.max(0, Math.min(ms, end) - start) };
+    start = end;
+  }
+  return { index: 0, atMs: 0 };
 }
 
 // ---- a session that already happened (REV-6) ------------------------------------------------------

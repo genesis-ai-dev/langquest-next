@@ -4,7 +4,7 @@ import type { Hlc } from './hlc';
 import { indexesOf, type Indexes } from './indexes';
 import {
   CUSTOM_FLOW, DEFAULT_KINDS, flowStepPrefix, flowTemplate,
-  type Departure, type KindDef, type KindReview, type PassageNote, type PassageRequest, type QuestionSpec, type Undo
+  type Departure, type KindDef, type KindReview, type NoteAnchor, type PassageNote, type PassageRequest, type QuestionSpec, type Undo
 } from './record';
 import { checkTeamFor } from './checks';
 import { sourceChapters } from './sourceBibles';
@@ -885,6 +885,52 @@ export function studyMarksFor(state: LanguageState, unitId: string, guideId?: st
 /** Notes on a passage's study: on a section of a step, a moment in its audio, or the step itself. */
 export function studyNotesFor(s: PassageState, guideId: string, stepId?: string): PassageNote[] {
   return s.notes.filter((n) => n.anchor.kind === 'study' && n.anchor.guideId === guideId && (stepId === undefined || n.anchor.stepId === stepId));
+}
+
+// ---- notes on what a check shows (decisions.md 149) ---------------------------------
+
+/**
+ * The part of a recording a note is on, and how far into it: from the
+ * anchor's `part` and `at`, when they are strings (the server checks only a
+ * note's kind and takeId, so anything else may arrive and is ignored).
+ */
+export function notePart(anchor: NoteAnchor): { takeId: string; part: string; at?: string } | null {
+  if (anchor.kind !== 'version' || typeof anchor.part !== 'string' || !anchor.part) return null;
+  return { takeId: anchor.takeId, part: anchor.part, ...(typeof anchor.at === 'string' && anchor.at ? { at: anchor.at } : {}) };
+}
+
+/** The note a reply answers, when the anchor names one. */
+export function replyOf(anchor: NoteAnchor): string | null {
+  return typeof anchor.replyTo === 'string' && anchor.replyTo ? anchor.replyTo : null;
+}
+
+/** The check's help a note is about (`item:<id>` or `material:<id>`), when the anchor names one. */
+export function noteHelp(anchor: NoteAnchor): string | null {
+  return anchor.kind === 'passage' && typeof anchor.help === 'string' && anchor.help ? anchor.help : null;
+}
+
+/**
+ * Notes on one part of the recording, oldest first: the part is its audio,
+ * so a note stays with a part a later version kept and is not on one it
+ * recorded again. Replies stay under their note (`repliesTo`).
+ */
+export function partNotesFor(s: PassageState, hash: string): PassageNote[] {
+  return s.notes.filter((n) => !replyOf(n.anchor) && notePart(n.anchor)?.part === hash);
+}
+
+/** Notes on one of a check's helps, oldest first. */
+export function helpNotesFor(s: PassageState, help: string): PassageNote[] {
+  return s.notes.filter((n) => !replyOf(n.anchor) && noteHelp(n.anchor) === help);
+}
+
+/** Notes on a key word in this passage, oldest first. */
+export function termNotesFor(s: PassageState, termId: string): PassageNote[] {
+  return s.notes.filter((n) => !replyOf(n.anchor) && n.anchor.kind === 'term' && n.anchor.termId === termId);
+}
+
+/** Replies to a note, oldest first. A reply to a reply answers the note it sits under. */
+export function repliesTo(s: PassageState, noteId: string): PassageNote[] {
+  return s.notes.filter((n) => replyOf(n.anchor) === noteId);
 }
 
 // ---- where a unit sits in the Bible ------------------------------------------------

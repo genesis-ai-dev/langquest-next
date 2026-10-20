@@ -8,7 +8,7 @@
 // the passage's verses with the team's notes marked in amber with their
 // author. Built from kit.tsx and theme tokens; every press goes through the
 // kit or useHelpSpot (with its HelpBadge) so help mode explains it.
-import { commands, usedOn, type KindDef, type PassageNote, type Shows, type SourcedQuestion } from '@langquest-next/core';
+import { commands, replyOf, termNotesFor, usedOn, type KindDef, type NoteAnchor, type PassageNote, type Shows, type SourcedQuestion } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -44,6 +44,7 @@ import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import type { BackgroundData } from './reviewText';
+import { NotedRow, NotesUnder } from './notesOn';
 
 // ---- the strip of steps ----------------------------------------------------------------------
 
@@ -172,6 +173,9 @@ export function BackgroundSheet(props: {
   onOpenStep: (stepId: string) => void;
   onOpenStudy: () => void;
   onMoreBibles: () => void;
+  /** A note on a key word, or a reply to a note (decisions.md 149): the screen's note sheet opens over this one. */
+  onNote: (anchor: NoteAnchor, title: string, where: string) => void;
+  onReply: (n: PassageNote) => void;
   /** A Bible to open on, from the check's helps (decision 91). */
   bible?: string;
   /** What the check shows (decisions.md 130); a Bible from its helps opens whatever it says. */
@@ -205,21 +209,8 @@ export function BackgroundSheet(props: {
       ) : null}
       {tab === 'notes' ? (
         data.notes.length === 0 ? <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.noNotes')}</Text> : (
-          <View style={{ gap: space.sm }}>
-            {[...data.notes].reverse().map((n) => {
-              const older = data.olderVersion(n);
-              return (
-                <HelpRow key={n.id} of="review.note">
-                  <Authored ctx={ctx} by={n.by}>
-                    <NoteCard anchor={data.anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
-                      {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
-                      {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> } : {})}
-                      action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
-                  </Authored>
-                </HelpRow>
-              );
-            })}
-          </View>
+          // Newest first, each with Reply and its replies under it (decisions.md 149); a reply whose note is not shown here stands alone.
+          <NotesUnder ctx={ctx} p={v.p} notes={[...topNotes(data.notes)].reverse()} label={data.anchor} older={data.olderVersion} onReply={props.onReply} />
         )
       ) : null}
       {tab === 'terms' ? (
@@ -229,8 +220,12 @@ export function BackgroundSheet(props: {
               const rendering = term.renderings.at(-1)?.rendering;
               return (
                 <HelpRow key={term.termId} of="review.termRow">
-                  <Row icon="key" label={term.term} sub={rendering ? t('review.simple.theirWord', { word: rendering }) : t('review.simple.noWordYet')}
-                    help={t('passage.version.termHelp')} last={i === data.terms.length - 1} onPress={() => props.onOpenTerm(term.termId)} />
+                  <NotedRow last={i === data.terms.length - 1}
+                    row={<Row icon="key" label={term.term} sub={rendering ? t('review.simple.theirWord', { word: rendering }) : t('review.simple.noWordYet')}
+                      help={t('passage.version.termHelp')} last onPress={() => props.onOpenTerm(term.termId)} />}
+                    note={{ label: t('review.notesOn.onTerm', { term: term.term }), help: t('review.notesOn.onTermHelp'),
+                      onPress: () => props.onNote({ kind: 'term', termId: term.termId }, t('review.notesOn.noteOn', { what: term.term }), term.term) }}
+                    notes={<NotesUnder ctx={ctx} p={v.p} notes={termNotesFor(v.p, term.termId)} onReply={props.onReply} />} />
                 </HelpRow>
               );
             })}
@@ -241,6 +236,12 @@ export function BackgroundSheet(props: {
       {tab === 'earlier' ? <EarlierPane ctx={ctx} v={v} {...(props.earlierFrom ? { from: props.earlierFrom } : {})} /> : null}
     </TallSheet>
   );
+}
+
+/** The notes to list: replies go under their note, unless that note is not in the list. */
+function topNotes(notes: PassageNote[]): PassageNote[] {
+  const ids = new Set(notes.map((n) => n.id));
+  return notes.filter((n) => { const to = replyOf(n.anchor); return !to || !ids.has(to); });
 }
 
 // ---- the passage in the Bible the translator used --------------------------------------------
