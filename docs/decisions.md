@@ -3125,6 +3125,18 @@ material is in. A language is found by the world list's names and aliases
 (Glottolog) and by its own names where a word starts; each says its code
 and what it has ("FRA · 6 Bibles"), and one none of whose Bibles open is
 dropped. Add a Bible opens on the team's language with its Bibles listed.
+Then (Caleb, 2026-10-20: should flows and templates be linked to languages
+"in the backend ... yes, absolutely"): `flow@1`, `template@1` and
+`template@2` take the same optional `language` as `material@1`, in the
+document (no new event). The flow and template editors ask "Written in"
+(a new flow starts in the writer's app language). A language's Checks,
+review flow page and Get ready's checks offer only flows in the team's
+languages or saying none, and always the one in use (`useCheckChoices`).
+The organization's Templates and Flows lists name each one's language.
+Template choices in New language and Get ready are not narrowed: the
+template is picked before the team's languages are asked (Caleb's setup
+order). LangQuest's own flows and templates say no language until the
+library seed gives them one.
 
 ## 85. The passage list pages, picks passages by id, and includes any part of one passage
 

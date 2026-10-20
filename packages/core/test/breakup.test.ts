@@ -74,6 +74,10 @@ describe('a template that breaks up each book its own way (decision 74)', () => 
     const ids = (d: TemplateDocV1 | TemplateDocV2) => templateUnits(d, 'x', eng).map((u) => u.unitId);
     expect(ids(v2)).toEqual(ids(v1));
     expect(templateBooks(v2)[0]).toEqual({ book: 'RUT', name: 'Ruth', divide: 'passages', part: 'Passage', passages: [{ ref: 'RUT 1:1-7' }, { ref: 'RUT 1:8-22' }] });
+    // The language its names are in goes along (decision 84), and must be a code.
+    expect(asTemplateV2({ ...v1, language: 'fra' }).language).toBe('fra');
+    expect(validateDoc({ ...v2, language: '' })).toMatch(/language/);
+    expect(validateDoc({ ...v1, language: 'fra' })).toBeNull();
   });
 
   it('breaks up one book from a way, leaving every other book as it was', () => {

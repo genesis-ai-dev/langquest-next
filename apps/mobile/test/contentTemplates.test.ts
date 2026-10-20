@@ -197,6 +197,9 @@ describe('the template editor', () => {
     expect(doc).toEqual(passagesDoc);
     expect(formChanged(f, formFromDoc(passagesDoc))).toBe(false);
     expect(formChanged({ ...f, books: [{ book: 'LUK', name: 'Luke' }] }, f)).toBe(true);
+    // The language its names are in goes both ways, and saying it is a change (decision 84).
+    expect(formChanged({ ...f, language: 'swh' }, f)).toBe(true);
+    expect(docFromForm(formFromDoc({ ...passagesDoc, language: 'swh' })).language).toBe('swh');
     // Passages of a book taken out go with it.
     expect(docFromForm({ ...f, books: [] }).bible!.passages).toEqual([]);
   });

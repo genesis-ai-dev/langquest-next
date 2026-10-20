@@ -41,6 +41,12 @@ export interface TemplateDocV1 {
   format: 'template@1';
   name: string;
   description: string;
+  /**
+   * ISO 639-3 language its words are in ("eng"): what a team reads, so lists
+   * inside a language show it only to teams that read it (decision 84).
+   * Absent when not said; such a one shows everywhere.
+   */
+  language?: string;
   structure: 'bible' | 'outline';
   /** What each level is called, top first: Book, Chapter, Passage, or Module, Lesson. */
   levels: { name: string; display?: LevelDisplay }[];
@@ -97,6 +103,12 @@ export interface TemplateDocV2 {
   format: 'template@2';
   name: string;
   description: string;
+  /**
+   * ISO 639-3 language its words are in ("eng"): what a team reads, so lists
+   * inside a language show it only to teams that read it (decision 84).
+   * Absent when not said; such a one shows everywhere.
+   */
+  language?: string;
   structure: 'bible' | 'outline';
   levels: { name: string; display?: LevelDisplay }[];
   bible?: {
@@ -155,6 +167,7 @@ export function asTemplateV2(doc: TemplateDoc): TemplateDocV2 {
     format: 'template@2',
     name: doc.name,
     description: doc.description,
+    ...(doc.language ? { language: doc.language } : {}),
     structure: doc.structure,
     levels: doc.levels,
     ...(doc.bible ? { bible: { versification: doc.bible.versification, books: templateBooks(doc) } } : {}),
@@ -168,6 +181,12 @@ export interface FlowDoc {
   format: 'flow@1';
   name: string;
   description: string;
+  /**
+   * ISO 639-3 language its words are in ("eng"): what a team reads, so lists
+   * inside a language show it only to teams that read it (decision 84).
+   * Absent when not said; such a one shows everywhere.
+   */
+  language?: string;
   kinds: KindDef[];
   steps: { stepId: string; kindIds: string[]; checkpoint?: boolean }[];
   deps: string[];
@@ -451,6 +470,7 @@ export function validateDoc(value: unknown): string | null {
   switch (d['format']) {
     case 'template@1': {
       if (!str(d['name'])) return 'a template needs a name';
+      if (d['language'] !== undefined && !str(d['language'])) return 'language must be a language code';
       if (d['structure'] !== 'bible' && d['structure'] !== 'outline') return 'structure must be bible or outline';
       if (!Array.isArray(d['levels']) || !(d['levels'] as unknown[]).every((l) => isObj(l) && str(l['name']))) return 'levels need names';
       if (d['structure'] === 'bible') {
@@ -474,6 +494,7 @@ export function validateDoc(value: unknown): string | null {
     }
     case 'template@2': {
       if (!str(d['name'])) return 'a template needs a name';
+      if (d['language'] !== undefined && !str(d['language'])) return 'language must be a language code';
       if (d['structure'] !== 'bible' && d['structure'] !== 'outline') return 'structure must be bible or outline';
       if (!Array.isArray(d['levels']) || !(d['levels'] as unknown[]).every((l) => isObj(l) && str(l['name']))) return 'levels need names';
       if (d['goesWith'] !== undefined && !(isObj(d['goesWith']) && str((d['goesWith'] as Record<string, unknown>)['pattern']))) return 'goesWith names a pattern';
@@ -510,6 +531,7 @@ export function validateDoc(value: unknown): string | null {
     }
     case 'flow@1': {
       if (!str(d['name'])) return 'a flow needs a name';
+      if (d['language'] !== undefined && !str(d['language'])) return 'language must be a language code';
       if (!Array.isArray(d['kinds']) || !(d['kinds'] as unknown[]).every((k) => isObj(k) && str(k['id']) && str(k['name']))) return 'kinds need an id and a name';
       if (!Array.isArray(d['steps'])) return 'steps must be an array';
       const kinds = new Set((d['kinds'] as { id: string }[]).map((k) => k.id));
