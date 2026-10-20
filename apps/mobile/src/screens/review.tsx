@@ -390,7 +390,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       ) : null}
       {reads.medium === 'writing' ? (
         <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={reads.parts} verseKeys={verseKeys}
-          {...(reads.made && version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
+          {...(reads.made && version.medium !== 'writing' ? { heard: version.cardHashes } : {})} />
       ) : (
         <ClipPlayer language={ctx.language} hashes={reads.parts} big
           title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
@@ -409,7 +409,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             </Text>
             {a.medium === 'writing' ? (
               <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={a.made.parts.map((c) => c.hash)} verseKeys={verseKeys}
-                {...(version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
+                {...(version.medium !== 'writing' ? { heard: version.cardHashes } : {})} />
             ) : <AudioClip language={ctx.language} hashes={a.made.parts.map((c) => c.hash)} label={t('writing.version.itsRecording')} />}
           </View>
         </HelpRow>

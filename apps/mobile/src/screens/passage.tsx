@@ -13,7 +13,7 @@ import { Faces, PeopleLine } from '../checks/parts';
 import { checkName } from '../admin/adminModel';
 import {
   addedTo, approvedVersion, CommandError, canDeleteVersion, checkPeople, commands, draftsBy, LISTENER_KIND, madeGrid, madeGroup, madeVersionOf, mediaAllowed,
-  questionsForKind, recordTimeline,
+  questionsForKind, recordTimeline, versionMedium,
   type AddedContent, type Commands, type EventSpec, type FlowStepStatus, type KindState, type KindStatus, type MadeColumn, type PassageNote,
   type QuestionSpec, type ReviewView, type Version
 } from '@langquest-next/core';
@@ -322,7 +322,7 @@ export function PassageRecord(ctx: Ctx) {
   const latestSeconds = p.latest ? clipSeconds(v.state, p.latest.cardHashes) : 0;
   // A passage goes on the way its latest version was made, else the way the language leads (decision 144).
   const media = mediaAllowed(v.state);
-  const lead = p.latest && media[p.latest.medium] ? p.latest.medium : leadMedium(v.state);
+  const lead = p.latest && media[versionMedium(p.latest)] ? versionMedium(p.latest) : leadMedium(v.state);
   const other = media.recording && media.writing ? (lead === 'writing' ? 'recording' : 'writing') : null;
   const pathInput = recordPathInput({
     p, kinds, me, name: ctx.name, teamName, lead,
@@ -1122,7 +1122,7 @@ function AddedSection(props: { ctx: Ctx; v: PassageView; version: Version; added
       <Authored ctx={ctx} by={a.made.by}>
         {words ? (
           <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={a.made.parts.map((c) => c.hash)} verseKeys={props.verseKeys}
-            {...(version.medium === 'recording' ? { heard: version.cardHashes } : {})} />
+            {...(version.medium !== 'writing' ? { heard: version.cardHashes } : {})} />
         ) : (
           <Card><PlayRow ctx={ctx} hashes={a.made.parts.map((c) => c.hash)} label={t('writing.version.itsRecording')} /></Card>
         )}

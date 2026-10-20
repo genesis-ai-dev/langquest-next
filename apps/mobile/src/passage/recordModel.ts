@@ -5,7 +5,7 @@
 // held here (test/passageRecordMatrix.test.ts, docs/testing.md layer 3) and
 // the screen only draws them.
 import {
-  draftsBy, feedbackIsMine, isCompleteState,
+  draftsBy, feedbackIsMine, isCompleteState, versionMedium,
   type FlowStepStatus, type Hlc, type KindDef, type KindStatus, type LanguageState, type Medium, type OrgState, type PassageLines, type PassageNote, type PassageState,
   type RecordEntry, type ReviewView, type Version
 } from '@langquest-next/core';
@@ -266,7 +266,7 @@ export interface MadeByStep { madeId?: string; takeId?: string; by: string; hlc:
 export function madeByStep(p: PassageState, kindId: string): MadeByStep | undefined {
   const m = [...p.made].reverse().find((x) => x.kindId === kindId);
   const ver = [...p.versions].reverse().find((x) => x.madeByKindId === kindId);
-  if (ver && (!m || ver.hlc > m.hlc)) return { takeId: ver.takeId, by: ver.by, hlc: ver.hlc, medium: ver.medium };
+  if (ver && (!m || ver.hlc > m.hlc)) return { takeId: ver.takeId, by: ver.by, hlc: ver.hlc, medium: versionMedium(ver) };
   return m ? { madeId: m.id, by: m.by, hlc: m.hlc, medium: m.medium } : undefined;
 }
 

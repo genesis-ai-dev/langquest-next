@@ -1,7 +1,7 @@
 import {
   addedTo, approvedVersion, buildIndexes, decodeHlc, derivePassage, encodeHlc, externalKeyError, isWrittenPart, kindOf, languageInfo, libraryUnitRange, LISTENER_KIND,
   madeRootTake, madeVersionOf, mayViewLanguage, orgLanguages, passageWork, privilegesFor, referencedBlobs, releasesOf, stateRevision, stepAllowsLinks,
-  validateEvent, writtenText,
+  validateEvent, versionMedium, writtenText,
   type AnyEvent, type Card, type KindState, type LanguageState, type Medium, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
 import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from './tokens';
@@ -296,7 +296,7 @@ function recordedCards(state: LanguageState, parts: readonly (string | Card)[]):
 
 /** What a version plays: its own recording, or the recording a step added to a written version (the latest). */
 function playedCards(state: LanguageState, s: PassageState, v: Version): Card[] {
-  if (v.medium === 'recording') return recordedCards(state, v.cardHashes);
+  if (v.medium !== 'writing') return recordedCards(state, v.cardHashes);
   return recordedCards(state, addedTo(s, v).find((a) => a.medium === 'recording')?.made.parts ?? []);
 }
 
@@ -341,16 +341,16 @@ function addedOut(state: LanguageState, s: PassageState, v: Version): AddedOut[]
 
 function versionOut(state: LanguageState, s: PassageState, v: Version): VersionOut {
   const madeBy = v.madeByKindId ? madeByOf(state, s, v) : undefined;
-  const added = v.added.length ? addedOut(state, s, v) : [];
+  const added = v.added?.length ? addedOut(state, s, v) : [];
   return {
-    n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: playedMs(state, s, v), medium: v.medium,
+    n: v.n, takeId: v.takeId, submittedAt: iso(v.hlc), durationMs: playedMs(state, s, v), medium: versionMedium(v),
     ...(madeBy ? { madeBy } : {}), ...(added.length ? { added } : {})
   };
 }
 
 /** How long what a version plays lasts; a recorded version with nothing added is summed in place, as most are. */
 function playedMs(state: LanguageState, s: PassageState, v: Version): number {
-  if (v.medium === 'recording') {
+  if (v.medium !== 'writing') {
     const cards = cardsOf(state);
     let ms = 0;
     for (const h of v.cardHashes) ms += cards.get(h)?.durationMs ?? 0;
@@ -401,7 +401,7 @@ function summarize(grant: Grant, state: LanguageState, s: PassageState): Passage
     reference: referenceOf(s.unitId),
     status: statusOf(s),
     version: v ? versionOut(state, s, v) : null,
-    approvedVersion: approved ? { n: approved.n, takeId: approved.takeId, medium: approved.medium } : null,
+    approvedVersion: approved ? { n: approved.n, takeId: approved.takeId, medium: versionMedium(approved) } : null,
     releases: releases.map((r) => ({ channel: r.channel, versionN: r.versionN, takeId: r.takeId, at: iso(r.hlc), ...(r.url !== undefined ? { url: r.url } : {}) })),
     listenerFeedback: {
       looksGood: onVersion.filter((r) => r.outcome === 'looks_good').length,
@@ -530,7 +530,7 @@ async function passageOut(
   };
   // A recorded version plays its own cards, read in place as most are; a written one plays what was added to it.
   const versionAudio = async (ver: Version): Promise<AudioCard[]> => {
-    if (ver.medium !== 'recording') return audioOf(playedCards(state, s, ver));
+    if (ver.medium === 'writing') return audioOf(playedCards(state, s, ver));
     const cards = cardsOf(state);
     const audio: AudioCard[] = [];
     for (const hash of ver.cardHashes) {
@@ -590,7 +590,7 @@ async function passageOut(
   if (include.has('versions')) {
     out.versions = s.versions.map((ver) => {
       const madeBy = madeByOf(state, s, ver);
-      return { n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc), medium: ver.medium, ...(madeBy ? { madeBy } : {}) };
+      return { n: ver.n, takeId: ver.takeId, submittedAt: iso(ver.hlc), medium: versionMedium(ver), ...(madeBy ? { madeBy } : {}) };
     });
   }
   if (include.has('made')) {

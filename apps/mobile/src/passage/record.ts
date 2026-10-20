@@ -467,7 +467,7 @@ export function describeEntry(e: RecordEntry, o: {
       const version = of ? versionTitle(of.n) : t('passage.record.anchor.aVersion');
       const step = m.kindId ? kindName(kinds, m.kindId) : '';
       const words = m.medium === 'writing';
-      const changed = !!m.added && !!of?.added.some((x) => x.medium === m.medium && x.hlc < m.hlc);
+      const changed = !!m.added && !!of?.added?.some((x) => x.medium === m.medium && x.hlc < m.hlc);
       const title = !m.added ? t('writing.history.madeFrom', { what: step || (words ? t('writing.made.writtenDown') : t('writing.made.recordedAgain')), version })
         : changed ? (words ? t('writing.history.wordsChanged', { version }) : t('writing.history.recordingChanged', { version }))
         : words ? t('writing.history.wordsAdded', { version }) : t('writing.history.recordingAdded', { version });

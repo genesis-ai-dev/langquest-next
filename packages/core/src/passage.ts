@@ -105,14 +105,19 @@ export interface Version {
   takeId: string;
   /** 1-based, in order of publishing. */
   n: number;
-  /** Recorded or written (decisions.md 144): read from its parts. */
-  medium: Medium;
+  /**
+   * Written (decisions.md 144), read from its parts; absent when recorded.
+   * Present only when it says something, so a language that only records
+   * holds its versions as before (a cached view lives as long as its fold;
+   * apps/web memory test). `versionMedium` reads it.
+   */
+  medium?: 'writing';
   /** The step that made it, when a step made the passage's next version (a final recording). */
   madeByKindId?: string;
   /** The version it was made from, then. */
   madeFromTakeId?: string;
-  /** What steps added to it (decisions.md 144): words for a recording, a recording for writing; oldest first. */
-  added: MadeView[];
+  /** What steps added to it (decisions.md 144): words for a recording, a recording for writing; oldest first. Absent when nothing was. */
+  added?: MadeView[];
   by: string;
   hlc: Hlc;
   cardHashes: string[];
@@ -311,6 +316,11 @@ function push<K, V>(m: Map<K, V[]>, k: K, v: V) {
   const list = m.get(k);
   if (list) list.push(v);
   else m.set(k, [v]);
+}
+
+/** Recorded or written (decisions.md 144). */
+export function versionMedium(v: Pick<Version, 'medium'>): Medium {
+  return v.medium ?? 'recording';
 }
 
 /** No made records for a passage: shared, so most passages allocate nothing for them. */
@@ -551,14 +561,22 @@ export function derivePassage(state: LanguageState, unitId: string, idx?: Indexe
     const change = ri.changeNotes.get(takeId);
     const note = response?.note ?? change?.text;
     const blob = response?.blobHash ?? change?.blobHash;
-    const madeBy = ri.madeVersions.get(takeId);
-    return {
+    const v: Version = {
       takeId, n: i + 1, by: state.submissions[takeId]?.actorId ?? t.actorId, hlc: state.submissions[takeId]!.hlc,
-      cardHashes: t.cardHashes, parentTakeId: t.parentTakeId, medium: partsMedium(t.cardHashes),
-      added: madeViews.length ? someMade(madeViews.filter((m) => m.added && m.fromTakeId === takeId)) : NO_MADE,
-      ...(madeBy?.kindId ? { madeByKindId: madeBy.kindId } : {}), ...(madeBy?.fromTakeId ? { madeFromTakeId: madeBy.fromTakeId } : {}),
+      cardHashes: t.cardHashes, parentTakeId: t.parentTakeId,
       ...(note ? { changeNote: note } : {}), ...(blob ? { changeBlobHash: blob } : {})
     };
+    // Writing's fields only where they say something, added after: spreads in the literal above
+    // would size every version for them (apps/web memory test; decisions.md 144).
+    if (partsMedium(t.cardHashes) === 'writing') v.medium = 'writing';
+    if (madeViews.length) {
+      const added = madeViews.filter((m) => m.added && m.fromTakeId === takeId);
+      if (added.length) v.added = added;
+    }
+    const madeBy = ri.madeVersions.size ? ri.madeVersions.get(takeId) : undefined;
+    if (madeBy?.kindId) v.madeByKindId = madeBy.kindId;
+    if (madeBy?.fromTakeId) v.madeFromTakeId = madeBy.fromTakeId;
+    return v;
   });
   // A deleted version is a tombstone (LAN-83): it keeps its number and its
   // checks, but it is not a version the passage has any more.
@@ -941,7 +959,7 @@ export interface AddedContent {
 export function addedTo(s: Pick<PassageState, 'reviews'>, v: Pick<Version, 'added'>): AddedContent[] {
   const out: AddedContent[] = [];
   for (const medium of ['writing', 'recording'] as const) {
-    const of = v.added.filter((m) => m.medium === medium);
+    const of = (v.added ?? NO_MADE).filter((m) => m.medium === medium);
     const made = of.at(-1);
     if (!made) continue;
     const changedAfter = changedAfterReview(s, made, of);
@@ -952,7 +970,7 @@ export function addedTo(s: Pick<PassageState, 'reviews'>, v: Pick<Version, 'adde
 
 /** The newest review of the version that saw something added before `m` of the same kind, if any: `m` changed what it saw. */
 function changedAfterReview(s: Pick<PassageState, 'reviews'> & { versions?: Version[] }, m: MadeView, siblings?: MadeView[]): ReviewView | undefined {
-  const before = (siblings ?? s.versions?.find((v) => v.takeId === m.fromTakeId)?.added.filter((x) => x.medium === m.medium) ?? [])
+  const before = (siblings ?? s.versions?.find((v) => v.takeId === m.fromTakeId)?.added?.filter((x) => x.medium === m.medium) ?? [])
     .filter((x) => x.hlc < m.hlc);
   if (before.length === 0) return undefined;
   const firstHlc = before[0]!.hlc;

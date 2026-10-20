@@ -4,7 +4,7 @@
 // the part (decisions.md 82), so a verse left empty never shifts the ones
 // after it. Recorded parts are heard verse by verse through their labels.
 import {
-  commands, derivePartVerses, madeVersionOf, mediaAllowed, partMarksFor, writtenPartId, writtenText,
+  commands, derivePartVerses, madeVersionOf, mediaAllowed, partMarksFor, versionMedium, writtenPartId, writtenText,
   type EventSpec, type Indexes, type KindDef, type LanguageState, type MadeView, type MakesSpec, type Medium, type PartMark, type PassageState, type Version
 } from '@langquest-next/core';
 
@@ -183,7 +183,7 @@ export function makingSource(p: PassageState, makes: MakesSpec): MakingSource | 
 
 /** What the source is in. */
 export function sourceMedium(src: MakingSource): Medium {
-  return src.kind === 'version' ? src.version.medium : src.made.medium;
+  return src.kind === 'version' ? versionMedium(src.version) : src.made.medium;
 }
 
 /** The language a step makes in, as a code, when not the team's own. */
@@ -206,5 +206,5 @@ export function readsFor(p: PassageState, kind: KindDef, version: Version): { me
     const made = [...p.made].reverse().find((m) => m.kindId === kind.looksAt && madeVersionOf(p, m) === version.takeId);
     if (made) return { medium: made.medium, parts: made.parts.map((c) => c.hash), made };
   }
-  return { medium: version.medium, parts: version.cardHashes };
+  return { medium: versionMedium(version), parts: version.cardHashes };
 }

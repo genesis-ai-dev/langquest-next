@@ -22601,21 +22601,25 @@ function derivePassage(state, unitId, idx) {
     const change = ri.changeNotes.get(takeId);
     const note = response?.note ?? change?.text;
     const blob = response?.blobHash ?? change?.blobHash;
-    const madeBy = ri.madeVersions.get(takeId);
-    return {
+    const v = {
       takeId,
       n: i + 1,
       by: state.submissions[takeId]?.actorId ?? t.actorId,
       hlc: state.submissions[takeId].hlc,
       cardHashes: t.cardHashes,
       parentTakeId: t.parentTakeId,
-      medium: partsMedium(t.cardHashes),
-      added: madeViews.length ? someMade(madeViews.filter((m) => m.added && m.fromTakeId === takeId)) : NO_MADE,
-      ...madeBy?.kindId ? { madeByKindId: madeBy.kindId } : {},
-      ...madeBy?.fromTakeId ? { madeFromTakeId: madeBy.fromTakeId } : {},
       ...note ? { changeNote: note } : {},
       ...blob ? { changeBlobHash: blob } : {}
     };
+    if (partsMedium(t.cardHashes) === "writing") v.medium = "writing";
+    if (madeViews.length) {
+      const added = madeViews.filter((m) => m.added && m.fromTakeId === takeId);
+      if (added.length) v.added = added;
+    }
+    const madeBy = ri.madeVersions.size ? ri.madeVersions.get(takeId) : void 0;
+    if (madeBy?.kindId) v.madeByKindId = madeBy.kindId;
+    if (madeBy?.fromTakeId) v.madeFromTakeId = madeBy.fromTakeId;
+    return v;
   });
   const deletedVersions = everyVersion.flatMap((v) => {
     const t = state.takes[v.takeId];

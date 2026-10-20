@@ -3,7 +3,7 @@ import { deriveUploadWork, referencedBlobs } from '../src/blobs';
 import { commands } from '../src/commands';
 import type { AnyEvent, EventType } from '../src/events';
 import { encodeHlc } from '../src/hlc';
-import { addedTo, approvedVersion, derivePassage, madeGrid, recordTimeline } from '../src/passage';
+import { addedTo, approvedVersion, derivePassage, madeGrid, recordTimeline, versionMedium } from '../src/passage';
 import { foldLanguage } from '../src/reducer';
 import { EVENT_PAYLOAD_MAX_BYTES, eventSizeError, jsonbTextBytes, validateEvent } from '../src/validate';
 import { defaultResult, isWrittenPart, mediaAllowed, partsMedium, resultAllowed, sha256Hex, writtenPartId, writtenText } from '../src/writing';
@@ -190,7 +190,7 @@ describe('things made from a version', () => {
   it('read a written version as written', () => {
     const { s } = world(['v1.WritingAdded', { writingId: 'w', unitId: 'u', parts: words }],
       ['v1.TakeComposed', { takeId: 't2', unitId: 'u', cardHashes: words.map((x) => x.id), parentTakeId: 't1' }], ['v1.TakeSubmitted', { takeId: 't2' }]);
-    expect(s.versions.map((v) => v.medium)).toEqual(['recording', 'writing']);
+    expect(s.versions.map((v) => versionMedium(v))).toEqual(['recording', 'writing']);
   });
 });
 

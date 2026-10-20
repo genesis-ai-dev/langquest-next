@@ -63,7 +63,7 @@ export function MadeDetail(ctx: Ctx) {
       ) : null}
       {m.medium === 'writing' ? (
         <WrittenReader ctx={ctx} state={v.state} unitId={v.unitId} parts={parts} verseKeys={verseKeys}
-          {...(from && from.medium === 'recording' ? { heard: from.cardHashes } : {})} />
+          {...(from && from.medium !== 'writing' ? { heard: from.cardHashes } : {})} />
       ) : (
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
