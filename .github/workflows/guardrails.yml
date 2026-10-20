@@ -108,9 +108,9 @@ jobs:
       # this fails only for a commit made without them (or a rebase).
       - name: Push delivery bundle matches its source
         run: |
-          npm run worker:build
+          npm run build:push-delivery
           git diff --exit-code -- supabase/functions || {
-            echo "::error::The push delivery function's bundle (supabase/functions/push-delivery) is behind its source. Run npm run worker:build and commit supabase/functions, or run npm install once so the git hooks in .githooks rebuild it on every commit."
+            echo "::error::The push delivery function's bundle (supabase/functions/push-delivery) is behind its source. Run npm run build:push-delivery and commit supabase/functions, or run npm install once so the git hooks in .githooks rebuild it on every commit."
             exit 1
           }
 
@@ -438,7 +438,7 @@ jobs:
           path: .stryker-tmp/incremental.json
           key: stryker-core-${{ github.sha }}
           restore-keys: stryker-core-
-      - run: npm run mutate:core
+      - run: npm run test:mutation
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:

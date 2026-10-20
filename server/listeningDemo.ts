@@ -16,6 +16,7 @@ import {
 } from '../packages/core/src/index';
 import { AgentOrg } from '../apps/web/worker/agent/org';
 import { OrgFolder, MemoryCache, type Source } from '../apps/web/worker/orgFolder';
+import { wholeRecords } from '../apps/web/worker/languageRecords';
 import { parseReview, parseRelease, isRefusal } from '../apps/web/worker/agent/view';
 import { passageQueryFrom } from '../apps/web/worker/agent/http';
 import { diffDigests, digestOf, newEventId, signature, type Digest } from '../apps/web/worker/agent/webhooks';
@@ -136,6 +137,10 @@ const agent = new AgentOrg(folder, orgId, {
   async sign(path: string) {
     const hash = path.split('/').at(-1)!.split('.')[0]!;
     return { url: `${base}/audio/${hash}`, expiresAt: Date.now() + 600000 };
+  },
+  // The demo's languages are small: each is read whole.
+  async records(languageId) {
+    return wholeRecords((await folder.languageState(languageId))!.state);
   },
 });
 

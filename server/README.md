@@ -59,11 +59,11 @@ app's Worker, every five minutes, with `server/projections.ts`,
 started by the Worker's job tick through the `JobRunner` Durable Object
 (`apps/web/worker/jobs.ts`, `docs/server-jobs.md`, decisions.md 141). It
 skips languages that have not changed (`projection_marks`).
-A local stack runs it the same way: `npm run web:dev` (and `dev:local`)
+A local stack runs it the same way: `npm run web:dev` (and `npm run dev`)
 fires the job tick every minute (`scripts/job-tick.mjs`, decisions.md 148),
 so the pass needs the Worker and Docker running; a database alone gets no
 Inbox rows from work, listings or snapshots.
-`npm run worker:build` bundles `pushDeliveryEdge.ts` and `pushDelivery.ts`
+`npm run build:push-delivery` bundles `pushDeliveryEdge.ts` and `pushDelivery.ts`
 for the `push-delivery` Edge Function, which sends what the database queued
 for phones every minute (decisions.md 68). Migration
 `20261020170000_push_delivery_secret.sql` schedules that wherever the
@@ -138,10 +138,10 @@ migrations and deploys the functions and storage buckets declared in
 The guardrails `checks` job refuses a worker bundle behind its source, since
 the bundle is what gets deployed. Nobody rebuilds it by hand: the
 `pre-commit` and `post-merge` hooks in `.githooks` (enabled by
-`npm install`) run `npm run worker:build` when a commit or a merge commit
+`npm install`) run `npm run build:push-delivery` when a commit or a merge commit
 changes what it is built from, and add the result to it. A rebase, or a
 commit made with `--no-verify`, skips them; the guardrails check then says
-to run `npm run worker:build`.
+to run `npm run build:push-delivery`.
 
 The integration's settings live in the Supabase dashboard (Project Settings,
 Integrations, GitHub), so they are recorded here. Change them there and here

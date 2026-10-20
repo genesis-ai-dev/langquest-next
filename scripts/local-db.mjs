@@ -4,7 +4,7 @@
  *
  *   npm run db:start    supabase start, then the rest below
  *   npm run db:reset    supabase db reset, then the rest below
- *   npm run dev:local   db:start, then the web Worker on :8787 until Ctrl-C
+ *   npm run dev         db:start, then the web Worker on :8787 until Ctrl-C
  *
  * The rest: push delivery every minute on the local Edge Function
  * `push-delivery`, as on a hosted database (decisions.md 68), and the
@@ -15,7 +15,7 @@
  * job container, as on a hosted project, while `npm run web:dev` fires the
  * job tick every minute (scripts/job-tick.mjs, decisions.md 141, 148). A
  * database without the Worker running gets no Inbox rows from work, no
- * listings and no server snapshots; `dev:local` starts both.
+ * listings and no server snapshots; `npm run dev` starts both.
  *
  * `npm run db:test` resets with `supabase db reset` directly, so no push job
  * runs under its smokes; a web Worker left running would still project
@@ -23,7 +23,7 @@
  * `npm run guardrails -- --all` runs db:start after it, before the UI tests.
  * Nothing here is in `seed.sql`, which preview branches run too.
  *
- * `dev:local` is the whole local stack in one command: the web Worker serves
+ * `npm run dev` is the whole local stack in one command: the web Worker serves
  * Reports and the Bible routes and runs the projection pass (apps/web,
  * `npm run web:dev`, which needs Docker for the job container); the app
  * reaches it at EXPO_PUBLIC_API_URL. Ctrl-C stops the Worker; the database keeps

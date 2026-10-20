@@ -426,7 +426,7 @@ ends green on `npm test`, `npm run typecheck`, and from phase 3
 
 **Phase 7. Finish.**
 - Turn the vocabulary test on.
-- Run `npm run test:integration`, `npm run test:web` with a seeded library,
+- Run `npm run test:integration`, `npm run test:web-smoke` with a seeded library,
   and the Maestro run on both platforms (`run-app` skill).
 - Rewrite `docs/ux/demo-parity.md` and `server/README.md`.
 - Check `docs/play-store-declarations.md`: no answer is expected to change.

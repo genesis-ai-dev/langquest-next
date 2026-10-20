@@ -8,7 +8,7 @@ This suite sits on top of the existing automated tests and does not repeat
 them:
 - `npm test` covers the reducer, validation and the flow parity tests
   (`specParity.test.ts` holds every edge of `src/flow.ts`).
-- `npm run test:web` runs the web smoke test.
+- `npm run test:web-smoke` runs the web smoke test.
 - `e2e/` holds this suite (`ui/`), the web smoke (`web-smoke/`) and their fixtures.
 
 What this suite adds is the check that a person can do each job on a device.
@@ -103,7 +103,7 @@ These hold for every test unless the test says otherwise.
 - The build's `/version.json` or update id is noted in the run sheet.
 
 **G2. Server**
-- The local stack is running (`npm run dev:local`): Supabase, and the Worker
+- The local stack is running (`npm run dev`): Supabase, and the Worker
   on :8787 running the projection pass every minute in its job container.
 - The library is seeded (`npm run library:seed`).
 - A release candidate is run a second time against the preview environment.
@@ -304,7 +304,7 @@ The automated tests live beside the app (decision 95):
   writes one to look at). Every web spec file gets its own world, and so
   does every phone run.
 
-Before a run, have the local stack up: `npm run dev:local`, or
+Before a run, have the local stack up: `npm run dev`, or
 `npm run db:start` with `npm run web:dev`. The Worker runs the projection
 pass that public listings, the Inbox and Reports need, every minute in its
 job container (Docker must be running); the suite's own Worker

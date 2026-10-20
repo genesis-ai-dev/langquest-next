@@ -32,7 +32,7 @@ Beside them:
   thresholds for `packages/core` and `packages/sync`, which are pure and
   must stay near fully covered. The mobile screen models (`apps/mobile/src/**/model.ts`,
   `*Model.ts`) have a threshold of 88% lines (90% measured on 2026-10-15). CI fails under the threshold. On 2026-10-15 core was at 97% lines (85% branches) and sync at 97% (87%); thresholds are 95 and 95 lines, 83 and 85 branches, about two points under what is measured, so a gain is kept. Raise them when coverage rises.
-- **Mutation testing** (`npm run mutate:core`): Stryker over `packages/core`,
+- **Mutation testing** (`npm run test:mutation`): Stryker over `packages/core`,
   nightly. Coverage says a line ran; mutation says a test would notice it
   changing. Core holds the invariants, so it gets both. Baseline on 2026-10-14: 52.5%
   over all of `packages/core/src` (5,598 killed, 2,124 survived, 2,937 with no test reaching them), 7 minutes on
@@ -217,7 +217,7 @@ installs the browsers.
 | 2 | `npm run db:test`, `npm run test:integration`, `npm run fleet -- normalDay` (Docker, local stack) |
 | 4 | `npm run db:start`, then `npm run test:ui:web`; one file: `npm run test:ui:web -- e2e/ui/<file>` |
 | 5 | `npm run test:ui:build -- --platform ios --device <simulator udid>` (Android: `--platform android --device <AVD name>`), then `npm run test:ui:phone` (`-- --platform android`) |
-| Beside them | `npm run lint`, `npm run test:web` (web smoke), `npm run mutate:core` |
+| Beside them | `npm run lint`, `npm run test:web-smoke` (web smoke), `npm run test:mutation` |
 
 Two things these leave behind can pass for current:
 
@@ -243,7 +243,7 @@ the machine, and two parts of it belong to the checkout that started them:
   Push delivery only: the projection pass runs in the job container under
   `web:dev` (decision 148) and reads no Edge secret.
 - **The Worker on :8787.** It serves the export of the checkout that
-  started it, and `db:start`, `dev:local` and the UI suite reuse whatever
+  started it, and `db:start`, `dev` and the UI suite reuse whatever
   already answers there. Run the UI suite on your own port, so Playwright
   exports and serves this checkout:
   `EXPO_PUBLIC_API_URL=http://localhost:8797 UI_PORT=8797 npm run test:ui:web -- --grep @p0`.

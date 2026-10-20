@@ -5,7 +5,7 @@
 // and before `wrangler dev`, so the image never installs the dependency tree
 // beside the service key. apps/web/worker/jobs.ts names the bundle each job
 // runs.
-//   npm run jobs:build
+//   npm run build:jobs
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 

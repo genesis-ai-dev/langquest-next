@@ -50,7 +50,7 @@ step "Unit, property and model tests, with coverage thresholds"
 npm run --silent test:coverage
 
 step "Push delivery bundle matches its source"
-npm run --silent worker:build
+npm run --silent build:push-delivery
 if ! git diff --quiet -- supabase/functions; then
   echo "x the bundle was behind its source; it is rebuilt now. Commit supabase/functions."
   exit 1
@@ -81,4 +81,4 @@ npm run --silent db:start
 step "P0 web UI tests on the export (ui-web)"
 npm run test:ui:web -- --grep @p0 --grep-invert @quarantine
 
-printf '\nall guardrails: passed (web-smoke in Firefox and WebKit runs only in CI, or npm run test:web)\n'
+printf '\nall guardrails: passed (web-smoke in Firefox and WebKit runs only in CI, or npm run test:web-smoke)\n'
