@@ -125,6 +125,13 @@ export class KeptFill {
     return { filled: this.total - left, total: this.total };
   }
 
+  /** Rows still to fill in, by the server's count when the fill began. */
+  rowsLeft(): number {
+    let n = 0;
+    for (const [u, rows] of this.meta?.todo ?? []) if (!this.kept.isFilled(u)) n += rows;
+    return n;
+  }
+
   /** The newest snapshot any row came from (0 with no fill). */
   get rowsSeq(): number {
     return this.meta?.rowsSeq ?? 0;

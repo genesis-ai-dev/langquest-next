@@ -39,7 +39,7 @@ function sqlite(): EventStore {
 
 let makeStore: () => EventStore = () => new MemoryStore();
 
-interface PhoneOpts { fillPageRows?: number; keepOnDisk?: boolean; checkpointEvery?: number; pullPageSize?: number; store?: EventStore; fillFirst?: () => Iterable<string>; keptFormat?: number; fillBudgetMs?: number }
+interface PhoneOpts { fillAtOnceRows?: number; fillPageRows?: number; keepOnDisk?: boolean; checkpointEvery?: number; pullPageSize?: number; store?: EventStore; fillFirst?: () => Iterable<string>; keptFormat?: number; fillBudgetMs?: number }
 
 function phone(server: FakeServer, deviceId: string, actorId: string, opts: PhoneOpts = {}) {
   const store = opts.store ?? makeStore();
@@ -52,7 +52,9 @@ function phone(server: FakeServer, deviceId: string, actorId: string, opts: Phon
     ...(opts.fillFirst ? { fillFirst: opts.fillFirst } : {}),
     ...(opts.keptFormat ? { keptFormat: opts.keptFormat } : {}),
     ...(opts.fillBudgetMs !== undefined ? { fillBudgetMs: opts.fillBudgetMs } : {}),
-    fillPageRows: opts.fillPageRows ?? 6
+    fillPageRows: opts.fillPageRows ?? 6,
+    // These tests watch a fill run, so even a small language is filled a step at a time.
+    fillAtOnceRows: opts.fillAtOnceRows ?? 0
   });
   return { client, store };
 }
@@ -311,6 +313,23 @@ describe('a first download by fill (decisions.md 147)', () => {
     server.makeSnapshot('org1', 'p1');
     await settle(client);
     expect(await store.keptById('org1', 'p1', 'recording', ['r-w2'])).toHaveLength(0);
+    expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage([...server.stream('org1', 'p1')], emptyLanguageState())));
+  });
+});
+
+describe('a small language (decisions.md 147)', () => {
+  it('is whole on the device when its first sync ends: filled in at once, right after its Map opens', async () => {
+    // Why: most languages are small. Someone who opens one and goes offline straight away must have every passage, as before the cut.
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 12);
+    server.makeSnapshot('org1', 'p1');
+    const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true, fillAtOnceRows: 2_000 });
+    await client.load();
+    const r = await client.sync();
+    expect(r.filling).toBe(false);
+    expect(client.fillProgress()).toBeNull();
+    expect(server.chunkCalls).toBe(0);
     expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage([...server.stream('org1', 'p1')], emptyLanguageState())));
   });
 });

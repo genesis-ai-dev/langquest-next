@@ -179,6 +179,8 @@ export interface SyncClientOptions<S = LanguageState> {
   fillFirst?: () => Iterable<string>;
   /** Wall time one `sync()` may spend filling in passages' rows once the language is up to date. */
   fillBudgetMs?: number;
+  /** A first download fills a language of at most this many rows in at once (`FILL_AT_ONCE_ROWS`); a test sets 0 to watch a fill run. */
+  fillAtOnceRows?: number;
   /** Rows a fill asks for at once (`ROWS_PER_PAGE`); a test makes it small. */
   fillPageRows?: number;
   /** The kept checkpoint format this build writes; a test sets an older one to play a build from before. */
@@ -224,6 +226,13 @@ const NO_SNAPSHOT_RECHECK_MS = 5 * 60 * 1000;
  * pieces; few enough that a dropped link wastes little.
  */
 const SNAPSHOT_PIECES_IN_FLIGHT = 3;
+/**
+ * A first download from the server's cut fills a language with at most this
+ * many rows in at once, right after its Map opens (two requests): most
+ * languages are this small, and are then whole on the device as soon as the
+ * first sync ends, as before the cut (decisions.md 147).
+ */
+const FILL_AT_ONCE_ROWS = 2_000;
 /** Kept records written per commit while a snapshot is read: bounded memory, few transactions. */
 const KEPT_ROWS_PER_COMMIT = 2_000;
 /** How long after a change the passages' lines are worked out: once for a burst of events (a pull's pages), not per page. */
@@ -822,11 +831,14 @@ export class SyncClient<S = LanguageState> {
     });
     // The Map opens on the shared part and the lines.
     await this.refold('snapshot');
-    // Passages the phone's own events touch (its unsent work, events pulled before) are filled in while the link is up.
+    // Passages the phone's own events touch (its unsent work, events pulled before) are filled in while the link is up;
+    // a small language is filled in whole.
     try {
-      if ((await this.fill.fillWanted()).length > 0) await this.afterFill();
+      const filled = this.fill.rowsLeft() <= (this.opts.fillAtOnceRows ?? FILL_AT_ONCE_ROWS) ? await this.fill.step(Infinity) : await this.fill.fillWanted();
+      if (filled.length > 0) await this.afterFill();
     } catch (err) {
-      if (!(err instanceof OfflineError)) throw err;
+      // Offline, or the cut went away this instant: the fill goes on (or starts over) at the next step.
+      if (!(err instanceof OfflineError) && !(err instanceof CutGoneError)) throw err;
     }
     return head.serverSeq;
   }

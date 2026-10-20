@@ -183,15 +183,16 @@ export function PassageNotHere(props: { ctx: Ctx; unitId: string }) {
   const line = ctx.language.lines.get(unitId);
   const title = state ? unitTitle(state, unitId) : '';
   const status = state ? passageSummary(line, deriveKinds(state), ctx.session.actorId, (id) => ctx.name(id, true)) : '';
-  const facts = sentences(
+  // One fact a line: where it stands, its latest version and by whom, its open requests.
+  const facts = [
     status,
     line.latest ? t('offline.notHere.latest', { n: line.latest.n, name: ctx.name(line.latest.by, true) }) : null,
-    line.openRequests.length ? t('offline.notHere.requests', { count: line.openRequests.length }) : null
-  );
+    line.openRequests.length ? t('offline.notHere.requests', { n: line.openRequests.length }) : null
+  ].filter((f): f is string => !!f);
   return (
     <Screen header={<Header title={title} onBack={ctx.back} />}>
-      <Card accessibilityLabel={t('shell.a11y.labelDetail', { label: title, detail: facts })}>
-        <Text style={txt.body}>{facts}</Text>
+      <Card accessibilityLabel={t('shell.a11y.labelDetail', { label: title, detail: facts.join(' ') })}>
+        {facts.map((f) => <Text key={f} style={txt.body}>{f}</Text>)}
       </Card>
       <Card>
         <Block icon="notOnPhone" tint={TINT.amberText} bg={TINT.amber} title={t('offline.notHere.title')} body={t('offline.notHere.body')} />

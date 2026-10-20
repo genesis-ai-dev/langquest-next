@@ -140,7 +140,10 @@ export async function openPassageByBook(page: Page, world: UiWorld, key: Passage
   await expect(text(page, 'Something else?')).toBeVisible();
 }
 
-/** Wait until this device holds LANG-A (its Map lists Luke), then go back to My Work: ready to go offline. */
+/**
+ * Wait until this device holds LANG-A (its Map lists Luke, and no passage is
+ * still downloading: decisions.md 147), then go back to My Work: ready to go offline.
+ */
 export async function languageLoaded(page: Page): Promise<void> {
   await page.getByTestId('tab-map').locator('visible=true').last().click();
   const luke = page.getByRole('button', { name: /^Luke/ }).locator('visible=true');
@@ -148,6 +151,7 @@ export async function languageLoaded(page: Page): Promise<void> {
   await expect(luke.or(alpha).first()).toBeVisible({ timeout: 60_000 });
   if (!(await luke.count())) await alpha.click();
   await expect(luke.first()).toBeVisible({ timeout: 60_000 });
+  await expect(text(page, 'Downloading this language')).toBeHidden({ timeout: 60_000 });
   await page.getByTestId('tab-work').locator('visible=true').last().click();
 }
 
