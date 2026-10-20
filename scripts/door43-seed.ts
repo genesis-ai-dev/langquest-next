@@ -190,6 +190,7 @@ const put = (ctx: Ctx, doc: Record<string, unknown>) => {
   ctx.stats.bytes += bytes;
   ctx.itemLargest = Math.max(ctx.itemLargest, bytes);
   if (bytes > MAX_DOC) throw new Error(`a ${String(doc['format'])} of ${(bytes / 1048576).toFixed(1)} MB is over the server's 4 MB`);
+  if (text.includes('\\u0000')) throw new Error(`a ${String(doc['format'])} with a NUL character, which the server cannot store`);
   return ctx.sink.put(doc);
 };
 
@@ -211,7 +212,8 @@ function release(zip: string): Release & { done: () => void } {
   const prefix = tops.size === 1 && z.names.every((n) => n.includes('/')) ? `${[...tops][0]}/` : '';
   const files = z.names.map((n) => n.slice(prefix.length)).filter(Boolean).sort();
   const bytes = (p: string) => z.bytes(prefix + p);
-  const read = (p: string) => bytes(p)?.toString('utf8');
+  // A few files carry stray control characters (NULs in one Bible): Postgres stores no NUL in JSON, and none is text.
+  const read = (p: string) => bytes(p)?.toString('utf8').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
   const raw = read('manifest.yaml');
   let manifest: Record<string, unknown> = {};
   try { manifest = raw ? (parseYaml(raw) as Record<string, unknown>) ?? {} : {}; } catch { manifest = {}; }
@@ -652,7 +654,8 @@ export async function buildDoor43(opts: {
       const publisher = publisherName(c.entry, typeof dc['publisher'] === 'string' ? dc['publisher'] : undefined);
       const credit = creditOf(r.read('LICENSE.md'), { owner: c.entry.owner, ownerName: publisher, url: c.entry.url });
       const languageName = languageLabel(c.entry, c.language);
-      const name = itemName(c, languageName, publisher);
+      // Rival sets are told apart by the organization that publishes each on Door43: two may name one publisher.
+      const name = itemName(c, languageName, publisherName(c.entry));
       log(`  ${label}: ${name}`);
       const meta = { license, credit, name, languageName, publisher };
       const before = { ...ctx.stats };
