@@ -5672,7 +5672,9 @@
       "clusterHelp": "N’affiche que les langues de ce groupe. Le nombre indique combien.",
       "noClusterHelp": "N’affiche que les langues qui ne sont dans aucun groupe. Le nombre indique combien.",
       "allCountriesHelp": "Affiche les langues de tous les pays.",
-      "countryHelp": "N’affiche que les langues de ce pays."
+      "countryHelp": "N’affiche que les langues de ce pays.",
+      "preparingTitle": "Rapports en préparation",
+      "preparingBody": "{{names}}. Le serveur prépare ces rapports en quelques minutes ; ils s’afficheront ici ensuite."
     },
     "overview": {
       "across_one": "Sur {{count, number}} langue · {{recent}} ces quatre dernières semaines",

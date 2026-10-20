@@ -291,6 +291,29 @@ describe('OrgFolder with the report inputs the projection pass stored (decision 
     expect(languages(out)).toEqual(['din', 'nus']);
   });
 
+  it('never folds a language too big for the isolate: it is being prepared until the pass stores its inputs', async () => {
+    // Why: a Bible-size language folded whole does not fit the object's 128 MB (decisions.md 132, 147). Before the pass
+    // first reaches it, or after a new REPORT_VERSION until the pass rewrites it, it has no stored inputs.
+    const log = orgLog();
+    const { source, store } = withInputs(log, ['din']);
+    const heads = source.heads!;
+    source.heads = async (org) => ({ ...(await heads(org)), nus: FOLD_ON_CATCH_UP_EVENTS + 1 });
+    let now = at;
+    const folder = new OrgFolder(source, ORG, new MemoryCache(), () => now);
+    const out = await folder.reportsFor('admin');
+    expect(languagePulls(log)).toEqual([]);
+    expect(languages(out)).toEqual(['din']);
+    expect(out!.preparing).toEqual([{ languageId: 'nus', name: 'Nuer' }]);
+    // Asked for fresh, still no fold; once the pass has stored its inputs, its report shows.
+    expect((await folder.reportsFor('admin', true))!.preparing).toHaveLength(1);
+    store('nus');
+    now += 60_000;
+    const later = await folder.reportsFor('admin', true);
+    expect(languagePulls(log)).toEqual([]);
+    expect(languages(later)).toEqual(['din', 'nus']);
+    expect(later!.preparing).toBeUndefined();
+  });
+
   it('folds every language when the stored inputs cannot be read', async () => {
     const log = orgLog();
     const { source } = withInputs(log, ['din', 'nus']);
@@ -544,6 +567,14 @@ describe('the reports API', () => {
     expect(res.headers.get('x-as-of')).toBe(later.asOf);
     expect(res.headers.get('cache-control')).toBe('private, no-store');
     expect(await res.text()).toBe('');
+  });
+
+  it('names the languages whose report is being prepared, and a language becoming ready changes the ETag', async () => {
+    const preparing = [{ languageId: 'big', name: 'Koro Miyan' }];
+    const waiting = await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => ({ ...body, preparing }) }));
+    expect((await waiting.json()).preparing).toEqual(preparing);
+    const ready = await handleApi(get('/api/orgs/o/reports', 'good'), deps());
+    expect(waiting.headers.get('etag')).not.toBe(ready.headers.get('etag'));
   });
 
   it('lets a local development origin call it, and nobody else', async () => {

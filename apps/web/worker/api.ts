@@ -104,7 +104,9 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   }
   if (!out) return json(403, { error: 'You are not a member of this organization.' });
   const body = url.searchParams.get('view') === 'summary' ? summarizeReports(out) : withOverdueZero(out);
-  const headers = { etag: await etagOf(body.rows), 'x-as-of': body.asOf };
+  // A language moving out of "being prepared" changes the answer, not only its rows.
+  const preparing = 'preparing' in body ? body.preparing ?? [] : [];
+  const headers = { etag: await etagOf(preparing.length ? { rows: body.rows, preparing } : body.rows), 'x-as-of': body.asOf };
   if (request.headers.get('if-none-match') === headers.etag) return new Response(null, { status: 304, headers: { ...NO_STORE, ...headers } });
   return json(200, body, headers);
 }

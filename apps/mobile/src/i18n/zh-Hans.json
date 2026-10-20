@@ -5248,7 +5248,9 @@
       "clusterHelp": "只显示这个语言群的语言。数字表示有多少个。",
       "noClusterHelp": "只显示不属于任何语言群的语言。数字表示有多少个。",
       "allCountriesHelp": "显示所有国家的语言。",
-      "countryHelp": "只显示这个国家的语言。"
+      "countryHelp": "只显示这个国家的语言。",
+      "preparingTitle": "报告正在准备中",
+      "preparingBody": "{{names}}。服务器会在几分钟内准备好这些报告，届时会显示在这里。"
     },
     "overview": {
       "across_other": "共 {{count, number}} 个语言 · 最近四周 {{recent}}",

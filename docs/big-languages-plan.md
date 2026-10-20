@@ -381,7 +381,9 @@ designed above, with these choices and corrections:
   kept `SyncClient` per language over its own SQLite
   (`apps/web/worker/languageRecords.ts`), first downloaded from the cut. The
   access-token API, MCP, review links and webhooks read a few passages at a
-  time; Reports keep their stored inputs (decision 142). A Bible-size
+  time; Reports render from their stored inputs (decision 142), and a
+  language past 25,000 events with none stored yet is shown as being
+  prepared, never folded in the object. A Bible-size
   language (4,000 passages of 15 versions) lists and scans inside the
   isolate's heap; folded whole it runs out of memory
   (`apps/web/test/memory/orgFolderMemory.test.ts`).

@@ -5248,7 +5248,9 @@
       "clusterHelp": "Hanya menampilkan bahasa dalam rumpun ini. Angkanya menunjukkan jumlahnya.",
       "noClusterHelp": "Hanya menampilkan bahasa yang tidak masuk rumpun mana pun. Angkanya menunjukkan jumlahnya.",
       "allCountriesHelp": "Menampilkan bahasa di semua negara.",
-      "countryHelp": "Hanya menampilkan bahasa di negara ini."
+      "countryHelp": "Hanya menampilkan bahasa di negara ini.",
+      "preparingTitle": "Laporan sedang disiapkan",
+      "preparingBody": "{{names}}. Server menyiapkan laporan ini dalam beberapa menit, lalu laporan muncul di sini."
     },
     "overview": {
       "across_other": "Dari {{count, number}} bahasa · {{recent}} dalam empat minggu terakhir",

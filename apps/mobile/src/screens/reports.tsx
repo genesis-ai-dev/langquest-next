@@ -115,7 +115,12 @@ export function ReportsHome(ctx: Ctx) {
           <View style={{ alignSelf: 'flex-start', marginTop: space.sm }}><SmallBtn label={t('common.tryAgain')} icon="restart" help={t('help.details.tryAgain')} onPress={reports.reload} /></View>
         </Notice>
       ) : null}
-      {reports.status === 'ready' && all.length === 0 ? <NoReports what="languages" /> : null}
+      {/* A big language the server has not worked a report out for yet (decisions.md 147): named, so it is not just missing. */}
+      {reports.status === 'ready' && reports.preparing.length ? (
+        <Notice tone="gray" icon="progress" title={t('reports.home.preparingTitle')}
+          body={t('reports.home.preparingBody', { names: reports.preparing.map((p) => p.name).join(', ') })} />
+      ) : null}
+      {reports.status === 'ready' && all.length === 0 && reports.preparing.length === 0 ? <NoReports what="languages" /> : null}
       {all.length > 0 ? (
         section === 'overview' ? <Overview {...props} />
           : section === 'activity' ? <Activity {...props} days={days} setDays={setDays} />

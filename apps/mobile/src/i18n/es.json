@@ -5672,7 +5672,9 @@
       "clusterHelp": "Muestra solo los idiomas de este grupo. El número indica cuántos son.",
       "noClusterHelp": "Muestra solo los idiomas que no están en ningún grupo. El número indica cuántos son.",
       "allCountriesHelp": "Muestra los idiomas de todos los países.",
-      "countryHelp": "Muestra solo los idiomas de este país."
+      "countryHelp": "Muestra solo los idiomas de este país.",
+      "preparingTitle": "Informes en preparación",
+      "preparingBody": "{{names}}. El servidor prepara estos informes en unos minutos y aparecerán aquí entonces."
     },
     "overview": {
       "across_one": "En {{count, number}} idioma · {{recent}} en las últimas cuatro semanas",
