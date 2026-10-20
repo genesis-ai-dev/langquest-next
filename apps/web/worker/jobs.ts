@@ -104,9 +104,22 @@ export class JobRunner extends DurableObject<Env> {
     await this.ctx.storage.setAlarm(Date.now() + HEARTBEAT_MS);
   }
 
-  /** Record how the run ends while this instance is alive: a resolved monitor is exit 0, a rejected one carries the code. */
+  /** Whether this instance already waits on the run's monitor. */
+  private watching = false;
+  /** The end being recorded, so two ends (a watcher and a beat or tick) are recorded one after the other. */
+  private ending: Promise<void> = Promise.resolve();
+
+  /**
+   * Record how the run ends while this instance is alive: a resolved monitor
+   * is exit 0, a rejected one carries the code. Once per instance: each
+   * minute's beat used to add a watcher, and a killed run got a row from each.
+   */
   private watch(): void {
-    this.ctx.waitUntil(this.container.monitor().then(() => this.stopped(0), (error: unknown) => this.stopped(exitCodeOf(error))));
+    if (this.watching) return;
+    this.watching = true;
+    this.ctx.waitUntil(this.container.monitor()
+      .then(() => this.stopped(0), (error: unknown) => this.stopped(exitCodeOf(error)))
+      .finally(() => { this.watching = false; }));
   }
 
   /** A stopped container still says how it ended when asked; if it does not soon, the end is recorded without a code. */
@@ -116,8 +129,14 @@ export class JobRunner extends DurableObject<Env> {
     await this.stopped(await Promise.race([ended, timeout]));
   }
 
-  /** Once per run: clear its mark and heartbeat, and write a row when the process could not. */
-  private async stopped(exit: Exit): Promise<void> {
+  /** Once per run: clear its mark and heartbeat, and write a row when the process could not. One end at a time; the second finds no mark. */
+  private stopped(exit: Exit): Promise<void> {
+    const next = this.ending.then(() => this.end(exit));
+    this.ending = next.catch(() => {});
+    return next;
+  }
+
+  private async end(exit: Exit): Promise<void> {
     const mark = await this.ctx.storage.get<RunMark>('run');
     if (!mark) return;
     await this.ctx.storage.delete('run');

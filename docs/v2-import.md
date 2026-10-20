@@ -206,7 +206,10 @@ the rest.
   Worker (`PUT /api/blobs/…`, which appends `BlobStored`), as the first
   import did. `v2_import.files` remembers each v2 file name's hash, size,
   duration and format, so later passes and cloned projects (which share
-  file names) never download it again.
+  file names) never download it again. A file v2 does not have is asked
+  for on every pass for its first hour, since a phone's upload can trail
+  its rows, then only by the whole read or a transfer someone starts, for
+  a week (decisions.md 94).
 - **Where it runs.** The dashboard runs a transfer on the computer it is
   open on; `npm run v2 -- sync` does one pass from the command line; and
   the job container behind the app's Worker runs a pass every 15
@@ -217,7 +220,9 @@ the rest.
   without it. v2's read-only login, when `.env.production` has it, goes
   there too and names people.
   All three write the same progress and log. A pass that stops is finished
-  by the next. The job's logs name projects by id only, as CI's did.
+  by the next, and a whole read stopped within a day resumes, skipping the
+  projects read since it began (decisions.md 94). The job's logs name
+  projects by id only, as CI's did.
 - **How much audio.** Measured on 2026-10-12 from v2's `storage.objects`
   (`metadata->>'size'`): the `assets` bucket holds 808,198 files, 232 GB
   (215 GB WAV, 12 GB m4a, 300 kB on average). Live recordings name
