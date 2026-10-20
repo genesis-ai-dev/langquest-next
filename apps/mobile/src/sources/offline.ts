@@ -22,7 +22,11 @@ import * as Crypto from 'expo-crypto';
 import { File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { BlobStore, getBlobStore, type BlobFile } from '../sync/blobs';
-import { loadDocs } from '../library/docStore';
+import { evictDocs, loadDocs } from '../library/docStore';
+import { libraryItems, type LibraryDoc } from '@langquest-next/core';
+import { alignmentHash, helpsPassage, offeredHelps, offlineHelpDocs, usesTemplate } from '../helps/libraryHelpsModel';
+import { offeredGuideSources } from '../reference/offered';
+import { teamLanguages } from '../reference/languages';
 import { noteExpected } from '../diagnostics/report';
 import { timedTransfer } from '../diagnostics/diagnostics';
 import type { Session } from '../shell/session';
@@ -39,6 +43,10 @@ export { audioFormatOf, bbKey, libAudioKey };
 
 /** The sources' share of the 2 GB blob cache. */
 const SOURCE_CACHE_BYTES = 1024 * 1024 * 1024;
+/** What passages fetch of the library for themselves (books of sources and helps, alignments, guides, articles) may keep on the phone. */
+const LIBRARY_DOC_BYTES = 256 * 1024 * 1024;
+/** The room kept free for recording (sync/useLanguage.ts LIMITS): below it, every fetched document outside the kept passages goes. */
+const MIN_FREE_BYTES = 500 * 1024 * 1024;
 const INDEX_KEY = 'source-audio:index';
 /** Files fetched per pass; the next pass carries on. */
 const PER_PASS = 40;
@@ -152,6 +160,42 @@ const checkedFilesets = new Set<string>();
 /** Links that failed this session (on the web, a host that does not allow cross-origin reads); not tried again until the app restarts. */
 const failedLinks = new Set<string>();
 
+/**
+ * Fetch what the scope's passages need of their library helps, and answer
+ * every document they need (to keep when space runs low).
+ */
+async function helpsOffline(language: LanguageHandle, org: OrgHandle, scope: ReadonlySet<string>, sources: readonly SourceDoc[]): Promise<string[]> {
+  const state = language.state;
+  if (!state) return [];
+  const library = org.state?.library ?? {};
+  const reads = teamLanguages(org.state, state, language.languageId);
+  const units = [...scope];
+  const groups = units.map((u) => offeredGuideSources(library, org.state?.recommendations, state, u));
+  const index = new Map<string, LibraryDoc>();
+  const want = [...new Set(groups.flatMap((g) => [...g.recommended, ...g.own].map((s) => s.hash)).concat(state.template?.value?.docHash ? [state.template.value.docHash] : []))];
+  for (const [h, d] of await loadDocs(language.orgId, want)) index.set(h, d);
+  const get = (h: string | null | undefined) => (h ? index.get(h) ?? null : null);
+  const out = new Set<string>(index.keys());
+  const passages = [];
+  const books = new Set<string>();
+  for (const [i, u] of units.entries()) {
+    const sets = offeredHelps(groups[i]!, get, reads);
+    const placedOn = [...sets.notes, ...sets.questions, ...sets.wordLinks].map((s) => s.doc.template).find(Boolean);
+    const p = helpsPassage(state, u, get, !!placedOn && usesTemplate(state, library, placedOn));
+    if (!p) continue;
+    passages.push({ p, sets });
+    if (p.kind === 'bible') books.add(p.range.book);
+  }
+  const pieces = new Set<string>();
+  for (const { p, sets } of passages) for (const h of offlineHelpDocs([p], sets, get).pieces) pieces.add(h);
+  for (const s of sources) for (const b of books) { const a = alignmentHash(s, b); if (a) pieces.add(a); }
+  for (const [h, d] of await loadDocs(language.orgId, [...pieces], { deps: false })) { index.set(h, d); out.add(h); }
+  const articles = new Set<string>();
+  for (const { p, sets } of passages) for (const h of offlineHelpDocs([p], sets, get).articles) articles.add(h);
+  for (const h of (await loadDocs(language.orgId, [...articles], { deps: false })).keys()) out.add(h);
+  return [...out];
+}
+
 export async function pass(language: LanguageHandle, org: OrgHandle, session: Session): Promise<void> {
   const state = language.state;
   if (!state || !language.languageId || language.online === false || isRecording()) return;
@@ -178,6 +222,20 @@ export async function pass(language: LanguageHandle, org: OrgHandle, session: Se
     }
   }
   const wants: Want[] = wantedChapters(scope, options, docs);
+
+  // The kept passages' helps from the library go offline with them: their books' notes, questions and
+  // key-word links, the Bibles' alignments of those books, and their key words' articles.
+  const keptDocs = new Set<string>([...docs.keys()]);
+  try {
+    for (const h of await helpsOffline(language, org, scope, options.flatMap((o) => (o.doc ? [o.doc] : [])))) keptDocs.add(h);
+  } catch (e) {
+    noteExpected('sources offline: helps', e, classifyTransferFailure(e));
+  }
+  // Fetched documents count toward the phone's storage: outside the kept passages and the organization's
+  // own items, the least lately used go first (docStore.ts evictDocs).
+  for (const it of libraryItems(org.state?.library ?? {})) if (it.current) keptDocs.add(it.current);
+  const lowSpace = Platform.OS !== 'web' && Paths.availableDiskSpace < MIN_FREE_BYTES;
+  await evictDocs([language.orgId], keptDocs, { capBytes: LIBRARY_DOC_BYTES, lowSpace }).catch((e: unknown) => noteExpected('library documents: evict', e));
 
   const keep = new Set(wants.map((w) => w.key));
   // Over the cap: out-of-scope files go first.

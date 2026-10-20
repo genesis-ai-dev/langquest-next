@@ -20,6 +20,8 @@ import { C, space, TINT } from '../ui/theme';
 import { ChoiceCard, DashedRow, LockToggle } from '../admin/admin';
 import { checkName, checksLine, dropIndex } from '../admin/adminModel';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
+import { useFlowHelps } from './useFlowHelps';
+import { FlowLanguageLink } from './FlowLanguage';
 import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, type CheckRow } from './model';
 import { setChecksDraft } from './draft';
 import { useChecksDraft } from './useChecksDraft';
@@ -235,8 +237,9 @@ function FlowsSheet(props: { ctx: Ctx; visible: boolean; kinds: KindDef[]; langu
       footer={on ? <PrimaryBtn label={t('checks.flows.use', { name: on.c.name })} help={t('checks.flows.useHelp', { language: props.language })} onPress={() => props.onUse(on, chk.kindsOf(on.doc))} /> : undefined}>
       {chk.entries.length === 0 ? <Text style={txt.smMuted}>{chk.loaded ? t('getReady.checks.noWays') : t('common.loading')}</Text> : null}
       {chk.entries.map((e) => (
-        <HelpRow key={e.c.key} of="checks.flow">
+        <HelpRow key={e.set?.key ?? e.c.key} of="checks.flow">
           <ChoiceCard on={picked === e.c.key} icon="route" title={e.c.name} sub={checksLine(e.doc.steps, chk.kindsOf(e.doc))} help={t('checks.flows.pickHelp')} onPress={() => setPicked(e.c.key)} />
+          <FlowLanguageLink entry={e} onPick={(k) => { chk.chooseIn(e.set!.key, k); if (picked === e.c.key) setPicked(k); }} />
         </HelpRow>
       ))}
     </Sheet>
@@ -249,6 +252,8 @@ export function LanguageChecks({ ctx }: { ctx: Ctx }) {
 }
 
 function OwnChecks({ ctx }: { ctx: Ctx }) {
+  // A ready-made flow's helps are followed and linked to its checks as it is copied in.
+  const flowHelps = useFlowHelps(ctx);
   const state = ctx.language.state;
   const languageId = ctx.language.languageId;
   const language = languageName(ctx.org.state, languageId);
@@ -292,15 +297,17 @@ function OwnChecks({ ctx }: { ctx: Ctx }) {
       <FlowsSheet ctx={ctx} visible={flows} kinds={known} language={language} onClose={() => setFlows(false)} onUse={(e, kinds) => {
         setFlows(false);
         const previous = { flow: state.flow?.value ?? null, steps: deriveFlow(state).steps };
-        let specs: EventSpec[];
-        try {
-          specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: e.c.name, kinds, steps: e.doc.steps });
-        } catch (err) {
-          ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) })); // i18n-ignore: log label
-          return;
-        }
-        const said = t('checks.flows.used', { name: e.c.name, language });
-        void ctx.act(specs, said).then(() => undo.did(previous, said), () => {});
+        void flowHelps(e).then((extras) => {
+          let specs: EventSpec[];
+          try {
+            specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: e.c.name, kinds, steps: e.doc.steps, ...extras });
+          } catch (err) {
+            ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) })); // i18n-ignore: log label
+            return;
+          }
+          const said = t('checks.flows.used', { name: e.c.name, language });
+          void ctx.act(specs, said).then(() => undo.did(previous, said), () => {});
+        });
       }} />
     </Screen>
   );

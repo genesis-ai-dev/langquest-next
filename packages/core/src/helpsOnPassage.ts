@@ -143,3 +143,6 @@ export function passageQuestions(itemId: string, set: HelpsDoc, book: HelpBookDo
 
 /** The original words a row is about, for underlining (empty when its quote was not found). */
 export const rowWords = (row: HelpRow): string[] => row.words ?? [];
+
+/** A question of a library set asked of every passage, with an id that names its set: answers are kept by it. */
+export const helpsQuestionSpec = (itemId: string, q: QuestionSpec): QuestionSpec => ({ ...q, id: `${itemId}/${q.id}` });

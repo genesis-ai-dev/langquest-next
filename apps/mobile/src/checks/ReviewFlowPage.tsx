@@ -19,6 +19,8 @@ import { failureMessage } from '../diagnostics/report';
 import { NumberedSteps, PickCard, RadioRow } from '../admin/admin';
 import { checksLine, flowSub, flowWho, sameChecks } from '../admin/adminModel';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
+import { useFlowHelps } from './useFlowHelps';
+import { FlowLanguageLink } from './FlowLanguage';
 
 const PAD = { paddingHorizontal: 20, gap: 14 } as const;
 
@@ -28,7 +30,8 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
   const language = languageName(ctx.org.state, languageId);
   const kinds = useMemo(() => deriveKinds(state), [state]);
   const flow = useMemo(() => deriveFlow(state), [state]);
-  const { entries, current, kindsOf, loaded } = useCheckChoices(ctx, flow.itemId, kinds);
+  const { entries, current, kindsOf, loaded, chooseIn } = useCheckChoices(ctx, flow.itemId, kinds);
+  const flowHelps = useFlowHelps(ctx);
   // Each named as the language's page names its checks: in order (decision 138).
   const nameOf = (e: FlowEntry) => checksLine(e.doc.steps, kindsOf(e.doc));
   const canUse = ctx.session.can('manage_flows');
@@ -45,10 +48,11 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
   async function take(e: FlowEntry) {
     if (busy) return;
     setBusy(true);
+    const extras = await flowHelps(e);
     let specs: EventSpec[];
     try {
-      // A ready-made flow is copied into the language, its checks the language's own (decision 91).
-      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: e.c.name, kinds: kindsOf(e.doc), steps: e.doc.steps });
+      // A ready-made flow is copied into the language, its checks the language's own (decision 91), with its helps and shows.
+      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: e.c.name, kinds: kindsOf(e.doc), steps: e.doc.steps, ...extras });
     } catch (err) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('use flow', err) })); // i18n-ignore: log label
       setBusy(false);
@@ -74,9 +78,10 @@ export function ReviewFlowPage({ ctx }: { ctx: Ctx }) {
         {flow.steps.length ? <NumberedSteps items={flowWho(flow.steps, kinds)} /> : null}
       </PickCard>
       {options.map((e) => (
-        <HelpRow key={e.c.key} of="getReady.flow.option">
+        <HelpRow key={e.set?.key ?? e.c.key} of="getReady.flow.option">
           <RadioRow icon="people" label={nameOf(e)} sub={flowSub(e.doc.steps)} on={picked === e.c.key}
             help={canUse ? t('checks.flows.pickHelp') : t('getReady.flow.optionViewHelp')} onPress={() => { if (canUse) setPicked(picked === e.c.key ? null : e.c.key); }} />
+          <FlowLanguageLink entry={e} onPick={(k) => { chooseIn(e.set!.key, k); if (picked === e.c.key) setPicked(k); }} />
         </HelpRow>
       ))}
       {entries.length === 0 && !loaded ? <Text style={txt.smMuted}>{t('common.loading')}</Text> : null}

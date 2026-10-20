@@ -37,6 +37,22 @@ const ENGLISH: Record<CheckId, { usualReviewer: string; description: string }> =
   quality: { usualReviewer: 'Church network delegates or quality checkers', description: 'Delegates the church leaders chose check the meaning against the Hebrew and Greek, asking about anything that might be wrong.' }
 };
 
+/**
+ * The team check in manuals from before it was written (Hindi, Gujarati,
+ * Marathi, Odia, Croatian, Russian, French): LangQuest's own words, not the
+ * manual's, until Caleb says otherwise (2026-10-20). The one place to change
+ * it: name it in English instead (`fallback` alone), or leave the check out.
+ */
+export const OWN_TEAM_CHECK: Record<string, { name: string; description: string }> = {
+  hin: { name: 'दल की मौखिक अंश जाँच', description: 'पूरा अनुवाद दल हर अंश सुनता है: एक स्वाभाविक बोली के लिए सुनता है, एक स्रोत के साथ चलता है, एक मुख्य शब्दों पर ध्यान देता है।' },
+  guj: { name: 'ટીમની મૌખિક ભાગ તપાસ', description: 'આખી અનુવાદ ટીમ દરેક ભાગ સાંભળે છે: એક સ્વાભાવિક બોલી માટે સાંભળે છે, એક સ્રોત સાથે ચાલે છે, એક મુખ્ય શબ્દો પર ધ્યાન આપે છે.' },
+  mar: { name: 'संघाची तोंडी भाग तपासणी', description: 'संपूर्ण भाषांतर संघ प्रत्येक भाग ऐकतो: एकजण नैसर्गिक बोलण्यासाठी ऐकतो, एकजण मूळ मजकुरासोबत चालतो, एकजण मुख्य शब्दांकडे लक्ष देतो.' },
+  ory: { name: 'ଦଳର ମୌଖିକ ଅଂଶ ଯାଞ୍ଚ', description: 'ସମଗ୍ର ଅନୁବାଦ ଦଳ ପ୍ରତ୍ୟେକ ଅଂଶ ଶୁଣନ୍ତି: ଜଣେ ସ୍ୱାଭାବିକ କଥା ପାଇଁ ଶୁଣନ୍ତି, ଜଣେ ମୂଳ ପାଠ ସହିତ ଚାଲନ୍ତି, ଜଣେ ମୁଖ୍ୟ ଶବ୍ଦଗୁଡ଼ିକ ଉପରେ ଧ୍ୟାନ ଦିଅନ୍ତି।' },
+  hrv: { name: 'Timska usmena provjera odlomaka', description: 'Cijeli prevoditeljski tim sluša svaki dio: jedan sluša je li govor prirodan, jedan prati izvornik, jedan pazi na ključne riječi.' },
+  rus: { name: 'Устная проверка отрывков командой', description: 'Вся команда переводчиков слушает каждый отрывок: один следит за естественностью речи, другой сверяет с источником, третий следит за ключевыми словами.' },
+  fra: { name: 'Vérification orale des passages en équipe', description: 'Toute l’équipe de traduction écoute chaque passage : l’un écoute si le parler est naturel, un autre suit le texte source, un autre veille aux mots clés.' }
+};
+
 export interface TocEntry { title: string; link?: string; sections?: TocEntry[] }
 
 export interface CheckingManual {
@@ -148,14 +164,16 @@ export function checkingFlow(input: {
 }): { doc: Record<string, unknown>; fromEnglish: CheckId[] } {
   const english = input.language === 'eng';
   const fromEnglish: CheckId[] = [];
+  const own = OWN_TEAM_CHECK[input.language];
   const kinds = CHECK_ORDER.map((id) => {
-    const name = input.manual.names[id] ?? input.fallback[id] ?? id;
-    if (!input.manual.names[id]) fromEnglish.push(id);
+    const ours = id === 'team' && !input.manual.names[id] ? own : undefined;
+    const name = input.manual.names[id] ?? ours?.name ?? input.fallback[id] ?? id;
+    if (!input.manual.names[id] && !ours) fromEnglish.push(id);
     return {
       id: `door43-${id}`,
       name,
       // Who does it and how, in English for the English flow; another language's manual says it in its articles.
-      description: english ? ENGLISH[id].description : '',
+      description: english ? ENGLISH[id].description : ours?.description ?? '',
       usualReviewer: english ? ENGLISH[id].usualReviewer : '',
       ...(id === 'bt' ? { withholdsContext: true, produces: { what: name, into: input.languageName, action: name, checkedBy: 'door43-quality' } } : {})
     };
@@ -172,8 +190,11 @@ export function checkingFlow(input: {
     { kindId: 'door43-community', what: 'bibleText', shown: false },
     { kindId: 'door43-community', what: 'bibleAudio', shown: false }
   ];
+  const description = own && !input.manual.names.team
+    ? `${input.description} The team check's name and description are LangQuest's own words: this manual has no article for it.`
+    : input.description;
   return {
-    doc: withFlowLanguage({ format: 'flow@1', name: input.name, description: input.description, kinds, steps, helps, shows, pattern: input.pattern, deps: [] }, input.language),
+    doc: withFlowLanguage({ format: 'flow@1', name: input.name, description, kinds, steps, helps, shows, pattern: input.pattern, deps: [] }, input.language),
     fromEnglish
   };
 }

@@ -5800,7 +5800,9 @@
         "version": "Version {{n}}",
         "aVersion": "A version",
         "study": "Study"
-      }
+      },
+      "suggestedAnswer": "Suggested answer: {{answer}}",
+      "questionAt": "Verse {{verse}}"
     },
     "parts": {
       "yourAnswer": "Your answer",
@@ -5970,7 +5972,8 @@
       "helpGuideHelp": "Opens the study guide for this passage.",
       "helpNoteHelp": "Opens it to read.",
       "howManyHelp": "Say how many listened. Optional.",
-      "doneRecordedHelp": "Puts the {{what}} on the passage's record."
+      "doneRecordedHelp": "Puts the {{what}} on the passage's record.",
+      "helpLibraryHelp": "Opens what this has for this passage."
     },
     "guest": {
       "previewSub": "Preview · what someone without the app sees",
@@ -6525,7 +6528,8 @@
       "verseTermsHelp": "Underlined words are key words: tap one to open it.",
       "verseTermsMarkedHelp": "Underlined words are key words.",
       "verseTiedHelp": "A tick after a key word means it is tied to your draft.",
-      "verseDotHelp": "Plays the Bible from this verse."
+      "verseDotHelp": "Plays the Bible from this verse.",
+      "verseAlignedHelp": "A solid line under words marks what the notes and key words here are about."
     },
     "keyWords": {
       "none": "No key words in this passage yet.",
@@ -6851,7 +6855,10 @@
       "startHelp": "Replaces the checks with a ready-made set, to change as you like.",
       "useHelp": "Replaces {{language}}'s checks with these. Undo puts them back.",
       "pickHelp": "Picks it. Use, at the bottom, then replaces the checks with its own.",
-      "replaceAsk": "Replace {{language}}'s own checks with {{name}}?"
+      "replaceAsk": "Replace {{language}}'s own checks with {{name}}?",
+      "inLanguage": "In {{language}} · other languages",
+      "inLanguageHelp": "Shows the languages this ready-made flow comes in, to use it in another.",
+      "languageTitle": "Which language?"
     },
     "gone": "This is no longer one of the language's checks",
     "checkOf": "Check {{n}} · {{language}}",
@@ -7157,5 +7164,23 @@
     "help": "Kept as you go: a spinner while it is being kept, then a check. There is nothing to save.",
     "failed": "Not saved",
     "saved": "Saved"
+  },
+  "helps": {
+    "library": {
+      "intro": "Introduction",
+      "verse": "Verse {{verse}}",
+      "supportLink": "How to translate this",
+      "supportHelp": "Opens the article this note points to, about translating this kind of thing.",
+      "keyWordsTitle": "Key words here",
+      "keyWordHelp": "Opens what this key word means and how it can be translated.",
+      "keyWordLabel": "{{word}}, {{where}}",
+      "addKeyWord": "Add to our key words",
+      "addKeyWordHelp": "Adds this word to your language's key words, where you say how your language says it.",
+      "backArticle": "Back to {{title}}",
+      "backArticleHelp": "Goes back to the article you were reading.",
+      "articleMissing": "This article isn't in your helps.",
+      "articleOffline": "This article isn't on this phone yet. It comes when you're online.",
+      "nothingHere": "Nothing of this for this passage."
+    }
   }
 }

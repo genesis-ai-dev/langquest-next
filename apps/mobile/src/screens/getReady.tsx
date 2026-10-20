@@ -11,6 +11,7 @@
 // checklist, '1'..'4' for the questions (Next walks on through the rest),
 // 'template', 'helps' and 'flow' for a ready language's three picks (decision 138). `only: '1'` opens
 // question 1 alone, as "What to translate" from a ready language's page.
+import { useFlowHelps } from '../checks/useFlowHelps';
 import {
   commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, languageProgress, materialsFor,
   goesWith, isTemplateDoc, recommendedFor, subscriptionItemId, templateBooks,
@@ -638,6 +639,7 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
 
   // Its own checks would be gone for good: it asks before a ready-made set replaces them (decision 134).
   const [replacing, setReplacing] = useState<FlowEntry | null>(null);
+  const flowHelps = useFlowHelps(ctx);
   async function answer() {
     if (busy) return;
     if (key === 'choose') { ctx.go('flow_editor', { languageId, steps: 'language' }); onChoose(); return; }
@@ -650,10 +652,11 @@ function ChecksStep({ ctx, header, next, onChoose }: StepProps & { onChoose: () 
   }
   async function takeFlow(pick: FlowEntry) {
     setBusy(true);
+    const extras = await flowHelps(pick);
     let specs: EventSpec[];
     try {
-      // A ready-made flow is copied into the language, its checks the language's own (decision 91).
-      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: pick.c.name, kinds: kindsOf(pick.doc), steps: pick.doc.steps });
+      // A ready-made flow is copied into the language, its checks the language's own (decision 91), with its helps and shows.
+      specs = commands(state, indexesFor(state)).copyFlow({ commandId: Crypto.randomUUID(), name: pick.c.name, kinds: kindsOf(pick.doc), steps: pick.doc.steps, ...extras });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: failureMessage('get ready: who checks', e) }));
       setBusy(false);

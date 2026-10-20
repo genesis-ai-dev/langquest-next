@@ -13,7 +13,9 @@ export interface HelpRow {
   name: string;
   sub?: string;
   icon: IconName;
-  open: { screen: 'material_editor'; params: Record<string, string> } | { screen: 'study_guide' } | { bible: string };
+  open: { screen: 'material_editor'; params: Record<string, string> } | { screen: 'study_guide' } | { bible: string }
+    /** A set of notes, key words or articles from the library: what it has on this passage, in a sheet. */
+    | { passage: string };
 }
 
 /** A check's helps (decision 91) with their names and how each opens. */
@@ -30,7 +32,11 @@ export function useCheckHelpRows(ctx: Ctx, state: LanguageState | null | undefin
     }
     const it = lib.item(h.itemId);
     if (!it) return [];
-    const kind = refKindOf(docs.get(it.current));
+    const doc = docs.get(it.current);
+    // A question set is asked, not read (the check's questions, decision 91 as amended 2026-10-19).
+    if ((doc?.format === 'helps@1' || doc?.format === 'material@1') && doc.kind === 'questions') return [];
+    if (doc?.format === 'helps@1' || doc?.format === 'contents@1') return [{ key: h.itemId, name: it.name, icon: doc.format === 'contents@1' ? 'book' : 'note', open: { passage: h.itemId } }];
+    const kind = refKindOf(doc);
     if (kind === 'source') return [{ key: h.itemId, name: it.name, icon: 'book', open: { bible: h.itemId } }];
     if (kind === 'guide') return [{ key: h.itemId, name: it.name, icon: 'sparkle', open: { screen: 'study_guide' } }];
     return [{ key: h.itemId, name: it.name, ...(it.description ? { sub: it.description } : {}), icon: 'note', open: { screen: 'material_editor', params: { itemId: h.itemId } } }];

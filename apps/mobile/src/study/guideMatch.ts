@@ -186,6 +186,12 @@ export function bestGuide(
         const n = study2Fit(passage, doc, get);
         const pick = { id: guideId(s.key, doc.ref ?? 'guide'), hash: s.hash, shared: n, mine: doc.language === language, source: s };
         if (n > 0 && better(pick, best)) best = pick;
+      } else if (doc.format === 'contents@1' && doc.kind === 'stories' && passage.unitId && !passage.range) {
+        // Stories placed on an outline template (Open Bible Stories): the entry for the passage's part.
+        const node = passage.unitId.slice(passage.unitId.lastIndexOf('/') + 1);
+        const entry = doc.entries.find((e) => e.id === node);
+        const pick = entry ? { id: guideId(s.key, node), hash: entry.doc, shared: NODE_MATCH, mine: doc.language === language, source: s } : null;
+        if (pick && better(pick, best)) best = pick;
       }
     }
     if (best) return { id: best.id, hash: best.hash, shared: best.shared, source: best.source };

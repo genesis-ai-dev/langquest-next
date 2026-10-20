@@ -28,12 +28,14 @@ const outboxKey = (orgId: string) => `library-outbox:${orgId}`;
 
 /**
  * Documents a passage fetches for itself (a source's book, a set's book of
- * helps, an alignment, a guide, an article): these count toward the
- * phone's storage limit, and those outside the person's kept passages go
- * first when it is reached (`evictDocs`). Everything else (an item's
- * version, a numbering, a list of books or articles) is small and stays.
+ * helps, an alignment, an article): these count toward the phone's storage
+ * limit, and those outside the person's kept passages go first when it is
+ * reached (`evictDocs`, from sources/offline.ts, which knows what the kept
+ * passages need). Everything else stays: an item's version, a numbering, a
+ * list of books or articles, and guides and timings, which the offline
+ * pass does not yet work out for the kept passages.
  */
-const PIECES = new Set(['sourceBook@1', 'helpBook@1', 'alignment@1', 'study@1', 'study@2', 'timing@1', 'material@1']);
+const PIECES = new Set(['sourceBook@1', 'helpBook@1', 'alignment@1', 'material@1']);
 const isPiece = (doc: LibraryDoc) => PIECES.has(doc.format) && (doc.format !== 'material@1' || doc.kind === 'document');
 
 /** hash -> its size on disk, when it was last read or written, and whether it is a piece. */

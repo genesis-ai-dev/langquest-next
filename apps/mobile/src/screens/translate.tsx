@@ -100,6 +100,9 @@ import { useSaveStatus } from '../ui/useSaveStatus';
 import { RecorderBar, RecorderFooter, RecorderPane, type Part } from '../recording/recorder';
 import type { UndoRedoProps } from '../ui/undoRedo';
 import { BibleBar, BiblePane, EarlierPane, KeyWordsPane, NotesPane, RequestNote } from '../helps/reference';
+import { useLibraryHelps } from '../helps/useLibraryHelps';
+import { verseMarks } from '../helps/libraryHelpsModel';
+import type { VerseRow } from '../sources/model';
 import { useBible } from '../helps/useBible';
 import { useUsage } from '../sources/useUsage';
 import { useStudyGuide } from '../study/useStudyGuides';
@@ -554,6 +557,9 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
   }, [sourceWords, unitTerms, tied]);
   const guide = useStudyGuide(ctx, unitId);
   const study = useMemo(() => (guide ? studyProgress(state, p, guide) : null), [state, p, guide]);
+  // Notes and key words from the library, and the words of an aligned Bible they are about.
+  const library = useLibraryHelps(ctx, unitId, bible.option?.doc ?? null);
+  const libraryMarks = useCallback((row: VerseRow) => verseMarks(row, library.alignment, library.notes, library.keyWords), [library]);
   // Notes and earlier work from the steps the recording shows (decisions.md 130).
   const notesFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'notes'), [state]);
   const earlierFrom = useMemo(() => fromFilter(state, RECORD_STEP, 'earlier'), [state]);
@@ -713,7 +719,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
               <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.paneBody} keyboardShouldPersistTaps="handled">
                 {chip === 'bible' ? (
                   <BiblePane ctx={ctx} v={v} bible={bible} terms={unitTerms} tied={tied} canNote={!recording} selected={verse} onSelect={setVerse}
-                    hear={shows.bibleAudio} read={shows.bibleText}
+                    hear={shows.bibleAudio} read={shows.bibleText} marks={libraryMarks}
                     footer={<ReferenceRecordings ctx={ctx} unitId={unitId} disabled={false} listen={loop.hooks} onPlay={usage.open} />}
                     {...(recording ? {} : {
                       onTerm: (termId: string) => ctx.go('key_term_detail', { ...scope, termId, ...(draft ? { draftId: draft.takeId } : {}) }),
@@ -726,11 +732,11 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                     <LinkBtn label={t('translate.openStudy')} help={t('translate.openStudyHelp')} style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
                   </>
                 ) : chip === 'terms' ? (
-                  <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
+                  <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked} library={library}
                     onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
                     allTerms={() => ctx.go('key_terms', scope)} />
                 ) : chip === 'notes' ? (
-                  <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
+                  <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} library={library} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
                 ) : chip === 'earlier' ? (
                   <EarlierPane ctx={ctx} v={v} from={revising ? (s) => s === revising.kindId || earlierFrom(s) : earlierFrom} {...(revising ? { focusReviewId: revising.id } : {})} />
                 ) : null}

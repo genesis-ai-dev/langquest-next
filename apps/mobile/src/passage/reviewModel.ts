@@ -5,7 +5,7 @@
 // the screen only draws them.
 import {
   keyTermLinksFor, questionsForKind, reviewGrid,
-  type KindDef, type PassageNote, type PassageState, type RequestView, type ReviewView, type Version
+  type KindDef, type PassageNote, type PassageState, type RequestView, type ReviewView, type SourcedQuestion, type Version
 } from '@langquest-next/core';
 import { checkName } from '../admin/adminModel';
 import { currentLocale, t } from '../i18n';
@@ -54,7 +54,8 @@ export interface ReviewDetailModel {
  * the record's: feedback asking for changes, unanswered, on the latest version,
  * which this person made.
  */
-export function reviewDetailModel(o: { v: PassageView; review: ReviewView; me: string; name: NameFn; mayAnswer: boolean }): ReviewDetailModel {
+export function reviewDetailModel(o: { v: PassageView; review: ReviewView; me: string; name: NameFn; mayAnswer: boolean;
+  /** Questions from library sets linked to the check (decision 91, amended 2026-10-19). */ linked?: readonly SourcedQuestion[] }): ReviewDetailModel {
   const { v, review, me } = o;
   const { p } = v;
   // A check's one name on every screen (decision 91), "Peer check".
@@ -63,7 +64,7 @@ export function reviewDetailModel(o: { v: PassageView; review: ReviewView; me: s
   const checkedBy = makes ? checkName(makes.checkedBy, v.kinds) : undefined;
   const good = review.outcome !== 'needs_changes';
   const request = review.requestId ? p.requests.find((r) => r.id === review.requestId) : undefined;
-  const questions = questionsForKind(v.state, review.kindId, request);
+  const questions = questionsForKind(v.state, review.kindId, request, o.linked);
   const answers = answeredQuestions(questions, review.answers);
   const skipped = Object.entries(review.skipped ?? {});
   const answerable = o.mayAnswer && review.outcome === 'needs_changes'

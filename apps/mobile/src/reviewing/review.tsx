@@ -109,8 +109,11 @@ export function QuestionCard(props: { question: SourcedQuestion; asker?: string 
       <SpeakBtn text={q.q.text} />
       <View style={{ flex: 1, minWidth: 0, gap: space.xs }}>
         <Text style={styles.qText} accessibilityRole="header">{q.q.text}</Text>
+        {/* A published question's suggested answer, for whoever asks it to compare against (Checking Manual). */}
+        {q.answer ? <Text style={styles.qAnswer}>{t('review.capture.suggestedAnswer', { answer: q.answer })}</Text> : null}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm }}>
           {q.required ? <Badge label={t('common.required')} tone="brand" /> : null}
+          {q.at ? <Text style={txt.xsStrong}>{t('review.capture.questionAt', { verse: q.at.slice(q.at.indexOf(':') + 1) })}</Text> : null}
           <Text style={txt.xs}>{questionSource(q, props.asker)}</Text>
         </View>
       </View>
@@ -633,6 +636,7 @@ const styles = StyleSheet.create({
   qCard: { flexDirection: 'row', alignItems: 'center', gap: space.lg, backgroundColor: C.card, borderRadius: radius.xl + 4, borderWidth: 1, borderColor: C.border,
     paddingHorizontal: space.lg + 4, paddingVertical: space.xl },
   qText: { fontSize: T.lg + 1, fontWeight: '800', color: C.dark, lineHeight: 26 },
+  qAnswer: { fontSize: T.sm, lineHeight: 21, color: C.muted, fontStyle: 'italic' },
   decide: { minHeight: 168, borderRadius: 24, borderWidth: 2, alignItems: 'center', justifyContent: 'center', gap: space.md, paddingVertical: space.xl },
   decideMark: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   decideLabel: { fontSize: T.xxl, fontWeight: '800' },

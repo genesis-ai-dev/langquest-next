@@ -5,12 +5,14 @@
 // LangQuest's), with their documents, sorted into the few plain answers an
 // admin is offered and the rest one tap deeper.
 import type { FlowDoc, KindDef, TemplateDoc } from '@langquest-next/core';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
 import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { STARTER_FLOW } from '../org/orgAdmin';
 import { flowTitle, recordKind, type RecordKind } from './adminModel';
+import { collapseFlowSets, type FlowSetMember } from './flowSetsModel';
+import { teamLanguages } from '../reference/languages';
 
 /** A flow with one check by the community, by the title flowTitle gives it in the language showing ("Just the community"). */
 const communityOnly = () => flowTitle([{ kindIds: ['community'] }], []);
@@ -37,6 +39,8 @@ export function useRecordChoices(ctx: Ctx, inUseItemId: string | null | undefine
 export interface FlowEntry {
   c: LibraryChoice;
   doc: FlowDoc;
+  /** One flow of a set in several languages (a Checking Manual's), and the languages it can be switched to. */
+  set?: { key: string; members: FlowSetMember<FlowEntry>[] };
 }
 
 /** Flows as plain answers: the one in use or suggested, a single community check, the organization's own; the rest one tap deeper. */
@@ -48,7 +52,12 @@ export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined
   const choices = useMemo(() => libraryChoices(library ?? {}, libItems('flow'), shared.rows, STARTER_FLOW.name), [library, libItems, shared.rows]);
   const docs = useLibraryDocs(lib.orgId, choices.map((c) => c.hash));
   const current = choices.find((c) => c.source === 'ours' && c.item.itemId === inUseItemId) ?? null;
-  const entries = choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc);
+  // A set of flows in several languages is one choice, in the team's language first (decision 84's way, for flows).
+  const reads = useMemo(() => teamLanguages(ctx.org.state, ctx.language.state, ctx.language.languageId), [ctx.org.state, ctx.language.state, ctx.language.languageId]);
+  const [chosen, setChosen] = useState<Record<string, string>>({});
+  const entries: FlowEntry[] = collapseFlowSets(choices.map((c) => ({ c, doc: docs.get<FlowDoc>(c.hash) })).filter((e): e is FlowEntry => !!e.doc), reads, chosen);
+  /** Show a set of flows in another of its languages. */
+  const chooseIn = (setKey: string, entryKey: string) => setChosen((m) => ({ ...m, [setKey]: entryKey }));
   const kindsOf = (doc: FlowDoc): KindDef[] => [...doc.kinds, ...kinds];
   const titleOf = (doc: FlowDoc) => flowTitle(doc.steps, kindsOf(doc));
   const starter = entries.find((e) => e.c.name === STARTER_FLOW.name || (e.c.source === 'ours' && e.c.item.name === STARTER_FLOW.name)) ?? null;
@@ -57,5 +66,5 @@ export function useCheckChoices(ctx: Ctx, inUseItemId: string | null | undefined
   const single = entries.find((e) => e !== first && titleOf(e.doc) === community) ?? null;
   const main = [first, single, ...entries.filter((e) => e !== first && e !== single && e.c.source === 'ours')].filter((e): e is FlowEntry => !!e);
   const rest = entries.filter((e) => !main.includes(e));
-  return { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, loaded: shared.loaded };
+  return { lib, entries, current, starter, first, main, rest, kindsOf, titleOf, chooseIn, loaded: shared.loaded };
 }

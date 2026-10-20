@@ -4,7 +4,7 @@
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
 // lit, a note on a verse or a moment), key words (hear each, your word or
 // say yours, add a word), notes, and everything recorded so far.
-import { commands, keyTermsFor, RECORD_STEP, type KeyTermView, type NoteAnchor, type PassageNote } from '@langquest-next/core';
+import { commands, keyTermsFor, markSpans, RECORD_STEP, type KeyTermView, type NoteAnchor, type PassageNote } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -43,6 +43,9 @@ import type { useBible } from './useBible';
 import { draftKey, EMPTY_NOTE, isNoteDraft, isRecord } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
+import { ArticleSheet, LibraryKeyWords, LibraryNotes } from './libraryHelps';
+import { useArticleSheet } from './useArticleSheet';
+import type { LibraryHelps } from './useLibraryHelps';
 
 const DBP_TERMS = 'https://www.faithcomesbyhearing.com/bible-brain/license';
 
@@ -60,6 +63,8 @@ export function BiblePane(props: {
   /** What the step shows (decisions.md 130): the player when heard, the verses' words when read; numbers alone otherwise. */
   hear?: boolean;
   read?: boolean;
+  /** Words to underline in a verse: in a word-aligned Bible, what the passage's notes and key words are about there. */
+  marks?: (row: VerseRow) => [number, number][];
 }) {
   const { ctx, v, bible } = props;
   const hear = props.hear ?? true;
@@ -125,19 +130,22 @@ export function BiblePane(props: {
             const here = player.started && player.current?.key === row.key;
             const sel = props.selected === row.key;
             const n = count(row);
-            const parts = markTerms(row.text, terms);
+            // Words the library's notes and key words are about, underlined; the team's own key words inside them.
+            const spans = props.marks?.(row) ?? [];
+            const pieces = spans.length ? markSpans(row.text, spans) : [{ text: row.text, marked: false }];
+            const parts = pieces.flatMap((piece) => markTerms(piece.text, terms).map((part) => ({ ...part, marked: piece.marked })));
             const termIds = parts.flatMap((p) => (p.termId ? [p.termId] : []));
             return (
               <HelpRow key={row.key} of="reference.verse">
                 <Verse row={row} here={here} selected={sel} notes={n} onPress={() => tap(row)} timed={bible.hasAudio && bible.timed}
-                  terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))}>
+                  terms={termIds.length === 0 ? null : props.onTerm ? 'open' : 'marked'} tied={termIds.some((id) => props.tied?.has(id))} underlined={spans.length > 0}>
                   {parts.map((part, i) => {
-                    if (!part.termId) return <Text key={i}>{part.text}</Text>;
+                    if (!part.termId) return <Text key={i} style={part.marked ? styles.aligned : undefined}>{part.text}</Text>;
                     const tied = props.tied?.has(part.termId) ?? false;
                     return (
                       <Text key={i} {...(onTerm ? { onPress: () => onTerm(part.termId!), accessibilityRole: 'link' as const } : {})}
                         accessibilityLabel={tied ? t('reference.bible.keyWordTied', { word: part.text }) : t('reference.bible.keyWord', { word: part.text })}
-                        style={[styles.term, tied && { color: TINT.greenText }]}>{part.text}{tied ? ' ✓' : ''}</Text>
+                        style={[styles.term, tied && { color: TINT.greenText }, part.marked && styles.aligned]}>{part.text}{tied ? ' ✓' : ''}</Text>
                     );
                   })}
                 </Verse>
@@ -174,6 +182,8 @@ function Verse(props: {
   row: VerseRow; here: boolean; selected: boolean; notes: number; timed: boolean; onPress: () => void; children: ReactNode;
   /** Key words in it: `open` when a tap opens one, `marked` when they are only underlined. */
   terms?: 'open' | 'marked' | null; tied?: boolean;
+  /** Words underlined because notes or key words from the library are about them. */
+  underlined?: boolean;
 }) {
   const r = props.row;
   const verse = r.key.includes(':') ? r.key.slice(r.key.indexOf(':') + 1) : r.key;
@@ -182,7 +192,8 @@ function Verse(props: {
     props.timed ? t('reference.bible.verseHelpTimed') : t('reference.bible.verseHelp'),
     props.terms === 'open' ? t('reference.bible.verseTermsHelp') : props.terms === 'marked' ? t('reference.bible.verseTermsMarkedHelp') : null,
     props.tied ? t('reference.bible.verseTiedHelp') : null,
-    props.notes ? t('reference.bible.verseNotesHelp') : null
+    props.notes ? t('reference.bible.verseNotesHelp') : null,
+    props.underlined ? t('reference.bible.verseAlignedHelp') : null
   ].filter(Boolean).join(' ');
   const spot = useHelpSpot(t('reference.bible.verse', { verse }), detail, props.onPress);
   return (
@@ -316,12 +327,18 @@ export function KeyWordsPane(props: {
   canTie: boolean; onHear: (verseKey: string | null) => void; allTerms?: () => void; disabled?: boolean;
   /** The Bible the verses are in ("WEB"), for Add a key word's verses. */
   bibleName?: string;
+  /** The passage's key words from the library, under the language's own. */
+  library?: LibraryHelps;
 }) {
   const { ctx, v } = props;
   const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
   const [saying, setSaying] = useState<KeyTermView | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<string | false>(false);
   const book = bookOf(v.title);
+  const articles = useArticleSheet(props.library?.sets ?? { academy: [], words: [] });
+  // The library's key words the language has not made its own yet.
+  const own = new Set(props.terms.map((x) => x.term.trim().toLowerCase()));
+  const fromLibrary = (props.library?.keyWords ?? []).filter((k) => !own.has(k.title.trim().toLowerCase()));
   const where = (term: KeyTermView): string[] => (props.rows ?? []).filter((r) => markTerms(r.text, [term]).some((p) => p.termId)).map((r) => r.key);
   return (
     <View style={{ gap: space.md }}>
@@ -341,10 +358,15 @@ export function KeyWordsPane(props: {
           })}
         </View>
       )}
-      {canEdit ? <DashedBtn label={t('reference.keyWords.add')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.keyWords.addHint')} /> : null}
+      {canEdit ? <DashedBtn label={t('reference.keyWords.add')} onPress={() => setAdding('')} disabled={props.disabled} hint={t('reference.keyWords.addHint')} /> : null}
+      {props.library ? <LibraryKeyWords words={fromLibrary} book={book} onOpen={articles.openWord} /> : null}
       {props.allTerms ? <LinkBtn label={t('reference.keyWords.all')} style={{ alignSelf: 'center' }} help={t('reference.keyWords.allHelp')} onPress={props.allTerms} /> : null}
       {saying ? <SayYoursSheet ctx={ctx} v={v} term={saying} draftTakeId={props.draftTakeId} canTie={props.canTie} onClose={() => setSaying(null)} /> : null}
-      {adding ? <AddWordSheet ctx={ctx} v={v} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''} onClose={() => setAdding(false)} /> : null}
+      {adding !== false ? <AddWordSheet ctx={ctx} v={v} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''} initial={adding} onClose={() => setAdding(false)} /> : null}
+      {articles.open && props.library ? (
+        <ArticleSheet ctx={ctx} open={articles.open} sets={props.library.sets} onClose={articles.close}
+          {...(canEdit && !props.disabled ? { onAddKeyWord: (title: string) => { articles.close(); setAdding(title); } } : {})} />
+      ) : null}
     </View>
   );
 }
@@ -463,10 +485,12 @@ function isNewWordDraft(x: unknown): x is NewWordDraft {
  * taken from another language keeps that language's id, so the two stay
  * one key term.
  */
-function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | undefined; rows: VerseRow[] | null; bibleName: string; onClose: () => void }) {
+function AddWordSheet(props: { ctx: Ctx; v: PassageView; draftTakeId: string | undefined; rows: VerseRow[] | null; bibleName: string; onClose: () => void;
+  /** A word to start from: a key word of the library's, added to the language's own. */ initial?: string }) {
   const { ctx, v } = props;
   // What is typed, said or taken is kept as a draft only you see until Add the word (decision 127).
-  const draft = useDraft(draftKey('word', ctx.session.actorId, v.languageId, v.unitId, 'new'), EMPTY_WORD, isNewWordDraft);
+  const draft = useDraft(draftKey('word', ctx.session.actorId, v.languageId, v.unitId, props.initial ? `new:${props.initial}` : 'new'),
+    props.initial ? { ...EMPTY_WORD, term: props.initial } : EMPTY_WORD, isNewWordDraft);
   const { term, gloss, hash, rendering, taken } = draft.value;
   const put = (change: Partial<NewWordDraft>) => draft.set((d) => ({ ...d, ...change }));
   const [busy, setBusy] = useState(false);
@@ -558,16 +582,19 @@ function VoiceClip(props: { ctx: Ctx; hash: string; sub: string }) {
 
 /** The Notes chip (a-studyDoc): the passage's notes, newest first, and Add a note. */
 /** `canAdd` false: the notes to read, without "Add a note" (a viewer, whose note the server would refuse; STUDY-006). */
-export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disabled?: boolean; top?: ReactNode; canAdd?: boolean }) {
+export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[]; disabled?: boolean; top?: ReactNode; canAdd?: boolean;
+  /** Notes for translators from the library, on the verses they are about, under the team's own. */ library?: LibraryHelps }) {
   const { ctx, v } = props;
   const [adding, setAdding] = useState(false);
+  const articles = useArticleSheet(props.library?.sets ?? { academy: [], words: [] });
+  const libraryNotes = props.library?.notes ?? [];
   const versionN = useMemo(() => new Map(v.p.versions.map((x) => [x.takeId, x.n])), [v.p.versions]);
   const latestId = v.p.latest?.takeId;
   const newest = [...props.notes].reverse();
   return (
     <View style={{ gap: space.md }}>
       {props.top}
-      {newest.length === 0 && !props.top ? (
+      {newest.length === 0 && !props.top && libraryNotes.length === 0 ? (
         <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('reference.notes.empty')}</Text>
       ) : null}
       {newest.map((n) => {
@@ -579,6 +606,8 @@ export function NotesPane(props: { ctx: Ctx; v: PassageView; notes: PassageNote[
         );
       })}
       {props.canAdd !== false ? <DashedBtn label={t('common.addNote')} onPress={() => setAdding(true)} disabled={props.disabled} hint={t('reference.notes.addHint')} /> : null}
+      <LibraryNotes groups={libraryNotes} onOpenRef={articles.openRef} />
+      {articles.open && props.library ? <ArticleSheet ctx={ctx} open={articles.open} sets={props.library.sets} onClose={articles.close} /> : null}
       {adding && props.canAdd !== false ? <NoteSheet ctx={ctx} v={v} title={t('common.addNote')} where={t('reference.notes.whereWhole', { passage: v.title })} anchor={{ kind: 'passage' }} onClose={() => setAdding(false)} /> : null}
     </View>
   );
@@ -727,6 +756,8 @@ const styles = StyleSheet.create({
   dotText: { fontSize: T.sm, fontWeight: '800', color: C.muted },
   dotNotes: { position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: TINT.amberText },
   term: { fontWeight: '700', color: C.primary, textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
+  // What the library's notes and key words are about: a solid amber line, apart from the dotted key words.
+  aligned: { textDecorationLine: 'underline', textDecorationStyle: 'solid', textDecorationColor: TINT.amberText },
   under: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm, marginTop: 2 },
   pick: { minHeight: 40, paddingHorizontal: space.md, borderRadius: radius.full, borderWidth: 1.5, borderColor: TINT.noteBorder, backgroundColor: TINT.note,
     flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110 },

@@ -78,6 +78,9 @@ import { SavedMark } from '../ui/SavedMark';
 import { isStoredReview, reviewDraftOf, reviewStateOf, type ReviewDraft, type ReviewState } from '../reviewing/reviewDraft';
 import { NoteStepContext } from '../checks/noteStep';
 import { anyFrom, fromFilter } from '../checks/showsModel';
+import { useCheckQuestions, useLibraryHelps } from '../helps/useLibraryHelps';
+import { PassageHelpsSheet } from '../helps/libraryHelps';
+import { bookOf } from '../recording/model';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
 const SHEET_GAP_MS = 400;
@@ -144,8 +147,13 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
+  // A check's notes, key words and articles from the library open on this passage (decision 91).
+  const [libraryHelp, setLibraryHelp] = useState<{ itemId: string; title: string } | null>(null);
+  const checkItems = useMemo(() => helps.flatMap((h) => ('passage' in h.open ? [h.open.passage] : [])), [helps]);
+  const library = useLibraryHelps(ctx, checkItems.length ? v?.unitId : null, null, checkItems);
   const openHelp = (h: CheckHelpRow) => {
     if ('bible' in h.open) { setBible(h.open.bible); setSheet('background'); return; }
+    if ('passage' in h.open) { setLibraryHelp({ itemId: h.open.passage, title: h.name }); return; }
     if (h.open.screen === 'study_guide') return ctx.go('study_guide', { unitId: v!.unitId, languageId: v!.languageId });
     ctx.go('material_editor', h.open.params);
   };
@@ -186,7 +194,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const requestParam = ctx.params['requestId'];
   const request = useMemo(() => vp ? requestFor(vp, kindId, actorId, { ...(requestParam ? { requestId: requestParam } : {}), mineOnly: logged }) : undefined,
     [vp, kindId, actorId, requestParam, logged]);
-  const questions = useMemo(() => vState ? questionsForKind(vState, kindId, request) : [], [vState, kindId, request]);
+  // The questions of the library sets linked to the check that sit on this passage (decision 91, amended 2026-10-19).
+  const linkedQuestions = useCheckQuestions(ctx, v?.unitId, kindId);
+  const questions = useMemo(() => vState ? questionsForKind(vState, kindId, request, linkedQuestions) : [], [vState, kindId, request, linkedQuestions]);
   const guide = useStudyGuide(ctx, v?.unitId);
   // What the check shows (decisions.md 130): Background has only that, and is not there when it shows nothing.
   const shows = useMemo(() => (vState ? { ...checkShows(vState, kindId), notes: anyFrom(vState, kindId, 'notes'), earlier: anyFrom(vState, kindId, 'earlier') } : null), [vState, kindId]);
@@ -559,6 +569,10 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           onMoreBibles={() => afterSheet(() => ctx.go('bible_explore', { unitId: v.unitId, languageId: v.languageId }))} />
       ) : null}
 
+      {libraryHelp ? (
+        <PassageHelpsSheet ctx={ctx} library={library} itemId={libraryHelp.itemId} title={libraryHelp.title} book={bookOf(v.title)} onClose={() => setLibraryHelp(null)} />
+      ) : null}
+
       {sheet === 'who' ? (
         <Sheet visible title={whoTitle}
           sub={t('review.screen.whoSheetSub')} onClose={() => setSheet(null)}
@@ -636,6 +650,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
 /** What opening one of the check's helps does (decision 91), as help mode says it. */
 function helpRowHelp(h: CheckHelpRow): string {
   if ('bible' in h.open) return t('review.screen.helpBibleHelp');
+  if ('passage' in h.open) return t('review.screen.helpLibraryHelp');
   return h.open.screen === 'study_guide' ? t('review.screen.helpGuideHelp') : t('review.screen.helpNoteHelp');
 }
 

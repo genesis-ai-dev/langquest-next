@@ -7,6 +7,7 @@
 // Everything shown is derived from the event log
 // (core derivePassage and friends); every change is a core command through
 // ctx.act, with Undo where the demo offers it.
+import { useCheckQuestions } from '../helps/useLibraryHelps';
 import { EarlierNote, EarlierSections } from '../breakup/earlier';
 import { isEarlierSection } from '../breakup/earlierSections';
 import { Faces, PeopleLine } from '../checks/parts';
@@ -1029,6 +1030,8 @@ export function ReviewDetail(ctx: Ctx) {
   const [keepPage, setKeepPage] = useState(false);
   const look = usePerson();
   useHardwareBack(keepPage, () => setKeepPage(false));
+  // The questions from library sets linked to the check, so their answers show with their words.
+  const linked = useCheckQuestions(ctx, v?.unitId, v ? reviewFor(v.p, ctx.params['reviewId'])?.kindId : undefined);
   if (!v) return <Missing ctx={ctx} id="review_detail" />;
   const { p, unitId, languageId } = v;
   const review = reviewFor(p, ctx.params['reviewId']);
@@ -1036,7 +1039,7 @@ export function ReviewDetail(ctx: Ctx) {
   const me = ctx.session.actorId;
   const params = { unitId, languageId };
   const { kind, makes, checkedBy, good, request, questions, answers, skipped, source, version, tone, answerable, outcome } = reviewDetailModel({
-    v, review, me, name: ctx.name, mayAnswer: ctx.session.can('translate') && canGo(ctx, 'review_detail', 'workspace')
+    v, review, me, name: ctx.name, mayAnswer: ctx.session.can('translate') && canGo(ctx, 'review_detail', 'workspace'), linked
   });
   const tint = OUTCOME_TINT[tone];
   const artifacts = review.artifacts && review.artifacts.length > 0 ? (

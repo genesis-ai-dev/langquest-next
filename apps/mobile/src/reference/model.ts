@@ -108,6 +108,9 @@ export function refKindOf(doc: LibraryDoc | null | undefined): RefKind | null {
     case 'source@1': return 'source';
     case 'study@1': case 'study@2': case 'collection@1': return 'guide';
     case 'material@1': return doc.kind === 'note' ? 'note' : doc.kind === 'questions' ? 'questions' : 'other';
+    // Translation helps (core helpDocs.ts): notes and questions by verse, key words, manuals, stories.
+    case 'helps@1': return doc.kind === 'notes' ? 'note' : doc.kind === 'questions' ? 'questions' : 'other';
+    case 'contents@1': return doc.kind === 'stories' ? 'guide' : 'other';
     default: return null;
   }
 }
@@ -134,6 +137,7 @@ export function booksOf(doc: LibraryDoc | null | undefined): string[] {
     case 'study@2': add(doc.ref); for (const l of doc.links ?? []) if ('ref' in l) add(l.ref); break;
     case 'collection@1': for (const e of doc.entries) add(e.ref); break;
     case 'material@1': for (const l of doc.links ?? []) if ('ref' in l) add(l.ref); break;
+    case 'helps@1': for (const b of doc.books) if (b.book !== 'OBS') out.add(b.book); break;
     default: break;
   }
   return [...out];
