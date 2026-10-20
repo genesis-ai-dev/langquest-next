@@ -21955,6 +21955,10 @@ function earliestUndo(table, key, event) {
   if (prior && (prior.hlc < event.hlc || prior.hlc === event.hlc && prior.by <= event.actorId)) return;
   table[key] = { by: event.actorId, hlc: event.hlc };
 }
+function keptRecording(a, b) {
+  const content = ({ actorId: _a, hlc: _h, ...rest }) => rest;
+  return earlier({ hlc: a.hlc, actorId: a.actorId }, content(a), b, content(b)) ? a : b;
+}
 function blobVerdict(state, event, v) {
   const hash = event.payload.hash;
   const cur = state.blobs[hash];
@@ -22362,7 +22366,7 @@ function derivePassage(state, unitId, idx) {
     if (r.outcome !== "needs_changes") return r;
     const kept = departures.find((d) => d.type === "keep" && d.reviewId === r.id && !d.undone);
     const revised = versions.find((v) => v.n > r.versionN);
-    const keptResponse = kept && {
+    const keptResponse2 = kept && {
       decision: "kept",
       by: kept.by,
       hlc: kept.hlc,
@@ -22378,7 +22382,7 @@ function derivePassage(state, unitId, idx) {
       ...revised.changeNote ? { note: revised.changeNote } : {},
       ...revised.changeBlobHash ? { blobHash: revised.changeBlobHash } : {}
     };
-    const response = keptResponse && revisedResponse ? keptResponse.hlc < revisedResponse.hlc ? keptResponse : revisedResponse : keptResponse ?? revisedResponse;
+    const response = keptResponse2 && revisedResponse ? keptResponse2.hlc < revisedResponse.hlc ? keptResponse2 : revisedResponse : keptResponse2 ?? revisedResponse;
     return response ? { ...r, response } : r;
   });
   const requests = (ri.requests.get(key) ?? []).map(({ eventId: _e, ...r }) => {
@@ -22555,7 +22559,235 @@ function stepAllowsLinks(state, step) {
   return state.stepLinks?.[step.id]?.value ?? !step.checkpoint;
 }
 
+// packages/core/src/passageParts.ts
+var laterRegister = (a, b) => a.hlc > b.hlc || a.hlc === b.hlc && a.eventId > b.eventId ? a : b;
+var firstOf = (a, b) => a.hlc < b.hlc || a.hlc === b.hlc && a.eventId <= b.eventId ? a : b;
+var firstUndo = (a, b) => a.hlc < b.hlc || a.hlc === b.hlc && a.by <= b.by ? a : b;
+function byKey(merge) {
+  return (a, b) => {
+    const out = { ...a };
+    for (const [k, v] of Object.entries(b)) out[k] = out[k] ? merge(out[k], v) : v;
+    return out;
+  };
+}
+function firstArchive(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  return a.hlc < b.hlc || a.hlc === b.hlc && a.by <= b.by ? a : b;
+}
+function keptTake(a, b) {
+  const archivedAt = firstArchive(a.archivedAt, b.archivedAt);
+  const flags = { archived: a.archived || b.archived, ...archivedAt ? { archivedAt } : {} };
+  if (a.unitId === "") return { ...b, ...flags };
+  if (b.unitId === "") return { ...a, ...flags };
+  const content = (t) => ({ unitId: t.unitId, cardHashes: t.cardHashes, parentTakeId: t.parentTakeId });
+  const first = earlier({ hlc: a.hlc, actorId: a.actorId }, content(a), b, content(b)) ? a : b;
+  return { ...first, ...flags };
+}
+var keptSubmission = (a, b) => earlier({ hlc: a.hlc, actorId: a.actorId }, { questionSetIds: a.questionSetIds }, b, { questionSetIds: b.questionSetIds }) ? a : b;
+var keptResponse = (a, b) => {
+  const content = (r) => ({ respondsToTakeId: r.respondsToTakeId, note: r.note, blobHash: r.blobHash });
+  return earlier({ hlc: a.hlc, actorId: a.actorId }, content(a), b, content(b)) ? a : b;
+};
+var keptTermLink = (a, b) => earlier({ hlc: a.hlc, actorId: a.actorId }, { note: a.note, adjustmentId: a.adjustmentId }, b, { note: b.note, adjustmentId: b.adjustmentId }) ? a : b;
+var keptUse = (a, b) => {
+  const first = a.hlc < b.hlc || a.hlc === b.hlc && a.eventId < b.eventId ? a : b;
+  return { ...first, opened: a.opened || b.opened };
+};
+var usedSubject = (key) => key.startsWith("take:") ? { take: key.slice(5) } : key.startsWith("review:") ? { review: key.slice(7) } : null;
+var PASSAGE_PARTS = [
+  {
+    map: "recordings",
+    kind: "recording",
+    depth: 1,
+    passage: (_k, r) => ({ unitId: r.unitId }),
+    merge: (a, b) => keptRecording(a, b),
+    ref: (_k, r) => r.actorId
+  },
+  // A placeholder from an archive that came first has no passage yet; its compose may be on disk.
+  {
+    map: "takes",
+    kind: "take",
+    depth: 1,
+    passage: (k, t) => t.unitId ? { unitId: t.unitId } : { take: k },
+    merge: (a, b) => keptTake(a, b),
+    ref: (_k, t) => t.actorId
+  },
+  { map: "submissions", kind: "submission", depth: 1, passage: (k) => ({ take: k }), merge: (a, b) => keptSubmission(a, b) },
+  { map: "responses", kind: "response", depth: 1, passage: (k) => ({ take: k }), merge: (a, b) => keptResponse(a, b) },
+  { map: "kindReviews", kind: "review", depth: 1, passage: (_k, r) => ({ take: r.takeId }), merge: (a, b) => firstOf(a, b) },
+  { map: "departures", kind: "departure", depth: 1, passage: (_k, d) => ({ unitId: d.unitId }), merge: (a, b) => firstOf(a, b) },
+  {
+    map: "undoneDepartures",
+    kind: "undoneDeparture",
+    depth: 1,
+    passage: (k) => ({ departure: k }),
+    merge: (a, b) => firstUndo(a, b)
+  },
+  { map: "requests", kind: "request", depth: 1, passage: (_k, r) => ({ unitId: r.unitId }), merge: (a, b) => firstOf(a, b) },
+  {
+    map: "withdrawnRequests",
+    kind: "withdrawnRequest",
+    depth: 1,
+    passage: (k) => ({ request: k }),
+    merge: (a, b) => firstUndo(a, b)
+  },
+  // A review or note taken back (decision 111) hangs on what it takes back; the first undo stands, as the reducer's `earliestUndo` has it.
+  {
+    map: "withdrawnReviews",
+    kind: "withdrawnReview",
+    depth: 1,
+    passage: (k) => ({ review: k }),
+    merge: (a, b) => firstUndo(a, b)
+  },
+  { map: "notes", kind: "note", depth: 1, passage: (_k, n) => ({ unitId: n.unitId }), merge: (a, b) => firstOf(a, b) },
+  {
+    map: "withdrawnNotes",
+    kind: "withdrawnNote",
+    depth: 1,
+    passage: (k) => ({ note: k }),
+    merge: (a, b) => firstUndo(a, b)
+  },
+  { map: "studyMarks", kind: "studyMark", depth: 1, passage: (k) => ({ studyKey: k }), merge: (a, b) => laterRegister(a, b) },
+  { map: "cardVerses", kind: "cardVerses", depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a, b) },
+  { map: "passageLinks", kind: "passageLinks", depth: 1, passage: (k) => ({ unitId: k }), merge: (a, b) => byKey(laterRegister)(a, b) },
+  { map: "referencesUsed", kind: "used", depth: 1, passage: (k) => usedSubject(k), merge: (a, b) => byKey(keptUse)(a, b) },
+  { map: "keyTermLinks", kind: "termLink", depth: 2, passage: (k) => ({ take: k }), merge: (a, b) => keptTermLink(a, b), ref: (_k, _v, term) => term ?? "" },
+  { map: "releases", kind: "release", depth: 1, passage: (k) => ({ take: k }), merge: (a, b) => byKey(laterRegister)(a, b) }
+];
+var PASSAGE_PART = Object.fromEntries(PASSAGE_PARTS.map((p) => [p.map, p]));
+var PART_OF_KIND = new Map(PASSAGE_PARTS.map((p) => [p.kind, p]));
+function studyMarkUnit(units, key) {
+  for (let cut = key.lastIndexOf(":"); cut > 0; cut = key.lastIndexOf(":", cut - 1)) {
+    const unitId = key.slice(0, cut);
+    if (units[unitId]) return unitId;
+  }
+  return null;
+}
+function passageInMemory(state, of) {
+  if (!of) return null;
+  if ("unitId" in of) return of.unitId || null;
+  if ("take" in of) return state.takes[of.take]?.unitId || null;
+  if ("review" in of) {
+    const r = state.kindReviews[of.review];
+    return r ? state.takes[r.takeId]?.unitId || null : null;
+  }
+  if ("departure" in of) return state.departures[of.departure]?.unitId || null;
+  if ("request" in of) return state.requests[of.request]?.unitId || null;
+  if ("note" in of) return state.notes[of.note]?.unitId || null;
+  return studyMarkUnit(state.units, of.studyKey);
+}
+var innerKey = (key, inner) => `${key}${inner}`;
+function splitInnerKey(id) {
+  const cut = id.indexOf("");
+  return [id.slice(0, cut), id.slice(cut + 1)];
+}
+function* partEntries(state) {
+  for (const part of PASSAGE_PARTS) {
+    const map = state[part.map] ?? {};
+    for (const [key, value] of Object.entries(map)) {
+      if (part.depth === 1) yield { part, key, value };
+      else for (const [inner, v] of Object.entries(value)) yield { part, key, inner, value: v };
+    }
+  }
+}
+var rowId = (e) => e.inner === void 0 ? e.key : innerKey(e.key, e.inner);
+function putEntry(state, part, id, value) {
+  const map = state[part.map] ??= {};
+  if (part.depth === 1) {
+    const here2 = map[id];
+    map[id] = here2 === void 0 ? value : part.merge(here2, value);
+    return;
+  }
+  const [key, inner] = splitInnerKey(id);
+  const byInner = map[key] ??= {};
+  const here = byInner[inner];
+  byInner[inner] = here === void 0 ? value : part.merge(here, value);
+}
+function withoutParts(state) {
+  const out = { ...state };
+  for (const part of PASSAGE_PARTS) out[part.map] = {};
+  return out;
+}
+
 // packages/core/src/passageLines.ts
+var LINES_VERSION = 1;
+var emptyRaw = () => ({ takes: 0, worked: false, reviewers: {} });
+function passageLine(s, raw = emptyRaw()) {
+  const draftsBy = {};
+  for (const d of s.drafts) if (!draftsBy[d.by] || d.hlc > draftsBy[d.by]) draftsBy[d.by] = d.hlc;
+  const people = /* @__PURE__ */ new Set();
+  for (const r of s.requests) {
+    people.add(r.by);
+    if (r.profileId) people.add(r.profileId);
+    for (const id of r.team?.memberIds ?? []) people.add(id);
+  }
+  for (const v of s.versions) people.add(v.by);
+  for (const r of s.reviews) people.add(r.by);
+  return {
+    unitId: s.unitId,
+    recorded: s.recorded,
+    drafting: s.drafting,
+    done: s.done,
+    ...s.latest ? { latest: { takeId: s.latest.takeId, n: s.latest.n, by: s.latest.by, hlc: s.latest.hlc } } : {},
+    steps: s.steps.map((st) => ({
+      step: st.step,
+      complete: st.complete,
+      kinds: st.kinds.map((k) => ({ kindId: k.kindId, state: k.state, ...k.request ? { request: k.request } : {} }))
+    })),
+    ...s.next ? { next: { step: s.next.step, index: s.next.index } } : {},
+    openRequests: s.openRequests,
+    awaitingResponse: s.awaitingResponse,
+    reviewed: s.reviews.length > 0,
+    draftsBy,
+    people: [...people].sort(),
+    reviewers: raw.reviewers,
+    takes: raw.takes,
+    worked: raw.worked
+  };
+}
+function rawByUnit(state) {
+  const out = /* @__PURE__ */ new Map();
+  const at = (unitId) => {
+    let r = out.get(unitId);
+    if (!r) out.set(unitId, r = emptyRaw());
+    return r;
+  };
+  for (const e of partEntries(state)) {
+    const unitId = passageInMemory(state, e.part.passage(e.key, e.value, e.inner));
+    if (!unitId) continue;
+    const raw = at(unitId);
+    if (e.part.map === "recordings") raw.worked = true;
+    else if (e.part.map === "takes") {
+      raw.worked = true;
+      if (!e.value.archived) raw.takes += 1;
+    } else if (e.part.map === "kindReviews") {
+      const r = e.value;
+      if (withdrawnBy(state.withdrawnReviews, r.id, r)) continue;
+      const byKind = raw.reviewers[r.kindId] ??= {};
+      byKind[r.by] = byKind[r.by] === true || r.via === "app";
+    }
+  }
+  return out;
+}
+function languageLines(state, idx) {
+  const revision = stateRevision(state);
+  const hit = linesCache.get(state);
+  if (hit && hit.revision === revision) return hit.lines;
+  let raw = null;
+  const made = /* @__PURE__ */ new Map();
+  const lines = {
+    get(unitId) {
+      let line = made.get(unitId);
+      if (!line) made.set(unitId, line = passageLine(derivePassage(state, unitId, idx), (raw ??= rawByUnit(state)).get(unitId)));
+      return line;
+    },
+    worked: () => (raw ??= rawByUnit(state)).keys()
+  };
+  linesCache.set(state, { revision, lines });
+  return lines;
+}
+var linesCache = /* @__PURE__ */ new WeakMap();
 function progressOf(lines, passages, state) {
   const flow = deriveFlow(state);
   const kinds = deriveKinds(state);
@@ -22576,6 +22808,38 @@ function progressOf(lines, passages, state) {
 function languageProgress(state, idx) {
   const at = idx ?? buildIndexes(state);
   return progressOf({ get: (unitId) => derivePassage(state, unitId, at) }, at.passages, state);
+}
+
+// packages/core/src/blobs.ts
+function recordAudio(map, value) {
+  const out = [];
+  const add = (hash, format) => {
+    if (hash) out.push(format ? { hash, format } : { hash });
+  };
+  switch (map) {
+    case "recordings":
+      for (const c of value.cards) add(c.hash, c.format ?? "wav");
+      break;
+    case "responses":
+      add(value.blobHash);
+      break;
+    case "notes":
+      add(value.blobHash);
+      break;
+    case "departures":
+      add(value.reasonBlobHash);
+      break;
+    case "requests":
+      add(value.noteBlobHash);
+      break;
+    case "kindReviews": {
+      const r = value;
+      add(r.commentBlobHash);
+      for (const c of r.artifacts ?? []) add(c.hash, c.format ?? "wav");
+      break;
+    }
+  }
+  return out;
 }
 
 // packages/core/src/library.ts
@@ -23019,7 +23283,7 @@ function weekStartOf(ms) {
   return day - weekday * DAY_MS;
 }
 var dayStart = (ms) => Math.floor(ms / DAY_MS) * DAY_MS;
-var byKey = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
+var byKey2 = (a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
 function reportInputs(state, asOf, idx = buildIndexes(state)) {
   const flow = deriveFlow(state);
   const kinds = deriveKinds(state);
@@ -23187,14 +23451,14 @@ function reportInputs(state, asOf, idx = buildIndexes(state)) {
     coverage: { recorded, done },
     coverageDays,
     milestones,
-    passageDays: [...passageDays.values()].sort(byKey),
+    passageDays: [...passageDays.values()].sort(byKey2),
     uploads: {
       cards: cardsOnServer,
       chapters: chapterFirst.size,
       firstAt: Number.isFinite(firstAt) ? new Date(firstAt).toISOString() : null,
       lastAt: lastAt > 0 ? new Date(lastAt).toISOString() : null
     },
-    uploadDays: [...uploadDays].map(([day, d]) => [day, d.cards, d.chapters.size]).sort(byKey),
+    uploadDays: [...uploadDays].map(([day, d]) => [day, d.cards, d.chapters.size]).sort(byKey2),
     log: [...log.values()],
     ledger: Object.fromEntries([...byMonth].map(([month, perBook]) => [month, [...perBook].sort(([a], [b]) => a - b)])),
     stuck: { cards: stuck.cards, since: Number.isFinite(stuck.since) ? stuck.since : null, unitIds: [...stuck.unitIds].sort() },
@@ -23453,6 +23717,54 @@ async function listStreams(service, pageSize = 1e3) {
   }
 }
 
+// packages/sync/src/keptLanguage.ts
+var PART_KINDS = PASSAGE_PARTS.map((p) => p.kind);
+var FILE = "file";
+var AUDIO = "audio";
+var SPLIT_MAPS = /* @__PURE__ */ new Set([...PASSAGE_PARTS.map((p) => p.map), "blobs"]);
+function entryRows(part, id, unitId, value, json = JSON.stringify(value)) {
+  const [key, inner] = part.depth === 2 ? splitInnerKey(id) : [id, void 0];
+  const rows = [{ kind: part.kind, id, unitId, ref: part.ref?.(key, value, inner) ?? "", json }];
+  for (const a of recordAudio(part.map, value)) {
+    const audio = { k: part.kind, i: id, ...a.format ? { f: a.format } : {} };
+    rows.push({ kind: AUDIO, id: a.hash, unitId, ref: "", json: JSON.stringify(audio) });
+  }
+  return rows;
+}
+function fileRow(hash, v, json = JSON.stringify(v)) {
+  return { kind: FILE, id: hash, unitId: "", ref: "", json };
+}
+
+// packages/sync/src/serverCut.ts
+var NO_UNIT = "";
+var SHARED = "shared";
+function sharedPart(state) {
+  const shared = withoutParts(state);
+  shared.blobs = {};
+  shared.appliedEventIds = {};
+  return shared;
+}
+function* cutRows(state, shared) {
+  const fileUnit = /* @__PURE__ */ new Map();
+  for (const e of partEntries(state)) {
+    const id = rowId(e);
+    const unitId = passageInMemory(state, e.part.passage(e.key, e.value, e.inner));
+    if (!unitId) {
+      putEntry(shared, e.part, id, e.value);
+      continue;
+    }
+    for (const row of entryRows(e.part, id, unitId, e.value)) {
+      if (row.kind !== AUDIO) yield row;
+      else if (!fileUnit.has(row.id)) fileUnit.set(row.id, unitId);
+    }
+  }
+  for (const [hash, verdict] of Object.entries(state.blobs)) yield { ...fileRow(hash, verdict), unitId: fileUnit.get(hash) ?? NO_UNIT };
+}
+function languageLinesOf(state) {
+  const lines = languageLines(state);
+  return [...lines.worked()].sort().map((u) => lines.get(u));
+}
+
 // packages/sync/src/snapshotWorker.ts
 var SNAPSHOT_SCHEDULE = { minNewEvents: 200, maxAgeMs: 60 * 60 * 1e3 };
 function shouldWriteSnapshot(o, schedule = SNAPSHOT_SCHEDULE) {
@@ -23486,6 +23798,7 @@ async function snapshotOne(service, transport, orgId, streamId, pageSize, observ
   const existing = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
   const tail = await pullAll(transport, orgId, streamId, existing?.serverSeq ?? 0, pageSize);
   if (tail.length === 0) {
+    if (existing) await completeCut(service, existing);
     if (existing && observe) await observe(existing);
     return { orgId, streamId, serverSeq: existing?.serverSeq ?? 0, updated: false, written: false };
   }
@@ -23517,6 +23830,7 @@ async function snapshotOne(service, transport, orgId, streamId, pageSize, observ
   }
   const written = shouldWriteSnapshot({ existing: !!existing, newEvents: tail.length, redaction, ageMs });
   if (written) {
+    await stageCut(service, snapshot);
     const put2 = await service.rpc("put_snapshot", {
       p_org_id: orgId,
       p_stream_id: streamId,
@@ -23526,8 +23840,63 @@ async function snapshotOne(service, transport, orgId, streamId, pageSize, observ
     });
     if (put2.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put2.error.message}`);
   }
+  await putLines(service, snapshot.orgId, snapshot.streamId, snapshot.serverSeq, snapshot.state);
   if (observe) await observe(snapshot);
   return { orgId, streamId, serverSeq: snapshot.serverSeq, updated: true, written };
+}
+var STAGE_ROWS = 2e3;
+async function stageCut(service, snapshot) {
+  const { orgId, streamId, serverSeq, state } = snapshot;
+  const shared = sharedPart(state);
+  let batch = [];
+  const send = async () => {
+    if (batch.length === 0) return;
+    const r = await service.rpc("stage_snapshot_units", {
+      p_org_id: orgId,
+      p_stream_id: streamId,
+      p_reducer_version: REDUCER_VERSION,
+      p_server_seq: serverSeq,
+      p_rows: batch
+    });
+    if (r.error) throw new Error(`stage_snapshot_units ${orgId}/${streamId}: ${r.error.message}`);
+    batch = [];
+  };
+  for (const row of cutRows(state, shared)) {
+    batch.push([row.kind, row.id, row.unitId, row.ref, JSON.parse(row.json)]);
+    if (batch.length >= STAGE_ROWS) await send();
+  }
+  batch.push([SHARED, "", NO_UNIT, "", shared]);
+  await send();
+}
+async function putLines(service, orgId, streamId, seq, state) {
+  const r = await service.rpc("put_passage_lines", {
+    p_org_id: orgId,
+    p_stream_id: streamId,
+    p_lines_version: LINES_VERSION,
+    p_server_seq: seq,
+    p_lines: languageLinesOf(state)
+  });
+  if (r.error) throw new Error(`put_passage_lines ${orgId}/${streamId}: ${r.error.message}`);
+}
+async function completeCut(service, snapshot) {
+  const { orgId, streamId, serverSeq } = snapshot;
+  const cut = await service.from("snapshot_units").select("server_seq").eq("org_id", orgId).eq("stream_id", streamId).eq("reducer_version", REDUCER_VERSION).eq("kind", SHARED).eq("server_seq", serverSeq).limit(1);
+  if (cut.error) throw new Error(`snapshot_units ${orgId}/${streamId}: ${cut.error.message}`);
+  if ((cut.data ?? []).length === 0) {
+    await stageCut(service, snapshot);
+    const put2 = await service.rpc("put_snapshot", {
+      p_org_id: orgId,
+      p_stream_id: streamId,
+      p_reducer_version: REDUCER_VERSION,
+      p_server_seq: serverSeq,
+      p_state: snapshot.state
+    });
+    if (put2.error) throw new Error(`put_snapshot ${orgId}/${streamId}: ${put2.error.message}`);
+  }
+  const lines = await service.from("passage_lines").select("server_seq").eq("org_id", orgId).eq("stream_id", streamId).eq("lines_version", LINES_VERSION).eq("unit_id", NO_UNIT).limit(1);
+  if (lines.error) throw new Error(`passage_lines ${orgId}/${streamId}: ${lines.error.message}`);
+  const at = lines.data?.[0]?.server_seq;
+  if (at === void 0 || Number(at) < serverSeq) await putLines(service, orgId, streamId, serverSeq, snapshot.state);
 }
 async function pullAll(transport, orgId, streamId, after, pageSize) {
   const all = [];
@@ -23560,7 +23929,7 @@ var UPDATE_TITLES = {
   kept: "Your feedback was answered",
   request_done: "What you asked for is done"
 };
-var PROJECTION_VERSION = `${REDUCER_VERSION}:${REPORT_VERSION}:2`;
+var PROJECTION_VERSION = `${REDUCER_VERSION}:${REPORT_VERSION}:${LINES_VERSION}:3`;
 var LARGE = { chars: 1e7, events: 25e3 };
 function isLarge(o, limits = LARGE) {
   return o.chars >= limits.chars || o.head - o.snapshotSeq >= limits.events;

@@ -1,4 +1,6 @@
-import { HlcClock, ORG_STREAM, PERSON_ORG, type Snapshot } from '@langquest-next/core';
+import { emptyLanguageState, foldLanguage, HlcClock, languageLines, LINES_VERSION, ORG_STREAM, PERSON_ORG, PART_OF_KIND, putEntry, withOwnParts, type LanguageState, type Snapshot } from '@langquest-next/core';
+import { PART_KINDS } from '../src/keptLanguage';
+import { cutLanguage } from '../src/serverCut';
 import { MemoryStore } from '../src/memoryStore';
 import { runSnapshotWorker } from '../src/snapshotWorker';
 import { SyncClient } from '../src/syncClient';
@@ -154,6 +156,80 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
       const out = await runSnapshotWorker(fake.client, 1000, undefined, undefined, (org, stream, e) => errors.push(`${org}/${stream}: ${(e as Error).message}`));
       expect(errors).toEqual(['org1/a: put_snapshot org1/a: timeout']);
       expect(out.map((r) => r.streamId)).toEqual(['b']);
+    });
+  });
+
+  describe('the server\'s cut (decisions.md 145)', () => {
+    /** A language whose passages hold recordings, versions and reviews. */
+    async function worked(server: FakeServer, n: number) {
+      const client = await language(server, 'a', n);
+      for (let i = 0; i < n; i++) {
+        await client.append('v1.RecordingAdded', { recordingId: `r${i}`, unitId: `u${i}`, kind: 'target', cards: [{ hash: `h${i}`, durationMs: 9 }] });
+        await client.append('v1.TakeComposed', { takeId: `t${i}`, unitId: `u${i}`, cardHashes: [`h${i}`], parentTakeId: null });
+        await client.append('v1.ReviewRecorded', { reviewId: `rv${i}`, takeId: `t${i}`, kindId: 'peer', outcome: 'looks_good', via: 'app' });
+      }
+      await client.sync();
+      return client;
+    }
+
+    it('cuts each snapshot it writes with the phone\'s code, writes every line each fold, and a phone fills from them', async () => {
+      const server = new FakeServer();
+      const lead = await worked(server, 6);
+      const fake = fakeSupabase(server);
+      await runSnapshotWorker(fake.client);
+      const snap = server.snapshots.get('org1/a')!;
+      expect(server.hasCut(snap)).toBe(true);
+      // Staged in batches, then moved in with the snapshot.
+      const order = fake.calls.map((c) => c.fn).filter((f) => f === 'stage_snapshot_units' || f === 'put_snapshot' || f === 'put_passage_lines');
+      expect(order).toEqual(['stage_snapshot_units', 'put_snapshot', 'put_passage_lines']);
+      const head = (await server.transportFor().snapshotHead!('org1', 'a', snap.reducerVersion, LINES_VERSION))!;
+      expect(head.units.map((u) => u.unitId)).toEqual(['u0', 'u1', 'u2', 'u3', 'u4', 'u5']);
+      expect(head.units.reduce((n, u) => n + u.rows, 0)).toBe(cutLanguage(snap.state).rows.length);
+      expect(head.lines!.lines).toEqual([0, 1, 2, 3, 4, 5].map((i) => JSON.parse(JSON.stringify(languageLines(snap.state).get(`u${i}`)))));
+
+      // A few events later the pass folds again: no new snapshot is due, but the lines move on.
+      await lead.append('v1.ReviewRecorded', { reviewId: 'rv-late', takeId: 't2', kindId: 'peer', outcome: 'needs_changes', via: 'app' });
+      await lead.sync();
+      const later = fakeSupabase(server, { snapshotCreatedAt: new Date().toISOString() });
+      const out = await runSnapshotWorker(later.client);
+      expect(out[0]).toMatchObject({ updated: true, written: false });
+      expect(server.lines.get('org1/a')!.seq).toBe(server.head('org1', 'a'));
+      expect(server.snapshots.get('org1/a')!.serverSeq).toBeLessThan(server.head('org1', 'a'));
+
+      // The pass read its snapshot back in pieces; the phone reads none.
+      server.chunkCalls = 0;
+      const phone = new SyncClient({
+        orgId: 'org1', streamId: 'a', actorId: 'r1', deviceId: 'dP', store: new MemoryStore(), transport: server.transportFor(), keepOnDisk: true
+      });
+      await phone.load();
+      for (let i = 0; i < 20; i++) {
+        const r = await phone.sync();
+        if (!r.more && !r.filling) break;
+        if (!r.more) await phone.fillSome();
+      }
+      const store = (phone as unknown as { opts: { store: MemoryStore } }).opts.store;
+      const whole = withOwnParts(structuredClone(phone.getState()) as LanguageState);
+      for (const kind of PART_KINDS) for (const row of await store.keptAll('org1', 'a', kind)) putEntry(whole, PART_OF_KIND.get(kind)!, row.id, JSON.parse(row.json));
+      const truth = foldLanguage([...server.stream('org1', 'a')], emptyLanguageState());
+      expect({ ...whole, appliedEventIds: {}, blobs: {} }).toEqual({ ...truth, appliedEventIds: {}, blobs: {} });
+      expect(server.chunkCalls).toBe(0);
+    });
+
+    it('gives a snapshot written before the cut its rows and lines on the next visit, though nothing new arrived', async () => {
+      const server = new FakeServer();
+      await worked(server, 3);
+      server.makeSnapshot('org1', 'a');
+      const snap = server.snapshots.get('org1/a')!;
+      expect(server.hasCut(snap)).toBe(false);
+      const fake = fakeSupabase(server);
+      const out = await runSnapshotWorker(fake.client);
+      expect(out[0]).toMatchObject({ updated: false, written: false });
+      expect(server.hasCut(server.snapshots.get('org1/a')!)).toBe(true);
+      expect(server.lines.get('org1/a')).toMatchObject({ version: LINES_VERSION, seq: snap.serverSeq });
+      // Once it has them, a visit with nothing new writes nothing.
+      const again = fakeSupabase(server);
+      await runSnapshotWorker(again.client);
+      expect(again.calls.map((c) => c.fn).filter((f) => !f.startsWith('from:') && f !== 'list_streams_page' && f !== 'pull_events' && !f.startsWith('get_snapshot'))).toEqual([]);
     });
   });
 });

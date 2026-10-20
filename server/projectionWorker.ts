@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, onlyEventsThatLeaveTheReport, ORG_STREAM, orgLicense, PERSON_ORG,
+import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, LINES_VERSION, onlyEventsThatLeaveTheReport, ORG_STREAM, orgLicense, PERSON_ORG,
   REDUCER_VERSION, REPORT_VERSION, reportInputs, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
 import { runSnapshotWorker, shouldWriteSnapshot, SNAPSHOT_SCHEDULE } from '../packages/sync/src/snapshotWorker';
 import { SupabaseTransport } from '../packages/sync/src/supabaseTransport';
@@ -33,10 +33,12 @@ const UPDATE_TITLES: Record<Update['kind'], string> = {
 /**
  * Bump the number when what a pass writes changes (a title above, a listing
  * column), so the next pass redoes every language rather than skipping
- * the unchanged ones. A new reducer or report version does the same: 2 added
- * the report inputs (decisions.md 142), so every language gets them once.
+ * the unchanged ones. A new reducer, report or lines version does the same:
+ * 2 added the report inputs (decisions.md 142), 3 the snapshot's cut by
+ * passage and every passage's line (decisions.md 145), so every language
+ * gets them once.
  */
-const PROJECTION_VERSION = `${REDUCER_VERSION}:${REPORT_VERSION}:2`;
+const PROJECTION_VERSION = `${REDUCER_VERSION}:${REPORT_VERSION}:${LINES_VERSION}:3`;
 
 /**
  * Languages too big for an Edge Function (decisions.md 103). A run there

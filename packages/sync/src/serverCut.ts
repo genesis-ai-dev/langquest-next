@@ -38,10 +38,24 @@ export interface ServerCut {
 
 /** Cut a whole language as the server stores it. The state is not changed. */
 export function cutLanguage(state: LanguageState): ServerCut {
+  const shared = sharedPart(state);
+  return { shared, rows: [...cutRows(state, shared)] };
+}
+
+/** What the whole language shares, before `cutRows` adds what no passage can be found for. */
+export function sharedPart(state: LanguageState): LanguageState {
   const shared = withoutParts(state);
   shared.blobs = {};
   shared.appliedEventIds = {};
-  const rows: KeptRecord[] = [];
+  return shared;
+}
+
+/**
+ * The rows one at a time, so the pass can send them in batches without
+ * holding them all; an entry no passage can be found for goes into
+ * `shared` instead, which is complete once the rows are.
+ */
+export function* cutRows(state: LanguageState, shared: LanguageState): Generator<KeptRecord> {
   const fileUnit = new Map<string, string>();
   for (const e of partEntries(state)) {
     const id = rowId(e);
@@ -51,12 +65,11 @@ export function cutLanguage(state: LanguageState): ServerCut {
       continue;
     }
     for (const row of entryRows(e.part, id, unitId, e.value)) {
-      if (row.kind !== AUDIO) rows.push(row);
+      if (row.kind !== AUDIO) yield row;
       else if (!fileUnit.has(row.id)) fileUnit.set(row.id, unitId);
     }
   }
-  for (const [hash, verdict] of Object.entries(state.blobs)) rows.push({ ...fileRow(hash, verdict), unitId: fileUnit.get(hash) ?? NO_UNIT });
-  return { shared, rows };
+  for (const [hash, verdict] of Object.entries(state.blobs)) yield { ...fileRow(hash, verdict), unitId: fileUnit.get(hash) ?? NO_UNIT };
 }
 
 /** Every passage's line the phone would keep for this language: each passage with anything on its record. */

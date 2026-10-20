@@ -345,6 +345,85 @@ do $$ begin
   exception when insufficient_privilege then null;
   end;
 end $$;
+-- 5g'. The server's cut (decisions.md 145): the pass stages a snapshot's rows
+-- and put_snapshot moves them in; the newest snapshot alone keeps rows; state
+-- is not kept; lines are rewritten only when they change; members read
+-- through the RPCs a phone calls, strangers cannot, nobody but the service writes.
+select set_config('request.jwt.claim.sub', '', false);
+do $$ declare n int; begin
+  -- Left from a pass that died at another seq: it goes with the next batch.
+  perform public.stage_snapshot_units('org1', 'L1', 1, 10, '[["take","dead","u9","",{}]]'::jsonb);
+  perform public.stage_snapshot_units('org1', 'L1', 1, 11,
+    '[["recording","r1","u1","lead",{"a":1}],["take","t1","u1","lead",{"unitId":"u1"}],["review","rv1","u2","",{"b":2}],["file","h1","u1","",{"stored":true}]]'::jsonb);
+  perform public.stage_snapshot_units('org1', 'L1', 1, 11, '[["shared","","","",{"units":{}}]]'::jsonb);
+  if exists (select 1 from public.snapshot_units_staged where stream_id = 'L1' and server_seq = 10) then raise exception 'rows staged for a dead pass should go'; end if;
+  perform public.put_snapshot('org1', 'L1', 1, 11, '{"v":"cut"}'::jsonb);
+  if (select state from public.snapshots where stream_id = 'L1' and server_seq = 11) is not null then raise exception 'state should no longer be kept'; end if;
+  select count(*) into n from public.snapshot_units where stream_id = 'L1' and server_seq = 11;
+  if n <> 5 then raise exception 'the staged rows should move in with the snapshot, got %', n; end if;
+  if exists (select 1 from public.snapshot_units_staged where stream_id = 'L1') then raise exception 'staged rows should be gone'; end if;
+  -- A newer snapshot with rows takes them over; one written without rows leaves them where they are.
+  perform public.put_snapshot('org1', 'L1', 1, 12, '{"v":"no cut"}'::jsonb);
+  if not exists (select 1 from public.snapshot_units where stream_id = 'L1' and server_seq = 11) then raise exception 'rows should stay without a newer cut'; end if;
+  perform public.put_passage_lines('org1', 'L1', 1, 11, '[{"unitId":"u1","x":1},{"unitId":"u2","x":2},{"unitId":"u3","x":3}]'::jsonb);
+  perform public.put_passage_lines('org1', 'L1', 1, 12, '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb);
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u1') <> 11 then raise exception 'an unchanged line keeps its row'; end if;
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u2') <> 12 then raise exception 'a changed line is rewritten'; end if;
+  if exists (select 1 from public.passage_lines where stream_id = 'L1' and unit_id = 'u3') then raise exception 'a line no longer written goes'; end if;
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = '') <> 12 then raise exception 'the lines hold at the newest pass'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', 'lead', false);
+do $$ declare h jsonb; p jsonb; begin
+  h := public.get_snapshot_head('org1', 'L1', 1, 1);
+  if h->>'server_seq' <> '11' or h->'units' <> '[["u1",3],["u2",1]]'::jsonb or h->'shared' <> '{"units":{}}'::jsonb
+     or h->'lines'->>'seq' <> '12' or h->'lines'->'lines' <> '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb then
+    raise exception 'head wrong: %', h;
+  end if;
+  if public.get_snapshot_head('org1', 'L1', 1, 1, false) ? 'shared' and public.get_snapshot_head('org1', 'L1', 1, 1, false)->'shared' <> 'null'::jsonb then
+    raise exception 'the shared part only when asked';
+  end if;
+  if public.get_snapshot_head('org1', 'L1', 1, 99)->'lines' <> 'null'::jsonb then raise exception 'no lines of another version'; end if;
+  if public.get_snapshot_head('org1', 'L1', 2, 1) is not null then raise exception 'no cut for another reducer'; end if;
+  -- Paged in (unit, kind, id) order, byte by byte.
+  p := public.get_snapshot_rows('org1', 'L1', 1, 0, array['u1', 'u2'], null, 2);
+  if p->'rows' <> '[["file","h1","u1","",{"stored":true}],["recording","r1","u1","lead",{"a":1}]]'::jsonb or p->'next' <> '["u1","recording","r1"]'::jsonb then
+    raise exception 'first page wrong: %', p;
+  end if;
+  p := public.get_snapshot_rows('org1', 'L1', 1, 0, array['u1', 'u2'], array['u1', 'recording', 'r1'], 2);
+  if p->'rows' <> '[["take","t1","u1","lead",{"unitId":"u1"}],["review","rv1","u2","",{"b":2}]]'::jsonb or p->'next' <> 'null'::jsonb then
+    raise exception 'last page wrong: %', p;
+  end if;
+  if public.get_snapshot_rows('org1', 'L1', 1, 12, array['u1'], null, 10) is not null then raise exception 'no cut at or past 12'; end if;
+  if public.get_snapshot_passages('org1', 'L1', 1, '[["review","rv1"],["take","nowhere"]]'::jsonb) <> '[["review","rv1","u2"]]'::jsonb then
+    raise exception 'passages wrong';
+  end if;
+  if (select g.state from public.get_snapshot('org1', 'L1', 1) g) <> '{"v":"no cut"}'::jsonb then raise exception 'get_snapshot reads the pieces'; end if;
+  begin
+    perform public.stage_snapshot_units('org1', 'L1', 1, 13, '[]'::jsonb);
+    raise exception 'members must not stage rows';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.put_passage_lines('org1', 'L1', 1, 13, '[]'::jsonb);
+    raise exception 'members must not write lines';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+select set_config('request.jwt.claim.sub', 'stranger', false);
+do $$ begin
+  begin perform public.get_snapshot_head('org1', 'L1', 1, 1); raise exception 'stranger head read should have failed';
+  exception when insufficient_privilege then null; end;
+  begin perform public.get_snapshot_rows('org1', 'L1', 1, 0, array['u1'], null, 10); raise exception 'stranger rows read should have failed';
+  exception when insufficient_privilege then null; end;
+  begin perform public.get_snapshot_passages('org1', 'L1', 1, '[]'::jsonb); raise exception 'stranger passages read should have failed';
+  exception when insufficient_privilege then null; end;
+end $$;
+select set_config('request.jwt.claim.sub', '', false);
+delete from public.snapshots where stream_id = 'L1' and server_seq in (11, 12);
+delete from public.passage_lines where stream_id = 'L1';
+do $$ begin
+  if exists (select 1 from public.snapshot_units where stream_id = 'L1') then raise exception 'rows should go with their snapshot'; end if;
+end $$;
 select set_config('request.jwt.claim.sub', 'lead', false);
 
 -- 5h. Minimum client version: old clients are refused with a distinct code.
@@ -908,7 +987,7 @@ do $$ declare v text; begin
     and p.proname not in ('preview_invite');
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
-  from unnest(array['put_snapshot', 'list_streams', 'list_streams_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
+  from unnest(array['put_snapshot', 'stage_snapshot_units', 'put_passage_lines', 'list_streams', 'list_streams_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
                      '_library_media_readable', 'may_emit']) f
   where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
     and has_function_privilege('authenticated', p.oid, 'execute'));

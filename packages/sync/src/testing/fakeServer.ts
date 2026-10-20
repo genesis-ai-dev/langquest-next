@@ -239,15 +239,28 @@ export class FakeServer {
     this.replaced.set(key, kept);
     this.snapshots.set(key, s);
     if (this.serverCut) {
-      const cut = cutLanguage(s.state);
-      const units = new Map<string, number>();
-      for (const r of cut.rows) units.set(r.unitId, (units.get(r.unitId) ?? 0) + 1);
-      // In the order the server keeps and pages them.
-      cut.rows.sort((a, b) => compareRows(a, b));
-      this.cuts.set(s, { ...cut, units: [...units].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([unitId, rows]) => ({ unitId, rows })) });
+      this.keepCut(s, cutLanguage(s.state));
       this.writeLines(orgId, streamId, s.state);
     }
     return s;
+  }
+
+  /** What `put_snapshot` does with the rows the pass staged: the snapshot's cut, in the order the server pages it. */
+  keepCut(s: Snapshot, cut: ServerCut): void {
+    const units = new Map<string, number>();
+    for (const r of cut.rows) units.set(r.unitId, (units.get(r.unitId) ?? 0) + 1);
+    const rows = [...cut.rows].sort((a, b) => compareRows(a, b));
+    this.cuts.set(s, { shared: cut.shared, rows, units: [...units].sort(([a], [b]) => cmp(a, b)).map(([unitId, rows]) => ({ unitId, rows })) });
+  }
+
+  /** Does this snapshot have a cut? */
+  hasCut(s: Snapshot): boolean {
+    return this.cuts.has(s);
+  }
+
+  /** What `put_passage_lines` does: a stream's lines of one version, held at `seq`. */
+  keepLines(orgId: string, streamId: string, version: number, seq: number, lines: readonly PassageLine[]): void {
+    this.lines.set(`${orgId}/${streamId}`, { version, seq, byUnit: new Map(lines.map((l) => [l.unitId, l])) });
   }
 
   private accept(e: AnyEvent): AppendResult {
@@ -286,7 +299,9 @@ export class FakeServer {
   }
 }
 
-const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+function cmp(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
 /** The server's order of a snapshot's rows: by passage, kind and id. */
 function compareRows(a: Pick<KeptRecord, 'unitId' | 'kind' | 'id'>, b: Pick<KeptRecord, 'unitId' | 'kind' | 'id'>): number {
   return cmp(a.unitId, b.unitId) || cmp(a.kind, b.kind) || cmp(a.id, b.id);
