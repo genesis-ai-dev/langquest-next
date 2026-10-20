@@ -20,7 +20,7 @@ import { NumberedSteps, PickCard, RadioRow } from '../admin/admin';
 import { checksLine, flowSub, flowWho, sameChecks } from '../admin/adminModel';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { useFlowHelps } from './useFlowHelps';
-import { FlowLanguageLink } from './FlowLanguage';
+import { FlowLanguageLink } from '../helps/lazyHelps';
 import { teamLanguages } from '../reference/languages';
 
 const PAD = { paddingHorizontal: 20, gap: 14 } as const;

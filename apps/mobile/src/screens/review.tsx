@@ -79,7 +79,7 @@ import { isStoredReview, reviewDraftOf, reviewStateOf, type ReviewDraft, type Re
 import { NoteStepContext } from '../checks/noteStep';
 import { anyFrom, fromFilter } from '../checks/showsModel';
 import { useCheckQuestions, useLibraryHelps } from '../helps/useLibraryHelps';
-import { PassageHelpsSheet } from '../helps/libraryHelps';
+import { PassageHelpsSheet } from '../helps/lazyHelps';
 import { useBibleRows } from '../helps/useBibleRows';
 import { bookOf } from '../recording/model';
 

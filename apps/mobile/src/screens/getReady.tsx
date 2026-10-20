@@ -60,7 +60,7 @@ import { ReadyChecklist } from '../admin/ready';
 import { howItWorks, plainRoleHelp } from '../admin/readyText';
 import { usePlainRoles, useReadySummary } from '../admin/useReadySummary';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
-import { FlowLanguageLink } from '../checks/FlowLanguage';
+import { FlowLanguageLink } from '../helps/lazyHelps';
 import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { NumberingNote, RedoSheet } from '../breakup/parts';

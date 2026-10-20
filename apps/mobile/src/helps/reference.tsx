@@ -43,7 +43,7 @@ import type { useBible } from './useBible';
 import { draftKey, EMPTY_NOTE, isNoteDraft, isRecord } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
-import { ArticleSheet, LibraryKeyWords, LibraryNotes } from './libraryHelps';
+import { ArticleSheet, LibraryKeyWords, LibraryNotes } from './lazyHelps';
 import { noteQuote } from './libraryHelpsModel';
 import { useArticleSheet } from './useArticleSheet';
 import type { LibraryHelps } from './useLibraryHelps';

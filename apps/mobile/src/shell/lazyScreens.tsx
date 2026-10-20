@@ -29,3 +29,27 @@ export function lazyScreen<M extends Record<string, unknown>>(load: Loader<M>, n
   LazyScreen.displayName = `Lazy(${name})`;
   return LazyScreen;
 }
+
+/**
+ * A part of a screen whose module loads the first time it is drawn, as
+ * `lazyScreen` does for screens: Door43's notes, key words and articles,
+ * which most passages never show, stay out of the first visit. Until the
+ * module arrives the part draws nothing; on the web it is fetched once the
+ * app has settled (`prefetchLazyScreens`), so it is there offline.
+ */
+export function lazyPart<M extends Record<string, unknown>, K extends keyof M & string>(load: Loader<M>, name: K): M[K] {
+  registerLoader(load);
+  function Loaded(props: Record<string, unknown>) {
+    const Part = readModule(load)[name] as ComponentType<Record<string, unknown>>;
+    return <Part {...props} />;
+  }
+  function LazyPart(props: Record<string, unknown>) {
+    return (
+      <Suspense fallback={null}>
+        <Loaded {...props} />
+      </Suspense>
+    );
+  }
+  LazyPart.displayName = `Lazy(${name})`;
+  return LazyPart as unknown as M[K];
+}

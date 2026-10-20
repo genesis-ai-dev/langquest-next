@@ -21,7 +21,7 @@ import { ChoiceCard, DashedRow, LockToggle } from '../admin/admin';
 import { checkName, checksLine, dropIndex } from '../admin/adminModel';
 import { useCheckChoices, type FlowEntry } from '../admin/useChoices';
 import { useFlowHelps } from './useFlowHelps';
-import { FlowLanguageLink } from './FlowLanguage';
+import { FlowLanguageLink } from '../helps/lazyHelps';
 import { teamLanguages } from '../reference/languages';
 import { addRow, moveRow, removeRow, rowNumbers, rowsOf, setCheckpoint, setTogether, type CheckRow } from './model';
 import { setChecksDraft } from './draft';
