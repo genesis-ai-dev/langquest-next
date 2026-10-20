@@ -315,6 +315,44 @@ describe('a first download by fill (decisions.md 147)', () => {
   });
 });
 
+describe('a server without the cut (decisions.md 147)', () => {
+  it('a server error from the cut, or a server without one, gives the phone the whole snapshot', async () => {
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 8);
+    server.makeSnapshot('org1', 'p1');
+    server.headError = 'canceling statement due to statement timeout';
+    const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true });
+    await client.load();
+    await settle(client);
+    expect(server.chunkCalls).toBeGreaterThan(0);
+    expect(client.fillProgress()).toBeNull();
+    expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage([...server.stream('org1', 'p1')], emptyLanguageState())));
+  });
+
+  it('a cut gone part-way through a fill (a server rolled back) starts the language over from the whole snapshot, keeping unsent work', async () => {
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 12);
+    server.makeSnapshot('org1', 'p1');
+    const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true, fillBudgetMs: 0 });
+    await client.load();
+    await client.sync();
+    await client.fillSome(0);
+    expect(client.fillProgress()!.filled).toBeLessThan(12);
+    server.offline = true;
+    await client.append('v1.NoteAdded', { noteId: 'unsent', unitId: 'u03', anchor: { kind: 'passage' }, text: 'mine' });
+    server.offline = false;
+    server.dropCuts();
+    await client.fillSome(0);
+    expect(client.fillProgress()).toBeNull();
+    await settle(client);
+    expect(server.chunkCalls).toBeGreaterThan(0);
+    expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage([...server.stream('org1', 'p1')], emptyLanguageState())));
+    expect(server.log.some((e) => e.type === 'v1.NoteAdded' && e.payload.noteId === 'unsent')).toBe(true);
+  });
+});
+
 describe('a build from before the fill (decisions.md 143, 147)', () => {
   it('drops a partly filled checkpoint it would read as whole, and a filled one from before is kept', async () => {
     const server = new FakeServer();

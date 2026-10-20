@@ -62,6 +62,8 @@ export class SupabaseTransport implements Transport {
       p_lines_version: linesVersion,
       p_with_shared: withShared
     });
+    // A server from before the cut (decisions.md 147) has no such function: the phone downloads the whole snapshot.
+    if (error?.code === 'PGRST202') return null;
     if (error) throw toError(error, status);
     const head = data as { server_seq: number; shared?: unknown; units: [string, number][]; lines: { seq: number; lines: unknown[] } | null } | null;
     if (!head) return null;

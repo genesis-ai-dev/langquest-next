@@ -23567,6 +23567,7 @@ var SupabaseTransport = class {
       p_lines_version: linesVersion,
       p_with_shared: withShared
     });
+    if (error?.code === "PGRST202") return null;
     if (error) throw toError(error, status);
     const head2 = data;
     if (!head2) return null;

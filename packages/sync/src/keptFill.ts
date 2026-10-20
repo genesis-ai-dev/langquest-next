@@ -11,6 +11,15 @@ type Verdict = LanguageState['blobs'][string];
 
 /** A passage whose rows are all on the phone: a row of its own, written with the passage's last row. */
 export const FILLED = 'filled';
+/**
+ * The server has no cut at or past the snapshot this fill started from (a
+ * server rolled back to before the cut, say): the fill cannot go on, and
+ * the language is downloaded again from whatever the server has.
+ */
+export class CutGoneError extends Error {
+  override name = 'CutGoneError';
+}
+
 /** Rows asked for at once: about the size of a snapshot piece (decision 18) at Koro's 250 bytes a row. */
 export const ROWS_PER_PAGE = 1_000;
 
@@ -270,8 +279,8 @@ export class KeptFill {
     const pending = new Set(asked);
     do {
       const page = await this.transport.snapshotRows!(this.orgId, this.streamId, this.reducerVersion, meta.base, asked, after, this.pageRows);
-      // No snapshot at or past the shared part's with a cut: nothing to fill from now; the next sync asks again.
-      if (!page) return done;
+      // No snapshot at or past the shared part's has a cut any more: nothing can fill this checkpoint in.
+      if (!page) throw new CutGoneError(`no cut at or past ${meta.base}`);
       // Passages before the next page's first are complete.
       const complete = page.next ? [...pending].filter((u) => u < page.next!.unitId) : [...pending];
       await this.keep(page.rows, complete, Math.max(meta.rowsSeq, page.serverSeq));

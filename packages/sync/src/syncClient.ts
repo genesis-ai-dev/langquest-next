@@ -22,7 +22,7 @@ import { downloadPieces, fetchSnapshot } from './snapshotFetch';
 import type { DIAG_SCHEMA, Diagnostics } from './diagnostics';
 import { holdsKept, KeptLanguage, LINE, PART_KINDS, SnapshotRows, SPLIT_MAPS } from './keptLanguage';
 import { KeptLines, lineRow } from './keptLines';
-import { KeptFill } from './keptFill';
+import { CutGoneError, KeptFill } from './keptFill';
 import { stateSplitter } from './stateSplit';
 import type { KeptRecord } from './types';
 
@@ -789,7 +789,14 @@ export class SyncClient<S = LanguageState> {
   private async adoptServerCut(why: SnapshotWhy, minSeq: number, started: number): Promise<number | null> {
     const t = this.opts.transport;
     if (!this.kept || !this.lines || !this.fill?.possible || !t.snapshotHead) return null;
-    const head = await t.snapshotHead(this.opts.orgId, this.opts.streamId, this.m.version, LINES_VERSION, true);
+    let head: Awaited<ReturnType<NonNullable<Transport['snapshotHead']>>>;
+    try {
+      head = await t.snapshotHead(this.opts.orgId, this.opts.streamId, this.m.version, LINES_VERSION, true);
+    } catch (err) {
+      // Offline, refused or too old: as for any call. A failure of the cut alone leaves the whole snapshot to download.
+      if (err instanceof OfflineError || err instanceof NotAuthorizedError || err instanceof ClientTooOldError) throw err;
+      head = null;
+    }
     this.net.pull += this.elapsed() - started;
     if (!head || head.shared === undefined || !head.lines || head.lines.seq < head.serverSeq) return null;
     const lines = head.lines;
@@ -822,6 +829,28 @@ export class SyncClient<S = LanguageState> {
       if (!(err instanceof OfflineError)) throw err;
     }
     return head.serverSeq;
+  }
+
+  /** Run a fill step; if the cut it fills from is gone, start the language over (`cutGone`) and say nothing was filled. */
+  private async fillOrStartOver(step: () => Promise<string[]>): Promise<string[]> {
+    try {
+      return await step();
+    } catch (err) {
+      if (!(err instanceof CutGoneError)) throw err;
+      await this.cutGone();
+      return [];
+    }
+  }
+
+  /**
+   * The server no longer has a cut this checkpoint can be filled from (a
+   * server rolled back to before the cut): drop the checkpoint and the rows,
+   * as for another reducer's, so the next pull downloads the language again
+   * from whatever the server has. Unsent work stays in the log.
+   */
+  private async cutGone(): Promise<void> {
+    await this.dropStaleCheckpoint();
+    await this.refold('other');
   }
 
   /** Lines of passages just filled in are worked out, and screens told. */
@@ -978,7 +1007,7 @@ export class SyncClient<S = LanguageState> {
     // A passage whose rows are still on the server is filled in now, if the server can be reached (decisions.md 147).
     if (this.fill?.active() && this.kept.wantedUnits().length > 0) {
       await this.exclusive(async () => {
-        if ((await this.fill!.fillWanted()).length > 0) await this.afterFill();
+        if ((await this.fillOrStartOver(() => this.fill!.fillWanted())).length > 0) await this.afterFill();
       }).catch(() => { /* offline: the screen says the passage is not on this device yet */ });
     }
   }
@@ -1326,7 +1355,13 @@ export class SyncClient<S = LanguageState> {
       // Passages this page has news of past the server's lines are filled in before it is folded, so no list shows them stale.
       if (this.fill?.active()) {
         const asking = this.elapsed();
-        await this.fill.beforeFold(page);
+        try {
+          await this.fill.beforeFold(page);
+        } catch (err) {
+          if (!(err instanceof CutGoneError)) throw err;
+          await this.cutGone();
+          return { pulled: total, more: true };
+        }
         this.net.pull += this.elapsed() - asking;
       }
       const writes: LocalEvent[] = [];
@@ -1498,7 +1533,7 @@ export class SyncClient<S = LanguageState> {
       const { pulled, more: morePull } = await this.inPhase('pull', () => this.pullNow(this.pullBudgetMs));
       // Up to date: passages a screen or this phone's own work asked for are filled in now (decisions.md 147); the rest by `fillSome`.
       if (!morePull && this.fill?.active() && this.kept?.wantedUnits().length) {
-        if ((await this.inPhase('snapshot', () => this.fill!.fillWanted())).length > 0) await this.afterFill();
+        if ((await this.inPhase('snapshot', () => this.fillOrStartOver(() => this.fill!.fillWanted()))).length > 0) await this.afterFill();
       }
       result = { ...idle, pushed: accepted, rejected, pulled, more: morePush || morePull, filling: !!this.fill?.active() };
     } catch (err) {
@@ -1533,7 +1568,7 @@ export class SyncClient<S = LanguageState> {
     return this.exclusive(async () => {
       if (!this.fill?.active() || !this.loaded) return { filled: 0, filling: false, offline: false };
       try {
-        const filled = await this.inPhase('snapshot', () => this.fill!.step(budgetMs, this.opts.fillFirst, this.elapsed));
+        const filled = await this.inPhase('snapshot', () => this.fillOrStartOver(() => this.fill!.step(budgetMs, this.opts.fillFirst, this.elapsed)));
         if (filled.length > 0) await this.afterFill();
         return { filled: filled.length, filling: this.fill.active(), offline: false };
       } catch (err) {

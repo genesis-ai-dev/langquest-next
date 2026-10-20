@@ -1,7 +1,7 @@
 import { CLIENT_PROTOCOL_VERSION, emptyLanguageState, foldLanguage, LINES_VERSION, REDUCER_VERSION, takeSnapshot, type AnyEvent, type PassageLine, type Snapshot } from '@langquest-next/core';
 import { cutLanguage, languageLinesOf, type ServerCut } from '../serverCut';
 import type { AppendResult, KeptRecord, RowCursor, Transport } from '../types';
-import { ClientTooOldError, NotAuthorizedError, OfflineError } from '../types';
+import { ClientTooOldError, NotAuthorizedError, OfflineError, ServerError } from '../types';
 
 /**
  * In-memory stand-in for append_events / pull_events with the same
@@ -78,6 +78,8 @@ export class FakeServer {
   passageCalls = 0;
   /** Row fetches after this many throw (link dropped mid-fill). */
   failRowsAfter = Infinity;
+  /** The head call fails as a server error (a statement timeout, say), not as no connection. */
+  headError: string | null = null;
 
   transportFor(): Transport {
     return {
@@ -119,6 +121,7 @@ export class FakeServer {
       snapshotHead: async (orgId, streamId, reducerVersion, linesVersion, withShared = true) => {
         this.reach();
         this.headCalls += 1;
+        if (this.headError) throw new ServerError(this.headError, '57014');
         const s = this.snapshots.get(`${orgId}/${streamId}`);
         const cut = s && s.reducerVersion === reducerVersion ? this.cuts.get(s) : undefined;
         if (!s || !cut) return null;
@@ -251,6 +254,11 @@ export class FakeServer {
     for (const r of cut.rows) units.set(r.unitId, (units.get(r.unitId) ?? 0) + 1);
     const rows = [...cut.rows].sort((a, b) => compareRows(a, b));
     this.cuts.set(s, { shared: cut.shared, rows, units: [...units].sort(([a], [b]) => cmp(a, b)).map(([unitId, rows]) => ({ unitId, rows })) });
+  }
+
+  /** Forget every cut, as a server rolled back to before the cut would have none (decisions.md 147). */
+  dropCuts(): void {
+    this.cuts = new WeakMap();
   }
 
   /** Does this snapshot have a cut? */
