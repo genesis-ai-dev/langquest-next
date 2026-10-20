@@ -100,7 +100,7 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
     out = (await deps.orgsOf(profileId)).includes(orgId) ? await deps.reports(orgId, profileId, url.searchParams.get('fresh') === '1') : null;
   } catch (e) {
     console.error(`reports ${orgId}:`, e);
-    return json(502, { error: 'The dashboard could not read this organization just now. Try again.' });
+    return json(502, { error: 'The server could not read this organization just now. Try again.' });
   }
   if (!out) return json(403, { error: 'You are not a member of this organization.' });
   const body = url.searchParams.get('view') === 'summary' ? summarizeReports(out) : withOverdueZero(out);

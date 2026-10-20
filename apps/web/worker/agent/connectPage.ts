@@ -101,7 +101,7 @@ let jwt = null, orgs = [];
 
 function say(text, tone) { $('out').innerHTML = text ? '<p class="notice ' + (tone || '') + '">' + esc(text) + '</p>' : ''; }
 
-// The dashboard's session goes stale while the dashboard is closed, so each
+// The web app's session goes stale while the web app is closed, so each
 // source is checked on its own: a stale one must not hide a live one.
 function appSession() {
   const live = (read) => {

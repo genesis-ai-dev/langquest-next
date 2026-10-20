@@ -1,8 +1,8 @@
 // The Reports section (decision 57): app-only, not in the partner demo.
 // Shown on tablets and the web (768 and wider) to people with view_status:
-// the organization's figures across every language, from the dashboard's
-// server (decision 44), which a phone could not total itself (decision 37).
-// Ports the web dashboard's shell and language page (apps/web/src/screens:
+// the organization's figures across every language, from the app's
+// Worker (decision 44), which a phone could not total itself (decision 37).
+// Ports the old web dashboard's shell and language page (apps/web/src/screens:
 // shell, Language); the sections and their parts are in src/reports/.
 import { NotSavedError } from '@langquest-next/sync';
 import {

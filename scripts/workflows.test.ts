@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 // 141): a schedule there is delayed or dropped under load, switched off after
 // 60 idle days in a public repository, and holds the production key in the
 // repository's secrets. Server jobs run in the job container behind the
-// dashboard Worker, or in an Edge Function when they fit it. The nightly
+// app's Worker, or in an Edge Function when they fit it. The nightly
 // test runs in guardrails.yml are scheduled too, and hold no production key.
 
 /** A secret that reaches production: this app's service-role key, or v2's keys. */

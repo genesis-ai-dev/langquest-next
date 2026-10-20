@@ -1,7 +1,7 @@
 /**
  * The projection pass (decisions.md 68, 141): Inbox rows, the public
  * listing, server snapshots and report inputs for every language that
- * changed. The job container behind the dashboard Worker runs it every five
+ * changed. The job container behind the app's Worker runs it every five
  * minutes from the Worker's job tick (`apps/web/worker/jobs.ts`;
  * `scripts/build-jobs.mjs` bundles this file), with Node's memory, so the
  * biggest language folds whole.

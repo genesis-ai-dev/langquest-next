@@ -43,7 +43,7 @@ Deno.serve(async (request) => {
   const startedAt = Date.now();
   // Push delivery calls this every minute (20261019110000_projection_pass_in_container.sql),
   // so a phone hears of a join request without waiting for a pass (decisions.md 68).
-  // The projection pass runs in the job container behind the dashboard
+  // The projection pass runs in the job container behind the app's
   // Worker (decisions.md 141); only a local stack still calls this for it,
   // every minute (scripts/local-db.mjs), since wrangler dev fires no cron.
   const body = await request.json().catch(() => ({})) as { task?: string };

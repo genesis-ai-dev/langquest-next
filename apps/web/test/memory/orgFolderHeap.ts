@@ -191,7 +191,7 @@ const paths: Record<string, () => Promise<void>> = {
   async fold() {
     // A cold object's first full pass: a report or a passage read asks for every language.
     await folder.orgState();
-    // Then the partner API and the dashboard read each language's whole fold.
+    // Then the partner API and Reports read each language's whole fold.
     for (const id of languageIds) await folder.languageState(id);
   },
 

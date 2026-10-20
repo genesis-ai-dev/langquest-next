@@ -1,8 +1,8 @@
 // The Reports section's pages (decision 57): app-only, not in the partner
-// demo. Ported from the web dashboard (apps/web/src/screens: Overview,
+// demo. Ported from the old web dashboard (apps/web/src/screens: Overview,
 // Activity, Languages, Geography, Reports, Ledger, Pace, Alerts), whose figures
-// all come from core `portfolio.ts` summed over the rows the dashboard's
-// server returned for this person (decision 44).
+// all come from core `portfolio.ts` summed over the rows the app's
+// Worker returned for this person (decision 44).
 import {
   activityWindow, alertsFor, attentionCount, combinedActivity, countryCounts, coverageAverage, defaultLedgerMonth, fieldReport,
   isSettled, ledgerFor, ledgerMonths, logByDay, mergedDaily, milestonesSince, orgTotals, paceGroups,

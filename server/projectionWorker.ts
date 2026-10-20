@@ -246,7 +246,7 @@ export async function runProjections(
     check(await service.rpc('reconcile_notifications', {
       p_org: snapshot.orgId, p_language: languageId, p_rows: notifications
     }), 'reconcile_notifications');
-    // What the language's report is made from, for the dashboard's server to render (decisions.md 142).
+    // What the language's report is made from, for the app's Worker to render (decisions.md 142).
     check(await service.from('language_report_inputs').upsert({
       org_id: snapshot.orgId, language_id: languageId, seq: snapshot.serverSeq, report_version: REPORT_VERSION,
       inputs: reportInputs(state, Date.now(), idx), updated_at: new Date().toISOString()

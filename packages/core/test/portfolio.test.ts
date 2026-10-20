@@ -8,7 +8,7 @@ import {
 
 /**
  * Organization figures are summed on the device from the rows the
- * dashboard's server returned for this person (decision 44), so these sums
+ * app's Worker returned for this person (decision 44), so these sums
  * are the whole of what a coordinator reads as "the organization".
  */
 
