@@ -186,6 +186,46 @@ describe('a first download by fill (decisions.md 147)', () => {
     expect(units.every((u) => again.client.isFilled(u))).toBe(true);
   });
 
+  it('a passage opened while the fill writes its rows is in memory once it reads as loaded', async () => {
+    // Why: the fill put rows into memory only for passages held when it built its page, then awaited its write.
+    // A screen opening the passage in that wait read the disk before the rows landed and was told the passage was
+    // ready; the write then marked it filled, so it read as loaded with its records in neither place, and the screen,
+    // which shows a passage once it reads as loaded, drew it as never recorded (REV-017, REC-011 on CI, 2026-10-20).
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 20);
+    server.makeSnapshot('org1', 'p1');
+    const base = makeStore();
+    let opened: Promise<void> | null = null;
+    let client: SyncClient | null = null;
+    const store = new Proxy(base, {
+      get(target, k) {
+        const value = (target as unknown as Record<string | symbol, unknown>)[k];
+        if (k !== 'commit') return typeof value === 'function' ? (value as (...a: unknown[]) => unknown).bind(target) : value;
+        return async (batch: Parameters<EventStore['commit']>[0]) => {
+          const fillsIt = (batch.kept?.upsert ?? []).some((r) => r.kind === FILLED && r.unitId === 'u06');
+          if (fillsIt && !opened) {
+            // The screen opens the passage now: its read of the disk happens before this write.
+            opened = client!.loadUnits(['u06']);
+            await new Promise((r) => setTimeout(r, 0));
+          }
+          return target.commit(batch);
+        };
+      }
+    });
+    const p = phone(server, 'dB', 'r1', { keepOnDisk: true, fillBudgetMs: 0, store });
+    client = p.client;
+    await client.load();
+    await client.sync();
+    expect(client.isFilled('u06')).toBe(false);
+    for (let i = 0; i < 50 && !client.isFilled('u06'); i++) await client.fillSome(0);
+    expect(opened).not.toBeNull();
+    await opened;
+    expect(client.isLoaded('u06')).toBe(true);
+    expect(Object.entries(client.getState().takes).filter(([, t]) => t.unitId === 'u06').map(([id]) => id)).toEqual(['t-w6']);
+    expect(Object.values(client.getState().recordings).filter((r) => r.unitId === 'u06')).toHaveLength(1);
+  });
+
   it('fills what a screen opens first, then the person\'s own passages, then the rest', async () => {
     const server = new FakeServer();
     server.serverCut = true;

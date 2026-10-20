@@ -48,7 +48,8 @@ export default defineConfig({
   },
   projects: [
     // Tests tagged @wide run only in the wide project; it is listed first so its few long
-    // journeys start at once rather than last, alone (and land in CI's first shard).
+    // journeys start at once rather than last, alone. CI cuts shards by spec file and recorded
+    // duration (scripts/ui-shards.mjs), not with --shard, so this order no longer picks a shard.
     { name: 'wide', grep: /@wide/, use: { ...devices['Desktop Chrome'], ...chrome, viewport: { width: 1280, height: 900 }, ...mic } },
     // Phone width, the default for every test.
     { name: 'phone', grepInvert: /@wide/, use: { ...devices['Desktop Chrome'], ...chrome, viewport: { width: 430, height: 932 }, ...mic } }

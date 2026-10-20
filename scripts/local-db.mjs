@@ -51,6 +51,12 @@ const KEY = 'PUSH_DELIVERY_SECRET';
 const OLD_KEY = 'PROJECTION_WORKER_SECRET';
 const WEB_PORT = 8787;
 const mode = process.argv[2];
+/**
+ * Services `supabase start` leaves out: CI sets SUPABASE_EXCLUDE=studio,imgproxy,...
+ * (guardrails.yml) so a runner pulls and runs only the containers the tests
+ * use; a developer's machine gets them all.
+ */
+const EXCLUDE = process.env.SUPABASE_EXCLUDE?.trim();
 
 function sh(cmd, args, input) {
   const r = spawnSync(cmd, args, { cwd: root, encoding: 'utf8', input, stdio: input === undefined && cmd === 'npx' ? 'inherit' : 'pipe' });
@@ -117,7 +123,7 @@ async function main() {
   // The functions read their .env when the stack starts; one started without it must start again (keeps the database).
   if (mode === 'start' || mode === 'dev' || (fresh && running())) {
     if (fresh && running()) sh('npx', ['supabase', 'stop']);
-    sh('npx', ['supabase', 'start']);
+    sh('npx', ['supabase', 'start', ...(EXCLUDE ? ['-x', EXCLUDE] : [])]);
   }
   if (mode === 'reset') sh('npx', ['supabase', 'db', 'reset']);
   prepare(secret);
