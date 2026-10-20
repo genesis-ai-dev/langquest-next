@@ -7489,7 +7489,8 @@
     "toast": {
       "sent": "Enviado. Obrigado!",
       "saved": "Salvo. É enviado quando você estiver conectado.",
-      "savedUntilSignIn": "Salvo. É enviado depois que você entrar."
+      "savedUntilSignIn": "Salvo. É enviado depois que você entrar.",
+      "voiceTooLong": "Longo demais: uma mensagem de voz pode ter até 2 minutos."
     }
   }
 }

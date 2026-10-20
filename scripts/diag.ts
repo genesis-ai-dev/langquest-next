@@ -9,7 +9,7 @@
 //   npm run diag -- v2                                   the v2 import, per project
 //   npm run diag -- error <E-XXXXXX>
 //   npm run diag -- timeline <installId> [--days 2]
-//   npm run diag -- feedback [--days 30] [--install <id>] [--shot <feedbackId>]
+//   npm run diag -- feedback [--days 30] [--install <id>] [--shot <feedbackId>] [--voice <feedbackId>]
 //   npm run diag -- --hosted …    the same against the hosted database
 //
 // Reads through the `diag` schema only, as `diag_reader` on a hosted
@@ -231,10 +231,21 @@ function personReport(profileId: string): void {
 interface Feedback {
   id: string; created_at: string; kind: 'bug' | 'idea'; body: string; status: string; install_id: string;
   context: Record<string, string>; has_screenshot: boolean; shared_name: string | null; shared_email: string | null;
+  voice_format: 'm4a' | 'wav' | null; voice_ms: number | null;
 }
 
-/** Feedback from help mode, newest first; `--shot <id>` saves one report's screenshot beside you. */
+/** Feedback from help mode, newest first; `--shot <id>` and `--voice <id>` save one report's screenshot or voice note beside you. */
 function feedbackReport(): void {
+  const voice = flag('voice');
+  if (voice) {
+    const row = query<{ b64: string | null; format: string | null } | null>(
+      `select jsonb_build_object('b64', encode(diag.feedback_voice(:'id'::uuid), 'base64'), 'format', (select f.voice_format from diag.feedback('3650 days') f where f.id = :'id'::uuid))`, { id: voice });
+    if (!row?.b64) throw new Error(`Feedback ${voice} has no voice note.`);
+    const file = `feedback-${voice}.${row.format ?? 'm4a'}`;
+    writeFileSync(file, Buffer.from(row.b64.replace(/\s+/g, ''), 'base64'));
+    console.log(`saved ${file}`);
+    return;
+  }
   const shot = flag('shot');
   if (shot) {
     const b64 = query<string | null>(`select to_jsonb(encode(diag.feedback_screenshot(:'id'::uuid), 'base64'))`, { id: shot });
@@ -257,10 +268,11 @@ function feedbackReport(): void {
     console.log([
       `## ${f.kind === 'bug' ? 'Problem' : 'Idea'} · ${f.created_at} · ${f.status}${who}`,
       [`id ${f.id}`, `install ${f.install_id}`, c.screen, [c.os, c.osVersion].filter(Boolean).join(' '), c.model,
-        `app ${c.runtimeVersion ?? '?'} (${c.channel ?? '?'})`, c.uiLanguage, f.has_screenshot ? `screenshot: --shot ${f.id}` : undefined]
+        `app ${c.runtimeVersion ?? '?'} (${c.channel ?? '?'})`, c.uiLanguage, f.has_screenshot ? `screenshot: --shot ${f.id}` : undefined,
+        f.voice_format ? `voice note ${Math.round((f.voice_ms ?? 0) / 1000)} s: --voice ${f.id}` : undefined]
         .filter(Boolean).join(' · '),
       '',
-      f.body,
+      f.body || '(said in the voice note)',
       '',
       `diagnostics: npm run diag -- timeline ${f.install_id} --days 2`,
       ''

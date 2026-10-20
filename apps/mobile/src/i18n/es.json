@@ -7489,7 +7489,8 @@
     "toast": {
       "sent": "Enviado. ¡Gracias!",
       "saved": "Guardado. Se envía cuando tengas conexión.",
-      "savedUntilSignIn": "Guardado. Se envía cuando inicies sesión."
+      "savedUntilSignIn": "Guardado. Se envía cuando inicies sesión.",
+      "voiceTooLong": "Demasiado largo: una nota de voz puede durar hasta 2 minutos."
     }
   }
 }

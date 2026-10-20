@@ -11,6 +11,8 @@ insert into public.profiles (id, display_name) values
 
 -- A JPEG's first bytes, as the phone sends them (base64).
 create function pg_temp.jpeg() returns text language sql as $$ select encode('\xffd8ffe000104a464946'::bytea, 'base64') $$;
+-- An AAC voice note's first bytes: a box size, then "ftyp" and "M4A ".
+create function pg_temp.m4a() returns text language sql as $$ select encode('\x00000018667479704d344120'::bytea, 'base64') $$;
 
 -- 1. Signed out: refused.
 select set_config('request.jwt.claim.sub', '', true);
@@ -53,6 +55,26 @@ begin
   if r.screenshot <> '\xffd8ffe000104a464946'::bytea then raise exception 'screenshot not kept'; end if;
 end $$;
 
+-- 3b. Said rather than typed: a voice note with no words is a report; its format and length come back.
+do $$
+declare r record;
+begin
+  perform public.feedback_submit('f1000000-0000-0000-0000-000000000003', 'bug', '', 'inst-1', '{}', false, null, pg_temp.m4a(), 'm4a', 4200);
+  select * into r from diag.feedback where id = 'f1000000-0000-0000-0000-000000000003';
+  if r.voice <> '\x00000018667479704d344120'::bytea or r.voice_format <> 'm4a' or r.voice_ms <> 4200 then raise exception 'voice not kept: %', r; end if;
+  -- A voice note that is not what it says it is, or words and voice both missing.
+  begin
+    perform public.feedback_submit(gen_random_uuid(), 'bug', '', 'inst-1', '{}', false, null, pg_temp.jpeg(), 'm4a', 1000);
+    raise exception 'took a picture as a voice note';
+  exception when sqlstate '22023' then null;
+  end;
+  begin
+    perform public.feedback_submit(gen_random_uuid(), 'bug', '', 'inst-1', '{}', false, null, pg_temp.m4a(), 'ogg', 1000);
+    raise exception 'took a format it does not keep';
+  exception when sqlstate '22023' then null;
+  end;
+end $$;
+
 -- 4. What it refuses: a kind, an empty or long body, a bad install id, a picture that is not a JPEG.
 do $$
 declare
@@ -76,7 +98,7 @@ end $$;
 do $$
 declare i int;
 begin
-  for i in 1..18 loop
+  for i in 1..17 loop
     perform public.feedback_submit(gen_random_uuid(), 'bug', 'again ' || i, 'inst-1');
   end loop;
   begin
@@ -108,7 +130,9 @@ do $$
 declare r record;
 begin
   select * into r from diag.feedback() f where f.id = 'f1000000-0000-0000-0000-000000000002';
-  if r.status <> 'new' or not r.has_screenshot or r.shared_email <> 'sender@example.org' then raise exception 'reader: %', r; end if;
+  if r.status <> 'new' or not r.has_screenshot or r.shared_email <> 'sender@example.org' or r.voice_format is not null then raise exception 'reader: %', r; end if;
+  if (select voice_format from diag.feedback() f where f.id = 'f1000000-0000-0000-0000-000000000003') <> 'm4a' then raise exception 'reader: voice format'; end if;
+  if diag.feedback_voice('f1000000-0000-0000-0000-000000000003') <> '\x00000018667479704d344120'::bytea then raise exception 'voice reader'; end if;
   if (select count(*) from diag.feedback('30 days', 'inst-1')) <> 20 then raise exception 'reader by install'; end if;
   if diag.feedback_screenshot('f1000000-0000-0000-0000-000000000002') <> '\xffd8ffe000104a464946'::bytea then
     raise exception 'screenshot reader';

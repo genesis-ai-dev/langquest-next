@@ -6879,7 +6879,8 @@
     "toast": {
       "sent": "Terkirim. Terima kasih!",
       "saved": "Tersimpan. Dikirim saat Anda terhubung.",
-      "savedUntilSignIn": "Tersimpan. Dikirim setelah Anda masuk."
+      "savedUntilSignIn": "Tersimpan. Dikirim setelah Anda masuk.",
+      "voiceTooLong": "Terlalu panjang: catatan suara paling lama 2 menit."
     }
   }
 }

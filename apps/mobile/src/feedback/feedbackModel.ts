@@ -21,6 +21,12 @@ export interface Shot { base64: string; width: number; height: number }
 /** Longer than a slow phone takes to draw its window, short enough that the sheet still opens promptly. */
 export const CAPTURE_MS = 4000;
 
+/** A voice note with the report: the recording in the phone's file store (sync/blobs.ts), by its hash. */
+export interface VoiceRef { hash: string; format: 'wav' | 'm4a'; durationMs: number }
+
+/** The longest voice note a report carries: a phone's AAC, or the web's 16 kHz WAV, fits what the server takes. */
+export const MAX_VOICE_MS = 2 * 60_000;
+
 /** What a report says about itself, as queued in the account outbox. Never a name or an email: the server reads those, if shared. */
 export interface FeedbackPayload {
   kind: FeedbackKind;
@@ -32,10 +38,37 @@ export interface FeedbackPayload {
   shareProfile: boolean;
   /** A screenshot waits beside it on the phone (feedbackShots.ts), under the report's id. */
   shot: boolean;
+  /** Said rather than (or as well as) typed. */
+  voice?: VoiceRef | null;
 }
 
-export function feedbackReady(kind: FeedbackKind | null, body: string): kind is FeedbackKind {
-  return kind !== null && body.trim().length > 0 && body.length <= MAX_FEEDBACK_CHARS;
+/** A kind, and words or a voice note (or both), within what the server takes. */
+export function feedbackReady(kind: FeedbackKind | null, body: string, voice: VoiceRef | null = null): kind is FeedbackKind {
+  if (kind === null || body.length > MAX_FEEDBACK_CHARS || voiceTooLong(voice)) return false;
+  return body.trim().length > 0 || voice !== null;
+}
+
+export function voiceTooLong(voice: VoiceRef | null): boolean {
+  return !!voice && voice.durationMs > MAX_VOICE_MS;
+}
+
+/** Room kept between Send feedback and the edges of the area it is dragged in. */
+export const PILL_MARGIN = 8;
+
+/**
+ * Where Send feedback is drawn: centred, `bottom` above the area's foot,
+ * moved by where the person dragged it, and never past the area's edges.
+ * Also the drag as it ends up once kept inside them, so the next drag
+ * starts from where it shows.
+ */
+export function pillPlace(area: { width: number; height: number }, pill: { width: number; height: number }, bottom: number,
+  drag: { dx: number; dy: number }): { left: number; top: number; drag: { dx: number; dy: number } } {
+  const homeLeft = (area.width - pill.width) / 2;
+  const homeTop = area.height - bottom - pill.height;
+  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+  const left = clamp(homeLeft + drag.dx, PILL_MARGIN, area.width - pill.width - PILL_MARGIN);
+  const top = clamp(homeTop + drag.dy, PILL_MARGIN, area.height - pill.height - PILL_MARGIN);
+  return { left, top, drag: { dx: left - homeLeft, dy: top - homeTop } };
 }
 
 /** The screenshot's size: the window's shape, SHOT_WIDTH wide, never wider than the window itself. */

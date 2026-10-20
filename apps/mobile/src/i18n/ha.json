@@ -7184,7 +7184,8 @@
     "toast": {
       "sent": "An aika. Na gode!",
       "saved": "An ajiye. Za a aika idan kuna da intanet.",
-      "savedUntilSignIn": "An ajiye. Za a aika bayan kun shiga."
+      "savedUntilSignIn": "An ajiye. Za a aika bayan kun shiga.",
+      "voiceTooLong": "Ya yi tsawo: saƙon murya zai iya kai har minti 2."
     }
   }
 }

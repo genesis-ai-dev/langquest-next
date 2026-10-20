@@ -15,7 +15,8 @@ import { noteExpected } from '../diagnostics/report';
 import { currentLocale } from '../i18n';
 import { getStore } from '../sync/store';
 import { dropShot, keepShot } from './feedbackShots';
-import { parseWaiting, withWaiting, type FeedbackKind, type FeedbackPayload } from './feedbackModel';
+import { dropVoice } from './voiceBytes';
+import { parseWaiting, withWaiting, type FeedbackKind, type FeedbackPayload, type VoiceRef } from './feedbackModel';
 
 const WAITING_KEY = 'feedback-before-sign-in';
 
@@ -25,6 +26,8 @@ export interface FeedbackDraft {
   shareProfile: boolean;
   /** The screenshot as base64 JPEG, when the person turned it on. */
   shot: string | null;
+  /** A voice note, in the phone's file store until it has gone. */
+  voice: VoiceRef | null;
   /** The screen it was sent from (its ScreenId). */
   screen: string;
 }
@@ -45,7 +48,8 @@ async function payloadOf(d: FeedbackDraft, shot: boolean): Promise<FeedbackPaylo
     installId: installId ?? await ensureDeviceId(await getStore(), () => Crypto.randomUUID()),
     context: { ...phone, screen: d.screen, uiLanguage: currentLocale() },
     shareProfile: d.shareProfile,
-    shot
+    shot,
+    voice: d.voice
   };
 }
 
@@ -70,7 +74,10 @@ export async function sendFeedback(actorId: string | null, draft: FeedbackDraft,
       await AsyncStorage.setItem(WAITING_KEY, JSON.stringify(kept));
       return dropped;
     });
-    for (const d of dropped) if (d.payload.shot) await dropShot(d.id);
+    for (const d of dropped) {
+      if (d.payload.shot) await dropShot(d.id);
+      if (d.payload.voice) await dropVoice(d.payload.voice);
+    }
     return false;
   }
   await queueAccountAction(actorId, 'feedback', { ...payload }, id);

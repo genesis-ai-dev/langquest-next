@@ -3,8 +3,8 @@
 // sheet and its toasts say.
 import { describe, expect, it } from 'vitest';
 import {
-  feedbackReady, GUEST_LIMIT, MAX_FEEDBACK_CHARS, parseWaiting, profileChoice, sentMessage, SHOT_WIDTH, shotSize, withWaiting,
-  type FeedbackPayload, type WaitingFeedback
+  feedbackReady, GUEST_LIMIT, MAX_FEEDBACK_CHARS, MAX_VOICE_MS, parseWaiting, PILL_MARGIN, pillPlace, profileChoice, sentMessage, SHOT_WIDTH, shotSize,
+  voiceTooLong, withWaiting, type FeedbackPayload, type VoiceRef, type WaitingFeedback
 } from '../src/feedback/feedbackModel';
 
 const payload: FeedbackPayload = { kind: 'bug', body: 'It froze', installId: 'inst', context: {}, shareProfile: false, shot: false };
@@ -17,6 +17,36 @@ describe('a report', () => {
     expect(feedbackReady('idea', 'Bigger buttons')).toBe(true);
     expect(feedbackReady('bug', 'a'.repeat(MAX_FEEDBACK_CHARS))).toBe(true);
     expect(feedbackReady('bug', 'a'.repeat(MAX_FEEDBACK_CHARS + 1))).toBe(false);
+  });
+
+  it('may be said instead of typed, up to two minutes', () => {
+    const said = (durationMs: number): VoiceRef => ({ hash: 'h', format: 'm4a', durationMs });
+    expect(feedbackReady('bug', '', said(30_000))).toBe(true);
+    expect(feedbackReady(null, '', said(30_000))).toBe(false);
+    expect(feedbackReady('idea', 'and typed', said(MAX_VOICE_MS))).toBe(true);
+    expect(voiceTooLong(said(MAX_VOICE_MS + 1))).toBe(true);
+    expect(feedbackReady('bug', 'words too', said(MAX_VOICE_MS + 1))).toBe(false);
+  });
+});
+
+describe('the Send feedback button', () => {
+  const area = { width: 400, height: 800 }, pill = { width: 200, height: 52 };
+
+  it('starts centred, its distance above the foot', () => {
+    expect(pillPlace(area, pill, 16, { dx: 0, dy: 0 })).toEqual({ left: 100, top: 800 - 16 - 52, drag: { dx: 0, dy: 0 } });
+  });
+
+  it('goes where it is dragged, and never past the edges', () => {
+    expect(pillPlace(area, pill, 16, { dx: -40, dy: -300 })).toMatchObject({ left: 60, top: 432 });
+    const far = pillPlace(area, pill, 16, { dx: 999, dy: -9999 });
+    expect(far).toMatchObject({ left: 400 - 200 - PILL_MARGIN, top: PILL_MARGIN });
+    // What is kept is where it shows, so the next drag starts there.
+    expect(pillPlace(area, pill, 16, far.drag)).toEqual(far);
+  });
+
+  it('stays in sight when the window gets smaller', () => {
+    const kept = pillPlace(area, pill, 16, { dx: 0, dy: -600 }).drag;
+    expect(pillPlace({ width: 320, height: 400 }, pill, 16, kept)).toMatchObject({ left: 60, top: PILL_MARGIN });
   });
 });
 

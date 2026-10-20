@@ -6879,7 +6879,8 @@
     "toast": {
       "sent": "已发送。谢谢你！",
       "saved": "已保存。联网后会发送。",
-      "savedUntilSignIn": "已保存。登录后会发送。"
+      "savedUntilSignIn": "已保存。登录后会发送。",
+      "voiceTooLong": "太长了：语音留言最长 2 分钟。"
     }
   }
 }

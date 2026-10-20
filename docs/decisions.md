@@ -5626,9 +5626,14 @@ leads to the phone's diagnostics, and optionally their profile and a
 screenshot of the screen they were on.
 - **Where.** While help is on for a screen (not a sheet), a lit Send
   feedback button waits where toasts show, above the screen's own buttons
-  and the tabs (`feedback/FeedbackSheet.tsx`). Like the ?, it acts rather
+  and the tabs (`feedback/FeedbackSheet.tsx`). It is green with a white
+  ring and a grip, so it is not taken for one of the screen's own purple
+  buttons, and it can be dragged anywhere in the screen's area (kept there
+  while the app runs). A screen in help mode leaves room at its foot, so
+  its end scrolls out from under the button (kit's `Screen`). Like the ?, it acts rather
   than explains (71): it turns help off, takes the window, then opens a
-  sheet: a problem or an idea, what happened, and two switches, both off,
+  sheet: a problem or an idea, what happened (typed, said in a voice note
+  of up to two minutes, or both), and two switches, both off,
   for the screenshot (its thumbnail) and the person's name and email or
   sign-in name (what would be sent is shown). Help in a sheet has no button:
   a sheet is its own window on Android, so its picture would be the screen
@@ -5648,13 +5653,14 @@ screenshot of the screen they were on.
 - **The server.** `diag.feedback`, beside diagnostics but not one of them
   (they stay counts and codes): kind, words, install id, the diag context
   plus the screen and the app's language, the name and email read from the
-  account only when shared, and the screenshot as a JPEG of about 720 px
-  (at most 1 MB) in the row, so deleting the account (`_delete_account`)
+  account only when shared, the screenshot as a JPEG of about 720 px (at
+  most 1 MB) and the voice note (a phone's AAC; the web's WAV written again
+  at 16 kHz; at most 4 MB) in the row, so deleting the account (`_delete_account`)
   deletes it with one line and no storage policy or signing key is
   involved. One way in, `public.feedback_submit` (signed in, idempotent by
   id, 20 a day per account, refused with 54000 past that, which the phone
   retries later); read only through `diag.feedback()` and
-  `diag.feedback_screenshot()` (diag_reader: `npm run diag -- feedback`
+  `diag.feedback_screenshot()` and `diag.feedback_voice()` (diag_reader: `npm run diag -- feedback`
   and the admin page); New, Seen and Done are `seen_at`/`done_at`, set by
   `public.feedback_set_status` (service role). Kept a year.
 - **Stores.** Google Play: no new answer (other in-app messages, photos,
@@ -5665,7 +5671,9 @@ screenshot of the screen they were on.
   user during a customer support request"), but these reports are one-way,
   with no support conversation, so they are filed under Other User Content,
   already declared; the screenshot is a picture of the app, not the
-  person's photos (Caleb's rule: no change forces a new store declaration).
+  person's photos (Caleb's rule: no change forces a new store declaration;
+  he chose this on 2026-10-20). The voice note is Audio Data (Apple) and
+  Voice or sound recordings (Play), both declared.
   If replies or a support conversation are ever added, Customer Support
   must be declared first. The privacy
   policy says what is kept, who sees it, for how long, and that deleting

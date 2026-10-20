@@ -7184,7 +7184,8 @@
     "toast": {
       "sent": "Sent. Thank you!",
       "saved": "Saved. It is sent when you are connected.",
-      "savedUntilSignIn": "Saved. It is sent after you sign in."
+      "savedUntilSignIn": "Saved. It is sent after you sign in.",
+      "voiceTooLong": "Too long: a voice note can be up to 2 minutes."
     }
   }
 }

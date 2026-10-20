@@ -7184,7 +7184,8 @@
     "toast": {
       "sent": "Imetumwa. Asante!",
       "saved": "Imehifadhiwa. Itatumwa ukiunganishwa.",
-      "savedUntilSignIn": "Imehifadhiwa. Itatumwa baada ya kuingia."
+      "savedUntilSignIn": "Imehifadhiwa. Itatumwa baada ya kuingia.",
+      "voiceTooLong": "Ni ndefu mno: ujumbe wa sauti unaweza kuwa hadi dakika 2."
     }
   }
 }

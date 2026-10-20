@@ -174,13 +174,15 @@ file. That is content coming in, not data going out, so it adds no data
 type and no sharing.
 
 Feedback from help mode (decisions.md 141): while help is on, Send feedback
-opens a sheet where someone says what is wrong or what would help. It goes to
+opens a sheet where someone types or says (a voice note) what is wrong or what
+would help. It goes to
 the LangQuest team only (`diag.feedback`, read by support), never to the
 organization, and carries the random install ID diagnostics use. Two switches,
 both off until the person turns them on, add a screenshot of the app's own
 screen and their name and email (or sign-in name), which the server reads from
 the account itself. These are types already declared: the words are "Other
-in-app messages", the screenshot "Photos", the name, email and install ID
+in-app messages", the voice note "Voice or sound recordings", the screenshot
+"Photos", the name, email and install ID
 their own rows, all optional and for app functionality; nothing is shared. If
 the team ever emails someone back about their feedback, "Developer
 communications" must be added to Email address's purposes first.
