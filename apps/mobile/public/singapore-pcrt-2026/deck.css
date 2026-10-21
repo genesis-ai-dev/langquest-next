@@ -160,6 +160,8 @@ em.mark { font-style: normal; color: var(--violet); }
 .card.dim { background: rgba(255, 255, 255, .55); }
 .dark .card, .violet .card { background: rgba(255, 255, 255, .08); color: var(--paper); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14); }
 .dark .card .who { color: var(--gold); }
+.card .who.face { display: flex; align-items: center; gap: 14px; }
+.card .who.face img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
 .card .num { display: block; margin-bottom: 14px; font: 800 26px var(--display); color: var(--violet); }
 .dark .card .num { color: var(--gold); }
 
