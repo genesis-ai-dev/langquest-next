@@ -46,6 +46,7 @@ tags:
     element:
       id: "invite-role-Translators-invite"
     direction: UP
+    centerElement: true
 - tapOn:
     id: "invite-role-Translators-invite"
 - runFlow:
