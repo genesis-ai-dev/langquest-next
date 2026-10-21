@@ -21,15 +21,26 @@ tags:
     timeout: 60000
 - tapOn:
     id: "tab-manage"
+# Members can sit half under the bottom bar, where a tap on its middle lands on the bar: bring it up first.
+- scrollUntilVisible:
+    element: "Members.*"
+    direction: DOWN
+    centerElement: true
 - tapOn: "Members.*"
 - tapOn: "Invite"
 - assertVisible: "Who are you inviting\\?"
+# Which language comes under the roles, below the fold on a phone.
+- scrollUntilVisible:
+    element: "${LANG_A}"
+    direction: DOWN
 - tapOn: "${LANG_A}"
 # A role's card has its own Invite (decision 146); a role that checks is asked which checks first.
+- scrollUntilVisible:
+    element:
+      id: "invite-role-Translators-invite"
+    direction: UP
 - tapOn:
-    text: "Invite"
-    childOf:
-      id: "invite-role-Translators"
+    id: "invite-role-Translators-invite"
 - runFlow:
     when:
       visible: "Which checks will they do\\?"

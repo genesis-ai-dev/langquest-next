@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { BackHandler } from 'react-native';
 import { takeHardwareBack } from '../ui/hardwareBack';
+import { toastTime } from '../ui/toastTime';
 import { t } from '../i18n';
 import { backAtRoot, leavesNow } from './backModel';
 import { navRef, type Nav } from './nav';
@@ -44,7 +45,7 @@ export function useRootBack(nav: Nav, session: Session, toast: (message: string)
       const moved = fromRoot();
       if (moved !== 'leave') return moved === 'moved';
       const now = Date.now();
-      if (leavesNow(askedAt.current, now)) { askedAt.current = null; return false; }
+      if (leavesNow(askedAt.current, now, toastTime())) { askedAt.current = null; return false; }
       askedAt.current = now;
       live.current.toast(t('shell.nav.backAgainToLeave'));
       return true;

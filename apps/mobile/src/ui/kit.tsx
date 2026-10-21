@@ -525,13 +525,13 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
 
 /** A 48pt outlined button for actions inside a card. */
 export function SmallBtn(props: { label: string; onPress: () => void; icon?: IconName; tone?: 'primary' | 'plain' | 'dark'; disabled?: boolean;
-  /** What help mode says it does. */ help?: string }) {
+  /** What help mode says it does. */ help?: string; testID?: string }) {
   const filled = props.tone === 'primary' || props.tone === 'dark';
   const bg = props.tone === 'dark' ? C.dark : C.primary;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}

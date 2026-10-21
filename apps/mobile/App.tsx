@@ -25,6 +25,7 @@ import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail, FooterHeightContext } from './src/ui/useLayout';
 import { EmptyState, GhostBtn, ToastView, type ToastSpec } from './src/ui/kit';
+import { readToastTime, toastTime } from './src/ui/toastTime';
 import { FeedbackHost } from './src/feedback/FeedbackSheet';
 import { txt } from './src/ui/textStyles';
 import { installGlobalHandlers, reportError } from './src/diagnostics/report';
@@ -616,8 +617,9 @@ const styles = StyleSheet.create({
 let showing: { message: string; until: number } | null = null;
 
 /**
- * Shows one toast at a time for 3.5 s, twice as long while a screen reader
- * is on. A toast only says what happened: it never offers Undo (decision 134).
+ * Shows one toast at a time for 3.5 s, or as long as Android's "Time to take
+ * action" asks (decision 150), twice as long while a screen reader is on. A
+ * toast only says what happened: it never offers Undo (decision 134).
  */
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
   const [spec, setSpec] = useState<ToastSpec | null>(() => {
@@ -631,6 +633,7 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     // react-native-web cannot tell and always answers yes, which doubled every toast on web.
     if (Platform.OS === 'web') return;
+    readToastTime();
     void AccessibilityInfo.isScreenReaderEnabled().then((on) => { reader.current = on; }, () => undefined);
     const sub = AccessibilityInfo.addEventListener('screenReaderChanged', (on) => { reader.current = on; });
     return () => sub.remove();
@@ -639,7 +642,7 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     register((next) => {
       if (timer.current) clearTimeout(timer.current);
-      const ms = 3500 * (reader.current ? 2 : 1);
+      const ms = toastTime() * (reader.current ? 2 : 1);
       showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);

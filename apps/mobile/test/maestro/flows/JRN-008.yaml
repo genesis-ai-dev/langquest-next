@@ -42,10 +42,12 @@ tags:
 - assertNotVisible: "Organization Admin"
 - assertNotVisible: "All of them"
 # Step 3: a group code for Translator in Alpha.
+- scrollUntilVisible:
+    element:
+      id: "invite-role-Translators-invite"
+    direction: UP
 - tapOn:
-    text: "Invite"
-    childOf:
-      id: "invite-role-Translators"
+    id: "invite-role-Translators-invite"
 - runFlow:
     when:
       visible: "Which checks will they do\\?"
