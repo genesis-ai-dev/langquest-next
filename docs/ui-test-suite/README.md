@@ -376,14 +376,25 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
   (the header's sync ring during a transfer) is never idle, so a check came
   after the toast had gone or a short clip had finished. React Native reads
   the zero transition scale as Reduce Motion, which the app honours.
+- On Android, the runner also sets accessibility's "Time to take action" to
+  10 s for the run and puts it back afterwards. A toast lasts as long as that
+  setting asks (decision 150); at 3.5 s it was often gone before a Back or
+  tap had settled and Maestro read the screen.
+- On Android, a cold start can be killed as it begins, right after Maestro
+  clears the app's data and sets its permissions, leaving a blank window
+  (`am_kill … remove task`, then `am_process_start_timeout` in the events
+  log). `common/launch.yaml` starts the app again when no first screen shows
+  within 20 s; a healthy cold start shows one in under 8 s.
 - On Android, airplane mode does not cut `adb reverse`, so the runner runs
   `adb root` and, while airplane mode is on, rejects the phone's loopback
   traffic to the local stack (ports 54421 and 8787) with `iptables`. It
   removes the rules when it exits; `adb shell iptables -L OUTPUT` should
   show none afterwards.
 - iOS merges a card or row into one accessibility label, so flows match
-  most text as `.*words.*`. A toast lives about 3.5 s, so a tap before a
-  toast check uses `waitToSettleTimeoutMs: 0`.
+  most text as `.*words.*`. A toast lives about 3.5 s on iOS, so a tap before a
+  toast check uses `waitToSettleTimeoutMs: 0`, and a flow that only needs what
+  the act left checks that instead (the row, History, the kept mark), as
+  MAP-031 and JRN-006 do; the web suite checks the toast's words.
 
 **Web results (2026-10-14, the release export, 4 workers):** 666 tests, 654
 passed, 5 open, 7 skipped, in 12.9 minutes; median test 1.2 s. The five
@@ -461,7 +472,10 @@ the world under the tests after it: the world is kept for the whole run
   `else-reference` for its tiles); `person-<profileId>` on a member's row;
   `toggle-must-pass`, `toggle-same-time` and `toggle-required` on the checks
   setup switches; `sync-tile-<waiting|refused|confirmed|checkpoint>` on the
-  Sync screen's tiles.
+  Sync screen's tiles; `invite-role-<title>` on a role's card in Invite
+  someone and `invite-role-<title>-invite` on its Invite (phone
+  accessibility trees list the button beside the card, so Maestro's
+  `childOf` cannot find it).
 - Entering: the web's addresses name sections only (`pathTo` in `support.ts`,
   `openAs(..., { path })`). A passage's record has none, so a test that only
   reads one calls `openRecord` (`05-passage-helpers.ts`), which uses the
