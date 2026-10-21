@@ -121,6 +121,20 @@ if (platform === 'android') for (const dev of devices) {
   }));
 }
 
+// Reduce Motion on in the simulator while the run lasts, as Android's zero
+// animation scales are, and put back as it was. XCUITest reads the screen once
+// the app is idle, and a toast's bar running down kept it busy until the toast
+// had gone (decision 150). Each flow's clean start reads the setting afresh.
+if (platform === 'ios') for (const dev of devices) {
+  const defaults = (...a) => spawnSync('xcrun', ['simctl', 'spawn', dev, 'defaults', a[0], 'com.apple.Accessibility', 'ReduceMotionEnabled', ...a.slice(1)], { encoding: 'utf8' });
+  const was = defaults('read');
+  defaults('write', '-bool', 'true');
+  process.on('exit', () => {
+    if (was.status === 0) defaults('write', '-bool', was.stdout.trim() === '1' ? 'true' : 'false');
+    else defaults('delete');
+  });
+}
+
 // Airplane mode does not cut adb reverse ports, and a connection already open
 // through one stays open, so a flow that "goes offline" with setAirplaneMode
 // would still reach the local server. While the run lasts, a watcher rejects
