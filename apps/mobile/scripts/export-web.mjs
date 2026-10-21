@@ -97,8 +97,14 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // together (6.21 MB then). That cap rose to 6.5 MB when main's security fixes
 // and field diagnostics merged with the split (6.26 MB in all, a first visit
 // 5.46 MB): it catches growth that runs away, and what a visit pays is held
-// by the first-visit budget (decision 123).
-const TOTAL_BUDGET_BYTES = 6.5 * 1024 * 1024;
+// by the first-visit budget (decision 123). Get ready (New language's questions
+// for a language already made) joined the split with FIA's key words (decision
+// 149), which put it 10 KB over: it is opened from a card, never at launch.
+// The cap on all chunks rose to 6.6 MB with FIA's key words (decision 149):
+// the lists on a passage, a word's sheet, a check's key words and every
+// reference list's search came to 6.55 MB in all, the first visit back under
+// 5.7 MB.
+const TOTAL_BUDGET_BYTES = 6.6 * 1024 * 1024;
 const FIRST_VISIT_BUDGET_BYTES = 5.7 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));

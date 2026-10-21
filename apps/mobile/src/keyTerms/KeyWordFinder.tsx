@@ -7,19 +7,21 @@
 // under the team's (which the screen groups as it always has).
 import type { KeyTermView, KeyWordDoc } from '@langquest-next/core';
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import { Card, Chip, ChipWrap, Group, Ico, SectionLabel, ShowMore } from '../ui/kit';
+import { Badge, Card, Chip, ChipWrap, Group, Ico, Row, SectionLabel, ShowMore } from '../ui/kit';
 import { txt } from '../ui/textStyles';
-import { C, space, target } from '../ui/theme';
+import { C, space, target, TINT } from '../ui/theme';
 import { styles as ps } from '../recording/blockStyles';
 import { languageLabel } from '../admin/adminModel';
-import { keyWordResults, listChips, shortName, type KeyWordFilter, type KeyWordList, type KeyWordResult } from './listsModel';
-import { KeyWordResultRow } from './KeyWordRows';
+import { bookNameOf } from '../templates/contentTemplates';
+import { shortName, type KeyWordList } from './listsModel';
+import { keyWordResults, linkedPassages, listChips, type KeyWordFilter, type KeyWordResult } from './searchModel';
+import { OurWord } from './KeyWordRows';
 
 /** Long lists grow 25 at a time (ADR-009). */
 const STEP = 25;
@@ -125,6 +127,40 @@ export function KeyWordFinder(props: {
   );
 }
 
+/** "Linked to 20 passages in Luke": how many passages a list links its word to. */
+function linkedLine(word: KeyWordDoc): string | null {
+  const { count, books } = linkedPassages(word);
+  if (!count) return null;
+  return books.length === 1 ? t('keyTerms.search.linkedIn', { count, book: bookNameOf(books[0]!) }) : t('keyTerms.search.linked', { count });
+}
+
+/**
+ * One word the Key words screen finds: the word and its short meaning (what
+ * was typed in bold), how many passages its list links it to, Ours for the
+ * team's own and its list's short name, and the team's word to play.
+ */
+export function KeyWordResultRow(props: { ctx: Ctx; result: KeyWordResult<KeyTermView>; query: string; language: string; last: boolean; current?: boolean; onPress: () => void }) {
+  const { result: r } = props;
+  const voice = r.own ? [...r.own.adjustments].reverse().find((a) => a.blobHash)?.blobHash : undefined;
+  const linked = r.from ? linkedLine(r.from.word) : null;
+  return (
+    <Row icon="key" iconColor={TINT.amberText} iconBg={TINT.amber} label={r.term} {...(r.gloss ? { sub: r.gloss } : {})} highlight={props.query}
+      help={r.own ? t('config.keyTerms.openTermHelp') : t('keyTerms.search.openListHelp', { name: shortName(r.from!.list) })}
+      onPress={props.onPress} last={props.last} {...(props.current ? { current: true } : {})}
+      below={(
+        <View style={{ gap: space.sm }}>
+          {linked ? <Text style={[txt.sm, { fontWeight: '700', color: C.primary }]}>{linked}</Text> : null}
+          <View style={styles.marks}>
+            {r.own ? <Badge label={t('keyTerms.search.ours')} tone="green" /> : null}
+            {r.from ? <Badge label={shortName(r.from.list)} tone="brand" /> : null}
+            {r.own && voice ? <OurWord ctx={props.ctx} hash={voice} term={r.own.term} language={props.language} /> : null}
+          </View>
+        </View>
+      )} />
+  );
+}
+
 const styles = StyleSheet.create({
+  marks: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
   more: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.row, paddingHorizontal: space.lg, paddingVertical: space.sm }
 });

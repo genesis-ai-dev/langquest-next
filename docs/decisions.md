@@ -6676,6 +6676,12 @@ among a hundred from twenty organizations).
   a help (decision 91); the reviewer sees each of the list's words in the
   passage with the team's word, whether the translator marked it in this
   version, or that the team has no word yet.
+Cost: about 60 KB more of the web app's code. Get ready now loads when
+opened (it is reached from a card, never at launch), a word's sheet and a
+check's key words load when first opened, and the search helpers live apart
+from the recorder's (`keyTerms/searchModel.ts`): a first visit is 5.67 MB of
+its 5.7 MB budget, and the cap on all chunks rises from 6.5 to 6.6 MB
+(6.55 MB in all, `apps/mobile/scripts/export-web.mjs`).
 Reverse if: lists grow past what one document per language holds (then a
 list goes book by book, as `helps@1` does on the Door43 branch), or teams
 need to edit a library list's words one by one (then each word becomes a

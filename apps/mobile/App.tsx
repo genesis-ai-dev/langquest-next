@@ -38,7 +38,6 @@ import * as MapScreens from './src/screens/map';
 import * as Onboarding from './src/screens/onboarding';
 import * as Passage from './src/screens/passage';
 import * as Review from './src/screens/review';
-import * as Ready from './src/screens/getReady';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
@@ -88,6 +87,7 @@ const loadChecks = () => import('./src/screens/checks');
 const loadConfig = () => import('./src/screens/config');
 const loadContent = () => import('./src/screens/content');
 const loadOrg = () => import('./src/screens/org');
+const loadReady = () => import('./src/screens/getReady');
 const loadReference = () => import('./src/screens/reference');
 const loadReports = () => import('./src/screens/reports');
 const loadSources = () => import('./src/screens/sources');
@@ -117,7 +117,7 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   reference_bibles: lazyScreen(loadReference, 'ReferenceBibles'), reference_source: lazyScreen(loadReference, 'ReferenceSource'), reference_guides: lazyScreen(loadReference, 'ReferenceGuides'),
   reference_coverage: lazyScreen(loadReference, 'ReferenceCoverage'), passage_reference: lazyScreen(loadReference, 'PassageReference'),
   bible_explore: lazyScreen(loadSources, 'BibleExplore'),
-  get_ready: Ready.GetReady,
+  get_ready: lazyScreen(loadReady, 'GetReady'),
   settings_more: Account.SettingsMore
 };
 

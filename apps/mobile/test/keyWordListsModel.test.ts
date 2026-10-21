@@ -9,9 +9,9 @@ import { describe, expect, it } from 'vitest';
 import { foldLanguage, type KeyWordDoc, type LibraryDoc, type MaterialDoc, type VerseRange, type VersificationDoc } from '@langquest-next/core';
 import { markTerms } from '../src/recording/workspaceModel';
 import {
-  guideTermWord, keyWordList, keyWordResults, linkedPassages, listChips, listWordOf, meaningParagraphs, ownTermId, ownWordOf, splitOwn,
-  plainMeaning, searchLists, shortName, wordForms, wordOfTermId, wordsOnPassage, type KeyWordList
+  guideTermWord, keyWordList, ownTermId, ownWordOf, shortName, splitOwn, wordForms, wordOfTermId, wordsOnPassage, type KeyWordList
 } from '../src/keyTerms/listsModel';
+import { keyWordResults, linkedPassages, listChips, listWordOf, meaningParagraphs, plainMeaning, searchLists } from '../src/keyTerms/searchModel';
 import { helpCards } from '../src/reference/passagesModel';
 import { latestVoice, reviewCounts, reviewWords } from '../src/keyTerms/reviewWordsModel';
 

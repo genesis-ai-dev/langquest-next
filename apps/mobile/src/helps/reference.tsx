@@ -44,7 +44,7 @@ import { draftKey, EMPTY_NOTE, isNoteDraft, isRecord } from '../drafts/draftMode
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import { usePassageKeyWords } from '../keyTerms/usePassageKeyWords';
-import { KeyWordSheet } from '../keyTerms/KeyWordSheet';
+import { KeyWordSheet } from '../keyTerms/lazySheets';
 import { ListWordRow } from '../keyTerms/KeyWordRows';
 import { ownTermId, shortName, type KeyWordList, type WordHere } from '../keyTerms/listsModel';
 

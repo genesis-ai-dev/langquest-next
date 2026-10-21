@@ -78,7 +78,7 @@ import { SavedMark } from '../ui/SavedMark';
 import { isStoredReview, reviewDraftOf, reviewStateOf, type ReviewDraft, type ReviewState } from '../reviewing/reviewDraft';
 import { NoteStepContext } from '../checks/noteStep';
 import { anyFrom, fromFilter } from '../checks/showsModel';
-import { ReviewKeyWordsSheet } from '../keyTerms/ReviewKeyWordsSheet';
+import { ReviewKeyWordsSheet } from '../keyTerms/lazySheets';
 import { reviewCounts, reviewWords } from '../keyTerms/reviewWordsModel';
 import { useCheckKeyWords } from '../keyTerms/useCheckKeyWords';
 

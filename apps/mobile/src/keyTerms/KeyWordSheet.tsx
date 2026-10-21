@@ -20,7 +20,8 @@ import { C, radius, space, target, type as T } from '../ui/theme';
 import { styles as ps } from '../recording/blockStyles';
 import { languageLabel } from '../admin/adminModel';
 import { shownClock } from '../study/studyText';
-import { meaningParagraphs, ownWordOf, shortName, type KeyWordList } from './listsModel';
+import { ownWordOf, shortName, type KeyWordList } from './listsModel';
+import { meaningParagraphs } from './searchModel';
 import { useKeyWordAudio } from './useKeyWordAudio';
 
 /** How long a recording is: "8 min", or the clock under a minute. */
