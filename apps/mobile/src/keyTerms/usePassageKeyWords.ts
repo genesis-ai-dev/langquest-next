@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { useLibraryDocs } from '../library/useLibrary';
 import { catalogVerses, unitCoordinates } from '../sources/model';
-import { partitionOwn, wordsOnPassage, type KeyWordList, type WordHere } from './listsModel';
+import { splitOwn, wordsOnPassage, type KeyWordList, type WordHere } from './listsModel';
 import { useKeyWordLists } from './useKeyWordLists';
 
 export interface PassageKeyWords {
@@ -52,7 +52,7 @@ export function usePassageKeyWords(ctx: Ctx, unitId: string | null | undefined, 
       lists, range, numbering, versificationOf, own: [],
       bibles: rows && rowsLanguage ? [{ language: rowsLanguage, rows }] : []
     });
-    const split = partitionOwn(all, own);
+    const split = splitOwn(all, own);
     return includeOwn ? { words: all, own: split.own } : split;
   }, [unitId, lists, range, numbering, versificationOf, rows, rowsLanguage, own, includeOwn]);
   return { lists, words: found.words, own: found.own, loading: loading || (!!templateHash && !template) };

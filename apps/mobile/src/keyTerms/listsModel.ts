@@ -235,7 +235,7 @@ export function listWordOf(lists: readonly KeyWordList[], own: Pick<KeyTermView,
  * A passage's list words, split: those the team has made its own give the
  * team's word (it shows with the team's words), the rest stay the list's.
  */
-export function partitionOwn<T extends Pick<KeyTermView, 'termId' | 'term'>>(words: readonly WordHere[], own: readonly T[]): { words: WordHere[]; own: T[] } {
+export function splitOwn<T extends Pick<KeyTermView, 'termId' | 'term'>>(words: readonly WordHere[], own: readonly T[]): { words: WordHere[]; own: T[] } {
   const rest: WordHere[] = [];
   const mine = new Map<string, T>();
   for (const w of words) {

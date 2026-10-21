@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { foldLanguage, type KeyWordDoc, type LibraryDoc, type MaterialDoc, type VerseRange, type VersificationDoc } from '@langquest-next/core';
 import { markTerms } from '../src/recording/workspaceModel';
 import {
-  guideTermWord, keyWordList, keyWordResults, linkedPassages, listChips, listWordOf, meaningParagraphs, ownTermId, ownWordOf, partitionOwn,
+  guideTermWord, keyWordList, keyWordResults, linkedPassages, listChips, listWordOf, meaningParagraphs, ownTermId, ownWordOf, splitOwn,
   plainMeaning, searchLists, shortName, wordForms, wordOfTermId, wordsOnPassage, type KeyWordList
 } from '../src/keyTerms/listsModel';
 import { helpCards } from '../src/reference/passagesModel';
@@ -146,7 +146,7 @@ describe('which list words show on a passage', () => {
 
   it('splits off the team’s own words, each once, to show with the team’s', () => {
     const own = [{ termId: 'fia:t104', term: 'prophet' }, { termId: 'kt-1', term: 'Jerusalem' }, { termId: 'kt-2', term: 'grace' }];
-    const split = partitionOwn(here(), own);
+    const split = splitOwn(here(), own);
     expect(split.own.map((x) => x.termId)).toEqual(['kt-1', 'fia:t104']);
     expect(split.words.map((x) => x.word.id)).toEqual(['t30', 't20', 't80', 't70']);
   });
