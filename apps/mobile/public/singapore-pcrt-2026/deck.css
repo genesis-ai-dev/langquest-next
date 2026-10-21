@@ -225,6 +225,16 @@ em.mark { font-style: normal; color: var(--violet); }
 .objection h2 { margin-top: 34px; font-size: 100px; line-height: 1.02; max-width: 1180px; }
 .objection .answer { margin-top: auto; margin-bottom: 24px; padding: 40px 46px; border-radius: 24px; background: #fff; font-size: 42px; line-height: 1.32; max-width: 1384px; box-shadow: 0 2px 0 rgba(28, 20, 64, .06); }
 .objection .answer .more { display: block; margin-top: 18px; font-size: 27px; font-weight: 700; color: var(--violet); letter-spacing: .04em; }
+/* 02 / 08: who helps, with faces. */
+.objection .answer.help { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding: 32px 40px; font-size: 25px; line-height: 1.36; }
+.answer.help .who > * + * { margin-top: 12px; }
+.answer.help .org { font: 800 30px/1.1 var(--display); color: var(--violet); }
+.answer.help .org small { display: block; margin-top: 4px; font: 700 21px var(--display); letter-spacing: .04em; opacity: .75; }
+.answer.help .people { display: flex; gap: 28px; }
+.answer.help figure { display: flex; align-items: center; gap: 14px; margin: 0; }
+.answer.help figure img { width: 104px; height: 104px; border-radius: 50%; object-fit: cover; }
+.answer.help figcaption { font-weight: 800; font-size: 24px; line-height: 1.2; }
+.answer.help figcaption small { display: block; font-weight: 600; font-size: 19px; opacity: .7; }
 .objection .check {
   position: absolute; right: 100px; top: 92px; width: 120px; height: 120px; border-radius: 50%;
   display: grid; place-items: center; background: var(--green); color: #fff; font: 800 64px/1 var(--display);
