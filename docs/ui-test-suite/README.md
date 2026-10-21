@@ -378,8 +378,10 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
   the zero transition scale as Reduce Motion, which the app honours.
 - On Android, the runner also sets accessibility's "Time to take action" to
   10 s for the run and puts it back afterwards. A toast lasts as long as that
-  setting asks (decision 150); at 3.5 s it was often gone before a Back or
-  tap had settled and Maestro read the screen.
+  setting asks, and under reduce motion runs no bar down (decision 150): the
+  bar kept the screen moving, so a Back or tap waited out the whole toast
+  before Maestro read the screen. On iOS the runner turns the simulator's
+  Reduce Motion on for the run and puts it back, for the same reason.
 - On Android, a cold start can be killed as it begins, right after Maestro
   clears the app's data and sets its permissions, leaving a blank window
   (`am_kill … remove task`, then `am_process_start_timeout` in the events
