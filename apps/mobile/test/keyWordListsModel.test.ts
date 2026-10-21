@@ -6,10 +6,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { foldLanguage, type KeyWordDoc, type LibraryDoc, type MaterialDoc, type VerseRange, type VersificationDoc } from '@langquest-next/core';
+import { foldLanguage, foldOrg, libraryItemView, subscriptionItemId, type AnyEvent, type KeyWordDoc, type LibraryDoc, type MaterialDoc, type VerseRange, type VersificationDoc } from '@langquest-next/core';
 import { markTerms } from '../src/recording/workspaceModel';
 import {
-  guideTermWord, keyWordList, ownTermId, ownWordOf, shortName, splitOwn, wordForms, wordOfTermId, wordsOnPassage, type KeyWordList
+  guideTermWord, keyWordList, listsReaching, ownTermId, ownWordOf, shortName, splitOwn, wordForms, wordOfTermId, wordsOnPassage, type KeyWordList
 } from '../src/keyTerms/listsModel';
 import { keyWordResults, linkedPassages, listChips, listWordOf, meaningParagraphs, plainMeaning, searchLists } from '../src/keyTerms/searchModel';
 import { helpCards } from '../src/reference/passagesModel';
@@ -309,5 +309,43 @@ describe('a key-word list on a check (screen 5)', () => {
     const rows = reviewWords(here, own, new Set());
     expect(reviewCounts(rows)).toEqual({ here: here.length, have: 2 });
     expect(latestVoice(own[1]!)).toBeNull();
+  });
+});
+
+describe('which lists reach a language', () => {
+  const H = (c: string) => c.repeat(64);
+  let seq = 0;
+  const env = (type: string, payload: unknown, streamId = '_org'): AnyEvent =>
+    ({ id: `e${++seq}`, orgId: 'o', streamId, actorId: 'admin', deviceId: 'd', hlc: `${String(++seq).padStart(15, '0')}:000000:d`, type, payload }) as AnyEvent;
+  const follow = (item: string, name: string, hash: string) => {
+    const itemId = subscriptionItemId('langquest', item);
+    return [
+      env('v1.LibrarySubscribed', { itemId, kind: 'material', sourceOrgId: 'langquest', sourceOrgName: 'LangQuest', sourceItemId: item, name, autoUpdate: true, active: true }),
+      env('v1.LibraryPinned', { itemId, kind: 'material', docHash: hash })
+    ];
+  };
+  const org = foldOrg([
+    ...follow('langquest.fia-words.eng', 'FIA key words (English)', H('1')),
+    ...follow('langquest.fia-words.fra', 'FIA key words (French)', H('2')),
+    env('v1.LibraryItemDefined', { itemId: 'ours', kind: 'material', name: 'Our team words', description: '' }),
+    env('v1.LibraryVersionPublished', { itemId: 'ours', kind: 'material', docHash: H('3') })
+  ]);
+  const docs: Record<string, LibraryDoc> = {
+    [H('1')]: listDoc([w('t104', 'prophet', '')]),
+    [H('2')]: listDoc([w('t104', 'prophète', '')], { language: 'fra' }),
+    [H('3')]: listDoc([w('w1', 'shepherd', '')], { pattern: undefined, versification: undefined })
+  };
+  const items = Object.keys(org.library).map((id) => libraryItemView(org.library, id)!).map((it) => ({ it, doc: docs[it.current!]! }));
+  const engId = subscriptionItemId('langquest', 'langquest.fia-words.eng');
+
+  it("shows only the FIA language a team chose, even when another team takes FIA's words in another language later", () => {
+    // English was chosen while it was the only one held; French came into the library afterwards and was never hidden here.
+    const state = foldLanguage([env('v1.ReferenceSet', { itemId: engId, state: 'recommended' }, 'L1')]);
+    expect(listsReaching({ items, recommendations: org.recommendations, state }).map((l) => l.name)).toEqual(['FIA key words (English)', 'Our team words']);
+  });
+
+  it('keeps any other list unless the language hid it', () => {
+    const state = foldLanguage([env('v1.ReferenceSet', { itemId: engId, state: 'recommended' }, 'L1'), env('v1.ReferenceSet', { itemId: 'ours', state: 'hidden' }, 'L1')]);
+    expect(listsReaching({ items, recommendations: org.recommendations, state }).map((l) => l.name)).toEqual(['FIA key words (English)']);
   });
 });

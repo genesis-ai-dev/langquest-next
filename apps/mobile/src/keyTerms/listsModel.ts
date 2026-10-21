@@ -5,9 +5,10 @@
 // every list. Pure: no React, so it is tested (test/keyWordListsModel.test.ts).
 import {
   orgVerses, parseRef, versesInChapter,
-  type KeyTermView, type KeyWordDoc, type LibraryDoc, type MaterialDoc, type VerseRange, type VersificationDoc
+  type KeyTermView, type KeyWordDoc, type LanguageState, type LibraryDoc, type LibraryItemView, type MaterialDoc, type OrgState, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { markTerms } from '../recording/workspaceModel';
+import { guideSets, isWordSet, setReach } from '../reference/guideSets';
 import { sameLanguage } from '../reference/languages';
 
 /** One list the team can use: its library item, and the words its document holds. */
@@ -38,6 +39,27 @@ export function keyWordList(itemId: string, name: string, doc: LibraryDoc | null
     itemId, name, language: doc.language ?? '', pattern: doc.pattern ?? null, source: doc.source ?? '',
     versification: doc.versification ?? null, words: doc.terms
   };
+}
+
+/**
+ * The lists that reach a language's team. Of a method's lists in several
+ * languages (FIA), only the ones the language chose (`setReach`, as for
+ * FIA's guides), so a list another team takes later in another language
+ * neither shows nor loads here; any other list in the library unless the
+ * language hid it.
+ */
+export function listsReaching(c: {
+  items: readonly { it: LibraryItemView; doc: LibraryDoc | null }[];
+  recommendations: OrgState['recommendations'] | undefined;
+  state: LanguageState | null;
+}): KeyWordList[] {
+  const sets = guideSets(c.items.filter((x) => isKeyWordList(x.doc)), []).filter(isWordSet);
+  const inSets = new Set(sets.flatMap((set) => set.members.map((m) => m.itemId)));
+  const reach = new Set(sets.flatMap((set) => setReach(set, c.recommendations, c.state).map((m) => m.itemId)));
+  return c.items
+    .filter(({ it }) => (inSets.has(it.itemId) ? reach.has(it.itemId) : c.state?.languageReferences[it.itemId]?.value !== 'hidden'))
+    .map(({ it, doc }) => keyWordList(it.itemId, it.name, doc))
+    .filter((x): x is KeyWordList => x !== null);
 }
 
 /**
