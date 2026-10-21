@@ -80,7 +80,7 @@ import { NoteStepContext } from '../checks/noteStep';
 import { anyFrom, fromFilter } from '../checks/showsModel';
 import { ReviewKeyWordsSheet } from '../keyTerms/ReviewKeyWordsSheet';
 import { reviewCounts, reviewWords } from '../keyTerms/reviewWordsModel';
-import { usePassageKeyWords } from '../keyTerms/usePassageKeyWords';
+import { useCheckKeyWords } from '../keyTerms/useCheckKeyWords';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
 const SHEET_GAP_MS = 400;
@@ -149,7 +149,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [bible, setBible] = useState<string | null>(null);
   // A key-word list on the check (decision 149): its words on the passage, and how many the team has a word for.
   const [wordsOf, setWordsOf] = useState<string | null>(null);
-  const listsHere = usePassageKeyWords(ctx, helps.some((h) => 'words' in h.open) ? v?.unitId : null, { includeOwn: true });
+  const listsHere = useCheckKeyWords(ctx, helps.some((h) => 'words' in h.open) ? v?.unitId : null);
   const ownWords = useMemo(() => (v?.state ? keyTermsFor(v.state) : []), [v?.state]);
   const wordsLine = (itemId: string): string | undefined => {
     const rows = reviewWords(listsHere.words.filter((w) => w.list.itemId === itemId), ownWords, new Set());

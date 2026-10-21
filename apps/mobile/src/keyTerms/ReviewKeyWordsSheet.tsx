@@ -19,7 +19,7 @@ import { KeyWordSheet } from './KeyWordSheet';
 import { OurWord } from './KeyWordRows';
 import { shortName, type KeyWordList } from './listsModel';
 import { reviewWords } from './reviewWordsModel';
-import { usePassageKeyWords } from './usePassageKeyWords';
+import { useCheckKeyWords } from './useCheckKeyWords';
 
 export function ReviewKeyWordsSheet(props: {
   ctx: Ctx;
@@ -36,7 +36,7 @@ export function ReviewKeyWordsSheet(props: {
 }) {
   const { ctx } = props;
   const state = ctx.language.state;
-  const passage = usePassageKeyWords(ctx, props.unitId, { includeOwn: true });
+  const passage = useCheckKeyWords(ctx, props.unitId);
   const list = passage.lists.find((l) => l.itemId === props.itemId) ?? null;
   const own = useMemo(() => (state ? keyTermsFor(state) : []), [state]);
   const tied = useMemo(() => new Set(state ? keyTermLinksFor(state, props.takeId).map((l) => l.term.termId) : []), [state, props.takeId]);
