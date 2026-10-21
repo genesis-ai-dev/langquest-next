@@ -1016,7 +1016,8 @@
     "offers": {
       "guides": "jagororin nazari na {{name}}",
       "theBible": "{{name}}",
-      "guidesIn": "jagororin nazari na {{name}} cikin {{language}}"
+      "guidesIn": "jagororin nazari na {{name}} cikin {{language}}",
+      "wordsIn": "{{name}} cikin {{language}}"
     },
     "languages": {
       "row": "Harsuna",
@@ -1357,7 +1358,21 @@
       "setHelp": "Yana buɗe harsunansa: ku zaɓi wanda tawagar za ta samu, ko ku kashe shi.",
       "patternOnHelp": "Ana ba tawagar, a harshen da aka zaɓa masa.",
       "all": "Duk kayan bincike",
-      "allHelp": "Yana buɗe duk abin da ke ɗakin karatun ƙungiyar, da abin da ake bai wa kowane harshe."
+      "allHelp": "Yana buɗe duk abin da ke ɗakin karatun ƙungiyar, da abin da ake bai wa kowane harshe.",
+      "search": "Nemi Littattafai Masu Tsarki, jagorori, muhimman kalmomi…",
+      "searchHelp": "Yana nemo Littattafai Masu Tsarki, jagorori, muhimman kalmomi da bayanai ga masu fassara ta sunansu, bayaninsu, wanda ya raba su ko harshensu.",
+      "searchHint": "Sunaye, bayani, wanda ya raba shi da harshensa, a duk ƙungiyoyin da ke rabawa da ku.",
+      "goesWithFilter": "Yana tafiya da {{name}}",
+      "familyNote": "Duk abin da ke da alaƙa da {{name}}. Ku kashe kowanne daga cikinsu, ko ku share binciken don ganin komai kuma.",
+      "clearGoesWith": "Nuna komai kuma",
+      "clearGoesWithHelp": "Yana cire “Yana tafiya da”, don dukan jerin ya sake bayyana.",
+      "relatedHelp": "Yana nuna abin da ke tafiya da shi kaɗai, kowanne da nasa maɓallin kunnawa.",
+      "notInLibrary": "Ba ya cikin ɗakin karatunku tukuna",
+      "turnedOnWith": "An kunna {{name}} da {{related}}",
+      "wordSetChosen": "{{name}} yanzu suna cikin {{language}}",
+      "wordSetOff": "An kashe {{name}} ga wannan tawaga",
+      "relatedOn_one": "An kunna abu {{count, number}} mai alaƙa",
+      "relatedOn_other": "An kunna abubuwa {{count, number}} masu alaƙa"
     },
     "page": {
       "title": "Abin da ke taimaka musu",
@@ -6034,7 +6049,8 @@
       "helpGuideHelp": "Yana buɗe jagorar nazari ta wannan nassi.",
       "helpNoteHelp": "Yana buɗe shi don karantawa.",
       "howManyHelp": "Ku faɗi yawan waɗanda suka saurara. Ba dole ba.",
-      "doneRecordedHelp": "Yana sa {{what}} a tarihin nassin."
+      "doneRecordedHelp": "Yana sa {{what}} a tarihin nassin.",
+      "helpWordsHelp": "Yana buɗe muhimman kalmomin wannan nassi, tare da kalmar tawagar ga kowacce da kuma ko wannan siga ta yi amfani da ita."
     },
     "guest": {
       "previewSub": "Duba farko · abin da wanda ba shi da manhajar yake gani",
@@ -6324,7 +6340,8 @@
       "guide": "Jagorar nazari",
       "note": "Bayani ga masu fassara",
       "questions": "Rukunin tambayoyi",
-      "other": "Kaya"
+      "other": "Kaya",
+      "words": "Muhimman kalmomi"
     },
     "facts": {
       "oldTestament": "Tsohon Alkawari",
@@ -6522,7 +6539,8 @@
       "kindAllHelp": "Yana nuna kowane iri.",
       "kindHelp": "Yana nuna wannan iri kaɗai.",
       "languageHelp": "Yana nuna abubuwan da ke cikin wannan harshe kaɗai.",
-      "openHelp": "Yana buɗe shi: abin da yake faɗi da inda aka sanya shi."
+      "openHelp": "Yana buɗe shi: abin da yake faɗi da inda aka sanya shi.",
+      "kindWords": "Muhimman kalmomi"
     },
     "coverage": {
       "title": "Kewayewa",
@@ -6696,7 +6714,12 @@
       "keepHelp": "Yana riƙe wannan harshe, ya rufe wannan.",
       "offHelp": "Tawagar ba za ta ƙara samun waɗannan jagorori ba.",
       "useHelp": "Tawagar tana samun waɗannan jagorori a wannan harshe.",
-      "rowHelp": "Yana zaɓar wannan harshe don jagororin tawagar. Layin yana faɗin nassosi nawa ne suke da ɗaya."
+      "rowHelp": "Yana zaɓar wannan harshe don jagororin tawagar. Layin yana faɗin nassosi nawa ne suke da ɗaya.",
+      "wordsUseHelp": "Tawagar tana samun waɗannan muhimman kalmomi a wannan harshe.",
+      "wordsOffHelp": "Tawagar ba za ta ƙara samun waɗannan muhimman kalmomi ba.",
+      "wordsRowHelp": "Yana zaɓar wannan harshe don muhimman kalmomin tawagar. Layin yana faɗin kalmomi nawa ne a cikinsa.",
+      "wordsGaps_one": "A {{language}}, {{name}} yana da kalma {{count, number}}. Kowane nassi yana nuna waɗanda yake amfani da su.",
+      "wordsGaps_other": "A {{language}}, {{name}} yana da kalmomi {{count, number}}. Kowane nassi yana nuna waɗanda yake amfani da su."
     },
     "passageText": {
       "bar": "{{passage}} · {{bible}}",
@@ -6725,7 +6748,9 @@
       "writeNoteSub": "A ayoyin da kuka zaɓa, da murya ko a rubuce",
       "fromLibrary": "Daga ɗakin karatunku",
       "fromOwn": "Daga ɗakin karatun ƙungiyarku"
-    }
+    },
+    "words_one": "kalma {{count, number}}",
+    "words_other": "kalmomi {{count, number}}"
   },
   "sources": {
     "listSeparator": ", ",
@@ -6889,7 +6914,9 @@
     "change": "Canja",
     "rowHelp": "Yana ƙara wannan harshe ga Littattafai Masu Tsarki da jagororin ƙungiyar, ko ya cire shi. Layin yana faɗin abin da ke ciki.",
     "listed": "Harsunan da ke da Littafi Mai Tsarki ko jagororin nazari kaɗai ake nunawa.",
-    "noMatch": "Babu harshe mai wannan suna da ke da Littafi Mai Tsarki ko jagororin nazari tukuna."
+    "noMatch": "Babu harshe mai wannan suna da ke da Littafi Mai Tsarki ko jagororin nazari tukuna.",
+    "setWords_one": "{{name}} (kalma {{count, number}})",
+    "setWords_other": "{{name}} (kalmomi {{count, number}})"
   },
   "checks": {
     "title": "Dubawa",
@@ -7100,6 +7127,72 @@
       "playHelp": "Yana kunna yadda suke faɗinta.",
       "suggest": "Wasu harsuna a nan suna amfani da",
       "suggestHelp": "Ana amfani da ita a nan a {{languages}}. Taɓa don ƙara ta."
+    },
+    "lists": {
+      "here": "Muhimman kalmomi a nan",
+      "from": "Daga {{name}} · {{language}}",
+      "inPassage": "A wannan nassi",
+      "saidAs": "{{verses}} (“{{form}}”)",
+      "openHelp": "Yana buɗe ma'anarta, don karantawa ko saurare.",
+      "rowLabel": "{{term}}. {{gloss}}. {{refs}}",
+      "play": "Kunna ma'anar {{term}}",
+      "pause": "Dakatar da ma'anar {{term}}",
+      "playHelp": "Yana kunna naɗin {{name}} na ma'anarta.",
+      "words_one": "kalma {{count, number}}",
+      "words_other": "kalmomi {{count, number}}"
+    },
+    "sheet": {
+      "sub": "Muhimmiyar kalmar {{name}} · {{language}}",
+      "hear": "Saurari bayanin {{name}}",
+      "hearHelp": "Yana kunna naɗin {{name}} na ma'anar kalmar. Taɓa kuma don dakatarwa.",
+      "pauseHear": "Dakatar da bayanin {{name}}",
+      "playVerse": "Kunna {{verse}}",
+      "means": "Ma'anarta",
+      "meansHelp": "Taɓa kalmar da aka ja layi a ƙarƙashinta don ganin ma'anarta.",
+      "add": "Ƙara cikin muhimman kalmominmu",
+      "addHelp": "Yana ƙara ta cikin muhimman kalmomin {{language}}, tare da ma'anar {{name}}. Sannan ku faɗi yadda ake faɗin ta a {{language}}.",
+      "addThen": "Sannan ku faɗi yadda ake faɗin ta a {{language}}",
+      "ours": "Ɗaya daga cikin muhimman kalmomin {{language}}.",
+      "backTo": "Koma zuwa {{term}}",
+      "backToHelp": "Yana sake nuna kalmar da kuka fito daga gare ta.",
+      "minutes_one": "minti {{count, number}}",
+      "minutes_other": "minti {{count, number}}"
+    },
+    "detail": {
+      "from": "Daga {{name}}"
+    },
+    "search": {
+      "help": "Yana nemo muhimman kalmomi, naku da na kowane jeri: ta kalmar, sannan ta gajeriyar ma'ana, sannan ta cikakkiyar ma'ana.",
+      "all": "Duka",
+      "ours": "Namu",
+      "allHelp": "Yana nuna muhimman kalmomin tawagarku da na kowane jeri.",
+      "oursHelp": "Yana nuna muhimman kalmomin tawagarku kaɗai.",
+      "listHelp": "Yana nuna muhimman kalmomin {{name}} kaɗai.",
+      "words": "Kalmomi",
+      "inGloss": "A cikin gajeriyar ma'ana",
+      "inMeaning": "A cikin cikakkiyar ma'ana",
+      "moreHelp": "Yana nuna kalmomin da cikakkiyar ma'anarsu ta ambaci wannan.",
+      "ourWord": "Kalmar {{language}}",
+      "openListHelp": "Yana buɗe ma'anarta, daga {{name}}.",
+      "more_one": "Ƙarin kalma {{count, number}} ta ambaci wannan a cikakkiyar ma'anarta",
+      "more_other": "Ƙarin kalmomi {{count, number}} sun ambaci wannan a cikakkiyar ma'anarsu",
+      "linkedIn_one": "An haɗa ta da nassi {{count, number}} a {{book}}",
+      "linkedIn_other": "An haɗa ta da nassosi {{count, number}} a {{book}}",
+      "linked_one": "An haɗa ta da nassi {{count, number}}",
+      "linked_other": "An haɗa ta da nassosi {{count, number}}"
+    },
+    "review": {
+      "title": "Muhimman kalmomin {{name}}",
+      "titlePlain": "Muhimman kalmomi",
+      "intro": "Saurari yadda Siga ta {{n}} take faɗin kowacce. Taɓa kalma don ganin ma'anarta daga {{name}}.",
+      "gone": "Wannan jerin muhimman kalmomi ba ya cikin ɗakin karatu yanzu.",
+      "none": "{{name}} ba shi da muhimman kalmomi a wannan nassi.",
+      "openHelp": "Yana buɗe ma'anar kalmar, kamar yadda {{name}} ya bayyana ta.",
+      "used": "{{name}} ya yi amfani da ita",
+      "notMarked": "Ba a yi mata alama a Siga ta {{n}} ba",
+      "noWord": "Babu kalmar {{language}} tukuna",
+      "rowSub_one": "{{count, number}} a nan · {{have, number}} suna da kalmar {{language}}",
+      "rowSub_other": "{{count, number}} a nan · {{have, number}} suna da kalmar {{language}}"
     }
   },
   "clusters": {

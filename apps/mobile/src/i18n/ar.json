@@ -1096,7 +1096,8 @@
     "offers": {
       "guides": "أدلة الدراسة من {{name}}",
       "theBible": "{{name}}",
-      "guidesIn": "أدلة الدراسة من {{name}} باللغة {{language}}"
+      "guidesIn": "أدلة الدراسة من {{name}} باللغة {{language}}",
+      "wordsIn": "{{name}} باللغة {{language}}"
     },
     "languages": {
       "row": "اللغات",
@@ -1477,7 +1478,25 @@
       "setHelp": "يفتح لغاتها: اختر اللغة التي يحصل عليها بها الفريق، أو أوقفها.",
       "patternOnHelp": "مقدَّمة للفريق، باللغة المختارة لها.",
       "all": "كل المواد المرجعية",
-      "allHelp": "يفتح كل ما في مكتبة المؤسسة، وما يُقدَّم لكل لغة."
+      "allHelp": "يفتح كل ما في مكتبة المؤسسة، وما يُقدَّم لكل لغة.",
+      "search": "ابحث في ترجمات الكتاب المقدس والأدلة والكلمات الرئيسية…",
+      "searchHelp": "يجد ترجمات الكتاب المقدس والأدلة والكلمات الرئيسية والملاحظات حسب الاسم أو الوصف أو الجهة التي تشاركها أو اللغة.",
+      "searchHint": "الأسماء والأوصاف والجهة التي تشاركه ولغته، في كل المنظمات التي تشارك معك.",
+      "goesWithFilter": "مرتبط بـ {{name}}",
+      "familyNote": "كل ما يرتبط بـ {{name}}. أوقف أيًّا منها، أو امسح البحث لترى كل شيء مرة أخرى.",
+      "clearGoesWith": "اعرض كل شيء مرة أخرى",
+      "clearGoesWithHelp": "يزيل “مرتبط بـ”، فتظهر القائمة كلها مرة أخرى.",
+      "relatedHelp": "يعرض فقط ما يرتبط به، ولكلٍّ منها مفتاح تشغيل خاص به.",
+      "notInLibrary": "ليس في مكتبتك بعد",
+      "turnedOnWith": "تم تفعيل {{name}} و{{related}}",
+      "wordSetChosen": "{{name}} الآن باللغة {{language}}",
+      "wordSetOff": "{{name}} متوقفة لهذا الفريق",
+      "relatedOn_zero": "تم تفعيل {{count, number}} مورد مرتبط",
+      "relatedOn_one": "تم تفعيل مورد مرتبط واحد",
+      "relatedOn_two": "تم تفعيل موردين مرتبطين",
+      "relatedOn_few": "تم تفعيل {{count, number}} موارد مرتبطة",
+      "relatedOn_many": "تم تفعيل {{count, number}} موردًا مرتبطًا",
+      "relatedOn_other": "تم تفعيل {{count, number}} مورد مرتبط"
     },
     "page": {
       "title": "ما يساعدهم",
@@ -7038,7 +7057,8 @@
       "helpGuideHelp": "يفتح دليل الدراسة لهذا المقطع.",
       "helpNoteHelp": "يفتحها لتقرأها.",
       "howManyHelp": "قل كم شخصًا استمع. اختياري.",
-      "doneRecordedHelp": "يضع {{what}} في سجل المقطع."
+      "doneRecordedHelp": "يضع {{what}} في سجل المقطع.",
+      "helpWordsHelp": "يفتح الكلمات الرئيسية في هذا المقطع، مع كلمة الفريق لكل منها، وهل استخدمتها هذه النسخة."
     },
     "guest": {
       "previewSub": "معاينة · ما يراه شخص ليس لديه التطبيق",
@@ -7356,7 +7376,8 @@
       "guide": "دليل دراسة",
       "note": "ملاحظة للمترجمين",
       "questions": "مجموعة أسئلة",
-      "other": "مادة"
+      "other": "مادة",
+      "words": "الكلمات الرئيسية"
     },
     "facts": {
       "oldTestament": "العهد القديم",
@@ -7618,7 +7639,8 @@
       "kindAllHelp": "يعرض كل الأنواع.",
       "kindHelp": "يعرض هذا النوع فقط.",
       "languageHelp": "يعرض فقط العناصر بهذه اللغة.",
-      "openHelp": "يفتحه: ما يقوله وأين وُضع."
+      "openHelp": "يفتحه: ما يقوله وأين وُضع.",
+      "kindWords": "الكلمات الرئيسية"
     },
     "coverage": {
       "title": "التغطية",
@@ -7812,7 +7834,16 @@
       "keepHelp": "يحتفظ بهذه اللغة ويغلق هذا.",
       "offHelp": "يتوقف الفريق عن الحصول على هذه الأدلة.",
       "useHelp": "يحصل الفريق على هذه الأدلة بهذه اللغة.",
-      "rowHelp": "يختار هذه اللغة لأدلة الفريق. السطر يبيّن كم مقطعًا له دليل."
+      "rowHelp": "يختار هذه اللغة لأدلة الفريق. السطر يبيّن كم مقطعًا له دليل.",
+      "wordsUseHelp": "يحصل الفريق على هذه الكلمات الرئيسية بهذه اللغة.",
+      "wordsOffHelp": "يتوقف الفريق عن الحصول على هذه الكلمات الرئيسية.",
+      "wordsRowHelp": "يختار هذه اللغة للكلمات الرئيسية الخاصة بالفريق. السطر يبيّن كم كلمة فيها.",
+      "wordsGaps_zero": "باللغة {{language}}، لدى {{name}} {{count, number}} كلمة. كل مقطع يعرض الكلمات التي يستخدمها.",
+      "wordsGaps_one": "باللغة {{language}}، لدى {{name}} كلمة واحدة. كل مقطع يعرض الكلمات التي يستخدمها.",
+      "wordsGaps_two": "باللغة {{language}}، لدى {{name}} كلمتان. كل مقطع يعرض الكلمات التي يستخدمها.",
+      "wordsGaps_few": "باللغة {{language}}، لدى {{name}} {{count, number}} كلمات. كل مقطع يعرض الكلمات التي يستخدمها.",
+      "wordsGaps_many": "باللغة {{language}}، لدى {{name}} {{count, number}} كلمة. كل مقطع يعرض الكلمات التي يستخدمها.",
+      "wordsGaps_other": "باللغة {{language}}، لدى {{name}} {{count, number}} كلمة. كل مقطع يعرض الكلمات التي يستخدمها."
     },
     "passageText": {
       "bar": "{{passage}} · {{bible}}",
@@ -7853,7 +7884,13 @@
       "writeNoteSub": "على الآيات التي تختارها، منطوقة أو مكتوبة",
       "fromLibrary": "من مكتبتك",
       "fromOwn": "من مكتبة مؤسستك"
-    }
+    },
+    "words_zero": "{{count, number}} كلمة",
+    "words_one": "كلمة واحدة",
+    "words_two": "كلمتان",
+    "words_few": "{{count, number}} كلمات",
+    "words_many": "{{count, number}} كلمة",
+    "words_other": "{{count, number}} كلمة"
   },
   "sources": {
     "listSeparator": "، ",
@@ -8037,7 +8074,13 @@
     "change": "تغيير",
     "rowHelp": "يضيف هذه اللغة لأناجيل الفريق وأدلته، أو يزيلها. يقول السطر ما فيها.",
     "listed": "تظهر فقط اللغات التي لها كتب مقدسة أو أدلة دراسة.",
-    "noMatch": "لا توجد بعد لغة بهذا الاسم لها كتب مقدسة أو أدلة دراسة."
+    "noMatch": "لا توجد بعد لغة بهذا الاسم لها كتب مقدسة أو أدلة دراسة.",
+    "setWords_zero": "{{name}} ({{count, number}} كلمة)",
+    "setWords_one": "{{name}} (كلمة واحدة)",
+    "setWords_two": "{{name}} (كلمتان)",
+    "setWords_few": "{{name}} ({{count, number}} كلمات)",
+    "setWords_many": "{{name}} ({{count, number}} كلمة)",
+    "setWords_other": "{{name}} ({{count, number}} كلمة)"
   },
   "checks": {
     "title": "الفحوصات",
@@ -8280,6 +8323,96 @@
       "playHelp": "يشغّل كيف يقولونها.",
       "suggest": "لغات أخرى هنا تستخدم",
       "suggestHelp": "تُستخدم هنا في {{languages}}. المسها لإضافتها."
+    },
+    "lists": {
+      "here": "الكلمات الرئيسية هنا",
+      "from": "من {{name}} · {{language}}",
+      "inPassage": "في هذا المقطع",
+      "saidAs": "{{verses}} (“{{form}}”)",
+      "openHelp": "يفتح معناها، لتقرأه أو تسمعه.",
+      "rowLabel": "{{term}}. {{gloss}}. {{refs}}",
+      "play": "شغّل معنى {{term}}",
+      "pause": "أوقف معنى {{term}} مؤقتًا",
+      "playHelp": "يشغّل تسجيل {{name}} الذي يشرح معناها.",
+      "words_zero": "{{count, number}} كلمة",
+      "words_one": "كلمة واحدة",
+      "words_two": "كلمتان",
+      "words_few": "{{count, number}} كلمات",
+      "words_many": "{{count, number}} كلمة",
+      "words_other": "{{count, number}} كلمة"
+    },
+    "sheet": {
+      "sub": "كلمة رئيسية من {{name}} · {{language}}",
+      "hear": "استمع إلى شرح {{name}}",
+      "hearHelp": "يشغّل تسجيل {{name}} الذي يشرح معنى الكلمة. اضغط مرة أخرى للإيقاف المؤقت.",
+      "pauseHear": "أوقف شرح {{name}} مؤقتًا",
+      "playVerse": "شغّل {{verse}}",
+      "means": "معناها",
+      "meansHelp": "اضغط على كلمة تحتها خط لترى معناها.",
+      "add": "أضف إلى كلماتنا الرئيسية",
+      "addHelp": "يضيفها إلى الكلمات الرئيسية للغة {{language}}، مع معناها من {{name}}. ثم تقول كيف تُقال بلغة {{language}}.",
+      "addThen": "ثم قل كيف تُقال بلغة {{language}}",
+      "ours": "إحدى الكلمات الرئيسية للغة {{language}}.",
+      "backTo": "رجوع إلى {{term}}",
+      "backToHelp": "يعرض مرة أخرى الكلمة التي جئت منها.",
+      "minutes_zero": "{{count, number}} دقيقة",
+      "minutes_one": "دقيقة واحدة",
+      "minutes_two": "دقيقتان",
+      "minutes_few": "{{count, number}} دقائق",
+      "minutes_many": "{{count, number}} دقيقة",
+      "minutes_other": "{{count, number}} دقيقة"
+    },
+    "detail": {
+      "from": "من {{name}}"
+    },
+    "search": {
+      "help": "يجد الكلمات الرئيسية، كلماتك وكلمات كل قائمة: حسب الكلمة، ثم حسب المعنى القصير، ثم حسب المعنى الكامل.",
+      "all": "الكل",
+      "ours": "كلماتنا",
+      "allHelp": "يعرض الكلمات الرئيسية لفريقك وكلمات كل قائمة.",
+      "oursHelp": "يعرض الكلمات الرئيسية لفريقك فقط.",
+      "listHelp": "يعرض الكلمات الرئيسية من {{name}} فقط.",
+      "words": "الكلمات",
+      "inGloss": "في معنى قصير",
+      "inMeaning": "في معنى كامل",
+      "moreHelp": "يعرض الكلمات التي يُذكر هذا في معناها الكامل.",
+      "ourWord": "الكلمة بلغة {{language}}",
+      "openListHelp": "يفتح معناها من {{name}}.",
+      "more_zero": "{{count, number}} كلمة أخرى تذكر هذا في معناها الكامل",
+      "more_one": "كلمة أخرى تذكر هذا في معناها الكامل",
+      "more_two": "كلمتان أخريان تذكران هذا في معناهما الكامل",
+      "more_few": "{{count, number}} كلمات أخرى تذكر هذا في معناها الكامل",
+      "more_many": "{{count, number}} كلمة أخرى تذكر هذا في معناها الكامل",
+      "more_other": "{{count, number}} كلمة أخرى تذكر هذا في معناها الكامل",
+      "linkedIn_zero": "مرتبطة بـ {{count, number}} مقطع في {{book}}",
+      "linkedIn_one": "مرتبطة بمقطع واحد في {{book}}",
+      "linkedIn_two": "مرتبطة بمقطعين في {{book}}",
+      "linkedIn_few": "مرتبطة بـ {{count, number}} مقاطع في {{book}}",
+      "linkedIn_many": "مرتبطة بـ {{count, number}} مقطعًا في {{book}}",
+      "linkedIn_other": "مرتبطة بـ {{count, number}} مقطع في {{book}}",
+      "linked_zero": "مرتبطة بـ {{count, number}} مقطع",
+      "linked_one": "مرتبطة بمقطع واحد",
+      "linked_two": "مرتبطة بمقطعين",
+      "linked_few": "مرتبطة بـ {{count, number}} مقاطع",
+      "linked_many": "مرتبطة بـ {{count, number}} مقطعًا",
+      "linked_other": "مرتبطة بـ {{count, number}} مقطع"
+    },
+    "review": {
+      "title": "الكلمات الرئيسية من {{name}}",
+      "titlePlain": "الكلمات الرئيسية",
+      "intro": "استمع إلى الطريقة التي تقول بها النسخة {{n}} كل كلمة. اضغط على كلمة لترى معناها من {{name}}.",
+      "gone": "قائمة الكلمات الرئيسية هذه لم تعد في المكتبة.",
+      "none": "ليس لدى {{name}} كلمات رئيسية في هذا المقطع.",
+      "openHelp": "يفتح معنى الكلمة كما يشرحه {{name}}.",
+      "used": "استخدمها {{name}}",
+      "notMarked": "غير محددة في النسخة {{n}}",
+      "noWord": "لا توجد كلمة بلغة {{language}} بعد",
+      "rowSub_zero": "{{count, number}} هنا · لـ {{have, number}} منها كلمة بلغة {{language}}",
+      "rowSub_one": "{{count, number}} هنا · لـ {{have, number}} منها كلمة بلغة {{language}}",
+      "rowSub_two": "{{count, number}} هنا · لـ {{have, number}} منها كلمة بلغة {{language}}",
+      "rowSub_few": "{{count, number}} هنا · لـ {{have, number}} منها كلمة بلغة {{language}}",
+      "rowSub_many": "{{count, number}} هنا · لـ {{have, number}} منها كلمة بلغة {{language}}",
+      "rowSub_other": "{{count, number}} هنا · لـ {{have, number}} منها كلمة بلغة {{language}}"
     }
   },
   "clusters": {

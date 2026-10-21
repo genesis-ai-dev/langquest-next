@@ -1016,7 +1016,8 @@
     "offers": {
       "guides": "miongozo ya kujifunza ya {{name}}",
       "theBible": "{{name}}",
-      "guidesIn": "miongozo ya kujifunza ya {{name}} kwa {{language}}"
+      "guidesIn": "miongozo ya kujifunza ya {{name}} kwa {{language}}",
+      "wordsIn": "{{name}} kwa {{language}}"
     },
     "languages": {
       "row": "Lugha",
@@ -1357,7 +1358,21 @@
       "setHelp": "Hufungua lugha zake: chagua ipi timu itapata, au uizime.",
       "patternOnHelp": "Inatolewa kwa timu, katika lugha iliyochaguliwa kwa ajili yake.",
       "all": "Nyenzo zote za marejeo",
-      "allHelp": "Hufungua kila kitu kwenye maktaba ya shirika, na kinachotolewa kwa kila lugha."
+      "allHelp": "Hufungua kila kitu kwenye maktaba ya shirika, na kinachotolewa kwa kila lugha.",
+      "search": "Tafuta Biblia, miongozo, maneno muhimu…",
+      "searchHelp": "Hupata Biblia, miongozo, maneno muhimu na madokezo kwa jina, maelezo, aliyevishiriki au lugha.",
+      "searchHint": "Majina, maelezo, aliyekishiriki na lugha yake, katika kila shirika linaloshiriki nawe.",
+      "goesWithFilter": "Inaendana na {{name}}",
+      "familyNote": "Kila kitu kinachohusiana na {{name}}. Zima chochote kati ya hivi, au futa utafutaji ili uone kila kitu tena.",
+      "clearGoesWith": "Onyesha kila kitu tena",
+      "clearGoesWithHelp": "Huondoa “Inaendana na”, ili orodha nzima ionekane tena.",
+      "relatedHelp": "Huonyesha tu vinavyoendana nacho, kila kimoja na swichi yake.",
+      "notInLibrary": "Bado hakipo katika maktaba yako",
+      "turnedOnWith": "Umewasha {{name}} na {{related}}",
+      "wordSetChosen": "{{name}} sasa yako kwa {{language}}",
+      "wordSetOff": "{{name}} yamezimwa kwa timu hii",
+      "relatedOn_one": "Nyenzo {{count, number}} inayohusiana imewashwa",
+      "relatedOn_other": "Nyenzo {{count, number}} zinazohusiana zimewashwa"
     },
     "page": {
       "title": "Kinachowasaidia",
@@ -6034,7 +6049,8 @@
       "helpGuideHelp": "Hufungua mwongozo wa kujifunza wa kifungu hiki.",
       "helpNoteHelp": "Hulifungua ili ulisome.",
       "howManyHelp": "Sema wangapi walisikiliza. Si lazima.",
-      "doneRecordedHelp": "Huweka {{what}} kwenye kumbukumbu za kifungu."
+      "doneRecordedHelp": "Huweka {{what}} kwenye kumbukumbu za kifungu.",
+      "helpWordsHelp": "Hufungua maneno muhimu katika kifungu hiki, pamoja na neno la timu kwa kila moja na kama toleo hili lililitumia."
     },
     "guest": {
       "previewSub": "Hakiki · kile anachoona mtu asiye na programu",
@@ -6324,7 +6340,8 @@
       "guide": "Mwongozo wa kujifunza",
       "note": "Dokezo kwa watafsiri",
       "questions": "Seti ya maswali",
-      "other": "Nyenzo"
+      "other": "Nyenzo",
+      "words": "Maneno muhimu"
     },
     "facts": {
       "oldTestament": "Agano la Kale",
@@ -6522,7 +6539,8 @@
       "kindAllHelp": "Huonyesha kila aina.",
       "kindHelp": "Huonyesha tu aina hii.",
       "languageHelp": "Huonyesha tu vipengele katika lugha hii.",
-      "openHelp": "Hukifungua: kinachosema na mahali kilipowekwa."
+      "openHelp": "Hukifungua: kinachosema na mahali kilipowekwa.",
+      "kindWords": "Maneno muhimu"
     },
     "coverage": {
       "title": "Kinachopatikana",
@@ -6696,7 +6714,12 @@
       "keepHelp": "Hubaki na lugha hii na kufunga hapa.",
       "offHelp": "Timu inaacha kupata miongozo hii.",
       "useHelp": "Timu inapata miongozo hii katika lugha hii.",
-      "rowHelp": "Huchagua lugha hii kwa miongozo ya timu. Mstari wa maandishi unaonyesha vifungu vingapi vina mwongozo."
+      "rowHelp": "Huchagua lugha hii kwa miongozo ya timu. Mstari wa maandishi unaonyesha vifungu vingapi vina mwongozo.",
+      "wordsUseHelp": "Timu inapata maneno muhimu haya katika lugha hii.",
+      "wordsOffHelp": "Timu inaacha kupata maneno muhimu haya.",
+      "wordsRowHelp": "Huchagua lugha hii kwa maneno muhimu ya timu. Mstari wa maandishi unaonyesha ina maneno mangapi.",
+      "wordsGaps_one": "Kwa {{language}}, {{name}} ina neno {{count, number}}. Kila kifungu kinaonyesha yale kinayotumia.",
+      "wordsGaps_other": "Kwa {{language}}, {{name}} ina maneno {{count, number}}. Kila kifungu kinaonyesha yale kinayotumia."
     },
     "passageText": {
       "bar": "{{passage}} · {{bible}}",
@@ -6725,7 +6748,9 @@
       "writeNoteSub": "Kwenye mistari unayochagua, kwa sauti au kwa maandishi",
       "fromLibrary": "Kutoka maktaba yako",
       "fromOwn": "Kutoka maktaba ya shirika lako"
-    }
+    },
+    "words_one": "neno {{count, number}}",
+    "words_other": "maneno {{count, number}}"
   },
   "sources": {
     "listSeparator": ", ",
@@ -6889,7 +6914,9 @@
     "change": "Badilisha",
     "rowHelp": "Inaongeza lugha hii kwa Biblia na miongozo ya timu, au inaiondoa. Mstari unasema kilichomo.",
     "listed": "Lugha zenye Biblia au miongozo ya kujifunza pekee ndizo zinaonyeshwa.",
-    "noMatch": "Hakuna lugha kwa jina hilo yenye Biblia au miongozo ya kujifunza bado."
+    "noMatch": "Hakuna lugha kwa jina hilo yenye Biblia au miongozo ya kujifunza bado.",
+    "setWords_one": "{{name}} (neno {{count, number}})",
+    "setWords_other": "{{name}} (maneno {{count, number}})"
   },
   "checks": {
     "title": "Kaguzi",
@@ -7100,6 +7127,72 @@
       "playHelp": "Hucheza jinsi wanavyolisema.",
       "suggest": "Lugha nyingine hapa zinatumia",
       "suggestHelp": "Linatumika hapa katika {{languages}}. Gusa ili kuliongeza."
+    },
+    "lists": {
+      "here": "Maneno muhimu hapa",
+      "from": "Kutoka {{name}} · {{language}}",
+      "inPassage": "Katika kifungu hiki",
+      "saidAs": "{{verses}} (“{{form}}”)",
+      "openHelp": "Hufungua maana yake, ili uisome au uisikilize.",
+      "rowLabel": "{{term}}. {{gloss}}. {{refs}}",
+      "play": "Cheza maana ya {{term}}",
+      "pause": "Sitisha maana ya {{term}}",
+      "playHelp": "Hucheza rekodi ya {{name}} inayoeleza maana yake.",
+      "words_one": "neno {{count, number}}",
+      "words_other": "maneno {{count, number}}"
+    },
+    "sheet": {
+      "sub": "Neno muhimu la {{name}} · {{language}}",
+      "hear": "Sikiliza maelezo ya {{name}}",
+      "hearHelp": "Hucheza rekodi ya {{name}} inayoeleza maana ya neno. Gusa tena ili kusitisha.",
+      "pauseHear": "Sitisha maelezo ya {{name}}",
+      "playVerse": "Cheza {{verse}}",
+      "means": "Maana yake",
+      "meansHelp": "Gusa neno lililopigiwa mstari uone maana yake.",
+      "add": "Ongeza kwenye maneno yetu muhimu",
+      "addHelp": "Huliongeza kwenye maneno muhimu ya {{language}}, pamoja na maana ya {{name}}. Kisha unasema jinsi linavyosemwa kwa {{language}}.",
+      "addThen": "Kisha sema jinsi linavyosemwa kwa {{language}}",
+      "ours": "Mojawapo ya maneno muhimu ya {{language}}.",
+      "backTo": "Rudi kwa {{term}}",
+      "backToHelp": "Huonyesha tena neno ulilotoka.",
+      "minutes_one": "dakika {{count, number}}",
+      "minutes_other": "dakika {{count, number}}"
+    },
+    "detail": {
+      "from": "Kutoka {{name}}"
+    },
+    "search": {
+      "help": "Hupata maneno muhimu, yenu na ya kila orodha: kwa neno, kisha kwa maana fupi, kisha kwa maana kamili.",
+      "all": "Yote",
+      "ours": "Yetu",
+      "allHelp": "Huonyesha maneno muhimu ya timu yako na ya kila orodha.",
+      "oursHelp": "Huonyesha maneno muhimu ya timu yako tu.",
+      "listHelp": "Huonyesha maneno muhimu ya {{name}} tu.",
+      "words": "Maneno",
+      "inGloss": "Katika maana fupi",
+      "inMeaning": "Katika maana kamili",
+      "moreHelp": "Huonyesha maneno ambayo maana yake kamili inataja hili.",
+      "ourWord": "Neno la {{language}}",
+      "openListHelp": "Hufungua maana yake, kutoka {{name}}.",
+      "more_one": "Neno {{count, number}} jingine linataja hili katika maana yake kamili",
+      "more_other": "Maneno {{count, number}} mengine yanataja hili katika maana yao kamili",
+      "linkedIn_one": "Limeunganishwa na kifungu {{count, number}} katika {{book}}",
+      "linkedIn_other": "Limeunganishwa na vifungu {{count, number}} katika {{book}}",
+      "linked_one": "Limeunganishwa na kifungu {{count, number}}",
+      "linked_other": "Limeunganishwa na vifungu {{count, number}}"
+    },
+    "review": {
+      "title": "Maneno muhimu ya {{name}}",
+      "titlePlain": "Maneno muhimu",
+      "intro": "Sikiliza jinsi Toleo la {{n}} linavyosema kila moja. Gusa neno upate maana yake kutoka {{name}}.",
+      "gone": "Orodha hii ya maneno muhimu haipo tena katika maktaba.",
+      "none": "{{name}} haina maneno muhimu katika kifungu hiki.",
+      "openHelp": "Hufungua maana ya neno, kama {{name}} inavyolieleza.",
+      "used": "{{name}} alilitumia",
+      "notMarked": "Halijawekwa alama katika Toleo la {{n}}",
+      "noWord": "Bado hakuna neno la {{language}}",
+      "rowSub_one": "{{count, number}} hapa · {{have, number}} yana neno la {{language}}",
+      "rowSub_other": "{{count, number}} hapa · {{have, number}} yana neno la {{language}}"
     }
   },
   "clusters": {
