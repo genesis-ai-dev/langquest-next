@@ -7,9 +7,10 @@
 // records it rather than judging), ADR-028 (Already happened is per step and
 // looks like reviewing it now), ADR-029.
 //
-// Three steps under the header: Listen (the version in the big player, Note
-// at a moment, Background one tap away as a sheet, "Who is listening?"
-// optional), Questions (one per screen, answered aloud, by choice or typed;
+// Three steps under the header: Listen (the version in the big player, its
+// parts each with a note button and their notes, Note on the part playing,
+// the check's helps with theirs (decisions.md 149), Background one tap away
+// as a sheet, "Who is listening?" optional), Questions (one per screen, answered aloud, by choice or typed;
 // a required one is answered or set aside with a reason), Decide (Looks good
 // sends it; Needs changes opens "What should change?", voice first, with an
 // optional listener retelling). Already happened is the same screens, with
@@ -28,8 +29,8 @@
 // the saved mark in the header. Back and ✕ leave and keep it; opening the
 // same review again brings it back where it was left; sending it drops it.
 import {
-  checkShows, commands, keyTermLinksFor, languageName, questionsForKind, RECORD_STEP, SHOWN,
-  type Card as AudioCard, type EventSpec, type KindDef, type PassageNote
+  checkShows, commands, helpNotesFor, keyTermLinksFor, languageName, notePart as notePartOf, questionsForKind, RECORD_STEP, SHOWN,
+  type Card as AudioCard, type EventSpec, type KindDef, type NoteAnchor, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -52,10 +53,12 @@ import { passageCrumbs, passageView as passageViewOf, versionTitle, type Passage
 import { usePassage } from '../passage/usePassage';
 import { failureMessage } from '../diagnostics/report';
 import {
-  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
-  noteAnchorText, readiness, requestFor, reviewCapture, reviewStages, stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor,
-  type Answers, type Skips, type StageId, type VoiceAnswer
+  canLeave, cantAnswerReasons, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, isGroupKind, kindInSentence, kindLabel, listenLine, nextLabel,
+  momentIn, noteAnchorText, partAt, readiness, replyAnchor, requestFor, reviewCapture, reviewStages, stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor,
+  type AnchorLook, type Answers, type Skips, type StageId, type VoiceAnswer
 } from '../reviewing/capture';
+import { NotedRow, NotesUnder, NotingSheet, ReviewNotes, type Noting } from '../reviewing/notesOn';
+import { cardDurations } from '../recording/workspaceModel';
 import {
   AnswerInput, Block, CompareCard, PeopleCounter, RequestBanner
 } from '../reviewing/parts';
@@ -70,12 +73,12 @@ import { useUsage } from '../sources/useUsage';
 import { useStudyGuide } from '../study/useStudyGuides';
 import type { StudyGuide } from '../study/guides';
 import { studyProgress } from '../study/progress';
-import { C, space, TINT, type as T } from '../ui/theme';
+import { C, radius, space, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
 import { draftKey } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
-import { isStoredReview, reviewDraftOf, reviewStateOf, type ReviewDraft, type ReviewState } from '../reviewing/reviewDraft';
+import { isStoredReview, reviewDraftOf, reviewStateOf, type ReviewDraft, type ReviewNote, type ReviewState } from '../reviewing/reviewDraft';
 import { NoteStepContext } from '../checks/noteStep';
 import { anyFrom, fromFilter } from '../checks/showsModel';
 
@@ -140,7 +143,10 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const [qi, setQi] = useState(0);
   const [why, setWhy] = useState(false);
   const [sheet, setSheet] = useState<'background' | 'who' | 'details' | 'say' | 'retell' | null>(null);
-  const [momentAt, setMomentAt] = useState<number | null>(null);
+  // A note being written on a part, a help or another note (decisions.md 149).
+  const [noting, setNoting] = useState<Noting | null>(null);
+  // Everything noted while reviewing: part of the review, sent with the verdict (decisions.md 149).
+  const [notes, setNotes] = useState<ReviewNote[]>([]);
   // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
@@ -160,7 +166,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const draft = useDraft<ReviewDraft | null>(v ? draftKey('review', actorId, v.languageId, v.unitId, kindId, logged ? 'logged' : 'live') : null, null, isStoredReview);
   const setDraft = draft.set;
   const onScreen: ReviewState = {
-    takeId, stage: stageId, qi, answers, voice, typing, skipped, comment, feedback, typeFeedback, moments, people, givenBy, place, evidence, made
+    takeId, stage: stageId, qi, answers, voice, typing, skipped, comment, feedback, typeFeedback, moments, notes, people, givenBy, place, evidence, made
   };
   const kept = JSON.stringify(reviewDraftOf(onScreen, version?.takeId, opened));
   // What the draft holds: written when the screen holds something else, so a draft not yet read is never written over.
@@ -173,7 +179,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
     if (!back) { stored.current = 'null'; setDraft(null); return; }
     stored.current = JSON.stringify(d);
     setTakeId(back.takeId); setStageId(back.stage); setQi(back.qi); setAnswers(back.answers); setVoice(back.voice); setTyping(back.typing);
-    setSkipped(back.skipped); setComment(back.comment); setFeedback(back.feedback); setTypeFeedback(back.typeFeedback); setMoments(back.moments);
+    setSkipped(back.skipped); setComment(back.comment); setFeedback(back.feedback); setTypeFeedback(back.typeFeedback); setMoments(back.moments); setNotes(back.notes);
     setPeople(back.people); setGivenBy(back.givenBy); setPlace(back.place); setEvidence(back.evidence); setMade(back.made);
   }, [draft.restoredAt]); // eslint-disable-line react-hooks/exhaustive-deps -- once per draft read: what it brings back is that read's value, versions and params
   useEffect(() => {
@@ -250,6 +256,49 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   const mine = version.by === actorId;
   // The translator's first name, for sentences about them; when it is you, the sentences say so themselves.
   const translator = ctx.name(version.by).split(' ')[0] ?? ctx.name(version.by);
+
+  // ---- notes on what this check shows (decisions.md 149) ----
+  const lengths = cardDurations(v.state, v.unitId);
+  const look: AnchorLook = {
+    term: (id) => v.state.keyTerms[id]?.term,
+    versionN: (id) => v.p.versions.find((x) => x.takeId === id)?.n,
+    partN: (id, hash) => { const at = v.p.versions.find((x) => x.takeId === id)?.cardHashes.indexOf(hash) ?? -1; return at >= 0 ? at + 1 : undefined; },
+    help: (key) => helps.find((h) => h.help === key)?.name,
+    author: (id) => { const n = v.p.notes.find((x) => x.id === id); return n ? ctx.name(n.by).split(' ')[0] : undefined; }
+  };
+  const noteLabel = (n: PassageNote) => noteAnchorText(n.anchor, look);
+  /** A note in this review: a moment reads as the reviewer heard it, a time in the whole version; the rest say what they are on. */
+  const reviewNoteLabel = (anchor: NoteAnchor) => {
+    const on = notePartOf(anchor);
+    const ms = on && on.takeId === version.takeId ? momentIn(version.cardHashes, lengths, on.part, on.at) : null;
+    return ms !== null ? t('review.simple.yourNoteAt', { time: formatClock(ms) }) : noteAnchorText(anchor, look);
+  };
+  // The sheet says the note goes with the review, as the moment's sheet always has.
+  const withReview = mine ? t('review.screen.noteAtSubMine') : t('review.screen.noteAtSub', { name: translator });
+  const noteOn = (anchor: NoteAnchor, title: string, where: string) => setNoting({ anchor, title, where: summaryLine([v.title, where]), sub: withReview });
+  const replyOn = (n: PassageNote) => {
+    const name = ctx.name(n.by).split(' ')[0] ?? ctx.name(n.by);
+    noteOn(replyAnchor(n), t('review.notesOn.replyTitle', { name }), noteLabel(n));
+  };
+  /** The player's Note, at a time in the whole version: kept as the part playing and how far into it, so the fix records over that part. */
+  const noteMoment = (ms: number) => {
+    const { index, atMs } = partAt(version.cardHashes.map((h) => lengths.get(h) ?? 0), ms);
+    const hash = version.cardHashes[index];
+    if (!hash) return;
+    const time = formatClock(ms);
+    noteOn({ kind: 'version', takeId: version.takeId, part: hash, at: clockMs(atMs) }, t('review.screen.noteAt', { time }), time);
+  };
+  const addNote = (anchor: NoteAnchor, c: { text: string; hash: string | null }) => {
+    setNotes((ns) => [...ns, { id: Crypto.randomUUID(), anchor, ...(c.text ? { text: c.text } : {}), ...(c.hash ? { hash: c.hash } : {}) }]);
+    ctx.toast(t('review.notesOn.added'));
+  };
+  // What goes with the verdict, said where it is sent.
+  const goesWith = notes.length + moments.length > 0 ? (
+    <View style={styles.goesWith}>
+      <Ico name="send" size={16} color={TINT.amberText} />
+      <Text style={[txt.sm, { fontWeight: '700', color: TINT.amberText, flexShrink: 1 }]}>{t('review.notesOn.goWith', { count: notes.length + moments.length })}</Text>
+    </View>
+  ) : null;
   const q = questions[Math.min(qi, Math.max(0, questions.length - 1))];
   const openAt = firstOpenAt(questions, captured.answers, skipped, makes ? {} : voice);
   const afterSheet = (fn: () => void) => { setSheet(null); setTimeout(fn, SHEET_GAP_MS); };
@@ -304,6 +353,14 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             ...(artifacts.length ? { artifacts } : {}), ...(req ? { requestId: req.id } : {})
           });
         message = t('review.screen.addedToRecord', { kind: check });
+      }
+      // Everything noted in this review goes with it, in the same batch, and names it (decisions.md 149).
+      const sent = specs.find((sp) => sp.type === 'v1.ReviewRecorded')?.payload as { reviewId: string } | undefined;
+      if (sent) {
+        specs = [...specs, ...notes.flatMap((n, i) => c.addNote({
+          commandId: `${cmd}:note:${i}`, unitId: v.unitId, anchor: n.anchor, kindId: kind.id, reviewId: sent.reviewId,
+          ...(n.text ? { text: n.text } : {}), ...(n.hash ? { blobHash: n.hash } : {})
+        }))];
       }
       // Each review of this passage names what its Background offered and what was opened.
       const used = usage.items();
@@ -381,10 +438,13 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {directions ? <RequestBanner ctx={ctx} request={request} /> : null}
       <ClipPlayer language={ctx.language} hashes={version.cardHashes} big
         title={mine ? t('review.screen.versionByYou', { n: version.n }) : t('review.screen.versionBy', { n: version.n, name: translator })} sub={listenLine(kind.id, logged)}
-        {...(makes ? {} : { onNote: (s: number) => setMomentAt(Math.round(s * 1000)) })} />
+        {...(makes ? {} : { onNote: (s: number) => noteMoment(Math.round(s * 1000)) })} />
       {/* Its parts with their verses, when they have verses, so a reviewer can say where (decisions.md 82). */}
       <VersionParts ctx={ctx} state={v.state} unitId={v.unitId} hashes={version.cardHashes} onlyNumbered />
-      <MomentList ctx={ctx} moments={moments} onRemove={(h) => setMoments((m) => m.filter((x) => x.hash !== h))} />
+      {/* Everything noted in this review, together: it is sent with the verdict (decisions.md 149). */}
+      <ReviewNotes ctx={ctx} notes={notes} label={reviewNoteLabel} onRemove={(id) => setNotes((ns) => ns.filter((n) => n.id !== id))}>
+        {moments.length ? <MomentList ctx={ctx} moments={moments} onRemove={(h) => setMoments((m) => m.filter((x) => x.hash !== h))} /> : null}
+      </ReviewNotes>
       {changed ? (
         <Card>
           <Text style={txt.sm}><Text style={{ fontWeight: '700' }}>{t('review.screen.whatChangedIn', { n: version.n })}</Text> {version.changeNote ?? t('review.screen.saidInVoiceNote')}</Text>
@@ -398,7 +458,10 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           <Group>
             {helps.map((h, i) => (
               <HelpRow key={h.key} of="review.checkHelp">
-                <Row icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last={i === helps.length - 1} />
+                <NotedRow last={i === helps.length - 1}
+                  row={<Row icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last />}
+                  note={{ label: t('review.notesOn.addOn', { what: h.name }), help: t('review.notesOn.addOnHelp'), onPress: () => noteOn({ kind: 'passage', help: h.help }, t('review.notesOn.noteOn', { what: h.name }), h.name) }}
+                  notes={<NotesUnder ctx={ctx} p={v.p} notes={helpNotesFor(v.p, h.help)} onReply={replyOn} />} />
               </HelpRow>
             ))}
           </Group>
@@ -490,6 +553,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {openAt >= 0 ? (
         <LinkBtn label={t('review.capture.requiredLeft', { count: r.open })} help={t('review.screen.requiredLeftHelp')} style={{ alignSelf: 'center' }} onPress={() => goStage('questions')} />
       ) : null}
+      {goesWith}
       <DecideCard tone="green" label={t('review.screen.looksGood')} icon="check" busy={busy} disabled={openAt >= 0} onPress={() => void save('looks_good')} />
       <DecideCard tone="amber" label={t('review.screen.needsChanges')} icon="chat" disabled={openAt >= 0 || busy} onPress={() => setWhy(true)} />
       <DashedRow icon="chatDots" label={logged ? t('review.screen.whatHappened') : t('review.screen.saySomething')}
@@ -531,6 +595,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       ) : (
         <DashedRow tile icon="user" label={t('review.screen.recordListenerRetelling')} right={t('review.shared.optional')} help={t('review.screen.retellingHelp')} onPress={() => setSheet('retell')} />
       )}
+      {goesWith}
     </>
   );
 
@@ -550,14 +615,15 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
       {why ? whyBody : stage === 'listen' ? listen : stage === 'questions' ? question : decide}
 
       {sheet === 'background' && context && shows ? (
-        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={context} usage={usage} kind={v.kind} shows={shows}
+        <BackgroundSheet ctx={ctx} v={v} takeId={version.takeId} translator={translator} translatorIsYou={mine} data={{ ...context, anchor: noteLabel }} usage={usage} kind={v.kind} shows={shows}
           {...(earlierFrom ? { earlierFrom } : {})}
           {...(bible ? { bible } : {})}
           onClose={() => { setSheet(null); setBible(null); }}
           onOpenTerm={(termId) => afterSheet(() => ctx.go('key_term_detail', { termId, unitId: v.unitId, languageId: v.languageId }))}
           onOpenStep={(stepId) => afterSheet(() => { if (guideItem) usage.open(guideItem); ctx.go('study_step', { unitId: v.unitId, languageId: v.languageId, stepId }); })}
           onOpenStudy={() => afterSheet(() => { if (guideItem) usage.open(guideItem); ctx.go('study_guide', { unitId: v.unitId, languageId: v.languageId }); })}
-          onMoreBibles={() => afterSheet(() => ctx.go('bible_explore', { unitId: v.unitId, languageId: v.languageId }))} />
+          onMoreBibles={() => afterSheet(() => ctx.go('bible_explore', { unitId: v.unitId, languageId: v.languageId }))}
+          onNote={noteOn} onReply={replyOn} onAddNote={addNote} />
       ) : null}
 
       {sheet === 'who' ? (
@@ -614,15 +680,7 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         </Sheet>
       ) : null}
 
-      {momentAt !== null ? (
-        <Sheet visible title={t('review.screen.noteAt', { time: formatClock(momentAt) })}
-          sub={mine ? t('review.screen.noteAtSubMine') : t('review.screen.noteAtSub', { name: translator })}
-          onClose={() => setMomentAt(null)}>
-          <View style={{ paddingVertical: space.lg }}>
-            <BigMic language={ctx.language} label={t('review.screen.tapAndSpeak')} size={96} onClip={(clip) => { const atMs = momentAt; setMoments((m) => [...m.filter((x) => x.hash !== clip.hash), { ...clip, atMs }]); setMomentAt(null); }} />
-          </View>
-        </Sheet>
-      ) : null}
+      <NotingSheet ctx={ctx} v={v} noting={noting} onClose={() => setNoting(null)} onAdd={addNote} />
 
       <ReasonSheet visible={skipFor !== null} title={t('review.screen.skipTitle')}
         sub={t('review.screen.skipSub')}
@@ -753,6 +811,8 @@ export function GuestReview(ctx: Ctx) {
 }
 
 const styles = StyleSheet.create({
+  goesWith: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: space.xs, paddingHorizontal: space.md, paddingVertical: space.sm,
+    borderRadius: radius.full, backgroundColor: TINT.amber },
   center: { textAlign: 'center' },
   h1: { fontSize: T.xxl, fontWeight: '800', color: C.dark },
   lead: { fontSize: T.base, color: C.muted, lineHeight: 23 },

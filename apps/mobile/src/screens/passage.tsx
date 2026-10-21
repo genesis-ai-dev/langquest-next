@@ -47,6 +47,7 @@ import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { cardDurations } from '../recording/workspaceModel';
 import { mmss, totalMs } from '../recording/model';
 import { VersionRecording } from '../passage/versionParts';
+import { CheckNotes } from '../passage/checkNotes';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
 import {
@@ -1082,6 +1083,8 @@ export function ReviewDetail(ctx: Ctx) {
             {feedbackIsEmpty(review) ? <Text style={txt.smMuted}>{t('passage.review.noWords')}</Text> : null}
           </View>
         </Authored>
+        {/* Which part, help or verse it was about (decisions.md 149). */}
+        <CheckNotes ctx={ctx} v={v} reviewId={review.id} kindId={review.kindId} />
         {answers.length > 0 ? (
           <Disclosure icon="help" title={t('passage.review.theirAnswers')} summary={t('passage.review.answers', { count: answers.length })}
             {...ctx.details(`review:${unitId}:${languageId}:${review.id}:questions`)}>
@@ -1157,6 +1160,7 @@ export function ReviewDetail(ctx: Ctx) {
         </Card>
       ) : null}
       {!makes && artifacts ? <Authored ctx={ctx} by={review.by}>{artifacts}</Authored> : null}
+      <CheckNotes ctx={ctx} v={v} reviewId={review.id} kindId={review.kindId} />
       {answers.length > 0 || skipped.length > 0 ? (
         <Disclosure icon="help" title={t('passage.review.answersTitle')}
           summary={answersSummary(answers.length, skipped.length)}

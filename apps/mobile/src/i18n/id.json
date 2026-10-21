@@ -3990,6 +3990,14 @@
       "partHelp": "Memutar bagian ini saja.",
       "deleteVersionHelp": "Menghapus versi ini untuk semua orang. Pemeriksaan yang sudah dilakukan tetap ada di riwayat, tetapi tidak dihitung lagi.",
       "doneHelp": "Membuka draf ini untuk dilihat sekali lagi, lalu diselesaikan dan dikirim ke pemeriksaan berikutnya."
+    },
+    "partNotes": {
+      "title": "Catatan pada {{part}}",
+      "mark_other": "{{count, number}} catatan pada {{part}}",
+      "markHelp": "Membuka apa yang dikatakan dalam pemeriksaan tentang bagian ini. Anda dapat membalas."
+    },
+    "checkNotes": {
+      "title": "Catatan dari {{check}}"
     }
   },
   "work": {
@@ -5618,7 +5626,12 @@
         "someTerm": "istilah",
         "version": "Versi {{n}}",
         "aVersion": "Sebuah versi",
-        "study": "Studi"
+        "study": "Studi",
+        "replyTo": "Balasan untuk {{name}}",
+        "reply": "Sebuah balasan",
+        "aPart": "Sebuah bagian",
+        "help": "“{{help}}”",
+        "aHelp": "Sebuah alat bantu"
       }
     },
     "parts": {
@@ -5926,6 +5939,18 @@
       "addStepDetail": "Tambahkan pemeriksaan lain, setelah yang lain.",
       "legend": "= harus lulus sebelum tahap berikutnya",
       "gripHelp": "Tarik ke atas atau ke bawah untuk memindahkan tahap ini."
+    },
+    "notesOn": {
+      "addOn": "Tambah catatan pada {{what}}",
+      "addOnHelp": "Menambah catatan pada hal ini, diucapkan atau diketik. Catatan ini disertakan dengan pemeriksaan Anda.",
+      "noteOn": "Catatan pada {{what}}",
+      "reply": "Balas",
+      "replyHelp": "Membalas catatan {{name}}. Balasan Anda muncul di bawahnya.",
+      "replyTitle": "Balas {{name}}",
+      "withReview": "Bersama pemeriksaan Anda",
+      "removeFrom": "Hapus catatan Anda: {{what}}",
+      "goWith_other": "{{count, number}} catatan disertakan dengan pemeriksaan Anda",
+      "added": "Ditambahkan ke pemeriksaan Anda."
     }
   },
   "backTranslation": {
@@ -6373,7 +6398,9 @@
       "addHint": "Tinggalkan catatan pada perikop ini, dengan suara atau tulisan.",
       "sheetSub": "Catatan ini tetap bersama perikop. Pemeriksa dan penerjemah berikutnya melihatnya.",
       "added": "Catatan ditambahkan.",
-      "typeHelp": "Ketik catatan Anda. Anda juga dapat mengucapkannya."
+      "typeHelp": "Ketik catatan Anda. Anda juga dapat mengucapkannya.",
+      "onPart": "pada {{part}}",
+      "onHelp": "pada “{{help}}”"
     },
     "earlier": {
       "yours": "Milik Anda",

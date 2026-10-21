@@ -15,6 +15,7 @@
 // - P-CHECK: questions REV-012 to 018; REV-017 saves the consultant check.
 // - P-Q4: asked of REV before any version (REV-021). P-T: TREV's own (REV-030). P-BT: REV-031/032. P-NEEDS: REV-029, REV-040/041.
 // - P-DRAFT: published and asked of REV in REV-049, which approves and takes it back three ways.
+// - A passage nobody recorded: REV-050 (notes on the check's help, a key word, a reply).
 import type { Page } from '@playwright/test';
 import {
   back, button, byId, deviceEvents, expect, expectNothingRefused, expectSent, field, primary,
@@ -26,7 +27,7 @@ import {
   recordedFor, useRunWorld, visible
 } from './reviewing-helpers';
 import { clientAs, send } from './fixture';
-import { commands } from '@langquest-next/core';
+import { checkHelpSpecs, commands } from '@langquest-next/core';
 import { randomUUID } from 'node:crypto';
 import { openSyncDetails } from './sync-helpers';
 import { closeSheet, openTeamRow, sheet } from './05-passage-helpers';
@@ -134,31 +135,43 @@ test('REV-003 Looks good @p0', async ({ page, browser }) => {
   await trans.context.close();
 });
 
-test('REV-004 A note at a moment while listening', async ({ page }) => {
+test('REV-004 A note at a moment while listening, kept with the review', async ({ page }) => {
   await open(page, world(), 'REV');
   await startCheck(page, 'P-Q1');
+  const before = await eventCount(page);
+  // The player's Note: a moment of the whole version, said or typed (decisions.md 149).
   await button(page, 'Add a note at this moment').click();
   await expect(text(page, 'A note at 0:00')).toBeVisible();
   await expect(text(page, `Say what you noticed here. ${TOM_FIRST} hears it with your review.`)).toBeVisible();
-  await speakInto(page, 'Tap and speak');
+  await field(page, 'Or type it').fill('Starts too quietly');
+  await button(page, 'Add a note').click();
+  await sawToast(page, 'Added to your review.');
+  // Listed with the review, not sent: nothing reaches the server until the verdict.
+  await expect(text(page, 'With your review')).toBeVisible();
   await expect(text(page, 'Your note at 0:00')).toBeVisible();
-  await expect(text(page, /^\d+:\d\d · goes with your review$/)).toBeVisible();
-  await expect(button(page, /^Play Play your note at 0:00|^Play your note at 0:00/)).toBeVisible();
-  await button(page, 'Remove your note at 0:00').click();
-  await expect(text(page, 'Your note at 0:00')).toHaveCount(0);
-  await expect(byId(page, 'toast')).toHaveCount(0);
+  await expect(text(page, 'Starts too quietly')).toBeVisible();
+  expect(await eventCount(page)).toBe(before);
+  await button(page, 'Remove your note: Your note at 0:00').click();
+  await expect(text(page, 'Starts too quietly')).toHaveCount(0);
+  await expect(text(page, 'With your review')).toHaveCount(0);
+  // A voice note at the moment.
   await button(page, 'Add a note at this moment').click();
-  await speakInto(page, 'Tap and speak');
+  await speakInto(page, 'Say it');
+  await button(page, 'Add a note').click();
   await expect(text(page, 'Your note at 0:00')).toBeVisible();
+  await expect(button(page, 'Play note')).toBeVisible();
+  expect(await eventCount(page)).toBe(before);
 });
 
 test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await open(page, world(), 'REV');
   await startCheck(page, 'P-Q1');
+  // A note at a moment, which goes with the verdict (decisions.md 149).
   await button(page, 'Add a note at this moment').click();
-  await speakInto(page, 'Tap and speak');
-  await expect(text(page, 'Your note at 0:00')).toBeVisible();
+  await field(page, 'Or type it').fill('Slow down here');
+  await button(page, 'Add a note').click();
   await primary(page).click();
+  await expect(text(page, '1 note goes with your review')).toBeVisible();
   await button(page, 'Needs changes').click();
   await expect(text(page, 'What should change?')).toBeVisible();
   await expect(text(page, `Say it in your words. ${TOM_FIRST} will hear it.`)).toBeVisible();
@@ -173,6 +186,7 @@ test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await button(page, 'Or type it').click();
   await field(page, 'Or type it — what worked, what didn\'t').fill('Verse 12 is too fast');
   await expect(button(page, 'Record a listener retelling, optional')).toBeVisible();
+  await expect(text(page, '1 note goes with your review')).toBeVisible();
   await primary(page).click();
   await sawToast(page, `Feedback sent to ${TOM}`);
   await expect(button(page, 'Versions and history')).toBeVisible();
@@ -185,6 +199,15 @@ test('REV-005 Needs changes, said and typed @p0', async ({ page, browser }) => {
   await primary(trans.page).click();
   await expect(text(trans.page, '“Verse 12 is too fast”')).toBeVisible();
   await expect(button(trans.page, new RegExp(`^Play ${RITA}'s feedback`))).toBeVisible();
+  // The review's note, named by the part it fell in (decisions.md 149).
+  await expect(text(trans.page, 'Notes from Peer check')).toBeVisible();
+  await expect(text(trans.page, 'Part 1 · 0:00')).toBeVisible();
+  await expect(text(trans.page, 'Slow down here')).toBeVisible();
+  // Where it is fixed, Part 1 carries the note, and it opens there.
+  await button(trans.page, 'Record a fix').click();
+  await button(trans.page, '1 note on Part 1').click();
+  await expect(text(trans.page, 'Notes on Part 1')).toBeVisible();
+  await expect(button(trans.page, 'Reply')).toBeVisible();
   await trans.context.close();
 });
 
@@ -313,7 +336,8 @@ test('REV-011 Background', async ({ page }) => {
   await button(page, 'Add a note on the verse playing').click();
   await field(page, 'Or type it').fill('Is \'heaven\' clear here?');
   await button(page, 'Add a note').click();
-  await sawToast(page, 'Note added — it follows this passage');
+  // It goes with the review, sent with the verdict below (decisions.md 149).
+  await sawToast(page, 'Added to your review.');
   await button(page, /^Choose a Bible/).click();
   await button(page, /^More Bibles/).click();
   await expect(text(page, 'More Bibles')).toBeVisible();
@@ -570,9 +594,6 @@ test('REV-024 Leaving a review keeps it; opening it again brings it back', async
   await open(page, world(), 'REV');
   await startCheck(page, 'P-NEW');
   const before = await eventCount(page);
-  await button(page, 'Add a note at this moment').click();
-  await speakInto(page, 'Tap and speak');
-  await expect(text(page, 'Your note at 0:00')).toBeVisible();
   await primary(page).click();
   await button(page, 'Needs changes').click();
   await button(page, 'Or type it').click();
@@ -591,9 +612,6 @@ test('REV-024 Leaving a review keeps it; opening it again brings it back', async
   await expect(text(page, 'Is it accurate and natural?')).toBeVisible();
   await button(page, 'Needs changes').click();
   await expect(field(page, 'Or type it — what worked, what didn\'t')).toHaveValue('Too quiet at the start');
-  await byId(page, 'header-back').click();
-  await button(page, 'Listen, done. Go back').click();
-  await expect(text(page, 'Your note at 0:00')).toBeVisible();
 });
 
 // ---- who may review ----
@@ -1061,4 +1079,71 @@ test('REV-049 Take back a review @p0', async ({ page }) => {
   expect(p.reviews.filter((r) => r.kindId === 'peer')).toEqual([]);
   expect(p.withdrawnReviews).toHaveLength(3);
   expect(p.requests.find((r) => r.kindId === 'peer')?.status).toBe('open');
+});
+
+test('REV-050 Notes on a check\'s help, a key word, and a reply', async ({ page }) => {
+  const w = world();
+  // A passage nobody has recorded yet, so this test's version is the one checked.
+  const trans = await langAs(w, 'TRANS');
+  const used = new Set([...Object.values(w.passages).map((p) => p.unitId)]);
+  const [unitId, unit] = Object.entries(trans.getState().units)
+    .find(([id, u]) => u.kind === 'passage' && !used.has(id) && u.label !== JOHN && !Object.values(trans.getState().takes).some((t) => t.unitId === id))!;
+  const book = unit.parentUnitId ?? unitId;
+  // COORD links a note to the Peer check (decision 91); TRANS adds a key word, a note, and Version 1 with the word tied to it.
+  const coord = await langAs(w, 'COORD');
+  const materialId = `note-${randomUUID()}`;
+  await act(coord, (s) => commands(s).defineMaterial({ commandId: randomUUID(), materialId, kind: 'note', title: 'What to listen for', scope: {},
+    fields: [{ fieldId: 'body', text: 'Is it clear who is speaking?' }] }), 'COORD writes a note for checkers');
+  await act(coord, (s) => checkHelpSpecs(s, { commandId: randomUUID(), kindId: 'peer', help: { materialId }, linked: true }), 'COORD links it to the Peer check');
+  const termId = `kt-${randomUUID()}`;
+  await act(trans, (s) => commands(s).defineKeyTerm({ commandId: randomUUID(), termId, term: 'feast', gloss: '', unitScope: [book], rendering: 'big meal', note: 'For REV-050' }), 'TRANS adds "feast"');
+  await act(trans, (s) => commands(s).addNote({ commandId: randomUUID(), unitId, anchor: { kind: 'passage' }, text: 'Not sure about the names' }), 'TRANS notes the passage');
+  const takeId = await publishVersion(w, 'TRANS', { label: unit.label });
+  const again = await langAs(w, 'TRANS');
+  await act(again, (s) => commands(s).linkKeyTerms({ commandId: randomUUID(), takeId, termIds: [termId] }), 'TRANS ties "feast" to Version 1');
+
+  await open(page, w, 'REV');
+  await openLabel(page, unit.label);
+  await doCheck(page, 'peer').click();
+  const before = await eventCount(page);
+  // The check's help (decisions.md 149).
+  await button(page, 'Add a note on What to listen for').click();
+  await expect(text(page, 'Note on What to listen for')).toBeVisible();
+  await field(page, 'Or type it').fill('Ask about the names too');
+  await button(page, 'Add a note').click();
+  await sawToast(page, 'Added to your review.');
+  // A key word.
+  await button(page, /^Background/).click();
+  await button(page, 'Key words · 1').click();
+  await button(page, 'Add a note on feast').click();
+  await field(page, 'Or type it').fill('Use the same word in every verse');
+  await button(page, 'Add a note').click();
+  await sawToast(page, 'Added to your review.');
+  // A reply to TRANS's note.
+  await button(page, /^Notes · \d+$/).click();
+  await button(page, 'Reply').click();
+  await expect(text(page, `Reply to ${TOM_FIRST}`)).toBeVisible();
+  await field(page, 'Or type it').fill('The names sound right');
+  await button(page, 'Add a note').click();
+  await sawToast(page, 'Added to your review.');
+  await button(page, 'Close').click();
+  // All three wait together with the review; nothing is sent before the verdict.
+  await expect(text(page, 'With your review')).toBeVisible();
+  for (const on of ['“What to listen for”', 'Key term · feast', `Reply to ${TOM_FIRST}`]) await expect(text(page, on)).toBeVisible();
+  expect(await eventCount(page)).toBe(before);
+  await primary(page).click();
+  await expect(text(page, '3 notes go with your review')).toBeVisible();
+  await button(page, 'Looks good').click();
+  await sawToast(page, `Looks good · sent to ${TOM}`);
+  await expectSent(page, w);
+  // On the server, as TRANS's phone will read them: with the review, on the help, the word, and TRANS's note.
+  const after = (await langAs(w, 'TRANS')).getState();
+  const review = Object.values(after.kindReviews).find((r) => r.by === w.accounts.REV.id && after.takes[r.takeId]?.unitId === unitId)!;
+  const notes = Object.values(after.notes).filter((n) => n.by === w.accounts.REV.id && n.unitId === unitId);
+  expect(notes.map((n) => n.reviewId)).toEqual([review.id, review.id, review.id]);
+  expect(notes.map((n) => n.anchor)).toEqual(expect.arrayContaining([
+    { kind: 'passage', help: `material:${materialId}` },
+    { kind: 'term', termId },
+    expect.objectContaining({ kind: 'passage', replyTo: expect.stringMatching(/^note:/) })
+  ]));
 });

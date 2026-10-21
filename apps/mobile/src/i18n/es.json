@@ -4242,6 +4242,16 @@
       "partHelp": "Reproduce solo esta parte.",
       "deleteVersionHelp": "Borra esta versión para todos. Las revisiones que ya se hicieron quedan en el historial, pero ya no cuentan.",
       "doneHelp": "Abre este borrador para darle un último vistazo, terminarlo y enviarlo a su siguiente verificación."
+    },
+    "partNotes": {
+      "title": "Notas en {{part}}",
+      "mark_one": "{{count, number}} nota en {{part}}",
+      "mark_many": "{{count, number}} notas en {{part}}",
+      "mark_other": "{{count, number}} notas en {{part}}",
+      "markHelp": "Abre lo que se dijo sobre esta parte en las verificaciones. Puedes responder."
+    },
+    "checkNotes": {
+      "title": "Notas de {{check}}"
     }
   },
   "work": {
@@ -6108,7 +6118,12 @@
         "someTerm": "término",
         "version": "Versión {{n}}",
         "aVersion": "Una versión",
-        "study": "Estudio"
+        "study": "Estudio",
+        "replyTo": "Respuesta a {{name}}",
+        "reply": "Una respuesta",
+        "aPart": "Una parte",
+        "help": "“{{help}}”",
+        "aHelp": "Una ayuda"
       }
     },
     "parts": {
@@ -6434,6 +6449,20 @@
       "addStepDetail": "Agrega otra verificación, después de las demás.",
       "legend": "= debe aprobarse antes de los pasos siguientes",
       "gripHelp": "Desliza hacia arriba o hacia abajo para mover este paso."
+    },
+    "notesOn": {
+      "addOn": "Agregar una nota sobre {{what}}",
+      "addOnHelp": "Agrega una nota sobre esto, hablada o escrita. Va con tu revisión.",
+      "noteOn": "Nota sobre {{what}}",
+      "reply": "Responder",
+      "replyHelp": "Responde a la nota de {{name}}. Tu respuesta aparece debajo.",
+      "replyTitle": "Responder a {{name}}",
+      "withReview": "Con tu revisión",
+      "removeFrom": "Quitar tu nota: {{what}}",
+      "goWith_one": "{{count, number}} nota va con tu revisión",
+      "goWith_many": "{{count, number}} notas van con tu revisión",
+      "goWith_other": "{{count, number}} notas van con tu revisión",
+      "added": "Se agregó a tu revisión."
     }
   },
   "backTranslation": {
@@ -6925,7 +6954,9 @@
       "addHint": "Deja una nota en este pasaje, por voz o por escrito.",
       "sheetSub": "Se queda con el pasaje. Los revisores y el próximo traductor la ven.",
       "added": "Nota agregada.",
-      "typeHelp": "Escribe tu nota. También puedes decirla."
+      "typeHelp": "Escribe tu nota. También puedes decirla.",
+      "onPart": "en {{part}}",
+      "onHelp": "sobre “{{help}}”"
     },
     "earlier": {
       "yours": "Tuyo",

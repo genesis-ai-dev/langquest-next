@@ -97,8 +97,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // together (6.21 MB then). That cap rose to 6.5 MB when main's security fixes
 // and field diagnostics merged with the split (6.26 MB in all, a first visit
 // 5.46 MB): it catches growth that runs away, and what a visit pays is held
-// by the first-visit budget (decision 123).
-const TOTAL_BUDGET_BYTES = 6.5 * 1024 * 1024;
+// by the first-visit budget (decision 123). 6.55 MB since notes on what a
+// check shows (decision 149) took it to 6.51 MB, 15 KB of that their lines
+// in 15 languages after six were merged into two.
+const TOTAL_BUDGET_BYTES = 6.55 * 1024 * 1024;
 const FIRST_VISIT_BUDGET_BYTES = 5.7 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));

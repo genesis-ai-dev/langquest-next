@@ -4,12 +4,14 @@
 // before an outcome can be sent, how notes are labelled, and the stages
 // the screen walks through (REV-0, ADR-029). No React and
 // no I/O here, so it is tested directly (test/reviewCapture.test.ts).
-import type {
-  Card, KindDef, NoteAnchor, PassageState,
-  RequestView, ReviewView, SourcedQuestion, Version
+import {
+  notePart, noteHelp, replyOf,
+  type Card, type KindDef, type NoteAnchor, type PassageState,
+  type RequestView, type ReviewView, type SourcedQuestion, type Version
 } from '@langquest-next/core';
 import { currentLanguage, t } from '../i18n';
 import { formatClock } from '../i18n/format';
+import { partLabel } from '../recording/model';
 
 /**
  * The demo's quick reasons for leaving a required question unanswered
@@ -289,8 +291,35 @@ export function questionSource(q: SourcedQuestion, asker?: string): string {
 
 // ---- notes ------------------------------------------------------------------------------------
 
-/** What a note is about, as the demo says it: "Verse 4", "Key term · Shepherd", "Whole passage". */
-export function noteAnchorText(anchor: NoteAnchor, look: { term: (termId: string) => string | undefined; versionN: (takeId: string) => number | undefined }): string {
+/** What a note's lookups need: a key term's word, a version's number, and (decisions.md 149) a part's place, a help's name, a note's author. */
+export interface AnchorLook {
+  term: (termId: string) => string | undefined;
+  versionN: (takeId: string) => number | undefined;
+  /** Where the part with this audio sits in that version, from 1. */
+  partN?: (takeId: string, hash: string) => number | undefined;
+  help?: (key: string) => string | undefined;
+  /** Who wrote the note a reply answers. */
+  author?: (noteId: string) => string | undefined;
+}
+
+/**
+ * What a note is about, as the demo says it: "Verse 4", "Key term · Shepherd",
+ * "Whole passage", and for what a check shows (decisions.md 149) "Part 2 · 0:04",
+ * a help's name, or "Reply to Tom".
+ */
+export function noteAnchorText(anchor: NoteAnchor, look: AnchorLook): string {
+  const reply = replyOf(anchor);
+  if (reply) {
+    const name = look.author?.(reply);
+    return name ? t('review.capture.anchor.replyTo', { name }) : t('review.capture.anchor.reply');
+  }
+  const part = notePart(anchor);
+  if (part) {
+    const n = look.partN?.(part.takeId, part.part);
+    return summaryLine([n ? partLabel(n - 1) : t('review.capture.anchor.aPart'), part.at]);
+  }
+  const help = noteHelp(anchor);
+  if (help) return t('review.capture.anchor.help', { help: look.help?.(help) ?? t('review.capture.anchor.aHelp') });
   switch (anchor.kind) {
     case 'passage': return t('review.capture.anchor.passage');
     case 'verse': return summaryLine([t('review.capture.anchor.verse', { verse: anchor.verse }), anchor.translation, anchor.at]);
@@ -301,6 +330,49 @@ export function noteAnchorText(anchor: NoteAnchor, look: { term: (termId: string
     }
     case 'study': return t('review.capture.anchor.study');
   }
+}
+
+/** A reply to a note (decisions.md 149): on what the note is on, answering it, so an app from before replies shows it there. */
+export function replyAnchor(n: { id: string; anchor: NoteAnchor }): NoteAnchor {
+  const { replyTo: _note, ...on } = n.anchor;
+  return { ...on, replyTo: n.id };
+}
+
+/** "0:14" or "1:02:05" as written by `clockMs`, in milliseconds; null when it is not a clock. */
+export function clockToMs(clock: string): number | null {
+  const m = /^(?:(\d+):)?(\d+):(\d{2})$/.exec(clock.trim());
+  if (!m) return null;
+  return ((Number(m[1] ?? 0) * 60 + Number(m[2])) * 60 + Number(m[3])) * 1000;
+}
+
+/**
+ * Where a note on a part sits in the whole version (decisions.md 149): the
+ * parts before it, then how far into it. Null when the part is not one of
+ * the version's. The reviewer hears and names the whole; the note keeps the
+ * part, so whoever fixes it records over that part.
+ */
+export function momentIn(hashes: readonly string[], lengths: ReadonlyMap<string, number>, part: string, at: string | undefined): number | null {
+  const i = hashes.indexOf(part);
+  if (i < 0) return null;
+  const before = hashes.slice(0, i).reduce((n, h) => n + (lengths.get(h) ?? 0), 0);
+  return before + (at ? clockToMs(at) ?? 0 : 0);
+}
+
+/**
+ * The part playing `ms` into a version whose parts last `lengths` (in order),
+ * and how far into that part: where a note from the big player goes
+ * (decisions.md 149). Past the end is the last part; lengths not known yet
+ * put it on the first.
+ */
+export function partAt(lengths: readonly number[], ms: number): { index: number; atMs: number } {
+  if (lengths.length === 0 || lengths.every((l) => !(l > 0))) return { index: 0, atMs: Math.max(0, ms) };
+  let start = 0;
+  for (let i = 0; i < lengths.length; i++) {
+    const end = start + Math.max(0, lengths[i] ?? 0);
+    if (ms < end || i === lengths.length - 1) return { index: i, atMs: Math.max(0, Math.min(ms, end) - start) };
+    start = end;
+  }
+  return { index: 0, atMs: 0 };
 }
 
 // ---- a session that already happened (REV-6) ------------------------------------------------------

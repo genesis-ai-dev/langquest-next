@@ -4242,6 +4242,16 @@
       "partHelp": "Fait entendre cette partie seule.",
       "deleteVersionHelp": "Supprime cette version pour tous. Les vérifications déjà faites restent dans l’historique mais ne comptent plus.",
       "doneHelp": "Ouvre ce brouillon une dernière fois, pour le terminer et l’envoyer à sa prochaine vérification."
+    },
+    "partNotes": {
+      "title": "Notes sur {{part}}",
+      "mark_one": "{{count, number}} note sur {{part}}",
+      "mark_many": "{{count, number}} notes sur {{part}}",
+      "mark_other": "{{count, number}} notes sur {{part}}",
+      "markHelp": "Ouvre ce qui a été dit sur cette partie pendant les vérifications. Vous pouvez répondre."
+    },
+    "checkNotes": {
+      "title": "Notes : {{check}}"
     }
   },
   "work": {
@@ -6108,7 +6118,12 @@
         "someTerm": "terme",
         "version": "Version {{n}}",
         "aVersion": "Une version",
-        "study": "Étude"
+        "study": "Étude",
+        "replyTo": "Réponse à {{name}}",
+        "reply": "Une réponse",
+        "aPart": "Une partie",
+        "help": "« {{help}} »",
+        "aHelp": "Une aide"
       }
     },
     "parts": {
@@ -6434,6 +6449,20 @@
       "addStepDetail": "Ajouter une autre vérification, après les autres.",
       "legend": "= à valider avant les étapes suivantes",
       "gripHelp": "Faites glisser vers le haut ou le bas pour déplacer cette étape."
+    },
+    "notesOn": {
+      "addOn": "Ajouter une note sur {{what}}",
+      "addOnHelp": "Ajoute une note sur cet élément, dite ou écrite. Elle accompagne votre révision.",
+      "noteOn": "Note sur {{what}}",
+      "reply": "Répondre",
+      "replyHelp": "Répond à la note de {{name}}. Votre réponse s’affiche en dessous.",
+      "replyTitle": "Répondre à {{name}}",
+      "withReview": "Avec votre révision",
+      "removeFrom": "Retirer votre note : {{what}}",
+      "goWith_one": "{{count, number}} note accompagne votre révision",
+      "goWith_many": "{{count, number}} notes accompagnent votre révision",
+      "goWith_other": "{{count, number}} notes accompagnent votre révision",
+      "added": "Ajoutée à votre révision."
     }
   },
   "backTranslation": {
@@ -6925,7 +6954,9 @@
       "addHint": "Laissez une note sur ce passage, à voix haute ou par écrit.",
       "sheetSub": "Elle reste avec le passage. Les réviseurs et le traducteur suivant la voient.",
       "added": "Note ajoutée.",
-      "typeHelp": "Tapez votre note. Vous pouvez aussi la dire."
+      "typeHelp": "Tapez votre note. Vous pouvez aussi la dire.",
+      "onPart": "sur {{part}}",
+      "onHelp": "sur « {{help}} »"
     },
     "earlier": {
       "yours": "Les vôtres",

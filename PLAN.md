@@ -200,7 +200,7 @@ when the databases were reset (decision 63); nothing older survives.
 | `v1.VersionReleased` | takeId, channel, live, url? | register per (version, channel); where a version is published, a fact not a verdict (decision 72) |
 | `v1.DepartureRecorded` / `v1.DepartureUndone` | departureId, unitId, type (skip, override, keep), kindId? / stepId? / reviewId?, reason, reasonBlobHash? / departureId | grow-only / add-wins undo |
 | `v1.RequestMade` / `v1.RequestWithdrawn` | requestId, unitId, what (record, review), kindId?, exactly one of profileId, guest, teamId, dueDate?, note?, noteBlobHash?, questions? / requestId | grow-only / add-wins; done is derived from the record; `dueDate` is no longer set or shown (decision 126), old events may still carry it |
-| `v1.NoteAdded` | noteId, unitId, anchor (passage, version, verse, study, term), text? / blobHash? / photoHash?, onTakeId?, kindId? (the step it was written at, decision 130) | grow-only |
+| `v1.NoteAdded` | noteId, unitId, anchor (passage, version, verse, study, term; optional part and at on a version, help on the passage, replyTo on any, decision 149), text? / blobHash? / photoHash?, onTakeId?, kindId? (the step it was written at, decision 130) | grow-only |
 | `v1.ReviewWithdrawn` / `v1.NoteWithdrawn` | reviewId / noteId | add-wins; counts only from the review's or note's own author (decisions.md 111) |
 | `v1.StudyStepMarked` | unitId, guideId, stepId, done | register per (unit, guide, step) |
 | `v1.MaterialDefined` / `v1.MaterialFieldSet` / `v1.MaterialLocked` | materialId, kind, title, scope {unitId?, stepId?}, templateRef? / materialId, fieldId, text? / blobHash? / materialId, locked | earliest wins / register per (material, field) / register per material |

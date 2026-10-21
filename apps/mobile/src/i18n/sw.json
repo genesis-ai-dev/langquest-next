@@ -4116,6 +4116,15 @@
       "partHelp": "Hucheza sehemu hii peke yake.",
       "deleteVersionHelp": "Hufuta toleo hili kwa kila mtu. Ukaguzi uliokwisha kufanywa unabaki kwenye historia lakini hauhesabiwi tena.",
       "doneHelp": "Hufungua mtazamo wa mwisho wa rasimu hii, ili uimalize na kuituma kwenye ukaguzi wake unaofuata."
+    },
+    "partNotes": {
+      "title": "Madokezo kwenye {{part}}",
+      "mark_one": "Dokezo {{count, number}} kwenye {{part}}",
+      "mark_other": "Madokezo {{count, number}} kwenye {{part}}",
+      "markHelp": "Hufungua kile ambacho kaguzi zilisema kuhusu sehemu hii. Unaweza kujibu."
+    },
+    "checkNotes": {
+      "title": "Madokezo ya {{check}}"
     }
   },
   "work": {
@@ -5863,7 +5872,12 @@
         "someTerm": "neno",
         "version": "Toleo la {{n}}",
         "aVersion": "Toleo",
-        "study": "Somo"
+        "study": "Somo",
+        "replyTo": "Jibu kwa {{name}}",
+        "reply": "Jibu",
+        "aPart": "Sehemu",
+        "help": "“{{help}}”",
+        "aHelp": "Kisaidizi"
       }
     },
     "parts": {
@@ -6180,6 +6194,19 @@
       "addStepDetail": "Ongeza ukaguzi mwingine, baada ya ile mingine.",
       "legend": "= lazima ipite kabla ya hatua zinazofuata",
       "gripHelp": "Buruta juu au chini ili kusogeza hatua hii."
+    },
+    "notesOn": {
+      "addOn": "Ongeza dokezo kwenye {{what}}",
+      "addOnHelp": "Huongeza dokezo kwenye kitu hiki, kwa sauti au kwa maandishi. Linaenda pamoja na ukaguzi wako.",
+      "noteOn": "Dokezo kwenye {{what}}",
+      "reply": "Jibu",
+      "replyHelp": "Hujibu dokezo la {{name}}. Jibu lako linaonekana chini yake.",
+      "replyTitle": "Jibu kwa {{name}}",
+      "withReview": "Pamoja na ukaguzi wako",
+      "removeFrom": "Ondoa dokezo lako: {{what}}",
+      "goWith_one": "Dokezo {{count, number}} linaenda pamoja na ukaguzi wako",
+      "goWith_other": "Madokezo {{count, number}} yanaenda pamoja na ukaguzi wako",
+      "added": "Limeongezwa kwenye ukaguzi wako."
     }
   },
   "backTranslation": {
@@ -6649,7 +6676,9 @@
       "addHint": "Acha dokezo kwenye kifungu hiki, kwa sauti au kwa maandishi.",
       "sheetSub": "Linabaki na kifungu. Wakaguzi na mtafsiri anayefuata wanaliona.",
       "added": "Dokezo limeongezwa.",
-      "typeHelp": "Andika dokezo lako. Unaweza pia kulisema."
+      "typeHelp": "Andika dokezo lako. Unaweza pia kulisema.",
+      "onPart": "kwenye {{part}}",
+      "onHelp": "kwenye “{{help}}”"
     },
     "earlier": {
       "yours": "Zako",

@@ -4116,6 +4116,15 @@
       "partHelp": "Yana kunna wannan sashe shi kaɗai.",
       "deleteVersionHelp": "Yana goge wannan siga ga kowa. Binciken da aka riga aka yi a kanta yana nan a tarihi amma ba a ƙirga shi kuma.",
       "doneHelp": "Yana buɗe kallo na ƙarshe na wannan daftari, don ku gama shi ku aika shi zuwa dubawarsa ta gaba."
+    },
+    "partNotes": {
+      "title": "Bayanai a kan {{part}}",
+      "mark_one": "Bayani {{count, number}} a kan {{part}}",
+      "mark_other": "Bayanai {{count, number}} a kan {{part}}",
+      "markHelp": "Yana buɗe abin da aka faɗa a dubawar game da wannan sashe. Kuna iya amsawa."
+    },
+    "checkNotes": {
+      "title": "Bayanai daga {{check}}"
     }
   },
   "work": {
@@ -5863,7 +5872,12 @@
         "someTerm": "kalma",
         "version": "Siga ta {{n}}",
         "aVersion": "Wata siga",
-        "study": "Nazari"
+        "study": "Nazari",
+        "replyTo": "Amsa wa {{name}}",
+        "reply": "Wata amsa",
+        "aPart": "Wani sashe",
+        "help": "“{{help}}”",
+        "aHelp": "Wani abin taimako"
       }
     },
     "parts": {
@@ -6180,6 +6194,19 @@
       "addStepDetail": "Ƙara wata dubawa, bayan sauran.",
       "legend": "= dole a wuce kafin matakai na gaba",
       "gripHelp": "Ku ja sama ko ƙasa don matsar da wannan mataki."
+    },
+    "notesOn": {
+      "addOn": "Ƙara bayani a kan {{what}}",
+      "addOnHelp": "Yana ƙara bayani a kan wannan, da murya ko rubutu. Yana tafiya tare da bitarku.",
+      "noteOn": "Bayani a kan {{what}}",
+      "reply": "Amsa",
+      "replyHelp": "Yana amsa bayanin {{name}}. Amsarku tana bayyana a ƙarƙashinsa.",
+      "replyTitle": "Amsa wa {{name}}",
+      "withReview": "Tare da bitarku",
+      "removeFrom": "Cire bayaninku: {{what}}",
+      "goWith_one": "Bayani {{count, number}} yana tafiya tare da bitarku",
+      "goWith_other": "Bayanai {{count, number}} suna tafiya tare da bitarku",
+      "added": "An ƙara a bitarku."
     }
   },
   "backTranslation": {
@@ -6649,7 +6676,9 @@
       "addHint": "Bar bayani a kan wannan nassi, da murya ko rubutu.",
       "sheetSub": "Yana zama tare da nassin. Masu bita da mai fassara na gaba suna ganinsa.",
       "added": "An ƙara bayani.",
-      "typeHelp": "Ku rubuta bayaninku. Kuna iya faɗinsa ma."
+      "typeHelp": "Ku rubuta bayaninku. Kuna iya faɗinsa ma.",
+      "onPart": "a kan {{part}}",
+      "onHelp": "a kan “{{help}}”"
     },
     "earlier": {
       "yours": "Naku",

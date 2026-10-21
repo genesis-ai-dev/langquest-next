@@ -8,7 +8,7 @@
 // the passage's verses with the team's notes marked in amber with their
 // author. Built from kit.tsx and theme tokens; every press goes through the
 // kit or useHelpSpot (with its HelpBadge) so help mode explains it.
-import { commands, usedOn, type KindDef, type PassageNote, type Shows, type SourcedQuestion } from '@langquest-next/core';
+import { commands, replyOf, termNotesFor, usedOn, type KindDef, type NoteAnchor, type PassageNote, type Shows, type SourcedQuestion } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -44,6 +44,7 @@ import { draftKey, EMPTY_NOTE, isNoteDraft } from '../drafts/draftModel';
 import { useDraft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
 import type { BackgroundData } from './reviewText';
+import { NotedRow, NotesUnder } from './notesOn';
 
 // ---- the strip of steps ----------------------------------------------------------------------
 
@@ -172,6 +173,11 @@ export function BackgroundSheet(props: {
   onOpenStep: (stepId: string) => void;
   onOpenStudy: () => void;
   onMoreBibles: () => void;
+  /** A note on a key word, or a reply to a note (decisions.md 149): the screen's note sheet opens over this one. */
+  onNote: (anchor: NoteAnchor, title: string, where: string) => void;
+  onReply: (n: PassageNote) => void;
+  /** A note on a verse, written here: it goes with the review. */
+  onAddNote: (anchor: NoteAnchor, c: { text: string; hash: string | null }) => void;
   /** A Bible to open on, from the check's helps (decision 91). */
   bible?: string;
   /** What the check shows (decisions.md 130); a Bible from its helps opens whatever it says. */
@@ -197,6 +203,7 @@ export function BackgroundSheet(props: {
       </ChipRow>
       {tab === 'passage' ? (
         <BiblePassage ctx={ctx} v={v} takeId={props.takeId} translator={props.translator} translatorIsYou={props.translatorIsYou} usage={props.usage} onMoreBibles={props.onMoreBibles}
+          onAdd={props.onAddNote}
           hear={shows.bibleAudio || !!props.bible} read={shows.bibleText || !!props.bible}
           {...(props.bible ? { bible: props.bible } : {})} />
       ) : null}
@@ -205,21 +212,8 @@ export function BackgroundSheet(props: {
       ) : null}
       {tab === 'notes' ? (
         data.notes.length === 0 ? <Text style={[txt.smMuted, styles.empty]}>{t('review.simple.noNotes')}</Text> : (
-          <View style={{ gap: space.sm }}>
-            {[...data.notes].reverse().map((n) => {
-              const older = data.olderVersion(n);
-              return (
-                <HelpRow key={n.id} of="review.note">
-                  <Authored ctx={ctx} by={n.by}>
-                    <NoteCard anchor={data.anchor(n)} {...(n.text ? { text: n.text } : {})} by={ctx.name(n.by)} when={when(n.hlc)}
-                      {...(older ? { olderVersion: older } : {})} icon={n.anchor.kind === 'term' ? 'book' : 'note'}
-                      {...(n.blobHash ? { audio: <AudioClip language={ctx.language} hashes={[n.blobHash]} label={t('review.parts.playNote')} /> } : {})}
-                      action={<ReportFlag ctx={ctx} target={recordTarget(ctx, 'note', n.id, n.by, n.unitId)} size={36} />} />
-                  </Authored>
-                </HelpRow>
-              );
-            })}
-          </View>
+          // Newest first, each with Reply and its replies under it (decisions.md 149); a reply whose note is not shown here stands alone.
+          <NotesUnder ctx={ctx} p={v.p} notes={[...topNotes(data.notes)].reverse()} label={data.anchor} older={data.olderVersion} onReply={props.onReply} />
         )
       ) : null}
       {tab === 'terms' ? (
@@ -229,8 +223,12 @@ export function BackgroundSheet(props: {
               const rendering = term.renderings.at(-1)?.rendering;
               return (
                 <HelpRow key={term.termId} of="review.termRow">
-                  <Row icon="key" label={term.term} sub={rendering ? t('review.simple.theirWord', { word: rendering }) : t('review.simple.noWordYet')}
-                    help={t('passage.version.termHelp')} last={i === data.terms.length - 1} onPress={() => props.onOpenTerm(term.termId)} />
+                  <NotedRow last={i === data.terms.length - 1}
+                    row={<Row icon="key" label={term.term} sub={rendering ? t('review.simple.theirWord', { word: rendering }) : t('review.simple.noWordYet')}
+                      help={t('passage.version.termHelp')} last onPress={() => props.onOpenTerm(term.termId)} />}
+                    note={{ label: t('review.notesOn.addOn', { what: term.term }), help: t('review.notesOn.addOnHelp'),
+                      onPress: () => props.onNote({ kind: 'term', termId: term.termId }, t('review.notesOn.noteOn', { what: term.term }), term.term) }}
+                    notes={<NotesUnder ctx={ctx} p={v.p} notes={termNotesFor(v.p, term.termId)} onReply={props.onReply} />} />
                 </HelpRow>
               );
             })}
@@ -243,9 +241,16 @@ export function BackgroundSheet(props: {
   );
 }
 
+/** The notes to list: replies go under their note, unless that note is not in the list. */
+function topNotes(notes: PassageNote[]): PassageNote[] {
+  const ids = new Set(notes.map((n) => n.id));
+  return notes.filter((n) => { const to = replyOf(n.anchor); return !to || !ids.has(to); });
+}
+
 // ---- the passage in the Bible the translator used --------------------------------------------
 
 function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; translator: string; translatorIsYou: boolean; usage: Usage; onMoreBibles: () => void; bible?: string;
+  onAdd: (anchor: NoteAnchor, c: { text: string; hash: string | null }) => void;
   /** What the check shows (decisions.md 130): the player when heard, the words when read. */ hear: boolean; read: boolean }) {
   const { ctx, v, usage, hear, read } = props;
   const all = useSources(ctx, v.unitId, v.languageId);
@@ -377,7 +382,7 @@ function BiblePassage(props: { ctx: Ctx; v: PassageView; takeId: string; transla
       </View>
 
       {noting ? (
-        <VerseNote ctx={ctx} v={v} verse={noting.verse} at={noting.at} translation={option?.abbreviation ?? ''} onDone={() => setNoting(null)} />
+        <VerseNote ctx={ctx} v={v} verse={noting.verse} at={noting.at} translation={option?.abbreviation ?? ''} onDone={() => setNoting(null)} onAdd={props.onAdd} />
       ) : null}
 
       {option && !read ? (
@@ -472,28 +477,19 @@ function NotesBy(props: { open: boolean; label: string; names: string; onPress: 
  * A note on a verse of the Bible, where it was paused: it follows the passage
  * (a verse note, as the study and the recorder leave). What is said or typed
  * is kept as a draft only you see (decision 127): Close keeps it for the next
- * note on this verse, Add note puts it on the record and drops it.
+ * note on this verse; Add note puts it with the review being made, to be
+ * sent with the verdict (decisions.md 149).
  */
-function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string; translation: string; onDone: () => void }) {
+function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string; translation: string; onDone: () => void;
+  /** It goes with the review being made, sent with the verdict (decisions.md 149). */ onAdd: (anchor: NoteAnchor, c: { text: string; hash: string | null }) => void }) {
   const { ctx, v } = props;
   const draft = useDraft(draftKey('note', ctx.session.actorId, v.languageId, v.unitId, `verse:${props.verse}`), EMPTY_NOTE, isNoteDraft);
   const { text, hash } = draft.value;
-  const [busy, setBusy] = useState(false);
-  const step = useNoteStep();
   async function add() {
-    const state = ctx.language.state;
-    if (!state || busy) return;
-    setBusy(true);
-    try {
-      const specs = commands(state, indexesFor(state)).addNote({
-        commandId: Crypto.randomUUID(), unitId: v.unitId, ...(step ? { kindId: step } : {}),
-        anchor: { kind: 'verse', verse: props.verse, ...(props.translation ? { translation: props.translation } : {}), ...(props.at ? { at: props.at } : {}) },
-        ...(text.trim() ? { text: text.trim() } : {}), ...(hash ? { blobHash: hash } : {})
-      });
-      await ctx.act(specs, t('review.simple.noteAdded'));
-      await draft.clear();
-      props.onDone();
-    } catch { /* ctx.act said what went wrong */ } finally { setBusy(false); }
+    props.onAdd({ kind: 'verse', verse: props.verse, ...(props.translation ? { translation: props.translation } : {}), ...(props.at ? { at: props.at } : {}) },
+      { text: text.trim(), hash });
+    await draft.clear();
+    props.onDone();
   }
   return (
     <View style={styles.noteBox}>
@@ -507,7 +503,7 @@ function VerseNote(props: { ctx: Ctx; v: PassageView; verse: string; at: string;
       <Field value={text} onChangeText={(x) => draft.set((d) => ({ ...d, text: x }))} placeholder={t('common.orTypeIt')} multiline />
       <View style={{ flexDirection: 'row', gap: space.sm }}>
         <View style={{ flex: 1 }}><GhostBtn label={t('common.close')} help={t('review.simple.closeNoteHelp')} onPress={props.onDone} /></View>
-        <View style={{ flex: 1 }}><PrimaryBtn label={t('common.addNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void add()} /></View>
+        <View style={{ flex: 1 }}><PrimaryBtn label={t('common.addNote')} disabled={!text.trim() && !hash} onPress={() => void add()} /></View>
       </View>
     </View>
   );

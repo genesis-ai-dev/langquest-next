@@ -107,6 +107,7 @@ import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
 import { NoteStepContext } from '../checks/noteStep';
+import { PartNotesProvider } from '../passage/PartNotes';
 import { anyFrom, fromFilter } from '../checks/showsModel';
 
 // ---- Workspace ---------------------------------------------------------------------
@@ -127,7 +128,12 @@ export function Workspace(ctx: Ctx) {
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
   // Notes written while recording are the recording's (decisions.md 130).
-  return <NoteStepContext.Provider value={RECORD_STEP}><WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} /></NoteStepContext.Provider>;
+  // A part the checks left notes on shows them where it is recorded (decisions.md 149).
+  return (
+    <NoteStepContext.Provider value={RECORD_STEP}>
+      <PartNotesProvider ctx={ctx} v={v}><WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} /></PartNotesProvider>
+    </NoteStepContext.Provider>
+  );
 }
 
 function Missing(props: { ctx: Ctx; title: string; text?: string }) {

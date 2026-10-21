@@ -12,7 +12,7 @@ import {
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
   ThumbsUp, Trash2, Undo2, Redo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
   ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis
+  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply
 } from 'lucide-react-native';
 import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -54,7 +54,9 @@ const ICONS = {
   // Show here / Hide here on a passage's helps (demo ADR-042).
   eye: Eye, eyeOff: EyeOff,
   // Feedback from help mode: a problem, an idea (decisions.md 145).
-  bug: Bug, idea: Lightbulb
+  bug: Bug, idea: Lightbulb,
+  // A note on what a check shows, and an answer to one (decisions.md 149).
+  noteOn: MessageCirclePlus, reply: Reply
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 
