@@ -122,7 +122,7 @@ export default {
         return Promise.all(orgs.map((orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId)));
       })
       .catch(failed('webhookCatchupFailed', 'webhook catch-up'));
-    // Which app version is live in the stores, once an hour (storeReleases.ts, decisions.md 151).
+    // Which app version is live in the stores, once an hour (storeReleases.ts, decisions.md 154).
     const stores = storeCheckDue(event.scheduledTime)
       ? checkStores(serviceClient(env)).then((live) => { n.storeVersions = live.length; }).catch(failed('storeCheckFailed', 'store check'))
       : Promise.resolve();

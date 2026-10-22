@@ -191,7 +191,7 @@ own window, needs no permission, reads no other app or file and sends nothing
 itself. On the web `html-to-image` draws the page instead, loaded only when
 feedback is sent. No Play Console answer changes.
 
-Telling people to update (decisions.md 151): `expo-application` reads the
+Telling people to update (decisions.md 154): `expo-application` reads the
 app's own version on the phone, so the app can compare it with the newest
 version in the store and the lowest version that may still sync, which it
 reads from our server (`app_versions()`). The version is compared on the

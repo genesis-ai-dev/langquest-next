@@ -7,7 +7,7 @@ import { gated, setBelowMinimum } from '../src/appVersion/syncGate';
 
 /**
  * Below the minimum version the phone sends its waiting work first, then
- * stops downloading (syncGate.ts, decisions.md 151), and a send that fails
+ * stops downloading (syncGate.ts, decisions.md 154), and a send that fails
  * leaves the work waiting on the phone.
  */
 

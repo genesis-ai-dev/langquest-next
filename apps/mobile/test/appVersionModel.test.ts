@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compareVersions, offerFor, storeUrl, versionParts } from '../src/appVersion/appVersionModel';
 
-// Telling people to update (appVersionModel.ts, decisions.md 151).
+// Telling people to update (appVersionModel.ts, decisions.md 154).
 
 const ios = (version: string | null, minVersion = '0') => ({ platform: 'ios' as const, version, minVersion });
 

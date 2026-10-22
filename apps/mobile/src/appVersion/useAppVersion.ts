@@ -18,7 +18,7 @@ const PLATFORM = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.O
 
 /**
  * Whether this phone should be told to update (appVersionModel.ts,
- * decisions.md 151), from the server's app_versions(), asked for when
+ * decisions.md 154), from the server's app_versions(), asked for when
  * someone is signed in, on start and when the app comes back to the
  * foreground, at most once an hour. Below the minimum, sync stops
  * (syncGate.ts). A browser always has the newest version, so it is never

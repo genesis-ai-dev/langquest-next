@@ -2,7 +2,7 @@ import { ClientTooOldError, type SupabaseTransport } from '@langquest-next/sync'
 
 /**
  * Below the lowest version that may still sync (appVersionModel.ts,
- * decisions.md 151), the phone sends its waiting work first, then stops:
+ * decisions.md 154), the phone sends its waiting work first, then stops:
  * every stream's transport still sends (`append`), and refuses everything
  * that downloads other people's changes as the server does for a client too
  * old (LQ001). The sync client sends before it downloads, so each sync sends
