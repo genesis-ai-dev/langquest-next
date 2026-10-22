@@ -7,7 +7,7 @@
 //   npm run ship -- --status                    preview's recent updates
 //
 // Production builds and OTA updates come only from merges into main, through
-// .eas/workflows/deploy-to-testers.yml (decisions.md 150), so there is no
+// .eas/workflows/deploy-to-testers.yml (decisions.md 156), so there is no
 // --prod.
 //
 // Other arguments go to eas as they are (-m "…", --non-interactive).
@@ -28,7 +28,7 @@ const take = (flag) => {
   return true;
 };
 if (args.includes('--prod')) {
-  console.error('ship: production builds and OTA updates come only from merges into main (decisions.md 150). There is no --prod.');
+  console.error('ship: production builds and OTA updates come only from merges into main (decisions.md 156). There is no --prod.');
   process.exit(2);
 }
 const env = 'preview';

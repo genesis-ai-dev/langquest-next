@@ -10,7 +10,7 @@
 # job reports nothing: the deploy watchdog routine finds the issue left in
 # Deploying.
 # The typecheck and unit tests (the same as the pre-push hook) run first.
-# This workflow is the only way to make a store build (decisions.md 150).
+# This workflow is the only way to make a store build (decisions.md 156).
 name: Deploy to testers
 
 on:

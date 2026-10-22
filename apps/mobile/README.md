@@ -182,7 +182,7 @@ guessed:
 There is no `--prod`: production builds and OTA updates come only from
 merges into `main`, through `.eas/workflows/deploy-to-testers.yml`, and an EAS
 build hook (`scripts/store-build-guard.mjs`) stops a production build that
-the workflow did not start from `main` (decisions.md 150).
+the workflow did not start from `main` (decisions.md 156).
 They run from `apps/mobile` (`scripts/ship.mjs`), and the repository root
 forwards `npm run ship` with its arguments.
 

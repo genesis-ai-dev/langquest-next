@@ -46,6 +46,9 @@ npm run --silent typecheck
 step "Lint: what may import what (eslint.config.mjs)"
 npm run --silent lint
 
+step "Server calls that store builds make (decisions.md 151)"
+npm run --silent server-calls
+
 step "Unit, property and model tests, with coverage thresholds"
 npm run --silent test:coverage
 
@@ -70,6 +73,7 @@ if ! source e2e/env.sh 2>/dev/null; then npm run db:start; fi
 step "SQL smokes, parity and the client integration test (server)"
 npm run --silent db:test
 npm run --silent test:integration
+npm run --silent test:old-sync
 
 # db:test reset the database with a bare `supabase db reset`, which drops the
 # library and push delivery's Vault values and cron job. The ui-web

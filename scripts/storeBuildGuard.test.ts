@@ -4,7 +4,7 @@ import { refusal } from '../apps/mobile/scripts/store-build-guard.mjs';
 
 /**
  * Store builds come only from the EAS workflow on merges into main
- * (decisions.md 150). EAS runs apps/mobile's `eas-build-pre-install` script
+ * (decisions.md 156). EAS runs apps/mobile's `eas-build-pre-install` script
  * before each build, and it refuses a production build that the workflow did
  * not start from main.
  */

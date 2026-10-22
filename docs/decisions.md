@@ -1298,6 +1298,10 @@ issue reaches Live when its code ships dark, and a follow-up issue tracks the
 rollout and removing the flag. Reverse if: a flag must change what is
 synced, or we need percentage rollouts that organizations cannot override.
 
+Amended (2026-10-22, Caleb Koster): small changes still go to `main` on
+their own, but through a pull request whose guardrails checks are green;
+`main` takes no direct push (decisions.md 150).
+
 ## 54. Getting in is a key the phone holds, and an account without email has a steward
 
 Date: 2026-10-01 · By: Caleb Koster · Status: partly superseded by 59
@@ -6682,7 +6686,313 @@ Reverse if: teams need a reviewer's notes before the verdict (a long
 consultant session); then a note could be sent on its own, still carrying
 its part and its check.
 
-## 150. Store builds come only from the EAS workflow on merges into main
+## 150. A pull request is merged into main only when the checks that its changed files need are green, and main takes no direct push
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: main had no branch protection and no ruleset, so a pull request
+could be merged into main while a guardrails check was red, and every merge
+into main deploys (decisions 42, 43, 45). The rule now lives in the repository
+as `.github/rulesets/main.json`: a GitHub ruleset on `refs/heads/main` that
+requires one check, the guardrails `gate` job, reported by the GitHub Actions
+app. Nobody can bypass the ruleset, so a repository admin cannot merge past a
+red check either. GitHub applies a required check to pushes as well, and a
+pushed commit has no checks yet, so main takes no direct push: every change
+reaches main through a pull request, and so does every commit that the
+pipeline makes. Caleb chose this over letting admins bypass the ruleset,
+because a bypass would also let an admin merge a red pull request.
+
+Caleb also asked (2026-10-22) that a pull request run only the checks that its
+changed files need: a pull request that changes only `docs/decisions.md`
+does not need the UI tests. A new `scope` job (`scripts/ci-scope.mjs`) reads
+the files that the pull request changes since it met main, and says which of
+`server`, `web-smoke` and `ui-web` they need; the jobs that are not needed
+are skipped. `checks` always runs (about 2.5 minutes), because it holds the
+decision log's test and every other unit test. The shared code
+(`packages/core`, `packages/sync`), `supabase` (migrations and functions),
+`library`, `scripts`, `.github`, `.githooks`, any `package.json` or lockfile,
+`vitest.config.ts`, the root `tsconfig` files and any file that no rule names
+run every job. The docs, the skills and Markdown files run `checks` alone;
+`apps/mobile`, `apps/web`, `e2e` and `app.json` run the two browser jobs; the
+SQL smokes in `server` run the `server` job. When `scope` cannot tell, it runs
+every job, and a push to main, the nightly run and a manual run run every job.
+The jobs still test the pull request merged with main. A required check that
+never starts leaves a pull request waiting forever, and GitHub counts a
+skipped job as passed, so main requires the `gate` job instead of the jobs
+themselves: `gate` runs whatever happened to the others (`if: always()`) and
+passes only when `scope` and `checks` passed and every job that `scope` named
+passed. `scripts/githubRules.test.ts` fails when a job that runs on a pull
+request is missing from `gate`'s needs, so a new job cannot fail without
+holding a merge. Of the last 60 pull requests merged into main, 27 would have
+skipped `server` and none would have skipped the browser jobs; no `server`
+job failed on main in the last 60 runs on main.
+
+This builds on an earlier change that never reached main (branch
+`caleb/light-decisions-ci`, 2026-10-20): a push that only merged main and
+renumbered its decision, after a run that passed, would run only typecheck,
+lint and the decision log's test. That design skipped the full tests of a
+code change on top of the newest main, the last such run before a merge
+that deploys to production, and that concern still holds, so this change
+leaves it out. Choosing jobs by the pull request's whole change does not
+have that cost: a pull request that changes code runs the code's jobs on
+every push, and a pull request that changes only the docs changes nothing
+that the other jobs test.
+
+The ruleset does not require a branch to be up to date with main before the
+merge, because guardrails already runs on the pull request merged with main,
+and requiring it would rerun up to 12 minutes of checks on every open pull
+request after each merge. `npm run github:rules` (`scripts/github-rules.mjs`)
+compares each file in `.github/rulesets` with the ruleset of the same name on
+GitHub and says what it would change; `npm run github:rules -- --apply` makes
+the change and needs a repository admin. Amends 53: small changes still go to
+main on their own, but through a pull request.
+Reverse if: a fix that cannot wait for the checks is held up often enough to
+matter (then add a bypass for a named team with `bypass_mode: pull_request`
+and record who may use it); main's run fails in a job that `scope` skipped on
+the pull request (then move the file that caused it to a rule that runs that
+job); or merges pass checks that were green against an older main and break
+it (then turn on `strict_required_status_checks_policy` or a merge queue).
+
+## 151. A pull request may not take away a server call that a supported store build makes
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: people keep a store build for a long time, and the server and the
+app's Worker change on every merge into main (decisions 42, 43), days before
+a new build passes store review. Android build 24, built by hand on
+2026-10-20 from code of 2026-10-01, called `issue_invite`, which the server
+had not had since 2026-10-06. `npm run server-calls` (`scripts/server-calls.mjs`)
+now runs in the guardrails `checks` job and in `npm run guardrails`. It reads
+the server calls that phones may make: the database functions
+(`.rpc('name')`), tables and views (`.from('name')`), Edge Functions
+(`functions.invoke('name')`) and the Worker's routes (`/api/<name>`) named in
+`apps/mobile/src` and `packages/sync/src`, in each supported store build's
+own commit and on every line added on main since the oldest of them. Every
+merge into main that changes the app reaches phones as an OTA update or a new
+build, so a call named on main since then is a call that some phone may
+make. It then checks that each call is still on the server after the pull
+request: the migrations, read in order, still create the function, table or
+view and do not drop or rename it; the Edge Function's folder is still in
+`supabase/functions`; and `apps/web/worker` still names the route. A failure
+names the build and the call, for example "Build 25 (Android) still uses the
+database function preview_invite". It reads files and git history only, and
+takes about 3 seconds for 21 builds. To change a call, add a new one next to
+it (a new function name, such as `issue_sign_in_code_v2`) and leave the old
+one in place for as long as a supported build uses it. An old call may be
+removed once every build that uses it is below the minimum app version,
+which the pipeline raises every three weeks to the newest build that has
+been public on both stores for at least three weeks (the release pipeline's
+"Please update the app" change); a phone below the minimum stops syncing,
+so it no longer makes the call.
+
+The store builds and their commits come from EAS, which records the commit of
+every build, when the repository secret `EXPO_TOKEN` is set (a token for a
+robot user with the Viewer role). Until then they come from
+`apps/mobile/store-builds.json`, which lists every finished production build
+as EAS had it on 2026-10-22. That file also says which builds are supported:
+Android from build 13 and iPhone from build 33, without Android build 24 and
+iPhone build 41. The older builds and those two hand builds already fail
+against today's server, and newer builds replaced all of them: Android 8
+and iPhone 29 and older call functions or tables that the server no longer
+has (`issue_invite`, `redeem_invite`, `accept_join_request`,
+`org_member_emails`, `set_project_visibility`, `project_visibility` and
+`public_projects`), and the sync test of Android 9 to 12 and iPhone 30 to 32
+(built 2026-10-06 and 07) finds that today's server refuses their
+`v1.MemberAdded` and their recording uploads to Supabase Storage, which
+moved to the Worker afterwards. The minimum app version will take the
+place of these two numbers.
+
+The check does not see a changed argument, column or response shape; the sync
+test from each store build's commit (change 4) runs against the new database
+for that. Two more things follow from the gap between the server and phones
+on an older build. The server must keep accepting what those phones send, so
+validation for an event that a supported build sends never becomes stricter;
+a new event version is added instead. And a phone on an older build skips an
+event type that its reducer does not know, so it keeps working but cannot
+show that work until it gets the reducer change, by a new build or an OTA
+update.
+Reverse if: the check stops a change often enough that keeping old calls
+costs more than asking people to update (then raise the minimum app version
+sooner), or a call that phones make is missed because it is built at run
+time (then name it in a list that the check reads).
+
+## 152. A pull request that changes the database runs the sync test from every supported store build's commit against it
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: a migration can keep every server call's name and still break how an
+older build syncs, by refusing an event that the build sends or a file that
+it uploads, and people keep store builds for a long time. So the guardrails
+`server` job, after this checkout's own integration test, runs
+`npm run test:old-sync` (`scripts/old-sync-tests.mjs`) when the pull request
+changes `supabase/migrations`. For each commit of a supported store build
+(the builds and their commits from `storeBuilds()` in
+`scripts/server-calls.mjs`, from EAS with `EXPO_TOKEN`, otherwise
+`apps/mobile/store-builds.json`), it takes that commit's packages, its
+`server` and its Worker code out of git into `.old-sync/<commit>`, and runs
+that commit's sync integration test (`packages/sync`, or `packages/client`
+before 2026-10-14) with this checkout's dependencies against the database
+that the job built from the pull request's migrations. A test that the old
+file skips counts as a failure, so a test that did not reach the database
+never passes quietly. A failure names the builds, for example "Build 25
+(Android) (commit 683289d9): its sync test 1 of 7 tests failed against this
+database". The 12 commits took under two minutes locally, in the job that
+already holds the stack, so a pull request is no slower than its slowest job
+was. It runs only on pull requests, not on main's own run.
+The first run, against main on 2026-10-22, found that today's server already
+refuses the `v1.MemberAdded` events and the recording uploads to Supabase
+Storage of Android builds 9 to 12 and iPhone builds 30 to 32, so the
+supported builds start at Android 13 and iPhone 33.
+The old test also drives the server code of its own commit (the projection
+worker, the Worker's blob routes), which main replaced since; a failure
+there is still a finding about that build's test, and is fixed by raising
+the supported builds or by keeping the old behaviour.
+Reverse if: the old tests fail often for reasons that phones never meet
+(then run only the parts of each test that phones run), or the run grows
+past the `server` job's other steps (then run the commits in parallel jobs).
+
+## 153. The first launch after install waits up to 5 seconds for the latest OTA update
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: `app.json` sets expo-updates' `fallbackToCacheTimeout` to 0, so a new
+install opens on the code built into the store build, which can be weeks
+older than main, and gets the latest OTA update only on its second launch.
+Someone who installs the app at a workshop then meets bugs that were fixed
+long ago. Raising `fallbackToCacheTimeout` would make every launch wait, and
+people often open the app with no connection for months. So only the first
+launch after install waits (`apps/mobile/src/shell/useFirstLaunchUpdate.ts`,
+the rules in `firstLaunchModel.ts`): on a phone running the code built into
+the app, with no `first-launch-update:looked` mark in its storage, the app
+sets the mark, then looks for the latest OTA update and downloads it, for at
+most `FIRST_LAUNCH_WAIT_MS` (5 seconds). The person sees a spinner and no
+words while it waits. When the update arrives in time, the app restarts into
+it once; when the phone is offline the check fails at once and the app opens
+on its built-in code; when the connection is slow, the app opens at the
+5-second limit and the download goes on, and the update banner offers the
+restart when it is ready. The mark is set before the app looks, so a launch
+killed mid-wait never waits again, and an account's deletion leaves it.
+Browsers and development builds never wait. The wait is in the app's code,
+so it reaches a new install only in a build whose built-in code has it: the
+next new build.
+Reverse if: first launches on slow connections time out often enough that
+the wait only delays people (then shorten it), or expo-updates gains a
+setting that waits on the first launch only (then use that instead).
+
+## 154. The app tells people when a newer version is in the store, and below the minimum version it stops syncing until they update
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: Expo does not tell people that a new build is in the stores, and in
+LangQuest v2 a database flag went up before the store had approved the
+build, so people were sent to an update that did not exist yet. Now the
+server records a version only once it is live (`public.app_releases`,
+migration `20261022200000_app_releases.sql`): the Worker's ten-minute cron,
+once an hour, reads the live App Store version from Apple's public lookup
+and the live Google Play version from Play's public app page, which list a
+version only once people can download it, and writes each with
+`record_app_release` (`apps/web/worker/storeReleases.ts`). The app reads
+`app_versions()` (`src/server/appVersions.ts`) when someone is signed in, at
+most once an hour, and keeps the last answer on the phone
+(`src/appVersion/useAppVersion.ts`, rules in `appVersionModel.ts`):
+- On an older version than the newest live one, a bar says "New version
+  available" with Update, which opens the store page, and a close button
+  that hides the bar until a newer version comes out.
+- Below the lowest version that may still sync (`server_config`
+  `min_version_ios` and `min_version_android`, '0' today, raised only on
+  purpose), the phone sends its waiting work first, then stops: every
+  stream's transport still sends (`append`, and recordings through their own
+  transport), and refuses everything that downloads other people's changes
+  as the server does for a client too old (LQ001,
+  `src/appVersion/syncGate.ts`). The sync client sends before it downloads,
+  so someone back after months offline gets their work to the team even if
+  they never update. Caleb chose this (2026-10-22) over stopping all sync
+  at once. A send that fails, for example because a server call that the old
+  build uses is gone, throws instead of refusing the events, so the work
+  stays on the phone marked to send (PLAN.md invariant 1) and goes after the
+  update. The whole screen says "Please update the app" with the same
+  button; Keep working closes it for that launch, and Account's "Update the
+  app to sync." stays.
+Versions are compared as numbers, part by part: every store build has a
+higher version than the one before (the release pipeline's production
+review change gives each the time of its merge), and 1.0.0 is older than all
+of them. The app reads its own version with `expo-application`, which every
+build already had through `expo-notifications`, so this code ships as an OTA
+update. A browser always runs the newest version and is never told.
+
+Android works the same way. Google Play's public app page shows the version
+that people can download now, and only once Google has approved it; the
+check reads it as update-check libraries such as react-native-version-check
+do. Google's Play Developer API cannot say this: it reports a production
+release as completed from the moment it is sent, before review
+(issuetracker.google.com/208842993). Google's In-App Updates library would
+tell the phone itself, but it sends Google device details and the app
+version whether diagnostics is on or off, which may change Data safety
+answers (`docs/play-store-declarations.md`), so it is not used. If Google
+changes the page and the version cannot be found, nothing is recorded and
+the cron's job run says so; the app never says an update is there when it
+is not. This is beyond the partner demo, which has no update prompt.
+Reverse if: people dismiss the bar and stay on old versions long enough to
+matter (then show it again after some days), or the In-App Updates question
+is settled, or Google's page stops showing the version (then Android asks
+the phone, with In-App Updates).
+
+## 155. While a new build is in store review, the public build keeps getting every merge as an OTA update from a release branch
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: once a merge into main changes a platform's native fingerprint, a
+new store build of that platform goes to review, and OTA updates from main
+reach only that new build. Until Google or Apple approves it, which can take
+days, the public build would get no fixes. Caleb chose (2026-10-22) that the
+pipeline, not a person, decides when this happens and copies the merges,
+and Carl asked how the branches are made and filled. So
+(`scripts/release-branches.mjs`, `.github/workflows/release-branches.yml`):
+- After each merge into main, a GitHub Action compares each platform's
+  fingerprint before and after the merge, the same fingerprint that the EAS
+  workflow uses to choose between an OTA update and a new build. When it
+  changed and no release branch exists, the Action starts
+  `release/<platform>` from the commit before the merge, which is the code
+  of the last OTA update that the public build got, and tags the merge
+  `rebuild/<platform>/<commit>`.
+- Every later merge into main that does not change that fingerprint is
+  copied onto the release branch. The pipeline cannot tell a fix from a
+  feature, so it copies every one. Each copy is a pull request that merges
+  itself (GitHub auto-merge) once its checks pass; no person merges it. A
+  copy with a conflict is labelled `copy-conflict`, and Anthropic's Claude
+  GitHub Action (`.github/workflows/release-copy-conflict.yml`) copies it,
+  keeping the release branch's code where main's change needs code that the
+  public build does not have.
+- Every merge into a release branch publishes an OTA update on the
+  production channel for that platform
+  (`apps/mobile/.eas/workflows/deploy-release-branch.yml`). Its runtime comes
+  from the branch's own code, so it reaches the public build and never the
+  build in review.
+- Every hour the Action deletes a release branch whose new build is public:
+  the store's live version, from Apple's public lookup for iPhone and from
+  Google Play's public app page for Android (the signals that the app's own
+  store check uses), is that build's version or a newer one (each store
+  build's version is the time of its merge). A store that cannot be read
+  keeps the branch, which only sends the public build fixes that it would
+  get anyway. When a later new
+  build is already in review, the newly public build gets its own branch,
+  started from the commit before that later build, with the merges since
+  copied onto it.
+- `.github/rulesets/release.json` requires the guardrails `gate` on
+  `release/*`, so a copy merges only when green.
+A change that needs a new build is never copied, because the public build
+cannot run it. It all stays off until the repository variable
+`RELEASE_BRANCHES` is `on`, which needs a GitHub App installed on this
+repository with Contents and Pull requests write (secrets `RELEASE_APP_ID`
+and `RELEASE_APP_PRIVATE_KEY`; a pull request that the built-in token opens
+starts no checks), "Allow auto-merge" turned on, and the secret
+`ANTHROPIC_API_KEY` for the conflict step.
+Reverse if: copies go wrong on the public build often enough that a person
+should approve each one (then turn off auto-merge), or a store page stops
+showing its live version (then read it from the store's API where one can
+say so).
+
+## 156. Store builds come only from the EAS workflow on merges into main
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
 

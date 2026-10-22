@@ -7587,5 +7587,15 @@
       "savedUntilSignIn": "Sauvegardé. C’est envoyé après votre connexion.",
       "voiceTooLong": "Trop long : une note vocale peut durer jusqu’à 2 minutes."
     }
+  },
+  "appVersion": {
+    "available": "Nouvelle version disponible",
+    "update": "Mettre à jour",
+    "updateHelp": "Ouvre la page de la boutique pour la dernière version.",
+    "dismiss": "Fermer",
+    "dismissHelp": "Masque ce message jusqu’à la sortie d’une version plus récente.",
+    "required": "Veuillez mettre à jour l’application",
+    "keepWorking": "Continuer à travailler",
+    "keepWorkingHelp": "Votre travail reste sur ce téléphone et sera envoyé après la mise à jour."
   }
 }
