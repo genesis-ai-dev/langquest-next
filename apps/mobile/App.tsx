@@ -17,6 +17,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx } from './src/shell/ctx';
 import { DevMenu } from './src/shell/DevMenu';
 import { UpdateBanner } from './src/shell/UpdateBanner';
+import { AppVersionPrompt } from './src/appVersion/AppVersionPrompt';
+import { useAppVersion } from './src/appVersion/useAppVersion';
 import { maySwitchPersona } from './src/auth/dev';
 import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/shell/flow';
 import { chromeVisible, frame, layoutKind } from './src/ui/layout';
@@ -328,11 +330,14 @@ export default function App() {
     const unwatch = watchRenewals();
     return () => { active = false; unsubscribe(); unwatch(); };
   }, []);
+  // "New version available", and below the minimum version "Please update the app" with sync stopped (decisions.md 150).
+  const appVersion = useAppVersion(!!auth);
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
+        <AppVersionPrompt offer={appVersion.offer} onUpdate={appVersion.openStore} onDismiss={appVersion.dismiss} />
         {serverConfigError ? (
           <Fatal title={t('shell.errors.notConfigured')} detail={serverConfigError} />
         ) : auth === undefined || !wordsReady ? null : (

@@ -7587,5 +7587,15 @@
       "savedUntilSignIn": "Guardado. Se envía cuando inicies sesión.",
       "voiceTooLong": "Demasiado largo: una nota de voz puede durar hasta 2 minutos."
     }
+  },
+  "appVersion": {
+    "available": "Nueva versión disponible",
+    "update": "Actualizar",
+    "updateHelp": "Abre la página de la tienda con la versión más reciente.",
+    "dismiss": "Cerrar",
+    "dismissHelp": "Oculta este aviso hasta que salga una versión más nueva.",
+    "required": "Actualiza la app",
+    "keepWorking": "Seguir trabajando",
+    "keepWorkingHelp": "Tu trabajo se queda en este teléfono y se envía cuando actualices."
   }
 }

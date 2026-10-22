@@ -7281,5 +7281,15 @@
       "savedUntilSignIn": "An ajiye. Za a aika bayan kun shiga.",
       "voiceTooLong": "Ya yi tsawo: saƙon murya zai iya kai har minti 2."
     }
+  },
+  "appVersion": {
+    "available": "Akwai sabon sigar",
+    "update": "Sabunta",
+    "updateHelp": "Yana buɗe shafin shago na sabon sigar.",
+    "dismiss": "Rufe",
+    "dismissHelp": "Yana ɓoye wannan har sai sabon sigar ya fito.",
+    "required": "Da fatan za a sabunta manhajar",
+    "keepWorking": "Ci gaba da aiki",
+    "keepWorkingHelp": "Aikinka yana nan a wannan wayar, kuma za a aika shi bayan ka sabunta."
   }
 }

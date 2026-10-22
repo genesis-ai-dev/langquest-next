@@ -191,6 +191,26 @@ own window, needs no permission, reads no other app or file and sends nothing
 itself. On the web `html-to-image` draws the page instead, loaded only when
 feedback is sent. No Play Console answer changes.
 
+Telling people to update (decisions.md 150): `expo-application` reads the
+app's own version on the phone, so the app can compare it with the newest
+version in the store and the lowest version that may still sync, which it
+reads from our server (`app_versions()`). The version is compared on the
+phone and is not sent anywhere. `expo-application` was already in every
+build (`expo-notifications` depends on it), so no native code changes. The
+Update button opens the App Store or Google Play page as a link. The server
+learns which iPhone version is live from Apple's public lookup, which sends
+no user data. Nothing is collected or sent, and no Play Console answer
+changes.
+
+Not used, on purpose: Google Play's In-App Updates library (Play Core). It
+would tell an Android phone when a newer version is live, but Google's own
+data safety section for it (developer.android.com/guide/playcore/in-app-updates,
+"Data safety") says that it sends Google the device's metadata, the app's
+version and its installed modules, whether diagnostics is on or off, and
+leaves the Data safety answers to the developer. That may change the "App
+info and performance" and "Device or other IDs" answers, so it waits for the
+developer's decision.
+
 Not collected: location, financial info, health, files, calendar, contacts,
 web browsing, app interactions beyond diagnostics, other personal info.
 
@@ -235,7 +255,7 @@ this block.
     "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
-    "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
+    "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-secure-store", "expo-sqlite", "expo-status-bar", "expo-updates",
     "html-to-image", "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",

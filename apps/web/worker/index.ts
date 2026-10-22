@@ -14,6 +14,7 @@ import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
 import { cachedBlobAccess, cachedProfileOf } from './isolateCache';
 import { JOB_TICK, jobsDue } from './jobsModel';
+import { checkStores, storeCheckDue } from './storeReleases';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -87,8 +88,9 @@ export default {
   // starts the server's heavy jobs in their container (jobs.ts, decisions.md
   // 141): the projection pass each time, the v2 import every 15 minutes. The
   // other, every ten, publishes verse timings asked for LangQuest's own
-  // sources (worker/timings.ts), deletes expired device grants and catches up
-  // webhooks. Each part's failure is caught on its own, so one does not stop
+  // sources (worker/timings.ts), deletes expired device grants, catches up
+  // webhooks, and once an hour records the app version live in the stores
+  // (worker/storeReleases.ts). Each part's failure is caught on its own, so one does not stop
   // the others, and each tick leaves a job run (diag.jobs `job_starts`,
   // `worker_cron`) saying which failed and how.
   async scheduled(event, env, ctx) {
@@ -98,7 +100,7 @@ export default {
       return;
     }
     const startedAt = Date.now();
-    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0 };
+    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0 };
     const errors: unknown[] = [];
     const failed = (key: keyof typeof n, what: string) => (e: unknown) => {
       n[key] = 1;
@@ -120,9 +122,13 @@ export default {
         return Promise.all(orgs.map((orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId)));
       })
       .catch(failed('webhookCatchupFailed', 'webhook catch-up'));
-    const run = Promise.all([timings, cleanup, catchUp]).then((): JobRun => ({
+    // Which app version is live in the stores, once an hour (storeReleases.ts, decisions.md 150).
+    const stores = storeCheckDue(event.scheduledTime)
+      ? checkStores(serviceClient(env)).then((live) => { n.storeVersions = live.length; }).catch(failed('storeCheckFailed', 'store check'))
+      : Promise.resolve();
+    const run = Promise.all([timings, cleanup, catchUp, stores]).then((): JobRun => ({
       job: 'worker_cron', startedAt, ms: Date.now() - startedAt, n,
-      outcome: errors.length === 0 ? 'ok' : errors.length < 3 ? 'partial' : 'error',
+      outcome: errors.length === 0 ? 'ok' : errors.length < 4 ? 'partial' : 'error',
       ...(errors.length ? { errorClass: errorClassOf(errors[0]) } : {})
     }));
     ctx.waitUntil(run.then(jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)));

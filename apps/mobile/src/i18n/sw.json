@@ -7281,5 +7281,15 @@
       "savedUntilSignIn": "Imehifadhiwa. Itatumwa baada ya kuingia.",
       "voiceTooLong": "Ni ndefu mno: ujumbe wa sauti unaweza kuwa hadi dakika 2."
     }
+  },
+  "appVersion": {
+    "available": "Toleo jipya linapatikana",
+    "update": "Sasisha",
+    "updateHelp": "Hufungua ukurasa wa duka wa toleo jipya zaidi.",
+    "dismiss": "Funga",
+    "dismissHelp": "Huficha hili hadi toleo jipya zaidi litoke.",
+    "required": "Tafadhali sasisha programu",
+    "keepWorking": "Endelea kufanya kazi",
+    "keepWorkingHelp": "Kazi yako inabaki kwenye simu hii na itatumwa baada ya kusasisha."
   }
 }

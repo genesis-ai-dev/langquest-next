@@ -7587,5 +7587,15 @@
       "savedUntilSignIn": "Salvo. É enviado depois que você entrar.",
       "voiceTooLong": "Longo demais: uma mensagem de voz pode ter até 2 minutos."
     }
+  },
+  "appVersion": {
+    "available": "Nova versão disponível",
+    "update": "Atualizar",
+    "updateHelp": "Abre a página da loja com a versão mais recente.",
+    "dismiss": "Fechar",
+    "dismissHelp": "Esconde este aviso até sair uma versão mais nova.",
+    "required": "Atualize o aplicativo",
+    "keepWorking": "Continuar trabalhando",
+    "keepWorkingHelp": "Seu trabalho fica neste telefone e é enviado depois da atualização."
   }
 }

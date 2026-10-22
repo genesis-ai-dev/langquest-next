@@ -14,7 +14,8 @@ import { readHelp, type SignInHelp } from '../auth/signInHelp';
 import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { storeUrl } from '../appVersion/appVersionModel';
 import { Text } from '../ui/text';
 import { accountOutbox, queueAccountAction } from '../account/accountData';
 import { authErrorText, groupByRead, outboxErrorText, ownName, remoteTitle, roleWords, updateText } from '../account/accountText';
@@ -872,6 +873,10 @@ export function SyncStatus(ctx: Ctx) {
         </>
       ) : null}
       {/* Refused events are on this device too (PLAN.md invariant 1); the summary's count includes them. */}
+      {/* Android cannot yet be told when a newer version is live (decisions.md 150), so Play's page is one tap away; Play says whether there is an update. */}
+      {Platform.OS === 'android' ? (
+        <GhostBtn label={t('appVersion.update')} help={t('appVersion.updateHelp')} icon="download" full={false} onPress={() => void Linking.openURL(storeUrl('android')).catch(() => undefined)} />
+      ) : null}
       <Text style={[txt.xs, { textAlign: 'center' }]} selectable>
         {runningBuildLabel({ updateId: Updates.updateId ?? undefined, createdAt: Updates.createdAt ?? undefined, isEmbeddedLaunch: Updates.isEmbeddedLaunch })}
       </Text>

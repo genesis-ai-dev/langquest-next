@@ -6681,3 +6681,50 @@ notes are for.
 Reverse if: teams need a reviewer's notes before the verdict (a long
 consultant session); then a note could be sent on its own, still carrying
 its part and its check.
+
+## 150. The app tells people when a newer version is in the store, and below the minimum version it stops syncing until they update
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: Expo does not tell people that a new build is in the stores, and in
+LangQuest v2 a database flag went up before the store had approved the
+build, so people were sent to an update that did not exist yet. Now the
+server records a version only once it is live (`public.app_releases`,
+migration `20261022200000_app_releases.sql`): the Worker's ten-minute cron,
+once an hour, reads the App Store version from Apple's public lookup, which
+lists a version only once people can download it, and writes it with
+`record_app_release` (`apps/web/worker/storeReleases.ts`). The app reads
+`app_versions()` (`src/server/appVersions.ts`) when someone is signed in, at
+most once an hour, and keeps the last answer on the phone
+(`src/appVersion/useAppVersion.ts`, rules in `appVersionModel.ts`):
+- On an older version than the newest live one, a bar says "New version
+  available" with Update, which opens the store page, and a close button
+  that hides the bar until a newer version comes out.
+- Below the lowest version that may still sync (`server_config`
+  `min_version_ios` and `min_version_android`, '0' today, raised only on
+  purpose), the whole screen says "Please update the app" with the same
+  button, and every stream's transport refuses as the server does for a
+  client too old (LQ001, `src/appVersion/syncGate.ts`): sync stops, the
+  person's work stays on the phone marked to send (PLAN.md invariant 1), and
+  it goes once the app is updated. Keep working closes the screen for that
+  launch; Account's "Update the app to sync." stays.
+Versions are compared as numbers, part by part: every store build has a
+higher version than the one before (the release pipeline's production
+review change gives each the time of its merge), and 1.0.0 is older than all
+of them. The app reads its own version with `expo-application`, which every
+build already had through `expo-notifications`, so this code ships as an OTA
+update. A browser always runs the newest version and is never told.
+
+Android is not checked yet. Google's Play Developer API reports a production
+release as completed from the moment it is sent, before review
+(issuetracker.google.com/208842993), and Google's In-App Updates library,
+which would tell the phone when an update is live, sends Google device
+details and the app version whether diagnostics is on or off, which may
+change Data safety answers (`docs/play-store-declarations.md`). Until the
+developer decides, Android shows an Update button on Account (in Sync
+details) that opens the Play page, where Play says whether there is an
+update; the minimum version works on Android as on iPhone, since it needs no
+store check. This is beyond the partner demo, which has no update prompt.
+Reverse if: people dismiss the bar and stay on old versions long enough to
+matter (then show it again after some days), or the In-App Updates question
+is settled (then Android gets the bar too, from the phone).

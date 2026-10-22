@@ -6975,5 +6975,15 @@
       "savedUntilSignIn": "已保存。登录后会发送。",
       "voiceTooLong": "太长了：语音留言最长 2 分钟。"
     }
+  },
+  "appVersion": {
+    "available": "有新版本",
+    "update": "更新",
+    "updateHelp": "打开最新版本的应用商店页面。",
+    "dismiss": "关闭",
+    "dismissHelp": "隐藏此提示，直到有更新的版本。",
+    "required": "请更新应用",
+    "keepWorking": "继续工作",
+    "keepWorkingHelp": "你的工作会保留在这部手机上，更新后再发送。"
   }
 }
