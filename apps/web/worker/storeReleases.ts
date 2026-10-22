@@ -44,8 +44,8 @@ export function liveFromLookup(body: unknown): LiveVersion | null {
 export function liveFromPlayPage(html: string): LiveVersion | null {
   // The page carries its data as JSON; the current version is the only string in a [[["…"]] of its own.
   const found = [...html.matchAll(/\[\[\["(\d+(?:\.\d+){0,2})"\]\]/g)].map((m) => m[1]);
-  if (found.length === 0) return null;
-  return { platform: 'android', version: found[0], liveSince: null };
+  const version = found[0];
+  return version ? { platform: 'android', version, liveSince: null } : null;
 }
 
 /** Whether a cron tick at `scheduledTime` runs the store check: the first ten-minute tick of each hour. */
