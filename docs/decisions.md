@@ -6707,7 +6707,12 @@ names the build and the call, for example "Build 25 (Android) still uses the
 database function preview_invite". It reads files and git history only, and
 takes about 3 seconds for 28 builds. To change a call, add a new one next to
 it (a new function name, such as `issue_sign_in_code_v2`) and leave the old
-one in place for as long as a supported build uses it.
+one in place for as long as a supported build uses it. An old call may be
+removed once every build that uses it is below the minimum app version,
+which the pipeline raises every three weeks to the newest build that has
+been public on both stores for at least three weeks (the release pipeline's
+"Please update the app" change); a phone below the minimum stops syncing,
+so it no longer makes the call.
 
 The store builds and their commits come from EAS, which records the commit of
 every build, when the repository secret `EXPO_TOKEN` is set (a token for a
@@ -6719,8 +6724,8 @@ iPhone build 41. The older builds and those two hand builds already call
 functions or tables that the server no longer has (`issue_invite`,
 `redeem_invite`, `accept_join_request`, `org_member_emails`,
 `set_project_visibility`, `project_visibility` and `public_projects`), and
-newer builds replaced all of them. The minimum app version (change 13 of the
-release pipeline) will take the place of these two numbers.
+newer builds replaced all of them. The minimum app version will take the
+place of these two numbers.
 
 The check does not see a changed argument, column or response shape; the sync
 test from each store build's commit (change 4) runs against the new database
