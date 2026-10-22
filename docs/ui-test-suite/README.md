@@ -378,7 +378,7 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
   the zero transition scale as Reduce Motion, which the app honours.
 - On Android, the runner also sets accessibility's "Time to take action" to
   10 s for the run and puts it back afterwards. A toast lasts as long as that
-  setting asks, and under reduce motion runs no bar down (decision 152): the
+  setting asks, and under reduce motion runs no bar down (decision 153): the
   bar kept the screen moving, so a Back or tap waited out the whole toast
   before Maestro read the screen. On iOS the runner turns the simulator's
   Reduce Motion on for the run and puts it back, for the same reason.
