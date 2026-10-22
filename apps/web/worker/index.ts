@@ -15,6 +15,7 @@ import { liveSessions } from './liveSessions';
 import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, type Identity } from './isolateCache';
 import { JOB_TICK, jobsDue } from './jobsModel';
 import { checkStores, storeCheckDue } from './storeReleases';
+import { isOpsPath, toOps } from './ops';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -144,6 +145,8 @@ export default {
 /** Everything but the tally: `/api/*` here, everything else is the built page. */
 async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
+  // The ops dashboard, a Worker of its own reached through the binding (ops.ts).
+  if (isOpsPath(url.pathname)) return toOps(request, env.OPS);
   if (url.pathname === '/connect' && request.method === 'GET') {
     return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' }, pageLanguage(request));
   }

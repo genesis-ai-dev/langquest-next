@@ -17,7 +17,7 @@ function authFetch(answers: Record<string, string | number>): typeof fetch {
 }
 
 const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon', ADMIN_PROFILE_IDS: `${ADMIN}, ` };
-const req = (token?: string) => new Request('https://admin.langquest.org/api/me', token ? { headers: { authorization: `Bearer ${token}` } } : {});
+const req = (token?: string) => new Request('https://next.langquest.org/ops/api/me', token ? { headers: { authorization: `Bearer ${token}` } } : {});
 
 describe('who may open the admin page', () => {
   beforeEach(() => forgetSignIns());
@@ -82,14 +82,29 @@ describe('the page', () => {
 describe('the API', () => {
   const fullEnv = { ...env, DIAG_DATABASE_URL: 'postgresql://diag_reader:x@127.0.0.1:1/postgres' } as unknown as Env;
 
-  it('answers the page at any path, and refuses anything but GET', async () => {
-    expect((await handle(new Request('https://admin.langquest.org/'), fullEnv)).headers.get('content-type')).toContain('text/html');
-    expect((await handle(new Request('https://admin.langquest.org/api/diag', { method: 'POST' }), fullEnv)).status).toBe(405);
-    expect((await handle(new Request('https://admin.langquest.org/favicon.ico'), fullEnv)).status).toBe(404);
+  it('answers the page at /ops-dashboard and its links, and refuses anything but GET', async () => {
+    for (const path of ['/ops-dashboard', '/ops-dashboard/org/abc']) {
+      expect((await handle(new Request(`https://next.langquest.org${path}`), fullEnv)).headers.get('content-type')).toContain('text/html');
+    }
+    expect((await handle(new Request('https://next.langquest.org/ops/api/diag', { method: 'POST' }), fullEnv)).status).toBe(405);
+    expect((await handle(new Request('https://next.langquest.org/favicon.ico'), fullEnv)).status).toBe(404);
+    expect((await handle(new Request('https://next.langquest.org/api/diag'), fullEnv)).status).toBe(404);
+  });
+
+  it('sends a local visit to / to the page', async () => {
+    const response = await handle(new Request('http://localhost:8791/'), fullEnv);
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('http://localhost:8791/ops-dashboard');
+  });
+
+  it('calls only /ops/api from the page', async () => {
+    const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
+    expect(html).not.toMatch(/['"]\/api\//);
+    expect(html).toContain("'/ops/api/");
   });
 
   it('checks the sign-in before any section', async () => {
-    const response = await handle(new Request('https://admin.langquest.org/api/diag'), fullEnv);
+    const response = await handle(new Request('https://next.langquest.org/ops/api/diag'), fullEnv);
     expect(response.status).toBe(401);
   });
 });

@@ -38,7 +38,6 @@
     "email:deploy": "npm run email:typecheck && node scripts/cloudflare-deploy.mjs apps/invite-email/wrangler.jsonc",
     "email:deploy:preview": "npm run email:typecheck && node scripts/cloudflare-deploy.mjs apps/invite-email/wrangler.jsonc preview",
     "admin:deploy": "tsc -p apps/admin && node scripts/cloudflare-deploy.mjs apps/admin/wrangler.jsonc",
-    "admin:deploy:preview": "tsc -p apps/admin && node scripts/cloudflare-deploy.mjs apps/admin/wrangler.jsonc preview",
     "r2:buckets": "node scripts/r2-buckets.mjs",
     "github:rules": "node scripts/github-rules.mjs",
     "env:doctor": "scripts/env-doctor.sh",

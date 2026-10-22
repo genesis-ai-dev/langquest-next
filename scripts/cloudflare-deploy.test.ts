@@ -52,6 +52,9 @@ describe('cloudflare deploy', () => {
     const web = parseJsonc(read('apps/web/wrangler.jsonc'));
     const ref = projectRef(read('supabase/config.toml'), 'production');
     expect(admin.vars.SUPABASE_URL).toBe(`https://${ref}.supabase.co`);
+    // Reached only through the app Worker's OPS binding (apps/web/worker/ops.ts), never at an address of its own.
+    expect(admin.routes).toBeUndefined();
+    expect(admin.workers_dev).toBe(false);
     expect(admin.vars.SUPABASE_PROJECTS.split(',')[0]).toMatch(new RegExp(`^${ref}:`));
     expect(admin.vars.SUPABASE_ANON_KEY).toBe(web.vars.SUPABASE_ANON_KEY);
     expect([admin.account_id, admin.vars.CLOUDFLARE_ACCOUNT_ID]).toEqual([web.account_id, web.account_id]);

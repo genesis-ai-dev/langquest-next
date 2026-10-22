@@ -13,9 +13,16 @@ import { supabaseSection } from './sources/supabase';
 import { vercelSection } from './sources/vercel';
 
 /**
- * admin.langquest.org (docs/admin.md): the page, and its API for staff.
- * Every /api/* call checks the sign-in first; nothing here writes anywhere.
+ * The ops dashboard (docs/admin.md, decisions.md 159): the page at
+ * /ops-dashboard and its API at /ops/api/*, on next.langquest.org. This
+ * Worker has no address of its own; the app's Worker hands it those paths
+ * through its OPS service binding (apps/web/worker/ops.ts). Every API call
+ * checks the sign-in first; nothing here writes anywhere.
  */
+
+/** Where the page and its API live; the page script calls API_BASE too (page.ts). */
+export const PAGE_PATH = '/ops-dashboard';
+export const API_BASE = '/ops/api/';
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...SECURITY_HEADERS } });
@@ -46,12 +53,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (request.method !== 'GET' && request.method !== 'HEAD') return json({ error: 'Only GET' }, 405);
-  if (!url.pathname.startsWith('/api/')) {
-    if (url.pathname === '/robots.txt') return new Response('User-agent: *\nDisallow: /\n', { headers: { 'content-type': 'text/plain' } });
-    if (url.pathname === '/favicon.ico') return new Response(null, { status: 404 });
+  if (url.pathname === PAGE_PATH || url.pathname.startsWith(PAGE_PATH + '/')) {
     const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
     return page({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY }, nonce);
   }
+  // Only on `npm run admin:dev`: the binding never hands this Worker anything else.
+  if (url.pathname === '/') return Response.redirect(new URL(PAGE_PATH, url).toString(), 302);
+  if (!url.pathname.startsWith(API_BASE)) return json({ error: 'Not found' }, 404);
 
   if (env.ADMIN_RATE_LIMIT) {
     const { success } = await env.ADMIN_RATE_LIMIT.limit({ key: request.headers.get('cf-connecting-ip') ?? 'unknown' });
@@ -61,7 +69,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (!who.ok) return json({ error: who.error, ...(who.profileId ? { profileId: who.profileId } : {}) }, who.status);
 
   const fresh = url.searchParams.get('fresh') === '1';
-  const section = url.pathname.slice('/api/'.length);
+  const section = url.pathname.slice(API_BASE.length);
   if (section === 'me') return json({ profileId: who.profileId });
   if (section === 'diag') {
     try {

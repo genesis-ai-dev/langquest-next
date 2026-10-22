@@ -1,3 +1,5 @@
+import { isOpsPath } from './ops';
+
 /**
  * Headers for the answers the Worker makes itself. The built page's come from
  * `_headers` (apps/mobile/scripts/webHeaders.mjs, which has the policy and
@@ -14,6 +16,7 @@ const HEADERS: readonly [string, string][] = [
 
 /** Whether the Worker itself answers this request (index.ts), rather than passing it to the built page's assets. */
 export function ownsResponse(url: URL, request: Pick<Request, 'method'>): boolean {
+  if (isOpsPath(url.pathname)) return true;
   if (url.pathname === '/connect' && request.method === 'GET') return true;
   if (/^\/r\/[A-Za-z0-9_-]{22}\/?$/.test(url.pathname) && request.method === 'GET') return true;
   return url.pathname.startsWith('/api/');

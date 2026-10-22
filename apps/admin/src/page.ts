@@ -2,7 +2,7 @@
  * The page: one HTML document, no build step, like the app Worker's
  * /connect (apps/web/worker/agent/connectPage.ts). It signs in with
  * Supabase from the browser, keeps the session in this tab only
- * (sessionStorage), and loads each section from /api/* on its own, so a slow
+ * (sessionStorage), and loads each section from /ops/api/* on its own, so a slow
  * or unconfigured source never holds up the rest. Everything it shows comes
  * from the API as data and is escaped before it reaches the page.
  */
@@ -215,7 +215,7 @@ function layout() {
   $('lookup-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     $('lookup-out').innerHTML = '<p class="muted">Looking…</p>';
-    try { renderLookup(await api('/api/lookup?q=' + encodeURIComponent($('q').value.trim()))); }
+    try { renderLookup(await api('/ops/api/lookup?q=' + encodeURIComponent($('q').value.trim()))); }
     catch (err) { $('lookup-out').innerHTML = '<p class="bad">' + esc(err.message) + '</p>'; }
   });
 }
@@ -509,7 +509,7 @@ function wireScreenshots() {
       b.disabled = true;
       try {
         const t = await token();
-        const res = await fetch('/api/feedback/' + encodeURIComponent(b.dataset.shot) + '/screenshot', { headers: { authorization: 'Bearer ' + t } });
+        const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.shot) + '/screenshot', { headers: { authorization: 'Bearer ' + t } });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const img = document.createElement('img');
         img.alt = 'Screenshot sent with this feedback';
@@ -523,7 +523,7 @@ function wireScreenshots() {
       b.disabled = true;
       try {
         const t = await token();
-        const res = await fetch('/api/feedback/' + encodeURIComponent(b.dataset.voice) + '/voice', { headers: { authorization: 'Bearer ' + t } });
+        const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.voice) + '/voice', { headers: { authorization: 'Bearer ' + t } });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const audio = document.createElement('audio');
         audio.controls = true;
@@ -547,8 +547,8 @@ async function load(fresh) {
   const q = fresh ? '?fresh=1' : '';
   const fail = (ids) => (err) => { if (err.message !== 'Signed out' && err.message !== 'Not an admin') for (const id of ids) show(id, { state: 'error', alerts: [], error: err.message }); };
   const jobs = [
-    api('/api/diag' + q).then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); }).catch(fail(['jobs', 'clients', 'database', 'v2', 'feedback'])),
-    ...['code', 'cloudflare', 'supabase', 'vercel', 'expo', 'googleplay', 'appstore'].map((id) => api('/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
+    api('/ops/api/diag' + q).then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); }).catch(fail(['jobs', 'clients', 'database', 'v2', 'feedback'])),
+    ...['code', 'cloudflare', 'supabase', 'vercel', 'expo', 'googleplay', 'appstore'].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
   ];
   await Promise.all(jobs);
   $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -557,7 +557,7 @@ async function load(fresh) {
 }
 
 async function start() {
-  const me = await api('/api/me').catch(() => null);
+  const me = await api('/ops/api/me').catch(() => null);
   if (!me) return;
   $('signin').hidden = true; say('');
   $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false;

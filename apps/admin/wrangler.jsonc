@@ -13,9 +13,10 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "workers_dev": false,
   "preview_urls": false,
-  // On the langquest.org zone in this account, like the app's own address; a
-  // deploy attaches it and makes its DNS record.
-  "routes": [{ "pattern": "admin.langquest.org", "custom_domain": true }],
+  // No address of its own: the app's Worker hands it /ops-dashboard and
+  // /ops/api/* on next.langquest.org through its OPS service binding
+  // (apps/web/worker/ops.ts), so nothing reaches it any other way. No preview
+  // copy: preview has no database of its own for it to read yet.
   "observability": { "enabled": true },
   // Public settings: which project, account, team and app each section reads.
   // The anon key is the one every app build carries; the page signs in with it.

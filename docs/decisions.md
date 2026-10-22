@@ -7234,3 +7234,18 @@ Reverse if: staff need to act from the page (mark feedback, retry a job),
 which needs a writer's key and its own decision; or the list of staff
 grows past a few people, when it belongs in the database or behind
 Cloudflare Access instead of a secret.
+
+Amended (2026-10-22, Carl Sauder): the page is served at
+`next.langquest.org/ops-dashboard`, its API at `/ops/api/*`, not on
+`admin.langquest.org`. Carl wanted it beside the app, on its host, under a
+name nobody takes for a public status page (`/status` was weighed and
+dropped for that reason). It stays a Worker of its own, for the reason
+above, but without an address of its own: the app's Worker hands it those
+paths through a service binding (`OPS`, `apps/web/worker/ops.ts`) and lists
+them in `run_worker_first`, so the app's page never answers them, and the
+admin Worker cannot be reached any other way. A Workers route on the app's
+host would have done it without touching the app's Worker, but it relies on
+routes running before a custom domain, which nothing in the repository
+states. Still no preview copy: preview has no database of its own for it to
+read, and the app's preview Worker answers 503 there. Plan:
+`docs/ops-dashboard-plan.md`.

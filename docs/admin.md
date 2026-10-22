@@ -1,11 +1,17 @@
-# The admin page
+# The ops dashboard
 
-`https://admin.langquest.org` shows staff what is going on with LangQuest in
-one page: what phones and browsers report, how the server's own jobs are
-doing, and what each service LangQuest runs on says about its part. It is a
-Worker of its own, `langquest-next-admin` (`apps/admin`, decisions.md 159),
-beside the app's Worker rather than inside it, so the read tokens it holds
-never sit on the Worker that answers the public.
+`https://next.langquest.org/ops-dashboard` shows staff what is going on
+with LangQuest in one page: what phones and browsers report, how the
+server's own jobs are doing, and what each service LangQuest runs on says
+about its part. Its API is `/ops/api/*` on the same host. It is a Worker of
+its own, `langquest-next-admin` (`apps/admin`, decisions.md 159), beside
+the app's Worker rather than inside it, so the read tokens it holds never
+sit on the Worker that answers the public. It has no address of its own:
+the app's Worker hands it those paths through its `OPS` service binding
+(`apps/web/worker/ops.ts`), and wrangler's `run_worker_first` keeps the
+app's page from ever answering them. Production only: preview has no
+database of its own for it to read yet, so `/ops-dashboard` there says it
+is not set up.
 
 It only reads. It changes nothing in any service.
 
@@ -95,15 +101,15 @@ A build of `main` fails until the admin page's pull request merges
 
 ### 3. Merge the pull request
 
-Workers Builds then deploys the Worker and attaches `admin.langquest.org`.
-The app's Worker rebuilds too, because `package-lock.json` changed; that is
-harmless. Check: `curl -s -o /dev/null -w '%{http_code}\n'
-https://admin.langquest.org` says `200` (a new address's certificate can
-take a few minutes).
+Workers Builds then deploys both Workers. The app's Worker binds
+`langquest-next-admin` (`services` in `apps/web/wrangler.jsonc`), and a
+deploy fails while the Worker it binds does not exist, so step 1 must come
+first. Check: `curl -s -o /dev/null -w '%{http_code}\n'
+https://next.langquest.org/ops-dashboard` says `200`.
 
 ### 4. Let yourself in
 
-Open `https://admin.langquest.org` and sign in with your LangQuest account.
+Open `https://next.langquest.org/ops-dashboard` and sign in with your LangQuest account.
 The page says no one is on the admin list yet and shows your profile id.
 Copy it, then:
 
@@ -178,8 +184,8 @@ A section whose token is refused says "Could not read" with the service's
 answer, usually a missing permission.
 
 For sign-in from a single-sign-on account and a second factor on top of the
-password, Cloudflare Access can sit in front of `admin.langquest.org`; the
-page works unchanged behind it.
+password, Cloudflare Access can sit in front of `/ops-dashboard*` and
+`/ops/api/*`; the page works unchanged behind it.
 
 ## Locally
 
@@ -189,7 +195,10 @@ database, and `ADMIN_PROFILE_IDS` with a local account's id. On a local
 stack diag_reader has no login; give it one there only
 (`alter role diag_reader with login password '…'`) so the page reads with
 the same grants as in production. Then `npm run admin:dev` serves
-`http://localhost:8791`.
+`http://localhost:8791/ops-dashboard`. Started beside `npm run web:dev`,
+the app's Worker on :8787 finds it through wrangler's local registry, so
+`http://localhost:8787/ops-dashboard` works too; without it, the app's
+Worker answers 503 there.
 
 ## Adding a source
 
