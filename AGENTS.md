@@ -85,7 +85,12 @@ Rules specific to this folder:
 ## Guardrails (required before every push, whoever you are working for)
 
 The `guardrails` workflow (`.github/workflows/guardrails.yml`) runs on every
-pull request, on the pull request merged with `main`, not on the branch alone:
+pull request, on the pull request merged with `main`, not on the branch alone.
+A pull request runs the jobs that its changed files need (`scope`,
+`scripts/ci-scope.mjs`), and is merged into `main` only when the `gate` job
+says that every needed job passed; `main` takes no direct push
+(`.github/rulesets/main.json`, decisions.md 150). `node scripts/ci-scope.mjs
+<file>...` says which jobs some files would run:
 
 | Job | What fails it | Run it here |
 | --- | --- | --- |
