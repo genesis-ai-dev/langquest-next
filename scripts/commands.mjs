@@ -31,6 +31,7 @@ export const GROUPS = [
       test: 'unit, property and model tests (vitest)',
       'test:coverage': 'the same, held to the coverage thresholds',
       'test:integration': 'two real users syncing through local Supabase',
+      'test:old-sync': "each store build's sync test against this branch's database, when it changes a migration (-- --always)",
       'db:test': 'migrations on a fresh database, the SQL smokes and SQL-to-core parity',
       'test:web-smoke': 'the release web export in Chromium, Firefox and WebKit',
       'test:ui:web': 'the UI test suite on the web export (Playwright)',
