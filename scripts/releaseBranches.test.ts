@@ -3,7 +3,7 @@ import { afterMerge, atLeast, newBuildPublic, storeVersion } from './release-bra
 
 /**
  * The public build keeps getting fixes while a new build is in store review
- * (scripts/release-branches.mjs, decisions.md 151).
+ * (scripts/release-branches.mjs, decisions.md 155).
  */
 
 describe('after a merge into main', () => {
