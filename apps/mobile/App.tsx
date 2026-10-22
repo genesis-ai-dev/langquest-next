@@ -11,12 +11,13 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, NavigationContext, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { AccessibilityInfo, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './src/ui/text';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx } from './src/shell/ctx';
 import { DevMenu } from './src/shell/DevMenu';
 import { UpdateBanner } from './src/shell/UpdateBanner';
+import { useFirstLaunchUpdate } from './src/shell/useFirstLaunchUpdate';
 import { maySwitchPersona } from './src/auth/dev';
 import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/shell/flow';
 import { chromeVisible, frame, layoutKind } from './src/ui/layout';
@@ -308,6 +309,8 @@ export default function App() {
   const [wordsReady, setWordsReady] = useState(languageReady);
   useEffect(() => onLanguageReady(() => setWordsReady(true)), []);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
+  // The first launch after install waits up to 5 s for the latest OTA update (decisions.md 153).
+  const updateLooked = useFirstLaunchUpdate();
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   // Who was signed in when supabase-js next speaks, for diagnostics of a sign-out the person did not choose.
@@ -335,6 +338,8 @@ export default function App() {
         <UpdateBanner />
         {serverConfigError ? (
           <Fatal title={t('shell.errors.notConfigured')} detail={serverConfigError} />
+        ) : !updateLooked ? (
+          <View style={styles.waiting}><ActivityIndicator size="large" color={C.muted} /></View>
         ) : auth === undefined || !wordsReady ? null : (
           <ErrorBoundary>
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
@@ -604,7 +609,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.card },
   pane: { borderRightWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.bg },
-  paneEmpty: { flex: 1, backgroundColor: C.bg, justifyContent: 'center' }
+  paneEmpty: { flex: 1, backgroundColor: C.bg, justifyContent: 'center' },
+  waiting: { flex: 1, alignItems: 'center', justifyContent: 'center' }
 });
 
 /**
