@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { forgetSignIns } from '../src/auth';
 import type { Query } from '../src/db';
+import { handle } from '../src/index';
 import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, keptByHand } from '../src/sources/expiry';
@@ -188,5 +190,43 @@ describe('reading as diag_reader', () => {
     expect(r).toEqual({ kind: 'person', result: { profileId: 'p1', installs: [{ install: 'i1' }] } });
     expect(JSON.stringify(r)).not.toContain('Example');
     expect(await lookup(fakeQuery([['lookup_email', null]]), 'nobody@example.org')).toEqual({ kind: 'person', result: null });
+  });
+});
+
+describe('acting from the page', () => {
+  const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon', DIAG_DATABASE_URL: 'postgresql://x@127.0.0.1:1/p' };
+  /** Supabase saying the token is a Global Viewer on an aal2 session (`on`), or not. */
+  const supabase = (state: string) => (async (url: RequestInfo | URL) => String(url).endsWith('get_user_state')
+    ? Response.json({ globalViewer: state }) : Response.json({ id: 'p1' })) as typeof fetch;
+  const post = (body: unknown, path = '/ops/api/actions') => new Request(`https://next.langquest.org${path}`, {
+    method: 'POST', headers: { authorization: 'Bearer tok', 'content-type': 'application/json' }, body: JSON.stringify(body)
+  });
+
+  it('passes the action and the person\'s own token to the app Worker, which checks it again', async () => {
+    forgetSignIns();
+    vi.stubGlobal('fetch', supabase('on'));
+    const seen: unknown[] = [];
+    const APP_ACTIONS = { perform: async (token: string, action: unknown) => { seen.push([token, action]); return { ok: true as const, result: 'started' }; } };
+    const res = await handle(post({ kind: 'run', key: 'projection' }), { ...env, APP_ACTIONS } as never);
+    expect(await res.json()).toEqual({ ok: true, result: 'started' });
+    expect(seen).toEqual([['tok', { kind: 'run', key: 'projection' }]]);
+    vi.unstubAllGlobals();
+  });
+
+  it('refuses someone who is not a Global Viewer before asking the app Worker', async () => {
+    forgetSignIns();
+    vi.stubGlobal('fetch', supabase('revoked'));
+    const perform = vi.fn();
+    expect((await handle(post({ kind: 'run', key: 'projection' }), { ...env, APP_ACTIONS: { perform } } as never)).status).toBe(403);
+    expect(perform).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('takes POST on the actions path only, and says when actions are not connected', async () => {
+    forgetSignIns();
+    vi.stubGlobal('fetch', supabase('on'));
+    expect((await handle(post({}, '/ops/api/diag'), env as never)).status).toBe(405);
+    expect((await handle(post({ kind: 'run', key: 'projection' }), env as never)).status).toBe(503);
+    vi.unstubAllGlobals();
   });
 });

@@ -407,8 +407,11 @@ adds a short list of actions that are safe to take from a browser:
   app Worker's `JobRunner`, which already refuses a second run.
 
 Each is a service-role call made by the app Worker on the dashboard's
-behalf (the admin Worker still holds no writer key), and each writes a row
-to a new `ops.actions` table: who, what, when, the result. Suspending or
+behalf, through its `OpsActions` entrypoint, which checks the person's own
+token again before acting (the admin Worker still holds no writer key),
+and each attempt writes a row to a new `ops.actions` table: who, what,
+when, the result. Built as `apps/web/worker/opsActions.ts` and migration
+`20261023110000_ops_actions.sql`. Suspending or
 deleting an account, moderation, Global Viewer grants and anything that
 changes an organization stay in the CLIs, run on a call.
 

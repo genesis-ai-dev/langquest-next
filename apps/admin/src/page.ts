@@ -523,7 +523,9 @@ const RENDER = {
       (f.voice_format ? '<p><button class="link" data-voice="' + esc(f.id) + '">Play the voice note' + (f.voice_ms ? ' (' + ms(f.voice_ms) + ')' : '') + '</button></p>' : '') +
       (f.shared_name || f.shared_email ? '<p><small>From ' + esc([f.shared_name, f.shared_email].filter(Boolean).join(', ')) + ' (shared by them)</small></p>' : '') +
       (f.install_id ? '<p><button class="link" data-q="' + esc(f.install_id) + '">This install\\'s diagnostics</button></p>' : '') +
-      (f.has_screenshot ? '<p><button class="link" data-shot="' + esc(f.id) + '">Show screenshot</button></p>' : '') + '</div>').join('');
+      (f.has_screenshot ? '<p><button class="link" data-shot="' + esc(f.id) + '">Show screenshot</button></p>' : '') +
+      '<p>' + (f.status !== 'seen' && f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="seen">Seen</button> ' : '') +
+      (f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="done">Done</button>' : '<button type="button" data-fb="' + esc(f.id) + '" data-status="new">Open again</button>') + '</p></div>').join('');
   }
 };
 

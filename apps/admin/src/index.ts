@@ -1,4 +1,4 @@
-import { access } from './auth';
+import { access, bearer } from './auth';
 import { withDiag } from './db';
 import type { Env } from './env';
 import { page, SECURITY_HEADERS } from './page';
@@ -22,7 +22,9 @@ import { capacitySection, storageSection } from './sources/storage';
  * /ops-dashboard and its API at /ops/api/*, on next.langquest.org. This
  * Worker has no address of its own; the app's Worker hands it those paths
  * through its OPS service binding (apps/web/worker/ops.ts). Every API call
- * checks the sign-in first; nothing here writes anywhere.
+ * checks the sign-in first. The one write, POST /ops/api/actions, is passed
+ * to the app Worker's OpsActions entrypoint with the person's token, which
+ * checks it again and acts (decisions.md 161); this Worker writes nowhere.
  */
 
 /** Where the page and its API live; the page script calls API_BASE too (page.ts). */
@@ -96,7 +98,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  if (request.method !== 'GET' && request.method !== 'HEAD') return json({ error: 'Only GET' }, 405);
+  const acting = url.pathname === `${API_BASE}actions` && request.method === 'POST';
+  if (request.method !== 'GET' && request.method !== 'HEAD' && !acting) return json({ error: 'Only GET' }, 405);
   if (url.pathname === PAGE_PATH || url.pathname.startsWith(PAGE_PATH + '/')) {
     const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
     return page({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY }, nonce);
@@ -112,6 +115,15 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   const who = await access(request, env);
   if (!who.ok) return json({ error: who.error, ...(who.need ? { need: who.need } : {}) }, who.status);
 
+  if (acting) {
+    if (!env.APP_ACTIONS) return json({ error: 'Actions are not connected here (APP_ACTIONS).' }, 503);
+    const text = await request.text();
+    if (text.length > 1000) return json({ error: 'Too large' }, 413);
+    let body: unknown;
+    try { body = JSON.parse(text); } catch { return json({ error: 'Not JSON' }, 400); }
+    const done = await env.APP_ACTIONS.perform(bearer(request) ?? '', body);
+    return done.ok ? json(done) : json({ error: done.error }, done.status);
+  }
   const fresh = url.searchParams.get('fresh') === '1';
   const section = url.pathname.slice(API_BASE.length);
   if (section === 'me') return json({ profileId: who.profileId });

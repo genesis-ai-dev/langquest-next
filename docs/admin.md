@@ -13,7 +13,16 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It only reads. It changes nothing in any service.
+It reads, with two exceptions (decisions.md 161): marking feedback seen,
+done or open again, and running a server job now. For those the page posts
+to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
+action and the person's own token to the app Worker's `OpsActions`
+entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live
+session, a Global Viewer on an `aal2` session), acts with the service role,
+and writes every attempt to `ops.actions`, refused ones too. The Support
+queue section lists the latest. A job already running is left alone.
+Suspending or deleting an account, moderation and Global Viewer grants stay
+in the command-line scripts, run on a call.
 
 ## Who can open it
 

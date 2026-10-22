@@ -7300,3 +7300,35 @@ Reverse if: the arrivals sample misses too much (a language that is never
 sampled because it fails every pass), when the log gets a `received_at`
 index built concurrently; or the canary's cost in the container grows past
 its 60 minutes, when it takes fewer or smaller languages.
+
+## 161. Staff may mark feedback and run a server job from the ops dashboard, through the app Worker, which checks them again and records every attempt
+
+Date: 2026-10-22 · By: Carl Sauder · Status: accepted
+
+Reason: 159 kept the ops dashboard read-only and said acting from it needs
+its own decision. Carl chose (2026-10-21) read-only first, then a few
+actions safe to take from a browser: marking feedback seen, done or open
+again (the step `docs/diagnostics.md` left to "the admin page"), and running
+a server job now (the projection pass, the v2 import, the fold canary, the
+R2 check). Decided:
+- **The admin Worker still holds no writer's key.** It passes the action and
+  the person's own token over a service binding to the app Worker's
+  `OpsActions` entrypoint (`apps/web/worker/opsActions.ts`), whose one method
+  checks the token itself (verified claims, a live session (118), `aal2`,
+  `_gv_on`) and only then acts with the service role. A bug in the admin
+  Worker cannot act without a Global Viewer's live, verified session.
+- **A closed list.** `parseAction` takes the two kinds with their arguments
+  checked (a feedback id and status; a job key from `JOBS`); anything else
+  is refused before anyone is asked. Running a job goes through its
+  `JobRunner`, which leaves a run already going alone.
+- **Every attempt is recorded.** `ops.actions` (migration
+  `20261023110000_ops_actions.sql`) holds who (profile id), what, the
+  target, the result and a code, refused attempts too; written only by the
+  service role through `ops_record_action`, read by `diag_reader` through
+  `diag.ops_actions`, kept a year.
+- **Not from the page:** suspending or deleting accounts, moderation,
+  Global Viewer grants and anything that changes an organization's work.
+  Those stay in the command-line scripts, run on a call.
+Reverse if: staff need another action often enough that the command line
+is in the way; each one is added to the list here, never as a generic
+"run this" call.

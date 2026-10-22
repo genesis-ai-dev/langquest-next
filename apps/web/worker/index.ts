@@ -20,6 +20,7 @@ import { isOpsPath, toOps } from './ops';
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
 export { JobStatus } from './jobStatus';
+export { OpsActions } from './opsActions';
 
 /**
  * A job tick: start each job due (jobsModel.ts jobsDue), never waiting for a

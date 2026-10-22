@@ -294,6 +294,8 @@ export interface Support {
   suspended: { total: number; week: number };
   deletions: { week: string; n: number }[];
   feedbackOpen: number | null;
+  /** What staff did from the page (ops.actions, decisions.md 161). */
+  actions: { at: string; profileId: string; action: string; target: string; result: string; detail: string | null }[];
 }
 
 /** The Terms of Use promise action on a report within 24 hours (decision 48); this leaves time to act. */
@@ -341,7 +343,7 @@ export interface OpsSections {
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions] = await Promise.all([
     part<Fleet>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -360,7 +362,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Omit<Support, 'deletions' | 'feedbackOpen'>>(query, `select diag.ops_support() as v`),
     part<Support['deletions']>(query, DELETIONS_SQL),
     part<number>(query, FEEDBACK_OPEN_SQL),
-    part<{ v2SignInFailures24h: number; installsAtDiagCap: number }>(query, `select diag.ops_limits() as v`)
+    part<{ v2SignInFailures24h: number; installsAtDiagCap: number }>(query, `select diag.ops_limits() as v`),
+    part<Support['actions']>(query, `select diag.ops_actions(15) as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -396,7 +399,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
       return ok(i, integrationAlerts(i));
     }),
     support: build([support], MIGRATION, () => {
-      const s: Support = { ...val(support), deletions: deletions.ok ? deletions.value : [], feedbackOpen: feedbackOpen.ok ? num(feedbackOpen.value) : null };
+      const s: Support = { ...val(support), deletions: deletions.ok ? deletions.value : [], feedbackOpen: feedbackOpen.ok ? num(feedbackOpen.value) : null, actions: actions.ok ? actions.value : [] };
       return ok(s, supportAlerts(s));
     }),
     security: build([limits], MIGRATION, () => {

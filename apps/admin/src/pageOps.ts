@@ -115,8 +115,9 @@ Object.assign(RENDER, {
   container(d) {
     return table([
       { h: 'Job', v: (j) => '<b>' + esc(j.job) + '</b>' }, { h: 'Now', v: (j) => j.error ? '<span class="warn">' + esc(j.error) + '</span>' : j.running ? '<span class="good">running</span>' : 'idle' },
-      { h: 'Since', v: (j) => j.startedAt ? when(j.startedAt) : '–' }, { h: 'Limit', n: true, v: (j) => ms(j.timeLimitMs) }, { h: 'Whole read', v: (j) => j.all ? 'yes' : '' }
-    ], d.jobs);
+      { h: 'Since', v: (j) => j.startedAt ? when(j.startedAt) : '–' }, { h: 'Limit', n: true, v: (j) => ms(j.timeLimitMs) }, { h: 'Whole read', v: (j) => j.all ? 'yes' : '' },
+      { h: '', v: (j) => j.running ? '' : '<button type="button" data-run="' + esc(j.key) + '">Run now</button>' }
+    ], d.jobs) + '<p class="muted">Run now starts a job its schedule would start anyway; a job already running is left alone. Each is recorded (Support queue).</p>';
   },
   cron(d) {
     return table([
@@ -184,7 +185,9 @@ Object.assign(RENDER, {
       stat(num(d.reports.staffOnly), 'only staff can act on', d.reports.staffOnly ? 'warn' : '') + stat(num(d.reports.resolvedWeek), 'resolved this week') +
       stat(num(d.suspended.total), 'suspended') + stat(d.feedbackOpen === null ? '–' : num(d.feedbackOpen), 'feedback not done') + '</div>' +
       '<p class="muted">Act on reports with npm run moderation -- --hosted (decision 48).</p>' +
-      '<h3>Accounts deleted, by week</h3>' + table([{ h: 'Week of', v: (w) => esc(w.week) }, { h: 'Deleted', n: true, v: (w) => num(w.n) }], d.deletions.slice().reverse());
+      '<h3>Accounts deleted, by week</h3>' + table([{ h: 'Week of', v: (w) => esc(w.week) }, { h: 'Deleted', n: true, v: (w) => num(w.n) }], d.deletions.slice().reverse()) +
+      '<h3>Done from this page</h3>' + table([{ h: 'When', v: (a) => when(a.at) }, { h: 'Who', v: (a) => short(a.profileId) }, { h: 'What', v: (a) => esc(a.action) + ' <code>' + esc(String(a.target).slice(0, 12)) + '</code>' },
+        { h: 'Result', v: (a) => '<span class="' + (a.result === 'ok' ? 'good' : a.result === 'error' ? 'bad' : 'warn') + '">' + esc(a.result) + (a.detail ? ' · ' + esc(a.detail) : '') + '</span>' }], d.actions || []);
   },
   security(d) {
     const g = d.globalViewers || {}, l = d.limits, c = d.credentials;
@@ -216,6 +219,26 @@ Object.assign(RENDER, {
     }
     return h;
   }
+});
+
+// ---- the few actions (decisions.md 161): the app Worker checks the person again and records each ----
+async function perform(action, button) {
+  const t = await token();
+  if (!t) { showSignIn(); return; }
+  if (button) button.disabled = true;
+  try {
+    const res = await fetch('/ops/api/actions', { method: 'POST', headers: { authorization: 'Bearer ' + t, 'content-type': 'application/json' }, body: JSON.stringify(action) });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
+    say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.') : 'Feedback marked ' + body.result + '.');
+    load(false);
+  } catch (err) { say(err.message, 'red'); if (button) button.disabled = false; }
+}
+document.addEventListener('click', (e) => {
+  const run = e.target.closest && e.target.closest('[data-run]');
+  if (run && confirm('Run ' + run.dataset.run + ' now?')) perform({ kind: 'run', key: run.dataset.run }, run);
+  const fb = e.target.closest && e.target.closest('[data-fb]');
+  if (fb) perform({ kind: 'feedback', id: fb.dataset.fb, status: fb.dataset.status }, fb);
 });
 
 function renderPerson(r) {

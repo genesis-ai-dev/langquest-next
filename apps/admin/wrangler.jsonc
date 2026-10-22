@@ -52,7 +52,13 @@
   // The app Worker's JobStatus entrypoint (apps/web/worker/jobStatus.ts):
   // whether each server job is running now. One read-only method; this
   // Worker has no way to start or stop a job (docs/ops-dashboard-plan.md 11.3).
-  "services": [{ "binding": "APP_JOBS", "service": "langquest-next", "entrypoint": "JobStatus" }],
+  // OpsActions: the few things the page may do (mark feedback, run a job
+  // now), which the app Worker does after checking the person's token
+  // itself; this Worker holds no writer's key (decisions.md 161).
+  "services": [
+    { "binding": "APP_JOBS", "service": "langquest-next", "entrypoint": "JobStatus" },
+    { "binding": "APP_ACTIONS", "service": "langquest-next", "entrypoint": "OpsActions" }
+  ],
   // Per address, on the page's API (every call checks a sign-in with Supabase).
   "ratelimits": [
     { "name": "ADMIN_RATE_LIMIT", "namespace_id": "7005", "simple": { "limit": 120, "period": 60 } }

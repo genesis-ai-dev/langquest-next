@@ -46,6 +46,12 @@ export interface Env {
   ADMIN_RATE_LIMIT?: RateLimit;
   /** The app Worker's JobStatus entrypoint (apps/web/worker/jobStatus.ts): read-only, one method. */
   APP_JOBS?: JobStatusRpc;
+  /**
+   * The app Worker's OpsActions entrypoint (apps/web/worker/opsActions.ts):
+   * it checks the person's own token again and acts with its own key, so
+   * this Worker still holds no writer's key (decisions.md 161).
+   */
+  APP_ACTIONS?: { perform(token: string, action: unknown): Promise<{ ok: true; result: string } | { ok: false; status: number; error: string }> };
 }
 
 /** A comma-separated var as trimmed, non-empty items. */
