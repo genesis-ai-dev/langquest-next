@@ -233,6 +233,18 @@ the app's Worker on :8787 finds it through wrangler's local registry, so
 `http://localhost:8787/ops-dashboard` works too; without it, the app's
 Worker answers 503 there.
 
+Or run both Workers in one `wrangler dev`, which needs no local registry
+and leaves another checkout's Worker on :8787 alone (run
+`npx tsx scripts/web-dev-vars.ts` first; it writes the app Worker's local
+config):
+
+```bash
+cd apps/web && npx wrangler dev -c .wrangler.dev.jsonc -c ../admin/wrangler.jsonc --port 8797
+```
+
+The page is then `http://localhost:8797/ops-dashboard`. No job runs on a
+schedule there (no job tick); Run now still starts one in Docker.
+
 ## Adding a source
 
 A module in `apps/admin/src/sources` returns a `Section` (`src/section.ts`):

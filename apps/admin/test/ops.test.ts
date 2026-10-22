@@ -6,7 +6,7 @@ import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, keptByHand } from '../src/sources/expiry';
 import { fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, workerAlerts, type Fleet, type Safety } from '../src/sources/ops';
-import { migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
+import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
 import { capacityAlerts, growthPerDay, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
 
 /** The sections the ops dashboard plan added (docs/ops-dashboard-plan.md 5): what each calls a problem. */
@@ -132,6 +132,15 @@ describe('storage, capacity and releases', () => {
       { sum: { requests: 5 }, dimensions: { actionType: 'PutObject' } }, { sum: { requests: 2 }, dimensions: { actionType: 'ListObjects' } },
       { sum: { requests: 9 }, dimensions: { actionType: 'GetObject' } }, { sum: { requests: 4 }, dimensions: { actionType: 'DeleteObject' } }
     ])).toEqual({ classA: 7, classB: 9 });
+  });
+
+  it('puts pull requests landing on main in the timeline, not merges of main into a branch', () => {
+    expect(isMerge('Merge pull request #203 from genesis-ai-dev/claude/deck2-support', 2)).toBe(true);
+    expect(isMerge('npm scripts, grouped (#193)', 1)).toBe(true);
+    expect(isMerge("Merge remote-tracking branch 'origin/main' into caleb/swipe-hint", 2)).toBe(false);
+    expect(isMerge('Merge origin/main (PR 178): this change\'s decision is now 146', 2)).toBe(false);
+    expect(isMerge("Merge branch 'carl/global-viewers-server' into carl/global-viewers-app", 2)).toBe(false);
+    expect(isMerge('Fix a typo', 1)).toBe(false);
   });
 
   it('counts migrations on main the hosted database has not applied', () => {

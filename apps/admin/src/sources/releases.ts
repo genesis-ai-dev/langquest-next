@@ -30,6 +30,16 @@ export const ERRORS_BY_DAY_SQL = `select coalesce(jsonb_agg(to_jsonb(x) order by
          count(*) filter (where t->>'fatal' = 'yes') as crashes, count(distinct install_id) as installs
   from diag.records where kind = 'error' and received_at > now() - interval '14 days' group by 1) x`;
 
+/**
+ * A change landing on main: a pull request's merge, or a squash that names
+ * its pull request. Merges of main into a branch, which reach main with
+ * that branch, are not.
+ */
+export function isMerge(title: string, parents: number): boolean {
+  if (/^Merge (remote-tracking branch|branch|origin\/)/.test(title)) return false;
+  return /^Merge pull request #\d+/.test(title) || /\(#\d+\)$/.test(title) || (parents > 1 && !/^Merge /.test(title));
+}
+
 /** Migration files on main newer than the newest the database has applied. */
 export function migrationsBehind(applied: string | null, files: string[]): { main: string | null; behind: number } {
   const versions = files.map((f) => /^(\d{14})_.*\.sql$/.exec(f)?.[1]).filter((v): v is string => !!v).sort();
@@ -63,7 +73,7 @@ export async function releasesSection(env: Env, fetcher: typeof fetch = fetch, n
 
   const merges = getJson<{ sha: string; commit: { message: string; committer?: { date?: string } | null }; parents: unknown[] }[]>(fetcher,
     `${api}/commits?sha=main&since=${since}&per_page=100`, { headers: gh }, 'GitHub commits')
-    .then((cs) => cs.filter((c) => c.parents.length > 1 || /\(#\d+\)$/.test(c.commit.message.split('\n')[0]!))
+    .then((cs) => cs.filter((c) => isMerge(c.commit.message.split('\n')[0]!, c.parents.length))
       .map((c): TimelineEvent => ({ at: c.commit.committer?.date ?? since, kind: 'merge', text: `${c.sha.slice(0, 7)} ${c.commit.message.split('\n')[0]!.slice(0, 100)}` })))
     .catch((e: unknown) => { note(e); return [] as TimelineEvent[]; });
   const deploys = env.ADMIN_CLOUDFLARE_TOKEN
