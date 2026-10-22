@@ -18,8 +18,11 @@ describe('GitHub Actions workflows', () => {
     expect(workflows.filter((w) => PRODUCTION_KEY.test(w.text)).map((w) => w.f)).toEqual([]);
   });
 
-  it('still have the scheduled test runs, which hold no production key', () => {
-    const scheduled = workflows.filter((w) => /^\s+schedule:\s*$/m.test(w.text)).map((w) => w.f);
-    expect(scheduled).toEqual(['guardrails.yml']);
+  it('still have the scheduled test runs and release-branch tidying, which hold no production key', () => {
+    // release-branches.yml deletes a release branch once its new build is
+    // public (decisions.md 150); it holds a GitHub App token for this
+    // repository only, and a late or dropped run only keeps a branch longer.
+    const scheduled = workflows.filter((w) => /^\s+schedule:\s*$/m.test(w.text)).map((w) => w.f).sort();
+    expect(scheduled).toEqual(['guardrails.yml', 'release-branches.yml']);
   });
 });
