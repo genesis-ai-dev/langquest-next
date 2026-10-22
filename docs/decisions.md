@@ -7015,8 +7015,13 @@ public on the day that the store approves it, with no staged rollout:
 - iPhone: the build goes to TestFlight as before, and then
   `scripts/app-store-review.mjs` sends it to App Review with release on
   approval. Apple reviews one version at a time, and a version taken out of
-  review loses its place in line, so the script never cancels a review:
-  while a review is waiting or under way, the build waits in TestFlight.
+  review loses its place in line, so the script never cancels a review or
+  changes the build of a version in review: while a review is waiting or
+  under way, or a version is approved and not yet out (pending developer or
+  Apple release, or processing for the App Store), the build waits in
+  TestFlight and is tried again on the next run. A version not yet released
+  that can still change (a rejected 1.0) takes the newest build and its
+  version number, since Apple keeps one unreleased version at a time.
   `.eas/workflows/app-store-review.yml` runs the same script every hour and
   sends only the newest waiting build once the review ends; a rejected
   version is sent again with the newest build. It fills in "What's New"

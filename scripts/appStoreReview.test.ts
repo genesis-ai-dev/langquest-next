@@ -41,6 +41,31 @@ describe('the next step', () => {
     expect(nextStep({ open: ['UNRESOLVED_ISSUES'], live: 42, newest, version: { state: 'REJECTED', build: 43 } }).action).toBe('submit');
   });
 
+  it('leaves build 36 (1.0) waiting for review alone, and lets the new build wait in TestFlight', () => {
+    const step = nextStep({
+      open: ['WAITING_FOR_REVIEW'],
+      live: null,
+      newest,
+      version: null,
+      versions: [{ string: '1.0.0', state: 'WAITING_FOR_REVIEW', build: 36 }],
+    });
+    expect(step.action).toBe('wait');
+    expect(step.why).toContain('build 44 waits in TestFlight');
+  });
+
+  it('waits while an approved version is not yet out, even when its review is complete', () => {
+    for (const state of ['PENDING_DEVELOPER_RELEASE', 'PENDING_APPLE_RELEASE', 'PROCESSING_FOR_APP_STORE', 'IN_REVIEW']) {
+      const step = nextStep({ open: ['COMPLETE'], live: null, newest, version: null, versions: [{ string: '1.0.0', state, build: 36 }] });
+      expect(step.action, state).toBe('wait');
+      expect(step.why, state).toContain('version 1.0.0');
+    }
+  });
+
+  it('sends the new build once 1.0 is out, as a version of its own', () => {
+    const step = nextStep({ open: ['COMPLETE'], live: 36, newest, version: null, versions: [{ string: '1.0.0', state: 'READY_FOR_SALE', build: 36 }] });
+    expect(step.action).toBe('submit');
+  });
+
   it('stops when another build already holds the version number', () => {
     expect(nextStep({ open: [], live: 42, newest, version: { state: 'READY_FOR_SALE', build: 43 } }).action).toBe('stuck');
   });

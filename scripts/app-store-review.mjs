@@ -23,6 +23,12 @@ const API = 'https://api.appstoreconnect.apple.com/v1';
 
 /** Review submission states in which a review is still waiting or under way. */
 export const OPEN = ['WAITING_FOR_REVIEW', 'IN_REVIEW', 'CANCELING', 'COMPLETING'];
+/**
+ * App Store version states in which a version is in review, approved and not
+ * yet out, or being released: while any version is in one, a new version
+ * would sit beside it, so the new build waits in TestFlight.
+ */
+export const BUSY_VERSIONS = ['WAITING_FOR_REVIEW', 'IN_REVIEW', 'PENDING_DEVELOPER_RELEASE', 'PENDING_APPLE_RELEASE', 'PROCESSING_FOR_APP_STORE'];
 /** App Store version states whose build can still be changed. */
 export const EDITABLE = ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY'];
 /** Words for "What's New", which Apple asks for on every version after the first. */
@@ -33,15 +39,20 @@ export const WHATS_NEW = 'Bug fixes and improvements.';
  * `live` the build number of the version people have (null before the
  * first), `newest` the newest processed build ({ number, version }), and
  * `version` the App Store version with the newest build's version number,
- * if there is one ({ state, build }).
+ * if there is one ({ state, build }), and `versions` every App Store version
+ * of the app ({ string, state }).
  */
-export function nextStep({ open, live, newest, version }) {
-  const busy = open.find((s) => OPEN.includes(s));
+export function nextStep({ open, live, newest, version, versions = [] }) {
+  const busyVersion = versions.find((v) => BUSY_VERSIONS.includes(v.state));
+  const busy = open.find((s) => OPEN.includes(s)) ?? (busyVersion ? `version ${busyVersion.string} is ${busyVersion.state.toLowerCase().replaceAll('_', ' ')}` : undefined);
   if (!newest) return { action: 'none', why: 'no processed build in TestFlight' };
   if (live !== null && newest.number <= live) return { action: 'none', why: `build ${newest.number} is not newer than the public build ${live}` };
   if (version && !EDITABLE.includes(version.state) && version.build === newest.number)
     return { action: 'none', why: `version ${newest.version} with build ${newest.number} is ${version.state.toLowerCase().replaceAll('_', ' ')}` };
-  if (busy) return { action: 'wait', why: `a review is ${busy.toLowerCase().replaceAll('_', ' ')}, so build ${newest.number} waits in TestFlight` };
+  if (busy) {
+    const what = busy.startsWith('version ') ? busy : `a review is ${busy.toLowerCase().replaceAll('_', ' ')}`;
+    return { action: 'wait', why: `${what}, so build ${newest.number} waits in TestFlight and is tried again on the next run` };
+  }
   if (version && !EDITABLE.includes(version.state)) {
     return { action: 'stuck', why: `version ${newest.version} is ${version.state.toLowerCase().replaceAll('_', ' ')} with build ${version.build}, and build ${newest.number} has the same version number` };
   }
@@ -86,7 +97,10 @@ async function look(api, appId) {
     open: submissions.data.map((s) => s.attributes.state),
     live: liveVersion?.build ?? null,
     newest,
-    version: newest ? all.find((v) => v.string === newest.version) ?? null : null,
+    // Its own version, or else a version not yet released that can still change (a rejected 1.0):
+    // Apple keeps one unreleased version at a time, so the new build takes that one over.
+    version: newest ? all.find((v) => v.string === newest.version) ?? all.find((v) => EDITABLE.includes(v.state)) ?? null : null,
+    versions: all,
   };
 }
 
@@ -104,7 +118,7 @@ async function submit(api, appId, newest, version) {
     await api('PATCH', `/appStoreVersions/${versionId}`, {
       type: 'appStoreVersions',
       id: versionId,
-      attributes: { releaseType: 'AFTER_APPROVAL' },
+      attributes: { versionString: newest.version, releaseType: 'AFTER_APPROVAL' },
       relationships: { build: { data: { type: 'builds', id: newest.id } } },
     });
   }
