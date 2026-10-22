@@ -7332,3 +7332,13 @@ R2 check). Decided:
 Reverse if: staff need another action often enough that the command line
 is in the way; each one is added to the list here, never as a generic
 "run this" call.
+
+Amended (2026-10-22, Carl Sauder): the Vercel section is removed. LangQuest
+Next runs nothing on Vercel (its web app, API, files and jobs are on
+Cloudflare, and the privacy pages left Vercel under 46); the section
+watched other FrontierRND projects (the website, the v2 web app, the dev
+docs, the partner demo) that support and devops do not look after here.
+Vercel has no read-only token, so `ADMIN_VERCEL_TOKEN` would have been a
+token that can change the whole team's projects, on a Worker that
+otherwise holds only read tokens. If the website needs watching, an
+uptime check on its address does it without a token.

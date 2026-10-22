@@ -11,7 +11,7 @@ export const SECTION_ORDER = [
   // Look up is a tool, not a status: right under Needs attention, where a link to an install lands.
   'lookup', 'safety', 'clients', 'fleet', 'releases', 'jobs', 'container', 'cron', 'database', 'dbdetail', 'push', 'worker',
   'integrations', 'storage', 'people', 'support', 'feedback', 'security', 'expiry', 'capacity',
-  'code', 'cloudflare', 'supabase', 'vercel', 'expo', 'googleplay', 'appstore', 'v2'
+  'code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', 'v2'
 ] as const;
 
 /** Read as diag_reader in one call (/ops/api/ops). */

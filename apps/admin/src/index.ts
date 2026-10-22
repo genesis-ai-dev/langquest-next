@@ -11,7 +11,6 @@ import { expoSection } from './sources/expo';
 import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
 import { supabaseSection } from './sources/supabase';
-import { vercelSection } from './sources/vercel';
 import { containerSection } from './sources/container';
 import { expirySection } from './sources/expiry';
 import { opsSections, orgDetail, type OpsSections } from './sources/ops';
@@ -47,7 +46,6 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   code: (env) => codeSection(env),
   cloudflare: (env) => cloudflareSection(env),
   supabase: (env) => supabaseSection(env),
-  vercel: (env) => vercelSection(env),
   expo: (env) => expoSection(env),
   googleplay: (env) => googlePlaySection(env),
   appstore: (env) => appStoreSection(env),

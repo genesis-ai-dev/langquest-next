@@ -264,7 +264,6 @@ const BASE_SECTIONS = [
   { id: 'cloudflare', title: 'Cloudflare', src: 'Workers requests, errors, deploys and builds, last 24 h' },
   { id: 'supabase', title: 'Supabase', src: 'Project health, Edge Functions and log counts, last 24 h' },
   { id: 'database', title: 'Database', src: 'Size, connections and RPC timings (pg_stat_statements)' },
-  { id: 'vercel', title: 'Vercel', src: 'Latest production deploy of each FrontierRND project' },
   { id: 'expo', title: 'App builds and updates', src: 'EAS builds, store submissions and over-the-air updates' },
   { id: 'googleplay', title: 'Google Play', src: 'Android vitals (crashes and ANRs) and reviews' },
   { id: 'appstore', title: 'App Store', src: 'App Store Connect: versions in review, builds and reviews' },
@@ -463,13 +462,6 @@ const RENDER = {
       { h: 'Max', n: true, v: (r) => ms(r.max_ms) }, { h: 'Total', n: true, v: (r) => num(r.total_s) + ' s' }
     ], d.rpc.slice(0, 12));
     return h;
-  },
-  vercel(d) {
-    return table([
-      { h: 'Project', v: (p) => '<b>' + esc(p.name) + '</b>' + (p.domain ? '<br><small>' + esc(p.domain) + '</small>' : '') },
-      { h: 'Production', v: (p) => p.latest ? '<span class="' + (p.latest.state === 'READY' ? 'good' : p.latest.state === 'ERROR' ? 'bad' : 'warn') + '">' + esc(p.latest.state) + '</span><br><small>' + when(p.latest.at) + '</small>' : '–' },
-      { h: 'Last failed', v: (p) => p.lastError ? when(p.lastError.at) : '–' }
-    ], d.projects);
   },
   expo(d) {
     let h = '<h3>Latest builds</h3>' + table([
@@ -711,7 +703,7 @@ async function load(fresh) {
   const jobs = [
     api('/ops/api/diag' + q).then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); }).catch(fail(['jobs', 'clients', 'database', 'v2', 'feedback'])),
     api('/ops/api/ops' + q).then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); }).catch(fail(${JSON.stringify(OPS_IDS)})),
-    ...['code', 'cloudflare', 'supabase', 'vercel', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
+    ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
   ];
   await Promise.all(jobs);
   $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

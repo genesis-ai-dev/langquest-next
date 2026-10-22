@@ -19,7 +19,6 @@ export interface Env {
   SUPABASE_DB_LIMIT_GB: string;
   /** owner/name on GitHub. */
   GITHUB_REPO: string;
-  VERCEL_TEAM_ID: string;
   EXPO_PROJECT_ID: string;
   GOOGLE_PLAY_PACKAGE: string;
   /** The app's Apple id in App Store Connect (eas.json submit.production.ios.ascAppId). */
@@ -33,7 +32,6 @@ export interface Env {
   ADMIN_CLOUDFLARE_TOKEN?: string;
   /** A Supabase access token: project health, Edge Functions and log counts. */
   ADMIN_SUPABASE_TOKEN?: string;
-  ADMIN_VERCEL_TOKEN?: string;
   /** Read-only, for Actions runs; without it GitHub's anonymous limit applies, which a Worker shares. */
   ADMIN_GITHUB_TOKEN?: string;
   /** An Expo robot's access token, for builds, submissions and updates. */

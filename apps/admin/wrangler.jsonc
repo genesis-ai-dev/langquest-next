@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   // LangQuest operations in one page, for staff (docs/admin.md, decisions.md
   // 151): what phones and the server's jobs report in `diag`, and what
-  // Cloudflare, Supabase, Vercel, GitHub, Expo, Google Play and the App
+  // Cloudflare, Supabase, GitHub, Expo, Google Play and the App
   // Store say about their part.
   "name": "langquest-next-admin",
   "main": "src/index.ts",
@@ -35,7 +35,6 @@
     // The Supabase plan's database size, GB, for the capacity section's weeks left.
     "SUPABASE_DB_LIMIT_GB": "8",
     "GITHUB_REPO": "genesis-ai-dev/langquest-next",
-    "VERCEL_TEAM_ID": "team_R3BIc0ITN0zAHSKdUhJsr3c9",
     // apps/mobile/app.json extra.eas.projectId
     "EXPO_PROJECT_ID": "582d3757-4245-419a-9087-e269e3bf4c4d",
     // apps/mobile/app.json android.package, and eas.json submit.production.ios.ascAppId

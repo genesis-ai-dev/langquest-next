@@ -4,7 +4,6 @@ import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, med
 import { expoAlerts, expoFrom } from '../src/sources/expo';
 import { codeAlerts, codeSection, latestPerWorkflow, type Code } from '../src/sources/github';
 import { projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
-import { summarizeProject, vercelAlerts } from '../src/sources/vercel';
 
 const NOW = Date.parse('2026-10-19T22:00:00Z');
 const hAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
@@ -219,17 +218,7 @@ describe('Supabase', () => {
   });
 });
 
-describe('Vercel and Expo', () => {
-  it("takes a project's newest production deploy and its last failure", () => {
-    const p = summarizeProject('langquest-website', [
-      { uid: '1', readyState: 'READY', createdAt: NOW - 1000 },
-      { uid: '2', readyState: 'ERROR', createdAt: NOW - 5000 },
-      { uid: '3', readyState: 'ERROR', createdAt: NOW - 500 }
-    ]);
-    expect(p).toEqual({ name: 'langquest-website', latest: { state: 'ERROR', at: new Date(NOW - 500).toISOString() }, lastError: { at: new Date(NOW - 500).toISOString() } });
-    expect(vercelAlerts({ projects: [p] })).toHaveLength(1);
-  });
-
+describe('Expo', () => {
   it('reads builds and the newest update per branch, and flags a failed latest build', () => {
     const e = expoFrom({ data: { app: { byId: {
       builds: [
