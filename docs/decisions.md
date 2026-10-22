@@ -6936,3 +6936,58 @@ Reverse if: people dismiss the bar and stay on old versions long enough to
 matter (then show it again after some days), or the In-App Updates question
 is settled, or Google's page stops showing the version (then Android asks
 the phone, with In-App Updates).
+
+## 155. While a new build is in store review, the public build keeps getting every merge as an OTA update from a release branch
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: once a merge into main changes a platform's native fingerprint, a
+new store build of that platform goes to review, and OTA updates from main
+reach only that new build. Until Google or Apple approves it, which can take
+days, the public build would get no fixes. Caleb chose (2026-10-22) that the
+pipeline, not a person, decides when this happens and copies the merges,
+and Carl asked how the branches are made and filled. So
+(`scripts/release-branches.mjs`, `.github/workflows/release-branches.yml`):
+- After each merge into main, a GitHub Action compares each platform's
+  fingerprint before and after the merge, the same fingerprint that the EAS
+  workflow uses to choose between an OTA update and a new build. When it
+  changed and no release branch exists, the Action starts
+  `release/<platform>` from the commit before the merge, which is the code
+  of the last OTA update that the public build got, and tags the merge
+  `rebuild/<platform>/<commit>`.
+- Every later merge into main that does not change that fingerprint is
+  copied onto the release branch. The pipeline cannot tell a fix from a
+  feature, so it copies every one. Each copy is a pull request that merges
+  itself (GitHub auto-merge) once its checks pass; no person merges it. A
+  copy with a conflict is labelled `copy-conflict`, and Anthropic's Claude
+  GitHub Action (`.github/workflows/release-copy-conflict.yml`) copies it,
+  keeping the release branch's code where main's change needs code that the
+  public build does not have.
+- Every merge into a release branch publishes an OTA update on the
+  production channel for that platform
+  (`apps/mobile/.eas/workflows/deploy-release-branch.yml`). Its runtime comes
+  from the branch's own code, so it reaches the public build and never the
+  build in review.
+- Every hour the Action deletes a release branch whose new build is public:
+  the store's live version, from Apple's public lookup for iPhone and from
+  Google Play's public app page for Android (the signals that the app's own
+  store check uses), is that build's version or a newer one (each store
+  build's version is the time of its merge). A store that cannot be read
+  keeps the branch, which only sends the public build fixes that it would
+  get anyway. When a later new
+  build is already in review, the newly public build gets its own branch,
+  started from the commit before that later build, with the merges since
+  copied onto it.
+- `.github/rulesets/release.json` requires the guardrails `gate` on
+  `release/*`, so a copy merges only when green.
+A change that needs a new build is never copied, because the public build
+cannot run it. It all stays off until the repository variable
+`RELEASE_BRANCHES` is `on`, which needs a GitHub App installed on this
+repository with Contents and Pull requests write (secrets `RELEASE_APP_ID`
+and `RELEASE_APP_PRIVATE_KEY`; a pull request that the built-in token opens
+starts no checks), "Allow auto-merge" turned on, and the secret
+`ANTHROPIC_API_KEY` for the conflict step.
+Reverse if: copies go wrong on the public build often enough that a person
+should approve each one (then turn off auto-merge), or a store page stops
+showing its live version (then read it from the store's API where one can
+say so).
