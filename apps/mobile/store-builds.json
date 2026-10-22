@@ -1,8 +1,8 @@
 {
   "projectId": "582d3757-4245-419a-9087-e269e3bf4c4d",
   "oldestSupported": {
-    "android": 9,
-    "ios": 30
+    "android": 13,
+    "ios": 33
   },
   "retired": [
     {
