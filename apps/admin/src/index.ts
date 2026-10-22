@@ -11,6 +11,11 @@ import { googlePlaySection } from './sources/googleplay';
 import { codeSection } from './sources/github';
 import { supabaseSection } from './sources/supabase';
 import { vercelSection } from './sources/vercel';
+import { containerSection } from './sources/container';
+import { expirySection } from './sources/expiry';
+import { opsSections, orgDetail, type OpsSections } from './sources/ops';
+import { releasesSection } from './sources/releases';
+import { capacitySection, storageSection } from './sources/storage';
 
 /**
  * The ops dashboard (docs/admin.md, decisions.md 159): the page at
@@ -45,8 +50,47 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   vercel: (env) => vercelSection(env),
   expo: (env) => expoSection(env),
   googleplay: (env) => googlePlaySection(env),
-  appstore: (env) => appStoreSection(env)
+  appstore: (env) => appStoreSection(env),
+  expiry: (env) => expirySection(env),
+  storage: (env) => storageSection(env),
+  capacity: (env) => capacitySection(env),
+  releases: (env) => releasesSection(env),
+  container: (env) => containerSection(env)
 };
+
+/** The sections read as diag_reader in one connection, with what each says when that connection fails. */
+const DIAG_IDS = ['jobs', 'clients', 'database', 'v2', 'feedback'] as const;
+const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security'] as const;
+
+const unreachable = (e: unknown): Section => ({ state: 'error', alerts: [], error: `Could not reach the database as diag_reader: ${errorText(e)}`, checkedAt: new Date().toISOString() });
+
+async function diagAnswer(env: Env): Promise<Record<string, Section>> {
+  try { return { ...(await withDiag(env.DIAG_DATABASE_URL, diagSections)) }; }
+  catch (e) { return Object.fromEntries(DIAG_IDS.map((id) => [id, unreachable(e)])); }
+}
+
+async function opsAnswer(env: Env): Promise<Record<string, Section>> {
+  try { return { ...(await withDiag<OpsSections>(env.DIAG_DATABASE_URL, opsSections)) }; }
+  catch (e) { return Object.fromEntries(OPS_IDS.map((id) => [id, unreachable(e)])); }
+}
+
+/**
+ * Every section's alerts in one list, problems first: what the page's
+ * "Needs attention" shows, as JSON for whatever reads it without the page
+ * (docs/ops-dashboard-plan.md 5.1).
+ */
+export async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; problems: number; watch: number; items: { level: string; text: string; section: string }[] }> {
+  const [diag, ops, ...providers] = await Promise.all([
+    diagAnswer(env), opsAnswer(env),
+    ...Object.entries(PROVIDERS).map(([id, run]) => memo(id, fresh, () => settle(id, () => run(env))).then((s) => [id, s] as const))
+  ]);
+  const all: (readonly [string, Section])[] = [...Object.entries(diag), ...Object.entries(ops), ...(providers as (readonly [string, Section])[])];
+  const items = all.flatMap(([section, s]) => [
+    ...s.alerts.map((a) => ({ level: a.level, text: a.text, section })),
+    ...(s.state === 'error' ? [{ level: 'watch', text: `Could not read: ${s.error ?? 'unknown'}`, section }] : [])
+  ]).sort((a, b) => (a.level === b.level ? 0 : a.level === 'problem' ? -1 : 1));
+  return { checkedAt: new Date().toISOString(), problems: items.filter((i) => i.level === 'problem').length, watch: items.filter((i) => i.level !== 'problem').length, items };
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -71,18 +115,21 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   const fresh = url.searchParams.get('fresh') === '1';
   const section = url.pathname.slice(API_BASE.length);
   if (section === 'me') return json({ profileId: who.profileId });
-  if (section === 'diag') {
+  // The connection itself failing makes every section of the answer say so.
+  if (section === 'diag') return json(await diagAnswer(env));
+  if (section === 'ops') return json(await opsAnswer(env));
+  if (section === 'attention') return json(await attention(env, fresh));
+  const org = /^org\/([^/]{1,200})$/.exec(section);
+  if (org) {
     try {
-      return json(await withDiag(env.DIAG_DATABASE_URL, diagSections));
+      return json(await withDiag(env.DIAG_DATABASE_URL, (query) => orgDetail(query, decodeURIComponent(org[1]!))));
     } catch (e) {
-      // The connection itself failed: every diag section says so.
-      const failed = { state: 'error', alerts: [], error: `Could not reach the database as diag_reader: ${errorText(e)}`, checkedAt: new Date().toISOString() };
-      return json({ jobs: failed, clients: failed, database: failed, v2: failed, feedback: failed });
+      return json(unreachable(e));
     }
   }
   if (section === 'lookup') {
     const q = (url.searchParams.get('q') ?? '').trim();
-    if (!q || q.length > 120) return json({ error: 'Type an error code, an install id or a name.' }, 400);
+    if (!q || q.length > 254) return json({ error: 'Type an error code, an install id, an email or a name.' }, 400);
     try {
       return json(await withDiag(env.DIAG_DATABASE_URL, (query) => lookup(query, q)));
     } catch (e) {

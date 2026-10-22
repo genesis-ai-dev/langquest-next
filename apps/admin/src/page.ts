@@ -6,6 +6,8 @@
  * or unconfigured source never holds up the rest. Everything it shows comes
  * from the API as data and is escaped before it reaches the page.
  */
+import { OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, SECTION_ORDER } from './pageOps';
+
 export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: string): Response {
   const config = JSON.stringify(cfg).replace(/</g, '\\u003c');
   const html = `<!doctype html>
@@ -100,6 +102,7 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
       <div class="head"><h2>Needs attention</h2><span class="pill wait" id="attention-pill">Checking…</span></div>
       <ul id="attention-list"></ul>
     </section>
+    <section class="card wide" id="org" hidden></section>
     <div class="grid" id="grid"></div>
   </div>
 </main>
@@ -238,7 +241,7 @@ $('signout').addEventListener('click', async () => {
 $('refresh').addEventListener('click', () => load(true));
 
 // ---- the sections ----------------------------------------------------------------
-const SECTIONS = [
+const BASE_SECTIONS = [
   { id: 'jobs', title: 'Server jobs', src: 'diag.jobs: projections, push delivery, v2 import, the web Worker\\'s cron, webhooks, invite email' },
   { id: 'code', title: 'Code and deploys', src: 'GitHub main, its Actions runs, and what next.langquest.org serves' },
   { id: 'clients', title: 'Phones and browsers', src: 'Field diagnostics every install sends (docs/diagnostics.md)', wide: true },
@@ -251,15 +254,17 @@ const SECTIONS = [
   { id: 'appstore', title: 'App Store', src: 'App Store Connect: versions in review, builds and reviews' },
   { id: 'v2', title: 'v2 import', src: 'diag.v2_import_status: the latest transfer of each v2 project' },
   { id: 'feedback', title: 'Feedback', src: 'What people sent from the help button, last 30 days', wide: true },
-  { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an install id, or an organization or language name' }
+  { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name' }
 ];
+// Every section, in page order (pageOps.ts).
+const SECTIONS = ${JSON.stringify(SECTION_ORDER)}.map((id) => BASE_SECTIONS.concat(${JSON.stringify(OPS_SECTIONS)}).find((s) => s.id === id));
 const results = {};
 
 function layout() {
   $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head"><div><h2>' + esc(s.title) +
     '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div><div id="body-' + s.id + '"></div></section>').join('');
   $('pill-lookup').hidden = true;
-  $('body-lookup').innerHTML = '<form id="lookup-form"><label for="q" hidden>Look up</label><input id="q" type="search" placeholder="E-7K2Q01, an install id, or a name" required>' +
+  $('body-lookup').innerHTML = '<form id="lookup-form"><label for="q" hidden>Look up</label><input id="q" type="search" placeholder="E-7K2Q01, an email, an install id, or a name" required>' +
     '<p><button type="submit">Look up</button></p></form><div id="lookup-out"></div>';
   $('lookup-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -534,6 +539,8 @@ function renderLookup(r) {
         (e.stack ? '<pre>' + esc(e.stack) + '</pre>' : '') +
         (e.before && e.before.length ? '<h3>Just before</h3><pre>' + esc(e.before.map((b) => b.at + '  ' + b.kind + '  ' + JSON.stringify(b.t) + '  ' + JSON.stringify(b.n)).join('\\n')) + '</pre>' : '');
     }
+  } else if (r.kind === 'person') {
+    h = renderPerson(r.result);
   } else if (r.kind === 'install') {
     const c = r.result.context || {};
     h = '<p class="muted">' + esc([c.os, c.osVersion, c.model, c.appVersion, c.channel, c.runtimeVersion].filter(Boolean).join(' · ')) + '</p>' +
@@ -585,6 +592,8 @@ function wireScreenshots() {
 }
 
 // ---- loading ----------------------------------------------------------------------
+${OPS_SCRIPT}
+
 let loading = false;
 async function load(fresh) {
   if (loading) return;
@@ -597,7 +606,8 @@ async function load(fresh) {
   const fail = (ids) => (err) => { if (err.message !== 'Signed out' && err.message !== 'Not an admin') for (const id of ids) show(id, { state: 'error', alerts: [], error: err.message }); };
   const jobs = [
     api('/ops/api/diag' + q).then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); }).catch(fail(['jobs', 'clients', 'database', 'v2', 'feedback'])),
-    ...['code', 'cloudflare', 'supabase', 'vercel', 'expo', 'googleplay', 'appstore'].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
+    api('/ops/api/ops' + q).then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); }).catch(fail(${JSON.stringify(OPS_IDS)})),
+    ...['code', 'cloudflare', 'supabase', 'vercel', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
   ];
   await Promise.all(jobs);
   $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -611,6 +621,8 @@ async function start() {
   $('signin').hidden = true; $('mfa').hidden = true; say('');
   $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false;
   if (!$('grid').children.length) layout();
+  const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
+  if (deep) openOrg(decodeURIComponent(deep[1]), false);
   await load(false);
 }
 

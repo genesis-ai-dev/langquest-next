@@ -1,3 +1,5 @@
+import type { JobStatusRpc } from './sources/container';
+
 export interface Env {
   SUPABASE_URL: string;
   /** The public key every app build carries; the page signs in with it, and the Worker checks sign-ins with it. */
@@ -9,6 +11,12 @@ export interface Env {
   CLOUDFLARE_WORKERS: string;
   /** The web app; its /version.json says which commit it runs. */
   APP_URL: string;
+  /** The preview web app, whose commit the release section shows beside production's. */
+  PREVIEW_URL: string;
+  /** The recordings bucket, for its size in the storage and capacity sections. */
+  R2_BUCKET: string;
+  /** The database's size limit on the Supabase plan, in GB, for the weeks left at the current growth. */
+  SUPABASE_DB_LIMIT_GB: string;
   /** owner/name on GitHub. */
   GITHUB_REPO: string;
   VERCEL_TEAM_ID: string;
@@ -36,6 +44,8 @@ export interface Env {
   ADMIN_APP_STORE_KEY?: string;
 
   ADMIN_RATE_LIMIT?: RateLimit;
+  /** The app Worker's JobStatus entrypoint (apps/web/worker/jobStatus.ts): read-only, one method. */
+  APP_JOBS?: JobStatusRpc;
 }
 
 /** A comma-separated var as trimmed, non-empty items. */

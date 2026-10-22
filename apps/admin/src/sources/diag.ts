@@ -268,11 +268,31 @@ export function errorText(e: unknown): string {
 
 // ---- looking one thing up ---------------------------------------------------------------------
 
-/** An error code a person read out (E-XXXXXX), an install id, or an org or language by name. */
+/** One person's installs, by profile id: ids, when each was heard from, and what it runs. */
+export const PERSON_INSTALLS_SQL = `select coalesce(jsonb_agg(jsonb_build_object('install', install_id, 'lastSeen', last_seen,
+    'os', context->>'os', 'runtime', context->>'runtimeVersion', 'channel', context->>'channel') order by last_seen desc), '[]'::jsonb) as v
+  from diag.installs where profile_id = $1`;
+
+/**
+ * An error code a person read out (E-XXXXXX), an email (which answers with
+ * the profile id and its installs only, never the address back or anyone
+ * else's), a profile id, an install id, or an org or language by name.
+ */
 export async function lookup(query: Query, text: string): Promise<{ kind: string; result: unknown }> {
   const q = text.trim();
   if (/^E-[A-Z0-9]{4,10}$/i.test(q)) {
     return { kind: 'error', result: await query(`select diag.error($1) as v`, [q.toUpperCase()]) };
+  }
+  if (/^[^\s@]+@[^\s@]+$/.test(q)) {
+    const found = await query<{ profileId: string } | null>(`select diag.lookup_email($1) as v`, [q]);
+    if (!found) return { kind: 'person', result: null };
+    return { kind: 'person', result: { profileId: found.profileId, installs: await query(PERSON_INSTALLS_SQL, [found.profileId]) } };
+  }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q)) {
+    const installs = await query<unknown[]>(PERSON_INSTALLS_SQL, [q]);
+    if (Array.isArray(installs) && installs.length) {
+      return { kind: 'person', result: { profileId: q, installs, report: await query(`select diag.person($1) as v`, [q]) } };
+    }
   }
   const install = await query<unknown[]>(
     `select coalesce(jsonb_agg(x), '[]'::jsonb) as v from diag.timeline($1, interval '3 days', 150) x`, [q]);

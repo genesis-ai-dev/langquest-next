@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { access, forgetSignIns, viewerState } from '../src/auth';
 import { csp, page } from '../src/page';
+import { SECTION_ORDER } from '../src/pageOps';
 import { settle } from '../src/section';
 import { handle } from '../src/index';
 import type { Env } from '../src/env';
@@ -131,6 +132,12 @@ describe('the API', () => {
     expect(html).not.toMatch(/localStorage\.(setItem|removeItem)/);
     // The same key the app keeps its session under.
     expect(sessionStorageKey('https://abc.supabase.co')).toBe('sb-abc-auth-token');
+  });
+
+  it('lists every section in page order', async () => {
+    const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
+    const script = html.split('<script nonce="n">')[1]!.split('</script>')[0]!;
+    for (const id of SECTION_ORDER) expect(script).toContain(`"${id}"`);
   });
 
   it('calls only /ops/api from the page', async () => {

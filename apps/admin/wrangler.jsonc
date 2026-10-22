@@ -29,6 +29,11 @@
     "CLOUDFLARE_WORKERS": "langquest-next,langquest-next-invite-email,langquest-next-admin",
     // Its /version.json names the commit it was built from (apps/mobile/scripts/export-web.mjs).
     "APP_URL": "https://next.langquest.org",
+    "PREVIEW_URL": "https://next-preview.langquest.org",
+    // The recordings bucket (apps/web/wrangler.jsonc r2_buckets), for its size.
+    "R2_BUCKET": "langquest-next-blobs",
+    // The Supabase plan's database size, GB, for the capacity section's weeks left.
+    "SUPABASE_DB_LIMIT_GB": "8",
     "GITHUB_REPO": "genesis-ai-dev/langquest-next",
     "VERCEL_TEAM_ID": "team_R3BIc0ITN0zAHSKdUhJsr3c9",
     // apps/mobile/app.json extra.eas.projectId
@@ -44,6 +49,10 @@
   // token is there (docs/admin.md). Who may open the page is not a secret:
   // Global Viewers on an authenticator session (src/auth.ts).
   "secrets": { "required": ["DIAG_DATABASE_URL"] },
+  // The app Worker's JobStatus entrypoint (apps/web/worker/jobStatus.ts):
+  // whether each server job is running now. One read-only method; this
+  // Worker has no way to start or stop a job (docs/ops-dashboard-plan.md 11.3).
+  "services": [{ "binding": "APP_JOBS", "service": "langquest-next", "entrypoint": "JobStatus" }],
   // Per address, on the page's API (every call checks a sign-in with Supabase).
   "ratelimits": [
     { "name": "ADMIN_RATE_LIMIT", "namespace_id": "7005", "simple": { "limit": 120, "period": 60 } }

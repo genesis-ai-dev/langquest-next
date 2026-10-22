@@ -43,6 +43,10 @@ address.
 ## What each section reads
 
 "Needs attention" at the top gathers every section's alerts, problems first.
+The same list is JSON at `/ops/api/attention`. The page shows the sections
+in the order of `apps/admin/src/pageOps.ts` `SECTION_ORDER`: data safety
+first, then phones, releases, the server, storage, people, support,
+security, expiry, capacity, and the providers.
 
 | Section | From | Needs |
 | --- | --- | --- |
@@ -51,7 +55,17 @@ address.
 | Database | size, connections, cache hits and deadlocks (`pg_stat_database`), RPC timings (`diag.rpc_stats()`) | `DIAG_DATABASE_URL` |
 | v2 import | `diag.v2_import_status()` | `DIAG_DATABASE_URL` |
 | Feedback | `diag.feedback()`, `diag.feedback_screenshot()` and `diag.feedback_voice()`, once the feedback store's migration is on the database; until then the section says so. Screenshots and voice notes load when asked for, and only as JPEG, WAV or m4a | `DIAG_DATABASE_URL` |
-| Look up | an error code (`diag.error`), an install's last three days (`diag.timeline`), or an organization or language by name (`diag.find`) | `DIAG_DATABASE_URL` |
+| Look up | an error code (`diag.error`), an email (`diag.lookup_email`: the profile id and its installs, never the address back), a profile id (`diag.person`), an install's last three days (`diag.timeline`), or an organization or language by name (`diag.find`) | `DIAG_DATABASE_URL` |
+| Sync and data safety | work the server refused, by reason (`sync` records); what arrived and how late, and events stamped ahead of the clock (the projection pass's sample); the nightly fold canary; languages behind the projection pass, overdue snapshots and the largest languages (`diag.ops_pipeline`) | `DIAG_DATABASE_URL`, migration `20261023100000_ops_dashboard.sql` |
+| Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones and phones gone quiet | `DIAG_DATABASE_URL` |
+| Release health | merges on `main`, Worker deploys and EAS updates over 14 days against errors phones reported; the commit each host serves; hosted migrations against `main` (`diag.migrations_applied` and the files on GitHub) | `DIAG_DATABASE_URL`; the Cloudflare, Expo and GitHub tokens add to the timeline |
+| Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
+| Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals) | `DIAG_DATABASE_URL`, the migration |
+| App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
+| People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
+| Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
+| Expiry dates | each provider token's end date where its provider reports one (Cloudflare, GitHub), Apple's certificates and provisioning profiles, and the dates in `apps/admin/expiry.json` | the tokens; the file needs nothing |
+| Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against `SUPABASE_DB_LIMIT_GB`, R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
 | Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next and LangQuest v2: project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx) | `ADMIN_SUPABASE_TOKEN` |
@@ -115,7 +129,9 @@ A build of `main` fails until the admin page's pull request merges
 Workers Builds then deploys both Workers. The app's Worker binds
 `langquest-next-admin` (`services` in `apps/web/wrangler.jsonc`), and a
 deploy fails while the Worker it binds does not exist, so step 1 must come
-first. Check: `curl -s -o /dev/null -w '%{http_code}\n'
+first. The admin Worker binds back to the app Worker's `JobStatus`
+entrypoint (`APP_JOBS`); until the app Worker with that entrypoint is
+deployed, the Job container section says it could not ask. Check: `curl -s -o /dev/null -w '%{http_code}\n'
 https://next.langquest.org/ops-dashboard` says `200`.
 
 ### 4. Let yourself in
@@ -139,10 +155,12 @@ without showing it, and once you have the ones you want, run
   Permissions, all Account-level: Account Analytics Read, Workers Scripts
   Read, Workers CI Read. Account Resources: include only the LangQuest
   account. Set an end date.
-- **`ADMIN_SUPABASE_TOKEN`** (Supabase section). supabase.com > Account >
-  Access Tokens > Generate new token, as a scoped token: the LangQuest
-  Next and LangQuest v2 projects only; Read for Project Settings, Edge
-  Functions and Logs; an expiry.
+- **`ADMIN_SUPABASE_TOKEN`** (Supabase section, and backups in Storage).
+  supabase.com > Account > Access Tokens > Generate new token, as a scoped
+  token: the LangQuest Next and LangQuest v2 projects only; Read for
+  Project Settings, Edge Functions, Logs and Database backups; an expiry.
+  Supabase gives no API for a token's end date, so put it in
+  `apps/admin/expiry.json` for the Expiry section.
 - **`ADMIN_VERCEL_TOKEN`** (Vercel section). vercel.com > Account Settings
   > Tokens > Create. Scope: the FrontierRND team; expiration: up to a year.
   Vercel has no read-only token, so keep it to that team.
@@ -222,8 +240,13 @@ should confirm it.
 
 - iOS crash counts: App Store Connect gives them only as daily analytics
   reports, which have to be requested once and read the next day.
-- Seen and Done on feedback (needs `public.feedback_set_status` and the
-  service-role key, which this Worker does not hold).
-- History: every section shows now and the last day or week, not trends.
+- History past what `diag` keeps (90 days of runs and records): a daily
+  rollup, phase 5 of `docs/ops-dashboard-plan.md`.
 - Telling anyone: the page shows problems to whoever opens it; nothing
-  sends them.
+  sends them (`OpsWatch`, phase 5).
+- Container time in Capacity and cost: Cloudflare's public analytics do not
+  give it; read it in the Cloudflare dashboard.
+- Not tried against the real services yet: the R2, usage, backups,
+  certificates and token-expiry calls are written from each provider's
+  documentation and tested with fakes. The first real answer should
+  confirm each field.
