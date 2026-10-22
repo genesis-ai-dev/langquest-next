@@ -29,7 +29,7 @@ export const SECTION_HELP: Record<string, string> = {
   capacity: 'How fast the database and the recordings bucket are growing against the plan\'s limits, and this month\'s Cloudflare usage against what the plan includes.',
   code: 'What is on main on GitHub, whether the latest CI runs passed, and whether the web app serves the newest commit.',
   cloudflare: 'Each Cloudflare Worker\'s requests, errors and CPU over the last day, and its latest deploy and build.',
-  supabase: 'The Supabase projects\' status, each service\'s health, Edge Functions, and error counts from their logs.',
+  supabase: 'The LangQuest Next Supabase project\'s status, each service\'s health, Edge Functions, and error counts from its logs.',
   expo: 'App builds on EAS, store submissions, and the newest over-the-air update on each branch.',
   googleplay: 'Android crash and freeze (ANR) rates as Google Play measures them, against Play\'s bad-behaviour lines, and recent reviews.',
   appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',

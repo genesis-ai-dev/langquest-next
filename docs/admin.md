@@ -83,7 +83,7 @@ security, expiry, capacity, and the providers.
 | Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against `SUPABASE_DB_LIMIT_GB`, R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
 | Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
-| Supabase | for LangQuest Next and LangQuest v2: project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx) | `ADMIN_SUPABASE_TOKEN` |
+| Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx) | `ADMIN_SUPABASE_TOKEN` |
 | App builds and updates | EAS builds, store submissions and the newest update on each branch | `ADMIN_EXPO_TOKEN` |
 | Google Play | Android vitals for the last 7 days Play has (user-perceived crash and ANR rates, 7-day user-weighted as Play Console shows them, against Play's bad-behaviour lines, 1.09% and 0.47%), the top crash and ANR clusters, and the last week's reviews | `ADMIN_GOOGLE_PLAY_KEY` |
 | App Store | each recent App Store version and where it stands in review, the latest builds and whether Apple processed them, TestFlight testers' crash reports (device and system only), recent customer reviews | `ADMIN_APP_STORE_KEY` |
@@ -171,7 +171,7 @@ without showing it, and once you have the ones you want, run
   account. Set an end date.
 - **`ADMIN_SUPABASE_TOKEN`** (Supabase section, and backups in Storage).
   supabase.com > Account > Access Tokens > Generate new token, as a scoped
-  token: the LangQuest Next and LangQuest v2 projects only; Read for
+  token: the LangQuest Next project only; Read for
   Project Settings, Edge Functions, Logs and Database backups; an expiry.
   Supabase gives no API for a token's end date, so put it in
   `apps/admin/expiry.json` for the Expiry section.

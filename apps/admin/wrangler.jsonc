@@ -23,8 +23,11 @@
   "vars": {
     "SUPABASE_URL": "https://xymxnebdwtbkfxlbylch.supabase.co",
     "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5bXhuZWJkd3Ria2Z4bGJ5bGNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0OTE1NDYsImV4cCI6MjEwNTA2NzU0Nn0.25nzSvDd07448L-jjQeVUjJ3UIUE-KlRJkUFWkmNz50",
-    // LangQuest Next, then LangQuest v2 (read by the v2 import), for the Supabase section.
-    "SUPABASE_PROJECTS": "xymxnebdwtbkfxlbylch:LangQuest Next,unsxkmlcyxgtgmtzfonb:LangQuest v2",
+    // The Supabase section's projects, `ref:name` and comma-separated: LangQuest
+    // Next only. LangQuest v2 was left off on 2026-10-22 (Carl): it is not this
+    // team's to run, and its token access was removed. The v2 import's own
+    // progress stays, read from Next's database (the v2 import section).
+    "SUPABASE_PROJECTS": "xymxnebdwtbkfxlbylch:LangQuest Next",
     "CLOUDFLARE_ACCOUNT_ID": "6a80496d1e59948a9cbaa3c643ba81d7",
     "CLOUDFLARE_WORKERS": "langquest-next,langquest-next-invite-email,langquest-next-admin",
     // Its /version.json names the commit it was built from (apps/mobile/scripts/export-web.mjs).
