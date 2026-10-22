@@ -8,7 +8,8 @@
 #   bash scripts/ci-playwright.sh <cache-dir> <browser>...
 #
 # The browsers and the .deb files come from <cache-dir> when the cache was
-# restored, so a cached run downloads no package. apt retries, gives up on a
+# restored, so a cached run downloads no package. Packages that are not
+# cached come from Ubuntu's own servers first, then Azure's mirror. apt retries, gives up on a
 # stalled server after 20 seconds, and keeps what it downloads. Each try of
 # the install may take 4 minutes; a slow one is stopped and tried again,
 # up to three times, and apt resumes where it left off.
@@ -23,6 +24,14 @@ Acquire::https::Timeout "20";
 APT::Keep-Downloaded-Packages "true";
 Binary::apt::APT::Keep-Downloaded-Packages "true";
 CONF
+
+# The runners fetch packages through a mirror list, with Azure's mirror
+# first. When that mirror crawls (2026-10-22: under 50 kB/s for hours),
+# Ubuntu's own servers are fast, so they go first and Azure's second.
+if [ -f /etc/apt/apt-mirrors.txt ]; then
+  printf '%s\n' 'http://archive.ubuntu.com/ubuntu/	priority:1' 'http://azure.archive.ubuntu.com/ubuntu/	priority:2' 'http://security.ubuntu.com/ubuntu/	priority:3' \
+    | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+fi
 
 if compgen -G "$debs/*.deb" > /dev/null; then
   sudo cp "$debs"/*.deb /var/cache/apt/archives/
