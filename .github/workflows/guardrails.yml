@@ -38,6 +38,12 @@
 #    registry still turns away is retried (scripts/ci-retry-pull.sh). Optional
 #    secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN sign in to Docker Hub
 #    for a higher limit; without them pulls are anonymous.
+#  - Package mirror: Playwright's browsers need system packages, and the
+#    runners' Ubuntu mirror has sent them at 20 kB/s (15 MB in 12 minutes on
+#    a ui-web shard, and web-smoke's whole 30 minutes on 2026-10-22). Each
+#    job installs them through .github/actions/playwright, which caches the
+#    browsers and the packages, and stops a slow try after 4 minutes and
+#    tries again (scripts/ci-playwright.sh).
 #  - Load: the stack is about a dozen containers, and wrangler dev, the job
 #    container and the browsers share a 4-vCPU runner. The stack leaves out
 #    what the tests do not use (SUPABASE_EXCLUDE), ui-web runs two browsers
@@ -192,7 +198,8 @@ jobs:
         with: { phase: restore }
       - name: Start Supabase in the background (applies every migration)
         run: nohup bash -c 'bash scripts/ci-retry-pull.sh npx supabase start -x "$SUPABASE_EXCLUDE" > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
-      - run: npx playwright install --with-deps chromium firefox webkit
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium firefox webkit }
       - name: Wait for Supabase
         run: |
           while [ ! -f "$RUNNER_TEMP/stack.exit" ]; do sleep 2; done
@@ -269,7 +276,8 @@ jobs:
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Start the local stack in the background (migrations, library, push delivery)
         run: nohup bash -c 'bash scripts/ci-retry-pull.sh npm run db:start > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
       - name: Wait for the local stack
         run: |
           while [ ! -f "$RUNNER_TEMP/stack.exit" ]; do sleep 2; done
@@ -350,7 +358,8 @@ jobs:
           job-images: 'true'
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
       - name: Start the local stack (migrations, library, push delivery)
         run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: The whole web UI suite
@@ -408,7 +417,8 @@ jobs:
           job-images: 'true'
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
       - name: Start the local stack (migrations, library, push delivery)
         run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: Quarantined web UI tests
