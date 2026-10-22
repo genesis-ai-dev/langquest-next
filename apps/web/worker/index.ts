@@ -19,6 +19,7 @@ import { isOpsPath, toOps } from './ops';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
+export { JobStatus } from './jobStatus';
 
 /**
  * A job tick: start each job due (jobsModel.ts jobsDue), never waiting for a
@@ -73,14 +74,15 @@ export default {
   async fetch(request, env, ctx) {
     const route = routeClass(request.method, new URL(request.url).pathname);
     let response: Response;
+    const began = Date.now();
     try {
       response = await serve(request, env, ctx);
     } catch (e) {
-      if (route) tally.add(route, 500);
+      if (route) tally.add(route, 500, Date.now() - began);
       flushTally(env, ctx);
       throw e;
     }
-    if (route) tally.add(route, response.status);
+    if (route) tally.add(route, response.status, Date.now() - began);
     flushTally(env, ctx);
     // The built page gets its headers from the `_headers` file; what the Worker answers itself (the routes in
     // wrangler's run_worker_first) never passes through it, so it is given the same three here.

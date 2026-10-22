@@ -208,3 +208,46 @@ describe('the job runner object', () => {
     expect(storage.alarm).toBe(Date.now() + HEARTBEAT_MS);
   });
 });
+
+describe('the job runner status call', () => {
+  /** Everything that would change the object or its container, which a status question must leave alone. */
+  const untouched = (container: FakeContainer, storage: FakeStorage, before: { puts: number }) => {
+    expect(container.starts).toEqual([]);
+    expect(container.signals).toEqual([]);
+    expect(container.timeouts).toEqual([]);
+    expect(storage.alarm).toBeNull();
+    expect(storage.data.size).toBe(before.puts);
+  };
+
+  it('answers an idle object without touching it', async () => {
+    const { container, object, storage } = job('v2-import');
+    const writes = vi.spyOn(storage, 'put');
+    const deletes = vi.spyOn(storage, 'delete');
+    const alarms = vi.spyOn(storage, 'setAlarm');
+    expect(await object().status('v2-import')).toEqual({ running: false, startedAt: null, timeLimitMs: JOBS['v2-import'].timeLimitMs, all: false });
+    untouched(container, storage, { puts: 0 });
+    expect([writes, deletes, alarms].map((f) => f.mock.calls.length)).toEqual([0, 0, 0]);
+  });
+
+  it('answers a running object with its start and whole-read mark, changing nothing', async () => {
+    const { container, object, storage } = job('v2-import');
+    const o = object();
+    await o.run({ all: true });
+    const startedAt = Date.now();
+    const alarm = storage.alarm;
+    const stored = new Map(storage.data);
+    const startsBefore = container.starts.length;
+    const timeoutsBefore = container.timeouts.length;
+    const writes = vi.spyOn(storage, 'put');
+    const deletes = vi.spyOn(storage, 'delete');
+    const alarms = vi.spyOn(storage, 'setAlarm');
+    vi.setSystemTime(startedAt + 60_000);
+    expect(await o.status('v2-import')).toEqual({ running: true, startedAt, timeLimitMs: JOBS['v2-import'].timeLimitMs, all: true });
+    expect(container.starts).toHaveLength(startsBefore);
+    expect(container.timeouts).toHaveLength(timeoutsBefore);
+    expect(container.signals).toEqual([]);
+    expect(storage.alarm).toBe(alarm);
+    expect(storage.data).toEqual(stored);
+    expect([writes, deletes, alarms].map((f) => f.mock.calls.length)).toEqual([0, 0, 0]);
+  });
+});

@@ -81,6 +81,18 @@ export class JobRunner extends DurableObject<Env> {
     return 'started';
   }
 
+  /**
+   * Whether this job's run is going, for the ops dashboard (jobStatus.ts).
+   * Read-only: it starts, stops, signals and renews nothing, touches no
+   * alarm and writes no storage. The key comes from the caller because a
+   * new object learns its name only here.
+   */
+  async status(key: JobKey): Promise<{ running: boolean; startedAt: number | null; timeLimitMs: number; all: boolean }> {
+    const running = this.ctx.container?.running === true;
+    const mark = running ? await this.ctx.storage.get<RunMark>('run') : undefined;
+    return { running, startedAt: mark?.startedAt ?? null, timeLimitMs: JOBS[key].timeLimitMs, all: mark?.all === true };
+  }
+
   /** The heartbeat (jobsModel.ts): renew, stop at the limit, or record the end. */
   override async alarm(): Promise<void> {
     const mark = await this.ctx.storage.get<RunMark>('run');

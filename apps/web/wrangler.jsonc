@@ -75,8 +75,10 @@
   // a run alone for its first 90 minutes (rollout_active_grace_period), then
   // sends SIGTERM and allows 15 more, so the nightly whole v2 read (40 to 70
   // minutes) finishes instead of starting over at every evening merge.
+  // One instance per job (projection, v2-import, fold-canary, blob-reconcile): the nightly canary and
+  // reconciliation must not wait for a free slot, or be refused, while the others run.
   "containers": [
-    { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
+    { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 4, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
   ],
   // The ops dashboard (worker/ops.ts, docs/admin.md, decisions.md 159): its
   // own Worker, with no address of its own, reached only through this
@@ -112,7 +114,7 @@
         ]
       },
       "containers": [
-        { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
+        { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 4, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
       ],
       "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs-preview" }],
       "ratelimits": [

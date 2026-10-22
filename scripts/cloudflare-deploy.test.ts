@@ -84,7 +84,7 @@ describe('cloudflare deploy', () => {
     for (const env of ['production', 'preview']) {
       const c = wranglerFor(config, env);
       expect(c.containers, env).toEqual([
-        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 2, constraints: { regions: ['ENAM'] }, rollout_active_grace_period: 5400 }
+        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 4, constraints: { regions: ['ENAM'] }, rollout_active_grace_period: 5400 }
       ]);
       expect(c.durable_objects?.bindings, env).toContainEqual({ name: 'JOBS', class_name: 'JobRunner' });
       // Why: evening merges' rollouts cut off the 03:15 whole read again and again (2026-10-20);

@@ -25,7 +25,11 @@ export const JOBS = {
   // The projection pass, every language (decisions.md 68, 141). The workflow gave it 30 minutes.
   projection: { job: 'projection', entrypoint: ['node', 'projections.mjs'], timeLimitMs: 45 * 60_000 },
   // LangQuest v2 → Next (decisions.md 94, 141); `--all` reads every confirmed project whole. The workflow gave it 340 minutes.
-  'v2-import': { job: 'v2_import', entrypoint: ['node', 'v2.mjs', 'sync'], timeLimitMs: 340 * 60_000 }
+  'v2-import': { job: 'v2_import', entrypoint: ['node', 'v2.mjs', 'sync'], timeLimitMs: 340 * 60_000 },
+  // Three languages folded afresh and compared with their stored snapshot and lines (server/foldCanary.ts, ops dashboard plan 5.4).
+  'fold-canary': { job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 },
+  // The R2 reconciliation without hashing every object (server/reconcileJob.ts, plan 5.6).
+  'blob-reconcile': { job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 }
 } as const satisfies Record<string, JobSpec>;
 
 export type JobKey = keyof typeof JOBS;
@@ -38,13 +42,17 @@ export const JOB_TICK = '*/5 * * * *';
 /**
  * What a job tick at `scheduledTime` starts: the pass every tick; the v2
  * import every 15 minutes, and at 03:15 UTC a whole read of every project
- * (the workflow's 03:17, on the nearest tick).
+ * (the workflow's 03:17, on the nearest tick); the fold canary at 04:05 UTC
+ * and the R2 reconciliation at 04:35, after the import's whole read and
+ * apart from each other so a night never runs three heavy jobs at once.
  */
 export function jobsDue(scheduledTime: number): { key: JobKey; all?: true }[] {
   const t = new Date(scheduledTime);
   const minute = t.getUTCMinutes();
   const due: { key: JobKey; all?: true }[] = [{ key: 'projection' }];
   if (minute % 15 === 0) due.push(t.getUTCHours() === 3 && minute === 15 ? { key: 'v2-import', all: true } : { key: 'v2-import' });
+  if (t.getUTCHours() === 4 && minute === 5) due.push({ key: 'fold-canary' });
+  if (t.getUTCHours() === 4 && minute === 35) due.push({ key: 'blob-reconcile' });
   return due;
 }
 
@@ -189,7 +197,9 @@ export function jobEnv(key: JobKey, s: JobSettings): { env: Record<string, strin
     // limit comes from here: production reported 13,056 MB in a 4 GiB instance.
     NODE_OPTIONS: `--max-old-space-size=${HEAP_LIMIT_MB}`
   };
-  if (key === 'projection') return { env };
+  if (key === 'projection' || key === 'fold-canary') return { env };
+  // The reconciliation lists R2 through the Worker.
+  if (key === 'blob-reconcile') return s.API_URL ? { env: { ...env, API_URL: s.API_URL } } : { refuse: 'blob reconcile: API_URL not set on the Worker' };
   if (s.V2_IMPORT_ENABLED !== 'true') return { skip: 'disabled' };
   const missing = (['API_URL', 'V2_SUPABASE_ANON_KEY'] as const).filter((k) => !s[k]);
   if (missing.length) return { refuse: `v2 import: ${missing.join(', ')} not set on the Worker (npm run secrets)` };

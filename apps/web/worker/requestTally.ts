@@ -1,3 +1,4 @@
+import { isOpsPath } from './ops';
 import { statusClass, type JobRun } from '../../../server/jobRuns';
 
 /**
@@ -6,10 +7,15 @@ import { statusClass, type JobRun } from '../../../server/jobRuns';
  * failing, without Cloudflare's logs. Counts only: no path, no organization,
  * no person. `r2_put` and `record_blob` are the two steps of an upload
  * (blobs.ts `tally`), so a 502 on `blobs_put` says which one failed.
+ *
+ * Keys are `<route>_<status class>` (`reports_2xx`), plus `<route>_429` for
+ * a refusal by a rate limit (also counted in `_4xx`), and one duration
+ * bucket per request: `<route>_lt100ms`, `_lt1s`, `_lt10s`, `_over10s`. The
+ * ops dashboard reads these (docs/ops-dashboard-plan.md 5.5).
  */
 export type RouteClass =
   | 'blobs_put' | 'blobs_get' | 'blob_access' | 'r2_put' | 'record_blob'
-  | 'reports' | 'agent_api' | 'mcp' | 'webhook' | 'other';
+  | 'reports' | 'agent_api' | 'mcp' | 'webhook' | 'device' | 'links' | 'ops' | 'other';
 
 /** Which kind of request this is; null for what is not counted (the web app and its files). */
 export function routeClass(method: string, path: string): RouteClass | null {
@@ -18,9 +24,13 @@ export function routeClass(method: string, path: string): RouteClass | null {
     if (method === 'GET' || method === 'HEAD') return 'blobs_get';
     return 'other';
   }
+  if (isOpsPath(path)) return 'ops';
   if (path.startsWith('/api/blob-urls/')) return 'blob_access';
   if (/^\/api\/orgs\/[^/]+\/reports$/.test(path)) return 'reports';
   if (path === '/api/v1/mcp') return 'mcp';
+  // The two sets of public endpoints behind DEVICE_RATE_LIMIT and LINK_RATE_LIMIT.
+  if (path.startsWith('/api/v1/device/')) return 'device';
+  if (path.startsWith('/api/v1/links/')) return 'links';
   if (path === '/api/v1' || path.startsWith('/api/v1/')) return 'agent_api';
   if (path === '/api/internal/poke') return 'webhook';
   if (path.startsWith('/api/') || path === '/connect' || path.startsWith('/r/')) return 'other';
@@ -41,8 +51,14 @@ export class RequestTally {
     this.since = now();
   }
 
-  add(route: RouteClass, status: number): void {
-    const key = `${route}_${statusClass(status)}`;
+  /** `ms` is left out for a step inside a request (`r2_put`), which has no time of its own. */
+  add(route: RouteClass, status: number, ms?: number): void {
+    this.bump(`${route}_${statusClass(status)}`);
+    if (status === 429) this.bump(`${route}_429`);
+    if (ms !== undefined) this.bump(`${route}_${ms < 100 ? 'lt100ms' : ms < 1_000 ? 'lt1s' : ms < 10_000 ? 'lt10s' : 'over10s'}`);
+  }
+
+  private bump(key: string): void {
     this.counts.set(key, (this.counts.get(key) ?? 0) + 1);
   }
 
