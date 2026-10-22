@@ -66,7 +66,14 @@ export async function reviewFlow(page: Page): Promise<void> {
 /** The organization's review flows, with the open language's: Review flow › All review flows (decision 138). */
 export async function reviewFlows(page: Page): Promise<void> {
   await reviewFlow(page);
-  await text(page, 'All review flows').click();
+  // Review flow redraws as the language arrives, and a tap during a redraw can be lost: it stayed on Review flow
+  // once in CI (SETUP-044, 2026-10-22). Tap until the list's title shows; a tap that opened it is not repeated.
+  const title = page.getByRole('heading', { name: 'Review flows', exact: true }).locator('visible=true').first();
+  await expect(async () => {
+    if (await title.isVisible()) return;
+    await text(page, 'All review flows').click({ timeout: 5_000 });
+    await expect(title).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 /** A language's own checks, to change: Review flow › Edit (decision 138). */
