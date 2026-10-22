@@ -629,7 +629,7 @@ let showing: { message: string; until: number } | null = null;
 
 /**
  * Shows one toast at a time for 3.5 s, or as long as Android's "Time to take
- * action" asks (decision 155), twice as long while a screen reader is on. A
+ * action" asks (decision 156), twice as long while a screen reader is on. A
  * toast only says what happened: it never offers Undo (decision 134).
  */
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {

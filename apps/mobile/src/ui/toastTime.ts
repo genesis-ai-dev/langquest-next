@@ -1,7 +1,7 @@
 import { AccessibilityInfo, Platform } from 'react-native';
 
 /**
- * How long a toast shows before a screen reader doubles it (decision 155):
+ * How long a toast shows before a screen reader doubles it (decision 156):
  * 3.5 s, or longer when Android's "Time to take action" asks for more.
  * Android answers that setting through getRecommendedTimeoutMillis; iOS has
  * none and the web cannot tell, so they keep 3.5 s. Read once when the

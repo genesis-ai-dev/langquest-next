@@ -1,0 +1,90 @@
+# Bug fixes keep reaching the public build while a new build is in store
+# review (scripts/release-branches.mjs, decisions.md 155). After each merge
+# into main, per platform: a merge that changes the native fingerprint
+# starts release/<platform> from the commit before it (the public build's
+# code) and is tagged rebuild/<platform>/<commit>; a merge that does not is
+# copied onto an existing release/<platform> by a pull request that merges
+# itself once its checks pass. Every hour, a release branch whose new build
+# is public is deleted.
+#
+# Off until the repository variable RELEASE_BRANCHES is `on`. It needs a
+# GitHub App installed on this repository with Contents, Pull requests and
+# Workflows write (secrets RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY): a pull
+# request that the built-in token opens starts no checks, so a copy could
+# never go green, and a copied commit that changes .github/workflows needs
+# Workflows write to be pushed. And "Allow auto-merge" on in the
+# repository's settings. It holds no production key.
+name: release-branches
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: release-branches
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  after-merge:
+    if: vars.RELEASE_BRANCHES == 'on' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Native fingerprints before and after the merge
+        id: fp
+        run: |
+          now() { (cd "$1/apps/mobile" && npx @expo/fingerprint fingerprint:generate --platform "$2" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).hash))'); }
+          for p in ios android; do echo "${p}_new=$(now . $p)" >> "$GITHUB_OUTPUT"; done
+          git worktree add -q "$RUNNER_TEMP/before" "${GITHUB_SHA}^1"
+          (cd "$RUNNER_TEMP/before" && npm ci --no-audit --no-fund > /dev/null)
+          for p in ios android; do echo "${p}_old=$(now "$RUNNER_TEMP/before" $p)" >> "$GITHUB_OUTPUT"; done
+      - name: Start, tag or copy onto each platform's release branch
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          git config user.name 'langquest-release[bot]'
+          git config user.email 'langquest-release[bot]@users.noreply.github.com'
+          node scripts/release-branches.mjs after-merge --platform ios --old "${{ steps.fp.outputs.ios_old }}" --new "${{ steps.fp.outputs.ios_new }}" --sha "$GITHUB_SHA"
+          node scripts/release-branches.mjs after-merge --platform android --old "${{ steps.fp.outputs.android_old }}" --new "${{ steps.fp.outputs.android_new }}" --sha "$GITHUB_SHA"
+
+  tidy:
+    if: vars.RELEASE_BRANCHES == 'on' && github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24 }
+      - name: Delete release branches whose new build is public
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          git config user.name 'langquest-release[bot]'
+          git config user.email 'langquest-release[bot]@users.noreply.github.com'
+          node scripts/release-branches.mjs tidy

@@ -107,7 +107,7 @@ if (platform === 'android') for (const dev of devices) {
 }
 
 // Accessibility's "Time to take action" at 10 s while the run lasts, and put
-// back as it was. A toast shows 3.5 s unless this asks for longer (decision 155),
+// back as it was. A toast shows 3.5 s unless this asks for longer (decision 156),
 // and Maestro, which reads the screen once it is idle, often reads it after a
 // 3.5 s toast has gone on an emulator: its Back or tap settles in about 4 s.
 const UI_TIMEOUTS = ['accessibility_interactive_ui_timeout_ms', 'accessibility_non_interactive_ui_timeout_ms'];
@@ -124,7 +124,7 @@ if (platform === 'android') for (const dev of devices) {
 // Reduce Motion on in the simulator while the run lasts, as Android's zero
 // animation scales are, and put back as it was. XCUITest reads the screen once
 // the app is idle, and a toast's bar running down kept it busy until the toast
-// had gone (decision 155). Each flow's clean start reads the setting afresh.
+// had gone (decision 156). Each flow's clean start reads the setting afresh.
 if (platform === 'ios') for (const dev of devices) {
   const defaults = (...a) => spawnSync('xcrun', ['simctl', 'spawn', dev, 'defaults', a[0], 'com.apple.Accessibility', 'ReduceMotionEnabled', ...a.slice(1)], { encoding: 'utf8' });
   const was = defaults('read');
