@@ -6850,3 +6850,31 @@ the supported builds or by keeping the old behaviour.
 Reverse if: the old tests fail often for reasons that phones never meet
 (then run only the parts of each test that phones run), or the run grows
 past the `server` job's other steps (then run the commits in parallel jobs).
+
+## 153. The first launch after install waits up to 5 seconds for the latest OTA update
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: `app.json` sets expo-updates' `fallbackToCacheTimeout` to 0, so a new
+install opens on the code built into the store build, which can be weeks
+older than main, and gets the latest OTA update only on its second launch.
+Someone who installs the app at a workshop then meets bugs that were fixed
+long ago. Raising `fallbackToCacheTimeout` would make every launch wait, and
+people often open the app with no connection for months. So only the first
+launch after install waits (`apps/mobile/src/shell/useFirstLaunchUpdate.ts`,
+the rules in `firstLaunchModel.ts`): on a phone running the code built into
+the app, with no `first-launch-update:looked` mark in its storage, the app
+sets the mark, then looks for the latest OTA update and downloads it, for at
+most `FIRST_LAUNCH_WAIT_MS` (5 seconds). The person sees a spinner and no
+words while it waits. When the update arrives in time, the app restarts into
+it once; when the phone is offline the check fails at once and the app opens
+on its built-in code; when the connection is slow, the app opens at the
+5-second limit and the download goes on, and the update banner offers the
+restart when it is ready. The mark is set before the app looks, so a launch
+killed mid-wait never waits again, and an account's deletion leaves it.
+Browsers and development builds never wait. The wait is in the app's code,
+so it reaches a new install only in a build whose built-in code has it: the
+next new build.
+Reverse if: first launches on slow connections time out often enough that
+the wait only delays people (then shorten it), or expo-updates gains a
+setting that waits on the first launch only (then use that instead).
