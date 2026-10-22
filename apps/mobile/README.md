@@ -94,14 +94,20 @@ Two ways, both from `apps/mobile`:
 
 ## Shipping a change
 
-**Merging to `main` ships to testers** on both platforms, TestFlight on iOS
-and Google Play's internal testing track on Android (decisions.md 45),
-through the EAS workflow in `.eas/workflows/deploy-to-testers.yml`, on
-Expo's servers: the typecheck and unit tests run, then, per platform, a
-change whose native fingerprint matches an existing production build goes
-out as an over-the-air update on the `production` channel (installed builds
-take it on next launch), and any other change builds a new binary and
-submits it. It needs the GitHub repository connected to the EAS project
+**Merging to `main` ships to people** on both platforms, through the EAS
+workflow in `.eas/workflows/deploy-to-testers.yml`, on Expo's servers: the
+typecheck and unit tests run, then, per platform, a change whose native
+fingerprint matches an existing production build goes out as an
+over-the-air update on the `production` channel (installed builds take it on
+next launch), and any other change builds a new binary and sends it to
+production review (decisions.md 150). On Android the build goes straight to
+the production track with a full rollout, and a newer build replaces one
+that waits for review. On iOS the build goes to TestFlight, and then to App
+Review when no review is open (`scripts/app-store-review.mjs`); while a
+review is open, it waits in TestFlight, and `.eas/workflows/app-store-review.yml`
+sends the newest waiting build every hour once the review ends. Apple and
+Google release a build as soon as they approve it. Each store build's version
+number is the time of its merge (`app.config.js`). It needs the GitHub repository connected to the EAS project
 once, with its base directory set to `apps/mobile` (expo.dev, project
 settings, GitHub). The manual commands below remain for other channels and
 for shipping by hand.

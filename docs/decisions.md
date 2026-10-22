@@ -1003,6 +1003,9 @@ to closed testing, `alpha`), or a feature needs audio to keep playing or
 recording in the background (turn the plugin option back on and make the
 declaration).
 
+Amended (2026-10-22, Caleb Koster): Android builds now go to the production
+track for production review, not to internal testing (decisions.md 150).
+
 ## 46. Deleting an account removes the person and keeps the organization's work
 
 Date: 2026-09-30 · By: Caleb Koster · Status: accepted
@@ -6681,3 +6684,48 @@ notes are for.
 Reverse if: teams need a reviewer's notes before the verdict (a long
 consultant session); then a note could be sent on its own, still carrying
 its part and its check.
+
+## 150. New builds go to production review on their own, and each is public as soon as Google or Apple approves it
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: a person promoted each Android build from internal testing to
+production, and submitted and released each iPhone build by hand, so a new
+build reached people only when someone remembered, and builds were sent
+from the wrong place (decision 45 sent Android builds to internal testing
+only). Now every new build that a merge into main makes
+(`.eas/workflows/deploy-to-testers.yml`) goes to production review, and is
+public on the day that the store approves it, with no staged rollout:
+- Android: `eas.json` submits to the `production` track with
+  `releaseStatus: completed`. A newer build replaces the release that waits
+  for review, which is how Play treats a new release on a track. Managed
+  publishing stays off in Play Console, so an approved build goes public at
+  once. Play takes a version code only once, so a build no longer goes to
+  internal testing too; internal testers get it with everyone else.
+- iPhone: the build goes to TestFlight as before, and then
+  `scripts/app-store-review.mjs` sends it to App Review with release on
+  approval. Apple reviews one version at a time, and a version taken out of
+  review loses its place in line, so the script never cancels a review:
+  while a review is waiting or under way, the build waits in TestFlight.
+  `.eas/workflows/app-store-review.yml` runs the same script every hour and
+  sends only the newest waiting build once the review ends; a rejected
+  version is sent again with the newest build. It fills in "What's New"
+  where it is empty ("Bug fixes and improvements.").
+- Apple takes one App Store version per version number, so every build
+  that goes to review needs a higher one. `apps/mobile/app.config.js` sets
+  the version of each store build from the time of the merge commit, which
+  the workflow passes as `LQ_STORE_VERSION_TIME`: 2026-10-22T18:30:00Z is
+  2026.1022.1830. Other builds keep `app.json`'s 1.0.0. The native
+  fingerprint leaves the version out (`apps/mobile/fingerprint.config.js`),
+  so a new version number alone never asks for a rebuild. EAS clones only
+  the latest commit for a build, so a count of commits was not possible.
+The App Store step needs an App Store Connect API key with the App Manager
+role, kept as the EAS production secrets `ASC_KEY_ID`, `ASC_ISSUER_ID` and
+`ASC_PRIVATE_KEY`; EAS's own submit key only uploads to TestFlight. The
+Android step needs the Play service account that EAS submits with to hold
+"Release to production, exclude devices, and use Play App Signing".
+Amends 45: Android builds go to production review, not internal testing.
+Reverse if: a build that passed review hurts people often enough that a
+staged rollout or a wait in internal testing is worth the delay (then send
+to internal testing first and promote after a set time), or Apple starts
+taking a newer build into a version under review without losing its place.
