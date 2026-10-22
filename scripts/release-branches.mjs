@@ -100,6 +100,8 @@ function copy(platform, sha) {
     git('commit', '--quiet', '--allow-empty', '-m', `Copy ${sha.slice(0, 8)} onto ${branchOf(platform)}: needs a hand with a conflict`);
   }
   git('push', '--quiet', '--force', 'origin', branch);
+  // The label that starts Claude on a conflict; made the first time it is needed.
+  if (conflict) run('gh', ['label', 'create', 'copy-conflict', '--force', '--color', 'D93F0B', '--description', 'A copy onto a release branch that Claude finishes']);
   const subject = git('log', '-1', '--format=%s', sha);
   const body = [
     `Copies ${sha} from main onto ${branchOf(platform)}, the code of the public ${platform === 'ios' ? 'iPhone' : 'Android'} build, while its new build is in store review (decisions.md 155).`,

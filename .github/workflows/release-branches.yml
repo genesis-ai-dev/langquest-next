@@ -8,11 +8,12 @@
 # is public is deleted.
 #
 # Off until the repository variable RELEASE_BRANCHES is `on`. It needs a
-# GitHub App installed on this repository with Contents and Pull requests
-# write (secrets RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY): a pull request
-# that the built-in token opens starts no checks, so a copy could never go
-# green. And "Allow auto-merge" on in the repository's settings. It holds no
-# production key.
+# GitHub App installed on this repository with Contents, Pull requests and
+# Workflows write (secrets RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY): a pull
+# request that the built-in token opens starts no checks, so a copy could
+# never go green, and a copied commit that changes .github/workflows needs
+# Workflows write to be pushed. And "Allow auto-merge" on in the
+# repository's settings. It holds no production key.
 name: release-branches
 
 on:
