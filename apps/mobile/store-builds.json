@@ -1,0 +1,345 @@
+{
+  "projectId": "582d3757-4245-419a-9087-e269e3bf4c4d",
+  "oldestSupported": {
+    "android": 9,
+    "ios": 30
+  },
+  "retired": [
+    {
+      "platform": "android",
+      "build": 24,
+      "why": "Built by hand on 2026-10-20 from code of 2026-10-01; it calls issue_invite, which the server has not had since 2026-10-06, and build 25 replaced it."
+    },
+    {
+      "platform": "ios",
+      "build": 41,
+      "why": "Built by hand on 2026-10-20 from code of 2026-10-01, like Android build 24; build 42 replaced it on TestFlight."
+    }
+  ],
+  "builds": [
+    {
+      "platform": "android",
+      "build": 25,
+      "commit": "683289d9ab6331d2f9ee92a92dc829c74050f0c5",
+      "at": "2026-10-21T16:47:08.583Z"
+    },
+    {
+      "platform": "android",
+      "build": 24,
+      "commit": "23b38abb6e73e527ac23559d6919db1f7cc74cf6",
+      "at": "2026-10-20T23:11:13.355Z"
+    },
+    {
+      "platform": "android",
+      "build": 23,
+      "commit": "13bc872145028ae600fa9b1e1489a196b4667fc2",
+      "at": "2026-10-20T03:05:53.091Z"
+    },
+    {
+      "platform": "ios",
+      "build": 42,
+      "commit": "13bc872145028ae600fa9b1e1489a196b4667fc2",
+      "at": "2026-10-20T03:05:53.091Z"
+    },
+    {
+      "platform": "ios",
+      "build": 41,
+      "commit": "23b38abb6e73e527ac23559d6919db1f7cc74cf6",
+      "at": "2026-10-20T03:00:48.552Z"
+    },
+    {
+      "platform": "android",
+      "build": 22,
+      "commit": "a9e652145cae5d673d71bdbe63f6e61a5438568a",
+      "at": "2026-10-16T22:38:53.842Z"
+    },
+    {
+      "platform": "android",
+      "build": 21,
+      "commit": "1a46fe10e230cf8651968b26ddf198d3972c606f",
+      "at": "2026-10-16T22:24:32.948Z"
+    },
+    {
+      "platform": "ios",
+      "build": 40,
+      "commit": "1a46fe10e230cf8651968b26ddf198d3972c606f",
+      "at": "2026-10-16T22:24:32.948Z"
+    },
+    {
+      "platform": "android",
+      "build": 20,
+      "commit": "0aead0193547aca64a4b707ed151da22eaa2fd61",
+      "at": "2026-10-16T17:28:41.787Z"
+    },
+    {
+      "platform": "ios",
+      "build": 39,
+      "commit": "0aead0193547aca64a4b707ed151da22eaa2fd61",
+      "at": "2026-10-16T17:28:41.787Z"
+    },
+    {
+      "platform": "android",
+      "build": 19,
+      "commit": "087dec4b6ec43bba94beb8ba6ee104debe36e684",
+      "at": "2026-10-16T15:09:49.476Z"
+    },
+    {
+      "platform": "android",
+      "build": 18,
+      "commit": "054fe40528b0ef13faaf1e17e07de94dbf5774e1",
+      "at": "2026-10-16T14:59:26.168Z"
+    },
+    {
+      "platform": "ios",
+      "build": 38,
+      "commit": "054fe40528b0ef13faaf1e17e07de94dbf5774e1",
+      "at": "2026-10-16T14:59:26.168Z"
+    },
+    {
+      "platform": "android",
+      "build": 17,
+      "commit": "6826cf12ff948153fe0d42802849d18865f37eb8",
+      "at": "2026-10-16T11:37:12.110Z"
+    },
+    {
+      "platform": "ios",
+      "build": 37,
+      "commit": "6826cf12ff948153fe0d42802849d18865f37eb8",
+      "at": "2026-10-16T11:37:12.110Z"
+    },
+    {
+      "platform": "android",
+      "build": 16,
+      "commit": "5d362a8d507de1029c7bb74d2a377c3f14bd7788",
+      "at": "2026-10-15T00:58:49.039Z"
+    },
+    {
+      "platform": "ios",
+      "build": 36,
+      "commit": "5d362a8d507de1029c7bb74d2a377c3f14bd7788",
+      "at": "2026-10-15T00:58:49.039Z"
+    },
+    {
+      "platform": "android",
+      "build": 15,
+      "commit": "a8b14a14ea168bf01fccc30abee72a2c8507afc2",
+      "at": "2026-10-15T00:57:45.602Z"
+    },
+    {
+      "platform": "ios",
+      "build": 35,
+      "commit": "a8b14a14ea168bf01fccc30abee72a2c8507afc2",
+      "at": "2026-10-15T00:57:45.602Z"
+    },
+    {
+      "platform": "android",
+      "build": 14,
+      "commit": "d86dbd5ab02a00771b9f046cc241baed69ecd6be",
+      "at": "2026-10-12T21:02:18.970Z"
+    },
+    {
+      "platform": "ios",
+      "build": 34,
+      "commit": "d86dbd5ab02a00771b9f046cc241baed69ecd6be",
+      "at": "2026-10-12T21:02:18.970Z"
+    },
+    {
+      "platform": "android",
+      "build": 13,
+      "commit": "67cafc31717d28c5c2ba5f4a05d94381fb1e2fa6",
+      "at": "2026-10-10T18:35:23.552Z"
+    },
+    {
+      "platform": "ios",
+      "build": 33,
+      "commit": "67cafc31717d28c5c2ba5f4a05d94381fb1e2fa6",
+      "at": "2026-10-10T18:35:23.552Z"
+    },
+    {
+      "platform": "android",
+      "build": 12,
+      "commit": "24dbedf197744f0af255f8cabead1272c0248d1e",
+      "at": "2026-10-07T14:47:22.986Z"
+    },
+    {
+      "platform": "android",
+      "build": 11,
+      "commit": "462301b3d01d0e7caa6ef30b8645335c6aaf0c73",
+      "at": "2026-10-07T14:40:32.692Z"
+    },
+    {
+      "platform": "ios",
+      "build": 32,
+      "commit": "462301b3d01d0e7caa6ef30b8645335c6aaf0c73",
+      "at": "2026-10-07T14:40:32.692Z"
+    },
+    {
+      "platform": "android",
+      "build": 10,
+      "commit": "388eae03f6cb3c7d2c3810ec530db9a2ad688f73",
+      "at": "2026-10-07T03:33:13.253Z"
+    },
+    {
+      "platform": "ios",
+      "build": 31,
+      "commit": "388eae03f6cb3c7d2c3810ec530db9a2ad688f73",
+      "at": "2026-10-07T03:33:13.253Z"
+    },
+    {
+      "platform": "android",
+      "build": 9,
+      "commit": "19e6c6aa4ad84d2c226fd303fe2a2b9f247308df",
+      "at": "2026-10-06T21:14:19.390Z"
+    },
+    {
+      "platform": "ios",
+      "build": 30,
+      "commit": "19e6c6aa4ad84d2c226fd303fe2a2b9f247308df",
+      "at": "2026-10-06T21:14:19.390Z"
+    },
+    {
+      "platform": "android",
+      "build": 8,
+      "commit": "a7e2a1f6e157f3027041d28a2a83ae7fe6a9a2e2",
+      "at": "2026-10-06T02:32:06.083Z"
+    },
+    {
+      "platform": "ios",
+      "build": 29,
+      "commit": "a7e2a1f6e157f3027041d28a2a83ae7fe6a9a2e2",
+      "at": "2026-10-06T02:32:06.083Z"
+    },
+    {
+      "platform": "android",
+      "build": 7,
+      "commit": "37dacf867afff5d79b5cc0a256d445f1c57faf40",
+      "at": "2026-10-06T02:29:39.879Z"
+    },
+    {
+      "platform": "ios",
+      "build": 28,
+      "commit": "37dacf867afff5d79b5cc0a256d445f1c57faf40",
+      "at": "2026-10-06T02:29:39.879Z"
+    },
+    {
+      "platform": "android",
+      "build": 6,
+      "commit": "57ebc8df7cbccdc8849999bc347af93a9458b5fe",
+      "at": "2026-10-05T19:22:51.351Z"
+    },
+    {
+      "platform": "ios",
+      "build": 27,
+      "commit": "57ebc8df7cbccdc8849999bc347af93a9458b5fe",
+      "at": "2026-10-05T19:22:51.351Z"
+    },
+    {
+      "platform": "android",
+      "build": 5,
+      "commit": "2a41c2a230ebfe0d3f6315c96bb71fcd6767835f",
+      "at": "2026-10-05T15:33:10.657Z"
+    },
+    {
+      "platform": "android",
+      "build": 4,
+      "commit": "8b0d0db34085a1c3959726a178d502e0e9c605b3",
+      "at": "2026-10-02T16:45:16.673Z"
+    },
+    {
+      "platform": "ios",
+      "build": 24,
+      "commit": "8b0d0db34085a1c3959726a178d502e0e9c605b3",
+      "at": "2026-10-02T16:45:16.673Z"
+    },
+    {
+      "platform": "android",
+      "build": 3,
+      "commit": "0d1a9e9175c8800c66a56f958550f1500182db80",
+      "at": "2026-10-01T22:58:06.005Z"
+    },
+    {
+      "platform": "ios",
+      "build": 23,
+      "commit": "0d1a9e9175c8800c66a56f958550f1500182db80",
+      "at": "2026-10-01T22:58:06.005Z"
+    },
+    {
+      "platform": "android",
+      "build": 2,
+      "commit": "498b3ab640a8f8fac6e21e980920f8672b54bc33",
+      "at": "2026-09-30T21:26:03.372Z"
+    },
+    {
+      "platform": "ios",
+      "build": 22,
+      "commit": "498b3ab640a8f8fac6e21e980920f8672b54bc33",
+      "at": "2026-09-30T21:26:03.372Z"
+    },
+    {
+      "platform": "ios",
+      "build": 21,
+      "commit": "1f1e797acc0979068029345e7786d5c9eb3a8e4f",
+      "at": "2026-09-30T00:48:09.408Z"
+    },
+    {
+      "platform": "ios",
+      "build": 20,
+      "commit": "6862ce0a886c2571df5ac1eb5ded4ad93ee74c9c",
+      "at": "2026-09-29T23:02:45.658Z"
+    },
+    {
+      "platform": "ios",
+      "build": 18,
+      "commit": "47081ac718a3ac0d7766e5844769fdd0395b594a",
+      "at": "2026-09-25T14:19:41.855Z"
+    },
+    {
+      "platform": "ios",
+      "build": 17,
+      "commit": "6f7a8ca92e27bdc35b284752c641d2dc3ad16ab4",
+      "at": "2026-09-25T01:18:24.949Z"
+    },
+    {
+      "platform": "ios",
+      "build": 16,
+      "commit": "6c6009877e3d0cb9611b05e021f9b1b2ffd2a9f2",
+      "at": "2026-09-24T19:50:32.445Z"
+    },
+    {
+      "platform": "ios",
+      "build": 14,
+      "commit": "afe234c46649916281c995a75a9f794ecc7b192f",
+      "at": "2026-09-24T19:41:36.735Z"
+    },
+    {
+      "platform": "ios",
+      "build": 11,
+      "commit": "6cf5422c6cf8a93bace2cc0863bb362bb9ee2a1f",
+      "at": "2026-09-23T18:37:58.213Z"
+    },
+    {
+      "platform": "ios",
+      "build": 9,
+      "commit": "c19db406fab8df3652d7eaebc6738778d76695dc",
+      "at": "2026-09-17T15:49:19.659Z"
+    },
+    {
+      "platform": "ios",
+      "build": 5,
+      "commit": "9bac016dbd73607a75baf0ce12cc11739d2e7fc0",
+      "at": "2026-09-16T21:48:40.955Z"
+    },
+    {
+      "platform": "ios",
+      "build": 2,
+      "commit": "895e8b2056d7b3a13da433fa54589809c01a3233",
+      "at": "2026-09-16T03:40:20.764Z"
+    },
+    {
+      "platform": "ios",
+      "build": 1,
+      "commit": "155e7e957f21cb68b6501b3378054529fca99558",
+      "at": "2026-09-15T17:43:09.881Z"
+    }
+  ]
+}

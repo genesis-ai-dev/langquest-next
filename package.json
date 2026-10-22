@@ -27,6 +27,7 @@
     "test:ui:phone": "node scripts/maestro-ui.mjs",
     "test:ui:build": "node scripts/maestro-build.mjs",
     "test:mutation": "stryker run",
+    "server-calls": "node scripts/server-calls.mjs",
     "ship": "npm run ship -w mobile --",
     "db:check": "scripts/db-check.sh",
     "db:apply": "supabase db push --linked",

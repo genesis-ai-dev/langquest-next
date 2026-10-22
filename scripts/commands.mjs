@@ -37,6 +37,7 @@ export const GROUPS = [
       'test:ui:phone': 'the UI test suite on a simulator or emulator (Maestro)',
       'test:ui:build': 'the release app build the phone flows run on',
       'test:mutation': 'mutation testing over packages/core (Stryker, slow)',
+      'server-calls': 'every server call that a supported store build makes is still on the server',
     },
   },
   {
