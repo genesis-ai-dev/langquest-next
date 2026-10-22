@@ -25,7 +25,7 @@ const START_SCREENS: ScreenId[] = ['sign_in', 'welcome', 'welcome_back'];
  * On a first screen, the first Back only says "Press Back again to leave"
  * (Caleb, 2026-10-16); a second one while that toast shows leaves. The toast
  * shows 3.5 seconds, or longer when Android's "Time to take action" asks
- * (ui/toastTime.ts, decision 154), so the second press counts as long as the
+ * (ui/toastTime.ts, decision 155), so the second press counts as long as the
  * words are there to read.
  */
 export const LEAVE_AGAIN_MS = 3500;

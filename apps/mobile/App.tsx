@@ -18,6 +18,8 @@ import type { Ctx } from './src/shell/ctx';
 import { DevMenu } from './src/shell/DevMenu';
 import { UpdateBanner } from './src/shell/UpdateBanner';
 import { useFirstLaunchUpdate } from './src/shell/useFirstLaunchUpdate';
+import { AppVersionPrompt } from './src/appVersion/AppVersionPrompt';
+import { useAppVersion } from './src/appVersion/useAppVersion';
 import { maySwitchPersona } from './src/auth/dev';
 import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/shell/flow';
 import { chromeVisible, frame, layoutKind } from './src/ui/layout';
@@ -332,11 +334,14 @@ export default function App() {
     const unwatch = watchRenewals();
     return () => { active = false; unsubscribe(); unwatch(); };
   }, []);
+  // "New version available", and below the minimum version "Please update the app" with sync stopped (decisions.md 154).
+  const appVersion = useAppVersion(!!auth);
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
+        <AppVersionPrompt offer={appVersion.offer} onUpdate={appVersion.openStore} onDismiss={appVersion.dismiss} />
         {serverConfigError ? (
           <Fatal title={t('shell.errors.notConfigured')} detail={serverConfigError} />
         ) : !updateLooked ? (
@@ -624,7 +629,7 @@ let showing: { message: string; until: number } | null = null;
 
 /**
  * Shows one toast at a time for 3.5 s, or as long as Android's "Time to take
- * action" asks (decision 154), twice as long while a screen reader is on. A
+ * action" asks (decision 155), twice as long while a screen reader is on. A
  * toast only says what happened: it never offers Undo (decision 134).
  */
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {

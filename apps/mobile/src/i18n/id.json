@@ -6975,5 +6975,15 @@
       "savedUntilSignIn": "Tersimpan. Dikirim setelah Anda masuk.",
       "voiceTooLong": "Terlalu panjang: catatan suara paling lama 2 menit."
     }
+  },
+  "appVersion": {
+    "available": "Versi baru tersedia",
+    "update": "Perbarui",
+    "updateHelp": "Membuka halaman toko untuk versi terbaru.",
+    "dismiss": "Tutup",
+    "dismissHelp": "Menyembunyikan ini sampai versi yang lebih baru keluar.",
+    "required": "Harap perbarui aplikasi",
+    "keepWorking": "Tetap bekerja",
+    "keepWorkingHelp": "Pekerjaan Anda tetap di ponsel ini dan dikirim setelah Anda memperbarui."
   }
 }
