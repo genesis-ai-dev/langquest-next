@@ -1,5 +1,5 @@
 /**
- * Telling people to update (decisions.md 150). The server records each
+ * Telling people to update (decisions.md 151). The server records each
  * store version once it is live (app_versions(), storeReleases.ts), and
  * keeps the lowest version that may still sync. This says what a phone
  * running some version should show:

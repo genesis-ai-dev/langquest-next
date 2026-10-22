@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkStores, liveFromLookup, liveFromPlayPage, storeCheckDue } from '../worker/storeReleases';
 
-// The store check (storeReleases.ts, decisions.md 150): only a version that
+// The store check (storeReleases.ts, decisions.md 151): only a version that
 // is live in the App Store is recorded.
 
 describe('the store check', () => {

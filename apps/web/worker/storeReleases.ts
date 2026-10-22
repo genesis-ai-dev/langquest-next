@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * The store check (decisions.md 150): which version of the app people can
+ * The store check (decisions.md 151): which version of the app people can
  * download, recorded only once it is live, so the app can say "New version
  * available" on an older one. The Worker's ten-minute cron runs it once an
  * hour.

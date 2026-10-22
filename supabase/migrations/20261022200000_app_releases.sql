@@ -1,12 +1,12 @@
 -- The store versions that people can download, and the lowest version that
--- may still sync, per platform (decisions.md 150). A store check in the
+-- may still sync, per platform (decisions.md 151). A store check in the
 -- app's Worker (apps/web/worker/storeReleases.ts) adds a row only once a
 -- version is live in its store, never while it waits for review, and keeps
 -- the time that it first saw it live. The app reads app_versions() to say
 -- "New version available" on an older version.
 --
 -- Versions are compared as numbers, part by part (1.0.0 < 2026.1022.1830):
--- every store build has a higher version than the one before (decision 150,
+-- every store build has a higher version than the one before (decision 151,
 -- app.config.js).
 
 create table public.app_releases (
@@ -19,7 +19,7 @@ alter table public.app_releases enable row level security;
 -- No policies: only the service role writes or reads the table itself.
 
 -- The lowest version of each platform that may still sync. '0' lets every
--- version sync; raising it is a deliberate step (decisions.md 150).
+-- version sync; raising it is a deliberate step (decisions.md 151).
 alter table public.server_config
   add column min_version_ios text not null default '0' check (min_version_ios ~ '^[0-9]+(\.[0-9]+){0,2}$'),
   add column min_version_android text not null default '0' check (min_version_android ~ '^[0-9]+(\.[0-9]+){0,2}$');

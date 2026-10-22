@@ -7,7 +7,7 @@ import { C, radius, space, type as T } from '../ui/theme';
 import type { Offer } from './appVersionModel';
 
 /**
- * Telling people to update (decisions.md 150). An older version than the
+ * Telling people to update (decisions.md 151). An older version than the
  * newest in the store shows a bar with Update, which opens the store page,
  * and a close button that hides it until a newer version comes out. Below
  * the minimum, the whole screen says "Please update the app": sync has

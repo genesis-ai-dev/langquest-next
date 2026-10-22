@@ -330,7 +330,7 @@ export default function App() {
     const unwatch = watchRenewals();
     return () => { active = false; unsubscribe(); unwatch(); };
   }, []);
-  // "New version available", and below the minimum version "Please update the app" with sync stopped (decisions.md 150).
+  // "New version available", and below the minimum version "Please update the app" with sync stopped (decisions.md 151).
   const appVersion = useAppVersion(!!auth);
   return (
     <SafeAreaProvider>
