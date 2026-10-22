@@ -50,6 +50,7 @@ export const GROUPS = [
       'email:deploy': 'the invite email Worker, production (Cloudflare Workers Builds runs it)',
       'email:deploy:preview': 'the invite email Worker, preview (Cloudflare Workers Builds runs it)',
       'r2:buckets': "create an environment's R2 buckets when missing",
+      'github:rules': 'the GitHub rulesets in .github/rulesets: what would change (-- --apply to apply)',
     },
   },
   {
