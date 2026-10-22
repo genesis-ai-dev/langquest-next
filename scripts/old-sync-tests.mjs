@@ -1,6 +1,6 @@
 // When a pull request changes the database, the sync integration test from
 // each supported store build's commit runs against the pull request's
-// database (decisions.md 150), so a migration that breaks how an older build
+// database (decisions.md 152), so a migration that breaks how an older build
 // syncs fails here instead of on people's phones. It runs in the guardrails
 // `server` job after this checkout's own integration test, on the stack
 // that the job started from this pull request's migrations.
@@ -114,7 +114,7 @@ async function main() {
   }
   rmSync(OUT, { recursive: true, force: true });
   if (!failed.length) return console.log('Every store build still syncs with this database.');
-  for (const f of failed) console.log(`::error::${f}. A migration must keep older builds syncing (decisions.md 150).`);
+  for (const f of failed) console.log(`::error::${f}. A migration must keep older builds syncing (decisions.md 152).`);
   process.exit(1);
 }
 

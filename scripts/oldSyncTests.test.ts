@@ -3,7 +3,7 @@ import { commitsOf, syncPackageAt, vitestConfig } from './old-sync-tests.mjs';
 
 /**
  * Older store builds keep syncing with a pull request's database
- * (scripts/old-sync-tests.mjs, decisions.md 150): the sync test from each
+ * (scripts/old-sync-tests.mjs, decisions.md 152): the sync test from each
  * supported store build's commit runs against it.
  */
 

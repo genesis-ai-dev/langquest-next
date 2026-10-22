@@ -38,6 +38,7 @@ export const GROUPS = [
       'test:ui:phone': 'the UI test suite on a simulator or emulator (Maestro)',
       'test:ui:build': 'the release app build the phone flows run on',
       'test:mutation': 'mutation testing over packages/core (Stryker, slow)',
+      'server-calls': 'every server call that a supported store build makes is still on the server',
     },
   },
   {
@@ -51,6 +52,7 @@ export const GROUPS = [
       'email:deploy': 'the invite email Worker, production (Cloudflare Workers Builds runs it)',
       'email:deploy:preview': 'the invite email Worker, preview (Cloudflare Workers Builds runs it)',
       'r2:buckets': "create an environment's R2 buckets when missing",
+      'github:rules': 'the GitHub rulesets in .github/rulesets: what would change (-- --apply to apply)',
     },
   },
   {
