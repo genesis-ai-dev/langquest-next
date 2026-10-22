@@ -100,6 +100,14 @@ export const HELP: Record<string, string> = {
   'Failures already shown to people, this week': 'Errors the app showed the person and handled (wrong password, no signal), counted so a rise is visible.',
   'Phones (latest state of each, this week)': 'Each install\'s latest report of its own state, counted.',
 
+  'records, last 3 days': 'Diagnostics records this phone sent in the last 3 days: syncs, downloads, errors, sign-ins and its own state.',
+  'syncs that failed': 'Syncs (sending and fetching work) that ended in an error rather than being offline.',
+  'last heard from': 'When this phone last sent diagnostics.',
+  'Last 3 days, newest first': 'Everything this phone recorded, newest first. Record is the kind (sync, error, device, auth, transfer...); What happened says how it ended; Measured has its counts and timings.',
+  Record: 'The kind of record: sync, load (folding work), snapshot, transfer (files), device (its own state), error, expected (a handled failure), audio, auth (signing in).',
+  'What happened': 'How it ended and why, in codes: outcome, phase, error code.',
+  Measured: 'Counts and timings for that record (ms are milliseconds).',
+
   // ---- releases
   'migrations behind main': 'Database changes merged to main that the hosted database does not have yet. Anything above 0 means the app may call things the database lacks.',
   'What shipped, 14 days': 'Merges to main, Worker deploys and app updates, newest first, to line up against errors.',

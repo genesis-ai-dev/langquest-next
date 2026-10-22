@@ -73,6 +73,7 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .tag { display:inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); margin-inline-end: 4px; }
 .tag.bad { color: var(--red); background: var(--redbg); } .tag.good { color: var(--green); background: var(--greenbg); }
 .wide { grid-column: 1 / -1; }
+.diag-inline { border-inline-start: 3px solid var(--line); padding-inline-start: 12px; margin: 6px 0 4px; }
 [hidden] { display: none !important; }
 .card > .head { cursor: pointer; }
 .card.collapsed > .head { margin: 0; }
@@ -542,7 +543,7 @@ const RENDER = {
       '<p>' + (f.body ? esc(f.body) : '<i class="muted">(voice note)</i>') + '</p>' +
       (f.voice_format ? '<p><button class="link" data-voice="' + esc(f.id) + '">Play the voice note' + (f.voice_ms ? ' (' + ms(f.voice_ms) + ')' : '') + '</button></p>' : '') +
       (f.shared_name || f.shared_email ? '<p><small>From ' + esc([f.shared_name, f.shared_email].filter(Boolean).join(', ')) + ' (shared by them)</small></p>' : '') +
-      (f.install_id ? '<p><button class="link" data-q="' + esc(f.install_id) + '">This install\\'s diagnostics</button></p>' : '') +
+      (f.install_id ? '<p><button type="button" class="link" data-install="' + esc(f.install_id) + '" data-fb-id="' + esc(f.id) + '">Show this phone\\'s diagnostics</button></p><div class="diag-inline" id="diag-' + esc(f.id) + '" hidden></div>' : '') +
       (f.has_screenshot ? '<p><button class="link" data-shot="' + esc(f.id) + '">Show screenshot</button></p>' : '') +
       '<p>' + (f.status !== 'seen' && f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="seen">Seen</button> ' : '') +
       (f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="done">Done</button>' : '<button type="button" data-fb="' + esc(f.id) + '" data-status="new">Open again</button>') + '</p></div>').join('');
@@ -564,9 +565,7 @@ function renderLookup(r) {
   } else if (r.kind === 'person') {
     h = renderPerson(r.result);
   } else if (r.kind === 'install') {
-    const c = r.result.context || {};
-    h = '<p class="muted">' + esc([c.os, c.osVersion, c.model, c.appVersion, c.channel, c.runtimeVersion].filter(Boolean).join(' · ')) + '</p>' +
-      '<h3>Last 3 days, newest first</h3><pre>' + esc(r.result.timeline.map((x) => x.at + '  ' + x.kind.padEnd(10) + ' ' + (x.stream_id || '').slice(0, 8).padEnd(8) + '  ' + JSON.stringify(x.t) + '  ' + JSON.stringify(x.n)).join('\\n')) + '</pre>';
+    h = installView(r.result);
   } else {
     const list = r.result || [];
     h = list.length ? table([
@@ -574,11 +573,12 @@ function renderLookup(r) {
     ], list) + '<p class="muted">npm run diag -- report &lt;org&gt; &lt;language&gt; gives the full report.</p>' : '<p class="muted">Nothing matches.</p>';
   }
   $('lookup-out').innerHTML = h;
+  annotate($('lookup-out'));
 }
 
 document.addEventListener('click', (e) => {
   const q = e.target.closest && e.target.closest('[data-q]');
-  if (q) { $('q').value = q.dataset.q; $('lookup-form').requestSubmit(); $('card-lookup').scrollIntoView({ behavior: 'smooth' }); }
+  if (q) { setOpen('lookup', true); $('q').value = q.dataset.q; $('lookup-form').requestSubmit(); $('card-lookup').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
 });
 
 function wireScreenshots() {

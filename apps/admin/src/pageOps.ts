@@ -8,9 +8,10 @@
 
 /** Where each section sits on the page, by id, in page order; page.ts's SECTIONS gives each one's title. */
 export const SECTION_ORDER = [
-  'safety', 'clients', 'fleet', 'releases', 'jobs', 'container', 'cron', 'database', 'dbdetail', 'push', 'worker',
+  // Look up is a tool, not a status: right under Needs attention, where a link to an install lands.
+  'lookup', 'safety', 'clients', 'fleet', 'releases', 'jobs', 'container', 'cron', 'database', 'dbdetail', 'push', 'worker',
   'integrations', 'storage', 'people', 'support', 'feedback', 'security', 'expiry', 'capacity',
-  'code', 'cloudflare', 'supabase', 'vercel', 'expo', 'googleplay', 'appstore', 'v2', 'lookup'
+  'code', 'cloudflare', 'supabase', 'vercel', 'expo', 'googleplay', 'appstore', 'v2'
 ] as const;
 
 /** Read as diag_reader in one call (/ops/api/ops). */
@@ -239,6 +240,43 @@ document.addEventListener('click', (e) => {
   if (run && confirm('Run ' + run.dataset.run + ' now?')) perform({ kind: 'run', key: run.dataset.run }, run);
   const fb = e.target.closest && e.target.closest('[data-fb]');
   if (fb) perform({ kind: 'feedback', id: fb.dataset.fb, status: fb.dataset.status }, fb);
+});
+
+// ---- one install's diagnostics, readable --------------------------------------------------
+const pairs = (o) => Object.entries(o || {}).map(([k, v]) => '<span class="nowrap">' + esc(k === 'ms' ? 'took' : k) + ' <b>' + esc(typeof v === 'number' && /ms$/i.test(k) ? ms(v) : v) + '</b></span>').join(' · ');
+function installView(result) {
+  const c = result.context || {};
+  const rows = result.timeline || [];
+  const errors = rows.filter((x) => x.kind === 'error').length;
+  const failedSyncs = rows.filter((x) => x.kind === 'sync' && x.t && x.t.outcome === 'error').length;
+  const bad = (x) => x.kind === 'error' || (x.t && (x.t.outcome === 'error' || x.t.fatal === 'yes'));
+  return '<p class="muted">' + esc([c.os, c.osVersion, c.model, c.appVersion && 'app ' + c.appVersion, c.channel, c.runtimeVersion && 'runtime ' + c.runtimeVersion].filter(Boolean).join(' · ')) + '</p>' +
+    '<div class="stats">' + stat(num(rows.length), 'records, last 3 days') + stat(num(errors), 'errors', errors ? 'bad' : '') + stat(num(failedSyncs), 'syncs that failed', failedSyncs ? 'warn' : '') +
+    stat(rows[0] ? ago(rows[0].at) : '–', 'last heard from') + '</div>' +
+    '<h3>Last 3 days, newest first</h3>' + table([
+      { h: 'When', v: (x) => '<span class="nowrap">' + esc(new Date(x.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })) + '</span>' },
+      { h: 'Record', v: (x) => '<span class="tag' + (bad(x) ? ' bad' : '') + '">' + esc(x.kind) + '</span>' + (x.stream_id ? '<br><small>' + short(x.stream_id) + '</small>' : '') },
+      { h: 'What happened', v: (x) => pairs(x.t) || '–' },
+      { h: 'Measured', v: (x) => '<small>' + (pairs(x.n) || '–') + '</small>' }
+    ], rows);
+}
+
+/** Under a feedback item: the diagnostics its phone sent in the last 3 days, opened and closed in place. */
+async function toggleDiag(button) {
+  const box = $('diag-' + button.dataset.fbId);
+  if (!box.hidden) { box.hidden = true; button.textContent = "Show this phone's diagnostics"; return; }
+  box.hidden = false; button.textContent = "Hide this phone's diagnostics";
+  box.innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const r = await api('/ops/api/lookup?q=' + encodeURIComponent(button.dataset.install));
+    box.innerHTML = r.kind === 'install' ? installView(r.result)
+      : '<p class="muted">This phone sent no diagnostics in the last 3 days: it may be offline, or have Send diagnostics turned off in Settings.</p>';
+    annotate(box);
+  } catch (err) { box.innerHTML = '<p class="bad">' + esc(err.message) + '</p>'; }
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-install]');
+  if (b) toggleDiag(b);
 });
 
 function renderPerson(r) {

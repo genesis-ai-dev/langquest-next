@@ -59,8 +59,8 @@ look, and a section someone opens or closes stays that way in their
 browser. Expand all and Collapse all are at the top. Hovering over (or
 tabbing to) a section's title, a figure, a column or a sub-heading shows
 what it means, from `apps/admin/src/pageHelp.ts`. The page shows the
-sections in the order of `apps/admin/src/pageOps.ts` `SECTION_ORDER`: data safety
-first, then phones, releases, the server, storage, people, support,
+sections in the order of `apps/admin/src/pageOps.ts` `SECTION_ORDER`: Look up and
+data safety first, then phones, releases, the server, storage, people, support,
 security, expiry, capacity, and the providers.
 
 | Section | From | Needs |
