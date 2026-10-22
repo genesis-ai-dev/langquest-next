@@ -10,6 +10,7 @@
 # job reports nothing: the deploy watchdog routine finds the issue left in
 # Deploying.
 # The typecheck and unit tests (the same as the pre-push hook) run first.
+# This workflow is the only way to make a store build (decisions.md 150).
 name: Deploy to testers
 
 on:
@@ -64,6 +65,10 @@ jobs:
     needs: [get_ios_build]
     if: ${{ !needs.get_ios_build.outputs.build_id }}
     type: build
+    # The build's hook (scripts/store-build-guard.mjs) refuses a production
+    # build without this ref: store builds come only from main.
+    env:
+      LQ_STORE_BUILD_REF: ${{ github.ref }}
     params:
       platform: ios
       profile: production
@@ -94,6 +99,10 @@ jobs:
     needs: [get_android_build]
     if: ${{ !needs.get_android_build.outputs.build_id }}
     type: build
+    # The build's hook (scripts/store-build-guard.mjs) refuses a production
+    # build without this ref: store builds come only from main.
+    env:
+      LQ_STORE_BUILD_REF: ${{ github.ref }}
     params:
       platform: android
       profile: production

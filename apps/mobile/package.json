@@ -60,13 +60,13 @@
     "android": "node scripts/with-env.mjs development node scripts/with-adb-reverse.mjs expo run:android",
     "android:build": "eas build --profile preview --platform android",
     "android:install": "eas build:run --profile preview --platform android --latest",
-    "android:play": "eas build --profile production --platform android --auto-submit",
     "android:release": "node scripts/with-env.mjs preview expo run:android --variant release --device",
     "ios": "node scripts/with-env.mjs development expo run:ios",
     "web": "node scripts/with-env.mjs development expo start --web",
     "export:web": "node scripts/export-web.mjs",
     "typecheck": "tsc --noEmit",
-    "ship": "node scripts/ship.mjs"
+    "ship": "node scripts/ship.mjs",
+    "eas-build-pre-install": "node scripts/store-build-guard.mjs"
   },
   "private": true
 }
