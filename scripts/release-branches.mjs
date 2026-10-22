@@ -1,5 +1,5 @@
 // Bug fixes keep reaching the public build while a new build is in store
-// review (decisions.md 150).
+// review (decisions.md 151).
 //
 // When a merge into main changes a platform's native fingerprint, a new
 // store build of that platform goes to review, and from then on OTA updates
@@ -102,7 +102,7 @@ function copy(platform, sha) {
   git('push', '--quiet', '--force', 'origin', branch);
   const subject = git('log', '-1', '--format=%s', sha);
   const body = [
-    `Copies ${sha} from main onto ${branchOf(platform)}, the code of the public ${platform === 'ios' ? 'iPhone' : 'Android'} build, while its new build is in store review (decisions.md 150).`,
+    `Copies ${sha} from main onto ${branchOf(platform)}, the code of the public ${platform === 'ios' ? 'iPhone' : 'Android'} build, while its new build is in store review (decisions.md 151).`,
     conflict
       ? `The copy has a conflict, so this pull request holds no change yet. Claude copies the commit and resolves the conflict (.github/workflows/release-copy-conflict.yml).`
       : 'This pull request merges itself once its checks pass. Its merge sends the change to the public build as an OTA update.',

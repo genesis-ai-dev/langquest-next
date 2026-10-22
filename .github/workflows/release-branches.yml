@@ -1,5 +1,5 @@
 # Bug fixes keep reaching the public build while a new build is in store
-# review (scripts/release-branches.mjs, decisions.md 150). After each merge
+# review (scripts/release-branches.mjs, decisions.md 151). After each merge
 # into main, per platform: a merge that changes the native fingerprint
 # starts release/<platform> from the commit before it (the public build's
 # code) and is tagged rebuild/<platform>/<commit>; a merge that does not is

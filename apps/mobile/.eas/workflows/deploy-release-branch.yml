@@ -1,5 +1,5 @@
 # A release branch carries the code of the public build while its new build
-# is in store review (scripts/release-branches.mjs, decisions.md 150). Every
+# is in store review (scripts/release-branches.mjs, decisions.md 151). Every
 # merge into release/<platform> sends that branch to the public build as an
 # OTA update on the production channel, for that platform only. The update's
 # runtime comes from the branch's own code, so it reaches the public build

@@ -1,5 +1,5 @@
 # A copy onto a release branch that has a conflict (scripts/release-branches.mjs,
-# decisions.md 150) is labelled copy-conflict, and Claude copies the commit
+# decisions.md 151) is labelled copy-conflict, and Claude copies the commit
 # by hand: Anthropic's Claude GitHub Action resolves the conflict on the
 # copy's branch, keeping the release branch's code wherever main's change
 # depends on code that the public build does not have, and turns on
