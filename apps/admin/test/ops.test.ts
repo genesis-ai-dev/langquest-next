@@ -7,7 +7,7 @@ import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import { fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, workerAlerts, type Fleet, type Safety } from '../src/sources/ops';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
-import { capacityAlerts, growthPerDay, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
+import { capacityAlerts, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
 
 /** The sections the ops dashboard plan added (docs/ops-dashboard-plan.md 5): what each calls a problem. */
 
@@ -121,6 +121,13 @@ describe('storage, capacity and releases', () => {
     expect(storageAlerts(storage({ backups: { pitr: false, latest: hoursAgo(48), count: 3 } }), NOW)[0]).toMatchObject({ level: 'problem' });
     expect(storageAlerts(storage({ backups: { pitr: true, latest: hoursAgo(48), count: 3 } }), NOW)).toEqual([]);
     expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'partial', n: { missing: 2 } } }), NOW)[0]!.text).toContain('2 recordings');
+  });
+
+  it('takes the newest backup from the daily list or, with point-in-time recovery, from the physical one', () => {
+    expect(latestBackup({ pitr_enabled: true, backups: [], physical_backup_data: { latest_physical_backup_date_unix: 1792695536 } }))
+      .toEqual({ pitr: true, latest: new Date(1792695536 * 1000).toISOString(), count: 1 });
+    expect(latestBackup({ pitr_enabled: false, backups: [{ inserted_at: '2026-10-21T03:00:00Z', status: 'COMPLETED' }, { inserted_at: '2026-10-22T03:00:00Z', status: 'FAILED' }] }))
+      .toEqual({ pitr: false, latest: '2026-10-21T03:00:00Z', count: 1 });
   });
 
   it('works out growth only from a week or more of history', () => {

@@ -101,6 +101,19 @@ export interface Storage {
   secondCopy: false;
 }
 
+/**
+ * The newest backup Supabase reports. With point-in-time recovery on, the
+ * daily list is empty and the newest physical backup is given apart, in
+ * seconds; either counts.
+ */
+export function latestBackup(b: { pitr_enabled?: boolean; backups?: { inserted_at?: string; status?: string }[]; physical_backup_data?: { latest_physical_backup_date_unix?: number } }): { pitr: boolean | null; latest: string | null; count: number } {
+  const done = (b.backups ?? []).filter((x) => !x.status || x.status === 'COMPLETED').map((x) => x.inserted_at).filter((x): x is string => !!x);
+  const physical = b.physical_backup_data?.latest_physical_backup_date_unix;
+  if (typeof physical === 'number' && physical > 0) done.push(new Date(physical * 1000).toISOString());
+  done.sort((x, y) => Date.parse(x) - Date.parse(y));
+  return { pitr: b.pitr_enabled ?? null, latest: done.at(-1) ?? null, count: done.length };
+}
+
 export const LOST_SQL = `select coalesce(jsonb_agg(to_jsonb(x) order by x.day), '[]'::jsonb) as v from (
   select to_char(date_trunc('day', received_at), 'YYYY-MM-DD') as day, count(distinct install_id) as installs, sum((n->>'lostFiles')::numeric) as files
   from diag.records where kind = 'device' and received_at > now() - interval '14 days' and (n->>'lostFiles')::numeric > 0 group by 1) x`;
@@ -122,12 +135,9 @@ export function storageAlerts(s: Storage, now = Date.now()): Alert[] {
 export async function storageSection(env: Env, fetcher: typeof fetch = fetch, now = Date.now(), diag: <T>(fn: (q: Query) => Promise<T>) => Promise<T> = (fn) => withDiag(env.DIAG_DATABASE_URL, fn)): Promise<Section<Storage>> {
   const ref = env.SUPABASE_PROJECTS.split(',')[0]?.split(':')[0]?.trim();
   const backups = env.ADMIN_SUPABASE_TOKEN && ref
-    ? getJson<{ pitr_enabled?: boolean; backups?: { inserted_at?: string; status?: string }[] }>(fetcher, `https://api.supabase.com/v1/projects/${ref}/database/backups`,
-      { headers: { authorization: `Bearer ${env.ADMIN_SUPABASE_TOKEN}` } }, 'Supabase backups')
-      .then((b) => {
-        const done = (b.backups ?? []).filter((x) => !x.status || x.status === 'COMPLETED').map((x) => x.inserted_at).filter((x): x is string => !!x).sort();
-        return { pitr: b.pitr_enabled ?? null, latest: done.at(-1) ?? null, count: done.length };
-      })
+    ? getJson<{ pitr_enabled?: boolean; backups?: { inserted_at?: string; status?: string }[]; physical_backup_data?: { latest_physical_backup_date_unix?: number } }>(fetcher,
+      `https://api.supabase.com/v1/projects/${ref}/database/backups`, { headers: { authorization: `Bearer ${env.ADMIN_SUPABASE_TOKEN}` } }, 'Supabase backups')
+      .then((b) => latestBackup(b))
       .catch((e: unknown) => ({ pitr: null, latest: null, count: 0, error: `${reason(e)}. The token needs read access to database backups.` }))
     : Promise.resolve(null);
   const r2 = env.ADMIN_CLOUDFLARE_TOKEN

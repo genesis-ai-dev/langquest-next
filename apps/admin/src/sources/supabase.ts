@@ -84,7 +84,7 @@ async function project(fetcher: typeof fetch, ref: string, name: string, headers
   try {
     const [info, health, functions] = await Promise.all([
       getJson<{ status?: string }>(fetcher, `${API}/${ref}`, { headers }, 'project'),
-      getJson<{ name: string; healthy?: boolean; status?: string }[]>(fetcher, `${API}/${ref}/health?services=${SERVICES}&timeout_ms=4000`, { headers }, 'health'),
+      getJson<{ name: string; healthy?: boolean; status?: string }[]>(fetcher, `${API}/${ref}/health?services=${SERVICES}`, { headers }, 'health'),
       getJson<{ slug: string; status: string; version: number; updated_at?: unknown }[]>(fetcher, `${API}/${ref}/functions`, { headers }, 'functions')
         .catch(() => null)
     ]);
