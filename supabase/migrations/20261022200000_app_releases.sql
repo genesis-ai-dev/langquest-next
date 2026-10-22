@@ -6,8 +6,8 @@
 -- "New version available" on an older version.
 --
 -- Versions are compared as numbers, part by part (1.0.0 < 2026.1022.1830):
--- every store build has a higher version than the one before (decision 151,
--- app.config.js).
+-- every store build has a higher version than the one before (the release
+-- pipeline gives each the time of its merge, apps/mobile/app.config.js).
 
 create table public.app_releases (
   platform text not null check (platform in ('ios', 'android')),
