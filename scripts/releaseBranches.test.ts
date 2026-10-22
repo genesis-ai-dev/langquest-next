@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { afterMerge, ANDROID_KEEP_DAYS, atLeast, newBuildPublic, storeVersion } from './release-branches.mjs';
+import { afterMerge, atLeast, newBuildPublic, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -27,18 +27,15 @@ describe('after a merge into main', () => {
 describe('when the new build is public', () => {
   const rebuildTime = '2026-10-22T18:30:00Z';
 
-  it('on iPhone, once the App Store version is the new build\'s version or newer', () => {
+  it('once the store\'s live version is the new build\'s version or newer, on either platform', () => {
     expect(storeVersion(rebuildTime)).toBe('2026.1022.1830');
-    expect(newBuildPublic({ platform: 'ios', rebuildTime, appStoreVersion: '1.0.0' })).toBe(false);
-    expect(newBuildPublic({ platform: 'ios', rebuildTime, appStoreVersion: '2026.1022.1830' })).toBe(true);
-    expect(newBuildPublic({ platform: 'ios', rebuildTime, appStoreVersion: '2026.1101.5' })).toBe(true);
-    expect(newBuildPublic({ platform: 'ios', rebuildTime, appStoreVersion: null })).toBe(false);
+    expect(newBuildPublic({ rebuildTime, liveVersion: '1.0.0' })).toBe(false);
+    expect(newBuildPublic({ rebuildTime, liveVersion: '2026.1022.1830' })).toBe(true);
+    expect(newBuildPublic({ rebuildTime, liveVersion: '2026.1101.5' })).toBe(true);
   });
 
-  it('on Android, a set number of days after the new build was made', () => {
-    const at = new Date(rebuildTime).getTime();
-    expect(newBuildPublic({ platform: 'android', rebuildTime, appStoreVersion: null, now: at + (ANDROID_KEEP_DAYS - 1) * 86_400_000 })).toBe(false);
-    expect(newBuildPublic({ platform: 'android', rebuildTime, appStoreVersion: null, now: at + ANDROID_KEEP_DAYS * 86_400_000 })).toBe(true);
+  it('never when the store cannot be read', () => {
+    expect(newBuildPublic({ rebuildTime, liveVersion: null })).toBe(false);
   });
 
   it('compares versions as numbers', () => {

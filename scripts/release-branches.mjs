@@ -28,8 +28,6 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const PLATFORMS = ['ios', 'android'];
-/** Google's review usually takes hours; Android has no public signal for "live", so its branch is kept this long. */
-export const ANDROID_KEEP_DAYS = 7;
 
 export const branchOf = (platform) => `release/${platform}`;
 export const rebuildTag = (platform, sha) => `rebuild/${platform}/${sha}`;
@@ -67,15 +65,14 @@ export function atLeast(a, b) {
 }
 
 /**
- * Whether the new build that a release branch waits for is public. iPhone:
- * Apple's live version is at least the version of the build made from the
- * first rebuild after the branch started. Android: Google's Play API cannot
- * say (issuetracker.google.com/208842993), so the branch is kept
- * ANDROID_KEEP_DAYS after that rebuild.
+ * Whether the new build that a release branch waits for is public: the
+ * store's live version (Apple's public lookup for iPhone, Google Play's
+ * public app page for Android, the same signals as the app's store check,
+ * apps/web/worker/storeReleases.ts) is at least the version of the build
+ * made from the first rebuild after the branch started.
  */
-export function newBuildPublic({ platform, rebuildTime, appStoreVersion, now = Date.now() }) {
-  if (platform === 'ios') return !!appStoreVersion && atLeast(appStoreVersion, storeVersion(rebuildTime));
-  return now - new Date(rebuildTime).getTime() >= ANDROID_KEEP_DAYS * 86_400_000;
+export function newBuildPublic({ rebuildTime, liveVersion }) {
+  return !!liveVersion && atLeast(liveVersion, storeVersion(rebuildTime));
 }
 
 function run(cmd, args, opts = {}) {
@@ -116,10 +113,16 @@ function copy(platform, sha) {
   console.log(`${conflict ? 'conflict' : 'copy'}: ${sha.slice(0, 8)} onto ${branchOf(platform)}`);
 }
 
-async function appStoreVersion() {
-  const res = await fetch('https://itunes.apple.com/lookup?id=6812492008&country=us');
-  if (!res.ok) throw new Error(`Apple's lookup answered ${res.status}`);
-  return (await res.json()).results?.[0]?.version ?? null;
+/** The version that people can download now from a platform's store, or null when it cannot be read. */
+async function liveVersion(platform) {
+  if (platform === 'ios') {
+    const res = await fetch('https://itunes.apple.com/lookup?id=6812492008&country=us');
+    if (!res.ok) throw new Error(`Apple's lookup answered ${res.status}`);
+    return (await res.json()).results?.[0]?.version ?? null;
+  }
+  const res = await fetch('https://play.google.com/store/apps/details?id=com.frontierrnd.langquestnext&hl=en&gl=us', { headers: { 'user-agent': 'Mozilla/5.0 (compatible; LangQuest release branches)' } });
+  if (!res.ok) throw new Error(`Google Play's page answered ${res.status}`);
+  return /\[\[\["(\d+(?:\.\d+){0,2})"\]\]/.exec(await res.text())?.[1] ?? null;
 }
 
 /** The rebuild tags of a platform since its release branch started, oldest first. */
@@ -135,13 +138,16 @@ function rebuildsSince(platform) {
 }
 
 async function tidy() {
-  const live = await appStoreVersion().catch(() => null);
   for (const platform of PLATFORMS) {
     if (!remoteHas(`refs/heads/${branchOf(platform)}`)) continue;
     git('fetch', '--quiet', 'origin', branchOf(platform), 'main');
     const [first, ...later] = rebuildsSince(platform);
     if (!first) continue;
-    if (!newBuildPublic({ platform, rebuildTime: first.time, appStoreVersion: live })) {
+    const live = await liveVersion(platform).catch((err) => {
+      console.log(`${branchOf(platform)}: the store could not be read (${err.message}), so the branch stays`);
+      return null;
+    });
+    if (!newBuildPublic({ rebuildTime: first.time, liveVersion: live })) {
       console.log(`${branchOf(platform)}: the build from ${first.sha.slice(0, 8)} is not public yet`);
       continue;
     }

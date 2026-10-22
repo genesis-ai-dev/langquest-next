@@ -6713,13 +6713,13 @@ and Carl asked how the branches are made and filled. So
   (`apps/mobile/.eas/workflows/deploy-release-branch.yml`). Its runtime comes
   from the branch's own code, so it reaches the public build and never the
   build in review.
-- Every hour the Action deletes a release branch whose new build is public.
-  iPhone: Apple's public lookup shows that build's version or a newer one
-  (each store build's version is the time of its merge). Android: Google's
-  API cannot say when a build is live (decision 150, telling people to
-  update), so the branch is kept 7 days after the new build was made, which
-  is longer than Google's reviews have taken; a branch kept too long only
-  sends the public build fixes that it would get anyway. When a later new
+- Every hour the Action deletes a release branch whose new build is public:
+  the store's live version, from Apple's public lookup for iPhone and from
+  Google Play's public app page for Android (the signals that the app's own
+  store check uses), is that build's version or a newer one (each store
+  build's version is the time of its merge). A store that cannot be read
+  keeps the branch, which only sends the public build fixes that it would
+  get anyway. When a later new
   build is already in review, the newly public build gets its own branch,
   started from the commit before that later build, with the merges since
   copied onto it.
@@ -6733,5 +6733,6 @@ and `RELEASE_APP_PRIVATE_KEY`; a pull request that the built-in token opens
 starts no checks), "Allow auto-merge" turned on, and the secret
 `ANTHROPIC_API_KEY` for the conflict step.
 Reverse if: copies go wrong on the public build often enough that a person
-should approve each one (then turn off auto-merge), or Google gives a way to
-know when an Android build is live (then use it instead of the 7 days).
+should approve each one (then turn off auto-merge), or a store page stops
+showing its live version (then read it from the store's API where one can
+say so).
