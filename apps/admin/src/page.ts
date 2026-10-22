@@ -582,19 +582,33 @@ document.addEventListener('click', (e) => {
 });
 
 function wireScreenshots() {
+  // Show and hide, under the button; the picture is fetched once and kept while the page is open.
   for (const b of document.querySelectorAll('[data-shot]')) {
+    let img = null;
+    b.setAttribute('aria-expanded', 'false');
     b.addEventListener('click', async () => {
+      if (img) {
+        img.hidden = !img.hidden;
+        b.textContent = img.hidden ? 'Show screenshot' : 'Hide screenshot';
+        b.setAttribute('aria-expanded', String(!img.hidden));
+        return;
+      }
       b.disabled = true;
       try {
         const t = await token();
         const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.shot) + '/screenshot', { headers: { authorization: 'Bearer ' + t } });
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        const img = document.createElement('img');
+        img = document.createElement('img');
         img.alt = 'Screenshot sent with this feedback';
+        img.title = 'Click to hide';
         img.src = URL.createObjectURL(await res.blob());
-        b.replaceWith(img);
+        img.addEventListener('click', () => b.click());
+        b.closest('p').after(img);
+        b.textContent = 'Hide screenshot';
+        b.setAttribute('aria-expanded', 'true');
       } catch (err) { b.textContent = 'Could not load the screenshot (' + err.message + ')'; }
-    }, { once: true });
+      b.disabled = false;
+    });
   }
   for (const b of document.querySelectorAll('[data-voice]')) {
     b.addEventListener('click', async () => {
