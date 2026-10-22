@@ -107,6 +107,15 @@ describe('the page', () => {
   });
 });
 
+describe('the entry module', () => {
+  it('exports nothing the Workers runtime would refuse as an entrypoint', async () => {
+    const mod = await import('../src/index');
+    for (const [name, value] of Object.entries(mod)) {
+      expect(typeof value === 'function' || (name === 'default' && typeof value === 'object'), name).toBe(true);
+    }
+  });
+});
+
 describe('the API', () => {
   const fullEnv = { ...env, DIAG_DATABASE_URL: 'postgresql://diag_reader:x@127.0.0.1:1/postgres' } as unknown as Env;
 

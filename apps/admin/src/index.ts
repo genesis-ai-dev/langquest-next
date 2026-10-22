@@ -1,4 +1,5 @@
 import { access, bearer } from './auth';
+import { API_BASE, PAGE_PATH } from './paths';
 import { withDiag } from './db';
 import type { Env } from './env';
 import { page, SECURITY_HEADERS } from './page';
@@ -27,9 +28,6 @@ import { capacitySection, storageSection } from './sources/storage';
  * checks it again and acts (decisions.md 161); this Worker writes nowhere.
  */
 
-/** Where the page and its API live; the page script calls API_BASE too (page.ts). */
-export const PAGE_PATH = '/ops-dashboard';
-export const API_BASE = '/ops/api/';
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...SECURITY_HEADERS } });
@@ -81,7 +79,7 @@ async function opsAnswer(env: Env): Promise<Record<string, Section>> {
  * "Needs attention" shows, as JSON for whatever reads it without the page
  * (docs/ops-dashboard-plan.md 5.1).
  */
-export async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; problems: number; watch: number; items: { level: string; text: string; section: string }[] }> {
+async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; problems: number; watch: number; items: { level: string; text: string; section: string }[] }> {
   const [diag, ops, ...providers] = await Promise.all([
     diagAnswer(env), opsAnswer(env),
     ...Object.entries(PROVIDERS).map(([id, run]) => memo(id, fresh, () => settle(id, () => run(env))).then((s) => [id, s] as const))
