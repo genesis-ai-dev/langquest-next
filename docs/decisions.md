@@ -6691,8 +6691,9 @@ LangQuest v2 a database flag went up before the store had approved the
 build, so people were sent to an update that did not exist yet. Now the
 server records a version only once it is live (`public.app_releases`,
 migration `20261022200000_app_releases.sql`): the Worker's ten-minute cron,
-once an hour, reads the App Store version from Apple's public lookup, which
-lists a version only once people can download it, and writes it with
+once an hour, reads the live App Store version from Apple's public lookup
+and the live Google Play version from Play's public app page, which list a
+version only once people can download it, and writes each with
 `record_app_release` (`apps/web/worker/storeReleases.ts`). The app reads
 `app_versions()` (`src/server/appVersions.ts`) when someone is signed in, at
 most once an hour, and keeps the last answer on the phone
@@ -6715,16 +6716,19 @@ of them. The app reads its own version with `expo-application`, which every
 build already had through `expo-notifications`, so this code ships as an OTA
 update. A browser always runs the newest version and is never told.
 
-Android is not checked yet. Google's Play Developer API reports a production
+Android works the same way. Google Play's public app page shows the version
+that people can download now, and only once Google has approved it; the
+check reads it as update-check libraries such as react-native-version-check
+do. Google's Play Developer API cannot say this: it reports a production
 release as completed from the moment it is sent, before review
-(issuetracker.google.com/208842993), and Google's In-App Updates library,
-which would tell the phone when an update is live, sends Google device
-details and the app version whether diagnostics is on or off, which may
-change Data safety answers (`docs/play-store-declarations.md`). Until the
-developer decides, Android shows an Update button on Account (in Sync
-details) that opens the Play page, where Play says whether there is an
-update; the minimum version works on Android as on iPhone, since it needs no
-store check. This is beyond the partner demo, which has no update prompt.
+(issuetracker.google.com/208842993). Google's In-App Updates library would
+tell the phone itself, but it sends Google device details and the app
+version whether diagnostics is on or off, which may change Data safety
+answers (`docs/play-store-declarations.md`), so it is not used. If Google
+changes the page and the version cannot be found, nothing is recorded and
+the cron's job run says so; the app never says an update is there when it
+is not. This is beyond the partner demo, which has no update prompt.
 Reverse if: people dismiss the bar and stay on old versions long enough to
 matter (then show it again after some days), or the In-App Updates question
-is settled (then Android gets the bar too, from the phone).
+is settled, or Google's page stops showing the version (then Android asks
+the phone, with In-App Updates).

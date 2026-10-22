@@ -198,12 +198,12 @@ reads from our server (`app_versions()`). The version is compared on the
 phone and is not sent anywhere. `expo-application` was already in every
 build (`expo-notifications` depends on it), so no native code changes. The
 Update button opens the App Store or Google Play page as a link. The server
-learns which iPhone version is live from Apple's public lookup, which sends
-no user data. Nothing is collected or sent, and no Play Console answer
+learns which version is live from Apple's public lookup and Google Play's
+public app page, which send no user data. Nothing is collected or sent, and no Play Console answer
 changes.
 
 Not used, on purpose: Google Play's In-App Updates library (Play Core). It
-would tell an Android phone when a newer version is live, but Google's own
+would tell an Android phone itself when a newer version is live, but Google's own
 data safety section for it (developer.android.com/guide/playcore/in-app-updates,
 "Data safety") says that it sends Google the device's metadata, the app's
 version and its installed modules, whether diagnostics is on or off, and
