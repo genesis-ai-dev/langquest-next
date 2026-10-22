@@ -46,7 +46,7 @@ npm run --silent typecheck
 step "Lint: what may import what (eslint.config.mjs)"
 npm run --silent lint
 
-step "Server calls that store builds make (decisions.md 150)"
+step "Server calls that store builds make (decisions.md 151)"
 npm run --silent server-calls
 
 step "Unit, property and model tests, with coverage thresholds"

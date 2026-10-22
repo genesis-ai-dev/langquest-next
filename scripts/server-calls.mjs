@@ -1,5 +1,5 @@
 // Every server call that a store build may still make has to keep working
-// (decisions.md 150). A phone runs its build's own code or an OTA update
+// (decisions.md 151). A phone runs its build's own code or an OTA update
 // sent to it later, and every merge into main that changes the app reaches
 // phones as one or the other. So the calls that store builds make are the
 // calls in every commit on main since the oldest store build that we still

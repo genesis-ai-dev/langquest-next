@@ -85,11 +85,16 @@ Rules specific to this folder:
 ## Guardrails (required before every push, whoever you are working for)
 
 The `guardrails` workflow (`.github/workflows/guardrails.yml`) runs on every
-pull request, on the pull request merged with `main`, not on the branch alone:
+pull request, on the pull request merged with `main`, not on the branch alone.
+A pull request runs the jobs that its changed files need (`scope`,
+`scripts/ci-scope.mjs`), and is merged into `main` only when the `gate` job
+says that every needed job passed; `main` takes no direct push
+(`.github/rulesets/main.json`, decisions.md 150). `node scripts/ci-scope.mjs
+<file>...` says which jobs some files would run:
 
 | Job | What fails it | Run it here |
 | --- | --- | --- |
-| `checks` | typecheck; lint (what may import what); a server call that a supported store build makes and this change takes away (`npm run server-calls`, decisions.md 150); a unit, property or model test (over its timeout in `vitest.config.ts`); coverage under its threshold; the push delivery bundle behind its source | `npm run guardrails` |
+| `checks` | typecheck; lint (what may import what); a server call that a supported store build makes and this change takes away (`npm run server-calls`, decisions.md 151); a unit, property or model test (over its timeout in `vitest.config.ts`); coverage under its threshold; the push delivery bundle behind its source | `npm run guardrails` |
 | `server` | SQL smokes, SQL-to-core parity, the client integration test | `npm run guardrails -- --all` (Docker) |
 | `web-smoke` | the release web export (and its JavaScript size budget in `apps/mobile/scripts/export-web.mjs`) in Chromium, Firefox, WebKit | `npm run guardrails -- --web` for the build and budget, `npm run test:web-smoke` for the browsers |
 | `ui-web` | a `@p0` web UI test on the export (zero retries) | `npm run guardrails -- --all`, or one file: `npm run test:ui:web -- e2e/ui/<file>` |
