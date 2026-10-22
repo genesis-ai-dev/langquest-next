@@ -269,6 +269,7 @@ async function openOrg(id, push) {
         '<p class="muted">Open it in the app as a Global Viewer to see its work.</p>';
     }
     box.innerHTML = h;
+    annotate(box);
     $('org-close').onclick = closeOrg;
   } catch (err) { box.innerHTML = '<p class="bad">' + esc(err.message) + '</p>'; }
 }

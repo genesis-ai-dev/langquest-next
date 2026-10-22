@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { access, forgetSignIns, viewerState } from '../src/auth';
 import { csp, page } from '../src/page';
 import { SECTION_ORDER } from '../src/pageOps';
+import { SECTION_HELP } from '../src/pageHelp';
 import { settle } from '../src/section';
 import { handle } from '../src/index';
 import type { Env } from '../src/env';
@@ -138,9 +139,15 @@ describe('the API', () => {
     const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
     expect(html).toContain("'sb-' + new URL(CFG.supabaseUrl).hostname.split('.')[0] + '-auth-token'");
     expect(html).toContain("claims(s.access_token).aal === 'aal2'");
-    expect(html).not.toMatch(/localStorage\.(setItem|removeItem)/);
+    // It may keep its own open sections in localStorage, but never writes the app's session key.
+    expect(html).not.toMatch(/localStorage\.(setItem|removeItem)\(APP_KEY/);
+    expect(html).toContain("localStorage.setItem(OPEN_KEY");
     // The same key the app keeps its session under.
     expect(sessionStorageKey('https://abc.supabase.co')).toBe('sb-abc-auth-token');
+  });
+
+  it('describes every section, for its hover text', () => {
+    for (const id of SECTION_ORDER) expect(SECTION_HELP[id], id).toBeTruthy();
   });
 
   it('lists every section in page order', async () => {

@@ -6,6 +6,7 @@
  * or unconfigured source never holds up the rest. Everything it shows comes
  * from the API as data and is escaped before it reaches the page.
  */
+import { HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, SECTION_ORDER } from './pageOps';
 
 export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: string): Response {
@@ -73,12 +74,25 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .tag.bad { color: var(--red); background: var(--redbg); } .tag.good { color: var(--green); background: var(--greenbg); }
 .wide { grid-column: 1 / -1; }
 [hidden] { display: none !important; }
+.card > .head { cursor: pointer; }
+.card.collapsed > .head { margin: 0; }
+.card.collapsed .src, .card.collapsed > .body { display: none; }
+.head button.toggle { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border-radius: 6px; }
+.head button.toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.chev { display: inline-block; width: 12px; color: var(--muted); transition: transform .15s; }
+.card.collapsed .chev { transform: rotate(-90deg); }
+.card.collapsed { padding-top: 12px; padding-bottom: 12px; }
+.tools { display: flex; gap: 8px; }
+[data-help] { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: help; }
+#tip { position: fixed; z-index: 10; max-width: 340px; padding: 8px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 400; line-height: 1.4; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
 </style>
 </head>
 <body>
 <header><div class="bar">
   <h1>LangQuest operations</h1>
   <small id="checked"></small>
+  <span class="tools"><button id="expand-all" type="button" hidden>Expand all</button><button id="collapse-all" type="button" hidden>Collapse all</button></span>
   <button id="refresh" type="button" hidden>Refresh</button>
   <button id="signout" type="button" hidden>Sign out</button>
 </div></header>
@@ -106,6 +120,7 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
     <div class="grid" id="grid"></div>
   </div>
 </main>
+<div id="tip" role="tooltip" hidden></div>
 <script nonce="${nonce}">
 const CFG = ${config};
 const $ = (id) => document.getElementById(id);
@@ -261,8 +276,11 @@ const SECTIONS = ${JSON.stringify(SECTION_ORDER)}.map((id) => BASE_SECTIONS.conc
 const results = {};
 
 function layout() {
-  $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head"><div><h2>' + esc(s.title) +
-    '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div><div id="body-' + s.id + '"></div></section>').join('');
+  $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head" data-toggle="' + s.id + '"><div><h2>' +
+    '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="section:' + s.id + '">' + esc(s.title) + '</span></button>' +
+    '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
+  for (const s of SECTIONS) applyOpen(s.id);
+  annotate($('grid'));
   $('pill-lookup').hidden = true;
   $('body-lookup').innerHTML = '<form id="lookup-form"><label for="q" hidden>Look up</label><input id="q" type="search" placeholder="E-7K2Q01, an email, an install id, or a name" required>' +
     '<p><button type="submit">Look up</button></p></form><div id="lookup-out"></div>';
@@ -296,6 +314,8 @@ function show(id, s) {
   }
   $('body-' + id).innerHTML = html;
   if (id === 'feedback') wireScreenshots();
+  annotate($('body-' + id));
+  applyOpen(id);
   attention();
 }
 
@@ -304,8 +324,8 @@ function attention() {
   for (const sec of SECTIONS) {
     const s = results[sec.id];
     if (!s) continue;
-    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, where: sec.title });
-    if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: sec.title });
+    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, where: sec.title, id: sec.id });
+    if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: sec.title, id: sec.id });
   }
   items.sort((a, b) => (a.level === b.level ? 0 : a.level === 'problem' ? -1 : 1));
   const loading = SECTIONS.filter((s) => s.id !== 'lookup' && !results[s.id]).length;
@@ -314,7 +334,7 @@ function attention() {
   el.className = 'pill ' + (p ? 'problem' : items.length ? 'watch' : loading ? 'wait' : 'ok');
   el.textContent = p ? p + (p === 1 ? ' problem' : ' problems') + (items.length > p ? ', ' + (items.length - p) + ' to watch' : '') : items.length ? items.length + ' to watch' : loading ? 'Checking…' : 'All clear';
   $('attention-list').innerHTML = items.length
-    ? items.map((i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + ' <span class="where">' + esc(i.where) + '</span></span></li>').join('')
+    ? items.map((i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>').join('')
     : (loading ? '' : '<li><span class="dot ok"></span><span>Nothing needs attention right now.</span></li>');
 }
 
@@ -594,6 +614,74 @@ function wireScreenshots() {
 }
 
 // ---- loading ----------------------------------------------------------------------
+// ---- sections open and closed ---------------------------------------------------
+// A section starts closed when it is fine or not connected, and open when something
+// needs a look; the viewer's own choice, once made, is kept in this browser.
+const OPEN_KEY = 'lq-ops-open';
+function savedOpen() { try { return JSON.parse(localStorage.getItem(OPEN_KEY) || '{}') || {}; } catch { return {}; } }
+function saveOpen(id, open) { try { const s = savedOpen(); s[id] = open; localStorage.setItem(OPEN_KEY, JSON.stringify(s)); } catch {} }
+function setOpen(id, open) {
+  const card = $('card-' + id); if (!card) return;
+  card.classList.toggle('collapsed', !open);
+  const b = $('toggle-' + id); if (b) b.setAttribute('aria-expanded', String(open));
+}
+function autoOpen(id) {
+  if (id === 'lookup') return true;
+  const s = results[id];
+  return !!s && (s.state === 'error' || (s.alerts || []).length > 0);
+}
+function applyOpen(id) { const saved = savedOpen()[id]; setOpen(id, typeof saved === 'boolean' ? saved : autoOpen(id)); }
+document.addEventListener('click', (e) => {
+  const go = e.target.closest && e.target.closest('[data-goto]');
+  if (go) { setOpen(go.dataset.goto, true); saveOpen(go.dataset.goto, true); $('card-' + go.dataset.goto).scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+  const head = e.target.closest && e.target.closest('[data-toggle]');
+  if (!head || e.target.closest('.body')) return;
+  const id = head.dataset.toggle;
+  const open = $('card-' + id).classList.contains('collapsed');
+  setOpen(id, open); saveOpen(id, open);
+});
+$('expand-all').addEventListener('click', () => { for (const s of SECTIONS) { setOpen(s.id, true); saveOpen(s.id, true); } });
+$('collapse-all').addEventListener('click', () => { for (const s of SECTIONS) { setOpen(s.id, s.id === 'lookup'); saveOpen(s.id, s.id === 'lookup'); } });
+
+// ---- what each indicator means (pageHelp.ts), on hover or keyboard focus -----------------
+const SECTION_HELP = ${JSON.stringify(SECTION_HELP).replace(/</g, '\\u003c')};
+const HELP = ${JSON.stringify(HELP).replace(/</g, '\\u003c')};
+const HELP_PREFIXES = ${JSON.stringify(HELP_PREFIXES).replace(/</g, '\\u003c')};
+function helpFor(key) {
+  if (key.startsWith('section:')) return SECTION_HELP[key.slice(8)] || null;
+  if (HELP[key]) return HELP[key];
+  const p = HELP_PREFIXES.find(([start]) => key.startsWith(start));
+  return p ? p[1] : null;
+}
+/** Marks every label under root that has a description; the tooltip below shows it. */
+function annotate(root) {
+  if (!root) return;
+  for (const el of root.querySelectorAll('[data-help-key], h3, th, .stat span')) {
+    const text = el.dataset.helpKey || el.textContent.trim();
+    const help = text && helpFor(text);
+    if (!help) continue;
+    el.setAttribute('data-help', help);
+    el.setAttribute('aria-description', help);
+    if (!el.closest('button')) el.tabIndex = 0;
+  }
+}
+function showTip(el) {
+  const tip = $('tip');
+  tip.textContent = el.dataset.help; tip.hidden = false;
+  const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect();
+  const left = Math.min(Math.max(8, r.left), window.innerWidth - t.width - 8);
+  const below = r.bottom + 6 + t.height <= window.innerHeight;
+  tip.style.left = left + 'px';
+  tip.style.top = (below ? r.bottom + 6 : r.top - t.height - 6) + 'px';
+}
+const hideTip = () => { $('tip').hidden = true; };
+document.addEventListener('mouseover', (e) => { const el = e.target.closest && e.target.closest('[data-help]'); if (el) showTip(el); });
+document.addEventListener('mouseout', (e) => { const el = e.target.closest && e.target.closest('[data-help]'); if (el && !el.contains(e.relatedTarget)) hideTip(); });
+document.addEventListener('focusin', (e) => { const el = e.target.closest && e.target.closest('[data-help]'); if (el) showTip(el); else hideTip(); });
+document.addEventListener('focusout', hideTip);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTip(); });
+window.addEventListener('scroll', hideTip, { passive: true });
+
 ${OPS_SCRIPT}
 
 let loading = false;
@@ -621,7 +709,7 @@ async function start() {
   const me = await api('/ops/api/me').catch(() => null);
   if (!me) return;
   $('signin').hidden = true; $('mfa').hidden = true; say('');
-  $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false;
+  $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
   if (!$('grid').children.length) layout();
   const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
   if (deep) openOrg(decodeURIComponent(deep[1]), false);

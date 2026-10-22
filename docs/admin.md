@@ -52,8 +52,14 @@ address.
 ## What each section reads
 
 "Needs attention" at the top gathers every section's alerts, problems first.
-The same list is JSON at `/ops/api/attention`. The page shows the sections
-in the order of `apps/admin/src/pageOps.ts` `SECTION_ORDER`: data safety
+The same list is JSON at `/ops/api/attention`. Each section collapses to
+its title and status (OK, problems, to watch, not connected, could not
+read): it starts closed when it is fine and open when something needs a
+look, and a section someone opens or closes stays that way in their
+browser. Expand all and Collapse all are at the top. Hovering over (or
+tabbing to) a section's title, a figure, a column or a sub-heading shows
+what it means, from `apps/admin/src/pageHelp.ts`. The page shows the
+sections in the order of `apps/admin/src/pageOps.ts` `SECTION_ORDER`: data safety
 first, then phones, releases, the server, storage, people, support,
 security, expiry, capacity, and the providers.
 
@@ -250,7 +256,8 @@ schedule there (no job tick); Run now still starts one in Docker.
 A module in `apps/admin/src/sources` returns a `Section` (`src/section.ts`):
 its data, its alerts, `off(setup)` until its token is there. Keep the parts
 that decide alerts pure, test them with a fetch that answers by URL
-(`apps/admin/test/sources.test.ts`), add a renderer in `src/page.ts`, and
+(`apps/admin/test/sources.test.ts`), add a renderer in `src/page.ts` (or `src/pageOps.ts`), a line for each new
+label in `src/pageHelp.ts`, and
 add its token to `ADMIN_KEYS` in `scripts/secrets.mjs`.
 
 Not tried against the real services yet (no keys were at hand): Play's
