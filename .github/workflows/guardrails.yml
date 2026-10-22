@@ -113,12 +113,23 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        # The server-calls step reads main's history since the oldest
+        # supported store build.
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run typecheck
       # What may import what (decisions.md 104, 105): eslint.config.mjs.
       - run: npm run lint
+      # Every server call that a supported store build or an OTA update sent
+      # to one makes is still there after this change (scripts/server-calls.mjs,
+      # decisions.md 151). With EXPO_TOKEN the builds come from EAS; without
+      # it, from apps/mobile/store-builds.json.
+      - name: Server calls that store builds make
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npm run --silent server-calls
       # The unit suite with coverage; core and client have thresholds (vitest.config.ts).
       - run: npm run test:coverage
       - name: Keep the coverage report
