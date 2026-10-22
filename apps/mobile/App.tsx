@@ -309,7 +309,7 @@ export default function App() {
   const [wordsReady, setWordsReady] = useState(languageReady);
   useEffect(() => onLanguageReady(() => setWordsReady(true)), []);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
-  // The first launch after install waits up to 5 s for the latest OTA update (decisions.md 150).
+  // The first launch after install waits up to 5 s for the latest OTA update (decisions.md 153).
   const updateLooked = useFirstLaunchUpdate();
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);

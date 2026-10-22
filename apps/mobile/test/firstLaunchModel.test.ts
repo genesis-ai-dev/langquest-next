@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { afterWait, FIRST_LAUNCH_WAIT_MS, waitsForUpdate } from '../src/shell/firstLaunchModel';
 
 // The first launch after install waits a few seconds for the latest OTA
-// update, and no other launch waits (firstLaunchModel.ts, decisions.md 150).
+// update, and no other launch waits (firstLaunchModel.ts, decisions.md 153).
 
 const first = { web: false, dev: false, updatesEnabled: true, embedded: true, looked: false };
 

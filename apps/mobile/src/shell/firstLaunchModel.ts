@@ -1,6 +1,6 @@
 /**
  * The first launch after install waits a few seconds for the latest OTA
- * update (decisions.md 150), so a new install opens on today's code instead
+ * update (decisions.md 153), so a new install opens on today's code instead
  * of the code built into the store build, which may be weeks older. Only that
  * one launch waits, and never for long: people often open the app with no
  * connection, where the check fails at once, and on a slow one the wait ends
