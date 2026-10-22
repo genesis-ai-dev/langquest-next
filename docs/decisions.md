@@ -6703,12 +6703,19 @@ most once an hour, and keeps the last answer on the phone
   that hides the bar until a newer version comes out.
 - Below the lowest version that may still sync (`server_config`
   `min_version_ios` and `min_version_android`, '0' today, raised only on
-  purpose), the whole screen says "Please update the app" with the same
-  button, and every stream's transport refuses as the server does for a
-  client too old (LQ001, `src/appVersion/syncGate.ts`): sync stops, the
-  person's work stays on the phone marked to send (PLAN.md invariant 1), and
-  it goes once the app is updated. Keep working closes the screen for that
-  launch; Account's "Update the app to sync." stays.
+  purpose), the phone sends its waiting work first, then stops: every
+  stream's transport still sends (`append`, and recordings through their own
+  transport), and refuses everything that downloads other people's changes
+  as the server does for a client too old (LQ001,
+  `src/appVersion/syncGate.ts`). The sync client sends before it downloads,
+  so someone back after months offline gets their work to the team even if
+  they never update. Caleb chose this (2026-10-22) over stopping all sync
+  at once. A send that fails, for example because a server call that the old
+  build uses is gone, throws instead of refusing the events, so the work
+  stays on the phone marked to send (PLAN.md invariant 1) and goes after the
+  update. The whole screen says "Please update the app" with the same
+  button; Keep working closes it for that launch, and Account's "Update the
+  app to sync." stays.
 Versions are compared as numbers, part by part: every store build has a
 higher version than the one before (the release pipeline's production
 review change gives each the time of its merge), and 1.0.0 is older than all
