@@ -247,7 +247,8 @@ export function routeRows(totals: Record<string, number>): RouteRow[] {
 
 export function workerAlerts(rows: RouteRow[]): Alert[] {
   const out: Alert[] = [];
-  for (const r of rows) {
+  // The ops dashboard's own route waits on the providers it asks (Cloudflare, Supabase, Expo): slow by design, and not the app's.
+  for (const r of rows.filter((x) => x.route !== 'ops')) {
     const timed = r.lt100ms + r.lt1s + r.lt10s + r.over10s;
     if (timed >= 50 && (r.lt10s + r.over10s) / timed >= 0.05) {
       out.push({ level: 'watch', text: `${r.route}: ${(((r.lt10s + r.over10s) / timed) * 100).toFixed(1)}% of ${timed} timed requests took a second or more in the last day.` });

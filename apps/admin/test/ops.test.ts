@@ -77,6 +77,8 @@ describe('the app Worker and support', () => {
     expect(rows[0]).toMatchObject({ requests: 100, s5xx: 10, over10s: 20 });
     expect(rows[1]).toMatchObject({ s429: 30 });
     expect(workerAlerts(rows).map((a) => a.level).sort()).toEqual(['problem', 'watch']);
+    // The dashboard's own requests wait on the providers it asks; they are no sign the app is slow.
+    expect(workerAlerts(routeRows({ ops_2xx: 100, ops_lt1s: 50, ops_lt10s: 50 }))).toEqual([]);
   });
 
   it('warns before a content report passes the 24 hours the Terms promise', () => {
