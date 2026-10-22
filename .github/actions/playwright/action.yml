@@ -30,6 +30,8 @@ runs:
         key: ${{ steps.key.outputs.key }}
     - name: Install them (retrying a slow mirror)
       shell: bash
+      env:
+        PLAYWRIGHT_CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
       run: bash scripts/ci-playwright.sh "$RUNNER_TEMP/playwright-debs" ${{ inputs.browsers }}
     - name: Save them for the next run
       if: steps.restore.outputs.cache-hit != 'true'
