@@ -17,15 +17,26 @@ It only reads. It changes nothing in any service.
 
 ## Who can open it
 
-Anyone signs in with their LangQuest account (Supabase Auth, the same
-accounts as the app). The page lets them in only if their profile id is in
-`ADMIN_PROFILE_IDS`. Anyone else is turned away and told their own profile
-id, which is how the first person adds themselves (below). The session is
-kept in that browser tab only (`sessionStorage`); closing the tab signs out.
+Global Viewers (decision 158, `docs/global-viewers.md`), on a session
+verified with their authenticator. That is the whole list: adding someone is
+`npm run global-viewer -- grant`, on a call, and removing them is `revoke`,
+which signs them out everywhere. No secret names who may open the page.
+
+Someone signed in to the web app on this host as a Global Viewer who has
+entered their code is let in at once: the page reads the app's session
+(read only; renewing it here would spend the app's refresh token). Anyone
+else signs in on the page with email and password, then enters the 6-digit
+code from their authenticator. That session is kept in the browser tab only
+(`sessionStorage`); closing the tab signs out. A Global Viewer with no
+authenticator yet is told to set one up in the app (Me, then Global Viewer);
+anyone else is told only that the page is for Global Viewers.
 
 Every API call checks the sign-in with Supabase Auth, which also refuses a
-session that was signed out elsewhere. The Worker remembers a good token for
-a minute. Wrong passwords meet Supabase's own limits, because the page signs
+session that was signed out elsewhere, then asks the database, as that
+person, `get_user_state()`: only `globalViewer: 'on'` (an active grant and an
+`aal2` session) gets in. The Worker remembers a good token for a minute and
+the Global Viewer answer for 30 seconds, so a revoke shuts the page within
+half a minute. Wrong passwords meet Supabase's own limits, because the page signs
 in from the browser, and the page's API allows 120 calls a minute per
 address.
 
@@ -109,17 +120,10 @@ https://next.langquest.org/ops-dashboard` says `200`.
 
 ### 4. Let yourself in
 
-Open `https://next.langquest.org/ops-dashboard` and sign in with your LangQuest account.
-The page says no one is on the admin list yet and shows your profile id.
-Copy it, then:
-
-1. `npm run env:update -- production ADMIN_PROFILE_IDS`; at the hidden
-   prompt paste the id (several people: ids separated by commas). It
-   encrypts the value into `.env.production` and commits that file on the
-   branch you are on; push it as you push other env changes.
-2. `npm run secrets -- production`, answer `y`.
-3. Reload the page: the database sections fill in. The others say "Not
-   connected" until step 5.
+You need a Global Viewer account with its authenticator set up
+(`docs/global-viewers.md`). Open `https://next.langquest.org/ops-dashboard`
+and sign in with it, then enter your code. The database sections fill in;
+the others say "Not connected" until step 5.
 
 ### 5. Tokens, each optional
 
@@ -191,7 +195,9 @@ password, Cloudflare Access can sit in front of `/ops-dashboard*` and
 
 `apps/admin/.dev.vars` (ignored by git) overrides the vars: `SUPABASE_URL`
 and `SUPABASE_ANON_KEY` of a local stack, `DIAG_DATABASE_URL` for its
-database, and `ADMIN_PROFILE_IDS` with a local account's id. On a local
+database. Sign in with a local account made a Global Viewer with
+`npm run global-viewer -- grant <email> --note local` (no `--hosted`), its
+authenticator set up in the app. On a local
 stack diag_reader has no login; give it one there only
 (`alter role diag_reader with login password '…'`) so the page reads with
 the same grants as in production. Then `npm run admin:dev` serves

@@ -66,7 +66,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (!success) return json({ error: 'Too many requests; wait a minute.' }, 429);
   }
   const who = await access(request, env);
-  if (!who.ok) return json({ error: who.error, ...(who.profileId ? { profileId: who.profileId } : {}) }, who.status);
+  if (!who.ok) return json({ error: who.error, ...(who.need ? { need: who.need } : {}) }, who.status);
 
   const fresh = url.searchParams.get('fresh') === '1';
   const section = url.pathname.slice(API_BASE.length);

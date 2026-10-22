@@ -19,8 +19,6 @@ export interface Env {
 
   /** diag_reader's login (scripts/diag-access.sh): reads `diag` and nothing else, and cannot write. */
   DIAG_DATABASE_URL: string;
-  /** Profile ids, comma-separated, of the people who may open the page; until it is set, no one can. */
-  ADMIN_PROFILE_IDS?: string;
 
   // Optional, each read only by its own section (docs/admin.md says how to make one).
   /** Account Analytics Read, Workers Scripts Read, Workers CI Read. */

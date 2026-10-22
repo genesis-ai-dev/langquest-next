@@ -67,7 +67,7 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 | --- | --- | --- |
 | invite email | `INVITE_FROM` | `INVITE_RELAY_SECRET` |
 | app | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
-| admin | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, which account, projects, team and app each section reads | `DIAG_DATABASE_URL`; optional `ADMIN_PROFILE_IDS` and the provider tokens and keys (`ADMIN_*`) |
+| admin | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, which account, projects, team and app each section reads | `DIAG_DATABASE_URL`; optional provider tokens and keys (`ADMIN_*`) |
 
 ## The job runner (containers)
 

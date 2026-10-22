@@ -60,7 +60,7 @@ button.primary { min-height: 48px; background: var(--primary); border-color: var
 button.link { border: 0; background: none; color: var(--primary); padding: 0; min-height: 0; font-weight: 600; cursor: pointer; text-align: start; }
 form.signin { max-width: 420px; margin: 48px auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
 label { display:block; font-weight:600; margin: 14px 0 6px; }
-input[type=email], input[type=password], input[type=search] { width:100%; min-height:44px; padding: 8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
+input[type=email], input[type=password], input[type=search], input[type=text] { width:100%; min-height:44px; padding: 8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
 .notice { padding: 12px 14px; border-radius: 10px; background: var(--bg); margin: 12px 0; }
 .notice.red { color: var(--red); background: var(--redbg); }
 .setup { white-space: pre-line; }
@@ -84,10 +84,16 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
   <div id="out" role="status" aria-live="polite"></div>
   <form id="signin" class="signin" hidden>
     <h2>Sign in</h2>
-    <p class="muted">With your LangQuest account. Only accounts on the admin list can see this page.</p>
+    <p class="muted">With your Global Viewer account. Only LangQuest Global Viewers, on a session verified with their authenticator, can see this page.</p>
     <label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
     <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
     <p><button class="primary" type="submit">Sign in</button></p>
+  </form>
+  <form id="mfa" class="signin" hidden>
+    <h2>Enter your code</h2>
+    <p class="muted">The 6-digit code from your authenticator app.</p>
+    <label for="code">Code</label><input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+    <p><button class="primary" type="submit">Continue</button></p>
   </form>
   <div id="board" hidden>
     <section class="card" id="attention">
@@ -102,6 +108,10 @@ const CFG = ${config};
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 const KEY = 'lq-admin-session';
+// The web app's own session on this host (apps/mobile/src/server/sessionKey.ts), used while it is
+// already verified with an authenticator and still fresh. Only read: renewing it here would spend the
+// app's refresh token and sign the app out.
+const APP_KEY = 'sb-' + new URL(CFG.supabaseUrl).hostname.split('.')[0] + '-auth-token';
 
 // ---- formatting ----------------------------------------------------------------
 const num = (n) => (n === null || n === undefined || n === '') ? '–' : Number(n).toLocaleString('en');
@@ -141,10 +151,19 @@ async function auth(grant, body) {
   return s;
 }
 
-/** A live access token, renewed with this tab's own refresh token when it is about to run out. */
+function claims(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; } }
+function borrowed() {
+  try {
+    const s = JSON.parse(localStorage.getItem(APP_KEY) || 'null');
+    if (!s || !s.access_token || (s.expires_at || 0) * 1000 <= Date.now() + 60000) return null;
+    return claims(s.access_token).aal === 'aal2' ? s.access_token : null;
+  } catch { return null; }
+}
+
+/** A live access token: this tab's own, renewed with its refresh token when it is about to run out, else the app's while it lasts. */
 async function token() {
   const s = session();
-  if (!s) return null;
+  if (!s) return borrowed();
   if ((s.expires_at || 0) * 1000 > Date.now() + 60000) return s.access_token;
   try { return (await auth('refresh_token', { refresh_token: s.refresh_token })).access_token; }
   catch { sessionStorage.removeItem(KEY); return null; }
@@ -156,19 +175,43 @@ async function api(path) {
   const res = await fetch(path, { headers: { authorization: 'Bearer ' + t } });
   if (res.status === 401) { sessionStorage.removeItem(KEY); showSignIn('Your sign-in ended. Sign in again.'); throw new Error('Signed out'); }
   const body = await res.json().catch(() => ({}));
+  if (res.status === 403 && body.need === 'code' && session()) { askCode(); throw new Error('Not an admin'); }
   if (res.status === 403) { denied(body); throw new Error('Not an admin'); }
   if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
   return body;
 }
 
 function showSignIn(message) {
-  $('board').hidden = true; $('refresh').hidden = true; $('signout').hidden = true;
+  $('board').hidden = true; $('refresh').hidden = true; $('signout').hidden = true; $('mfa').hidden = true;
   $('signin').hidden = false; say(message || '', message ? 'red' : '');
 }
 
-function denied(body) {
+function askCode(message) {
   $('board').hidden = true; $('signin').hidden = true; $('refresh').hidden = true; $('signout').hidden = false;
-  say((body.error || 'This account cannot open this page.') + (body.profileId ? ' Its profile id is ' + body.profileId + ': add it to ADMIN_PROFILE_IDS to let it in.' : ''), 'red');
+  $('mfa').hidden = false; $('code').value = ''; say(message || '', message ? 'red' : '');
+  $('code').focus();
+}
+
+function denied(body) {
+  $('board').hidden = true; $('signin').hidden = true; $('mfa').hidden = true; $('refresh').hidden = true; $('signout').hidden = !session();
+  say(body.error || 'This account cannot open this page.', 'red');
+  // Someone the app signed in, who is not a Global Viewer here, may sign in with the account that is.
+  if (!session()) $('signin').hidden = false;
+}
+
+/** Steps this tab's session up to aal2 with the person's verified authenticator (Supabase Auth's factors API). */
+async function verifyCode(code) {
+  const t = await token();
+  const headers = { apikey: CFG.anonKey, authorization: 'Bearer ' + t, 'content-type': 'application/json' };
+  const user = await (await fetch(CFG.supabaseUrl + '/auth/v1/user', { headers })).json();
+  const factor = (user.factors || []).find((f) => f.factor_type === 'totp' && f.status === 'verified');
+  if (!factor) throw new Error('This account has no authenticator yet. Set one up in the app: Me, then Global Viewer.');
+  const challenge = await (await fetch(CFG.supabaseUrl + '/auth/v1/factors/' + factor.id + '/challenge', { method: 'POST', headers, body: '{}' })).json();
+  if (!challenge.id) throw new Error(challenge.msg || 'Could not ask for a code.');
+  const res = await fetch(CFG.supabaseUrl + '/auth/v1/factors/' + factor.id + '/verify', { method: 'POST', headers, body: JSON.stringify({ challenge_id: challenge.id, code }) });
+  const s = await res.json().catch(() => ({}));
+  if (!res.ok || !s.access_token) throw new Error(s.msg || s.error_description || 'That code did not work. Try the newest one.');
+  keep(s);
 }
 
 $('signin').addEventListener('submit', async (e) => {
@@ -179,6 +222,12 @@ $('signin').addEventListener('submit', async (e) => {
     $('password').value = '';
     await start();
   } catch (err) { say(err.message, 'red'); }
+});
+$('mfa').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  say('Checking…');
+  try { await verifyCode($('code').value.trim()); $('mfa').hidden = true; await start(); }
+  catch (err) { askCode(err.message); }
 });
 $('signout').addEventListener('click', async () => {
   const t = (session() || {}).access_token;
@@ -559,7 +608,7 @@ async function load(fresh) {
 async function start() {
   const me = await api('/ops/api/me').catch(() => null);
   if (!me) return;
-  $('signin').hidden = true; say('');
+  $('signin').hidden = true; $('mfa').hidden = true; say('');
   $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false;
   if (!$('grid').children.length) layout();
   await load(false);
@@ -567,7 +616,7 @@ async function start() {
 
 // Every five minutes while the tab is in front.
 setInterval(() => { if (document.visibilityState === 'visible' && !$('board').hidden) load(false); }, 300000);
-if (session()) start(); else showSignIn();
+if (session() || borrowed()) start(); else showSignIn();
 </script>
 </body>
 </html>`;

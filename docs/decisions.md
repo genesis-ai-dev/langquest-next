@@ -7249,3 +7249,15 @@ routes running before a custom domain, which nothing in the repository
 states. Still no preview copy: preview has no database of its own for it to
 read, and the app's preview Worker answers 503 there. Plan:
 `docs/ops-dashboard-plan.md`.
+
+Amended (2026-10-22, Carl Sauder): who may open it is Global Viewers (158)
+on a session verified with their authenticator, not `ADMIN_PROFILE_IDS`.
+Carl chose it (2026-10-21) because Global Viewers already are LangQuest's
+staff accounts: granted on a call by `npm run global-viewer`, with a second
+factor and a revoke that signs them out everywhere, where the list was a
+secret that needed a commit and a secrets push for each person and let in a
+password alone. Each API call asks the database, as the person,
+`get_user_state()` and lets in only `globalViewer: 'on'`, remembered for 30
+seconds per isolate. The page asks for the authenticator code itself, and
+reads (never renews) the web app's session on the same host when it is
+already `aal2`. This supersedes the reverse-if about the list growing.

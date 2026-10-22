@@ -1,33 +1,51 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { access, forgetSignIns } from '../src/auth';
+import { access, forgetSignIns, viewerState } from '../src/auth';
 import { csp, page } from '../src/page';
 import { settle } from '../src/section';
 import { handle } from '../src/index';
 import type { Env } from '../src/env';
+import { sessionStorageKey } from '../../mobile/src/server/sessionKey';
 
-const ADMIN = '0857d1bc-0000-4000-8000-000000000001';
-const OTHER = '11111111-0000-4000-8000-000000000002';
+const VIEWER = '0857d1bc-0000-4000-8000-000000000001';
 
-function authFetch(answers: Record<string, string | number>): typeof fetch {
-  return vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+/** Supabase as the Worker sees it: who each token is, and that person's Global Viewer state. */
+function authFetch(users: Record<string, string | number>, states: Record<string, unknown | number> = {}): typeof fetch {
+  return vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
     const token = String(new Headers(init?.headers).get('authorization')).replace('Bearer ', '');
-    const answer = answers[token] ?? 401;
+    if (String(url).endsWith('/rest/v1/rpc/get_user_state')) {
+      const state = states[token];
+      return typeof state === 'number' ? new Response('{}', { status: state }) : Response.json({ termsVersion: null, globalViewer: state ?? null });
+    }
+    const answer = users[token] ?? 401;
     return typeof answer === 'number' ? new Response('{}', { status: answer }) : Response.json({ id: answer });
   }) as unknown as typeof fetch;
 }
 
-const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon', ADMIN_PROFILE_IDS: `${ADMIN}, ` };
+const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon' };
 const req = (token?: string) => new Request('https://next.langquest.org/ops/api/me', token ? { headers: { authorization: `Bearer ${token}` } } : {});
 
-describe('who may open the admin page', () => {
+describe('who may open the ops dashboard', () => {
   beforeEach(() => forgetSignIns());
 
-  it('lets in a signed-in account on the list', async () => {
-    expect(await access(req('good'), env, authFetch({ good: ADMIN }))).toEqual({ ok: true, profileId: ADMIN });
+  it('lets in a Global Viewer on a session verified with their authenticator', async () => {
+    expect(await access(req('good'), env, authFetch({ good: VIEWER }, { good: 'on' }))).toEqual({ ok: true, profileId: VIEWER });
   });
 
-  it('turns away an account not on the list, and tells it its own id', async () => {
-    expect(await access(req('other'), env, authFetch({ other: OTHER }))).toMatchObject({ ok: false, status: 403, profileId: OTHER });
+  it('asks a Global Viewer signed in with a password only for their code', async () => {
+    expect(await access(req('aal1'), env, authFetch({ aal1: VIEWER }, { aal1: 'needs_code' }))).toMatchObject({ ok: false, status: 403, need: 'code' });
+  });
+
+  it('sends one with no authenticator yet to set one up in the app', async () => {
+    expect(await access(req('new'), env, authFetch({ new: VIEWER }, { new: 'needs_setup' }))).toMatchObject({ ok: false, status: 403, need: 'setup' });
+  });
+
+  it('turns away everyone else, a revoked Global Viewer included, without telling them anything about the page', async () => {
+    for (const state of [null, 'revoked', 'something new']) {
+      forgetSignIns();
+      const answer = await access(req('other'), env, authFetch({ other: VIEWER }, { other: state }));
+      expect(answer).toMatchObject({ ok: false, status: 403 });
+      expect(answer).not.toHaveProperty('need');
+    }
   });
 
   it('asks for a sign-in without a token, or when Supabase refuses it (a signed-out session)', async () => {
@@ -35,19 +53,28 @@ describe('who may open the admin page', () => {
     expect(await access(req('stale'), env, authFetch({ stale: 403 }))).toMatchObject({ ok: false, status: 401 });
   });
 
-  it('lets no one in while the list is empty, but tells whoever signs in their id, to start the list with', async () => {
-    expect(await access(req('good'), { ...env, ADMIN_PROFILE_IDS: ' , ' }, authFetch({ good: ADMIN }))).toMatchObject({ ok: false, status: 403, profileId: ADMIN });
-  });
-
-  it('says Supabase is down rather than signing the person out', async () => {
+  it('says Supabase or the database is down rather than signing the person out', async () => {
     expect(await access(req('good'), env, authFetch({ good: 502 }))).toMatchObject({ ok: false, status: 503 });
+    expect(await access(req('good'), env, authFetch({ good: VIEWER }, { good: 500 }))).toMatchObject({ ok: false, status: 503 });
   });
 
-  it('asks Supabase once a minute per token, not on every call', async () => {
-    const fetcher = authFetch({ good: ADMIN });
+  it('asks Supabase once a minute per token and the database once every 30 seconds, not on every call', async () => {
+    const fetcher = authFetch({ good: VIEWER }, { good: 'on' });
     await access(req('good'), env, fetcher);
     await access(req('good'), env, fetcher);
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const later = Date.now() + 31_000;
+    expect(await viewerState('good', env.SUPABASE_URL, env.SUPABASE_ANON_KEY, fetcher, later)).toBe('on');
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
+
+  it('asks the database as the person, so it reads their own session\'s level', async () => {
+    const fetcher = authFetch({ good: VIEWER }, { good: 'on' });
+    await access(req('good'), env, fetcher);
+    const [url, init] = (fetcher as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls.find(([u]) => String(u).includes('get_user_state'))!;
+    expect(url).toBe('https://example.supabase.co/rest/v1/rpc/get_user_state');
+    expect(new Headers(init.headers).get('authorization')).toBe('Bearer good');
+    expect(new Headers(init.headers).get('apikey')).toBe('anon');
   });
 });
 
@@ -95,6 +122,15 @@ describe('the API', () => {
     const response = await handle(new Request('http://localhost:8791/'), fullEnv);
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe('http://localhost:8791/ops-dashboard');
+  });
+
+  it('uses the web app\'s own session only to read, and only once it is verified with an authenticator', async () => {
+    const html = await (await handle(new Request('https://next.langquest.org/ops-dashboard'), fullEnv)).text();
+    expect(html).toContain("'sb-' + new URL(CFG.supabaseUrl).hostname.split('.')[0] + '-auth-token'");
+    expect(html).toContain("claims(s.access_token).aal === 'aal2'");
+    expect(html).not.toMatch(/localStorage\.(setItem|removeItem)/);
+    // The same key the app keeps its session under.
+    expect(sessionStorageKey('https://abc.supabase.co')).toBe('sb-abc-auth-token');
   });
 
   it('calls only /ops/api from the page', async () => {

@@ -21,8 +21,8 @@ describe('secrets', () => {
   });
 
   it("gives the admin page diag_reader's login and the tokens the file has, never the service-role key, and only in production", () => {
-    const file = { ...values, DIAG_DATABASE_URL: 'postgresql://diag', ADMIN_PROFILE_IDS: 'a,b', ADMIN_VERCEL_TOKEN: 'v', ADMIN_GITHUB_TOKEN: '' };
-    expect(destinations('production', file, 'ref', 'service').workers.admin).toEqual({ DIAG_DATABASE_URL: 'postgresql://diag', ADMIN_PROFILE_IDS: 'a,b', ADMIN_VERCEL_TOKEN: 'v' });
+    const file = { ...values, DIAG_DATABASE_URL: 'postgresql://diag', ADMIN_VERCEL_TOKEN: 'v', ADMIN_GITHUB_TOKEN: '' };
+    expect(destinations('production', file, 'ref', 'service').workers.admin).toEqual({ DIAG_DATABASE_URL: 'postgresql://diag', ADMIN_VERCEL_TOKEN: 'v' });
     expect(destinations('preview', file, 'ref', 'service').workers).not.toHaveProperty('admin');
     for (const key of ADMIN_KEYS) {
       expect(FILE_KEYS).toContain(key);

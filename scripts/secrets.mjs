@@ -29,12 +29,13 @@ import { authArgs, targetArgs } from './cloudflare-deploy.mjs';
 import { HOSTED, decrypt, envKeyNames, parseJsonc, projectRef, root, secretsPath } from './env-files.mjs';
 
 /**
- * The admin page's (apps/admin, docs/admin.md), production only and each
- * optional: who may open it, and one read-only token per provider. Named
+ * The ops dashboard's (apps/admin, docs/admin.md), production only and each
+ * optional: one read-only token per provider. Who may open it is not a
+ * secret: Global Viewers (npm run global-viewer). Named
  * ADMIN_* so none stands in for a CLI's own login (SUPABASE_ACCESS_TOKEN,
  * GITHUB_TOKEN, EXPO_TOKEN) when a script runs with this file's values.
  */
-export const ADMIN_KEYS = ['ADMIN_PROFILE_IDS', 'ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'ADMIN_VERCEL_TOKEN', 'ADMIN_GITHUB_TOKEN', 'ADMIN_EXPO_TOKEN',
+export const ADMIN_KEYS = ['ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'ADMIN_VERCEL_TOKEN', 'ADMIN_GITHUB_TOKEN', 'ADMIN_EXPO_TOKEN',
   'ADMIN_GOOGLE_PLAY_KEY', 'ADMIN_APP_STORE_KEY'];
 
 /**

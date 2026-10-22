@@ -40,10 +40,9 @@
   // Set on the Worker by `npm run secrets -- production`, never at deploy; a
   // deploy fails while it is missing. DIAG_DATABASE_URL is diag_reader's
   // read-only login (scripts/diag-access.sh). Optional, from the same file:
-  // ADMIN_PROFILE_IDS, who may open the page (until it is set, no one can,
-  // and the page tells whoever signs in their profile id), and one token per
-  // provider, each section saying what it needs until its token is there
-  // (docs/admin.md).
+  // one token per provider, each section saying what it needs until its
+  // token is there (docs/admin.md). Who may open the page is not a secret:
+  // Global Viewers on an authenticator session (src/auth.ts).
   "secrets": { "required": ["DIAG_DATABASE_URL"] },
   // Per address, on the page's API (every call checks a sign-in with Supabase).
   "ratelimits": [
