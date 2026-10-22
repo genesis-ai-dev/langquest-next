@@ -718,6 +718,9 @@ test('REV-032 Say each part, then finish the back translation @p0', async ({ pag
   await expect(visible(page.getByLabel(/^Part 1\. (Recording…|Listening for you)/)).first()).toBeVisible();
   await expect(visible(page.getByLabel(/^Recorded for 0:\d\d$/)).first()).toBeVisible();
   await expect(button(page, 'Done')).toBeVisible();
+  // The voice file speaks 1.5 s in every 4 s: stop once a piece has been heard, as sayPart does. Stopped before
+  // any speech, nothing is kept and Done stays off, which a loaded machine reached (2026-10-21, workers in parallel).
+  await expect(visible(page.getByLabel(/[1-9]\d* pieces? so far/)).first()).toBeVisible({ timeout: 15_000 });
   // Stop keeps the session open (LAN-82): its pieces are boxes until Done.
   await button(page, 'Stop recording').click();
   await expect(text(page, 'Stopped')).toBeVisible();
