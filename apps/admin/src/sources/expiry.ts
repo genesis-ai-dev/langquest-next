@@ -44,7 +44,7 @@ export function keptByHand(rows: unknown): Expiring[] {
 }
 
 type Env = {
-  ADMIN_CLOUDFLARE_TOKEN?: string; ADMIN_GITHUB_TOKEN?: string; GITHUB_REPO: string; ADMIN_APP_STORE_KEY?: string;
+  ADMIN_CLOUDFLARE_TOKEN?: string; CLOUDFLARE_ACCOUNT_ID: string; ADMIN_GITHUB_TOKEN?: string; GITHUB_REPO: string; ADMIN_APP_STORE_KEY?: string;
 };
 
 interface AscList<A> { data?: { id: string; attributes: A }[] }
@@ -55,9 +55,17 @@ export async function expirySection(env: Env, fetcher: typeof fetch = fetch, now
   const tries: Promise<void>[] = [];
 
   if (env.ADMIN_CLOUDFLARE_TOKEN) {
-    tries.push(getJson<{ result?: { expires_on?: string | null } }>(fetcher, 'https://api.cloudflare.com/client/v4/user/tokens/verify',
-      { headers: { authorization: `Bearer ${env.ADMIN_CLOUDFLARE_TOKEN}` } }, 'Cloudflare token')
-      .then((r) => { items.push({ what: 'ADMIN_CLOUDFLARE_TOKEN', expires: r.result?.expires_on ?? null, source: 'Cloudflare' }); }));
+    // A user's token is checked at /user, an account's at its account; the answer says which it is.
+    const headers = { authorization: `Bearer ${env.ADMIN_CLOUDFLARE_TOKEN}` };
+    type Verify = { result?: { expires_on?: string | null } };
+    tries.push(getJson<Verify>(fetcher, 'https://api.cloudflare.com/client/v4/user/tokens/verify', { headers }, 'Cloudflare token')
+      .then((r) => ({ r, owner: 'user' }))
+      .catch(() => getJson<Verify>(fetcher, `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/tokens/verify`, { headers }, 'Cloudflare token')
+        .then((r) => ({ r, owner: 'account' })))
+      .then(({ r, owner }) => {
+        items.push({ what: 'ADMIN_CLOUDFLARE_TOKEN', expires: r.result?.expires_on ?? null, source: 'Cloudflare',
+          ...(owner === 'account' ? { note: 'An account token: Workers Builds needs a token on a user\'s profile (docs/admin.md).' } : {}) });
+      }));
   }
   if (env.ADMIN_GITHUB_TOKEN) {
     // A fine-grained token's end date comes back on every answer.

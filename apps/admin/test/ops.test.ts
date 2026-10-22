@@ -4,7 +4,7 @@ import type { Query } from '../src/db';
 import { handle } from '../src/index';
 import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
-import { expiryAlerts, keptByHand } from '../src/sources/expiry';
+import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import { fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, workerAlerts, type Fleet, type Safety } from '../src/sources/ops';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
 import { capacityAlerts, growthPerDay, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
@@ -97,6 +97,15 @@ describe('expiry dates', () => {
       { what: 'e', expires: null, source: 'x' }
     ];
     expect(expiryAlerts({ items, notes: [] }, NOW).map((a) => [a.level, a.text[0]])).toEqual([['watch', 'a'], ['problem', 'b'], ['problem', 'c']]);
+  });
+
+  it('reads a Cloudflare token\'s end date whether a user or an account owns it', async () => {
+    const fetcher = (async (url: RequestInfo | URL) => String(url).includes('/user/tokens/verify')
+      ? new Response('{}', { status: 401 })
+      : Response.json({ result: { expires_on: '2027-01-01T00:00:00Z' } })) as typeof fetch;
+    const s = await expirySection({ ADMIN_CLOUDFLARE_TOKEN: 't', CLOUDFLARE_ACCOUNT_ID: 'acc', GITHUB_REPO: 'o/r' }, fetcher, NOW);
+    expect(s.data!.items.find((i) => i.what === 'ADMIN_CLOUDFLARE_TOKEN')).toMatchObject({ expires: '2027-01-01T00:00:00Z', note: expect.stringContaining('account token') });
+    expect(s.data!.notes).toEqual([]);
   });
 
   it('keeps the hand-kept rows it can read, a missing date as no date', () => {

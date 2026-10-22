@@ -12,7 +12,7 @@
     "dev": "node scripts/local-db.mjs dev",
     "app": "npm run start -w mobile -- --dev-client",
     "web:dev": "npm run dev -w web",
-    "admin:dev": "wrangler dev -c apps/admin/wrangler.jsonc --port 8791",
+    "admin:dev": "tsx scripts/admin-dev-config.ts && wrangler dev -c apps/admin/.wrangler.dev.jsonc --port 8791",
     "db:start": "node scripts/local-db.mjs start",
     "db:stop": "supabase stop",
     "db:reset": "node scripts/local-db.mjs reset",

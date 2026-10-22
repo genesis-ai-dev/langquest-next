@@ -27,6 +27,7 @@ apps/mobile/credentials.json
 .screenshots/
 /.preview/
 apps/web/.wrangler.dev.jsonc
+apps/admin/.wrangler.dev.jsonc
 
 # Stryker
 .stryker-tmp/

@@ -201,7 +201,8 @@ export async function capacitySection(env: Env, fetcher: typeof fetch = fetch, n
       .catch((e: unknown) => ({ workersRequests: 0, doRequests: 0, r2ClassA: 0, r2ClassB: 0, allowance: ALLOWANCE, error: reason(e) }))
     : Promise.resolve(null);
   const r2 = env.ADMIN_CLOUDFLARE_TOKEN
-    ? r2Days(fetcher, env, now).then((days) => ({ bytes: days.at(-1)?.bytes ?? 0, growthPerDay: growthPerDay(days.map((d) => ({ at: d.date, bytes: d.bytes }))) })).catch(() => null)
+    // The last week, as Storage shows it: a month would take in one-off copies such as the v2 import's.
+    ? r2Days(fetcher, env, now).then((days) => ({ bytes: days.at(-1)?.bytes ?? 0, growthPerDay: growthPerDay(days.slice(-8).map((d) => ({ at: d.date, bytes: d.bytes }))) })).catch(() => null)
     : Promise.resolve(null);
   const [d, u, r] = await Promise.all([fromDiag, usage, r2]);
   const history = d.history.map((h) => ({ at: h.at, dbBytes: num(h.dbBytes) }));

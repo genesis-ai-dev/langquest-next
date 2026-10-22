@@ -229,7 +229,13 @@ database. Sign in with a local account made a Global Viewer with
 authenticator set up in the app. On a local
 stack diag_reader has no login; give it one there only
 (`alter role diag_reader with login password '…'`) so the page reads with
-the same grants as in production. Then `npm run admin:dev` serves
+the same grants as in production. Provider tokens go in the same file
+under their production names (`ADMIN_CLOUDFLARE_TOKEN=...`, the two JSON
+keys each on one line). Wrangler loads from `.dev.vars` only the secrets a
+config requires, and these are optional, so `scripts/admin-dev-config.ts`
+writes `apps/admin/.wrangler.dev.jsonc` (ignored by git), a copy that also
+requires each `ADMIN_*` the file holds; `npm run admin:dev` runs it first.
+Restart after adding a token. Then `npm run admin:dev` serves
 `http://localhost:8791/ops-dashboard`. Started beside `npm run web:dev`,
 the app's Worker on :8787 finds it through wrangler's local registry, so
 `http://localhost:8787/ops-dashboard` works too; without it, the app's
@@ -237,11 +243,11 @@ Worker answers 503 there.
 
 Or run both Workers in one `wrangler dev`, which needs no local registry
 and leaves another checkout's Worker on :8787 alone (run
-`npx tsx scripts/web-dev-vars.ts` first; it writes the app Worker's local
-config):
+`npx tsx scripts/web-dev-vars.ts` and `npx tsx scripts/admin-dev-config.ts`
+first; they write the two local config copies):
 
 ```bash
-cd apps/web && npx wrangler dev -c .wrangler.dev.jsonc -c ../admin/wrangler.jsonc --port 8797
+cd apps/web && npx wrangler dev -c .wrangler.dev.jsonc -c ../admin/.wrangler.dev.jsonc --port 8797
 ```
 
 The page is then `http://localhost:8797/ops-dashboard`. No job runs on a
