@@ -7281,5 +7281,15 @@
       "savedUntilSignIn": "Saved. It is sent after you sign in.",
       "voiceTooLong": "Too long: a voice note can be up to 2 minutes."
     }
+  },
+  "appVersion": {
+    "available": "New version available",
+    "update": "Update",
+    "updateHelp": "Opens the store page for the newest version.",
+    "dismiss": "Dismiss",
+    "dismissHelp": "Hides this until a newer version comes out.",
+    "required": "Please update the app",
+    "keepWorking": "Keep working",
+    "keepWorkingHelp": "Your work stays on this phone and is sent after you update."
   }
 }

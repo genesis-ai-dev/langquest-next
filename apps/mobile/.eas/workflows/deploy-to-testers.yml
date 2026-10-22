@@ -3,7 +3,7 @@
 # native fingerprint matches an existing production build, the change ships
 # as an over-the-air update on the production channel, which installed builds
 # take on next launch. Otherwise it builds a new binary and sends it to
-# production review (decisions.md 150): on Android straight to the production
+# production review (decisions.md 156): on Android straight to the production
 # track with a full rollout (eas.json, submit.production), where a newer build
 # replaces one waiting for review; on iOS to TestFlight, and then to App
 # Review when no review is open (scripts/app-store-review.mjs; while one is,

@@ -7281,5 +7281,15 @@
       "savedUntilSignIn": "ተቀምጧል። ከገቡ በኋላ ይላካል።",
       "voiceTooLong": "በጣም ረጅም ነው፦ የድምፅ ማስታወሻ እስከ 2 ደቂቃ ሊሆን ይችላል።"
     }
+  },
+  "appVersion": {
+    "available": "አዲስ ስሪት አለ",
+    "update": "አዘምን",
+    "updateHelp": "የቅርብ ጊዜውን ስሪት የመደብር ገጽ ይከፍታል።",
+    "dismiss": "ዝጋ",
+    "dismissHelp": "አዲስ ስሪት እስኪወጣ ድረስ ይህን ይደብቃል።",
+    "required": "እባክዎ መተግበሪያውን ያዘምኑ",
+    "keepWorking": "መስራት ቀጥል",
+    "keepWorkingHelp": "ሥራዎ በዚህ ስልክ ላይ ይቆያል፤ ካዘመኑ በኋላ ይላካል።"
   }
 }

@@ -1,0 +1,45 @@
+# A copy onto a release branch that has a conflict (scripts/release-branches.mjs,
+# decisions.md 155) is labelled copy-conflict, and Claude copies the commit
+# by hand: Anthropic's Claude GitHub Action resolves the conflict on the
+# copy's branch, keeping the release branch's code wherever main's change
+# depends on code that the public build does not have, and turns on
+# auto-merge. The pull request's checks run as for any other.
+#
+# Needs the secret ANTHROPIC_API_KEY, and the GitHub App of
+# release-branches.yml, so that Claude's push starts the checks.
+name: release-copy-conflict
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  copy:
+    if: github.event.label.name == 'copy-conflict' && startsWith(github.event.pull_request.base.ref, 'release/') && vars.RELEASE_BRANCHES == 'on'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ steps.token.outputs.token }}
+          prompt: |
+            This pull request copies one commit from main onto ${{ github.event.pull_request.base.ref }}, the code of the public build, and the copy had a conflict. Its branch name, ${{ github.event.pull_request.head.ref }}, ends with the commit's first 8 characters; the pull request's body names the whole commit.
+            1. Run `git cherry-pick -x` of that commit on this branch (add `-m 1` for a merge commit) and resolve every conflict. Keep the release branch's code wherever main's change depends on code that the release branch does not have, and say in the commit message what you left out and why.
+            2. Run `npm ci` and `npm run typecheck`, and fix what the copy broke.
+            3. Commit, push this branch, remove the copy-conflict label, and run `gh pr merge ${{ github.event.pull_request.number }} --auto --squash`.
+            Never push to main or to the release branch itself.
+          claude_args: --allowedTools "Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(gh pr:*),Read,Edit,Write"

@@ -1,6 +1,6 @@
 # Every hour: when Apple's review of the last iPhone build has ended,
 # send the newest build waiting in TestFlight to App Review
-# (scripts/app-store-review.mjs, decisions.md 150). A merge into main that
+# (scripts/app-store-review.mjs, decisions.md 156). A merge into main that
 # makes a new iPhone build runs the same step right after its TestFlight
 # upload (deploy-to-testers.yml); this schedule catches the builds that
 # waited while a review was open. It never cancels a review.

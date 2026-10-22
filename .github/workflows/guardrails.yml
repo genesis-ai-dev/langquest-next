@@ -1,5 +1,7 @@
 # Guardrails on every PR, so nothing depends on a local hook having run.
 #
+# scope:    which of server, web-smoke and ui-web the pull request's
+#           changed files need (scripts/ci-scope.mjs, decisions.md 150).
 # checks:   the pre-push gate again (typecheck + unit and property tests).
 # server:   the SQL smokes, SQL parity and client integration test against a
 #           local Supabase started here from the migrations.
@@ -14,10 +16,13 @@
 #           Linear (scripts/nightly-report.mjs; a dry run off main). The
 #           flake tracker reads the last runs' reports and files the tests
 #           that do not pass every time (scripts/ui-flake-report.mjs).
+# gate:     passes when checks and every needed job passed; the one check
+#           that main requires (.github/rulesets/main.json).
 #
 # The four PR jobs start together rather than after `checks`: a PR waits for
 # the slowest job, not for `checks` plus it (decisions.md 102, amended
-# 2026-10-15). A job that needs the local stack starts it in the background
+# 2026-10-15). The three that scope may leave out wait for it, about
+# 20 seconds. A job that needs the local stack starts it in the background
 # and installs the browsers meanwhile.
 #
 # What keeps these jobs from failing for reasons outside the code
@@ -33,6 +38,12 @@
 #    registry still turns away is retried (scripts/ci-retry-pull.sh). Optional
 #    secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN sign in to Docker Hub
 #    for a higher limit; without them pulls are anonymous.
+#  - Package mirror: Playwright's browsers need system packages, and the
+#    runners' Ubuntu mirror has sent them at 20 kB/s (15 MB in 12 minutes on
+#    a ui-web shard, and web-smoke's whole 30 minutes on 2026-10-22). Each
+#    job installs them through .github/actions/playwright, which caches the
+#    browsers and the packages, and stops a slow try after 4 minutes and
+#    tries again (scripts/ci-playwright.sh).
 #  - Load: the stack is about a dozen containers, and wrangler dev, the job
 #    container and the browsers share a 4-vCPU runner. The stack leaves out
 #    what the tests do not use (SUPABASE_EXCLUDE), ui-web runs two browsers
@@ -75,18 +86,50 @@ env:
   # tests, and each is an image to pull and a container to run.
   SUPABASE_EXCLUDE: studio,imgproxy,vector,logflare,supavisor
 
+# main requires one check, `gate` (.github/rulesets/main.json, decisions.md
+# 150). `scope` says which of `server`, `web-smoke` and `ui-web` the pull
+# request's changed files need (scripts/ci-scope.mjs); the others are
+# skipped. `gate` passes only when `checks` and every needed job passed.
+# A job that runs on a pull request is in `gate`'s needs;
+# scripts/githubRules.test.ts fails until it is.
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      server: ${{ steps.scope.outputs.server }}
+      web-smoke: ${{ steps.scope.outputs.web-smoke }}
+      ui-web: ${{ steps.scope.outputs.ui-web }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - id: scope
+        run: node scripts/ci-scope.mjs
+
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        # The server-calls step reads main's history since the oldest
+        # supported store build.
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run typecheck
       # What may import what (decisions.md 104, 105): eslint.config.mjs.
       - run: npm run lint
+      # Every server call that a supported store build or an OTA update sent
+      # to one makes is still there after this change (scripts/server-calls.mjs,
+      # decisions.md 151). With EXPO_TOKEN the builds come from EAS; without
+      # it, from apps/mobile/store-builds.json.
+      - name: Server calls that store builds make
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npm run --silent server-calls
       # The unit suite with coverage; core and client have thresholds (vitest.config.ts).
       - run: npm run test:coverage
       - name: Keep the coverage report
@@ -116,12 +159,18 @@ jobs:
 
   server:
     # The server against a local Supabase built from the migrations: the SQL
-    # smokes, the SQL parity check against core's folds (npm run db:test), and
-    # the client integration test (npm run test:integration).
+    # smokes, the SQL parity check against core's folds (npm run db:test), the
+    # client integration test (npm run test:integration), and, when the pull
+    # request changes a migration, the sync test from each store build's
+    # commit (npm run test:old-sync).
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.server == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        # The store builds' sync tests take their code out of main's history.
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
@@ -135,6 +184,14 @@ jobs:
         run: npm run db:test
       - name: Client integration test
         run: npm run test:integration
+      # Older store builds keep syncing with this pull request's database
+      # (scripts/old-sync-tests.mjs, decisions.md 152). Only a pull request
+      # that changes supabase/migrations runs them, about two minutes.
+      - name: Sync tests from the store builds
+        if: github.event_name == 'pull_request'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npm run test:old-sync
       - uses: ./.github/actions/docker-images
         if: always()
         with: { phase: save }
@@ -144,6 +201,8 @@ jobs:
     # build, served by the Worker as in production, against a local Supabase,
     # in Chromium (desktop and phone width), Firefox and WebKit. Deterministic:
     # no model. The build also holds the bundle-size budget.
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.web-smoke == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -162,7 +221,8 @@ jobs:
         with: { phase: restore }
       - name: Start Supabase in the background (applies every migration)
         run: nohup bash -c 'bash scripts/ci-retry-pull.sh npx supabase start -x "$SUPABASE_EXCLUDE" > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
-      - run: npx playwright install --with-deps chromium firefox webkit
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium firefox webkit }
       - name: Wait for Supabase
         run: |
           while [ ! -f "$RUNNER_TEMP/stack.exit" ]; do sleep 2; done
@@ -209,6 +269,8 @@ jobs:
     # other): scripts/ui-shards.mjs deals spec files by their seconds in
     # scripts/ui-shard-weights.json, which is refreshed from the reports of
     # kept runs (its header says how).
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.ui-web == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -237,7 +299,8 @@ jobs:
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Start the local stack in the background (migrations, library, push delivery)
         run: nohup bash -c 'bash scripts/ci-retry-pull.sh npm run db:start > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
       - name: Wait for the local stack
         run: |
           while [ ! -f "$RUNNER_TEMP/stack.exit" ]; do sleep 2; done
@@ -266,6 +329,33 @@ jobs:
         if: always()
         with: { phase: save, job-images: 'true' }
 
+  gate:
+    # The one check that main requires. A job that the changed files do not
+    # need is skipped and counts as passed; a needed job must have passed.
+    # It runs whatever the others did (always()), so a failure or a cancel
+    # fails it instead of leaving it skipped, which GitHub would count as a
+    # pass.
+    needs: [scope, checks, server, web-smoke, ui-web]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every needed job passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e '
+            const needs = JSON.parse(process.env.NEEDS);
+            const needed = (job) => job === "checks" || needs.scope.outputs[job] === "true";
+            let bad = needs.scope.result === "success" ? [] : [`scope ${needs.scope.result}`];
+            for (const [job, { result }] of Object.entries(needs)) {
+              if (job === "scope") continue;
+              if (needed(job) ? result !== "success" : !["success", "skipped"].includes(result)) bad.push(`${job} ${result}`);
+              else console.log(`${job}: ${result}${needed(job) ? "" : " (not needed)"}`);
+            }
+            if (bad.length) { console.log(`::error::Not every needed job passed: ${bad.join(", ")}`); process.exit(1); }
+          '
+
   nightly-ui-web:
     # The whole web UI suite, quarantine apart. Not blocking; its failures go to Linear.
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
@@ -291,7 +381,8 @@ jobs:
           job-images: 'true'
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
       - name: Start the local stack (migrations, library, push delivery)
         run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: The whole web UI suite
@@ -349,7 +440,8 @@ jobs:
           job-images: 'true'
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
       - name: Start the local stack (migrations, library, push delivery)
         run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: Quarantined web UI tests

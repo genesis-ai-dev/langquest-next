@@ -1,5 +1,5 @@
 // app.json with one change for store builds: the version that people see
-// in the stores (decisions.md 150). Apple takes one App Store version per
+// in the stores (decisions.md 156). Apple takes one App Store version per
 // version number, so every build that goes to review needs a higher one.
 // The EAS workflow on main passes the merge commit's time to its build jobs
 // as LQ_STORE_VERSION_TIME, and the version is that time in UTC as

@@ -100,7 +100,7 @@ typecheck and unit tests run, then, per platform, a change whose native
 fingerprint matches an existing production build goes out as an
 over-the-air update on the `production` channel (installed builds take it on
 next launch), and any other change builds a new binary and sends it to
-production review (decisions.md 150). On Android the build goes straight to
+production review (decisions.md 156). On Android the build goes straight to
 the production track with a full rollout, and a newer build replaces one
 that waits for review. On iOS the build goes to TestFlight, and then to App
 Review when no review is open (`scripts/app-store-review.mjs`); while a
