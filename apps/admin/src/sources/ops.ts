@@ -92,6 +92,7 @@ select jsonb_build_object(
       order by q.last_seen desc) filter (where q.rn <= 20)), '[]'::jsonb))
     from (select i.install_id, i.last_seen, row_number() over (order by i.last_seen desc) as rn from diag.installs i
           where i.last_seen < now() - interval '3 days' and i.last_seen > now() - interval '30 days' and i.profile_id is not null
+            and coalesce(i.context->>'os', '') <> 'web'
             and exists (select 1 from diag.installs o where o.profile_id = i.profile_id and o.install_id <> i.install_id
                         and o.last_seen > now() - interval '3 days')) q)
 ) as v`;
@@ -105,13 +106,13 @@ export function fleetAlerts(f: Fleet, reducer = REDUCER_VERSION): Alert[] {
   const crashFree = (u: Fleet['updates'][number]) => (u.installs ? 1 - u.crashed / u.installs : 1);
   if (latest && latest.installs >= 20 && 1 - crashFree(latest) >= CRASH_ROLLBACK_SHARE
     && (!before || crashFree(latest) < crashFree(before))) {
-    out.push({ level: 'problem', text: `Update ${latest.update} crashed on ${plural(latest.crashed, 'install')} of ${latest.installs} (${((1 - crashFree(latest)) * 100).toFixed(1)}%)${before ? `, against ${((1 - crashFree(before)) * 100).toFixed(1)}% for ${before.update}` : ''}. Consider rolling it back on EAS.` });
+    out.push({ level: 'urgent', text: `Update ${latest.update} crashed on ${plural(latest.crashed, 'install')} of ${latest.installs} (${((1 - crashFree(latest)) * 100).toFixed(1)}%)${before ? `, against ${((1 - crashFree(before)) * 100).toFixed(1)}% for ${before.update}` : ''}. Consider rolling it back on EAS.` });
   }
   const old = f.versions.filter((v) => v.reducer !== null && Number(v.reducer) < reducer).reduce((s, v) => s + v.installs, 0);
   if (old > 0) out.push({ level: 'watch', text: `${plural(old, 'install')} heard from this week still run an older reducer than ${reducer}: they need a store update.` });
   const lost = f.stuck.filter((s) => num(s.lostRecordings) > 0).length;
-  if (lost > 0) out.push({ level: 'problem', text: `${plural(lost, 'install')} lost recordings before sending them (Stuck phones).` });
-  if (f.silent.count >= 5) out.push({ level: 'watch', text: `${plural(f.silent.count, 'install')} went quiet for 3 days while another phone of the same person still reports: diagnostics off, or delivery broken.` });
+  if (lost > 0) out.push({ level: 'urgent', text: `${plural(lost, 'install')} lost recordings before sending them (Stuck phones).` });
+  if (f.silent.count >= 5) out.push({ level: 'watch', text: `${plural(f.silent.count, 'install')} went quiet for 3 days while another device of the same person still reports: diagnostics off, or delivery broken.` });
   const recent = f.toMap.filter((d) => d.kind === 'open').slice(-1)[0];
   if (recent && recent.count >= 5 && num(recent.p95Ms) > 15 * 60_000) {
     out.push({ level: 'watch', text: `A language's first download took over ${Math.round(num(recent.p95Ms) / 60_000)} minutes for one in twenty on ${recent.day}.` });
@@ -144,14 +145,18 @@ export const REJECTED_SQL = `select coalesce(jsonb_agg(to_jsonb(x) order by x.da
   from diag.records where kind = 'sync' and received_at > now() - interval '7 days' and (n->>'rejected')::numeric > 0
   group by 1) x`;
 
-/** The projection pass's sample of what arrived since its last run (server/arrivals.ts), by day. */
+/**
+ * The projection pass's sample of what arrived since its last run
+ * (server/arrivals.ts), by day. Only runs that took the sample count: a day
+ * before it began is left out rather than shown as no events.
+ */
 export const ARRIVALS_SQL = `select coalesce(jsonb_agg(to_jsonb(x) order by x.day), '[]'::jsonb) as v from (
   select to_char(date_trunc('day', started_at), 'YYYY-MM-DD') as day,
          coalesce(sum((n->>'arrivalsSampled')::numeric), 0) as sampled, coalesce(sum((n->>'newEvents')::numeric), 0) as "newEvents",
          max((n->>'maxUploadDelayP50Ms')::numeric) as "p50Ms", max((n->>'maxUploadDelayP95Ms')::numeric) as "p95Ms",
          max((n->>'maxUploadDelayMs')::numeric) as "maxMs",
          coalesce(sum((n->>'futureStamped')::numeric), 0) as "futureStamped", coalesce(sum((n->>'futureStampedInstalls')::numeric), 0) as "futureInstalls"
-  from diag.job_runs where job = 'projection' and started_at > now() - interval '7 days' group by 1) x`;
+  from diag.job_runs where job = 'projection' and n ? 'newEvents' and started_at > now() - interval '7 days' group by 1) x`;
 
 export const CANARY_SQL = `select coalesce(jsonb_agg(jsonb_build_object('at', started_at, 'outcome', outcome,
     'languages', coalesce((n->>'languages')::numeric, 0), 'mismatched', coalesce((n->>'mismatched')::numeric, 0),
@@ -161,12 +166,12 @@ export const CANARY_SQL = `select coalesce(jsonb_agg(jsonb_build_object('at', st
 export function safetyAlerts(s: Safety): Alert[] {
   const out: Alert[] = [];
   const today = s.rejected.slice(-1)[0];
-  if (today && today.invalid > 0) out.push({ level: 'problem', text: `The server refused ${plural(today.invalid, 'event')} as invalid on ${today.day}: a phone wrote work the server's rules do not accept, so it may never arrive.` });
+  if (today && today.invalid > 0) out.push({ level: 'urgent', text: `The server refused ${plural(today.invalid, 'event')} as invalid on ${today.day}: a phone wrote work the server's rules do not accept, so it may never arrive.` });
   if (today && today.installs >= 3 && today.rejected > today.invalid) {
     out.push({ level: 'watch', text: `Work was refused from ${plural(today.installs, 'install')} on ${today.day} (${today.rejected} events: ${[['not a member', today.notMember], ['not allowed', today.notAllowed], ['clock ahead', today.clockAhead], ['not listed', today.notListed], ['other', today.other]].filter(([, n]) => Number(n) > 0).map(([w, n]) => `${w} ${n}`).join(', ')}).` });
   }
   const mismatch = s.canary.find((c) => c.mismatched > 0 || c.errorClass === 'mismatch');
-  if (mismatch && s.canary[0] === mismatch) out.push({ level: 'problem', text: `The fold canary found a language whose fresh fold differs from its stored snapshot (${mismatch.stream ?? 'unnamed'} in ${mismatch.org ?? '?'}). Snapshots or the fold may depend on order.` });
+  if (mismatch && s.canary[0] === mismatch) out.push({ level: 'urgent', text: `The fold canary found a language whose fresh fold differs from its stored snapshot (${mismatch.stream ?? 'unnamed'} in ${mismatch.org ?? '?'}). Snapshots or the fold may depend on order.` });
   const arrivals = s.arrivals.slice(-1)[0];
   if (arrivals && num(arrivals.p95Ms) > 24 * 3_600_000 && arrivals.sampled >= 100) {
     out.push({ level: 'watch', text: `One in twenty events arriving on ${arrivals.day} was made over a day earlier (p95 upload delay ${Math.round(num(arrivals.p95Ms) / 3_600_000)} h).` });
@@ -197,7 +202,7 @@ export interface OrgRow { orgId: string; name: string | null; members: number; l
 
 export const EVENTS_BY_DAY_SQL = `select coalesce(jsonb_agg(to_jsonb(x) order by x.day), '[]'::jsonb) as v from (
   select to_char(date_trunc('day', started_at), 'YYYY-MM-DD') as day, coalesce(sum((n->>'newEvents')::numeric), 0) as events
-  from diag.job_runs where job = 'projection' and started_at > now() - interval '14 days' group by 1) x`;
+  from diag.job_runs where job = 'projection' and n ? 'newEvents' and started_at > now() - interval '14 days' group by 1) x`;
 
 export function peopleAlerts(p: People): Alert[] {
   const out: Alert[] = [];
@@ -215,7 +220,11 @@ export interface DbDetail {
   indexes: { name: string; table: string; bytes: number }[];
 }
 export interface Push {
-  pending: number; oldestPendingAt: string | null; errors24h: { code: string; n: number }[]; tokens: number; membersWithoutToken: number;
+  /** Waiting for a recipient with a push token: what push delivery should send. */
+  pending: number; oldestPendingAt: string | null;
+  /** Waiting for a recipient with no push token: never pushed, only in their Inbox (migration 20261023160000). Absent before it. */
+  inboxOnly?: number;
+  errors24h: { code: string; n: number }[]; tokens: number; membersWithoutToken: number;
   runs: Record<string, number>;
 }
 export interface Integrations {

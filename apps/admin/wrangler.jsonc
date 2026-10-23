@@ -35,8 +35,10 @@
     "PREVIEW_URL": "https://next-preview.langquest.org",
     // The recordings bucket (apps/web/wrangler.jsonc r2_buckets), for its size.
     "R2_BUCKET": "langquest-next-blobs",
-    // The Supabase plan's database size, GB, for the capacity section's weeks left.
-    "SUPABASE_DB_LIMIT_GB": "8",
+    // The production database's provisioned disk, GB (Supabase > Settings >
+    // Compute and Disk), for the capacity section's weeks left and its alert
+    // past 90%. Change it here when the disk is resized.
+    "SUPABASE_DB_LIMIT_GB": "64",
     "GITHUB_REPO": "genesis-ai-dev/langquest-next",
     // apps/mobile/app.json extra.eas.projectId
     "EXPO_PROJECT_ID": "582d3757-4245-419a-9087-e269e3bf4c4d",

@@ -24,7 +24,7 @@ export function expiryAlerts(e: Expiry, now = Date.now()): Alert[] {
   for (const item of e.items) {
     if (!item.expires) continue;
     const left = days(item.expires, now);
-    if (left < 0) out.push({ level: 'problem', text: `${item.what} expired on ${item.expires.slice(0, 10)}.` });
+    if (left < 0) out.push({ level: 'urgent', text: `${item.what} expired on ${item.expires.slice(0, 10)}.` });
     else if (left <= PROBLEM_DAYS) out.push({ level: 'problem', text: `${item.what} expires in ${Math.ceil(left)} days (${item.expires.slice(0, 10)}).` });
     else if (left <= WARN_DAYS) out.push({ level: 'watch', text: `${item.what} expires in ${Math.ceil(left)} days (${item.expires.slice(0, 10)}).` });
   }

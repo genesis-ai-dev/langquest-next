@@ -1,5 +1,6 @@
 import { encodeHlc } from '@langquest-next/core';
-import { arrivalStats, percentile, type ArrivalRow } from '../../../server/arrivals';
+import { DEVICE as V2_IMPORT_DEVICE } from '../../../packages/v2-import/src/reconcile';
+import { SERVER_DEVICES, arrivalStats, percentile, type ArrivalRow } from '../../../server/arrivals';
 
 const NOW = Date.UTC(2026, 9, 22, 12, 0, 0);
 const row = (delayMs: number, device = 'd1'): ArrivalRow => ({
@@ -26,5 +27,12 @@ describe('arrivalStats (upload delay and clock skew, ops dashboard plan 5.4)', (
       .toEqual({ arrivalsSampled: 0, newEvents: 2, maxUploadDelayP50Ms: 0, maxUploadDelayP95Ms: 0, maxUploadDelayMs: 0, futureStamped: 0, futureStampedInstalls: 0 });
     expect(percentile([], 50)).toBe(0);
     expect(percentile([7], 95)).toBe(7);
+  });
+
+  it('leaves the v2 import out of the delays: it stamps work with when the v2 record changed', () => {
+    // October 2026: v2 import events sampled at a day and a half late made every phone look offline that long.
+    expect(SERVER_DEVICES.has(V2_IMPORT_DEVICE)).toBe(true);
+    const stats = arrivalStats([row(2000), row(30 * 3_600_000, V2_IMPORT_DEVICE), row(31 * 3_600_000, V2_IMPORT_DEVICE)], 3);
+    expect(stats).toMatchObject({ arrivalsSampled: 1, newEvents: 3, maxUploadDelayMs: 2000 });
   });
 });

@@ -106,7 +106,7 @@ export const HELP: Record<string, string> = {
   'Browsers by web commit, this week': 'Which version of the web app browsers are running. Old ones update when the page reloads.',
   'Time to a usable Map': 'How long until a language is usable after a first download. open: a whole language downloaded. fill: a big language, until its Map shows (the rest fills in behind).',
   'Stuck phones': 'Phones with unsent work over a day old, a stuck download, little storage or lost files. Open one to see its last three days.',
-  'Silent phones': 'Phones quiet for 3 days while another phone of the same person still reports: diagnostics turned off, or something broke on that phone.',
+  'Silent phones': 'Phones quiet for 3 days while another device of the same person still reports: diagnostics turned off, or something broke on that phone. Browsers are left out: a new browser or a private window is a new install, so an old one going quiet is normal.',
   'Unsent for': 'How long the oldest unsent recording has waited.',
   'Download stuck': 'How long the oldest wanted file has waited.',
   Free: 'Storage left on the phone.',
@@ -142,7 +142,8 @@ export const HELP: Record<string, string> = {
   'push tokens': 'Phones registered to receive push notifications.',
   'members without a token': 'Members with no phone registered for pushes; they see updates only when they open the app.',
   'oldest waiting': 'How long the oldest notification has waited to be pushed.',
-  waiting: 'Notifications not yet pushed.',
+  'Inbox only, no push token': 'Notifications for people whose phones gave no push token (notifications off, or a browser). Push delivery never sends these; they wait in the person\'s Inbox, which is expected.',
+  waiting: 'Notifications waiting to be pushed to a phone that has a push token. Push delivery runs every minute, so a few minutes is normal; hours means it is stuck.',
   '429': 'Requests a rate limit refused.',
   '5xx': 'Requests that failed on the server.',
   '<100 ms': 'Requests answered in under a tenth of a second.',
@@ -164,10 +165,11 @@ export const HELP: Record<string, string> = {
   'Nightly R2 check': 'Each night the log of stored files is compared with what the bucket holds. Missing: the log says stored, the bucket lacks it.',
   'Files lost on phones (decision 92)': 'Files that vanished from phones without the app removing them, by day.',
   'database growth a week': 'How much the database grew in a week, from the nightly size readings.',
-  'weeks left at that rate': 'Weeks until the database reaches its plan limit if it keeps growing as it has.',
+  'weeks left at that rate': 'Weeks until the database fills its provisioned disk (SUPABASE_DB_LIMIT_GB in apps/admin/wrangler.jsonc) if it keeps growing as it has.',
   'R2 growth a week': 'How much the recordings bucket grew in a week.',
   'Cloudflare this month, against the plan': 'This month\'s usage against what the Workers Paid plan includes; past it is billed.',
   Included: 'What the plan includes each month.',
+  'Extra cost': 'What the use past the plan has cost so far this month, in US dollars, at Cloudflare\'s list price (apps/admin/src/sources/storage.ts PRICE_USD). Only an extra cost of $5 or more raises an alert.',
 
   // ---- people and support
   accounts: 'LangQuest accounts in all.',
@@ -193,6 +195,7 @@ export const HELP: Record<string, string> = {
 
   // ---- providers
   'commits not deployed': 'Commits on main the live web app does not have yet.',
+  'commits since, none for the web app': 'Commits on main since the commit the web app serves, none of which changes a file the app Worker builds from (its Workers Build watch paths, docs/cloudflare.md). Nothing to deploy: the web app is current.',
   'user-perceived crashes, 7 days': 'Share of Android users who saw a crash in the last week, as Google Play measures it. Above 1.09% Play may show the app less.',
   'user-perceived ANRs, 7 days': 'Share of Android users who saw the app freeze (Application Not Responding). Above 0.47% Play may show the app less.',
   'cache hits': 'Share of database reads served from memory. Low means the database reads disk a lot.',

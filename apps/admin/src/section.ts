@@ -5,8 +5,19 @@
  * every section's alerts.
  */
 
-/** `problem`: something is broken now. `watch`: worth a look. Same words as scripts/diagSignals.ts. */
-export type Level = 'problem' | 'watch';
+/**
+ * How much an alert matters, most first:
+ * - `urgent` (Act now): people are blocked or their work is at risk: recordings
+ *   lost, work refused, the site or the database down, a backup missing.
+ * - `problem` (Fix soon): something is broken, but nobody loses work while it
+ *   waits: a failed deploy, a job past its limit, a token about to expire.
+ * - `watch`: worth a look; it may be nothing.
+ * `problem` and `watch` are the same words as scripts/diagSignals.ts.
+ */
+export type Level = 'urgent' | 'problem' | 'watch';
+
+/** The order the page and the API list them in. */
+export const LEVELS: readonly Level[] = ['urgent', 'problem', 'watch'];
 
 export interface Alert {
   level: Level;
@@ -34,8 +45,7 @@ export const failed = (error: string, alerts: Alert[] = []): Section =>
   ({ state: 'error', alerts, error, checkedAt: new Date().toISOString() });
 
 export function sortAlerts(alerts: Alert[]): Alert[] {
-  const rank: Record<Level, number> = { problem: 0, watch: 1 };
-  return [...alerts].sort((a, b) => rank[a.level] - rank[b.level]);
+  return [...alerts].sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
 }
 
 /**

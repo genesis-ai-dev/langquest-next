@@ -37,6 +37,7 @@ section.card { background: var(--card); border: 1px solid var(--line); border-ra
 .src { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 .pill.ok { color: var(--green); background: var(--greenbg); } .pill.problem { color: var(--red); background: var(--redbg); }
+.pill.urgent { color: var(--card); background: var(--red); }
 .pill.watch { color: var(--amber); background: var(--amberbg); } .pill.off, .pill.wait { color: var(--muted); background: var(--bg); }
 .pill.error { color: var(--red); background: var(--redbg); }
 #attention { margin-bottom: 16px; }
@@ -45,6 +46,9 @@ section.card { background: var(--card); border: 1px solid var(--line); border-ra
 #attention li:first-child { border-top: 0; }
 .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--grey); }
 .dot.problem { background: var(--red); } .dot.watch { background: var(--amber); } .dot.ok { background: var(--green); }
+.dot.urgent { background: var(--red); box-shadow: 0 0 0 3px var(--redbg); }
+#attention li.level { display: block; padding: 12px 0 2px; border-top: 0; font-size: 13px; font-weight: 600; }
+#attention li.level small { font-weight: 400; color: var(--muted); }
 .where { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .stats { display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
 .stat { flex: 1 1 90px; background: var(--bg); border-radius: 10px; padding: 8px 10px; }
@@ -300,13 +304,31 @@ function layout() {
   });
 }
 
-/** One status for a section from its parts': problems first, then anything to watch or unreadable; OK only when every part answered. */
+/**
+ * How much each alert matters (section.ts Level), most first. An unreadable
+ * part is something to watch: the page cannot tell how bad it is.
+ */
+const LEVEL = {
+  urgent: { title: 'Act now', note: 'people are blocked or their work is at risk', count: (n) => n + ' urgent' },
+  problem: { title: 'Fix soon', note: 'broken, but nobody loses work while it waits', count: (n) => n + (n === 1 ? ' problem' : ' problems') },
+  watch: { title: 'Watch', note: 'worth a look; it may be nothing', count: (n) => n + ' to watch' }
+};
+const LEVELS = Object.keys(LEVEL);
+function counts(got) {
+  const c = { urgent: 0, problem: 0, watch: 0 };
+  for (const s of got) {
+    for (const a of s.alerts || []) c[a.level in c ? a.level : 'watch'] += 1;
+    if (s.state === 'error') c.watch += 1;
+  }
+  return c;
+}
+
+/** One status for a section from its parts': its most urgent level and how many at it; OK only when every part answered. */
 function pill(g) {
   const got = g.parts.map((p) => results[p]).filter(Boolean);
-  const p = got.reduce((n, s) => n + (s.alerts || []).filter((a) => a.level === 'problem').length, 0);
-  const w = got.reduce((n, s) => n + (s.alerts || []).filter((a) => a.level === 'watch').length + (s.state === 'error' ? 1 : 0), 0);
-  if (p) return ['problem', p + (p === 1 ? ' problem' : ' problems')];
-  if (w) return ['watch', w + ' to watch'];
+  const c = counts(got);
+  const top = LEVELS.find((l) => c[l] > 0);
+  if (top) return [top, LEVEL[top].count(c[top])];
   if (got.length < g.parts.length) return ['wait', 'Loading…'];
   if (got.every((s) => s.state === 'off')) return ['off', 'Not connected'];
   return ['ok', 'OK'];
@@ -355,14 +377,18 @@ function attention() {
     for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, where: g.title, id: g.id });
     if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: g.title, id: g.id });
   }
-  items.sort((a, b) => (a.level === b.level ? 0 : a.level === 'problem' ? -1 : 1));
   const loading = PARTS.filter((p) => !results[p]).length;
-  const p = items.filter((i) => i.level === 'problem').length;
+  const c = counts(SECTIONS.flatMap((g) => g.parts.map((p) => results[p]).filter(Boolean)));
+  const top = LEVELS.find((l) => c[l] > 0);
   const el = $('attention-pill');
-  el.className = 'pill ' + (p ? 'problem' : items.length ? 'watch' : loading ? 'wait' : 'ok');
-  el.textContent = p ? p + (p === 1 ? ' problem' : ' problems') + (items.length > p ? ', ' + (items.length - p) + ' to watch' : '') : items.length ? items.length + ' to watch' : loading ? 'Checking…' : 'All clear';
+  el.className = 'pill ' + (top || (loading ? 'wait' : 'ok'));
+  el.textContent = top ? LEVELS.filter((l) => c[l] > 0).map((l) => LEVEL[l].count(c[l])).join(', ') : loading ? 'Checking…' : 'All clear';
+  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>';
   $('attention-list').innerHTML = items.length
-    ? items.map((i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>').join('')
+    ? LEVELS.map((l) => {
+      const at = items.filter((i) => (i.level in LEVEL ? i.level : 'watch') === l);
+      return at.length ? '<li class="level">' + LEVEL[l].title + ' <small>' + LEVEL[l].note + '</small></li>' + at.map(item).join('') : '';
+    }).join('')
     : (loading ? '' : '<li><span class="dot ok"></span><span>Nothing needs attention right now.</span></li>');
 }
 
@@ -436,10 +462,12 @@ const RENDER = {
   },
   code(d) {
     const live = d.live.build ? '<code>' + esc(d.live.build.slice(0, 8)) + '</code>' : '<span class="bad">no answer</span>';
-    const same = d.behind === 0;
+    // Commits that change nothing the web app is built from leave it on an older commit, as they should.
+    const stale = d.behind !== 0 && d.appChanged !== false;
     let h = '<div class="stats">' + stat('<code>' + esc(d.main.sha.slice(0, 8)) + '</code>', 'main, ' + ago(d.main.at)) +
-      stat(live, new URL(d.live.url).host + ' serves', same ? '' : 'bad') +
-      stat(d.behind === null ? '?' : num(d.behind), 'commits not deployed', d.behind ? 'bad' : '') + '</div>';
+      stat(live, new URL(d.live.url).host + ' serves', stale ? 'bad' : '') +
+      (d.appChanged === false && d.behind ? stat(num(d.behind), 'commits since, none for the web app')
+        : stat(d.behind === null ? '?' : num(d.behind), 'commits not deployed', d.behind ? 'bad' : '')) + '</div>';
     h += '<p class="muted">' + esc(d.main.title) + '</p>';
     h += '<h3>Latest run of each workflow on main</h3>' + table([
       { h: 'Workflow', v: (r) => '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.workflow) + '</a><br><small>' + esc(r.event) + ' · <code>' + esc(r.sha) + '</code></small>' },

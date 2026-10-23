@@ -7,7 +7,7 @@ import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
 import { fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, workerAlerts, type Fleet, type Safety } from '../src/sources/ops';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
-import { capacityAlerts, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
+import { ALLOWANCE, PRICE_USD, capacityAlerts, extraUsd, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
 
 /** The sections the ops dashboard plan added (docs/ops-dashboard-plan.md 5): what each calls a problem. */
 
@@ -24,7 +24,7 @@ describe('builds and stuck phones', () => {
       { update: 'new', runtime: '1', channel: 'production', installs: 100, crashed: 5, firstSeen: hoursAgo(10), lastSeen: hoursAgo(1) },
       { update: 'old', runtime: '1', channel: 'production', installs: 100, crashed: 0, firstSeen: hoursAgo(100), lastSeen: hoursAgo(1) }
     ] }));
-    expect(alerts).toEqual([expect.objectContaining({ level: 'problem', text: expect.stringContaining('rolling it back') })]);
+    expect(alerts).toEqual([expect.objectContaining({ level: 'urgent', text: expect.stringContaining('rolling it back') })]);
   });
 
   it('stays quiet for a crash on a few installs, and ignores web commits', () => {
@@ -37,7 +37,7 @@ describe('builds and stuck phones', () => {
       versions: [{ reducer: '18', protocol: '1', installs: 4 }, { reducer: '19', protocol: '1', installs: 40 }],
       stuck: [{ install: 'i', unsentMin: null, stuckMin: null, freeMb: 900, lostFiles: 1, lostRecordings: 1, at: hoursAgo(1) }]
     }), 19);
-    expect(alerts.map((a) => a.level).sort()).toEqual(['problem', 'watch']);
+    expect(alerts.map((a) => a.level).sort()).toEqual(['urgent', 'watch']);
     expect(alerts.find((a) => a.level === 'watch')!.text).toContain('4 installs');
   });
 });
@@ -46,8 +46,8 @@ describe('sync and data safety', () => {
   const safety = (over: Partial<Safety> = {}): Safety => ({ rejected: [], arrivals: [], canary: [], pipeline: null, ...over });
   const day = { day: '2026-10-22', rejected: 0, installs: 0, notMember: 0, notAllowed: 0, notListed: 0, invalid: 0, clockAhead: 0, other: 0 };
 
-  it('calls work refused as invalid a problem, since it may never arrive', () => {
-    expect(safetyAlerts(safety({ rejected: [{ ...day, rejected: 2, installs: 1, invalid: 2 }] }))[0]).toMatchObject({ level: 'problem' });
+  it('calls work refused as invalid urgent, since it may never arrive', () => {
+    expect(safetyAlerts(safety({ rejected: [{ ...day, rejected: 2, installs: 1, invalid: 2 }] }))[0]).toMatchObject({ level: 'urgent' });
   });
 
   it('watches refusals on several installs, naming the reasons', () => {
@@ -57,10 +57,10 @@ describe('sync and data safety', () => {
     expect(a!.text).toContain('clock ahead 2');
   });
 
-  it('calls the newest canary run finding a mismatch a problem, and an old one nothing', () => {
+  it('calls the newest canary run finding a mismatch urgent, and an old one nothing', () => {
     const bad = { at: hoursAgo(5), outcome: 'error', languages: 3, mismatched: 1, errorClass: 'mismatch', org: 'o', stream: 's' };
     const good = { ...bad, mismatched: 0, errorClass: null, outcome: 'ok', at: hoursAgo(1) };
-    expect(safetyAlerts(safety({ canary: [bad] }))[0]).toMatchObject({ level: 'problem', text: expect.stringContaining('s in o') });
+    expect(safetyAlerts(safety({ canary: [bad] }))[0]).toMatchObject({ level: 'urgent', text: expect.stringContaining('s in o') });
     expect(safetyAlerts(safety({ canary: [good, bad] }))).toEqual([]);
   });
 
@@ -90,7 +90,7 @@ describe('the app Worker and support', () => {
 });
 
 describe('expiry dates', () => {
-  it('warns at 30 days and calls 7 or fewer, or past, a problem', () => {
+  it('warns at 30 days, calls 7 or fewer a problem, and past it urgent', () => {
     const items = [
       { what: 'a', expires: new Date(NOW + 20 * 86_400_000).toISOString(), source: 'x' },
       { what: 'b', expires: new Date(NOW + 3 * 86_400_000).toISOString(), source: 'x' },
@@ -98,7 +98,7 @@ describe('expiry dates', () => {
       { what: 'd', expires: new Date(NOW + 90 * 86_400_000).toISOString(), source: 'x' },
       { what: 'e', expires: null, source: 'x' }
     ];
-    expect(expiryAlerts({ items, notes: [] }, NOW).map((a) => [a.level, a.text[0]])).toEqual([['watch', 'a'], ['problem', 'b'], ['problem', 'c']]);
+    expect(expiryAlerts({ items, notes: [] }, NOW).map((a) => [a.level, a.text[0]])).toEqual([['watch', 'a'], ['problem', 'b'], ['urgent', 'c']]);
   });
 
   it('reads a Cloudflare token\'s end date whether a user or an account owns it', async () => {
@@ -119,10 +119,10 @@ describe('expiry dates', () => {
 describe('storage, capacity and releases', () => {
   const storage = (over: Partial<Storage> = {}): Storage => ({ backups: null, r2: null, lostFiles: [], reconcile: null, secondCopy: false, ...over });
 
-  it('calls an old backup with no point-in-time recovery a problem, and recordings R2 lacks', () => {
-    expect(storageAlerts(storage({ backups: { pitr: false, latest: hoursAgo(48), count: 3 } }), NOW)[0]).toMatchObject({ level: 'problem' });
+  it('calls an old backup with no point-in-time recovery urgent, and recordings R2 lacks', () => {
+    expect(storageAlerts(storage({ backups: { pitr: false, latest: hoursAgo(48), count: 3 } }), NOW)[0]).toMatchObject({ level: 'urgent' });
     expect(storageAlerts(storage({ backups: { pitr: true, latest: hoursAgo(48), count: 3 } }), NOW)).toEqual([]);
-    expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'partial', n: { missing: 2 } } }), NOW)[0]!.text).toContain('2 recordings');
+    expect(storageAlerts(storage({ reconcile: { at: hoursAgo(3), outcome: 'partial', n: { missing: 2 } } }), NOW)[0]).toMatchObject({ level: 'urgent', text: expect.stringContaining('2 recordings') });
   });
 
   it('takes the newest backup from the daily list or, with point-in-time recovery, from the physical one', () => {
@@ -137,12 +137,24 @@ describe('storage, capacity and releases', () => {
     expect(growthPerDay([{ at: '2026-10-01', bytes: 0 }, { at: '2026-10-11', bytes: 1000 }])).toBe(100);
   });
 
-  it('warns as the database nears its limit, and when usage passes the plan', () => {
-    const base: Capacity = { now: null, limitBytes: 8 * 1024 ** 3, dbGrowthPerDay: null, weeksLeft: 3, history: [], r2: null, usage: null };
+  it('warns as the database nears its disk, and calls 90% of it a problem', () => {
+    const base: Capacity = { now: null, limitBytes: 64 * 1024 ** 3, dbGrowthPerDay: null, weeksLeft: 3, history: [], r2: null, usage: null };
     expect(capacityAlerts(base)[0]).toMatchObject({ level: 'problem' });
     expect(capacityAlerts({ ...base, weeksLeft: 10 })[0]).toMatchObject({ level: 'watch' });
-    const allowance = { workersRequests: 10, doRequests: 10, r2ClassA: 10, r2ClassB: 10, r2Bytes: 10 };
-    expect(capacityAlerts({ ...base, weeksLeft: null, usage: { workersRequests: 11, doRequests: 1, r2ClassA: 1, r2ClassB: 1, allowance } })).toHaveLength(1);
+    const size = (gb: number) => ({ dbBytes: gb * 1024 ** 3, eventsBytes: 0, eventsRows: 0, snapshotsBytes: 0 });
+    // October 2026: 13 GB of a 64 GB disk is nothing to say.
+    expect(capacityAlerts({ ...base, weeksLeft: null, now: size(13) })).toEqual([]);
+    expect(capacityAlerts({ ...base, weeksLeft: null, now: size(60) })).toEqual([{ level: 'problem', text: expect.stringMatching(/^The database \(60 GB\) fills 94% of its 64 GB disk/) }]);
+  });
+
+  it('raises an overage only once it costs five dollars this month', () => {
+    const base: Capacity = { now: null, limitBytes: 64 * 1024 ** 3, dbGrowthPerDay: null, weeksLeft: null, history: [], r2: null, usage: null };
+    // October 2026: Durable Object requests 4% over (under a cent), R2 class A 2.5 times over (about $6.72).
+    const usage = { workersRequests: 8_533_015, doRequests: 1_039_481, r2ClassA: 2_493_954, r2ClassB: 686_235, allowance: ALLOWANCE, price: PRICE_USD };
+    const alerts = capacityAlerts({ ...base, usage });
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]!.text).toMatch(/^R2 class A operations .* about \$6\.72 so far\.$/);
+    expect(extraUsd(1_039_481, 1_000_000, PRICE_USD.doRequests)).toBeLessThan(0.01);
   });
 
   it('counts R2 writes and lists as class A, deletes as free, the rest as class B', () => {

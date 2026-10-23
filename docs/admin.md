@@ -51,9 +51,29 @@ address.
 
 ## What each section reads
 
-"Needs attention" at the top gathers every section's alerts, problems first.
-The same list is JSON at `/ops/api/attention`. Each section collapses to
-its title and status (OK, problems, to watch, not connected, could not
+"Needs attention" at the top gathers every section's alerts under three
+levels (`apps/admin/src/section.ts` `Level`):
+
+- **Act now** (`urgent`): people are blocked or their work is at risk:
+  recordings lost, work refused as invalid, a fold that disagrees with
+  its snapshot, R2 missing a recording, no recent backup, the site or a
+  Supabase service down, an update crashing enough to roll back, a token
+  already expired.
+- **Fix soon** (`problem`): broken, but nobody loses work while it waits:
+  a failed deploy, a job past its time limit, server errors on a route,
+  a slow RPC people wait on, a token about to expire, a database past
+  90% of its disk.
+- **Watch** (`watch`): worth a look; it may be nothing. A part that could
+  not be read is here too.
+
+An alert says only what someone could act on. A merge that changes nothing
+the web app is built from, notifications for people with no push token
+(they stay in the Inbox), RPCs only the server's jobs call, an average over
+fewer than 20 calls, the v2 import's backdated events, browsers going
+quiet, and an overage costing under $5 this month raise none; each figure
+still shows in its section. The same list is JSON at
+`/ops/api/attention`, with a count per level. Each section collapses to its
+title and status (OK, urgent, problems, to watch, not connected, could not
 read): it starts closed when it is fine and open when something needs a
 look, and a section someone opens or closes stays that way in their
 browser. Expand all and Collapse all are at the top. Hovering over (or
@@ -89,8 +109,8 @@ the page loads to exactly one section.
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
 | Expiry dates | each provider token's end date where its provider reports one (Cloudflare, GitHub), Apple's certificates and provisioning profiles, and the dates in `apps/admin/expiry.json` | the tokens; the file needs nothing |
-| Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against `SUPABASE_DB_LIMIT_GB`, R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
-| Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
+| Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against its provisioned disk (`SUPABASE_DB_LIMIT_GB`, 64 GB), R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
+| Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx) | `ADMIN_SUPABASE_TOKEN` |
 | App builds and updates | EAS builds, store submissions and the newest update on each branch | `ADMIN_EXPO_TOKEN` |

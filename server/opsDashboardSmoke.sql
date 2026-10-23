@@ -39,6 +39,10 @@ insert into diag.installs (install_id, profile_id, day_start, day_count) values 
 insert into v2_import.sign_in_failures (email) values ('od@example.org');
 insert into public.notifications (id, profile_id, org_id, kind, title, push_attempts, push_last_error)
   values ('od-n1', '0d000000-0000-0000-0000-00000000000a', 'od-org', 'x', 't', 2, 'http_5xx');
+-- One person with a push token, one without: only the first can be pushed.
+insert into public.push_tokens (token, profile_id) values ('od-push-token', '0d000000-0000-0000-0000-00000000000a');
+insert into public.notifications (id, profile_id, org_id, kind, title)
+  values ('od-n2', '0d000000-0000-0000-0000-00000000000b', 'od-org', 'x', 't');
 
 -- 1. Every function, as diag_reader; the role still cannot read the tables.
 grant diag_reader to postgres;
@@ -101,7 +105,7 @@ begin
 
   -- push
   v := diag.ops_push();
-  if (v->>'pending')::int < 1 or v->>'oldestPendingAt' is null or jsonb_typeof(v->'errors24h') <> 'array'
+  if (v->>'pending')::int < 1 or v->>'oldestPendingAt' is null or (v->>'inboxOnly')::int < 1 or jsonb_typeof(v->'errors24h') <> 'array'
      or not exists (select 1 from jsonb_array_elements(v->'errors24h') x where x->>'code' = 'http_5xx')
      or v->'tokens' is null or v->'membersWithoutToken' is null then
     raise exception 'ops_push: %', v;
