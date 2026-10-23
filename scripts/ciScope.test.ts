@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
-import { changedFiles, JOBS, RULES, scopeFor } from './ci-scope.mjs';
+import { changedFiles, eventRange, JOBS, RULES, scopeFor } from './ci-scope.mjs';
 
 /**
  * Which guardrails jobs a pull request needs, from the files that it
@@ -65,5 +65,19 @@ describe('the changed files', () => {
   it('are the change since the branch met main, not what main did since', () => {
     const base = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
     expect(changedFiles(process.cwd(), base, base)).toEqual([]);
+  });
+});
+
+describe('which files a run measures', () => {
+  it('a pull request: its own change from where it meets its base', () => {
+    expect(eventRange('pull_request', { pull_request: { base: { ref: 'main' }, head: { sha: 'abc' } } })).toEqual({ what: 'pull request', base: 'origin/main', head: 'abc' });
+  });
+
+  it('a merge queue entry: what it changes on main, the pull requests ahead of it included', () => {
+    expect(eventRange('merge_group', { merge_group: { base_sha: 'b0', head_sha: 'h1', base_ref: 'refs/heads/main' } })).toEqual({ what: 'merge queue entry', base: 'b0', head: 'h1' });
+  });
+
+  it('a push, the nightly and a manual run measure nothing: every job runs', () => {
+    for (const name of ['push', 'schedule', 'workflow_dispatch', undefined]) expect(eventRange(name, {})).toBeNull();
   });
 });
