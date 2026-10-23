@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  CRON_JOB, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql
+  ADMIN_KEYS, CRON_JOB, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql, workersIn
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -11,11 +11,22 @@ const values = { INVITE_RELAY_SECRET: 'relay', PUSH_DELIVERY_SECRET: 'push' };
 describe('secrets', () => {
   it('sets exactly the secrets each Worker requires, so a deploy never stops for one', () => {
     for (const env of ['production', 'preview']) {
-      const wanted = destinations(env, values, 'ref', 'service');
-      for (const [worker, config] of Object.entries(WORKERS)) {
-        const required = wranglerFor(parseJsonc(read(config)), env).secrets?.required ?? [];
+      const wanted = destinations(env, { ...values, DIAG_DATABASE_URL: 'postgresql://diag' }, 'ref', 'service');
+      expect(Object.keys(wanted.workers).sort(), env).toEqual(Object.keys(workersIn(env)).sort());
+      for (const [worker, config] of Object.entries(workersIn(env))) {
+        const required = wranglerFor(parseJsonc(read(config as string)), env).secrets?.required ?? [];
         expect(Object.keys(wanted.workers[worker as keyof typeof WORKERS]).sort(), `${worker} ${env}`).toEqual([...required].sort());
       }
+    }
+  });
+
+  it("gives the admin page diag_reader's login and the tokens the file has, never the service-role key, and only in production", () => {
+    const file = { ...values, DIAG_DATABASE_URL: 'postgresql://diag', ADMIN_PROFILE_IDS: 'a,b', ADMIN_VERCEL_TOKEN: 'v', ADMIN_GITHUB_TOKEN: '' };
+    expect(destinations('production', file, 'ref', 'service').workers.admin).toEqual({ DIAG_DATABASE_URL: 'postgresql://diag', ADMIN_PROFILE_IDS: 'a,b', ADMIN_VERCEL_TOKEN: 'v' });
+    expect(destinations('preview', file, 'ref', 'service').workers).not.toHaveProperty('admin');
+    for (const key of ADMIN_KEYS) {
+      expect(FILE_KEYS).toContain(key);
+      expect(wranglerFor(parseJsonc(read(WORKERS.admin)), 'production').secrets?.required ?? []).not.toContain(key);
     }
   });
 

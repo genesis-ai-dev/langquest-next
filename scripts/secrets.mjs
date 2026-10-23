@@ -29,11 +29,20 @@ import { authArgs, targetArgs } from './cloudflare-deploy.mjs';
 import { HOSTED, decrypt, envKeyNames, parseJsonc, projectRef, root, secretsPath } from './env-files.mjs';
 
 /**
- * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted) and never
- * pushed; V2_DATABASE_URL (scripts/v2-access.sh) goes to the app's Worker for the v2 import's job
- * (decisions.md 141) and is read on a laptop by npm run v2 -- --production.
+ * The admin page's (apps/admin, docs/admin.md), production only and each
+ * optional: who may open it, and one read-only token per provider. Named
+ * ADMIN_* so none stands in for a CLI's own login (SUPABASE_ACCESS_TOKEN,
+ * GITHUB_TOKEN, EXPO_TOKEN) when a script runs with this file's values.
  */
-export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET'];
+export const ADMIN_KEYS = ['ADMIN_PROFILE_IDS', 'ADMIN_CLOUDFLARE_TOKEN', 'ADMIN_SUPABASE_TOKEN', 'ADMIN_VERCEL_TOKEN', 'ADMIN_GITHUB_TOKEN', 'ADMIN_EXPO_TOKEN',
+  'ADMIN_GOOGLE_PLAY_KEY', 'ADMIN_APP_STORE_KEY'];
+
+/**
+ * Keys .env.<env> may hold. DIAG_DATABASE_URL is read on a laptop (npm run diag -- --hosted) and by
+ * the admin Worker; V2_DATABASE_URL (scripts/v2-access.sh) goes to the app's Worker for the v2
+ * import's job (decisions.md 141) and is read on a laptop by npm run v2 -- --production.
+ */
+export const FILE_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET', 'DIAG_DATABASE_URL', 'BIBLE_BRAIN_ACCESS_KEY', 'V2_SUPABASE_ANON_KEY', 'V2_DATABASE_URL', 'WEBHOOK_POKE_SECRET', ...ADMIN_KEYS];
 export const REQUIRED_KEYS = ['INVITE_RELAY_SECRET', 'PUSH_DELIVERY_SECRET'];
 /**
  * Placed when the file has them, never required: the Worker answers without
@@ -58,8 +67,13 @@ export const WEBHOOK_MIGRATION = 'supabase/migrations/20261013120000_api_webhook
 export const WORKERS = {
   // The app's Worker: the web app, /api, the job runner (apps/web; once named the dashboard).
   app: 'apps/web/wrangler.jsonc',
-  'invite-email': 'apps/invite-email/wrangler.jsonc'
+  'invite-email': 'apps/invite-email/wrangler.jsonc',
+  admin: 'apps/admin/wrangler.jsonc'
 };
+
+/** The Workers an environment has: the admin page has no preview copy. */
+export const workersIn = (environment) =>
+  Object.fromEntries(Object.entries(WORKERS).filter(([worker]) => worker !== 'admin' || environment === 'production'));
 
 /** The account's workers.dev subdomain, where the invite-email Workers answer. */
 export const WORKERS_SUBDOMAIN = 'blue-darkness-7674';
@@ -95,7 +109,14 @@ export function destinations(environment, values, ref, serviceRoleKey) {
         ...(values.V2_SUPABASE_ANON_KEY ? { V2_SUPABASE_ANON_KEY: values.V2_SUPABASE_ANON_KEY } : {}),
         ...(values.V2_DATABASE_URL ? { V2_DATABASE_URL: values.V2_DATABASE_URL } : {})
       },
-      'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET }
+      'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET },
+      // Reads with diag_reader's login, never the service-role key (docs/admin.md).
+      ...(environment === 'production' && values.DIAG_DATABASE_URL ? {
+        admin: {
+          DIAG_DATABASE_URL: values.DIAG_DATABASE_URL,
+          ...Object.fromEntries(ADMIN_KEYS.filter((key) => values[key]).map((key) => [key, values[key]]))
+        }
+      } : {})
     },
     // Read with Deno.env.get in supabase/functions. The relay URL is public
     // but has no other way into a function.
@@ -212,8 +233,8 @@ function hostedState(environment, ref, wanted) {
   // Push delivery scheduled on its own function, and the projection pass not: it runs in the Worker's job container.
   const jobs = query(ref, `select jobname from cron.job where (jobname = ${literal(CRON_JOB)} and command like ${literal(`%${PUSH_FUNCTION}%`)}) or jobname = ${literal(RETIRED_JOB)};`).map((r) => r.jobname);
   const scheduled = jobs.includes(CRON_JOB) && !jobs.includes(RETIRED_JOB);
-  const workers = Object.fromEntries(Object.entries(WORKERS).map(([worker, config]) => {
-    const present = workerSecretNames(config, environment);
+  const workers = Object.fromEntries(Object.keys(wanted.workers).map((worker) => {
+    const present = workerSecretNames(WORKERS[worker], environment);
     return [worker, Object.fromEntries(Object.keys(wanted.workers[worker]).map((name) =>
       [name, present.includes(name) ? 'set' : 'missing']))];
   }));
@@ -264,7 +285,7 @@ async function main() {
     console.error(`x ${file} holds ${unknown.join(', ')}, which scripts/secrets.mjs does not place. Add it to FILE_KEYS and destinations, or remove it.`);
     process.exit(1);
   }
-  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS]);
+  const values = decrypt(file, [...REQUIRED_KEYS, ...OPTIONAL_KEYS, ...(environment === 'production' ? ['DIAG_DATABASE_URL', ...ADMIN_KEYS] : [])]);
   const missing = REQUIRED_KEYS.filter((name) => !values[name]);
   if (missing.length) {
     console.error(`x ${file} is missing ${missing.join(', ')}.`);

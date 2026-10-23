@@ -7197,3 +7197,40 @@ through a change, and the admin can invite the support person's ordinary
 account if hands-on help is ever needed. Reverse if: support often needs to change
 things themselves (then a membership with an end, from a join request and a
 server timer that removes it, rather than a new event).
+
+## 159. Staff see LangQuest's operations on one signed-in page, a Worker of its own that reads diagnostics as diag_reader
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (2026-10-19) for one web page, behind credentials,
+that shows everything going on with LangQuest's operations: client issues
+and every service involved, Cloudflare, Supabase, Vercel and the rest.
+Field diagnostics (39) and the server's job runs (112) already held most of
+it, but only `npm run diag` on a laptop could read them, and no one looked
+at the services' own dashboards together: every Workers Build failed from
+2026-10-16 to 10-19, and no page showed it. Chosen:
+- **A Worker of its own**, `langquest-next-admin` on `admin.langquest.org`
+  (`apps/admin`, `docs/admin.md`), not routes on the app's Worker: the
+  read tokens and keys it holds for Cloudflare, Supabase, Vercel, GitHub,
+  Expo, Google Play and App Store Connect never sit on the Worker that
+  answers the public, and the app Worker's
+  static assets answer `/` on every host before the Worker runs. It has no
+  preview copy.
+- **It reads `diag` as `diag_reader`** (its existing login,
+  `DIAG_DATABASE_URL`) over a Postgres connection, one read-only
+  transaction per statement, with the `postgres` driver (no dependencies;
+  the Worker is its only user). Not the service-role key: diag_reader can
+  read `diag` and call its report functions and nothing else, so the page
+  cannot write or see content, and no migration was needed.
+- **Who may open it**: a LangQuest sign-in, checked with Supabase Auth on
+  every call, whose profile id is in `ADMIN_PROFILE_IDS`. The list is kept
+  encrypted in `.env.production` with the provider tokens (the repository
+  is public); each token is optional and named `ADMIN_*` so none stands in
+  for a CLI's own login. A section without its token says what to add.
+- **The content rule of 39 holds**: ids, counts, timings and codes; no
+  names, emails or usernames from any service, and logs only counted.
+  Store reviews are shown without the reviewer's name, being public.
+Reverse if: staff need to act from the page (mark feedback, retry a job),
+which needs a writer's key and its own decision; or the list of staff
+grows past a few people, when it belongs in the database or behind
+Cloudflare Access instead of a secret.

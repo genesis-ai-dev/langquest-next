@@ -6,23 +6,25 @@ API, every recording and guide file the app moves, the access-token API,
 and runs the server's jobs in containers (decisions.md 43, 58, 69, 70,
 141). Until 2026-10-20 it was `langquest-next-dashboard`, from when it
 served only the reports dashboard (decision 144; "Renaming the app's
-Worker" below says how it moved). Merging to `main` deploys the production Workers, and
-merging to `develop` deploys their `-preview` copies (decisions.md 50,
-`docs/environments.md`). There is no GitHub Actions workflow and no API token
+Worker" below says how it moved). Workers Builds also deploys the staff
+admin page, `langquest-next-admin` (`docs/admin.md`, decisions.md 159).
+Merging to `main` deploys the production Workers, and merging to
+`develop` deploys their `-preview` copies (decisions.md 50,
+`docs/environments.md`); the admin page has none. There is no GitHub Actions workflow and no API token
 in GitHub. Cloudflare generates the build token. Builds have no secrets at
 all: a deploy carries code and public `vars`, and the Worker keeps the
 secrets `npm run secrets` set on it (decisions.md 51).
 
-| | Invite email | App | Invite email preview | App preview |
-| --- | --- | --- | --- | --- |
-| Worker name | `langquest-next-invite-email` | `langquest-next` | `langquest-next-invite-email-preview` | `langquest-next-preview` |
-| Root directory | repository root | repository root | repository root | repository root |
-| Production branch | `main` | `main` | `develop` | `develop` |
-| Non-production branch builds | off | off | off | off |
-| Build command | | | | |
-| Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` |
-| Build variables and secrets | none | none | none | none |
-| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as app |
+| | Invite email | App | Invite email preview | App preview | Admin |
+| --- | --- | --- | --- | --- | --- |
+| Worker name | `langquest-next-invite-email` | `langquest-next` | `langquest-next-invite-email-preview` | `langquest-next-preview` | `langquest-next-admin` |
+| Root directory | repository root | repository root | repository root | repository root | repository root |
+| Production branch | `main` | `main` | `develop` | `develop` | `main` |
+| Non-production branch builds | off | off | off | off | off |
+| Build command | | | | | |
+| Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` | `npm run admin:deploy` |
+| Build variables and secrets | none | none | none | none | none |
+| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as app | `apps/admin/*`, `scripts/diagSignals.ts`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` |
 
 The app Worker's include paths cover `server/*` and `scripts/build-jobs.mjs`
 because the job image (The job runner, below) is built from them: without
@@ -63,6 +65,7 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 | --- | --- | --- |
 | invite email | `INVITE_FROM` | `INVITE_RELAY_SECRET` |
 | app | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
+| admin | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, which account, projects, team and app each section reads | `DIAG_DATABASE_URL`; optional `ADMIN_PROFILE_IDS` and the provider tokens and keys (`ADMIN_*`) |
 
 ## The job runner (containers)
 
