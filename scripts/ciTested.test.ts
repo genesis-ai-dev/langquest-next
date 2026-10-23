@@ -71,7 +71,14 @@ describe('a push takes the merge queue run of the same commit', () => {
 describe('asking GitHub', () => {
   // A repository with main, a pull request's head and the merge queue's commit of the two.
   const dir = mkdtempSync(join(tmpdir(), 'ci-tested-'));
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  // Without the GIT_* that a git hook exports, here and in alreadyTested's own git calls: in the pre-push
+  // hook GIT_DIR names this repository's .git, and `git init` there made it bare (2026-10-23).
+  const hooked = Object.entries(process.env).filter(([k]) => k.startsWith('GIT_'));
+  for (const [k] of hooked) delete process.env[k];
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+    for (const [k, v] of hooked) process.env[k] = v;
+  });
   const git = (...args: string[]) =>
     execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.org', '-c', 'init.defaultBranch=main', ...args], { cwd: dir, encoding: 'utf8' }).trim();
   git('init', '-q');
