@@ -42,6 +42,12 @@ release finds the row it made.
 
 ## Loading a Glottolog release
 
+On a developer's stack `npm run db:start` and `npm run db:reset` load the
+list themselves when its tables are empty (`scripts/local-db.mjs`, release
+v5.3; the first time fetches the release, later times read the cache), and
+a load that fails only warns. CI and `npm run db:test` leave it out. A hosted
+project, or another release, is loaded by hand:
+
 ```
 npm run languoids -- explore --release v5.3 --out languoid-explorer.html
 npm run languoids -- preview --release v5.3 --report ./tmp

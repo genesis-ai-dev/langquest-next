@@ -5,6 +5,7 @@ import { runSnapshotWorker, shouldWriteSnapshot, SNAPSHOT_SCHEDULE } from '../pa
 import { SupabaseTransport } from '../packages/sync/src/supabaseTransport';
 import { listStreams } from '../packages/sync/src/listStreams';
 import { check } from './dbError';
+import { ARRIVAL_SAMPLE, arrivalStats, type ArrivalRow, type ArrivalStats } from './arrivals';
 
 /** What an Inbox row says. The app shows the passage; the push shows neither (server/pushDelivery.ts). */
 const UPDATE_TITLES: Record<Update['kind'], string> = {
@@ -81,7 +82,7 @@ export async function runProjections(
    * container asks to stop on SIGTERM, decisions.md 141).
    */
   stop?: () => boolean
-): Promise<{ languages: number; snapshots: number; quiet: number; failed: { orgId: string; streamId: string; error: unknown }[] }> {
+): Promise<{ languages: number; snapshots: number; quiet: number; arrivals: ArrivalStats; failed: { orgId: string; streamId: string; error: unknown }[] }> {
   const transport = new SupabaseTransport(service);
   const orgs = new Map<string, { org: OrgState; seq: number }>();
   async function orgState(orgId: string) {
@@ -131,6 +132,32 @@ export async function runProjections(
       || Number(mark.seq) !== heads.get(streamKey(orgId, streamId))
       || Number(mark.org_seq) !== heads.get(streamKey(orgId, ORG_STREAM))
       || mark.listed !== listed.has(streamKey(orgId, streamId));
+  };
+  // Events appended since the last pass, in every stream (a stream with no mark has no baseline).
+  let newEvents = 0;
+  for (const [key, m] of marks) {
+    const head = heads.get(key);
+    if (head !== undefined && head > Number(m.seq)) newEvents += head - Number(m.seq);
+  }
+  /**
+   * The newest events past the mark, for upload delay and clock skew
+   * (arrivals.ts). A language that fails is sampled again by the next pass;
+   * a failed sample is skipped and never fails the language.
+   */
+  const arrivalRows: ArrivalRow[] = [];
+  const sampleArrivals = async (orgId: string, streamId: string) => {
+    const key = streamKey(orgId, streamId);
+    const m = marks.get(key);
+    const head = heads.get(key) ?? 0;
+    if (!m || head <= Number(m.seq)) return;
+    try {
+      const page = await service.from('events').select('hlc,received_at,device_id')
+        .eq('org_id', orgId).eq('stream_id', streamId).gt('server_seq', Number(m.seq)).lte('server_seq', head)
+        .order('server_seq', { ascending: false }).limit(ARRIVAL_SAMPLE);
+      if (!page.error) arrivalRows.push(...((page.data ?? []) as ArrivalRow[]));
+    } catch {
+      // A sample is never the language's failure.
+    }
   };
   const mark = async (orgId: string, streamId: string, seq: number, orgSeq: number, isListed: boolean) => {
     check(await service.from('projection_marks').upsert({
@@ -231,8 +258,12 @@ export async function runProjections(
     await mark(snapshot.orgId, languageId, snapshot.serverSeq, orgSeq, isListed);
     counts.projected += 1;
     projected?.(snapshot.orgId, languageId);
-  }, async (orgId, streamId) => !stop?.() && (changed(orgId, streamId) || snapshotDue(orgId, streamId))
-    && !(await skipQuiet(orgId, streamId)),
+  }, async (orgId, streamId) => {
+    if (stop?.() || !(changed(orgId, streamId) || snapshotDue(orgId, streamId))) return false;
+    // Before the quiet skip moves the mark: quiet languages arrive too.
+    await sampleArrivals(orgId, streamId);
+    return !(await skipQuiet(orgId, streamId));
+  },
   // The pass goes on past a language that fails, so the next waits only for its own turn.
   (orgId, streamId, error) => { failed.push({ orgId, streamId, error }); },
   // The age of the snapshot the pass already read, so folding does not ask again.
@@ -240,6 +271,6 @@ export async function runProjections(
     const snap = snapshotOf.get(streamKey(orgId, streamId));
     return snap ? (Number.isNaN(snap.at) ? null : Date.now() - snap.at) : undefined;
   });
-  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, quiet, failed };
+  return { languages: results.filter((r) => r.updated).length, snapshots: results.filter((r) => r.written).length, quiet, arrivals: arrivalStats(arrivalRows, newEvents), failed };
 }
 

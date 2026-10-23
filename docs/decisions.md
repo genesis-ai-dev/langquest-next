@@ -7271,3 +7271,148 @@ on sees no countdown, which is what those settings ask for.
 Reverse if: toasts that stay longer get in people's way more than they help
 (reports of toasts covering work), or people with reduce motion on miss the
 countdown; then the runner's settings can go and the app's stay.
+
+## 160. Staff see LangQuest's operations on one signed-in page, a Worker of its own that reads diagnostics as diag_reader
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (2026-10-19) for one web page, behind credentials,
+that shows everything going on with LangQuest's operations: client issues
+and every service involved, Cloudflare, Supabase, Vercel and the rest.
+Field diagnostics (39) and the server's job runs (112) already held most of
+it, but only `npm run diag` on a laptop could read them, and no one looked
+at the services' own dashboards together: every Workers Build failed from
+2026-10-16 to 10-19, and no page showed it. Chosen:
+- **A Worker of its own**, `langquest-next-admin` on `admin.langquest.org`
+  (`apps/admin`, `docs/admin.md`), not routes on the app's Worker: the
+  read tokens and keys it holds for Cloudflare, Supabase, Vercel, GitHub,
+  Expo, Google Play and App Store Connect never sit on the Worker that
+  answers the public, and the app Worker's
+  static assets answer `/` on every host before the Worker runs. It has no
+  preview copy.
+- **It reads `diag` as `diag_reader`** (its existing login,
+  `DIAG_DATABASE_URL`) over a Postgres connection, one read-only
+  transaction per statement, with the `postgres` driver (no dependencies;
+  the Worker is its only user). Not the service-role key: diag_reader can
+  read `diag` and call its report functions and nothing else, so the page
+  cannot write or see content, and no migration was needed.
+- **Who may open it**: a LangQuest sign-in, checked with Supabase Auth on
+  every call, whose profile id is in `ADMIN_PROFILE_IDS`. The list is kept
+  encrypted in `.env.production` with the provider tokens (the repository
+  is public); each token is optional and named `ADMIN_*` so none stands in
+  for a CLI's own login. A section without its token says what to add.
+- **The content rule of 39 holds**: ids, counts, timings and codes; no
+  names, emails or usernames from any service, and logs only counted.
+  Store reviews are shown without the reviewer's name, being public.
+Reverse if: staff need to act from the page (mark feedback, retry a job),
+which needs a writer's key and its own decision; or the list of staff
+grows past a few people, when it belongs in the database or behind
+Cloudflare Access instead of a secret.
+
+Amended (2026-10-22, Carl Sauder): the page is served at
+`next.langquest.org/ops-dashboard`, its API at `/ops/api/*`, not on
+`admin.langquest.org`. Carl wanted it beside the app, on its host, under a
+name nobody takes for a public status page (`/status` was weighed and
+dropped for that reason). It stays a Worker of its own, for the reason
+above, but without an address of its own: the app's Worker hands it those
+paths through a service binding (`OPS`, `apps/web/worker/ops.ts`) and lists
+them in `run_worker_first`, so the app's page never answers them, and the
+admin Worker cannot be reached any other way. A Workers route on the app's
+host would have done it without touching the app's Worker, but it relies on
+routes running before a custom domain, which nothing in the repository
+states. Still no preview copy: preview has no database of its own for it to
+read, and the app's preview Worker answers 503 there. Plan:
+`docs/ops-dashboard-plan.md`.
+
+Amended (2026-10-22, Carl Sauder): who may open it is Global Viewers (158)
+on a session verified with their authenticator, not `ADMIN_PROFILE_IDS`.
+Carl chose it (2026-10-21) because Global Viewers already are LangQuest's
+staff accounts: granted on a call by `npm run global-viewer`, with a second
+factor and a revoke that signs them out everywhere, where the list was a
+secret that needed a commit and a secrets push for each person and let in a
+password alone. Each API call asks the database, as the person,
+`get_user_state()` and lets in only `globalViewer: 'on'`, remembered for 30
+seconds per isolate. The page asks for the authenticator code itself, and
+reads (never renews) the web app's session on the same host when it is
+already `aal2`. This supersedes the reverse-if about the list growing.
+
+## 161. The ops dashboard counts what the server already sees, adds four counts of its own, and reads job state through one read-only entrypoint
+
+Date: 2026-10-22 · By: Carl Sauder · Status: accepted
+
+Reason: Carl asked (2026-10-21) for the indicators listed in
+`docs/ops-dashboard-plan.md` section 5 on the ops dashboard (160): work the
+server refused, upload delay, clock skew, a fold canary, backups,
+crash-free rate per update, time to a usable Map, version drift, expiry
+dates, Global Viewers and limits, moderation and deletions, capacity and
+cost, latency per route, webhooks and the agent API. Decided:
+- **Read, never collect anew from phones.** Everything comes from what the
+  server already receives, read as `diag_reader` through report functions
+  that return counts, ids, timings, codes and organization and language
+  names (migration `20261023100000_ops_dashboard.sql`); `DIAG_SCHEMA` and
+  the Play answers are unchanged. An email lookup answers with the profile
+  id only (`diag.lookup_email`), so the page never lists people.
+- **Four counts the server did not keep**, each written where the thing
+  happens: the projection pass samples what arrived since its last run for
+  upload delay and clock skew (`server/arrivals.ts`), because
+  `public.events` has no index on `received_at` and adding one would lock
+  the log while it builds; the request tally adds time buckets and a `429`
+  count per route, with `device`, `links` and `ops` as routes of their own;
+  `_delete_account` writes an `account_delete` run with no id, since nothing
+  is left to count afterwards; and two nightly jobs in the job container
+  (141), the fold canary, which folds three languages afresh and compares
+  them with their stored snapshot and passage lines, and the R2 check,
+  which runs the reconciler without hashing. The container may now run
+  four instances, since four jobs can overlap.
+- **Job state through one call.** The app's Worker exports a `JobStatus`
+  entrypoint with one method, `jobs()`, reading each `JobRunner`'s state
+  without touching its container or alarm; the admin Worker binds to that
+  entrypoint only (`APP_JOBS`), not to the object class, so it still cannot
+  start or stop anything. It never calls an organization's Durable Object
+  (132): those numbers come from Postgres.
+Reverse if: the arrivals sample misses too much (a language that is never
+sampled because it fails every pass), when the log gets a `received_at`
+index built concurrently; or the canary's cost in the container grows past
+its 60 minutes, when it takes fewer or smaller languages.
+
+## 162. Staff may mark feedback and run a server job from the ops dashboard, through the app Worker, which checks them again and records every attempt
+
+Date: 2026-10-22 · By: Carl Sauder · Status: accepted
+
+Reason: 160 kept the ops dashboard read-only and said acting from it needs
+its own decision. Carl chose (2026-10-21) read-only first, then a few
+actions safe to take from a browser: marking feedback seen, done or open
+again (the step `docs/diagnostics.md` left to "the admin page"), and running
+a server job now (the projection pass, the v2 import, the fold canary, the
+R2 check). Decided:
+- **The admin Worker still holds no writer's key.** It passes the action and
+  the person's own token over a service binding to the app Worker's
+  `OpsActions` entrypoint (`apps/web/worker/opsActions.ts`), whose one method
+  checks the token itself (verified claims, a live session (118), `aal2`,
+  `_gv_on`) and only then acts with the service role. A bug in the admin
+  Worker cannot act without a Global Viewer's live, verified session.
+- **A closed list.** `parseAction` takes the two kinds with their arguments
+  checked (a feedback id and status; a job key from `JOBS`); anything else
+  is refused before anyone is asked. Running a job goes through its
+  `JobRunner`, which leaves a run already going alone.
+- **Every attempt is recorded.** `ops.actions` (migration
+  `20261023110000_ops_actions.sql`) holds who (profile id), what, the
+  target, the result and a code, refused attempts too; written only by the
+  service role through `ops_record_action`, read by `diag_reader` through
+  `diag.ops_actions`, kept a year.
+- **Not from the page:** suspending or deleting accounts, moderation,
+  Global Viewer grants and anything that changes an organization's work.
+  Those stay in the command-line scripts, run on a call.
+Reverse if: staff need another action often enough that the command line
+is in the way; each one is added to the list here, never as a generic
+"run this" call.
+
+Amended (2026-10-22, Carl Sauder): the Vercel section is removed. LangQuest
+Next runs nothing on Vercel (its web app, API, files and jobs are on
+Cloudflare, and the privacy pages left Vercel under 46); the section
+watched other FrontierRND projects (the website, the v2 web app, the dev
+docs, the partner demo) that support and devops do not look after here.
+Vercel has no read-only token, so `ADMIN_VERCEL_TOKEN` would have been a
+token that can change the whole team's projects, on a Worker that
+otherwise holds only read tokens. If the website needs watching, an
+uptime check on its address does it without a token.

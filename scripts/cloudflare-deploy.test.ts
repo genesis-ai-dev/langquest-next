@@ -47,6 +47,27 @@ describe('cloudflare deploy', () => {
     expect(parseJsonc(read('apps/web/wrangler.jsonc')).assets.directory).toBe('../mobile/dist');
   });
 
+  it('points the admin page at the production project and the app Worker\'s account, with no secret in its vars', () => {
+    const admin = parseJsonc(read('apps/admin/wrangler.jsonc'));
+    const web = parseJsonc(read('apps/web/wrangler.jsonc'));
+    const ref = projectRef(read('supabase/config.toml'), 'production');
+    expect(admin.vars.SUPABASE_URL).toBe(`https://${ref}.supabase.co`);
+    // Reached only through the app Worker's OPS binding (apps/web/worker/ops.ts), never at an address of its own.
+    expect(admin.routes).toBeUndefined();
+    expect(admin.workers_dev).toBe(false);
+    expect(admin.vars.SUPABASE_PROJECTS.split(',')[0]).toMatch(new RegExp(`^${ref}:`));
+    expect(admin.vars.SUPABASE_ANON_KEY).toBe(web.vars.SUPABASE_ANON_KEY);
+    expect([admin.account_id, admin.vars.CLOUDFLARE_ACCOUNT_ID]).toEqual([web.account_id, web.account_id]);
+    expect(admin.vars.CLOUDFLARE_WORKERS.split(',')).toEqual(expect.arrayContaining([web.name, admin.name]));
+    expect(Object.keys(admin.vars).filter((k) => /TOKEN|SECRET|PASSWORD|DATABASE_URL|PROFILE_IDS|_KEY$/.test(k) && k !== 'SUPABASE_ANON_KEY')).toEqual([]);
+    // The app the store and Expo sections read is the one the app's own config names.
+    const app = JSON.parse(read('apps/mobile/app.json')).expo;
+    const eas = JSON.parse(read('apps/mobile/eas.json'));
+    expect(admin.vars.GOOGLE_PLAY_PACKAGE).toBe(app.android.package);
+    expect(admin.vars.EXPO_PROJECT_ID).toBe(app.extra.eas.projectId);
+    expect(admin.vars.APP_STORE_APP_ID).toBe(eas.submit.production.ios.ascAppId);
+  });
+
   it('keeps every secret out of vars, where a deploy would publish it', () => {
     for (const file of CONFIGS) {
       const config = parseJsonc(read(file));
@@ -63,7 +84,7 @@ describe('cloudflare deploy', () => {
     for (const env of ['production', 'preview']) {
       const c = wranglerFor(config, env);
       expect(c.containers, env).toEqual([
-        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 2, constraints: { regions: ['ENAM'] }, rollout_active_grace_period: 5400 }
+        { class_name: 'JobRunner', image: './jobs/Dockerfile', instance_type: 'standard-1', max_instances: 4, constraints: { regions: ['ENAM'] }, rollout_active_grace_period: 5400 }
       ]);
       expect(c.durable_objects?.bindings, env).toContainEqual({ name: 'JOBS', class_name: 'JobRunner' });
       // Why: evening merges' rollouts cut off the 03:15 whole read again and again (2026-10-20);

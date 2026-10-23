@@ -26,6 +26,8 @@ Now, on a hosted project (decisions 141, 142):
 | --- | --- | --- | --- | --- |
 | Projection pass, every language (Inbox rows, listing, snapshots, report inputs) | job container `JobRunner` projection | 4 GiB | 5 min | the Worker's job tick |
 | v2 import | job container `JobRunner` v2-import | 4 GiB | 15 min, whole at 03:15 UTC | the Worker's job tick |
+| Fold canary: three languages folded afresh, compared with their snapshot and passage lines (`server/foldCanary.ts`) | job container `JobRunner` fold-canary | 4 GiB | daily, 04:05 UTC | the Worker's job tick |
+| R2 reconciliation without hashing, missing and orphaned files counted (`server/reconcileJob.ts`) | job container `JobRunner` blob-reconcile | 4 GiB | daily, 04:35 UTC | the Worker's job tick |
 | Push delivery | Edge Function `push-delivery` | 256 MB | 1 min | pg_cron |
 | Reports | Durable Object `OrgSnapshot`, rendering stored report inputs | 128 MB isolate | on request | HTTP |
 | The agent API, MCP, review links, webhooks | Durable Object `OrgSnapshot`, reading each passage's records from the server's cut, never a whole language (decision 147) | 128 MB isolate | on request | HTTP |
@@ -87,7 +89,7 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
 ## 4. The shape
 
 - **One image**, `apps/web/jobs/Dockerfile`: Node 24 and one bundle per
-  job (`projections.mjs`, `v2.mjs`), built by `scripts/build-jobs.mjs`
+  job (`projections.mjs`, `v2.mjs`, `canary.mjs`, `reconcile.mjs`), built by `scripts/build-jobs.mjs`
   before every deploy and before `wrangler dev`. No npm package is
   installed: the dependency tree is never beside the service key. Its one
   system package is psql, which the import reads people's names with.
@@ -113,21 +115,22 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
   off by evening merges; one stopped all the same resumes.
 - **The job tick is the trigger**, a second Worker cron, every five
   minutes: the pass each time, the import every 15 minutes, and the
-  import's whole read at 03:15 UTC, owed until a run starts with it. The
+  import's whole read at 03:15 UTC, owed until a run starts with it, the
+  fold canary at 04:05 UTC and the R2 reconciliation at 04:35 UTC. The
   tick never waits for a run, and leaves a `job_starts` run of what it
   started, found running, found switched off or could not start. The
   container's inactivity timeout and an alarm are each job's time limit
-  (45 minutes for the pass, 340 for the import, both under the platform's
-  six hours): the alarm sends SIGTERM to a run still going.
+  (45 minutes for the pass, 340 for the import, 60 for the canary, 120 for
+  the reconciliation, all under the platform's six hours): the alarm sends SIGTERM to a run still going.
 - **What a container gets**: the Worker's `SUPABASE_URL` and service key,
-  and for the import the Worker's own address (`API_URL`, where files go),
+  and for the import and the reconciliation the Worker's own address (`API_URL`, where files go),
   v2's key (a Worker secret from `npm run secrets`), v2's read-only login
   when it is there (for people's names; GitHub never had it, so without
   it people come over by id) and its concurrency. The import runs only
   while the Worker's `V2_IMPORT_ENABLED` is "true" and refuses to start
   without v2's key.
-- **Instance type** `standard-1` (4 GiB) for both, one instance each
-  (`max_instances` 2), with Node's heap at 3 GiB. Under F (decision 147)
+- **Instance type** `standard-1` (4 GiB) for all four, one instance each
+  (`max_instances` 4: pass, import, canary, reconciliation), with Node's heap at 3 GiB. Under F (decision 147)
   the pass holds the fold and then builds the rows, a batch at a time, and
   the lines from it: on a Santhali-size synthetic fixture the peak went from
   318 MB of heap (533 MB resident) to 353 MB (679 MB)

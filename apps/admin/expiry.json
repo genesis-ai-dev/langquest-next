@@ -1,0 +1,17 @@
+[
+  {
+    "what": "ADMIN_SUPABASE_TOKEN",
+    "expires": null,
+    "note": "Set the date the token was given when it was made (supabase.com > Account > Access Tokens)."
+  },
+  {
+    "what": "ADMIN_GOOGLE_PLAY_KEY",
+    "expires": null,
+    "note": "A service account key has no end date unless the Google Cloud project's policy gives one."
+  },
+  {
+    "what": "langquest.org registration",
+    "expires": null,
+    "note": "The registrar's renewal date."
+  }
+]

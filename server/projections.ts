@@ -74,7 +74,7 @@ const first = done.failed[0];
 await record({
   job: 'projection', startedAt: started, ms: Date.now() - started,
   outcome: stopping ? (counts.projected > 0 ? 'partial' : 'error') : done.failed.length === 0 ? 'ok' : counts.projected > 0 ? 'partial' : 'error',
-  n: { ...counts, languages: done.languages, snapshots: done.snapshots, quiet: done.quiet, failed: done.failed.length, ...memory() },
+  n: { ...counts, languages: done.languages, snapshots: done.snapshots, quiet: done.quiet, failed: done.failed.length, ...done.arrivals, ...memory() },
   // Stopped early, or the first failure's language; with neither, the language that raised the peak (docs/diagnostics.md).
   ...(stopping ? { errorClass: 'sigterm' }
     : first ? { errorClass: errorClassOf(first.error), orgId: first.orgId, streamId: first.streamId }

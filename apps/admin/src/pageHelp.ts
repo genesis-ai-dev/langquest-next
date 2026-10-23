@@ -1,0 +1,208 @@
+/**
+ * What each indicator on the ops dashboard means, shown when the mouse is
+ * over it or it has keyboard focus (page.ts `annotate`). Keyed by the text
+ * the page shows: a section's id as `section:<id>`, a figure's label, a
+ * table column's heading or a sub-heading. Labels that start the same but
+ * end in a number (`database of 8 GB`) are in HELP_PREFIXES. Plain words:
+ * who reads these is often support, not the person who wrote the query.
+ */
+
+/** Each section of the page (pageOps.ts GROUPS), on its title. */
+export const GROUP_HELP: Record<string, string> = {
+  lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.',
+  safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
+  phones: 'Everything phones and browsers tell us about themselves: syncs, errors and crashes, files, recording, signing in, which builds they run and how often each crashes, and phones that are stuck or have gone quiet. Counts and codes only, never content.',
+  releases: 'What is on main and whether CI passed, what each host serves, whether the database has every migration, what shipped in the last two weeks against the errors phones reported, and the app\'s EAS builds and updates.',
+  jobs: 'The server\'s own scheduled work: each job\'s runs and failures and whether it runs now (Run now starts one), the database\'s own timers (pg_cron), push notifications, and the import from LangQuest v2.',
+  database: 'The database\'s health (connections, cache, deadlocks, slowest calls), where its space goes, long-open queries and transactions, and the Supabase project\'s services, logs and Edge Functions.',
+  traffic: 'Requests each Cloudflare Worker answered in the last day with errors, CPU and its latest build, and the app Worker\'s requests by kind with how long they took and how many a limit refused.',
+  storage: 'Whether data is kept safely (backups, the recordings bucket, files phones lost, the nightly check of the bucket against the log) and how fast the database and bucket grow against the plan, with this month\'s Cloudflare usage.',
+  people: 'Who uses LangQuest, counted and never named: accounts, activity, organizations and requests to join. Open an organization for its own page.',
+  support: 'Work waiting on LangQuest staff: content reports (the Terms promise action within 24 hours), suspensions, deletions, feedback from the help button, and what was done from this page.',
+  access: 'Who can see every organization (Global Viewers), limits that refused requests, other apps connected through tokens, device sign-ins, webhooks and review links, and what stops working on a date.',
+  stores: 'How the app does in the stores: Android crash and freeze rates as Google Play measures them, App Store review state and builds, and recent reviews.'
+};
+
+/** Each part of a section (one source's answer), on its sub-heading. */
+export const SECTION_HELP: Record<string, string> = {
+  safety: 'Whether people\'s work is reaching the server and being kept: work the server refused, how late work arrives, phones with a wrong clock, the nightly check that stored snapshots match a fresh fold, and languages the server has fallen behind on.',
+  clients: 'What phones and browsers report about themselves (field diagnostics): syncs, errors and crashes, transfers, recording, sign-in trouble. Counts and codes only, never content.',
+  fleet: 'Which app builds people are on and how stable each is, how long a first download takes, and phones that are stuck (unsent work, stuck downloads, low disk) or have gone quiet.',
+  releases: 'What shipped in the last two weeks (merges, Worker deploys, app updates) against the errors phones reported, so a problem can be tied to a release. Also: whether the hosted database has every migration on main.',
+  jobs: 'The server\'s own scheduled work: the projection pass, push delivery, the v2 import, the Worker\'s cron and the rest. A job is stale when it has not run for twice its schedule.',
+  container: 'Whether each heavy server job is running right now in its container, and since when. Run now starts one outside its schedule.',
+  cron: 'Jobs the database runs on a timer (pg_cron), such as starting push delivery every minute and clearing old Inbox rows nightly.',
+  database: 'The database\'s overall health: size, connections in use, cache hits, deadlocks, and the slowest calls the app makes to it.',
+  dbdetail: 'Where the database\'s space goes, tables with many dead rows waiting for cleanup, and queries or transactions that have been open too long.',
+  push: 'Notifications waiting to be pushed to phones, push failures by code, and members who have no push token (they only see updates when they open the app).',
+  worker: 'Requests the app\'s Cloudflare Worker answered in the last day, by kind: how many, how many failed, how many a rate limit refused, and how long they took.',
+  integrations: 'Other apps connected to LangQuest: access tokens, device sign-in requests, webhooks and review links.',
+  storage: 'Whether data is safely kept: database backups, the recordings bucket (R2), files phones lost, and the nightly check that the log and R2 agree.',
+  people: 'Who uses LangQuest, counted and never named: accounts, activity, organizations and requests to join. Open an organization for its own page.',
+  support: 'Work waiting on LangQuest staff: content reports (the Terms promise action within 24 hours), suspended accounts, deleted accounts, open feedback, and what was done from this page.',
+  feedback: 'Bug reports and ideas people sent from the help button, with a voice note or screenshot when they added one. Mark each seen, then done.',
+  security: 'Who can see every organization (Global Viewers), limits that refused requests (a sign of guessing or a loop), and credentials made this week.',
+  expiry: 'Tokens, certificates and other things that stop working on a date, soonest first. Warns at 30 days, a problem at 7.',
+  capacity: 'How fast the database and the recordings bucket are growing against the plan\'s limits, and this month\'s Cloudflare usage against what the plan includes.',
+  code: 'What is on main on GitHub, whether the latest CI runs passed, and whether the web app serves the newest commit.',
+  cloudflare: 'Each Cloudflare Worker\'s requests, errors and CPU over the last day, and its latest deploy and build.',
+  supabase: 'The LangQuest Next Supabase project\'s status, each service\'s health, Edge Functions, and error counts from its logs.',
+  expo: 'App builds on EAS, store submissions, and the newest over-the-air update on each branch.',
+  googleplay: 'Android crash and freeze (ANR) rates as Google Play measures them, against Play\'s bad-behaviour lines, and recent reviews.',
+  appstore: 'iOS versions in review, builds Apple processed, TestFlight crash reports, and recent reviews.',
+  v2: 'The import from LangQuest v2: each v2 project\'s latest transfer, and whether it finished, stopped part way or failed.',
+  lookup: 'Find one thing: an error code someone read out (E-…), an email or profile id (answers with the account\'s phones), an install id, or an organization or language by name.'
+};
+
+export const HELP: Record<string, string> = {
+  // ---- sync and data safety
+  'events refused, latest day': 'Events (pieces of work) phones sent that the server would not accept on the latest day. Refused work may never arrive, so this matters more than a crash.',
+  'refused as invalid': 'Events the server refused because they break its rules. Usually a bug in the app: that work cannot arrive until it is fixed.',
+  'p95 upload delay': 'How long after it was made one in twenty events reached the server. Long delays are normal for phones offline in the field; a jump across every phone is not.',
+  'stamped ahead of the clock': 'Events stamped more than 5 minutes later than the server\'s clock when they arrived: a phone with its clock set wrong. Ordering of work depends on those clocks.',
+  'languages behind the pass': 'Languages with work the projection pass (which builds Inbox rows, reports and snapshots) has not caught up with yet.',
+  'snapshots overdue': 'Languages whose saved snapshot (what a new phone downloads first) is older than the rule allows: 200 new events or an hour.',
+  'Refused work, by reason': 'Events phones sent that the server refused, by why. Not a member: the person left or was removed. Not allowed: their role does not permit it. Clock ahead: the phone\'s clock is wrong.',
+  "What arrived (the projection pass's sample)": 'What reached the server each day, sampled by the projection pass: how many events, and how long after they were made.',
+  'Fold canary (nightly)': 'Each night three languages are rebuilt from scratch and compared with the copy the server keeps. A mismatch means saved copies may be wrong for everyone downloading them.',
+  'Furthest behind the projection pass': 'Languages with the most events the projection pass has not processed yet.',
+  Snapshots: 'Saved copies of a language that new phones download first. Overdue: older than the rule allows. Older reducer: made before the latest app logic. Not cut: not split by passage yet, so big languages download whole.',
+  'Largest languages': 'Languages with the most events: the heaviest to download and to rebuild.',
+  'Not member': 'Refused because the person is not (or no longer) a member of that organization or language.',
+  'Not allowed': 'Refused because the person\'s role does not allow that action.',
+  'Clock ahead': 'Refused because the phone\'s clock was too far ahead; the phone stamps the work again and resends it.',
+  Invalid: 'Refused as breaking the server\'s rules: usually an app bug.',
+  'New events': 'Events the server received that day.',
+  Sampled: 'How many of those events the projection pass looked at to measure delay.',
+  'Delay p50': 'Half of events arrived within this long of being made.',
+  'Ahead of clock': 'Events stamped more than 5 minutes ahead of the server\'s clock, and how many phones sent them.',
+  Mismatched: 'Languages whose fresh rebuild did not match the saved copy.',
+  'First mismatch': 'The first language that did not match, to look into.',
+  Behind: 'Events received that the projection pass has not processed yet.',
+  Head: 'How many events the language has in all.',
+  'Events past it': 'Events received since the language\'s newest snapshot.',
+
+  // ---- phones
+  'installs reported, last day': 'Phones and browsers (installs) that sent diagnostics in the last day.',
+  'syncs ended in error': 'Syncs (sending and fetching work) that failed with an error rather than being offline.',
+  'downloads / failed': 'Files downloaded in the last day, and how many failed.',
+  'uploads / failed': 'Files (mostly recordings) uploaded in the last day, and how many failed.',
+  reporting: 'Installs that reported their own state this week.',
+  'lost recordings': 'Installs where recordings disappeared from the phone before they were sent. That work is gone.',
+  'recording unsent > 1 day': 'Installs with a recording that has waited over a day to upload: offline, or stuck.',
+  'download stuck > 1 day': 'Installs that have wanted a file for over a day without getting it.',
+  'under 500 MB free': 'Installs with little storage left: recording and downloading may fail soon.',
+  takes: 'Recordings made in the last day.',
+  'microphone refused': 'Times the phone refused the app the microphone (a permission someone turned off).',
+  'playback failed': 'Times a recording could not be played.',
+  'Updates in the field, 14 days': 'Each app update people ran in the last two weeks, how many installs ran it, and how many of those crashed. A new update crashing more than the one before is a reason to roll it back.',
+  'Crash-free': 'The share of an update\'s installs that never crashed.',
+  Update: 'The app update (over-the-air) the install ran; embedded means the version that came with the store build.',
+  Runtime: 'The native build an update runs on; updates only reach phones with a matching runtime.',
+  Channel: 'Which release line: production, preview, or web for browsers.',
+  'Reducer and protocol, installs this week': 'The version of the app\'s data logic (reducer) and sync format (protocol) installs run. One older than the server\'s needs a store update.',
+  Reducer: 'The version of the app\'s logic that turns work into what people see.',
+  Protocol: 'The version of the format phones and the server sync in.',
+  'Browsers by web commit, this week': 'Which version of the web app browsers are running. Old ones update when the page reloads.',
+  'Time to a usable Map': 'How long until a language is usable after a first download. open: a whole language downloaded. fill: a big language, until its Map shows (the rest fills in behind).',
+  'Stuck phones': 'Phones with unsent work over a day old, a stuck download, little storage or lost files. Open one to see its last three days.',
+  'Silent phones': 'Phones quiet for 3 days while another phone of the same person still reports: diagnostics turned off, or something broke on that phone.',
+  'Unsent for': 'How long the oldest unsent recording has waited.',
+  'Download stuck': 'How long the oldest wanted file has waited.',
+  Free: 'Storage left on the phone.',
+  Lost: 'Files that vanished from the phone without the app removing them (and how many were unsent recordings).',
+  'Builds in the field (this week)': 'Which builds and updates installs ran this week.',
+  'Sign-in trouble this week': 'Sign-in steps that did not end well, by step and outcome, with how many installs.',
+  'Failures already shown to people, this week': 'Errors the app showed the person and handled (wrong password, no signal), counted so a rise is visible.',
+  'Phones (latest state of each, this week)': 'Each install\'s latest report of its own state, counted.',
+
+  'records, last 3 days': 'Diagnostics records this phone sent in the last 3 days: syncs, downloads, errors, sign-ins and its own state.',
+  'syncs that failed': 'Syncs (sending and fetching work) that ended in an error rather than being offline.',
+  'last heard from': 'When this phone last sent diagnostics.',
+  'Last 3 days, newest first': 'Everything this phone recorded, newest first. Record is the kind (sync, error, device, auth, transfer...); What happened says how it ended; Measured has its counts and timings.',
+  Record: 'The kind of record: sync, load (folding work), snapshot, transfer (files), device (its own state), error, expected (a handled failure), audio, auth (signing in).',
+  'What happened': 'How it ended and why, in codes: outcome, phase, error code.',
+  Measured: 'Counts and timings for that record (ms are milliseconds).',
+
+  // ---- releases
+  'migrations behind main': 'Database changes merged to main that the hosted database does not have yet. Anything above 0 means the app may call things the database lacks.',
+  'What shipped, 14 days': 'Merges to main, Worker deploys and app updates, newest first, to line up against errors.',
+  'Errors phones reported': 'Errors and crashes phones reported each day.',
+
+  // ---- server
+  'Runs 2 d': 'Runs in the last two days.',
+  p95: 'One in twenty took longer than this.',
+  'Whole read': 'The v2 import\'s nightly full read of every project, rather than only what changed.',
+  Limit: 'How long a run may take before it is stopped.',
+  'Runs 24 h': 'Runs in the last day.',
+  'longest query': 'The longest-running database query right now.',
+  'oldest transaction': 'The oldest open database transaction. A long one holds up cleanup of dead rows.',
+  Dead: 'Rows deleted or replaced but not yet cleaned up (vacuumed). A high share slows the table.',
+  'Largest tables': 'The tables using the most space, with their indexes.',
+  'push tokens': 'Phones registered to receive push notifications.',
+  'members without a token': 'Members with no phone registered for pushes; they see updates only when they open the app.',
+  'oldest waiting': 'How long the oldest notification has waited to be pushed.',
+  waiting: 'Notifications not yet pushed.',
+  '429': 'Requests a rate limit refused.',
+  '5xx': 'Requests that failed on the server.',
+  '<100 ms': 'Requests answered in under a tenth of a second.',
+  '<1 s': 'Requests answered in under a second.',
+  '<10 s': 'Requests answered in under ten seconds.',
+  '10 s+': 'Requests that took ten seconds or more.',
+  Route: 'The kind of request: reports, file downloads (blobs_get), uploads (blobs_put), the agent API, device sign-in, review links, this page (ops).',
+  'access tokens': 'Tokens other apps use to reach an organization\'s work.',
+  'device grants waiting': 'Apps that asked to connect and are waiting for a person to approve them.',
+  'webhooks on': 'Webhooks (notifications LangQuest sends other apps) that are switched on.',
+  'review links live': 'Shared review links that still work.',
+  'API calls, 24 h': 'Calls other apps made to LangQuest\'s API in the last day.',
+
+  // ---- storage and capacity
+  'point-in-time recovery': 'Whether the database can be restored to any moment, not only to the last nightly backup.',
+  'latest backup': 'When the latest completed database backup was taken.',
+  'in R2': 'Space the recordings bucket uses.',
+  'R2 objects': 'Files in the recordings bucket.',
+  'Nightly R2 check': 'Each night the log of stored files is compared with what the bucket holds. Missing: the log says stored, the bucket lacks it.',
+  'Files lost on phones (decision 92)': 'Files that vanished from phones without the app removing them, by day.',
+  'database growth a week': 'How much the database grew in a week, from the nightly size readings.',
+  'weeks left at that rate': 'Weeks until the database reaches its plan limit if it keeps growing as it has.',
+  'R2 growth a week': 'How much the recordings bucket grew in a week.',
+  'Cloudflare this month, against the plan': 'This month\'s usage against what the Workers Paid plan includes; past it is billed.',
+  Included: 'What the plan includes each month.',
+
+  // ---- people and support
+  accounts: 'LangQuest accounts in all.',
+  'active today': 'Accounts whose phone or browser reported in the last day.',
+  'active this week': 'Accounts whose phone or browser reported in the last week.',
+  'join requests waiting': 'Requests to join an organization that no admin has answered yet.',
+  suspended: 'Accounts staff stopped from signing in.',
+  'looked after': 'Accounts someone else manages (people without their own email, signed in by a helper).',
+  'Most recently active organizations': 'Organizations whose work the server processed most recently. Open one for its own page.',
+  'Last projected': 'When the server last processed this organization\'s work.',
+  'open reports': 'Content reports nobody has acted on yet. The Terms promise action within 24 hours.',
+  'oldest report': 'How long the oldest open report has waited.',
+  'only staff can act on': 'Open reports about someone who moderates that organization, so nobody there can act: LangQuest staff must (npm run moderation).',
+  'resolved this week': 'Reports acted on (removed or dismissed) this week.',
+  'feedback not done': 'Feedback not yet marked done.',
+  'Done from this page': 'Actions staff took from this page (running a job, marking feedback), refused ones too.',
+  'Accounts deleted, by week': 'Accounts people deleted, by week. Google requires deletion to work.',
+  'Global Viewers': 'LangQuest staff accounts that can read every organization.',
+  'signed in with a code': 'Global Viewers signed in right now with their authenticator code.',
+  revoked: 'Global Viewer access that was ended.',
+  'Limits hit': 'Requests refused by a limit in the last day. A sudden rise can mean someone is guessing codes, or an app is stuck in a loop.',
+  'New this week': 'Credentials made this week.',
+
+  // ---- providers
+  'commits not deployed': 'Commits on main the live web app does not have yet.',
+  'user-perceived crashes, 7 days': 'Share of Android users who saw a crash in the last week, as Google Play measures it. Above 1.09% Play may show the app less.',
+  'user-perceived ANRs, 7 days': 'Share of Android users who saw the app freeze (Application Not Responding). Above 0.47% Play may show the app less.',
+  'cache hits': 'Share of database reads served from memory. Low means the database reads disk a lot.',
+  deadlocks: 'Times two database transactions blocked each other and one was cancelled.',
+  'stopped part way': 'v2 projects whose latest transfer stopped before finishing.'
+};
+
+/** Labels that end in a value (`database of 8 GB`): matched by how they start. */
+export const HELP_PREFIXES: [string, string][] = [
+  ['database of ', 'The database\'s size now, against the plan\'s limit.'],
+  ['event log (', 'Space the event log (all work, ever) uses, and how many events it holds.'],
+  ['RPCs by total time', 'The database calls the app makes, by the time they take in all. A slow one used often shows here first.']
+];

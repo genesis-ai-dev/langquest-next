@@ -15,9 +15,12 @@ import { liveSessions } from './liveSessions';
 import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, type Identity } from './isolateCache';
 import { JOB_TICK, jobsDue } from './jobsModel';
 import { checkStores, storeCheckDue } from './storeReleases';
+import { isOpsPath, toOps } from './ops';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
+export { JobStatus } from './jobStatus';
+export { OpsActions } from './opsActions';
 
 /**
  * A job tick: start each job due (jobsModel.ts jobsDue), never waiting for a
@@ -72,14 +75,15 @@ export default {
   async fetch(request, env, ctx) {
     const route = routeClass(request.method, new URL(request.url).pathname);
     let response: Response;
+    const began = Date.now();
     try {
       response = await serve(request, env, ctx);
     } catch (e) {
-      if (route) tally.add(route, 500);
+      if (route) tally.add(route, 500, Date.now() - began);
       flushTally(env, ctx);
       throw e;
     }
-    if (route) tally.add(route, response.status);
+    if (route) tally.add(route, response.status, Date.now() - began);
     flushTally(env, ctx);
     // The built page gets its headers from the `_headers` file; what the Worker answers itself (the routes in
     // wrangler's run_worker_first) never passes through it, so it is given the same three here.
@@ -144,6 +148,8 @@ export default {
 /** Everything but the tally: `/api/*` here, everything else is the built page. */
 async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
+  // The ops dashboard, a Worker of its own reached through the binding (ops.ts).
+  if (isOpsPath(url.pathname)) return toOps(request, env.OPS);
   if (url.pathname === '/connect' && request.method === 'GET') {
     return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' }, pageLanguage(request));
   }
