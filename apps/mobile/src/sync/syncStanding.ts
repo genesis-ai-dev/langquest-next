@@ -34,3 +34,14 @@ export function previewSyncRing() {
   ];
   for (const [at, n] of steps) setTimeout(() => setPreview(n), at);
 }
+
+/**
+ * What the sync icon counts. Its number and name say what this device holds for the server
+ * (events, language and organization, and recordings not yet uploaded); its ring turns for
+ * anything in flight, recordings still coming down too, so a phone that is still receiving
+ * never looks done. The Sync screen splits the two ("To send", "To receive").
+ */
+export function iconCounts(s: { pending: number; orgPending: number; pendingUp: number; pendingDown: number }): { toSend: number; inFlight: number } {
+  const toSend = s.pending + s.orgPending + s.pendingUp;
+  return { toSend, inFlight: toSend + s.pendingDown };
+}

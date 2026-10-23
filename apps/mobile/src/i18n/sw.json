@@ -4177,7 +4177,8 @@
     },
     "sync": {
       "toSend_one": "{{count, number}} ya kutuma",
-      "toSend_other": "{{count, number}} za kutuma"
+      "toSend_other": "{{count, number}} za kutuma",
+      "receiving": "inapokea rekodi"
     },
     "join": {
       "wantsToJoin": "{{name}} anataka kujiunga",
@@ -4450,7 +4451,8 @@
       "checking": "Nukta ya kijivu: inatafuta mtandao. Kazi yako inabaki kwenye kifaa hiki hadi itumwe.",
       "offline": "Nukta ya manjano: nje ya mtandao. Kazi yako inabaki kwenye kifaa hiki na inatumwa ukishaunganishwa.",
       "refused": "Nyekundu: seva imekataa kitu. Gusa ili kuona ni nini, na cha kufanya.",
-      "withWaiting": "{{standing}} Namba ni idadi ya vitu vinavyosubiri kutumwa."
+      "withWaiting": "{{standing}} Namba ni idadi ya vitu vinavyosubiri kutumwa.",
+      "withReceiving": "{{standing}} Pete inazunguka wakati rekodi za wengine zinapakuliwa kwenye kifaa hiki. Hakuna kinachosubiri kutumwa."
     }
   },
   "offline": {

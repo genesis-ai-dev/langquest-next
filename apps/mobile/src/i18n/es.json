@@ -4308,7 +4308,8 @@
     "sync": {
       "toSend_one": "{{count, number}} por enviar",
       "toSend_many": "{{count, number}} por enviar",
-      "toSend_other": "{{count, number}} por enviar"
+      "toSend_other": "{{count, number}} por enviar",
+      "receiving": "recibiendo grabaciones"
     },
     "join": {
       "wantsToJoin": "{{name}} quiere unirse",
@@ -4588,7 +4589,8 @@
       "checking": "Punto gris: buscando conexión. Tu trabajo se queda en este dispositivo hasta que se envíe.",
       "offline": "Punto ámbar: sin conexión. Tu trabajo se queda en este dispositivo y se envía cuando tengas conexión.",
       "refused": "Rojo: el servidor rechazó algo. Toca para ver qué y qué hacer.",
-      "withWaiting": "{{standing}} El número indica cuántas cosas esperan para enviarse."
+      "withWaiting": "{{standing}} El número indica cuántas cosas esperan para enviarse.",
+      "withReceiving": "{{standing}} El anillo gira mientras las grabaciones de otros se descargan en este dispositivo. No hay nada por enviar."
     }
   },
   "offline": {

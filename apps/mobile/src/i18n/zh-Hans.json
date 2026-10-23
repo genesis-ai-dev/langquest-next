@@ -4046,7 +4046,8 @@
       "rowHelp": "打开这个经段，查看它的进展。"
     },
     "sync": {
-      "toSend_other": "{{count, number}} 项待发送"
+      "toSend_other": "{{count, number}} 项待发送",
+      "receiving": "正在接收录音"
     },
     "join": {
       "wantsToJoin": "{{name}}想加入",
@@ -4312,7 +4313,8 @@
       "checking": "灰点：正在寻找网络连接。你的工作会保存在本设备上，直到发送出去。",
       "offline": "黄点：离线。你的工作保存在本设备上，联网后就会发送。",
       "refused": "红色：服务器拒绝了某些内容。点按查看是什么，以及该怎么做。",
-      "withWaiting": "{{standing}}数字表示有多少项等待发送。"
+      "withWaiting": "{{standing}}数字表示有多少项等待发送。",
+      "withReceiving": "{{standing}} 他人的录音下载到此设备时，圆环会转动。没有等待发送的内容。"
     }
   },
   "offline": {

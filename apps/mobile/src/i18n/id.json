@@ -4046,7 +4046,8 @@
       "rowHelp": "Membuka perikop, untuk melihat keadaannya."
     },
     "sync": {
-      "toSend_other": "{{count, number}} akan dikirim"
+      "toSend_other": "{{count, number}} akan dikirim",
+      "receiving": "menerima rekaman"
     },
     "join": {
       "wantsToJoin": "{{name}} ingin bergabung",
@@ -4312,7 +4313,8 @@
       "checking": "Titik abu-abu: mencari koneksi. Pekerjaan Anda tetap di perangkat ini sampai terkirim.",
       "offline": "Titik kuning: offline. Pekerjaan Anda tetap di perangkat ini dan dikirim begitu Anda terhubung.",
       "refused": "Merah: server menolak sesuatu. Ketuk untuk melihat apa, dan apa yang perlu dilakukan.",
-      "withWaiting": "{{standing}} Angkanya menunjukkan berapa banyak yang menunggu dikirim."
+      "withWaiting": "{{standing}} Angkanya menunjukkan berapa banyak yang menunggu dikirim.",
+      "withReceiving": "{{standing}} Cincin berputar selama rekaman dari orang lain diunduh ke perangkat ini. Tidak ada yang menunggu dikirim."
     }
   },
   "offline": {

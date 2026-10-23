@@ -4308,7 +4308,8 @@
     "sync": {
       "toSend_one": "{{count, number}} à envoyer",
       "toSend_many": "{{count, number}} à envoyer",
-      "toSend_other": "{{count, number}} à envoyer"
+      "toSend_other": "{{count, number}} à envoyer",
+      "receiving": "réception d’enregistrements"
     },
     "join": {
       "wantsToJoin": "{{name}} veut rejoindre",
@@ -4588,7 +4589,8 @@
       "checking": "Point gris : recherche d’une connexion. Votre travail reste sur cet appareil jusqu’à ce qu’il soit envoyé.",
       "offline": "Point orange : hors ligne. Votre travail reste sur cet appareil et sera envoyé dès que vous serez connecté.",
       "refused": "Rouge : le serveur a refusé quelque chose. Touchez pour voir quoi, et que faire.",
-      "withWaiting": "{{standing}} Le nombre indique combien d’éléments attendent d’être envoyés."
+      "withWaiting": "{{standing}} Le nombre indique combien d’éléments attendent d’être envoyés.",
+      "withReceiving": "{{standing}} L’anneau tourne pendant que les enregistrements des autres se téléchargent sur cet appareil. Rien n’attend d’être envoyé."
     }
   },
   "offline": {

@@ -326,5 +326,8 @@ export function syncChip(page: Page): Locator {
   return page.getByTestId('sync-indicator').locator('visible=true').first();
 }
 
-/** The sync icon's name when nothing is waiting and the server takes this device's work. */
-export const SYNC_CLEAR = /^(Live|Connected)$/;
+/**
+ * The sync icon's name when nothing waits to send and the server takes this device's work. Others'
+ * recordings may still be coming down: the ring turns and the name says so, but nothing is to send.
+ */
+export const SYNC_CLEAR = /^(Live|Connected)(, receiving recordings)?$/;

@@ -4177,7 +4177,8 @@
     },
     "sync": {
       "toSend_one": "{{count, number}} to send",
-      "toSend_other": "{{count, number}} to send"
+      "toSend_other": "{{count, number}} to send",
+      "receiving": "receiving recordings"
     },
     "join": {
       "wantsToJoin": "{{name}} wants to join",
@@ -4450,7 +4451,8 @@
       "checking": "Grey dot: looking for a connection. Your work stays on this device until it is sent.",
       "offline": "Amber dot: offline. Your work stays on this device and is sent once you are connected.",
       "refused": "Red: the server refused something. Tap to see what, and what to do.",
-      "withWaiting": "{{standing}} The number is how many things wait to send."
+      "withWaiting": "{{standing}} The number is how many things wait to send.",
+      "withReceiving": "{{standing}} The ring turns while recordings from others download to this device. Nothing waits to send."
     }
   },
   "offline": {
