@@ -6,7 +6,7 @@
 // primitives and theme tokens; every pressable goes through `useHelpSpot`
 // so help mode explains it instead of pressing it.
 import { FileText, Play, Route } from 'lucide-react-native';
-import { useEffect, type ReactNode } from 'react';
+import { useContext, useEffect, type ReactNode } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
@@ -15,6 +15,7 @@ import { HelpBadge, HelpLit } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpInfo, Ico, type IconName } from '../ui/kit';
+import { HeaderExtraContext } from '../ui/headerExtra';
 import { txt } from '../ui/textStyles';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
@@ -80,6 +81,8 @@ export function BigTop(props: {
   const back = useHelpSpot(t('common.back'), t('help.details.back'), props.onBack);
   const pencil = useHelpSpot(props.rename?.label ?? '', props.rename?.help ?? '', props.rename?.onPress);
   const up = useHelpSpot(props.up?.label ?? '', props.up?.help ?? '', props.up?.onPress);
+  // What the app shows in every header, such as a Global Viewer's link (ui/headerExtra.ts).
+  const extra = useContext(HeaderExtraContext);
   return (
     <View style={styles.bigTop}>
       <View style={styles.bigTopBar}>
@@ -96,7 +99,10 @@ export function BigTop(props: {
             <HelpBadge spot={up} />
           </Pressable>
         ) : <View />}
-        <HelpButton />
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          {extra}
+          <HelpButton />
+        </View>
       </View>
       {props.over ? <Text style={styles.over}>{props.over}</Text> : null}
       <View style={styles.bigTitleLine}>

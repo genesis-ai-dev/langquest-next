@@ -4435,8 +4435,7 @@
       "manage": "Harsuna, mutane da saitunan ƙungiyarku.",
       "inbox": "Abin da ya faru da ya shafe ku: buƙatu, sharhi, mutanen da ke son shiga.",
       "me": "Sunanku, wannan na'ura da saitunanku.",
-      "explorer": "Yana buɗe mai binciken harsuna a sabon shafi: kowane harshe da inda ake magana da shi.",
-      "globalViewer": "Inda kuke kallo, abin da za ku iya yi a can, da dukan sauran ƙungiyoyi."
+      "explorer": "Yana buɗe mai binciken harsuna a sabon shafi: kowane harshe da inda ake magana da shi."
     },
     "sync": {
       "live": "Ɗigo kore: an haɗa. Ana aika aikinku yayin da kuke yi. Taɓa don ganin abin da aka aika.",
@@ -7330,9 +7329,9 @@
     "openHelp": "Yana buɗe wannan ƙungiya don karantawa.",
     "noneFound": "Babu ƙungiyar da ta dace.",
     "more": "Nuna ƙari",
-    "tabViewing": "Kallo",
-    "sidebarViewing": "Kuna kallo a matsayin Mai Kallo na Duniya",
     "hereLabel": "Ana kallo yanzu",
-    "otherLabel": "Buɗe wata ƙungiya"
+    "otherLabel": "Buɗe wata ƙungiya",
+    "readOnly": "Kuna kallo a matsayin Mai Kallo na Duniya: ba za a iya canza komai a nan ba.",
+    "linkHelp": "Inda kuke kallo, abin da za ku iya yi a can, da dukan sauran ƙungiyoyi."
   }
 }

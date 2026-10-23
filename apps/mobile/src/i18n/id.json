@@ -4297,8 +4297,7 @@
       "manage": "Bahasa, orang, dan pengaturan organisasi Anda.",
       "inbox": "Hal-hal yang menyangkut Anda: permintaan, masukan, orang yang minta bergabung.",
       "me": "Nama Anda, perangkat ini, dan pengaturan Anda.",
-      "explorer": "Membuka penjelajah bahasa di tab baru: setiap bahasa dan di mana bahasa itu dipakai.",
-      "globalViewer": "Di mana Anda melihat, apa yang bisa Anda lakukan di sana, dan semua organisasi lainnya."
+      "explorer": "Membuka penjelajah bahasa di tab baru: setiap bahasa dan di mana bahasa itu dipakai."
     },
     "sync": {
       "live": "Titik hijau: terhubung. Pekerjaan Anda dikirim selagi Anda bekerja. Ketuk untuk melihat apa yang sudah dikirim.",
@@ -7024,9 +7023,9 @@
     "openHelp": "Membuka organisasi ini untuk dibaca.",
     "noneFound": "Tidak ada organisasi yang cocok.",
     "more": "Tampilkan lebih banyak",
-    "tabViewing": "Melihat",
-    "sidebarViewing": "Melihat sebagai Pengamat Global",
     "hereLabel": "Sedang dilihat",
-    "otherLabel": "Buka organisasi lain"
+    "otherLabel": "Buka organisasi lain",
+    "readOnly": "Anda melihat sebagai Pengamat Global: tidak ada yang bisa diubah di sini.",
+    "linkHelp": "Di mana Anda melihat, apa yang bisa Anda lakukan di sana, dan semua organisasi lainnya."
   }
 }

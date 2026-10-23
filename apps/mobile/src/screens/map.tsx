@@ -260,7 +260,8 @@ export function StatusHome(ctx: Ctx) {
   const allLanguages = ctx.languages;
   const orgNow = ctx.org.state;
   const actorNow = ctx.session.actorId;
-  const listed = useMemo(() => openableIn(orgNow, actorNow, allLanguages), [orgNow, actorNow, allLanguages]);
+  const readsAll = ctx.session.readOnly;
+  const listed = useMemo(() => openableIn(orgNow, actorNow, allLanguages, readsAll), [orgNow, actorNow, allLanguages, readsAll]);
   const languages = useMemo(
     () => statusLanguages({ listed, state, lines: ctx.language.lines, openId: ctx.language.languageId, org: ctx.org.state, summary }),
     [state, ctx.language.lines, listed, ctx.language.languageId, ctx.org.state, summary]);
@@ -418,7 +419,7 @@ function OutlineMap(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; l
 
 /** Languages this person may open: those a role of theirs covers, at org scope or the language's own (simple/mapModel.ts). */
 function openableLanguages(ctx: Ctx): { languageId: string; name: string }[] {
-  return openableIn(ctx.org.state, ctx.session.actorId, ctx.languages);
+  return openableIn(ctx.org.state, ctx.session.actorId, ctx.languages, ctx.session.readOnly);
 }
 
 /**

@@ -4435,8 +4435,7 @@
       "manage": "Your organization's languages, people and settings.",
       "inbox": "What happened that concerns you: requests, feedback, people asking to join.",
       "me": "Your name, this device and your settings.",
-      "explorer": "Opens the language explorer in a new tab: every language and where it is spoken.",
-      "globalViewer": "Where you are viewing, what you can do there, and every other organization."
+      "explorer": "Opens the language explorer in a new tab: every language and where it is spoken."
     },
     "sync": {
       "live": "Green dot: connected. Your work is sent as you go. Tap to see what was sent.",
@@ -7330,9 +7329,9 @@
     "openHelp": "Opens this organization to read.",
     "noneFound": "No organization matches.",
     "more": "Show more",
-    "tabViewing": "Viewing",
-    "sidebarViewing": "Viewing as a Global Viewer",
     "hereLabel": "Viewing now",
-    "otherLabel": "Open another organization"
+    "otherLabel": "Open another organization",
+    "readOnly": "You’re viewing as a Global Viewer: nothing here can be changed.",
+    "linkHelp": "Where you are viewing, what you can do there, and every other organization."
   }
 }

@@ -422,7 +422,8 @@ export const EDGES: Edge[] = [
   // App only: a version's page edits it into a new draft, as the Versions page does (LAN-83)
   e('version_detail', 'workspace', undefined, 'translator'),
   // App only: a Global Viewer's authenticator and every organization (decision 158). A Global Viewer
-  // account belongs to no organization, so it lands on What brings you here?; inside one it is their tab.
+  // account belongs to no organization, so it lands on What brings you here?; inside one, the link in
+  // every header opens it, as chrome does (decision 71 amended).
   e('intent_chooser', 'global_viewer'),
   e('global_viewer', 'intent_chooser', 'back')
 ];
@@ -438,7 +439,7 @@ export const MAP_SCREENS: ScreenId[] = ['map_home', 'status_home', 'book_map', '
 export const PASSAGE_READING: ScreenId[] = ['version_detail', 'review_detail', 'passage_reference'];
 const MANAGE_HOMES: ScreenId[] = ['org_home', 'cluster_home', 'language_home'];
 export const TAB_SCREENS: ScreenId[] = [
-  'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser', 'global_viewer'
+  'my_work', ...MAP_SCREENS, ...PASSAGE_READING, 'inbox_home', 'settings_home', ...MANAGE_HOMES, 'intent_chooser'
 ];
 
 /** First forward edge from -> to, falling back to a back edge (demo `findEdge`). */

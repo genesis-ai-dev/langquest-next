@@ -13,8 +13,7 @@ export const SECTION_PATHS: Partial<Record<ScreenId, string>> = {
   org_home: '/manage',
   language_home: '/manage/language',
   inbox_home: '/inbox',
-  settings_home: '/settings',
-  global_viewer: '/global-viewer'
+  settings_home: '/settings'
 };
 
 export function pathFor(stack: readonly Route[]): string {

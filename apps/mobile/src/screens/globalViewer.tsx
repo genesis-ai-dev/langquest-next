@@ -1,8 +1,8 @@
 // Global Viewer (app only, no demo screen): LangQuest support set up an
 // authenticator, enter its code each sign-in, and then find any organization
 // and open it to read, as a Viewer (decisions.md 158, docs/global-viewers.md).
-// Inside an organization it is their tab (decision 71 amended 2026-10-21):
-// the organization they are in and how, first, then every other one.
+// Inside an organization, the link in every header opens it (decision 71
+// amended): the organization they are in and how, first, then every other one.
 // The server decides who is one and refuses every write; this screen only
 // sets up the code and lists organizations.
 import { useEffect, useRef, useState } from 'react';
@@ -28,8 +28,7 @@ const PAGE = 50;
 export function GlobalViewer(ctx: Ctx) {
   const { access, refresh } = useGlobalViewer(ctx.session.actorId, true);
   return (
-    // Its own tab inside an organization, so Back only from What brings you here?.
-    <Screen header={<Header title={t('globalViewer.title')} {...(ctx.session.hasNoOrg ? { onBack: ctx.back } : {})} />}>
+    <Screen header={<Header title={t('globalViewer.title')} onBack={ctx.back} />}>
       {access === 'needs_setup' ? <SetUp refresh={refresh} /> : null}
       {access === 'needs_code' ? <EnterCode refresh={refresh} /> : null}
       {access === 'on' ? <Organizations ctx={ctx} /> : null}

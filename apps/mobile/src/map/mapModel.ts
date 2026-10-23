@@ -31,8 +31,10 @@ const fmt = (n: number) => formatNumber(n);
  * organization: no tabs and no home (NAV-042). Progress and the Map's
  * language chips list only these.
  */
-export function openableLanguages<L extends { languageId: string }>(org: OrgState | null, actorId: string, languages: readonly L[]): L[] {
+export function openableLanguages<L extends { languageId: string }>(org: OrgState | null, actorId: string, languages: readonly L[], readsAll = false): L[] {
   if (!org) return [];
+  // A Global Viewer looking in may open every language (decisions.md 158).
+  if (readsAll) return [...languages];
   return languages.filter((l) => privilegesFor(org, actorId, l.languageId).size > 0);
 }
 

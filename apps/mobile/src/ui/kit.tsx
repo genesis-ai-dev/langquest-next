@@ -35,6 +35,7 @@ import { kindIcon } from './kindIcon';
 import { txt } from './textStyles';
 import { FooterHeightContext } from './useLayout';
 import { useHelpHost } from '../helpMode/useHelpMode';
+import { HeaderExtraContext } from './headerExtra';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -188,6 +189,8 @@ export function Header(props: {
   // buttons, Back (or ✕) and ?, on the screen's own ground; a tab's home keeps its big title at the left.
   const centred = !wide && !!props.onBack;
   const helpBtn = useHelpMode() ? <HelpToggle testID="header-help" /> : null;
+  // What the app shows in every header, such as a Global Viewer's link (headerExtra.ts).
+  const extra = useContext(HeaderExtraContext);
   // While help is on, Back explains itself like every other part; the ? is the way out.
   const back = useHelpSpot(props.close ? t('common.close') : t('common.back'), props.backHelp ?? (props.close ? t('help.details.close') : t('help.details.back')), props.onBack);
   const crumbs = props.crumbs && props.crumbs.length > 0 && wide ? (
@@ -226,6 +229,7 @@ export function Header(props: {
           {backBtn}
           <View style={{ flex: 1 }} />
           {action}
+          {extra}
           {helpBtn}
         </View>
         <View style={styles.headerUnder}>{centredTitle}</View>
@@ -237,6 +241,7 @@ export function Header(props: {
       {backBtn}
       {centredTitle}
       {action}
+      {extra}
       {helpBtn ?? <View style={{ width: 48 }} />}
     </>
   ) : (
@@ -254,6 +259,7 @@ export function Header(props: {
         {props.sub ? <Text style={[txt.xs, { marginTop: 2 }]}>{props.sub}</Text> : null}
       </View>
       {props.action}
+      {extra}
       {helpBtn}
     </>
   );

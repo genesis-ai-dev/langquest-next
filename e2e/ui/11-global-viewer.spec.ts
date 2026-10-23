@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Page } from '@playwright/test';
 import { anon, newAccount, openNew, quiet, type Fresh } from './auth-helpers';
 import { localServer } from './fixture';
-import { button, byId, expect, field, tab, tabsShown, test, text, useWorld } from './support';
+import { back, button, byId, expect, field, tab, tabsShown, test, text, useWorld } from './support';
 import { totp } from './totp';
 
 const world = useWorld();
@@ -45,8 +45,8 @@ test('ACCT-052 A new Global Viewer sets up an authenticator on What brings you h
   await openNew(page, world(), gv);
   await expect(wayIn(page)).toBeVisible({ timeout: 60_000 });
   await expect(text(page, 'Set up your authenticator to begin')).toBeVisible();
-  // A Global Viewer account joins no organization: the ways to join are not offered.
-  await expect(text(page, 'Find your organization')).toBeHidden();
+  // They may join or start an organization too, as anyone may.
+  await expect(text(page, 'Find your organization')).toBeVisible();
   await wayIn(page).click();
   await button(page, 'Set up authenticator').click();
   const key = (await byId(page, 'global-viewer-key').textContent())?.replace(/\s/g, '') ?? '';
@@ -81,10 +81,51 @@ test('ACCT-054 A Global Viewer opens another organization and only views it', as
   await button(page, world().orgName).click();
   // The organization opens on a Viewer's overview, under the Map tab.
   await expect(tab(page, 'map')).toBeVisible({ timeout: 60_000 });
-  // A Viewer's tabs, and the Global Viewer's own before Me: no Work and no Manage.
-  expect(await tabsShown(page)).toEqual(['map', 'inbox', 'global', 'me']);
-  // Their tab says where they are, and lists the others to open instead.
-  await tab(page, 'global').click();
+  // An admin's tabs but Work and the Inbox, and every language on the overview.
+  expect(await tabsShown(page)).toEqual(['map', 'manage', 'me']);
+  await expect(text(page, 'Alpha')).toBeVisible();
+  // The link in the header says where they are, and lists the others to open instead.
+  await byId(page, 'global-viewer-link').click();
   await expect(byId(page, 'global-viewer-here')).toHaveText(world().orgName);
   await expect(field(page, 'Organization or language')).toBeVisible();
 });
+
+test('ACCT-055 A Global Viewer reads Manage as its admins see it, and changes nothing', async ({ page }) => {
+  const { who, key } = await withAuthenticator(await newGlobalViewer('Gus Viewer'));
+  await openNew(page, world(), who);
+  await expect(wayIn(page)).toBeVisible({ timeout: 60_000 });
+  await wayIn(page).click();
+  await field(page, 'Code from your authenticator').fill(totp(key, 1));
+  await button(page, 'Check code').click();
+  await field(page, 'Organization or language').fill(world().orgName);
+  await button(page, world().orgName).click();
+  // Manage opens the organization's page.
+  await expect(tab(page, 'manage')).toBeVisible({ timeout: 60_000 });
+  await tab(page, 'manage').click();
+  await text(page, 'Members').click();
+  await expect(text(page, world().accounts.ADMIN.name)).toBeVisible({ timeout: 30_000 });
+  // The language's page has the link in its header too.
+  await back(page).click();
+  await text(page, 'Alpha').click();
+  await expect(byId(page, 'global-viewer-link')).toBeVisible();
+  await back(page).click();
+  // Renaming the organization is not offered: it goes by the organization's own roles, and they hold none.
+  await expect(byId(page, 'org-rename')).toHaveCount(0);
+});
+
+test('ACCT-056 A revoked Global Viewer account is an ordinary one', async ({ page }) => {
+  const gv = await newGlobalViewer('Gil Revoked');
+  const s = localServer();
+  const service = createClient(s.url, s.service, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await service.rpc('global_viewer_revoke', { p_email: gv.email, p_by: 'ui test' });
+  if (error || data !== 'revoked') throw new Error(`revoke: ${error?.message ?? String(data)}`);
+  // Revoking ended every sign-in: a new one, with the password.
+  const again = anon();
+  const signedIn = await again.auth.signInWithPassword({ email: gv.email, password: gv.password });
+  if (signedIn.error || !signedIn.data.session) throw new Error(`sign in again: ${signedIn.error?.message ?? 'no session'}`);
+  await openNew(page, world(), { ...gv, session: signedIn.data.session, sb: again });
+  await expect(text(page, 'Global Viewer access has ended')).toBeVisible({ timeout: 60_000 });
+  await expect(text(page, 'Find your organization')).toBeVisible();
+  await expect(wayIn(page)).toBeHidden();
+});
+
