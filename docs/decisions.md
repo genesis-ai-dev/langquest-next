@@ -7002,6 +7002,16 @@ copy again, comments once on the copy pull request naming the files in
 conflict and the steps to finish it, and leaves it open for a person or a
 Claude session; nothing fails. With the key, Claude finishes it as before.
 
+Amended (2026-10-23, Caleb Koster): the hourly cleanup now finds the newest
+new build that is live. When it is the newest of all, the branch goes and no
+other starts; only when an older one went live while a newer one is still in
+review does a new branch start, from just before the newer one. Before, it
+would have started a branch for a build that was never public. The
+repository variable `RELEASE_BRANCH_PLATFORMS` ("android" for now) names
+the platforms that keep a branch: no public iPhone build takes OTA updates
+from main yet (build 36, 1.0, runs code of 2026-10-16), so an iPhone branch
+would only feed TestFlight.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
