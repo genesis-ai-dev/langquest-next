@@ -48,6 +48,15 @@ export function liveFromPlayPage(html: string): LiveVersion | null {
   return version ? { platform: 'android', version, liveSince: null } : null;
 }
 
+/**
+ * The live iPhone version on the App Store's public page for the app, or null.
+ * The page shows "Version x.y.z" once the app is live, and answers 404 before.
+ */
+export function liveFromAppStorePage(html: string): LiveVersion | null {
+  const version = /Version (\d+(?:\.\d+){0,2})\b/.exec(html)?.[1];
+  return version ? { platform: 'ios', version, liveSince: null } : null;
+}
+
 /** Whether a cron tick at `scheduledTime` runs the store check: the first ten-minute tick of each hour. */
 export function storeCheckDue(scheduledTime: number): boolean {
   return new Date(scheduledTime).getUTCMinutes() < 10;
@@ -62,7 +71,11 @@ export function storeCheckDue(scheduledTime: number): boolean {
  */
 export interface StoreCounts {
   appleStatus: number;
+  /** The App Store page's status, when the lookup was refused and the page was asked instead; 0 when it was not. */
+  applePageStatus: number;
   appleFound: number;
+  /** Which source answered for iPhone: 1 the lookup, 2 the App Store page, 0 neither. */
+  appleSource: number;
   playStatus: number;
   playRedirected: number;
   playFound: number;
@@ -74,9 +87,19 @@ export interface StoreCounts {
  * consent page; the SOCS and CONSENT cookies say the choice was made (only the
  * necessary cookies), so the app page comes back instead.
  */
+const BROWSER = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+
+/**
+ * Apple's lookup refused Cloudflare's servers (403 on 2026-10-23) while it
+ * answered a laptop, so it is asked as a browser, and the App Store's public
+ * page is the fallback.
+ */
+export const APPLE_REQUEST: RequestInit = { headers: { 'user-agent': BROWSER, 'accept-language': 'en-US,en;q=0.9', accept: 'application/json' } };
+export const APPLE_PAGE_REQUEST: RequestInit = { headers: { 'user-agent': BROWSER, 'accept-language': 'en-US,en;q=0.9', accept: 'text/html' }, redirect: 'follow' };
+
 export const PLAY_REQUEST: RequestInit = {
   headers: {
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+    'user-agent': BROWSER,
     'accept-language': 'en-US,en;q=0.9',
     accept: 'text/html',
     cookie: 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg; CONSENT=PENDING+987'
@@ -88,14 +111,26 @@ export const PLAY_REQUEST: RequestInit = {
 export async function checkStores(db: SupabaseClient, fetcher: typeof fetch = fetch): Promise<{ live: LiveVersion[]; counts: StoreCounts; problems: string[] }> {
   const live: LiveVersion[] = [];
   const problems: string[] = [];
-  const counts: StoreCounts = { appleStatus: 0, appleFound: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
+  const counts: StoreCounts = { appleStatus: 0, applePageStatus: 0, appleFound: 0, appleSource: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
 
-  const apple = await fetcher(`https://itunes.apple.com/lookup?id=${APP_STORE_ID}&country=${COUNTRY}`, { headers: { accept: 'application/json' } }).catch(() => null);
+  const apple = await fetcher(`https://itunes.apple.com/lookup?id=${APP_STORE_ID}&country=${COUNTRY}`, APPLE_REQUEST).catch(() => null);
   counts.appleStatus = apple?.status ?? 0;
-  if (!apple?.ok) problems.push(`Apple's lookup answered ${counts.appleStatus}`);
-  else {
+  if (apple?.ok) {
+    counts.appleSource = 1;
     const v = liveFromLookup(await apple.json());
     if (v) { live.push(v); counts.appleFound = 1; }
+  } else {
+    // The lookup refused: the App Store's page says the same, and 404 there means not live yet.
+    const page = await fetcher(`https://apps.apple.com/${COUNTRY}/app/id${APP_STORE_ID}`, APPLE_PAGE_REQUEST).catch(() => null);
+    counts.applePageStatus = page?.status ?? 0;
+    if (page?.status === 404) counts.appleSource = 2;
+    else if (!page?.ok) problems.push(`Apple's lookup answered ${counts.appleStatus} and the App Store page ${counts.applePageStatus}`);
+    else {
+      counts.appleSource = 2;
+      const v = liveFromAppStorePage(await page.text());
+      if (v) { live.push(v); counts.appleFound = 1; }
+      else problems.push("The App Store page shows no version: its layout may have changed");
+    }
   }
 
   const play = await fetcher(`https://play.google.com/store/apps/details?id=${PLAY_ID}&hl=en&gl=US`, PLAY_REQUEST).catch(() => null);

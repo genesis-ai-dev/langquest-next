@@ -100,7 +100,7 @@ export default {
       return;
     }
     const startedAt = Date.now();
-    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0, appleStatus: 0, appleFound: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
+    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0, appleStatus: 0, applePageStatus: 0, appleFound: 0, appleSource: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
     const errors: unknown[] = [];
     const failed = (key: keyof typeof n, what: string) => (e: unknown) => {
       n[key] = 1;
