@@ -761,11 +761,12 @@ test('NAV-095 The sync chip on My Work', async ({ page }) => {
   await expect(byId(page, 'toast')).toContainText('Note added');
   await toTabs(page);
   await expect.poll(() => headerTitle(page)).toBe('My Work');
-  await expect(button(page, '1 to send')).toBeVisible();
-  await button(page, '1 to send').click();
+  const chip = button(page, 'Offline, 1 to send');
+  await expect(chip).toBeVisible();
+  await chip.click();
   await expect.poll(() => headerTitle(page)).not.toBe('My Work');
   await back(page).click();
   await page.context().setOffline(false);
   await syncNow(page).catch(() => undefined);
-  await expect(page.getByRole('button', { name: /^(Offline|\d+ to send|Not syncing)$/ }).locator('visible=true')).toHaveCount(0, { timeout: 60_000 });
+  await expect(page.getByRole('button', { name: /^(Offline|Not syncing)|to send$/ }).locator('visible=true')).toHaveCount(0, { timeout: 60_000 });
 });

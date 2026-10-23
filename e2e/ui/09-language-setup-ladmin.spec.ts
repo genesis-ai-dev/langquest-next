@@ -45,7 +45,7 @@ async function secondTemplate(page: Page): Promise<void> {
   await tab(p, 'manage').click();
   await setup(p);
   await text(p, 'Content templates').click();
-  for (let i = 0; i < 10 && !(await text(p, 'FIA passages').count()); i++) await text(p, /^Show 5 more/).click();
+  // LangQuest's templates are listed by the name they go by (five first): FIA passages is among them.
   await text(p, 'FIA passages').click();
   await text(p, 'Follow').click();
   await text(p, 'Update automatically').click();
@@ -88,7 +88,7 @@ test('SETUP-062 LADMIN chooses Alpha\'s own template and checks', async ({ page 
   // another organization's is a library write).
   await contentTemplate(page);
   await expectOnScreen(page, 'FIA passages (English)', 'FIA passages');
-  await expectNotOnScreen(page, 'Bible chapters (English)');
+  await expectNotOnScreen(page, 'By chapter');
   await text(page, 'FIA passages', true).click();
   await button(page, 'Use FIA passages').click();
   await expectToast(page, 'Alpha now uses FIA passages.');
@@ -137,7 +137,7 @@ test('SETUP-063 LADMIN is not offered the organization\'s library writes', async
   await expectOnScreen(page, 'Content templates', 'View');
   await expectNotOnScreen(page, 'Options');
   await expect(button(page, 'Template')).toHaveCount(0);
-  await text(page, 'Bible chapters (English)').click();
+  await text(page, 'By chapter').click();
   await expect(button(page, 'Follow')).toHaveCount(0);
   await expect(button(page, 'Copy')).toHaveCount(0);
   await closeSheet(page);

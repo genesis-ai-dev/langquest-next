@@ -1011,8 +1011,8 @@ test('PEOPLE-031 A language lead cannot act at organization scope', async ({ pag
   await expect(text(page, 'Invite someone')).toBeVisible();
   await expect(text(page, 'All of them')).toHaveCount(0);
   await expect(text(page, 'Bravo')).toHaveCount(0);
-  await primary(page).click();
-  await expect(text(page, 'Ask them to scan this')).toBeVisible();
+  // Each role's card has its own Invite (decision 146); there is no role chosen to start with, nor a Continue.
+  await inviteRole(page, 'Translators');
   const link = await sharedLink(page, 'Share as a link');
   expect((await inviteRow(link))['scope']).toEqual({ level: 'language', languageId: w.languages.A.languageId });
   await primary(page).click();

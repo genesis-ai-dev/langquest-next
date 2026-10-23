@@ -4177,7 +4177,8 @@
     },
     "sync": {
       "toSend_one": "{{count, number}} da za a aika",
-      "toSend_other": "{{count, number}} da za a aika"
+      "toSend_other": "{{count, number}} da za a aika",
+      "receiving": "ana karɓar rikodi"
     },
     "join": {
       "wantsToJoin": "{{name}} na son shiga",
@@ -4450,7 +4451,8 @@
       "checking": "Ɗigo toka: ana neman haɗi. Aikinku yana zama a wannan na'ura har sai an aika shi.",
       "offline": "Ɗigo ruwan ɗorawa: babu intanet. Aikinku yana zama a wannan na'ura, kuma za a aika shi da zarar an haɗa.",
       "refused": "Ja: sabar ta ƙi wani abu. Taɓa don ganin mene ne, da abin da za a yi.",
-      "withWaiting": "{{standing}} Lambar ita ce yawan abubuwan da ke jiran a aika."
+      "withWaiting": "{{standing}} Lambar ita ce yawan abubuwan da ke jiran a aika.",
+      "withReceiving": "{{standing}} Zoben yana juyawa yayin da ake sauke rikodin wasu zuwa wannan na’urar. Babu abin da ke jiran a aika."
     }
   },
   "offline": {

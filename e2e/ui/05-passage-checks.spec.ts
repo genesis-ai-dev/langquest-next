@@ -475,7 +475,9 @@ test('PASS-056 Undo moving past a checkpoint', async ({ browser }) => {
   const t = await recordAs(browser, world(), 'TRANS', 'P-CHECK');
   await history(t);
   await expect(text(t, /Moved past a checkpoint/).first()).toBeVisible();
-  expect(await t.getByRole('button', { name: 'Undo', exact: true }).locator('visible=true').count()).toBe(0);
+  // The override is the newest entry, and the next entry follows its line with no Undo between. TRANS has
+  // Undo elsewhere in History: on the consultant check they logged themselves, earlier in this file.
+  expect(await screenText(t)).toMatch(new RegExp(`History .*Moved past a checkpoint ${nameOf('COORD')} · Just now — Checked informally — will record it later Moved past a checkpoint `));
   await expect(actAs(world(), 'TRANS', (c) => c.undoDeparture({ commandId: id(), departureId }), 'TRANS undoes an override'))
     .rejects.toThrow(/may not emit v1\.DepartureUndone/);
   // COORD brings it back, so the checkpoint holds for the tests after this one.

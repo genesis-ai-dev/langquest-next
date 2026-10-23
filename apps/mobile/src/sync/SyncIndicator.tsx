@@ -1,8 +1,8 @@
 // The header's sync state as one icon, always shown (replaces the text chip on My Work).
 // The dot always says where the phone stands (green live, grey checking now
-// and then, amber offline, red refused); the ring and counter show work in
-// flight. Motion, and when it is drawn, is in syncRing.ts. Tapping opens the
-// Sync screen.
+// and then, amber offline, red refused); the ring shows work in flight, both
+// ways, and the counter what waits to send. Motion, and when it is drawn, is in
+// syncRing.ts. Tapping opens the Sync screen.
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -16,7 +16,7 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Text } from '../ui/text';
 import { useSyncStatus } from './useSyncStatus';
-import { syncStanding, standingTitle, type SyncStanding, previewCount, previewListeners } from './syncStanding';
+import { syncStanding, standingTitle, type SyncStanding, previewCount, previewListeners, iconCounts } from './syncStanding';
 
 const SIZE = 40;
 const R = 17;
@@ -40,13 +40,21 @@ export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org'
   const { language: project, org } = props;
   const preview = usePreview();
   const status = useSyncStatus();
-  const pending = preview ?? status.pending + status.orgPending + status.pendingUp + status.pendingDown;
-  const ring = useRing(pending);
+  // The number and the name count what goes up; the ring turns for recordings coming down as well (iconCounts).
+  const counts = preview === null ? iconCounts(status) : { toSend: preview, inFlight: preview };
+  const pending = counts.toSend;
+  const receiving = counts.inFlight > pending;
+  const ring = useRing(counts.inFlight);
+  // The drawn counter falls toward the queue (syncRing.ts); while recordings come down it would count them, so it shows what is to send.
+  const shownCount = receiving ? pending : ring.count;
   const standing = syncStanding(project);
   const color = STANDING_COLOR[standing];
   const lap = LAPS[ring.lap]!;
-  const label = pending ? `${standingTitle(standing)}, ${t('work.sync.toSend', { count: pending })}` : standingTitle(standing);
-  const spot = useHelpSpot(label, pending ? t('help.sync.withWaiting', { standing: standingHelp(standing) }) : standingHelp(standing), props.onPress);
+  const label = pending ? `${standingTitle(standing)}, ${t('work.sync.toSend', { count: pending })}`
+    : receiving ? `${standingTitle(standing)}, ${t('work.sync.receiving')}` : standingTitle(standing);
+  const help = pending ? t('help.sync.withWaiting', { standing: standingHelp(standing) })
+    : receiving ? t('help.sync.withReceiving', { standing: standingHelp(standing) }) : standingHelp(standing);
+  const spot = useHelpSpot(label, help, props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={t('account.more.sync')} testID="sync-indicator" hitSlop={4}
       style={({ pressed }) => [styles.tap, pressed && { opacity: 0.6 }]}>
@@ -64,8 +72,8 @@ export function SyncIndicator(props: { language: Ctx['language']; org: Ctx['org'
         </Svg>
         <Ico name={standing === 'offline' ? 'notOnPhone' : 'cloud'} size={20} color={standing === 'refused' ? C.red : C.primary} />
         <View style={[styles.dot, { backgroundColor: color }]} />
-        {ring.count > 0 ? (
-          <View style={styles.count}><Text style={styles.countText}>{ring.count > 99 ? '99+' : formatNumber(ring.count)}</Text></View>
+        {shownCount > 0 ? (
+          <View style={styles.count}><Text style={styles.countText}>{shownCount > 99 ? '99+' : formatNumber(shownCount)}</Text></View>
         ) : null}
       </View>
       <HelpBadge spot={spot} />

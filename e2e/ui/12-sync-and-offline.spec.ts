@@ -236,7 +236,6 @@ test('SYNC-011 A coordinator asks someone offline', async ({ page, context, brow
   await button(page, 'Something else?').click();
   await button(page, /^Someone else should do this/).click();
   await page.getByRole('radio', { name: /^Trevor Both/ }).locator('visible=true').first().click();
-  await button(page, 'In a week').click();
   await button(page, /^Ask /).click();
   await expect(text(page, /Trevor Both/, false)).toBeVisible();
   await setOffline(context, false);

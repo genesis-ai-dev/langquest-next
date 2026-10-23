@@ -15,7 +15,7 @@ import {
 import { send, signIn, type UiWorld } from './fixture';
 import { projectionPass } from './pass-helpers';
 import {
-  back, button, byId, expect, expectNothingRefused, expectToast, field, languageArrived, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
+  back, button, byId, expect, expectNothingRefused, expectSyncIdle, expectToast, field, languageArrived, openAs, openPassage, openSignedOut, primary, screenText, syncNow, tab, test, text,
   useWorld, type AccountKey
 } from './support';
 
@@ -688,8 +688,12 @@ test('MOD-020 A moderator acts on a content report', async ({ page, browser }) =
   await button(page, 'Remove for everyone').click();
   await expectToast(page, 'Removed from the record. Devices stop showing it when they next sync.');
   await expect(page.getByRole('button', { name: /^A note was reported/ })).toHaveCount(0);
+  // The removal is on this device when the toast shows: COORD can only be told once it has gone up.
+  await expectSyncIdle(page);
   // COORD no longer sees either report; the note is gone after a sync.
   const coord = await quietDevice(browser, w, 'COORD');
+  // A fresh device draws before its language has all come down: wait for the removal to arrive with it.
+  await languageArrived(coord.page);
   await openBell(coord.page);
   await expect(text(coord.page, /^Unread|^Earlier|Nothing yet/i)).toBeVisible();
   expect(await screenText(coord.page)).not.toMatch(/A version was reported|A note was reported/);
