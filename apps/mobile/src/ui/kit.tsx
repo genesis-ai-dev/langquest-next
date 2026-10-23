@@ -641,13 +641,32 @@ export function ChipWrap(props: { children: ReactNode }) {
   return <View style={styles.chipWrap}>{props.children}</View>;
 }
 
+/**
+ * On the web a Switch is an input, a focus stop. Drawn inside a Row that is the
+ * switch it would be a focusable element within a switch (axe nested-interactive,
+ * the language page's "Show on the public list"): the row alone is the stop.
+ * The web's Switch hands its ref to that input. Only a disabled input stops being
+ * focusable (axe counts tabindex -1 as focusable), and the `disabled` prop would
+ * grey the drawing, so the input itself is disabled, again after each render,
+ * since React sets it back whenever the prop changes.
+ */
+function unfocusable(el: unknown): void {
+  const input = el as { disabled?: boolean; setAttribute?: (name: string, value: string) => void } | null;
+  if (!input?.setAttribute) return;
+  input.disabled = true;
+  input.setAttribute('tabindex', '-1');
+}
+
 export function Toggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean; testID?: string;
   /** What help mode says it turns on. */ help?: string;
   /** Drawn inside a row that is the switch (Row's `role="switch"`): the row explains it. */ drawnOnly?: boolean }) {
   const spot = useHelpSpot(props.label, props.help ?? (props.on ? t('help.details.switchOn') : t('help.details.switchOff')), props.drawnOnly ? undefined : props.onToggle);
+  const input = useRef<Switch>(null);
+  const drawnOnWeb = !!props.drawnOnly && Platform.OS === 'web';
+  useEffect(() => { if (drawnOnWeb) unfocusable(input.current); });
   return (
     <View>
-      <Switch {...(props.testID ? { testID: props.testID } : {})} value={props.on} onValueChange={props.onToggle} disabled={props.disabled || !!spot.id} accessibilityLabel={props.label}
+      <Switch {...(props.testID ? { testID: props.testID } : {})} {...(drawnOnWeb ? { ref: input } : {})} value={props.on} onValueChange={props.onToggle} disabled={props.disabled || !!spot.id} accessibilityLabel={props.label}
         trackColor={{ true: C.primary, false: C.border }} thumbColor={C.white} ios_backgroundColor={C.border}
         // On the web an on switch's thumb is react-native-web's teal unless it is given its own colour.
         {...(Platform.OS === 'web' ? ({ activeThumbColor: C.white } as object) : {})} />
