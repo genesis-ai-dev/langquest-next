@@ -106,6 +106,35 @@ if (platform === 'android') for (const dev of devices) {
   }));
 }
 
+// Accessibility's "Time to take action" at 10 s while the run lasts, and put
+// back as it was. A toast shows 3.5 s unless this asks for longer (decision 159),
+// and Maestro, which reads the screen once it is idle, often reads it after a
+// 3.5 s toast has gone on an emulator: its Back or tap settles in about 4 s.
+const UI_TIMEOUTS = ['accessibility_interactive_ui_timeout_ms', 'accessibility_non_interactive_ui_timeout_ms'];
+if (platform === 'android') for (const dev of devices) {
+  const setting = (...a) => spawnSync('adb', ['-s', dev, 'shell', 'settings', ...a], { encoding: 'utf8' });
+  const before = UI_TIMEOUTS.map((s) => setting('get', 'secure', s).stdout.trim());
+  for (const s of UI_TIMEOUTS) setting('put', 'secure', s, '10000');
+  process.on('exit', () => UI_TIMEOUTS.forEach((s, i) => {
+    const was = before[i];
+    if (was && was !== 'null') setting('put', 'secure', s, was); else setting('delete', 'secure', s);
+  }));
+}
+
+// Reduce Motion on in the simulator while the run lasts, as Android's zero
+// animation scales are, and put back as it was. XCUITest reads the screen once
+// the app is idle, and a toast's bar running down kept it busy until the toast
+// had gone (decision 159). Each flow's clean start reads the setting afresh.
+if (platform === 'ios') for (const dev of devices) {
+  const defaults = (...a) => spawnSync('xcrun', ['simctl', 'spawn', dev, 'defaults', a[0], 'com.apple.Accessibility', 'ReduceMotionEnabled', ...a.slice(1)], { encoding: 'utf8' });
+  const was = defaults('read');
+  defaults('write', '-bool', 'true');
+  process.on('exit', () => {
+    if (was.status === 0) defaults('write', '-bool', was.stdout.trim() === '1' ? 'true' : 'false');
+    else defaults('delete');
+  });
+}
+
 // Airplane mode does not cut adb reverse ports, and a connection already open
 // through one stays open, so a flow that "goes offline" with setAirplaneMode
 // would still reach the local server. While the run lasts, a watcher rejects

@@ -11,7 +11,7 @@
 // stays readable and playable. While the Bible plays the microphone is
 // paused: the pane turns pale and says so, with Resume now.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
@@ -25,20 +25,9 @@ import { LiveParts } from './LiveParts';
 import { liveKept } from './livePartsModel';
 import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { useHardwareBack } from '../ui/useHardwareBack';
+import { useReduceMotion } from '../ui/useReduceMotion';
 
 type Recorder = ReturnType<typeof useRecorder>;
-
-/** The reduce-motion setting, kept current (A11Y-8). */
-function useReduceMotion(): boolean {
-  const [reduce, setReduce] = useState(false);
-  useEffect(() => {
-    let live = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((on) => { if (live) setReduce(on); }, () => undefined);
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduce);
-    return () => { live = false; sub.remove(); };
-  }, []);
-  return reduce;
-}
 
 /** Pulses while capturing; with reduce motion on, it is simply bright. */
 function PulsingDot(props: { on: boolean }) {

@@ -88,13 +88,13 @@ tags:
     file: ../common/dismiss-keyboard.yaml
     env:
       LABEL: "Move past the checkpoint\\?"
-- tapOn:
-    text: "Move past checkpoint"
-    waitToSettleTimeoutMs: 0
+- tapOn: "Move past checkpoint"
+# What stays, not the toast (about 3.5 s, often gone before a slow phone reads
+# the screen; the web suite checks its words, 05-passage-checks): the row says
+# moved past, and History keeps the reason.
 - extendedWaitUntil:
-    visible: "Moved past the checkpoint · reason saved.*"
+    visible: "Consultant check, moved past"
     timeout: 20000
-- assertVisible: "Consultant check, moved past"
 - tapOn: "Versions and history"
 - tapOn: "History.*"
 - assertVisible: ".*Consultant visit postponed to March.*"

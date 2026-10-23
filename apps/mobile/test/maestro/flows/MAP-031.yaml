@@ -54,10 +54,13 @@ tags:
     text: "${P_DONE}.*"
     index: 0
 - tapOn: "Something else\\?"
-- tapOn:
-    text: "Keep offline"
-    waitToSettleTimeoutMs: 0
-- assertVisible: ".*Kept on this device. It downloads while you are connected..*"
+# What stays once the toast has gone (it lives about 3.5 s, and a phone can read
+# the screen after that): the passage is kept because VIEW chose to.
+- tapOn: "Keep offline"
+- extendedWaitUntil:
+    visible: ".*Kept because you chose to keep it\\..*"
+    timeout: 20000
+- assertVisible: "Stop keeping offline"
 - tapOn:
     id: "header-close"
 - tapOn:
