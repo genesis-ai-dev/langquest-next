@@ -226,6 +226,23 @@ describe('a first download by fill (decisions.md 147)', () => {
     expect(Object.values(client.getState().recordings).filter((r) => r.unitId === 'u06')).toHaveLength(1);
   });
 
+  it('a passage opened before its rows arrive has its files\' verdicts in memory once they do', async () => {
+    // Why: the fill gave memory a file's verdict only when memory had one already. A passage a screen opened
+    // before its rows arrived had none, so its files read as not on the server, and the player stayed greyed out
+    // ("Not on this device yet") until the screen was left and opened again (a big language on the web, 2026-10-23).
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 20);
+    server.makeSnapshot('org1', 'p1');
+    const { client } = phone(server, 'dB', 'r1', { keepOnDisk: true, fillBudgetMs: 0 });
+    await client.load();
+    await client.sync();
+    expect(client.isFilled('u06')).toBe(false);
+    await client.loadUnits(['u06']);
+    expect(client.isFilled('u06')).toBe(true);
+    expect(client.getState().blobs['h-w6']?.stored).toBe(true);
+  });
+
   it('fills what a screen opens first, then the person\'s own passages, then the rest', async () => {
     const server = new FakeServer();
     server.serverCut = true;

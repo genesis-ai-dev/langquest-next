@@ -1,5 +1,5 @@
 import {
-  eventPassage, hangsOn, keptVerdict, LINES_VERSION, markChanged, PART_OF_KIND, passageInMemory, putEntry,
+  eventPassage, hangsOn, keptVerdict, LINES_VERSION, markChanged, PART_OF_KIND, passageInMemory, putEntry, referencedBlobs,
   type AnyEvent, type LanguageState, type PassageLine, type PassageOf
 } from '@langquest-next/core';
 import { entryRows, FILE, type KeptLanguage } from './keptLanguage';
@@ -347,14 +347,20 @@ export class KeptFill {
     // that read these rows from disk as well loses nothing.
     const live = this.live();
     let memory = false;
-    for (const { hash, verdict } of verdicts) {
-      // A file memory names: its verdict there too.
-      const here = live.blobs[hash];
-      if (here) { live.blobs[hash] = keptVerdict(here, verdict); memory = true; }
-    }
     for (const p of placed) {
       // A passage held whole in memory takes the row there too, so memory still holds all the disk does.
       if (this.kept.isHeld(p.unitId)) { putEntry(live, p.part, p.id, p.value); memory = true; }
+    }
+    // A file memory names, the rows just put there included: its verdict there too. Asked only of memory's
+    // verdicts before, a passage a screen opened before its rows arrived had none, so its files read as not
+    // on the server until it was opened again. Memory is marked changed first: what it names is worked out
+    // once per revision.
+    if (memory) markChanged(live);
+    const named = verdicts.some(({ hash }) => !live.blobs[hash]) ? referencedBlobs(live) : null;
+    for (const { hash, verdict } of verdicts) {
+      const here = live.blobs[hash];
+      if (here) { live.blobs[hash] = keptVerdict(here, verdict); memory = true; }
+      else if (named?.has(hash)) { live.blobs[hash] = verdict; memory = true; }
     }
     this.meta = meta;
     this.kept.stored(placed);
