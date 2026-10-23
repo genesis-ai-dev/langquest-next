@@ -8,13 +8,18 @@ import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
 import { useLayout } from '../ui/useLayout';
 
+/** Narrower than this, a header has no room for the words beside its title, Back and its own buttons. */
+const WORDED_MIN = 600;
+
 /**
  * In every header of an organization a Global Viewer is looking in on
- * (decisions.md 158): where they are, and the way to another. An eye on a
- * phone; the eye and "Global Viewer" on a wider window.
+ * (decisions.md 158): where they are, and the way to another. An eye; the
+ * eye and "Global Viewer" where the header's own box is wide, never in a
+ * split's narrow list pane, whose title would be left a sliver.
  */
 export function GlobalViewerLink(props: { orgName: string; onPress: () => void }) {
-  const wide = useLayout().kind !== 'phone';
+  const layout = useLayout();
+  const wide = layout.kind !== 'phone' && layout.role !== 'list' && layout.contentWidth >= WORDED_MIN;
   const label = props.orgName ? t('globalViewer.viewingOrg', { org: props.orgName }) : t('globalViewer.title');
   const spot = useHelpSpot(t('globalViewer.title'), t('globalViewer.linkHelp'), props.onPress);
   return (
