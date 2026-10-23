@@ -1,6 +1,6 @@
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { nextStep, token } from './app-store-review.mjs';
+import { keyMissing, nextStep, token } from './app-store-review.mjs';
 // @ts-expect-error CommonJS app config, read for its helper
 import appConfig from '../apps/mobile/app.config.js';
 
@@ -68,6 +68,14 @@ describe('the next step', () => {
 
   it('stops when another build already holds the version number', () => {
     expect(nextStep({ open: [], live: 42, newest, version: { state: 'READY_FOR_SALE', build: 43 } }).action).toBe('stuck');
+  });
+});
+
+describe('before the App Manager key is in EAS', () => {
+  it('lets the build wait in TestFlight and does not fail', () => {
+    expect(keyMissing({})).toMatch(/no App Store Connect key yet .* waits in TestFlight/);
+    expect(keyMissing({ ASC_KEY_ID: 'K', ASC_ISSUER_ID: 'I' })).toMatch(/ASC_PRIVATE_KEY/);
+    expect(keyMissing({ ASC_KEY_ID: 'K', ASC_ISSUER_ID: 'I', ASC_PRIVATE_KEY: 'P' })).toBeNull();
   });
 });
 

@@ -139,10 +139,21 @@ async function submit(api, appId, newest, version) {
   await api('PATCH', `/reviewSubmissions/${submissionId}`, { type: 'reviewSubmissions', id: submissionId, attributes: { submitted: true } });
 }
 
+/**
+ * Why the step cannot run yet, or null. Until the App Manager key is in EAS's
+ * production environment, iPhone builds stop at TestFlight for a person to
+ * send to review, as before, and the step says so and succeeds, so the
+ * pipeline stays green; once the key is there, nothing else changes.
+ */
+export function keyMissing(env) {
+  const missing = ['ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_PRIVATE_KEY'].filter((k) => !env[k]);
+  return missing.length ? `no App Store Connect key yet (${missing.join(', ')} not set in EAS's production environment), so the newest build waits in TestFlight` : null;
+}
+
 async function main(env = process.env) {
   const dryRun = process.argv.includes('--dry-run');
-  const missing = ['ASC_KEY_ID', 'ASC_ISSUER_ID', 'ASC_PRIVATE_KEY'].filter((k) => !env[k]);
-  if (missing.length) throw new Error(`${missing.join(', ')} not set: the App Manager key for App Store Connect (scripts/app-store-review.mjs)`);
+  const notYet = keyMissing(env);
+  if (notYet) return console.log(`wait: ${notYet}.`);
   const eas = JSON.parse(readFileSync(new URL('../apps/mobile/eas.json', import.meta.url), 'utf8'));
   const appId = eas.submit.production.ios.ascAppId;
   const api = client(env);

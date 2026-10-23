@@ -7036,7 +7036,11 @@ public on the day that the store approves it, with no staged rollout:
   the latest commit for a build, so a count of commits was not possible.
 The App Store step needs an App Store Connect API key with the App Manager
 role, kept as the EAS production secrets `ASC_KEY_ID`, `ASC_ISSUER_ID` and
-`ASC_PRIVATE_KEY`; EAS's own submit key only uploads to TestFlight. The
+`ASC_PRIVATE_KEY`; EAS's own submit key only uploads to TestFlight. Until
+that key is there, the step says "no App Store Connect key yet" and
+succeeds, so iPhone builds stop at TestFlight for a person to send to
+review, as before, and the pipeline stays green; Android goes to production
+review either way. The
 Android step needs the Play service account that EAS submits with to hold
 "Release to production, exclude devices, and use Play App Signing".
 Amends 45: Android builds go to production review, not internal testing.
