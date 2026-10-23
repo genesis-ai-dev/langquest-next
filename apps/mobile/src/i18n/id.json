@@ -4233,6 +4233,14 @@
       "term": {
         "title": "Pilih istilah",
         "sub": "Arti dan padanannya terbuka di sini."
+      },
+      "language": {
+        "title": "Pilih bahasa",
+        "sub": "Kemajuannya terbuka di sini."
+      },
+      "manage": {
+        "title": "Pilih yang akan dikelola",
+        "sub": "Bahasa, anggota, atau pengaturan terbuka di sini."
       }
     },
     "license": {

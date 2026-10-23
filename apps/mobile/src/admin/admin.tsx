@@ -19,7 +19,7 @@ import { HeaderExtraContext } from '../ui/headerExtra';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { txt } from '../ui/textStyles';
 import { shadow } from '../ui/shadow';
-import { C, radius, space, target, TINT, type as T } from '../ui/theme';
+import { C, measure, radius, space, target, TINT, type as T } from '../ui/theme';
 import type { InviteState } from './useGroupInvite';
 
 // ---- icons ----------------------------------------------------------------------------
@@ -87,8 +87,11 @@ export function BigTop(props: {
   // In a split, once: beside an open screen, a list pane leaves the ? to that screen's header.
   const layout = useLayout();
   const openBeside = useOpenDetail();
+  // On a wide window, the same white bar and centred column as every other header beside it (kit Header).
+  const wide = layout.kind !== 'phone';
   return (
-    <View style={styles.bigTop}>
+    <View style={wide ? styles.bigTopBarWide : null}>
+    <View style={[styles.bigTop, wide && styles.bigTopWide]}>
       <View style={styles.bigTopBar}>
         {props.onBack ? (
           <Pressable testID="header-back" onPress={back.onPress} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
@@ -121,6 +124,7 @@ export function BigTop(props: {
       </View>
       {props.below}
       {props.status ? <Text style={[styles.status, { color: tone }]}>{props.status}</Text> : null}
+    </View>
     </View>
   );
 }
@@ -450,6 +454,8 @@ const styles = StyleSheet.create({
   tile: { backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   round: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   bigTop: { paddingHorizontal: space.xl - 4, paddingTop: space.md, paddingBottom: space.xs, backgroundColor: C.bg },
+  bigTopBarWide: { backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  bigTopWide: { width: '100%', maxWidth: measure.column, alignSelf: 'center', backgroundColor: C.card, paddingHorizontal: space.lg, paddingBottom: space.md },
   bigTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.sm },
   over: { fontSize: 14, fontWeight: '700', color: C.muted },
   bigTitle: { fontSize: 28, fontWeight: '800', color: C.dark, marginTop: 2 },

@@ -4509,6 +4509,14 @@
       "term": {
         "title": "Escolha um termo",
         "sub": "O significado e as traduções dele abrem aqui."
+      },
+      "language": {
+        "title": "Escolha um idioma",
+        "sub": "O progresso dele abre aqui."
+      },
+      "manage": {
+        "title": "Escolha o que gerenciar",
+        "sub": "Um idioma, os membros ou a configuração abrem aqui."
       }
     },
     "license": {
