@@ -71,6 +71,10 @@ jobs:
     name: Submit to TestFlight
     needs: [build_ios]
     type: submit
+    # EAS's credentials step says only "failed to resolve submission config"
+    # without this (build 44, 2026-10-23, during Expo's iOS maintenance).
+    env:
+      EXPO_DEBUG: '1'
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
   publish_ios_update:
