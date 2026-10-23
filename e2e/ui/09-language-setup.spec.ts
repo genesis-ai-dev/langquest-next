@@ -235,8 +235,8 @@ test('SETUP-008 Link a language to the language list', async ({ page }) => {
   await text(page, 'They translate into').click();
   await expectOnScreen(page, 'Link Bravo', 'Find it by any of its names or its code. It keeps the name Bravo here, and takes the list\'s code.');
   await field(page, 'Its name or code').fill('bra');
-  // The local language list is empty (the languoid tables are not seeded locally): nothing is found.
-  // Picking an entry, the toast and "Linked to …" need a seeded list (preview environment).
+  // The language list is loaded on a developer's stack (db:start) but not on CI, so it may answer or not.
+  // Picking an entry, the toast and "Linked to …" need a loaded list.
   await expect.poll(() => screenText(page), { timeout: 30_000 })
     .toMatch(/Is it one of these\?|Not there\? Try another of its names, or its code\.|Connect to the internet to search it\./);
   const found = /Is it one of these\?/.test(await screenText(page));
