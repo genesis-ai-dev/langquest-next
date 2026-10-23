@@ -6,8 +6,8 @@
  * or unconfigured source never holds up the rest. Everything it shows comes
  * from the API as data and is escaped before it reaches the page.
  */
-import { HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
-import { OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, SECTION_ORDER } from './pageOps';
+import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
+import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
 
 export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: string): Response {
   const config = JSON.stringify(cfg).replace(/</g, '\\u003c');
@@ -75,6 +75,8 @@ pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padd
 .wide { grid-column: 1 / -1; }
 .diag-inline { border-inline-start: 3px solid var(--line); padding-inline-start: 12px; margin: 6px 0 4px; }
 [hidden] { display: none !important; }
+h3.part { font-size: 15px; color: var(--ink); margin: 18px 0 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+.body > h3.part:first-child { border-top: 0; padding-top: 0; margin-top: 8px; }
 .card > .head { cursor: pointer; }
 .card.collapsed > .head { margin: 0; }
 .card.collapsed .src, .card.collapsed > .body { display: none; }
@@ -271,13 +273,16 @@ const BASE_SECTIONS = [
   { id: 'feedback', title: 'Feedback', src: 'What people sent from the help button, last 30 days', wide: true },
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name' }
 ];
-// Every section, in page order (pageOps.ts).
-const SECTIONS = ${JSON.stringify(SECTION_ORDER)}.map((id) => BASE_SECTIONS.concat(${JSON.stringify(OPS_SECTIONS)}).find((s) => s.id === id));
+// The page's sections, each gathering the parts about one subject (pageOps.ts GROUPS); a part is what one source answers.
+const SECTIONS = ${JSON.stringify(GROUPS)};
+const PART_TITLE = Object.assign(Object.fromEntries(BASE_SECTIONS.concat(${JSON.stringify(OPS_SECTIONS)}).map((s) => [s.id, s.title])), ${JSON.stringify(PART_TITLES)});
+const groupOf = (part) => SECTIONS.find((g) => g.parts.includes(part));
+const PARTS = SECTIONS.flatMap((g) => g.parts);
 const results = {};
 
 function layout() {
   $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head" data-toggle="' + s.id + '"><div><h2>' +
-    '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="section:' + s.id + '">' + esc(s.title) + '</span></button>' +
+    '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="group:' + s.id + '">' + esc(s.title) + '</span></button>' +
     '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
   for (const s of SECTIONS) applyOpen(s.id);
   annotate($('grid'));
@@ -292,43 +297,63 @@ function layout() {
   });
 }
 
-function pill(s) {
-  if (s.state === 'off') return ['off', 'Not connected'];
-  if (s.state === 'error') return ['error', 'Could not read'];
-  const p = s.alerts.filter((a) => a.level === 'problem').length, w = s.alerts.filter((a) => a.level === 'watch').length;
+/** One status for a section from its parts': problems first, then anything to watch or unreadable; OK only when every part answered. */
+function pill(g) {
+  const got = g.parts.map((p) => results[p]).filter(Boolean);
+  const p = got.reduce((n, s) => n + (s.alerts || []).filter((a) => a.level === 'problem').length, 0);
+  const w = got.reduce((n, s) => n + (s.alerts || []).filter((a) => a.level === 'watch').length + (s.state === 'error' ? 1 : 0), 0);
   if (p) return ['problem', p + (p === 1 ? ' problem' : ' problems')];
   if (w) return ['watch', w + ' to watch'];
+  if (got.length < g.parts.length) return ['wait', 'Loading…'];
+  if (got.every((s) => s.state === 'off')) return ['off', 'Not connected'];
   return ['ok', 'OK'];
+}
+
+/** A part as it reads inside its section: its sub-heading when the section has others, then its body, or why there is none. */
+function partHtml(g, id) {
+  const s = results[id];
+  const head = g.parts.length > 1 ? '<h3 class="part"><span data-help-key="section:' + id + '">' + esc(PART_TITLE[id] || id) + '</span></h3>' : '';
+  if (!s) return head + '<p class="muted">Loading…</p>';
+  if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
+  if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
+  try {
+    if (id === 'jobs') return head + renderJobs(s.data, results.container);
+    return head + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+  } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
+}
+
+/** The jobs as diag records them, with whether each runs now (the job container's answer) in the same row. */
+function renderJobs(d, container) {
+  const now = container && container.state === 'ok' ? Object.fromEntries(container.data.jobs.map((j) => [j.job, j])) : {};
+  const note = !container ? '' : container.state === 'off' ? '<p class="setup muted">Running now: not connected. ' + esc(container.setup) + '</p>'
+    : container.state === 'error' ? '<p class="bad">Running now: could not read: ' + esc(container.error) + '</p>' : '';
+  return RENDER.jobs(d, now) + note + (Object.keys(now).length ? '<p class="muted">Run now starts a job its schedule would start anyway; a job already running is left alone. Each is recorded (Support).</p>' : '');
 }
 
 function show(id, s) {
   results[id] = s;
-  const [cls, text] = pill(s);
-  const el = $('pill-' + id); el.className = 'pill ' + cls; el.textContent = text;
-  let html = '';
-  if (s.state === 'off') html = '<p class="setup muted">' + esc(s.setup) + '</p>';
-  else if (s.state === 'error') html = '<p class="bad">' + esc(s.error) + '</p>';
-  else {
-    try { html = (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data); }
-    catch (err) { html = '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
-  }
-  $('body-' + id).innerHTML = html;
-  if (id === 'feedback') wireScreenshots();
-  annotate($('body-' + id));
-  applyOpen(id);
+  const g = groupOf(id);
+  if (!g) return;
+  const [cls, text] = pill(g);
+  const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
+  // The container's answer lives in the Jobs table, not as a part of its own.
+  $('body-' + g.id).innerHTML = g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join('');
+  if (g.parts.includes('feedback')) wireScreenshots();
+  annotate($('body-' + g.id));
+  applyOpen(g.id);
   attention();
 }
 
 function attention() {
   const items = [];
-  for (const sec of SECTIONS) {
-    const s = results[sec.id];
+  for (const g of SECTIONS) for (const part of g.parts) {
+    const s = results[part];
     if (!s) continue;
-    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, where: sec.title, id: sec.id });
-    if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: sec.title, id: sec.id });
+    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, where: g.title, id: g.id });
+    if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: g.title, id: g.id });
   }
   items.sort((a, b) => (a.level === b.level ? 0 : a.level === 'problem' ? -1 : 1));
-  const loading = SECTIONS.filter((s) => s.id !== 'lookup' && !results[s.id]).length;
+  const loading = PARTS.filter((p) => !results[p]).length;
   const p = items.filter((i) => i.level === 'problem').length;
   const el = $('attention-pill');
   el.className = 'pill ' + (p ? 'problem' : items.length ? 'watch' : loading ? 'wait' : 'ok');
@@ -346,14 +371,18 @@ function tidy(text) {
 }
 
 const RENDER = {
-  jobs(d) {
+  jobs(d, now = {}) {
+    const live = Object.keys(now).length > 0;
     return table([
       { h: 'Job', v: (j) => '<b>' + esc(j.job) + '</b><br><small>' + esc(j.runs_on) + '</small>' },
       { h: 'Last run', v: (j) => when(j.last_at) + '<br><small class="' + (j.last_outcome === 'error' ? 'bad' : j.last_outcome === 'partial' ? 'warn' : '') + '">' + esc(j.last_outcome || '–') + (j.last_error_class ? ' · ' + esc(j.last_error_class) : '') + '</small>' },
       { h: 'Runs 2 d', n: true, v: (j) => num(j.runs) },
       { h: 'Failed', n: true, v: (j) => '<span class="' + (j.failures ? 'bad' : '') + '">' + num(j.failures) + '</span>' },
       { h: 'p95', n: true, v: (j) => ms(j.p95_ms) },
-      { h: '', v: (j) => j.stale ? '<span class="bad nowrap">stopped</span>' : j.streak >= 3 ? '<span class="bad nowrap">failing</span>' : '' }
+      ...(live ? [{ h: 'Now', v: (j) => { const n = now[j.job]; if (!n) return '–'; if (n.error) return '<span class="warn">' + esc(n.error) + '</span>';
+        return n.running ? '<span class="good">running</span><br><small>' + when(n.startedAt) + ' · limit ' + ms(n.timeLimitMs) + (n.all ? ' · whole read' : '') + '</small>' : 'idle'; } }] : []),
+      { h: '', v: (j) => j.stale ? '<span class="bad nowrap">stopped</span>' : j.streak >= 3 ? '<span class="bad nowrap">failing</span>' : '' },
+      ...(live ? [{ h: '', v: (j) => { const n = now[j.job]; return n && !n.running && !n.error ? '<button type="button" data-run="' + esc(n.key) + '">Run now</button>' : ''; } }] : [])
     ], d.jobs);
   },
   clients(c) {
@@ -399,11 +428,6 @@ const RENDER = {
     const a = c.audio || {};
     h += '<h3>Recording, last day</h3><div class="stats">' + stat(num(a.takes), 'takes') + stat(num((a.saveFail || 0) + (a.startFail || 0) + (a.stopFail || 0) + (a.encodeFail || 0)), 'failed', (a.saveFail || a.startFail || a.stopFail || a.encodeFail) ? 'warn' : '') +
       stat(num(a.micRefused), 'microphone refused') + stat(num(a.playFail), 'playback failed', a.playFail ? 'warn' : '') + '</div>';
-    h += '<h3>Builds in the field (this week)</h3>' + table([
-      { h: 'Runtime', v: (b) => '<code>' + esc(b.runtime || '?') + '</code>' }, { h: 'Channel', v: (b) => esc(b.channel || '?') },
-      { h: 'Update', v: (b) => b.update ? '<code>' + esc(b.update) + '</code>' : (b.embedded === 'yes' ? 'embedded' : '–') },
-      { h: 'Installs', n: true, v: (b) => num(b.installs) }, { h: 'Last seen', v: (b) => when(b.lastSeen) }
-    ], c.builds);
     h += '<p class="muted">' + c.platforms.map((p) => esc(p.os) + ' ' + num(p.installs)).join(' · ') + ' · ' + num(c.installs.all) + ' installs known in all</p>';
     return h;
   },
@@ -427,7 +451,6 @@ const RENDER = {
       { h: 'Requests', n: true, v: (w) => num(w.requests) },
       { h: 'Errors', n: true, v: (w) => '<span class="' + (w.errors ? 'bad' : '') + '">' + num(w.errors) + '</span><br><small>' + pct(w.errorRate) + '</small>' },
       { h: 'CPU p99', n: true, v: (w) => w.cpuP99 === null ? '–' : ms(w.cpuP99 / 1000) },
-      { h: 'Deployed', v: (w) => w.lastDeploy ? when(w.lastDeploy.at) + '<br><small>' + esc(w.lastDeploy.source || '') + '</small>' : '–' },
       { h: 'Last build', v: (w) => w.lastBuild ? '<span class="' + (w.lastBuild.outcome === 'success' ? 'good' : w.lastBuild.outcome === 'fail' || w.lastBuild.outcome === 'failure' ? 'bad' : 'warn') + '">' + esc(w.lastBuild.outcome || w.lastBuild.status || '?') + '</span><br><small>' + when(w.lastBuild.at) + (w.lastBuild.commit ? ' · <code>' + esc(w.lastBuild.commit.slice(0, 8)) + '</code>' : '') + '</small>' : '–' }
     ], d.workers);
     const statuses = d.workers.flatMap((w) => Object.entries(w.statuses || {}).filter(([s]) => s !== 'success').map(([s, n]) => esc(w.name) + ': ' + esc(s) + ' ' + num(n)));
@@ -453,7 +476,7 @@ const RENDER = {
   },
   database(d) {
     const s = d.stats || {};
-    let h = '<div class="stats">' + stat(bytes(d.sizeBytes), 'database size') +
+    let h = '<div class="stats">' +
       stat(num(d.connections) + ' / ' + num(d.maxConnections), 'connections', d.connections >= d.maxConnections * 0.8 ? 'warn' : '') +
       stat(s.hitRatio === null || s.hitRatio === undefined ? '–' : pct(s.hitRatio), 'cache hits') + stat(num(s.deadlocks), 'deadlocks', s.deadlocks ? 'warn' : '') + '</div>';
     h += '<h3>RPCs by total time' + (s.since ? ' since ' + esc(new Date(s.since).toLocaleDateString()) : '') + '</h3>' + table([
@@ -633,8 +656,8 @@ function setOpen(id, open) {
 }
 function autoOpen(id) {
   if (id === 'lookup') return true;
-  const s = results[id];
-  return !!s && (s.state === 'error' || (s.alerts || []).length > 0);
+  const g = SECTIONS.find((x) => x.id === id);
+  return !!g && g.parts.some((p) => { const s = results[p]; return !!s && (s.state === 'error' || (s.alerts || []).length > 0); });
 }
 function applyOpen(id) { const saved = savedOpen()[id]; setOpen(id, typeof saved === 'boolean' ? saved : autoOpen(id)); }
 document.addEventListener('click', (e) => {
@@ -651,10 +674,12 @@ $('collapse-all').addEventListener('click', () => { for (const s of SECTIONS) { 
 
 // ---- what each indicator means (pageHelp.ts), on hover or keyboard focus -----------------
 const SECTION_HELP = ${JSON.stringify(SECTION_HELP).replace(/</g, '\\u003c')};
+const GROUP_HELP = ${JSON.stringify(GROUP_HELP).replace(/</g, '\\u003c')};
 const HELP = ${JSON.stringify(HELP).replace(/</g, '\\u003c')};
 const HELP_PREFIXES = ${JSON.stringify(HELP_PREFIXES).replace(/</g, '\\u003c')};
 function helpFor(key) {
   if (key.startsWith('section:')) return SECTION_HELP[key.slice(8)] || null;
+  if (key.startsWith('group:')) return GROUP_HELP[key.slice(6)] || null;
   if (HELP[key]) return HELP[key];
   const p = HELP_PREFIXES.find(([start]) => key.startsWith(start));
   return p ? p[1] : null;

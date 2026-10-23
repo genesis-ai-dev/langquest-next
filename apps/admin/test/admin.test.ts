@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { access, forgetSignIns, viewerState } from '../src/auth';
 import { csp, page } from '../src/page';
-import { SECTION_ORDER } from '../src/pageOps';
-import { SECTION_HELP } from '../src/pageHelp';
+import { GROUPS, OPS_IDS, OWN_CALL_IDS } from '../src/pageOps';
+import { GROUP_HELP, SECTION_HELP } from '../src/pageHelp';
 import { settle } from '../src/section';
 import { handle } from '../src/index';
 import type { Env } from '../src/env';
@@ -146,14 +146,27 @@ describe('the API', () => {
     expect(sessionStorageKey('https://abc.supabase.co')).toBe('sb-abc-auth-token');
   });
 
-  it('describes every section, for its hover text', () => {
-    for (const id of SECTION_ORDER) expect(SECTION_HELP[id], id).toBeTruthy();
+  it('describes every section and every part, for their hover text', () => {
+    for (const g of GROUPS) expect(GROUP_HELP[g.id], g.id).toBeTruthy();
+    for (const part of GROUPS.flatMap((g) => g.parts)) expect(SECTION_HELP[part], part).toBeTruthy();
+  });
+
+  it('shows every source the page loads in exactly one section, so nothing is dropped or shown twice', () => {
+    const loaded = ['jobs', 'clients', 'database', 'v2', 'feedback', ...OPS_IDS, 'code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...OWN_CALL_IDS];
+    const placed = GROUPS.flatMap((g) => [...g.parts]);
+    expect([...placed].sort()).toEqual([...new Set(loaded)].sort());
+    expect(new Set(placed).size).toBe(placed.length);
   });
 
   it('lists every section in page order', async () => {
     const html = await page({ supabaseUrl: 'https://abc.supabase.co', anonKey: 'k' }, 'n').text();
     const script = html.split('<script nonce="n">')[1]!.split('</script>')[0]!;
-    for (const id of SECTION_ORDER) expect(script).toContain(`"${id}"`);
+    let at = -1;
+    for (const g of GROUPS) {
+      const i = script.indexOf(`"id":"${g.id}"`);
+      expect(i, g.id).toBeGreaterThan(at);
+      at = i;
+    }
   });
 
   it('calls only /ops/api from the page', async () => {

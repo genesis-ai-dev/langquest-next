@@ -58,12 +58,21 @@ read): it starts closed when it is fine and open when something needs a
 look, and a section someone opens or closes stays that way in their
 browser. Expand all and Collapse all are at the top. Hovering over (or
 tabbing to) a section's title, a figure, a column or a sub-heading shows
-what it means, from `apps/admin/src/pageHelp.ts`. The page shows the
-sections in the order of `apps/admin/src/pageOps.ts` `SECTION_ORDER`: Look up and
-data safety first, then phones, releases, the server, storage, people, support,
-security, expiry, capacity, and the providers.
+what it means, from `apps/admin/src/pageHelp.ts`.
 
-| Section | From | Needs |
+The page has twelve sections, each about one subject (`apps/admin/src/pageOps.ts`
+`GROUPS`): Look up, Sync and data safety, Phones and browsers, Releases,
+Server jobs, Database, Workers and traffic, Storage and capacity, People and
+organizations, Support, Access and integrations, and App stores. A section
+gathers the parts below (one source's answer each) under sub-headings, and
+each figure is shown in one place only: the database's size with Capacity,
+deploy times in Releases' timeline, the live commit in Code and deploys,
+whether a job runs now in the Jobs table, what was made this week in
+Integrations. A section's status is its parts' together, and a part that is
+not connected says so under its own sub-heading. A test holds every source
+the page loads to exactly one section.
+
+| Part | From | Needs |
 | --- | --- | --- |
 | Server jobs | `diag.jobs()`: projections, push delivery, the v2 import, the app Worker's cron and request counts, webhooks, invite email (`docs/diagnostics.md`). Alerts are the CLI's own (`scripts/diagSignals.ts` `jobSignals`). | `DIAG_DATABASE_URL` |
 | Phones and browsers | `diag.records` and `diag.installs`, every install together: installs heard from, sync outcomes and error codes, errors and crashes with the latest code a person would read out, transfers and their failures, recording, sign-in trouble, each phone's latest state, builds in the field | `DIAG_DATABASE_URL` |
