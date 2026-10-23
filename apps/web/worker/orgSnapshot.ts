@@ -27,8 +27,8 @@ export class OrgSnapshot extends DurableObject<Env> {
 
   private agent: AgentOrg | null = null;
 
-  async reports(orgId: string, profileId: string, fresh: boolean): Promise<OrgReportsResponse | null> {
-    return this.folderFor(orgId).reportsFor(profileId, fresh);
+  async reports(orgId: string, profileId: string, fresh: boolean, everyLanguage = false): Promise<OrgReportsResponse | null> {
+    return this.folderFor(orgId).reportsFor(profileId, fresh, everyLanguage);
   }
 
   // The access-token API (agent/, decision 70): the same folds, read for a token.

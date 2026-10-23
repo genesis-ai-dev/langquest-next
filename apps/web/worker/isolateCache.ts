@@ -128,3 +128,21 @@ export function cachedBlobAccess(
     return allowed;
   };
 }
+
+/**
+ * Whether a profile is a Global Viewer whose access is on at this session
+ * level (decisions.md 158), asking `ask` once a minute (10 s for a no).
+ * Only aal2 is asked about: below it, the answer is no without asking.
+ */
+export function cachedGlobalViewerOn(ask: (profileId: string) => Promise<boolean>, now: () => number = Date.now) {
+  const cache = new TtlCache<boolean>(MAX_ENTRIES, now);
+  return async (profileId: string, aal: string | undefined): Promise<boolean> => {
+    if (aal !== 'aal2') return false;
+    const known = cache.get(profileId);
+    if (known !== undefined) return known;
+    const on = await ask(profileId);
+    cache.set(profileId, on, now() + (on ? AUTH_TTL_MS : DENIAL_TTL_MS));
+    return on;
+  };
+}
+
