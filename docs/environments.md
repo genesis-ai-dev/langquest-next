@@ -40,6 +40,7 @@ not the app.
 | Worker public config, plain | `vars` in each `wrangler.jsonc` (top level is production, `env.preview` is preview) | every deploy |
 | Hosted Supabase project refs, plain | `[remotes.<env>] project_id` in `supabase/config.toml` | read by scripts; the app Worker's `SUPABASE_URL` var must match (a test checks) |
 | Secrets, encrypted | `.env.preview`, `.env.production` at the repository root | `npm run secrets -- <env>` |
+| Hosted Auth settings (`[auth*]`, such as `[auth.mfa.totp]`), plain | `supabase/config.toml` | `npx supabase config push` by hand, below; merging does not apply them |
 
 The secrets file holds `INVITE_RELAY_SECRET` and `PUSH_DELIVERY_SECRET`,
 and production also `DIAG_DATABASE_URL` (read on a laptop by
@@ -101,6 +102,24 @@ never deploys over preview or production.
 | Deploy a Worker by hand | `npm run web:deploy[:preview]`, `npm run email:deploy[:preview]` |
 | Create the R2 buckets the Worker binds | `npm run r2:buckets -- <env>` |
 | Check this machine | `npm run env:doctor` |
+
+### Auth settings
+
+Merging applies migrations but not `supabase/config.toml`'s Auth settings,
+so a change under `[auth*]` reaches a hosted project only when someone runs
+`config push` by hand (decided 2026-10-20, decisions.md 158). After such a
+change is on `main`, for preview and then production:
+
+```bash
+npx supabase link --project-ref <ref from [remotes.<env>]>
+npx supabase config push
+```
+
+It shows what it would change and asks. Say yes only when the diff is the
+change on `main`: anything more means the hosted project was changed in its
+dashboard, and the repository file is put right first (`infrastructure-as-code`).
+The first push turns on authenticator codes (`[auth.mfa.totp]`), which
+Global Viewers need (docs/global-viewers.md).
 
 `npm run secrets` compares Supabase values by digest. Worker secrets cannot be
 read back, so it only checks that they exist, and sets them again on every
