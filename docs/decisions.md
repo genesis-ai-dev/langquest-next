@@ -6995,6 +6995,14 @@ should approve each one (then turn off auto-merge), or a store page stops
 showing its live version (then read it from the store's API where one can
 say so).
 
+Amended (2026-10-22, Caleb Koster): the conflict step runs without an
+Anthropic key too. This repository has none yet, and a key in another
+repository cannot be shared. Without `ANTHROPIC_API_KEY`, the step tries the
+copy again, comments once on the copy pull request naming the files in
+conflict and the steps to finish it, and leaves it open for a person or a
+Claude session; nothing fails. With the key, Claude finishes it as before.
+
+
 ## 156. Store builds come only from the EAS workflow on merges into main
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
