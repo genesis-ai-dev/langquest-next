@@ -26,7 +26,7 @@ secrets `npm run secrets` set on it (decisions.md 51).
 | Build command | | | | | |
 | Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` | `npm run admin:deploy` |
 | Build variables and secrets | none | none | none | none | none |
-| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as app | `apps/admin/*`, `scripts/diagSignals.ts`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` |
+| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as app | `apps/admin/*`, `scripts/diagSignals.ts`, `packages/core/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` |
 
 The app Worker's include paths cover `server/*` and `scripts/build-jobs.mjs`
 because the job image (The job runner, below) is built from them: without

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { parseJsonc } from '../../../scripts/env-files.mjs';
 import { OPS_PATHS, isOpsPath, toOps } from '../worker/ops';
@@ -45,6 +45,21 @@ describe('the ops dashboard on the app host', () => {
     const res = await toOps(new Request('https://next-preview.langquest.org/ops-dashboard'), undefined);
     expect(res.status).toBe(503);
     expect(await res.text()).toContain('not set up here');
+  });
+
+  it('says the dashboard is not deployed when its Worker throws, instead of failing this Worker', async () => {
+    const throwing = { fetch: () => { throw new Error('placeholder script'); } } as unknown as Fetcher;
+    const rejecting = { fetch: async () => { throw new TypeError('no fetch handler'); } } as unknown as Fetcher;
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    for (const ops of [throwing, rejecting]) {
+      const res = await toOps(new Request('https://next.langquest.org/ops-dashboard'), ops);
+      expect(res.status).toBe(503);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      expect(await res.text()).toContain('npm run admin:deploy');
+    }
+    // The log names the class only, never the error's message.
+    expect(quiet.mock.calls.map((c) => String(c[0]))).toEqual(['ops dashboard Worker failed: Error', 'ops dashboard Worker failed: TypeError']);
+    quiet.mockRestore();
   });
 
   it('gets the Worker\'s security headers', () => {
