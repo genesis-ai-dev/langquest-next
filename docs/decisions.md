@@ -7198,6 +7198,17 @@ account if hands-on help is ever needed. Reverse if: support often needs to chan
 things themselves (then a membership with an end, from a join request and a
 server timer that removes it, rather than a new event).
 
+Amended (2026-10-23, Carl Sauder): a read-only session no longer gets the
+privileges for doing the work (Translate, Review, Fill reference, Send to
+reviewers), only an admin's management ones, so a passage offers a Global
+Viewer no Edit, Record, review or note. Carl's reason: the one write guard
+kept nothing that was recorded, but letting someone record a take that is
+then thrown away is bad. The recorder also refuses to open the microphone
+in a read-only session (`isReadOnlySession` in `src/shell/readOnly.ts`,
+read by `useRecorder`), for any record control left elsewhere. That guard
+loads with the recorder, so a first visit's web budget rose to 5.75 MB
+(`apps/mobile/scripts/export-web.mjs`).
+
 ## 159. A toast lasts as long as Android's "Time to take action" asks and runs no bar down under reduce motion; the phone tests set 10 seconds
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
