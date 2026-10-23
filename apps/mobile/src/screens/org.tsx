@@ -34,7 +34,7 @@ import { signInUri } from '../invites/inviteCode';
 import { Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, HelpInfo, Header, Ico, KindIcon, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, type IconName } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
-import { useOpenDetail } from '../ui/useLayout';
+import { useOpenDetail, useOrgInChrome } from '../ui/useLayout';
 import { edgeFor } from '../shell/flow';
 import { loadDocs } from '../library/docStore';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
@@ -275,6 +275,8 @@ export function OrgHome(ctx: Ctx) {
   const v = useOrgView(ctx);
   const [shown, setShown] = useState(20);
   const beside = useOpenDetail();
+  // A desktop's sidebar names the organization; its page is then titled as its tab is (Progress is Map's).
+  const orgInChrome = useOrgInChrome();
   if (!v.org || !v.state) return <Loading title={t('org.home.title')} />;
   const mine = Object.values(v.org.members[ctx.session.actorId] ?? {}).find((m) => m.removed.value === false && m.scope.level === 'org');
   const memberCount = new Set(memberEntries(v.org).map((e) => e.profileId)).size;
@@ -286,7 +288,7 @@ export function OrgHome(ctx: Ctx) {
   const groups = languageGroups(v.org, v.languages);
   const addLanguage = mayAdd ? { label: t('org.home.newLanguageOrCluster'), help: t('org.home.newLanguageHelp'), onPress: () => ctx.go('new_language') } : undefined;
   return (
-    <Screen header={<Header title={v.orgName} />}>
+    <Screen header={<Header title={orgInChrome ? t('account.tabs.manage') : v.orgName} />}>
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
           <View style={{ width: tile.lg, height: tile.lg, borderRadius: radius.lg, backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' }}>

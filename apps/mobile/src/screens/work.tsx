@@ -44,6 +44,7 @@ import { useReadySummary, type ReadySummary } from '../admin/useReadySummary';
 import { divideSub, elsewhereCounts, nextSub, readinessFrom, THEN_CAP, undecided, waitingWhat, waitingWho, workIcon, workSub, workTarget, workWhat, type Readiness } from '../work/homeModel';
 import { SyncIndicator } from '../sync/SyncIndicator';
 import { C, space, TINT } from '../ui/theme';
+import { useOrgInChrome } from '../ui/useLayout';
 
 const RECENT_CAP = 5;
 
@@ -189,7 +190,8 @@ export function MyWork(ctx: Ctx) {
     return { forYou, waiting, recent, kinds: deriveKinds(state) };
   }, [state, lines, actorId, canRecord, canReview, ctx.recent, languageId]);
 
-  const orgName = ctx.org.state?.org?.value.name ?? '';
+  // The sidebar names the organization on a desktop; the subtitle then need not.
+  const orgName = useOrgInChrome() ? '' : ctx.org.state?.org?.value.name ?? '';
   const language = languageId ? languageName(ctx.org.state, languageId) : '';
   const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
   const header = (

@@ -57,7 +57,7 @@ import { indexesFor } from '../sync/indexes';
 import { Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField, SectionLabel, SmallBtn, Sheet, ShowMore, Toggle } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
-import { useOpenDetail } from '../ui/useLayout';
+import { useOpenDetail, useOrgInChrome } from '../ui/useLayout';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { mayWriteLibrary, sourceLine, type SharedItem } from '../library/model';
@@ -529,8 +529,10 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   const backOut = () => { if ((tq.page === 'find' && !tq.numbering) || tq.page === 'what' || !tq.retreat()) setBible(false); };
   // A phone's Back does the same as the header's arrow (decision 137).
   useHardwareBack(bible && !start, backOut);
+  // The sidebar names the organization on a desktop; the subtitle then need not.
+  const sub = useOrgInChrome() ? undefined : orgName(ctx);
   if (start) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={start} draft={draft} />;
-  if (!draft.loaded) return <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={ctx.back} />}>{null}</Screen>;
+  if (!draft.loaded) return <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>{null}</Screen>;
 
   const scripture = () => { tq.setWhat('bible'); tq.setPage(tq.numbering ? 'numbered' : 'find'); setBible(true); };
   const begin = () => {
@@ -541,7 +543,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
 
   if (bible) {
     return (
-      <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={backOut} />}
+      <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={backOut} />}
         footer={tq.showContinue && tq.page !== 'what' ? (
           <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.page === 'ways' ? !tq.ready : !tq.canContinue} help={t('content.newTemplate.continueHelp')} onPress={() => { if (!tq.advance()) begin(); }} />
         ) : undefined}>
@@ -551,7 +553,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   }
 
   return (
-    <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={ctx.back} />}>
+    <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>
       <Text style={txt.body}>{t('content.newTemplate.what')}</Text>
       <Card onPress={scripture} accessibilityLabel={t('content.newTemplate.scripture')} help={t('content.newTemplate.scriptureHelp')}>
         <View style={styles.head}>
