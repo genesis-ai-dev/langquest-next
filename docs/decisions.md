@@ -7113,3 +7113,36 @@ Reverse if: a build that passed review hurts people often enough that a
 staged rollout or a wait in internal testing is worth the delay (then send
 to internal testing first and promote after a set time), or Apple starts
 taking a newer build into a version under review without losing its place.
+
+## 158. Someone without the app is asked by a review link the app makes, with nothing to fill in first
+
+Date: 2026-10-23 · By: Ryder Wishart · Status: accepted
+
+Reason: "Ask someone without the app" (`AskSomeone`, ASK-3) asked for the
+guest's name and a phone number of more than three characters, then only
+recorded a `v1.RequestMade` with that contact: no link was made, though the
+Worker has made review links since decision 72
+(`POST /api/v1/session/review-links`). Teams found it confusing, and the
+phone number did nothing. Now the default is one tap: "Make a link" calls
+that endpoint (`apps/mobile/src/server/reviewLinks.ts`), shows the link,
+and "Share link" hands it to the share sheet (the browser copies it), with
+a greeting and any typed directions in the message (`askModel.ts`
+`linkMessage`). Whoever opens it types their own name, which may be a
+pseudonym, on `/r/<code>`, as decision 72 already had it. "More options",
+closed by default, holds the rest of what a link takes: who it is for (the
+link's label, which only the team sees), counts toward the step or feedback
+only (offered only where `stepAllowsLinks`; otherwise feedback only, so a
+checkpoint is never asked for), and 7, 14, 30 or 90 days open. The app no
+longer asks for a phone number or records a guest request; the voice note
+and the check's own questions are not offered for a link, since the link's
+page shows neither. `v1.RequestMade` with a `guest` stays valid (older
+builds still make it, and History still shows it). Departs from the partner
+demo's ASK-3 (name, WhatsApp or SMS, phone number). A link is one version
+of one passage, as before.
+Rejected: keeping the name and number as optional fields (they still read
+as required, and they did nothing); a guest request beside each link (72
+rejected it: a link has no contact, and many people may answer one).
+Reverse if: teams need the app to send the message itself to a number (then
+an SMS or WhatsApp sender on the server, and the number becomes required for
+that choice only), or need to see a passage's open links in the app (then a
+list from `GET /api/v1/session/review-links`).

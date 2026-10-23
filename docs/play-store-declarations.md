@@ -100,7 +100,10 @@ collected as other user-generated content. Review links (`/r/<code>`) are a
 web page outside the Android app: a person shares one, and whoever answers
 on it gives a name, a comment and perhaps a voice note, which reach the app
 as reviews (name, messages, voice recordings: types already declared). **Processed ephemerally: No** for
-every type.
+every type. Since decisions.md 158 the app makes a review link for someone
+without the app and no longer asks for their phone number; the Phone number
+row stays while store builds that still ask for it are supported, and is
+removed from Data safety once none are.
 
 | Category | Data type | Collected | Shared | Required or optional | Purposes |
 | --- | --- | --- | --- | --- | --- |

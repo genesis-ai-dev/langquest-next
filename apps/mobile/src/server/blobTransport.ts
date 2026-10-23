@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { BlobStore, mimeOf, type StoredFile } from '../sync/blobs';
 import { timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
 import { supabase } from './supabase';
+import { api, tokenOf } from './worker';
 
 /**
  * Blob transfers through the app's Worker, which keeps them in Cloudflare R2
@@ -13,25 +14,9 @@ import { supabase } from './supabase';
  * the device learns of it through the normal pull.
  */
 
-/** The Worker's address. The web app is served by it, so there it is the page's own; a phone build without one cannot move files. */
-const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || (Platform.OS === 'web' ? '' : null);
-
-function api(): string {
-  if (apiUrl === null) throw new Error('No file server is set up for this build (EXPO_PUBLIC_API_URL).');
-  return apiUrl;
-}
-
 /** `<org>/<stream>/<hash>.<ext>`: a recording belongs to its language's stream, so the stream is the language id. */
 function objectPath(orgId: string, streamId: string, ref: StoredFile): string {
   return [orgId, streamId, `${ref.hash}.${ref.format}`].map(encodeURIComponent).join('/');
-}
-
-async function tokenOf(client: SupabaseClient): Promise<string> {
-  const { data, error } = await client.auth.getSession();
-  if (error) throw new Error(error.message);
-  const token = data.session?.access_token;
-  if (!token) throw new Error('Not signed in.');
-  return token;
 }
 
 /**

@@ -29,10 +29,12 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Card, Chip, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
-import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
+import { anchorLabel, askCandidates, currentStepId, describeEntry, gridKindIds, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
 import { PassagePath } from '../passage/path';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
-import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
+import { askInput, askDoneText, askModel, LINK_DAYS, linkCounts, linkMessage, linkSpec, linkSummary, NO_LINK_PICKS, TEAM, type AskPicks, type LinkPicks } from '../passage/askModel';
+import { makeReviewLink, type ReviewLink } from '../server/reviewLinks';
+import { shareText } from '../ui/share';
 import {
   answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnNames, gridModel, hasFeedback, notesSummary, responseLine,
   revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor, versionName,
@@ -1219,9 +1221,9 @@ export function AskSomeone(ctx: Ctx) {
   const look = usePerson();
   const [mode, setMode] = useState<'team' | 'outside'>('team');
   const [who, setWho] = useState<string | null>(null);
-  const [guestName, setGuestName] = useState('');
-  const [contact, setContact] = useState('');
-  const [channel, setChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [linkPicks, setLinkPicks] = useState<LinkPicks>(NO_LINK_PICKS);
+  const [linkOptions, setLinkOptions] = useState(false);
+  const [link, setLink] = useState<ReviewLink | null>(null);
   const [note, setNote] = useState('');
   const [noteHash, setNoteHash] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuestionSpec[]>([]);
@@ -1239,15 +1241,30 @@ export function AskSomeone(ctx: Ctx) {
   }
 
   const kind = kindId ? v.kind(kindId) : undefined;
-  const picks: AskPicks = { mode, who, guestName, contact };
+  const picks: AskPicks = { mode, who };
   const model = askModel({ v, org: ctx.org.state, me, name: ctx.name, what, kindId, candidates, picks, lines });
   // The check's team (decision 91): everyone on it gets the request, and it is the first choice.
   const { isRecord, check, title, usual, others, team, teamPeople, chosen, asked, outside, ready } = model;
 
+  // Someone without the app gets a review link (decisions.md 158): made on the server, then shared from here.
+  const makeLink = async () => {
+    setBusy(true);
+    const { data } = await makeReviewLink(linkSpec({ orgId: ctx.language.orgId, languageId: v.languageId, unitId: v.unitId, model, picks: linkPicks }));
+    setBusy(false);
+    if (data) setLink(data);
+    else ctx.toast(t('passage.ask.linkFailed'));
+  };
+  const shareLink = async (made: ReviewLink) => {
+    const r = await shareText(linkMessage({ passage: v.title, language: v.language, url: made.url, note }));
+    if (r === 'copied') ctx.toast(t('passage.ask.linkCopied'));
+    else if (r === 'failed') ctx.toast(t('passage.ask.linkFailed'));
+  };
+  const setLinkPick = (over: Partial<LinkPicks>) => { setLinkPicks((p) => ({ ...p, ...over })); setLink(null); };
   const send = async () => {
     if (!ready) return;
+    if (outside) return link ? shareLink(link) : makeLink();
     setBusy(true);
-    const ok = await perform(ctx, (c) => c.ask(askInput({ commandId: newId(), unitId: v.unitId, what, model, picks, channel, note, noteHash, questions })),
+    const ok = await perform(ctx, (c) => c.ask(askInput({ commandId: newId(), unitId: v.unitId, what, model, note, noteHash, questions })),
     askDoneText(model));
     setBusy(false);
     if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId, asked: String(Date.now()) });
@@ -1265,8 +1282,8 @@ export function AskSomeone(ctx: Ctx) {
 
   return (
     <Screen header={<Header title={title} sub={`${v.title} · ${v.language}`} onBack={ctx.back} close />}
-      footer={<PrimaryBtn label={model.buttonLabel}
-        help={outside ? t('passage.ask.sendOutsideHelp') : t('passage.ask.sendHelp')} disabled={!ready} busy={busy} onPress={() => void send()} />}>
+      footer={<PrimaryBtn label={outside && link ? t('passage.ask.shareLink') : model.buttonLabel} {...(outside && link ? { icon: 'share' as const } : {})}
+        help={outside ? t('passage.ask.makeLinkHelp') : t('passage.ask.sendHelp')} disabled={!ready} busy={busy} onPress={() => void send()} />}>
       <Card style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         {kindId ? <KindIcon kindId={kindId} size={44} /> : <View style={[styles.roundTile, { width: 44, height: 44, borderRadius: 14, backgroundColor: C.light }]}><Ico name="mic" size={22} color={C.primary} /></View>}
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -1306,26 +1323,47 @@ export function AskSomeone(ctx: Ctx) {
         </Group>
       ) : (
         <View style={{ gap: space.sm }}>
-          <Field value={guestName} onChangeText={setGuestName} placeholder={t('passage.ask.guestName')} autoCapitalize="words" />
-          <View style={styles.btnRow}>
-            <Chip label={channelLabel('whatsapp')} on={channel === 'whatsapp'} help={t('passage.ask.whatsappHelp')} onPress={() => setChannel('whatsapp')} />
-            <Chip label={channelLabel('sms')} on={channel === 'sms'} help={t('passage.ask.smsHelp')} onPress={() => setChannel('sms')} />
-          </View>
-          <Field value={contact} onChangeText={setContact} placeholder={t('passage.ask.phone')} keyboardType="phone-pad" help={t('passage.ask.phoneHelp')} />
-          <View style={styles.preview}>
-            <Label text={t('passage.ask.preview', { channel: channelLabel(channel) })} color={TINT.greenText} />
-            <Text style={txt.sm}>{guestMessage({ name: guestName, passage: v.title, language: v.language })}</Text>
-            <Text style={[txt.xs, { color: TINT.greenText }]}>{t('passage.ask.previewNote')}</Text>
-          </View>
+          <Text style={txt.sm}>{t('passage.ask.linkIntro')}</Text>
+          {link ? (
+            <View style={styles.preview} testID="ask-link">
+              <Label text={t('passage.ask.linkReady')} color={TINT.greenText} />
+              <Text style={txt.sm} selectable>{link.url}</Text>
+            </View>
+          ) : null}
+          <Disclosure testID="ask-link-options" icon="settings" title={t('passage.ask.moreOptions')} summary={linkSummary(model, linkPicks)}
+            open={linkOptions} onToggle={() => setLinkOptions((o) => !o)}>
+            <View style={{ gap: space.sm }}>
+              <Field value={linkPicks.forWhom} onChangeText={(forWhom) => setLinkPick({ forWhom })} placeholder={t('passage.ask.forWhom')} autoCapitalize="words" />
+              {model.linksCount ? (
+                <ChipWrap>
+                  <Chip label={t('passage.ask.linkCounts')} on={linkCounts(model, linkPicks)} help={t('passage.ask.linkCountsHelp')} onPress={() => setLinkPick({ counts: true })} />
+                  <Chip label={t('passage.ask.linkFeedback')} on={!linkCounts(model, linkPicks)} help={t('passage.ask.linkFeedbackHelp')} onPress={() => setLinkPick({ counts: false })} />
+                </ChipWrap>
+              ) : <Text style={txt.xs}>{t('passage.ask.linkFeedbackOnly')}</Text>}
+              <Label text={t('passage.ask.stayOpen')} />
+              <ChipWrap>
+                {/* help-each: each chip closes the link after a different number of days */}
+                {LINK_DAYS.map((days) => <Chip key={days} label={t('passage.ask.days', { days })} on={linkPicks.days === days} help={t('passage.ask.daysHelp', { days })} onPress={() => setLinkPick({ days })} />)}
+              </ChipWrap>
+            </View>
+          </Disclosure>
         </View>
       )}
 
+      {outside ? (
+        <>
+          <SectionLabel label={t('passage.ask.message')} />
+          <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
+        </>
+      ) : null}
+      {outside ? null : <>
       <SectionLabel label={t('passage.ask.directions')} />
       <VoiceNote ctx={ctx} label={isRecord ? t('passage.ask.sayKeepInMind') : t('passage.ask.sayListenFor')} hash={noteHash} onChange={setNoteHash} />
       <Field value={note} onChangeText={setNote} placeholder={t('passage.ask.orTypeThem')} multiline />
 
       {!isRecord ? <TheyAnswer asked={asked} questions={questions} setQuestions={setQuestions}
         {...(kindId && ctx.session.can('manage_flows') ? { check: { name: model.check, open: () => ctx.go('check_editor', { languageId: v.languageId, kindId, part: 'questions' }) } } : {})} /> : null}
+      </>}
     </Screen>
   );
 }

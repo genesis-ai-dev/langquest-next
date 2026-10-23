@@ -304,25 +304,17 @@ test('PASS-041 Your own questions', async ({ browser }) => {
   expect(all).toContain('Second question?');
 });
 
-test('PASS-042 Ask someone without the app', async ({ browser }) => {
-  const L = label('P-DRAFT');
+test('PASS-042 Ask someone without the app: a link, with nothing to fill in first', async ({ browser }) => {
+  // decisions.md 158: no name or phone number; whoever opens the link types their own name.
   await draftPublished();
   const page = await recordAs(browser, world(), 'TRANS', 'P-DRAFT');
   await askForBt(page);
   await button(page, 'Someone without the app').click();
-  await field(page, 'Their name — e.g. Pastor Garang').fill('Pastor Garang');
-  await button(page, 'SMS').click();
-  await field(page, 'Phone number').fill('123');
-  const all = await screenText(page);
-  expect(all).toContain(`SMS PREVIEW Hi Pastor Garang — could you listen to ${L} in Alpha and tell us what you understood? No account needed: The request is saved on the record with their name and number. Sending the no-account link from the app is not ready yet.`);
-  await expect(byId(page, 'primary-action')).toBeDisabled();
-  await field(page, 'Phone number').fill('+211 555 0100');
-  await expect(byId(page, 'primary-action')).toHaveText('Ask Pastor');
+  expect(await screenText(page)).not.toContain('Phone number');
+  await expect(byId(page, 'primary-action')).toHaveText('Make a link');
   await byId(page, 'primary-action').click();
-  await toast(page, 'Asked Pastor Garang · the request is on the record');
-  await openTeamRow(page, 'Back translation');
-  expect(await screenText(page)).toContain('Waiting on Pastor Garang · by link over SMS');
-  await closeSheet(page);
+  await expect(byId(page, 'ask-link')).toContainText('/r/');
+  await expect(byId(page, 'primary-action')).toHaveText('Share link');
 });
 
 /** COORD's request to record P-Q4 (the fixture's): the roles that may withdraw it, and those that may not. */
@@ -338,8 +330,8 @@ async function withdrawRequestOnQ4(browser: Browser, who: AccountKey, mayWithdra
 }
 
 test('PASS-044 TRANS Withdraw a request from History', async ({ browser }) => {
-  // TRANS withdraws its own request (PASS-042's, to Pastor Garang).
-  // PASS-042's request, made again through the server when this runs on a fresh world.
+  // TRANS withdraws its own request to a guest, made through the server when this world has none
+  // (requests to a guest by phone predate review links, decisions.md 158, and older phones still make them).
   await draftPublished();
   const open = (await passageAs(world(), 'TRANS', 'P-DRAFT')).openRequests.filter((r) => r.guest);
   if (!open.length) {

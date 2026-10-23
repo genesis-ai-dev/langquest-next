@@ -593,13 +593,6 @@ export function nextQuestionType(type: QuestionSpec['type']): QuestionSpec['type
   return type === 'yesno' ? 'text' : type === 'text' ? 'rating' : 'yesno';
 }
 
-/** The message someone without the app would get (ASK-3). */
-export function guestMessage(o: { name: string; passage: string; language: string }): string {
-  const name = o.name.trim();
-  return name ? t('passage.record.guestMessage', { name, passage: o.passage, language: o.language })
-    : t('passage.record.guestMessageNoName', { passage: o.passage, language: o.language });
-}
-
 /**
  * What reached listeners outside the team (decisions.md 109): where a version
  * is live, and each listener's feedback, newest first.

@@ -97,8 +97,9 @@ Demo-only tools are out of scope (see above). Beyond those:
   passages, FIA's breaks applied, drafts, Review & publish, published
   versions, moving recordings to a changed part. `book_structure` is read-only.
 - Template tasks (TPL-8), custom library templates and outline editing (TPL-9).
-- Review by link (REV-7): the link is never sent and a guest cannot submit;
-  `guest_review` is a preview.
+- Review by link (REV-7): `guest_review` is a preview. Asking someone
+  without the app makes a real review link (decisions.md 158) and asks for
+  no name or phone number, unlike the demo's ASK-3.
 - Undo for a review, a note, a new language, a sent invite, a new
   role or material (these events are grow-only or have no inverse yet).
 - A spoken reason for a skipped question (`ReviewRecorded.skipped` is text).
