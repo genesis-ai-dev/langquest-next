@@ -5,13 +5,11 @@ description: >
   runs, so a registry's per-IP limit on anonymous pulls does not fail a job.
   Use it twice: phase restore before the job starts its stack, phase save as
   the job's last step (it saves only when the restore was not an exact hit).
-  Needs npm ci first. scripts/ci-docker-images.sh does the work. With load
-  'false', restore only fetches the archive, and the job runs
-  `ci-docker-images.sh load` (and `warm`, for job images) itself, in the
-  background before it starts the stack (decisions.md 163). Phase warm
+  Needs npm ci first. scripts/ci-docker-images.sh does the work. Used by the
+  guardrails `server` job and the nightly jobs; the browser jobs pull instead,
+  which was faster than loading the archive (decisions.md 164). Phase warm
   (guardrails warm-caches, on main) fills both caches, the stack's and the
-  job images', when either is missing, and only looks them up otherwise
-  (decisions.md 164).
+  job images', when either is missing, and only looks them up otherwise.
 
 inputs:
   phase:
@@ -20,9 +18,6 @@ inputs:
   job-images:
     description: "'true' for a job that runs wrangler dev with the job container (ui-web, nightly)"
     default: 'false'
-  load:
-    description: "'false' to leave loading the images (and pulling the job container's) to the job"
-    default: 'true'
   dockerhub-username:
     description: Optional. With dockerhub-token, signs in to Docker Hub for a higher pull limit.
     default: ''
@@ -55,13 +50,11 @@ runs:
     - name: Load them into Docker
       if: inputs.phase == 'restore'
       shell: bash
-      env:
-        LOAD: ${{ inputs.load }}
       run: |
         echo "${{ steps.restore.outputs.cache-hit }}" > "$RUNNER_TEMP/docker-images.hit"
-        if [ "$LOAD" = true ]; then bash scripts/ci-docker-images.sh load; else echo "the job loads them"; fi
+        bash scripts/ci-docker-images.sh load
     - name: Pull the job container's images (retrying)
-      if: inputs.phase == 'restore' && inputs.job-images == 'true' && inputs.load == 'true'
+      if: inputs.phase == 'restore' && inputs.job-images == 'true'
       shell: bash
       env:
         DOCKERHUB_USERNAME: ${{ inputs.dockerhub-username }}

@@ -4105,6 +4105,13 @@ load files show four shards of two browsers are still starved (then larger
 runners, which cost money), or the cache costs more than the pulls it
 saves.
 
+Amended (2026-10-23, Carl Sauder): for the browser jobs the cache did cost
+more than the pulls it saved. Warm, it made a pull request's run about a
+minute longer than pulling (425 seconds against 352 and 374), and the CLI
+now takes the images from `ghcr.io` when ECR refuses them. `web-smoke` and
+`ui-web` pull, retried by `ci-retry-pull.sh`; `server` and the nightly jobs
+keep the cache (decision 164 has the numbers).
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: superseded by 141
@@ -7450,9 +7457,9 @@ last 40 runs.
   `supabase status`. The development export needs only the stack's URL and
   anon key, which are the CLI's fixed local values and are already in
   `apps/mobile/.env.development`. Now each job starts the stack in the
-  background with the image load first (`scripts/ci-background.sh`, the
-  `load: 'false'` input of `.github/actions/docker-images`), builds the
-  export in the background beside it, and installs the browsers meanwhile.
+  background (`scripts/ci-background.sh`; it pulls its images, decision
+  164), builds the export in the background beside it, and installs the
+  browsers meanwhile.
   `e2e/export-web.sh` keeps that export (`WEB_EXPORTED=1`) only when the
   running stack has the same URL and key, and builds it again otherwise.
 - **Two smoke workers.** The eight smoke tests ran one at a time, 3 minutes,
@@ -7503,6 +7510,19 @@ to main, and the push run tested it a third time, on 9 runners. Carl asked
   looked only for ECR's names (seen in run 39994259704, this change's first).
   `ci-docker-images.sh save` now gives each such copy ECR's name, the one the
   CLI looks for first, and keeps nothing without the database image.
+- **No image cache in the browser jobs.** Measured on this change's pull
+  request (run 39996890150): with the cache cold and the CLI pulling, the
+  runs took 352 and 374 seconds; with it warm, 425. Fetching the 1.2 GB
+  archive took 26 to 54 seconds in the foreground, and loading it left the
+  `ui-web` shards waiting 76 to 98 seconds for the stack, against 22 to 68
+  when they pulled. ECR rate-limited both cold runs, and the CLI took every
+  image from `ghcr.io` without a failure. Carl chose (2026-10-23) to drop the
+  cache from `web-smoke` and `ui-web`, which set a pull request's length,
+  and rely on the CLI's pulls and `scripts/ci-retry-pull.sh`. `server` keeps
+  it: it ends minutes before the browser jobs, so the load costs no wall
+  time there. So do the nightly jobs, which nobody waits for and which would
+  lose a night's results to a refused pull. `warm-caches` keeps both
+  caches filled for them.
 - **What else read the push run.** The flake tracker counts merge queue runs
   too (`scripts/ui-flake-report.mjs`). `gate` still tells Linear when
   `checks`, `unit` or `coverage` failed on a push that ran them.
@@ -7511,5 +7531,7 @@ seconds apart would lose release-branch copies (decision 150, amended
 2026-10-23; decision 155), and `scripts/githubRules.test.ts` holds one.
 Reverse if: a merge into main breaks main though its queue entry took a
 pull request's run (then the tree is not the whole input, and the queue
-runs every job again); or pull requests miss main's caches after a key
-change (then `warm-caches` is not filling them).
+runs every job again); pull requests miss main's caches after a key
+change (then `warm-caches` is not filling them); or a browser job fails
+because both ECR and `ghcr.io` refused its pulls (then the browser jobs
+restore the image cache again, loading it in the background).

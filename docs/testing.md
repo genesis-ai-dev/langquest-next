@@ -193,11 +193,14 @@ browsers (`scripts/ci-background.sh`, `e2e/export-web.sh`).
   four are within a fifth of each other.
 - **Registries.** ECR Public (the Supabase CLI's images) and Docker Hub (the
   job container's base image, wrangler's egress image) ration anonymous
-  pulls per IP address, which a hosted runner shares. Jobs restore the
-  images from `actions/cache` and save them when the cache was not an exact
-  hit (`.github/actions/docker-images`, `scripts/ci-docker-images.sh`; the
-  key is the Supabase CLI version and `supabase/config.toml`), and a start
-  the registry turned away is retried (`scripts/ci-retry-pull.sh`). The
+  pulls per IP address, which a hosted runner shares. A start the registry
+  turned away is retried (`scripts/ci-retry-pull.sh`), and the Supabase CLI
+  falls back to the same images on `ghcr.io`. `server` and the nightly jobs
+  also restore the images from `actions/cache` and save them when the cache
+  was not an exact hit (`.github/actions/docker-images`,
+  `scripts/ci-docker-images.sh`; the key is the Supabase CLI version and
+  `supabase/config.toml`); the browser jobs pull, which was faster than
+  loading the archive (decision 164). The
   repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`, when set,
   sign in to Docker Hub for a higher limit; nothing requires them.
 - **Ports.** The stack's ports (54420 to 54429) lie in the range Linux hands

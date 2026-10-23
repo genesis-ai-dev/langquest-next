@@ -44,12 +44,15 @@
 #    push to main no longer cancels it (run 39360456537 was cancelled so).
 #  - Registries: ECR Public and Docker Hub ration anonymous pulls per IP
 #    address, which a GitHub-hosted runner shares (runs 39473313915 and
-#    39360456537 failed with toomanyrequests). Each job that starts the stack
-#    restores the images from actions/cache first and saves them when the
-#    cache was not complete (.github/actions/docker-images), and a start the
-#    registry still turns away is retried (scripts/ci-retry-pull.sh). Optional
-#    secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN sign in to Docker Hub
-#    for a higher limit; without them pulls are anonymous.
+#    39360456537 failed with toomanyrequests). A start the registry turns
+#    away is retried (scripts/ci-retry-pull.sh), and the Supabase CLI pulls
+#    the same images from ghcr.io when ECR refuses. `server` and the nightly
+#    jobs also restore the images from actions/cache first and save them when
+#    the cache was not complete (.github/actions/docker-images); the browser
+#    jobs pull instead, which was a minute faster than loading the 1.2 GB
+#    archive (decisions.md 164). Optional secrets DOCKERHUB_USERNAME and
+#    DOCKERHUB_TOKEN sign in to Docker Hub for a higher limit; without them
+#    pulls are anonymous.
 #  - Package mirror: Playwright's browsers need system packages, and the
 #    runners' Ubuntu mirror has sent them at 20 kB/s (15 MB in 12 minutes on
 #    a ui-web shard, and web-smoke's whole 30 minutes on 2026-10-22). Each
@@ -289,13 +292,11 @@ jobs:
         run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
       - name: Keep the stack's ports out of the outbound port range
         run: bash scripts/ci-reserve-ports.sh
-      # Loading the cached images took about 75 s in the foreground (787 MB);
-      # now the stack's background start loads them, while the export builds
-      # and the browsers install (decisions.md 163).
-      - uses: ./.github/actions/docker-images
-        with: { phase: restore, load: 'false' }
-      - name: Start Supabase in the background (the cached images, then every migration)
-        run: bash scripts/ci-background.sh start stack bash -c 'bash scripts/ci-docker-images.sh load && bash scripts/ci-retry-pull.sh npx supabase start -x "$SUPABASE_EXCLUDE"'
+      # The stack pulls its images and starts in the background, while the
+      # export builds and the browsers install (decisions.md 163). No image
+      # cache: pulling was faster than loading it (decisions.md 164).
+      - name: Start Supabase in the background (pulls its images, applies every migration)
+        run: bash scripts/ci-background.sh start stack bash scripts/ci-retry-pull.sh npx supabase start -x "$SUPABASE_EXCLUDE"
       # The development export needs only the stack's URL and anon key, which
       # are fixed and in apps/mobile/.env.development; e2e/export-web.sh keeps
       # it only if the running stack agrees. The build holds the budget.
@@ -319,9 +320,6 @@ jobs:
       - name: Keep the runner's load record
         if: always()
         run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/load
-      - uses: ./.github/actions/docker-images
-        if: always()
-        with: { phase: save }
       # What the page showed when a step failed (error-context.md), so a CI-only failure can be read.
       - name: Keep the smoke results
         if: failure()
@@ -372,15 +370,14 @@ jobs:
         run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
       - name: Keep the stack's ports out of the outbound port range
         run: bash scripts/ci-reserve-ports.sh
-      # As in web-smoke: the images load, the job container's images are
-      # pulled and the stack starts in the background, while the export builds.
-      - uses: ./.github/actions/docker-images
-        with: { phase: restore, job-images: 'true', load: 'false' }
-      - name: Start the local stack in the background (the cached images, migrations, library, push delivery)
+      # As in web-smoke: the job container's images (with retries) and the
+      # stack's are pulled and the stack starts in the background, while the
+      # export builds.
+      - name: Start the local stack in the background (pulls, migrations, library, push delivery)
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: bash scripts/ci-background.sh start stack bash -c 'bash scripts/ci-docker-images.sh load && bash scripts/ci-docker-images.sh warm && bash scripts/ci-retry-pull.sh npm run db:start'
+        run: bash scripts/ci-background.sh start stack bash -c 'bash scripts/ci-docker-images.sh warm && bash scripts/ci-retry-pull.sh npm run db:start'
       - name: Build the web export in the background
         run: bash scripts/ci-background.sh start export env NO_SPEECH_MODEL=1 npm run export:web -w mobile -- development
       - uses: ./.github/actions/playwright
@@ -410,9 +407,6 @@ jobs:
             e2e/results/ui/**/*.png
             e2e/results/ui/**/error-context.md
           if-no-files-found: ignore
-      - uses: ./.github/actions/docker-images
-        if: always()
-        with: { phase: save, job-images: 'true' }
 
   gate:
     # The one check that main requires. A job that the changed files do not
@@ -481,11 +475,12 @@ jobs:
     # A push that the merge queue already passed runs no tests (scope's
     # `tested`), but caches saved on main are the only ones a pull request
     # can read: a pull request's and a merge queue entry's are their own.
-    # Without this, a change to a cache's key (the Supabase CLI, its config,
-    # Playwright, the lockfile) would make every pull request pull from the
-    # rationed registries and the slow package mirror until the nightly ran
-    # (decisions.md 102, amended 2026-10-20; decisions.md 164). A cache that
-    # is there is only looked up, so this is about a minute on most pushes.
+    # Without this, a change to a cache's key (Playwright, the lockfile, the
+    # Supabase CLI or its config for `server`'s images) would make every pull
+    # request install from the slow package mirror, or `server` pull from the
+    # rationed registries, until the nightly ran (decisions.md 102, amended
+    # 2026-10-20; decisions.md 164). A cache that is there is only looked up,
+    # so this is about a minute on most pushes.
     needs: scope
     if: github.event_name == 'push' && needs.scope.outputs.tested != ''
     runs-on: ubuntu-latest
