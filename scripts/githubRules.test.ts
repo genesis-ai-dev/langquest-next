@@ -30,6 +30,14 @@ describe('the ruleset for main', () => {
       for (const check of rule.parameters.required_status_checks) expect(check.integration_id, check.context).toBe(15368);
   });
 
+  it('merges through the queue, which runs the gate job too', () => {
+    const queue = main.rules.find((r: { type: string }) => r.type === 'merge_queue');
+    expect(queue?.parameters.merge_method, 'pull requests merge with a merge commit').toBe('MERGE');
+    // GitHub waits for the required check on the queue's own commit; without this trigger nothing reports it.
+    expect(guardrails).toMatch(/^on:\n(?: {2}.*\n|\s*\n)*? {2}merge_group:/m);
+    expect(queue?.parameters.check_response_timeout_minutes).toBeGreaterThanOrEqual(30);
+  });
+
   it('lets nobody merge past a red check', () => {
     expect(main.bypass_actors).toEqual([]);
     expect(main.enforcement).toBe('active');
