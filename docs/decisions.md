@@ -2408,6 +2408,17 @@ People with the rest under More. It names each thing as the organization's
 page does (Content template, Reference material, Review flow), with seven
 rows and no More; see 138.
 
+Amended (2026-10-21, Carl Sauder): a Global Viewer looking in on an
+organization (decision 158) gets one more tab, Viewing, before Me: the
+organization they are in and how, then every other one to open instead
+(`tabsFor` in `session.ts`, screen `global_viewer`). On a desktop the
+sidebar also says "Viewing as a Global Viewer" under the organization's
+name, and opens the tab. Carl chose the tab over a strip across the top of
+every screen: the tab bar is where people already look to see where they
+are, it costs no height, and it navigates as chrome, as the other tabs do,
+so `flow.ts` stays the authority for moving between screens (decision 20).
+Nobody else's tabs change; on a phone there are still at most five.
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
