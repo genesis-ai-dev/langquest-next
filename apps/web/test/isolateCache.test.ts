@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUTH_TTL_MS, cachedBlobAccess, cachedProfileOf, DENIAL_TTL_MS, MAX_ENTRIES, TtlCache } from '../worker/isolateCache';
+import { AUTH_TTL_MS, cachedBlobAccess, cachedIdentityOf, cachedProfileOf, DENIAL_TTL_MS, MAX_ENTRIES, TtlCache } from '../worker/isolateCache';
 
 describe('TtlCache', () => {
   it('forgets an entry once its time has come', () => {
@@ -87,7 +87,26 @@ describe('cachedProfileOf', () => {
   });
 });
 
+describe('cachedIdentityOf', () => {
+  it('gives the session level with the person, from the cache too (decisions.md 158)', async () => {
+    let calls = 0;
+    const identityOf = cachedIdentityOf(async () => { calls++; return { sub: 'p1', aal: 'aal2' }; }, () => 0);
+    expect(await identityOf('tok')).toEqual({ profileId: 'p1', aal: 'aal2' });
+    expect(await identityOf('tok')).toEqual({ profileId: 'p1', aal: 'aal2' });
+    expect(calls).toBe(1);
+  });
+});
+
 describe('cachedBlobAccess', () => {
+  it('asks again for another session level, so an aal1 refusal never answers for aal2', async () => {
+    const asked: (string | undefined)[] = [];
+    const may = cachedBlobAccess(async (_k, _p, _w, aal) => { asked.push(aal); return aal === 'aal2'; }, () => 0);
+    expect(await may('o/l1/a.m4a', 'gv', false, 'aal1')).toBe(false);
+    expect(await may('o/l1/a.m4a', 'gv', false, 'aal2')).toBe(true);
+    expect(await may('o/l1/b.m4a', 'gv', false, 'aal2')).toBe(true);
+    expect(asked).toEqual(['aal1', 'aal2']);
+  });
+
   it('asks once per person, stream and mode', async () => {
     const asked: string[] = [];
     const may = cachedBlobAccess(async (key, p, w) => { asked.push(`${key}|${p}|${w}`); return true; }, () => 0);
