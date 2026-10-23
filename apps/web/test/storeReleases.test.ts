@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkStores, liveFromLookup, liveFromPlayPage, PLAY_REQUEST, storeCheckDue } from '../worker/storeReleases';
+import { APPLE_REQUEST, checkStores, liveFromAppStorePage, liveFromLookup, liveFromPlayPage, PLAY_REQUEST, storeCheckDue } from '../worker/storeReleases';
 
 // The store check (storeReleases.ts, decisions.md 154): only a version that
 // is live in the App Store is recorded.
@@ -41,7 +41,7 @@ describe('the store check', () => {
     const { live, counts, problems } = await checkStores(db, store(playPage('2026.1021.900')));
     expect(live).toHaveLength(2);
     expect(problems).toEqual([]);
-    expect(counts).toEqual({ appleStatus: 200, appleFound: 1, playStatus: 200, playRedirected: 0, playFound: 1 });
+    expect(counts).toEqual({ appleStatus: 200, applePageStatus: 0, appleFound: 1, appleSource: 1, playStatus: 200, playRedirected: 0, playFound: 1 });
     expect(calls).toEqual([
       ['record_app_release', { p_platform: 'ios', p_version: '2026.1022.1830', p_live_since: '2026-10-23T08:00:00Z' }],
       ['record_app_release', { p_platform: 'android', p_version: '2026.1021.900', p_live_since: null }],
@@ -77,5 +77,39 @@ describe('the store check', () => {
     expect(headers['user-agent']).toMatch(/Chrome/);
     expect(headers['accept-language']).toMatch(/^en-US/);
     expect(headers.cookie).toMatch(/SOCS=/);
+  });
+  const appleRefused = (page: Response) =>
+    (async (url: string) => {
+      if (String(url).includes('itunes')) return response('Forbidden', 403, String(url));
+      if (String(url).includes('apps.apple.com')) return page;
+      return playPage('1.0.0');
+    }) as unknown as typeof fetch;
+
+  it('reads the App Store page when Apple\'s lookup refuses, and says which source answered', async () => {
+    const { calls, db } = recorder();
+    const { counts, problems } = await checkStores(db, appleRefused(response('<h4>Version 2026.1101.900</h4>', 200, 'https://apps.apple.com/us/app/id6812492008')));
+    expect(problems).toEqual([]);
+    expect(counts).toMatchObject({ appleStatus: 403, applePageStatus: 200, appleSource: 2, appleFound: 1 });
+    expect(calls[0]).toEqual(['record_app_release', { p_platform: 'ios', p_version: '2026.1101.900', p_live_since: null }]);
+  });
+
+  it('counts a 404 App Store page as not live yet, not as a failure', async () => {
+    const { calls, db } = recorder();
+    const { counts, problems } = await checkStores(db, appleRefused(response('', 404, 'https://apps.apple.com/us/app/id6812492008')));
+    expect(problems).toEqual([]);
+    expect(counts).toMatchObject({ appleStatus: 403, applePageStatus: 404, appleSource: 2, appleFound: 0 });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('fails the check when both Apple sources refuse', async () => {
+    const { db } = recorder();
+    const { problems } = await checkStores(db, appleRefused(response('', 503, 'https://apps.apple.com/us/app/id6812492008')));
+    expect(problems).toEqual(["Apple's lookup answered 403 and the App Store page 503"]);
+  });
+
+  it('reads the version on a live App Store page, and asks Apple as a browser', () => {
+    expect(liveFromAppStorePage('<p>Version 26.41.75</p>')).toEqual({ platform: 'ios', version: '26.41.75', liveSince: null });
+    expect(liveFromAppStorePage('<p>nothing</p>')).toBeNull();
+    expect((APPLE_REQUEST.headers as Record<string, string>)['user-agent']).toMatch(/Chrome/);
   });
 });
