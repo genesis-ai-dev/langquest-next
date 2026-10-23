@@ -71,6 +71,8 @@ export async function secondDevice(browser: Browser, world: UiWorld, who: keyof 
 export function mic(page: Page) {
   return {
     mode: (mode: 'file' | 'tone' | 'refuse') => page.evaluate((m) => { (window as unknown as { __lqMic: { mode: string } }).__lqMic.mode = m; }, mode),
+    /** Speech with a quarter second of quiet every half second, as a voice has: a steady tone is learned as the room within seconds (decision 125). */
+    syllables: (on: boolean) => page.evaluate((o) => { (window as unknown as { __lqMic: { syllables(on: boolean): void } }).__lqMic.syllables(o); }, on),
     speak: (on: boolean) => page.evaluate((o) => { (window as unknown as { __lqMic: { speak(on: boolean): void } }).__lqMic.speak(o); }, on),
     /** How many times the app opened the microphone, and how many are open now. */
     counts: () => page.evaluate(() => { const c = (window as unknown as { __lqMic: { opened: number; open: number } }).__lqMic; return { opened: c.opened, open: c.open }; })

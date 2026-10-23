@@ -263,12 +263,15 @@ test('STUDY-008 A note at a moment of the spoken step', async ({ page }) => {
   await openStudy(page);
   // The step's recording is the test voice, four seconds long: the note lands at 0:01 to 0:03, not at 0:20.
   await button(page, 'Play This step, spoken').click();
-  await expect(text(page, /^0:0[1-3]\b/)).toBeVisible();
+  // Back 10 seconds is dimmed until the clock has moved. The clip is four seconds, so on a slow machine it may have finished
+  // (the clock then rests on 0:04) before a poll sees 0:01 to 0:03: playback has run once Back 10 seconds is on, and the clock reads the clip's own seconds.
+  await expect(page.getByRole('button', { name: 'Back 10 seconds' }).locator('visible=true').first()).toBeEnabled();
+  await expect(text(page, /^0:0[1-4]\b/)).toBeVisible();
   await button(page, 'Add a note here').click();
   await expect(button(page, 'Play This step, spoken')).toBeVisible();
   await expect(text(page, 'Add a note')).toBeVisible();
   await field(page, 'Or type it').fill('Ask the elders about the ring');
-  await button(page, 'Save').click();
+  await button(page, 'Add a note').click(); // the sheet's one button; nothing needs saving (decision 111)
   await sawToast(page, /^Note added at 0:0[1-4]\. It stays with the study\.$/);
   await expect(text(page, /^At 0:0[1-4]$/)).toBeVisible();
   await expect(text(page, 'Ask the elders about the ring')).toBeVisible();
@@ -342,7 +345,8 @@ test('STUDY-013 The guide from the workspace, and back', async ({ page }) => {
   await byId(page, 'header-close').click();
   await expect(text(page, /^Recording Version \d+$/)).toBeVisible();
   await expect(tabChip(page, 'Guide')).toHaveAttribute('aria-selected', 'true');
-  await expect(button(page, /^Parts 1–3, 3 parts/)).toBeVisible();
+  // While the parts are still the version they started from, the card is named for it (LAN-83, translate.tsx recorderGroupTitle).
+  await expect(button(page, /^(Parts 1–3|Version \d+), 3 parts/)).toBeVisible();
 });
 
 for (const who of ['COORD', 'LADMIN'] as const) {

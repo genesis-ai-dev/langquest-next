@@ -221,6 +221,8 @@ test('ACCT-010 Switch Organization says which organization is active, on Me for 
 
 test('ACCT-011 The Sync row says how sync stands', async ({ page }) => {
   await openAs(page, world(), 'TRANS');
+  // The language must be on the device before it goes offline: the Map offers nothing to open without it.
+  await languageLoaded(page);
   await openMore(page);
   const sync = row(page, 'Sync');
   await expect(sync).toContainText(/Live: changes arrive as they happen|Up to date/);

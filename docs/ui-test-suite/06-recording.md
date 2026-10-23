@@ -201,14 +201,13 @@ Preconditions:
 Steps:
 1. In the workspace, look at the parts (tap "Show the parts" if they are folded).
 2. Tap the red button to start recording, and stay silent.
-3. Try to hold Part 1's verse space (where "Delete Part 1" is), and to slide its row aside.
-4. Try to tap Part 1's play button.
-5. Tap stop.
+3. Look for Part 1's verse space, its play button and its bin.
+4. Tap stop.
 
 Expected:
-- During steps 3 and 4 the verse spaces and play buttons are dimmed and do nothing: no sheet opens, no toast shows, and no part is removed.
+- While recording, the pane under the divider is the recording view (LAN-83): the parts list is not on screen, so no verse space, play button or bin can be reached; its ✕ ("Throw away this recording") asks before it throws the recording away. No sheet opens, no toast shows, and no part is removed.
 - While recording the footer has no "Done" (the recording view's check is Done); afterwards it is back and the saved mark shows its check.
-- After step 5 every control is enabled again, and the draft still has three parts.
+- After step 4 every control is back and enabled, and the draft still has three parts.
 
 ### REC-009 Deleting the only part leaves nothing to publish
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
@@ -834,7 +833,7 @@ Steps:
 7. Screen reader on: focus the divider and swipe up and down.
 
 Expected:
-- Step 1 leaves the reference as one line: "Play the Bible", "Bible · {abbr}", "Drag down for the guide, key words, notes and earlier recordings", and Back 10.
+- Step 1 leaves the reference as one line: "Play the Bible", "Bible · {abbr}" and Back 10 when the passage has Bible audio (it does here); without it, "Drag down for the guide, key words, notes and earlier recordings" (LAN-81).
 - Step 2 opens the divider back to half.
 - Step 3 leaves the recorder as one line: "Part 4" with "3 parts recorded", and a 56-point red button. The footer (record and Done) is hidden.
 - Step 4 records a part from the bar; the bar reads "Recording…" while capturing.

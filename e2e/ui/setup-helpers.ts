@@ -54,7 +54,14 @@ export async function referenceMaterial(page: Page): Promise<void> {
 /** The organization's reference material, as a language sees it: Reference material › All reference material (decision 138). */
 export async function referenceLibrary(page: Page): Promise<void> {
   await referenceMaterial(page);
-  await text(page, 'All reference material').click();
+  // Like reviewFlows: the page redraws as the language arrives and a tap can be lost; SETUP-064 stayed on
+  // Reference material in CI on three nights. Tap until the row has gone (the library has no such row).
+  const all = text(page, 'All reference material');
+  await expect(async () => {
+    if (!(await all.isVisible())) return;
+    await all.click({ timeout: 5_000 });
+    await expect(all).toBeHidden({ timeout: 4_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 /** A ready language's Review flow page: its checks, the ready-made flows, All review flows (decision 138). */

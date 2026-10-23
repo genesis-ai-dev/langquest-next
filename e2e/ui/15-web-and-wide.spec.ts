@@ -367,6 +367,10 @@ test('WEB-015 Leaving with work unsent asks first', async ({ browser }) => {
   expect(page.isClosed()).toBe(false);
   await setOffline(one.context, false);
   await expect.poll(() => waiting(page, w.orgId), { timeout: 30_000 }).toBe(0);
+  // The leave guard follows what the app counts as waiting (the sync icon's number), which settles a moment after the
+  // log does: close only once the icon says nothing waits, or the guard is still up and the page stays.
+  await toTab(page, 'work');
+  await expect(syncChip(page)).toHaveAccessibleName(SYNC_CLEAR, { timeout: 30_000 });
   await page.close({ runBeforeUnload: true });
   await expect.poll(() => page.isClosed()).toBe(true);
   expect(asked).toEqual(['beforeunload']);

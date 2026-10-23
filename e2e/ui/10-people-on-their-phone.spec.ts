@@ -89,7 +89,8 @@ test('PEOPLE-046 A removed member\'s next sync is refused, and they are told', a
   await syncNow(p);
   // Never silent (PLAN.md invariant 1).
   await tab(p, 'work').click();
-  await expect(text(p, 'Not syncing')).toBeVisible({ timeout: 60_000 });
+  // The header's sync icon says it in its name ("Not syncing, 2 to send").
+  await expect(button(p, /^Not syncing/)).toBeVisible({ timeout: 60_000 });
   await tab(p, 'me').click();
   await expect(text(p, 'This account cannot sync · password, notifications, account')).toBeVisible();
   await text(p, 'More settings').click();

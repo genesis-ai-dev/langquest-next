@@ -22,6 +22,9 @@ async function checks(page: Page, w: UiWorld, who: AccountKey): Promise<void> {
   if (who === 'LADMIN') await tab(page, 'manage').click();
   else await languagePage(page, w, 'Alpha');
   await languageChecks(page);
+  // A fresh device pulls Alpha's record in pages: an earlier test changed the checks (Quick Check, then
+  // Standard Bible Flow again), and a half-pulled record draws a half-way list (CI, 2026-10-23).
+  await languageArrived(page);
   await expectOnScreen(page, 'A translator records a version', 'Add a check');
 }
 
