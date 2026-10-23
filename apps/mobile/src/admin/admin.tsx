@@ -16,6 +16,7 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpInfo, Ico, type IconName } from '../ui/kit';
 import { HeaderExtraContext } from '../ui/headerExtra';
+import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { txt } from '../ui/textStyles';
 import { shadow } from '../ui/shadow';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
@@ -83,6 +84,9 @@ export function BigTop(props: {
   const up = useHelpSpot(props.up?.label ?? '', props.up?.help ?? '', props.up?.onPress);
   // What the app shows in every header, such as a Global Viewer's link (ui/headerExtra.ts).
   const extra = useContext(HeaderExtraContext);
+  // In a split, once: beside an open screen, a list pane leaves the ? to that screen's header.
+  const layout = useLayout();
+  const openBeside = useOpenDetail();
   return (
     <View style={styles.bigTop}>
       <View style={styles.bigTopBar}>
@@ -101,7 +105,7 @@ export function BigTop(props: {
         ) : <View />}
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           {extra}
-          <HelpButton />
+          {layout.role === 'list' && openBeside ? null : <HelpButton />}
         </View>
       </View>
       {props.over ? <Text style={styles.over}>{props.over}</Text> : null}
