@@ -14,12 +14,20 @@ export const ARRIVAL_SAMPLE = 1000;
 /** An event stamped later than this after the server's clock when it arrived came from a wrong clock. */
 export const FUTURE_SLACK_MS = 5 * 60_000;
 
+/**
+ * Devices that write work on the server rather than upload it: the v2
+ * import (packages/v2-import/src/reconcile.ts DEVICE) stamps each event with
+ * the time its v2 record changed, so its "delay" is the import's schedule,
+ * not a phone's. Their events count as arrived but not in the delays.
+ */
+export const SERVER_DEVICES: ReadonlySet<string> = new Set(['v2import']);
+
 /** The columns the sample selects. */
 export interface ArrivalRow { hlc: string; received_at: string; device_id: string }
 
 /** Recorded in the `projection` job run's `n`. The max… fields are kept as the window's largest by diag.totals, the rest are summed. */
 export interface ArrivalStats {
-  /** Events the sample read. */
+  /** Events the sample read from phones and browsers (not SERVER_DEVICES). */
   arrivalsSampled: number;
   /** Events appended since the last pass, sampled or not. */
   newEvents: number;
@@ -44,6 +52,7 @@ export function arrivalStats(rows: readonly ArrivalRow[], newEvents: number): Ar
   const future = new Set<string>();
   let futureStamped = 0;
   for (const row of rows) {
+    if (SERVER_DEVICES.has(row.device_id)) continue;
     let wall: number;
     try {
       wall = decodeHlc(row.hlc).wallMs;

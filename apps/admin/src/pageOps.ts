@@ -123,7 +123,7 @@ Object.assign(RENDER, {
       { h: 'Lost', n: true, v: (s) => '<span class="' + (s.lostRecordings ? 'bad' : '') + '">' + num(s.lostFiles || 0) + (s.lostRecordings ? ' (' + num(s.lostRecordings) + ' rec.)' : '') + '</span>' },
       { h: 'Reported', v: (s) => when(s.at) }
     ], d.stuck);
-    h += '<h3>Silent phones</h3><p>' + num(d.silent.count) + ' quiet for 3 days while another phone of the same person reports.</p>' +
+    h += '<h3>Silent phones</h3><p>' + num(d.silent.count) + ' quiet for 3 days while another device of the same person reports.</p>' +
       (d.silent.installs.length ? '<p>' + d.silent.installs.map((s) => installLink(s.install) + ' <small>' + ageOf(s.lastSeen) + '</small>').join(' · ') + '</p>' : '');
     return h;
   },
@@ -152,7 +152,7 @@ Object.assign(RENDER, {
   },
   push(d) {
     const r = d.runs || {};
-    return '<div class="stats">' + stat(num(d.pending), 'waiting', d.pending ? 'warn' : '') + stat(ageOf(d.oldestPendingAt), 'oldest waiting') + stat(num(d.tokens), 'push tokens') + stat(num(d.membersWithoutToken), 'members without a token') + '</div>' +
+    return '<div class="stats">' + stat(num(d.pending), 'waiting', d.pending ? 'warn' : '') + stat(ageOf(d.oldestPendingAt), 'oldest waiting') + (d.inboxOnly === undefined ? '' : stat(num(d.inboxOnly), 'Inbox only, no push token')) + stat(num(d.tokens), 'push tokens') + stat(num(d.membersWithoutToken), 'members without a token') + '</div>' +
       '<p class="muted">Push delivery, last 24 h: ' + esc(Object.entries(r).map(([k, v]) => k + ' ' + num(v)).join(' · ') || 'no runs') + '</p>' +
       '<h3>Failures, last 24 h</h3>' + table([{ h: 'Code', v: (e) => '<code>' + esc(e.code) + '</code>' }, { h: 'Count', n: true, v: (e) => num(e.n) }], d.errors24h);
   },
@@ -193,7 +193,8 @@ Object.assign(RENDER, {
       { h: 'Day', v: (x) => esc(x.day) }, { h: 'New accounts', n: true, v: (x) => num(x.n) },
       { h: 'Invites issued', n: true, v: (x) => num((d.joining.invitesByDay.find((i) => i.day === x.day) || {}).issued || 0) },
       { h: 'Redeemed', n: true, v: (x) => num((d.joining.invitesByDay.find((i) => i.day === x.day) || {}).redeemed || 0) },
-      { h: 'Events', n: true, v: (x) => num(((d.eventsByDay || []).find((e) => e.day === x.day) || {}).events || 0) }
+      // A day before the projection pass counted arrivals has no entry: unknown, not none.
+      { h: 'Events', n: true, v: (x) => { const e = (d.eventsByDay || []).find((y) => y.day === x.day); return e ? num(e.events) : '–'; } }
     ], d.accounts.newByDay.slice().reverse());
     return h;
   },
@@ -223,15 +224,16 @@ Object.assign(RENDER, {
   },
   capacity(d) {
     const u = d.usage;
-    let h = '<div class="stats">' + stat(d.now ? bytes(d.now.dbBytes) : '–', 'database of ' + bytes(d.limitBytes)) +
+    let h = '<div class="stats">' + stat(d.now ? bytes(d.now.dbBytes) : '–', 'database of ' + bytes(d.limitBytes), d.now && d.now.dbBytes >= d.limitBytes * 0.9 ? 'warn' : '') +
       stat(d.dbGrowthPerDay === null ? '–' : bytes(d.dbGrowthPerDay * 7), 'database growth a week') +
       stat(d.weeksLeft === null ? '–' : Math.round(d.weeksLeft), 'weeks left at that rate', d.weeksLeft !== null && d.weeksLeft < 12 ? 'warn' : '') +
       (d.now ? stat(bytes(d.now.eventsBytes), 'event log (' + num(d.now.eventsRows) + ' rows)') : '') +
       (d.r2 ? stat(bytes(d.r2.bytes), 'R2') + stat(d.r2.growthPerDay === null ? '–' : bytes(d.r2.growthPerDay * 7), 'R2 growth a week') : '') + '</div>';
     if (u) {
-      h += u.error ? '<p class="bad">' + esc(u.error) + '</p>' : '<h3>Cloudflare this month, against the plan</h3>' + table([{ h: 'What', v: (x) => esc(x[0]) }, { h: 'Used', n: true, v: (x) => num(x[1]) }, { h: 'Included', n: true, v: (x) => num(x[2]) }, { h: 'Share', n: true, v: (x) => '<span class="' + (x[1] > x[2] ? 'warn' : '') + '">' + share(x[1], x[2]) + '</span>' }], [
-        ['Workers requests', u.workersRequests, u.allowance.workersRequests], ['Durable Object requests', u.doRequests, u.allowance.doRequests],
-        ['R2 class A operations', u.r2ClassA, u.allowance.r2ClassA], ['R2 class B operations', u.r2ClassB, u.allowance.r2ClassB]
+      h += u.error ? '<p class="bad">' + esc(u.error) + '</p>' : '<h3>Cloudflare this month, against the plan</h3>' + table([{ h: 'What', v: (x) => esc(x[0]) }, { h: 'Used', n: true, v: (x) => num(x[1]) }, { h: 'Included', n: true, v: (x) => num(x[2]) }, { h: 'Share', n: true, v: (x) => '<span class="' + (x[1] > x[2] ? 'warn' : '') + '">' + share(x[1], x[2]) + '</span>' },
+        { h: 'Extra cost', n: true, v: (x) => x[3] === undefined || x[1] <= x[2] ? '–' : '$' + (Math.max(0, x[1] - x[2]) * x[3]).toFixed(2) }], [
+        ['Workers requests', u.workersRequests, u.allowance.workersRequests, u.price && u.price.workersRequests], ['Durable Object requests', u.doRequests, u.allowance.doRequests, u.price && u.price.doRequests],
+        ['R2 class A operations', u.r2ClassA, u.allowance.r2ClassA, u.price && u.price.r2ClassA], ['R2 class B operations', u.r2ClassB, u.allowance.r2ClassB, u.price && u.price.r2ClassB]
       ]) + '<p class="muted">Container time is not in the analytics this page reads: see the Cloudflare dashboard.</p>';
     }
     return h;

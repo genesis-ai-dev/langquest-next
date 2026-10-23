@@ -49,9 +49,9 @@ export function supabaseAlerts(sb: Supabase): Alert[] {
   const out: Alert[] = [];
   for (const p of sb.projects) {
     if (p.error) { out.push({ level: 'watch', text: `${p.name}: could not read the project (${p.error}).` }); continue; }
-    if (p.status && p.status !== 'ACTIVE_HEALTHY') out.push({ level: 'problem', text: `Supabase project ${p.name} is ${p.status}.` });
+    if (p.status && p.status !== 'ACTIVE_HEALTHY') out.push({ level: 'urgent', text: `Supabase project ${p.name} is ${p.status}.` });
     const down = p.health.filter((h) => !h.healthy);
-    if (down.length) out.push({ level: 'problem', text: `${p.name}: ${down.map((h) => `${h.name} ${h.status ?? 'unhealthy'}`).join(', ')}.` });
+    if (down.length) out.push({ level: 'urgent', text: `${p.name}: ${down.map((h) => `${h.name} ${h.status ?? 'unhealthy'}`).join(', ')}.` });
     for (const f of p.functions ?? []) if (f.status === 'THROTTLED') out.push({ level: 'watch', text: `${p.name}: Edge Function ${f.slug} is throttled.` });
     if (p.logs) {
       if (p.logs.function5xx >= 10) out.push({ level: 'watch', text: `${p.name}: Edge Functions answered ${p.logs.function5xx} server errors in the last day.` });

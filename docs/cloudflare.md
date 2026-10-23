@@ -32,7 +32,10 @@ The app Worker's include paths cover `server/*` and `scripts/build-jobs.mjs`
 because the job image (The job runner, below) is built from them: without
 them a change to the pass alone would not rebuild the image. Set on
 2026-10-16 with decision 141; check it in the Cloudflare dashboard if a
-pass change does not reach the container.
+pass change does not reach the container. The ops dashboard reads the same
+list (`apps/admin/src/sources/github.ts` `APP_BUILD_PATHS`, held to this
+table by a test): a merge that changes none of these leaves the web app on
+an older commit, which is not a failed deploy. Change both together.
 
 Leave the default dependency install on. It is `npm clean-install` with the
 build image's npm, 10.9.2 since Cloudflare's 2026-10-14 image update, not

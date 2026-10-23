@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { byWorker, cloudflareAlerts, cloudflareSection } from '../src/sources/cloudflare';
 import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, mediaType, v2Section, type Clients, type JobRow, type V2Project } from '../src/sources/diag';
 import { expoAlerts, expoFrom } from '../src/sources/expo';
-import { codeAlerts, codeSection, latestPerWorkflow, type Code } from '../src/sources/github';
+import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, latestPerWorkflow, type Code } from '../src/sources/github';
 import { projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
 
 const NOW = Date.parse('2026-10-19T22:00:00Z');
@@ -53,7 +54,7 @@ describe('phones and browsers', () => {
       expect.stringMatching(/^watch Syncs ended in an error on 4 installs.*pull:57014/),
       expect.stringMatching(/^watch 1 install ran a build the server no longer accepts/),
       expect.stringMatching(/^watch Downloads met a server error 3 times/),
-      expect.stringMatching(/^problem Recordings were lost before they were sent, on 1 install\./)
+      expect.stringMatching(/^urgent Recordings were lost before they were sent, on 1 install\./)
     ]));
   });
 });
@@ -73,8 +74,16 @@ describe('server jobs', () => {
 describe('the database and the v2 import', () => {
   it('flags slow RPCs and nearly full connections', () => {
     const alerts = databaseAlerts({ sizeBytes: 1, connections: 50, maxConnections: 60, stats: null,
-      rpc: [{ rpc: 'pull_events', calls: 10, mean_ms: 812, max_ms: 3000, total_s: 8, rows_per_call: 1 }, { rpc: 'stream_heads', calls: 10, mean_ms: 5, max_ms: 9, total_s: 0, rows_per_call: 1 }] });
+      rpc: [{ rpc: 'pull_events', calls: 40, mean_ms: 812, max_ms: 3000, total_s: 32, rows_per_call: 1 }, { rpc: 'stream_heads', calls: 10, mean_ms: 5, max_ms: 9, total_s: 0, rows_per_call: 1 }] });
     expect(alerts.map((a) => a.level)).toEqual(['problem', 'watch']);
+  });
+
+  it('leaves slow server-only RPCs and too few calls out of the slow ones', () => {
+    // October 2026: put_snapshot writes a big language's snapshot for the projection pass; v2_welcome ran 3 times.
+    const alerts = databaseAlerts({ sizeBytes: 1, connections: 13, maxConnections: 160, stats: null,
+      rpc: [{ rpc: 'put_snapshot', calls: 2082, mean_ms: 797.6, max_ms: 23636.8, total_s: 1660.6, rows_per_call: 1 },
+        { rpc: 'v2_welcome', calls: 3, mean_ms: 2371.1, max_ms: 7095.5, total_s: 7.1, rows_per_call: 1 }] });
+    expect(alerts).toEqual([]);
   });
 
   it('counts the import by state and shows the ones worth a look first', () => {
@@ -114,7 +123,7 @@ describe('the database and the v2 import', () => {
 
 describe('code and deploys', () => {
   const code = (over: Partial<Code>): Code => ({
-    repo: 'o/r', main: { sha: 'abcdef1234567890', at: hAgo(2), title: 'x' }, live: { url: 'https://next.langquest.org', build: 'abcdef123456' }, behind: 0, runs: [], ...over
+    repo: 'o/r', main: { sha: 'abcdef1234567890', at: hAgo(2), title: 'x' }, live: { url: 'https://next.langquest.org', build: 'abcdef123456' }, behind: 0, appChanged: null, runs: [], ...over
   });
 
   it('is quiet when the web app serves main', () => {
@@ -125,6 +134,28 @@ describe('code and deploys', () => {
     const behind = code({ live: { url: 'https://next.langquest.org', build: '0123456789ab' }, behind: 4 });
     expect(codeAlerts(behind, NOW)[0]).toMatchObject({ level: 'problem', text: expect.stringContaining('main has 4 newer commits') });
     expect(codeAlerts({ ...behind, main: { ...behind.main, at: hAgo(0.2) } }, NOW)).toEqual([]);
+  });
+
+  it('says nothing when the commits since change no file the web app is built from', () => {
+    // October 2026: PR 230 changed only apps/admin, docs and scripts, so the app Worker rightly did not build.
+    expect(codeAlerts(code({ live: { url: 'https://next.langquest.org', build: '0123456789ab' }, behind: 3, appChanged: false }), NOW)).toEqual([]);
+  });
+
+  it('knows the app Worker\'s watch paths as docs/cloudflare.md records them', () => {
+    const row = readFileSync('docs/cloudflare.md', 'utf8').split('\n').find((l) => l.startsWith('| Include paths |'))!;
+    const app = row.split('|')[3]!.match(/`[^`]+`/g)!.map((p) => p.slice(1, -1).replace(/\*$/, ''));
+    expect(APP_BUILD_PATHS).toEqual(app);
+  });
+
+  it('tells which files the web app is built from', () => {
+    expect(changesApp([{ filename: 'apps/admin/src/db.ts' }, { filename: 'docs/admin.md' }, { filename: 'scripts/secrets.mjs' }])).toBe(false);
+    expect(changesApp([{ filename: 'docs/admin.md' }, { filename: 'apps/mobile/src/screens/map.tsx' }])).toBe(true);
+    expect(changesApp([{ filename: 'package-lock.json' }])).toBe(true);
+    expect(changesApp([{ filename: 'packages/core/src/reducer.ts' }])).toBe(true);
+    expect(changesApp([{ filename: 'apps/webhooks/x.ts' }])).toBe(false);
+    // GitHub stops listing at 300 files: one it left out may be the app's.
+    expect(changesApp(Array.from({ length: 300 }, (_, i) => ({ filename: `docs/${i}.md` })))).toBeNull();
+    expect(changesApp(undefined)).toBeNull();
   });
 
   it('calls a web app that does not answer a problem', () => {
@@ -145,10 +176,10 @@ describe('code and deploys', () => {
       ['/version.json', { build: '0123456789ab' }],
       ['/commits/main', { sha: 'fedcba9876543210', commit: { message: 'Merge pull request #9\n\nbody', committer: { date: hAgo(3) } } }],
       ['/actions/runs', { workflow_runs: [] }],
-      ['/compare/0123456789ab...fedcba9876543210', { status: 'ahead', ahead_by: 2, behind_by: 0 }]
+      ['/compare/0123456789ab...fedcba9876543210', { status: 'ahead', ahead_by: 2, behind_by: 0, files: [{ filename: 'apps/web/worker/index.ts' }] }]
     ]);
     const s = await codeSection({ GITHUB_REPO: 'o/r', APP_URL: 'https://next.langquest.org' }, fetcher);
-    expect(s.data).toMatchObject({ behind: 2, main: { title: 'Merge pull request #9' } });
+    expect(s.data).toMatchObject({ behind: 2, appChanged: true, main: { title: 'Merge pull request #9' } });
     expect(s.alerts[0]?.level).toBe('problem');
   });
 });
@@ -213,8 +244,8 @@ describe('Supabase', () => {
     expect(s.alerts.map((a) => a.text)).toEqual(['Next: auth UNHEALTHY.', 'Next: Edge Functions answered 12 server errors in the last day.']);
   });
 
-  it('calls a paused or unhealthy project a problem', () => {
-    expect(supabaseAlerts({ projects: [{ ref: 'a', name: 'v2', status: 'INACTIVE', health: [], functions: null, logs: null }] })[0]).toMatchObject({ level: 'problem', text: 'Supabase project v2 is INACTIVE.' });
+  it('calls a paused or unhealthy project urgent', () => {
+    expect(supabaseAlerts({ projects: [{ ref: 'a', name: 'v2', status: 'INACTIVE', health: [], functions: null, logs: null }] })[0]).toMatchObject({ level: 'urgent', text: 'Supabase project v2 is INACTIVE.' });
   });
 });
 

@@ -10,7 +10,7 @@ import { getJson, hoursAgo, ok, type Alert, type Section } from '../section';
  */
 
 interface Commit { sha: string; commit: { message: string; committer: { date: string } | null } }
-interface Compare { status: string; ahead_by: number; behind_by: number }
+interface Compare { status: string; ahead_by: number; behind_by: number; files?: { filename: string }[] }
 interface Runs { workflow_runs: { name: string | null; status: string | null; conclusion: string | null; head_sha: string; created_at: string; html_url: string; event: string; run_number: number }[] }
 
 export interface Run { workflow: string; status: string; conclusion: string | null; sha: string; at: string; url: string; event: string; number: number }
@@ -21,7 +21,28 @@ export interface Code {
   live: { url: string; build: string | null; error?: string };
   /** Commits on main the web app does not have yet; null when unknown. */
   behind: number | null;
+  /** Whether those commits change a file the web app is built from (APP_BUILD_PATHS); null when unknown. */
+  appChanged: boolean | null;
   runs: Run[];
+}
+
+/**
+ * What the app Worker's Workers Build watches (docs/cloudflare.md): a merge
+ * that changes none of these, such as one for the ops dashboard alone,
+ * builds nothing, so the web app rightly stays on an older commit. A path
+ * ending in `/` stands for everything under it.
+ */
+export const APP_BUILD_PATHS = ['apps/web/', 'apps/mobile/', 'packages/core/', 'packages/sync/', 'server/',
+  'package.json', 'package-lock.json', 'scripts/cloudflare-deploy.mjs', 'scripts/build-jobs.mjs'];
+
+/** GitHub lists at most this many files in a comparison; a full list may have left one out. */
+const COMPARE_FILE_LIMIT = 300;
+
+/** Whether a comparison's files include one the web app is built from; null when GitHub's list may be cut short. */
+export function changesApp(files: readonly { filename: string }[] | undefined): boolean | null {
+  if (!files) return null;
+  if (files.some((f) => APP_BUILD_PATHS.some((p) => (p.endsWith('/') ? f.filename.startsWith(p) : f.filename === p)))) return true;
+  return files.length >= COMPARE_FILE_LIMIT ? null : false;
 }
 
 /** How long a merge may take to reach the web app before it counts as stuck: the export alone takes a few minutes. */
@@ -31,8 +52,8 @@ export function codeAlerts(code: Code, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   const host = new URL(code.live.url).host;
   if (code.live.build === null) {
-    out.push({ level: 'problem', text: `${host}/version.json did not answer${code.live.error ? ` (${code.live.error})` : ''}.` });
-  } else if (!code.main.sha.startsWith(code.live.build) && code.behind !== 0) {
+    out.push({ level: 'urgent', text: `${host}/version.json did not answer${code.live.error ? ` (${code.live.error})` : ''}.` });
+  } else if (!code.main.sha.startsWith(code.live.build) && code.behind !== 0 && code.appChanged !== false) {
     const age = hoursAgo(code.main.at, now);
     if (age === null || age > DEPLOY_GRACE_H) {
       const count = code.behind === null ? 'newer commits' : `${code.behind} newer commit${code.behind === 1 ? '' : 's'}`;
@@ -83,17 +104,19 @@ export async function codeSection(env: { GITHUB_REPO: string; ADMIN_GITHUB_TOKEN
     live
   ]);
   let behind: number | null = null;
-  if (liveBuild.build && head.sha.startsWith(liveBuild.build)) behind = 0;
+  let appChanged: boolean | null = null;
+  if (liveBuild.build && head.sha.startsWith(liveBuild.build)) { behind = 0; appChanged = false; }
   else if (liveBuild.build) {
-    behind = await gh<Compare>(`/compare/${liveBuild.build}...${head.sha}`, 'GitHub compare')
-      .then((c) => c.ahead_by)
-      .catch(() => null);
+    const compare = await gh<Compare>(`/compare/${liveBuild.build}...${head.sha}`, 'GitHub compare').catch(() => null);
+    behind = compare?.ahead_by ?? null;
+    appChanged = compare ? changesApp(compare.files) : null;
   }
   const code: Code = {
     repo: env.GITHUB_REPO,
     main: { sha: head.sha, at: head.commit.committer?.date ?? null, title: head.commit.message.split('\n')[0]!.slice(0, 140) },
     live: { url: env.APP_URL, ...liveBuild },
     behind,
+    appChanged,
     runs: latestPerWorkflow(runs.workflow_runs)
   };
   return ok(code, codeAlerts(code));
