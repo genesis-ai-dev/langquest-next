@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { languageLines } from '@langquest-next/core';
-import { askDoneText, askInput, askModel, TEAM, type AskPicks } from '../src/passage/askModel';
+import { askDoneText, askInput, askModel, linkMessage, linkSpec, linkSummary, NO_LINK_PICKS, TEAM, type AskPicks } from '../src/passage/askModel';
 import { askCandidates } from '../src/passage/record';
 import { passageView } from '../src/passage/passageView';
 import { t } from '../src/i18n';
@@ -8,7 +8,7 @@ import { ID, NAMES, passageWorld, unitOf, type WorldPassage, type WorldRole } fr
 
 const w = passageWorld();
 const picks = (over: Partial<AskPicks> = {}): AskPicks => ({
-  mode: 'team', who: null, guestName: '', contact: '', ...over
+  mode: 'team', who: null, ...over
 });
 
 /** The ask screen's model as `who` sees it on passage `k`. */
@@ -67,15 +67,13 @@ describe('Someone else: who is listed and what Ask says (askModel.ts)', () => {
     expect(askDoneText(model)).toBe(t('passage.ask.doneTeam', { name: NAMES.REV }));
   });
 
-  it('asks nobody about a recording as an outsider, and wants a phone number longer than three characters for a guest', () => {
-    expect(ask('COORD', 'P-NEW', 'record', undefined, picks({ mode: 'outside', guestName: 'Joe' })).model.outside).toBe(false);
-    const guest = (contact: string) => ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ mode: 'outside', guestName: ' Joe Guest ', contact })).model;
-    expect(guest('555').outside).toBe(true);
-    expect(guest('555').ready).toBe(false);
-    expect(guest('5551').ready).toBe(true);
-    expect(guest('5551').target).toBe('Joe Guest');
-    expect(askDoneText(guest('5551'))).toBe(t('passage.ask.doneOutside', { name: 'Joe Guest' }));
-    expect(ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ mode: 'outside', contact: '5551' })).model.ready).toBe(false);
+  it('makes a link for someone without the app, with nothing to fill in first', () => {
+    expect(ask('COORD', 'P-NEW', 'record', undefined, picks({ mode: 'outside' })).model.outside).toBe(false);
+    const { model } = ask('COORD', 'P-SUBMITTED', 'review', 'peer', picks({ mode: 'outside' }));
+    expect(model.outside).toBe(true);
+    expect(model.ready).toBe(true);
+    expect(model.target).toBe('');
+    expect(model.buttonLabel).toBe(t('passage.ask.makeLink'));
   });
 
   it('carries the check\'s own questions, none for a recording', () => {
@@ -87,7 +85,7 @@ describe('Someone else: who is listed and what Ask says (askModel.ts)', () => {
 describe('the ask command it builds', () => {
   const build = (who: WorldRole, p: AskPicks, extra: Partial<Parameters<typeof askInput>[0]> = {}) => {
     const { model } = ask(who, 'P-SUBMITTED', 'review', 'peer', p);
-    return askInput({ commandId: 'c', unitId: 'u', what: 'review', model, picks: p, channel: 'sms', note: '', noteHash: null, questions: [], ...extra });
+    return askInput({ commandId: 'c', unitId: 'u', what: 'review', model, note: '', noteHash: null, questions: [], ...extra });
   };
 
   it('sends to the person picked, with a trimmed note and no due date', () => {
@@ -97,21 +95,44 @@ describe('the ask command it builds', () => {
     });
   });
 
-  it('sends to a guest by the channel and contact, trimmed', () => {
-    const p = picks({ mode: 'outside', guestName: ' Joe ', contact: ' 5551234 ' });
-    expect(build('COORD', p)).toMatchObject({ guest: { name: 'Joe', channel: 'sms', contact: '5551234' } });
-    expect('profileId' in build('COORD', p)).toBe(false);
-  });
-
   it('adds the questions to a check and leaves them off a recording', () => {
     const questions = [{ id: 'ask:1', text: 'Clear?', type: 'yesno' as const }];
     expect(build('COORD', picks({ who: ID.REV }), { questions })).toMatchObject({ questions });
     const { model } = ask('COORD', 'P-NEW', 'record', undefined, picks({ who: ID.TRANS }));
-    const rec = askInput({ commandId: 'c', unitId: 'u', what: 'record', model, picks: picks({ who: ID.TRANS }), channel: 'sms', note: '', noteHash: null, questions });
+    const rec = askInput({ commandId: 'c', unitId: 'u', what: 'record', model, note: '', noteHash: null, questions });
     expect(rec).toEqual({ commandId: 'c', unitId: 'u', what: 'record', profileId: ID.TRANS });
   });
 
   it('has a team marker that no profile id can equal', () => {
     expect(Object.values(ID)).not.toContain(TEAM);
+  });
+});
+
+describe('the review link it makes (decisions.md 158)', () => {
+  const outside = (kindId: string) => ask('COORD', 'P-SUBMITTED', 'review', kindId, picks({ mode: 'outside' })).model;
+  const spec = (kindId: string, over: Partial<typeof NO_LINK_PICKS> = {}) =>
+    linkSpec({ orgId: 'o', languageId: 'l', unitId: 'u', model: outside(kindId), picks: { ...NO_LINK_PICKS, ...over } });
+
+  it('counts toward a step that takes links, for 14 days, for nobody in particular, by default', () => {
+    expect(outside('peer').linksCount).toBe(true);
+    expect(spec('peer')).toEqual({ orgId: 'o', languageId: 'l', unitId: 'u', kindId: 'peer', counts: true, expiresInDays: 14 });
+  });
+
+  it('keeps the advanced picks: feedback only, who it is for (trimmed), and the days', () => {
+    expect(spec('peer', { counts: false, forWhom: ' Pastor Garang ', days: 30 }))
+      .toMatchObject({ counts: false, label: 'Pastor Garang', expiresInDays: 30 });
+  });
+
+  it('is feedback only on a checkpoint, which a link never clears, whatever was picked', () => {
+    expect(outside('consultant').linksCount).toBe(false);
+    expect(spec('consultant', { counts: true }).counts).toBe(false);
+    expect(linkSummary(outside('consultant'), { ...NO_LINK_PICKS, counts: true }))
+      .toBe(t('passage.ask.linkSummary', { counts: t('passage.ask.linkFeedback'), days: 14 }));
+  });
+
+  it('writes the message: the greeting, typed directions if any, then the link', () => {
+    const greet = t('passage.record.guestMessageNoName', { passage: 'Mark 1', language: 'Alpha' });
+    expect(linkMessage({ passage: 'Mark 1', language: 'Alpha', url: 'https://x/r/abc', note: '  ' })).toBe(`${greet}\n\nhttps://x/r/abc`);
+    expect(linkMessage({ passage: 'Mark 1', language: 'Alpha', url: 'https://x/r/abc', note: ' Listen for verse 3 ' })).toBe(`${greet}\n\nListen for verse 3\n\nhttps://x/r/abc`);
   });
 });

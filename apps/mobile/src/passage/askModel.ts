@@ -3,7 +3,7 @@
 // who the request goes to, whether Ask is enabled, and the ask
 // command's input. Pure, so the choices are held by tests
 // (test/askModel.test.ts) and the screen only draws and collects them.
-import { checkPeople, questionsForKind, type Commands, type OrgState, type PassageLines, type QuestionSpec } from '@langquest-next/core';
+import { checkPeople, questionsForKind, stepAllowsLinks, type Commands, type OrgState, type PassageLines, type QuestionSpec } from '@langquest-next/core';
 import { checkName } from '../admin/adminModel';
 import { t } from '../i18n';
 import type { PassageView } from './passageView';
@@ -17,13 +17,27 @@ export const TEAM = '\u0000team';
 export interface Candidate { profileId: string; sub: string; usual: boolean; onCheck: boolean }
 
 export interface AskPicks {
-  /** A teammate, or an outsider reached by WhatsApp or SMS. */
+  /** A teammate, or anyone without the app, by a review link (decisions.md 158). */
   mode: 'team' | 'outside';
   /** The teammate picked, or null (the check's team is then the choice, when it has one). */
   who: string | null;
-  guestName: string;
-  contact: string;
 }
+
+/**
+ * A review link's options, all optional and behind "More options": who it is
+ * for (only the sharer sees it), whether answers count toward the step, and
+ * how many days it stays open. The person who opens it types their own name.
+ */
+export interface LinkPicks {
+  forWhom: string;
+  /** Null: count when the step takes counting links, else feedback. */
+  counts: boolean | null;
+  days: number;
+}
+
+/** The days a sharer may pick; 14 is the server's default (decisions.md 72). */
+export const LINK_DAYS = [7, 14, 30, 90] as const;
+export const NO_LINK_PICKS: LinkPicks = { forWhom: '', counts: null, days: 14 };
 
 export interface AskModel {
   isRecord: boolean;
@@ -42,8 +56,10 @@ export interface AskModel {
   chosen: string | null;
   /** The check's own questions, which the people asked will answer. */
   asked: ReturnType<typeof questionsForKind>;
-  /** Asking someone without the app. */
+  /** Asking someone without the app: the button makes a review link. */
   outside: boolean;
+  /** May a link's answers count toward this check's step (`stepAllowsLinks`)? Else they are feedback only. */
+  linksCount: boolean;
   /** Who the request goes to, as the button says it; empty when nobody is chosen. */
   target: string;
   /** May Ask be pressed. */
@@ -74,29 +90,58 @@ export function askModel(o: {
   const chosen = picks.who ?? (team ? TEAM : null);
   const asked = kindId ? questionsForKind(v.state, kindId) : [];
   const outside = picks.mode === 'outside' && !isRecord;
-  const target = outside ? picks.guestName.trim() : chosen === TEAM && team ? sendTargetLabel(team, o.name) : chosen ? o.name(chosen) : '';
-  const ready = !!target && (!outside || picks.contact.trim().length > 3);
-  const buttonLabel = chosen === TEAM && team && !outside ? t('passage.published.askTarget', { target })
+  const step = kindId ? v.p.flow.steps.find((st) => st.kindIds.includes(kindId)) : undefined;
+  const linksCount = !!step && stepAllowsLinks(v.state, step);
+  const target = outside ? '' : chosen === TEAM && team ? sendTargetLabel(team, o.name) : chosen ? o.name(chosen) : '';
+  const ready = outside || !!target;
+  const buttonLabel = outside ? t('passage.ask.makeLink')
+    : chosen === TEAM && team ? t('passage.published.askTarget', { target })
     : target ? t('passage.ask.askName', { name: target.split(' ')[0] }) : t('passage.ask.chooseSomeone');
-  return { isRecord, kindId, check, title, usual, others, team, teamPeople, chosen, asked, outside, target, ready, buttonLabel };
+  return { isRecord, kindId, check, title, usual, others, team, teamPeople, chosen, asked, outside, linksCount, target, ready, buttonLabel };
 }
 
-/** The toast after asking: who it went to, with Undo to withdraw it. */
-export function askDoneText(m: Pick<AskModel, 'outside' | 'target'>): string {
-  return m.outside ? t('passage.ask.doneOutside', { name: m.target }) : t('passage.ask.doneTeam', { name: m.target });
+/** The toast after asking a teammate or the team, with Undo to withdraw it. */
+export function askDoneText(m: Pick<AskModel, 'target'>): string {
+  return t('passage.ask.doneTeam', { name: m.target });
 }
 
-/** The ask command's input: to the outsider, the check's team or one person; the questions only on a check. */
+/** Whether a link's answers count: the sharer's pick, else whatever the step allows. Never counts where the step does not take it. */
+export function linkCounts(m: Pick<AskModel, 'linksCount'>, picks: LinkPicks): boolean {
+  return m.linksCount && (picks.counts ?? true);
+}
+
+/** The review link's request to the Worker (server/reviewLinks.ts `makeReviewLink`). */
+export function linkSpec(o: { orgId: string; languageId: string; unitId: string; model: AskModel; picks: LinkPicks }) {
+  const forWhom = o.picks.forWhom.trim();
+  return {
+    orgId: o.orgId, languageId: o.languageId, unitId: o.unitId, kindId: o.model.kindId ?? '',
+    counts: linkCounts(o.model, o.picks), expiresInDays: o.picks.days,
+    ...(forWhom ? { label: forWhom.slice(0, 120) } : {})
+  };
+}
+
+/** One line under "More options" that says what the link will do. */
+export function linkSummary(m: Pick<AskModel, 'linksCount'>, picks: LinkPicks): string {
+  const counts = linkCounts(m, picks) ? t('passage.ask.linkCounts') : t('passage.ask.linkFeedback');
+  return t('passage.ask.linkSummary', { counts, days: picks.days });
+}
+
+/** What goes in the message with the link: the greeting, typed directions if any, then the link. */
+export function linkMessage(o: { passage: string; language: string; url: string; note: string }): string {
+  const note = o.note.trim();
+  return [t('passage.record.guestMessageNoName', { passage: o.passage, language: o.language }), ...(note ? [note] : []), o.url].join('\n\n');
+}
+
+/** The ask command's input: to the check's team or one person; the questions only on a check. Someone without the app gets a link instead (`linkSpec`). */
 export function askInput(o: {
-  commandId: string; unitId: string; what: 'record' | 'review'; model: AskModel; picks: AskPicks;
-  channel: 'whatsapp' | 'sms'; note: string; noteHash: string | null; questions: QuestionSpec[];
+  commandId: string; unitId: string; what: 'record' | 'review'; model: AskModel;
+  note: string; noteHash: string | null; questions: QuestionSpec[];
 }): Parameters<Commands['ask']>[0] {
-  const { model: m, picks } = o;
+  const { model: m } = o;
   return {
     commandId: o.commandId, unitId: o.unitId, what: o.what,
     ...(m.kindId ? { kindId: m.kindId } : {}),
-    ...(m.outside ? { guest: { name: picks.guestName.trim(), channel: o.channel, contact: picks.contact.trim() } }
-      : m.chosen === TEAM && m.team ? { teamId: m.team.teamId } : m.chosen ? { profileId: m.chosen } : {}),
+    ...(m.chosen === TEAM && m.team ? { teamId: m.team.teamId } : m.chosen ? { profileId: m.chosen } : {}),
     ...(o.note.trim() ? { note: o.note.trim() } : {}),
     ...(o.noteHash ? { noteBlobHash: o.noteHash } : {}),
     ...(!m.isRecord && o.questions.length ? { questions: o.questions } : {})
