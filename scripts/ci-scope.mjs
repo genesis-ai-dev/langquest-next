@@ -1,7 +1,7 @@
 // Which guardrails jobs a pull request needs, from the files that it changes
-// (decisions.md 150). `checks` always runs. `server`, `web-smoke` and
-// `ui-web` run when a changed file can affect what they test, and the `gate`
-// job passes only when every job that the files need has passed.
+// (decisions.md 150). `checks`, `unit` and `coverage` always run. `server`,
+// `web-smoke` and `ui-web` run when a changed file can affect what they test,
+// and the `gate` job passes only when every job that the files need has passed.
 //
 // The files are the pull request's own change: its diff from where it meets
 // main. The jobs still test the pull request merged with main, as before.
@@ -21,7 +21,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-/** The jobs that scope can leave out. `checks` always runs. */
+/** The jobs that scope can leave out. `checks`, `unit` and `coverage` always run. */
 export const JOBS = ['server', 'web-smoke', 'ui-web'];
 
 const APP = ['web-smoke', 'ui-web'];
@@ -30,7 +30,7 @@ const APP = ['web-smoke', 'ui-web'];
  * The first rule whose pattern matches a file says which of JOBS it needs.
  * Order matters: the shared code (core, sync, migrations, scripts, CI,
  * dependencies) comes before the rules for documents, so its README runs
- * everything too. Unit tests anywhere run in `checks`.
+ * everything too. Unit tests anywhere run in `unit`.
  */
 export const RULES = [
   // What every job runs on: the shared packages, the database, the
@@ -47,7 +47,7 @@ export const RULES = [
   { pattern: /^(apps\/mobile|apps\/web|e2e)\//, jobs: APP },
   { pattern: /^app\.json$/, jobs: APP },
   // Lint's rules, the invite email Worker and the v2 import are held by
-  // `checks` alone (lint, typecheck, unit tests).
+  // `checks` and `unit` alone (lint, typecheck, unit tests).
   { pattern: /^(eslint\.config\.mjs|apps\/invite-email\/|packages\/v2-import\/)/, jobs: [] },
 ];
 

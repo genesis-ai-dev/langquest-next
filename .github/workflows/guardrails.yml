@@ -2,7 +2,11 @@
 #
 # scope:    which of server, web-smoke and ui-web the pull request's
 #           changed files need (scripts/ci-scope.mjs, decisions.md 150).
-# checks:   the pre-push gate again (typecheck + unit and property tests).
+# checks:   typecheck, lint, the server calls of store builds, the push
+#           delivery bundle.
+# unit:     the unit, property and model tests, in three shards dealt by
+#           weight (scripts/unit-shards.ts); `coverage` merges their reports
+#           and holds the thresholds (decisions.md 163).
 # server:   the SQL smokes, SQL parity and client integration test against a
 #           local Supabase started here from the migrations.
 # web-smoke: the release web build in three browser engines (e2e/web-smoke).
@@ -16,11 +20,11 @@
 #           Linear (scripts/nightly-report.mjs; a dry run off main). The
 #           flake tracker reads the last runs' reports and files the tests
 #           that do not pass every time (scripts/ui-flake-report.mjs).
-# gate:     passes when checks and every needed job passed; the one check
-#           that main requires (.github/rulesets/main.json), on the pull
-#           request and again in the merge queue.
+# gate:     passes when checks, unit, coverage and every needed job passed;
+#           the one check that main requires (.github/rulesets/main.json), on
+#           the pull request and again in the merge queue.
 #
-# The four PR jobs start together rather than after `checks`: a PR waits for
+# The PR jobs start together rather than after `checks`: a PR waits for
 # the slowest job, not for `checks` plus it (decisions.md 102, amended
 # 2026-10-15). The three that scope may leave out wait for it, about
 # 20 seconds. A job that needs the local stack starts it in the background
@@ -94,7 +98,8 @@ env:
 # main requires one check, `gate` (.github/rulesets/main.json, decisions.md
 # 150). `scope` says which of `server`, `web-smoke` and `ui-web` the pull
 # request's changed files need (scripts/ci-scope.mjs); the others are
-# skipped. `gate` passes only when `checks` and every needed job passed.
+# skipped. `gate` passes only when `checks`, `unit`, `coverage` and every
+# needed job passed.
 # A job that runs on a pull request is in `gate`'s needs;
 # scripts/githubRules.test.ts fails until it is.
 jobs:
@@ -135,21 +140,6 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: npm run --silent server-calls
-      # The unit suite with coverage; core and client have thresholds (vitest.config.ts).
-      - run: npm run test:coverage
-      - name: Keep the coverage report
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: coverage
-          path: coverage/lcov.info
-          if-no-files-found: ignore
-      - name: Tell Linear (checks failed on main)
-        if: failure() && github.event_name == 'push'
-        continue-on-error: true
-        env:
-          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-        run: node scripts/linear-sync.mjs lane --name checks --status failed --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
       # Supabase deploys the committed push delivery bundle on merge (server/README.md,
       # Deploying); refuse one that is behind its source. The pre-commit and
       # post-merge hooks (.githooks, enabled by npm install) rebuild it, so
@@ -161,6 +151,60 @@ jobs:
             echo "::error::The push delivery function's bundle (supabase/functions/push-delivery) is behind its source. Run npm run build:push-delivery and commit supabase/functions, or run npm install once so the git hooks in .githooks rebuild it on every commit."
             exit 1
           }
+
+  unit:
+    # The unit, property and model tests with coverage, in three shards that
+    # scripts/unit-shards.ts deals by weight. The suite is CPU-bound: 4.5
+    # minutes on one 4-vCPU runner, its slowest file (the organization folder's
+    # memory test) about a third of that. Each shard keeps a blob report with
+    # its coverage, and `coverage` merges them.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Unit tests (shard ${{ matrix.shard }} of 3)
+        env:
+          VITEST_COVERAGE_SHARD: '1'
+        run: npx vitest run --coverage --shard=${{ matrix.shard }}/3 --reporter=blob --reporter=default
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unit-blob-${{ matrix.shard }}
+          path: .vitest/blob/*
+          include-hidden-files: true
+          retention-days: 1
+
+  coverage:
+    # The shards' reports as one, and the coverage thresholds on the whole
+    # suite: core and sync have them (vitest.config.ts).
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: unit-blob-*
+          path: .vitest/blob
+          merge-multiple: true
+      - name: Coverage of the whole suite
+        run: npx vitest run --merge-reports --coverage
+      - name: Keep the coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
 
   server:
     # The server against a local Supabase built from the migrations: the SQL
@@ -341,26 +385,40 @@ jobs:
     # It runs whatever the others did (always()), so a failure or a cancel
     # fails it instead of leaving it skipped, which GitHub would count as a
     # pass.
-    needs: [scope, checks, server, web-smoke, ui-web]
+    needs: [scope, checks, unit, coverage, server, web-smoke, ui-web]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every needed job passed
+        id: verdict
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
           node -e '
             const needs = JSON.parse(process.env.NEEDS);
-            const needed = (job) => job === "checks" || needs.scope.outputs[job] === "true";
+            const always = ["checks", "unit", "coverage"];
+            const needed = (job) => always.includes(job) || needs.scope.outputs[job] === "true";
             let bad = needs.scope.result === "success" ? [] : [`scope ${needs.scope.result}`];
             for (const [job, { result }] of Object.entries(needs)) {
               if (job === "scope") continue;
               if (needed(job) ? result !== "success" : !["success", "skipped"].includes(result)) bad.push(`${job} ${result}`);
               else console.log(`${job}: ${result}${needed(job) ? "" : " (not needed)"}`);
             }
+            const checksFailed = always.some((job) => needs[job].result === "failure");
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `checks-failed=${checksFailed}\n`);
             if (bad.length) { console.log(`::error::Not every needed job passed: ${bad.join(", ")}`); process.exit(1); }
           '
+      # checks, unit or coverage failed on main: the deploy lanes wait on them (decisions.md 53).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: failure() && github.event_name == 'push' && steps.verdict.outputs.checks-failed == 'true'
+        with: { sparse-checkout: scripts }
+      - name: Tell Linear (checks failed on main)
+        if: failure() && github.event_name == 'push' && steps.verdict.outputs.checks-failed == 'true'
+        continue-on-error: true
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: node scripts/linear-sync.mjs lane --name checks --status failed --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
   nightly-ui-web:
     # The whole web UI suite, quarantine apart. Not blocking; its failures go to Linear.
