@@ -1,9 +1,10 @@
 # Global Viewers
 
 A Global Viewer is a LangQuest support person who can open any organization
-and see what a Viewer there sees. Nothing they do changes an organization.
-Their access works only after they enter a code from an authenticator app
-when signing in. Why it works this way: `docs/decisions.md` 158.
+and see it as its admins do: its work, members and setup. Nothing they do
+changes an organization. Their access works only after they enter a code
+from an authenticator app when signing in. Why it works this way:
+`docs/decisions.md` 158. How it is built: "How it works" at the end.
 
 An operator is anyone who can run SQL on the hosted project (`npx supabase
 link` to it). Operators grant, revoke and reset; nothing in the app can.
@@ -16,18 +17,20 @@ Do it on a call (voice or video) with the person, someone you know. Emails
 are on any domain and signing up proves nothing about owning the address, so
 the call is the check.
 
-1. **They make a new account of its own**, not the one they use in any
-   organization, with an email they read, for example
-   `carl+viewer@example.org`. The web app is easiest. Use a long password.
+1. **They have an account**: the one they already use, or a new one. An
+   everyday account works (a Global Viewer may belong to organizations), but
+   it is then signed in on more devices; a separate one, such as
+   `carl+viewer@example.org`, keeps Global Viewer access to one or two.
+   Either way, a long password.
 2. **You grant it**, while they wait:
 
    ```bash
    npm run global-viewer -- grant carl+viewer@example.org --note "LAN-123, support for the Dinka team" --hosted
    ```
 
-   It refuses, saying why, an account more than 24 hours old, one that
-   already has an authenticator, one that belongs to an organization or has
-   asked to join one, a looked-after account and a suspended one.
+   It refuses, saying why, an account that already has an authenticator,
+   a looked-after account and a suspended one. A revoked account can be
+   granted again: its old authenticators and sign-ins are cleared first.
 3. **They set up their authenticator**: in the app, Me → Global Viewer →
    Set up authenticator. They scan the code (or, on a phone, open it in
    their authenticator app), then type the 6-digit code it shows.
@@ -43,13 +46,14 @@ the call is the check.
 
 ## Day to day
 
-After signing in, the account lands on "What brings you here?", which
-offers only Global Viewer. There they type the code their authenticator
-shows; until they do, the account sees nothing. Global Viewer then finds an
-organization by its name or a language's name. Inside one, the **Viewing**
-tab (before Me) shows the organization they are in and lets them open
-another; on a desktop the sidebar also says "Viewing as a Global Viewer"
-under the organization's name. The code is asked for once per sign-in.
+After signing in, an account in no organization lands on "What brings you
+here?", with Global Viewer first; one in an organization lands in it, and
+the eye in the header opens Global Viewer. There they type the code their
+authenticator shows; until they do, they see only what their own
+memberships show. Global Viewer then finds an
+organization by its name or a language's name. Inside one, the eye in every
+header opens Global Viewer again: the organization they are in, and the
+search for another. The code is asked for once per sign-in.
 Opening an organization downloads its organization stream, and each language only when
 it is opened.
 
@@ -61,10 +65,12 @@ npm run global-viewer -- revoke carl+viewer@example.org --hosted
 
 Access is off at once, and every sign-in of the account ends at its next
 request. For up to a minute the Worker may still serve a file it had already
-allowed (decisions.md 121). The account stays marked as a former Global
-Viewer and can't be granted again; if they come back, they make a new
-account. When someone leaves LangQuest, revoke, then delete the account
-(`delete_account_for_email`, decisions.md 46).
+allowed (decisions.md 121). The account is then an ordinary one: signing in
+shows "Global Viewer access has ended" and the usual ways to join an
+organization. To make it a Global Viewer again, `grant` it on a call as at
+first; its old authenticators are cleared. When someone leaves LangQuest,
+revoke, then delete the account (`delete_account_for_email`, decisions.md
+46) or suspend it (`npm run moderation -- suspend`).
 
 ## A lost authenticator
 
@@ -84,3 +90,41 @@ Authenticator codes have to be on there. They are set in
 `supabase/config.toml` (`[auth.mfa.totp]`), but merging doesn't apply Auth
 settings: run `npx supabase config push` for that project
 (`docs/environments.md`, Auth settings).
+
+## How it works
+
+| Rule | Where it holds |
+| --- | --- |
+| Access needs an active row in `public.global_viewers` and an `aal2` session (a code entered this sign-in) | `_gv_on`, checked on every request |
+| Every stream but people's own, every file, the library and members' names may be read | `can_read_stream` (`_can_read_stream_at`), `blob_access` (`p_aal` from the Worker), `_library_member`, `global_viewer_directory`, `profile_visible` |
+| Nothing may be written | `may_emit` never asks about Global Viewers; the app's read-only session refuses every append (`src/shell/readOnly.ts`) |
+| A Global Viewer may belong to organizations, with their own role there | nobody signs them in for them (`may_help_sign_in`); a revoked account is an ordinary one |
+| A file check said without the session's level refuses | `blob_access` with no `p_aal`: a path that forgets it keeps Global Viewers out |
+
+In the app:
+
+- `get_user_state` says `globalViewer`: `needs_setup`, `needs_code`, `on`
+  or `revoked` (`src/account/useGlobalViewer.ts`). The Global Viewer screen
+  (`src/screens/globalViewer.tsx`) sets up the authenticator, takes the
+  code, and lists organizations (`global_viewer_organizations`).
+- In an organization they are not in, the session is read-only
+  (`deriveSession`): it shows what an Organization Admin's would, so every
+  screen looks as its admins see it, and `readOnly` wraps the organization's
+  and the language's handles so nothing is appended. The two hooks that
+  write by themselves (`useLibraryFollow`, `useTranslatorReview`) skip a
+  read-only session, and a server refusing a write says so in words
+  (`readOnlyRefusal` in `failureMessage`). Controls that go by the
+  organization's own roles, such as renaming it, stay hidden.
+- An eye in every header ("Global Viewer" beside it on a wide window,
+  `src/account/GlobalViewerLink.tsx`, through `src/ui/headerExtra.ts`), in
+  any organization, theirs too, until access is revoked. It opens the
+  Global Viewer screen: the code if it is still needed, the organization
+  they are viewing, then every other one. Their tabs are an admin's without Work and the Inbox, where
+  nothing arrives for them (decision 71, amended).
+
+Not built, on purpose (Carl Sauder, 2026-10-21): support changing anything
+in an organization. Support talks an admin through a change instead; if
+hands-on help is ever needed, the admin invites the support person's
+ordinary account, not their Global Viewer account, and removes it after.
+Granting support a membership that ends by itself was planned and dropped
+for its size (a new versioned event, a clock in every privilege check).
