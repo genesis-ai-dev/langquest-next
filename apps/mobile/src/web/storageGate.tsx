@@ -100,6 +100,13 @@ export function StorageGate(props: { children: ReactNode }) {
   const [actions, setActions] = useState<{ useHere(): void } | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  /**
+   * Reported once until Try again. Reporting writes a diagnostic, and on the
+   * web the diagnostics file waits on the event log (store.ts), so the write
+   * fails the same way and calls back here: reporting every call gave the
+   * screen a new code many times a second (a private Safari window).
+   */
+  const reported = useRef(false);
 
   useEffect(() => onStoreFailure((e) => {
     // Right after a takeover the other tab's files may not have been let go yet: reload once and open again.
@@ -108,6 +115,8 @@ export function StorageGate(props: { children: ReactNode }) {
       window.location.reload();
       return;
     }
+    if (reported.current) return;
+    reported.current = true;
     setFailure(reportError('open storage', e));
   }), []);
 
@@ -147,7 +156,7 @@ export function StorageGate(props: { children: ReactNode }) {
         <Text style={txt.smMuted} selectable>{t('entry.storage.code', { code: failure })}</Text>
         <PrimaryBtn label={t('common.tryAgain')} icon="restart" help={t('help.details.tryAgain')} onPress={() => {
           if (WEB) window.location.reload();
-          else { setFailure(null); setAttempt((n) => n + 1); }
+          else { reported.current = false; setFailure(null); setAttempt((n) => n + 1); }
         }} />
       </ScrollView>
     );
