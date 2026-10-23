@@ -6764,8 +6764,11 @@ on main as it will be with the pull requests ahead (the `merge_group`
 trigger in guardrails.yml), and a pull request merges only when that run is
 green. `scope` measures the files that the queued pull requests change on
 main, so a change to the decision log still skips the browser jobs. The
-queue builds up to three entries at once, merges with a merge commit as
-before, and waits for no batch (`.github/rulesets/main.json`). The strict
+queue tests and merges one pull request at a time, with a merge commit as
+before (`.github/rulesets/main.json`): the release-branch job (decision 155)
+copies the one merge that a push to main brings, and keeps only one run
+waiting, so merges pushed together or seconds apart would leave a copy out.
+A pull request waits for the ones ahead of it, about ten minutes each. The strict
 up-to-date rule was the other way: it needs no code, but every merge would
 make every open pull request update and run its checks again.
 

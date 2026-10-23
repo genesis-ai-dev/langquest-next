@@ -36,6 +36,10 @@ describe('the ruleset for main', () => {
     // GitHub waits for the required check on the queue's own commit; without this trigger nothing reports it.
     expect(guardrails).toMatch(/^on:\n(?: {2}.*\n|\s*\n)*? {2}merge_group:/m);
     expect(queue?.parameters.check_response_timeout_minutes).toBeGreaterThanOrEqual(30);
+    // One merge per push to main, minutes apart: release-branches.yml handles only the pushed commit,
+    // and its concurrency group keeps one waiting run, so a burst of pushes would skip a merge's copy.
+    expect(queue?.parameters.max_entries_to_build).toBe(1);
+    expect(queue?.parameters.max_entries_to_merge).toBe(1);
   });
 
   it('lets nobody merge past a red check', () => {
