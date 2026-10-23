@@ -5,8 +5,10 @@
 # depends on code that the public build does not have, and turns on
 # auto-merge. The pull request's checks run as for any other.
 #
-# Needs the secret ANTHROPIC_API_KEY, and the GitHub App of
-# release-branches.yml, so that Claude's push starts the checks.
+# Needs the GitHub App of release-branches.yml, so that Claude's push starts
+# the checks, and the secret ANTHROPIC_API_KEY for Claude. Without that key
+# the pull request gets one comment naming the files in conflict and stays
+# open for a person or a Claude session to finish; nothing fails.
 name: release-copy-conflict
 
 on:
@@ -21,6 +23,8 @@ jobs:
     if: github.event.label.name == 'copy-conflict' && startsWith(github.event.pull_request.base.ref, 'release/') && vars.RELEASE_BRANCHES == 'on'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      HAS_CLAUDE_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
     steps:
       - id: token
         uses: actions/create-github-app-token@v1
@@ -32,7 +36,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
+      - name: Without a Claude key, name the files in conflict for a person
+        if: env.HAS_CLAUDE_KEY != 'true'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+          PR: ${{ github.event.pull_request.number }}
+        run: node scripts/release-branches.mjs conflict-note --branch "$HEAD" --pr "$PR"
       - uses: anthropics/claude-code-action@v1
+        if: env.HAS_CLAUDE_KEY == 'true'
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ steps.token.outputs.token }}
