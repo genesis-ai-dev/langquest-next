@@ -24,8 +24,12 @@ export interface Env {
   /** The app's Apple id in App Store Connect (eas.json submit.production.ios.ascAppId). */
   APP_STORE_APP_ID: string;
 
-  /** diag_reader's login (scripts/diag-access.sh): reads `diag` and nothing else, and cannot write. */
-  DIAG_DATABASE_URL: string;
+  /**
+   * diag_reader's connection (scripts/diag-access.sh: reads `diag` and nothing
+   * else, and cannot write), through Hyperdrive (db.ts diagConnection). Its
+   * config holds the login; this Worker never sees it.
+   */
+  DIAG?: Hyperdrive;
 
   // Optional, each read only by its own section (docs/admin.md says how to make one).
   /** Account Analytics Read, Workers Scripts Read, Workers CI Read. */

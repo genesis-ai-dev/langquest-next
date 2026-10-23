@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { parseJsonc, wranglerFor } from './env-files.mjs';
 import {
-  ADMIN_KEYS, CRON_JOB, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql, workersIn
+  ADMIN_KEYS, CRON_JOB, HYPERDRIVE_PLACEHOLDER, createdId, hyperdriveId, withHyperdriveId, FILE_KEYS, OPTIONAL_KEYS, PUSH_FUNCTION, REQUIRED_KEYS, RETIRED_FUNCTION_SECRETS, RETIRED_JOB, SCHEDULE_MIGRATION, WEBHOOK_MIGRATION, WORKERS, destinations, digest, drift, failure, queryRows, relayUrl, summarize, unknownKeys, vaultSql, workersIn
 } from './secrets.mjs';
 
 const read = (file: string) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -12,18 +12,23 @@ describe('secrets', () => {
   it('sets exactly the secrets each Worker requires, so a deploy never stops for one', () => {
     for (const env of ['production', 'preview']) {
       const wanted = destinations(env, { ...values, DIAG_DATABASE_URL: 'postgresql://diag' }, 'ref', 'service');
-      expect(Object.keys(wanted.workers).sort(), env).toEqual(Object.keys(workersIn(env)).sort());
       for (const [worker, config] of Object.entries(workersIn(env))) {
         const required = wranglerFor(parseJsonc(read(config as string)), env).secrets?.required ?? [];
-        expect(Object.keys(wanted.workers[worker as keyof typeof WORKERS]).sort(), `${worker} ${env}`).toEqual([...required].sort());
+        // A Worker that requires none (the ops dashboard, with no provider token in the file) gets none.
+        const given = (wanted.workers as Record<string, Record<string, string>>)[worker] ?? {};
+        expect(Object.keys(given).sort(), `${worker} ${env}`).toEqual([...required].sort());
       }
     }
   });
 
-  it("gives the admin page diag_reader's login and the tokens the file has, never the service-role key, and only in production", () => {
+  it("gives the ops dashboard the tokens the file has, and diag_reader's login to Hyperdrive, never to the Worker, and only in production", () => {
     const file = { ...values, DIAG_DATABASE_URL: 'postgresql://diag', ADMIN_EXPO_TOKEN: 'e', ADMIN_GITHUB_TOKEN: '' };
-    expect(destinations('production', file, 'ref', 'service').workers.admin).toEqual({ DIAG_DATABASE_URL: 'postgresql://diag', ADMIN_EXPO_TOKEN: 'e' });
+    const production = destinations('production', file, 'ref', 'service');
+    expect(production.workers.admin).toEqual({ ADMIN_EXPO_TOKEN: 'e' });
+    expect(production.hyperdrive).toEqual({ connectionString: 'postgresql://diag' });
     expect(destinations('preview', file, 'ref', 'service').workers).not.toHaveProperty('admin');
+    expect(destinations('preview', file, 'ref', 'service').hyperdrive).toBeNull();
+    expect(destinations('production', { ...values, DIAG_DATABASE_URL: 'postgresql://diag' }, 'ref', 'service').workers).not.toHaveProperty('admin');
     for (const key of ADMIN_KEYS) {
       expect(FILE_KEYS).toContain(key);
       expect(wranglerFor(parseJsonc(read(WORKERS.admin)), 'production').secrets?.required ?? []).not.toContain(key);
@@ -136,5 +141,32 @@ describe('secrets', () => {
     const sql = vaultSql({ n: "a'b" });
     expect(sql).toContain("vault.create_secret('a''b', 'n')");
     expect(sql).toContain("vault.update_secret(existing, 'a''b')");
+  });
+});
+
+describe('the ops dashboard\'s Hyperdrive config', () => {
+  const config = `{\n  "name": "langquest-next-admin",\n  // diag_reader's login lives in Hyperdrive\n  "hyperdrive": [{ "binding": "DIAG", "id": "${HYPERDRIVE_PLACEHOLDER}" }]\n}\n`;
+  const id = '0123456789abcdef0123456789abcdef';
+
+  it('reads no id while the config holds the placeholder, and the id once it is written', () => {
+    expect(hyperdriveId(config)).toBeNull();
+    expect(hyperdriveId(withHyperdriveId(config, id))).toBe(id);
+  });
+
+  it('writes the id over the placeholder only, keeping the comments', () => {
+    const written = withHyperdriveId(config, id);
+    expect(written).toBe(config.replace(HYPERDRIVE_PLACEHOLDER, id));
+    expect(() => withHyperdriveId(config, 'not-an-id')).toThrow(/not a Hyperdrive id/);
+    expect(() => withHyperdriveId(written, id)).toThrow(/has no/);
+  });
+
+  it('finds the id in what wrangler prints when it makes the config', () => {
+    expect(createdId(`✅ Created new Hyperdrive PostgreSQL config: ${id}\n{ "id": "${id}" }`)).toBe(id);
+    expect(createdId('nothing here')).toBeNull();
+  });
+
+  it('holds the committed config to a placeholder or a real id', () => {
+    const committed = read(WORKERS.admin);
+    expect(committed).toMatch(new RegExp(`"binding": "DIAG", "id": "(${HYPERDRIVE_PLACEHOLDER}|[0-9a-f]{32})"`));
   });
 });

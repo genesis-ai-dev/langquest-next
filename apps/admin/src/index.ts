@@ -1,6 +1,6 @@
 import { access, bearer } from './auth';
 import { API_BASE, PAGE_PATH } from './paths';
-import { withDiag } from './db';
+import { diagConnection, withDiag } from './db';
 import type { Env } from './env';
 import { page, SECURITY_HEADERS } from './page';
 import { settle, type Section } from './section';
@@ -63,12 +63,12 @@ const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worke
 const unreachable = (e: unknown): Section => ({ state: 'error', alerts: [], error: `Could not reach the database as diag_reader: ${errorText(e)}`, checkedAt: new Date().toISOString() });
 
 async function diagAnswer(env: Env): Promise<Record<string, Section>> {
-  try { return { ...(await withDiag(env.DIAG_DATABASE_URL, diagSections)) }; }
+  try { return { ...(await withDiag(diagConnection(env), diagSections)) }; }
   catch (e) { return Object.fromEntries(DIAG_IDS.map((id) => [id, unreachable(e)])); }
 }
 
 async function opsAnswer(env: Env): Promise<Record<string, Section>> {
-  try { return { ...(await withDiag<OpsSections>(env.DIAG_DATABASE_URL, opsSections)) }; }
+  try { return { ...(await withDiag<OpsSections>(diagConnection(env), opsSections)) }; }
   catch (e) { return Object.fromEntries(OPS_IDS.map((id) => [id, unreachable(e)])); }
 }
 
@@ -130,7 +130,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   const org = /^org\/([^/]{1,200})$/.exec(section);
   if (org) {
     try {
-      return json(await withDiag(env.DIAG_DATABASE_URL, (query) => orgDetail(query, decodeURIComponent(org[1]!))));
+      return json(await withDiag(diagConnection(env), (query) => orgDetail(query, decodeURIComponent(org[1]!))));
     } catch (e) {
       return json(unreachable(e));
     }
@@ -139,7 +139,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     const q = (url.searchParams.get('q') ?? '').trim();
     if (!q || q.length > 254) return json({ error: 'Type an error code, an install id, an email or a name.' }, 400);
     try {
-      return json(await withDiag(env.DIAG_DATABASE_URL, (query) => lookup(query, q)));
+      return json(await withDiag(diagConnection(env), (query) => lookup(query, q)));
     } catch (e) {
       return json({ error: errorText(e) }, 502);
     }
@@ -149,7 +149,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (file) {
     if (!UUID.test(file[1]!)) return json({ error: 'Not a feedback id' }, 400);
     try {
-      const bytes = await withDiag(env.DIAG_DATABASE_URL, (query) => query<Uint8Array | null>(file[2] === 'voice' ? VOICE_SQL : SCREENSHOT_SQL, [file[1]!]));
+      const bytes = await withDiag(diagConnection(env), (query) => query<Uint8Array | null>(file[2] === 'voice' ? VOICE_SQL : SCREENSHOT_SQL, [file[1]!]));
       if (!bytes) return json({ error: `No ${file[2]}` }, 404);
       const type = mediaType(bytes);
       if (!type || (file[2] === 'voice') !== type.startsWith('audio/')) return json({ error: 'Not a file this page shows' }, 415);

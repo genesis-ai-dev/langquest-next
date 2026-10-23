@@ -193,7 +193,10 @@ async function token() {
 async function api(path) {
   const t = await token();
   if (!t) { showSignIn(); throw new Error('Signed out'); }
-  const res = await fetch(path, { headers: { authorization: 'Bearer ' + t } });
+  // A part with no answer says so after a minute, rather than stay at Loading… for good.
+  let res;
+  try { res = await fetch(path, { headers: { authorization: 'Bearer ' + t }, signal: AbortSignal.timeout(60000) }); }
+  catch (err) { throw new Error(err && err.name === 'TimeoutError' ? 'No answer within 60 s.' : 'Could not reach the dashboard API: ' + (err && err.message)); }
   if (res.status === 401) { sessionStorage.removeItem(KEY); showSignIn('Your sign-in ended. Sign in again.'); throw new Error('Signed out'); }
   const body = await res.json().catch(() => ({}));
   if (res.status === 403 && body.need === 'code' && session()) { askCode(); throw new Error('Not an admin'); }

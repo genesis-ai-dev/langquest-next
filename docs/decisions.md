@@ -7336,6 +7336,23 @@ seconds per isolate. The page asks for the authenticator code itself, and
 reads (never renews) the web app's session on the same host when it is
 already `aal2`. This supersedes the reverse-if about the list growing.
 
+Amended (2026-10-23, Carl Sauder): the Worker reaches the database through
+Cloudflare Hyperdrive (the `DIAG` binding, config `langquest-next-diag`,
+caching off), not with `DIAG_DATABASE_URL` as its own secret. In
+production every database section stayed on "Loading…": the Workers
+runtime could not finish TLS with Supabase's pooler or its direct host,
+with `postgres` or `pg`, while the same login answered from a laptop in
+under two seconds. Hyperdrive holds the TLS connection outside the
+Worker, which talks to it in plain text inside Cloudflare; it is included
+in the Workers Paid plan. Caching is off because the page shows live
+counts. The login now lives in the Hyperdrive config, which cannot be read
+back: `npm run secrets -- production` makes or updates it from
+`DIAG_DATABASE_URL` and writes its id into `apps/admin/wrangler.jsonc`
+(not a secret). Each request also gives up after 25 seconds on the
+server and 60 in the page, so a database that does not answer shows an
+error instead of Loading. Locally the binding's `localConnectionString`
+is the local database, so the page uses the same path everywhere.
+
 ## 161. The ops dashboard counts what the server already sees, adds four counts of its own, and reads job state through one read-only entrypoint
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted

@@ -121,14 +121,29 @@ for the address: langquest.org's wildcard record answers for `admin`
 until the first deploy adds the Worker's own record, which takes
 precedence. Keep the wildcard; other addresses may rely on it.
 
-### 1. Make the Worker and give it its database login
+### 1. Make the Worker and its database connection
 
 From the admin page's branch (before it merges), run
 `npm run secrets -- production`. It compares, lists what it will set
 (names only) and asks `Apply to production? [y/N]`; answer `y`. Among the
-rest it creates the Worker `langquest-next-admin` and gives it
-`DIAG_DATABASE_URL`, diag_reader's read-only login, already in
-`.env.production`. The Worker has no code yet, so nothing answers.
+rest it:
+
+- creates the Worker `langquest-next-admin` with the `ADMIN_*` tokens
+  `.env.production` holds (step 5). The Worker has no code yet, so nothing
+  answers.
+- makes the Hyperdrive config `langquest-next-diag` from
+  `DIAG_DATABASE_URL`, diag_reader's read-only login, with caching off, and
+  writes its id into `apps/admin/wrangler.jsonc` in place of
+  `made-by-npm-run-secrets`. Commit that file on the branch. The id is not
+  a secret; the login stays in the Hyperdrive config, which cannot be read
+  back.
+
+The Worker reads the database only through that config (the `DIAG`
+binding): the Workers runtime cannot finish TLS with Supabase's pooler
+itself, so a Worker given the login directly waits until the request
+times out (decision 160, amended). Running `npm run secrets -- production`
+again after `DIAG_DATABASE_URL` changes updates the same config; there is
+nothing to redeploy.
 
 ### 2. Connect it to Workers Builds
 
@@ -233,7 +248,9 @@ password, Cloudflare Access can sit in front of `/ops-dashboard*` and
 
 `apps/admin/.dev.vars` (ignored by git) overrides the vars: `SUPABASE_URL`
 and `SUPABASE_ANON_KEY` of a local stack, `DIAG_DATABASE_URL` for its
-database. Sign in with a local account made a Global Viewer with
+database (the copy below makes it the `DIAG` binding's
+`localConnectionString`, so the page reads locally the way it does in
+production, through the binding). Sign in with a local account made a Global Viewer with
 `npm run global-viewer -- grant <email> --note local` (no `--hosted`), its
 authenticator set up in the app. On a local
 stack diag_reader has no login; give it one there only
@@ -243,7 +260,8 @@ under their production names (`ADMIN_CLOUDFLARE_TOKEN=...`, the two JSON
 keys each on one line). Wrangler loads from `.dev.vars` only the secrets a
 config requires, and these are optional, so `scripts/admin-dev-config.ts`
 writes `apps/admin/.wrangler.dev.jsonc` (ignored by git), a copy that also
-requires each `ADMIN_*` the file holds; `npm run admin:dev` runs it first.
+requires each `ADMIN_*` the file holds and points `DIAG` at your
+database; `npm run admin:dev` runs it first.
 Restart after adding a token. Then `npm run admin:dev` serves
 `http://localhost:8791/ops-dashboard`. Started beside `npm run web:dev`,
 the app's Worker on :8787 finds it through wrangler's local registry, so

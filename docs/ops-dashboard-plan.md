@@ -510,9 +510,11 @@ Weighed and not chosen:
 | Routes in the app's Worker | The provider tokens would sit on the Worker that answers the public (Caleb's reason for a Worker of its own). |
 
 Each request opens one connection to the database's pooler as
-`diag_reader`. For a few people that is fine. If it shows in the page's
-time, Cloudflare Hyperdrive pools and caches those connections: a binding
-and a line of config, not worth adding before it is needed.
+`diag_reader`, through Cloudflare Hyperdrive (the `DIAG` binding, caching
+off). It was meant to wait until it was needed, but production showed
+it is: the Workers runtime cannot finish TLS with Supabase's pooler, so
+without it every database section stayed on Loading (decision 160,
+amended).
 
 ### 11.2 `OrgSnapshot`: never read
 
