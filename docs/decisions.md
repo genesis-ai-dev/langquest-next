@@ -6756,6 +6756,22 @@ the pull request (then move the file that caused it to a rule that runs that
 job); or merges pass checks that were green against an older main and break
 it (then turn on `strict_required_status_checks_policy` or a merge queue).
 
+Amended (2026-10-23, Caleb Koster): pull requests merge through GitHub's
+merge queue. Two pull requests that were each green against main could still
+break it together, for example by taking the same decision number, and the
+run on main found that only after the merge. In the queue, `gate` runs again
+on main as it will be with the pull requests ahead (the `merge_group`
+trigger in guardrails.yml), and a pull request merges only when that run is
+green. `scope` measures the files that the queued pull requests change on
+main, so a change to the decision log still skips the browser jobs. The
+queue tests and merges one pull request at a time, with a merge commit as
+before (`.github/rulesets/main.json`): the release-branch job (decision 155)
+copies the one merge that a push to main brings, and keeps only one run
+waiting, so merges pushed together or seconds apart would leave a copy out.
+A pull request waits for the ones ahead of it, about ten minutes each. The strict
+up-to-date rule was the other way: it needs no code, but every merge would
+make every open pull request update and run its checks again.
+
 ## 151. A pull request may not take away a server call that a supported store build makes
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted

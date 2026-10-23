@@ -5,6 +5,9 @@
 //
 // The files are the pull request's own change: its diff from where it meets
 // main. The jobs still test the pull request merged with main, as before.
+// In the merge queue, the files are what the queued pull requests change on
+// main: the entry's diff from its base, which holds this pull request and
+// every one ahead of it.
 // A file that no rule below names runs every job, and so does any error:
 // this never fails a run. A push to main, the nightly run and a manual run
 // run every job.
@@ -78,14 +81,21 @@ function say(scope, reason, env = process.env) {
 
 const everything = (why) => Object.fromEntries(JOBS.map((job) => [job, why]));
 
+/** What a run's changed files are measured between, or null when every job runs. */
+export function eventRange(name, event) {
+  if (name === 'pull_request') return { what: 'pull request', base: `origin/${event.pull_request.base.ref}`, head: event.pull_request.head.sha };
+  if (name === 'merge_group') return { what: 'merge queue entry', base: event.merge_group.base_sha, head: event.merge_group.head_sha };
+  return null;
+}
+
 function main(env = process.env) {
   const args = process.argv.slice(2);
   if (args.length) return say(scopeFor(args), `For ${args.length} file(s):`, {});
-  if (env.GITHUB_EVENT_NAME !== 'pull_request') return say(everything(`a ${env.GITHUB_EVENT_NAME ?? 'local'} run`), 'Every job runs.');
-  const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
-  const files = changedFiles(process.cwd(), `origin/${event.pull_request.base.ref}`, event.pull_request.head.sha);
-  if (files.length === 0) return say(everything('the pull request changes no file'), 'Every job runs.');
-  say(scopeFor(files), `The pull request changes ${files.length} file(s).`);
+  const range = eventRange(env.GITHUB_EVENT_NAME, env.GITHUB_EVENT_PATH && JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')));
+  if (!range) return say(everything(`a ${env.GITHUB_EVENT_NAME ?? 'local'} run`), 'Every job runs.');
+  const files = changedFiles(process.cwd(), range.base, range.head);
+  if (files.length === 0) return say(everything(`the ${range.what} changes no file`), 'Every job runs.');
+  say(scopeFor(files), `The ${range.what} changes ${files.length} file(s).`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
