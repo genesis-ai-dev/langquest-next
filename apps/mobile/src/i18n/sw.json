@@ -4435,8 +4435,7 @@
       "manage": "Lugha, watu na mipangilio ya shirika lako.",
       "inbox": "Yaliyotokea yanayokuhusu: maombi, maoni, watu wanaoomba kujiunga.",
       "me": "Jina lako, kifaa hiki na mipangilio yako.",
-      "explorer": "Hufungua kichunguzi cha lugha kwenye kichupo kipya: kila lugha na mahali inapozungumzwa.",
-      "globalViewer": "Unapotazama, unachoweza kufanya huko, na mashirika mengine yote."
+      "explorer": "Hufungua kichunguzi cha lugha kwenye kichupo kipya: kila lugha na mahali inapozungumzwa."
     },
     "sync": {
       "live": "Nukta ya kijani: imeunganishwa. Kazi yako inatumwa unapoendelea. Gusa ili kuona kilichotumwa.",
@@ -7330,9 +7329,9 @@
     "openHelp": "Hufungua shirika hili kusoma.",
     "noneFound": "Hakuna shirika linalolingana.",
     "more": "Onyesha zaidi",
-    "tabViewing": "Kutazama",
-    "sidebarViewing": "Unatazama kama Mtazamaji wa Kimataifa",
     "hereLabel": "Unatazama sasa",
-    "otherLabel": "Fungua shirika lingine"
+    "otherLabel": "Fungua shirika lingine",
+    "readOnly": "Unatazama kama Mtazamaji wa Kimataifa: hakuna kinachoweza kubadilishwa hapa.",
+    "linkHelp": "Unapotazama, unachoweza kufanya huko, na mashirika mengine yote."
   }
 }

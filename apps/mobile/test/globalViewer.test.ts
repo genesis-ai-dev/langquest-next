@@ -1,4 +1,7 @@
-import { foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
+import { CommandError, foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
+import { readOnlyLanguage, readOnlyOrg, readOnlyRefusal, setReadOnlySession } from '../src/shell/readOnly';
+import type { LanguageHandle } from '../src/sync/useLanguage';
+import type { OrgHandle } from '../src/sync/useOrg';
 import { accessOf, codeOf, keyInGroups } from '../src/account/globalViewerModel';
 import { openLanguage } from '../src/shell/languages';
 import { deriveSession, homeScreenFor, manageHomeFor, postSignInScreen, tabsFor } from '../src/shell/session';
@@ -39,27 +42,28 @@ describe('Global Viewer access as the server reports it', () => {
 describe('a Global Viewer in an organization they are not in', () => {
   const viewing = deriveSession('gv', 'gv@example.org', true, ORG, 'L-din', false, 'on');
 
-  it('sees what a Viewer sees, and is no admin', () => {
-    expect([...viewing.privileges]).toEqual(['view_status']);
-    expect(viewing.isViewer).toBe(true);
-    expect(viewing.isAdmin).toBe(false);
+  it('sees what an admin sees, read-only (decision 158 amended)', () => {
+    expect(viewing.readOnly).toBe(true);
+    expect(viewing.can('manage_roles')).toBe(true);
+    expect(viewing.isAdmin).toBe(true);
+    expect(viewing.adminScope).toEqual({ level: 'org' });
     expect(viewing.hasNoOrg).toBe(false);
+    // The overview, not a My Work of nothing to do; Manage opens the organization's page.
     expect(homeScreenFor(viewing)).toBe('status_home');
-    expect(manageHomeFor(viewing)).toBeNull();
+    expect(manageHomeFor(viewing)).toBe('org_home');
     expect(viewing.isGlobalViewer).toBe(true);
     expect(viewing.viewingAsGlobalViewer).toBe(true);
   });
 
-  it('has a tab of their own before Me, and a Viewer\'s others (decision 71 amended)', () => {
-    expect(tabsFor(viewing).map((t) => t.id)).toEqual(['map', 'inbox', 'global', 'me']);
-    expect(tabsFor(viewing).find((t) => t.id === 'global')?.screen).toBe('global_viewer');
-    expect(tabsFor(viewing, undefined, { wide: true }).map((t) => t.id)).toEqual(['map', 'reports', 'inbox', 'global', 'me']);
+  it('has an admin\'s tabs but Work and the Inbox, where nothing arrives for them (decision 71 amended)', () => {
+    expect(tabsFor(viewing).map((t) => t.id)).toEqual(['map', 'manage', 'me']);
+    expect(tabsFor(viewing, undefined, { wide: true }).map((t) => t.id)).toEqual(['map', 'reports', 'manage', 'me']);
   });
 
-  it('gives nobody else the tab, a member Global Viewer included', () => {
+  it('leaves everyone else\'s tabs alone, a member Global Viewer included', () => {
     const member = deriveSession('akol', 'akol@example.org', true, ORG, 'L-nus', false, 'on');
-    expect(tabsFor(member).some((t) => t.id === 'global')).toBe(false);
-    expect(tabsFor(deriveSession('owner', 'owner@example.org', true, ORG, 'L-din')).some((t) => t.id === 'global')).toBe(false);
+    expect(tabsFor(member).map((t) => t.id)).toEqual(['work', 'map', 'me']);
+    expect(tabsFor(deriveSession('owner', 'owner@example.org', true, ORG, 'L-din')).map((t) => t.id)).toEqual(['work', 'map', 'manage', 'me']);
   });
 
   it('is not welcomed to a team they are only looking in on', () => {
@@ -74,6 +78,7 @@ describe('a Global Viewer in an organization they are not in', () => {
       expect(s.privileges.size).toBe(0);
       expect(homeScreenFor(s)).toBe('intent_chooser');
       expect(s.viewingAsGlobalViewer).toBe(false);
+      expect(s.readOnly).toBe(false);
     }
   });
 
@@ -87,12 +92,40 @@ describe('a Global Viewer in an organization they are not in', () => {
   it('keeps a member’s own role, and is not shown as only viewing there', () => {
     const member = deriveSession('akol', 'akol@example.org', true, ORG, 'L-nus', false, 'on');
     expect(member.privileges.has('translate')).toBe(true);
-    expect(member.privileges.has('view_status')).toBe(true);
+    expect(member.privileges.has('manage_roles')).toBe(false);
     expect(member.viewingAsGlobalViewer).toBe(false);
+    expect(member.readOnly).toBe(false);
   });
 
   it('may open any language, where anyone else opens only their own', () => {
     expect(openLanguage(ORG, 'gv', { param: 'L-din' }, true)).toBe('L-din');
     expect(openLanguage(ORG, 'akol', { param: 'L-din' })).toBe('L-nus');
+  });
+});
+
+describe('a read-only session writes nothing (readOnly.ts)', () => {
+  const org = { state: null, append: () => Promise.resolve() } as unknown as OrgHandle;
+  const language = { state: null, revision: 3, append: () => Promise.resolve(), appendMany: () => Promise.resolve(), run: () => Promise.resolve() } as unknown as LanguageHandle;
+
+  it('refuses every way of adding an event, saying why', async () => {
+    await expect(readOnlyOrg(org).append('v1.OrgRenamed', { name: 'x' })).rejects.toThrow(CommandError);
+    const l = readOnlyLanguage(language);
+    await expect(l.append('v1.NoteAdded' as never, {} as never)).rejects.toThrow('nothing here can be changed');
+    await expect(l.appendMany([])).rejects.toThrow(CommandError);
+    await expect(l.run([])).rejects.toThrow(CommandError);
+  });
+
+  it('leaves reading alone', () => {
+    expect(readOnlyLanguage(language).revision).toBe(3);
+  });
+});
+
+describe('a server refusal while read-only', () => {
+  it('says the session is read-only, only for a refused write and only while viewing', () => {
+    setReadOnlySession(true);
+    expect(readOnlyRefusal({ code: '42501', message: 'not allowed to invite members' })).toMatch(/nothing here can be changed/);
+    expect(readOnlyRefusal({ code: '08006', message: 'connection failure' })).toBeNull();
+    setReadOnlySession(false);
+    expect(readOnlyRefusal({ code: '42501', message: 'x' })).toBeNull();
   });
 });

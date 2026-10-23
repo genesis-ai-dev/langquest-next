@@ -12,7 +12,7 @@ import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
-import { cachedBlobAccess, cachedIdentityOf, type Identity } from './isolateCache';
+import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, type Identity } from './isolateCache';
 import { JOB_TICK, jobsDue } from './jobsModel';
 import { checkStores, storeCheckDue } from './storeReleases';
 
@@ -64,6 +64,7 @@ function flushTally(env: Env, ctx: ExecutionContext): void {
 let sessionLive: ((sessionId: string) => Promise<boolean>) | null = null;
 /** This isolate's token and file-access caches (isolateCache.ts); an isolate's secrets do not change, so the first request's env serves them all. */
 let identityOfCached: ((token: string) => Promise<Identity | null>) | null = null;
+let globalViewerOnCached: ((profileId: string, aal: string | undefined) => Promise<boolean>) | null = null;
 let blobAccessCached: ((key: string, profileId: string, write: boolean, aal?: string) => Promise<boolean>) | null = null;
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
@@ -189,7 +190,18 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   return handleApi(request, {
     profileOf,
     orgsOf: (profileId) => agentStore.orgsOf(profileId),
-    reports: (orgId, profileId, fresh) => orgObject(orgId).reports(orgId, profileId, fresh),
+    reports: (orgId, profileId, fresh, everyLanguage) => orgObject(orgId).reports(orgId, profileId, fresh, everyLanguage),
+    // A Global Viewer reads every organization's reports, on an aal2 session only (decisions.md 158).
+    globalViewerOn: async (token) => {
+      const who = await identityOf(token);
+      if (!who) return false;
+      globalViewerOnCached ??= cachedGlobalViewerOn(async (profileId) => {
+        const { data, error } = await serviceClient(env).rpc('_gv_on', { p_profile: profileId, p_aal: 'aal2' });
+        if (error) throw new Error(`_gv_on: ${error.message}`);
+        return data === true;
+      });
+      return globalViewerOnCached(who.profileId, who.aal);
+    },
     bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) },
     languoids: {
       load: async () => {

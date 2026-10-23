@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUTH_TTL_MS, cachedBlobAccess, cachedIdentityOf, cachedProfileOf, DENIAL_TTL_MS, MAX_ENTRIES, TtlCache } from '../worker/isolateCache';
+import { AUTH_TTL_MS, cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, cachedProfileOf, DENIAL_TTL_MS, MAX_ENTRIES, TtlCache } from '../worker/isolateCache';
 
 describe('TtlCache', () => {
   it('forgets an entry once its time has come', () => {
@@ -149,3 +149,21 @@ describe('cachedBlobAccess', () => {
     expect(await may('o/l/a.m4a', 'p', false)).toBe(true);
   });
 });
+
+describe('cachedGlobalViewerOn', () => {
+  it('asks only for an aal2 session, once a minute for a yes', async () => {
+    let t = 0;
+    const asked: string[] = [];
+    const on = cachedGlobalViewerOn(async (p) => { asked.push(p); return p === 'gv'; }, () => t);
+    expect(await on('gv', 'aal1')).toBe(false);
+    expect(asked).toEqual([]);
+    expect(await on('gv', 'aal2')).toBe(true);
+    expect(await on('gv', 'aal2')).toBe(true);
+    expect(asked).toEqual(['gv']);
+    t = AUTH_TTL_MS;
+    await on('gv', 'aal2');
+    expect(asked).toEqual(['gv', 'gv']);
+    expect(await on('someone', 'aal2')).toBe(false);
+  });
+});
+

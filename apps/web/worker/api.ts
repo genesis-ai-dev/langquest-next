@@ -10,8 +10,16 @@ export interface ApiDeps {
   profileOf(token: string): Promise<string | null>;
   /** The organizations a profile is an active member of (agent/store.ts). */
   orgsOf(profileId: string): Promise<string[]>;
-  /** The caller's languages in the organization, or null when they are not in it. */
-  reports(orgId: string, profileId: string, fresh: boolean): Promise<OrgReportsResponse | null>;
+  /**
+   * The caller's languages in the organization, or null when they are not in
+   * it; with `everyLanguage`, all of them (a Global Viewer, decisions.md 158).
+   */
+  reports(orgId: string, profileId: string, fresh: boolean, everyLanguage?: boolean): Promise<OrgReportsResponse | null>;
+  /**
+   * Is this token a Global Viewer's whose access is on (granted, not revoked,
+   * an aal2 session)? Without it, nobody is.
+   */
+  globalViewerOn?(token: string): Promise<boolean>;
   /** Bible Brain (`/api/bible/*`, bible.ts); without it, or without its key, those routes answer 503. */
   bible?: Omit<BibleDeps, 'profileOf'>;
   /** Recordings and guide media (`/api/blobs/*`, `/api/blob-urls/*`, blobs.ts); without it those routes answer 503. */
@@ -97,7 +105,11 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
     // Membership first, as the token routes do, so nobody wakes an
     // organization's object, or makes it read the database again with
     // fresh=1, by naming it.
-    out = (await deps.orgsOf(profileId)).includes(orgId) ? await deps.reports(orgId, profileId, url.searchParams.get('fresh') === '1') : null;
+    // A Global Viewer whose access is on reads every organization's, every language of it (decisions.md 158).
+    const fresh = url.searchParams.get('fresh') === '1';
+    out = (await deps.orgsOf(profileId)).includes(orgId) ? await deps.reports(orgId, profileId, fresh)
+      : (await deps.globalViewerOn?.(token!)) ? await deps.reports(orgId, profileId, fresh, true)
+      : null;
   } catch (e) {
     console.error(`reports ${orgId}:`, e);
     return json(502, { error: 'The server could not read this organization just now. Try again.' });

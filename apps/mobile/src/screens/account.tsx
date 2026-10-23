@@ -10,7 +10,6 @@
 // Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 (the Me rows back to
 // them), CORE-12 (sign-out never strands work).
 import { signInName } from '../auth/accounts';
-import { useGlobalViewer } from '../account/useGlobalViewer';
 import { readHelp, type SignInHelp } from '../auth/signInHelp';
 import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
 import * as Updates from 'expo-updates';
@@ -420,9 +419,7 @@ export function SettingsMore(ctx: Ctx) {
   const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending, lastSync: status.lastSync });
   // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
-  // A Global Viewer finds organizations on their own tab, and starts none (decisions.md 158).
-  const globalViewer = useGlobalViewer(s.actorId, !s.isGuest).access;
-  const switchHere = !inSeveral(orgs) && !globalViewer;
+  const switchHere = !inSeveral(orgs);
   const passwordRow = s.isManaged && hasPassword === false;
   // No push on the web yet: requests and feedback still reach the Inbox there.
   const notifications = Platform.OS !== 'web';

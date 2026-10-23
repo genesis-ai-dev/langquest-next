@@ -54,6 +54,16 @@ do $$ begin
   if not public.profile_visible('49000000-0000-0000-0000-00000000000a') then raise exception 'a member is visible'; end if;
 end $$;
 
+-- 1b. The library too (templates, flows, reference material): its read check,
+-- not its writes, which ask for a privilege a Global Viewer never holds.
+do $$ begin
+  if not public._library_member('gv-org', '49000000-0000-0000-0000-00000000000b') then raise exception 'library read'; end if;
+  begin
+    perform public.library_adopt('gv-org', 'gv-org', 'no-item', repeat('a', 64));
+    raise exception 'a Global Viewer adopted a library item';
+  exception when insufficient_privilege then null; end;
+end $$;
+
 -- 2. It is read-only: may_emit never asks about Global Viewers.
 do $$ declare r record; begin
   select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
@@ -69,6 +79,7 @@ end $$;
 select pg_temp.as_caller('49000000-0000-0000-0000-00000000000b', 'aal1');
 do $$ begin
   if public.get_user_state()->>'globalViewer' <> 'needs_code' then raise exception 'state needs_code'; end if;
+  if public._library_member('gv-org', '49000000-0000-0000-0000-00000000000b') then raise exception 'aal1 library read'; end if;
   if public.can_read_stream('gv-org', '_org', '49000000-0000-0000-0000-00000000000b') then raise exception 'aal1 read'; end if;
   if public.profile_visible('49000000-0000-0000-0000-00000000000a') then raise exception 'aal1 names'; end if;
   begin

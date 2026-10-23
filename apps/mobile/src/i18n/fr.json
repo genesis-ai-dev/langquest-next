@@ -4573,8 +4573,7 @@
       "manage": "Les langues, les personnes et les réglages de votre organisation.",
       "inbox": "Ce qui s’est passé et qui vous concerne : demandes, remarques, personnes qui veulent rejoindre.",
       "me": "Votre nom, cet appareil et vos réglages.",
-      "explorer": "Ouvre l’explorateur de langues dans un nouvel onglet : chaque langue et où elle est parlée.",
-      "globalViewer": "Où vous consultez, ce que vous pouvez y faire, et toutes les autres organisations."
+      "explorer": "Ouvre l’explorateur de langues dans un nouvel onglet : chaque langue et où elle est parlée."
     },
     "sync": {
       "live": "Point vert : connecté. Votre travail est envoyé au fur et à mesure. Touchez pour voir ce qui a été envoyé.",
@@ -7636,9 +7635,9 @@
     "openHelp": "Ouvre cette organisation pour la consulter.",
     "noneFound": "Aucune organisation ne correspond.",
     "more": "Afficher plus",
-    "tabViewing": "Lecture",
-    "sidebarViewing": "Consultation en tant qu’Observateur global",
     "hereLabel": "En cours de consultation",
-    "otherLabel": "Ouvrir une autre organisation"
+    "otherLabel": "Ouvrir une autre organisation",
+    "readOnly": "Vous consultez en tant qu’Observateur global : rien ici ne peut être modifié.",
+    "linkHelp": "Où vous consultez, ce que vous pouvez y faire, et toutes les autres organisations."
   }
 }

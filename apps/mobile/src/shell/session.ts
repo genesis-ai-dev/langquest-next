@@ -50,6 +50,12 @@ export interface Session {
   isGlobalViewer: boolean;
   /** Here only as a Global Viewer: no membership of their own in this organization. Read-only. */
   viewingAsGlobalViewer: boolean;
+  /**
+   * Nothing may be written: the organization's and the language's appends
+   * refuse (readOnly.ts), whatever `can` says. `can` then says what the
+   * screens may show, not what may be done.
+   */
+  readOnly: boolean;
 }
 
 export function deriveSession(
@@ -62,17 +68,20 @@ export function deriveSession(
   globalViewer: GlobalViewerAccess | null = null
 ): Session {
   const own = org ? privilegesFor(org, actorId, languageId ?? undefined) : new Set<Privilege>();
-  // A Global Viewer reads every organization as a Viewer would; the server
-  // lets them read, and refuses anything they might write (may_emit).
+  // A Global Viewer sees an organization they are not in as its admins do,
+  // read-only (decision 158 amended): every screen shows what an admin's
+  // shows, and nothing they try is written (readOnly.ts). The server lets
+  // them read, and refuses anything they might write (may_emit).
   const viewing = viewsAsGlobalViewer(globalViewer, !!org?.org);
-  const privileges = viewing ? new Set([...own, ...privilegesOfFixedRole('viewer')]) : own;
   const member = !!org && Object.values(org.members[actorId] ?? {}).some((m) => m.removed.value === false);
+  const readOnly = viewing && !member;
+  const privileges = readOnly ? privilegesOfFixedRole('owner') : own;
   const isManaged = isManagedEmail(email);
   const role = effectiveRole(privileges);
   const isAdmin = MANAGE_PRIVILEGES.some((p) => privileges.has(p));
   const isWorker = privileges.has('translate') || privileges.has('review') || privileges.has('fill_reference');
   const isViewer = !isAdmin && !isWorker && privileges.has('view_status');
-  const adminScope: Scope | null = org ? adminScopeOf(org, actorId) : null;
+  const adminScope: Scope | null = readOnly ? { level: 'org' } : org ? adminScopeOf(org, actorId) : null;
   return {
     actorId,
     email,
@@ -85,12 +94,13 @@ export function deriveSession(
     isViewer,
     hasNoOrg: privileges.size === 0,
     // The welcome is for joining a team; a Global Viewer only looking in gets none.
-    isFirstTime: !seenVision && !(viewing && !member),
+    isFirstTime: !seenVision && !readOnly,
     fromV2,
     isGuest: actorId === 'guest',
     isManaged,
     isGlobalViewer: globalViewer === 'on',
-    viewingAsGlobalViewer: viewing && !member
+    viewingAsGlobalViewer: readOnly,
+    readOnly
   };
 }
 
@@ -123,6 +133,8 @@ export function edgeAllowed(edge: Edge, s: Session): boolean {
  */
 export function homeScreenFor(s: Session): ScreenId {
   if (s.hasNoOrg) return 'intent_chooser';
+  // Looking in, read-only: the progress overview, not a My Work of nothing to do.
+  if (s.readOnly) return 'status_home';
   if (s.isViewer) return 'status_home';
   return 'my_work';
 }
@@ -185,7 +197,7 @@ export function postSignInScreen(s: Session): ScreenId {
   return s.isFirstTime && !s.hasNoOrg ? 'welcome' : homeScreenFor(s);
 }
 
-export type TabId = 'work' | 'map' | 'reports' | 'manage' | 'inbox' | 'global' | 'me';
+export type TabId = 'work' | 'map' | 'reports' | 'manage' | 'inbox' | 'me';
 
 export interface Tab {
   id: TabId;
@@ -201,10 +213,9 @@ export interface Tab {
  * keep the Inbox tab (unread). Work carries no count: My Work itself leads
  * with the next thing, and the bell carries the unread count. A wide window
  * adds Reports after Map for anyone who may view status (decisions.md 57);
- * a phone keeps the demo's tabs exactly. A Global Viewer looking in on an
- * organization gets a tab of their own before Me: where they are, what
- * they may do there, and every other organization (decision 71 amended
- * 2026-10-21, decision 158).
+ * a phone keeps the demo's tabs exactly. A read-only session (a Global
+ * Viewer looking in) has no Inbox: nothing ever arrives there for them
+ * (decision 71 amended, decision 158).
  */
 export function tabsFor(s: Session, counts: { forYou: number; unread: number } = { forYou: 0, unread: 0 }, opts: { wide?: boolean } = {}): Tab[] {
   const tabs: Tab[] = [];
@@ -214,8 +225,7 @@ export function tabsFor(s: Session, counts: { forYou: number; unread: number } =
   if (opts.wide && !s.hasNoOrg && s.can('view_status')) tabs.push({ id: 'reports', screen: 'reports_home', label: t('account.tabs.reports') });
   const manage = manageHomeFor(s);
   if (manage) tabs.push({ id: 'manage', screen: manage, label: t('account.tabs.manage') });
-  if (!hasMyWork) tabs.push({ id: 'inbox', screen: 'inbox_home', label: t('account.tabs.inbox'), badge: counts.unread });
-  if (s.viewingAsGlobalViewer) tabs.push({ id: 'global', screen: 'global_viewer', label: t('globalViewer.tabViewing') });
+  if (!hasMyWork && !s.readOnly) tabs.push({ id: 'inbox', screen: 'inbox_home', label: t('account.tabs.inbox'), badge: counts.unread });
   tabs.push({ id: 'me', screen: 'settings_home', label: t('account.tabs.me') });
   return tabs;
 }

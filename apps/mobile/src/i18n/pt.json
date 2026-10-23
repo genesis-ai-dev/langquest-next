@@ -4573,8 +4573,7 @@
       "manage": "Os idiomas, as pessoas e as configurações da sua organização.",
       "inbox": "O que aconteceu que diz respeito a você: pedidos, comentários, pessoas pedindo para entrar.",
       "me": "O seu nome, este aparelho e as suas configurações.",
-      "explorer": "Abre o explorador de idiomas numa nova aba: cada idioma e onde ele é falado.",
-      "globalViewer": "Onde você está vendo, o que pode fazer lá e todas as outras organizações."
+      "explorer": "Abre o explorador de idiomas numa nova aba: cada idioma e onde ele é falado."
     },
     "sync": {
       "live": "Ponto verde: conectado. O seu trabalho é enviado enquanto você trabalha. Toque para ver o que foi enviado.",
@@ -7636,9 +7635,9 @@
     "openHelp": "Abre esta organização para ler.",
     "noneFound": "Nenhuma organização encontrada.",
     "more": "Mostrar mais",
-    "tabViewing": "Vendo",
-    "sidebarViewing": "Vendo como Observador global",
     "hereLabel": "Vendo agora",
-    "otherLabel": "Abrir outra organização"
+    "otherLabel": "Abrir outra organização",
+    "readOnly": "Você está vendo como Observador global: nada aqui pode ser alterado.",
+    "linkHelp": "Onde você está vendo, o que pode fazer lá e todas as outras organizações."
   }
 }

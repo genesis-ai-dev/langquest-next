@@ -2409,15 +2409,16 @@ page does (Content template, Reference material, Review flow), with seven
 rows and no More; see 138.
 
 Amended (2026-10-21, Carl Sauder): a Global Viewer looking in on an
-organization (decision 158) gets one more tab, Viewing, before Me: the
-organization they are in and how, then every other one to open instead
-(`tabsFor` in `session.ts`, screen `global_viewer`). On a desktop the
-sidebar also says "Viewing as a Global Viewer" under the organization's
-name, and opens the tab. Carl chose the tab over a strip across the top of
-every screen: the tab bar is where people already look to see where they
-are, it costs no height, and it navigates as chrome, as the other tabs do,
-so `flow.ts` stays the authority for moving between screens (decision 20).
-Nobody else's tabs change; on a phone there are still at most five.
+organization (decision 158) has an eye in every screen's header ("Global
+Viewer" beside it on a wide window) that opens the Global Viewer screen:
+the organization they are in, then every other one to open instead. It is
+chrome, put in the header by the shell (`HeaderExtraContext`), and opens the
+screen as the tabs open theirs, so `flow.ts` stays the authority for moving
+between screens (decision 20). Their tabs are an admin's without Work and
+the Inbox, where nothing ever arrives for them. Carl chose the header link
+over a strip across every screen (it cost height and said nothing a header
+could not) and over a tab of its own (on a wide window it sat beside a
+sidebar line that did the same, and a phone had only the tab).
 
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
@@ -7145,22 +7146,27 @@ refuses a Global Viewer, so a path that forgets it keeps them out), and
 organizations and names. Read-only, not a Global Admin: `may_emit` never
 asks about Global Viewers, so every write is still explained by the
 organization's own log (invariant 9) and decision 98 stays as it is.
-Support changing an organization is not part of this.
+Support changing an organization is not part of this (see the amendment).
 Named Global Viewer, not admin, because in
 this app admin means someone who can change things (Carl, 2026-10-15).
 Access works only on an aal2 session (Carl, 2026-10-14): TOTP is switched
 on for the project (`[auth.mfa.totp]`), only Global Viewers are shown how
 to set it up, and a password alone, a sign-in code or a hand-over gives an
 aal1 session that sees nothing; `may_help_sign_in` refuses a Global Viewer
-target anyway. A Global Viewer account belongs to no organization: it
-creates none, redeems no invite and asks to join none. Accounts are made
-on a call (`npm run global-viewer`, docs/global-viewers.md): emails are on
-any domain (Carl, 2026-10-20) and sign-up proves nothing about owning one,
-so `grant` takes only an account made in the last 24 hours with no
-authenticator yet, from an operator who knows the person, who sets theirs
-up while the operator watches `list`. `revoke` keeps the row and ends
-every sign-in; `reset-mfa`, for a lost authenticator, is run after a call
-with the person, never on an email. No log of what a Global Viewer opens (Carl, 2026-10-14): the
+target anyway. A Global Viewer may belong to organizations, where their
+own role applies, so support and Frontier staff use their own accounts
+(Carl, 2026-10-21); it costs Global Viewer access riding on an everyday
+account, signed in on more devices. Accounts are granted on a call
+(`npm run global-viewer`, docs/global-viewers.md): emails are on any
+domain (Carl, 2026-10-20) and sign-up proves nothing about owning one, so
+what counts is that the person, known to the operator, signs in on the
+call and sets up an authenticator while the operator watches `list`.
+`grant` takes any account with no authenticator, however old (Carl,
+2026-10-21: the call, not the account's age, shows whose it is). `revoke`
+keeps the row and ends every sign-in, and the account is then an ordinary
+one; granting it again clears its old authenticators and sign-ins first,
+so nothing from before is trusted. `reset-mfa`, for a lost authenticator,
+is run after a call with the person, never on an email. No log of what a Global Viewer opens (Carl, 2026-10-14): the
 protection is few accounts, the authenticator and revoking at once.
 `supabase config push` brings the auth setting to hosted projects and is
 run by hand (Carl, 2026-10-20; docs/environments.md). The Worker may still
@@ -7171,3 +7177,23 @@ log `global_viewer_*` reads and opens of an organization); more than a
 handful of people need it (then a staff screen with its own checks, not a
 script); or an authenticator proves too weak for the reach (then passkeys,
 or a fresh code before each organization).
+
+Amended (2026-10-21, Carl Sauder): a Global Viewer reads an organization as
+its admins see it, not only as a Viewer: support questions are mostly about
+setup (roles, members, templates, review flows), which a Viewer never sees.
+The session shows an Organization Admin's privileges and is read-only: the
+organization's and the language's handles refuse every append
+(`src/shell/readOnly.ts`), the hooks that write by themselves skip it, and
+a server refusing a write says so (Carl chose this over hiding each edit
+control screen by screen: one guard covers every screen, including later
+ones, at the cost of controls that look live and say nothing can change).
+The library's read check, `_library_member`, lets a Global Viewer whose
+access is on pass (migration `20261022220000_global_viewers_manage.sql`);
+its one write, `library_adopt`, still needs a privilege they never hold.
+Letting support change things in an organization, as a membership that ends
+by itself, was planned and is not built (Carl, 2026-10-21): it needed a new
+versioned event and a clock in every privilege check. Support talks an admin
+through a change, and the admin can invite the support person's ordinary
+account if hands-on help is ever needed. Reverse if: support often needs to change
+things themselves (then a membership with an end, from a join request and a
+server timer that removes it, rather than a new event).
