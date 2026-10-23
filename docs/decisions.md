@@ -7228,6 +7228,16 @@ read by `useRecorder`), for any record control left elsewhere. That guard
 loads with the recorder, so a first visit's web budget rose to 5.75 MB
 (`apps/mobile/scripts/export-web.mjs`).
 
+Amended (2026-10-23, Carl Sauder): a passage's record offers a read-only
+session nothing at all (`recordCan` in `src/passage/recordModel.ts`), though
+an admin's management privileges still hold Assign work and Override
+checkpoints. So a Global Viewer gets no check's sheet (ask someone, already
+happened, not now, move past), no Undo or Withdraw in the history, no "Something
+else?" way forward beyond what helps and keeping it offline, and no report flag
+(`ReportFlag`). Carl's reason: the review screens should not give the
+impression that a Global Viewer can take review actions. Manage keeps its
+controls under the one write guard, as decided on 2026-10-21.
+
 ## 159. A toast lasts as long as Android's "Time to take action" asks and runs no bar down under reduce motion; the phone tests set 10 seconds
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
