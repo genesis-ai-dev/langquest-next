@@ -3,7 +3,7 @@ import { access, forgetSignIns, viewerState } from '../src/auth';
 import { csp, page } from '../src/page';
 import { GROUPS, OPS_IDS, OWN_CALL_IDS } from '../src/pageOps';
 import { GROUP_HELP, SECTION_HELP } from '../src/pageHelp';
-import { settle } from '../src/section';
+import { ok, settle } from '../src/section';
 import { handle } from '../src/index';
 import type { Env } from '../src/env';
 import { sessionStorageKey } from '../../mobile/src/server/sessionKey';
@@ -185,5 +185,12 @@ describe('a section that hangs or throws', () => {
   it('becomes an error section, so the others still show', async () => {
     expect(await settle('slow', () => new Promise(() => {}), 10)).toMatchObject({ state: 'error', error: 'slow did not answer within 0 s' });
     expect(await settle('boom', async () => { throw new Error('HTTP 500'); })).toMatchObject({ state: 'error', error: 'HTTP 500' });
+  });
+});
+
+describe('how much an alert matters', () => {
+  it('lists urgent first, then problems, then what to watch', () => {
+    const s = ok(null, [{ level: 'watch', text: 'w' }, { level: 'problem', text: 'p' }, { level: 'urgent', text: 'u' }, { level: 'watch', text: 'w2' }]);
+    expect(s.alerts.map((a) => a.text)).toEqual(['u', 'p', 'w', 'w2']);
   });
 });

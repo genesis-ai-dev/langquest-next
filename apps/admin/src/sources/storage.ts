@@ -49,6 +49,22 @@ export const USAGE_QUERY = `query ($account: string!, $since: Time!, $until: Tim
  */
 export const ALLOWANCE = { workersRequests: 10_000_000, doRequests: 1_000_000, r2ClassA: 1_000_000, r2ClassB: 10_000_000, r2Bytes: 10 * 1024 ** 3 };
 
+/** What each unit past the allowance costs, US dollars (cloudflare.com, as of 2026-10). */
+export const PRICE_USD = { workersRequests: 0.30 / 1e6, doRequests: 0.15 / 1e6, r2ClassA: 4.50 / 1e6, r2ClassB: 0.36 / 1e6 };
+/** Share of the provisioned disk past which Supabase must grow it, and a burst that fills it first makes the database read-only. */
+export const DB_FULL_SHARE = 0.9;
+/**
+ * An overage costing less than this a month is shown in its table but raises
+ * no alert: going past an allowance is not a fault, and a few cents of it
+ * (Durable Object requests 4% over cost under a cent in October 2026) only
+ * hid what mattered.
+ */
+export const COST_WATCH_USD = 5;
+
+/** What going past an allowance costs so far this month, US dollars. */
+export const extraUsd = (used: number, included: number, perUnit: number): number => Math.max(0, used - included) * perUnit;
+const usd = (n: number): string => (n < 0.01 ? 'under a cent' : `about $${n.toFixed(2)}`);
+
 /** R2's operations that cost as class A (writes and lists); every other is class B. */
 const CLASS_A = new Set(['ListBuckets', 'PutBucket', 'ListObjects', 'PutObject', 'CopyObject', 'CompleteMultipartUpload', 'CreateMultipartUpload', 'UploadPart', 'UploadPartCopy', 'ListMultipartUploads', 'ListParts', 'PutBucketEncryption', 'PutBucketCors', 'PutBucketLifecycleConfiguration']);
 
@@ -124,9 +140,9 @@ export function storageAlerts(s: Storage, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   if (s.backups && !s.backups.error) {
     const hours = s.backups.latest ? (now - Date.parse(s.backups.latest)) / 3_600_000 : null;
-    if (!s.backups.pitr && (hours === null || hours > 36)) out.push({ level: 'problem', text: `The database's latest backup is ${hours === null ? 'missing' : `${Math.round(hours)} hours old`}, and point-in-time recovery is off.` });
+    if (!s.backups.pitr && (hours === null || hours > 36)) out.push({ level: 'urgent', text: `The database's latest backup is ${hours === null ? 'missing' : `${Math.round(hours)} hours old`}, and point-in-time recovery is off.` });
   }
-  if (s.reconcile && num(s.reconcile.n.missing) > 0) out.push({ level: 'problem', text: `The R2 reconciliation found ${plural(num(s.reconcile.n.missing), 'recording')} the log names but R2 does not have.` });
+  if (s.reconcile && num(s.reconcile.n.missing) > 0) out.push({ level: 'urgent', text: `The R2 reconciliation found ${plural(num(s.reconcile.n.missing), 'recording')} the log names but R2 does not have.` });
   const lost = s.lostFiles.slice(-1)[0];
   if (lost && lost.installs >= 3) out.push({ level: 'watch', text: `${plural(lost.installs, 'install')} reported files lost behind the app's back on ${lost.day} (decision 92).` });
   return out;
@@ -168,7 +184,7 @@ export interface Capacity {
   weeksLeft: number | null;
   history: { at: string; dbBytes: number }[];
   r2: { bytes: number; growthPerDay: number | null } | null;
-  usage: { workersRequests: number; doRequests: number; r2ClassA: number; r2ClassB: number; allowance: typeof ALLOWANCE; error?: string } | null;
+  usage: { workersRequests: number; doRequests: number; r2ClassA: number; r2ClassB: number; allowance: typeof ALLOWANCE; price?: typeof PRICE_USD; error?: string } | null;
 }
 
 /** The fold canary records the database's sizes each night (server/foldCanary.ts). */
@@ -177,19 +193,23 @@ export const SIZE_HISTORY_SQL = `select coalesce(jsonb_agg(jsonb_build_object('a
 
 export function capacityAlerts(c: Capacity): Alert[] {
   const out: Alert[] = [];
-  if (c.weeksLeft !== null && c.weeksLeft < 4) out.push({ level: 'problem', text: `At this rate the database reaches its ${Math.round(c.limitBytes / 1024 ** 3)} GB limit in ${Math.max(0, Math.round(c.weeksLeft))} weeks.` });
-  else if (c.weeksLeft !== null && c.weeksLeft < 12) out.push({ level: 'watch', text: `At this rate the database reaches its ${Math.round(c.limitBytes / 1024 ** 3)} GB limit in about ${Math.round(c.weeksLeft)} weeks.` });
+  const gb = (n: number) => Math.round(n / 1024 ** 3);
+  if (c.now && c.now.dbBytes >= c.limitBytes * DB_FULL_SHARE) {
+    out.push({ level: 'problem', text: `The database (${gb(c.now.dbBytes)} GB) fills ${Math.round((c.now.dbBytes / c.limitBytes) * 100)}% of its ${gb(c.limitBytes)} GB disk: Supabase grows the disk past 90%, at most once every 6 hours, and a disk that fills first leaves the database read-only.` });
+  } else if (c.weeksLeft !== null && c.weeksLeft < 4) out.push({ level: 'problem', text: `At this rate the database fills its ${gb(c.limitBytes)} GB disk in ${Math.max(0, Math.round(c.weeksLeft))} weeks.` });
+  else if (c.weeksLeft !== null && c.weeksLeft < 12) out.push({ level: 'watch', text: `At this rate the database fills its ${gb(c.limitBytes)} GB disk in about ${Math.round(c.weeksLeft)} weeks.` });
   const u = c.usage;
   if (u && !u.error) {
     for (const [key, label] of [['workersRequests', 'Workers requests'], ['doRequests', 'Durable Object requests'], ['r2ClassA', 'R2 class A operations'], ['r2ClassB', 'R2 class B operations']] as const) {
-      if (u[key] > u.allowance[key]) out.push({ level: 'watch', text: `${label} this month (${u[key].toLocaleString('en')}) are past what the plan includes (${u.allowance[key].toLocaleString('en')}); the rest is billed.` });
+      const cost = extraUsd(u[key], u.allowance[key], PRICE_USD[key]);
+      if (cost >= COST_WATCH_USD) out.push({ level: 'watch', text: `${label} this month (${u[key].toLocaleString('en')}) are past what the plan includes (${u.allowance[key].toLocaleString('en')}); the rest is billed, ${usd(cost)} so far.` });
     }
   }
   return out;
 }
 
 export async function capacitySection(env: Env, fetcher: typeof fetch = fetch, now = Date.now(), diag: <T>(fn: (q: Query) => Promise<T>) => Promise<T> = (fn) => withDiag(diagConnection(env), fn)): Promise<Section<Capacity>> {
-  const limitBytes = (Number(env.SUPABASE_DB_LIMIT_GB) || 8) * 1024 ** 3;
+  const limitBytes = (Number(env.SUPABASE_DB_LIMIT_GB) || 64) * 1024 ** 3;
   const fromDiag = diag(async (q) => {
     const [sizes, history] = await Promise.all([
       q<Capacity['now']>(`select diag.ops_sizes() as v`).catch((e: unknown) => { if (isMissing(e)) return null; throw e; }),
@@ -206,7 +226,8 @@ export async function capacitySection(env: Env, fetcher: typeof fetch = fetch, n
         workersRequests: (row.workersInvocationsAdaptive ?? []).reduce((s, g) => s + g.sum.requests, 0),
         doRequests: (row.durableObjectsInvocationsAdaptiveGroups ?? []).reduce((s, g) => s + g.sum.requests, 0),
         ...(() => { const c = r2ByClass(row.r2OperationsAdaptiveGroups ?? []); return { r2ClassA: c.classA, r2ClassB: c.classB }; })(),
-        allowance: ALLOWANCE
+        allowance: ALLOWANCE,
+        price: PRICE_USD
       }))
       .catch((e: unknown) => ({ workersRequests: 0, doRequests: 0, r2ClassA: 0, r2ClassB: 0, allowance: ALLOWANCE, error: reason(e) }))
     : Promise.resolve(null);
@@ -218,7 +239,8 @@ export async function capacitySection(env: Env, fetcher: typeof fetch = fetch, n
   const history = d.history.map((h) => ({ at: h.at, dbBytes: num(h.dbBytes) }));
   const dbGrowthPerDay = growthPerDay(history.map((h) => ({ at: h.at, bytes: h.dbBytes })));
   const current = d.sizes ? num(d.sizes.dbBytes) : history.at(-1)?.dbBytes ?? null;
-  const weeksLeft = current !== null && dbGrowthPerDay && dbGrowthPerDay > 0 ? (limitBytes - current) / dbGrowthPerDay / 7 : null;
+  // Already past the limit there are no weeks left to count: capacityAlerts says it is past instead.
+  const weeksLeft = current !== null && current < limitBytes && dbGrowthPerDay && dbGrowthPerDay > 0 ? (limitBytes - current) / dbGrowthPerDay / 7 : null;
   const c: Capacity = { now: d.sizes, limitBytes, dbGrowthPerDay, weeksLeft, history, r2: r, usage: u };
   return ok(c, capacityAlerts(c));
 }

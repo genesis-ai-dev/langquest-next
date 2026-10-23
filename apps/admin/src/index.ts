@@ -3,7 +3,7 @@ import { API_BASE, PAGE_PATH } from './paths';
 import { diagConnection, withDiag } from './db';
 import type { Env } from './env';
 import { page, SECURITY_HEADERS } from './page';
-import { settle, type Section } from './section';
+import { LEVELS, settle, type Level, type Section } from './section';
 import { cloudflareSection } from './sources/cloudflare';
 import { diagSections, errorText, lookup, mediaType, SCREENSHOT_SQL, VOICE_SQL } from './sources/diag';
 import { appStoreSection } from './sources/appstore';
@@ -73,11 +73,11 @@ async function opsAnswer(env: Env): Promise<Record<string, Section>> {
 }
 
 /**
- * Every section's alerts in one list, problems first: what the page's
+ * Every section's alerts in one list, most urgent first: what the page's
  * "Needs attention" shows, as JSON for whatever reads it without the page
  * (docs/ops-dashboard-plan.md 5.1).
  */
-async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; problems: number; watch: number; items: { level: string; text: string; section: string }[] }> {
+async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string; urgent: number; problems: number; watch: number; items: { level: Level; text: string; section: string }[] }> {
   const [diag, ops, ...providers] = await Promise.all([
     diagAnswer(env), opsAnswer(env),
     ...Object.entries(PROVIDERS).map(([id, run]) => memo(id, fresh, () => settle(id, () => run(env))).then((s) => [id, s] as const))
@@ -85,9 +85,10 @@ async function attention(env: Env, fresh: boolean): Promise<{ checkedAt: string;
   const all: (readonly [string, Section])[] = [...Object.entries(diag), ...Object.entries(ops), ...(providers as (readonly [string, Section])[])];
   const items = all.flatMap(([section, s]) => [
     ...s.alerts.map((a) => ({ level: a.level, text: a.text, section })),
-    ...(s.state === 'error' ? [{ level: 'watch', text: `Could not read: ${s.error ?? 'unknown'}`, section }] : [])
-  ]).sort((a, b) => (a.level === b.level ? 0 : a.level === 'problem' ? -1 : 1));
-  return { checkedAt: new Date().toISOString(), problems: items.filter((i) => i.level === 'problem').length, watch: items.filter((i) => i.level !== 'problem').length, items };
+    ...(s.state === 'error' ? [{ level: 'watch' as const, text: `Could not read: ${s.error ?? 'unknown'}`, section }] : [])
+  ]).sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
+  const count = (level: Level) => items.filter((i) => i.level === level).length;
+  return { checkedAt: new Date().toISOString(), urgent: count('urgent'), problems: count('problem'), watch: count('watch'), items };
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

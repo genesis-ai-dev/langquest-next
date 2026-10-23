@@ -1,4 +1,4 @@
-import { jobSignals, type JobStat, type RpcStat } from '../../../../scripts/diagSignals';
+import { jobSignals, slowRpcs, type JobStat, type RpcStat } from '../../../../scripts/diagSignals';
 import { isMissing, type Query } from '../db';
 import { ok, off, type Alert, type Section } from '../section';
 
@@ -124,7 +124,7 @@ export function clientAlerts(c: Clients): Alert[] {
     if ((t.failTooLarge ?? 0) > 0) add('watch', `${word} were refused as too large ${plural(t.failTooLarge!, 'time')} in the last day.`);
     if ((t.failAuth ?? 0) >= 10) add('watch', `${word} were refused for sign-in ${t.failAuth} times in the last day.`);
   }
-  if (c.device.lostRecordings > 0) add('problem', `Recordings were lost before they were sent, on ${plural(c.device.lostRecordings, 'install')}.`);
+  if (c.device.lostRecordings > 0) add('urgent', `Recordings were lost before they were sent, on ${plural(c.device.lostRecordings, 'install')}.`);
   if (c.device.unsentOverDay > 0) add('watch', `A recording has waited over a day to upload, on ${plural(c.device.unsentOverDay, 'install')}.`);
   if (c.device.downloadStuckOverDay > 0) add('watch', `A download has been wanted for over a day, on ${plural(c.device.downloadStuckOverDay, 'install')}.`);
   if (c.device.lowDisk > 0) add('watch', `Under 500 MB free, on ${plural(c.device.lowDisk, 'install')}.`);
@@ -163,8 +163,8 @@ export const DATABASE_SQL = `select jsonb_build_object(
 
 export function databaseAlerts(db: Database): Alert[] {
   const out: Alert[] = [];
-  for (const r of db.rpc) {
-    if (r.mean_ms > 500) out.push({ level: 'problem', text: `${r.rpc} averages ${r.mean_ms} ms over ${r.calls} calls (max ${r.max_ms} ms).` });
+  for (const r of slowRpcs(db.rpc)) {
+    out.push({ level: 'problem', text: `${r.rpc} averages ${r.mean_ms} ms over ${r.calls} calls (max ${r.max_ms} ms).` });
   }
   if (db.maxConnections > 0 && db.connections >= db.maxConnections * 0.8) {
     out.push({ level: 'watch', text: `The database has ${db.connections} of its ${db.maxConnections} connections in use.` });
