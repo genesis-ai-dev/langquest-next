@@ -175,8 +175,9 @@ These keep the suite fast enough to run and stable enough to trust.
 
 The PR jobs start together, so a PR waits for the slowest of them, not for
 `checks` and then the rest (decision 163).
-A job that needs the local stack starts it in the background while it
-installs the browsers.
+A job that needs the local stack starts it in the background, the cached
+images loaded first, while it builds the web export and installs the
+browsers (`scripts/ci-background.sh`, `e2e/export-web.sh`).
 
 ### CI infrastructure (decision 102, amended 2026-10-20)
 
