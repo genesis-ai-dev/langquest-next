@@ -1,10 +1,14 @@
-# Every merge to main reaches testers on both platforms: TestFlight on iOS,
-# Google Play's internal testing track on Android (runs on Expo's servers,
-# not GitHub Actions). Each platform is decided on its own: if the native
-# fingerprint matches an existing production build, the change ships as an
-# over-the-air update on the production channel, which installed builds take
-# on next launch. Otherwise it builds a new binary and submits it (the track
-# is in eas.json, submit.production).
+# Every merge to main reaches people on both platforms (runs on Expo's
+# servers, not GitHub Actions). Each platform is decided on its own: if the
+# native fingerprint matches an existing production build, the change ships
+# as an over-the-air update on the production channel, which installed builds
+# take on next launch. Otherwise it builds a new binary and sends it to
+# production review (decisions.md 157): on Android straight to the production
+# track with a full rollout (eas.json, submit.production), where a newer build
+# replaces one waiting for review; on iOS to TestFlight, and then to App
+# Review when no review is open (scripts/app-store-review.mjs; while one is,
+# the build waits in TestFlight and app-store-review.yml sends the newest
+# when it ends). Each build is public as soon as Google or Apple approves it.
 # Each platform's last job tells Linear its lane is out (scripts/linear-sync.mjs,
 # decisions.md 53); LINEAR_API_KEY is an EAS variable on `production`. A failed
 # job reports nothing: the deploy watchdog routine finds the issue left in
@@ -66,9 +70,12 @@ jobs:
     if: ${{ !needs.get_ios_build.outputs.build_id }}
     type: build
     # The build's hook (scripts/store-build-guard.mjs) refuses a production
-    # build without this ref: store builds come only from main.
+    # build without this ref: store builds come only from main. The store
+    # version is the merge time (app.config.js): every build that goes to
+    # review needs a higher version number than the last.
     env:
       LQ_STORE_BUILD_REF: ${{ github.ref }}
+      LQ_STORE_VERSION_TIME: ${{ github.event.head_commit.timestamp }}
     params:
       platform: ios
       profile: production
@@ -78,6 +85,16 @@ jobs:
     type: submit
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
+  review_ios:
+    name: Send to App Review when no review is open
+    needs: [submit_ios]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - name: Send the newest build to App Review, or let it wait in TestFlight
+        run: |
+          cd ../..
+          node scripts/app-store-review.mjs
   publish_ios_update:
     name: Publish iOS over-the-air update
     needs: [get_ios_build]
@@ -100,14 +117,17 @@ jobs:
     if: ${{ !needs.get_android_build.outputs.build_id }}
     type: build
     # The build's hook (scripts/store-build-guard.mjs) refuses a production
-    # build without this ref: store builds come only from main.
+    # build without this ref: store builds come only from main. The store
+    # version is the merge time (app.config.js): every build that goes to
+    # review needs a higher version number than the last.
     env:
       LQ_STORE_BUILD_REF: ${{ github.ref }}
+      LQ_STORE_VERSION_TIME: ${{ github.event.head_commit.timestamp }}
     params:
       platform: android
       profile: production
   submit_android:
-    name: Submit to Play internal testing
+    name: Submit to Play production review
     needs: [build_android]
     type: submit
     params:

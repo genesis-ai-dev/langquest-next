@@ -20,6 +20,8 @@
 //
 //   node scripts/release-branches.mjs after-merge --platform ios --old <fp> --new <fp> --sha <commit>
 //   node scripts/release-branches.mjs tidy                  delete branches whose new build is public
+//   node scripts/release-branches.mjs conflict-note --branch <copy branch> --pr <n>
+//                                                           without a Claude key: name the files in conflict
 //
 // The GitHub calls use GH_TOKEN (a GitHub App's token, so that the copy pull
 // requests start their checks) through the gh CLI.
@@ -165,10 +167,42 @@ async function tidy() {
   }
 }
 
+/** The commit that a copy branch carries: its name ends with the commit's first 8 characters. */
+export function commitOfCopy(branch) {
+  return /^copy\/(ios|android)\/([0-9a-f]{8})$/.exec(branch)?.[2] ?? null;
+}
+
+/** What a person reads on a copy that has a conflict and no Claude to finish it. */
+export function conflictNote(sha, base, files) {
+  return [
+    `Copying ${sha} onto ${base} has a conflict in ${files.length === 1 ? 'this file' : 'these files'}:`,
+    '',
+    ...files.map((f) => `- \`${f}\``),
+    '',
+    `No Claude key is set up for this repository (ANTHROPIC_API_KEY), so a person or a Claude session finishes the copy: on this branch, run \`git cherry-pick -x ${sha}\` (with \`-m 1\` for a merge commit), resolve the conflict keeping ${base}'s code where main's change needs code that the public build does not have, push, remove the copy-conflict label, and turn on auto-merge (decisions.md 155).`
+  ].join('\n');
+}
+
+/** Try the copy again on this branch to find the files in conflict, then put it back and comment once. */
+function noteConflict(branch, pr) {
+  const short = commitOfCopy(branch);
+  if (!short) throw new Error(`${branch} is not a copy branch`);
+  git('fetch', '--quiet', 'origin', 'main');
+  const sha = git('rev-parse', short);
+  const parents = git('rev-list', '--parents', '-n', '1', sha).split(' ').length - 1;
+  run('git', ['cherry-pick', '-x', ...(parents > 1 ? ['-m', '1'] : []), sha], { allowFail: true });
+  const files = git('diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
+  run('git', ['cherry-pick', '--abort'], { allowFail: true });
+  const base = run('gh', ['pr', 'view', pr, '--json', 'baseRefName', '--jq', '.baseRefName']).stdout.trim();
+  run('gh', ['pr', 'comment', pr, '--body', conflictNote(sha, base, files)]);
+  console.log(`conflict noted on #${pr}: ${files.length} file(s)`);
+}
+
 function main() {
   const [command, ...rest] = process.argv.slice(2);
   const opt = (name) => rest[rest.indexOf(`--${name}`) + 1];
   if (command === 'tidy') return tidy();
+  if (command === 'conflict-note') return noteConflict(opt('branch'), opt('pr'));
   if (command !== 'after-merge') throw new Error('usage: release-branches.mjs after-merge --platform <p> --old <fp> --new <fp> --sha <commit> | tidy');
   const platform = opt('platform');
   const sha = opt('sha');

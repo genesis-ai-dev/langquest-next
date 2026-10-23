@@ -100,7 +100,7 @@ export default {
       return;
     }
     const startedAt = Date.now();
-    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0 };
+    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0, appleStatus: 0, appleFound: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
     const errors: unknown[] = [];
     const failed = (key: keyof typeof n, what: string) => (e: unknown) => {
       n[key] = 1;
@@ -124,7 +124,11 @@ export default {
       .catch(failed('webhookCatchupFailed', 'webhook catch-up'));
     // Which app version is live in the stores, once an hour (storeReleases.ts, decisions.md 154).
     const stores = storeCheckDue(event.scheduledTime)
-      ? checkStores(serviceClient(env)).then((live) => { n.storeVersions = live.length; }).catch(failed('storeCheckFailed', 'store check'))
+      ? checkStores(serviceClient(env)).then(({ live, counts, problems }) => {
+          n.storeVersions = live.length;
+          Object.assign(n, counts);
+          if (problems.length) throw new Error(problems.join('; '));
+        }).catch(failed('storeCheckFailed', 'store check'))
       : Promise.resolve();
     const run = Promise.all([timings, cleanup, catchUp, stores]).then((): JobRun => ({
       job: 'worker_cron', startedAt, ms: Date.now() - startedAt, n,
