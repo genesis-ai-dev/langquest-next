@@ -153,7 +153,7 @@ export function field(page: Page, label: string | RegExp): Locator {
 }
 
 export const byId = (page: Page, id: string): Locator => visible(page.getByTestId(id)).last();
-export const tab = (page: Page, id: 'work' | 'map' | 'reports' | 'manage' | 'inbox' | 'me'): Locator => byId(page, `tab-${id}`);
+export const tab = (page: Page, id: 'work' | 'map' | 'reports' | 'manage' | 'inbox' | 'global' | 'me'): Locator => byId(page, `tab-${id}`);
 export const primary = (page: Page): Locator => byId(page, 'primary-action');
 export const back = (page: Page): Locator => byId(page, 'header-back').or(byId(page, 'header-close')).first();
 
