@@ -30,8 +30,9 @@ base_image() { sed -n 's/^FROM \([^ ]*\).*/\1/p' "$dockerfile" | head -1; }
 # What `wrangler dev` pulls beside it, to intercept the container's traffic (miniflare names it).
 egress_image() { grep -m1 -o 'cloudflare/proxy-everything:[A-Za-z0-9:@._-]*' "$miniflare" 2> /dev/null || true; }
 
-# v2: the v1 job images' cache held node:24-slim alone (68 MB, seen 2026-10-23), saved by a job whose
-# stack never pulled; an exact hit is never saved again, so every ui-web shard pulled the stack from ECR.
+# v2: the v1 job images' cache held node:24-slim alone (68 MB, seen 2026-10-23): its stack had come from
+# the CLI's fallback registries, which save did not look for (ecr_names below), and an exact hit is never
+# saved again, so every ui-web shard pulled the stack from a registry.
 prefix() { echo "docker-images-v2-${RUNNER_OS:-local}-supabase-$(cli_version)-"; }
 
 key() {
@@ -64,9 +65,22 @@ load() {
   fi
 }
 
+# The CLI pulls its images from ECR Public and, when ECR turns it away, the same images from GitHub's
+# registry or Docker Hub (ghcr.io/supabase/postgrest in run 39994259704). Each such copy gets ECR's name
+# too, the name the CLI looks for first, so a start from the cache finds it here instead of pulling.
+ecr_names() {
+  local image ecr
+  while read -r image; do
+    case "$image" in *:"<none>") continue ;; esac
+    ecr="public.ecr.aws/supabase/${image#*supabase/}"
+    docker image inspect "$ecr" > /dev/null 2>&1 || docker tag "$image" "$ecr"
+  done < <(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^(ghcr\.io/|docker\.io/)?supabase/' || true)
+}
+
 save() {
   local jobs="${1:-}" images base
   base="$(base_image)"
+  ecr_names
   images="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^public\.ecr\.aws/supabase/' || true)"
   # Without the database there was no stack (it failed before pulling), and a cache saved now would be
   # an exact hit that is never saved again.

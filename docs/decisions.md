@@ -7497,9 +7497,12 @@ to main, and the push run tested it a third time, on 9 runners. Carl asked
   that on a push that runs no tests: it looks each cache up, and only when
   one is missing pulls and saves it (`.github/actions/docker-images` phase
   `warm`, `.github/actions/playwright` `warm`). The Docker cache key moved
-  to `v2`: the v1 job images' cache held only `node:24-slim`, saved by a job
-  whose stack never pulled, so every `ui-web` shard pulled the stack from ECR;
-  `ci-docker-images.sh save` now keeps nothing without the database image.
+  to `v2`: the v1 job images' cache held only `node:24-slim`, so every
+  `ui-web` shard pulled the stack from a registry. When ECR turns the CLI
+  away, it pulls the same images from `ghcr.io` (or Docker Hub), and `save`
+  looked only for ECR's names (seen in run 39994259704, this change's first).
+  `ci-docker-images.sh save` now gives each such copy ECR's name, the one the
+  CLI looks for first, and keeps nothing without the database image.
 - **What else read the push run.** The flake tracker counts merge queue runs
   too (`scripts/ui-flake-report.mjs`). `gate` still tells Linear when
   `checks`, `unit` or `coverage` failed on a push that ran them.
