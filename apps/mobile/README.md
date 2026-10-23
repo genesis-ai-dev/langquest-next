@@ -142,7 +142,8 @@ Console.
    has one, that Google service account can be given access to this app
    too (Play Console, Users and permissions).
 4. The next merge to `main` builds the production AAB and submits it to
-   internal testing; `npm run android:play` does the same by hand. If Play
+   internal testing. Store builds come only from that workflow (decisions.md
+   150). If Play
    refuses it because the app is still a draft, upload that one AAB by hand
    in Play Console (Testing, Internal testing, Create release) and roll it
    out; every later release goes through EAS.
@@ -178,7 +179,10 @@ guessed:
   with the runtime version each landed on, which is where a push that seems
   to have reached nobody shows itself.
 
-Add `--prod` to any of them for `production` (`npm run ship -- --prod -m "…"`).
+There is no `--prod`: production builds and OTA updates come only from
+merges into `main`, through `.eas/workflows/deploy-to-testers.yml`, and an EAS
+build hook (`scripts/store-build-guard.mjs`) stops a production build that
+the workflow did not start from `main` (decisions.md 156).
 They run from `apps/mobile` (`scripts/ship.mjs`), and the repository root
 forwards `npm run ship` with its arguments.
 

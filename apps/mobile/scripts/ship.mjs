@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-// Ship the app (README.md, "Shipping a change"). Preview unless --prod:
+// Ship the app to the preview channel (README.md, "Shipping a change"):
 //
-//   npm run ship -- -m "what changed"           typecheck, then an update on the channel
-//   npm run ship -- --native                    a new iOS build (the fingerprint changed)
+//   npm run ship -- -m "what changed"           typecheck, then an update on preview
+//   npm run ship -- --native                    a new iOS preview build (the fingerprint changed)
 //   npm run ship -- --check                     does this tree still match the last build?
-//   npm run ship -- --status                    the channel's recent updates
-//   npm run ship -- --prod …                    any of the above against production
+//   npm run ship -- --status                    preview's recent updates
+//
+// Production builds and OTA updates come only from merges into main, through
+// .eas/workflows/deploy-to-testers.yml (decisions.md 156), so there is no
+// --prod.
 //
 // Other arguments go to eas as they are (-m "…", --non-interactive).
 //
@@ -24,12 +27,16 @@ const take = (flag) => {
   args.splice(i, 1);
   return true;
 };
-const env = take('--prod') ? 'production' : 'preview';
+if (args.includes('--prod')) {
+  console.error('ship: production builds and OTA updates come only from merges into main (decisions.md 156). There is no --prod.');
+  process.exit(2);
+}
+const env = 'preview';
 const native = take('--native');
 const check = take('--check');
 const status = take('--status');
 if ([native, check, status].filter(Boolean).length > 1) {
-  console.error('usage: npm run ship -- [--prod] [--native | --check | --status] [eas arguments…]');
+  console.error('usage: npm run ship -- [--native | --check | --status] [eas arguments…]');
   process.exit(2);
 }
 
