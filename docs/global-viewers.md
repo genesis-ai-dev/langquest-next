@@ -43,10 +43,14 @@ the call is the check.
 
 ## Day to day
 
-Each time they sign in, the app asks for a code from the authenticator.
-Without it ("Not now") the account sees nothing. Me → Global Viewer → All
-organizations finds an organization by its name or a language's name.
-Opening one downloads its organization stream, and each language only when
+After signing in, the account lands on "What brings you here?", which
+offers only Global Viewer. There they type the code their authenticator
+shows; until they do, the account sees nothing. Global Viewer then finds an
+organization by its name or a language's name. Inside one, the **Viewing**
+tab (before Me) shows the organization they are in and lets them open
+another; on a desktop the sidebar also says "Viewing as a Global Viewer"
+under the organization's name. The code is asked for once per sign-in.
+Opening an organization downloads its organization stream, and each language only when
 it is opened.
 
 ## Ending it

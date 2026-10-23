@@ -346,7 +346,8 @@
     "get_ready": "Jiandae",
     "settings_more": "Mipangilio zaidi",
     "check_editor": "Ukaguzi",
-    "cluster_home": "Kundi"
+    "cluster_home": "Kundi",
+    "global_viewer": "Mtazamaji wa Kimataifa"
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
@@ -4434,7 +4435,8 @@
       "manage": "Lugha, watu na mipangilio ya shirika lako.",
       "inbox": "Yaliyotokea yanayokuhusu: maombi, maoni, watu wanaoomba kujiunga.",
       "me": "Jina lako, kifaa hiki na mipangilio yako.",
-      "explorer": "Hufungua kichunguzi cha lugha kwenye kichupo kipya: kila lugha na mahali inapozungumzwa."
+      "explorer": "Hufungua kichunguzi cha lugha kwenye kichupo kipya: kila lugha na mahali inapozungumzwa.",
+      "globalViewer": "Unapotazama, unachoweza kufanya huko, na mashirika mengine yote."
     },
     "sync": {
       "live": "Nukta ya kijani: imeunganishwa. Kazi yako inatumwa unapoendelea. Gusa ili kuona kilichotumwa.",
@@ -7291,5 +7293,46 @@
     "required": "Tafadhali sasisha programu",
     "keepWorking": "Endelea kufanya kazi",
     "keepWorkingHelp": "Kazi yako inabaki kwenye simu hii na itatumwa baada ya kusasisha."
+  },
+  "globalViewer": {
+    "title": "Mtazamaji wa Kimataifa",
+    "viewingOrg": "Unatazama {{org}} kama Mtazamaji wa Kimataifa. Huwezi kubadilisha chochote.",
+    "lineSetUp": "Weka programu yako ya uthibitishaji ili kuanza",
+    "lineCode": "Weka msimbo kutoka programu yako ya uthibitishaji",
+    "lineOn": "Tafuta shirika lolote la kusoma",
+    "lineRevoked": "Ruhusa yako ya Mtazamaji wa Kimataifa imeisha",
+    "wayInHelp": "Msimbo wa programu yako ya uthibitishaji, na mashirika yote ya kusoma.",
+    "revokedTitle": "Ruhusa ya Mtazamaji wa Kimataifa imeisha",
+    "revokedBody": "Uliza LangQuest ukidhani ni kosa.",
+    "notOne": "Akaunti hii si ya Mtazamaji wa Kimataifa.",
+    "codeLabel": "Msimbo kutoka programu yako ya uthibitishaji",
+    "codeHelp": "Msimbo wa tarakimu 6 ambao programu yako ya uthibitishaji inaonyesha kwa LangQuest. Hubadilika kila sekunde 30.",
+    "check": "Hakiki msimbo",
+    "checkHelp": "Msimbo ukiwa sahihi, utaweza kusoma mashirika yote hadi utakapotoka.",
+    "codeWrong": "Msimbo huo si sahihi. Andika msimbo ambao programu yako ya uthibitishaji inaonyesha sasa.",
+    "noAuthenticator": "Akaunti hii haina programu ya uthibitishaji. Uliza LangQuest iiweke upya.",
+    "enterCode": "Ili kusoma mashirika, weka msimbo kutoka programu yako ya uthibitishaji.",
+    "setUpIntro": "Fanya hivi kwenye simu na mtu aliyekupa ruhusa. Unahitaji programu ya uthibitishaji kwenye simu yako, kama Google Authenticator au Microsoft Authenticator.",
+    "setUp": "Weka programu ya uthibitishaji",
+    "setUpHelp": "Hutengeneza ufunguo mpya wa programu yako ya uthibitishaji na kuuonyesha hapa.",
+    "stepAdd": "1. Ongeza LangQuest kwenye programu yako ya uthibitishaji",
+    "scan": "Skani msimbo huu kwa programu yako ya uthibitishaji.",
+    "qrLabel": "Msimbo wa kuskani kwa programu yako ya uthibitishaji",
+    "openApp": "Fungua kwenye programu ya uthibitishaji",
+    "openAppHelp": "Huongeza LangQuest kwenye programu ya uthibitishaji ya simu hii.",
+    "noApp": "Hakuna programu ya uthibitishaji iliyofunguka. Andika ufunguo ulio hapa chini ndani yake.",
+    "typeKey": "Au andika ufunguo huu kwenye programu:",
+    "stepCode": "2. Weka msimbo unaoonyesha",
+    "onTitle": "Unaweza kusoma mashirika yote",
+    "onBody": "Unaona anachoona Mtazamaji. Huwezi kubadilisha chochote.",
+    "search": "Shirika au lugha",
+    "openNowLabel": "{{name}}, imefunguliwa sasa",
+    "openHelp": "Hufungua shirika hili kusoma.",
+    "noneFound": "Hakuna shirika linalolingana.",
+    "more": "Onyesha zaidi",
+    "tabViewing": "Kutazama",
+    "sidebarViewing": "Unatazama kama Mtazamaji wa Kimataifa",
+    "hereLabel": "Unatazama sasa",
+    "otherLabel": "Fungua shirika lingine"
   }
 }

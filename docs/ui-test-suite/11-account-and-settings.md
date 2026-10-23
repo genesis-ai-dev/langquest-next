@@ -1114,3 +1114,58 @@ Expected:
 - Step 2: "Set up your microphone" (what it does is in REC). Back returns to
   Me.
 - Neither screen shows the tab bar on a phone.
+
+---
+
+## Global Viewers
+
+A Global Viewer is LangQuest support: an account that belongs to no
+organization and reads any of them as a Viewer would, once it has entered a
+code from an authenticator app (decisions.md 158, docs/global-viewers.md).
+Each test makes its own account and grants it as an operator does
+(`global_viewer_grant`). Codes are worked out from the authenticator's key,
+as the app on a phone would.
+
+### ACCT-052 A new Global Viewer sets up an authenticator on What brings you here?
+Roles: GV (new) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: A new account, granted, with no authenticator yet.
+
+Steps:
+1. Sign in.
+2. Tap "Global Viewer", then "Set up authenticator".
+3. Type the code for the key shown, and tap "Check code".
+
+Expected:
+- Step 1: "Global Viewer" says "Set up your authenticator to begin". None of
+  the ways to join an organization show.
+- Step 2: a code to scan and the key to type, in groups of four.
+- Step 3: "You can read every organization", with a search for one.
+
+### ACCT-053 A wrong code is refused and opens nothing
+Roles: GV (new) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: A granted account with an authenticator, signed in with its
+password only.
+
+Steps:
+1. Tap "Global Viewer". Type a code that is not the authenticator's, and tap
+   "Check code".
+
+Expected:
+- "That code is not right. Type the code your authenticator shows now." No
+  organizations are listed.
+
+### ACCT-054 A Global Viewer opens another organization and only views it
+Roles: GV (new) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: As ACCT-053.
+
+Steps:
+1. Tap "Global Viewer", type the authenticator's code, and tap "Check code".
+2. Search for ORG by its name and tap it, then tap the "Viewing" tab.
+
+Expected:
+- Step 2: ORG opens on the overview. The tabs are a Viewer's (no Work, no
+  Manage) and "Viewing" before Me. "Viewing" shows ORG under "Viewing now",
+  and the search for another organization below it.

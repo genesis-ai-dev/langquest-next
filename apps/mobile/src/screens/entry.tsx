@@ -18,6 +18,8 @@ import {
 } from '../account/accountData';
 import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../account/accountText';
 import { signInName } from '../auth/accounts';
+import { globalViewerLine } from '../account/globalViewerText';
+import { useGlobalViewer } from '../account/useGlobalViewer';
 import { licenseText } from '../i18n/coreText';
 import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
@@ -723,7 +725,9 @@ export function IntentChooser(ctx: Ctx) {
   // phone hands it over (NOORG-004, decision 60).
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId];
   const first = me?.split(/\s+/)[0];
-  const main = intents().filter((o) => o.to !== 'explore_home');
+  // A Global Viewer account joins no organization (decisions.md 158): its one way on is Global Viewer.
+  const globalViewer = useGlobalViewer(ctx.session.actorId, !ctx.session.isGuest).access;
+  const main = globalViewer ? [] : intents().filter((o) => o.to !== 'explore_home');
   return (
     <Screen header={<Header title={waiting && !declined ? askedLine : t('entry.intent.title')} {...(first && !waiting ? { sub: t('entry.welcome.greeting', { name: first }) } : {})} />}
       footer={<QuietLinks items={[{ label: t('entry.intent.lookTitle'), icon: 'globe', help: t('entry.intent.lookHelp'), onPress: () => ctx.go('explore_home') }]} />}>
@@ -765,6 +769,18 @@ export function IntentChooser(ctx: Ctx) {
           </View>
         </Card>
       ))}
+      {globalViewer ? (
+        <Card onPress={() => ctx.go('global_viewer')} accessibilityLabel={t('globalViewer.title')} help={t('globalViewer.wayInHelp')} current>
+          <View style={styles.optionRow}>
+            <View style={[styles.tile, { backgroundColor: C.primary }]}><Ico name="eye" size={24} color={C.white} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={[txt.body, { fontWeight: '700', fontSize: 19 }]}>{t('globalViewer.title')}</Text>
+              <Text style={txt.smMuted}>{globalViewerLine(globalViewer)}</Text>
+            </View>
+            <Ico name="right" size={22} color={C.muted} />
+          </View>
+        </Card>
+      ) : null}
       {error ? <Text style={txt.error} accessibilityRole="alert">{error}</Text> : null}
       {!ctx.session.isGuest ? (
         <QuietLinks items={[

@@ -56,6 +56,7 @@ import { noteAuthEvent, watchRenewals } from './src/auth/authDiag';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/account/useAccount';
+import { useGlobalViewer, useGlobalViewerNames } from './src/account/useGlobalViewer';
 import { useBlocks } from './src/moderation/useModeration';
 import { PeopleContext } from './src/ui/usePerson';
 import { titleFor } from './src/web/webPaths';
@@ -94,6 +95,7 @@ const loadOrg = () => import('./src/screens/org');
 const loadReference = () => import('./src/screens/reference');
 const loadReports = () => import('./src/screens/reports');
 const loadSources = () => import('./src/screens/sources');
+const loadGlobalViewer = () => import('./src/screens/globalViewer');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -121,7 +123,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   reference_coverage: lazyScreen(loadReference, 'ReferenceCoverage'), passage_reference: lazyScreen(loadReference, 'PassageReference'),
   bible_explore: lazyScreen(loadSources, 'BibleExplore'),
   get_ready: Ready.GetReady,
-  settings_more: Account.SettingsMore
+  settings_more: Account.SettingsMore,
+  global_viewer: lazyScreen(loadGlobalViewer, 'GlobalViewer')
 };
 
 /**
@@ -402,7 +405,10 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
   const org = props.org;
   const nav = useNav({ screen: 'sign_in' });
-  const { languageId, setLanguage, languages } = useWorkingLanguage(org.state, props.actorId, props.orgId, nav.current.params?.['languageId']);
+  // A Global Viewer whose access is on reads every organization, as a Viewer (decisions.md 158).
+  const globalViewer = useGlobalViewer(props.actorId, props.signedIn).access;
+  const { languageId, setLanguage, languages } = useWorkingLanguage(org.state, props.actorId, props.orgId, nav.current.params?.['languageId'],
+    globalViewer === 'on');
   const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
   usePassagesInMemory(language, nav.current.params?.['unitId']);
   useAccountSync(props.actorId);
@@ -417,9 +423,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Someone from v2 is welcomed back to their work instead (demo ADR-043).
   const welcomeBack = useWelcomeBack(props.actorId, props.fromV2 && props.signedIn && onboarding.loaded && !onboarding.welcomed);
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, onboarding.welcomed, org.state, languageId, hasWelcome(welcomeBack.data)),
-    [props.actorId, props.email, onboarding.welcomed, org.state, languageId, welcomeBack.data]
+    () => deriveSession(props.actorId, props.email, onboarding.welcomed, org.state, languageId, hasWelcome(welcomeBack.data), globalViewer),
+    [props.actorId, props.email, onboarding.welcomed, org.state, languageId, welcomeBack.data, globalViewer]
   );
+  // Members' names, which a Global Viewer's own directory does not hold.
+  const viewedNames = useGlobalViewerNames(props.orgId, session.viewingAsGlobalViewer);
   // Languages follow the library versions their template and flow are at (docs/library.md).
   useLibraryFollow(language, org, session);
   useTranslatorReview(org, session);
@@ -432,8 +440,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Names: the signed-in person is always "you" (CORE-6).
   const name = useCallback((id: string, lower = false) => {
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
-    return people[id] ?? personLook(id).name;
-  }, [people, props.actorId]);
+    return people[id] ?? viewedNames[id] ?? personLook(id).name;
+  }, [people, viewedNames, props.actorId]);
   const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 
   const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
@@ -522,7 +530,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
     ?? ([...MAP_SCREENS, ...PASSAGE_READING].includes(screen) ? 'map' : 'manage');
   const navChrome = (variant: 'bar' | 'rail' | 'sidebar') => (
     <NavChrome variant={variant} tabs={tabs} active={activeTab} onSelect={(t) => { if (screen !== t.screen) nav.reset({ screen: t.screen }); }}
-      {...(org.state?.org?.value.name ? { orgName: org.state.org.value.name } : {})} actorId={props.actorId} />
+      {...(org.state?.org?.value.name ? { orgName: org.state.org.value.name } : {})} actorId={props.actorId}
+      {...(session.viewingAsGlobalViewer ? { status: t('globalViewer.sidebarViewing') } : {})} />
   );
 
   // A list and what it opened, side by side on a desktop-wide window (panes.ts).
