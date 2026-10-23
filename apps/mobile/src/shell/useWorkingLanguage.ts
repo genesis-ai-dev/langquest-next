@@ -8,13 +8,13 @@ import { openLanguage } from './languages';
  * the one a screen names, else the one remembered per account and
  * organization on this device, else the organization's first.
  */
-export function useWorkingLanguage(org: OrgState | null, actorId: string, orgId: string, paramLanguage: string | undefined) {
+export function useWorkingLanguage(org: OrgState | null, actorId: string, orgId: string, paramLanguage: string | undefined, readsAll = false) {
   const languageKey = `language:${actorId}:${orgId}`;
   const [savedLanguage, setSavedLanguage] = useState<string | null>(null);
   useEffect(() => { AsyncStorage.getItem(languageKey).then(setSavedLanguage).catch(() => {}); }, [languageKey]);
   const setLanguage = useCallback((id: string) => { setSavedLanguage(id); AsyncStorage.setItem(languageKey, id).catch(() => {}); }, [languageKey]);
-  const languageId = useMemo(() => openLanguage(org, actorId, { param: paramLanguage, saved: savedLanguage }),
-    [org, actorId, paramLanguage, savedLanguage]);
+  const languageId = useMemo(() => openLanguage(org, actorId, { param: paramLanguage, saved: savedLanguage }, readsAll),
+    [org, actorId, paramLanguage, savedLanguage, readsAll]);
   // A screen about a language makes it the one this person works in.
   useEffect(() => { if (languageId && languageId === paramLanguage && languageId !== savedLanguage) setLanguage(languageId); }, [languageId, paramLanguage, savedLanguage, setLanguage]);
   const languages = useMemo(() => orgLanguages(org), [org]);

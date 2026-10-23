@@ -346,7 +346,8 @@
     "get_ready": "Get ready",
     "settings_more": "More settings",
     "check_editor": "Check",
-    "cluster_home": "Cluster"
+    "cluster_home": "Cluster",
+    "global_viewer": "Global Viewer"
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
@@ -4434,7 +4435,8 @@
       "manage": "Your organization's languages, people and settings.",
       "inbox": "What happened that concerns you: requests, feedback, people asking to join.",
       "me": "Your name, this device and your settings.",
-      "explorer": "Opens the language explorer in a new tab: every language and where it is spoken."
+      "explorer": "Opens the language explorer in a new tab: every language and where it is spoken.",
+      "globalViewer": "Where you are viewing, what you can do there, and every other organization."
     },
     "sync": {
       "live": "Green dot: connected. Your work is sent as you go. Tap to see what was sent.",
@@ -7291,5 +7293,46 @@
     "required": "Please update the app",
     "keepWorking": "Keep working",
     "keepWorkingHelp": "Your work stays on this phone and is sent after you update."
+  },
+  "globalViewer": {
+    "title": "Global Viewer",
+    "viewingOrg": "Viewing {{org}} as a Global Viewer. You can’t change anything.",
+    "lineSetUp": "Set up your authenticator to begin",
+    "lineCode": "Enter the code from your authenticator",
+    "lineOn": "Find any organization to read",
+    "lineRevoked": "Your Global Viewer access has ended",
+    "wayInHelp": "Your authenticator code, and every organization to read.",
+    "revokedTitle": "Global Viewer access has ended",
+    "revokedBody": "Ask LangQuest if you think this is a mistake.",
+    "notOne": "This account is not a Global Viewer.",
+    "codeLabel": "Code from your authenticator",
+    "codeHelp": "The 6-digit code your authenticator app shows for LangQuest. It changes every 30 seconds.",
+    "check": "Check code",
+    "checkHelp": "If the code is right, you can read every organization until you sign out.",
+    "codeWrong": "That code is not right. Type the code your authenticator shows now.",
+    "noAuthenticator": "This account has no authenticator. Ask LangQuest to reset it.",
+    "enterCode": "To read organizations, enter the code from your authenticator app.",
+    "setUpIntro": "Do this on a call with the person who gave you access. You need an authenticator app on your phone, such as Google Authenticator or Microsoft Authenticator.",
+    "setUp": "Set up authenticator",
+    "setUpHelp": "Makes a new key for your authenticator app and shows it here.",
+    "stepAdd": "1. Add LangQuest to your authenticator",
+    "scan": "Scan this code with your authenticator app.",
+    "qrLabel": "Code to scan with your authenticator app",
+    "openApp": "Open in authenticator app",
+    "openAppHelp": "Adds LangQuest to the authenticator app on this phone.",
+    "noApp": "No authenticator app opened. Type the key below into it instead.",
+    "typeKey": "Or type this key into the app:",
+    "stepCode": "2. Enter the code it shows",
+    "onTitle": "You can read every organization",
+    "onBody": "You see what a Viewer sees. You can’t change anything.",
+    "search": "Organization or language",
+    "openNowLabel": "{{name}}, open now",
+    "openHelp": "Opens this organization to read.",
+    "noneFound": "No organization matches.",
+    "more": "Show more",
+    "tabViewing": "Viewing",
+    "sidebarViewing": "Viewing as a Global Viewer",
+    "hereLabel": "Viewing now",
+    "otherLabel": "Open another organization"
   }
 }

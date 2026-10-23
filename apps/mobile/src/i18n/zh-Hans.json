@@ -344,7 +344,8 @@
     "get_ready": "准备工作",
     "settings_more": "更多设置",
     "check_editor": "检查",
-    "cluster_home": "语言群"
+    "cluster_home": "语言群",
+    "global_viewer": "全局查看者"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
@@ -4296,7 +4297,8 @@
       "manage": "你的机构的语言、人员和设置。",
       "inbox": "与你有关的事：请求、反馈、申请加入的人。",
       "me": "你的名字、本设备和你的设置。",
-      "explorer": "在新标签页中打开语言浏览：所有语言，以及在哪里使用。"
+      "explorer": "在新标签页中打开语言浏览：所有语言，以及在哪里使用。",
+      "globalViewer": "你正在查看的地方、在那里能做什么，以及所有其他机构。"
     },
     "sync": {
       "live": "绿点：已联网。你的工作会随时发送。点按查看发送了什么。",
@@ -6985,5 +6987,46 @@
     "required": "请更新应用",
     "keepWorking": "继续工作",
     "keepWorkingHelp": "你的工作会保留在这部手机上，更新后再发送。"
+  },
+  "globalViewer": {
+    "title": "全局查看者",
+    "viewingOrg": "你正以全局查看者身份查看{{org}}。你不能更改任何内容。",
+    "lineSetUp": "先设置你的身份验证器",
+    "lineCode": "输入身份验证器上的验证码",
+    "lineOn": "查找任何要阅读的机构",
+    "lineRevoked": "你的全局查看者权限已结束",
+    "wayInHelp": "你的身份验证器验证码，以及所有可阅读的机构。",
+    "revokedTitle": "全局查看者权限已结束",
+    "revokedBody": "如果你觉得这是个错误，请询问 LangQuest。",
+    "notOne": "这个账号不是全局查看者。",
+    "codeLabel": "身份验证器上的验证码",
+    "codeHelp": "你的身份验证器应用为 LangQuest 显示的 6 位验证码。它每 30 秒变一次。",
+    "check": "检查验证码",
+    "checkHelp": "验证码正确的话，在你退出登录之前都可以阅读所有机构。",
+    "codeWrong": "验证码不对。请输入你的身份验证器现在显示的验证码。",
+    "noAuthenticator": "这个账号没有身份验证器。请让 LangQuest 重置。",
+    "enterCode": "要阅读机构，请输入身份验证器应用上的验证码。",
+    "setUpIntro": "请在与给你权限的人通话时进行。你的手机上需要一个身份验证器应用，例如 Google Authenticator 或 Microsoft Authenticator。",
+    "setUp": "设置身份验证器",
+    "setUpHelp": "为你的身份验证器应用生成一个新密钥，并显示在这里。",
+    "stepAdd": "1. 把 LangQuest 添加到你的身份验证器",
+    "scan": "用你的身份验证器应用扫描这个码。",
+    "qrLabel": "用身份验证器应用扫描的码",
+    "openApp": "在身份验证器应用中打开",
+    "openAppHelp": "把 LangQuest 添加到这部手机的身份验证器应用。",
+    "noApp": "没有打开任何身份验证器应用。请改为把下面的密钥输入应用。",
+    "typeKey": "或者把这个密钥输入应用：",
+    "stepCode": "2. 输入它显示的验证码",
+    "onTitle": "你可以阅读所有机构",
+    "onBody": "你看到的和查看者看到的一样。你不能更改任何内容。",
+    "search": "机构或语言",
+    "openNowLabel": "{{name}}，现已打开",
+    "openHelp": "打开这个机构来阅读。",
+    "noneFound": "没有匹配的机构。",
+    "more": "显示更多",
+    "tabViewing": "查看",
+    "sidebarViewing": "以全局查看者身份查看",
+    "hereLabel": "正在查看",
+    "otherLabel": "打开其他机构"
   }
 }

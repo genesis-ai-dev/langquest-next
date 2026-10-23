@@ -17,7 +17,7 @@ import type { Tab, TabId } from './session';
 import { C, measure, radius, space, target } from '../ui/theme';
 import { UserChip } from '../ui/UserChip';
 
-const TAB_ICONS: Record<TabId, IconName | 'bookClosed'> = { work: 'list', map: 'bookClosed', reports: 'progress', manage: 'settings', inbox: 'notif', me: 'user' };
+const TAB_ICONS: Record<TabId, IconName | 'bookClosed'> = { work: 'list', map: 'bookClosed', reports: 'progress', manage: 'settings', inbox: 'notif', global: 'eye', me: 'user' };
 
 /** A tab's badge: its count, or 99+ past that. */
 function badgeText(n: number): string {
@@ -37,6 +37,7 @@ function tabHelp(id: TabId): string {
     case 'reports': return t('help.tabs.reports');
     case 'manage': return t('help.tabs.manage');
     case 'inbox': return t('help.tabs.inbox');
+    case 'global': return t('help.tabs.globalViewer');
     case 'me': return t('help.tabs.me');
   }
 }
@@ -55,12 +56,15 @@ export function NavChrome(props: {
   onSelect: (tab: Tab) => void;
   orgName?: string;
   actorId?: string;
+  /** Under the organization's name on a desktop: how a Global Viewer is here (decision 158). Opens their tab. */
+  status?: string;
 }) {
   if (props.variant === 'sidebar') {
     return (
       <View style={styles.sidebar}>
         <View style={styles.sidebarHead}>
           {props.orgName ? <Text style={txt.h3} numberOfLines={2}>{props.orgName}</Text> : null}
+          {props.status ? <StatusLine label={props.status} onPress={() => { const g = props.tabs.find((x) => x.id === 'global'); if (g) props.onSelect(g); }} /> : null}
           {props.actorId ? <View style={{ alignSelf: 'flex-start' }}><UserChip id={props.actorId} /></View> : null}
         </View>
         {/* Only the tabs are in the tab list; the account chip beside them is a button of its own. */}
@@ -79,6 +83,19 @@ export function NavChrome(props: {
       {/* help-each: each tab holds a different part of the app */}
       {props.tabs.map((tab) => <BarTab key={tab.id} tab={tab} active={tab.id === props.active} rail={rail} onSelect={props.onSelect} />)}
     </View>
+  );
+}
+
+/** A Global Viewer's line under the organization's name in the sidebar: how they are here, and the way to their tab. */
+function StatusLine(props: { label: string; onPress: () => void }) {
+  const spot = useHelpSpot(props.label, t('help.tabs.globalViewer'), props.onPress);
+  return (
+    <Pressable onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={props.label} testID="global-viewer-status"
+      style={({ pressed }) => [styles.status, pressed && { opacity: 0.7 }]}>
+      <Ico name="eye" size={16} color={C.primary} />
+      <Text style={[txt.xs, { color: C.primary, fontWeight: '700', flexShrink: 1 }]}>{props.label}</Text>
+      <HelpBadge spot={spot} inset />
+    </Pressable>
   );
 }
 
@@ -152,5 +169,6 @@ const styles = StyleSheet.create({
   railItem: { minHeight: target.row, alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: space.xs },
   sidebar: { width: measure.sidebar, backgroundColor: C.card, borderRightWidth: StyleSheet.hairlineWidth, borderColor: C.border, paddingHorizontal: space.md, paddingTop: space.lg, gap: space.xs },
   sidebarHead: { gap: space.sm, paddingHorizontal: space.sm, paddingBottom: space.lg, marginBottom: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  status: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: target.min, alignSelf: 'flex-start' },
   sideItem: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: target.min, paddingHorizontal: space.md, borderRadius: radius.md }
 });
