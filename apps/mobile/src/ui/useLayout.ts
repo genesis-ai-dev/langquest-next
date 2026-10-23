@@ -9,6 +9,8 @@ export interface Layout {
   contentWidth: number;
   /** A screen alone, the list in a split's pane, or the stack beside that pane. */
   role: 'single' | 'list' | 'detail';
+  /** The window's chrome already names the organization (a desktop's sidebar), so headers need not. */
+  orgInChrome?: boolean;
 }
 
 /** Provided by App.tsx around the stack and the list pane; without it, the window decides. */
@@ -19,6 +21,11 @@ export function useLayout(): Layout {
   const given = useContext(LayoutContext);
   const { width } = useWindowDimensions();
   return useMemo(() => given ?? { kind: layoutKind(width), contentWidth: width, role: 'single' }, [given, width]);
+}
+
+/** Does the window's chrome already name the organization? Then a header's subtitle leaves it out. */
+export function useOrgInChrome(): boolean {
+  return useLayout().orgInChrome === true;
 }
 
 /** What a list pane has open beside it, so the list can mark that row. */

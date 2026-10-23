@@ -4371,6 +4371,14 @@
       "term": {
         "title": "Chagua neno",
         "sub": "Maana yake na tafsiri zake zinafunguka hapa."
+      },
+      "language": {
+        "title": "Chagua lugha",
+        "sub": "Maendeleo yake yanafunguka hapa."
+      },
+      "manage": {
+        "title": "Chagua cha kusimamia",
+        "sub": "Lugha, wanachama au maandalizi yanafunguka hapa."
       }
     },
     "license": {

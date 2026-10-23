@@ -27,6 +27,11 @@ export function setReadOnlySession(on: boolean): void {
   readOnlyNow = on;
 }
 
+/** Is the open organization read-only for this session? The recorder asks before it opens the microphone. */
+export function isReadOnlySession(): boolean {
+  return readOnlyNow;
+}
+
 /**
  * The words for a server's refusal of a write while read-only: a call the
  * screens make to the server directly (an invite, a listing) is refused as

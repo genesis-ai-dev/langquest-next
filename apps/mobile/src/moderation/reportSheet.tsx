@@ -41,7 +41,8 @@ const looksOffline = (e: unknown) => !(e instanceof Error) || /network|fetch|off
 export function ReportFlag(props: { ctx: Ctx; target: ReportTarget; size?: number }) {
   const [open, setOpen] = useState(false);
   const { ctx, target } = props;
-  if (ctx.session.isGuest || target.profileId === ctx.session.actorId || !target.profileId) return null;
+  // A Global Viewer looking in reports and blocks nothing there (decisions.md 158).
+  if (ctx.session.isGuest || ctx.session.readOnly || target.profileId === ctx.session.actorId || !target.profileId) return null;
   return (
     <>
       <IconBtn name="flag" label={t('moderation.flagLabel', { name: ctx.name(target.profileId) })} help={t('moderation.flagHelp')} onPress={() => setOpen(true)}

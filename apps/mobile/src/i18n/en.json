@@ -4371,6 +4371,14 @@
       "term": {
         "title": "Pick a term",
         "sub": "Its meaning and renderings open here."
+      },
+      "language": {
+        "title": "Pick a language",
+        "sub": "Its progress opens here."
+      },
+      "manage": {
+        "title": "Pick something to manage",
+        "sub": "A language, members or setup opens here."
       }
     },
     "license": {

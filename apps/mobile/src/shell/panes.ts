@@ -31,7 +31,7 @@ export interface PaneEmpty {
   readonly sub: string;
 }
 
-type PaneEmptyId = 'book' | 'chapter' | 'update' | 'member' | 'role' | 'flow' | 'template' | 'reference' | 'bible' | 'guide' | 'passage' | 'team' | 'term';
+type PaneEmptyId = 'book' | 'chapter' | 'update' | 'member' | 'role' | 'flow' | 'template' | 'reference' | 'bible' | 'guide' | 'passage' | 'team' | 'term' | 'language' | 'manage';
 
 /** One object per split, so it stays the same between renders; its words are read when shown. */
 function emptyPane(icon: IconName, id: PaneEmptyId): PaneEmpty {
@@ -42,8 +42,13 @@ function emptyPane(icon: IconName, id: PaneEmptyId): PaneEmpty {
   };
 }
 
+/**
+ * Map and Manage the same way (2026-10-23): the pane always shows the screen
+ * you came from and the right side what it opened, one level at a time, and
+ * a hub starts beside its placeholder rather than full width.
+ */
 export const SPLITS: readonly SplitSpec[] = [
-  { list: 'status_home', details: ['map_home'] },
+  { list: 'status_home', details: ['map_home'], empty: emptyPane('globe', 'language') },
   { list: 'map_home', details: ['book_map', 'passage_record'], empty: emptyPane('book', 'book') },
   { list: 'book_map', details: ['passage_record'], empty: emptyPane('map', 'chapter') },
   { list: 'inbox_home', details: ['passage_record', 'edit_member', 'members_list'], empty: emptyPane('inbox', 'update') },
@@ -56,7 +61,9 @@ export const SPLITS: readonly SplitSpec[] = [
   { list: 'reference_guides', details: ['material_editor'], empty: emptyPane('sparkle', 'guide') },
   { list: 'reference_coverage', details: ['passage_reference'], empty: emptyPane('map', 'passage') },
   { list: 'key_terms', details: ['key_term_detail'], empty: emptyPane('book', 'term') },
-  { list: 'org_home', details: ['language_home'] }
+  { list: 'org_home', details: ['language_home', 'cluster_home', 'members_list', 'roles_home', 'flows_home', 'templates_home', 'reference_home'],
+    empty: emptyPane('settings', 'manage') },
+  { list: 'language_home', details: ['members_list', 'edit_member', 'roles_home', 'flows_home', 'templates_home', 'reference_home'] }
 ];
 
 interface Split<R extends PaneRoute = PaneRoute> {

@@ -28,7 +28,7 @@ import { indexesFor } from '../sync/indexes';
 import { useOrgSummary } from '../reports/useOrgSummary';
 import { Badge, Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, IconBtn, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, StepMarks } from '../ui/kit';
 import { txt } from '../ui/textStyles';
-import { useLayout, useOpenDetail } from '../ui/useLayout';
+import { useLayout, useOpenDetail, useOrgInChrome } from '../ui/useLayout';
 import { mayWriteLibrary } from '../library/model';
 import { agoWords, bookEntries, bookRowWords, chapterRows, chapterTiles, clauses, clusterView, filterEntries, filterLabel, flowLabel, funnelLayers, funnelRows, isOutline, languageEntries, mapSearch, mapShelf, needsConnection, openableLanguages as openableIn, openState, OTHER, outlineSections, PAGE, searchLanguages, sentences, statusLanguages, statusTotals, summarizeBooks, tileLabel, tileHelp, waitingBooks, type BookSummary, type ChapterTile, type Entry } from '../map/mapModel';
 import { useForYou, useNextPassage } from '../map/useMapLanguage';
@@ -265,7 +265,8 @@ export function StatusHome(ctx: Ctx) {
   const languages = useMemo(
     () => statusLanguages({ listed, state, lines: ctx.language.lines, openId: ctx.language.languageId, org: ctx.org.state, summary }),
     [state, ctx.language.lines, listed, ctx.language.languageId, ctx.org.state, summary]);
-  const orgName = ctx.org.state?.org?.value.name ?? '';
+  // The sidebar names the organization on a desktop; the subtitle then need not.
+  const orgName = useOrgInChrome() ? '' : ctx.org.state?.org?.value.name ?? '';
   const header = <Header title={t('map.status.title')} sub={[orgName, t('map.status.allLanguages')].filter(Boolean).join(' · ')} />;
   if (!state) return <Screen header={header}><EmptyState icon="progress" title={t('common.loading')} /></Screen>;
 

@@ -557,9 +557,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const split = found && listKey ? { ...found, list: { ...found.list, key: listKey } } : null;
   const box = frame(width, { chrome: wide && showTabs, split: !!split });
   const isSplit = !!split;
-  const stackLayout = useMemo((): Layout => ({ kind, contentWidth: box.detailWidth, role: isSplit ? 'detail' : 'single' }),
-    [kind, box.detailWidth, isSplit]);
-  const paneLayout = useMemo((): Layout => ({ kind, contentWidth: box.paneWidth, role: 'list' }), [kind, box.paneWidth]);
+  // A desktop's sidebar names the organization at its top, so headers beside it leave the name out.
+  const orgInChrome = kind === 'desktop' && showTabs;
+  const stackLayout = useMemo((): Layout => ({ kind, contentWidth: box.detailWidth, role: isSplit ? 'detail' : 'single', orgInChrome }),
+    [kind, box.detailWidth, isSplit, orgInChrome]);
+  const paneLayout = useMemo((): Layout => ({ kind, contentWidth: box.paneWidth, role: 'list', orgInChrome }), [kind, box.paneWidth, orgInChrome]);
   const splitKey = split?.list.key;
   const splitEmpty = split?.empty;
   const paneKey = useMemo(() => (splitKey !== undefined ? { key: splitKey, ...(splitEmpty ? { empty: splitEmpty } : {}) } : null),

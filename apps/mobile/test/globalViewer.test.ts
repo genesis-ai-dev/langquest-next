@@ -4,6 +4,7 @@ import type { LanguageHandle } from '../src/sync/useLanguage';
 import type { OrgHandle } from '../src/sync/useOrg';
 import { accessOf, codeOf, keyInGroups } from '../src/account/globalViewerModel';
 import { openLanguage } from '../src/shell/languages';
+import { recordCan, teamStepsOpen } from '../src/passage/recordModel';
 import { deriveSession, homeScreenFor, manageHomeFor, postSignInScreen, tabsFor } from '../src/shell/session';
 
 // Global Viewers (decisions.md 158): the server lets them read every
@@ -53,6 +54,19 @@ describe('a Global Viewer in an organization they are not in', () => {
     expect(manageHomeFor(viewing)).toBe('org_home');
     expect(viewing.isGlobalViewer).toBe(true);
     expect(viewing.viewingAsGlobalViewer).toBe(true);
+  });
+
+  it('is offered nothing on a passage that would make work: no Edit or Record, no review, no note', () => {
+    for (const p of ['translate', 'review', 'fill_reference', 'send_to_reviewers'] as const) expect(viewing.can(p)).toBe(false);
+    const can = recordCan(viewing);
+    expect([can.record, can.review, can.note, can.keep]).toEqual([false, false, false, false]);
+  });
+
+  it('is offered no review action either, though an admin\'s privileges assign work and override checkpoints', () => {
+    expect([viewing.can('assign_work'), viewing.can('override_checkpoints')]).toEqual([true, true]);
+    // No asking, logging, skipping or moving past a check, no Undo or Withdraw, and no check's sheet to offer them.
+    expect(Object.values(recordCan(viewing)).every((x) => !x)).toBe(true);
+    expect(teamStepsOpen(recordCan(viewing))).toBe(false);
   });
 
   it('has an admin\'s tabs but Work and the Inbox, where nothing arrives for them (decision 71 amended)', () => {
