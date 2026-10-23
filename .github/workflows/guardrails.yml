@@ -593,7 +593,8 @@ jobs:
         run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: Quarantined web UI tests
         shell: bash
-        run: npm run test:ui:web -- --grep @quarantine
+        # No test is quarantined most nights, which is no failure.
+        run: npm run test:ui:web -- --grep @quarantine --pass-with-no-tests
       - name: Keep the runner's load record
         if: always()
         run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/ui/load
