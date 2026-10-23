@@ -3,7 +3,7 @@
 # native fingerprint matches an existing production build, the change ships
 # as an over-the-air update on the production channel, which installed builds
 # take on next launch. Otherwise it builds a new binary and sends it to
-# production review (decisions.md 156): on Android straight to the production
+# production review (decisions.md 157): on Android straight to the production
 # track with a full rollout (eas.json, submit.production), where a newer build
 # replaces one waiting for review; on iOS to TestFlight, and then to App
 # Review when no review is open (scripts/app-store-review.mjs; while one is,
@@ -14,6 +14,7 @@
 # job reports nothing: the deploy watchdog routine finds the issue left in
 # Deploying.
 # The typecheck and unit tests (the same as the pre-push hook) run first.
+# This workflow is the only way to make a store build (decisions.md 156).
 name: Deploy to testers
 
 on:
@@ -68,9 +69,12 @@ jobs:
     needs: [get_ios_build]
     if: ${{ !needs.get_ios_build.outputs.build_id }}
     type: build
-    # The store version is the merge time (app.config.js): every build that
-    # goes to review needs a higher version number than the last.
+    # The build's hook (scripts/store-build-guard.mjs) refuses a production
+    # build without this ref: store builds come only from main. The store
+    # version is the merge time (app.config.js): every build that goes to
+    # review needs a higher version number than the last.
     env:
+      LQ_STORE_BUILD_REF: ${{ github.ref }}
       LQ_STORE_VERSION_TIME: ${{ github.event.head_commit.timestamp }}
     params:
       platform: ios
@@ -112,9 +116,12 @@ jobs:
     needs: [get_android_build]
     if: ${{ !needs.get_android_build.outputs.build_id }}
     type: build
-    # The store version is the merge time (app.config.js): every build that
-    # goes to review needs a higher version number than the last.
+    # The build's hook (scripts/store-build-guard.mjs) refuses a production
+    # build without this ref: store builds come only from main. The store
+    # version is the merge time (app.config.js): every build that goes to
+    # review needs a higher version number than the last.
     env:
+      LQ_STORE_BUILD_REF: ${{ github.ref }}
       LQ_STORE_VERSION_TIME: ${{ github.event.head_commit.timestamp }}
     params:
       platform: android

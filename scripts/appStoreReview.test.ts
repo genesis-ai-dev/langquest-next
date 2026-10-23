@@ -6,7 +6,7 @@ import appConfig from '../apps/mobile/app.config.js';
 
 /**
  * The iPhone half of sending new builds to production review
- * (scripts/app-store-review.mjs, decisions.md 156): never cancel a review,
+ * (scripts/app-store-review.mjs, decisions.md 157): never cancel a review,
  * let newer builds wait in TestFlight while one is open, and send only the
  * newest when it ends.
  */
