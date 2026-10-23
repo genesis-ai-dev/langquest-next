@@ -13,7 +13,10 @@
  * Run by hand it leaves no job run.
  */
 import { createClient } from '@supabase/supabase-js';
-import { foldStream, reconcileBlobs, reconcilerDeps, type ReconcilerDeps } from '../packages/sync/src/blobReconciler';
+import { emptyLanguageState, foldLanguage, REDUCER_VERSION, resume, type AnyEvent, type LanguageState } from '@langquest-next/core';
+import { reconcileBlobs, type ReconcilerDeps } from '../packages/sync/src/blobReconciler';
+import { listStreams } from '../packages/sync/src/listStreams';
+import { fetchSnapshot } from '../packages/sync/src/snapshotFetch';
 import { SupabaseTransport } from '../packages/sync/src/supabaseTransport';
 import { workerBlobs } from '../packages/sync/src/workerBlobs';
 import type { Transport } from '../packages/sync/src/types';
@@ -57,6 +60,25 @@ function rememberingOneStream(inner: Transport): Transport {
   });
 }
 
+/**
+ * A language as the reconciler folds it: its newest snapshot and the events
+ * after it. The same as packages/sync's own, kept here rather than exported
+ * from there, because packages/sync ships in the web app's first visit, whose
+ * budget has no room for a server job's needs (scripts/export-web.mjs).
+ */
+async function foldStream(transport: Transport, orgId: string, streamId: string): Promise<LanguageState> {
+  const snapshot = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
+  let after = snapshot?.serverSeq ?? 0;
+  const tail: AnyEvent[] = [];
+  for (;;) {
+    const page = await transport.pull(orgId, streamId, after, 1000);
+    tail.push(...page);
+    if (page.length < 1000) break;
+    after = page[page.length - 1]!.serverSeq!;
+  }
+  return snapshot ? resume(snapshot, tail, { clone: false }) : foldLanguage(tail, emptyLanguageState());
+}
+
 const started = Date.now();
 let stopping = false;
 process.once('SIGTERM', () => {
@@ -67,24 +89,35 @@ const counts = { streams: 0, objects: 0, missing: 0, orphaned: 0 };
 class Stopped extends Error {}
 
 const transport = rememberingOneStream(new SupabaseTransport(service));
-const base = reconcilerDeps(service, files, transport);
-// The reconciler's own wiring, counting as it goes: what R2 lists, what the log holds as stored that R2 does not, and what it confirms.
+const notWithoutVerify = async (): Promise<never> => { throw new Error('not used without --verify'); };
+// The reconciler's wiring (as packages/sync's runBlobReconciler has it, without what --verify needs), counting as it goes:
+// what R2 lists, what the log holds as stored that R2 does not, and what it confirms.
 const deps: ReconcilerDeps = {
-  ...base,
+  streams: async () => (await listStreams(service)).map((r) => ({ orgId: r.org_id, streamId: r.stream_id })),
+  transport,
   listObjects: async (orgId, streamId) => {
     if (stopping) throw new Stopped();
     counts.streams += 1;
-    const out = await base.listObjects(orgId, streamId);
+    const out = [];
+    for (const f of await files.list(`${orgId}/${streamId}/`)) {
+      const [hash, format] = (f.key.split('/')[2] ?? '').split('.');
+      if (hash && format) out.push({ orgId, streamId, hash, format, size: f.size });
+    }
     counts.objects += out.length;
     const listed = new Set(out.map((o) => o.hash));
-    const state = await foldStream(transport, orgId, streamId, 1000);
+    const state = await foldStream(transport, orgId, streamId);
     for (const [hash, verdict] of Object.entries(state.blobs)) if (verdict.stored && !listed.has(hash)) counts.missing += 1;
     return out;
   },
+  download: notWithoutVerify,
+  remove: notWithoutVerify,
   recordBlob: async (orgId, streamId, hash, size) => {
-    await base.recordBlob(orgId, streamId, hash, size);
+    const { error } = await service.rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
+    if (error) throw new Error(`record_blob: ${error.message}`);
     counts.orphaned += 1;
-  }
+  },
+  invalidateBlob: notWithoutVerify,
+  digest: notWithoutVerify
 };
 
 let error: unknown;

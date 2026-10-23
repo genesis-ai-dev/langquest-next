@@ -84,8 +84,7 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
   return report;
 }
 
-/** A language as the reconciler folds it: its newest snapshot and the events after it. */
-export async function foldStream(transport: Transport, orgId: string, streamId: string, pageSize: number): Promise<LanguageState> {
+async function foldStream(transport: Transport, orgId: string, streamId: string, pageSize: number): Promise<LanguageState> {
   const snapshot = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
   let after = snapshot?.serverSeq ?? 0;
   const tail: AnyEvent[] = [];
@@ -98,18 +97,14 @@ export async function foldStream(transport: Transport, orgId: string, streamId: 
   return snapshot ? resume(snapshot, tail, { clone: false }) : foldLanguage(tail, emptyLanguageState());
 }
 
-/**
- * Wire the reconciler to a service-role Supabase client and the files it
- * checks. A caller may pass its own transport (the nightly job keeps one
- * stream's reads, server/reconcileJob.ts).
- */
-export function reconcilerDeps(service: SupabaseClient, files: BlobFiles, transport: Transport = new SupabaseTransport(service)): ReconcilerDeps {
+/** Wire the reconciler to a service-role Supabase client and the files it checks. */
+function reconcilerDeps(service: SupabaseClient, files: BlobFiles): ReconcilerDeps {
   const key = (o: BlobObject) => blobKey(o.orgId, o.streamId, o.hash, o.format);
   return {
     streams: async () => {
       return (await listStreams(service)).map((r) => ({ orgId: r.org_id, streamId: r.stream_id }));
     },
-    transport,
+    transport: new SupabaseTransport(service),
     listObjects: async (orgId, streamId) => {
       const out: BlobObject[] = [];
       for (const f of await files.list(`${orgId}/${streamId}/`)) {
