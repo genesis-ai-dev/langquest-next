@@ -295,7 +295,7 @@ export interface Support {
   suspended: { total: number; week: number };
   deletions: { week: string; n: number }[];
   feedbackOpen: number | null;
-  /** What staff did from the page (ops.actions, decisions.md 161). */
+  /** What staff did from the page (ops.actions, decisions.md 162). */
   actions: { at: string; profileId: string; action: string; target: string; result: string; detail: string | null }[];
 }
 

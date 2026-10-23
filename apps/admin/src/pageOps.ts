@@ -222,7 +222,7 @@ Object.assign(RENDER, {
   }
 });
 
-// ---- the few actions (decisions.md 161): the app Worker checks the person again and records each ----
+// ---- the few actions (decisions.md 162): the app Worker checks the person again and records each ----
 async function perform(action, button) {
   const t = await token();
   if (!t) { showSignIn(); return; }

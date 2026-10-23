@@ -8,7 +8,7 @@ export interface Env {
   /** The job runner (jobs.ts, decisions.md 141): one object per server job, started by the cron. */
   JOBS: DurableObjectNamespace<JobRunner>;
   /**
-   * The ops dashboard's Worker, langquest-next-admin (ops.ts, decisions.md 159).
+   * The ops dashboard's Worker, langquest-next-admin (ops.ts, decisions.md 160).
    * Production only: preview has no database of its own for it to read yet.
    */
   OPS?: Fetcher;

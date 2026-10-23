@@ -1,5 +1,5 @@
 -- What the ops dashboard may do, and the record of it (docs/ops-dashboard-plan.md
--- section 6, decisions.md 161). The dashboard's Worker holds no writer's key:
+-- section 6, decisions.md 162). The dashboard's Worker holds no writer's key:
 -- the app's Worker acts on its behalf (apps/web/worker/opsActions.ts), after
 -- checking the person's own token is a Global Viewer on an aal2 session, and
 -- writes each attempt here, refused ones too. Who (a profile id), what, when,

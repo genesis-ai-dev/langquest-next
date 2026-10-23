@@ -4,7 +4,7 @@ import { isJobKey, type JobKey } from './jobsModel';
 
 /**
  * The few things the ops dashboard may do (docs/ops-dashboard-plan.md
- * section 6, decisions.md 161): mark feedback seen or done, and run a
+ * section 6, decisions.md 162): mark feedback seen or done, and run a
  * server job now. The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer

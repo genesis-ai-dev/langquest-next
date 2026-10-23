@@ -5,7 +5,7 @@ import { parseJsonc } from '../../../scripts/env-files.mjs';
 import { OPS_PATHS, isOpsPath, toOps } from '../worker/ops';
 import { ownsResponse } from '../worker/securityHeaders';
 
-/** The ops dashboard's paths reach its Worker through the binding, and nothing else does (decisions.md 159). */
+/** The ops dashboard's paths reach its Worker through the binding, and nothing else does (decisions.md 160). */
 
 const config = parseJsonc(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8')) as {
   assets: { run_worker_first: string[] };

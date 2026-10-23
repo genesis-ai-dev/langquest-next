@@ -7198,7 +7198,41 @@ account if hands-on help is ever needed. Reverse if: support often needs to chan
 things themselves (then a membership with an end, from a join request and a
 server timer that removes it, rather than a new event).
 
-## 159. Staff see LangQuest's operations on one signed-in page, a Worker of its own that reads diagnostics as diag_reader
+## 159. A toast lasts as long as Android's "Time to take action" asks and runs no bar down under reduce motion; the phone tests set 10 seconds
+
+Date: 2026-10-22 · By: Carl Sauder · Status: accepted
+
+Reason: a toast showed a fixed 3.5 s (7 s with a screen reader) with a bar
+that ran down across it, and the phone flows that check one (NAV-061's "Press
+Back again to leave", PASS-068's offline acts) failed on the Android
+emulator. Maestro reads the screen once it is idle, and the bar, animated on
+the JavaScript side, changed the screen every frame, so a Back or a tap that
+waits for the screen to settle waited out the whole toast and then found it
+gone (frame captures and logs, 2026-10-21; the app behaved). Two changes, both
+settings people already have:
+- Reduce motion: the toast draws no bar when it is on (`ToastView` in
+  `ui/kit.tsx`, A11Y-8), with the hook the recorder used, now
+  `ui/useReduceMotion.ts`. The runner's zero animation scales read as reduce
+  motion on Android, and it turns Reduce Motion on in the iOS simulator for
+  the run (XCUITest also waits for the app to be idle), so a screen with a
+  toast is still.
+- "Time to take action" (Android Accessibility, WCAG 2.2.1): `ui/toastTime.ts`
+  asks `AccessibilityInfo.getRecommendedTimeoutMillis(3500)` once when the
+  toast host mounts, and ToastHost (App.tsx) shows each toast that long,
+  still doubled for a screen reader. The second Back that leaves the app
+  counts for the same time (`backModel.ts` `leavesNow`). iOS has no such
+  setting and keeps 3.5 s. `npm run test:ui:phone` sets both of Android's UI
+  timeouts to 10 s while it runs and puts them back afterwards, as it does
+  with the animation scales, so a slow emulator still reads a toast in time.
+Cost: a test run's toasts stay 10 s, so a flow can find one over what it taps
+next; it closes the toast ("Close") or waits for it. A person who chose a long
+"Time to take action" sees toasts that long too, and one with reduce motion
+on sees no countdown, which is what those settings ask for.
+Reverse if: toasts that stay longer get in people's way more than they help
+(reports of toasts covering work), or people with reduce motion on miss the
+countdown; then the runner's settings can go and the app's stay.
+
+## 160. Staff see LangQuest's operations on one signed-in page, a Worker of its own that reads diagnostics as diag_reader
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
 
@@ -7262,12 +7296,12 @@ seconds per isolate. The page asks for the authenticator code itself, and
 reads (never renews) the web app's session on the same host when it is
 already `aal2`. This supersedes the reverse-if about the list growing.
 
-## 160. The ops dashboard counts what the server already sees, adds four counts of its own, and reads job state through one read-only entrypoint
+## 161. The ops dashboard counts what the server already sees, adds four counts of its own, and reads job state through one read-only entrypoint
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
 
 Reason: Carl asked (2026-10-21) for the indicators listed in
-`docs/ops-dashboard-plan.md` section 5 on the ops dashboard (159): work the
+`docs/ops-dashboard-plan.md` section 5 on the ops dashboard (160): work the
 server refused, upload delay, clock skew, a fold canary, backups,
 crash-free rate per update, time to a usable Map, version drift, expiry
 dates, Global Viewers and limits, moderation and deletions, capacity and
@@ -7301,11 +7335,11 @@ sampled because it fails every pass), when the log gets a `received_at`
 index built concurrently; or the canary's cost in the container grows past
 its 60 minutes, when it takes fewer or smaller languages.
 
-## 161. Staff may mark feedback and run a server job from the ops dashboard, through the app Worker, which checks them again and records every attempt
+## 162. Staff may mark feedback and run a server job from the ops dashboard, through the app Worker, which checks them again and records every attempt
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
 
-Reason: 159 kept the ops dashboard read-only and said acting from it needs
+Reason: 160 kept the ops dashboard read-only and said acting from it needs
 its own decision. Carl chose (2026-10-21) read-only first, then a few
 actions safe to take from a browser: marking feedback seen, done or open
 again (the step `docs/diagnostics.md` left to "the admin page"), and running

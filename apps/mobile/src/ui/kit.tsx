@@ -31,6 +31,7 @@ import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
 import { useLayout } from './useLayout';
+import { useReduceMotion } from './useReduceMotion';
 import { kindIcon } from './kindIcon';
 import { txt } from './textStyles';
 import { FooterHeightContext } from './useLayout';
@@ -531,13 +532,13 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
 
 /** A 48pt outlined button for actions inside a card. */
 export function SmallBtn(props: { label: string; onPress: () => void; icon?: IconName; tone?: 'primary' | 'plain' | 'dark'; disabled?: boolean;
-  /** What help mode says it does. */ help?: string }) {
+  /** What help mode says it does. */ help?: string; testID?: string }) {
   const filled = props.tone === 'primary' || props.tone === 'dark';
   const bg = props.tone === 'dark' ? C.dark : C.primary;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable testID={props.testID} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
@@ -1017,16 +1018,19 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   const toast = props.toast;
   const wide = useLayout().kind !== 'phone';
   const left = useRef(new Animated.Value(1)).current;
+  // With reduce motion on, no bar runs down (A11Y-8): the toast still goes by itself, and the screen stays still.
+  const still = useReduceMotion();
+  const bar = !!toast?.ms && !still;
   useEffect(() => {
     if (toast) AccessibilityInfo.announceForAccessibility(toast.message);
   }, [toast?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- announced once per toast: its words do not change for its id
   useEffect(() => {
-    if (!toast?.ms) return;
+    if (!bar) return;
     left.setValue(1);
     const run = Animated.timing(left, { toValue: 0, duration: toast.ms, easing: Easing.linear, useNativeDriver: false });
     run.start();
     return () => run.stop();
-  }, [toast?.id, toast?.ms, left]);
+  }, [toast?.id, toast?.ms, bar, left]);
   if (!toast) return null;
   return (
     <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
@@ -1039,7 +1043,7 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
         </Pressable>
         {/* help-ignore: the toast's close, gone in a few seconds with the toast */}
         <IconBtn name="close" label={t('common.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
-        {toast.ms ? (
+        {bar ? (
           <View style={[styles.toastTrack, { pointerEvents: 'none' }]}>
             <Animated.View style={[styles.toastLeft, { width: left.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
           </View>

@@ -47,7 +47,7 @@ export interface Env {
   /**
    * The app Worker's OpsActions entrypoint (apps/web/worker/opsActions.ts):
    * it checks the person's own token again and acts with its own key, so
-   * this Worker still holds no writer's key (decisions.md 161).
+   * this Worker still holds no writer's key (decisions.md 162).
    */
   APP_ACTIONS?: { perform(token: string, action: unknown): Promise<{ ok: true; result: string } | { ok: false; status: number; error: string }> };
 }

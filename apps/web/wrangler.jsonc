@@ -80,7 +80,7 @@
   "containers": [
     { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 4, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
   ],
-  // The ops dashboard (worker/ops.ts, docs/admin.md, decisions.md 159): its
+  // The ops dashboard (worker/ops.ts, docs/admin.md, decisions.md 160): its
   // own Worker, with no address of its own, reached only through this
   // binding, so its read tokens never sit on this one. Production only: the
   // preview stack has no database of its own for it to read yet.

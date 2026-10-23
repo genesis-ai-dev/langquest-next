@@ -4,7 +4,7 @@ vi.mock('cloudflare:workers', () => ({ WorkerEntrypoint: class {} }));
 const { act, parseAction } = await import('../worker/opsActions');
 type Deps = Parameters<typeof act>[0];
 
-/** What the ops dashboard may do (worker/opsActions.ts, decisions.md 161), with the app Worker checking the person itself. */
+/** What the ops dashboard may do (worker/opsActions.ts, decisions.md 162), with the app Worker checking the person itself. */
 
 const VIEWER = '0857d1bc-0000-4000-8000-000000000001';
 const FEEDBACK = '11111111-1111-4111-8111-111111111111';

@@ -18,13 +18,13 @@ import { releasesSection } from './sources/releases';
 import { capacitySection, storageSection } from './sources/storage';
 
 /**
- * The ops dashboard (docs/admin.md, decisions.md 159): the page at
+ * The ops dashboard (docs/admin.md, decisions.md 160): the page at
  * /ops-dashboard and its API at /ops/api/*, on next.langquest.org. This
  * Worker has no address of its own; the app's Worker hands it those paths
  * through its OPS service binding (apps/web/worker/ops.ts). Every API call
  * checks the sign-in first. The one write, POST /ops/api/actions, is passed
  * to the app Worker's OpsActions entrypoint with the person's token, which
- * checks it again and acts (decisions.md 161); this Worker writes nowhere.
+ * checks it again and acts (decisions.md 162); this Worker writes nowhere.
  */
 
 

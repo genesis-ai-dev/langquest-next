@@ -54,4 +54,9 @@ describe("Android's Back with nothing under the screen (NAV-061)", () => {
     expect(leavesNow(10_000, 10_000 + LEAVE_AGAIN_MS)).toBe(true);
     expect(leavesNow(10_000, 10_001 + LEAVE_AGAIN_MS)).toBe(false);
   });
+
+  it('waits as long as the toast shows when Android asks for more time', () => {
+    expect(leavesNow(10_000, 18_000, 10_000)).toBe(true);
+    expect(leavesNow(10_000, 20_001, 10_000)).toBe(false);
+  });
 });

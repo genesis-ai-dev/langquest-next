@@ -15,6 +15,25 @@ appId: com.frontierrnd.langquestnext
 - launchApp:
     clearState: true
     clearKeychain: true
+# On a slow emulator Android can kill the app's process as it starts, just after
+# Maestro clears its data and sets its permissions (`am_kill … remove task`, then
+# `am_process_start_timeout`), and leaves a blank window. A healthy cold start
+# shows its first screen in under 8 s (2026-10-21, 24 launches); after 20 s of
+# nothing, start it again: its data is already clear.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: "Create Account|Join your team|My Work|Next for you|Progress|Me|New development server|Continue|Close|Toggle element inspector"
+          timeout: 20000
+          optional: true
+      - runFlow:
+          when:
+            notVisible: "Create Account|Join your team|My Work|Next for you|Progress|Me|New development server|Continue|Close|Toggle element inspector"
+          commands:
+            - launchApp:
+                stopApp: true
 - runFlow:
     when:
       true: ${DEV_CLIENT == 'true'}

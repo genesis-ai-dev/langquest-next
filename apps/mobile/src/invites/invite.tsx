@@ -258,7 +258,8 @@ function RoleCard(props: {
           <Ico name={props.open ? 'up' : 'down'} size={18} color={C.primary} />
           <HelpBadge spot={spot} />
         </Pressable>
-        <SmallBtn label={t('admin.invite.invite')} icon="qr" tone="primary" disabled={props.disabled}
+        {/* Its own ID: phone accessibility trees list the button beside the card, not inside it. */}
+        <SmallBtn testID={`invite-role-${offer.title}-invite`} label={t('admin.invite.invite')} icon="qr" tone="primary" disabled={props.disabled}
           help={t('admin.invite.inviteHelp', { people: offer.title })} onPress={props.onInvite} />
       </View>
       {props.open ? (

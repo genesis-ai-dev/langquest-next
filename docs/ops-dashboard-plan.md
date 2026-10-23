@@ -55,7 +55,7 @@ a decision entry (numbered 147 on the branch; `main` has since used 147 to
 | Code and deploys | GitHub `main` and workflows, `next.langquest.org/version.json` drift |
 | Cloudflare | each Worker's requests, errors, CPU, deploys and Workers Builds |
 | Supabase | Next and v2: service health, Edge Functions, 5xx and error counts from logs |
-| Expo, Google Play, App Store | EAS builds and updates, Android vitals, App Store review state, store reviews (Caleb's Vercel section was removed: decision 159, amended 2026-10-22) |
+| Expo, Google Play, App Store | EAS builds and updates, Android vitals, App Store review state, store reviews (Caleb's Vercel section was removed: decision 160, amended 2026-10-22) |
 
 It reads `diag` as `diag_reader` (read-only, counts and codes, decision 39),
 holds read-only provider tokens, writes nothing, and has unit tests for every

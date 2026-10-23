@@ -4,7 +4,7 @@
 with LangQuest in one page: what phones and browsers report, how the
 server's own jobs are doing, and what each service LangQuest runs on says
 about its part. Its API is `/ops/api/*` on the same host. It is a Worker of
-its own, `langquest-next-admin` (`apps/admin`, decisions.md 159), beside
+its own, `langquest-next-admin` (`apps/admin`, decisions.md 160), beside
 the app's Worker rather than inside it, so the read tokens it holds never
 sit on the Worker that answers the public. It has no address of its own:
 the app's Worker hands it those paths through its `OPS` service binding
@@ -13,7 +13,7 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It reads, with two exceptions (decisions.md 161): marking feedback seen,
+It reads, with two exceptions (decisions.md 162): marking feedback seen,
 done or open again, and running a server job now. For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
