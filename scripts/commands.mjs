@@ -44,7 +44,7 @@ export const GROUPS = [
   {
     title: 'Ship and deploy',
     scripts: {
-      ship: 'the mobile app: an update, a native build, or --check (apps/mobile/README.md)',
+      ship: 'the mobile app on preview: an update, a native build, or --check (apps/mobile/README.md)',
       'db:check': 'hosted migrations against this branch (-- --diff for the live schema)',
       'db:apply': 'push migrations to the linked hosted project',
       'web:deploy': 'the app Worker, production (Cloudflare Workers Builds runs it)',
