@@ -2408,6 +2408,18 @@ People with the rest under More. It names each thing as the organization's
 page does (Content template, Reference material, Review flow), with seven
 rows and no More; see 138.
 
+Amended (2026-10-21, Carl Sauder): a Global Viewer looking in on an
+organization (decision 158) has an eye in every screen's header ("Global
+Viewer" beside it on a wide window) that opens the Global Viewer screen:
+the organization they are in, then every other one to open instead. It is
+chrome, put in the header by the shell (`HeaderExtraContext`), and opens the
+screen as the tabs open theirs, so `flow.ts` stays the authority for moving
+between screens (decision 20). Their tabs are an admin's without Work and
+the Inbox, where nothing ever arrives for them. Carl chose the header link
+over a strip across every screen (it cost height and said nothing a header
+could not) and over a tab of its own (on a wide window it sat beside a
+sidebar line that did the same, and a phone had only the tab).
+
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
 Date: 2026-10-08 · By: Ryder Wishart · Status: partly superseded by 79
@@ -6756,6 +6768,22 @@ the pull request (then move the file that caused it to a rule that runs that
 job); or merges pass checks that were green against an older main and break
 it (then turn on `strict_required_status_checks_policy` or a merge queue).
 
+Amended (2026-10-23, Caleb Koster): pull requests merge through GitHub's
+merge queue. Two pull requests that were each green against main could still
+break it together, for example by taking the same decision number, and the
+run on main found that only after the merge. In the queue, `gate` runs again
+on main as it will be with the pull requests ahead (the `merge_group`
+trigger in guardrails.yml), and a pull request merges only when that run is
+green. `scope` measures the files that the queued pull requests change on
+main, so a change to the decision log still skips the browser jobs. The
+queue tests and merges one pull request at a time, with a merge commit as
+before (`.github/rulesets/main.json`): the release-branch job (decision 155)
+copies the one merge that a push to main brings, and keeps only one run
+waiting, so merges pushed together or seconds apart would leave a copy out.
+A pull request waits for the ones ahead of it, about ten minutes each. The strict
+up-to-date rule was the other way: it needs no code, but every merge would
+make every open pull request update and run its checks again.
+
 ## 151. A pull request may not take away a server call that a supported store build makes
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7002,6 +7030,16 @@ copy again, comments once on the copy pull request naming the files in
 conflict and the steps to finish it, and leaves it open for a person or a
 Claude session; nothing fails. With the key, Claude finishes it as before.
 
+Amended (2026-10-23, Caleb Koster): the hourly cleanup now finds the newest
+new build that is live. When it is the newest of all, the branch goes and no
+other starts; only when an older one went live while a newer one is still in
+review does a new branch start, from just before the newer one. Before, it
+would have started a branch for a build that was never public. The
+repository variable `RELEASE_BRANCH_PLATFORMS` ("android" for now) names
+the platforms that keep a branch: no public iPhone build takes OTA updates
+from main yet (build 36, 1.0, runs code of 2026-10-16), so an iPhone branch
+would only feed TestFlight.
+
 
 ## 156. Store builds come only from the EAS workflow on merges into main
 
@@ -7088,7 +7126,79 @@ staged rollout or a wait in internal testing is worth the delay (then send
 to internal testing first and promote after a set time), or Apple starts
 taking a newer build into a version under review without losing its place.
 
-## 158. A toast lasts as long as Android's "Time to take action" asks and runs no bar down under reduce motion; the phone tests set 10 seconds
+## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
+
+Date: 2026-10-22 · By: Carl Sauder · Status: accepted
+
+Reason: LangQuest's support people need to see any organization to help
+it, and until now saw one only by being invited into it (Carl Sauder,
+2026-10-14). A Global Viewer may open every organization and read what a
+Viewer there would: every stream but people's own, member names, files.
+Who is one is the server's own state, not an event: a row in
+`public.global_viewers` (migration `20261022210000_global_viewers.sql`),
+like a suspension, since a role in every organization's stream would be
+pulled by every member's phone and an organization stream holds only that
+organization (decision 63). The one read gate, `can_read_stream`, takes it
+(`_can_read_stream_at`), so pulls, snapshots and their pieces follow; the
+Worker passes the token's `aal` to `blob_access` for files (an unsaid level
+refuses a Global Viewer, so a path that forgets it keeps them out), and
+`global_viewer_organizations` and `global_viewer_directory` list
+organizations and names. Read-only, not a Global Admin: `may_emit` never
+asks about Global Viewers, so every write is still explained by the
+organization's own log (invariant 9) and decision 98 stays as it is.
+Support changing an organization is not part of this (see the amendment).
+Named Global Viewer, not admin, because in
+this app admin means someone who can change things (Carl, 2026-10-15).
+Access works only on an aal2 session (Carl, 2026-10-14): TOTP is switched
+on for the project (`[auth.mfa.totp]`), only Global Viewers are shown how
+to set it up, and a password alone, a sign-in code or a hand-over gives an
+aal1 session that sees nothing; `may_help_sign_in` refuses a Global Viewer
+target anyway. A Global Viewer may belong to organizations, where their
+own role applies, so support and Frontier staff use their own accounts
+(Carl, 2026-10-21); it costs Global Viewer access riding on an everyday
+account, signed in on more devices. Accounts are granted on a call
+(`npm run global-viewer`, docs/global-viewers.md): emails are on any
+domain (Carl, 2026-10-20) and sign-up proves nothing about owning one, so
+what counts is that the person, known to the operator, signs in on the
+call and sets up an authenticator while the operator watches `list`.
+`grant` takes any account with no authenticator, however old (Carl,
+2026-10-21: the call, not the account's age, shows whose it is). `revoke`
+keeps the row and ends every sign-in, and the account is then an ordinary
+one; granting it again clears its old authenticators and sign-ins first,
+so nothing from before is trusted. `reset-mfa`, for a lost authenticator,
+is run after a call with the person, never on an email. No log of what a Global Viewer opens (Carl, 2026-10-14): the
+protection is few accounts, the authenticator and revoking at once.
+`supabase config push` brings the auth setting to hosted projects and is
+run by hand (Carl, 2026-10-20; docs/environments.md). The Worker may still
+answer a file check from its one-minute cache after a revoke (decision
+121). No new event type.
+Reverse if: a partner or a privacy review needs every look logged (then
+log `global_viewer_*` reads and opens of an organization); more than a
+handful of people need it (then a staff screen with its own checks, not a
+script); or an authenticator proves too weak for the reach (then passkeys,
+or a fresh code before each organization).
+
+Amended (2026-10-21, Carl Sauder): a Global Viewer reads an organization as
+its admins see it, not only as a Viewer: support questions are mostly about
+setup (roles, members, templates, review flows), which a Viewer never sees.
+The session shows an Organization Admin's privileges and is read-only: the
+organization's and the language's handles refuse every append
+(`src/shell/readOnly.ts`), the hooks that write by themselves skip it, and
+a server refusing a write says so (Carl chose this over hiding each edit
+control screen by screen: one guard covers every screen, including later
+ones, at the cost of controls that look live and say nothing can change).
+The library's read check, `_library_member`, lets a Global Viewer whose
+access is on pass (migration `20261022220000_global_viewers_manage.sql`);
+its one write, `library_adopt`, still needs a privilege they never hold.
+Letting support change things in an organization, as a membership that ends
+by itself, was planned and is not built (Carl, 2026-10-21): it needed a new
+versioned event and a clock in every privilege check. Support talks an admin
+through a change, and the admin can invite the support person's ordinary
+account if hands-on help is ever needed. Reverse if: support often needs to change
+things themselves (then a membership with an end, from a join request and a
+server timer that removes it, rather than a new event).
+
+## 159. A toast lasts as long as Android's "Time to take action" asks and runs no bar down under reduce motion; the phone tests set 10 seconds
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
 

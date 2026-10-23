@@ -25,7 +25,9 @@ describe('UX flow coverage', () => {
       // One of a language's checks, with its people, questions and helps (decision 91).
       'check_editor',
       // A cluster of languages: a name on some of them (decision 108).
-      'cluster_home'] as const;
+      'cluster_home',
+      // LangQuest support's authenticator and every organization, read-only (decision 158).
+      'global_viewer'] as const;
     expect(SCREEN_IDS.length).toBe(kept.length + appOnly.length);
     for (const id of appOnly) expect(screenTitle(id)).not.toBe(`screens.${id}`);
   });

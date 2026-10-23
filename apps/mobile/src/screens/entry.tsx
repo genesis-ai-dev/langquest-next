@@ -18,6 +18,8 @@ import {
 } from '../account/accountData';
 import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../account/accountText';
 import { signInName } from '../auth/accounts';
+import { globalViewerLine } from '../account/globalViewerText';
+import { useGlobalViewer } from '../account/useGlobalViewer';
 import { licenseText } from '../i18n/coreText';
 import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
@@ -723,11 +725,17 @@ export function IntentChooser(ctx: Ctx) {
   // phone hands it over (NOORG-004, decision 60).
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId];
   const first = me?.split(/\s+/)[0];
+  // A Global Viewer's way in comes first; they may join or start an organization too (decisions.md 158).
+  const globalViewer = useGlobalViewer(ctx.session.actorId, !ctx.session.isGuest).access;
+  const gvActive = globalViewer !== null && globalViewer !== 'revoked';
+  const lead = !waiting && !gvActive;
   const main = intents().filter((o) => o.to !== 'explore_home');
   return (
     <Screen header={<Header title={waiting && !declined ? askedLine : t('entry.intent.title')} {...(first && !waiting ? { sub: t('entry.welcome.greeting', { name: first }) } : {})} />}
       footer={<QuietLinks items={[{ label: t('entry.intent.lookTitle'), icon: 'globe', help: t('entry.intent.lookHelp'), onPress: () => ctx.go('explore_home') }]} />}>
       {/* An invite being used right now, or waiting for a connection (docs/invites-and-accounts.md). */}
+      {/* A revoked Global Viewer account is an ordinary one (decisions.md 158): say why Global Viewer is gone. */}
+      {globalViewer === 'revoked' ? <Banner icon="eye" title={t('globalViewer.revokedTitle')} /> : null}
       {ctx.invite.status.kind === 'joining' ? <Banner icon="people" title={t('entry.intent.joiningInvite')} /> : null}
       {ctx.invite.status.kind === 'waiting' ? (
         <Banner icon="cloud" title={t('entry.intent.inviteSavedTitle')} body={t('entry.intent.inviteSavedBody')} />
@@ -752,11 +760,24 @@ export function IntentChooser(ctx: Ctx) {
           <SectionLabel label={t('entry.intent.meanwhile')} />
         </>
       ) : null}
+      {/* A Global Viewer's own way on comes first (decisions.md 158). */}
+      {gvActive ? (
+        <Card onPress={() => ctx.go('global_viewer')} accessibilityLabel={t('globalViewer.title')} help={t('globalViewer.wayInHelp')} current>
+          <View style={styles.optionRow}>
+            <View style={[styles.tile, { backgroundColor: C.primary }]}><Ico name="eye" size={24} color={C.white} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={[txt.body, { fontWeight: '700', fontSize: 19 }]}>{t('globalViewer.title')}</Text>
+              <Text style={txt.smMuted}>{globalViewerLine(globalViewer)}</Text>
+            </View>
+            <Ico name="right" size={22} color={C.muted} />
+          </View>
+        </Card>
+      ) : null}
       {/* help-each: each choice goes somewhere different */}
       {main.map((o, i) => (
-        <Card key={o.to} onPress={() => ctx.go(o.to)} accessibilityLabel={o.label} help={o.help} current={i === 0 && !waiting}>
+        <Card key={o.to} onPress={() => ctx.go(o.to)} accessibilityLabel={o.label} help={o.help} current={i === 0 && lead}>
           <View style={styles.optionRow}>
-            <View style={[styles.tile, i === 0 && !waiting && { backgroundColor: C.primary }]}><Ico name={o.icon} size={24} color={i === 0 && !waiting ? C.white : C.primary} /></View>
+            <View style={[styles.tile, i === 0 && lead && { backgroundColor: C.primary }]}><Ico name={o.icon} size={24} color={i === 0 && lead ? C.white : C.primary} /></View>
             <View style={{ flex: 1 }}>
               <Text style={[txt.body, { fontWeight: '700', fontSize: 19 }]}>{o.label}</Text>
               <Text style={txt.smMuted}>{o.sub}</Text>

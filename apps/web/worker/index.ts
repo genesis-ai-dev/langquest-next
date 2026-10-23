@@ -12,7 +12,7 @@ import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
-import { cachedBlobAccess, cachedProfileOf } from './isolateCache';
+import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, type Identity } from './isolateCache';
 import { JOB_TICK, jobsDue } from './jobsModel';
 import { checkStores, storeCheckDue } from './storeReleases';
 
@@ -63,8 +63,9 @@ function flushTally(env: Env, ctx: ExecutionContext): void {
 /** One per isolate, so its answers outlive a request. */
 let sessionLive: ((sessionId: string) => Promise<boolean>) | null = null;
 /** This isolate's token and file-access caches (isolateCache.ts); an isolate's secrets do not change, so the first request's env serves them all. */
-let profileOfCached: ((token: string) => Promise<string | null>) | null = null;
-let blobAccessCached: ((key: string, profileId: string, write: boolean) => Promise<boolean>) | null = null;
+let identityOfCached: ((token: string) => Promise<Identity | null>) | null = null;
+let globalViewerOnCached: ((profileId: string, aal: string | undefined) => Promise<boolean>) | null = null;
+let blobAccessCached: ((key: string, profileId: string, write: boolean, aal?: string) => Promise<boolean>) | null = null;
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
 export default {
@@ -100,7 +101,7 @@ export default {
       return;
     }
     const startedAt = Date.now();
-    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0, appleStatus: 0, appleFound: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
+    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0, appleStatus: 0, applePageStatus: 0, appleFound: 0, appleSource: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
     const errors: unknown[] = [];
     const failed = (key: keyof typeof n, what: string) => (e: unknown) => {
       n[key] = 1;
@@ -168,12 +169,18 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     return data === true;
   });
   // A verified token is remembered for up to a minute (decisions.md 121); its session is asked about every time (118).
-  const profileOf = profileOfCached ??= cachedProfileOf(async (token) => {
+  const identityOf = identityOfCached ??= cachedIdentityOf(async (token) => {
     const { data, error } = await serviceClient(env).auth.getClaims(token);
     if (error || !data?.claims.sub) return null;
     const sessionId = data.claims['session_id'];
-    return { sub: data.claims.sub, exp: data.claims.exp, sessionId: typeof sessionId === 'string' ? sessionId : undefined };
+    const aal = data.claims['aal'];
+    return {
+      sub: data.claims.sub, exp: data.claims.exp,
+      sessionId: typeof sessionId === 'string' ? sessionId : undefined,
+      aal: typeof aal === 'string' ? aal : undefined
+    };
   }, Date.now, (sessionId) => sessionLive!(sessionId));
+  const profileOf = async (token: string) => (await identityOf(token))?.profileId ?? null;
   const recordBlob = async (orgId: string, streamId: string, hash: string, size: number) => {
     const { error } = await serviceClient(env).rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
     if (error) throw new Error(`record_blob: ${error.message}`);
@@ -183,7 +190,18 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   return handleApi(request, {
     profileOf,
     orgsOf: (profileId) => agentStore.orgsOf(profileId),
-    reports: (orgId, profileId, fresh) => orgObject(orgId).reports(orgId, profileId, fresh),
+    reports: (orgId, profileId, fresh, everyLanguage) => orgObject(orgId).reports(orgId, profileId, fresh, everyLanguage),
+    // A Global Viewer reads every organization's reports, on an aal2 session only (decisions.md 158).
+    globalViewerOn: async (token) => {
+      const who = await identityOf(token);
+      if (!who) return false;
+      globalViewerOnCached ??= cachedGlobalViewerOn(async (profileId) => {
+        const { data, error } = await serviceClient(env).rpc('_gv_on', { p_profile: profileId, p_aal: 'aal2' });
+        if (error) throw new Error(`_gv_on: ${error.message}`);
+        return data === true;
+      });
+      return globalViewerOnCached(who.profileId, who.aal);
+    },
     bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) },
     languoids: {
       load: async () => {
@@ -198,8 +216,14 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       bucket: r2Bucket(env.BLOBS),
       serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
       // Remembered per person, stream and mode for a minute (decisions.md 121).
-      mayUse: blobAccessCached ??= cachedBlobAccess(async (key, profileId, write) => {
-        const { data, error } = await serviceClient(env).rpc('blob_access', { p_name: key, p_profile: profileId, p_write: write });
+      identityOf,
+      // A Global Viewer reads only on aal2 (decisions.md 158), so the level goes with the question. Only
+      // aal2 is sent: any other level answers as an unknown one does, and the call keeps working on a
+      // database the Worker reaches before the migration that added p_aal.
+      mayUse: blobAccessCached ??= cachedBlobAccess(async (key, profileId, write, aal) => {
+        const { data, error } = await serviceClient(env).rpc('blob_access', {
+          p_name: key, p_profile: profileId, p_write: write, ...(aal === 'aal2' ? { p_aal: aal } : {})
+        });
         if (error) throw new Error(`blob_access: ${error.message}`);
         return data === true;
       }),

@@ -144,7 +144,8 @@ export function ReportsLanguage(ctx: Ctx) {
   // The list was read when Reports opened; the organization's own record on
   // this device is newer when a role changed since, so a language the role no
   // longer covers is not shown from the old list (RPT-016).
-  const mayView = !ctx.org.state || mayViewLanguage(ctx.org.state, ctx.session.actorId, languageId);
+  // A Global Viewer looking in may view every language (decisions.md 158).
+  const mayView = !ctx.org.state || ctx.session.readOnly || mayViewLanguage(ctx.org.state, ctx.session.actorId, languageId);
   const row = reports.status === 'ready' && mayView ? reports.rows.find((r) => r.languageId === languageId) : undefined;
   const title = row?.report.name ?? t('reports.language.fallbackTitle');
   const header = (

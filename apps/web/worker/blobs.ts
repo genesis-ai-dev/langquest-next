@@ -34,8 +34,13 @@ export interface BlobDeps {
   bucket: BlobBucket;
   /** The profile a Supabase access token belongs to, or null when it is not valid. */
   profileOf(token: string): Promise<string | null>;
-  /** May this profile read the object, or with `write`, upload it? */
-  mayUse(key: string, profileId: string, write: boolean): Promise<boolean>;
+  /**
+   * The profile and the session's level (`aal`), when the Worker knows it.
+   * Without it a Global Viewer is refused files (decisions.md 158).
+   */
+  identityOf?(token: string): Promise<{ profileId: string; aal?: string | undefined } | null>;
+  /** May this profile read the object, or with `write`, upload it? `aal` is the token's level, when known. */
+  mayUse(key: string, profileId: string, write: boolean, aal?: string): Promise<boolean>;
   /** Append v1.BlobStored for the object (idempotent: the event id carries hash and size). */
   record(orgId: string, streamId: string, hash: string, size: number): Promise<void>;
   /** The service-role key: scripts and the reconciler present it, and read links are signed with a key derived from it. */
@@ -211,16 +216,19 @@ async function upload(request: Request, b: BlobKey, deps: BlobDeps): Promise<Res
 }
 
 /** Who is asking: the service, a signed-in person, or nobody. */
-async function caller(request: Request, deps: BlobDeps): Promise<{ service: true } | { profileId: string } | null> {
+type Who = { service: true } | { profileId: string; aal?: string | undefined };
+
+async function caller(request: Request, deps: BlobDeps): Promise<Who | null> {
   const token = bearer(request);
   if (!token) return null;
   if (await sameSecret(token, deps.serviceKey)) return { service: true };
+  if (deps.identityOf) return deps.identityOf(token);
   const profileId = await deps.profileOf(token);
   return profileId ? { profileId } : null;
 }
 
-async function allowed(who: { service: true } | { profileId: string }, key: string, write: boolean, deps: BlobDeps): Promise<boolean> {
-  return 'service' in who || deps.mayUse(key, who.profileId, write);
+async function allowed(who: Who, key: string, write: boolean, deps: BlobDeps): Promise<boolean> {
+  return 'service' in who || deps.mayUse(key, who.profileId, write, who.aal);
 }
 
 export async function handleBlobs(request: Request, deps: BlobDeps): Promise<Response> {

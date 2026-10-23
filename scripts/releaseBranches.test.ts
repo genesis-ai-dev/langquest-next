@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { afterMerge, atLeast, commitOfCopy, conflictNote, newBuildPublic, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, commitOfCopy, conflictNote, newBuildPublic, platformsFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -42,6 +42,42 @@ describe('when the new build is public', () => {
   it('compares versions as numbers', () => {
     expect(atLeast('2026.1022.930', '2026.1022.1830')).toBe(false);
     expect(atLeast('2027.105.5', '2026.1231.2359')).toBe(true);
+  });
+});
+
+describe('the hourly cleanup', () => {
+  // #207 (00:39Z) and #208 (later) both made new builds while Android 25 was public.
+  const r207 = { sha: 'c207', time: '2026-10-23T00:39:00Z' };
+  const r208 = { sha: 'c208', time: '2026-10-23T02:00:00Z' };
+
+  it('keeps the branch while the store still shows the old build', () => {
+    expect(afterLive({ rebuilds: [r207, r208], liveVersion: '1.0.0' })).toEqual({ action: 'keep' });
+    expect(afterLive({ rebuilds: [r207], liveVersion: null })).toEqual({ action: 'keep' });
+  });
+
+  it('never counts 1.0 as one of the new builds', () => {
+    expect(atLeast('1.0.0', storeVersion(r207.time))).toBe(false);
+  });
+
+  it('deletes the branch and starts no other when the newest new build is live', () => {
+    expect(afterLive({ rebuilds: [r207, r208], liveVersion: storeVersion(r208.time) })).toEqual({ action: 'delete' });
+    expect(afterLive({ rebuilds: [r207], liveVersion: storeVersion(r207.time) })).toEqual({ action: 'delete' });
+  });
+
+  it('starts a branch for the newly public build when a newer one is still in review', () => {
+    expect(afterLive({ rebuilds: [r207, r208], liveVersion: storeVersion(r207.time) })).toEqual({ action: 'restart', from: 'c208' });
+  });
+});
+
+describe('which platforms keep release branches', () => {
+  it('every platform by default, or only those named in RELEASE_BRANCH_PLATFORMS', () => {
+    expect(platformsFrom(undefined)).toEqual(['ios', 'android']);
+    expect(platformsFrom('android')).toEqual(['android']);
+    expect(platformsFrom('android ios')).toEqual(['ios', 'android']);
+  });
+
+  it('a merge that needs a new build only tags the branch for the build that is still public', () => {
+    expect(afterMerge({ oldFingerprint: '138329bf', newFingerprint: '9708027b', branchExists: true })).toBe('tag');
   });
 });
 

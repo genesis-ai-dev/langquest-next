@@ -1114,3 +1114,90 @@ Expected:
 - Step 2: "Set up your microphone" (what it does is in REC). Back returns to
   Me.
 - Neither screen shows the tab bar on a phone.
+
+---
+
+## Global Viewers
+
+A Global Viewer is LangQuest support: an account that belongs to no
+organization and reads any of them as a Viewer would, once it has entered a
+code from an authenticator app (decisions.md 158, docs/global-viewers.md).
+Each test makes its own account and grants it as an operator does
+(`global_viewer_grant`). Codes are worked out from the authenticator's key,
+as the app on a phone would.
+
+### ACCT-052 A new Global Viewer sets up an authenticator on What brings you here?
+Roles: GV (new) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: A new account, granted, with no authenticator yet.
+
+Steps:
+1. Sign in.
+2. Tap "Global Viewer", then "Set up authenticator".
+3. Type the code for the key shown, and tap "Check code".
+
+Expected:
+- Step 1: "Global Viewer" says "Set up your authenticator to begin", first,
+  above the usual ways to join or start an organization.
+- Step 2: a code to scan and the key to type, in groups of four.
+- Step 3: "You can read every organization", with a search for one.
+
+### ACCT-053 A wrong code is refused and opens nothing
+Roles: GV (new) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: A granted account with an authenticator, signed in with its
+password only.
+
+Steps:
+1. Tap "Global Viewer". Type a code that is not the authenticator's, and tap
+   "Check code".
+
+Expected:
+- "That code is not right. Type the code your authenticator shows now." No
+  organizations are listed.
+
+### ACCT-054 A Global Viewer opens another organization and only views it
+Roles: GV (new) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: As ACCT-053.
+
+Steps:
+1. Tap "Global Viewer", type the authenticator's code, and tap "Check code".
+2. Search for ORG by its name and tap it, then tap the eye in the header.
+
+Expected:
+- Step 2: ORG opens on the overview. The tabs are Map, Manage and Me (no
+  Work, no Inbox), and every header has an eye ("Global Viewer" beside it
+  on a wide window). It opens Global Viewer: ORG under "Viewing now", and
+  the search for another organization below it.
+
+### ACCT-055 A Global Viewer reads Manage as its admins see it, and changes nothing
+Roles: GV (new) · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: As ACCT-053.
+
+Steps:
+1. Enter the code, open ORG as in ACCT-054, then tap "Manage".
+2. Tap "Members".
+
+Expected:
+- Step 1: ORG's page, as its admins see it. The organization's name has no
+  rename pencil.
+- Step 2: ORG's members, ADMIN among them. Anything tried that would change
+  ORG says "You're viewing as a Global Viewer: nothing here can be changed."
+  and nothing changes.
+
+### ACCT-056 A revoked Global Viewer account is an ordinary one
+Roles: GV (new) · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions: A granted account, then revoked (`npm run global-viewer --
+revoke`), which ended its sign-ins.
+
+Steps:
+1. Sign in with its password.
+
+Expected:
+- "What brings you here?" says "Global Viewer access has ended" at the top,
+  and offers the usual ways to join or start an organization. There is no
+  "Global Viewer" card.
+

@@ -2,6 +2,7 @@ import { CommandError } from '@langquest-next/core';
 import { commandErrorText } from '../i18n/coreText';
 import { diagnostics } from './diagnostics';
 import { t } from '../i18n';
+import { readOnlyRefusal } from '../shell/readOnly';
 
 // The one place faults are reported (error-tracking skill). There is no
 // third-party tracker (decisions.md 39): this logs a content-free line,
@@ -110,5 +111,8 @@ export function installGlobalHandlers(): void {
  */
 export function failureMessage(where: string, e: unknown): string {
   if (e instanceof CommandError) return commandErrorText(e);
+  // Read-only (a Global Viewer looking in): the server refusing a write is expected, not reported.
+  const readOnly = readOnlyRefusal(e);
+  if (readOnly) return readOnly;
   return t('common.somethingWentWrong', { code: reportError(where, e) });
 }

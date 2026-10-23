@@ -47,7 +47,9 @@ export const SCREEN_IDS = [
   // App only: one of a language's checks, with its people, questions and helps (decision 91)
   'check_editor',
   // App only: a cluster of languages, a name the organization puts on them (decision 108, demo ADR-045)
-  'cluster_home'
+  'cluster_home',
+  // App only: LangQuest support's authenticator and every organization, read-only (decision 158)
+  'global_viewer'
 ] as const;
 
 export type ScreenId = (typeof SCREEN_IDS)[number];
@@ -418,7 +420,12 @@ export const EDGES: Edge[] = [
   e('new_language', 'cluster_home', 'replace'),
   e('new_language', 'cluster_home', 'back'),
   // App only: a version's page edits it into a new draft, as the Versions page does (LAN-83)
-  e('version_detail', 'workspace', undefined, 'translator')
+  e('version_detail', 'workspace', undefined, 'translator'),
+  // App only: a Global Viewer's authenticator and every organization (decision 158). A Global Viewer
+  // account belongs to no organization, so it lands on What brings you here?; inside one, the link in
+  // every header opens it, as chrome does (decision 71 amended).
+  e('intent_chooser', 'global_viewer'),
+  e('global_viewer', 'intent_chooser', 'back')
 ];
 
 /**

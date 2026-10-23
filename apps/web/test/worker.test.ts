@@ -89,6 +89,8 @@ describe('OrgFolder', () => {
     expect(languages(await folder.reportsFor('admin'))).toEqual(['din', 'nus']);
     expect(languages(await folder.reportsFor('dinka'))).toEqual(['din']);
     expect(await folder.reportsFor('stranger')).toBeNull();
+    // A Global Viewer, whom the route has checked: every language (decisions.md 158).
+    expect(languages(await folder.reportsFor('stranger', false, true))).toEqual(['din', 'nus']);
     expect(folder.knows('stranger')).toBe(false);
     expect(folder.knows('dinka')).toBe(true);
   });
@@ -559,6 +561,19 @@ describe('the reports API', () => {
     const res = await handleApi(get('/api/orgs/someone-else/reports?fresh=1', 'good'), d);
     expect(res.status).toBe(403);
     expect(d.calls).toEqual([]);
+  });
+
+  it('answers a Global Viewer whose access is on for any organization, every language (decisions.md 158)', async () => {
+    const d = deps({ globalViewerOn: async (token) => token === 'good' });
+    expect((await handleApi(get('/api/orgs/someone-else/reports', 'good'), d)).status).toBe(200);
+    expect(d.calls).toEqual([['someone-else', 'p1', false, true]]);
+    // A member is answered as a member, with only their own languages.
+    expect((await handleApi(get('/api/orgs/o/reports', 'good'), d)).status).toBe(200);
+    expect(d.calls[1]).toEqual(['o', 'p1', false]);
+    // Access off (no aal2 session, or revoked): no.
+    const off = deps({ globalViewerOn: async () => false });
+    expect((await handleApi(get('/api/orgs/someone-else/reports', 'good'), off)).status).toBe(403);
+    expect(off.calls).toEqual([]);
   });
 
   it('tells a stranger no, and a failure apart from a refusal', async () => {

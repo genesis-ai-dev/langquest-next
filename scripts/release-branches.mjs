@@ -31,6 +31,17 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 export const PLATFORMS = ['ios', 'android'];
 
+/**
+ * The platforms that keep release branches: the repository variable
+ * RELEASE_BRANCH_PLATFORMS ("android", or "android ios"), every platform
+ * when it is not set. A platform left out gets no branch, tag or copy, for
+ * example iPhone while no public iPhone build can take OTA updates from main.
+ */
+export function platformsFrom(value) {
+  const named = (value ?? '').split(/[\s,]+/).filter(Boolean);
+  return named.length ? PLATFORMS.filter((p) => named.includes(p)) : PLATFORMS;
+}
+
 export const branchOf = (platform) => `release/${platform}`;
 export const rebuildTag = (platform, sha) => `rebuild/${platform}/${sha}`;
 export const copyBranch = (platform, sha) => `copy/${platform}/${sha.slice(0, 8)}`;
@@ -75,6 +86,27 @@ export function atLeast(a, b) {
  */
 export function newBuildPublic({ rebuildTime, liveVersion }) {
   return !!liveVersion && atLeast(liveVersion, storeVersion(rebuildTime));
+}
+
+/**
+ * What the cleanup does with a release branch, given the rebuilds since the
+ * branch started (oldest first, each { sha, time }) and the store's live
+ * version:
+ * - `keep`: no rebuild's build is live yet.
+ * - `delete`: the newest rebuild's build is live, so the public build gets
+ *   OTA updates from main again; no new branch.
+ * - `restart`: an older rebuild's build is live while a newer one is in
+ *   review: the branch goes, and a new one starts from the commit before the
+ *   newer rebuild (`from`), the code of the build that just went public.
+ * A rebuild's build counts as live when the live version is that build's
+ * version (the time of its merge) or newer.
+ */
+export function afterLive({ rebuilds, liveVersion }) {
+  let newestLive = -1;
+  rebuilds.forEach((r, i) => { if (newBuildPublic({ rebuildTime: r.time, liveVersion })) newestLive = i; });
+  if (newestLive < 0) return { action: 'keep' };
+  if (newestLive === rebuilds.length - 1) return { action: 'delete' };
+  return { action: 'restart', from: rebuilds[newestLive + 1].sha };
 }
 
 function run(cmd, args, opts = {}) {
@@ -142,27 +174,27 @@ function rebuildsSince(platform) {
 }
 
 async function tidy() {
-  for (const platform of PLATFORMS) {
+  for (const platform of platformsFrom(process.env.RELEASE_BRANCH_PLATFORMS)) {
     if (!remoteHas(`refs/heads/${branchOf(platform)}`)) continue;
     git('fetch', '--quiet', 'origin', branchOf(platform), 'main');
-    const [first, ...later] = rebuildsSince(platform);
-    if (!first) continue;
+    const rebuilds = rebuildsSince(platform);
+    if (!rebuilds.length) continue;
     const live = await liveVersion(platform).catch((err) => {
       console.log(`${branchOf(platform)}: the store could not be read (${err.message}), so the branch stays`);
       return null;
     });
-    if (!newBuildPublic({ rebuildTime: first.time, liveVersion: live })) {
-      console.log(`${branchOf(platform)}: the build from ${first.sha.slice(0, 8)} is not public yet`);
+    const step = afterLive({ rebuilds, liveVersion: live });
+    if (step.action === 'keep') {
+      console.log(`${branchOf(platform)}: the store shows ${live ?? 'nothing'}, and the build from ${rebuilds[0].sha.slice(0, 8)} is not public yet`);
       continue;
     }
     git('push', '--quiet', 'origin', '--delete', branchOf(platform));
-    console.log(`${branchOf(platform)}: deleted, the build from ${first.sha.slice(0, 8)} is public`);
-    // A later rebuild is in review now: the newly public build gets its own branch, from the commit before it.
-    if (later.length) {
-      const next = later[0];
-      git('push', '--quiet', 'origin', `${next.sha}^:refs/heads/${branchOf(platform)}`);
-      for (const sha of git('rev-list', '--reverse', '--first-parent', `${next.sha}..origin/main`).split('\n').filter(Boolean))
-        if (!later.some((t) => t.sha === sha)) copy(platform, sha);
+    console.log(`${branchOf(platform)}: deleted, the store shows ${live}`);
+    if (step.action === 'restart') {
+      // A newer rebuild is in review: the build that just went public gets its own branch, from the commit before it.
+      git('push', '--quiet', 'origin', `${step.from}^:refs/heads/${branchOf(platform)}`);
+      for (const sha of git('rev-list', '--reverse', '--first-parent', `${step.from}..origin/main`).split('\n').filter(Boolean))
+        if (!rebuilds.some((t) => t.sha === sha)) copy(platform, sha);
     }
   }
 }
@@ -206,6 +238,7 @@ function main() {
   if (command !== 'after-merge') throw new Error('usage: release-branches.mjs after-merge --platform <p> --old <fp> --new <fp> --sha <commit> | tidy');
   const platform = opt('platform');
   const sha = opt('sha');
+  if (!platformsFrom(process.env.RELEASE_BRANCH_PLATFORMS).includes(platform)) return console.log(`${platform}: not in RELEASE_BRANCH_PLATFORMS, so no release branch`);
   const branchExists = remoteHas(`refs/heads/${branchOf(platform)}`);
   const step = afterMerge({ oldFingerprint: opt('old'), newFingerprint: opt('new'), branchExists });
   console.log(`${platform}: ${step}`);

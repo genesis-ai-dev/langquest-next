@@ -57,6 +57,9 @@ import { noteAuthEvent, watchRenewals } from './src/auth/authDiag';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/account/useAccount';
+import { useGlobalViewer, useGlobalViewerNames } from './src/account/useGlobalViewer';
+import { GlobalViewerLink } from './src/account/GlobalViewerLink';
+import { HeaderExtraContext } from './src/ui/headerExtra';
 import { useBlocks } from './src/moderation/useModeration';
 import { PeopleContext } from './src/ui/usePerson';
 import { titleFor } from './src/web/webPaths';
@@ -84,6 +87,7 @@ import { useRouting } from './src/shell/useRouting';
 import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
+import { readOnlyLanguage, readOnlyOrg, setReadOnlySession } from './src/shell/readOnly';
 
 const IS_DEV = __DEV__;
 
@@ -95,6 +99,7 @@ const loadOrg = () => import('./src/screens/org');
 const loadReference = () => import('./src/screens/reference');
 const loadReports = () => import('./src/screens/reports');
 const loadSources = () => import('./src/screens/sources');
+const loadGlobalViewer = () => import('./src/screens/globalViewer');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -122,7 +127,8 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   reference_coverage: lazyScreen(loadReference, 'ReferenceCoverage'), passage_reference: lazyScreen(loadReference, 'PassageReference'),
   bible_explore: lazyScreen(loadSources, 'BibleExplore'),
   get_ready: Ready.GetReady,
-  settings_more: Account.SettingsMore
+  settings_more: Account.SettingsMore,
+  global_viewer: lazyScreen(loadGlobalViewer, 'GlobalViewer')
 };
 
 /**
@@ -401,26 +407,36 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
  */
 function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean;
   orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
-  const org = props.org;
+  const liveOrg = props.org;
   const nav = useNav({ screen: 'sign_in' });
-  const { languageId, setLanguage, languages } = useWorkingLanguage(org.state, props.actorId, props.orgId, nav.current.params?.['languageId']);
-  const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
-  usePassagesInMemory(language, nav.current.params?.['unitId']);
+  // A Global Viewer whose access is on reads every organization, as a Viewer (decisions.md 158).
+  const globalViewer = useGlobalViewer(props.actorId, props.signedIn).access;
+  const { languageId, setLanguage, languages } = useWorkingLanguage(liveOrg.state, props.actorId, props.orgId, nav.current.params?.['languageId'],
+    globalViewer === 'on');
+  const liveLanguage = useLanguage(props.orgId, languageId, props.actorId, liveOrg.membershipEpoch);
+  usePassagesInMemory(liveLanguage, nav.current.params?.['unitId']);
   useAccountSync(props.actorId);
   useProfileName(props.actorId, props.email);
   const blocks = useBlocks(props.actorId);
   // Read names again when someone joins, or a new member shows as a placeholder until restart.
   // Keyed on the state, not its members: the fold adds members in place (OrgHandle.state).
-  const memberIds = useMemo(() => Object.keys(org.state?.members ?? {}).sort().join(','), [org.state]);
+  const memberIds = useMemo(() => Object.keys(liveOrg.state?.members ?? {}).sort().join(','), [liveOrg.state]);
   const people = useDisplayNames(props.actorId, memberIds);
   const [devOpen, setDevOpen] = useState(false);
   const onboarding = useOnboarding(props.actorId, props.signedIn);
   // Someone from v2 is welcomed back to their work instead (demo ADR-043).
   const welcomeBack = useWelcomeBack(props.actorId, props.fromV2 && props.signedIn && onboarding.loaded && !onboarding.welcomed);
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, onboarding.welcomed, org.state, languageId, hasWelcome(welcomeBack.data)),
-    [props.actorId, props.email, onboarding.welcomed, org.state, languageId, welcomeBack.data]
+    () => deriveSession(props.actorId, props.email, onboarding.welcomed, liveOrg.state, languageId, hasWelcome(welcomeBack.data), globalViewer),
+    [props.actorId, props.email, onboarding.welcomed, liveOrg.state, languageId, welcomeBack.data, globalViewer]
   );
+  // A read-only session (a Global Viewer looking in) writes nothing, from any screen or hook (readOnly.ts).
+  const { readOnly } = session;
+  const org = useMemo(() => (readOnly ? readOnlyOrg(liveOrg) : liveOrg), [liveOrg, readOnly]);
+  const language = useMemo(() => (readOnly ? readOnlyLanguage(liveLanguage) : liveLanguage), [liveLanguage, readOnly]);
+  useEffect(() => { setReadOnlySession(readOnly); return () => setReadOnlySession(false); }, [readOnly]);
+  // Members' names, which a Global Viewer's own directory does not hold.
+  const viewedNames = useGlobalViewerNames(props.orgId, session.viewingAsGlobalViewer);
   // Languages follow the library versions their template and flow are at (docs/library.md).
   useLibraryFollow(language, org, session);
   useTranslatorReview(org, session);
@@ -433,8 +449,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Names: the signed-in person is always "you" (CORE-6).
   const name = useCallback((id: string, lower = false) => {
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
-    return people[id] ?? personLook(id).name;
-  }, [people, props.actorId]);
+    return people[id] ?? viewedNames[id] ?? personLook(id).name;
+  }, [people, viewedNames, props.actorId]);
   const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 
   const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
@@ -504,6 +520,15 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 
   const screen = nav.current.screen;
+  // A Global Viewer looking in has a link in every header: where they are, and the way to another
+  // organization. It opens the Global Viewer screen as the tabs open theirs, as chrome (decision 71 amended).
+  // In an organization of their own too, and before the code is entered: it is also where the code goes.
+  const showLink = globalViewer !== null && globalViewer !== 'revoked' && !!org.state?.org;
+  const viewingName = session.viewingAsGlobalViewer ? org.state?.org?.value.name ?? '' : '';
+  const navPush = nav.push;
+  const headerExtra = useMemo(() => (!showLink ? null : (
+    <GlobalViewerLink orgName={viewingName} onPress={() => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== 'global_viewer') navPush({ screen: 'global_viewer' }); }} />
+  )), [showLink, viewingName, navPush]);
   // Phone, tablet or desktop by the window's width alone (decisions.md 55).
   const { width } = useWindowDimensions();
   const kind = layoutKind(width);
@@ -564,6 +589,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       <SyncStatusContext.Provider value={syncSources}>
       <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused} />
       <PeopleContext.Provider value={people}>
+      <HeaderExtraContext.Provider value={headerExtra}>
         <View style={{ flex: 1, flexDirection: 'row' }}>
           {wide && showTabs ? navChrome(kind === 'tablet' ? 'rail' : 'sidebar') : null}
           {split && paneCtx ? <PaneSlot key={split.list.key} route={split.list} ctx={paneCtx} layout={paneLayout} open={openDetail} /> : null}
@@ -601,6 +627,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
           </LayoutContext.Provider>
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
+      </HeaderExtraContext.Provider>
       </PeopleContext.Provider>
       </SyncStatusContext.Provider>
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
@@ -629,7 +656,7 @@ let showing: { message: string; until: number } | null = null;
 
 /**
  * Shows one toast at a time for 3.5 s, or as long as Android's "Time to take
- * action" asks (decision 158), twice as long while a screen reader is on. A
+ * action" asks (decision 159), twice as long while a screen reader is on. A
  * toast only says what happened: it never offers Undo (decision 134).
  */
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
