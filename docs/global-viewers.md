@@ -108,9 +108,12 @@ In the app:
   (`src/screens/globalViewer.tsx`) sets up the authenticator, takes the
   code, and lists organizations (`global_viewer_organizations`).
 - In an organization they are not in, the session is read-only
-  (`deriveSession`): it shows what an Organization Admin's would, so every
-  screen looks as its admins see it, and `readOnly` wraps the organization's
-  and the language's handles so nothing is appended. The two hooks that
+  (`deriveSession`): it has an Organization Admin's management privileges
+  but not those for doing the work (Translate, Review, Fill reference, Send
+  to reviewers), so Manage looks as its admins see it and a passage offers
+  no Edit, Record, review or note. `readOnly` wraps the organization's and
+  the language's handles so nothing is appended, and the recorder refuses
+  to open the microphone (`isReadOnlySession`). The two hooks that
   write by themselves (`useLibraryFollow`, `useTranslatorReview`) skip a
   read-only session, and a server refusing a write says so in words
   (`readOnlyRefusal` in `failureMessage`). Controls that go by the

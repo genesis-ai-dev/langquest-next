@@ -58,6 +58,9 @@ export interface Session {
   readOnly: boolean;
 }
 
+/** What doing the work takes, which a read-only session never offers. */
+const WORK_PRIVILEGES: readonly Privilege[] = ['translate', 'review', 'fill_reference', 'send_to_reviewers'];
+
 export function deriveSession(
   actorId: string,
   email: string | null,
@@ -75,7 +78,9 @@ export function deriveSession(
   const viewing = viewsAsGlobalViewer(globalViewer, !!org?.org);
   const member = !!org && Object.values(org.members[actorId] ?? {}).some((m) => m.removed.value === false);
   const readOnly = viewing && !member;
-  const privileges = readOnly ? privilegesOfFixedRole('owner') : own;
+  // An admin's view of the organization, without the privileges for doing its work (recording, reviewing,
+  // notes, sending to reviewers): nothing done with those could be kept, so nothing offers them.
+  const privileges = readOnly ? new Set([...privilegesOfFixedRole('owner')].filter((p) => !WORK_PRIVILEGES.includes(p))) : own;
   const isManaged = isManagedEmail(email);
   const role = effectiveRole(privileges);
   const isAdmin = MANAGE_PRIVILEGES.some((p) => privileges.has(p));

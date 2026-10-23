@@ -10,11 +10,13 @@ import { useLayout } from '../ui/useLayout';
 
 /**
  * In every header of an organization a Global Viewer is looking in on
- * (decisions.md 158): where they are, and the way to another. An eye on a
- * phone; the eye and "Global Viewer" on a wider window.
+ * (decisions.md 158): where they are, and the way to another. An eye; the
+ * eye and "Global Viewer" only where the header's own box is a tablet's
+ * width or more, so never on a phone or in a split's narrow list pane,
+ * whose title the words would leave a sliver.
  */
 export function GlobalViewerLink(props: { orgName: string; onPress: () => void }) {
-  const wide = useLayout().kind !== 'phone';
+  const wide = useLayout().contentWidth >= 768;
   const label = props.orgName ? t('globalViewer.viewingOrg', { org: props.orgName }) : t('globalViewer.title');
   const spot = useHelpSpot(t('globalViewer.title'), t('globalViewer.linkHelp'), props.onPress);
   return (

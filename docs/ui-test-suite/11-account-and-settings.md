@@ -1168,7 +1168,7 @@ Steps:
 Expected:
 - Step 2: ORG opens on the overview. The tabs are Map, Manage and Me (no
   Work, no Inbox), and every header has an eye ("Global Viewer" beside it
-  on a wide window). It opens Global Viewer: ORG under "Viewing now", and
+  on a wide window). A passage, such as P-NEW, offers no Edit or Record. It opens Global Viewer: ORG under "Viewing now", and
   the search for another organization below it.
 
 ### ACCT-055 A Global Viewer reads Manage as its admins see it, and changes nothing

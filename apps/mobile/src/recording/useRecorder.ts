@@ -11,6 +11,7 @@ import MicrophoneEnergy from '../../modules/microphone-energy';
 import { preferredRecordingType } from '../audio/audioFormat';
 import { getBlobStore } from '../sync/blobs';
 import { t } from '../i18n';
+import { isReadOnlySession } from '../shell/readOnly';
 import { getRecordingJournal, liveParts } from './recordingJournal';
 import { RecordingSession } from './recordingSession';
 import { liveKept, liveKeptCount, liveNext } from './livePartsModel';
@@ -234,6 +235,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
         vadActive.current || vadStarting.current || !mounted.current) {
       return Promise.resolve();
     }
+    // Nothing recorded could be kept (a Global Viewer looking in, decisions.md 158): never open the microphone.
+    if (isReadOnlySession()) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
     wanted.current = true;
     stopAudioPlayback();
     setError('');
@@ -378,6 +381,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     if (vadActive.current || vadStarting.current) return stopVad();
     if (starting.current || stopping.current || active.current ||
         vadStopping.current || !mounted.current) return Promise.resolve();
+    if (isReadOnlySession()) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
     stopAudioPlayback();
     setError('');
     work(1);

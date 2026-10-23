@@ -101,7 +101,11 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // check shows (decision 149) took it to 6.51 MB, 15 KB of that their lines
 // in 15 languages after six were merged into two.
 const TOTAL_BUDGET_BYTES = 6.55 * 1024 * 1024;
-const FIRST_VISIT_BUDGET_BYTES = 5.7 * 1024 * 1024;
+// A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
+// the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
+// (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
+// microphone opens has to be loaded with the recorder.
+const FIRST_VISIT_BUDGET_BYTES = 5.75 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;
