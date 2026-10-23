@@ -142,7 +142,9 @@ In the Cloudflare console (the LangQuest account): Workers & Pages >
 - Deploy command: `npm run admin:deploy`
 - Build variables and secrets: none
 - Build watch paths, include: `apps/admin/*`, `scripts/diagSignals.ts`,
-  `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`
+  `packages/core/*` (the page checks phones and snapshots against core's
+  `REDUCER_VERSION`), `package.json`, `package-lock.json`,
+  `scripts/cloudflare-deploy.mjs`
 
 A build of `main` fails until the admin page's pull request merges
 (`main` has no `admin:deploy` yet); that is expected.
@@ -152,7 +154,9 @@ A build of `main` fails until the admin page's pull request merges
 Workers Builds then deploys both Workers. The app's Worker binds
 `langquest-next-admin` (`services` in `apps/web/wrangler.jsonc`), and a
 deploy fails while the Worker it binds does not exist, so step 1 must come
-first. The admin Worker binds back to the app Worker's `JobStatus`
+first. Until the dashboard's own code is deployed (`npm run admin:deploy`,
+or its Workers Build), that Worker is only the placeholder step 1 makes,
+and `/ops-dashboard` answers 503 saying it is not deployed. The admin Worker binds back to the app Worker's `JobStatus`
 entrypoint (`APP_JOBS`); until the app Worker with that entrypoint is
 deployed, the Job container section says it could not ask. Check: `curl -s -o /dev/null -w '%{http_code}\n'
 https://next.langquest.org/ops-dashboard` says `200`.
