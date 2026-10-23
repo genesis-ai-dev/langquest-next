@@ -8,11 +8,14 @@ description: >
   Needs npm ci first. scripts/ci-docker-images.sh does the work. With load
   'false', restore only fetches the archive, and the job runs
   `ci-docker-images.sh load` (and `warm`, for job images) itself, in the
-  background before it starts the stack (decisions.md 163).
+  background before it starts the stack (decisions.md 163). Phase warm
+  (guardrails warm-caches, on main) fills both caches, the stack's and the
+  job images', when either is missing, and only looks them up otherwise
+  (decisions.md 164).
 
 inputs:
   phase:
-    description: restore or save
+    description: restore, save or warm
     required: true
   job-images:
     description: "'true' for a job that runs wrangler dev with the job container (ui-web, nightly)"
@@ -88,3 +91,74 @@ runs:
       with:
         path: ${{ runner.temp }}/docker-images.tar.zst
         key: ${{ steps.key.outputs.key }}
+
+    # --- warm: on main, for the pull requests after it ---------------------
+    - name: Both caches' keys
+      if: inputs.phase == 'warm'
+      id: warm-keys
+      shell: bash
+      run: |
+        echo "stack=$(bash scripts/ci-docker-images.sh key)" >> "$GITHUB_OUTPUT"
+        echo "jobs=$(bash scripts/ci-docker-images.sh key jobs)" >> "$GITHUB_OUTPUT"
+    - name: Is the stack's cache there?
+      if: inputs.phase == 'warm'
+      id: warm-stack
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/docker-images.tar.zst
+        key: ${{ steps.warm-keys.outputs.stack }}
+        lookup-only: true
+    - name: Is the job images' cache there?
+      if: inputs.phase == 'warm'
+      id: warm-jobs
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/docker-images.tar.zst
+        key: ${{ steps.warm-keys.outputs.jobs }}
+        lookup-only: true
+    - name: Restore an older cache, for the images it still has
+      if: inputs.phase == 'warm' && (steps.warm-stack.outputs.cache-hit != 'true' || steps.warm-jobs.outputs.cache-hit != 'true')
+      id: warm-older
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/docker-images.tar.zst
+        key: ${{ steps.warm-keys.outputs.jobs }}
+        restore-keys: ${{ steps.key.outputs.prefix }}
+    - name: Pull the rest (the stack as ui-web starts it, and the job container's)
+      if: steps.warm-older.conclusion == 'success'
+      shell: bash
+      env:
+        DOCKERHUB_USERNAME: ${{ inputs.dockerhub-username }}
+        DOCKERHUB_TOKEN: ${{ inputs.dockerhub-token }}
+      run: |
+        bash scripts/ci-docker-images.sh load
+        bash scripts/ci-docker-images.sh warm
+        bash scripts/ci-retry-pull.sh npm run db:start
+    - name: Pack the stack's images
+      if: steps.warm-older.conclusion == 'success' && steps.warm-stack.outputs.cache-hit != 'true'
+      id: warm-pack-stack
+      shell: bash
+      run: |
+        rm -f "$RUNNER_TEMP/docker-images.tar.zst"
+        bash scripts/ci-docker-images.sh save
+        if [ -s "$RUNNER_TEMP/docker-images.tar.zst" ]; then echo "packed=true" >> "$GITHUB_OUTPUT"; fi
+    - name: Save the stack's cache
+      if: steps.warm-pack-stack.outputs.packed == 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/docker-images.tar.zst
+        key: ${{ steps.warm-keys.outputs.stack }}
+    - name: Pack the job images
+      if: steps.warm-older.conclusion == 'success' && steps.warm-jobs.outputs.cache-hit != 'true'
+      id: warm-pack-jobs
+      shell: bash
+      run: |
+        rm -f "$RUNNER_TEMP/docker-images.tar.zst"
+        bash scripts/ci-docker-images.sh save jobs
+        if [ -s "$RUNNER_TEMP/docker-images.tar.zst" ]; then echo "packed=true" >> "$GITHUB_OUTPUT"; fi
+    - name: Save the job images' cache
+      if: steps.warm-pack-jobs.outputs.packed == 'true'
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ${{ runner.temp }}/docker-images.tar.zst
+        key: ${{ steps.warm-keys.outputs.jobs }}

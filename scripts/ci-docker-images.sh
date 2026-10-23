@@ -30,7 +30,9 @@ base_image() { sed -n 's/^FROM \([^ ]*\).*/\1/p' "$dockerfile" | head -1; }
 # What `wrangler dev` pulls beside it, to intercept the container's traffic (miniflare names it).
 egress_image() { grep -m1 -o 'cloudflare/proxy-everything:[A-Za-z0-9:@._-]*' "$miniflare" 2> /dev/null || true; }
 
-prefix() { echo "docker-images-${RUNNER_OS:-local}-supabase-$(cli_version)-"; }
+# v2: the v1 job images' cache held node:24-slim alone (68 MB, seen 2026-10-23), saved by a job whose
+# stack never pulled; an exact hit is never saved again, so every ui-web shard pulled the stack from ECR.
+prefix() { echo "docker-images-v2-${RUNNER_OS:-local}-supabase-$(cli_version)-"; }
 
 key() {
   local jobs="${1:-}" config
@@ -66,6 +68,9 @@ save() {
   local jobs="${1:-}" images base
   base="$(base_image)"
   images="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^public\.ecr\.aws/supabase/' || true)"
+  # Without the database there was no stack (it failed before pulling), and a cache saved now would be
+  # an exact hit that is never saved again.
+  if ! grep -q '^public\.ecr\.aws/supabase/postgres:' <<< "$images"; then echo "the stack's images are not here; keeping none"; return 0; fi
   if [ -n "$jobs" ] && [ -n "$base" ] && docker image inspect "$base" > /dev/null 2>&1; then images="$images"$'\n'"$base"; fi
   [ -n "$images" ] || { echo "no images to keep"; return 0; }
   # shellcheck disable=SC2086

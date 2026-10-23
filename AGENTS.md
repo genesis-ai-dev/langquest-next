@@ -90,7 +90,10 @@ A pull request runs the jobs that its changed files need (`scope`,
 `scripts/ci-scope.mjs`), and is merged into `main` only when the `gate` job
 says that every needed job passed, on the pull request and again in the
 merge queue (main with the pull requests ahead of it); `main` takes no
-direct push (`.github/rulesets/main.json`, decisions.md 150). `node scripts/ci-scope.mjs
+direct push (`.github/rulesets/main.json`, decisions.md 150). The queue runs
+no job when `main` has not moved since the pull request's green run of the
+last hour, and the push to `main` runs none for the commit the queue passed
+(`scripts/ci-tested.mjs`, decisions.md 164). `node scripts/ci-scope.mjs
 <file>...` says which jobs some files would run:
 
 | Job | What fails it | Run it here |

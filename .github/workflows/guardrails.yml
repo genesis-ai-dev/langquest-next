@@ -1,7 +1,10 @@
 # Guardrails on every PR, so nothing depends on a local hook having run.
 #
 # scope:    which of server, web-smoke and ui-web the pull request's
-#           changed files need (scripts/ci-scope.mjs, decisions.md 150).
+#           changed files need (scripts/ci-scope.mjs, decisions.md 150);
+#           none, when the commit already passed (decisions.md 164): a merge
+#           queue entry whose tree the pull request's own run tested within
+#           the hour, or a push of the commit that the merge queue passed.
 # checks:   typecheck, lint, the server calls of store builds, the push
 #           delivery bundle.
 # unit:     the unit, property and model tests, in three shards dealt by
@@ -22,7 +25,10 @@
 #           that do not pass every time (scripts/ui-flake-report.mjs).
 # gate:     passes when checks, unit, coverage and every needed job passed;
 #           the one check that main requires (.github/rulesets/main.json), on
-#           the pull request and again in the merge queue.
+#           the pull request and again in the merge queue. A green pull
+#           request run's gate names the tree it tested, for the queue.
+# warm-caches: on a push that runs no tests, fills the caches that pull
+#           requests read from main (decisions.md 164).
 #
 # The PR jobs start together rather than after `checks`: a PR waits for
 # the slowest job, not for `checks` plus it (decisions.md 102, amended
@@ -107,19 +113,31 @@ jobs:
   scope:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Reads, to tell whether this commit already passed (scripts/ci-tested.mjs):
+    # the artifacts that name a tested tree, and the gate checks on a commit.
+    permissions:
+      contents: read
+      actions: read
+      checks: read
     outputs:
       server: ${{ steps.scope.outputs.server }}
       web-smoke: ${{ steps.scope.outputs.web-smoke }}
       ui-web: ${{ steps.scope.outputs.ui-web }}
+      # The run that already passed this tree or commit, or empty: then no job runs.
+      tested: ${{ steps.scope.outputs.tested }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - id: scope
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/ci-scope.mjs
 
   checks:
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.tested == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -159,6 +177,8 @@ jobs:
     # minutes on one 4-vCPU runner, its slowest file (the organization folder's
     # memory test) about a third of that. Each shard keeps a blob report with
     # its coverage, and `coverage` merges them.
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.tested == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -184,7 +204,8 @@ jobs:
   coverage:
     # The shards' reports as one, and the coverage thresholds on the whole
     # suite: core and sync have them (vitest.config.ts).
-    needs: unit
+    needs: [scope, unit]
+    if: ${{ !cancelled() && needs.scope.outputs.tested == '' && needs.unit.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -412,7 +433,9 @@ jobs:
           node -e '
             const needs = JSON.parse(process.env.NEEDS);
             const always = ["checks", "unit", "coverage"];
-            const needed = (job) => always.includes(job) || needs.scope.outputs[job] === "true";
+            const tested = needs.scope.outputs.tested;
+            if (tested) console.log(`Already passed, so no job ran: ${tested}`);
+            const needed = (job) => !tested && (always.includes(job) || needs.scope.outputs[job] === "true");
             let bad = needs.scope.result === "success" ? [] : [`scope ${needs.scope.result}`];
             for (const [job, { result }] of Object.entries(needs)) {
               if (job === "scope") continue;
@@ -433,6 +456,57 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: node scripts/linear-sync.mjs lane --name checks --status failed --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+      # A green pull request run names the tree it tested (the pull request
+      # merged with main), so the merge queue can take this run for its
+      # entry when main has not moved since (scripts/ci-tested.mjs,
+      # decisions.md 164). A day is plenty: the queue takes it for an hour.
+      - name: The tree this run tested
+        id: tree
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tree="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq .tree.sha)"
+          printf '{"run":"%s","commit":"%s","tree":"%s"}\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" "$GITHUB_SHA" "$tree" > "$RUNNER_TEMP/tested-tree.json"
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+      - name: Name it for the merge queue
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tested-tree-${{ steps.tree.outputs.tree }}
+          path: ${{ runner.temp }}/tested-tree.json
+          retention-days: 1
+
+  warm-caches:
+    # A push that the merge queue already passed runs no tests (scope's
+    # `tested`), but caches saved on main are the only ones a pull request
+    # can read: a pull request's and a merge queue entry's are their own.
+    # Without this, a change to a cache's key (the Supabase CLI, its config,
+    # Playwright, the lockfile) would make every pull request pull from the
+    # rationed registries and the slow package mirror until the nightly ran
+    # (decisions.md 102, amended 2026-10-20; decisions.md 164). A cache that
+    # is there is only looked up, so this is about a minute on most pushes.
+    needs: scope
+    if: github.event_name == 'push' && needs.scope.outputs.tested != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # The npm cache, saved after the job when the lockfile changed.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium, warm: 'true' }
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium firefox webkit, warm: 'true' }
+      - name: Keep the stack's ports out of the outbound port range
+        run: bash scripts/ci-reserve-ports.sh
+      - uses: ./.github/actions/docker-images
+        with:
+          phase: warm
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
 
   nightly-ui-web:
     # The whole web UI suite, quarantine apart. Not blocking; its failures go to Linear.

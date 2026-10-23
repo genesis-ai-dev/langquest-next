@@ -6803,6 +6803,11 @@ A pull request waits for the ones ahead of it, about ten minutes each. The stric
 up-to-date rule was the other way: it needs no code, but every merge would
 make every open pull request update and run its checks again.
 
+Amended (2026-10-23, Carl Sauder): a queue entry runs no job when the pull
+request's own green run of the last hour tested the same tree, and a push
+to main runs no tests for the commit that the queue passed; `checks` is
+three jobs, `checks`, `unit` and `coverage` (decisions 163, 164).
+
 ## 151. A pull request may not take away a server call that a supported store build makes
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7458,3 +7463,50 @@ Reverse if: `unit` and `coverage` together take longer than the old
 report covers less than one run of the whole suite does; the early export
 is built again often (the CLI's local keys changed, so update
 `.env.development`); or the smoke tests fail two at a time and not alone.
+
+## 164. A commit that already passed guardrails is not tested again: the merge queue takes the pull request's run of the same tree, and the push takes the queue's
+
+Date: 2026-10-23 · By: Carl Sauder · Status: accepted
+
+Reason: a merge took about 12 minutes after its pull request was green, and
+none of it tested anything new. The queue merges one pull request at a time
+with a merge commit (decision 150), so when main has not moved since the
+pull request's last run, the queue's entry has the same files as the commit
+that run tested (refs/pull/N/merge). Then the queue pushes that same commit
+to main, and the push run tested it a third time, on 9 runners. Carl asked
+(2026-10-23) to skip both, with a time limit on the first. Amends 150.
+- **The queue.** A green pull request run's `gate` uploads an artifact named
+  for the tree it tested, `tested-tree-<tree>`, kept a day. In the queue,
+  `scope` (`scripts/ci-tested.mjs`) looks for one named for the entry's
+  tree, from a guardrails `pull_request` run whose head is the entry's
+  second parent (the pull request's head), made in the last 60 minutes.
+  Found, `scope` says `tested` and every job, `checks`, `unit` and
+  `coverage` too, is skipped; `gate` passes and names that run. The head
+  must match, not only the tree: any branch could hold the same files and
+  a workflow that skips its tests. The limit is there because some checks
+  read things outside the tree: `server-calls` and `test:old-sync` read the
+  store builds from EAS, which change without a commit.
+- **The push.** A push whose commit has a green `gate` from a guardrails
+  `merge_group` or `push` run of that same commit runs no tests. A pull
+  request run's `gate` does not count: GitHub puts it on the pull request's
+  head, but it tested the head merged with main, so a branch fast-forwarded
+  to that head (develop) is tested. Any other push runs every job, as before.
+- **Caches.** A pull request can read only its own caches and main's; the
+  queue's are its own. The push run was what saved main's Docker images,
+  Playwright browsers and npm cache after a key changed. `warm-caches` does
+  that on a push that runs no tests: it looks each cache up, and only when
+  one is missing pulls and saves it (`.github/actions/docker-images` phase
+  `warm`, `.github/actions/playwright` `warm`). The Docker cache key moved
+  to `v2`: the v1 job images' cache held only `node:24-slim`, saved by a job
+  whose stack never pulled, so every `ui-web` shard pulled the stack from ECR;
+  `ci-docker-images.sh save` now keeps nothing without the database image.
+- **What else read the push run.** The flake tracker counts merge queue runs
+  too (`scripts/ui-flake-report.mjs`). `gate` still tells Linear when
+  `checks`, `unit` or `coverage` failed on a push that ran them.
+Building several queue entries at once was weighed and left out: merges
+seconds apart would lose release-branch copies (decision 150, amended
+2026-10-23; decision 155), and `scripts/githubRules.test.ts` holds one.
+Reverse if: a merge into main breaks main though its queue entry took a
+pull request's run (then the tree is not the whole input, and the queue
+runs every job again); or pull requests miss main's caches after a key
+change (then `warm-caches` is not filling them).
