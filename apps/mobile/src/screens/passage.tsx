@@ -418,7 +418,7 @@ export function PassageRecord(ctx: Ctx) {
           </View>
           {/* What comes along without a connection (decisions.md 61). */}
           <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
-          <Text style={txt.xs}>{t('passage.else.teamOptions', { section: t('passage.path.thenTheTeam') })}</Text>
+          {canAct ? <Text style={txt.xs}>{t('passage.else.teamOptions', { section: t('passage.path.thenTheTeam') })}</Text> : null}
         </View>
         {sheets}
       </Screen>
