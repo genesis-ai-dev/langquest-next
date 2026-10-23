@@ -66,14 +66,22 @@ export function useRouting(o: {
   // a second render before that left a person on Sign In who had just been sent to
   // the section in the address, and sent them to the home instead (WEB-018).
   const sentOnFromAuth = useRef(false);
+  // The same lag on signing out reset to Sign In twice, and the second reset mounted
+  // a fresh Sign In that dropped what had been typed into the first (AUTH-057, NOORG-004).
+  const sentToSignIn = useRef(false);
   useEffect(() => {
     if (!signedIn) {
       sentOnFromAuth.current = false;
       // Not "anything but sign_in": a guest legitimately walks to Create
       // account, Browse public languages, the terms and the invite scanner.
-      if (!GUEST_SCREENS.includes(nav.current.screen)) nav.reset({ screen: 'sign_in' });
+      if (GUEST_SCREENS.includes(nav.current.screen)) sentToSignIn.current = false;
+      else if (!sentToSignIn.current) {
+        sentToSignIn.current = navRef.isReady();
+        nav.reset({ screen: 'sign_in' });
+      }
       return;
     }
+    sentToSignIn.current = false;
     if (!ready) return;
     if (!AUTH_SCREENS.includes(nav.current.screen)) {
       sentOnFromAuth.current = false;
