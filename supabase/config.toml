@@ -301,9 +301,13 @@ auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
+# On for the whole project, but only Global Viewers are shown how to set it up
+# and only they need it: their access works only on an aal2 session
+# (decisions.md 158). Hosted projects take this by `supabase config push`,
+# run by hand (docs/environments.md).
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]
