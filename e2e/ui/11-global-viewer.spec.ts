@@ -9,7 +9,7 @@ import type { Page } from '@playwright/test';
 import { anon, newAccount, openNew, quiet, type Fresh } from './auth-helpers';
 import { localServer } from './fixture';
 import { back, button, byId, expect, field, openPassage, tab, tabsShown, test, text, useWorld } from './support';
-import { mainButton } from './05-passage-helpers';
+import { mainButton, teamRow } from './05-passage-helpers';
 import { totp } from './totp';
 
 const world = useWorld();
@@ -89,6 +89,14 @@ test('ACCT-054 A Global Viewer opens another organization and only views it', as
   await openPassage(page, world(), 'P-NEW');
   expect(await mainButton(page)).toBeNull();
   await expect(page.getByRole('button', { name: /^(Record|Edit)\b/ }).locator('visible=true')).toHaveCount(0);
+  await back(page).click();
+  // Nor a review action on a check that waits: its row opens no sheet, Something else? offers only what helps.
+  await openPassage(page, world(), 'P-SUBMITTED');
+  await expect(teamRow(page, 'Peer check')).toBeDisabled();
+  await button(page, 'Something else?').click();
+  await expect(byId(page, 'else-reference')).toBeVisible();
+  await expect(page.locator('[data-testid^="else-"]:not([data-testid="else-reference"])').locator('visible=true')).toHaveCount(0);
+  await back(page).click();
   await back(page).click();
   // The link in the header says where they are, and lists the others to open instead.
   await byId(page, 'global-viewer-link').click();

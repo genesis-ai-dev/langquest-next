@@ -4371,6 +4371,14 @@
       "term": {
         "title": "Zaɓi kalma",
         "sub": "Ma'anarta da yadda aka fassara ta za su buɗe a nan."
+      },
+      "language": {
+        "title": "Zaɓi harshe",
+        "sub": "Ci gabansa zai buɗe a nan."
+      },
+      "manage": {
+        "title": "Zaɓi abin da za a gudanar",
+        "sub": "Harshe, membobi ko tsari zai buɗe a nan."
       }
     },
     "license": {

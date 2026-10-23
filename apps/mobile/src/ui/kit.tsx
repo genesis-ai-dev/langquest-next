@@ -30,7 +30,7 @@ import { HelpBadge, HelpClip, HelpHost, HelpLit, HelpRow } from '../helpMode/hel
 import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
-import { useLayout } from './useLayout';
+import { useLayout, useOpenDetail } from './useLayout';
 import { useReduceMotion } from './useReduceMotion';
 import { kindIcon } from './kindIcon';
 import { txt } from './textStyles';
@@ -185,11 +185,14 @@ export function Header(props: {
   /** What help mode says Back does, where it is not the screen before (a card before, in a walk-through). */
   backHelp?: string;
 }) {
-  const wide = useLayout().kind !== 'phone';
+  const layout = useLayout();
+  const wide = layout.kind !== 'phone';
   // Ryder's header on a phone (demo ADR-032): a task screen centres its title between two round
   // buttons, Back (or ✕) and ?, on the screen's own ground; a tab's home keeps its big title at the left.
   const centred = !wide && !!props.onBack;
-  const helpBtn = useHelpMode() ? <HelpToggle testID="header-help" /> : null;
+  // In a split, once: beside an open screen, a list pane leaves the ? (help for the whole window) to that screen's header.
+  const openBeside = useOpenDetail();
+  const helpBtn = useHelpMode() && !(layout.role === 'list' && openBeside) ? <HelpToggle testID="header-help" /> : null;
   // What the app shows in every header, such as a Global Viewer's link (headerExtra.ts).
   const extra = useContext(HeaderExtraContext);
   // While help is on, Back explains itself like every other part; the ? is the way out.

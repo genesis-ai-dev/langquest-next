@@ -121,7 +121,8 @@ test('RPT-003 Reports opens on Overview @wide', async ({ page }) => {
   await tab(page, 'reports').click();
   await expect(text(page, 'Loading reports…')).toBeVisible();
   await expect(title(page)).toHaveText('Overview');
-  await expect(text(page, `${w.orgName} · Reports`)).toBeVisible();
+  // Beside the sidebar, which names the organization, the subtitle leaves the name out (decision 55 amended).
+  await expect(text(page, 'Reports')).toBeVisible();
   await expect(catchUp(page)).toBeVisible();
   for (const s of SECTIONS) await expect(chip(page, s === 'Alerts' ? /^Alerts/ : s)).toBeVisible();
   await expect(text(page, FRESHNESS)).toBeVisible();

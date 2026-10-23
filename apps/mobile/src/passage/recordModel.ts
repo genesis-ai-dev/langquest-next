@@ -40,6 +40,10 @@ function canGo(s: Session, to: ScreenId): boolean {
 
 /** What the person looking may do on a passage's record, from their privileges here. */
 export function recordCan(s: Session): RecordCan {
+  // Looking in, read-only (decisions.md 158): an admin's privileges still hold
+  // assign_work and override_checkpoints, but nothing here is offered, so no
+  // sheet, Something else? or Undo suggests a check could be asked, logged or moved past.
+  if (s.readOnly) return { record: false, review: false, ask: false, log: false, skip: false, override: false, undo: false, withdraw: false, note: false, keep: false };
   return {
     record: canGo(s, 'workspace'),
     review: canGo(s, 'review_capture'),
