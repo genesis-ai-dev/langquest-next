@@ -538,7 +538,7 @@ export function SmallBtn(props: { label: string; onPress: () => void; icon?: Ico
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable testID={props.testID} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
@@ -1025,7 +1025,7 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
     if (toast) AccessibilityInfo.announceForAccessibility(toast.message);
   }, [toast?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- announced once per toast: its words do not change for its id
   useEffect(() => {
-    if (!toast?.ms || !bar) return;
+    if (!bar) return;
     left.setValue(1);
     const run = Animated.timing(left, { toValue: 0, duration: toast.ms, easing: Easing.linear, useNativeDriver: false });
     run.start();

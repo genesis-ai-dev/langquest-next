@@ -17,8 +17,6 @@ export function toastTime(): number {
 
 export function readToastTime(): void {
   if (Platform.OS !== 'android') return;
-  AccessibilityInfo.getRecommendedTimeoutMillis(TOAST_MS).then(
-    (ms) => { base = Math.max(TOAST_MS, ms); },
-    () => undefined
-  );
+  // Android answers at least the time it is given.
+  AccessibilityInfo.getRecommendedTimeoutMillis(TOAST_MS).then((ms) => { base = ms; }, () => undefined);
 }

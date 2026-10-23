@@ -5,10 +5,9 @@ import { AccessibilityInfo } from 'react-native';
 export function useReduceMotion(): boolean {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {
-    let live = true;
-    AccessibilityInfo.isReduceMotionEnabled().then((on) => { if (live) setReduce(on); }, () => undefined);
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduce, () => undefined);
     const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduce);
-    return () => { live = false; sub.remove(); };
+    return () => sub.remove();
   }, []);
   return reduce;
 }
