@@ -4105,6 +4105,13 @@ load files show four shards of two browsers are still starved (then larger
 runners, which cost money), or the cache costs more than the pulls it
 saves.
 
+Amended (2026-10-23, Carl Sauder): for the browser jobs the cache did cost
+more than the pulls it saved. Warm, it made a pull request's run about a
+minute longer than pulling (425 seconds against 352 and 374), and the CLI
+now takes the images from `ghcr.io` when ECR refuses them. `web-smoke` and
+`ui-web` pull, retried by `ci-retry-pull.sh`; `server` and the nightly jobs
+keep the cache (decision 164 has the numbers).
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: superseded by 141
@@ -6803,6 +6810,11 @@ A pull request waits for the ones ahead of it, about ten minutes each. The stric
 up-to-date rule was the other way: it needs no code, but every merge would
 make every open pull request update and run its checks again.
 
+Amended (2026-10-23, Carl Sauder): a queue entry runs no job when the pull
+request's own green run of the last hour tested the same tree, and a push
+to main runs no tests for the commit that the queue passed; `checks` is
+three jobs, `checks`, `unit` and `coverage` (decisions 163, 164).
+
 ## 151. A pull request may not take away a server call that a supported store build makes
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
@@ -7433,3 +7445,110 @@ Vercel has no read-only token, so `ADMIN_VERCEL_TOKEN` would have been a
 token that can change the whole team's projects, on a Worker that
 otherwise holds only read tokens. If the website needs watching, an
 uptime check on its address does it without a token.
+
+## 163. A pull request's guardrails run in about the time of its slowest test job, not of its setup
+
+Date: 2026-10-23 · By: Carl Sauder · Status: accepted
+
+Reason: every guardrails run on a pull request took about 6 minutes, and
+three jobs each took about that long, so no single fix made a run shorter.
+Carl asked for the run to be cut down (2026-10-23), from the timings of the
+last 40 runs.
+- **`checks` split three ways.** The unit suite was 190 to 285 seconds of the
+  job's 4.5 to 6.7 minutes. It is CPU-bound: 38 seconds on a laptop's 15
+  cores, 4.5 minutes of CPU. `checks` keeps typecheck, lint, the store
+  builds' server calls and the push delivery bundle; `unit` runs the suite
+  in three shards on three runners, each with coverage and a blob report;
+  `coverage` merges the reports (`vitest --merge-reports --coverage`) and
+  holds the thresholds, which a shard skips (`VITEST_COVERAGE_SHARD`,
+  `vitest.config.ts`). Vitest's own `--shard` deals files by a hash of their
+  path and put the memory and fleet tests in one shard (39 seconds against
+  5 on a laptop); `scripts/unit-shards.ts` deals them by weight, slow files
+  first, so the organization folder's memory test runs alone and sets the
+  shard's length. `gate` needs all three, and a failure in any of them on
+  main tells Linear that `checks` failed, as `checks` did.
+- **Setup in the background.** `web-smoke` loaded its 787 MB of cached
+  images in the foreground (about 75 seconds) before the stack could start,
+  and both browser jobs built the web export only once the stack was up
+  (40 to 60 seconds), because `e2e/env.sh` reads its settings from
+  `supabase status`. The development export needs only the stack's URL and
+  anon key, which are the CLI's fixed local values and are already in
+  `apps/mobile/.env.development`. Now each job starts the stack in the
+  background (`scripts/ci-background.sh`; it pulls its images, decision
+  164), builds the export in the background beside it, and installs the
+  browsers meanwhile.
+  `e2e/export-web.sh` keeps that export (`WEB_EXPORTED=1`) only when the
+  running stack has the same URL and key, and builds it again otherwise.
+- **Two smoke workers.** The eight smoke tests ran one at a time, 3 minutes,
+  the first 83 seconds while the Worker warmed up. They run two at a time
+  (`e2e/web-smoke.config.ts`); each signs up its own account.
+Reverse if: `unit` and `coverage` together take longer than the old
+`checks` did (three runners setting up for 30 seconds each), or a merged
+report covers less than one run of the whole suite does; the early export
+is built again often (the CLI's local keys changed, so update
+`.env.development`); or the smoke tests fail two at a time and not alone.
+
+## 164. A commit that already passed guardrails is not tested again: the merge queue takes the pull request's run of the same tree, and the push takes the queue's
+
+Date: 2026-10-23 · By: Carl Sauder · Status: accepted
+
+Reason: a merge took about 12 minutes after its pull request was green, and
+none of it tested anything new. The queue merges one pull request at a time
+with a merge commit (decision 150), so when main has not moved since the
+pull request's last run, the queue's entry has the same files as the commit
+that run tested (refs/pull/N/merge). Then the queue pushes that same commit
+to main, and the push run tested it a third time, on 9 runners. Carl asked
+(2026-10-23) to skip both, with a time limit on the first. Amends 150.
+- **The queue.** A green pull request run's `gate` uploads an artifact named
+  for the tree it tested, `tested-tree-<tree>`, kept a day. In the queue,
+  `scope` (`scripts/ci-tested.mjs`) looks for one named for the entry's
+  tree, from a guardrails `pull_request` run whose head is the entry's
+  second parent (the pull request's head), made in the last 60 minutes.
+  Found, `scope` says `tested` and every job, `checks`, `unit` and
+  `coverage` too, is skipped; `gate` passes and names that run. The head
+  must match, not only the tree: any branch could hold the same files and
+  a workflow that skips its tests. The limit is there because some checks
+  read things outside the tree: `server-calls` and `test:old-sync` read the
+  store builds from EAS, which change without a commit.
+- **The push.** A push whose commit has a green `gate` from a guardrails
+  `merge_group` or `push` run of that same commit runs no tests. A pull
+  request run's `gate` does not count: GitHub puts it on the pull request's
+  head, but it tested the head merged with main, so a branch fast-forwarded
+  to that head (develop) is tested. Any other push runs every job, as before.
+- **Caches.** A pull request can read only its own caches and main's; the
+  queue's are its own. The push run was what saved main's Docker images,
+  Playwright browsers and npm cache after a key changed. `warm-caches` does
+  that on a push that runs no tests: it looks each cache up, and only when
+  one is missing pulls and saves it (`.github/actions/docker-images` phase
+  `warm`, `.github/actions/playwright` `warm`). The Docker cache key moved
+  to `v2`: the v1 job images' cache held only `node:24-slim`, so every
+  `ui-web` shard pulled the stack from a registry. When ECR turns the CLI
+  away, it pulls the same images from `ghcr.io` (or Docker Hub), and `save`
+  looked only for ECR's names (seen in run 39994259704, this change's first).
+  `ci-docker-images.sh save` now gives each such copy ECR's name, the one the
+  CLI looks for first, and keeps nothing without the database image.
+- **No image cache in the browser jobs.** Measured on this change's pull
+  request (run 39996890150): with the cache cold and the CLI pulling, the
+  runs took 352 and 374 seconds; with it warm, 425. Fetching the 1.2 GB
+  archive took 26 to 54 seconds in the foreground, and loading it left the
+  `ui-web` shards waiting 76 to 98 seconds for the stack, against 22 to 68
+  when they pulled. ECR rate-limited both cold runs, and the CLI took every
+  image from `ghcr.io` without a failure. Carl chose (2026-10-23) to drop the
+  cache from `web-smoke` and `ui-web`, which set a pull request's length,
+  and rely on the CLI's pulls and `scripts/ci-retry-pull.sh`. `server` keeps
+  it: it ends minutes before the browser jobs, so the load costs no wall
+  time there. So do the nightly jobs, which nobody waits for and which would
+  lose a night's results to a refused pull. `warm-caches` keeps both
+  caches filled for them.
+- **What else read the push run.** The flake tracker counts merge queue runs
+  too (`scripts/ui-flake-report.mjs`). `gate` still tells Linear when
+  `checks`, `unit` or `coverage` failed on a push that ran them.
+Building several queue entries at once was weighed and left out: merges
+seconds apart would lose release-branch copies (decision 150, amended
+2026-10-23; decision 155), and `scripts/githubRules.test.ts` holds one.
+Reverse if: a merge into main breaks main though its queue entry took a
+pull request's run (then the tree is not the whole input, and the queue
+runs every job again); pull requests miss main's caches after a key
+change (then `warm-caches` is not filling them); or a browser job fails
+because both ECR and `ghcr.io` refused its pulls (then the browser jobs
+restore the image cache again, loading it in the background).

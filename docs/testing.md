@@ -164,7 +164,8 @@ These keep the suite fast enough to run and stable enough to trust.
 | --- | --- | --- |
 | Pre-push hook | typecheck, `npm test`, worker bundle parity | under 30 s |
 | `npm run guardrails` | the CI `checks` job here; `--web` adds the export and its budget, `--all` the server and `ui-web` jobs | |
-| PR (CI `checks`) | typecheck, `npm test`, coverage thresholds, worker bundle parity | under 10 min |
+| PR (CI `checks`) | typecheck, lint, server calls, worker bundle parity | under 10 min |
+| PR (CI `unit`, `coverage`) | `npm test` in three shards dealt by weight (`scripts/unit-shards.ts`), then the coverage thresholds on the merged report | under 10 min |
 | PR (CI `server`) | `db:test`, `test:integration` | under 15 min |
 | PR (CI `web-smoke`) | the export in three engines | under 20 min |
 | PR (CI `ui-web`) | `@p0` web tests on the export, in four shards of two browsers, cut by recorded duration | under 20 min |
@@ -172,10 +173,11 @@ These keep the suite fast enough to run and stable enough to trust.
 | `npm run ship` | typecheck, then `@p0` web tests on the local stack (`SHIP_UNTESTED=1` skips, loudly) | |
 | Store release | full web suite, every Maestro flow on both phones, the run sheet | |
 
-The four PR jobs start together, so a PR waits for the slowest of them
-(about 6 minutes, the `ui-web` shards), not for `checks` and then the rest.
-A job that needs the local stack starts it in the background while it
-installs the browsers.
+The PR jobs start together, so a PR waits for the slowest of them, not for
+`checks` and then the rest (decision 163).
+A job that needs the local stack starts it in the background, the cached
+images loaded first, while it builds the web export and installs the
+browsers (`scripts/ci-background.sh`, `e2e/export-web.sh`).
 
 ### CI infrastructure (decision 102, amended 2026-10-20)
 
@@ -191,11 +193,14 @@ installs the browsers.
   four are within a fifth of each other.
 - **Registries.** ECR Public (the Supabase CLI's images) and Docker Hub (the
   job container's base image, wrangler's egress image) ration anonymous
-  pulls per IP address, which a hosted runner shares. Jobs restore the
-  images from `actions/cache` and save them when the cache was not an exact
-  hit (`.github/actions/docker-images`, `scripts/ci-docker-images.sh`; the
-  key is the Supabase CLI version and `supabase/config.toml`), and a start
-  the registry turned away is retried (`scripts/ci-retry-pull.sh`). The
+  pulls per IP address, which a hosted runner shares. A start the registry
+  turned away is retried (`scripts/ci-retry-pull.sh`), and the Supabase CLI
+  falls back to the same images on `ghcr.io`. `server` and the nightly jobs
+  also restore the images from `actions/cache` and save them when the cache
+  was not an exact hit (`.github/actions/docker-images`,
+  `scripts/ci-docker-images.sh`; the key is the Supabase CLI version and
+  `supabase/config.toml`); the browser jobs pull, which was faster than
+  loading the archive (decision 164). The
   repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`, when set,
   sign in to Docker Hub for a higher limit; nothing requires them.
 - **Ports.** The stack's ports (54420 to 54429) lie in the range Linux hands

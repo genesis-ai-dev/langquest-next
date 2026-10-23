@@ -40,7 +40,8 @@ export function requiredContexts(ruleset) {
  */
 export function pullRequestJobs(workflow) {
   return jobBlocks(workflow)
-    .filter(({ body }) => !/^ {4}if:.*\bschedule\b/m.test(body))
+    // A nightly job (`if: github.event_name == 'schedule' || ...`) or one that only a push runs.
+    .filter(({ body }) => !/^ {4}if:.*\bschedule\b|^ {4}if: github\.event_name == 'push'/m.test(body))
     .map(({ name }) => name);
 }
 

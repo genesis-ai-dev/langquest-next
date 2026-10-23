@@ -17,7 +17,9 @@ const chromiumMic = { args: ['--use-fake-ui-for-media-stream', '--use-fake-devic
 export default defineConfig({
   testDir: path.join(directory, 'web-smoke'),
   testMatch: '**/*.spec.ts',
-  workers: 1,
+  // Two at a time: one after another, the eight tests took 3 minutes of the CI job's 6, the first of
+  // them 83 s while the Worker warmed up (decisions.md 163). Each signs up its own account, so two never meet.
+  workers: 2,
   retries: 0,
   forbidOnly: Boolean(process.env['CI']),
   timeout: 240_000,

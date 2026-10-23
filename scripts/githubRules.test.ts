@@ -51,11 +51,11 @@ describe('the ruleset for main', () => {
 
 describe('the workflow reader', () => {
   it('reads the jobs that run on a pull request', () => {
-    expect(pullRequestJobs(guardrails)).toEqual(['scope', 'checks', 'server', 'web-smoke', 'ui-web', 'gate']);
+    expect(pullRequestJobs(guardrails)).toEqual(['scope', 'checks', 'unit', 'coverage', 'server', 'web-smoke', 'ui-web', 'gate']);
   });
 
-  it('leaves out a nightly job and reads both shapes of needs', () => {
-    const yml = "jobs:\n  a:\n    runs-on: x\n  b:\n    needs: a\n    runs-on: x\n  c:\n    if: github.event_name == 'schedule'\n    needs: [a, b]\n";
+  it('leaves out a nightly job and a push-only one, and reads both shapes of needs', () => {
+    const yml = "jobs:\n  a:\n    runs-on: x\n  b:\n    needs: a\n    runs-on: x\n  c:\n    if: github.event_name == 'schedule'\n    needs: [a, b]\n  d:\n    needs: a\n    if: github.event_name == 'push' && needs.a.outputs.x != ''\n";
     expect(pullRequestJobs(yml)).toEqual(['a', 'b']);
     expect(jobNeeds(yml, 'b')).toEqual(['a']);
     expect(jobNeeds(yml, 'c')).toEqual(['a', 'b']);

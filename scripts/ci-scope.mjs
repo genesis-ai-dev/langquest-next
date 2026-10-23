@@ -1,7 +1,7 @@
 // Which guardrails jobs a pull request needs, from the files that it changes
-// (decisions.md 150). `checks` always runs. `server`, `web-smoke` and
-// `ui-web` run when a changed file can affect what they test, and the `gate`
-// job passes only when every job that the files need has passed.
+// (decisions.md 150). `checks`, `unit` and `coverage` always run. `server`,
+// `web-smoke` and `ui-web` run when a changed file can affect what they test,
+// and the `gate` job passes only when every job that the files need has passed.
 //
 // The files are the pull request's own change: its diff from where it meets
 // main. The jobs still test the pull request merged with main, as before.
@@ -9,19 +9,23 @@
 // main: the entry's diff from its base, which holds this pull request and
 // every one ahead of it.
 // A file that no rule below names runs every job, and so does any error:
-// this never fails a run. A push to main, the nightly run and a manual run
-// run every job.
+// this never fails a run. The nightly run and a manual run run every job.
+// A merge queue entry whose tree the pull request's own run tested, and a
+// push of a commit that the merge queue passed, run none
+// (scripts/ci-tested.mjs, decisions.md 164); any other push runs every job.
 //
 //   node scripts/ci-scope.mjs     in the workflow: reads GITHUB_* and the
 //                                 event, writes server=, web-smoke= and
-//                                 ui-web= (true|false) to GITHUB_OUTPUT, and
-//                                 why to the job summary
+//                                 ui-web= (true|false) and tested= (the run
+//                                 that already passed it, or empty) to
+//                                 GITHUB_OUTPUT, and why to the job summary
 //   node scripts/ci-scope.mjs <file>...   what those files would run
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { alreadyTested } from './ci-tested.mjs';
 
-/** The jobs that scope can leave out. `checks` always runs. */
+/** The jobs that scope can leave out. `checks`, `unit` and `coverage` always run. */
 export const JOBS = ['server', 'web-smoke', 'ui-web'];
 
 const APP = ['web-smoke', 'ui-web'];
@@ -30,7 +34,7 @@ const APP = ['web-smoke', 'ui-web'];
  * The first rule whose pattern matches a file says which of JOBS it needs.
  * Order matters: the shared code (core, sync, migrations, scripts, CI,
  * dependencies) comes before the rules for documents, so its README runs
- * everything too. Unit tests anywhere run in `checks`.
+ * everything too. Unit tests anywhere run in `unit`.
  */
 export const RULES = [
   // What every job runs on: the shared packages, the database, the
@@ -47,7 +51,7 @@ export const RULES = [
   { pattern: /^(apps\/mobile|apps\/web|e2e)\//, jobs: APP },
   { pattern: /^app\.json$/, jobs: APP },
   // Lint's rules, the invite email Worker and the v2 import are held by
-  // `checks` alone (lint, typecheck, unit tests).
+  // `checks` and `unit` alone (lint, typecheck, unit tests).
   { pattern: /^(eslint\.config\.mjs|apps\/invite-email\/|packages\/v2-import\/)/, jobs: [] },
 ];
 
@@ -71,11 +75,11 @@ export function changedFiles(cwd, base, head) {
   return git(cwd, ['diff', '--name-only', '--no-renames', from, head]).split('\n').filter(Boolean);
 }
 
-function say(scope, reason, env = process.env) {
+function say(scope, reason, env = process.env, tested = '') {
   const lines = JOBS.map((job) => (scope[job] ? `- ${job} runs: ${scope[job]}` : `- ${job} is not needed`));
   const text = `${reason}\n${lines.join('\n')}`;
   console.log(text);
-  if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, JOBS.map((job) => `${job}=${!!scope[job]}\n`).join(''));
+  if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, JOBS.map((job) => `${job}=${!!scope[job]}\n`).join('') + `tested=${tested}\n`);
   if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${text}\n`);
 }
 
@@ -88,10 +92,18 @@ export function eventRange(name, event) {
   return null;
 }
 
-function main(env = process.env) {
+const nothing = Object.fromEntries(JOBS.map((job) => [job, null]));
+
+async function main(env = process.env) {
   const args = process.argv.slice(2);
   if (args.length) return say(scopeFor(args), `For ${args.length} file(s):`, {});
-  const range = eventRange(env.GITHUB_EVENT_NAME, env.GITHUB_EVENT_PATH && JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8')));
+  const event = env.GITHUB_EVENT_PATH && JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
+  const tested = await alreadyTested({ name: env.GITHUB_EVENT_NAME, event, repo: env.GITHUB_REPOSITORY, sha: env.GITHUB_SHA }).catch((err) => {
+    console.log(`::warning::Could not tell whether this commit already passed (${err.message.replace(/\s+/g, ' ').trim()}), so it is tested.`);
+    return null;
+  });
+  if (tested) return say(nothing, `No job runs: ${tested.why}, in ${tested.url}.`, env, tested.url);
+  const range = eventRange(env.GITHUB_EVENT_NAME, event);
   if (!range) return say(everything(`a ${env.GITHUB_EVENT_NAME ?? 'local'} run`), 'Every job runs.');
   const files = changedFiles(process.cwd(), range.base, range.head);
   if (files.length === 0) return say(everything(`the ${range.what} changes no file`), 'Every job runs.');
@@ -100,7 +112,7 @@ function main(env = process.env) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
-    main();
+    await main();
   } catch (err) {
     console.log(`::warning::Could not tell which jobs this pull request needs (${err.message.replace(/\s+/g, ' ').trim()}), so every job runs.`);
     say(everything('which jobs are needed could not be told'), 'Every job runs.');

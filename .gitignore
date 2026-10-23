@@ -1,5 +1,7 @@
 node_modules/
 coverage/
+# Vitest's blob reports (the guardrails unit shards, decisions.md 163).
+.vitest/
 # Env files are committed encrypted with dotenvx (npm run env:check guards it).
 # Private keys and personal overrides never are.
 .env

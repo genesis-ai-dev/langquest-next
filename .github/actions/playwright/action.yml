@@ -8,6 +8,9 @@ inputs:
   browsers:
     description: The browsers to install, separated by spaces (chromium, firefox, webkit)
     required: true
+  warm:
+    description: "'true' to fill the cache only when it is missing (guardrails warm-caches), not to install from it"
+    default: 'false'
 
 runs:
   using: composite
@@ -28,7 +31,9 @@ runs:
           ~/.cache/ms-playwright
           ${{ runner.temp }}/playwright-debs
         key: ${{ steps.key.outputs.key }}
+        lookup-only: ${{ inputs.warm == 'true' }}
     - name: Install them (retrying a slow mirror)
+      if: inputs.warm != 'true' || steps.restore.outputs.cache-hit != 'true'
       shell: bash
       env:
         PLAYWRIGHT_CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
