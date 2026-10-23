@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { afterLive, afterMerge, atLeast, newBuildPublic, platformsFrom, storeVersion } from './release-branches.mjs';
+import { afterLive, afterMerge, atLeast, commitOfCopy, conflictNote, newBuildPublic, platformsFrom, storeVersion } from './release-branches.mjs';
 
 /**
  * The public build keeps getting fixes while a new build is in store review
@@ -77,5 +78,26 @@ describe('which platforms keep release branches', () => {
 
   it('a merge that needs a new build only tags the branch for the build that is still public', () => {
     expect(afterMerge({ oldFingerprint: '138329bf', newFingerprint: '9708027b', branchExists: true })).toBe('tag');
+  });
+});
+
+describe('a copy with a conflict and no Claude key', () => {
+  it('finds the commit from the copy branch name', () => {
+    expect(commitOfCopy('copy/android/0123abcd')).toBe('0123abcd');
+    expect(commitOfCopy('feature/x')).toBeNull();
+  });
+
+  it('names the files in conflict and the steps for a person to finish it', () => {
+    const note = conflictNote('0123abcd', 'release/android', ['apps/mobile/src/a.ts', 'packages/core/src/b.ts']);
+    expect(note).toContain('release/android');
+    expect(note).toContain('- `apps/mobile/src/a.ts`');
+    expect(note).toContain('git cherry-pick -x 0123abcd');
+  });
+
+  it('the workflow skips Claude and comments instead when the key is missing', () => {
+    const yml = readFileSync('.github/workflows/release-copy-conflict.yml', 'utf8');
+    expect(yml).toMatch(/HAS_CLAUDE_KEY: \$\{\{ secrets\.ANTHROPIC_API_KEY != '' \}\}/);
+    expect(yml).toMatch(/if: env\.HAS_CLAUDE_KEY != 'true'\n\s+env:[\s\S]*?conflict-note/);
+    expect(yml).toMatch(/claude-code-action@v1\n\s+if: env\.HAS_CLAUDE_KEY == 'true'/);
   });
 });
