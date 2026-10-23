@@ -6992,6 +6992,17 @@ should approve each one (then turn off auto-merge), or a store page stops
 showing its live version (then read it from the store's API where one can
 say so).
 
+Amended (2026-10-23, Caleb Koster): the hourly cleanup now finds the newest
+new build that is live. When it is the newest of all, the branch goes and no
+other starts; only when an older one went live while a newer one is still in
+review does a new branch start, from just before the newer one. Before, it
+would have started a branch for a build that was never public. The
+repository variable `RELEASE_BRANCH_PLATFORMS` ("android" for now) names
+the platforms that keep a branch: no public iPhone build takes OTA updates
+from main yet (build 36, 1.0, runs code of 2026-10-16), so an iPhone branch
+would only feed TestFlight.
+
+
 ## 156. Store builds come only from the EAS workflow on merges into main
 
 Date: 2026-10-22 · By: Caleb Koster · Status: accepted
