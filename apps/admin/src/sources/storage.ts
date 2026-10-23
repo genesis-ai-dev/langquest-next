@@ -1,4 +1,4 @@
-import { isMissing, withDiag, type Query } from '../db';
+import { diagConnection, isMissing, withDiag, type Query } from '../db';
 import { getJson, ok, type Alert, type Section } from '../section';
 
 /**
@@ -10,7 +10,7 @@ import { getJson, ok, type Alert, type Section } from '../section';
  */
 
 type Env = {
-  DIAG_DATABASE_URL: string; ADMIN_SUPABASE_TOKEN?: string; ADMIN_CLOUDFLARE_TOKEN?: string;
+  DIAG?: Hyperdrive; ADMIN_SUPABASE_TOKEN?: string; ADMIN_CLOUDFLARE_TOKEN?: string;
   SUPABASE_PROJECTS: string; CLOUDFLARE_ACCOUNT_ID: string; R2_BUCKET: string; SUPABASE_DB_LIMIT_GB: string;
 };
 
@@ -132,7 +132,7 @@ export function storageAlerts(s: Storage, now = Date.now()): Alert[] {
   return out;
 }
 
-export async function storageSection(env: Env, fetcher: typeof fetch = fetch, now = Date.now(), diag: <T>(fn: (q: Query) => Promise<T>) => Promise<T> = (fn) => withDiag(env.DIAG_DATABASE_URL, fn)): Promise<Section<Storage>> {
+export async function storageSection(env: Env, fetcher: typeof fetch = fetch, now = Date.now(), diag: <T>(fn: (q: Query) => Promise<T>) => Promise<T> = (fn) => withDiag(diagConnection(env), fn)): Promise<Section<Storage>> {
   const ref = env.SUPABASE_PROJECTS.split(',')[0]?.split(':')[0]?.trim();
   const backups = env.ADMIN_SUPABASE_TOKEN && ref
     ? getJson<{ pitr_enabled?: boolean; backups?: { inserted_at?: string; status?: string }[]; physical_backup_data?: { latest_physical_backup_date_unix?: number } }>(fetcher,
@@ -188,7 +188,7 @@ export function capacityAlerts(c: Capacity): Alert[] {
   return out;
 }
 
-export async function capacitySection(env: Env, fetcher: typeof fetch = fetch, now = Date.now(), diag: <T>(fn: (q: Query) => Promise<T>) => Promise<T> = (fn) => withDiag(env.DIAG_DATABASE_URL, fn)): Promise<Section<Capacity>> {
+export async function capacitySection(env: Env, fetcher: typeof fetch = fetch, now = Date.now(), diag: <T>(fn: (q: Query) => Promise<T>) => Promise<T> = (fn) => withDiag(diagConnection(env), fn)): Promise<Section<Capacity>> {
   const limitBytes = (Number(env.SUPABASE_DB_LIMIT_GB) || 8) * 1024 ** 3;
   const fromDiag = diag(async (q) => {
     const [sizes, history] = await Promise.all([

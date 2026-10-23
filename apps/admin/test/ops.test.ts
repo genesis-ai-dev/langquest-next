@@ -221,7 +221,7 @@ describe('reading as diag_reader', () => {
 });
 
 describe('acting from the page', () => {
-  const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon', DIAG_DATABASE_URL: 'postgresql://x@127.0.0.1:1/p' };
+  const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon', DIAG: { connectionString: 'postgresql://x@127.0.0.1:1/p' } };
   /** Supabase saying the token is a Global Viewer on an aal2 session (`on`), or not. */
   const supabase = (state: string) => (async (url: RequestInfo | URL) => String(url).endsWith('get_user_state')
     ? Response.json({ globalViewer: state }) : Response.json({ id: 'p1' })) as typeof fetch;

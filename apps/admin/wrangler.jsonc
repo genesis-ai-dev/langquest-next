@@ -44,13 +44,18 @@
     "GOOGLE_PLAY_PACKAGE": "com.frontierrnd.langquestnext",
     "APP_STORE_APP_ID": "6812492008"
   },
-  // Set on the Worker by `npm run secrets -- production`, never at deploy; a
-  // deploy fails while it is missing. DIAG_DATABASE_URL is diag_reader's
-  // read-only login (scripts/diag-access.sh). Optional, from the same file:
+  // diag_reader's read-only login (scripts/diag-access.sh) lives in this
+  // Hyperdrive config, not on the Worker: a Worker cannot open TLS to
+  // Supabase itself, and Hyperdrive holds that connection (decisions.md 160,
+  // amended 2026-10-23; src/db.ts). `npm run secrets -- production` creates
+  // it from DIAG_DATABASE_URL in .env.production, writes its id here, and
+  // keeps its login in step; caching is off, so every figure is current.
+  // Locally, npm run admin:dev points it at the local database.
+  "hyperdrive": [{ "binding": "DIAG", "id": "b244dbab6e4b47d2a956f3e21ef52ced" }],
+  // Optional secrets, set on the Worker by `npm run secrets -- production`:
   // one token per provider, each section saying what it needs until its
   // token is there (docs/admin.md). Who may open the page is not a secret:
   // Global Viewers on an authenticator session (src/auth.ts).
-  "secrets": { "required": ["DIAG_DATABASE_URL"] },
   // The app Worker's JobStatus entrypoint (apps/web/worker/jobStatus.ts):
   // whether each server job is running now. One read-only method; this
   // Worker has no way to start or stop a job (docs/ops-dashboard-plan.md 11.3).

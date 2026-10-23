@@ -98,6 +98,32 @@ export const SCHEDULE_MIGRATION = 'supabase/migrations/20261020170000_push_deliv
  */
 export const RETIRED_FUNCTION_SECRETS = ['PROJECTION_WORKER_SECRET'];
 
+/**
+ * The ops dashboard's Hyperdrive config (decisions.md 160, amended
+ * 2026-10-23): it holds diag_reader's login, DIAG_DATABASE_URL, because a
+ * Worker cannot open TLS to Supabase itself. Its id sits in the admin
+ * Worker's config, as the DIAG binding, once this script has made it.
+ */
+export const HYPERDRIVE_NAME = 'langquest-next-diag';
+export const HYPERDRIVE_PLACEHOLDER = 'made-by-npm-run-secrets';
+
+/** The DIAG binding's id in the admin Worker's config, or null while it is the placeholder. */
+export function hyperdriveId(configText) {
+  const binding = (parseJsonc(configText).hyperdrive ?? []).find((h) => h.binding === 'DIAG');
+  return binding && binding.id !== HYPERDRIVE_PLACEHOLDER ? binding.id : null;
+}
+
+/** The id in `wrangler hyperdrive create`'s output (32 hex digits). */
+export const createdId = (output) => /\b([0-9a-f]{32})\b/.exec(output)?.[1] ?? null;
+
+/** The config text with the placeholder replaced by a new config's id, nothing else touched. */
+export function withHyperdriveId(configText, id) {
+  if (!/^[0-9a-f]{32}$/.test(id ?? '')) throw new Error(`not a Hyperdrive id: ${id}`);
+  const placeholder = `"id": "${HYPERDRIVE_PLACEHOLDER}"`;
+  if (!configText.includes(placeholder)) throw new Error(`${WORKERS.admin} has no ${placeholder} to replace`);
+  return configText.replace(placeholder, `"id": "${id}"`);
+}
+
 /** Every secret, by where it goes. */
 export function destinations(environment, values, ref, serviceRoleKey) {
   return {
@@ -111,14 +137,13 @@ export function destinations(environment, values, ref, serviceRoleKey) {
         ...(values.V2_DATABASE_URL ? { V2_DATABASE_URL: values.V2_DATABASE_URL } : {})
       },
       'invite-email': { INVITE_RELAY_SECRET: values.INVITE_RELAY_SECRET },
-      // Reads with diag_reader's login, never the service-role key (docs/admin.md).
-      ...(environment === 'production' && values.DIAG_DATABASE_URL ? {
-        admin: {
-          DIAG_DATABASE_URL: values.DIAG_DATABASE_URL,
-          ...Object.fromEntries(ADMIN_KEYS.filter((key) => values[key]).map((key) => [key, values[key]]))
-        }
+      // The ops dashboard's provider tokens, each optional. Its database login is not a Worker
+      // secret but the Hyperdrive config's (below); never the service-role key (docs/admin.md).
+      ...(environment === 'production' && ADMIN_KEYS.some((key) => values[key]) ? {
+        admin: Object.fromEntries(ADMIN_KEYS.filter((key) => values[key]).map((key) => [key, values[key]]))
       } : {})
     },
+    hyperdrive: environment === 'production' && values.DIAG_DATABASE_URL ? { connectionString: values.DIAG_DATABASE_URL } : null,
     // Read with Deno.env.get in supabase/functions. The relay URL is public
     // but has no other way into a function.
     functions: {
@@ -239,7 +264,17 @@ function hostedState(environment, ref, wanted) {
     return [worker, Object.fromEntries(Object.keys(wanted.workers[worker]).map((name) =>
       [name, present.includes(name) ? 'set' : 'missing']))];
   }));
+  // The config's login cannot be read back, so this says only whether it exists.
+  let hyperdrive = null;
+  if (wanted.hyperdrive) {
+    const id = hyperdriveId(readFileSync(join(root, WORKERS.admin), 'utf8'));
+    hyperdrive = 'missing';
+    if (id) {
+      try { run('wrangler', ['hyperdrive', 'get', id, '-c', WORKERS.admin, ...authArgs()]); hyperdrive = 'set'; } catch { /* gone: made again */ }
+    }
+  }
   return {
+    hyperdrive,
     functions: drift(wanted.functions, functionDigests),
     retired: RETIRED_FUNCTION_SECRETS.filter((name) => name in functionDigests),
     vault: drift(wanted.vault, vaultDigests),
@@ -269,9 +304,34 @@ export function summarize(state) {
     lines.push(`  - function secret ${name} (retired; unset)`);
     behind = true;
   }
+  if (state.hyperdrive) {
+    lines.push(`  ${mark(state.hyperdrive)} Hyperdrive ${HYPERDRIVE_NAME}, diag_reader's login for the ops dashboard${state.hyperdrive === 'set' ? ' (set; its login cannot be read back)' : ' (missing)'}`);
+    if (state.hyperdrive !== 'set') behind = true;
+  }
   lines.push(`  ${state.scheduled ? '✓' : '+'} cron job ${CRON_JOB} calling push-delivery, and no ${RETIRED_JOB}${state.scheduled ? '' : ' (not yet)'}`);
   if (!state.scheduled) behind = true;
   return { lines, behind };
+}
+
+/**
+ * Makes the ops dashboard's Hyperdrive config, writing its id into the admin
+ * Worker's config, or brings an existing one's login up to date. The login
+ * goes to wrangler as an argument, the only way it takes one, so it is
+ * briefly in this machine's process list; it is never printed.
+ */
+function applyHyperdrive(connectionString, state) {
+  const configPath = join(root, WORKERS.admin);
+  const text = readFileSync(configPath, 'utf8');
+  const id = hyperdriveId(text);
+  const common = ['--connection-string', connectionString, '--caching-disabled', '-c', WORKERS.admin, ...authArgs()];
+  if (id && state === 'set') {
+    run('wrangler', ['hyperdrive', 'update', id, ...common]);
+    return;
+  }
+  const made = createdId(run('wrangler', ['hyperdrive', 'create', HYPERDRIVE_NAME, ...common]));
+  if (!made) throw new Error(`wrangler made ${HYPERDRIVE_NAME} but printed no id; find it with npx wrangler hyperdrive list and put it in ${WORKERS.admin}`);
+  writeFileSync(configPath, id ? text.replace(`"id": "${id}"`, `"id": "${made}"`) : withHyperdriveId(text, made));
+  console.log(`✓ Hyperdrive ${HYPERDRIVE_NAME} made; its id is now in ${WORKERS.admin}. Commit that file, then deploy the admin Worker (npm run admin:deploy).`);
 }
 
 async function main() {
@@ -333,6 +393,7 @@ async function main() {
     withTempFile('secrets.json', JSON.stringify(secrets), (f) =>
       run('wrangler', ['secret', 'bulk', f, ...targetArgs(WORKERS[worker], environment), ...authArgs()]));
   }
+  if (wanted.hyperdrive) applyHyperdrive(wanted.hyperdrive.connectionString, before.hyperdrive);
   withTempFile('functions.env', Object.entries(wanted.functions).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join('\n') + '\n',
     (f) => run('supabase', ['secrets', 'set', '--project-ref', ref, '--env-file', f]));
   // --yes: the CLI asks before unsetting, and with no answer it unsets nothing yet exits 0 (2026-10-20).

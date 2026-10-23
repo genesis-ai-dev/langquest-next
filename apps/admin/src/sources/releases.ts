@@ -1,4 +1,4 @@
-import { withDiag, type Query } from '../db';
+import { diagConnection, withDiag, type Query } from '../db';
 import { getJson, ok, type Alert, type Section } from '../section';
 import { expoSection } from './expo';
 
@@ -21,7 +21,7 @@ export interface Releases {
 }
 
 type Env = {
-  DIAG_DATABASE_URL: string; GITHUB_REPO: string; ADMIN_GITHUB_TOKEN?: string; APP_URL: string; PREVIEW_URL: string;
+  DIAG?: Hyperdrive; GITHUB_REPO: string; ADMIN_GITHUB_TOKEN?: string; APP_URL: string; PREVIEW_URL: string;
   ADMIN_CLOUDFLARE_TOKEN?: string; CLOUDFLARE_ACCOUNT_ID: string; CLOUDFLARE_WORKERS: string; ADMIN_EXPO_TOKEN?: string; EXPO_PROJECT_ID: string;
 };
 
@@ -61,7 +61,7 @@ export function releaseAlerts(r: Releases): Alert[] {
   return out;
 }
 
-export async function releasesSection(env: Env, fetcher: typeof fetch = fetch, now = Date.now(), diag: <T>(fn: (q: Query) => Promise<T>) => Promise<T> = (fn) => withDiag(env.DIAG_DATABASE_URL, fn)): Promise<Section<Releases>> {
+export async function releasesSection(env: Env, fetcher: typeof fetch = fetch, now = Date.now(), diag: <T>(fn: (q: Query) => Promise<T>) => Promise<T> = (fn) => withDiag(diagConnection(env), fn)): Promise<Section<Releases>> {
   const notes: string[] = [];
   const note = (e: unknown) => { notes.push(e instanceof Error ? e.message : String(e)); };
   const since = new Date(now - 14 * 86_400_000).toISOString();

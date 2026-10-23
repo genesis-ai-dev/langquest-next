@@ -118,7 +118,7 @@ describe('the entry module', () => {
 });
 
 describe('the API', () => {
-  const fullEnv = { ...env, DIAG_DATABASE_URL: 'postgresql://diag_reader:x@127.0.0.1:1/postgres' } as unknown as Env;
+  const fullEnv = { ...env, DIAG: { connectionString: 'postgresql://diag_reader:x@127.0.0.1:1/postgres' } } as unknown as Env;
 
   it('answers the page at /ops-dashboard and its links, and refuses anything but GET', async () => {
     for (const path of ['/ops-dashboard', '/ops-dashboard/org/abc']) {
