@@ -46,6 +46,8 @@ export interface PassDeps {
 
 export interface ProjectReport {
   projectId: string;
+  /** The language it came over into, when not the project's own id: it came over again into another organization. */
+  languageId?: string;
   skipped?: string;
   map?: MapReport;
   files?: { copied: number; missing: number; uploaded: number; converted: number; unreadable: number; later: number; mismatched: number };
@@ -219,7 +221,7 @@ class Run {
       lastAt = this.now();
       await this.deps.target.passProgress(passId, p);
     };
-    const report: ProjectReport = { projectId };
+    const report: ProjectReport = { projectId, ...(languageId !== projectId ? { languageId } : {}) };
     try {
       await say('info', `Started: ${name} → ${org.name}`);
       await progress({ step: 'reading' });

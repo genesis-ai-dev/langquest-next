@@ -113,6 +113,7 @@ describe('a project brought over again into another organization', () => {
     const again = await f.pass();
     // Read on the next 15-minute pass, though v2 says nothing changed.
     expect(again.reports.map((r) => r.projectId)).toEqual(['birat']);
+    expect(again.reports[0]!.languageId).toBe(NEW);
     const added = again.events.find((e) => e.type === 'v1.LanguageAdded');
     expect(added).toMatchObject({ orgId: 'org-v2-everylanguage', streamId: ORG_STREAM, payload: { languageId: NEW, name: 'BIRAT RAJBANSHI' } });
     const work = again.events.filter((e) => e.streamId !== ORG_STREAM);

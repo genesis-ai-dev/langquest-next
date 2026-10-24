@@ -251,7 +251,9 @@ function v2ImportRun(reports: Awaited<ReturnType<typeof sync>>, startedAt: numbe
   const n: Record<string, number> = {
     projects: reports.length, failed: 0, skipped: 0, refused: 0,
     eventsAccepted: 0, eventsDuplicate: 0, eventsRejected: 0, filesCopied: 0, filesMissing: 0, filesUploaded: 0,
-    filesConverted: 0, filesUnreadable: 0, filesLater: 0, filesMismatched: 0
+    filesConverted: 0, filesUnreadable: 0, filesLater: 0, filesMismatched: 0,
+    // Always written, so a run's row shows it ran code that knows about coming over again.
+    cameOverAgain: 0
   };
   for (const r of reports) {
     if (r.skipped?.startsWith('failed')) n['failed']! += 1;
@@ -267,6 +269,7 @@ function v2ImportRun(reports: Awaited<ReturnType<typeof sync>>, startedAt: numbe
     n['filesUnreadable']! += r.files?.unreadable ?? 0;
     n['filesLater']! += r.files?.later ?? 0;
     n['filesMismatched']! += r.files?.mismatched ?? 0;
+    if (r.languageId) n['cameOverAgain']! += 1;
   }
   const bad = n['failed']! + n['refused']!;
   return {
