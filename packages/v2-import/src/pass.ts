@@ -1,5 +1,5 @@
 import { ORG_STREAM, subscriptionItemId, type AnyEvent, type Role } from '@langquest-next/core';
-import { durationMs, formatOf, sha256Hex } from './audio';
+import { durationMs, formatOf, sha256Hex, type AudioFormat } from './audio';
 import { chosenHere, mapProject, type CopiedFile, type MapContext, type MapReport, type TemplateRef } from './map';
 import { shownName } from './board';
 import { LIBRARY_ORG, libraryFact, orgFacts } from './orgFacts';
@@ -30,6 +30,13 @@ export interface PassDeps {
   /** How a retry waits (tests pass one that does not). */
   wait?: (ms: number) => Promise<void>;
   /**
+   * A v2 file this app does not play (MP3 chapters a team uploaded, a
+   * browser's WebM), as AAC in M4A, as a phone keeps a take (decisions.md
+   * 58, 106); null when it cannot be read. Without one, such a file is left
+   * for a run that can convert it, and is not marked missing.
+   */
+  convert?: (bytes: Uint8Array) => Promise<Uint8Array | null>;
+  /**
    * Asked before each project. True stops the pass there (the job container
    * asks to stop on SIGTERM, decisions.md 141): the project in hand finishes,
    * the rest wait for the next pass, and the cursor does not move.
@@ -41,7 +48,7 @@ export interface ProjectReport {
   projectId: string;
   skipped?: string;
   map?: MapReport;
-  files?: { copied: number; missing: number; uploaded: number };
+  files?: { copied: number; missing: number; uploaded: number; converted: number; unreadable: number; later: number; mismatched: number };
   append?: { accepted: number; duplicates: number; rejected: number };
   /** What was added, in words: "recordings" → 1,200. */
   added?: Record<string, number>;
@@ -245,15 +252,22 @@ class Run {
       // and each file the language uses is stored in Next as soon as it is downloaded: once, not twice.
       const held = new Set(mapProject(rows, context(new Map())).report.heldFiles);
       const files = await this.copyFiles(rows, progress, { orgId: org.org_id, languageId: projectId, skip: held });
-      report.files = { ...files.counts, uploaded: files.counts.stored };
+      const { stored, ...counts } = files.counts;
+      report.files = { ...counts, uploaded: stored, mismatched: 0 };
       if (files.counts.copied) await say('info', `Copied ${n(files.counts.copied)} audio files from v2`);
+      if (files.counts.converted) await say('info', `Of those, ${n(files.counts.converted)} were MP3 or another kind phones may not play, and were converted to M4A`);
       if (files.counts.missing) await say('warn', `${n(files.counts.missing)} audio files are not in v2's storage`);
+      if (files.counts.unreadable) await say('warn', `${n(files.counts.unreadable)} files are in v2's storage but could not be read as audio`);
+      if (files.counts.later) await say('warn', `${n(files.counts.later)} audio files are MP3 or another kind that needs converting, and this computer cannot convert (it needs ffmpeg); a run that can brings them over`);
       const mapped = mapProject(rows, context(files.map));
       report.map = mapped.report;
       if (mapped.report.heldBack) await say('info', `Left in v2 for now: ${n(mapped.report.heldBack)} written translations, transcriptions and back translations`);
       // Files copied on an earlier pass (or by another project) that this language does not have yet.
-      report.files.uploaded += await this.upload(org.org_id, projectId, files.map, rows, progress, new Set(mapped.report.heldFiles));
+      const later = await this.upload(org.org_id, projectId, files.map, rows, progress, new Set(mapped.report.heldFiles));
+      report.files.uploaded += later.uploaded;
+      report.files.mismatched = later.mismatched;
       if (report.files.uploaded) await say('info', `Stored ${n(report.files.uploaded)} audio files in Next`);
+      if (later.mismatched) await say('error', `${n(later.mismatched)} converted files came out different from their first conversion, so they were not stored for this language`);
 
       // The guides a team is offered are chosen here, so one no longer chosen is taken back; nothing from v2 is.
       const outcome = await this.say(projectId, org.org_id, mapped.facts, progress, this.managers.get(org.org_id) ?? mapped.owner, chosenHere);
@@ -390,9 +404,11 @@ class Run {
    * Every file the project names: known ones from the file map, new ones
    * downloaded, hashed and measured, and stored for the language there and
    * then unless `store.skip` names it (written work left in v2). A file v2
-   * did not have is looked for again for a week, then left to the report.
+   * did not have, or had and was not audio, is looked for again for a week,
+   * then left to the report. One that needs converting where nothing can
+   * convert is not written down, so a run that can convert it finds it.
    */
-  private async copyFiles(rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, store: { orgId: string; languageId: string; skip: ReadonlySet<string> }): Promise<{ map: Map<string, CopiedFile>; counts: { copied: number; missing: number; stored: number } }> {
+  private async copyFiles(rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, store: { orgId: string; languageId: string; skip: ReadonlySet<string> }): Promise<{ map: Map<string, CopiedFile>; counts: { copied: number; missing: number; stored: number; converted: number; unreadable: number; later: number } }> {
     const names = namesIn(rows);
     const known = await this.deps.target.files(names);
     const stored = await this.deps.target.stored(store.orgId, store.languageId);
@@ -402,22 +418,31 @@ class Run {
     const todo = names.filter((n) => looksFor(known.get(n), this.now(), this.whole));
     const found: { name: string; file: CopiedFile | null }[] = [];
     let saved = 0;
+    let converted = 0;
+    let unreadable = 0;
+    let later = 0;
+    let tried = 0;
     await progress({ step: 'files', done: 0, total: todo.length });
     await pool(todo, this.deps.concurrency ?? 8, async (name) => {
-      const bytes = await this.bytes(name);
-      const format = bytes ? formatOf(bytes) : null;
-      if (!bytes || !format) found.push({ name, file: null });
-      else {
+      const got = await this.playable(name);
+      if (got === 'later') later += 1;
+      else if (got === 'absent' || got === 'unreadable') {
+        if (got === 'unreadable') unreadable += 1;
+        found.push({ name, file: null });
+      } else {
+        const { bytes, format } = got;
         const file: CopiedFile = { hash: await sha256Hex(bytes), size: bytes.length, durationMs: durationMs(bytes, format), format };
         if (!store.skip.has(name) && !stored.has(file.hash)) {
           stored.add(file.hash);
           await again(() => this.deps.target.upload(store.orgId, store.languageId, file.hash, file.format, bytes), this.deps.wait);
           storedNow += 1;
         }
+        if (got.converted) converted += 1;
         map.set(name, file);
         found.push({ name, file });
       }
-      await progress({ step: 'files', done: found.length, total: todo.length });
+      tried += 1;
+      await progress({ step: 'files', done: tried, total: todo.length });
       // Save the file map as it grows, so a transfer that stops keeps what it copied.
       if (found.length - saved >= 500) {
         const batch = found.slice(saved);
@@ -426,11 +451,19 @@ class Run {
       }
     });
     if (found.length > saved) await this.deps.target.putFiles(found.slice(saved));
-    return { map, counts: { copied: found.filter((f) => f.file).length, missing: found.filter((f) => !f.file).length, stored: storedNow } };
+    const missing = found.filter((f) => !f.file).length - unreadable;
+    return { map, counts: { copied: found.filter((f) => f.file).length, missing, stored: storedNow, converted, unreadable, later } };
   }
 
-  /** Put every file the project uses into R2 for its language, once; not the ones `skip` names (written work left in v2). */
-  private async upload(orgId: string, languageId: string, files: Map<string, CopiedFile>, rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, skip: ReadonlySet<string>): Promise<number> {
+  /**
+   * Put every file the project uses into R2 for its language, once; not the
+   * ones `skip` names (written work left in v2). A converted file is
+   * converted again here, and stored only if it comes out as it did the
+   * first time: R2 refuses bytes that do not hash to their name, and a
+   * converter that changed (a new ffmpeg) would otherwise stop the project
+   * on every pass.
+   */
+  private async upload(orgId: string, languageId: string, files: Map<string, CopiedFile>, rows: V2ProjectRows, progress: (p: Progress) => Promise<void>, skip: ReadonlySet<string>): Promise<{ uploaded: number; mismatched: number }> {
     const stored = await this.deps.target.stored(orgId, languageId);
     const todo = new Map<string, { name: string; file: CopiedFile }>();
     for (const name of namesIn(rows)) {
@@ -439,18 +472,38 @@ class Run {
       if (file && !stored.has(file.hash) && !todo.has(file.hash)) todo.set(file.hash, { name, file });
     }
     let uploaded = 0;
+    let mismatched = 0;
     let tried = 0;
     await progress({ step: 'uploading', done: 0, total: todo.size });
     await pool([...todo.values()], this.deps.concurrency ?? 8, async ({ name, file }) => {
-      const bytes = await this.bytes(name);
-      if (bytes) {
-        await again(() => this.deps.target.upload(orgId, languageId, file.hash, file.format, bytes), this.deps.wait);
-        uploaded += 1;
+      const got = await this.playable(name);
+      if (typeof got === 'object') {
+        if (got.converted && (await sha256Hex(got.bytes)) !== file.hash) mismatched += 1;
+        else {
+          await again(() => this.deps.target.upload(orgId, languageId, file.hash, file.format, got.bytes), this.deps.wait);
+          uploaded += 1;
+        }
       }
       tried += 1;
       await progress({ step: 'uploading', done: tried, total: todo.size });
     });
-    return uploaded;
+    return { uploaded, mismatched };
+  }
+
+  /**
+   * A file as this app keeps it: WAV or M4A as v2 has it, anything else
+   * converted to M4A (`deps.convert`). `absent` when v2's storage does not
+   * have it, `unreadable` when it has something that is not audio, `later`
+   * when it needs converting and nothing here converts.
+   */
+  private async playable(name: string): Promise<{ bytes: Uint8Array; format: AudioFormat; converted: boolean } | 'absent' | 'unreadable' | 'later'> {
+    const bytes = await this.bytes(name);
+    if (!bytes) return 'absent';
+    const format = formatOf(bytes);
+    if (format) return { bytes, format, converted: false };
+    if (!this.deps.convert) return 'later';
+    const out = await this.deps.convert(bytes);
+    return out && formatOf(out) === 'm4a' ? { bytes: out, format: 'm4a', converted: true } : 'unreadable';
   }
 
   private async bytes(name: string): Promise<Uint8Array | null> {

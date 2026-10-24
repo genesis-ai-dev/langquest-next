@@ -3745,6 +3745,28 @@ every pass, since a phone's upload can trail its rows; up to a week, only
 by the whole read or a transfer someone starts for its project, so about
 once a day; older, never, as before (`looksFor` in `pass.ts`).
 
+Amended (2026-10-24, Caleb Koster): v2 audio phones may not play comes over
+converted to M4A. Some Every Language teams uploaded whole chapters as MP3,
+which v2 took as it was: 573 files in 33 projects, 13 of them Every
+Language's, every one in v2's storage (16 are a browser's WebM). The import
+read only WAV and M4A, so it wrote each down as not in v2's storage, and
+Central Thai SPV, Pwo Eastern Karen and nine more came over with no audio
+(Every Language noticed, 2026-10-23). Caleb chose converting over adding
+MP3 to what a recording may be, since 58 keeps `wav | m4a` and the app, the
+database and the API would all change. ffmpeg, installed in the job image
+(141), converts in `server/audioConvert.ts`: AAC in M4A, mono, at a phone's
+128 kb/s (106) or the source's rate when that is lower, and lower still if
+that is what keeps it under the Worker's 50 MB. It is bit-exact, so a cloned
+project's copy converts to the same hash; a copy that comes out different
+is not stored there, since R2 refuses bytes that do not hash to their name,
+and the log says so instead of the project stopping on every pass. A run
+with no ffmpeg leaves such a file out of the file map for one that has it;
+a file v2 has that is not audio is reported as unreadable, not as missing.
+Migration `20261024013000` forgets the missing marks of files that were
+never WAV or M4A, so the next whole read converts them.
+Reverse if: teams hear what the re-encode loses, or recordings must keep
+v2's own bytes; then add `mp3` to 58's formats instead.
+
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
 Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 102
@@ -6020,6 +6042,11 @@ stays at 03:15 UTC.
 Amended (2026-10-20, Carl Sauder): a local stack runs the pass in the
 container as well, and the Edge Function, renamed `push-delivery`, keeps
 push delivery alone (148).
+
+Amended (2026-10-24, Caleb Koster): ffmpeg joins psql as the image's system
+packages, for the v2 import's conversion of MP3 and WebM to M4A (94). Built
+locally, the image grows from about 320 MB to 710 MB; with half a CPU it
+converts a 20-minute chapter in about 27 seconds.
 
 ## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
 

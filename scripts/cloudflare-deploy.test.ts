@@ -112,8 +112,8 @@ describe('cloudflare deploy', () => {
     // Its instructions, without the comments that explain them.
     const dockerfile = read('apps/web/jobs/Dockerfile').split('\n').filter((l) => !l.startsWith('#')).join('\n');
     expect(dockerfile).not.toMatch(/\b(npm|npx|yarn|pnpm|corepack)\b/);
-    // The one system package: psql, for the v2 import's people (server/v2.ts).
-    expect(dockerfile.match(/^RUN .*/gm)).toEqual([expect.stringMatching(/^RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client && /)]);
+    // The system packages: psql, for the v2 import's people (server/v2.ts), and ffmpeg, for its MP3 and WebM (server/audioConvert.ts).
+    expect(dockerfile.match(/^RUN .*/gm)).toEqual([expect.stringMatching(/^RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client ffmpeg && /)]);
     expect(dockerfile).toMatch(/^COPY dist\/ /m);
     // The bundles are built before every deploy and dev run, not committed.
     const scripts = (JSON.parse(read('apps/web/package.json')) as { scripts: Record<string, string> }).scripts;

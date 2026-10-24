@@ -32,6 +32,7 @@ import { createClient } from '@supabase/supabase-js';
 import { workerBlobs } from '@langquest-next/sync';
 import { createHash, randomBytes } from 'node:crypto';
 import { refuseBoardRequest, TOKEN_HEADER } from './v2Guard';
+import { ffmpegConverter } from './audioConvert';
 import { foldLanguage, foldOrg, ORG_STREAM, subscriptionItemId, validateEvent } from '@langquest-next/core';
 import { errorClassOf, jobRunSink, noJobRuns, type JobRun } from './jobRuns';
 import { bucketName, boardData, mapProject, parseRecommendations, reconcile, restReader, supabaseTarget, sync, WAYS, LIBRARY_ORG, type ChosenRole, type CopiedFile, type SavedPlacement, type PlanOrg, type TemplateRef } from '@langquest-next/v2-import';
@@ -168,7 +169,10 @@ const print = (projectId: string, level: string, message: string) => console.log
 const whoAmI = () => spawnSync('git', ['config', 'user.name'], { encoding: 'utf8' }).stdout.trim();
 // Files copied at once (8 unless V2_IMPORT_CONCURRENCY says): more is faster, and more load on v2's storage and Next's.
 const concurrency = Math.max(1, Math.min(64, Number(process.env['V2_IMPORT_CONCURRENCY']) || 8));
-const deps = { v2, target, ...(cache ? { cache } : {}), print, concurrency, by: process.env['V2_IMPORT_BY'] ?? (whoAmI() || 'the command line') };
+// v2's MP3 and WebM files come over as M4A where ffmpeg is installed (the job image has it).
+const convert = ffmpegConverter();
+if (!convert && (command === 'sync' || command === 'board')) console.error('ffmpeg is not installed: v2 files that need converting to M4A (MP3, WebM) are left for a run that has it');
+const deps = { v2, target, ...(cache ? { cache } : {}), ...(convert ? { convert } : {}), print, concurrency, by: process.env['V2_IMPORT_BY'] ?? (whoAmI() || 'the command line') };
 
 if (command === 'sync') {
   const startedAt = Date.now();
@@ -216,7 +220,8 @@ if (command === 'sync') {
 function v2ImportRun(reports: Awaited<ReturnType<typeof sync>>, startedAt: number): JobRun {
   const n: Record<string, number> = {
     projects: reports.length, failed: 0, skipped: 0, refused: 0,
-    eventsAccepted: 0, eventsDuplicate: 0, eventsRejected: 0, filesCopied: 0, filesMissing: 0, filesUploaded: 0
+    eventsAccepted: 0, eventsDuplicate: 0, eventsRejected: 0, filesCopied: 0, filesMissing: 0, filesUploaded: 0,
+    filesConverted: 0, filesUnreadable: 0, filesLater: 0, filesMismatched: 0
   };
   for (const r of reports) {
     if (r.skipped?.startsWith('failed')) n['failed']! += 1;
@@ -228,6 +233,10 @@ function v2ImportRun(reports: Awaited<ReturnType<typeof sync>>, startedAt: numbe
     n['filesCopied']! += r.files?.copied ?? 0;
     n['filesMissing']! += r.files?.missing ?? 0;
     n['filesUploaded']! += r.files?.uploaded ?? 0;
+    n['filesConverted']! += r.files?.converted ?? 0;
+    n['filesUnreadable']! += r.files?.unreadable ?? 0;
+    n['filesLater']! += r.files?.later ?? 0;
+    n['filesMismatched']! += r.files?.mismatched ?? 0;
   }
   const bad = n['failed']! + n['refused']!;
   return {
