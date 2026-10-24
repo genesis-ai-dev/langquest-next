@@ -210,6 +210,19 @@ the rest.
   for on every pass for its first hour, since a phone's upload can trail
   its rows, then only by the whole read or a transfer someone starts, for
   a week (decisions.md 94).
+- **Audio phones may not play.** v2 took any file a team uploaded, and
+  some Every Language teams uploaded whole chapters as MP3 (573 files in
+  33 projects on 2026-10-23, 16 of them WebM). A recording here is
+  WAV or M4A (decisions.md 58), so the import converts such a file with
+  ffmpeg (`server/audioConvert.ts`; the job image has it): AAC in M4A,
+  mono, at a phone's 128 kb/s or the source's rate when lower, and lower
+  still if that is what keeps it under the Worker's 50 MB. The file map
+  keeps the M4A's hash, size and length. ffmpeg's output is bit-exact, so
+  a cloned project's copy converts to the same hash; one that comes out
+  different (a newer ffmpeg) is not stored for that language and the log
+  says so. Where there is no ffmpeg (a laptop without it), such a file is
+  left unrecorded for a run that has it, and a file in v2's storage that
+  is not audio is reported as unreadable rather than missing.
 - **Where it runs.** The dashboard runs a transfer on the computer it is
   open on; `npm run v2 -- sync` does one pass from the command line; and
   the job container behind the app's Worker runs a pass every 15
@@ -280,7 +293,9 @@ does; until then it is what they see on opening the app.
 ## 8. What a pass reports
 
 Per project: rows read, events appended by type, facts withdrawn, files
-copied, files missing in v2, versions waiting for audio, and what was left
+copied and how many of them were converted to M4A, files missing in v2,
+files v2 has that are not audio, files left for a run with ffmpeg, versions
+waiting for audio, and what was left
 out (tags, text without audio if not imported, and so on). The board shows
 the last pass per project.
 

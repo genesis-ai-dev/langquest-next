@@ -91,8 +91,10 @@ support cost, data integrity, evolvability, elasticity per tenant, cost.
 - **One image**, `apps/web/jobs/Dockerfile`: Node 24 and one bundle per
   job (`projections.mjs`, `v2.mjs`, `canary.mjs`, `reconcile.mjs`), built by `scripts/build-jobs.mjs`
   before every deploy and before `wrangler dev`. No npm package is
-  installed: the dependency tree is never beside the service key. Its one
-  system package is psql, which the import reads people's names with.
+  installed: the dependency tree is never beside the service key. Its
+  system packages are psql, which the import reads people's names with,
+  and ffmpeg, which converts v2's MP3 and WebM files to M4A (decisions.md
+  94, amended 2026-10-24).
 - **One Durable Object per job**, `JobRunner` in `apps/web/worker/jobs.ts`,
   named by the job, driving the container through the object's own
   container API (`ctx.container`: `start`, `monitor`, `signal`), not the
@@ -235,7 +237,7 @@ What this plan takes from that one, under F:
 | --- | --- | --- |
 | No workflow holds a production key; the scheduled ones are the test runs | `scripts/workflows.test.ts` | in place |
 | The job container, its object, the job tick and the import's switch are declared for production and preview, one instance per job | `scripts/cloudflare-deploy.test.ts` | in place |
-| The image installs no npm package; psql is its one system package | `scripts/cloudflare-deploy.test.ts` | in place |
+| The image installs no npm package; psql and ffmpeg are its system packages | `scripts/cloudflare-deploy.test.ts` | in place |
 | Which jobs a tick starts, what each container gets, and that a process killed, out of memory or stopped at the time limit leaves a job run | `apps/web/test/jobs.test.ts` | in place |
 | The object, made again mid-run, drained, killed or past its limit, writes one row only when the process could not, and keeps a cut-off whole read owed | `apps/web/test/jobRunner.test.ts` | in place |
 | A rollout leaves a run alone longer than the whole read takes | `scripts/cloudflare-deploy.test.ts` | in place |

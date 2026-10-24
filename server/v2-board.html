@@ -284,6 +284,9 @@ function issuesOf(pass) {
   const r = pass.report || {};
   if (r.rejected?.length) out.push({ level: 'error', text: `${plural(r.append?.rejected ?? r.rejected.length, 'change')} refused: ${r.rejected[0].reason}`, list: r.rejected });
   if (r.files?.missing) out.push({ level: 'warn', text: `${plural(r.files.missing, 'audio file')} not in v2's storage` });
+  if (r.files?.mismatched) out.push({ level: 'error', text: `${plural(r.files.mismatched, 'converted file')} not stored: converting again gave different bytes` });
+  if (r.files?.unreadable) out.push({ level: 'warn', text: `${plural(r.files.unreadable, 'file')} in v2's storage not readable as audio` });
+  if (r.files?.later) out.push({ level: 'warn', text: `${plural(r.files.later, 'audio file')} to convert where ffmpeg is installed` });
   if (r.map?.waiting) out.push({ level: 'warn', text: `${plural(r.map.waiting, 'recording')} waiting for audio to reach v2` });
   if (r.map?.unmatchedQuests) out.push({ level: 'warn', text: `${plural(r.map.unmatchedQuests, 'quest')} not matched to the Bible (came over as parts of their own)` });
   return out;

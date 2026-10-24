@@ -79,7 +79,7 @@ Function (`docs/server-jobs.md`, decisions.md 141): the projection pass
 for every language (`server/projections.ts`) and the v2 import
 (`server/v2.ts`). `apps/web/jobs/Dockerfile` is the image: Node 24 and one
 bundle per job from `scripts/build-jobs.mjs` (`npm run build:jobs`, run by
-the Worker's build and by `npm run web:dev`), and psql for the import. No
+the Worker's build and by `npm run web:dev`), and psql and ffmpeg for the import. No
 npm package is installed, so the dependency tree is never beside the
 service key. `wrangler deploy` builds the image with Docker and pushes it
 to Cloudflare's registry, on Workers Builds as on a laptop. The Worker goes
