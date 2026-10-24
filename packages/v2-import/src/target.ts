@@ -14,6 +14,12 @@ export interface Target {
   savePlan(orgs: PlanOrg[], placements: SavedPlacement[], by: string): Promise<void>;
   /** A person's role in one project's language; null goes back to what their v2 work says. */
   setRole(projectId: string, profileId: string, role: ChosenRole | null, by: string): Promise<void>;
+  /**
+   * Bring a project that has come over into another organization, as a new
+   * language there (`languageId`); the first copy stays where it was, no
+   * longer kept up to date (decisions.md 94, amended 2026-10-24).
+   */
+  move(projectId: string, orgId: string, languageId: string, by: string): Promise<void>;
   ledger(scope: string): Promise<Map<string, LedgerEntry>>;
   putLedger(scope: string, entries: LedgerEntry[]): Promise<void>;
   /** Files by v2 name: copied, or missing from v2's bucket since when. */
@@ -72,6 +78,10 @@ export interface PlanPlacement {
   code: string | null;
   confirmed_by: string | null;
   confirmed_at: string | null;
+  /** The language's id in Next when it is not the project's own: the project came over again into another organization. */
+  language_id?: string | null;
+  /** When it last came over again (`Target.move`), so the next pass reads it whatever v2 says changed. */
+  moved_at?: string | null;
 }
 
 export interface SavedPlacement {
@@ -185,6 +195,7 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
     plan: () => rpc<Plan>('v2_import_plan', {}),
     savePlan: (orgs, placements, by) => rpc('v2_import_save_plan', { p_orgs: orgs, p_placements: placements, p_by: by }),
     setRole: (projectId, profileId, role, by) => rpc('v2_import_set_role', { p_project: projectId, p_profile: profileId, p_role: role, p_by: by }),
+    move: (projectId, orgId, languageId, by) => rpc('v2_import_move', { p_project: projectId, p_org: orgId, p_language: languageId, p_by: by }),
 
     // The API returns at most 1,000 rows a call (supabase/config.toml max_rows), however many are asked for:
     // reads that may be longer go a page at a time, until a page comes back empty.

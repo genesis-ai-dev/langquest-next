@@ -46,6 +46,8 @@ export interface PassDeps {
 
 export interface ProjectReport {
   projectId: string;
+  /** The language it came over into, when not the project's own id: it came over again into another organization. */
+  languageId?: string;
   skipped?: string;
   map?: MapReport;
   files?: { copied: number; missing: number; uploaded: number; converted: number; unreadable: number; later: number; mismatched: number };
@@ -103,7 +105,10 @@ export async function sync(deps: PassDeps, opts: { all?: boolean; projects?: str
   else {
     const since = await deps.target.cursor('changes');
     const changed = since ? await deps.v2.changedSince(new Date(since.getTime() - OVERLAP_MS)) : null;
-    ids = confirmed.filter((id) => !changed || changed.has(id) || !passed.has(id));
+    // One that came over again since its last pass is read whole now, whatever v2 says changed.
+    const lastPass = new Map(plan.passes.map((p) => [p.project_id, Date.parse(p.finished_at)]));
+    const moved = new Set(plan.placements.filter((p) => p.moved_at && Date.parse(p.moved_at) > (lastPass.get(p.project_id) ?? 0)).map((p) => p.project_id));
+    ids = confirmed.filter((id) => !changed || changed.has(id) || !passed.has(id) || moved.has(id));
   }
   deps.print?.('', 'info', `${ids.length} of ${confirmed.length} confirmed projects to read`);
   const summaries = new Map((opts.summaries ?? (await deps.v2.projects())).map((p) => [p.id, p]));
@@ -200,6 +205,8 @@ class Run {
     const org = this.plan.orgs.find((o) => o.org_id === placement?.org_id);
     if (!placement?.confirmed_at || !org) return { projectId, skipped: 'not confirmed on the board' };
     const name = this.summaries.get(projectId)?.name ?? projectId;
+    // The project's own id, unless it came over again into another organization as a new language.
+    const languageId = placement.language_id ?? projectId;
     const passId = await this.deps.target.passStart(projectId, org.org_id, this.deps.by ?? 'unknown');
     const say = (level: LogLine['level'], message: string, counts?: Record<string, number>) => {
       this.deps.print?.(projectId, level, message);
@@ -214,7 +221,7 @@ class Run {
       lastAt = this.now();
       await this.deps.target.passProgress(passId, p);
     };
-    const report: ProjectReport = { projectId };
+    const report: ProjectReport = { projectId, ...(languageId !== projectId ? { languageId } : {}) };
     try {
       await say('info', `Started: ${name} → ${org.name}`);
       await progress({ step: 'reading' });
@@ -238,6 +245,7 @@ class Run {
       const decidedAt = placement.confirmed_at;
       const context = (files: ReadonlyMap<string, CopiedFile>): MapContext => ({
         orgId: org.org_id,
+        languageId,
         language: { code, languoidId: placement.languoid_id, sourceCode, decidedAt, ...(placement.name ? { name: placement.name } : {}) },
         roles,
         people: this.people,
@@ -251,7 +259,7 @@ class Run {
       // Which files stay in v2 (written work) does not depend on the files, so it is known before copying,
       // and each file the language uses is stored in Next as soon as it is downloaded: once, not twice.
       const held = new Set(mapProject(rows, context(new Map())).report.heldFiles);
-      const files = await this.copyFiles(rows, progress, { orgId: org.org_id, languageId: projectId, skip: held });
+      const files = await this.copyFiles(rows, progress, { orgId: org.org_id, languageId, skip: held });
       const { stored, ...counts } = files.counts;
       report.files = { ...counts, uploaded: stored, mismatched: 0 };
       if (files.counts.copied) await say('info', `Copied ${n(files.counts.copied)} audio files from v2`);
@@ -263,14 +271,15 @@ class Run {
       report.map = mapped.report;
       if (mapped.report.heldBack) await say('info', `Left in v2 for now: ${n(mapped.report.heldBack)} written translations, transcriptions and back translations`);
       // Files copied on an earlier pass (or by another project) that this language does not have yet.
-      const later = await this.upload(org.org_id, projectId, files.map, rows, progress, new Set(mapped.report.heldFiles));
+      const later = await this.upload(org.org_id, languageId, files.map, rows, progress, new Set(mapped.report.heldFiles));
       report.files.uploaded += later.uploaded;
       report.files.mismatched = later.mismatched;
       if (report.files.uploaded) await say('info', `Stored ${n(report.files.uploaded)} audio files in Next`);
       if (later.mismatched) await say('error', `${n(later.mismatched)} converted files came out different from their first conversion, so they were not stored for this language`);
 
       // The guides a team is offered are chosen here, so one no longer chosen is taken back; nothing from v2 is.
-      const outcome = await this.say(projectId, org.org_id, mapped.facts, progress, this.managers.get(org.org_id) ?? mapped.owner, chosenHere);
+      // The ledger's scope is the language's id: a project that came over again starts a ledger of its own there.
+      const outcome = await this.say(languageId, org.org_id, mapped.facts, progress, this.managers.get(org.org_id) ?? mapped.owner, chosenHere);
       if (outcome.languageAdded && !code) await say('info', `No language linked yet: it comes over as “${placement.name ?? name}”, and its admins can link it in Next`);
       Object.assign(report, outcome);
       const added = outcome.added ?? {};

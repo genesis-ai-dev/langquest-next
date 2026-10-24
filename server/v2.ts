@@ -6,6 +6,9 @@
  *   npm run v2 -- sync --all                   every confirmed project, read whole (the nightly pass)
  *   npm run v2 -- sync --project <v2 id> …     just these
  *   npm run v2 -- try --project <v2 id> …      map v2 projects and check the result, writing nothing
+ *   npm run v2 -- move --project <v2 id> --to <org id>
+ *                                              bring a project that has come over into another organization,
+ *                                              as a new language there; the first copy stays as it is
  *   … --production                              against the hosted projects (docs/v2-import.md, "Going live")
  *
  * Reads v2 with V2_SUPABASE_URL / V2_SUPABASE_ANON_KEY (v2's publishable
@@ -30,7 +33,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 import { workerBlobs } from '@langquest-next/sync';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { refuseBoardRequest, TOKEN_HEADER } from './v2Guard';
 import { ffmpegConverter } from './audioConvert';
 import { foldLanguage, foldOrg, ORG_STREAM, subscriptionItemId, validateEvent } from '@langquest-next/core';
@@ -209,11 +212,38 @@ if (command === 'sync') {
   if (stopping) process.exitCode = 75;
 } else if (command === 'try') {
   await tryProjects(values('project'));
+} else if (command === 'move') {
+  await move(values('project')[0], values('to')[0]);
 } else if (command === 'board') {
   await board(Number(values("port")[0] ?? 8079));
 } else {
-  console.error('usage: npm run v2 -- board | sync [--all] [--project <v2 id> …] | try --project <v2 id> …');
+  console.error('usage: npm run v2 -- board | sync [--all] [--project <v2 id> …] | try --project <v2 id> … | move --project <v2 id> --to <org id>');
   process.exit(2);
+}
+
+/**
+ * A project that has come over, brought over again into another
+ * organization (decisions.md 94, amended 2026-10-24): its events carry its
+ * organization, so it becomes a new language there, with a new id, and the
+ * next pass reads it whole into it (its recordings stored again for that
+ * language). The first copy stays where it was, no longer kept up to date,
+ * until that organization's admins remove it; `v2_import.moves` says where.
+ */
+async function move(projectId: string | undefined, orgId: string | undefined) {
+  if (!projectId || !orgId) {
+    console.error('usage: npm run v2 -- move --project <v2 id> --to <org id>');
+    process.exit(2);
+  }
+  const plan = await target.plan();
+  const placement = plan.placements.find((p) => p.project_id === projectId);
+  const from = plan.orgs.find((o) => o.org_id === placement?.org_id);
+  const to = plan.orgs.find((o) => o.org_id === orgId);
+  if (!placement?.confirmed_at || !from) throw new Error(`${projectId} has not come over; place it on the board instead`);
+  if (!to) throw new Error(`no organization ${orgId} on the board`);
+  const languageId = randomUUID();
+  await target.move(projectId, orgId, languageId, process.env['V2_IMPORT_BY'] ?? (whoAmI() || 'the command line'));
+  console.log(`${projectId} now comes over into ${to.name} as language ${languageId}, on the next pass.`);
+  console.log(`The first copy, language ${placement.language_id ?? projectId} in ${from.name}, stays as it is and is no longer kept up to date.`);
 }
 
 /** One pass's job run: projects read, failed, refused, and their events and files summed. */
@@ -221,7 +251,9 @@ function v2ImportRun(reports: Awaited<ReturnType<typeof sync>>, startedAt: numbe
   const n: Record<string, number> = {
     projects: reports.length, failed: 0, skipped: 0, refused: 0,
     eventsAccepted: 0, eventsDuplicate: 0, eventsRejected: 0, filesCopied: 0, filesMissing: 0, filesUploaded: 0,
-    filesConverted: 0, filesUnreadable: 0, filesLater: 0, filesMismatched: 0
+    filesConverted: 0, filesUnreadable: 0, filesLater: 0, filesMismatched: 0,
+    // Always written, so a run's row shows it ran code that knows about coming over again.
+    cameOverAgain: 0
   };
   for (const r of reports) {
     if (r.skipped?.startsWith('failed')) n['failed']! += 1;
@@ -237,6 +269,7 @@ function v2ImportRun(reports: Awaited<ReturnType<typeof sync>>, startedAt: numbe
     n['filesUnreadable']! += r.files?.unreadable ?? 0;
     n['filesLater']! += r.files?.later ?? 0;
     n['filesMismatched']! += r.files?.mismatched ?? 0;
+    if (r.languageId) n['cameOverAgain']! += 1;
   }
   const bad = n['failed']! + n['refused']!;
   return {
