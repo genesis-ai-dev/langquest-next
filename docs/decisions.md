@@ -3783,6 +3783,18 @@ confirmed and nothing new has appeared in the first, it is removed or made
 inaccessible (Caleb). Welcome back names the new language. The board still
 never moves a project that has come over.
 
+Amended (2026-10-24, Caleb Koster): a first copy left behind is made
+inaccessible by taking back every membership the import gave there, since
+Next has no way to delete or archive a language. Caleb, once BIRAT
+RAJBANSHI's Every Language copy was confirmed: "please make the old copy
+inaccessible". `npm run v2 -- close --org <org> --language <language>`
+(`close.ts`) removes the language's members, and the organization's admins
+when it holds no other language, signed by one of those admins, who goes
+last. It is the service role's append, which no grant rule stops, so the
+organization may be left with no admin. The language, its work and its
+audio stay, and the memberships can be given again. It refuses a copy the
+import still keeps up to date.
+
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
 Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 102

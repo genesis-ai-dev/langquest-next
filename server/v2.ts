@@ -9,6 +9,9 @@
  *   npm run v2 -- move --project <v2 id> --to <org id>
  *                                              bring a project that has come over into another organization,
  *                                              as a new language there; the first copy stays as it is
+ *   npm run v2 -- close --org <org id> --language <language id>
+ *                                              make such a first copy inaccessible: take back the memberships
+ *                                              the import gave there (nothing is deleted)
  *   … --production                              against the hosted projects (docs/v2-import.md, "Going live")
  *
  * Reads v2 with V2_SUPABASE_URL / V2_SUPABASE_ANON_KEY (v2's publishable
@@ -38,7 +41,7 @@ import { refuseBoardRequest, TOKEN_HEADER } from './v2Guard';
 import { ffmpegConverter } from './audioConvert';
 import { foldLanguage, foldOrg, ORG_STREAM, subscriptionItemId, validateEvent } from '@langquest-next/core';
 import { errorClassOf, jobRunSink, noJobRuns, type JobRun } from './jobRuns';
-import { bucketName, boardData, mapProject, parseRecommendations, reconcile, restReader, supabaseTarget, sync, WAYS, LIBRARY_ORG, type ChosenRole, type CopiedFile, type SavedPlacement, type PlanOrg, type TemplateRef } from '@langquest-next/v2-import';
+import { bucketName, boardData, closeCopy, mapProject, parseRecommendations, reconcile, restReader, supabaseTarget, sync, WAYS, LIBRARY_ORG, type ChosenRole, type CopiedFile, type SavedPlacement, type PlanOrg, type TemplateRef } from '@langquest-next/v2-import';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
@@ -214,10 +217,12 @@ if (command === 'sync') {
   await tryProjects(values('project'));
 } else if (command === 'move') {
   await move(values('project')[0], values('to')[0]);
+} else if (command === 'close') {
+  await close(values('org')[0], values('language')[0]);
 } else if (command === 'board') {
   await board(Number(values("port")[0] ?? 8079));
 } else {
-  console.error('usage: npm run v2 -- board | sync [--all] [--project <v2 id> …] | try --project <v2 id> … | move --project <v2 id> --to <org id>');
+  console.error('usage: npm run v2 -- board | sync [--all] [--project <v2 id> …] | try --project <v2 id> … | move --project <v2 id> --to <org id> | close --org <org id> --language <language id>');
   process.exit(2);
 }
 
@@ -244,6 +249,22 @@ async function move(projectId: string | undefined, orgId: string | undefined) {
   await target.move(projectId, orgId, languageId, process.env['V2_IMPORT_BY'] ?? (whoAmI() || 'the command line'));
   console.log(`${projectId} now comes over into ${to.name} as language ${languageId}, on the next pass.`);
   console.log(`The first copy, language ${placement.language_id ?? projectId} in ${from.name}, stays as it is and is no longer kept up to date.`);
+}
+
+/**
+ * The first copy a move left behind, made inaccessible (decisions.md 94,
+ * amended 2026-10-24): the import takes back the memberships it gave there,
+ * the language's and, when its organization holds nothing else, the
+ * organization's admins. The language and its work stay; ids only are printed.
+ */
+async function close(orgId: string | undefined, languageId: string | undefined) {
+  if (!orgId || !languageId) {
+    console.error('usage: npm run v2 -- close --org <org id> --language <language id>');
+    process.exit(2);
+  }
+  const r = await closeCopy(target, { orgId, languageId, now: Date.now() });
+  console.log(`Took ${r.language.length} people off language ${languageId}: ${r.language.join(', ') || 'none'}`);
+  console.log(`Took ${r.organization.length} admins off ${orgId}: ${r.organization.join(', ') || 'none (it holds other languages, or had none)'}`);
 }
 
 /** One pass's job run: projects read, failed, refused, and their events and files summed. */
