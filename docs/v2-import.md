@@ -90,7 +90,12 @@ who opens it sees the same thing.
   RAJBANSHI). The next pass reads it whole into that language, under a
   ledger of its own, and stores its recordings again for it. The first copy
   stays where it was, no longer kept up to date, until it is removed;
-  `v2_import.moves` records where it is.
+  `v2_import.moves` records where it is. Once the new copy is confirmed,
+  `npm run v2 -- close --org <org id> --language <language id>` makes the
+  first copy inaccessible: the import takes back the memberships it gave
+  there (the language's members, and the organization's admins when it
+  holds nothing else). Nothing is deleted, and it refuses a copy the import
+  still keeps up to date.
 - **Language:** a project's details show what is known (its name and
   description, the languages v2 links to it, the languages its recordings
   are tagged with, and the suggestion with its reason) beside a search of

@@ -7,4 +7,5 @@ export * from './reader';
 export * from './target';
 export * from './orgFacts';
 export * from './pass';
+export * from './close';
 export * from './boardData';
