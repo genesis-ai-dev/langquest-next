@@ -3767,6 +3767,22 @@ never WAV or M4A, so the next whole read converts them.
 Reverse if: teams hear what the re-encode loses, or recordings must keep
 v2's own bytes; then add `mp3` to 58's formats instead.
 
+Amended (2026-10-24, Caleb Koster): a project that has come over can come
+over again into another organization, as a new language there. Every
+Language asked for BIRAT RAJBANSHI, which had come over into its owners'
+own organization because the Every Language account was switched off on it
+in v2; Caleb: "It needs to be in the everylanguage organization." A
+language still cannot move, since its events carry its organization, so
+`npm run v2 -- move --project <id> --to <org>` (`v2_import_move`, migration
+`20261024053000`) gives the placement the new organization and a new
+language id, and records the first copy in `v2_import.moves`. The next pass
+reads the project whole into the new language under a ledger scoped by that
+id, so its events have ids of their own, and stores its recordings again
+for it. The first copy is no longer kept up to date; once the new one is
+confirmed and nothing new has appeared in the first, it is removed or made
+inaccessible (Caleb). Welcome back names the new language. The board still
+never moves a project that has come over.
+
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
 Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 102

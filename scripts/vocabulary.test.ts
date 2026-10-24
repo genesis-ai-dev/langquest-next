@@ -20,6 +20,7 @@ const ALLOWED: { path: string; words: RegExp; why: string }[] = [
   { path: 'packages/v2-import/', words: /^projects?$/i, why: "LangQuest v2's own projects and its `project_id` columns" },
   { path: 'server/v2.ts', words: /^projects?$/i, why: "the v2 projects it imports" },
   { path: 'supabase/migrations/20261013000000_v2_import.sql', words: /^projects?$/i, why: 'the v2 projects the import places and reads' },
+  { path: 'supabase/migrations/20261024053000_v2_import_move.sql', words: /^projects$/, why: "v2_import.arrivals' column of v2 projects, in v2_welcome restated" },
   { path: 'apps/mobile/src/account/welcomeBack.ts', words: /^projects?$/i, why: "LangQuest v2's projects, which come over as languages (Welcome back)" },
   { path: 'apps/mobile/src/shell/flow.ts', words: /^projects?$/i, why: "the demo's own words: its dropped project screens, and comments ported with its edges" },
   { path: 'apps/mobile/src/study/chapterText.ts', words: /^lanes?$/i, why: 'Bible text ("the streets and lanes of the city")' },

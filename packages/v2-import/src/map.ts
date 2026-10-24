@@ -33,6 +33,12 @@ export interface TemplateRef {
 export interface MapContext {
   orgId: string;
   /**
+   * The language's id in Next: the v2 project's own, unless the project
+   * came over again into another organization (decisions.md 94, amended
+   * 2026-10-24), which made it a new language there.
+   */
+  languageId?: string;
+  /**
    * The language decided for the project (never v2's own, AGENTS.md), when
    * it was decided, and its name in Next when not the project's. With no
    * code and no languoid it comes over unlinked, by its name alone, and its
@@ -134,7 +140,7 @@ const pad = (n: number, w = 6) => String(Math.max(0, Math.trunc(n))).padStart(w,
 const latest = (times: string[]) => times.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a));
 
 export function mapProject(rows: V2ProjectRows, ctx: MapContext): Mapped {
-  const languageId = rows.project.id;
+  const languageId = ctx.languageId ?? rows.project.id;
   const report: MapReport = {
     quests: 0, passages: 0, recordings: 0, versions: 0, reviews: 0, backTranslations: 0, notes: 0, materials: 0,
     heldBack: 0, heldFiles: [], waiting: 0, missingFiles: [], unmatchedQuests: 0, unplaced: 0

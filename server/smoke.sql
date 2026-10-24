@@ -1103,4 +1103,48 @@ do $$ begin
 end $$;
 delete from auth.users where id in ('24000000-0000-0000-0000-00000000000a', '24000000-0000-0000-0000-00000000000b');
 
+-- 25. A v2 project that has come over comes over again into another
+-- organization as a new language (decisions.md 94, amended 2026-10-24); the
+-- board itself still never moves one, and the first copy is remembered.
+insert into v2_import.orgs (org_id, name, admins) values ('org-v2-smoke-a', 'Smoke A', '{}'), ('org-v2-smoke-b', 'Smoke B', '{}');
+insert into v2_import.placements (project_id, org_id, confirmed_by, confirmed_at) values ('v2-smoke-p', 'org-v2-smoke-a', 'smoke', now());
+insert into v2_import.placements (project_id, org_id) values ('v2-smoke-q', 'org-v2-smoke-a');
+do $$ declare p v2_import.placements; m v2_import.moves; begin
+  begin
+    perform public.v2_import_move('v2-smoke-q', 'org-v2-smoke-b', 'lang-new-q', 'smoke');
+    raise exception 'a project that has not come over cannot come over again';
+  exception when check_violation then null;
+  end;
+  begin
+    perform public.v2_import_move('v2-smoke-p', 'org-v2-smoke-a', 'lang-new', 'smoke');
+    raise exception 'coming over again into the same organization should be refused';
+  exception when check_violation then null;
+  end;
+  begin
+    perform public.v2_import_move('v2-smoke-p', 'org-v2-smoke-b', 'v2-smoke-p', 'smoke');
+    raise exception 'the new language needs an id of its own';
+  exception when unique_violation then null;
+  end;
+  begin
+    perform public.v2_import_save_plan('[]', '[{"project_id": "v2-smoke-p", "org_id": "org-v2-smoke-b", "confirmed": true}]', 'smoke');
+    raise exception 'the board must not move a project that has come over';
+  exception when check_violation then null;
+  end;
+  perform public.v2_import_move('v2-smoke-p', 'org-v2-smoke-b', 'lang-new', 'smoke');
+  select * into p from v2_import.placements where project_id = 'v2-smoke-p';
+  if p.org_id <> 'org-v2-smoke-b' or p.language_id <> 'lang-new' or p.moved_at is null then raise exception 'the placement did not take the move: %', p; end if;
+  select * into m from v2_import.moves where project_id = 'v2-smoke-p';
+  if m.from_org <> 'org-v2-smoke-a' or m.from_language <> 'v2-smoke-p' or m.to_language <> 'lang-new' then raise exception 'the first copy is not remembered: %', m; end if;
+  -- The board, saving the project where it now is, keeps its new language.
+  perform public.v2_import_save_plan('[]', '[{"project_id": "v2-smoke-p", "org_id": "org-v2-smoke-b", "name": "Renamed", "confirmed": true}]', 'smoke');
+  select * into p from v2_import.placements where project_id = 'v2-smoke-p';
+  if p.language_id <> 'lang-new' or p.name <> 'Renamed' then raise exception 'saving the board lost the new language: %', p; end if;
+  if (public.v2_import_plan()->'placements') @> '[{"project_id": "v2-smoke-p", "language_id": "lang-new"}]' is not true then
+    raise exception 'the plan does not carry the language id';
+  end if;
+end $$;
+delete from v2_import.moves where project_id = 'v2-smoke-p';
+delete from v2_import.placements where project_id in ('v2-smoke-p', 'v2-smoke-q');
+delete from v2_import.orgs where org_id in ('org-v2-smoke-a', 'org-v2-smoke-b');
+
 select 'smoke ok' as result;

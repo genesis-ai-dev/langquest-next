@@ -81,8 +81,16 @@ who opens it sees the same thing.
   one, and its admins link it in Next (Language › link, decision 78). A
   suggestion is never linked by itself: **Use** it, or the project comes
   over unlinked. A project that has come over cannot move
-  to another organization (its events carry the organization); **Sync**
-  reads it again now instead of waiting for the next scheduled pass.
+  to another organization on the board (its events carry the organization);
+  **Sync** reads it again now instead of waiting for the next scheduled pass.
+- **Coming over again.** `npm run v2 -- move --project <v2 id> --to <org id>`
+  (with `--production` for the hosted projects) brings a project that has
+  come over into another organization as a new language there, with a new
+  id (decisions.md 94, amended 2026-10-24; Every Language's BIRAT
+  RAJBANSHI). The next pass reads it whole into that language, under a
+  ledger of its own, and stores its recordings again for it. The first copy
+  stays where it was, no longer kept up to date, until it is removed;
+  `v2_import.moves` records where it is.
 - **Language:** a project's details show what is known (its name and
   description, the languages v2 links to it, the languages its recordings
   are tagged with, and the suggestion with its reason) beside a search of
