@@ -38,14 +38,15 @@ export function frame(width: number, opts: { chrome: boolean; split: boolean }):
 }
 
 /**
- * Chapters across in a book's grid: the demo's five on a phone; on a wider
+ * Chapters across in a book's grid: four on a phone (the demo had five); on a wider
  * column, as many tiles of about `chapterTile` as fit, so they stay tile-sized.
  */
 export function chapterColumns(contentWidth: number, kind: LayoutKind): number {
-  if (kind === 'phone') return 5;
+  // Four across on a phone: each tile big enough for a thumb and its download button (decisions.md 166).
+  if (kind === 'phone') return 4;
   const inner = Math.min(contentWidth, measure.column) - 2 * space.lg;
   const fit = Math.floor((inner + space.sm) / (measure.chapterTile + space.sm));
-  return Math.min(10, Math.max(5, fit));
+  return Math.min(8, Math.max(4, fit));
 }
 
 /**

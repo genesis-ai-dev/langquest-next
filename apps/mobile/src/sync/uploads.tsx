@@ -5,16 +5,17 @@
 import { unitTitle } from '@langquest-next/core';
 import type { SentEntry } from '@langquest-next/sync';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Card, Group, Ico, ProgressBar, Row, SectionLabel, ShowMore, type IconName } from '../ui/kit';
+import { Card, Group, Ico, Row, SectionLabel, ShowMore, type IconName } from '../ui/kit';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { txt } from '../ui/textStyles';
 import { t } from '../i18n';
 import { formatDay, formatDayTime, formatTime } from '../i18n/format';
 import { C, radius, space, TINT } from '../ui/theme';
+import { PackageBoxes, TransitScene, WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
 import { barState, dayKind, sentDays, waitingCounts, waitingRows, type WaitingCounts } from './uploadsModel';
 
@@ -57,14 +58,10 @@ export function UploadBar(props: { offline: boolean; onOpen: (() => void) | null
     : bar.offline ? { bg: TINT.amber, fg: TINT.amberText, icon: 'upload' as IconName } : { bg: C.light, fg: C.primary, icon: 'upload' as IconName };
   const body = (
     <>
-      <Ico name={tone.icon} size={20} color={tone.fg} />
+      {/* Going up: the arrow wave; offline or done, a still mark. */}
+      {bar.kind === 'waiting' && !bar.offline ? <View style={styles.wave}><WaveArrow direction="up" color={tone.fg} size={11} /></View> : <Ico name={tone.icon} size={20} color={tone.fg} />}
       <Text style={[txt.sm, { flex: 1, fontWeight: '700', color: tone.fg }]}>{label}</Text>
-      {state ? (
-        <View style={styles.state}>
-          {bar.kind === 'waiting' && !bar.offline ? <ActivityIndicator size="small" color={tone.fg} /> : null}
-          <Text style={[txt.xsStrong, { color: tone.fg }]}>{state}</Text>
-        </View>
-      ) : null}
+      {state ? <Text style={[txt.xsStrong, { color: tone.fg }]}>{state}</Text> : null}
       {props.onOpen ? <Ico name="right" size={18} color={tone.fg} /> : null}
     </>
   );
@@ -82,41 +79,31 @@ export function UploadBar(props: { offline: boolean; onOpen: (() => void) | null
 }
 
 /**
- * The top of the Sync screen: everything uploaded, with when it last went,
- * or how much waits on this device and whether it is going up now.
+ * The top of the Sync screen: recordings as packages between this device
+ * and the cloud, with how many wait to go up and to come down (transit.tsx),
+ * then everything uploaded and when it last went, or how much waits and
+ * whether it is going up now.
  */
 export function UploadsCard(props: { ctx: Ctx }) {
   const status = useSyncStatus();
   const counts = waitingCounts(status);
   const offline = props.ctx.language.online === false;
   const last = status.sent.reduce((m, e) => Math.max(m, e.at), 0);
-  if (counts.recordings + counts.changes === 0) {
-    return (
-      <Card>
-        <Head icon="check" tint={TINT.greenText} bg={TINT.green} title={t('uploads.allUploaded')}
-          sub={last ? t('uploads.lastUpload', { when: dayKind(new Date(last).setHours(0, 0, 0, 0), Date.now()) === 'today' ? formatTime(last) : formatDayTime(last) }) : null} />
-      </Card>
-    );
-  }
-  const files = { total: Math.max(status.peakUp, status.pendingUp), left: status.pendingUp };
+  const waiting = counts.recordings + counts.changes > 0;
+  const title = waiting ? waitingWords(counts) : t('uploads.allUploaded');
+  const sub = waiting ? (offline ? t('uploads.savedHere') : t('uploads.uploading'))
+    : last ? t('uploads.lastUpload', { when: dayKind(new Date(last).setHours(0, 0, 0, 0), Date.now()) === 'today' ? formatTime(last) : formatDayTime(last) }) : null;
   return (
     <Card>
-      <Head icon="upload" tint={offline ? TINT.amberText : C.primary} bg={offline ? TINT.amber : C.light} title={waitingWords(counts)}
-        sub={offline ? t('uploads.savedHere') : t('uploads.uploading')} />
-      {!offline && files.total > 0 ? <ProgressBar value={((files.total - files.left) / files.total) * 100} /> : null}
-    </Card>
-  );
-}
-
-function Head(props: { icon: IconName; tint: string; bg: string; title: string; sub: string | null }) {
-  return (
-    <View style={styles.head} accessible accessibilityLabel={[props.title, props.sub].filter(Boolean).join('. ')}>
-      <View style={[styles.tile, { backgroundColor: props.bg }]}><Ico name={props.icon} size={24} color={props.tint} /></View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[txt.body, { fontWeight: '800' }]}>{props.title}</Text>
-        {props.sub ? <Text style={txt.smMuted}>{props.sub}</Text> : null}
+      <TransitScene up={counts.recordings > 0 ? counts.recordings : counts.changes} down={status.pendingDown} offline={offline} />
+      <View style={styles.head} accessible accessibilityLabel={[title, sub].filter(Boolean).join('. ')}>
+        {waiting ? null : <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="check" size={22} color={TINT.greenText} /></View>}
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[txt.body, { fontWeight: '800' }]}>{title}</Text>
+          {sub ? <Text style={txt.smMuted}>{sub}</Text> : null}
+        </View>
       </View>
-    </View>
+    </Card>
   );
 }
 
@@ -141,7 +128,7 @@ export function WaitingList(props: { ctx: Ctx; changes: readonly (string | null)
           return (
             <Row key={r.unitId ?? 'other'} testID={`waiting-${r.unitId ?? 'other'}`} icon="upload" iconColor={C.primary} label={title} sub={sub}
               help={t('account.sync.eventHelp')} last={i === rows.length - 1} {...(open ? { onPress: open } : {})}
-              {...(r.recordings ? { below: <ProgressBar value={(uploaded / r.recordings.of) * 100} /> } : {})} />
+              {...(r.recordings ? { below: <PackageBoxes uploaded={uploaded} total={r.recordings.of} offline={ctx.language.online === false} /> } : {})} />
           );
         })}
       </Group>
@@ -199,7 +186,7 @@ export function SentList(props: { ctx: Ctx }) {
 const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 48, marginHorizontal: space.sm, marginTop: space.xs,
     paddingHorizontal: space.md, paddingVertical: space.xs, borderRadius: radius.md },
-  state: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  wave: { width: 20, alignItems: 'center' },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  tile: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }
+  tile: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }
 });

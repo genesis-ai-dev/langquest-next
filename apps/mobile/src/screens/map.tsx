@@ -628,7 +628,7 @@ function Tile(props: { ctx: Ctx; c: ChapterTile; testID?: string; onPress: () =>
     <ChapterTileView {...(props.testID ? { testID: props.testID } : {})} n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
       help={help}
       corner={props.changed ? <ChangedMark /> : undefined}
-      below={only ? <DownloadButton ctx={props.ctx} unitId={only.unitId} u={props.offline.get(only.unitId)} testID={`download-${only.unitId}`} /> : undefined} />
+      below={only ? <DownloadButton ctx={props.ctx} unitId={only.unitId} u={props.offline.get(only.unitId)} testID={`download-${only.unitId}`} size={40} /> : undefined} />
   );
 }
 

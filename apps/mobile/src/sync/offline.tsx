@@ -12,7 +12,6 @@ import { languageName, offlineByUnit, unitTitle, type UnitOffline } from '@langq
 import { deriveKinds, passageSummary } from '../i18n/coreText';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { Card, Header, HelpInfo, Ico, ProgressBar, Screen, type IconName } from '../ui/kit';
@@ -26,6 +25,7 @@ import { STUDY_FILES_OFFLINE } from '../study/studyFiles';
 import { C, onColor, radius, space, TINT } from '../ui/theme';
 import { offlineLine, type KeptOffline, type OfflineOverview, withStudy } from './offlineText';
 import { useStudyRevision } from './useOfflineSummary';
+import { WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
 
 /**
@@ -93,30 +93,20 @@ function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | undefined): { 
 }
 
 const DISC = 34;
-const RING_R = 15;
-const RING = 2 * Math.PI * RING_R;
 
-/** The round download mark: an outline to download, a ring filling while it does, green once it is all here. */
+/** The round download mark: an outline to download, an arrow wave while it does (amber offline), green once it is all here. */
 function DownloadDisc(props: { look: OfflineLook; size?: number }) {
   const { look } = props;
   const size = props.size ?? DISC;
-  const scale = size / DISC;
   const ready = look.kind === 'ready';
   const amber = look.kind === 'partial';
-  const ring = look.kind === 'downloading' || amber;
   const tint = ready ? C.white : amber ? TINT.amberText : C.primary;
   return (
     <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2 },
       ready ? { backgroundColor: onColor.green, borderColor: onColor.green } : look.kind === 'none' ? { borderColor: C.primary } : { borderColor: 'transparent', backgroundColor: amber ? TINT.amber : C.light }]}>
-      {ring ? (
-        <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-          <Circle cx={size / 2} cy={size / 2} r={RING_R * scale} stroke={C.border} strokeWidth={3} fill="none" />
-          <Circle cx={size / 2} cy={size / 2} r={RING_R * scale} stroke={amber ? C.amber : C.primary} strokeWidth={3} fill="none" strokeLinecap="round"
-            strokeDasharray={`${RING * scale} ${RING * scale}`} strokeDashoffset={RING * scale * (1 - Math.max(0.04, look.progress))}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`} />
-        </Svg>
-      ) : null}
-      <Ico name="download" size={Math.round(size * 0.5)} color={tint} strokeWidth={ready ? 2.75 : 2.25} />
+      {look.kind === 'downloading'
+        ? <WaveArrow direction="down" color={C.primary} size={Math.round(size * 0.3)} />
+        : <Ico name="download" size={Math.round(size * 0.5)} color={tint} strokeWidth={ready ? 2.75 : 2.25} />}
     </View>
   );
 }
@@ -126,7 +116,7 @@ function DownloadDisc(props: { look: OfflineLook; size?: number }) {
  * tile (decisions.md 166): what the tiny cloud mark used to say, as a
  * button that keeps the passage on this device.
  */
-export function DownloadButton(props: { ctx: Ctx; unitId: string; u: KeptOffline | undefined; testID?: string }) {
+export function DownloadButton(props: { ctx: Ctx; unitId: string; u: KeptOffline | undefined; testID?: string; size?: number }) {
   const { ctx, unitId, u } = props;
   const look = offlineLook(u ?? NOT_KEPT, ctx.language.online === false);
   const keep = useKeepToggle(ctx, unitId, u);
@@ -134,7 +124,7 @@ export function DownloadButton(props: { ctx: Ctx; unitId: string; u: KeptOffline
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={look.label}
       hitSlop={4} style={({ pressed }) => [styles.discTap, pressed && { opacity: 0.6 }]}>
-      <DownloadDisc look={look} />
+      <DownloadDisc look={look} {...(props.size ? { size: props.size } : {})} />
       <HelpBadge spot={spot} />
     </Pressable>
   );

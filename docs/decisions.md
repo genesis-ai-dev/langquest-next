@@ -7645,8 +7645,8 @@ check that failed offline showed Android's own error ("Unable to resolve host
 u.expo.dev"). So:
 - **Download buttons.** Every passage's row and every chapter's tile has a
   round download button (`DownloadButton`, sync/offline.tsx): an outline to
-  download, a ring filling while it does, amber when offline and not all
-  here, green once it is. The top of a passage is the same button as a line
+  download, an arrow wave moving down while it does (`WaveArrow`,
+  sync/transit.tsx), amber when offline and not all here, green once it is. The top of a passage is the same button as a line
   ("Download for offline", "Downloading for offline · 3 of 5", "On this
   device"); the card under "Something else?" is gone. A book says how many of
   its passages are ready on this device. Tapping keeps the passage, stops
@@ -7655,18 +7655,27 @@ u.expo.dev"). So:
   "On this device" go.
 - **Passages, not chapters.** A book whose passages are not its chapters one
   each (`chaptersAreWhole`, map/mapModel.ts) shows its passages as rows, 25 at
-  a time, instead of chapter tiles.
+  a time, instead of chapter tiles. Chapter tiles are four across on a phone
+  (five before), big enough for a thumb and their download button.
 - **The upload bar.** While recordings or changes wait to upload, a bar over
   every screen says how many ("3 recordings waiting to upload", changes only
   when no recording waits), and "Offline" or "Uploading"; it says "All
-  uploaded" for four seconds when the last went. It opens the Sync screen as
+  uploaded" for four seconds when the last went. While they go up, its arrow
+  waves upward. It opens the Sync screen as
   chrome, like a tab or the Global Viewer link (decision 158), not along a
   flow edge, and does not open it from a recording screen.
-- **The Sync screen by passage.** It starts with how much waits (or "All
-  uploaded" and when the last upload was), then "Waiting to upload" by
-  passage ("0 of 3 recordings uploaded", from each passage's most recordings
-  since its queue was last empty), then "Uploaded": what this device sent, by
-  day, passage and time. The event list stays under Details, for support.
+- **The Sync screen by passage.** It starts with recordings as packages
+  between a phone and a cloud (`TransitScene`, sync/transit.tsx), with how
+  many wait to go up and to come down: online they leave the phone's belt
+  for the cloud and arrive from it; offline the front one rises to a
+  no-signal line and drops back (Caleb's idea, 2026-10-25). Then how much
+  waits (or "All uploaded" and when the last upload was), then "Waiting to
+  upload" by passage ("0 of 3 recordings uploaded", one box per recording
+  turning green as it goes, from each passage's most recordings since its
+  queue was last empty), then "Uploaded": what this device sent, by day,
+  passage and time. The event list stays under Details, for support. The
+  motion is transforms and opacity on the native driver and stops under
+  reduce motion.
 - **A record of what went up.** The language session keeps a short log on
   the device (`packages/sync/src/sentLog.ts`, the store's meta table): files
   as each upload finishes and changes as the server accepts them
