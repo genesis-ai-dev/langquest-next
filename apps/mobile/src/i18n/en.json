@@ -53,7 +53,9 @@
     "minutesAgo_other": "{{count, number}} min ago",
     "hoursAgo_one": "{{count, number}} h ago",
     "hoursAgo_other": "{{count, number}} h ago",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Today",
+    "yesterday": "Yesterday"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -3104,9 +3106,6 @@
       "ready": "Update ready — tap to restart",
       "downloading": "Downloading update…",
       "downloadingPercent": "Downloading update… {{percent}}",
-      "offline": "Offline — tap to retry",
-      "failed": "Update failed: {{reason}} — tap to retry",
-      "offlineLabel": "Offline: updates cannot be checked",
       "webReady": "A new version of LangQuest is ready. Reload to use it.",
       "storeBuild": "store build",
       "updateBuild": "update {{id}}",
@@ -3385,11 +3384,9 @@
         "checking": "Connected, but the live channel is down, so this device checks for changes every few minutes. Sync now checks at once.",
         "offline": "No connection. Everything you do is kept on this device and sends by itself when you are back online.",
         "refused": "The server is not accepting changes from this device. Your work is still kept here.",
-        "toSend": "Changes and recordings made on this device that the server has not confirmed yet. They are safe here and go when there is a connection.",
         "toReceive": "Recordings from others that this device is still downloading.",
         "refusedLine": "Changes the server would not accept, usually because a permission changed. They stay on this device; open Details to see each one."
       },
-      "toSend": "To send",
       "toReceive": "To receive",
       "refusedLine": "Refused",
       "none": "None",
@@ -4458,42 +4455,18 @@
   "offline": {
     "onDevice": "On this device",
     "downloading": "Downloading for offline",
-    "audioNotHere": "Audio not on this device",
-    "notKept": "Not kept on this device",
     "audioNotKept": "Audio not kept on this device",
     "connectToFinish": "Connect to finish before you travel.",
     "stayConnected": "Stay connected until this finishes.",
-    "keep": "Keep offline",
-    "stopKeeping": "Stop keeping offline",
     "reason": {
       "asked": "Kept because you were asked to work on it.",
       "worked": "Kept because you've worked on it.",
       "chosen": "Kept because you chose to keep it."
     },
     "passage": {
-      "notSent_one": "{{count, number}} recording hasn't been sent from the device that made it yet.",
-      "notSent_other": "{{count, number}} recordings haven't been sent from the device that made them yet.",
-      "studyOnline": "Study pictures and study audio need a connection in the web app.",
-      "worksWithStudy": "Its text, audio and study pictures work without a connection.",
-      "worksWithAudio": "Its text and audio work without a connection.",
-      "worksTextOnly": "Its text works without a connection, and new audio downloads as it arrives.",
-      "audioFilesHere_one": "{{here, number}} of {{count, number}} audio files are here.",
-      "audioFilesHere_other": "{{here, number}} of {{count, number}} audio files are here.",
-      "audioFilesHereLeft_one": "{{here, number}} of {{count, number}} audio files are here, {{size}} of audio to go.",
-      "audioFilesHereLeft_other": "{{here, number}} of {{count, number}} audio files are here, {{size}} of audio to go.",
-      "studyFilesHere_one": "{{here, number}} of {{count, number}} audio and study files are here.",
-      "studyFilesHere_other": "{{here, number}} of {{count, number}} audio and study files are here.",
-      "studyFilesHereLeft_one": "{{here, number}} of {{count, number}} audio and study files are here, {{size}} of audio to go.",
-      "studyFilesHereLeft_other": "{{here, number}} of {{count, number}} audio and study files are here, {{size}} of audio to go.",
       "onlySomeHere_one": "Only {{here, number}} of {{count, number}} files on this device",
       "onlySomeHere_other": "Only {{here, number}} of {{count, number}} files on this device",
-      "downloadingCount": "Downloading for offline · {{here, number}} of {{total, number}}",
-      "notAllHere": "Not all of it is on this device yet",
-      "readRecordAudioNeeds": "You can read it and record, but its audio needs a connection.",
-      "readRecordStudyNeeds": "You can read it and record, but its audio and study pictures need a connection.",
-      "textHereAudioNeeds": "Its text is here, but its audio needs a connection. Keep it offline to take it with you.",
-      "textHereStudyNeeds": "Its text is here, but its audio and study pictures need a connection. Keep it offline to take it with you.",
-      "barHelp": "Fills as its files reach this device."
+      "downloadingCount": "Downloading for offline · {{here, number}} of {{total, number}}"
     },
     "toast": {
       "kept": "Kept on this device. It downloads while you are connected.",
@@ -4523,8 +4496,8 @@
       "alwaysBody": "Every passage's text, status and history in {{language}}. Audio of passages you were asked to work on, have worked on, or chose to keep.",
       "alwaysBodyStudy": "Every passage's text, status and history in {{language}}. Audio, study pictures, maps and study audio of passages you were asked to work on, have worked on, or chose to keep.",
       "needsTitle": "Needs a connection",
-      "needsNotKept": "Audio of passages you have not kept. Open a passage and tap Keep offline to take it with you.",
-      "needsNotKeptStudy": "Audio and study material of passages you have not kept. Open a passage and tap Keep offline to take it with you.",
+      "needsNotDownloaded": "Audio of passages not downloaded.",
+      "needsNotDownloadedStudy": "Audio and study material of passages not downloaded.",
       "needsFilms": "Study films.",
       "needsStudyWeb": "Study pictures, maps and study audio, in the web app.",
       "needsReports": "Reports.",
@@ -4546,7 +4519,8 @@
       "body": "Its versions, reviews and history are still downloading with the rest of this language. Connect to download.",
       "latest": "Latest: version {{n, number}}, by {{name}}.",
       "requests": "Open requests: {{n, number}}."
-    }
+    },
+    "download": "Download for offline"
   },
   "moderation": {
     "flagLabel": "Report or block {{name}}",
@@ -4985,7 +4959,6 @@
       "chapter": "Chapter {{n}}",
       "chapterHelp": "Opens its passage. A tick means done, a dot means started.",
       "keyLabel": "A tick means done, a dot means started",
-      "keyLabelOffline": "A tick means done, a dot means started, a cloud means kept on this device",
       "barHelp": "The bar fills as its passages are recorded; the green part is done.",
       "countHelp": "{{shown}} means {{recorded}} of its {{total}} passages are recorded.",
       "matchHelp": "The number is how many of its passages match the filter.",
@@ -4998,7 +4971,6 @@
     "key": {
       "done": "Done",
       "started": "Started",
-      "onDevice": "On this device",
       "doneSub": "Every check is complete",
       "startedSub": "Recording begun, recorded, with reviewers, or feedback waiting",
       "notStarted": "Not started",
@@ -7343,5 +7315,27 @@
     "otherLabel": "Open another organization",
     "readOnly": "You’re viewing as a Global Viewer: nothing here can be changed.",
     "linkHelp": "Where you are viewing, what you can do there, and every other organization."
+  },
+  "uploads": {
+    "barRecordings_one": "{{count, number}} recording waiting to upload",
+    "barRecordings_other": "{{count, number}} recordings waiting to upload",
+    "barChanges_one": "{{count, number}} change waiting to upload",
+    "barChanges_other": "{{count, number}} changes waiting to upload",
+    "uploading": "Uploading",
+    "allUploaded": "All uploaded",
+    "barHelp": "Opens what is saved on this device and waiting to upload, and when things went up.",
+    "savedHere": "Saved on this device",
+    "lastUpload": "Last upload {{when}}",
+    "waitingTitle": "Waiting to upload",
+    "uploadedTitle": "Uploaded",
+    "recordingsUploaded_one": "{{uploaded, number}} of {{count, number}} recording uploaded",
+    "recordingsUploaded_other": "{{uploaded, number}} of {{count, number}} recordings uploaded",
+    "changesWaiting_one": "{{count, number}} change waiting",
+    "changesWaiting_other": "{{count, number}} changes waiting",
+    "otherChanges": "Other changes",
+    "recordings_one": "{{count, number}} recording",
+    "recordings_other": "{{count, number}} recordings",
+    "changes_one": "{{count, number}} change",
+    "changes_other": "{{count, number}} changes"
   }
 }

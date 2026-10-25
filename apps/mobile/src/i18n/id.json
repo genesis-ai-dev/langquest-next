@@ -51,7 +51,9 @@
     "justNow": "Baru saja",
     "minutesAgo_other": "{{count, number}} mnt lalu",
     "hoursAgo_other": "{{count, number}} jam lalu",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Hari ini",
+    "yesterday": "Kemarin"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -3012,9 +3014,6 @@
       "ready": "Pembaruan siap — ketuk untuk memulai ulang",
       "downloading": "Mengunduh pembaruan…",
       "downloadingPercent": "Mengunduh pembaruan… {{percent}}",
-      "offline": "Offline — ketuk untuk mencoba lagi",
-      "failed": "Pembaruan gagal: {{reason}} — ketuk untuk mencoba lagi",
-      "offlineLabel": "Offline: pembaruan tidak dapat diperiksa",
       "webReady": "Versi baru LangQuest sudah siap. Muat ulang untuk memakainya.",
       "storeBuild": "versi toko aplikasi",
       "updateBuild": "pembaruan {{id}}",
@@ -3284,11 +3283,9 @@
         "checking": "Terhubung, tetapi saluran langsung terputus, jadi perangkat ini memeriksa perubahan setiap beberapa menit. Sinkronkan sekarang memeriksa saat itu juga.",
         "offline": "Tidak ada koneksi. Semua yang Anda lakukan disimpan di perangkat ini dan terkirim sendiri saat Anda kembali daring.",
         "refused": "Server tidak menerima perubahan dari perangkat ini. Pekerjaan Anda tetap tersimpan di sini.",
-        "toSend": "Perubahan dan rekaman di perangkat ini yang belum dikonfirmasi server. Semuanya aman di sini dan terkirim saat ada koneksi.",
         "toReceive": "Rekaman dari orang lain yang masih diunduh perangkat ini.",
         "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing."
       },
-      "toSend": "Akan dikirim",
       "toReceive": "Akan diterima",
       "refusedLine": "Ditolak",
       "none": "Tidak ada",
@@ -4320,36 +4317,17 @@
   "offline": {
     "onDevice": "Di perangkat ini",
     "downloading": "Mengunduh untuk offline",
-    "audioNotHere": "Audio tidak ada di perangkat ini",
-    "notKept": "Tidak disimpan di perangkat ini",
     "audioNotKept": "Audio tidak disimpan di perangkat ini",
     "connectToFinish": "Sambungkan untuk menyelesaikannya sebelum Anda bepergian.",
     "stayConnected": "Tetap terhubung sampai ini selesai.",
-    "keep": "Simpan untuk offline",
-    "stopKeeping": "Berhenti simpan untuk offline",
     "reason": {
       "asked": "Disimpan karena Anda diminta mengerjakannya.",
       "worked": "Disimpan karena Anda sudah mengerjakannya.",
       "chosen": "Disimpan karena Anda memilih menyimpannya."
     },
     "passage": {
-      "notSent_other": "{{count, number}} rekaman belum dikirim dari perangkat yang membuatnya.",
-      "studyOnline": "Gambar studi dan audio studi memerlukan koneksi di aplikasi web.",
-      "worksWithStudy": "Teks, audio, dan gambar studinya bisa dipakai tanpa koneksi.",
-      "worksWithAudio": "Teks dan audionya bisa dipakai tanpa koneksi.",
-      "worksTextOnly": "Teksnya bisa dipakai tanpa koneksi, dan audio baru diunduh saat tersedia.",
-      "audioFilesHere_other": "{{here, number}} dari {{count, number}} file audio sudah ada di sini.",
-      "audioFilesHereLeft_other": "{{here, number}} dari {{count, number}} file audio sudah ada di sini, sisa {{size}} audio lagi.",
-      "studyFilesHere_other": "{{here, number}} dari {{count, number}} file audio dan studi sudah ada di sini.",
-      "studyFilesHereLeft_other": "{{here, number}} dari {{count, number}} file audio dan studi sudah ada di sini, sisa {{size}} audio lagi.",
       "onlySomeHere_other": "Hanya {{here, number}} dari {{count, number}} file di perangkat ini",
-      "downloadingCount": "Mengunduh untuk offline · {{here, number}} dari {{total, number}}",
-      "notAllHere": "Belum semuanya ada di perangkat ini",
-      "readRecordAudioNeeds": "Anda bisa membaca dan merekam, tetapi audionya memerlukan koneksi.",
-      "readRecordStudyNeeds": "Anda bisa membaca dan merekam, tetapi audio dan gambar studinya memerlukan koneksi.",
-      "textHereAudioNeeds": "Teksnya sudah ada di sini, tetapi audionya memerlukan koneksi. Simpan untuk offline agar bisa dibawa.",
-      "textHereStudyNeeds": "Teksnya sudah ada di sini, tetapi audio dan gambar studinya memerlukan koneksi. Simpan untuk offline agar bisa dibawa.",
-      "barHelp": "Terisi seiring file-filenya sampai di perangkat ini."
+      "downloadingCount": "Mengunduh untuk offline · {{here, number}} dari {{total, number}}"
     },
     "toast": {
       "kept": "Disimpan di perangkat ini. Akan diunduh selama Anda terhubung.",
@@ -4373,8 +4351,8 @@
       "alwaysBody": "Teks, status, dan riwayat setiap perikop dalam {{language}}. Audio perikop yang Anda diminta kerjakan, sudah Anda kerjakan, atau Anda pilih untuk disimpan.",
       "alwaysBodyStudy": "Teks, status, dan riwayat setiap perikop dalam {{language}}. Audio, gambar studi, peta, dan audio studi perikop yang Anda diminta kerjakan, sudah Anda kerjakan, atau Anda pilih untuk disimpan.",
       "needsTitle": "Memerlukan koneksi",
-      "needsNotKept": "Audio perikop yang belum Anda simpan. Buka perikop dan ketuk Simpan untuk offline agar bisa dibawa.",
-      "needsNotKeptStudy": "Audio dan bahan studi perikop yang belum Anda simpan. Buka perikop dan ketuk Simpan untuk offline agar bisa dibawa.",
+      "needsNotDownloaded": "Audio perikop yang belum diunduh.",
+      "needsNotDownloadedStudy": "Audio dan bahan studi perikop yang belum diunduh.",
       "needsFilms": "Film studi.",
       "needsStudyWeb": "Gambar studi, peta, dan audio studi, di aplikasi web.",
       "needsReports": "Laporan.",
@@ -4395,7 +4373,8 @@
       "body": "Versi, tinjauan, dan riwayatnya masih diunduh bersama bagian lain bahasa ini. Sambungkan untuk mengunduh.",
       "latest": "Terbaru: versi {{n, number}}, oleh {{name}}.",
       "requests": "Permintaan terbuka: {{n, number}}."
-    }
+    },
+    "download": "Unduh untuk offline"
   },
   "moderation": {
     "flagLabel": "Laporkan atau blokir {{name}}",
@@ -4822,7 +4801,6 @@
       "chapter": "Pasal {{n}}",
       "chapterHelp": "Membuka perikopnya. Tanda centang berarti selesai, titik berarti sudah dimulai.",
       "keyLabel": "Tanda centang berarti selesai, titik berarti sudah dimulai",
-      "keyLabelOffline": "Tanda centang berarti selesai, titik berarti sudah dimulai, awan berarti disimpan di perangkat ini",
       "barHelp": "Batang terisi seiring perikopnya direkam; bagian yang hijau sudah selesai.",
       "countHelp": "{{shown}} berarti {{recorded}} dari {{total}} perikopnya sudah direkam.",
       "matchHelp": "Angkanya menunjukkan berapa perikopnya yang cocok dengan saringan.",
@@ -4835,7 +4813,6 @@
     "key": {
       "done": "Selesai",
       "started": "Sudah dimulai",
-      "onDevice": "Di perangkat ini",
       "doneSub": "Semua pemeriksaan sudah selesai",
       "startedSub": "Mulai direkam, sudah direkam, sedang di pemeriksa, atau masukan menunggu",
       "notStarted": "Belum dimulai",
@@ -7037,5 +7014,21 @@
     "otherLabel": "Buka organisasi lain",
     "readOnly": "Anda melihat sebagai Pengamat Global: tidak ada yang bisa diubah di sini.",
     "linkHelp": "Di mana Anda melihat, apa yang bisa Anda lakukan di sana, dan semua organisasi lainnya."
+  },
+  "uploads": {
+    "barRecordings_other": "{{count, number}} rekaman menunggu diunggah",
+    "barChanges_other": "{{count, number}} perubahan menunggu diunggah",
+    "uploading": "Mengunggah",
+    "allUploaded": "Semua sudah diunggah",
+    "barHelp": "Membuka apa yang tersimpan di perangkat ini dan menunggu diunggah, serta kapan semuanya diunggah.",
+    "savedHere": "Tersimpan di perangkat ini",
+    "lastUpload": "Unggahan terakhir {{when}}",
+    "waitingTitle": "Menunggu diunggah",
+    "uploadedTitle": "Sudah diunggah",
+    "recordingsUploaded_other": "{{uploaded, number}} dari {{count, number}} rekaman diunggah",
+    "changesWaiting_other": "{{count, number}} perubahan menunggu",
+    "otherChanges": "Perubahan lain",
+    "recordings_other": "{{count, number}} rekaman",
+    "changes_other": "{{count, number}} perubahan"
   }
 }

@@ -53,7 +53,9 @@
     "minutesAgo_other": "dakika {{count, number}} zilizopita",
     "hoursAgo_one": "saa {{count, number}} iliyopita",
     "hoursAgo_other": "saa {{count, number}} zilizopita",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Leo",
+    "yesterday": "Jana"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -3104,9 +3106,6 @@
       "ready": "Sasisho liko tayari — gusa ili kuanza upya",
       "downloading": "Inapakua sasisho…",
       "downloadingPercent": "Inapakua sasisho… {{percent}}",
-      "offline": "Nje ya mtandao — gusa ili kujaribu tena",
-      "failed": "Sasisho limeshindwa: {{reason}} — gusa ili kujaribu tena",
-      "offlineLabel": "Nje ya mtandao: masasisho hayawezi kuangaliwa",
       "webReady": "Toleo jipya la LangQuest liko tayari. Pakia upya ili kulitumia.",
       "storeBuild": "toleo la duka",
       "updateBuild": "sasisho {{id}}",
@@ -3385,11 +3384,9 @@
         "checking": "Imeunganishwa, lakini njia ya moja kwa moja haifanyi kazi, kwa hiyo kifaa hiki kinaangalia mabadiliko kila baada ya dakika chache. Sawazisha sasa huangalia mara moja.",
         "offline": "Hakuna mtandao. Kila unachofanya kinahifadhiwa kwenye kifaa hiki na kinatumwa chenyewe ukirudi mtandaoni.",
         "refused": "Seva haikubali mabadiliko kutoka kifaa hiki. Kazi yako bado imehifadhiwa hapa.",
-        "toSend": "Mabadiliko na rekodi za kifaa hiki ambazo seva bado haijathibitisha. Ziko salama hapa na zitatumwa kukiwa na mtandao.",
         "toReceive": "Rekodi za wengine ambazo kifaa hiki bado kinapakua.",
         "refusedLine": "Mabadiliko ambayo seva haikukubali, kwa kawaida kwa sababu ruhusa imebadilika. Yanabaki kwenye kifaa hiki; fungua Maelezo kuona kila moja."
       },
-      "toSend": "Za kutuma",
       "toReceive": "Za kupokea",
       "refusedLine": "Yamekataliwa",
       "none": "Hakuna",
@@ -4458,42 +4455,18 @@
   "offline": {
     "onDevice": "Kwenye kifaa hiki",
     "downloading": "Inapakua kwa matumizi nje ya mtandao",
-    "audioNotHere": "Sauti haipo kwenye kifaa hiki",
-    "notKept": "Haihifadhiwi kwenye kifaa hiki",
     "audioNotKept": "Sauti haihifadhiwi kwenye kifaa hiki",
     "connectToFinish": "Unganisha ili kumaliza kabla ya kusafiri.",
     "stayConnected": "Baki umeunganishwa hadi hii ikamilike.",
-    "keep": "Hifadhi nje ya mtandao",
-    "stopKeeping": "Acha kuhifadhi nje ya mtandao",
     "reason": {
       "asked": "Imehifadhiwa kwa sababu uliombwa kuifanyia kazi.",
       "worked": "Imehifadhiwa kwa sababu umeifanyia kazi.",
       "chosen": "Imehifadhiwa kwa sababu ulichagua kuihifadhi."
     },
     "passage": {
-      "notSent_one": "Rekodi {{count, number}} bado haijatumwa kutoka kwenye kifaa kilichoitengeneza.",
-      "notSent_other": "Rekodi {{count, number}} bado hazijatumwa kutoka kwenye kifaa kilichozitengeneza.",
-      "studyOnline": "Picha za kujifunza na sauti za kujifunza zinahitaji mtandao katika programu ya wavuti.",
-      "worksWithStudy": "Maandishi yake, sauti na picha za kujifunza zinafanya kazi bila mtandao.",
-      "worksWithAudio": "Maandishi yake na sauti zinafanya kazi bila mtandao.",
-      "worksTextOnly": "Maandishi yake yanafanya kazi bila mtandao, na sauti mpya inapakuliwa inapofika.",
-      "audioFilesHere_one": "Faili {{here, number}} kati ya {{count, number}} za sauti ziko hapa.",
-      "audioFilesHere_other": "Faili {{here, number}} kati ya {{count, number}} za sauti ziko hapa.",
-      "audioFilesHereLeft_one": "Faili {{here, number}} kati ya {{count, number}} za sauti ziko hapa, zimebaki {{size}} za sauti.",
-      "audioFilesHereLeft_other": "Faili {{here, number}} kati ya {{count, number}} za sauti ziko hapa, zimebaki {{size}} za sauti.",
-      "studyFilesHere_one": "Faili {{here, number}} kati ya {{count, number}} za sauti na za kujifunza ziko hapa.",
-      "studyFilesHere_other": "Faili {{here, number}} kati ya {{count, number}} za sauti na za kujifunza ziko hapa.",
-      "studyFilesHereLeft_one": "Faili {{here, number}} kati ya {{count, number}} za sauti na za kujifunza ziko hapa, zimebaki {{size}} za sauti.",
-      "studyFilesHereLeft_other": "Faili {{here, number}} kati ya {{count, number}} za sauti na za kujifunza ziko hapa, zimebaki {{size}} za sauti.",
       "onlySomeHere_one": "Faili {{here, number}} tu kati ya {{count, number}} ziko kwenye kifaa hiki",
       "onlySomeHere_other": "Faili {{here, number}} tu kati ya {{count, number}} ziko kwenye kifaa hiki",
-      "downloadingCount": "Inapakua kwa matumizi nje ya mtandao · {{here, number}} kati ya {{total, number}}",
-      "notAllHere": "Bado si kila kitu kiko kwenye kifaa hiki",
-      "readRecordAudioNeeds": "Unaweza kukisoma na kurekodi, lakini sauti yake inahitaji mtandao.",
-      "readRecordStudyNeeds": "Unaweza kukisoma na kurekodi, lakini sauti yake na picha za kujifunza zinahitaji mtandao.",
-      "textHereAudioNeeds": "Maandishi yake yako hapa, lakini sauti yake inahitaji mtandao. Kihifadhi nje ya mtandao ili uende nacho.",
-      "textHereStudyNeeds": "Maandishi yake yako hapa, lakini sauti yake na picha za kujifunza zinahitaji mtandao. Kihifadhi nje ya mtandao ili uende nacho.",
-      "barHelp": "Hujaa kadiri faili zake zinavyofika kwenye kifaa hiki."
+      "downloadingCount": "Inapakua kwa matumizi nje ya mtandao · {{here, number}} kati ya {{total, number}}"
     },
     "toast": {
       "kept": "Kimehifadhiwa kwenye kifaa hiki. Kinapakuliwa ukiwa umeunganishwa.",
@@ -4523,8 +4496,8 @@
       "alwaysBody": "Maandishi, hali na historia ya kila kifungu katika {{language}}. Sauti ya vifungu ulivyoombwa kufanyia kazi, ulivyofanyia kazi, au ulivyochagua kuhifadhi.",
       "alwaysBodyStudy": "Maandishi, hali na historia ya kila kifungu katika {{language}}. Sauti, picha za kujifunza, ramani na sauti za kujifunza za vifungu ulivyoombwa kufanyia kazi, ulivyofanyia kazi, au ulivyochagua kuhifadhi.",
       "needsTitle": "Inahitaji mtandao",
-      "needsNotKept": "Sauti ya vifungu ambavyo hujavihifadhi. Fungua kifungu na uguse Hifadhi nje ya mtandao ili uende nacho.",
-      "needsNotKeptStudy": "Sauti na nyenzo za kujifunza za vifungu ambavyo hujavihifadhi. Fungua kifungu na uguse Hifadhi nje ya mtandao ili uende nacho.",
+      "needsNotDownloaded": "Sauti ya vifungu visivyopakuliwa.",
+      "needsNotDownloadedStudy": "Sauti na vifaa vya kujifunzia vya vifungu visivyopakuliwa.",
       "needsFilms": "Filamu za kujifunza.",
       "needsStudyWeb": "Picha za kujifunza, ramani na sauti za kujifunza, katika programu ya wavuti.",
       "needsReports": "Ripoti.",
@@ -4546,7 +4519,8 @@
       "body": "Matoleo yake, mapitio na historia bado vinapakuliwa pamoja na sehemu nyingine ya lugha hii. Unganisha ili kupakua.",
       "latest": "Ya karibuni: toleo {{n, number}}, la {{name}}.",
       "requests": "Maombi yaliyo wazi: {{n, number}}."
-    }
+    },
+    "download": "Pakua kwa matumizi nje ya mtandao"
   },
   "moderation": {
     "flagLabel": "Ripoti au zuia {{name}}",
@@ -4985,7 +4959,6 @@
       "chapter": "Sura ya {{n}}",
       "chapterHelp": "Hufungua kifungu chake. Alama ya vema inamaanisha imekamilika, nukta inamaanisha imeanza.",
       "keyLabel": "Alama ya vema inamaanisha imekamilika, nukta inamaanisha imeanza",
-      "keyLabelOffline": "Alama ya vema inamaanisha imekamilika, nukta inamaanisha imeanza, wingu linamaanisha imehifadhiwa kwenye kifaa hiki",
       "barHelp": "Upau hujaa kadiri vifungu vyake vinavyorekodiwa; sehemu ya kijani imekamilika.",
       "countHelp": "{{shown}} inamaanisha vifungu {{recorded}} kati ya {{total}} vimerekodiwa.",
       "matchHelp": "Namba ni idadi ya vifungu vyake vinavyolingana na kichujio.",
@@ -4998,7 +4971,6 @@
     "key": {
       "done": "Imekamilika",
       "started": "Imeanza",
-      "onDevice": "Kwenye kifaa hiki",
       "doneSub": "Kila ukaguzi umekamilika",
       "startedSub": "Kurekodi kumeanza, kimerekodiwa, kiko kwa wakaguzi, au maoni yanasubiri",
       "notStarted": "Bado haijaanza",
@@ -7343,5 +7315,27 @@
     "otherLabel": "Fungua shirika lingine",
     "readOnly": "Unatazama kama Mtazamaji wa Kimataifa: hakuna kinachoweza kubadilishwa hapa.",
     "linkHelp": "Unapotazama, unachoweza kufanya huko, na mashirika mengine yote."
+  },
+  "uploads": {
+    "barRecordings_one": "Rekodi {{count, number}} inasubiri kupakiwa",
+    "barRecordings_other": "Rekodi {{count, number}} zinasubiri kupakiwa",
+    "barChanges_one": "Badiliko {{count, number}} linasubiri kupakiwa",
+    "barChanges_other": "Mabadiliko {{count, number}} yanasubiri kupakiwa",
+    "uploading": "Inapakia",
+    "allUploaded": "Vyote vimepakiwa",
+    "barHelp": "Hufungua kilichohifadhiwa kwenye kifaa hiki kikisubiri kupakiwa, na lini vitu vilipakiwa.",
+    "savedHere": "Imehifadhiwa kwenye kifaa hiki",
+    "lastUpload": "Upakiaji wa mwisho: {{when}}",
+    "waitingTitle": "Zinasubiri kupakiwa",
+    "uploadedTitle": "Vimepakiwa",
+    "recordingsUploaded_one": "Rekodi {{uploaded, number}} kati ya {{count, number}} imepakiwa",
+    "recordingsUploaded_other": "Rekodi {{uploaded, number}} kati ya {{count, number}} zimepakiwa",
+    "changesWaiting_one": "Badiliko {{count, number}} linasubiri",
+    "changesWaiting_other": "Mabadiliko {{count, number}} yanasubiri",
+    "otherChanges": "Mabadiliko mengine",
+    "recordings_one": "Rekodi {{count, number}}",
+    "recordings_other": "Rekodi {{count, number}}",
+    "changes_one": "Badiliko {{count, number}}",
+    "changes_other": "Mabadiliko {{count, number}}"
   }
 }

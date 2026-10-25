@@ -21,7 +21,7 @@ import type { Ctx } from '../shell/ctx';
 import { edgeFor, type ScreenId } from '../shell/flow';
 import { t } from '../i18n';
 import { formatNumber, formatPercent } from '../i18n/format';
-import { FillBanner, OfflineMark } from '../sync/offline';
+import { BookOfflineLine, DownloadButton, FillBanner } from '../sync/offline';
 
 import { keptOfflineMap, offlineWords, type KeptOffline } from '../sync/offlineText';
 import { indexesFor } from '../sync/indexes';
@@ -30,7 +30,7 @@ import { Badge, Card, Chip, ChipRow, EmptyState, Group, Header, HelpInfo, Ico, I
 import { txt } from '../ui/textStyles';
 import { useLayout, useOpenDetail, useOrgInChrome } from '../ui/useLayout';
 import { mayWriteLibrary } from '../library/model';
-import { agoWords, bookEntries, bookRowWords, chapterRows, chapterTiles, clauses, clusterView, filterEntries, filterLabel, flowLabel, funnelLayers, funnelRows, isOutline, languageEntries, mapSearch, mapShelf, needsConnection, openableLanguages as openableIn, openState, OTHER, outlineSections, PAGE, searchLanguages, sentences, statusLanguages, statusTotals, summarizeBooks, tileLabel, tileHelp, waitingBooks, type BookSummary, type ChapterTile, type Entry } from '../map/mapModel';
+import { agoWords, bookEntries, chaptersAreWhole, bookRowWords, chapterRows, chapterTiles, clauses, clusterView, filterEntries, filterLabel, flowLabel, funnelLayers, funnelRows, isOutline, languageEntries, mapSearch, mapShelf, needsConnection, openableLanguages as openableIn, openState, OTHER, outlineSections, PAGE, searchLanguages, sentences, statusLanguages, statusTotals, summarizeBooks, tileLabel, tileHelp, waitingBooks, type BookSummary, type ChapterTile, type Entry } from '../map/mapModel';
 import { useForYou, useNextPassage } from '../map/useMapLanguage';
 import { NumberingNote } from '../breakup/parts';
 import { useVerseNumbering } from '../breakup/useBreakup';
@@ -96,7 +96,7 @@ function PassageDisc(props: { s: PassageGlance }) {
 }
 
 /** What a passage's row says in help mode: it opens, and what each mark on it means (rule 3). */
-function rowHelp(s: PassageGlance, o: { mine: boolean; offline: KeptOffline | undefined; changed: boolean }): string {
+function rowHelp(s: PassageGlance, o: { mine: boolean; changed: boolean }): string {
   const disc = s.done ? t('map.row.doneHelp')
     : !s.recorded ? (s.drafting ? t('map.row.draftingHelp') : t('map.row.notRecordedHelp'))
     : s.awaitingResponse.length > 0 ? t('map.row.feedbackHelp')
@@ -104,7 +104,6 @@ function rowHelp(s: PassageGlance, o: { mine: boolean; offline: KeptOffline | un
   return [
     t('map.row.openHelp'), disc,
     o.mine ? t('map.row.forYouHelp') : null,
-    o.offline?.reason ? (o.offline.ready ? t('map.marks.keptHelp') : t('map.marks.downloadingHelp')) : null,
     o.changed ? t('map.marks.changedHelp') : null,
     s.recorded && s.steps.length > 0 ? t('map.marks.stepsHelp') : null
   ].filter(Boolean).join(' ');
@@ -122,7 +121,7 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
   const badgeBelow = !!props.mine && marks;
   return (
     <Row testID={`row-${e.unitId}`} label={title} sub={summary} last={props.last} onPress={props.onPress}
-      help={rowHelp(e.s, { mine: props.mine, offline, changed: !!props.changed })}
+      help={rowHelp(e.s, { mine: props.mine, changed: !!props.changed })}
       current={beside?.screen === 'passage_record' && beside.params['unitId'] === e.unitId}
       accessibilityLabel={sentences([title, summary, ...(props.mine ? [t('map.forYou')] : []), ...(props.changed ? [t('map.changedSinceRecorded')] : []), offlineWords(offline)])}
       {...(props.mine && !badgeBelow ? { badge: t('map.forYou'), badgeTone: 'amber' as const } : {})}
@@ -131,13 +130,16 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
         <View>
           <PassageDisc s={e.s} />
           {props.mine ? <View style={styles.discDot} /> : null}
-          <OfflineMark u={offline} />
           {props.changed ? <ChangedMark /> : null}
         </View>
       )}
-      {...(marks
-        ? { right: <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} /> }
-        : {})} />
+      // Its download button at the end, beside the step marks (decisions.md 166).
+      right={(
+        <View style={styles.rowEnd}>
+          {marks ? <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} /> : null}
+          <DownloadButton ctx={ctx} unitId={e.unitId} u={offline} testID={`download-${e.unitId}`} />
+        </View>
+      )} />
   );
 }
 
@@ -614,17 +616,19 @@ export function MapHome(ctx: Ctx) {
  * device) stays in its spoken label and under Filter's key; a kept chapter
  * keeps its mark at the corner.
  */
-function Tile(props: { c: ChapterTile; testID?: string; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline>; changed?: boolean }) {
+function Tile(props: { ctx: Ctx; c: ChapterTile; testID?: string; onPress: () => void; current?: boolean; offline: Map<string, KeptOffline>; changed?: boolean }) {
   const { c } = props;
   const parts = c.list.length;
-  // Kept passages of this chapter (decisions.md 61): the mark is green only when every kept one is ready.
+  // Its passage, kept or not (decisions.md 61): a chapter's tile is its one passage here (chaptersAreWhole).
   const kept = c.list.map((e) => props.offline.get(e.unitId)).filter((u): u is KeptOffline => !!u);
   const label = tileLabel(c, kept, !!props.changed);
   const help = tileHelp(c, kept, !!props.changed);
+  const only = c.list.length === 1 ? c.list[0]! : null;
   return (
     <ChapterTileView {...(props.testID ? { testID: props.testID } : {})} n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
       help={help}
-      corner={kept.length ? <OfflineMark u={kept.every((u) => u.ready) ? kept[0] : kept.find((u) => !u.ready)} /> : props.changed ? <ChangedMark /> : undefined} />
+      corner={props.changed ? <ChangedMark /> : undefined}
+      below={only ? <DownloadButton ctx={props.ctx} unitId={only.unitId} u={props.offline.get(only.unitId)} testID={`download-${only.unitId}`} size={40} /> : undefined} />
   );
 }
 
@@ -678,9 +682,11 @@ export function BookMap(ctx: Ctx) {
   const summary = [language
     ? t('map.book.summaryIn', { count: entries.length, recorded: fmt(recordedCount), language })
     : t('map.book.summary', { count: entries.length, recorded: fmt(recordedCount) })];
+  // A book of passages lists them as rows (decisions.md 166): the key is the chapter tiles'.
+  const tiles = chaptersAreWhole(entries);
   const filterSheet = (
     <FilterSheet visible={filterOpen} onClose={() => setFilterOpen(false)} filter={filter} counts={counts} onFilter={(f) => { setFilter(f); setLimit(PAGE); }} summary={summary}>
-      {book ? (
+      {book && tiles ? (
         <>
           <SectionLabel label={t('map.book.key')} />
           <FullKey none={chapters.some((c) => c.tone === 'none')} />
@@ -721,19 +727,45 @@ export function BookMap(ctx: Ctx) {
     );
   }
 
-  // Five across on a phone; on a wider column, as many as stay tile-sized.
+  // How many of the book's passages are on this device, over them (decisions.md 166).
+  const ready = entries.filter((e) => offline.get(e.unitId)?.ready).length;
+
+  // Divided into passages, which may run across chapters: every passage, as a row (decisions.md 166), as the grid showed every chapter.
+  if (!tiles) {
+    const shown = filterEntries(entries, filter);
+    return (
+      <Screen header={header}>
+        <BookOfflineLine ready={ready} count={entries.length} />
+        <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
+        {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.nothingMatches')}</Text> : (
+          <Group>
+            {shown.map((e, i, list) => (
+              <HelpRow key={e.unitId} of="map.passage">
+                <PassageRow ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} changed={earlier.over.has(e.unitId)} />
+              </HelpRow>
+            ))}
+          </Group>
+        )}
+        {quiet}
+        {filterSheet}
+      </Screen>
+    );
+  }
+
+  // Four across on a phone; on a wider column, as many as stay tile-sized.
   const cols = chapterColumns(layout.contentWidth, layout.kind);
   const rows = chapterRows(chapters, cols);
 
   return (
     <Screen header={header}>
+      <BookOfflineLine ready={ready} count={entries.length} />
       <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
       <View style={{ gap: space.sm }}>
         {rows.map((row, r) => (
           <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
             {row.map((c) => (
               <HelpRow key={c.n} of="map.chapter">
-                <Tile testID={`row-${bookId}-${c.n}`} c={c} offline={offline} changed={c.list.some((e) => earlier.over.has(e.unitId))} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
+                <Tile ctx={ctx} testID={`row-${bookId}-${c.n}`} c={c} offline={offline} changed={c.list.some((e) => earlier.over.has(e.unitId))} current={beside?.screen === 'passage_record' && c.list.some((e) => e.unitId === beside.params['unitId'])} onPress={() => {
                   if (c.list.length === 1) open(c.list[0]!);
                   else if (c.list.length > 1) setOpenChapter(c.n);
                 }} />
@@ -743,7 +775,7 @@ export function BookMap(ctx: Ctx) {
           </View>
         ))}
       </View>
-      <ShortKey offline={chapters.some((c) => c.list.some((e) => offline.has(e.unitId)))} />
+      <ShortKey />
       {quiet}
       {filterSheet}
       <Sheet visible={!!sheet} title={sheet ? t('map.book.chapterTitle', { book: book.name, n: fmt(sheet.n) }) : ''} sub={sheet ? t('map.book.pickPart', { count: sheet.list.length }) : ''} onClose={() => setOpenChapter(null)}>
@@ -763,6 +795,7 @@ export function BookMap(ctx: Ctx) {
 }
 
 const styles = StyleSheet.create({
+  rowEnd: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   filterBar: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   quietRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginLeft: -space.sm },
   filterChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },

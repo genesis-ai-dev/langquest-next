@@ -24,10 +24,9 @@ test('JRN-010 A viewer follows progress @p0 @wide', async ({ page }) => {
   // The tab bar draws a moment after the overview's header: wait for it, not one read.
   await expect.poll(() => tabsShown(page), { message: "VIEW's tabs" }).toEqual(['map', 'inbox', 'me']);
 
-  // Step 2: Alpha → Luke → chapter 16 → P-DONE: every step complete, nothing to act on.
+  // Step 2: Alpha → Luke → P-DONE among Luke's passages: every step complete, nothing to act on.
   await button(page, /^Alpha: .*Open its map/).click();
   await button(page, /^Luke\./).click();
-  await button(page, /^Chapter 16:/).click();
   await button(page, new RegExp(`^${done}\\. Done`)).click();
   await expect(text(page, done)).toBeVisible();
   for (const check of ['Peer check', 'Back translation', 'Community check', 'Consultant check', 'Final approval']) {

@@ -99,8 +99,10 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // 5.46 MB): it catches growth that runs away, and what a visit pays is held
 // by the first-visit budget (decision 123). 6.55 MB since notes on what a
 // check shows (decision 149) took it to 6.51 MB, 15 KB of that their lines
-// in 15 languages after six were merged into two.
-const TOTAL_BUDGET_BYTES = 6.55 * 1024 * 1024;
+// in 15 languages after six were merged into two. 6.6 MB since uploads and
+// downloads shown by passage, with their moving packages (decision 166), took
+// it 5 KB past 6.55 MB; a first visit stays under its own budget.
+const TOTAL_BUDGET_BYTES = 6.6 * 1024 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the

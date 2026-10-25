@@ -7628,3 +7628,64 @@ team's recordings had arrived. Carl chose (2026-10-23):
 - **The Sync screen** keeps "To send" and "To receive" apart, as before.
 Reverse if: people read a turning ring with no number as stuck, or ask how
 many recordings are still coming (then the icon gets a second count).
+
+## 166. What is on the device and what waits to upload is shown by passage: a download button on every passage, an upload bar while anything waits, and the Sync screen by passage with a record of what went up
+
+Date: 2026-10-25 · By: Caleb Koster · Status: accepted
+
+Reason: a tester asked whether translators can work fully offline and then
+sync, after the app "would not load" with the phone offline (a build from
+before decision 87). Caleb found the app's answers hard to read: a tiny cloud
+mark on chapter tiles said a passage was kept, keeping one was under
+"Something else?", a book divided into passages showed chapter tiles although
+a passage can run across chapters, nothing said plainly that recordings made
+offline wait on the phone or how many, the Sync screen listed event names
+("TakeComposed · Luke 13:1–9"), nothing said when work went up, and an update
+check that failed offline showed Android's own error ("Unable to resolve host
+u.expo.dev"). So:
+- **Download buttons.** Every passage's row and every chapter's tile has a
+  round download button (`DownloadButton`, sync/offline.tsx): an outline to
+  download, an arrow wave moving down while it does (`WaveArrow`,
+  sync/transit.tsx), amber when offline and not all here, green once it is. The top of a passage is the same button as a line
+  ("Download for offline", "Downloading for offline · 3 of 5", "On this
+  device"); the card under "Something else?" is gone. A book says how many of
+  its passages are ready on this device. Tapping keeps the passage, stops
+  keeping one the person chose, or says why it is kept (asked of them, worked
+  on). Decision 61's per-unit choice stands; the cloud marks and the map key's
+  "On this device" go.
+- **Passages, not chapters.** A book whose passages are not its chapters one
+  each (`chaptersAreWhole`, map/mapModel.ts) shows its passages as rows, 25 at
+  a time, instead of chapter tiles. Chapter tiles are four across on a phone
+  (five before), big enough for a thumb and their download button.
+- **The upload bar.** While recordings or changes wait to upload, a bar over
+  every screen says how many ("3 recordings waiting to upload", changes only
+  when no recording waits), and "Offline" or "Uploading"; it says "All
+  uploaded" for four seconds when the last went. While they go up, its arrow
+  waves upward. It opens the Sync screen as
+  chrome, like a tab or the Global Viewer link (decision 158), not along a
+  flow edge, and does not open it from a recording screen.
+- **The Sync screen by passage.** It starts with recordings as packages
+  between a phone and a cloud (`TransitScene`, sync/transit.tsx), with how
+  many wait to go up and to come down: online they leave the phone's belt
+  for the cloud and arrive from it; offline the front one rises to a
+  no-signal line and drops back (Caleb's idea, 2026-10-25). Then how much
+  waits (or "All uploaded" and when the last upload was), then "Waiting to
+  upload" by passage ("0 of 3 recordings uploaded", one box per recording
+  turning green as it goes, from each passage's most recordings since its
+  queue was last empty), then "Uploaded": what this device sent, by day,
+  passage and time. The event list stays under Details, for support. The
+  motion is transforms and opacity on the native driver and stops under
+  reduce motion.
+- **A record of what went up.** The language session keeps a short log on
+  the device (`packages/sync/src/sentLog.ts`, the store's meta table): files
+  as each upload finishes and changes as the server accepts them
+  (`SyncClientOptions.onSent`), by passage, a sitting's worth joined into one
+  line, at most 300 lines. It is for people to read and drives nothing. It
+  starts empty on each device with this build.
+- **No update errors.** A failed update check or download shows nothing;
+  diagnostics get the reason, and the next return to the app looks again.
+  Only "Downloading update…" and "Update ready — tap to restart" show.
+Reverse if: people miss the event list (then plain names for each kind join
+the passage rows), the bar over every screen crowds small phones (then it
+moves into the headers), or teams want a whole book downloaded at once (then
+a book gets its own button, which decision 61 left out).

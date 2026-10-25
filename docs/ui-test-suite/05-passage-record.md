@@ -680,7 +680,8 @@ Expected:
 - No "We already did this", "Not now" or "Record a new version" (nothing is
   recorded yet).
 - Tiles: "Add a note" (everyone but VIEW) and "What helps here" (everyone).
-- The offline card is shown (PASS-035).
+- No offline card: whether the passage comes along offline is the line at
+  the top of the passage (PASS-035, decision 166).
 - The footnote reads "Each check under "Then the team" has its own options
   too: tap it on the path."
 - The footer "Say it instead", with "A voice note on this passage. Your team
@@ -862,28 +863,27 @@ Expected:
 Roles: TRANS, VIEW · Priority: P1 · Platforms: iOS, Android · Run: Auto
 
 Steps:
-1. Open P-S (Luke 12:35-48: nobody asked for it or worked on it). Tap
-   "Something else?". Read the offline card.
-2. Tap "Keep offline". Wait for the download.
-3. Tap "Stop keeping offline".
-4. Open P-NEW's "Something else?" (asked of TRANS).
+1. Open P-S (Luke 12:35-48: nobody asked for it or worked on it). Read the
+   line at the top of the passage.
+2. Tap it. Wait for the download.
+3. Tap it again.
+4. Open P-NEW (asked of TRANS) and tap its line.
 
 Expected:
-- At first the card reads "Not kept on this device", with "Its text is here,
-  but its audio needs a connection. Keep it offline to take it with you."
-  and a "Keep offline" button.
-- "Keep offline" shows "Kept on this device. It downloads while you are
-  connected." There is no Undo. The card shows "Downloading for offline" with
-  a bar, then "On this device", with "Its text and audio work without a
-  connection. Kept because you chose to keep it."
-- "Stop keeping offline" shows "No longer kept. Its audio may be removed to
-  make room."
-- On P-NEW, TRANS's card reads "On this device" with "Kept because you were
-  asked to work on it.", and has no Stop button (only a chosen keep can be
+- At first the line reads "Download for offline", with an outline download
+  button (decision 166). "Something else?" has no offline card.
+- Tapping shows "Kept on this device. It downloads while you are
+  connected." There is no Undo. The line shows "Downloading for offline ·
+  {here} of {total}" with an arrow wave, then a green "On this device".
+- Tapping the green line (kept by choice) shows "No longer kept. Its audio
+  may be removed to make room." and the line goes back to "Download for
+  offline".
+- On P-NEW the line is "On this device"; tapping it says "Kept because you
+  were asked to work on it." and keeps it (only a chosen keep can be
   stopped).
-- P-DONE is not a "not kept" passage for TRANS: TRANS recorded it, so it is
-  "Kept because you've worked on it.".
-- Web: record what the card says. The web app keeps no audio offline
+- P-DONE is not a "not kept" passage for TRANS: TRANS recorded it, so
+  tapping its line says "Kept because you've worked on it.".
+- Web: record what the line says. The web app keeps no audio offline
   (decision 58).
 
 ### PASS-036 Offline indicators on the record
@@ -897,13 +897,12 @@ Steps:
 Expected:
 - Decision 61: each passage says, without scrolling, whether it is on this
   device.
-- On "Something else?", P-S reads "Audio not on this device", with "You
-  can read it and record, but its audio needs a connection." P-NEW reads "On
-  this device".
+- P-S's line reads "Download for offline", offline too; P-NEW's reads "On
+  this device" (decision 166).
 - The record opens and its text, status and history show while offline.
 - Just under the header, the record says "On this device" /
-  "Downloading for offline · {here} of {total}" / "Not kept on this device"
-  (or "Audio not on this device" offline).
+  "Downloading for offline · {here} of {total}" / "Download for offline"
+  (decision 166: the line is the passage's download button).
 - Fixed (2026-10-12): the one-line indicator (`PassageOfflineLine` in
   `offline.tsx`) was imported by `passage.tsx` but never drawn; it now shows
   under the header on the path.

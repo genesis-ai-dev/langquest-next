@@ -126,13 +126,10 @@ tags:
     timeout: 60000
 - tapOn: "${LANG_A}: .*Open its map.*"
 - tapOn: "Luke\\..*"
-- extendedWaitUntil:
-    visible: "Chapter 15: .*"
-    timeout: 30000
-- assertNotVisible: "Chapter 15: Done.*"
-- tapOn: "Chapter 15: .*"
-- extendedWaitUntil:
-    visible: "${P_CHECK}\\. Done.*"
+# Luke lists its passages (decision 166): P-CHECK's row says Done.
+- scrollUntilVisible:
+    element: "${P_CHECK}\\. Done.*"
+    direction: DOWN
     timeout: 60000
 - tapOn: "${P_CHECK}\\. Done.*"
 - extendedWaitUntil:

@@ -53,7 +53,9 @@
     "minutesAgo_other": "minti {{count, number}} da suka wuce",
     "hoursAgo_one": "sa'a {{count, number}} da ta wuce",
     "hoursAgo_other": "sa'o'i {{count, number}} da suka wuce",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Yau",
+    "yesterday": "Jiya"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -3104,9 +3106,6 @@
       "ready": "Sabuntawa ta shirya — taɓa don sake kunnawa",
       "downloading": "Ana sauke sabuntawa…",
       "downloadingPercent": "Ana sauke sabuntawa… {{percent}}",
-      "offline": "Babu intanet — taɓa don sake gwadawa",
-      "failed": "Sabuntawa ta kasa: {{reason}} — taɓa don sake gwadawa",
-      "offlineLabel": "Babu intanet: ba za a iya duba sabuntawa ba",
       "webReady": "Sabuwar sigar LangQuest ta shirya. Ku sake loda shafin don amfani da ita.",
       "storeBuild": "ginin shago",
       "updateBuild": "sabuntawa {{id}}",
@@ -3385,11 +3384,9 @@
         "checking": "An haɗa, amma hanyar kai tsaye ba ta aiki, don haka wannan na'ura tana duba canje-canje bayan 'yan mintuna. Daidaita yanzu yana dubawa nan take.",
         "offline": "Babu haɗi. Duk abin da kake yi ana ajiye shi a wannan na'ura kuma zai tafi da kansa idan ka dawo kan intanet.",
         "refused": "Sabar ba ta karɓar canje-canje daga wannan na'ura. Aikinka yana nan a ajiye.",
-        "toSend": "Canje-canje da rikodin da aka yi a wannan na'ura waɗanda sabar ba ta tabbatar ba tukuna. Suna nan lafiya kuma za su tafi idan an samu haɗi.",
         "toReceive": "Rikodin wasu da wannan na'ura har yanzu take saukewa.",
         "refusedLine": "Canje-canjen da sabar ta ƙi karɓa, yawanci saboda izini ya canza. Suna nan a wannan na'ura; buɗe Cikakkun bayanai don ganin kowanne."
       },
-      "toSend": "Don aikawa",
       "toReceive": "Don karɓa",
       "refusedLine": "An ƙi",
       "none": "Babu",
@@ -4458,42 +4455,18 @@
   "offline": {
     "onDevice": "A wannan na'ura",
     "downloading": "Ana saukewa don amfani ba intanet",
-    "audioNotHere": "Sauti ba ya kan wannan na'ura",
-    "notKept": "Ba a adana a wannan na'ura ba",
     "audioNotKept": "Ba a adana sauti a wannan na'ura ba",
     "connectToFinish": "Ku haɗa intanet don kammalawa kafin ku yi tafiya.",
     "stayConnected": "Ku zauna a haɗe har sai wannan ya kammala.",
-    "keep": "Adana a na'ura",
-    "stopKeeping": "Daina adanawa a na'ura",
     "reason": {
       "asked": "An adana saboda an roƙe ku ku yi aiki a kansa.",
       "worked": "An adana saboda kun yi aiki a kansa.",
       "chosen": "An adana saboda kun zaɓi adana shi."
     },
     "passage": {
-      "notSent_one": "Naɗi {{count, number}} bai aiku ba tukuna daga na'urar da ta yi shi.",
-      "notSent_other": "Naɗe-naɗe {{count, number}} ba su aiku ba tukuna daga na'urar da ta yi su.",
-      "studyOnline": "Hotunan nazari da sautin nazari suna buƙatar intanet a manhajar yanar gizo.",
-      "worksWithStudy": "Rubutunsa, sautinsa da hotunan nazari suna aiki ba tare da intanet ba.",
-      "worksWithAudio": "Rubutunsa da sautinsa suna aiki ba tare da intanet ba.",
-      "worksTextOnly": "Rubutunsa yana aiki ba tare da intanet ba, kuma sabon sauti yana saukowa idan ya iso.",
-      "audioFilesHere_one": "Fayilolin sauti {{here, number}} cikin {{count, number}} suna nan.",
-      "audioFilesHere_other": "Fayilolin sauti {{here, number}} cikin {{count, number}} suna nan.",
-      "audioFilesHereLeft_one": "Fayilolin sauti {{here, number}} cikin {{count, number}} suna nan, saura sauti {{size}}.",
-      "audioFilesHereLeft_other": "Fayilolin sauti {{here, number}} cikin {{count, number}} suna nan, saura sauti {{size}}.",
-      "studyFilesHere_one": "Fayilolin sauti da na nazari {{here, number}} cikin {{count, number}} suna nan.",
-      "studyFilesHere_other": "Fayilolin sauti da na nazari {{here, number}} cikin {{count, number}} suna nan.",
-      "studyFilesHereLeft_one": "Fayilolin sauti da na nazari {{here, number}} cikin {{count, number}} suna nan, saura sauti {{size}}.",
-      "studyFilesHereLeft_other": "Fayilolin sauti da na nazari {{here, number}} cikin {{count, number}} suna nan, saura sauti {{size}}.",
       "onlySomeHere_one": "Fayiloli {{here, number}} kaɗai cikin {{count, number}} ne a wannan na'ura",
       "onlySomeHere_other": "Fayiloli {{here, number}} kaɗai cikin {{count, number}} ne a wannan na'ura",
-      "downloadingCount": "Ana saukewa don amfani ba intanet · {{here, number}} cikin {{total, number}}",
-      "notAllHere": "Ba duka ba ne a wannan na'ura tukuna",
-      "readRecordAudioNeeds": "Kuna iya karanta shi da naɗawa, amma sautinsa yana buƙatar intanet.",
-      "readRecordStudyNeeds": "Kuna iya karanta shi da naɗawa, amma sautinsa da hotunan nazari suna buƙatar intanet.",
-      "textHereAudioNeeds": "Rubutunsa yana nan, amma sautinsa yana buƙatar intanet. Ku adana shi a na'ura don ku tafi da shi.",
-      "textHereStudyNeeds": "Rubutunsa yana nan, amma sautinsa da hotunan nazari suna buƙatar intanet. Ku adana shi a na'ura don ku tafi da shi.",
-      "barHelp": "Yana cika yayin da fayilolinsa suke isowa wannan na'ura."
+      "downloadingCount": "Ana saukewa don amfani ba intanet · {{here, number}} cikin {{total, number}}"
     },
     "toast": {
       "kept": "An adana a wannan na'ura. Yana saukowa yayin da kuke da intanet.",
@@ -4523,8 +4496,8 @@
       "alwaysBody": "Rubutu, matsayi da tarihin kowane nassi a {{language}}. Sautin nassosin da aka roƙe ku ku yi aiki a kansu, ko kuka yi aiki a kansu, ko kuka zaɓi adanawa.",
       "alwaysBodyStudy": "Rubutu, matsayi da tarihin kowane nassi a {{language}}. Sauti, hotunan nazari, taswirori da sautin nazari na nassosin da aka roƙe ku ku yi aiki a kansu, ko kuka yi aiki a kansu, ko kuka zaɓi adanawa.",
       "needsTitle": "Yana buƙatar intanet",
-      "needsNotKept": "Sautin nassosin da ba ku adana ba. Ku buɗe nassi ku taɓa Adana a na'ura don ku tafi da shi.",
-      "needsNotKeptStudy": "Sauti da kayan nazari na nassosin da ba ku adana ba. Ku buɗe nassi ku taɓa Adana a na'ura don ku tafi da shi.",
+      "needsNotDownloaded": "Sautin sassan da ba a sauke ba.",
+      "needsNotDownloadedStudy": "Sauti da kayan nazari na sassan da ba a sauke ba.",
       "needsFilms": "Fina-finan nazari.",
       "needsStudyWeb": "Hotunan nazari, taswirori da sautin nazari, a manhajar yanar gizo.",
       "needsReports": "Rahotanni.",
@@ -4546,7 +4519,8 @@
       "body": "Ana ci gaba da sauke juzu'oinsa, bita da tarihinsa tare da sauran wannan harshe. Ka haɗa don saukewa.",
       "latest": "Na ƙarshe: juzu'i {{n, number}}, na {{name}}.",
       "requests": "Buƙatun da ke buɗe: {{n, number}}."
-    }
+    },
+    "download": "Sauke don amfani ba intanet"
   },
   "moderation": {
     "flagLabel": "Kai ƙara ko toshe {{name}}",
@@ -4985,7 +4959,6 @@
       "chapter": "Babi na {{n}}",
       "chapterHelp": "Yana buɗe nassinsa. Alamar ✓ tana nufin an gama, ɗigo yana nufin an fara.",
       "keyLabel": "Alamar ✓ tana nufin an gama, ɗigo yana nufin an fara",
-      "keyLabelOffline": "Alamar ✓ tana nufin an gama, ɗigo yana nufin an fara, gajimare yana nufin an adana a wannan na'ura",
       "barHelp": "Sandan yana cika yayin da ake naɗa nassosinsa; ɓangaren kore an gama shi.",
       "countHelp": "{{shown}} yana nufin an naɗa {{recorded}} cikin nassosinsa {{total}}.",
       "matchHelp": "Lambar ita ce yawan nassosinsa da suka dace da tacewa.",
@@ -4998,7 +4971,6 @@
     "key": {
       "done": "An gama",
       "started": "An fara",
-      "onDevice": "A wannan na'ura",
       "doneSub": "An kammala kowane duba",
       "startedSub": "An fara naɗawa, an naɗa, yana wurin masu bita, ko sharhi yana jira",
       "notStarted": "Ba a fara ba",
@@ -7343,5 +7315,27 @@
     "otherLabel": "Buɗe wata ƙungiya",
     "readOnly": "Kuna kallo a matsayin Mai Kallo na Duniya: ba za a iya canza komai a nan ba.",
     "linkHelp": "Inda kuke kallo, abin da za ku iya yi a can, da dukan sauran ƙungiyoyi."
+  },
+  "uploads": {
+    "barRecordings_one": "Naɗi {{count, number}} yana jiran ɗorawa",
+    "barRecordings_other": "Naɗe-naɗe {{count, number}} suna jiran ɗorawa",
+    "barChanges_one": "Canji {{count, number}} yana jiran ɗorawa",
+    "barChanges_other": "Canje-canje {{count, number}} suna jiran ɗorawa",
+    "uploading": "Ana ɗorawa",
+    "allUploaded": "An ɗora komai",
+    "barHelp": "Yana buɗe abin da aka adana a wannan na'ura yana jiran ɗorawa, da lokacin da aka ɗora abubuwa.",
+    "savedHere": "An adana a wannan na'ura",
+    "lastUpload": "Ɗorawa ta ƙarshe: {{when}}",
+    "waitingTitle": "Yana jiran ɗorawa",
+    "uploadedTitle": "An ɗora",
+    "recordingsUploaded_one": "An ɗora {{uploaded, number}} cikin naɗi {{count, number}}",
+    "recordingsUploaded_other": "An ɗora {{uploaded, number}} cikin naɗe-naɗe {{count, number}}",
+    "changesWaiting_one": "Canji {{count, number}} yana jira",
+    "changesWaiting_other": "Canje-canje {{count, number}} suna jira",
+    "otherChanges": "Wasu canje-canje",
+    "recordings_one": "Naɗi {{count, number}}",
+    "recordings_other": "Naɗe-naɗe {{count, number}}",
+    "changes_one": "Canji {{count, number}}",
+    "changes_other": "Canje-canje {{count, number}}"
   }
 }

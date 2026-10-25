@@ -55,7 +55,9 @@
     "hoursAgo_one": "há {{count, number}} h",
     "hoursAgo_many": "há {{count, number}} h",
     "hoursAgo_other": "há {{count, number}} h",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Hoje",
+    "yesterday": "Ontem"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -3196,9 +3198,6 @@
       "ready": "Atualização pronta: toque para reiniciar",
       "downloading": "Baixando atualização…",
       "downloadingPercent": "Baixando atualização… {{percent}}",
-      "offline": "Sem internet: toque para tentar de novo",
-      "failed": "A atualização falhou: {{reason}}. Toque para tentar de novo",
-      "offlineLabel": "Sem internet: não é possível verificar atualizações",
       "webReady": "Uma nova versão do LangQuest está pronta. Recarregue para usá-la.",
       "storeBuild": "versão da loja",
       "updateBuild": "atualização {{id}}",
@@ -3486,11 +3485,9 @@
         "checking": "Conectado, mas o canal ao vivo está fora, então este dispositivo procura alterações a cada poucos minutos. Sincronizar agora procura na hora.",
         "offline": "Sem conexão. Tudo o que você faz fica guardado neste dispositivo e é enviado sozinho quando você voltar a ficar online.",
         "refused": "O servidor não está aceitando alterações deste dispositivo. Seu trabalho continua guardado aqui.",
-        "toSend": "Alterações e gravações feitas neste dispositivo que o servidor ainda não confirmou. Estão seguras aqui e são enviadas quando houver conexão.",
         "toReceive": "Gravações de outras pessoas que este dispositivo ainda está baixando.",
         "refusedLine": "Alterações que o servidor não aceitou, geralmente porque uma permissão mudou. Ficam neste dispositivo; abra Detalhes para ver cada uma."
       },
-      "toSend": "A enviar",
       "toReceive": "A receber",
       "refusedLine": "Recusadas",
       "none": "Nenhuma",
@@ -4596,48 +4593,19 @@
   "offline": {
     "onDevice": "Neste aparelho",
     "downloading": "Baixando para usar sem internet",
-    "audioNotHere": "Áudio não está neste aparelho",
-    "notKept": "Não guardado neste aparelho",
     "audioNotKept": "Áudio não guardado neste aparelho",
     "connectToFinish": "Conecte-se para terminar antes de viajar.",
     "stayConnected": "Fique conectado até isto terminar.",
-    "keep": "Guardar no aparelho",
-    "stopKeeping": "Parar de guardar no aparelho",
     "reason": {
       "asked": "Guardada porque pediram para você trabalhar nela.",
       "worked": "Guardada porque você trabalhou nela.",
       "chosen": "Guardada porque você escolheu guardá-la."
     },
     "passage": {
-      "notSent_one": "{{count, number}} gravação ainda não foi enviada do aparelho que a fez.",
-      "notSent_many": "{{count, number}} de gravações ainda não foram enviadas do aparelho que as fez.",
-      "notSent_other": "{{count, number}} gravações ainda não foram enviadas do aparelho que as fez.",
-      "studyOnline": "As imagens e os áudios do estudo precisam de conexão no aplicativo da web.",
-      "worksWithStudy": "O texto, o áudio e as imagens do estudo dela funcionam sem internet.",
-      "worksWithAudio": "O texto e o áudio dela funcionam sem internet.",
-      "worksTextOnly": "O texto dela funciona sem internet, e os novos áudios são baixados quando chegam.",
-      "audioFilesHere_one": "{{here, number}} de {{count, number}} arquivo de áudio está aqui.",
-      "audioFilesHere_many": "{{here, number}} de {{count, number}} de arquivos de áudio estão aqui.",
-      "audioFilesHere_other": "{{here, number}} de {{count, number}} arquivos de áudio estão aqui.",
-      "audioFilesHereLeft_one": "{{here, number}} de {{count, number}} arquivo de áudio está aqui; faltam {{size}} de áudio.",
-      "audioFilesHereLeft_many": "{{here, number}} de {{count, number}} de arquivos de áudio estão aqui; faltam {{size}} de áudio.",
-      "audioFilesHereLeft_other": "{{here, number}} de {{count, number}} arquivos de áudio estão aqui; faltam {{size}} de áudio.",
-      "studyFilesHere_one": "{{here, number}} de {{count, number}} arquivo de áudio e estudo está aqui.",
-      "studyFilesHere_many": "{{here, number}} de {{count, number}} de arquivos de áudio e estudo estão aqui.",
-      "studyFilesHere_other": "{{here, number}} de {{count, number}} arquivos de áudio e estudo estão aqui.",
-      "studyFilesHereLeft_one": "{{here, number}} de {{count, number}} arquivo de áudio e estudo está aqui; faltam {{size}} de áudio.",
-      "studyFilesHereLeft_many": "{{here, number}} de {{count, number}} de arquivos de áudio e estudo estão aqui; faltam {{size}} de áudio.",
-      "studyFilesHereLeft_other": "{{here, number}} de {{count, number}} arquivos de áudio e estudo estão aqui; faltam {{size}} de áudio.",
       "onlySomeHere_one": "Só {{here, number}} de {{count, number}} arquivo neste aparelho",
       "onlySomeHere_many": "Só {{here, number}} de {{count, number}} de arquivos neste aparelho",
       "onlySomeHere_other": "Só {{here, number}} de {{count, number}} arquivos neste aparelho",
-      "downloadingCount": "Baixando para usar sem internet · {{here, number}} de {{total, number}}",
-      "notAllHere": "Ainda não está tudo neste aparelho",
-      "readRecordAudioNeeds": "Você pode ler e gravar, mas o áudio precisa de conexão.",
-      "readRecordStudyNeeds": "Você pode ler e gravar, mas o áudio e as imagens do estudo precisam de conexão.",
-      "textHereAudioNeeds": "O texto está aqui, mas o áudio precisa de conexão. Guarde no aparelho para levar com você.",
-      "textHereStudyNeeds": "O texto está aqui, mas o áudio e as imagens do estudo precisam de conexão. Guarde no aparelho para levar com você.",
-      "barHelp": "Enche conforme os arquivos dela chegam a este aparelho."
+      "downloadingCount": "Baixando para usar sem internet · {{here, number}} de {{total, number}}"
     },
     "toast": {
       "kept": "Guardada neste aparelho. É baixada enquanto você estiver conectado.",
@@ -4673,8 +4641,8 @@
       "alwaysBody": "O texto, a situação e o histórico de cada passagem em {{language}}. O áudio das passagens em que pediram para você trabalhar, em que você trabalhou ou que você escolheu guardar.",
       "alwaysBodyStudy": "O texto, a situação e o histórico de cada passagem em {{language}}. O áudio, as imagens, os mapas e os áudios do estudo das passagens em que pediram para você trabalhar, em que você trabalhou ou que você escolheu guardar.",
       "needsTitle": "Precisa de conexão",
-      "needsNotKept": "O áudio das passagens que você não guardou. Abra uma passagem e toque em Guardar no aparelho para levá-la com você.",
-      "needsNotKeptStudy": "O áudio e o material de estudo das passagens que você não guardou. Abra uma passagem e toque em Guardar no aparelho para levá-la com você.",
+      "needsNotDownloaded": "O áudio das passagens não baixadas.",
+      "needsNotDownloadedStudy": "O áudio e o material de estudo das passagens não baixadas.",
       "needsFilms": "Vídeos do estudo.",
       "needsStudyWeb": "Imagens, mapas e áudios do estudo, no aplicativo da web.",
       "needsReports": "Relatórios.",
@@ -4697,7 +4665,8 @@
       "body": "Suas versões, revisões e histórico ainda estão sendo baixados com o resto deste idioma. Conecte-se para baixar.",
       "latest": "Última: versão {{n, number}}, por {{name}}.",
       "requests": "Pedidos abertos: {{n, number}}."
-    }
+    },
+    "download": "Baixar para usar sem internet"
   },
   "moderation": {
     "flagLabel": "Denunciar ou bloquear {{name}}",
@@ -5148,7 +5117,6 @@
       "chapter": "Capítulo {{n}}",
       "chapterHelp": "Abre a passagem dele. Um visto quer dizer pronto, um ponto quer dizer começado.",
       "keyLabel": "Um visto quer dizer pronto, um ponto quer dizer começado",
-      "keyLabelOffline": "Um visto quer dizer pronto, um ponto quer dizer começado, uma nuvem quer dizer guardado neste aparelho",
       "barHelp": "A barra enche conforme as passagens são gravadas; o trecho verde está pronto.",
       "countHelp": "{{shown}} quer dizer que {{recorded}} das {{total}} passagens estão gravadas.",
       "matchHelp": "O número mostra quantas das passagens combinam com o filtro.",
@@ -5161,7 +5129,6 @@
     "key": {
       "done": "Pronto",
       "started": "Começado",
-      "onDevice": "Neste aparelho",
       "doneSub": "Todas as verificações estão completas",
       "startedSub": "Gravação começada, gravado, com revisores, ou comentários esperando",
       "notStarted": "Não começado",
@@ -7649,5 +7616,33 @@
     "otherLabel": "Abrir outra organização",
     "readOnly": "Você está vendo como Observador global: nada aqui pode ser alterado.",
     "linkHelp": "Onde você está vendo, o que pode fazer lá e todas as outras organizações."
+  },
+  "uploads": {
+    "barRecordings_one": "{{count, number}} gravação esperando envio",
+    "barRecordings_many": "{{count, number}} de gravações esperando envio",
+    "barRecordings_other": "{{count, number}} gravações esperando envio",
+    "barChanges_one": "{{count, number}} mudança esperando envio",
+    "barChanges_many": "{{count, number}} de mudanças esperando envio",
+    "barChanges_other": "{{count, number}} mudanças esperando envio",
+    "uploading": "Enviando",
+    "allUploaded": "Tudo enviado",
+    "barHelp": "Abre o que está guardado neste aparelho esperando envio, e quando cada coisa foi enviada.",
+    "savedHere": "Guardado neste aparelho",
+    "lastUpload": "Último envio: {{when}}",
+    "waitingTitle": "Esperando envio",
+    "uploadedTitle": "Enviado",
+    "recordingsUploaded_one": "{{uploaded, number}} de {{count, number}} gravação enviada",
+    "recordingsUploaded_many": "{{uploaded, number}} de {{count, number}} de gravações enviadas",
+    "recordingsUploaded_other": "{{uploaded, number}} de {{count, number}} gravações enviadas",
+    "changesWaiting_one": "{{count, number}} mudança esperando",
+    "changesWaiting_many": "{{count, number}} de mudanças esperando",
+    "changesWaiting_other": "{{count, number}} mudanças esperando",
+    "otherChanges": "Outras mudanças",
+    "recordings_one": "{{count, number}} gravação",
+    "recordings_many": "{{count, number}} de gravações",
+    "recordings_other": "{{count, number}} gravações",
+    "changes_one": "{{count, number}} mudança",
+    "changes_many": "{{count, number}} de mudanças",
+    "changes_other": "{{count, number}} mudanças"
   }
 }

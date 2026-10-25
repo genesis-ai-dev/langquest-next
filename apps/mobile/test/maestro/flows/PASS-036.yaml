@@ -44,7 +44,7 @@ tags:
       platform: Android
     commands:
       - setAirplaneMode: enabled
-# P-S: not kept. The line is under the header, before the path.
+# P-S: not kept. The line is under the header, before the path: the download button.
 - tapOn:
     text: "${P_NEW.split(':')[0]}"
     index: 0
@@ -60,18 +60,10 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
-- assertVisible: ".*(Not kept on this device|Audio not on this device).*"
-- tapOn: "Something else\\?"
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - extendedWaitUntil:
-          visible: ".*Audio not on this device.*"
-          timeout: 120000
-      - assertVisible: ".*You can read it and record, but its audio needs a connection\\..*"
-- tapOn:
-    id: "header-close"
+# Not kept: its download button, offline too (decision 166).
+- assertVisible:
+    id: "passage-offline"
+    text: "Download for offline"
 # The record's status and history show while offline.
 - tapOn: "Versions and history"
 - assertVisible: ".*Versions.*"

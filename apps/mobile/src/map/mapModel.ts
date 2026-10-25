@@ -415,6 +415,22 @@ export function chapterTiles(book: CanonBook, entries: readonly Entry[], forYou:
   });
 }
 
+/**
+ * Whether a book's passages are its chapters, one each: then it shows as
+ * chapter tiles. A book divided into passages shows them as rows instead,
+ * since a passage may run across chapters (decisions.md 166).
+ */
+export function chaptersAreWhole(entries: readonly Entry[]): boolean {
+  const seen = new Set<number>();
+  for (const e of entries) {
+    if (e.place.chapters.length !== 1) return false;
+    const n = e.place.chapters[0]!;
+    if (seen.has(n)) return false;
+    seen.add(n);
+  }
+  return true;
+}
+
 /** The tiles in rows of `cols`, the last one short. */
 export function chapterRows(chapters: readonly ChapterTile[], cols: number): ChapterTile[][] {
   const rows: ChapterTile[][] = [];

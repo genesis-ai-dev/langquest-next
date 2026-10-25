@@ -1,7 +1,7 @@
 # SYNC-016 Keep a passage offline, and stop keeping it (docs/ui-test-suite/12-sync-and-offline.md,
-# decision 61). REV keeps P-ASIDE, which REV was never asked about and never
+# decisions 61 and 166). REV keeps P-ASIDE, which REV was never asked about and never
 # worked on (P-DONE, in the written test, is one REV reviewed in the fixture,
-# so it is kept already). The offline card is under "Something else?" on the
+# so it is kept already). The download button is the line at the top of the
 # record. Me's count goes up by one, then back down.
 appId: com.frontierrnd.langquestnext
 name: "SYNC-016 Keep a passage offline, and stop keeping it"
@@ -42,25 +42,23 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
-- assertVisible: ".*Not kept on this device.*"
-- tapOn: "Something else\\?"
-- assertVisible: ".*Its text is here, but its audio( and study pictures)? needs? a connection\\. Keep it offline to take it with you\\..*"
+# Its download button is the line at the top of the passage (decision 166).
+- assertVisible:
+    id: "passage-offline"
+    text: "Download for offline"
 # Step 2: keep it.
 - tapOn:
-    text: "Keep offline"
+    id: "passage-offline"
     waitToSettleTimeoutMs: 0
 # One assertion on the toast itself: it is gone a few seconds after the tap.
 - assertVisible:
     id: "toast"
     text: ".*Kept on this device\\. It downloads while you are connected\\..*"
 - assertVisible: ".*(Downloading for offline|On this device).*"
-- assertVisible: ".*Kept because you chose to keep it\\..*"
 # Step 3: it finishes, and Me counts one more.
 - extendedWaitUntil:
     visible: ".*On this device.*"
     timeout: 300000
-- tapOn:
-    id: "header-close"
 - tapOn:
     id: "header-back"
 - tapOn:
@@ -85,15 +83,13 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
-- tapOn: "Something else\\?"
+# The green button again: kept by choice, so it stops keeping it.
 - tapOn:
-    text: "Stop keeping offline"
+    id: "passage-offline"
     waitToSettleTimeoutMs: 0
 - assertVisible:
     id: "toast"
     text: ".*No longer kept\\. Its audio may be removed to make room\\..*"
-- tapOn:
-    id: "header-close"
 - tapOn:
     id: "header-back"
 - tapOn:
@@ -118,6 +114,10 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
-- tapOn: "Something else\\?"
-- assertVisible: ".*Kept because you were asked to work on it\\..*"
-- assertNotVisible: ".*Stop keeping offline.*"
+- tapOn:
+    id: "passage-offline"
+    waitToSettleTimeoutMs: 0
+- assertVisible:
+    id: "toast"
+    text: ".*Kept because you were asked to work on it\\..*"
+- assertVisible: ".*(Downloading for offline|On this device).*"

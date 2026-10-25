@@ -362,25 +362,22 @@ Preconditions:
   kept already).
 
 Steps:
-1. Open P-ASIDE. Read the offline line, then tap "Something else?", where
-   the passage's offline card is.
-2. Tap "Keep offline".
+1. Open P-ASIDE. Read the line at the top of the passage.
+2. Tap it.
 3. Wait until it finishes. Read the line, then Me's "Ready for offline".
-4. Open P-ASIDE again, "Something else?", and tap "Stop keeping offline".
+4. Open P-ASIDE again and tap the line.
 
 Expected:
-- Step 1: "Not kept on this device", with "Its text is here, but its audio
-  needs a connection. Keep it offline to take it with you." (on a phone,
-  where the passage has a study: "…its audio and study pictures need a
-  connection…") and a "Keep offline" button.
+- Step 1: "Download for offline", with an outline download button
+  (decision 166).
 - Step 2: the toast "Kept on this device. It downloads while you are
-  connected." The line says "Downloading for offline" with "{here} of
-  {total}" and a bar, and "Kept because you chose to keep it."
-- Step 3: "On this device". Me's count went up by one.
+  connected." The line says "Downloading for offline · {here} of {total}"
+  with an arrow wave.
+- Step 3: "On this device", green. Me's count went up by one.
 - Step 4: the toast "No longer kept. Its audio may be removed to make
   room." Me's count goes back down.
-- A passage kept because REV was asked to review it says "Kept because you
-  were asked to work on it." and has no "Stop keeping offline".
+- A passage kept because REV was asked to review it: tapping its line says
+  "Kept because you were asked to work on it." and it stays kept.
 
 ### SYNC-017 The Sync screen lists what is always here and what needs a connection
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Manual

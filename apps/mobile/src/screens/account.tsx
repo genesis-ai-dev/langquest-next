@@ -23,6 +23,8 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
 import { FillBanner, OfflineCard } from '../sync/offline';
+import { SentList, UploadsCard, WaitingList } from '../sync/uploads';
+import { changeUnits } from '../sync/uploadsModel';
 import { useOfflineSummary } from '../sync/useOfflineSummary';
 import { useSyncStatus } from '../sync/useSyncStatus';
 import { offlineCount, moreSettingsSub } from '../account/meModel';
@@ -359,7 +361,7 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="user" label={name} sub={t('account.me.nameSub')} help={t('account.me.nameHelp')} onPress={() => ctx.go('profile_edit')} />
         {inSeveral(orgs) ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
         {/* What comes along to the field, seen before a trip (decisions.md 61). */}
-        <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} help={t('account.me.offlineHelp')} onPress={() => ctx.go('sync_status')} />
+        <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} help={t('account.me.offlineHelp')} onPress={() => ctx.go('sync_status', { show: 'offline' })} />
         <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} help={t('account.me.tourHelp')} onPress={() => ctx.go('vision')} />
         <LanguageRow />
         <Row icon="settings" label={t('account.me.more')} sub={moreSub} help={t('account.me.moreHelp')} onPress={() => ctx.go('settings_more')}
@@ -808,6 +810,7 @@ export function SyncStatus(ctx: Ctx) {
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
   const rejected = refusedHere(ins, orgIns, logged);
   const standing = syncStanding(language);
+  const offlineFirst = ctx.params['show'] === 'offline';
   const [details, setDetails] = useState(false);
   const syncNow = async () => {
     setBusy(true);
@@ -829,11 +832,13 @@ export function SyncStatus(ctx: Ctx) {
         {/* The server's refusal is English (its reason goes to the log): say what it means. */}
         {language.refused || language.tooOld ? <Text style={txt.smMuted}>{language.refused ? t('account.sync.refused') : t('account.sync.tooOld')}</Text> : null}
       </Card>
-      {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
-      <FillBanner ctx={ctx} />
-      <OfflineCard ctx={ctx} s={offlineSummaryNow} />
+      {/* Settings' "Ready for offline" opens here with what comes along first (decisions.md 61); otherwise what waits to upload, by passage, and what went up (decision 166). */}
+      {offlineFirst ? <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></> : null}
+      <UploadsCard ctx={ctx} />
+      <WaitingList ctx={ctx} changes={changeUnits(ctx.language.state, ins?.pending ?? [], orgIns?.pending.length ?? 0)} />
+      <SentList ctx={ctx} />
+      {offlineFirst ? null : <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></>}
       <Card>
-        <SyncLine icon="up" label={t('account.sync.toSend')} value={pendingEvents + sync.pendingUp} rate={sync.pendingUp ? rates.up : 0} help={t('account.sync.help.toSend')} />
         <SyncLine icon="download" label={t('account.sync.toReceive')} value={sync.pendingDown} rate={sync.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} />
         {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
       </Card>

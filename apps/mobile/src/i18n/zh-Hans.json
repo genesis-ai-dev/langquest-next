@@ -51,7 +51,9 @@
     "justNow": "刚刚",
     "minutesAgo_other": "{{count, number}} 分钟前",
     "hoursAgo_other": "{{count, number}} 小时前",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "今天",
+    "yesterday": "昨天"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -3012,9 +3014,6 @@
       "ready": "更新已就绪——点按重新启动",
       "downloading": "正在下载更新……",
       "downloadingPercent": "正在下载更新……{{percent}}",
-      "offline": "离线——点按重试",
-      "failed": "更新失败：{{reason}}——点按重试",
-      "offlineLabel": "离线：无法检查更新",
       "webReady": "LangQuest 的新版本已就绪。重新加载即可使用。",
       "storeBuild": "应用商店版本",
       "updateBuild": "更新 {{id}}",
@@ -3284,11 +3283,9 @@
         "checking": "已连接，但实时通道中断，所以本设备每隔几分钟检查一次更改。“立即同步”会马上检查。",
         "offline": "没有网络连接。你所做的一切都保存在本设备上，重新联网后会自动发送。",
         "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
-        "toSend": "本设备上服务器尚未确认的更改和录音。它们在这里很安全，有网络时就会发送。",
         "toReceive": "本设备仍在下载的他人录音。",
         "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。"
       },
-      "toSend": "待发送",
       "toReceive": "待接收",
       "refusedLine": "被拒绝",
       "none": "无",
@@ -4320,36 +4317,17 @@
   "offline": {
     "onDevice": "在本设备上",
     "downloading": "正在下载以便离线使用",
-    "audioNotHere": "音频不在本设备上",
-    "notKept": "未保存在本设备上",
     "audioNotKept": "音频未保存在本设备上",
     "connectToFinish": "出行前请联网完成下载。",
     "stayConnected": "请保持联网，直到完成。",
-    "keep": "离线保存",
-    "stopKeeping": "停止离线保存",
     "reason": {
       "asked": "已保存，因为有人请你做这项工作。",
       "worked": "已保存，因为你做过这项工作。",
       "chosen": "已保存，因为你选择了保存。"
     },
     "passage": {
-      "notSent_other": "有 {{count, number}} 段录音还没有从录制它们的设备上发送出来。",
-      "studyOnline": "在网页版中，学习图片和学习音频需要联网。",
-      "worksWithStudy": "它的文字、音频和学习图片不联网也能用。",
-      "worksWithAudio": "它的文字和音频不联网也能用。",
-      "worksTextOnly": "它的文字不联网也能用，新的音频到达时会自动下载。",
-      "audioFilesHere_other": "{{count, number}} 个音频文件中已有 {{here, number}} 个在这里。",
-      "audioFilesHereLeft_other": "{{count, number}} 个音频文件中已有 {{here, number}} 个在这里，还剩 {{size}} 音频。",
-      "studyFilesHere_other": "{{count, number}} 个音频和学习文件中已有 {{here, number}} 个在这里。",
-      "studyFilesHereLeft_other": "{{count, number}} 个音频和学习文件中已有 {{here, number}} 个在这里，还剩 {{size}} 音频。",
       "onlySomeHere_other": "本设备上只有 {{here, number}}/{{count, number}} 个文件",
-      "downloadingCount": "正在下载以便离线使用 · {{here, number}}/{{total, number}}",
-      "notAllHere": "还没有全部下载到本设备上",
-      "readRecordAudioNeeds": "你可以阅读和录音，但它的音频需要联网。",
-      "readRecordStudyNeeds": "你可以阅读和录音，但它的音频和学习图片需要联网。",
-      "textHereAudioNeeds": "它的文字已在这里，但音频需要联网。离线保存后就可以随身带着。",
-      "textHereStudyNeeds": "它的文字已在这里，但音频和学习图片需要联网。离线保存后就可以随身带着。",
-      "barHelp": "文件下载到本设备时，进度条会逐渐填满。"
+      "downloadingCount": "正在下载以便离线使用 · {{here, number}}/{{total, number}}"
     },
     "toast": {
       "kept": "已保存在本设备上。联网时会自动下载。",
@@ -4373,8 +4351,8 @@
       "alwaysBody": "{{language}}中每个经段的文字、状态和历史记录。有人请你做的、你做过的或你选择保存的经段的音频。",
       "alwaysBodyStudy": "{{language}}中每个经段的文字、状态和历史记录。有人请你做的、你做过的或你选择保存的经段的音频、学习图片、地图和学习音频。",
       "needsTitle": "需要联网",
-      "needsNotKept": "你没有保存的经段的音频。打开一个经段，点按“离线保存”就可以随身带着。",
-      "needsNotKeptStudy": "你没有保存的经段的音频和学习资料。打开一个经段，点按“离线保存”就可以随身带着。",
+      "needsNotDownloaded": "未下载段落的音频。",
+      "needsNotDownloadedStudy": "未下载段落的音频和学习资料。",
       "needsFilms": "学习影片。",
       "needsStudyWeb": "网页版中的学习图片、地图和学习音频。",
       "needsReports": "报告。",
@@ -4395,7 +4373,8 @@
       "body": "它的版本、审阅和历史记录仍在与此语言的其余部分一起下载。请连接网络以下载。",
       "latest": "最新：第 {{n, number}} 版，由 {{name}} 录制。",
       "requests": "待处理的请求：{{n, number}}。"
-    }
+    },
+    "download": "下载以便离线使用"
   },
   "moderation": {
     "flagLabel": "举报或屏蔽{{name}}",
@@ -4822,7 +4801,6 @@
       "chapter": "第 {{n}} 章",
       "chapterHelp": "打开它的经段。勾表示已完成，圆点表示已开始。",
       "keyLabel": "勾表示已完成，圆点表示已开始",
-      "keyLabelOffline": "勾表示已完成，圆点表示已开始，云朵表示已保存在本设备上",
       "barHelp": "经段录音后，横条会逐渐填满；绿色部分是已完成的。",
       "countHelp": "{{shown}}表示它的 {{total}} 个经段中已有 {{recorded}} 个录音。",
       "matchHelp": "数字表示它有多少个经段符合筛选条件。",
@@ -4835,7 +4813,6 @@
     "key": {
       "done": "已完成",
       "started": "已开始",
-      "onDevice": "在本设备上",
       "doneSub": "所有检查都已完成",
       "startedSub": "已开始录音、已录好、在审核人那里，或有反馈等待处理",
       "notStarted": "未开始",
@@ -7037,5 +7014,21 @@
     "otherLabel": "打开其他机构",
     "readOnly": "你正以全局查看者的身份查看：这里的任何内容都不能更改。",
     "linkHelp": "你正在查看的地方、在那里能做什么，以及所有其他机构。"
+  },
+  "uploads": {
+    "barRecordings_other": "{{count, number}} 段录音等待上传",
+    "barChanges_other": "{{count, number}} 项更改等待上传",
+    "uploading": "正在上传",
+    "allUploaded": "已全部上传",
+    "barHelp": "打开保存在本设备上等待上传的内容，以及各项上传的时间。",
+    "savedHere": "已保存在本设备上",
+    "lastUpload": "上次上传：{{when}}",
+    "waitingTitle": "等待上传",
+    "uploadedTitle": "已上传",
+    "recordingsUploaded_other": "已上传 {{uploaded, number}}/{{count, number}} 段录音",
+    "changesWaiting_other": "{{count, number}} 项更改等待中",
+    "otherChanges": "其他更改",
+    "recordings_other": "{{count, number}} 段录音",
+    "changes_other": "{{count, number}} 项更改"
   }
 }

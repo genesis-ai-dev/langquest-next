@@ -125,18 +125,17 @@ export async function noteAs(world: UiWorld, key: AccountKey, passage: PassageKe
 }
 
 /**
- * Open a passage through the Map's book and chapter, as a person does
+ * Open a passage through the Map's book and its row there, as a person does
  * offline (the Map's search is not there without a connection).
  */
 export async function openPassageByBook(page: Page, world: UiWorld, key: PassageKey): Promise<void> {
-  const { label, ref } = world.passages[key];
-  const chapter = /^Luke (\d+):/.exec(ref)![1]!;
+  const { label } = world.passages[key];
   await page.getByTestId('tab-map').locator('visible=true').last().click();
   const alpha = text(page, 'Alpha');
   if (!(await page.getByRole('button', { name: /^Luke/ }).locator('visible=true').count()) && await alpha.isVisible().catch(() => false)) await alpha.click();
   await button(page, /^Luke/).click();
-  await button(page, new RegExp(`^Chapter ${chapter}:`)).click();
-  await text(page, label, false).click();
+  // Luke lists its passages (decisions.md 166): the row is named by the passage.
+  await button(page, new RegExp(`^${label}\\.`)).click();
   await expect(text(page, 'Something else?')).toBeVisible();
 }
 

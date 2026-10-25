@@ -142,7 +142,8 @@ const NO_LINES: PassageLines = languageLines(emptyLanguageState());
 const NOTHING_YET: LanguageStatus = {
   revision: 0, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
   refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0,
-  present: new Set(), keptUnits: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES, fill: null
+  present: new Set(), keptUnits: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES, fill: null,
+  uploads: new Map(), sent: []
 };
 
 /**
@@ -242,7 +243,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
         setStatus((prev) => (slowSame(prev, now) ? prev : now));
         syncStatus.set({
           pending: now.pending, lastSync: now.lastSync, pendingUp: now.pendingUp, pendingDown: now.pendingDown,
-          peakUp: now.peakUp, peakDown: now.peakDown, present: now.present
+          peakUp: now.peakUp, peakDown: now.peakDown, present: now.present, uploads: now.uploads, sent: now.sent
         });
       };
       stops.push(session.subscribe(publish));

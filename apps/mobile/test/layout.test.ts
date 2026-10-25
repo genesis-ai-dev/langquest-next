@@ -48,15 +48,15 @@ describe('responsive layout (decisions.md 55)', () => {
     expect(frame(1440, { chrome: true, split: false }).chromeWidth).toBe(measure.sidebar);
   });
 
-  it('a book grid is five across on every phone and stays tile-sized wider', () => {
-    for (let w = 320; w < 768; w++) expect(chapterColumns(w, 'phone')).toBe(5);
+  it('a book grid is four across on every phone and stays tile-sized wider', () => {
+    for (let w = 320; w < 768; w++) expect(chapterColumns(w, 'phone')).toBe(4);
     for (let w = 320; w <= 2560; w += 13) {
       for (const kind of ['tablet', 'desktop'] as const) {
         const cols = chapterColumns(w, kind);
-        expect(cols).toBeGreaterThanOrEqual(5);
-        expect(cols).toBeLessThanOrEqual(10);
+        expect(cols).toBeGreaterThanOrEqual(4);
+        expect(cols).toBeLessThanOrEqual(8);
       }
     }
-    expect(chapterColumns(measure.column, 'desktop')).toBeGreaterThan(5);
+    expect(chapterColumns(measure.column, 'desktop')).toBeGreaterThan(4);
   });
 });

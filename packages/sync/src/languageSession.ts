@@ -1,10 +1,11 @@
 import {
-  audioFormatsFor, concerning, decodeHlc, filePlanOf, languageLines, updatesFor, uploadWorkOf,
-  type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
+  audioFormatsFor, concerning, decodeHlc, eventPassage, filePlanOf, languageLines, passageInMemory, updatesFor, uploadWorkOf,
+  type AnyEvent, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
   type LostFilesView, type OfflineSummary, type PassageLine, type PassageLines, type UnitOffline, type Update
 } from '@langquest-next/core';
 import { RECORD_KINDS } from './keptLanguage';
 import { LanguageFiles } from './languageFiles';
+import { noteSent, readSentLog, sameUploads, uploadsByPassage, type PassageUploads, type SentEntry } from './sentLog';
 import { SyncClient, type SyncClientOptions, type SyncResult } from './syncClient';
 import { SyncScheduler } from './syncScheduler';
 import { DOWNLOAD_DEFAULTS, TransferWorker, UPLOAD_DEFAULTS, type TransferBudget } from './transferWorker';
@@ -81,6 +82,13 @@ export interface LanguageStatus {
    * "Downloading this language". Null when every passage is here.
    */
   fill: { filled: number; total: number } | null;
+  /**
+   * Recordings waiting to upload, by passage, with how many there were since
+   * the passage's queue was last empty: "7 of 9 uploaded" (decisions.md 166).
+   */
+  uploads: ReadonlyMap<string, PassageUploads>;
+  /** What this device sent of the language, newest first: the Sync screen's "Uploaded" (sentLog.ts). */
+  sent: readonly SentEntry[];
 }
 
 export interface LanguageSessionOptions {
@@ -130,6 +138,9 @@ const INBOX_PASSAGES_PER_READ = 25;
 export const FILE_NEWS_MS = 500;
 
 const keepKey = (orgId: string, languageId: string) => `keep:${orgId}/${languageId}`;
+const sentKey = (orgId: string, languageId: string) => `sent:${orgId}/${languageId}`;
+/** How long what went up gathers before the log is written to the store. */
+const SENT_SAVE_MS = 1000;
 
 /**
  * One language's stream on this device, kept and moved (decisions.md 37,
@@ -155,6 +166,11 @@ export class LanguageSession {
   private recountAt: ReturnType<typeof setTimeout> | undefined;
   /** The upload worker's last work list: what `probe` reports for a language kept on disk. */
   private lastUnsent: BlobRef[] = [];
+  /** Files sent this session that the server has not confirmed yet: uploaded, though still on the upload list. */
+  private readonly sentFiles = new Set<string>();
+  /** Each passage's most recordings waiting since its queue was last empty. */
+  private readonly upPeaks = new Map<string, number>();
+  private sentSaveTimer: ReturnType<typeof setTimeout> | null = null;
   /** Trailing timers: the file set shown to screens, and reclaim after file changes. */
   private presentTimer: ReturnType<typeof setTimeout> | null = null;
   private reclaimTimer: ReturnType<typeof setTimeout> | null = null;
@@ -176,12 +192,14 @@ export class LanguageSession {
       transport: o.transport,
       ...(o.isDeferred ? { deferCheckpoint: o.isDeferred } : {}),
       ...(o.keepOnDisk ? { keepOnDisk: true } : {}),
-      ...(o.build ? { build: o.build } : {})
+      ...(o.build ? { build: o.build } : {}),
+      onSent: (events) => session?.changesSent(events)
     });
     await client.trackOpen();
     await client.load('open');
     const kept = new Set<string>(JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[]);
-    session = new LanguageSession(o, client, kept);
+    const sent = readSentLog(await o.store.meta(sentKey(o.orgId, o.languageId)));
+    session = new LanguageSession(o, client, kept, sent);
     return session;
   }
 
@@ -191,12 +209,13 @@ export class LanguageSession {
     return [...this.current.scope, ...this.current.keptUnits, ...concerning(lines, this.o.actorId)];
   }
 
-  private constructor(private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>) {
+  private constructor(private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>, sent: readonly SentEntry[]) {
     this.current = {
       revision: client.publishedRevision, pending: 0, refusedEvents: 0, lastSync: 'never',
       online: null, tooOld: false, refused: null, pulled: false, live: false,
       pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
-      keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines(), fill: client.fillProgress()
+      keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines(), fill: client.fillProgress(),
+      uploads: new Map(), sent
     };
     this.publishedVersion = o.files.version;
     const files = o.files;
@@ -214,8 +233,13 @@ export class LanguageSession {
       ...UPLOAD_DEFAULTS,
       ...common,
       // Size from the confirmation versus the file here: a mismatch reopens the upload.
-      work: async () => { const list = await plan.upload(this.here(), files.sizes()); this.lastUnsent = list; return list; },
-      transfer: o.upload,
+      work: async () => { const list = await plan.upload(this.here(), files.sizes()); this.lastUnsent = list; this.countUploads(); return list; },
+      transfer: async (ref) => {
+        await o.upload(ref);
+        this.sentFiles.add(ref.hash);
+        this.noteSent({ unitId: ref.unitId || null, files: 1 });
+        this.countUploads();
+      },
       onChange: (n) => this.set({ pendingUp: n, peakUp: n === 0 ? 0 : Math.max(this.current.peakUp, n) })
     });
     this.down = new TransferWorker({
@@ -278,6 +302,7 @@ export class LanguageSession {
     this.scheduler.stop();
     if (this.presentTimer) clearTimeout(this.presentTimer);
     if (this.reclaimTimer) clearTimeout(this.reclaimTimer);
+    if (this.sentSaveTimer) { clearTimeout(this.sentSaveTimer); this.sentSaveTimer = null; void this.saveSent(); }
     this.presentTimer = this.reclaimTimer = null;
     this.listeners.clear();
   }
@@ -639,6 +664,40 @@ export class LanguageSession {
     this.set({ revision: this.client.publishedRevision });
     void this.client.pendingCount().then((pending) => this.set({ pending })).catch(() => {});
     void this.client.refusedCount().then((refusedEvents) => this.set({ refusedEvents })).catch(() => {});
+  }
+
+  /** Recordings waiting by passage, from the last upload list less what went up since (decisions.md 166). */
+  private countUploads(): void {
+    const listed = new Set(this.lastUnsent.map((r) => r.hash));
+    // Confirmed: off the list, so no longer counted as sent and waiting for the server.
+    for (const h of [...this.sentFiles]) if (!listed.has(h)) this.sentFiles.delete(h);
+    const uploads = uploadsByPassage(this.lastUnsent, this.sentFiles, this.upPeaks);
+    for (const unitId of [...this.upPeaks.keys()]) if (!uploads.has(unitId)) this.upPeaks.delete(unitId);
+    for (const [unitId, u] of uploads) this.upPeaks.set(unitId, u.of);
+    if (!sameUploads(uploads, this.current.uploads)) this.set({ uploads });
+  }
+
+  /** The server accepted these events of this device's: noted by passage, as far as memory says which. */
+  private changesSent(events: readonly AnyEvent[]): void {
+    const state = this.client.getState();
+    const byUnit = new Map<string | null, number>();
+    for (const e of events) {
+      const of = eventPassage(e);
+      const unitId = of === 'settings' ? null : passageInMemory(state, of);
+      byUnit.set(unitId, (byUnit.get(unitId) ?? 0) + 1);
+    }
+    for (const [unitId, changes] of byUnit) this.noteSent({ unitId, changes });
+  }
+
+  private noteSent(sent: { unitId: string | null; files?: number; changes?: number }): void {
+    if (this.closed) return;
+    this.set({ sent: noteSent(this.current.sent, { at: Date.now(), ...sent }) });
+    if (this.sentSaveTimer) return;
+    this.sentSaveTimer = setTimeout(() => { this.sentSaveTimer = null; void this.saveSent(); }, SENT_SAVE_MS);
+  }
+
+  private async saveSent(): Promise<void> {
+    await this.o.store.setMeta(sentKey(this.o.orgId, this.o.languageId), JSON.stringify(this.current.sent)).catch(() => {});
   }
 
   /** Change the status and tell subscribers, only when something changed. */

@@ -55,7 +55,9 @@
     "hoursAgo_one": "hace {{count, number}} h",
     "hoursAgo_many": "hace {{count, number}} h",
     "hoursAgo_other": "hace {{count, number}} h",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Hoy",
+    "yesterday": "Ayer"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -3196,9 +3198,6 @@
       "ready": "Actualización lista: toca para reiniciar",
       "downloading": "Descargando actualización…",
       "downloadingPercent": "Descargando actualización… {{percent}}",
-      "offline": "Sin conexión: toca para reintentar",
-      "failed": "La actualización falló: {{reason}}. Toca para reintentar",
-      "offlineLabel": "Sin conexión: no se pueden buscar actualizaciones",
       "webReady": "Hay una versión nueva de LangQuest lista. Vuelve a cargar la página para usarla.",
       "storeBuild": "versión de la tienda",
       "updateBuild": "actualización {{id}}",
@@ -3486,11 +3485,9 @@
         "checking": "Conectado, pero el canal en vivo no funciona, así que este dispositivo busca cambios cada pocos minutos. Sincronizar ahora lo hace al instante.",
         "offline": "Sin conexión. Todo lo que haga se guarda en este dispositivo y se envía solo cuando vuelva a tener conexión.",
         "refused": "El servidor no acepta cambios de este dispositivo. Su trabajo sigue guardado aquí.",
-        "toSend": "Cambios y grabaciones hechos en este dispositivo que el servidor aún no ha confirmado. Están a salvo aquí y se envían cuando haya conexión.",
         "toReceive": "Grabaciones de otras personas que este dispositivo todavía está descargando.",
         "refusedLine": "Cambios que el servidor no aceptó, normalmente porque cambió un permiso. Se quedan en este dispositivo; abra Detalles para ver cada uno."
       },
-      "toSend": "Por enviar",
       "toReceive": "Por recibir",
       "refusedLine": "Rechazados",
       "none": "Ninguno",
@@ -4596,48 +4593,19 @@
   "offline": {
     "onDevice": "En este dispositivo",
     "downloading": "Descargando para usar sin conexión",
-    "audioNotHere": "El audio no está en este dispositivo",
-    "notKept": "No se guarda en este dispositivo",
     "audioNotKept": "El audio no se guarda en este dispositivo",
     "connectToFinish": "Conéctate para terminar antes de viajar.",
     "stayConnected": "Mantente conectado hasta que esto termine.",
-    "keep": "Guardar sin conexión",
-    "stopKeeping": "Dejar de guardar sin conexión",
     "reason": {
       "asked": "Se guarda porque te pidieron trabajar en él.",
       "worked": "Se guarda porque trabajaste en él.",
       "chosen": "Se guarda porque elegiste guardarlo."
     },
     "passage": {
-      "notSent_one": "{{count, number}} grabación todavía no se ha enviado desde el dispositivo que la hizo.",
-      "notSent_many": "{{count, number}} grabaciones todavía no se han enviado desde el dispositivo que las hizo.",
-      "notSent_other": "{{count, number}} grabaciones todavía no se han enviado desde el dispositivo que las hizo.",
-      "studyOnline": "En la app web, las imágenes y el audio del estudio necesitan conexión.",
-      "worksWithStudy": "Su texto, su audio y las imágenes del estudio funcionan sin conexión.",
-      "worksWithAudio": "Su texto y su audio funcionan sin conexión.",
-      "worksTextOnly": "Su texto funciona sin conexión, y el audio nuevo se descarga a medida que llega.",
-      "audioFilesHere_one": "Hay {{here, number}} de {{count, number}} archivo de audio aquí.",
-      "audioFilesHere_many": "Hay {{here, number}} de {{count, number}} archivos de audio aquí.",
-      "audioFilesHere_other": "Hay {{here, number}} de {{count, number}} archivos de audio aquí.",
-      "audioFilesHereLeft_one": "Hay {{here, number}} de {{count, number}} archivo de audio aquí; faltan {{size}} de audio.",
-      "audioFilesHereLeft_many": "Hay {{here, number}} de {{count, number}} archivos de audio aquí; faltan {{size}} de audio.",
-      "audioFilesHereLeft_other": "Hay {{here, number}} de {{count, number}} archivos de audio aquí; faltan {{size}} de audio.",
-      "studyFilesHere_one": "Hay {{here, number}} de {{count, number}} archivo de audio y estudio aquí.",
-      "studyFilesHere_many": "Hay {{here, number}} de {{count, number}} archivos de audio y estudio aquí.",
-      "studyFilesHere_other": "Hay {{here, number}} de {{count, number}} archivos de audio y estudio aquí.",
-      "studyFilesHereLeft_one": "Hay {{here, number}} de {{count, number}} archivo de audio y estudio aquí; faltan {{size}} de audio.",
-      "studyFilesHereLeft_many": "Hay {{here, number}} de {{count, number}} archivos de audio y estudio aquí; faltan {{size}} de audio.",
-      "studyFilesHereLeft_other": "Hay {{here, number}} de {{count, number}} archivos de audio y estudio aquí; faltan {{size}} de audio.",
       "onlySomeHere_one": "Solo {{here, number}} de {{count, number}} archivo en este dispositivo",
       "onlySomeHere_many": "Solo {{here, number}} de {{count, number}} archivos en este dispositivo",
       "onlySomeHere_other": "Solo {{here, number}} de {{count, number}} archivos en este dispositivo",
-      "downloadingCount": "Descargando para usar sin conexión · {{here, number}} de {{total, number}}",
-      "notAllHere": "Todavía no está todo en este dispositivo",
-      "readRecordAudioNeeds": "Puedes leerlo y grabar, pero su audio necesita conexión.",
-      "readRecordStudyNeeds": "Puedes leerlo y grabar, pero su audio y las imágenes del estudio necesitan conexión.",
-      "textHereAudioNeeds": "Su texto está aquí, pero su audio necesita conexión. Guárdalo sin conexión para llevarlo contigo.",
-      "textHereStudyNeeds": "Su texto está aquí, pero su audio y las imágenes del estudio necesitan conexión. Guárdalo sin conexión para llevarlo contigo.",
-      "barHelp": "Se llena a medida que sus archivos llegan a este dispositivo."
+      "downloadingCount": "Descargando para usar sin conexión · {{here, number}} de {{total, number}}"
     },
     "toast": {
       "kept": "Guardado en este dispositivo. Se descarga mientras tengas conexión.",
@@ -4673,8 +4641,8 @@
       "alwaysBody": "El texto, el estado y el historial de cada pasaje en {{language}}. El audio de los pasajes en los que te pidieron trabajar, en los que trabajaste o que elegiste guardar.",
       "alwaysBodyStudy": "El texto, el estado y el historial de cada pasaje en {{language}}. El audio, las imágenes, los mapas y el audio del estudio de los pasajes en los que te pidieron trabajar, en los que trabajaste o que elegiste guardar.",
       "needsTitle": "Necesita conexión",
-      "needsNotKept": "El audio de los pasajes que no guardaste. Abre un pasaje y toca Guardar sin conexión para llevarlo contigo.",
-      "needsNotKeptStudy": "El audio y el material de estudio de los pasajes que no guardaste. Abre un pasaje y toca Guardar sin conexión para llevarlo contigo.",
+      "needsNotDownloaded": "El audio de los pasajes no descargados.",
+      "needsNotDownloadedStudy": "El audio y el material de estudio de los pasajes no descargados.",
       "needsFilms": "Las películas del estudio.",
       "needsStudyWeb": "Las imágenes, los mapas y el audio del estudio, en la app web.",
       "needsReports": "Los informes.",
@@ -4697,7 +4665,8 @@
       "body": "Sus versiones, revisiones e historial aún se están descargando con el resto de este idioma. Conéctate para descargarlo.",
       "latest": "Última: versión {{n, number}}, de {{name}}.",
       "requests": "Solicitudes abiertas: {{n, number}}."
-    }
+    },
+    "download": "Descargar para usar sin conexión"
   },
   "moderation": {
     "flagLabel": "Reportar o bloquear a {{name}}",
@@ -5148,7 +5117,6 @@
       "chapter": "Capítulo {{n}}",
       "chapterHelp": "Abre su pasaje. Una marca significa listo; un punto, empezado.",
       "keyLabel": "Una marca significa listo; un punto, empezado",
-      "keyLabelOffline": "Una marca significa listo; un punto, empezado; una nube, guardado en este dispositivo",
       "barHelp": "La barra se llena a medida que se graban sus pasajes; lo verde está listo.",
       "countHelp": "{{shown}} significa que {{recorded}} de sus {{total}} pasajes están grabados.",
       "matchHelp": "El número indica cuántos de sus pasajes coinciden con el filtro.",
@@ -5161,7 +5129,6 @@
     "key": {
       "done": "Listo",
       "started": "Empezado",
-      "onDevice": "En este dispositivo",
       "doneSub": "Todas las verificaciones están completas",
       "startedSub": "Grabación empezada, grabado, con revisores o con comentarios pendientes",
       "notStarted": "Sin empezar",
@@ -7649,5 +7616,33 @@
     "otherLabel": "Abrir otra organización",
     "readOnly": "Estás viendo como Observador global: aquí no se puede cambiar nada.",
     "linkHelp": "Dónde estás viendo, qué puedes hacer allí y todas las demás organizaciones."
+  },
+  "uploads": {
+    "barRecordings_one": "{{count, number}} grabación esperando para subir",
+    "barRecordings_many": "{{count, number}} grabaciones esperando para subir",
+    "barRecordings_other": "{{count, number}} grabaciones esperando para subir",
+    "barChanges_one": "{{count, number}} cambio esperando para subir",
+    "barChanges_many": "{{count, number}} cambios esperando para subir",
+    "barChanges_other": "{{count, number}} cambios esperando para subir",
+    "uploading": "Subiendo",
+    "allUploaded": "Todo subido",
+    "barHelp": "Abre lo que está guardado en este dispositivo esperando para subir, y cuándo se subió cada cosa.",
+    "savedHere": "Guardado en este dispositivo",
+    "lastUpload": "Última subida: {{when}}",
+    "waitingTitle": "Esperando para subir",
+    "uploadedTitle": "Subido",
+    "recordingsUploaded_one": "{{uploaded, number}} de {{count, number}} grabación subida",
+    "recordingsUploaded_many": "{{uploaded, number}} de {{count, number}} grabaciones subidas",
+    "recordingsUploaded_other": "{{uploaded, number}} de {{count, number}} grabaciones subidas",
+    "changesWaiting_one": "{{count, number}} cambio en espera",
+    "changesWaiting_many": "{{count, number}} cambios en espera",
+    "changesWaiting_other": "{{count, number}} cambios en espera",
+    "otherChanges": "Otros cambios",
+    "recordings_one": "{{count, number}} grabación",
+    "recordings_many": "{{count, number}} grabaciones",
+    "recordings_other": "{{count, number}} grabaciones",
+    "changes_one": "{{count, number}} cambio",
+    "changes_many": "{{count, number}} cambios",
+    "changes_other": "{{count, number}} cambios"
   }
 }
