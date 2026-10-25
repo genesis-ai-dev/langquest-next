@@ -671,13 +671,15 @@ test('ACCT-051 In a list, one row takes the help numbers', async ({ page }) => {
   await tab(page, 'map').click();
   await button(page, /^Luke/).click();
   // Luke lists its passages (decisions.md 166): every row is the same kind of part.
-  const chapters = page.getByRole('button', { name: /^Luke \d+:\d+/ }).locator('visible=true');
+  // By their test IDs: in help mode each row's spot is named by its title too.
+  const chapters = page.locator('[data-testid^="row-"]').locator('visible=true');
   await expect(chapters.nth(4)).toBeVisible();
   await byId(page, 'header-help').click();
   // The first row holds a number, the rest stay dim.
   const numbered = async () => {
     const marks = await page.getByTestId('help-number').locator('visible=true').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 })));
-    const boxes = await chapters.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ x: r.x, y: r.y, r: r.right, b: r.bottom })));
+    // Rows clear of the tab bar: a long list runs on under it, where the tabs' own numbers are.
+    const boxes = await chapters.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).filter((r) => r.bottom < window.innerHeight - 150).map((r) => ({ x: r.x, y: r.y, r: r.right, b: r.bottom })));
     return boxes.filter((c) => marks.some((m) => m.x >= c.x - 14 && m.x <= c.r && m.y >= c.y - 14 && m.y <= c.b)).length;
   };
   await expect.poll(numbered).toBe(1);

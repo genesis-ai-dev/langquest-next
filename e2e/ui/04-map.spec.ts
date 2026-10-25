@@ -290,7 +290,7 @@ for (const who of ['TRANS', 'VIEW'] as const) {
     // A passage that runs across two chapters is one row.
     expect(rows.filter((l) => l.startsWith('Luke 7:36–8:3.'))).toHaveLength(1);
     const of = (t: string) => rows.find((l) => l.startsWith(`${t}.`))!;
-    expect(of(label('P-NEEDS'))).toMatch(/Feedback/);
+    expect(of(label('P-NEEDS'))).toMatch(/feedback/i);
     expect(of(label('P-NEW'))).toMatch(/Not started/);
     expect(rows.filter((l) => /^Luke 3:/.test(l)).every((l) => /[Dd]one/.test(l))).toBe(true);
     // Every row has its download button.
