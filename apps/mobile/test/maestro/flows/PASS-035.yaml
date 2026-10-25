@@ -1,7 +1,7 @@
 # PASS-035, keeping a passage on this device (docs/ui-test-suite/05-passage-record.md).
-# P-S nobody asked for and nobody worked on, so it starts "Not kept"; P-NEW
-# was asked of TRANS, so it is kept without a Stop button. Phones only: the
-# web app keeps no audio offline (decision 58).
+# P-S nobody asked for and nobody worked on, so its line says "Download for
+# offline"; P-NEW was asked of TRANS, so it is kept and tapping says why
+# (decision 166). Phones only: the web app keeps no audio offline (decision 58).
 appId: com.frontierrnd.langquestnext
 name: "PASS-035 Keep a passage on this device"
 tags:
@@ -33,27 +33,27 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
-- tapOn: "Something else\\?"
-- assertVisible: ".*Not kept on this device.*"
-- assertVisible: ".*Its text is here, but its audio needs a connection\\. Keep it offline to take it with you\\..*"
+- assertVisible:
+    id: "passage-offline"
+    text: "Download for offline"
 - tapOn:
-    text: "Keep offline"
+    id: "passage-offline"
     waitToSettleTimeoutMs: 0
 - assertVisible:
     id: "toast"
     text: ".*Kept on this device\\. It downloads while you are connected\\..*"
 - extendedWaitUntil:
-    visible: ".*Kept because you chose to keep it\\..*"
+    visible: ".*On this device.*"
     timeout: 60000
-- assertVisible: ".*On this device.*"
 - tapOn:
-    text: "Stop keeping offline"
+    id: "passage-offline"
     waitToSettleTimeoutMs: 0
 - assertVisible:
     id: "toast"
     text: ".*No longer kept\\. Its audio may be removed to make room\\..*"
-- tapOn:
-    id: "header-close"
+- assertVisible:
+    id: "passage-offline"
+    text: "Download for offline"
 - tapOn:
     id: "header-back"
 # P-NEW, asked of TRANS: kept for that reason, and nothing to stop.
@@ -73,6 +73,10 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
-- tapOn: "Something else\\?"
-- assertVisible: ".*Kept because you were asked to work on it\\..*"
-- assertNotVisible: ".*Stop keeping offline.*"
+- tapOn:
+    id: "passage-offline"
+    waitToSettleTimeoutMs: 0
+- assertVisible:
+    id: "toast"
+    text: ".*Kept because you were asked to work on it\\..*"
+- assertNotVisible: "Download for offline"

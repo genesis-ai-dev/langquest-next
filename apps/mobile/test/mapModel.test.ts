@@ -1,6 +1,6 @@
 import { encodeHlc, foldOrg, type AnyEvent, type LanguageProgress, type PassageState } from '@langquest-next/core';
 import {
-  agoWords, bookEntries, bookRowWords, chapterRows, chapterTiles, clusterView, filterEntries, funnelLayers, funnelRows, inFilter, isOutline,
+  agoWords, bookEntries, bookRowWords, chapterRows, chapterTiles, chaptersAreWhole, clusterView, filterEntries, funnelLayers, funnelRows, inFilter, isOutline,
   mapSearch, mapShelf, openState, OTHER, outlineSections, searchLanguages, stageRamp, statusTotals, summarizeBooks, tileLabel,
   type BookSummary, type Entry, type StatusLanguage
 } from '../src/map/mapModel';
@@ -249,6 +249,15 @@ describe('one book', () => {
     expect(tiles[1]!.mine).toBe(true);
     expect(tiles[0]!.mine).toBe(false);
     expect(tiles.every((c) => c.matches)).toBe(true);
+  });
+
+  it('shows tiles only for a book whose passages are its chapters, one each (decisions.md 166)', () => {
+    expect(chaptersAreWhole([entry('a', 'luk', [1]), entry('b', 'luk', [2])])).toBe(true);
+    expect(chaptersAreWhole([])).toBe(true);
+    // Two passages in one chapter, or one across two: passages.
+    expect(chaptersAreWhole([entry('a', 'luk', [1]), entry('b', 'luk', [1])])).toBe(false);
+    expect(chaptersAreWhole([entry('a', 'luk', [7, 8])])).toBe(false);
+    expect(chaptersAreWhole(bookEntries(entries, 'luk'))).toBe(false);
   });
 
   it('counts steps cleared as the least of the recorded parts, and none until every part is recorded', () => {

@@ -682,9 +682,11 @@ export function BookMap(ctx: Ctx) {
   const summary = [language
     ? t('map.book.summaryIn', { count: entries.length, recorded: fmt(recordedCount), language })
     : t('map.book.summary', { count: entries.length, recorded: fmt(recordedCount) })];
+  // A book of passages lists them as rows (decisions.md 166): the key is the chapter tiles'.
+  const tiles = chaptersAreWhole(entries);
   const filterSheet = (
     <FilterSheet visible={filterOpen} onClose={() => setFilterOpen(false)} filter={filter} counts={counts} onFilter={(f) => { setFilter(f); setLimit(PAGE); }} summary={summary}>
-      {book ? (
+      {book && tiles ? (
         <>
           <SectionLabel label={t('map.book.key')} />
           <FullKey none={chapters.some((c) => c.tone === 'none')} />
@@ -728,8 +730,8 @@ export function BookMap(ctx: Ctx) {
   // How many of the book's passages are on this device, over them (decisions.md 166).
   const ready = entries.filter((e) => offline.get(e.unitId)?.ready).length;
 
-  // Divided into passages, which may run across chapters: the passages, as rows, 25 at a time (decisions.md 166).
-  if (!chaptersAreWhole(entries)) {
+  // Divided into passages, which may run across chapters: every passage, as a row (decisions.md 166), as the grid showed every chapter.
+  if (!tiles) {
     const shown = filterEntries(entries, filter);
     return (
       <Screen header={header}>
@@ -737,21 +739,20 @@ export function BookMap(ctx: Ctx) {
         <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
         {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.nothingMatches')}</Text> : (
           <Group>
-            {shown.slice(0, limit).map((e, i, list) => (
+            {shown.map((e, i, list) => (
               <HelpRow key={e.unitId} of="map.passage">
                 <PassageRow ctx={ctx} state={state} kinds={kinds} e={e} mine={forYou.has(e.unitId)} last={i === list.length - 1} onPress={() => open(e)} changed={earlier.over.has(e.unitId)} />
               </HelpRow>
             ))}
           </Group>
         )}
-        <ShowMore remaining={shown.length - limit} step={PAGE} onMore={() => setLimit((l) => l + PAGE)} />
         {quiet}
         {filterSheet}
       </Screen>
     );
   }
 
-  // Five across on a phone; on a wider column, as many as stay tile-sized.
+  // Four across on a phone; on a wider column, as many as stay tile-sized.
   const cols = chapterColumns(layout.contentWidth, layout.kind);
   const rows = chapterRows(chapters, cols);
 

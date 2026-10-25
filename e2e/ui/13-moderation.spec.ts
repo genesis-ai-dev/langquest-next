@@ -573,7 +573,6 @@ test('MOD-016 Removing a version works the passage out again', async ({ page, br
     const alpha = text(p, 'Alpha');
     if (!(await p.getByRole('button', { name: /^Luke/ }).locator('visible=true').count()) && await alpha.isVisible().catch(() => false)) await alpha.click();
     await button(p, /^Luke/).click();
-    await button(p, /^Chapter 18:/).click();
     await text(p, label, false).click();
   };
   await openAs(page, w, 'COORD');

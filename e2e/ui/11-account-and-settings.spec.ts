@@ -670,10 +670,11 @@ test('ACCT-051 In a list, one row takes the help numbers', async ({ page }) => {
   await openAs(page, world(), 'TRANS');
   await tab(page, 'map').click();
   await button(page, /^Luke/).click();
-  const chapters = page.getByRole('button', { name: /^Chapter \d+:/ }).locator('visible=true');
+  // Luke lists its passages (decisions.md 166): every row is the same kind of part.
+  const chapters = page.getByRole('button', { name: /^Luke \d+:\d+/ }).locator('visible=true');
   await expect(chapters.nth(4)).toBeVisible();
   await byId(page, 'header-help').click();
-  // Every chapter is the same kind of part: the first holds a number, the rest stay dim.
+  // The first row holds a number, the rest stay dim.
   const numbered = async () => {
     const marks = await page.getByTestId('help-number').locator('visible=true').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 })));
     const boxes = await chapters.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ x: r.x, y: r.y, r: r.right, b: r.bottom })));
@@ -682,7 +683,7 @@ test('ACCT-051 In a list, one row takes the help numbers', async ({ page }) => {
   await expect.poll(numbered).toBe(1);
   // A dim row still explains itself instead of opening.
   await chapters.nth(4).click();
-  await expect(button(page, /^Chapter 5\b.*\. /)).toBeVisible();
+  await expect(button(page, /^Luke 1:57–80\. Opens/)).toBeVisible();
   await expect(chapters.first()).toBeVisible();
   await byId(page, 'header-help').click();
   await expect(page.getByTestId('help-number').locator('visible=true')).toHaveCount(0);

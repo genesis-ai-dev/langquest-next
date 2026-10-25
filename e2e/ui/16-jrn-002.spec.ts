@@ -108,7 +108,6 @@ test('JRN-002 A translator answers feedback: one fix, one kept with a reason @p0
     await back(r).click();
     await tab(r, 'map').click();
     await r.getByRole('button', { name: /^Luke\./ }).locator('visible=true').first().click();
-    await r.getByRole('button', { name: /^Chapter 14:/ }).locator('visible=true').first().click();
     await r.getByRole('button', { name: new RegExp(`^${needs}\\.`) }).locator('visible=true').first().click();
     await expect(button(r, /^1\. Record\. Version 2/)).toBeVisible();
     // The peer check and the back translation are one step (same time): either may lead; the peer check is offered on Version 2.
