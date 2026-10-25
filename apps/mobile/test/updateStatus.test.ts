@@ -1,4 +1,4 @@
-import { runningBuildLabel, updateStatus, type UpdateSignals } from '../src/shell/updateStatus';
+import { runningBuildLabel, updateFailure, updateStatus, type UpdateSignals } from '../src/shell/updateStatus';
 
 const idle: UpdateSignals = {
   isChecking: false,
@@ -29,23 +29,21 @@ describe('update banner wording', () => {
     expect(status?.action).toBe('restart');
   });
 
-  it('surfaces a failure with a retry rather than failing silently', () => {
-    const status = updateStatus({ ...idle, downloadError: new Error('bundle signature mismatch') });
-    expect(status).toEqual({ kind: 'failed', text: 'Update failed: bundle signature mismatch — tap to retry', action: 'retry' });
-  });
-
-  // An unreachable server is not a broken app, and "Update failed" reads like
-  // one. The banner shows these as a struck-through cloud instead.
-  it('calls an unreachable server offline rather than a failed update', () => {
+  // A failed check is almost always a phone offline, which Android words as
+  // "Unable to resolve host u.expo.dev": nothing on screen for it, only
+  // diagnostics (decisions.md 166).
+  it('shows no banner for a check or download that failed, and hands the reason to diagnostics', () => {
     for (const message of [
+      'Failed to download remote update: Unable to resolve host "u.expo.dev": No address associated with hostname',
       'Network request failed',
-      'The Internet connection appears to be offline.',
-      'Could not connect to the server',
-      'Request timed out'
+      'bundle signature mismatch'
     ]) {
-      expect(updateStatus({ ...idle, checkError: new Error(message) }))
-        .toEqual({ kind: 'offline', text: 'Offline — tap to retry', action: 'retry' });
+      expect(updateStatus({ ...idle, checkError: new Error(message) })).toBeNull();
+      expect(updateStatus({ ...idle, downloadError: new Error(message) })).toBeNull();
+      expect(updateFailure({ ...idle, checkError: new Error(message) })?.message).toBe(message);
     }
+    expect(updateFailure(idle)).toBeNull();
+    expect(updateFailure({ ...idle, isUpdatePending: true, checkError: new Error('x') })).toBeNull();
   });
 
   it('names the running build so a tester can say which one they are on', () => {

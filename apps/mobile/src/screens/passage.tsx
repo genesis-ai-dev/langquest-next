@@ -62,7 +62,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn } from '../passage/sendTarget';
 import { feedbackSource, isJustNow, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
-import { PassageOffline, PassageOfflineLine } from '../sync/offline';
+import { PassageOfflineBar } from '../sync/offline';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { authoredText, recordTarget } from '../moderation/reportTargets';
@@ -416,8 +416,6 @@ export function PassageRecord(ctx: Ctx) {
             {can.note ? <SmallOption testID="else-note" icon="chat" label={t('common.addNote')} help={t('passage.else.addNoteHelp')} onPress={() => setNoting('note')} /> : null}
             <SmallOption testID="else-reference" icon="book" label={t('passage.else.whatHelps')} help={t('passage.else.whatHelpsHelp')} onPress={() => go('passage_reference')} />
           </View>
-          {/* What comes along without a connection (decisions.md 61). */}
-          <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
           {canAct ? <Text style={txt.xs}>{t('passage.else.teamOptions', { section: t('passage.path.thenTheTeam') })}</Text> : null}
         </View>
         {sheets}
@@ -557,8 +555,8 @@ export function PassageRecord(ctx: Ctx) {
   );
   return (
     <Screen header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
-      {/* Whether this passage comes along without a connection, without scrolling (decisions.md 61). */}
-      <PassageOfflineLine ctx={ctx} unitId={unitId} />
+      {/* Whether this passage comes along without a connection, and the button that takes it along, first (decisions.md 61, 166). */}
+      <PassageOfflineBar ctx={ctx} unitId={unitId} />
       {waiting ? <Text style={[txt.sm, { color: TINT.amberText }]}>{waiting}</Text> : null}
       <EarlierNote ctx={ctx} unitId={unitId} languageId={languageId} />
       <PassagePath ctx={ctx} steps={steps} team={team} peopleOf={(kindId) => checkPeople(v.state, kindId)} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />

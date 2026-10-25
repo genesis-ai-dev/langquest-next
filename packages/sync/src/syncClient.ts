@@ -173,6 +173,8 @@ export interface SyncClientOptions<S = LanguageState> {
    * `loadUnits` asks for (decisions.md 143).
    */
   keepOnDisk?: boolean;
+  /** Events of this device's that the server just accepted: the device's own record of what went up (sentLog.ts). */
+  onSent?: (events: readonly AnyEvent[]) => void;
   /**
    * The build of the app this runs in. A language kept on disk keeps a line
    * per passage that this code works out, so a line kept by another build is
@@ -1364,6 +1366,8 @@ export class SyncClient<S = LanguageState> {
           }
         }
         await this.commit({ events: writes });
+        const taken = writes.filter((w) => w.status === 'confirmed').map((w) => w.event);
+        if (taken.length) this.opts.onSent?.(taken);
         // The server refuses the whole stream until the language is listed:
         // the rest would be refused too, and reporting more would run sync
         // again at once, refolding each time (performance-audit.md item 7).

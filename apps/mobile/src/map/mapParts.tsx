@@ -125,31 +125,33 @@ const STAGE: Record<ChapterStage, { bg: string; fg: string; border: string }> = 
  */
 export function ChapterTileView(props: {
   n: number; stage: ChapterStage; dim: boolean; current: boolean; disabled: boolean; label: string; corner?: ReactNode; onPress: () => void; testID?: string; help?: string;
+  /** Under the number: the chapter's download button (decisions.md 166). */
+  below?: ReactNode;
 }) {
   const look = STAGE[props.stage];
   const spot = useHelpSpot(t('map.parts.chapter', { n: formatNumber(props.n) }), props.help ?? t('map.parts.chapterHelp'), props.onPress);
   return (
     <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled, selected: props.current }}
-      style={({ pressed }) => [styles.tile, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.28 : 1 },
+      style={({ pressed }) => [styles.tile, props.below ? styles.tileTall : null, { backgroundColor: look.bg, borderColor: look.border, opacity: props.dim ? 0.28 : 1 },
         props.current && { borderColor: C.primary, borderWidth: 3 }, pressed && { transform: [{ scale: 0.95 }] }]}>
       <Text style={[styles.tileNumber, { color: look.fg }]}>{formatNumber(props.n)}</Text>
       {props.stage === 'done' ? <Ico name="check" size={16} color={onColor.green} strokeWidth={3} />
         : props.stage === 'started' ? <View style={styles.tileDot} />
         : <View style={{ height: 16 }} />}
+      {props.below}
       {props.corner}
       <HelpBadge spot={spot} />
     </Pressable>
   );
 }
 
-/** The short key under a book's chapters: "✓ Done • Started", and the offline mark when any chapter shows it. */
-export function ShortKey(props: { offline?: boolean }) {
+/** The short key under a book's chapters: "✓ Done • Started". Each tile's download button says its own state (decisions.md 166). */
+export function ShortKey() {
   return (
-    <View style={styles.key} accessible accessibilityLabel={props.offline ? t('map.parts.keyLabelOffline') : t('map.parts.keyLabel')}>
+    <View style={styles.key} accessible accessibilityLabel={t('map.parts.keyLabel')}>
       <View style={styles.keyItem}><Ico name="check" size={16} color={onColor.green} strokeWidth={3} /><Text style={styles.keyText}>{t('map.key.done')}</Text></View>
       <View style={styles.keyItem}><View style={styles.tileDot} /><Text style={styles.keyText}>{t('map.key.started')}</Text></View>
-      {props.offline ? <View style={styles.keyItem}><Ico name="onPhone" size={16} color={onColor.green} /><Text style={styles.keyText}>{t('map.key.onDevice')}</Text></View> : null}
     </View>
   );
 }
@@ -220,6 +222,7 @@ const styles = StyleSheet.create({
   track: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden', flexDirection: 'row', backgroundColor: C.light },
   bookCount: { width: 64, textAlign: 'right', fontSize: T.sm, color: C.muted, fontVariant: ['tabular-nums'] },
   tile: { flex: 1, height: 60, borderRadius: radius.lg, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  tileTall: { height: 108, justifyContent: 'flex-start', paddingTop: space.sm },
   tileNumber: { fontSize: T.lg, fontWeight: '800' },
   tileDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary, marginVertical: 4 },
   key: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: space.lg, rowGap: space.xs },

@@ -53,7 +53,9 @@
     "minutesAgo_other": "ከ{{count, number}} ደቂቃ በፊት",
     "hoursAgo_one": "ከ{{count, number}} ሰዓት በፊት",
     "hoursAgo_other": "ከ{{count, number}} ሰዓት በፊት",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "ዛሬ",
+    "yesterday": "ትናንት"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -3104,9 +3106,6 @@
       "ready": "ዝማኔው ዝግጁ ነው — እንደገና ለማስጀመር ይንኩ",
       "downloading": "ዝማኔውን በማውረድ ላይ…",
       "downloadingPercent": "ዝማኔውን በማውረድ ላይ… {{percent}}",
-      "offline": "ከመስመር ውጭ — እንደገና ለመሞከር ይንኩ",
-      "failed": "ዝማኔው አልተሳካም፦ {{reason}} — እንደገና ለመሞከር ይንኩ",
-      "offlineLabel": "ከመስመር ውጭ፦ ዝማኔዎችን መፈተሽ አይቻልም",
       "webReady": "አዲስ የLangQuest ስሪት ዝግጁ ነው። ለመጠቀም ገጹን እንደገና ይጫኑ።",
       "storeBuild": "የመደብር ስሪት",
       "updateBuild": "ዝማኔ {{id}}",
@@ -3385,11 +3384,9 @@
         "checking": "ተገናኝቷል፣ ግን የቀጥታ ቻናሉ ተቋርጧል፣ ስለዚህ ይህ መሣሪያ በጥቂት ደቂቃዎች ልዩነት ለውጦችን ይፈትሻል። አሁን አሰምር ወዲያውኑ ይፈትሻል።",
         "offline": "ግንኙነት የለም። የሚያደርጉት ሁሉ በዚህ መሣሪያ ላይ ይቀመጣል፣ እንደገና መስመር ላይ ሲሆኑ ራሱ ይላካል።",
         "refused": "አገልጋዩ ከዚህ መሣሪያ ለውጦችን እየተቀበለ አይደለም። ሥራዎ አሁንም እዚህ ተቀምጧል።",
-        "toSend": "በዚህ መሣሪያ ላይ የተደረጉ እና አገልጋዩ ገና ያላረጋገጣቸው ለውጦችና ቅጂዎች። እዚህ ደህና ናቸው፣ ግንኙነት ሲኖር ይላካሉ።",
         "toReceive": "ይህ መሣሪያ አሁንም እያወረዳቸው ያሉ የሌሎች ቅጂዎች።",
         "refusedLine": "አገልጋዩ ያልተቀበላቸው ለውጦች፣ ብዙውን ጊዜ ፈቃድ ስለተቀየረ። በዚህ መሣሪያ ላይ ይቆያሉ፤ እያንዳንዱን ለማየት ዝርዝሮችን ይክፈቱ።"
       },
-      "toSend": "የሚላኩ",
       "toReceive": "የሚቀበሉ",
       "refusedLine": "ውድቅ የተደረጉ",
       "none": "የለም",
@@ -4458,42 +4455,18 @@
   "offline": {
     "onDevice": "በዚህ መሣሪያ ላይ",
     "downloading": "ከመስመር ውጭ ለመጠቀም በማውረድ ላይ",
-    "audioNotHere": "ድምፁ በዚህ መሣሪያ ላይ የለም",
-    "notKept": "በዚህ መሣሪያ ላይ አልተቀመጠም",
     "audioNotKept": "ድምፁ በዚህ መሣሪያ ላይ አልተቀመጠም",
     "connectToFinish": "ከመጓዝዎ በፊት ለመጨረስ ከኢንተርኔት ጋር ይገናኙ።",
     "stayConnected": "ይህ እስኪያልቅ ድረስ ከኢንተርኔት እንደተገናኙ ይቆዩ።",
-    "keep": "ከመስመር ውጭ ያቆዩ",
-    "stopKeeping": "ከመስመር ውጭ ማቆየት ያቁሙ",
     "reason": {
       "asked": "እንዲሠሩበት ስለተጠየቁ ተቀምጧል።",
       "worked": "ስለሠሩበት ተቀምጧል።",
       "chosen": "ለማቆየት ስለመረጡ ተቀምጧል።"
     },
     "passage": {
-      "notSent_one": "{{count, number}} ቀረጻ ከሠራው መሣሪያ ገና አልተላከም።",
-      "notSent_other": "{{count, number}} ቀረጻዎች ከሠሯቸው መሣሪያዎች ገና አልተላኩም።",
-      "studyOnline": "የጥናት ስዕሎችና የጥናት ድምፅ በድር መተግበሪያው ላይ ግንኙነት ይፈልጋሉ።",
-      "worksWithStudy": "ጽሑፉ፣ ድምፁና የጥናት ስዕሎቹ ያለ ግንኙነት ይሠራሉ።",
-      "worksWithAudio": "ጽሑፉና ድምፁ ያለ ግንኙነት ይሠራሉ።",
-      "worksTextOnly": "ጽሑፉ ያለ ግንኙነት ይሠራል፣ አዲስ ድምፅ ደግሞ ሲደርስ ይወርዳል።",
-      "audioFilesHere_one": "ከ{{count, number}} የድምፅ ፋይል {{here, number}} እዚህ አለ።",
-      "audioFilesHere_other": "ከ{{count, number}} የድምፅ ፋይሎች {{here, number}} እዚህ አሉ።",
-      "audioFilesHereLeft_one": "ከ{{count, number}} የድምፅ ፋይል {{here, number}} እዚህ አለ፣ {{size}} ድምፅ ይቀራል።",
-      "audioFilesHereLeft_other": "ከ{{count, number}} የድምፅ ፋይሎች {{here, number}} እዚህ አሉ፣ {{size}} ድምፅ ይቀራል።",
-      "studyFilesHere_one": "ከ{{count, number}} የድምፅና የጥናት ፋይል {{here, number}} እዚህ አለ።",
-      "studyFilesHere_other": "ከ{{count, number}} የድምፅና የጥናት ፋይሎች {{here, number}} እዚህ አሉ።",
-      "studyFilesHereLeft_one": "ከ{{count, number}} የድምፅና የጥናት ፋይል {{here, number}} እዚህ አለ፣ {{size}} ድምፅ ይቀራል።",
-      "studyFilesHereLeft_other": "ከ{{count, number}} የድምፅና የጥናት ፋይሎች {{here, number}} እዚህ አሉ፣ {{size}} ድምፅ ይቀራል።",
       "onlySomeHere_one": "በዚህ መሣሪያ ላይ ከ{{count, number}} ፋይል {{here, number}} ብቻ",
       "onlySomeHere_other": "በዚህ መሣሪያ ላይ ከ{{count, number}} ፋይሎች {{here, number}} ብቻ",
-      "downloadingCount": "ከመስመር ውጭ ለመጠቀም በማውረድ ላይ · {{here, number}} ከ{{total, number}}",
-      "notAllHere": "ሁሉም ገና በዚህ መሣሪያ ላይ የለም",
-      "readRecordAudioNeeds": "ማንበብና መቅረጽ ይችላሉ፣ ድምፁ ግን ግንኙነት ይፈልጋል።",
-      "readRecordStudyNeeds": "ማንበብና መቅረጽ ይችላሉ፣ ድምፁና የጥናት ስዕሎቹ ግን ግንኙነት ይፈልጋሉ።",
-      "textHereAudioNeeds": "ጽሑፉ እዚህ አለ፣ ድምፁ ግን ግንኙነት ይፈልጋል። ይዘውት ለመሄድ ከመስመር ውጭ ያቆዩት።",
-      "textHereStudyNeeds": "ጽሑፉ እዚህ አለ፣ ድምፁና የጥናት ስዕሎቹ ግን ግንኙነት ይፈልጋሉ። ይዘውት ለመሄድ ከመስመር ውጭ ያቆዩት።",
-      "barHelp": "ፋይሎቹ ወደዚህ መሣሪያ ሲደርሱ ይሞላል።"
+      "downloadingCount": "ከመስመር ውጭ ለመጠቀም በማውረድ ላይ · {{here, number}} ከ{{total, number}}"
     },
     "toast": {
       "kept": "በዚህ መሣሪያ ላይ ተቀምጧል። ከኢንተርኔት ጋር ሲገናኙ ይወርዳል።",
@@ -4523,8 +4496,8 @@
       "alwaysBody": "በ{{language}} ያለ የእያንዳንዱ ክፍል ጽሑፍ፣ ሁኔታና ታሪክ። እንዲሠሩባቸው የተጠየቁባቸው፣ የሠሩባቸው ወይም ለማቆየት የመረጧቸው ክፍሎች ድምፅ።",
       "alwaysBodyStudy": "በ{{language}} ያለ የእያንዳንዱ ክፍል ጽሑፍ፣ ሁኔታና ታሪክ። እንዲሠሩባቸው የተጠየቁባቸው፣ የሠሩባቸው ወይም ለማቆየት የመረጧቸው ክፍሎች ድምፅ፣ የጥናት ስዕሎች፣ ካርታዎችና የጥናት ድምፅ።",
       "needsTitle": "ግንኙነት ያስፈልገዋል",
-      "needsNotKept": "ያላቆዩዋቸው ክፍሎች ድምፅ። ይዘውት ለመሄድ ክፍል ከፍተው «ከመስመር ውጭ ያቆዩ»ን ይንኩ።",
-      "needsNotKeptStudy": "ያላቆዩዋቸው ክፍሎች ድምፅና የጥናት ጽሑፍ። ይዘውት ለመሄድ ክፍል ከፍተው «ከመስመር ውጭ ያቆዩ»ን ይንኩ።",
+      "needsNotDownloaded": "ያልወረዱ ምንባቦች ድምፅ።",
+      "needsNotDownloadedStudy": "ያልወረዱ ምንባቦች ድምፅና የጥናት ቁሳቁስ።",
       "needsFilms": "የጥናት ፊልሞች።",
       "needsStudyWeb": "የጥናት ስዕሎች፣ ካርታዎችና የጥናት ድምፅ፣ በድር መተግበሪያው ላይ።",
       "needsReports": "ሪፖርቶች።",
@@ -4546,7 +4519,8 @@
       "body": "ቅጂዎቹ፣ ግምገማዎቹ እና ታሪኩ ከሌላው የዚህ ቋንቋ ክፍል ጋር ገና እየወረዱ ነው። ለማውረድ ይገናኙ።",
       "latest": "የቅርብ ጊዜ፦ ቅጂ {{n, number}}፣ በ{{name}}።",
       "requests": "ክፍት ጥያቄዎች፦ {{n, number}}።"
-    }
+    },
+    "download": "ከመስመር ውጭ ለመጠቀም አውርድ"
   },
   "moderation": {
     "flagLabel": "{{name}}ን ሪፖርት ያድርጉ ወይም ያግዱ",
@@ -4985,7 +4959,6 @@
       "chapter": "ምዕራፍ {{n}}",
       "chapterHelp": "ክፍሉን ይከፍታል። ምልክት ተከናውኗል ማለት ነው፣ ነጥብ ተጀምሯል ማለት ነው።",
       "keyLabel": "ምልክት ተከናውኗል ማለት ነው፣ ነጥብ ተጀምሯል ማለት ነው",
-      "keyLabelOffline": "ምልክት ተከናውኗል ማለት ነው፣ ነጥብ ተጀምሯል ማለት ነው፣ ደመና በዚህ መሣሪያ ላይ ተቀምጧል ማለት ነው",
       "barHelp": "ክፍሎቹ ሲቀረጹ አሞሌው ይሞላል፤ አረንጓዴው ቦታ ተከናውኗል ማለት ነው።",
       "countHelp": "{{shown}} ማለት ከ{{total}} ክፍሎቹ {{recorded}} ተቀርጸዋል ማለት ነው።",
       "matchHelp": "ቁጥሩ ከክፍሎቹ ምን ያህሉ ከማጣሪያው ጋር እንደሚዛመዱ ያሳያል።",
@@ -4998,7 +4971,6 @@
     "key": {
       "done": "ተከናውኗል",
       "started": "ተጀምሯል",
-      "onDevice": "በዚህ መሣሪያ ላይ",
       "doneSub": "ሁሉም ፍተሻዎች ተጠናቀዋል",
       "startedSub": "ቀረጻ ተጀምሯል፣ ተቀርጿል፣ በገምጋሚዎች ዘንድ ነው፣ ወይም አስተያየት እየጠበቀ ነው",
       "notStarted": "አልተጀመረም",
@@ -7343,5 +7315,27 @@
     "otherLabel": "ሌላ ድርጅት ይክፈቱ",
     "readOnly": "እንደ ዓለም አቀፍ ተመልካች እየተመለከቱ ነው፤ እዚህ ምንም መቀየር አይቻልም።",
     "linkHelp": "የሚመለከቱበት ቦታ፣ እዚያ ምን ማድረግ እንደሚችሉ፣ እና ሌሎች ሁሉም ድርጅቶች።"
+  },
+  "uploads": {
+    "barRecordings_one": "{{count, number}} ቀረጻ ለመስቀል በመጠበቅ ላይ",
+    "barRecordings_other": "{{count, number}} ቀረጻዎች ለመስቀል በመጠበቅ ላይ",
+    "barChanges_one": "{{count, number}} ለውጥ ለመስቀል በመጠበቅ ላይ",
+    "barChanges_other": "{{count, number}} ለውጦች ለመስቀል በመጠበቅ ላይ",
+    "uploading": "በመስቀል ላይ",
+    "allUploaded": "ሁሉም ተሰቅሏል",
+    "barHelp": "በዚህ መሣሪያ ላይ የተቀመጠውንና ለመስቀል የሚጠብቀውን፣ እንዲሁም ነገሮች መቼ እንደተሰቀሉ ይከፍታል።",
+    "savedHere": "በዚህ መሣሪያ ላይ ተቀምጧል",
+    "lastUpload": "የመጨረሻ ሰቀላ {{when}}",
+    "waitingTitle": "ለመስቀል በመጠበቅ ላይ",
+    "uploadedTitle": "የተሰቀሉ",
+    "recordingsUploaded_one": "{{uploaded, number}} ከ{{count, number}} ቀረጻ ተሰቅሏል",
+    "recordingsUploaded_other": "{{uploaded, number}} ከ{{count, number}} ቀረጻዎች ተሰቅለዋል",
+    "changesWaiting_one": "{{count, number}} ለውጥ በመጠበቅ ላይ",
+    "changesWaiting_other": "{{count, number}} ለውጦች በመጠበቅ ላይ",
+    "otherChanges": "ሌሎች ለውጦች",
+    "recordings_one": "{{count, number}} ቀረጻ",
+    "recordings_other": "{{count, number}} ቀረጻዎች",
+    "changes_one": "{{count, number}} ለውጥ",
+    "changes_other": "{{count, number}} ለውጦች"
   }
 }

@@ -49,6 +49,7 @@ import * as Work from './src/screens/work';
 import { lazyScreen } from './src/shell/lazyScreens';
 import { StorageGate } from './src/web/storageGate';
 import { SyncEffects } from './src/sync/SyncEffects';
+import { UploadBar } from './src/sync/uploads';
 import { SyncStatusContext } from './src/sync/useSyncStatus';
 import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/shell/session';
 import { SESSION_KEY, onAuthChange, serverConfigError } from './src/server/auth';
@@ -90,6 +91,8 @@ import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
 import { readOnlyLanguage, readOnlyOrg, setReadOnlySession } from './src/shell/readOnly';
 
 const IS_DEV = __DEV__;
+/** Screens that record: the upload bar shows there, but tapping it does not leave mid-take. */
+const RECORDING_SCREENS: readonly ScreenId[] = ['workspace', 'review_capture', 'back_translation'];
 
 // Screens that load the first time they are opened (src/shell/lazyScreens.tsx): one loader per module.
 const loadChecks = () => import('./src/screens/checks');
@@ -526,6 +529,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const showLink = globalViewer !== null && globalViewer !== 'revoked' && !!org.state?.org;
   const viewingName = session.viewingAsGlobalViewer ? org.state?.org?.value.name ?? '' : '';
   const navPush = nav.push;
+  // The upload bar opens Sync from wherever it is shown, as chrome, like a tab (decisions.md 166).
+  const openSync = useCallback(() => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== 'sync_status') navPush({ screen: 'sync_status' }); }, [navPush]);
   const headerExtra = useMemo(() => (!showLink ? null : (
     <GlobalViewerLink orgName={viewingName} onPress={() => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== 'global_viewer') navPush({ screen: 'global_viewer' }); }} />
   )), [showLink, viewingName, navPush]);
@@ -603,6 +608,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>
+            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166). */}
+            {screen === 'sync_status' ? null : <UploadBar offline={language.online === false} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
             <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator

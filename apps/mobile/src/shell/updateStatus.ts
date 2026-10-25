@@ -10,16 +10,11 @@
 import { t } from '../i18n';
 import { formatDayTime, formatPercent } from '../i18n/format';
 type UpdateStatus = {
-  /**
-   * `busy` = something is happening, no action. `ready`/`failed`/`offline` are
-   * tappable. `offline` is its own kind because "Update failed" reads as "the
-   * app broke" when all that happened is the device has no network; the banner
-   * shows it as a struck-through cloud instead of an error.
-   */
-  kind: 'busy' | 'ready' | 'failed' | 'offline';
+  /** `busy` = something is happening, no action. `ready` is tappable. */
+  kind: 'busy' | 'ready';
   text: string;
   /** What a tap does, when the banner is tappable. */
-  action?: 'restart' | 'retry';
+  action?: 'restart';
 };
 
 export type UpdateSignals = {
@@ -44,27 +39,18 @@ export function updateStatus(u: UpdateSignals): UpdateStatus | null {
         : t('account.update.downloading')
     };
   }
-  const error = u.downloadError ?? u.checkError;
-  if (error) {
-    if (isOffline(error)) return { kind: 'offline', text: t('account.update.offline'), action: 'retry' };
-    // expo-updates' own reason, for the tester reading it out (it has no codes).
-    return { kind: 'failed', text: t('account.update.failed', { reason: error.message }), action: 'retry' };
-  }
-  // A check with nothing to report stays silent: a banner on every launch
-  // saying "up to date" is a banner nobody reads.
-  if (u.isChecking) return null;
+  // A check that failed says nothing (decisions.md 166). Almost always the
+  // phone is offline, which the platforms word in their own ways ("Unable to
+  // resolve host u.expo.dev"), and nothing on screen could help: the next
+  // return to the app looks again, and diagnostics keep the reason. Nor does
+  // a check with nothing to report: a banner on every launch saying "up to
+  // date" is a banner nobody reads.
   return null;
 }
 
-/**
- * A reachability failure, as opposed to a real update failure. The update
- * machine has no error codes, only messages, so this matches on the wording
- * the platforms use when the request never reached a server.
- */
-const OFFLINE_HINTS = /network request failed|internet connection appears to be offline|could not connect to the server|network is unreachable|no internet|offline|timed out|timeout/i;
-
-function isOffline(error: Error): boolean {
-  return OFFLINE_HINTS.test(error.message);
+/** Why the last check or download failed, for diagnostics; null when nothing failed. */
+export function updateFailure(u: UpdateSignals): Error | null {
+  return u.isUpdatePending ? null : u.downloadError ?? u.checkError ?? null;
 }
 
 /** The running build, for the settings line: "update 4f2a1c9 · Sep 17, 2:02 PM". */
