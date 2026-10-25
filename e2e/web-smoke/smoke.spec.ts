@@ -151,7 +151,8 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
     await page.getByRole('tab', { name: 'Map' }).click();
     await button(page, /^Dinka:/).click();
     await button(page, /^Matthew\./).click();
-    await button(page, /^Chapter 3: Not recorded$/).click();
+    // A book of FIA passages lists them as rows (decisions.md 166).
+    await button(page, /^Matthew 3:1–17\. Not started/).click();
     // The passage's path: Record is its main button (decision 71).
     await button(page, 'Record').click();
     // The workspace's big red button (decision 71).
