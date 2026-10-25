@@ -76,15 +76,17 @@ const set = (f: Flight, x: number, y: number, s: number, o: number) =>
  * cloud one at a time and arrive from it; offline, the front one rises to
  * the no-signal line and drops back.
  */
-export function TransitScene(props: { up: number; down: number; offline: boolean }) {
+export function TransitScene(props: { up: number; down: number; offline: boolean; movingUp: boolean; movingDown: boolean }) {
   const { up, down, offline } = props;
   const reduce = useReduceMotion();
   const [width, setWidth] = useState(0);
   const k = width / W;
   const upF = useMemo(() => flight(slotX(0, 1), BELT_Y), []);
   const downF = useMemo(() => flight(DOWN_X, CLOUD_BOTTOM), []);
-  const goingUp = up > 0 && !reduce;
-  const comingDown = down > 0 && !offline && !reduce;
+  // Packages move only while files really do (decisions.md 166): offline the front one tries
+  // and drops back; online they wait on the belt until an upload is under way.
+  const goingUp = up > 0 && !reduce && (offline || props.movingUp);
+  const comingDown = props.movingDown && !offline && !reduce;
 
   useEffect(() => {
     if (!goingUp) { upF.o.setValue(0); return undefined; }
@@ -172,7 +174,8 @@ export function TransitScene(props: { up: number; down: number; offline: boolean
           ))}
           {moving(upF, C.primary)}
           {moving(downF, onColor.green)}
-          <Count k={k} x={240} y={30} n={down} arrow="arrowDown" fg={onColor.green} bg={TINT.green} />
+          {/* Offline the device cannot know what is new on the server: no count unless one is known to be waiting. */}
+          {offline && down === 0 ? null : <Count k={k} x={240} y={30} n={down} arrow="arrowDown" fg={onColor.green} bg={TINT.green} />}
           <Count k={k} x={80} y={205} n={up} arrow="arrowUp" fg={C.primary} bg={C.light} />
         </>
       ) : null}

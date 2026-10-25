@@ -4046,7 +4046,8 @@
       "openStudyHelp": "Abre toda la guía de estudio de este pasaje.",
       "listeners": "Oyentes",
       "liveIn": "Publicado en {{channel}} · {{version}}",
-      "listenerCount": "Comentarios de oyentes: {{count, number}}"
+      "listenerCount": "Comentarios de oyentes: {{count, number}}",
+      "askedOffline": "Se lo pediste a {{target}}. Le llega cuando este dispositivo tenga conexión."
     },
     "else": {
       "title": "¿Otra cosa?",
@@ -4406,7 +4407,8 @@
     "toast": {
       "notSaved": "No se guardó: {{reason}}",
       "notSavedCode": "No se guardó. Algo salió mal (código {{code}}).",
-      "dismissLabel": "{{message}} Descartar"
+      "dismissLabel": "{{message}} Descartar",
+      "goesWhenConnected": "{{message}} Tu equipo lo recibe cuando este dispositivo tenga conexión."
     },
     "nav": {
       "cannotOpenHere": "Eso no se puede abrir desde aquí.",
@@ -4608,7 +4610,6 @@
       "downloadingCount": "Descargando para usar sin conexión · {{here, number}} de {{total, number}}"
     },
     "toast": {
-      "kept": "Guardado en este dispositivo. Se descarga mientras tengas conexión.",
       "notKept": "Ya no se guarda. Su audio puede borrarse para hacer espacio."
     },
     "summary": {
@@ -4666,7 +4667,10 @@
       "latest": "Última: versión {{n, number}}, de {{name}}.",
       "requests": "Solicitudes abiertas: {{n, number}}."
     },
-    "download": "Descargar para usar sin conexión"
+    "download": "Descargar para usar sin conexión",
+    "needsConnection": "Para descargar hace falta conexión",
+    "needsConnectionHelp": "No está en este dispositivo. Se puede descargar cuando el dispositivo tenga conexión.",
+    "checkingHelp": "Este dispositivo está contando cuánto de este pasaje tiene."
   },
   "moderation": {
     "flagLabel": "Reportar o bloquear a {{name}}",
@@ -6278,7 +6282,9 @@
       "helpGuideHelp": "Abre la guía de estudio de este pasaje.",
       "helpNoteHelp": "La abre para leerla.",
       "howManyHelp": "Di cuántos escucharon. Opcional.",
-      "doneRecordedHelp": "Pone la {{what}} en el registro del pasaje."
+      "doneRecordedHelp": "Pone la {{what}} en el registro del pasaje.",
+      "looksGoodOffline": "Está bien. {{name}} lo recibe cuando este dispositivo tenga conexión.",
+      "feedbackOffline": "Comentarios guardados. {{name}} los recibe cuando este dispositivo tenga conexión."
     },
     "guest": {
       "previewSub": "Vista previa · lo que ve alguien sin la app",

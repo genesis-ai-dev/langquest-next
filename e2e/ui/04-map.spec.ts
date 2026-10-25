@@ -294,7 +294,7 @@ for (const who of ['TRANS', 'VIEW'] as const) {
     expect(of(label('P-NEW'))).toMatch(/Not started/);
     expect(rows.filter((l) => /^Luke 3:/.test(l)).every((l) => /[Dd]one/.test(l))).toBe(true);
     // Every row has its download button.
-    expect(spoken.filter((l) => /^(Download for offline|On this device|Downloading for offline|Only \d+ of \d+ files on this device)/.test(l)).length).toBeGreaterThanOrEqual(97);
+    expect(spoken.filter((l) => /^(Download for offline|On this device|Downloading for offline|Only \d+ of \d+ files on this device|Not on this device yet|Checking this device…)/.test(l)).length).toBeGreaterThanOrEqual(97);
     if (who === 'TRANS') {
       // Crumbs "Alpha › Luke" show on a wide window (kit Header).
       await page.setViewportSize({ width: 1280, height: 900 });
@@ -443,7 +443,7 @@ test('MAP-035 The viewer\'s map is read-only', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Close' }).locator('visible=true')).toHaveCount(0);
   for (const not of ['Review it now', 'Already happened', 'Ask someone']) await expect(text(page, not)).toHaveCount(0);
   // Whether it comes along offline is at the top of the passage, with its button (decisions.md 166).
-  await expect(byId(page, 'passage-offline')).toHaveAttribute('aria-label', /^(On this device|Download for offline|Downloading for offline)/);
+  await expect(byId(page, 'passage-offline')).toHaveAttribute('aria-label', /^(On this device|Download for offline|Downloading for offline|Only \d+ of \d+ files|Not on this device yet|Checking this device…)/);
   await text(page, 'Something else?').click();
   const all = await screen(page);
   expect(all).toContain('What helps here');

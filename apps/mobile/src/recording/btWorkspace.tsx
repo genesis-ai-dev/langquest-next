@@ -44,7 +44,7 @@ import { useDraft } from '../drafts/useDraft';
 import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
 import { useSaveStatus } from '../ui/useSaveStatus';
-import { nextAfterDone, recordCan, sentText, usualTargets, askButtonLabel } from '../passage/recordModel';
+import { goesWhenConnected, nextAfterDone, recordCan, sentText, usualTargets, askButtonLabel } from '../passage/recordModel';
 import { sendTargetLabel } from '../passage/record';
 import { sendToInput, type UsualTarget } from '../passage/sendTarget';
 import { AskCheckCard } from '../passage/askParts';
@@ -238,7 +238,8 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   async function publish(extra: string, ask: DoneAsk) {
     const note = noteText(notes, extra);
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
-    let message = shipped ? t('backTranslation.published') : t('backTranslation.whatPublished', { what: capitalize(produces.what) });
+    const offline = ctx.language.online === false;
+    let message = goesWhenConnected(shipped ? t('backTranslation.published') : t('backTranslation.whatPublished', { what: capitalize(produces.what) }), offline);
     let specs: EventSpec[];
     try {
       const c = commands(state, indexesFor(state));
@@ -249,7 +250,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       if (ask && 'kindId' in ask && sendTo) {
         const asked = c.ask(sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }));
         specs = [...specs, ...asked];
-        message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
+        message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }
     } catch (e) {
       ctx.toast(t('backTranslation.notPublished', { reason: failureMessage('back translation: save', e) }));

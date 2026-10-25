@@ -50,11 +50,8 @@ tags:
 - tapOn:
     id: "passage-offline"
     waitToSettleTimeoutMs: 0
-# One assertion on the toast itself: it is gone a few seconds after the tap.
-- assertVisible:
-    id: "toast"
-    text: ".*Kept on this device\\. It downloads while you are connected\\..*"
-- assertVisible: ".*(Downloading for offline|On this device).*"
+# No toast: the line itself says what happens, as it happens (decision 166).
+- assertVisible: ".*(Checking this device…|Downloading for offline|Only \\d+ of \\d+ files on this device|On this device).*"
 # Step 3: it finishes, and Me counts one more.
 - extendedWaitUntil:
     visible: ".*On this device.*"
@@ -120,4 +117,4 @@ tags:
 - assertVisible:
     id: "toast"
     text: ".*Kept because you were asked to work on it\\..*"
-- assertVisible: ".*(Downloading for offline|On this device).*"
+- assertVisible: ".*(Downloading for offline|Only \\d+ of \\d+ files on this device|On this device).*"

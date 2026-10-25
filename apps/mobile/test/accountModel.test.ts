@@ -5,10 +5,14 @@ import { formatNumber } from '../src/i18n/format';
 
 describe('the account screens\' words for sync', () => {
   const quiet = { refused: null, pending: 0, live: false, online: true, lastSync: 'up to date' };
-  it('says the most pressing thing first: refused, waiting, live, offline, then the last sync', () => {
+  it('says the most pressing thing first: refused, waiting, offline, live, then the last sync', () => {
     expect(syncSummary({ ...quiet, refused: 'NOT_MEMBER', pending: 3, live: true })).toBe(t('account.more.syncRefused'));
     expect(syncSummary({ ...quiet, pending: 3, live: true })).toBe(t('account.more.syncPending', { count: 3 }));
-    expect(syncSummary({ ...quiet, live: true, online: false })).toBe(t('account.more.syncLive'));
+    // Recordings waiting are never hidden behind "Live" or "Up to date" (decisions.md 166).
+    expect(syncSummary({ ...quiet, recordings: 2, live: true })).toBe(t('uploads.barRecordings', { count: 2 }));
+    // The live channel can lag the network: offline is said first.
+    expect(syncSummary({ ...quiet, live: true, online: false })).toBe(t('account.more.syncOffline'));
+    expect(syncSummary({ ...quiet, live: true })).toBe(t('account.more.syncLive'));
     expect(syncSummary({ ...quiet, online: false })).toBe(t('account.more.syncOffline'));
     expect(syncSummary(quiet)).toBe(t('account.more.syncUpToDate'));
   });

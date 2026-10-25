@@ -20,6 +20,9 @@ export interface LanguageSyncStatus {
   /** Recordings waiting to upload by passage, and what this device sent and when (decisions.md 166). */
   uploads: ReadonlyMap<string, PassageUploads>;
   sent: readonly SentEntry[];
+  /** Passages with a file going up or coming down this moment: "Uploading" and moving downloads are said only then. */
+  uploading: ReadonlySet<string>;
+  downloading: ReadonlySet<string>;
 }
 
 /** What the screens see: the open language's, and the organization's events not yet sent. */
@@ -31,7 +34,8 @@ const NO_FILES: ReadonlySet<string> = new Set();
 const NO_UPLOADS: ReadonlyMap<string, PassageUploads> = new Map();
 
 export const NO_LANGUAGE_STATUS: LanguageSyncStatus = {
-  pending: 0, lastSync: 'never', pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: NO_FILES, uploads: NO_UPLOADS, sent: []
+  pending: 0, lastSync: 'never', pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: NO_FILES, uploads: NO_UPLOADS, sent: [],
+  uploading: NO_FILES, downloading: NO_FILES
 };
 
 /** One value that changes, and who wants to hear when it does. */

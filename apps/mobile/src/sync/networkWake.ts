@@ -4,6 +4,11 @@ export interface NetworkSignal {
   isInternetReachable?: boolean;
 }
 
+/** The operating system says there is no network, or that the internet cannot be reached. Unknown is not offline. */
+export function saysOffline(s: NetworkSignal): boolean {
+  return s.isConnected === false || s.isInternetReachable === false;
+}
+
 /**
  * Call `fn` when the phone gets a network back after having none, at most
  * once per `quietMs`: at the edge of coverage the signal can come and go

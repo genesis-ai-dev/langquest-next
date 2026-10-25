@@ -137,7 +137,7 @@ function PassageRow(props: { ctx: Ctx; state: LanguageState; kinds: KindDef[]; e
       right={(
         <View style={styles.rowEnd}>
           {marks ? <StepMarks steps={e.s.steps.map((st) => ({ kinds: st.kinds, checkpoint: st.step.checkpoint }))} size={14} /> : null}
-          <DownloadButton ctx={ctx} unitId={e.unitId} u={offline} testID={`download-${e.unitId}`} />
+          <DownloadButton ctx={ctx} unitId={e.unitId} testID={`download-${e.unitId}`} />
         </View>
       )} />
   );
@@ -628,7 +628,7 @@ function Tile(props: { ctx: Ctx; c: ChapterTile; testID?: string; onPress: () =>
     <ChapterTileView {...(props.testID ? { testID: props.testID } : {})} n={c.n} stage={chapterStage(c.tone)} dim={!c.matches} current={!!props.current} disabled={parts === 0} label={label} onPress={props.onPress}
       help={help}
       corner={props.changed ? <ChangedMark /> : undefined}
-      below={only ? <DownloadButton ctx={props.ctx} unitId={only.unitId} u={props.offline.get(only.unitId)} testID={`download-${only.unitId}`} size={40} /> : undefined} />
+      below={only ? <DownloadButton ctx={props.ctx} unitId={only.unitId} testID={`download-${only.unitId}`} size={40} /> : undefined} />
   );
 }
 
@@ -735,7 +735,7 @@ export function BookMap(ctx: Ctx) {
     const shown = filterEntries(entries, filter);
     return (
       <Screen header={header}>
-        <BookOfflineLine ready={ready} count={entries.length} />
+        <BookOfflineLine ready={ready} count={entries.length} checking={!ctx.language.blobs.keptOffline} />
         <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
         {shown.length === 0 ? <Text style={[txt.bodyMuted, { textAlign: 'center', paddingVertical: space.xl }]}>{t('map.nothingMatches')}</Text> : (
           <Group>
@@ -758,7 +758,7 @@ export function BookMap(ctx: Ctx) {
 
   return (
     <Screen header={header}>
-      <BookOfflineLine ready={ready} count={entries.length} />
+      <BookOfflineLine ready={ready} count={entries.length} checking={!ctx.language.blobs.keptOffline} />
       <ActiveFilter filter={filter} counts={counts} onOpen={() => setFilterOpen(true)} onClear={() => setFilter('all')} />
       <View style={{ gap: space.sm }}>
         {rows.map((row, r) => (

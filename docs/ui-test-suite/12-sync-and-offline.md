@@ -701,14 +701,15 @@ Preconditions:
 
 Steps:
 1. Put the app in the background and bring it back.
-2. Go online and tap the red bar.
+2. Go online and bring the app back again.
 
 Expected:
-- Step 1: a red bar with a crossed-out cloud and no words. A screen reader
-  reads "Offline — tap to retry".
-- Step 2: the app checks again; the bar goes (or a download starts).
+- Step 1: no update banner at all (decision 166). Offline is shown where it
+  belongs: the sync icon, and the upload bar when anything waits.
+- Step 2: the app checks again; a download shows "Downloading update…",
+  then "Update ready — tap to restart".
 
-### SYNC-031 A failed update says why
+### SYNC-031 A failed update says nothing on screen
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android · Run: Manual
 
 Preconditions:
@@ -717,12 +718,13 @@ Preconditions:
 
 Steps:
 1. Bring the app to the foreground.
-2. Tap the banner.
 
 Expected:
-- "Update failed: {reason} — tap to retry", with the update library's own
-  reason.
-- Tapping checks again. The app keeps working on the running build.
+- No banner: nothing on screen could help, and Android words a lost
+  connection as an error ("Unable to resolve host u.expo.dev"), so a
+  failure is never shown (decision 166). Diagnostics get the reason.
+- The next return to the app checks again. The app keeps working on the
+  running build.
 
 ### SYNC-032 The web offers a reload for a new version
 Roles: TRANS · Priority: P1 · Platforms: Web · Run: Auto
@@ -744,3 +746,32 @@ Expected:
 - The page never reloads by itself.
 - The check runs again when the tab is shown again and every hour.
 - While recording, the tap does nothing (WEB-026).
+
+## Telling the truth offline
+
+### SYNC-033 Offline, nothing claims a download, an upload or that nothing is new
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
+
+Preconditions:
+- The device has caught up, then goes offline.
+
+Steps:
+1. Open Luke 1:1–4 (not kept: nobody asked TRANS for it, and TRANS never
+   worked on it). Read the line at the top, and tap it.
+2. Record and publish a part on P-NEW.
+3. Open Sync.
+
+Expected:
+- Step 1: the line reads "Download needs a connection" and does nothing when
+  tapped: no download offered, no toast, no "Kept on this device"
+  (decision 166).
+- Step 2: the toast ends "Your team gets it when this device is connected."
+  The upload bar says "{n} recordings waiting to upload · Offline", never
+  "Uploading".
+- Step 3: "To receive" says "Offline", not "None", and the transfers say
+  "Offline", not "Up to date": what is new on the server cannot be known.
+  Nowhere says "All uploaded".
+- Online, "Uploading" and a moving download show only while a file is
+  going up or coming down, and a kept passage says "On this device" only
+  once the device has counted every file of it; until then "Checking this
+  device…".

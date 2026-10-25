@@ -39,9 +39,7 @@ tags:
 - tapOn:
     id: "passage-offline"
     waitToSettleTimeoutMs: 0
-- assertVisible:
-    id: "toast"
-    text: ".*Kept on this device\\. It downloads while you are connected\\..*"
+# No toast: the line itself says what happens, as it happens (decision 166).
 - extendedWaitUntil:
     visible: ".*On this device.*"
     timeout: 60000

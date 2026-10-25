@@ -1,3 +1,5 @@
+import * as Network from 'expo-network';
+import { saysOffline } from './networkWake';
 import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, TransferBudget, classifyTransferFailure, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
 import {
   CommandError, emptyLanguageState, languageLines, updatesFor as coreUpdatesFor, type BlobRef, type EventPayloads, type EventSpec, type EventType,
@@ -143,7 +145,7 @@ const NOTHING_YET: LanguageStatus = {
   revision: 0, pending: 0, refusedEvents: 0, lastSync: 'never', online: null, tooOld: false,
   refused: null, pulled: false, live: false, pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0,
   present: new Set(), keptUnits: new Set(), keptOffline: null, offlineSummary: null, scope: new Set(), lines: NO_LINES, fill: null,
-  uploads: new Map(), sent: []
+  uploads: new Map(), sent: [], uploading: new Set(), downloading: new Set()
 };
 
 /**
@@ -243,7 +245,8 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
         setStatus((prev) => (slowSame(prev, now) ? prev : now));
         syncStatus.set({
           pending: now.pending, lastSync: now.lastSync, pendingUp: now.pendingUp, pendingDown: now.pendingDown,
-          peakUp: now.peakUp, peakDown: now.peakDown, present: now.present, uploads: now.uploads, sent: now.sent
+          peakUp: now.peakUp, peakDown: now.peakDown, present: now.present, uploads: now.uploads, sent: now.sent,
+          uploading: now.uploading, downloading: now.downloading
         });
       };
       stops.push(session.subscribe(publish));
@@ -347,7 +350,12 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   );
   const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
-  const { online, tooOld, refused, refusedEvents, pulled, live, revision } = status;
+  const { tooOld, refused, refusedEvents, pulled, live, revision } = status;
+  // Offline when the phone itself says it has no network, at once, as well as when
+  // the server did not answer the last sync (decisions.md 166): no screen offers or
+  // claims a transfer the device cannot make.
+  const network = Network.useNetworkState();
+  const online = saysOffline(network) ? false : status.online;
 
   const { lines } = status;
   // A new object only when a count moves, not on every publish.

@@ -3927,7 +3927,8 @@
       "openStudyHelp": "এই অংশের পুরো অধ্যয়ন নির্দেশিকা খোলে।",
       "listeners": "শ্রোতা",
       "liveIn": "{{channel}}-এ প্রকাশিত · {{version}}",
-      "listenerCount": "শ্রোতাদের মতামত: {{count, number}}"
+      "listenerCount": "শ্রোতাদের মতামত: {{count, number}}",
+      "askedOffline": "{{target}}-কে বলা হয়েছে। এই ডিভাইস সংযুক্ত হলে তারা পাবেন।"
     },
     "else": {
       "title": "অন্য কিছু?",
@@ -4269,7 +4270,8 @@
     "toast": {
       "notSaved": "সংরক্ষণ হয়নি: {{reason}}",
       "notSavedCode": "সংরক্ষণ হয়নি। কিছু একটা সমস্যা হয়েছে (কোড {{code}})।",
-      "dismissLabel": "{{message}} সরিয়ে দিন"
+      "dismissLabel": "{{message}} সরিয়ে দিন",
+      "goesWhenConnected": "{{message}} এই ডিভাইস সংযুক্ত হলে আপনার দল পাবে।"
     },
     "nav": {
       "cannotOpenHere": "এটি এখান থেকে খোলা যায় না।",
@@ -4469,7 +4471,6 @@
       "downloadingCount": "অফলাইনের জন্য ডাউনলোড হচ্ছে · {{total, number}}-এর মধ্যে {{here, number}}"
     },
     "toast": {
-      "kept": "এই ডিভাইসে রাখা হয়েছে। সংযোগ থাকলে এটি ডাউনলোড হবে।",
       "notKept": "আর রাখা হচ্ছে না। জায়গা খালি করতে এর অডিও সরানো হতে পারে।"
     },
     "summary": {
@@ -4520,7 +4521,10 @@
       "latest": "সর্বশেষ: সংস্করণ {{n, number}}, {{name}}-এর।",
       "requests": "খোলা অনুরোধ: {{n, number}}।"
     },
-    "download": "অফলাইনের জন্য ডাউনলোড করুন"
+    "download": "অফলাইনের জন্য ডাউনলোড করুন",
+    "needsConnection": "ডাউনলোড করতে সংযোগ লাগবে",
+    "needsConnectionHelp": "এই ডিভাইসে নেই। ডিভাইসটি সংযুক্ত হলে ডাউনলোড করা যাবে।",
+    "checkingHelp": "এই অনুচ্ছেদের কতটা আছে, ডিভাইসটি তা গুনছে।"
   },
   "moderation": {
     "flagLabel": "{{name}}-কে রিপোর্ট বা ব্লক করুন",
@@ -6031,7 +6035,9 @@
       "helpGuideHelp": "এই অংশের অধ্যয়ন নির্দেশিকা খোলে।",
       "helpNoteHelp": "পড়ার জন্য এটি খোলে।",
       "howManyHelp": "কতজন শুনেছেন তা বলুন। ঐচ্ছিক।",
-      "doneRecordedHelp": "{{what}} অংশের বিবরণে যোগ করে।"
+      "doneRecordedHelp": "{{what}} অংশের বিবরণে যোগ করে।",
+      "looksGoodOffline": "ভালো লাগছে। এই ডিভাইস সংযুক্ত হলে {{name}} পাবেন।",
+      "feedbackOffline": "মতামত রাখা হয়েছে। এই ডিভাইস সংযুক্ত হলে {{name}} পাবেন।"
     },
     "guest": {
       "previewSub": "প্রিভিউ · অ্যাপ ছাড়া কেউ যা দেখেন",

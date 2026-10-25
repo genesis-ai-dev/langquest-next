@@ -3808,7 +3808,8 @@
       "openStudyHelp": "Membuka seluruh panduan studi untuk perikop ini.",
       "listeners": "Pendengar",
       "liveIn": "Terbit di {{channel}} · {{version}}",
-      "listenerCount": "Masukan pendengar: {{count, number}}"
+      "listenerCount": "Masukan pendengar: {{count, number}}",
+      "askedOffline": "Diminta kepada {{target}}. Mereka menerimanya saat perangkat ini terhubung."
     },
     "else": {
       "title": "Ada yang lain?",
@@ -4132,7 +4133,8 @@
     "toast": {
       "notSaved": "Tidak tersimpan: {{reason}}",
       "notSavedCode": "Tidak tersimpan. Terjadi kesalahan (kode {{code}}).",
-      "dismissLabel": "{{message}} Tutup"
+      "dismissLabel": "{{message}} Tutup",
+      "goesWhenConnected": "{{message}} Tim Anda menerimanya saat perangkat ini terhubung."
     },
     "nav": {
       "cannotOpenHere": "Itu tidak dapat dibuka dari sini.",
@@ -4330,7 +4332,6 @@
       "downloadingCount": "Mengunduh untuk offline · {{here, number}} dari {{total, number}}"
     },
     "toast": {
-      "kept": "Disimpan di perangkat ini. Akan diunduh selama Anda terhubung.",
       "notKept": "Tidak lagi disimpan. Audionya mungkin dihapus untuk memberi ruang."
     },
     "summary": {
@@ -4374,7 +4375,10 @@
       "latest": "Terbaru: versi {{n, number}}, oleh {{name}}.",
       "requests": "Permintaan terbuka: {{n, number}}."
     },
-    "download": "Unduh untuk offline"
+    "download": "Unduh untuk offline",
+    "needsConnection": "Mengunduh perlu koneksi",
+    "needsConnectionHelp": "Tidak ada di perangkat ini. Bisa diunduh setelah perangkat ini terhubung.",
+    "checkingHelp": "Perangkat ini sedang menghitung bagian perikop ini yang ada padanya."
   },
   "moderation": {
     "flagLabel": "Laporkan atau blokir {{name}}",
@@ -5784,7 +5788,9 @@
       "helpGuideHelp": "Membuka panduan studi untuk perikop ini.",
       "helpNoteHelp": "Membukanya untuk dibaca.",
       "howManyHelp": "Sebutkan berapa orang yang mendengarkan. Tidak wajib.",
-      "doneRecordedHelp": "Memasukkan {{what}} ke riwayat perikop."
+      "doneRecordedHelp": "Memasukkan {{what}} ke riwayat perikop.",
+      "looksGoodOffline": "Sudah baik. {{name}} menerimanya saat perangkat ini terhubung.",
+      "feedbackOffline": "Masukan disimpan. {{name}} menerimanya saat perangkat ini terhubung."
     },
     "guest": {
       "previewSub": "Pratinjau · yang dilihat orang tanpa aplikasi",

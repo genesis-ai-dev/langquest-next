@@ -23,35 +23,27 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { STUDY_FILES_OFFLINE } from '../study/studyFiles';
 import { C, onColor, radius, space, TINT } from '../ui/theme';
-import { offlineLine, type KeptOffline, type OfflineOverview, withStudy } from './offlineText';
+import { keptOfflineMap, offlineLine, type KeptOffline, type OfflineOverview } from './offlineText';
+import { offlineLook, type OfflineLook } from './offlineModel';
 import { useStudyRevision } from './useOfflineSummary';
 import { WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
 
 /**
- * Offline counts for these passages, recomputed when files arrive, leave,
- * or a passage is kept. A kept passage's come from the counts worked out
- * from the phone's table (useLanguage); another is on screen, so its
- * recordings are in memory (decisions.md 143).
+ * Where one passage stands, from what this device has counted and nothing
+ * else (decisions.md 166): the session's count of every passage it keeps
+ * (useLanguage, worked out from the phone's table), or "checking" until that
+ * count has this passage in it. A passage the count leaves out is not kept.
  */
-function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
-  const state = ctx.language.state;
-  const { present } = useSyncStatus();
-  const { keptUnits, keptOffline } = ctx.language.blobs;
-  const me = ctx.session.actorId;
-  const rev = useStudyRevision();
-  const key = unitIds.join(',');
-  return useMemo(() => {
-    const out = new Map<string, KeptOffline>();
-    if (!state) return out;
-    const counted = unitIds.filter((id) => keptOffline?.has(id));
-    for (const id of counted) out.set(id, withStudy(keptOffline!.get(id)!, id));
-    const rest = unitIds.filter((id) => !out.has(id));
-    if (rest.length) for (const [id, u] of offlineByUnit(state, rest, present, me, keptUnits)) out.set(id, withStudy(u, id));
-    return out;
-  },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- unitIds is read through its key, so a new array with the same passages does not recompute
-    [state, present, keptUnits, keptOffline, me, key, rev]);
+function useOffline(ctx: Ctx, unitId: string): KeptOffline | 'checking' {
+  const counted = keptOfflineMap(ctx);
+  const { keptOffline, keptUnits } = ctx.language.blobs;
+  useStudyRevision();
+  if (!keptOffline) return 'checking';
+  const u = counted.get(unitId);
+  if (u) return u;
+  // Just kept: the count has not caught up with it yet.
+  return keptUnits.has(unitId) ? 'checking' : NOT_KEPT;
 }
 
 /** Whole sentences, one after another. */
@@ -66,24 +58,14 @@ function reasonText(reason: NonNullable<UnitOffline['reason']>): string {
   }
 }
 
-/** Where a passage's audio stands on this device, as its download button and line show it (decisions.md 61, 166). */
-type OfflineLook = { kind: 'none' | 'downloading' | 'partial' | 'ready'; label: string; progress: number };
-
-function offlineLook(u: KeptOffline, offline: boolean): OfflineLook {
-  const here = u.here + u.studyHere;
-  const total = u.audio + u.studyTotal;
-  const progress = total ? here / total : 0;
-  if (!u.reason) return { kind: 'none', label: t('offline.download'), progress: 0 };
-  if (u.ready) return { kind: 'ready', label: t('offline.onDevice'), progress: 1 };
-  return offline
-    ? { kind: 'partial', label: t('offline.passage.onlySomeHere', { here, count: total }), progress }
-    : { kind: 'downloading', label: t('offline.passage.downloadingCount', { here, total }), progress };
-}
-
 /** What tapping the download button does: keep a passage, stop keeping one chosen, or say why it is kept. */
-function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | undefined): { onPress: () => void; help: string } {
-  if (!u?.reason) {
-    return { help: t('offline.keepHelp'), onPress: () => { void ctx.language.blobs.keepOffline(unitId, true); ctx.toast(t('offline.toast.kept')); } };
+function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | 'checking', offline: boolean): { onPress: (() => void) | undefined; help: string } {
+  if (u === 'checking') return { help: t('offline.checkingHelp'), onPress: undefined };
+  if (!u.reason) {
+    // Offline nothing can come down: no download is offered (decisions.md 166).
+    if (offline) return { help: t('offline.needsConnectionHelp'), onPress: undefined };
+    // No toast: the button itself says what happens, as it happens.
+    return { help: t('offline.keepHelp'), onPress: () => { void ctx.language.blobs.keepOffline(unitId, true); } };
   }
   if (u.reason === 'chosen') {
     return { help: t('offline.stopKeepingHelp'), onPress: () => { void ctx.language.blobs.keepOffline(unitId, false); ctx.toast(t('offline.toast.notKept')); } };
@@ -100,13 +82,17 @@ function DownloadDisc(props: { look: OfflineLook; size?: number }) {
   const size = props.size ?? DISC;
   const ready = look.kind === 'ready';
   const amber = look.kind === 'partial';
-  const tint = ready ? C.white : amber ? TINT.amberText : C.primary;
+  const quiet = look.kind === 'checking' || look.kind === 'noConnection';
+  const tint = ready ? C.white : amber ? TINT.amberText : quiet ? C.faint : C.primary;
   return (
     <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2 },
-      ready ? { backgroundColor: onColor.green, borderColor: onColor.green } : look.kind === 'none' ? { borderColor: C.primary } : { borderColor: 'transparent', backgroundColor: amber ? TINT.amber : C.light }]}>
+      ready ? { backgroundColor: onColor.green, borderColor: onColor.green }
+        : look.kind === 'none' ? { borderColor: C.primary }
+        : quiet ? { borderColor: C.border }
+        : { borderColor: 'transparent', backgroundColor: amber ? TINT.amber : C.light }]}>
       {look.kind === 'downloading'
         ? <WaveArrow direction="down" color={C.primary} size={Math.round(size * 0.3)} />
-        : <Ico name="download" size={Math.round(size * 0.5)} color={tint} strokeWidth={ready ? 2.75 : 2.25} />}
+        : <Ico name={look.kind === 'noConnection' ? 'notOnPhone' : 'download'} size={Math.round(size * 0.5)} color={tint} strokeWidth={ready ? 2.75 : 2.25} />}
     </View>
   );
 }
@@ -116,14 +102,16 @@ function DownloadDisc(props: { look: OfflineLook; size?: number }) {
  * tile (decisions.md 166): what the tiny cloud mark used to say, as a
  * button that keeps the passage on this device.
  */
-export function DownloadButton(props: { ctx: Ctx; unitId: string; u: KeptOffline | undefined; testID?: string; size?: number }) {
-  const { ctx, unitId, u } = props;
-  const look = offlineLook(u ?? NOT_KEPT, ctx.language.online === false);
-  const keep = useKeepToggle(ctx, unitId, u);
+export function DownloadButton(props: { ctx: Ctx; unitId: string; testID?: string; size?: number }) {
+  const { ctx, unitId } = props;
+  const u = useOffline(ctx, unitId);
+  const offline = ctx.language.online === false;
+  const look = offlineLook(u, { offline, downloading: useSyncStatus().downloading.has(unitId) });
+  const keep = useKeepToggle(ctx, unitId, u, offline);
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
   return (
-    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={look.label}
-      hitSlop={4} style={({ pressed }) => [styles.discTap, pressed && { opacity: 0.6 }]}>
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
+      accessibilityState={{ disabled: !keep.onPress }} hitSlop={4} style={({ pressed }) => [styles.discTap, pressed && { opacity: 0.6 }]}>
       <DownloadDisc look={look} {...(props.size ? { size: props.size } : {})} />
       <HelpBadge spot={spot} />
     </Pressable>
@@ -139,14 +127,16 @@ const NOT_KEPT: KeptOffline = { reason: null, audio: 0, here: 0, toFetch: 0, byt
  */
 export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
   const { ctx, unitId } = props;
-  const u = useOfflineUnits(ctx, [unitId]).get(unitId);
-  const look = offlineLook(u ?? NOT_KEPT, ctx.language.online === false);
-  const keep = useKeepToggle(ctx, unitId, u);
+  const u = useOffline(ctx, unitId);
+  const offline = ctx.language.online === false;
+  const look = offlineLook(u, { offline, downloading: useSyncStatus().downloading.has(unitId) });
+  const keep = useKeepToggle(ctx, unitId, u, offline);
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
-  if (!u) return null;
-  const tone = look.kind === 'ready' ? { bg: TINT.green, fg: TINT.greenText } : look.kind === 'partial' ? { bg: TINT.amber, fg: TINT.amberText } : { bg: C.card, fg: C.primary };
+  const tone = look.kind === 'ready' ? { bg: TINT.green, fg: TINT.greenText } : look.kind === 'partial' ? { bg: TINT.amber, fg: TINT.amberText }
+    : look.kind === 'checking' || look.kind === 'noConnection' ? { bg: C.card, fg: C.muted } : { bg: C.card, fg: C.primary };
   return (
-    <Pressable testID="passage-offline" onPress={spot.onPress} accessibilityRole="button" accessibilityLabel={look.label}
+    <Pressable testID="passage-offline" onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
+      accessibilityState={{ disabled: !keep.onPress }}
       style={({ pressed }) => [styles.bar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg }, pressed && { opacity: 0.7 }]}>
       <DownloadDisc look={look} size={30} />
       <Text style={[txt.sm, { flex: 1, fontWeight: '700', color: tone.fg }]}>{look.label}</Text>
@@ -155,13 +145,13 @@ export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
   );
 }
 
-/** Over a book's passages: how many of them are on this device. */
-export function BookOfflineLine(props: { ready: number; count: number }) {
+/** Over a book's passages: how many of them are on this device, once the device has counted (decisions.md 166). */
+export function BookOfflineLine(props: { ready: number; count: number; checking: boolean }) {
   if (props.count === 0) return null;
-  const label = t('map.me.ready', { ready: formatNumber(props.ready), count: props.count });
+  const label = props.checking ? t('offline.summary.checking') : t('map.me.ready', { ready: formatNumber(props.ready), count: props.count });
   return (
     <View style={styles.bookLine} accessible accessibilityLabel={label}>
-      <DownloadDisc look={{ kind: props.ready ? 'ready' : 'none', label, progress: 1 }} size={22} />
+      <DownloadDisc look={{ kind: props.ready ? 'ready' : 'none', label }} size={22} />
       <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: props.ready ? TINT.greenText : C.muted }]}>{label}</Text>
     </View>
   );

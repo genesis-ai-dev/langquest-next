@@ -10,7 +10,7 @@
 // person's device would have before they set out.
 import type { Page } from '@playwright/test';
 import {
-  button, expect, expectNothingRefused, expectSent, expectSyncIdle, openAs, screenText, syncNow, tab, test, text, useWorld
+  button, byId, expect, expectNothingRefused, expectSent, expectSyncIdle, openAs, screenText, syncNow, tab, test, text, useWorld
 } from './support';
 import {
   addNote, caughtUp, deviceAs, keptHere, noteAs, openByLabel, openRecord, openSync, passageAs, quietReloads, recordAndPublish, serverHasAudio, setOffline, SYNC_CLEAR, syncChip, tile, tileLocator, toTab
@@ -323,4 +323,29 @@ test('SYNC-032 The web offers a reload for a new version', async ({ page }) => {
   const reloaded = page.waitForEvent('load');
   await banner.click();
   await reloaded;
+});
+
+// Decision 166: offline, every line says only what this device knows.
+test('SYNC-033 Offline, nothing claims a download, an upload or that nothing is new @p0', async ({ page, context }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  await caughtUp(page, w, 'TRANS');
+  await setOffline(context, true);
+  // Luke 1:1–4: nobody asked TRANS for it and TRANS never worked on it, so it is not kept.
+  await openByLabel(page, 'Luke 1:1–4');
+  const line = byId(page, 'passage-offline');
+  await expect(line).toHaveAttribute('aria-label', 'Download needs a connection');
+  await line.click({ force: true });
+  await page.waitForTimeout(800); // sleep: nothing observable says a tap did nothing
+  await expect(line).toHaveAttribute('aria-label', 'Download needs a connection');
+  await expect(page.getByTestId('toast').locator('visible=true')).toHaveCount(0);
+  // Recorded offline: the bar says it waits, offline; never "Uploading".
+  await recordAndPublish(page, w, 'P-NEW', 1);
+  await expect(byId(page, 'toast')).toContainText('Your team gets it when this device is connected.');
+  await expect(byId(page, 'upload-bar')).toHaveAttribute('aria-label', /waiting to upload, Offline$/);
+  // Sync: what is new on the server cannot be known offline.
+  await openSync(page);
+  await expect(page.getByLabel('To receive: Offline', { exact: true }).locator('visible=true')).toBeVisible();
+  await expect(page.getByLabel('Audio downloading. Offline', { exact: true }).locator('visible=true')).toBeVisible();
+  await expect(text(page, 'All uploaded')).toHaveCount(0);
 });

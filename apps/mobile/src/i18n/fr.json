@@ -4046,7 +4046,8 @@
       "openStudyHelp": "Ouvre tout le guide d’étude de ce passage.",
       "listeners": "Auditeurs",
       "liveIn": "En ligne dans {{channel}} · {{version}}",
-      "listenerCount": "Retours d'auditeurs : {{count, number}}"
+      "listenerCount": "Retours d'auditeurs : {{count, number}}",
+      "askedOffline": "Demandé à {{target}}. Ils le reçoivent quand cet appareil sera connecté."
     },
     "else": {
       "title": "Autre chose ?",
@@ -4406,7 +4407,8 @@
     "toast": {
       "notSaved": "Non sauvegardé : {{reason}}",
       "notSavedCode": "Non sauvegardé. Un problème est survenu (code {{code}}).",
-      "dismissLabel": "{{message}} Fermer"
+      "dismissLabel": "{{message}} Fermer",
+      "goesWhenConnected": "{{message}} Votre équipe le reçoit quand cet appareil sera connecté."
     },
     "nav": {
       "cannotOpenHere": "Impossible de l’ouvrir d’ici.",
@@ -4608,7 +4610,6 @@
       "downloadingCount": "Téléchargement pour le hors-ligne · {{here, number}} sur {{total, number}}"
     },
     "toast": {
-      "kept": "Gardé sur cet appareil. Il se télécharge pendant que vous êtes connecté.",
       "notKept": "N’est plus gardé. Son audio peut être retiré pour faire de la place."
     },
     "summary": {
@@ -4666,7 +4667,10 @@
       "latest": "Dernière : version {{n, number}}, par {{name}}.",
       "requests": "Demandes ouvertes : {{n, number}}."
     },
-    "download": "Télécharger pour le hors-ligne"
+    "download": "Télécharger pour le hors-ligne",
+    "needsConnection": "Le téléchargement demande une connexion",
+    "needsConnectionHelp": "Pas sur cet appareil. Il pourra être téléchargé une fois l’appareil connecté.",
+    "checkingHelp": "Cet appareil compte ce qu’il a de ce passage."
   },
   "moderation": {
     "flagLabel": "Signaler ou bloquer {{name}}",
@@ -6278,7 +6282,9 @@
       "helpGuideHelp": "Ouvre le guide d’étude de ce passage.",
       "helpNoteHelp": "L’ouvre pour la lire.",
       "howManyHelp": "Dites combien de personnes ont écouté. Facultatif.",
-      "doneRecordedHelp": "Met la {{what}} dans l’historique du passage."
+      "doneRecordedHelp": "Met la {{what}} dans l’historique du passage.",
+      "looksGoodOffline": "C’est bon. {{name}} le reçoit quand cet appareil sera connecté.",
+      "feedbackOffline": "Retour enregistré. {{name}} le reçoit quand cet appareil sera connecté."
     },
     "guest": {
       "previewSub": "Aperçu · ce que voit quelqu’un sans l’application",
