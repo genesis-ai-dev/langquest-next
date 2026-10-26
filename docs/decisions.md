@@ -4394,6 +4394,32 @@ after `--` on its disable comment, which lint now requires
 (`@eslint-community/eslint-comments/require-description`), and a disable
 that no longer excuses anything is an error.
 
+Amended (2026-10-26, Carl Sauder): the reversal condition ("feature folders
+start importing each other in a cycle") came true: 34 of the 41 folders in
+`apps/mobile/src` formed one import cycle, because the folders every feature
+stands on (`i18n`, `ui`, `helpMode`, `diagnostics`, `server`) imported
+features back: `i18n` held a sheet drawn with `ui`, `helpMode` reported to
+`diagnostics` and played through `audio`, `diagnostics` read the store in
+`sync` and called `server`, and `server` used `auth`, `sync` and
+`appVersion`. Carl chose a base layer below the features, held by lint
+(`BASE_LAYERS` in `eslint.config.mjs`); feature folders may still import
+each other. Lowest first: L0 `i18n`, `build` (the build id and whether it is
+a test build); L1 `ui`, `helpMode`; L2 `session` (auth state, sign-out cause,
+outcomes, the dev persona, the read-only flag) and `storage` (the on-device
+store, stored files: formats, media type, hash); L3 `diagnostics`; L4
+`server`. A base folder imports values only from its own level or below
+(types from anywhere); features import any of them. What a lower layer needs
+from a higher one is handed in once at start (`shell/wiring.ts`: how
+diagnostics reach the server, how help audio reports) or sits lower:
+`registerPlayback` is `ui/playback.ts` (audio re-exports it), the gate
+around the transport is `sync/serverTransport.ts`, `watchRenewals` is
+`server/renewalWatch.ts`, `inviteOutcome` is `invites/inviteOutcome.ts`, the
+language sheet is `account/uiLanguage.tsx`, and which chrome a screen shows
+is `shell/chromeModel.ts`, so `ui` imports no screen id as a value. The
+layer is held, not only measured: no base folder is in an import cycle with
+a feature folder; `ui` and `helpMode` still import each other, as the design
+system's help badges always have.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: partly superseded by 125

@@ -1,6 +1,6 @@
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { SESSION_KEY, signOutHere, supabase, supabaseConfigError } from './supabase';
-import { signingOutByChoice } from '../auth/signOutCause';
+import { signingOutByChoice } from '../session/signOutCause';
 
 /** Where the session is kept on this device (sessionKey.ts), and why this build cannot reach a server, if it cannot. */
 export { SESSION_KEY, signOutHere, supabaseConfigError as serverConfigError };

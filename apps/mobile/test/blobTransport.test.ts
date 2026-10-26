@@ -22,9 +22,9 @@ vi.mock('../src/diagnostics/diagnostics', () => ({
     catch (e) { env.tallied.push({ dir, where, failed: true }); throw e; }
   }
 }));
-vi.mock('../src/sync/blobs', () => ({
+vi.mock('../src/storage/storedFile', () => ({
   mimeOf: () => 'audio/wav',
-  BlobStore: { hashOf: async () => 'h'.repeat(64) }
+  hashOf: async () => 'h'.repeat(64)
 }));
 
 const HASH = 'a'.repeat(64);

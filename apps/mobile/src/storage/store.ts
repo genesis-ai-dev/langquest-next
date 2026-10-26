@@ -1,7 +1,7 @@
 import { SqliteDiagStore, SqliteFileLedger, SqliteStore, type SqlDriver } from '@langquest-next/sync';
 import * as SQLite from 'expo-sqlite';
 import { Platform } from 'react-native';
-import { isTestBuild } from '../shell/testBuild';
+import { isTestBuild } from '../build/testBuild';
 
 /** Statements on one connection: the database, or a transaction's own connection. */
 function statements(db: SQLite.SQLiteDatabase): Pick<SqlDriver, 'run' | 'all'> {

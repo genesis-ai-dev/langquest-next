@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { BlobStore } from '../sync/blobs';
 import { timedTransfer } from '../diagnostics/diagnostics';
 import { noteExpected } from '../diagnostics/report';
-import { signingOutByChoice } from '../auth/signOutCause';
+import { signingOutByChoice } from '../session/signOutCause';
 import { UploadError, uploadBlob } from './blobTransport';
 import { secureStorage } from './secureStorage';
 import { SESSION_KEY, clientKeptAt, supabase } from './supabase';

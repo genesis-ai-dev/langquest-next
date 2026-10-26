@@ -11,7 +11,7 @@ import MicrophoneEnergy from '../../modules/microphone-energy';
 import { preferredRecordingType } from '../audio/audioFormat';
 import { getBlobStore } from '../sync/blobs';
 import { t } from '../i18n';
-import { isReadOnlySession } from '../shell/readOnly';
+import { isReadOnlySession } from '../session/readOnly';
 import { getRecordingJournal, liveParts } from './recordingJournal';
 import { RecordingSession } from './recordingSession';
 import { liveKept, liveKeptCount, liveNext } from './livePartsModel';

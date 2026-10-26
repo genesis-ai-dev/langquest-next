@@ -2,7 +2,7 @@ import { ORG_STREAM } from '@langquest-next/core';
 import { filesWaitingKey } from '@langquest-next/sync';
 import { useEffect, useState } from 'react';
 import type { Ctx } from '../shell/ctx';
-import { getStore } from './store';
+import { getStore } from '../storage/store';
 import { useSyncStatus } from './useSyncStatus';
 
 /** Work of one of the organization's other languages saved on this device and not yet uploaded. */

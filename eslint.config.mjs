@@ -58,9 +58,34 @@ const serverLayer = {
   patterns: [{ regex: '(^|/)(screens|shell|ui)/|(^|/)kit$', message: `src/server sits below screens, the shell and the UI (${D105}).` }]
 };
 
-/** The design system: it knows i18n, help mode (badges in the kit) and the flow's screen ids, and no feature. */
-const uiLayer = {
-  patterns: [{ regex: '^\\.\\./(?!ui/|i18n(/|$)|helpMode/|shell/flow$)', message: `src/ui is the design system: features use it, not the other way round (${D105}).` }]
+/**
+ * The base layer under the feature folders (decisions.md 105): what every feature
+ * stands on. A base folder imports, as values, only base folders at its own level
+ * or below, so the features can import each other and the base can still not
+ * reach back into them. Types may come from anywhere. Lowest first:
+ *   L0 i18n (the app's words), build (which build this is)
+ *   L1 ui (the design system), helpMode (help badges and spoken help)
+ *   L2 session (who is signed in, read-only), storage (the on-device database,
+ *      stored files)
+ *   L3 diagnostics (the recorder and its reports)
+ *   L4 server (Supabase calls)
+ * Features import any of them. What a lower layer needs from a higher one is
+ * handed in at start (shell/wiring.ts) or sits in the lower layer.
+ */
+const BASE_LAYERS = [['i18n', 'build'], ['ui', 'helpMode'], ['session', 'storage'], ['diagnostics'], ['server']];
+const LAYER_NAMES = BASE_LAYERS.map((folders, i) => `L${i} ${folders.join(', ')}`).join('; ');
+const BASE_FOLDERS = BASE_LAYERS.flat();
+const layerOf = (folder) => {
+  const level = BASE_LAYERS.findIndex((folders) => folders.includes(folder));
+  const allowed = BASE_LAYERS.slice(0, level + 1).flat();
+  return {
+    patterns: [{
+      regex: `^\\.\\./(?!(?:${allowed.join('|')})(?:/|$))`,
+      allowTypeImports: true,
+      message: `src/${folder} is base layer L${level} (${D105}): ${LAYER_NAMES}. `
+        + `It imports values only from ${allowed.join(', ')}; a feature folder is above it (hand it in at start, shell/wiring.ts), types are fine.`
+    }]
+  };
 };
 
 const restrict = (...parts) => ['error', {
@@ -167,10 +192,17 @@ export default [
   { files: OUTSIDE, rules: { 'no-restricted-imports': ['error', outsideTheApp] } },
   { files: [APP], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens) } },
   { files: ['apps/mobile/src/screens/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noStorage) } },
-  { files: ['apps/mobile/src/server/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noDeepPackage, serverLayer) } },
-  { files: ['apps/mobile/src/ui/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, uiLayer) } },
+  // The base folders: the app's general rules, and the layer they sit in.
+  ...BASE_FOLDERS.filter((f) => f !== 'server').map((f) => ({
+    files: [`apps/mobile/src/${f}/**/*.{ts,tsx}`], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, layerOf(f)) }
+  })),
+  { files: ['apps/mobile/src/server/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noDeepPackage, serverLayer, layerOf('server')) } },
   { files: ['apps/mobile/App.tsx'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage) } },
   { files: MODELS, rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, pure) } },
+  // A model in a base folder is pure and in its layer: the last block decides, so it has both.
+  ...BASE_FOLDERS.map((f) => ({
+    files: MODELS.map((m) => m.replace('src/**/', `src/${f}/**/`)), rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, pure, layerOf(f)) }
+  })),
 
   // A language kept on disk holds only the passages on screen: the app never reads every passage from
   // memory, but where the list in scripts/lint/wholeLanguage.mjs says why it may (decisions.md 143).

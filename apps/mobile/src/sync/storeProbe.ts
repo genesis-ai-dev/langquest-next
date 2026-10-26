@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { registerDeviceProbe } from '../diagnostics/diagnostics';
-import { getStore } from './store';
+import { getStore } from '../storage/store';
 
 /**
  * What the local event log holds, for the `device` diagnostics record:

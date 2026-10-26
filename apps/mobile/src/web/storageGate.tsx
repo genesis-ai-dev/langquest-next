@@ -5,7 +5,7 @@ import { t } from '../i18n';
 import { EmptyState, GhostBtn, PrimaryBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { reportError } from '../diagnostics/report';
-import { allowStorage, onStoreFailure } from '../sync/store';
+import { allowStorage, onStoreFailure } from '../storage/store';
 import { startTab, type TabDeps, type TabState } from './tabLock';
 import { C, space } from '../ui/theme';
 

@@ -1,8 +1,8 @@
 import { ORG_MATERIALIZER, SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import { DEFAULT_LICENSE, ORG_STREAM, SEED_ROLES, type License, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { getStore } from '../sync/store';
-import { serverTransport } from '../server/sync';
+import { getStore } from '../storage/store';
+import { serverTransport } from '../sync/serverTransport';
 
 /**
  * Start a new organization (ONB-6) in its own stream, never the one that

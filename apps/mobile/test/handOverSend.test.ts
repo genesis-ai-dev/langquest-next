@@ -32,7 +32,7 @@ vi.mock('../src/diagnostics/diagnostics', () => ({
   flushDiagnostics: async () => undefined,
   timedTransfer: (_dir: unknown, _where: unknown, run: (t: object) => unknown) => run({})
 }));
-vi.mock('../src/sync/store', () => ({
+vi.mock('../src/storage/store', () => ({
   getStore: async () => ({ meta: async () => 'device-1', commit: async () => undefined })
 }));
 vi.mock('../src/server/handOver', () => ({

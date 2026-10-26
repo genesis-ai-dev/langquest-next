@@ -20,9 +20,10 @@ import { UpdateBanner } from './src/shell/UpdateBanner';
 import { useFirstLaunchUpdate } from './src/shell/useFirstLaunchUpdate';
 import { AppVersionPrompt } from './src/appVersion/AppVersionPrompt';
 import { useAppVersion } from './src/appVersion/useAppVersion';
-import { maySwitchPersona } from './src/auth/dev';
+import { maySwitchPersona } from './src/session/dev';
 import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/shell/flow';
-import { chromeVisible, frame, layoutKind } from './src/ui/layout';
+import { frame, layoutKind } from './src/ui/layout';
+import { chromeVisible } from './src/shell/chromeModel';
 import { NavChrome } from './src/shell/NavChrome';
 import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
@@ -53,8 +54,9 @@ import { UploadBar } from './src/sync/uploads';
 import { SyncStatusContext } from './src/sync/useSyncStatus';
 import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/shell/session';
 import { SESSION_KEY, onAuthChange, serverConfigError } from './src/server/auth';
-import { afterAuthEvent, savedSession } from './src/auth/authState';
-import { noteAuthEvent, watchRenewals } from './src/auth/authDiag';
+import { afterAuthEvent, savedSession } from './src/session/authState';
+import { noteAuthEvent } from './src/diagnostics/authDiag';
+import { watchRenewals } from './src/server/renewalWatch';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/account/useAccount';
@@ -88,8 +90,12 @@ import { useRouting } from './src/shell/useRouting';
 import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
-import { readOnlyLanguage, readOnlyOrg, setReadOnlySession } from './src/shell/readOnly';
+import { readOnlyLanguage, readOnlyOrg } from './src/shell/readOnly';
+import { setReadOnlySession } from './src/session/readOnly';
+import { wireBase } from './src/shell/wiring';
 
+// What the base folders need from folders above them (decisions.md 105), once, before anything draws.
+wireBase();
 const IS_DEV = __DEV__;
 /** Screens that record: the upload bar shows there, but tapping it does not leave mid-take. */
 const RECORDING_SCREENS: readonly ScreenId[] = ['workspace', 'review_capture', 'back_translation'];

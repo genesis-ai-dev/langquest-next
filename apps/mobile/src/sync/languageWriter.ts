@@ -2,8 +2,8 @@ import { SyncClient, ensureDeviceId } from '@langquest-next/sync';
 import type { EventSpec } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { noteExpected } from '../diagnostics/report';
-import { getStore } from './store';
-import { serverTransport } from '../server/sync';
+import { getStore } from '../storage/store';
+import { serverTransport } from './serverTransport';
 
 /**
  * Write events into a language's stream this phone does not have open: a

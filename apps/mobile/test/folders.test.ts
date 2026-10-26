@@ -25,4 +25,12 @@ describe('apps/mobile/src is laid out by feature', () => {
     const files = readdirSync(SRC, { recursive: true }).map(String);
     expect(files.filter((f) => /(^|\/)(model|\w+Model)\.tsx$/.test(f))).toEqual([]);
   });
+
+  // eslint.config.mjs (BASE_LAYERS) names the base folders under the features; a name that no
+  // longer matches a folder would quietly stop holding anything.
+  it('has every base folder the lint layers name', () => {
+    for (const name of ['i18n', 'build', 'ui', 'helpMode', 'session', 'storage', 'diagnostics', 'server']) {
+      expect(existsSync(join(SRC, name)), name).toBe(true);
+    }
+  });
 });

@@ -10,8 +10,9 @@ import { FunctionError, joinByInvite, redeemInvite } from './invites';
 import { errorCode, noteExpected } from '../diagnostics/report';
 import { setSession } from '../server/auth';
 import { listeners, readHeld } from './heldInviteStore';
-import { recordAuth, recordAuthFailure, since } from '../auth/authDiag';
-import { inviteOutcome, OutcomeThrottle } from '../auth/authOutcome';
+import { recordAuth, recordAuthFailure, since } from '../diagnostics/authDiag';
+import { OutcomeThrottle } from '../session/authOutcome';
+import { inviteOutcome } from './inviteOutcome';
 
 /** What happened to the held invite last, for the screens to say. */
 type InviteStatus =

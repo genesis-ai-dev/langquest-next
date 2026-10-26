@@ -1,11 +1,10 @@
 import { classifyTransferFailure, type DIAG_SCHEMA } from '@langquest-next/sync';
-import { outcomeOfError } from '../invites/heldInvite';
 
 /**
  * How signing in, staying signed in and getting into an organization went,
  * as the `auth` diagnostics record says it (docs/diagnostics.md). Read from
  * an error's status and code only, never its message, except the invite
- * refusals `outcomeOfError` already matches. Pure, so the tests hold it.
+ * refusals the invite folder matches (invites/inviteOutcome.ts). Pure, so the tests hold it.
  */
 
 type AuthSchema = (typeof DIAG_SCHEMA)['auth'];
@@ -16,7 +15,7 @@ export type AuthNumber = AuthSchema['n'][number];
 /**
  * The database's refusal, keeping its SQLSTATE and HTTP status so a report
  * or diagnostics record can say why (`errorCode` reads `code`). The message
- * is the server's English: matched (outcomeOfError), logged, never shown.
+ * is the server's English: matched (invites/inviteOutcome.ts), logged, never shown.
  */
 export class RpcError extends Error {
   readonly code?: string;
@@ -63,15 +62,6 @@ export function failureOutcome(e: unknown, code?: string): AuthOutcome {
     if (classifyTransferFailure(err) === 'offline') return 'offline';
   }
   return 'refused';
-}
-
-/** An invite that could not be used: why it never will, when the server said so, else how the call failed. */
-export function inviteOutcome(e: unknown, code?: string): AuthOutcome {
-  const message = e instanceof Error ? e.message : String(e);
-  const said = outcomeOfError(message);
-  if (said.kind === 'dead') return said.reason;
-  if ((e as { needsName?: unknown } | null)?.needsName === true) return 'needs_name';
-  return failureOutcome(e, code);
 }
 
 /** A v2 sign-in's answer code (server/v2.ts), as an outcome. */

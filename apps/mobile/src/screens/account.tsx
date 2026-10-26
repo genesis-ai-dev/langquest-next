@@ -49,7 +49,7 @@ import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
 import { PersonAvatar } from '../ui/UserChip';
 import { standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
-import { LanguageRow } from '../i18n/uiLanguage';
+import { LanguageRow } from '../account/uiLanguage';
 import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
 import { useSyncInspection } from '../account/useSyncInspection';
 import { useDiagnosticsSwitch } from '../account/useDiagnosticsSwitch';

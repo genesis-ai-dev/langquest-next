@@ -15,7 +15,7 @@ import { chooseRows, clipRect, helpLine, litShape, MARK_SIZE, markAt, numberPart
 import { HelpContext, HelpLayerContext } from './useHelpMode';
 import { currentLocale, isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
-import { registerPlayback } from '../audio/audioSession';
+import { registerPlayback } from '../ui/playback';
 import { isRecorded, sayRecorded, stopHelpAudio } from './helpAudio';
 import { Ico } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';

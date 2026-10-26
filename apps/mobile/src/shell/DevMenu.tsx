@@ -6,7 +6,7 @@
 import { useState } from 'react';
 
 import { Text } from '../ui/text';
-import { maySeedDemoTeam, PERSONAS, personasAvailable, type Persona } from '../auth/dev';
+import { maySeedDemoTeam, PERSONAS, personasAvailable, type Persona } from '../session/dev';
 import { seedDemoTeam, signInAs } from '../auth/demoTeam';
 import { SCREEN_IDS, screenTitle, type ScreenId } from './flow';
 import { Group, Row, SectionLabel, Sheet } from '../ui/kit';

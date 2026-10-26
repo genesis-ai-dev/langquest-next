@@ -11,7 +11,7 @@
 import { SqliteStore, type SqlDriver } from '@langquest-next/sync';
 import type { AnyEvent } from '@langquest-next/core';
 import * as SQLite from 'expo-sqlite';
-import { exclusiveTransactionDriver, openWriter, writeConnectionDriver } from './store';
+import { exclusiveTransactionDriver, openWriter, writeConnectionDriver } from '../storage/store';
 
 export interface StorageBenchResult {
   driver: 'connection per commit' | 'one write connection';

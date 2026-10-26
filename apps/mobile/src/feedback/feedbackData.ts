@@ -13,7 +13,7 @@ import { accountOutbox, queueAccountAction } from '../account/accountData';
 import { phoneContext } from '../diagnostics/diagnostics';
 import { noteExpected } from '../diagnostics/report';
 import { currentLocale } from '../i18n';
-import { getStore } from '../sync/store';
+import { getStore } from '../storage/store';
 import { dropShot, keepShot } from './feedbackShots';
 import { dropVoice } from './voiceBytes';
 import { parseWaiting, withWaiting, type FeedbackKind, type FeedbackPayload, type VoiceRef } from './feedbackModel';

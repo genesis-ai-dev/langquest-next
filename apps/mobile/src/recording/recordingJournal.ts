@@ -1,4 +1,4 @@
-import { getStore } from '../sync/store';
+import { getStore } from '../storage/store';
 import { File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { registerDeviceProbe } from '../diagnostics/diagnostics';

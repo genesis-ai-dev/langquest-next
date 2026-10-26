@@ -1,5 +1,6 @@
 import { CommandError, foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
-import { readOnlyLanguage, readOnlyOrg, readOnlyRefusal, setReadOnlySession } from '../src/shell/readOnly';
+import { readOnlyLanguage, readOnlyOrg } from '../src/shell/readOnly';
+import { readOnlyRefusal, setReadOnlySession } from '../src/session/readOnly';
 import type { LanguageHandle } from '../src/sync/useLanguage';
 import type { OrgHandle } from '../src/sync/useOrg';
 import { accessOf, codeOf, keyInGroups } from '../src/account/globalViewerModel';

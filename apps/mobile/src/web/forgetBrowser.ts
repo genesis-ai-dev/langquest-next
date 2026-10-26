@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { reportError } from '../diagnostics/report';
-import { deleteLocalDatabases } from '../sync/store';
+import { deleteLocalDatabases } from '../storage/store';
 import { clearAllWebFiles } from './webFiles';
 
 /**
