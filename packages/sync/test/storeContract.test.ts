@@ -258,6 +258,9 @@ describe.each(impls)('%s batch and rejected contract', (_name, make) => {
     ]);
     await s.putMany([]);
     expect((await s.get('a'))?.status).toBe('confirmed');
+    // One commit, one id twice: the last wins, as one statement per event did.
+    await s.commit({ events: [{ event: { ...ev('w', '6'), streamId: 'r' }, status: 'pending' }, { event: { ...ev('w', '6', 6), streamId: 'r' }, status: 'confirmed' }] });
+    expect(await s.get('w')).toMatchObject({ status: 'confirmed', event: { serverSeq: 6 } });
     expect((await s.all('o', 'p')).map((e) => e.event.id).sort()).toEqual(['a', 'b']);
     expect((await s.rejected('o', 'p')).map((e) => e.event.id)).toEqual(['x', 'y']);
     // Counted and filtered by reason without reading every refusal (performance-audit-2026-10-26.md item 7).

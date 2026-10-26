@@ -1339,11 +1339,12 @@ export class SyncClient<S = LanguageState> {
         // before the next is sent, so a dropped link keeps what got through.
         const sent = this.elapsed();
         const results = await this.opts.transport.append(batch.map((p) => p.event));
+        const byId = new Map(batch.map((p) => [p.event.id, p]));
         this.net.push += this.elapsed() - sent;
         const writes: LocalEvent[] = [];
         let notListed = false;
         for (const r of results) {
-          const local = batch.find((p) => p.event.id === r.id);
+          const local = byId.get(r.id);
           if (!local) continue;
           const code = r.accepted ? null : rejectCodeOf(r.reason ?? undefined);
           if (code) {

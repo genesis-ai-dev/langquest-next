@@ -92,7 +92,7 @@ export class SqliteStore implements EventStore {
 
   async commit(batch: WriteBatch): Promise<void> {
     const write = async (tx: SqlDriver) => {
-      for (const l of batch.events ?? []) await this.putOn(tx, l);
+      await this.putOn(tx, batch.events ?? []);
       if (batch.cursor) await this.setCursorOn(tx, batch.cursor.orgId, batch.cursor.streamId, batch.cursor.seq);
       for (const [k, v] of Object.entries(batch.meta ?? {})) await this.setMetaOn(tx, k, v);
       if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq);
@@ -127,28 +127,29 @@ export class SqliteStore implements EventStore {
     await this.commit({ events: [local] });
   }
 
-  private async putOn(db: SqlDriver, local: LocalEvent): Promise<void> {
-    const e = local.event;
-    await db.run(
-      `insert into events (id, org_id, stream_id, status, reject_reason, hlc, server_seq, json)
-       values (?, ?, ?, ?, ?, ?, ?, ?)
-       on conflict(id) do update set
-         hlc = excluded.hlc,
-         status = excluded.status,
-         reject_reason = excluded.reject_reason,
-         server_seq = excluded.server_seq,
-         json = excluded.json`,
-      [
-        e.id,
-        e.orgId,
-        e.streamId,
-        local.status,
-        local.rejectReason ?? null,
-        e.hlc,
-        e.serverSeq ?? null,
-        JSON.stringify(e)
-      ]
-    );
+  /**
+   * Upsert events, a few hundred a statement handed over as one JSON array,
+   * as kept rows are: a pull page of 500 was 500 awaited statements, each a
+   * round trip to the native side (performance-audit-2026-10-26.md). Rows
+   * apply in order, so an id given twice ends as its last.
+   */
+  private async putOn(db: SqlDriver, locals: readonly LocalEvent[]): Promise<void> {
+    for (let i = 0; i < locals.length; i += EVENTS_PER_STATEMENT) {
+      const rows = locals.slice(i, i + EVENTS_PER_STATEMENT).map(({ event: e, status, rejectReason }) =>
+        [e.id, e.orgId, e.streamId, status, rejectReason ?? null, e.hlc, e.serverSeq ?? null, JSON.stringify(e)]);
+      await db.run(
+        `insert into events (id, org_id, stream_id, status, reject_reason, hlc, server_seq, json)
+         select value ->> 0, value ->> 1, value ->> 2, value ->> 3, value ->> 4, value ->> 5, value ->> 6, value ->> 7
+           from json_each(?) where true
+         on conflict(id) do update set
+           hlc = excluded.hlc,
+           status = excluded.status,
+           reject_reason = excluded.reject_reason,
+           server_seq = excluded.server_seq,
+           json = excluded.json`,
+        [JSON.stringify(rows)]
+      );
+    }
   }
 
   async putMany(locals: LocalEvent[]): Promise<void> {
@@ -396,6 +397,8 @@ export class SqliteStore implements EventStore {
 
 /** Ids per lookup. */
 const KEPT_SLICE = 1_000;
+/** Events written per statement. */
+const EVENTS_PER_STATEMENT = 500;
 /** Kept rows written per statement. */
 const KEPT_ROWS_PER_STATEMENT = 1_000;
 
