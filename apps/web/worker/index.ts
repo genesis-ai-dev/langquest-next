@@ -12,7 +12,8 @@ import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
-import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, type Identity } from './isolateCache';
+import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, cachedOrgsOf, MAX_ENTRIES, TtlCache, type Identity } from './isolateCache';
+import type { TokenRecord } from './agent/store';
 import { JOB_TICK, jobsDue } from './jobsModel';
 import { checkStores, storeCheckDue } from './storeReleases';
 import { isOpsPath, toOps } from './ops';
@@ -68,6 +69,8 @@ let sessionLive: ((sessionId: string) => Promise<boolean>) | null = null;
 /** This isolate's token and file-access caches (isolateCache.ts); an isolate's secrets do not change, so the first request's env serves them all. */
 let identityOfCached: ((token: string) => Promise<Identity | null>) | null = null;
 let globalViewerOnCached: ((profileId: string, aal: string | undefined) => Promise<boolean>) | null = null;
+let orgsOfCached: ((profileId: string) => Promise<string[]>) | null = null;
+const tokenCache = new TtlCache<TokenRecord>(MAX_ENTRIES);
 let blobAccessCached: ((key: string, profileId: string, write: boolean, aal?: string) => Promise<boolean>) | null = null;
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
@@ -195,7 +198,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   const agentStore = supabaseAgentStore(serviceClient(env));
   return handleApi(request, {
     profileOf,
-    orgsOf: (profileId) => agentStore.orgsOf(profileId),
+    orgsOf: (orgsOfCached ??= cachedOrgsOf((profileId) => agentStore.orgsOf(profileId))),
     reports: (orgId, profileId, fresh, everyLanguage) => orgObject(orgId).reports(orgId, profileId, fresh, everyLanguage),
     // A Global Viewer reads every organization's reports, on an aal2 session only (decisions.md 158).
     globalViewerOn: async (token) => {
@@ -238,6 +241,8 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     },
     agent: {
       store: agentStore,
+      tokenCache,
+      waitUntil: (p) => ctx.waitUntil(p),
       profileOf,
       org: (orgId): OrgStub => {
         const object = orgObject(orgId);
