@@ -148,6 +148,48 @@ describe('blob reconciler caution', () => {
   });
 });
 
+describe('blob reconciler work saved', () => {
+  it('folds no stream that has no files, and none whose log holds no BlobStored', async () => {
+    // Why: performance-audit-2026-10-26.md C5. Every stream, organization and person streams too, was folded each pass.
+    const server = new FakeServer();
+    await language(server);
+    let folded = 0;
+    const d = deps(server, []);
+    const pull = d.transport.pull.bind(d.transport);
+    d.transport = { ...d.transport, pull: async (...a: Parameters<typeof pull>) => { folded += 1; return pull(...a); } } as typeof d.transport;
+    expect(await reconcileBlobs(d, { verify: false })).toMatchObject({ streams: 1, objects: 0, confirmed: 0 });
+    expect(folded).toBe(0);
+
+    // With files but no BlobStored in the log: confirmed without reading the stream.
+    const objects = [{ orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'wav', size: 4 }];
+    const none = deps(server, objects);
+    none.hasStoredBlobs = async () => false;
+    none.transport = d.transport;
+    expect((await reconcileBlobs(none, { verify: false })).confirmed).toBe(1);
+    expect(folded).toBe(0);
+  });
+
+  it('confirms the unconfirmed objects a few at a time, and a refusal stops the stream', async () => {
+    const server = new FakeServer();
+    await language(server);
+    const objects = Array.from({ length: 10 }, (_, i) => ({ orgId: 'org1', streamId: 'p1', hash: sha(`f${i}`), format: 'wav', size: 1 }));
+    const d = deps(server, objects);
+    let inFlight = 0;
+    let most = 0;
+    const record = d.recordBlob;
+    d.recordBlob = async (...a) => { inFlight += 1; most = Math.max(most, inFlight); await new Promise((r) => setTimeout(r, 1)); await record(...a); inFlight -= 1; };
+    expect((await reconcileBlobs(d, { verify: false })).confirmed).toBe(10);
+    expect(most).toBeGreaterThan(1);
+    expect(most).toBeLessThanOrEqual(4);
+
+    const fresh = new FakeServer();
+    await language(fresh);
+    const refusing = deps(fresh, objects);
+    refusing.recordBlob = async () => { throw new Error('nope'); };
+    await expect(reconcileBlobs(refusing, { verify: false })).rejects.toThrow('nope');
+  });
+});
+
 describe('runBlobReconciler (wired to a service client and the file store)', () => {
   function files(objects: Record<string, string>): BlobFiles & { removed: string[] } {
     const removed: string[] = [];

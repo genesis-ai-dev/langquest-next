@@ -181,9 +181,14 @@ export class BlobStore {
     }
   }
 
-  /** Byte sizes of present files, for the size check against confirmations. */
+  /**
+   * Byte sizes of present files, for the size check against confirmations:
+   * the live map, read at once and never kept or changed. The work lists and
+   * reclaim ask after every file that lands, and a copy of 61,000 entries each
+   * time made a download quadratic (performance-audit-2026-10-26.md item 3).
+   */
   sizes(): ReadonlyMap<string, number> {
-    return new Map(this.sizeByHash);
+    return this.sizeByHash;
   }
 
   sizeOf(hash: string): number | undefined {

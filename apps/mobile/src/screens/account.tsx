@@ -430,7 +430,7 @@ export function SettingsMore(ctx: Ctx) {
   const switchHere = !inSeveral(orgs);
   const passwordRow = s.isManaged && hasPassword === false;
   // No push on the web yet: requests and feedback still reach the Inbox there. A disguised phone
-  // gets none, since each would show LangQuest's name (decisions.md 169).
+  // gets none, since each would show LangQuest's name (decisions.md 170).
   const disguised = useDisguise().look !== null;
   const notifications = Platform.OS !== 'web' && !disguised;
   const blocked = ctx.blocks.ids.length;
@@ -482,7 +482,7 @@ export function SettingsMore(ctx: Ctx) {
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
         <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={status.pending > 0 ? formatNumber(status.pending) : undefined} onPress={() => ctx.go('sync_status')} />
-        {/* A calculator or notepad in front of the app, opened with a code (decisions.md 169); phones only. */}
+        {/* A calculator or notepad in front of the app, opened with a code (decisions.md 170); phones only. */}
         <DisguiseRow ctx={ctx} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}

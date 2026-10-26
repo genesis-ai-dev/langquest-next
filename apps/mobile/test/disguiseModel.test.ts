@@ -4,7 +4,7 @@ import {
   CALC_START, codeAllowed, digitsOnly, formatResult, keypadCandidate, LOOKS, noteCandidates, press, withoutCode, type Calc, type Key
 } from '../src/disguise/disguiseModel';
 
-// A phone's disguise (decisions.md 169): the calculator works as a
+// A phone's disguise (decisions.md 170): the calculator works as a
 // calculator, the code opens the app on its last digit or on a line of its
 // own, and every look the picker offers is an icon the build declares.
 

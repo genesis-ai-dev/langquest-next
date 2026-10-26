@@ -1,7 +1,4 @@
 import { handleApi } from './api';
-import { connectPage } from './agent/connectPage';
-import { reviewPage } from './agent/reviewPage';
-import { pageLanguage } from './i18n/pages';
 import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
 import { sha256Hex } from './agent/tokens';
@@ -12,10 +9,12 @@ import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
-import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, type Identity } from './isolateCache';
+import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, cachedOrgsOf, MAX_ENTRIES, TtlCache, type Identity } from './isolateCache';
+import type { TokenRecord } from './agent/store';
 import { JOB_TICK, jobsDue } from './jobsModel';
 import { checkStores, storeCheckDue } from './storeReleases';
 import { isOpsPath, toOps } from './ops';
+import { pokeInBatches } from './batches';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -68,6 +67,8 @@ let sessionLive: ((sessionId: string) => Promise<boolean>) | null = null;
 /** This isolate's token and file-access caches (isolateCache.ts); an isolate's secrets do not change, so the first request's env serves them all. */
 let identityOfCached: ((token: string) => Promise<Identity | null>) | null = null;
 let globalViewerOnCached: ((profileId: string, aal: string | undefined) => Promise<boolean>) | null = null;
+let orgsOfCached: ((profileId: string) => Promise<string[]>) | null = null;
+const tokenCache = new TtlCache<TokenRecord>(MAX_ENTRIES);
 let blobAccessCached: ((key: string, profileId: string, write: boolean, aal?: string) => Promise<boolean>) | null = null;
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
@@ -124,7 +125,7 @@ export default {
     const catchUp = supabaseAgentStore(serviceClient(env)).webhookOrgs()
       .then((orgs) => {
         n.webhookOrgs = orgs.length;
-        return Promise.all(orgs.map((orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId)));
+        return pokeInBatches(orgs, (orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId));
       })
       .catch(failed('webhookCatchupFailed', 'webhook catch-up'));
     // Which app version is live in the stores, once an hour (storeReleases.ts, decisions.md 154).
@@ -151,11 +152,16 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   // The ops dashboard, a Worker of its own reached through the binding (ops.ts).
   if (isOpsPath(url.pathname)) return toOps(request, env.OPS);
   if (url.pathname === '/connect' && request.method === 'GET') {
+    // The pages' words (about 195 KB of JSON) are read only when a page is asked for, not on every cold start.
+    const [{ connectPage }, { pageLanguage }] = await Promise.all([import('./agent/connectPage'), import('./i18n/pages')]);
     return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' }, pageLanguage(request));
   }
   // A shared review link (agent/links.ts); the page checks the code with the API.
   const review = /^\/r\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname);
-  if (review && request.method === 'GET') return reviewPage(review[1]!, pageLanguage(request));
+  if (review && request.method === 'GET') {
+    const [{ reviewPage }, { pageLanguage }] = await Promise.all([import('./agent/reviewPage'), import('./i18n/pages')]);
+    return reviewPage(review[1]!, pageLanguage(request));
+  }
   if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
   // The database says an organization's log moved (decisions.md 101); its object looks a few seconds later.
   if (url.pathname === '/api/internal/poke' && request.method === 'POST') {
@@ -195,7 +201,7 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   const agentStore = supabaseAgentStore(serviceClient(env));
   return handleApi(request, {
     profileOf,
-    orgsOf: (profileId) => agentStore.orgsOf(profileId),
+    orgsOf: (orgsOfCached ??= cachedOrgsOf((profileId) => agentStore.orgsOf(profileId))),
     reports: (orgId, profileId, fresh, everyLanguage) => orgObject(orgId).reports(orgId, profileId, fresh, everyLanguage),
     // A Global Viewer reads every organization's reports, on an aal2 session only (decisions.md 158).
     globalViewerOn: async (token) => {
@@ -238,6 +244,8 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     },
     agent: {
       store: agentStore,
+      tokenCache,
+      waitUntil: (p) => ctx.waitUntil(p),
       profileOf,
       org: (orgId): OrgStub => {
         const object = orgObject(orgId);

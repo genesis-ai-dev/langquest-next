@@ -1,4 +1,4 @@
-import { buildIndexes, referencedBlobs, type LanguageState } from '@langquest-next/core';
+import { indexesOf, referencedBlobs, type LanguageState } from '@langquest-next/core';
 import { AUDIO, FILE, NO_UNIT, SyncClient, type EventStore, type SqlDriver, type Transport } from '@langquest-next/sync';
 import type { SqlStore } from './sqlCache';
 
@@ -36,9 +36,26 @@ export interface LanguageRecords {
 /** A language held whole, read as records: tests, and a language small enough to fold. */
 export function wholeRecords(state: LanguageState): LanguageRecords {
   return {
-    shared: state, passages: buildIndexes(state).passages, view: async () => state,
+    shared: state, passages: indexesOf(state).passages, view: async () => state,
     files: async (hashes) => filesIn(state, hashes)
   };
+}
+
+const positions = new WeakMap<readonly string[], Map<string, number>>();
+
+/**
+ * Where a passage stands in `passages` (display order), or -1. The map is built
+ * once per list: `indexesOf` hands every read of an unchanged language the same
+ * list, and `includes` / `indexOf` on a Bible's thousand passages ran for each.
+ */
+export function positionIn(passages: readonly string[], unitId: string): number {
+  let at = positions.get(passages);
+  if (!at) {
+    at = new Map();
+    passages.forEach((id, i) => { if (!at!.has(id)) at!.set(id, i); });
+    positions.set(passages, at);
+  }
+  return at.get(unitId) ?? -1;
 }
 
 /** Which of these files a state's records name, and when the server stored those it has. */
@@ -99,8 +116,8 @@ export class LanguageRecordsKeeper {
   }
 
   /**
-   * A language caught up to the log's head now (`head`, when the caller
-   * knows it, saves the pull of a language that has not moved).
+   * A language caught up to the log's head (`head`, when the caller knows
+   * it, saves the pull of a language that has not moved past what is kept).
    */
   async records(languageId: string, head?: number): Promise<LanguageRecords> {
     const store = await this.store();
@@ -120,14 +137,14 @@ export class LanguageRecordsKeeper {
     };
     return {
       shared,
-      passages: buildIndexes(shared).passages,
+      passages: indexesOf(shared).passages,
       view: async (unitIds) => {
         await filled(unitIds);
         return client.withPassages(unitIds);
       },
       files: async (hashes) => {
         // Every passage's rows, and the verdicts on files no passage names, before anything can be said to be new.
-        await filled([...buildIndexes(client.getState()).passages, NO_UNIT]);
+        await filled([...indexesOf(client.getState()).passages, NO_UNIT]);
         // What memory holds (the tail since the last checkpoint), then which record names each file on disk, and its verdict.
         const { named, stored } = filesIn(client.getState(), hashes);
         for (const r of await store.keptById(this.orgId, languageId, AUDIO, hashes)) named.add(r.id);

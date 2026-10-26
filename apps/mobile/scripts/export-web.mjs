@@ -102,12 +102,16 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // in 15 languages after six were merged into two. 6.6 MB since uploads and
 // downloads shown by passage, with their moving packages (decision 166), took
 // it 5 KB past 6.55 MB; a first visit stays under its own budget.
-const TOTAL_BUDGET_BYTES = 6.6 * 1024 * 1024;
+// Lowered to 4.75 MB when icons came one file each (src/ui/icons.ts) instead
+// of through lucide's entry, which brought all 1,800-odd: 6.54 MB to 4.54 MB
+// in all (performance-audit-2026-10-26.md item 1, decision 123 amended).
+const TOTAL_BUDGET_BYTES = 4.75 * 1024 * 1024;
 // A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
 // the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
 // (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
 // microphone opens has to be loaded with the recorder.
-const FIRST_VISIT_BUDGET_BYTES = 5.75 * 1024 * 1024;
+// Lowered to 3.9 MB with the icons above: 5.70 MB to 3.71 MB.
+const FIRST_VISIT_BUDGET_BYTES = 3.9 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

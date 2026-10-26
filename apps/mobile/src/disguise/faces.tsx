@@ -1,4 +1,4 @@
-// What a disguised phone shows in front of LangQuest (decisions.md 169): a
+// What a disguised phone shows in front of LangQuest (decisions.md 170): a
 // calculator that works, or a notepad that keeps what is written on it. The
 // code opens the app: on the calculator as its last digit is typed, on the
 // notepad as a line of its own. A wrong code does what the calculator or

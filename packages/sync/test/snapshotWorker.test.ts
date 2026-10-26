@@ -180,8 +180,8 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
       const snap = server.snapshots.get('org1/a')!;
       expect(server.hasCut(snap)).toBe(true);
       // Staged in batches, then moved in with the snapshot.
-      const order = fake.calls.map((c) => c.fn).filter((f) => f === 'stage_snapshot_units' || f === 'put_snapshot' || f === 'put_passage_lines');
-      expect(order).toEqual(['stage_snapshot_units', 'put_snapshot', 'put_passage_lines']);
+      const order = fake.calls.map((c) => c.fn).filter((f) => f === 'stage_snapshot_units' || f === 'put_snapshot' || f === 'put_passage_lines_delta');
+      expect(order).toEqual(['stage_snapshot_units', 'put_snapshot', 'put_passage_lines_delta']);
       const head = (await server.transportFor().snapshotHead!('org1', 'a', snap.reducerVersion, LINES_VERSION))!;
       expect(head.units.map((u) => u.unitId)).toEqual(['u0', 'u1', 'u2', 'u3', 'u4', 'u5']);
       expect(head.units.reduce((n, u) => n + u.rows, 0)).toBe(cutLanguage(snap.state).rows.length);
@@ -189,10 +189,16 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
 
       // A few events later the pass folds again: no new snapshot is due, but the lines move on.
       await lead.append('v1.ReviewRecorded', { reviewId: 'rv-late', takeId: 't2', kindId: 'peer', outcome: 'needs_changes', via: 'app' });
+      await lead.append('v1.RecordingAdded', { recordingId: 'r-late', unitId: 'u2', kind: 'target', cards: [{ hash: 'h-late', durationMs: 9 }] });
+      await lead.append('v1.TakeComposed', { takeId: 't-late', unitId: 'u2', cardHashes: ['h-late'], parentTakeId: null });
       await lead.sync();
       const later = fakeSupabase(server, { snapshotCreatedAt: new Date().toISOString() });
       const out = await runSnapshotWorker(later.client);
       expect(out[0]).toMatchObject({ updated: true, written: false });
+      // Only the passage whose line changed is sent again (performance-audit-2026-10-26.md item 14).
+      const sent = later.calls.find((c) => c.fn === 'put_passage_lines_delta')!.args;
+      expect((sent['p_lines'] as { unitId: string }[]).map((l) => l.unitId)).toEqual(['u2']);
+      expect(sent['p_removed']).toEqual([]);
       expect(server.lines.get('org1/a')!.seq).toBe(server.head('org1', 'a'));
       expect(server.snapshots.get('org1/a')!.serverSeq).toBeLessThan(server.head('org1', 'a'));
 
@@ -213,6 +219,33 @@ describe('runSnapshotWorker (the projection pass, against a fake service client)
       const truth = foldLanguage([...server.stream('org1', 'a')], emptyLanguageState());
       expect({ ...whole, appliedEventIds: {}, blobs: {} }).toEqual({ ...truth, appliedEventIds: {}, blobs: {} });
       expect(server.chunkCalls).toBe(0);
+    });
+
+    it('sends every line when the database cannot say what it holds, and drops the lines of a passage that is gone', async () => {
+      const server = new FakeServer();
+      const lead = await worked(server, 3);
+      const old = fakeSupabase(server);
+      old.fail.set('passage_line_digests', 'function not found');
+      await runSnapshotWorker(old.client);
+      expect(old.calls.map((c) => c.fn)).toContain('put_passage_lines');
+      expect(old.calls.map((c) => c.fn)).not.toContain('put_passage_lines_delta');
+      expect([...server.lines.get('org1/a')!.byUnit.keys()]).toEqual(['u0', 'u1', 'u2']);
+
+      // A pass that does know the digests, and a line the database holds that the fold no longer has.
+      server.lines.get('org1/a')!.byUnit.set('gone', { unitId: 'gone' } as never);
+      await lead.append('v1.ReviewRecorded', { reviewId: 'rv-x', takeId: 't0', kindId: 'peer', outcome: 'looks_good', via: 'app' });
+      await lead.sync();
+      const fresh = fakeSupabase(server, { snapshotCreatedAt: new Date().toISOString() });
+      await runSnapshotWorker(fresh.client);
+      const sent = fresh.calls.find((c) => c.fn === 'put_passage_lines_delta')!.args;
+      expect(sent['p_removed']).toEqual(['gone']);
+      // Lines written without a digest are sent once, with theirs; after that nothing is sent for them.
+      expect(sent['p_lines']).toHaveLength(3);
+      await lead.append('v1.ReviewRecorded', { reviewId: 'rv-y', takeId: 't0', kindId: 'peer', outcome: 'looks_good', via: 'app' });
+      await lead.sync();
+      const next = fakeSupabase(server, { snapshotCreatedAt: new Date().toISOString() });
+      await runSnapshotWorker(next.client);
+      expect(next.calls.find((c) => c.fn === 'put_passage_lines_delta')!.args['p_lines']).toEqual([]);
     });
 
     it('gives a snapshot written before the cut its rows and lines on the next visit, though nothing new arrived', async () => {

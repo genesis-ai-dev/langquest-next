@@ -23,6 +23,7 @@ export interface LocalFiles {
   presentView?(): ReadonlySet<string>;
   /** Changes whenever the set of files does: lets a copy be skipped when nothing changed. */
   readonly version?: number;
+  /** Sizes of the files here, possibly the live map: read at once, never kept or changed. */
   sizes(): ReadonlyMap<string, number>;
   sizeOf(hash: string): number | undefined;
   /** The format a file was stored in, which can differ from the one asked for (WAV on a browser without MP4). */
@@ -613,12 +614,14 @@ export class LanguageSession {
       void (async () => {
         // The window's published copy of the files here (`presentSoon`), not another copy per recount.
         const present = this.current.present;
-        const own = await this.plan.scope(this.o.actorId);
-        const kept = await this.scope();
+        // The scope once, not four times (each a pass over every line and a query): the marks and the summary share it.
+        const why = await this.plan.reasons(this.o.actorId);
+        const own = why.mine;
         const chosen = this.current.keptUnits;
+        const kept = new Set([...own, ...chosen]);
         const [counted, summary] = await Promise.all([
-          this.plan.byUnit([...kept], present, this.o.actorId, chosen),
-          this.plan.summary(present, this.o.actorId, chosen)
+          this.plan.byUnit([...kept], present, this.o.actorId, chosen, why),
+          this.plan.summary(present, this.o.actorId, chosen, why)
         ]);
         // "On this device" is a passage's rows as well as its audio (decisions.md 147): one a first download has not reached is not ready.
         let waiting = 0;

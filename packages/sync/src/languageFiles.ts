@@ -42,7 +42,7 @@ export class LanguageFiles {
   }
 
   /** Why a person keeps passages, for the offline marks: asked of them, or kept by default. */
-  private async reasons(actorId: string): Promise<OfflineReasons> {
+  async reasons(actorId: string): Promise<OfflineReasons> {
     const live = this.client.getState();
     const asked = this.client.keptRecords() ? askedOfLines(this.client.passageLines(), live, actorId) : unitsAskedOf(live, actorId);
     return { mine: await this.scope(actorId), asked };
@@ -67,13 +67,13 @@ export class LanguageFiles {
   }
 
   /** How much of each of these passages' audio is on this phone. */
-  async byUnit(unitIds: readonly string[], present: ReadonlySet<string>, actorId: string, chosen: ReadonlySet<string>): Promise<Map<string, UnitOffline>> {
-    return offlineCountsOf(await this.plan({ units: unitIds }), unitIds, present, chosen, await this.reasons(actorId));
+  async byUnit(unitIds: readonly string[], present: ReadonlySet<string>, actorId: string, chosen: ReadonlySet<string>, why?: OfflineReasons): Promise<Map<string, UnitOffline>> {
+    return offlineCountsOf(await this.plan({ units: unitIds }), unitIds, present, chosen, why ?? await this.reasons(actorId));
   }
 
   /** The offline scope at a glance (Settings). */
-  async summary(present: ReadonlySet<string>, actorId: string, chosen: ReadonlySet<string>): Promise<OfflineSummary> {
-    const why = await this.reasons(actorId);
+  async summary(present: ReadonlySet<string>, actorId: string, chosen: ReadonlySet<string>, given?: OfflineReasons): Promise<OfflineSummary> {
+    const why = given ?? await this.reasons(actorId);
     const units = new Set(why.mine);
     for (const u of chosen) units.add(u);
     return offlineSummaryOf(await this.plan({ units }), present, chosen, why);

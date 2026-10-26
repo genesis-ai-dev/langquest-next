@@ -32,12 +32,14 @@ export interface ApiDeps {
 
 const NO_STORE = { 'cache-control': 'private, no-store' };
 
-const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...NO_STORE, ...headers } });
+const jsonText = (status: number, text: string, headers: Record<string, string> = {}) =>
+  new Response(text, { status, headers: { 'content-type': 'application/json', ...NO_STORE, ...headers } });
 
-/** A validator for the rows alone, so an unchanged answer is a 304 even though `asOf` moved on. */
-async function etagOf(rows: unknown): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(rows)));
+const json = (status: number, body: unknown, headers: Record<string, string> = {}) => jsonText(status, JSON.stringify(body), headers);
+
+/** A validator for the rows alone (given as the JSON text of what it covers), so an unchanged answer is a 304 even though `asOf` moved on. */
+async function etagOf(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return `"${[...new Uint8Array(digest).slice(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('')}"`;
 }
 
@@ -118,9 +120,13 @@ async function answer(request: Request, deps: ApiDeps): Promise<Response> {
   const body = url.searchParams.get('view') === 'summary' ? summarizeReports(out) : withOverdueZero(out);
   // A language moving out of "being prepared" changes the answer, not only its rows.
   const preparing = 'preparing' in body ? body.preparing ?? [] : [];
-  const headers = { etag: await etagOf(preparing.length ? { rows: body.rows, preparing } : body.rows), 'x-as-of': body.asOf };
+  // The rows are the big part: written out once, for the validator and for the answer.
+  const rowsText = JSON.stringify(body.rows);
+  const headers = { etag: await etagOf(preparing.length ? `{"rows":${rowsText},"preparing":${JSON.stringify(preparing)}}` : rowsText), 'x-as-of': body.asOf };
   if (request.headers.get('if-none-match') === headers.etag) return new Response(null, { status: 304, headers: { ...NO_STORE, ...headers } });
-  return json(200, body, headers);
+  const { rows: _rows, ...rest } = body;
+  const restText = JSON.stringify(rest);
+  return jsonText(200, `${restText.slice(0, -1)}${restText === '{}' ? '' : ','}"rows":${rowsText}}`, headers);
 }
 
 /**

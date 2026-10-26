@@ -1,4 +1,4 @@
-// What disguise means (decisions.md 169), with no platform: the looks a
+// What disguise means (decisions.md 170), with no platform: the looks a
 // phone may take, the codes that open it, and the working calculator that
 // stands in front of the app. disguise.ts keeps the choice; faces.tsx draws it.
 import { t } from '../i18n';

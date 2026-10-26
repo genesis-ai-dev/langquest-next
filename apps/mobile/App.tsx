@@ -353,7 +353,7 @@ export default function App() {
   const appVersion = useAppVersion(!!auth);
   return (
     <SafeAreaProvider>
-      {/* A disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 169). */}
+      {/* A disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 170). */}
       <DisguiseGate>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
@@ -361,9 +361,10 @@ export default function App() {
         <AppVersionPrompt offer={appVersion.offer} onUpdate={appVersion.openStore} onDismiss={appVersion.dismiss} />
         {serverConfigError ? (
           <Fatal title={t('shell.errors.notConfigured')} detail={serverConfigError} />
-        ) : !updateLooked ? (
+        ) : !updateLooked || auth === undefined || !wordsReady ? (
+          // Looking for an update, reading the saved sign-in or the words: the same spinner, not a blank screen.
           <View style={styles.waiting}><ActivityIndicator size="large" color={C.muted} /></View>
-        ) : auth === undefined || !wordsReady ? null : (
+        ) : (
           <ErrorBoundary>
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
             <HelpModeProvider>

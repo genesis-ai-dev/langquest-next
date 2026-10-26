@@ -1,6 +1,6 @@
 import type { Look } from './disguiseModel';
 
-/** A browser has no app icon to change and nothing to disguise (decisions.md 169): disguise.ts is the phones'. */
+/** A browser has no app icon to change and nothing to disguise (decisions.md 170): disguise.ts is the phones'. */
 export const ICONS_HERE = false;
 
 const STATE = { look: null as Look | null, locked: false };

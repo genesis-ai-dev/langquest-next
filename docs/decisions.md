@@ -1949,6 +1949,14 @@ organization by its name or any language it lists
 matches. Offline, the saved list is searched as before. The UI test suite
 found this (JRN-005) once the local database listed more than 500.
 
+Amended (2026-10-26, Carl Sauder): an organization's name is read from the
+table `org_names` (the latest `v1.OrgCreated` or `v1.OrgRenamed` by hlc and
+id, kept by a trigger on `events` and filled from the log by migration
+`20261026170700_org_names.sql`), not found by sorting its name events for
+every organization in a listing. `org_name()`, `listed_organizations`,
+`listed_organizations_search` (now by trigram index) and
+`global_viewer_organizations` (158) read it; their results are unchanged.
+
 ## 67. Whoever holds Invite may invite and admit people, with or without an email of their own
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -2050,6 +2058,17 @@ Amended (2026-10-20, Carl Sauder): a local stack no longer keeps the Edge
 pass: it runs the pass in the job container too, its tick fired every
 minute by `npm run web:dev`, and push delivery's function is
 `push-delivery` (148).
+
+Amended (2026-10-26, Carl Sauder): the pass no longer folds a language again
+because its organization's stream moved. A mark keeps a fingerprint of what
+the language's projection reads from the organization (who may open it, its
+name and code, the licence: `orgFingerprint` in `server/projectionWorker.ts`,
+`projection_marks.org_fp`); an organization event that leaves it equal (an
+invite, a role nobody holds, a join decided for another language) only
+moves the mark's `org_seq`. A projection that starts to read something more
+from the organization must put it in the fingerprint or bump
+`PROJECTION_VERSION`. The pass also reads one snapshot row per stream
+(`snapshot_heads_page`) and only the listed languages' visibility rows.
 
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
@@ -4774,7 +4793,7 @@ Reverse if: a client must issue invites or decide requests offline; then
 
 ## 115. An event is at most 64 KB, and an account creates at most 5 organizations a day and 20 in all
 
-Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+Date: 2026-10-15 · By: Carl Sauder · Status: partly superseded by 169
 
 Reason: a security audit found that `append_events` limited a push to 500
 events (invariant 12) but not their size, so one member could push notes
@@ -4937,6 +4956,18 @@ step to take through the repo's Supabase config (`docs/cloudflare.md`).
 Reverse if: a removal must cut access at once (a takedown, say); then drop
 the access cache, or clear it from the event that removes the member.
 
+Amended (2026-10-26, Carl Sauder): three more answers are kept per isolate,
+on the same terms (performance-audit-2026-10-26.md item 10). The agent API's
+token records, keyed by the token's hash, for 15 s, so a revoked token can
+still be used for up to 15 s from an isolate that already read it, and the
+last-used write no longer holds up the response (`ctx.waitUntil`). A
+person's organizations, for the reports route only, for 30 s, so someone
+removed from an organization may read its reports for up to 30 s; /connect
+and links still ask each time. Agent reads trust the organization's stream
+heads for up to 3 s and pull only when a head moved past what the object
+holds; writes and the read after a write still pull. Reverse if: as above,
+or an agent must see another writer's work within a second.
+
 ## 122. Inactive Inbox rows are deleted 30 days after they went inactive
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
@@ -4987,6 +5018,16 @@ language (`countryName()` is synchronous; they now ride in the Reports
 file). Reverse if: a lazy screen's first open is slow enough for people to
 notice on the slowest partner phone, or the web's background fetch competes
 with a first sync on slow links; then move that screen back, or fetch later.
+
+Amended (2026-10-26, Carl Sauder): both budgets lowered, to 3.9 MiB for a
+first visit and 4.75 MiB in all. lucide's entry re-exports every one of its
+1,800-odd icons and Metro does not shake out the ones no file uses, so the
+main file carried 1.5 MB of icons for the 91 the app draws. Icons now come
+one file each through `apps/mobile/src/ui/icons.ts`, and lint refuses the
+package's entry elsewhere (`noIconBarrel`, `eslint.config.mjs`). A first
+visit went from 5.70 to 3.71 MiB and every file together from 6.54 to 4.54
+(performance-audit-2026-10-26.md item 1). The budgets keep about 5% of
+room, as above, so the space is spent on purpose rather than by drift.
 
 ## 124. You choose where the next part is recorded, a whole thing asks before it is deleted, and a deleted version is a tombstone
 
@@ -6666,6 +6707,25 @@ Putting an entry twice is a join, so a passage that also read those rows
 from disk loses nothing. `keptFill.test.ts` holds the write open while the
 passage opens.
 
+Amended (2026-10-26, Carl Sauder): three storage changes, none of which
+changes what a phone receives (migration
+`20261026170800_snapshot_cut_storage.sql`). `put_snapshot` counts each
+passage's rows once and keeps them on the snapshot (`snapshots.unit_counts`),
+so `get_snapshot_head` reads them instead of counting every unit row on a
+cold open (a cut from before is counted as it was until its next snapshot;
+the migration fills the existing ones). `snapshot_units_staged` is
+unlogged: its rows live minutes and are written again into `snapshot_units`,
+so keeping them out of the WAL takes about a third off a snapshot's write;
+a crash empties it and the next visit stages the cut again. Lines keep a
+digest (`passage_lines.digest`) and the pass sends only the lines whose
+digest differs from the stored one, and the ids of passages that have none
+(`passage_line_digests`, `put_passage_lines_delta`); `put_passage_lines`
+remains for a pass that cannot read the digests, and now finds the lines to
+drop by a join rather than a scan per stored line. Not changed: the staged
+rows are still inserted into `snapshot_units` and the old ones deleted, since
+the table is keyed by the snapshot's seq and a new seq is a new row;
+decision 88's retention is as it was.
+
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
@@ -6731,6 +6791,18 @@ that run's function secret and its Vault write, a minute's push may be
 refused and is delivered the next minute. A local stack's
 `supabase/functions/.env` keeps its value under the new name
 (`scripts/local-db.mjs`).
+
+Amended (2026-10-26, Carl Sauder): the push delivery job no longer calls the
+Edge Function every minute whatever is queued. Each minute it asks
+`push_work_waiting()` (a notification a claim could take, or a push receipt
+old enough to read) and posts only if so, so `diag.job_schedule` gives it no
+schedule (it runs when there is work, like the webhook dispatch). Another
+daily job drops `cron.job_run_details` rows over seven days old. The claim
+is driven from the people who have a push token (index
+`notifications_push_person`) instead of walking past every notification of
+someone without one. The schedule is now
+`20261026170400_push_delivery_when_waiting.sql`, which `npm run secrets`
+runs again. Audit: `docs/performance-audit-2026-10-26.md` item 11.
 
 ## 149. A reviewer notes a moment of the recording, a help, a key word, a verse or a note, and every note goes with the review and its verdict
 
@@ -7867,7 +7939,60 @@ Reverse if: people forget their pattern more often than they come back with
 it (then offer a helper's code first), or a locked phone is opened by
 someone it does not belong to (then a larger grid, or a server-held key).
 
-## 169. A phone can wear a disguise: a calculator or notepad icon, and in front of the app a calculator or notepad that the person's code opens
+## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
+
+Date: 2026-10-26 · By: Carl Sauder · Status: accepted
+
+Reason: a security audit (2026-10-26) found that decision 115 bounded each
+event but not how many, so any account (sign-up is open and confirms no
+email) could fill a log that never sheds an event, through `append_events`
+or `record_user_event` with ids of its own choosing. 115 turned down a quota
+on events per day because it would refuse a phone pushing weeks of offline
+work at once; this one is counted by the day on each event's own clock, so
+that work goes up when it reaches the server. Carl chose (2026-10-26):
+- **The allowance.** A signed-in account writes at most 20,000 organization
+  and language events, or 100 MB of their payloads, dated any one UTC day
+  (`append_allowance`, `_append_allowance_refusal`, migration
+  20261026200000). In the local data, v2's history included, a person's
+  busiest day is about 9,300 events and 1.9 MB, and the 99th percentile
+  about 1,150. A day is never earlier than the day the account was made, so
+  a new account cannot date events into the past to write more: an abuser
+  gets 20,000 events a day of the account's age. Only what was taken
+  counts, not duplicates or refusals, and the service role's imports and
+  seeds are not counted.
+- **An event over it is refused on its own**, `may not emit <type>: this
+  account has written 20000 events dated <day>`, which the phone keeps and
+  shows (invariant 1, `NOT_ALLOWED`), and the rest of the push goes on.
+  Failing the whole push, so the phone would try again, was the first
+  choice, made while the allowance was counted by the day the server
+  received events; counted by the event's day, an allowance that is used up
+  stays used up, so a failed push would have held back that language's
+  uploads for good.
+- **A person's stream holds each event once.** `VisionSeen` and
+  `WalkthroughDone` are kept once, with an empty payload; `TermsAccepted`
+  once a version, with only the version, and at most 100 versions. A repeat
+  is answered as done, so a phone that sends one again sees no error.
+- **`invitecheck:` is the server's.** `redeem_invite_for` puts the person
+  joining on the invite's check teams with ids that begin `invitecheck:`,
+  which `_server_event_id` did not reserve, so a member who knew the
+  invite's id could take one first and the person would quietly not join
+  the team.
+- **`library_template_users` names only the languages the caller may read**
+  (`can_read_stream`), as `language_book_names` does; a language's member
+  saw every language's template. Defining or publishing a library item
+  takes an organization-wide role, which reads every language, so the
+  app's choice between a new version and a copy (`breakup/model.ts`
+  `planChange`) is the same for everyone who can make it.
+- **Kept on purpose:** `register_push_token` and `diag_ingest` move a push
+  token or an install id to whoever registers it. On a shared phone the next
+  person must take over the phone's token when the hand-over could not
+  unregister it offline, and knowing either id takes the device.
+Reverse if: real work dates more than 20,000 events or 100 MB to one day
+for one person (then raise the allowance, or count by language), or phones
+with clocks set far back start being refused (then measure how far, and
+count their events on the day received).
+
+## 170. A phone can wear a disguise: a calculator or notepad icon, and in front of the app a calculator or notepad that the person's code opens
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted
 

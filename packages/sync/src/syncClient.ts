@@ -18,7 +18,7 @@ import {
 } from '@langquest-next/core';
 import type { EventStore, LocalEvent, SyncInspection, Transport, WriteBatch } from './types';
 import { WriteQueue } from './writeQueue';
-import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, rejectCodeOf, type RejectCode } from './types';
+import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
 import type { DIAG_SCHEMA, Diagnostics } from './diagnostics';
 import { holdsKept, KeptLanguage, LINE, PART_KINDS, SnapshotRows, SPLIT_MAPS } from './keptLanguage';
@@ -1124,6 +1124,15 @@ export class SyncClient<S = LanguageState> {
       this.revision += 1;
       this.publish();
     }
+    // Memory lets go of passages only at a checkpoint, and one reading passage after passage may pull nothing to
+    // take one: a checkpoint when memory has taken in many, on the fast path only (nothing unsent), which sheds.
+    if (this.kept.holdsTooMany() && !this.opts.deferCheckpoint?.()) {
+      const { store, orgId, streamId } = this.opts;
+      await this.exclusive(async () => {
+        if (!this.kept?.holdsTooMany() || (await store.pendingCount(orgId, streamId)) > 0) return;
+        await this.checkpoint(await store.cursor(orgId, streamId));
+      }).catch(() => { /* a disk error: the next pull's checkpoint lets go instead */ });
+    }
     // A passage whose rows are still on the server is filled in now, if the server can be reached (decisions.md 147).
     if (this.fill?.active() && this.kept.wantedUnits().length > 0) {
       await this.exclusive(async () => {
@@ -1339,11 +1348,12 @@ export class SyncClient<S = LanguageState> {
         // before the next is sent, so a dropped link keeps what got through.
         const sent = this.elapsed();
         const results = await this.opts.transport.append(batch.map((p) => p.event));
+        const byId = new Map(batch.map((p) => [p.event.id, p]));
         this.net.push += this.elapsed() - sent;
         const writes: LocalEvent[] = [];
         let notListed = false;
         for (const r of results) {
-          const local = batch.find((p) => p.event.id === r.id);
+          const local = byId.get(r.id);
           if (!local) continue;
           const code = r.accepted ? null : rejectCodeOf(r.reason ?? undefined);
           if (code) {
@@ -1434,7 +1444,12 @@ export class SyncClient<S = LanguageState> {
 
   /** Mark this actor's refusals with these codes pending again; the caller refolds. */
   private async requeue(codes: readonly RejectCode[]): Promise<number> {
-    const mine = (await this.opts.store.rejected(this.opts.orgId, this.opts.streamId)).filter(
+    // Push asks for not-listed refusals on every run: read only those, not every refusal kept.
+    const store = this.opts.store;
+    const candidates = codes.length === 1 && codes[0] === 'NOT_LISTED' && store.rejectedWith
+      ? await store.rejectedWith(this.opts.orgId, this.opts.streamId, NOT_LISTED_TEXT)
+      : await store.rejected(this.opts.orgId, this.opts.streamId);
+    const mine = candidates.filter(
       (l) => l.event.actorId === this.opts.actorId && codes.includes(rejectCodeOf(l.rejectReason))
     );
     if (mine.length === 0) return 0;
@@ -1816,6 +1831,7 @@ export class SyncClient<S = LanguageState> {
 
   /** Events of this stream the server refused, kept in the log (invariant 1): what the person must be told about. */
   async refusedCount(): Promise<number> {
-    return (await this.opts.store.rejected(this.opts.orgId, this.opts.streamId)).length;
+    const { store, orgId, streamId } = this.opts;
+    return store.rejectedCount ? store.rejectedCount(orgId, streamId) : (await store.rejected(orgId, streamId)).length;
   }
 }
