@@ -3092,6 +3092,13 @@
       "elsewhereSub": "Yana aiki a shafi ɗaya a lokaci guda, don naɗe-naɗenku da canje-canjenku su kasance a wuri ɗaya. Ku yi amfani da shi a nan, ko ku koma ɗayan shafin.",
       "useHere": "Yi amfani da shi a nan",
       "useHereHelp": "Yana kawo LangQuest zuwa wannan shafi. Ɗayan shafin yana ajiye aikinsa ya koma gefe."
+    },
+    "lock": {
+      "wait": "Gwaje-gwaje sun yi yawa. Ku jira kaɗan, sannan ku sake gwadawa.",
+      "wrong": "Wannan zanen ba daidai ba ne.",
+      "notMe": "Ba hotona ba ne",
+      "notMeHelp": "Yana komawa ga hotunan.",
+      "pictureHelp": "Kun fita daga wannan waya? Taɓa hotonku, sannan ku zana zanenku. Ba a buƙatar intanet."
     }
   },
   "account": {
@@ -3397,6 +3404,17 @@
       "syncNowHelp": "Yana aika abin da ke jira, ya samo abin da yake sabo, nan take.",
       "detailsHelp": "Kowane canji da ke jira ko aka ƙi, da tura sauti: don wanda ke gyara matsala.",
       "eventHelp": "Yana buɗe nassin da wannan canji ya shafa."
+    },
+    "lock": {
+      "tooShort": "Haɗa aƙalla ɗigo {{n}}.",
+      "patternsDiffer": "Wannan wani zane ne daban. Sake farawa.",
+      "pictureTitle": "Zaɓi hotonku",
+      "pictureHelp": "Don sake shiga a wannan waya, za ku taɓa hotonku, sannan ku zana zanenku.",
+      "nextHelp": "Yana ci gaba zuwa zana zanenku.",
+      "drawTitle": "Zana zane",
+      "drawAgain": "Sake zana shi",
+      "newPattern": "Zana sabon zane",
+      "choosePatternHelp": "Zaɓi hoto da zane don sake shiga a wannan waya, ko babu intanet."
     }
   },
   "study": {
@@ -4406,6 +4424,15 @@
       "readHelp": "Yana buɗe cikakken rubutunsa a burauza.",
       "rowHelp": "Yana buɗe lasisi daban-daban da abin da kowanne ya yarda da shi.",
       "yesOpenToHelp": "Daga yanzu za a raba aikinku a ƙarƙashin wannan lasisi. Ba za a iya janye wannan ba."
+    },
+    "pattern": {
+      "label": "Zane: haɗa aƙalla ɗigo {{n}}",
+      "help": "Ja yatsa kan ɗigogin ba tare da ɗaga shi ba, ko taɓa su ɗaya bayan ɗaya sannan An gama. Haɗa aƙalla ɗigo {{n}}.",
+      "dot": "Ɗigo {{n}}",
+      "picture": "Hoto {{n}}",
+      "again": "Sake farawa",
+      "againHelp": "Yana goge ɗigogin don sake fara zanen.",
+      "doneHelp": "Yana kammala zanen da ɗigogin da kuka taɓa."
     }
   },
   "help": {

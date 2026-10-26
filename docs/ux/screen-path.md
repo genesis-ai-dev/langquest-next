@@ -49,7 +49,7 @@ always a way back to a home.
 
 | Screen | What the person needs to see | Main action | Secondary | Rarer | Way back |
 | --- | --- | --- | --- | --- | --- |
-| Me | Four rows: their name, Ready for offline, How LangQuest works, More settings; Switch Organization under the name for someone in several organizations | Their name (name and photo) | Ready for offline | Sign out; More settings (account, password, notifications, switch organization for someone in one, sync, App icon on a phone (decision 168), diagnostics, blocked people, Delete account, where the stores are told) | — (tab) |
+| Me | Four rows: their name, Ready for offline, How LangQuest works, More settings; Switch Organization under the name for someone in several organizations | Their name (name and photo) | Ready for offline | Sign out; More settings (account, password, notifications, switch organization for someone in one, sync, App icon on a phone (decision 169), diagnostics, blocked people, Delete account, where the stores are told) | — (tab) |
 | Inbox (from the bell) | Updates, newest first | An update | — | Join requests and reports (admins) | Back to My Work |
 
 ## Getting in

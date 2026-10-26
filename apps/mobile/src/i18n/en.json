@@ -3092,6 +3092,13 @@
       "elsewhereSub": "It works in one tab at a time, so your recordings and changes stay in one place. Use it here, or go back to the other tab.",
       "useHere": "Use it here",
       "useHereHelp": "Moves LangQuest to this tab. The other tab saves its work and steps aside."
+    },
+    "lock": {
+      "wait": "Too many tries. Wait a little, then try again.",
+      "wrong": "That pattern is not right.",
+      "notMe": "Not my picture",
+      "notMeHelp": "Goes back to the pictures.",
+      "pictureHelp": "Signed out of this phone? Tap your picture, then draw your pattern. No connection needed."
     }
   },
   "account": {
@@ -3397,6 +3404,17 @@
       "syncNowHelp": "Sends what is waiting and gets what is new, right away.",
       "detailsHelp": "Each change waiting or refused, and audio transfers: for someone fixing a problem.",
       "eventHelp": "Opens the passage this change is about."
+    },
+    "lock": {
+      "tooShort": "Join at least {{n}} dots.",
+      "patternsDiffer": "That was a different pattern. Start again.",
+      "pictureTitle": "Choose your picture",
+      "pictureHelp": "To sign back in on this phone, you will tap your picture, then draw your pattern.",
+      "nextHelp": "Goes on to drawing your pattern.",
+      "drawTitle": "Draw a pattern",
+      "drawAgain": "Draw it again",
+      "newPattern": "Draw a new pattern",
+      "choosePatternHelp": "Choose a picture and a pattern to sign back in with on this phone, even with no connection."
     }
   },
   "study": {
@@ -4406,6 +4424,15 @@
       "readHelp": "Opens its full text in the browser.",
       "rowHelp": "Opens the licenses and what each one allows.",
       "yesOpenToHelp": "Your work is shared under this license from now on. It can’t be undone."
+    },
+    "pattern": {
+      "label": "Pattern: join at least {{n}} dots",
+      "help": "Draw through the dots without lifting your finger, or tap them one at a time, then Done. Join at least {{n}} dots.",
+      "dot": "Dot {{n}}",
+      "picture": "Picture {{n}}",
+      "again": "Start again",
+      "againHelp": "Clears the dots, to start the pattern again.",
+      "doneHelp": "Finishes the pattern with the dots you tapped."
     }
   },
   "help": {

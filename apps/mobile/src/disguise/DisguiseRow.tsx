@@ -1,4 +1,4 @@
-// More settings › App icon (decisions.md 168): LangQuest's own icon, or one
+// More settings › App icon (decisions.md 169): LangQuest's own icon, or one
 // of five calculators or five notepads with a code. Choosing one asks for the
 // code, then has it typed on the calculator or notepad itself, which is how
 // the app will open from then on: the try teaches it, and nothing changes

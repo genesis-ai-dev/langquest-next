@@ -1709,6 +1709,13 @@ every request, so values are kept in memory once read; an entry the Keystore
 can no longer read counts as signed out. Test
 `apps/mobile/test/secureStorage.test.ts`.
 
+Amended (2026-10-26, Caleb Koster): with a lock on the phone (168), the
+session a hand-over keeps is sealed for its owner too. When the courier has
+sent everything it no longer ends that session: it seals the newest copy and
+drops the key, so the person can still come back to this phone offline.
+Coming back from the lock takes the session back from the courier without
+ending it, after any delivery under way stops (`takeBackHandOver`).
+
 ## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -3329,6 +3336,15 @@ never held their sign-in without the server.
 Reverse if: a phone keeps acting for an account the server has ended
 (then end it on the first refusal of its requests), or Supabase Auth
 starts answering a lasting refusal with a status this treats as passing.
+
+Amended (2026-10-26, Caleb Koster): app start read the saved sign-in from
+AsyncStorage, where it no longer is once 60 (amended 2026-10-15) moved it to
+the Keychain and Keystore; from then on a phone opened offline an hour after
+its last connection showed Sign In. It now reads it where supabase-js keeps
+it (`savedSignIn`, test `apps/mobile/test/savedSignIn.test.ts`). On a phone,
+signing out no longer ends the session on the server and the sign-out screen
+no longer says signing back in needs a connection: the session is locked on
+the phone instead (168). A browser keeps both as before.
 
 ## 88. A language's server snapshot is written after 200 new events or an hour, and the one before stays for 24 hours
 
@@ -7775,7 +7791,83 @@ slow file's tests, or give it its own runner), or Stryker learns to keep
 partial results, so one job could carry on from where the last night
 stopped.
 
-## 168. A phone can wear a disguise: a calculator or notepad icon, and in front of the app a calculator or notepad that the person's code opens
+## 168. Signing out of a phone locks the sign-in on it, and a picture and pattern, or the password, opens it again offline
+
+Date: 2026-10-26 · By: Caleb Koster · Status: accepted
+
+Reason: amends 60 and 87. Every way into the app needed the server (a
+password, a helper's code, an invite), so someone who signed out offline
+could not get back in, or reach the work kept on the phone, until it was
+online, which in the field can be months; on a shared phone nobody else
+could get in either. Caleb said (2026-10-12) that signing out and back in
+must both work offline: field users will tap Sign Out, and in countries
+where Christians are persecuted they may do so on purpose before a phone is
+taken. Of the options put to him then he chose an encrypted lock with no
+names on Sign In, a swipe pattern rather than digits, and a picture for each
+person to find themselves by. That work (pull request 90) was merged into a
+branch that had already reached main, so it never shipped; Caleb asked
+(2026-10-26) for it on main, with nothing lost and nobody signed out. Little
+research covers low-literacy users: less-literate smartphone users already
+lock their phones with a PIN or a pattern; patterns are faster and liked,
+PINs give fewer errors; text-free designs suit non-literate users. A pattern
+needs no reading and no numbers, in any language. Chosen:
+- On a phone, Sign Out seals the person's session (AES-256-GCM) with a
+  random data key the phone keeps for them while they are signed in, and
+  keeps that key only wrapped under their password and, if they drew one, a
+  pattern (PBKDF2-SHA256, 10,000 rounds stored per wrap; `@noble/hashes`,
+  `@noble/ciphers`) (`apps/mobile/src/auth/sealModel.ts`,
+  `apps/mobile/src/server/lock.ts`; the web build takes `lock.web.ts`, which
+  does nothing). The lock, the key and the sealed session
+  live in the Keychain or Keystore with the session (60, amended
+  2026-10-15). It asks the server nothing and no longer ends the session
+  there. Neither the password nor the pattern is stored; an email or sign-in
+  name is kept only as a hash salted per phone. The rounds are few on
+  purpose: plain JavaScript is slow at them (50,000 took 15 seconds on the
+  simulator's debug build, 10,000 took 3), and against a copied lock the
+  patterns fall whatever the count. The stretching pauses on a timer, so
+  "Signing in…" shows and the screen does not freeze.
+- The password wrap is made on every online sign-in with a password and
+  when a password is set (`rememberPassword`); the same password typed
+  again brings back the key it wrapped, so a pattern stays good. Someone
+  with no password here (a QR join, a helper's code, or signed in before
+  this build) chooses a picture and draws a pattern twice when they first
+  sign out; anyone may add or change one there. Two people on one phone
+  never share a picture (sixteen things known everywhere, drawn by the
+  phone's emoji font); they may share a pattern, since the picture says
+  whose lock to open.
+- A pattern joins at least five of nine dots, as on the Android lock screen
+  (`apps/mobile/src/auth/patternPad.tsx`): dragging and lifting finishes it;
+  tapping the dots one at a time and then Done works too, which is also how
+  a screen reader enters one.
+- Sign In tries a typed password against the lock before the server. While
+  someone here can come back with a pattern it shows their pictures, never
+  names: tap yours, then draw (`signBackIn`). Wrong guesses count for that
+  person's lock: four are free, then each try waits twice as long, from a
+  minute up to an hour. Words that explain any of this are in help mode,
+  not on the screen.
+- Unsent work stays as 60 has it: a hand-over still sends it as its author
+  when the phone is online, and its kept session is sealed too. Coming back
+  takes the session back from the courier (`takeBackHandOver`); after the
+  courier is done the session stays sealed for its owner instead of being
+  ended. A session the server ended takes the lock's copy with it.
+- Signing in again here by any other way drops an older sealed session of
+  theirs (`signedInHere`). A browser forgets everything on sign-out (11), as
+  before.
+What it guards against: the next person on a shared phone, and someone who
+takes the phone and tries patterns in the app. Someone who gets past the
+Keychain or Keystore and copies the lock can try all of about 390,000
+patterns as fast as their computer allows, so a pattern then holds for
+hours, a long password much longer; a pattern is also easier to see over a
+shoulder than a PIN. A helper marking the phone lost (59) ends the session
+on the server the next time the phone is online. Nothing new leaves the
+phone, so no store answer changes (`docs/play-store-declarations.md`).
+Tests `apps/mobile/test/lockModel.test.ts`, `lockFlow.test.ts`,
+`handOverSend.test.ts`.
+Reverse if: people forget their pattern more often than they come back with
+it (then offer a helper's code first), or a locked phone is opened by
+someone it does not belong to (then a larger grid, or a server-held key).
+
+## 169. A phone can wear a disguise: a calculator or notepad icon, and in front of the app a calculator or notepad that the person's code opens
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted
 

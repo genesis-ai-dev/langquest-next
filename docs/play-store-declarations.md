@@ -150,6 +150,15 @@ no Android permission and no biometrics (`faceIDPermission` is off), so no
 Play Console answer changes. "Encrypted in transit" and the data types are
 unchanged.
 
+Signing out of a phone locks the person's sign-in on it (decisions.md 168) so
+they can sign back in with no connection: their session is encrypted on the
+phone under their password or a pattern they draw, using `@noble/hashes` and
+`@noble/ciphers` (code inside the app, no network), and kept in the Keychain
+or Keystore with the session itself. The password and pattern are checked on
+the phone and never stored or sent; an email or sign-in name is kept only as
+a hash salted per phone. Nothing new leaves the phone, so no data type
+changes, and account creation and sign-in methods are unchanged.
+
 Recordings (decisions.md 106) are kept and uploaded as AAC (`.m4a`) on a
 phone instead of WAV: the same voice recordings in a smaller file, so the
 "Voice or sound recordings" answer is unchanged.
@@ -202,7 +211,7 @@ learns which version is live from Apple's public lookup and Google Play's
 public app page, which send no user data. Nothing is collected or sent, and no Play Console answer
 changes.
 
-A phone's disguise (decisions.md 168): under Me → More settings → App icon,
+A phone's disguise (decisions.md 169): under Me → More settings → App icon,
 someone may give the app one of ten icons, five calculators and five
 notepads, and a code of 4 to 12 digits. From then on the app opens on a
 working calculator or notepad, and the code typed there opens LangQuest.
@@ -273,7 +282,7 @@ this block.
     "expo-sqlite"
   ],
   "mobileDependencies": [
-    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync",
+    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync", "@noble/ciphers", "@noble/hashes",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-alternate-app-icons", "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",

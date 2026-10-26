@@ -37,6 +37,14 @@ export async function handOverPushToken(): Promise<string | undefined> {
   await AsyncStorage.removeItem('push-token');
   return error ? token : undefined;
 }
+/**
+ * Back in from the lock before the courier disconnected this phone's
+ * notifications (decisions.md 168): they still come here, so the phone
+ * holds the token again for the next sign-out.
+ */
+export async function keepPushToken(token: string): Promise<void> {
+  await AsyncStorage.setItem('push-token', token);
+}
 export interface RemoteNotification {
   id: string; seq: number; org_id: string; language_id: string | null;
   kind: string; title: string; task_id: string | null;

@@ -3184,6 +3184,13 @@
       "elsewhereSub": "Ele funciona em uma aba de cada vez, para que as suas gravações e mudanças fiquem em um só lugar. Use aqui, ou volte para a outra aba.",
       "useHere": "Usar aqui",
       "useHereHelp": "Passa o LangQuest para esta aba. A outra aba salva o trabalho dela e sai de cena."
+    },
+    "lock": {
+      "wait": "Tentativas demais. Espere um pouco e tente de novo.",
+      "wrong": "Esse padrão não está certo.",
+      "notMe": "Não é a minha imagem",
+      "notMeHelp": "Volta para as imagens.",
+      "pictureHelp": "Saiu deste aparelho? Toque na sua imagem e depois desenhe o seu padrão. Não precisa de internet."
     }
   },
   "account": {
@@ -3498,6 +3505,17 @@
       "syncNowHelp": "Envia o que está esperando e recebe o que é novo, na hora.",
       "detailsHelp": "Cada mudança esperando ou recusada, e as transferências de áudio: para quem está resolvendo um problema.",
       "eventHelp": "Abre a passagem a que esta mudança se refere."
+    },
+    "lock": {
+      "tooShort": "Ligue pelo menos {{n}} pontos.",
+      "patternsDiffer": "Esse era outro padrão. Comece de novo.",
+      "pictureTitle": "Escolha a sua imagem",
+      "pictureHelp": "Para entrar de novo neste aparelho, você vai tocar na sua imagem e depois desenhar o seu padrão.",
+      "nextHelp": "Segue para desenhar o seu padrão.",
+      "drawTitle": "Desenhe um padrão",
+      "drawAgain": "Desenhe de novo",
+      "newPattern": "Desenhar um padrão novo",
+      "choosePatternHelp": "Escolha uma imagem e um padrão para entrar de novo neste aparelho, mesmo sem internet."
     }
   },
   "study": {
@@ -4544,6 +4562,15 @@
       "readHelp": "Abre o texto completo dela no navegador.",
       "rowHelp": "Abre as licenças e o que cada uma permite.",
       "yesOpenToHelp": "O seu trabalho passa a ser compartilhado sob esta licença. Isto não pode ser desfeito."
+    },
+    "pattern": {
+      "label": "Padrão: ligue pelo menos {{n}} pontos",
+      "help": "Passe o dedo pelos pontos sem levantá-lo, ou toque neles um por um e depois em Pronto. Ligue pelo menos {{n}} pontos.",
+      "dot": "Ponto {{n}}",
+      "picture": "Imagem {{n}}",
+      "again": "Começar de novo",
+      "againHelp": "Limpa os pontos para começar o padrão de novo.",
+      "doneHelp": "Termina o padrão com os pontos que você tocou."
     }
   },
   "help": {

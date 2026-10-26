@@ -3092,6 +3092,13 @@
       "elsewhereSub": "Inafanya kazi katika kichupo kimoja kwa wakati mmoja, ili rekodi na mabadiliko yako yabaki mahali pamoja. Itumie hapa, au rudi kwenye kichupo kingine.",
       "useHere": "Itumie hapa",
       "useHereHelp": "Huhamisha LangQuest kwenye kichupo hiki. Kichupo kingine kinahifadhi kazi yake na kukaa kando."
+    },
+    "lock": {
+      "wait": "Majaribio mengi mno. Subiri kidogo, kisha ujaribu tena.",
+      "wrong": "Mchoro huo si sahihi.",
+      "notMe": "Si picha yangu",
+      "notMeHelp": "Inarudi kwenye picha.",
+      "pictureHelp": "Ulitoka kwenye simu hii? Gusa picha yako, kisha uchore mchoro wako. Huhitaji mtandao."
     }
   },
   "account": {
@@ -3397,6 +3404,17 @@
       "syncNowHelp": "Hutuma kinachosubiri na kupata kilicho kipya, mara moja.",
       "detailsHelp": "Kila badiliko linalosubiri au lililokataliwa, na uhamishaji wa sauti: kwa mtu anayerekebisha tatizo.",
       "eventHelp": "Hufungua kifungu ambacho badiliko hili linahusu."
+    },
+    "lock": {
+      "tooShort": "Unganisha angalau nukta {{n}}.",
+      "patternsDiffer": "Huo ulikuwa mchoro tofauti. Anza upya.",
+      "pictureTitle": "Chagua picha yako",
+      "pictureHelp": "Ili kuingia tena kwenye simu hii, utagusa picha yako, kisha uchore mchoro wako.",
+      "nextHelp": "Inaendelea kuchora mchoro wako.",
+      "drawTitle": "Chora mchoro",
+      "drawAgain": "Uchore tena",
+      "newPattern": "Chora mchoro mpya",
+      "choosePatternHelp": "Chagua picha na mchoro wa kuingia tena kwenye simu hii, hata bila mtandao."
     }
   },
   "study": {
@@ -4406,6 +4424,15 @@
       "readHelp": "Hufungua maandishi yake kamili katika kivinjari.",
       "rowHelp": "Hufungua leseni na kile kila moja inaruhusu.",
       "yesOpenToHelp": "Kazi yako inashirikiwa chini ya leseni hii kuanzia sasa. Hili haliwezi kutenduliwa."
+    },
+    "pattern": {
+      "label": "Mchoro: unganisha angalau nukta {{n}}",
+      "help": "Pitisha kidole kwenye nukta bila kukiinua, au gusa moja moja kisha Nimemaliza. Unganisha angalau nukta {{n}}.",
+      "dot": "Nukta {{n}}",
+      "picture": "Picha {{n}}",
+      "again": "Anza upya",
+      "againHelp": "Inafuta nukta ili uanze mchoro upya.",
+      "doneHelp": "Inamaliza mchoro kwa nukta ulizogusa."
     }
   },
   "help": {
