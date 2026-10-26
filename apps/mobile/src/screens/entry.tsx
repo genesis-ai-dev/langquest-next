@@ -201,7 +201,8 @@ function PatternSignIn(props: { people: { actorId: string; picture: number }[] }
         <>
           <ChosenPicture picture={who.picture} />
           <PatternPad onDone={(dots) => void drew(dots)} disabled={busy} error={!!error} resetKey={padKey} />
-          {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
+          {busy ? <Text style={[txt.smMuted, { textAlign: 'center' }]} accessibilityLiveRegion="polite">{t('entry.shared.signingIn')}</Text> : null}
+          {error && !busy ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
           <LinkBtn label={t('entry.lock.notMe')} help={t('entry.lock.notMeHelp')} onPress={() => { setWho(null); setError(''); }} style={{ alignSelf: 'center' }} />
         </>
       ) : (

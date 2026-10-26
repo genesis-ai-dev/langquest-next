@@ -1,7 +1,7 @@
 // i18n-ignore-file: cryptography; no words shown to people.
 import { gcm } from '@noble/ciphers/aes';
 import { bytesToUtf8 } from '@noble/ciphers/utils';
-import { pbkdf2Async } from '@noble/hashes/pbkdf2';
+import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import type { Lock, Sealed, Wrap } from './lockModel';
@@ -31,14 +31,49 @@ import type { Lock, Sealed, Wrap } from './lockModel';
 
 export type Random = (n: number) => Uint8Array;
 
-export const ITERATIONS = 50_000;
+/**
+ * Rounds of PBKDF2 for a new wrap. Plain JavaScript on a phone is slow at
+ * this: 50,000 rounds took 15 seconds on the simulator's debug build, and
+ * cheap phones are slower still, while against a copied lock the five-dot
+ * patterns fall in any case; what holds them is the Keychain or Keystore
+ * and the waits after wrong guesses. Stored per wrap, so it can change.
+ */
+export const ITERATIONS = 10_000;
 
 export function newDataKey(random: Random): string {
   return bytesToHex(random(32));
 }
 
-async function derive(secret: string, salt: string, iterations: number): Promise<Uint8Array> {
-  return pbkdf2Async(sha256, utf8ToBytes(secret.normalize('NFC')), hexToBytes(salt), { c: iterations, dkLen: 32 });
+/** Lets the screen draw: a timer, not a promise, so a frame can come between. */
+const pause = () => new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+const ROUNDS_BETWEEN_PAUSES = 2_000;
+
+/**
+ * PBKDF2-HMAC-SHA256 for one 32-byte block, as `pbkdf2Async` of
+ * @noble/hashes computes it (the tests hold the two equal). That one pauses
+ * only between promises, which lets no frame through, so a phone's screen
+ * stood still for the seconds it took; this one pauses on a timer, so
+ * "Signing out…" shows and the screen keeps moving.
+ */
+export async function pbkdf2Sha256(password: string, salt: Uint8Array, iterations: number, wait: () => Promise<void> = pause): Promise<Uint8Array> {
+  const prf = hmac.create(sha256, utf8ToBytes(password));
+  const first = new Uint8Array(salt.length + 4);
+  first.set(salt);
+  first[salt.length + 3] = 1;
+  const u = prf.clone().update(first).digest();
+  const out = u.slice();
+  let work = prf.clone();
+  for (let i = 1; i < iterations; i++) {
+    work = prf._cloneInto(work);
+    work.update(u).digestInto(u);
+    for (let j = 0; j < out.length; j++) out[j] ^= u[j]!;
+    if (i % ROUNDS_BETWEEN_PAUSES === 0) await wait();
+  }
+  return out;
+}
+
+function derive(secret: string, salt: string, iterations: number): Promise<Uint8Array> {
+  return pbkdf2Sha256(secret.normalize('NFC'), hexToBytes(salt), iterations);
 }
 
 /** Wrap the data key under a password or pattern, replacing any earlier wrap of the same kind. */

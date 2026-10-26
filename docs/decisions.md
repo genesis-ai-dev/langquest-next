@@ -7778,14 +7778,18 @@ needs no reading and no numbers, in any language. Chosen:
 - On a phone, Sign Out seals the person's session (AES-256-GCM) with a
   random data key the phone keeps for them while they are signed in, and
   keeps that key only wrapped under their password and, if they drew one, a
-  pattern (PBKDF2-SHA256, iterations stored per wrap; `@noble/hashes`,
+  pattern (PBKDF2-SHA256, 10,000 rounds stored per wrap; `@noble/hashes`,
   `@noble/ciphers`) (`apps/mobile/src/auth/sealModel.ts`,
   `apps/mobile/src/server/lock.ts`; the web build takes `lock.web.ts`, which
   does nothing). The lock, the key and the sealed session
   live in the Keychain or Keystore with the session (60, amended
   2026-10-15). It asks the server nothing and no longer ends the session
   there. Neither the password nor the pattern is stored; an email or sign-in
-  name is kept only as a hash salted per phone.
+  name is kept only as a hash salted per phone. The rounds are few on
+  purpose: plain JavaScript is slow at them (50,000 took 15 seconds on the
+  simulator's debug build, 10,000 took 3), and against a copied lock the
+  patterns fall whatever the count. The stretching pauses on a timer, so
+  "Signing in…" shows and the screen does not freeze.
 - The password wrap is made on every online sign-in with a password and
   when a password is set (`rememberPassword`); the same password typed
   again brings back the key it wrapped, so a pattern stays good. Someone

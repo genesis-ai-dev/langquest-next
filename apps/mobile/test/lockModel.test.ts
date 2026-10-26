@@ -2,7 +2,9 @@ import { randomBytes } from 'node:crypto';
 import {
   addDot, afterMiss, between, dotAt, isPattern, isPicture, lockFor, MIN_DOTS, parseLocks, patternSecret, PICTURES, takenPictures, waitLeft, type Lock, type Misses
 } from '../src/auth/lockModel';
-import { addressHash, newDataKey, openWrap, seal, unseal, withWrap } from '../src/auth/sealModel';
+import { pbkdf2Async } from '@noble/hashes/pbkdf2';
+import { sha256 } from '@noble/hashes/sha2';
+import { addressHash, newDataKey, openWrap, pbkdf2Sha256, seal, unseal, withWrap } from '../src/auth/sealModel';
 
 // Decision 167: signing out of a phone locks the sign-in on it, and the
 // person's password or a pattern on nine dots opens it again with no connection.
@@ -117,6 +119,18 @@ describe('locking a sign-in', () => {
     expect(parseLocks(null)).toEqual([]);
     expect(parseLocks('{not json')).toEqual([]);
     expect(parseLocks('[{"actorId":1}]')).toEqual([]);
+  });
+});
+
+describe('stretching a secret', () => {
+  it('gives what @noble/hashes gives, and lets the screen draw while it works', async () => {
+    const salt = random(16);
+    let pauses = 0;
+    for (const [secret, c] of [['correct horse', 1], ['pattern:v1:0-1-2-4-6-7-8', 4_100], ['ñandú ☀️', 2_000]] as const) {
+      const ours = await pbkdf2Sha256(secret, salt, c, async () => { pauses++; });
+      expect(ours).toEqual(await pbkdf2Async(sha256, new TextEncoder().encode(secret), salt, { c, dkLen: 32 }));
+    }
+    expect(pauses).toBe(2);
   });
 });
 
