@@ -4403,7 +4403,8 @@
       "openStudyHelp": "يفتح دليل الدراسة كاملًا لهذا المقطع.",
       "listeners": "المستمعون",
       "liveIn": "منشور في {{channel}} · {{version}}",
-      "listenerCount": "ملاحظات المستمعين: {{count, number}}"
+      "listenerCount": "ملاحظات المستمعين: {{count, number}}",
+      "askedOffline": "طُلب من {{target}}. يصلهم عندما يتصل هذا الجهاز."
     },
     "else": {
       "title": "شيء آخر؟",
@@ -4817,7 +4818,8 @@
     "toast": {
       "notSaved": "لم يُحفظ: {{reason}}",
       "notSavedCode": "لم يُحفظ. حدث خطأ ما (الرمز {{code}}).",
-      "dismissLabel": "{{message}} إخفاء"
+      "dismissLabel": "{{message}} إخفاء",
+      "goesWhenConnected": "{{message}} يصل إلى فريقك عندما يتصل هذا الجهاز."
     },
     "nav": {
       "cannotOpenHere": "لا يمكن فتح ذلك من هنا.",
@@ -5025,7 +5027,6 @@
       "downloadingCount": "جارٍ التنزيل للعمل بدون اتصال · {{here, number}} من {{total, number}}"
     },
     "toast": {
-      "kept": "محفوظ على هذا الجهاز. يُنزَّل وأنت متصل.",
       "notKept": "لم يعد محفوظًا. قد يُزال صوته لتوفير المساحة."
     },
     "summary": {
@@ -5104,7 +5105,10 @@
       "latest": "الأحدث: النسخة {{n, number}}، بواسطة {{name}}.",
       "requests": "الطلبات المفتوحة: {{n, number}}."
     },
-    "download": "نزّله للعمل بدون اتصال"
+    "download": "نزّله للعمل بدون اتصال",
+    "needsConnection": "التنزيل يحتاج إلى اتصال",
+    "needsConnectionHelp": "ليس على هذا الجهاز. يمكن تنزيله عندما يتصل هذا الجهاز.",
+    "checkingHelp": "يحصي هذا الجهاز ما لديه من هذا المقطع."
   },
   "moderation": {
     "flagLabel": "أبلغ عن {{name}} أو احظره",
@@ -7019,7 +7023,9 @@
       "helpGuideHelp": "يفتح دليل الدراسة لهذا المقطع.",
       "helpNoteHelp": "يفتحها لتقرأها.",
       "howManyHelp": "قل كم شخصًا استمع. اختياري.",
-      "doneRecordedHelp": "يضع {{what}} في سجل المقطع."
+      "doneRecordedHelp": "يضع {{what}} في سجل المقطع.",
+      "looksGoodOffline": "يبدو جيدًا. يصل إلى {{name}} عندما يتصل هذا الجهاز.",
+      "feedbackOffline": "حُفظت الملاحظات. تصل إلى {{name}} عندما يتصل هذا الجهاز."
     },
     "guest": {
       "previewSub": "معاينة · ما يراه شخص ليس لديه التطبيق",

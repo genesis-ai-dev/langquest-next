@@ -331,9 +331,11 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
           ...(people > 0 ? { people } : {}), ...(place.trim() ? { place: place.trim() } : {}), ...(artifacts.length ? { artifacts } : {})
         });
         const name = ctx.name(version.by);
+        // Offline nothing has reached them yet: it says when it will (decisions.md 166).
+        const offline = ctx.language.online === false;
         message = outcome === 'looks_good'
-          ? (mine ? t('review.screen.looksGoodOnRecord') : t('review.screen.looksGoodSentTo', { name }))
-          : (mine ? t('review.screen.feedbackOnRecord') : t('review.screen.feedbackSentTo', { name }));
+          ? (mine ? t('review.screen.looksGoodOnRecord') : offline ? t('review.screen.looksGoodOffline', { name }) : t('review.screen.looksGoodSentTo', { name }))
+          : (mine ? t('review.screen.feedbackOnRecord') : offline ? t('review.screen.feedbackOffline', { name }) : t('review.screen.feedbackSentTo', { name }));
       } else {
         // One passage, the one it is about (decision 128): another passage the session covered gets its own review there.
         const who = !group && givenBy.trim() ? { givenBy: givenBy.trim() } : {};

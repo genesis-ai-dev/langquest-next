@@ -470,7 +470,7 @@ Steps:
 2. Turn airplane mode off and wait 30 seconds.
 
 Expected:
-- Step 1 reads exactly as online: the toast "Looks good · sent to {TRANS-name}".
+- Step 1 works as online, and the toast says when it goes: "Looks good. {TRANS-name} gets it when this device is connected." (decision 166).
 - My Work shows the sync chip until step 2.
 - After step 2 nothing waits to upload, and TRANS sees the review after Sync now.
 - If the version's audio is not on the device, the player is disabled with a download icon and "Audio is not on this device yet." instead of failing to play.

@@ -3927,7 +3927,8 @@
       "openStudyHelp": "Opens the whole study guide for this passage.",
       "listeners": "Listeners",
       "liveIn": "Live in {{channel}} · {{version}}",
-      "listenerCount": "Listener feedback: {{count, number}}"
+      "listenerCount": "Listener feedback: {{count, number}}",
+      "askedOffline": "Asked {{target}}. They get it when this device is connected."
     },
     "else": {
       "title": "Something else?",
@@ -4269,7 +4270,8 @@
     "toast": {
       "notSaved": "Not saved: {{reason}}",
       "notSavedCode": "Not saved. Something went wrong (code {{code}}).",
-      "dismissLabel": "{{message}} Dismiss"
+      "dismissLabel": "{{message}} Dismiss",
+      "goesWhenConnected": "{{message}} Your team gets it when this device is connected."
     },
     "nav": {
       "cannotOpenHere": "That can't be opened from here.",
@@ -4469,7 +4471,6 @@
       "downloadingCount": "Downloading for offline · {{here, number}} of {{total, number}}"
     },
     "toast": {
-      "kept": "Kept on this device. It downloads while you are connected.",
       "notKept": "No longer kept. Its audio may be removed to make room."
     },
     "summary": {
@@ -4520,7 +4521,10 @@
       "latest": "Latest: version {{n, number}}, by {{name}}.",
       "requests": "Open requests: {{n, number}}."
     },
-    "download": "Download for offline"
+    "download": "Download for offline",
+    "needsConnection": "Download needs a connection",
+    "needsConnectionHelp": "Not on this device. It can be downloaded once this device is connected.",
+    "checkingHelp": "This device is counting what of this passage it has."
   },
   "moderation": {
     "flagLabel": "Report or block {{name}}",
@@ -6031,7 +6035,9 @@
       "helpGuideHelp": "Opens the study guide for this passage.",
       "helpNoteHelp": "Opens it to read.",
       "howManyHelp": "Say how many listened. Optional.",
-      "doneRecordedHelp": "Puts the {{what}} on the passage's record."
+      "doneRecordedHelp": "Puts the {{what}} on the passage's record.",
+      "looksGoodOffline": "Looks good. {{name}} gets it when this device is connected.",
+      "feedbackOffline": "Feedback saved. {{name}} gets it when this device is connected."
     },
     "guest": {
       "previewSub": "Preview · what someone without the app sees",

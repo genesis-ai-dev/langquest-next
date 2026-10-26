@@ -3927,7 +3927,8 @@
       "openStudyHelp": "Yana buɗe dukan jagorar nazari ta wannan nassi.",
       "listeners": "Masu saurare",
       "liveIn": "Ana samu a {{channel}} · {{version}}",
-      "listenerCount": "Ra'ayoyin masu saurare: {{count, number}}"
+      "listenerCount": "Ra'ayoyin masu saurare: {{count, number}}",
+      "askedOffline": "An roƙi {{target}}. Za su samu idan wannan na'ura ta samu intanet."
     },
     "else": {
       "title": "Wani abu daban?",
@@ -4269,7 +4270,8 @@
     "toast": {
       "notSaved": "Ba a ajiye ba: {{reason}}",
       "notSavedCode": "Ba a ajiye ba. Wani abu bai yi daidai ba (lamba {{code}}).",
-      "dismissLabel": "{{message}} Kawar"
+      "dismissLabel": "{{message}} Kawar",
+      "goesWhenConnected": "{{message}} Ƙungiyarka za ta samu idan wannan na'ura ta samu intanet."
     },
     "nav": {
       "cannotOpenHere": "Ba za a iya buɗe wannan daga nan ba.",
@@ -4469,7 +4471,6 @@
       "downloadingCount": "Ana saukewa don amfani ba intanet · {{here, number}} cikin {{total, number}}"
     },
     "toast": {
-      "kept": "An adana a wannan na'ura. Yana saukowa yayin da kuke da intanet.",
       "notKept": "Ba a adana shi yanzu. Ana iya cire sautinsa don samar da wuri."
     },
     "summary": {
@@ -4520,7 +4521,10 @@
       "latest": "Na ƙarshe: juzu'i {{n, number}}, na {{name}}.",
       "requests": "Buƙatun da ke buɗe: {{n, number}}."
     },
-    "download": "Sauke don amfani ba intanet"
+    "download": "Sauke don amfani ba intanet",
+    "needsConnection": "Saukewa na bukatar intanet",
+    "needsConnectionHelp": "Ba ya a wannan na'ura. Za a iya sauke shi idan na'urar ta samu intanet.",
+    "checkingHelp": "Wannan na'ura tana ƙidaya abin da take da shi na wannan sashe."
   },
   "moderation": {
     "flagLabel": "Kai ƙara ko toshe {{name}}",
@@ -6031,7 +6035,9 @@
       "helpGuideHelp": "Yana buɗe jagorar nazari ta wannan nassi.",
       "helpNoteHelp": "Yana buɗe shi don karantawa.",
       "howManyHelp": "Ku faɗi yawan waɗanda suka saurara. Ba dole ba.",
-      "doneRecordedHelp": "Yana sa {{what}} a tarihin nassin."
+      "doneRecordedHelp": "Yana sa {{what}} a tarihin nassin.",
+      "looksGoodOffline": "Yana da kyau. {{name}} zai samu idan wannan na'ura ta samu intanet.",
+      "feedbackOffline": "An adana ra'ayin. {{name}} zai samu idan wannan na'ura ta samu intanet."
     },
     "guest": {
       "previewSub": "Duba farko · abin da wanda ba shi da manhajar yake gani",

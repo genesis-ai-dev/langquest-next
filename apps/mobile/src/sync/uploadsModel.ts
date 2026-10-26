@@ -9,10 +9,14 @@ export interface WaitingCounts {
   changes: number;
 }
 
-export function waitingCounts(s: { uploads: ReadonlyMap<string, PassageUploads>; pending: number; orgPending: number }): WaitingCounts {
+export function waitingCounts(s: { uploads: ReadonlyMap<string, PassageUploads>; pending: number; orgPending: number },
+  elsewhere: readonly { changes: number; files: number }[] = []): WaitingCounts {
   let recordings = 0;
   for (const u of s.uploads.values()) recordings += u.waiting;
-  return { recordings, changes: s.pending + s.orgPending };
+  let changes = s.pending + s.orgPending;
+  // The organization's other languages too: their work waits on this device until each is next open.
+  for (const e of elsewhere) { recordings += e.files; changes += e.changes; }
+  return { recordings, changes };
 }
 
 /** What the bar shows: something waiting, everything just went up, or nothing. */

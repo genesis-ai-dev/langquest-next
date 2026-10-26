@@ -7689,3 +7689,52 @@ Reverse if: people miss the event list (then plain names for each kind join
 the passage rows), the bar over every screen crowds small phones (then it
 moves into the headers), or teams want a whole book downloaded at once (then
 a book gets its own button, which decision 61 left out).
+
+Amended (2026-10-25, Caleb Koster): every line says only what this device
+knows. Caleb, after the first build: offline, a passage he had not
+downloaded still offered "Download for offline", and tapping it said "Kept
+on this device" at once; "Above all, these indicators … must tell the
+truth. They cannot assume anything." The old app's false flags had caused
+partners and users real trouble. So:
+- **Offline is the phone's word as well as the server's.** `ctx.language.online`
+  is false as soon as the operating system says there is no network
+  (expo-network, `saysOffline`), not only after the next sync attempt fails.
+- **Online is only the server's word.** Caleb: some checks "show that the
+  phone is online … even if the user has a VPN turned on and they have no
+  internet connection". The operating system's "connected" says nothing
+  about a VPN with no internet behind it, a hotspot's sign-in page or a SIM
+  out of data, and a sync then hangs with no answer while the last result
+  still says online. So the app counts what the server itself said
+  (`sync/reachModel.ts`, `useServerReach`): each sync it answered
+  (`LanguageSessionOptions.onAnswered`), each answer to the live channel's
+  heartbeat (every 15 s, `server/supabase.ts`), and, when neither has come
+  for 20 s while the app is on screen, a check of its own
+  (`server/reachability.ts`: `/auth/v1/health`, counted only when the
+  server's own JSON comes back within 8 s). An unanswered check says
+  "Offline" at once, unless something answered after it was asked; the
+  next answer of any kind clears it and syncs. With the live channel up
+  the heartbeat answers, so the check seldom runs; it costs one small
+  request every 20 s otherwise, and none off screen or with no network.
+  SYNC-034.
+- **No download is offered offline.** A passage not kept says "Download
+  needs a connection" and does nothing. Keeping one shows no toast: the
+  line itself says what happens.
+- **"On this device" only once counted.** A passage says it only when the
+  session's own count of its files says every one is here (decision 147:
+  rows as well as audio); until the count has it, "Checking this device…".
+  Kept but not all here: "Only {here} of {total} files on this device".
+- **Moving only while moving.** The session publishes which passages have a
+  file going up or coming down right now (`uploading`, `downloading`).
+  "Uploading", "Downloading for offline", the arrow waves and the packages'
+  flights show only then. Work merely waiting is "Saved on this device".
+- **"All uploaded" means everywhere.** A phone syncs the language it has
+  open, so other languages' work waits on the device: their changes come
+  from the event log (`pendingStreamsBy`) and their recordings from each
+  session's last count (`files-waiting:<org>/<language>` in the store's
+  meta). They count in the bar and show as rows on the Sync screen.
+- **Nothing new is not known offline.** "To receive" and the transfers say
+  "Offline" there, not "None" or "Up to date"; the top count shows only when
+  something is known to wait. Settings' sync line says recordings waiting,
+  and offline before "Live".
+- **Sent means sent.** Offline, asking someone, a review and a published
+  version say who gets it when the device is connected.

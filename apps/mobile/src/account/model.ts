@@ -31,12 +31,18 @@ export function speed(bytesPerSecond: number): string {
   return t('account.sync.speedMB', { value: formatNumber(bytesPerSecond / (1024 * 1024), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) });
 }
 
-/** The sync line under Settings: refused, waiting to send, live, offline, or how the last sync went. */
-export function syncSummary(p: { refused: string | null; pending: number; live: boolean; online: boolean | null; lastSync: string }): string {
+/**
+ * The sync line under Settings: refused, recordings or changes waiting to
+ * send, offline, live, or how the last sync went. Offline outranks live:
+ * the live channel can take a minute to notice the network went
+ * (decisions.md 166), and nothing waiting may be hidden behind "Live".
+ */
+export function syncSummary(p: { refused: string | null; pending: number; recordings?: number; live: boolean; online: boolean | null; lastSync: string }): string {
   return p.refused ? t('account.more.syncRefused')
+    : (p.recordings ?? 0) > 0 ? t('uploads.barRecordings', { count: p.recordings! })
     : p.pending > 0 ? t('account.more.syncPending', { count: p.pending })
-    : p.live ? t('account.more.syncLive')
     : p.online === false ? t('account.more.syncOffline')
+    : p.live ? t('account.more.syncLive')
     : lastSyncText(p.lastSync);
 }
 

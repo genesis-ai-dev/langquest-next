@@ -3927,7 +3927,8 @@
       "openStudyHelp": "ለዚህ ክፍል ሙሉውን የጥናት መመሪያ ይከፍታል።",
       "listeners": "አድማጮች",
       "liveIn": "በ{{channel}} ላይ ታትሟል · {{version}}",
-      "listenerCount": "የአድማጮች አስተያየት፦ {{count, number}}"
+      "listenerCount": "የአድማጮች አስተያየት፦ {{count, number}}",
+      "askedOffline": "{{target}} ተጠይቀዋል። ይህ መሣሪያ ሲገናኝ ይደርሳቸዋል።"
     },
     "else": {
       "title": "ሌላ ነገር?",
@@ -4269,7 +4270,8 @@
     "toast": {
       "notSaved": "አልተቀመጠም፦ {{reason}}",
       "notSavedCode": "አልተቀመጠም። የሆነ ችግር ተፈጥሯል (ኮድ {{code}})።",
-      "dismissLabel": "{{message}} ይዝጉ"
+      "dismissLabel": "{{message}} ይዝጉ",
+      "goesWhenConnected": "{{message}} ይህ መሣሪያ ሲገናኝ ቡድንዎ ያገኘዋል።"
     },
     "nav": {
       "cannotOpenHere": "ያ ከዚህ ሊከፈት አይችልም።",
@@ -4469,7 +4471,6 @@
       "downloadingCount": "ከመስመር ውጭ ለመጠቀም በማውረድ ላይ · {{here, number}} ከ{{total, number}}"
     },
     "toast": {
-      "kept": "በዚህ መሣሪያ ላይ ተቀምጧል። ከኢንተርኔት ጋር ሲገናኙ ይወርዳል።",
       "notKept": "ከአሁን በኋላ አይቀመጥም። ቦታ ለማስለቀቅ ድምፁ ሊወገድ ይችላል።"
     },
     "summary": {
@@ -4520,7 +4521,10 @@
       "latest": "የቅርብ ጊዜ፦ ቅጂ {{n, number}}፣ በ{{name}}።",
       "requests": "ክፍት ጥያቄዎች፦ {{n, number}}።"
     },
-    "download": "ከመስመር ውጭ ለመጠቀም አውርድ"
+    "download": "ከመስመር ውጭ ለመጠቀም አውርድ",
+    "needsConnection": "ለማውረድ ግንኙነት ያስፈልጋል",
+    "needsConnectionHelp": "በዚህ መሣሪያ ላይ የለም። መሣሪያው ሲገናኝ ሊወርድ ይችላል።",
+    "checkingHelp": "ይህ መሣሪያ የዚህን ምንባብ ምን ያህል እንዳለው እየቆጠረ ነው።"
   },
   "moderation": {
     "flagLabel": "{{name}}ን ሪፖርት ያድርጉ ወይም ያግዱ",
@@ -6031,7 +6035,9 @@
       "helpGuideHelp": "ለዚህ ክፍል የጥናት መመሪያውን ይከፍታል።",
       "helpNoteHelp": "ለማንበብ ይከፍተዋል።",
       "howManyHelp": "ምን ያህል ሰዎች እንዳዳመጡ ይናገሩ። ካስፈለገ።",
-      "doneRecordedHelp": "{{what}}ን በክፍሉ መዝገብ ላይ ያሰፍራል።"
+      "doneRecordedHelp": "{{what}}ን በክፍሉ መዝገብ ላይ ያሰፍራል።",
+      "looksGoodOffline": "ጥሩ ነው። ይህ መሣሪያ ሲገናኝ {{name}} ያገኙታል።",
+      "feedbackOffline": "አስተያየቱ ተቀምጧል። ይህ መሣሪያ ሲገናኝ {{name}} ያገኙታል።"
     },
     "guest": {
       "previewSub": "ቅድመ እይታ · መተግበሪያው የሌለው ሰው የሚያየው",

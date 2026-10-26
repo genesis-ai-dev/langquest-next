@@ -3808,7 +3808,8 @@
       "openStudyHelp": "打开这个经段的完整学习指南。",
       "listeners": "听众",
       "liveIn": "已在 {{channel}} 发布 · {{version}}",
-      "listenerCount": "听众反馈：{{count, number}}"
+      "listenerCount": "听众反馈：{{count, number}}",
+      "askedOffline": "已请 {{target}}。本设备联网后对方才会收到。"
     },
     "else": {
       "title": "其他情况？",
@@ -4132,7 +4133,8 @@
     "toast": {
       "notSaved": "未保存：{{reason}}",
       "notSavedCode": "未保存。出了点问题（代码 {{code}}）。",
-      "dismissLabel": "{{message}}关闭"
+      "dismissLabel": "{{message}}关闭",
+      "goesWhenConnected": "{{message}} 本设备联网后你的团队才会收到。"
     },
     "nav": {
       "cannotOpenHere": "这里无法打开它。",
@@ -4330,7 +4332,6 @@
       "downloadingCount": "正在下载以便离线使用 · {{here, number}}/{{total, number}}"
     },
     "toast": {
-      "kept": "已保存在本设备上。联网时会自动下载。",
       "notKept": "不再保存。它的音频可能会被删除以腾出空间。"
     },
     "summary": {
@@ -4374,7 +4375,10 @@
       "latest": "最新：第 {{n, number}} 版，由 {{name}} 录制。",
       "requests": "待处理的请求：{{n, number}}。"
     },
-    "download": "下载以便离线使用"
+    "download": "下载以便离线使用",
+    "needsConnection": "下载需要网络连接",
+    "needsConnectionHelp": "不在本设备上。设备联网后即可下载。",
+    "checkingHelp": "本设备正在清点它有这一段落的哪些内容。"
   },
   "moderation": {
     "flagLabel": "举报或屏蔽{{name}}",
@@ -5784,7 +5788,9 @@
       "helpGuideHelp": "打开这个经段的学习指南。",
       "helpNoteHelp": "打开它进行阅读。",
       "howManyHelp": "说明有多少人听了。选填。",
-      "doneRecordedHelp": "把{{what}}写进经段记录。"
+      "doneRecordedHelp": "把{{what}}写进经段记录。",
+      "looksGoodOffline": "没问题。本设备联网后 {{name}} 才会收到。",
+      "feedbackOffline": "反馈已保存。本设备联网后 {{name}} 才会收到。"
     },
     "guest": {
       "previewSub": "预览 · 没有应用的人看到的样子",

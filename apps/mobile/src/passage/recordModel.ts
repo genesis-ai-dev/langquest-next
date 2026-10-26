@@ -405,9 +405,19 @@ export function nextAfterDone(p: Pick<PassageState, 'steps'>, o: { publishing?: 
   return undefined;
 }
 
-/** The toast after sending a check on with one tap: to the team or to the person. */
-export function sentText(target: UsualTarget, label: string): string {
+/**
+ * The toast after sending a check on with one tap: to the team or to the
+ * person. Offline nothing has been sent yet, so it says when it will be
+ * (decisions.md 166).
+ */
+export function sentText(target: UsualTarget, label: string, offline = false): string {
+  if (offline) return t('passage.page.askedOffline', { target: label });
   return 'teamId' in target ? t('passage.page.sentToTeam', { target: label }) : t('passage.page.sentToPerson', { target: label });
+}
+
+/** A message about work made on this device, with when the team gets it when the device is offline (decisions.md 166). */
+export function goesWhenConnected(message: string, offline: boolean): string {
+  return offline ? t('shell.toast.goesWhenConnected', { message }) : message;
 }
 
 /** The ask page's main button: ask the usual people, or ask for the check by name. */

@@ -609,7 +609,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>
             {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166). */}
-            {screen === 'sync_status' ? null : <UploadBar offline={language.online === false} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
+            {screen === 'sync_status' ? null : <UploadBar ctx={ctx} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
             <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator

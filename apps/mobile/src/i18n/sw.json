@@ -3927,7 +3927,8 @@
       "openStudyHelp": "Hufungua mwongozo mzima wa kujifunza wa kifungu hiki.",
       "listeners": "Wasikilizaji",
       "liveIn": "Imechapishwa kwenye {{channel}} · {{version}}",
-      "listenerCount": "Maoni ya wasikilizaji: {{count, number}}"
+      "listenerCount": "Maoni ya wasikilizaji: {{count, number}}",
+      "askedOffline": "Umemwomba {{target}}. Wataipata kifaa hiki kikiunganishwa."
     },
     "else": {
       "title": "Kitu kingine?",
@@ -4269,7 +4270,8 @@
     "toast": {
       "notSaved": "Haijahifadhiwa: {{reason}}",
       "notSavedCode": "Haijahifadhiwa. Kuna hitilafu (msimbo {{code}}).",
-      "dismissLabel": "{{message}} Ondoa"
+      "dismissLabel": "{{message}} Ondoa",
+      "goesWhenConnected": "{{message}} Timu yako itaipata kifaa hiki kikiunganishwa."
     },
     "nav": {
       "cannotOpenHere": "Hicho hakiwezi kufunguliwa kutoka hapa.",
@@ -4469,7 +4471,6 @@
       "downloadingCount": "Inapakua kwa matumizi nje ya mtandao · {{here, number}} kati ya {{total, number}}"
     },
     "toast": {
-      "kept": "Kimehifadhiwa kwenye kifaa hiki. Kinapakuliwa ukiwa umeunganishwa.",
       "notKept": "Hakihifadhiwi tena. Sauti yake inaweza kuondolewa ili kupata nafasi."
     },
     "summary": {
@@ -4520,7 +4521,10 @@
       "latest": "Ya karibuni: toleo {{n, number}}, la {{name}}.",
       "requests": "Maombi yaliyo wazi: {{n, number}}."
     },
-    "download": "Pakua kwa matumizi nje ya mtandao"
+    "download": "Pakua kwa matumizi nje ya mtandao",
+    "needsConnection": "Kupakua kunahitaji mtandao",
+    "needsConnectionHelp": "Haipo kwenye kifaa hiki. Inaweza kupakuliwa kifaa kikiunganishwa.",
+    "checkingHelp": "Kifaa hiki kinahesabu kiasi cha kifungu hiki kilicho nacho."
   },
   "moderation": {
     "flagLabel": "Ripoti au zuia {{name}}",
@@ -6031,7 +6035,9 @@
       "helpGuideHelp": "Hufungua mwongozo wa kujifunza wa kifungu hiki.",
       "helpNoteHelp": "Hulifungua ili ulisome.",
       "howManyHelp": "Sema wangapi walisikiliza. Si lazima.",
-      "doneRecordedHelp": "Huweka {{what}} kwenye kumbukumbu za kifungu."
+      "doneRecordedHelp": "Huweka {{what}} kwenye kumbukumbu za kifungu.",
+      "looksGoodOffline": "Ni nzuri. {{name}} ataipata kifaa hiki kikiunganishwa.",
+      "feedbackOffline": "Maoni yamehifadhiwa. {{name}} atayapata kifaa hiki kikiunganishwa."
     },
     "guest": {
       "previewSub": "Hakiki · kile anachoona mtu asiye na programu",

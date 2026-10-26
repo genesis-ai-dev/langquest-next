@@ -60,10 +60,23 @@ tags:
 - extendedWaitUntil:
     visible: "(?i)Then the team"
     timeout: 30000
-# Not kept: its download button, offline too (decision 166).
-- assertVisible:
-    id: "passage-offline"
-    text: "Download for offline"
+# Not kept: online its download button; offline no download is offered (decision 166).
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: "passage-offline"
+          text: "Download for offline"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: "passage-offline"
+            text: "Download needs a connection"
+          timeout: 120000
 # The record's status and history show while offline.
 - tapOn: "Versions and history"
 - assertVisible: ".*Versions.*"

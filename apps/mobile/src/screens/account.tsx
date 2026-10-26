@@ -418,7 +418,7 @@ export function SettingsMore(ctx: Ctx) {
   const name = useOwnName(ctx);
   const p = ctx.language;
   const status = useSyncStatus();
-  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending, lastSync: status.lastSync });
+  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending + status.orgPending, recordings: status.pendingUp, lastSync: status.lastSync });
   // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
   const switchHere = !inSeveral(orgs);
@@ -839,7 +839,7 @@ export function SyncStatus(ctx: Ctx) {
       <SentList ctx={ctx} />
       {offlineFirst ? null : <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></>}
       <Card>
-        <SyncLine icon="download" label={t('account.sync.toReceive')} value={sync.pendingDown} rate={sync.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} />
+        <SyncLine icon="download" label={t('account.sync.toReceive')} value={sync.pendingDown} rate={sync.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} unknown={offline} />
         {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
       </Card>
       <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
@@ -850,8 +850,8 @@ export function SyncStatus(ctx: Ctx) {
         <Stat id="confirmed" icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
         <Stat id="checkpoint" icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
       </View>
-      <Transfer icon="up" pending={sync.pendingUp} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} />
-      <Transfer icon="download" pending={sync.pendingDown} peak={sync.peakDown} rate={rates.down} label={t('account.sync.audioDown')} />
+      <Transfer icon="up" pending={sync.pendingUp} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} offline={offline} />
+      <Transfer icon="download" pending={sync.pendingDown} peak={sync.peakDown} rate={rates.down} label={t('account.sync.audioDown')} offline={offline} />
       {ins && ins.pending.length ? (
         <>
           <SectionLabel label={t('account.sync.waitingCount', { n: ins.pending.length })} />
@@ -933,13 +933,15 @@ function Info(props: { label: string; text: string }) {
 }
 
 /** One plain line: what is waiting, how many, and a sentence behind ⓘ. */
-function SyncLine(props: { icon: IconName; label: string; value: number; rate?: number; tone?: string; help: string }) {
-  const color = props.tone ?? (props.value ? C.primary : C.green);
-  const value = props.value ? formatNumber(props.value) : t('account.sync.none');
+function SyncLine(props: { icon: IconName; label: string; value: number; rate?: number; tone?: string; help: string;
+  /** Offline, "None" would be a guess: the server may have new work this device cannot know of (decisions.md 166). */ unknown?: boolean }) {
+  const unknown = !props.value && !!props.unknown;
+  const color = props.tone ?? (unknown ? TINT.amberText : props.value ? C.primary : C.green);
+  const value = props.value ? formatNumber(props.value) : unknown ? t('account.sync.standing.offline') : t('account.sync.none');
   return (
     <View style={[styles.profile, { flexWrap: 'wrap', paddingVertical: space.xs }]}>
       <View style={[styles.profile, { flex: 1 }]} accessible accessibilityLabel={`${props.label}: ${value}`}>
-        <Ico name={props.value ? props.icon : 'check'} size={20} color={color} />
+        <Ico name={props.value || unknown ? props.icon : 'check'} size={20} color={color} />
         <Text style={[txt.body, { flex: 1 }]}>{props.label}</Text>
         {props.rate ? <Text style={txt.xs}>{speed(props.rate)}</Text> : null}
         <Text style={[txt.body, { fontWeight: '700', color, fontVariant: ['tabular-nums'] }]}>{value}</Text>
@@ -962,20 +964,23 @@ function Stat(props: { id: string; icon: IconName; color: string; value: number;
   );
 }
 
-function Transfer(props: { icon: IconName; pending: number; peak: number; rate: number; label: string }) {
+function Transfer(props: { icon: IconName; pending: number; peak: number; rate: number; label: string; offline: boolean }) {
   const total = Math.max(props.peak, props.pending);
   const done = total - props.pending;
   const idle = props.pending === 0;
   // The card itself is not focusable when it has no action (kit Card), so the words a screen reader hears sit on this group.
   return (
     <Card>
-      <View accessible accessibilityLabel={idle ? t('account.sync.transferIdle', { label: props.label })
+      <View accessible accessibilityLabel={props.offline ? t('shell.a11y.labelDetail', { label: props.label, detail: t('account.sync.standing.offline') })
+        : idle ? t('account.sync.transferIdle', { label: props.label })
         : t('account.sync.transferBusy', { label: props.label, done, total, speed: speed(props.rate) })} style={{ gap: space.sm }}>
         <View style={styles.profile}>
           <Ico name={props.icon} size={22} color={idle ? C.muted : C.primary} />
           <Text style={[txt.sm, { flex: 1, fontWeight: '600' }]}>{props.label}</Text>
           <View style={{ flexShrink: 1, maxWidth: '50%', alignItems: 'flex-end' }}>
-            {idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
+            {/* Offline nothing moves and nothing new is known: never "Up to date" then (decisions.md 166). */}
+            {props.offline ? <Badge label={t('account.sync.standing.offline')} tone="amber" />
+              : idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
           </View>
         </View>
         {idle ? null : <ProgressBar value={total ? (done / total) * 100 : 100} />}

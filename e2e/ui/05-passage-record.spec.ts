@@ -223,7 +223,7 @@ test('PASS-021 REV What a step offers', async ({ browser }) => {
 test('PASS-026 TRANS Something else? on a passage nobody has recorded', async ({ browser }) => {
   const page = await recordAs(browser, world(), 'TRANS', 'P-NEW');
   // Whether it comes along offline is at the top of the passage now, not under Something else? (decisions.md 166).
-  await expect(byId(page, 'passage-offline')).toHaveAttribute('aria-label', /^(On this device|Download for offline|Downloading for offline)/);
+  await expect(byId(page, 'passage-offline')).toHaveAttribute('aria-label', /^(On this device|Download for offline|Downloading for offline|Only \d+ of \d+ files|Not on this device yet|Checking this device…)/);
   await somethingElse(page);
   const all = await screenText(page);
   expect(all).toContain(`Something else? ${label('P-NEW')} · Record`);

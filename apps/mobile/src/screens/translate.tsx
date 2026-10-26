@@ -91,7 +91,7 @@ import { catalogVerses } from '../sources/model';
 import { QuietLink, RefChips, type ChipItem } from '../recording/blocks';
 import { checkName } from '../admin/adminModel';
 import { PublishScreen, type DoneAsk } from '../recording/publish';
-import { nextAfterDone, recordCan, sentText, usualTargets } from '../passage/recordModel';
+import { goesWhenConnected, nextAfterDone, recordCan, sentText, usualTargets } from '../passage/recordModel';
 import { sendTargetLabel } from '../passage/record';
 import { sendToInput } from '../passage/sendTarget';
 import { draftKey } from '../drafts/draftModel';
@@ -609,7 +609,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const commandId = Crypto.randomUUID();
     let specs: EventSpec[];
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
-    let message = t('translate.versionPublished', { n: nextN });
+    const offline = ctx.language.online === false;
+    let message = goesWhenConnected(t('translate.versionPublished', { n: nextN }), offline);
     try {
       const c = commands(state, idx);
       specs = c.publishVersion({
@@ -623,7 +624,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       if (ask && 'kindId' in ask && sendTo) {
         const asked = c.ask({ ...sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }), ...(ask.questions.length ? { questions: ask.questions } : {}) });
         specs = [...specs, ...asked];
-        message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
+        message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }
     } catch (e) {
       ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }));

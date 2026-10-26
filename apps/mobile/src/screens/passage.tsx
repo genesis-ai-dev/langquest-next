@@ -289,7 +289,7 @@ export function PassageRecord(ctx: Ctx) {
     setOpenStepId(null);
     const label = sendTargetLabel(target, ctx.name);
     void perform(ctx, (c) => c.ask({ ...sendToInput({ commandId: newId(), unitId, kindId, target }), ...(questions.length ? { questions } : {}) }),
-      sentText(target, label));
+      sentText(target, label, ctx.language.online === false));
   };
   /** Carry out a move the record's models decided (recordModel.ts `RecordMove`). */
   const doMove = (mv: RecordMove) => {
@@ -1246,7 +1246,7 @@ export function AskSomeone(ctx: Ctx) {
     if (!ready) return;
     setBusy(true);
     const ok = await perform(ctx, (c) => c.ask(askInput({ commandId: newId(), unitId: v.unitId, what, model, picks, channel, note, noteHash, questions })),
-    askDoneText(model));
+    askDoneText(model, ctx.language.online === false));
     setBusy(false);
     if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId, asked: String(Date.now()) });
   };

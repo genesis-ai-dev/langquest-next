@@ -17,6 +17,7 @@ import { formatDay, formatDayTime, formatTime } from '../i18n/format';
 import { C, radius, space, TINT } from '../ui/theme';
 import { PackageBoxes, TransitScene, WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
+import { useWaitingElsewhere } from './useWaitingElsewhere';
 import { barState, dayKind, sentDays, waitingCounts, waitingRows, type WaitingCounts } from './uploadsModel';
 
 /** How long "All uploaded" stays on the bar once the last thing went up. */
@@ -34,9 +35,12 @@ function waitingWords(c: WaitingCounts): string {
  * opens the Sync screen, as the tabs open theirs (chrome, decisions.md 166);
  * `onOpen` is null where leaving is not wanted (the recorder).
  */
-export function UploadBar(props: { offline: boolean; onOpen: (() => void) | null }) {
+export function UploadBar(props: { ctx: Ctx; onOpen: (() => void) | null }) {
   const status = useSyncStatus();
-  const counts = waitingCounts(status);
+  const counts = waitingCounts(status, useWaitingElsewhere(props.ctx));
+  const offline = props.ctx.language.online === false;
+  // "Uploading" only while a file is going up this moment (decisions.md 166).
+  const moving = !offline && status.uploading.size > 0;
   const total = counts.recordings + counts.changes;
   const [justEmptied, setJustEmptied] = useState(false);
   const was = useRef(total);
@@ -49,9 +53,9 @@ export function UploadBar(props: { offline: boolean; onOpen: (() => void) | null
     const timer = setTimeout(() => setJustEmptied(false), DONE_SHOWN_MS);
     return () => clearTimeout(timer);
   }, [total]);
-  const bar = barState(counts, props.offline, justEmptied);
+  const bar = barState(counts, offline, justEmptied);
   const label = !bar ? '' : bar.kind === 'done' ? t('uploads.allUploaded') : waitingWords(bar.counts);
-  const state = bar?.kind === 'waiting' ? (bar.offline ? t('account.sync.standing.offline') : t('uploads.uploading')) : '';
+  const state = bar?.kind === 'waiting' ? (bar.offline ? t('account.sync.standing.offline') : moving ? t('uploads.uploading') : '') : '';
   const spot = useHelpSpot(label, t('uploads.barHelp'), props.onOpen ?? undefined);
   if (!bar) return null;
   const tone = bar.kind === 'done' ? { bg: TINT.green, fg: TINT.greenText, icon: 'check' as IconName }
@@ -59,7 +63,7 @@ export function UploadBar(props: { offline: boolean; onOpen: (() => void) | null
   const body = (
     <>
       {/* Going up: the arrow wave; offline or done, a still mark. */}
-      {bar.kind === 'waiting' && !bar.offline ? <View style={styles.wave}><WaveArrow direction="up" color={tone.fg} size={11} /></View> : <Ico name={tone.icon} size={20} color={tone.fg} />}
+      {bar.kind === 'waiting' && moving ? <View style={styles.wave}><WaveArrow direction="up" color={tone.fg} size={11} /></View> : <Ico name={tone.icon} size={20} color={tone.fg} />}
       <Text style={[txt.sm, { flex: 1, fontWeight: '700', color: tone.fg }]}>{label}</Text>
       {state ? <Text style={[txt.xsStrong, { color: tone.fg }]}>{state}</Text> : null}
       {props.onOpen ? <Ico name="right" size={18} color={tone.fg} /> : null}
@@ -86,16 +90,18 @@ export function UploadBar(props: { offline: boolean; onOpen: (() => void) | null
  */
 export function UploadsCard(props: { ctx: Ctx }) {
   const status = useSyncStatus();
-  const counts = waitingCounts(status);
+  const counts = waitingCounts(status, useWaitingElsewhere(props.ctx));
   const offline = props.ctx.language.online === false;
+  const movingUp = !offline && status.uploading.size > 0;
   const last = status.sent.reduce((m, e) => Math.max(m, e.at), 0);
   const waiting = counts.recordings + counts.changes > 0;
   const title = waiting ? waitingWords(counts) : t('uploads.allUploaded');
-  const sub = waiting ? (offline ? t('uploads.savedHere') : t('uploads.uploading'))
+  const sub = waiting ? (movingUp ? t('uploads.uploading') : t('uploads.savedHere'))
     : last ? t('uploads.lastUpload', { when: dayKind(new Date(last).setHours(0, 0, 0, 0), Date.now()) === 'today' ? formatTime(last) : formatDayTime(last) }) : null;
   return (
     <Card>
-      <TransitScene up={counts.recordings > 0 ? counts.recordings : counts.changes} down={status.pendingDown} offline={offline} />
+      <TransitScene up={counts.recordings > 0 ? counts.recordings : counts.changes} down={status.pendingDown} offline={offline}
+        movingUp={movingUp} movingDown={!offline && status.downloading.size > 0} />
       <View style={styles.head} accessible accessibilityLabel={[title, sub].filter(Boolean).join('. ')}>
         {waiting ? null : <View style={[styles.tile, { backgroundColor: TINT.green }]}><Ico name="check" size={22} color={TINT.greenText} /></View>}
         <View style={{ flex: 1, gap: 2 }}>
@@ -111,9 +117,10 @@ export function UploadsCard(props: { ctx: Ctx }) {
 export function WaitingList(props: { ctx: Ctx; changes: readonly (string | null)[] }) {
   const { ctx } = props;
   const status = useSyncStatus();
+  const elsewhere = useWaitingElsewhere(ctx);
   const state = ctx.language.state;
   const rows = waitingRows(status.uploads, props.changes, (id) => state?.units[id]?.order ?? id);
-  if (rows.length === 0) return null;
+  if (rows.length === 0 && elsewhere.length === 0) return null;
   const languageId = ctx.language.languageId;
   return (
     <>
@@ -131,6 +138,11 @@ export function WaitingList(props: { ctx: Ctx; changes: readonly (string | null)
               {...(r.recordings ? { below: <PackageBoxes uploaded={uploaded} total={r.recordings.of} offline={ctx.language.online === false} /> } : {})} />
           );
         })}
+        {/* Other languages: what waits there goes when each is next open. */}
+        {elsewhere.map((e, i) => (
+          <Row key={e.languageId} testID={`waiting-language-${e.languageId}`} icon="globe" iconColor={C.primary} label={e.name}
+            sub={waitingWords({ recordings: e.files, changes: e.changes })} last={i === elsewhere.length - 1} />
+        ))}
       </Group>
     </>
   );
