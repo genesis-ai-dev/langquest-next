@@ -1942,6 +1942,14 @@ organization by its name or any language it lists
 matches. Offline, the saved list is searched as before. The UI test suite
 found this (JRN-005) once the local database listed more than 500.
 
+Amended (2026-10-26, Carl Sauder): an organization's name is read from the
+table `org_names` (the latest `v1.OrgCreated` or `v1.OrgRenamed` by hlc and
+id, kept by a trigger on `events` and filled from the log by migration
+`20261026130700_org_names.sql`), not found by sorting its name events for
+every organization in a listing. `org_name()`, `listed_organizations`,
+`listed_organizations_search` (now by trigram index) and
+`global_viewer_organizations` (158) read it; their results are unchanged.
+
 ## 67. Whoever holds Invite may invite and admit people, with or without an email of their own
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
