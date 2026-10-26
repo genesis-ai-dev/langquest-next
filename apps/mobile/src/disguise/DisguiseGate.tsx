@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { AppState, BackHandler, Keyboard, StyleSheet, View } from 'react-native';
 import { ModalCoverContext } from '../ui/coverContext';
+import { openBackStep } from '../ui/hardwareBack';
 import { codeLength, lockNow, tryCode } from './disguise';
 import type { Look } from './disguiseModel';
 import { DisguiseFace } from './faces';
@@ -48,10 +49,9 @@ function Cover(props: { look: Look }) {
   const [length, setLength] = useState<number | null>(null);
   useEffect(() => { void codeLength().then(setLength); }, []);
   // Android's Back leaves a calculator: so it leaves this one, not a screen of the app behind it.
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { BackHandler.exitApp(); return true; });
-    return () => sub.remove();
-  }, []);
+  // Asked before the app's own steps and screens, as the newest step open (decision 137); before the
+  // app has started there are none, and Android's Back leaves as usual.
+  useEffect(() => openBackStep({ showing: () => true, run: () => BackHandler.exitApp() }), []);
   return (
     <View style={StyleSheet.absoluteFill}>
       <DisguiseFace kind={props.look.kind} length={length} onCandidate={tryCode} keep />
