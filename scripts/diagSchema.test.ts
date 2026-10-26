@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { DIAG_CONTEXT, DIAG_SCHEMA, DIAG_TOKEN } from '../packages/sync/src/diagnostics';
+import { DIAG_CONTEXT, DIAG_SCHEMA, DIAG_TOKEN } from '@langquest-next/sync';
 
 // The phone and the server apply the same diagnostics allowlist
 // (docs/diagnostics.md). The server's copy is a JSON literal between

@@ -1,7 +1,7 @@
-import { REDUCER_VERSION, emptyLanguageState, foldLanguage, isStored, resume, type AnyEvent, type LanguageState } from '@langquest-next/core';
+import { isStored, type LanguageState } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseTransport } from './supabaseTransport';
-import { fetchSnapshot } from './snapshotFetch';
+import { foldStream } from './foldStream';
 import type { Transport } from './types';
 import { blobKey, type BlobFiles } from './workerBlobs';
 import { listStreams } from './listStreams';
@@ -27,14 +27,22 @@ export interface ReconcilerDeps {
   digest(bytes: Uint8Array): Promise<string>;
 }
 
-interface ReconcileReport {
+export interface ReconcileReport {
   streams: number;
   objects: number;
+  /** Files the log holds as stored (its latest verdict) that the bucket does not list: work that may be lost. */
+  missing: number;
   confirmed: number;
   verified: number;
   invalidated: number;
   /** Objects whose bytes could not be fetched this pass: left alone, listed here. */
   unreadable: string[];
+}
+
+/** The hashes the log holds as stored that none of the listed objects has. */
+export function missingHashes(state: LanguageState, listed: Iterable<string>): string[] {
+  const have = new Set(listed);
+  return Object.keys(state.blobs).filter((hash) => isStored(state, hash) && !have.has(hash));
 }
 
 /**
@@ -49,12 +57,15 @@ interface ReconcileReport {
  *
  * Idempotent: a second pass over an unchanged bucket does nothing.
  */
-export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boolean; pageSize?: number }): Promise<ReconcileReport> {
-  const report: ReconcileReport = { streams: 0, objects: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [] };
+export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boolean; pageSize?: number; shouldStop?: () => boolean; report?: ReconcileReport }): Promise<ReconcileReport> {
+  const report: ReconcileReport = opts.report ?? { streams: 0, objects: 0, missing: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [] };
   for (const { orgId, streamId } of await deps.streams()) {
+    if (opts.shouldStop?.()) break;
     report.streams += 1;
     const state = await foldStream(deps.transport, orgId, streamId, opts.pageSize ?? 1000);
-    for (const o of await deps.listObjects(orgId, streamId)) {
+    const listed = await deps.listObjects(orgId, streamId);
+    report.missing += missingHashes(state, listed.map((o) => o.hash)).length;
+    for (const o of listed) {
       report.objects += 1;
       if (opts.verify) {
         // A failed fetch is not evidence of corruption. Skip, report, retry next pass.
@@ -84,21 +95,8 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
   return report;
 }
 
-async function foldStream(transport: Transport, orgId: string, streamId: string, pageSize: number): Promise<LanguageState> {
-  const snapshot = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
-  let after = snapshot?.serverSeq ?? 0;
-  const tail: AnyEvent[] = [];
-  for (;;) {
-    const page = await transport.pull(orgId, streamId, after, pageSize);
-    tail.push(...page);
-    if (page.length < pageSize) break;
-    after = page[page.length - 1]!.serverSeq!;
-  }
-  return snapshot ? resume(snapshot, tail, { clone: false }) : foldLanguage(tail, emptyLanguageState());
-}
-
 /** Wire the reconciler to a service-role Supabase client and the files it checks. */
-function reconcilerDeps(service: SupabaseClient, files: BlobFiles): ReconcilerDeps {
+export function reconcilerDeps(service: SupabaseClient, files: BlobFiles): ReconcilerDeps {
   const key = (o: BlobObject) => blobKey(o.orgId, o.streamId, o.hash, o.format);
   return {
     streams: async () => {

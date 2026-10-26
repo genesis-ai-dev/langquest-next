@@ -1,5 +1,6 @@
 import { buildIndexes, referencedBlobs, type LanguageState } from '@langquest-next/core';
-import { AUDIO, FILE, NO_UNIT, SyncClient, type EventStore, type SqlDriver, type Transport } from '@langquest-next/sync';
+import { AUDIO, FILE, SyncClient, type EventStore, type SqlDriver, type Transport } from '@langquest-next/sync';
+import { NO_UNIT } from '@langquest-next/sync/server';
 import type { SqlStore } from './sqlCache';
 
 /**

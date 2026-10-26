@@ -13,13 +13,7 @@
  * Run by hand it leaves no job run.
  */
 import { createClient } from '@supabase/supabase-js';
-import { emptyLanguageState, foldLanguage, REDUCER_VERSION, resume, type AnyEvent, type LanguageState } from '@langquest-next/core';
-import { reconcileBlobs, type ReconcilerDeps } from '../packages/sync/src/blobReconciler';
-import { listStreams } from '../packages/sync/src/listStreams';
-import { fetchSnapshot } from '../packages/sync/src/snapshotFetch';
-import { SupabaseTransport } from '../packages/sync/src/supabaseTransport';
-import { workerBlobs } from '../packages/sync/src/workerBlobs';
-import type { Transport } from '../packages/sync/src/types';
+import { reconcileBlobs, reconcilerDeps, workerBlobs, type ReconcileReport } from '@langquest-next/sync/server';
 import { errorClassOf, jobRunSink, noJobRuns } from './jobRuns';
 
 const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
@@ -33,99 +27,22 @@ const record = process.env['LANGQUEST_JOB'] === 'blob-reconcile' ? jobRunSink(ur
 const service = createClient(url, key, { auth: { persistSession: false } });
 const files = workerBlobs(apiUrl, key);
 
-/**
- * Reads the reconciler makes of one stream are kept until another stream is
- * asked for, so the count of missing files folds the stream from the same
- * pages instead of downloading its snapshot a second time.
- */
-function rememberingOneStream(inner: Transport): Transport {
-  let stream = '';
-  let kept = new Map<string, Promise<unknown>>();
-  const once = <T>(name: string, orgId: string, streamId: string, args: unknown[], read: () => Promise<T>): Promise<T> => {
-    if (stream !== `${orgId}/${streamId}`) { stream = `${orgId}/${streamId}`; kept = new Map(); }
-    const k = JSON.stringify([name, ...args]);
-    if (!kept.has(k)) kept.set(k, read());
-    return kept.get(k) as Promise<T>;
-  };
-  return new Proxy(inner, {
-    get(target, prop, receiver) {
-      if (prop === 'pull') return (o: string, s: string, after: number, limit: number) => once('pull', o, s, [after, limit], () => target.pull(o, s, after, limit));
-      if (prop === 'snapshotMeta') return (o: string, s: string, v: number) => once('meta', o, s, [v], () => target.snapshotMeta(o, s, v));
-      if (prop === 'snapshotChunk') {
-        return (o: string, s: string, v: number, seq: number, i: number) => once('chunk', o, s, [v, seq, i], () => target.snapshotChunk(o, s, v, seq, i));
-      }
-      const value = Reflect.get(target, prop, receiver) as unknown;
-      return typeof value === 'function' ? value.bind(target) : value;
-    }
-  });
-}
-
-/**
- * A language as the reconciler folds it: its newest snapshot and the events
- * after it. The same as packages/sync's own, kept here rather than exported
- * from there, because packages/sync ships in the web app's first visit, whose
- * budget has no room for a server job's needs (scripts/export-web.mjs).
- */
-async function foldStream(transport: Transport, orgId: string, streamId: string): Promise<LanguageState> {
-  const snapshot = await fetchSnapshot(transport, orgId, streamId, REDUCER_VERSION);
-  let after = snapshot?.serverSeq ?? 0;
-  const tail: AnyEvent[] = [];
-  for (;;) {
-    const page = await transport.pull(orgId, streamId, after, 1000);
-    tail.push(...page);
-    if (page.length < 1000) break;
-    after = page[page.length - 1]!.serverSeq!;
-  }
-  return snapshot ? resume(snapshot, tail, { clone: false }) : foldLanguage(tail, emptyLanguageState());
-}
-
 const started = Date.now();
 let stopping = false;
 process.once('SIGTERM', () => {
   stopping = true;
   console.error('SIGTERM: finishing the stream in hand');
 });
-const counts = { streams: 0, objects: 0, missing: 0, orphaned: 0 };
-class Stopped extends Error {}
-
-const transport = rememberingOneStream(new SupabaseTransport(service));
-const notWithoutVerify = async (): Promise<never> => { throw new Error('not used without --verify'); };
-// The reconciler's wiring (as packages/sync's runBlobReconciler has it, without what --verify needs), counting as it goes:
-// what R2 lists, what the log holds as stored that R2 does not, and what it confirms.
-const deps: ReconcilerDeps = {
-  streams: async () => (await listStreams(service)).map((r) => ({ orgId: r.org_id, streamId: r.stream_id })),
-  transport,
-  listObjects: async (orgId, streamId) => {
-    if (stopping) throw new Stopped();
-    counts.streams += 1;
-    const out = [];
-    for (const f of await files.list(`${orgId}/${streamId}/`)) {
-      const [hash, format] = (f.key.split('/')[2] ?? '').split('.');
-      if (hash && format) out.push({ orgId, streamId, hash, format, size: f.size });
-    }
-    counts.objects += out.length;
-    const listed = new Set(out.map((o) => o.hash));
-    const state = await foldStream(transport, orgId, streamId);
-    for (const [hash, verdict] of Object.entries(state.blobs)) if (verdict.stored && !listed.has(hash)) counts.missing += 1;
-    return out;
-  },
-  download: notWithoutVerify,
-  remove: notWithoutVerify,
-  recordBlob: async (orgId, streamId, hash, size) => {
-    const { error } = await service.rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
-    if (error) throw new Error(`record_blob: ${error.message}`);
-    counts.orphaned += 1;
-  },
-  invalidateBlob: notWithoutVerify,
-  digest: notWithoutVerify
-};
+// The reconciler counts as it goes (streams, objects, missing, confirmed), so a run cut short still reports what it saw.
+const report: ReconcileReport = { streams: 0, objects: 0, missing: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [] };
 
 let error: unknown;
 try {
-  await reconcileBlobs(deps, { verify: false });
+  await reconcileBlobs(reconcilerDeps(service, files), { verify: false, shouldStop: () => stopping, report });
 } catch (e) {
-  if (!(e instanceof Stopped)) error = e;
+  error = e;
 }
+const counts = { streams: report.streams, objects: report.objects, missing: report.missing, orphaned: report.confirmed };
 const incomplete = stopping || error !== undefined;
 await record({
   job: 'blob_reconcile', startedAt: started, ms: Date.now() - started,

@@ -19,9 +19,9 @@ import { gzipSync } from 'node:zlib';
 import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 import { emptyLanguageState, encodeHlc, foldLanguage, REDUCER_VERSION, type AnyEvent, type LanguageState } from '@langquest-next/core';
-import { cutLanguage, languageLinesOf, NO_UNIT } from '../../packages/sync/src/serverCut';
-import { fetchSnapshot } from '../../packages/sync/src/snapshotFetch';
-import { SupabaseTransport } from '../../packages/sync/src/supabaseTransport';
+import { cutLanguage, languageLinesOf, NO_UNIT } from '@langquest-next/sync/server';
+import { fetchSnapshot } from '@langquest-next/sync';
+import { SupabaseTransport } from '@langquest-next/sync';
 
 const args = new Map(process.argv.slice(2).map((a) => { const [k, v] = a.replace(/^--/, '').split('='); return [k!, v ?? 'true'] as const; }));
 const rate = Number(args.get('bytesPerSecond') ?? 2048);

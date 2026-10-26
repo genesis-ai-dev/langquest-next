@@ -1,4 +1,4 @@
-import { REDUCER_VERSION } from '../../../../packages/core/src/reducer';
+import { REDUCER_VERSION } from '@langquest-next/core';
 import { isMissing, type Query } from '../db';
 import { failed, ok, off, type Alert, type Section } from '../section';
 

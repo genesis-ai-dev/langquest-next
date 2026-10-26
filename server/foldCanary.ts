@@ -13,10 +13,10 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { emptyLanguageState, foldLanguage, LINES_VERSION, REDUCER_VERSION, type AnyEvent } from '@langquest-next/core';
-import { fetchSnapshot } from '../packages/sync/src/snapshotFetch';
-import { listStreams } from '../packages/sync/src/listStreams';
-import { SupabaseTransport } from '../packages/sync/src/supabaseTransport';
-import { languageLinesOf, NO_UNIT } from '../packages/sync/src/serverCut';
+import { fetchSnapshot } from '@langquest-next/sync';
+import { listStreams } from '@langquest-next/sync/server';
+import { SupabaseTransport } from '@langquest-next/sync';
+import { languageLinesOf, NO_UNIT } from '@langquest-next/sync/server';
 import { check } from './dbError';
 import { errorClassOf, jobRunSink, noJobRuns } from './jobRuns';
 import { compareFold, pickCanaryLanguages, type CanaryComparison } from './foldCanaryModel';

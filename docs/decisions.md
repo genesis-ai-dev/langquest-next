@@ -4248,6 +4248,24 @@ Reverse if: a second app needs a different outbound policy than the phone
 the server-side jobs grow their own dependencies that the phone must not
 carry, which would argue for a separate server package.
 
+Amended (2026-10-26, Carl Sauder): sync has a second entry,
+`@langquest-next/sync/server` (`packages/sync/src/server.ts`), for what only
+servers run: the snapshot worker, the blob reconciler, the Worker's R2
+files, the stream list, the per-unit cut and `foldStream`. The phone and
+the web app import `@langquest-next/sync` and no longer carry them. A
+separation-of-concerns audit found the single entry had pushed server code
+to copy sync instead of importing it: `server/reconcileJob.ts` kept its own
+`foldStream`, reconciler wiring and a "missing" count by a different rule
+than the reconciler repairs by, so as not to grow the web app's first
+visit, and three server jobs imported `packages/sync/src/*` by path. The
+reconciler now counts what is missing with core's `isStored` and can stop
+early, and the job only builds its deps. ESLint now also reads `server/`,
+`apps/web/worker`, `apps/web/jobs`, `apps/admin/src` and
+`packages/v2-import/src`, with one rule: packages by their entry, and
+nothing from `apps/mobile/src` (shared code goes in core). This is still
+one package, not the separate server package the reverse-if names: the
+server entry imports only what sync already may.
+
 ## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
 
 Date: 2026-10-14 · By: Carl Sauder · Status: accepted

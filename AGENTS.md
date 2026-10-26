@@ -30,7 +30,10 @@ Rules specific to this folder:
   supabase-js and its own files (`packages/sync/test/boundary.test.ts`).
   A platform gets in as a constructor argument: expo-sqlite drivers, file
   stores, `AsyncStorage` and configured clients live in the app that uses
-  them, which never reimplements sync.
+  them, which never reimplements sync. What only servers run (snapshot
+  worker, blob reconciler, R2 files, stream list, per-unit cut) is
+  `@langquest-next/sync/server`; server code imports packages by their
+  entry, never `packages/*/src` or `apps/mobile/src` (lint holds it).
 - Apps decide what to do, what to write and what to show. In `apps/mobile`
   every Supabase call lives in `src/server/` (decisions.md 105,
   `apps/mobile/test/serverBoundary.test.ts`); screens and hooks call its

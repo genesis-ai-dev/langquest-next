@@ -65,6 +65,26 @@ describe('blob reconciler', () => {
     expect((await reconcileBlobs(d, { verify: false })).confirmed).toBe(0);
   });
 
+  it('counts files the log holds as stored that the bucket does not list, by the rule it repairs with', async () => {
+    const server = new FakeServer();
+    await language(server);
+    server.serviceEvent('v1.BlobStored', { hash: sha('other'), size: 7 });
+    const d = deps(server, [{ orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'wav', size: 4 }]);
+    const report = await reconcileBlobs(d, { verify: false });
+    expect(report.missing).toBe(1);
+    expect(report.confirmed).toBe(1);
+  });
+
+  it('stops before the next stream when told to, keeping the counts so far in the report it was given', async () => {
+    const server = new FakeServer();
+    await language(server);
+    const d = { ...deps(server, []), streams: async () => [{ orgId: 'org1', streamId: 'p1' }, { orgId: 'org1', streamId: 'p2' }] };
+    const report = { streams: 0, objects: 0, missing: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [] as string[] };
+    let calls = 0;
+    await reconcileBlobs(d, { verify: false, report, shouldStop: () => calls++ > 0 });
+    expect(report.streams).toBe(1);
+  });
+
   it('with verify on, bytes that do not hash to their name are removed and invalidated', async () => {
     const server = new FakeServer();
     const client = await language(server);

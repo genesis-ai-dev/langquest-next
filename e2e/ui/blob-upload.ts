@@ -4,7 +4,7 @@
 // is harmless; under load miniflare sometimes drops a connection ("Network
 // connection lost", HTTP 500). A setup step retries that a few times and
 // says how many attempts it made. A test's own assertions never retry.
-import { workerBlobs } from '@langquest-next/sync';
+import { workerBlobs } from '@langquest-next/sync/server';
 
 const ATTEMPTS = 4;
 const BACKOFF_MS = 300;

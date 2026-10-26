@@ -14,6 +14,15 @@ import wholeLanguage from './scripts/lint/wholeLanguage.mjs';
 const D104 = 'decisions.md 104';
 const D105 = 'decisions.md 105';
 
+/** Code that runs beside the app (servers, the Worker, jobs, the admin page, the importer): held to one rule, not the app's. */
+const OUTSIDE = ['server/**/*.ts', 'apps/web/worker/**/*.ts', 'apps/web/jobs/**/*.ts', 'apps/admin/src/**/*.ts', 'packages/v2-import/src/**/*.ts'];
+const outsideTheApp = {
+  patterns: [
+    { regex: '(^|/)packages/[^/]+/src(/|$)', message: 'Import the package (@langquest-next/core, @langquest-next/sync, or @langquest-next/sync/server for server jobs), not its files.' },
+    { regex: '(^|/)apps/mobile/src(/|$)', message: 'Put shared code in packages/core: only the app imports apps/mobile/src.' }
+  ]
+};
+
 /** Supabase lives in apps/mobile/src/server (decisions.md 105). */
 const noSupabase = {
   paths: [{ name: '@supabase/supabase-js', allowTypeImports: true, message: `Call a function in src/server instead; types are fine (${D105}).` }],
@@ -117,7 +126,7 @@ export default [
     ]
   },
   {
-    files: [APP, 'apps/mobile/App.tsx', 'packages/*/src/**/*.ts'],
+    files: [APP, 'apps/mobile/App.tsx', 'packages/*/src/**/*.ts', ...OUTSIDE],
     languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true } } },
     plugins: {
       'react-hooks': reactHooks, 'react-refresh': reactRefresh, boundaries, '@typescript-eslint': tseslint.plugin,
@@ -155,6 +164,7 @@ export default [
   { files: ['packages/sync/src/testing/**/*.ts'], rules: { 'no-restricted-imports': ['error', { patterns: [{ regex: '^(?!\\.|node:|@langquest-next/core$|@supabase/supabase-js$)', message: `packages/sync/src/testing runs in Node: its own files, core, supabase-js and Node built-ins (${D104}).` }] }] } },
 
   // The app, general to specific.
+  { files: OUTSIDE, rules: { 'no-restricted-imports': ['error', outsideTheApp] } },
   { files: [APP], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens) } },
   { files: ['apps/mobile/src/screens/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noStorage) } },
   { files: ['apps/mobile/src/server/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noDeepPackage, serverLayer) } },

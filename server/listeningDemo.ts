@@ -13,7 +13,7 @@ import { resolve } from 'node:path';
 import {
   encodeHlc, foldLanguage, foldOrg, orgLanguages, privilegeAllows, privilegeFor, privilegesFor,
   SEED_ROLES, validateEvent, type AnyEvent,
-} from '../packages/core/src/index';
+} from '@langquest-next/core';
 import { AgentOrg } from '../apps/web/worker/agent/org';
 import { OrgFolder, MemoryCache, type Source } from '../apps/web/worker/orgFolder';
 import { wholeRecords } from '../apps/web/worker/languageRecords';

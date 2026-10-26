@@ -787,7 +787,7 @@ test('MOD-023 Reports need a connection to read and to act on', async ({ page })
 
 /** A short WAV uploaded where the app keeps the language's files, for a version made through the server. */
 async function uploadVoice(w: UiWorld, key: AccountKey) {
-  const { blobKey } = await import('@langquest-next/sync');
+  const { blobKey } = await import('@langquest-next/sync/server');
   const { createHash } = await import('node:crypto');
   const { signIn } = await import('./fixture');
   const rate = 16000;

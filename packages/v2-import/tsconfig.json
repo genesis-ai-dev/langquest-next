@@ -3,7 +3,8 @@
   "compilerOptions": {
     "paths": {
       "@langquest-next/core": ["../core/src/index.ts"],
-      "@langquest-next/sync": ["../sync/src/index.ts"]
+      "@langquest-next/sync": ["../sync/src/index.ts"],
+      "@langquest-next/sync/server": ["../sync/src/server.ts"]
     }
   },
   "include": ["src", "test"]
