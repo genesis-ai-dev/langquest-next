@@ -11,7 +11,7 @@ import MicrophoneEnergy from '../../modules/microphone-energy';
 import { preferredRecordingType } from '../audio/audioFormat';
 import { getBlobStore } from '../sync/blobs';
 import { t } from '../i18n';
-import { isReadOnlySession } from '../session/readOnly';
+import { useReadOnly } from '../session/useReadOnly';
 import { getRecordingJournal, liveParts } from './recordingJournal';
 import { RecordingSession } from './recordingSession';
 import { liveKept, liveKeptCount, liveNext } from './livePartsModel';
@@ -103,6 +103,7 @@ function deleteQuietly(uri: string) {
  */
 export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget, language?: AudioLanguage | null) {
   const recorder = useTakeRecorder();
+  const readOnly = useReadOnly();
   const [vadOn, setVadOn] = useState(false);
   const [vadPaused, setVadPaused] = useState(false);
   const [vadCapturing, setVadCapturing] = useState(false);
@@ -236,7 +237,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
       return Promise.resolve();
     }
     // Nothing recorded could be kept (a Global Viewer looking in, decisions.md 158): never open the microphone.
-    if (isReadOnlySession()) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
+    if (readOnly) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
     wanted.current = true;
     stopAudioPlayback();
     setError('');
@@ -280,7 +281,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     })();
     starting.current = start;
     return start;
-  }, [fail, recorder, self, work]);
+  }, [fail, readOnly, recorder, self, work]);
 
   const manualUp = useCallback((): Promise<void> => {
     wanted.current = false;
@@ -381,7 +382,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     if (vadActive.current || vadStarting.current) return stopVad();
     if (starting.current || stopping.current || active.current ||
         vadStopping.current || !mounted.current) return Promise.resolve();
-    if (isReadOnlySession()) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
+    if (readOnly) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
     stopAudioPlayback();
     setError('');
     work(1);
@@ -421,7 +422,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     })();
     vadStarting.current = start;
     return start;
-  }, [fail, self, stopVad, vadConfig, work]);
+  }, [fail, readOnly, self, stopVad, vadConfig, work]);
 
   /** A part's box as it stands, written down so a crash before the session is left loses nothing said (phones, a passage's parts). */
   const notePart = useCallback((index: number) => {

@@ -1,3 +1,4 @@
+import type { GlobalViewerAccess } from '../account/globalViewerModel';
 import type { LayoutKind } from '../ui/layout';
 import { PASSAGE_READING, TAB_SCREENS, type ScreenId } from './flow';
 
@@ -28,4 +29,9 @@ export function chromeVisible(kind: LayoutKind, screen: ScreenId): boolean {
   if (kind === 'phone' && PHONE_TASKS.includes(screen)) return false;
   if (TAB_SCREENS.includes(screen)) return true;
   return kind !== 'phone' && WIDE_CHROME.includes(screen);
+}
+
+/** Does the header carry the Global Viewer link? Whoever has the access (not revoked), once an organization is open: also in one of their own, where the code goes. */
+export function showsGlobalViewerLink(globalViewer: GlobalViewerAccess | null, orgOpen: boolean): boolean {
+  return globalViewer !== null && globalViewer !== 'revoked' && orgOpen;
 }

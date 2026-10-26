@@ -4,16 +4,16 @@ import { t } from '../i18n';
 // the words for its refusal sit here, below the recorder and the server; the handles that refuse
 // writes are shell/readOnly.ts.
 
-/** Whether the open organization is read-only for this session, for messages outside it (failureMessage). */
+/**
+ * Whether the open organization is read-only for this session. The one thing
+ * that reads it is `readOnlyRefusal`, for failureMessage, which is called from
+ * everywhere without a session. Anything with a session asks the session
+ * (`session.readOnly`, `canChange`, or `useReadOnly` below the shell).
+ */
 let readOnlyNow = false;
 
 export function setReadOnlySession(on: boolean): void {
   readOnlyNow = on;
-}
-
-/** Is the open organization read-only for this session? The recorder asks before it opens the microphone. */
-export function isReadOnlySession(): boolean {
-  return readOnlyNow;
 }
 
 /**

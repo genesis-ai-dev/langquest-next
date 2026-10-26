@@ -6,10 +6,11 @@
 // shell, Language); the sections and their parts are in src/reports/.
 import { NotSavedError } from '@langquest-next/sync';
 import {
-  clustersOf, dayPercents, mayViewLanguage, orgClusters, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
+  clustersOf, dayPercents, orgClusters, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
+import { mayViewReports } from '../shell/session';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -150,8 +151,7 @@ export function ReportsLanguage(ctx: Ctx) {
   // The list was read when Reports opened; the organization's own record on
   // this device is newer when a role changed since, so a language the role no
   // longer covers is not shown from the old list (RPT-016).
-  // A Global Viewer looking in may view every language (decisions.md 158).
-  const mayView = !ctx.org.state || ctx.session.readOnly || mayViewLanguage(ctx.org.state, ctx.session.actorId, languageId);
+  const mayView = mayViewReports(ctx.session, ctx.org.state, languageId);
   const row = reports.status === 'ready' && mayView ? reports.rows.find((r) => r.languageId === languageId) : undefined;
   const title = row?.report.name ?? t('reports.language.fallbackTitle');
   const header = (
