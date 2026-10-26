@@ -89,7 +89,7 @@ export const PUSH_FUNCTION = '/functions/v1/push-delivery';
 /** The projection pass's old pg_cron job; the pass runs in the Worker's job container, locally too (decisions.md 141, 148). */
 export const RETIRED_JOB = 'langquest-stream-projections';
 /** Schedules push delivery where the Vault secrets exist, and unschedules the old projection job; safe to run again (decisions 42, 148). */
-export const SCHEDULE_MIGRATION = 'supabase/migrations/20261026130400_push_delivery_when_waiting.sql';
+export const SCHEDULE_MIGRATION = 'supabase/migrations/20261026170400_push_delivery_when_waiting.sql';
 /**
  * Function secrets no function needs any more, unset when found. Push
  * delivery's secret was PROJECTION_WORKER_SECRET until 2026-10-20

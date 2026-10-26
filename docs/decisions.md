@@ -1945,7 +1945,7 @@ found this (JRN-005) once the local database listed more than 500.
 Amended (2026-10-26, Carl Sauder): an organization's name is read from the
 table `org_names` (the latest `v1.OrgCreated` or `v1.OrgRenamed` by hlc and
 id, kept by a trigger on `events` and filled from the log by migration
-`20261026130700_org_names.sql`), not found by sorting its name events for
+`20261026170700_org_names.sql`), not found by sorting its name events for
 every organization in a listing. `org_name()`, `listed_organizations`,
 `listed_organizations_search` (now by trigram index) and
 `global_viewer_organizations` (158) read it; their results are unchanged.
@@ -6693,7 +6693,7 @@ passage opens.
 
 Amended (2026-10-26, Carl Sauder): three storage changes, none of which
 changes what a phone receives (migration
-`20261026130800_snapshot_cut_storage.sql`). `put_snapshot` counts each
+`20261026170800_snapshot_cut_storage.sql`). `put_snapshot` counts each
 passage's rows once and keeps them on the snapshot (`snapshots.unit_counts`),
 so `get_snapshot_head` reads them instead of counting every unit row on a
 cold open (a cut from before is counted as it was until its next snapshot;
@@ -6785,7 +6785,7 @@ daily job drops `cron.job_run_details` rows over seven days old. The claim
 is driven from the people who have a push token (index
 `notifications_push_person`) instead of walking past every notification of
 someone without one. The schedule is now
-`20261026130400_push_delivery_when_waiting.sql`, which `npm run secrets`
+`20261026170400_push_delivery_when_waiting.sql`, which `npm run secrets`
 runs again. Audit: `docs/performance-audit-2026-10-26.md` item 11.
 
 ## 149. A reviewer notes a moment of the recording, a help, a key word, a verse or a note, and every note goes with the review and its verdict
