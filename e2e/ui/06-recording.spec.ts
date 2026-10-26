@@ -895,7 +895,9 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   await expect(divider).toHaveAttribute('aria-valuetext', 'Source 50%');
   // All the way down: the recorder is one line, with its own red button, and no footer.
   const parts = await partCount(page);
-  await drag(viewport.height);
+  // The last row on screen: a release at the viewport's height is past its edge, and Chromium may not deliver it, which
+  // left the drag unfinished and the divider back where it was (CI, 2026-10-24 to 26).
+  await drag(viewport.height - 1);
   await expect(divider).toHaveAttribute('aria-valuetext', 'Recorder as one line');
   await expect(text(page, `${parts} parts recorded`)).toBeVisible();
   await expect(publishButton(page)).toHaveCount(0);
