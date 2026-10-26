@@ -1,7 +1,4 @@
 import { handleApi } from './api';
-import { connectPage } from './agent/connectPage';
-import { reviewPage } from './agent/reviewPage';
-import { pageLanguage } from './i18n/pages';
 import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
 import { sha256Hex } from './agent/tokens';
@@ -155,11 +152,16 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   // The ops dashboard, a Worker of its own reached through the binding (ops.ts).
   if (isOpsPath(url.pathname)) return toOps(request, env.OPS);
   if (url.pathname === '/connect' && request.method === 'GET') {
+    // The pages' words (about 195 KB of JSON) are read only when a page is asked for, not on every cold start.
+    const [{ connectPage }, { pageLanguage }] = await Promise.all([import('./agent/connectPage'), import('./i18n/pages')]);
     return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' }, pageLanguage(request));
   }
   // A shared review link (agent/links.ts); the page checks the code with the API.
   const review = /^\/r\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname);
-  if (review && request.method === 'GET') return reviewPage(review[1]!, pageLanguage(request));
+  if (review && request.method === 'GET') {
+    const [{ reviewPage }, { pageLanguage }] = await Promise.all([import('./agent/reviewPage'), import('./i18n/pages')]);
+    return reviewPage(review[1]!, pageLanguage(request));
+  }
   if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
   // The database says an organization's log moved (decisions.md 101); its object looks a few seconds later.
   if (url.pathname === '/api/internal/poke' && request.method === 'POST') {
