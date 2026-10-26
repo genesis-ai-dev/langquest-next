@@ -7021,7 +7021,10 @@
     "hereLabel": "Sedang dilihat",
     "otherLabel": "Buka organisasi lain",
     "readOnly": "Anda melihat sebagai Pengamat Global: tidak ada yang bisa diubah di sini.",
-    "linkHelp": "Di mana Anda melihat, apa yang bisa Anda lakukan di sana, dan semua organisasi lainnya."
+    "linkHelp": "Di mana Anda melihat, apa yang bisa Anda lakukan di sana, dan semua organisasi lainnya.",
+    "dashboard": "Dasbor operasional",
+    "dashboardBody": "Layanan LangQuest, tugas server, dan diagnostik lapangan. Terbuka di tab baru.",
+    "dashboardHelp": "Membuka dasbor operasional LangQuest di tab baru, dengan akun Anda."
   },
   "uploads": {
     "barRecordings_other": "{{count, number}} rekaman menunggu diunggah",

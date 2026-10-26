@@ -6,7 +6,7 @@ import { tryUnregisterNotifications } from '../notifications/notifications';
 import { lookById, type Look } from './disguiseModel';
 
 /**
- * A phone's disguise (decisions.md 167): the app icon it shows and the
+ * A phone's disguise (decisions.md 168): the app icon it shows and the
  * calculator or notepad in front of the app. All of it stays on this phone
  * and needs no connection. Which look is read at once, as the app starts,
  * so not one frame of LangQuest shows before it; the code is kept as a

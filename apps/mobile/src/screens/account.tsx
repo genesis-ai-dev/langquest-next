@@ -41,7 +41,7 @@ import { personLook } from '../ui/people';
 import { noteExpected, failureMessage } from '../diagnostics/report';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
-import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../web/forgetBrowser';
+import { FORGETS_ON_SIGN_OUT, signOutAndForget } from '../web/forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../sync/handOver';
 import { choosePassword, signOutHere } from '../server/auth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
@@ -426,7 +426,7 @@ export function SettingsMore(ctx: Ctx) {
   const switchHere = !inSeveral(orgs);
   const passwordRow = s.isManaged && hasPassword === false;
   // No push on the web yet: requests and feedback still reach the Inbox there. A disguised phone
-  // gets none, since each would show LangQuest's name (decisions.md 167).
+  // gets none, since each would show LangQuest's name (decisions.md 168).
   const disguised = useDisguise().look !== null;
   const notifications = Platform.OS !== 'web' && !disguised;
   const blocked = ctx.blocks.ids.length;
@@ -478,7 +478,7 @@ export function SettingsMore(ctx: Ctx) {
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
         <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={status.pending > 0 ? formatNumber(status.pending) : undefined} onPress={() => ctx.go('sync_status')} />
-        {/* A calculator or notepad in front of the app, opened with a code (decisions.md 167); phones only. */}
+        {/* A calculator or notepad in front of the app, opened with a code (decisions.md 168); phones only. */}
         <DisguiseRow ctx={ctx} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}
@@ -713,8 +713,7 @@ export function SignOutConfirm(ctx: Ctx) {
         await unregisterNotifications();
       }
       // This device only: your other devices stay signed in (decision 87).
-      await signOutHere();
-      await forgetThisBrowser();
+      await signOutAndForget(signOutHere);
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
   const blocked = waiting.length > 0 && !handsOver;

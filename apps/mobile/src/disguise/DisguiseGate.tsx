@@ -8,7 +8,7 @@ import { DisguiseFace } from './faces';
 import { useDisguise } from './useDisguise';
 
 /**
- * The disguise in front of the whole app (decisions.md 167). A phone that
+ * The disguise in front of the whole app (decisions.md 168). A phone that
  * wears one opens on it, and the app under it starts only once the code is
  * typed, so nothing of LangQuest shows, asks or sounds before then. Leaving
  * the app puts it back on; the app stays as it was under it, so coming back

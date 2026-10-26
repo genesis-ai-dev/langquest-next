@@ -348,7 +348,7 @@ export default function App() {
   const appVersion = useAppVersion(!!auth);
   return (
     <SafeAreaProvider>
-      {/* A disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 167). */}
+      {/* A disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 168). */}
       <DisguiseGate>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />

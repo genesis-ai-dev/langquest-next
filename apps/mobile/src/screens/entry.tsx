@@ -40,6 +40,7 @@ import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { PRIVACY_URL } from '../auth/legal';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
+import { forgettingThisBrowser } from '../web/forgetBrowser';
 import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
 import { recordAuth, recordAuthFailure, since } from '../auth/authDiag';
 import { inviteOutcome } from '../auth/authOutcome';
@@ -115,6 +116,8 @@ export function SignIn(ctx: Ctx) {
 
   const ready = signInReady(email, password);
   const joining = ctx.invite.held?.claim.kind === 'next-account';
+  // Signing out of a browser: the page reloads once the browser has forgotten everything, so a Sign In now would be emptied.
+  if (forgettingThisBrowser()) return <Screen><EmptyState icon="lock" title={t('account.signOut.signingOut')} /></Screen>;
   return (
     <Screen header={<HelpTop />} bodyStyle={styles.signInBody}>
       <LanguageChip />

@@ -78,6 +78,12 @@ test('ACCT-054 A Global Viewer opens another organization and only views it', as
   // The next period's code: the one before was used to set it up.
   await field(page, 'Code from your authenticator').fill(totp(key, 1));
   await button(page, 'Check code').click();
+  // The ops dashboard is a tap away, in a tab of its own (decisions.md 160).
+  const tab2 = page.context().waitForEvent('page');
+  await button(page, 'Operations dashboard').click();
+  const dashboard = await tab2;
+  expect(new URL(dashboard.url()).pathname).toBe('/ops-dashboard');
+  await dashboard.close();
   await field(page, 'Organization or language').fill(world().orgName);
   await button(page, world().orgName).click();
   // The organization opens on a Viewer's overview, under the Map tab.

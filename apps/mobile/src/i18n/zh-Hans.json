@@ -7021,7 +7021,10 @@
     "hereLabel": "正在查看",
     "otherLabel": "打开其他机构",
     "readOnly": "你正以全局查看者的身份查看：这里的任何内容都不能更改。",
-    "linkHelp": "你正在查看的地方、在那里能做什么，以及所有其他机构。"
+    "linkHelp": "你正在查看的地方、在那里能做什么，以及所有其他机构。",
+    "dashboard": "运营仪表板",
+    "dashboardBody": "LangQuest 的服务、服务器任务和现场诊断。在新标签页中打开。",
+    "dashboardHelp": "在新标签页中打开 LangQuest 的运营仪表板，使用你当前的登录。"
   },
   "uploads": {
     "barRecordings_other": "{{count, number}} 段录音等待上传",

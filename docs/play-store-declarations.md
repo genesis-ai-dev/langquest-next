@@ -202,7 +202,7 @@ learns which version is live from Apple's public lookup and Google Play's
 public app page, which send no user data. Nothing is collected or sent, and no Play Console answer
 changes.
 
-A phone's disguise (decisions.md 167): under Me → More settings → App icon,
+A phone's disguise (decisions.md 168): under Me → More settings → App icon,
 someone may give the app one of ten icons, five calculators and five
 notepads, and a code of 4 to 12 digits. From then on the app opens on a
 working calculator or notepad, and the code typed there opens LangQuest.
