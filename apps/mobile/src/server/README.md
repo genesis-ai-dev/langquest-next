@@ -12,4 +12,5 @@ area: `auth`, `account`, `invites`, `library`, `languages`, `moderation`,
 `notifications`, `reference`, `diagnostics`, `globalViewer` (decisions.md
 158), `v2`, `personas` (dev builds),
 `handOver` (sessions kept for a shared phone), `sync` (the transport the
-streams use) and `blobTransport`.
+streams use), `reachability` (whether the server answers, decision 166) and
+`blobTransport`.

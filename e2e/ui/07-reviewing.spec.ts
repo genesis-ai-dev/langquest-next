@@ -549,7 +549,7 @@ test('REV-022 Review offline', async ({ page, context }) => {
   await doCheck(page, 'peer').click();
   await primary(page).click();
   await button(page, 'Looks good').click();
-  await sawToast(page, `Looks good · sent to ${TOM}`);
+  await sawToast(page, `Looks good. ${TOM} gets it when this device is connected.`);
   const pending = (await deviceEvents(page, world().languages.A.orgId, world().languages.A.languageId)).filter((e) => e.status === 'pending');
   expect(pending.length).toBeGreaterThan(0);
   await context.setOffline(false);
@@ -571,7 +571,7 @@ test('REV-023 A review the server refuses is not lost silently', async ({ page, 
   try {
     await primary(page).click();
     await button(page, 'Looks good').click();
-    await sawToast(page, `Looks good · sent to ${TOM}`);
+    await sawToast(page, `Looks good. ${TOM} gets it when this device is connected.`);
     await context.setOffline(false);
     await expect.poll(async () => (await deviceEvents(page, w.languages.A.orgId, w.languages.A.languageId)).filter((e) => e.status === 'rejected').length,
       { timeout: 60_000 }).toBeGreaterThan(0);

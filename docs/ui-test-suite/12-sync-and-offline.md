@@ -28,7 +28,7 @@ pushes in pages of at most 200 events.
 ## The Sync screen
 
 ### SYNC-001 The Sync screen, online
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions: None.
 
@@ -54,7 +54,7 @@ Expected:
 - The numbers update by themselves about once a second.
 
 ### SYNC-002 The Sync screen, offline
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - The device is offline.
@@ -77,7 +77,7 @@ the banner now says Offline even while the live channel still looks up
 (fixed 2026-10-13 on the Sync screen).
 
 ### SYNC-003 Waiting work is listed until it goes
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - The device is offline.
@@ -150,7 +150,7 @@ Expected:
 Resets: undo the server setting.
 
 ### SYNC-007 My Work's sync chip shows only when it matters
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions: None.
 
@@ -210,8 +210,8 @@ Steps:
 Expected:
 - Step 1: publishing works offline, with no error. P-NEW shows Version 1 on
   Device 1 at once, by "You".
-- Step 2: "waiting to upload" is above 0. "Audio uploading" shows "{n} left"
-  with a bar.
+- Step 2: "waiting to upload" is above 0. "Audio uploading" says "Offline":
+  nothing moves offline (decision 166).
 - Step 3: P-NEW still has Version 1, and it plays.
 - Step 4: "waiting to upload" returns to 0, "Audio uploading" to "Up to
   date". "refused by the server" stays 0.
@@ -237,8 +237,9 @@ Steps:
 3. Device 2 (TRANS): tap "Sync now", then the bell on My Work.
 
 Expected:
-- Step 1 works offline. P-SUBMITTED shows the Peer Review as done on
-  Device 1.
+- Step 1 works offline, and the toast says "Looks good. {TRANS-name} gets
+  it when this device is connected." P-SUBMITTED shows the Peer Review as
+  done on Device 1.
 - Step 2: nothing waits and nothing is refused.
 - Step 3: TRANS's Inbox has "Peer Review: looks good" about P-SUBMITTED,
   unread, under "{REV first name} did the Peer Review you asked for". P-SUBMITTED shows the same state on both devices.
@@ -507,7 +508,7 @@ Expected:
 ## Audio transfer
 
 ### SYNC-021 Upload progress
-Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions:
 - The network is slowed to about 256 kbit/s up (Network Link Conditioner,
@@ -758,7 +759,7 @@ Preconditions:
 Steps:
 1. Open Luke 1:1–4 (not kept: nobody asked TRANS for it, and TRANS never
    worked on it). Read the line at the top, and tap it.
-2. Record and publish a part on P-NEW.
+2. Record and publish a part on P-Q4.
 3. Open Sync.
 
 Expected:
@@ -768,10 +769,31 @@ Expected:
 - Step 2: the toast ends "Your team gets it when this device is connected."
   The upload bar says "{n} recordings waiting to upload · Offline", never
   "Uploading".
-- Step 3: "To receive" says "Offline", not "None", and the transfers say
+- Step 3: "To receive" says "Offline" (or the count of files this device
+  already knows it must fetch), never "None", and the transfers say
   "Offline", not "Up to date": what is new on the server cannot be known.
   Nowhere says "All uploaded".
 - Online, "Uploading" and a moving download show only while a file is
   going up or coming down, and a kept passage says "On this device" only
   once the device has counted every file of it; until then "Checking this
   device…".
+
+### SYNC-034 Connected but the server does not answer
+Roles: TRANS · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto (web; phones by hand)
+
+Preconditions:
+- The device has caught up and Sync says "Live".
+- The web test holds back every request to the server and the live
+  channel's answers while the browser stays online: a VPN with no internet
+  behind it, a hotspot's sign-in page, a SIM out of data. On a phone, turn
+  on a VPN whose server is unreachable.
+
+Steps:
+1. Cut the server off. Watch Sync.
+2. Let the server answer again.
+
+Expected:
+- Step 1: within half a minute Sync says "Offline", though the phone says
+  it is connected. The app asks the server itself after 20 seconds with no
+  answer and waits 8 seconds (decision 166).
+- Step 2: "Offline" goes within half a minute, and sync carries on.

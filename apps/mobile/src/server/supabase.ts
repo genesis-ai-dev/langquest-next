@@ -44,6 +44,9 @@ function clientAt(storageKey: string, autoRefreshToken: boolean) {
   const watch: RenewalWatch = { failedAt: null };
   const client = createClient(supabaseUrl, supabaseAnonKey, {
     auth: { storage: secureStorage, storageKey, autoRefreshToken, persistSession: true, detectSessionInUrl: false },
+    // Every answer to the heartbeat says the server is still there (reachability.ts):
+    // a shorter beat than the default 25 s, so the app's own check rarely has to ask.
+    realtime: { heartbeatIntervalMs: 15_000 },
     global: {
       fetch: sessionSafeFetch({ anonKey: supabaseAnonKey, watch, hasSavedSession: async () => (await secureStorage.getItem(storageKey)) !== null })
     }

@@ -1,5 +1,7 @@
 import * as Network from 'expo-network';
 import { saysOffline } from './networkWake';
+import { onlineNow } from './reachModel';
+import { useServerReach } from './useServerReach';
 import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, TransferBudget, classifyTransferFailure, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
 import {
   CommandError, emptyLanguageState, languageLines, updatesFor as coreUpdatesFor, type BlobRef, type EventPayloads, type EventSpec, type EventType,
@@ -175,7 +177,14 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const downMeter = useRef(new RateMeter());
 
   // Back on screen or back online: sync now rather than at the end of a backoff.
-  useEffect(() => onWake(() => sessionRef.current?.wake()), []);
+  const wakeSession = useCallback(() => sessionRef.current?.wake(), []);
+  useEffect(() => onWake(wakeSession), [wakeSession]);
+  // Whether the server answers, not just whether the phone has a network (decisions.md 166):
+  // a VPN with no internet behind it says "connected". Back from quiet, sync at once.
+  const network = Network.useNetworkState();
+  const osOffline = saysOffline(network);
+  const reach = useServerReach(osOffline, wakeSession);
+  const { heard } = reach;
 
   // The organization stream changed someone's membership or a role: work
   // the server refused for want of one may be accepted now (NOT_MEMBER).
@@ -224,6 +233,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
           diag: diagnostics
         },
         aroundSync: trackSync,
+        onAnswered: heard,
         // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 143).
         keepOnDisk: true,
         build: appBuild(),
@@ -293,7 +303,7 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       sessionRef.current = null;
       filesRef.current = null;
     };
-  }, [orgId, languageId, openId, actorId, syncStatus]);
+  }, [orgId, languageId, openId, actorId, syncStatus, heard]);
 
   const sync = useCallback(() => sessionRef.current?.sync() ?? Promise.resolve({ more: false }), []);
 
@@ -351,11 +361,10 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
   const triggerUpload = useCallback(() => sessionRef.current?.triggerUpload(), []);
   const inspect = useCallback(() => sessionRef.current?.inspect() ?? Promise.resolve(null), []);
   const { tooOld, refused, refusedEvents, pulled, live, revision } = status;
-  // Offline when the phone itself says it has no network, at once, as well as when
-  // the server did not answer the last sync (decisions.md 166): no screen offers or
-  // claims a transfer the device cannot make.
-  const network = Network.useNetworkState();
-  const online = saysOffline(network) ? false : status.online;
+  // Offline when the phone itself says it has no network, at once; when the server
+  // stopped answering checks; or when it did not answer the last sync (decisions.md 166):
+  // no screen offers or claims a transfer the device cannot make.
+  const online = onlineNow({ osOffline, quiet: reach.quiet, synced: status.online });
 
   const { lines } = status;
   // A new object only when a count moves, not on every publish.

@@ -7699,6 +7699,23 @@ partners and users real trouble. So:
 - **Offline is the phone's word as well as the server's.** `ctx.language.online`
   is false as soon as the operating system says there is no network
   (expo-network, `saysOffline`), not only after the next sync attempt fails.
+- **Online is only the server's word.** Caleb: some checks "show that the
+  phone is online … even if the user has a VPN turned on and they have no
+  internet connection". The operating system's "connected" says nothing
+  about a VPN with no internet behind it, a hotspot's sign-in page or a SIM
+  out of data, and a sync then hangs with no answer while the last result
+  still says online. So the app counts what the server itself said
+  (`sync/reachModel.ts`, `useServerReach`): each sync it answered
+  (`LanguageSessionOptions.onAnswered`), each answer to the live channel's
+  heartbeat (every 15 s, `server/supabase.ts`), and, when neither has come
+  for 20 s while the app is on screen, a check of its own
+  (`server/reachability.ts`: `/auth/v1/health`, counted only when the
+  server's own JSON comes back within 8 s). An unanswered check says
+  "Offline" at once, unless something answered after it was asked; the
+  next answer of any kind clears it and syncs. With the live channel up
+  the heartbeat answers, so the check seldom runs; it costs one small
+  request every 20 s otherwise, and none off screen or with no network.
+  SYNC-034.
 - **No download is offered offline.** A passage not kept says "Download
   needs a connection" and does nothing. Keeping one shows no toast: the
   line itself says what happens.

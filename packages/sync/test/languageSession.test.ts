@@ -148,7 +148,28 @@ describe('LanguageSession: one language kept and moved (decisions.md 104)', () =
     await until(() => session.status.uploads.size === 0);
     await until(() => session.status.sent.some((e) => e.unitId === 'Luke 1' && e.files === 1));
     let saved: string | null = null;
-    await until(() => { void store.meta('files-waiting:org1/luke').then((v) => { saved = v; }); return saved === '0'; });
+    await until(() => { void store.meta('files-waiting:org1/luke').then((v) => { saved = v ?? null; }); return saved === '0'; });
+    session.close();
+  });
+
+  it('says each time the server answers a sync, and not when it does not (decisions.md 166)', async () => {
+    let now = 5_000;
+    let ids = 0;
+    const answered: number[] = [];
+    // The app's clock (`now`) says when; the event clock only orders events.
+    const { server, open } = phone({
+      client: { clock: new HlcClock('phone', () => (ids += 1)), newId: () => `e${(ids += 1)}`, now: () => now },
+      onAnswered: (at) => answered.push(at)
+    });
+    const session = await open();
+    await session.sync();
+    now = 7_000;
+    // Nothing new: still told, since how recently it answered is the point.
+    await session.sync();
+    now = 9_000;
+    server.offline = true;
+    await session.sync();
+    expect(answered).toEqual([5_000, 7_000]);
     session.close();
   });
 

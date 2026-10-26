@@ -113,7 +113,7 @@ Steps:
 4. Go online, wait for "Asked UI Test Org" to say "You'll go straight in when they say yes…", then tap "Sign out".
 
 Expected:
-- Step 3: "Still to send: 1 account change. Sign out once they have synced so they are not stranded here." NOORG stays signed in.
+- Step 3: "Still to send: 1 account change. This device is offline. Sign out once they have synced so they are not stranded here." NOORG stays signed in.
 - Step 4: NOORG is signed out, and Sign In opens.
 
 Resets: NOORG has a join request to UI Test Org. Decline it (NOORG-023), or use a fresh fixture.

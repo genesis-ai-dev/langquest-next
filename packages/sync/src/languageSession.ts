@@ -126,6 +126,13 @@ export interface LanguageSessionOptions {
    * syncing again will not change. Never offline, never with more to pull.
    */
   onSettled?: (o: { blobsWanted: number }) => void;
+  /**
+   * The server answered a sync, at `at` (the client's `now`). Every time,
+   * though nothing else changed: how recently it answered is what says the
+   * device is still online (decisions.md 166), and a status change per sync
+   * would redraw every screen.
+   */
+  onAnswered?: (at: number) => void;
   /** Poll interval and backoff for the scheduler; its defaults otherwise. */
   scheduler?: { pollMs?: number };
   /**
@@ -365,6 +372,7 @@ export class LanguageSession {
               ? 'up to date'
               : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
       });
+      if (!r.offline) o.onAnswered?.(o.client?.now?.() ?? Date.now());
       // Diagnostics go after this device's own work has had its turn: the
       // outbox empty and every waiting upload tried. An upload that fails
       // every time (they retry forever) must not hold them back for good: it
