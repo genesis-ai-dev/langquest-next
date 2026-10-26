@@ -186,6 +186,44 @@ describe('a first download by fill (decisions.md 147)', () => {
     expect(units.every((u) => again.client.isFilled(u))).toBe(true);
   });
 
+  it('writes the list of passages to fill once, not with every page, and reads a fill begun by an earlier build', async () => {
+    // Why: the list is a pair per passage and never changes during a fill; written with every page of rows it was
+    // about 1.5 MB stringified per page at 30,000 passages (performance-audit-2026-10-26.md item 4).
+    const server = new FakeServer();
+    server.serverCut = true;
+    await language(server, 20);
+    server.makeSnapshot('org1', 'p1');
+    const inner = makeStore();
+    let listWrites = 0;
+    const store = new Proxy(inner, {
+      get: (t, k) => k === 'commit'
+        ? async (b: Parameters<EventStore['commit']>[0]) => { if (b.meta?.['fill:org1/p1:todo']) listWrites += 1; return t.commit(b); }
+        : (t as unknown as Record<string | symbol, unknown>)[k]
+    }) as EventStore;
+    const { client } = phone(server, 'dB', 'r1', { keepOnDisk: true, fillBudgetMs: 0, store });
+    await client.load();
+    await client.sync();
+    await client.fillSome(0);
+    await client.fillSome(0);
+    expect(client.fillProgress()!.filled).toBeGreaterThan(0);
+    expect(listWrites).toBe(1);
+    expect(JSON.parse((await store.meta('fill:org1/p1'))!)).not.toHaveProperty('todo');
+    // A fill an earlier build began kept the list inside its meta: it is read as it is, and moved out on the next page.
+    const meta = JSON.parse((await store.meta('fill:org1/p1'))!) as Record<string, unknown>;
+    meta.todo = JSON.parse((await store.meta('fill:org1/p1:todo'))!);
+    await store.commit({ meta: { 'fill:org1/p1': JSON.stringify(meta), 'fill:org1/p1:todo': '' } });
+    const progress = client.fillProgress();
+    const again = phone(server, 'dB', 'r1', { keepOnDisk: true, fillBudgetMs: 0, store });
+    await again.client.load();
+    expect(again.client.fillProgress()).toEqual(progress);
+    await again.client.fillSome(0);
+    expect(JSON.parse((await store.meta('fill:org1/p1'))!)).not.toHaveProperty('todo');
+    expect(JSON.parse((await store.meta('fill:org1/p1:todo'))!)).toHaveLength(20);
+    await settle(again.client);
+    expect(again.client.fillProgress()).toBeNull();
+    expect(unitsOf(20).every((u) => again.client.isFilled(u))).toBe(true);
+  });
+
   it('a passage opened while the fill writes its rows is in memory once it reads as loaded', async () => {
     // Why: the fill put rows into memory only for passages held when it built its page, then awaited its write.
     // A screen opening the passage in that wait read the disk before the rows landed and was told the passage was
