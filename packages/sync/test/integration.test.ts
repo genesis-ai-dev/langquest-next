@@ -407,9 +407,10 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     expect(await foldedAt()).toBe(folded);
 
     // A new member of the language is read: the language is folded again.
+    // Someone joins only by invite: a member added who never joined is refused.
     const joiner = await signUp(`projfp2-${stamp}@example.test`);
-    await org.append('v1.MemberAdded', { profileId: joiner.userId, roleId: 'translator', scope: { level: 'language', languageId } });
-    expect((await org.sync()).rejected).toBe(0);
+    await joinByInvite(lead, joiner, orgId, 'translator', { level: 'language', languageId });
+    await org.sync();
     await runProjections(service);
     expect((await markOf()).org_fp).not.toBe(first.org_fp);
     expect(await foldedAt()).not.toBe(folded);
