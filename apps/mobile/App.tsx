@@ -52,7 +52,8 @@ import { SyncEffects } from './src/sync/SyncEffects';
 import { UploadBar } from './src/sync/uploads';
 import { SyncStatusContext } from './src/sync/useSyncStatus';
 import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/shell/session';
-import { SESSION_KEY, onAuthChange, serverConfigError } from './src/server/auth';
+import { onAuthChange, savedSignIn, serverConfigError } from './src/server/auth';
+import { onUnlocked, signedInHere } from './src/server/lock';
 import { afterAuthEvent, savedSession } from './src/auth/authState';
 import { noteAuthEvent, watchRenewals } from './src/auth/authDiag';
 import { C, space } from './src/ui/theme';
@@ -335,13 +336,17 @@ export default function App() {
     // (authState.ts, decision 87): offline, supabase-js reports no one once
     // the token is an hour old, and took half a minute to say so.
     const fromStorage = (s: AuthSession | null) => { if (active) setAuth((now) => (now === undefined ? s : now)); };
-    AsyncStorage.getItem(SESSION_KEY).then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
+    savedSignIn().then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
     const unsubscribe = onAuthChange((event, s) => {
       noteAuthEvent(event, authNow.current, s);
       setAuth((now) => afterAuthEvent(now, event, s));
+      // In by a password, a code or an invite: an older lock of theirs here is not theirs to come back to (decisions.md 168).
+      if (event === 'SIGNED_IN' && s) void signedInHere(s.user.id);
     });
+    // Back in from the lock on this phone: supabase-js has no event for that (decisions.md 168).
+    const offUnlocked = onUnlocked((s) => setAuth(s));
     const unwatch = watchRenewals();
-    return () => { active = false; unsubscribe(); unwatch(); };
+    return () => { active = false; unsubscribe(); offUnlocked(); unwatch(); };
   }, []);
   // "New version available", and below the minimum version "Please update the app" with sync stopped (decisions.md 154).
   const appVersion = useAppVersion(!!auth);

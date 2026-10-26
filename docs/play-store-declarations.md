@@ -150,6 +150,15 @@ no Android permission and no biometrics (`faceIDPermission` is off), so no
 Play Console answer changes. "Encrypted in transit" and the data types are
 unchanged.
 
+Signing out of a phone locks the person's sign-in on it (decisions.md 168) so
+they can sign back in with no connection: their session is encrypted on the
+phone under their password or a pattern they draw, using `@noble/hashes` and
+`@noble/ciphers` (code inside the app, no network), and kept in the Keychain
+or Keystore with the session itself. The password and pattern are checked on
+the phone and never stored or sent; an email or sign-in name is kept only as
+a hash salted per phone. Nothing new leaves the phone, so no data type
+changes, and account creation and sign-in methods are unchanged.
+
 Recordings (decisions.md 106) are kept and uploaded as AAC (`.m4a`) on a
 phone instead of WAV: the same voice recordings in a smaller file, so the
 "Voice or sound recordings" answer is unchanged.
@@ -252,7 +261,7 @@ this block.
     "expo-sqlite"
   ],
   "mobileDependencies": [
-    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync",
+    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync", "@noble/ciphers", "@noble/hashes",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
     "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",

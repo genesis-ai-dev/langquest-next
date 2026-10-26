@@ -32,7 +32,7 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation/model';
 import { decideRequest, type PendingRequest } from '../invites/invites';
-import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
+import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
@@ -43,6 +43,10 @@ import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
 import { FORGETS_ON_SIGN_OUT, signOutAndForget } from '../web/forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../sync/handOver';
+import { isPattern, MIN_DOTS, PICTURES } from '../auth/lockModel';
+import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
+import { useLockWays } from '../auth/useLockWays';
+import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setLockPattern } from '../server/lock';
 import { choosePassword, signOutHere } from '../server/auth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
@@ -584,6 +588,8 @@ export function ProfileEdit(ctx: Ctx) {
           setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
           return;
         }
+        // The new password also signs them back in here offline (decisions.md 168).
+        if (ctx.session.email) await rememberPassword(ctx.session.actorId, ctx.session.email, password);
         recheck();
       }
       await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
@@ -680,6 +686,10 @@ export function OrgSwitcher(ctx: Ctx) {
  * stay in the local log and go out if this account signs in again here with
  * membership. An account change the server already turned down (shown in
  * the Inbox) cannot be delivered either, so it does not hold sign-out.
+ *
+ * A phone locks the sign-in as it signs out (decisions.md 168), so its owner
+ * comes back with their password or a pattern, online or not. Someone with
+ * neither here first chooses a picture and draws a pattern twice.
  */
 export function SignOutConfirm(ctx: Ctx) {
   const { online, refused } = ctx.language;
@@ -692,54 +702,127 @@ export function SignOutConfirm(ctx: Ctx) {
   const needsHelp = ctx.session.isManaged && hasPassword === false;
   // A phone hands unsent work over and sends it as you later (decisions.md 60); a browser waits for it.
   const handsOver = HANDS_OVER && waiting.length > 0;
+  const lock = useLockWays(ctx.session.actorId);
+  // A picture whose pattern opened an older key (a password changed since) is drawn again with its pattern.
+  const needsPattern = LOCKS_ON_SIGN_OUT && lock.ways !== null && (lock.ways.length === 0 || (lock.picture !== null && !lock.ways.includes('pattern')));
+  const [choosing, setChoosing] = useState<'picture' | 'pattern' | null>(null);
+  const [picture, setPicture] = useState<number | null>(null);
+  // The pattern drawn once, waiting to be drawn again; the pad clears when its key changes.
+  const [first, setFirst] = useState<number[] | null>(null);
+  const [padKey, setPadKey] = useState(0);
+  function choose() {
+    setPicture(lock.picture);
+    setFirst(null);
+    setError('');
+    setChoosing('picture');
+  }
+  async function leave() {
+    if (handsOver) {
+      const { orgId, languageId } = ctx.language;
+      await signOutHandingOver(ctx.session.actorId, (await ctx.language.blobs.unsent()).map((ref) => ({ orgId, languageId, ref })));
+      return;
+    }
+    if (HANDS_OVER) {
+      // Offline, the courier disconnects this phone's notifications later, as you (decision 87).
+      if (!await tryUnregisterNotifications()) { await signOutHandingOver(ctx.session.actorId, []); return; }
+    } else {
+      await unregisterNotifications();
+    }
+    // A phone keeps the session, locked, for your return (decision 168); this device only either way (decision 87).
+    if (LOCKS_ON_SIGN_OUT) { await lockAndSignOut(ctx.session.actorId); return; }
+    await signOutAndForget(signOutHere);
+  }
   async function signOut() {
+    if (needsPattern) { choose(); return; }
     setBusy(true);
+    setError('');
+    try { await leave(); } catch (e) { setError(failure('sign out', e)); setBusy(false); }
+  }
+  /** Drawn once, then again to be sure; the second time saves it and signs out. */
+  async function drew(dots: number[]) {
+    setPadKey((k) => k + 1);
+    if (!isPattern(dots)) { setError(t('account.lock.tooShort', { n: MIN_DOTS })); return; }
+    if (first === null) { setFirst(dots); setError(''); return; }
+    if (first.join() !== dots.join()) { setFirst(null); setError(t('account.lock.patternsDiffer')); return; }
+    setBusy(true);
+    setError('');
     try {
-      if (handsOver) {
-        const { orgId, languageId } = ctx.language;
-        await signOutHandingOver(ctx.session.actorId, (await ctx.language.blobs.unsent()).map((ref) => ({ orgId, languageId, ref })));
-        return;
-      }
-      if (HANDS_OVER) {
-        // Offline, the courier disconnects this phone's notifications later, as you (decision 87).
-        if (!await tryUnregisterNotifications()) { await signOutHandingOver(ctx.session.actorId, []); return; }
-      } else {
-        await unregisterNotifications();
-      }
-      // This device only: your other devices stay signed in (decision 87).
-      await signOutAndForget(signOutHere);
+      // Someone took that picture meanwhile: choose again.
+      if ((await setLockPattern(ctx.session.actorId, dots, picture ?? -1)).kind !== 'ok') { setBusy(false); choose(); return; }
+      await leave();
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
   const blocked = waiting.length > 0 && !handsOver;
   const helpLine = inviter ? t('account.signOut.helpLine', { name: inviter }) : t('account.signOut.helpLineNoName');
   const things = waiting.join(', ');
+  // On a phone the lock brings you back here, so a helper's code is only for another phone.
+  const askHelper = needsHelp && !LOCKS_ON_SIGN_OUT;
   // Two whole sentences side by side where both apply.
   const reason = handsOver
-    ? [t('account.signOut.handsOver', { things }), ...(needsHelp ? [helpLine] : [])].join(' ')
+    ? [t('account.signOut.handsOver', { things }), ...(askHelper ? [helpLine] : [])].join(' ')
     : blocked
       ? online === false ? t('account.signOut.blockedOffline', { things }) : t('account.signOut.blocked', { things })
       : refused
         ? t('account.signOut.refused')
-        : needsHelp
+        : askHelper
           ? `${helpLine} ${t('account.signOut.setPasswordFirst')}`
           : FORGETS_ON_SIGN_OUT
             ? t('account.signOut.forgets')
-            : online === false ? '' : t('account.signOut.anytime');
-  // Every way back in needs the server, so offline the screen says so.
-  const why = !blocked && online === false ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
+            : online === false && !LOCKS_ON_SIGN_OUT ? '' : t('account.signOut.anytime');
+  // A browser needs the server to let you back in, so offline it says so; a phone has the lock.
+  const why = !blocked && online === false && !LOCKS_ON_SIGN_OUT ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
+  if (choosing === 'picture') {
+    return (
+      <Screen header={<HelpTop />} bodyStyle={styles.centered}
+        footer={
+          <>
+            <PrimaryBtn label={t('common.next')} help={t('account.lock.nextHelp')} onPress={() => setChoosing('pattern')} disabled={picture === null} />
+            <GhostBtn label={t('common.back')} help={t('help.details.back')} onPress={() => setChoosing(null)} />
+          </>
+        }>
+        <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{t('account.lock.pictureTitle')}</Text>
+        <PictureGrid pictures={PICTURES.map((_, i) => i).filter((i) => !lock.taken.includes(i))} selected={picture} onPick={setPicture}
+          help={t('account.lock.pictureHelp')} />
+      </Screen>
+    );
+  }
+  if (choosing === 'pattern') {
+    return (
+      <Screen header={<HelpTop />} bodyStyle={styles.centered}
+        footer={<GhostBtn label={t('common.back')} help={t('help.details.back')} onPress={() => { setChoosing('picture'); setFirst(null); setError(''); }} disabled={busy} />}>
+        {picture !== null ? <ChosenPicture picture={picture} /> : null}
+        <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">
+          {busy ? t('account.signOut.signingOut') : first === null ? t('account.lock.drawTitle') : t('account.lock.drawAgain')}
+        </Text>
+        <PatternPad onDone={(dots) => void drew(dots)} disabled={busy} error={!!error} resetKey={padKey} />
+        {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
+      </Screen>
+    );
+  }
+  const mine = LOCKS_ON_SIGN_OUT && lock.picture !== null && lock.ways?.includes('pattern') ? lock.picture : null;
   return (
     <Screen header={<HelpTop />} bodyStyle={styles.centered}
       footer={
         <>
-          <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()} disabled={blocked || busy} />
+          <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()}
+            disabled={blocked || busy || (LOCKS_ON_SIGN_OUT && lock.ways === null)} />
           <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={ctx.back} />
         </>
       }>
-      <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : TINT.red }]}>
-        <Ico name={waiting.length > 0 ? 'cloud' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : C.red} />
-      </View>
+      {mine !== null ? (
+        <ChosenPicture picture={mine} />
+      ) : (
+        <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : TINT.red }]}>
+          <Ico name={waiting.length > 0 ? 'cloud' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : C.red} />
+        </View>
+      )}
       <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? t('account.signOut.notYet') : t('account.signOut.question')}</Text>
-      <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text>
+      {why ? <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text> : null}
+      {/* Someone with a password may still want a pattern, and a pattern can be changed. */}
+      {LOCKS_ON_SIGN_OUT && lock.ways && !needsPattern ? (
+        <LinkBtn label={lock.ways.includes('pattern') ? t('account.lock.newPattern') : t('account.lock.drawTitle')}
+          help={t('account.lock.choosePatternHelp')} onPress={choose} />
+      ) : null}
       {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );

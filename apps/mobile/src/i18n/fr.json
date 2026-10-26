@@ -3182,6 +3182,13 @@
       "elsewhereSub": "Il fonctionne dans un seul onglet à la fois, pour que vos enregistrements et modifications restent au même endroit. Utilisez-le ici, ou retournez à l’autre onglet.",
       "useHere": "L’utiliser ici",
       "useHereHelp": "Fait passer LangQuest dans cet onglet. L’autre onglet sauvegarde son travail et se met en retrait."
+    },
+    "lock": {
+      "wait": "Trop d'essais. Attendez un peu, puis réessayez.",
+      "wrong": "Ce schéma n'est pas le bon.",
+      "notMe": "Ce n'est pas mon image",
+      "notMeHelp": "Revient aux images.",
+      "pictureHelp": "Déconnecté de ce téléphone ? Touchez votre image, puis dessinez votre schéma. Pas besoin de connexion."
     }
   },
   "account": {
@@ -3496,6 +3503,17 @@
       "syncNowHelp": "Envoie ce qui attend et reçoit ce qui est nouveau, tout de suite.",
       "detailsHelp": "Chaque modification en attente ou refusée, et les transferts audio : pour quelqu’un qui résout un problème.",
       "eventHelp": "Ouvre le passage concerné par cette modification."
+    },
+    "lock": {
+      "tooShort": "Reliez au moins {{n}} points.",
+      "patternsDiffer": "C'était un autre schéma. Recommencez.",
+      "pictureTitle": "Choisissez votre image",
+      "pictureHelp": "Pour vous reconnecter sur ce téléphone, vous toucherez votre image, puis dessinerez votre schéma.",
+      "nextHelp": "Passe au dessin de votre schéma.",
+      "drawTitle": "Dessinez un schéma",
+      "drawAgain": "Dessinez-le à nouveau",
+      "newPattern": "Dessiner un nouveau schéma",
+      "choosePatternHelp": "Choisissez une image et un schéma pour vous reconnecter sur ce téléphone, même sans connexion."
     }
   },
   "study": {
@@ -4542,6 +4560,15 @@
       "readHelp": "Ouvre son texte complet dans le navigateur.",
       "rowHelp": "Ouvre les licences et ce que chacune permet.",
       "yesOpenToHelp": "Votre travail est désormais partagé sous cette licence. Cela ne peut pas être annulé."
+    },
+    "pattern": {
+      "label": "Schéma : reliez au moins {{n}} points",
+      "help": "Passez sur les points sans lever le doigt, ou touchez-les un par un puis Terminé. Reliez au moins {{n}} points.",
+      "dot": "Point {{n}}",
+      "picture": "Image {{n}}",
+      "again": "Recommencer",
+      "againHelp": "Efface les points pour recommencer le schéma.",
+      "doneHelp": "Termine le schéma avec les points touchés."
     }
   },
   "help": {
