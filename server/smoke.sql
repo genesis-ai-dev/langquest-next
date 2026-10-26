@@ -987,7 +987,7 @@ do $$ declare v text; begin
     and p.proname not in ('preview_invite');
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
-  from unnest(array['put_snapshot', 'stage_snapshot_units', 'put_passage_lines', 'list_streams', 'list_streams_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
+  from unnest(array['put_snapshot', 'stage_snapshot_units', 'put_passage_lines', 'list_streams', 'list_streams_page', 'snapshot_heads_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
                      '_library_media_readable', 'may_emit']) f
   where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
     and has_function_privilege('authenticated', p.oid, 'execute'));

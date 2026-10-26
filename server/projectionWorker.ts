@@ -51,15 +51,33 @@ export function orgFingerprint(org: OrgState, languageId: string): string {
 
 const streamKey = (orgId: string, streamId: string) => JSON.stringify([orgId, streamId]);
 
-/** Every row of a service table, past PostgREST's page limit. */
-async function selectAll<T>(service: SupabaseClient, table: string, columns: string): Promise<T[]> {
+/** Every row of a service table (with `onlyTrue` set, those where that column is true), past PostgREST's page limit. */
+async function selectAll<T>(service: SupabaseClient, table: string, columns: string, onlyTrue?: string): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; ; from += 1000) {
-    const page = await service.from(table).select(columns).range(from, from + 999);
+    const query = service.from(table).select(columns);
+    const page = await (onlyTrue ? query.eq(onlyTrue, true) : query).range(from, from + 999);
     check(page, table);
     const rows = (page.data ?? []) as T[];
     out.push(...rows);
     if (rows.length < 1000) return out;
+  }
+}
+
+/** The newest snapshot of each stream at this reducer version, one row per stream (`snapshot_heads_page`), not every retained one. */
+async function snapshotHeads(service: SupabaseClient): Promise<{ org_id: string; stream_id: string; server_seq: number; created_at: string }[]> {
+  const out: { org_id: string; stream_id: string; server_seq: number; created_at: string }[] = [];
+  let after = { org: '', stream: '' };
+  for (;;) {
+    const page = await service.rpc('snapshot_heads_page', {
+      p_reducer_version: REDUCER_VERSION, p_after_org: after.org, p_after_stream: after.stream, p_limit: 1000
+    });
+    check(page, 'snapshot_heads_page');
+    const rows = (page.data ?? []) as typeof out;
+    out.push(...rows);
+    if (rows.length < 1000) return out;
+    const last = rows[rows.length - 1]!;
+    after = { org: last.org_id, stream: last.stream_id };
   }
 }
 
@@ -125,22 +143,17 @@ export async function runProjections(
   for (const row of await listStreams(service)) {
     heads.set(streamKey(row.org_id, row.stream_id), Number(row.next_seq) - 1);
   }
-  const marks = new Map((await selectAll<Mark>(service, 'projection_marks', '*'))
+  const marks = new Map((await selectAll<Mark>(service, 'projection_marks', 'org_id,stream_id,seq,org_seq,listed,version,org_fp'))
     .map((m) => [streamKey(m.org_id, m.stream_id), m]));
-  const listed = new Set((await selectAll<{ org_id: string; language_id: string; listed: boolean }>(
-    service, 'language_visibility', 'org_id,language_id,listed'))
-    .filter((v) => v.listed).map((v) => streamKey(v.org_id, v.language_id)));
+  // Only the listed ones are needed, so the unlisted majority is not read.
+  const listed = new Set((await selectAll<{ org_id: string; language_id: string }>(
+    service, 'language_visibility', 'org_id,language_id', 'listed'))
+    .map((v) => streamKey(v.org_id, v.language_id)));
   // The newest snapshot of each language, so one that went quiet with a few
   // events past its snapshot still gets a new one after an hour (decisions.md 88).
   const snapshotOf = new Map<string, { seq: number; at: number }>();
-  for (const s of await selectAll<{ org_id: string; stream_id: string; reducer_version: number; server_seq: number; created_at: string }>(
-    service, 'snapshots', 'org_id,stream_id,reducer_version,server_seq,created_at')) {
-    if (s.reducer_version !== REDUCER_VERSION) continue;
-    const key = streamKey(s.org_id, s.stream_id);
-    const seen = snapshotOf.get(key);
-    if (!seen || Number(s.server_seq) > seen.seq) {
-      snapshotOf.set(key, { seq: Number(s.server_seq), at: Date.parse(s.created_at) });
-    }
+  for (const s of await snapshotHeads(service)) {
+    snapshotOf.set(streamKey(s.org_id, s.stream_id), { seq: Number(s.server_seq), at: Date.parse(s.created_at) });
   }
   const snapshotDue = (orgId: string, streamId: string) => {
     const snap = snapshotOf.get(streamKey(orgId, streamId));
