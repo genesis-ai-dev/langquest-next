@@ -145,6 +145,8 @@ select pg_temp.refused(pg_temp.ev('accountdeleted:gr-owner:org', 'gr-L', 'gr-tr'
   'malformed envelope: event id reserved for the server', 'an account-deletion id taken first');
 select pg_temp.refused(pg_temp.ev('invitemember:gr-inv-2', 'gr-L', 'gr-tr', 'v1.NoteAdded', '{"noteId":"gr-n3","unitId":"u1","anchor":{"kind":"passage"},"text":"x"}'),
   'malformed envelope: event id reserved for the server', 'an invite''s membership id taken first');
+select pg_temp.refused(pg_temp.ev('invitecheck:gr-inv-2:peer:gr-joiner', 'gr-L', 'gr-tr', 'v1.NoteAdded', '{"noteId":"gr-n4","unitId":"u1","anchor":{"kind":"passage"},"text":"x"}'),
+  'malformed envelope: event id reserved for the server', 'an invite''s check-team id taken first');
 
 -- 5. One create, one entity: no second compose of a take, no backdated review over someone's.
 select pg_temp.refused(pg_temp.ev('gr-e2', 'gr-L', 'gr-tr', 'v1.TakeComposed', jsonb_build_object('takeId', 'gr-take', 'unitId', 'u1',
@@ -255,4 +257,80 @@ select pg_temp.refused(pg_temp.ev('gr-g4', '_org', 'gr-owner', 'v1.RoleRetired',
 -- With a second admin, either may go.
 select pg_temp.accepted(pg_temp.ev('gr-g5', '_org', 'gr-owner', 'v1.MemberAdded', '{"profileId":"gr-coord","roleId":"org_admin","scope":{"level":"org"}}'), 'a second admin');
 select pg_temp.accepted(pg_temp.ev('gr-g6', '_org', 'gr-owner', 'v1.MemberRemoved', '{"profileId":"gr-owner","scope":{"level":"org"}}'), 'an admin leaving another behind');
+
+-- 12. What one account writes dated one day (decisions.md 168): what was
+-- taken counts, on the day of the event's own clock but never before the
+-- account was made; an event over the allowance is refused on its own; the
+-- service role is not counted.
+create function pg_temp.dated(p_event jsonb, p_days int) returns jsonb language sql as $$
+  select jsonb_set(p_event, '{hlc}', to_jsonb(lpad(((extract(epoch from now() - make_interval(days => p_days)) * 1000)::bigint)::text, 15, '0') || ':000000:dG'));
+$$;
+create function pg_temp.note(p_id text, p_actor text) returns jsonb language sql as $$
+  select pg_temp.ev(p_id, 'gr-L', p_actor, 'v1.NoteAdded', jsonb_build_object('noteId', p_id || '-n', 'unitId', 'u1', 'anchor', '{"kind":"passage"}'::jsonb, 'text', 'x'));
+$$;
+create function pg_temp.used(p_actor text, p_days int) returns int language sql as $$
+  select coalesce((select events from public.append_allowance where actor_id = p_actor and day = (now() at time zone 'utc')::date - p_days), 0);
+$$;
+select pg_temp.accepted(pg_temp.note('gr-q1', 'gr-tr'), 'a note');
+do $$ declare v_before int := pg_temp.used('gr-tr', 0); begin
+  if v_before < 1 then raise exception 'a note was not counted'; end if;
+  perform pg_temp.push(pg_temp.note('gr-q1', 'gr-tr'));
+  if pg_temp.used('gr-tr', 0) <> v_before then raise exception 'a duplicate was counted'; end if;
+  update public.append_allowance set events = 20000 where actor_id = 'gr-tr' and day = (now() at time zone 'utc')::date;
+end $$;
+select pg_temp.refused(pg_temp.note('gr-q2', 'gr-tr'),
+  format('may not emit v1.NoteAdded: this account has written 20000 events dated %s', (now() at time zone 'utc')::date), 'a note over the day''s allowance');
+-- Work dated another day, as from a phone that was offline, still goes up.
+select pg_temp.accepted(pg_temp.dated(pg_temp.note('gr-q3', 'gr-tr'), 5), 'a note made offline five days ago');
+do $$ begin
+  if pg_temp.used('gr-tr', 5) <> 1 then raise exception 'offline work was not counted on its own day'; end if;
+  update public.append_allowance set events = 0, bytes = 104857600 where actor_id = 'gr-tr' and day = (now() at time zone 'utc')::date;
+end $$;
+select pg_temp.refused(pg_temp.note('gr-q4', 'gr-tr'),
+  format('may not emit v1.NoteAdded: this account has written 100 MB of events dated %s', (now() at time zone 'utc')::date), 'a note over the day''s bytes');
+-- An account made three days ago cannot date its events earlier to write more.
+insert into auth.users (id, created_at) values ('00000000-0000-0000-0000-0000000000a1', now() - interval '3 days');
+do $$ declare r record; begin
+  -- Joined, as the server adds them (an invite).
+  perform set_config('request.jwt.claim.sub', '', true);
+  select * into r from public.append_events(jsonb_build_array(pg_temp.ev('gr-q5', '_org', 'gr-coord', 'v1.MemberAdded',
+    '{"profileId":"00000000-0000-0000-0000-0000000000a1","roleId":"translator","scope":{"level":"language","languageId":"gr-L"}}')));
+  if not r.accepted then raise exception 'a new account joining: refused: %', r.reason; end if;
+end $$;
+select pg_temp.accepted(pg_temp.dated(pg_temp.note('gr-q6', '00000000-0000-0000-0000-0000000000a1'), 10), 'a note dated before the account');
+do $$ begin
+  if pg_temp.used('00000000-0000-0000-0000-0000000000a1', 3) <> 1 then raise exception 'a note dated before the account was not counted on the day it was made'; end if;
+  update public.append_allowance set events = 20000 where actor_id = '00000000-0000-0000-0000-0000000000a1';
+end $$;
+select pg_temp.refused(pg_temp.dated(pg_temp.note('gr-q7', '00000000-0000-0000-0000-0000000000a1'), 9),
+  format('may not emit v1.NoteAdded: this account has written 20000 events dated %s', (now() at time zone 'utc')::date - 3), 'a note dated earlier still to write more');
+do $$ declare v_before int := pg_temp.used('gr-tr', 0); begin
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform public.append_events(jsonb_build_array(pg_temp.note('gr-q8', 'gr-tr')));
+  if not exists (select 1 from public.events where id = 'gr-q8') then raise exception 'the service role''s import was refused'; end if;
+  if pg_temp.used('gr-tr', 0) <> v_before then raise exception 'the service role''s import was counted'; end if;
+end $$;
+-- A person's stream holds each kind of event once, the terms once a version.
+select set_config('request.jwt.claim.sub', 'gr-tr', true);
+select public.record_user_event('gr-tr:v1.VisionSeen:1', 'v1.VisionSeen', '{}');
+select public.record_user_event('gr-tr:v1.VisionSeen:2', 'v1.VisionSeen', '{}');
+select public.record_user_event('gr-tr:v1.TermsAccepted:a', 'v1.TermsAccepted', '{"version":"a"}');
+select public.record_user_event('gr-tr:v1.TermsAccepted:a2', 'v1.TermsAccepted', '{"version":"a"}');
+select public.record_user_event('gr-tr:v1.TermsAccepted:b', 'v1.TermsAccepted', '{"version":"b"}');
+do $$ begin
+  if (select count(*) from public.events where org_id = '_person' and stream_id = 'gr-tr' and type = 'v1.VisionSeen') <> 1 then
+    raise exception 'the welcome was kept twice';
+  end if;
+  if (select count(*) from public.events where org_id = '_person' and stream_id = 'gr-tr' and type = 'v1.TermsAccepted') <> 2 then
+    raise exception 'expected one acceptance for each of two versions';
+  end if;
+  begin
+    perform public.record_user_event('gr-tr:v1.WalkthroughDone:1', 'v1.WalkthroughDone', '{"pad":"xxxxxxxx"}');
+    raise exception 'a person event with a payload was kept';
+  exception when sqlstate '22023' then null; end;
+  begin
+    perform public.record_user_event('gr-tr:v1.TermsAccepted:c', 'v1.TermsAccepted', '{"version":"c","pad":"x"}');
+    raise exception 'terms with more than a version were kept';
+  exception when sqlstate '22023' then null; end;
+end $$;
 rollback;
