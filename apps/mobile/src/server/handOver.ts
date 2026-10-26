@@ -85,7 +85,7 @@ export function actAs(actorId: string, blobs: BlobStore) {
         // Tallied with the other uploads, under its own source, so a stuck hand-over shows (docs/diagnostics.md).
         await timedTransfer('up', { orgId: u.orgId, streamId: u.languageId, src: 'handover' }, async (timings) => {
           await uploadBlob(u.orgId, u.languageId, u.ref, blobs, timings, client);
-          return blobs.sizes().get(u.ref.hash) ?? 0;
+          return blobs.sizeOf(u.ref.hash) ?? 0;
         });
         return 'sent';
       } catch (e) {

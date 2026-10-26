@@ -18,7 +18,7 @@ import {
 } from '@langquest-next/core';
 import type { EventStore, LocalEvent, SyncInspection, Transport, WriteBatch } from './types';
 import { WriteQueue } from './writeQueue';
-import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, rejectCodeOf, type RejectCode } from './types';
+import { ClientTooOldError, EventTooLargeError, NotAuthorizedError, OfflineError, UnrenewedError, NOT_LISTED_TEXT, rejectCodeOf, type RejectCode } from './types';
 import { downloadPieces, fetchSnapshot } from './snapshotFetch';
 import type { DIAG_SCHEMA, Diagnostics } from './diagnostics';
 import { holdsKept, KeptLanguage, LINE, PART_KINDS, SnapshotRows, SPLIT_MAPS } from './keptLanguage';
@@ -1434,7 +1434,12 @@ export class SyncClient<S = LanguageState> {
 
   /** Mark this actor's refusals with these codes pending again; the caller refolds. */
   private async requeue(codes: readonly RejectCode[]): Promise<number> {
-    const mine = (await this.opts.store.rejected(this.opts.orgId, this.opts.streamId)).filter(
+    // Push asks for not-listed refusals on every run: read only those, not every refusal kept.
+    const store = this.opts.store;
+    const candidates = codes.length === 1 && codes[0] === 'NOT_LISTED' && store.rejectedWith
+      ? await store.rejectedWith(this.opts.orgId, this.opts.streamId, NOT_LISTED_TEXT)
+      : await store.rejected(this.opts.orgId, this.opts.streamId);
+    const mine = candidates.filter(
       (l) => l.event.actorId === this.opts.actorId && codes.includes(rejectCodeOf(l.rejectReason))
     );
     if (mine.length === 0) return 0;
@@ -1816,6 +1821,7 @@ export class SyncClient<S = LanguageState> {
 
   /** Events of this stream the server refused, kept in the log (invariant 1): what the person must be told about. */
   async refusedCount(): Promise<number> {
-    return (await this.opts.store.rejected(this.opts.orgId, this.opts.streamId)).length;
+    const { store, orgId, streamId } = this.opts;
+    return store.rejectedCount ? store.rejectedCount(orgId, streamId) : (await store.rejected(orgId, streamId)).length;
   }
 }

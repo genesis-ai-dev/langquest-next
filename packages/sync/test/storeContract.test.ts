@@ -260,6 +260,10 @@ describe.each(impls)('%s batch and rejected contract', (_name, make) => {
     expect((await s.get('a'))?.status).toBe('confirmed');
     expect((await s.all('o', 'p')).map((e) => e.event.id).sort()).toEqual(['a', 'b']);
     expect((await s.rejected('o', 'p')).map((e) => e.event.id)).toEqual(['x', 'y']);
+    // Counted and filtered by reason without reading every refusal (performance-audit-2026-10-26.md item 7).
+    expect(await s.rejectedCount?.('o', 'p')).toBe(2);
+    expect((await s.rejectedWith?.('o', 'p', 'NOT A MEMBER'))?.map((e) => e.event.id)).toEqual(['y']);
+    expect(await s.rejectedWith?.('o', 'other', 'not a member')).toEqual([]);
   });
 
   it('keeps a language\'s records out of memory, found by passage, id, second key or kind (decisions.md 143)', async () => {
@@ -269,6 +273,10 @@ describe.each(impls)('%s batch and rejected contract', (_name, make) => {
     await s.commit({ kept: { orgId: 'o', streamId: 'q', upsert: [rec('r9', 'u1')] } });
     expect((await s.keptByUnit('o', 'p', ['recording'], ['u1'])).map((r) => r.id)).toEqual(['r1']);
     expect((await s.keptByUnit('o', 'p', ['recording', 'take'], ['u1', 'u4'])).map((r) => r.id).sort()).toEqual(['r1', 't1']);
+    // Asked about a batch of passages, never the whole kind (performance-audit-2026-10-26.md item 6).
+    expect((await s.keptUnitsAmong('o', 'p', ['recording'], ['u1', 'u4', 'u9'])).sort()).toEqual(['u1']);
+    expect((await s.keptUnitsAmong('o', 'p', ['recording', 'take'], ['u1', 'u2', 'u4'])).sort()).toEqual(['u1', 'u2', 'u4']);
+    expect(await s.keptUnitsAmong('o', 'p', [], ['u1'])).toEqual([]);
     expect((await s.keptById('o', 'p', 'file', ['h1', 'nope', 'h1'])).map((r) => r.json)).toEqual(['{"size":1}']);
     expect((await s.keptByRef('o', 'p', 'recording', ['b'])).map((r) => r.id)).toEqual(['r2']);
     expect((await s.keptAll('o', 'p', 'take')).map((r) => r.id)).toEqual(['t1']);

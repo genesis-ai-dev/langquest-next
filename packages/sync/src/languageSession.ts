@@ -23,6 +23,7 @@ export interface LocalFiles {
   presentView?(): ReadonlySet<string>;
   /** Changes whenever the set of files does: lets a copy be skipped when nothing changed. */
   readonly version?: number;
+  /** Sizes of the files here, possibly the live map: read at once, never kept or changed. */
   sizes(): ReadonlyMap<string, number>;
   sizeOf(hash: string): number | undefined;
   /** The format a file was stored in, which can differ from the one asked for (WAV on a browser without MP4). */

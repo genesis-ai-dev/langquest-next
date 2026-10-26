@@ -63,6 +63,11 @@ export class MemoryStore implements EventStore {
     return [...new Set(this.keptRows(orgId, streamId, kinds).filter((r) => ref === undefined || r.ref === ref).map((r) => r.unitId))];
   }
 
+  async keptUnitsAmong(orgId: string, streamId: string, kinds: readonly KeptKind[], unitIds: readonly string[]): Promise<string[]> {
+    const among = new Set(unitIds);
+    return (await this.keptUnits(orgId, streamId, kinds)).filter((u) => among.has(u));
+  }
+
   async keptCount(orgId: string, streamId: string, kind: KeptKind): Promise<number> {
     return this.keptRows(orgId, streamId, [kind]).length;
   }
@@ -153,6 +158,15 @@ export class MemoryStore implements EventStore {
       .filter((e) => e.status === 'rejected')
       .filter((e) => orgId === undefined || (e.event.orgId === orgId && e.event.streamId === streamId))
       .sort((a, b) => (a.event.hlc < b.event.hlc ? -1 : 1));
+  }
+
+  async rejectedCount(orgId: string, streamId: string): Promise<number> {
+    return (await this.rejected(orgId, streamId)).length;
+  }
+
+  async rejectedWith(orgId: string, streamId: string, text: string): Promise<LocalEvent[]> {
+    const t = text.toLowerCase();
+    return (await this.rejected(orgId, streamId)).filter((e) => (e.rejectReason ?? '').toLowerCase().includes(t));
   }
 
   private stream(orgId: string, streamId: string): LocalEvent[] {

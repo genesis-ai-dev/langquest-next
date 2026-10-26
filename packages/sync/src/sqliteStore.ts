@@ -281,6 +281,20 @@ export class SqliteStore implements EventStore {
    * statement, whatever the list's length, since a Durable Object's SQLite
    * takes far fewer bound parameters than a phone's (decisions.md 147).
    */
+  async keptUnitsAmong(orgId: string, streamId: string, kinds: readonly KeptKind[], unitIds: readonly string[]): Promise<string[]> {
+    const out: string[] = [];
+    if (kinds.length === 0) return out;
+    for (let i = 0; i < unitIds.length; i += KEPT_SLICE) {
+      const rows = await this.db.all<{ unit_id: string }>(
+        `select distinct unit_id from kept_rows where org_id = ? and stream_id = ?
+           and kind in (select value from json_each(?)) and unit_id in (select value from json_each(?))`,
+        [orgId, streamId, JSON.stringify(kinds), JSON.stringify(unitIds.slice(i, i + KEPT_SLICE))]
+      );
+      for (const r of rows) out.push(r.unit_id);
+    }
+    return out;
+  }
+
   private async keptWhere(column: 'unit_id' | 'id' | 'ref', orgId: string, streamId: string, kinds: readonly KeptKind[], values: readonly string[]): Promise<KeptRecord[]> {
     const out: KeptRecord[] = [];
     if (kinds.length === 0) return out;
@@ -358,6 +372,23 @@ export class SqliteStore implements EventStore {
     const rows = await this.db.all<Row>(
       `select * from events where org_id = ? and stream_id = ? and status = 'rejected' order by hlc`,
       [orgId, streamId]
+    );
+    return rows.map(toLocal);
+  }
+
+  async rejectedCount(orgId: string, streamId: string): Promise<number> {
+    const rows = await this.db.all<{ n: number }>(
+      `select count(*) as n from events where org_id = ? and stream_id = ? and status = 'rejected'`,
+      [orgId, streamId]
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+
+  async rejectedWith(orgId: string, streamId: string, text: string): Promise<LocalEvent[]> {
+    // like is case-blind for ASCII, as rejectCodeOf's patterns are; % and _ are not in the texts asked for.
+    const rows = await this.db.all<Row>(
+      `select * from events where org_id = ? and stream_id = ? and status = 'rejected' and reject_reason like ? order by hlc`,
+      [orgId, streamId, `%${text}%`]
     );
     return rows.map(toLocal);
   }
