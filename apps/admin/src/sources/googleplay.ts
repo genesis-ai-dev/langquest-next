@@ -21,7 +21,8 @@ export interface GooglePlay {
   anr: Rate | null;
   freshThrough: string | null;
   issues: { type: string; cause: string | null; location: string | null; reports: number; users: number; lastAt: string | null; uri: string | null }[];
-  reviews: { lowWeek: number; average: number | null; recent: { stars: number; text: string; version: string | null; at: string }[] } | null;
+  /** `count` and `since`: how many reviews the average is over (Play returns a week's at most), and the oldest one's date. */
+  reviews: { lowWeek: number; average: number | null; count?: number; since?: string | null; recent: { stars: number; text: string; version: string | null; at: string }[] } | null;
   notes: string[];
 }
 
@@ -129,6 +130,8 @@ export function reviewsFrom(list: Review[], now = Date.now()): GooglePlay['revie
   return {
     lowWeek: week.filter((r) => r.stars <= 2).length,
     average: items.length ? items.reduce((a, r) => a + r.stars, 0) / items.length : null,
+    count: items.length,
+    since: items.at(-1)?.at ?? null,
     recent: items.slice(0, 5)
   };
 }

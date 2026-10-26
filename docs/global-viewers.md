@@ -57,6 +57,12 @@ search for another. The code is asked for once per sign-in.
 Opening an organization downloads its organization stream, and each language only when
 it is opened.
 
+On the web, Global Viewer also links to the ops dashboard
+(`/ops-dashboard`, decisions.md 160), which lets in the same accounts. It
+opens in a new tab and takes the web app's verified session, so the code
+is not asked for again. Phones do not show the link: a phone's browser
+would not share the app's session.
+
 ## Ending it
 
 ```bash

@@ -82,7 +82,7 @@ describe('the app Worker and support', () => {
   });
 
   it('warns before a content report passes the 24 hours the Terms promise', () => {
-    const s = { reports: { open: 1, oldestAt: hoursAgo(21), staffOnly: 0, resolvedWeek: 0 }, suspended: { total: 0, week: 0 }, deletions: [], feedbackOpen: 0 };
+    const s = { reports: { open: 1, oldestAt: hoursAgo(21), staffOnly: 0, resolvedWeek: 0 }, suspended: { total: 0, week: 0 }, deletions: [], feedbackOpen: { open: 0, oldestAt: null } };
     expect(supportAlerts(s, NOW)[0]).toMatchObject({ level: 'problem' });
     expect(supportAlerts({ ...s, reports: { ...s.reports, oldestAt: hoursAgo(2) } }, NOW)).toEqual([]);
     expect(supportAlerts({ ...s, reports: { ...s.reports, oldestAt: hoursAgo(2), staffOnly: 1 } }, NOW)[0]).toMatchObject({ level: 'watch' });

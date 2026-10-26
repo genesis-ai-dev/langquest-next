@@ -7420,6 +7420,13 @@ server and 60 in the page, so a database that does not answer shows an
 error instead of Loading. Locally the binding's `localConnectionString`
 is the local database, so the page uses the same path everywhere.
 
+Amended (2026-10-26, Carl Sauder): the web app's Global Viewer screen links
+to the page ("Operations dashboard", above the organization search), opening
+it in a new tab on the same host, where it reads the web app's verified
+session. Carl asked for it (2026-10-26) now that the page is in place; the
+staff who may open it are the Global Viewers. Phones do not show the link, since their browser would not share the app's
+session.
+
 ## 161. The ops dashboard counts what the server already sees, adds four counts of its own, and reads job state through one read-only entrypoint
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted

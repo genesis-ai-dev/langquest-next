@@ -80,6 +80,12 @@ browser. Expand all and Collapse all are at the top. Hovering over (or
 tabbing to) a section's title, a figure, a column or a sub-heading shows
 what it means, from `apps/admin/src/pageHelp.ts`.
 
+Every figure says the time it covers, under its label unless the label
+already does: `last 24 h`, `last 7 days`, `since 3 Oct` for a count from a
+known start (the billing month, the last reset of Postgres' counters, the
+first nightly size), `oldest 2 days ago` for a queue, `now` for a state,
+`all time` for a total. A count whose start is not known says so.
+
 The page has twelve sections, each about one subject (`apps/admin/src/pageOps.ts`
 `GROUPS`): Look up, Sync and data safety, Phones and browsers, Releases,
 Server jobs, Database, Workers and traffic, Storage and capacity, People and
@@ -96,9 +102,9 @@ the page loads to exactly one section.
 | --- | --- | --- |
 | Server jobs | `diag.jobs()`: projections, push delivery, the v2 import, the app Worker's cron and request counts, webhooks, invite email (`docs/diagnostics.md`). Alerts are the CLI's own (`scripts/diagSignals.ts` `jobSignals`). | `DIAG_DATABASE_URL` |
 | Phones and browsers | `diag.records` and `diag.installs`, every install together: installs heard from, sync outcomes and error codes, errors and crashes with the latest code a person would read out, transfers and their failures, recording, sign-in trouble, each phone's latest state, builds in the field | `DIAG_DATABASE_URL` |
-| Database | size, connections, cache hits and deadlocks (`pg_stat_database`), RPC timings (`diag.rpc_stats()`) | `DIAG_DATABASE_URL` |
+| Database | size, connections, cache hits and deadlocks (`pg_stat_database`), RPC timings (`diag.rpc_stats()`), each counted since its own last reset (`diag.ops_counts_since()`) | `DIAG_DATABASE_URL` |
 | v2 import | `diag.v2_import_status()` | `DIAG_DATABASE_URL` |
-| Feedback | `diag.feedback()`, `diag.feedback_screenshot()` and `diag.feedback_voice()`, once the feedback store's migration is on the database; until then the section says so. Screenshots and voice notes load when asked for, and only as JPEG, WAV or m4a | `DIAG_DATABASE_URL` |
+| Feedback | its open count from `diag.ops_feedback_open()` (migration `20261026120000_ops_feedback_and_since.sql`; `diag_reader` cannot read the table); `diag.feedback()`, `diag.feedback_screenshot()` and `diag.feedback_voice()`, once the feedback store's migration is on the database; until then the section says so. Screenshots and voice notes load when asked for, and only as JPEG, WAV or m4a | `DIAG_DATABASE_URL` |
 | Look up | an error code (`diag.error`), an email (`diag.lookup_email`: the profile id and its installs, never the address back), a profile id (`diag.person`), an install's last three days (`diag.timeline`), or an organization or language by name (`diag.find`) | `DIAG_DATABASE_URL` |
 | Sync and data safety | work the server refused, by reason (`sync` records); what arrived and how late, and events stamped ahead of the clock (the projection pass's sample); the nightly fold canary; languages behind the projection pass, overdue snapshots and the largest languages (`diag.ops_pipeline`) | `DIAG_DATABASE_URL`, migration `20261023100000_ops_dashboard.sql` |
 | Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones and phones gone quiet | `DIAG_DATABASE_URL` |
@@ -112,7 +118,7 @@ the page loads to exactly one section.
 | Capacity and cost | the database's size and growth (the fold canary records sizes nightly) against its provisioned disk (`SUPABASE_DB_LIMIT_GB`, 64 GB), R2's growth, and this month's Workers, Durable Object and R2 usage against the plan's allowance (`apps/admin/src/sources/storage.ts` `ALLOWANCE`) | `DIAG_DATABASE_URL`; `ADMIN_CLOUDFLARE_TOKEN` |
 | Code and deploys | `main` on GitHub, the latest run of each workflow on `main`, and the commit `next.langquest.org/version.json` says it serves. A web app still behind `main` 45 minutes after a merge that changed a file it is built from (its watch paths, `docs/cloudflare.md`) is a problem: the deploy failed (as every Workers Build did from 2026-10-16 to 10-19) | nothing; `ADMIN_GITHUB_TOKEN` avoids GitHub's anonymous limit |
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
-| Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx) | `ADMIN_SUPABASE_TOKEN` |
+| Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx), with the errors grouped: a Postgres error by its SQLSTATE (named), role, client and the RPC a PostgREST call named; a server error by method, the path's first parts (ids hidden) and status. Never a log message, which can quote what someone typed | `ADMIN_SUPABASE_TOKEN` |
 | App builds and updates | EAS builds, store submissions and the newest update on each branch | `ADMIN_EXPO_TOKEN` |
 | Google Play | Android vitals for the last 7 days Play has (user-perceived crash and ANR rates, 7-day user-weighted as Play Console shows them, against Play's bad-behaviour lines, 1.09% and 0.47%), the top crash and ANR clusters, and the last week's reviews | `ADMIN_GOOGLE_PLAY_KEY` |
 | App Store | each recent App Store version and where it stands in review, the latest builds and whether Apple processed them, TestFlight testers' crash reports (device and system only), recent customer reviews | `ADMIN_APP_STORE_KEY` |
