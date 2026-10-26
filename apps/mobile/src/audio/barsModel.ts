@@ -30,11 +30,59 @@ export function barsBuilder(total: number, count = BAR_COUNT) {
       at++;
     },
     bars(): number[] {
-      const amps = Array.from(sums, (s, k) => (ns[k]! > 0 ? Math.sqrt(s / ns[k]!) : 0));
-      const top = Math.max(QUIET, ...amps);
-      return amps.map((a) => Math.min(1, Math.pow(a / top, CURVE)));
+      return barsFromAmps(Array.from(sums, (s, k) => (ns[k]! > 0 ? Math.sqrt(s / ns[k]!) : 0)));
     }
   };
+}
+
+/** Bars from each slice's RMS amplitude (0..1): scaled to the loudest, curved. */
+function barsFromAmps(amps: number[]): number[] {
+  const top = Math.max(QUIET, ...amps);
+  return amps.map((a) => Math.min(1, Math.pow(a / top, CURVE)));
+}
+
+/** Per bar, this many short windows are read from its slice instead of every sample in it. */
+const WINDOWS = 8;
+const WINDOW_FRAMES = 64;
+
+/**
+ * Bars from a 16-bit PCM file without reading all of it: each bar's slice is
+ * sampled by a few short windows spread across it (a bar is a slice's RMS,
+ * and a few hundred samples of speech tell it to within a hair), so a long
+ * part costs thousands of samples, not millions. `read(first, n)` gives the
+ * bytes of `n` frames from frame `first`; `pause` is awaited every few bars
+ * so the screen keeps drawing. A slice no longer than its windows is read whole.
+ */
+export async function barsFromWindows(
+  frames: number, channels: number, read: (first: number, n: number) => Uint8Array,
+  pause: () => Promise<void>, count = BAR_COUNT
+): Promise<number[]> {
+  if (frames <= 0) return barsFromAmps(Array(count).fill(0));
+  const per = Math.max(1, frames / count);
+  const amps: number[] = [];
+  for (let k = 0; k < count; k++) {
+    // The frames barsBuilder gives bar k: those from ceil(k * per) to ceil((k + 1) * per), the last bar taking the rest.
+    const lo = Math.min(frames - 1, Math.ceil(k * per)), hi = k === count - 1 ? frames : Math.min(frames, Math.max(lo + 1, Math.ceil((k + 1) * per)));
+    const whole = hi - lo <= WINDOWS * WINDOW_FRAMES;
+    const spots = whole ? [lo] : Array.from({ length: WINDOWS }, (_, j) => lo + Math.floor(((j + 0.5) * (hi - lo)) / WINDOWS - WINDOW_FRAMES / 2));
+    let sum = 0, n = 0;
+    for (const at of spots) {
+      const first = Math.max(lo, Math.min(at, hi - 1));
+      const want = whole ? hi - lo : Math.min(WINDOW_FRAMES, hi - first);
+      const bytes = read(first, want);
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      for (let o = 0; o + channels * 2 <= bytes.length; o += channels * 2) {
+        let m = 0;
+        for (let c = 0; c < channels; c++) m += view.getInt16(o + c * 2, true);
+        const v = m / channels / 32768;
+        sum += v * v;
+        n++;
+      }
+    }
+    amps.push(n > 0 ? Math.sqrt(sum / n) : 0);
+    if (k % 8 === 7) await pause();
+  }
+  return barsFromAmps(amps);
 }
 
 /** Bars from 16-bit PCM with `channels` interleaved. */

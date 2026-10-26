@@ -1,7 +1,7 @@
 // A part's sound as bars (audio/barsModel.ts): even slices up to the part's
 // loudest, fitted to a row, and kept as short text.
 import { describe, expect, it } from 'vitest';
-import { barsFromChannels, barsFromLevels, barsFromPcm, fitBars, packBars, unpackBars } from '../src/audio/barsModel';
+import { barsFromWindows, barsFromChannels, barsFromLevels, barsFromPcm, fitBars, packBars, unpackBars } from '../src/audio/barsModel';
 
 const tone = (n: number, amp: number) => Int16Array.from({ length: n }, (_, k) => Math.round(Math.sin(k / 5) * amp * 32767));
 
@@ -73,5 +73,42 @@ describe('a part\'s bars', () => {
     expect(bars[1]!).toBeLessThan(bars[0]!);
     expect(fitBars(bars, 6)).toHaveLength(6);
     expect(barsFromLevels([])).toBeNull();
+  });
+});
+
+describe('bars sampled from windows of a file', () => {
+  // Speech-like: a voiced stretch that swells and falls, with a gap, 30 s at 16 kHz, stereo.
+  const frames = 16000 * 30;
+  const channels = 2;
+  const pcm = new Int16Array(frames * channels);
+  for (let f = 0; f < frames; f++) {
+    const t = f / 16000;
+    const env = Math.max(0, Math.sin(t * 2.1)) * (0.3 + 0.5 * Math.abs(Math.sin(t * 0.7)));
+    const v = Math.round(env * 32767 * Math.sin(f / 7) * (0.7 + 0.3 * Math.sin(f / 311)));
+    pcm[f * 2] = v;
+    pcm[f * 2 + 1] = v;
+  }
+  const bytes = new Uint8Array(pcm.buffer);
+  const frameBytes = channels * 2;
+
+  it('matches reading every sample, to a small tolerance, from a few thousand samples', async () => {
+    let read = 0, pauses = 0;
+    const got = await barsFromWindows(frames, channels, (first, n) => { read += n; return bytes.subarray(first * frameBytes, (first + n) * frameBytes); }, async () => { pauses++; }, 64);
+    const want = barsFromPcm(pcm, channels, 64);
+    expect(got).toHaveLength(64);
+    got.forEach((b, k) => expect(Math.abs(b - want[k]!)).toBeLessThan(0.08));
+    expect(read).toBeLessThan(64 * 600);
+    expect(pauses).toBeGreaterThanOrEqual(8);
+  });
+
+  it('reads a short file whole, so it is exact, and never past the end', async () => {
+    const short = pcm.subarray(0, 1000 * channels);
+    const b = new Uint8Array(short.buffer, short.byteOffset, short.byteLength);
+    const got = await barsFromWindows(1000, channels, (first, n) => {
+      expect((first + n) * frameBytes).toBeLessThanOrEqual(b.length);
+      return b.subarray(first * frameBytes, (first + n) * frameBytes);
+    }, async () => undefined, 64);
+    const want = barsFromPcm(short, channels, 64);
+    got.forEach((x, k) => expect(x).toBeCloseTo(want[k]!, 6));
   });
 });
