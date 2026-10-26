@@ -83,6 +83,15 @@ export class KeptLanguage {
   private open: string[] = [];
   /** Of those, the ones whose rows are all in memory now. */
   private readonly ready = new Set<string>();
+  /**
+   * Passages brought into memory since memory last let go (`shed`), open or
+   * not: only a checkpoint may let go of them, since memory can hold work
+   * newer than their rows. Someone reading passage after passage on a quiet
+   * language never reached one, so memory grew with every passage, and what
+   * memory names was worked out again over all of it at each open
+   * (performance-audit-2026-10-26.md item 13).
+   */
+  private readonly brought = new Set<string>();
   /** Passages with any row on disk; read when the language opens, added to by each checkpoint. */
   private readonly onDisk = new Set<string>();
   /**
@@ -220,6 +229,7 @@ export class KeptLanguage {
    */
   shed(state: LanguageState, placed: readonly Placed[]): void {
     const open = new Set(this.open);
+    for (const u of [...this.brought]) if (!open.has(u)) this.brought.delete(u);
     let changed = false;
     this.stored(placed);
     for (const p of placed) {
@@ -242,6 +252,11 @@ export class KeptLanguage {
    * dropping the passages asked for longest ago beyond `limit` at the next
    * checkpoint. True when a passage became ready.
    */
+  /** Has memory taken in far more passages than it keeps open? Then a checkpoint should let go of them. */
+  holdsTooMany(): boolean {
+    return this.brought.size > this.limit * 4;
+  }
+
   async load(state: LanguageState, unitIds: readonly string[]): Promise<boolean> {
     // A passage a screen opens before its rows arrive is filled next (decisions.md 147).
     this.want(unitIds);
@@ -249,6 +264,7 @@ export class KeptLanguage {
     this.open = [...this.open.filter((u) => !unitIds.includes(u)), ...unitIds].slice(-this.limit);
     for (const u of [...this.ready]) if (!this.open.includes(u)) this.ready.delete(u);
     if (fresh.length === 0) return false;
+    for (const u of fresh) this.brought.add(u);
     await this.bring(state, fresh);
     // Ready now, whether or not anything came in: a screen waiting on it must be told.
     return true;

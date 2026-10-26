@@ -1124,6 +1124,15 @@ export class SyncClient<S = LanguageState> {
       this.revision += 1;
       this.publish();
     }
+    // Memory lets go of passages only at a checkpoint, and one reading passage after passage may pull nothing to
+    // take one: a checkpoint when memory has taken in many, on the fast path only (nothing unsent), which sheds.
+    if (this.kept.holdsTooMany() && !this.opts.deferCheckpoint?.()) {
+      const { store, orgId, streamId } = this.opts;
+      await this.exclusive(async () => {
+        if (!this.kept?.holdsTooMany() || (await store.pendingCount(orgId, streamId)) > 0) return;
+        await this.checkpoint(await store.cursor(orgId, streamId));
+      }).catch(() => { /* a disk error: the next pull's checkpoint lets go instead */ });
+    }
     // A passage whose rows are still on the server is filled in now, if the server can be reached (decisions.md 147).
     if (this.fill?.active() && this.kept.wantedUnits().length > 0) {
       await this.exclusive(async () => {
