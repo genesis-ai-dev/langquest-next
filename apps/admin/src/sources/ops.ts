@@ -1,4 +1,5 @@
 import { REDUCER_VERSION } from '@langquest-next/core';
+import { SNAPSHOT_SCHEDULE } from '@langquest-next/sync/server';
 import { isMissing, type Query } from '../db';
 import { failed, ok, off, type Alert, type Section } from '../section';
 
@@ -360,7 +361,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
     part<Safety['canary']>(query, CANARY_SQL),
-    part<Pipeline>(query, `select diag.ops_pipeline($1::int) as v`, [REDUCER_VERSION]),
+    part<Pipeline>(query, `select diag.ops_pipeline($1::int, $2::int, $3::bigint) as v`, [REDUCER_VERSION, SNAPSHOT_SCHEDULE.minNewEvents, SNAPSHOT_SCHEDULE.maxAgeMs]),
     part<People>(query, `select diag.ops_people() as v`),
     part<{ orgs: OrgRow[] }>(query, `select diag.ops_orgs(20) as v`),
     part<{ day: string; events: number }[]>(query, EVENTS_BY_DAY_SQL),

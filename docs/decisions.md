@@ -7484,6 +7484,16 @@ sampled because it fails every pass), when the log gets a `received_at`
 index built concurrently; or the canary's cost in the container grows past
 its 60 minutes, when it takes fewer or smaller languages.
 
+Amended (2026-10-26, Carl Sauder): the dashboard no longer restates rules it
+counts. `diag.ops_pipeline` takes the snapshot schedule from its caller,
+which passes sync's `SNAPSHOT_SCHEDULE`, so "overdue" is what the snapshot
+worker does, and `ops_limits` reads the diagnostics day cap from
+`diag._ingest_day_cap()`, whose agreement with `diag_ingest` the ops smoke
+checks. The Worker's actions ask `_gv_on` at the session's real level
+rather than checking aal2 itself, so that rule is SQL's alone, and they
+verify a token through the same helper as every other Worker route
+(`apps/web/worker/identity.ts`).
+
 ## 162. Staff may mark feedback and run a server job from the ops dashboard, through the app Worker, which checks them again and records every attempt
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted

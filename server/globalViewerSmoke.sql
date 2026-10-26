@@ -1,6 +1,15 @@
 -- Global Viewers (decisions.md 158): read every organization on an aal2
 -- session, change nothing, belong to no organization. Repeatable against a
 -- populated database; every test write rolls back.
+--
+-- The rule (`_gv_on(profile, aal)`: granted, not revoked, aal2) is restated
+-- on every read path below; section 3b asks each of them at aal2 and at aal1
+-- and holds the two answers, and section 3c holds the write paths shut.
+-- A NEW READ PATH that consults _gv_on (directly or through
+-- _can_read_stream_at) MUST BE ADDED to pg_temp.read_paths in section 3b.
+-- Read paths today: _gv_on, _gv_state (get_user_state), _can_read_stream_at
+-- (can_read_stream, pull_events, blob_access), profile_visible,
+-- _library_member, global_viewer_organizations, global_viewer_directory.
 \set ON_ERROR_STOP on
 begin;
 -- An admin with an organization; a Global Viewer with an authenticator; one
@@ -90,6 +99,58 @@ do $$ begin
     perform public.pull_events('gv-org', '_org', p_client_version => (select min_client_version from public.server_config));
     raise exception 'aal1 pulled';
   exception when insufficient_privilege then null; end;
+end $$;
+
+-- 3b. Every read path, one Global Viewer, both levels: all allowed at aal2,
+-- none at aal1. (Path names are the keys of the answer.)
+create function pg_temp.read_paths(p_profile text, p_aal text) returns jsonb language plpgsql as $f$
+declare v jsonb := '{}'; m int := (select min_client_version from public.server_config);
+begin
+  perform pg_temp.as_caller(p_profile, p_aal);
+  v := v || jsonb_build_object('_gv_on', public._gv_on(p_profile, p_aal));
+  v := v || jsonb_build_object('_gv_state', public._gv_state(p_profile) = 'on');
+  v := v || jsonb_build_object('_can_read_stream_at', public._can_read_stream_at('gv-org', 'L-gv', p_profile, p_aal));
+  v := v || jsonb_build_object('can_read_stream', public.can_read_stream('gv-org', 'L-gv', p_profile));
+  v := v || jsonb_build_object('profile_visible', public.profile_visible('49000000-0000-0000-0000-00000000000a'));
+  v := v || jsonb_build_object('_library_member', public._library_member('gv-org', p_profile));
+  begin
+    v := v || jsonb_build_object('pull_events', (select count(*) from public.pull_events('gv-org', 'L-gv', p_client_version => m)) >= 0);
+  exception when insufficient_privilege then v := v || jsonb_build_object('pull_events', false); end;
+  begin
+    v := v || jsonb_build_object('global_viewer_organizations', exists (select 1 from public.global_viewer_organizations('viewed')));
+  exception when insufficient_privilege then v := v || jsonb_build_object('global_viewer_organizations', false); end;
+  begin
+    v := v || jsonb_build_object('global_viewer_directory', exists (select 1 from public.global_viewer_directory('gv-org')));
+  exception when insufficient_privilege then v := v || jsonb_build_object('global_viewer_directory', false); end;
+  -- blob_access names the level itself and is the service role's; the caller claim is irrelevant to it.
+  v := v || jsonb_build_object('blob_access', public.blob_access('gv-org/L-gv/abc', p_profile, false, p_aal));
+  return v;
+end $f$;
+do $$ declare k text; a jsonb; b jsonb; begin
+  a := pg_temp.read_paths('49000000-0000-0000-0000-00000000000b', 'aal2');
+  b := pg_temp.read_paths('49000000-0000-0000-0000-00000000000b', 'aal1');
+  if (select count(*) from jsonb_object_keys(a)) <> 10 then raise exception 'read paths listed: %', a; end if;
+  for k in select jsonb_object_keys(a) loop
+    if a->k <> 'true'::jsonb then raise exception 'read path % refused at aal2: %', k, a; end if;
+    if b->k <> 'false'::jsonb then raise exception 'read path % allowed at aal1: %', k, b; end if;
+  end loop;
+end $$;
+
+-- 3c. Every write path stays shut to a Global Viewer, at either level.
+do $$ declare r record; l text; m int := (select min_client_version from public.server_config); begin
+  foreach l in array array['aal2', 'aal1'] loop
+    perform pg_temp.as_caller('49000000-0000-0000-0000-00000000000b', l);
+    select * into r from public.append_events(jsonb_build_array(jsonb_build_object(
+      'id', 'gv-write-' || l, 'type', 'v1.LanguageRenamed', 'orgId', 'gv-org', 'streamId', '_org',
+      'actorId', '49000000-0000-0000-0000-00000000000b', 'deviceId', 'dV',
+      'hlc', lpad(((extract(epoch from clock_timestamp()) * 1000)::bigint - 1000)::text, 15, '0') || ':000000:dV',
+      'payload', jsonb_build_object('languageId', 'L-gv', 'name', 'Renamed'))), m);
+    if r.accepted then raise exception 'a Global Viewer wrote an event at %', l; end if;
+    if public.may_emit('gv-org', '_org', '49000000-0000-0000-0000-00000000000b', 'v1.LanguageRenamed', jsonb_build_object('languageId', 'L-gv', 'name', 'Renamed')) then
+      raise exception 'may_emit allowed a Global Viewer at %', l; end if;
+    if public.blob_access('gv-org/L-gv/abc', '49000000-0000-0000-0000-00000000000b', true, l) then
+      raise exception 'a Global Viewer may write a file at %', l; end if;
+  end loop;
 end $$;
 
 -- 4. No authenticator yet; and revoked.
