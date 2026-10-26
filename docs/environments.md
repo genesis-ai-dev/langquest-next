@@ -70,7 +70,7 @@ declares:
 | Hyperdrive `langquest-next-diag` (production only) | `DIAG_DATABASE_URL`, as the config's connection; the first run makes the config and writes its id into `apps/admin/wrangler.jsonc` to commit (`docs/admin.md`) |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PUSH_DELIVERY_SECRET` (once `PROJECTION_WORKER_SECRET`, which this unsets), `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_push_delivery_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the app's Worker's route) |
-| pg_cron | the push-delivery job: its migration (`20261020170000_push_delivery_secret.sql`) schedules it only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
+| pg_cron | the push-delivery job: its migration (`20261026130400_push_delivery_when_waiting.sql`) schedules it, calling the function only when something is waiting, only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
 
 Worker secrets stay on the Worker across deploys, and wrangler refuses a
 deploy while one in `secrets.required` is missing, so a forgotten secret

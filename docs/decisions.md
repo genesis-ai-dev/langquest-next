@@ -2044,6 +2044,17 @@ pass: it runs the pass in the job container too, its tick fired every
 minute by `npm run web:dev`, and push delivery's function is
 `push-delivery` (148).
 
+Amended (2026-10-26, Carl Sauder): the pass no longer folds a language again
+because its organization's stream moved. A mark keeps a fingerprint of what
+the language's projection reads from the organization (who may open it, its
+name and code, the licence: `orgFingerprint` in `server/projectionWorker.ts`,
+`projection_marks.org_fp`); an organization event that leaves it equal (an
+invite, a role nobody holds, a join decided for another language) only
+moves the mark's `org_seq`. A projection that starts to read something more
+from the organization must put it in the fingerprint or bump
+`PROJECTION_VERSION`. The pass also reads one snapshot row per stream
+(`snapshot_heads_page`) and only the listed languages' visibility rows.
+
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -6737,6 +6748,18 @@ that run's function secret and its Vault write, a minute's push may be
 refused and is delivered the next minute. A local stack's
 `supabase/functions/.env` keeps its value under the new name
 (`scripts/local-db.mjs`).
+
+Amended (2026-10-26, Carl Sauder): the push delivery job no longer calls the
+Edge Function every minute whatever is queued. Each minute it asks
+`push_work_waiting()` (a notification a claim could take, or a push receipt
+old enough to read) and posts only if so, so `diag.job_schedule` gives it no
+schedule (it runs when there is work, like the webhook dispatch). Another
+daily job drops `cron.job_run_details` rows over seven days old. The claim
+is driven from the people who have a push token (index
+`notifications_push_person`) instead of walking past every notification of
+someone without one. The schedule is now
+`20261026130400_push_delivery_when_waiting.sql`, which `npm run secrets`
+runs again. Audit: `docs/performance-audit-2026-10-26.md` item 11.
 
 ## 149. A reviewer notes a moment of the recording, a help, a key word, a verse or a note, and every note goes with the review and its verdict
 
