@@ -4921,6 +4921,18 @@ step to take through the repo's Supabase config (`docs/cloudflare.md`).
 Reverse if: a removal must cut access at once (a takedown, say); then drop
 the access cache, or clear it from the event that removes the member.
 
+Amended (2026-10-26, Carl Sauder): three more answers are kept per isolate,
+on the same terms (performance-audit-2026-10-26.md item 10). The agent API's
+token records, keyed by the token's hash, for 15 s, so a revoked token can
+still be used for up to 15 s from an isolate that already read it, and the
+last-used write no longer holds up the response (`ctx.waitUntil`). A
+person's organizations, for the reports route only, for 30 s, so someone
+removed from an organization may read its reports for up to 30 s; /connect
+and links still ask each time. Agent reads trust the organization's stream
+heads for up to 3 s and pull only when a head moved past what the object
+holds; writes and the read after a write still pull. Reverse if: as above,
+or an agent must see another writer's work within a second.
+
 ## 122. Inactive Inbox rows are deleted 30 days after they went inactive
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
