@@ -1,5 +1,5 @@
 import {
-  eventPassage, hangsOn, keptVerdict, LINES_VERSION, markChanged, PART_OF_KIND, passageInMemory, putEntry, referencedBlobs,
+  eventPassage, eventPlace, hangsOn, keptVerdict, LINES_VERSION, markChanged, PART_OF_KIND, passageInMemory, putEntry, referencedBlobs,
   type AnyEvent, type LanguageState, type PassageLine, type PassageOf
 } from '@langquest-next/core';
 import { entryRows, FILE, type KeptLanguage } from './keptLanguage';
@@ -188,11 +188,10 @@ export class KeptFill {
     const inPage = new Map<string, string>();
     const reviewTake = new Map<string, string>();
     for (const e of page) {
-      if (e.type === 'v1.TakeComposed') inPage.set(`take\u0000${e.payload.takeId}`, e.payload.unitId);
-      else if (e.type === 'v1.DepartureRecorded') inPage.set(`departure\u0000${e.payload.departureId}`, e.payload.unitId);
-      else if (e.type === 'v1.RequestMade') inPage.set(`request\u0000${e.payload.requestId}`, e.payload.unitId);
-      else if (e.type === 'v1.NoteAdded') inPage.set(`note\u0000${e.payload.noteId}`, e.payload.unitId);
-      else if (e.type === 'v1.ReviewRecorded') reviewTake.set(e.payload.reviewId, e.payload.takeId);
+      const place = eventPlace(e);
+      if (!place) continue;
+      if (place.kind === 'review') reviewTake.set(place.id, place.takeId);
+      else inPage.set(`${place.kind}\u0000${place.id}`, place.unitId);
     }
     const units = new Set<string>();
     const look: { kind: string; id: string }[] = [];

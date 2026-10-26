@@ -1,5 +1,5 @@
 import {
-  audioFormatsFor, concerning, decodeHlc, eventPassage, filePlanOf, languageLines, passageInMemory, updatesFor, uploadWorkOf,
+  audioFormatsFor, changesByPassage, concerning, decodeHlc, filePlanOf, languageLines, updatesFor, uploadWorkOf,
   type AnyEvent, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
   type LostFilesView, type OfflineSummary, type PassageLine, type PassageLines, type UnitOffline, type Update
 } from '@langquest-next/core';
@@ -723,12 +723,7 @@ export class LanguageSession {
   /** The server accepted these events of this device's: noted by passage, as far as memory says which. */
   private changesSent(events: readonly AnyEvent[]): void {
     const state = this.client.getState();
-    const byUnit = new Map<string | null, number>();
-    for (const e of events) {
-      const of = eventPassage(e);
-      const unitId = of === 'settings' ? null : passageInMemory(state, of);
-      byUnit.set(unitId, (byUnit.get(unitId) ?? 0) + 1);
-    }
+    const byUnit = changesByPassage(state, events);
     for (const [unitId, changes] of byUnit) this.noteSent({ unitId, changes });
   }
 
