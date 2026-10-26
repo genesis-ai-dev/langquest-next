@@ -3182,6 +3182,13 @@
       "elsewhereSub": "Funciona en una sola pestaña a la vez, para que tus grabaciones y cambios queden en un solo lugar. Úsalo aquí o vuelve a la otra pestaña.",
       "useHere": "Usarlo aquí",
       "useHereHelp": "Pasa LangQuest a esta pestaña. La otra pestaña guarda su trabajo y se hace a un lado."
+    },
+    "lock": {
+      "wait": "Demasiados intentos. Espera un poco y vuelve a intentarlo.",
+      "wrong": "Ese patrón no es correcto.",
+      "notMe": "No es mi imagen",
+      "notMeHelp": "Vuelve a las imágenes.",
+      "pictureHelp": "¿Cerraste sesión en este teléfono? Toca tu imagen y luego dibuja tu patrón. No hace falta conexión."
     }
   },
   "account": {
@@ -3496,6 +3503,17 @@
       "syncNowHelp": "Envía lo que está esperando y recibe lo nuevo, enseguida.",
       "detailsHelp": "Cada cambio en espera o rechazado, y las transferencias de audio: para quien esté arreglando un problema.",
       "eventHelp": "Abre el pasaje del que trata este cambio."
+    },
+    "lock": {
+      "tooShort": "Une al menos {{n}} puntos.",
+      "patternsDiffer": "Ese era otro patrón. Empieza de nuevo.",
+      "pictureTitle": "Elige tu imagen",
+      "pictureHelp": "Para volver a iniciar sesión en este teléfono, tocarás tu imagen y luego dibujarás tu patrón.",
+      "nextHelp": "Pasa a dibujar tu patrón.",
+      "drawTitle": "Dibuja un patrón",
+      "drawAgain": "Dibújalo otra vez",
+      "newPattern": "Dibujar un patrón nuevo",
+      "choosePatternHelp": "Elige una imagen y un patrón para volver a iniciar sesión en este teléfono, incluso sin conexión."
     }
   },
   "study": {
@@ -4542,6 +4560,15 @@
       "readHelp": "Abre su texto completo en el navegador.",
       "rowHelp": "Abre las licencias y lo que permite cada una.",
       "yesOpenToHelp": "A partir de ahora, tu trabajo se comparte bajo esta licencia. No se puede deshacer."
+    },
+    "pattern": {
+      "label": "Patrón: une al menos {{n}} puntos",
+      "help": "Pasa el dedo por los puntos sin levantarlo, o tócalos uno por uno y luego Listo. Une al menos {{n}} puntos.",
+      "dot": "Punto {{n}}",
+      "picture": "Imagen {{n}}",
+      "again": "Empezar de nuevo",
+      "againHelp": "Borra los puntos para empezar el patrón de nuevo.",
+      "doneHelp": "Termina el patrón con los puntos que tocaste."
     }
   },
   "help": {

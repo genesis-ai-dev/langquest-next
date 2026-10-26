@@ -10,7 +10,8 @@ import { flushDiagnostics } from '../diagnostics/diagnostics';
 import { recordAuth } from '../diagnostics/authDiag';
 import { OutcomeThrottle } from '../session/authOutcome';
 import { getStore } from '../storage/store';
-import { actAs, forgetKeptSession, keepSessionAndSignOut, keptSession } from '../server/handOver';
+import { actAs, forgetKeptSession, keepSessionAndSignOut, keptSession, keptSessionRaw } from '../server/handOver';
+import { dropLockedSession, keepLockedAfterHandOver } from '../server/lock';
 
 /**
  * Shared phones (decisions.md 60): signing out with work still to send
@@ -38,6 +39,24 @@ async function handOvers(): Promise<HandOver[]> {
   await writes;
   return parseHandOvers(await AsyncStorage.getItem(LIST_KEY));
 }
+
+/**
+ * One thing at a time with a person's hand-over: a delivery, or their
+ * coming back from the lock (takeBackHandOver), so the courier and the
+ * signed-in app never hold their session at once.
+ */
+const turns = new Map<string, Promise<unknown>>();
+function turn<T>(actorId: string, fn: () => Promise<T>): Promise<T> {
+  const next = (turns.get(actorId) ?? Promise.resolve()).then(fn);
+  const settled = next.catch(() => {});
+  turns.set(actorId, settled);
+  void settled.then(() => { if (turns.get(actorId) === settled) turns.delete(actorId); });
+  return next;
+}
+
+/** People coming back from the lock right now: their delivery stops before its next recording. */
+const released = new Set<string>();
+class TakenBack extends Error {}
 
 /**
  * Sign out, leaving this person's unsent work to go as them. Their session
@@ -96,15 +115,19 @@ async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: 
     await noteSession(h, store, 'gone');
     courierNotes.forget(h.actorId);
     await forget(h.actorId, false);
+    // No lock can bring an ended session back (decisions.md 168).
+    await dropLockedSession(h.actorId);
     return false;
   }
+  const as = actAs(h.actorId, blobs);
   const result = await deliverHandOver(h, {
-    ...actAs(h.actorId, blobs),
+    ...as,
+    upload: (u) => { if (released.has(h.actorId)) throw new TakenBack(); return as.upload(u); },
     store,
     deviceId,
     outbox: accountOutbox(h.actorId),
     hasFile: (ref) => blobs.exists(ref),
-    note: noteExpected
+    note: (where, e) => { if (!(e instanceof TakenBack)) noteExpected(where, e); }
   });
   const { attempt, offline } = result;
   const next = afterAttempt(h, attempt);
@@ -113,8 +136,16 @@ async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: 
     const { outcome, ...n } = report;
     recordAuth('courier', outcome, { n });
   }
-  if (next.kind === 'done') { courierNotes.forget(h.actorId); await forget(h.actorId, true); }
-  else if (next.kind === 'drop') { courierNotes.forget(h.actorId); await forget(h.actorId, false); }
+  if (next.kind === 'done') {
+    courierNotes.forget(h.actorId);
+    // Locked here, the session stays for its owner to come back to offline; otherwise it ends (decisions.md 168).
+    const locked = await keepLockedAfterHandOver(h.actorId, await keptSessionRaw(h.actorId));
+    await forget(h.actorId, !locked);
+  } else if (next.kind === 'drop') {
+    courierNotes.forget(h.actorId);
+    await forget(h.actorId, false);
+    await dropLockedSession(h.actorId);
+  }
   // Read again: a sign-out since this began may have named more recordings.
   else await change((list) => list.map((x) => (x.actorId === h.actorId ? withoutFinished(x, attempt.finished, attempt.unregistered) : x)));
   return offline;
@@ -127,18 +158,48 @@ export async function sendAll(signedInAs: string | null): Promise<{ offline: boo
   const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
   const blobs = await getBlobStore();
   let offline = false;
-  for (const h of list) {
-    // Back in as themselves: their own session sends it from here.
-    if (h.actorId === signedInAs) { await forget(h.actorId, true); continue; }
-    try {
-      if (await sendFor(h, store, deviceId, blobs)) offline = true;
-    } catch (e) {
-      offline = true;
-      noteExpected('hand-over', e);
-    }
+  for (const listed of list) {
+    await turn(listed.actorId, async () => {
+      // Read again in their turn: they may have come back from the lock meanwhile.
+      const h = (await handOvers()).find((x) => x.actorId === listed.actorId);
+      if (!h) return;
+      // Back in as themselves: their own session sends it from here.
+      if (h.actorId === signedInAs) { await forget(h.actorId, true); return; }
+      try {
+        if (await sendFor(h, store, deviceId, blobs)) offline = true;
+      } catch (e) {
+        offline = true;
+        noteExpected('hand-over', e);
+      }
+    });
   }
   // Reached the server: deliver what diagnostics hold (as whoever is signed in, if anyone).
   if (!offline) void flushDiagnostics();
   return { offline };
+}
+
+/**
+ * Back from the lock (decisions.md 168): their own session takes over from
+ * the courier, as after any sign-in here (60), but is not ended, since it
+ * is the same session. A delivery under way stops before its next
+ * recording and is waited for, so the two never renew the session at once.
+ * Returns the kept session, its newest form, and the notifications it still
+ * had to disconnect; null when no hand-over holds a session for them.
+ */
+export async function takeBackHandOver(actorId: string): Promise<{ session: string; pushToken?: string } | null> {
+  released.add(actorId);
+  try {
+    return await turn(actorId, async () => {
+      const h = (await handOvers()).find((x) => x.actorId === actorId);
+      const session = h ? await keptSessionRaw(actorId) : null;
+      // A hand-over whose session the server ended is the courier's to drop.
+      if (!h || !session) return null;
+      courierNotes.forget(actorId);
+      await forget(actorId, false);
+      return { session, ...(h.pushToken ? { pushToken: h.pushToken } : {}) };
+    });
+  } finally {
+    released.delete(actorId);
+  }
 }
 

@@ -110,7 +110,7 @@ the page loads to exactly one section.
 | Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones and phones gone quiet | `DIAG_DATABASE_URL` |
 | Release health | merges on `main`, Worker deploys and EAS updates over 14 days against errors phones reported; the commit each host serves; hosted migrations against `main` (`diag.migrations_applied` and the files on GitHub) | `DIAG_DATABASE_URL`; the Cloudflare, Expo and GitHub tokens add to the timeline |
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
-| Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals) | `DIAG_DATABASE_URL`, the migration |
+| Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
@@ -120,6 +120,7 @@ the page loads to exactly one section.
 | Cloudflare | each Worker's requests, errors and CPU over the last day (GraphQL Analytics), its latest deploy and its latest Workers Build | `ADMIN_CLOUDFLARE_TOKEN` |
 | Supabase | for LangQuest Next (`SUPABASE_PROJECTS`; v2 is left off): project status, each service's health, Edge Functions, and counts from the day's logs (API 5xx, Edge Function 5xx, Postgres errors, Auth 5xx), with the errors grouped: a Postgres error by its SQLSTATE (named), role, client and the RPC a PostgREST call named; a server error by method, the path's first parts (ids hidden) and status. Never a log message, which can quote what someone typed | `ADMIN_SUPABASE_TOKEN` |
 | App builds and updates | EAS builds, store submissions and the newest update on each branch | `ADMIN_EXPO_TOKEN` |
+| Update adoption | for each channel, platform and runtime the phones run: the newest update EAS published there and how many installs active in the last 7 days run it, an older update, or their build's embedded one. EAS gives each update's id per platform, the id a phone reports in its diagnostics (`Updates.updateId`), so they match exactly; a channel serving two branches (a rollout) takes the newer. Browsers are left out, and a phone with diagnostics off is not counted (`apps/admin/src/sources/adoption.ts`) | `ADMIN_EXPO_TOKEN`; `DIAG_DATABASE_URL` |
 | Google Play | Android vitals for the last 7 days Play has (user-perceived crash and ANR rates, 7-day user-weighted as Play Console shows them, against Play's bad-behaviour lines, 1.09% and 0.47%), the top crash and ANR clusters, and the last week's reviews | `ADMIN_GOOGLE_PLAY_KEY` |
 | App Store | each recent App Store version and where it stands in review, the latest builds and whether Apple processed them, TestFlight testers' crash reports (device and system only), recent customer reviews | `ADMIN_APP_STORE_KEY` |
 
@@ -273,6 +274,26 @@ answer, usually a missing permission.
 For sign-in from a single-sign-on account and a second factor on top of the
 password, Cloudflare Access can sit in front of `/ops-dashboard*` and
 `/ops/api/*`; the page works unchanged behind it.
+
+## Which query is it
+
+The page names a long query's role and client but never shows its text,
+which can hold what someone sent. To see it, open the Supabase SQL Editor
+for the project (it runs as the owner) and run:
+
+```sql
+select pid, now() - query_start as running_for, usename as role, application_name as client,
+       backend_type, wait_event_type, wait_event, left(query, 300) as query
+from pg_stat_activity
+where datname = current_database() and state = 'active' and pid <> pg_backend_pid()
+order by query_start
+limit 10;
+```
+
+`select pg_cancel_backend(<pid>);` stops a query that is stuck;
+`pg_terminate_backend` drops its connection, as a last resort. The slowest
+queries over time are in `extensions.pg_stat_statements` (order by
+`max_exec_time`) and in the project's Query Performance report.
 
 ## Locally
 

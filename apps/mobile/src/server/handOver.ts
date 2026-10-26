@@ -5,6 +5,7 @@ import { timedTransfer } from '../diagnostics/diagnostics';
 import { noteExpected } from '../diagnostics/report';
 import { signingOutByChoice } from '../session/signOutCause';
 import { UploadError, uploadBlob } from './blobTransport';
+import { sealHandedOver } from './lock';
 import { secureStorage } from './secureStorage';
 import { SESSION_KEY, clientKeptAt, supabase } from './supabase';
 
@@ -46,6 +47,8 @@ export function keepSessionAndSignOut(actorId: string, keep: () => Promise<void>
       const session = await secureStorage.getItem(SESSION_KEY);
       if (session) {
         await secureStorage.setItem(sessionKeyFor(actorId), session);
+        // Locked too, so they can come back to it offline (decisions.md 168).
+        await sealHandedOver(actorId, session);
         await keep();
         await secureStorage.removeItem(SESSION_KEY);
         moved = true;
@@ -70,6 +73,11 @@ export async function keptSession(actorId: string): Promise<'ready' | 'unreachab
   const { data } = await keptClient(actorId).auth.getSession();
   if (data.session) return 'ready';
   return await secureStorage.getItem(sessionKeyFor(actorId)) !== null ? 'unreachable' : 'gone';
+}
+
+/** The kept session as stored, the newest form of it (supabase-js writes each renewal there), or null. */
+export function keptSessionRaw(actorId: string): Promise<string | null> {
+  return secureStorage.getItem(sessionKeyFor(actorId));
 }
 
 /** What a delivery attempt does as this person (deliverHandOver in packages/sync). */

@@ -15,6 +15,7 @@ import { containerSection } from './sources/container';
 import { expirySection } from './sources/expiry';
 import { opsSections, orgDetail, type OpsSections } from './sources/ops';
 import { releasesSection } from './sources/releases';
+import { adoptionSection } from './sources/adoption';
 import { capacitySection, storageSection } from './sources/storage';
 
 /**
@@ -53,6 +54,7 @@ const PROVIDERS: Record<string, (env: Env) => Promise<Section>> = {
   storage: (env) => storageSection(env),
   capacity: (env) => capacitySection(env),
   releases: (env) => releasesSection(env),
+  adoption: (env) => adoptionSection(env),
   container: (env) => containerSection(env)
 };
 

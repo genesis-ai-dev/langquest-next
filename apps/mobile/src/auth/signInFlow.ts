@@ -9,10 +9,13 @@ import { t } from '../i18n';
 import { inviteOutcome } from '../invites/inviteOutcome';
 import { redeemSignInCode } from '../invites/invites';
 import { setSession, signInWithPassword, signUp } from '../server/auth';
+import { rememberPassword } from '../server/lock';
 import { recreateDevAccount } from '../server/personas';
 import { signInWithV2Account } from '../server/v2';
 import { recordHelp } from './signInHelp';
 import { signIn } from './signIn';
+import { signInAddress } from './accounts';
+import { signBackIn } from './signBackIn';
 
 /** What a screen shows after trying to get in: the words for a refusal, done, or an address to confirm first. */
 export type AuthResult = { kind: 'error'; text: string } | { kind: 'done' } | { kind: 'check-email' };
@@ -38,6 +41,10 @@ async function recordTerms(host: AuthHost, userId: string): Promise<void> {
 export async function signInWithEmail(email: string, password: string, host: AuthHost): Promise<AuthResult> {
   const started = Date.now();
   try {
+    // Signed out of this phone before: the password opens the lock, with no connection (decisions.md 168).
+    const local = await signBackIn('password', password, { address: signInAddress(email) });
+    if (local.kind === 'ok') return { kind: 'done' };
+    if (local.kind === 'wait') return { kind: 'error', text: t('entry.lock.wait') };
     const outcome = await signIn(email, password, {
       signInWithPassword, setSession, signInWithV2Account, ...(host.isDev ? { recreateDevAccount } : {})
     });
@@ -45,9 +52,13 @@ export async function signInWithEmail(email: string, password: string, host: Aut
     if (outcome.kind === 'refused') {
       noteExpected(outcome.where, outcome.raw);
       recordAuthFailure('sign_in', outcome.reason, { ms: since(started) });
-      return { kind: 'error', text: authErrorText(outcome.reason, t('entry.signIn.failed')) };
+      // Offline after a password the lock here did not take: it was wrong, whatever the connection.
+      const offlineWrong = local.kind === 'wrong' && outcome.reason.name === 'AuthRetryableFetchError';
+      return { kind: 'error', text: offlineWrong ? t('entry.errors.wrongPassword') : authErrorText(outcome.reason, t('entry.signIn.failed')) };
     }
     recordAuth('sign_in', 'ok', { n: { ms: since(started) } });
+    // Next time, this password signs them back in here with no connection.
+    if (outcome.userId) void rememberPassword(outcome.userId, signInAddress(email), password);
     if (outcome.userId) await recordTerms(host, outcome.userId);
     return { kind: 'done' };
   } catch (e) {
