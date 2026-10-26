@@ -381,6 +381,11 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     const orgId = `org-fp-${stamp}`;
     const languageId = `lfp-${stamp}`;
     const org = await newOrg(lead, orgId, languageId);
+    // The pass projects a language with a log of its own: one unit.
+    const a = languageClient(orgId, languageId, lead, 'dA');
+    await a.load();
+    await a.append('v1.UnitAdded', { unitId: 'u1', parentUnitId: null, kind: 'passage', label: 'P1', order: 'a0' });
+    await a.sync();
     const service = createClient(URL, SERVICE, { auth: { persistSession: false } });
     const markOf = async () => (await service.from('projection_marks').select('org_seq,org_fp')
       .eq('org_id', orgId).eq('stream_id', languageId).single()).data as { org_seq: number; org_fp: string | null };
