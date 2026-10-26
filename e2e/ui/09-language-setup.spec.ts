@@ -766,11 +766,15 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   await primary(page).click();
   await expectToast(page, /^Oscar translates/);
   await byId(page, 'header-close').click();
-  // Oscar is not ready yet, so its page is the checklist: the book is divided from the map (decision 107).
-  await page.goto('/');
-  await waitForApp(page);
-  await tab(page, 'map').click();
-  await text(page, 'Oscar').click().catch(() => undefined);
+  // Oscar is not ready yet, so its page is the checklist: the book is divided from the map (decision 107). A reload
+  // here was aborted by the app's own navigation, and a Map tapped while it routed was undone, so 'Oscar' was then
+  // tapped on Manage (CI, 2026-10-23): tap Map from the checklist's tab bar until it holds.
+  await expect(async () => {
+    await tab(page, 'map').click({ timeout: 5_000 });
+    await expect(tab(page, 'map')).toHaveAttribute('aria-selected', 'true', { timeout: 5_000 });
+    await expect(text(page, 'Old Testament').or(text(page, 'Oscar')).first()).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 60_000 });
+  if (!(await text(page, 'Old Testament').isVisible())) await text(page, 'Oscar').click();
   await text(page, 'Old Testament').click();
   await text(page, 'Proverbs').click();
   await button(page, 'Break up Proverbs').click();

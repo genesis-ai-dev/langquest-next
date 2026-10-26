@@ -15,6 +15,30 @@ import { clearAllWebFiles } from './webFiles';
  */
 export const FORGETS_ON_SIGN_OUT = Platform.OS === 'web';
 
+let forgetting = false;
+
+/**
+ * Signing out of this browser, until the page reloads. The sign-out shows Sign
+ * In at once, and the reload that follows the forgetting draws a fresh one:
+ * what someone typed into the first was lost (AUTH-057, NOORG-004 in the
+ * nightly), so Sign In waits for the fresh page instead.
+ */
+export function forgettingThisBrowser(): boolean {
+  return forgetting;
+}
+
+/** `signOut`, then forget this browser, with Sign In held back in between (`forgettingThisBrowser`). */
+export async function signOutAndForget(signOut: () => Promise<void>): Promise<void> {
+  forgetting = FORGETS_ON_SIGN_OUT;
+  try {
+    await signOut();
+  } catch (e) {
+    forgetting = false;
+    throw e;
+  }
+  await forgetThisBrowser();
+}
+
 export async function forgetThisBrowser(): Promise<void> {
   if (!FORGETS_ON_SIGN_OUT) return;
   // Each step on its own, so one that fails does not keep the others from running.
