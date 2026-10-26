@@ -14,7 +14,7 @@ import { failureMessage, noteExpected } from '../diagnostics/report';
 import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import {
-  globalViewerOrganizations, startAuthenticator, verifiedAuthenticator, verifyAuthenticator, type ViewableOrganization
+  globalViewerOrganizations, opsDashboardUrl, startAuthenticator, verifiedAuthenticator, verifyAuthenticator, type ViewableOrganization
 } from '../server/globalViewer';
 import type { Ctx } from '../shell/ctx';
 import { contractsFor } from '../shell/screenContracts';
@@ -152,8 +152,23 @@ function Organizations(props: { ctx: Ctx }) {
     return () => clearTimeout(timer);
   }, [query]);
   const here = ctx.session.viewingAsGlobalViewer ? ctx.org.state?.org?.value.name ?? '' : '';
+  const dashboard = opsDashboardUrl();
   return (
     <View style={{ gap: space.md }}>
+      {/* LangQuest's own operations, for the same staff (decisions.md 160): in a tab of its own, beside the app. */}
+      {dashboard ? (
+        <Card accessibilityLabel={t('globalViewer.dashboard')} help={t('globalViewer.dashboardHelp')}
+          onPress={() => { Linking.openURL(dashboard).catch((e: unknown) => setError(failureMessage('ops dashboard open', e))); }}>
+          <View style={styles.row}>
+            <Ico name="progress" size={22} color={C.primary} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[txt.body, { fontWeight: '600' }]}>{t('globalViewer.dashboard')}</Text>
+              <Text style={txt.xs}>{t('globalViewer.dashboardBody')}</Text>
+            </View>
+            <Ico name="arrowR" size={18} color={C.muted} />
+          </View>
+        </Card>
+      ) : null}
       {here ? (
         <>
           <SectionLabel label={t('globalViewer.hereLabel')} />

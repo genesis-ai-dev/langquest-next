@@ -1,7 +1,18 @@
 // Global Viewers (decisions.md 158, docs/global-viewers.md): every
 // organization, read-only, on a session verified with an authenticator code.
 // The server decides; these only ask it.
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
+
+/**
+ * The ops dashboard (decisions.md 160): on the web, beside the app on the
+ * Worker that serves it, which lets in a Global Viewer on this same verified
+ * session. None on a phone, where the browser would not share the session.
+ */
+export function opsDashboardUrl(): string | null {
+  if (Platform.OS !== 'web') return null;
+  return `${process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ?? ''}/ops-dashboard`;
+}
 
 export interface ViewableOrganization { org_id: string; name: string; languages: string[] }
 

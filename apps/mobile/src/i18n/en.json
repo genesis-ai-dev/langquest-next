@@ -7320,7 +7320,10 @@
     "hereLabel": "Viewing now",
     "otherLabel": "Open another organization",
     "readOnly": "You’re viewing as a Global Viewer: nothing here can be changed.",
-    "linkHelp": "Where you are viewing, what you can do there, and every other organization."
+    "linkHelp": "Where you are viewing, what you can do there, and every other organization.",
+    "dashboard": "Operations dashboard",
+    "dashboardBody": "LangQuest’s services, server jobs and field diagnostics. Opens in a new tab.",
+    "dashboardHelp": "Opens LangQuest’s operations dashboard in a new tab, signed in as you."
   },
   "uploads": {
     "barRecordings_one": "{{count, number}} recording waiting to upload",
