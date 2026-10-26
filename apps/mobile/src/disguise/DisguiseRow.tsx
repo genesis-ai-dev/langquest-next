@@ -117,7 +117,7 @@ function DisguiseSheet(props: { ctx: Ctx; step: Step; setStep: (s: Step | null) 
         <Text style={txt.title}>{lookName(step.look)}</Text>
       </View>
       <Field label={t('disguise.code')} value={code} onChangeText={(v) => setCode(digitsOnly(v))} secure keyboardType="number-pad"
-        help={t('disguise.codeHelp')} onSubmit={next} />
+        help={t('disguise.codeHelp')} onSubmit={next} testID="disguise-code" />
       {step.at === 'try' ? (
         <TryCode look={step.look} code={step.code} onBack={() => setStep({ at: 'code', look: step.look })} onDone={() => void wear(step.look, step.code)} />
       ) : null}
