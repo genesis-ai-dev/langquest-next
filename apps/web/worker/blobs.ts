@@ -17,6 +17,8 @@
  */
 
 /** The bucket as this file uses it; index.ts adapts R2's binding, tests use a map. */
+import { MAX_FILE_BYTES } from '@langquest-next/core';
+
 export interface BlobBucket {
   /** The whole object, or `range` of it; null when there is none. */
   get(key: string, range?: { offset: number; length: number }): Promise<{ size: number; body: ReadableStream } | null>;
@@ -55,7 +57,7 @@ export interface BlobDeps {
 }
 
 /** The cap Supabase Storage had (supabase/config.toml), under the Worker's 100 MB request limit. */
-export const MAX_BYTES = 50 * 1024 * 1024;
+export const MAX_BYTES = MAX_FILE_BYTES;
 /** How long a read link lasts, as the signed URLs it replaces did. */
 export const URL_TTL_MS = 10 * 60 * 1000;
 

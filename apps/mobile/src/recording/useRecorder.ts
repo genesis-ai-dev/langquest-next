@@ -1,4 +1,4 @@
-import type { BlobRef } from '@langquest-next/core';
+import { RECORDING_BITRATE, type BlobRef } from '@langquest-next/core';
 import type { RecordingFile } from '../sync/blobs';
 import { AudioModule, RecordingPresets, useAudioRecorder } from 'expo-audio';
 import { holdMicrophone, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
@@ -41,7 +41,7 @@ const WEB_TYPE = WEB && typeof MediaRecorder !== 'undefined' ? preferredRecordin
 function useBrowserTakeRecorder() {
   return useAudioRecorder({
     ...RecordingPresets.HIGH_QUALITY, directory: 'document',
-    ...(WEB_TYPE ? { web: { mimeType: WEB_TYPE, bitsPerSecond: 128000 } } : {})
+    ...(WEB_TYPE ? { web: { mimeType: WEB_TYPE, bitsPerSecond: RECORDING_BITRATE } } : {})
   });
 }
 const useTakeRecorder: () => ReturnType<typeof useAudioRecorder> | null = WEB ? useBrowserTakeRecorder : () => null;

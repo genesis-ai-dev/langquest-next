@@ -3,7 +3,7 @@
 // on the page (`?lang=`), or their browser asks for a language whose app
 // catalog is approved (apps/mobile/src/i18n/languages.ts); else
 // English. A missing word falls back to English.
-import { pickLanguage, UI_LANGUAGES, type UiLanguage } from '../../../mobile/src/i18n/languages';
+import { pickLanguage, UI_LANGUAGES, type UiLanguage } from '@langquest-next/core';
 import am from './am.json';
 import ar from './ar.json';
 import bn from './bn.json';

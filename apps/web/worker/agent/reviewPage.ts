@@ -1,5 +1,4 @@
-import { DEFAULT_KINDS } from '@langquest-next/core';
-import type { UiLanguage } from '../../../mobile/src/i18n/languages';
+import { DEFAULT_KINDS, type UiLanguage } from '@langquest-next/core';
 import { fill, languageChoices, pageWords } from '../i18n/pages';
 
 /**

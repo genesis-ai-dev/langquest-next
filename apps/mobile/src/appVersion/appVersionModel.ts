@@ -10,6 +10,10 @@
  * - `none`: up to date, or nothing known yet.
  */
 
+import { compareVersions, versionParts } from '@langquest-next/core';
+
+export { compareVersions, versionParts };
+
 export type Platform = 'ios' | 'android';
 
 /** What the server says about one platform (app_versions()). */
@@ -22,23 +26,6 @@ export interface PlatformVersions {
 }
 
 export type Offer = 'none' | 'available' | 'required';
-
-/** A version as numbers, part by part: '2026.1022.1830' → [2026, 1022, 1830]. Null for anything else. */
-export function versionParts(v: string | null | undefined): number[] | null {
-  if (!v || !/^\d+(\.\d+){0,2}$/.test(v)) return null;
-  return v.split('.').map(Number);
-}
-
-/** Negative when a is older than b, positive when newer, 0 when the same (1.0 is 1.0.0). */
-export function compareVersions(a: string, b: string): number {
-  const pa = versionParts(a) ?? [];
-  const pb = versionParts(b) ?? [];
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (d !== 0) return d;
-  }
-  return 0;
-}
 
 /** What a phone running `running` should show. A version it cannot read is never stopped. */
 export function offerFor(input: { running: string | null; versions: PlatformVersions | null; dismissed: string | null }): Offer {
