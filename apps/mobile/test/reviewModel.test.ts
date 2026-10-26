@@ -3,7 +3,7 @@ import {
   answersSummary, changeNoteText, feedbackIsEmpty, gridCell, gridCellLabel, gridColumnNames, gridModel, hasFeedback, notesSummary, responseLine,
   revisedVersion, reviewDetailModel, reviewFor, skippedQuestionText, termLabel, termsTiedSummary, versionDetailModel, versionFor
 } from '../src/passage/reviewModel';
-import { gridKindIds } from '../src/passage/record';
+import { gridKindIds } from '../src/passage/recordTextModel';
 import { passageView, versionTitle } from '../src/passage/passageView';
 import { t } from '../src/i18n';
 import { ID, NAMES, passageWorld, unitOf, type WorldPassage, type WorldRole } from './passageWorld';

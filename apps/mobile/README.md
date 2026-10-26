@@ -54,7 +54,7 @@ No sync logic lives here. Screens read `state` through core derivations
 (`derivePassage`, `highlightsFor`, `languageProgress` and the rest in
 `packages/core/src/passage.ts`) and write through core `commands()`. A few
 screen models build org-partition events core has no commands for
-(`src/org/orgAdmin.ts`, `src/config/model.ts`, `src/templates/contentTemplates.ts`);
+(`src/org/orgAdmin.ts`, `src/config/model.ts`, `src/templates/contentTemplatesModel.ts`);
 they are listed in `docs/ux/demo-parity.md`.
 
 Run: the app's env files are committed and plain (they hold only public

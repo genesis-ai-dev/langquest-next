@@ -7,7 +7,7 @@ import {
   answeredQuestions, askCandidates, currentStepId, describeEntry, feedbackNames, gridKindIds, heroHeadline, historySummary,
   kindLineText, kindRowActions, kindRowSub, kindPathState, lastReviewOn, ledTo, listenersOf, madeAfter, nextQuestionType, oldKindLineText, oldStepState,
   oldStepSummary, pathState, sendTargetLabel, stepSheetSub, stepSummary, versionCaption
-} from '../src/passage/record';
+} from '../src/passage/recordTextModel';
 import { requestIsMine, sendToInput, usualTargetFor } from '../src/passage/sendTarget';
 import { hiddenText } from '../src/moderation/model';
 import { feedbackSource } from '../src/passage/passageView';

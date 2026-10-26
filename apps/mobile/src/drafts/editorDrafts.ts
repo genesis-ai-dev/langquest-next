@@ -11,7 +11,7 @@ import type { KindDef } from '@langquest-next/core';
 import type { DraftStep, QuestionDraft } from '../config/model';
 import type { TermDraft } from '../keyTerms/model';
 import type { VersificationChoice } from '../reference/materialModel';
-import type { TemplateForm } from '../templates/contentTemplates';
+import type { TemplateForm } from '../templates/contentTemplatesModel';
 import { isRecord } from './draftModel';
 
 /** An editor's unfinished changes, and the version they were begun on (null for something new). */

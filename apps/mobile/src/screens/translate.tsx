@@ -92,7 +92,7 @@ import { QuietLink, RefChips, type ChipItem } from '../recording/blocks';
 import { checkName } from '../admin/adminModel';
 import { PublishScreen, type DoneAsk } from '../recording/publish';
 import { goesWhenConnected, nextAfterDone, recordCan, sentText, usualTargets } from '../passage/recordModel';
-import { sendTargetLabel } from '../passage/record';
+import { sendTargetLabel } from '../passage/recordTextModel';
 import { sendToInput } from '../passage/sendTarget';
 import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';

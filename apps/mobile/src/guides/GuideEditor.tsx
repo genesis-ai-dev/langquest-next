@@ -59,9 +59,9 @@ import { VoiceNote } from '../audio/voiceNote';
 import {
   boldText, buildDoc, calloutText, draftFromDoc, draftProblems, draftReducer, linkText, listText, newDraft, nextId, untitledResource,
   type DraftAction, type DraftMedia, type DraftPanel, type DraftProblem, type DraftResource, type DraftStep, type DraftTerm, type GuideDraft, type Selection
-} from './draft';
+} from './draftModel';
 import { draftKey, dropDraft, guideHistoryKey, loadDraft, parseGuideHistory, saveDraft, unownedDraftKey } from './draftStore';
-import { editKey } from './draft';
+import { editKey } from './draftModel';
 import { canPickFiles, FileProblem, keepPicked, mediaKindFor, pickFile, uploadDraftFiles, type PickKind } from './files';
 import { BLANK_METHOD, FIA_METHOD, methodFromDoc, type Method } from './methods';
 

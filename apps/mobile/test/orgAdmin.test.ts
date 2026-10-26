@@ -9,13 +9,13 @@ import {
   type AnyEvent, type EventPayloads, type EventSpec, type EventType, type FlowDoc, type LibraryItemView, type OrgState, type TemplateDoc,
   type VersificationDoc
 } from '@langquest-next/core';
-import type { LibraryChoice } from '../src/templates/contentTemplates';
+import type { LibraryChoice } from '../src/templates/contentTemplatesModel';
 import {
   addLanguage, assignableLevels, booksInScope, changeMembership, grantableLanguages, grantFloor, groupBelow, inviteScope, mayGrantAt, memberEntries,
   membersAbove, membersAt, newLanguageId, progressLine, removeMembership, reviewEligible, saveTeam, similarLanguages, STARTER_FLOW, suggestedChoice,
   sumProgress, teamMembers
 } from '../src/org/orgAdmin';
-import { STARTER_TEMPLATE } from '../src/templates/contentTemplates';
+import { STARTER_TEMPLATE } from '../src/templates/contentTemplatesModel';
 
 let seq = 0;
 const clock = new HlcClock('dev1', () => 1_700_000_000_000 + seq * 1000);

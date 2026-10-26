@@ -18,8 +18,8 @@ import { timedTransfer } from '../diagnostics/diagnostics';
 import { formatNumber } from '../i18n/format';
 import { t } from '../i18n';
 import type { StudyMediaKind } from '../study/guides';
-import type { GuideDraft } from './draft';
-import { draftFiles } from './draft';
+import type { GuideDraft } from './draftModel';
+import { draftFiles } from './draftModel';
 
 /** Supabase Storage's limit for one file (supabase/config.toml). */
 const MAX_BYTES = 50 * 1024 * 1024;

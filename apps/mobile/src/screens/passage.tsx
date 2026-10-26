@@ -29,7 +29,7 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Card, Chip, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
-import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
+import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/recordTextModel';
 import { PassagePath } from '../passage/path';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';

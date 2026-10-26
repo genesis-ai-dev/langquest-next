@@ -132,7 +132,7 @@ Demo-only tools are out of scope (see above). Beyond those:
   `v1.LanguageAdded` (New Language lists the language in the organization,
   then picks its template and flow in the language's own stream, decision 63).
 - Structure: `src/orgAdmin.ts` (review teams, adding a language),
-  `src/contentTemplates.ts` (template selection and its units), and the dev
+  `src/templates/contentTemplatesModel.ts` (template selection and its units), and the dev
   seed.
 
 **Known rough edges**

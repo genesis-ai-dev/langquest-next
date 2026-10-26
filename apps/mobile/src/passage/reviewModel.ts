@@ -11,7 +11,7 @@ import { checkName } from '../admin/adminModel';
 import { currentLocale, t } from '../i18n';
 import { commaList, feedbackSource, versionTitle } from './passageView';
 import type { PassageView } from './passageView';
-import { answeredQuestions, type NameFn } from './record';
+import { answeredQuestions, type NameFn } from './recordTextModel';
 
 // ---- one review (REC-10) --------------------------------------------------------------
 

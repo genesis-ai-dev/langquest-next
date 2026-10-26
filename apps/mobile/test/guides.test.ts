@@ -2,7 +2,7 @@ import { CALLOUT_KINDS, parseRef, validateDoc, withDeps, type StudyDoc, type Stu
 import { FIA_ATTRIBUTION, FIA_STEPS } from '../../../scripts/fia-adapter';
 import {
   boldText, buildDoc, calloutText, draftFiles, draftFromDoc, draftProblems, draftReducer, linkText, listText, newDraft, nextId, type GuideDraft
-} from '../src/guides/draft';
+} from '../src/guides/draftModel';
 import { BLANK_METHOD, FIA_METHOD, methodFromDoc } from '../src/guides/methods';
 import { bestGuide, guideFromDoc, mediaFile, study2Fit } from '../src/study/guideMatch';
 import { calloutKind, studySections } from '../src/study/text';

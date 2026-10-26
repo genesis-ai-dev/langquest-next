@@ -25,7 +25,7 @@ import { C, radius, space, target, TINT, withAlpha } from '../ui/theme';
 import {
   currentStepId, kindLineText, lastReviewOn, ledTo, madeAfter, oldKindLineText, oldStepState, oldStepSummary, pathState, reviewMark,
   stepSummary, versionCaption, type NameFn, type PathState
-} from './record';
+} from './recordTextModel';
 
 /** A step's mark, as a screen reader says it. */
 function pathA11y(state: PathState): string {

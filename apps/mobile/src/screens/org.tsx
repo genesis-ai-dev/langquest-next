@@ -22,7 +22,7 @@ import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
-import type { LibraryChoice } from '../templates/contentTemplates';
+import type { LibraryChoice } from '../templates/contentTemplatesModel';
 import { deriveKinds, kindOf, licenseText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t, Trans } from '../i18n';

@@ -5,7 +5,7 @@
 // never merge: the later publish is the next version, and the editor warns
 // when a newer version was published after a draft began.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { GuideDraft } from './draft';
+import type { GuideDraft } from './draftModel';
 import { parseHistory, type History } from '../ui/undoModel';
 
 const PREFIX = 'guide-draft:v1:';

@@ -1,6 +1,6 @@
 import { languageLines } from '@langquest-next/core';
 import { describe, expect, it } from 'vitest';
-import { askCandidates, currentStepId } from '../src/passage/record';
+import { askCandidates, currentStepId } from '../src/passage/recordTextModel';
 import { pathSteps, teamSteps } from '../src/passage/pathModel';
 import {
   currentCheck, elseOptions, recordCan, recordModel, recordPathInput, rowButtons, stepSheet, teamStepsOpen, usualTargets, waitingOnAnswer

@@ -7,7 +7,7 @@ import { checkPeople, questionsForKind, type Commands, type OrgState, type Passa
 import { checkName } from '../admin/adminModel';
 import { t } from '../i18n';
 import type { PassageView } from './passageView';
-import { sendTargetLabel, type NameFn } from './record';
+import { sendTargetLabel, type NameFn } from './recordTextModel';
 import { usualTargetFor, type UsualTarget } from './sendTarget';
 
 /** The ask screen's choice of a check's whole team (decision 91), beside one person's id. */
