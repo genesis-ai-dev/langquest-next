@@ -18,7 +18,7 @@ export const GROUPS = [
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name', parts: [] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What installs report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['code', 'releases', 'expo'] },
+  { id: 'releases', title: 'Releases', src: 'main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['code', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -32,7 +32,7 @@ export const GROUPS = [
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
 export const PART_TITLES: Record<string, string> = {
   clients: 'What installs report', fleet: 'Builds in the field and stuck phones', code: 'Code and deploys', releases: 'What shipped',
-  expo: 'EAS builds and updates', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
+  expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
   integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store'
@@ -42,12 +42,13 @@ export const PART_TITLES: Record<string, string> = {
 export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
   { id: 'fleet', title: 'Builds and stuck phones', src: 'Updates in the field and their crash-free rate, versions, time to a usable Map, stuck and silent phones', wide: true },
   { id: 'releases', title: 'Release health', src: 'Merges, deploys and EAS updates over 14 days against errors; hosts; migrations against main' },
+  { id: 'adoption', title: 'Update adoption', src: 'For each channel, platform and runtime: the newest EAS update and how many active installs run it' },
   { id: 'container', title: 'Job container', src: 'Whether each server job runs now (the app Worker\'s JobStatus)' },
   { id: 'cron', title: 'Scheduled database jobs', src: 'pg_cron runs and failures, last 24 h' },
   { id: 'dbdetail', title: 'Database detail', src: 'Largest tables and indexes, dead rows, long queries and transactions' },
@@ -127,6 +128,19 @@ Object.assign(RENDER, {
     h += '<h3>Silent phones</h3><p>' + num(d.silent.count) + ' quiet for 3 days while another device of the same person reports.</p>' +
       (d.silent.installs.length ? '<p>' + d.silent.installs.map((s) => installLink(s.install) + ' <small>' + ageOf(s.lastSeen) + '</small>').join(' · ') + '</p>' : '');
     return h;
+  },
+  adoption(d) {
+    // Each row: one channel, platform and runtime the phones run. Newest is what EAS published last for exactly that.
+    const cell = (n, of, tone) => num(n) + (of ? ' <small class="' + (tone || '') + '">' + share(n, of) + '</small>' : '');
+    return table([
+      { h: 'Channel', v: (r) => esc(r.channel) + ' <small>' + esc(r.platform) + '</small>' },
+      { h: 'Runtime', v: (r) => '<code title="' + esc(r.runtime) + '">' + esc(String(r.runtime).slice(0, 8)) + '</code>' },
+      { h: 'Newest update', v: (r) => r.newest ? '<code title="' + esc(r.newest.id) + '">' + esc(r.newest.id.slice(0, 8)) + '</code>' + (r.newest.rollBackToEmbedded ? ' <small>roll back to embedded</small>' : '') + '<br><small>' + when(r.newest.at) + '</small>' : '<span class="muted">none published</span>' },
+      { h: 'Installs', n: true, v: (r) => num(r.installs) },
+      { h: 'On newest', n: true, v: (r) => cell(r.onNewest, r.installs, r.newest && r.onNewest < r.installs / 2 ? 'warn' : 'good') },
+      { h: 'Older update', n: true, v: (r) => cell(r.older, r.installs) },
+      { h: 'Embedded', n: true, v: (r) => cell(r.embedded, r.installs) }
+    ], d.rows) + '<p class="muted">Installs that reported in the last ' + num(d.activeDays) + ' days, by what they ran then; phones with diagnostics off are not counted, and browsers have no updates. A phone takes an update on its next launch after it downloads.</p>';
   },
   releases(d) {
     const m = d.migrations;
