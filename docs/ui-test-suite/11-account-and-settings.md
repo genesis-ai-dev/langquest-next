@@ -1115,6 +1115,32 @@ Expected:
   Me.
 - Neither screen shows the tab bar on a phone.
 
+### ACCT-057 A disguised phone opens on its calculator, and the code opens LangQuest
+Roles: TRANS · Priority: P1 · Platforms: iOS, Android · Run: Auto
+
+Preconditions: LangQuest's own icon (decisions.md 169). The Maestro flow
+(`flows/ACCT-057.yaml`) takes the disguise off again at the end.
+
+Steps:
+1. Tap "Me", "More settings", "App icon", then "Calculator 1".
+2. Type 2468 as the code and tap "Next".
+3. Type 2, 4, 6, 8 on the calculator. On iPhone, tap OK on the system's
+   message.
+4. Leave the app and open it again (on Android, from the new icon).
+5. Type 2, 4, 6, 8 on the calculator.
+6. Tap "Me" if it shows, "More settings", "App icon", then "LangQuest".
+
+Expected:
+- Step 2: "Type your code" over a working calculator.
+- Step 3: the disguise goes on. iOS says the icon changed and the app stays
+  on More settings, whose App icon row says "Calculator" and which shows no
+  Notifications row. Android closes the app; its launcher lists "Calculator"
+  with the calculator icon and no LangQuest Next.
+- Step 4: the calculator opens, not LangQuest; nothing of the app shows.
+- Step 5: LangQuest opens (on Android at its home screen).
+- Step 6: LangQuest's own icon is back (Android closes the app again), and
+  App icon says "LangQuest".
+
 ---
 
 ## Global Viewers
