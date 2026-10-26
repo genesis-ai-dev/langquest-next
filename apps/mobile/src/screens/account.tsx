@@ -41,7 +41,7 @@ import { personLook } from '../ui/people';
 import { noteExpected, failureMessage } from '../diagnostics/report';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
-import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../web/forgetBrowser';
+import { FORGETS_ON_SIGN_OUT, signOutAndForget } from '../web/forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../sync/handOver';
 import { choosePassword, signOutHere } from '../server/auth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
@@ -707,8 +707,7 @@ export function SignOutConfirm(ctx: Ctx) {
         await unregisterNotifications();
       }
       // This device only: your other devices stay signed in (decision 87).
-      await signOutHere();
-      await forgetThisBrowser();
+      await signOutAndForget(signOutHere);
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
   const blocked = waiting.length > 0 && !handsOver;
