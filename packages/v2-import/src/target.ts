@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { CLIENT_PROTOCOL_VERSION, type AnyEvent, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { type AnyEvent, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { OfflineError, ServerError, SupabaseTransport } from '@langquest-next/sync';
 import type { CopiedFile } from './map';
 import type { LedgerEntry } from './reconcile';
 
@@ -191,6 +192,19 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
       await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
     }
   };
+  const transport = new SupabaseTransport(db);
+  // The same retry as rpc, for the one call that goes through sync's transport.
+  const appendPage = async (page: AnyEvent[]) => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await transport.append(page);
+      } catch (e) {
+        const again = e instanceof OfflineError || (e instanceof ServerError && /^http(5\d\d|429)$/.test(e.code ?? ''));
+        if (attempt >= 5 || !again) throw new Error(`append_events: ${(e as Error).message}`);
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+      }
+    }
+  };
   return {
     plan: () => rpc<Plan>('v2_import_plan', {}),
     savePlan: (orgs, placements, by) => rpc('v2_import_save_plan', { p_orgs: orgs, p_placements: placements, p_by: by }),
@@ -229,8 +243,7 @@ export function supabaseTarget(db: SupabaseClient, files: BlobFilesLike): Target
       const out = { accepted: 0, duplicates: 0, rejected: [] as { id: string; reason: string }[] };
       for (let i = 0; i < events.length; i += 200) {
         const page = events.slice(i, i + 200);
-        const data = await rpc<{ id: string; accepted: boolean; reason: string | null }[]>('append_events', { p_events: page, p_client_version: CLIENT_PROTOCOL_VERSION });
-        for (const r of data) {
+        for (const r of await appendPage(page)) {
           if (!r.accepted) out.rejected.push({ id: r.id, reason: r.reason ?? 'unknown' });
           else if (r.reason === 'duplicate') out.duplicates += 1;
           else out.accepted += 1;
