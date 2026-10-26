@@ -63,20 +63,24 @@ export class AgentOrg {
     private readonly orgId: string,
     private readonly deps: {
       append(events: AnyEvent[]): Promise<AppendResult[]>; sign: Signer; now?: () => number; webhooks?: WebhookDispatcher;
-      /** A language's records, caught up to the log's head (`LanguageRecordsKeeper.records`). */
-      records(languageId: string): Promise<LanguageRecords>;
+      /**
+       * A language's records. `fresh`: caught up to the log's head now (`LanguageRecordsKeeper.records`); otherwise
+       * the object may answer from what it checked a few seconds ago, which is what a read needs.
+       */
+      records(languageId: string, fresh: boolean): Promise<LanguageRecords>;
     }
   ) {}
 
   /**
    * A language the organization lists, caught up now: the organization
    * stream alone (no language is folded for it) and the language's records.
-   * Null when the organization does not list it.
+   * Null when the organization does not list it. A write, or a read of
+   * what was just written, passes `fresh`: it must see the log as it is.
    */
-  private async language(languageId: string): Promise<{ org: OrgState; records: LanguageRecords } | null> {
+  private async language(languageId: string, fresh = false): Promise<{ org: OrgState; records: LanguageRecords } | null> {
     const org = await this.folder.orgOnly();
     if (!languageInfo(org, languageId)) return null;
-    return { org, records: await this.deps.records(languageId) };
+    return { org, records: await this.deps.records(languageId, fresh) };
   }
 
   private now() {
@@ -120,7 +124,7 @@ export class AgentOrg {
   }
 
   async write(grant: Grant, w: AgentWrite): Promise<Answer<{ eventId: string; duplicate: boolean; passage: PassageDetail | null } | ExternalValueOut | { key: string; deleted: true }>> {
-    const held = await this.language(w.languageId);
+    const held = await this.language(w.languageId, true);
     if (!held) return no({ status: 404, code: 'no_language', error: 'This token cannot open that language.' });
     if (w.op === 'externalValue') return this.storeValue(grant, held, w);
     const ctx = { grant, org: held.org, records: held.records, languageId: w.languageId, unitId: w.unitId, now: this.now() };
@@ -132,7 +136,7 @@ export class AgentOrg {
     const appended = await this.append(event);
     if (!appended.ok) return appended;
     // Read it back so the answer already shows it.
-    const after = await this.language(w.languageId);
+    const after = await this.language(w.languageId, true);
     const passage = after ? await passageFor(grant, grant.orgId, w.languageId, after.records, w.unitId, this.deps.sign) : null;
     return yes({ eventId: event.id, duplicate: appended.data, passage: passage && !isRefusal(passage) ? passage : null });
   }
@@ -146,7 +150,7 @@ export class AgentOrg {
     }
     const appended = await this.append(event);
     if (!appended.ok) return appended;
-    const after = await this.language(w.languageId);
+    const after = await this.language(w.languageId, true);
     if (w.data === null) return yes({ key: w.key, deleted: true as const });
     const value = after ? externalValueFor(after.records.shared, w.key) : null;
     return value && !isRefusal(value) ? yes(value) : no({ status: 502, code: 'unavailable', error: 'Stored, but it could not be read back just now. Read the key again.' });
@@ -228,7 +232,7 @@ export class AgentOrg {
   }
 
   async linkReview(link: ReviewLink, input: LinkReviewInput): Promise<Answer<{ duplicate: boolean }>> {
-    const held = await this.language(link.languageId);
+    const held = await this.language(link.languageId, true);
     if (!held) return no({ status: 404, code: 'gone', error: 'This passage is no longer here.' });
     const event = await linkReviewEvent(link, held.org, held.records, input, this.now());
     if (isRefusal(event)) return no(event);
@@ -236,7 +240,7 @@ export class AgentOrg {
     const appended = await this.append(event);
     if (!appended.ok) return appended;
     // Pull it now: the per-link counts read the log, and the next answer from this browser must see this one.
-    await this.language(link.languageId);
+    await this.language(link.languageId, true);
     return yes({ duplicate: appended.data });
   }
 
