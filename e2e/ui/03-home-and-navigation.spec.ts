@@ -747,7 +747,8 @@ test('NAV-095 The sync chip on My Work', async ({ page }) => {
   await open(page, 'TRANS');
   await page.context().setOffline(true);
   await syncNow(page).catch(() => undefined);
-  await expect(button(page, 'Offline')).toBeVisible({ timeout: 60_000 });
+  // Others' recordings may still be coming down: the icon then says so after the state (decision 165).
+  await expect(button(page, /^Offline(, receiving recordings)?$/)).toBeVisible({ timeout: 60_000 });
   await button(page, /^\d+ more for you$/).click();
   await text(page, label('P-NEW')).click();
   await text(page, 'Something else?').click();

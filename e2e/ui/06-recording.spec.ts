@@ -638,6 +638,8 @@ test('REC-025 Web: closing the tab while recording asks first', async ({ page, c
   // clock and says a part more on a slow machine, so a count of exactly one new part was never certain.
   const m = mic(page);
   await m.mode('tone');
+  // In syllables: the tone goes on through the reload's question, and a steady one long enough becomes the room (decision 125).
+  await m.syllables(true);
   await m.speak(false);
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
@@ -650,6 +652,7 @@ test('REC-025 Web: closing the tab while recording asks first', async ({ page, c
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
   await say(page, 2500); // the part said, then the quiet that ends it
   await expectParts(page, before + 1, 8_000);
+  await m.syllables(false);
   await leaveSession(page);
   // Idle, with nothing left to send (else the leave guard asks, storageGate.tsx), a reload asks nothing.
   await expectUploaded(page, w);
@@ -867,6 +870,14 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   const dBox = (await divider.boundingBox())!;
   expect(dBox.height, 'the divider\'s touch area').toBeGreaterThanOrEqual(48);
   const drag = async (toY: number) => {
+    // The divider glides to a new stop: a press taken mid-glide misses it on a slow machine, so wait for it to rest.
+    let lastY = Number.NaN;
+    await expect.poll(async () => {
+      const y = (await divider.boundingBox())?.y;
+      const resting = y === lastY;
+      lastY = y ?? Number.NaN;
+      return resting;
+    }).toBe(true);
     const b = (await divider.boundingBox())!;
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
     await page.mouse.down();
@@ -1185,7 +1196,8 @@ test('REC-056 Record between two parts with the mark on the line; Undo takes the
 /** Back to a screen with the tab bar (each tap goes back one screen). */
 async function toTabs(page: Page): Promise<void> {
   for (let i = 0; i < 5; i++) {
-    await expect(tab(page, 'map').or(back(page))).toBeVisible();
+    // A screen can show both (a pushed page over the tabs on a wide layout): either will do.
+    await expect(tab(page, 'map').or(back(page)).first()).toBeVisible();
     if (await tab(page, 'map').isVisible()) break;
     await back(page).click();
   }
