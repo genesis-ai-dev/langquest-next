@@ -145,10 +145,6 @@ begin
   -- limits
   v := diag.ops_limits();
   if (v->>'v2SignInFailures24h')::int < 1 or (v->>'installsAtDiagCap')::int < 1 then raise exception 'ops_limits: %', v; end if;
-  -- ops_limits and public.diag_ingest use one cap: diag_ingest's literal is the cap function's answer.
-  if pg_get_functiondef('public.diag_ingest'::regproc) not like '%v_day_count >= ' || diag._ingest_day_cap() || '%' then
-    raise exception 'diag_ingest no longer caps an install at diag._ingest_day_cap() (%) records a day', diag._ingest_day_cap();
-  end if;
 
   -- sizes
   v := diag.ops_sizes();
@@ -182,6 +178,13 @@ begin
   if not (v ? 'statements') or v->>'database' is null then raise exception 'ops_counts_since: %', v; end if;
 end $$;
 reset role;
+-- ops_limits and public.diag_ingest use one cap: diag_ingest's literal is the cap function's answer
+-- (checked as the owner: diag_reader reaches the cap only through ops_limits, which runs as its definer).
+do $$ begin
+  if pg_get_functiondef('public.diag_ingest'::regproc) not like '%v_day_count >= ' || diag._ingest_day_cap() || '%' then
+    raise exception 'diag_ingest no longer caps an install at diag._ingest_day_cap() (%) records a day', diag._ingest_day_cap();
+  end if;
+end $$;
 -- ops_cron holds no job's command text (checked as the owner, who can read cron.job).
 do $$ begin
   if exists (select 1 from cron.job j where length(j.command) > 12 and strpos(diag.ops_cron()::text, j.command) > 0) then
