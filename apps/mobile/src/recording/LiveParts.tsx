@@ -14,7 +14,7 @@
 // pane's status row says what is happening. While recording it is hidden
 // from screen readers; stopped, each box is a button with its actions.
 // `tone` is the ground it sits on: the red recording pane, or a white card.
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { PanResponder, Platform, StyleSheet, View, type AccessibilityActionEvent, type GestureResponderEvent } from 'react-native';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Text } from '../ui/text';
@@ -114,10 +114,7 @@ export function LiveParts(props: {
       ))}
       <View style={styles.bars} pointerEvents="none">
         {bars.map((bar, i) => (
-          <View key={i} style={styles.slot}>
-            {bar.quiet !== null ? <View style={[styles.band, { height: `${liveHeight(bar.quiet) * 100}%`, backgroundColor: ink.band }]} /> : null}
-            <View style={[styles.bar, { height: `${Math.max(2, liveHeight(bar.db) * 100)}%`, backgroundColor: ink.bar[bar.kind] }]} />
-          </View>
+          <BarSlot key={i} level={percent(bar.db)} quiet={bar.quiet === null ? null : percent(bar.quiet)} color={ink.bar[bar.kind]} band={ink.band} />
         ))}
       </View>
       {editing ? boxes.map((b) => <BoxTools key={`tools-${b.index}`} box={b} bw={bw} size={size} ink={ink} />) : null}
@@ -135,6 +132,19 @@ export function LiveParts(props: {
     </View>
   );
 }
+
+/** A height in whole percents: a bar is drawn at one, and a bar that did not change by one is not drawn again. */
+const percent = (db: number) => Math.round(liveHeight(db) * 100);
+
+/** One bar of the waveform; props are plain values so a bar that looks the same as before is skipped. */
+const BarSlot = memo(function BarSlot(props: { level: number; quiet: number | null; color: string; band: string }) {
+  return (
+    <View style={styles.slot}>
+      {props.quiet !== null ? <View style={[styles.band, { height: `${props.quiet}%`, backgroundColor: props.band }]} /> : null}
+      <View style={[styles.bar, { height: `${Math.max(2, props.level)}%`, backgroundColor: props.color }]} />
+    </View>
+  );
+});
 
 /** A stopped box's handles: its edges, and the × that drops it. Drawn only; the waveform takes the touches. */
 function BoxTools(props: { box: LiveBox; bw: number; size: { w: number; h: number }; ink: (typeof TONES)[Tone] }) {

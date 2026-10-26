@@ -1709,6 +1709,13 @@ every request, so values are kept in memory once read; an entry the Keystore
 can no longer read counts as signed out. Test
 `apps/mobile/test/secureStorage.test.ts`.
 
+Amended (2026-10-26, Caleb Koster): with a lock on the phone (168), the
+session a hand-over keeps is sealed for its owner too. When the courier has
+sent everything it no longer ends that session: it seals the newest copy and
+drops the key, so the person can still come back to this phone offline.
+Coming back from the lock takes the session back from the courier without
+ending it, after any delivery under way stops (`takeBackHandOver`).
+
 ## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -1942,6 +1949,14 @@ organization by its name or any language it lists
 matches. Offline, the saved list is searched as before. The UI test suite
 found this (JRN-005) once the local database listed more than 500.
 
+Amended (2026-10-26, Carl Sauder): an organization's name is read from the
+table `org_names` (the latest `v1.OrgCreated` or `v1.OrgRenamed` by hlc and
+id, kept by a trigger on `events` and filled from the log by migration
+`20261026170700_org_names.sql`), not found by sorting its name events for
+every organization in a listing. `org_name()`, `listed_organizations`,
+`listed_organizations_search` (now by trigram index) and
+`global_viewer_organizations` (158) read it; their results are unchanged.
+
 ## 67. Whoever holds Invite may invite and admit people, with or without an email of their own
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -2043,6 +2058,17 @@ Amended (2026-10-20, Carl Sauder): a local stack no longer keeps the Edge
 pass: it runs the pass in the job container too, its tick fired every
 minute by `npm run web:dev`, and push delivery's function is
 `push-delivery` (148).
+
+Amended (2026-10-26, Carl Sauder): the pass no longer folds a language again
+because its organization's stream moved. A mark keeps a fingerprint of what
+the language's projection reads from the organization (who may open it, its
+name and code, the licence: `orgFingerprint` in `server/projectionWorker.ts`,
+`projection_marks.org_fp`); an organization event that leaves it equal (an
+invite, a role nobody holds, a join decided for another language) only
+moves the mark's `org_seq`. A projection that starts to read something more
+from the organization must put it in the fingerprint or bump
+`PROJECTION_VERSION`. The pass also reads one snapshot row per stream
+(`snapshot_heads_page`) and only the listed languages' visibility rows.
 
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
@@ -3329,6 +3355,15 @@ never held their sign-in without the server.
 Reverse if: a phone keeps acting for an account the server has ended
 (then end it on the first refusal of its requests), or Supabase Auth
 starts answering a lasting refusal with a status this treats as passing.
+
+Amended (2026-10-26, Caleb Koster): app start read the saved sign-in from
+AsyncStorage, where it no longer is once 60 (amended 2026-10-15) moved it to
+the Keychain and Keystore; from then on a phone opened offline an hour after
+its last connection showed Sign In. It now reads it where supabase-js keeps
+it (`savedSignIn`, test `apps/mobile/test/savedSignIn.test.ts`). On a phone,
+signing out no longer ends the session on the server and the sign-out screen
+no longer says signing back in needs a connection: the session is locked on
+the phone instead (168). A browser keeps both as before.
 
 ## 88. A language's server snapshot is written after 200 new events or an hour, and the one before stays for 24 hours
 
@@ -4758,7 +4793,7 @@ Reverse if: a client must issue invites or decide requests offline; then
 
 ## 115. An event is at most 64 KB, and an account creates at most 5 organizations a day and 20 in all
 
-Date: 2026-10-15 · By: Carl Sauder · Status: partly superseded by 168
+Date: 2026-10-15 · By: Carl Sauder · Status: partly superseded by 169
 
 Reason: a security audit found that `append_events` limited a push to 500
 events (invariant 12) but not their size, so one member could push notes
@@ -4921,6 +4956,18 @@ step to take through the repo's Supabase config (`docs/cloudflare.md`).
 Reverse if: a removal must cut access at once (a takedown, say); then drop
 the access cache, or clear it from the event that removes the member.
 
+Amended (2026-10-26, Carl Sauder): three more answers are kept per isolate,
+on the same terms (performance-audit-2026-10-26.md item 10). The agent API's
+token records, keyed by the token's hash, for 15 s, so a revoked token can
+still be used for up to 15 s from an isolate that already read it, and the
+last-used write no longer holds up the response (`ctx.waitUntil`). A
+person's organizations, for the reports route only, for 30 s, so someone
+removed from an organization may read its reports for up to 30 s; /connect
+and links still ask each time. Agent reads trust the organization's stream
+heads for up to 3 s and pull only when a head moved past what the object
+holds; writes and the read after a write still pull. Reverse if: as above,
+or an agent must see another writer's work within a second.
+
 ## 122. Inactive Inbox rows are deleted 30 days after they went inactive
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
@@ -4971,6 +5018,16 @@ language (`countryName()` is synchronous; they now ride in the Reports
 file). Reverse if: a lazy screen's first open is slow enough for people to
 notice on the slowest partner phone, or the web's background fetch competes
 with a first sync on slow links; then move that screen back, or fetch later.
+
+Amended (2026-10-26, Carl Sauder): both budgets lowered, to 3.9 MiB for a
+first visit and 4.75 MiB in all. lucide's entry re-exports every one of its
+1,800-odd icons and Metro does not shake out the ones no file uses, so the
+main file carried 1.5 MB of icons for the 91 the app draws. Icons now come
+one file each through `apps/mobile/src/ui/icons.ts`, and lint refuses the
+package's entry elsewhere (`noIconBarrel`, `eslint.config.mjs`). A first
+visit went from 5.70 to 3.71 MiB and every file together from 6.54 to 4.54
+(performance-audit-2026-10-26.md item 1). The budgets keep about 5% of
+room, as above, so the space is spent on purpose rather than by drift.
 
 ## 124. You choose where the next part is recorded, a whole thing asks before it is deleted, and a deleted version is a tombstone
 
@@ -6650,6 +6707,25 @@ Putting an entry twice is a join, so a passage that also read those rows
 from disk loses nothing. `keptFill.test.ts` holds the write open while the
 passage opens.
 
+Amended (2026-10-26, Carl Sauder): three storage changes, none of which
+changes what a phone receives (migration
+`20261026170800_snapshot_cut_storage.sql`). `put_snapshot` counts each
+passage's rows once and keeps them on the snapshot (`snapshots.unit_counts`),
+so `get_snapshot_head` reads them instead of counting every unit row on a
+cold open (a cut from before is counted as it was until its next snapshot;
+the migration fills the existing ones). `snapshot_units_staged` is
+unlogged: its rows live minutes and are written again into `snapshot_units`,
+so keeping them out of the WAL takes about a third off a snapshot's write;
+a crash empties it and the next visit stages the cut again. Lines keep a
+digest (`passage_lines.digest`) and the pass sends only the lines whose
+digest differs from the stored one, and the ids of passages that have none
+(`passage_line_digests`, `put_passage_lines_delta`); `put_passage_lines`
+remains for a pass that cannot read the digests, and now finds the lines to
+drop by a join rather than a scan per stored line. Not changed: the staged
+rows are still inserted into `snapshot_units` and the old ones deleted, since
+the table is keyed by the snapshot's seq and a new seq is a new row;
+decision 88's retention is as it was.
+
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
@@ -6715,6 +6791,18 @@ that run's function secret and its Vault write, a minute's push may be
 refused and is delivered the next minute. A local stack's
 `supabase/functions/.env` keeps its value under the new name
 (`scripts/local-db.mjs`).
+
+Amended (2026-10-26, Carl Sauder): the push delivery job no longer calls the
+Edge Function every minute whatever is queued. Each minute it asks
+`push_work_waiting()` (a notification a claim could take, or a push receipt
+old enough to read) and posts only if so, so `diag.job_schedule` gives it no
+schedule (it runs when there is work, like the webhook dispatch). Another
+daily job drops `cron.job_run_details` rows over seven days old. The claim
+is driven from the people who have a push token (index
+`notifications_push_person`) instead of walking past every notification of
+someone without one. The schedule is now
+`20261026170400_push_delivery_when_waiting.sql`, which `npm run secrets`
+runs again. Audit: `docs/performance-audit-2026-10-26.md` item 11.
 
 ## 149. A reviewer notes a moment of the recording, a help, a key word, a verse or a note, and every note goes with the review and its verdict
 
@@ -7775,7 +7863,83 @@ slow file's tests, or give it its own runner), or Stryker learns to keep
 partial results, so one job could carry on from where the last night
 stopped.
 
-## 168. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
+## 168. Signing out of a phone locks the sign-in on it, and a picture and pattern, or the password, opens it again offline
+
+Date: 2026-10-26 · By: Caleb Koster · Status: accepted
+
+Reason: amends 60 and 87. Every way into the app needed the server (a
+password, a helper's code, an invite), so someone who signed out offline
+could not get back in, or reach the work kept on the phone, until it was
+online, which in the field can be months; on a shared phone nobody else
+could get in either. Caleb said (2026-10-12) that signing out and back in
+must both work offline: field users will tap Sign Out, and in countries
+where Christians are persecuted they may do so on purpose before a phone is
+taken. Of the options put to him then he chose an encrypted lock with no
+names on Sign In, a swipe pattern rather than digits, and a picture for each
+person to find themselves by. That work (pull request 90) was merged into a
+branch that had already reached main, so it never shipped; Caleb asked
+(2026-10-26) for it on main, with nothing lost and nobody signed out. Little
+research covers low-literacy users: less-literate smartphone users already
+lock their phones with a PIN or a pattern; patterns are faster and liked,
+PINs give fewer errors; text-free designs suit non-literate users. A pattern
+needs no reading and no numbers, in any language. Chosen:
+- On a phone, Sign Out seals the person's session (AES-256-GCM) with a
+  random data key the phone keeps for them while they are signed in, and
+  keeps that key only wrapped under their password and, if they drew one, a
+  pattern (PBKDF2-SHA256, 10,000 rounds stored per wrap; `@noble/hashes`,
+  `@noble/ciphers`) (`apps/mobile/src/auth/sealModel.ts`,
+  `apps/mobile/src/server/lock.ts`; the web build takes `lock.web.ts`, which
+  does nothing). The lock, the key and the sealed session
+  live in the Keychain or Keystore with the session (60, amended
+  2026-10-15). It asks the server nothing and no longer ends the session
+  there. Neither the password nor the pattern is stored; an email or sign-in
+  name is kept only as a hash salted per phone. The rounds are few on
+  purpose: plain JavaScript is slow at them (50,000 took 15 seconds on the
+  simulator's debug build, 10,000 took 3), and against a copied lock the
+  patterns fall whatever the count. The stretching pauses on a timer, so
+  "Signing in…" shows and the screen does not freeze.
+- The password wrap is made on every online sign-in with a password and
+  when a password is set (`rememberPassword`); the same password typed
+  again brings back the key it wrapped, so a pattern stays good. Someone
+  with no password here (a QR join, a helper's code, or signed in before
+  this build) chooses a picture and draws a pattern twice when they first
+  sign out; anyone may add or change one there. Two people on one phone
+  never share a picture (sixteen things known everywhere, drawn by the
+  phone's emoji font); they may share a pattern, since the picture says
+  whose lock to open.
+- A pattern joins at least five of nine dots, as on the Android lock screen
+  (`apps/mobile/src/auth/patternPad.tsx`): dragging and lifting finishes it;
+  tapping the dots one at a time and then Done works too, which is also how
+  a screen reader enters one.
+- Sign In tries a typed password against the lock before the server. While
+  someone here can come back with a pattern it shows their pictures, never
+  names: tap yours, then draw (`signBackIn`). Wrong guesses count for that
+  person's lock: four are free, then each try waits twice as long, from a
+  minute up to an hour. Words that explain any of this are in help mode,
+  not on the screen.
+- Unsent work stays as 60 has it: a hand-over still sends it as its author
+  when the phone is online, and its kept session is sealed too. Coming back
+  takes the session back from the courier (`takeBackHandOver`); after the
+  courier is done the session stays sealed for its owner instead of being
+  ended. A session the server ended takes the lock's copy with it.
+- Signing in again here by any other way drops an older sealed session of
+  theirs (`signedInHere`). A browser forgets everything on sign-out (11), as
+  before.
+What it guards against: the next person on a shared phone, and someone who
+takes the phone and tries patterns in the app. Someone who gets past the
+Keychain or Keystore and copies the lock can try all of about 390,000
+patterns as fast as their computer allows, so a pattern then holds for
+hours, a long password much longer; a pattern is also easier to see over a
+shoulder than a PIN. A helper marking the phone lost (59) ends the session
+on the server the next time the phone is online. Nothing new leaves the
+phone, so no store answer changes (`docs/play-store-declarations.md`).
+Tests `apps/mobile/test/lockModel.test.ts`, `lockFlow.test.ts`,
+`handOverSend.test.ts`.
+Reverse if: people forget their pattern more often than they come back with
+it (then offer a helper's code first), or a locked phone is opened by
+someone it does not belong to (then a larger grid, or a server-held key).
+
+## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
 
 Date: 2026-10-26 · By: Carl Sauder · Status: accepted
 

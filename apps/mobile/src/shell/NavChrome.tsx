@@ -4,7 +4,7 @@
 // The same tabs, badges and lit tab in each; only the layout changes.
 // The simple redesign's tabs (decision 71, demo ADR-032): Work (a list), Map
 // (a book), Manage (the gear), Me (a person).
-import { Book } from 'lucide-react-native';
+import { Book } from '../ui/icons';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';

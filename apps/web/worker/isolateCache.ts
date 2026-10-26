@@ -146,3 +146,26 @@ export function cachedGlobalViewerOn(ask: (profileId: string) => Promise<boolean
   };
 }
 
+
+/** How long an isolate trusts an access token's record (audit 2026-10-26, item 10). A revocation reaches a busy isolate within this. */
+export const TOKEN_TTL_MS = 15_000;
+/** How long an isolate trusts a person's list of organizations; decision 121 accepted a minute for file access. */
+export const ORGS_TTL_MS = 30_000;
+
+/**
+ * The organizations a person is in, asking `ask` once per person within 30 s
+ * (phones poll reports, and each poll asked the database). Errors are not
+ * cached. Accepted trade-off: a person just added or removed sees the old
+ * list for up to 30 s from the isolates that already answered for them; the
+ * reports object still checks the caller itself.
+ */
+export function cachedOrgsOf(ask: (profileId: string) => Promise<string[]>, now: () => number = Date.now) {
+  const cache = new TtlCache<string[]>(MAX_ENTRIES, now);
+  return async (profileId: string): Promise<string[]> => {
+    const known = cache.get(profileId);
+    if (known) return known;
+    const orgs = await ask(profileId);
+    cache.set(profileId, orgs, now() + ORGS_TTL_MS);
+    return orgs;
+  };
+}

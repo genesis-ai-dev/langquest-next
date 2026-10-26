@@ -258,7 +258,7 @@ select pg_temp.refused(pg_temp.ev('gr-g4', '_org', 'gr-owner', 'v1.RoleRetired',
 select pg_temp.accepted(pg_temp.ev('gr-g5', '_org', 'gr-owner', 'v1.MemberAdded', '{"profileId":"gr-coord","roleId":"org_admin","scope":{"level":"org"}}'), 'a second admin');
 select pg_temp.accepted(pg_temp.ev('gr-g6', '_org', 'gr-owner', 'v1.MemberRemoved', '{"profileId":"gr-owner","scope":{"level":"org"}}'), 'an admin leaving another behind');
 
--- 12. What one account writes dated one day (decisions.md 168): what was
+-- 12. What one account writes dated one day (decisions.md 169): what was
 -- taken counts, on the day of the event's own clock but never before the
 -- account was made; an event over the allowance is refused on its own; the
 -- service role is not counted.

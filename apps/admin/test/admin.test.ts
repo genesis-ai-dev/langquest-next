@@ -70,6 +70,28 @@ describe('who may open the ops dashboard', () => {
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 
+  it('answers a page load\'s parallel calls with one question to each, not one per call', async () => {
+    const fetcher = authFetch({ good: VIEWER }, { good: 'on' });
+    const all = await Promise.all(Array.from({ length: 14 }, () => access(req('good'), env, fetcher)));
+    expect(all.every((a) => a.ok)).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not keep a failed question: the next call asks again', async () => {
+    let fail = true;
+    const inner = authFetch({ good: VIEWER }, { good: 'on' });
+    const fetcher = vi.fn(async (...args: Parameters<typeof fetch>) => {
+      // Slow enough that the second call arrives while the first is still waiting.
+      await new Promise((r) => setTimeout(r, 20));
+      return fail ? new Response('{}', { status: 502 }) : inner(...args);
+    }) as unknown as typeof fetch;
+    const together = await Promise.all([access(req('good'), env, fetcher), access(req('good'), env, fetcher)]);
+    expect(together.map((a) => a.ok)).toEqual([false, false]);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    fail = false;
+    expect(await access(req('good'), env, fetcher)).toEqual({ ok: true, profileId: VIEWER });
+  });
+
   it('asks the database as the person, so it reads their own session\'s level', async () => {
     const fetcher = authFetch({ good: VIEWER }, { good: 'on' });
     await access(req('good'), env, fetcher);

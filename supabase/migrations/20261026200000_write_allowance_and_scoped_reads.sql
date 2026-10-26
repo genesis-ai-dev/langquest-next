@@ -1,5 +1,5 @@
 -- What one account may write, and what a language's member may read
--- (decisions.md 168). A security audit (2026-10-26) found:
+-- (decisions.md 169). A security audit (2026-10-26) found:
 --
 -- 1. append_events and record_user_event bounded each event (decisions.md
 --    115) but not how many, so any account, and sign-up is open, could fill
@@ -134,8 +134,9 @@ begin
   if jsonb_array_length(p_events) > 500 then
     raise exception 'batch too large: % events (max 500); page the push', jsonb_array_length(p_events) using errcode = '22023';
   end if;
-  if v_actor is not null then
-    select (u.created_at at time zone 'utc')::date into v_made from auth.users u where u.id::text = v_actor;
+  -- By the primary key (a profile that is not a uuid is no account).
+  if v_actor ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    select (u.created_at at time zone 'utc')::date into v_made from auth.users u where u.id = v_actor::uuid;
   end if;
 
   for ev in select * from jsonb_array_elements(p_events) loop
@@ -276,7 +277,7 @@ begin
       end if;
     end if;
 
-    -- What one account writes dated one day (decisions.md 168): the day on
+    -- What one account writes dated one day (decisions.md 169): the day on
     -- the event's own clock, so work done offline goes up when it reaches
     -- the server, but never before the account was made.
     if v_actor is not null then

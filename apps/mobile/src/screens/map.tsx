@@ -12,7 +12,7 @@
 // book, plus search and filters that narrow to counts first (ADR-009).
 // Progress is several counts, never one number (ADR-004).
 import { languageName, libraryItemView, percent, progressOf, unitTitle, type KindDef, type LanguageProgress, type PassageGlance, type LanguageState } from '@langquest-next/core';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { canonBook, chapterStage, countFilters, isMapFilter, MAP_FILTERS, type MapFilter, type Testament } from '../reference/canon';
@@ -455,6 +455,11 @@ export function MapHome(ctx: Ctx) {
   const counts = useMemo(() => countFilters(entries.map((e) => e.s)), [entries]);
   const progress = useMemo(() => (state ? progressOf(ctx.language.lines, indexesFor(state).passages, state) : null), [state, ctx.language.lines]);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
+  // The search runs on the query a beat behind the field, so typing never waits on a long language's passages.
+  const searched = useDeferredValue(query);
+  const found = useMemo(() => mapSearch(searched, books, entries), [searched, books, entries]);
+  // New Testament first (demo Map), then Old.
+  const shelf = useMemo(() => mapShelf(books, filter, testament), [books, filter, testament]);
 
   const language = languageId ? languageName(ctx.org.state, languageId) : t('map.home.title');
   const outline = isOutline(entries, waiting);
@@ -522,9 +527,8 @@ export function MapHome(ctx: Ctx) {
     );
   }
 
-  const { searching, byChapter, bookHits, passageHits } = mapSearch(query, books, entries);
-  // New Testament first (demo Map), then Old.
-  const { testaments, shownTestament, visible, other } = mapShelf(books, filter, testament);
+  const { searching, byChapter, bookHits, passageHits } = found;
+  const { testaments, shownTestament, visible, other } = shelf;
   const summary = [
     t('map.home.summary', { recorded: fmt(progress.recorded), total: fmt(progress.total), done: fmt(progress.done), waiting: fmt(progress.waiting) }),
     ...(about ? [about] : [])

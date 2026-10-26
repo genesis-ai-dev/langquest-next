@@ -27,8 +27,11 @@ import {
 export interface DispatchDeps {
   store: Pick<AgentStore, 'liveWebhooks' | 'webhooksByIds' | 'disableWebhooks'>;
   orgState(): Promise<OrgState>;
-  /** A language's records, caught up now; null when the organization does not list it (decisions.md 147). */
-  languageRecords(languageId: string): Promise<LanguageRecords | null>;
+  /**
+   * A language's records, caught up now; null when the organization does not list it (decisions.md 147).
+   * `head` is the newest seq the scan saw for it, so records already kept that far are not pulled again.
+   */
+  languageRecords(languageId: string, head?: number): Promise<LanguageRecords | null>;
   /** Each stream's newest server seq, or null when it cannot be read; a language that has not moved is not compared again. */
   heads(): Promise<Record<string, number> | null>;
   fetch(url: string, init: RequestInit): Promise<Response>;
@@ -117,7 +120,7 @@ export class WebhookDispatcher {
   private async catchUp(languageId: string, head: number | undefined): Promise<void> {
     const row = this.db.exec('select head from wh_lang where language_id = ?', languageId).toArray()[0];
     if (row && head !== undefined && head <= Number(row['head'])) return;
-    const records = await this.deps.languageRecords(languageId);
+    const records = await this.deps.languageRecords(languageId, head);
     if (!records) return;
     const next = await digestOfRecords(records);
     const key = `webhooks:digest:${languageId}`;

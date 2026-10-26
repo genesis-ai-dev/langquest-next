@@ -1,5 +1,6 @@
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { SESSION_KEY, signOutHere, supabase, supabaseConfigError } from './supabase';
+import { secureStorage } from './secureStorage';
 import { signingOutByChoice } from '../auth/signOutCause';
 
 /** Where the session is kept on this device (sessionKey.ts), and why this build cannot reach a server, if it cannot. */
@@ -16,6 +17,16 @@ export function signUp(email: string, password: string) {
 /** Sign in with a session made elsewhere: a v2 account, a sign-in code, an invite. */
 export function setSession(session: { access_token: string; refresh_token: string }) {
   return supabase.auth.setSession(session);
+}
+
+/**
+ * The sign-in saved on this device, as stored, whether or not it can be
+ * renewed right now (authState.ts, decision 87). It is read where
+ * supabase-js keeps it: on a phone the Keychain or Keystore (decision 60,
+ * amended 2026-10-15), never the AsyncStorage it moved out of.
+ */
+export function savedSignIn(): Promise<string | null> {
+  return secureStorage.getItem(SESSION_KEY);
 }
 
 /** The session this device holds now, or null. */

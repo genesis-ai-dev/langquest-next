@@ -19,6 +19,13 @@ export interface ReconcilerDeps {
   streams(): Promise<{ orgId: string; streamId: string }[]>;
   transport: Transport;
   listObjects(orgId: string, streamId: string): Promise<BlobObject[]>;
+  /**
+   * Does the stream's log hold any BlobStored? When it does not, no object
+   * can already be confirmed and the stream need not be folded to find out
+   * (an organization's or a person's stream, a language nobody has uploaded
+   * to). Absent: assume it does.
+   */
+  hasStoredBlobs?(orgId: string, streamId: string): Promise<boolean>;
   download(o: BlobObject): Promise<Uint8Array>;
   remove(o: BlobObject): Promise<void>;
   recordBlob(orgId: string, streamId: string, hash: string, size: number): Promise<void>;
@@ -53,8 +60,14 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
   const report: ReconcileReport = { streams: 0, objects: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [] };
   for (const { orgId, streamId } of await deps.streams()) {
     report.streams += 1;
-    const state = await foldStream(deps.transport, orgId, streamId, opts.pageSize ?? 1000);
-    for (const o of await deps.listObjects(orgId, streamId)) {
+    // The files first: a stream with none has nothing to confirm or verify, so it is not folded.
+    const objects = await deps.listObjects(orgId, streamId);
+    if (objects.length === 0) continue;
+    const state = (await deps.hasStoredBlobs?.(orgId, streamId)) === false
+      ? emptyLanguageState()
+      : await foldStream(deps.transport, orgId, streamId, opts.pageSize ?? 1000);
+    const unconfirmed: BlobObject[] = [];
+    for (const o of objects) {
       report.objects += 1;
       if (opts.verify) {
         // A failed fetch is not evidence of corruption. Skip, report, retry next pass.
@@ -75,13 +88,35 @@ export async function reconcileBlobs(deps: ReconcilerDeps, opts: { verify: boole
         }
       }
       const verdict = state.blobs[o.hash];
-      if (!isStored(state, o.hash) || verdict?.size !== o.size) {
-        await deps.recordBlob(orgId, streamId, o.hash, o.size);
-        report.confirmed += 1;
-      }
+      if (!isStored(state, o.hash) || verdict?.size !== o.size) unconfirmed.push(o);
     }
+    // Each confirmation is its own call; a few at a time, as the log takes them in any order.
+    await inParallel(unconfirmed, RECORD_AT_ONCE, async (o) => {
+      await deps.recordBlob(orgId, streamId, o.hash, o.size);
+      report.confirmed += 1;
+    });
   }
   return report;
+}
+
+/** Confirmations in flight at once for one stream. */
+const RECORD_AT_ONCE = 4;
+
+/** Run `work` over `items`, `limit` at a time; the first failure is thrown once those in flight have finished. */
+async function inParallel<T>(items: T[], limit: number, work: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  let failure: { error: unknown } | undefined;
+  const runner = async () => {
+    while (!failure && next < items.length) {
+      try {
+        await work(items[next++]!);
+      } catch (error) {
+        failure ??= { error };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runner));
+  if (failure) throw failure.error;
 }
 
 async function foldStream(transport: Transport, orgId: string, streamId: string, pageSize: number): Promise<LanguageState> {
@@ -112,6 +147,12 @@ function reconcilerDeps(service: SupabaseClient, files: BlobFiles): ReconcilerDe
         if (hash && format) out.push({ orgId, streamId, hash, format, size: f.size });
       }
       return out;
+    },
+    hasStoredBlobs: async (orgId, streamId) => {
+      const { data, error } = await service.from('events').select('id')
+        .eq('org_id', orgId).eq('stream_id', streamId).eq('type', 'v1.BlobStored').limit(1);
+      if (error) throw new Error(`events ${orgId}/${streamId}: ${error.message}`);
+      return (data ?? []).length > 0;
     },
     download: (o) => files.get(key(o)),
     remove: (o) => files.remove(key(o)),

@@ -21,6 +21,8 @@ export const MIN_LIVE_FRAMES = 43;
 export const MAX_LIVE_FRAMES = 646;
 /** At most this many bars are drawn: zoomed out, each bar is the loudest of the frames it covers. */
 export const LIVE_COLUMNS = 128;
+/** The waveform is told about frames at most this often (about ten a second, for microphone frames about 46 ms apart). */
+export const FRAME_PUBLISH_MS = 90;
 /** The shortest a part's box can be dragged to: about a fifth of a second. */
 export const MIN_PART_FRAMES = 4;
 /** A part's head can reach back this far (splitter.ts maxHeadMs plus its margin); sound newer than this may still be claimed. */
@@ -89,6 +91,11 @@ export function liveStart(firstPart: number): LiveState {
 }
 
 const toDb = (energy: number) => Math.max(-60, Math.min(0, 20 * Math.log10(Math.max(energy, 1e-6))));
+
+/** Whether a frame heard at `at` (ms) is due to be shown, `shownAt` being when the last shown one was heard. */
+export function framePublishDue(shownAt: number | null, at: number): boolean {
+  return shownAt === null || at - shownAt >= FRAME_PUBLISH_MS || at < shownAt;
+}
 
 /** One frame from the microphone: its peak energy (0..1), the room's quiet level if known, and when (ms). */
 export function liveFrame(s: LiveState, energy: number, quiet: number | undefined, at: number): LiveState {
@@ -243,11 +250,17 @@ export function liveBars(s: LiveState, frames = LIVE_BARS, end = s.count, record
   const now = s.count;
   const first = end - frames;
   const claimFrames = recording ? Math.ceil(CLAIM_MS / s.frameMs) : 0;
-  const kept = s.parts.filter((p) => !p.dropped && (p.to ?? now) > first && p.from < end);
+  // Which part holds each frame of the window (the earliest said wins), found once for the window, not once per bar.
+  const owner: (LivePart | undefined)[] = new Array(Math.max(0, end - first));
+  for (const p of s.parts) {
+    if (p.dropped) continue;
+    const hi = Math.min(p.to ?? now, end), lo = Math.max(p.from, first);
+    for (let f = lo; f < hi; f++) owner[f - first] ??= p;
+  }
   const one = (f: number): LiveBar => {
     if (f < 0 || f >= now) return { db: -60, quiet: null, kind: 'room' };
     const db = s.db[f]!, quiet = s.quiet[f] ?? null;
-    const part = kept.find((p) => f >= p.from && (p.to === null || f < p.to));
+    const part = owner[f - first];
     let kind: LiveBar['kind'];
     if (part) kind = part.to === null ? 'open' : 'kept';
     else if (quiet === null || db <= quiet + OUT_OF_ROOM_DB) kind = 'room';

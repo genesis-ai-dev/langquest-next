@@ -4,6 +4,9 @@ import type { KeptRecord } from '../src/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { FakeServer } from '../src/testing/fakeServer';
 
+/** The digest each server's stored lines were written with, kept across clients as the database keeps it. */
+const digestsOf = new WeakMap<FakeServer, Map<string, Map<string, string>>>();
+
 interface Call {
   fn: string;
   args: Record<string, unknown>;
@@ -76,7 +79,32 @@ export function fakeSupabase(server: FakeServer, opts: { snapshotCreatedAt?: str
       }
       case 'put_passage_lines':
         server.keepLines(String(a['p_org_id']), String(a['p_stream_id']), Number(a['p_lines_version']), Number(a['p_server_seq']), a['p_lines'] as PassageLine[]);
+        digestsOf.get(server)?.delete(`${a['p_org_id']}/${a['p_stream_id']}`);
         return 0;
+      case 'passage_line_digests': {
+        const key = `${a['p_org_id']}/${a['p_stream_id']}`;
+        const l = server.lines.get(key);
+        if (!l || l.version !== Number(a['p_lines_version'])) return {};
+        const had = digestsOf.get(server)?.get(key);
+        return Object.fromEntries([...l.byUnit.keys()].map((u) => [u, had?.get(u) ?? null]));
+      }
+      case 'put_passage_lines_delta': {
+        const key = `${a['p_org_id']}/${a['p_stream_id']}`;
+        const version = Number(a['p_lines_version']);
+        const before = server.lines.get(key);
+        const l = before && before.version === version ? before : { version, seq: 0, byUnit: new Map<string, PassageLine>() };
+        if (l !== before) digestsOf.get(server)?.delete(key);
+        const all = digestsOf.get(server) ?? new Map<string, Map<string, string>>();
+        digestsOf.set(server, all);
+        const mine = all.get(key) ?? new Map<string, string>();
+        all.set(key, mine);
+        for (const unitId of a['p_removed'] as string[]) { l.byUnit.delete(unitId); mine.delete(unitId); }
+        const digests = a['p_digests'] as Record<string, string>;
+        for (const line of a['p_lines'] as PassageLine[]) { l.byUnit.set(line.unitId, line); mine.set(line.unitId, digests[line.unitId]!); }
+        l.seq = Math.max(l.seq, Number(a['p_server_seq']));
+        server.lines.set(key, l);
+        return (a['p_lines'] as unknown[]).length;
+      }
       case 'record_blob':
         server.storeBlob(String(a['p_org']), String(a['p_stream']), String(a['p_hash']), Number(a['p_size']));
         return null;
@@ -104,6 +132,10 @@ export function fakeSupabase(server: FakeServer, opts: { snapshotCreatedAt?: str
         if (table === 'snapshot_units') {
           const s = server.snapshots.get(`${eq['org_id']}/${eq['stream_id']}`);
           return { data: s && s.serverSeq === Number(eq['server_seq']) && server.hasCut(s) ? [{ server_seq: s.serverSeq }] : [], error: null };
+        }
+        if (table === 'events') {
+          const hit = server.log.some((e) => e.orgId === eq['org_id'] && e.streamId === eq['stream_id'] && e.type === eq['type']);
+          return { data: hit ? [{ id: 'x' }] : [], error: null };
         }
         if (table === 'passage_lines') {
           const l = server.lines.get(`${eq['org_id']}/${eq['stream_id']}`);
