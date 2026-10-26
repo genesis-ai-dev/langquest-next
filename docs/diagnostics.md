@@ -25,7 +25,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `error` | A fault reaches `reportError` (`apps/mobile/src/diagnostics/report.ts`) | error class, where, the id shown to the person, fatal or not, a fixed code (a recorder's `nospace`, a SQLSTATE), stack frames |
 | `expected` | A failure already shown to the person (`noteExpected`), tallied per hour | where, error class, code; how many |
 | `audio` | Recording and playback, tallied per hour per language | takes and their total length, takes too short to keep, microphone refused, start, stop, save and compression failures, WAV kept, interruptions; plays, playback failures, taps on audio not yet on the phone, stream failures |
-| `auth` | Signing in and staying in | what was tried (`sign_in`, `sign_up`, `code`, `v2`, `redeem`, `join`, `renew`, `ended`, `courier`, `outbox`, `route`, `delete`, `org_list`), how it ended, an Auth error code, SQLSTATE or our own code; ms, HTTP status, attempt, ages; for a hand-over, how much another person's sign-in left to send, never who |
+| `auth` | Signing in and staying in | what was tried (`sign_in`, `sign_up`, `code`, `v2`, `redeem`, `join`, `renew`, `ended`, `courier`, `outbox`, `route`, `delete`, `org_list`), how it ended, an Auth error code, SQLSTATE or our own code; ms, HTTP status, attempt, ages; for a hand-over, how much another person's sign-in left to send, never who; a sign-in from the phone's lock (decisions.md 167) is `sign_in` with action `lock_pattern` or `lock_password` |
 
 Every delivery also sends the phone's context: install id, OS and version,
 model (Android), runtime version, EAS update id and channel, whether the

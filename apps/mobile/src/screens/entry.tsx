@@ -17,7 +17,7 @@ import {
   type ListedOrganization
 } from '../account/accountData';
 import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../account/accountText';
-import { signInName } from '../auth/accounts';
+import { signInAddress, signInName } from '../auth/accounts';
 import { globalViewerLine } from '../account/globalViewerText';
 import { useGlobalViewer } from '../account/useGlobalViewer';
 import { licenseText } from '../i18n/coreText';
@@ -30,6 +30,11 @@ import type { Ctx } from '../shell/ctx';
 import { recreateDevAccount } from '../server/personas';
 import { createAccountReady, MIN_PASSWORD } from '../auth/model';
 import { signIn, signInReady } from '../auth/signIn';
+import { isPattern, patternSecret } from '../auth/lockModel';
+import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
+import { signBackIn } from '../auth/signBackIn';
+import { usePatternPeople } from '../auth/usePatternPeople';
+import { rememberPassword } from '../server/lock';
 import { useInvitePreview } from '../auth/useInvitePreview';
 import { useOrganizationSearch } from '../auth/useOrganizationSearch';
 import { redeemSignInCode } from '../invites/invites';
@@ -80,6 +85,10 @@ export function SignIn(ctx: Ctx) {
     setError('');
     const started = Date.now();
     try {
+      // Signed out of this phone before: the password opens the lock, with no connection (decisions.md 167).
+      const local = await signBackIn('password', password, { address: signInAddress(email) });
+      if (local.kind === 'ok') return;
+      if (local.kind === 'wait') { setError(t('entry.lock.wait')); return; }
       const outcome = await signIn(email, password, {
         signInWithPassword, setSession, signInWithV2Account, ...(ctx.isDev ? { recreateDevAccount } : {})
       });
@@ -87,10 +96,14 @@ export function SignIn(ctx: Ctx) {
       if (outcome.kind === 'refused') {
         noteExpected(outcome.where, outcome.raw);
         recordAuthFailure('sign_in', outcome.reason, { ms: since(started) });
-        setError(authErrorText(outcome.reason, t('entry.signIn.failed')));
+        // Offline after a password the lock here did not take: it was wrong, whatever the connection.
+        const offlineWrong = local.kind === 'wrong' && outcome.reason.name === 'AuthRetryableFetchError';
+        setError(offlineWrong ? t('entry.errors.wrongPassword') : authErrorText(outcome.reason, t('entry.signIn.failed')));
         return;
       }
       recordAuth('sign_in', 'ok', { n: { ms: since(started) } });
+      // Next time, this password signs them back in here with no connection.
+      if (outcome.userId) void rememberPassword(outcome.userId, signInAddress(email), password);
       // Signing in accepts the terms (AUTH-1). The session this screen was
       // given belongs to the guest, so record it for the account that just
       // signed in; the account outbox delivers (and retries) it once the new
@@ -115,6 +128,7 @@ export function SignIn(ctx: Ctx) {
 
   const ready = signInReady(email, password);
   const joining = ctx.invite.held?.claim.kind === 'next-account';
+  const patternPeople = usePatternPeople();
   return (
     <Screen header={<HelpTop />} bodyStyle={styles.signInBody}>
       <LanguageChip />
@@ -125,6 +139,12 @@ export function SignIn(ctx: Ctx) {
         <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('entry.signIn.tagline')}</Text>
       </View>
       {joining ? <Banner icon="people" title={t('entry.signIn.joinTitle')} body={t('entry.signIn.joinBody')} /> : null}
+      {patternPeople.length > 0 ? (
+        <>
+          <PatternSignIn people={patternPeople} />
+          <OrDivider />
+        </>
+      ) : null}
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
         <Field value={email} onChangeText={setEmail} placeholder={t('entry.signIn.namePlaceholder')} keyboardType="email-address" autoCapitalize="none" />
@@ -146,6 +166,49 @@ export function SignIn(ctx: Ctx) {
         <LinkBtn label={t('entry.signIn.switchPersona')} color={C.muted} help={t('account.more.personaSub')} onPress={ctx.openDev} style={{ alignSelf: 'center' }} />
       ) : null}
     </Screen>
+  );
+}
+
+/**
+ * Someone who signed out of this phone taps their picture, draws their
+ * pattern and is back in, with no connection (decisions.md 167). Nobody is
+ * named: a phone that is taken shows how many signed out here, never who.
+ */
+function PatternSignIn(props: { people: { actorId: string; picture: number }[] }) {
+  const [who, setWho] = useState<{ actorId: string; picture: number } | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [padKey, setPadKey] = useState(0);
+  async function drew(dots: number[]) {
+    if (!who) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = isPattern(dots) ? await signBackIn('pattern', patternSecret(dots), { actorId: who.actorId }) : { kind: 'wrong' as const };
+      // In: App opens the app as them, and this screen goes.
+      if (result.kind === 'ok') return;
+      setError(result.kind === 'wait' ? t('entry.lock.wait') : t('entry.lock.wrong'));
+    } catch (e) {
+      setError(failure('sign in with pattern', e));
+    } finally {
+      setBusy(false);
+      setPadKey((k) => k + 1);
+    }
+  }
+  return (
+    <Card>
+      {who ? (
+        <>
+          <ChosenPicture picture={who.picture} />
+          <PatternPad onDone={(dots) => void drew(dots)} disabled={busy} error={!!error} resetKey={padKey} />
+          {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
+          <LinkBtn label={t('entry.lock.notMe')} help={t('entry.lock.notMeHelp')} onPress={() => { setWho(null); setError(''); }} style={{ alignSelf: 'center' }} />
+        </>
+      ) : (
+        <PictureGrid pictures={props.people.map((p) => p.picture)} onPick={(picture) => setWho(props.people.find((p) => p.picture === picture) ?? null)}
+          help={t('entry.lock.pictureHelp')} />
+      )}
+    </Card>
   );
 }
 

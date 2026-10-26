@@ -2998,6 +2998,13 @@
       "elsewhereSub": "LangQuest hanya bekerja di satu tab dalam satu waktu, agar rekaman dan perubahan Anda tetap di satu tempat. Pakai di sini, atau kembali ke tab lain.",
       "useHere": "Pakai di sini",
       "useHereHelp": "Memindahkan LangQuest ke tab ini. Tab lain menyimpan pekerjaannya lalu mengalah."
+    },
+    "lock": {
+      "wait": "Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.",
+      "wrong": "Pola itu tidak benar.",
+      "notMe": "Bukan gambar saya",
+      "notMeHelp": "Kembali ke gambar-gambar.",
+      "pictureHelp": "Keluar dari ponsel ini? Ketuk gambar Anda, lalu gambar pola Anda. Tidak perlu koneksi."
     }
   },
   "account": {
@@ -3294,6 +3301,17 @@
       "syncNowHelp": "Mengirim yang menunggu dan mengambil yang baru, saat ini juga.",
       "detailsHelp": "Setiap perubahan yang menunggu atau ditolak, dan transfer audio: untuk orang yang memperbaiki masalah.",
       "eventHelp": "Membuka perikop yang terkait dengan perubahan ini."
+    },
+    "lock": {
+      "tooShort": "Hubungkan setidaknya {{n}} titik.",
+      "patternsDiffer": "Itu pola yang berbeda. Mulai lagi.",
+      "pictureTitle": "Pilih gambar Anda",
+      "pictureHelp": "Untuk masuk kembali di ponsel ini, Anda akan mengetuk gambar Anda, lalu menggambar pola Anda.",
+      "nextHelp": "Lanjut ke menggambar pola Anda.",
+      "drawTitle": "Gambar pola",
+      "drawAgain": "Gambar sekali lagi",
+      "newPattern": "Gambar pola baru",
+      "choosePatternHelp": "Pilih gambar dan pola untuk masuk kembali di ponsel ini, bahkan tanpa koneksi."
     }
   },
   "study": {
@@ -4266,6 +4284,15 @@
       "readHelp": "Membuka teks lengkapnya di browser.",
       "rowHelp": "Membuka daftar lisensi dan apa yang diizinkan masing-masing.",
       "yesOpenToHelp": "Mulai sekarang karya Anda dibagikan dengan lisensi ini. Ini tidak dapat diurungkan."
+    },
+    "pattern": {
+      "label": "Pola: hubungkan setidaknya {{n}} titik",
+      "help": "Geser jari melewati titik-titik tanpa mengangkatnya, atau ketuk satu per satu lalu Selesai. Hubungkan setidaknya {{n}} titik.",
+      "dot": "Titik {{n}}",
+      "picture": "Gambar {{n}}",
+      "again": "Mulai lagi",
+      "againHelp": "Menghapus titik-titik untuk memulai pola lagi.",
+      "doneHelp": "Menyelesaikan pola dengan titik yang Anda ketuk."
     }
   },
   "help": {

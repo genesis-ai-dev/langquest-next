@@ -10,6 +10,10 @@ const fake = vi.hoisted(() => ({
   storage: new Map<string, string>(),
   session: new Map<string, 'ok' | 'unreachable' | 'gone'>(),
   forgotten: [] as { actorId: string; endSession: boolean }[],
+  /** People with a lock here (decisions.md 167), and what the courier did to it. */
+  locked: new Set<string>(),
+  lockCalls: [] as string[],
+  kept: new Map<string, string>(),
   deliver: vi.fn(),
   note: vi.fn()
 }));
@@ -39,7 +43,15 @@ vi.mock('../src/server/handOver', () => ({
   actAs: (actorId: string) => ({ actorId }),
   keptSession: async (actorId: string) => fake.session.get(actorId) ?? 'ok',
   forgetKeptSession: async (actorId: string, endSession: boolean) => { fake.forgotten.push({ actorId, endSession }); },
-  keepSessionAndSignOut: async () => true
+  keepSessionAndSignOut: async () => true,
+  keptSessionRaw: async (actorId: string) => fake.kept.get(actorId) ?? null
+}));
+vi.mock('../src/server/lock', () => ({
+  keepLockedAfterHandOver: async (actorId: string, raw: string | null) => {
+    fake.lockCalls.push(`keep ${actorId} ${raw}`);
+    return fake.locked.has(actorId) && raw !== null;
+  },
+  dropLockedSession: async (actorId: string) => { fake.lockCalls.push(`drop ${actorId}`); }
 }));
 vi.mock('@langquest-next/sync', async (original) => ({
   ...(await original<typeof import('@langquest-next/sync')>()),
@@ -56,16 +68,22 @@ const delivered = (over: Partial<HandOverAttempt> = {}, offline = false) => ({ a
 
 const stored = () => JSON.parse(fake.storage.get('hand-overs') ?? '[]') as HandOver[];
 
-async function seed(...list: HandOver[]) {
+async function load(...list: HandOver[]) {
   fake.storage.set('hand-overs', JSON.stringify(list));
   vi.resetModules();
-  return (await import('../src/sync/handOver')).sendAll;
+  return import('../src/sync/handOver');
+}
+async function seed(...list: HandOver[]) {
+  return (await load(...list)).sendAll;
 }
 
 beforeEach(() => {
   fake.storage.clear();
   fake.session.clear();
   fake.forgotten.length = 0;
+  fake.locked.clear();
+  fake.lockCalls.length = 0;
+  fake.kept.clear();
   fake.deliver.mockReset();
   fake.note.mockReset();
 });
@@ -102,6 +120,8 @@ describe('sendAll', () => {
     expect(fake.forgotten).toEqual([{ actorId: 'akol', endSession: false }]);
     expect(fake.deliver).not.toHaveBeenCalled();
     expect(stored()).toEqual([]);
+    // No lock can bring an ended session back.
+    expect(fake.lockCalls).toEqual(['drop akol']);
   });
 
   it('everything sent: the person is forgotten and their kept session ended', async () => {
@@ -112,12 +132,24 @@ describe('sendAll', () => {
     expect(stored()).toEqual([]);
   });
 
+  it('everything sent by someone with a lock here: the session is sealed in its newest form and not ended, so they can come back offline', async () => {
+    const sendAll = await seed(akol);
+    fake.locked.add('akol');
+    fake.kept.set('akol', 'renewed-session');
+    fake.deliver.mockResolvedValue(delivered({ finished: ['a', 'b'] }));
+    expect(await sendAll(null)).toEqual({ offline: false });
+    expect(fake.lockCalls).toEqual(['keep akol renewed-session']);
+    expect(fake.forgotten).toEqual([{ actorId: 'akol', endSession: false }]);
+    expect(stored()).toEqual([]);
+  });
+
   it('a session the server turned down mid-delivery is dropped without ending it', async () => {
     const sendAll = await seed(akol);
     fake.deliver.mockResolvedValue(delivered({ sessionGone: true, eventsLeft: 3 }));
     await sendAll(null);
     expect(fake.forgotten).toEqual([{ actorId: 'akol', endSession: false }]);
     expect(stored()).toEqual([]);
+    expect(fake.lockCalls).toEqual(['drop akol']);
   });
 
   it('part sent: the recordings that went are crossed off and the rest wait, reporting offline when delivery was', async () => {
@@ -136,5 +168,46 @@ describe('sendAll', () => {
     expect(fake.note).toHaveBeenCalledWith('hand-over', expect.objectContaining({ message: 'network' }));
     expect(stored().map((h) => h.actorId)).toEqual(['akol']);
     expect(fake.forgotten).toEqual([{ actorId: 'mary', endSession: true }]);
+  });
+});
+
+describe('takeBackHandOver (decisions.md 167)', () => {
+  it('gives back the kept session and the notifications still to disconnect, forgetting the hand-over without ending the session', async () => {
+    const { takeBackHandOver } = await load({ ...akol, pushToken: 'push-1' }, mary);
+    fake.kept.set('akol', 'kept-session');
+    expect(await takeBackHandOver('akol')).toEqual({ session: 'kept-session', pushToken: 'push-1' });
+    expect(fake.forgotten).toEqual([{ actorId: 'akol', endSession: false }]);
+    expect(stored().map((h) => h.actorId)).toEqual(['mary']);
+  });
+
+  it('with no hand-over, or one whose session is gone, takes nothing and leaves it to the courier', async () => {
+    const { takeBackHandOver } = await load(akol);
+    expect(await takeBackHandOver('mary')).toBeNull();
+    expect(await takeBackHandOver('akol')).toBeNull();
+    expect(stored()).toEqual([akol]);
+    expect(fake.forgotten).toEqual([]);
+  });
+
+  it('waits for a delivery under way, which stops before its next recording, so the two never hold the session at once', async () => {
+    const { sendAll, takeBackHandOver } = await load(akol);
+    fake.kept.set('akol', 'kept-session');
+    let release!: () => void;
+    const uploads: string[] = [];
+    fake.deliver.mockImplementation(async (h: HandOver, deps: { upload: (u: unknown) => Promise<unknown> }) => {
+      await new Promise<void>((r) => { release = r; });
+      for (const u of h.uploads) {
+        try { await deps.upload(u); uploads.push(u.ref.hash); } catch { return delivered({}, true); }
+      }
+      return delivered({ finished: uploads });
+    });
+    const sending = sendAll(null);
+    await vi.waitFor(() => expect(fake.deliver).toHaveBeenCalled());
+    const back = takeBackHandOver('akol');
+    release();
+    expect(await back).toEqual({ session: 'kept-session' });
+    await sending;
+    expect(uploads).toEqual([]);
+    expect(fake.forgotten).toEqual([{ actorId: 'akol', endSession: false }]);
+    expect(stored()).toEqual([]);
   });
 });
