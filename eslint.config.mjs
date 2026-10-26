@@ -30,6 +30,10 @@ const noSupabase = {
 };
 /** A package is used through its entry, never its files. */
 const noDeepPackage = { regex: '^@langquest-next/[^/]+/', message: 'Import the package, not its files: export what you need from its index.' };
+/** Icons come one file each through src/ui/icons: lucide's own entry brings every icon it has. */
+const noIconBarrel = {
+  paths: [{ name: 'lucide-react-native', allowTypeImports: true, message: 'Import icons from src/ui/icons, which takes each from its own file: the package itself brings all 1,800-odd (1.5 MB on the web).' }]
+};
 /** Only App.tsx and the screens themselves import a screen file. */
 const noScreens = { regex: '(^|/)screens/', message: `Screens are entry points: move what you need into a feature module (${D105}).` };
 /** Screens lay out; storage sits behind a hook or module. */
@@ -190,19 +194,21 @@ export default [
 
   // The app, general to specific.
   { files: OUTSIDE, rules: { 'no-restricted-imports': ['error', outsideTheApp] } },
-  { files: [APP], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens) } },
-  { files: ['apps/mobile/src/screens/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noStorage) } },
+  { files: [APP], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noIconBarrel, noScreens) } },
+  { files: ['apps/mobile/src/screens/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noIconBarrel, noStorage) } },
   // The base folders: the app's general rules, and the layer they sit in.
   ...BASE_FOLDERS.filter((f) => f !== 'server').map((f) => ({
-    files: [`apps/mobile/src/${f}/**/*.{ts,tsx}`], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, layerOf(f)) }
+    files: [`apps/mobile/src/${f}/**/*.{ts,tsx}`], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noIconBarrel, noScreens, layerOf(f)) }
   })),
-  { files: ['apps/mobile/src/server/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noDeepPackage, serverLayer, layerOf('server')) } },
-  { files: ['apps/mobile/App.tsx'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage) } },
-  { files: MODELS, rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, pure) } },
+  { files: ['apps/mobile/src/server/**/*.{ts,tsx}'], rules: { 'no-restricted-imports': restrict(noDeepPackage, noIconBarrel, serverLayer, layerOf('server')) } },
+  { files: ['apps/mobile/App.tsx'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noIconBarrel) } },
+  { files: MODELS, rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noIconBarrel, noScreens, pure) } },
   // A model in a base folder is pure and in its layer: the last block decides, so it has both.
   ...BASE_FOLDERS.map((f) => ({
-    files: MODELS.map((m) => m.replace('src/**/', `src/${f}/**/`)), rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, pure, layerOf(f)) }
+    files: MODELS.map((m) => m.replace('src/**/', `src/${f}/**/`)), rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noIconBarrel, noScreens, pure, layerOf(f)) }
   })),
+  // The one file that may name lucide's files.
+  { files: ['apps/mobile/src/ui/icons.ts'], rules: { 'no-restricted-imports': restrict(noSupabase, noDeepPackage, noScreens, layerOf('ui')) } },
 
   // A language kept on disk holds only the passages on screen: the app never reads every passage from
   // memory, but where the list in scripts/lint/wholeLanguage.mjs says why it may (decisions.md 143).

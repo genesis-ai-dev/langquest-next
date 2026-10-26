@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getStore } from '../storage/store';
 import type { LanguageHandle } from '../sync/useLanguage';
 import type { OrgHandle } from '../sync/useOrg';
+import { INSPECT_EVERY_MS, keepIfSame } from './syncInspectionModel';
 
 /** The device's log for this organization: refused events in every stream it holds, and the open language's cursor. */
 async function readLog(orgId: string, languageId: string, org: Parameters<typeof orgLanguages>[0]): Promise<{ rejected: LocalEvent[]; cursor: number }> {
@@ -15,7 +16,7 @@ async function readLog(orgId: string, languageId: string, org: Parameters<typeof
 }
 
 /**
- * What the sync screen shows, polled every second: each open client's own
+ * What the sync screen shows, polled every few seconds (a change replaces what shows, a poll that finds the same sets nothing): each open client's own
  * view, straight from the device's log whichever language's client is open
  * (refused work in any of the organization's streams, and the open
  * language's confirmed position, PLAN.md invariant 1), and transfer speeds.
@@ -29,6 +30,11 @@ export function useSyncInspection(language: LanguageHandle, org: OrgHandle, onFa
   const reported = useRef(false);
   const fail = useRef(onFail);
   fail.current = onFail;
+  // The poll reads the handles as they are now, and restarts only when it must look somewhere else.
+  const latest = useRef({ language, org });
+  latest.current = { language, org };
+  const { inspect: inspectLanguage, orgId, languageId } = language;
+  const inspectOrg = org.inspect;
   useEffect(() => {
     let alive = true;
     const failed = (e: unknown) => {
@@ -37,14 +43,16 @@ export function useSyncInspection(language: LanguageHandle, org: OrgHandle, onFa
       fail.current(e);
     };
     const tick = () => {
-      void language.inspect().then((i) => { if (alive) setIns(i); }).catch(failed);
-      void org.inspect().then((i) => { if (alive) setOrgIns(i); }).catch(failed);
-      void readLog(language.orgId, language.languageId, org.state).then((l) => { if (alive) setLogged(l); }).catch(failed);
-      setRates(language.blobs.rates());
+      const now = latest.current;
+      void inspectLanguage().then((i) => { if (alive) setIns((was) => keepIfSame(was, i)); }).catch(failed);
+      void inspectOrg().then((i) => { if (alive) setOrgIns((was) => keepIfSame(was, i)); }).catch(failed);
+      void readLog(orgId, languageId, now.org.state).then((l) => { if (alive) setLogged((was) => keepIfSame(was, l)); }).catch(failed);
+      const r = now.language.blobs.rates();
+      setRates((was) => (was.up === r.up && was.down === r.down ? was : r));
     };
     tick();
-    const timer = setInterval(tick, 1000);
+    const timer = setInterval(tick, INSPECT_EVERY_MS);
     return () => { alive = false; clearInterval(timer); };
-  }, [language, org]);
+  }, [inspectLanguage, inspectOrg, orgId, languageId]);
   return { ins, orgIns, logged, rates };
 }

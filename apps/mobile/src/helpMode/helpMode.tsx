@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '../ui/text';
 import { chooseRows, clipRect, helpLine, litShape, MARK_SIZE, markAt, numberParts, speaks, tooltipPlace, type FirstSeen, type HelpLit, type HelpMark, type HelpMode, type HelpPart, type HelpRect } from './helpContext';
 import { HelpContext, HelpLayerContext } from './useHelpMode';
+import { measureDue } from './measureModel';
 import { currentLocale, isRtl, t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { registerPlayback } from '../ui/playback';
@@ -73,16 +74,16 @@ async function canSay(label: string, detail?: string): Promise<boolean> {
   return isRecorded(label, ...(detail ? [detail] : []));
 }
 
-/** What is lit and where: written every frame while help is on, read by the layer that draws it. */
+/** What is lit and where: written as parts are measured while help is on, read by the layer that draws it. */
 interface LitStore {
   lit: Map<string, { rect: HelpRect; what: HelpLit }>;
   /** Where and when each part was first seen, which its number follows. */
   first: Map<string, FirstSeen>;
   /** The row that speaks for each kind of row in a list (HelpRow), by kind. */
   rows: Map<string, string>;
-  /** Frames since help came on. */
+  /** Rounds of measuring since help came on. */
   frame: number;
-  /** The frame that parts seen together (within BURST frames of each other) count from. */
+  /** The round that parts seen together (within BURST rounds of each other) count from. */
   burst: number;
   lastSeen: number;
   version: number;
@@ -92,8 +93,8 @@ interface LitStore {
 const partOf = (what: HelpLit) => (what.kind === 'part' ? what.part : null);
 const rowsOf = (what: HelpLit) => (what.kind === 'part' ? what.rows : undefined);
 
-/** Parts first seen within this many frames of each other (a screen drawing in, a scroll) are numbered together, in reading order. */
-const BURST = 10;
+/** Parts first seen within this many rounds of measuring (measureModel.ts) of each other (a screen drawing in, a scroll) are numbered together, in reading order. */
+const BURST = 2;
 
 export function HelpModeProvider(props: { children: ReactNode }) {
   const [on, setOnState] = useState(false);
@@ -108,6 +109,8 @@ export function HelpModeProvider(props: { children: ReactNode }) {
   const store = useRef<LitStore>({ lit: new Map(), first: new Map(), rows: new Map(), frame: 0, burst: 0, lastSeen: -Infinity, version: 0, listeners: new Set() }).current;
   const measures = useRef(new Set<() => void>()).current;
   const pending = useRef(false);
+  /** When a part's place last changed (ms): measuring is quick for a second after, then slows. */
+  const moved = useRef(0);
 
   const renumber = useCallback(() => setNumbers((was) => {
     const next = numberParts(store.first, isRtl());
@@ -130,6 +133,7 @@ export function HelpModeProvider(props: { children: ReactNode }) {
     const part = partOf(what);
     if (!rect) {
       if (!was) return;
+      moved.current = Date.now();
       store.lit.delete(id);
       const gone = !!part && ![...store.lit.values()].some((l) => partOf(l.what) === part);
       if (gone) store.first.delete(part);
@@ -144,6 +148,7 @@ export function HelpModeProvider(props: { children: ReactNode }) {
     const same = was && was.what === what && Math.abs(was.rect.x - rect.x) < 0.5 && Math.abs(was.rect.y - rect.y) < 0.5
       && Math.abs(was.rect.width - rect.width) < 0.5 && Math.abs(was.rect.height - rect.height) < 0.5;
     if (same) return;
+    moved.current = Date.now();
     store.lit.set(id, { rect, what });
     changed(false);
   }, [store, changed]);
@@ -182,12 +187,18 @@ export function HelpModeProvider(props: { children: ReactNode }) {
     return () => { measures.delete(measure); };
   }, [measures]);
 
-  // Lit places follow the screen as it scrolls.
+  // Lit places follow the screen as it scrolls, measured as often as measureModel.ts says.
   useEffect(() => {
     if (!on) return;
+    let last = -Infinity;
+    moved.current = Date.now();
     let frame = requestAnimationFrame(function tick() {
-      see();
-      for (const m of measures) m();
+      const now = Date.now();
+      if (measureDue(now, last, moved.current)) {
+        last = now;
+        see();
+        for (const m of measures) m();
+      }
       frame = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(frame);

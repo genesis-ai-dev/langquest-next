@@ -4,7 +4,7 @@ import {
   type AnyEvent, type Card, type KindState, type LanguageState, type OrgState, type PassageState, type Version
 } from '@langquest-next/core';
 import { canRead, canReadValues, coversLanguage, sha256Hex, type Grant } from './tokens';
-import { inSlices, type LanguageRecords } from '../languageRecords';
+import { inSlices, positionIn, type LanguageRecords } from '../languageRecords';
 
 /**
  * What a token may see and write, read from the organization object's
@@ -303,7 +303,7 @@ export async function passagesFor(
   const teamOnly = q.include.filter((i) => TEAM_ONLY.includes(i));
   if (teamOnly.length && !canRead(grant, true)) return refuse(403, 'scope', `${teamOnly.join(' and ')} need the read scope; read:published shows approved passages only.`);
   const order = records.passages;
-  const start = q.after === undefined ? -1 : order.indexOf(q.after);
+  const start = q.after === undefined ? -1 : positionIn(order, q.after);
   if (q.after !== undefined && start === -1) return refuse(400, 'bad_request', 'after is not a passage in this language. Start again without it.');
   const wanted = q.filter.unitIds ? new Set(q.filter.unitIds) : null;
   const include = new Set(q.include);
@@ -334,7 +334,7 @@ export async function passagesFor(
 export async function passageFor(
   grant: Grant, orgId: string, languageId: string, records: LanguageRecords, unitId: string, sign: Signer
 ): Promise<PassageDetail | Refusal> {
-  if (!records.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const state = await records.view([unitId]);
   const idx = buildIndexes(state);
   if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
@@ -567,7 +567,7 @@ export async function reviewEvent(ctx: WriteContext, input: ReviewInput): Promis
   const can = languageAccess(grant, org, languageId);
   if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
   if (!can.review) return refuse(403, 'privilege', 'The account behind this token cannot review or translate in this language.');
-  if (!records.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const state = await records.view([unitId]);
   const idx = buildIndexes(state);
   if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
@@ -596,7 +596,7 @@ export async function releaseEvent(ctx: WriteContext, input: ReleaseInput): Prom
   const can = languageAccess(grant, org, languageId);
   if (!can) return refuse(404, 'no_language', 'This token cannot open that language.');
   if (!can.release) return refuse(403, 'privilege', 'The account behind this token cannot assign work in this language, which reporting releases needs.');
-  if (!records.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
+  if (positionIn(records.passages, unitId) < 0) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
   const state = await records.view([unitId]);
   const idx = buildIndexes(state);
   if (!idx.passages.includes(unitId)) return refuse(404, 'no_passage', 'There is no passage with that id in this language.');
@@ -852,7 +852,7 @@ export function parseLinkReview(body: unknown): LinkReviewInput | Refusal {
  */
 export async function linkReviewEvent(link: ReviewLink, org: OrgState, records: LanguageRecords, input: LinkReviewInput, now: number): Promise<AnyEvent | Refusal> {
   if (!linkIsOpen(link, org, now)) return refuse(410, 'closed', 'This review link has closed. Ask whoever sent it for a new one.');
-  if (!records.passages.includes(link.unitId)) return refuse(404, 'gone', 'This passage is no longer here.');
+  if (positionIn(records.passages, link.unitId) < 0) return refuse(404, 'gone', 'This passage is no longer here.');
   // Every review on the link is of its version, so the link's passage holds them all.
   const state = await records.view([link.unitId]);
   const s = derivePassage(state, link.unitId);

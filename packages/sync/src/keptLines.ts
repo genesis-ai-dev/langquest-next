@@ -1,5 +1,5 @@
 import {
-  derivePassage, eventPassage, languageLines, passageInMemory, passageLine, stateRevision, withoutParts,
+  derivePassage, eventPassage, indexesOf, languageLines, passageInMemory, passageLine, stateRevision, withoutParts,
   type AnyEvent, type LanguageState, type PassageLine, type PassageLines, type PassageOf
 } from '@langquest-next/core';
 import { KeptLanguage, LINE, PART_KINDS, RECORD_KINDS } from './keptLanguage';
@@ -198,10 +198,7 @@ export class KeptLines {
     } else {
       const unplaced = this.unplaced;
       this.unplaced = [];
-      for (const of of unplaced) {
-        const u = await this.kept.passageOf(live, of);
-        if (u) this.dirty.add(u);
-      }
+      for (const u of await this.kept.passagesOf(live, unplaced)) this.dirty.add(u);
       units = [...this.dirty].filter((u) => this.kept.isFilled(u));
       this.kept.want([...this.dirty].filter((u) => !this.kept.isFilled(u)));
       this.dirty.clear();
@@ -241,11 +238,16 @@ export class KeptLines {
   async work(live: LanguageState, units: readonly string[], streamId: string): Promise<Map<string, PassageLine>> {
     const out = new Map<string, PassageLine>();
     if (units.length === 0) return out;
-    const recorded = new Set(await this.store.keptUnits(this.orgId, streamId, ['recording']));
+    // Only these passages are asked about: every recording row of the language, once per page
+    // and per 200 passages of a build, was the cost (performance-audit-2026-10-26.md item 6).
+    const recorded = new Set(await this.store.keptUnitsAmong(this.orgId, streamId, ['recording'], units));
+    // A view shares live's units, template and hidden units, all the passage order reads: sorting
+    // every unit again for each 25 passages made a full rebuild quadratic (same audit, item 5).
+    const idx = indexesOf(live);
     for (let i = 0; i < units.length; i += LINES_PER_BATCH) {
       const batch = units.slice(i, i + LINES_PER_BATCH);
       const view = await this.kept.view(live, batch, RECORD_KINDS, streamId);
-      const lines = languageLines(view);
+      const lines = languageLines(view, idx);
       for (const u of batch) {
         const line = lines.get(u);
         out.set(u, line.worked || !recorded.has(u) ? line : { ...line, worked: true });

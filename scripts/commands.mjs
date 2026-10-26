@@ -90,6 +90,7 @@ export const GROUPS = [
       fleet: 'a fleet of phones on simulated time (docs/fleet-simulation.md)',
       'fleet:baselines': 'every fleet scenario, into docs/fleet-baselines.md',
       'bench:core': 'the fold, the views and snapshots in core',
+      'bench:kept': 'passage lines of a language kept on disk',
       'bench:server': "the server's SQL against the local database",
     },
   },

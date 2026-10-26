@@ -38,7 +38,7 @@ const report: ReconcileReport = { streams: 0, objects: 0, missing: 0, confirmed:
 
 let error: unknown;
 try {
-  await reconcileBlobs(reconcilerDeps(service, files), { verify: false, shouldStop: () => stopping, report });
+  await reconcileBlobs(reconcilerDeps(service, files), { verify: false, countMissing: true, shouldStop: () => stopping, report });
 } catch (e) {
   error = e;
 }

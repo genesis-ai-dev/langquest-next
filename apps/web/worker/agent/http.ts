@@ -1,5 +1,6 @@
 import type { AgentQuery, AgentWrite, Answer, OrgAccess } from './org';
 import { handleMcp } from './mcp';
+import { TOKEN_TTL_MS, type TtlCache } from '../isolateCache';
 import { openApi } from './openapi';
 import type { AgentStore, TokenRecord, WebhookRecord } from './store';
 import type { ChangePage, DeliveryOut } from './dispatch';
@@ -56,6 +57,14 @@ export interface AgentDeps {
   /** False when this caller (by address) has asked too often. The device endpoints and review links need no sign-in. */
   publicAllowed?(request: Request, what: 'device' | 'link'): Promise<boolean>;
   now?: () => number;
+  /**
+   * Token records this isolate has read (isolateCache.ts `TOKEN_TTL_MS`). Without it every call asks the database.
+   * Accepted trade-off (audit 2026-10-26, item 10): a revoked token may keep working for up to that long in
+   * the isolates that already know it, the same kind of delay decision 121 accepted for file access.
+   */
+  tokenCache?: TtlCache<TokenRecord>;
+  /** Keeps a job running after the response (`ctx.waitUntil`); without it the job is started and not awaited. */
+  waitUntil?(job: Promise<unknown>): void;
 }
 
 /** How long an app has to get a person to approve it. */
@@ -116,13 +125,24 @@ export async function grantFor(request: Request, deps: AgentDeps): Promise<{ gra
   const secret = bearer(request);
   if (!secret) return fail(401, 'no_token', `Send your access token as "Authorization: Bearer ${TOKEN_PREFIX}…". Make one at /connect.`);
   if (!secret.startsWith(TOKEN_PREFIX)) return fail(401, 'bad_token', `That is not a LangQuest access token; they start with "${TOKEN_PREFIX}".`);
-  const token = await deps.store.tokenByHash(await hashSecret(secret));
+  const hash = await hashSecret(secret);
   const now = (deps.now ?? Date.now)();
+  let token = deps.tokenCache?.get(hash) ?? null;
+  if (!token) {
+    token = await deps.store.tokenByHash(hash);
+    // Only a token that exists is remembered, so one just made or approved works at once.
+    if (token) deps.tokenCache?.set(hash, token, now + TOKEN_TTL_MS);
+  }
   if (!token) return fail(401, 'bad_token', 'This token is not known. It may have been mistyped, or its app request was never approved.');
   if (token.revokedAt) return fail(401, 'revoked', 'This token was revoked.');
   if (token.expiresAt && Date.parse(token.expiresAt) <= now) return fail(401, 'expired', 'This token has expired. Make a new one at /connect.');
   if (!token.lastUsedAt || Date.parse(token.lastUsedAt) < now - TOUCH_EVERY_MS) {
-    await deps.store.touchToken(token.id, new Date(now).toISOString()).catch((e: unknown) => console.error('touch token', e));
+    const at = new Date(now).toISOString();
+    // The cached record is this very object, so the next call within the window sees the touch and does not repeat it.
+    token.lastUsedAt = at;
+    // The write is bookkeeping: the response does not wait for it, and a failure only costs a stale "last used".
+    const touched = deps.store.touchToken(token.id, at).catch((e: unknown) => console.error('touch token', e));
+    if (deps.waitUntil) deps.waitUntil(touched);
   }
   return { grant: { tokenId: token.id, orgId: token.orgId, profileId: token.profileId, scopes: token.scopes, languageIds: token.languageIds }, token };
 }

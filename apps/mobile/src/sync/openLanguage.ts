@@ -115,7 +115,7 @@ async function metered(
 ): Promise<void> {
   await platform.timedTransfer(dir, where, async (timings) => {
     await run(timings);
-    const bytes = store.sizes().get(ref.hash) ?? 0;
+    const bytes = store.sizeOf(ref.hash) ?? 0;
     meter.add(bytes);
     return bytes;
   });

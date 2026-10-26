@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clampFrames, LIVE_BARS, LIVE_COLUMNS, MAX_LIVE_FRAMES, MIN_LIVE_FRAMES, MIN_PART_FRAMES, liveBars, liveBoxes, liveChunkDone, liveDrop, liveEdge,
+  clampFrames, FRAME_PUBLISH_MS, framePublishDue, LIVE_BARS, LIVE_COLUMNS, MAX_LIVE_FRAMES, MIN_LIVE_FRAMES, MIN_PART_FRAMES, liveBars, liveBoxes, liveChunkDone, liveDrop, liveEdge,
   liveEdgeRange, liveFrame, liveKept, liveKeptCount, liveNext, livePartEnd, livePartStart, liveSeam, liveStart, type LiveState
 } from '../src/recording/livePartsModel';
 
@@ -179,5 +179,37 @@ describe('editing a stopped session (livePartsModel.ts)', () => {
     s = liveDrop(s, 0);
     const bars = liveBars(s, s.count, s.count, false);
     expect(bars.slice(10, 30).every((b) => b.kind === 'lost')).toBe(true);
+  });
+
+  it('marks each bar by the earliest part that holds its frame, as a search over the parts would', () => {
+    let s = say(liveStart(1), 'c1', 20);
+    s = say(s, 'c1', 30);
+    s = say(s, 'c2', 12);
+    s = livePartStart(s, MS);
+    s = feed(s, frames(15, -20));
+    s = liveDrop(s, 1);
+    for (const [n, end] of [[LIVE_BARS, s.count], [100, 120], [LIVE_COLUMNS, 60], [MIN_LIVE_FRAMES, 60]] as const) {
+      const bars = liveBars(s, n, end);
+      expect(bars).toHaveLength(n);
+      bars.forEach((bar, i) => {
+        const f = end - n + i;
+        const part = s.parts.find((p) => !p.dropped && f >= p.from && (p.to === null || f < p.to));
+        const inPart = bar.kind === 'kept' || bar.kind === 'open';
+        expect(inPart && f >= 0 && f < s.count ? bar.kind : null).toBe(f >= 0 && f < s.count && part ? (part.to === null ? 'open' : 'kept') : null);
+      });
+    }
+  });
+
+  it('tells the waveform about frames about ten times a second, the first one at once', () => {
+    expect(framePublishDue(null, 1000)).toBe(true);
+    expect(framePublishDue(1000, 1000 + MS)).toBe(false);
+    expect(framePublishDue(1000, 1000 + 2 * MS)).toBe(true);
+    expect(framePublishDue(1000, 1000 + FRAME_PUBLISH_MS - 1)).toBe(false);
+    // A clock that went back (a restarted stream) does not hold the waveform still.
+    expect(framePublishDue(5000, 100)).toBe(true);
+    let shown: number | null = null, told = 0;
+    for (let at = 0; at < 60_000; at += MS) if (framePublishDue(shown, at)) { shown = at; told++; }
+    expect(told / 60).toBeGreaterThan(9);
+    expect(told / 60).toBeLessThan(12);
   });
 });

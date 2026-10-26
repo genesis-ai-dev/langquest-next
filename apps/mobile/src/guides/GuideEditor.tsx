@@ -23,7 +23,7 @@ import {
   CALLOUT_KINDS, LICENSES, isLicense, orgLicense, subscriptionItemId, unitPrefixOf, unitTitle,
   type CalloutKind, type MediaRef, type StudyDoc, type StudyDoc2, type VersificationDoc
 } from '@langquest-next/core';
-import { Bold, List, TextQuote, type LucideIcon } from 'lucide-react-native';
+import { Bold, List, TextQuote, type LucideIcon } from '../ui/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Image, Pressable, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
 import { Text } from '../ui/text';

@@ -1,4 +1,4 @@
-import { booksMatching, canonBook, canonBooks, canonKey, chapterTone, countFilters, isMapFilter, matchesFilter, parseQuery, placeMatches, CANON_GROUPS, type PassageFacts } from '../src/reference/canon';
+import { booksMatching, canonBook, canonBooks, canonKey, chapterTone, countFilters, isMapFilter, matchesFilter, parseQuery, placeMatches, placeMatchesParsed, CANON_GROUPS, type PassageFacts } from '../src/reference/canon';
 
 describe('canon', () => {
   it('has the 66 books in canon order with chapters, testaments and sections', () => {
@@ -48,6 +48,10 @@ describe('canon', () => {
     expect(placeMatches({ bookId: 'luk', chapters: [1, 2, 3, 4] }, 'luke 3')).toBe(true);
     expect(placeMatches({ bookId: null, chapters: [] }, 'lesson')).toBe(false);
     expect(placeMatches(john3, '')).toBe(false);
+    // Parsed once for a whole list, it answers as the string does.
+    for (const q of ['joh 3', 'john 4', '1 cor 13:4', 'cor', '2 cor 13']) {
+      for (const p of [john3, psalm23, firstCor13]) expect(placeMatchesParsed(p, parseQuery(q))).toBe(placeMatches(p, q));
+    }
   });
 
   it('orders units by canon, unknown books last', () => {

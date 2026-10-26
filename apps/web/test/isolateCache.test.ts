@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUTH_TTL_MS, cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, cachedProfileOf, DENIAL_TTL_MS, MAX_ENTRIES, TtlCache } from '../worker/isolateCache';
+import { AUTH_TTL_MS, cachedBlobAccess, cachedOrgsOf, ORGS_TTL_MS, cachedGlobalViewerOn, cachedIdentityOf, cachedProfileOf, DENIAL_TTL_MS, MAX_ENTRIES, TtlCache } from '../worker/isolateCache';
 
 describe('TtlCache', () => {
   it('forgets an entry once its time has come', () => {
@@ -167,3 +167,25 @@ describe('cachedGlobalViewerOn', () => {
   });
 });
 
+
+describe('cachedOrgsOf', () => {
+  it('asks once per person within 30 s, and again after', async () => {
+    let t = 0;
+    let asked = 0;
+    const orgsOf = cachedOrgsOf(async (p) => { asked += 1; return [`org-of-${p}`]; }, () => t);
+    expect(await orgsOf('a')).toEqual(['org-of-a']);
+    expect(await orgsOf('a')).toEqual(['org-of-a']);
+    expect(await orgsOf('b')).toEqual(['org-of-b']);
+    expect(asked).toBe(2);
+    t = ORGS_TTL_MS;
+    await orgsOf('a');
+    expect(asked).toBe(3);
+  });
+
+  it('does not remember a failure', async () => {
+    let asked = 0;
+    const orgsOf = cachedOrgsOf(async () => { asked += 1; if (asked === 1) throw new Error('down'); return ['o']; }, () => 0);
+    await expect(orgsOf('a')).rejects.toThrow('down');
+    expect(await orgsOf('a')).toEqual(['o']);
+  });
+});

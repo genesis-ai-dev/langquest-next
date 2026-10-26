@@ -14,7 +14,7 @@ import { t } from '../i18n';
 import { useReadOnly } from '../session/useReadOnly';
 import { getRecordingJournal, liveParts } from './recordingJournal';
 import { RecordingSession } from './recordingSession';
-import { liveKept, liveKeptCount, liveNext } from './livePartsModel';
+import { framePublishDue, liveKept, liveKeptCount, liveNext } from './livePartsModel';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { barsOfFile } from '../audio/barsOfFile';
 import { barsFromLevels } from '../audio/barsModel';
@@ -641,10 +641,16 @@ export function useEnergyHistory(captured: boolean, bars = 60) {
   const capturedRef = useRef(captured);
   capturedRef.current = captured;
   useEffect(() => {
+    // Every event is kept, but the meter is told at about ten a second (the same pace as the waveform).
+    let heard = Array.from({ length: bars }, () => ({ energy: 0, captured: false }));
+    let shownAt: number | null = null;
     const sub = MicrophoneEnergy.addListener('onEnergyResult', (e) => {
-      setHistory((h) => [...h.slice(1), { energy: e.energy, captured: capturedRef.current }]);
+      heard = [...heard.slice(1), { energy: e.energy, captured: capturedRef.current }];
+      if (!framePublishDue(shownAt, e.timestamp)) return;
+      shownAt = e.timestamp;
+      setHistory(heard);
     });
     return () => sub.remove();
-  }, []);
+  }, [bars]);
   return history;
 }

@@ -130,12 +130,15 @@ export function booksMatching(query: string): CanonBook[] {
 
 /** Does a unit (its book and chapters, from core `unitPlace`) answer the search? False for an empty search. */
 export function placeMatches(place: { bookId: string | null; chapters: number[] }, query: string): boolean {
-  if (!query.trim()) return false;
+  return query.trim() ? placeMatchesParsed(place, parseQuery(query)) : false;
+}
+
+/** `placeMatches` for a query already parsed (`parseQuery`), so a list of units parses it once, not once each. */
+export function placeMatchesParsed(place: { bookId: string | null; chapters: number[] }, parsed: { book: string; chapter?: number }): boolean {
   const b = canonBook(place.bookId);
   if (!b) return false;
-  const { book, chapter } = parseQuery(query);
-  if (!bookMatches(b, book)) return false;
-  return chapter === undefined || place.chapters.includes(chapter);
+  if (!bookMatches(b, parsed.book)) return false;
+  return parsed.chapter === undefined || place.chapters.includes(parsed.chapter);
 }
 
 /** Canon order for a unit: book, then first chapter. Units with no book sort last. */
