@@ -1,4 +1,5 @@
 import { decodeHlc } from '@langquest-next/core';
+import { DEVICE } from '@langquest-next/v2-import';
 
 /**
  * What the projection pass learns about how work reaches the server, from a
@@ -20,7 +21,7 @@ export const FUTURE_SLACK_MS = 5 * 60_000;
  * the time its v2 record changed, so its "delay" is the import's schedule,
  * not a phone's. Their events count as arrived but not in the delays.
  */
-export const SERVER_DEVICES: ReadonlySet<string> = new Set(['v2import']);
+export const SERVER_DEVICES: ReadonlySet<string> = new Set([DEVICE]);
 
 /** The columns the sample selects. */
 export interface ArrivalRow { hlc: string; received_at: string; device_id: string }

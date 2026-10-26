@@ -7,7 +7,7 @@ import {
   requestIsFor, reviewersOf, usualTarget,
   type Commands, type OrgState, type LanguageState, type PassageLines, type UsualTarget
 } from '@langquest-next/core';
-import { holdsIn, type MineFn } from './record';
+import { holdsIn, type MineFn } from './recordTextModel';
 
 export type { UsualTarget };
 

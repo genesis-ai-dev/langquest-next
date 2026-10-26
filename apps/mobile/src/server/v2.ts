@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
-import { recordAuth, since } from '../auth/authDiag';
-import { fixedCode, v2Outcome } from '../auth/authOutcome';
+import { recordAuth, since } from '../diagnostics/authDiag';
+import { fixedCode, v2Outcome } from '../session/authOutcome';
 
 /**
  * Sign in with a LangQuest v2 account (docs/v2-import.md section 3). Sign In

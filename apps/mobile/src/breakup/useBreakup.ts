@@ -7,7 +7,7 @@
 import { isTemplateDoc, languageName, libraryItemView, orgLanguages, recommendedFor, subscriptionItemId, verseNumbering, type SourceDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
+import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { noteExpected } from '../diagnostics/report';

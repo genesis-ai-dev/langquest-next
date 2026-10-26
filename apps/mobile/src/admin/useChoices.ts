@@ -6,7 +6,7 @@
 // admin is offered and the rest one tap deeper.
 import type { FlowDoc, KindDef, TemplateDoc } from '@langquest-next/core';
 import { useMemo } from 'react';
-import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
+import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import { STARTER_FLOW } from '../org/orgAdmin';

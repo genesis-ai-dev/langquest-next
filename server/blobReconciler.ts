@@ -8,7 +8,7 @@
  * SUPABASE_SERVICE_ROLE_KEY and API_URL (the Worker, e.g. https://next.langquest.org).
  */
 import { createClient } from '@supabase/supabase-js';
-import { runBlobReconciler, workerBlobs } from '@langquest-next/sync';
+import { runBlobReconciler, workerBlobs } from '@langquest-next/sync/server';
 
 const url = process.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54421';
 const apiUrl = process.env['API_URL'] ?? 'http://127.0.0.1:8787';

@@ -20,7 +20,7 @@ import type { PathInput, PathStep } from './pathModel';
 import {
   elseChoices, kindCleared, kindRowActions, kindRowSub, type listenersOf, openCheckFor, sendTargetLabel, stepSheetSub,
   type KindRowCan, type MineFn, type NameFn, type RowAction
-} from './record';
+} from './recordTextModel';
 import { usualTargetFor, type UsualTarget } from './sendTarget';
 
 export interface RecordCan extends KindRowCan {

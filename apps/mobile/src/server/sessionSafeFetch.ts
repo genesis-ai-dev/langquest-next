@@ -1,7 +1,7 @@
 // i18n-ignore-file: HTTP plumbing; its strings are header names and error messages for the sync layer, never shown.
 import type { Session } from '@supabase/supabase-js';
-import { savedSession } from '../auth/authState';
-import { noteRefusal } from '../auth/signOutCause';
+import { savedSession } from '../session/authState';
+import { noteRefusal } from '../session/signOutCause';
 
 /**
  * The fetch every Supabase client on the phone uses (decision 87). Two

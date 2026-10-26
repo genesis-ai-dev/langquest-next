@@ -8,14 +8,14 @@ import { getLocales } from 'expo-localization';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
-import { languageInfo, t, UI_LANGUAGES, currentLanguage, type UiLanguage } from './';
-import { chooseLanguage, chosenLanguage, phoneLanguage } from './start';
+import { languageInfo, t, UI_LANGUAGES, currentLanguage, type UiLanguage } from '../i18n';
+import { chooseLanguage, chosenLanguage, phoneLanguage } from '../i18n/start';
 import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Ico, Row, Sheet } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { C, radius, space, target } from '../ui/theme';
-import { choiceChangesLanguage } from './uiLanguageChoice';
+import { choiceChangesLanguage } from '../i18n/uiLanguageChoice';
 
 /** The phone's or browser's languages, as i18n/start.ts reads them. */
 function deviceTags(): string[] {
@@ -66,6 +66,7 @@ export function LanguageSheet(props: { visible: boolean; onClose: () => void }) 
           <Row label={follow} sub={t('uiLanguage.phoneLanguageSub', { language: languageInfo(phone ?? 'en').name })}
             role="radio" selected={!chosen} onPress={() => pick(null)}
             right={!chosen ? <Ico name="check" size={22} color={C.primary} /> : <View style={styles.noMark} />} />
+          {/* help-each: each row picks a different language */}
           {UI_LANGUAGES.map((l, i) => (
             <Row key={l.code} label={l.name} sub={l.code === currentLanguage() ? undefined : nameHere(l.code)}
               role="radio" selected={chosen === l.code} onPress={() => pick(l.code)}

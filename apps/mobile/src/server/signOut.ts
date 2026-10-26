@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { accessTokenFresh, savedSession } from '../auth/authState';
-import { signingOutByChoice } from '../auth/signOutCause';
+import { accessTokenFresh, savedSession } from '../session/authState';
+import { signingOutByChoice } from '../session/signOutCause';
 
 interface KeyValue {
   getItem(key: string): Promise<string | null>;

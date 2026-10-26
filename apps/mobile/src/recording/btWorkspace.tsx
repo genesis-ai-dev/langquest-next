@@ -45,7 +45,7 @@ import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
 import { useSaveStatus } from '../ui/useSaveStatus';
 import { goesWhenConnected, nextAfterDone, recordCan, sentText, usualTargets, askButtonLabel } from '../passage/recordModel';
-import { sendTargetLabel } from '../passage/record';
+import { sendTargetLabel } from '../passage/recordTextModel';
 import { sendToInput, type UsualTarget } from '../passage/sendTarget';
 import { AskCheckCard } from '../passage/askParts';
 import type { DoneAsk } from './publish';

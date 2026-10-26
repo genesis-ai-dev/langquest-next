@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import type { Wrap } from '../auth/lockModel';
+import type { Wrap } from '../session/lockModel';
 
 /**
  * The web never locks a sign-in (decisions.md 168): a browser forgets

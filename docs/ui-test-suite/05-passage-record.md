@@ -60,7 +60,7 @@ the end-to-end test of each such spec reads one role, to prove the model
 reaches the screen. A spec run only there says `Run: Auto (model)`.
 
 Sources: `src/screens/passage.tsx`, `src/passage/` (`pathModel.ts`,
-`recordModel.ts`, `record.ts`, `versions.tsx`), `src/screens/review.tsx` (Already happened),
+`recordModel.ts`, `recordTextModel.ts`, `versions.tsx`), `src/screens/review.tsx` (Already happened),
 `src/screens/reference.tsx` (`PassageReference`), `src/offline.tsx`,
 `src/reportSheet.tsx`, and core `passage.ts` (decisions 29, 56, 61, 71, 72,
 80, 83).
@@ -1420,7 +1420,7 @@ Expected:
   "Peer Review"), as does Already happened.
   Decision 91 makes "check" and `checkName` the one word on every screen, so
   these should become "Community check". Left for a change that also moves
-  07 REV's screens (`passage/record.ts` `kindName`, `screens/review.tsx`).
+  07 REV's screens (`passage/recordTextModel.ts` `kindName`, `screens/review.tsx`).
 
 ### PASS-063 The study, from Versions
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto

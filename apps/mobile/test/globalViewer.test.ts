@@ -1,11 +1,13 @@
 import { CommandError, foldOrg, SEED_ROLES, type AnyEvent } from '@langquest-next/core';
-import { readOnlyLanguage, readOnlyOrg, readOnlyRefusal, setReadOnlySession } from '../src/shell/readOnly';
+import { readOnlyLanguage, readOnlyOrg } from '../src/shell/readOnly';
+import { readOnlyRefusal, setReadOnlySession } from '../src/session/readOnly';
 import type { LanguageHandle } from '../src/sync/useLanguage';
 import type { OrgHandle } from '../src/sync/useOrg';
-import { accessOf, codeOf, keyInGroups } from '../src/account/globalViewerModel';
+import { accessOf, codeIsWrong, codeOf, hasMore, keyInGroups, ORGANIZATIONS_PAGE, unfinishedSetups } from '../src/account/globalViewerModel';
 import { openLanguage } from '../src/shell/languages';
 import { recordCan, teamStepsOpen } from '../src/passage/recordModel';
-import { deriveSession, homeScreenFor, manageHomeFor, postSignInScreen, tabsFor } from '../src/shell/session';
+import { showsGlobalViewerLink } from '../src/shell/chromeModel';
+import { deriveSession, homeScreenFor, mayViewReports, manageHomeFor, postSignInScreen, tabsFor } from '../src/shell/session';
 
 // Global Viewers (decisions.md 158): the server lets them read every
 // organization and refuses their writes; the app shows them what a Viewer sees.
@@ -141,5 +143,39 @@ describe('a server refusal while read-only', () => {
     expect(readOnlyRefusal({ code: '08006', message: 'connection failure' })).toBeNull();
     setReadOnlySession(false);
     expect(readOnlyRefusal({ code: '42501', message: 'x' })).toBeNull();
+  });
+
+  it('decides read-only once, in the session: canChange, report access, the header link', () => {
+    const org = ORG;
+    const s = deriveSession('gv', 'gv@x.org', true, org, undefined, false, 'on');
+    expect(s.readOnly).toBe(true);
+    expect(s.can('manage_roles')).toBe(true);
+    expect(s.canChange('manage_roles')).toBe(false);
+    expect(mayViewReports(s, org, 'any-language')).toBe(true);
+    expect(showsGlobalViewerLink('on', true)).toBe(true);
+    expect(showsGlobalViewerLink('revoked', true)).toBe(false);
+    expect(showsGlobalViewerLink(null, true)).toBe(false);
+    expect(showsGlobalViewerLink('on', false)).toBe(false);
+  });
+});
+
+describe('Global Viewer rules the screen used to hold', () => {
+  it('calls a code wrong by Supabase\'s code or a 422, and nothing else', () => {
+    expect(codeIsWrong({ code: 'mfa_verification_failed' })).toBe(true);
+    expect(codeIsWrong({ status: 422 })).toBe(true);
+    expect(codeIsWrong({ status: 500 })).toBe(false);
+    expect(codeIsWrong({})).toBe(false);
+  });
+  it('offers more only after a full page', () => {
+    expect(hasMore(new Array(ORGANIZATIONS_PAGE).fill(0))).toBe(true);
+    expect(hasMore(new Array(ORGANIZATIONS_PAGE - 1).fill(0))).toBe(false);
+    expect(hasMore([])).toBe(false);
+  });
+  it('clears only unverified authenticator apps before a new set-up', () => {
+    expect(unfinishedSetups([
+      { id: 'a', type: 'totp', status: 'unverified' },
+      { id: 'b', type: 'totp', status: 'verified' },
+      { id: 'c', type: 'phone', status: 'unverified' }
+    ])).toEqual(['a']);
   });
 });

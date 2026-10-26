@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Wrap } from './lockModel';
+import type { Wrap } from '../session/lockModel';
 import { noteExpected } from '../diagnostics/report';
 import { LOCKS_ON_SIGN_OUT, lockPictures, lockWays, onLocksChanged } from '../server/lock';
 

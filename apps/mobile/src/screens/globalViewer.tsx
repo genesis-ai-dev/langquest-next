@@ -5,25 +5,21 @@
 // amended): the organization they are in and how, first, then every other one.
 // The server decides who is one and refuses every write; this screen only
 // sets up the code and lists organizations.
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { codeOf, keyInGroups } from '../account/globalViewerModel';
-import { useGlobalViewer } from '../account/useGlobalViewer';
-import { failureMessage, noteExpected } from '../diagnostics/report';
+import { useAuthenticatorSetup, useGlobalViewer, useVerifyCode, useViewableOrganizations } from '../account/useGlobalViewer';
+import { failureMessage } from '../diagnostics/report';
 import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
-import {
-  globalViewerOrganizations, opsDashboardUrl, startAuthenticator, verifiedAuthenticator, verifyAuthenticator, type ViewableOrganization
-} from '../server/globalViewer';
+import { opsDashboardLink, setUpAuthenticator } from '../account/globalViewerCalls';
 import type { Ctx } from '../shell/ctx';
 import { contractsFor } from '../shell/screenContracts';
 import { Banner, Card, EmptyState, Field, GhostBtn, Header, Ico, PrimaryBtn, Screen, SearchField, SectionLabel } from '../ui/kit';
 import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
-
-const PAGE = 50;
 
 export function GlobalViewer(ctx: Ctx) {
   const { access, refresh } = useGlobalViewer(ctx.session.actorId, true);
@@ -41,29 +37,9 @@ export function GlobalViewer(ctx: Ctx) {
 /** A code from the authenticator, checked by the server; the sign-in is then verified (aal2). */
 function CodeField(props: { factorId: () => Promise<string | null>; refresh: () => Promise<void> }) {
   const [typed, setTyped] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const { busy, error, check: verify } = useVerifyCode(props.refresh);
   const code = codeOf(typed);
-  async function check() {
-    if (!code) return;
-    setBusy(true);
-    setError('');
-    try {
-      const factorId = await props.factorId();
-      if (!factorId) { setError(t('globalViewer.noAuthenticator')); return; }
-      const { error: refused } = await verifyAuthenticator(factorId, code);
-      if (refused) {
-        noteExpected('global viewer code', refused);
-        setError(refused.code === 'mfa_verification_failed' || refused.status === 422 ? t('globalViewer.codeWrong') : failureMessage('global viewer code', refused));
-        return;
-      }
-      await props.refresh();
-    } catch (e) {
-      setError(failureMessage('global viewer code', e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const check = async () => { if (code) await verify(props.factorId, code); };
   return (
     <View style={{ gap: space.md }}>
       <Field label={t('globalViewer.codeLabel')} value={typed} onChangeText={setTyped} placeholder="123 456" keyboardType="number-pad"
@@ -78,28 +54,14 @@ function EnterCode(props: { refresh: () => Promise<void> }) {
   return (
     <View style={{ gap: space.md }}>
       <Text style={txt.body}>{t('globalViewer.enterCode')}</Text>
-      <CodeField factorId={verifiedAuthenticator} refresh={props.refresh} />
+      <CodeField factorId={setUpAuthenticator} refresh={props.refresh} />
     </View>
   );
 }
 
 /** Setting up the authenticator, done on a call with whoever granted this (docs/global-viewers.md). */
 function SetUp(props: { refresh: () => Promise<void> }) {
-  const [started, setStarted] = useState<{ factorId: string; uri: string; secret: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  async function start() {
-    setBusy(true);
-    setError('');
-    try {
-      // i18n-ignore: the factor's name, kept on the server
-      setStarted(await startAuthenticator('LangQuest'));
-    } catch (e) {
-      setError(failureMessage('global viewer setup', e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { started, busy, error, start, fail } = useAuthenticatorSetup();
   if (!started) {
     return (
       <View style={{ gap: space.md }}>
@@ -118,7 +80,7 @@ function SetUp(props: { refresh: () => Promise<void> }) {
       </View>
       {Platform.OS !== 'web' ? (
         <GhostBtn label={t('globalViewer.openApp')} icon="phone" full help={t('globalViewer.openAppHelp')}
-          onPress={() => { Linking.openURL(started.uri).catch(() => setError(t('globalViewer.noApp'))); }} />
+          onPress={() => { Linking.openURL(started.uri).catch(() => fail(t('globalViewer.noApp'))); }} />
       ) : null}
       <Text style={txt.smMuted}>{t('globalViewer.typeKey')}</Text>
       <Text style={[txt.body, styles.key]} selectable testID="global-viewer-key">{keyInGroups(started.secret)}</Text>
@@ -133,26 +95,9 @@ function SetUp(props: { refresh: () => Promise<void> }) {
 function Organizations(props: { ctx: Ctx }) {
   const { ctx } = props;
   const [query, setQuery] = useState('');
-  const [rows, setRows] = useState<ViewableOrganization[] | null>(null);
-  const [more, setMore] = useState(false);
-  const [error, setError] = useState('');
-  const asked = useRef(0);
-  async function load(q: string, after?: ViewableOrganization) {
-    const mine = ++asked.current;
-    const { data, error: refused } = await globalViewerOrganizations(q, after ? { name: after.name, orgId: after.org_id } : undefined);
-    if (mine !== asked.current) return;
-    if (refused) { setError(failureMessage('global viewer organizations', refused)); return; }
-    setError('');
-    const page = data ?? [];
-    setRows((before) => (after ? [...(before ?? []), ...page] : page));
-    setMore(page.length === PAGE);
-  }
-  useEffect(() => {
-    const timer = setTimeout(() => { void load(query.trim()); }, query ? 300 : 0);
-    return () => clearTimeout(timer);
-  }, [query]);
+  const { rows, hasMore: more, error, more: loadMore, fail: setError } = useViewableOrganizations(query);
   const here = ctx.session.viewingAsGlobalViewer ? ctx.org.state?.org?.value.name ?? '' : '';
-  const dashboard = opsDashboardUrl();
+  const dashboard = opsDashboardLink();
   return (
     <View style={{ gap: space.md }}>
       {/* LangQuest's own operations, for the same staff (decisions.md 160): in a tab of its own, beside the app. */}
@@ -205,7 +150,7 @@ function Organizations(props: { ctx: Ctx }) {
         );
       })}
       {rows && !rows.length ? <EmptyState icon="search" title={t('globalViewer.noneFound')} /> : null}
-      {more && rows ? <GhostBtn label={t('globalViewer.more')} full help={t('help.details.showMore')} onPress={() => void load(query.trim(), rows[rows.length - 1])} /> : null}
+      {more && rows ? <GhostBtn label={t('globalViewer.more')} full help={t('help.details.showMore')} onPress={loadMore} /> : null}
     </View>
   );
 }

@@ -41,19 +41,18 @@ import { personLook } from '../ui/people';
 import { noteExpected, failureMessage } from '../diagnostics/report';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
-import { FORGETS_ON_SIGN_OUT, signOutAndForget } from '../web/forgetBrowser';
+import { FORGETS_ON_SIGN_OUT } from '../web/forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../sync/handOver';
-import { isPattern, MIN_DOTS, PICTURES } from '../auth/lockModel';
+import { isPattern, MIN_DOTS, PICTURES } from '../session/lockModel';
 import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
 import { useLockWays } from '../auth/useLockWays';
-import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setLockPattern } from '../server/lock';
-import { choosePassword, signOutHere } from '../server/auth';
+import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setAccountPassword, setLockPattern, signOutThisDevice } from '../account/accountAuth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
 import { PersonAvatar } from '../ui/UserChip';
 import { standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
-import { LanguageRow } from '../i18n/uiLanguage';
+import { LanguageRow } from '../account/uiLanguage';
 import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
 import { useSyncInspection } from '../account/useSyncInspection';
 import { useDiagnosticsSwitch } from '../account/useDiagnosticsSwitch';
@@ -582,7 +581,7 @@ export function ProfileEdit(ctx: Ctx) {
       // A too-short one is refused here and nothing is written, name included.
       if (managed && password) {
         if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
-        const { error } = await choosePassword(password);
+        const { error } = await setAccountPassword(password);
         if (error) {
           noteExpected('set password', error);
           setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
@@ -730,7 +729,7 @@ export function SignOutConfirm(ctx: Ctx) {
     }
     // A phone keeps the session, locked, for your return (decision 168); this device only either way (decision 87).
     if (LOCKS_ON_SIGN_OUT) { await lockAndSignOut(ctx.session.actorId); return; }
-    await signOutAndForget(signOutHere);
+    await signOutThisDevice();
   }
   async function signOut() {
     if (needsPattern) { choose(); return; }

@@ -2,8 +2,9 @@ import { encodeHlc } from '../src/hlc';
 import type { AnyEvent } from '../src/events';
 import {
   adminScopeOf, clusterName, clustersOf, effectiveRole, emptyOrgState, foldOrg, languageInfo, mayManageClusters, orgClusters, languageName, languageOfOrgEvent, languagePeople, mayRenameLanguage, mayRenameOrg, orgLanguages, orgName,
-  privilegeFor, privilegesFor, privilegesOfFixedRole, scopeCovers, SEED_ROLES, EVENT_PRIVILEGE
+  mayReadLanguage, mayWriteFiles, privilegeFor, privilegesFor, privilegesOfFixedRole, scopeCovers, SEED_ROLES, EVENT_PRIVILEGE
 } from '../src/org';
+import { mayViewLanguage } from '../src/reports';
 import { buildFixture, shuffle } from './fixtures';
 
 function orgFixture(): AnyEvent[] {
@@ -325,5 +326,42 @@ describe('invites and join requests (audit 5.B)', () => {
     const s = foldOrg([bad]);
     expect(Object.keys(s.invalidEvents)).toHaveLength(1);
     expect(s.invites['inv1']).toBeUndefined();
+  });
+});
+
+describe('reading and writing files', () => {
+  const ev = (id: string, type: string, payload: unknown): AnyEvent =>
+    ({ id, type, orgId: 'o', streamId: '_org', actorId: 'lead', deviceId: 'd', hlc: encodeHlc(1, Number(id.slice(1)), 'd'), payload }) as AnyEvent;
+  const scoped = (id: string, profileId: string, roleId: string, languageId?: string) =>
+    ev(id, 'v1.MemberAdded', { profileId, roleId, scope: languageId ? { level: 'language', languageId } : { level: 'org' } });
+  const org = foldOrg([
+    ev('e1', 'v1.OrgCreated', { name: 'O' }),
+    ev('e2', 'v1.LanguageAdded', { languageId: 'L', name: 'L', code: 'l', sourceCode: 'eng' }),
+    ev('e3', 'v1.RoleDefined', { roleId: 'noview', name: 'No view', privileges: ['translate'] }),
+    ev('e4', 'v1.RoleDefined', { roleId: 'viewonly', name: 'View', privileges: ['view_status'] }),
+    ev('e5', 'v1.RoleDefined', { roleId: 'tmpl', name: 'Tmpl', privileges: ['manage_templates'] }),
+    scoped('e6', 'translator', 'noview', 'L'), scoped('e7', 'viewer', 'viewonly', 'L'), scoped('e8', 'tmpl', 'tmpl')
+  ], emptyOrgState());
+
+  it('lets a custom role without view_status read a language but not see its report', () => {
+    expect(mayReadLanguage(org, 'translator', 'L')).toBe(true);
+    expect(mayViewLanguage(org, 'translator', 'L')).toBe(false);
+    expect(mayReadLanguage(org, 'viewer', 'L')).toBe(true);
+    expect(mayViewLanguage(org, 'viewer', 'L')).toBe(true);
+    expect(mayReadLanguage(org, 'translator', 'M')).toBe(false);
+    expect(mayReadLanguage(org, 'nobody', 'L')).toBe(false);
+  });
+
+  it('lets any member read the organization stream', () => {
+    expect(mayReadLanguage(org, 'translator', '_org')).toBe(true);
+    expect(mayReadLanguage(org, 'nobody', '_org')).toBe(false);
+  });
+
+  it('writes files for a listed language with any privilege but view_status, and for the organization stream with a manage privilege', () => {
+    expect(mayWriteFiles(org, 'translator', 'L')).toBe(true);
+    expect(mayWriteFiles(org, 'viewer', 'L')).toBe(false);
+    expect(mayWriteFiles(org, 'translator', 'M')).toBe(false);
+    expect(mayWriteFiles(org, 'tmpl', '_org')).toBe(true);
+    expect(mayWriteFiles(org, 'translator', '_org')).toBe(false);
   });
 });

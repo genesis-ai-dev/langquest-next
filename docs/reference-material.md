@@ -142,7 +142,7 @@ study guide's Edit for the organization's own and Copy to adapt for FIA's
 and other organizations') makes `study@2` documents with everything FIA's
 material has. Web first; on a phone it edits text and records step audio.
 
-- **Draft.** A pure reducer (`src/guides/draft.ts`) over details, steps,
+- **Draft.** A pure reducer (`src/guides/draftModel.ts`) over details, steps,
   media and glossary, saved on the device as it changes (`draftStore.ts`),
   one draft per guide per device. One person edits a guide at a time: two
   drafts never merge, and the later publish is simply the next version.

@@ -3,7 +3,8 @@
 // would make them, and a few ways to read the screen those two files share.
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { commands, derivePassage, ORG_STREAM, SEED_ROLES, type EventSpec, type LanguageState, type OrgState, type Scope } from '@langquest-next/core';
-import { blobKey, MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/sync';
+import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/sync';
+import { blobKey } from '@langquest-next/sync/server';
 import { setupBlobs } from './blob-upload';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { clientAs, send, signIn } from './fixture';

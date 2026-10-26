@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildIndexes, foldOrg, languageInfo, languagePeople, languageProgress, LINES_VERSION, onlyEventsThatLeaveTheReport, ORG_STREAM, orgLicense, PERSON_ORG,
   REDUCER_VERSION, REPORT_VERSION, reportInputs, unitTitle, updatesFor, type AnyEvent, type OrgState, type Update } from '@langquest-next/core';
-import { runSnapshotWorker, shouldWriteSnapshot, SNAPSHOT_SCHEDULE } from '../packages/sync/src/snapshotWorker';
-import { SupabaseTransport } from '../packages/sync/src/supabaseTransport';
-import { listStreams } from '../packages/sync/src/listStreams';
+import { runSnapshotWorker, shouldWriteSnapshot, SNAPSHOT_SCHEDULE } from '@langquest-next/sync/server';
+import { SupabaseTransport } from '@langquest-next/sync';
+import { listStreams } from '@langquest-next/sync/server';
 import { check } from './dbError';
 import { ARRIVAL_SAMPLE, arrivalStats, type ArrivalRow, type ArrivalStats } from './arrivals';
 

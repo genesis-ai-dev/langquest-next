@@ -15,7 +15,7 @@ import { HelpRow } from '../helpMode/helpBadge';
 import { sourceLine } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { PickCard, RadioRow } from '../admin/admin';
-import { bookRows, choiceLine, libraryChoices, partWords, recordedCount, setAsideCount, STARTER_TEMPLATE, templateOf, withWaitingBooks, type LibraryChoice } from './contentTemplates';
+import { bookRows, choiceLine, libraryChoices, partWords, recordedCount, setAsideCount, STARTER_TEMPLATE, templateOf, withWaitingBooks, type LibraryChoice } from './contentTemplatesModel';
 import { choiceInUse, languageSummary, languageVersionView, lower, pickerLists, pickerNote } from './model';
 import { usePickTemplate } from './usePickTemplate';
 import { useRunner } from './useRunner';

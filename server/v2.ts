@@ -35,7 +35,7 @@ import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
-import { workerBlobs } from '@langquest-next/sync';
+import { workerBlobs } from '@langquest-next/sync/server';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { refuseBoardRequest, TOKEN_HEADER } from './v2Guard';
 import { ffmpegConverter } from './audioConvert';

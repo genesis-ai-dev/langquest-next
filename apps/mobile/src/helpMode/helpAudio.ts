@@ -15,9 +15,21 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { currentLanguage } from '../i18n';
-import { registerPlayback } from '../audio/audioSession';
-import { noteExpected } from '../diagnostics/report';
-import { timedTransfer } from '../diagnostics/diagnostics';
+import { registerPlayback } from '../ui/playback';
+import type { noteExpected as NoteExpected } from '../diagnostics/report';
+import type { timedTransfer as TimedTransfer } from '../diagnostics/diagnostics';
+
+/**
+ * Where a failed or timed download is told to diagnostics. Help mode sits
+ * below diagnostics (decisions.md 105), so the app hands these over at start
+ * (shell/wiring.ts); until it does, nothing is reported.
+ */
+let reporting: { noteExpected: typeof NoteExpected; timedTransfer: typeof TimedTransfer } | null = null;
+export function setHelpAudioReporting(to: NonNullable<typeof reporting>): void {
+  reporting = to;
+}
+const noteExpected: typeof NoteExpected = (where, error, code) => reporting?.noteExpected(where, error, code);
+const timedTransfer: typeof TimedTransfer = (dir, where, run) => reporting ? reporting.timedTransfer(dir, where, run) : run({});
 
 const apiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') || (Platform.OS === 'web' ? '' : null);
 

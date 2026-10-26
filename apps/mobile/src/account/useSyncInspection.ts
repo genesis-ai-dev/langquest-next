@@ -1,7 +1,7 @@
 import { ORG_STREAM, orgLanguages } from '@langquest-next/core';
 import type { LocalEvent, SyncInspection } from '@langquest-next/sync';
 import { useEffect, useRef, useState } from 'react';
-import { getStore } from '../sync/store';
+import { getStore } from '../storage/store';
 import type { LanguageHandle } from '../sync/useLanguage';
 import type { OrgHandle } from '../sync/useOrg';
 import { INSPECT_EVERY_MS, keepIfSame } from './syncInspectionModel';

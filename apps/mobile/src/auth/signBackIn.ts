@@ -1,5 +1,5 @@
-import { recordAuth, since } from './authDiag';
-import type { Wrap } from './lockModel';
+import { recordAuth, since } from '../diagnostics/authDiag';
+import type { Wrap } from '../session/lockModel';
 import { keepPushToken } from '../notifications/notifications';
 import { openLock, restoreSession } from '../server/lock';
 import { takeBackHandOver } from '../sync/handOver';

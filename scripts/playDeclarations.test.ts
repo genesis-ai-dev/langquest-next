@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { DIAG_CONTEXT, DIAG_SCHEMA } from '../packages/sync/src/diagnostics';
+import { DIAG_CONTEXT, DIAG_SCHEMA } from '@langquest-next/sync';
 
 /**
  * What we told Google Play (docs/play-store-declarations.md, decisions.md 49)

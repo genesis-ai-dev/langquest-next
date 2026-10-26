@@ -20,9 +20,10 @@ import { UpdateBanner } from './src/shell/UpdateBanner';
 import { useFirstLaunchUpdate } from './src/shell/useFirstLaunchUpdate';
 import { AppVersionPrompt } from './src/appVersion/AppVersionPrompt';
 import { useAppVersion } from './src/appVersion/useAppVersion';
-import { maySwitchPersona } from './src/auth/dev';
+import { maySwitchPersona } from './src/session/dev';
 import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/shell/flow';
-import { chromeVisible, frame, layoutKind } from './src/ui/layout';
+import { frame, layoutKind } from './src/ui/layout';
+import { chromeVisible, showsGlobalViewerLink } from './src/shell/chromeModel';
 import { NavChrome } from './src/shell/NavChrome';
 import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
@@ -54,8 +55,9 @@ import { SyncStatusContext } from './src/sync/useSyncStatus';
 import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/shell/session';
 import { onAuthChange, savedSignIn, serverConfigError } from './src/server/auth';
 import { onUnlocked, signedInHere } from './src/server/lock';
-import { afterAuthEvent, savedSession } from './src/auth/authState';
-import { noteAuthEvent, watchRenewals } from './src/auth/authDiag';
+import { afterAuthEvent, savedSession } from './src/session/authState';
+import { noteAuthEvent } from './src/diagnostics/authDiag';
+import { watchRenewals } from './src/server/renewalWatch';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/account/useAccount';
@@ -89,8 +91,12 @@ import { useRouting } from './src/shell/useRouting';
 import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
-import { readOnlyLanguage, readOnlyOrg, setReadOnlySession } from './src/shell/readOnly';
+import { useReadOnlyHandles } from './src/shell/useReadOnlyHandles';
+import { ReadOnlyContext } from './src/session/useReadOnly';
+import { wireBase } from './src/shell/wiring';
 
+// What the base folders need from folders above them (decisions.md 105), once, before anything draws.
+wireBase();
 const IS_DEV = __DEV__;
 /** Screens that record: the upload bar shows there, but tapping it does not leave mid-take. */
 const RECORDING_SCREENS: readonly ScreenId[] = ['workspace', 'review_capture', 'back_translation'];
@@ -441,9 +447,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   );
   // A read-only session (a Global Viewer looking in) writes nothing, from any screen or hook (readOnly.ts).
   const { readOnly } = session;
-  const org = useMemo(() => (readOnly ? readOnlyOrg(liveOrg) : liveOrg), [liveOrg, readOnly]);
-  const language = useMemo(() => (readOnly ? readOnlyLanguage(liveLanguage) : liveLanguage), [liveLanguage, readOnly]);
-  useEffect(() => { setReadOnlySession(readOnly); return () => setReadOnlySession(false); }, [readOnly]);
+  const { org, language } = useReadOnlyHandles(readOnly, liveOrg, liveLanguage);
   // Members' names, which a Global Viewer's own directory does not hold.
   const viewedNames = useGlobalViewerNames(props.orgId, session.viewingAsGlobalViewer);
   // Languages follow the library versions their template and flow are at (docs/library.md).
@@ -532,14 +536,15 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // A Global Viewer looking in has a link in every header: where they are, and the way to another
   // organization. It opens the Global Viewer screen as the tabs open theirs, as chrome (decision 71 amended).
   // In an organization of their own too, and before the code is entered: it is also where the code goes.
-  const showLink = globalViewer !== null && globalViewer !== 'revoked' && !!org.state?.org;
+  const showLink = showsGlobalViewerLink(globalViewer, !!org.state?.org);
   const viewingName = session.viewingAsGlobalViewer ? org.state?.org?.value.name ?? '' : '';
   const navPush = nav.push;
   // The upload bar opens Sync from wherever it is shown, as chrome, like a tab (decisions.md 166).
-  const openSync = useCallback(() => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== 'sync_status') navPush({ screen: 'sync_status' }); }, [navPush]);
+  const openChrome = useCallback((screen: ScreenId) => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== screen) navPush({ screen }); }, [navPush]);
+  const openSync = useCallback(() => openChrome('sync_status'), [openChrome]);
   const headerExtra = useMemo(() => (!showLink ? null : (
-    <GlobalViewerLink orgName={viewingName} onPress={() => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== 'global_viewer') navPush({ screen: 'global_viewer' }); }} />
-  )), [showLink, viewingName, navPush]);
+    <GlobalViewerLink orgName={viewingName} onPress={() => openChrome('global_viewer')} />
+  )), [showLink, viewingName, openChrome]);
   // Phone, tablet or desktop by the window's width alone (decisions.md 55).
   const { width } = useWindowDimensions();
   const kind = layoutKind(width);
@@ -599,6 +604,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   return (
     <View style={{ flex: 1 }}>
+      <ReadOnlyContext.Provider value={readOnly}>
       <SyncStatusContext.Provider value={syncSources}>
       <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused} />
       <PeopleContext.Provider value={people}>
@@ -645,6 +651,7 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
       </HeaderExtraContext.Provider>
       </PeopleContext.Provider>
       </SyncStatusContext.Provider>
+      </ReadOnlyContext.Provider>
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
       <LostFilesAlert state={language.state} whatWere={language.blobs.lost} />
       {canSwitchPersona ? (

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import type { ScreenId } from './flow';
 import { syncActivity } from '../sync/syncActivity';
-import { isTestBuild } from './testBuild';
+import { isTestBuild } from '../build/testBuild';
 import type { LanguageHandle } from '../sync/useLanguage';
 import type { OrgHandle } from '../sync/useOrg';
 

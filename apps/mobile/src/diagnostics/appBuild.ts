@@ -1,6 +1,6 @@
 import * as Updates from 'expo-updates';
 import { Platform } from 'react-native';
-import { BUILD_ID } from '../web/webBuild';
+import { BUILD_ID } from '../build/webBuild';
 
 /** A development launch has no build to name: each one counts as new. */
 const LAUNCH = `launch:${Date.now()}`;

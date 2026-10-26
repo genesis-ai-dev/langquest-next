@@ -558,3 +558,9 @@ export function offlineSummaryOf(plan: FilePlan, present: ReadonlySet<string>, c
   }
   return out;
 }
+
+/** The most one file may be: what the Worker takes and the audio converter aims under. */
+export const MAX_FILE_BYTES = 50 * 1024 * 1024;
+
+/** Bits per second a recording is made at (decision 106); the converter's ceiling too. */
+export const RECORDING_BITRATE = 128_000;

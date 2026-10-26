@@ -1,8 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/auth/authState';
+import { accessTokenFresh, afterAuthEvent, savedSession } from '../src/session/authState';
 import { answerAtOnceWhileOffline, NOT_RENEWED, renewalChanges, sessionSafeFetch, type RenewalChange, type RenewalWatch } from '../src/server/sessionSafeFetch';
 import { signOutThisDevice } from '../src/server/signOut';
-import { signOutChosen, takeRefusal } from '../src/auth/signOutCause';
+import { signOutChosen, takeRefusal } from '../src/session/signOutCause';
 
 // Decision 87: someone offline for months, online for a second, then
 // offline again, keeps their sign-in and their work. These run the app's own

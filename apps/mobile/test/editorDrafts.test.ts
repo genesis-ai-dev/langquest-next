@@ -6,7 +6,7 @@ import {
   draftBehind, editorDraft, EMPTY_RENDERING, isFlowDraft, isLibraryMaterialDraft, isMaterialDraft, isRenderingDraft, isTemplateDraft, isTermDraft,
   NO_FLOW_EDITS, NO_LIBRARY_MATERIAL_EDITS, NO_MATERIAL_EDITS
 } from '../src/drafts/editorDrafts';
-import type { TemplateForm } from '../src/templates/contentTemplates';
+import type { TemplateForm } from '../src/templates/contentTemplatesModel';
 
 const form: TemplateForm = {
   name: 'Stories', description: '', structure: 'outline', levels: [{ name: 'Section' }, { name: 'Lesson', display: 'name' }],

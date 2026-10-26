@@ -17,7 +17,7 @@ vi.mock('expo-crypto', async () => {
 });
 vi.mock('expo-file-system', () => ({ Directory: class {}, File: class {}, Paths: { document: null, availableDiskSpace: 0 } }));
 vi.mock('expo-file-system/legacy', () => ({ readDirectoryAsync: async () => [] }));
-vi.mock('../src/sync/store', () => ({ getFileLedger: async () => null }));
+vi.mock('../src/storage/store', () => ({ getFileLedger: async () => null }));
 vi.mock('../src/sync/wake', () => ({ onWake: () => () => undefined }));
 // Field diagnostics: each check that finds a loss is counted, with no names or hashes.
 const noted = vi.hoisted(() => [] as { where: string; name: string; code: string | undefined }[]);

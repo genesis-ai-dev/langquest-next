@@ -5,7 +5,7 @@
 // words and calls ctx.act. Ids come in, so the same input is the same events.
 import type { Commands, EventSpec } from '@langquest-next/core';
 import { t } from '../i18n';
-import { SAID_BY_VOICE } from './record';
+import { SAID_BY_VOICE } from './recordTextModel';
 
 type DepartInput = Parameters<Commands['depart']>[0];
 type AddNoteInput = Parameters<Commands['addNote']>[0];

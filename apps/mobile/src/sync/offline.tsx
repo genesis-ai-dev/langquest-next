@@ -16,6 +16,7 @@ import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
 import { Card, Header, HelpInfo, Ico, ProgressBar, Screen, type IconName } from '../ui/kit';
 import { HelpBadge } from '../helpMode/helpBadge';
+import { isOffline } from './uploadsModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { txt } from '../ui/textStyles';
 import { endsSentence } from '../helpMode/helpContext';
@@ -105,7 +106,7 @@ function DownloadDisc(props: { look: OfflineLook; size?: number }) {
 export function DownloadButton(props: { ctx: Ctx; unitId: string; testID?: string; size?: number }) {
   const { ctx, unitId } = props;
   const u = useOffline(ctx, unitId);
-  const offline = ctx.language.online === false;
+  const offline = isOffline(ctx.language.online);
   const look = offlineLook(u, { offline, downloading: useSyncStatus().downloading.has(unitId) });
   const keep = useKeepToggle(ctx, unitId, u, offline);
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
@@ -128,7 +129,7 @@ const NOT_KEPT: KeptOffline = { reason: null, audio: 0, here: 0, toFetch: 0, byt
 export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
   const { ctx, unitId } = props;
   const u = useOffline(ctx, unitId);
-  const offline = ctx.language.online === false;
+  const offline = isOffline(ctx.language.online);
   const look = offlineLook(u, { offline, downloading: useSyncStatus().downloading.has(unitId) });
   const keep = useKeepToggle(ctx, unitId, u, offline);
   const spot = useHelpSpot(look.label, keep.help, keep.onPress);
@@ -165,7 +166,7 @@ export function BookOfflineLine(props: { ready: number; count: number; checking:
 export function FillBanner(props: { ctx: Ctx }) {
   const fill = props.ctx.language.fill;
   if (!fill || fill.total === 0) return null;
-  const offline = props.ctx.language.online === false;
+  const offline = isOffline(props.ctx.language.online);
   const count = t('offline.fill.count', { filled: fill.filled, total: fill.total });
   const body = sentences(count, offline ? t('offline.connectToFinish') : t('offline.stayConnected'));
   return (
@@ -211,7 +212,7 @@ export function PassageNotHere(props: { ctx: Ctx; unitId: string }) {
 /** The Sync screen's card: how ready this phone is, and what never comes along. */
 export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
   const { ctx, s } = props;
-  const offline = ctx.language.online === false;
+  const offline = isOffline(ctx.language.online);
   const ready = !!s && s.kept > 0 && s.ready === s.kept;
   const language = ctx.languageId ? languageName(ctx.org.state, ctx.languageId) : t('offline.card.thisLanguage');
   const head = ready

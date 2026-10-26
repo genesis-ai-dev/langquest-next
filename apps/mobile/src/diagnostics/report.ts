@@ -2,7 +2,7 @@ import { CommandError } from '@langquest-next/core';
 import { commandErrorText } from '../i18n/coreText';
 import { diagnostics } from './diagnostics';
 import { t } from '../i18n';
-import { readOnlyRefusal } from '../shell/readOnly';
+import { readOnlyRefusal } from '../session/readOnly';
 
 // The one place faults are reported (error-tracking skill). There is no
 // third-party tracker (decisions.md 39): this logs a content-free line,

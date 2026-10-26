@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { hasWords, keepInput, keepPageInput, noteInput, overrideInput, payloadField, skipInput, undoneText } from '../src/passage/recordInputsModel';
-import { SAID_BY_VOICE } from '../src/passage/record';
+import { SAID_BY_VOICE } from '../src/passage/recordTextModel';
 import { t } from '../src/i18n';
 
 describe('what the record\'s sheets save (recordInputsModel.ts)', () => {

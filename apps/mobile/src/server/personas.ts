@@ -1,6 +1,6 @@
 // i18n-ignore-file: developer tools, shown only in development builds.
 import { createClient } from '@supabase/supabase-js';
-import { DEV_PASSWORD, personaPassword, personasAvailable, type Persona } from '../auth/dev';
+import { DEV_PASSWORD, personaPassword, personasAvailable, type Persona } from '../session/dev';
 import { supabase } from './supabase';
 
 // Dev-build personas (dev.ts): accounts on a local server, made and signed

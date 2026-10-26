@@ -1,18 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Application from 'expo-application';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Linking, Platform } from 'react-native';
 import { noteExpected } from '../diagnostics/report';
 import { appVersions } from '../server/appVersions';
-import { offerFor, storeUrl, type Offer, type PlatformVersions } from './appVersionModel';
+import { dueToAsk, offerFor, storeUrl, versionsFromRows, type Offer, type PlatformVersions } from './appVersionModel';
 import { setBelowMinimum } from './syncGate';
-
-/** The last answer from the server, kept so a phone offline for months still knows its minimum. */
-const LAST_KEY = 'app-versions:last';
-/** The newest version that the person dismissed "New version available" for. */
-const DISMISSED_KEY = 'app-versions:dismissed';
-/** How often a phone asks the server, at most. */
-const EVERY_MS = 60 * 60_000;
+import { readVersionCache, saveDismissed, saveVersions } from './versionCache';
 
 const PLATFORM = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : null;
 
@@ -32,10 +25,10 @@ export function useAppVersion(signedIn: boolean) {
   useEffect(() => {
     if (!PLATFORM) return;
     let active = true;
-    AsyncStorage.multiGet([LAST_KEY, DISMISSED_KEY]).then(([[, last], [, gone]]) => {
+    readVersionCache().then((cached) => {
       if (!active) return;
-      if (last) setVersions((now) => now ?? (JSON.parse(last) as { versions: PlatformVersions }).versions);
-      setDismissed(gone);
+      if (cached.versions) setVersions((now) => now ?? cached.versions);
+      setDismissed(cached.dismissed);
     }, (e: unknown) => noteExpected('app versions read', e));
     return () => { active = false; };
   }, []);
@@ -44,15 +37,14 @@ export function useAppVersion(signedIn: boolean) {
     if (!PLATFORM || !signedIn) return;
     let asked = 0;
     const ask = () => {
-      if (Date.now() - asked < EVERY_MS) return;
+      if (!dueToAsk(asked, Date.now())) return;
       asked = Date.now();
       void Promise.resolve(appVersions()).then(({ data, error }) => {
         if (error) throw error;
-        const row = (data as { platform: string; version: string | null; min_version: string }[] | null)?.find((r) => r.platform === PLATFORM);
-        if (!row) return;
-        const next: PlatformVersions = { platform: PLATFORM, version: row.version, minVersion: row.min_version };
+        const next = versionsFromRows(data, PLATFORM);
+        if (!next) return;
         setVersions(next);
-        void AsyncStorage.setItem(LAST_KEY, JSON.stringify({ versions: next }));
+        void saveVersions(next);
       }).catch((e: unknown) => noteExpected('app versions', e));
     };
     ask();
@@ -66,7 +58,7 @@ export function useAppVersion(signedIn: boolean) {
   const dismiss = useCallback(() => {
     if (!versions?.version) return;
     setDismissed(versions.version);
-    void AsyncStorage.setItem(DISMISSED_KEY, versions.version);
+    void saveDismissed(versions.version);
   }, [versions?.version]);
   const openStore = useCallback(() => {
     if (PLATFORM) void Linking.openURL(storeUrl(PLATFORM)).catch((e: unknown) => noteExpected('store page', e));

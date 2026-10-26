@@ -16,28 +16,27 @@ import {
   cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
   type ListedOrganization
 } from '../account/accountData';
-import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../account/accountText';
-import { signInAddress, signInName } from '../auth/accounts';
+import { firstName, outboxErrorText, VISION_STEPS } from '../account/accountText';
+import { signInName } from '../auth/accounts';
 import { globalViewerLine } from '../account/globalViewerText';
 import { useGlobalViewer } from '../account/useGlobalViewer';
 import { licenseText } from '../i18n/coreText';
 import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
-import { recordHelp } from '../auth/signInHelp';
 import { inviteCard, scanVerdict } from '../invites/heldInvite';
 import { parseKey } from '../invites/inviteCode';
 import type { Ctx } from '../shell/ctx';
-import { recreateDevAccount } from '../server/personas';
+import { createAccountWithEmail, signInWithEmail, signInWithKey } from '../auth/signInFlow';
+import { queueJoinRequest } from '../auth/joinRequest';
+import { useAuthStep } from '../auth/useSignIn';
 import { createAccountReady, MIN_PASSWORD } from '../auth/model';
-import { signIn, signInReady } from '../auth/signIn';
-import { isPattern, patternSecret } from '../auth/lockModel';
+import { signInReady } from '../auth/signIn';
+import { isPattern, patternSecret } from '../session/lockModel';
 import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
 import { signBackIn } from '../auth/signBackIn';
 import { usePatternPeople } from '../auth/usePatternPeople';
-import { rememberPassword } from '../server/lock';
 import { useInvitePreview } from '../auth/useInvitePreview';
 import { useOrganizationSearch } from '../auth/useOrganizationSearch';
-import { redeemSignInCode } from '../invites/invites';
 import { useRequestOutcome } from '../invites/useInviteRequests';
 import { latestRequest } from '../invites/requestOutcome';
 import { Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, HelpTop, Header, HelpInfo, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, ShowMore, SmallBtn, type IconName } from '../ui/kit';
@@ -47,18 +46,14 @@ import { PRIVACY_URL } from '../auth/legal';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
 import { forgettingThisBrowser } from '../web/forgetBrowser';
 import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
-import { recordAuth, recordAuthFailure, since } from '../auth/authDiag';
-import { inviteOutcome } from '../auth/authOutcome';
 import { createOrganization } from '../org/createOrg';
 import { navRef } from '../shell/nav';
 import { contractsFor } from '../shell/screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../web/forgetBrowser';
-import { setSession, signInWithPassword, signUp } from '../server/auth';
-import { signInWithV2Account } from '../server/v2';
 import { lift } from '../ui/shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
-import { LanguageChip } from '../i18n/uiLanguage';
+import { LanguageChip } from '../account/uiLanguage';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 
@@ -78,54 +73,9 @@ const failure = failureMessage;
 export function SignIn(ctx: Ctx) {
   const [email, setEmail] = useState(ctx.isDev ? (process.env.EXPO_PUBLIC_DEV_EMAIL ?? '') : '');
   const [password, setPassword] = useState(ctx.isDev ? (process.env.EXPO_PUBLIC_DEV_PASSWORD ?? '') : '');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function submit() {
-    setBusy(true);
-    setError('');
-    const started = Date.now();
-    try {
-      // Signed out of this phone before: the password opens the lock, with no connection (decisions.md 168).
-      const local = await signBackIn('password', password, { address: signInAddress(email) });
-      if (local.kind === 'ok') return;
-      if (local.kind === 'wait') { setError(t('entry.lock.wait')); return; }
-      const outcome = await signIn(email, password, {
-        signInWithPassword, setSession, signInWithV2Account, ...(ctx.isDev ? { recreateDevAccount } : {})
-      });
-      // A wrong password or no connection: the server's answer, said in the language showing.
-      if (outcome.kind === 'refused') {
-        noteExpected(outcome.where, outcome.raw);
-        recordAuthFailure('sign_in', outcome.reason, { ms: since(started) });
-        // Offline after a password the lock here did not take: it was wrong, whatever the connection.
-        const offlineWrong = local.kind === 'wrong' && outcome.reason.name === 'AuthRetryableFetchError';
-        setError(offlineWrong ? t('entry.errors.wrongPassword') : authErrorText(outcome.reason, t('entry.signIn.failed')));
-        return;
-      }
-      recordAuth('sign_in', 'ok', { n: { ms: since(started) } });
-      // Next time, this password signs them back in here with no connection.
-      if (outcome.userId) void rememberPassword(outcome.userId, signInAddress(email), password);
-      // Signing in accepts the terms (AUTH-1). The session this screen was
-      // given belongs to the guest, so record it for the account that just
-      // signed in; the account outbox delivers (and retries) it once the new
-      // session is up.
-      if (outcome.userId) await recordTerms(outcome.userId);
-    } catch (e) {
-      recordAuthFailure('sign_in', e, { ms: since(started) });
-      setError(failure('sign in', e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /** Queue the terms for this account; a failure to queue is a fault, reported, never a reason to block sign-in. */
-  async function recordTerms(userId: string) {
-    try {
-      await ctx.acceptTerms(userId);
-    } catch (e) {
-      ctx.toast(failure('accept terms', e));
-    }
-  }
+  const { busy, error, run } = useAuthStep();
+  const host = { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev };
+  const submit = () => run(() => signInWithEmail(email, password, host));
 
   const ready = signInReady(email, password);
   const joining = ctx.invite.held?.claim.kind === 'next-account';
@@ -448,44 +398,9 @@ function EmailAccount(ctx: Ctx) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [checkEmail, setCheckEmail] = useState(false);
+  const { busy, error, checkEmail, run } = useAuthStep();
   const ready = createAccountReady(email, password, confirm);
-
-  async function create() {
-    setBusy(true);
-    setError('');
-    const started = Date.now();
-    try {
-      const { data, error } = await signUp(email.trim(), password);
-      if (error) {
-        noteExpected('sign up', error);
-        recordAuthFailure('sign_up', error, { ms: since(started) });
-        setError(authErrorText(error, t('entry.createAccount.failed')));
-        return;
-      }
-      recordAuth('sign_up', 'ok', { n: { ms: since(started) } });
-      // Creating the account accepts the terms (AUTH-1). With a session they
-      // are recorded now (the account outbox retries until delivered) and the
-      // app routes on by itself; without one the address has to be confirmed
-      // first, and signing in records them.
-      if (data.session && data.user) {
-        try {
-          await ctx.acceptTerms(data.user.id);
-        } catch (e) {
-          ctx.toast(failure('accept terms', e));
-        }
-      } else {
-        setCheckEmail(true);
-      }
-    } catch (e) {
-      recordAuthFailure('sign_up', e, { ms: since(started) });
-      setError(failure('sign up', e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const create = () => run(() => createAccountWithEmail(email, password, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev }));
 
   if (checkEmail) {
     return (
@@ -701,8 +616,7 @@ export function ScanQr(ctx: Ctx) {
  */
 function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
   const { ctx } = props;
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { busy, error, run } = useAuthStep();
   if (!ctx.session.isGuest) {
     return (
       <>
@@ -711,36 +625,7 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
       </>
     );
   }
-  async function go() {
-    setBusy(true);
-    setError('');
-    const started = Date.now();
-    try {
-      const help = await redeemSignInCode(props.code);
-      const { data, error } = await setSession(help.session);
-      if (error) {
-        noteExpected('sign in with code', error);
-        recordAuthFailure('code', error, { ms: since(started) });
-        setError(authErrorText(error, t('entry.signInKey.failed')));
-        return;
-      }
-      recordAuth('code', 'ok', { n: { ms: since(started) } });
-      if (data.user) {
-        await recordHelp(data.user.id, help.helper).catch((e: unknown) => { reportError('record sign-in help', e); });
-        await ctx.acceptTerms(data.user.id).catch((e: unknown) => { reportError('accept terms', e); });
-      }
-      ctx.toast(help.oldPhoneSignedOut ? t('entry.signInKey.signedInOldPhone')
-        : help.helper ? t('entry.signInKey.signedInWith', { name: help.helper }) : t('entry.signInKey.signedIn'));
-    } catch (e) {
-      noteExpected('sign-in code', e);
-      // The function says "expired or already used" in its reply, as an invite does.
-      recordAuthFailure('code', e, { ms: since(started) }, inviteOutcome);
-      // The function's reply is English: say it in the language showing.
-      setError(e instanceof Error ? signInCodeErrorText(e.message) : t('common.tryWhenConnected'));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const go = () => run(() => signInWithKey(props.code, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev }));
   return (
     <>
       <Banner icon="lock" title={t('entry.signInKey.title')} body={t('entry.signInKey.body')} />
@@ -970,7 +855,7 @@ export function RequestAccess(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', { orgId: o.org_id, message: '', orgName: o.name, askedAt: Date.now() }));
+      setRequestId(await queueJoinRequest(ctx.session.actorId, { orgId: o.org_id, message: '', orgName: o.name }));
     } catch (e) {
       setError(failure('request access', e));
     } finally {
@@ -981,9 +866,7 @@ export function RequestAccess(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', {
-        orgId, message: message.trim(), ...(orgName ? { orgName } : {}), askedAt: Date.now()
-      }));
+      setRequestId(await queueJoinRequest(ctx.session.actorId, { orgId, message, orgName }));
     } catch (e) {
       setError(failure('request access', e));
     } finally {

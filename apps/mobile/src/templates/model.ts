@@ -6,7 +6,7 @@ import {
   bookParts, languageName, sameParts, type LanguageState, type LevelDisplay, type LibraryItemView, type OrgState, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
 import { sharedTemplateShown } from '../breakup/model';
-import { countOutline, versionNumber, type LibraryChoice, type TemplateForm } from './contentTemplates';
+import { countOutline, versionNumber, type LibraryChoice, type TemplateForm } from './contentTemplatesModel';
 import { t } from '../i18n';
 import { sourceLine, usesItem } from '../library/model';
 

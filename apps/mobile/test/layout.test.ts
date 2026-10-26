@@ -1,5 +1,6 @@
 import { PASSAGE_READING, SCREEN_IDS, TAB_SCREENS } from '../src/shell/flow';
-import { chapterColumns, chromeVisible, frame, layoutKind, WIDE_CHROME } from '../src/ui/layout';
+import { chapterColumns, frame, layoutKind } from '../src/ui/layout';
+import { chromeVisible, WIDE_CHROME } from '../src/shell/chromeModel';
 import { measure } from '../src/ui/theme';
 
 describe('responsive layout (decisions.md 55)', () => {

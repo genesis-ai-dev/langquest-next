@@ -82,11 +82,14 @@ begin
   if diag.ops_org('od-no-such-org') is not null then raise exception 'ops_org of nothing should be null'; end if;
 
   -- pipeline
-  v := diag.ops_pipeline(1);
+  v := diag.ops_pipeline(1, 200, 3600000);
   if jsonb_typeof(v->'lag') <> 'array' or jsonb_typeof(v->'largest') <> 'array' or jsonb_typeof(v->'snapshots'->'worst') <> 'array'
      or v->'lagging' is null or v->'snapshots'->'overdue' is null or v->'snapshots'->'oldReducer' is null or v->'snapshots'->'noCut' is null then
     raise exception 'ops_pipeline: %', v;
   end if;
+  -- The schedule is the caller's: thresholds nothing can reach count nothing overdue, and the old signature is gone.
+  if (diag.ops_pipeline(1, 2000000000, 3000000000000)->'snapshots'->>'overdue')::int <> 0 then raise exception 'ops_pipeline overdue ignores its thresholds'; end if;
+  if to_regprocedure('diag.ops_pipeline(integer)') is not null then raise exception 'a stale ops_pipeline(int) is left'; end if;
 
   -- cron: no command text
   v := diag.ops_cron();
@@ -176,6 +179,13 @@ begin
   if not (v ? 'statements') or v->>'database' is null then raise exception 'ops_counts_since: %', v; end if;
 end $$;
 reset role;
+-- ops_limits and public.diag_ingest use one cap: diag_ingest's literal is the cap function's answer
+-- (checked as the owner: diag_reader reaches the cap only through ops_limits, which runs as its definer).
+do $$ begin
+  if pg_get_functiondef('public.diag_ingest'::regproc) not like '%v_day_count >= ' || diag._ingest_day_cap() || '%' then
+    raise exception 'diag_ingest no longer caps an install at diag._ingest_day_cap() (%) records a day', diag._ingest_day_cap();
+  end if;
+end $$;
 -- ops_cron holds no job's command text (checked as the owner, who can read cron.job).
 do $$ begin
   if exists (select 1 from cron.job j where length(j.command) > 12 and strpos(diag.ops_cron()::text, j.command) > 0) then

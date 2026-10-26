@@ -1,5 +1,5 @@
 import {
-  adminScopeOf, effectiveRole, MANAGE_PRIVILEGES, privilegesFor, privilegesOfFixedRole,
+  adminScopeOf, effectiveRole, MANAGE_PRIVILEGES, mayViewLanguage, privilegesFor, privilegesOfFixedRole,
   type OrgState, type Privilege, type Role, type Scope
 } from '@langquest-next/core';
 import { viewsAsGlobalViewer, type GlobalViewerAccess } from '../account/globalViewerModel';
@@ -21,6 +21,8 @@ export interface Session {
   role: Role | null;
   privileges: ReadonlySet<Privilege>;
   can: (p: Privilege) => boolean;
+  /** `can`, for something done and kept: never for a read-only session, whatever its privileges show. */
+  canChange: (p: Privilege) => boolean;
   /** Highest scope with a manage privilege: where Home goes (A34). */
   adminScope: Scope | null;
   /** Holds any manage privilege. */
@@ -58,6 +60,14 @@ export interface Session {
   readOnly: boolean;
 }
 
+/**
+ * May this session see a language's report? A member by the role's reach
+ * (RPT-016); a Global Viewer looking in may view every language (decisions.md 158).
+ */
+export function mayViewReports(s: Session, org: OrgState | null, languageId: string): boolean {
+  return !org || s.readOnly || mayViewLanguage(org, s.actorId, languageId);
+}
+
 /** What doing the work takes, which a read-only session never offers. */
 const WORK_PRIVILEGES: readonly Privilege[] = ['translate', 'review', 'fill_reference', 'send_to_reviewers'];
 
@@ -93,6 +103,7 @@ export function deriveSession(
     role,
     privileges,
     can: (p) => privileges.has(p),
+    canChange: (p) => !readOnly && privileges.has(p),
     adminScope,
     isAdmin,
     isWorker,

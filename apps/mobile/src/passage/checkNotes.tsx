@@ -10,7 +10,8 @@ import { t } from '../i18n';
 import { SectionLabel } from '../ui/kit';
 import { checkName } from '../admin/adminModel';
 import { useCheckHelpRows } from '../checks/useCheckHelpRows';
-import { noteAnchorText, replyAnchor, summaryLine, type AnchorLook } from '../reviewing/capture';
+import { noteAnchorText } from '../reviewing/capture';
+import { anchorLookFor, replyNoting } from '../reviewing/notesModel';
 import { NotesUnder, NotingSheet, type Noting } from '../reviewing/notesOn';
 import type { PassageView } from './passageView';
 import { space } from '../ui/theme';
@@ -21,18 +22,9 @@ export function CheckNotes(props: { ctx: Ctx; v: PassageView; reviewId: string; 
   const [noting, setNoting] = useState<Noting | null>(null);
   const notes = reviewNotesFor(v.p, props.reviewId);
   if (notes.length === 0) return null;
-  const look: AnchorLook = {
-    term: (id) => v.state.keyTerms[id]?.term,
-    versionN: (id) => v.p.versions.find((x) => x.takeId === id)?.n,
-    partN: (id, hash) => { const at = v.p.versions.find((x) => x.takeId === id)?.cardHashes.indexOf(hash) ?? -1; return at >= 0 ? at + 1 : undefined; },
-    help: (key) => helps.find((h) => h.help === key)?.name,
-    author: (id) => { const n = v.p.notes.find((x) => x.id === id); return n ? ctx.name(n.by).split(' ')[0] : undefined; }
-  };
+  const look = anchorLookFor({ p: v.p, keyTerms: v.state.keyTerms, helps, nameOf: (id) => ctx.name(id) });
   const label = (n: PassageNote) => noteAnchorText(n.anchor, look);
-  const reply = (n: PassageNote) => setNoting({
-    anchor: replyAnchor(n), title: t('review.notesOn.replyTitle', { name: ctx.name(n.by).split(' ')[0] ?? ctx.name(n.by) }),
-    where: summaryLine([v.title, label(n)])
-  });
+  const reply = (n: PassageNote) => setNoting(replyNoting(n, ctx.name(n.by), [v.title, label(n)]));
   return (
     <View style={{ gap: space.sm }}>
       <SectionLabel label={t('passage.checkNotes.title', { check: checkName(props.kindId, v.kinds) })} />

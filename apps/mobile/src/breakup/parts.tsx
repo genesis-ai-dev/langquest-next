@@ -7,7 +7,7 @@ import { templateBooks, type NumberingClash, type TemplateDoc, type Versificatio
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
-import { bookNameOf } from '../templates/contentTemplates';
+import { bookNameOf } from '../templates/contentTemplatesModel';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';

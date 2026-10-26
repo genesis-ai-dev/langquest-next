@@ -1,6 +1,6 @@
 // Small hooks the template screens share (decision 105).
 import { useMemo, useState } from 'react';
-import { libraryChoices } from './contentTemplates';
+import { libraryChoices } from './contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { useSharedItems, type useLibrary } from '../library/useLibrary';
