@@ -78,7 +78,7 @@ describe('Google Play', () => {
       { comments: [{ userComment: { text: 'Great', starRating: 5, lastModified: { seconds: String((NOW - 2 * 86_400_000) / 1000) } } }] },
       { comments: [{ userComment: { text: 'Old', starRating: 2, lastModified: { seconds: (NOW - 20 * 86_400_000) / 1000 } } }] }
     ], NOW);
-    expect(r).toEqual({ lowWeek: 1, average: 8 / 3, recent: [
+    expect(r).toEqual({ lowWeek: 1, average: 8 / 3, count: 3, since: dAgo(20), recent: [
       { stars: 1, text: 'Crashes when I stop recording', version: '1.0.3', at: dAgo(1) },
       { stars: 5, text: 'Great', version: null, at: dAgo(2) },
       { stars: 2, text: 'Old', version: null, at: dAgo(20) }

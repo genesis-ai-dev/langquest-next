@@ -45,14 +45,21 @@ export function routeClass(method: string, path: string): RouteClass | null {
  */
 export class RequestTally {
   private counts = new Map<string, number>();
-  private since: number;
+  /**
+   * When the counts so far began: the first request counted, never the
+   * moment the tally was made. It is made at module scope, where the
+   * Workers runtime does not give the real time (in production it read
+   * 1970-01-01 04:00), and a run dated from then has a duration too big for
+   * diag_job_ingest's integer: Postgres refused every isolate's first write
+   * (about 35 an hour until 2026-10-26).
+   */
+  private since: number | null = null;
 
-  constructor(private readonly now: () => number = Date.now, private readonly everyMs = 60_000) {
-    this.since = now();
-  }
+  constructor(private readonly now: () => number = Date.now, private readonly everyMs = 60_000) {}
 
   /** `ms` is left out for a step inside a request (`r2_put`), which has no time of its own. */
   add(route: RouteClass, status: number, ms?: number): void {
+    this.since ??= this.now();
     this.bump(`${route}_${statusClass(status)}`);
     if (status === 429) this.bump(`${route}_429`);
     if (ms !== undefined) this.bump(`${route}_${ms < 100 ? 'lt100ms' : ms < 1_000 ? 'lt1s' : ms < 10_000 ? 'lt10s' : 'over10s'}`);
@@ -64,17 +71,15 @@ export class RequestTally {
 
   /** The counts as a job run, once `everyMs` has passed since the last; null before that or with nothing counted. */
   take(): JobRun | null {
+    const since = this.since;
+    if (since === null) return null;
     const now = this.now();
-    if (now - this.since < this.everyMs) return null;
-    if (this.counts.size === 0) {
-      this.since = now;
-      return null;
-    }
+    if (now - since < this.everyMs) return null;
     const n = Object.fromEntries(this.counts);
     const failing = Object.keys(n).some((k) => k.endsWith('_5xx'));
-    const run: JobRun = { job: 'worker_requests', startedAt: this.since, ms: now - this.since, outcome: failing ? 'partial' : 'ok', n };
+    const run: JobRun = { job: 'worker_requests', startedAt: since, ms: now - since, outcome: failing ? 'partial' : 'ok', n };
     this.counts = new Map();
-    this.since = now;
+    this.since = null;
     return run;
   }
 }

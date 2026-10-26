@@ -20939,6 +20939,7 @@ async function deliverPushes(service, fetcher = fetch) {
 
 // server/jobRuns.ts
 var WRITE_TIMEOUT_MS = 3e3;
+var MAX_MS = 2147483647;
 var noJobRuns = async () => {
 };
 function jobRunSink(url, serviceKey, fetcher = fetch) {
@@ -20953,7 +20954,7 @@ function jobRunSink(url, serviceKey, fetcher = fetch) {
         body: JSON.stringify({
           p_job: run.job,
           p_started_at: new Date(run.startedAt).toISOString(),
-          p_ms: Math.max(0, Math.round(run.ms)),
+          p_ms: Math.min(MAX_MS, Math.max(0, Math.round(run.ms))),
           p_outcome: run.outcome,
           p_n: numbersOnly(run.n ?? {}),
           p_error_class: run.errorClass ?? null,

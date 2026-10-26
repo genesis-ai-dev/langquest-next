@@ -20,6 +20,13 @@ describe('job runs (diag.jobs)', () => {
     });
   });
 
+  it('caps a duration at what Postgres takes, so a wrong one still leaves its run', async () => {
+    let body: Record<string, unknown> = {};
+    const sink = jobRunSink('https://x', 'k', async (_url, init) => { body = JSON.parse(init!.body as string); return new Response('1'); });
+    await sink({ ...run, startedAt: 0, ms: 1_761_480_000_000 });
+    expect(body['p_ms']).toBe(2_147_483_647);
+  });
+
   it('never fails or writes without a key: a lost run is never the job failing', async () => {
     await expect(jobRunSink('https://x', 'k', async () => { throw new TypeError('fetch failed'); })(run)).resolves.toBeUndefined();
     let called = false;
@@ -69,11 +76,24 @@ describe('the Worker request tally', () => {
     expect(tally.take()).toBeNull();
     now = 61_000;
     expect(tally.take()).toEqual({ job: 'worker_requests', startedAt: 0, ms: 61_000, outcome: 'partial', n: { blobs_put_2xx: 1, blobs_put_lt100ms: 1, r2_put_5xx: 1 } });
+    now = 70_000;
     tally.add('reports', 304, 150);
     now = 90_000;
     expect(tally.take()).toBeNull();
-    now = 125_000;
-    expect(tally.take()).toMatchObject({ startedAt: 61_000, outcome: 'ok', n: { reports_3xx: 1, reports_lt1s: 1 } });
+    now = 131_000;
+    expect(tally.take()).toMatchObject({ startedAt: 70_000, ms: 61_000, outcome: 'ok', n: { reports_3xx: 1, reports_lt1s: 1 } });
+    now = 500_000;
+    expect(tally.take()).toBeNull();
+  });
+
+  it('dates its counts from the first request, not from when the module made it', () => {
+    // A Worker's clock reads 0 at module scope; the first request sees the real time.
+    let now = 0;
+    const tally = new RequestTally(() => now);
+    now = 1_761_480_000_000;
+    tally.add('blobs_get', 200, 12);
+    now += 61_000;
+    expect(tally.take()).toMatchObject({ startedAt: 1_761_480_000_000, ms: 61_000 });
   });
 
   it('counts a refusal under its route too, and each request in one duration bucket', () => {
