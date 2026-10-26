@@ -110,7 +110,7 @@ the page loads to exactly one section.
 | Builds and stuck phones | each update in the field with its crash-free share (a rollback alert), reducer and protocol versions, browsers by web commit, time to a usable Map, stuck phones and phones gone quiet | `DIAG_DATABASE_URL` |
 | Release health | merges on `main`, Worker deploys and EAS updates over 14 days against errors phones reported; the commit each host serves; hosted migrations against `main` (`diag.migrations_applied` and the files on GitHub) | `DIAG_DATABASE_URL`; the Cloudflare, Expo and GitHub tokens add to the timeline |
 | Job container | each server job's object, asked through the app Worker's read-only `JobStatus` entrypoint (`APP_JOBS` binding): running or not, since when, its limit | the binding |
-| Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals) | `DIAG_DATABASE_URL`, the migration |
+| Scheduled database jobs, Database detail, Push and Inbox, Integrations, Support queue, Security and limits | `diag.ops_cron`, `ops_database`, `ops_push`, `ops_integrations`, `ops_support`, `ops_limits`, and job runs (`push_delivery`, `webhook_dispatch`, `account_delete`, `worker_requests` for the rate limits' refusals). The longest query and oldest transaction name their role, client and wait (never the query's text) and leave out background work that always runs: every backend that is not a client's (autovacuum, WAL senders, pg_cron's and pg_net's workers) and Realtime's sessions, listed apart (migration `20261026160000_ops_database_who.sql`). To see its text, "Which query is it" below | `DIAG_DATABASE_URL`, the migration |
 | App Worker | requests by route, server errors, rate-limit refusals and time taken, from the request tally | `DIAG_DATABASE_URL` |
 | People and organizations | `diag.ops_people` and `ops_orgs`, counted, never named; an organization opens its own page at `/ops-dashboard/org/<id>` (`diag.ops_org` and its installs' sync errors) | `DIAG_DATABASE_URL`, the migration |
 | Storage and backups | Supabase's backups and point-in-time recovery, R2's size (`r2StorageAdaptiveGroups`), files lost on phones, the nightly R2 check | `DIAG_DATABASE_URL`; `ADMIN_SUPABASE_TOKEN` with read access to database backups; `ADMIN_CLOUDFLARE_TOKEN` |
@@ -273,6 +273,26 @@ answer, usually a missing permission.
 For sign-in from a single-sign-on account and a second factor on top of the
 password, Cloudflare Access can sit in front of `/ops-dashboard*` and
 `/ops/api/*`; the page works unchanged behind it.
+
+## Which query is it
+
+The page names a long query's role and client but never shows its text,
+which can hold what someone sent. To see it, open the Supabase SQL Editor
+for the project (it runs as the owner) and run:
+
+```sql
+select pid, now() - query_start as running_for, usename as role, application_name as client,
+       backend_type, wait_event_type, wait_event, left(query, 300) as query
+from pg_stat_activity
+where datname = current_database() and state = 'active' and pid <> pg_backend_pid()
+order by query_start
+limit 10;
+```
+
+`select pg_cancel_backend(<pid>);` stops a query that is stuck;
+`pg_terminate_backend` drops its connection, as a last resort. The slowest
+queries over time are in `extensions.pg_stat_statements` (order by
+`max_exec_time`) and in the project's Query Performance report.
 
 ## Locally
 
