@@ -4972,6 +4972,16 @@ file). Reverse if: a lazy screen's first open is slow enough for people to
 notice on the slowest partner phone, or the web's background fetch competes
 with a first sync on slow links; then move that screen back, or fetch later.
 
+Amended (2026-10-26, Carl Sauder): both budgets lowered, to 3.9 MiB for a
+first visit and 4.75 MiB in all. lucide's entry re-exports every one of its
+1,800-odd icons and Metro does not shake out the ones no file uses, so the
+main file carried 1.5 MB of icons for the 91 the app draws. Icons now come
+one file each through `apps/mobile/src/ui/icons.ts`, and lint refuses the
+package's entry elsewhere (`noIconBarrel`, `eslint.config.mjs`). A first
+visit went from 5.70 to 3.71 MiB and every file together from 6.54 to 4.54
+(performance-audit-2026-10-26.md item 1). The budgets keep about 5% of
+room, as above, so the space is spent on purpose rather than by drift.
+
 ## 124. You choose where the next part is recorded, a whole thing asks before it is deleted, and a deleted version is a tombstone
 
 Date: 2026-10-16 · By: Caleb Koster · Status: accepted
