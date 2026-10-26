@@ -17,6 +17,7 @@ import type { TokenRecord } from './agent/store';
 import { JOB_TICK, jobsDue } from './jobsModel';
 import { checkStores, storeCheckDue } from './storeReleases';
 import { isOpsPath, toOps } from './ops';
+import { pokeInBatches } from './batches';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
@@ -127,7 +128,7 @@ export default {
     const catchUp = supabaseAgentStore(serviceClient(env)).webhookOrgs()
       .then((orgs) => {
         n.webhookOrgs = orgs.length;
-        return Promise.all(orgs.map((orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId)));
+        return pokeInBatches(orgs, (orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId));
       })
       .catch(failed('webhookCatchupFailed', 'webhook catch-up'));
     // Which app version is live in the stores, once an hour (storeReleases.ts, decisions.md 154).
