@@ -100,6 +100,7 @@ begin
     raise exception 'ops_database: %', v;
   end if;
   if v::text ilike '%select %' then raise exception 'ops_database returned query text'; end if;
+  if jsonb_typeof(v->'background') <> 'array' or not (v ? 'longestQuery') or not (v ? 'oldestXact') then raise exception 'ops_database whose: %', v; end if;
 
   -- migrations
   v := diag.migrations_applied();
