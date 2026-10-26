@@ -303,7 +303,8 @@ export interface Support {
   reports: { open: number; oldestAt: string | null; staffOnly: number; resolvedWeek: number };
   suspended: { total: number; week: number };
   deletions: { week: string; n: number }[];
-  feedbackOpen: number | null;
+  /** Null when it could not be read (before migration 20261026120000). */
+  feedbackOpen: { open: number; oldestAt: string | null } | null;
   /** What staff did from the page (ops.actions, decisions.md 162). */
   actions: { at: string; profileId: string; action: string; target: string; result: string; detail: string | null }[];
 }
@@ -341,7 +342,8 @@ export const DELETIONS_SQL = `select coalesce(jsonb_agg(to_jsonb(x) order by x.w
   select to_char(date_trunc('week', started_at), 'YYYY-MM-DD') as week, count(*) as n
   from diag.job_runs where job = 'account_delete' and started_at > now() - interval '8 weeks' group by 1) x`;
 
-export const FEEDBACK_OPEN_SQL = `select count(*) as v from diag.feedback where done_at is null`;
+/** Feedback not done, and since when (migration 20261026120000_ops_feedback_and_since): diag_reader may not read diag.feedback itself. */
+export const FEEDBACK_OPEN_SQL = `select diag.ops_feedback_open() as v`;
 
 // ---- one load ---------------------------------------------------------------------------------
 
@@ -371,7 +373,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Record<string, number>>(query, TOTALS_SQL, ['webhook_dispatch']),
     part<Omit<Support, 'deletions' | 'feedbackOpen'>>(query, `select diag.ops_support() as v`),
     part<Support['deletions']>(query, DELETIONS_SQL),
-    part<number>(query, FEEDBACK_OPEN_SQL),
+    part<{ open: number; oldestAt: string | null }>(query, FEEDBACK_OPEN_SQL),
     part<{ v2SignInFailures24h: number; installsAtDiagCap: number }>(query, `select diag.ops_limits() as v`),
     part<Support['actions']>(query, `select diag.ops_actions(15) as v`)
   ]);
@@ -409,7 +411,7 @@ export async function opsSections(query: Query): Promise<OpsSections> {
       return ok(i, integrationAlerts(i));
     }),
     support: build([support], MIGRATION, () => {
-      const s: Support = { ...val(support), deletions: deletions.ok ? deletions.value : [], feedbackOpen: feedbackOpen.ok ? num(feedbackOpen.value) : null, actions: actions.ok ? actions.value : [] };
+      const s: Support = { ...val(support), deletions: deletions.ok ? deletions.value : [], feedbackOpen: feedbackOpen.ok ? { open: num(feedbackOpen.value.open), oldestAt: feedbackOpen.value.oldestAt } : null, actions: actions.ok ? actions.value : [] };
       return ok(s, supportAlerts(s));
     }),
     security: build([limits], MIGRATION, () => {

@@ -4,7 +4,7 @@ import { byWorker, cloudflareAlerts, cloudflareSection } from '../src/sources/cl
 import { clientAlerts, databaseAlerts, diagSections, errorText, jobsSection, mediaType, v2Section, type Clients, type JobRow, type V2Project } from '../src/sources/diag';
 import { expoAlerts, expoFrom } from '../src/sources/expo';
 import { APP_BUILD_PATHS, changesApp, codeAlerts, codeSection, latestPerWorkflow, type Code } from '../src/sources/github';
-import { projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
+import { SQLSTATE, errorGroups, httpErrorsSql, pathShape, pgErrorsSql, projectsOf, supabaseAlerts, supabaseSection } from '../src/sources/supabase';
 
 const NOW = Date.parse('2026-10-19T22:00:00Z');
 const hAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
@@ -224,24 +224,47 @@ describe('Supabase', () => {
     ]);
   });
 
-  it('asks the logs again with the other column name when the first is refused', async () => {
+  it('asks the logs again with the other column name when the first is refused, then what the errors were', async () => {
     let calls = 0;
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/analytics/endpoints/logs')) {
         calls++;
-        return url.includes(encodeURIComponent('source_name ='))
-          ? Response.json({ result: [{ gatewayTotal: '120', gateway5xx: '0', function5xx: '12', postgresErrors: '3', authErrors: '0' }] })
-          : Response.json({ result: [], error: { message: 'Unknown identifier source' } });
+        const sql = decodeURIComponent(new URL(url).searchParams.get('sql') ?? '');
+        if (!sql.includes('source_name =') && !sql.includes('source_name in')) return Response.json({ result: [], error: { message: 'Unknown identifier source' } });
+        if (sql.includes('gatewayTotal')) return Response.json({ result: [{ gatewayTotal: '120', gateway5xx: '0', function5xx: '12', postgresErrors: '3', authErrors: '0' }] });
+        // October 2026: the request tally's first write of each isolate, refused as out of range.
+        if (sql.includes('sql_state_code')) return Response.json({ result: [{ code: '22003', role: 'authenticator', app: 'PostgREST 14.5', fn: 'diag_job_ingest', n: '3', last: NOW - 60_000 }] });
+        return Response.json({ result: [{ src: 'function_edge_logs', method: 'POST', p: '/push-delivery', status: '500', n: '12', last: NOW - 120_000 }] });
       }
       if (url.includes('/health')) return Response.json([{ name: 'db', status: 'ACTIVE_HEALTHY' }, { name: 'auth', status: 'UNHEALTHY' }]);
       if (url.includes('/functions')) return Response.json([{ slug: 'stream-projections', status: 'ACTIVE', version: 40, updated_at: 1792440000000 }]);
       return Response.json({ status: 'ACTIVE_HEALTHY' });
     }) as unknown as typeof fetch;
     const s = await supabaseSection({ ADMIN_SUPABASE_TOKEN: 't', SUPABASE_PROJECTS: 'abc:Next' }, fetcher, NOW);
-    expect(calls).toBe(2);
+    expect(calls).toBe(4);
     expect(s.data!.projects[0]).toMatchObject({ logs: { gatewayTotal: 120, function5xx: 12 }, functions: [{ slug: 'stream-projections', updatedAt: expect.stringMatching(/^2026-/) }] });
+    expect(s.data!.projects[0]!.logs!.errors).toEqual([
+      { source: 'Edge Function', code: '500', what: 'POST /push-delivery', n: 12, lastAt: new Date(NOW - 120_000).toISOString() },
+      { source: 'Postgres', code: '22003', what: 'diag_job_ingest() · authenticator · PostgREST 14.5', n: 3, lastAt: new Date(NOW - 60_000).toISOString() }
+    ]);
+    expect(s.data!.projects[0]!.logs!.since).toBe(new Date(NOW - 86_400_000 + 60_000).toISOString());
     expect(s.alerts.map((a) => a.text)).toEqual(['Next: auth UNHEALTHY.', 'Next: Edge Functions answered 12 server errors in the last day.']);
+  });
+
+  it('names an error by what raised it, never by its message, and hides ids in paths', () => {
+    expect(pathShape('/rest/v1/rpc/diag_job_ingest')).toBe('/rest/v1/rpc/diag_job_ingest');
+    expect(pathShape('/storage/v1/object/recordings')).toBe('/storage/v1/object/recordings');
+    expect(pathShape('/rest/v1/profiles/0d000000-0000-0000-0000-00000000000a')).toBe('/rest/v1/profiles/…');
+    expect(pathShape('/auth/v1/user/someone@example.org')).toBe('/auth/v1/user/…');
+    expect(pathShape('/functions/v1/x12345')).toBe('/functions/v1/…');
+    // A Postgres row without an RPC (a direct connection) is named by its role and client.
+    expect(errorGroups([{ code: '42501', role: 'diag_reader', app: 'postgres.js', fn: '', n: 4, last: 0 }], [])).toEqual([
+      { source: 'Postgres', code: '42501', what: 'diag_reader · postgres.js', n: 4, lastAt: null }
+    ]);
+    expect(SQLSTATE['22003']).toBe('number out of range');
+    // No query reads a log message.
+    for (const sql of [pgErrorsSql('source'), httpErrorsSql('source')]) expect(sql).not.toMatch(/event_message|\bmsg\b/);
   });
 
   it('calls a paused or unhealthy project urgent', () => {

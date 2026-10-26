@@ -8,6 +8,7 @@
  */
 import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
 import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { SQLSTATE } from './sources/supabase';
 
 export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: string): Response {
   const config = JSON.stringify(cfg).replace(/</g, '\\u003c');
@@ -53,6 +54,7 @@ section.card { background: var(--card); border: 1px solid var(--line); border-ra
 .stats { display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
 .stat { flex: 1 1 90px; background: var(--bg); border-radius: 10px; padding: 8px 10px; }
 .stat b { display:block; font-size: 20px; } .stat span { font-size: 12px; color: var(--muted); }
+.stat small { display: block; font-size: 11px; color: var(--grey); margin-top: 2px; }
 .stat.bad b { color: var(--red); } .stat.warn b { color: var(--amber); }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: start; font-weight: 600; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--line); }
@@ -153,7 +155,20 @@ function ago(iso) {
   return Math.round(s / 86400) + ' days ago';
 }
 const when = (iso) => iso ? '<span title="' + esc(new Date(iso).toLocaleString()) + '">' + esc(ago(iso)) + '</span>' : 'never';
-const stat = (value, label, tone) => '<div class="stat ' + (tone || '') + '"><b>' + value + '</b><span>' + esc(label) + '</span></div>';
+/**
+ * One figure. 'span' is the time it covers, under its label (help is found by
+ * the label alone): 'last 24 h', 'since 3 Oct', 'now'. Every count says one
+ * unless its label already does.
+ */
+const stat = (value, label, tone, span) => '<div class="stat ' + (tone || '') + '"><b>' + value + '</b><span>' + esc(label) + '</span>' +
+  (span ? '<small>' + esc(span) + '</small>' : '') + '</div>';
+const LAST_DAY = 'last 24 h', LAST_WEEK = 'last 7 days', NOW = 'now', ALL_TIME = 'all time';
+const day = (iso) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
+/** A count since a known start, such as a counter's last reset; 'span unknown' when the start is not known. */
+const since = (iso) => iso ? 'since ' + day(iso) : 'span unknown';
+/** A queue's span: how long its oldest item has waited. */
+const oldest = (iso, none) => iso ? 'oldest ' + ago(iso) : (none || 'none waiting');
+const reviewSpan = (r) => r && r.count ? num(r.count) + ' reviews ' + since(r.since) : '';
 function table(cols, rows) {
   if (!rows.length) return '<p class="muted">Nothing here.</p>';
   return '<div class="scroll"><table><thead><tr>' + cols.map((c) => '<th' + (c.n ? ' class="n"' : '') + '>' + esc(c.h) + '</th>').join('') + '</tr></thead><tbody>' +
@@ -282,6 +297,8 @@ const BASE_SECTIONS = [
 ];
 // The page's sections, each gathering the parts about one subject (pageOps.ts GROUPS); a part is what one source answers.
 const SECTIONS = ${JSON.stringify(GROUPS)};
+/** SQLSTATE names for the Supabase errors table (sources/supabase.ts). */
+const SQLSTATE = ${JSON.stringify(SQLSTATE)};
 const PART_TITLE = Object.assign(Object.fromEntries(BASE_SECTIONS.concat(${JSON.stringify(OPS_SECTIONS)}).map((s) => [s.id, s.title])), ${JSON.stringify(PART_TITLES)});
 const groupOf = (part) => SECTIONS.find((g) => g.parts.includes(part));
 const PARTS = SECTIONS.flatMap((g) => g.parts);
@@ -423,10 +440,10 @@ const RENDER = {
     const fails = (t) => ['failOffline','failHttp4xx','failHttp5xx','failHash','failDisk','failOther','failAuth','failNotFound','failTooLarge','failBadDigest','failGone'].reduce((a, k) => a + (t[k] || 0), 0);
     let h = '<div class="stats">' +
       stat(num(c.installs.day), 'installs reported, last day') + stat(num(c.installs.week), 'this week') +
-      stat(num(syncs), 'syncs, last day') + stat(num(errSync), 'syncs ended in error', errSync ? 'warn' : '') +
+      stat(num(syncs), 'syncs, last day') + stat(num(errSync), 'syncs ended in error', errSync ? 'warn' : '', LAST_DAY) +
       stat(num(errorsDay), 'errors, last day', errorsDay ? 'bad' : '') +
-      stat(num(down.count) + ' / ' + num(fails(down)), 'downloads / failed', fails(down) ? 'warn' : '') +
-      stat(num(up.count) + ' / ' + num(fails(up)), 'uploads / failed', fails(up) ? 'warn' : '') + '</div>';
+      stat(num(down.count) + ' / ' + num(fails(down)), 'downloads / failed', fails(down) ? 'warn' : '', LAST_DAY) +
+      stat(num(up.count) + ' / ' + num(fails(up)), 'uploads / failed', fails(up) ? 'warn' : '', LAST_DAY) + '</div>';
     h += '<h3>Errors this week (newest first)</h3>' + table([
       { h: 'Error', v: (e) => '<b>' + esc(e.name || 'Error') + '</b>' + (e.fatal ? ' <span class="tag bad">crash</span>' : '') + '<br><small>' + esc(e.where || '') + (e.code ? ' · ' + esc(e.code) : '') + '</small>' },
       { h: 'Last', v: (e) => when(e.lastAt) },
@@ -443,9 +460,10 @@ const RENDER = {
     ], outcomes);
     if (c.syncErrors.length) h += table([{ h: 'Sync error (phase:code)', v: (r) => '<code>' + esc(r.code) + '</code>' }, { h: 'Syncs', n: true, v: (r) => num(r.records) }, { h: 'Installs', n: true, v: (r) => num(r.installs) }], c.syncErrors);
     const d = c.device;
-    h += '<h3>Phones (latest state of each, this week)</h3><div class="stats">' + stat(num(d.reporting), 'reporting') +
-      stat(num(d.lostRecordings), 'lost recordings', d.lostRecordings ? 'bad' : '') + stat(num(d.unsentOverDay), 'recording unsent > 1 day', d.unsentOverDay ? 'warn' : '') +
-      stat(num(d.downloadStuckOverDay), 'download stuck > 1 day', d.downloadStuckOverDay ? 'warn' : '') + stat(num(d.lowDisk), 'under 500 MB free', d.lowDisk ? 'warn' : '') + '</div>';
+    const latest = 'latest of each, ' + LAST_WEEK;
+    h += '<h3>Phones (latest state of each, this week)</h3><div class="stats">' + stat(num(d.reporting), 'reporting', '', LAST_WEEK) +
+      stat(num(d.lostRecordings), 'lost recordings', d.lostRecordings ? 'bad' : '', latest) + stat(num(d.unsentOverDay), 'recording unsent > 1 day', d.unsentOverDay ? 'warn' : '', latest) +
+      stat(num(d.downloadStuckOverDay), 'download stuck > 1 day', d.downloadStuckOverDay ? 'warn' : '', latest) + stat(num(d.lowDisk), 'under 500 MB free', d.lowDisk ? 'warn' : '', latest) + '</div>';
     if (c.auth.length) h += '<h3>Sign-in trouble this week</h3>' + table([
       { h: 'Step', v: (a) => esc(a.op || '?') }, { h: 'Ended', v: (a) => esc(a.outcome || '?') + (a.code ? ' <code>' + esc(a.code) + '</code>' : '') },
       { h: 'Times', n: true, v: (a) => num(a.records) }, { h: 'Installs', n: true, v: (a) => num(a.installs) }, { h: 'Last', v: (a) => when(a.lastAt) }
@@ -455,9 +473,9 @@ const RENDER = {
       { h: 'Times', n: true, v: (x) => num(x.count) }, { h: 'Installs', n: true, v: (x) => num(x.installs) }, { h: 'Last', v: (x) => when(x.lastAt) }
     ], c.expected);
     const a = c.audio || {};
-    h += '<h3>Recording, last day</h3><div class="stats">' + stat(num(a.takes), 'takes') + stat(num((a.saveFail || 0) + (a.startFail || 0) + (a.stopFail || 0) + (a.encodeFail || 0)), 'failed', (a.saveFail || a.startFail || a.stopFail || a.encodeFail) ? 'warn' : '') +
-      stat(num(a.micRefused), 'microphone refused') + stat(num(a.playFail), 'playback failed', a.playFail ? 'warn' : '') + '</div>';
-    h += '<p class="muted">' + c.platforms.map((p) => esc(p.os) + ' ' + num(p.installs)).join(' · ') + ' · ' + num(c.installs.all) + ' installs known in all</p>';
+    h += '<h3>Recording, last day</h3><div class="stats">' + stat(num(a.takes), 'takes', '', LAST_DAY) + stat(num((a.saveFail || 0) + (a.startFail || 0) + (a.stopFail || 0) + (a.encodeFail || 0)), 'failed', (a.saveFail || a.startFail || a.stopFail || a.encodeFail) ? 'warn' : '', LAST_DAY) +
+      stat(num(a.micRefused), 'microphone refused', '', LAST_DAY) + stat(num(a.playFail), 'playback failed', a.playFail ? 'warn' : '', LAST_DAY) + '</div>';
+    h += '<p class="muted">Seen this week: ' + c.platforms.map((p) => esc(p.os) + ' ' + num(p.installs)).join(' · ') + ' · ' + num(c.installs.all) + ' installs known in all time</p>';
     return h;
   },
   code(d) {
@@ -465,7 +483,7 @@ const RENDER = {
     // Commits that change nothing the web app is built from leave it on an older commit, as they should.
     const stale = d.behind !== 0 && d.appChanged !== false;
     let h = '<div class="stats">' + stat('<code>' + esc(d.main.sha.slice(0, 8)) + '</code>', 'main, ' + ago(d.main.at)) +
-      stat(live, new URL(d.live.url).host + ' serves', stale ? 'bad' : '') +
+      stat(live, new URL(d.live.url).host + ' serves', stale ? 'bad' : '', NOW) +
       (d.appChanged === false && d.behind ? stat(num(d.behind), 'commits since, none for the web app')
         : stat(d.behind === null ? '?' : num(d.behind), 'commits not deployed', d.behind ? 'bad' : '')) + '</div>';
     h += '<p class="muted">' + esc(d.main.title) + '</p>';
@@ -484,6 +502,7 @@ const RENDER = {
       { h: 'CPU p99', n: true, v: (w) => w.cpuP99 === null ? '–' : ms(w.cpuP99 / 1000) },
       { h: 'Last build', v: (w) => w.lastBuild ? '<span class="' + (w.lastBuild.outcome === 'success' ? 'good' : w.lastBuild.outcome === 'fail' || w.lastBuild.outcome === 'failure' ? 'bad' : 'warn') + '">' + esc(w.lastBuild.outcome || w.lastBuild.status || '?') + '</span><br><small>' + when(w.lastBuild.at) + (w.lastBuild.commit ? ' · <code>' + esc(w.lastBuild.commit.slice(0, 8)) + '</code>' : '') + '</small>' : '–' }
     ], d.workers);
+    h += '<p class="muted">Requests, errors and CPU over the last 24 h; the last build as it stands now.</p>';
     const statuses = d.workers.flatMap((w) => Object.entries(w.statuses || {}).filter(([s]) => s !== 'success').map(([s, n]) => esc(w.name) + ': ' + esc(s) + ' ' + num(n)));
     if (statuses.length) h += '<p class="muted">Not successful: ' + statuses.join(' · ') + '</p>';
     if (d.notes && d.notes.length) h += '<p class="muted">' + d.notes.map(esc).join('<br>') + '</p>';
@@ -494,9 +513,18 @@ const RENDER = {
       let h = '<h3>' + esc(p.name) + ' <code>' + esc(p.ref) + '</code> · <span class="' + (p.status === 'ACTIVE_HEALTHY' ? 'good' : 'bad') + '">' + esc(p.status || '?') + '</span></h3>';
       if (p.error) return h + '<p class="bad">' + esc(p.error) + '</p>';
       if (p.health && p.health.length) h += '<p>' + p.health.map((s) => '<span class="tag ' + (s.healthy ? 'good' : 'bad') + '">' + esc(s.name) + ' ' + (s.healthy ? 'ok' : esc(s.status || 'unhealthy')) + '</span>').join('') + '</p>';
-      if (p.logs) h += '<div class="stats">' + stat(num(p.logs.gatewayTotal), 'API requests') + stat(num(p.logs.gateway5xx), 'API 5xx', p.logs.gateway5xx ? 'warn' : '') +
-        stat(num(p.logs.function5xx), 'Edge Function 5xx', p.logs.function5xx ? 'warn' : '') + stat(num(p.logs.postgresErrors), 'Postgres errors', p.logs.postgresErrors ? 'warn' : '') +
-        stat(num(p.logs.authErrors), 'Auth errors', p.logs.authErrors ? 'warn' : '') + '</div>';
+      if (p.logs) {
+        h += '<div class="stats">' + stat(num(p.logs.gatewayTotal), 'API requests', '', LAST_DAY) + stat(num(p.logs.gateway5xx), 'API 5xx', p.logs.gateway5xx ? 'warn' : '', LAST_DAY) +
+          stat(num(p.logs.function5xx), 'Edge Function 5xx', p.logs.function5xx ? 'warn' : '', LAST_DAY) + stat(num(p.logs.postgresErrors), 'Postgres errors', p.logs.postgresErrors ? 'warn' : '', LAST_DAY) +
+          stat(num(p.logs.authErrors), 'Auth errors', p.logs.authErrors ? 'warn' : '', LAST_DAY) + '</div>';
+        // What the errors were, by code and what raised them; never a log message, which can quote what someone typed.
+        if (p.logs.errors && p.logs.errors.length) h += '<h3>Errors, last 24 h</h3>' + table([
+          { h: 'Where', v: (e) => esc(e.source) },
+          { h: 'Error', v: (e) => '<code>' + esc(e.code) + '</code>' + (SQLSTATE[e.code] ? '<br><small>' + esc(SQLSTATE[e.code]) + '</small>' : '') },
+          { h: 'Raised by', v: (e) => '<code>' + esc(e.what) + '</code>' },
+          { h: 'Times', n: true, v: (e) => num(e.n) }, { h: 'Last', v: (e) => when(e.lastAt) }
+        ], p.logs.errors);
+      }
       if (p.logsError) h += '<p class="muted">Logs: ' + esc(p.logsError) + '</p>';
       if (p.functions && p.functions.length) h += table([
         { h: 'Edge Function', v: (f) => esc(f.slug) }, { h: 'Status', v: (f) => '<span class="' + (f.status === 'ACTIVE' ? 'good' : 'warn') + '">' + esc(f.status) + '</span>' },
@@ -508,9 +536,10 @@ const RENDER = {
   database(d) {
     const s = d.stats || {};
     let h = '<div class="stats">' +
-      stat(num(d.connections) + ' / ' + num(d.maxConnections), 'connections', d.connections >= d.maxConnections * 0.8 ? 'warn' : '') +
-      stat(s.hitRatio === null || s.hitRatio === undefined ? '–' : pct(s.hitRatio), 'cache hits') + stat(num(s.deadlocks), 'deadlocks', s.deadlocks ? 'warn' : '') + '</div>';
-    h += '<h3>RPCs by total time' + (s.since ? ' since ' + esc(new Date(s.since).toLocaleDateString()) : '') + '</h3>' + table([
+      stat(num(d.connections) + ' / ' + num(d.maxConnections), 'connections', d.connections >= d.maxConnections * 0.8 ? 'warn' : '', NOW) +
+      stat(s.hitRatio === null || s.hitRatio === undefined ? '–' : pct(s.hitRatio), 'cache hits', '', since(s.since)) + stat(num(s.deadlocks), 'deadlocks', s.deadlocks ? 'warn' : '', since(s.since)) + '</div>';
+    // The timings count from pg_stat_statements' own reset, not the database's.
+    h += '<h3>RPCs by total time</h3><p class="muted">' + (d.rpcSince ? 'Counted ' + esc(since(d.rpcSince)) + ' (' + esc(ago(d.rpcSince)) + '), when the timings were last reset.' : 'Counted since the timings were last reset (date not known).') + '</p>' + table([
       { h: 'RPC', v: (r) => '<code>' + esc(r.rpc) + '</code>' }, { h: 'Calls', n: true, v: (r) => num(r.calls) },
       { h: 'Mean', n: true, v: (r) => '<span class="' + (r.mean_ms > 500 ? 'bad' : '') + '">' + ms(r.mean_ms) + '</span>' },
       { h: 'Max', n: true, v: (r) => ms(r.max_ms) }, { h: 'Total', n: true, v: (r) => num(r.total_s) + ' s' }
@@ -538,7 +567,7 @@ const RENDER = {
     const rate = (m, line) => m ? '<span class="' + (m.userPerceived >= line ? 'bad' : m.userPerceived >= line / 2 ? 'warn' : '') + '">' + pct(m.userPerceived) + '</span>' : '–';
     let h = '<div class="stats">' + stat(rate(d.crash, 0.0109), 'user-perceived crashes, 7 days') + stat(rate(d.anr, 0.0047), 'user-perceived ANRs, 7 days') +
       stat(d.reviews ? num(d.reviews.lowWeek) : '–', '1–2 star reviews, 7 days', d.reviews && d.reviews.lowWeek ? 'warn' : '') +
-      stat(d.reviews && d.reviews.average !== null ? d.reviews.average.toFixed(1) + ' ★' : '–', 'average of recent reviews') + '</div>';
+      stat(d.reviews && d.reviews.average !== null ? d.reviews.average.toFixed(1) + ' ★' : '–', 'average of recent reviews', '', reviewSpan(d.reviews)) + '</div>';
     if (d.freshThrough) h += '<p class="muted">Vitals from Play run through ' + esc(d.freshThrough) + '. Bad behaviour starts at 1.09% crashes and 0.47% ANRs.</p>';
     if (d.issues && d.issues.length) h += '<h3>Top crashes and ANRs, 7 days</h3>' + table([
       { h: 'Issue', v: (i) => '<span class="tag ' + (i.type === 'CRASH' || i.type === 'ANR' ? 'bad' : '') + '">' + esc(i.type) + '</span>' + (i.uri ? '<a href="' + esc(i.uri) + '" target="_blank" rel="noopener">' + esc(i.cause || 'issue') + '</a>' : esc(i.cause || 'issue')) + '<br><small>' + esc(i.location || '') + '</small>' },
@@ -565,7 +594,7 @@ const RENDER = {
     }
     if (d.reviews) {
       h += '<div class="stats">' + stat(num(d.reviews.lowWeek), '1–2 star reviews, 7 days', d.reviews.lowWeek ? 'warn' : '') +
-        stat(d.reviews.average !== null ? d.reviews.average.toFixed(1) + ' ★' : '–', 'average of recent reviews') + '</div>';
+        stat(d.reviews.average !== null ? d.reviews.average.toFixed(1) + ' ★' : '–', 'average of recent reviews', '', reviewSpan(d.reviews)) + '</div>';
       if (d.reviews.recent.length) h += d.reviews.recent.map((r) => '<p><b>' + '★'.repeat(r.stars) + '</b> <small>' + when(r.at) + (r.territory ? ' · ' + esc(r.territory) : '') + '</small><br>' + (r.title ? '<b>' + esc(r.title) + '</b> ' : '') + esc(r.text) + '</p>').join('');
     }
     if (d.notes && d.notes.length) h += '<p class="muted">' + d.notes.map(esc).join('<br>') + '</p>';
@@ -573,8 +602,10 @@ const RENDER = {
   },
   v2(d) {
     const st = d.states || {};
-    let h = '<div class="stats">' + stat(num(st.done || 0), 'done') + stat(num(st.running || 0), 'running') +
-      stat(num(st.error || 0), 'failed', st.error ? 'warn' : '') + stat(num(st.cut_off || 0), 'stopped part way', st.cut_off ? 'warn' : '') + '</div>';
+    // Projects, each by its latest transfer: a state now, not a count over time.
+    const each = 'projects, latest transfer';
+    let h = '<div class="stats">' + stat(num(st.done || 0), 'done', '', each) + stat(num(st.running || 0), 'running', '', each) +
+      stat(num(st.error || 0), 'failed', st.error ? 'warn' : '', each) + stat(num(st.cut_off || 0), 'stopped part way', st.cut_off ? 'warn' : '', each) + '</div>';
     h += table([
       { h: 'Project', v: (p) => short(p.project_id) }, { h: 'State', v: (p) => '<span class="' + (p.state === 'done' ? 'good' : p.state === 'running' ? '' : 'warn') + '">' + esc(p.state) + '</span>' + (p.step ? '<br><small>' + esc(p.step) + '</small>' : '') },
       { h: 'Progress', n: true, v: (p) => p.total ? num(p.done) + ' / ' + num(p.total) : '–' },

@@ -184,7 +184,7 @@ export interface Capacity {
   weeksLeft: number | null;
   history: { at: string; dbBytes: number }[];
   r2: { bytes: number; growthPerDay: number | null } | null;
-  usage: { workersRequests: number; doRequests: number; r2ClassA: number; r2ClassB: number; allowance: typeof ALLOWANCE; price?: typeof PRICE_USD; error?: string } | null;
+  usage: { workersRequests: number; doRequests: number; r2ClassA: number; r2ClassB: number; allowance: typeof ALLOWANCE; price?: typeof PRICE_USD; /** The billing month's first day, UTC: the usage counts from it. */ since?: string; error?: string } | null;
 }
 
 /** The fold canary records the database's sizes each night (server/foldCanary.ts). */
@@ -227,7 +227,8 @@ export async function capacitySection(env: Env, fetcher: typeof fetch = fetch, n
         doRequests: (row.durableObjectsInvocationsAdaptiveGroups ?? []).reduce((s, g) => s + g.sum.requests, 0),
         ...(() => { const c = r2ByClass(row.r2OperationsAdaptiveGroups ?? []); return { r2ClassA: c.classA, r2ClassB: c.classB }; })(),
         allowance: ALLOWANCE,
-        price: PRICE_USD
+        price: PRICE_USD,
+        since: monthStart.toISOString()
       }))
       .catch((e: unknown) => ({ workersRequests: 0, doRequests: 0, r2ClassA: 0, r2ClassB: 0, allowance: ALLOWANCE, error: reason(e) }))
     : Promise.resolve(null);
