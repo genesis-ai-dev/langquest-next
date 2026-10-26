@@ -12,6 +12,7 @@ import { txt } from './textStyles';
 import { lift } from './shadow';
 import { C, radius, space, withAlpha } from './theme';
 import { usePerson } from './usePerson';
+import { ModalCover } from './ModalCover';
 
 const SHAPE_POINTS = {
   diamond: '12,1 23,12 12,23 1,12',
@@ -74,6 +75,7 @@ export function UserChip(props: { id: string }) {
             </View>
           ) : null}
         </Pressable>
+        <ModalCover />
       </Modal>
     </>
   );

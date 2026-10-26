@@ -353,7 +353,9 @@
   },
   "native": {
     "microphone": "LangQuest ክፍሎችን ለመተርጎም ድምፅዎን ይቀርጻል።",
-    "camera": "LangQuest የግብዣ QR ኮዶችን ለመቃኘት ካሜራውን ይጠቀማል።"
+    "camera": "LangQuest የግብዣ QR ኮዶችን ለመቃኘት ካሜራውን ይጠቀማል።",
+    "calculator": "ካልኩሌተር",
+    "notes": "ማስታወሻዎች"
   },
   "library": {
     "sourceLine": {
@@ -7343,5 +7345,35 @@
     "recordings_other": "{{count, number}} ቀረጻዎች",
     "changes_one": "{{count, number}} ለውጥ",
     "changes_other": "{{count, number}} ለውጦች"
+  },
+  "disguise": {
+    "row": "የመተግበሪያ አዶ",
+    "rowHelp": "LangQuest በዚህ ስልክ ላይ ካልኩሌተር ወይም ማስታወሻ ደብተር እንዲመስል ያደርጋል። የሚከፈተው እርስዎ በሚመርጡት ኮድ ብቻ ነው።",
+    "title": "የመተግበሪያ አዶ",
+    "langquest": "LangQuest",
+    "ownHelp": "የLangQuest የራሱን አዶ ይመልሳል። ያለ ኮድ ይከፈታል።",
+    "lookHelp": "ይህን አዶ ይመርጣል። ቀጥሎ LangQuestን የሚከፍተውን ኮድ ይመርጣሉ።",
+    "calculatorN": "ካልኩሌተር {{n}}",
+    "notesN": "ማስታወሻዎች {{n}}",
+    "codeTitle": "ኮድ ይምረጡ",
+    "code": "ኮድ",
+    "codeHelp": "ከ4 እስከ 12 አሃዞች። በካልኩሌተሩ ላይ በቁልፎቹ ይተይቡት። በማስታወሻው ላይ ለብቻው በአንድ መስመር ይተይቡት።",
+    "nextHelp": "ኮድዎን እንዲተይቡበት ካልኩሌተሩን ወይም ማስታወሻውን ይከፍታል።",
+    "backHelp": "አንድ ደረጃ ወደ ኋላ ይመለሳል።",
+    "tryTitle": "ኮድዎን ይተይቡ",
+    "on": "ይህ ስልክ አሁን {{name}} ያሳያል።",
+    "off": "የLangQuest የራሱ አዶ ተመልሷል።",
+    "notesTitle": "ማስታወሻዎች",
+    "keys": {
+      "clear": "ሁሉንም አጽዳ",
+      "delete": "ሰርዝ",
+      "percent": "መቶኛ",
+      "divide": "ማካፈል",
+      "times": "ማባዛት",
+      "minus": "መቀነስ",
+      "plus": "መደመር",
+      "equals": "እኩል ነው",
+      "point": "የአስርዮሽ ነጥብ"
+    }
   }
 }

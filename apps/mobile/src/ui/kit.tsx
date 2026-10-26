@@ -37,6 +37,7 @@ import { txt } from './textStyles';
 import { FooterHeightContext } from './useLayout';
 import { useHelpHost } from '../helpMode/useHelpMode';
 import { HeaderExtraContext } from './headerExtra';
+import { ModalCover } from './ModalCover';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -967,6 +968,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
         </View>
       </KeyboardSafe>
       </HelpHost>
+      <ModalCover />
     </Modal>
   );
 }

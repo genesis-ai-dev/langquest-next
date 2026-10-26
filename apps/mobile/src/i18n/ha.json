@@ -353,7 +353,9 @@
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
-    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata."
+    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata.",
+    "calculator": "Kalkuleta",
+    "notes": "Bayanai"
   },
   "library": {
     "sourceLine": {
@@ -7343,5 +7345,35 @@
     "recordings_other": "Naɗe-naɗe {{count, number}}",
     "changes_one": "Canji {{count, number}}",
     "changes_other": "Canje-canje {{count, number}}"
+  },
+  "disguise": {
+    "row": "Alamar manhaja",
+    "rowHelp": "Yana sa LangQuest ya yi kama kalkuleta ko littafin rubutu a wannan waya. Yana buɗewa ne kawai da lambar da ka zaɓa.",
+    "title": "Alamar manhaja",
+    "langquest": "LangQuest",
+    "ownHelp": "Yana mayar da ainihin alamar LangQuest. Yana buɗewa ba tare da lamba ba.",
+    "lookHelp": "Yana zaɓar wannan alamar. Bayan haka za ka zaɓi lambar da ke buɗe LangQuest.",
+    "calculatorN": "Kalkuleta {{n}}",
+    "notesN": "Bayanai {{n}}",
+    "codeTitle": "Zaɓi lamba",
+    "code": "Lamba",
+    "codeHelp": "Lambobi 4 zuwa 12. A kalkuleta, rubuta ta da maɓallai. A littafin rubutu, rubuta ta ita kaɗai a layi.",
+    "nextHelp": "Yana buɗe kalkuleta ko littafin rubutu don ka rubuta lambarka a kai.",
+    "backHelp": "Yana komawa mataki ɗaya baya.",
+    "tryTitle": "Rubuta lambarka",
+    "on": "Wannan waya yanzu tana nuna {{name}}.",
+    "off": "Ainihin alamar LangQuest ta dawo.",
+    "notesTitle": "Bayanai",
+    "keys": {
+      "clear": "Share duka",
+      "delete": "Goge",
+      "percent": "Kashi cikin ɗari",
+      "divide": "Raba",
+      "times": "Ninka",
+      "minus": "Rage",
+      "plus": "Ƙara",
+      "equals": "Daidai da",
+      "point": "Digo"
+    }
   }
 }

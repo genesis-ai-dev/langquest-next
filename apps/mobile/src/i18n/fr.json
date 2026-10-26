@@ -355,7 +355,9 @@
   },
   "native": {
     "microphone": "LangQuest enregistre votre voix pour traduire des passages.",
-    "camera": "LangQuest utilise l’appareil photo pour scanner les codes QR d’invitation."
+    "camera": "LangQuest utilise l’appareil photo pour scanner les codes QR d’invitation.",
+    "calculator": "Calculatrice",
+    "notes": "Notes"
   },
   "library": {
     "sourceLine": {
@@ -7650,5 +7652,35 @@
     "changes_one": "{{count, number}} modification",
     "changes_many": "{{count, number}} modifications",
     "changes_other": "{{count, number}} modifications"
+  },
+  "disguise": {
+    "row": "Icône de l’app",
+    "rowHelp": "Donne à LangQuest l’apparence d’une calculatrice ou d’un bloc-notes sur ce téléphone. Il ne s’ouvre qu’avec un code que vous choisissez.",
+    "title": "Icône de l’app",
+    "langquest": "LangQuest",
+    "ownHelp": "Remet l’icône de LangQuest. Il s’ouvre sans code.",
+    "lookHelp": "Choisit cette icône. Ensuite, vous choisissez le code qui ouvre LangQuest.",
+    "calculatorN": "Calculatrice {{n}}",
+    "notesN": "Notes {{n}}",
+    "codeTitle": "Choisissez un code",
+    "code": "Code",
+    "codeHelp": "De 4 à 12 chiffres. Sur la calculatrice, tapez-le avec les touches. Sur le bloc-notes, tapez-le seul sur une ligne.",
+    "nextHelp": "Ouvre la calculatrice ou le bloc-notes pour y taper votre code.",
+    "backHelp": "Revient d’une étape.",
+    "tryTitle": "Tapez votre code",
+    "on": "Ce téléphone affiche maintenant {{name}}.",
+    "off": "L’icône de LangQuest est revenue.",
+    "notesTitle": "Notes",
+    "keys": {
+      "clear": "Tout effacer",
+      "delete": "Effacer",
+      "percent": "Pour cent",
+      "divide": "Diviser",
+      "times": "Multiplier",
+      "minus": "Moins",
+      "plus": "Plus",
+      "equals": "Égal",
+      "point": "Virgule décimale"
+    }
   }
 }

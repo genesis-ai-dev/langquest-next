@@ -202,6 +202,25 @@ learns which version is live from Apple's public lookup and Google Play's
 public app page, which send no user data. Nothing is collected or sent, and no Play Console answer
 changes.
 
+A phone's disguise (decisions.md 167): under Me → More settings → App icon,
+someone may give the app one of ten icons, five calculators and five
+notepads, and a code of 4 to 12 digits. From then on the app opens on a
+working calculator or notepad, and the code typed there opens LangQuest.
+`expo-alternate-app-icons` changes the icon: on Android it turns one of ten
+`<activity-alias>` launcher entries on and the usual one off (labelled
+"Calculator" or "Notes" in the phone's language by `./plugins/withDisguiseIcons`,
+which also copies the app's link filters onto each). It needs no permission,
+and only the person changes it, from inside the app, and can change it back
+there (Deceptive Behavior: changes to the home screen with the user's
+knowledge and consent, easily reversed). The code is kept on the phone as a
+salted hash in the Keystore (`expo-secure-store`, `expo-crypto`), the
+notepad's text in app storage; neither is sent. Turning it on disconnects
+the phone's notifications through the existing call, since each would say
+LangQuest. Nothing new is collected or sent, so no Play Console answer
+changes. Apple forbids features that review is not told of (App Review
+Guidelines 2.3.1(a) and 2.5.19), so the App Review notes in App Store Connect
+say how to turn it on and off before an iPhone build with it goes to review.
+
 Not used, on purpose: Google Play's In-App Updates library (Play Core). It
 would tell an Android phone itself when a newer version is live, but Google's own
 data safety section for it (developer.android.com/guide/playcore/in-app-updates,
@@ -243,7 +262,9 @@ this block.
   "androidPermissions": ["android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO"],
   "blockedPermissions": [],
   "plugins": [
+    "./plugins/withDisguiseIcons",
     "./plugins/withSceneLifecycle",
+    "expo-alternate-app-icons {\"0\":{\"name\":\"Calculator1\",\"ios\":\"./assets/disguise/calculator1/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator1/adaptive.png\",\"backgroundColor\":\"#202226\"}},\"1\":{\"name\":\"Calculator2\",\"ios\":\"./assets/disguise/calculator2/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator2/adaptive.png\",\"backgroundColor\":\"#DBEAFE\"}},\"2\":{\"name\":\"Calculator3\",\"ios\":\"./assets/disguise/calculator3/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator3/adaptive.png\",\"backgroundColor\":\"#F97316\"}},\"3\":{\"name\":\"Calculator4\",\"ios\":\"./assets/disguise/calculator4/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator4/adaptive.png\",\"backgroundColor\":\"#111111\"}},\"4\":{\"name\":\"Calculator5\",\"ios\":\"./assets/disguise/calculator5/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator5/adaptive.png\",\"backgroundColor\":\"#16A34A\"}},\"5\":{\"name\":\"Notes1\",\"ios\":\"./assets/disguise/notes1/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes1/adaptive.png\",\"backgroundColor\":\"#FFFFFF\"}},\"6\":{\"name\":\"Notes2\",\"ios\":\"./assets/disguise/notes2/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes2/adaptive.png\",\"backgroundColor\":\"#2563EB\"}},\"7\":{\"name\":\"Notes3\",\"ios\":\"./assets/disguise/notes3/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes3/adaptive.png\",\"backgroundColor\":\"#FFFFFF\"}},\"8\":{\"name\":\"Notes4\",\"ios\":\"./assets/disguise/notes4/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes4/adaptive.png\",\"backgroundColor\":\"#1E293B\"}},\"9\":{\"name\":\"Notes5\",\"ios\":\"./assets/disguise/notes5/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes5/adaptive.png\",\"backgroundColor\":\"#E11D48\"}}}",
     "expo-audio {\"enableBackgroundPlayback\":false,\"microphonePermission\":\"LangQuest records your voice to translate passages.\"}",
     "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",
     "expo-localization {\"supportedLocales\":[\"en\",\"es\",\"pt-BR\",\"fr\",\"ar\",\"sw\",\"ha\",\"am\",\"hi\",\"bn\",\"ne\",\"id\",\"zh-Hans\",\"th\",\"my\"]}",
@@ -255,7 +276,7 @@ this block.
     "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
-    "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
+    "expo-alternate-app-icons", "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-secure-store", "expo-sqlite", "expo-status-bar", "expo-updates",
     "html-to-image", "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",

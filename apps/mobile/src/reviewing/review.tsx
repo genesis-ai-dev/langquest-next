@@ -13,6 +13,7 @@ import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
+import { ModalCover } from '../ui/ModalCover';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioClip } from '../audio/audioClip';
 import type { Ctx } from '../shell/ctx';
@@ -604,6 +605,7 @@ export function TallSheet(props: { title: string; onClose: () => void; children:
         </View>
       </View>
       </HelpHost>
+      <ModalCover />
     </Modal>
   );
 }

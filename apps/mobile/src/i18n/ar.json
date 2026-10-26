@@ -361,7 +361,9 @@
   },
   "native": {
     "microphone": "يسجّل LangQuest صوتك لترجمة المقاطع.",
-    "camera": "يستخدم LangQuest الكاميرا لمسح رموز QR الخاصة بالدعوات."
+    "camera": "يستخدم LangQuest الكاميرا لمسح رموز QR الخاصة بالدعوات.",
+    "calculator": "الآلة الحاسبة",
+    "notes": "الملاحظات"
   },
   "library": {
     "sourceLine": {
@@ -8571,5 +8573,35 @@
     "changes_few": "{{count, number}} تغييرات",
     "changes_many": "{{count, number}} تغييرًا",
     "changes_other": "{{count, number}} تغيير"
+  },
+  "disguise": {
+    "row": "أيقونة التطبيق",
+    "rowHelp": "يجعل LangQuest يبدو كآلة حاسبة أو مفكرة على هذا الهاتف. لا يُفتح إلا برمز تختاره.",
+    "title": "أيقونة التطبيق",
+    "langquest": "LangQuest",
+    "ownHelp": "يعيد أيقونة LangQuest الأصلية. يُفتح دون رمز.",
+    "lookHelp": "يختار هذه الأيقونة. بعد ذلك تختار الرمز الذي يفتح LangQuest.",
+    "calculatorN": "آلة حاسبة {{n}}",
+    "notesN": "ملاحظات {{n}}",
+    "codeTitle": "اختر رمزًا",
+    "code": "الرمز",
+    "codeHelp": "من 4 إلى 12 رقمًا. في الآلة الحاسبة، اكتبه بالأزرار. في المفكرة، اكتبه وحده في سطر.",
+    "nextHelp": "يفتح الآلة الحاسبة أو المفكرة لتكتب رمزك عليها.",
+    "backHelp": "يعود خطوة إلى الوراء.",
+    "tryTitle": "اكتب رمزك",
+    "on": "يعرض هذا الهاتف الآن {{name}}.",
+    "off": "عادت أيقونة LangQuest الأصلية.",
+    "notesTitle": "الملاحظات",
+    "keys": {
+      "clear": "مسح الكل",
+      "delete": "حذف",
+      "percent": "نسبة مئوية",
+      "divide": "قسمة",
+      "times": "ضرب",
+      "minus": "ناقص",
+      "plus": "زائد",
+      "equals": "يساوي",
+      "point": "فاصلة عشرية"
+    }
   }
 }

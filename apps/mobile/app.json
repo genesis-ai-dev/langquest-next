@@ -103,6 +103,92 @@
       ],
       "expo-notifications",
       "./plugins/withSceneLifecycle",
+      "./plugins/withDisguiseIcons",
+      [
+        "expo-alternate-app-icons",
+        [
+          {
+            "name": "Calculator1",
+            "ios": "./assets/disguise/calculator1/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/calculator1/adaptive.png",
+              "backgroundColor": "#202226"
+            }
+          },
+          {
+            "name": "Calculator2",
+            "ios": "./assets/disguise/calculator2/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/calculator2/adaptive.png",
+              "backgroundColor": "#DBEAFE"
+            }
+          },
+          {
+            "name": "Calculator3",
+            "ios": "./assets/disguise/calculator3/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/calculator3/adaptive.png",
+              "backgroundColor": "#F97316"
+            }
+          },
+          {
+            "name": "Calculator4",
+            "ios": "./assets/disguise/calculator4/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/calculator4/adaptive.png",
+              "backgroundColor": "#111111"
+            }
+          },
+          {
+            "name": "Calculator5",
+            "ios": "./assets/disguise/calculator5/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/calculator5/adaptive.png",
+              "backgroundColor": "#16A34A"
+            }
+          },
+          {
+            "name": "Notes1",
+            "ios": "./assets/disguise/notes1/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/notes1/adaptive.png",
+              "backgroundColor": "#FFFFFF"
+            }
+          },
+          {
+            "name": "Notes2",
+            "ios": "./assets/disguise/notes2/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/notes2/adaptive.png",
+              "backgroundColor": "#2563EB"
+            }
+          },
+          {
+            "name": "Notes3",
+            "ios": "./assets/disguise/notes3/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/notes3/adaptive.png",
+              "backgroundColor": "#FFFFFF"
+            }
+          },
+          {
+            "name": "Notes4",
+            "ios": "./assets/disguise/notes4/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/notes4/adaptive.png",
+              "backgroundColor": "#1E293B"
+            }
+          },
+          {
+            "name": "Notes5",
+            "ios": "./assets/disguise/notes5/icon.png",
+            "android": {
+              "foregroundImage": "./assets/disguise/notes5/adaptive.png",
+              "backgroundColor": "#E11D48"
+            }
+          }
+        ]
+      ],
       [
         "expo-localization",
         {

@@ -89,6 +89,7 @@ import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
 import { readOnlyLanguage, readOnlyOrg, setReadOnlySession } from './src/shell/readOnly';
+import { DisguiseGate } from './src/disguise/DisguiseGate';
 
 const IS_DEV = __DEV__;
 /** Screens that record: the upload bar shows there, but tapping it does not leave mid-take. */
@@ -347,6 +348,8 @@ export default function App() {
   const appVersion = useAppVersion(!!auth);
   return (
     <SafeAreaProvider>
+      {/* A disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 167). */}
+      <DisguiseGate>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
@@ -366,6 +369,7 @@ export default function App() {
           </ErrorBoundary>
         )}
       </SafeAreaView>
+      </DisguiseGate>
     </SafeAreaProvider>
   );
 }

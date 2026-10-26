@@ -59,6 +59,8 @@ import { useInviterName } from '../account/useInviterName';
 import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
+import { DisguiseRow } from '../disguise/DisguiseRow';
+import { useDisguise } from '../disguise/useDisguise';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -423,8 +425,10 @@ export function SettingsMore(ctx: Ctx) {
   const orgs = useOrganizations(s.actorId).rows;
   const switchHere = !inSeveral(orgs);
   const passwordRow = s.isManaged && hasPassword === false;
-  // No push on the web yet: requests and feedback still reach the Inbox there.
-  const notifications = Platform.OS !== 'web';
+  // No push on the web yet: requests and feedback still reach the Inbox there. A disguised phone
+  // gets none, since each would show LangQuest's name (decisions.md 167).
+  const disguised = useDisguise().look !== null;
+  const notifications = Platform.OS !== 'web' && !disguised;
   const blocked = ctx.blocks.ids.length;
   return (
     <Screen header={<Header title={t('account.me.more')} onBack={ctx.back} />}>
@@ -474,6 +478,8 @@ export function SettingsMore(ctx: Ctx) {
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
         <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={status.pending > 0 ? formatNumber(status.pending) : undefined} onPress={() => ctx.go('sync_status')} />
+        {/* A calculator or notepad in front of the app, opened with a code (decisions.md 167); phones only. */}
+        <DisguiseRow ctx={ctx} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}
           role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last={blocked === 0} />
