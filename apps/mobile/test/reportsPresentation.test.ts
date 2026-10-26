@@ -110,11 +110,6 @@ describe('the alerts, in words', () => {
       words(w.title); words(w.action);
     }
   });
-
-  it('shows an alert core adds later as core wrote it', () => {
-    const later = { id: 'new-thing', level: 'look', title: 'T', body: 'B', action: 'A', rows: [] } as unknown as Parameters<typeof alertText>[0];
-    expect(alertText(later, '', NOW)).toEqual({ title: 'T', body: 'B', action: 'A' });
-  });
 });
 
 describe('the field report, as text to paste', () => {

@@ -90,8 +90,6 @@ export function coverageAverage(rows: LanguageRow[], which: 'recorded' | 'done')
   ])) as Record<TargetScope, number>;
 }
 
-export const SCOPE_LABEL: Record<TargetScope, string> = { gospels: 'Gospels', nt: 'New Testament', ot: 'Old Testament', bible: 'Whole Bible' };
-
 /** What a language is working toward: its target, else the first part of the canon it has not finished. */
 export function workingScope(r: LanguageReport): TargetScope | null {
   if (r.target) return r.target.scope;
@@ -262,18 +260,12 @@ export function milestonesSince(rows: LanguageRow[], sinceIso: string): (Milesto
     .sort((a, b) => (a.at < b.at ? 1 : -1));
 }
 
-export function milestoneText(m: Milestone & { row: LanguageRow }): string {
-  const scope = SCOPE_LABEL[m.scope];
-  return m.threshold === 100 ? `${m.row.report.name}: ${scope} fully recorded` : `${m.row.report.name}: ${m.threshold}% of the ${scope} recorded`;
-}
-
 // ---- field report ---------------------------------------------------------------------------
 
 export type ReportWindow = 'week' | 'month' | 'ytd';
 
 interface FieldReport {
   window: ReportWindow;
-  title: string;
   /** First and last day covered, inclusive. */
   from: string;
   to: string;
@@ -323,7 +315,6 @@ export function fieldReport(rows: LanguageRow[], window: ReportWindow, now: numb
   const quietDay = (row: LanguageRow) => recencyOf(row.report, now).days;
   return {
     window,
-    title: window === 'week' ? 'This week in the field' : window === 'month' ? 'This month in the field' : `${to.slice(0, 4)} so far`,
     from, to,
     cards: perLang.reduce((n, x) => n + x.cards, 0),
     previousCards: window === 'ytd' ? null : rows.reduce((n, row) => n + cardsBetween(row.report, prevFrom, prevTo), 0),
@@ -356,43 +347,6 @@ export function fieldReport(rows: LanguageRow[], window: ReportWindow, now: numb
       return inWindow && before.length === 2 && before.every((x) => x.cards === 0) && w.some((x) => x.weekStart < from && x.cards > 0);
     })
   };
-}
-
-const n = (x: number) => x.toLocaleString('en-US');
-
-/** "1 language has", "3 languages have". */
-export const plural = (k: number, one: string, many = `${one}s`): string => `${n(k)} ${k === 1 ? one : many}`;
-const verb = (k: number, one: string, many: string) => (k === 1 ? one : many);
-
-/** The report as plain text, for pasting into an email or a message. */
-export function reportText(fr: FieldReport, orgName: string): string {
-  const lines = [
-    `${orgName}: ${fr.title}`,
-    `${fr.from} to ${fr.to}`,
-    '',
-    `${n(fr.cards)} recordings reached the server from ${n(fr.languagesRecording)} of ${n(fr.languages)} languages` +
-      (fr.previousCards !== null ? ` (${fr.cards >= fr.previousCards ? '+' : ''}${n(fr.cards - fr.previousCards)} on the period before).` : '.'),
-    `New Testament recorded across all languages: ${fr.ntRecorded}% of verses. Passages done through review: ${n(fr.passagesDone)}.`,
-    ''
-  ];
-  if (fr.milestones.length) {
-    lines.push('Milestones:');
-    for (const m of fr.milestones) lines.push(`- ${m.at.slice(0, 10)} ${milestoneText(m)}`);
-    lines.push('');
-  }
-  if (fr.advanced.length) {
-    lines.push('Scripture coverage advanced:');
-    for (const a of fr.advanced) lines.push(`- ${a.row.report.name} (${SCOPE_LABEL[a.scope]}): ${a.before}% to ${a.after}%`);
-    lines.push('');
-  }
-  if (fr.mostRecorded.length) {
-    lines.push('Most recordings:');
-    fr.mostRecorded.slice(0, 10).forEach((x, i) => lines.push(`${i + 1}. ${x.row.report.name}: ${n(x.cards)}`));
-    lines.push('');
-  }
-  if (fr.wentQuiet.length) lines.push(`Went quiet (no new recordings in 14+ days): ${fr.wentQuiet.map((r) => r.report.name).join(', ')}.`);
-  if (fr.resumed.length) lines.push(`Resumed recording: ${fr.resumed.map((r) => r.report.name).join(', ')}.`);
-  return lines.join('\n').trim() + '\n';
 }
 
 // ---- ledger -------------------------------------------------------------------------------
@@ -437,16 +391,6 @@ export function ledgerFor(rows: LanguageRow[], month: string): { chapters: numbe
   };
 }
 
-export function ledgerCsv(rows: LanguageRow[], month: string, countryName: (c: string | null) => string): string {
-  const l = ledgerFor(rows, month);
-  return toCsv([
-    ['Month', 'Language', 'Code', 'Country', 'New chapters', 'Books', 'Chapters by book'],
-    ...l.lines.map((x) => [month, x.row.report.name, x.row.report.code, countryName(x.row.report.country), x.chapters, x.books.length,
-      x.books.map((b) => `${b.label} ${b.chapters}`).join('; ')]),
-    [month, 'Total', null, null, l.chapters, l.books, null]
-  ]);
-}
-
 // ---- pace ---------------------------------------------------------------------------------
 
 export function paceGroups(rows: LanguageRow[], now: number): { band: PaceBand | 'no_target'; items: { row: LanguageRow; pace: Pace | null }[] }[] {
@@ -464,12 +408,11 @@ export function paceGroups(rows: LanguageRow[], now: number): { band: PaceBand |
 
 export type AlertLevel = 'attention' | 'look' | 'fyi';
 
-interface Alert {
-  id: string;
+export type AlertId = 'stale' | 'stuck' | 'invalid' | 'country' | 'target';
+
+export interface Alert {
+  id: AlertId;
   level: AlertLevel;
-  title: string;
-  body: string;
-  action: string;
   rows: LanguageRow[];
 }
 
@@ -477,7 +420,7 @@ interface Alert {
 const STALE_AFTER_MS = 15 * 60_000;
 
 /**
- * Checks on the data itself, in plain language. `asOf` is when the
+ * Checks on the data itself; the app says them in words. `asOf` is when the
  * app's Worker last caught up with the log; it catches up on every
  * load, so old figures mean the page has been open a while.
  */
@@ -485,43 +428,32 @@ export function alertsFor(rows: LanguageRow[], asOf: string, now: number): Alert
   const out: Alert[] = [];
   if (now - Date.parse(asOf) > STALE_AFTER_MS) {
     out.push({
-      id: 'stale', level: 'look', title: 'These figures are not current',
-      body: `They were read ${timeAgo(asOf, now)}. Work synced since then is not in them.`,
-      action: 'Reload the page to catch up.', rows: []
+      id: 'stale', level: 'look', rows: []
     });
   }
   const stuck = rows.filter((r) => r.report.alerts.stuckCards > 0).sort((a, b) => b.report.alerts.stuckCards - a.report.alerts.stuckCards);
   if (stuck.length) {
-    const cards = stuck.reduce((k, r) => k + r.report.alerts.stuckCards, 0);
     const serious = stuck.some((r) => r.report.alerts.stuckPassages >= 25 || (r.report.alerts.stuckSince !== null && now - Date.parse(r.report.alerts.stuckSince) > 30 * DAY_MS));
     out.push({
-      id: 'stuck', level: serious ? 'attention' : 'look', title: 'Recorded audio stuck on devices',
-      body: `${plural(cards, 'recording')} ${verb(cards, 'was', 'were')} made more than two weeks ago and have not reached the server. Until they upload, the device holds the only copy: a lost, reset or reinstalled device loses them.`,
-      action: 'Ask the team not to reinstall or clear the app, and to get their devices onto a reliable connection with LangQuest open.', rows: stuck
+      id: 'stuck', level: serious ? 'attention' : 'look', rows: stuck
     });
   }
   const invalid = rows.filter((r) => r.report.alerts.invalidCards > 0);
   if (invalid.length) {
     out.push({
-      id: 'invalid', level: 'attention', title: 'Uploaded audio failed its integrity check',
-      body: `${plural(invalid.reduce((k, r) => k + r.report.alerts.invalidCards, 0), 'recording')} on the server did not match their fingerprint and were removed. The devices that recorded them will upload them again if they still have them.`,
-      action: 'Ask those teams to open LangQuest on a good connection; if it recurs, report it to the LangQuest team.', rows: invalid
+      id: 'invalid', level: 'attention', rows: invalid
     });
   }
   const noCountry = rows.filter((r) => !r.report.country);
   if (noCountry.length) {
     out.push({
-      id: 'country', level: 'fyi', title: 'Languages without a country',
-      body: `${plural(noCountry.length, 'language')} ${verb(noCountry.length, 'has', 'have')} no country, so the map and country filters leave them out.`,
-      action: 'Open each language and set its country.', rows: noCountry
+      id: 'country', level: 'fyi', rows: noCountry
     });
   }
   const noTarget = rows.filter((r) => !r.report.target);
   if (noTarget.length) {
     out.push({
-      id: 'target', level: 'fyi', title: 'Languages without a target',
-      body: `${plural(noTarget.length, 'language')} ${verb(noTarget.length, 'has', 'have')} no target, so Pace cannot say whether they are on plan.`,
-      action: 'Open each language and set what it aims to record, and by when.', rows: noTarget
+      id: 'target', level: 'fyi', rows: noTarget
     });
   }
   const rank: Record<AlertLevel, number> = { attention: 0, look: 1, fyi: 2 };
@@ -584,38 +516,4 @@ export function csvCell(cell: Cell): string {
 
 export function toCsv(rows: Cell[][]): string {
   return rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
-}
-
-export function languagesCsv(rows: LanguageRow[], now = Date.now()): string {
-  return toCsv([
-    ['Language', 'Code', 'Country', 'Review flow', 'Passages', 'Recorded', 'Done', 'Recorded %', 'Done %',
-      'Gospels recorded %', 'New Testament recorded %', 'Old Testament recorded %', 'Recordings on server', 'Last upload', 'Upload status',
-      'Feedback to answer', 'Open requests', 'At a checkpoint', 'Bottleneck', 'Last activity', 'Report updated'],
-    ...rows.map(({ report: r, updatedAt }) => [
-      r.name, r.code, r.country, r.flowName, r.progress.total, r.progress.recorded, r.progress.done,
-      percent(r.progress.recorded, r.progress.total), percent(r.progress.done, r.progress.total),
-      r.coverage.recorded.gospels, r.coverage.recorded.nt, r.coverage.recorded.ot, r.uploads.cards, r.uploads.lastAt,
-      recencyOf(r, now).band,
-      r.attention.feedback, r.attention.openRequests, r.attention.atCheckpoint,
-      r.bottleneck, r.lastActivity, updatedAt
-    ])
-  ]);
-}
-
-export function languageCsv(r: LanguageReport): string {
-  return toCsv([
-    ['Book', 'Passages', 'Recorded', 'Done', 'Recorded %', 'Done %'],
-    ...r.books.map((b) => [b.label, b.total, b.recorded, b.done, percent(b.recorded, b.total), percent(b.done, b.total)])
-  ]);
-}
-
-// ---- time ----------------------------------------------------------------------------
-
-export function timeAgo(iso: string, now: number): string {
-  const s = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
-  if (s < 60) return 'just now';
-  const plural = (k: number, unit: string) => `${k} ${unit}${k === 1 ? '' : 's'} ago`;
-  if (s < 3600) return plural(Math.floor(s / 60), 'minute');
-  if (s < 86_400) return plural(Math.floor(s / 3600), 'hour');
-  return plural(Math.floor(s / 86_400), 'day');
 }

@@ -30,7 +30,8 @@ import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, Overview, 
 import { openAlerts, sectionLabel, SECTIONS, type SectionId, sectionHelp } from '../reports/sectionsModel';
 import { AttentionPanel, Bar, Columns, CoverageRows, Freshness, HeadlineStats, ListLine, NoReports, Notice, Panel, ProgressPair, Stat, Stats, ToneBadge } from '../reports/ui';
 import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../reports/format';
-import { canPrint, exportCsv, fileName, languageCsv, printPage } from '../reports/exportFiles';
+import { languageCsv } from '../reports/csvModel';
+import { canPrint, exportCsv, fileName, printPage } from '../reports/exportFiles';
 import { useOrgInChrome } from '../ui/useLayout';
 
 const COLUMN = measure.report;

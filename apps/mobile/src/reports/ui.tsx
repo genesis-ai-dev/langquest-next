@@ -262,9 +262,7 @@ export function Freshness(props: { updatedAt: string | null; now: number }) {
 
 // ---- exports -----------------------------------------------------------------------
 
-// Core's CSVs (`languagesCsv`, `ledgerCsv`, `languageCsv`) with their headers in the
-// language showing: a spreadsheet's column names are words people read. Cells keep
-// core's values (codes, ISO times, band ids) so a sheet sorts and filters the same.
+// The CSVs are csvModel.ts.
 
 const styles = StyleSheet.create({
   panelHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },

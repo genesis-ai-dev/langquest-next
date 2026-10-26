@@ -54,7 +54,7 @@ export function sectionHelp(id: SectionId): string {
 
 export type Report = ReturnType<typeof fieldReport>;
 
-/** Core's report title ("This week in the field"), by its window. */
+/** The report's title ("This week in the field"), by its window. */
 export function fieldTitle(fr: Report): string {
   switch (fr.window) {
     case 'week': return t('reports.field.titleWeek');
@@ -63,7 +63,7 @@ export function fieldTitle(fr: Report): string {
   }
 }
 
-/** Core's `reportText`: the report as plain text, for pasting into an email or a message. */
+/** The report as plain text, for pasting into an email or a message. */
 export function fieldReportText(fr: Report, orgName: string): string {
   const languages = { part: num(fr.languagesRecording), count: fr.languages, recordings: t('reports.counts.recordings', { count: fr.cards }) };
   const lines = [
@@ -102,7 +102,7 @@ export function fieldReportText(fr: Report, orgName: string): string {
 
 type Alert = ReturnType<typeof alertsFor>[number];
 
-/** An alert's words by its id; core writes them in English. One core adds later shows as core wrote it. */
+/** An alert's words by its id: core decides which alerts there are, the app says them. */
 export function alertText(a: Alert, asOf: string, now: number): { title: string; body: string; action: string } {
   switch (a.id) {
     case 'stale': return {
@@ -124,6 +124,5 @@ export function alertText(a: Alert, asOf: string, now: number): { title: string;
     case 'target': return {
       title: t('reports.alerts.target.title'), body: t('reports.alerts.target.body', { count: a.rows.length }), action: t('reports.alerts.target.action')
     };
-    default: return { title: a.title, body: a.body, action: a.action };
   }
 }

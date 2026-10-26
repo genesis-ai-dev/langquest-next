@@ -1,8 +1,8 @@
 import type { LanguageReport } from '../src/reports';
 import {
   activityWindow, alertsFor, attentionCount, combinedActivity, coverageAverage, coverageOn, csvCell, dayPercents, defaultLedgerMonth,
-  fieldReport, isSettled, languageCsv, languagesCsv, ledgerCsv, ledgerFor, logByDay, orgTotals, paceGroups, portfolioCounts, reportText,
-  sortLanguages, timeAgo, toCsv, watchList, workingScope,
+  fieldReport, isSettled, ledgerFor, logByDay, orgTotals, paceGroups, portfolioCounts,
+  sortLanguages, toCsv, watchList, workingScope,
   type LanguageRow
 } from '../src/portfolio';
 
@@ -110,7 +110,7 @@ describe('activity windows', () => {
 });
 
 describe('field report', () => {
-  it('says what happened, and copies as text', () => {
+  it('says what happened', () => {
     const a = report({ name: 'Dinka', country: 'SS', uploads: { ...uploadedDaysAgo(0), daily: days('2026-08-27', 35, (i) => (i >= 28 ? 10 : 0)) },
       coverage: { recorded: cov(40, 20), done: cov(), weekly: [{ weekEnd: '2026-09-20', recorded: cov(30, 15) }] },
       milestones: [{ scope: 'gospels', threshold: 25, at: '2026-09-28T00:00:00.000Z' }] });
@@ -120,11 +120,7 @@ describe('field report', () => {
     expect(fr.advanced.map((x) => [x.row.report.name, x.scope, x.before, x.after])).toEqual([['Dinka', 'gospels', 30, 40]]);
     expect(fr.milestones).toHaveLength(1);
     expect(fr.wentQuiet.map((r) => r.report.name)).toEqual(['Nuer']);
-    const text = reportText(fr, 'Demo Org');
-    expect(text).toMatch(/^Demo Org: This week in the field\n2026-09-24 to 2026-09-30\n/);
-    expect(text).toContain('70 recordings reached the server from 1 of 2 languages (+70 on the period before).');
-    expect(text).toContain('- Dinka (Gospels): 30% to 40%');
-    expect(text).toContain('Went quiet (no new recordings in 14+ days): Nuer.');
+    expect([fr.window, fr.from, fr.to]).toEqual(['week', '2026-09-24', '2026-09-30']);
   });
   it('year to date starts on 1 January and has no comparison', () => {
     const fr = fieldReport([], 'ytd', NOW);
@@ -141,12 +137,9 @@ describe('ledger', () => {
     expect(defaultLedgerMonth(['2026-08', '2026-09'], NOW)).toBe('2026-08');
     expect(defaultLedgerMonth(['2026-09'], NOW)).toBe('2026-09');
   });
-  it('lists languages with chapters that month, most first, and exports them with a total', () => {
+  it('lists languages with chapters that month, most first,', () => {
     expect(ledgerFor(rows, '2026-09').lines.map((l) => [l.row.report.name, l.chapters])).toEqual([['Nuer', 5], ['Dinka', 3]]);
     expect(ledgerFor(rows, '2026-08')).toMatchObject({ chapters: 12, books: 1, languages: 1 });
-    const csv = ledgerCsv(rows, '2026-08', (c) => c ?? 'None').split('\r\n');
-    expect(csv[1]).toBe('2026-08,Dinka,din,SS,12,1,Luke 12');
-    expect(csv[2]).toBe('2026-08,Total,,,12,1,');
   });
 });
 
@@ -193,19 +186,12 @@ describe('CSV', () => {
     expect(csvCell(null)).toBe('');
     expect(toCsv([['a']])).toBe('a\r\n');
   });
-  it('writes one line per language and per book', () => {
-    const r = report({ name: 'Dinka', country: 'SS', books: [{ bookId: 'luk', label: 'Luke', total: 4, recorded: 2, done: 1 }] });
-    expect(languagesCsv([row(r)], NOW).split('\r\n')[1]).toMatch(/^Dinka,din,SS,Quick Check,10,4,2,40,20,0,0,0,0,,not_started,/);
-    expect(languageCsv(r).split('\r\n')[1]).toBe('Luke,4,2,1,50,25');
-  });
 });
 
-describe('dayPercents and timeAgo', () => {
-  it('reads an empty day as zero, and says how old figures are in words', () => {
+describe('dayPercents', () => {
+  it('reads an empty day as zero', () => {
     expect(dayPercents(report({ name: 'Empty', progress: { total: 0, recorded: 0, done: 0, steps: [], waiting: 0, feedback: 0 }, progressDaily: [{ day: '2026-09-28', recorded: 0, done: 0 }] })))
       .toEqual([{ day: '2026-09-28', recorded: 0, done: 0 }]);
     expect(dayPercents(report({ name: 'Half', progressDaily: [{ day: '2026-09-29', recorded: 5, done: 1 }] }))).toEqual([{ day: '2026-09-29', recorded: 50, done: 10 }]);
-    expect(timeAgo('2026-09-30T11:59:30Z', NOW)).toBe('just now');
-    expect(timeAgo('2026-09-30T09:00:00Z', NOW)).toBe('3 hours ago');
   });
 });
