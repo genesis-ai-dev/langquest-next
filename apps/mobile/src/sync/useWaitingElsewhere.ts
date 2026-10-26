@@ -3,6 +3,7 @@ import { filesWaitingKey } from '@langquest-next/sync';
 import { useEffect, useState } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { getStore } from '../storage/store';
+import { elsewhereStreams } from './uploadsModel';
 import { useSyncStatus } from './useSyncStatus';
 
 /** Work of one of the organization's other languages saved on this device and not yet uploaded. */
@@ -32,9 +33,8 @@ export function useWaitingElsewhere(ctx: Ctx): WaitingElsewhere[] {
     void (async () => {
       const store = await getStore();
       const changes = new Map<string, number>();
-      for (const s of await store.pendingStreamsBy(me)) {
-        if (s.orgId !== orgId || s.streamId === open || s.streamId === ORG_STREAM) continue;
-        changes.set(s.streamId, await store.pendingCountBy(s.orgId, s.streamId, me));
+      for (const streamId of elsewhereStreams(await store.pendingStreamsBy(me), orgId, open, ORG_STREAM)) {
+        changes.set(streamId, await store.pendingCountBy(orgId, streamId, me));
       }
       const out: WaitingElsewhere[] = [];
       for (const l of languages) {

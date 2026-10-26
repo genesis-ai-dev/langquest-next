@@ -14,7 +14,8 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { Ico, Sheet } from '../ui/kit';
 import { checkName } from '../admin/adminModel';
-import { replyAnchor, summaryLine } from '../reviewing/capture';
+import { summaryLine } from '../reviewing/capture';
+import { replyNoting } from '../reviewing/notesModel';
 import { NotesUnder, NotingSheet, type Noting } from '../reviewing/notesOn';
 import type { PassageView } from './passageView';
 import { PartNotesContext, type PartNotesValue } from './partNotesContext';
@@ -35,7 +36,7 @@ export function PartNotesProvider(props: { ctx: Ctx; v: PassageView; children: R
       {open ? (
         <Sheet visible title={t('passage.partNotes.title', { part: open.label })} onClose={() => setOpen(null)}>
           <NotesUnder ctx={ctx} p={p} notes={partNotesFor(p, open.hash)} label={label}
-            onReply={(n) => setNoting({ anchor: replyAnchor(n), title: t('review.notesOn.replyTitle', { name: ctx.name(n.by).split(' ')[0] ?? ctx.name(n.by) }), where: summaryLine([v.title, open.label]) })} />
+            onReply={(n) => setNoting(replyNoting(n, ctx.name(n.by), [v.title, open.label]))} />
         </Sheet>
       ) : null}
       <NotingSheet ctx={ctx} v={v} noting={noting} onClose={() => setNoting(null)} />

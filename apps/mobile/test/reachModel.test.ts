@@ -43,3 +43,12 @@ describe('whether the server answers (decisions.md 166)', () => {
     expect(onlineNow({ osOffline: false, quiet: false, synced: false })).toBe(false);
   });
 });
+
+describe('what counts as the server answering', () => {
+  it('is a JSON object, not a page from something in between', async () => {
+    const { isServerAnswer } = await import('../src/sync/reachModel');
+    expect(isServerAnswer({ status: 'ok' })).toBe(true);
+    expect(isServerAnswer({})).toBe(true);
+    expect([isServerAnswer(null), isServerAnswer('<html>'), isServerAnswer(undefined), isServerAnswer(5)]).toEqual([false, false, false, false]);
+  });
+});

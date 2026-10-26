@@ -4,7 +4,7 @@
 // recordings and changes, never the event names a sync speaks in.
 import { unitTitle } from '@langquest-next/core';
 import type { SentEntry } from '@langquest-next/sync';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -13,20 +13,14 @@ import { HelpBadge } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { txt } from '../ui/textStyles';
 import { t } from '../i18n';
-import { formatDay, formatDayTime, formatTime } from '../i18n/format';
+import { formatDay } from '../i18n/format';
 import { C, radius, space, TINT } from '../ui/theme';
 import { PackageBoxes, TransitScene, WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
 import { useWaitingElsewhere } from './useWaitingElsewhere';
-import { barState, dayKind, sentDays, waitingCounts, waitingRows, type WaitingCounts } from './uploadsModel';
-
-/** How long "All uploaded" stays on the bar once the last thing went up. */
-const DONE_SHOWN_MS = 4000;
-
-/** "3 recordings waiting to upload", or the changes when no recording waits. */
-function waitingWords(c: WaitingCounts): string {
-  return c.recordings > 0 ? t('uploads.barRecordings', { count: c.recordings }) : t('uploads.barChanges', { count: c.changes });
-}
+import { barState, dayKind, isOffline, sentDays, sentWords, uploadsSummary, waitingRows, waitingWords } from './uploadsModel';
+import { useJustEmptied } from './useJustEmptied';
+import { useUploadState } from './useUploadState';
 
 /**
  * Over every screen while anything made on this device waits to upload: how
@@ -36,23 +30,8 @@ function waitingWords(c: WaitingCounts): string {
  * `onOpen` is null where leaving is not wanted (the recorder).
  */
 export function UploadBar(props: { ctx: Ctx; onOpen: (() => void) | null }) {
-  const status = useSyncStatus();
-  const counts = waitingCounts(status, useWaitingElsewhere(props.ctx));
-  const offline = props.ctx.language.online === false;
-  // "Uploading" only while a file is going up this moment (decisions.md 166).
-  const moving = !offline && status.uploading.size > 0;
-  const total = counts.recordings + counts.changes;
-  const [justEmptied, setJustEmptied] = useState(false);
-  const was = useRef(total);
-  useEffect(() => {
-    const emptied = was.current > 0 && total === 0;
-    was.current = total;
-    if (total > 0) { setJustEmptied(false); return undefined; }
-    if (!emptied) return undefined;
-    setJustEmptied(true);
-    const timer = setTimeout(() => setJustEmptied(false), DONE_SHOWN_MS);
-    return () => clearTimeout(timer);
-  }, [total]);
+  const { counts, offline, moving } = useUploadState(props.ctx);
+  const justEmptied = useJustEmptied(counts.recordings + counts.changes);
   const bar = barState(counts, offline, justEmptied);
   const label = !bar ? '' : bar.kind === 'done' ? t('uploads.allUploaded') : waitingWords(bar.counts);
   const state = bar?.kind === 'waiting' ? (bar.offline ? t('account.sync.standing.offline') : moving ? t('uploads.uploading') : '') : '';
@@ -90,14 +69,9 @@ export function UploadBar(props: { ctx: Ctx; onOpen: (() => void) | null }) {
  */
 export function UploadsCard(props: { ctx: Ctx }) {
   const status = useSyncStatus();
-  const counts = waitingCounts(status, useWaitingElsewhere(props.ctx));
-  const offline = props.ctx.language.online === false;
-  const movingUp = !offline && status.uploading.size > 0;
+  const { counts, offline, moving: movingUp } = useUploadState(props.ctx);
   const last = status.sent.reduce((m, e) => Math.max(m, e.at), 0);
-  const waiting = counts.recordings + counts.changes > 0;
-  const title = waiting ? waitingWords(counts) : t('uploads.allUploaded');
-  const sub = waiting ? (movingUp ? t('uploads.uploading') : t('uploads.savedHere'))
-    : last ? t('uploads.lastUpload', { when: dayKind(new Date(last).setHours(0, 0, 0, 0), Date.now()) === 'today' ? formatTime(last) : formatDayTime(last) }) : null;
+  const { waiting, title, sub } = uploadsSummary(counts, movingUp, last, Date.now());
   return (
     <Card>
       <TransitScene up={counts.recordings > 0 ? counts.recordings : counts.changes} down={status.pendingDown} offline={offline}
@@ -135,7 +109,7 @@ export function WaitingList(props: { ctx: Ctx; changes: readonly (string | null)
           return (
             <Row key={r.unitId ?? 'other'} testID={`waiting-${r.unitId ?? 'other'}`} icon="upload" iconColor={C.primary} label={title} sub={sub}
               help={t('account.sync.eventHelp')} last={i === rows.length - 1} {...(open ? { onPress: open } : {})}
-              {...(r.recordings ? { below: <PackageBoxes uploaded={uploaded} total={r.recordings.of} offline={ctx.language.online === false} /> } : {})} />
+              {...(r.recordings ? { below: <PackageBoxes uploaded={uploaded} total={r.recordings.of} offline={isOffline(ctx.language.online)} /> } : {})} />
           );
         })}
         {/* Other languages: what waits there goes when each is next open. */}
@@ -146,12 +120,6 @@ export function WaitingList(props: { ctx: Ctx; changes: readonly (string | null)
       </Group>
     </>
   );
-}
-
-/** One line of "Uploaded": the passage, its time and what went. */
-function sentWords(e: SentEntry): string {
-  const what = e.files > 0 ? t('uploads.recordings', { count: e.files }) : t('uploads.changes', { count: e.changes });
-  return `${formatTime(e.at)} · ${what}`;
 }
 
 const SENT_STEP = 15;

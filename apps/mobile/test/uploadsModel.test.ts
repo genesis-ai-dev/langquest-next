@@ -36,3 +36,35 @@ describe('what went up', () => {
     expect(sentDays([{ at: now, unitId: 'u1', files: 1, changes: 0 }, { at: now - 1, unitId: 'u2', files: 1, changes: 0 }], 1)[0]!.entries).toHaveLength(1);
   });
 });
+
+describe('the bar and the card, as words and rules', () => {
+  it('shows "done" only when the last of it just went up', async () => {
+    const { emptiedStep } = await import('../src/sync/uploadsModel');
+    expect(emptiedStep(3, 0)).toBe('show');
+    expect(emptiedStep(0, 0)).toBe('keep');
+    expect(emptiedStep(0, 2)).toBe('hide');
+    expect(emptiedStep(2, 1)).toBe('hide');
+  });
+
+  it('is offline only when told so, not while unknown', async () => {
+    const { isOffline } = await import('../src/sync/uploadsModel');
+    expect([isOffline(false), isOffline(true), isOffline(null)]).toEqual([true, false, false]);
+  });
+
+  it('counts only the organization\'s other languages as elsewhere', async () => {
+    const { elsewhereStreams } = await import('../src/sync/uploadsModel');
+    const streams = [
+      { orgId: 'o', streamId: 'open' }, { orgId: 'o', streamId: 'org' }, { orgId: 'o', streamId: 'other' }, { orgId: 'x', streamId: 'foreign' }
+    ];
+    expect(elsewhereStreams(streams, 'o', 'open', 'org')).toEqual(['other']);
+  });
+
+  it('summarizes: what waits, whether it is going up, or when the last went', async () => {
+    const { uploadsSummary } = await import('../src/sync/uploadsModel');
+    const now = new Date(2026, 9, 25, 15, 0).getTime();
+    const waiting = uploadsSummary({ recordings: 2, changes: 1 }, true, 0, now);
+    expect(waiting.waiting).toBe(true);
+    expect(uploadsSummary({ recordings: 0, changes: 0 }, false, 0, now)).toMatchObject({ waiting: false, sub: null });
+    expect(uploadsSummary({ recordings: 0, changes: 0 }, false, now - 1000, now).sub).not.toBeNull();
+  });
+});

@@ -59,3 +59,12 @@ export function nextCheckAt(r: Reach): number {
 export function onlineNow(o: { osOffline: boolean; quiet: boolean; synced: boolean | null }): boolean | null {
   return o.osOffline || o.quiet ? false : o.synced;
 }
+
+/**
+ * Whether what a health check brought back is the server's own answer: a
+ * JSON object, which Supabase's gateway sends even for its errors, not a
+ * page from something in between (null when nothing came back).
+ */
+export function isServerAnswer(body: unknown): boolean {
+  return typeof body === 'object' && body !== null;
+}
