@@ -106,7 +106,7 @@ const RECORD_AT_ONCE = 4;
 async function inParallel<T>(items: T[], limit: number, work: (item: T) => Promise<void>): Promise<void> {
   let next = 0;
   let failure: { error: unknown } | undefined;
-  const lane = async () => {
+  const runner = async () => {
     while (!failure && next < items.length) {
       try {
         await work(items[next++]!);
@@ -115,7 +115,7 @@ async function inParallel<T>(items: T[], limit: number, work: (item: T) => Promi
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane));
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runner));
   if (failure) throw failure.error;
 }
 
