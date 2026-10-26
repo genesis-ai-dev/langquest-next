@@ -36,7 +36,7 @@ export function statusOf(e: unknown): number | undefined {
 }
 
 /** SQLSTATE classes and PostgREST codes that mean the server was in trouble, not that it said no. */
-const SERVER_CODE = /^(53|57|58|XX)|^PGRST00\d$|^(unexpected_failure|unavailable)$/;
+export const SERVER_CODE = /^(53|57|58|XX)|^PGRST00\d$|^(unexpected_failure|unavailable)$/;
 
 /**
  * Why a call failed. `offline`: it never reached the server (or the sign-in

@@ -2,10 +2,11 @@
 // they are tested on their own (test/orgModel.test.ts). The organization's
 // own rules (who may grant what, a language's scope) are in orgAdmin.ts.
 import { t } from '../i18n';
+import { refusalKind } from '../diagnostics/refusalModel';
 
 /** Why the listing could not be read or changed: the server's refusal (its words are a developer's English), or the connection. */
 export function listingFailure(e: { code?: string }): string {
-  return e.code === '42501' ? t('org.listing.notAllowed') : t('common.tryWhenConnected');
+  return refusalKind(e) === 'not_allowed' ? t('org.listing.notAllowed') : t('common.tryWhenConnected');
 }
 
 /** Why the invite email was not sent, by the send-invite function's status (its own words are English). */
