@@ -4,7 +4,7 @@
 // the app will open from then on: the try teaches it, and nothing changes
 // until it has worked. LangQuest's own tile takes the disguise off.
 import { useState } from 'react';
-import { Image, Modal, Pressable, StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { Image, Modal, Pressable, StyleSheet, View, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
@@ -14,7 +14,7 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { Field, GhostBtn, IconBtn, Ico, PrimaryBtn, Row, Sheet } from '../ui/kit';
 import { ModalCover } from '../ui/ModalCover';
 import { Text } from '../ui/text';
-import { C, radius, space } from '../ui/theme';
+import { C, measure, radius, space } from '../ui/theme';
 import { txt } from '../ui/textStyles';
 import { dropDisguise, ICONS_HERE, wearDisguise } from './disguise';
 import { codeAllowed, digitsOnly, lookName, LOOKS, tileLabel, type Look } from './disguiseModel';
@@ -37,6 +37,9 @@ const PREVIEWS: Record<string, ImageSourcePropType> = {
 const OWN_ICON = require('../../assets/icon.png') as ImageSourcePropType;
 
 const TILE = 64;
+const GAP = space.sm;
+/** The ring round a chosen tile, and the room it takes. */
+const FRAME = 6;
 
 type Step = { at: 'look' } | { at: 'code'; look: Look } | { at: 'try'; look: Look; code: string };
 
@@ -56,6 +59,9 @@ function DisguiseSheet(props: { ctx: Ctx; step: Step; setStep: (s: Step | null) 
   const { ctx, step, setStep } = props;
   const { look: worn } = useDisguise();
   const [code, setCode] = useState('');
+  // Five across, as wide as the sheet allows.
+  const { width } = useWindowDimensions();
+  const size = Math.min(TILE, (Math.min(width, measure.sheet) - space.xl * 2 - GAP * 4) / 5 - FRAME * 2);
   const close = () => setStep(null);
   async function takeOff() {
     if (!worn) return close();
@@ -81,15 +87,18 @@ function DisguiseSheet(props: { ctx: Ctx; step: Step; setStep: (s: Step | null) 
   if (step.at === 'look') {
     return (
       <Sheet visible title={t('disguise.title')} onClose={close}>
-        <View style={styles.grid}>
-          <LookTile source={OWN_ICON} label={t('disguise.langquest')} help={t('disguise.ownHelp')} chosen={!worn} onPress={() => void takeOff()} />
-          {LOOKS.map((l) => (
-            <HelpRow key={l.id} of="disguise.look">
-              <LookTile source={PREVIEWS[l.id]!} label={tileLabel(l)} help={t('disguise.lookHelp')} chosen={worn?.id === l.id}
-                onPress={() => { setCode(''); setStep({ at: 'code', look: l }); }} />
-            </HelpRow>
-          ))}
-        </View>
+        {/* LangQuest's own on a row of its own, then the calculators, then the notepads. */}
+        <LookTile source={OWN_ICON} label={t('disguise.langquest')} help={t('disguise.ownHelp')} chosen={!worn} size={size} onPress={() => void takeOff()} />
+        {(['calculator', 'notes'] as const).map((kind) => (
+          <View key={kind} style={styles.row}>
+            {LOOKS.filter((l) => l.kind === kind).map((l) => (
+              <HelpRow key={l.id} of="disguise.look">
+                <LookTile source={PREVIEWS[l.id]!} label={tileLabel(l)} help={t('disguise.lookHelp')} chosen={worn?.id === l.id} size={size}
+                  onPress={() => { setCode(''); setStep({ at: 'code', look: l }); }} />
+              </HelpRow>
+            ))}
+          </View>
+        ))}
       </Sheet>
     );
   }
@@ -116,12 +125,12 @@ function DisguiseSheet(props: { ctx: Ctx; step: Step; setStep: (s: Step | null) 
   );
 }
 
-function LookTile(props: { source: ImageSourcePropType; label: string; help: string; chosen: boolean; onPress: () => void }) {
+function LookTile(props: { source: ImageSourcePropType; label: string; help: string; chosen: boolean; size: number; onPress: () => void }) {
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole="radio" accessibilityLabel={props.label} accessibilityState={{ selected: props.chosen }}
       style={({ pressed }) => [styles.tile, props.chosen && styles.tileChosen, pressed && { opacity: 0.7 }]}>
-      <Image source={props.source} style={styles.icon} accessibilityIgnoresInvertColors />
+      <Image source={props.source} style={[styles.icon, { width: props.size, height: props.size, borderRadius: props.size * 0.23 }]} accessibilityIgnoresInvertColors />
       {props.chosen ? <View style={styles.check}><Ico name="check" size={14} color={C.white} strokeWidth={3} /></View> : null}
       <HelpBadge spot={spot} />
     </Pressable>
@@ -150,10 +159,10 @@ function TryCode(props: { look: Look; code: string; onBack: () => void; onDone: 
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md, justifyContent: 'flex-start' },
-  tile: { padding: 3, borderRadius: radius.lg + 3, borderWidth: 3, borderColor: 'transparent' },
+  row: { flexDirection: 'row', gap: GAP },
+  tile: { alignSelf: 'flex-start', padding: 3, borderRadius: radius.lg + 3, borderWidth: 3, borderColor: 'transparent' },
   tileChosen: { borderColor: C.primary },
-  icon: { width: TILE, height: TILE, borderRadius: radius.lg },
+  icon: { borderRadius: radius.lg },
   check: { position: 'absolute', top: -6, right: -6, width: 24, height: 24, borderRadius: 12, backgroundColor: C.primary, borderWidth: 2, borderColor: C.white, alignItems: 'center', justifyContent: 'center' },
   chosen: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   chosenIcon: { width: 48, height: 48, borderRadius: radius.md },
