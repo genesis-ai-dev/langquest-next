@@ -146,8 +146,14 @@ Object.assign(RENDER, {
     ], d.jobs);
   },
   dbdetail(d) {
+    // Whose each one is (role, client, kind), never its text; background work that always runs is left out of both.
+    const who = (a, extra) => a ? [a.role || '?', a.client, a.kind !== 'client backend' ? a.kind : null, extra].filter(Boolean).join(' · ') : '';
+    const q = d.longestQuery, x = d.oldestXact;
+    const bg = (d.background || []).map((b) => esc(b.kind) + ' ' + num(b.n) + (b.seconds === null ? '' : ', ' + ms(b.seconds * 1000)));
     return '<div class="stats">' +
-      stat(d.longestQueryS === null ? '–' : ms(d.longestQueryS * 1000), 'longest query', '', 'running now') + stat(d.oldestXactS === null ? '–' : ms(d.oldestXactS * 1000), 'oldest transaction', '', 'open now') + '</div>' +
+      stat(d.longestQueryS === null ? '–' : ms(d.longestQueryS * 1000), 'longest query', q && q.waitingOn === 'Lock' ? 'warn' : '', 'running now' + (q ? ' · ' + who(q, q.waitingOn ? 'waiting on ' + q.waitingOn : null) : '')) +
+      stat(d.oldestXactS === null ? '–' : ms(d.oldestXactS * 1000), 'oldest transaction', '', 'open now' + (x ? ' · ' + who(x, x.state && x.state !== 'active' ? x.state : null) : '')) + '</div>' +
+      (bg.length ? '<p class="muted">Left out as background work that always runs: ' + bg.join(' · ') + '.</p>' : '') +
       '<h3>Largest tables</h3>' + table([{ h: 'Table', v: (t) => '<code>' + esc(t.name) + '</code>' }, { h: 'Size', n: true, v: (t) => bytes(t.bytes) }, { h: 'Rows', n: true, v: (t) => num(t.rows) }, { h: 'Dead', n: true, v: (t) => t.deadRatio === null ? '–' : '<span class="' + (t.deadRatio >= 0.3 ? 'warn' : '') + '">' + (t.deadRatio * 100).toFixed(0) + '%</span>' }], d.tables) +
       '<h3>Largest indexes</h3>' + table([{ h: 'Index', v: (i) => '<code>' + esc(i.name) + '</code>' }, { h: 'Table', v: (i) => '<small>' + esc(i.table) + '</small>' }, { h: 'Size', n: true, v: (i) => bytes(i.bytes) }], d.indexes);
   },
