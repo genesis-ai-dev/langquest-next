@@ -353,7 +353,9 @@
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
-    "camera": "LangQuest hutumia kamera kusoma misimbo ya QR ya mialiko."
+    "camera": "LangQuest hutumia kamera kusoma misimbo ya QR ya mialiko.",
+    "calculator": "Kikokotoo",
+    "notes": "Madokezo"
   },
   "library": {
     "sourceLine": {
@@ -7373,5 +7375,35 @@
     "recordings_other": "Rekodi {{count, number}}",
     "changes_one": "Badiliko {{count, number}}",
     "changes_other": "Mabadiliko {{count, number}}"
+  },
+  "disguise": {
+    "row": "Aikoni ya programu",
+    "rowHelp": "Hufanya LangQuest ionekane kama kikokotoo au daftari la madokezo kwenye simu hii. Hufunguka tu kwa msimbo unaouchagua.",
+    "title": "Aikoni ya programu",
+    "langquest": "LangQuest",
+    "ownHelp": "Hurudisha aikoni ya LangQuest yenyewe. Hufunguka bila msimbo.",
+    "lookHelp": "Huchagua aikoni hii. Kisha unachagua msimbo unaofungua LangQuest.",
+    "calculatorN": "Kikokotoo {{n}}",
+    "notesN": "Madokezo {{n}}",
+    "codeTitle": "Chagua msimbo",
+    "code": "Msimbo",
+    "codeHelp": "Tarakimu 4 hadi 12. Kwenye kikokotoo, uandike kwa vitufe. Kwenye daftari, uandike peke yake kwenye mstari.",
+    "nextHelp": "Hufungua kikokotoo au daftari ili uandike msimbo wako hapo.",
+    "backHelp": "Hurudi hatua moja nyuma.",
+    "tryTitle": "Andika msimbo wako",
+    "on": "Simu hii sasa inaonyesha {{name}}.",
+    "off": "Aikoni ya LangQuest yenyewe imerudi.",
+    "notesTitle": "Madokezo",
+    "keys": {
+      "clear": "Futa vyote",
+      "delete": "Futa",
+      "percent": "Asilimia",
+      "divide": "Gawanya",
+      "times": "Zidisha",
+      "minus": "Toa",
+      "plus": "Jumlisha",
+      "equals": "Sawa na",
+      "point": "Nukta ya desimali"
+    }
   }
 }

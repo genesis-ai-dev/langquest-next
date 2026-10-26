@@ -351,7 +351,9 @@
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
-    "camera": "LangQuest 使用相机扫描邀请二维码。"
+    "camera": "LangQuest 使用相机扫描邀请二维码。",
+    "calculator": "计算器",
+    "notes": "备忘录"
   },
   "library": {
     "sourceLine": {
@@ -7066,5 +7068,35 @@
     "otherChanges": "其他更改",
     "recordings_other": "{{count, number}} 段录音",
     "changes_other": "{{count, number}} 项更改"
+  },
+  "disguise": {
+    "row": "应用图标",
+    "rowHelp": "让 LangQuest 在这部手机上看起来像计算器或记事本。只有输入你选的密码才能打开。",
+    "title": "应用图标",
+    "langquest": "LangQuest",
+    "ownHelp": "换回 LangQuest 自己的图标。打开时不需要密码。",
+    "lookHelp": "选择这个图标。接着你要选一个用来打开 LangQuest 的密码。",
+    "calculatorN": "计算器 {{n}}",
+    "notesN": "备忘录 {{n}}",
+    "codeTitle": "选择密码",
+    "code": "密码",
+    "codeHelp": "4 到 12 位数字。在计算器上，用按键输入。在记事本上，单独输入在一行里。",
+    "nextHelp": "打开计算器或记事本，让你在上面输入密码。",
+    "backHelp": "返回上一步。",
+    "tryTitle": "输入你的密码",
+    "on": "这部手机现在显示为{{name}}。",
+    "off": "已换回 LangQuest 自己的图标。",
+    "notesTitle": "备忘录",
+    "keys": {
+      "clear": "全部清除",
+      "delete": "删除",
+      "percent": "百分比",
+      "divide": "除",
+      "times": "乘",
+      "minus": "减",
+      "plus": "加",
+      "equals": "等于",
+      "point": "小数点"
+    }
   }
 }

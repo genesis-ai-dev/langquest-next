@@ -8092,3 +8092,64 @@ Reverse if: a role should read a language without being able to see its
 progress for a reason the team does not accept, when the report rule
 becomes the read rule; or the two rules are found to confuse people (work
 visible, report refused), when the screens say why.
+
+## 171. A phone can wear a disguise: a calculator or notepad icon, and in front of the app a calculator or notepad that the person's code opens
+
+Date: 2026-10-26 · By: Caleb Koster · Status: accepted
+
+Reason: some translators work where being found with a Bible translation app
+is a danger. The old app had a disguise (v2, July 2026, PRs 900 to 907) and
+Caleb asked for it in this one. It works as v2's did, with these choices:
+- **Where.** Me → More settings → App icon (`src/disguise/DisguiseRow.tsx`),
+  phones only: LangQuest's own icon, or one of five calculators or five
+  notepads, our own drawings (`assets/disguise`). The row is called App
+  icon, as v2's was, not Disguise.
+- **Icon and code together.** Choosing a calculator or notepad asks for a
+  code of 4 to 12 digits, then opens that calculator or notepad full screen
+  to type it. The disguise goes on only once it has been typed there, so the
+  try teaches how the app will open, with no text explaining it. v2 had the
+  icon and an App lock switch apart; an icon without the lock opened
+  LangQuest from "Calculator", and a lock without the icon was a calculator
+  behind LangQuest's own icon, so here there is one choice. LangQuest's own
+  tile takes it off.
+- **What opens.** A disguised phone opens on a calculator that works or a
+  notepad that keeps its note (`src/disguise/faces.tsx`), before sign-in and
+  before anything of the app starts (`DisguiseGate`, around everything in
+  App.tsx), so nothing of LangQuest shows, asks or sounds. The calculator
+  opens the app as the code's last digit is typed, with no = to press; the
+  notepad, on a line that is only the code, which then leaves the note. A
+  wrong code does what a calculator or notepad would. Android's Back leaves
+  it as it would a calculator.
+- **Locks when left.** v2 locked again only when the app was closed. Here
+  leaving the app (the app going to the background) puts the disguise back,
+  so a phone handed over with LangQuest open behind another app opens on the
+  calculator. The app stays as it was under it, so the code brings back the
+  same screen, sheet or recording. Every modal draws the disguise over itself
+  (`ModalCover`, `src/ui/coverContext.ts`), since a modal is above the app's
+  own view. The cost: Android counts a permission prompt or the share sheet
+  as leaving, so the code is typed again after one.
+- **On the phone only.** Which look is kept in the app's key-value store,
+  read at once at start; the code only as a salted SHA-256 in the Keychain or
+  Keystore (`src/disguise/disguise.ts`). Nothing is sent and no connection is
+  needed. Turning it on disconnects this phone's notifications (each would
+  say LangQuest), tried again each time the app opens until the server has
+  heard, and More settings offers none while it is on.
+- **Icons need a store build.** `expo-alternate-app-icons` changes the icon;
+  `./plugins/withDisguiseIcons` names each Android alias "Calculator" or
+  "Notes" in the phone's language (`native.calculator`, `native.notes`) and
+  gives each the app's link filters, since the usual launcher entry is
+  turned off while a disguise is on. iOS cannot rename an app, so an iPhone
+  shows the new icon over "LangQuest Next", and iOS says that the icon
+  changed. A build made before this has no other icons and offers no App
+  icon row.
+- **Told, not hidden.** v2 hid the feature's names in its public source
+  behind an XOR encoding. Apple now removes apps for hidden or undocumented
+  features (App Review Guidelines 2.5.19, added 2026-10-16), so this code
+  names it plainly, and the App Review notes describe it
+  (docs/play-store-declarations.md). Google's Deceptive Behavior policy allows
+  a home-screen change the person makes and can undo.
+Reverse if: Apple or Google turns a build down for it (then the calculator
+and notepad stay and the icon goes, or the reverse), people lose their codes
+(then a way back through sign-in is needed, which the disguise must not show),
+or typing the code after every permission prompt or share drives people to
+turn it off (then leaving for a few seconds does not lock).

@@ -353,7 +353,9 @@
   },
   "native": {
     "microphone": "LangQuest records your voice to translate passages.",
-    "camera": "LangQuest uses the camera to scan invite QR codes."
+    "camera": "LangQuest uses the camera to scan invite QR codes.",
+    "calculator": "Calculator",
+    "notes": "Notes"
   },
   "library": {
     "sourceLine": {
@@ -7373,5 +7375,35 @@
     "recordings_other": "{{count, number}} recordings",
     "changes_one": "{{count, number}} change",
     "changes_other": "{{count, number}} changes"
+  },
+  "disguise": {
+    "row": "App icon",
+    "rowHelp": "Makes LangQuest look like a calculator or a notepad on this phone. It opens only with a code you choose.",
+    "title": "App icon",
+    "langquest": "LangQuest",
+    "ownHelp": "Puts LangQuest's own icon back. It opens with no code.",
+    "lookHelp": "Chooses this icon. Next you choose the code that opens LangQuest.",
+    "calculatorN": "Calculator {{n}}",
+    "notesN": "Notes {{n}}",
+    "codeTitle": "Choose a code",
+    "code": "Code",
+    "codeHelp": "4 to 12 digits. On the calculator, type it on the keys. On the notepad, type it on a line of its own.",
+    "nextHelp": "Opens the calculator or notepad, so you type your code on it.",
+    "backHelp": "Goes back a step.",
+    "tryTitle": "Type your code",
+    "on": "This phone now shows {{name}}.",
+    "off": "LangQuest's own icon is back.",
+    "notesTitle": "Notes",
+    "keys": {
+      "clear": "Clear",
+      "delete": "Delete",
+      "percent": "Percent",
+      "divide": "Divide",
+      "times": "Multiply",
+      "minus": "Minus",
+      "plus": "Plus",
+      "equals": "Equals",
+      "point": "Decimal point"
+    }
   }
 }

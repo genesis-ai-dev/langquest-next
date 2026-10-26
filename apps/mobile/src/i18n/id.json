@@ -351,7 +351,9 @@
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
-    "camera": "LangQuest memakai kamera untuk memindai kode QR undangan."
+    "camera": "LangQuest memakai kamera untuk memindai kode QR undangan.",
+    "calculator": "Kalkulator",
+    "notes": "Catatan"
   },
   "library": {
     "sourceLine": {
@@ -7066,5 +7068,35 @@
     "otherChanges": "Perubahan lain",
     "recordings_other": "{{count, number}} rekaman",
     "changes_other": "{{count, number}} perubahan"
+  },
+  "disguise": {
+    "row": "Ikon aplikasi",
+    "rowHelp": "Membuat LangQuest terlihat seperti kalkulator atau buku catatan di ponsel ini. Aplikasi hanya terbuka dengan kode yang Anda pilih.",
+    "title": "Ikon aplikasi",
+    "langquest": "LangQuest",
+    "ownHelp": "Mengembalikan ikon LangQuest sendiri. Terbuka tanpa kode.",
+    "lookHelp": "Memilih ikon ini. Selanjutnya Anda memilih kode yang membuka LangQuest.",
+    "calculatorN": "Kalkulator {{n}}",
+    "notesN": "Catatan {{n}}",
+    "codeTitle": "Pilih kode",
+    "code": "Kode",
+    "codeHelp": "4 sampai 12 angka. Di kalkulator, ketik dengan tombolnya. Di buku catatan, ketik di satu baris tersendiri.",
+    "nextHelp": "Membuka kalkulator atau buku catatan agar Anda mengetik kode Anda di sana.",
+    "backHelp": "Kembali satu langkah.",
+    "tryTitle": "Ketik kode Anda",
+    "on": "Ponsel ini sekarang menampilkan {{name}}.",
+    "off": "Ikon LangQuest sendiri sudah kembali.",
+    "notesTitle": "Catatan",
+    "keys": {
+      "clear": "Hapus semua",
+      "delete": "Hapus",
+      "percent": "Persen",
+      "divide": "Bagi",
+      "times": "Kali",
+      "minus": "Kurang",
+      "plus": "Tambah",
+      "equals": "Sama dengan",
+      "point": "Titik desimal"
+    }
   }
 }

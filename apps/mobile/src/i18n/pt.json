@@ -355,7 +355,9 @@
   },
   "native": {
     "microphone": "O LangQuest grava a sua voz para traduzir passagens.",
-    "camera": "O LangQuest usa a câmera para ler códigos QR de convite."
+    "camera": "O LangQuest usa a câmera para ler códigos QR de convite.",
+    "calculator": "Calculadora",
+    "notes": "Notas"
   },
   "library": {
     "sourceLine": {
@@ -7680,5 +7682,35 @@
     "changes_one": "{{count, number}} mudança",
     "changes_many": "{{count, number}} de mudanças",
     "changes_other": "{{count, number}} mudanças"
+  },
+  "disguise": {
+    "row": "Ícone do app",
+    "rowHelp": "Faz o LangQuest parecer uma calculadora ou um bloco de notas neste celular. Ele só abre com um código que você escolhe.",
+    "title": "Ícone do app",
+    "langquest": "LangQuest",
+    "ownHelp": "Coloca de volta o ícone do próprio LangQuest. Ele abre sem código.",
+    "lookHelp": "Escolhe este ícone. Depois você escolhe o código que abre o LangQuest.",
+    "calculatorN": "Calculadora {{n}}",
+    "notesN": "Notas {{n}}",
+    "codeTitle": "Escolha um código",
+    "code": "Código",
+    "codeHelp": "De 4 a 12 dígitos. Na calculadora, digite nas teclas. No bloco de notas, digite numa linha só para ele.",
+    "nextHelp": "Abre a calculadora ou o bloco de notas para você digitar seu código nele.",
+    "backHelp": "Volta um passo.",
+    "tryTitle": "Digite seu código",
+    "on": "Este celular agora mostra {{name}}.",
+    "off": "O ícone do próprio LangQuest voltou.",
+    "notesTitle": "Notas",
+    "keys": {
+      "clear": "Limpar tudo",
+      "delete": "Apagar",
+      "percent": "Porcentagem",
+      "divide": "Dividir",
+      "times": "Multiplicar",
+      "minus": "Menos",
+      "plus": "Mais",
+      "equals": "Igual",
+      "point": "Vírgula decimal"
+    }
   }
 }
