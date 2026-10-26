@@ -105,6 +105,10 @@ export function fakeSupabase(server: FakeServer, opts: { snapshotCreatedAt?: str
           const s = server.snapshots.get(`${eq['org_id']}/${eq['stream_id']}`);
           return { data: s && s.serverSeq === Number(eq['server_seq']) && server.hasCut(s) ? [{ server_seq: s.serverSeq }] : [], error: null };
         }
+        if (table === 'events') {
+          const hit = server.log.some((e) => e.orgId === eq['org_id'] && e.streamId === eq['stream_id'] && e.type === eq['type']);
+          return { data: hit ? [{ id: 'x' }] : [], error: null };
+        }
         if (table === 'passage_lines') {
           const l = server.lines.get(`${eq['org_id']}/${eq['stream_id']}`);
           return { data: l && l.version === Number(eq['lines_version']) ? [{ server_seq: l.seq }] : [], error: null };

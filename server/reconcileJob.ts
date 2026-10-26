@@ -92,6 +92,13 @@ const transport = rememberingOneStream(new SupabaseTransport(service));
 const notWithoutVerify = async (): Promise<never> => { throw new Error('not used without --verify'); };
 // The reconciler's wiring (as packages/sync's runBlobReconciler has it, without what --verify needs), counting as it goes:
 // what R2 lists, what the log holds as stored that R2 does not, and what it confirms.
+/** Does the stream's log hold any BlobStored? One indexed look (events_type_idx). */
+async function hasStoredBlobs(orgId: string, streamId: string): Promise<boolean> {
+  const { data, error } = await service.from('events').select('id')
+    .eq('org_id', orgId).eq('stream_id', streamId).eq('type', 'v1.BlobStored').limit(1);
+  if (error) throw new Error(`events ${orgId}/${streamId}: ${error.message}`);
+  return (data ?? []).length > 0;
+}
 const deps: ReconcilerDeps = {
   streams: async () => (await listStreams(service)).map((r) => ({ orgId: r.org_id, streamId: r.stream_id })),
   transport,
@@ -104,11 +111,14 @@ const deps: ReconcilerDeps = {
       if (hash && format) out.push({ orgId, streamId, hash, format, size: f.size });
     }
     counts.objects += out.length;
+    // A log with no BlobStored holds nothing as stored, so nothing can be missing: no fold (organization and person streams, quiet languages).
+    if (!(await hasStoredBlobs(orgId, streamId))) return out;
     const listed = new Set(out.map((o) => o.hash));
     const state = await foldStream(transport, orgId, streamId);
     for (const [hash, verdict] of Object.entries(state.blobs)) if (verdict.stored && !listed.has(hash)) counts.missing += 1;
     return out;
   },
+  hasStoredBlobs,
   download: notWithoutVerify,
   remove: notWithoutVerify,
   recordBlob: async (orgId, streamId, hash, size) => {
