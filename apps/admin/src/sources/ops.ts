@@ -214,8 +214,18 @@ export function peopleAlerts(p: People): Alert[] {
 // ---- the server: cron, database detail, push, the app Worker, integrations ---------------------
 
 export interface Cron { jobs: { jobname: string; schedule: string; active: boolean; runs24h: number; failures24h: number; lastRunAt: string | null; lastStatus: string | null }[] }
+/** A query or transaction now: whose, never its text (migration 20261026160000_ops_database_who). */
+export interface Activity {
+  seconds: number; role: string | null; client: string | null; kind: string;
+  /** The query's wait (`Lock` is blocked by another), or the transaction's state (`idle in transaction`). */
+  waitingOn?: string | null; state?: string | null;
+}
 export interface DbDetail {
   bytes: number; connections: number; longestQueryS: number | null; oldestXactS: number | null;
+  /** Whose the two above are; absent before migration 20261026160000. */
+  longestQuery?: Activity | null; oldestXact?: Activity | null;
+  /** Background work left out of them (Supabase's own, always running), by kind. */
+  background?: { kind: string; n: number; seconds: number | null }[];
   tables: { name: string; bytes: number; rows: number; deadRatio: number | null }[];
   indexes: { name: string; table: string; bytes: number }[];
 }
@@ -272,10 +282,20 @@ export function cronAlerts(c: Cron): Alert[] {
     .map((j) => ({ level: j.failures24h >= 3 ? 'problem' : 'watch', text: `pg_cron job ${j.jobname} failed ${plural(j.failures24h, 'time')} in the last day.` } as Alert));
 }
 
+/** Whose a query or transaction is, as the page says it: `authenticator (PostgREST 14.5)`. */
+export const whose = (a: Activity | null | undefined): string =>
+  a ? `${a.role ?? 'an unknown role'}${a.client ? ` (${a.client})` : ''}` : '';
+
 export function dbDetailAlerts(d: DbDetail): Alert[] {
   const out: Alert[] = [];
-  if (num(d.oldestXactS) > 3600) out.push({ level: 'watch', text: `A database transaction has been open for ${Math.round(num(d.oldestXactS) / 60)} minutes: it holds back vacuum.` });
-  if (num(d.longestQueryS) > 300) out.push({ level: 'watch', text: `A query has been running for ${Math.round(num(d.longestQueryS) / 60)} minutes.` });
+  if (num(d.oldestXactS) > 3600) {
+    const x = d.oldestXact;
+    out.push({ level: 'watch', text: `A database transaction${x ? ` by ${whose(x)}` : ''}${x?.state && x.state !== 'active' ? `, ${x.state},` : ''} has been open for ${Math.round(num(d.oldestXactS) / 60)} minutes: it holds back vacuum.` });
+  }
+  if (num(d.longestQueryS) > 300) {
+    const q = d.longestQuery;
+    out.push({ level: 'watch', text: `A query${q ? ` by ${whose(q)}` : ''} has been running for ${Math.round(num(d.longestQueryS) / 60)} minutes${q?.waitingOn === 'Lock' ? ', blocked by a lock' : ''}.` });
+  }
   for (const t of d.tables) if (num(t.deadRatio) >= 0.3 && t.rows >= 10_000) out.push({ level: 'watch', text: `${t.name} is ${Math.round(num(t.deadRatio) * 100)}% dead rows: autovacuum is behind.` });
   return out;
 }
