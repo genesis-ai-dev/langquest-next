@@ -198,10 +198,7 @@ export class KeptLines {
     } else {
       const unplaced = this.unplaced;
       this.unplaced = [];
-      for (const of of unplaced) {
-        const u = await this.kept.passageOf(live, of);
-        if (u) this.dirty.add(u);
-      }
+      for (const u of await this.kept.passagesOf(live, unplaced)) this.dirty.add(u);
       units = [...this.dirty].filter((u) => this.kept.isFilled(u));
       this.kept.want([...this.dirty].filter((u) => !this.kept.isFilled(u)));
       this.dirty.clear();

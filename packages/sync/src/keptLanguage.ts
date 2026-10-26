@@ -328,6 +328,26 @@ export class KeptLanguage {
   }
 
   /**
+   * `passageOf` for many at once, one disk query per kind: a pull page of
+   * reviews on versions whose passages are on disk asked once per event.
+   */
+  async passagesOf(state: LanguageState, ofs: readonly (PassageOf | null)[]): Promise<Set<string>> {
+    const out = new Set<string>();
+    const look: { kind: string; id: string }[] = [];
+    for (const of of ofs) {
+      const unitId = passageInMemory(state, of);
+      if (unitId) { out.add(unitId); continue; }
+      const on = hangsOn(of);
+      if (on) look.push(on);
+      else if (of && 'studyKey' in of) { const u = studyMarkUnit(state.units, of.studyKey); if (u) out.add(u); }
+    }
+    for (const [kind, ids] of groupBy(look)) {
+      for (const r of await this.store.keptById(this.orgId, this.streamId, kind, ids)) if (r.unitId) out.add(r.unitId);
+    }
+    return out;
+  }
+
+  /**
    * Files something in memory names: a recording, a note or a review of a
    * passage in memory, a material. A version's files are its passage's
    * recordings', so they come with the passage; counting every version's
