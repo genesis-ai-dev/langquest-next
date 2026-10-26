@@ -53,7 +53,8 @@ function Cover(props: { look: Look }) {
   // app has started there are none, and Android's Back leaves as usual.
   useEffect(() => openBackStep({ showing: () => true, run: () => BackHandler.exitApp() }), []);
   return (
-    <View style={StyleSheet.absoluteFill}>
+    // The only thing a screen reader reaches while it shows, inside a modal too.
+    <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
       <DisguiseFace kind={props.look.kind} length={length} onCandidate={tryCode} keep />
     </View>
   );
