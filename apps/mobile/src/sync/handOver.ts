@@ -7,9 +7,9 @@ import { getBlobStore, type BlobStore } from './blobs';
 import { handOverPushToken } from '../notifications/notifications';
 import { noteExpected } from '../diagnostics/report';
 import { flushDiagnostics } from '../diagnostics/diagnostics';
-import { recordAuth } from '../auth/authDiag';
-import { OutcomeThrottle } from '../auth/authOutcome';
-import { getStore } from './store';
+import { recordAuth } from '../diagnostics/authDiag';
+import { OutcomeThrottle } from '../session/authOutcome';
+import { getStore } from '../storage/store';
 import { actAs, forgetKeptSession, keepSessionAndSignOut, keptSession, keptSessionRaw } from '../server/handOver';
 import { dropLockedSession, keepLockedAfterHandOver } from '../server/lock';
 

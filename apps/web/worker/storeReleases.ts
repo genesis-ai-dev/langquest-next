@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { VERSION_PATTERN, VERSION_TEXT } from '@langquest-next/core';
 
 /**
  * The store check (decisions.md 154): which version of the app people can
@@ -35,7 +36,7 @@ export interface LiveVersion {
 /** The live iPhone version in Apple's lookup answer, or null when the app is not live. */
 export function liveFromLookup(body: unknown): LiveVersion | null {
   const result = (body as { results?: { version?: unknown; currentVersionReleaseDate?: unknown }[] })?.results?.[0];
-  if (!result || typeof result.version !== 'string' || !/^\d+(\.\d+){0,2}$/.test(result.version)) return null;
+  if (!result || typeof result.version !== 'string' || !VERSION_PATTERN.test(result.version)) return null;
   const at = typeof result.currentVersionReleaseDate === 'string' ? result.currentVersionReleaseDate : null;
   return { platform: 'ios', version: result.version, liveSince: at };
 }
@@ -43,7 +44,7 @@ export function liveFromLookup(body: unknown): LiveVersion | null {
 /** The live Android version on Google Play's app page, or null when the page shows none. */
 export function liveFromPlayPage(html: string): LiveVersion | null {
   // The page carries its data as JSON; the current version is the only string in a [[["…"]] of its own.
-  const found = [...html.matchAll(/\[\[\["(\d+(?:\.\d+){0,2})"\]\]/g)].map((m) => m[1]);
+  const found = [...html.matchAll(new RegExp(`\\[\\[\\["(${VERSION_TEXT})"\\]\\]`, 'g'))].map((m) => m[1]);
   const version = found[0];
   return version ? { platform: 'android', version, liveSince: null } : null;
 }
@@ -53,7 +54,7 @@ export function liveFromPlayPage(html: string): LiveVersion | null {
  * The page shows "Version x.y.z" once the app is live, and answers 404 before.
  */
 export function liveFromAppStorePage(html: string): LiveVersion | null {
-  const version = /Version (\d+(?:\.\d+){0,2})\b/.exec(html)?.[1];
+  const version = new RegExp(`Version (${VERSION_TEXT})\\b`).exec(html)?.[1];
   return version ? { platform: 'ios', version, liveSince: null } : null;
 }
 

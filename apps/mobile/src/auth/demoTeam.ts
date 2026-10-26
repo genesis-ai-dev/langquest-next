@@ -4,7 +4,7 @@
 // only on a local Supabase (dev.ts `personasAvailable`).
 import { commands, membershipsOf, selectFlowSpecs, type FlowDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import { maySeedDemoTeam, PERSONAS, type Persona } from './dev';
+import { maySeedDemoTeam, PERSONAS, type Persona } from '../session/dev';
 import { ensurePersonaAccount, joinAsPersona, switchToPersona } from '../server/personas';
 import * as library from '../server/library';
 import { issueInvite } from '../invites/invites';

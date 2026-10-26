@@ -1,11 +1,10 @@
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import type { EventStore, OutboxFailure } from '@langquest-next/sync';
-import { diagnostics, flushDiagnostics } from '../diagnostics/diagnostics';
-import { errorCode } from '../diagnostics/report';
-import { renewalChanges, type RenewalChange } from '../server/sessionSafeFetch';
-import { getStore } from '../sync/store';
-import { failureOutcome, fixedCode, sessionAgeH, statusOf, type AuthNumber, type AuthOp, type AuthOutcome } from './authOutcome';
-import { signOutChosen, takeRefusal } from './signOutCause';
+import { diagnostics, flushDiagnostics } from './diagnostics';
+import { errorCode } from './report';
+import { getStore } from '../storage/store';
+import { failureOutcome, fixedCode, sessionAgeH, statusOf, type AuthNumber, type AuthOp, type AuthOutcome } from '../session/authOutcome';
+import { signOutChosen, takeRefusal } from '../session/signOutCause';
 
 /**
  * Signing in, staying signed in and getting into an organization, as field
@@ -100,21 +99,6 @@ export function noteAuthEvent(event: AuthChangeEvent, before: Session | null | u
       n: { ...(refusal ? { status: refusal.status } : {}), ...(pending !== undefined ? { pending } : {}), ...(ageH !== undefined ? { ageH } : {}) }
     });
   })();
-}
-
-/**
- * Renewing the sign-in, only when it changes (sessionSafeFetch.ts): it
- * started failing with a status or for want of a network, or it worked
- * again. Returns the unsubscribe.
- */
-export function watchRenewals(): () => void {
-  const listener = (c: RenewalChange) => {
-    if (c.outcome === 'http') recordAuth('renew', 'http', { code: `http${c.status}`, n: { status: c.status } });
-    else if (c.outcome === 'offline') recordAuth('renew', 'offline');
-    else recordAuth('renew', 'ok', { n: { ms: c.ms, ...(c.sinceOkMs !== undefined ? { sinceOkMs: c.sinceOkMs } : {}) } });
-  };
-  renewalChanges.add(listener);
-  return () => { renewalChanges.delete(listener); };
 }
 
 // ---- The account outbox (op `outbox`) --------------------------------------------------

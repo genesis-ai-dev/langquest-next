@@ -10,27 +10,8 @@ import { t } from '../i18n';
 import { noteExpected } from '../diagnostics/report';
 import * as server from '../server/library';
 import { cachedDoc, flushOutbox, keepNewDoc, loadDocs, onDocs, prepareDoc } from './docStore';
+import { adoptError } from './failureModel';
 import { copyOps, followOps, mayWriteLibrary, newItemId, publishOps, subscribeOps, type LibraryOp, type SharedItem } from './model';
-
-/**
- * Why `library_adopt` refused, in the language showing: its known reasons
- * (supabase/migrations, `library_adopt`) by their words and code, else a
- * general message. The server's own English is never shown.
- */
-function adoptError(error: { message?: string; code?: string }): CommandError {
-  const said = error.message ?? '';
-  if (said === 'not a member') return new CommandError(t('library.errors.notMember'));
-  if (said === 'that item is not shared') return new CommandError(t('library.errors.notShared'));
-  // i18n-ignore: the server's words, matched to choose a catalog message
-  if (said.startsWith('not allowed to manage')) return new CommandError(t('library.errors.notAllowed'));
-  if (said === 'that is not a version of the item') return new CommandError(t('library.errors.notAVersion'));
-  // i18n-ignore: the server's words, matched to choose a catalog message
-  if (said.startsWith('that version') && said.endsWith('has not been published yet')) return new CommandError(t('library.errors.notPublishedYet'));
-  if (error.code === '42501') return new CommandError(t('library.errors.notAllowed'));
-  // No code: the request never reached the server.
-  if (!error.code) return new CommandError(t('common.notConnected'));
-  return new CommandError(t('library.errors.couldNotGet'));
-}
 
 /**
  * The organization's library for screens (docs/library.md): its items, the

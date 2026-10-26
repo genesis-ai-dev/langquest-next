@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GuideDraft } from '../src/guides/draft';
+import type { GuideDraft } from '../src/guides/draftModel';
 
 // Guide drafts on the device (guides/draftStore.ts, decision 127): each is its
 // writer's, so another person on the same phone or browser never opens it and

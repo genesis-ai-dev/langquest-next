@@ -8,7 +8,7 @@ import { t } from '../i18n';
 import { LinkBtn, SmallBtn } from '../ui/kit';
 import { Text } from '../ui/text';
 import { C, radius, space } from '../ui/theme';
-import { addDot, dotAt, MIN_DOTS, PICTURES } from './lockModel';
+import { addDot, dotAt, MIN_DOTS, PICTURES } from '../session/lockModel';
 
 /**
  * Nine dots to draw a pattern on, as on the Android lock screen (decisions.md

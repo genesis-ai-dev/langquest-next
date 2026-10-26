@@ -18,7 +18,7 @@
     "db:reset": "node scripts/local-db.mjs reset",
     "guardrails": "scripts/guardrails.sh",
     "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/sync --noEmit && tsc -p packages/v2-import --noEmit && tsc -p e2e && tsc -p scripts/fleet && tsc -p apps/web/worker && tsc -p apps/admin && npm run email:typecheck && tsc -p tsconfig.listening-demo.json && tsc -p apps/mobile --noEmit",
-    "lint": "eslint --max-warnings=0 apps/mobile/App.tsx apps/mobile/src packages/core/src packages/sync/src",
+    "lint": "eslint --max-warnings=0 apps/mobile/App.tsx apps/mobile/src packages/core/src packages/sync/src server apps/web/worker apps/admin/src packages/v2-import/src",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:integration": "node scripts/with-local-keys.mjs vitest run packages/sync/test/integration.test.ts",

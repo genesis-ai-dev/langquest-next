@@ -14,7 +14,7 @@ import { txt } from '../ui/textStyles';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { PeopleLine } from '../checks/parts';
-import { nextQuestionType, questionTypeLabel } from './record';
+import { nextQuestionType, questionTypeLabel } from './recordTextModel';
 import { C, radius, space } from '../ui/theme';
 
 const newId = () => Crypto.randomUUID();

@@ -1118,7 +1118,7 @@ Expected:
 ### ACCT-057 A disguised phone opens on its calculator, and the code opens LangQuest
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android · Run: Auto
 
-Preconditions: LangQuest's own icon (decisions.md 170). The Maestro flow
+Preconditions: LangQuest's own icon (decisions.md 171). The Maestro flow
 (`flows/ACCT-057.yaml`) takes the disguise off again at the end.
 
 Steps:

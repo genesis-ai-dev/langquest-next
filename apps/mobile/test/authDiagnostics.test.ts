@@ -1,7 +1,8 @@
 // Why: sign-in, invites and the organization list failed in the field as one undifferentiated "could not",
 // and a refusal retried every 30 s forever read like no signal. These hold how each failure is named.
-import { failureOutcome, fixedCode, inviteOutcome, OutcomeThrottle, RpcError, sessionAgeH, statusOf, v2Outcome } from '../src/auth/authOutcome';
-import { noteRefusal, signingOutByChoice, signOutChosen, takeRefusal } from '../src/auth/signOutCause';
+import { inviteOutcome } from '../src/invites/inviteOutcome';
+import { failureOutcome, fixedCode, OutcomeThrottle, RpcError, sessionAgeH, statusOf, v2Outcome } from '../src/session/authOutcome';
+import { noteRefusal, signingOutByChoice, signOutChosen, takeRefusal } from '../src/session/signOutCause';
 import { orgListRetryMs, routeOutcome } from '../src/shell/routingModel';
 
 class OfflineError extends Error { override name = 'OfflineError'; }

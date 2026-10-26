@@ -4,6 +4,7 @@ import { supabaseAgentStore } from './agent/store';
 import { sha256Hex } from './agent/tokens';
 import { r2Bucket } from './r2';
 import { serviceClient, type Env } from './env';
+import { claimsVerifier, sessionLiveCheck } from './identity';
 import { publishLangQuestTimings } from './timings';
 import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
@@ -175,23 +176,9 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   // asymmetric ones (the keys are fetched once and cached); otherwise
   // supabase-js asks Auth, as getUser did.
   // A session signed out since (a lost phone, a deleted account) no longer counts (liveSessions.ts).
-  sessionLive ??= liveSessions(async (sessionId) => {
-    const { data, error } = await serviceClient(env).rpc('session_is_live', { p_session: sessionId });
-    if (error) throw new Error(`session_is_live: ${error.message}`);
-    return data === true;
-  });
+  sessionLive ??= liveSessions(sessionLiveCheck(serviceClient(env)));
   // A verified token is remembered for up to a minute (decisions.md 121); its session is asked about every time (118).
-  const identityOf = identityOfCached ??= cachedIdentityOf(async (token) => {
-    const { data, error } = await serviceClient(env).auth.getClaims(token);
-    if (error || !data?.claims.sub) return null;
-    const sessionId = data.claims['session_id'];
-    const aal = data.claims['aal'];
-    return {
-      sub: data.claims.sub, exp: data.claims.exp,
-      sessionId: typeof sessionId === 'string' ? sessionId : undefined,
-      aal: typeof aal === 'string' ? aal : undefined
-    };
-  }, Date.now, (sessionId) => sessionLive!(sessionId));
+  const identityOf = identityOfCached ??= cachedIdentityOf(claimsVerifier(serviceClient(env)), Date.now, (sessionId) => sessionLive!(sessionId));
   const profileOf = async (token: string) => (await identityOf(token))?.profileId ?? null;
   const recordBlob = async (orgId: string, streamId: string, hash: string, size: number) => {
     const { error } = await serviceClient(env).rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });

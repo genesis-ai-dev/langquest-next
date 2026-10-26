@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { onServerHeard, serverAnswers } from '../server/reachability';
-import { CHECK_TIMEOUT_MS, NOTHING_HEARD, checked, heard as heardFrom, isQuiet, nextCheckAt, type Reach } from './reachModel';
+import { serverHealth } from '../server/reachability';
+import { onServerHeard } from './serverHeard';
+import { CHECK_TIMEOUT_MS, NOTHING_HEARD, checked, heard as heardFrom, isQuiet, isServerAnswer, nextCheckAt, type Reach } from './reachModel';
 
 /**
  * Whether the server has gone quiet (reachModel.ts, decisions.md 166).
@@ -50,7 +51,7 @@ export function useServerReach(osOffline: boolean, onBack: () => void): { quiet:
       timer = null;
       asking = true;
       const askedAt = Date.now();
-      const answered = await serverAnswers(CHECK_TIMEOUT_MS);
+      const answered = isServerAnswer(await serverHealth(CHECK_TIMEOUT_MS));
       asking = false;
       if (alive) apply(checked(reach.current, askedAt, Date.now(), answered));
     };

@@ -5,10 +5,8 @@ import { Paths } from 'expo-file-system';
 import * as Updates from 'expo-updates';
 import { Platform } from 'react-native';
 import { applyDiagnosticsOn, readDiagnosticsOn, saveDiagnosticsOn } from './diagnosticsSetting';
-import { getDiagStore, getStore } from '../sync/store';
-import { BUILD_ID } from '../web/webBuild';
-import { currentSession } from '../server/auth';
-import { ingestDiagnostics } from '../server/diagnostics';
+import { getDiagStore, getStore } from '../storage/store';
+import { BUILD_ID } from '../build/webBuild';
 
 // Field diagnostics (docs/diagnostics.md, decisions.md 39). One recorder for
 // the app: the sync clients, the transfer workers and report.ts write to
@@ -108,6 +106,21 @@ async function probeAll(): Promise<Record<string, number>> {
   return out;
 }
 
+/**
+ * What delivery needs from the server, which sits above this folder: whether
+ * someone is signed in, and a call that takes the records. The app hands them
+ * over at start (shell/wiring.ts); until it does, nothing is delivered.
+ */
+export interface DiagnosticsDelivery {
+  signedIn: () => Promise<boolean>;
+  send: (context: DiagContext, records: unknown) => PromiseLike<{ error: { message: string } | null }>;
+}
+let delivery: DiagnosticsDelivery | null = null;
+
+export function setDiagnosticsDelivery(to: DiagnosticsDelivery): void {
+  delivery = to;
+}
+
 let lastAttempt = 0;
 let flushing = false;
 
@@ -122,11 +135,11 @@ let flushing = false;
  */
 export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsWanted?: number } = {}): Promise<void> {
   await setting;
-  if (!diagnostics.isEnabled || flushing || Date.now() - lastAttempt < FLUSH_EVERY_MS) return;
+  if (!delivery || !diagnostics.isEnabled || flushing || Date.now() - lastAttempt < FLUSH_EVERY_MS) return;
   flushing = true;
   try {
     // Signed out is not an attempt: the first delivery after sign-in must not wait out the throttle.
-    if (!await currentSession()) return;
+    if (!await delivery.signedIn()) return;
     lastAttempt = Date.now();
     const n: Record<string, number> = await probeAll();
     // The web's expo-file-system answers 0 rather than throwing, which would
@@ -144,8 +157,9 @@ export async function flushDiagnostics(device: { blobCacheBytes?: number; blobsW
     n.diagDropped = diagnostics.takeDropped();
     diagnostics.record('device', { n });
     const ctx = await phoneContext();
+    const send = delivery.send;
     await diagnostics.flush(async (records) => {
-      const { error } = await ingestDiagnostics(ctx, records);
+      const { error } = await send(ctx, records);
       if (error) throw new Error(error.message);
     });
   } catch {

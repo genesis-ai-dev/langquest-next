@@ -49,7 +49,7 @@ import {
   levelsForOutline, libraryChoices, moveNode, newTemplateForm, partWords, recordedCount, removeNode, renameNode,
   setAsideCount, siblingsOf, findNode, STARTER_TEMPLATE, templateLine, templateOf, versesText, versificationBooks,
   type BibleBook, type Block, type LibraryChoice, type Segment, type TemplateForm
-} from '../templates/contentTemplates';
+} from '../templates/contentTemplatesModel';
 import { bookName } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';

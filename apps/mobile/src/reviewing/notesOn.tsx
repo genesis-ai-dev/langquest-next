@@ -19,6 +19,7 @@ import { t } from '../i18n';
 import { Ico, LinkBtn, SmallBtn } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import type { ReviewNote } from './reviewDraft';
+import { firstName, type Noting } from './notesModel';
 import { StudyNote } from '../study/ui';
 import { NoteSheet } from '../helps/reference';
 import type { PassageView } from '../passage/passageView';
@@ -36,8 +37,7 @@ export function NoteBtn(props: { label: string; help: string; onPress: () => voi
   );
 }
 
-/** A note about to be written: what it goes on, its sheet's title, the line that says where, and the line under the title. */
-export interface Noting { anchor: NoteAnchor; title: string; where: string; sub?: string }
+export type { Noting };
 
 /**
  * The sheet for the note being written, or nothing. With `onAdd` the note
@@ -103,7 +103,7 @@ export function NotesUnder(props: {
         const replies = repliesTo(props.p, n.id);
         const older = props.older?.(n);
         const label = props.label?.(n);
-        const first = props.ctx.name(n.by).split(' ')[0] ?? props.ctx.name(n.by);
+        const first = firstName(props.ctx.name(n.by));
         return (
           <View key={n.id} style={{ gap: space.xs }}>
             <HelpRow of="review.noteOn">

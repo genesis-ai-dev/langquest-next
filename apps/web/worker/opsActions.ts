@@ -1,5 +1,6 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import { serviceClient, type Env } from './env';
+import { claimsVerifier, sessionLiveCheck } from './identity';
 import { isJobKey, type JobKey } from './jobsModel';
 
 /**
@@ -24,8 +25,8 @@ export type ActionResult =
 export interface ActionDeps {
   /** Who the token is, from its verified claims and a live session; null when it is not good. */
   whoIs(token: string): Promise<{ profileId: string; aal: string | undefined } | null>;
-  /** An active Global Viewer grant (`_gv_on`); the caller has checked the session's level. */
-  globalViewerOn(profileId: string): Promise<boolean>;
+  /** An active Global Viewer grant at this session's level (`_gv_on` refuses anything below aal2). */
+  globalViewerOn(profileId: string, aal: string | undefined): Promise<boolean>;
   setFeedbackStatus(id: string, status: 'new' | 'seen' | 'done'): Promise<boolean>;
   runJob(key: JobKey): Promise<'started' | 'running' | 'disabled'>;
   record(row: { profileId: string; action: string; target: string; result: 'ok' | 'refused' | 'error'; detail?: string }): Promise<void>;
@@ -51,7 +52,7 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
   if (!who) return { ok: false, status: 401, error: 'Your sign-in ended. Sign in again.' };
   const name = action.kind === 'feedback' ? `feedback_${action.status}` : 'run_job';
   const target = action.kind === 'feedback' ? action.id : action.key;
-  if (who.aal !== 'aal2' || !(await deps.globalViewerOn(who.profileId))) {
+  if (!(await deps.globalViewerOn(who.profileId, who.aal))) {
     await deps.record({ profileId: who.profileId, action: name, target, result: 'refused' }).catch(() => {});
     return { ok: false, status: 403, error: 'Only Global Viewers on a session verified with their authenticator may act here.' };
   }
@@ -76,19 +77,18 @@ export function actionDeps(env: Env): ActionDeps {
   const db = () => serviceClient(env);
   return {
     whoIs: async (token) => {
-      const { data, error } = await db().auth.getClaims(token);
-      if (error || !data?.claims.sub) return null;
-      const sessionId = data.claims['session_id'];
+      const verified = await claimsVerifier(db())(token);
+      if (!verified) return null;
       // A session signed out since no longer counts (decision 118); asked every time, actions are rare.
-      if (typeof sessionId === 'string') {
-        const live = await db().rpc('session_is_live', { p_session: sessionId });
-        if (live.error || live.data !== true) return null;
+      if (verified.sessionId) {
+        const live = await sessionLiveCheck(db())(verified.sessionId).catch(() => false);
+        if (!live) return null;
       }
-      const aal = data.claims['aal'];
-      return { profileId: data.claims.sub, aal: typeof aal === 'string' ? aal : undefined };
+      return { profileId: verified.sub, aal: verified.aal };
     },
-    globalViewerOn: async (profileId) => {
-      const { data, error } = await db().rpc('_gv_on', { p_profile: profileId, p_aal: 'aal2' });
+    globalViewerOn: async (profileId, aal) => {
+      // The database holds the rule: `_gv_on` is true only for an aal2 session.
+      const { data, error } = await db().rpc('_gv_on', { p_profile: profileId, p_aal: aal ?? null });
       if (error) throw new Error(`_gv_on: ${error.message}`);
       return data === true;
     },

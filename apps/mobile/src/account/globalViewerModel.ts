@@ -36,3 +36,21 @@ export function keyInGroups(secret: string): string {
 export function viewsAsGlobalViewer(access: GlobalViewerAccess | null, orgExists: boolean): boolean {
   return access === 'on' && orgExists;
 }
+
+/** How many organizations a page of the list holds. */
+export const ORGANIZATIONS_PAGE = 50;
+
+/** Whether there may be another page: this one came back full. */
+export function hasMore(page: readonly unknown[]): boolean {
+  return page.length === ORGANIZATIONS_PAGE;
+}
+
+/** Whether the server turned a code down as wrong (rather than failing): Supabase says so by code, or by a 422. */
+export function codeIsWrong(refused: { code?: string | undefined; status?: number | undefined }): boolean {
+  return refused.code === 'mfa_verification_failed' || refused.status === 422;
+}
+
+/** The unfinished set-ups among an account's authenticators: an unverified authenticator app, which a new set-up replaces. */
+export function unfinishedSetups(factors: readonly { id: string; type: string; status: string }[]): string[] {
+  return factors.filter((f) => f.type === 'totp' && f.status === 'unverified').map((f) => f.id);
+}

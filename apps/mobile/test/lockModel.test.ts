@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import {
   addDot, afterMiss, between, dotAt, isPattern, isPicture, lockFor, MIN_DOTS, parseLocks, patternSecret, PICTURES, takenPictures, waitLeft, type Lock, type Misses
-} from '../src/auth/lockModel';
+} from '../src/session/lockModel';
 import { pbkdf2Async } from '@noble/hashes/pbkdf2';
 import { sha256 } from '@noble/hashes/sha2';
-import { addressHash, newDataKey, openWrap, pbkdf2Sha256, seal, unseal, withWrap } from '../src/auth/sealModel';
+import { addressHash, newDataKey, openWrap, pbkdf2Sha256, seal, unseal, withWrap } from '../src/session/sealModel';
 
 // Decision 168: signing out of a phone locks the sign-in on it, and the
 // person's password or a pattern on nine dots opens it again with no connection.

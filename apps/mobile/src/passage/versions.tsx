@@ -27,7 +27,7 @@ import { Text } from '../ui/text';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { C, radius, space, target } from '../ui/theme';
-import { versionReviewsSummary } from './record';
+import { versionReviewsSummary } from './recordTextModel';
 import { draftName, startedFrom } from './versionsModel';
 import { useVersesHeld } from './useVerses';
 

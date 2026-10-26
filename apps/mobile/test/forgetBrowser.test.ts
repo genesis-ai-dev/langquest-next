@@ -6,7 +6,7 @@
 import { HELD_INVITE_KEY } from '../src/invites/heldInviteStore';
 
 vi.mock('react-native', () => ({ Platform: { OS: 'web' } }));
-vi.mock('../src/sync/store', () => ({ deleteLocalDatabases: vi.fn(async () => undefined) }));
+vi.mock('../src/storage/store', () => ({ deleteLocalDatabases: vi.fn(async () => undefined) }));
 vi.mock('../src/web/webFiles', () => ({ clearAllWebFiles: vi.fn(async () => undefined) }));
 vi.mock('../src/diagnostics/report', () => ({ reportError: vi.fn() }));
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -39,7 +39,7 @@ beforeEach(() => {
 });
 
 const { forgetThisBrowser } = await import('../src/web/forgetBrowser');
-const { deleteLocalDatabases } = await import('../src/sync/store');
+const { deleteLocalDatabases } = await import('../src/storage/store');
 const { clearAllWebFiles } = await import('../src/web/webFiles');
 
 describe('forget this browser', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { languageLines } from '@langquest-next/core';
 import { askDoneText, askInput, askModel, TEAM, type AskPicks } from '../src/passage/askModel';
-import { askCandidates } from '../src/passage/record';
+import { askCandidates } from '../src/passage/recordTextModel';
 import { passageView } from '../src/passage/passageView';
 import { t } from '../src/i18n';
 import { ID, NAMES, passageWorld, unitOf, type WorldPassage, type WorldRole } from './passageWorld';

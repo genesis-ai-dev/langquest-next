@@ -11,7 +11,7 @@
  * is about 225,000 events and a 58 MB state: Santhali omt bible's size.
  */
 import { emptyLanguageState, encodeHlc, foldLanguage, type AnyEvent } from '@langquest-next/core';
-import { cutRows, languageLinesOf, sharedPart } from '../../packages/sync/src/serverCut';
+import { cutRows, languageLinesOf, sharedPart } from '@langquest-next/sync/server';
 
 const passages = Number(process.argv[2] ?? 3200);
 const perPassage = Number(process.argv[3] ?? 60);

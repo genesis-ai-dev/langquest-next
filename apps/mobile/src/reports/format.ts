@@ -55,7 +55,7 @@ export const dateTime = (iso: string) => t('reports.dateTimeUtc', {
   date: dayYear(iso), time: intl({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso))
 });
 
-/** Core's `timeAgo`: "just now", "5 minutes ago", "3 days ago". */
+/** "just now", "5 minutes ago", "3 days ago". */
 export function ago(iso: string, now: number): string {
   const s = Math.max(0, Math.round((now - Date.parse(iso)) / 1000));
   if (s < 60) return t('reports.ago.justNow');

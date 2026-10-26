@@ -8,7 +8,7 @@ import {
   FLOWS, languagePeople, orgLanguages, privilegesFor, scopeKey,
   type EventPayloads, type LanguageInfo, type EventSpec, type EventType, type LanguageState, type OrgState, type Scope, type ScopeLevel, type TemplateDoc
 } from '@langquest-next/core';
-import { canonIndex, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
+import { canonIndex, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplatesModel';
 import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 

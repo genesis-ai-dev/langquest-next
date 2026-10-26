@@ -29,7 +29,8 @@ import {
 } from './labels';
 import { AttentionPanel, Bar, Columns, CoverageMini, CoverageRows, Delta, Freshness, HeadlineStats, ListLine, Notice, Panel, ProgressPair, RecencyBadge, Stat, Stats, ToneBadge } from './ui';
 import { ago, bookOf, dateTime, dayYear, longDay, monthName, monthShort, num, pctText, shortDate, signed, utcTime, type Tone } from './format';
-import { canPrint, exportCsv, fileName, languagesCsv, ledgerCsv, printPage, safeName } from './exportFiles';
+import { languagesCsv, ledgerCsv } from './csvModel';
+import { canPrint, exportCsv, fileName, printPage, safeName } from './exportFiles';
 import { alertText, fieldReportText, fieldTitle, sectionLabel, type SectionId } from './sectionsModel';
 
 /** What every section gets. */

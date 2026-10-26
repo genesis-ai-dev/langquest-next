@@ -7,7 +7,7 @@
 // the app would say. No React, no I/O, so it is tested on its own
 // (test/adminModel.test.ts). The words are in the language showing (LAN-42):
 // whole catalog sentences, never English grammar put together here.
-import { canonIndex } from '../templates/contentTemplates';
+import { canonIndex } from '../templates/contentTemplatesModel';
 import {
   bookIdOf, languagePeople, PRIVILEGES, templateBooks,
   type KindDef, type OrgState, type Privilege, type TemplateDoc

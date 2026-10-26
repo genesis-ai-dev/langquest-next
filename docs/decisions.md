@@ -4283,6 +4283,24 @@ Reverse if: a second app needs a different outbound policy than the phone
 the server-side jobs grow their own dependencies that the phone must not
 carry, which would argue for a separate server package.
 
+Amended (2026-10-26, Carl Sauder): sync has a second entry,
+`@langquest-next/sync/server` (`packages/sync/src/server.ts`), for what only
+servers run: the snapshot worker, the blob reconciler, the Worker's R2
+files, the stream list, the per-unit cut and `foldStream`. The phone and
+the web app import `@langquest-next/sync` and no longer carry them. A
+separation-of-concerns audit found the single entry had pushed server code
+to copy sync instead of importing it: `server/reconcileJob.ts` kept its own
+`foldStream`, reconciler wiring and a "missing" count by a different rule
+than the reconciler repairs by, so as not to grow the web app's first
+visit, and three server jobs imported `packages/sync/src/*` by path. The
+reconciler now counts what is missing with core's `isStored` and can stop
+early, and the job only builds its deps. ESLint now also reads `server/`,
+`apps/web/worker`, `apps/web/jobs`, `apps/admin/src` and
+`packages/v2-import/src`, with one rule: packages by their entry, and
+nothing from `apps/mobile/src` (shared code goes in core). This is still
+one package, not the separate server package the reverse-if names: the
+server entry imports only what sync already may.
+
 ## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
 
 Date: 2026-10-14 · By: Carl Sauder · Status: accepted
@@ -4410,6 +4428,46 @@ cleanup, or because a key made of the inputs stands for them; each says why
 after `--` on its disable comment, which lint now requires
 (`@eslint-community/eslint-comments/require-description`), and a disable
 that no longer excuses anything is an error.
+
+Amended (2026-10-26, Carl Sauder): the reversal condition ("feature folders
+start importing each other in a cycle") came true: 34 of the 41 folders in
+`apps/mobile/src` formed one import cycle, because the folders every feature
+stands on (`i18n`, `ui`, `helpMode`, `diagnostics`, `server`) imported
+features back: `i18n` held a sheet drawn with `ui`, `helpMode` reported to
+`diagnostics` and played through `audio`, `diagnostics` read the store in
+`sync` and called `server`, and `server` used `auth`, `sync` and
+`appVersion`. Carl chose a base layer below the features, held by lint
+(`BASE_LAYERS` in `eslint.config.mjs`); feature folders may still import
+each other. Lowest first: L0 `i18n`, `build` (the build id and whether it is
+a test build); L1 `ui`, `helpMode`; L2 `session` (auth state, sign-out cause,
+outcomes, the dev persona, the read-only flag) and `storage` (the on-device
+store, stored files: formats, media type, hash); L3 `diagnostics`; L4
+`server`. A base folder imports values only from its own level or below
+(types from anywhere); features import any of them. What a lower layer needs
+from a higher one is handed in once at start (`shell/wiring.ts`: how
+diagnostics reach the server, how help audio reports) or sits lower:
+`registerPlayback` is `ui/playback.ts` (audio re-exports it), the gate
+around the transport is `sync/serverTransport.ts`, `watchRenewals` is
+`server/renewalWatch.ts`, `inviteOutcome` is `invites/inviteOutcome.ts`, the
+language sheet is `account/uiLanguage.tsx`, and which chrome a screen shows
+is `shell/chromeModel.ts`, so `ui` imports no screen id as a value. The
+layer is held, not only measured: no base folder is in an import cycle with
+a feature folder; `ui` and `helpMode` still import each other, as the design
+system's help badges always have. The phone lock's models
+(`lockModel.ts`, `sealModel.ts`, decision 168) sit in `session/`, not
+`auth/`, because `server/lock.ts` reads them.
+
+Amended (2026-10-26, Carl Sauder): a screen may not import `src/server`
+either. The role rules kept components from the server but not screens,
+so `screens/globalViewer.tsx` verified codes, mapped their refusals and
+paged organizations itself, and `entry.tsx` repeated sign-in's
+diagnostics-and-terms tail in three handlers. Screens now reach the
+server through hooks and modules (`auth/signInFlow.ts` and
+`auth/useSignIn.ts`, `account/useGlobalViewer.ts`), and a screen that
+builds an event goes through a named command (`org/orgCommands.ts`,
+`config/configCommands.ts`) with the rules in a model. The same audit
+gave server refusals one classifier (`diagnostics/refusalModel.ts`), so
+callers stop re-reading `error.code`, the reverse-if above.
 
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
@@ -7554,6 +7612,16 @@ sampled because it fails every pass), when the log gets a `received_at`
 index built concurrently; or the canary's cost in the container grows past
 its 60 minutes, when it takes fewer or smaller languages.
 
+Amended (2026-10-26, Carl Sauder): the dashboard no longer restates rules it
+counts. `diag.ops_pipeline` takes the snapshot schedule from its caller,
+which passes sync's `SNAPSHOT_SCHEDULE`, so "overdue" is what the snapshot
+worker does, and `ops_limits` reads the diagnostics day cap from
+`diag._ingest_day_cap()`, whose agreement with `diag_ingest` the ops smoke
+checks. The Worker's actions ask `_gv_on` at the session's real level
+rather than checking aal2 itself, so that rule is SQL's alone, and they
+verify a token through the same helper as every other Worker route
+(`apps/web/worker/identity.ts`).
+
 ## 162. Staff may mark feedback and run a server job from the ops dashboard, through the app Worker, which checks them again and records every attempt
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
@@ -7992,7 +8060,40 @@ for one person (then raise the allowance, or count by language), or phones
 with clocks set far back start being refused (then measure how far, and
 count their events on the day received).
 
-## 170. A phone can wear a disguise: a calculator or notepad icon, and in front of the app a calculator or notepad that the person's code opens
+## 170. Reading a language's work and seeing its report are two rules on purpose, and core holds both against SQL
+
+Date: 2026-10-26 · By: Carl Sauder · Status: accepted
+
+Reason: a separation-of-concerns audit found read access written twice with
+different answers and nothing comparing them. SQL `_can_read_stream_at`
+(and `blob_access` through it) lets anyone with any privilege on a language
+read its stream and files; core's `mayViewLanguage`, which the Worker uses
+for reports and agent views, needs `view_status`. Every seeded role has
+`view_status`, so they disagree only for a custom role without it, but the
+file-write rule in `blob_access` existed only in SQL, and
+`scripts/record-parity-sql.ts` checked writes of events alone. Carl chose
+(2026-10-26) to keep both rules and pin them:
+
+- Reading the work (the stream, its files) needs any privilege on the
+  language, or for the organization stream any membership; seeing its
+  report needs `view_status`. A custom role without `view_status` may
+  record and review a language yet not see its report.
+- Core says both: `mayReadLanguage` and `mayWriteFiles` (`org.ts`) mirror
+  `_can_read_stream_at` (a person who is not a Global Viewer) and the write
+  branch of `blob_access`, beside `mayViewLanguage`, and say why they
+  differ.
+- `scripts/record-parity-sql.ts` (the `server` guardrail) generates roles,
+  memberships and languages and compares the SQL answers with core's, as it
+  already did for `role_may_emit_event`.
+- No call site changed: the Worker still asks SQL for files and core's
+  `mayViewLanguage` for reports.
+
+Reverse if: a role should read a language without being able to see its
+progress for a reason the team does not accept, when the report rule
+becomes the read rule; or the two rules are found to confuse people (work
+visible, report refused), when the screens say why.
+
+## 171. A phone can wear a disguise: a calculator or notepad icon, and in front of the app a calculator or notepad that the person's code opens
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted
 

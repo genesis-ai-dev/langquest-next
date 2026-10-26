@@ -1,4 +1,4 @@
-import type { UiLanguage } from '../../../mobile/src/i18n/languages';
+import type { UiLanguage } from '@langquest-next/core';
 import { languageChoices, pageWords } from '../i18n/pages';
 import { SCOPES, type Scope } from './tokens';
 

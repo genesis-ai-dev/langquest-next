@@ -1,4 +1,4 @@
-// The Android side of a phone's disguise (decisions.md 170), on top of
+// The Android side of a phone's disguise (decisions.md 171), on top of
 // expo-alternate-app-icons, which makes one <activity-alias> per icon
 // (".MainActivityCalculator1") with only the launcher filter and app.json's
 // intent filters. Two things it leaves out:

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { patternSecret } from '../src/auth/lockModel';
+import { patternSecret } from '../src/session/lockModel';
 
 /**
  * Signing out of a phone and back in with no connection (decisions.md 168):
@@ -37,7 +37,7 @@ vi.mock('../src/server/supabase', () => ({
   }
 }));
 vi.mock('../src/diagnostics/report', () => ({ noteExpected: () => undefined }));
-vi.mock('../src/auth/authDiag', () => ({ recordAuth: (...a: unknown[]) => { fake.diag.push(a); }, since: () => 1 }));
+vi.mock('../src/diagnostics/authDiag', () => ({ recordAuth: (...a: unknown[]) => { fake.diag.push(a); }, since: () => 1 }));
 vi.mock('../src/notifications/notifications', () => ({ keepPushToken: async (t: string) => { fake.pushKept.push(t); } }));
 vi.mock('../src/sync/handOver', () => ({
   takeBackHandOver: async (actorId: string) => {

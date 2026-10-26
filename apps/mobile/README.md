@@ -2,7 +2,7 @@
 
 Expo 57 app, run as a development build (the native recorder module does not load in Expo Go). Owns exactly three things:
 
-1. `src/sync/store.ts`: the expo-sqlite driver behind `SqliteStore` from
+1. `src/storage/store.ts`: the expo-sqlite driver behind `SqliteStore` from
    `@langquest-next/sync`. The store logic itself lives in the sync
    package and is contract-tested there against node:sqlite.
 2. `src/usePartition.ts`: one `SyncClient` on the open language's partition
@@ -54,7 +54,7 @@ No sync logic lives here. Screens read `state` through core derivations
 (`derivePassage`, `highlightsFor`, `languageProgress` and the rest in
 `packages/core/src/passage.ts`) and write through core `commands()`. A few
 screen models build org-partition events core has no commands for
-(`src/org/orgAdmin.ts`, `src/config/model.ts`, `src/templates/contentTemplates.ts`);
+(`src/org/orgAdmin.ts`, `src/config/model.ts`, `src/templates/contentTemplatesModel.ts`);
 they are listed in `docs/ux/demo-parity.md`.
 
 Run: the app's env files are committed and plain (they hold only public

@@ -2,7 +2,7 @@ import fc from 'fast-check';
 import type { AnyEvent } from '../src/events';
 import * as core from '../src/index';
 import {
-  eventPassage, hangsOn, partEntries, passageInMemory, PASSAGE_PARTS, putEntry, READS_EVERY_PASSAGE, rowId, studyMarkUnit, withOwnParts, withoutParts
+  changesByPassage, eventPassage, eventPlace, hangsOn, partEntries, passageInMemory, PASSAGE_PARTS, putEntry, READS_EVERY_PASSAGE, rowId, studyMarkUnit, withOwnParts, withoutParts
 } from '../src/passageParts';
 import { foldLanguage } from '../src/reducer';
 import { emptyLanguageState, type LanguageState } from '../src/state';
@@ -134,6 +134,44 @@ describe('a language cut by passage', () => {
       if (of === null || of === 'settings') continue;
       if ('unitId' in of) expect(of.unitId).toBeTruthy();
     }
+  });
+
+  it('says what every event that creates a take, departure, request, note or review places', () => {
+    // A new event type carrying a unit and an entity id (or a review and its take) fails here until eventPlace says what it places.
+    const kinds = ['take', 'departure', 'request', 'note'] as const;
+    const placed = new Set<string>();
+    // Events that name a take beside a unit without creating it.
+    const onlyRefer = new Set(['v1.ReferencesUsed']);
+    for (const e of events) {
+      const p = e.payload as Record<string, unknown>;
+      const place = eventPlace(e);
+      if (place) {
+        placed.add(place.kind);
+        expect(p[`${place.kind}Id`], e.type).toBe(place.id);
+        if (place.kind === 'review') expect(p['takeId'], e.type).toBe(place.takeId);
+        else expect(p['unitId'], e.type).toBe(place.unitId);
+        continue;
+      }
+      if (onlyRefer.has(e.type)) continue;
+      for (const k of kinds) expect(typeof p[`${k}Id`] === 'string' && typeof p['unitId'] === 'string', `${e.type} carries ${k}Id and unitId: add it to eventPlace`).toBe(false);
+      expect(typeof p['reviewId'] === 'string' && typeof p['takeId'] === 'string', `${e.type} carries reviewId and takeId: add it to eventPlace`).toBe(false);
+    }
+    // Every kind a later event hangs on has an event that places it.
+    for (const e of events) {
+      const of = eventPassage(e);
+      const on = hangsOn(of === 'settings' ? null : of);
+      if (on) expect(placed.has(on.kind), `${e.type} hangs on a ${on.kind}, which no event places`).toBe(true);
+    }
+  });
+
+  it('counts a batch of events by passage, settings and unknown ones under null', () => {
+    const ev = (type: string, payload: unknown) => ({ id: type + JSON.stringify(payload), type, orgId: 'o', streamId: 'L', actorId: 'a', deviceId: 'd', hlc: '1', payload }) as AnyEvent;
+    const state = fold([ev('v1.TakeComposed', { takeId: 'T', unitId: 'u1', cardHashes: ['h'], parentTakeId: null })]);
+    const counted = changesByPassage(state, [
+      ev('v1.TakeSubmitted', { takeId: 'T' }), ev('v1.NoteAdded', { noteId: 'N', unitId: 'u2', anchor: { kind: 'passage' }, text: 'a' }),
+      ev('v1.TakeArchived', { takeId: 'T' }), ev('v1.TakeArchived', { takeId: 'unknown' }), ev('v1.FlowSelected', { flowId: 'f' })
+    ]);
+    expect(Object.fromEntries([...counted].map(([k, n]) => [String(k), n]))).toEqual({ u1: 2, u2: 1, null: 2 });
   });
 
   it('reads a study mark\'s passage even when its guide id holds a colon', () => {

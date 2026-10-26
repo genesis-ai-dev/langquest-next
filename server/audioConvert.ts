@@ -15,12 +15,13 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { MAX_FILE_BYTES, RECORDING_BITRATE } from '@langquest-next/core';
 import { formatOf } from '@langquest-next/v2-import';
 
 /** What the Worker takes in one file (apps/web/worker/blobs.ts MAX_BYTES). */
-export const MAX_BYTES = 50 * 1024 * 1024;
+export const MAX_BYTES = MAX_FILE_BYTES;
 /** A phone's take (decisions.md 106). */
-export const BITRATE = 128_000;
+export const BITRATE = RECORDING_BITRATE;
 /** Below this, speech gets hard to follow: a file this long is not converted. */
 export const MIN_BITRATE = 32_000;
 /** ffmpeg runs at once: the import copies up to 64 files at a time, and each run holds a whole file. */

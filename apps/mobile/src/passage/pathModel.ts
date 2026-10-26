@@ -9,7 +9,7 @@ import { checkName } from '../admin/adminModel';
 import { t } from '../i18n';
 import { formatClock, formatNumber } from '../i18n/format';
 import { kindInSentence, versionTitle } from './passageView';
-import { kindCleared } from './record';
+import { kindCleared } from './recordTextModel';
 
 export type PathStepKind = 'study' | 'record' | 'publish' | 'feedback' | 'fix';
 /** done: finished; current: the lit step; todo: still to come; passed: left behind (a study nobody finished before recording). */

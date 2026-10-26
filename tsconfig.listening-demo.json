@@ -9,7 +9,8 @@
     "lib": ["ES2023", "DOM"],
     "paths": {
       "@langquest-next/core": ["./packages/core/src/index.ts"],
-      "@langquest-next/sync": ["./packages/sync/src/index.ts"]
+      "@langquest-next/sync": ["./packages/sync/src/index.ts"],
+      "@langquest-next/sync/server": ["./packages/sync/src/server.ts"]
     },
     "types": ["node"]
   },

@@ -2,10 +2,10 @@ import { OrgSession, ensureDeviceId, type OrgStatus, type SyncInspection } from 
 import { emptyOrgState, type EventPayloads, type OrgEventType, type OrgState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getStore } from './store';
+import { getStore } from '../storage/store';
 import { trackSync } from './syncActivity';
 import { onWake } from './wake';
-import { serverTransport } from '../server/sync';
+import { serverTransport } from './serverTransport';
 import { diagnostics, flushDiagnostics } from '../diagnostics/diagnostics';
 import { watchLocalStore } from './storeProbe';
 import { StatusStore, type OrgStatusStore } from './syncStatusStore';

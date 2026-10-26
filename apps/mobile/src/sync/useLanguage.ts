@@ -2,29 +2,22 @@ import * as Network from 'expo-network';
 import { saysOffline } from './networkWake';
 import { onlineNow } from './reachModel';
 import { useServerReach } from './useServerReach';
-import { DEFAULT_TRANSFER_BUDGET_BYTES, LanguageSession, TransferBudget, classifyTransferFailure, ensureDeviceId, type LanguageStatus, type SyncInspection } from '@langquest-next/sync';
+import type { LanguageSession, LanguageStatus, SyncInspection } from '@langquest-next/sync';
 import {
   CommandError, emptyLanguageState, languageLines, updatesFor as coreUpdatesFor, type BlobRef, type EventPayloads, type EventSpec, type EventType,
   type LanguageState, type LostFilesView, type OfflineSummary, type PassageLines, type UnitOffline, type Update
 } from '@langquest-next/core';
-import { getBlobStore, type BlobFile, type BlobStore } from './blobs';
-import { downloadBlob, streamUrl, uploadBlob } from '../server/blobTransport';
-import { diagnostics, flushDiagnostics, registerDeviceProbe, timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
-import { noteExpected, reportError } from '../diagnostics/report';
-import { getRecordingJournal } from '../recording/recordingJournal';
-import { cutWav, deleteRecorderFile } from '../audio/wavCut';
-import { isRecording } from '../recording/recorderState';
-import * as Crypto from 'expo-crypto';
+import type { BlobFile, BlobStore } from './blobs';
+import { streamUrl } from '../server/blobTransport';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RateMeter } from './rate';
-import { getStore } from './store';
-import { trackSync } from './syncActivity';
+import { openLanguage, type OpenedLanguage } from './openLanguage';
+import { recoverRecordings } from './recoverRecordings';
+import { appLanguagePlatform, appRecoveryEnv } from './appLanguage';
 import { onWake } from './wake';
-import { serverTransport } from '../server/sync';
 import { stateCopier } from './publishedState';
 import { NO_LANGUAGE_STATUS, StatusStore, type LanguageStatusStore, type LanguageSyncStatus } from './syncStatusStore';
 import { t } from '../i18n';
-import { appBuild } from '../diagnostics/appBuild';
 
 export interface LanguageHandle {
   orgId: string;
@@ -135,12 +128,6 @@ export interface LanguageHandle {
   sync: () => Promise<{ more: boolean }>;
 }
 
-/** Keep this much free for recording, and cap the cache; evict only what the server can give back. */
-const LIMITS = { minFreeBytes: 500 * 1024 * 1024, maxTotalBytes: 2 * 1024 * 1024 * 1024 };
-
-/** One budget per device, shared by every language's workers. */
-const transferBudget = new TransferBudget(DEFAULT_TRANSFER_BUDGET_BYTES);
-
 const NO_LINES: PassageLines = languageLines(emptyLanguageState());
 
 const NOTHING_YET: LanguageStatus = {
@@ -195,8 +182,22 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
 
   useEffect(() => {
     let cancelled = false;
-    let opened: LanguageSession | null = null;
-    const stops: (() => void)[] = [];
+    let opened: OpenedLanguage | null = null;
+    // The fold mutates in place, so copy the top level, but only when the
+    // fold changed: identity is the revision (publishedState.ts).
+    const copy = stateCopier();
+    const publish = (session: LanguageSession) => {
+      const next = copy(session.state, session.status.revision);
+      if (next) setState(next);
+      const now = session.status;
+      // Only a change in what is shown redraws the shell; the ticking part goes to its own store.
+      setStatus((prev) => (slowSame(prev, now) ? prev : now));
+      syncStatus.set({
+        pending: now.pending, lastSync: now.lastSync, pendingUp: now.pendingUp, pendingDown: now.pendingDown,
+        peakUp: now.peakUp, peakDown: now.peakDown, present: now.present, uploads: now.uploads, sent: now.sent,
+        uploading: now.uploading, downloading: now.downloading
+      });
+    };
     // Another language opened (docs/decisions.md 37): nothing from the last
     // language may show under this one while it loads.
     setState(null);
@@ -210,95 +211,24 @@ export function useLanguage(orgId: string, openId: string | null, actorId: strin
       return;
     }
     (async () => {
-      const store = await getStore();
-      // One random id per install, persisted. Every device must differ or
-      // clocks can tie and the fold becomes order-dependent.
-      const deviceId = await ensureDeviceId(store, () => Crypto.randomUUID());
-      const files = await getBlobStore();
-      const where = { orgId, streamId: languageId };
-      const session = await LanguageSession.open({
-        orgId, languageId, actorId, deviceId, store, files,
-        transport: serverTransport(),
-        upload: (ref) => metered(upMeter.current, files, ref, 'up', where, (timings) => uploadBlob(orgId, languageId, ref, files, timings)),
-        download: (ref) => metered(downMeter.current, files, ref, 'down', where, (timings) => downloadBlob(orgId, languageId, ref, files, timings)),
-        budget: transferBudget,
-        limits: LIMITS,
-        // Recording comes first: transfers, and the whole-state clone a checkpoint takes, wait.
-        isDeferred: isRecording,
-        client: {
-          // Hermes has no global crypto.randomUUID.
-          newId: () => Crypto.randomUUID(),
-          // A long catch-up shares the thread with taps and the meter.
-          yieldBetweenPages: () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
-          diag: diagnostics
-        },
-        aroundSync: trackSync,
+      const platform = await appLanguagePlatform();
+      const language = await openLanguage({
+        orgId, languageId, actorId,
+        upMeter: upMeter.current, downMeter: downMeter.current,
         onAnswered: heard,
-        // Recordings and file verdicts stay on the phone; memory holds the passages on screen (decisions.md 143).
-        keepOnDisk: true,
-        build: appBuild(),
-        onSettled: ({ blobsWanted }) => { void flushDiagnostics({ blobCacheBytes: files.totalBytes(), blobsWanted }).catch(() => {}); }
-      });
-      if (cancelled) { session.close(); return; }
-      opened = session;
-      sessionRef.current = session;
-      filesRef.current = files;
-      setFiles(files);
-      // The fold mutates in place, so copy the top level, but only when the
-      // fold changed: identity is the revision (publishedState.ts).
-      const copy = stateCopier();
-      const publish = () => {
-        const next = copy(session.state, session.status.revision);
-        if (next) setState(next);
-        const now = session.status;
-        // Only a change in what is shown redraws the shell; the ticking part goes to its own store.
-        setStatus((prev) => (slowSame(prev, now) ? prev : now));
-        syncStatus.set({
-          pending: now.pending, lastSync: now.lastSync, pendingUp: now.pendingUp, pendingDown: now.pendingDown,
-          peakUp: now.peakUp, peakDown: now.peakDown, present: now.present, uploads: now.uploads, sent: now.sent,
-          uploading: now.uploading, downloading: now.downloading
-        });
-      };
-      stops.push(session.subscribe(publish));
-      // Uploads waiting and how long, for the device record (diagnostics.ts); gone with the session.
-      stops.push(registerDeviceProbe(`language:${orgId}/${languageId}`, () => session.probe()));
-      // Web: a recording's playable URL is read from the browser's files on first ask; draw again once it is.
-      stops.push(files.onUrlReady(() => setUrlsReady((n) => n + 1)));
-      session.start();
-      publish();
-      // Finish any save a crash or kill interrupted (recordingJournalModel.ts).
-      // Idempotent by recordingId; runs after the workers so the upload
-      // pass sees the recovered card.
-      const resumed = await getRecordingJournal().resume({ orgId, languageId }, {
-        // A session part the app never got to leave is cut from its chunk as its box last stood (LAN-82).
-        cut: cutWav,
-        deleteChunk: (uri) => { try { deleteRecorderFile(uri); } catch (e) { noteExpected('recording recovery: delete chunk', e); } },
-        blobExists: (hash, format) => files.exists({ hash, format }),
-        ingest: async (uri, format, beforeMove) => {
-          const { ref, size } = await files.ingest(uri, format, (ref, size) => beforeMove(ref.hash, size));
-          return { hash: ref.hash, size };
-        },
-        hasRecording: (id) => session.hasRecording(id),
-        append: async (e) => {
-          await session.client.append('v1.RecordingAdded', {
-            recordingId: e.id, unitId: e.target.unitId, kind: 'target',
-            cards: [{ hash: e.hash, durationMs: e.durationMs, format: e.format }]
-          });
-        }
-      }).catch((e: unknown) => { reportError('recording recovery', e); return null; });
-      // An entry that failed stays in the journal for the next open. Count
-      // each failure by its cause's fixed class (a full disk, a file gone),
-      // never its text; how many wait is the journal's own probe.
-      for (const f of resumed?.failed ?? []) {
-        noteExpected('recording recovery entry', new Error('recovery failed'), recoveryCode(f.error));
-      }
-      if (cancelled || !resumed?.resumed.length) return;
-      await session.refresh();
-      session.triggerUpload();
+        onFiles: setFiles,
+        onChange: publish,
+        onUrlReady: () => setUrlsReady((n) => n + 1)
+      }, platform, () => cancelled);
+      if (!language) return;
+      opened = language;
+      sessionRef.current = language.session;
+      filesRef.current = language.files;
+      // Finish any save a crash or kill interrupted; after the workers start, so the upload pass sees the recovered card.
+      await recoverRecordings(language.session, language.files, { orgId, languageId }, appRecoveryEnv(), () => cancelled);
     })();
     return () => {
       cancelled = true;
-      for (const stop of stops) stop();
       opened?.close();
       sessionRef.current = null;
       filesRef.current = null;
@@ -388,27 +318,4 @@ function slowSame(a: LanguageStatus, b: LanguageStatus): boolean {
     && a.refused === b.refused && a.pulled === b.pulled && a.live === b.live && a.keptUnits === b.keptUnits
     && a.keptOffline === b.keptOffline && a.offlineSummary === b.offlineSummary && a.scope === b.scope && a.lines === b.lines
     && a.fill?.filled === b.fill?.filled && a.fill?.total === b.fill?.total;
-}
-
-/** Time one transfer, credit its bytes to the meter once it succeeds, and tally it for diagnostics either way. */
-async function metered(
-  meter: RateMeter,
-  store: BlobStore,
-  ref: BlobRef,
-  dir: 'up' | 'down',
-  where: { orgId: string; streamId: string },
-  run: (timings: TransferTimings) => Promise<void>
-): Promise<void> {
-  await timedTransfer(dir, where, async (timings) => {
-    await run(timings);
-    const bytes = store.sizeOf(ref.hash) ?? 0;
-    meter.add(bytes);
-    return bytes;
-  });
-}
-
-/** A failed recovery's cause as a fixed code: its take's file gone, a full disk, or a transfer's class. Never the text. */
-function recoveryCode(error: string): string {
-  if (/missing|gone|not found|no such file/i.test(error)) return 'missing';
-  return classifyTransferFailure(new Error(error));
 }

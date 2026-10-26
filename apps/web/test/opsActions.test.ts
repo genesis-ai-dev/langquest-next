@@ -15,7 +15,7 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
   return {
     rows, done,
     whoIs: async (token) => (token === 'aal2' ? { profileId: VIEWER, aal: 'aal2' } : token === 'aal1' ? { profileId: VIEWER, aal: 'aal1' } : null),
-    globalViewerOn: async () => true,
+    globalViewerOn: async (_profile, aal) => aal === 'aal2',
     setFeedbackStatus: async (id, status) => { done.push(`feedback ${id} ${status}`); return id === FEEDBACK; },
     runJob: async (key) => { done.push(`run ${key}`); return 'started'; },
     record: async (row) => { rows.push(row); },

@@ -16,18 +16,23 @@ export function opsDashboardUrl(): string | null {
 
 export interface ViewableOrganization { org_id: string; name: string; languages: string[] }
 
-/** Every organization whose name, or a language's, holds `query`; refused unless Global Viewer access is on. */
-export function globalViewerOrganizations(query: string, after?: { name: string; orgId: string }) {
-  return supabase.rpc('global_viewer_organizations', {
-    p_query: query, p_limit: 50,
+/** One page of organizations whose name, or a language's, holds `query`; refused unless Global Viewer access is on. */
+export async function globalViewerOrganizations(query: string, limit: number, after?: { name: string; orgId: string }): Promise<
+  { data: ViewableOrganization[] | null; error: { message: string; code?: string } | null }
+> {
+  const { data, error } = await supabase.rpc('global_viewer_organizations', {
+    p_query: query, p_limit: limit,
     ...(after ? { p_after_name: after.name, p_after_org: after.orgId } : {})
-  }) as unknown as Promise<{ data: ViewableOrganization[] | null; error: { message: string; code?: string } | null }>;
+  });
+  return { data: data as ViewableOrganization[] | null, error };
 }
 
 /** The names of an organization's members, for a Global Viewer whose access is on. */
-export function globalViewerDirectory(orgId: string) {
-  return supabase.rpc('global_viewer_directory', { p_org: orgId }) as unknown as
-    Promise<{ data: { id: string; display_name: string | null }[] | null; error: unknown }>;
+export async function globalViewerDirectory(orgId: string): Promise<
+  { data: { id: string; display_name: string | null }[] | null; error: { message: string } | null }
+> {
+  const { data, error } = await supabase.rpc('global_viewer_directory', { p_org: orgId });
+  return { data: data as { id: string; display_name: string | null }[] | null, error };
 }
 
 /** Has this sign-in entered an authenticator code (aal2), and could it? */
@@ -37,21 +42,21 @@ export async function assuranceLevel(): Promise<{ current: string | null; next: 
   return { current: data.currentLevel, next: data.nextLevel };
 }
 
-/**
- * Start setting up an authenticator: what to put in the authenticator app
- * (its `otpauth:` address, and the key for typing in), and the factor to
- * verify. A set-up left unfinished before is removed first, so starting
- * again never collides with it.
- */
-export async function startAuthenticator(name: string): Promise<{ factorId: string; uri: string; secret: string }> {
-  const listed = await supabase.auth.mfa.listFactors();
-  if (listed.error) throw listed.error;
-  for (const f of listed.data.all) {
-    if (f.factor_type === 'totp' && f.status === 'unverified') {
-      const { error } = await supabase.auth.mfa.unenroll({ factorId: f.id });
-      if (error) throw error;
-    }
-  }
+/** The authenticators this account has, verified or not (an unfinished set-up is `unverified`). */
+export async function authenticatorFactors(): Promise<{ id: string; type: string; status: string }[]> {
+  const { data, error } = await supabase.auth.mfa.listFactors();
+  if (error) throw error;
+  return data.all.map((f) => ({ id: f.id, type: f.factor_type, status: f.status }));
+}
+
+/** Remove an authenticator. */
+export async function unenrollAuthenticator(factorId: string): Promise<void> {
+  const { error } = await supabase.auth.mfa.unenroll({ factorId });
+  if (error) throw error;
+}
+
+/** Begin enrolling an authenticator: what to put in the authenticator app (its `otpauth:` address, and the key for typing in), and the factor to verify. */
+export async function enrollAuthenticator(name: string): Promise<{ factorId: string; uri: string; secret: string }> {
   const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: name });
   if (error) throw error;
   return { factorId: data.id, uri: data.totp.uri, secret: data.totp.secret };

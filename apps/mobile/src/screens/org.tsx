@@ -22,7 +22,7 @@ import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
-import type { LibraryChoice } from '../templates/contentTemplates';
+import type { LibraryChoice } from '../templates/contentTemplatesModel';
 import { deriveKinds, kindOf, licenseText } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t, Trans } from '../i18n';
@@ -76,6 +76,11 @@ import { UndoRedo } from '../ui/undoRedo';
 import { StageBar, StagesPath } from '../org/NewLanguageStages';
 import { stageOf } from '../org/stagesModel';
 import { MaterialPicker } from '../org/MaterialPicker';
+import { addedToast, backTarget, CHOOSE_STEPS, draftPlan, NEW_CLUSTER, startingSpecs } from '../org/newLanguageModel';
+import { appendOrgOps, linkLanguageCode, renameLanguage, renameOrg, setOrgLicense } from '../org/orgCommands';
+import { grantableRoles, membersByLanguage, mayInviteAt, mayInviteAtAll } from '../org/permissionsModel';
+import { useNewLanguage } from '../org/useNewLanguage';
+import { useNewLanguageOffers } from '../org/useNewLanguageOffers';
 import type { SharedItem } from '../library/model';
 import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
@@ -560,7 +565,7 @@ function LanguoidLinkSheet(props: { ctx: Ctx; visible: boolean; onClose: () => v
     setBusy(true);
     setError('');
     try {
-      await ctx.org.append('v1.LanguageCodeSet', { languageId: props.languageId, code: picked.code, languoidId: picked.id });
+      await linkLanguageCode(ctx.org, props.languageId, picked);
       props.onClose();
       ctx.toast(t('org.link.done', { name: props.name, linked: picked.name }));
     } catch (e) {
@@ -634,7 +639,7 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
     if (!isMoreOpen(next, orgLicense(ctx.org.state))) { setOpen(null); return; }
     setBusy(true);
     try {
-      await ctx.org.append('v1.LicenseSet', { license: next });
+      await setOrgLicense(ctx.org, next);
       setOpen(null);
       ctx.toast(t('org.license.now', { license: licenseText(next).name }));
     } catch (e) {
@@ -663,7 +668,7 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
       </Pressable>
       <RenameSheet ctx={ctx} visible={open === 'name'} onClose={() => setOpen(null)} current={name}
         title={t('org.rename.orgTitle')} sub={t('org.rename.orgSub')} what="rename organization" // i18n-ignore: log label
-        save={(next) => ctx.org.append('v1.OrgRenamed', { name: next }).then(() => undefined)} />
+        save={(next) => renameOrg(ctx.org, next).then(() => undefined)} />
       <LicenseSheet visible={open === 'license'} mode={may ? 'open' : 'view'} current={current} busy={busy}
         onClose={() => setOpen(null)} onConfirm={(l) => void openTo(l)} />
     </View>
@@ -731,7 +736,7 @@ export function LanguageHome(ctx: Ctx) {
         const alike = similarLanguages(v.org, { code: '', name: next, except: languageId });
         return alike.length ? t('org.rename.takenBody', { languages: alike.map((l) => `${l.name} (${l.code.toUpperCase()})`).join(t('admin.list.separator')) }) : null;
       }}
-      save={(next) => ctx.org.append('v1.LanguageRenamed', { languageId, name: next }).then(() => undefined)} />
+      save={(next) => renameLanguage(ctx.org, languageId, next).then(() => undefined)} />
   );
   // Roles are the organization's: whoever may change them opens them there (decision 63).
   const rolesRow = (
@@ -845,15 +850,14 @@ export function MembersList(ctx: Ctx) {
   const higher = membersAbove(entries, level);
   const params = { level, ...(languageId ? { languageId } : {}) };
   // Only at a scope where this person holds Invite (the server checks the same).
-  const edit = (e: MemberEntry) => mayInvite && mayGrantAt(v.org, ctx.session.actorId, e.scope);
+  const edit = (e: MemberEntry) => mayInviteAt(mayInvite, v.org, ctx.session.actorId, e.scope);
   const rows = (list: MemberEntry[]) => list.map((e, i) => (
     <HelpRow key={e.key} of="org.member">
       <MemberRow ctx={ctx} e={e} target={v.target(e.scope)} editable={edit(e)} level={level} last={i === list.length - 1} />
     </HelpRow>
   ));
   const group = (by: 'language', label: string) => {
-    const groups = groupBelow(entries);
-    const count = [...groups.values()].reduce((n, g) => n + g.length, 0);
+    const { groups, count } = membersByLanguage(entries);
     const d = ctx.details(`members:${level}:${by}`);
     return (
       <View style={{ gap: space.sm }}>
@@ -1186,13 +1190,13 @@ function MemberEditor(ctx: Ctx) {
   const onlyManager = !pending && entry?.scope.level === 'org' && leavesNoRoleManager(v.org, memberId, undefined);
   const keepsManager = !onlyManager || !leavesNoRoleManager(v.org, memberId, scope?.level === 'org' ? form.roleId : undefined);
   // Only roles they could grant at the chosen scope, and the one held now.
-  const roles = liveRoles(ctx.org.state?.roles).filter((r) => r.id === entry?.roleId || (!!scope && mayGrantRole(v.org, ctx.session.actorId, r.id, scope)));
+  const roles = grantableRoles(v.org, ctx.session.actorId, scope ?? null, entry?.roleId);
   // A requester's name comes with the request (decisions.md 65), not from the members' names.
   const requesterName = pending ? ctx.params['name'] : undefined;
   const who = requesterName ?? ctx.name(memberId);
 
   async function runOrg(ops: OrgOp[]) {
-    for (const op of ops) await ctx.org.append(op.type, op.payload as never);
+    await appendOrgOps(ctx.org, ops);
   }
   async function attempt(work: () => Promise<void>) {
     if (busy) return;
@@ -1348,7 +1352,7 @@ export function InviteQr(ctx: Ctx) {
   /** Where the code applies, by name, so a wrong language shows. */
   const where = scope.level === 'org' ? ctx.org.state?.org?.value.name || levelLabel('org') : languageName(ctx.org.state, scope.languageId);
   // Only roles this person may grant there: nobody invites to more than they hold (decisions.md 75).
-  const roles = liveRoles(ctx.org.state?.roles).filter((r) => mayGrantRole(ctx.org.state, me, r.id, scope));
+  const roles = grantableRoles(ctx.org.state, me, scope);
   // Started from a role ("Invite someone as …"), the role is already chosen: start at the name.
   const preferred = ctx.params['roleId'];
   const [step, setStep] = useState(preferred && roles.some((r) => r.id === preferred) ? 1 : 0);
@@ -1453,12 +1457,6 @@ export function InviteQr(ctx: Ctx) {
 
 // ---- New language --------------------------------------------------------------------------
 
-/** "I'll choose the checks": the language's own checks, starting from none. */
-const CHOOSE_STEPS = 'choose';
-
-/** "In a cluster?" on one language: a new cluster, named below it. */
-const NEW_CLUSTER = 'new';
-
 /**
  * A new language (ORG-2, decisions 63, 71, 146; the prototype's NewLang and
  * NewLangFlow): an overview of its six stages, then one question per page,
@@ -1483,47 +1481,20 @@ const NEW_CLUSTER = 'new';
 export function NewLanguage(ctx: Ctx) {
   const state = ctx.language.state;
   const lib = useLibrary(ctx);
-  const [step, setStep] = useState(0);
-  const [name, setName] = useState('');
-  const [code, setCode] = useState('');
-  // Picked from the language list (docs/languoids.md); none leaves it unlinked, to link from its page later.
-  const [picked, setPicked] = useState<LanguoidHit | null>(null);
-  const search = useLanguoidSearch(name, !picked);
-  // One language, or a cluster of several (decision 108, demo ADR-045). Opened from a cluster's page, one language already in it.
+  // Opened from a cluster's page, one language already in it.
   const fromCluster = ctx.params['clusterId'] ?? null;
+  const {
+    step, setStep, name, setName, code, setCode, picked, setPicked, many, setMany, joins, setJoins, newCluster, setNewCluster,
+    clusterTitle, setClusterTitle, batch, setBatch, existing, setExisting, madeRef, scope, setScope, chosenBooks, setChosenBooks,
+    materialPage, setMaterialPage, ticked, setTicked, flowPage, setFlowPage, flowKey, setFlowKey, moreFlows, setMoreFlows,
+    startAgain, setStartAgain, making, setMaking, created, setCreated, busy, setBusy, error, setError, readsPicked, setReadsPicked
+  } = useNewLanguage(fromCluster);
+  const search = useLanguoidSearch(name, !picked);
   const mayGroup = mayManageClusters(ctx.org.state, ctx.session.actorId);
-  const [many, setMany] = useState(false);
-  // One language: the cluster it joins (an id, NEW_CLUSTER, or none), and a new one's name.
-  const [joins, setJoins] = useState<string | null>(fromCluster);
-  const [newCluster, setNewCluster] = useState('');
-  // A cluster: its name, the new languages it brings, and those already here it takes in.
-  const [clusterTitle, setClusterTitle] = useState('');
-  const [batch, setBatch] = useState<NewOne[]>([]);
-  const [existing, setExisting] = useState<Set<string>>(new Set());
-  // Languages already added by a Continue that failed partway: tried again, they are not added twice.
-  const madeRef = useRef(new Map<string, { languageId: string; name: string }>());
-  const [scope, setScope] = useState<LanguageScope>('nt');
-  const [chosenBooks, setChosenBooks] = useState<Set<string>>(new Set());
-  // Reference material, two pages: its languages, then what its team will have in them.
-  const [materialPage, setMaterialPage] = useState<'languages' | 'material'>('languages');
-  // Material ticked or unticked by hand; the rest keeps what is suggested.
-  const [ticked, setTicked] = useState<Record<string, boolean>>({});
-  // The review flow, two pages: which to start from, then its checks.
-  const [flowPage, setFlowPage] = useState<'pick' | 'checks'>('pick');
-  const [flowKey, setFlowKey] = useState<string | null>(null);
-  const [moreFlows, setMoreFlows] = useState(false);
-  // Another flow picked after its checks were changed: asked first, since the changes go (decision 134).
-  const [startAgain, setStartAgain] = useState(false);
-  // What Continue is doing now, of the parts it will do (the checks page shows them while it runs).
-  const [making, setMaking] = useState<{ parts: Making[]; now: Making } | null>(null);
-  const [created, setCreated] = useState<{ languages: { languageId: string; name: string }[]; cluster: string | null } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
   // What it translates and how the Bible is broken up (decision 74); what other languages here use comes first.
   const tq = useTranslate(ctx, null);
   const kinds = useMemo(() => (state ? deriveKinds(state) : []), [state]);
   // The language its Bibles and study guides are in, a step of its own (decision 84): the admin's own when there is anything in it, else English.
-  const [readsPicked, setReadsPicked] = useState<string[] | null>(null);
   const reader = readerLanguage();
   const refs = useReferenceLanguages(ctx, [...(readsPicked ?? []), reader, 'eng']);
   // The languages its Bibles and guides may be in, the main one first (decision 130).
@@ -1561,16 +1532,12 @@ export function NewLanguage(ctx: Ctx) {
   /** The checks page, from the flow picked: a new draft when it is another flow than the draft's. */
   function toChecks(again = false) {
     if (!flowChoice) return;
-    if (snap && snap.draft.from === flowChoice) { setFlowPage('checks'); return; }
-    if (snap && draftChanged(snap.draft) && !again) { setStartAgain(true); return; }
-    const fresh = commands(emptyLanguageState());
-    const commandId = Crypto.randomUUID();
+    const plan = draftPlan(snap?.draft, flowChoice, again);
+    if (plan === 'open') { setFlowPage('checks'); return; }
+    if (plan === 'ask') { setStartAgain(true); return; }
     let specs: EventSpec[];
     try {
-      specs = choosing || !flow
-        ? fresh.saveFlowSteps({ commandId, steps: [] })
-        // The flow's own kinds first; a kind is defined once.
-        : fresh.copyFlow({ commandId, name: flow.c.name, kinds: chk.kindsOf(flow.doc).filter((k, i, all) => all.findIndex((x) => x.id === k.id) === i), steps: flow.doc.steps });
+      specs = startingSpecs({ commandId: Crypto.randomUUID(), flow: choosing || !flow ? null : { name: flow.c.name, kinds: chk.kindsOf(flow.doc), steps: flow.doc.steps } });
     } catch (e) {
       setError(failure('new language checks', e));
       return;
@@ -1640,13 +1607,8 @@ export function NewLanguage(ctx: Ctx) {
       });
       const group = target ? target.name ?? clusterName(ctx.org.state, target.clusterId) ?? null : null;
       const first = made.languages[0]!;
-      ctx.toast(many
-        ? (made.notOffered.length
-          ? t('clusters.newLanguage.addedNotOffered', { count: made.languages.length, org: orgName, cluster: group ?? title, offers: joinAnd(made.notOffered) })
-          : t('clusters.newLanguage.added', { count: made.languages.length, org: orgName, cluster: group ?? title }))
-        : made.notOffered.length
-          ? t('org.newLanguage.addedNotOffered', { language: first.name, org: orgName, offers: joinAnd(made.notOffered) })
-          : t('org.newLanguage.added', { language: first.name, org: orgName }));
+      ctx.toast(addedToast({ many, count: made.languages.length, first: first.name, org: orgName, cluster: group ?? title, notOffered: made.notOffered },
+        (key, params) => String(t(key as never, params as never))));
       // The language this person works in is the one the app opens: a cluster's first.
       ctx.setLanguage(first.languageId);
       setCreated({ languages: made.languages, cluster: many ? group : null });
@@ -1675,9 +1637,10 @@ export function NewLanguage(ctx: Ctx) {
   function goBack() {
     if (making) { ctx.toast(t('org.newLanguage.making.wait', { language: title })); return; }
     if (step === 2 && tq.retreat()) return;
-    if (step === 3 && materialPage === 'material') { setMaterialPage('languages'); return; }
-    if (step === 4 && flowPage === 'checks') { setFlowPage('pick'); return; }
-    setStep(step - 1);
+    const to = backTarget(step, { materialPage, flowPage });
+    if (to.materialPage) setMaterialPage(to.materialPage);
+    if (to.flowPage) setFlowPage(to.flowPage);
+    if (to.step !== undefined) setStep(to.step);
   }
   const back = step > 1 && step < 5 ? <QuietLinks items={[{ label: t('common.back'), icon: 'arrowL', help: t('org.newLanguage.backHelp'), onPress: goBack }]} /> : null;
   // A phone's Back goes one page back, as the Back under each page does (decision 137). While it is being added, it says to wait, as ✕ does.
@@ -1969,76 +1932,6 @@ function flowFrom(c: LibraryChoice): string {
 }
 
 /**
- * What a new language's team can be given from the start, in the languages
- * chosen for its reference material (decisions 84, 130, 146): the Bibles,
- * study guides and notes the organization has or LangQuest shares in them,
- * a guide set (FIA) once, in the main language. Suggested, as before: one
- * Bible (the organization's own first, the World English Bible first of
- * those shared) and one set of guides (FIA's first).
- */
-function useNewLanguageOffers(ctx: Ctx, readsAll: readonly string[], sets: readonly GuideSet[]) {
-  const reads = readsAll[0]!;
-  const lib = useLibrary(ctx);
-  const shared = useSharedItems('material', lib.orgId);
-  const own = lib.items('material').filter((it) => it.current && !it.archived);
-  const others = shared.rows.filter((s) => s.latest_hash && !ctx.org.state?.library[subscriptionItemId(s.org_id, s.item_id)]);
-  const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
-  const may = ctx.session.can('manage_reference');
-  const fia = (n: string) => (/fia/i.test(n) ? 0 : /example/i.test(n) ? 2 : 1);
-  const web = (n: string) => (/world english/i.test(n) ? 0 : 1);
-  const inTeam = (doc: LibraryDoc | null) => !!doc && readsAll.some((l) => sameLanguage(docLanguage(doc) ?? 'eng', l));
-  // A set's members are its one row, not rows of their own.
-  const sharedKey = (s: { org_id: string; item_id: string }) => `${s.org_id}/${s.item_id}`;
-  const inSets = new Set(sets.flatMap((set) => set.members.map((m) => m.itemId ?? (m.shared ? sharedKey(m.shared) : ''))));
-  const setRows: MaterialChoice[] = [...sets].sort((a, b) => fia(a.name) - fia(b.name)).flatMap((set) => {
-    const member = memberIn(set, reads);
-    return member ? [{
-      key: `set:${set.key}`, kind: 'guide' as const, itemId: member.itemId, shared: member.shared, name: member.name, set, member,
-      label: t('org.offers.guidesIn', { name: guideShortName(set.name), language: languageLabel(member.language) }),
-      sub: t('referenceLanguage.setPassages', { name: guideShortName(set.name), count: member.passages })
-    }] : [];
-  });
-  const kindOf = (doc: LibraryDoc | null): MaterialChoice['kind'] | null => {
-    const k = refKindOf(doc);
-    return k === 'source' ? 'source' : k === 'guide' ? 'guide' : k === 'note' || k === 'other' ? 'note' : null;
-  };
-  const row = (key: string, itemId: string | null, s: SharedItem | null, name: string, doc: LibraryDoc | null, kind: MaterialChoice['kind'], owner: string): MaterialChoice => ({
-    key, kind, itemId, shared: s, name,
-    label: kind === 'source' ? bibleOffer((doc as SourceDoc | null)?.name || name) : kind === 'guide' ? guidesOffer(name, doc) : name,
-    sub: [languagesLine([docLanguage(doc)]), owner].filter(Boolean).join(' · ')
-  });
-  const ownRows = own.flatMap((it) => {
-    const doc = docs.get(it.current);
-    const kind = kindOf(doc);
-    return kind && inTeam(doc) && !inSets.has(it.itemId) ? [row(it.itemId, it.itemId, null, it.name, doc, kind, '')] : [];
-  });
-  const sharedRows = others.flatMap((s) => {
-    const doc = docs.get(s.latest_hash);
-    const kind = kindOf(doc);
-    return kind && inTeam(doc) && !inSets.has(sharedKey(s)) ? [row(sharedKey(s), null, s, s.name, doc, kind, s.org_name)] : [];
-  });
-  const items = [...ownRows.filter((x) => x.kind === 'source'), ...sharedRows.filter((x) => x.kind === 'source'), ...setRows,
-    ...ownRows.filter((x) => x.kind !== 'source'), ...sharedRows.filter((x) => x.kind !== 'source')];
-  // What is ticked until someone changes it: the organization's own Bible first, else the World English Bible; FIA's guides.
-  const firstBy = (list: MaterialChoice[], rank: (n: string) => number) => [...list].sort((a, b) => rank(a.name) - rank(b.name))[0];
-  const bible = firstBy(ownRows.filter((x) => x.kind === 'source'), web) ?? firstBy(sharedRows.filter((x) => x.kind === 'source'), web);
-  const guide = setRows[0] ?? firstBy(ownRows.filter((x) => x.kind === 'guide'), fia) ?? firstBy(sharedRows.filter((x) => x.kind === 'guide'), fia);
-  const suggested = new Set([bible?.key, guide?.key].filter((k): k is string => !!k));
-  return { items: may ? items : [], suggested, may, loading: !shared.loaded };
-}
-
-/** Study guides as the offer note names them: "FIA's study guides in English", or without the language when they give none. */
-function guidesOffer(name: string, doc: LibraryDoc | null): string {
-  const language = docLanguage(doc);
-  return language ? t('org.offers.guidesIn', { name: guideShortName(name), language: languageLabel(language) }) : t('org.offers.guides', { name: guideShortName(name) });
-}
-
-/** A Bible as the offer note names it: "the World English Bible" (an English name that reads with "the"), else its name. */
-function bibleOffer(name: string): string {
-  return /^World\b/.test(name) ? t('org.offers.theBible', { name }) : name;
-}
-
-/**
  * Last: time to invite people (decision 146, the prototype's Invite after
  * NewLangFlow): each role with what it lets them do, and a code that can
  * put them on the language's checks. After a cluster, its new languages are
@@ -2049,7 +1942,7 @@ function NewLanguageInvite(props: { ctx: Ctx; languages: { languageId: string; n
   const { ctx } = props;
   const scopes = props.languages.map((l) => ({ key: l.languageId, label: l.name, scope: { level: 'language', languageId: l.languageId } as Scope }));
   const first = props.languages[0]!;
-  const may = ctx.session.can('invite_members') && scopes.every((s) => mayGrantAt(ctx.org.state, ctx.session.actorId, s.scope));
+  const may = mayInviteAtAll(ctx.session.can('invite_members'), ctx.org.state, ctx.session.actorId, scopes.map((s) => s.scope));
   const names = props.cluster ?? first.name;
   return (
     <InviteSomeone ctx={ctx} scopes={scopes} initialScope={first.languageId} welcome top={props.top}

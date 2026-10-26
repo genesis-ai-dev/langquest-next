@@ -9,7 +9,7 @@ import { sectionAtLoad } from '../web/webHistory';
 import { useWebHistory } from '../web/useWebHistory';
 import { addressSection, routeOutcome } from './routingModel';
 import type { Arrival } from './useOpenOrganization';
-import { routeReached } from '../auth/authDiag';
+import { routeReached } from '../diagnostics/authDiag';
 
 /**
  * Where a person is sent, as a rule rather than a move. Auth routing is an

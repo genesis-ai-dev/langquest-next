@@ -4,7 +4,7 @@ import { Text } from '../ui/text';
 import { t } from '../i18n';
 import { C, radius, space, type as T } from '../ui/theme';
 import { isRecording } from '../recording/recorderState';
-import { BUILD_ID } from '../web/webBuild';
+import { BUILD_ID } from '../build/webBuild';
 
 /**
  * The web's update line (UpdateBanner.tsx is the phones', on expo-updates,

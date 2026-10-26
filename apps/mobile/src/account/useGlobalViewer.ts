@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { noteExpected } from '../diagnostics/report';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { failureMessage, noteExpected } from '../diagnostics/report';
+import { t } from '../i18n';
 import { userState } from '../server/account';
 import { onAuthChange } from '../server/auth';
-import { globalViewerDirectory } from '../server/globalViewer';
-import { accessOf, type GlobalViewerAccess } from './globalViewerModel';
+import {
+  authenticatorFactors, enrollAuthenticator, globalViewerDirectory, globalViewerOrganizations, unenrollAuthenticator, verifyAuthenticator,
+  type ViewableOrganization
+} from '../server/globalViewer';
+import { accessOf, codeIsWrong, hasMore, ORGANIZATIONS_PAGE, unfinishedSetups, type GlobalViewerAccess } from './globalViewerModel';
 
 /**
  * Each account's Global Viewer access in this run, shared by every caller:
@@ -66,4 +70,91 @@ export function useGlobalViewerNames(orgId: string, viewing: boolean): Record<st
     return () => { active = false; };
   }, [orgId, viewing]);
   return names;
+}
+
+/**
+ * Checking a 6-digit code from the authenticator: the server decides; on
+ * success this sign-in is verified (aal2) and `refresh` reads the access again.
+ * `factorId` is the authenticator to check against, null if there is none.
+ */
+export function useVerifyCode(refresh: () => Promise<void>): {
+  busy: boolean; error: string; check: (factorId: () => Promise<string | null>, code: string) => Promise<void>;
+} {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function check(factorId: () => Promise<string | null>, code: string) {
+    setBusy(true);
+    setError('');
+    try {
+      const id = await factorId();
+      if (!id) { setError(t('globalViewer.noAuthenticator')); return; }
+      const { error: refused } = await verifyAuthenticator(id, code);
+      if (refused) {
+        noteExpected('global viewer code', refused);
+        setError(codeIsWrong(refused) ? t('globalViewer.codeWrong') : failureMessage('global viewer code', refused));
+        return;
+      }
+      await refresh();
+    } catch (e) {
+      setError(failureMessage('global viewer code', e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return { busy, error, check };
+}
+
+/**
+ * Setting up the authenticator: `start` clears an unfinished set-up left
+ * before (so starting again never collides with it), then enrolls a new one.
+ */
+export function useAuthenticatorSetup(): {
+  started: { factorId: string; uri: string; secret: string } | null; busy: boolean; error: string;
+  start: () => Promise<void>; fail: (text: string) => void;
+} {
+  const [started, setStarted] = useState<{ factorId: string; uri: string; secret: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function start() {
+    setBusy(true);
+    setError('');
+    try {
+      for (const id of unfinishedSetups(await authenticatorFactors())) await unenrollAuthenticator(id);
+      // i18n-ignore: the factor's name, kept on the server
+      setStarted(await enrollAuthenticator('LangQuest'));
+    } catch (e) {
+      setError(failureMessage('global viewer setup', e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return { started, busy, error, start, fail: setError };
+}
+
+/**
+ * Every organization whose name, or a language's, holds `query`, a page at a
+ * time (the query waits 300 ms after typing stops). `more` loads the next page.
+ */
+export function useViewableOrganizations(query: string): {
+  rows: ViewableOrganization[] | null; hasMore: boolean; error: string; more: () => void; fail: (text: string) => void;
+} {
+  const [rows, setRows] = useState<ViewableOrganization[] | null>(null);
+  const [more, setMore] = useState(false);
+  const [error, setError] = useState('');
+  const asked = useRef(0);
+  async function load(q: string, after?: ViewableOrganization) {
+    const mine = ++asked.current;
+    const { data, error: refused } = await globalViewerOrganizations(q, ORGANIZATIONS_PAGE, after ? { name: after.name, orgId: after.org_id } : undefined);
+    if (mine !== asked.current) return;
+    if (refused) { setError(failureMessage('global viewer organizations', refused)); return; }
+    setError('');
+    const page = data ?? [];
+    setRows((before) => (after ? [...(before ?? []), ...page] : page));
+    setMore(hasMore(page));
+  }
+  useEffect(() => {
+    const timer = setTimeout(() => { void load(query.trim()); }, query ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [query]);
+  return { rows, hasMore: more, error, more: () => { if (rows?.length) void load(query.trim(), rows[rows.length - 1]); }, fail: setError };
 }

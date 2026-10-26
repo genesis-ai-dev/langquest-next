@@ -48,3 +48,33 @@ describe('the Update button', () => {
     expect(storeUrl('android')).toBe('https://play.google.com/store/apps/details?id=com.frontierrnd.langquestnext');
   });
 });
+
+describe('the server rows and the saved answer', () => {
+  it('picks this platform\'s row and renames min_version', async () => {
+    const { versionsFromRows } = await import('../src/appVersion/appVersionModel');
+    const rows = [{ platform: 'android', version: '2.0.0', min_version: '1.0.0' }, { platform: 'ios', version: null, min_version: '1.5.0' }];
+    expect(versionsFromRows(rows, 'ios')).toEqual({ platform: 'ios', version: null, minVersion: '1.5.0' });
+    expect(versionsFromRows(rows, 'android')).toEqual({ platform: 'android', version: '2.0.0', minVersion: '1.0.0' });
+    expect(versionsFromRows([], 'ios')).toBeNull();
+    expect(versionsFromRows(null, 'ios')).toBeNull();
+    expect(versionsFromRows([{ platform: 'ios', version: '1' }], 'ios')).toBeNull();
+  });
+
+  it('asks at most once an hour', async () => {
+    const { dueToAsk, ASK_EVERY_MS } = await import('../src/appVersion/appVersionModel');
+    expect(dueToAsk(0, Date.now())).toBe(true);
+    expect(dueToAsk(1000, 1000 + ASK_EVERY_MS - 1)).toBe(false);
+    expect(dueToAsk(1000, 1000 + ASK_EVERY_MS)).toBe(true);
+  });
+
+  it('trusts a saved answer only when it has the shape that was saved', async () => {
+    const { parseCachedVersions } = await import('../src/appVersion/appVersionModel');
+    const good = { platform: 'ios', version: '2.0.0', minVersion: '1.0.0' };
+    expect(parseCachedVersions(JSON.stringify({ versions: good }))).toEqual(good);
+    expect(parseCachedVersions(null)).toBeNull();
+    expect(parseCachedVersions('not json')).toBeNull();
+    expect(parseCachedVersions('{"versions":null}')).toBeNull();
+    expect(parseCachedVersions(JSON.stringify({ versions: { platform: 'web', version: null, minVersion: '1' } }))).toBeNull();
+    expect(parseCachedVersions(JSON.stringify({ versions: { platform: 'ios', version: 3, minVersion: '1' } }))).toBeNull();
+  });
+});

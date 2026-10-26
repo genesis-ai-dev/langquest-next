@@ -2,6 +2,8 @@
 // the upload bar over every screen and the Sync screen read these. Pure.
 import { eventPassage, passageInMemory, type AnyEvent, type LanguageState } from '@langquest-next/core';
 import type { PassageUploads, SentEntry } from '@langquest-next/sync';
+import { t } from '../i18n';
+import { formatDayTime, formatTime } from '../i18n/format';
 
 /** What the upload bar counts: recordings waiting (audio files), and changes waiting (events, this language's and the organization's). */
 export interface WaitingCounts {
@@ -97,4 +99,47 @@ export function changeUnits(state: LanguageState | null, languageEvents: readonl
   });
   for (let i = 0; i < orgEvents; i++) units.push(null);
   return units;
+}
+
+/** How long "All uploaded" stays on the bar once the last thing went up. */
+export const DONE_SHOWN_MS = 4000;
+
+/**
+ * What the bar does when the number waiting changes from `was` to `total`:
+ * `show` the "done" mark (the last of it just went up), `hide` it (something
+ * waits again), or `keep` it as it is.
+ */
+export function emptiedStep(was: number, total: number): 'show' | 'hide' | 'keep' {
+  if (total > 0) return 'hide';
+  return was > 0 ? 'show' : 'keep';
+}
+
+/** "3 recordings waiting to upload", or the changes when no recording waits. */
+export function waitingWords(c: WaitingCounts): string {
+  return c.recordings > 0 ? t('uploads.barRecordings', { count: c.recordings }) : t('uploads.barChanges', { count: c.changes });
+}
+
+/** One line of "Uploaded": the time and what went. */
+export function sentWords(e: SentEntry): string {
+  const what = e.files > 0 ? t('uploads.recordings', { count: e.files }) : t('uploads.changes', { count: e.changes });
+  return `${formatTime(e.at)} · ${what}`;
+}
+
+/** The Sync screen card's two lines: how much waits (or "All uploaded"), and whether it is going up or when the last went. */
+export function uploadsSummary(counts: WaitingCounts, movingUp: boolean, last: number, now: number): { waiting: boolean; title: string; sub: string | null } {
+  const waiting = counts.recordings + counts.changes > 0;
+  const title = waiting ? waitingWords(counts) : t('uploads.allUploaded');
+  const sub = waiting ? (movingUp ? t('uploads.uploading') : t('uploads.savedHere'))
+    : last ? t('uploads.lastUpload', { when: dayKind(startOfDay(last), now) === 'today' ? formatTime(last) : formatDayTime(last) }) : null;
+  return { waiting, title, sub };
+}
+
+/** A device is offline only when the language says so; unknown (null) is not offline. */
+export function isOffline(online: boolean | null): boolean {
+  return online === false;
+}
+
+/** The organization's other languages (decisions.md 166): pending streams of this person that are not the open language, the organization stream or another organization's. */
+export function elsewhereStreams(streams: readonly { orgId: string; streamId: string }[], orgId: string, open: string | null, orgStream: string): string[] {
+  return streams.filter((s) => s.orgId === orgId && s.streamId !== open && s.streamId !== orgStream).map((s) => s.streamId);
 }

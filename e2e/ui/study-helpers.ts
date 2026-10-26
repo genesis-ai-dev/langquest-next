@@ -4,7 +4,8 @@
 // items (an admin's, as the guide editor and the library screens make them),
 // built per world, so the shared library seed stays what production seeds.
 import { canonicalJson, ORG_STREAM, validateDoc, withDeps, type LibraryDoc, type OrgState, type SourceBookDoc, type SourceDoc, type StudyDoc, type StudyDoc2 } from '@langquest-next/core';
-import { blobKey, type SyncClient } from '@langquest-next/sync';
+import { type SyncClient } from '@langquest-next/sync';
+import { blobKey } from '@langquest-next/sync/server';
 import { setupBlobs } from './blob-upload';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
