@@ -37,7 +37,11 @@ Beside them:
   changing. Core holds the invariants, so it gets both. Baseline on 2026-10-14: 52.5%
   over all of `packages/core/src` (5,598 killed, 2,124 survived, 2,937 with no test reaching them), 7 minutes on
   7 workers; `reducer.ts` 77.2%, `passage.ts` 60.8%. The Stryker vitest runner needs the two workarounds in
-  `vitest.stryker.config.ts` until it supports vitest 5.
+  `vitest.stryker.config.ts` until it supports vitest 5. By 2026-10-23 core had 20,158 mutants, hours of work
+  on a CI runner, so the nightly runs it in four shards of core's files, dealt by what each costs, each with
+  four workers and its own incremental file, and merges their reports into one score
+  (`scripts/mutation-shards.mjs`, decision 167). On a laptop on 2026-10-26 the whole run took 31 minutes,
+  `passage.ts` and `validate.ts` about ten each, and scored 56.6%. `npm run test:mutation` still runs all of core at once, on a laptop.
 - **Manual and device tests**: the specs in `docs/ui-test-suite` marked
   `Manual` or `Device`. A release candidate gets a run sheet
   (`docs/ui-test-suite/run-sheets/`), committed with its results.

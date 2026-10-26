@@ -223,9 +223,9 @@ and the steward row is removed.
 | Phone lost or stolen | F with "Their old phone is lost": the old phone is signed out | The code ends every other session (59) |
 | Inviter leaves the organization | They can no longer help; anyone else with Invite there can | `may_help_sign_in` follows current roles (59) |
 | The reply to Join is lost | Tapping Join again within the hour signs the same account in | One request id per join (59, 75) |
-| Shared phone, several translators | Each picks a picture and draws a pattern (or uses their password) at sign-out; Sign In shows the pictures, never names | The session is locked on the phone under their pattern or password (167) |
-| Signs out, then wants back in with no connection | Taps their picture and draws their pattern, or types their password: back in, with all their work | The lock opens on the phone; the server is not asked (167) |
-| Signs out of a shared phone with work unsent | Signs out anyway; the work still goes, as them, when the phone is online, and they can still come back to this phone | The hand-over keeps their session until it has gone (60), then it stays locked for them (167) |
+| Shared phone, several translators | Each picks a picture and draws a pattern (or uses their password) at sign-out; Sign In shows the pictures, never names | The session is locked on the phone under their pattern or password (168) |
+| Signs out, then wants back in with no connection | Taps their picture and draws their pattern, or types their password: back in, with all their work | The lock opens on the phone; the server is not asked (168) |
+| Signs out of a shared phone with work unsent | Signs out anyway; the work still goes, as them, when the phone is online, and they can still come back to this phone | The hand-over keeps their session until it has gone (60), then it stays locked for them (168) |
 | Someone else signed in when a key is scanned | Asked "Join as X?", with "Not X?" | `unclaimed` never joins on its own |
 | Scans the same code twice | Joins once, the second scan says "You're already in" | Redemption is idempotent per person |
 | Someone else's used code | "This invite has been used. Ask for a new one." | `preview_invite` says `used` |

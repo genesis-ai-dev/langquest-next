@@ -340,10 +340,10 @@ export default function App() {
     const unsubscribe = onAuthChange((event, s) => {
       noteAuthEvent(event, authNow.current, s);
       setAuth((now) => afterAuthEvent(now, event, s));
-      // In by a password, a code or an invite: an older lock of theirs here is not theirs to come back to (decisions.md 167).
+      // In by a password, a code or an invite: an older lock of theirs here is not theirs to come back to (decisions.md 168).
       if (event === 'SIGNED_IN' && s) void signedInHere(s.user.id);
     });
-    // Back in from the lock on this phone: supabase-js has no event for that (decisions.md 167).
+    // Back in from the lock on this phone: supabase-js has no event for that (decisions.md 168).
     const offUnlocked = onUnlocked((s) => setAuth(s));
     const unwatch = watchRenewals();
     return () => { active = false; unsubscribe(); offUnlocked(); unwatch(); };

@@ -43,6 +43,8 @@ insert into public.notifications (id, profile_id, org_id, kind, title, push_atte
 insert into public.push_tokens (token, profile_id) values ('od-push-token', '0d000000-0000-0000-0000-00000000000a');
 insert into public.notifications (id, profile_id, org_id, kind, title)
   values ('od-n2', '0d000000-0000-0000-0000-00000000000b', 'od-org', 'x', 't');
+insert into diag.feedback (id, profile_id, kind, body, install_id) values
+  ('0d000000-0000-0000-0000-0000000000f1', '0d000000-0000-0000-0000-00000000000a', 'bug', 'secret feedback text', 'od-inst');
 
 -- 1. Every function, as diag_reader; the role still cannot read the tables.
 grant diag_reader to postgres;
@@ -98,6 +100,7 @@ begin
     raise exception 'ops_database: %', v;
   end if;
   if v::text ilike '%select %' then raise exception 'ops_database returned query text'; end if;
+  if jsonb_typeof(v->'background') <> 'array' or not (v ? 'longestQuery') or not (v ? 'oldestXact') then raise exception 'ops_database whose: %', v; end if;
 
   -- migrations
   v := diag.migrations_applied();
@@ -161,6 +164,16 @@ begin
   exception when insufficient_privilege then null; end;
   begin perform * from cron.job limit 1; raise exception 'diag_reader read cron.job';
   exception when insufficient_privilege then null; end;
+  begin perform * from diag.feedback limit 1; raise exception 'diag_reader read diag.feedback';
+  exception when insufficient_privilege then null; end;
+
+  -- open feedback: counted, never read
+  v := diag.ops_feedback_open();
+  if (v->>'open')::int < 1 or v->>'oldestAt' is null or v::text ilike '%secret feedback%' then raise exception 'ops_feedback_open: %', v; end if;
+
+  -- since when the counters run
+  v := diag.ops_counts_since();
+  if not (v ? 'statements') or v->>'database' is null then raise exception 'ops_counts_since: %', v; end if;
 end $$;
 reset role;
 -- ops_cron holds no job's command text (checked as the owner, who can read cron.job).

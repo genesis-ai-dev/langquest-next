@@ -147,9 +147,15 @@ export interface Database {
   sizeBytes: number;
   connections: number;
   maxConnections: number;
+  /** `since`: pg_stat_database's last reset, which these count from. */
   stats: { commits: number; rollbacks: number; deadlocks: number; hitRatio: number | null; since: string | null } | null;
   rpc: RpcStat[];
+  /** pg_stat_statements' last reset, which the RPC timings count from; null before migration 20261026120000_ops_feedback_and_since. */
+  rpcSince?: string | null;
 }
+
+/** When the RPC timings began counting (diag.ops_counts_since). */
+export const RPC_SINCE_SQL = `select diag.ops_counts_since()->'statements' as v`;
 
 export const DATABASE_SQL = `select jsonb_build_object(
   'sizeBytes', pg_database_size(current_database()),
@@ -249,7 +255,12 @@ export async function diagSections(query: Query): Promise<DiagSections> {
   const [jobs, clients, database, v2, feedback] = await Promise.all([
     guard(one<JobRow[]>(JOBS_SQL, ['2 days'], (rows) => jobsSection(rows))),
     guard(one<Clients>(CLIENTS_SQL, [], (c) => clientsSection(c))),
-    guard(one<Database>(DATABASE_SQL, [], (db) => databaseSection(db))),
+    guard((async () => {
+      const db = await query<Database>(DATABASE_SQL);
+      // Extra: before its migration the timings show without a date.
+      const rpcSince = await query<string | null>(RPC_SINCE_SQL).catch(() => null);
+      return databaseSection({ ...db, rpcSince });
+    })()),
     guard(one<V2Project[]>(V2_SQL, [], (rows) => v2Section(rows), 'The v2 import is not on this database.')),
     guard(one<Feedback[]>(FEEDBACK_SQL, ['30 days'], (rows) => ok({ items: rows }), 'Feedback from the help button is not on this database yet.'))
   ]);

@@ -6,7 +6,7 @@ import { pbkdf2Async } from '@noble/hashes/pbkdf2';
 import { sha256 } from '@noble/hashes/sha2';
 import { addressHash, newDataKey, openWrap, pbkdf2Sha256, seal, unseal, withWrap } from '../src/auth/sealModel';
 
-// Decision 167: signing out of a phone locks the sign-in on it, and the
+// Decision 168: signing out of a phone locks the sign-in on it, and the
 // person's password or a pattern on nine dots opens it again with no connection.
 
 const random = (n: number) => new Uint8Array(randomBytes(n));

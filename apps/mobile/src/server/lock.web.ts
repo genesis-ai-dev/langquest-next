@@ -2,7 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import type { Wrap } from '../auth/lockModel';
 
 /**
- * The web never locks a sign-in (decisions.md 167): a browser forgets
+ * The web never locks a sign-in (decisions.md 168): a browser forgets
  * everything on sign-out (forgetBrowser.ts, decision 11), so there is
  * nothing to come back to. The same calls as lock.ts, doing nothing, keep
  * the lock's cryptography out of the web bundle.

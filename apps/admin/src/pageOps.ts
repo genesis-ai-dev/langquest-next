@@ -18,7 +18,7 @@ export const GROUPS = [
   { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name', parts: [] },
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true, parts: ['safety'] },
   { id: 'phones', title: 'Phones and browsers', src: 'What installs report, the builds they run and how often each crashes, and phones that are stuck or quiet', wide: true, parts: ['clients', 'fleet'] },
-  { id: 'releases', title: 'Releases', src: 'main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['code', 'releases', 'expo'] },
+  { id: 'releases', title: 'Releases', src: 'main and its CI, what each host serves, migrations, what shipped against errors, EAS builds and updates', wide: true, parts: ['code', 'releases', 'expo', 'adoption'] },
   { id: 'jobs', title: 'Server jobs', src: 'Each job\'s runs and whether it runs now, pg_cron, push delivery, and the v2 import', wide: true, parts: ['jobs', 'container', 'cron', 'push', 'v2'] },
   { id: 'database', title: 'Database', src: 'Connections, cache, slow calls, largest tables, long transactions, and the Supabase project', parts: ['database', 'dbdetail', 'supabase'] },
   { id: 'traffic', title: 'Workers and traffic', src: 'Each Cloudflare Worker\'s requests, errors and latest build, and the app Worker\'s routes', parts: ['cloudflare', 'worker'] },
@@ -32,7 +32,7 @@ export const GROUPS = [
 /** Sub-headings where a source's own title would repeat its section's, or say too little inside it. */
 export const PART_TITLES: Record<string, string> = {
   clients: 'What installs report', fleet: 'Builds in the field and stuck phones', code: 'Code and deploys', releases: 'What shipped',
-  expo: 'EAS builds and updates', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
+  expo: 'EAS builds and updates', adoption: 'Update adoption', jobs: 'Jobs', cron: 'pg_cron', push: 'Push delivery and Inbox', v2: 'v2 import',
   database: 'Health', dbdetail: 'Where the space goes', supabase: 'Supabase project', cloudflare: 'Cloudflare Workers', worker: 'App Worker routes, last 24 h',
   storage: 'Storage and backups', capacity: 'Capacity and cost', support: 'Queue', feedback: 'Feedback', security: 'Global Viewers and limits',
   integrations: 'Integrations', expiry: 'Expiry dates', googleplay: 'Google Play', appstore: 'App Store'
@@ -42,12 +42,13 @@ export const PART_TITLES: Record<string, string> = {
 export const OPS_IDS = ['fleet', 'safety', 'people', 'cron', 'dbdetail', 'push', 'worker', 'integrations', 'support', 'security'] as const;
 
 /** Each from its own call (/ops/api/<id>), like the providers. */
-export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container'] as const;
+export const OWN_CALL_IDS = ['expiry', 'storage', 'capacity', 'releases', 'container', 'adoption'] as const;
 
 export const OPS_SECTIONS = [
   { id: 'safety', title: 'Sync and data safety', src: 'Refused work, upload delay, clock skew, the fold canary, projection lag and snapshots', wide: true },
   { id: 'fleet', title: 'Builds and stuck phones', src: 'Updates in the field and their crash-free rate, versions, time to a usable Map, stuck and silent phones', wide: true },
   { id: 'releases', title: 'Release health', src: 'Merges, deploys and EAS updates over 14 days against errors; hosts; migrations against main' },
+  { id: 'adoption', title: 'Update adoption', src: 'For each channel, platform and runtime: the newest EAS update and how many active installs run it' },
   { id: 'container', title: 'Job container', src: 'Whether each server job runs now (the app Worker\'s JobStatus)' },
   { id: 'cron', title: 'Scheduled database jobs', src: 'pg_cron runs and failures, last 24 h' },
   { id: 'dbdetail', title: 'Database detail', src: 'Largest tables and indexes, dead rows, long queries and transactions' },
@@ -75,9 +76,10 @@ Object.assign(RENDER, {
     const arr = d.arrivals[d.arrivals.length - 1] || {};
     const p = d.pipeline;
     let h = '<div class="stats">' + stat(num(today.rejected || 0), 'events refused, latest day', today.rejected ? 'warn' : '') +
-      stat(num(today.invalid || 0), 'refused as invalid', today.invalid ? 'bad' : '') +
-      stat(hours(arr.p95Ms), 'p95 upload delay') + stat(num(arr.futureStamped || 0), 'stamped ahead of the clock', arr.futureStamped ? 'warn' : '') +
-      (p ? stat(num(p.lagging), 'languages behind the pass', p.lagging ? 'warn' : '') + stat(num(p.snapshots.overdue), 'snapshots overdue', p.snapshots.overdue ? 'warn' : '') : '') + '</div>';
+      stat(num(today.invalid || 0), 'refused as invalid', today.invalid ? 'bad' : '', today.day ? 'on ' + day(today.day) : 'latest day') +
+      stat(hours(arr.p95Ms), 'p95 upload delay', '', arr.day ? 'on ' + day(arr.day) : 'not sampled yet') +
+      stat(num(arr.futureStamped || 0), 'stamped ahead of the clock', arr.futureStamped ? 'warn' : '', arr.day ? 'on ' + day(arr.day) : 'not sampled yet') +
+      (p ? stat(num(p.lagging), 'languages behind the pass', p.lagging ? 'warn' : '', NOW) + stat(num(p.snapshots.overdue), 'snapshots overdue', p.snapshots.overdue ? 'warn' : '', NOW) : '') + '</div>';
     h += '<h3>Refused work, by reason</h3>' + table([
       { h: 'Day', v: (r) => esc(r.day) }, { h: 'Events', n: true, v: (r) => num(r.rejected) }, { h: 'Installs', n: true, v: (r) => num(r.installs) },
       { h: 'Invalid', n: true, v: (r) => '<span class="' + (r.invalid ? 'bad' : '') + '">' + num(r.invalid) + '</span>' },
@@ -127,10 +129,23 @@ Object.assign(RENDER, {
       (d.silent.installs.length ? '<p>' + d.silent.installs.map((s) => installLink(s.install) + ' <small>' + ageOf(s.lastSeen) + '</small>').join(' · ') + '</p>' : '');
     return h;
   },
+  adoption(d) {
+    // Each row: one channel, platform and runtime the phones run. Newest is what EAS published last for exactly that.
+    const cell = (n, of, tone) => num(n) + (of ? ' <small class="' + (tone || '') + '">' + share(n, of) + '</small>' : '');
+    return table([
+      { h: 'Channel', v: (r) => esc(r.channel) + ' <small>' + esc(r.platform) + '</small>' },
+      { h: 'Runtime', v: (r) => '<code title="' + esc(r.runtime) + '">' + esc(String(r.runtime).slice(0, 8)) + '</code>' },
+      { h: 'Newest update', v: (r) => r.newest ? '<code title="' + esc(r.newest.id) + '">' + esc(r.newest.id.slice(0, 8)) + '</code>' + (r.newest.rollBackToEmbedded ? ' <small>roll back to embedded</small>' : '') + '<br><small>' + when(r.newest.at) + '</small>' : '<span class="muted">none published</span>' },
+      { h: 'Installs', n: true, v: (r) => num(r.installs) },
+      { h: 'On newest', n: true, v: (r) => cell(r.onNewest, r.installs, r.newest && r.onNewest < r.installs / 2 ? 'warn' : 'good') },
+      { h: 'Older update', n: true, v: (r) => cell(r.older, r.installs) },
+      { h: 'Embedded', n: true, v: (r) => cell(r.embedded, r.installs) }
+    ], d.rows) + '<p class="muted">Installs that reported in the last ' + num(d.activeDays) + ' days, by what they ran then; phones with diagnostics off are not counted, and browsers have no updates. A phone takes an update on its next launch after it downloads.</p>';
+  },
   releases(d) {
     const m = d.migrations;
     let h = '<div class="stats">' + d.hosts.slice(1).map((x) => stat('<code>' + esc(x.build ? String(x.build).slice(0, 8) : '?') + '</code>', x.url.replace('https://', ''), x.error ? 'bad' : '')).join('') +
-      stat(m.behind === null ? '?' : num(m.behind), 'migrations behind main', m.behind ? 'bad' : '') + '</div>';
+      stat(m.behind === null ? '?' : num(m.behind), 'migrations behind main', m.behind ? 'bad' : '', NOW) + '</div>';
     if (m.error) h += '<p class="muted">' + esc(m.error) + '</p>';
     h += '<h3>Errors phones reported</h3>' + table([{ h: 'Day', v: (r) => esc(r.day) }, { h: 'Errors', n: true, v: (r) => num(r.errors) }, { h: 'Crashes', n: true, v: (r) => '<span class="' + (r.crashes ? 'warn' : '') + '">' + num(r.crashes) + '</span>' }, { h: 'Installs', n: true, v: (r) => num(r.installs) }], d.errorsByDay.slice().reverse());
     h += '<h3>What shipped, 14 days</h3>' + table([{ h: 'When', v: (e) => when(e.at) }, { h: 'What', v: (e) => '<span class="tag">' + esc(e.kind) + '</span> ' + esc(e.text) }], d.timeline.slice(0, 40));
@@ -145,14 +160,21 @@ Object.assign(RENDER, {
     ], d.jobs);
   },
   dbdetail(d) {
+    // Whose each one is (role, client, kind), never its text; background work that always runs is left out of both.
+    const who = (a, extra) => a ? [a.role || '?', a.client, a.kind !== 'client backend' ? a.kind : null, extra].filter(Boolean).join(' · ') : '';
+    const q = d.longestQuery, x = d.oldestXact;
+    const bg = (d.background || []).map((b) => esc(b.kind) + ' ' + num(b.n) + (b.seconds === null ? '' : ', ' + ms(b.seconds * 1000)));
     return '<div class="stats">' +
-      stat(d.longestQueryS === null ? '–' : ms(d.longestQueryS * 1000), 'longest query') + stat(d.oldestXactS === null ? '–' : ms(d.oldestXactS * 1000), 'oldest transaction') + '</div>' +
+      stat(d.longestQueryS === null ? '–' : ms(d.longestQueryS * 1000), 'longest query', q && q.waitingOn === 'Lock' ? 'warn' : '', 'running now' + (q ? ' · ' + who(q, q.waitingOn ? 'waiting on ' + q.waitingOn : null) : '')) +
+      stat(d.oldestXactS === null ? '–' : ms(d.oldestXactS * 1000), 'oldest transaction', '', 'open now' + (x ? ' · ' + who(x, x.state && x.state !== 'active' ? x.state : null) : '')) + '</div>' +
+      (bg.length ? '<p class="muted">Left out as background work that always runs: ' + bg.join(' · ') + '.</p>' : '') +
       '<h3>Largest tables</h3>' + table([{ h: 'Table', v: (t) => '<code>' + esc(t.name) + '</code>' }, { h: 'Size', n: true, v: (t) => bytes(t.bytes) }, { h: 'Rows', n: true, v: (t) => num(t.rows) }, { h: 'Dead', n: true, v: (t) => t.deadRatio === null ? '–' : '<span class="' + (t.deadRatio >= 0.3 ? 'warn' : '') + '">' + (t.deadRatio * 100).toFixed(0) + '%</span>' }], d.tables) +
       '<h3>Largest indexes</h3>' + table([{ h: 'Index', v: (i) => '<code>' + esc(i.name) + '</code>' }, { h: 'Table', v: (i) => '<small>' + esc(i.table) + '</small>' }, { h: 'Size', n: true, v: (i) => bytes(i.bytes) }], d.indexes);
   },
   push(d) {
     const r = d.runs || {};
-    return '<div class="stats">' + stat(num(d.pending), 'waiting', d.pending ? 'warn' : '') + stat(ageOf(d.oldestPendingAt), 'oldest waiting') + (d.inboxOnly === undefined ? '' : stat(num(d.inboxOnly), 'Inbox only, no push token')) + stat(num(d.tokens), 'push tokens') + stat(num(d.membersWithoutToken), 'members without a token') + '</div>' +
+    return '<div class="stats">' + stat(num(d.pending), 'waiting', d.pending ? 'warn' : '', oldest(d.oldestPendingAt)) + (d.inboxOnly === undefined ? '' : stat(num(d.inboxOnly), 'Inbox only, no push token', '', NOW)) +
+      stat(num(d.tokens), 'push tokens', '', NOW) + stat(num(d.membersWithoutToken), 'members without a token', '', NOW) + '</div>' +
       '<p class="muted">Push delivery, last 24 h: ' + esc(Object.entries(r).map(([k, v]) => k + ' ' + num(v)).join(' · ') || 'no runs') + '</p>' +
       '<h3>Failures, last 24 h</h3>' + table([{ h: 'Code', v: (e) => '<code>' + esc(e.code) + '</code>' }, { h: 'Count', n: true, v: (e) => num(e.n) }], d.errors24h);
   },
@@ -164,7 +186,8 @@ Object.assign(RENDER, {
     ], d.routes) + '<p class="muted">Counted by the app Worker\'s isolates (requestTally.ts), each flushing at most once a minute.</p>';
   },
   integrations(d) {
-    return '<div class="stats">' + stat(num(d.tokens.total), 'access tokens') + stat(num(d.deviceGrants.pending), 'device grants waiting') + stat(num(d.webhooks.active), 'webhooks on') + stat(num(d.reviewLinks.active), 'review links live') + stat(num(d.api.agentApi + d.api.mcp), 'API calls, 24 h') + '</div>' +
+    return '<div class="stats">' + stat(num(d.tokens.total), 'access tokens', '', 'live now') + stat(num(d.deviceGrants.pending), 'device grants waiting', '', NOW) + stat(num(d.webhooks.active), 'webhooks on', '', NOW) +
+      stat(num(d.reviewLinks.active), 'review links live', '', NOW) + stat(num(d.api.agentApi + d.api.mcp), 'API calls, 24 h') + '</div>' +
       '<h3>Tokens by scope</h3>' + table([{ h: 'Scope', v: (s) => '<code>' + esc(s.scope) + '</code>' }, { h: 'Tokens', n: true, v: (s) => num(s.n) }], d.tokens.byScope) +
       '<h3>Webhooks switched off</h3>' + table([{ h: 'Why', v: (w) => esc(w.reason || '–') }, { h: 'Count', n: true, v: (w) => num(w.n) }], d.webhooks.disabled) +
       '<p class="muted">Deliveries, last 24 h: ' + esc(Object.entries(d.dispatch || {}).map(([k, v]) => k + ' ' + num(v)).join(' · ') || 'none') + ' · new this week: ' + num(d.tokens.createdWeek) + ' tokens, ' + num(d.deviceGrants.createdWeek) + ' device grants asked (' + num(d.deviceGrants.approvedWeek) + ' approved), ' + num(d.reviewLinks.createdWeek) + ' review links</p>';
@@ -172,8 +195,8 @@ Object.assign(RENDER, {
   storage(d) {
     const b = d.backups, r = d.r2;
     let h = '<div class="stats">' +
-      (b ? stat(b.error ? '?' : b.pitr ? 'on' : 'off', 'point-in-time recovery', b.pitr ? '' : 'warn') + stat(b.error ? '?' : ageOf(b.latest), 'latest backup') : stat('–', 'backups (needs ADMIN_SUPABASE_TOKEN)')) +
-      (r ? stat(r.error ? '?' : num(r.objects), 'R2 objects') : stat('–', 'R2 (needs ADMIN_CLOUDFLARE_TOKEN)')) + '</div>';
+      (b ? stat(b.error ? '?' : b.pitr ? 'on' : 'off', 'point-in-time recovery', b.pitr ? '' : 'warn', NOW) + stat(b.error ? '?' : ageOf(b.latest), 'latest backup') : stat('–', 'backups (needs ADMIN_SUPABASE_TOKEN)')) +
+      (r ? stat(r.error ? '?' : num(r.objects), 'R2 objects', '', 'latest daily count') : stat('–', 'R2 (needs ADMIN_CLOUDFLARE_TOKEN)')) + '</div>';
     if (b && b.error) h += '<p class="bad">' + esc(b.error) + '</p>';
     if (r && r.error) h += '<p class="bad">' + esc(r.error) + '</p>';
     h += '<p class="notice">R2 holds the only copy of recordings: there is no second copy yet.</p>';
@@ -182,9 +205,10 @@ Object.assign(RENDER, {
     return h;
   },
   people(d) {
-    let h = '<div class="stats">' + stat(num(d.accounts.total), 'accounts') + stat(num(d.activeProfiles.day), 'active today') + stat(num(d.activeProfiles.week), 'active this week') +
-      stat(num(d.orgs.total), 'organizations') + stat(num(d.languages.total), 'languages') + stat(num(d.joining.pendingRequests), 'join requests waiting', d.joining.pendingRequests ? 'warn' : '') +
-      stat(num(d.accounts.suspended), 'suspended') + stat(num(d.accounts.managed), 'looked after') + '</div>';
+    let h = '<div class="stats">' + stat(num(d.accounts.total), 'accounts', '', ALL_TIME) + stat(num(d.activeProfiles.day), 'active today', '', LAST_DAY) + stat(num(d.activeProfiles.week), 'active this week', '', LAST_WEEK) +
+      stat(num(d.orgs.total), 'organizations', '', ALL_TIME) + stat(num(d.languages.total), 'languages', '', ALL_TIME) +
+      stat(num(d.joining.pendingRequests), 'join requests waiting', d.joining.pendingRequests ? 'warn' : '', oldest(d.joining.oldestRequestAt)) +
+      stat(num(d.accounts.suspended), 'suspended', '', NOW) + stat(num(d.accounts.managed), 'looked after', '', NOW) + '</div>';
     h += '<h3>Most recently active organizations</h3>' + table([
       { h: 'Organization', v: (o) => orgLink(o.orgId, o.name) }, { h: 'Members', n: true, v: (o) => num(o.members) }, { h: 'Languages', n: true, v: (o) => num(o.languages) },
       { h: 'Events', n: true, v: (o) => num(o.events) }, { h: 'Requests', n: true, v: (o) => num(o.pendingRequests) }, { h: 'Last projected', v: (o) => when(o.lastProjectedAt) }
@@ -199,9 +223,11 @@ Object.assign(RENDER, {
     return h;
   },
   support(d) {
-    return '<div class="stats">' + stat(num(d.reports.open), 'open reports', d.reports.open ? 'warn' : '') + stat(ageOf(d.reports.oldestAt), 'oldest report') +
-      stat(num(d.reports.staffOnly), 'only staff can act on', d.reports.staffOnly ? 'warn' : '') + stat(num(d.reports.resolvedWeek), 'resolved this week') +
-      stat(num(d.suspended.total), 'suspended') + stat(d.feedbackOpen === null ? '–' : num(d.feedbackOpen), 'feedback not done') + '</div>' +
+    const fb = d.feedbackOpen;
+    return '<div class="stats">' + stat(num(d.reports.open), 'open reports', d.reports.open ? 'warn' : '', oldest(d.reports.oldestAt, 'none open')) +
+      stat(num(d.reports.staffOnly), 'only staff can act on', d.reports.staffOnly ? 'warn' : '', NOW) + stat(num(d.reports.resolvedWeek), 'resolved this week', '', LAST_WEEK) +
+      stat(num(d.suspended.total), 'suspended', '', NOW) +
+      stat(fb ? num(fb.open) : '–', 'feedback not done', '', fb ? oldest(fb.oldestAt, 'none open') : 'could not read') + '</div>' +
       '<p class="muted">Act on reports with npm run moderation -- --hosted (decision 48).</p>' +
       '<h3>Accounts deleted, by week</h3>' + table([{ h: 'Week of', v: (w) => esc(w.week) }, { h: 'Deleted', n: true, v: (w) => num(w.n) }], d.deletions.slice().reverse()) +
       '<h3>Done from this page</h3>' + table([{ h: 'When', v: (a) => when(a.at) }, { h: 'Who', v: (a) => short(a.profileId) }, { h: 'What', v: (a) => esc(a.action) + ' <code>' + esc(String(a.target).slice(0, 12)) + '</code>' },
@@ -209,7 +235,7 @@ Object.assign(RENDER, {
   },
   security(d) {
     const g = d.globalViewers || {}, l = d.limits;
-    return '<div class="stats">' + stat(num(g.active || 0), 'Global Viewers') + stat(num(g.signedInAal2 || 0), 'signed in with a code') + stat(num(g.revoked || 0), 'revoked') + '</div>' +
+    return '<div class="stats">' + stat(num(g.active || 0), 'Global Viewers', '', NOW) + stat(num(g.signedInAal2 || 0), 'signed in with a code', '', 'last 12 h') + stat(num(g.revoked || 0), 'revoked', '', ALL_TIME) + '</div>' +
       '<h3>Limits hit</h3>' + table([{ h: 'Limit', v: (x) => esc(x[0]) }, { h: 'Count', n: true, v: (x) => num(x[1]) }], [
         ['Device-code refusals, 24 h', l.deviceRefused], ['Review-link refusals, 24 h', l.linksRefused], ['Failed v2 sign-ins, 24 h', l.v2SignInFailures24h], ['Installs at the diagnostics cap today', l.installsAtDiagCap]
       ]);
@@ -224,13 +250,15 @@ Object.assign(RENDER, {
   },
   capacity(d) {
     const u = d.usage;
-    let h = '<div class="stats">' + stat(d.now ? bytes(d.now.dbBytes) : '–', 'database of ' + bytes(d.limitBytes), d.now && d.now.dbBytes >= d.limitBytes * 0.9 ? 'warn' : '') +
-      stat(d.dbGrowthPerDay === null ? '–' : bytes(d.dbGrowthPerDay * 7), 'database growth a week') +
+    // Growth is over the nightly sizes the fold canary kept (60 days at most) and R2's last 8 daily counts; it needs a week of them.
+    const firstSize = (d.history || [])[0];
+    let h = '<div class="stats">' + stat(d.now ? bytes(d.now.dbBytes) : '–', 'database of ' + bytes(d.limitBytes), d.now && d.now.dbBytes >= d.limitBytes * 0.9 ? 'warn' : '', NOW) +
+      stat(d.dbGrowthPerDay === null ? '–' : bytes(d.dbGrowthPerDay * 7), 'database growth a week', '', d.dbGrowthPerDay === null ? 'needs a week of nightly sizes' : since(firstSize && firstSize.at)) +
       stat(d.weeksLeft === null ? '–' : Math.round(d.weeksLeft), 'weeks left at that rate', d.weeksLeft !== null && d.weeksLeft < 12 ? 'warn' : '') +
-      (d.now ? stat(bytes(d.now.eventsBytes), 'event log (' + num(d.now.eventsRows) + ' rows)') : '') +
-      (d.r2 ? stat(bytes(d.r2.bytes), 'R2') + stat(d.r2.growthPerDay === null ? '–' : bytes(d.r2.growthPerDay * 7), 'R2 growth a week') : '') + '</div>';
+      (d.now ? stat(bytes(d.now.eventsBytes), 'event log (' + num(d.now.eventsRows) + ' rows)', '', NOW) : '') +
+      (d.r2 ? stat(bytes(d.r2.bytes), 'R2', '', 'latest daily count') + stat(d.r2.growthPerDay === null ? '–' : bytes(d.r2.growthPerDay * 7), 'R2 growth a week', '', LAST_WEEK) : '') + '</div>';
     if (u) {
-      h += u.error ? '<p class="bad">' + esc(u.error) + '</p>' : '<h3>Cloudflare this month, against the plan</h3>' + table([{ h: 'What', v: (x) => esc(x[0]) }, { h: 'Used', n: true, v: (x) => num(x[1]) }, { h: 'Included', n: true, v: (x) => num(x[2]) }, { h: 'Share', n: true, v: (x) => '<span class="' + (x[1] > x[2] ? 'warn' : '') + '">' + share(x[1], x[2]) + '</span>' },
+      h += u.error ? '<p class="bad">' + esc(u.error) + '</p>' : '<h3>Cloudflare this month, against the plan</h3>' + (u.since ? '<p class="muted">Counted ' + esc(since(u.since)) + ', the start of the billing month (UTC).</p>' : '') + table([{ h: 'What', v: (x) => esc(x[0]) }, { h: 'Used', n: true, v: (x) => num(x[1]) }, { h: 'Included', n: true, v: (x) => num(x[2]) }, { h: 'Share', n: true, v: (x) => '<span class="' + (x[1] > x[2] ? 'warn' : '') + '">' + share(x[1], x[2]) + '</span>' },
         { h: 'Extra cost', n: true, v: (x) => x[3] === undefined || x[1] <= x[2] ? '–' : '$' + (Math.max(0, x[1] - x[2]) * x[3]).toFixed(2) }], [
         ['Workers requests', u.workersRequests, u.allowance.workersRequests, u.price && u.price.workersRequests], ['Durable Object requests', u.doRequests, u.allowance.doRequests, u.price && u.price.doRequests],
         ['R2 class A operations', u.r2ClassA, u.allowance.r2ClassA, u.price && u.price.r2ClassA], ['R2 class B operations', u.r2ClassB, u.allowance.r2ClassB, u.price && u.price.r2ClassB]
@@ -269,7 +297,7 @@ function installView(result) {
   const failedSyncs = rows.filter((x) => x.kind === 'sync' && x.t && x.t.outcome === 'error').length;
   const bad = (x) => x.kind === 'error' || (x.t && (x.t.outcome === 'error' || x.t.fatal === 'yes'));
   return '<p class="muted">' + esc([c.os, c.osVersion, c.model, c.appVersion && 'app ' + c.appVersion, c.channel, c.runtimeVersion && 'runtime ' + c.runtimeVersion].filter(Boolean).join(' · ')) + '</p>' +
-    '<div class="stats">' + stat(num(rows.length), 'records, last 3 days') + stat(num(errors), 'errors', errors ? 'bad' : '') + stat(num(failedSyncs), 'syncs that failed', failedSyncs ? 'warn' : '') +
+    '<div class="stats">' + stat(num(rows.length), 'records, last 3 days') + stat(num(errors), 'errors', errors ? 'bad' : '', 'last 3 days') + stat(num(failedSyncs), 'syncs that failed', failedSyncs ? 'warn' : '', 'last 3 days') +
     stat(rows[0] ? ago(rows[0].at) : '–', 'last heard from') + '</div>' +
     '<h3>Last 3 days, newest first</h3>' + table([
       { h: 'When', v: (x) => '<span class="nowrap">' + esc(new Date(x.at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })) + '</span>' },
@@ -317,7 +345,7 @@ async function openOrg(id, push) {
     if (s.state !== 'ok') h += '<p class="' + (s.state === 'error' ? 'bad' : 'muted') + '">' + esc(s.error || s.setup) + '</p>';
     else {
       const o = s.data;
-      h += '<div class="stats">' + stat(num(o.pendingRequests), 'join requests waiting') + stat(num(o.openReports), 'open reports', o.openReports ? 'warn' : '') + stat(num(o.syncErrors.length), 'installs with sync errors') + '</div>' +
+      h += '<div class="stats">' + stat(num(o.pendingRequests), 'join requests waiting', '', NOW) + stat(num(o.openReports), 'open reports', o.openReports ? 'warn' : '', NOW) + stat(num(o.syncErrors.length), 'installs with sync errors', '', LAST_WEEK) + '</div>' +
         '<h3>Members by role</h3>' + table([{ h: 'Role', v: (m) => esc(m.role) }, { h: 'Members', n: true, v: (m) => num(m.n) }], o.membersByRole) +
         '<h3>Languages</h3>' + table([{ h: 'Language', v: (l) => esc(l.name || l.languageId) }, { h: 'Events', n: true, v: (l) => num(l.events) }, { h: 'Projected', n: true, v: (l) => num(l.projectedSeq) + ' · ' + when(l.projectedAt) }, { h: 'Snapshot', n: true, v: (l) => num(l.snapshotSeq) + ' · ' + when(l.snapshotAt) }], o.languages) +
         '<h3>Installs whose syncs failed this week</h3>' + table([{ h: 'Install', v: (i) => installLink(i.install) }, { h: 'Failures', n: true, v: (i) => num(i.n) }, { h: 'Last', v: (i) => '<code>' + esc(i.lastCode) + '</code> ' + when(i.lastAt) }], o.syncErrors) +

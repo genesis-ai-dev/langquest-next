@@ -7648,7 +7648,10 @@
     "hereLabel": "Vendo agora",
     "otherLabel": "Abrir outra organização",
     "readOnly": "Você está vendo como Observador global: nada aqui pode ser alterado.",
-    "linkHelp": "Onde você está vendo, o que pode fazer lá e todas as outras organizações."
+    "linkHelp": "Onde você está vendo, o que pode fazer lá e todas as outras organizações.",
+    "dashboard": "Painel de operações",
+    "dashboardBody": "Serviços do LangQuest, tarefas do servidor e diagnósticos de campo. Abre em uma nova aba.",
+    "dashboardHelp": "Abre o painel de operações do LangQuest em uma nova aba, com a sua sessão."
   },
   "uploads": {
     "barRecordings_one": "{{count, number}} gravação esperando envio",

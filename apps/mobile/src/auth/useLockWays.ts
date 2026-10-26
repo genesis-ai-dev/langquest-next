@@ -5,7 +5,7 @@ import { LOCKS_ON_SIGN_OUT, lockPictures, lockWays, onLocksChanged } from '../se
 
 /**
  * What this person could sign back in with on this phone after signing out
- * (decisions.md 167), and the picture they chose: null while it is read,
+ * (decisions.md 168), and the picture they chose: null while it is read,
  * and never anything on the web, which forgets everything instead.
  */
 export function useLockWays(actorId: string): { ways: Wrap['kind'][] | null; picture: number | null; taken: number[] } {

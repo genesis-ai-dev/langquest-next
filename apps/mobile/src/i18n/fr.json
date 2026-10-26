@@ -7648,7 +7648,10 @@
     "hereLabel": "En cours de consultation",
     "otherLabel": "Ouvrir une autre organisation",
     "readOnly": "Vous consultez en tant qu’Observateur global : rien ici ne peut être modifié.",
-    "linkHelp": "Où vous consultez, ce que vous pouvez y faire, et toutes les autres organisations."
+    "linkHelp": "Où vous consultez, ce que vous pouvez y faire, et toutes les autres organisations.",
+    "dashboard": "Tableau de bord des opérations",
+    "dashboardBody": "Services de LangQuest, tâches du serveur et diagnostics de terrain. S’ouvre dans un nouvel onglet.",
+    "dashboardHelp": "Ouvre le tableau de bord des opérations de LangQuest dans un nouvel onglet, avec votre session."
   },
   "uploads": {
     "barRecordings_one": "{{count, number}} enregistrement en attente d’envoi",

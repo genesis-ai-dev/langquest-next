@@ -1,7 +1,7 @@
 // i18n-ignore-file: pattern geometry, pictures and storage records; no words shown to people.
 /**
  * Signing out of a phone locks the person's sign-in on it (decisions.md
- * 167), so they can sign back in with no connection, and nobody else can:
+ * 168), so they can sign back in with no connection, and nobody else can:
  * what a lock holds, the pattern drawn on nine dots, the picture a person
  * finds themselves by on Sign In, and how wrong guesses are counted. The
  * cryptography is sealModel.ts. Pure, so the tests run it as the phone does.
@@ -31,7 +31,7 @@ export interface Lock {
 /** A session sealed with the person's data key. */
 export interface Sealed { nonce: string; sealed: string }
 
-// ---- pictures (decisions.md 167) ----
+// ---- pictures (decisions.md 168) ----
 
 /**
  * What a person taps on Sign In to find themselves on a shared phone before

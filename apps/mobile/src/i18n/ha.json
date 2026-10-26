@@ -7347,7 +7347,10 @@
     "hereLabel": "Ana kallo yanzu",
     "otherLabel": "Buɗe wata ƙungiya",
     "readOnly": "Kuna kallo a matsayin Mai Kallo na Duniya: ba za a iya canza komai a nan ba.",
-    "linkHelp": "Inda kuke kallo, abin da za ku iya yi a can, da dukan sauran ƙungiyoyi."
+    "linkHelp": "Inda kuke kallo, abin da za ku iya yi a can, da dukan sauran ƙungiyoyi.",
+    "dashboard": "Allon ayyuka",
+    "dashboardBody": "Ayyukan LangQuest, aikin sabar da binciken filin aiki. Yana buɗewa a sabon shafi.",
+    "dashboardHelp": "Yana buɗe allon ayyukan LangQuest a sabon shafi, da asusunka."
   },
   "uploads": {
     "barRecordings_one": "Naɗi {{count, number}} yana jiran ɗorawa",

@@ -10,7 +10,7 @@ const fake = vi.hoisted(() => ({
   storage: new Map<string, string>(),
   session: new Map<string, 'ok' | 'unreachable' | 'gone'>(),
   forgotten: [] as { actorId: string; endSession: boolean }[],
-  /** People with a lock here (decisions.md 167), and what the courier did to it. */
+  /** People with a lock here (decisions.md 168), and what the courier did to it. */
   locked: new Set<string>(),
   lockCalls: [] as string[],
   kept: new Map<string, string>(),
@@ -171,7 +171,7 @@ describe('sendAll', () => {
   });
 });
 
-describe('takeBackHandOver (decisions.md 167)', () => {
+describe('takeBackHandOver (decisions.md 168)', () => {
   it('gives back the kept session and the notifications still to disconnect, forgetting the hand-over without ending the session', async () => {
     const { takeBackHandOver } = await load({ ...akol, pushToken: 'push-1' }, mary);
     fake.kept.set('akol', 'kept-session');

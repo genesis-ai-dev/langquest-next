@@ -39,7 +39,7 @@ export async function handOverPushToken(): Promise<string | undefined> {
 }
 /**
  * Back in from the lock before the courier disconnected this phone's
- * notifications (decisions.md 167): they still come here, so the phone
+ * notifications (decisions.md 168): they still come here, so the phone
  * holds the token again for the next sign-out.
  */
 export async function keepPushToken(token: string): Promise<void> {

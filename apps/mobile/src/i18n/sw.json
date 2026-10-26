@@ -7347,7 +7347,10 @@
     "hereLabel": "Unatazama sasa",
     "otherLabel": "Fungua shirika lingine",
     "readOnly": "Unatazama kama Mtazamaji wa Kimataifa: hakuna kinachoweza kubadilishwa hapa.",
-    "linkHelp": "Unapotazama, unachoweza kufanya huko, na mashirika mengine yote."
+    "linkHelp": "Unapotazama, unachoweza kufanya huko, na mashirika mengine yote.",
+    "dashboard": "Dashibodi ya uendeshaji",
+    "dashboardBody": "Huduma za LangQuest, kazi za seva na uchunguzi wa uwandani. Hufunguka kwenye kichupo kipya.",
+    "dashboardHelp": "Hufungua dashibodi ya uendeshaji ya LangQuest kwenye kichupo kipya, ukiwa umeingia kwa akaunti yako."
   },
   "uploads": {
     "barRecordings_one": "Rekodi {{count, number}} inasubiri kupakiwa",

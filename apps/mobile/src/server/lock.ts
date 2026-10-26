@@ -12,7 +12,7 @@ import { SESSION_KEY, supabase } from './supabase';
 
 /**
  * Signing out of a phone locks the person's sign-in on it, so they sign back
- * in with their password or a pattern, with no connection (decisions.md 167;
+ * in with their password or a pattern, with no connection (decisions.md 168;
  * sealModel.ts has the cryptography and what it guards against). Sign In
  * names nobody: each person with a pattern is a picture they chose, so a
  * phone that is taken shows how many signed out here, never who. A browser

@@ -661,24 +661,55 @@ jobs:
           DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
         run: node scripts/nightly-report.mjs job --name nightly-fleet --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY
 
-  nightly-mutation:
+  nightly-mutation-shard:
     # Stryker over packages/core (docs/testing.md): a test would notice a
-    # line changing, not just that it ran. The score is in the report.
+    # line changing, not just that it ran. One run over all of core takes
+    # hours on a runner, so it goes in four shards of core's files, each
+    # with its own incremental file (scripts/mutation-shards.mjs,
+    # decisions.md 167); nightly-mutation puts their reports together.
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
-      # Stryker's incremental file, so a night only re-tests what changed (about 7 min from cold on 7 workers).
+      # The shard's incremental file, so a night only re-tests what changed in its files.
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: .stryker-tmp/incremental.json
-          key: stryker-core-${{ github.sha }}
-          restore-keys: stryker-core-
-      - run: npm run test:mutation
+          path: .stryker-tmp/incremental-${{ matrix.shard }}.json
+          key: stryker-core-${{ matrix.shard }}-of-4-${{ github.sha }}
+          restore-keys: stryker-core-${{ matrix.shard }}-of-4-
+      - run: node scripts/mutation-shards.mjs run ${{ matrix.shard }} 4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: mutation-core-${{ matrix.shard }}
+          path: reports/mutation
+          if-no-files-found: ignore
+
+  nightly-mutation:
+    # The shards' reports as one, with the score over all of core; the one
+    # Linear hears about.
+    needs: nightly-mutation-shard
+    if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24 }
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: mutation-core-*
+          path: reports/shards
+      - name: Merge the shards' reports
+        run: node scripts/mutation-shards.mjs merge reports/shards reports/mutation/mutation.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
@@ -689,6 +720,7 @@ jobs:
         if: always()
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-          JOB_STATUS: ${{ job.status }}
+          # Failed when a shard failed or was cancelled, or the merge did.
+          JOB_STATUS: ${{ needs.nightly-mutation-shard.result != 'success' && needs.nightly-mutation-shard.result || job.status }}
           DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
         run: node scripts/nightly-report.mjs job --name nightly-mutation --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY

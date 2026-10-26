@@ -47,7 +47,7 @@ export function keepSessionAndSignOut(actorId: string, keep: () => Promise<void>
       const session = await secureStorage.getItem(SESSION_KEY);
       if (session) {
         await secureStorage.setItem(sessionKeyFor(actorId), session);
-        // Locked too, so they can come back to it offline (decisions.md 167).
+        // Locked too, so they can come back to it offline (decisions.md 168).
         await sealHandedOver(actorId, session);
         await keep();
         await secureStorage.removeItem(SESSION_KEY);

@@ -150,7 +150,7 @@ no Android permission and no biometrics (`faceIDPermission` is off), so no
 Play Console answer changes. "Encrypted in transit" and the data types are
 unchanged.
 
-Signing out of a phone locks the person's sign-in on it (decisions.md 167) so
+Signing out of a phone locks the person's sign-in on it (decisions.md 168) so
 they can sign back in with no connection: their session is encrypted on the
 phone under their password or a pattern they draw, using `@noble/hashes` and
 `@noble/ciphers` (code inside the app, no network), and kept in the Keychain

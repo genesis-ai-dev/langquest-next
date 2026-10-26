@@ -8,7 +8,7 @@ export type SignBackIn = { kind: 'ok' } | { kind: 'none' } | { kind: 'wrong' } |
 
 /**
  * Sign back in from the lock on this phone, with no connection
- * (decisions.md 167): with a password and the email or sign-in name typed
+ * (decisions.md 168): with a password and the email or sign-in name typed
  * with it, or with the pattern of the person whose picture was tapped.
  * Their session comes back as it was, from the courier when it still held
  * their unsent work (decisions.md 60), so that work now goes as them from

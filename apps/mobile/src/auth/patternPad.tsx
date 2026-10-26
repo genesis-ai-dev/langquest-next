@@ -12,7 +12,7 @@ import { addDot, dotAt, MIN_DOTS, PICTURES } from './lockModel';
 
 /**
  * Nine dots to draw a pattern on, as on the Android lock screen (decisions.md
- * 167): no reading, no numbers, the same in every language. Dragging through
+ * 168): no reading, no numbers, the same in every language. Dragging through
  * the dots and lifting the finger finishes it. Tapping the dots one at a time
  * works too, then Done finishes it; that is also how a screen reader enters
  * one. `resetKey` clears it when it changes. In help mode a tap explains it.

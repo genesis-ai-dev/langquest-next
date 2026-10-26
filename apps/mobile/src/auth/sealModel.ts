@@ -7,7 +7,7 @@ import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
 import type { Lock, Sealed, Wrap } from './lockModel';
 
 /**
- * The cryptography of the lock on a phone (decisions.md 167). While someone
+ * The cryptography of the lock on a phone (decisions.md 168). While someone
  * is signed in, the phone keeps a random data key for them. On sign-out
  * their session is sealed with that key (AES-256-GCM) and the key is kept
  * only wrapped: once under their password (when they signed in with one)

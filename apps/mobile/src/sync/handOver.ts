@@ -115,7 +115,7 @@ async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: 
     await noteSession(h, store, 'gone');
     courierNotes.forget(h.actorId);
     await forget(h.actorId, false);
-    // No lock can bring an ended session back (decisions.md 167).
+    // No lock can bring an ended session back (decisions.md 168).
     await dropLockedSession(h.actorId);
     return false;
   }
@@ -138,7 +138,7 @@ async function sendFor(h: HandOver, store: EventStore, deviceId: string, blobs: 
   }
   if (next.kind === 'done') {
     courierNotes.forget(h.actorId);
-    // Locked here, the session stays for its owner to come back to offline; otherwise it ends (decisions.md 167).
+    // Locked here, the session stays for its owner to come back to offline; otherwise it ends (decisions.md 168).
     const locked = await keepLockedAfterHandOver(h.actorId, await keptSessionRaw(h.actorId));
     await forget(h.actorId, !locked);
   } else if (next.kind === 'drop') {
@@ -179,7 +179,7 @@ export async function sendAll(signedInAs: string | null): Promise<{ offline: boo
 }
 
 /**
- * Back from the lock (decisions.md 167): their own session takes over from
+ * Back from the lock (decisions.md 168): their own session takes over from
  * the courier, as after any sign-in here (60), but is not ended, since it
  * is the same session. A delivery under way stops before its next
  * recording and is waited for, so the two never renew the session at once.

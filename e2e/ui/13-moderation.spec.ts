@@ -689,6 +689,9 @@ test('MOD-020 A moderator acts on a content report', async ({ page, browser }) =
   await expect(page.getByRole('button', { name: /^A note was reported/ })).toHaveCount(0);
   // The removal is on this device when the toast shows: COORD can only be told once it has gone up.
   await expectSyncIdle(page);
+  // A fresh device starts from the server's snapshot, which holds the note; only a snapshot written after the
+  // removal leaves it out (syncClient.ts, redactedInsideCheckpoint), and the projection pass writes it.
+  await projectionPass();
   // COORD no longer sees either report; the note is gone after a sync.
   const coord = await quietDevice(browser, w, 'COORD');
   // A fresh device draws before its language has all come down: wait for the removal to arrive with it.

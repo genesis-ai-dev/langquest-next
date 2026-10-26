@@ -41,7 +41,7 @@ import { personLook } from '../ui/people';
 import { noteExpected, failureMessage } from '../diagnostics/report';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
-import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../web/forgetBrowser';
+import { FORGETS_ON_SIGN_OUT, signOutAndForget } from '../web/forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../sync/handOver';
 import { isPattern, MIN_DOTS, PICTURES } from '../auth/lockModel';
 import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
@@ -588,7 +588,7 @@ export function ProfileEdit(ctx: Ctx) {
           setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
           return;
         }
-        // The new password also signs them back in here offline (decisions.md 167).
+        // The new password also signs them back in here offline (decisions.md 168).
         if (ctx.session.email) await rememberPassword(ctx.session.actorId, ctx.session.email, password);
         recheck();
       }
@@ -687,7 +687,7 @@ export function OrgSwitcher(ctx: Ctx) {
  * membership. An account change the server already turned down (shown in
  * the Inbox) cannot be delivered either, so it does not hold sign-out.
  *
- * A phone locks the sign-in as it signs out (decisions.md 167), so its owner
+ * A phone locks the sign-in as it signs out (decisions.md 168), so its owner
  * comes back with their password or a pattern, online or not. Someone with
  * neither here first chooses a picture and draws a pattern twice.
  */
@@ -728,10 +728,9 @@ export function SignOutConfirm(ctx: Ctx) {
     } else {
       await unregisterNotifications();
     }
-    // A phone keeps the session, locked, for your return (decision 167); this device only either way (decision 87).
+    // A phone keeps the session, locked, for your return (decision 168); this device only either way (decision 87).
     if (LOCKS_ON_SIGN_OUT) { await lockAndSignOut(ctx.session.actorId); return; }
-    await signOutHere();
-    await forgetThisBrowser();
+    await signOutAndForget(signOutHere);
   }
   async function signOut() {
     if (needsPattern) { choose(); return; }

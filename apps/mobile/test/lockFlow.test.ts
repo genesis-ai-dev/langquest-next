@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { patternSecret } from '../src/auth/lockModel';
 
 /**
- * Signing out of a phone and back in with no connection (decisions.md 167):
+ * Signing out of a phone and back in with no connection (decisions.md 168):
  * src/server/lock.ts and src/auth/signBackIn.ts against a phone-like store,
  * with supabase-js, the courier and diagnostics faked. The cryptography is
  * lockModel.test.ts; the courier's side is handOverSend.test.ts.

@@ -13,7 +13,8 @@ export interface AppStore {
   testflightCrashes: { week: number; recent: { device: string | null; os: string | null; at: string }[] } | null;
   versions: { version: string; platform: string | null; state: string; at: string | null }[];
   builds: { version: string | null; build: string | null; state: string; uploadedAt: string | null; expired: boolean }[];
-  reviews: { lowWeek: number; average: number | null; recent: { stars: number; title: string | null; text: string; territory: string | null; at: string }[] } | null;
+  /** `count` and `since`: how many reviews the average is over, and the oldest one's date. */
+  reviews: { lowWeek: number; average: number | null; count?: number; since?: string | null; recent: { stars: number; title: string | null; text: string; territory: string | null; at: string }[] } | null;
   notes: string[];
 }
 
@@ -87,6 +88,8 @@ export function storeReviewsFrom(list: Resource<ReviewAttrs>[], now = Date.now()
   return {
     lowWeek: items.filter((r) => r.stars <= 2 && now - Date.parse(r.at) < 7 * 86_400_000).length,
     average: items.length ? items.reduce((a, r) => a + r.stars, 0) / items.length : null,
+    count: items.length,
+    since: items.at(-1)?.at ?? null,
     recent: items.slice(0, 5)
   };
 }

@@ -1166,6 +1166,8 @@ Steps:
 2. Search for ORG by its name and tap it, then tap the eye in the header.
 
 Expected:
+- Step 1: on the web, "Operations dashboard" is above the search, and
+  opens /ops-dashboard in a new tab. A phone does not show it.
 - Step 2: ORG opens on the overview. The tabs are Map, Manage and Me (no
   Work, no Inbox), and every header has an eye ("Global Viewer" beside it
   on a wide window). A passage, such as P-NEW, offers no Edit or Record.

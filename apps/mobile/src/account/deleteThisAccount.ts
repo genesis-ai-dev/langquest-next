@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { deleteAccount } from './accountDeletion';
 import { recordAuth, recordAuthFailure, since } from '../auth/authDiag';
-import { forgetThisBrowser } from '../web/forgetBrowser';
+import { signOutAndForget } from '../web/forgetBrowser';
 import { deleteMyAccount } from '../server/account';
 import { signOutLocally } from '../server/auth';
 import { forgetKeptSession } from '../server/handOver';
@@ -17,8 +17,7 @@ export async function deleteThisAccount(actorId: string): Promise<void> {
       signOutHere: async () => {
         await forgetKeptSession(actorId, false).catch(() => {});
         await forgetLock(actorId).catch(() => {});
-        await signOutLocally();
-        await forgetThisBrowser();
+        await signOutAndForget(signOutLocally);
       }
     });
   } catch (e) {

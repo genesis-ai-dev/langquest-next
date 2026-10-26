@@ -45,6 +45,7 @@ import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { PRIVACY_URL } from '../auth/legal';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
+import { forgettingThisBrowser } from '../web/forgetBrowser';
 import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
 import { recordAuth, recordAuthFailure, since } from '../auth/authDiag';
 import { inviteOutcome } from '../auth/authOutcome';
@@ -85,7 +86,7 @@ export function SignIn(ctx: Ctx) {
     setError('');
     const started = Date.now();
     try {
-      // Signed out of this phone before: the password opens the lock, with no connection (decisions.md 167).
+      // Signed out of this phone before: the password opens the lock, with no connection (decisions.md 168).
       const local = await signBackIn('password', password, { address: signInAddress(email) });
       if (local.kind === 'ok') return;
       if (local.kind === 'wait') { setError(t('entry.lock.wait')); return; }
@@ -129,6 +130,8 @@ export function SignIn(ctx: Ctx) {
   const ready = signInReady(email, password);
   const joining = ctx.invite.held?.claim.kind === 'next-account';
   const patternPeople = usePatternPeople();
+  // Signing out of a browser: the page reloads once the browser has forgotten everything, so a Sign In now would be emptied.
+  if (forgettingThisBrowser()) return <Screen><EmptyState icon="lock" title={t('account.signOut.signingOut')} /></Screen>;
   return (
     <Screen header={<HelpTop />} bodyStyle={styles.signInBody}>
       <LanguageChip />
@@ -171,7 +174,7 @@ export function SignIn(ctx: Ctx) {
 
 /**
  * Someone who signed out of this phone taps their picture, draws their
- * pattern and is back in, with no connection (decisions.md 167). Nobody is
+ * pattern and is back in, with no connection (decisions.md 168). Nobody is
  * named: a phone that is taken shows how many signed out here, never who.
  */
 function PatternSignIn(props: { people: { actorId: string; picture: number }[] }) {

@@ -1709,7 +1709,7 @@ every request, so values are kept in memory once read; an entry the Keystore
 can no longer read counts as signed out. Test
 `apps/mobile/test/secureStorage.test.ts`.
 
-Amended (2026-10-26, Caleb Koster): with a lock on the phone (167), the
+Amended (2026-10-26, Caleb Koster): with a lock on the phone (168), the
 session a hand-over keeps is sealed for its owner too. When the courier has
 sent everything it no longer ends that session: it seals the newest copy and
 drops the key, so the person can still come back to this phone offline.
@@ -3344,7 +3344,7 @@ its last connection showed Sign In. It now reads it where supabase-js keeps
 it (`savedSignIn`, test `apps/mobile/test/savedSignIn.test.ts`). On a phone,
 signing out no longer ends the session on the server and the sign-out screen
 no longer says signing back in needs a connection: the session is locked on
-the phone instead (167). A browser keeps both as before.
+the phone instead (168). A browser keeps both as before.
 
 ## 88. A language's server snapshot is written after 200 new events or an hour, and the one before stays for 24 hours
 
@@ -7436,6 +7436,13 @@ server and 60 in the page, so a database that does not answer shows an
 error instead of Loading. Locally the binding's `localConnectionString`
 is the local database, so the page uses the same path everywhere.
 
+Amended (2026-10-26, Carl Sauder): the web app's Global Viewer screen links
+to the page ("Operations dashboard", above the organization search), opening
+it in a new tab on the same host, where it reads the web app's verified
+session. Carl asked for it (2026-10-26) now that the page is in place; the
+staff who may open it are the Global Viewers. Phones do not show the link, since their browser would not share the app's
+session.
+
 ## 161. The ops dashboard counts what the server already sees, adds four counts of its own, and reads job state through one read-only entrypoint
 
 Date: 2026-10-22 · By: Carl Sauder · Status: accepted
@@ -7755,7 +7762,36 @@ partners and users real trouble. So:
 - **Sent means sent.** Offline, asking someone, a review and a published
   version say who gets it when the device is connected.
 
-## 167. Signing out of a phone locks the sign-in on it, and a picture and pattern, or the password, opens it again offline
+## 167. The nightly mutation run is four shards of core's files, dealt by what each costs, and one merged score
+
+Date: 2026-10-26 · By: Carl Sauder · Status: accepted
+
+Reason: Stryker over all of `packages/core` never finished at night (LAN-97).
+Core grew from about 10,700 mutants (2026-10-14, 7 minutes on a laptop) to
+20,158, and the job ran 7 workers on a 4-core runner, so its own timeouts
+killed mutants: on 2026-10-23 it had tested 12% when the job's 40 minutes
+ran out, and since the incremental file is written only at the end, no
+night ever started further on. Carl chose (2026-10-26) to shard it.
+- **Dealt by cost.** `scripts/mutation-shards.mjs` deals core's files to
+  four shards, the slowest first, each to the lightest shard so far. A
+  file's cost is its mutants times the tests each one runs, measured once
+  and listed in `SLOW_SECONDS` (as `scripts/unit-shards.ts` does for the
+  unit suite); neither lines nor bytes stood for it (`catalogData.ts` is
+  139 kB of static data that Stryker leaves alone).
+- **Four, not eight.** A file cannot be split, and `passage.ts` and
+  `validate.ts` each take about ten minutes alone on a laptop, so no shard
+  ends sooner than they do: eight shards would end no earlier than four,
+  on twice the runners. The rest of core fits in the other two.
+- **Each shard** runs four workers, has its own incremental file and cache
+  key, and 90 minutes. `nightly-mutation` merges their reports into one
+  `mutation-core` artifact and one score, and is the job Linear hears about.
+- `npm run test:mutation` still runs all of core at once, for a laptop.
+Reverse if: a shard runs out of time (then measure again and split the
+slow file's tests, or give it its own runner), or Stryker learns to keep
+partial results, so one job could carry on from where the last night
+stopped.
+
+## 168. Signing out of a phone locks the sign-in on it, and a picture and pattern, or the password, opens it again offline
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted
 

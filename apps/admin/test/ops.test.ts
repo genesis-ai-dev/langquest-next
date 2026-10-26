@@ -5,7 +5,7 @@ import { handle } from '../src/index';
 import { containerAlerts, containerSection } from '../src/sources/container';
 import { lookup } from '../src/sources/diag';
 import { expiryAlerts, expirySection, keptByHand } from '../src/sources/expiry';
-import { fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, workerAlerts, type Fleet, type Safety } from '../src/sources/ops';
+import { dbDetailAlerts, fleetAlerts, opsSections, routeRows, safetyAlerts, supportAlerts, workerAlerts, type DbDetail, type Fleet, type Safety } from '../src/sources/ops';
 import { isMerge, migrationsBehind, releaseAlerts, type Releases } from '../src/sources/releases';
 import { ALLOWANCE, PRICE_USD, capacityAlerts, extraUsd, growthPerDay, latestBackup, r2ByClass, storageAlerts, type Capacity, type Storage } from '../src/sources/storage';
 
@@ -82,7 +82,7 @@ describe('the app Worker and support', () => {
   });
 
   it('warns before a content report passes the 24 hours the Terms promise', () => {
-    const s = { reports: { open: 1, oldestAt: hoursAgo(21), staffOnly: 0, resolvedWeek: 0 }, suspended: { total: 0, week: 0 }, deletions: [], feedbackOpen: 0 };
+    const s = { reports: { open: 1, oldestAt: hoursAgo(21), staffOnly: 0, resolvedWeek: 0 }, suspended: { total: 0, week: 0 }, deletions: [], feedbackOpen: { open: 0, oldestAt: null } };
     expect(supportAlerts(s, NOW)[0]).toMatchObject({ level: 'problem' });
     expect(supportAlerts({ ...s, reports: { ...s.reports, oldestAt: hoursAgo(2) } }, NOW)).toEqual([]);
     expect(supportAlerts({ ...s, reports: { ...s.reports, oldestAt: hoursAgo(2), staffOnly: 1 } }, NOW)[0]).toMatchObject({ level: 'watch' });
@@ -269,3 +269,23 @@ describe('acting from the page', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('the longest query and oldest transaction', () => {
+  const db = (over: Partial<DbDetail>): DbDetail => ({ bytes: 1, connections: 10, longestQueryS: null, oldestXactS: null, tables: [], indexes: [], ...over });
+
+  it('says whose they are, never what they ran', () => {
+    const alerts = dbDetailAlerts(db({
+      longestQueryS: 540, longestQuery: { seconds: 540, role: 'authenticator', client: 'PostgREST 14.5', kind: 'client backend', waitingOn: 'Lock' },
+      oldestXactS: 4000, oldestXact: { seconds: 4000, role: 'postgres', client: 'psql', kind: 'client backend', state: 'idle in transaction' }
+    }));
+    expect(alerts.map((a) => a.text)).toEqual([
+      'A database transaction by postgres (psql), idle in transaction, has been open for 67 minutes: it holds back vacuum.',
+      'A query by authenticator (PostgREST 14.5) has been running for 9 minutes, blocked by a lock.'
+    ]);
+  });
+
+  it('still reads a database from before the migration, which named no one', () => {
+    expect(dbDetailAlerts(db({ longestQueryS: 600 }))).toEqual([{ level: 'watch', text: 'A query has been running for 10 minutes.' }]);
+  });
+});
+
