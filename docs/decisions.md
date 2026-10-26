@@ -7779,8 +7779,9 @@ needs no reading and no numbers, in any language. Chosen:
   random data key the phone keeps for them while they are signed in, and
   keeps that key only wrapped under their password and, if they drew one, a
   pattern (PBKDF2-SHA256, iterations stored per wrap; `@noble/hashes`,
-  `@noble/ciphers`) (`apps/mobile/src/auth/lockModel.ts`,
-  `apps/mobile/src/server/lock.ts`). The lock, the key and the sealed session
+  `@noble/ciphers`) (`apps/mobile/src/auth/sealModel.ts`,
+  `apps/mobile/src/server/lock.ts`; the web build takes `lock.web.ts`, which
+  does nothing). The lock, the key and the sealed session
   live in the Keychain or Keystore with the session (60, amended
   2026-10-15). It asks the server nothing and no longer ends the session
   there. Neither the password nor the pattern is stored; an email or sign-in

@@ -3,10 +3,8 @@ import type { Session } from '@supabase/supabase-js';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { savedSession } from '../auth/authState';
-import {
-  addressHash, afterMiss, isPicture, lockFor, newDataKey, openWrap, parseLocks, parseMisses, patternSecret, seal, takenPictures, unseal,
-  waitLeft, withWrap, type Lock, type Random, type Wrap
-} from '../auth/lockModel';
+import { afterMiss, isPicture, lockFor, parseLocks, parseMisses, patternSecret, takenPictures, waitLeft, type Lock, type Wrap } from '../auth/lockModel';
+import { addressHash, newDataKey, openWrap, seal, unseal, withWrap, type Random } from '../auth/sealModel';
 import { signingOutByChoice } from '../auth/signOutCause';
 import { noteExpected } from '../diagnostics/report';
 import { secureStorage } from './secureStorage';
@@ -15,10 +13,11 @@ import { SESSION_KEY, supabase } from './supabase';
 /**
  * Signing out of a phone locks the person's sign-in on it, so they sign back
  * in with their password or a pattern, with no connection (decisions.md 167;
- * lockModel.ts has the cryptography and what it guards against). Sign In
+ * sealModel.ts has the cryptography and what it guards against). Sign In
  * names nobody: each person with a pattern is a picture they chose, so a
  * phone that is taken shows how many signed out here, never who. A browser
- * forgets everything on sign-out instead (forgetBrowser.ts).
+ * forgets everything on sign-out instead (forgetBrowser.ts), so the web
+ * build takes lock.web.ts.
  *
  * The locks, each person's data key and their sealed session live in the
  * Keychain or Keystore with the session itself (secureStorage.ts); only the
