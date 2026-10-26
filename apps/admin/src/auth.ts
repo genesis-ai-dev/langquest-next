@@ -22,6 +22,21 @@ const STATE_MS = 30_000;
 const MAX_CACHED = 200;
 const known = new Map<string, { profileId: string; until: number }>();
 const states = new Map<string, { state: ViewerState; until: number }>();
+/**
+ * Questions on their way. A page load makes about fourteen calls at once with one token; they all share the
+ * first call's question, and none of them starts its own before the first one's answer is kept. Dropped when it
+ * settles, so a failure is asked again by the next call.
+ */
+const askingWho = new Map<string, Promise<string | null>>();
+const askingState = new Map<string, Promise<ViewerState>>();
+
+function once<V>(asking: Map<string, Promise<V>>, key: string, ask: () => Promise<V>): Promise<V> {
+  const running = asking.get(key);
+  if (running) return running;
+  const started = ask().finally(() => asking.delete(key));
+  asking.set(key, started);
+  return started;
+}
 
 async function digest(token: string): Promise<string> {
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)));
@@ -39,6 +54,10 @@ export async function profileOf(token: string, supabaseUrl: string, anonKey: str
   const key = await digest(token);
   const hit = known.get(key);
   if (hit && hit.until > now) return hit.profileId;
+  return once(askingWho, key, () => askAuth(key, token, supabaseUrl, anonKey, fetcher, now));
+}
+
+async function askAuth(key: string, token: string, supabaseUrl: string, anonKey: string, fetcher: typeof fetch, now: number): Promise<string | null> {
   const response = await fetcher(`${supabaseUrl.replace(/\/+$/, '')}/auth/v1/user`, {
     headers: { apikey: anonKey, authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(8000)
@@ -57,6 +76,10 @@ export async function viewerState(token: string, supabaseUrl: string, anonKey: s
   const key = await digest(token);
   const hit = states.get(key);
   if (hit && hit.until > now) return hit.state;
+  return once(askingState, key, () => askDatabase(key, token, supabaseUrl, anonKey, fetcher, now));
+}
+
+async function askDatabase(key: string, token: string, supabaseUrl: string, anonKey: string, fetcher: typeof fetch, now: number): Promise<ViewerState> {
   const response = await fetcher(`${supabaseUrl.replace(/\/+$/, '')}/rest/v1/rpc/get_user_state`, {
     method: 'POST',
     headers: { apikey: anonKey, authorization: `Bearer ${token}`, 'content-type': 'application/json' },
@@ -99,4 +122,4 @@ export async function access(
 }
 
 /** For tests. */
-export const forgetSignIns = () => { known.clear(); states.clear(); };
+export const forgetSignIns = () => { known.clear(); states.clear(); askingWho.clear(); askingState.clear(); };

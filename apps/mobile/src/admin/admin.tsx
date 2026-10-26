@@ -5,7 +5,7 @@
 // play button, a lock toggle, and the invite code. Built from kit
 // primitives and theme tokens; every pressable goes through `useHelpSpot`
 // so help mode explains it instead of pressing it.
-import { FileText, Play, Route } from 'lucide-react-native';
+import { FileText, Play, Route } from '../ui/icons';
 import { useContext, useEffect, type ReactNode } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';

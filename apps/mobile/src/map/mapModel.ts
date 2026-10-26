@@ -5,7 +5,7 @@ import {
   type LanguageProgress, type LanguageState, type OrgState, type PassageGlance, type PassageLines, type UnitPlace
 } from '@langquest-next/core';
 import {
-  bookMatches, canonBook, canonBooks, chapterTone, matchesFilter, parseQuery, placeMatches,
+  bookMatches, canonBook, canonBooks, chapterTone, matchesFilter, parseQuery, placeMatchesParsed,
   type CanonBook, type ChapterTone, type MapFilter, type Testament
 } from '../reference/canon';
 import { deriveKinds, stepName } from '../i18n/coreText';
@@ -344,7 +344,7 @@ export function mapSearch(query: string, books: readonly BookSummary[], entries:
   return {
     searching, byChapter,
     bookHits: searching && !byChapter ? books.filter((b) => b.book && bookMatches(b.book, search.book)) : [],
-    passageHits: searching && byChapter ? entries.filter((e) => placeMatches(e.place, query)) : []
+    passageHits: searching && byChapter ? entries.filter((e) => placeMatchesParsed(e.place, search)) : []
   };
 }
 

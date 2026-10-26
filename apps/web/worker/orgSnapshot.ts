@@ -11,8 +11,13 @@ import { supabaseAgentStore, type WebhookRecord } from './agent/store';
 import { COALESCE_MS } from './agent/webhooks';
 import { readPath } from './blobs';
 import { SqlCache, type SqlStore } from './sqlCache';
-import { LanguageRecordsKeeper, objectSqlDriver } from './languageRecords';
+import { LanguageRecordsKeeper, objectSqlDriver, type LanguageRecords } from './languageRecords';
 import { jobRunSink } from '../../../server/jobRuns';
+
+/** A scan compares what it just read: an answer this young is shared. */
+const SCAN_HEADS_MS = 1_000;
+/** An agent read trusts the log's heads this long (a few seconds, as a pull per read was the cost); writes pull anyway. */
+const READ_HEADS_MS = 3_000;
 
 /**
  * One per organization, named by its id, so every request for an
@@ -141,8 +146,9 @@ export class OrgSnapshot extends DurableObject<Env> {
       }, orgId, {
         store: supabaseAgentStore(serviceClient(this.env)),
         orgState: () => folder.orgOnly(true),
-        languageRecords: async (languageId) => (languageInfo(await folder.orgOnly(), languageId) ? this.recordsFor(orgId).records(languageId) : null),
-        heads: () => this.heads(orgId),
+        languageRecords: async (languageId, head) => (languageInfo(await folder.orgOnly(), languageId) ? this.recordsFor(orgId).records(languageId, head) : null),
+        // The scan's organization read has just asked (below); this one shares its answer.
+        heads: () => this.heads(orgId, SCAN_HEADS_MS),
         fetch: (url, init) => fetch(url, init),
         now: Date.now,
         jobRun: (run) => this.ctx.waitUntil(jobRunSink(this.env.SUPABASE_URL, this.env.SUPABASE_SERVICE_ROLE_KEY)(run))
@@ -151,10 +157,38 @@ export class OrgSnapshot extends DurableObject<Env> {
     return this.dispatcher;
   }
 
-  private async heads(orgId: string): Promise<Record<string, number>> {
-    const { data, error } = await serviceClient(this.env).rpc('stream_heads', { p_org_id: orgId });
-    if (error) throw new Error(`stream_heads: ${error.message}`);
-    return Object.fromEntries(((data ?? []) as { stream_id: string; head: number }[]).map((r) => [r.stream_id, Number(r.head)]));
+  private headsMemo: { at: number; settled: boolean; answer: Promise<Record<string, number>> } | null = null;
+
+  /**
+   * Each stream's newest seq. A question already on its way is shared, and an
+   * answer no older than `maxAgeMs` is reused, so one scan asks once (the
+   * organization read and the webhook comparison both need it) and a burst
+   * of agent reads asks once. 0 takes only an answer still on its way.
+   */
+  private heads(orgId: string, maxAgeMs = 0): Promise<Record<string, number>> {
+    const memo = this.headsMemo;
+    if (memo && (!memo.settled || Date.now() - memo.at <= maxAgeMs)) return memo.answer;
+    const answer = (async () => {
+      const { data, error } = await serviceClient(this.env).rpc('stream_heads', { p_org_id: orgId });
+      if (error) throw new Error(`stream_heads: ${error.message}`);
+      return Object.fromEntries(((data ?? []) as { stream_id: string; head: number }[]).map((r) => [r.stream_id, Number(r.head)]));
+    })();
+    const mine = { at: Date.now(), settled: false, answer };
+    this.headsMemo = mine;
+    // A failure is not kept: the next ask goes to the database again.
+    answer.then(() => { mine.settled = true; }, () => { if (this.headsMemo === mine) this.headsMemo = null; });
+    return answer;
+  }
+
+  /**
+   * A language for a read: pulled only when the log has moved past what is
+   * kept, judged by heads at most READ_HEADS_MS old. A write passes `fresh`
+   * and pulls whatever the heads say.
+   */
+  private async readRecords(orgId: string, languageId: string, fresh: boolean): Promise<LanguageRecords> {
+    if (fresh) return this.recordsFor(orgId).records(languageId);
+    const heads = await this.heads(orgId, READ_HEADS_MS).catch(() => null);
+    return this.recordsFor(orgId).records(languageId, heads?.[languageId]);
   }
 
   private origin = '';
@@ -170,7 +204,7 @@ export class OrgSnapshot extends DurableObject<Env> {
           return { url: `${this.origin}${path}`, expiresAt };
         },
         webhooks: this.dispatcherFor(orgId),
-        records: (languageId) => this.recordsFor(orgId).records(languageId)
+        records: (languageId, fresh) => this.readRecords(orgId, languageId, fresh)
       });
     }
     return this.agent;

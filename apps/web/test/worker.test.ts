@@ -590,6 +590,21 @@ describe('the reports API', () => {
     expect(await res.json()).toEqual({ rows: [{ languageId: 'din', name: 'Dinka', progress: summary.progress }], asOf: body.asOf });
   });
 
+  it('writes the rows once, and keeps the validator phones already hold: a digest of the rows alone, or of rows and preparing', async () => {
+    const digest = async (text: string) => `"${[...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))).slice(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('')}"`;
+    const plain = { rows: [{ languageId: 'din', report: { attention: { overdueRequests: 5 } } as never }], asOf: body.asOf };
+    const res = await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => plain }));
+    const sent = await res.json() as { rows: { report: { attention: { overdueRequests: number } } }[]; asOf: string };
+    expect(sent.asOf).toBe(body.asOf);
+    expect(sent.rows[0]!.report.attention.overdueRequests).toBe(0);
+    expect(res.headers.get('etag')).toBe(await digest(JSON.stringify(sent.rows)));
+    const preparing = [{ languageId: 'nus', name: 'Nuer' }];
+    const waiting = await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => ({ ...plain, preparing } as never) }));
+    const again = await waiting.json() as { rows: unknown; preparing: unknown };
+    expect(again.preparing).toEqual(preparing);
+    expect(waiting.headers.get('etag')).toBe(await digest(JSON.stringify({ rows: again.rows, preparing })));
+  });
+
   it('answers an unchanged request with a 304 that still says how fresh it is', async () => {
     const first = await handleApi(get('/api/orgs/o/reports', 'good'), deps());
     const etag = first.headers.get('etag')!;

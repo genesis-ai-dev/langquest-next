@@ -9,6 +9,8 @@ import { barsOfFile } from './barsOfFile';
 const KEY = (hash: string) => `bars:v1:${hash}`;
 const known = new Map<string, number[] | null>();
 const working = new Map<string, Promise<number[] | null>>();
+/** Files are read one at a time: a passage of many takes reads its bars in a line, not all at once. */
+let reading: Promise<unknown> = Promise.resolve();
 const listeners = new Set<(hash: string) => void>();
 
 /** The bars already known for `hash` this run (undefined: not looked up yet; null: none to be had). */
@@ -47,7 +49,9 @@ export function loadBars(hash: string, file: { uri: string; format: 'wav' | 'm4a
     const kept = unpackBars(await AsyncStorage.getItem(KEY(hash)).catch(() => null));
     if (kept) return kept;
     if (!file) return null;
-    const read = await barsOfFile(file.uri, file.format).catch((e: unknown) => { noteExpected('bars: read', e, 'read'); return null; });
+    const turn = reading.then(() => barsOfFile(file.uri, file.format));
+    reading = turn.catch(() => undefined);
+    const read = await turn.catch((e: unknown) => { noteExpected('bars: read', e, 'read'); return null; });
     if (read) void AsyncStorage.setItem(KEY(hash), packBars(read)).catch((e: unknown) => noteExpected('bars: keep', e, 'write'));
     return read;
   })().then((bars) => {

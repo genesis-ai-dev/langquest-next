@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { emptyLanguageState, foldLanguage, HlcClock, type AnyEvent } from '@langquest-next/core';
 import { MemoryStore, SqliteStore, SyncClient } from '@langquest-next/sync';
 import { FakeServer } from '../../../packages/sync/src/testing/fakeServer';
-import { LanguageRecordsKeeper, objectSqlDriver, wholeRecords } from '../worker/languageRecords';
+import { LanguageRecordsKeeper, objectSqlDriver, positionIn, wholeRecords } from '../worker/languageRecords';
 import type { SqlStore } from '../worker/sqlCache';
 import { passageFor, passagesFor, PASSAGES_PAGE_MAX, type Signer } from '../worker/agent/view';
 import { digestOf, digestOfRecords } from '../worker/agent/webhooks';
@@ -111,5 +111,39 @@ describe('a language read as records in the object\'s SQLite (decisions.md 147)'
     const named = await records.files(['1'.repeat(64), 'f'.repeat(64)]);
     expect([...named.named]).toEqual(['1'.repeat(64)]);
     expect(server.rowsCalls).toBeGreaterThan(0);
+  });
+
+  it('pulls on a read only when the head is past what is kept, and always when no head is given', async () => {
+    const server = new FakeServer();
+    server.serverCut = true;
+    const lead = await language(server);
+    const transport = server.transportFor();
+    let pulls = 0;
+    const counted = Object.create(transport) as typeof transport;
+    counted.pull = (...args: Parameters<typeof transport.pull>) => { pulls += 1; return transport.pull(...args); };
+    const keeper = new LanguageRecordsKeeper(counted, 'org1', () => SqliteStore.open(objectSqlDriver(objectSql())), { fillInBackground: false });
+    await keeper.records('p1');
+    const head = server.stream('org1', 'p1').length;
+    const after = pulls;
+    await keeper.records('p1', head);
+    await keeper.records('p1', head - 1);
+    expect(pulls).toBe(after);
+    // A head past the cursor, or none known, pulls.
+    await lead.append('v1.UnitAdded', { unitId: 'u77', parentUnitId: null, kind: 'passage', label: 'P77', order: 'zz' });
+    await lead.sync();
+    const moved = (await keeper.records('p1', server.stream('org1', 'p1').length)).passages;
+    expect(pulls).toBe(after + 1);
+    expect(moved).toContain('u77');
+    await keeper.records('p1');
+    expect(pulls).toBe(after + 2);
+  });
+});
+
+describe('positionIn', () => {
+  it('finds a passage\'s place in display order, or -1', () => {
+    const passages = ['a', 'b', 'c'];
+    expect(positionIn(passages, 'c')).toBe(2);
+    expect(positionIn(passages, 'a')).toBe(0);
+    expect(positionIn(passages, 'x')).toBe(-1);
   });
 });

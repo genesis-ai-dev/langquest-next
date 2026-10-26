@@ -1,4 +1,4 @@
-import { LINES_VERSION, ORG_STREAM, PERSON_ORG, REDUCER_VERSION, emptyLanguageState, foldLanguage, resume, type AnyEvent, type LanguageState, type Snapshot } from '@langquest-next/core';
+import { LINES_VERSION, ORG_STREAM, PERSON_ORG, REDUCER_VERSION, emptyLanguageState, foldLanguage, resume, type AnyEvent, type LanguageState, type PassageLine, type Snapshot } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseTransport } from './supabaseTransport';
 import { fetchSnapshot } from './snapshotFetch';
@@ -180,12 +180,61 @@ async function stageCut(service: SupabaseClient, snapshot: Snapshot): Promise<vo
   await send();
 }
 
-/** Write every passage's line of this LINES_VERSION, held at `seq`; the database rewrites only those that changed. */
+/**
+ * A short fingerprint of a line, to tell which stored lines are as they were.
+ * 53 bits (cyrb53) is plenty for one passage's line against its own earlier
+ * one; a miss only means a line is sent again.
+ */
+function lineDigest(line: PassageLine): string {
+  const text = JSON.stringify(line);
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return `${(h2 >>> 0).toString(16)}${(h1 >>> 0).toString(16)}:${text.length}`;
+}
+
+/**
+ * Write every passage's line of this LINES_VERSION, held at `seq`. Only the
+ * lines that differ from what the database holds are sent: it keeps each
+ * line's digest (`passage_line_digests`), and a few events change a few
+ * lines, not all of a Bible-scale language's. Before the migration that
+ * adds those, or when the digests cannot be read, every line is sent and the
+ * database rewrites only those that changed (`put_passage_lines`).
+ */
 async function putLines(service: SupabaseClient, orgId: string, streamId: string, seq: number, state: LanguageState): Promise<void> {
-  const r = await service.rpc('put_passage_lines', {
-    p_org_id: orgId, p_stream_id: streamId, p_lines_version: LINES_VERSION, p_server_seq: seq, p_lines: languageLinesOf(state)
+  const lines = languageLinesOf(state);
+  const stored = await service.rpc('passage_line_digests', { p_org_id: orgId, p_stream_id: streamId, p_lines_version: LINES_VERSION });
+  if (stored.error) {
+    const r = await service.rpc('put_passage_lines', {
+      p_org_id: orgId, p_stream_id: streamId, p_lines_version: LINES_VERSION, p_server_seq: seq, p_lines: lines
+    });
+    if (r.error) throw new Error(`put_passage_lines ${orgId}/${streamId}: ${r.error.message}`);
+    return;
+  }
+  const had = stored.data as Record<string, string | null>;
+  const digests: Record<string, string> = {};
+  const changed: PassageLine[] = [];
+  const now = new Set<string>();
+  for (const line of lines) {
+    now.add(line.unitId);
+    const digest = lineDigest(line);
+    if (had[line.unitId] !== digest) {
+      changed.push(line);
+      digests[line.unitId] = digest;
+    }
+  }
+  const removed = Object.keys(had).filter((unitId) => !now.has(unitId));
+  const r = await service.rpc('put_passage_lines_delta', {
+    p_org_id: orgId, p_stream_id: streamId, p_lines_version: LINES_VERSION, p_server_seq: seq,
+    p_lines: changed, p_digests: digests, p_removed: removed
   });
-  if (r.error) throw new Error(`put_passage_lines ${orgId}/${streamId}: ${r.error.message}`);
+  if (r.error) throw new Error(`put_passage_lines_delta ${orgId}/${streamId}: ${r.error.message}`);
 }
 
 /**
