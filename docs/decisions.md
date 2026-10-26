@@ -4420,6 +4420,18 @@ layer is held, not only measured: no base folder is in an import cycle with
 a feature folder; `ui` and `helpMode` still import each other, as the design
 system's help badges always have.
 
+Amended (2026-10-26, Carl Sauder): a screen may not import `src/server`
+either. The role rules kept components from the server but not screens,
+so `screens/globalViewer.tsx` verified codes, mapped their refusals and
+paged organizations itself, and `entry.tsx` repeated sign-in's
+diagnostics-and-terms tail in three handlers. Screens now reach the
+server through hooks and modules (`auth/signInFlow.ts` and
+`auth/useSignIn.ts`, `account/useGlobalViewer.ts`), and a screen that
+builds an event goes through a named command (`org/orgCommands.ts`,
+`config/configCommands.ts`) with the rules in a model. The same audit
+gave server refusals one classifier (`diagnostics/refusalModel.ts`), so
+callers stop re-reading `error.code`, the reverse-if above.
+
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
 Date: 2026-10-14 · By: Caleb Koster · Status: partly superseded by 125

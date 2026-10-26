@@ -123,7 +123,7 @@ const mayNotImport = (from, to, message) => ({
   message: `${message} (${ROLE}).`
 });
 const rolePolicies = [
-  mayNotImport('screen', ['screen'], 'A screen does not import another screen: move what both need into a component, hook or model'),
+  mayNotImport('screen', ['screen', 'server'], 'A screen does not import another screen or the server: move what both need into a component, hook or model, and call the server through a hook or module'),
   mayNotImport('component', ['screen', 'server'], 'A component calls the server through a hook or module, and never imports a screen'),
   mayNotImport('hook', ['screen', 'component'], 'A hook does not import components: return data, and let the component draw it'),
   mayNotImport('model', ['screen', 'component', 'hook', 'server'], 'A model is pure: no components, hooks or server calls'),

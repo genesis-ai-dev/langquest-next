@@ -41,9 +41,9 @@ import { personLook } from '../ui/people';
 import { noteExpected, failureMessage } from '../diagnostics/report';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
-import { FORGETS_ON_SIGN_OUT, signOutAndForget } from '../web/forgetBrowser';
+import { FORGETS_ON_SIGN_OUT } from '../web/forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../sync/handOver';
-import { choosePassword, signOutHere } from '../server/auth';
+import { setAccountPassword, signOutThisDevice } from '../account/accountAuth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
@@ -578,7 +578,7 @@ export function ProfileEdit(ctx: Ctx) {
       // A too-short one is refused here and nothing is written, name included.
       if (managed && password) {
         if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
-        const { error } = await choosePassword(password);
+        const { error } = await setAccountPassword(password);
         if (error) {
           noteExpected('set password', error);
           setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
@@ -707,7 +707,7 @@ export function SignOutConfirm(ctx: Ctx) {
         await unregisterNotifications();
       }
       // This device only: your other devices stay signed in (decision 87).
-      await signOutAndForget(signOutHere);
+      await signOutThisDevice();
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
   const blocked = waiting.length > 0 && !handsOver;
