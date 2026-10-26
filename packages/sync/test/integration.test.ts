@@ -372,6 +372,43 @@ describe.skipIf(!up)('integration: two real users against local Supabase', () =>
     expect(await markOf()).toBe(4);
   });
 
+  it('the projection pass leaves a language alone when the organization moved in a way it does not read', async () => {
+    // Why: performance-audit-2026-10-26.md item 2. Any organization event used
+    // to fold every language of the organization again; now only a change to
+    // its people, its name and code or the licence does (orgFingerprint).
+    const stamp = Date.now();
+    const lead = await signUp(`projfp-${stamp}@example.test`);
+    const orgId = `org-fp-${stamp}`;
+    const languageId = `lfp-${stamp}`;
+    const org = await newOrg(lead, orgId, languageId);
+    const service = createClient(URL, SERVICE, { auth: { persistSession: false } });
+    const markOf = async () => (await service.from('projection_marks').select('org_seq,org_fp')
+      .eq('org_id', orgId).eq('stream_id', languageId).single()).data as { org_seq: number; org_fp: string | null };
+    const foldedAt = async () => ((await service.from('language_report_inputs').select('updated_at')
+      .eq('org_id', orgId).eq('language_id', languageId).single()).data as { updated_at: string }).updated_at;
+
+    await runProjections(service);
+    const first = await markOf();
+    expect(first.org_fp).toBeTruthy();
+    const folded = await foldedAt();
+
+    // A role nobody holds: the organization moved, what the language reads did not.
+    await org.append('v1.RoleDefined', { roleId: 'spare', name: 'Spare', privileges: ['view_status'] });
+    await org.sync();
+    await runProjections(service);
+    const second = await markOf();
+    expect(Number(second.org_seq)).toBeGreaterThan(Number(first.org_seq));
+    expect(second.org_fp).toBe(first.org_fp);
+    expect(await foldedAt()).toBe(folded);
+
+    // A new member of the language is read: the language is folded again.
+    await org.append('v1.MemberAdded', { profileId: `p-${stamp}`, roleId: 'spare', scope: { level: 'language', languageId } });
+    await org.sync();
+    await runProjections(service);
+    expect((await markOf()).org_fp).not.toBe(first.org_fp);
+    expect(await foldedAt()).not.toBe(folded);
+  });
+
   it('a member upload through the Worker lands a BlobStored confirmation in the log', async () => {
     // Why: PLAN.md section 14 rule 2. The client never declares completion;
     // the Worker appends the confirmation once R2 has the bytes, and every
