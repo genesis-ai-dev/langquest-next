@@ -6691,6 +6691,25 @@ Putting an entry twice is a join, so a passage that also read those rows
 from disk loses nothing. `keptFill.test.ts` holds the write open while the
 passage opens.
 
+Amended (2026-10-26, Carl Sauder): three storage changes, none of which
+changes what a phone receives (migration
+`20261026130800_snapshot_cut_storage.sql`). `put_snapshot` counts each
+passage's rows once and keeps them on the snapshot (`snapshots.unit_counts`),
+so `get_snapshot_head` reads them instead of counting every unit row on a
+cold open (a cut from before is counted as it was until its next snapshot;
+the migration fills the existing ones). `snapshot_units_staged` is
+unlogged: its rows live minutes and are written again into `snapshot_units`,
+so keeping them out of the WAL takes about a third off a snapshot's write;
+a crash empties it and the next visit stages the cut again. Lines keep a
+digest (`passage_lines.digest`) and the pass sends only the lines whose
+digest differs from the stored one, and the ids of passages that have none
+(`passage_line_digests`, `put_passage_lines_delta`); `put_passage_lines`
+remains for a pass that cannot read the digests, and now finds the lines to
+drop by a join rather than a scan per stored line. Not changed: the staged
+rows are still inserted into `snapshot_units` and the old ones deleted, since
+the table is keyed by the snapshot's seq and a new seq is a new row;
+decision 88's retention is as it was.
+
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted

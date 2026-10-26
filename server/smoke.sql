@@ -371,12 +371,25 @@ do $$ declare n int; begin
   if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u2') <> 12 then raise exception 'a changed line is rewritten'; end if;
   if exists (select 1 from public.passage_lines where stream_id = 'L1' and unit_id = 'u3') then raise exception 'a line no longer written goes'; end if;
   if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = '') <> 12 then raise exception 'the lines hold at the newest pass'; end if;
+  -- The head's counts were kept when the rows moved in; the lines carry digests only from the delta write.
+  if (select unit_counts from public.snapshots where stream_id = 'L1' and server_seq = 11) <> '[["u1",3],["u2",1]]'::jsonb then raise exception 'put_snapshot keeps the head counts'; end if;
+  if public.passage_line_digests('org1', 'L1', 1) <> '{"u1":null,"u2":null}'::jsonb then raise exception 'lines written whole have no digest'; end if;
+  perform public.put_passage_lines_delta('org1', 'L1', 1, 13, '[{"unitId":"u1","x":1},{"unitId":"u2","x":6},{"unitId":"u4","x":4}]'::jsonb,
+    '{"u1":"d1","u2":"d2","u4":"d4"}'::jsonb, '[]'::jsonb);
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u1') <> 11 then raise exception 'a delta line equal to the stored one keeps its seq'; end if;
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u2') <> 13 then raise exception 'a delta line that changed is rewritten'; end if;
+  perform public.put_passage_lines_delta('org1', 'L1', 1, 14, '[]'::jsonb, '{}'::jsonb, '["u4"]'::jsonb);
+  if exists (select 1 from public.passage_lines where stream_id = 'L1' and unit_id = 'u4') then raise exception 'a removed passage loses its line'; end if;
+  if public.passage_line_digests('org1', 'L1', 1) <> '{"u1":"d1","u2":"d2"}'::jsonb then raise exception 'digests wrong'; end if;
+  -- The whole write puts the lines as the pass last worked them (u2 back to 5), and clears the digest of the one it changed.
+  perform public.put_passage_lines('org1', 'L1', 1, 15, '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb);
+  if public.passage_line_digests('org1', 'L1', 1) <> '{"u1":"d1","u2":null}'::jsonb then raise exception 'a changed line loses its digest'; end if;
 end $$;
 select set_config('request.jwt.claim.sub', 'lead', false);
 do $$ declare h jsonb; p jsonb; begin
   h := public.get_snapshot_head('org1', 'L1', 1, 1);
   if h->>'server_seq' <> '11' or h->'units' <> '[["u1",3],["u2",1]]'::jsonb or h->'shared' <> '{"units":{}}'::jsonb
-     or h->'lines'->>'seq' <> '12' or h->'lines'->'lines' <> '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb then
+     or h->'lines'->>'seq' <> '15' or h->'lines'->'lines' <> '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb then
     raise exception 'head wrong: %', h;
   end if;
   if public.get_snapshot_head('org1', 'L1', 1, 1, false) ? 'shared' and public.get_snapshot_head('org1', 'L1', 1, 1, false)->'shared' <> 'null'::jsonb then
@@ -987,7 +1000,7 @@ do $$ declare v text; begin
     and p.proname not in ('preview_invite');
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
-  from unnest(array['put_snapshot', 'stage_snapshot_units', 'put_passage_lines', 'list_streams', 'list_streams_page', 'snapshot_heads_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
+  from unnest(array['put_snapshot', 'stage_snapshot_units', 'put_passage_lines', 'put_passage_lines_delta', 'passage_line_digests', 'list_streams', 'list_streams_page', 'snapshot_heads_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
                      '_library_media_readable', 'may_emit']) f
   where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
     and has_function_privilege('authenticated', p.oid, 'execute'));
