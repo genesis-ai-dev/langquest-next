@@ -20,7 +20,7 @@ against today's code (section 4), and ranks what is new (section 3).
 
 The short version:
 
-- **The web app ships every icon in lucide.** The app uses 15 icons, and
+- **The web app ships every icon in lucide.** The app uses 91 icons, and
   the first-visit bundle carries 1,881 of them: 1.55 MB of the 5.8 MB main
   chunk. Both web budgets are nearly spent again (about 50 KB and 10 KB
   left), and this one change would free about a quarter of the first
@@ -93,7 +93,8 @@ inferred, not measured. Line numbers are at `f9814bef`.
 
 **1. The web bundle carries every lucide icon.** Confirmed and measured.
 
-- The app imports 15 icons from `'lucide-react-native'`, in six files
+- The app imports 91 icons from `'lucide-react-native'` (first counted as
+  15: `kit.tsx`'s multi-line import was missed), in six files
   (`src/study/studyText.ts:3`, `src/shell/UpdateBanner.tsx:1`,
   `src/shell/NavChrome.tsx:7`, `src/admin/admin.tsx:8`,
   `src/guides/GuideEditor.tsx:26`, and a type import in
@@ -112,6 +113,11 @@ inferred, not measured. Line numbers are at `f9814bef`.
 - **Measure:** the first-visit line `export-web.mjs` prints. Expect about
   1.5 MB less (Estimated: the 1,549 KB share less 15 icons).
 
+- **Done (2026-10-26):** a first web visit 5.70 MB to 3.71 MB, every
+  file 6.54 MB to 4.54 MB; `apps/mobile/src/ui/icons.ts`, lint rule
+  `noIconBarrel`, both budgets lowered to 3.9 and 4.75 MiB (decision 123
+  amended).
+
 **2. One org event refolds every language in the org.** Confirmed.
 
 - `skipQuiet` (`server/projectionWorker.ts:171`) gives up when the org
@@ -128,6 +134,12 @@ inferred, not measured. Line numbers are at `f9814bef`.
 - **Measure:** `diag.job_history('projection')`, projected against quiet
   languages after an invite in a many-language org; `get_snapshot_chunk`
   calls in `diag.rpc_stats()`.
+
+- **Done (2026-10-26):** `projection_marks.org_fp` holds a fingerprint of
+  the language's people, name, code and licence; the pass folds the
+  organization once and skips a language whose fingerprint held. A mark
+  from before refolds once (decision 68 amended). Not measured on hosted
+  data.
 
 **3. Every transferred file copies the size of every file on the phone.**
 Confirmed.
@@ -146,6 +158,9 @@ Confirmed.
 - **Measure:** Map constructions per 1,000 downloaded files; JS-thread busy
   time during a 500-file download on the Android emulator.
 
+- **Done (2026-10-26):** `sizes()` hands out the live map; `metered()` and
+  the hand-over ask `sizeOf()`. Not measured on a device.
+
 **4. Each fill page rewrites the whole fill list.** Confirmed in code;
 size Estimated.
 
@@ -158,6 +173,10 @@ size Estimated.
 - **Fix:** write `todo` once under its own key; keep `rowsSeq` and `stale`
   in a small row. Build the Map once per fill.
 - **Measure:** bytes written to `meta` per fill, in the fill diagnostics.
+
+- **Done (2026-10-26):** `todo` under its own meta key, written once; a
+  fill begun by an earlier build moves it out on its next save. Rows for a
+  passage with nothing kept are written as the server's text.
 
 **5. Working out passage lines rebuilds the whole index for every 25
 passages.** Confirmed in code; size Estimated.
@@ -177,6 +196,10 @@ passages.** Confirmed in code; size Estimated.
 - **Measure:** `buildIndexes` calls per `KeptLines.once()` with `all`, and
   its time at 5k and 30k passages. Add both as `bench:core` rows.
 
+- **Done (2026-10-26):** `languageLines(view, indexesOf(live))`. New
+  `npm run bench:kept`: every passage's line from disk at 5,000 passages
+  698 ms before, 175 ms after (1,200 passages: 64 to 43 ms), now linear.
+
 **6. Every refresh scans every recording row.** Confirmed.
 
 - `KeptLines.work` starts with `keptUnits(..., ['recording'])`
@@ -186,6 +209,9 @@ passages.** Confirmed in code; size Estimated.
 - **Fix:** ask only about the batch's units (`unit_id in json_each(?)`, as
   `keptWhere` already does).
 - **Measure:** `refresh()` time per page against a 160k-row `kept_rows`.
+
+- **Done (2026-10-26):** `keptUnitsAmong`, a batch's units only (in the
+  `bench:kept` numbers above).
 
 **7. Counting refused events reads and parses every one of them.**
 Confirmed.
@@ -198,6 +224,9 @@ Confirmed.
 - **Fix:** a `count(*)` in the store, and the reason filter in SQL for
   `requeue`.
 - **Measure:** append latency with 2,000 refused rows.
+
+- **Done (2026-10-26):** `rejectedCount` and `rejectedWith` in both stores;
+  `refusedCount` counts in SQL, the not-listed requeue reads only those.
 
 ### Tier 2
 
@@ -215,6 +244,10 @@ Confirmed.
 - **Measure:** React Profiler commits per second and ms per commit during
   a 60 s recording.
 
+- **Done (2026-10-26):** frames reach the bars at most every 90 ms; part
+  starts, ends and edits publish at once; bar slots memoized; each frame's
+  part found once per window. Not profiled on a device.
+
 **9. Waveform bars are read sample by sample in JS, several files at a
 time.** Confirmed.
 
@@ -227,6 +260,10 @@ time.** Confirmed.
 - **Fix:** one file at a time, yield between blocks, and read a strided
   sample (128 bars need a few thousand samples, not every one).
 - **Measure:** JS-thread blocking on first open of such a passage.
+
+- **Done (2026-10-26):** each bar sampled from 8 windows of 64 frames
+  (within 0.08 of a full read on a 30 s stereo WAV), one file at a time,
+  yielding every 8 bars.
 
 **10. The Worker asks the database about the caller on every agent and
 reports request.** Confirmed.
@@ -242,6 +279,10 @@ reports request.** Confirmed.
   `ctx.waitUntil`.
 - **Measure:** `api_tokens` and `org_memberships` selects in
   `pg_stat_statements`; latency in `wrangler tail`.
+
+- **Done (2026-10-26):** token records 15 s and the reports route's
+  memberships 30 s per isolate, `touchToken` through `ctx.waitUntil`
+  (decision 121 amended).
 
 **11. Push delivery runs every minute with nothing to send, and its
 history is never purged.** Confirmed.
@@ -259,6 +300,11 @@ history is never purged.** Confirmed.
 - **Measure:** `count(*)` of `cron.job_run_details`; Edge invocations;
   `EXPLAIN (ANALYZE, BUFFERS)` of the claim.
 
+- **Done (2026-10-26):** the cron calls the function only when
+  `push_work_waiting()`; run details purged after 7 days; the claim starts
+  from people with a token (0.04 ms on 200,000 rows with none, in a
+  rolled-back transaction). Decision 148 amended.
+
 **12. Help mode measures every lit part every frame.** Confirmed.
 
 - `apps/mobile/src/helpMode/helpMode.tsx:152-160` runs every registered
@@ -267,6 +313,10 @@ history is never purged.** Confirmed.
 - **Fix:** measure on layout and scroll end, and at most 10 times a
   second.
 - **Measure:** bridge calls per second with help on over the Org screen.
+
+- **Done (2026-10-26):** measured on layout, then every 100 ms for a second
+  after anything moves and every 300 ms while still. Scroll events are not
+  hooked: a scroll that starts while still can lag 300 ms.
 
 **13. Opening passage after passage never frees memory, and rebuilds the
 audio plan each time.** Confirmed for the mechanism.
@@ -280,6 +330,11 @@ audio plan each time.** Confirmed for the mechanism.
   the audio plan on audio-touching changes.
 - **Measure:** heap and `loadUnits` time after opening 200 passages on
   the 2 GB emulator.
+
+- **Done (2026-10-26), differently:** shedding a passage as it leaves
+  `open` is not safe, since memory can hold work newer than its rows. Instead
+  a reader's opens take a checkpoint once memory has taken in four times the
+  open limit, on the fast path only (nothing unsent), which sheds them.
 
 **14. The server's snapshot path does whole-language work per fold.**
 Confirmed in code; sizes Estimated.
@@ -299,54 +354,83 @@ Confirmed in code; sizes Estimated.
 - **Measure:** request size and mean of `put_passage_lines` and
   `get_snapshot_head` in `diag.rpc_stats()`; WAL bytes per `put_snapshot`.
 
+- **Done in part (2026-10-26):** lines are sent by digest, only those that
+  changed (`put_passage_lines_delta`); the head's counts kept in
+  `snapshots.unit_counts`; staging unlogged, about a third less WAL
+  (decision 147 amended). Not done: moving staged rows by seq, which is no
+  cheaper with the seq in the key, and staging in place would show a cut
+  before its snapshot exists.
+
 ### Tier 3: smaller or rarer
 
 - **Admin dashboard: cold-load stampede.** `apps/admin/src/auth.ts:38-73`
   fills its caches after the await, so the 14 parallel calls of one page
   load each ask Auth and `get_user_state`. Cache the in-flight promise.
+  Done: in-flight promise per token digest.
 - **`diag.ops_people` is O(accounts²).** `is_managed_account` compares
   `u.id::text = p_profile`
   (`20261016080000_managed_by_the_server.sql:22`), a scan of `auth.users`
   per call, and `ops_dashboard.sql:43` calls it per account. Compare as
   uuid and count with one filter.
+  Done: compared as uuid, counted with one filter.
 - **Webhook cron.** It wakes every webhook org with an unbounded
   `Promise.all` (`apps/web/worker/index.ts:113-118`); a scan runs
   `stream_heads` twice (`orgSnapshot.ts:143`, `dispatch.ts:191`); a moved
   language rebuilds its whole digest (`dispatch.ts:117-143`). Poke only
   orgs whose heads moved, in batches of 20, and share one heads result.
+  Done in part: batches of 20 and one shared heads answer per scan; poking
+  only orgs whose heads moved needs a bulk heads query, and a moved
+  language's digest is still rebuilt whole: neither is done.
 - **Agent reads still pull.** `records(languageId)` calls `pull_events`
   on every read (`apps/web/worker/languageRecords.ts:108`), and builds the
   passage list per call (`:123,130`; `agent/view.ts:337,570,599,855` use
   `includes`). This is the rest of the 2026-10-15 V5 and C4.
+  Done: heads trusted for 3 s, pulled only when moved; `indexesOf` and a
+  position map in the views.
 - **Offline recount** works out the scope four times per settled window
   (`languageSession.ts:574-575`, `languageFiles.ts:71,76`).
+  Done: the reasons worked out once and shared.
 - **Org listings** still call `org_name()` per org before filtering, now
   also in `global_viewer_organizations`
   (`20261022210000_global_viewers.sql:119-128`). An `org_names` table with
   a trigram index serves all three.
+  Done: `org_names`, kept by a trigger on org name events, with trigram
+  indexes (decision 66 amended).
 - **Fill rows** are parsed and stringified about three extra times each
   (`supabaseTransport.ts:95`, `keptFill.ts:331,338`). Pass `row.json`
   through.
+  Done in part: rows with nothing kept are written as the server's text;
+  the transport's own stringify stays.
 - **Event writes** are one awaited insert per event
   (`sqliteStore.ts:95`); `kept_rows` already uses a `json_each`
   multi-row insert. Unplaced events look their passage up one at a time
   (`keptLines.ts:202`).
+  Done: events a few hundred a statement through `json_each`; unplaced
+  events looked up one query per kind.
 - **Redactions** are found by parsing every row of the log
   (`json_extract(json,'$.type')`, `sqliteStore.ts` `page`). Add an
   expression index or a type column.
+  Measured and not done: 4 ms saved per load at 50,000 events, against
+  30% more time on every insert.
 - **Worker bundle.** The connect and review pages' words (about 195 KB)
   and the unused realtime and storage clients load on every cold start
   (`apps/web/worker/index.ts:2-5`, `env.ts:1`). Import the pages lazily.
+  Done in part: the pages load on first use, so their words are built only
+  then; wrangler still bundles them into one file, so no bytes are saved.
 - **Reports response** is stringified twice, once for the ETag
   (`apps/web/worker/api.ts:118-123`).
+  Done: stringified once.
 - **Projection pass** reads `projection_marks`, `language_visibility` and
   every retained `snapshots` row in full every 5 minutes
   (`server/projectionWorker.ts:86-117`).
+  Done: `snapshot_heads_page` reads one snapshot row per stream; only
+  listed visibility rows are read.
 - **Web-only VAD** runs inference and a per-sample resampler on the main
   thread (`modules/microphone-energy/src/MicrophoneEnergyModule.web.ts:70-95`,
   `speech.ts:46-63`). Fine for tests; move it to the AudioWorklet before
   real web recording. On iOS it runs off the JS thread; Android was not
   read.
+  Not done (the web is a test target).
 
 ## 4. The earlier audits' open items
 
@@ -379,6 +463,14 @@ notifications index.
 | Redaction costs a snapshot | Open | Design first |
 | `appliedEventIds`, `validateEvent` closures | Partly / Open | Keep |
 
+Done on 2026-10-26 from this table: R4 (memoized, a deferred query parsed
+once), R6 (`ChapterView` memoized, stable props), R7 (every 3 s, state
+set only on change), S3 (the spinner instead of a blank screen), C5 in
+part (files listed first, streams with nothing stored skipped, four
+confirmations at a time; no head check, since R2 can lose a file without
+the log moving), and C6 in part (`push()`'s Map, chapters once per passage
+in a report). The rest of the table is as it was.
+
 ## 5. Order of work
 
 1. **The icons (item 1).** Six imports, a lint rule and lower budgets.
@@ -397,7 +489,23 @@ notifications index.
 7. **The server snapshot path (item 14)** and memory while browsing (item
    13). These need design; 14 amends decision 88.
 
-## 6. Not checked
+## 6. What is left after the work of 2026-10-26
+
+- `npm run db:test` (the SQL smokes and parity on a fresh database) has
+  not run on the eight new migrations
+  (`20261026170100` to `20261026170800`); each ran only in a transaction
+  that was rolled back, against the shared local database. The `server`
+  job in CI runs it.
+- Nothing was measured on a phone: items 3, 8, 9, 12 and 13 have unit tests
+  for their logic, not Profiler or heap numbers.
+- Not done: poking only webhook orgs whose heads moved, an incremental
+  webhook digest, moving staged snapshot rows by seq, the redaction index
+  (measured, not worth it), benchmarks in CI, the phone benchmark,
+  the diagnostics records, asymmetric JWT keys, the web speech detector,
+  and the design-first items (a redaction costing a snapshot, org inbox
+  triggers).
+
+## 7. Not checked
 
 - Any number on a phone or on Hermes. Every time above is a laptop's.
 - The native bundle's size and how much of it lucide is.
