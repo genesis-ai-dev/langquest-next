@@ -3,6 +3,7 @@
 // import sheet. Nothing shows for an organization LangQuest turned none on.
 import { useState } from 'react';
 import type { Ctx } from '../shell/ctx';
+import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Group, Row } from '../ui/kit';
 import { ImportSheet } from './ImportSheet';
@@ -20,10 +21,12 @@ export function ImportRows(props: { ctx: Ctx; canManage: boolean; orgName: strin
         {imp.importers.map((importer, i) => {
           const run = latestRun(imp.runs, importer.importer);
           return (
-            <Row key={importer.importer} icon="download" label={t('imports.row.label', { name: importerName(importer.importer) })} last={i === imp.importers.length - 1}
-              sub={importerLine(importer, run)} testID={`import-${importer.importer}`}
-              badge={run?.state === 'ready' ? t('imports.row.readyBadge') : undefined} badgeTone="amber"
-              help={t('imports.row.help')} onPress={() => setOpen(importer.importer)} />
+            <HelpRow key={importer.importer} of="imports.importer">
+              <Row icon="download" label={t('imports.row.label', { name: importerName(importer.importer) })} last={i === imp.importers.length - 1}
+                sub={importerLine(importer, run)} testID={`import-${importer.importer}`}
+                badge={run?.state === 'ready' ? t('imports.row.readyBadge') : undefined} badgeTone="amber"
+                help={t('imports.row.help')} onPress={() => setOpen(importer.importer)} />
+            </HelpRow>
           );
         })}
       </Group>

@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { CheckRow } from '../admin/admin';
+import { HelpRow } from '../helpMode/helpBadge';
 import { t } from '../i18n';
 import { Banner, Group, LinkBtn, PrimaryBtn, ProgressBar, Row, SectionLabel, Sheet } from '../ui/kit';
 import { Text } from '../ui/text';
@@ -95,9 +96,11 @@ export function ImportSheet(props: { visible: boolean; onClose: () => void; orgN
           <SectionLabel label={t('imports.choose.languages', { count: picked.size })} />
           <Group>
             {choices.map((c, i) => (
-              <CheckRow key={c.code} label={c.name} checked={picked.has(c.code)} last={i === choices.length - 1}
-                {...(actions.has(`fia.${c.code}`) ? { sub: t('imports.choose.inLibrary') } : {})}
-                detail={actions.has(`fia.${c.code}`) ? t('imports.choose.updateHelp') : t('imports.choose.languageHelp')} onToggle={() => toggle(c.code)} />
+              <HelpRow key={c.code} of="imports.language">
+                <CheckRow label={c.name} checked={picked.has(c.code)} last={i === choices.length - 1}
+                  {...(actions.has(`fia.${c.code}`) ? { sub: t('imports.choose.inLibrary') } : {})}
+                  detail={actions.has(`fia.${c.code}`) ? t('imports.choose.updateHelp') : t('imports.choose.languageHelp')} onToggle={() => toggle(c.code)} />
+              </HelpRow>
             ))}
           </Group>
         </View>
