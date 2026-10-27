@@ -38,6 +38,7 @@ import { FooterHeightContext } from './useLayout';
 import { useHelpHost } from '../helpMode/useHelpMode';
 import { HeaderExtraContext } from './headerExtra';
 import { ModalCover } from './ModalCover';
+import { ScrollHoldContext } from './scrollHoldContext';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -110,6 +111,8 @@ export function Screen(props: {
   // In help mode, Send feedback waits in a strip of its own at the foot of the screen
   // (decisions.md 145): the screen, its footer too, ends above it, so it covers nothing.
   const helpOn = useHelpOn();
+  // Something drawn on with a finger stops the body scrolling meanwhile (scrollHoldContext.ts).
+  const [held, setHeld] = useState(false);
   return (
     <KeyboardSafe style={[styles.screen, helpOn && { paddingBottom: HELP_FOOT_ROOM }]}>
       {props.header}
@@ -117,8 +120,9 @@ export function Screen(props: {
         {props.fixed ? (
           <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            {props.children}
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+            scrollEnabled={!held}>
+            <ScrollHoldContext.Provider value={setHeld}>{props.children}</ScrollHoldContext.Provider>
           </ScrollView>
         )}
       </HelpClip>

@@ -6,6 +6,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpInfo, useHelpSpot } from '../helpMode/useHelpMode';
 import { t } from '../i18n';
 import { LinkBtn, SmallBtn } from '../ui/kit';
+import { ScrollHoldContext } from '../ui/scrollHoldContext';
 import { Text } from '../ui/text';
 import { C, radius, space } from '../ui/theme';
 import { addDot, dotAt, MIN_DOTS, PICTURES } from '../session/lockModel';
@@ -24,7 +25,7 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
   const [tapping, setTapping] = useState(false);
   const spot = useHelpInfo(t('shell.pattern.label', { n: MIN_DOTS }), t('shell.pattern.help', { n: MIN_DOTS }));
   const helping = !!spot.id;
-  const latest = useRef({ dots, size, moved: false, onDone: props.onDone, off: !!props.disabled || helping });
+  const latest = useRef({ dots, size, moved: false, onDone: props.onDone, off: !!props.disabled || helping, hold: null as ((on: boolean) => void) | null });
   latest.current = { ...latest.current, dots, size, onDone: props.onDone, off: !!props.disabled || helping };
   useEffect(() => { setDots([]); setTapping(false); }, [props.resetKey]);
   // iOS takes a sideways drag anywhere on the screen as "go back" (fullScreenGestureEnabled in App.tsx).
@@ -33,6 +34,10 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
     navigation?.setOptions({ gestureEnabled: false });
     return () => navigation?.setOptions({ gestureEnabled: true });
   }, [navigation]);
+  // On iOS the screen's scroll view would take an up-and-down stroke for itself, so it waits while a finger is down.
+  const hold = useContext(ScrollHoldContext);
+  latest.current.hold = hold;
+  useEffect(() => () => hold?.(false), [hold]);
 
   const reach = (x: number, y: number) => {
     const dot = dotAt(x, y, latest.current.size);
@@ -49,6 +54,7 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
     onMoveShouldSetPanResponder: () => !latest.current.off,
     onPanResponderTerminationRequest: () => false,
     onPanResponderGrant: (e) => {
+      latest.current.hold?.(true);
       latest.current.moved = false;
       reach(e.nativeEvent.locationX, e.nativeEvent.locationY);
     },
@@ -58,6 +64,7 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
       reach(e.nativeEvent.locationX, e.nativeEvent.locationY);
     },
     onPanResponderRelease: () => {
+      latest.current.hold?.(false);
       setFinger(null);
       // A drag finishes the pattern; a tap adds one dot and waits for Done.
       if (latest.current.moved) {
@@ -67,7 +74,10 @@ export function PatternPad(props: { onDone: (dots: number[]) => void; disabled?:
         setTapping(true);
       }
     },
-    onPanResponderTerminate: () => setFinger(null)
+    onPanResponderTerminate: () => {
+      latest.current.hold?.(false);
+      setFinger(null);
+    }
   })).current;
 
   const cell = size / 3;
