@@ -7410,7 +7410,7 @@
     "sealLabel": "Verified organization",
     "sealLabelDomain": "Verified organization: {{domain}}",
     "title": "Blue check",
-    "meaning": "The blue check shows this is the real organization: an admin proved they have an email address at its website, and LangQuest checked it. It does not mean LangQuest checked what the organization shares.",
+    "meaning": "A blue check means the LangQuest team has verified this organization. It is not an approval or endorsement of what the organization publishes.",
     "problem": {
       "notAllowed": "Only an organization admin can ask for the blue check.",
       "badDomain": "Type the website's address, like example.org.",
@@ -7443,7 +7443,6 @@
     "ask": {
       "send": "Email me a code",
       "sendHelp": "Emails a 6-digit code to that address, to prove it is yours.",
-      "intro": "A blue check after the name {{org}} shows everyone this is the real {{org}}. To ask for one, prove you have an email address at your organization's website.",
       "domain": "Your organization's website",
       "domainPlaceholder": "example.org",
       "domainHelp": "The website your organization runs, like example.org.",
@@ -7453,7 +7452,7 @@
     },
     "done": {
       "title": "Verified",
-      "since": "Verified since {{date}}."
+      "sub": "{{domain}} · since {{date}}"
     },
     "declined": {
       "title": "LangQuest did not add the blue check",
@@ -7461,12 +7460,11 @@
     },
     "waiting": {
       "title": "Waiting for LangQuest",
-      "body": "{{email}} is confirmed. LangQuest will check {{domain}} and add the blue check.",
+      "body": "{{email}} is confirmed. The LangQuest team will review your request for {{domain}}.",
       "withdraw": "Take back the request",
       "withdrawHelp": "Cancels the request. You can ask again later."
     },
     "row": {
-      "verified": "Verified · {{domain}}",
       "verifiedHelp": "The blue check: what it means and when it was added.",
       "ask": "Ask for a blue check",
       "askHelp": "Ask LangQuest for a blue check, so everyone can see this is the real organization."
@@ -7492,7 +7490,9 @@
       "startHelp": "LangQuest starts building the guides. Each language takes a few minutes, and it goes on after you close this.",
       "inLibrary": "In your library",
       "updateHelp": "This language is already in your library. Importing it again brings in FIA's latest as a new version.",
-      "languageHelp": "Tick it to bring in FIA's guides in this language."
+      "languageHelp": "Tick it to bring in FIA's guides in this language.",
+      "newsLine_one": "In your library · {{count, number}} new or updated guide",
+      "newsLine_other": "In your library · {{count, number}} new or updated guides"
     },
     "building": {
       "waiting": "Waiting to start",
@@ -7541,7 +7541,15 @@
       "failed": "The last import stopped",
       "from": "Your material, from {{source}}",
       "readyBadge": "Ready",
-      "help": "Opens the importer LangQuest turned on for your organization: bring in your own material from where you keep it."
+      "help": "Opens the importer LangQuest turned on for your organization: bring in your own material from where you keep it.",
+      "news_one": "{{count, number}} new or updated guide since your last import",
+      "news_other": "{{count, number}} new or updated guides since your last import",
+      "newBadge": "New"
+    },
+    "news": {
+      "title_one": "{{count, number}} new or updated guide",
+      "title_other": "{{count, number}} new or updated guides",
+      "body": "The source added or changed them since your last import. Their languages are ticked below. Import to bring them in."
     }
   }
 }

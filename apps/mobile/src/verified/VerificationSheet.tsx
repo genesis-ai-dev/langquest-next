@@ -1,7 +1,8 @@
-// Asking for an organization's blue check (decisions.md 172), from its
-// Manage page: an admin names the organization's website and an address at
-// it, types the code LangQuest emails there, and the request waits for
-// LangQuest staff. Once granted, the sheet says what the check means.
+// Asking for an organization's blue check (decisions.md 172), from the grey
+// check after its name on its Manage page: an admin names the organization's
+// website and an address at it, types the code LangQuest emails there, and
+// the request waits for the LangQuest team. Once granted, the blue check
+// opens what it means, for every member (VerifiedSheet).
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { t } from '../i18n';
@@ -12,8 +13,34 @@ import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
 import { codeOf, domainProblem, emailProblem, maskedEmail, normalizeDomain, normalizeEmail, stageOf, suggestedEmail } from './model';
+import type { OrgBadge } from './useOrgBadges';
 import { useVerificationRequest } from './useVerificationRequest';
 import { Seal } from './VerifiedSeal';
+
+/** The blue check, its website and since when, and what it means. */
+function Verified(props: { badge: OrgBadge }) {
+  return (
+    <View style={{ gap: space.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+        <Seal size={52} badge={props.badge} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={txt.title}>{t('verified.done.title')}</Text>
+          <Text style={txt.smMuted}>{t('verified.done.sub', { domain: props.badge.domain, date: formatDay(props.badge.grantedAt) })}</Text>
+        </View>
+      </View>
+      <Text style={txt.body}>{t('verified.meaning')}</Text>
+    </View>
+  );
+}
+
+/** What an organization's blue check means, for anyone who taps it on its Manage page. */
+export function VerifiedSheet(props: { visible: boolean; onClose: () => void; orgName: string; badge: OrgBadge }) {
+  return (
+    <Sheet visible={props.visible} title={t('verified.title')} sub={props.orgName} onClose={props.onClose}>
+      <Verified badge={props.badge} />
+    </Sheet>
+  );
+}
 
 /** What a refusal or a problem with the form says, in the language showing. */
 function problemText(reason: SendRefusal | 'wrong' | 'expired' | 'too_many_codes' | 'no_code', org: string, domain: string): string {
@@ -110,26 +137,14 @@ export function VerificationSheet(props: { visible: boolean; onClose: () => void
       {...(changing ? { onBack: () => setChanging(false) } : {})}>
       {loading ? <Text style={txt.smMuted}>{t('common.loading')}</Text> : null}
 
-      {!loading && stage === 'verified' && state?.verified ? (
-        <View style={{ gap: space.md }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-            <Seal size={52} badge={state.verified} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={txt.title}>{t('verified.done.title')}</Text>
-              <Text style={txt.smMuted}>{state.verified.domain}</Text>
-            </View>
-          </View>
-          <Text style={txt.body}>{t('verified.done.since', { date: formatDay(state.verified.grantedAt) })}</Text>
-          <Text style={txt.smMuted}>{t('verified.meaning')}</Text>
-        </View>
-      ) : null}
+      {!loading && stage === 'verified' && state?.verified ? <Verified badge={state.verified} /> : null}
 
       {!loading && (stage === 'ask' || stage === 'declined') ? (
         <View style={{ gap: space.md }}>
           {stage === 'declined' && !changing ? <Banner icon="flag" tone="amber" title={t('verified.declined.title')} body={t('verified.declined.body')} /> : null}
           <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }}>
             <Seal size={28} />
-            <Text style={[txt.body, { flex: 1 }]}>{t('verified.ask.intro', { org: props.orgName })}</Text>
+            <Text style={[txt.body, { flex: 1 }]}>{t('verified.meaning')}</Text>
           </View>
           <Field label={t('verified.ask.domain')} value={domain} placeholder={t('verified.ask.domainPlaceholder')} autoCapitalize="none"
             keyboardType="default" help={t('verified.ask.domainHelp')}
@@ -137,7 +152,6 @@ export function VerificationSheet(props: { visible: boolean; onClose: () => void
           <Field label={t('verified.ask.email')} value={email} placeholder={t('verified.ask.emailPlaceholder', { domain: cleanDomain || t('verified.ask.domainPlaceholder') })}
             autoCapitalize="none" keyboardType="email-address" help={t('verified.ask.emailHelp')} onSubmit={() => void send()}
             onChangeText={(v) => { setEmail(v); setProblem(null); }} />
-          <Text style={txt.smMuted}>{t('verified.meaning')}</Text>
         </View>
       ) : null}
 
@@ -157,7 +171,6 @@ export function VerificationSheet(props: { visible: boolean; onClose: () => void
       {!loading && stage === 'waiting' && r ? (
         <View style={{ gap: space.md }}>
           <Banner icon="clock" tone="brand" title={t('verified.waiting.title')} body={t('verified.waiting.body', { email: maskedEmail(r.email), domain: r.domain })} />
-          <Text style={txt.smMuted}>{t('verified.meaning')}</Text>
           <LinkBtn label={t('verified.waiting.withdraw')} help={t('verified.waiting.withdrawHelp')} onPress={() => void withdraw()} />
         </View>
       ) : null}

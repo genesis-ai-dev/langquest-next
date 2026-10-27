@@ -4,8 +4,11 @@
 import { t } from '../i18n';
 import { languageLabel } from '../admin/adminModel';
 
-/** An importer LangQuest turned on for the organization. */
-export interface Importer { importer: string; source: string; granted_at: string }
+/** What the server last found new at the source, by part (for FIA, a language): guides added, and guides at a new version. */
+export type SourceNews = Record<string, { added: number; updated: number }>;
+
+/** An importer LangQuest turned on for the organization, with what is new at its source since the last published import. */
+export interface Importer { importer: string; source: string; granted_at: string; checked_at?: string | null; found?: SourceNews | null }
 
 /** An item a run made, as the server keeps it in the run. */
 export interface ImportedItem { itemId: string; kind: 'material'; name: string; description: string; docHash: string; count: number; language: string }
@@ -62,11 +65,22 @@ export function latestRun(runs: readonly ImportRun[], importer: string): ImportR
 
 export const isOpen = (r: ImportRun | null) => r?.state === 'waiting' || r?.state === 'importing';
 
+/** How many guides are new or updated at the source, and in which languages, newest import aside. */
+export function sourceNews(importer: Importer): { count: number; languages: string[] } {
+  const found = Object.entries(importer.found ?? {}).filter(([, n]) => n.added + n.updated > 0);
+  return { count: found.reduce((sum, [, n]) => sum + n.added + n.updated, 0), languages: found.map(([lang]) => lang) };
+}
+
+/** The guides new or updated at the source in one language. */
+export const newsIn = (importer: Importer, lang: string) => (importer.found?.[lang]?.added ?? 0) + (importer.found?.[lang]?.updated ?? 0);
+
 /** The line under the importer's row on Reference Material. */
 export function importerLine(importer: Importer, run: ImportRun | null): string {
   if (run?.state === 'waiting') return t('imports.row.waiting');
   if (run?.state === 'importing') return t('imports.row.importing', { done: run.done, total: run.total ?? run.options.languages?.length ?? 1 });
   if (run?.state === 'ready') return t('imports.row.ready', { count: run.manifest.length });
+  const news = sourceNews(importer);
+  if (news.count) return t('imports.row.news', { count: news.count });
   if (run?.state === 'failed') return t('imports.row.failed');
   return t('imports.row.from', { source: importer.source });
 }

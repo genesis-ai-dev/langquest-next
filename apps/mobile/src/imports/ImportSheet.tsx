@@ -11,7 +11,7 @@ import { Banner, Group, LinkBtn, PrimaryBtn, ProgressBar, Row, SectionLabel, She
 import { Text } from '../ui/text';
 import { txt } from '../ui/textStyles';
 import { C, space } from '../ui/theme';
-import { fiaLanguageChoices, importerName, importLanguageName, isOpen, type Importer, type ImportRun } from './model';
+import { fiaLanguageChoices, importerName, importLanguageName, isOpen, newsIn, sourceNews, type Importer, type ImportRun } from './model';
 import type { PublishAnswer, StartAnswer } from './useImports';
 
 export interface ImportActions {
@@ -36,7 +36,9 @@ export function ImportSheet(props: { visible: boolean; onClose: () => void; orgN
   const { importer, run, actions } = props;
   const name = importerName(importer.importer);
   const choices = useMemo(() => fiaLanguageChoices(), []);
-  const [picked, setPicked] = useState<Set<string>>(() => new Set(['eng']));
+  const news = sourceNews(importer);
+  // What is new at the source comes ticked; else English.
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(news.languages.length ? news.languages : ['eng']));
   const [share, setShare] = useState(true);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -91,6 +93,7 @@ export function ImportSheet(props: { visible: boolean; onClose: () => void; orgN
         <View style={{ gap: space.md }}>
           {run?.state === 'failed' ? <Banner icon="flag" tone="amber" title={t('imports.failed.title')} body={t('imports.failed.body')} /> : null}
           {run?.state === 'failed' && run.failure ? <Text style={txt.smMuted}>{run.failure}</Text> : null}
+          {news.count ? <Banner icon="sparkle" tone="green" title={t('imports.news.title', { count: news.count })} body={t('imports.news.body')} /> : null}
           <Text style={txt.body}>{t('imports.fia.intro', { org: props.orgName })}</Text>
           <Text style={txt.smMuted}>{t('imports.fia.from', { source: `github.com/${importer.source}` })}</Text>
           <SectionLabel label={t('imports.choose.languages', { count: picked.size })} />
@@ -98,7 +101,7 @@ export function ImportSheet(props: { visible: boolean; onClose: () => void; orgN
             {choices.map((c, i) => (
               <HelpRow key={c.code} of="imports.language">
                 <CheckRow label={c.name} checked={picked.has(c.code)} last={i === choices.length - 1}
-                  {...(actions.has(`fia.${c.code}`) ? { sub: t('imports.choose.inLibrary') } : {})}
+                  {...(actions.has(`fia.${c.code}`) ? { sub: newsIn(importer, c.code) ? t('imports.choose.newsLine', { count: newsIn(importer, c.code) }) : t('imports.choose.inLibrary') } : {})}
                   detail={actions.has(`fia.${c.code}`) ? t('imports.choose.updateHelp') : t('imports.choose.languageHelp')} onToggle={() => toggle(c.code)} />
               </HelpRow>
             ))}

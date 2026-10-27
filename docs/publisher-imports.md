@@ -52,6 +52,26 @@ The sheet:
    `v1.LibrarySharingSet`) as the organization (`useLibrary.publishHeld`).
    **Don't publish this import** throws it away.
 
+## What is new at the source
+
+Each language a run builds keeps the source's names for the guides it took
+(`import_run_parts`; Aquifer puts a guide's version in its name,
+`eng-1ch-p17-v1.1`). Once a day for each importer with a published import,
+the Worker's schedule (`checkImports` in `server/publisherImport.ts`) takes
+it with `import_check_next`, reads each published language's
+`metadata.json` (1.3 MB for English) and saves, with `import_check_save`,
+how many guides are for passages the import did not have and how many are at
+a new version. The app reads that with `org_importers`: the importer's row
+says "16 new or updated guides since your last import" with a **New** badge,
+and its sheet ticks those languages. Publishing a run makes its lists the
+ones the next look compares with, and clears what they took from the count.
+
+Importing a language again rebuilds it whole. Unchanged guides come out as
+the same documents, named by their content, so nothing is kept twice, and
+organizations following it get the new version as an update.
+
+`npm run publisher-import -- check` looks now, on a local stack.
+
 ## Where a run keeps its documents
 
 In `library_documents`, like everything in the library, with access rows in
@@ -78,11 +98,13 @@ Measured on a local stack (2026-10-26): English FIA is 1,523 guides and
 npm run publisher-import -- grant <organization id> fia --workdir <stack>
 # ask for a run in the app (Setup → Reference Material → Import from FIA), then build it now:
 SUPABASE_URL=http://127.0.0.1:<api port> SUPABASE_SERVICE_ROLE_KEY=<local key> npm run publisher-import -- step
+# after publishing it, look at the source for what is new:
+SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm run publisher-import -- check
 ```
 
 `server/publisherImportSmoke.sql` holds the server's side: who may ask,
-what only the Worker may do, that nobody reads a run's documents early, and
-publishing, withdrawing and revoking.
+what only the Worker may do, that nobody reads a run's documents early,
+publishing, what is new at the source, withdrawing and revoking.
 
 ## Not yet
 

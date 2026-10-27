@@ -7103,7 +7103,7 @@
     "sealLabel": "Organisasi terverifikasi",
     "sealLabelDomain": "Organisasi terverifikasi: {{domain}}",
     "title": "Centang biru",
-    "meaning": "Centang biru menunjukkan bahwa ini organisasi yang asli: seorang admin membuktikan bahwa ia punya alamat email di situs webnya, dan LangQuest memeriksanya. Ini tidak berarti LangQuest memeriksa apa yang dibagikan organisasi itu.",
+    "meaning": "Centang biru berarti tim LangQuest telah memverifikasi organisasi ini. Ini bukan persetujuan atau dukungan atas apa yang diterbitkan organisasi itu.",
     "problem": {
       "notAllowed": "Hanya admin organisasi yang bisa meminta centang biru.",
       "badDomain": "Ketik alamat situs web, misalnya example.org.",
@@ -7136,7 +7136,6 @@
     "ask": {
       "send": "Kirimi saya kode",
       "sendHelp": "Mengirim kode 6 angka ke alamat itu, untuk membuktikan bahwa alamat itu milik Anda.",
-      "intro": "Centang biru setelah nama {{org}} menunjukkan kepada semua orang bahwa ini {{org}} yang asli. Untuk memintanya, buktikan bahwa Anda punya alamat email di situs web organisasi Anda.",
       "domain": "Situs web organisasi Anda",
       "domainPlaceholder": "example.org",
       "domainHelp": "Situs web yang dikelola organisasi Anda, misalnya example.org.",
@@ -7146,7 +7145,7 @@
     },
     "done": {
       "title": "Terverifikasi",
-      "since": "Terverifikasi sejak {{date}}."
+      "sub": "{{domain}} · sejak {{date}}"
     },
     "declined": {
       "title": "LangQuest tidak menambahkan centang biru",
@@ -7154,12 +7153,11 @@
     },
     "waiting": {
       "title": "Menunggu LangQuest",
-      "body": "{{email}} sudah dikonfirmasi. LangQuest akan memeriksa {{domain}} dan menambahkan centang biru.",
+      "body": "{{email}} sudah dikonfirmasi. Tim LangQuest akan meninjau permintaan Anda untuk {{domain}}.",
       "withdraw": "Tarik kembali permintaan",
       "withdrawHelp": "Membatalkan permintaan. Anda bisa meminta lagi nanti."
     },
     "row": {
-      "verified": "Terverifikasi · {{domain}}",
       "verifiedHelp": "Centang biru: artinya dan kapan ditambahkan.",
       "ask": "Minta centang biru",
       "askHelp": "Minta centang biru kepada LangQuest, agar semua orang tahu bahwa ini organisasi yang asli."
@@ -7183,7 +7181,8 @@
       "startHelp": "LangQuest mulai menyiapkan panduan. Tiap bahasa butuh beberapa menit, dan tetap berjalan setelah Anda menutup ini.",
       "inLibrary": "Di perpustakaan Anda",
       "updateHelp": "Bahasa ini sudah ada di perpustakaan Anda. Mengimpor lagi membawa versi FIA terbaru sebagai versi baru.",
-      "languageHelp": "Centang untuk memasukkan panduan FIA dalam bahasa ini."
+      "languageHelp": "Centang untuk memasukkan panduan FIA dalam bahasa ini.",
+      "newsLine_other": "Di perpustakaan Anda · {{count, number}} panduan baru atau diperbarui"
     },
     "building": {
       "waiting": "Menunggu dimulai",
@@ -7228,7 +7227,13 @@
       "failed": "Impor terakhir berhenti",
       "from": "Bahan Anda, dari {{source}}",
       "readyBadge": "Siap",
-      "help": "Membuka alat impor yang dinyalakan LangQuest untuk organisasi Anda: masukkan bahan Anda sendiri dari tempat Anda menyimpannya."
+      "help": "Membuka alat impor yang dinyalakan LangQuest untuk organisasi Anda: masukkan bahan Anda sendiri dari tempat Anda menyimpannya.",
+      "news_other": "{{count, number}} panduan baru atau diperbarui sejak impor terakhir",
+      "newBadge": "Baru"
+    },
+    "news": {
+      "title_other": "{{count, number}} panduan baru atau diperbarui",
+      "body": "Sumbernya menambah atau mengubahnya sejak impor terakhir Anda. Bahasanya sudah dicentang di bawah. Impor untuk membawanya masuk."
     }
   }
 }

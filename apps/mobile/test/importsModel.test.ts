@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIA_LANGUAGES, fiaLanguageChoices, importerLine, isOpen, latestRun, type ImportRun } from '../src/imports/model';
+import { FIA_LANGUAGES, fiaLanguageChoices, importerLine, isOpen, latestRun, newsIn, sourceNews, type ImportRun } from '../src/imports/model';
 
 const run = (over: Partial<ImportRun>): ImportRun => ({
   id: 'r', importer: 'fia', source: 'BibleAquifer', options: { languages: ['eng', 'fra'] }, state: 'waiting', requestedAt: '2026-10-26T00:00:00Z',
@@ -34,5 +34,16 @@ describe('imports on Reference Material (decisions.md 173)', () => {
     expect(importerLine(importer, run({ state: 'ready', manifest: [{ itemId: 'fia.eng', kind: 'material', name: 'x', description: '', docHash: 'h', count: 1, language: 'eng' }] })))
       .toBe('Ready to publish · 1 item');
     expect(importerLine(importer, run({ state: 'failed' }))).toBe('The last import stopped');
+  });
+
+  it('counts what is new at the source, and says so under the row unless an import is under way', () => {
+    const news = { ...importer, found: { eng: { added: 12, updated: 3 }, fra: { added: 0, updated: 1 }, spa: { added: 0, updated: 0 } } };
+    expect(sourceNews(news)).toEqual({ count: 16, languages: ['eng', 'fra'] });
+    expect(newsIn(news, 'eng')).toBe(15);
+    expect(newsIn(news, 'hin')).toBe(0);
+    expect(sourceNews(importer)).toEqual({ count: 0, languages: [] });
+    expect(importerLine(news, null)).toBe('16 new or updated guides since your last import');
+    expect(importerLine(news, run({ state: 'published' }))).toBe('16 new or updated guides since your last import');
+    expect(importerLine(news, run({ state: 'importing', done: 0, total: 2 }))).toBe('Importing · 0 of 2 languages');
   });
 });

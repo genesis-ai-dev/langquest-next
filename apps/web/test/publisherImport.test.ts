@@ -2,13 +2,13 @@ import { canonicalJson } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { importStep, MAX_TRIES, runImports, type ImportedItem, type OpenRun } from '../../../server/publisherImport';
+import { checkImports, importStep, MAX_TRIES, runImports, type CheckJob, type ImportedItem, type OpenRun } from '../../../server/publisherImport';
 
 const V11N = { format: 'versification@1', code: 'eng', name: 'English', maxVerses: { JHN: [51] } };
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 
 /** The database as the import steps see it: one run, its documents and what it was told. */
-function fakeDb(run: OpenRun | null) {
+function fakeDb(run: OpenRun | null, checks: CheckJob[] = []) {
   const calls: { fn: string; args: Record<string, unknown> }[] = [];
   const kept = new Set<string>();
   let taken = false;
@@ -23,6 +23,7 @@ function fakeDb(run: OpenRun | null) {
           return { data: hashes, error: null };
         }
         case 'import_run_save': return { data: true, error: null };
+        case 'import_check_next': return { data: checks.shift() ?? null, error: null };
         default: return { data: true, error: null };
       }
     }
@@ -41,7 +42,10 @@ const article = (lang: string) => [
 function fakeGitHub(opts: { fail?: boolean } = {}) {
   const asked: string[] = [];
   const files: Record<string, unknown> = {
-    'BibleAquifer/FIATranslationGuide/main/eng/metadata.json': { scripture_burrito: { languages: [{ name: { en: 'English' } }], ingredients: { 'json/43.content.json': {} } } },
+    'BibleAquifer/FIATranslationGuide/main/eng/metadata.json': {
+      scripture_burrito: { languages: [{ name: { en: 'English' } }], ingredients: { 'json/43.content.json': {} } },
+      article_metadata: { 'eng-jhn-p1-v1': {}, 'eng-jhn-p1-v1-audio': {} }
+    },
     'BibleAquifer/FIATranslationGuide/main/eng/json/43.content.json': article('eng'),
     'BibleAquifer/FIAKeyTerms/main/eng/metadata.json': { scripture_burrito: { ingredients: { 'json/001.content.json': {} } } },
     'BibleAquifer/FIAKeyTerms/main/eng/json/001.content.json': [{ content_id: 'eng-t148-v1', title: 'Word', media_type: 'Text', content: '<p>The word of God.</p>' }]
@@ -71,6 +75,8 @@ describe('publisher import steps', () => {
     expect(db.kept.size).toBe(3);
     expect(db.kept.has(item.docHash)).toBe(true);
     expect(db.last('import_run_save')).toMatchObject({ p_done: 1, p_total: 2, p_cursor: { tries: 0 } });
+    // What the language took, for later looks at the source.
+    expect(db.last('import_run_put_part')).toEqual({ p_run: 'run-1', p_part: 'eng', p_ids: ['eng-jhn-p1-v1'] });
 
     const after2 = await importStep(db.sb, { fetch: gh.fetch }, after1!);
     expect(after2!.cursor.missing).toEqual(['xyz']);
@@ -102,5 +108,23 @@ describe('publisher import steps', () => {
     const out = await runImports(db.sb, { fetch: fakeGitHub().fetch, now: () => (t += 1000) }, 2500);
     expect(out.steps).toBe(2);
     expect(db.last('import_run_save')).toMatchObject({ p_lease_seconds: 60 });
+  });
+
+  it('looks at the source of each published import and saves what is new; a language the source dropped finds nothing', async () => {
+    const job = (orgId: string, parts: Record<string, string[]>): CheckJob => ({ orgId, importer: 'fia', source: 'BibleAquifer', parts });
+    const db = fakeDb(null, [job('org-wc', { eng: ['eng-jhn-p1-v0'], xyz: ['xyz-jhn-p1-v1'] }), job('org-b', { eng: ['eng-jhn-p1-v1'] })]);
+    const out = await checkImports(db.sb, { fetch: fakeGitHub().fetch });
+    expect(out).toEqual({ checked: 2, errors: 0 });
+    const saved = db.calls.filter((c) => c.fn === 'import_check_save').map((c) => c.args);
+    expect(saved).toEqual([
+      { p_org: 'org-wc', p_importer: 'fia', p_found: { eng: { added: 0, updated: 1 } } },
+      { p_org: 'org-b', p_importer: 'fia', p_found: {} }
+    ]);
+  });
+
+  it('counts a look that fails, and goes on to the next', async () => {
+    const db = fakeDb(null, [{ orgId: 'org-wc', importer: 'fia', source: 'BibleAquifer', parts: { eng: [] } }]);
+    expect(await checkImports(db.sb, { fetch: fakeGitHub({ fail: true }).fetch })).toEqual({ checked: 0, errors: 1 });
+    expect(db.calls.some((c) => c.fn === 'import_check_save')).toBe(false);
   });
 });

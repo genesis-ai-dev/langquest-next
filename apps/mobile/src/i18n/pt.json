@@ -7717,7 +7717,7 @@
     "sealLabel": "Organização verificada",
     "sealLabelDomain": "Organização verificada: {{domain}}",
     "title": "Selo azul",
-    "meaning": "O selo azul mostra que esta é a organização verdadeira: um administrador provou que tem um e-mail no site dela, e o LangQuest conferiu. Não quer dizer que o LangQuest conferiu o que a organização compartilha.",
+    "meaning": "O selo azul significa que a equipe do LangQuest verificou esta organização. Não é uma aprovação nem um endosso do que a organização publica.",
     "problem": {
       "notAllowed": "Só um administrador da organização pode pedir o selo azul.",
       "badDomain": "Digite o endereço do site, como example.org.",
@@ -7750,7 +7750,6 @@
     "ask": {
       "send": "Enviar um código para mim",
       "sendHelp": "Envia um código de 6 dígitos para esse endereço, para provar que ele é seu.",
-      "intro": "Um selo azul depois do nome de {{org}} mostra a todos que esta é a verdadeira {{org}}. Para pedir um, prove que você tem um endereço de e-mail no site da sua organização.",
       "domain": "O site da sua organização",
       "domainPlaceholder": "example.org",
       "domainHelp": "O site que a sua organização mantém, como example.org.",
@@ -7760,7 +7759,7 @@
     },
     "done": {
       "title": "Verificada",
-      "since": "Verificada desde {{date}}."
+      "sub": "{{domain}} · desde {{date}}"
     },
     "declined": {
       "title": "O LangQuest não adicionou o selo azul",
@@ -7768,12 +7767,11 @@
     },
     "waiting": {
       "title": "Esperando o LangQuest",
-      "body": "{{email}} está confirmado. O LangQuest vai conferir {{domain}} e adicionar o selo azul.",
+      "body": "{{email}} está confirmado. A equipe do LangQuest vai analisar seu pedido para {{domain}}.",
       "withdraw": "Cancelar o pedido",
       "withdrawHelp": "Cancela o pedido. Você pode pedir de novo depois."
     },
     "row": {
-      "verified": "Verificada · {{domain}}",
       "verifiedHelp": "O selo azul: o que ele quer dizer e quando foi adicionado.",
       "ask": "Pedir o selo azul",
       "askHelp": "Peça ao LangQuest o selo azul, para que todos vejam que esta é a organização verdadeira."
@@ -7801,7 +7799,10 @@
       "startHelp": "O LangQuest começa a preparar os guias. Cada idioma leva alguns minutos e continua depois que você fechar isto.",
       "inLibrary": "Na sua biblioteca",
       "updateHelp": "Este idioma já está na sua biblioteca. Importar de novo traz a versão mais recente da FIA.",
-      "languageHelp": "Marque para trazer os guias da FIA neste idioma."
+      "languageHelp": "Marque para trazer os guias da FIA neste idioma.",
+      "newsLine_one": "Na sua biblioteca · {{count, number}} guia novo ou atualizado",
+      "newsLine_many": "Na sua biblioteca · {{count, number}} guias novos ou atualizados",
+      "newsLine_other": "Na sua biblioteca · {{count, number}} guias novos ou atualizados"
     },
     "building": {
       "waiting": "Aguardando para começar",
@@ -7854,7 +7855,17 @@
       "failed": "A última importação parou",
       "from": "Seu material, de {{source}}",
       "readyBadge": "Pronto",
-      "help": "Abre o importador que o LangQuest ativou para a sua organização: traga seu próprio material de onde você o guarda."
+      "help": "Abre o importador que o LangQuest ativou para a sua organização: traga seu próprio material de onde você o guarda.",
+      "news_one": "{{count, number}} guia novo ou atualizado desde a sua última importação",
+      "news_many": "{{count, number}} guias novos ou atualizados desde a sua última importação",
+      "news_other": "{{count, number}} guias novos ou atualizados desde a sua última importação",
+      "newBadge": "Novo"
+    },
+    "news": {
+      "title_one": "{{count, number}} guia novo ou atualizado",
+      "title_many": "{{count, number}} guias novos ou atualizados",
+      "title_other": "{{count, number}} guias novos ou atualizados",
+      "body": "A fonte os adicionou ou mudou desde a sua última importação. Os idiomas deles estão marcados abaixo. Importe para trazê-los."
     }
   }
 }

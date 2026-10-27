@@ -3,13 +3,18 @@
 A blue check after an organization's name tells people it is the real
 organization: that an admin of it proved they have an email address at its
 website, and LangQuest staff checked the website is theirs (decisions.md
-172). It says who is sharing material, not that LangQuest reviewed it.
+172). It says who is sharing material, not that LangQuest reviewed it. The
+app says so in one sentence (`verified.meaning`): "A blue check means the
+LangQuest team has verified this organization. It is not an approval or
+endorsement of what the organization publishes." (the wording follows
+YouTube's and Instagram's notes on their own checks).
 
 ## Asking for one
 
 An admin (an Organization Admin: `manage_roles` at the organization's own
-level) opens Manage and taps **Ask for a blue check** under the
-organization's name. The sheet asks for:
+level) opens Manage and taps the grey check after the organization's name;
+nobody else sees a grey check. The sheet says what a blue check means and
+asks for:
 
 - the organization's website, which is turned into a domain
   (`https://www.unfoldingword.org/about` becomes `unfoldingword.org`);
@@ -60,7 +65,9 @@ minutes (`apps/mobile/src/verified/orgBadges.ts`). The seal
 (`VerifiedSeal.tsx`: `OrgName`, `OrgLine`, `OrgSeal`) goes after the name in:
 
 - My Work's header;
-- the Manage card, where **Verified · domain** opens what the check means;
+- the Manage card, where the check after the name is a button: grey for an
+  admin until the check is granted (it opens the request), then blue for
+  every member (it opens what the check means, its website and since when);
 - Me → Switch Organization;
 - Find your organization;
 - the card after scanning an invite;

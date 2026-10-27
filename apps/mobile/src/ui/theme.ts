@@ -23,6 +23,8 @@ export const C = {
   red: '#EF4444',
   /** A verified organization's blue check (decisions.md 172): blue, so it never reads as one of the purple buttons; 3:1 on white as a glyph. */
   verified: '#1D8CF8',
+  /** The grey check an admin taps to ask for the blue one (decisions.md 172): 3:1 on white as a glyph. */
+  unverified: '#918E9F',
   white: '#FFFFFF'
 } as const;
 

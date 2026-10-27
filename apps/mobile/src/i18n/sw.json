@@ -7410,7 +7410,7 @@
     "sealLabel": "Shirika lililothibitishwa",
     "sealLabelDomain": "Shirika lililothibitishwa: {{domain}}",
     "title": "Alama ya bluu",
-    "meaning": "Alama ya bluu inaonyesha kwamba hili ndilo shirika halisi: msimamizi alithibitisha kuwa ana anwani ya barua pepe kwenye tovuti yake, na LangQuest ilikagua. Haimaanishi kwamba LangQuest ilikagua kile ambacho shirika linashiriki.",
+    "meaning": "Alama ya bluu inamaanisha timu ya LangQuest imethibitisha shirika hili. Si idhini wala uungaji mkono wa kile ambacho shirika linachapisha.",
     "problem": {
       "notAllowed": "Msimamizi wa shirika pekee ndiye anayeweza kuomba alama ya bluu.",
       "badDomain": "Andika anwani ya tovuti, kama example.org.",
@@ -7443,7 +7443,6 @@
     "ask": {
       "send": "Nitumie msimbo",
       "sendHelp": "Inatuma msimbo wa tarakimu 6 kwa anwani hiyo, kuthibitisha kuwa ni yako.",
-      "intro": "Alama ya bluu baada ya jina la {{org}} inaonyesha kila mtu kwamba hii ndiyo {{org}} halisi. Ili kuiomba, thibitisha kwamba una anwani ya barua pepe kwenye tovuti ya shirika lako.",
       "domain": "Tovuti ya shirika lako",
       "domainPlaceholder": "example.org",
       "domainHelp": "Tovuti ambayo shirika lako linaendesha, kama example.org.",
@@ -7453,7 +7452,7 @@
     },
     "done": {
       "title": "Limethibitishwa",
-      "since": "Limethibitishwa tangu {{date}}."
+      "sub": "{{domain}} · tangu {{date}}"
     },
     "declined": {
       "title": "LangQuest haikuongeza alama ya bluu",
@@ -7461,12 +7460,11 @@
     },
     "waiting": {
       "title": "Inasubiri LangQuest",
-      "body": "{{email}} imethibitishwa. LangQuest itakagua {{domain}} na kuongeza alama ya bluu.",
+      "body": "{{email}} imethibitishwa. Timu ya LangQuest itakagua ombi lako la {{domain}}.",
       "withdraw": "Ondoa ombi",
       "withdrawHelp": "Inaghairi ombi. Unaweza kuomba tena baadaye."
     },
     "row": {
-      "verified": "Limethibitishwa · {{domain}}",
       "verifiedHelp": "Alama ya bluu: maana yake na lini iliongezwa.",
       "ask": "Omba alama ya bluu",
       "askHelp": "Omba LangQuest alama ya bluu, ili kila mtu aone kwamba hili ndilo shirika halisi."
@@ -7492,7 +7490,9 @@
       "startHelp": "LangQuest inaanza kuandaa miongozo. Kila lugha huchukua dakika chache, na inaendelea hata ukifunga hapa.",
       "inLibrary": "Iko kwenye maktaba yako",
       "updateHelp": "Lugha hii tayari iko kwenye maktaba yako. Kuileta tena kunaleta toleo jipya la FIA.",
-      "languageHelp": "Weka alama ili kuleta miongozo ya FIA katika lugha hii."
+      "languageHelp": "Weka alama ili kuleta miongozo ya FIA katika lugha hii.",
+      "newsLine_one": "Iko kwenye maktaba yako · mwongozo {{count, number}} mpya au uliosasishwa",
+      "newsLine_other": "Iko kwenye maktaba yako · miongozo {{count, number}} mipya au iliyosasishwa"
     },
     "building": {
       "waiting": "Inasubiri kuanza",
@@ -7541,7 +7541,15 @@
       "failed": "Uletaji wa mwisho ulisimama",
       "from": "Nyenzo zako, kutoka {{source}}",
       "readyBadge": "Tayari",
-      "help": "Inafungua zana ya kuleta ambayo LangQuest imewasha kwa shirika lako: leta nyenzo zako kutoka unakozihifadhi."
+      "help": "Inafungua zana ya kuleta ambayo LangQuest imewasha kwa shirika lako: leta nyenzo zako kutoka unakozihifadhi.",
+      "news_one": "Mwongozo {{count, number}} mpya au uliosasishwa tangu uingizaji wako wa mwisho",
+      "news_other": "Miongozo {{count, number}} mipya au iliyosasishwa tangu uingizaji wako wa mwisho",
+      "newBadge": "Mpya"
+    },
+    "news": {
+      "title_one": "Mwongozo {{count, number}} mpya au uliosasishwa",
+      "title_other": "Miongozo {{count, number}} mipya au iliyosasishwa",
+      "body": "Chanzo kimeiongeza au kuibadilisha tangu uingizaji wako wa mwisho. Lugha zake zimewekwa alama hapa chini. Ingiza ili kuileta."
     }
   }
 }

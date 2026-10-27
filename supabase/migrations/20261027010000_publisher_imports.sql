@@ -68,6 +68,36 @@ alter table public.import_runs enable row level security;
 revoke all on table public.import_runs from public, anon, authenticated;
 grant all on table public.import_runs to service_role;
 
+-- What each part of a run took from the source, by the source's own names
+-- for its articles (for 'fia', a language's guides: "eng-jhn-p1-v1.1"), so a
+-- later look at the source can tell what is new since the organization
+-- published it. Only the latest published run's list of a part is kept.
+create table public.import_run_parts (
+  run_id uuid not null references public.import_runs (id) on delete cascade,
+  part text not null check (part ~ '^[a-z0-9][a-z0-9._-]{0,40}$'),
+  source_ids text[] not null check (cardinality(source_ids) <= 20000),
+  primary key (run_id, part)
+);
+alter table public.import_run_parts enable row level security;
+revoke all on table public.import_run_parts from public, anon, authenticated;
+grant all on table public.import_run_parts to service_role;
+
+-- The Worker's latest look at an importer's source (once a day): for each
+-- part the organization published, how many of the source's articles are new
+-- or at a new version since. The app shows it on the importer's row.
+create table public.import_checks (
+  org_id text not null,
+  importer text not null,
+  checked_at timestamptz not null default clock_timestamp(),
+  -- {"eng": {"added": 12, "updated": 3}}: only the parts with something new.
+  found jsonb not null default '{}' check (jsonb_typeof(found) = 'object' and octet_length(found::text) <= 8192),
+  primary key (org_id, importer),
+  foreign key (org_id, importer) references public.org_importers (org_id, importer)
+);
+alter table public.import_checks enable row level security;
+revoke all on table public.import_checks from public, anon, authenticated;
+grant all on table public.import_checks to service_role;
+
 -- A run keeps its documents the way an organization does: rows in
 -- library_document_access, under the run's own key ('_import.<run id>'),
 -- which no person is a member of. So _library_store checks them as it checks
@@ -111,10 +141,13 @@ revoke all on function public._import_run_json from public, anon, authenticated;
 
 -- The importers turned on for the organization. Empty for anyone who may not
 -- import, so the app may ask whoever is signed in.
+-- With what the Worker last found new at the source since the organization's
+-- last published import (import_checks).
 create or replace function public.org_importers(p_org text)
-returns table (importer text, source text, granted_at timestamptz)
+returns table (importer text, source text, granted_at timestamptz, checked_at timestamptz, found jsonb)
 language sql stable security definer set search_path = '' as $$
-  select i.importer, i.source, i.granted_at from public.org_importers i
+  select i.importer, i.source, i.granted_at, c.checked_at, coalesce(c.found, '{}'::jsonb) from public.org_importers i
+    left join public.import_checks c on c.org_id = i.org_id and c.importer = i.importer
    where i.org_id = p_org and i.revoked_at is null and public._may_import(p_org, public.caller_id())
    order by i.importer;
 $$;
@@ -171,6 +204,7 @@ begin
    where id = p_run and org_id = p_org and withdrawn_at is null and failed_at is null and accepted_at is null;
   if not found then return 'not_open'; end if;
   delete from public.library_document_access where org_id = public._import_key(p_run);
+  delete from public.import_run_parts where run_id = p_run;
   return 'withdrawn';
 end $$;
 revoke all on function public.import_run_withdraw from public, anon;
@@ -198,6 +232,13 @@ begin
   on conflict do nothing;
   delete from public.library_document_access where org_id = public._import_key(p_run);
   update public.import_runs set accepted_at = coalesce(accepted_at, now()), accepted_by = coalesce(accepted_by, v_actor) where id = p_run;
+  -- What this run took is now what the organization has: older lists of the
+  -- same parts go, and nothing in them counts as new any more.
+  delete from public.import_run_parts p using public.import_runs r
+   where p.run_id = r.id and r.org_id = p_org and r.importer = v_run.importer and r.id <> p_run and r.accepted_at is not null
+     and p.part in (select q.part from public.import_run_parts q where q.run_id = p_run);
+  update public.import_checks c set found = c.found - coalesce((select array_agg(q.part) from public.import_run_parts q where q.run_id = p_run), '{}'::text[])
+   where c.org_id = p_org and c.importer = v_run.importer;
   return jsonb_build_object('items', coalesce(v_run.manifest, '[]'::jsonb));
 end $$;
 revoke all on function public.import_run_accept from public, anon;
@@ -217,6 +258,7 @@ begin
      and not exists (select 1 from public.org_importers i where i.org_id = r.org_id and i.importer = r.importer and i.revoked_at is null);
   delete from public.library_document_access a using public.import_runs r
    where a.org_id = public._import_key(r.id) and r.failed_at is not null;
+  delete from public.import_run_parts p using public.import_runs r where p.run_id = r.id and r.failed_at is not null;
   select * into v_run from public.import_runs r
    where r.finished_at is null and r.failed_at is null and r.withdrawn_at is null and (r.lease_until is null or r.lease_until < now())
    order by r.requested_at limit 1 for update skip locked;
@@ -292,9 +334,68 @@ begin
   update public.import_runs set failed_at = now(), failure = left(coalesce(nullif(btrim(p_failure), ''), 'The import stopped.'), 500), lease_until = null
    where id = p_run and finished_at is null and failed_at is null and withdrawn_at is null;
   delete from public.library_document_access where org_id = public._import_key(p_run);
+  delete from public.import_run_parts where run_id = p_run;
 end $$;
 revoke all on function public.import_run_fail from public, anon, authenticated;
 grant execute on function public.import_run_fail to service_role;
+
+-- What a part took from the source (the source's names for its articles), for later looks at the source.
+create or replace function public.import_run_put_part(p_run uuid, p_part text, p_ids text[])
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public._import_run_open(p_run) then raise exception 'the run is not open' using errcode = '55000'; end if;
+  insert into public.import_run_parts (run_id, part, source_ids) values (p_run, p_part, coalesce(p_ids, '{}'))
+  on conflict (run_id, part) do update set source_ids = excluded.source_ids;
+end $$;
+revoke all on function public.import_run_put_part from public, anon, authenticated;
+grant execute on function public.import_run_put_part to service_role;
+
+-- The next importer whose source to look at: one turned on, with a published
+-- import, not looked at for p_stale_seconds. It is marked looked at now, so
+-- two schedules never look at once; a look that dies waits for the next day.
+-- Answers {orgId, importer, source, parts: {part: [ids]}} with what the
+-- latest published run of each part took, or null.
+create or replace function public.import_check_next(p_stale_seconds int default 86400)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_org text; v_importer text; v_source text; v_parts jsonb;
+begin
+  select i.org_id, i.importer, i.source into v_org, v_importer, v_source
+    from public.org_importers i
+    left join public.import_checks c on c.org_id = i.org_id and c.importer = i.importer
+   where i.revoked_at is null
+     and (c.checked_at is null or c.checked_at < clock_timestamp() - make_interval(secs => greatest(p_stale_seconds, 0)))
+     and exists (select 1 from public.import_run_parts p join public.import_runs r on r.id = p.run_id
+                  where r.org_id = i.org_id and r.importer = i.importer and r.accepted_at is not null)
+   order by c.checked_at nulls first, i.granted_at
+   limit 1 for update of i skip locked;
+  if v_org is null then return null; end if;
+  insert into public.import_checks (org_id, importer, checked_at) values (v_org, v_importer, clock_timestamp())
+  on conflict (org_id, importer) do update set checked_at = clock_timestamp();
+  select jsonb_object_agg(x.part, x.ids) into v_parts from (
+    select distinct on (p.part) p.part, to_jsonb(p.source_ids) as ids
+      from public.import_run_parts p join public.import_runs r on r.id = p.run_id
+     where r.org_id = v_org and r.importer = v_importer and r.accepted_at is not null
+     order by p.part, r.accepted_at desc) x;
+  return jsonb_build_object('orgId', v_org, 'importer', v_importer, 'source', v_source, 'parts', coalesce(v_parts, '{}'::jsonb));
+end $$;
+revoke all on function public.import_check_next from public, anon, authenticated;
+grant execute on function public.import_check_next to service_role;
+
+-- What the look found: {part: {added, updated}}, counts of 0 or more, for parts with something new.
+create or replace function public.import_check_save(p_org text, p_importer text, p_found jsonb)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if jsonb_typeof(p_found) is distinct from 'object' or exists (
+       select 1 from jsonb_each(p_found) e
+        where e.key !~ '^[a-z0-9][a-z0-9._-]{0,40}$' or jsonb_typeof(e.value) <> 'object'
+           or jsonb_typeof(e.value->'added') is distinct from 'number' or jsonb_typeof(e.value->'updated') is distinct from 'number'
+           or (e.value->>'added')::numeric < 0 or (e.value->>'updated')::numeric < 0) then
+    raise exception 'found is {part: {added, updated}}' using errcode = '22023';
+  end if;
+  update public.import_checks set found = p_found, checked_at = clock_timestamp() where org_id = p_org and importer = p_importer;
+end $$;
+revoke all on function public.import_check_save from public, anon, authenticated;
+grant execute on function public.import_check_save to service_role;
 
 -- ---- staff (service role; scripts/publisher-import.ts) ---------------------------------------
 

@@ -7103,7 +7103,7 @@
     "sealLabel": "已认证的组织",
     "sealLabelDomain": "已认证的组织：{{domain}}",
     "title": "蓝色认证标记",
-    "meaning": "蓝色认证标记表示这是真正的组织：一位管理员证明了自己有该组织网站域名下的电子邮件地址，LangQuest 也核实过。这并不表示 LangQuest 审核过该组织分享的内容。",
+    "meaning": "蓝色认证标记表示 LangQuest 团队已核实这个组织。它不代表对该组织所发布内容的认可或背书。",
     "problem": {
       "notAllowed": "只有组织管理员可以申请蓝色认证标记。",
       "badDomain": "请输入网站地址，例如 example.org。",
@@ -7136,7 +7136,6 @@
     "ask": {
       "send": "给我发验证码",
       "sendHelp": "向该地址发送 6 位验证码，以证明这是你的地址。",
-      "intro": "{{org}} 名称后的蓝色认证标记会向所有人表明这是真正的 {{org}}。要申请，请证明你有组织网站域名下的电子邮件地址。",
       "domain": "你所在组织的网站",
       "domainPlaceholder": "example.org",
       "domainHelp": "你的组织运营的网站，例如 example.org。",
@@ -7146,7 +7145,7 @@
     },
     "done": {
       "title": "已认证",
-      "since": "自 {{date}} 起认证。"
+      "sub": "{{domain}} · 自 {{date}} 起"
     },
     "declined": {
       "title": "LangQuest 没有添加蓝色认证标记",
@@ -7154,12 +7153,11 @@
     },
     "waiting": {
       "title": "等待 LangQuest 处理",
-      "body": "{{email}} 已确认。LangQuest 会核实 {{domain}} 并添加蓝色认证标记。",
+      "body": "{{email}} 已确认。LangQuest 团队会审核您对 {{domain}} 的申请。",
       "withdraw": "撤回申请",
       "withdrawHelp": "取消申请。你以后可以重新申请。"
     },
     "row": {
-      "verified": "已认证 · {{domain}}",
       "verifiedHelp": "蓝色认证标记：它的含义和添加时间。",
       "ask": "申请蓝色认证标记",
       "askHelp": "向 LangQuest 申请蓝色认证标记，让所有人都能看到这是真正的组织。"
@@ -7183,7 +7181,8 @@
       "startHelp": "LangQuest 开始生成指南。每种语言需要几分钟，关闭此处后仍会继续。",
       "inLibrary": "已在资料库中",
       "updateHelp": "这种语言已在您的资料库中。再次导入会把 FIA 的最新内容作为新版本带进来。",
-      "languageHelp": "勾选后导入这种语言的 FIA 指南。"
+      "languageHelp": "勾选后导入这种语言的 FIA 指南。",
+      "newsLine_other": "已在资料库中 · {{count, number}} 份新的或更新的指南"
     },
     "building": {
       "waiting": "等待开始",
@@ -7228,7 +7227,13 @@
       "failed": "上次导入已停止",
       "from": "您的资料，来自 {{source}}",
       "readyBadge": "就绪",
-      "help": "打开 LangQuest 为您的机构开启的导入工具：从您存放资料的地方导入自己的资料。"
+      "help": "打开 LangQuest 为您的机构开启的导入工具：从您存放资料的地方导入自己的资料。",
+      "news_other": "自上次导入以来有 {{count, number}} 份新的或更新的指南",
+      "newBadge": "新"
+    },
+    "news": {
+      "title_other": "{{count, number}} 份新的或更新的指南",
+      "body": "来源在您上次导入后添加或更改了这些指南。它们的语言已在下方勾选。导入即可带进来。"
     }
   }
 }

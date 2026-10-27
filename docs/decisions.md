@@ -8206,6 +8206,18 @@ record could prove the domain, or a confirmed address could grant at once,
 in `org_verification_confirm`), or people read the check as LangQuest
 vouching for an organization's material.
 
+Amended (2026-10-27, Caleb Koster): staff keep looking at every request
+before granting it. Caleb chose this over granting once the email is
+confirmed: "one look at each request stops look-alikes, such as someone with
+a university email claiming that university." The Manage card loses its
+"Ask for a blue check" and "Verified · domain" lines, which Caleb found
+cluttered: the check after the name is the button, grey for an admin until
+it is granted (it opens the request), blue for every member once it is (it
+opens what it means). The long explanation is one sentence in the style of
+other sites' notes on their checks: "A blue check means the LangQuest team
+has verified this organization. It is not an approval or endorsement of what
+the organization publishes."
+
 ## 173. Publishers bring their own material in with an importer LangQuest staff turn on for their organization; the server builds it and their admin publishes it
 
 Date: 2026-10-26 · By: Caleb Koster · Status: accepted
@@ -8251,3 +8263,19 @@ own copies of FIA, which teams follow, once Word Collective publishes its own
 Reverse if: a publisher's material sits behind a key (then the importer needs
 the organization's secret, kept like the Worker's), or imports outgrow the
 Worker's schedule (then they move to a container job).
+
+Amended (2026-10-27, Caleb Koster): Caleb asked that a publisher can tap the
+importer again to bring in what its source added, with "some indicator ... of
+'detected x new content'". Each language a run builds keeps the source's own
+names for the guides it took (`import_run_parts`; Aquifer names a guide with
+its version, "eng-1ch-p17-v1.1"). Once a day the Worker's schedule reads the
+`metadata.json` of each published language (`checkImports`,
+`import_check_next`, `import_check_save`) and counts guides for passages the
+import did not have and guides at a new version; the importer's row says
+"16 new or updated guides since your last import" with a New badge, and its
+sheet ticks those languages. Importing a language again rebuilds it whole,
+but unchanged guides are the same documents (they are named by their
+content), so only what changed is new, and followers get it as an update.
+Publishing a run clears what it took from the count. Only the importer's own
+organization sees its importer: unfoldingWord would see its own Door43
+importer, once it is built.

@@ -7410,7 +7410,7 @@
     "sealLabel": "Ƙungiyar da aka tabbatar",
     "sealLabelDomain": "Ƙungiyar da aka tabbatar: {{domain}}",
     "title": "Alamar shuɗi",
-    "meaning": "Alamar shuɗi tana nuna cewa wannan ita ce ƙungiyar ta gaske: wani mai gudanarwa ya tabbatar yana da adireshin imel a shafin yanar gizonta, kuma LangQuest ta duba. Ba ta nufin LangQuest ta duba abin da ƙungiyar take rabawa ba.",
+    "meaning": "Alamar shuɗi tana nufin ƙungiyar LangQuest ta tabbatar da wannan ƙungiya. Ba amincewa ko goyon baya ba ne ga abin da ƙungiyar ke wallafawa.",
     "problem": {
       "notAllowed": "Mai gudanar da ƙungiya ne kaɗai zai iya neman alamar shuɗi.",
       "badDomain": "Rubuta adireshin shafin yanar gizo, kamar example.org.",
@@ -7443,7 +7443,6 @@
     "ask": {
       "send": "Aika mini lamba",
       "sendHelp": "Tana aika lamba mai lambobi 6 zuwa wannan adireshin, don tabbatar da cewa naku ne.",
-      "intro": "Alamar shuɗi bayan sunan {{org}} tana nuna wa kowa cewa wannan ita ce {{org}} ta gaske. Don neman ta, ku tabbatar kuna da adireshin imel a shafin yanar gizon ƙungiyarku.",
       "domain": "Shafin yanar gizon ƙungiyarku",
       "domainPlaceholder": "example.org",
       "domainHelp": "Shafin yanar gizon da ƙungiyarku take gudanarwa, kamar example.org.",
@@ -7453,7 +7452,7 @@
     },
     "done": {
       "title": "An tabbatar",
-      "since": "An tabbatar tun {{date}}."
+      "sub": "{{domain}} · tun {{date}}"
     },
     "declined": {
       "title": "LangQuest ba ta ƙara alamar shuɗi ba",
@@ -7461,12 +7460,11 @@
     },
     "waiting": {
       "title": "Ana jiran LangQuest",
-      "body": "An tabbatar da {{email}}. LangQuest za ta duba {{domain}} ta ƙara alamar shuɗi.",
+      "body": "An tabbatar da {{email}}. Ƙungiyar LangQuest za ta duba buƙatarka ta {{domain}}.",
       "withdraw": "Janye buƙatar",
       "withdrawHelp": "Tana soke buƙatar. Kuna iya sake nema daga baya."
     },
     "row": {
-      "verified": "An tabbatar · {{domain}}",
       "verifiedHelp": "Alamar shuɗi: ma'anarta da lokacin da aka ƙara ta.",
       "ask": "Nemi alamar shuɗi",
       "askHelp": "Ku nemi LangQuest alamar shuɗi, don kowa ya ga cewa wannan ita ce ƙungiyar ta gaske."
@@ -7492,7 +7490,9 @@
       "startHelp": "LangQuest ya fara shirya jagororin. Kowane harshe yana ɗaukar mintuna kaɗan, kuma yana ci gaba ko da ka rufe nan.",
       "inLibrary": "Yana cikin ɗakin karatunka",
       "updateHelp": "Wannan harshe yana cikin ɗakin karatunka tun tuni. Sake shigo da shi yana kawo sabon FIA a matsayin sabon juyi.",
-      "languageHelp": "Yi alama don kawo jagororin FIA a wannan harshe."
+      "languageHelp": "Yi alama don kawo jagororin FIA a wannan harshe.",
+      "newsLine_one": "Yana cikin ɗakin karatunka · sababbi ko sabuntattu {{count, number}}",
+      "newsLine_other": "Yana cikin ɗakin karatunka · sababbi ko sabuntattu {{count, number}}"
     },
     "building": {
       "waiting": "Ana jira a fara",
@@ -7541,7 +7541,15 @@
       "failed": "Shigowar ƙarshe ta tsaya",
       "from": "Kayanka, daga {{source}}",
       "readyBadge": "A shirye",
-      "help": "Yana buɗe kayan shigowa da LangQuest ya kunna don ƙungiyarka: kawo kayanka daga inda kake ajiye su."
+      "help": "Yana buɗe kayan shigowa da LangQuest ya kunna don ƙungiyarka: kawo kayanka daga inda kake ajiye su.",
+      "news_one": "Sababbi ko sabuntattun jagorori {{count, number}} tun shigowa ta ƙarshe",
+      "news_other": "Sababbi ko sabuntattun jagorori {{count, number}} tun shigowa ta ƙarshe",
+      "newBadge": "Sabo"
+    },
+    "news": {
+      "title_one": "Sababbi ko sabuntattun jagorori {{count, number}}",
+      "title_other": "Sababbi ko sabuntattun jagorori {{count, number}}",
+      "body": "Tushen ya ƙara su ko ya canza su tun shigowarka ta ƙarshe. An zaɓi harsunansu a ƙasa. Shigo da su don kawo su."
     }
   }
 }

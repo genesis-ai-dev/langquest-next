@@ -10,11 +10,15 @@
  *
  * The FIA importer builds one language a step, from Bible Aquifer's
  * repositories under the importer's source (server/fiaAquifer.ts).
+ *
+ * Once a day the same schedule looks at the source of each published import
+ * (`checkImports`) and counts what is new since, for the importer's row in
+ * the app.
  */
 import { canonicalJson, type LibraryDoc } from '@langquest-next/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  contentFiles, fiaCollection, fiaGuide, guideArticles, languageNameOf, picturesFrom, termsFrom,
+  contentFiles, fiaCollection, fiaGuide, guideArticles, guideIds, languageNameOf, picturesFrom, sourceChanges, termsFrom,
   type AquiferArticle, type AquiferMetadata, type FiaResources
 } from './fiaAquifer';
 
@@ -44,6 +48,10 @@ export interface ImportDeps {
 
 /** How long a step holds its run: longer than one part takes, short enough that a dead step's run is soon taken up. */
 export const LEASE_SECONDS = 15 * 60;
+/** How often the source of a published import is looked at for what is new. */
+export const CHECK_EVERY_SECONDS = 24 * 60 * 60;
+/** Sources looked at in one schedule, at most. */
+const CHECKS_PER_SCHEDULE = 5;
 /** A part that fails this many times fails the run. */
 export const MAX_TRIES = 3;
 /** Documents per call (import_run_put_documents takes 500; a guide is 10–40 KB). */
@@ -150,6 +158,8 @@ export async function importFiaLanguage(sb: SupabaseClient, deps: ImportDeps, ru
   const c = fiaCollection(lang, languageName, versification, entries);
   const docHash = await docs.put(c.doc);
   await docs.flush();
+  // What the language took, so a later look at the source can tell what is new.
+  await rpc(sb, 'import_run_put_part', { p_run: run.id, p_part: lang, p_ids: guideIds(guidesFolder.meta) });
   return { itemId: c.itemId, kind: 'material', name: c.name, description: c.description, docHash, count: entries.length, language: lang };
 }
 
@@ -226,4 +236,44 @@ export async function runImports(sb: SupabaseClient, deps: ImportDeps, budgetMs:
     }
   }
   return { steps, errors };
+}
+
+/** A source to look at, as `import_check_next` answers it: what the latest published import of each part took. */
+export interface CheckJob { orgId: string; importer: string; source: string; parts: Record<string, string[]> }
+
+/** What is new at the source, by part; only parts with something new. */
+export type Found = Record<string, { added: number; updated: number }>;
+
+/** What the source has now that the published imports did not take. A part the source no longer has finds nothing. */
+export async function sourceNews(deps: ImportDeps, job: CheckJob): Promise<Found> {
+  const found: Found = {};
+  if (job.importer !== 'fia') return found;
+  for (const [lang, before] of Object.entries(job.parts)) {
+    const meta = await getJson<AquiferMetadata>(deps, raw(job.source, 'FIATranslationGuide', `${lang}/metadata.json`));
+    if (!meta) continue;
+    const c = sourceChanges(before, guideIds(meta));
+    if (c.added || c.updated) found[lang] = c;
+  }
+  return found;
+}
+
+/**
+ * Looks at the sources of published imports not looked at for a day (or
+ * `staleSeconds`), a few a schedule, and saves what is new at each. A look
+ * that fails waits for the next day.
+ */
+export async function checkImports(sb: SupabaseClient, deps: ImportDeps, staleSeconds = CHECK_EVERY_SECONDS): Promise<{ checked: number; errors: number }> {
+  let checked = 0, errors = 0;
+  for (let i = 0; i < CHECKS_PER_SCHEDULE; i++) {
+    const job = await rpc<CheckJob | null>(sb, 'import_check_next', { p_stale_seconds: staleSeconds });
+    if (!job) break;
+    try {
+      await rpc(sb, 'import_check_save', { p_org: job.orgId, p_importer: job.importer, p_found: await sourceNews(deps, job) });
+      checked++;
+    } catch (e) {
+      errors++;
+      console.error(`import check ${job.orgId} ${job.importer}`, e);
+    }
+  }
+  return { checked, errors };
 }

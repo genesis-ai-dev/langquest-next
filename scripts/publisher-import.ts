@@ -7,6 +7,7 @@
 //   npm run publisher-import -- grant <organization id> fia [--source BibleAquifer]
 //   npm run publisher-import -- revoke <organization id> fia
 //   npm run publisher-import -- step                       build waiting imports now (local only)
+//   npm run publisher-import -- check                      look at published imports' sources for what is new, now (local only)
 //
 // Add --hosted to work on the hosted project (after `npx supabase login` and
 // `npx supabase link`); without it, the local database (--workdir <dir> for a
@@ -17,7 +18,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { runImports } from '../server/publisherImport';
+import { checkImports, runImports } from '../server/publisherImport';
 import { quoted, rowsOf } from './global-viewer';
 import { isLocalUrl, LOCAL_URL, supabaseKey } from './local-supabase';
 
@@ -92,14 +93,26 @@ function list(args: Args): void {
   }
 }
 
-async function step(args: Args): Promise<string> {
-  if (args.hosted) throw new Error('The app Worker builds hosted imports every ten minutes; step is for a local stack.');
+/** The local database as the Worker uses it; the hosted one is the Worker's. */
+function localWorker(args: Args, what: string) {
+  if (args.hosted) throw new Error(`The app Worker ${what} on the hosted project by itself; this is for a local stack.`);
   const url = process.env['SUPABASE_URL'] ?? LOCAL_URL;
-  if (!isLocalUrl(url)) throw new Error(`SUPABASE_URL is ${url}; step is for a local stack.`);
-  const sb = createClient(url, supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url), { auth: { persistSession: false, autoRefreshToken: false } });
+  if (!isLocalUrl(url)) throw new Error(`SUPABASE_URL is ${url}; this is for a local stack.`);
+  return createClient(url, supabaseKey('SUPABASE_SERVICE_ROLE_KEY', url), { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+async function step(args: Args): Promise<string> {
+  const sb = localWorker(args, 'builds imports every ten minutes');
   const r = await runImports(sb, { fetch }, 30 * 60_000);
   if (r.errors) throw new Error(`${r.steps} step${r.steps === 1 ? '' : 's'}, ${r.errors} failed (the log above says why).`);
   return r.steps ? `${r.steps} step${r.steps === 1 ? '' : 's'} built.` : 'No import is waiting.';
+}
+
+async function check(args: Args): Promise<string> {
+  const sb = localWorker(args, 'looks at sources once a day');
+  const r = await checkImports(sb, { fetch }, 0);
+  if (r.errors) throw new Error(`${r.checked} looked at, ${r.errors} failed (the log above says why).`);
+  return r.checked ? `Looked at ${r.checked} source${r.checked === 1 ? '' : 's'}; the app shows what is new.` : 'No published import to look at.';
 }
 
 async function run(args: Args): Promise<string | null> {
@@ -124,8 +137,9 @@ async function run(args: Args): Promise<string | null> {
       return 'Turned off: imports under way stop; what the organization published stays.';
     }
     case 'step': return step(args);
+    case 'check': return check(args);
     default:
-      throw new Error('Use: list | grant <organization id> <importer> [--source <owner>] | revoke <organization id> <importer> | step  [--hosted] [--json] [--workdir <dir>]');
+      throw new Error('Use: list | grant <organization id> <importer> [--source <owner>] | revoke <organization id> <importer> | step | check  [--hosted] [--json] [--workdir <dir>]');
   }
 }
 

@@ -1,7 +1,9 @@
 // The blue check after a verified organization's name (decisions.md 172):
 // the same small seal wherever the name shows, which explains itself to a
-// screen reader. It is not a button of its own: rows keep their one action,
-// and what the check means is on the organization's Manage page.
+// screen reader. It is not a button of its own: rows keep their one action.
+// On the organization's Manage page the seal after its name opens what the
+// check means; there an admin of an organization without one sees it grey,
+// and taps it to ask.
 import { StyleSheet, View, type StyleProp, type TextStyle } from 'react-native';
 import { Text } from '../ui/text';
 import Svg, { Path, Polygon } from 'react-native-svg';
@@ -16,14 +18,15 @@ const POINTS = Array.from({ length: 24 }, (_, i) => {
   return `${(12 + r * Math.cos(a)).toFixed(2)},${(12 + r * Math.sin(a)).toFixed(2)}`;
 }).join(' ');
 
-export function Seal(props: { size?: number; badge?: OrgBadge | null }) {
+export function Seal(props: { size?: number; badge?: OrgBadge | null; grey?: boolean }) {
   const size = props.size ?? 16;
+  const color = props.grey ? C.unverified : C.verified;
   return (
     <View accessible accessibilityRole="image"
-      accessibilityLabel={props.badge ? t('verified.sealLabelDomain', { domain: props.badge.domain }) : t('verified.sealLabel')}
+      accessibilityLabel={props.grey ? t('verified.row.ask') : props.badge ? t('verified.sealLabelDomain', { domain: props.badge.domain }) : t('verified.sealLabel')}
       style={{ width: size, height: size }}>
       <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Polygon points={POINTS} fill={C.verified} stroke={C.verified} strokeWidth={1.6} strokeLinejoin="round" />
+        <Polygon points={POINTS} fill={color} stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
         <Path d="M7.4 12.3l3.1 3.1 6.1-6.4" fill="none" stroke={C.white} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
       </Svg>
     </View>

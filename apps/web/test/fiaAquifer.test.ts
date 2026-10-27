@@ -1,8 +1,8 @@
 import { validateDoc } from '@langquest-next/core';
 import { describe, expect, it } from 'vitest';
 import {
-  aquiferRef, audioUrls, contentFiles, FIA_ATTRIBUTION as AQUIFER_ATTRIBUTION, FIA_STEP_ORDER, fiaCollection, fiaGuide, guideArticles, htmlToMarkdown,
-  languageNameOf, picturesFrom, termRef, termsFrom, type AquiferArticle
+  aquiferRef, audioUrls, contentFiles, FIA_ATTRIBUTION as AQUIFER_ATTRIBUTION, FIA_STEP_ORDER, fiaCollection, fiaGuide, guideArticles, guideIds, htmlToMarkdown,
+  languageNameOf, picturesFrom, sourceChanges, termRef, termsFrom, type AquiferArticle
 } from '../../../server/fiaAquifer';
 import { FIA_ATTRIBUTION, FIA_STEPS } from '../../../scripts/fia-adapter';
 
@@ -92,5 +92,17 @@ describe('FIA from Bible Aquifer', () => {
     expect(termRef('swh-t61-v2')).toBe('t61');
     expect(termRef('a203')).toBeNull();
     expect(audioUrls(undefined)).toEqual([]);
+  });
+
+  it('names a folder\'s guides from its metadata, without their audio', () => {
+    expect(guideIds({ article_metadata: { 'eng-jhn-p2-v1': {}, 'eng-jhn-p1-v1.1': {}, 'eng-jhn-p1-v1.1-audio': {} } })).toEqual(['eng-jhn-p1-v1.1', 'eng-jhn-p2-v1']);
+    expect(guideIds({})).toEqual([]);
+  });
+
+  it('counts guides for new passages and guides at a new version; dropped guides are not news', () => {
+    const before = ['eng-jhn-p1-v1', 'eng-jhn-p2-v1', 'eng-jhn-p3-v2'];
+    expect(sourceChanges(before, before)).toEqual({ added: 0, updated: 0 });
+    expect(sourceChanges(before, ['eng-jhn-p1-v1.1', 'eng-jhn-p2-v1', 'eng-jhn-p4-v1', 'eng-jhn-p5-v1'])).toEqual({ added: 2, updated: 1 });
+    expect(sourceChanges([], ['eng-jhn-p1-v1'])).toEqual({ added: 1, updated: 0 });
   });
 });

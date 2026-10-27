@@ -71,6 +71,12 @@ do $$ begin
   exception when insufficient_privilege then null; end;
   begin perform public.import_run_finish((select id from smoke_run), '[]'); raise exception 'a client finished a run';
   exception when insufficient_privilege then null; end;
+  begin perform public.import_run_put_part((select id from smoke_run), 'eng', array['x']); raise exception 'a client said what a part took';
+  exception when insufficient_privilege then null; end;
+  begin perform public.import_check_next(0); raise exception 'a client looked at a source';
+  exception when insufficient_privilege then null; end;
+  begin perform public.import_check_save('pi-org', 'fia', '{}'); raise exception 'a client said what is new';
+  exception when insufficient_privilege then null; end;
 end $$;
 reset role;
 
@@ -91,6 +97,7 @@ do $$ declare v jsonb; h text[]; v11n text; begin
   h := h || public.import_run_put_documents((select id from smoke_run),
       array['{"format":"collection@1","title":"FIA (English)","entries":[{"ref":"JHN 1:1-5","title":"John 1:1-5","doc":"' || h[2] || '"}],"deps":["' || h[1] || '","' || h[2] || '"]}']);
   update smoke_run set v11n_hash = h[1], study = h[2], coll = h[3];
+  perform public.import_run_put_part((select id from smoke_run), 'eng', array['pi-jhn-p1-v1', 'pi-jhn-p2-v1']);
   if not public.import_run_save((select id from smoke_run), '{"languages":["eng"]}', 1, 2) then raise exception 'saving'; end if;
   if (select org_id from public.library_document_access where hash = h[2]) is distinct from '_import.' || (select id from smoke_run) then
     raise exception 'the run keeps its documents under its own key';
@@ -143,7 +150,61 @@ do $$ begin
   if exists (select 1 from public.library_document_access where org_id = '_import.' || (select id from smoke_run)) then raise exception 'the run''s own key is gone'; end if;
 end $$;
 
--- 9. Taking back a run drops what it made; turning the importer off stops the rest.
+-- 9. Once a day the Worker looks at the source of a published import; the admin sees what is new.
+create function pg_temp.next_check(p_org text) returns jsonb language plpgsql as $$
+declare v jsonb; begin
+  -- Other organizations in a populated database may come first.
+  for i in 1..1000 loop
+    v := public.import_check_next(0);
+    if v is null or v->>'orgId' = p_org then return v; end if;
+  end loop;
+  raise exception 'never came to %', p_org;
+end $$;
+select pg_temp.as_caller(null);
+do $$ declare v jsonb; w jsonb; begin
+  v := pg_temp.next_check('pi-org');
+  if v->>'importer' <> 'fia' or v->>'source' <> 'BibleAquifer' or v#>'{parts,eng}' <> '["pi-jhn-p1-v1","pi-jhn-p2-v1"]' then raise exception 'what to look at: %', v; end if;
+  for i in 1..1000 loop
+    w := public.import_check_next(86400);
+    exit when w is null;
+    if w->>'orgId' = 'pi-org' then raise exception 'a source looked at twice in a day'; end if;
+  end loop;
+  begin perform public.import_check_save('pi-org', 'fia', '{"eng":{"added":-1,"updated":0}}'); raise exception 'a count below nothing';
+  exception when invalid_parameter_value then null; end;
+  perform public.import_check_save('pi-org', 'fia', '{"eng":{"added":2,"updated":1}}');
+end $$;
+set local role authenticated;
+select pg_temp.as_caller('4b000000-0000-0000-0000-00000000000a');
+do $$ declare v record; begin
+  select * into v from public.org_importers('pi-org');
+  if v.found <> '{"eng":{"added":2,"updated":1}}' or v.checked_at is null then raise exception 'the admin sees what is new: %', v.found; end if;
+  update smoke_run set id = (public.import_request('pi-org', 'fia', '{"languages":["eng"]}')#>>'{run,id}')::uuid;
+end $$;
+reset role;
+
+-- 10. Importing it again takes in what was new: the old list goes, and nothing counts as new.
+select pg_temp.as_caller(null);
+do $$ declare h text[]; begin
+  perform public.import_run_next(600);
+  h := public.import_run_put_documents((select id from smoke_run), array['{"format":"versification@1","code":"pi-eng","name":"Smoke English","maxVerses":{"JHN":[51]}}']);
+  perform public.import_run_put_part((select id from smoke_run), 'eng', array['pi-jhn-p1-v1.1', 'pi-jhn-p2-v1', 'pi-jhn-p3-v1']);
+  perform public.import_run_finish((select id from smoke_run),
+    jsonb_build_array(jsonb_build_object('itemId', 'fia.eng', 'kind', 'material', 'name', 'FIA (English)', 'docHash', h[1], 'count', 3)));
+end $$;
+set local role authenticated;
+select pg_temp.as_caller('4b000000-0000-0000-0000-00000000000a');
+do $$ begin
+  perform public.import_run_accept('pi-org', (select id from smoke_run));
+  if (select i.found from public.org_importers('pi-org') i) <> '{}' then raise exception 'what was new is in'; end if;
+end $$;
+reset role;
+select pg_temp.as_caller(null);
+do $$ begin
+  if (select count(*) from public.import_run_parts p join public.import_runs r on r.id = p.run_id where r.org_id = 'pi-org') <> 1 then raise exception 'one list a part'; end if;
+  if pg_temp.next_check('pi-org')#>'{parts,eng}' <> '["pi-jhn-p1-v1.1","pi-jhn-p2-v1","pi-jhn-p3-v1"]' then raise exception 'the next look starts from the new list'; end if;
+end $$;
+
+-- 11. Taking back a run drops what it made; turning the importer off stops the rest.
 set local role authenticated;
 select pg_temp.as_caller('4b000000-0000-0000-0000-00000000000a');
 do $$ declare v jsonb; begin
@@ -171,7 +232,7 @@ do $$ begin
   if public.org_importer_revoke('pi-org', 'fia', 'Staff') <> 'not_granted' then raise exception 'revoking twice'; end if;
   if public.import_run_next(600) is not null then raise exception 'a run went on after its importer was turned off'; end if;
   if (select r.failure from public.import_runs r where r.org_id = 'pi-org' order by r.requested_at desc limit 1) is null then raise exception 'the open run failed'; end if;
-  if (select count(*) from public.org_importer_list() l where l.org_id = 'pi-org' and l.revoked_by = 'Staff' and l.runs = 3) <> 1 then raise exception 'the staff list'; end if;
+  if (select count(*) from public.org_importer_list() l where l.org_id = 'pi-org' and l.revoked_by = 'Staff' and l.runs = 4) <> 1 then raise exception 'the staff list'; end if;
 end $$;
 set local role authenticated;
 select pg_temp.as_caller('4b000000-0000-0000-0000-00000000000a');

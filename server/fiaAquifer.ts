@@ -48,14 +48,42 @@ export interface AquiferArticle {
   associations?: { passage?: { start_ref_usfm?: string; end_ref_usfm?: string }[] };
 }
 
-/** A repository folder's `metadata.json`: its files, and the language's name. */
+/** A repository folder's `metadata.json`: its files, the language's name, and its articles by name. */
 export interface AquiferMetadata {
   scripture_burrito?: { languages?: { tag?: string; name?: Record<string, string> }[]; ingredients?: Record<string, unknown> };
+  article_metadata?: Record<string, unknown>;
 }
 
 /** The JSON files a folder holds, in order ("json/01.content.json"). */
 export function contentFiles(meta: AquiferMetadata): string[] {
   return Object.keys(meta.scripture_burrito?.ingredients ?? {}).filter((f) => /^json\/[^/]+\.content\.json$/.test(f)).sort();
+}
+
+/** The guides a folder lists, by Aquifer's names for them ("eng-jhn-p1-v1.1"), without their audio. */
+export function guideIds(meta: AquiferMetadata): string[] {
+  return Object.keys(meta.article_metadata ?? {}).filter((id) => !id.endsWith('-audio')).sort();
+}
+
+/** "eng-1ch-p17-v1.1" is passage "eng-1ch-p17" at version "1.1". */
+const versioned = (id: string): [string, string] => {
+  const m = /^(.*)-v(\d+(?:\.\d+)*)$/.exec(id);
+  return m ? [m[1]!, m[2]!] : [id, ''];
+};
+
+/**
+ * What the source has now that an import did not take: guides for passages
+ * it did not have (added), and guides at a new version (updated). Guides the
+ * source dropped are not counted; importing again leaves them out.
+ */
+export function sourceChanges(before: readonly string[], now: readonly string[]): { added: number; updated: number } {
+  const had = new Map(before.map(versioned));
+  let added = 0, updated = 0;
+  for (const id of now) {
+    const [passage, version] = versioned(id);
+    if (!had.has(passage)) added++;
+    else if (had.get(passage) !== version) updated++;
+  }
+  return { added, updated };
 }
 
 /** The language's own name as the folder gives it, English first. */

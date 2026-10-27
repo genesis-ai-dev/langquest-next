@@ -7717,7 +7717,7 @@
     "sealLabel": "Organización verificada",
     "sealLabelDomain": "Organización verificada: {{domain}}",
     "title": "Marca azul",
-    "meaning": "La marca azul muestra que esta es la organización verdadera: un administrador demostró que tiene un correo en su sitio web, y LangQuest lo comprobó. No significa que LangQuest revisó lo que la organización comparte.",
+    "meaning": "La marca azul significa que el equipo de LangQuest verificó esta organización. No es una aprobación ni un respaldo de lo que la organización publica.",
     "problem": {
       "notAllowed": "Solo un administrador de la organización puede pedir la marca azul.",
       "badDomain": "Escribe la dirección del sitio web, como example.org.",
@@ -7750,7 +7750,6 @@
     "ask": {
       "send": "Envíame un código",
       "sendHelp": "Envía un código de 6 dígitos a esa dirección, para demostrar que es tuya.",
-      "intro": "Una marca azul después del nombre de {{org}} muestra a todos que esta es la verdadera {{org}}. Para pedirla, demuestra que tienes una dirección de correo en el sitio web de tu organización.",
       "domain": "El sitio web de tu organización",
       "domainPlaceholder": "example.org",
       "domainHelp": "El sitio web que tiene tu organización, como example.org.",
@@ -7760,7 +7759,7 @@
     },
     "done": {
       "title": "Verificada",
-      "since": "Verificada desde el {{date}}."
+      "sub": "{{domain}} · desde {{date}}"
     },
     "declined": {
       "title": "LangQuest no añadió la marca azul",
@@ -7768,12 +7767,11 @@
     },
     "waiting": {
       "title": "Esperando a LangQuest",
-      "body": "{{email}} está confirmado. LangQuest revisará {{domain}} y añadirá la marca azul.",
+      "body": "{{email}} está confirmado. El equipo de LangQuest revisará tu solicitud para {{domain}}.",
       "withdraw": "Retirar la solicitud",
       "withdrawHelp": "Cancela la solicitud. Puedes pedirla de nuevo más tarde."
     },
     "row": {
-      "verified": "Verificada · {{domain}}",
       "verifiedHelp": "La marca azul: qué significa y cuándo se añadió.",
       "ask": "Pedir la marca azul",
       "askHelp": "Pide a LangQuest la marca azul, para que todos vean que esta es la organización verdadera."
@@ -7801,7 +7799,10 @@
       "startHelp": "LangQuest empieza a preparar las guías. Cada idioma tarda unos minutos y sigue aunque cierre esto.",
       "inLibrary": "En su biblioteca",
       "updateHelp": "Este idioma ya está en su biblioteca. Importarlo de nuevo trae lo último de FIA como una versión nueva.",
-      "languageHelp": "Márquelo para traer las guías de FIA en este idioma."
+      "languageHelp": "Márquelo para traer las guías de FIA en este idioma.",
+      "newsLine_one": "En su biblioteca · {{count, number}} guía nueva o actualizada",
+      "newsLine_many": "En su biblioteca · {{count, number}} guías nuevas o actualizadas",
+      "newsLine_other": "En su biblioteca · {{count, number}} guías nuevas o actualizadas"
     },
     "building": {
       "waiting": "Esperando para empezar",
@@ -7854,7 +7855,17 @@
       "failed": "La última importación se detuvo",
       "from": "Su material, desde {{source}}",
       "readyBadge": "Listo",
-      "help": "Abre el importador que LangQuest activó para su organización: traiga su propio material desde donde lo guarda."
+      "help": "Abre el importador que LangQuest activó para su organización: traiga su propio material desde donde lo guarda.",
+      "news_one": "{{count, number}} guía nueva o actualizada desde su última importación",
+      "news_many": "{{count, number}} guías nuevas o actualizadas desde su última importación",
+      "news_other": "{{count, number}} guías nuevas o actualizadas desde su última importación",
+      "newBadge": "Nuevo"
+    },
+    "news": {
+      "title_one": "{{count, number}} guía nueva o actualizada",
+      "title_many": "{{count, number}} guías nuevas o actualizadas",
+      "title_other": "{{count, number}} guías nuevas o actualizadas",
+      "body": "La fuente las añadió o cambió desde su última importación. Sus idiomas están marcados abajo. Importe para traerlas."
     }
   }
 }

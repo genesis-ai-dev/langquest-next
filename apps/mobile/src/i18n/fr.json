@@ -7717,7 +7717,7 @@
     "sealLabel": "Organisation vérifiée",
     "sealLabelDomain": "Organisation vérifiée : {{domain}}",
     "title": "Coche bleue",
-    "meaning": "La coche bleue montre qu’il s’agit de la vraie organisation : un administrateur a prouvé qu’il a une adresse e-mail sur son site web, et LangQuest l’a vérifié. Cela ne veut pas dire que LangQuest a vérifié ce que l’organisation partage.",
+    "meaning": "Une coche bleue signifie que l'équipe LangQuest a vérifié cette organisation. Ce n'est ni une approbation ni une recommandation de ce que l'organisation publie.",
     "problem": {
       "notAllowed": "Seul un administrateur de l’organisation peut demander la coche bleue.",
       "badDomain": "Saisissez l’adresse du site web, comme example.org.",
@@ -7750,7 +7750,6 @@
     "ask": {
       "send": "M’envoyer un code",
       "sendHelp": "Envoie un code à 6 chiffres à cette adresse, pour prouver qu’elle est à vous.",
-      "intro": "Une coche bleue après le nom de {{org}} montre à tous qu’il s’agit de la vraie {{org}}. Pour la demander, prouvez que vous avez une adresse e-mail sur le site web de votre organisation.",
       "domain": "Le site web de votre organisation",
       "domainPlaceholder": "example.org",
       "domainHelp": "Le site web de votre organisation, comme example.org.",
@@ -7760,7 +7759,7 @@
     },
     "done": {
       "title": "Vérifiée",
-      "since": "Vérifiée depuis le {{date}}."
+      "sub": "{{domain}} · depuis le {{date}}"
     },
     "declined": {
       "title": "LangQuest n’a pas ajouté la coche bleue",
@@ -7768,12 +7767,11 @@
     },
     "waiting": {
       "title": "En attente de LangQuest",
-      "body": "{{email}} est confirmée. LangQuest va vérifier {{domain}} et ajouter la coche bleue.",
+      "body": "{{email}} est confirmée. L'équipe LangQuest va examiner votre demande pour {{domain}}.",
       "withdraw": "Retirer la demande",
       "withdrawHelp": "Annule la demande. Vous pourrez la refaire plus tard."
     },
     "row": {
-      "verified": "Vérifiée · {{domain}}",
       "verifiedHelp": "La coche bleue : ce qu’elle veut dire et quand elle a été ajoutée.",
       "ask": "Demander la coche bleue",
       "askHelp": "Demandez la coche bleue à LangQuest, pour que tous voient qu’il s’agit de la vraie organisation."
@@ -7801,7 +7799,10 @@
       "startHelp": "LangQuest commence à préparer les guides. Chaque langue prend quelques minutes, et cela continue après la fermeture.",
       "inLibrary": "Dans votre bibliothèque",
       "updateHelp": "Cette langue est déjà dans votre bibliothèque. L'importer de nouveau apporte la dernière version de FIA.",
-      "languageHelp": "Cochez-la pour faire entrer les guides FIA dans cette langue."
+      "languageHelp": "Cochez-la pour faire entrer les guides FIA dans cette langue.",
+      "newsLine_one": "Dans votre bibliothèque · {{count, number}} guide nouveau ou mis à jour",
+      "newsLine_many": "Dans votre bibliothèque · {{count, number}} guides nouveaux ou mis à jour",
+      "newsLine_other": "Dans votre bibliothèque · {{count, number}} guides nouveaux ou mis à jour"
     },
     "building": {
       "waiting": "En attente",
@@ -7854,7 +7855,17 @@
       "failed": "La dernière importation s'est arrêtée",
       "from": "Vos documents, depuis {{source}}",
       "readyBadge": "Prêt",
-      "help": "Ouvre l'outil d'importation que LangQuest a activé pour votre organisation : faites entrer vos propres documents depuis l'endroit où vous les gardez."
+      "help": "Ouvre l'outil d'importation que LangQuest a activé pour votre organisation : faites entrer vos propres documents depuis l'endroit où vous les gardez.",
+      "news_one": "{{count, number}} guide nouveau ou mis à jour depuis votre dernière importation",
+      "news_many": "{{count, number}} guides nouveaux ou mis à jour depuis votre dernière importation",
+      "news_other": "{{count, number}} guides nouveaux ou mis à jour depuis votre dernière importation",
+      "newBadge": "Nouveau"
+    },
+    "news": {
+      "title_one": "{{count, number}} guide nouveau ou mis à jour",
+      "title_many": "{{count, number}} guides nouveaux ou mis à jour",
+      "title_other": "{{count, number}} guides nouveaux ou mis à jour",
+      "body": "La source les a ajoutés ou modifiés depuis votre dernière importation. Leurs langues sont cochées ci-dessous. Importez pour les faire entrer."
     }
   }
 }
