@@ -323,6 +323,8 @@ function voiceOf(term: KeyTermView): string | undefined {
 export function KeyWordsPane(props: {
   ctx: Ctx; v: PassageView; terms: KeyTermView[]; rows: VerseRow[] | null; draftTakeId: string | undefined;
   canTie: boolean; onHear: (verseKey: string | null) => void; allTerms?: () => void; disabled?: boolean;
+  /** Opens a list word's own page (decision 172). */
+  onWordPage?: (list: KeyWordList, word: KeyWordDoc) => void;
   /** The Bible the verses are in ("WEB"), for Add a key word's verses. */
   bibleName?: string;
   /** ISO 639-3: the language of `rows`, so a list in that language finds its words in them. */
@@ -390,6 +392,7 @@ export function KeyWordsPane(props: {
       {opened ? (
         <ListWordSheet ctx={ctx} list={opened.list} word={opened.word} place={v} draftTakeId={props.draftTakeId} rows={props.rows} bibleName={props.bibleName ?? ''}
           disabled={props.disabled} onClose={() => setOpened(null)}
+          {...(props.onWordPage ? { onPage: (word: KeyWordDoc) => { setOpened(null); props.onWordPage!(opened.list, word); } } : {})}
           {...(opened.verses.length ? { verses: { keys: opened.verses, book, onPlay: (key: string) => { setOpened(null); props.onHear(key); } } } : {})} />
       ) : null}
     </View>
@@ -411,6 +414,8 @@ export function ListWordSheet(props: {
   draftTakeId?: string | undefined; rows?: VerseRow[] | null; bibleName?: string;
   /** Recording now: nothing can be added. */
   disabled?: boolean;
+  /** Opens the word's own page, where the screen can (decision 172). */
+  onPage?: (word: KeyWordDoc) => void;
 }) {
   const { ctx, list } = props;
   const canEdit = (ctx.session.can('fill_reference') || ctx.session.can('manage_reference')) && !props.disabled;
@@ -421,7 +426,7 @@ export function ListWordSheet(props: {
         prefill={{ term: adding.term, gloss: adding.gloss, taken: { termId: ownTermId(list, adding), term: adding.term } }} />
     );
   }
-  return <KeyWordSheet ctx={ctx} list={list} word={props.word} onClose={props.onClose} {...(props.verses ? { verses: props.verses } : {})} {...(canEdit ? { onAdd: setAdding } : {})} />;
+  return <KeyWordSheet ctx={ctx} list={list} word={props.word} onClose={props.onClose} {...(props.verses ? { verses: props.verses } : {})} {...(canEdit ? { onAdd: setAdding } : {})} {...(props.onPage ? { onPage: props.onPage } : {})} />;
 }
 
 function TermRow(props: { ctx: Ctx; term: KeyTermView; refs: string; last: boolean; canEdit: boolean; onHear: () => void; onSay: () => void; onOpen: () => void }) {

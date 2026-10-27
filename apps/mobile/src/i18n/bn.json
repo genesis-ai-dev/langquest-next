@@ -2737,11 +2737,6 @@
       "latestBy": "সর্বশেষ {{name}}, {{when}}",
       "playExplanation": "ব্যাখ্যা চালান",
       "openVersion": "সংস্করণ {{n, number}} খুলুন",
-      "whereUsed": "কোথায় ব্যবহার হয়েছে",
-      "versions_one": "{{count, number}}টি সংস্করণ",
-      "versions_other": "{{count, number}}টি সংস্করণ",
-      "usedTitle": "{{title}} · সংস্করণ {{n, number}}",
-      "changedHere": "এখানে বদলানো হয়েছে",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "{{passage}}-এর অংশ হিসেবে লিখে রাখা, এবং আপনার খসড়ার সাথে যুক্ত।",
       "adjustSub": "প্রতিটি পরিবর্তন আপনার কারণসহ লিখে রাখা হয়।",
@@ -2754,8 +2749,6 @@
       "addRenderingHelp": "{{language}}-এ এটি কীভাবে বলা হয়, এবং কেন, তা যোগ করুন। প্রতিটি পরিবর্তন রাখা থাকে।",
       "adjustHelp": "{{language}}-এ এটি কীভাবে বলা হয় তা আপনার কারণসহ বদলান বা যোগ করুন। প্রতিটি পরিবর্তন রাখা থাকে।",
       "openVersionHelp": "যে সংস্করণের সময় এই পরিবর্তনটি করা হয়েছিল, সেটি খোলে।",
-      "usedHelp": "এই সংস্করণটি খোলে, যেটিতে শব্দটি ব্যবহার হয়েছে।",
-      "usedChangedHelp": "এই সংস্করণটি খোলে। এখানে বদলানো হয়েছে: এর সময় অনুবাদটি বদলানো হয়েছিল।",
       "saveHelp": "দলের দেখার জন্য পরিবর্তনটি ও আপনার কারণ লিখে রাখে।"
     }
   },
@@ -7203,10 +7196,9 @@
       "backTo": "{{term}}-এ ফিরে যান",
       "backToHelp": "যে শব্দ থেকে এসেছিলেন সেটি আবার দেখায়।",
       "minutes_one": "{{count, number}} মিনিট",
-      "minutes_other": "{{count, number}} মিনিট"
-    },
-    "detail": {
-      "from": "{{name}} থেকে"
+      "minutes_other": "{{count, number}} মিনিট",
+      "everyPassage": "যে সব অংশে এটি আছে",
+      "everyPassageHelp": "শব্দটির নিজের পাতা খোলে: যে সব অংশে এটি আছে, এবং প্রতিটিতে দল কোন অবস্থায় আছে।"
     },
     "search": {
       "help": "মূল শব্দ খুঁজে দেয়, আপনার এবং প্রতিটি তালিকার: প্রথমে শব্দ দিয়ে, তারপর ছোট অর্থ দিয়ে, তারপর পুরো অর্থ দিয়ে।",
@@ -7240,6 +7232,40 @@
       "noWord": "এখনও কোনো {{language}} শব্দ নেই",
       "rowSub_one": "এখানে {{count, number}}টি · {{language}}-এ {{have, number}}টির জন্য শব্দ আছে",
       "rowSub_other": "এখানে {{count, number}}টি · {{language}}-এ {{have, number}}টির জন্য শব্দ আছে"
+    },
+    "page": {
+      "all": "সব {{n, number}}",
+      "used": "ব্যবহার হয়েছে {{n, number}}",
+      "notMarked": "চিহ্নিত নয় {{n, number}}",
+      "notRecorded": "রেকর্ড হয়নি {{n, number}}",
+      "recorded": "রেকর্ড হয়েছে {{n, number}}",
+      "passages_one": "অংশ · {{count, number}}",
+      "passages_other": "অংশ · {{count, number}}",
+      "linkedBy_one": "{{name}} এটিকে {{count, number}}টি অংশের সাথে যুক্ত করে",
+      "linkedBy_other": "{{name}} এটিকে {{count, number}}টি অংশের সাথে যুক্ত করে",
+      "noPassages": "এখনও কোনো অংশে নেই।",
+      "filterHelp": "শুধু সেই অংশগুলো দেখায় যেখানে দল এই অবস্থায় আছে।",
+      "openVersionHelp": "অংশটির সেই সংস্করণ খোলে।",
+      "openPassageHelp": "অংশটি খোলে।",
+      "linkedByOne": "{{name}} যুক্ত করেছে",
+      "markedHere": "এখানে একটি সংস্করণে চিহ্নিত",
+      "versionUsed": "সংস্করণ {{n}}-এ ব্যবহার হয়েছে",
+      "versionNotMarked": "সংস্করণ {{n}}-এ চিহ্নিত হয়নি",
+      "recordedVersion": "রেকর্ড হয়েছে · সংস্করণ {{n}}",
+      "notRecordedYet": "এখনও রেকর্ড হয়নি",
+      "notes_one": "নোট ও পর্যালোচনা · {{count, number}}",
+      "notes_other": "নোট ও পর্যালোচনা · {{count, number}}",
+      "openNoteHelp": "যে অংশে নোটটি রাখা হয়েছিল, সেটি খোলে।",
+      "noteOnWord": "শব্দটি নিয়ে নোট",
+      "version": "সংস্করণ {{n}}",
+      "withReview": "পর্যালোচনার সাথে",
+      "replies_one": "{{count, number}}টি উত্তর",
+      "replies_other": "{{count, number}}টি উত্তর",
+      "playNote": "নোটটি চালান",
+      "notOurs": "এখনও {{language}}-এর মূল শব্দগুলোর একটি নয়",
+      "fromList": "{{name}} থেকে",
+      "fromListSub": "এর অর্থ, এবং {{name}}-এর রেকর্ডিং",
+      "fromListHelp": "{{name}}-এর মতে শব্দটির অর্থ কী, তা রেকর্ডিংসহ খোলে।"
     }
   },
   "clusters": {

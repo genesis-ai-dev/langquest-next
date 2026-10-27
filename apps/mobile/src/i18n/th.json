@@ -2647,10 +2647,6 @@
       "latestBy": "ล่าสุดโดย {{name}} {{when}}",
       "playExplanation": "เล่นคำอธิบาย",
       "openVersion": "เปิดฉบับที่ {{n, number}}",
-      "whereUsed": "ใช้ที่ไหนบ้าง",
-      "versions_other": "{{count, number}} ฉบับ",
-      "usedTitle": "{{title}} · ฉบับที่ {{n, number}}",
-      "changedHere": "เปลี่ยนที่นี่",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "บันทึกเป็นส่วนหนึ่งของ {{passage}} และผูกกับฉบับร่างของคุณ",
       "adjustSub": "ทุกการเปลี่ยนแปลงจะบันทึกพร้อมเหตุผลของคุณ",
@@ -2663,8 +2659,6 @@
       "addRenderingHelp": "เพิ่มวิธีที่ {{language}} พูดคำนี้ และเหตุผล ทุกการเปลี่ยนแปลงจะถูกเก็บไว้",
       "adjustHelp": "เปลี่ยนหรือเพิ่มวิธีที่ {{language}} พูดคำนี้ พร้อมเหตุผล ทุกการเปลี่ยนแปลงจะถูกเก็บไว้",
       "openVersionHelp": "เปิดฉบับที่มีการเปลี่ยนแปลงนี้",
-      "usedHelp": "เปิดฉบับนี้ ซึ่งใช้คำนี้",
-      "usedChangedHelp": "เปิดฉบับนี้ เปลี่ยนที่นี่: คำแปลถูกปรับในฉบับนี้",
       "saveHelp": "บันทึกการเปลี่ยนแปลงและเหตุผลของคุณ ให้ทีมเห็น"
     }
   },
@@ -6905,10 +6899,9 @@
       "ours": "เป็นหนึ่งในคำสำคัญของ {{language}}",
       "backTo": "กลับไปที่ {{term}}",
       "backToHelp": "แสดงคำที่คุณดูก่อนหน้านี้อีกครั้ง",
-      "minutes_other": "{{count, number}} นาที"
-    },
-    "detail": {
-      "from": "จาก {{name}}"
+      "minutes_other": "{{count, number}} นาที",
+      "everyPassage": "ทุกตอนที่มีคำนี้",
+      "everyPassageHelp": "เปิดหน้าของคำนี้: ทุกตอนที่มีคำนี้ และทีมทำถึงไหนแล้วในแต่ละตอน"
     },
     "search": {
       "help": "ค้นหาคำสำคัญ ทั้งของคุณและของทุกรายการ: ตามคำ แล้วตามความหมายสั้น แล้วตามความหมายเต็ม",
@@ -6938,6 +6931,36 @@
       "notMarked": "ไม่ได้ทำเครื่องหมายในฉบับที่ {{n}}",
       "noWord": "ยังไม่มีคำภาษา{{language}}",
       "rowSub_other": "ที่นี่ {{count, number}} คำ · {{language}} มีคำสำหรับ {{have, number}} คำ"
+    },
+    "page": {
+      "all": "ทั้งหมด {{n, number}}",
+      "used": "ใช้แล้ว {{n, number}}",
+      "notMarked": "ไม่ได้ทำเครื่องหมาย {{n, number}}",
+      "notRecorded": "ยังไม่ได้อัด {{n, number}}",
+      "recorded": "อัดแล้ว {{n, number}}",
+      "passages_other": "ตอนพระคัมภีร์ · {{count, number}}",
+      "linkedBy_other": "{{name}} เชื่อมคำนี้กับ {{count, number}} ตอน",
+      "noPassages": "ยังไม่อยู่ในตอนพระคัมภีร์ใดเลย",
+      "filterHelp": "แสดงเฉพาะตอนที่อยู่ในสถานะนี้",
+      "openVersionHelp": "เปิดฉบับนั้นของตอนพระคัมภีร์นี้",
+      "openPassageHelp": "เปิดตอนพระคัมภีร์นี้",
+      "linkedByOne": "เชื่อมโดย {{name}}",
+      "markedHere": "มีฉบับที่ทำเครื่องหมายไว้ที่นี่",
+      "versionUsed": "ฉบับที่ {{n}} ใช้คำนี้",
+      "versionNotMarked": "ฉบับที่ {{n}} ไม่ได้ทำเครื่องหมาย",
+      "recordedVersion": "อัดแล้ว · ฉบับที่ {{n}}",
+      "notRecordedYet": "ยังไม่ได้อัด",
+      "notes_other": "โน้ตและการตรวจ · {{count, number}}",
+      "openNoteHelp": "เปิดตอนพระคัมภีร์ที่มีโน้ตนี้",
+      "noteOnWord": "โน้ตที่คำนี้",
+      "version": "ฉบับที่ {{n}}",
+      "withReview": "พร้อมการตรวจ",
+      "replies_other": "คำตอบกลับ {{count, number}} รายการ",
+      "playNote": "เล่นโน้ต",
+      "notOurs": "ยังไม่ได้เป็นคำสำคัญของ {{language}}",
+      "fromList": "จาก {{name}}",
+      "fromListSub": "ความหมาย และเสียงบันทึกของ {{name}}",
+      "fromListHelp": "เปิดความหมายของคำตามที่ {{name}} อธิบาย พร้อมเสียงบันทึก"
     }
   },
   "clusters": {

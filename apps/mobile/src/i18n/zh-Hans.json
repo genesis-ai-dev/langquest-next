@@ -2647,10 +2647,6 @@
       "latestBy": "最近由{{name}}修改，{{when}}",
       "playExplanation": "播放解释",
       "openVersion": "打开第 {{n, number}} 版",
-      "whereUsed": "用在哪里",
-      "versions_other": "{{count, number}} 个版本",
-      "usedTitle": "{{title}} · 第 {{n, number}} 版",
-      "changedHere": "在这里修改",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "作为{{passage}}的一部分记录，并关联到你的草稿。",
       "adjustSub": "每次修改都会和你的理由一起记录下来。",
@@ -2663,8 +2659,6 @@
       "addRenderingHelp": "添加{{language}}怎么说，以及为什么。每次修改都会保留。",
       "adjustHelp": "更改或添加{{language}}的说法，并写下你的理由。每次修改都会保留。",
       "openVersionHelp": "打开做这次修改时的那个版本。",
-      "usedHelp": "打开这个版本，它用到了这个术语。",
-      "usedChangedHelp": "打开这个版本。在这里修改：译法是在这个版本中调整的。",
       "saveHelp": "记录这次修改和你的理由，让团队看到。"
     }
   },
@@ -6905,10 +6899,9 @@
       "ours": "{{language}}的关键词之一。",
       "backTo": "返回{{term}}",
       "backToHelp": "重新显示你刚才看的那个词。",
-      "minutes_other": "{{count, number}} 分钟"
-    },
-    "detail": {
-      "from": "来自{{name}}"
+      "minutes_other": "{{count, number}} 分钟",
+      "everyPassage": "它出现的每个经段",
+      "everyPassageHelp": "打开这个词自己的页面：它出现的每个经段，以及团队在每个经段上的进展。"
     },
     "search": {
       "help": "查找关键词，包括你的和每个列表的：先按词，再按简短意思，再按完整意思。",
@@ -6938,6 +6931,36 @@
       "notMarked": "第 {{n}} 版中没有标记",
       "noWord": "还没有{{language}}的说法",
       "rowSub_other": "这里有 {{count, number}} 个 · {{language}}有其中 {{have, number}} 个的说法"
+    },
+    "page": {
+      "all": "全部 {{n, number}}",
+      "used": "已用 {{n, number}}",
+      "notMarked": "未标记 {{n, number}}",
+      "notRecorded": "未录音 {{n, number}}",
+      "recorded": "已录音 {{n, number}}",
+      "passages_other": "经段 · {{count, number}}",
+      "linkedBy_other": "{{name}}关联了 {{count, number}} 个经段",
+      "noPassages": "还没有出现在任何经段中。",
+      "filterHelp": "只显示这种情况的经段。",
+      "openVersionHelp": "打开这个经段的那个版本。",
+      "openPassageHelp": "打开这个经段。",
+      "linkedByOne": "由{{name}}关联",
+      "markedHere": "这里有一个版本标记了它",
+      "versionUsed": "第 {{n}} 版用了它",
+      "versionNotMarked": "第 {{n}} 版没有标记它",
+      "recordedVersion": "已录音 · 第 {{n}} 版",
+      "notRecordedYet": "还没有录音",
+      "notes_other": "备注和审核 · {{count, number}}",
+      "openNoteHelp": "打开留下这条备注的经段。",
+      "noteOnWord": "这个词的备注",
+      "version": "第 {{n}} 版",
+      "withReview": "附带审核",
+      "replies_other": "{{count, number}} 条回复",
+      "playNote": "播放备注",
+      "notOurs": "还不是{{language}}的关键词",
+      "fromList": "来自{{name}}",
+      "fromListSub": "它的意思，以及{{name}}的录音",
+      "fromListHelp": "打开{{name}}对这个词的解释和录音。"
     }
   },
   "clusters": {

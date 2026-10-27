@@ -60,12 +60,13 @@ import { useSaver } from '../ui/useSaveStatus';
 import { VoiceNote } from '../audio/voiceNote';
 import { CheckSteps } from '../checks/checkSteps';
 import { BibleChip, OthersSay, OwnWord, PassageNoteEditor, WhereItIs } from '../helps/helps';
-import { ListWordSheet, type WordPlace } from '../helps/reference';
+import { AddWordSheet, ListWordSheet, type WordPlace } from '../helps/reference';
 import { useKeyWordLists } from '../keyTerms/useKeyWordLists';
 import { KeyWordChips, KeyWordFinder } from '../keyTerms/KeyWordFinder';
-import { FromList } from '../keyTerms/KeyWordSheet';
-import { wordOfTermId, type KeyWordList } from '../keyTerms/listsModel';
-import type { KeyWordFilter } from '../keyTerms/searchModel';
+import { ownTermId, ownWordOf, shortName, wordOfTermId, type KeyWordList } from '../keyTerms/listsModel';
+import { useWordPage, type WordPage } from '../keyTerms/useWordPage';
+import { WordNotesSection, WordPassagesSection } from '../keyTerms/WordPageSections';
+import { plainMeaning, type KeyWordFilter } from '../keyTerms/searchModel';
 import { othersSay, bibleMissing } from '../helps/helpsModel';
 import { bookOf } from '../recording/model';
 import { useBible } from '../helps/useBible';
@@ -1619,7 +1620,10 @@ export function KeyTerms(ctx: Ctx) {
         onOpenWord={(list, word) => setOpened({ list, word })}
         currentTermId={beside?.screen === 'key_term_detail' ? beside.params['termId'] : undefined} />
       <Intro>{t('config.keyTerms.intro', { language })}</Intro>
-      {opened ? <ListWordSheet ctx={ctx} list={opened.list} word={opened.word} place={placeOf()} onClose={() => setOpened(null)} /> : null}
+      {opened ? (
+        <ListWordSheet ctx={ctx} list={opened.list} word={opened.word} place={placeOf()} onClose={() => setOpened(null)}
+          onPage={(word) => { setOpened(null); ctx.go('key_term_detail', { languageId, listId: opened.list.itemId, wordId: word.id, ...(unitId ? { unitId } : {}), ...(takeId ? { takeId } : {}) }); }} />
+      ) : null}
 
       <Sheet visible={adding} title={t('config.keyTerms.newKeyTerm')} sub={t('config.keyTerms.newSub', { language })} onClose={() => setAdding(false)}
         action={<SavedMark status={termDraft.status} help={t('saved.draftHelp')} />}
@@ -1657,7 +1661,15 @@ function useTermPassages(ctx: Ctx, termId: string, term: KeyTermView | null): La
 
 export function KeyTermDetail(ctx: Ctx) {
   const state = ctx.language.state;
-  const termId = ctx.params['termId'] ?? '';
+  // A key-word list's word opens here too (`listId`, `wordId`; decision 172): its own page once the team takes it.
+  const { lists } = useKeyWordLists(ctx);
+  const listPage = useMemo(() => {
+    const list = lists.find((l) => l.itemId === ctx.params['listId']);
+    const word = list?.words.find((w) => w.id === ctx.params['wordId']);
+    return list && word ? { list, word } : null;
+  }, [lists, ctx.params]);
+  const taken = useMemo(() => (state && listPage ? ownWordOf(listPage.list, listPage.word, keyTermsFor(state)) : null), [state, listPage]);
+  const termId = ctx.params['termId'] ?? taken?.termId ?? '';
   const unitId = ctx.params['unitId'];
   const term = useMemo(() => (state ? keyTermView(state, termId) : null), [state, termId]);
   const languageId = ctx.language.languageId;
@@ -1671,18 +1683,24 @@ export function KeyTermDetail(ctx: Ctx) {
   const { rendering, context, note, hash } = adjust.value;
   const change = (patch: Partial<RenderingDraft>) => adjust.set((d) => ({ ...d, ...patch }));
   const [busy, setBusy] = useState(false);
-  const [usedShown, setUsedShown] = useState(STEP);
   const why = ctx.details(`term:${termId}:why`);
-  const used = ctx.details(`term:${termId}:used`);
   // Opened on a passage: the word in its verses, in a Bible you choose, and how the
   // organization's other languages say it, before this language's own (demo ADR-042).
   const bible = useBible(ctx, passage ? passage.unitId : null, languageId, {});
   const others = useOtherLanguageTerms(ctx, !!term);
   const say = useMemo(() => (term ? othersSay(others.languages, term) : []), [others.languages, term]);
   // A word the team made from a key-word list's word shows the list's meaning too (decision 172).
-  const { lists } = useKeyWordLists(ctx);
   const [listWord, setListWord] = useState<KeyWordDoc | null>(null);
+  const fromList = useMemo(() => (term ? wordOfTermId(lists, term.termId) : null) ?? listPage, [term, lists, listPage]);
+  // Every passage it is in, and the notes and reviews about it (decision 172).
+  const page = useWordPage(ctx, { term, from: fromList, uses: usedIn });
+  const openPassage = (p: { unitId: string; takeId: string | null }) => (p.takeId
+    ? ctx.go('version_detail', { unitId: p.unitId, languageId: ctx.language.languageId, takeId: p.takeId })
+    : ctx.go('passage_record', { unitId: p.unitId, languageId: ctx.language.languageId }));
 
+  if (state && !term && listPage) {
+    return <ListWordPage ctx={ctx} list={listPage.list} word={listPage.word} page={page} onOpen={openPassage} />;
+  }
   if (!state || !term) {
     return <Screen header={<Header title={t('config.keyTerm.title')} onBack={ctx.back} />}><EmptyState icon="book" title={state ? t('config.keyTerm.gone') : t('common.loading')} /></Screen>;
   }
@@ -1724,7 +1742,6 @@ export function KeyTermDetail(ctx: Ctx) {
 
   const scopeTitles = term.unitScope.map((u) => unitTitle(state, u));
   const voice = [...term.adjustments].reverse().find((a) => a.blobHash)?.blobHash;
-  const fromList = wordOfTermId(lists, termId);
   return (
     <Screen header={<Header title={term.term} sub={isFiaTerm(term) ? t('config.keyTerm.fiaSub', { language }) : t('config.keyTerm.sub', { language })} onBack={ctx.back} />}>
       <Card style={{ backgroundColor: C.light }}>
@@ -1778,13 +1795,15 @@ export function KeyTermDetail(ctx: Ctx) {
       {canEdit ? <GhostBtn label={term.renderings.length ? t('config.keyTerm.adjustOrAdd') : t('config.keyTerm.addRendering')} icon="edit"
         help={t('config.keyTerm.adjustHelp', { language })} onPress={() => setAdjusting(true)} /> : null}
 
-      {fromList ? <FromList ctx={ctx} list={fromList.list} word={fromList.word} onWord={setListWord} /> : null}
+      <WordPassagesSection ctx={ctx} passages={page.passages} own loading={page.loading} listName={fromList ? shortName(fromList.list) : null} onOpen={openPassage} />
+      <WordNotesSection ctx={ctx} notes={page.notes}
+        onOpen={(w) => openPassage({ unitId: w.unitId, takeId: w.note.onTakeId ?? null })} />
       {fromList && listWord ? (
         <ListWordSheet ctx={ctx} list={fromList.list} word={listWord} onClose={() => setListWord(null)}
           place={passage ? { languageId: languageId ?? '', language, unitId: passage.unitId, title: passageLabel ?? '', p: passage } : { languageId: languageId ?? '', language, unitId: null, title: '', p: null }} />
       ) : null}
 
-      {adjustments.length || usedIn.length ? <SectionLabel label={t('config.keyTerm.details')} /> : null}
+      {adjustments.length || fromList ? <SectionLabel label={t('config.keyTerm.details')} /> : null}
       {adjustments.length ? (
         <Disclosure icon="history" title={t('config.keyTerm.why')} open={why.open} onToggle={why.onToggle}
           summary={`${t('config.keyTerm.changes', { count: adjustments.length })} · ${t('config.keyTerm.latestBy', { name: ctx.name(adjustments[0]!.actorId), when: when(adjustments[0]!.hlc) })}`}>
@@ -1803,18 +1822,12 @@ export function KeyTermDetail(ctx: Ctx) {
           })}
         </Disclosure>
       ) : null}
-      {usedIn.length ? (
-        <Disclosure icon="mic" title={t('config.keyTerm.whereUsed')} open={used.open} onToggle={used.onToggle}
-          summary={`${t('config.keyTerm.versions', { count: usedIn.length })} · ${listOf([...new Set(usedIn.map((u) => u.title))].slice(0, 2))}${usedIn.length > 2 ? '…' : ''}`}>
-          {usedIn.slice(0, usedShown).map((u, i, a) => (
-            <HelpRow key={u.takeId} of="keyTerm.usedIn">
-              <Row icon="mic" label={t('config.keyTerm.usedTitle', { title: u.title, n: u.n })} sub={u.note ?? `${ctx.name(u.by)} · ${when(u.hlc)}`}
-                badge={u.adjustmentId ? t('config.keyTerm.changedHere') : undefined} onPress={() => openVersion(u)} last={i === a.length - 1}
-                help={u.adjustmentId ? t('config.keyTerm.usedChangedHelp') : t('config.keyTerm.usedHelp')} />
-            </HelpRow>
-          ))}
-          <ShowMore remaining={usedIn.length - usedShown} step={STEP} onMore={() => setUsedShown(usedShown + STEP)} />
-        </Disclosure>
+      {fromList ? (
+        <Group>
+          <Row icon="key" iconColor={TINT.amberText} iconBg={TINT.amber} label={t('keyTerms.page.fromList', { name: shortName(fromList.list) })}
+            sub={t('keyTerms.page.fromListSub', { name: shortName(fromList.list) })} help={t('keyTerms.page.fromListHelp', { name: shortName(fromList.list) })}
+            onPress={() => setListWord(fromList.word)} last />
+        </Group>
       ) : null}
       <Sheet visible={adjusting} title={t('config.keyTerm.adjustTitle', { language, term: term.term })} onClose={() => setAdjusting(false)}
         sub={canTie ? t('config.keyTerm.adjustSubTie', { passage: passageLabel ?? '' }) : t('config.keyTerm.adjustSub')}
@@ -1825,6 +1838,43 @@ export function KeyTermDetail(ctx: Ctx) {
         {passage ? <VoiceNote ctx={ctx} label={t('config.keyTerm.sayWhy')} hash={hash} onChange={(h) => change({ hash: h })} /> : null}
         <Field value={note} onChangeText={(v) => change({ note: v })} placeholder={passage ? t('config.keyTerm.orTypeWhy') : t('config.keyTerm.typeWhy')} multiline autoCapitalize="sentences" />
       </Sheet>
+    </Screen>
+  );
+}
+
+/**
+ * A key-word list's word the team has not taken (decision 172; mock
+ * "key-word-page" 3): what the list says it means, Add to our key words at
+ * the top, and every passage the list links it to, recorded or not. Once it
+ * is added, the word's own page takes its place.
+ */
+function ListWordPage(props: { ctx: Ctx; list: KeyWordList; word: KeyWordDoc; page: WordPage; onOpen: (p: { unitId: string; takeId: string | null }) => void }) {
+  const { ctx, list, word } = props;
+  const languageId = ctx.language.languageId ?? '';
+  const language = languageName(ctx.org.state, languageId);
+  const canEdit = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
+  const [sheet, setSheet] = useState<'add' | 'meaning' | null>(null);
+  const place: WordPlace = { languageId, language, unitId: null, title: '', p: null };
+  const name = shortName(list);
+  return (
+    <Screen header={<Header title={word.term} sub={t('keyTerms.sheet.sub', { name, language: languageLabel(list.language) })} onBack={ctx.back} />}>
+      <Card style={{ backgroundColor: C.light }}>
+        <Text style={txt.body}>{word.gloss || plainMeaning(word.body) || t('config.keyTerm.noMeaning')}</Text>
+      </Card>
+      <View style={{ gap: space.sm }}>
+        {canEdit ? <PrimaryBtn label={t('keyTerms.sheet.add')} icon="plus" help={t('keyTerms.sheet.addHelp', { language, name })} onPress={() => setSheet('add')} /> : null}
+        <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('keyTerms.page.notOurs', { language })}</Text>
+      </View>
+      <WordPassagesSection ctx={ctx} passages={props.page.passages} own={false} loading={props.page.loading} listName={name} onOpen={props.onOpen} />
+      <Group>
+        <Row icon="key" iconColor={TINT.amberText} iconBg={TINT.amber} label={t('keyTerms.page.fromList', { name })}
+          sub={t('keyTerms.page.fromListSub', { name })} help={t('keyTerms.page.fromListHelp', { name })} onPress={() => setSheet('meaning')} last />
+      </Group>
+      {sheet === 'add' ? (
+        <AddWordSheet ctx={ctx} v={place} draftTakeId={undefined} bibleName="" onClose={() => setSheet(null)}
+          prefill={{ term: word.term, gloss: word.gloss, taken: { termId: ownTermId(list, word), term: word.term } }} />
+      ) : null}
+      {sheet === 'meaning' ? <ListWordSheet ctx={ctx} list={list} word={word} place={place} onClose={() => setSheet(null)} /> : null}
     </Screen>
   );
 }

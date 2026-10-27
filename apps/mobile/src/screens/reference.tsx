@@ -765,6 +765,7 @@ export function PassageReference(ctx: Ctx) {
       {canManage ? <DashedBtn label={t('reference.passageText.addHelp')} icon="plus" hint={t('reference.passageText.addHelpHint')} onPress={() => setAdding(true)} /> : null}
       {openedWord ? (
         <ListWordSheet ctx={ctx} list={openedWord.list} word={openedWord.word} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} onClose={() => setOpenedWord(null)}
+          onPage={(word) => { setOpenedWord(null); ctx.go('key_term_detail', { languageId, unitId, listId: openedWord.list.itemId, wordId: word.id }); }}
           place={{ languageId, language: languageName(ctx.org.state, languageId), unitId, title: passage.label, p: derivePassage(state, unitId, indexesFor(state)) }}
           {...(text.open && openedWord.verses.length ? {
             verses: { keys: openedWord.verses, book: bookOf(passage.label), onPlay: (key: string) => { setOpenedWord(null); bible.playVerse(key); } }

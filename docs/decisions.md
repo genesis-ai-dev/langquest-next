@@ -8218,10 +8218,24 @@ among a hundred from twenty organizations).
   a help (decision 91); the reviewer sees each of the list's words in the
   passage with the team's word, whether the translator marked it in this
   version, or that the team has no word yet.
-Cost: about 60 KB more of the web app's code. A word's sheet and a check's
+- **A word's own page.** Key words → a word lists every passage of the
+  language the word is in: where its list links it, where the team's chosen
+  Bible says it in the book the word belongs to, and where a version marked
+  it. Each shows where the team stands (used, not marked, not recorded),
+  with chips to keep one kind, and opens that version, or the passage when
+  nothing is recorded (a new edge, `key_term_detail` to `passage_record`).
+  Below come the notes on the word and the review notes about it from any
+  check, newest first, with passage, version and replies; they are read from
+  those passages' records, which may not be in memory (decision 143). A
+  list's word the team has not taken opens the same page from the Key words
+  search or a word's sheet ("Every passage it's in"), with Add to our key
+  words at the top and the passages its list links it to
+  (`keyTerms/wordPageModel.ts`, `useWordPage.ts`). "Where it's used" folds
+  into the passages, and the list's meaning becomes a row under Details.
+Cost: about 70 KB more of the web app's code. A word's sheet and a check's
 key words load when first opened, and the search helpers live apart from
 the recorder's (`keyTerms/searchModel.ts`): a first visit is 3.77 MB of its
-3.9 MB budget, and every file together 4.62 of 4.75 MB
+3.9 MB budget, and every file together 4.63 of 4.75 MB
 (`apps/mobile/scripts/export-web.mjs`, decision 123 amended).
 Reverse if: lists grow past what one document per language holds (then a
 list goes book by book, as `helps@1` does on the Door43 branch), or teams

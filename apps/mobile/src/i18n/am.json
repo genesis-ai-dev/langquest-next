@@ -2737,11 +2737,6 @@
       "latestBy": "የመጨረሻው በ{{name}}፣ {{when}}",
       "playExplanation": "ማብራሪያውን ያጫውቱ",
       "openVersion": "ስሪት {{n, number}}ን ይክፈቱ",
-      "whereUsed": "የሚጠቀሙበት ቦታ",
-      "versions_one": "{{count, number}} ስሪት",
-      "versions_other": "{{count, number}} ስሪቶች",
-      "usedTitle": "{{title}} · ስሪት {{n, number}}",
-      "changedHere": "እዚህ ተለውጧል",
       "adjustTitle": "{{language}} · «{{term}}»",
       "adjustSubTie": "እንደ {{passage}} አካል ተመዝግቦ ከረቂቅዎ ጋር ተያይዟል።",
       "adjustSub": "እያንዳንዱ ለውጥ ከምክንያትዎ ጋር ይመዘገባል።",
@@ -2754,8 +2749,6 @@
       "addRenderingHelp": "{{language}} እንዴት እንደሚለውና ለምን እንደሆነ ያክሉ። እያንዳንዱ ለውጥ ይቀመጣል።",
       "adjustHelp": "{{language}} እንዴት እንደሚለው ከምክንያትዎ ጋር ይቀይሩ ወይም ያክሉ። እያንዳንዱ ለውጥ ይቀመጣል።",
       "openVersionHelp": "ይህ ለውጥ የተደረገበትን ስሪት ይከፍታል።",
-      "usedHelp": "ቃሉን የሚጠቀመውን ይህን ስሪት ይከፍታል።",
-      "usedChangedHelp": "ይህን ስሪት ይከፍታል። እዚህ ተለውጧል፦ አተረጓጎሙ በዚህ ስሪት ጊዜ ተስተካክሏል።",
       "saveHelp": "ቡድኑ እንዲያየው ለውጡንና ምክንያትዎን ይመዘግባል።"
     }
   },
@@ -7203,10 +7196,9 @@
       "backTo": "ወደ {{term}} ይመለሱ",
       "backToHelp": "የመጡበትን ቃል እንደገና ያሳያል።",
       "minutes_one": "{{count, number}} ደቂቃ",
-      "minutes_other": "{{count, number}} ደቂቃ"
-    },
-    "detail": {
-      "from": "ከ{{name}}"
+      "minutes_other": "{{count, number}} ደቂቃ",
+      "everyPassage": "የሚገኝባቸው ክፍሎች ሁሉ",
+      "everyPassageHelp": "የቃሉን የራሱን ገጽ ይከፍታል፦ የሚገኝባቸውን ክፍሎች ሁሉ እና ቡድኑ በእያንዳንዱ ላይ ያለበትን ሁኔታ።"
     },
     "search": {
       "help": "የእርስዎንና የእያንዳንዱን ዝርዝር ዋና ቃላት ያገኛል፦ በቃሉ፣ ከዚያ በአጭሩ ትርጉም፣ ከዚያ በሙሉ ትርጉሙ።",
@@ -7240,6 +7232,40 @@
       "noWord": "እስካሁን የ{{language}} ቃል የለም",
       "rowSub_one": "{{count, number}} እዚህ · {{have, number}} የ{{language}} ቃል አላቸው",
       "rowSub_other": "{{count, number}} እዚህ · {{have, number}} የ{{language}} ቃል አላቸው"
+    },
+    "page": {
+      "all": "ሁሉም {{n, number}}",
+      "used": "ጥቅም ላይ የዋለ {{n, number}}",
+      "notMarked": "ምልክት ያልተደረገበት {{n, number}}",
+      "notRecorded": "ያልተቀረጸ {{n, number}}",
+      "recorded": "የተቀረጸ {{n, number}}",
+      "passages_one": "ክፍል · {{count, number}}",
+      "passages_other": "ክፍሎች · {{count, number}}",
+      "linkedBy_one": "{{name}} ከ{{count, number}} ክፍል ጋር ያያይዘዋል",
+      "linkedBy_other": "{{name}} ከ{{count, number}} ክፍሎች ጋር ያያይዘዋል",
+      "noPassages": "እስካሁን በየትኛውም ክፍል ውስጥ የለም።",
+      "filterHelp": "ቡድኑ በዚህ ሁኔታ ላይ ያለባቸውን ክፍሎች ብቻ ያሳያል።",
+      "openVersionHelp": "ያንን የክፍሉን ስሪት ይከፍታል።",
+      "openPassageHelp": "ክፍሉን ይከፍታል።",
+      "linkedByOne": "በ{{name}} ተያይዟል",
+      "markedHere": "እዚህ በአንድ ስሪት ምልክት ተደርጎበታል",
+      "versionUsed": "ስሪት {{n}} ተጠቅሞበታል",
+      "versionNotMarked": "ስሪት {{n}} ምልክት አላደረገበትም",
+      "recordedVersion": "ተቀርጿል · ስሪት {{n}}",
+      "notRecordedYet": "ገና አልተቀረጸም",
+      "notes_one": "ማስታወሻዎችና ግምገማዎች · {{count, number}}",
+      "notes_other": "ማስታወሻዎችና ግምገማዎች · {{count, number}}",
+      "openNoteHelp": "ማስታወሻው የተተወበትን ክፍል ይከፍታል።",
+      "noteOnWord": "ስለ ቃሉ ማስታወሻ",
+      "version": "ስሪት {{n}}",
+      "withReview": "ከግምገማ ጋር",
+      "replies_one": "{{count, number}} ምላሽ",
+      "replies_other": "{{count, number}} ምላሾች",
+      "playNote": "ማስታወሻውን ያጫውቱ",
+      "notOurs": "ገና ከ{{language}} ዋና ቃላት አንዱ አይደለም",
+      "fromList": "ከ{{name}}",
+      "fromListSub": "ትርጉሙና የ{{name}} ቀረጻ",
+      "fromListHelp": "{{name}} ቃሉ ምን ማለት እንደሆነ የሚለውን ከቀረጻው ጋር ይከፍታል።"
     }
   },
   "clusters": {

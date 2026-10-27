@@ -2737,11 +2737,6 @@
       "latestBy": "na ƙarshe ta hannun {{name}}, {{when}}",
       "playExplanation": "Kunna bayanin",
       "openVersion": "Buɗe Siga ta {{n, number}}",
-      "whereUsed": "Inda ake amfani da ita",
-      "versions_one": "Siga {{count, number}}",
-      "versions_other": "Sigogi {{count, number}}",
-      "usedTitle": "{{title}} · Siga ta {{n, number}}",
-      "changedHere": "An canja a nan",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "An rubuta a matsayin ɓangaren {{passage}}, kuma an haɗa da daftarinku.",
       "adjustSub": "Ana rubuta kowane canji tare da dalilinku.",
@@ -2754,8 +2749,6 @@
       "addRenderingHelp": "Ku ƙara yadda {{language}} yake faɗinta, da dalili. Ana riƙe kowane canji.",
       "adjustHelp": "Ku canja ko ku ƙara yadda {{language}} yake faɗinta, tare da dalilinku. Ana riƙe kowane canji.",
       "openVersionHelp": "Yana buɗe sigar da aka yi wannan canji a lokacinta.",
-      "usedHelp": "Yana buɗe wannan siga, wadda take amfani da kalmar.",
-      "usedChangedHelp": "Yana buɗe wannan siga. An canja a nan: an daidaita fassarar a lokacinta.",
       "saveHelp": "Yana rubuta canjin da dalilinku, don tawagar ta gani."
     }
   },
@@ -7203,10 +7196,9 @@
       "backTo": "Koma zuwa {{term}}",
       "backToHelp": "Yana sake nuna kalmar da kuka fito daga gare ta.",
       "minutes_one": "minti {{count, number}}",
-      "minutes_other": "minti {{count, number}}"
-    },
-    "detail": {
-      "from": "Daga {{name}}"
+      "minutes_other": "minti {{count, number}}",
+      "everyPassage": "Kowane nassi da take ciki",
+      "everyPassageHelp": "Yana buɗe shafin kalmar na kanta: kowane nassi da take ciki, da inda tawagar ta kai a kowanne."
     },
     "search": {
       "help": "Yana nemo muhimman kalmomi, naku da na kowane jeri: ta kalmar, sannan ta gajeriyar ma'ana, sannan ta cikakkiyar ma'ana.",
@@ -7240,6 +7232,40 @@
       "noWord": "Babu kalmar {{language}} tukuna",
       "rowSub_one": "{{count, number}} a nan · {{have, number}} suna da kalmar {{language}}",
       "rowSub_other": "{{count, number}} a nan · {{have, number}} suna da kalmar {{language}}"
+    },
+    "page": {
+      "all": "Duka {{n, number}}",
+      "used": "An yi amfani da ita {{n, number}}",
+      "notMarked": "Babu alama {{n, number}}",
+      "notRecorded": "Ba a naɗa ba {{n, number}}",
+      "recorded": "An naɗa {{n, number}}",
+      "passages_one": "Nassi · {{count, number}}",
+      "passages_other": "Nassosi · {{count, number}}",
+      "linkedBy_one": "{{name}} ya haɗa ta da nassi {{count, number}}",
+      "linkedBy_other": "{{name}} ya haɗa ta da nassosi {{count, number}}",
+      "noPassages": "Ba ta cikin kowane nassi tukuna.",
+      "filterHelp": "Yana nuna nassosin da tawagar take a wannan hali kaɗai.",
+      "openVersionHelp": "Yana buɗe wannan sigar nassin.",
+      "openPassageHelp": "Yana buɗe nassin.",
+      "linkedByOne": "{{name}} ya haɗa ta",
+      "markedHere": "An yi mata alama a wata siga a nan",
+      "versionUsed": "Siga ta {{n}} ta yi amfani da ita",
+      "versionNotMarked": "Siga ta {{n}} ba ta yi mata alama ba",
+      "recordedVersion": "An naɗa · Siga ta {{n}}",
+      "notRecordedYet": "Ba a naɗa ba tukuna",
+      "notes_one": "Bayanai da bitoci · {{count, number}}",
+      "notes_other": "Bayanai da bitoci · {{count, number}}",
+      "openNoteHelp": "Yana buɗe nassin da aka bar bayanin a kai.",
+      "noteOnWord": "bayani a kan kalmar",
+      "version": "Siga ta {{n}}",
+      "withReview": "Tare da bita",
+      "replies_one": "Amsa {{count, number}}",
+      "replies_other": "Amsoshi {{count, number}}",
+      "playNote": "Kunna bayanin",
+      "notOurs": "Ba ta cikin muhimman kalmomin {{language}} tukuna",
+      "fromList": "Daga {{name}}",
+      "fromListSub": "Ma'anarta, da naɗin {{name}}",
+      "fromListHelp": "Yana buɗe abin da {{name}} ya ce kalmar take nufi, tare da naɗinsa."
     }
   },
   "clusters": {

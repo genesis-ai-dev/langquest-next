@@ -106,7 +106,8 @@ function VerseChip(props: { label: string; onPress: () => void }) {
  * returns to the one before. `verses` are the open passage's verses the
  * word is in, each played by `onPlay`; `onAdd` (given only to someone who
  * may edit key words) offers Add to our key words, unless the team already
- * has the word.
+ * has the word; `onPage`, where the screen can open it, links the word's own
+ * page (decision 172).
  */
 export function KeyWordSheet(props: {
   ctx: Ctx;
@@ -114,6 +115,7 @@ export function KeyWordSheet(props: {
   word: KeyWordDoc;
   verses?: { keys: readonly string[]; book: string; onPlay: (key: string) => void };
   onAdd?: (word: KeyWordDoc) => void;
+  onPage?: (word: KeyWordDoc) => void;
   onClose: () => void;
 }) {
   const { ctx, list } = props;
@@ -151,28 +153,11 @@ export function KeyWordSheet(props: {
           </View>
         </View>
       ) : null}
+      {props.onPage ? <LinkBtn label={t('keyTerms.sheet.everyPassage')} help={t('keyTerms.sheet.everyPassageHelp')} style={{ alignSelf: 'flex-start' }} onPress={() => props.onPage!(word)} /> : null}
       <KeyWordMeaning list={list} word={word} onWord={(w) => setTrail([...trail, w])} />
       {list.source ? <Text style={txt.xs}>{list.source}</Text> : null}
       {mine ? <Text style={[txt.xsStrong, { color: C.primary }]}>{t('keyTerms.sheet.ours', { language })}</Text> : null}
     </Sheet>
-  );
-}
-
-/**
- * On a team's word made from a list's word (key_term_detail): "From FIA"
- * and the list's short meaning, its recording, its full meaning (a linked
- * word opens through `onWord`) and its credit line.
- */
-export function FromList(props: { ctx: Ctx; list: KeyWordList; word: KeyWordDoc; onWord: (word: KeyWordDoc) => void }) {
-  const { list, word } = props;
-  return (
-    <View style={{ gap: space.md }}>
-      <SectionLabel label={t('keyTerms.detail.from', { name: shortName(list) })} />
-      {word.gloss ? <Text style={txt.bodyMuted}>{word.gloss}</Text> : null}
-      <KeyWordHear ctx={props.ctx} list={list} word={word} />
-      <KeyWordMeaning list={list} word={word} onWord={props.onWord} />
-      {list.source ? <Text style={txt.xs}>{list.source}</Text> : null}
-    </View>
   );
 }
 

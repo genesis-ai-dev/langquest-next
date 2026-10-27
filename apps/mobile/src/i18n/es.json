@@ -2827,12 +2827,6 @@
       "latestBy": "el último por {{name}}, {{when}}",
       "playExplanation": "Reproducir la explicación",
       "openVersion": "Abrir la versión {{n, number}}",
-      "whereUsed": "Dónde se usa",
-      "versions_one": "{{count, number}} versión",
-      "versions_many": "{{count, number}} versiones",
-      "versions_other": "{{count, number}} versiones",
-      "usedTitle": "{{title}} · Versión {{n, number}}",
-      "changedHere": "Se cambió aquí",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Registrado como parte de {{passage}} y ligado a tu borrador.",
       "adjustSub": "Cada cambio se registra con tu razón.",
@@ -2845,8 +2839,6 @@
       "addRenderingHelp": "Agrega cómo lo dice {{language}} y por qué. Se guarda cada cambio.",
       "adjustHelp": "Cambia o agrega cómo lo dice {{language}}, con tu razón. Se guarda cada cambio.",
       "openVersionHelp": "Abre la versión durante la que se hizo este cambio.",
-      "usedHelp": "Abre esta versión, que usa el término.",
-      "usedChangedHelp": "Abre esta versión. Se cambió aquí: el equivalente se ajustó durante ella.",
       "saveHelp": "Registra el cambio y tu razón, para que los vea el equipo."
     }
   },
@@ -7501,10 +7493,9 @@
       "backToHelp": "Vuelve a mostrar la palabra de la que viniste.",
       "minutes_one": "{{count, number}} min",
       "minutes_many": "{{count, number}} min",
-      "minutes_other": "{{count, number}} min"
-    },
-    "detail": {
-      "from": "De {{name}}"
+      "minutes_other": "{{count, number}} min",
+      "everyPassage": "Todos los pasajes donde está",
+      "everyPassageHelp": "Abre la página de la palabra: todos los pasajes donde está y cómo va el equipo en cada uno."
     },
     "search": {
       "help": "Encuentra palabras clave, las tuyas y las de cada lista: primero por la palabra, luego por el significado corto y luego por el significado completo.",
@@ -7542,6 +7533,44 @@
       "rowSub_one": "{{count, number}} aquí · {{language}} tiene palabra para {{have, number}}",
       "rowSub_many": "{{count, number}} aquí · {{language}} tiene palabra para {{have, number}}",
       "rowSub_other": "{{count, number}} aquí · {{language}} tiene palabra para {{have, number}}"
+    },
+    "page": {
+      "all": "Todos {{n, number}}",
+      "used": "Usada {{n, number}}",
+      "notMarked": "No marcada {{n, number}}",
+      "notRecorded": "Sin grabar {{n, number}}",
+      "recorded": "Grabados {{n, number}}",
+      "passages_one": "Pasajes · {{count, number}}",
+      "passages_many": "Pasajes · {{count, number}}",
+      "passages_other": "Pasajes · {{count, number}}",
+      "linkedBy_one": "{{name}} la vincula a {{count, number}}",
+      "linkedBy_many": "{{name}} la vincula a {{count, number}}",
+      "linkedBy_other": "{{name}} la vincula a {{count, number}}",
+      "noPassages": "Todavía no está en ningún pasaje.",
+      "filterHelp": "Muestra solo los pasajes en los que el equipo va así.",
+      "openVersionHelp": "Abre esa versión del pasaje.",
+      "openPassageHelp": "Abre el pasaje.",
+      "linkedByOne": "Vinculado por {{name}}",
+      "markedHere": "Marcada aquí en una versión",
+      "versionUsed": "La Versión {{n}} la usó",
+      "versionNotMarked": "La Versión {{n}} no la marcó",
+      "recordedVersion": "Grabado · Versión {{n}}",
+      "notRecordedYet": "Todavía no se grabó",
+      "notes_one": "Notas y revisiones · {{count, number}}",
+      "notes_many": "Notas y revisiones · {{count, number}}",
+      "notes_other": "Notas y revisiones · {{count, number}}",
+      "openNoteHelp": "Abre el pasaje donde se dejó la nota.",
+      "noteOnWord": "nota sobre la palabra",
+      "version": "Versión {{n}}",
+      "withReview": "Con una revisión",
+      "replies_one": "{{count, number}} respuesta",
+      "replies_many": "{{count, number}} respuestas",
+      "replies_other": "{{count, number}} respuestas",
+      "playNote": "Reproducir la nota",
+      "notOurs": "Todavía no es una de las palabras clave de {{language}}",
+      "fromList": "De {{name}}",
+      "fromListSub": "Qué significa y la grabación de {{name}}",
+      "fromListHelp": "Abre lo que {{name}} dice que significa la palabra, con su grabación."
     }
   },
   "clusters": {

@@ -2737,11 +2737,6 @@
       "latestBy": "latest by {{name}}, {{when}}",
       "playExplanation": "Play the explanation",
       "openVersion": "Open Version {{n, number}}",
-      "whereUsed": "Where it's used",
-      "versions_one": "{{count, number}} version",
-      "versions_other": "{{count, number}} versions",
-      "usedTitle": "{{title}} · Version {{n, number}}",
-      "changedHere": "Changed here",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Recorded as part of {{passage}}, and tied to your draft.",
       "adjustSub": "Every change is recorded with your reason.",
@@ -2754,8 +2749,6 @@
       "addRenderingHelp": "Add how {{language}} says it, and why. Every change is kept.",
       "adjustHelp": "Change or add how {{language}} says it, with your reason. Every change is kept.",
       "openVersionHelp": "Opens the version this change was made during.",
-      "usedHelp": "Opens this version, which uses the term.",
-      "usedChangedHelp": "Opens this version. Changed here: the rendering was adjusted during it.",
       "saveHelp": "Records the change and your reason, for the team to see."
     }
   },
@@ -7203,10 +7196,9 @@
       "addThen": "Then say how {{language}} says it",
       "ours": "One of {{language}}'s key words.",
       "backTo": "Back to {{term}}",
-      "backToHelp": "Shows the word you came from again."
-    },
-    "detail": {
-      "from": "From {{name}}"
+      "backToHelp": "Shows the word you came from again.",
+      "everyPassage": "Every passage it's in",
+      "everyPassageHelp": "Opens the word's own page: every passage it is in, and where the team stands on each."
     },
     "search": {
       "help": "Finds key words, yours and every list's: by the word, then by the short meaning, then by the full meaning.",
@@ -7240,6 +7232,40 @@
       "noWord": "No {{language}} word yet",
       "rowSub_one": "{{count, number}} here · {{language}} has a word for {{have, number}}",
       "rowSub_other": "{{count, number}} here · {{language}} has a word for {{have, number}}"
+    },
+    "page": {
+      "all": "All {{n, number}}",
+      "used": "Used {{n, number}}",
+      "notMarked": "Not marked {{n, number}}",
+      "notRecorded": "Not recorded {{n, number}}",
+      "recorded": "Recorded {{n, number}}",
+      "passages_one": "Passages · {{count, number}}",
+      "passages_other": "Passages · {{count, number}}",
+      "linkedBy_one": "{{name}} links it to {{count, number}}",
+      "linkedBy_other": "{{name}} links it to {{count, number}}",
+      "noPassages": "Not in any passage yet.",
+      "filterHelp": "Shows only the passages where the team stands this way.",
+      "openVersionHelp": "Opens that version of the passage.",
+      "openPassageHelp": "Opens the passage.",
+      "linkedByOne": "Linked by {{name}}",
+      "markedHere": "Marked in a version here",
+      "versionUsed": "Version {{n}} used it",
+      "versionNotMarked": "Version {{n}} didn't mark it",
+      "recordedVersion": "Recorded · Version {{n}}",
+      "notRecordedYet": "Not recorded yet",
+      "notes_one": "Notes and reviews · {{count, number}}",
+      "notes_other": "Notes and reviews · {{count, number}}",
+      "openNoteHelp": "Opens the passage the note was left on.",
+      "noteOnWord": "note on the word",
+      "version": "Version {{n}}",
+      "withReview": "With a review",
+      "replies_one": "{{count, number}} reply",
+      "replies_other": "{{count, number}} replies",
+      "playNote": "Play the note",
+      "notOurs": "Not one of {{language}}'s key words yet",
+      "fromList": "From {{name}}",
+      "fromListSub": "What it means, and {{name}}'s recording",
+      "fromListHelp": "Opens what {{name}} says the word means, with its recording."
     }
   },
   "clusters": {

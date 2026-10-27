@@ -2737,11 +2737,6 @@
       "latestBy": "आखिरी बार {{name}} ने, {{when}}",
       "playExplanation": "समझाने वाला ऑडियो चलाएँ",
       "openVersion": "वर्शन {{n, number}} खोलें",
-      "whereUsed": "कहाँ इस्तेमाल होता है",
-      "versions_one": "{{count, number}} वर्शन",
-      "versions_other": "{{count, number}} वर्शन",
-      "usedTitle": "{{title}} · वर्शन {{n, number}}",
-      "changedHere": "यहाँ बदला गया",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "{{passage}} के हिस्से के रूप में दर्ज, और आपके ड्राफ़्ट से जुड़ा।",
       "adjustSub": "हर बदलाव आपके कारण के साथ दर्ज होता है।",
@@ -2754,8 +2749,6 @@
       "addRenderingHelp": "जोड़ें कि {{language}} इसे कैसे कहती है, और क्यों। हर बदलाव रखा जाता है।",
       "adjustHelp": "{{language}} इसे कैसे कहती है, यह अपने कारण के साथ बदलें या जोड़ें। हर बदलाव रखा जाता है।",
       "openVersionHelp": "वह वर्शन खोलता है जिसके दौरान यह बदलाव हुआ।",
-      "usedHelp": "यह वर्शन खोलता है, जिसमें यह शब्द इस्तेमाल हुआ है।",
-      "usedChangedHelp": "यह वर्शन खोलता है। यहाँ बदला गया: इसके दौरान अनुवाद बदला गया।",
       "saveHelp": "बदलाव और आपका कारण दर्ज करता है, ताकि टीम देख सके।"
     }
   },
@@ -7203,10 +7196,9 @@
       "backTo": "{{term}} पर वापस",
       "backToHelp": "वह शब्द फिर दिखाता है जहाँ से आप आए थे।",
       "minutes_one": "{{count, number}} मिनट",
-      "minutes_other": "{{count, number}} मिनट"
-    },
-    "detail": {
-      "from": "{{name}} से"
+      "minutes_other": "{{count, number}} मिनट",
+      "everyPassage": "हर अंश जिसमें यह है",
+      "everyPassageHelp": "शब्द का अपना पेज खोलता है: हर अंश जिसमें यह है, और हर एक पर टीम कहाँ तक पहुँची है।"
     },
     "search": {
       "help": "मुख्य शब्द ढूँढता है, आपके और हर सूची के: पहले शब्द से, फिर छोटे अर्थ से, फिर पूरे अर्थ से।",
@@ -7240,6 +7232,40 @@
       "noWord": "अभी कोई {{language}} शब्द नहीं",
       "rowSub_one": "यहाँ {{count, number}} · {{language}} में {{have, number}} के लिए शब्द है",
       "rowSub_other": "यहाँ {{count, number}} · {{language}} में {{have, number}} के लिए शब्द है"
+    },
+    "page": {
+      "all": "सभी {{n, number}}",
+      "used": "इस्तेमाल हुआ {{n, number}}",
+      "notMarked": "चिह्नित नहीं {{n, number}}",
+      "notRecorded": "रिकॉर्ड नहीं हुए {{n, number}}",
+      "recorded": "रिकॉर्ड हुए {{n, number}}",
+      "passages_one": "अंश · {{count, number}}",
+      "passages_other": "अंश · {{count, number}}",
+      "linkedBy_one": "{{name}} इसे {{count, number}} अंश से जोड़ता है",
+      "linkedBy_other": "{{name}} इसे {{count, number}} अंशों से जोड़ता है",
+      "noPassages": "अभी किसी अंश में नहीं।",
+      "filterHelp": "सिर्फ़ वे अंश दिखाता है जहाँ टीम इस स्थिति में है।",
+      "openVersionHelp": "अंश का वह वर्शन खोलता है।",
+      "openPassageHelp": "अंश खोलता है।",
+      "linkedByOne": "{{name}} ने जोड़ा",
+      "markedHere": "यहाँ एक वर्शन में चिह्नित",
+      "versionUsed": "वर्शन {{n}} में इस्तेमाल हुआ",
+      "versionNotMarked": "वर्शन {{n}} में चिह्नित नहीं किया",
+      "recordedVersion": "रिकॉर्ड हुआ · वर्शन {{n}}",
+      "notRecordedYet": "अभी रिकॉर्ड नहीं हुआ",
+      "notes_one": "नोट और समीक्षाएँ · {{count, number}}",
+      "notes_other": "नोट और समीक्षाएँ · {{count, number}}",
+      "openNoteHelp": "वह अंश खोलता है जिस पर नोट छोड़ा गया था।",
+      "noteOnWord": "शब्द पर नोट",
+      "version": "वर्शन {{n}}",
+      "withReview": "समीक्षा के साथ",
+      "replies_one": "{{count, number}} जवाब",
+      "replies_other": "{{count, number}} जवाब",
+      "playNote": "नोट चलाएँ",
+      "notOurs": "अभी {{language}} के मुख्य शब्दों में से एक नहीं",
+      "fromList": "{{name}} से",
+      "fromListSub": "इसका अर्थ, और {{name}} की रिकॉर्डिंग",
+      "fromListHelp": "{{name}} के अनुसार शब्द का अर्थ खोलता है, उसकी रिकॉर्डिंग के साथ।"
     }
   },
   "clusters": {

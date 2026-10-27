@@ -123,6 +123,45 @@ const sameBook = (a: string, b: string) => a === b || ACROSS.has(`${a}|${b}`) ||
 const before = (a: { chapter: number; verse: number }, b: { chapter: number; verse: number }) => a.chapter < b.chapter || (a.chapter === b.chapter && a.verse <= b.verse);
 
 /**
+ * Whether a list links a word to a passage's verses: each side read in its
+ * own numbering, as guides are matched; plain overlap when neither names
+ * one. Made once per passage, so its verses are worked out once.
+ */
+export function linksMeeting(range: VerseRange | null, numbering: VersificationDoc | null, versificationOf: (hash: string) => VersificationDoc | null):
+  (list: Pick<KeyWordList, 'versification'>, word: Pick<KeyWordDoc, 'links'>) => boolean {
+  let passageVerses: Set<string> | null = null;
+  return (list, word) => {
+    if (!range || !word.links?.length) return false;
+    const lv = list.versification ? versificationOf(list.versification) : null;
+    for (const l of word.links) {
+      if (!('ref' in l)) continue;
+      const r = parseRef(l.ref, lv ? (b, ch) => versesInChapter(lv, b, ch) : undefined);
+      if (!r || !sameBook(r.book, range.book)) continue;
+      const pv = numbering ?? lv;
+      const tv = lv ?? numbering;
+      if (!pv || !tv) {
+        if (r.book === range.book && before(range.start, r.end) && before(r.start, range.end)) return true;
+        continue;
+      }
+      passageVerses ??= orgVerses(pv, range);
+      for (const k of orgVerses(tv, r)) if (passageVerses.has(k)) return true;
+    }
+    return false;
+  };
+}
+
+/** The verses that say any of a word's forms, and how each says it ("prophets"). */
+export function versesSaying(rows: readonly { key: string; text: string }[], forms: readonly string[]): { key: string; said: string }[] {
+  const text = rows.map((r) => r.text).join('\n').toLowerCase();
+  if (!forms.some((f) => text.includes(f))) return [];
+  const marks = forms.map((f) => ({ termId: 'w', term: f }));
+  return rows.flatMap((r) => {
+    const said = markTerms(r.text, marks).find((p) => p.termId)?.text;
+    return said ? [{ key: r.key, said }] : [];
+  });
+}
+
+/**
  * The words of the lists that show on a passage (decision 172): those a list
  * links to its verses (each side read in its own numbering, as guides are
  * matched), and those found in a Bible the team reads in the list's own
@@ -141,26 +180,8 @@ export function wordsOnPassage(c: {
 }): WordHere[] {
   const ownIds = new Set(c.own.map((x) => x.termId));
   const ownWords = new Set(c.own.map((x) => x.term.trim().toLowerCase()));
-  const here = c.range;
-  let passageVerses: Set<string> | null = null;
-  const linkedHere = (list: KeyWordList, word: KeyWordDoc): boolean => {
-    if (!here || !word.links?.length) return false;
-    const lv = list.versification ? c.versificationOf(list.versification) : null;
-    for (const l of word.links) {
-      if (!('ref' in l)) continue;
-      const r = parseRef(l.ref, lv ? (b, ch) => versesInChapter(lv, b, ch) : undefined);
-      if (!r || !sameBook(r.book, here.book)) continue;
-      const pv = c.numbering ?? lv;
-      const tv = lv ?? c.numbering;
-      if (!pv || !tv) {
-        if (r.book === here.book && before(here.start, r.end) && before(r.start, here.end)) return true;
-        continue;
-      }
-      passageVerses ??= orgVerses(pv, here);
-      for (const k of orgVerses(tv, r)) if (passageVerses.has(k)) return true;
-    }
-    return false;
-  };
+  const meets = linksMeeting(c.range, c.numbering, c.versificationOf);
+  const linkedHere = (list: KeyWordList, word: KeyWordDoc): boolean => meets(list, word);
   const out: WordHere[] = [];
   // Each Bible's verses as one lowercase text: a word none of whose forms is in it is not looked for verse by verse.
   const whole = new Map(c.bibles.map((b) => [b, b.rows.map((r) => r.text).join('\n').toLowerCase()]));

@@ -2647,10 +2647,6 @@
       "latestBy": "terakhir oleh {{name}}, {{when}}",
       "playExplanation": "Putar penjelasan",
       "openVersion": "Buka Versi {{n, number}}",
-      "whereUsed": "Di mana dipakai",
-      "versions_other": "{{count, number}} versi",
-      "usedTitle": "{{title}} · Versi {{n, number}}",
-      "changedHere": "Diubah di sini",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Dicatat sebagai bagian dari {{passage}}, dan dikaitkan dengan draf Anda.",
       "adjustSub": "Setiap perubahan dicatat dengan alasan Anda.",
@@ -2663,8 +2659,6 @@
       "addRenderingHelp": "Tambahkan cara mengucapkannya dalam {{language}}, dan alasannya. Setiap perubahan disimpan.",
       "adjustHelp": "Ubah atau tambahkan cara mengucapkannya dalam {{language}}, dengan alasan Anda. Setiap perubahan disimpan.",
       "openVersionHelp": "Membuka versi tempat perubahan ini dibuat.",
-      "usedHelp": "Membuka versi ini, yang memakai istilah ini.",
-      "usedChangedHelp": "Membuka versi ini. Diubah di sini: padanannya disesuaikan selama versi ini.",
       "saveHelp": "Mencatat perubahan dan alasan Anda, untuk dilihat tim."
     }
   },
@@ -6905,10 +6899,9 @@
       "ours": "Salah satu kata kunci {{language}}.",
       "backTo": "Kembali ke {{term}}",
       "backToHelp": "Menampilkan lagi kata yang tadi Anda buka.",
-      "minutes_other": "{{count, number}} menit"
-    },
-    "detail": {
-      "from": "Dari {{name}}"
+      "minutes_other": "{{count, number}} menit",
+      "everyPassage": "Semua perikop tempat kata ini muncul",
+      "everyPassageHelp": "Membuka halaman kata ini: semua perikop tempat kata ini muncul, dan keadaan tim di setiap perikop."
     },
     "search": {
       "help": "Mencari kata kunci, milik Anda dan milik setiap daftar: menurut katanya, lalu arti singkatnya, lalu arti lengkapnya.",
@@ -6938,6 +6931,36 @@
       "notMarked": "Tidak ditandai di Versi {{n}}",
       "noWord": "Belum ada kata {{language}}",
       "rowSub_other": "{{count, number}} di sini · {{language}} punya kata untuk {{have, number}}"
+    },
+    "page": {
+      "all": "Semua {{n, number}}",
+      "used": "Dipakai {{n, number}}",
+      "notMarked": "Tidak ditandai {{n, number}}",
+      "notRecorded": "Belum direkam {{n, number}}",
+      "recorded": "Direkam {{n, number}}",
+      "passages_other": "Perikop · {{count, number}}",
+      "linkedBy_other": "{{name}} mengaitkannya dengan {{count, number}}",
+      "noPassages": "Belum ada di perikop mana pun.",
+      "filterHelp": "Hanya menampilkan perikop dengan keadaan seperti ini.",
+      "openVersionHelp": "Membuka versi perikop itu.",
+      "openPassageHelp": "Membuka perikop ini.",
+      "linkedByOne": "Dikaitkan oleh {{name}}",
+      "markedHere": "Ditandai di salah satu versi di sini",
+      "versionUsed": "Versi {{n}} memakainya",
+      "versionNotMarked": "Versi {{n}} tidak menandainya",
+      "recordedVersion": "Direkam · Versi {{n}}",
+      "notRecordedYet": "Belum direkam",
+      "notes_other": "Catatan dan pemeriksaan · {{count, number}}",
+      "openNoteHelp": "Membuka perikop tempat catatan ini ditinggalkan.",
+      "noteOnWord": "catatan pada kata ini",
+      "version": "Versi {{n}}",
+      "withReview": "Bersama pemeriksaan",
+      "replies_other": "{{count, number}} balasan",
+      "playNote": "Putar catatan",
+      "notOurs": "Belum termasuk kata kunci {{language}}",
+      "fromList": "Dari {{name}}",
+      "fromListSub": "Artinya, dan rekaman {{name}}",
+      "fromListHelp": "Membuka arti kata ini seperti yang dijelaskan {{name}}, dengan rekamannya."
     }
   },
   "clusters": {

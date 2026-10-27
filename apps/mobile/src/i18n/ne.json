@@ -2737,11 +2737,6 @@
       "latestBy": "पछिल्लो {{name}}द्वारा, {{when}}",
       "playExplanation": "व्याख्या बजाउनुहोस्",
       "openVersion": "संस्करण {{n, number}} खोल्नुहोस्",
-      "whereUsed": "यो कहाँ प्रयोग भएको छ",
-      "versions_one": "{{count, number}} संस्करण",
-      "versions_other": "{{count, number}} संस्करण",
-      "usedTitle": "{{title}} · संस्करण {{n, number}}",
-      "changedHere": "यहाँ बदलिएको",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "{{passage}}को भागको रूपमा टिपिन्छ, र तपाईंको मस्यौदासँग जोडिन्छ।",
       "adjustSub": "हरेक परिवर्तन तपाईंको कारणसहित टिपिन्छ।",
@@ -2754,8 +2749,6 @@
       "addRenderingHelp": "{{language}} मा यसलाई कसरी भनिन्छ, र किन, थप्नुहोस्। हरेक परिवर्तन राखिन्छ।",
       "adjustHelp": "{{language}} मा यसलाई कसरी भनिन्छ, आफ्नो कारणसहित बदल्नुहोस् वा थप्नुहोस्। हरेक परिवर्तन राखिन्छ।",
       "openVersionHelp": "यो परिवर्तन गरिएको बेलाको संस्करण खोल्छ।",
-      "usedHelp": "यो शब्द प्रयोग भएको यो संस्करण खोल्छ।",
-      "usedChangedHelp": "यो संस्करण खोल्छ। यहाँ बदलिएको: यसैबेला अनुवाद मिलाइएको थियो।",
       "saveHelp": "टोलीले हेर्न सकोस् भनेर, परिवर्तन र तपाईंको कारण टिप्छ।"
     }
   },
@@ -7203,10 +7196,9 @@
       "backTo": "{{term}}मा फर्कनुहोस्",
       "backToHelp": "तपाईं जुन शब्दबाट आउनुभएको थियो, त्यो फेरि देखाउँछ।",
       "minutes_one": "{{count, number}} मिनेट",
-      "minutes_other": "{{count, number}} मिनेट"
-    },
-    "detail": {
-      "from": "{{name}}बाट"
+      "minutes_other": "{{count, number}} मिनेट",
+      "everyPassage": "यो भएका सबै खण्डहरू",
+      "everyPassageHelp": "शब्दको आफ्नै पृष्ठ खोल्छ: यो भएका सबै खण्डहरू, र हरेकमा टोली कहाँ पुग्यो।"
     },
     "search": {
       "help": "मुख्य शब्दहरू भेट्टाउँछ, तपाईंका र हरेक सूचीका: पहिले शब्दबाट, त्यसपछि छोटो अर्थबाट, त्यसपछि पूरा अर्थबाट।",
@@ -7240,6 +7232,40 @@
       "noWord": "अझै {{language}} शब्द छैन",
       "rowSub_one": "यहाँ {{count, number}} · {{have, number}}का लागि {{language}}मा शब्द छ",
       "rowSub_other": "यहाँ {{count, number}} · {{have, number}}का लागि {{language}}मा शब्द छ"
+    },
+    "page": {
+      "all": "सबै {{n, number}}",
+      "used": "प्रयोग भएको {{n, number}}",
+      "notMarked": "चिन्ह नलगाइएको {{n, number}}",
+      "notRecorded": "रेकर्ड नभएको {{n, number}}",
+      "recorded": "रेकर्ड भएको {{n, number}}",
+      "passages_one": "खण्ड · {{count, number}}",
+      "passages_other": "खण्डहरू · {{count, number}}",
+      "linkedBy_one": "{{name}}ले यसलाई {{count, number}} खण्डसँग जोड्छ",
+      "linkedBy_other": "{{name}}ले यसलाई {{count, number}} खण्डहरूसँग जोड्छ",
+      "noPassages": "अझै कुनै खण्डमा छैन।",
+      "filterHelp": "जहाँ टोली यो अवस्थामा छ, ती खण्डहरू मात्र देखाउँछ।",
+      "openVersionHelp": "खण्डको त्यो संस्करण खोल्छ।",
+      "openPassageHelp": "खण्ड खोल्छ।",
+      "linkedByOne": "{{name}}ले जोडेको",
+      "markedHere": "यहाँ एउटा संस्करणमा चिन्ह लगाइएको",
+      "versionUsed": "संस्करण {{n}}मा प्रयोग भयो",
+      "versionNotMarked": "संस्करण {{n}}मा चिन्ह लगाइएन",
+      "recordedVersion": "रेकर्ड भएको · संस्करण {{n}}",
+      "notRecordedYet": "अझै रेकर्ड भएको छैन",
+      "notes_one": "टिप्पणी र जाँचहरू · {{count, number}}",
+      "notes_other": "टिप्पणी र जाँचहरू · {{count, number}}",
+      "openNoteHelp": "टिप्पणी छोडिएको खण्ड खोल्छ।",
+      "noteOnWord": "शब्दबारे टिप्पणी",
+      "version": "संस्करण {{n}}",
+      "withReview": "जाँचसँगै",
+      "replies_one": "{{count, number}} जवाफ",
+      "replies_other": "{{count, number}} जवाफ",
+      "playNote": "टिप्पणी बजाउनुहोस्",
+      "notOurs": "अझै {{language}}का मुख्य शब्दहरूमध्ये एक होइन",
+      "fromList": "{{name}}बाट",
+      "fromListSub": "यसको अर्थ, र {{name}}को रेकर्डिङ",
+      "fromListHelp": "{{name}}का अनुसार शब्दको अर्थ के हो, त्यसको रेकर्डिङसहित खोल्छ।"
     }
   },
   "clusters": {
