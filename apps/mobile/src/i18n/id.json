@@ -7164,5 +7164,71 @@
       "ask": "Minta centang biru",
       "askHelp": "Minta centang biru kepada LangQuest, agar semua orang tahu bahwa ini organisasi yang asli."
     }
+  },
+  "imports": {
+    "title": "Impor dari {{name}}",
+    "languages": {
+      "zhs": "Tionghoa (Sederhana)",
+      "zht": "Tionghoa (Tradisional)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Masukkan panduan belajar FIA ke perpustakaan {{org}} dari Bible Aquifer, tempat panduan itu diterbitkan. Pilih bahasanya. LangQuest menyiapkan panduan di servernya, lalu Anda memeriksa dan menerbitkannya.",
+      "from": "Dari {{source}}"
+    },
+    "choose": {
+      "languages_other": "Bahasa · {{count, number}} dipilih",
+      "start_other": "Impor {{count, number}} bahasa",
+      "pickOne": "Pilih satu bahasa",
+      "startHelp": "LangQuest mulai menyiapkan panduan. Tiap bahasa butuh beberapa menit, dan tetap berjalan setelah Anda menutup ini.",
+      "inLibrary": "Di perpustakaan Anda",
+      "updateHelp": "Bahasa ini sudah ada di perpustakaan Anda. Mengimpor lagi membawa versi FIA terbaru sebagai versi baru.",
+      "languageHelp": "Centang untuk memasukkan panduan FIA dalam bahasa ini."
+    },
+    "building": {
+      "waiting": "Menunggu dimulai",
+      "importing": "Sedang mengimpor",
+      "body": "LangQuest sedang menyiapkan panduan di servernya. Anda boleh menutup ini, prosesnya tetap berjalan. Kembali lagi untuk menerbitkannya.",
+      "progress": "Bahasa selesai: {{done, number}} dari {{total, number}}",
+      "stop": "Hentikan impor ini",
+      "stopHelp": "Berhenti menyiapkan. Tidak ada yang ditambahkan ke perpustakaan Anda."
+    },
+    "ready": {
+      "intro": "Siap. Belum ada yang masuk ke perpustakaan Anda: periksa hasilnya, lalu terbitkan.",
+      "guides_other": "{{count, number}} panduan belajar",
+      "new": "Baru",
+      "update": "Pembaruan",
+      "share": "Bagikan ke organisasi lain",
+      "shareSub": "Mereka bisa mengikutinya, dan tiap impor baru sampai kepada mereka sebagai pembaruan.",
+      "publish_other": "Terbitkan {{count, number}} item",
+      "publishHelp": "Menambahkannya ke perpustakaan sebagai milik organisasi Anda, dibagikan jika Anda memilihnya.",
+      "setAside": "Jangan terbitkan impor ini",
+      "setAsideHelp": "Membuang hasil impor ini. Perpustakaan Anda tetap seperti sekarang."
+    },
+    "done": {
+      "title_other": "{{count, number}} item diterbitkan",
+      "body": "Sekarang sudah ada di perpustakaan Anda, di Bahan Rujukan."
+    },
+    "failed": {
+      "title": "Impor terakhir berhenti",
+      "body": "Coba lagi. Jika berhenti lagi, beri tahu LangQuest lewat Kirim masukan."
+    },
+    "problem": {
+      "running": "Sudah ada impor yang berjalan. Tunggu sampai selesai, atau hentikan dulu.",
+      "noImporter": "LangQuest mematikan alat impor ini untuk organisasi Anda.",
+      "notAllowed": "Hanya orang yang mengelola bahan rujukan yang bisa mengimpor.",
+      "notReady": "Impor ini belum siap.",
+      "offline": "Tidak bisa menghubungi LangQuest. Periksa koneksi Anda dan coba lagi."
+    },
+    "row": {
+      "label": "Impor dari {{name}}",
+      "waiting": "Menunggu dimulai",
+      "importing": "Mengimpor · {{done, number}} dari {{total, number}} bahasa",
+      "ready_other": "Siap diterbitkan · {{count, number}} item",
+      "failed": "Impor terakhir berhenti",
+      "from": "Bahan Anda, dari {{source}}",
+      "readyBadge": "Siap",
+      "help": "Membuka alat impor yang dinyalakan LangQuest untuk organisasi Anda: masukkan bahan Anda sendiri dari tempat Anda menyimpannya."
+    }
   }
 }

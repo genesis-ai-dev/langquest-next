@@ -7471,5 +7471,77 @@
       "ask": "ሰማያዊ ምልክት ጠይቅ",
       "askHelp": "ይህ እውነተኛው ድርጅት መሆኑን ሁሉም እንዲያዩ LangQuestን ሰማያዊ ምልክት ይጠይቁ።"
     }
+  },
+  "imports": {
+    "title": "ከ{{name}} አስመጣ",
+    "languages": {
+      "zhs": "ቻይንኛ (ቀላል)",
+      "zht": "ቻይንኛ (ባህላዊ)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "የFIA የጥናት መመሪያዎችን ከታተሙበት ከBible Aquifer ወደ {{org}} ቤተ መጻሕፍት አምጣ። ቋንቋዎቹን ምረጥ። LangQuest መመሪያዎቹን በአገልጋዩ ላይ ያዘጋጃል፤ ከዚያ አንተ ፈትሸህ ታትማለህ።",
+      "from": "ከ{{source}}"
+    },
+    "choose": {
+      "languages_one": "ቋንቋዎች · {{count, number}} ተመርጧል",
+      "languages_other": "ቋንቋዎች · {{count, number}} ተመርጠዋል",
+      "start_one": "{{count, number}} ቋንቋ አስመጣ",
+      "start_other": "{{count, number}} ቋንቋዎች አስመጣ",
+      "pickOne": "አንድ ቋንቋ ምረጥ",
+      "startHelp": "LangQuest መመሪያዎቹን ማዘጋጀት ይጀምራል። እያንዳንዱ ቋንቋ ጥቂት ደቂቃዎች ይወስዳል፤ ይህን ብትዘጋውም ይቀጥላል።",
+      "inLibrary": "በቤተ መጻሕፍትህ ውስጥ",
+      "updateHelp": "ይህ ቋንቋ ቀድሞውኑ በቤተ መጻሕፍትህ ውስጥ አለ። እንደገና ማስመጣት የFIAን የቅርብ ጊዜ እንደ አዲስ እትም ያመጣል።",
+      "languageHelp": "በዚህ ቋንቋ የFIA መመሪያዎችን ለማምጣት ምልክት አድርግ።"
+    },
+    "building": {
+      "waiting": "ለመጀመር በመጠበቅ ላይ",
+      "importing": "በማስመጣት ላይ",
+      "body": "LangQuest መመሪያዎቹን በአገልጋዩ ላይ እያዘጋጀ ነው። ይህን መዝጋት ትችላለህ፤ ሥራው ይቀጥላል። ለማተም ተመለስ።",
+      "progress": "የተጠናቀቁ ቋንቋዎች፦ ከ{{total, number}} {{done, number}}",
+      "stop": "ይህን ማስመጣት አቁም",
+      "stopHelp": "ዝግጅቱን ያቆማል። በቤተ መጻሕፍትህ ውስጥ ምንም አይጨመርም።"
+    },
+    "ready": {
+      "intro": "ዝግጁ። እስካሁን በቤተ መጻሕፍትህ ውስጥ ምንም የለም፦ የተዘጋጀውን ፈትሽ፣ ከዚያ አትም።",
+      "guides_one": "{{count, number}} የጥናት መመሪያ",
+      "guides_other": "{{count, number}} የጥናት መመሪያዎች",
+      "new": "አዲስ",
+      "update": "ማሻሻያ",
+      "share": "ከሌሎች ድርጅቶች ጋር አጋራ",
+      "shareSub": "ሊከተሉት ይችላሉ፤ እያንዳንዱ አዲስ ማስመጣት እንደ ማሻሻያ ይደርሳቸዋል።",
+      "publish_one": "{{count, number}} ንጥል አትም",
+      "publish_other": "{{count, number}} ንጥሎች አትም",
+      "publishHelp": "እነዚህን የድርጅትህ እንደሆኑ ወደ ቤተ መጻሕፍትህ ይጨምራል፤ ከመረጥክ ያጋራል።",
+      "setAside": "ይህን ማስመጣት አታትም",
+      "setAsideHelp": "ይህ ማስመጣት ያዘጋጀውን ይጥላል። ቤተ መጻሕፍትህ እንዳለ ይቆያል።"
+    },
+    "done": {
+      "title_one": "{{count, number}} ንጥል ታትሟል",
+      "title_other": "{{count, number}} ንጥሎች ታትመዋል",
+      "body": "አሁን በቤተ መጻሕፍትህ ውስጥ፣ በማጣቀሻ ቁሳቁስ ስር አለ።"
+    },
+    "failed": {
+      "title": "የመጨረሻው ማስመጣት ቆሟል",
+      "body": "እንደገና ሞክር። እንደገና ከቆመ፣ በአስተያየት ላክ ለLangQuest ንገር።"
+    },
+    "problem": {
+      "running": "አንድ ማስመጣት እየተካሄደ ነው። እስኪጨርስ ጠብቅ፣ ወይም መጀመሪያ አቁመው።",
+      "noImporter": "LangQuest ለድርጅትህ ይህን የማስመጫ መሣሪያ አጥፍቶታል።",
+      "notAllowed": "ማስመጣት የሚችለው የማጣቀሻ ቁሳቁስ የሚያስተዳድር ብቻ ነው።",
+      "notReady": "ይህ ማስመጣት ገና ዝግጁ አይደለም።",
+      "offline": "LangQuestን ማግኘት አልተቻለም። ግንኙነትህን ፈትሸህ እንደገና ሞክር።"
+    },
+    "row": {
+      "label": "ከ{{name}} አስመጣ",
+      "waiting": "ለመጀመር በመጠበቅ ላይ",
+      "importing": "በማስመጣት ላይ · ከ{{total, number}} ቋንቋዎች {{done, number}}",
+      "ready_one": "ለማተም ዝግጁ · {{count, number}} ንጥል",
+      "ready_other": "ለማተም ዝግጁ · {{count, number}} ንጥሎች",
+      "failed": "የመጨረሻው ማስመጣት ቆሟል",
+      "from": "ቁሳቁስህ፣ ከ{{source}}",
+      "readyBadge": "ዝግጁ",
+      "help": "LangQuest ለድርጅትህ ያበራውን የማስመጫ መሣሪያ ይከፍታል፦ ቁሳቁስህን ካስቀመጥክበት አምጣ።"
+    }
   }
 }

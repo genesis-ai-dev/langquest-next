@@ -7164,5 +7164,71 @@
       "ask": "申请蓝色认证标记",
       "askHelp": "向 LangQuest 申请蓝色认证标记，让所有人都能看到这是真正的组织。"
     }
+  },
+  "imports": {
+    "title": "从 {{name}} 导入",
+    "languages": {
+      "zhs": "中文（简体）",
+      "zht": "中文（繁体）"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "从发布 FIA 的 Bible Aquifer 把 FIA 学习指南导入 {{org}} 的资料库。选择语言。LangQuest 在服务器上生成指南，然后由您检查并发布。",
+      "from": "来源：{{source}}"
+    },
+    "choose": {
+      "languages_other": "语言 · 已选 {{count, number}} 种",
+      "start_other": "导入 {{count, number}} 种语言",
+      "pickOne": "请选择一种语言",
+      "startHelp": "LangQuest 开始生成指南。每种语言需要几分钟，关闭此处后仍会继续。",
+      "inLibrary": "已在资料库中",
+      "updateHelp": "这种语言已在您的资料库中。再次导入会把 FIA 的最新内容作为新版本带进来。",
+      "languageHelp": "勾选后导入这种语言的 FIA 指南。"
+    },
+    "building": {
+      "waiting": "等待开始",
+      "importing": "正在导入",
+      "body": "LangQuest 正在服务器上生成指南。您可以关闭此处，导入会继续。之后回来发布。",
+      "progress": "已完成语言：{{done, number}} / {{total, number}}",
+      "stop": "停止这次导入",
+      "stopHelp": "停止生成。不会向资料库添加任何内容。"
+    },
+    "ready": {
+      "intro": "已就绪。资料库里还没有任何内容：先检查生成的内容，再发布。",
+      "guides_other": "{{count, number}} 份学习指南",
+      "new": "新",
+      "update": "更新",
+      "share": "与其他机构共享",
+      "shareSub": "他们可以关注它，以后每次导入都会作为更新送达。",
+      "publish_other": "发布 {{count, number}} 项",
+      "publishHelp": "把它们作为您机构的内容加入资料库；如果您选择了共享，也会共享。",
+      "setAside": "不发布这次导入",
+      "setAsideHelp": "丢弃这次导入生成的内容。资料库保持不变。"
+    },
+    "done": {
+      "title_other": "已发布 {{count, number}} 项",
+      "body": "现在已在您的资料库中，位于“参考资料”下。"
+    },
+    "failed": {
+      "title": "上次导入已停止",
+      "body": "请重试。如果再次停止，请通过“发送反馈”告诉 LangQuest。"
+    },
+    "problem": {
+      "running": "已有导入正在进行。请等它完成，或先停止它。",
+      "noImporter": "LangQuest 已为您的机构关闭此导入工具。",
+      "notAllowed": "只有管理参考资料的人可以导入。",
+      "notReady": "这次导入还没有就绪。",
+      "offline": "无法连接 LangQuest。请检查网络后重试。"
+    },
+    "row": {
+      "label": "从 {{name}} 导入",
+      "waiting": "等待开始",
+      "importing": "正在导入 · {{done, number}} / {{total, number}} 种语言",
+      "ready_other": "可以发布 · {{count, number}} 项",
+      "failed": "上次导入已停止",
+      "from": "您的资料，来自 {{source}}",
+      "readyBadge": "就绪",
+      "help": "打开 LangQuest 为您的机构开启的导入工具：从您存放资料的地方导入自己的资料。"
+    }
   }
 }

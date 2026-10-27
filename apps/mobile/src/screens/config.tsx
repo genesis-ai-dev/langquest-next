@@ -35,6 +35,7 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, PrimaryBtn, Row, Screen, SearchField, SectionLabel, Sheet, ShowMore, SmallBtn, Toggle } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
+import { ImportRows } from '../imports/ImportRows';
 import { cachedDoc } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
@@ -947,6 +948,7 @@ export function ReferenceHome(ctx: Ctx) {
         empty={t('config.reference.libraryEmpty')} />
       {canManage && lib.canWrite('material') ? <Group><Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
         onPress={() => ctx.go('guide_editor', params)} /></Group> : null}
+      <ImportRows ctx={ctx} canManage={canManage && lib.canWrite('material')} orgName={orgName(ctx)} />
       <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage && lib.canWrite('material')}
         detail={(s) => {
           const doc = docs.get(s.latest_hash);

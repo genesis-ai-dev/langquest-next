@@ -8699,5 +8699,101 @@
       "ask": "اطلب العلامة الزرقاء",
       "askHelp": "اطلب من LangQuest العلامة الزرقاء، ليرى الجميع أن هذه هي المؤسسة الحقيقية."
     }
+  },
+  "imports": {
+    "title": "استيراد من {{name}}",
+    "languages": {
+      "zhs": "الصينية (المبسطة)",
+      "zht": "الصينية (التقليدية)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "أدخِل أدلة دراسة FIA إلى مكتبة {{org}} من Bible Aquifer حيث هي منشورة. اختر اللغات. تُعِدّ LangQuest الأدلة على خادمها، ثم تراجعها أنت وتنشرها.",
+      "from": "من {{source}}"
+    },
+    "choose": {
+      "languages_zero": "اللغات · المختارة: {{count, number}}",
+      "languages_one": "اللغات · المختارة: {{count, number}}",
+      "languages_two": "اللغات · المختارة: {{count, number}}",
+      "languages_few": "اللغات · المختارة: {{count, number}}",
+      "languages_many": "اللغات · المختارة: {{count, number}}",
+      "languages_other": "اللغات · المختارة: {{count, number}}",
+      "start_zero": "استيراد اللغات: {{count, number}}",
+      "start_one": "استيراد اللغات: {{count, number}}",
+      "start_two": "استيراد اللغات: {{count, number}}",
+      "start_few": "استيراد اللغات: {{count, number}}",
+      "start_many": "استيراد اللغات: {{count, number}}",
+      "start_other": "استيراد اللغات: {{count, number}}",
+      "pickOne": "اختر لغة",
+      "startHelp": "تبدأ LangQuest بإعداد الأدلة. تستغرق كل لغة بضع دقائق، ويستمر العمل بعد أن تغلق هذا.",
+      "inLibrary": "في مكتبتك",
+      "updateHelp": "هذه اللغة موجودة في مكتبتك. استيرادها مرة أخرى يجلب أحدث ما في FIA كإصدار جديد.",
+      "languageHelp": "ضع علامة لإدخال أدلة FIA بهذه اللغة."
+    },
+    "building": {
+      "waiting": "في انتظار البدء",
+      "importing": "جارٍ الاستيراد",
+      "body": "تُعِدّ LangQuest الأدلة على خادمها. يمكنك إغلاق هذا وسيستمر العمل. عُد لاحقًا لتنشرها.",
+      "progress": "اللغات المكتملة: {{done, number}} من {{total, number}}",
+      "stop": "أوقف هذا الاستيراد",
+      "stopHelp": "يوقف الإعداد. لا يُضاف شيء إلى مكتبتك."
+    },
+    "ready": {
+      "intro": "جاهز. لم يُضَف شيء إلى مكتبتك بعد: راجع ما أُعِدّ ثم انشره.",
+      "guides_zero": "أدلة الدراسة: {{count, number}}",
+      "guides_one": "أدلة الدراسة: {{count, number}}",
+      "guides_two": "أدلة الدراسة: {{count, number}}",
+      "guides_few": "أدلة الدراسة: {{count, number}}",
+      "guides_many": "أدلة الدراسة: {{count, number}}",
+      "guides_other": "أدلة الدراسة: {{count, number}}",
+      "new": "جديد",
+      "update": "تحديث",
+      "share": "شارك مع المنظمات الأخرى",
+      "shareSub": "يمكنها متابعته، ويصلها كل استيراد جديد كتحديث.",
+      "publish_zero": "نشر العناصر: {{count, number}}",
+      "publish_one": "نشر العناصر: {{count, number}}",
+      "publish_two": "نشر العناصر: {{count, number}}",
+      "publish_few": "نشر العناصر: {{count, number}}",
+      "publish_many": "نشر العناصر: {{count, number}}",
+      "publish_other": "نشر العناصر: {{count, number}}",
+      "publishHelp": "يضيفها إلى مكتبتك على أنها لمنظمتك، ومشاركة إن اخترت ذلك.",
+      "setAside": "لا تنشر هذا الاستيراد",
+      "setAsideHelp": "يتخلص مما أعدّه هذا الاستيراد. تبقى مكتبتك كما هي."
+    },
+    "done": {
+      "title_zero": "العناصر المنشورة: {{count, number}}",
+      "title_one": "العناصر المنشورة: {{count, number}}",
+      "title_two": "العناصر المنشورة: {{count, number}}",
+      "title_few": "العناصر المنشورة: {{count, number}}",
+      "title_many": "العناصر المنشورة: {{count, number}}",
+      "title_other": "العناصر المنشورة: {{count, number}}",
+      "body": "أصبح الآن في مكتبتك، ضمن المواد المرجعية."
+    },
+    "failed": {
+      "title": "توقف آخر استيراد",
+      "body": "حاول مرة أخرى. إن توقف مجددًا، أخبر LangQuest عبر إرسال ملاحظات."
+    },
+    "problem": {
+      "running": "هناك استيراد جارٍ بالفعل. انتظر حتى ينتهي أو أوقفه أولًا.",
+      "noImporter": "أوقفت LangQuest أداة الاستيراد هذه لمنظمتك.",
+      "notAllowed": "لا يستورد إلا من يدير المواد المرجعية.",
+      "notReady": "هذا الاستيراد ليس جاهزًا بعد.",
+      "offline": "تعذّر الوصول إلى LangQuest. تحقق من الاتصال وحاول مرة أخرى."
+    },
+    "row": {
+      "label": "استيراد من {{name}}",
+      "waiting": "في انتظار البدء",
+      "importing": "جارٍ الاستيراد · {{done, number}} من {{total, number}} لغات",
+      "ready_zero": "جاهز للنشر · العناصر: {{count, number}}",
+      "ready_one": "جاهز للنشر · العناصر: {{count, number}}",
+      "ready_two": "جاهز للنشر · العناصر: {{count, number}}",
+      "ready_few": "جاهز للنشر · العناصر: {{count, number}}",
+      "ready_many": "جاهز للنشر · العناصر: {{count, number}}",
+      "ready_other": "جاهز للنشر · العناصر: {{count, number}}",
+      "failed": "توقف آخر استيراد",
+      "from": "موادك، من {{source}}",
+      "readyBadge": "جاهز",
+      "help": "يفتح أداة الاستيراد التي فعّلتها LangQuest لمنظمتك: أدخِل موادك من المكان الذي تحفظها فيه."
+    }
   }
 }

@@ -6,6 +6,7 @@ import { r2Bucket } from './r2';
 import { serviceClient, type Env } from './env';
 import { claimsVerifier, sessionLiveCheck } from './identity';
 import { publishLangQuestTimings } from './timings';
+import { runImports } from '../../../server/publisherImport';
 import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
@@ -45,6 +46,9 @@ async function startJobs(env: Env, scheduledTime: number): Promise<JobRun> {
     ...(firstError ? { errorClass: errorClassOf(firstError) } : {})
   };
 }
+
+/** How long a schedule spends on imports: well inside a scheduled run's 15 minutes. */
+const IMPORT_BUDGET_MS = 8 * 60_000;
 
 /** Compared by digest, so the time taken says nothing about the secret. */
 async function sameSecret(given: string, expected: string): Promise<boolean> {
@@ -107,7 +111,7 @@ export default {
       return;
     }
     const startedAt = Date.now();
-    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0, appleStatus: 0, applePageStatus: 0, appleFound: 0, appleSource: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
+    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, importSteps: 0, importFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0, appleStatus: 0, applePageStatus: 0, appleFound: 0, appleSource: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
     const errors: unknown[] = [];
     const failed = (key: keyof typeof n, what: string) => (e: unknown) => {
       n[key] = 1;
@@ -119,6 +123,11 @@ export default {
       n.timingsPublished = r.published;
       if (r.jobs) console.log(`timings: ${r.published} of ${r.jobs} jobs published`);
     }).catch(failed('timingsFailed', 'timings'));
+    // Organizations' imports of their own material (decisions.md 173): a few minutes of steps, the rest at the next schedule.
+    const imports = runImports(serviceClient(env), { fetch: (input, init) => fetch(input, init) }, IMPORT_BUDGET_MS).then((r) => {
+      n.importSteps = r.steps;
+      if (r.errors) throw new Error(`${r.errors} import step failed`);
+    }).catch(failed('importFailed', 'imports'));
     // App requests for a token, a day after they lapsed: anyone may make one, so they must not pile up.
     const cleanup = supabaseAgentStore(serviceClient(env)).deleteGrantsExpiredBefore(new Date(Date.now() - 86_400_000).toISOString())
       .catch(failed('grantCleanupFailed', 'device grant cleanup'));
@@ -137,9 +146,9 @@ export default {
           if (problems.length) throw new Error(problems.join('; '));
         }).catch(failed('storeCheckFailed', 'store check'))
       : Promise.resolve();
-    const run = Promise.all([timings, cleanup, catchUp, stores]).then((): JobRun => ({
+    const run = Promise.all([timings, imports, cleanup, catchUp, stores]).then((): JobRun => ({
       job: 'worker_cron', startedAt, ms: Date.now() - startedAt, n,
-      outcome: errors.length === 0 ? 'ok' : errors.length < 4 ? 'partial' : 'error',
+      outcome: errors.length === 0 ? 'ok' : errors.length < 5 ? 'partial' : 'error',
       ...(errors.length ? { errorClass: errorClassOf(errors[0]) } : {})
     }));
     ctx.waitUntil(run.then(jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)));

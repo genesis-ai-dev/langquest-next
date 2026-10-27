@@ -43,6 +43,21 @@ export function useLibrary(ctx: Ctx) {
     return { itemId, docHash: hash };
   }, [orgId, library, run]);
 
+  /**
+   * Publish versions whose documents the server already keeps for this
+   * organization (an import an admin took up, decisions.md 173), shared for
+   * other organizations to follow when `share`.
+   */
+  const publishHeld = useCallback(async (items: readonly { itemId: string; kind: LibraryKind; name: string; description: string; docHash: string; note?: string }[], share: boolean) => {
+    for (const c of items) {
+      await run(publishOps(library ?? {}, c));
+      const it = libraryItemView(library ?? {}, c.itemId);
+      if (share && !(it?.shared && it.subscribable)) {
+        await run([{ type: 'v1.LibrarySharingSet', payload: { itemId: c.itemId, kind: c.kind, shared: true, subscribable: true } }]);
+      }
+    }
+  }, [library, run]);
+
   const setSharing = useCallback((it: LibraryItemView, shared: boolean, subscribable: boolean) =>
     run([{ type: 'v1.LibrarySharingSet', payload: { itemId: it.itemId, kind: it.kind, shared, subscribable: shared && subscribable } }]), [run]);
 
@@ -123,7 +138,7 @@ export function useLibrary(ctx: Ctx) {
   /** May this person write the organization's library for this kind (organization scope, `mayWriteLibrary`)? */
   const canWrite = useCallback((kind: LibraryKind) => mayWriteLibrary(orgState ?? null, ctx.session.actorId, kind), [orgState, ctx.session.actorId]);
 
-  return { orgId, items, item, publish, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs, canWrite };
+  return { orgId, items, item, publish, publishHeld, setSharing, archive, copy, copyFollowed, subscribe, follow, takeUpdate, applySpecs, canWrite };
 }
 
 /** Documents for these hashes (and their deps, unless `deps: false`), re-rendering as they arrive. */

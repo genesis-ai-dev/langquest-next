@@ -7471,5 +7471,77 @@
       "ask": "Omba alama ya bluu",
       "askHelp": "Omba LangQuest alama ya bluu, ili kila mtu aone kwamba hili ndilo shirika halisi."
     }
+  },
+  "imports": {
+    "title": "Leta kutoka {{name}}",
+    "languages": {
+      "zhs": "Kichina (Rahisi)",
+      "zht": "Kichina (cha Jadi)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Leta miongozo ya kujifunza ya FIA kwenye maktaba ya {{org}} kutoka Bible Aquifer, ambako imechapishwa. Chagua lugha. LangQuest inaandaa miongozo kwenye seva yake, kisha wewe unaikagua na kuichapisha.",
+      "from": "Kutoka {{source}}"
+    },
+    "choose": {
+      "languages_one": "Lugha · {{count, number}} imechaguliwa",
+      "languages_other": "Lugha · {{count, number}} zimechaguliwa",
+      "start_one": "Leta lugha {{count, number}}",
+      "start_other": "Leta lugha {{count, number}}",
+      "pickOne": "Chagua lugha",
+      "startHelp": "LangQuest inaanza kuandaa miongozo. Kila lugha huchukua dakika chache, na inaendelea hata ukifunga hapa.",
+      "inLibrary": "Iko kwenye maktaba yako",
+      "updateHelp": "Lugha hii tayari iko kwenye maktaba yako. Kuileta tena kunaleta toleo jipya la FIA.",
+      "languageHelp": "Weka alama ili kuleta miongozo ya FIA katika lugha hii."
+    },
+    "building": {
+      "waiting": "Inasubiri kuanza",
+      "importing": "Inaleta",
+      "body": "LangQuest inaandaa miongozo kwenye seva yake. Unaweza kufunga hapa, itaendelea. Rudi uichapishe.",
+      "progress": "Lugha zilizokamilika: {{done, number}} kati ya {{total, number}}",
+      "stop": "Simamisha uletaji huu",
+      "stopHelp": "Inasimamisha uandaaji. Hakuna kinachoongezwa kwenye maktaba yako."
+    },
+    "ready": {
+      "intro": "Tayari. Bado hakuna kitu kwenye maktaba yako: kagua kilichoandaliwa, kisha ukichapishe.",
+      "guides_one": "Mwongozo {{count, number}} wa kujifunza",
+      "guides_other": "Miongozo {{count, number}} ya kujifunza",
+      "new": "Mpya",
+      "update": "Sasisho",
+      "share": "Shiriki na mashirika mengine",
+      "shareSub": "Yanaweza kuifuata, na kila uletaji mpya unayafikia kama sasisho.",
+      "publish_one": "Chapisha kipengele {{count, number}}",
+      "publish_other": "Chapisha vipengele {{count, number}}",
+      "publishHelp": "Inaviongeza kwenye maktaba yako kama vya shirika lako, vikishirikiwa ukichagua hivyo.",
+      "setAside": "Usichapishe uletaji huu",
+      "setAsideHelp": "Inatupa kile uletaji huu ulichoandaa. Maktaba yako inabaki kama ilivyo."
+    },
+    "done": {
+      "title_one": "Kipengele {{count, number}} kimechapishwa",
+      "title_other": "Vipengele {{count, number}} vimechapishwa",
+      "body": "Sasa kiko kwenye maktaba yako, chini ya Nyenzo za Marejeo."
+    },
+    "failed": {
+      "title": "Uletaji wa mwisho ulisimama",
+      "body": "Jaribu tena. Ukisimama tena, iambie LangQuest kupitia Tuma maoni."
+    },
+    "problem": {
+      "running": "Uletaji mwingine unaendelea. Subiri umalizike, au uusimamishe kwanza.",
+      "noImporter": "LangQuest imezima zana hii ya kuleta kwa shirika lako.",
+      "notAllowed": "Ni anayesimamia nyenzo za marejeo tu anayeweza kuleta.",
+      "notReady": "Uletaji huu bado haujawa tayari.",
+      "offline": "Imeshindwa kufikia LangQuest. Angalia muunganisho wako ujaribu tena."
+    },
+    "row": {
+      "label": "Leta kutoka {{name}}",
+      "waiting": "Inasubiri kuanza",
+      "importing": "Inaleta · lugha {{done, number}} kati ya {{total, number}}",
+      "ready_one": "Tayari kuchapishwa · kipengele {{count, number}}",
+      "ready_other": "Tayari kuchapishwa · vipengele {{count, number}}",
+      "failed": "Uletaji wa mwisho ulisimama",
+      "from": "Nyenzo zako, kutoka {{source}}",
+      "readyBadge": "Tayari",
+      "help": "Inafungua zana ya kuleta ambayo LangQuest imewasha kwa shirika lako: leta nyenzo zako kutoka unakozihifadhi."
+    }
   }
 }

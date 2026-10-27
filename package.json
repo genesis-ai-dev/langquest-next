@@ -49,6 +49,7 @@
     "moderation": "tsx scripts/moderation.ts",
     "global-viewer": "tsx scripts/global-viewer.ts",
     "org-verification": "tsx scripts/org-verification.ts",
+    "publisher-import": "tsx scripts/publisher-import.ts",
     "v2": "node scripts/with-local-keys.mjs tsx server/v2.ts",
     "library:seed": "tsx scripts/library-seed.ts",
     "sample:org": "tsx scripts/sample-org.ts",

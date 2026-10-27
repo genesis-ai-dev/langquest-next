@@ -7471,5 +7471,77 @@
       "ask": "Ask for a blue check",
       "askHelp": "Ask LangQuest for a blue check, so everyone can see this is the real organization."
     }
+  },
+  "imports": {
+    "title": "Import from {{name}}",
+    "languages": {
+      "zhs": "Chinese (Simplified)",
+      "zht": "Chinese (Traditional)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Bring FIA's study guides into {{org}}'s library from Bible Aquifer, where they are published. Choose the languages. LangQuest builds the guides on its server, then you check them and publish them.",
+      "from": "From {{source}}"
+    },
+    "choose": {
+      "languages_one": "Languages · {{count, number}} chosen",
+      "languages_other": "Languages · {{count, number}} chosen",
+      "start_one": "Import {{count, number}} language",
+      "start_other": "Import {{count, number}} languages",
+      "pickOne": "Choose a language",
+      "startHelp": "LangQuest starts building the guides. Each language takes a few minutes, and it goes on after you close this.",
+      "inLibrary": "In your library",
+      "updateHelp": "This language is already in your library. Importing it again brings in FIA's latest as a new version.",
+      "languageHelp": "Tick it to bring in FIA's guides in this language."
+    },
+    "building": {
+      "waiting": "Waiting to start",
+      "importing": "Importing",
+      "body": "LangQuest is building the guides on its server. You can close this, and it keeps going. Come back to publish them.",
+      "progress": "Languages done: {{done, number}} of {{total, number}}",
+      "stop": "Stop this import",
+      "stopHelp": "Stops building. Nothing is added to your library."
+    },
+    "ready": {
+      "intro": "Ready. Nothing is in your library yet: check what was made, then publish it.",
+      "guides_one": "{{count, number}} study guide",
+      "guides_other": "{{count, number}} study guides",
+      "new": "New",
+      "update": "Update",
+      "share": "Share with other organizations",
+      "shareSub": "They can follow it, and each new import reaches them as an update.",
+      "publish_one": "Publish {{count, number}} item",
+      "publish_other": "Publish {{count, number}} items",
+      "publishHelp": "Adds these to your library as your organization's own, shared if you chose that.",
+      "setAside": "Don't publish this import",
+      "setAsideHelp": "Throws away what this import made. Your library stays as it is."
+    },
+    "done": {
+      "title_one": "Published {{count, number}} item",
+      "title_other": "Published {{count, number}} items",
+      "body": "It is in your library now, under Reference Material."
+    },
+    "failed": {
+      "title": "The last import stopped",
+      "body": "Try again. If it stops again, tell LangQuest with Send feedback."
+    },
+    "problem": {
+      "running": "An import is already going. Wait for it to finish, or stop it first.",
+      "noImporter": "LangQuest turned this importer off for your organization.",
+      "notAllowed": "Only someone who manages reference material can import.",
+      "notReady": "This import is not ready yet.",
+      "offline": "Could not reach LangQuest. Check your connection and try again."
+    },
+    "row": {
+      "label": "Import from {{name}}",
+      "waiting": "Waiting to start",
+      "importing": "Importing · {{done, number}} of {{total, number}} languages",
+      "ready_one": "Ready to publish · {{count, number}} item",
+      "ready_other": "Ready to publish · {{count, number}} items",
+      "failed": "The last import stopped",
+      "from": "Your material, from {{source}}",
+      "readyBadge": "Ready",
+      "help": "Opens the importer LangQuest turned on for your organization: bring in your own material from where you keep it."
+    }
   }
 }

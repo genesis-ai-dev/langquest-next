@@ -7471,5 +7471,77 @@
       "ask": "Nemi alamar shuɗi",
       "askHelp": "Ku nemi LangQuest alamar shuɗi, don kowa ya ga cewa wannan ita ce ƙungiyar ta gaske."
     }
+  },
+  "imports": {
+    "title": "Shigo daga {{name}}",
+    "languages": {
+      "zhs": "Sinanci (Mai sauƙi)",
+      "zht": "Sinanci (Na gargajiya)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Kawo jagororin nazari na FIA zuwa ɗakin karatu na {{org}} daga Bible Aquifer, inda aka wallafa su. Zaɓi harsuna. LangQuest yana shirya jagororin a sabar sa, sannan kai ka duba ka wallafa su.",
+      "from": "Daga {{source}}"
+    },
+    "choose": {
+      "languages_one": "Harsuna · an zaɓi {{count, number}}",
+      "languages_other": "Harsuna · an zaɓi {{count, number}}",
+      "start_one": "Shigo da harshe {{count, number}}",
+      "start_other": "Shigo da harsuna {{count, number}}",
+      "pickOne": "Zaɓi harshe ɗaya",
+      "startHelp": "LangQuest ya fara shirya jagororin. Kowane harshe yana ɗaukar mintuna kaɗan, kuma yana ci gaba ko da ka rufe nan.",
+      "inLibrary": "Yana cikin ɗakin karatunka",
+      "updateHelp": "Wannan harshe yana cikin ɗakin karatunka tun tuni. Sake shigo da shi yana kawo sabon FIA a matsayin sabon juyi.",
+      "languageHelp": "Yi alama don kawo jagororin FIA a wannan harshe."
+    },
+    "building": {
+      "waiting": "Ana jira a fara",
+      "importing": "Ana shigowa",
+      "body": "LangQuest yana shirya jagororin a sabar sa. Za ka iya rufe nan, aikin zai ci gaba. Ka dawo ka wallafa su.",
+      "progress": "Harsunan da aka gama: {{done, number}} cikin {{total, number}}",
+      "stop": "Dakatar da wannan shigowa",
+      "stopHelp": "Yana dakatar da shiryawa. Ba a ƙara komai a ɗakin karatunka ba."
+    },
+    "ready": {
+      "intro": "Ya shirya. Har yanzu babu komai a ɗakin karatunka: duba abin da aka shirya, sannan ka wallafa.",
+      "guides_one": "Jagoran nazari {{count, number}}",
+      "guides_other": "Jagororin nazari {{count, number}}",
+      "new": "Sabo",
+      "update": "Sabuntawa",
+      "share": "Raba da sauran ƙungiyoyi",
+      "shareSub": "Za su iya bin sa, kuma kowace sabuwar shigowa za ta isa gare su a matsayin sabuntawa.",
+      "publish_one": "Wallafa abu {{count, number}}",
+      "publish_other": "Wallafa abubuwa {{count, number}}",
+      "publishHelp": "Yana ƙara su a ɗakin karatunka a matsayin na ƙungiyarka, an raba su idan ka zaɓa.",
+      "setAside": "Kada a wallafa wannan shigowa",
+      "setAsideHelp": "Yana jefar da abin da wannan shigowa ta shirya. Ɗakin karatunka zai kasance yadda yake."
+    },
+    "done": {
+      "title_one": "An wallafa abu {{count, number}}",
+      "title_other": "An wallafa abubuwa {{count, number}}",
+      "body": "Yanzu yana cikin ɗakin karatunka, ƙarƙashin Kayan Tunani."
+    },
+    "failed": {
+      "title": "Shigowar ƙarshe ta tsaya",
+      "body": "Sake gwadawa. Idan ta sake tsayawa, gaya wa LangQuest ta Aika ra'ayi."
+    },
+    "problem": {
+      "running": "Akwai shigowa da ke gudana tun tuni. Jira ta ƙare, ko ka dakatar da ita da farko.",
+      "noImporter": "LangQuest ya kashe wannan kayan shigowa don ƙungiyarka.",
+      "notAllowed": "Sai mai kula da kayan tunani ne kaɗai zai iya shigowa.",
+      "notReady": "Wannan shigowa ba ta shirya ba tukuna.",
+      "offline": "Ba a iya kaiwa ga LangQuest ba. Duba haɗinka ka sake gwadawa."
+    },
+    "row": {
+      "label": "Shigo daga {{name}}",
+      "waiting": "Ana jira a fara",
+      "importing": "Ana shigowa · harsuna {{done, number}} cikin {{total, number}}",
+      "ready_one": "A shirye don wallafawa · abu {{count, number}}",
+      "ready_other": "A shirye don wallafawa · abubuwa {{count, number}}",
+      "failed": "Shigowar ƙarshe ta tsaya",
+      "from": "Kayanka, daga {{source}}",
+      "readyBadge": "A shirye",
+      "help": "Yana buɗe kayan shigowa da LangQuest ya kunna don ƙungiyarka: kawo kayanka daga inda kake ajiye su."
+    }
   }
 }

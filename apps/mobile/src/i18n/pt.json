@@ -7778,5 +7778,83 @@
       "ask": "Pedir o selo azul",
       "askHelp": "Peça ao LangQuest o selo azul, para que todos vejam que esta é a organização verdadeira."
     }
+  },
+  "imports": {
+    "title": "Importar de {{name}}",
+    "languages": {
+      "zhs": "Chinês (simplificado)",
+      "zht": "Chinês (tradicional)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Traga os guias de estudo da FIA para a biblioteca de {{org}} a partir da Bible Aquifer, onde estão publicados. Escolha os idiomas. O LangQuest prepara os guias no servidor; depois você os confere e publica.",
+      "from": "De {{source}}"
+    },
+    "choose": {
+      "languages_one": "Idiomas · {{count, number}} escolhido",
+      "languages_many": "Idiomas · {{count, number}} escolhidos",
+      "languages_other": "Idiomas · {{count, number}} escolhidos",
+      "start_one": "Importar {{count, number}} idioma",
+      "start_many": "Importar {{count, number}} idiomas",
+      "start_other": "Importar {{count, number}} idiomas",
+      "pickOne": "Escolha um idioma",
+      "startHelp": "O LangQuest começa a preparar os guias. Cada idioma leva alguns minutos e continua depois que você fechar isto.",
+      "inLibrary": "Na sua biblioteca",
+      "updateHelp": "Este idioma já está na sua biblioteca. Importar de novo traz a versão mais recente da FIA.",
+      "languageHelp": "Marque para trazer os guias da FIA neste idioma."
+    },
+    "building": {
+      "waiting": "Aguardando para começar",
+      "importing": "Importando",
+      "body": "O LangQuest está preparando os guias no servidor. Você pode fechar isto e ele continua. Volte para publicá-los.",
+      "progress": "Idiomas prontos: {{done, number}} de {{total, number}}",
+      "stop": "Parar esta importação",
+      "stopHelp": "Para de preparar. Nada é adicionado à sua biblioteca."
+    },
+    "ready": {
+      "intro": "Pronto. Ainda não há nada na sua biblioteca: confira o que foi preparado e depois publique.",
+      "guides_one": "{{count, number}} guia de estudo",
+      "guides_many": "{{count, number}} guias de estudo",
+      "guides_other": "{{count, number}} guias de estudo",
+      "new": "Novo",
+      "update": "Atualização",
+      "share": "Compartilhar com outras organizações",
+      "shareSub": "Elas podem segui-lo, e cada nova importação chega a elas como atualização.",
+      "publish_one": "Publicar {{count, number}} item",
+      "publish_many": "Publicar {{count, number}} itens",
+      "publish_other": "Publicar {{count, number}} itens",
+      "publishHelp": "Adiciona estes à sua biblioteca como da sua organização, compartilhados se você escolheu isso.",
+      "setAside": "Não publicar esta importação",
+      "setAsideHelp": "Descarta o que esta importação preparou. Sua biblioteca fica como está."
+    },
+    "done": {
+      "title_one": "{{count, number}} item publicado",
+      "title_many": "{{count, number}} itens publicados",
+      "title_other": "{{count, number}} itens publicados",
+      "body": "Já está na sua biblioteca, em Material de referência."
+    },
+    "failed": {
+      "title": "A última importação parou",
+      "body": "Tente de novo. Se parar outra vez, avise o LangQuest em Enviar comentário."
+    },
+    "problem": {
+      "running": "Já há uma importação em andamento. Espere terminar ou pare-a primeiro.",
+      "noImporter": "O LangQuest desativou este importador para a sua organização.",
+      "notAllowed": "Só quem gerencia o material de referência pode importar.",
+      "notReady": "Esta importação ainda não está pronta.",
+      "offline": "Não foi possível falar com o LangQuest. Verifique a conexão e tente de novo."
+    },
+    "row": {
+      "label": "Importar de {{name}}",
+      "waiting": "Aguardando para começar",
+      "importing": "Importando · {{done, number}} de {{total, number}} idiomas",
+      "ready_one": "Pronto para publicar · {{count, number}} item",
+      "ready_many": "Pronto para publicar · {{count, number}} itens",
+      "ready_other": "Pronto para publicar · {{count, number}} itens",
+      "failed": "A última importação parou",
+      "from": "Seu material, de {{source}}",
+      "readyBadge": "Pronto",
+      "help": "Abre o importador que o LangQuest ativou para a sua organização: traga seu próprio material de onde você o guarda."
+    }
   }
 }
