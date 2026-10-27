@@ -92,6 +92,10 @@ step "Library and push delivery back after the reset (npm run db:start)"
 CI=true npm run --silent db:start
 
 step "P0 web UI tests on the export (ui-web)"
+# Two browsers at a time on 4 cores or fewer (a cloud thread's machine), as
+# on each CI shard (guardrails.yml, ui-web): with four, pages there loaded
+# past the tests' waits.
+if [ "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 8)" -le 4 ]; then export UI_WORKERS="${UI_WORKERS:-2}"; fi
 npm run test:ui:web -- --grep @p0 --grep-invert @quarantine
 
 printf '\nall guardrails: passed (web-smoke in Firefox and WebKit runs only in CI, or npm run test:web-smoke)\n'

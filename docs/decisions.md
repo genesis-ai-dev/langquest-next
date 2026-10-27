@@ -8436,8 +8436,12 @@ Caleb chose (2026-10-27) to move coding to cloud threads:
   project's cloud environment runs it as its setup script (`--snapshot`), so
   threads start from a machine that has all of it; a thread runs it again
   first (AGENTS.md, Cloud threads), which then takes seconds.
-- `npm run guardrails` fetches the full history in a shallow clone, and
-  `--all` starts the stack without the services CI leaves out, on a Mac too.
+- `npm run guardrails` fetches the full history in a shallow clone. `--all`
+  starts the stack as CI does, on a Mac too: without the services the tests
+  do not use, and without the language list, which SETUP-074 expects to be
+  empty. On 4 cores or fewer it runs the P0 UI tests two browsers at a
+  time, as each CI shard does; with four, pages loaded past the tests'
+  waits.
 - Cloud threads check screens in the web build. A check that needs a phone
   (native modules, gestures, the keyboard, permissions, audio, a store
   build) goes to one phone-check thread on the Mac, one simulator at a time.
