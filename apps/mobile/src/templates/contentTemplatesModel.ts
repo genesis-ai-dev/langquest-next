@@ -7,7 +7,7 @@
 // book, read as verse ranges; FIA's breaks are read from core's bundled
 // pericope list.
 import {
-  bookIdOf, bookOrder, canonicalJson, languagePassages, templateBooks, libraryUnitRange, subscriptionItemId, unitPlace, unitPrefixOf, USFM_BOOKS,
+  bookIdOf, bookOrder, canonicalJson, languagePassages, templateBooks, libraryUnitRange, followerItemId, unitPlace, unitPrefixOf, USFM_BOOKS,
   type Indexes, type LevelDisplay, type LibraryItemState, type LibraryItemView, type OutlineNode, type LanguageState,
   type PassageLines, type TemplateBook, type TemplateDoc, type VersificationDoc
 } from '@langquest-next/core';
@@ -219,7 +219,7 @@ export function libraryChoices(
     .map((item) => ({ key: `ours:${item.itemId}`, source: 'ours', item, name: item.name, hash: item.current! }));
   const rank = (s: SharedItem) => (s.org_id === STARTER_TEMPLATE.orgId ? (s.name === preferred ? 0 : 1) : 2);
   const others: LibraryChoice[] = shared
-    .filter((s) => !library[subscriptionItemId(s.org_id, s.item_id)] && s.latest_hash)
+    .filter((s) => !library[followerItemId(library, s.org_id, s.item_id)] && s.latest_hash)
     .sort((a, b) => rank(a) - rank(b) || a.org_name.localeCompare(b.org_name) || a.name.localeCompare(b.name))
     .map((s) => ({ key: `shared:${s.org_id}/${s.item_id}`, source: 'shared', shared: s, name: s.name, hash: s.latest_hash }));
   return [...own, ...others];

@@ -1,5 +1,5 @@
 // Other languages' reference material (reference/ReferenceLanguagePage.tsx).
-import { subscriptionItemId, type LibraryDoc } from '@langquest-next/core';
+import { followerItemId, type LibraryDoc } from '@langquest-next/core';
 import { useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
@@ -14,7 +14,7 @@ export function useReferenceLanguages(ctx: Ctx, keep: readonly string[]) {
   const lib = useLibrary(ctx);
   const shared = useSharedItems('material', lib.orgId);
   const own = lib.items('material').filter((it) => it.current && !it.archived);
-  const others = shared.rows.filter((s) => s.latest_hash && !ctx.org.state?.library[subscriptionItemId(s.org_id, s.item_id)]);
+  const others = shared.rows.filter((s) => s.latest_hash && !ctx.org.state?.library[followerItemId(ctx.org.state?.library ?? {}, s.org_id, s.item_id)]);
   const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
   const keepKey = keep.join(',');
   const sets = guideSets(own.map((it) => ({ it, doc: docs.get(it.current) })), others.map((s) => ({ s, doc: docs.get(s.latest_hash) })));

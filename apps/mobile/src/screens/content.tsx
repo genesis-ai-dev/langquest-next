@@ -81,6 +81,9 @@ import { draftKey } from '../drafts/draftModel';
 import { isTemplateDraft, type TemplateDraft } from '../drafts/editorDrafts';
 import { useDraft, type Draft } from '../drafts/useDraft';
 import { SavedMark } from '../ui/SavedMark';
+import { MoveItem, MoveSheet } from '../moves/MoveItem';
+import { MoveOffers } from '../moves/MoveOffers';
+import { useLibraryMoves } from '../moves/useLibraryMoves';
 
 /**
  * What to say when something fails (error-tracking): a command's own reason,
@@ -170,6 +173,8 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
   const [sharedLimit, setSharedLimit] = useState(5);
   const [languageLimit, setLanguageLimit] = useState(8);
   const [options, setOptions] = useState<string | null>(null);
+  const [moving, setMoving] = useState<string | null>(null);
+  const moves = useLibraryMoves(ctx, canManage);
   const [browsing, setBrowsing] = useState<SharedItem | null>(null);
   const beside = useOpenDetail();
   const docs = useLibraryDocs(lib.orgId, [...all.map((i) => i.current), ...others.slice(0, sharedLimit).map((c) => c.hash)]);
@@ -177,6 +182,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
   const languages = ctx.languages;
   const scopeName = orgName(ctx);
   const optionsItem = options ? lib.item(options) : null;
+  const movingItem = moving ? lib.item(moving) : null;
 
   const itemCard = (it: LibraryItemView) => {
     const doc = docs.get<TemplateDoc>(it.current);
@@ -215,6 +221,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
       action={canManage ? <SmallBtn label={t('content.library.addTemplate')} icon="plus" tone="primary" onPress={() => ctx.go('template_editor', { new: '1' })}
         help={t('content.library.addTemplateHelp')} /> : undefined} />}>
       <Text style={[txt.smMuted, { paddingHorizontal: space.xs }]}>{t('content.library.intro')}</Text>
+      <MoveOffers ctx={ctx} kinds={['template', 'versification']} canManage={canManage} />
 
       <SectionLabel label={t('content.sections.yourOrganization')} />
       {active.length === 0 ? (
@@ -283,8 +290,10 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
       )}
 
       {optionsItem ? (
-        <ItemOptions ctx={ctx} lib={lib} item={optionsItem} update={updates[optionsItem.itemId]} onClose={() => setOptions(null)} />
+        <ItemOptions ctx={ctx} lib={lib} item={optionsItem} update={updates[optionsItem.itemId]} onClose={() => setOptions(null)}
+          onMove={() => { setOptions(null); setMoving(optionsItem.itemId); }} />
       ) : null}
+      {movingItem ? <MoveSheet visible ctx={ctx} it={movingItem} moves={moves} onClose={() => setMoving(null)} /> : null}
       {browsing ? <SharedTemplateSheet ctx={ctx} lib={lib} shared={browsing} canManage={canManage} onClose={() => setBrowsing(null)} /> : null}
     </Screen>
   );
@@ -295,7 +304,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
  * (and let others follow it), archive it, or, for one it follows, how it
  * takes updates, take one, stop following, or copy it to change it.
  */
-function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?: string; onClose: () => void }) {
+function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?: string; onClose: () => void; onMove: () => void }) {
   const { ctx, lib, item: it, onClose } = props;
   const { busy, run } = useRunner(ctx);
   const sub = it.subscription;
@@ -368,6 +377,7 @@ function ItemOptions(props: { ctx: Ctx; lib: Lib; item: LibraryItemView; update?
         onClose();
         ctx.toast(archived ? t('content.options.archivedToast', { name: it.name }) : t('content.options.unarchivedToast', { name: it.name }));
       })} />
+      <MoveItem ctx={ctx} it={it} canManage onMove={props.onMove} />
     </Sheet>
   );
 }

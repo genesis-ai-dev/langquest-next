@@ -7551,5 +7551,69 @@
       "title_other": "{{count, number}} new or updated guides",
       "body": "The source added or changed them since your last import. Their languages are ticked below. Import to bring them in."
     }
+  },
+  "moves": {
+    "offers": {
+      "title": "Offered to you",
+      "from": "{{org}} wants you to host this",
+      "finishing": "Taken. Moving the teams that follow it.",
+      "badge": "Offer",
+      "help": "Opens the offer: take it to host it here, or turn it down."
+    },
+    "offer": {
+      "title": "Host {{name}}?",
+      "body": "{{from}} wants {{org}} to host this from now on.",
+      "after": "If you take it, it becomes yours. Teams that follow it will follow your copy, and {{from}} stops sharing theirs.",
+      "asNew": "As a new item",
+      "asNewHelp": "Adds it to your library with all its versions.",
+      "inPlace": "In place of one of yours",
+      "inPlaceHelp": "Teams that follow it will follow one of your own items instead. Choose which.",
+      "placeHelp": "Teams that follow it will follow this item.",
+      "take": "Take it",
+      "takeInto": "Take it in place of {{name}}",
+      "finish": "Finish taking it",
+      "takeHelp": "Makes it yours here and shares it, so the teams that follow it can follow your copy.",
+      "decline": "Don't take it",
+      "declineHelp": "Turns the offer down. Nothing changes.",
+      "taken": "{{name}} is yours now",
+      "declinedToast": "Turned down. {{org}} will see it."
+    },
+    "item": {
+      "move": "Move to another organization",
+      "moveHelp": "Offers this to another organization to host. Nothing changes until they take it.",
+      "offered": "Offered to {{org}}",
+      "offeredBody": "Waiting for someone at {{org}} to take it. Nothing changes until then.",
+      "offeredToast": "Offered to {{org}}",
+      "withdraw": "Take back the offer",
+      "withdrawHelp": "Cancels the offer. Nothing changes.",
+      "accepted": "{{org}} took it",
+      "acceptedBody": "Moving the teams that follow it to {{org}}'s copy.",
+      "moved": "Moved to {{org}}",
+      "movedBody_one": "On {{date}}. {{count, number}} team that followed it now follows their copy. Yours is no longer shared.",
+      "movedBody_other": "On {{date}}. {{count, number}} teams that followed it now follow their copy. Yours is no longer shared.",
+      "declined": "{{org}} didn't take it."
+    },
+    "sheet": {
+      "title": "Move {{name}}",
+      "sub": "To another organization",
+      "intro": "Find the organization that should host this. You'll find organizations that share material, have a blue check, or list a language.",
+      "search": "Organization name",
+      "searchHelp": "Type at least 2 letters of its name.",
+      "none": "No organization found with that name.",
+      "orgHelp": "Chooses this organization.",
+      "what": "Someone at {{org}} who manages this kind of material has to take it. Then {{org}} hosts {{name}}, and teams that follow it will follow {{org}}'s copy.",
+      "stays": "Your copy stops being shared and is archived. Languages here that use it keep it.",
+      "offer": "Offer to {{org}}",
+      "offerHelp": "Sends the offer. Nothing changes until they take it."
+    },
+    "problem": {
+      "open": "This is already offered. Take that offer back first.",
+      "noItem": "This can't be moved: it has no version yet, or it follows another organization.",
+      "noOrg": "That organization wasn't found.",
+      "notAllowed": "Only someone who manages this kind of material can do this.",
+      "notOpen": "This offer was taken back or is already settled.",
+      "badItem": "Choose one of your own items of the same kind.",
+      "offline": "Could not reach LangQuest. Check your connection and try again."
+    }
   }
 }

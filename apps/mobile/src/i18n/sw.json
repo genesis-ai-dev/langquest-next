@@ -7551,5 +7551,69 @@
       "title_other": "Miongozo {{count, number}} mipya au iliyosasishwa",
       "body": "Chanzo kimeiongeza au kuibadilisha tangu uingizaji wako wa mwisho. Lugha zake zimewekwa alama hapa chini. Ingiza ili kuileta."
     }
+  },
+  "moves": {
+    "offers": {
+      "title": "Mapendekezo kwako",
+      "from": "{{org}} inataka usimamie hiki",
+      "finishing": "Umekipokea. Timu zinazokifuata zinahamishwa.",
+      "badge": "Pendekezo",
+      "help": "Hufungua pendekezo: kipokee ili ukisimamie hapa, au ukatae."
+    },
+    "offer": {
+      "title": "Je, utasimamia {{name}}?",
+      "body": "{{from}} inataka {{org}} isimamie hiki kuanzia sasa.",
+      "after": "Ukikipokea, kinakuwa chako. Timu zinazokifuata zitafuata nakala yako, na {{from}} itaacha kushiriki nakala yake.",
+      "asNew": "Kama kipengele kipya",
+      "asNewHelp": "Hukiongeza kwenye maktaba yako pamoja na matoleo yake yote.",
+      "inPlace": "Badala ya kimojawapo cha vyako",
+      "inPlaceHelp": "Timu zinazokifuata zitafuata badala yake kimojawapo cha vipengele vyako. Chagua kipi.",
+      "placeHelp": "Timu zinazokifuata zitafuata kipengele hiki.",
+      "take": "Kipokee",
+      "takeInto": "Kipokee badala ya {{name}}",
+      "finish": "Maliza kukipokea",
+      "takeHelp": "Hukifanya kuwa chako hapa na kukishiriki, ili timu zinazokifuata ziweze kufuata nakala yako.",
+      "decline": "Usikipokee",
+      "declineHelp": "Hukataa pendekezo. Hakuna kinachobadilika.",
+      "taken": "{{name}} sasa ni chako",
+      "declinedToast": "Umekataa. {{org}} itaona."
+    },
+    "item": {
+      "move": "Hamishia shirika lingine",
+      "moveHelp": "Hukipendekeza kwa shirika lingine ili likisimamie. Hakuna kinachobadilika hadi wakipokee.",
+      "offered": "Kimependekezwa kwa {{org}}",
+      "offeredBody": "Kinasubiri mtu wa {{org}} akipokee. Hakuna kinachobadilika hadi wakati huo.",
+      "offeredToast": "Kimependekezwa kwa {{org}}",
+      "withdraw": "Ondoa pendekezo",
+      "withdrawHelp": "Inaghairi pendekezo. Hakuna kinachobadilika.",
+      "accepted": "{{org}} imekipokea",
+      "acceptedBody": "Inahamisha timu zinazokifuata kwenda nakala ya {{org}}.",
+      "moved": "Kimehamishiwa {{org}}",
+      "movedBody_one": "Mnamo {{date}}. Timu {{count, number}} iliyokifuata sasa inafuata nakala yao. Nakala yako haishirikiwi tena.",
+      "movedBody_other": "Mnamo {{date}}. Timu {{count, number}} zilizokifuata sasa zinafuata nakala yao. Nakala yako haishirikiwi tena.",
+      "declined": "{{org}} haikukipokea."
+    },
+    "sheet": {
+      "title": "Hamisha {{name}}",
+      "sub": "Kwenda shirika lingine",
+      "intro": "Tafuta shirika linalopaswa kusimamia hiki. Utapata mashirika yanayoshiriki nyenzo, yenye alama ya bluu, au yaliyoorodhesha lugha.",
+      "search": "Jina la shirika",
+      "searchHelp": "Andika angalau herufi 2 za jina lake.",
+      "none": "Hakuna shirika lililopatikana kwa jina hilo.",
+      "orgHelp": "Huchagua shirika hili.",
+      "what": "Mtu wa {{org}} anayesimamia aina hii ya nyenzo lazima akipokee. Kisha {{org}} itasimamia {{name}}, na timu zinazokifuata zitafuata nakala ya {{org}}.",
+      "stays": "Nakala yako inaacha kushirikiwa na inawekwa kwenye hifadhi. Lugha za hapa zinazoitumia zinabaki nayo.",
+      "offer": "Pendekeza kwa {{org}}",
+      "offerHelp": "Hutuma pendekezo. Hakuna kinachobadilika hadi wakipokee."
+    },
+    "problem": {
+      "open": "Hiki tayari kimependekezwa. Ondoa pendekezo hilo kwanza.",
+      "noItem": "Hiki hakiwezi kuhamishwa: bado hakina toleo, au kinafuata shirika lingine.",
+      "noOrg": "Shirika hilo halikupatikana.",
+      "notAllowed": "Ni anayesimamia aina hii ya nyenzo tu anayeweza kufanya hivi.",
+      "notOpen": "Pendekezo hili liliondolewa au tayari limeshamalizwa.",
+      "badItem": "Chagua kimojawapo cha vipengele vyako vya aina hiyo hiyo.",
+      "offline": "Imeshindwa kufikia LangQuest. Angalia muunganisho wako ujaribu tena."
+    }
   }
 }

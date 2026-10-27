@@ -20,7 +20,7 @@
 // change, typing in one field joined into one step, kept with the draft
 // until it is published; no toast offers Undo (decision 134).
 import {
-  CALLOUT_KINDS, LICENSES, isLicense, orgLicense, subscriptionItemId, unitPrefixOf, unitTitle,
+  CALLOUT_KINDS, LICENSES, followerItemId, isLicense, orgLicense, unitPrefixOf, unitTitle,
   type CalloutKind, type MediaRef, type StudyDoc, type StudyDoc2, type VersificationDoc
 } from '@langquest-next/core';
 import { Bold, List, TextQuote, type LucideIcon } from '../ui/icons';
@@ -257,7 +257,7 @@ function Editor(props: {
   async function ensureVersification() {
     const hash = draft.ref.trim() ? draft.versification : null;
     if (!hash || lib.items('versification').some((v) => v.current === hash)) return;
-    const s = sharedV.rows.find((r) => r.latest_hash === hash && !lib.item(subscriptionItemId(r.org_id, r.item_id))?.subscription?.active);
+    const s = sharedV.rows.find((r) => r.latest_hash === hash && !lib.item(followerItemId(ctx.org.state?.library ?? {}, r.org_id, r.item_id))?.subscription?.active);
     if (s) await (s.subscribable ? lib.subscribe(s, true) : lib.copy(s));
   }
 

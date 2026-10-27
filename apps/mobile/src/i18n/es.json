@@ -7867,5 +7867,70 @@
       "title_other": "{{count, number}} guías nuevas o actualizadas",
       "body": "La fuente las añadió o cambió desde su última importación. Sus idiomas están marcados abajo. Importe para traerlas."
     }
+  },
+  "moves": {
+    "offers": {
+      "title": "Ofrecidos a ti",
+      "from": "{{org}} quiere que te hagas cargo de esto",
+      "finishing": "Aceptado. Trasladando a los equipos que lo siguen.",
+      "badge": "Oferta",
+      "help": "Abre la oferta: acéptala para hacerte cargo aquí, o recházala."
+    },
+    "offer": {
+      "title": "¿Hacerte cargo de {{name}}?",
+      "body": "{{from}} quiere que {{org}} se haga cargo de esto de ahora en adelante.",
+      "after": "Si lo aceptas, pasa a ser tuyo. Los equipos que lo siguen seguirán tu copia, y {{from}} deja de compartir la suya.",
+      "asNew": "Como elemento nuevo",
+      "asNewHelp": "Lo agrega a tu biblioteca con todas sus versiones.",
+      "inPlace": "En lugar de uno de los tuyos",
+      "inPlaceHelp": "Los equipos que lo siguen seguirán uno de tus propios elementos. Elige cuál.",
+      "placeHelp": "Los equipos que lo siguen seguirán este elemento.",
+      "take": "Aceptarlo",
+      "takeInto": "Aceptarlo en lugar de {{name}}",
+      "finish": "Terminar de aceptarlo",
+      "takeHelp": "Lo hace tuyo aquí y lo comparte, para que los equipos que lo siguen puedan seguir tu copia.",
+      "decline": "No aceptarlo",
+      "declineHelp": "Rechaza la oferta. No cambia nada.",
+      "taken": "{{name}} ya es tuyo",
+      "declinedToast": "Rechazada. {{org}} lo verá."
+    },
+    "item": {
+      "move": "Trasladar a otra organización",
+      "moveHelp": "Lo ofrece a otra organización para que se haga cargo. No cambia nada hasta que lo acepten.",
+      "offered": "Ofrecido a {{org}}",
+      "offeredBody": "Esperando a que alguien de {{org}} lo acepte. Hasta entonces no cambia nada.",
+      "offeredToast": "Ofrecido a {{org}}",
+      "withdraw": "Retirar la oferta",
+      "withdrawHelp": "Cancela la oferta. No cambia nada.",
+      "accepted": "{{org}} lo aceptó",
+      "acceptedBody": "Trasladando a los equipos que lo siguen a la copia de {{org}}.",
+      "moved": "Trasladado a {{org}}",
+      "movedBody_one": "El {{date}}. {{count, number}} equipo que lo seguía ahora sigue su copia. La tuya ya no se comparte.",
+      "movedBody_many": "El {{date}}. {{count, number}} equipos que lo seguían ahora siguen su copia. La tuya ya no se comparte.",
+      "movedBody_other": "El {{date}}. {{count, number}} equipos que lo seguían ahora siguen su copia. La tuya ya no se comparte.",
+      "declined": "{{org}} no lo aceptó."
+    },
+    "sheet": {
+      "title": "Trasladar {{name}}",
+      "sub": "A otra organización",
+      "intro": "Busca la organización que debe hacerse cargo de esto. Encontrarás organizaciones que comparten material, tienen la marca azul o tienen algún idioma en su lista.",
+      "search": "Nombre de la organización",
+      "searchHelp": "Escribe al menos 2 letras de su nombre.",
+      "none": "No se encontró ninguna organización con ese nombre.",
+      "orgHelp": "Elige esta organización.",
+      "what": "Alguien de {{org}} que administra este tipo de material tiene que aceptarlo. Luego {{org}} se hace cargo de {{name}}, y los equipos que lo siguen seguirán la copia de {{org}}.",
+      "stays": "Tu copia deja de compartirse y se archiva. Los idiomas de aquí que la usan la conservan.",
+      "offer": "Ofrecer a {{org}}",
+      "offerHelp": "Envía la oferta. No cambia nada hasta que la acepten."
+    },
+    "problem": {
+      "open": "Esto ya está ofrecido. Primero retira esa oferta.",
+      "noItem": "Esto no se puede trasladar: todavía no tiene ninguna versión, o sigue a otra organización.",
+      "noOrg": "No se encontró esa organización.",
+      "notAllowed": "Solo quien administra este tipo de material puede hacer esto.",
+      "notOpen": "Esta oferta se retiró o ya se resolvió.",
+      "badItem": "Elige uno de tus propios elementos del mismo tipo.",
+      "offline": "No se pudo conectar con LangQuest. Revisa tu conexión e inténtalo de nuevo."
+    }
   }
 }

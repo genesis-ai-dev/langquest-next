@@ -7867,5 +7867,70 @@
       "title_other": "{{count, number}} guides nouveaux ou mis à jour",
       "body": "La source les a ajoutés ou modifiés depuis votre dernière importation. Leurs langues sont cochées ci-dessous. Importez pour les faire entrer."
     }
+  },
+  "moves": {
+    "offers": {
+      "title": "Propositions reçues",
+      "from": "{{org}} vous propose de le prendre en charge",
+      "finishing": "Accepté. Transfert en cours des équipes qui le suivent.",
+      "badge": "Proposition",
+      "help": "Ouvre la proposition : acceptez-la pour le prendre en charge ici, ou refusez-la."
+    },
+    "offer": {
+      "title": "Prendre en charge {{name}} ?",
+      "body": "{{from}} souhaite que {{org}} le prenne en charge désormais.",
+      "after": "Si vous l’acceptez, il devient le vôtre. Les équipes qui le suivent suivront votre copie, et {{from}} cesse de partager la sienne.",
+      "asNew": "Comme nouvel élément",
+      "asNewHelp": "L’ajoute à votre bibliothèque avec toutes ses versions.",
+      "inPlace": "À la place d’un des vôtres",
+      "inPlaceHelp": "Les équipes qui le suivent suivront plutôt un de vos propres éléments. Choisissez lequel.",
+      "placeHelp": "Les équipes qui le suivent suivront cet élément.",
+      "take": "Accepter",
+      "takeInto": "Accepter à la place de {{name}}",
+      "finish": "Terminer la prise en charge",
+      "takeHelp": "Le rend vôtre ici et le partage, pour que les équipes qui le suivent puissent suivre votre copie.",
+      "decline": "Refuser",
+      "declineHelp": "Refuse la proposition. Rien ne change.",
+      "taken": "{{name}} est à vous maintenant",
+      "declinedToast": "Refusée. {{org}} le verra."
+    },
+    "item": {
+      "move": "Transférer à une autre organisation",
+      "moveHelp": "Le propose à une autre organisation pour qu’elle le prenne en charge. Rien ne change tant qu’elle ne l’a pas accepté.",
+      "offered": "Proposé à {{org}}",
+      "offeredBody": "On attend qu’une personne de {{org}} l’accepte. D’ici là, rien ne change.",
+      "offeredToast": "Proposé à {{org}}",
+      "withdraw": "Retirer la proposition",
+      "withdrawHelp": "Annule la proposition. Rien ne change.",
+      "accepted": "{{org}} l’a accepté",
+      "acceptedBody": "Les équipes qui le suivent passent à la copie de {{org}}.",
+      "moved": "Transféré à {{org}}",
+      "movedBody_one": "Le {{date}}. {{count, number}} équipe qui le suivait suit maintenant leur copie. La vôtre n’est plus partagée.",
+      "movedBody_many": "Le {{date}}. {{count, number}} équipes qui le suivaient suivent maintenant leur copie. La vôtre n’est plus partagée.",
+      "movedBody_other": "Le {{date}}. {{count, number}} équipes qui le suivaient suivent maintenant leur copie. La vôtre n’est plus partagée.",
+      "declined": "{{org}} ne l’a pas accepté."
+    },
+    "sheet": {
+      "title": "Transférer {{name}}",
+      "sub": "À une autre organisation",
+      "intro": "Trouvez l’organisation qui doit le prendre en charge. Vous trouverez les organisations qui partagent des documents, ont la coche bleue ou ont une langue dans leur liste.",
+      "search": "Nom de l’organisation",
+      "searchHelp": "Tapez au moins 2 lettres de son nom.",
+      "none": "Aucune organisation trouvée avec ce nom.",
+      "orgHelp": "Choisit cette organisation.",
+      "what": "Une personne de {{org}} qui gère ce type de document doit l’accepter. Ensuite {{org}} prend en charge {{name}}, et les équipes qui le suivent suivront la copie de {{org}}.",
+      "stays": "Votre copie n’est plus partagée et est archivée. Les langues d’ici qui l’utilisent la gardent.",
+      "offer": "Proposer à {{org}}",
+      "offerHelp": "Envoie la proposition. Rien ne change tant qu’elle n’est pas acceptée."
+    },
+    "problem": {
+      "open": "C’est déjà proposé. Retirez d’abord cette proposition.",
+      "noItem": "Impossible de le transférer : il n’a pas encore de version, ou il suit une autre organisation.",
+      "noOrg": "Cette organisation est introuvable.",
+      "notAllowed": "Seule une personne qui gère ce type de document peut faire cela.",
+      "notOpen": "Cette proposition a été retirée ou est déjà réglée.",
+      "badItem": "Choisissez un de vos propres éléments du même type.",
+      "offline": "Impossible de joindre LangQuest. Vérifiez votre connexion et réessayez."
+    }
   }
 }

@@ -7551,5 +7551,69 @@
       "title_other": "Sababbi ko sabuntattun jagorori {{count, number}}",
       "body": "Tushen ya ƙara su ko ya canza su tun shigowarka ta ƙarshe. An zaɓi harsunansu a ƙasa. Shigo da su don kawo su."
     }
+  },
+  "moves": {
+    "offers": {
+      "title": "Tayin da aka yi muku",
+      "from": "{{org}} tana son ku ɗauki nauyin wannan",
+      "finishing": "An karɓa. Ana mayar da tawagogin da ke bin sa.",
+      "badge": "Tayi",
+      "help": "Yana buɗe tayin: ku karɓa don ku ɗauki nauyinsa a nan, ko ku ƙi."
+    },
+    "offer": {
+      "title": "Ku ɗauki nauyin {{name}}?",
+      "body": "{{from}} tana son {{org}} ta ɗauki nauyin wannan daga yanzu.",
+      "after": "Idan kun karɓa, ya zama naku. Tawagogin da ke bin sa za su bi kwafinku, kuma {{from}} za ta daina raba nata.",
+      "asNew": "A matsayin sabon abu",
+      "asNewHelp": "Yana ƙara shi a ɗakin karatunku tare da dukkan sigoginsa.",
+      "inPlace": "A madadin ɗaya daga cikin naku",
+      "inPlaceHelp": "Tawagogin da ke bin sa za su bi ɗaya daga cikin abubuwanku a madadinsa. Ku zaɓi wanne.",
+      "placeHelp": "Tawagogin da ke bin sa za su bi wannan abu.",
+      "take": "Karɓa",
+      "takeInto": "Karɓa a madadin {{name}}",
+      "finish": "Kammala karɓa",
+      "takeHelp": "Yana mai da shi naku a nan kuma yana raba shi, don tawagogin da ke bin sa su iya bin kwafinku.",
+      "decline": "Kada ku karɓa",
+      "declineHelp": "Yana ƙin tayin. Babu abin da zai canja.",
+      "taken": "{{name}} naku ne yanzu",
+      "declinedToast": "An ƙi. {{org}} za ta gani."
+    },
+    "item": {
+      "move": "Mayar zuwa wata ƙungiya",
+      "moveHelp": "Yana yi wa wata ƙungiya tayin wannan don ta ɗauki nauyinsa. Babu abin da zai canja sai sun karɓa.",
+      "offered": "An yi wa {{org}} tayi",
+      "offeredBody": "Ana jiran wani a {{org}} ya karɓa. Babu abin da zai canja kafin nan.",
+      "offeredToast": "An yi wa {{org}} tayi",
+      "withdraw": "Janye tayin",
+      "withdrawHelp": "Yana soke tayin. Babu abin da zai canja.",
+      "accepted": "{{org}} ta karɓa",
+      "acceptedBody": "Ana mayar da tawagogin da ke bin sa zuwa kwafin {{org}}.",
+      "moved": "An mayar zuwa {{org}}",
+      "movedBody_one": "A ranar {{date}}. Tawaga {{count, number}} da ke bin sa yanzu tana bin kwafinsu. Ba a raba kwafinku yanzu.",
+      "movedBody_other": "A ranar {{date}}. Tawagogi {{count, number}} da ke bin sa yanzu suna bin kwafinsu. Ba a raba kwafinku yanzu.",
+      "declined": "{{org}} ba ta karɓa ba."
+    },
+    "sheet": {
+      "title": "Mayar da {{name}}",
+      "sub": "Zuwa wata ƙungiya",
+      "intro": "Nemo ƙungiyar da ya kamata ta ɗauki nauyin wannan. Za ku ga ƙungiyoyin da ke raba kayayyaki, suke da alamar shuɗi, ko suka lissafa harshe.",
+      "search": "Sunan ƙungiya",
+      "searchHelp": "Rubuta aƙalla haruffa 2 na sunanta.",
+      "none": "Ba a sami ƙungiya mai wannan suna ba.",
+      "orgHelp": "Yana zaɓar wannan ƙungiya.",
+      "what": "Dole wani a {{org}} mai kula da irin wannan kaya ya karɓa. Sannan {{org}} za ta ɗauki nauyin {{name}}, kuma tawagogin da ke bin sa za su bi kwafin {{org}}.",
+      "stays": "Za a daina raba kwafinku kuma a kai shi taska. Harsunan nan da ke amfani da shi suna riƙe shi.",
+      "offer": "Yi wa {{org}} tayi",
+      "offerHelp": "Yana aika tayin. Babu abin da zai canja sai sun karɓa."
+    },
+    "problem": {
+      "open": "An riga an yi tayin wannan. Ku janye wannan tayin tukuna.",
+      "noItem": "Ba za a iya mayar da wannan ba: ba shi da siga tukuna, ko yana bin wata ƙungiya.",
+      "noOrg": "Ba a sami wannan ƙungiya ba.",
+      "notAllowed": "Sai mai kula da irin wannan kaya ne kaɗai zai iya yin wannan.",
+      "notOpen": "An janye wannan tayin ko an riga an gama da shi.",
+      "badItem": "Ku zaɓi ɗaya daga cikin abubuwanku na iri ɗaya.",
+      "offline": "Ba a iya kaiwa ga LangQuest ba. Ku duba haɗinku ku sake gwadawa."
+    }
   }
 }

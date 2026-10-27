@@ -17,7 +17,7 @@
 // keyTerms/, reference/materialModel.ts); the screens here lay it out.
 import {
   CommandError, commands, CUSTOM_FLOW, deriveFlow, derivePassage, keyTermsFor, keyTermView, languageName,
-  materialView, privilegesFor, recommendedFor, subscriptionItemId,
+  followerItemId, materialView, privilegesFor, recommendedFor,
   unitTitle,
   type EventSpec, type FlowDoc, type FlowStep, type KeyTermView, type KindDef, type LanguageState, type LibraryDoc, type LibraryItemView, type MaterialView, type Privilege, type VersificationDoc
 } from '@langquest-next/core';
@@ -36,6 +36,8 @@ import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, F
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { ImportRows } from '../imports/ImportRows';
+import { MoveItem } from '../moves/MoveItem';
+import { MoveOffers } from '../moves/MoveOffers';
 import { OrgLine } from '../verified/VerifiedSeal';
 import { cachedDoc } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
@@ -360,7 +362,7 @@ function SharedItems(props: {
   const [following, setFollowing] = useState<SharedItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [n, setN] = useState(STEP);
-  const rows = shared.rows.filter((s) => !lib.item(subscriptionItemId(s.org_id, s.item_id))?.subscription?.active);
+  const rows = shared.rows.filter((s) => !lib.item(followerItemId(props.ctx.org.state?.library ?? {}, s.org_id, s.item_id))?.subscription?.active);
 
   async function follow(s: SharedItem, autoUpdate: boolean) {
     setFollowing(null);
@@ -480,6 +482,7 @@ function LibraryItemSettings(props: { ctx: Ctx; lib: Library; it: LibraryItemVie
               onPress={() => void run('archive', () => lib.archive(it, !it.archived),
                 it.archived ? t('config.library.unarchived', { name: it.name }) : t('config.library.archived', { name: it.name }))} />
           ) : null}
+          <MoveItem ctx={ctx} it={it} canManage={canManage} />
         </>
       )}
     </>
@@ -596,6 +599,7 @@ export function FlowsHome(ctx: Ctx) {
       action={canWrite ? <SmallBtn label={t('config.flows.addFlow')} icon="plus" tone="primary" help={t('config.flows.addFlowHelp')} onPress={() => ctx.go('flow_editor', { itemId: 'new' })} /> : undefined} />}>
       {!state ? <EmptyState icon="flow" title={t('common.loading')} /> : (
         <>
+          <MoveOffers ctx={ctx} kinds={['flow']} canManage={canWrite} />
           {!language ? <EmptyState icon="globe" title={t('config.flows.noLanguages')} sub={t('config.flows.noLanguagesSub')} /> : null}
           {language && current ? (
             <Card>
@@ -950,6 +954,7 @@ export function ReferenceHome(ctx: Ctx) {
       {canManage && lib.canWrite('material') ? <Group><Row icon="sparkle" label={t('config.reference.writeGuide')} sub={t('config.reference.writeGuideSub')} last
         onPress={() => ctx.go('guide_editor', params)} /></Group> : null}
       <ImportRows ctx={ctx} canManage={canManage && lib.canWrite('material')} orgName={orgName(ctx)} />
+      <MoveOffers ctx={ctx} kinds={['material']} canManage={canManage && lib.canWrite('material')} />
       <SharedItems ctx={ctx} lib={lib} shared={shared} canManage={canManage && lib.canWrite('material')}
         detail={(s) => {
           const doc = docs.get(s.latest_hash);
@@ -1348,7 +1353,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
   const linked = parts ?? baseParts;
   const lang = language ?? material?.language ?? (isNew ? readerLanguage() : null);
   const own = lib.items('versification').filter((v) => v.current && !v.archived);
-  const choices = versificationChoices(own, sharedV.rows, (id) => !!lib.item(id)?.subscription?.active);
+  const choices = versificationChoices(own, sharedV.rows, (s) => !!lib.item(followerItemId(ctx.org.state?.library ?? {}, s.org_id, s.item_id))?.subscription?.active);
   const baseChoice = baseVersificationChoice(choices, material?.versification ?? null, versificationNameOf(docs, material));
   const chosen = v11n ?? baseChoice;
   const units = useMemo(() => (state && picking ? templatePartChoices(state, q) : []), [state, picking, q]);

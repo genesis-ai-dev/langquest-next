@@ -164,7 +164,7 @@ describe('versification choices', () => {
   ] as never;
 
   it('offers each language\'s own first, then the organization\'s, then shared ones not yet followed', () => {
-    const choices = versificationChoices(own, shared, (id) => id.includes('v.followed'));
+    const choices = versificationChoices(own, shared, (s) => s.item_id === 'v.followed');
     expect(choices.map((c) => [c.key, c.hash])).toEqual([['none', null], ['v.mine', 'h-own'], ['o2/v.theirs', 'h-theirs']]);
     expect(choices[2]!.label).toBe('Theirs · Other Org');
     expect(choices[2]!.shared).toBeTruthy();

@@ -7235,5 +7235,68 @@
       "title_other": "{{count, number}} panduan baru atau diperbarui",
       "body": "Sumbernya menambah atau mengubahnya sejak impor terakhir Anda. Bahasanya sudah dicentang di bawah. Impor untuk membawanya masuk."
     }
+  },
+  "moves": {
+    "offers": {
+      "title": "Ditawarkan kepada Anda",
+      "from": "{{org}} ingin Anda mengelola ini",
+      "finishing": "Diterima. Memindahkan tim yang mengikutinya.",
+      "badge": "Tawaran",
+      "help": "Membuka tawaran: terima untuk mengelolanya di sini, atau tolak."
+    },
+    "offer": {
+      "title": "Kelola {{name}}?",
+      "body": "{{from}} ingin {{org}} mengelola ini mulai sekarang.",
+      "after": "Jika Anda menerimanya, ini menjadi milik Anda. Tim yang mengikutinya akan mengikuti salinan Anda, dan {{from}} berhenti membagikan salinan mereka.",
+      "asNew": "Sebagai item baru",
+      "asNewHelp": "Menambahkannya ke perpustakaan Anda dengan semua versinya.",
+      "inPlace": "Menggantikan salah satu milik Anda",
+      "inPlaceHelp": "Tim yang mengikutinya akan mengikuti salah satu item Anda sendiri. Pilih yang mana.",
+      "placeHelp": "Tim yang mengikutinya akan mengikuti item ini.",
+      "take": "Terima",
+      "takeInto": "Terima sebagai pengganti {{name}}",
+      "finish": "Selesaikan penerimaan",
+      "takeHelp": "Menjadikannya milik Anda di sini dan membagikannya, agar tim yang mengikutinya dapat mengikuti salinan Anda.",
+      "decline": "Tolak",
+      "declineHelp": "Menolak tawaran ini. Tidak ada yang berubah.",
+      "taken": "{{name}} sekarang milik Anda",
+      "declinedToast": "Ditolak. {{org}} akan melihatnya."
+    },
+    "item": {
+      "move": "Pindahkan ke organisasi lain",
+      "moveHelp": "Menawarkan ini kepada organisasi lain untuk dikelola. Tidak ada yang berubah sampai mereka menerimanya.",
+      "offered": "Ditawarkan kepada {{org}}",
+      "offeredBody": "Menunggu seseorang di {{org}} menerimanya. Sampai saat itu, tidak ada yang berubah.",
+      "offeredToast": "Ditawarkan kepada {{org}}",
+      "withdraw": "Tarik kembali tawaran",
+      "withdrawHelp": "Membatalkan tawaran. Tidak ada yang berubah.",
+      "accepted": "{{org}} menerimanya",
+      "acceptedBody": "Memindahkan tim yang mengikutinya ke salinan {{org}}.",
+      "moved": "Dipindahkan ke {{org}}",
+      "movedBody_other": "Pada {{date}}. {{count, number}} tim yang mengikutinya kini mengikuti salinan mereka. Salinan Anda tidak dibagikan lagi.",
+      "declined": "{{org}} tidak menerimanya."
+    },
+    "sheet": {
+      "title": "Pindahkan {{name}}",
+      "sub": "Ke organisasi lain",
+      "intro": "Cari organisasi yang akan mengelola ini. Anda akan menemukan organisasi yang membagikan bahan, punya centang biru, atau mencantumkan bahasa.",
+      "search": "Nama organisasi",
+      "searchHelp": "Ketik minimal 2 huruf dari namanya.",
+      "none": "Tidak ada organisasi dengan nama itu.",
+      "orgHelp": "Memilih organisasi ini.",
+      "what": "Seseorang di {{org}} yang mengelola jenis bahan ini harus menerimanya. Lalu {{org}} yang mengelola {{name}}, dan tim yang mengikutinya akan mengikuti salinan {{org}}.",
+      "stays": "Salinan Anda tidak dibagikan lagi dan diarsipkan. Bahasa di sini yang memakainya tetap memakainya.",
+      "offer": "Tawarkan kepada {{org}}",
+      "offerHelp": "Mengirim tawaran. Tidak ada yang berubah sampai mereka menerimanya."
+    },
+    "problem": {
+      "open": "Ini sudah ditawarkan. Tarik kembali tawaran itu dulu.",
+      "noItem": "Ini tidak bisa dipindahkan: belum punya versi, atau mengikuti organisasi lain.",
+      "noOrg": "Organisasi itu tidak ditemukan.",
+      "notAllowed": "Hanya orang yang mengelola jenis bahan ini yang bisa melakukannya.",
+      "notOpen": "Tawaran ini sudah ditarik kembali atau sudah selesai.",
+      "badItem": "Pilih salah satu item Anda sendiri dengan jenis yang sama.",
+      "offline": "Tidak bisa menghubungi LangQuest. Periksa koneksi Anda dan coba lagi."
+    }
   }
 }

@@ -66,6 +66,38 @@ except a Bible source's books and a collection's guides: only their
 numbering comes, and each book or guide is fetched by its own hash when a
 passage reads it (`loadDocs`; decisions.md 71, amended 2026-10-11).
 
+## Moving an item to another organization
+
+An organization can hand an item it controls to another organization to host
+(decisions.md 174): LangQuest's FIA copies to Word Collective, say.
+
+1. Someone who manages that kind of item opens its settings and taps **Move
+   to another organization**, finds the organization by name (those that
+   share material, have a blue check or list a language), and offers it
+   (`library_move_offer`). The offer can be taken back until it is taken.
+2. Someone who manages that kind at the other organization sees it under
+   **Offered to you** on the page for that kind (templates, review flows,
+   reference material), and takes it as a new item or in place of one of
+   their own of the same kind, or turns it down (`library_move_accept`,
+   `library_move_decline`). As a new item, the server gives them every
+   version's documents, and their app publishes the versions oldest first
+   under the old item's name. Either way their app shares the item for
+   following, and stops following the old item if it did (and archives the
+   item that followed it).
+3. When that arrives, the server (`_library_move_land`) points every
+   organization that follows the old item at the new one: a
+   `v1.LibrarySubscribed` with the same local item id and settings, and a
+   `v1.LibraryPinned` to the new item's version for those that update
+   automatically, all written as `server`, as `_library_fan_out` pins
+   updates. The old item stops being shared and is archived; languages that
+   use it keep it.
+
+The move is the server's own record (`library_moves`); its state (offered,
+accepted, moved, declined, withdrawn) comes from its times. A followed item
+keeps its id after its source moves, so the app finds what follows an item
+with core `followerItemId`, never by working out `sub.<org>.<item>`.
+`server/libraryMoveSmoke.sql` holds the server's side.
+
 ## Languages
 
 A language uses one version of a template and one of a flow. Applying one
@@ -149,6 +181,7 @@ by `_apply_org_event`), `library_documents` (hash, format, body, deps) and
 | `library_shared_items(p_kind, p_query, p_limit, p_offset)` | anyone signed in | shared, unarchived items of every organization, with their latest version |
 | `library_adopt(p_org, p_source_org, p_source_item, p_hash)` | a member of `p_org` who manages that kind | gives `p_org` access to one version of a shared item and its deps |
 | `library_updates(p_org)` | a member of `p_org` | each active subscription's newest available version |
+| `library_move_targets`, `library_move_offer`, `library_moves_for`, `library_move_withdraw`, `library_move_decline`, `library_move_accept` | someone who manages the item's kind at that organization | moving an item to another organization (decisions.md 174) |
 | `library_seed_document` / `library_seed_events` | service role only | how `scripts/library-seed.ts` publishes the LangQuest organization |
 
 ## Content in this repository

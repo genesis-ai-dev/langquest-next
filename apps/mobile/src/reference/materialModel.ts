@@ -4,7 +4,7 @@
 // and published document. Pure: no React, so it is tested
 // (test/materialModel.test.ts).
 import {
-  formatQuestionField, parseQuestionField, subscriptionItemId, templateFields, unitPrefixOf, unitTitle,
+  formatQuestionField, parseQuestionField, templateFields, unitPrefixOf, unitTitle,
   type KindDef, type LanguageState, type LibraryItemView, type MaterialDoc, type MaterialView, type QuestionSpec
 } from '@langquest-next/core';
 import { t } from '../i18n';
@@ -133,12 +133,12 @@ export interface VersificationChoice { key: string; label: string; hash: string 
  * this organization's, and those others share that it does not already follow.
  */
 export function versificationChoices(
-  own: LibraryItemView[], sharedRows: SharedItem[], isFollowed: (itemId: string) => boolean
+  own: LibraryItemView[], sharedRows: SharedItem[], isFollowed: (s: SharedItem) => boolean
 ): VersificationChoice[] {
   return [
     { key: 'none', label: t('config.libraryMaterial.eachLanguagesOwn'), hash: null },
     ...own.map((v) => ({ key: v.itemId, label: v.name, hash: v.current })),
-    ...sharedRows.filter((s) => !isFollowed(subscriptionItemId(s.org_id, s.item_id)))
+    ...sharedRows.filter((s) => !isFollowed(s))
       .map((s) => ({ key: `${s.org_id}/${s.item_id}`, label: `${s.name} · ${s.org_name}`, hash: s.latest_hash, shared: s }))
   ];
 }

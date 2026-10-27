@@ -7867,5 +7867,70 @@
       "title_other": "{{count, number}} guias novos ou atualizados",
       "body": "A fonte os adicionou ou mudou desde a sua última importação. Os idiomas deles estão marcados abaixo. Importe para trazê-los."
     }
+  },
+  "moves": {
+    "offers": {
+      "title": "Oferecidos a você",
+      "from": "{{org}} quer que você assuma isto",
+      "finishing": "Aceito. Transferindo as equipes que o seguem.",
+      "badge": "Oferta",
+      "help": "Abre a oferta: aceite para assumir aqui, ou recuse."
+    },
+    "offer": {
+      "title": "Assumir {{name}}?",
+      "body": "{{from}} quer que {{org}} assuma isto daqui em diante.",
+      "after": "Se você aceitar, passa a ser seu. As equipes que o seguem vão seguir a sua cópia, e {{from}} deixa de compartilhar a própria.",
+      "asNew": "Como um item novo",
+      "asNewHelp": "Adiciona à sua biblioteca com todas as versões.",
+      "inPlace": "No lugar de um dos seus",
+      "inPlaceHelp": "As equipes que o seguem vão seguir um dos seus próprios itens. Escolha qual.",
+      "placeHelp": "As equipes que o seguem vão seguir este item.",
+      "take": "Aceitar",
+      "takeInto": "Aceitar no lugar de {{name}}",
+      "finish": "Terminar de aceitar",
+      "takeHelp": "Torna-o seu aqui e o compartilha, para que as equipes que o seguem possam seguir a sua cópia.",
+      "decline": "Não aceitar",
+      "declineHelp": "Recusa a oferta. Nada muda.",
+      "taken": "{{name}} agora é seu",
+      "declinedToast": "Recusada. {{org}} vai ver isso."
+    },
+    "item": {
+      "move": "Transferir para outra organização",
+      "moveHelp": "Oferece isto a outra organização para ela assumir. Nada muda até que aceitem.",
+      "offered": "Oferecido a {{org}}",
+      "offeredBody": "Esperando alguém de {{org}} aceitar. Até lá, nada muda.",
+      "offeredToast": "Oferecido a {{org}}",
+      "withdraw": "Cancelar a oferta",
+      "withdrawHelp": "Cancela a oferta. Nada muda.",
+      "accepted": "{{org}} aceitou",
+      "acceptedBody": "Transferindo as equipes que o seguem para a cópia de {{org}}.",
+      "moved": "Transferido para {{org}}",
+      "movedBody_one": "Em {{date}}. {{count, number}} equipe que o seguia agora segue a cópia deles. A sua cópia não é mais compartilhada.",
+      "movedBody_many": "Em {{date}}. {{count, number}} equipes que o seguiam agora seguem a cópia deles. A sua cópia não é mais compartilhada.",
+      "movedBody_other": "Em {{date}}. {{count, number}} equipes que o seguiam agora seguem a cópia deles. A sua cópia não é mais compartilhada.",
+      "declined": "{{org}} não aceitou."
+    },
+    "sheet": {
+      "title": "Transferir {{name}}",
+      "sub": "Para outra organização",
+      "intro": "Encontre a organização que deve assumir isto. Aparecem organizações que compartilham material, têm o selo azul ou têm um idioma na lista.",
+      "search": "Nome da organização",
+      "searchHelp": "Digite pelo menos 2 letras do nome.",
+      "none": "Nenhuma organização encontrada com esse nome.",
+      "orgHelp": "Escolhe esta organização.",
+      "what": "Alguém de {{org}} que gerencia este tipo de material precisa aceitar. Então {{org}} assume {{name}}, e as equipes que o seguem vão seguir a cópia de {{org}}.",
+      "stays": "A sua cópia deixa de ser compartilhada e é arquivada. Os idiomas daqui que a usam continuam com ela.",
+      "offer": "Oferecer a {{org}}",
+      "offerHelp": "Envia a oferta. Nada muda até que aceitem."
+    },
+    "problem": {
+      "open": "Isto já foi oferecido. Cancele essa oferta primeiro.",
+      "noItem": "Isto não pode ser transferido: ainda não tem versão, ou segue outra organização.",
+      "noOrg": "Essa organização não foi encontrada.",
+      "notAllowed": "Só quem gerencia este tipo de material pode fazer isso.",
+      "notOpen": "Esta oferta foi cancelada ou já foi resolvida.",
+      "badItem": "Escolha um dos seus próprios itens do mesmo tipo.",
+      "offline": "Não foi possível falar com o LangQuest. Verifique a conexão e tente de novo."
+    }
   }
 }

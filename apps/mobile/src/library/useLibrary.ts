@@ -92,10 +92,10 @@ export function useLibrary(ctx: Ctx) {
 
   const subscribe = useCallback(async (s: SharedItem, autoUpdate: boolean) => {
     await adopt(s);
-    const { itemId, ops } = subscribeOps(s, autoUpdate);
+    const { itemId, ops } = subscribeOps(s, autoUpdate, library ?? {});
     await run(ops);
     return itemId;
-  }, [adopt, run]);
+  }, [adopt, run, library]);
 
   const follow = useCallback((itemId: string, change: { autoUpdate?: boolean; active?: boolean }) =>
     run(followOps(library ?? {}, itemId, change)), [library, run]);

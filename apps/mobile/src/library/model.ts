@@ -2,7 +2,7 @@
 // an action writes and which languages need to move to a newer version. Kept
 // free of React Native so it can be tested.
 import {
-  libraryItemView, privilegesFor, subscriptionItemId, type EventPayloads, type LibraryItemState, type LibraryKind, type LanguageState, type OrgState,
+  followerItemId, libraryItemView, privilegesFor, type EventPayloads, type LibraryItemState, type LibraryKind, type LanguageState, type OrgState,
   type Privilege
 } from '@langquest-next/core';
 import { t } from '../i18n';
@@ -85,9 +85,13 @@ export function copyOps(shared: SharedItem, itemId: string, docHash = shared.lat
   ];
 }
 
-/** Follow another organization's item, starting at its latest version. */
-export function subscribeOps(shared: SharedItem, autoUpdate: boolean): { itemId: string; ops: LibraryOp[] } {
-  const itemId = subscriptionItemId(shared.org_id, shared.item_id);
+/**
+ * Follow another organization's item, starting at its latest version: as
+ * the item that already follows it here, if one does (stopped, or moved
+ * here from another organization, decisions.md 174).
+ */
+export function subscribeOps(shared: SharedItem, autoUpdate: boolean, library: Record<string, LibraryItemState> = {}): { itemId: string; ops: LibraryOp[] } {
+  const itemId = followerItemId(library, shared.org_id, shared.item_id);
   return {
     itemId,
     ops: [
