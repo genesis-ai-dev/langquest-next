@@ -87,6 +87,14 @@ describe('the app Worker and support', () => {
     expect(supportAlerts({ ...s, reports: { ...s.reports, oldestAt: hoursAgo(2) } }, NOW)).toEqual([]);
     expect(supportAlerts({ ...s, reports: { ...s.reports, oldestAt: hoursAgo(2), staffOnly: 1 } }, NOW)[0]).toMatchObject({ level: 'watch' });
   });
+
+  it('says when organizations wait for a blue check (decisions.md 173), and not for decided ones', () => {
+    const s = { reports: { open: 0, oldestAt: null, staffOnly: 0, resolvedWeek: 0 }, suspended: { total: 0, week: 0 }, deletions: [], feedbackOpen: { open: 0, oldestAt: null }, actions: [] };
+    const row = (status: 'waiting' | 'granted' | 'declined') => ({ id: 'r', orgId: 'o', orgName: 'Org', domain: 'org.example', emailDomain: 'org.example', status, createdAt: hoursAgo(3), confirmedAt: hoursAgo(3), decidedAt: null, verified: false });
+    expect(supportAlerts({ ...s, verifications: [row('waiting'), row('waiting'), row('granted')] }, NOW)).toEqual([{ level: 'watch', text: '2 organizations waiting for a blue check (Support, Blue check requests).' }]);
+    expect(supportAlerts({ ...s, verifications: [row('declined')] }, NOW)).toEqual([]);
+    expect(supportAlerts({ ...s, verifications: null }, NOW)).toEqual([]);
+  });
 });
 
 describe('expiry dates', () => {

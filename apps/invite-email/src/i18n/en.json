@@ -19,5 +19,13 @@
     "openButton": "Choose a new password",
     "expires": "This link works for {{minutes}} minutes.",
     "ignore": "If you did not ask for this, ignore this email. Your password stays the same."
+  },
+  "code": {
+    "subject": "Your LangQuest code: {{code}}",
+    "heading": "Confirm your email address",
+    "intro": "{{org}} asked LangQuest for a blue check for the website {{domain}}.",
+    "enter": "To confirm this address, enter this code in LangQuest:",
+    "expires": "The code works for {{minutes}} minutes.",
+    "ignore": "If you did not ask for this, ignore this email. Nothing will change."
   }
 }

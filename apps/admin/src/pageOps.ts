@@ -229,6 +229,16 @@ Object.assign(RENDER, {
       stat(num(d.suspended.total), 'suspended', '', NOW) +
       stat(fb ? num(fb.open) : '–', 'feedback not done', '', fb ? oldest(fb.oldestAt, 'none open') : 'could not read') + '</div>' +
       '<p class="muted">Act on reports with npm run moderation -- --hosted (decision 48).</p>' +
+      // Blue checks (decisions.md 173): an admin confirmed an address at the domain; staff check the domain is this organization.
+      '<h3>Blue check requests</h3>' + (d.verifications === null ? '<p class="muted">Could not read them (the database lacks diag.org_verification_requests).</p>'
+        : '<p class="muted">An admin of each confirmed an email address at the domain. Open the website first: is it this organization? npm run org-verification -- list --hosted shows the address.</p>' +
+        table([
+          { h: 'Organization', v: (v) => esc(v.orgName || v.orgId) + '<br><small>' + short(v.orgId) + '</small>' },
+          { h: 'Website', v: (v) => '<a href="https://' + esc(v.domain) + '" target="_blank" rel="noopener noreferrer">' + esc(v.domain) + '</a>' + (v.emailDomain !== v.domain ? '<br><small>address at ' + esc(v.emailDomain) + '</small>' : '') },
+          { h: 'Asked', v: (v) => when(v.createdAt) },
+          { h: 'Status', v: (v) => '<span class="' + (v.status === 'waiting' ? 'warn' : v.status === 'granted' ? 'good' : 'bad') + '">' + esc(v.status) + '</span>' + (v.decidedAt ? '<br><small>' + when(v.decidedAt) + '</small>' : '') },
+          { h: '', v: (v) => v.status === 'waiting' ? '<button data-ver="' + esc(v.id) + '" data-decision="grant">Grant</button> <button data-ver="' + esc(v.id) + '" data-decision="decline">Decline</button>' : '' }
+        ], d.verifications)) +
       '<h3>Accounts deleted, by week</h3>' + table([{ h: 'Week of', v: (w) => esc(w.week) }, { h: 'Deleted', n: true, v: (w) => num(w.n) }], d.deletions.slice().reverse()) +
       '<h3>Done from this page</h3>' + table([{ h: 'When', v: (a) => when(a.at) }, { h: 'Who', v: (a) => short(a.profileId) }, { h: 'What', v: (a) => esc(a.action) + ' <code>' + esc(String(a.target).slice(0, 12)) + '</code>' },
         { h: 'Result', v: (a) => '<span class="' + (a.result === 'ok' ? 'good' : a.result === 'error' ? 'bad' : 'warn') + '">' + esc(a.result) + (a.detail ? ' · ' + esc(a.detail) : '') + '</span>' }], d.actions || []);
@@ -277,7 +287,8 @@ async function perform(action, button) {
     const res = await fetch('/ops/api/actions', { method: 'POST', headers: { authorization: 'Bearer ' + t, 'content-type': 'application/json' }, body: JSON.stringify(action) });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
-    say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.') : 'Feedback marked ' + body.result + '.');
+    say(action.kind === 'run' ? (body.result === 'started' ? 'Started ' + action.key + '.' : action.key + ' was ' + body.result + '; nothing started.')
+      : action.kind === 'verification' ? 'Blue check ' + body.result + '.' : 'Feedback marked ' + body.result + '.');
     load(false);
   } catch (err) { say(err.message, 'red'); if (button) button.disabled = false; }
 }
@@ -286,6 +297,8 @@ document.addEventListener('click', (e) => {
   if (run && confirm('Run ' + run.dataset.run + ' now?')) perform({ kind: 'run', key: run.dataset.run }, run);
   const fb = e.target.closest && e.target.closest('[data-fb]');
   if (fb) perform({ kind: 'feedback', id: fb.dataset.fb, status: fb.dataset.status }, fb);
+  const ver = e.target.closest && e.target.closest('[data-ver]');
+  if (ver && confirm((ver.dataset.decision === 'grant' ? 'Grant' : 'Decline') + ' this blue check?')) perform({ kind: 'verification', id: ver.dataset.ver, decision: ver.dataset.decision }, ver);
 });
 
 // ---- one install's diagnostics, readable --------------------------------------------------

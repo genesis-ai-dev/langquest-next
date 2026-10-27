@@ -19,5 +19,13 @@
     "openButton": "Zaɓi sabuwar kalmar sirri",
     "expires": "Wannan mahaɗi yana aiki na minti {{minutes}}.",
     "ignore": "Idan ba ku nemi wannan ba, ku ƙyale wannan imel. Kalmar sirrinku ba za ta canja ba."
+  },
+  "code": {
+    "subject": "Lambarku ta LangQuest: {{code}}",
+    "heading": "Tabbatar da adireshin imel ɗinku",
+    "intro": "{{org}} ta nemi LangQuest alamar shuɗi ta tabbatarwa don shafin yanar gizo {{domain}}.",
+    "enter": "Don tabbatar da wannan adireshin, shigar da wannan lambar a LangQuest:",
+    "expires": "Lambar tana aiki na minti {{minutes}}.",
+    "ignore": "Idan ba ku nemi wannan ba, ku ƙyale wannan imel. Babu abin da zai canja."
   }
 }

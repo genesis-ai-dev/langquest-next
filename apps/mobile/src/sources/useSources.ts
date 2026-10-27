@@ -8,7 +8,7 @@
 // study guides do), and when nothing at all has this passage's text, the
 // text the app carries is the last resort, labelled as built in.
 import {
-  bookIdOf, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, SOURCE_BIBLES, subscriptionItemId, versesInChapter,
+  bookIdOf, libraryItemView, linkedTo, passageLink, recommendedFor, sourceAudioUrl, SOURCE_BIBLES, followerItemId, versesInChapter,
   type LibraryDoc, type SourceBookDoc, type SourceDoc, type TemplateDoc, type TimingDoc, type VerseRange, type VersificationDoc
 } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
@@ -138,7 +138,7 @@ export function useSources(ctx: Ctx, unitId: string | null | undefined, language
       for (const r of shared.rows) {
         const doc = get<SourceDoc>(r.latest_hash);
         if (!doc || doc.format !== 'source@1' || !doc.language || !inLanguages(doc.language, sourceLanguages)) continue;
-        out.push({ itemId: subscriptionItemId(r.org_id, r.item_id), kind: 'library', from: 'shared', name: doc.name, abbreviation: doc.abbreviation, language: doc.language, doc, docHash: r.latest_hash, sharedBy: r.org_name });
+        out.push({ itemId: followerItemId(ctx.org.state?.library ?? {}, r.org_id, r.item_id), kind: 'library', from: 'shared', name: doc.name, abbreviation: doc.abbreviation, language: doc.language, doc, docHash: r.latest_hash, sharedBy: r.org_name });
       }
     }
     // The last resort: when nothing offered has this passage's text, the text the app carries.

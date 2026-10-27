@@ -7524,5 +7524,215 @@
       "equals": "Daidai da",
       "point": "Digo"
     }
+  },
+  "verified": {
+    "sealLabel": "Ƙungiyar da aka tabbatar",
+    "sealLabelDomain": "Ƙungiyar da aka tabbatar: {{domain}}",
+    "title": "Alamar shuɗi",
+    "meaning": "Alamar shuɗi tana nufin ƙungiyar LangQuest ta tabbatar da wannan ƙungiya. Ba amincewa ko goyon baya ba ne ga abin da ƙungiyar ke wallafawa.",
+    "problem": {
+      "notAllowed": "Mai gudanar da ƙungiya ne kaɗai zai iya neman alamar shuɗi.",
+      "badDomain": "Rubuta adireshin shafin yanar gizo, kamar example.org.",
+      "publicDomain": "Yi amfani da shafin yanar gizon ƙungiyarku, ba sabis ɗin imel na kyauta ba.",
+      "badEmail": "Rubuta cikakken adireshin imel.",
+      "emailNotAtDomain": "Adireshin imel dole ya ƙare da @{{domain}}.",
+      "alreadyVerified": "{{org}} tana da alamar shuɗi tuni.",
+      "waiting": "Akwai buƙata da take jiran LangQuest tuni.",
+      "tooSoon": "Ku jira minti ɗaya, sannan ku nemi wata lamba.",
+      "tooMany": "Lambobi sun yi yawa a yau. Ku sake gwadawa gobe.",
+      "noEmail": "LangQuest ba za ta iya aika imel yanzu ba. Ku sake gwadawa daga baya.",
+      "offline": "Ba ku da intanet. Ku haɗa da intanet ku sake gwadawa.",
+      "sendFailed": "Imel ɗin bai tafi ba. Ku sake gwadawa."
+    },
+    "code": {
+      "wrong": "Wannan lambar ba daidai ba ce. Ku duba imel ɗin ku sake gwadawa.",
+      "expired": "Lokacin wannan lambar ya ƙare. Ku aika sabuwa.",
+      "tooManyWrong": "Kuskure sun yi yawa. Ku aika sabuwar lamba.",
+      "sixDigits": "Lambar tana da lambobi 6.",
+      "confirm": "Tabbatar",
+      "confirmHelp": "Tana duba lambar. Sannan LangQuest za ta duba buƙatar.",
+      "sentTo": "Mun aika lamba mai lambobi 6 zuwa {{email}}. Ku rubuta ta a nan.",
+      "label": "Lambar daga imel ɗin",
+      "help": "Lambobi 6 daga imel ɗin da LangQuest ta aika.",
+      "again": "Aika sabuwar lamba",
+      "againHelp": "Tana aika sabuwar lamba zuwa adireshin guda.",
+      "change": "Yi amfani da wani adireshi",
+      "changeHelp": "Tana komawa don ku rubuta wani shafin yanar gizo ko wani adireshin imel."
+    },
+    "ask": {
+      "send": "Aika mini lamba",
+      "sendHelp": "Tana aika lamba mai lambobi 6 zuwa wannan adireshin, don tabbatar da cewa naku ne.",
+      "domain": "Shafin yanar gizon ƙungiyarku",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "Shafin yanar gizon da ƙungiyarku take gudanarwa, kamar example.org.",
+      "email": "Imel ɗinku a wannan shafin",
+      "emailPlaceholder": "ku@{{domain}}",
+      "emailHelp": "Adireshin imel a wannan shafin yanar gizo. LangQuest tana aika lambar zuwa can."
+    },
+    "done": {
+      "title": "An tabbatar",
+      "sub": "{{domain}} · tun {{date}}"
+    },
+    "declined": {
+      "title": "LangQuest ba ta ƙara alamar shuɗi ba",
+      "body": "Kuna iya sake nema da wani shafin yanar gizo ko wani adireshi."
+    },
+    "waiting": {
+      "title": "Ana jiran LangQuest",
+      "body": "An tabbatar da {{email}}. Ƙungiyar LangQuest za ta duba buƙatarka ta {{domain}}.",
+      "withdraw": "Janye buƙatar",
+      "withdrawHelp": "Tana soke buƙatar. Kuna iya sake nema daga baya."
+    },
+    "row": {
+      "verifiedHelp": "Alamar shuɗi: ma'anarta da lokacin da aka ƙara ta.",
+      "ask": "Nemi alamar shuɗi",
+      "askHelp": "Ku nemi LangQuest alamar shuɗi, don kowa ya ga cewa wannan ita ce ƙungiyar ta gaske."
+    }
+  },
+  "imports": {
+    "title": "Shigo daga {{name}}",
+    "languages": {
+      "zhs": "Sinanci (Mai sauƙi)",
+      "zht": "Sinanci (Na gargajiya)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Kawo jagororin nazari na FIA zuwa ɗakin karatu na {{org}} daga Bible Aquifer, inda aka wallafa su. Zaɓi harsuna. LangQuest yana shirya jagororin a sabar sa, sannan kai ka duba ka wallafa su.",
+      "from": "Daga {{source}}"
+    },
+    "choose": {
+      "languages_one": "Harsuna · an zaɓi {{count, number}}",
+      "languages_other": "Harsuna · an zaɓi {{count, number}}",
+      "start_one": "Shigo da harshe {{count, number}}",
+      "start_other": "Shigo da harsuna {{count, number}}",
+      "pickOne": "Zaɓi harshe ɗaya",
+      "startHelp": "LangQuest ya fara shirya jagororin. Kowane harshe yana ɗaukar mintuna kaɗan, kuma yana ci gaba ko da ka rufe nan.",
+      "inLibrary": "Yana cikin ɗakin karatunka",
+      "updateHelp": "Wannan harshe yana cikin ɗakin karatunka tun tuni. Sake shigo da shi yana kawo sabon FIA a matsayin sabon juyi.",
+      "languageHelp": "Yi alama don kawo jagororin FIA a wannan harshe.",
+      "newsLine_one": "Yana cikin ɗakin karatunka · sababbi ko sabuntattu {{count, number}}",
+      "newsLine_other": "Yana cikin ɗakin karatunka · sababbi ko sabuntattu {{count, number}}"
+    },
+    "building": {
+      "waiting": "Ana jira a fara",
+      "importing": "Ana shigowa",
+      "body": "LangQuest yana shirya jagororin a sabar sa. Za ka iya rufe nan, aikin zai ci gaba. Ka dawo ka wallafa su.",
+      "progress": "Harsunan da aka gama: {{done, number}} cikin {{total, number}}",
+      "stop": "Dakatar da wannan shigowa",
+      "stopHelp": "Yana dakatar da shiryawa. Ba a ƙara komai a ɗakin karatunka ba."
+    },
+    "ready": {
+      "intro": "Ya shirya. Har yanzu babu komai a ɗakin karatunka: duba abin da aka shirya, sannan ka wallafa.",
+      "guides_one": "Jagoran nazari {{count, number}}",
+      "guides_other": "Jagororin nazari {{count, number}}",
+      "new": "Sabo",
+      "update": "Sabuntawa",
+      "share": "Raba da sauran ƙungiyoyi",
+      "shareSub": "Za su iya bin sa, kuma kowace sabuwar shigowa za ta isa gare su a matsayin sabuntawa.",
+      "publish_one": "Wallafa abu {{count, number}}",
+      "publish_other": "Wallafa abubuwa {{count, number}}",
+      "publishHelp": "Yana ƙara su a ɗakin karatunka a matsayin na ƙungiyarka, an raba su idan ka zaɓa.",
+      "setAside": "Kada a wallafa wannan shigowa",
+      "setAsideHelp": "Yana jefar da abin da wannan shigowa ta shirya. Ɗakin karatunka zai kasance yadda yake."
+    },
+    "done": {
+      "title_one": "An wallafa abu {{count, number}}",
+      "title_other": "An wallafa abubuwa {{count, number}}",
+      "body": "Yanzu yana cikin ɗakin karatunka, ƙarƙashin Kayan Tunani."
+    },
+    "failed": {
+      "title": "Shigowar ƙarshe ta tsaya",
+      "body": "Sake gwadawa. Idan ta sake tsayawa, gaya wa LangQuest ta Aika ra'ayi."
+    },
+    "problem": {
+      "running": "Akwai shigowa da ke gudana tun tuni. Jira ta ƙare, ko ka dakatar da ita da farko.",
+      "noImporter": "LangQuest ya kashe wannan kayan shigowa don ƙungiyarka.",
+      "notAllowed": "Sai mai kula da kayan tunani ne kaɗai zai iya shigowa.",
+      "notReady": "Wannan shigowa ba ta shirya ba tukuna.",
+      "offline": "Ba a iya kaiwa ga LangQuest ba. Duba haɗinka ka sake gwadawa."
+    },
+    "row": {
+      "label": "Shigo daga {{name}}",
+      "waiting": "Ana jira a fara",
+      "importing": "Ana shigowa · harsuna {{done, number}} cikin {{total, number}}",
+      "ready_one": "A shirye don wallafawa · abu {{count, number}}",
+      "ready_other": "A shirye don wallafawa · abubuwa {{count, number}}",
+      "failed": "Shigowar ƙarshe ta tsaya",
+      "from": "Kayanka, daga {{source}}",
+      "readyBadge": "A shirye",
+      "help": "Yana buɗe kayan shigowa da LangQuest ya kunna don ƙungiyarka: kawo kayanka daga inda kake ajiye su.",
+      "news_one": "Sababbi ko sabuntattun jagorori {{count, number}} tun shigowa ta ƙarshe",
+      "news_other": "Sababbi ko sabuntattun jagorori {{count, number}} tun shigowa ta ƙarshe",
+      "newBadge": "Sabo"
+    },
+    "news": {
+      "title_one": "Sababbi ko sabuntattun jagorori {{count, number}}",
+      "title_other": "Sababbi ko sabuntattun jagorori {{count, number}}",
+      "body": "Tushen ya ƙara su ko ya canza su tun shigowarka ta ƙarshe. An zaɓi harsunansu a ƙasa. Shigo da su don kawo su."
+    }
+  },
+  "moves": {
+    "offers": {
+      "title": "Tayin da aka yi muku",
+      "from": "{{org}} tana son ku ɗauki nauyin wannan",
+      "finishing": "An karɓa. Ana mayar da tawagogin da ke bin sa.",
+      "badge": "Tayi",
+      "help": "Yana buɗe tayin: ku karɓa don ku ɗauki nauyinsa a nan, ko ku ƙi."
+    },
+    "offer": {
+      "title": "Ku ɗauki nauyin {{name}}?",
+      "body": "{{from}} tana son {{org}} ta ɗauki nauyin wannan daga yanzu.",
+      "after": "Idan kun karɓa, ya zama naku. Tawagogin da ke bin sa za su bi kwafinku, kuma {{from}} za ta daina raba nata.",
+      "asNew": "A matsayin sabon abu",
+      "asNewHelp": "Yana ƙara shi a ɗakin karatunku tare da dukkan sigoginsa.",
+      "inPlace": "A madadin ɗaya daga cikin naku",
+      "inPlaceHelp": "Tawagogin da ke bin sa za su bi ɗaya daga cikin abubuwanku a madadinsa. Ku zaɓi wanne.",
+      "placeHelp": "Tawagogin da ke bin sa za su bi wannan abu.",
+      "take": "Karɓa",
+      "takeInto": "Karɓa a madadin {{name}}",
+      "finish": "Kammala karɓa",
+      "takeHelp": "Yana mai da shi naku a nan kuma yana raba shi, don tawagogin da ke bin sa su iya bin kwafinku.",
+      "decline": "Kada ku karɓa",
+      "declineHelp": "Yana ƙin tayin. Babu abin da zai canja.",
+      "taken": "{{name}} naku ne yanzu",
+      "declinedToast": "An ƙi. {{org}} za ta gani."
+    },
+    "item": {
+      "move": "Mayar zuwa wata ƙungiya",
+      "moveHelp": "Yana yi wa wata ƙungiya tayin wannan don ta ɗauki nauyinsa. Babu abin da zai canja sai sun karɓa.",
+      "offered": "An yi wa {{org}} tayi",
+      "offeredBody": "Ana jiran wani a {{org}} ya karɓa. Babu abin da zai canja kafin nan.",
+      "offeredToast": "An yi wa {{org}} tayi",
+      "withdraw": "Janye tayin",
+      "withdrawHelp": "Yana soke tayin. Babu abin da zai canja.",
+      "accepted": "{{org}} ta karɓa",
+      "acceptedBody": "Ana mayar da tawagogin da ke bin sa zuwa kwafin {{org}}.",
+      "moved": "An mayar zuwa {{org}}",
+      "movedBody_one": "A ranar {{date}}. Tawaga {{count, number}} da ke bin sa yanzu tana bin kwafinsu. Ba a raba kwafinku yanzu.",
+      "movedBody_other": "A ranar {{date}}. Tawagogi {{count, number}} da ke bin sa yanzu suna bin kwafinsu. Ba a raba kwafinku yanzu.",
+      "declined": "{{org}} ba ta karɓa ba."
+    },
+    "sheet": {
+      "title": "Mayar da {{name}}",
+      "sub": "Zuwa wata ƙungiya",
+      "intro": "Nemo ƙungiyar da ya kamata ta ɗauki nauyin wannan. Za ku ga ƙungiyoyin da ke raba kayayyaki, suke da alamar shuɗi, ko suka lissafa harshe.",
+      "search": "Sunan ƙungiya",
+      "searchHelp": "Rubuta aƙalla haruffa 2 na sunanta.",
+      "none": "Ba a sami ƙungiya mai wannan suna ba.",
+      "orgHelp": "Yana zaɓar wannan ƙungiya.",
+      "what": "Dole wani a {{org}} mai kula da irin wannan kaya ya karɓa. Sannan {{org}} za ta ɗauki nauyin {{name}}, kuma tawagogin da ke bin sa za su bi kwafin {{org}}.",
+      "stays": "Za a daina raba kwafinku kuma a kai shi taska. Harsunan nan da ke amfani da shi suna riƙe shi.",
+      "offer": "Yi wa {{org}} tayi",
+      "offerHelp": "Yana aika tayin. Babu abin da zai canja sai sun karɓa."
+    },
+    "problem": {
+      "open": "An riga an yi tayin wannan. Ku janye wannan tayin tukuna.",
+      "noItem": "Ba za a iya mayar da wannan ba: ba shi da siga tukuna, ko yana bin wata ƙungiya.",
+      "noOrg": "Ba a sami wannan ƙungiya ba.",
+      "notAllowed": "Sai mai kula da irin wannan kaya ne kaɗai zai iya yin wannan.",
+      "notOpen": "An janye wannan tayin ko an riga an gama da shi.",
+      "badItem": "Ku zaɓi ɗaya daga cikin abubuwanku na iri ɗaya.",
+      "offline": "Ba a iya kaiwa ga LangQuest ba. Ku duba haɗinku ku sake gwadawa."
+    }
   }
 }

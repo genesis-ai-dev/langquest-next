@@ -227,5 +227,18 @@ export function subscriptionItemId(sourceOrgId: string, sourceItemId: string): s
   return `sub.${sourceOrgId}.${sourceItemId}`.replace(/[/@\s]/g, '-');
 }
 
+/**
+ * The local item that follows another organization's item: the one whose
+ * subscription names that item (it may have been made for an item that
+ * moved there since, decisions.md 175), else the id a new subscription gets.
+ */
+export function followerItemId(library: Record<string, LibraryItemState>, sourceOrgId: string, sourceItemId: string): string {
+  for (const [itemId, it] of Object.entries(library)) {
+    const sub = it.subscription?.value;
+    if (sub && sub.sourceOrgId === sourceOrgId && sub.sourceItemId === sourceItemId) return itemId;
+  }
+  return subscriptionItemId(sourceOrgId, sourceItemId);
+}
+
 /** Item ids: letters, digits, '.', '_' and '-'; never '/' or '@', because unit and step ids are built from them. */
 export const isItemId = (s: string) => /^[a-z0-9][a-z0-9._-]{0,120}$/i.test(s);

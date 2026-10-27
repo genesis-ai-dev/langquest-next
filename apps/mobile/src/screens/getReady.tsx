@@ -14,7 +14,7 @@
 // question 1 alone, as "What to translate" from a ready language's page.
 import {
   commands, CUSTOM_FLOW, deriveFlow, keyTermsFor, languageName, materialsFor,
-  goesWith, isTemplateDoc, recommendedFor, subscriptionItemId, templateBooks,
+  followerItemId, goesWith, isTemplateDoc, recommendedFor, templateBooks,
   type CollectionDoc, type EventSpec, type LibraryDoc, type SourceDoc
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -245,7 +245,7 @@ function useHelpItems(ctx: Ctx) {
   const languageId = ctx.language.languageId;
   const shared = useSharedItems('material', lib.orgId);
   const items = lib.items('material').filter((it) => it.current && !it.archived);
-  const others = shared.rows.filter((s) => s.latest_hash && !org?.library[subscriptionItemId(s.org_id, s.item_id)]);
+  const others = shared.rows.filter((s) => s.latest_hash && !org?.library[followerItemId(org?.library ?? {}, s.org_id, s.item_id)]);
   const docs = useLibraryDocs(lib.orgId, [...items.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
   const rec = useRecommend(ctx);
   const [busy, setBusy] = useState(false);

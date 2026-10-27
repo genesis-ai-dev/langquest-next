@@ -1,4 +1,4 @@
-import { subscriptionItemId } from '@langquest-next/core';
+import { followerItemId } from '@langquest-next/core';
 import type { Ctx } from '../shell/ctx';
 import { useLibrary, useLibraryDocs, useSharedItems } from '../library/useLibrary';
 import type { GuideSet } from '../reference/guideSets';
@@ -13,7 +13,8 @@ export function useNewLanguageOffers(ctx: Ctx, readsAll: readonly string[], sets
   const lib = useLibrary(ctx);
   const shared = useSharedItems('material', lib.orgId);
   const own = lib.items('material').filter((it) => it.current && !it.archived);
-  const others = shared.rows.filter((s) => s.latest_hash && !ctx.org.state?.library[subscriptionItemId(s.org_id, s.item_id)]);
+  const library = ctx.org.state?.library ?? {};
+  const others = shared.rows.filter((s) => s.latest_hash && !library[followerItemId(library, s.org_id, s.item_id)]);
   const docs = useLibraryDocs(lib.orgId, [...own.map((it) => it.current), ...others.map((s) => s.latest_hash)], { deps: false });
   const may = ctx.session.can('manage_reference');
   const offers = newLanguageOffers({ own, others, doc: (hash) => docs.get(hash), sets, readsAll });

@@ -4,7 +4,7 @@
 // admin sees them, publishing a change to a template for the languages
 // chosen, and the names to offer when a language names a book (demo
 // ADR-042). Pure parts are in model.ts.
-import { isTemplateDoc, languageName, libraryItemView, orgLanguages, recommendedFor, subscriptionItemId, verseNumbering, type SourceDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
+import { followerItemId, isTemplateDoc, languageName, libraryItemView, orgLanguages, recommendedFor, verseNumbering, type SourceDoc, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { libraryChoices, STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplatesModel';
@@ -84,12 +84,12 @@ export function useWays(ctx: Ctx, forLanguage: string | null, numbering?: string
     docOf: inNumbering,
     others: otherUses(known, forLanguage, (id) => languageName(ctx.org.state, id)),
     current,
-    follow: (s) => subscriptionItemId(s.org_id, s.item_id)
+    follow: (s) => followerItemId(ctx.org.state?.library ?? {}, s.org_id, s.item_id)
   }), [choices, inNumbering, known, forLanguage, current, ctx.org.state]);
   const docOf = useCallback((c: LibraryChoice | null | undefined) => (c ? getDoc<TemplateDoc>(c.hash) : null), [getDoc]);
   // What numbering the organization's other languages use, by code: their template's versification.
   const usedByNumbering = useMemo(() => usedInByNumbering(known, forLanguage, (itemId) => {
-    const ch = choices.find((c) => itemIdOf(c, (sh) => subscriptionItemId(sh.org_id, sh.item_id)) === itemId);
+    const ch = choices.find((c) => itemIdOf(c, (sh) => followerItemId(ctx.org.state?.library ?? {}, sh.org_id, sh.item_id)) === itemId);
     const d = ch ? getDoc<TemplateDoc>(ch.hash) : null;
     return d?.bible ? getDoc<VersificationDoc>(d.bible.versification)?.code : undefined;
   }, (id) => languageName(ctx.org.state, id)), [known, choices, getDoc, forLanguage, ctx.org.state]);

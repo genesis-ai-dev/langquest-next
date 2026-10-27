@@ -7,6 +7,7 @@
 // ADR-022 (terms are a line under Sign In; three Vision cards), ADR-023
 // (creating an org is celebrated), ADR-028 (the invite says who it is for;
 // here only what the phone knows, since a link's claims are unchecked).
+import { OrgLine, OrgSeal } from '../verified/VerifiedSeal';
 import { CommandError, DEFAULT_LICENSE, isLicense, LICENSE_INFO, type License } from '@langquest-next/core';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -569,8 +570,9 @@ export function ScanQr(ctx: Ctx) {
               <View style={styles.optionRow}>
                 <View style={styles.tile}><Ico name="people" size={24} color={C.primary} /></View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[txt.body, { fontWeight: '700' }]}>{card.title}</Text>
-                  {card.detail ? <Text style={txt.smMuted}>{card.detail}</Text> : null}
+                  {/* Whoever scans sees the blue check of the organization they are joining (decisions.md 173). */}
+                  <OrgLine text={card.title} orgName={preview?.orgName} orgId={preview?.orgId} style={[txt.body, { fontWeight: '700' }]} />
+                  {card.detail ? <OrgLine text={card.detail} orgName={preview?.orgName} orgId={preview?.orgId} style={txt.smMuted} /> : null}
                   {card.from ? <Text style={txt.xs}>{t('entry.scan.from', { name: card.from })}</Text> : null}
                   {!preview ? <Text style={txt.xs}>{t('entry.scan.roleWhenConnected')}</Text> : null}
                 </View>
@@ -914,7 +916,7 @@ export function RequestAccess(ctx: Ctx) {
         <Group>
           {matches.slice(0, shown).map((o, i, all) => (
             <HelpRow key={o.org_id} of="entry.organization">
-              <Row label={o.name} sub={o.languages.join(' · ')} help={t('entry.request.rowHelp')} last={i === all.length - 1}
+              <Row label={o.name} afterLabel={<OrgSeal orgId={o.org_id} />} sub={o.languages.join(' · ')} help={t('entry.request.rowHelp')} last={i === all.length - 1}
                 accessibilityLabel={t('entry.request.askRowLabel', { org: o.name })}
                 right={<Text style={[txt.link, { fontSize: 16 }]}>{busy && picked?.org_id === o.org_id ? t('entry.request.asking') : t('entry.request.askToJoin')}</Text>}
                 onPress={() => { setPicked(o); void sendTo(o); }} />

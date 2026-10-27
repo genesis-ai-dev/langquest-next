@@ -19,5 +19,13 @@
     "openButton": "Choisir un nouveau mot de passe",
     "expires": "Ce lien fonctionne pendant {{minutes}} minutes.",
     "ignore": "Si vous n’avez pas fait cette demande, ignorez cet e-mail. Votre mot de passe reste le même."
+  },
+  "code": {
+    "subject": "Votre code LangQuest : {{code}}",
+    "heading": "Confirmez votre adresse e-mail",
+    "intro": "{{org}} a demandé à LangQuest une coche bleue pour le site web {{domain}}.",
+    "enter": "Pour confirmer cette adresse, saisissez ce code dans LangQuest :",
+    "expires": "Le code fonctionne pendant {{minutes}} minutes.",
+    "ignore": "Si vous n’avez pas fait cette demande, ignorez cet e-mail. Rien ne changera."
   }
 }

@@ -31,6 +31,9 @@ import { indexesFor } from '../sync/indexes';
 import { canHelpSignIn, decideRequest, inviteUri, issueInvite, issueSignInCode, pendingRequests, type NewInvite, type PendingRequest } from '../invites/invites';
 import { APP_URL } from '../web/appUrl';
 import { signInUri } from '../invites/inviteCode';
+import { Seal } from '../verified/VerifiedSeal';
+import { VerificationSheet, VerifiedSheet } from '../verified/VerificationSheet';
+import { useOrgBadge } from '../verified/useOrgBadges';
 import { Badge, Banner, Card, Chip, Disclosure, EmptyState, Field, GhostBtn, Group, HelpInfo, Header, Ico, KindIcon, LinkBtn, MovingBar, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, Sheet, ShowMore, SmallBtn, Toggle, type IconName } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
@@ -626,7 +629,7 @@ function LanguagesRow(props: { ctx: Ctx; languageId: string; name: string; code:
  */
 function OrgNameAndLicense(props: { ctx: Ctx }) {
   const { ctx } = props;
-  const [open, setOpen] = useState<'name' | 'license' | null>(null);
+  const [open, setOpen] = useState<'name' | 'license' | 'verified' | null>(null);
   const [busy, setBusy] = useState(false);
   const name = orgName(ctx.org.state) ?? '';
   const mayRename = mayRenameOrg(ctx.org.state, ctx.session.actorId);
@@ -634,6 +637,13 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
   const may = mayChangeLicense(ctx.org.state, ctx.session.actorId);
   const pencil = useHelpSpot(t('org.rename.orgTitle'), t('org.rename.rowHelp'), mayRename ? () => setOpen('name') : undefined);
   const license = useHelpSpot(licenseText(current).name, t('org.home.licenseHelp'), () => setOpen('license'));
+  // The check after the name (decisions.md 173): blue once LangQuest granted it, and every member may tap it
+  // to read what it means; until then grey, and only for an admin, who taps it to ask and to see how the request stands.
+  const badge = useOrgBadge(ctx.language.orgId);
+  // Asking for it is the admin's, as renaming is: manage_roles at the organization's level, as the server asks.
+  const mayVerify = mayRename;
+  const sealLabel = badge ? t('verified.sealLabelDomain', { domain: badge.domain }) : t('verified.row.ask');
+  const sealSpot = useHelpSpot(sealLabel, badge ? t('verified.row.verifiedHelp') : t('verified.row.askHelp'), badge || mayVerify ? () => setOpen('verified') : undefined);
   async function openTo(next: License) {
     // Someone else may have opened it further while the sheet was up.
     if (!isMoreOpen(next, orgLicense(ctx.org.state))) { setOpen(null); return; }
@@ -652,6 +662,13 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
     <View style={{ gap: 4 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
         <Text style={[txt.h3, { flexShrink: 1 }]}>{name}</Text>
+        {badge || mayVerify ? (
+          <Pressable testID="org-verified" onPress={sealSpot.onPress} accessibilityRole="button" accessibilityLabel={sealLabel} hitSlop={{ left: 8, right: 8 }}
+            style={({ pressed }) => [{ width: 32, height: target.min, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
+            <Seal size={22} badge={badge} grey={!badge} />
+            <HelpBadge spot={sealSpot} />
+          </Pressable>
+        ) : null}
         {mayRename ? (
           <Pressable testID="org-rename" onPress={pencil.onPress} accessibilityRole="button" accessibilityLabel={t('org.rename.orgTitle')} hitSlop={8}
             style={({ pressed }) => [{ width: target.min, height: target.min, alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.7 }]}>
@@ -666,6 +683,11 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
         <Text style={[txt.xs, { color: C.primary, fontWeight: '700' }]}>{licenseText(current).name} · {licenseText(current).short}</Text>
         <HelpBadge spot={license} />
       </Pressable>
+      {badge ? <VerifiedSheet visible={open === 'verified'} onClose={() => setOpen(null)} orgName={name} badge={badge} />
+        : mayVerify ? (
+          <VerificationSheet visible={open === 'verified'} onClose={() => setOpen(null)} orgId={ctx.language.orgId} orgName={name}
+            signInEmail={ctx.session.email ?? null} />
+        ) : null}
       <RenameSheet ctx={ctx} visible={open === 'name'} onClose={() => setOpen(null)} current={name}
         title={t('org.rename.orgTitle')} sub={t('org.rename.orgSub')} what="rename organization" // i18n-ignore: log label
         save={(next) => renameOrg(ctx.org, next).then(() => undefined)} />
@@ -1886,7 +1908,7 @@ export function NewLanguage(ctx: Ctx) {
     const sub = e === chk.first ? t('org.newLanguage.suggested', { from }) : e.doc.description && e.doc.description.length <= 60 ? e.doc.description : `${flowSub(e.doc.steps)} · ${from}`;
     return (
       <HelpRow key={e.c.key} of="newLanguage.way">
-        <ChoiceCard on={on} icon="route" title={e.c.name} sub={sub} help={t('getReady.checks.wayHelp')} onPress={() => setFlowKey(e.c.key)}>
+        <ChoiceCard on={on} icon="route" title={e.c.name} sub={sub} subOrg={flowSource(e.c)} help={t('getReady.checks.wayHelp')} onPress={() => setFlowKey(e.c.key)}>
           {on && e.doc.steps.length ? <NumberedSteps items={e.doc.steps.map((st) => ({ label: stepTitle(st.kindIds, chk.kindsOf(e.doc)), lock: !!st.checkpoint }))} /> : null}
         </ChoiceCard>
       </HelpRow>
@@ -1922,6 +1944,13 @@ export function NewLanguage(ctx: Ctx) {
  * Where a review flow comes from, under its name: the organization it is
  * followed from or shared by, else its version ("Version 3").
  */
+/** The organization a flow comes from, by name and id, for its blue check; null for the organization's own. */
+function flowSource(c: LibraryChoice): { name: string; id: string } | null {
+  if (c.source === 'shared') return { name: c.shared.org_name, id: c.shared.org_id };
+  const sub = c.item.source === 'subscription' ? c.item.subscription : null;
+  return sub ? { name: sub.sourceOrgName, id: sub.sourceOrgId } : null;
+}
+
 function flowFrom(c: LibraryChoice): string {
   if (c.source === 'shared') return t('org.newLanguage.fromOrg', { org: c.shared.org_name });
   const it = c.item;

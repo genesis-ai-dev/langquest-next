@@ -7664,6 +7664,14 @@ token that can change the whole team's projects, on a Worker that
 otherwise holds only read tokens. If the website needs watching, an
 uptime check on its address does it without a token.
 
+Amended (2026-10-26, Caleb Koster): a third kind of action, granting or
+declining an organization's blue check request that waits for staff
+(decision 173): `verification` in `parseAction`, with the request's id and
+`grant` or `decline`, recorded as `verification_grant` or
+`verification_decline`. Granting is a staff call about an organization's
+identity, not a change to its work; revoking stays in the script
+(`npm run org-verification -- revoke`).
+
 ## 163. A pull request's guardrails run in about the time of its slowest test job, not of its setup
 
 Date: 2026-10-23 · By: Carl Sauder · Status: accepted
@@ -8241,3 +8249,164 @@ Reverse if: lists grow past what one document per language holds (then a
 list goes book by book, as `helps@1` does on the Door43 branch), or teams
 need to edit a library list's words one by one (then each word becomes a
 register).
+
+## 173. An organization gets a blue check after its name when an admin proves an email address at its website and LangQuest staff grant it
+
+Date: 2026-10-26 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-26) wants publishers such as unfoldingWord and Word
+Collective (which owns FIA) to host their own material in organizations of
+their own, and people to be able to tell the real organization from a
+look-alike, wherever its name shows. He chose that blue checks are granted
+by request: the organization gives its domain, and the request comes from an
+admin whose email address is at that domain and confirmed, with a
+confirmation of its own since LangQuest confirms no email otherwise
+(docs/invites-and-accounts.md). Built (docs/verified-organizations.md):
+- **Asking.** An admin (manage_roles at the organization's level) names the
+  domain and an address at it or under it; free email services are refused
+  (the same list in SQL and in `apps/mobile/src/verified/model.ts`). The Edge
+  Function `verify-org-email` has the database make a 6-digit code
+  (`org_verification_begin`, service role only, so no client holds a code it
+  was not emailed) and sends it through the invite-email Worker's
+  `/send-code`, in the admin's language. A code lives 30 minutes, five wrong
+  tries spend it, and an organization gets a code a minute, five a request
+  and ten a day.
+- **Staff decide.** A confirmed request waits for LangQuest staff, who open
+  the website and check it is this organization, then grant or decline on
+  the ops dashboard (162, amended) or with `npm run org-verification`. The
+  dashboard shows the address only as its domain (decision 39); the script
+  shows it whole. Revoking is the script's alone.
+- **Showing.** Any signed-in person may ask which organizations are verified
+  (`org_badges`); the phone keeps the answers (asked again after ten minutes)
+  and draws one blue seal after the name: My Work, the Manage card (whose
+  "Verified · domain" line opens what the check means), Switch Organization,
+  Find your organization, the card after scanning an invite, New language's
+  review flows and reference material, and the content templates library.
+  The seal is not a button of its own. Its sheet says that the check shows
+  who is sharing, not that LangQuest reviewed what they share.
+- Nothing is written to any organization's log: whether it is verified is
+  the server's own state, like a Global Viewer grant (158).
+Not yet: the import tools for publishers' own material, and the seal in the
+remaining library screens (Reference material and Review flows in Setup,
+Get ready's helps).
+Reverse if: requests come faster than staff can check them (then a DNS
+record could prove the domain, or a confirmed address could grant at once,
+in `org_verification_confirm`), or people read the check as LangQuest
+vouching for an organization's material.
+
+Amended (2026-10-27, Caleb Koster): staff keep looking at every request
+before granting it. Caleb chose this over granting once the email is
+confirmed: "one look at each request stops look-alikes, such as someone with
+a university email claiming that university." The Manage card loses its
+"Ask for a blue check" and "Verified · domain" lines, which Caleb found
+cluttered: the check after the name is the button, grey for an admin until
+it is granted (it opens the request), blue for every member once it is (it
+opens what it means). The long explanation is one sentence in the style of
+other sites' notes on their checks: "A blue check means the LangQuest team
+has verified this organization. It is not an approval or endorsement of what
+the organization publishes."
+
+## 174. Publishers bring their own material in with an importer LangQuest staff turn on for their organization; the server builds it and their admin publishes it
+
+Date: 2026-10-26 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-26) wants publishers to make their own LangQuest
+organizations and host their material there, with "special access to a
+custom content-importing tool for their own organization's externally stored
+content": Word Collective's FIA, unfoldingWord's Door43. LangQuest's library
+held copies of both until now (62, 147). Built (docs/publisher-imports.md):
+- **Staff turn it on.** `org_importers` names an organization's importer and
+  where it reads from (for `fia`, the GitHub owner of Bible Aquifer's FIA
+  repositories). Staff grant and revoke it with `npm run publisher-import`,
+  after checking that the organization owns that material (its blue check,
+  173).
+- **The admin asks.** Someone with Manage Reference at the organization's
+  level sees "Import from FIA" under Setup → Reference Material, chooses
+  languages and starts a run (`import_request`); one open run per importer.
+- **The server builds it.** The app Worker's ten-minute schedule takes the
+  oldest open run (`import_run_next`, held 15 minutes) and builds one
+  language a step from Aquifer's public repositories into the same
+  `study@1` guides, with their audio, key terms, pictures and maps, and the
+  same `collection@1` per language that the seed makes from fia.bible's API
+  (`server/fiaAquifer.ts`). Aquifer is the source because it is public and
+  needs no key; Word Collective's own API would need one. A language that
+  fails three times fails the run.
+- **Nobody reads what a run made until the admin publishes it.** A run keeps
+  its documents under its own key in `library_document_access`
+  (`_import.<run id>`), so `_library_store` checks them as it checks any
+  organization's, and no person is a member of that key. Publish moves the
+  rows to the organization (`import_run_accept`), and the admin's app appends
+  `v1.LibraryItemDefined` and `v1.LibraryVersionPublished`, shared for
+  following unless the admin says not to. So 62 holds: the server writes into
+  no organization's library; the events are the admin's.
+- Where a run stands is worked out from its times, never stored (invariant 5).
+Measured on the local stack: English FIA is 1,523 guides and 47 MB of
+documents, built in 48 seconds; French took 27 seconds, 6 seconds of CPU and
+a 57 MB heap, inside a Worker's limits.
+Not yet: the Door43 importer (its converters are on the unmerged branch
+`claude/project-thread-ipwajx`, and 450 MB of documents from zip files need
+the job container of 141, not the Worker); and what happens to LangQuest's
+own copies of FIA, which teams follow, once Word Collective publishes its own
+(Caleb to decide: moving followers changes their data).
+Reverse if: a publisher's material sits behind a key (then the importer needs
+the organization's secret, kept like the Worker's), or imports outgrow the
+Worker's schedule (then they move to a container job).
+
+Amended (2026-10-27, Caleb Koster): Caleb asked that a publisher can tap the
+importer again to bring in what its source added, with "some indicator ... of
+'detected x new content'". Each language a run builds keeps the source's own
+names for the guides it took (`import_run_parts`; Aquifer names a guide with
+its version, "eng-1ch-p17-v1.1"). Once a day the Worker's schedule reads the
+`metadata.json` of each published language (`checkImports`,
+`import_check_next`, `import_check_save`) and counts guides for passages the
+import did not have and guides at a new version; the importer's row says
+"16 new or updated guides since your last import" with a New badge, and its
+sheet ticks those languages. Importing a language again rebuilds it whole,
+but unchanged guides are the same documents (they are named by their
+content), so only what changed is new, and followers get it as an update.
+Publishing a run clears what it took from the count. Only the importer's own
+organization sees its importer: unfoldingWord would see its own Door43
+importer, once it is built.
+
+## 175. An organization can move a library item to another organization: the other takes it, and the server moves the item's followers to its copy
+
+Date: 2026-10-27 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb (2026-10-27) asked for "some mechanism by which to transfer the
+hosting of content from one organization to another", after publishers got
+organizations of their own (173, 174): LangQuest's own FIA copies, which
+teams follow, should be able to go to Word Collective. Built
+(docs/library.md, "Moving an item to another organization"):
+- **Offer.** Someone who manages that kind of item at its organization
+  offers it to another organization, found by name among those that share
+  material, have a blue check or list a language (`library_move_offer`,
+  `library_move_targets`). One open offer an item; it can be taken back
+  until it is taken.
+- **Take.** Someone who manages that kind at the other organization sees it
+  under "Offered to you" on the page for that kind, and takes it as a new
+  item or in place of one of its own of the same kind, or turns it down
+  (`library_move_accept`, `library_move_decline`). As a new item, the server
+  gives the organization every version's documents and their app publishes
+  them, oldest first, under the old item's name; either way their app shares
+  the item for following. If that organization followed the old item, it
+  stops and archives the item that followed it: the item is its own now.
+- **The server moves the followers.** When the new item's version or sharing
+  lands, `_library_move_land` (called from `_apply_library_event`) appends,
+  as `server`, a `v1.LibrarySubscribed` to every organization that follows
+  the old item, naming the new one (same local item, same settings), a
+  `v1.LibraryPinned` to its version for those that take updates
+  automatically, and to the old organization `v1.LibrarySharingSet` (not
+  shared) and `v1.LibraryItemArchived`. This is how `_library_fan_out` already
+  pins automatic updates in followers' streams; both organizations agreed
+  and the followers asked to follow the item, so it is not the server
+  writing an organization's library on its own (62). Languages that use the
+  item keep their item ids. No new event type: the move itself is the
+  server's own state (`library_moves`, its state worked out from its times).
+- An item that follows a moved item keeps its local id (`sub.<old org>...`),
+  so "already following" is now looked up by the subscription's source
+  (core `followerItemId`), not worked out from the id.
+Not yet: moving several items at once, and a note in a follower's app that
+the item moved (its line says the new organization, with its blue check).
+Reverse if: an organization objects to its followers being moved without
+being asked (then the move would offer each follower the switch instead), or
+moves are wanted between organizations that cannot find each other.

@@ -33,7 +33,7 @@ export function MaterialPicker(props: {
         <Group>
           {rows.map((x, i) => (
             <HelpRow key={x.key} of={`newLanguage.material.${kind}`}>
-              <CheckRow label={x.label} sub={x.sub} checked={props.on(x.key)} last={i === rows.length - 1}
+              <CheckRow label={x.label} sub={x.sub} subOrg={x.shared ? { name: x.shared.org_name, id: x.shared.org_id } : null} checked={props.on(x.key)} last={i === rows.length - 1}
                 detail={props.on(x.key) ? t('org.newLanguage.material.onHelp', { language: props.team }) : t('org.newLanguage.material.offHelp', { language: props.team })}
                 onToggle={() => props.onToggle(x.key)} />
             </HelpRow>

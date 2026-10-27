@@ -7524,5 +7524,215 @@
       "equals": "Sawa na",
       "point": "Nukta ya desimali"
     }
+  },
+  "verified": {
+    "sealLabel": "Shirika lililothibitishwa",
+    "sealLabelDomain": "Shirika lililothibitishwa: {{domain}}",
+    "title": "Alama ya bluu",
+    "meaning": "Alama ya bluu inamaanisha timu ya LangQuest imethibitisha shirika hili. Si idhini wala uungaji mkono wa kile ambacho shirika linachapisha.",
+    "problem": {
+      "notAllowed": "Msimamizi wa shirika pekee ndiye anayeweza kuomba alama ya bluu.",
+      "badDomain": "Andika anwani ya tovuti, kama example.org.",
+      "publicDomain": "Tumia tovuti ya shirika lako, si huduma ya barua pepe ya bure.",
+      "badEmail": "Andika anwani kamili ya barua pepe.",
+      "emailNotAtDomain": "Anwani ya barua pepe lazima iishe kwa @{{domain}}.",
+      "alreadyVerified": "{{org}} tayari ina alama ya bluu.",
+      "waiting": "Ombi tayari linasubiri LangQuest.",
+      "tooSoon": "Subiri dakika moja, kisha uombe msimbo mwingine.",
+      "tooMany": "Misimbo mingi mno leo. Jaribu tena kesho.",
+      "noEmail": "LangQuest haiwezi kutuma barua pepe sasa. Jaribu tena baadaye.",
+      "offline": "Huna mtandao. Unganisha kwenye intaneti na ujaribu tena.",
+      "sendFailed": "Barua pepe haikutumwa. Jaribu tena."
+    },
+    "code": {
+      "wrong": "Msimbo huo si sahihi. Angalia barua pepe na ujaribu tena.",
+      "expired": "Muda wa msimbo huo umeisha. Tuma mpya.",
+      "tooManyWrong": "Majaribio mengi yasiyo sahihi. Tuma msimbo mpya.",
+      "sixDigits": "Msimbo una tarakimu 6.",
+      "confirm": "Thibitisha",
+      "confirmHelp": "Inakagua msimbo. Kisha LangQuest inaangalia ombi.",
+      "sentTo": "Tumetuma msimbo wa tarakimu 6 kwa {{email}}. Uandike hapa.",
+      "label": "Msimbo kutoka kwenye barua pepe",
+      "help": "Tarakimu 6 kutoka kwenye barua pepe ambayo LangQuest ilituma.",
+      "again": "Tuma msimbo mpya",
+      "againHelp": "Inatuma msimbo mpya kwa anwani ileile.",
+      "change": "Tumia anwani nyingine",
+      "changeHelp": "Inarudi ili uandike tovuti au anwani nyingine ya barua pepe."
+    },
+    "ask": {
+      "send": "Nitumie msimbo",
+      "sendHelp": "Inatuma msimbo wa tarakimu 6 kwa anwani hiyo, kuthibitisha kuwa ni yako.",
+      "domain": "Tovuti ya shirika lako",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "Tovuti ambayo shirika lako linaendesha, kama example.org.",
+      "email": "Barua pepe yako kwenye tovuti hiyo",
+      "emailPlaceholder": "wewe@{{domain}}",
+      "emailHelp": "Anwani ya barua pepe kwenye tovuti hiyo. LangQuest inatuma msimbo huko."
+    },
+    "done": {
+      "title": "Limethibitishwa",
+      "sub": "{{domain}} · tangu {{date}}"
+    },
+    "declined": {
+      "title": "LangQuest haikuongeza alama ya bluu",
+      "body": "Unaweza kuomba tena kwa tovuti au anwani nyingine."
+    },
+    "waiting": {
+      "title": "Inasubiri LangQuest",
+      "body": "{{email}} imethibitishwa. Timu ya LangQuest itakagua ombi lako la {{domain}}.",
+      "withdraw": "Ondoa ombi",
+      "withdrawHelp": "Inaghairi ombi. Unaweza kuomba tena baadaye."
+    },
+    "row": {
+      "verifiedHelp": "Alama ya bluu: maana yake na lini iliongezwa.",
+      "ask": "Omba alama ya bluu",
+      "askHelp": "Omba LangQuest alama ya bluu, ili kila mtu aone kwamba hili ndilo shirika halisi."
+    }
+  },
+  "imports": {
+    "title": "Leta kutoka {{name}}",
+    "languages": {
+      "zhs": "Kichina (Rahisi)",
+      "zht": "Kichina (cha Jadi)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Leta miongozo ya kujifunza ya FIA kwenye maktaba ya {{org}} kutoka Bible Aquifer, ambako imechapishwa. Chagua lugha. LangQuest inaandaa miongozo kwenye seva yake, kisha wewe unaikagua na kuichapisha.",
+      "from": "Kutoka {{source}}"
+    },
+    "choose": {
+      "languages_one": "Lugha · {{count, number}} imechaguliwa",
+      "languages_other": "Lugha · {{count, number}} zimechaguliwa",
+      "start_one": "Leta lugha {{count, number}}",
+      "start_other": "Leta lugha {{count, number}}",
+      "pickOne": "Chagua lugha",
+      "startHelp": "LangQuest inaanza kuandaa miongozo. Kila lugha huchukua dakika chache, na inaendelea hata ukifunga hapa.",
+      "inLibrary": "Iko kwenye maktaba yako",
+      "updateHelp": "Lugha hii tayari iko kwenye maktaba yako. Kuileta tena kunaleta toleo jipya la FIA.",
+      "languageHelp": "Weka alama ili kuleta miongozo ya FIA katika lugha hii.",
+      "newsLine_one": "Iko kwenye maktaba yako · mwongozo {{count, number}} mpya au uliosasishwa",
+      "newsLine_other": "Iko kwenye maktaba yako · miongozo {{count, number}} mipya au iliyosasishwa"
+    },
+    "building": {
+      "waiting": "Inasubiri kuanza",
+      "importing": "Inaleta",
+      "body": "LangQuest inaandaa miongozo kwenye seva yake. Unaweza kufunga hapa, itaendelea. Rudi uichapishe.",
+      "progress": "Lugha zilizokamilika: {{done, number}} kati ya {{total, number}}",
+      "stop": "Simamisha uletaji huu",
+      "stopHelp": "Inasimamisha uandaaji. Hakuna kinachoongezwa kwenye maktaba yako."
+    },
+    "ready": {
+      "intro": "Tayari. Bado hakuna kitu kwenye maktaba yako: kagua kilichoandaliwa, kisha ukichapishe.",
+      "guides_one": "Mwongozo {{count, number}} wa kujifunza",
+      "guides_other": "Miongozo {{count, number}} ya kujifunza",
+      "new": "Mpya",
+      "update": "Sasisho",
+      "share": "Shiriki na mashirika mengine",
+      "shareSub": "Yanaweza kuifuata, na kila uletaji mpya unayafikia kama sasisho.",
+      "publish_one": "Chapisha kipengele {{count, number}}",
+      "publish_other": "Chapisha vipengele {{count, number}}",
+      "publishHelp": "Inaviongeza kwenye maktaba yako kama vya shirika lako, vikishirikiwa ukichagua hivyo.",
+      "setAside": "Usichapishe uletaji huu",
+      "setAsideHelp": "Inatupa kile uletaji huu ulichoandaa. Maktaba yako inabaki kama ilivyo."
+    },
+    "done": {
+      "title_one": "Kipengele {{count, number}} kimechapishwa",
+      "title_other": "Vipengele {{count, number}} vimechapishwa",
+      "body": "Sasa kiko kwenye maktaba yako, chini ya Nyenzo za Marejeo."
+    },
+    "failed": {
+      "title": "Uletaji wa mwisho ulisimama",
+      "body": "Jaribu tena. Ukisimama tena, iambie LangQuest kupitia Tuma maoni."
+    },
+    "problem": {
+      "running": "Uletaji mwingine unaendelea. Subiri umalizike, au uusimamishe kwanza.",
+      "noImporter": "LangQuest imezima zana hii ya kuleta kwa shirika lako.",
+      "notAllowed": "Ni anayesimamia nyenzo za marejeo tu anayeweza kuleta.",
+      "notReady": "Uletaji huu bado haujawa tayari.",
+      "offline": "Imeshindwa kufikia LangQuest. Angalia muunganisho wako ujaribu tena."
+    },
+    "row": {
+      "label": "Leta kutoka {{name}}",
+      "waiting": "Inasubiri kuanza",
+      "importing": "Inaleta · lugha {{done, number}} kati ya {{total, number}}",
+      "ready_one": "Tayari kuchapishwa · kipengele {{count, number}}",
+      "ready_other": "Tayari kuchapishwa · vipengele {{count, number}}",
+      "failed": "Uletaji wa mwisho ulisimama",
+      "from": "Nyenzo zako, kutoka {{source}}",
+      "readyBadge": "Tayari",
+      "help": "Inafungua zana ya kuleta ambayo LangQuest imewasha kwa shirika lako: leta nyenzo zako kutoka unakozihifadhi.",
+      "news_one": "Mwongozo {{count, number}} mpya au uliosasishwa tangu uingizaji wako wa mwisho",
+      "news_other": "Miongozo {{count, number}} mipya au iliyosasishwa tangu uingizaji wako wa mwisho",
+      "newBadge": "Mpya"
+    },
+    "news": {
+      "title_one": "Mwongozo {{count, number}} mpya au uliosasishwa",
+      "title_other": "Miongozo {{count, number}} mipya au iliyosasishwa",
+      "body": "Chanzo kimeiongeza au kuibadilisha tangu uingizaji wako wa mwisho. Lugha zake zimewekwa alama hapa chini. Ingiza ili kuileta."
+    }
+  },
+  "moves": {
+    "offers": {
+      "title": "Mapendekezo kwako",
+      "from": "{{org}} inataka usimamie hiki",
+      "finishing": "Umekipokea. Timu zinazokifuata zinahamishwa.",
+      "badge": "Pendekezo",
+      "help": "Hufungua pendekezo: kipokee ili ukisimamie hapa, au ukatae."
+    },
+    "offer": {
+      "title": "Je, utasimamia {{name}}?",
+      "body": "{{from}} inataka {{org}} isimamie hiki kuanzia sasa.",
+      "after": "Ukikipokea, kinakuwa chako. Timu zinazokifuata zitafuata nakala yako, na {{from}} itaacha kushiriki nakala yake.",
+      "asNew": "Kama kipengele kipya",
+      "asNewHelp": "Hukiongeza kwenye maktaba yako pamoja na matoleo yake yote.",
+      "inPlace": "Badala ya kimojawapo cha vyako",
+      "inPlaceHelp": "Timu zinazokifuata zitafuata badala yake kimojawapo cha vipengele vyako. Chagua kipi.",
+      "placeHelp": "Timu zinazokifuata zitafuata kipengele hiki.",
+      "take": "Kipokee",
+      "takeInto": "Kipokee badala ya {{name}}",
+      "finish": "Maliza kukipokea",
+      "takeHelp": "Hukifanya kuwa chako hapa na kukishiriki, ili timu zinazokifuata ziweze kufuata nakala yako.",
+      "decline": "Usikipokee",
+      "declineHelp": "Hukataa pendekezo. Hakuna kinachobadilika.",
+      "taken": "{{name}} sasa ni chako",
+      "declinedToast": "Umekataa. {{org}} itaona."
+    },
+    "item": {
+      "move": "Hamishia shirika lingine",
+      "moveHelp": "Hukipendekeza kwa shirika lingine ili likisimamie. Hakuna kinachobadilika hadi wakipokee.",
+      "offered": "Kimependekezwa kwa {{org}}",
+      "offeredBody": "Kinasubiri mtu wa {{org}} akipokee. Hakuna kinachobadilika hadi wakati huo.",
+      "offeredToast": "Kimependekezwa kwa {{org}}",
+      "withdraw": "Ondoa pendekezo",
+      "withdrawHelp": "Inaghairi pendekezo. Hakuna kinachobadilika.",
+      "accepted": "{{org}} imekipokea",
+      "acceptedBody": "Inahamisha timu zinazokifuata kwenda nakala ya {{org}}.",
+      "moved": "Kimehamishiwa {{org}}",
+      "movedBody_one": "Mnamo {{date}}. Timu {{count, number}} iliyokifuata sasa inafuata nakala yao. Nakala yako haishirikiwi tena.",
+      "movedBody_other": "Mnamo {{date}}. Timu {{count, number}} zilizokifuata sasa zinafuata nakala yao. Nakala yako haishirikiwi tena.",
+      "declined": "{{org}} haikukipokea."
+    },
+    "sheet": {
+      "title": "Hamisha {{name}}",
+      "sub": "Kwenda shirika lingine",
+      "intro": "Tafuta shirika linalopaswa kusimamia hiki. Utapata mashirika yanayoshiriki nyenzo, yenye alama ya bluu, au yaliyoorodhesha lugha.",
+      "search": "Jina la shirika",
+      "searchHelp": "Andika angalau herufi 2 za jina lake.",
+      "none": "Hakuna shirika lililopatikana kwa jina hilo.",
+      "orgHelp": "Huchagua shirika hili.",
+      "what": "Mtu wa {{org}} anayesimamia aina hii ya nyenzo lazima akipokee. Kisha {{org}} itasimamia {{name}}, na timu zinazokifuata zitafuata nakala ya {{org}}.",
+      "stays": "Nakala yako inaacha kushirikiwa na inawekwa kwenye hifadhi. Lugha za hapa zinazoitumia zinabaki nayo.",
+      "offer": "Pendekeza kwa {{org}}",
+      "offerHelp": "Hutuma pendekezo. Hakuna kinachobadilika hadi wakipokee."
+    },
+    "problem": {
+      "open": "Hiki tayari kimependekezwa. Ondoa pendekezo hilo kwanza.",
+      "noItem": "Hiki hakiwezi kuhamishwa: bado hakina toleo, au kinafuata shirika lingine.",
+      "noOrg": "Shirika hilo halikupatikana.",
+      "notAllowed": "Ni anayesimamia aina hii ya nyenzo tu anayeweza kufanya hivi.",
+      "notOpen": "Pendekezo hili liliondolewa au tayari limeshamalizwa.",
+      "badItem": "Chagua kimojawapo cha vipengele vyako vya aina hiyo hiyo.",
+      "offline": "Imeshindwa kufikia LangQuest. Angalia muunganisho wako ujaribu tena."
+    }
   }
 }

@@ -5,8 +5,8 @@ import { isJobKey, type JobKey } from './jobsModel';
 
 /**
  * The few things the ops dashboard may do (docs/ops-dashboard-plan.md
- * section 6, decisions.md 162): mark feedback seen or done, and run a
- * server job now. The dashboard's own Worker holds no writer's key; it
+ * section 6, decisions.md 162): mark feedback seen or done, run a server
+ * job now, and grant or decline an organization's blue check (173). The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer
  * on an `aal2` session) before acting with the service role. Every attempt
@@ -16,7 +16,8 @@ import { isJobKey, type JobKey } from './jobsModel';
 
 export type Action =
   | { kind: 'feedback'; id: string; status: 'new' | 'seen' | 'done' }
-  | { kind: 'run'; key: JobKey };
+  | { kind: 'run'; key: JobKey }
+  | { kind: 'verification'; id: string; decision: 'grant' | 'decline' };
 
 export type ActionResult =
   | { ok: true; result: string }
@@ -29,6 +30,8 @@ export interface ActionDeps {
   globalViewerOn(profileId: string, aal: string | undefined): Promise<boolean>;
   setFeedbackStatus(id: string, status: 'new' | 'seen' | 'done'): Promise<boolean>;
   runJob(key: JobKey): Promise<'started' | 'running' | 'disabled'>;
+  /** A waiting blue check request granted or declined, by this staff member: `granted`, `declined`, or why not. */
+  decideVerification(id: string, grant: boolean, profileId: string): Promise<string>;
   record(row: { profileId: string; action: string; target: string; result: 'ok' | 'refused' | 'error'; detail?: string }): Promise<void>;
 }
 
@@ -42,6 +45,8 @@ export function parseAction(input: unknown): Action | null {
     return { kind: 'feedback', id: a.id, status: a.status };
   }
   if (a.kind === 'run' && typeof a.key === 'string' && isJobKey(a.key)) return { kind: 'run', key: a.key };
+  const d = (input as { decision?: unknown }).decision;
+  if (a.kind === 'verification' && typeof a.id === 'string' && UUID.test(a.id) && (d === 'grant' || d === 'decline')) return { kind: 'verification', id: a.id, decision: d };
   return null;
 }
 
@@ -50,8 +55,8 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
   if (!action) return { ok: false, status: 400, error: 'Not an action the ops dashboard may take.' };
   const who = token ? await deps.whoIs(token) : null;
   if (!who) return { ok: false, status: 401, error: 'Your sign-in ended. Sign in again.' };
-  const name = action.kind === 'feedback' ? `feedback_${action.status}` : 'run_job';
-  const target = action.kind === 'feedback' ? action.id : action.key;
+  const name = action.kind === 'feedback' ? `feedback_${action.status}` : action.kind === 'verification' ? `verification_${action.decision}` : 'run_job';
+  const target = action.kind === 'run' ? action.key : action.id;
   if (!(await deps.globalViewerOn(who.profileId, who.aal))) {
     await deps.record({ profileId: who.profileId, action: name, target, result: 'refused' }).catch(() => {});
     return { ok: false, status: 403, error: 'Only Global Viewers on a session verified with their authenticator may act here.' };
@@ -61,6 +66,13 @@ export async function act(deps: ActionDeps, token: string, input: unknown): Prom
       const found = await deps.setFeedbackStatus(action.id, action.status);
       await deps.record({ profileId: who.profileId, action: name, target, result: found ? 'ok' : 'refused', ...(found ? {} : { detail: 'not_found' }) });
       return found ? { ok: true, result: action.status } : { ok: false, status: 404, error: 'No feedback has that id.' };
+    }
+    if (action.kind === 'verification') {
+      const answer = await deps.decideVerification(action.id, action.decision === 'grant', who.profileId);
+      const done = answer === (action.decision === 'grant' ? 'granted' : 'declined');
+      await deps.record({ profileId: who.profileId, action: name, target, result: done ? 'ok' : 'refused', ...(done ? {} : { detail: answer }) });
+      return done ? { ok: true, result: answer } : answer === 'not_found' ? { ok: false, status: 404, error: 'No request has that id.' }
+        : { ok: false, status: 400, error: 'That request is not waiting for staff.' };
     }
     const result = await deps.runJob(action.key);
     await deps.record({ profileId: who.profileId, action: name, target, result: result === 'started' ? 'ok' : 'refused', detail: result });
@@ -98,6 +110,11 @@ export function actionDeps(env: Env): ActionDeps {
       return data === true;
     },
     runJob: (key) => env.JOBS.get(env.JOBS.idFromName(key)).run({}),
+    decideVerification: async (id, grant, profileId) => {
+      const { data, error } = await db().rpc('org_verification_decide', { p_request: id, p_grant: grant, p_by: profileId });
+      if (error) throw new Error(`org_verification_decide: ${error.message}`);
+      return String(data);
+    },
     record: async (row) => {
       const { error } = await db().rpc('ops_record_action', {
         p_profile: row.profileId, p_action: row.action, p_target: row.target, p_result: row.result, p_detail: row.detail ?? null

@@ -2,7 +2,7 @@
 // an action writes and which languages need to move to a newer version. Kept
 // free of React Native so it can be tested.
 import {
-  libraryItemView, privilegesFor, subscriptionItemId, type EventPayloads, type LibraryItemState, type LibraryKind, type LanguageState, type OrgState,
+  followerItemId, libraryItemView, privilegesFor, type EventPayloads, type LibraryItemState, type LibraryKind, type LanguageState, type OrgState,
   type Privilege
 } from '@langquest-next/core';
 import { t } from '../i18n';
@@ -85,9 +85,13 @@ export function copyOps(shared: SharedItem, itemId: string, docHash = shared.lat
   ];
 }
 
-/** Follow another organization's item, starting at its latest version. */
-export function subscribeOps(shared: SharedItem, autoUpdate: boolean): { itemId: string; ops: LibraryOp[] } {
-  const itemId = subscriptionItemId(shared.org_id, shared.item_id);
+/**
+ * Follow another organization's item, starting at its latest version: as
+ * the item that already follows it here, if one does (stopped, or moved
+ * here from another organization, decisions.md 175).
+ */
+export function subscribeOps(shared: SharedItem, autoUpdate: boolean, library: Record<string, LibraryItemState> = {}): { itemId: string; ops: LibraryOp[] } {
+  const itemId = followerItemId(library, shared.org_id, shared.item_id);
   return {
     itemId,
     ops: [
@@ -146,6 +150,13 @@ export function behindLibrary(state: LanguageState, library: Record<string, Libr
 /** Whether the language uses an item as its template or flow, for "used by" lines and the flow editor's warning (FLOW-3). */
 export function usesItem(state: LanguageState | null, itemId: string): boolean {
   return !!state && (state.template?.value.itemId === itemId || state.flow?.value.itemId === itemId);
+}
+
+/** The organization an item comes from, by name and id, for its blue check (decisions.md 173); null for one made here. */
+export function sourceOrg(it: ReturnType<typeof libraryItemView>): { name: string; id: string } | null {
+  if (it?.source === 'subscription' && it.subscription) return { name: it.subscription.sourceOrgName, id: it.subscription.sourceOrgId };
+  if (it?.source === 'copy' && it.copiedFrom) return { name: it.copiedFrom.orgName, id: it.copiedFrom.orgId };
+  return null;
 }
 
 /** "Version 3 · copied from LangQuest", "Following LangQuest · updates automatically", for a line under a name. */

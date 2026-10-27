@@ -7524,5 +7524,215 @@
       "equals": "Equals",
       "point": "Decimal point"
     }
+  },
+  "verified": {
+    "sealLabel": "Verified organization",
+    "sealLabelDomain": "Verified organization: {{domain}}",
+    "title": "Blue check",
+    "meaning": "A blue check means the LangQuest team has verified this organization. It is not an approval or endorsement of what the organization publishes.",
+    "problem": {
+      "notAllowed": "Only an organization admin can ask for the blue check.",
+      "badDomain": "Type the website's address, like example.org.",
+      "publicDomain": "Use your organization's own website, not a free email service.",
+      "badEmail": "Type a whole email address.",
+      "emailNotAtDomain": "The email address must end with @{{domain}}.",
+      "alreadyVerified": "{{org}} already has the blue check.",
+      "waiting": "A request is already waiting for LangQuest.",
+      "tooSoon": "Wait a minute, then ask for another code.",
+      "tooMany": "Too many codes for today. Try again tomorrow.",
+      "noEmail": "LangQuest cannot send email right now. Try again later.",
+      "offline": "You're offline. Connect to the internet and try again.",
+      "sendFailed": "The email did not go. Try again."
+    },
+    "code": {
+      "wrong": "That code is not right. Check the email and try again.",
+      "expired": "That code has run out. Send a new one.",
+      "tooManyWrong": "Too many wrong tries. Send a new code.",
+      "sixDigits": "The code has 6 digits.",
+      "confirm": "Confirm",
+      "confirmHelp": "Checks the code. Then LangQuest looks at the request.",
+      "sentTo": "We emailed a 6-digit code to {{email}}. Type it here.",
+      "label": "Code from the email",
+      "help": "The 6 digits from the email LangQuest sent.",
+      "again": "Send a new code",
+      "againHelp": "Emails a new code to the same address.",
+      "change": "Use a different address",
+      "changeHelp": "Goes back to type another website or email address."
+    },
+    "ask": {
+      "send": "Email me a code",
+      "sendHelp": "Emails a 6-digit code to that address, to prove it is yours.",
+      "domain": "Your organization's website",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "The website your organization runs, like example.org.",
+      "email": "Your email at that website",
+      "emailPlaceholder": "you@{{domain}}",
+      "emailHelp": "An email address at that website. LangQuest sends the code there."
+    },
+    "done": {
+      "title": "Verified",
+      "sub": "{{domain}} · since {{date}}"
+    },
+    "declined": {
+      "title": "LangQuest did not add the blue check",
+      "body": "You can ask again with a different website or address."
+    },
+    "waiting": {
+      "title": "Waiting for LangQuest",
+      "body": "{{email}} is confirmed. The LangQuest team will review your request for {{domain}}.",
+      "withdraw": "Take back the request",
+      "withdrawHelp": "Cancels the request. You can ask again later."
+    },
+    "row": {
+      "verifiedHelp": "The blue check: what it means and when it was added.",
+      "ask": "Ask for a blue check",
+      "askHelp": "Ask LangQuest for a blue check, so everyone can see this is the real organization."
+    }
+  },
+  "imports": {
+    "title": "Import from {{name}}",
+    "languages": {
+      "zhs": "Chinese (Simplified)",
+      "zht": "Chinese (Traditional)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Bring FIA's study guides into {{org}}'s library from Bible Aquifer, where they are published. Choose the languages. LangQuest builds the guides on its server, then you check them and publish them.",
+      "from": "From {{source}}"
+    },
+    "choose": {
+      "languages_one": "Languages · {{count, number}} chosen",
+      "languages_other": "Languages · {{count, number}} chosen",
+      "start_one": "Import {{count, number}} language",
+      "start_other": "Import {{count, number}} languages",
+      "pickOne": "Choose a language",
+      "startHelp": "LangQuest starts building the guides. Each language takes a few minutes, and it goes on after you close this.",
+      "inLibrary": "In your library",
+      "updateHelp": "This language is already in your library. Importing it again brings in FIA's latest as a new version.",
+      "languageHelp": "Tick it to bring in FIA's guides in this language.",
+      "newsLine_one": "In your library · {{count, number}} new or updated guide",
+      "newsLine_other": "In your library · {{count, number}} new or updated guides"
+    },
+    "building": {
+      "waiting": "Waiting to start",
+      "importing": "Importing",
+      "body": "LangQuest is building the guides on its server. You can close this, and it keeps going. Come back to publish them.",
+      "progress": "Languages done: {{done, number}} of {{total, number}}",
+      "stop": "Stop this import",
+      "stopHelp": "Stops building. Nothing is added to your library."
+    },
+    "ready": {
+      "intro": "Ready. Nothing is in your library yet: check what was made, then publish it.",
+      "guides_one": "{{count, number}} study guide",
+      "guides_other": "{{count, number}} study guides",
+      "new": "New",
+      "update": "Update",
+      "share": "Share with other organizations",
+      "shareSub": "They can follow it, and each new import reaches them as an update.",
+      "publish_one": "Publish {{count, number}} item",
+      "publish_other": "Publish {{count, number}} items",
+      "publishHelp": "Adds these to your library as your organization's own, shared if you chose that.",
+      "setAside": "Don't publish this import",
+      "setAsideHelp": "Throws away what this import made. Your library stays as it is."
+    },
+    "done": {
+      "title_one": "Published {{count, number}} item",
+      "title_other": "Published {{count, number}} items",
+      "body": "It is in your library now, under Reference Material."
+    },
+    "failed": {
+      "title": "The last import stopped",
+      "body": "Try again. If it stops again, tell LangQuest with Send feedback."
+    },
+    "problem": {
+      "running": "An import is already going. Wait for it to finish, or stop it first.",
+      "noImporter": "LangQuest turned this importer off for your organization.",
+      "notAllowed": "Only someone who manages reference material can import.",
+      "notReady": "This import is not ready yet.",
+      "offline": "Could not reach LangQuest. Check your connection and try again."
+    },
+    "row": {
+      "label": "Import from {{name}}",
+      "waiting": "Waiting to start",
+      "importing": "Importing · {{done, number}} of {{total, number}} languages",
+      "ready_one": "Ready to publish · {{count, number}} item",
+      "ready_other": "Ready to publish · {{count, number}} items",
+      "failed": "The last import stopped",
+      "from": "Your material, from {{source}}",
+      "readyBadge": "Ready",
+      "help": "Opens the importer LangQuest turned on for your organization: bring in your own material from where you keep it.",
+      "news_one": "{{count, number}} new or updated guide since your last import",
+      "news_other": "{{count, number}} new or updated guides since your last import",
+      "newBadge": "New"
+    },
+    "news": {
+      "title_one": "{{count, number}} new or updated guide",
+      "title_other": "{{count, number}} new or updated guides",
+      "body": "The source added or changed them since your last import. Their languages are ticked below. Import to bring them in."
+    }
+  },
+  "moves": {
+    "offers": {
+      "title": "Offered to you",
+      "from": "{{org}} wants you to host this",
+      "finishing": "Taken. Moving the teams that follow it.",
+      "badge": "Offer",
+      "help": "Opens the offer: take it to host it here, or turn it down."
+    },
+    "offer": {
+      "title": "Host {{name}}?",
+      "body": "{{from}} wants {{org}} to host this from now on.",
+      "after": "If you take it, it becomes yours. Teams that follow it will follow your copy, and {{from}} stops sharing theirs.",
+      "asNew": "As a new item",
+      "asNewHelp": "Adds it to your library with all its versions.",
+      "inPlace": "In place of one of yours",
+      "inPlaceHelp": "Teams that follow it will follow one of your own items instead. Choose which.",
+      "placeHelp": "Teams that follow it will follow this item.",
+      "take": "Take it",
+      "takeInto": "Take it in place of {{name}}",
+      "finish": "Finish taking it",
+      "takeHelp": "Makes it yours here and shares it, so the teams that follow it can follow your copy.",
+      "decline": "Don't take it",
+      "declineHelp": "Turns the offer down. Nothing changes.",
+      "taken": "{{name}} is yours now",
+      "declinedToast": "Turned down. {{org}} will see it."
+    },
+    "item": {
+      "move": "Move to another organization",
+      "moveHelp": "Offers this to another organization to host. Nothing changes until they take it.",
+      "offered": "Offered to {{org}}",
+      "offeredBody": "Waiting for someone at {{org}} to take it. Nothing changes until then.",
+      "offeredToast": "Offered to {{org}}",
+      "withdraw": "Take back the offer",
+      "withdrawHelp": "Cancels the offer. Nothing changes.",
+      "accepted": "{{org}} took it",
+      "acceptedBody": "Moving the teams that follow it to {{org}}'s copy.",
+      "moved": "Moved to {{org}}",
+      "movedBody_one": "On {{date}}. {{count, number}} team that followed it now follows their copy. Yours is no longer shared.",
+      "movedBody_other": "On {{date}}. {{count, number}} teams that followed it now follow their copy. Yours is no longer shared.",
+      "declined": "{{org}} didn't take it."
+    },
+    "sheet": {
+      "title": "Move {{name}}",
+      "sub": "To another organization",
+      "intro": "Find the organization that should host this. You'll find organizations that share material, have a blue check, or list a language.",
+      "search": "Organization name",
+      "searchHelp": "Type at least 2 letters of its name.",
+      "none": "No organization found with that name.",
+      "orgHelp": "Chooses this organization.",
+      "what": "Someone at {{org}} who manages this kind of material has to take it. Then {{org}} hosts {{name}}, and teams that follow it will follow {{org}}'s copy.",
+      "stays": "Your copy stops being shared and is archived. Languages here that use it keep it.",
+      "offer": "Offer to {{org}}",
+      "offerHelp": "Sends the offer. Nothing changes until they take it."
+    },
+    "problem": {
+      "open": "This is already offered. Take that offer back first.",
+      "noItem": "This can't be moved: it has no version yet, or it follows another organization.",
+      "noOrg": "That organization wasn't found.",
+      "notAllowed": "Only someone who manages this kind of material can do this.",
+      "notOpen": "This offer was taken back or is already settled.",
+      "badItem": "Choose one of your own items of the same kind.",
+      "offline": "Could not reach LangQuest. Check your connection and try again."
+    }
   }
 }

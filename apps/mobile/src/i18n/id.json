@@ -7204,5 +7204,205 @@
       "equals": "Sama dengan",
       "point": "Titik desimal"
     }
+  },
+  "verified": {
+    "sealLabel": "Organisasi terverifikasi",
+    "sealLabelDomain": "Organisasi terverifikasi: {{domain}}",
+    "title": "Centang biru",
+    "meaning": "Centang biru berarti tim LangQuest telah memverifikasi organisasi ini. Ini bukan persetujuan atau dukungan atas apa yang diterbitkan organisasi itu.",
+    "problem": {
+      "notAllowed": "Hanya admin organisasi yang bisa meminta centang biru.",
+      "badDomain": "Ketik alamat situs web, misalnya example.org.",
+      "publicDomain": "Gunakan situs web organisasi Anda sendiri, bukan layanan email gratis.",
+      "badEmail": "Ketik alamat email lengkap.",
+      "emailNotAtDomain": "Alamat email harus berakhiran @{{domain}}.",
+      "alreadyVerified": "{{org}} sudah punya centang biru.",
+      "waiting": "Sudah ada permintaan yang menunggu LangQuest.",
+      "tooSoon": "Tunggu satu menit, lalu minta kode lain.",
+      "tooMany": "Terlalu banyak kode hari ini. Coba lagi besok.",
+      "noEmail": "LangQuest belum bisa mengirim email sekarang. Coba lagi nanti.",
+      "offline": "Anda sedang offline. Sambungkan ke internet dan coba lagi.",
+      "sendFailed": "Email tidak terkirim. Coba lagi."
+    },
+    "code": {
+      "wrong": "Kode itu tidak benar. Periksa email dan coba lagi.",
+      "expired": "Kode itu sudah tidak berlaku. Kirim yang baru.",
+      "tooManyWrong": "Terlalu banyak percobaan yang salah. Kirim kode baru.",
+      "sixDigits": "Kode terdiri dari 6 angka.",
+      "confirm": "Konfirmasi",
+      "confirmHelp": "Memeriksa kode. Lalu LangQuest meninjau permintaan.",
+      "sentTo": "Kami mengirim kode 6 angka ke {{email}}. Ketik di sini.",
+      "label": "Kode dari email",
+      "help": "6 angka dari email yang dikirim LangQuest.",
+      "again": "Kirim kode baru",
+      "againHelp": "Mengirim kode baru ke alamat yang sama.",
+      "change": "Gunakan alamat lain",
+      "changeHelp": "Kembali untuk mengetik situs web atau alamat email lain."
+    },
+    "ask": {
+      "send": "Kirimi saya kode",
+      "sendHelp": "Mengirim kode 6 angka ke alamat itu, untuk membuktikan bahwa alamat itu milik Anda.",
+      "domain": "Situs web organisasi Anda",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "Situs web yang dikelola organisasi Anda, misalnya example.org.",
+      "email": "Email Anda di situs web itu",
+      "emailPlaceholder": "anda@{{domain}}",
+      "emailHelp": "Alamat email di situs web itu. LangQuest mengirim kodenya ke sana."
+    },
+    "done": {
+      "title": "Terverifikasi",
+      "sub": "{{domain}} · sejak {{date}}"
+    },
+    "declined": {
+      "title": "LangQuest tidak menambahkan centang biru",
+      "body": "Anda bisa meminta lagi dengan situs web atau alamat lain."
+    },
+    "waiting": {
+      "title": "Menunggu LangQuest",
+      "body": "{{email}} sudah dikonfirmasi. Tim LangQuest akan meninjau permintaan Anda untuk {{domain}}.",
+      "withdraw": "Tarik kembali permintaan",
+      "withdrawHelp": "Membatalkan permintaan. Anda bisa meminta lagi nanti."
+    },
+    "row": {
+      "verifiedHelp": "Centang biru: artinya dan kapan ditambahkan.",
+      "ask": "Minta centang biru",
+      "askHelp": "Minta centang biru kepada LangQuest, agar semua orang tahu bahwa ini organisasi yang asli."
+    }
+  },
+  "imports": {
+    "title": "Impor dari {{name}}",
+    "languages": {
+      "zhs": "Tionghoa (Sederhana)",
+      "zht": "Tionghoa (Tradisional)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Masukkan panduan belajar FIA ke perpustakaan {{org}} dari Bible Aquifer, tempat panduan itu diterbitkan. Pilih bahasanya. LangQuest menyiapkan panduan di servernya, lalu Anda memeriksa dan menerbitkannya.",
+      "from": "Dari {{source}}"
+    },
+    "choose": {
+      "languages_other": "Bahasa · {{count, number}} dipilih",
+      "start_other": "Impor {{count, number}} bahasa",
+      "pickOne": "Pilih satu bahasa",
+      "startHelp": "LangQuest mulai menyiapkan panduan. Tiap bahasa butuh beberapa menit, dan tetap berjalan setelah Anda menutup ini.",
+      "inLibrary": "Di perpustakaan Anda",
+      "updateHelp": "Bahasa ini sudah ada di perpustakaan Anda. Mengimpor lagi membawa versi FIA terbaru sebagai versi baru.",
+      "languageHelp": "Centang untuk memasukkan panduan FIA dalam bahasa ini.",
+      "newsLine_other": "Di perpustakaan Anda · {{count, number}} panduan baru atau diperbarui"
+    },
+    "building": {
+      "waiting": "Menunggu dimulai",
+      "importing": "Sedang mengimpor",
+      "body": "LangQuest sedang menyiapkan panduan di servernya. Anda boleh menutup ini, prosesnya tetap berjalan. Kembali lagi untuk menerbitkannya.",
+      "progress": "Bahasa selesai: {{done, number}} dari {{total, number}}",
+      "stop": "Hentikan impor ini",
+      "stopHelp": "Berhenti menyiapkan. Tidak ada yang ditambahkan ke perpustakaan Anda."
+    },
+    "ready": {
+      "intro": "Siap. Belum ada yang masuk ke perpustakaan Anda: periksa hasilnya, lalu terbitkan.",
+      "guides_other": "{{count, number}} panduan belajar",
+      "new": "Baru",
+      "update": "Pembaruan",
+      "share": "Bagikan ke organisasi lain",
+      "shareSub": "Mereka bisa mengikutinya, dan tiap impor baru sampai kepada mereka sebagai pembaruan.",
+      "publish_other": "Terbitkan {{count, number}} item",
+      "publishHelp": "Menambahkannya ke perpustakaan sebagai milik organisasi Anda, dibagikan jika Anda memilihnya.",
+      "setAside": "Jangan terbitkan impor ini",
+      "setAsideHelp": "Membuang hasil impor ini. Perpustakaan Anda tetap seperti sekarang."
+    },
+    "done": {
+      "title_other": "{{count, number}} item diterbitkan",
+      "body": "Sekarang sudah ada di perpustakaan Anda, di Bahan Rujukan."
+    },
+    "failed": {
+      "title": "Impor terakhir berhenti",
+      "body": "Coba lagi. Jika berhenti lagi, beri tahu LangQuest lewat Kirim masukan."
+    },
+    "problem": {
+      "running": "Sudah ada impor yang berjalan. Tunggu sampai selesai, atau hentikan dulu.",
+      "noImporter": "LangQuest mematikan alat impor ini untuk organisasi Anda.",
+      "notAllowed": "Hanya orang yang mengelola bahan rujukan yang bisa mengimpor.",
+      "notReady": "Impor ini belum siap.",
+      "offline": "Tidak bisa menghubungi LangQuest. Periksa koneksi Anda dan coba lagi."
+    },
+    "row": {
+      "label": "Impor dari {{name}}",
+      "waiting": "Menunggu dimulai",
+      "importing": "Mengimpor · {{done, number}} dari {{total, number}} bahasa",
+      "ready_other": "Siap diterbitkan · {{count, number}} item",
+      "failed": "Impor terakhir berhenti",
+      "from": "Bahan Anda, dari {{source}}",
+      "readyBadge": "Siap",
+      "help": "Membuka alat impor yang dinyalakan LangQuest untuk organisasi Anda: masukkan bahan Anda sendiri dari tempat Anda menyimpannya.",
+      "news_other": "{{count, number}} panduan baru atau diperbarui sejak impor terakhir",
+      "newBadge": "Baru"
+    },
+    "news": {
+      "title_other": "{{count, number}} panduan baru atau diperbarui",
+      "body": "Sumbernya menambah atau mengubahnya sejak impor terakhir Anda. Bahasanya sudah dicentang di bawah. Impor untuk membawanya masuk."
+    }
+  },
+  "moves": {
+    "offers": {
+      "title": "Ditawarkan kepada Anda",
+      "from": "{{org}} ingin Anda mengelola ini",
+      "finishing": "Diterima. Memindahkan tim yang mengikutinya.",
+      "badge": "Tawaran",
+      "help": "Membuka tawaran: terima untuk mengelolanya di sini, atau tolak."
+    },
+    "offer": {
+      "title": "Kelola {{name}}?",
+      "body": "{{from}} ingin {{org}} mengelola ini mulai sekarang.",
+      "after": "Jika Anda menerimanya, ini menjadi milik Anda. Tim yang mengikutinya akan mengikuti salinan Anda, dan {{from}} berhenti membagikan salinan mereka.",
+      "asNew": "Sebagai item baru",
+      "asNewHelp": "Menambahkannya ke perpustakaan Anda dengan semua versinya.",
+      "inPlace": "Menggantikan salah satu milik Anda",
+      "inPlaceHelp": "Tim yang mengikutinya akan mengikuti salah satu item Anda sendiri. Pilih yang mana.",
+      "placeHelp": "Tim yang mengikutinya akan mengikuti item ini.",
+      "take": "Terima",
+      "takeInto": "Terima sebagai pengganti {{name}}",
+      "finish": "Selesaikan penerimaan",
+      "takeHelp": "Menjadikannya milik Anda di sini dan membagikannya, agar tim yang mengikutinya dapat mengikuti salinan Anda.",
+      "decline": "Tolak",
+      "declineHelp": "Menolak tawaran ini. Tidak ada yang berubah.",
+      "taken": "{{name}} sekarang milik Anda",
+      "declinedToast": "Ditolak. {{org}} akan melihatnya."
+    },
+    "item": {
+      "move": "Pindahkan ke organisasi lain",
+      "moveHelp": "Menawarkan ini kepada organisasi lain untuk dikelola. Tidak ada yang berubah sampai mereka menerimanya.",
+      "offered": "Ditawarkan kepada {{org}}",
+      "offeredBody": "Menunggu seseorang di {{org}} menerimanya. Sampai saat itu, tidak ada yang berubah.",
+      "offeredToast": "Ditawarkan kepada {{org}}",
+      "withdraw": "Tarik kembali tawaran",
+      "withdrawHelp": "Membatalkan tawaran. Tidak ada yang berubah.",
+      "accepted": "{{org}} menerimanya",
+      "acceptedBody": "Memindahkan tim yang mengikutinya ke salinan {{org}}.",
+      "moved": "Dipindahkan ke {{org}}",
+      "movedBody_other": "Pada {{date}}. {{count, number}} tim yang mengikutinya kini mengikuti salinan mereka. Salinan Anda tidak dibagikan lagi.",
+      "declined": "{{org}} tidak menerimanya."
+    },
+    "sheet": {
+      "title": "Pindahkan {{name}}",
+      "sub": "Ke organisasi lain",
+      "intro": "Cari organisasi yang akan mengelola ini. Anda akan menemukan organisasi yang membagikan bahan, punya centang biru, atau mencantumkan bahasa.",
+      "search": "Nama organisasi",
+      "searchHelp": "Ketik minimal 2 huruf dari namanya.",
+      "none": "Tidak ada organisasi dengan nama itu.",
+      "orgHelp": "Memilih organisasi ini.",
+      "what": "Seseorang di {{org}} yang mengelola jenis bahan ini harus menerimanya. Lalu {{org}} yang mengelola {{name}}, dan tim yang mengikutinya akan mengikuti salinan {{org}}.",
+      "stays": "Salinan Anda tidak dibagikan lagi dan diarsipkan. Bahasa di sini yang memakainya tetap memakainya.",
+      "offer": "Tawarkan kepada {{org}}",
+      "offerHelp": "Mengirim tawaran. Tidak ada yang berubah sampai mereka menerimanya."
+    },
+    "problem": {
+      "open": "Ini sudah ditawarkan. Tarik kembali tawaran itu dulu.",
+      "noItem": "Ini tidak bisa dipindahkan: belum punya versi, atau mengikuti organisasi lain.",
+      "noOrg": "Organisasi itu tidak ditemukan.",
+      "notAllowed": "Hanya orang yang mengelola jenis bahan ini yang bisa melakukannya.",
+      "notOpen": "Tawaran ini sudah ditarik kembali atau sudah selesai.",
+      "badItem": "Pilih salah satu item Anda sendiri dengan jenis yang sama.",
+      "offline": "Tidak bisa menghubungi LangQuest. Periksa koneksi Anda dan coba lagi."
+    }
   }
 }

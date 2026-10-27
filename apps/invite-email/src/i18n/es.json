@@ -19,5 +19,13 @@
     "openButton": "Elegir una contraseña nueva",
     "expires": "Este enlace funciona durante {{minutes}} minutos.",
     "ignore": "Si no lo pediste tú, ignora este correo. Tu contraseña sigue igual."
+  },
+  "code": {
+    "subject": "Tu código de LangQuest: {{code}}",
+    "heading": "Confirma tu dirección de correo",
+    "intro": "{{org}} pidió a LangQuest la marca azul de verificación para el sitio web {{domain}}.",
+    "enter": "Para confirmar esta dirección, escribe este código en LangQuest:",
+    "expires": "El código funciona durante {{minutes}} minutos.",
+    "ignore": "Si no lo pediste tú, ignora este correo. No cambiará nada."
   }
 }

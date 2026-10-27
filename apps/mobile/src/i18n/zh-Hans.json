@@ -7204,5 +7204,205 @@
       "equals": "等于",
       "point": "小数点"
     }
+  },
+  "verified": {
+    "sealLabel": "已认证的组织",
+    "sealLabelDomain": "已认证的组织：{{domain}}",
+    "title": "蓝色认证标记",
+    "meaning": "蓝色认证标记表示 LangQuest 团队已核实这个组织。它不代表对该组织所发布内容的认可或背书。",
+    "problem": {
+      "notAllowed": "只有组织管理员可以申请蓝色认证标记。",
+      "badDomain": "请输入网站地址，例如 example.org。",
+      "publicDomain": "请使用你所在组织自己的网站，而不是免费邮箱服务。",
+      "badEmail": "请输入完整的电子邮件地址。",
+      "emailNotAtDomain": "电子邮件地址必须以 @{{domain}} 结尾。",
+      "alreadyVerified": "{{org}} 已经有蓝色认证标记。",
+      "waiting": "已有一个申请在等待 LangQuest 处理。",
+      "tooSoon": "请等一分钟，再申请新的验证码。",
+      "tooMany": "今天的验证码太多了。请明天再试。",
+      "noEmail": "LangQuest 现在无法发送邮件。请稍后再试。",
+      "offline": "你现在离线。请连接网络后再试。",
+      "sendFailed": "邮件没有发出去。请再试一次。"
+    },
+    "code": {
+      "wrong": "验证码不对。请查看邮件后再试。",
+      "expired": "验证码已过期。请发送新的验证码。",
+      "tooManyWrong": "错误次数太多。请发送新的验证码。",
+      "sixDigits": "验证码是 6 位数字。",
+      "confirm": "确认",
+      "confirmHelp": "核对验证码。然后 LangQuest 会处理申请。",
+      "sentTo": "我们已向 {{email}} 发送了 6 位验证码。请在这里输入。",
+      "label": "邮件中的验证码",
+      "help": "LangQuest 发送的邮件中的 6 位数字。",
+      "again": "发送新的验证码",
+      "againHelp": "向同一地址发送新的验证码。",
+      "change": "使用其他地址",
+      "changeHelp": "返回输入其他网站或电子邮件地址。"
+    },
+    "ask": {
+      "send": "给我发验证码",
+      "sendHelp": "向该地址发送 6 位验证码，以证明这是你的地址。",
+      "domain": "你所在组织的网站",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "你的组织运营的网站，例如 example.org。",
+      "email": "你在该网站的邮箱",
+      "emailPlaceholder": "you@{{domain}}",
+      "emailHelp": "该网站域名下的电子邮件地址。LangQuest 会把验证码发到那里。"
+    },
+    "done": {
+      "title": "已认证",
+      "sub": "{{domain}} · 自 {{date}} 起"
+    },
+    "declined": {
+      "title": "LangQuest 没有添加蓝色认证标记",
+      "body": "你可以用其他网站或地址重新申请。"
+    },
+    "waiting": {
+      "title": "等待 LangQuest 处理",
+      "body": "{{email}} 已确认。LangQuest 团队会审核您对 {{domain}} 的申请。",
+      "withdraw": "撤回申请",
+      "withdrawHelp": "取消申请。你以后可以重新申请。"
+    },
+    "row": {
+      "verifiedHelp": "蓝色认证标记：它的含义和添加时间。",
+      "ask": "申请蓝色认证标记",
+      "askHelp": "向 LangQuest 申请蓝色认证标记，让所有人都能看到这是真正的组织。"
+    }
+  },
+  "imports": {
+    "title": "从 {{name}} 导入",
+    "languages": {
+      "zhs": "中文（简体）",
+      "zht": "中文（繁体）"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "从发布 FIA 的 Bible Aquifer 把 FIA 学习指南导入 {{org}} 的资料库。选择语言。LangQuest 在服务器上生成指南，然后由您检查并发布。",
+      "from": "来源：{{source}}"
+    },
+    "choose": {
+      "languages_other": "语言 · 已选 {{count, number}} 种",
+      "start_other": "导入 {{count, number}} 种语言",
+      "pickOne": "请选择一种语言",
+      "startHelp": "LangQuest 开始生成指南。每种语言需要几分钟，关闭此处后仍会继续。",
+      "inLibrary": "已在资料库中",
+      "updateHelp": "这种语言已在您的资料库中。再次导入会把 FIA 的最新内容作为新版本带进来。",
+      "languageHelp": "勾选后导入这种语言的 FIA 指南。",
+      "newsLine_other": "已在资料库中 · {{count, number}} 份新的或更新的指南"
+    },
+    "building": {
+      "waiting": "等待开始",
+      "importing": "正在导入",
+      "body": "LangQuest 正在服务器上生成指南。您可以关闭此处，导入会继续。之后回来发布。",
+      "progress": "已完成语言：{{done, number}} / {{total, number}}",
+      "stop": "停止这次导入",
+      "stopHelp": "停止生成。不会向资料库添加任何内容。"
+    },
+    "ready": {
+      "intro": "已就绪。资料库里还没有任何内容：先检查生成的内容，再发布。",
+      "guides_other": "{{count, number}} 份学习指南",
+      "new": "新",
+      "update": "更新",
+      "share": "与其他机构共享",
+      "shareSub": "他们可以关注它，以后每次导入都会作为更新送达。",
+      "publish_other": "发布 {{count, number}} 项",
+      "publishHelp": "把它们作为您机构的内容加入资料库；如果您选择了共享，也会共享。",
+      "setAside": "不发布这次导入",
+      "setAsideHelp": "丢弃这次导入生成的内容。资料库保持不变。"
+    },
+    "done": {
+      "title_other": "已发布 {{count, number}} 项",
+      "body": "现在已在您的资料库中，位于“参考资料”下。"
+    },
+    "failed": {
+      "title": "上次导入已停止",
+      "body": "请重试。如果再次停止，请通过“发送反馈”告诉 LangQuest。"
+    },
+    "problem": {
+      "running": "已有导入正在进行。请等它完成，或先停止它。",
+      "noImporter": "LangQuest 已为您的机构关闭此导入工具。",
+      "notAllowed": "只有管理参考资料的人可以导入。",
+      "notReady": "这次导入还没有就绪。",
+      "offline": "无法连接 LangQuest。请检查网络后重试。"
+    },
+    "row": {
+      "label": "从 {{name}} 导入",
+      "waiting": "等待开始",
+      "importing": "正在导入 · {{done, number}} / {{total, number}} 种语言",
+      "ready_other": "可以发布 · {{count, number}} 项",
+      "failed": "上次导入已停止",
+      "from": "您的资料，来自 {{source}}",
+      "readyBadge": "就绪",
+      "help": "打开 LangQuest 为您的机构开启的导入工具：从您存放资料的地方导入自己的资料。",
+      "news_other": "自上次导入以来有 {{count, number}} 份新的或更新的指南",
+      "newBadge": "新"
+    },
+    "news": {
+      "title_other": "{{count, number}} 份新的或更新的指南",
+      "body": "来源在您上次导入后添加或更改了这些指南。它们的语言已在下方勾选。导入即可带进来。"
+    }
+  },
+  "moves": {
+    "offers": {
+      "title": "移交给你的",
+      "from": "{{org}}希望由你负责它",
+      "finishing": "已接受。正在转移关注它的团队。",
+      "badge": "移交",
+      "help": "打开移交请求：接受后由你在这里负责，或者拒绝。"
+    },
+    "offer": {
+      "title": "接管{{name}}？",
+      "body": "{{from}}希望从现在起由{{org}}负责它。",
+      "after": "接受后它就归你。关注它的团队会改为关注你的副本，{{from}}也会停止分享他们的副本。",
+      "asNew": "作为新的一项",
+      "asNewHelp": "连同所有版本加入你的资料库。",
+      "inPlace": "替换你的某一项",
+      "inPlaceHelp": "关注它的团队会改为关注你自己的某一项。请选择哪一项。",
+      "placeHelp": "关注它的团队会改为关注这一项。",
+      "take": "接受",
+      "takeInto": "接受并替换{{name}}",
+      "finish": "完成接受",
+      "takeHelp": "让它在这里归你并分享出去，这样关注它的团队就能关注你的副本。",
+      "decline": "不接受",
+      "declineHelp": "拒绝这个移交。不会有任何更改。",
+      "taken": "{{name}}现在归你了",
+      "declinedToast": "已拒绝。{{org}}会看到。"
+    },
+    "item": {
+      "move": "移交给其他机构",
+      "moveHelp": "提出让另一个机构负责它。在对方接受之前不会有任何更改。",
+      "offered": "已提出移交给{{org}}",
+      "offeredBody": "正在等待{{org}}有人接受。在那之前不会有任何更改。",
+      "offeredToast": "已提出移交给{{org}}",
+      "withdraw": "撤回移交",
+      "withdrawHelp": "取消这个移交。不会有任何更改。",
+      "accepted": "{{org}}已接受",
+      "acceptedBody": "正在把关注它的团队转到{{org}}的副本。",
+      "moved": "已移交给{{org}}",
+      "movedBody_other": "{{date}}。原先关注它的 {{count, number}} 个团队现在关注他们的副本。你的副本已不再分享。",
+      "declined": "{{org}}没有接受。"
+    },
+    "sheet": {
+      "title": "移交{{name}}",
+      "sub": "给其他机构",
+      "intro": "找到应该负责它的机构。你能找到分享资料、有蓝色认证标记或列出了语言的机构。",
+      "search": "机构名称",
+      "searchHelp": "至少输入名称中的 2 个字。",
+      "none": "没有找到这个名称的机构。",
+      "orgHelp": "选择这个机构。",
+      "what": "{{org}}中管理这类资料的人必须接受。之后由{{org}}负责{{name}}，关注它的团队会改为关注{{org}}的副本。",
+      "stays": "你的副本将停止分享并归档。这里正在使用它的语言会继续保留。",
+      "offer": "移交给{{org}}",
+      "offerHelp": "发送移交请求。在对方接受之前不会有任何更改。"
+    },
+    "problem": {
+      "open": "它已经在移交中。请先撤回那个移交。",
+      "noItem": "无法移交：它还没有版本，或者它关注的是另一个机构。",
+      "noOrg": "没有找到那个机构。",
+      "notAllowed": "只有管理这类资料的人可以这样做。",
+      "notOpen": "这个移交已被撤回或已经处理完毕。",
+      "badItem": "请选择你自己的同类项。",
+      "offline": "无法连接 LangQuest。请检查网络后重试。"
+    }
   }
 }

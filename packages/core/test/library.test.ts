@@ -4,7 +4,7 @@ import { foldOrg } from '../src/org';
 import { foldLanguage as fold } from '../src/reducer';
 import { emptyLanguageState } from '../src/state';
 import { buildOrgFixture, shuffle } from './fixtures';
-import { libraryItems, libraryItemView } from '../src/library';
+import { followerItemId, libraryItems, libraryItemView, subscriptionItemId, type LibraryItemState } from '../src/library';
 import { canonicalJson, validateDoc, withDeps, type CollectionDoc, type FlowDoc, type MaterialDoc, type TemplateDoc } from '../src/libraryDocs';
 import { libraryFlowId, selectFlowSpecs, selectTemplateSpecs, studyEntriesFor, templateUnits } from '../src/libraryApply';
 import { deriveFlow, unitPlace } from '../src/passage';
@@ -171,5 +171,21 @@ describe('a language using library versions', () => {
     };
     const hebrewPassage = { range: parseRef('JOL 3:1-5')!, versification: org };
     expect(studyEntriesFor(hebrewPassage, { doc: collection, versification: eng }).map((e) => e.entry.title)).toEqual(['The Spirit poured out']);
+  });
+});
+
+describe('the item that follows another organization\'s item', () => {
+  const following = (sourceOrgId: string, sourceItemId: string) => ({
+    subscription: { value: { sourceOrgId, sourceOrgName: sourceOrgId, sourceItemId, name: 'Guides', autoUpdate: true, active: true }, hlc: '1', eventId: 'e' }
+  }) as unknown as LibraryItemState;
+
+  it('is the one whose subscription names it, even when made for an item that moved there (decisions.md 175)', () => {
+    const library = { 'sub.langquest.fia-eng': following('word-collective', 'fia.eng') };
+    expect(followerItemId(library, 'word-collective', 'fia.eng')).toBe('sub.langquest.fia-eng');
+  });
+
+  it('is the id a new subscription gets when nothing follows it', () => {
+    expect(followerItemId({}, 'word-collective', 'fia.eng')).toBe(subscriptionItemId('word-collective', 'fia.eng'));
+    expect(followerItemId({ x: following('other', 'fia.eng') }, 'word-collective', 'fia.eng')).toBe('sub.word-collective.fia.eng');
   });
 });

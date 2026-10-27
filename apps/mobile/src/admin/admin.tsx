@@ -5,6 +5,7 @@
 // play button, a lock toggle, and the invite code. Built from kit
 // primitives and theme tokens; every pressable goes through `useHelpSpot`
 // so help mode explains it instead of pressing it.
+import { OrgLine } from '../verified/VerifiedSeal';
 import { FileText, Play, Route } from '../ui/icons';
 import { useContext, useEffect, type ReactNode } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
@@ -215,7 +216,8 @@ function Radio(props: { on: boolean; size?: number }) {
 /** A big radio card: icon, title, a line under it, and, when given, examples or steps below. */
 /** One choice of several. `own` marks making your own: it comes first and looks set apart from the ready-made ones (design principle 12). */
 export function ChoiceCard(props: { on: boolean; icon: AdminIcon; title: string; sub?: string; onPress: () => void; children?: ReactNode; chevron?: boolean; own?: boolean;
-  /** What help mode says picking it means, where `sub` (its line otherwise) does not say it. */ help?: string }) {
+  /** What help mode says picking it means, where `sub` (its line otherwise) does not say it. */ help?: string;
+  /** The organization `sub` names, so its blue check shows after the name (decisions.md 173). */ subOrg?: { name: string; id: string } | null }) {
   const spot = useHelpSpot(props.title, props.help ?? props.sub, props.onPress);
   return (
     <Pressable onPress={spot.onPress} accessibilityRole={props.chevron ? 'button' : 'radio'} accessibilityState={props.chevron ? undefined : { selected: props.on }}
@@ -225,7 +227,7 @@ export function ChoiceCard(props: { on: boolean; icon: AdminIcon; title: string;
         <IconTile icon={props.icon} size={40} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.choiceTitle}>{props.title}</Text>
-          {props.sub ? <Text style={[txt.xs, { fontSize: 14, color: C.muted, marginTop: 1 }]}>{props.sub}</Text> : null}
+          {props.sub ? <OrgLine text={props.sub} orgName={props.subOrg?.name} orgId={props.subOrg?.id} style={[txt.xs, { fontSize: 14, color: C.muted, marginTop: 1 }]} /> : null}
         </View>
         {props.chevron ? <Ico name="right" size={22} color={C.muted} /> : <Radio on={props.on} />}
       </View>
@@ -339,6 +341,7 @@ export function Pills(props: { children: ReactNode }) {
 /** A pick-many row with a checkbox, and a play button that opens what it is. */
 export function CheckRow(props: { label: string; sub?: string; checked: boolean; onToggle: () => void; onPlay?: () => void; playLabel?: string; last?: boolean; disabled?: boolean; detail?: string;
   /** What help mode says the play button does. */ playHelp?: string;
+  /** The organization `sub` names, so its blue check shows after the name (decisions.md 173). */ subOrg?: { name: string; id: string } | null;
   /** Words someone searched for: lit where they appear in the label. */ highlight?: string }) {
   const onToggle = useHelpSpot(props.label, props.detail ?? (props.checked ? t('admin.checkRow.offered') : t('admin.checkRow.notOffered')), props.onToggle);
   const playLabel = props.playLabel ?? t('admin.checkRow.hear', { name: props.label });
@@ -354,7 +357,7 @@ export function CheckRow(props: { label: string; sub?: string; checked: boolean;
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[txt.body, { fontWeight: '700' }]} numberOfLines={2}>{marked(props.label, props.highlight)}</Text>
-          {props.sub ? <Text style={[txt.sm, { color: C.muted }]}>{props.sub}</Text> : null}
+          {props.sub ? <OrgLine text={props.sub} orgName={props.subOrg?.name} orgId={props.subOrg?.id} style={[txt.sm, { color: C.muted }]} /> : null}
         </View>
         <HelpBadge spot={onToggle} />
       </Pressable>

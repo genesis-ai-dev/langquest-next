@@ -7844,5 +7844,225 @@
       "equals": "Égal",
       "point": "Virgule décimale"
     }
+  },
+  "verified": {
+    "sealLabel": "Organisation vérifiée",
+    "sealLabelDomain": "Organisation vérifiée : {{domain}}",
+    "title": "Coche bleue",
+    "meaning": "Une coche bleue signifie que l'équipe LangQuest a vérifié cette organisation. Ce n'est ni une approbation ni une recommandation de ce que l'organisation publie.",
+    "problem": {
+      "notAllowed": "Seul un administrateur de l’organisation peut demander la coche bleue.",
+      "badDomain": "Saisissez l’adresse du site web, comme example.org.",
+      "publicDomain": "Utilisez le site web de votre organisation, pas un service de messagerie gratuit.",
+      "badEmail": "Saisissez une adresse e-mail complète.",
+      "emailNotAtDomain": "L’adresse e-mail doit se terminer par @{{domain}}.",
+      "alreadyVerified": "{{org}} a déjà la coche bleue.",
+      "waiting": "Une demande attend déjà LangQuest.",
+      "tooSoon": "Attendez une minute, puis demandez un autre code.",
+      "tooMany": "Trop de codes pour aujourd’hui. Réessayez demain.",
+      "noEmail": "LangQuest ne peut pas envoyer d’e-mail pour le moment. Réessayez plus tard.",
+      "offline": "Vous êtes hors ligne. Connectez-vous à Internet et réessayez.",
+      "sendFailed": "L’e-mail n’est pas parti. Réessayez."
+    },
+    "code": {
+      "wrong": "Ce code n’est pas bon. Vérifiez l’e-mail et réessayez.",
+      "expired": "Ce code a expiré. Demandez-en un nouveau.",
+      "tooManyWrong": "Trop d’essais incorrects. Demandez un nouveau code.",
+      "sixDigits": "Le code a 6 chiffres.",
+      "confirm": "Confirmer",
+      "confirmHelp": "Vérifie le code. Ensuite, LangQuest examine la demande.",
+      "sentTo": "Nous avons envoyé un code à 6 chiffres à {{email}}. Saisissez-le ici.",
+      "label": "Code reçu par e-mail",
+      "help": "Les 6 chiffres de l’e-mail envoyé par LangQuest.",
+      "again": "Envoyer un nouveau code",
+      "againHelp": "Envoie un nouveau code à la même adresse.",
+      "change": "Utiliser une autre adresse",
+      "changeHelp": "Revient pour saisir un autre site web ou une autre adresse e-mail."
+    },
+    "ask": {
+      "send": "M’envoyer un code",
+      "sendHelp": "Envoie un code à 6 chiffres à cette adresse, pour prouver qu’elle est à vous.",
+      "domain": "Le site web de votre organisation",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "Le site web de votre organisation, comme example.org.",
+      "email": "Votre e-mail sur ce site web",
+      "emailPlaceholder": "vous@{{domain}}",
+      "emailHelp": "Une adresse e-mail sur ce site web. LangQuest y envoie le code."
+    },
+    "done": {
+      "title": "Vérifiée",
+      "sub": "{{domain}} · depuis le {{date}}"
+    },
+    "declined": {
+      "title": "LangQuest n’a pas ajouté la coche bleue",
+      "body": "Vous pouvez la redemander avec un autre site web ou une autre adresse."
+    },
+    "waiting": {
+      "title": "En attente de LangQuest",
+      "body": "{{email}} est confirmée. L'équipe LangQuest va examiner votre demande pour {{domain}}.",
+      "withdraw": "Retirer la demande",
+      "withdrawHelp": "Annule la demande. Vous pourrez la refaire plus tard."
+    },
+    "row": {
+      "verifiedHelp": "La coche bleue : ce qu’elle veut dire et quand elle a été ajoutée.",
+      "ask": "Demander la coche bleue",
+      "askHelp": "Demandez la coche bleue à LangQuest, pour que tous voient qu’il s’agit de la vraie organisation."
+    }
+  },
+  "imports": {
+    "title": "Importer depuis {{name}}",
+    "languages": {
+      "zhs": "Chinois (simplifié)",
+      "zht": "Chinois (traditionnel)"
+    },
+    "fia": {
+      "name": "FIA",
+      "intro": "Faites entrer les guides d'étude FIA dans la bibliothèque de {{org}} depuis Bible Aquifer, où ils sont publiés. Choisissez les langues. LangQuest prépare les guides sur son serveur, puis vous les vérifiez et les publiez.",
+      "from": "Depuis {{source}}"
+    },
+    "choose": {
+      "languages_one": "Langues · {{count, number}} choisie",
+      "languages_many": "Langues · {{count, number}} choisies",
+      "languages_other": "Langues · {{count, number}} choisies",
+      "start_one": "Importer {{count, number}} langue",
+      "start_many": "Importer {{count, number}} langues",
+      "start_other": "Importer {{count, number}} langues",
+      "pickOne": "Choisissez une langue",
+      "startHelp": "LangQuest commence à préparer les guides. Chaque langue prend quelques minutes, et cela continue après la fermeture.",
+      "inLibrary": "Dans votre bibliothèque",
+      "updateHelp": "Cette langue est déjà dans votre bibliothèque. L'importer de nouveau apporte la dernière version de FIA.",
+      "languageHelp": "Cochez-la pour faire entrer les guides FIA dans cette langue.",
+      "newsLine_one": "Dans votre bibliothèque · {{count, number}} guide nouveau ou mis à jour",
+      "newsLine_many": "Dans votre bibliothèque · {{count, number}} guides nouveaux ou mis à jour",
+      "newsLine_other": "Dans votre bibliothèque · {{count, number}} guides nouveaux ou mis à jour"
+    },
+    "building": {
+      "waiting": "En attente",
+      "importing": "Importation en cours",
+      "body": "LangQuest prépare les guides sur son serveur. Vous pouvez fermer ceci : cela continue. Revenez pour les publier.",
+      "progress": "Langues terminées : {{done, number}} sur {{total, number}}",
+      "stop": "Arrêter cette importation",
+      "stopHelp": "Arrête la préparation. Rien n'est ajouté à votre bibliothèque."
+    },
+    "ready": {
+      "intro": "Prêt. Rien n'est encore dans votre bibliothèque : vérifiez ce qui a été préparé, puis publiez-le.",
+      "guides_one": "{{count, number}} guide d'étude",
+      "guides_many": "{{count, number}} guides d'étude",
+      "guides_other": "{{count, number}} guides d'étude",
+      "new": "Nouveau",
+      "update": "Mise à jour",
+      "share": "Partager avec d'autres organisations",
+      "shareSub": "Elles peuvent le suivre, et chaque nouvelle importation leur arrive comme une mise à jour.",
+      "publish_one": "Publier {{count, number}} élément",
+      "publish_many": "Publier {{count, number}} éléments",
+      "publish_other": "Publier {{count, number}} éléments",
+      "publishHelp": "Les ajoute à votre bibliothèque comme ceux de votre organisation, partagés si vous l'avez choisi.",
+      "setAside": "Ne pas publier cette importation",
+      "setAsideHelp": "Supprime ce que cette importation a préparé. Votre bibliothèque reste telle quelle."
+    },
+    "done": {
+      "title_one": "{{count, number}} élément publié",
+      "title_many": "{{count, number}} éléments publiés",
+      "title_other": "{{count, number}} éléments publiés",
+      "body": "C'est maintenant dans votre bibliothèque, sous Documents de référence."
+    },
+    "failed": {
+      "title": "La dernière importation s'est arrêtée",
+      "body": "Réessayez. Si elle s'arrête encore, prévenez LangQuest avec Envoyer un avis."
+    },
+    "problem": {
+      "running": "Une importation est déjà en cours. Attendez la fin, ou arrêtez-la d'abord.",
+      "noImporter": "LangQuest a désactivé cet outil d'importation pour votre organisation.",
+      "notAllowed": "Seule une personne qui gère les documents de référence peut importer.",
+      "notReady": "Cette importation n'est pas encore prête.",
+      "offline": "Impossible de joindre LangQuest. Vérifiez votre connexion et réessayez."
+    },
+    "row": {
+      "label": "Importer depuis {{name}}",
+      "waiting": "En attente",
+      "importing": "Importation · {{done, number}} sur {{total, number}} langues",
+      "ready_one": "Prêt à publier · {{count, number}} élément",
+      "ready_many": "Prêt à publier · {{count, number}} éléments",
+      "ready_other": "Prêt à publier · {{count, number}} éléments",
+      "failed": "La dernière importation s'est arrêtée",
+      "from": "Vos documents, depuis {{source}}",
+      "readyBadge": "Prêt",
+      "help": "Ouvre l'outil d'importation que LangQuest a activé pour votre organisation : faites entrer vos propres documents depuis l'endroit où vous les gardez.",
+      "news_one": "{{count, number}} guide nouveau ou mis à jour depuis votre dernière importation",
+      "news_many": "{{count, number}} guides nouveaux ou mis à jour depuis votre dernière importation",
+      "news_other": "{{count, number}} guides nouveaux ou mis à jour depuis votre dernière importation",
+      "newBadge": "Nouveau"
+    },
+    "news": {
+      "title_one": "{{count, number}} guide nouveau ou mis à jour",
+      "title_many": "{{count, number}} guides nouveaux ou mis à jour",
+      "title_other": "{{count, number}} guides nouveaux ou mis à jour",
+      "body": "La source les a ajoutés ou modifiés depuis votre dernière importation. Leurs langues sont cochées ci-dessous. Importez pour les faire entrer."
+    }
+  },
+  "moves": {
+    "offers": {
+      "title": "Propositions reçues",
+      "from": "{{org}} vous propose de le prendre en charge",
+      "finishing": "Accepté. Transfert en cours des équipes qui le suivent.",
+      "badge": "Proposition",
+      "help": "Ouvre la proposition : acceptez-la pour le prendre en charge ici, ou refusez-la."
+    },
+    "offer": {
+      "title": "Prendre en charge {{name}} ?",
+      "body": "{{from}} souhaite que {{org}} le prenne en charge désormais.",
+      "after": "Si vous l’acceptez, il devient le vôtre. Les équipes qui le suivent suivront votre copie, et {{from}} cesse de partager la sienne.",
+      "asNew": "Comme nouvel élément",
+      "asNewHelp": "L’ajoute à votre bibliothèque avec toutes ses versions.",
+      "inPlace": "À la place d’un des vôtres",
+      "inPlaceHelp": "Les équipes qui le suivent suivront plutôt un de vos propres éléments. Choisissez lequel.",
+      "placeHelp": "Les équipes qui le suivent suivront cet élément.",
+      "take": "Accepter",
+      "takeInto": "Accepter à la place de {{name}}",
+      "finish": "Terminer la prise en charge",
+      "takeHelp": "Le rend vôtre ici et le partage, pour que les équipes qui le suivent puissent suivre votre copie.",
+      "decline": "Refuser",
+      "declineHelp": "Refuse la proposition. Rien ne change.",
+      "taken": "{{name}} est à vous maintenant",
+      "declinedToast": "Refusée. {{org}} le verra."
+    },
+    "item": {
+      "move": "Transférer à une autre organisation",
+      "moveHelp": "Le propose à une autre organisation pour qu’elle le prenne en charge. Rien ne change tant qu’elle ne l’a pas accepté.",
+      "offered": "Proposé à {{org}}",
+      "offeredBody": "On attend qu’une personne de {{org}} l’accepte. D’ici là, rien ne change.",
+      "offeredToast": "Proposé à {{org}}",
+      "withdraw": "Retirer la proposition",
+      "withdrawHelp": "Annule la proposition. Rien ne change.",
+      "accepted": "{{org}} l’a accepté",
+      "acceptedBody": "Les équipes qui le suivent passent à la copie de {{org}}.",
+      "moved": "Transféré à {{org}}",
+      "movedBody_one": "Le {{date}}. {{count, number}} équipe qui le suivait suit maintenant leur copie. La vôtre n’est plus partagée.",
+      "movedBody_many": "Le {{date}}. {{count, number}} équipes qui le suivaient suivent maintenant leur copie. La vôtre n’est plus partagée.",
+      "movedBody_other": "Le {{date}}. {{count, number}} équipes qui le suivaient suivent maintenant leur copie. La vôtre n’est plus partagée.",
+      "declined": "{{org}} ne l’a pas accepté."
+    },
+    "sheet": {
+      "title": "Transférer {{name}}",
+      "sub": "À une autre organisation",
+      "intro": "Trouvez l’organisation qui doit le prendre en charge. Vous trouverez les organisations qui partagent des documents, ont la coche bleue ou ont une langue dans leur liste.",
+      "search": "Nom de l’organisation",
+      "searchHelp": "Tapez au moins 2 lettres de son nom.",
+      "none": "Aucune organisation trouvée avec ce nom.",
+      "orgHelp": "Choisit cette organisation.",
+      "what": "Une personne de {{org}} qui gère ce type de document doit l’accepter. Ensuite {{org}} prend en charge {{name}}, et les équipes qui le suivent suivront la copie de {{org}}.",
+      "stays": "Votre copie n’est plus partagée et est archivée. Les langues d’ici qui l’utilisent la gardent.",
+      "offer": "Proposer à {{org}}",
+      "offerHelp": "Envoie la proposition. Rien ne change tant qu’elle n’est pas acceptée."
+    },
+    "problem": {
+      "open": "C’est déjà proposé. Retirez d’abord cette proposition.",
+      "noItem": "Impossible de le transférer : il n’a pas encore de version, ou il suit une autre organisation.",
+      "noOrg": "Cette organisation est introuvable.",
+      "notAllowed": "Seule une personne qui gère ce type de document peut faire cela.",
+      "notOpen": "Cette proposition a été retirée ou est déjà réglée.",
+      "badItem": "Choisissez un de vos propres éléments du même type.",
+      "offline": "Impossible de joindre LangQuest. Vérifiez votre connexion et réessayez."
+    }
   }
 }
