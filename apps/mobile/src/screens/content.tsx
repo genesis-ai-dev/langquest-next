@@ -22,6 +22,7 @@
 // template), `new` (start one), or `languageId` (that language's template).
 // book_structure: `languageId`, `bookId`. A `languageId` param opens that
 // language, so its state is the open language's.
+import { OrgLine } from '../verified/VerifiedSeal';
 import { readerLanguage } from '../reference/languages';
 import { languageLabel } from '../admin/adminModel';
 import { LanguageField } from '../reference/LanguageField';
@@ -60,7 +61,7 @@ import { txt } from '../ui/textStyles';
 import { useOpenDetail, useOrgInChrome } from '../ui/useLayout';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
-import { mayWriteLibrary, sourceLine, type SharedItem } from '../library/model';
+import { mayWriteLibrary, sourceLine, sourceOrg, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
 import { failureMessage } from '../diagnostics/report';
 import { DashedRow } from '../admin/admin';
@@ -188,7 +189,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
             <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={txt.h3}>{it.name}</Text>
-              <Text style={[txt.sm, { fontWeight: '600', color: C.primary }]}>{withLanguage(sourceLine(it), doc)}</Text>
+              <OrgLine text={withLanguage(sourceLine(it), doc)} orgName={sourceOrg(it)?.name} orgId={sourceOrg(it)?.id} style={[txt.sm, { fontWeight: '600', color: C.primary }]} />
               {it.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{it.description}</Text> : null}
             </View>
           </View>
@@ -251,7 +252,7 @@ function TemplateLibraryView({ ctx }: { ctx: Ctx }) {
                 <View style={styles.tile}><Ico name={doc?.structure === 'outline' ? 'folder' : 'book'} size={22} color={C.primary} /></View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={txt.h3}>{c.name}</Text>
-                  <Text style={[txt.sm, { color: C.muted }]}>{withLanguage(choiceLine(c, sourceLine), doc)}</Text>
+                  <OrgLine text={withLanguage(choiceLine(c, sourceLine), doc)} orgName={c.shared.org_name} orgId={c.shared.org_id} style={[txt.sm, { color: C.muted }]} />
                   {c.shared.description ? <Text style={[txt.smMuted, { marginTop: 2 }]}>{c.shared.description}</Text> : null}
                 </View>
                 <Ico name="right" size={22} color={C.muted} />

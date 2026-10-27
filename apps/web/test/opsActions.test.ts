@@ -8,6 +8,7 @@ type Deps = Parameters<typeof act>[0];
 
 const VIEWER = '0857d1bc-0000-4000-8000-000000000001';
 const FEEDBACK = '11111111-1111-4111-8111-111111111111';
+const REQUEST = '22222222-2222-4222-8222-222222222222';
 
 function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[] } {
   const rows: unknown[] = [];
@@ -18,6 +19,7 @@ function deps(over: Partial<Deps> = {}): Deps & { rows: unknown[]; done: string[
     globalViewerOn: async (_profile, aal) => aal === 'aal2',
     setFeedbackStatus: async (id, status) => { done.push(`feedback ${id} ${status}`); return id === FEEDBACK; },
     runJob: async (key) => { done.push(`run ${key}`); return 'started'; },
+    decideVerification: async (id, grant, profileId) => { done.push(`verification ${id} ${grant ? 'grant' : 'decline'} by ${profileId}`); return id === REQUEST ? (grant ? 'granted' : 'declined') : 'not_found'; },
     record: async (row) => { rows.push(row); },
     ...over
   };
@@ -73,5 +75,20 @@ describe('the ops dashboard\'s actions', () => {
     const r = await act(e, 'aal2', { kind: 'run', key: 'projection' });
     expect(r).toMatchObject({ ok: false, status: 502, error: 'It did not work (TypeError).' });
     expect(e.rows).toEqual([{ profileId: VIEWER, action: 'run_job', target: 'projection', result: 'error', detail: 'TypeError' }]);
+  });
+
+  it('grants or declines a blue check request (decisions.md 172) as the staff member who pressed it, and records it', async () => {
+    expect(parseAction({ kind: 'verification', id: REQUEST, decision: 'grant' })).toEqual({ kind: 'verification', id: REQUEST, decision: 'grant' });
+    for (const bad of [{ kind: 'verification', id: REQUEST, decision: 'revoke' }, { kind: 'verification', id: 'x', decision: 'grant' }]) expect(parseAction(bad)).toBeNull();
+    const d = deps();
+    expect(await act(d, 'aal2', { kind: 'verification', id: REQUEST, decision: 'grant' })).toEqual({ ok: true, result: 'granted' });
+    expect(d.done).toEqual([`verification ${REQUEST} grant by ${VIEWER}`]);
+    expect(d.rows).toEqual([{ profileId: VIEWER, action: 'verification_grant', target: REQUEST, result: 'ok' }]);
+    const other = '33333333-3333-4333-8333-333333333333';
+    expect(await act(d, 'aal2', { kind: 'verification', id: other, decision: 'decline' })).toMatchObject({ ok: false, status: 404 });
+    expect(d.rows.at(-1)).toEqual({ profileId: VIEWER, action: 'verification_decline', target: other, result: 'refused', detail: 'not_found' });
+    const aal1 = deps();
+    expect(await act(aal1, 'aal1', { kind: 'verification', id: REQUEST, decision: 'grant' })).toMatchObject({ ok: false, status: 403 });
+    expect(aal1.done).toEqual([]);
   });
 });

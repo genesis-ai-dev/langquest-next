@@ -148,6 +148,13 @@ export function usesItem(state: LanguageState | null, itemId: string): boolean {
   return !!state && (state.template?.value.itemId === itemId || state.flow?.value.itemId === itemId);
 }
 
+/** The organization an item comes from, by name and id, for its blue check (decisions.md 172); null for one made here. */
+export function sourceOrg(it: ReturnType<typeof libraryItemView>): { name: string; id: string } | null {
+  if (it?.source === 'subscription' && it.subscription) return { name: it.subscription.sourceOrgName, id: it.subscription.sourceOrgId };
+  if (it?.source === 'copy' && it.copiedFrom) return { name: it.copiedFrom.orgName, id: it.copiedFrom.orgId };
+  return null;
+}
+
 /** "Version 3 · copied from LangQuest", "Following LangQuest · updates automatically", for a line under a name. */
 export function sourceLine(it: ReturnType<typeof libraryItemView>): string {
   if (!it) return '';

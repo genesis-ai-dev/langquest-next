@@ -1,4 +1,4 @@
-import { invitationContent, parseMessage, passwordResetContent } from '../src/message';
+import { invitationContent, parseCodeMessage, parseMessage, passwordResetContent, verificationCodeContent } from '../src/message';
 import { EMAIL_CATALOGS } from '../src/text';
 
 const now = Date.parse('2026-09-17T12:00:00Z');
@@ -67,5 +67,36 @@ describe('emails in the sender’s language (LAN-42)', () => {
     expect(reset.subject).toBe('Choose a new LangQuest password');
     expect(reset.text).toContain('This link works for 60 minutes.');
     expect(reset.html).not.toContain('a<b>');
+  });
+});
+
+describe('blue check code email (decisions.md 172)', () => {
+  const code = {
+    requestId: '10000000-0000-0000-0000-000000000002', email: 'Admin@Bible-Society.Example', code: '042917',
+    orgName: 'Bible Society', domain: 'bible-society.example', expiresAt: '2026-09-17T12:30:00Z'
+  };
+  it('takes a code the database made: six digits, half an hour, one address at the domain', () => {
+    expect(parseCodeMessage(code, now)).toEqual({ ...code, email: 'admin@bible-society.example', expiresAt: '2026-09-17T12:30:00.000Z' });
+    for (const bad of [{ code: '12345' }, { code: '1234567' }, { code: 'abcdef' }, { expiresAt: '2026-09-17T14:00:00Z' },
+      { expiresAt: '2026-09-17T11:59:00Z' }, { email: 'a@example.com\r\nBcc: b@example.com' }, { email: 'a@example.com,b@example.com' },
+      { orgName: 'Bible\r\nSociety' }, { orgName: ' ' }, { domain: 'https://bible-society.example/' }, { requestId: 'nope' }]) {
+      expect(parseCodeMessage({ ...code, ...bad }, now), JSON.stringify(bad)).toBeNull();
+    }
+  });
+  it('says who asked, for which website, the code and how long it works, with nothing unescaped', () => {
+    const c = verificationCodeContent(parseCodeMessage({ ...code, orgName: 'Bible <b>Society</b>' }, now)!, now);
+    expect(c.subject).toBe('Your LangQuest code: 042917');
+    expect(c.text).toContain('Bible <b>Society</b> asked LangQuest for a blue check for the website bible-society.example.');
+    expect(c.text).toContain('042917');
+    expect(c.text).toContain('The code works for 30 minutes.');
+    expect(c.html).toContain('Bible &lt;b&gt;Society&lt;/b&gt;');
+    expect(c.html).not.toContain('<b>Society');
+  });
+  it('is written in the admin\'s language, right to left where it reads that way', () => {
+    const fr = verificationCodeContent(parseCodeMessage({ ...code, locale: 'fr' }, now)!, now);
+    expect(fr.subject).toBe('Votre code LangQuest : 042917');
+    const ar = verificationCodeContent(parseCodeMessage({ ...code, locale: 'ar' }, now)!, now);
+    expect(ar.html).toContain('dir="rtl"');
+    expect(ar.html).toContain('<strong dir="ltr">042917</strong>');
   });
 });

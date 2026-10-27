@@ -37,6 +37,7 @@ const SMOKES = [
   'server/inviteChecksSmoke.sql',
   'server/grantsSmoke.sql',
   'server/globalViewerSmoke.sql',
+  'server/orgVerificationSmoke.sql',
   'server/externalValuesSmoke.sql',
   'server/notificationsSmoke.sql',
   'server/concurrentAppendSmoke.sql',

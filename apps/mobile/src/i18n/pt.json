@@ -7712,5 +7712,71 @@
       "equals": "Igual",
       "point": "Vírgula decimal"
     }
+  },
+  "verified": {
+    "sealLabel": "Organização verificada",
+    "sealLabelDomain": "Organização verificada: {{domain}}",
+    "title": "Selo azul",
+    "meaning": "O selo azul mostra que esta é a organização verdadeira: um administrador provou que tem um e-mail no site dela, e o LangQuest conferiu. Não quer dizer que o LangQuest conferiu o que a organização compartilha.",
+    "problem": {
+      "notAllowed": "Só um administrador da organização pode pedir o selo azul.",
+      "badDomain": "Digite o endereço do site, como example.org.",
+      "publicDomain": "Use o site da sua organização, não um serviço de e-mail gratuito.",
+      "badEmail": "Digite um endereço de e-mail completo.",
+      "emailNotAtDomain": "O endereço de e-mail precisa terminar com @{{domain}}.",
+      "alreadyVerified": "{{org}} já tem o selo azul.",
+      "waiting": "Já há um pedido esperando o LangQuest.",
+      "tooSoon": "Espere um minuto e depois peça outro código.",
+      "tooMany": "Códigos demais por hoje. Tente amanhã.",
+      "noEmail": "O LangQuest não consegue enviar e-mails agora. Tente mais tarde.",
+      "offline": "Você está sem conexão. Conecte-se à internet e tente de novo.",
+      "sendFailed": "O e-mail não foi enviado. Tente de novo."
+    },
+    "code": {
+      "wrong": "Esse código não está certo. Confira o e-mail e tente de novo.",
+      "expired": "Esse código venceu. Peça um novo.",
+      "tooManyWrong": "Tentativas erradas demais. Peça um código novo.",
+      "sixDigits": "O código tem 6 dígitos.",
+      "confirm": "Confirmar",
+      "confirmHelp": "Confere o código. Depois o LangQuest analisa o pedido.",
+      "sentTo": "Enviamos um código de 6 dígitos para {{email}}. Digite-o aqui.",
+      "label": "Código do e-mail",
+      "help": "Os 6 dígitos do e-mail que o LangQuest enviou.",
+      "again": "Enviar um código novo",
+      "againHelp": "Envia um código novo para o mesmo endereço.",
+      "change": "Usar outro endereço",
+      "changeHelp": "Volta para digitar outro site ou outro endereço de e-mail."
+    },
+    "ask": {
+      "send": "Enviar um código para mim",
+      "sendHelp": "Envia um código de 6 dígitos para esse endereço, para provar que ele é seu.",
+      "intro": "Um selo azul depois do nome de {{org}} mostra a todos que esta é a verdadeira {{org}}. Para pedir um, prove que você tem um endereço de e-mail no site da sua organização.",
+      "domain": "O site da sua organização",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "O site que a sua organização mantém, como example.org.",
+      "email": "Seu e-mail nesse site",
+      "emailPlaceholder": "voce@{{domain}}",
+      "emailHelp": "Um endereço de e-mail nesse site. O LangQuest envia o código para lá."
+    },
+    "done": {
+      "title": "Verificada",
+      "since": "Verificada desde {{date}}."
+    },
+    "declined": {
+      "title": "O LangQuest não adicionou o selo azul",
+      "body": "Você pode pedir de novo com outro site ou outro endereço."
+    },
+    "waiting": {
+      "title": "Esperando o LangQuest",
+      "body": "{{email}} está confirmado. O LangQuest vai conferir {{domain}} e adicionar o selo azul.",
+      "withdraw": "Cancelar o pedido",
+      "withdrawHelp": "Cancela o pedido. Você pode pedir de novo depois."
+    },
+    "row": {
+      "verified": "Verificada · {{domain}}",
+      "verifiedHelp": "O selo azul: o que ele quer dizer e quando foi adicionado.",
+      "ask": "Pedir o selo azul",
+      "askHelp": "Peça ao LangQuest o selo azul, para que todos vejam que esta é a organização verdadeira."
+    }
   }
 }

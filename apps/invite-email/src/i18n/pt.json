@@ -19,5 +19,13 @@
     "openButton": "Escolher uma nova senha",
     "expires": "Este link funciona por {{minutes}} minutos.",
     "ignore": "Se não foi você quem pediu, ignore este e-mail. A sua senha continua a mesma."
+  },
+  "code": {
+    "subject": "Seu código do LangQuest: {{code}}",
+    "heading": "Confirme o seu endereço de e-mail",
+    "intro": "{{org}} pediu ao LangQuest o selo azul de verificação para o site {{domain}}.",
+    "enter": "Para confirmar este endereço, digite este código no LangQuest:",
+    "expires": "O código funciona por {{minutes}} minutos.",
+    "ignore": "Se não foi você quem pediu, ignore este e-mail. Nada vai mudar."
   }
 }

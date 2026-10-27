@@ -177,6 +177,8 @@ function AndroidKeyboardSafe(props: { style?: StyleProp<ViewStyle>; children: Re
 export function Header(props: {
   title: string;
   sub?: string;
+  /** The sub as drawn text of its own (a line with an organization's blue check, decisions.md 172), in place of `sub`. */
+  subNode?: ReactNode;
   crumbs?: { label: string; onPress?: () => void }[];
   onBack?: () => void;
   close?: boolean;
@@ -222,7 +224,8 @@ export function Header(props: {
   const centredTitle = (
     <View style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>
       <Text style={styles.centredTitle} accessibilityRole="header">{props.title}</Text>
-      {props.sub ? <Text style={[txt.xs, { marginTop: 2, textAlign: 'center' }]}>{props.sub}</Text> : null}
+      {props.subNode ? <View style={{ marginTop: 2, alignItems: 'center' }}>{props.subNode}</View>
+        : props.sub ? <Text style={[txt.xs, { marginTop: 2, textAlign: 'center' }]}>{props.sub}</Text> : null}
     </View>
   );
   // A worded button, or several buttons, beside the title would leave the title a sliver:
@@ -261,7 +264,8 @@ export function Header(props: {
       <View style={{ flex: 1, minWidth: 0, paddingLeft: props.onBack ? 0 : space.xs }}>
         {crumbs}
         <Text style={wide || props.onBack ? txt.title : styles.homeTitle} accessibilityRole="header">{props.title}</Text>
-        {props.sub ? <Text style={[txt.xs, { marginTop: 2 }]}>{props.sub}</Text> : null}
+        {props.subNode ? <View style={{ marginTop: 2 }}>{props.subNode}</View>
+          : props.sub ? <Text style={[txt.xs, { marginTop: 2 }]}>{props.sub}</Text> : null}
       </View>
       {props.action}
       {extra}
@@ -410,6 +414,8 @@ export function Row(props: {
   testID?: string;
   /** What help mode says tapping it does, where `sub` (its line otherwise) is data rather than that. */
   help?: string;
+  /** Drawn right after the label, in its line: an organization's blue check (decisions.md 172). */
+  afterLabel?: ReactNode;
 }) {
   const state = {
     ...(props.selected !== undefined ? { selected: props.selected } : props.current ? { selected: true } : {}),
@@ -434,7 +440,7 @@ export function Row(props: {
       ) : null)}
       <View style={{ flex: 1, minWidth: 0 }}>
         {/* Label and sub show in full, however long the language makes them (decisions.md 139). */}
-        <Text style={[txt.body, { fontWeight: '600' }, (props.muted || props.struck) && { color: C.muted }, props.struck && { textDecorationLine: 'line-through' }]}>{marked(props.label, props.highlight)}</Text>
+        <Text style={[txt.body, { fontWeight: '600' }, (props.muted || props.struck) && { color: C.muted }, props.struck && { textDecorationLine: 'line-through' }]}>{marked(props.label, props.highlight)}{props.afterLabel}</Text>
         {props.sub ? <Text style={[txt.smMuted, { marginTop: 1 }]}>{marked(props.sub, props.highlight)}</Text> : null}
         {props.below ? <View style={{ marginTop: space.sm }}>{props.below}</View> : null}
       </View>

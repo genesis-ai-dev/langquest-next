@@ -7098,5 +7098,71 @@
       "equals": "Sama dengan",
       "point": "Titik desimal"
     }
+  },
+  "verified": {
+    "sealLabel": "Organisasi terverifikasi",
+    "sealLabelDomain": "Organisasi terverifikasi: {{domain}}",
+    "title": "Centang biru",
+    "meaning": "Centang biru menunjukkan bahwa ini organisasi yang asli: seorang admin membuktikan bahwa ia punya alamat email di situs webnya, dan LangQuest memeriksanya. Ini tidak berarti LangQuest memeriksa apa yang dibagikan organisasi itu.",
+    "problem": {
+      "notAllowed": "Hanya admin organisasi yang bisa meminta centang biru.",
+      "badDomain": "Ketik alamat situs web, misalnya example.org.",
+      "publicDomain": "Gunakan situs web organisasi Anda sendiri, bukan layanan email gratis.",
+      "badEmail": "Ketik alamat email lengkap.",
+      "emailNotAtDomain": "Alamat email harus berakhiran @{{domain}}.",
+      "alreadyVerified": "{{org}} sudah punya centang biru.",
+      "waiting": "Sudah ada permintaan yang menunggu LangQuest.",
+      "tooSoon": "Tunggu satu menit, lalu minta kode lain.",
+      "tooMany": "Terlalu banyak kode hari ini. Coba lagi besok.",
+      "noEmail": "LangQuest belum bisa mengirim email sekarang. Coba lagi nanti.",
+      "offline": "Anda sedang offline. Sambungkan ke internet dan coba lagi.",
+      "sendFailed": "Email tidak terkirim. Coba lagi."
+    },
+    "code": {
+      "wrong": "Kode itu tidak benar. Periksa email dan coba lagi.",
+      "expired": "Kode itu sudah tidak berlaku. Kirim yang baru.",
+      "tooManyWrong": "Terlalu banyak percobaan yang salah. Kirim kode baru.",
+      "sixDigits": "Kode terdiri dari 6 angka.",
+      "confirm": "Konfirmasi",
+      "confirmHelp": "Memeriksa kode. Lalu LangQuest meninjau permintaan.",
+      "sentTo": "Kami mengirim kode 6 angka ke {{email}}. Ketik di sini.",
+      "label": "Kode dari email",
+      "help": "6 angka dari email yang dikirim LangQuest.",
+      "again": "Kirim kode baru",
+      "againHelp": "Mengirim kode baru ke alamat yang sama.",
+      "change": "Gunakan alamat lain",
+      "changeHelp": "Kembali untuk mengetik situs web atau alamat email lain."
+    },
+    "ask": {
+      "send": "Kirimi saya kode",
+      "sendHelp": "Mengirim kode 6 angka ke alamat itu, untuk membuktikan bahwa alamat itu milik Anda.",
+      "intro": "Centang biru setelah nama {{org}} menunjukkan kepada semua orang bahwa ini {{org}} yang asli. Untuk memintanya, buktikan bahwa Anda punya alamat email di situs web organisasi Anda.",
+      "domain": "Situs web organisasi Anda",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "Situs web yang dikelola organisasi Anda, misalnya example.org.",
+      "email": "Email Anda di situs web itu",
+      "emailPlaceholder": "anda@{{domain}}",
+      "emailHelp": "Alamat email di situs web itu. LangQuest mengirim kodenya ke sana."
+    },
+    "done": {
+      "title": "Terverifikasi",
+      "since": "Terverifikasi sejak {{date}}."
+    },
+    "declined": {
+      "title": "LangQuest tidak menambahkan centang biru",
+      "body": "Anda bisa meminta lagi dengan situs web atau alamat lain."
+    },
+    "waiting": {
+      "title": "Menunggu LangQuest",
+      "body": "{{email}} sudah dikonfirmasi. LangQuest akan memeriksa {{domain}} dan menambahkan centang biru.",
+      "withdraw": "Tarik kembali permintaan",
+      "withdrawHelp": "Membatalkan permintaan. Anda bisa meminta lagi nanti."
+    },
+    "row": {
+      "verified": "Terverifikasi · {{domain}}",
+      "verifiedHelp": "Centang biru: artinya dan kapan ditambahkan.",
+      "ask": "Minta centang biru",
+      "askHelp": "Minta centang biru kepada LangQuest, agar semua orang tahu bahwa ini organisasi yang asli."
+    }
   }
 }

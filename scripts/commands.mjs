@@ -73,6 +73,7 @@ export const GROUPS = [
       diag: 'field diagnostics: a person, a language, an error code, the server jobs',
       moderation: 'open content reports, and acting on them',
       'global-viewer': 'Global Viewers: grant on a call, revoke, reset a lost authenticator, list (docs/global-viewers.md)',
+      'org-verification': "organizations' blue checks: list requests, grant, decline, revoke (docs/verified-organizations.md)",
       v2: 'the LangQuest v2 import: the board, a sync, a dry run',
       'library:seed': "publish the LangQuest organization's library",
       'sample:org': 'a sample organization the team can join',

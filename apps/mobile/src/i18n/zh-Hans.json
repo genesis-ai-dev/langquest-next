@@ -7098,5 +7098,71 @@
       "equals": "等于",
       "point": "小数点"
     }
+  },
+  "verified": {
+    "sealLabel": "已认证的组织",
+    "sealLabelDomain": "已认证的组织：{{domain}}",
+    "title": "蓝色认证标记",
+    "meaning": "蓝色认证标记表示这是真正的组织：一位管理员证明了自己有该组织网站域名下的电子邮件地址，LangQuest 也核实过。这并不表示 LangQuest 审核过该组织分享的内容。",
+    "problem": {
+      "notAllowed": "只有组织管理员可以申请蓝色认证标记。",
+      "badDomain": "请输入网站地址，例如 example.org。",
+      "publicDomain": "请使用你所在组织自己的网站，而不是免费邮箱服务。",
+      "badEmail": "请输入完整的电子邮件地址。",
+      "emailNotAtDomain": "电子邮件地址必须以 @{{domain}} 结尾。",
+      "alreadyVerified": "{{org}} 已经有蓝色认证标记。",
+      "waiting": "已有一个申请在等待 LangQuest 处理。",
+      "tooSoon": "请等一分钟，再申请新的验证码。",
+      "tooMany": "今天的验证码太多了。请明天再试。",
+      "noEmail": "LangQuest 现在无法发送邮件。请稍后再试。",
+      "offline": "你现在离线。请连接网络后再试。",
+      "sendFailed": "邮件没有发出去。请再试一次。"
+    },
+    "code": {
+      "wrong": "验证码不对。请查看邮件后再试。",
+      "expired": "验证码已过期。请发送新的验证码。",
+      "tooManyWrong": "错误次数太多。请发送新的验证码。",
+      "sixDigits": "验证码是 6 位数字。",
+      "confirm": "确认",
+      "confirmHelp": "核对验证码。然后 LangQuest 会处理申请。",
+      "sentTo": "我们已向 {{email}} 发送了 6 位验证码。请在这里输入。",
+      "label": "邮件中的验证码",
+      "help": "LangQuest 发送的邮件中的 6 位数字。",
+      "again": "发送新的验证码",
+      "againHelp": "向同一地址发送新的验证码。",
+      "change": "使用其他地址",
+      "changeHelp": "返回输入其他网站或电子邮件地址。"
+    },
+    "ask": {
+      "send": "给我发验证码",
+      "sendHelp": "向该地址发送 6 位验证码，以证明这是你的地址。",
+      "intro": "{{org}} 名称后的蓝色认证标记会向所有人表明这是真正的 {{org}}。要申请，请证明你有组织网站域名下的电子邮件地址。",
+      "domain": "你所在组织的网站",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "你的组织运营的网站，例如 example.org。",
+      "email": "你在该网站的邮箱",
+      "emailPlaceholder": "you@{{domain}}",
+      "emailHelp": "该网站域名下的电子邮件地址。LangQuest 会把验证码发到那里。"
+    },
+    "done": {
+      "title": "已认证",
+      "since": "自 {{date}} 起认证。"
+    },
+    "declined": {
+      "title": "LangQuest 没有添加蓝色认证标记",
+      "body": "你可以用其他网站或地址重新申请。"
+    },
+    "waiting": {
+      "title": "等待 LangQuest 处理",
+      "body": "{{email}} 已确认。LangQuest 会核实 {{domain}} 并添加蓝色认证标记。",
+      "withdraw": "撤回申请",
+      "withdrawHelp": "取消申请。你以后可以重新申请。"
+    },
+    "row": {
+      "verified": "已认证 · {{domain}}",
+      "verifiedHelp": "蓝色认证标记：它的含义和添加时间。",
+      "ask": "申请蓝色认证标记",
+      "askHelp": "向 LangQuest 申请蓝色认证标记，让所有人都能看到这是真正的组织。"
+    }
   }
 }

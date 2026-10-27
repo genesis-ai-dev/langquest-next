@@ -7712,5 +7712,71 @@
       "equals": "Igual",
       "point": "Punto decimal"
     }
+  },
+  "verified": {
+    "sealLabel": "Organización verificada",
+    "sealLabelDomain": "Organización verificada: {{domain}}",
+    "title": "Marca azul",
+    "meaning": "La marca azul muestra que esta es la organización verdadera: un administrador demostró que tiene un correo en su sitio web, y LangQuest lo comprobó. No significa que LangQuest revisó lo que la organización comparte.",
+    "problem": {
+      "notAllowed": "Solo un administrador de la organización puede pedir la marca azul.",
+      "badDomain": "Escribe la dirección del sitio web, como example.org.",
+      "publicDomain": "Usa el sitio web de tu organización, no un servicio de correo gratuito.",
+      "badEmail": "Escribe una dirección de correo completa.",
+      "emailNotAtDomain": "La dirección de correo debe terminar en @{{domain}}.",
+      "alreadyVerified": "{{org}} ya tiene la marca azul.",
+      "waiting": "Ya hay una solicitud esperando a LangQuest.",
+      "tooSoon": "Espera un minuto y luego pide otro código.",
+      "tooMany": "Demasiados códigos por hoy. Inténtalo mañana.",
+      "noEmail": "LangQuest no puede enviar correos ahora. Inténtalo más tarde.",
+      "offline": "No tienes conexión. Conéctate a internet e inténtalo de nuevo.",
+      "sendFailed": "El correo no se envió. Inténtalo de nuevo."
+    },
+    "code": {
+      "wrong": "Ese código no es correcto. Revisa el correo e inténtalo de nuevo.",
+      "expired": "Ese código ya venció. Pide uno nuevo.",
+      "tooManyWrong": "Demasiados intentos fallidos. Pide un código nuevo.",
+      "sixDigits": "El código tiene 6 dígitos.",
+      "confirm": "Confirmar",
+      "confirmHelp": "Comprueba el código. Luego LangQuest revisa la solicitud.",
+      "sentTo": "Enviamos un código de 6 dígitos a {{email}}. Escríbelo aquí.",
+      "label": "Código del correo",
+      "help": "Los 6 dígitos del correo que envió LangQuest.",
+      "again": "Enviar un código nuevo",
+      "againHelp": "Envía un código nuevo a la misma dirección.",
+      "change": "Usar otra dirección",
+      "changeHelp": "Vuelve para escribir otro sitio web u otra dirección de correo."
+    },
+    "ask": {
+      "send": "Envíame un código",
+      "sendHelp": "Envía un código de 6 dígitos a esa dirección, para demostrar que es tuya.",
+      "intro": "Una marca azul después del nombre de {{org}} muestra a todos que esta es la verdadera {{org}}. Para pedirla, demuestra que tienes una dirección de correo en el sitio web de tu organización.",
+      "domain": "El sitio web de tu organización",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "El sitio web que tiene tu organización, como example.org.",
+      "email": "Tu correo en ese sitio web",
+      "emailPlaceholder": "tu@{{domain}}",
+      "emailHelp": "Una dirección de correo en ese sitio web. LangQuest envía el código allí."
+    },
+    "done": {
+      "title": "Verificada",
+      "since": "Verificada desde el {{date}}."
+    },
+    "declined": {
+      "title": "LangQuest no añadió la marca azul",
+      "body": "Puedes pedirla de nuevo con otro sitio web u otra dirección."
+    },
+    "waiting": {
+      "title": "Esperando a LangQuest",
+      "body": "{{email}} está confirmado. LangQuest revisará {{domain}} y añadirá la marca azul.",
+      "withdraw": "Retirar la solicitud",
+      "withdrawHelp": "Cancela la solicitud. Puedes pedirla de nuevo más tarde."
+    },
+    "row": {
+      "verified": "Verificada · {{domain}}",
+      "verifiedHelp": "La marca azul: qué significa y cuándo se añadió.",
+      "ask": "Pedir la marca azul",
+      "askHelp": "Pide a LangQuest la marca azul, para que todos vean que esta es la organización verdadera."
+    }
   }
 }

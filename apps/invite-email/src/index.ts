@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { invitationContent, parseMessage, type InviteMessage } from './message';
+import { invitationContent, parseCodeMessage, parseMessage, verificationCodeContent, type CodeMessage, type InviteMessage } from './message';
 
 const reply = (body: unknown, status = 200) => Response.json(body, { status });
 type Delivery = { fingerprint: string; status: string; messageId: string | null };
@@ -72,35 +72,64 @@ export class InviteDelivery extends DurableObject<Env> {
   async alarm() { await this.ctx.storage.deleteAll(); }
 }
 
+/** A request body read with its size held to 4 KB, chunked requests included; null when it is larger. */
+async function readSmallBody(request: Request): Promise<Uint8Array | null | 'none'> {
+  const reader = request.body?.getReader();
+  if (!reader) return 'none';
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > 4096) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const buffer = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.length; }
+  return buffer;
+}
+
+/**
+ * A blue check's code (decisions.md 172). No delivery object: each code is
+ * new, and the database limits how many are sent, so a retry is one more
+ * code, not a second copy of one.
+ */
+async function sendCode(p: CodeMessage, env: Env): Promise<Response> {
+  try {
+    await env.EMAIL.send({ to: p.email, from: { email: env.INVITE_FROM, name: 'LangQuest' }, ...verificationCodeContent(p) });
+    return reply({ sent: true });
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : 'unknown';
+    console.error(JSON.stringify({ event: 'verification_email_failed', code }));
+    return reply({ error: 'Email delivery failed.', code: /^[A-Za-z0-9_.:-]{1,80}$/.test(code) ? code : 'unknown' }, 502);
+  }
+}
+
 export default {
   async fetch(request, env): Promise<Response> {
-    if (new URL(request.url).pathname !== '/send-invite') return new Response('Not found', { status: 404 });
+    const path = new URL(request.url).pathname;
+    if (path !== '/send-invite' && path !== '/send-code') return new Response('Not found', { status: 404 });
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
     const actual = new TextEncoder().encode(request.headers.get('Authorization') ?? '');
     const expected = new TextEncoder().encode(`Bearer ${env.INVITE_RELAY_SECRET}`);
     if (!env.INVITE_RELAY_SECRET || actual.length !== expected.length
       || !crypto.subtle.timingSafeEqual(actual, expected)) return reply({ error: 'Unauthorized' }, 401);
-    // Enforce the limit on bytes read, including chunked requests.
-    const reader = request.body?.getReader();
-    if (!reader) return reply({ error: 'Invalid invitation details' }, 400);
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      size += value.length;
-      if (size > 4096) {
-        await reader.cancel();
-        return reply({ error: 'Request too large' }, 413);
-      }
-      chunks.push(value);
+    const buffer = await readSmallBody(request);
+    if (buffer === null) return reply({ error: 'Request too large' }, 413);
+    if (buffer === 'none') return reply({ error: 'Invalid details' }, 400);
+    let body: unknown;
+    try { body = JSON.parse(new TextDecoder().decode(buffer)); }
+    catch { return reply({ error: 'Invalid details' }, 400); }
+    if (path === '/send-code') {
+      const c = parseCodeMessage(body);
+      return c ? sendCode(c, env) : reply({ error: 'Invalid details' }, 400);
     }
-    const buffer = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.length; }
-    let p: InviteMessage | null;
-    try { p = parseMessage(JSON.parse(new TextDecoder().decode(buffer))); }
-    catch { return reply({ error: 'Invalid invitation details' }, 400); }
+    const p: InviteMessage | null = parseMessage(body);
     if (!p) return reply({ error: 'Invalid invitation details' }, 400);
     return env.DELIVERIES.getByName(p.inviteId).send(p);
   }

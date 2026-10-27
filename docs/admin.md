@@ -13,8 +13,9 @@ app's page from ever answering them. Production only: preview has no
 database of its own for it to read yet, so `/ops-dashboard` there says it
 is not set up.
 
-It reads, with two exceptions (decisions.md 162): marking feedback seen,
-done or open again, and running a server job now. For those the page posts
+It reads, with three exceptions (decisions.md 162): marking feedback seen,
+done or open again, running a server job now, and granting or declining an
+organization's blue check request (decisions.md 172, docs/verified-organizations.md). For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
 entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live

@@ -19,5 +19,13 @@
     "openButton": "设置新密码",
     "expires": "这个链接在 {{minutes}} 分钟内有效。",
     "ignore": "如果你没有提出这个请求，请忽略这封邮件。你的密码保持不变。"
+  },
+  "code": {
+    "subject": "你的 LangQuest 验证码：{{code}}",
+    "heading": "确认你的电子邮件地址",
+    "intro": "{{org}} 为网站 {{domain}} 向 LangQuest 申请了蓝色认证标记。",
+    "enter": "要确认这个地址，请在 LangQuest 中输入这个验证码：",
+    "expires": "这个验证码在 {{minutes}} 分钟内有效。",
+    "ignore": "如果你没有提出这个请求，请忽略这封邮件。什么都不会改变。"
   }
 }

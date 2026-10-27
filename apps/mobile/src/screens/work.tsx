@@ -13,6 +13,7 @@
 // others. Nothing here gates the work; every passage is still reachable from
 // the Map. Getting started is gone: help mode (the ? in the header) explains
 // each part for field workers, and the Get ready card leads coordinators.
+import { OrgLine } from '../verified/VerifiedSeal';
 import {
   checkPeople, highlightsOf, languageName, libraryItemView, membershipsOf, recommendedFor, unitPlace, unitTitle, upNextOf, waitingOf,
   type Highlight, type KindDef, type LanguageState, type OrgState, type Waiting
@@ -196,6 +197,7 @@ export function MyWork(ctx: Ctx) {
   const bell = canGo(ctx, 'inbox_home') ? <Bell count={ctx.inbox.unread} onPress={() => ctx.go('inbox_home', { from: 'my_work' })} /> : null;
   const header = (
     <Header title={t('work.title')} sub={[language, orgName].filter(Boolean).join(' · ') || undefined}
+      {...(orgName ? { subNode: <OrgLine text={[language, orgName].filter(Boolean).join(' · ')} orgName={orgName} orgId={ctx.language.orgId} style={txt.xs} /> } : {})}
       action={<View style={styles.headerActions}><SyncChip {...ctx} />{bell}</View>} />
   );
   if (!state || !lists) {

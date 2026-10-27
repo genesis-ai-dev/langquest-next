@@ -19,5 +19,13 @@
     "openButton": "Pilih kata sandi baru",
     "expires": "Tautan ini berlaku selama {{minutes}} menit.",
     "ignore": "Jika Anda tidak memintanya, abaikan email ini. Kata sandi Anda tetap sama."
+  },
+  "code": {
+    "subject": "Kode LangQuest Anda: {{code}}",
+    "heading": "Konfirmasi alamat email Anda",
+    "intro": "{{org}} meminta tanda centang biru dari LangQuest untuk situs web {{domain}}.",
+    "enter": "Untuk mengonfirmasi alamat ini, masukkan kode ini di LangQuest:",
+    "expires": "Kode ini berlaku selama {{minutes}} menit.",
+    "ignore": "Jika Anda tidak memintanya, abaikan email ini. Tidak ada yang berubah."
   }
 }

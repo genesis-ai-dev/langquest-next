@@ -7712,5 +7712,71 @@
       "equals": "Égal",
       "point": "Virgule décimale"
     }
+  },
+  "verified": {
+    "sealLabel": "Organisation vérifiée",
+    "sealLabelDomain": "Organisation vérifiée : {{domain}}",
+    "title": "Coche bleue",
+    "meaning": "La coche bleue montre qu’il s’agit de la vraie organisation : un administrateur a prouvé qu’il a une adresse e-mail sur son site web, et LangQuest l’a vérifié. Cela ne veut pas dire que LangQuest a vérifié ce que l’organisation partage.",
+    "problem": {
+      "notAllowed": "Seul un administrateur de l’organisation peut demander la coche bleue.",
+      "badDomain": "Saisissez l’adresse du site web, comme example.org.",
+      "publicDomain": "Utilisez le site web de votre organisation, pas un service de messagerie gratuit.",
+      "badEmail": "Saisissez une adresse e-mail complète.",
+      "emailNotAtDomain": "L’adresse e-mail doit se terminer par @{{domain}}.",
+      "alreadyVerified": "{{org}} a déjà la coche bleue.",
+      "waiting": "Une demande attend déjà LangQuest.",
+      "tooSoon": "Attendez une minute, puis demandez un autre code.",
+      "tooMany": "Trop de codes pour aujourd’hui. Réessayez demain.",
+      "noEmail": "LangQuest ne peut pas envoyer d’e-mail pour le moment. Réessayez plus tard.",
+      "offline": "Vous êtes hors ligne. Connectez-vous à Internet et réessayez.",
+      "sendFailed": "L’e-mail n’est pas parti. Réessayez."
+    },
+    "code": {
+      "wrong": "Ce code n’est pas bon. Vérifiez l’e-mail et réessayez.",
+      "expired": "Ce code a expiré. Demandez-en un nouveau.",
+      "tooManyWrong": "Trop d’essais incorrects. Demandez un nouveau code.",
+      "sixDigits": "Le code a 6 chiffres.",
+      "confirm": "Confirmer",
+      "confirmHelp": "Vérifie le code. Ensuite, LangQuest examine la demande.",
+      "sentTo": "Nous avons envoyé un code à 6 chiffres à {{email}}. Saisissez-le ici.",
+      "label": "Code reçu par e-mail",
+      "help": "Les 6 chiffres de l’e-mail envoyé par LangQuest.",
+      "again": "Envoyer un nouveau code",
+      "againHelp": "Envoie un nouveau code à la même adresse.",
+      "change": "Utiliser une autre adresse",
+      "changeHelp": "Revient pour saisir un autre site web ou une autre adresse e-mail."
+    },
+    "ask": {
+      "send": "M’envoyer un code",
+      "sendHelp": "Envoie un code à 6 chiffres à cette adresse, pour prouver qu’elle est à vous.",
+      "intro": "Une coche bleue après le nom de {{org}} montre à tous qu’il s’agit de la vraie {{org}}. Pour la demander, prouvez que vous avez une adresse e-mail sur le site web de votre organisation.",
+      "domain": "Le site web de votre organisation",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "Le site web de votre organisation, comme example.org.",
+      "email": "Votre e-mail sur ce site web",
+      "emailPlaceholder": "vous@{{domain}}",
+      "emailHelp": "Une adresse e-mail sur ce site web. LangQuest y envoie le code."
+    },
+    "done": {
+      "title": "Vérifiée",
+      "since": "Vérifiée depuis le {{date}}."
+    },
+    "declined": {
+      "title": "LangQuest n’a pas ajouté la coche bleue",
+      "body": "Vous pouvez la redemander avec un autre site web ou une autre adresse."
+    },
+    "waiting": {
+      "title": "En attente de LangQuest",
+      "body": "{{email}} est confirmée. LangQuest va vérifier {{domain}} et ajouter la coche bleue.",
+      "withdraw": "Retirer la demande",
+      "withdrawHelp": "Annule la demande. Vous pourrez la refaire plus tard."
+    },
+    "row": {
+      "verified": "Vérifiée · {{domain}}",
+      "verifiedHelp": "La coche bleue : ce qu’elle veut dire et quand elle a été ajoutée.",
+      "ask": "Demander la coche bleue",
+      "askHelp": "Demandez la coche bleue à LangQuest, pour que tous voient qu’il s’agit de la vraie organisation."
+    }
   }
 }

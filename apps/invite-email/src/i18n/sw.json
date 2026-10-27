@@ -19,5 +19,13 @@
     "openButton": "Chagua nenosiri jipya",
     "expires": "Kiungo hiki kinafanya kazi kwa dakika {{minutes}}.",
     "ignore": "Ikiwa hukuomba hili, puuza barua pepe hii. Nenosiri lako linabaki vilevile."
+  },
+  "code": {
+    "subject": "Msimbo wako wa LangQuest: {{code}}",
+    "heading": "Thibitisha anwani yako ya barua pepe",
+    "intro": "{{org}} imeomba LangQuest alama ya bluu ya uthibitisho kwa tovuti {{domain}}.",
+    "enter": "Ili kuthibitisha anwani hii, weka msimbo huu katika LangQuest:",
+    "expires": "Msimbo unafanya kazi kwa dakika {{minutes}}.",
+    "ignore": "Ikiwa hukuomba hili, puuza barua pepe hii. Hakuna kitakachobadilika."
   }
 }

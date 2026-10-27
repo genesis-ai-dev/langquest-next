@@ -328,6 +328,16 @@ export interface Support {
   feedbackOpen: { open: number; oldestAt: string | null } | null;
   /** What staff did from the page (ops.actions, decisions.md 162). */
   actions: { at: string; profileId: string; action: string; target: string; result: string; detail: string | null }[];
+  /**
+   * Organizations asking for a blue check, and the last month's decisions (decisions.md 172): names and domains only,
+   * the confirmed address shown as its domain (decision 39). Null when it could not be read (before migration 20261027000000).
+   */
+  verifications: VerificationRow[] | null;
+}
+
+export interface VerificationRow {
+  id: string; orgId: string; orgName: string | null; domain: string; emailDomain: string;
+  status: 'waiting' | 'granted' | 'declined'; createdAt: string; confirmedAt: string | null; decidedAt: string | null; verified: boolean;
 }
 
 /** The Terms of Use promise action on a report within 24 hours (decision 48); this leaves time to act. */
@@ -336,6 +346,8 @@ export const REPORT_DUE_HOURS = 20;
 export function supportAlerts(s: Support, now = Date.now()): Alert[] {
   const out: Alert[] = [];
   const hours = s.reports.oldestAt ? (now - Date.parse(s.reports.oldestAt)) / 3_600_000 : 0;
+  const waiting = (s.verifications ?? []).filter((v) => v.status === 'waiting').length;
+  if (waiting) out.push({ level: 'watch', text: `${plural(waiting, 'organization')} waiting for a blue check (Support, Blue check requests).` });
   if (s.reports.open > 0 && hours >= REPORT_DUE_HOURS) {
     out.push({ level: 'problem', text: `A content report has waited ${Math.round(hours)} hours; the Terms promise action within 24 (npm run moderation -- --hosted).` });
   } else if (s.reports.staffOnly > 0) {
@@ -376,7 +388,7 @@ export interface OpsSections {
 /** Every section above on one connection; each statement fails alone, and a missing function turns off only its section. */
 export async function opsSections(query: Query): Promise<OpsSections> {
   const [fleet, rejected, arrivals, canary, pipeline, people, orgs, eventsByDay, cron, dbdetail, push, pushRuns,
-    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions] = await Promise.all([
+    workerTotals, integrations, dispatch, support, deletions, feedbackOpen, limits, actions, verifications] = await Promise.all([
     part<Fleet>(query, FLEET_SQL),
     part<Safety['rejected']>(query, REJECTED_SQL),
     part<Safety['arrivals']>(query, ARRIVALS_SQL),
@@ -396,7 +408,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
     part<Support['deletions']>(query, DELETIONS_SQL),
     part<{ open: number; oldestAt: string | null }>(query, FEEDBACK_OPEN_SQL),
     part<{ v2SignInFailures24h: number; installsAtDiagCap: number }>(query, `select diag.ops_limits() as v`),
-    part<Support['actions']>(query, `select diag.ops_actions(15) as v`)
+    part<Support['actions']>(query, `select diag.ops_actions(15) as v`),
+    part<VerificationRow[]>(query, `select diag.org_verification_requests() as v`)
   ]);
 
   const routes = workerTotals.ok ? routeRows(workerTotals.value) : [];
@@ -432,7 +445,8 @@ export async function opsSections(query: Query): Promise<OpsSections> {
       return ok(i, integrationAlerts(i));
     }),
     support: build([support], MIGRATION, () => {
-      const s: Support = { ...val(support), deletions: deletions.ok ? deletions.value : [], feedbackOpen: feedbackOpen.ok ? { open: num(feedbackOpen.value.open), oldestAt: feedbackOpen.value.oldestAt } : null, actions: actions.ok ? actions.value : [] };
+      const s: Support = { ...val(support), deletions: deletions.ok ? deletions.value : [], feedbackOpen: feedbackOpen.ok ? { open: num(feedbackOpen.value.open), oldestAt: feedbackOpen.value.oldestAt } : null, actions: actions.ok ? actions.value : [],
+        verifications: verifications.ok ? verifications.value : null };
       return ok(s, supportAlerts(s));
     }),
     security: build([limits], MIGRATION, () => {

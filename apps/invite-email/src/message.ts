@@ -88,3 +88,55 @@ export function passwordResetContent(p: { email: string; link: string; minutes: 
       + '</div>'
   };
 }
+
+/** A blue check's code to an address at the organization's domain (supabase/functions/verify-org-email, decisions.md 172). */
+export interface CodeMessage {
+  requestId: string;
+  email: string;
+  /** Six digits. */
+  code: string;
+  orgName: string;
+  domain: string;
+  expiresAt: string;
+  /** The admin's app language; English when absent or unknown. */
+  locale?: string;
+}
+
+export function parseCodeMessage(input: unknown, now = Date.now()): CodeMessage | null {
+  if (!input || typeof input !== 'object') return null;
+  const p = input as Record<string, unknown>;
+  if (typeof p.requestId !== 'string' || !/^[\da-f-]{36}$/i.test(p.requestId)
+    || typeof p.code !== 'string' || !/^\d{6}$/.test(p.code)
+    || typeof p.email !== 'string' || p.email.length > 254
+    || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(p.email)
+    || typeof p.orgName !== 'string' || !p.orgName.trim() || p.orgName.length > 200 || /[\r\n]/.test(p.orgName)
+    || typeof p.domain !== 'string' || p.domain.length > 253 || !/^[a-z0-9.-]+\.[a-z0-9-]+$/.test(p.domain)
+    || typeof p.expiresAt !== 'string') return null;
+  const expiry = Date.parse(p.expiresAt);
+  // A code lives half an hour; anything longer is not one the database made.
+  if (!Number.isFinite(expiry) || expiry <= now || expiry > now + 61 * 60_000) return null;
+  return { requestId: p.requestId, email: p.email.toLowerCase(), code: p.code, orgName: p.orgName.trim(), domain: p.domain,
+    expiresAt: new Date(expiry).toISOString(),
+    ...(emailLanguage(p.locale) !== 'en' ? { locale: emailLanguage(p.locale) } : {}) };
+}
+
+/** The code email: who asked, for which website, the code, and how long it works. */
+export function verificationCodeContent(p: CodeMessage, now = Date.now()) {
+  const lang = p.locale ?? 'en';
+  const w = emailText(lang).code;
+  const minutes = new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : lang).format(Math.max(1, Math.round((Date.parse(p.expiresAt) - now) / 60_000)));
+  const intro = fill(w.intro, { org: p.orgName, domain: p.domain });
+  const expires = fill(w.expires, { minutes });
+  return {
+    subject: fill(w.subject, { code: p.code }),
+    text: `${intro}\n\n${w.enter}\n${p.code}\n\n${expires}\n\n${w.ignore}`,
+    html: `<div dir="${emailDir(lang)}" lang="${escapeHtml(lang)}">`
+      + `<h1>${escapeHtml(w.heading)}</h1>`
+      + `<p>${escapeHtml(intro)}</p>`
+      + `<p>${escapeHtml(w.enter)}</p>`
+      + `<p style="font-size:28px;letter-spacing:6px"><strong dir="ltr">${escapeHtml(p.code)}</strong></p>`
+      + `<p>${escapeHtml(expires)}</p>`
+      + `<p>${escapeHtml(w.ignore)}</p>`
+      + '</div>'
+  };
+}

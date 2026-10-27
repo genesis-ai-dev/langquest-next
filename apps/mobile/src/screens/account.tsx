@@ -9,6 +9,7 @@
 // decisions.md 48).
 // Requirements INBOX-1, INBOX-2, AUTH-7, AUTH-8, ONB-2 (the Me rows back to
 // them), CORE-12 (sign-out never strands work).
+import { OrgName } from '../verified/VerifiedSeal';
 import { signInName } from '../auth/accounts';
 import { readHelp, type SignInHelp } from '../auth/signInHelp';
 import { CommandError, decodeHlc, languageName, unitTitle, type Update } from '@langquest-next/core';
@@ -656,7 +657,7 @@ export function OrgSwitcher(ctx: Ctx) {
               <View style={styles.profile}>
                 <View style={styles.tile}><Ico name="building" size={24} color={active ? C.primary : C.muted} /></View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={[txt.body, { fontWeight: '600' }]}>{r.name}</Text>
+                  <OrgName name={r.name} orgId={r.org_id} style={[txt.body, { fontWeight: '600' }]} />
                 </View>
                 {active ? <View style={styles.check}><Ico name="check" size={16} color={C.white} strokeWidth={3} /></View> : null}
               </View>

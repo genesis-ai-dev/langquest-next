@@ -7405,5 +7405,71 @@
       "equals": "Sawa na",
       "point": "Nukta ya desimali"
     }
+  },
+  "verified": {
+    "sealLabel": "Shirika lililothibitishwa",
+    "sealLabelDomain": "Shirika lililothibitishwa: {{domain}}",
+    "title": "Alama ya bluu",
+    "meaning": "Alama ya bluu inaonyesha kwamba hili ndilo shirika halisi: msimamizi alithibitisha kuwa ana anwani ya barua pepe kwenye tovuti yake, na LangQuest ilikagua. Haimaanishi kwamba LangQuest ilikagua kile ambacho shirika linashiriki.",
+    "problem": {
+      "notAllowed": "Msimamizi wa shirika pekee ndiye anayeweza kuomba alama ya bluu.",
+      "badDomain": "Andika anwani ya tovuti, kama example.org.",
+      "publicDomain": "Tumia tovuti ya shirika lako, si huduma ya barua pepe ya bure.",
+      "badEmail": "Andika anwani kamili ya barua pepe.",
+      "emailNotAtDomain": "Anwani ya barua pepe lazima iishe kwa @{{domain}}.",
+      "alreadyVerified": "{{org}} tayari ina alama ya bluu.",
+      "waiting": "Ombi tayari linasubiri LangQuest.",
+      "tooSoon": "Subiri dakika moja, kisha uombe msimbo mwingine.",
+      "tooMany": "Misimbo mingi mno leo. Jaribu tena kesho.",
+      "noEmail": "LangQuest haiwezi kutuma barua pepe sasa. Jaribu tena baadaye.",
+      "offline": "Huna mtandao. Unganisha kwenye intaneti na ujaribu tena.",
+      "sendFailed": "Barua pepe haikutumwa. Jaribu tena."
+    },
+    "code": {
+      "wrong": "Msimbo huo si sahihi. Angalia barua pepe na ujaribu tena.",
+      "expired": "Muda wa msimbo huo umeisha. Tuma mpya.",
+      "tooManyWrong": "Majaribio mengi yasiyo sahihi. Tuma msimbo mpya.",
+      "sixDigits": "Msimbo una tarakimu 6.",
+      "confirm": "Thibitisha",
+      "confirmHelp": "Inakagua msimbo. Kisha LangQuest inaangalia ombi.",
+      "sentTo": "Tumetuma msimbo wa tarakimu 6 kwa {{email}}. Uandike hapa.",
+      "label": "Msimbo kutoka kwenye barua pepe",
+      "help": "Tarakimu 6 kutoka kwenye barua pepe ambayo LangQuest ilituma.",
+      "again": "Tuma msimbo mpya",
+      "againHelp": "Inatuma msimbo mpya kwa anwani ileile.",
+      "change": "Tumia anwani nyingine",
+      "changeHelp": "Inarudi ili uandike tovuti au anwani nyingine ya barua pepe."
+    },
+    "ask": {
+      "send": "Nitumie msimbo",
+      "sendHelp": "Inatuma msimbo wa tarakimu 6 kwa anwani hiyo, kuthibitisha kuwa ni yako.",
+      "intro": "Alama ya bluu baada ya jina la {{org}} inaonyesha kila mtu kwamba hii ndiyo {{org}} halisi. Ili kuiomba, thibitisha kwamba una anwani ya barua pepe kwenye tovuti ya shirika lako.",
+      "domain": "Tovuti ya shirika lako",
+      "domainPlaceholder": "example.org",
+      "domainHelp": "Tovuti ambayo shirika lako linaendesha, kama example.org.",
+      "email": "Barua pepe yako kwenye tovuti hiyo",
+      "emailPlaceholder": "wewe@{{domain}}",
+      "emailHelp": "Anwani ya barua pepe kwenye tovuti hiyo. LangQuest inatuma msimbo huko."
+    },
+    "done": {
+      "title": "Limethibitishwa",
+      "since": "Limethibitishwa tangu {{date}}."
+    },
+    "declined": {
+      "title": "LangQuest haikuongeza alama ya bluu",
+      "body": "Unaweza kuomba tena kwa tovuti au anwani nyingine."
+    },
+    "waiting": {
+      "title": "Inasubiri LangQuest",
+      "body": "{{email}} imethibitishwa. LangQuest itakagua {{domain}} na kuongeza alama ya bluu.",
+      "withdraw": "Ondoa ombi",
+      "withdrawHelp": "Inaghairi ombi. Unaweza kuomba tena baadaye."
+    },
+    "row": {
+      "verified": "Limethibitishwa · {{domain}}",
+      "verifiedHelp": "Alama ya bluu: maana yake na lini iliongezwa.",
+      "ask": "Omba alama ya bluu",
+      "askHelp": "Omba LangQuest alama ya bluu, ili kila mtu aone kwamba hili ndilo shirika halisi."
+    }
   }
 }

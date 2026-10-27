@@ -21,6 +21,8 @@ export const C = {
   green: '#10B981',
   amber: '#F59E0B',
   red: '#EF4444',
+  /** A verified organization's blue check (decisions.md 172): blue, so it never reads as one of the purple buttons; 3:1 on white as a glyph. */
+  verified: '#1D8CF8',
   white: '#FFFFFF'
 } as const;
 

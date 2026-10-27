@@ -38,7 +38,8 @@ export function emailText(code: string): EmailText {
   const own = EMAIL_CATALOGS[emailLanguage(code)] ?? {};
   return {
     invite: { ...en.invite, ...own.invite },
-    reset: { ...en.reset, ...own.reset }
+    reset: { ...en.reset, ...own.reset },
+    code: { ...en.code, ...own.code }
   };
 }
 
