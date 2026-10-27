@@ -2,7 +2,7 @@
 
 A publisher keeps its material in an organization of its own, with its blue
 check (docs/verified-organizations.md), and brings it in with an importer
-LangQuest staff turn on for that organization (decisions.md 173). Other
+LangQuest staff turn on for that organization (decisions.md 174). Other
 organizations follow what it publishes, as they follow any shared library
 item, and get each new import as an update.
 

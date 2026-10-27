@@ -1,5 +1,5 @@
 // Moving one of the organization's library items to another organization
-// (decisions.md 174), on the item's own screen: where its move stands, and
+// (decisions.md 175), on the item's own screen: where its move stands, and
 // a sheet that finds the organization and offers it. Only someone who
 // manages this kind of item here sees it.
 import type { LibraryItemView } from '@langquest-next/core';

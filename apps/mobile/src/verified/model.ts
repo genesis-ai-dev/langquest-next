@@ -1,4 +1,4 @@
-// A blue check for an organization (decisions.md 172): what an admin types,
+// A blue check for an organization (decisions.md 173): what an admin types,
 // checked as the database checks it (supabase/migrations/
 // 20261027000000_verified_organizations.sql), so the form says what is wrong
 // before anything is sent. Pure, so it is tested (test/verifiedModel.test.ts).

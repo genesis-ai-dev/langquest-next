@@ -3,7 +3,7 @@
 A blue check after an organization's name tells people it is the real
 organization: that an admin of it proved they have an email address at its
 website, and LangQuest staff checked the website is theirs (decisions.md
-172). It says who is sharing material, not that LangQuest reviewed it. The
+173). It says who is sharing material, not that LangQuest reviewed it. The
 app says so in one sentence (`verified.meaning`): "A blue check means the
 LangQuest team has verified this organization. It is not an approval or
 endorsement of what the organization publishes." (the wording follows

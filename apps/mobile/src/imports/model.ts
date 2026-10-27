@@ -1,4 +1,4 @@
-// An organization's imports of its own material (decisions.md 173), as its
+// An organization's imports of its own material (decisions.md 174), as its
 // Reference Material page shows them: which languages an importer offers,
 // where the latest run stands, and the line under its row. Pure.
 import { t } from '../i18n';

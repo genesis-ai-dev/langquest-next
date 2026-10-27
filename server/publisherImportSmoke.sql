@@ -1,4 +1,4 @@
--- Publisher imports (decisions.md 173): staff turn on an importer, an admin
+-- Publisher imports (decisions.md 174): staff turn on an importer, an admin
 -- asks for a run, the Worker keeps documents for it that nobody can read, and
 -- the admin's publishing makes them the organization's.
 -- Repeatable against a populated database; every test write rolls back.

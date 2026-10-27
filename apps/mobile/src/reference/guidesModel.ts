@@ -12,13 +12,14 @@ import { docLanguage, languagesLine } from './languages';
 import { booksOf, recLabel, recOn, recState, refKindLabel, type Level } from './model';
 import type { RefItem } from './useReference';
 
-export type KindFilter = 'all' | 'guide' | 'note' | 'other';
-export const KIND_FILTERS: KindFilter[] = ['all', 'guide', 'note', 'other'];
+export type KindFilter = 'all' | 'guide' | 'note' | 'words' | 'other';
+export const KIND_FILTERS: KindFilter[] = ['all', 'guide', 'note', 'words', 'other'];
 export function kindFilterLabel(k: KindFilter): string {
   switch (k) {
     case 'all': return t('reference.guides.kindAll');
     case 'guide': return t('reference.guides.kindGuides');
     case 'note': return t('reference.guides.kindNotes');
+    case 'words': return t('reference.guides.kindWords');
     case 'other': return t('reference.guides.kindOther');
   }
 }
@@ -26,9 +27,9 @@ export function kindFilterLabel(k: KindFilter): string {
 /** The filters on the list: what kind, in which language, about which book, and whether it reaches the open language's passages. */
 export interface GuideFilters { kind: KindFilter; language: string | null; book: string | null; covers: boolean }
 
-/** The items the screen lists: guides, notes and other material that are not archived. */
+/** The items the screen lists: guides, notes, key-word lists (decision 172) and other material that are not archived. */
 export function guideItems(rows: RefItem[]): RefItem[] {
-  return rows.filter((r) => r.kind === 'guide' || r.kind === 'note' || r.kind === 'other').filter((r) => !r.it.archived);
+  return rows.filter((r) => r.kind === 'guide' || r.kind === 'note' || r.kind === 'words' || r.kind === 'other').filter((r) => !r.it.archived);
 }
 
 /** The languages and books the filter sheet offers: those the items have. */
@@ -60,12 +61,14 @@ export function guideRows(shown: RefItem[], orgRecs: Record<string, Register<boo
   }).sort((a, b) => Number(!recOn(a.st)) - Number(!recOn(b.st)) || a.r.it.name.localeCompare(b.r.it.name));
 }
 
-/** A row's line: kind, language, books or passages, and how many passages it reaches when that is known. */
+/** A row's line: kind, language, books, passages or words, and how many passages it reaches when that is known. */
 export function guideLine(r: RefItem, reaches: number | null): string {
   const doc = r.doc;
   // Every item says its language, or that it gives none, so whoever chooses knows whether the team can read it (decision 84).
   const parts: string[] = [refKindLabel(r.kind ?? 'other'), languagesLine([docLanguage(doc)])];
   if (doc?.format === 'collection@1') parts.push(t('reference.passages', { count: doc.entries.length }));
+  // A key-word list says how many words it has; its words' verses span the Bible, so no books.
+  else if (doc?.format === 'material@1' && doc.kind === 'key_terms') parts.push(t('reference.words', { count: doc.terms?.length ?? 0 }));
   else {
     const books = booksOf(doc);
     if (books.length) parts.push(books.length > 3 ? t('reference.guides.booksMore', { books: list(books.slice(0, 3)), more: formatNumber(books.length - 3) }) : list(books));

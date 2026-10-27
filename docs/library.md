@@ -16,7 +16,7 @@ An item is one of four kinds:
 | --- | --- | --- |
 | `template` | `template@1`, `template@2` (a Bible broken up book by book, decision 74) | Manage Content Templates |
 | `flow` | `flow@1` | Manage Review Flows |
-| `material` | `study@1`, `study@2`, `collection@1`, `material@1` | Manage Reference Material (guides: Write a guide) |
+| `material` | `study@1`, `study@2`, `collection@1`, `material@1` (a key-word list is `material@1` of kind `key_terms`, decision 172) | Manage Reference Material (guides: Write a guide) |
 | `versification` | `versification@1` (Copenhagen Alliance JSON) | Manage Content Templates |
 
 A version is an immutable JSON **document** named by the SHA-256 of its
@@ -69,7 +69,7 @@ passage reads it (`loadDocs`; decisions.md 71, amended 2026-10-11).
 ## Moving an item to another organization
 
 An organization can hand an item it controls to another organization to host
-(decisions.md 174): LangQuest's FIA copies to Word Collective, say.
+(decisions.md 175): LangQuest's FIA copies to Word Collective, say.
 
 1. Someone who manages that kind of item opens its settings and taps **Move
    to another organization**, finds the organization by name (those that
@@ -181,7 +181,7 @@ by `_apply_org_event`), `library_documents` (hash, format, body, deps) and
 | `library_shared_items(p_kind, p_query, p_limit, p_offset)` | anyone signed in | shared, unarchived items of every organization, with their latest version |
 | `library_adopt(p_org, p_source_org, p_source_item, p_hash)` | a member of `p_org` who manages that kind | gives `p_org` access to one version of a shared item and its deps |
 | `library_updates(p_org)` | a member of `p_org` | each active subscription's newest available version |
-| `library_move_targets`, `library_move_offer`, `library_moves_for`, `library_move_withdraw`, `library_move_decline`, `library_move_accept` | someone who manages the item's kind at that organization | moving an item to another organization (decisions.md 174) |
+| `library_move_targets`, `library_move_offer`, `library_moves_for`, `library_move_withdraw`, `library_move_decline`, `library_move_accept` | someone who manages the item's kind at that organization | moving an item to another organization (decisions.md 175) |
 | `library_seed_document` / `library_seed_events` | service role only | how `scripts/library-seed.ts` publishes the LangQuest organization |
 
 ## Content in this repository
@@ -190,7 +190,10 @@ by `_apply_org_event`), `library_documents` (hash, format, body, deps) and
 versifications, and the sources `scripts/library-seed.ts` turns into
 documents (templates, flows, question sets). FIA study material comes in
 through the FIA adapter (`scripts/fia-adapter.ts`) from the FIA API's
-pericope JSON. Sources to read and hear (`source@1`) are built by
+pericope JSON. FIA's key words come in through `scripts/fia-terms.ts` from
+the file FIA's `get_terms.py` writes (`--fia-terms <file>`; without it the
+Genesis 2 sample in `library/fia/terms.sample.json`): one key-word list per
+language, `langquest.fia-words.<lang>` (decision 172). Sources to read and hear (`source@1`) are built by
 `scripts/sources-seed.ts`: Bible Brain editions from FCBH's API (linked,
 nothing of theirs stored) and the BSB read by Frederick Surrey from its
 public-domain text (library/README.md). None of it ships in the app.

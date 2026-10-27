@@ -1,5 +1,5 @@
 // Offers from other organizations to move one of their library items here
-// (decisions.md 174), at the top of the library page for its kind: take it
+// (decisions.md 175), at the top of the library page for its kind: take it
 // as a new item or in place of one of this organization's own, or turn it
 // down. Only someone who manages that kind here sees them.
 import { orgName, type LibraryKind } from '@langquest-next/core';

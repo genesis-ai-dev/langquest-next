@@ -15,7 +15,7 @@ is not set up.
 
 It reads, with three exceptions (decisions.md 162): marking feedback seen,
 done or open again, running a server job now, and granting or declining an
-organization's blue check request (decisions.md 172, docs/verified-organizations.md). For those the page posts
+organization's blue check request (decisions.md 173, docs/verified-organizations.md). For those the page posts
 to `/ops/api/actions`; this Worker, which holds no writer's key, passes the
 action and the person's own token to the app Worker's `OpsActions`
 entrypoint (`APP_ACTIONS` binding), which checks the token itself (a live

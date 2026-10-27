@@ -1041,7 +1041,8 @@
     "offers": {
       "guides": "os guias de estudo de {{name}}",
       "theBible": "a {{name}}",
-      "guidesIn": "os guias de estudo de {{name}} em {{language}}"
+      "guidesIn": "os guias de estudo de {{name}} em {{language}}",
+      "wordsIn": "{{name}} em {{language}}"
     },
     "languages": {
       "row": "Idiomas",
@@ -1392,7 +1393,22 @@
       "setHelp": "Abre os idiomas disponíveis: escolha qual a equipe recebe, ou desative.",
       "patternOnHelp": "Oferecido à equipe, no idioma escolhido para ele.",
       "all": "Todo o material de referência",
-      "allHelp": "Abre tudo na biblioteca da organização e o que é oferecido a cada idioma."
+      "allHelp": "Abre tudo na biblioteca da organização e o que é oferecido a cada idioma.",
+      "search": "Pesquisar Bíblias, guias, palavras-chave…",
+      "searchHelp": "Encontra Bíblias, guias, palavras-chave e notas pelo nome, pela descrição, por quem compartilha ou pelo idioma.",
+      "searchHint": "Nomes, descrições, de quem é e o idioma, em todas as organizações que compartilham com você.",
+      "goesWithFilter": "Acompanha {{name}}",
+      "familyNote": "Tudo o que está ligado a {{name}}. Desligue o que quiser, ou limpe a pesquisa para ver tudo de novo.",
+      "clearGoesWith": "Mostrar tudo de novo",
+      "clearGoesWithHelp": "Tira o “Acompanha”, para a lista toda aparecer de novo.",
+      "relatedHelp": "Mostra só o que acompanha isto, cada um com o seu próprio botão de ligar.",
+      "notInLibrary": "Ainda não está na sua biblioteca",
+      "turnedOnWith": "{{name}} e {{related}} foram ligados",
+      "wordSetChosen": "{{name}} agora estão em {{language}}",
+      "wordSetOff": "{{name}} estão desativadas para esta equipe",
+      "relatedOn_one": "{{count, number}} recurso relacionado ligado",
+      "relatedOn_many": "{{count, number}} de recursos relacionados ligados",
+      "relatedOn_other": "{{count, number}} recursos relacionados ligados"
     },
     "page": {
       "title": "O que os ajuda",
@@ -2811,12 +2827,6 @@
       "latestBy": "a última por {{name}}, {{when}}",
       "playExplanation": "Tocar a explicação",
       "openVersion": "Abrir a versão {{n, number}}",
-      "whereUsed": "Onde é usado",
-      "versions_one": "{{count, number}} versão",
-      "versions_many": "{{count, number}} de versões",
-      "versions_other": "{{count, number}} versões",
-      "usedTitle": "{{title}} · Versão {{n, number}}",
-      "changedHere": "Mudado aqui",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Registrado como parte de {{passage}} e ligado ao seu rascunho.",
       "adjustSub": "Cada mudança é registrada com o seu motivo.",
@@ -2829,8 +2839,6 @@
       "addRenderingHelp": "Adicione como {{language}} diz, e por quê. Cada mudança fica guardada.",
       "adjustHelp": "Mude ou adicione como {{language}} diz, com o seu motivo. Cada mudança fica guardada.",
       "openVersionHelp": "Abre a versão em que esta mudança foi feita.",
-      "usedHelp": "Abre esta versão, que usa o termo.",
-      "usedChangedHelp": "Abre esta versão. Mudado aqui: a tradução foi ajustada durante ela.",
       "saveHelp": "Registra a mudança e o seu motivo, para a equipe ver."
     }
   },
@@ -6313,7 +6321,8 @@
       "howManyHelp": "Diga quantos ouviram. Opcional.",
       "doneRecordedHelp": "Coloca a {{what}} na ficha da passagem.",
       "looksGoodOffline": "Está bom. {{name}} recebe quando este aparelho estiver conectado.",
-      "feedbackOffline": "Comentário guardado. {{name}} recebe quando este aparelho estiver conectado."
+      "feedbackOffline": "Comentário guardado. {{name}} recebe quando este aparelho estiver conectado.",
+      "helpWordsHelp": "Abre as palavras-chave desta passagem, com a palavra da equipe para cada uma e se esta versão a usou."
     },
     "guest": {
       "previewSub": "Prévia · o que alguém sem o aplicativo vê",
@@ -6624,7 +6633,8 @@
       "guide": "Guia de estudo",
       "note": "Nota para tradutores",
       "questions": "Conjunto de perguntas",
-      "other": "Material"
+      "other": "Material",
+      "words": "Palavras-chave"
     },
     "facts": {
       "oldTestament": "Antigo Testamento",
@@ -6838,7 +6848,8 @@
       "kindAllHelp": "Mostra todos os tipos.",
       "kindHelp": "Mostra só este tipo.",
       "languageHelp": "Mostra só itens neste idioma.",
-      "openHelp": "Abre: o que diz e onde está colocado."
+      "openHelp": "Abre: o que diz e onde está colocado.",
+      "kindWords": "Palavras-chave"
     },
     "coverage": {
       "title": "Cobertura",
@@ -7019,7 +7030,13 @@
       "keepHelp": "Mantém este idioma e fecha.",
       "offHelp": "A equipe deixa de receber estes guias.",
       "useHelp": "A equipe recebe estes guias neste idioma.",
-      "rowHelp": "Escolhe este idioma para os guias da equipe. A linha diz quantas passagens têm um."
+      "rowHelp": "Escolhe este idioma para os guias da equipe. A linha diz quantas passagens têm um.",
+      "wordsUseHelp": "A equipe recebe estas palavras-chave neste idioma.",
+      "wordsOffHelp": "A equipe deixa de receber estas palavras-chave.",
+      "wordsRowHelp": "Escolhe este idioma para as palavras-chave da equipe. A linha diz quantas palavras ele tem.",
+      "wordsGaps_one": "Em {{language}}, {{name}} tem {{count, number}} palavra. Cada passagem mostra as que usa.",
+      "wordsGaps_many": "Em {{language}}, {{name}} tem {{count, number}} de palavras. Cada passagem mostra as que usa.",
+      "wordsGaps_other": "Em {{language}}, {{name}} tem {{count, number}} palavras. Cada passagem mostra as que usa."
     },
     "passageText": {
       "bar": "{{passage}} · {{bible}}",
@@ -7051,7 +7068,10 @@
       "writeNoteSub": "Nos versículos que você escolher, falada ou digitada",
       "fromLibrary": "Da sua biblioteca",
       "fromOwn": "Da biblioteca da sua organização"
-    }
+    },
+    "words_one": "{{count, number}} palavra",
+    "words_many": "{{count, number}} de palavras",
+    "words_other": "{{count, number}} palavras"
   },
   "sources": {
     "listSeparator": ", ",
@@ -7220,7 +7240,10 @@
     "change": "Mudar",
     "rowHelp": "Adiciona este idioma para as Bíblias e guias da equipe, ou o tira. A linha diz o que há nele.",
     "listed": "Só aparecem idiomas com Bíblias ou guias de estudo.",
-    "noMatch": "Nenhum idioma com esse nome tem Bíblias ou guias de estudo ainda."
+    "noMatch": "Nenhum idioma com esse nome tem Bíblias ou guias de estudo ainda.",
+    "setWords_one": "{{name}} ({{count, number}} palavra)",
+    "setWords_many": "{{name}} ({{count, number}} de palavras)",
+    "setWords_other": "{{name}} ({{count, number}} palavras)"
   },
   "checks": {
     "title": "Verificações",
@@ -7439,6 +7462,115 @@
       "playHelp": "Toca como eles dizem.",
       "suggest": "Outras línguas daqui usam",
       "suggestHelp": "Usada aqui em {{languages}}. Toque para adicioná-la."
+    },
+    "lists": {
+      "here": "Palavras-chave aqui",
+      "from": "De {{name}} · {{language}}",
+      "inPassage": "Nesta passagem",
+      "saidAs": "{{verses}} (“{{form}}”)",
+      "openHelp": "Abre o significado, para ler ou ouvir.",
+      "rowLabel": "{{term}}. {{gloss}}. {{refs}}",
+      "play": "Tocar o significado de {{term}}",
+      "pause": "Pausar o significado de {{term}}",
+      "playHelp": "Toca a gravação de {{name}} que explica o significado.",
+      "words_one": "{{count, number}} palavra",
+      "words_many": "{{count, number}} de palavras",
+      "words_other": "{{count, number}} palavras"
+    },
+    "sheet": {
+      "sub": "Palavra-chave de {{name}} · {{language}}",
+      "hear": "Ouvir a explicação de {{name}}",
+      "hearHelp": "Toca a gravação de {{name}} que explica o que a palavra significa. Toque de novo para pausar.",
+      "pauseHear": "Pausar a explicação de {{name}}",
+      "playVerse": "Tocar {{verse}}",
+      "means": "O que significa",
+      "meansHelp": "Toque numa palavra sublinhada para ver o que ela significa.",
+      "add": "Adicionar às nossas palavras-chave",
+      "addHelp": "Adiciona às palavras-chave de {{language}}, com o significado de {{name}}. Depois você diz como se fala em {{language}}.",
+      "addThen": "Depois diga como se fala em {{language}}",
+      "ours": "Uma das palavras-chave de {{language}}.",
+      "backTo": "Voltar para {{term}}",
+      "backToHelp": "Mostra de novo a palavra de onde você veio.",
+      "minutes_one": "{{count, number}} min",
+      "minutes_many": "{{count, number}} min",
+      "minutes_other": "{{count, number}} min",
+      "everyPassage": "Todas as passagens onde está",
+      "everyPassageHelp": "Abre a página da palavra: todas as passagens onde ela está e em que pé a equipe está em cada uma."
+    },
+    "search": {
+      "help": "Encontra palavras-chave, as suas e as de cada lista: pela palavra, depois pelo significado curto, depois pelo significado completo.",
+      "all": "Todas",
+      "ours": "Nossas",
+      "allHelp": "Mostra as palavras-chave da sua equipe e as de cada lista.",
+      "oursHelp": "Mostra só as palavras-chave da sua equipe.",
+      "listHelp": "Mostra só as palavras-chave de {{name}}.",
+      "words": "Palavras",
+      "inGloss": "Num significado curto",
+      "inMeaning": "Num significado completo",
+      "moreHelp": "Mostra as palavras cujo significado completo menciona isto.",
+      "ourWord": "Palavra em {{language}}",
+      "openListHelp": "Abre o significado segundo {{name}}.",
+      "more_one": "Mais {{count, number}} menciona isto no significado completo",
+      "more_many": "Mais {{count, number}} mencionam isto no significado completo",
+      "more_other": "Mais {{count, number}} mencionam isto no significado completo",
+      "linkedIn_one": "Ligada a {{count, number}} passagem em {{book}}",
+      "linkedIn_many": "Ligada a {{count, number}} de passagens em {{book}}",
+      "linkedIn_other": "Ligada a {{count, number}} passagens em {{book}}",
+      "linked_one": "Ligada a {{count, number}} passagem",
+      "linked_many": "Ligada a {{count, number}} de passagens",
+      "linked_other": "Ligada a {{count, number}} passagens"
+    },
+    "review": {
+      "title": "Palavras-chave de {{name}}",
+      "titlePlain": "Palavras-chave",
+      "intro": "Ouça como a Versão {{n}} diz cada uma. Toque numa palavra para ver o significado segundo {{name}}.",
+      "gone": "Esta lista de palavras-chave não está mais na biblioteca.",
+      "none": "{{name}} não tem palavras-chave nesta passagem.",
+      "openHelp": "Abre o significado da palavra, como {{name}} explica.",
+      "used": "{{name}} usou",
+      "notMarked": "Não marcada na Versão {{n}}",
+      "noWord": "Ainda não há palavra em {{language}}",
+      "rowSub_one": "{{count, number}} aqui · {{language}} tem palavra para {{have, number}}",
+      "rowSub_many": "{{count, number}} aqui · {{language}} tem palavra para {{have, number}}",
+      "rowSub_other": "{{count, number}} aqui · {{language}} tem palavra para {{have, number}}"
+    },
+    "page": {
+      "all": "Todas {{n, number}}",
+      "used": "Usada {{n, number}}",
+      "notMarked": "Não marcada {{n, number}}",
+      "notRecorded": "Não gravadas {{n, number}}",
+      "recorded": "Gravadas {{n, number}}",
+      "passages_one": "Passagens · {{count, number}}",
+      "passages_many": "Passagens · {{count, number}}",
+      "passages_other": "Passagens · {{count, number}}",
+      "linkedBy_one": "Ligada a {{count, number}} por {{name}}",
+      "linkedBy_many": "Ligada a {{count, number}} por {{name}}",
+      "linkedBy_other": "Ligada a {{count, number}} por {{name}}",
+      "noPassages": "Ainda não está em nenhuma passagem.",
+      "filterHelp": "Mostra só as passagens nesta situação.",
+      "openVersionHelp": "Abre essa versão da passagem.",
+      "openPassageHelp": "Abre a passagem.",
+      "linkedByOne": "Ligada por {{name}}",
+      "markedHere": "Marcada aqui numa versão",
+      "versionUsed": "A Versão {{n}} usou",
+      "versionNotMarked": "A Versão {{n}} não marcou",
+      "recordedVersion": "Gravada · Versão {{n}}",
+      "notRecordedYet": "Ainda não gravado",
+      "notes_one": "Notas e revisões · {{count, number}}",
+      "notes_many": "Notas e revisões · {{count, number}}",
+      "notes_other": "Notas e revisões · {{count, number}}",
+      "openNoteHelp": "Abre a passagem em que a nota foi deixada.",
+      "noteOnWord": "nota na palavra",
+      "version": "Versão {{n}}",
+      "withReview": "Com uma revisão",
+      "replies_one": "{{count, number}} resposta",
+      "replies_many": "{{count, number}} de respostas",
+      "replies_other": "{{count, number}} respostas",
+      "playNote": "Tocar a nota",
+      "notOurs": "Ainda não é uma das palavras-chave de {{language}}",
+      "fromList": "De {{name}}",
+      "fromListSub": "O que significa e a gravação de {{name}}",
+      "fromListHelp": "Abre o que {{name}} diz que a palavra significa, com a gravação."
     }
   },
   "clusters": {

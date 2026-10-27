@@ -1,4 +1,4 @@
--- Moving a library item to another organization (decisions.md 174): one
+-- Moving a library item to another organization (decisions.md 175): one
 -- organization offers an item, another takes it, and when the new item is
 -- shared for following, its followers follow it and the old item retires.
 -- Repeatable against a populated database; every test write rolls back.

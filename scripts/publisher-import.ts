@@ -1,4 +1,4 @@
-// Importers for organizations that host their own material (decisions.md 173,
+// Importers for organizations that host their own material (decisions.md 174,
 // docs/publisher-imports.md). LangQuest staff turn one on for an organization,
 // pointed at where it keeps its material; the organization's admins then ask
 // for imports in the app, the app Worker builds them, and the admins publish.

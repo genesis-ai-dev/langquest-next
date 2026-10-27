@@ -56,6 +56,10 @@ import { languageLabel } from '../admin/adminModel';
 import { HelpCard, PassageTextBar, WordChip } from '../helps/helps';
 import { DashedBtn } from '../recording/blocks';
 import { useBible } from '../helps/useBible';
+import { ListWordSheet } from '../helps/reference';
+import { usePassageKeyWords } from '../keyTerms/usePassageKeyWords';
+import type { WordHere } from '../keyTerms/listsModel';
+import { bookOf } from '../recording/model';
 import { contractsFor } from '../shell/screenContracts';
 import { bibleErrorText } from '../sources/bibleBrain';
 import { useBibleBrainBibles } from '../sources/useBibleBrainBibles';
@@ -687,7 +691,13 @@ export function PassageReference(ctx: Ctx) {
   // The language's key words in these verses, as the recorder finds them.
   const terms = useMemo(() => (state && passage ? keyTermsForUnit(state, unitId) : []), [state, passage, unitId]);
   const verseText = bible.rows?.map((r) => r.text).join(' ') ?? '';
-  const termsHere = useMemo(() => (verseText ? termsInText(verseText, terms) : []), [verseText, terms]);
+  // And the words of the key-word lists the team uses that are on this passage (decision 172).
+  const fromLists = usePassageKeyWords(ctx, passage ? unitId : null, { rows: bible.rows, rowsLanguage: bible.option?.language ?? null });
+  const [openedWord, setOpenedWord] = useState<WordHere | null>(null);
+  const termsHere = useMemo(() => {
+    const found = verseText ? termsInText(verseText, terms) : [];
+    return [...found, ...fromLists.own.filter((o) => !found.some((x) => x.termId === o.termId))];
+  }, [verseText, terms, fromLists.own]);
   const reads = teamLanguage(ctx.org.state, state, languageId);
   // With nothing recommended or placed here that has a study, translators get one from the rest of the
   // organization's library (reference/offered.ts): it shows here too, and hiding it here takes it away.
@@ -719,6 +729,7 @@ export function PassageReference(ctx: Ctx) {
 
   const cards = helpCards({
     state, unitId, helps: result, ownGuide, canManage, byId, studies, guideFor, verseText, get: docs.get, detail: heldDetail, notes, inApp, termsHere,
+    wordsHere: fromLists.words.map((w) => ({ key: `${w.list.itemId}:${w.word.id}`, term: w.word.term })),
     onLink: (itemId, linked, message) => void link(itemId, linked, message)
   });
 
@@ -740,12 +751,26 @@ export function PassageReference(ctx: Ctx) {
                       onPress={() => ctx.go('key_term_detail', { termId: term.termId, unitId, languageId })} />
                   </HelpRow>
                 ))}
+                {(c.words ?? []).map((w) => (
+                  <HelpRow key={w.key} of="reference.listWord">
+                    <WordChip label={w.term} help={t('keyTerms.lists.openHelp')}
+                      onPress={() => setOpenedWord(fromLists.words.find((x) => `${x.list.itemId}:${x.word.id}` === w.key) ?? null)} />
+                  </HelpRow>
+                ))}
               </View>
             ) : null}
           </HelpCard>
         </HelpRow>
       ))}
       {canManage ? <DashedBtn label={t('reference.passageText.addHelp')} icon="plus" hint={t('reference.passageText.addHelpHint')} onPress={() => setAdding(true)} /> : null}
+      {openedWord ? (
+        <ListWordSheet ctx={ctx} list={openedWord.list} word={openedWord.word} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} onClose={() => setOpenedWord(null)}
+          onPage={(word) => { setOpenedWord(null); ctx.go('key_term_detail', { languageId, unitId, listId: openedWord.list.itemId, wordId: word.id }); }}
+          place={{ languageId, language: languageName(ctx.org.state, languageId), unitId, title: passage.label, p: derivePassage(state, unitId, indexesFor(state)) }}
+          {...(text.open && openedWord.verses.length ? {
+            verses: { keys: openedWord.verses, book: bookOf(passage.label), onPlay: (key: string) => { setOpenedWord(null); bible.playVerse(key); } }
+          } : {})} />
+      ) : null}
       <Sheet visible={adding} title={t('reference.passageText.addHelp')} sub={passage.label} onClose={() => setAdding(false)}>
         {/* Your own first, set apart from the library (design principle 12). */}
         {canNote ? (

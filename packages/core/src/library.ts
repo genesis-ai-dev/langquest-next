@@ -230,7 +230,7 @@ export function subscriptionItemId(sourceOrgId: string, sourceItemId: string): s
 /**
  * The local item that follows another organization's item: the one whose
  * subscription names that item (it may have been made for an item that
- * moved there since, decisions.md 174), else the id a new subscription gets.
+ * moved there since, decisions.md 175), else the id a new subscription gets.
  */
 export function followerItemId(library: Record<string, LibraryItemState>, sourceOrgId: string, sourceItemId: string): string {
   for (const [itemId, it] of Object.entries(library)) {

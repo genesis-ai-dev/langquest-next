@@ -2,13 +2,13 @@
  * Publish the LangQuest organization's library (docs/library.md).
  *
  *   npm run library:seed -- --dry-run
- *   npm run library:seed -- [--fia-dir <dir>]... [--hosted]
+ *   npm run library:seed -- [--fia-dir <dir>]... [--fia-terms <file>] [--hosted]
  *   npm run library:seed -- --sources [--timings <dir>] [--bsb-text <file>]
  *   npm run library:seed -- --only <itemId>... [--dry-run | --hosted]
  *
  * The official LangQuest organization (`langquest`) hosts the starters:
  * the six standard versifications, Bible and FIA templates, the standard
- * review flows and FIA study material. All of it is built
+ * review flows, FIA study material and FIA's key words. All of it is built
  * here from sources in `library/` and core, into documents named by the
  * SHA-256 of their canonical JSON, and the org events that publish them.
  *
@@ -41,12 +41,15 @@ import {
   type TemplateBook, type TemplateDocV1, type TemplateDocV2, type VersificationDoc
 } from '@langquest-next/core';
 import { FIA_ATTRIBUTION, fiaLanguages, fiaPericope, fiaStudyDoc } from './fia-adapter';
+import { FIA_WORDS_ABOUT, fiaKeyWordList, fiaTermLanguages } from './fia-terms';
 import { sourcesFor } from './sources-seed';
 
 export const SEED_ORG = { id: 'langquest', name: 'LangQuest' } as const;
 
 const LIBRARY = fileURLToPath(new URL('../library/', import.meta.url));
 const DEFAULT_FIA_DIR = join(LIBRARY, 'fia');
+/** FIA's key words for the passage in DEFAULT_FIA_DIR; `--fia-terms` gives all of them (FIA's get_terms.py). */
+const DEFAULT_FIA_TERMS = join(LIBRARY, 'fia', 'terms.sample.json');
 
 /** The standard systems (library/versifications, from versification-tool), in the order people meet them. */
 const VERSIFICATIONS: { code: string; name: string; short: string; description: string }[] = [
@@ -171,7 +174,7 @@ function fiaFiles(dirs: string[]): Map<string, unknown> {
 }
 
 /** Build every document and item. Deterministic: the same sources give the same hashes. */
-export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = {}): SeedBuild {
+export function buildLibrary(opts: { fiaDirs?: string[]; fiaTerms?: string; examples?: boolean } = {}): SeedBuild {
   const documents = new Map<string, SeedDocument>();
   const items: SeedItem[] = [];
   const put = (doc: LibraryDoc): string => {
@@ -317,6 +320,15 @@ export function buildLibrary(opts: { fiaDirs?: string[]; examples?: boolean } = 
     } satisfies CollectionDoc);
   }
 
+  // 5. FIA's key words, one list per language (decision 172), placed on FIA's passages.
+  const passageAt = new Map(fiaPassageList().map((p, order) => [p.id, { ref: p.ref, order }]));
+  const termsJson = readJson(opts.fiaTerms ?? DEFAULT_FIA_TERMS);
+  for (const lang of fiaTermLanguages(termsJson)) {
+    const doc = fiaKeyWordList(termsJson, lang.id, eng, (id) => passageAt.get(id) ?? null);
+    if (!doc) continue;
+    publish(`langquest.fia-words.${lang.id}`, doc.title, `${FIA_WORDS_ABOUT} In ${lang.name}. ${FIA_ATTRIBUTION}.`, doc);
+  }
+
   if (examples.length) {
     const title = 'Example study guides (English)';
     const description = "Written for the partner demo in FIA's format; not FIA's own content.";
@@ -361,6 +373,24 @@ const at = (s: string) => {
   return { c: Number(m[1]), v: Number(m[2]), part: m[3] ?? '' };
 };
 
+/**
+ * FIA's passages (library/fia/pericopes.tsv, FIA's API list) with their
+ * verses, in canon order and FIA's order within each book.
+ */
+function fiaPassageList(): { id: string; book: string; ref: string }[] {
+  const rows = readFileSync(join(LIBRARY, 'fia', 'pericopes.tsv'), 'utf8').trim().split('\n').slice(1).map((l) => l.split('\t'));
+  return rows.map(([id, bookId, , seq, split, start, end]) => {
+    const book = usfmOf(bookId!);
+    const a = at(start!);
+    const b = at(end!);
+    const ref = a.c === b.c ? `${book} ${start}-${b.v}${b.part}` : `${book} ${start}-${end}`;
+    if (!parseRef(ref)) throw new Error(`FIA passage ${ref} does not read`);
+    return { id: id!, book, ref, seq: Number(seq), split: split ?? '' };
+  })
+    .sort((x, y) => bookOrder(x.book) - bookOrder(y.book) || x.seq - y.seq || (x.split < y.split ? -1 : 1))
+    .map(({ id, book, ref }) => ({ id, book, ref }));
+}
+
 /** Passages from where each starts, the last running to the end of the book. */
 function fromStarts(book: string, starts: { c: number; v: number }[], v11n: VersificationDoc): { ref: string }[] {
   const max = v11n.maxVerses[book] ?? [];
@@ -392,17 +422,8 @@ export function breakupWays(books: { book: string; name: string }[], v11n: Versi
     });
 
   // FIA, in FIA's order within each book.
-  const fiaRows = readFileSync(join(LIBRARY, 'fia', 'pericopes.tsv'), 'utf8').trim().split('\n').slice(1).map((l) => l.split('\t'));
-  const fia = new Map<string, { seq: number; split: string; ref: string }[]>();
-  for (const [, bookId, , seq, split, start, end] of fiaRows) {
-    const book = usfmOf(bookId!);
-    const a = at(start!);
-    const b = at(end!);
-    const ref = a.c === b.c ? `${book} ${start}-${b.v}${b.part}` : `${book} ${start}-${end}`;
-    if (!parseRef(ref)) throw new Error(`FIA passage ${ref} does not read`);
-    fia.set(book, [...(fia.get(book) ?? []), { seq: Number(seq), split: split ?? '', ref }]);
-  }
-  const fiaByBook = new Map([...fia].map(([book, list]) => [book, list.sort((x, y) => x.seq - y.seq || (x.split < y.split ? -1 : 1)).map((p) => ({ ref: p.ref }))]));
+  const fiaByBook = new Map<string, { ref: string }[]>();
+  for (const p of fiaPassageList()) fiaByBook.set(p.book, [...(fiaByBook.get(p.book) ?? []), { ref: p.ref }]);
 
   const uw = (readJson(join(LIBRARY, 'divisions', 'unfoldingword-chunks.json')) as { starts: Record<string, string[]> }).starts;
   const uwByBook = new Map(Object.entries(uw).map(([book, starts]) => [book, fromStarts(book, starts.map(at), v11n)]));
@@ -487,7 +508,7 @@ function summary(build: SeedBuild, events: AnyEvent[]): string {
 async function main(argv: string[]) {
   const values = (name: string) => argv.flatMap((a, i) => (a === `--${name}` && argv[i + 1] !== undefined ? [argv[i + 1]!] : []));
   // The demo's example guides go to a hosted project only with --with-examples.
-  const all = buildLibrary({ fiaDirs: values('fia-dir'), examples: !argv.includes('--hosted') || argv.includes('--with-examples') });
+  const all = buildLibrary({ fiaDirs: values('fia-dir'), ...(values('fia-terms')[0] ? { fiaTerms: values('fia-terms')[0]! } : {}), examples: !argv.includes('--hosted') || argv.includes('--with-examples') });
   if (argv.includes('--sources')) {
     const versifications = all.items.filter((it) => it.kind === 'versification').map((it) => {
       const body = all.documents.find((d) => d.hash === it.docHash)!.body as VersificationDoc;

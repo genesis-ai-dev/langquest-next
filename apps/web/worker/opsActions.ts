@@ -6,7 +6,7 @@ import { isJobKey, type JobKey } from './jobsModel';
 /**
  * The few things the ops dashboard may do (docs/ops-dashboard-plan.md
  * section 6, decisions.md 162): mark feedback seen or done, run a server
- * job now, and grant or decline an organization's blue check (172). The dashboard's own Worker holds no writer's key; it
+ * job now, and grant or decline an organization's blue check (173). The dashboard's own Worker holds no writer's key; it
  * calls this entrypoint over a service binding with the person's own token,
  * and this Worker checks that token itself (a live session, a Global Viewer
  * on an `aal2` session) before acting with the service role. Every attempt

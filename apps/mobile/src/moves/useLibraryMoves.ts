@@ -1,4 +1,4 @@
-// Moving library items between organizations (decisions.md 174), for the
+// Moving library items between organizations (decisions.md 175), for the
 // library screens: the moves this person may act on (asked again every 15
 // seconds while one taken here waits for the server), and offering, taking
 // back, turning down and taking an item.

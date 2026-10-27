@@ -1,4 +1,4 @@
-// Blue checks for organizations, decided by LangQuest staff (decisions.md 172,
+// Blue checks for organizations, decided by LangQuest staff (decisions.md 173,
 // docs/verified-organizations.md). An organization's admin asks in the app and
 // confirms an address at its domain; staff then grant or decline here or on
 // the ops dashboard, and revoke here only.

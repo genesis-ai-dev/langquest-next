@@ -1,4 +1,4 @@
-// Importing the organization's own material (decisions.md 173), from
+// Importing the organization's own material (decisions.md 174), from
 // Reference Material: an admin chooses what to bring in from where the
 // organization keeps it, LangQuest builds it on its server, and the admin
 // publishes what it made, shared for other organizations to follow.

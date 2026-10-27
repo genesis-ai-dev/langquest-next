@@ -1,7 +1,7 @@
 // The script only builds SQL; what staff and admins may do is held by server/publisherImportSmoke.sql.
 import { importerOf, IMPORTERS, parseArgs } from './publisher-import';
 
-describe('npm run publisher-import (decisions.md 173)', () => {
+describe('npm run publisher-import (decisions.md 174)', () => {
   it('reads the command, the organization, the importer and where to work', () => {
     expect(parseArgs(['grant', 'org-wc', 'fia', '--source', 'WordCollective', '--hosted'])).toEqual({
       command: 'grant', org: 'org-wc', importer: 'fia', source: 'WordCollective', hosted: true, json: false, workdir: undefined

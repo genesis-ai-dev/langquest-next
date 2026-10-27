@@ -21,9 +21,9 @@ export const C = {
   green: '#10B981',
   amber: '#F59E0B',
   red: '#EF4444',
-  /** A verified organization's blue check (decisions.md 172): blue, so it never reads as one of the purple buttons; 3:1 on white as a glyph. */
+  /** A verified organization's blue check (decisions.md 173): blue, so it never reads as one of the purple buttons; 3:1 on white as a glyph. */
   verified: '#1D8CF8',
-  /** The grey check an admin taps to ask for the blue one (decisions.md 172): 3:1 on white as a glyph. */
+  /** The grey check an admin taps to ask for the blue one (decisions.md 173): 3:1 on white as a glyph. */
   unverified: '#918E9F',
   white: '#FFFFFF'
 } as const;
@@ -39,7 +39,9 @@ export const TINT = {
   gray: '#F1F0F5',
   grayText: '#6B6785',
   note: '#FFFBEA',
-  noteBorder: '#F5E6B0'
+  noteBorder: '#F5E6B0',
+  /** Behind the letters a search found in a row's name (Get ready's search, decision 172). */
+  match: '#FFF3C4'
 } as const;
 
 export const radius = { sm: 8, md: 12, lg: 16, xl: 20, sheet: 28, full: 999 } as const;

@@ -70,7 +70,7 @@ describe('emails in the sender’s language (LAN-42)', () => {
   });
 });
 
-describe('blue check code email (decisions.md 172)', () => {
+describe('blue check code email (decisions.md 173)', () => {
   const code = {
     requestId: '10000000-0000-0000-0000-000000000002', email: 'Admin@Bible-Society.Example', code: '042917',
     orgName: 'Bible Society', domain: 'bible-society.example', expiresAt: '2026-09-17T12:30:00Z'

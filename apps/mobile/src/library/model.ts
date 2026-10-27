@@ -88,7 +88,7 @@ export function copyOps(shared: SharedItem, itemId: string, docHash = shared.lat
 /**
  * Follow another organization's item, starting at its latest version: as
  * the item that already follows it here, if one does (stopped, or moved
- * here from another organization, decisions.md 174).
+ * here from another organization, decisions.md 175).
  */
 export function subscribeOps(shared: SharedItem, autoUpdate: boolean, library: Record<string, LibraryItemState> = {}): { itemId: string; ops: LibraryOp[] } {
   const itemId = followerItemId(library, shared.org_id, shared.item_id);
@@ -152,7 +152,7 @@ export function usesItem(state: LanguageState | null, itemId: string): boolean {
   return !!state && (state.template?.value.itemId === itemId || state.flow?.value.itemId === itemId);
 }
 
-/** The organization an item comes from, by name and id, for its blue check (decisions.md 172); null for one made here. */
+/** The organization an item comes from, by name and id, for its blue check (decisions.md 173); null for one made here. */
 export function sourceOrg(it: ReturnType<typeof libraryItemView>): { name: string; id: string } | null {
   if (it?.source === 'subscription' && it.subscription) return { name: it.subscription.sourceOrgName, id: it.subscription.sourceOrgId };
   if (it?.source === 'copy' && it.copiedFrom) return { name: it.copiedFrom.orgName, id: it.copiedFrom.orgId };

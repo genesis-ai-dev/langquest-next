@@ -229,7 +229,7 @@ Object.assign(RENDER, {
       stat(num(d.suspended.total), 'suspended', '', NOW) +
       stat(fb ? num(fb.open) : '–', 'feedback not done', '', fb ? oldest(fb.oldestAt, 'none open') : 'could not read') + '</div>' +
       '<p class="muted">Act on reports with npm run moderation -- --hosted (decision 48).</p>' +
-      // Blue checks (decisions.md 172): an admin confirmed an address at the domain; staff check the domain is this organization.
+      // Blue checks (decisions.md 173): an admin confirmed an address at the domain; staff check the domain is this organization.
       '<h3>Blue check requests</h3>' + (d.verifications === null ? '<p class="muted">Could not read them (the database lacks diag.org_verification_requests).</p>'
         : '<p class="muted">An admin of each confirmed an email address at the domain. Open the website first: is it this organization? npm run org-verification -- list --hosted shows the address.</p>' +
         table([

@@ -1001,7 +1001,8 @@
     "offers": {
       "guides": "{{name}}的学习指南",
       "theBible": "{{name}}",
-      "guidesIn": "{{language}}的{{name}}学习指南"
+      "guidesIn": "{{language}}的{{name}}学习指南",
+      "wordsIn": "{{name}}（{{language}}）"
     },
     "languages": {
       "row": "语言",
@@ -1332,7 +1333,20 @@
       "setHelp": "打开它的语言：选择团队用哪一种，或者关闭它。",
       "patternOnHelp": "已用为它选择的语言提供给团队。",
       "all": "全部参考资料",
-      "allHelp": "打开组织资料库中的全部内容，以及提供给每种语言的内容。"
+      "allHelp": "打开组织资料库中的全部内容，以及提供给每种语言的内容。",
+      "search": "搜索圣经、指南、关键词……",
+      "searchHelp": "按名称、简介、来源或语言查找圣经、指南、关键词和注释。",
+      "searchHint": "名称、简介、来源和语言，涵盖所有与你分享的机构。",
+      "goesWithFilter": "配合{{name}}",
+      "familyNote": "与{{name}}相关的所有内容。可以关闭其中任何一项，或清除搜索，重新显示全部内容。",
+      "clearGoesWith": "重新显示全部",
+      "clearGoesWithHelp": "去掉“配合”，重新显示整个列表。",
+      "relatedHelp": "只显示与它配合的内容，每项都有自己的开关。",
+      "notInLibrary": "还不在你的资料库中",
+      "turnedOnWith": "已打开{{name}}和{{related}}",
+      "wordSetChosen": "{{name}}现在使用{{language}}",
+      "wordSetOff": "已为此团队关闭{{name}}",
+      "relatedOn_other": "{{count, number}} 项相关资源已打开"
     },
     "page": {
       "title": "帮助他们的资料",
@@ -2633,10 +2647,6 @@
       "latestBy": "最近由{{name}}修改，{{when}}",
       "playExplanation": "播放解释",
       "openVersion": "打开第 {{n, number}} 版",
-      "whereUsed": "用在哪里",
-      "versions_other": "{{count, number}} 个版本",
-      "usedTitle": "{{title}} · 第 {{n, number}} 版",
-      "changedHere": "在这里修改",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "作为{{passage}}的一部分记录，并关联到你的草稿。",
       "adjustSub": "每次修改都会和你的理由一起记录下来。",
@@ -2649,8 +2659,6 @@
       "addRenderingHelp": "添加{{language}}怎么说，以及为什么。每次修改都会保留。",
       "adjustHelp": "更改或添加{{language}}的说法，并写下你的理由。每次修改都会保留。",
       "openVersionHelp": "打开做这次修改时的那个版本。",
-      "usedHelp": "打开这个版本，它用到了这个术语。",
-      "usedChangedHelp": "打开这个版本。在这里修改：译法是在这个版本中调整的。",
       "saveHelp": "记录这次修改和你的理由，让团队看到。"
     }
   },
@@ -5819,7 +5827,8 @@
       "howManyHelp": "说明有多少人听了。选填。",
       "doneRecordedHelp": "把{{what}}写进经段记录。",
       "looksGoodOffline": "没问题。本设备联网后 {{name}} 才会收到。",
-      "feedbackOffline": "反馈已保存。本设备联网后 {{name}} 才会收到。"
+      "feedbackOffline": "反馈已保存。本设备联网后 {{name}} 才会收到。",
+      "helpWordsHelp": "打开这个经段的关键词，显示团队对每个词的说法，以及这个版本有没有用它。"
     },
     "guest": {
       "previewSub": "预览 · 没有应用的人看到的样子",
@@ -6114,7 +6123,8 @@
       "guide": "学习指南",
       "note": "译者注释",
       "questions": "问题集",
-      "other": "资料"
+      "other": "资料",
+      "words": "关键词"
     },
     "facts": {
       "oldTestament": "旧约",
@@ -6296,7 +6306,8 @@
       "kindAllHelp": "显示所有类型。",
       "kindHelp": "只显示这个类型。",
       "languageHelp": "只显示这个语言的项目。",
-      "openHelp": "打开它：查看内容，以及放在哪里。"
+      "openHelp": "打开它：查看内容，以及放在哪里。",
+      "kindWords": "关键词"
     },
     "coverage": {
       "title": "覆盖范围",
@@ -6467,7 +6478,11 @@
       "keepHelp": "保留这个语言并关闭。",
       "offHelp": "团队不再收到这些指南。",
       "useHelp": "团队会收到这个语言的这些指南。",
-      "rowHelp": "为团队的指南选择这个语言。那一行说明有多少个经段有指南。"
+      "rowHelp": "为团队的指南选择这个语言。那一行说明有多少个经段有指南。",
+      "wordsUseHelp": "团队会收到这个语言的这些关键词。",
+      "wordsOffHelp": "团队不再收到这些关键词。",
+      "wordsRowHelp": "为团队的关键词选择这个语言。那一行说明它有多少个词。",
+      "wordsGaps_other": "{{name}}的{{language}}版有 {{count, number}} 个词。每个经段会显示它用到的词。"
     },
     "passageText": {
       "bar": "{{passage}} · {{bible}}",
@@ -6493,7 +6508,8 @@
       "writeNoteSub": "写在你选的经节上，可以说也可以打字",
       "fromLibrary": "来自你的资料库",
       "fromOwn": "来自你所在机构的资料库"
-    }
+    },
+    "words_other": "{{count, number}} 个词"
   },
   "sources": {
     "listSeparator": "、",
@@ -6652,7 +6668,8 @@
     "change": "更改",
     "rowHelp": "为团队的圣经和指南添加这种语言，或去掉它。这一行说明其中有什么。",
     "listed": "只列出有圣经或学习指南的语言。",
-    "noMatch": "还没有这个名称的语言有圣经或学习指南。"
+    "noMatch": "还没有这个名称的语言有圣经或学习指南。",
+    "setWords_other": "{{name}}（{{count, number}} 个词）"
   },
   "checks": {
     "title": "检查",
@@ -6855,6 +6872,95 @@
       "playHelp": "播放他们怎么说。",
       "suggest": "这里的其他语言用了",
       "suggestHelp": "{{languages}}在这里用了这个词。点一下即可添加。"
+    },
+    "lists": {
+      "here": "这里的关键词",
+      "from": "来自{{name}} · {{language}}",
+      "inPassage": "在这个经段中",
+      "saidAs": "{{verses}}（“{{form}}”）",
+      "openHelp": "打开它的意思，可以读或听。",
+      "rowLabel": "{{term}}。{{gloss}}。{{refs}}",
+      "play": "播放{{term}}的意思",
+      "pause": "暂停{{term}}的意思",
+      "playHelp": "播放{{name}}讲解它意思的录音。",
+      "words_other": "{{count, number}} 个词"
+    },
+    "sheet": {
+      "sub": "{{name}}关键词 · {{language}}",
+      "hear": "听{{name}}讲解",
+      "hearHelp": "播放{{name}}讲解这个词意思的录音。再点一次可暂停。",
+      "pauseHear": "暂停{{name}}的讲解",
+      "playVerse": "播放{{verse}}",
+      "means": "意思",
+      "meansHelp": "点一下带下划线的词，查看它的意思。",
+      "add": "添加到我们的关键词",
+      "addHelp": "把它连同{{name}}的解释添加到{{language}}的关键词中。然后你说出{{language}}怎么说它。",
+      "addThen": "然后说出{{language}}怎么说它",
+      "ours": "{{language}}的关键词之一。",
+      "backTo": "返回{{term}}",
+      "backToHelp": "重新显示你刚才看的那个词。",
+      "minutes_other": "{{count, number}} 分钟",
+      "everyPassage": "它出现的每个经段",
+      "everyPassageHelp": "打开这个词自己的页面：它出现的每个经段，以及团队在每个经段上的进展。"
+    },
+    "search": {
+      "help": "查找关键词，包括你的和每个列表的：先按词，再按简短意思，再按完整意思。",
+      "all": "全部",
+      "ours": "我们的",
+      "allHelp": "显示你团队的关键词和每个列表的关键词。",
+      "oursHelp": "只显示你团队的关键词。",
+      "listHelp": "只显示{{name}}的关键词。",
+      "words": "词",
+      "inGloss": "在简短意思中",
+      "inMeaning": "在完整意思中",
+      "moreHelp": "显示完整意思中提到它的词。",
+      "ourWord": "{{language}}的说法",
+      "openListHelp": "打开{{name}}对它的解释。",
+      "more_other": "还有 {{count, number}} 个词在完整意思中提到它",
+      "linkedIn_other": "关联{{book}}中的 {{count, number}} 个经段",
+      "linked_other": "关联 {{count, number}} 个经段"
+    },
+    "review": {
+      "title": "{{name}}关键词",
+      "titlePlain": "关键词",
+      "intro": "听听第 {{n}} 版怎么说每个词。点一个词，查看{{name}}的解释。",
+      "gone": "这个关键词列表已经不在资料库中了。",
+      "none": "{{name}}在这个经段中没有关键词。",
+      "openHelp": "打开这个词的意思，按{{name}}的讲解。",
+      "used": "{{name}}用了它",
+      "notMarked": "第 {{n}} 版中没有标记",
+      "noWord": "还没有{{language}}的说法",
+      "rowSub_other": "这里有 {{count, number}} 个 · {{language}}有其中 {{have, number}} 个的说法"
+    },
+    "page": {
+      "all": "全部 {{n, number}}",
+      "used": "已用 {{n, number}}",
+      "notMarked": "未标记 {{n, number}}",
+      "notRecorded": "未录音 {{n, number}}",
+      "recorded": "已录音 {{n, number}}",
+      "passages_other": "经段 · {{count, number}}",
+      "linkedBy_other": "{{name}}关联了 {{count, number}} 个经段",
+      "noPassages": "还没有出现在任何经段中。",
+      "filterHelp": "只显示这种情况的经段。",
+      "openVersionHelp": "打开这个经段的那个版本。",
+      "openPassageHelp": "打开这个经段。",
+      "linkedByOne": "由{{name}}关联",
+      "markedHere": "这里有一个版本标记了它",
+      "versionUsed": "第 {{n}} 版用了它",
+      "versionNotMarked": "第 {{n}} 版没有标记它",
+      "recordedVersion": "已录音 · 第 {{n}} 版",
+      "notRecordedYet": "还没有录音",
+      "notes_other": "备注和审核 · {{count, number}}",
+      "openNoteHelp": "打开留下这条备注的经段。",
+      "noteOnWord": "这个词的备注",
+      "version": "第 {{n}} 版",
+      "withReview": "附带审核",
+      "replies_other": "{{count, number}} 条回复",
+      "playNote": "播放备注",
+      "notOurs": "还不是{{language}}的关键词",
+      "fromList": "来自{{name}}",
+      "fromListSub": "它的意思，以及{{name}}的录音",
+      "fromListHelp": "打开{{name}}对这个词的解释和录音。"
     }
   },
   "clusters": {

@@ -329,7 +329,7 @@ export interface Support {
   /** What staff did from the page (ops.actions, decisions.md 162). */
   actions: { at: string; profileId: string; action: string; target: string; result: string; detail: string | null }[];
   /**
-   * Organizations asking for a blue check, and the last month's decisions (decisions.md 172): names and domains only,
+   * Organizations asking for a blue check, and the last month's decisions (decisions.md 173): names and domains only,
    * the confirmed address shown as its domain (decision 39). Null when it could not be read (before migration 20261027000000).
    */
   verifications: VerificationRow[] | null;

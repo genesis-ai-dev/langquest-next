@@ -1,4 +1,4 @@
-// Asking for an organization's blue check (decisions.md 172), from the grey
+// Asking for an organization's blue check (decisions.md 173), from the grey
 // check after its name on its Manage page: an admin names the organization's
 // website and an address at it, types the code LangQuest emails there, and
 // the request waits for the LangQuest team. Once granted, the blue check

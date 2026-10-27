@@ -29,7 +29,7 @@
 // the saved mark in the header. Back and ✕ leave and keep it; opening the
 // same review again brings it back where it was left; sending it drops it.
 import {
-  checkShows, commands, helpNotesFor, keyTermLinksFor, languageName, notePart as notePartOf, questionsForKind, RECORD_STEP, SHOWN,
+  checkShows, commands, helpNotesFor, keyTermLinksFor, keyTermsFor, languageName, notePart as notePartOf, questionsForKind, RECORD_STEP, SHOWN,
   type Card as AudioCard, type EventSpec, type KindDef, type NoteAnchor, type PassageNote
 } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
@@ -81,6 +81,9 @@ import { SavedMark } from '../ui/SavedMark';
 import { isStoredReview, reviewDraftOf, reviewStateOf, type ReviewDraft, type ReviewNote, type ReviewState } from '../reviewing/reviewDraft';
 import { NoteStepContext } from '../checks/noteStep';
 import { anyFrom, fromFilter } from '../checks/showsModel';
+import { ReviewKeyWordsSheet } from '../keyTerms/lazySheets';
+import { reviewCounts, reviewWords } from '../keyTerms/reviewWordsModel';
+import { useCheckKeyWords } from '../keyTerms/useCheckKeyWords';
 
 /** Close a sheet, then leave: a screen opened under a closing sheet is hidden on some phones. */
 const SHEET_GAP_MS = 400;
@@ -150,7 +153,18 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
   // The check's helps (decision 91), and a Bible one of them opens in Background.
   const helps = useCheckHelpRows(ctx, v?.state, kindId);
   const [bible, setBible] = useState<string | null>(null);
+  // A key-word list on the check (decision 172): its words on the passage, and how many the team has a word for.
+  const [wordsOf, setWordsOf] = useState<string | null>(null);
+  const listsHere = useCheckKeyWords(ctx, helps.some((h) => 'words' in h.open) ? v?.unitId : null);
+  const ownWords = useMemo(() => (v?.state ? keyTermsFor(v.state) : []), [v?.state]);
+  const wordsLine = (itemId: string): string | undefined => {
+    const rows = reviewWords(listsHere.words.filter((w) => w.list.itemId === itemId), ownWords, new Set());
+    if (!rows.length) return undefined;
+    const { here, have } = reviewCounts(rows);
+    return t('keyTerms.review.rowSub', { count: here, have, language: v ? languageName(ctx.org.state, v.languageId) : '' });
+  };
   const openHelp = (h: CheckHelpRow) => {
+    if ('words' in h.open) { setWordsOf(h.open.words); return; }
     if ('bible' in h.open) { setBible(h.open.bible); setSheet('background'); return; }
     if (h.open.screen === 'study_guide') return ctx.go('study_guide', { unitId: v!.unitId, languageId: v!.languageId });
     ctx.go('material_editor', h.open.params);
@@ -461,7 +475,9 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
             {helps.map((h, i) => (
               <HelpRow key={h.key} of="review.checkHelp">
                 <NotedRow last={i === helps.length - 1}
-                  row={<Row icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : {})} help={helpRowHelp(h)} onPress={() => openHelp(h)} last />}
+                  row={<Row icon={h.icon} label={h.name} {...(h.sub ? { sub: h.sub } : 'words' in h.open && wordsLine(h.open.words) ? { sub: wordsLine(h.open.words)! } : {})}
+                    {...('words' in h.open ? { iconColor: TINT.amberText, iconBg: TINT.amber } : {})}
+                    help={helpRowHelp(h)} onPress={() => openHelp(h)} last />}
                   note={{ label: t('review.notesOn.addOn', { what: h.name }), help: t('review.notesOn.addOnHelp'), onPress: () => noteOn({ kind: 'passage', help: h.help }, t('review.notesOn.noteOn', { what: h.name }), h.name) }}
                   notes={<NotesUnder ctx={ctx} p={v.p} notes={helpNotesFor(v.p, h.help)} onReply={replyOn} />} />
               </HelpRow>
@@ -690,12 +706,17 @@ function Capture(props: { ctx: Ctx; logged: boolean }) {
         footnote={t('review.screen.skipFootnote')}
         onClose={() => setSkipFor(null)}
         onConfirm={({ reason }) => { if (skipFor) setSkipped((s) => ({ ...s, [skipFor]: reason })); setSkipFor(null); }} />
+      {wordsOf ? (
+        <ReviewKeyWordsSheet ctx={ctx} unitId={v.unitId} title={v.title} itemId={wordsOf} takeId={version.takeId} version={version.n} translator={translator}
+          onClose={() => setWordsOf(null)} />
+      ) : null}
     </Screen>
   );
 }
 
 /** What opening one of the check's helps does (decision 91), as help mode says it. */
 function helpRowHelp(h: CheckHelpRow): string {
+  if ('words' in h.open) return t('review.screen.helpWordsHelp');
   if ('bible' in h.open) return t('review.screen.helpBibleHelp');
   return h.open.screen === 'study_guide' ? t('review.screen.helpGuideHelp') : t('review.screen.helpNoteHelp');
 }

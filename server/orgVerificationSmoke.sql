@@ -1,4 +1,4 @@
--- Verified organizations (decisions.md 172): an admin asks with a domain and
+-- Verified organizations (decisions.md 173): an admin asks with a domain and
 -- an address at it, confirms the emailed code, and staff grant or decline.
 -- Repeatable against a populated database; every test write rolls back.
 \set ON_ERROR_STOP on

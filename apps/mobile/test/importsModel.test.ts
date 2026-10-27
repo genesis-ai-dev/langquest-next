@@ -7,7 +7,7 @@ const run = (over: Partial<ImportRun>): ImportRun => ({
 });
 const importer = { importer: 'fia', source: 'BibleAquifer', granted_at: '2026-10-26T00:00:00Z' };
 
-describe('imports on Reference Material (decisions.md 173)', () => {
+describe('imports on Reference Material (decisions.md 174)', () => {
   it('offers English first and every other FIA language once, by name', () => {
     const choices = fiaLanguageChoices();
     expect(choices[0]).toEqual({ code: 'eng', name: 'English' });

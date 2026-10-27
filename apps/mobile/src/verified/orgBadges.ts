@@ -1,4 +1,4 @@
-// Which organizations have a blue check (decisions.md 172), for every place
+// Which organizations have a blue check (decisions.md 173), for every place
 // that shows an organization's name: asked of the server for the names on
 // screen, a few at a time, and kept on the phone so the checks show offline.
 // A check is public, so it is kept across sign-outs; it is asked again after

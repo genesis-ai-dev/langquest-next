@@ -1,4 +1,4 @@
-// Moving a library item to another organization (decisions.md 174), as the
+// Moving a library item to another organization (decisions.md 175), as the
 // library screens show it: where an item's move stands, the offers waiting
 // for this organization, and what taking one writes here. Pure.
 import { followerItemId, libraryItemView, type LibraryItemState, type LibraryKind } from '@langquest-next/core';

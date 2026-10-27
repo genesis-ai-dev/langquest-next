@@ -1,5 +1,5 @@
 -- Publishers bring their own material into their own organization
--- (decisions.md 173, docs/publisher-imports.md). LangQuest staff turn on an
+-- (decisions.md 174, docs/publisher-imports.md). LangQuest staff turn on an
 -- importer for an organization, pointed at where that organization keeps its
 -- material; its admins ask for a run in the app; the app Worker's schedule
 -- builds library documents from the source; and an admin publishes what the

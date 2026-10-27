@@ -1021,7 +1021,8 @@
     "offers": {
       "guides": "{{name}}'s study guides",
       "theBible": "the {{name}}",
-      "guidesIn": "{{name}}'s study guides in {{language}}"
+      "guidesIn": "{{name}}'s study guides in {{language}}",
+      "wordsIn": "{{name}} in {{language}}"
     },
     "languages": {
       "row": "Languages",
@@ -1362,7 +1363,21 @@
       "setHelp": "Opens its languages: choose which one the team gets, or turn it off.",
       "patternOnHelp": "Offered to the team, in the language chosen for it.",
       "all": "All reference material",
-      "allHelp": "Opens everything in the organization’s library, and what each language is offered."
+      "allHelp": "Opens everything in the organization’s library, and what each language is offered.",
+      "search": "Search Bibles, guides, key words…",
+      "searchHelp": "Finds Bibles, guides, key words and notes by name, description, who it is from or language.",
+      "searchHint": "Names, descriptions, who it is from and its language, across every organization that shares with you.",
+      "goesWithFilter": "Goes with {{name}}",
+      "familyNote": "Everything related to {{name}}. Turn any of them off, or clear the search to see everything again.",
+      "clearGoesWith": "Show everything again",
+      "clearGoesWithHelp": "Takes away “Goes with”, so the whole list shows again.",
+      "relatedOn_one": "{{count, number}} related resource turned on",
+      "relatedOn_other": "{{count, number}} related resources turned on",
+      "relatedHelp": "Shows only what goes with it, each with its own switch.",
+      "notInLibrary": "Not in your library yet",
+      "turnedOnWith": "Turned on {{name}} and {{related}}",
+      "wordSetChosen": "{{name}} are now in {{language}}",
+      "wordSetOff": "{{name}} are off for this team"
     },
     "page": {
       "title": "What helps them",
@@ -2722,11 +2737,6 @@
       "latestBy": "latest by {{name}}, {{when}}",
       "playExplanation": "Play the explanation",
       "openVersion": "Open Version {{n, number}}",
-      "whereUsed": "Where it's used",
-      "versions_one": "{{count, number}} version",
-      "versions_other": "{{count, number}} versions",
-      "usedTitle": "{{title}} · Version {{n, number}}",
-      "changedHere": "Changed here",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Recorded as part of {{passage}}, and tied to your draft.",
       "adjustSub": "Every change is recorded with your reason.",
@@ -2739,8 +2749,6 @@
       "addRenderingHelp": "Add how {{language}} says it, and why. Every change is kept.",
       "adjustHelp": "Change or add how {{language}} says it, with your reason. Every change is kept.",
       "openVersionHelp": "Opens the version this change was made during.",
-      "usedHelp": "Opens this version, which uses the term.",
-      "usedChangedHelp": "Opens this version. Changed here: the rendering was adjusted during it.",
       "saveHelp": "Records the change and your reason, for the team to see."
     }
   },
@@ -6066,7 +6074,8 @@
       "howManyHelp": "Say how many listened. Optional.",
       "doneRecordedHelp": "Puts the {{what}} on the passage's record.",
       "looksGoodOffline": "Looks good. {{name}} gets it when this device is connected.",
-      "feedbackOffline": "Feedback saved. {{name}} gets it when this device is connected."
+      "feedbackOffline": "Feedback saved. {{name}} gets it when this device is connected.",
+      "helpWordsHelp": "Opens the key words in this passage, with the team's word for each and whether this version used it."
     },
     "guest": {
       "previewSub": "Preview · what someone without the app sees",
@@ -6369,7 +6378,8 @@
       "guide": "Study guide",
       "note": "Note for translators",
       "questions": "Question set",
-      "other": "Material"
+      "other": "Material",
+      "words": "Key words"
     },
     "facts": {
       "oldTestament": "Old Testament",
@@ -6567,7 +6577,8 @@
       "kindAllHelp": "Shows every kind.",
       "kindHelp": "Shows only this kind.",
       "languageHelp": "Shows only items in this language.",
-      "openHelp": "Opens it: what it says and where it is placed."
+      "openHelp": "Opens it: what it says and where it is placed.",
+      "kindWords": "Key words"
     },
     "coverage": {
       "title": "Coverage",
@@ -6743,7 +6754,12 @@
       "keepHelp": "Keeps this language and closes this.",
       "offHelp": "The team stops getting these guides.",
       "useHelp": "The team gets these guides in this language.",
-      "rowHelp": "Picks this language for the team’s guides. The line says how many passages have one."
+      "rowHelp": "Picks this language for the team’s guides. The line says how many passages have one.",
+      "wordsGaps_one": "In {{language}}, {{name}} has {{count, number}} word. Each passage shows the ones it uses.",
+      "wordsGaps_other": "In {{language}}, {{name}} has {{count, number}} words. Each passage shows the ones it uses.",
+      "wordsUseHelp": "The team gets these key words in this language.",
+      "wordsOffHelp": "The team stops getting these key words.",
+      "wordsRowHelp": "Picks this language for the team’s key words. The line says how many words it has."
     },
     "passageText": {
       "bar": "{{passage}} · {{bible}}",
@@ -6772,7 +6788,9 @@
       "writeNoteSub": "On the verses you choose, said or typed",
       "fromLibrary": "From your library",
       "fromOwn": "From your organization's library"
-    }
+    },
+    "words_one": "{{count, number}} word",
+    "words_other": "{{count, number}} words"
   },
   "sources": {
     "listSeparator": ", ",
@@ -6936,7 +6954,9 @@
     "change": "Change",
     "rowHelp": "Adds this language for the team’s Bibles and guides, or takes it away. The line says what it has.",
     "listed": "Only languages with Bibles or study guides are listed.",
-    "noMatch": "No language by that name has Bibles or study guides yet."
+    "noMatch": "No language by that name has Bibles or study guides yet.",
+    "setWords_one": "{{name}} ({{count, number}} word)",
+    "setWords_other": "{{name}} ({{count, number}} words)"
   },
   "checks": {
     "title": "Checks",
@@ -7147,6 +7167,105 @@
       "playHelp": "Plays how they say it.",
       "suggest": "Other languages here use",
       "suggestHelp": "Used here by {{languages}}. Tap to add it."
+    },
+    "lists": {
+      "here": "Key words here",
+      "from": "From {{name}} · {{language}}",
+      "words_one": "{{count, number}} word",
+      "words_other": "{{count, number}} words",
+      "inPassage": "In this passage",
+      "saidAs": "{{verses}} (“{{form}}”)",
+      "openHelp": "Opens what it means, to read or hear.",
+      "rowLabel": "{{term}}. {{gloss}}. {{refs}}",
+      "play": "Play what {{term}} means",
+      "pause": "Pause what {{term}} means",
+      "playHelp": "Plays {{name}}'s recording of what it means."
+    },
+    "sheet": {
+      "sub": "{{name}} key word · {{language}}",
+      "hear": "Hear {{name}} explain it",
+      "hearHelp": "Plays {{name}}'s recording of what the word means. Tap again to pause.",
+      "pauseHear": "Pause {{name}}'s explanation",
+      "minutes_one": "{{count, number}} min",
+      "minutes_other": "{{count, number}} min",
+      "playVerse": "Play {{verse}}",
+      "means": "What it means",
+      "meansHelp": "Tap an underlined word to see what it means.",
+      "add": "Add to our key words",
+      "addHelp": "Adds it to {{language}}'s key words, with {{name}}'s meaning. Then you say how {{language}} says it.",
+      "addThen": "Then say how {{language}} says it",
+      "ours": "One of {{language}}'s key words.",
+      "backTo": "Back to {{term}}",
+      "backToHelp": "Shows the word you came from again.",
+      "everyPassage": "Every passage it's in",
+      "everyPassageHelp": "Opens the word's own page: every passage it is in, and where the team stands on each."
+    },
+    "search": {
+      "help": "Finds key words, yours and every list's: by the word, then by the short meaning, then by the full meaning.",
+      "all": "All",
+      "ours": "Ours",
+      "allHelp": "Shows your team's key words and every list's.",
+      "oursHelp": "Shows only your team's key words.",
+      "listHelp": "Shows only {{name}}'s key words.",
+      "words": "Words",
+      "inGloss": "In a short meaning",
+      "inMeaning": "In a full meaning",
+      "more_one": "{{count, number}} more mentions it in its full meaning",
+      "more_other": "{{count, number}} more mention it in their full meaning",
+      "moreHelp": "Shows the words whose full meaning mentions it.",
+      "ourWord": "{{language}} word",
+      "linkedIn_one": "Linked to {{count, number}} passage in {{book}}",
+      "linkedIn_other": "Linked to {{count, number}} passages in {{book}}",
+      "linked_one": "Linked to {{count, number}} passage",
+      "linked_other": "Linked to {{count, number}} passages",
+      "openListHelp": "Opens what it means, from {{name}}."
+    },
+    "review": {
+      "title": "{{name}} key words",
+      "titlePlain": "Key words",
+      "intro": "Listen for how Version {{n}} says each one. Tap a word for {{name}}'s meaning.",
+      "gone": "This list of key words is not in the library any more.",
+      "none": "{{name}} has no key words in this passage.",
+      "openHelp": "Opens what the word means, as {{name}} explains it.",
+      "used": "{{name}} used it",
+      "notMarked": "Not marked in Version {{n}}",
+      "noWord": "No {{language}} word yet",
+      "rowSub_one": "{{count, number}} here · {{language}} has a word for {{have, number}}",
+      "rowSub_other": "{{count, number}} here · {{language}} has a word for {{have, number}}"
+    },
+    "page": {
+      "all": "All {{n, number}}",
+      "used": "Used {{n, number}}",
+      "notMarked": "Not marked {{n, number}}",
+      "notRecorded": "Not recorded {{n, number}}",
+      "recorded": "Recorded {{n, number}}",
+      "passages_one": "Passages · {{count, number}}",
+      "passages_other": "Passages · {{count, number}}",
+      "linkedBy_one": "{{name}} links it to {{count, number}}",
+      "linkedBy_other": "{{name}} links it to {{count, number}}",
+      "noPassages": "Not in any passage yet.",
+      "filterHelp": "Shows only the passages where the team stands this way.",
+      "openVersionHelp": "Opens that version of the passage.",
+      "openPassageHelp": "Opens the passage.",
+      "linkedByOne": "Linked by {{name}}",
+      "markedHere": "Marked in a version here",
+      "versionUsed": "Version {{n}} used it",
+      "versionNotMarked": "Version {{n}} didn't mark it",
+      "recordedVersion": "Recorded · Version {{n}}",
+      "notRecordedYet": "Not recorded yet",
+      "notes_one": "Notes and reviews · {{count, number}}",
+      "notes_other": "Notes and reviews · {{count, number}}",
+      "openNoteHelp": "Opens the passage the note was left on.",
+      "noteOnWord": "note on the word",
+      "version": "Version {{n}}",
+      "withReview": "With a review",
+      "replies_one": "{{count, number}} reply",
+      "replies_other": "{{count, number}} replies",
+      "playNote": "Play the note",
+      "notOurs": "Not one of {{language}}'s key words yet",
+      "fromList": "From {{name}}",
+      "fromListSub": "What it means, and {{name}}'s recording",
+      "fromListHelp": "Opens what {{name}} says the word means, with its recording."
     }
   },
   "clusters": {

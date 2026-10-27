@@ -1,4 +1,4 @@
-// An organization's imports of its own material (decisions.md 173): the
+// An organization's imports of its own material (decisions.md 174): the
 // importers LangQuest turned on for it, asking for a run, and taking one up
 // to publish. The app Worker builds the runs; the admin's app publishes them.
 import { supabase } from './supabase';

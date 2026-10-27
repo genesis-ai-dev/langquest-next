@@ -264,11 +264,40 @@ export interface MaterialDoc {
   questions?: QuestionSpec[];
   /** For a question set: the kind of review it is for. */
   reviewKindId?: string;
-  terms?: { id: string; term: string; gloss: string; match?: string[] }[];
+  /** A key-word list's words (kind `key_terms`). */
+  terms?: KeyWordDoc[];
+  /**
+   * The method it goes with ("FIA"), as a collection says it: a key-word
+   * list and guides that share the method and the organization go together.
+   */
+  pattern?: string;
+  /** Who it is from and its licence, as readers see it ("fia.bible · English · © 2025 Word Collective, CC BY-SA 4.0"). */
+  source?: string;
   /** Links by verse reference are in this versification. */
   versification?: string;
   links?: MaterialLink[];
   deps: string[];
+}
+
+/**
+ * One word of a key-word list. A passage shows it when one of its `links`
+ * meets the passage's verses, or when the word or one of its other forms
+ * (`match`) is in a Bible the team reads in the list's language.
+ */
+export interface KeyWordDoc {
+  /** Stable within the list; FIA's are its term ids ("t104"), the ids its guides link to. */
+  id: string;
+  term: string;
+  /** The short meaning ("a person who gives messages from God to the people"). */
+  gloss: string;
+  /** Other forms to find it by ("blessed", "blessing"). */
+  match?: string[];
+  /** The full meaning, markdown; `[mercy](#t91)` links another word of the list, as a guide's text links its terms. */
+  body?: string;
+  /** The meaning read aloud. */
+  audio?: MediaRef;
+  /** The verses it belongs to, in the list's `versification`. */
+  links?: MaterialLink[];
 }
 
 /** Callout kinds a guide's text may use (`> [!kind] text`); FIA writes `action` ("Stop here"). */
@@ -564,11 +593,22 @@ export function validateDoc(value: unknown): string | null {
       if (!str(d['kind']) || !str(d['title'])) return 'a material needs a kind and a title';
       if (d['language'] !== undefined && !str(d['language'])) return 'language must be a language code';
       if (d['versification'] !== undefined && !isHash(d['versification'])) return 'versification must be a hash';
+      if (!optStr(d['pattern']) || !optStr(d['source'])) return 'pattern and source must be strings';
       if (d['links'] !== undefined) {
         if (!Array.isArray(d['links'])) return 'links must be an array';
         for (const l of d['links'] as unknown[]) {
           const ok = isObj(l) && ((str(l['ref']) && parseRef(l['ref'] as string) !== null) || (str(l['template']) && str(l['node'])));
           if (!ok) return 'links are a ref or a template node';
+        }
+      }
+      if (d['terms'] !== undefined) {
+        if (!Array.isArray(d['terms'])) return 'terms must be an array';
+        for (const w of d['terms'] as unknown[]) {
+          if (!isObj(w) || !str(w['id']) || !str(w['term']) || typeof w['gloss'] !== 'string') return 'a key word needs an id, a word and a gloss';
+          if (w['match'] !== undefined && !(Array.isArray(w['match']) && (w['match'] as unknown[]).every((m) => typeof m === 'string'))) return 'other forms must be words';
+          if (w['body'] !== undefined && typeof w['body'] !== 'string') return 'a meaning must be text';
+          if (w['audio'] !== undefined && !mediaOk(w['audio'])) return 'audio needs a url or a hash';
+          if (w['links'] !== undefined && !linksOk(w['links'])) return 'links are a ref or a template node';
         }
       }
       break;

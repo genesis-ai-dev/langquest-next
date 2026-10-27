@@ -7,7 +7,7 @@ import {
 
 const migration = readFileSync(join(__dirname, '../../../supabase/migrations/20261027000000_verified_organizations.sql'), 'utf8');
 
-describe('a blue check: what an admin types (decisions.md 172)', () => {
+describe('a blue check: what an admin types (decisions.md 173)', () => {
   it('turns what someone pastes for their website into a domain', () => {
     expect(normalizeDomain('https://www.UnfoldingWord.org/about?x=1')).toBe('unfoldingword.org');
     expect(normalizeDomain('  wordcollective.com.  ')).toBe('wordcollective.com');

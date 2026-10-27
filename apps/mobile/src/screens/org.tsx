@@ -637,7 +637,7 @@ function OrgNameAndLicense(props: { ctx: Ctx }) {
   const may = mayChangeLicense(ctx.org.state, ctx.session.actorId);
   const pencil = useHelpSpot(t('org.rename.orgTitle'), t('org.rename.rowHelp'), mayRename ? () => setOpen('name') : undefined);
   const license = useHelpSpot(licenseText(current).name, t('org.home.licenseHelp'), () => setOpen('license'));
-  // The check after the name (decisions.md 172): blue once LangQuest granted it, and every member may tap it
+  // The check after the name (decisions.md 173): blue once LangQuest granted it, and every member may tap it
   // to read what it means; until then grey, and only for an admin, who taps it to ask and to see how the request stands.
   const badge = useOrgBadge(ctx.language.orgId);
   // Asking for it is the admin's, as renaming is: manage_roles at the organization's level, as the server asks.

@@ -1,4 +1,4 @@
-// An organization's request for a blue check (decisions.md 172), as its
+// An organization's request for a blue check (decisions.md 173), as its
 // Manage page's sheet drives it: where it stands, and sending a code,
 // confirming it and taking the request back.
 import { useCallback, useEffect, useState } from 'react';

@@ -18,7 +18,7 @@ const lqFia: SharedItem = {
   subscribable: true, version_count: 1, latest_hash: H('a'), updated_hlc: ''
 };
 
-describe('moving library items between organizations (decisions.md 174)', () => {
+describe('moving library items between organizations (decisions.md 175)', () => {
   it('talks about an item\'s open move, else its last', () => {
     const old = move({ id: 'old', state: 'declined', fromOrg: 'wc', fromItem: 'x' });
     const open = move({ id: 'open', state: 'offered', fromOrg: 'wc', fromItem: 'x' });

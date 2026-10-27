@@ -1,5 +1,5 @@
 /**
- * Publisher imports (decisions.md 173, docs/publisher-imports.md): the
+ * Publisher imports (decisions.md 174, docs/publisher-imports.md): the
  * runs organizations' admins ask for, built by the app Worker's schedule.
  * Each step takes the oldest open run (`import_run_next`, which holds it for
  * a while), builds one more part of it, keeps the documents for the run

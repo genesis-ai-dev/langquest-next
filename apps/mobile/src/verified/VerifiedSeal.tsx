@@ -1,4 +1,4 @@
-// The blue check after a verified organization's name (decisions.md 172):
+// The blue check after a verified organization's name (decisions.md 173):
 // the same small seal wherever the name shows, which explains itself to a
 // screen reader. It is not a button of its own: rows keep their one action.
 // On the organization's Manage page the seal after its name opens what the

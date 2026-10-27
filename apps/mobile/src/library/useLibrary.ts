@@ -45,7 +45,7 @@ export function useLibrary(ctx: Ctx) {
 
   /**
    * Publish versions whose documents the server already keeps for this
-   * organization (an import an admin took up, decisions.md 173), shared for
+   * organization (an import an admin took up, decisions.md 174), shared for
    * other organizations to follow when `share`.
    */
   const publishHeld = useCallback(async (items: readonly { itemId: string; kind: LibraryKind; name: string; description: string; docHash: string; note?: string }[], share: boolean) => {

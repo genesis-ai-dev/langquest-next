@@ -1,4 +1,4 @@
-// Moving a library item to another organization (decisions.md 174): finding
+// Moving a library item to another organization (decisions.md 175): finding
 // the organization, offering the item, and the other side taking it or
 // turning it down. The server moves the item's followers once the new
 // organization's app has published it.

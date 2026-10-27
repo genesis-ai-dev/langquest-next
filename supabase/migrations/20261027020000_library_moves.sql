@@ -1,4 +1,4 @@
--- Moving a library item to another organization (decisions.md 174,
+-- Moving a library item to another organization (decisions.md 175,
 -- docs/library.md "Moving an item to another organization"). Someone who
 -- manages that kind of item at the organization that has it offers it to
 -- another organization; someone who manages that kind there takes it, as a

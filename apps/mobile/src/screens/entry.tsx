@@ -570,7 +570,7 @@ export function ScanQr(ctx: Ctx) {
               <View style={styles.optionRow}>
                 <View style={styles.tile}><Ico name="people" size={24} color={C.primary} /></View>
                 <View style={{ flex: 1 }}>
-                  {/* Whoever scans sees the blue check of the organization they are joining (decisions.md 172). */}
+                  {/* Whoever scans sees the blue check of the organization they are joining (decisions.md 173). */}
                   <OrgLine text={card.title} orgName={preview?.orgName} orgId={preview?.orgId} style={[txt.body, { fontWeight: '700' }]} />
                   {card.detail ? <OrgLine text={card.detail} orgName={preview?.orgName} orgId={preview?.orgId} style={txt.smMuted} /> : null}
                   {card.from ? <Text style={txt.xs}>{t('entry.scan.from', { name: card.from })}</Text> : null}

@@ -1001,7 +1001,8 @@
     "offers": {
       "guides": "panduan studi {{name}}",
       "theBible": "{{name}}",
-      "guidesIn": "panduan studi {{name}} dalam bahasa {{language}}"
+      "guidesIn": "panduan studi {{name}} dalam bahasa {{language}}",
+      "wordsIn": "{{name}} dalam bahasa {{language}}"
     },
     "languages": {
       "row": "Bahasa",
@@ -1332,7 +1333,20 @@
       "setHelp": "Membuka bahasa-bahasanya: pilih bahasa yang didapat tim, atau matikan.",
       "patternOnHelp": "Disediakan bagi tim, dalam bahasa yang dipilih untuknya.",
       "all": "Semua bahan referensi",
-      "allHelp": "Membuka semua yang ada di pustaka organisasi, dan yang ditawarkan ke tiap bahasa."
+      "allHelp": "Membuka semua yang ada di pustaka organisasi, dan yang ditawarkan ke tiap bahasa.",
+      "search": "Cari Alkitab, panduan, kata kunci…",
+      "searchHelp": "Mencari Alkitab, panduan, kata kunci, dan catatan menurut nama, deskripsi, asalnya, atau bahasa.",
+      "searchHint": "Nama, deskripsi, asalnya, dan bahasanya, di semua organisasi yang berbagi dengan Anda.",
+      "goesWithFilter": "Cocok dengan {{name}}",
+      "familyNote": "Semua yang terkait dengan {{name}}. Matikan mana saja, atau hapus pencarian untuk melihat semuanya lagi.",
+      "clearGoesWith": "Tampilkan semua lagi",
+      "clearGoesWithHelp": "Menghapus “Cocok dengan”, sehingga seluruh daftar tampil lagi.",
+      "relatedHelp": "Hanya menampilkan yang cocok dengannya, masing-masing dengan tombolnya sendiri.",
+      "notInLibrary": "Belum ada di perpustakaan Anda",
+      "turnedOnWith": "{{name}} dan {{related}} diaktifkan",
+      "wordSetChosen": "{{name}} sekarang dalam bahasa {{language}}",
+      "wordSetOff": "{{name}} dimatikan untuk tim ini",
+      "relatedOn_other": "{{count, number}} sumber terkait aktif"
     },
     "page": {
       "title": "Apa yang membantu mereka",
@@ -2633,10 +2647,6 @@
       "latestBy": "terakhir oleh {{name}}, {{when}}",
       "playExplanation": "Putar penjelasan",
       "openVersion": "Buka Versi {{n, number}}",
-      "whereUsed": "Di mana dipakai",
-      "versions_other": "{{count, number}} versi",
-      "usedTitle": "{{title}} · Versi {{n, number}}",
-      "changedHere": "Diubah di sini",
       "adjustTitle": "{{language}} · “{{term}}”",
       "adjustSubTie": "Dicatat sebagai bagian dari {{passage}}, dan dikaitkan dengan draf Anda.",
       "adjustSub": "Setiap perubahan dicatat dengan alasan Anda.",
@@ -2649,8 +2659,6 @@
       "addRenderingHelp": "Tambahkan cara mengucapkannya dalam {{language}}, dan alasannya. Setiap perubahan disimpan.",
       "adjustHelp": "Ubah atau tambahkan cara mengucapkannya dalam {{language}}, dengan alasan Anda. Setiap perubahan disimpan.",
       "openVersionHelp": "Membuka versi tempat perubahan ini dibuat.",
-      "usedHelp": "Membuka versi ini, yang memakai istilah ini.",
-      "usedChangedHelp": "Membuka versi ini. Diubah di sini: padanannya disesuaikan selama versi ini.",
       "saveHelp": "Mencatat perubahan dan alasan Anda, untuk dilihat tim."
     }
   },
@@ -5819,7 +5827,8 @@
       "howManyHelp": "Sebutkan berapa orang yang mendengarkan. Tidak wajib.",
       "doneRecordedHelp": "Memasukkan {{what}} ke riwayat perikop.",
       "looksGoodOffline": "Sudah baik. {{name}} menerimanya saat perangkat ini terhubung.",
-      "feedbackOffline": "Masukan disimpan. {{name}} menerimanya saat perangkat ini terhubung."
+      "feedbackOffline": "Masukan disimpan. {{name}} menerimanya saat perangkat ini terhubung.",
+      "helpWordsHelp": "Membuka kata kunci dalam perikop ini, dengan kata tim untuk masing-masing, dan apakah versi ini memakainya."
     },
     "guest": {
       "previewSub": "Pratinjau · yang dilihat orang tanpa aplikasi",
@@ -6114,7 +6123,8 @@
       "guide": "Panduan studi",
       "note": "Catatan untuk penerjemah",
       "questions": "Kumpulan pertanyaan",
-      "other": "Bahan"
+      "other": "Bahan",
+      "words": "Kata kunci"
     },
     "facts": {
       "oldTestament": "Perjanjian Lama",
@@ -6296,7 +6306,8 @@
       "kindAllHelp": "Menampilkan semua jenis.",
       "kindHelp": "Hanya menampilkan jenis ini.",
       "languageHelp": "Hanya menampilkan item dalam bahasa ini.",
-      "openHelp": "Membukanya: isinya dan di mana ditempatkan."
+      "openHelp": "Membukanya: isinya dan di mana ditempatkan.",
+      "kindWords": "Kata kunci"
     },
     "coverage": {
       "title": "Cakupan",
@@ -6467,7 +6478,11 @@
       "keepHelp": "Menyimpan bahasa ini dan menutup ini.",
       "offHelp": "Tim tidak lagi mendapatkan panduan-panduan ini.",
       "useHelp": "Tim mendapatkan panduan-panduan ini dalam bahasa ini.",
-      "rowHelp": "Memilih bahasa ini untuk panduan tim. Barisnya menyebutkan berapa perikop yang punya panduan dalam bahasa ini."
+      "rowHelp": "Memilih bahasa ini untuk panduan tim. Barisnya menyebutkan berapa perikop yang punya panduan dalam bahasa ini.",
+      "wordsUseHelp": "Tim mendapatkan kata kunci ini dalam bahasa ini.",
+      "wordsOffHelp": "Tim tidak lagi mendapatkan kata kunci ini.",
+      "wordsRowHelp": "Memilih bahasa ini untuk kata kunci tim. Barisnya menyebutkan berapa kata yang ada.",
+      "wordsGaps_other": "Dalam bahasa {{language}}, {{name}} memiliki {{count, number}} kata. Setiap perikop menampilkan kata yang dipakainya."
     },
     "passageText": {
       "bar": "{{passage}} · {{bible}}",
@@ -6493,7 +6508,8 @@
       "writeNoteSub": "Di ayat yang Anda pilih, diucapkan atau diketik",
       "fromLibrary": "Dari perpustakaan Anda",
       "fromOwn": "Dari perpustakaan organisasi Anda"
-    }
+    },
+    "words_other": "{{count, number}} kata"
   },
   "sources": {
     "listSeparator": ", ",
@@ -6652,7 +6668,8 @@
     "change": "Ubah",
     "rowHelp": "Menambahkan bahasa ini untuk Alkitab dan panduan tim, atau menghapusnya. Barisnya menyebut isinya.",
     "listed": "Hanya bahasa yang punya Alkitab atau panduan belajar yang ditampilkan.",
-    "noMatch": "Belum ada bahasa dengan nama itu yang punya Alkitab atau panduan belajar."
+    "noMatch": "Belum ada bahasa dengan nama itu yang punya Alkitab atau panduan belajar.",
+    "setWords_other": "{{name}} ({{count, number}} kata)"
   },
   "checks": {
     "title": "Pemeriksaan",
@@ -6855,6 +6872,95 @@
       "playHelp": "Memutar cara mereka mengucapkannya.",
       "suggest": "Bahasa lain di sini memakai",
       "suggestHelp": "Dipakai di sini dalam {{languages}}. Ketuk untuk menambahkannya."
+    },
+    "lists": {
+      "here": "Kata kunci di sini",
+      "from": "Dari {{name}} · {{language}}",
+      "inPassage": "Dalam perikop ini",
+      "saidAs": "{{verses}} (“{{form}}”)",
+      "openHelp": "Membuka artinya, untuk dibaca atau didengarkan.",
+      "rowLabel": "{{term}}. {{gloss}}. {{refs}}",
+      "play": "Putar arti {{term}}",
+      "pause": "Jeda arti {{term}}",
+      "playHelp": "Memutar rekaman {{name}} tentang artinya.",
+      "words_other": "{{count, number}} kata"
+    },
+    "sheet": {
+      "sub": "Kata kunci {{name}} · {{language}}",
+      "hear": "Dengarkan penjelasan {{name}}",
+      "hearHelp": "Memutar rekaman {{name}} tentang arti kata ini. Ketuk lagi untuk menjeda.",
+      "pauseHear": "Jeda penjelasan {{name}}",
+      "playVerse": "Putar {{verse}}",
+      "means": "Artinya",
+      "meansHelp": "Ketuk kata yang bergaris bawah untuk melihat artinya.",
+      "add": "Tambahkan ke kata kunci kami",
+      "addHelp": "Menambahkannya ke kata kunci {{language}}, dengan arti dari {{name}}. Lalu Anda mengucapkan cara {{language}} menyebutnya.",
+      "addThen": "Lalu ucapkan cara {{language}} menyebutnya",
+      "ours": "Salah satu kata kunci {{language}}.",
+      "backTo": "Kembali ke {{term}}",
+      "backToHelp": "Menampilkan lagi kata yang tadi Anda buka.",
+      "minutes_other": "{{count, number}} menit",
+      "everyPassage": "Semua perikop tempat kata ini muncul",
+      "everyPassageHelp": "Membuka halaman kata ini: semua perikop tempat kata ini muncul, dan keadaan tim di setiap perikop."
+    },
+    "search": {
+      "help": "Mencari kata kunci, milik Anda dan milik setiap daftar: menurut katanya, lalu arti singkatnya, lalu arti lengkapnya.",
+      "all": "Semua",
+      "ours": "Milik kami",
+      "allHelp": "Menampilkan kata kunci tim Anda dan kata kunci setiap daftar.",
+      "oursHelp": "Hanya menampilkan kata kunci tim Anda.",
+      "listHelp": "Hanya menampilkan kata kunci {{name}}.",
+      "words": "Kata",
+      "inGloss": "Dalam arti singkat",
+      "inMeaning": "Dalam arti lengkap",
+      "moreHelp": "Menampilkan kata-kata yang arti lengkapnya menyebut ini.",
+      "ourWord": "Kata {{language}}",
+      "openListHelp": "Membuka artinya, dari {{name}}.",
+      "more_other": "{{count, number}} kata lain menyebutnya dalam arti lengkapnya",
+      "linkedIn_other": "Terkait dengan {{count, number}} perikop di {{book}}",
+      "linked_other": "Terkait dengan {{count, number}} perikop"
+    },
+    "review": {
+      "title": "Kata kunci {{name}}",
+      "titlePlain": "Kata kunci",
+      "intro": "Dengarkan cara Versi {{n}} mengucapkan masing-masing. Ketuk sebuah kata untuk melihat arti dari {{name}}.",
+      "gone": "Daftar kata kunci ini sudah tidak ada di perpustakaan.",
+      "none": "{{name}} tidak punya kata kunci dalam perikop ini.",
+      "openHelp": "Membuka arti kata ini, seperti yang dijelaskan {{name}}.",
+      "used": "{{name}} memakainya",
+      "notMarked": "Tidak ditandai di Versi {{n}}",
+      "noWord": "Belum ada kata {{language}}",
+      "rowSub_other": "{{count, number}} di sini · {{language}} punya kata untuk {{have, number}}"
+    },
+    "page": {
+      "all": "Semua {{n, number}}",
+      "used": "Dipakai {{n, number}}",
+      "notMarked": "Tidak ditandai {{n, number}}",
+      "notRecorded": "Belum direkam {{n, number}}",
+      "recorded": "Direkam {{n, number}}",
+      "passages_other": "Perikop · {{count, number}}",
+      "linkedBy_other": "{{name}} mengaitkannya dengan {{count, number}}",
+      "noPassages": "Belum ada di perikop mana pun.",
+      "filterHelp": "Hanya menampilkan perikop dengan keadaan seperti ini.",
+      "openVersionHelp": "Membuka versi perikop itu.",
+      "openPassageHelp": "Membuka perikop ini.",
+      "linkedByOne": "Dikaitkan oleh {{name}}",
+      "markedHere": "Ditandai di salah satu versi di sini",
+      "versionUsed": "Versi {{n}} memakainya",
+      "versionNotMarked": "Versi {{n}} tidak menandainya",
+      "recordedVersion": "Direkam · Versi {{n}}",
+      "notRecordedYet": "Belum direkam",
+      "notes_other": "Catatan dan pemeriksaan · {{count, number}}",
+      "openNoteHelp": "Membuka perikop tempat catatan ini ditinggalkan.",
+      "noteOnWord": "catatan pada kata ini",
+      "version": "Versi {{n}}",
+      "withReview": "Bersama pemeriksaan",
+      "replies_other": "{{count, number}} balasan",
+      "playNote": "Putar catatan",
+      "notOurs": "Belum termasuk kata kunci {{language}}",
+      "fromList": "Dari {{name}}",
+      "fromListSub": "Artinya, dan rekaman {{name}}",
+      "fromListHelp": "Membuka arti kata ini seperti yang dijelaskan {{name}}, dengan rekamannya."
     }
   },
   "clusters": {

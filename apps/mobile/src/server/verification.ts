@@ -1,4 +1,4 @@
-// A blue check for an organization (decisions.md 172): asking for one with a
+// A blue check for an organization (decisions.md 173): asking for one with a
 // code by email, confirming it, and which organizations have one.
 import { supabase } from './supabase';
 

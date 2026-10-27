@@ -89,7 +89,7 @@ export function passwordResetContent(p: { email: string; link: string; minutes: 
   };
 }
 
-/** A blue check's code to an address at the organization's domain (supabase/functions/verify-org-email, decisions.md 172). */
+/** A blue check's code to an address at the organization's domain (supabase/functions/verify-org-email, decisions.md 173). */
 export interface CodeMessage {
   requestId: string;
   email: string;

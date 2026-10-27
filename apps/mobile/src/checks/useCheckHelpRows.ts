@@ -7,7 +7,7 @@ import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { refKindOf } from '../reference/model';
 import { referenceKindName } from '../config/model';
 
-/** A help on a check, as a reviewer opens it: a note or document, a study guide, or a Bible. */
+/** A help on a check, as a reviewer opens it: a note or document, a study guide, a Bible, or a key-word list (decision 172). */
 export interface HelpRow {
   key: string;
   /** The help as a note names it (`item:<id>`, `material:<id>`; decisions.md 149). */
@@ -15,7 +15,7 @@ export interface HelpRow {
   name: string;
   sub?: string;
   icon: IconName;
-  open: { screen: 'material_editor'; params: Record<string, string> } | { screen: 'study_guide' } | { bible: string };
+  open: { screen: 'material_editor'; params: Record<string, string> } | { screen: 'study_guide' } | { bible: string } | { words: string };
 }
 
 /** A check's helps (decision 91) with their names and how each opens. */
@@ -35,6 +35,7 @@ export function useCheckHelpRows(ctx: Ctx, state: LanguageState | null | undefin
     const kind = refKindOf(docs.get(it.current));
     if (kind === 'source') return [{ key: h.itemId, help: helpKey(h), name: it.name, icon: 'book', open: { bible: h.itemId } }];
     if (kind === 'guide') return [{ key: h.itemId, help: helpKey(h), name: it.name, icon: 'sparkle', open: { screen: 'study_guide' } }];
+    if (kind === 'words') return [{ key: h.itemId, help: helpKey(h), name: it.name, icon: 'key', open: { words: h.itemId } }];
     return [{ key: h.itemId, help: helpKey(h), name: it.name, ...(it.description ? { sub: it.description } : {}), icon: 'note', open: { screen: 'material_editor', params: { itemId: h.itemId } } }];
   });
 }

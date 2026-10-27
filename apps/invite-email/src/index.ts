@@ -95,7 +95,7 @@ async function readSmallBody(request: Request): Promise<Uint8Array | null | 'non
 }
 
 /**
- * A blue check's code (decisions.md 172). No delivery object: each code is
+ * A blue check's code (decisions.md 173). No delivery object: each code is
  * new, and the database limits how many are sent, so a retry is one more
  * code, not a second copy of one.
  */

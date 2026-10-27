@@ -6,7 +6,7 @@ import { t } from '../i18n';
 import { guideShortName, languageLabel } from '../admin/adminModel';
 import type { SharedItem } from '../library/model';
 import { refKindOf } from '../reference/model';
-import type { GuideSet } from '../reference/guideSets';
+import { isWordSet, setName, type GuideSet } from '../reference/guideSets';
 import { memberIn } from '../reference/languageChoices';
 import { docLanguage, languagesLine, sameLanguage } from '../reference/languages';
 import type { MaterialChoice } from './newLanguage';
@@ -34,7 +34,7 @@ export function bibleOffer(name: string): string {
 
 function kindOfDoc(doc: LibraryDoc | null): MaterialChoice['kind'] | null {
   const k = refKindOf(doc);
-  return k === 'source' ? 'source' : k === 'guide' ? 'guide' : k === 'note' || k === 'other' ? 'note' : null;
+  return k === 'source' ? 'source' : k === 'guide' ? 'guide' : k === 'words' ? 'words' : k === 'note' || k === 'other' ? 'note' : null;
 }
 
 export interface OfferInput {
@@ -50,8 +50,8 @@ export interface OfferInput {
 /**
  * Every offer, in the order shown (Bibles, guide sets, then the rest), and
  * the keys ticked until someone changes them: one Bible (the organization's
- * own first, the World English Bible first of those) and one set of guides
- * (FIA's first).
+ * own first, the World English Bible first of those), one set of guides
+ * (FIA's first) and the key words that go with it.
  */
 export function newLanguageOffers(input: OfferInput): { items: MaterialChoice[]; suggested: Set<string> } {
   const { own, others, sets, readsAll } = input;
@@ -61,10 +61,16 @@ export function newLanguageOffers(input: OfferInput): { items: MaterialChoice[];
   const inSets = new Set(sets.flatMap((set) => set.members.map((m) => m.itemId ?? (m.shared ? sharedKey(m.shared) : ''))));
   const setRows: MaterialChoice[] = [...sets].sort((a, b) => fiaRank(a.name) - fiaRank(b.name)).flatMap((set) => {
     const member = memberIn(set, reads);
+    // A method's key words are a set of their own (decision 172), offered under Key words.
+    const words = isWordSet(set);
     return member ? [{
-      key: `set:${set.key}`, kind: 'guide' as const, itemId: member.itemId, shared: member.shared, name: member.name, set, member,
-      label: t('org.offers.guidesIn', { name: guideShortName(set.name), language: languageLabel(member.language) }),
-      sub: t('referenceLanguage.setPassages', { name: guideShortName(set.name), count: member.passages })
+      key: `set:${set.key}`, kind: words ? 'words' as const : 'guide' as const, itemId: member.itemId, shared: member.shared, name: member.name, set, member,
+      label: words
+        ? t('org.offers.wordsIn', { name: setName(set.name), language: languageLabel(member.language) })
+        : t('org.offers.guidesIn', { name: guideShortName(set.name), language: languageLabel(member.language) }),
+      sub: words
+        ? t('referenceLanguage.setWords', { name: setName(set.name), count: member.passages })
+        : t('referenceLanguage.setPassages', { name: guideShortName(set.name), count: member.passages })
     }] : [];
   });
   const row = (key: string, itemId: string | null, s: SharedItem | null, name: string, doc: LibraryDoc | null, kind: MaterialChoice['kind'], owner: string): MaterialChoice => ({
@@ -86,7 +92,9 @@ export function newLanguageOffers(input: OfferInput): { items: MaterialChoice[];
     ...ownRows.filter((x) => x.kind !== 'source'), ...sharedRows.filter((x) => x.kind !== 'source')];
   const firstBy = (list: MaterialChoice[], rank: (n: string) => number) => [...list].sort((a, b) => rank(a.name) - rank(b.name))[0];
   const bible = firstBy(ownRows.filter((x) => x.kind === 'source'), webRank) ?? firstBy(sharedRows.filter((x) => x.kind === 'source'), webRank);
-  const guide = setRows[0] ?? firstBy(ownRows.filter((x) => x.kind === 'guide'), fiaRank) ?? firstBy(sharedRows.filter((x) => x.kind === 'guide'), fiaRank);
-  const suggested = new Set([bible?.key, guide?.key].filter((k): k is string => !!k));
+  const guide = setRows.find((x) => x.kind === 'guide') ?? firstBy(ownRows.filter((x) => x.kind === 'guide'), fiaRank) ?? firstBy(sharedRows.filter((x) => x.kind === 'guide'), fiaRank);
+  // The key words that go with the guides suggested come ticked with them (decision 172).
+  const words = guide?.set ? setRows.find((x) => x.set?.key === `${guide.set!.key}|words`) : undefined;
+  const suggested = new Set([bible?.key, guide?.key, words?.key].filter((k): k is string => !!k));
   return { items, suggested };
 }

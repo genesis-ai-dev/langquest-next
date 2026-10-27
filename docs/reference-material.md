@@ -37,6 +37,14 @@ reference material review and design" (2026-10-05).
   from the other languages this phone holds (`reference/otherLanguages.ts`);
   a word's recording streams from its language's files when it is not on
   the phone.
+- **Key-word lists from the library sit under the team's own words**
+  (decision 172). FIA's key words, and any list in the same format, show on
+  a passage when the list links a word to its verses or a Bible the team
+  reads in the list's language says it; each word opens its meaning, FIA's
+  recording and Add to our key words, which keeps FIA's id (`fia:t104`).
+  Lists are picked on their own; turning on FIA's guides turns on its key
+  words too, and every reference list can be searched and filtered to what
+  goes together.
 - **Timings join any text to any recording.** A `timing@1` names the
   recording by SHA-256 and lists each verse's start and end, so any text in
   the same versification can be highlighted against it. Order of preference

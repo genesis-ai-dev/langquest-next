@@ -1,7 +1,7 @@
 // The script only builds SQL; what staff may decide is held by server/orgVerificationSmoke.sql.
 import { parseArgs, requestId } from './org-verification';
 
-describe('npm run org-verification (decisions.md 172)', () => {
+describe('npm run org-verification (decisions.md 173)', () => {
   it('reads the command, its target and where to work', () => {
     expect(parseArgs(['grant', '6f1c2d3e-0000-4000-8000-000000000001', '--hosted'])).toEqual({
       command: 'grant', target: '6f1c2d3e-0000-4000-8000-000000000001', hosted: true, json: false, workdir: undefined

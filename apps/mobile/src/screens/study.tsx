@@ -218,7 +218,7 @@ function StudyReader(props: { ctx: Ctx; title: string; stepId?: string }) {
               hear={shows?.bibleAudio !== false} read={shows?.bibleText !== false}
               onTerm={openTerm} onMoreBibles={() => ctx.go('bible_explore', scope)} />
           ) : chip === 'terms' ? (
-            <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={v.p.draftTakeId} canTie={false}
+            <KeyWordsPane ctx={ctx} v={v} terms={terms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={v.p.draftTakeId} canTie={false}
               onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }} />
           ) : (
             <NotesPane ctx={ctx} v={v} notes={notes} canAdd={canContribute} />

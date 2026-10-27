@@ -68,6 +68,7 @@ const APP_ONLY: Record<string, string> = {
   'reference_coverage->passage_reference': "one passage's reference, to place or hide an item there",
   'passage_record->passage_reference': 'what a translator is offered on this passage and why (Details)',
   'passage_reference->material_editor': 'What helps here, Add a help: a note for translators, written under the passage text on the verses it is about (demo ADR-042, design principle 13)',
+  'key_term_detail->passage_record': "a key word's own page lists every passage it is in; one with nothing recorded yet opens the passage to record it (decision 172)",
   'passage_reference->key_term_detail': 'What helps here: a key word in these verses opens with its verses and how other languages say it (demo ADR-042, design principles 13 and 14)',
   'reference_home->guide_editor': 'Write a guide: an organization writes study material as rich as FIA\'s (docs/reference-material.md, guide editor)',
   'study_guide->guide_editor': 'Edit a guide the organization controls, or Copy to adapt FIA\'s or another organization\'s',

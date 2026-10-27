@@ -77,7 +77,7 @@ describe('the ops dashboard\'s actions', () => {
     expect(e.rows).toEqual([{ profileId: VIEWER, action: 'run_job', target: 'projection', result: 'error', detail: 'TypeError' }]);
   });
 
-  it('grants or declines a blue check request (decisions.md 172) as the staff member who pressed it, and records it', async () => {
+  it('grants or declines a blue check request (decisions.md 173) as the staff member who pressed it, and records it', async () => {
     expect(parseAction({ kind: 'verification', id: REQUEST, decision: 'grant' })).toEqual({ kind: 'verification', id: REQUEST, decision: 'grant' });
     for (const bad of [{ kind: 'verification', id: REQUEST, decision: 'revoke' }, { kind: 'verification', id: 'x', decision: 'grant' }]) expect(parseAction(bad)).toBeNull();
     const d = deps();

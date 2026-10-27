@@ -1,4 +1,4 @@
-// A blue check's code by email (decisions.md 172, docs/verified-organizations.md).
+// A blue check's code by email (decisions.md 173, docs/verified-organizations.md).
 // An admin of an organization names its domain and an address at it; the
 // database makes a 6-digit code for them (org_verification_begin, service
 // role only, so no client ever holds a code it was not emailed), and the

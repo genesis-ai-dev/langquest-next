@@ -1,5 +1,5 @@
 -- Verified organizations: a blue check after an organization's name, which
--- LangQuest staff grant when the organization asks (decisions.md 172,
+-- LangQuest staff grant when the organization asks (decisions.md 173,
 -- docs/verified-organizations.md). An admin of the organization (manage_roles
 -- at its own level) names its website's domain and an email address at that
 -- domain. The Edge Function verify-org-email emails a 6-digit code there

@@ -1,6 +1,6 @@
 /**
  * FIA as Bible Aquifer publishes it, into library documents (decisions.md
- * 173, docs/publisher-imports.md). Aquifer keeps FIA's study guides, key
+ * 174, docs/publisher-imports.md). Aquifer keeps FIA's study guides, key
  * terms, pictures and maps in public GitHub repositories
  * (`<owner>/FIATranslationGuide`, `FIAKeyTerms`, `FIAImages`, `FIAMaps`), one
  * folder per language: HTML articles, a guide's six steps under `<h2>`, and

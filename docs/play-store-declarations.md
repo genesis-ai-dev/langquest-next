@@ -104,7 +104,7 @@ every type.
 
 | Category | Data type | Collected | Shared | Required or optional | Purposes |
 | --- | --- | --- | --- | --- | --- |
-| Personal info | Email address (an account's; and the work address at its website that an organization's admin types to ask for a blue check, decisions.md 172) | Yes | No | Optional (someone joining by invite may have none) | App functionality, Account management |
+| Personal info | Email address (an account's; and the work address at its website that an organization's admin types to ask for a blue check, decisions.md 173) | Yes | No | Optional (someone joining by invite may have none) | App functionality, Account management |
 | Personal info | User IDs (the sign-in name of an account made by invite) | Yes | No | Optional | App functionality, Account management |
 | Personal info | Name | Yes | No | Required | App functionality, Account management |
 | Personal info | Phone number (a guest reviewer's contact, typed in by a user) | Yes | No | Optional | App functionality |

@@ -1,4 +1,4 @@
-// The blue checks of the organizations a screen shows (decisions.md 172), read
+// The blue checks of the organizations a screen shows (decisions.md 173), read
 // from what the phone knows (orgBadges.ts) and asked of the server when stale.
 import { useEffect, useSyncExternalStore } from 'react';
 import { orgBadgeOf, orgBadgesVersion, refreshOrgBadges, subscribeOrgBadges, type OrgBadge } from './orgBadges';

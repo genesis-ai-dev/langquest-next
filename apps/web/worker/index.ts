@@ -123,7 +123,7 @@ export default {
       n.timingsPublished = r.published;
       if (r.jobs) console.log(`timings: ${r.published} of ${r.jobs} jobs published`);
     }).catch(failed('timingsFailed', 'timings'));
-    // Organizations' imports of their own material (decisions.md 173): a few minutes of steps, the rest at the next schedule.
+    // Organizations' imports of their own material (decisions.md 174): a few minutes of steps, the rest at the next schedule.
     const imports = runImports(serviceClient(env), { fetch: (input, init) => fetch(input, init) }, IMPORT_BUDGET_MS).then((r) => {
       n.importSteps = r.steps;
       if (r.errors) throw new Error(`${r.errors} import step failed`);

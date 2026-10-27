@@ -39,8 +39,9 @@
 // check, not a version.
 import {
   checkShows, commands, derivePartVerses, derivePassage, draftsBy, keyTermsForUnit, partMarksFor, RECORD_STEP, skippedVerses, versesInChapter, type PartLabel,
-  type EventSpec, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
+  type EventSpec, type KeyWordDoc, type KindDef, type LanguageState, type PartMark, type PassageNote, type Version
 } from '@langquest-next/core';
+import type { KeyWordList } from '../keyTerms/listsModel';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -734,9 +735,10 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
                     <LinkBtn label={t('translate.openStudy')} help={t('translate.openStudyHelp')} style={{ alignSelf: 'center' }} onPress={() => ctx.go('study_step', { ...scope, stepId: study.steps[step]!.step.id })} />
                   </>
                 ) : chip === 'terms' ? (
-                  <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
+                  <KeyWordsPane ctx={ctx} v={v} terms={trayTerms} rows={bible.rows} bibleName={bible.option?.abbreviation ?? ''} bibleLanguage={bible.option?.language} draftTakeId={draft?.takeId} canTie={canTie} disabled={blocked}
                     onHear={(key) => { setChip('bible'); if (key) { setVerse(key); bible.playVerse(key); } }}
-                    allTerms={() => ctx.go('key_terms', scope)} />
+                    allTerms={() => ctx.go('key_terms', scope)}
+                    {...(recording ? {} : { onWordPage: (list: KeyWordList, word: KeyWordDoc) => ctx.go('key_term_detail', { ...scope, listId: list.itemId, wordId: word.id, ...(draft ? { draftId: draft.takeId } : {}) }) })} />
                 ) : chip === 'notes' ? (
                   <NotesPane ctx={ctx} v={v} notes={notes} disabled={blocked} top={request ? <RequestNote ctx={ctx} request={request} /> : undefined} />
                 ) : chip === 'earlier' ? (
