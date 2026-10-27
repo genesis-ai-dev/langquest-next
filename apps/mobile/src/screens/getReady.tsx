@@ -290,17 +290,18 @@ function useHelpItems(ctx: Ctx) {
       const itemId = await take(h);
       const level = { kind: 'language' as const, languageId };
       const r = recState(org?.recommendations, state, level, itemId);
-      // Turned on, what goes with it comes on too, in one step that its switch takes back (decisions 134, 149); off touches nothing else.
+      // Turned on, what goes with it comes on too, in one step that its switch takes back (decisions 134, 172); off touches nothing else.
       const plan = turnOnWith(h, out, docLanguage(h.doc), reader);
       if (plan.length) {
         await sayAll({ says: [turnOnSay(itemId, h.kind, r), ...await withSays(plan)] }, withMessage(h, plan));
         return;
       }
-      // Off: a Bible stops being recommended here (hidden when the organization recommends it); a guide or note is hidden here.
+      // Off: a Bible or key-word list stops being recommended here (hidden when the organization recommends it); a guide or note is hidden here.
       // On: what was hidden follows the organization again, else it is recommended here.
+      const chosenOnly = h.kind === 'source' || h.kind === 'words';
       const action = h.on
-        ? (h.kind === 'source' && !r.org ? 'inherit' : 'hide')
-        : (r.language === 'hidden' && (r.org || h.kind !== 'source') ? 'inherit' : 'recommend');
+        ? (chosenOnly && !r.org ? 'inherit' : 'hide')
+        : (r.language === 'hidden' && (r.org || !chosenOnly) ? 'inherit' : 'recommend');
       await rec.run(level, itemId, h.name, action);
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: referenceFailure('offer reference', e) })); // i18n-ignore: log label

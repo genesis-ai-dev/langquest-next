@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { foldLanguage, foldOrg, libraryItemView, subscriptionItemId, type AnyEvent, type KeyWordDoc, type LibraryDoc, type MaterialDoc, type VerseRange, type VersificationDoc } from '@langquest-next/core';
 import { markTerms } from '../src/recording/workspaceModel';
 import {
-  guideTermWord, keyWordList, listsReaching, ownTermId, ownWordOf, shortName, splitOwn, wordForms, wordOfTermId, wordsOnPassage, type KeyWordList
+  chosenItemIds, guideTermWord, keyWordList, listsReaching, ownTermId, ownWordOf, shortName, splitOwn, wordForms, wordOfTermId, wordsOnPassage, type KeyWordList
 } from '../src/keyTerms/listsModel';
 import { keyWordResults, linkedPassages, listChips, listWordOf, meaningParagraphs, plainMeaning, searchLists } from '../src/keyTerms/searchModel';
 import { helpCards } from '../src/reference/passagesModel';
@@ -341,11 +341,16 @@ describe('which lists reach a language', () => {
   it("shows only the FIA language a team chose, even when another team takes FIA's words in another language later", () => {
     // English was chosen while it was the only one held; French came into the library afterwards and was never hidden here.
     const state = foldLanguage([env('v1.ReferenceSet', { itemId: engId, state: 'recommended' }, 'L1')]);
-    expect(listsReaching({ items, recommendations: org.recommendations, state }).map((l) => l.name)).toEqual(['FIA key words (English)', 'Our team words']);
+    expect(listsReaching({ items, recommendations: org.recommendations, state }).map((l) => l.name)).toEqual(['FIA key words (English)']);
+    // Only what is chosen is fetched: never French, nor a list merely held in the library.
+    expect([...chosenItemIds(org.recommendations, state)]).toEqual([engId]);
   });
 
-  it('keeps any other list unless the language hid it', () => {
-    const state = foldLanguage([env('v1.ReferenceSet', { itemId: engId, state: 'recommended' }, 'L1'), env('v1.ReferenceSet', { itemId: 'ours', state: 'hidden' }, 'L1')]);
-    expect(listsReaching({ items, recommendations: org.recommendations, state }).map((l) => l.name)).toEqual(['FIA key words (English)']);
+  it('takes a list chosen here, or for every language by the organization, and none merely held in the library', () => {
+    const chosenHere = foldLanguage([env('v1.ReferenceSet', { itemId: 'ours', state: 'recommended' }, 'L1')]);
+    expect(listsReaching({ items, recommendations: org.recommendations, state: chosenHere }).map((l) => l.name)).toEqual(['Our team words']);
+    const byOrg = foldOrg([env('v1.ReferenceRecommended', { itemId: 'ours', recommended: true })]);
+    expect(listsReaching({ items, recommendations: byOrg.recommendations, state: foldLanguage([]) }).map((l) => l.name)).toEqual(['Our team words']);
+    expect(listsReaching({ items, recommendations: org.recommendations, state: foldLanguage([]) })).toEqual([]);
   });
 });

@@ -101,8 +101,8 @@ export function helpItems(i: HelpItemsInput): HelpItem[] {
     if (!doc || !kind || kind === 'questions') continue;
     if (setKeys.has(setKeyOf(originOf(it), doc) ?? '')) continue;
     if (i.guidesIncoming && patterned(doc)) continue;
-    // A Bible reaches the team when recommended; a guide or note in the library reaches it unless hidden here (reference/offered.ts).
-    const on = kind === 'source' ? i.offered.has(it.itemId) : say[it.itemId]?.value !== 'hidden';
+    // A Bible or a key-word list reaches the team when chosen for it; a guide or note in the library reaches it unless hidden here (reference/offered.ts).
+    const on = kind === 'source' || kind === 'words' ? i.offered.has(it.itemId) : say[it.itemId]?.value !== 'hidden';
     const following = it.source === 'subscription' && it.subscription?.active ? it.subscription.sourceOrgName : null;
     const family = familyOf(originOf(it), doc);
     out.push({ key: it.itemId, itemId: it.itemId, shared: null, name: it.name, kind, doc, on, owner: sourceLine(it), from: following, ...(family ? { family } : {}) });
@@ -265,5 +265,6 @@ export function turnOnWith(h: HelpItem, items: readonly HelpItem[], language: st
  * the organization recommends it), else it is recommended here.
  */
 export function turnOnSay(itemId: string, kind: RefKind, r: RecState): ReferenceSay {
-  return { itemId, state: r.language === 'hidden' && (r.org || kind !== 'source') ? 'inherit' : 'recommended' };
+  const chosenOnly = kind === 'source' || kind === 'words';
+  return { itemId, state: r.language === 'hidden' && (r.org || !chosenOnly) ? 'inherit' : 'recommended' };
 }

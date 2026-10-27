@@ -167,7 +167,8 @@ describe('FIA\'s key words beside its guides', () => {
   it('makes one row of FIA\'s key words in every language, a key-words row, in the same family as the guides', () => {
     const out = withWords();
     const kw = out.find((h) => h.kind === 'words')!;
-    expect(kw).toMatchObject({ key: 'set:langquest|FIA|words', name: 'FIA key words', family: 'langquest|FIA', on: true });
+    // Held in the library but chosen for no language yet: key words reach a team only when chosen (decision 172).
+    expect(kw).toMatchObject({ key: 'set:langquest|FIA|words', name: 'FIA key words', family: 'langquest|FIA', on: false });
     // Hindi, shared by LangQuest and not yet followed, is one more language of the set.
     expect(kw.set!.set.members.map((m) => [m.language, m.passages])).toEqual([['eng', 302], ['fra', 280], ['hin', 250]]);
     const guides = out.find((h) => h.kind === 'guide')!;
@@ -259,7 +260,10 @@ describe('FIA\'s key words beside its guides', () => {
 
   it('turns an item on as its switch does: what was hidden follows the organization again, else it is recommended here', () => {
     expect(turnOnSay('x', 'words', { org: false, language: null, effective: null })).toEqual({ itemId: 'x', state: 'recommended' });
-    expect(turnOnSay('x', 'words', { org: false, language: 'hidden', effective: null })).toEqual({ itemId: 'x', state: 'inherit' });
+    // Like a Bible, a key-word list turned on is chosen here, not left to follow the library.
+    expect(turnOnSay('x', 'words', { org: false, language: 'hidden', effective: null })).toEqual({ itemId: 'x', state: 'recommended' });
+    expect(turnOnSay('x', 'words', { org: true, language: 'hidden', effective: null })).toEqual({ itemId: 'x', state: 'inherit' });
+    expect(turnOnSay('n', 'note', { org: false, language: 'hidden', effective: null })).toEqual({ itemId: 'n', state: 'inherit' });
     expect(turnOnSay('b', 'source', { org: false, language: 'hidden', effective: null })).toEqual({ itemId: 'b', state: 'recommended' });
     expect(turnOnSay('b', 'source', { org: true, language: 'hidden', effective: null })).toEqual({ itemId: 'b', state: 'inherit' });
   });

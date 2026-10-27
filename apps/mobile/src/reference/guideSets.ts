@@ -107,13 +107,15 @@ export function guideSets(
  * What of a set reaches a language's team: the members recommended there
  * (by the organization or the language), else, for a language that never
  * chose, every member in the library it has not hidden, as any guide in the
- * library reaches (reference/offered.ts).
+ * library reaches (reference/offered.ts). A set of key-word lists reaches only
+ * the members chosen.
  */
 export function setReach(set: GuideSet, orgRecs: Record<string, Register<boolean>> | undefined, state: LanguageState | null): SetMember[] {
   const rec = recommendedFor(orgRecs, state);
   const held = set.members.filter((m) => m.itemId);
   const chosen = held.filter((m) => rec.has(m.itemId!));
-  if (chosen.length) return chosen;
+  // Key words reach a team only in the language chosen for it (decision 172), so its phones fetch that list alone.
+  if (chosen.length || isWordSet(set)) return chosen;
   return held.filter((m) => state?.languageReferences[m.itemId!]?.value !== 'hidden');
 }
 

@@ -8156,7 +8156,7 @@ turn it off (then leaving for a few seconds does not lock).
 
 ## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
-Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+Date: 2026-10-26 · By: Caleb Koster · Status: accepted
 
 Reason: FIA's guides already carried each passage's Master Glossary words,
 but only as tappable words inside a guide step: they never reached the
@@ -8187,7 +8187,11 @@ among a hundred from twenty organizations).
   (`RefKind` `words`) with their own row and switch. A method's lists form a
   set by language like its guide collections (`guideSets.ts`, set key
   `<origin>|FIA|words`), chosen with the same per-language
-  `v1.ReferenceSet` writes; no new event. Items from the same organization
+  `v1.ReferenceSet` writes; no new event. A list reaches a team only when
+  chosen for it (recommended for the language, or by the organization for
+  every language), never by merely being in the library as guides and notes
+  do, so a phone fetches only its team's list: of FIA's, the one language its
+  admin picked. Items from the same organization
   that follow the same method are related (`HelpItem.family`): turning on
   FIA's guides turns on FIA's key words in the same language (else English),
   and New language ticks them with the guides it suggests; the first row of
