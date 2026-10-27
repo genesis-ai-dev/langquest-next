@@ -36,6 +36,7 @@ import { Badge, Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, F
 import { txt } from '../ui/textStyles';
 import { useOpenDetail } from '../ui/useLayout';
 import { ImportRows } from '../imports/ImportRows';
+import { OrgLine } from '../verified/VerifiedSeal';
 import { cachedDoc } from '../library/docStore';
 import { sourceLine, usesItem, type SharedItem } from '../library/model';
 import { useLibrary, useLibraryDocs, useLibraryUpdates, useSharedItems } from '../library/useLibrary';
@@ -386,7 +387,7 @@ function SharedItems(props: {
         <HelpRow key={`${s.org_id}/${s.item_id}`} of="library.sharedItem">
           <Card>
             <Text style={txt.h3}>{s.name}</Text>
-            <Text style={txt.xsStrong}>{`${s.org_name} · ${t('config.library.versions', { count: s.version_count })}`}</Text>
+            <OrgLine style={txt.xsStrong} text={`${s.org_name} · ${t('config.library.versions', { count: s.version_count })}`} orgName={s.org_name} orgId={s.org_id} />
             {s.description ? <Text style={txt.smMuted}>{s.description}</Text> : null}
             {props.detail?.(s)}
             {props.canManage || props.use ? (

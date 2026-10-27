@@ -4,6 +4,7 @@
 // publishes what it made, shared for other organizations to follow.
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
+import { CheckRow } from '../admin/admin';
 import { t } from '../i18n';
 import { Banner, Group, LinkBtn, PrimaryBtn, ProgressBar, Row, SectionLabel, Sheet } from '../ui/kit';
 import { Text } from '../ui/text';
@@ -94,9 +95,9 @@ export function ImportSheet(props: { visible: boolean; onClose: () => void; orgN
           <SectionLabel label={t('imports.choose.languages', { count: picked.size })} />
           <Group>
             {choices.map((c, i) => (
-              <Row key={c.code} label={c.name} role="checkbox" checked={picked.has(c.code)} last={i === choices.length - 1}
-                badge={actions.has(`fia.${c.code}`) ? t('imports.choose.inLibrary') : undefined}
-                help={actions.has(`fia.${c.code}`) ? t('imports.choose.updateHelp') : t('imports.choose.languageHelp')} onPress={() => toggle(c.code)} />
+              <CheckRow key={c.code} label={c.name} checked={picked.has(c.code)} last={i === choices.length - 1}
+                {...(actions.has(`fia.${c.code}`) ? { sub: t('imports.choose.inLibrary') } : {})}
+                detail={actions.has(`fia.${c.code}`) ? t('imports.choose.updateHelp') : t('imports.choose.languageHelp')} onToggle={() => toggle(c.code)} />
             ))}
           </Group>
         </View>
