@@ -40,6 +40,7 @@ const ALLOWED: Record<string, string> = {
   'snapshots.state': 'the folded state of a stream (a checkpoint), not a status',
   'timing_jobs.done': 'a count of items a background timing job has finished, not a verdict on translation work',
   'api_device_grants.approved_at': 'when a person approved a device sign-in for the API, not an approval of work',
+  'org_verification_requests.status': "where an organization's blue check request stands, the server's own state (decisions.md 172), not a status of work",
 };
 
 describe('invariant 5: no stored status', () => {
