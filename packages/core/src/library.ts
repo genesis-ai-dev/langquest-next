@@ -234,7 +234,7 @@ export function subscriptionItemId(sourceOrgId: string, sourceItemId: string): s
  */
 export function followerItemId(library: Record<string, LibraryItemState>, sourceOrgId: string, sourceItemId: string): string {
   for (const [itemId, it] of Object.entries(library)) {
-    const sub = it.subscription.value;
+    const sub = it.subscription?.value;
     if (sub && sub.sourceOrgId === sourceOrgId && sub.sourceItemId === sourceItemId) return itemId;
   }
   return subscriptionItemId(sourceOrgId, sourceItemId);
