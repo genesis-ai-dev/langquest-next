@@ -85,11 +85,13 @@ create or replace function public._may_verify_org(p_org text, p_profile text)
 returns boolean language sql stable security definer set search_path = '' as $$
   select p_profile is not null and 'manage_roles' = any (public.org_privileges(p_org, p_profile, null));
 $$;
+revoke all on function public._may_verify_org from public, anon, authenticated;
 
 create or replace function public._verification_code_hash(p_request uuid, p_code text)
 returns text language sql immutable set search_path = '' as $$
   select encode(extensions.digest(p_request::text || ':' || p_code, 'sha256'), 'hex');
 $$;
+revoke all on function public._verification_code_hash from public, anon, authenticated;
 
 -- ---- asking -----------------------------------------------------------------------
 
