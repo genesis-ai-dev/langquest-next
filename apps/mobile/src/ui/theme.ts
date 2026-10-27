@@ -35,7 +35,9 @@ export const TINT = {
   gray: '#F1F0F5',
   grayText: '#6B6785',
   note: '#FFFBEA',
-  noteBorder: '#F5E6B0'
+  noteBorder: '#F5E6B0',
+  /** Behind the letters a search found in a row's name (Get ready's search, decision 172). */
+  match: '#FFF3C4'
 } as const;
 
 export const radius = { sm: 8, md: 12, lg: 16, xl: 20, sheet: 28, full: 999 } as const;

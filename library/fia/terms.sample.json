@@ -1,0 +1,386 @@
+{
+ "fetched": "2026-10-20",
+ "note": "Sample: FIA's key words linked to Genesis 2:4-25 (gen-p2), their links kept to Genesis. All of them: FIA's get_terms.py, then --fia-terms.",
+ "terms": [
+  {
+   "id": "63",
+   "uniqueIdentifier": "heaven",
+   "pericopes": [
+    "gen-p1",
+    "gen-p2",
+    "gen-p13",
+    "gen-p29",
+    "gen-p31",
+    "gen-p34a",
+    "gen-p39b",
+    "gen-p40"
+   ],
+   "translations": [
+    {
+     "id": "cmn-t63-v1",
+     "translatedTerm": "天堂、天、天上",
+     "alternates": null,
+     "descriptionHint": "可见的天空，或神居住的地方",
+     "textAsMarkdown": "__天__这个词有时意味着可见的天空：鸟在飞行的地方，我们可以看到云彩的地方，以及我们晚上可以看到星星的地方。\n\n不过，大多数时候，\"天\"这个词指的是神与祂的[天使们](#t4)一起生活的地方。 这个天堂不是这个宇宙中的某个地方；它也不是人类可以去的地方。 但是神可以差遣祂的天使们到地上做祂的工作，并且耶稣从天堂来到地上。 耶稣受死并复活后，祂回到了天堂。 有一天祂会回来，建立[神的国](#t82)，直到永远。启示录告诉我们，当耶稣再来时，会有一个新天和新地。 但是他们不会再分离——在天上的神，和在地上的人。 相反，神要住在祂的子民当中。\n\n在某些经文中，有时不清楚\"天堂\"一词是意味着可见的天空还是神居住的地方。 有时这两个意思可以同时成立。 例如，\"来自天堂的雨\"可以指从天降下的雨，也可以指神降下的雨。\n\n有时[犹太人](#t77)使用\"最高的天堂\"这个词来表明他们不是在说天空，而是在说神居住的地方。\n\n因为天堂是神居住的地方，犹太人当说到神时经常使用\"天堂\"这个词。 出于对神的敬畏，他们宁愿不使用神的名字。 所以，犹太人可能会说\"天堂\"，而不是说\"神\"。 这就是为什么\"天国\"这个词与\"神的国\"意思相同。\n\n旧约的语言，[希伯来文](#t227)中天堂这个词是复数的，或者说不止一个。 我们听到的是复数的\"天堂\"。 因此，你有时会在翻译中看到单数的\"天堂\"，有时你会看到复数的\"天堂\"。 但这指的是同一件事。 这并不意味着有一个以上的天堂。",
+     "textPlain": "天这个词有时意味着可见的天空：鸟在飞行的地方，我们可以看到云彩的地方，以及我们晚上可以看到星星的地方。\n\n不过，大多数时候，\"天\"这个词指的是神与祂的天使们 (#t4)一起生活的地方。 这个天堂不是这个宇宙中的某个地方；它也不是人类可以去的地方。 但是神可以差遣祂的天使们到地上做祂的工作，并且耶稣从天堂来到地上。 耶稣受死并复活后，祂回到了天堂。 有一天祂会回来，建立神的国 (#t82)，直到永远。启示录告诉我们，当耶稣再来时，会有一个新天和新地。 但是他们不会再分离——在天上的神，和在地上的人。 相反，神要住在祂的子民当中。\n\n在某些经文中，有时不清楚\"天堂\"一词是意味着可见的天空还是神居住的地方。 有时这两个意思可以同时成立。 例如，\"来自天堂的雨\"可以指从天降下的雨，也可以指神降下的雨。\n\n有时犹太人 (#t77)使用\"最高的天堂\"这个词来表明他们不是在说天空，而是在说神居住的地方。\n\n因为天堂是神居住的地方，犹太人当说到神时经常使用\"天堂\"这个词。 出于对神的敬畏，他们宁愿不使用神的名字。 所以，犹太人可能会说\"天堂\"，而不是说\"神\"。 这就是为什么\"天国\"这个词与\"神的国\"意思相同。\n\n旧约的语言，希伯来文 (#t227)中天堂这个词是复数的，或者说不止一个。 我们听到的是复数的\"天堂\"。 因此，你有时会在翻译中看到单数的\"天堂\"，有时你会看到复数的\"天堂\"。 但这指的是同一件事。 这并不意味着有一个以上的天堂。",
+     "textWordCount": 6,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "cmn",
+      "nameEnglish": "Mandarin Chinese"
+     }
+    },
+    {
+     "id": "eng-t63-v1",
+     "translatedTerm": "heaven",
+     "alternates": null,
+     "descriptionHint": "the visible sky or the place where God lives",
+     "textAsMarkdown": "The word __heaven__ sometimes means the visible sky: the place where birds are flying, where we can see clouds, and where we can see stars at night.\n\nMost of the time, though, the word \"heaven\" refers to the place where God lives with his [angels](#t4). This heaven is not somewhere in this universe; it is not a place that humans can travel to. But God can send his angels to earth to do his work, and Jesus came from heaven to earth. After Jesus had died and become alive again, he went back to heaven. He will come back one day to establish the [kingdom of God](#t82) for good. The book of Revelation tells us that when Jesus will come back, there will be a new heaven and a new earth. But these will no longer be separated from each other-with God in heaven, and the people on earth. Instead, God will live in the midst of his people.\n\nSometimes it is not clear if, in a certain passage, the word \"heaven\" means the visible sky or the place where God lives. Sometimes both meanings can be true at the same time. For instance, \"rain from heaven\" can mean rain that comes from the sky, but it also can mean rain that is sent by God.\n\nSometimes the [Jews](#t77) used the term \"the highest heaven\" to make clear that they were not talking about the sky, but about the place where God lived.\n\nBecause heaven is the place where God lives, the Jews often used the term \"heaven\" when they were talking about God. Out of respect for God they preferred not to use the name of God. And so, rather than saying \"God,\" the Jews might say \"heaven.\" That's why the term \"the kingdom of heaven\" means the same as \"the kingdom of God.\"\n\nThe word for heaven in [Hebrew](#t227), the language of the Old Testament, is plural, or means more than one. We hear it as \"heavens.\" Therefore you will sometimes see \"heaven\" in translations, and sometimes you will see \"heavens.\" But this means the same thing. It does not mean that there is more than one heaven.",
+     "textPlain": "The word heaven sometimes means the visible sky: the place where birds are flying, where we can see clouds, and where we can see stars at night.\n\nMost of the time, though, the word \"heaven\" refers to the place where God lives with his angels (#t4). This heaven is not somewhere in this universe; it is not a place that humans can travel to. But God can send his angels to earth to do his work, and Jesus came from heaven to earth. After Jesus had died and become alive again, he went back to heaven. He will come back one day to establish the kingdom of God (#t82) for good. The book of Revelation tells us that when Jesus will come back, there will be a new heaven and a new earth. But these will no longer be separated from each other-with God in heaven, and the people on earth. Instead, God will live in the midst of his people.\n\nSometimes it is not clear if, in a certain passage, the word \"heaven\" means the visible sky or the place where God lives. Sometimes both meanings can be true at the same time. For instance, \"rain from heaven\" can mean rain that comes from the sky, but it also can mean rain that is sent by God.\n\nSometimes the Jews (#t77) used the term \"the highest heaven\" to make clear that they were not talking about the sky, but about the place where God lived.\n\nBecause heaven is the place where God lives, the Jews often used the term \"heaven\" when they were talking about God. Out of respect for God they preferred not to use the name of God. And so, rather than saying \"God,\" the Jews might say \"heaven.\" That's why the term \"the kingdom of heaven\" means the same as \"the kingdom of God.\"\n\nThe word for heaven in Hebrew (#t227), the language of the Old Testament, is plural, or means more than one. We hear it as \"heavens.\" Therefore you will sometimes see \"heaven\" in translations, and sometimes you will see \"heavens.\" But this means the same thing. It does not mean that there is more than one heaven.",
+     "textWordCount": 364,
+     "audioUrlVbr4": "https://s3.amazonaws.com/cbbt-er.public/terms/audio/eng/t63/v1/vbr4.mp3",
+     "audioSizeVbr4": 1455212,
+     "language": {
+      "id": "eng",
+      "nameEnglish": "English"
+     }
+    },
+    {
+     "id": "fra-t63-v1",
+     "translatedTerm": "ciel ou cieux",
+     "alternates": null,
+     "descriptionHint": "ciel visible ou endroit où Dieu vit",
+     "textAsMarkdown": "On parle parfois de __ciel__ comme le ciel qui est visible : c'est l'endroit où les oiseaux volent, où on peut voir les nuages et où on peut voir les étoiles la nuit.\n\nParfois, le mot « ciel » (et la plupart du temps, le mot « cieux ») désignent l'endroit où Dieu vit avec ses [anges](#t4). Ce paradis ou ciel n'est pas quelque part dans l'univers. Ce n'est pas un endroit où les êtres humains vivants peuvent se rendre. Dieu peut envoyer ses anges des cieux sur terre pour faire son œuvre. Jésus est venu du ciel sur la terre. Après sa mort et sa résurrection, il est retourné au ciel. Il en reviendra un jour pour établir le [royaume de Dieu](#t82) pour de bon. Le livre de l'Apocalypse nous dit que quand Jésus reviendra, il y aura de nouveaux cieux et une nouvelle terre. Mais ces nouveaux cieux et cette nouvelle terre ne seront plus séparés, avec Dieu au ciel et les gens sur la terre. Dieu vivra plutôt parmi son peuple.\n\nDans certains passages, ce n'est pas toujours clair si les mots « ciel » ou « cieux » désignent le ciel visible ou l'endroit où Dieu vit. Parfois, ces mots peuvent avoir les deux sens en même temps. Par exemple, la « pluie du ciel » peut être une pluie qui tombe du ciel, mais cela peut aussi désigner une pluie qui est envoyée par Dieu.\n\nParfois, les [Juifs](#t77) utilisaient l'expression « le ciel le plus élevé » pour indiquer clairement qu'ils ne parlaient pas du ciel, mais de l'endroit où Dieu vit.\n\nParce que le ciel est l'endroit où Dieu vit, les Juifs utilisaient souvent le mot « ciel » pour parler de lui. Par respect pour Dieu, ils préféraient ne pas utiliser son nom. Alors, au lieu de dire « Dieu », ils disaient souvent « ciel ». C'est pour cela que l'expression « royaume des cieux » signifie la même chose que « royaume de Dieu ».\n\nLe mot « ciel » en [hébreu](#t227), la langue de l'Ancien Testament, est un mot pluriel. « Pluriel » veut dire « plus qu'un ». On dit alors « cieux ». Les versions auront donc parfois « ciel » ou « cieux ». Mais cela signifie la même chose. Cela ne veut pas dire qu'il y a plus d'un ciel.",
+     "textPlain": "On parle parfois de ciel comme le ciel qui est visible : c'est l'endroit où les oiseaux volent, où on peut voir les nuages et où on peut voir les étoiles la nuit.\n\nParfois, le mot « ciel » (et la plupart du temps, le mot « cieux ») désignent l'endroit où Dieu vit avec ses anges (#t4). Ce paradis ou ciel n'est pas quelque part dans l'univers. Ce n'est pas un endroit où les êtres humains vivants peuvent se rendre. Dieu peut envoyer ses anges des cieux sur terre pour faire son œuvre. Jésus est venu du ciel sur la terre. Après sa mort et sa résurrection, il est retourné au ciel. Il en reviendra un jour pour établir le royaume de Dieu (#t82) pour de bon. Le livre de l'Apocalypse nous dit que quand Jésus reviendra, il y aura de nouveaux cieux et une nouvelle terre. Mais ces nouveaux cieux et cette nouvelle terre ne seront plus séparés, avec Dieu au ciel et les gens sur la terre. Dieu vivra plutôt parmi son peuple.\n\nDans certains passages, ce n'est pas toujours clair si les mots « ciel » ou « cieux » désignent le ciel visible ou l'endroit où Dieu vit. Parfois, ces mots peuvent avoir les deux sens en même temps. Par exemple, la « pluie du ciel » peut être une pluie qui tombe du ciel, mais cela peut aussi désigner une pluie qui est envoyée par Dieu.\n\nParfois, les Juifs (#t77) utilisaient l'expression « le ciel le plus élevé » pour indiquer clairement qu'ils ne parlaient pas du ciel, mais de l'endroit où Dieu vit.\n\nParce que le ciel est l'endroit où Dieu vit, les Juifs utilisaient souvent le mot « ciel » pour parler de lui. Par respect pour Dieu, ils préféraient ne pas utiliser son nom. Alors, au lieu de dire « Dieu », ils disaient souvent « ciel ». C'est pour cela que l'expression « royaume des cieux » signifie la même chose que « royaume de Dieu ».\n\nLe mot « ciel » en hébreu (#t227), la langue de l'Ancien Testament, est un mot pluriel. « Pluriel » veut dire « plus qu'un ». On dit alors « cieux ». Les versions auront donc parfois « ciel » ou « cieux ». Mais cela signifie la même chose. Cela ne veut pas dire qu'il y a plus d'un ciel.",
+     "textWordCount": 363,
+     "audioUrlVbr4": "https://s3.amazonaws.com/cbbt-er.public/terms/audio/fra/t63/v1/vbr4.mp3",
+     "audioSizeVbr4": 1548524,
+     "language": {
+      "id": "fra",
+      "nameEnglish": "French"
+     }
+    },
+    {
+     "id": "ind-t63-v1",
+     "translatedTerm": "surga",
+     "alternates": null,
+     "descriptionHint": "langit yang terlihat atau tempat di mana Allah bersemayam ",
+     "textAsMarkdown": "Kata surga __kadang__-kadang berarti langit yang terlihat: tempat di mana burung-burung terbang, di mana kita dapat melihat awan, dan di mana kita dapat melihat bintang-bintang pada malam hari. \n\nNamun, biasanya, kata \"surga\" merujuk kepada tempat di mana Allah tinggal dengan para [malaikat-Nya](#t4). Surga ini bukan di suatu tempat di alam semesta ini; itu bukan tempat yang dapat dilakukan manusia untuk melakukan perjalanan. Tetapi Allah dapat mengutus malaikat-Nya ke bumi untuk melakukan pekerjaan-Nya, dan Yesus berasal dari surga ke bumi. Setelah Yesus mati dan menjadi hidup lagi, Ia kembali ke surga. Ia akan datang kembali suatu hari untuk mendirikan kerajaan [Allah](#t82) untuk selamanya. Kitab Wahyu mengatakan kepada kita bahwa ketika Yesus datang kembali, akan ada langit yang baru dan bumi yang baru. Tetapi ini tidak akan lagi terpisah dari satu sama lain — dengan Allah di surga, dan orang-orang di bumi. Sebaliknya, Allah akan hidup di tengah-tengah umat-Nya. \n\nKadang-kadang tidak jelas apakah, dalam kisah tertentu, kata \"surga\" berarti langit yang terlihat atau tempat di mana Allah tinggal. Kadang-kadang kedua makna bisa benar pada saat yang sama. Misalnya, \"hujan dari surga\" dapat berarti hujan yang berasal dari langit, tetapi itu juga dapat berarti hujan yang diutus oleh Allah.\n\nKadang-kadang orang-orang [Yahudi](#t77) menggunakan istilah \"surga yang tertinggi\" untuk menjelaskan bahwa mereka tidak berbicara tentang langit, tetapi tentang tempat di mana Allah tinggal.\n\nKarena surga adalah tempat di mana Allah bersemayam, orang-orang Yahudi sering menggunakan istilah \"surga\" ketika mereka berbicara tentang Allah. Karena menghormati Allah mereka lebih suka tidak menggunakan nama Allah. Dan sebagainya, daripada mengatakan \"Allah,\" orang-orang Yahudi mungkin mengatakan \"surga.\" Itulah sebabnya istilah \"kerajaan surga\" berarti yang sama dengan \"kerajaan Allah.\" \n\nKata untuk surga dalam bahasa [Ibrani](#t227), bahasa Perjanjian Lama, adalah jamak, atau berarti lebih dari satu. Kita mendengarnya sebagai \"surga.\" Oleh karena itu kadang-kadang saudara akan melihat kata \"surga\" dalam terjemahan, dan kadang-kadang saudara akan melihat kata \"-surga-surga.\" Tetapi ini berarti hal yang sama. Itu tidak berarti bahwa ada lebih dari satu surga.",
+     "textPlain": "Kata surga kadang-kadang berarti langit yang terlihat: tempat di mana burung-burung terbang, di mana kita dapat melihat awan, dan di mana kita dapat melihat bintang-bintang pada malam hari. \n\nNamun, biasanya, kata \"surga\" merujuk kepada tempat di mana Allah tinggal dengan para malaikat-Nya (#t4). Surga ini bukan di suatu tempat di alam semesta ini; itu bukan tempat yang dapat dilakukan manusia untuk melakukan perjalanan. Tetapi Allah dapat mengutus malaikat-Nya ke bumi untuk melakukan pekerjaan-Nya, dan Yesus berasal dari surga ke bumi. Setelah Yesus mati dan menjadi hidup lagi, Ia kembali ke surga. Ia akan datang kembali suatu hari untuk mendirikan kerajaan Allah (#t82) untuk selamanya. Kitab Wahyu mengatakan kepada kita bahwa ketika Yesus datang kembali, akan ada langit yang baru dan bumi yang baru. Tetapi ini tidak akan lagi terpisah dari satu sama lain — dengan Allah di surga, dan orang-orang di bumi. Sebaliknya, Allah akan hidup di tengah-tengah umat-Nya. \n\nKadang-kadang tidak jelas apakah, dalam kisah tertentu, kata \"surga\" berarti langit yang terlihat atau tempat di mana Allah tinggal. Kadang-kadang kedua makna bisa benar pada saat yang sama. Misalnya, \"hujan dari surga\" dapat berarti hujan yang berasal dari langit, tetapi itu juga dapat berarti hujan yang diutus oleh Allah.\n\nKadang-kadang orang-orang Yahudi (#t77) menggunakan istilah \"surga yang tertinggi\" untuk menjelaskan bahwa mereka tidak berbicara tentang langit, tetapi tentang tempat di mana Allah tinggal.\n\nKarena surga adalah tempat di mana Allah bersemayam, orang-orang Yahudi sering menggunakan istilah \"surga\" ketika mereka berbicara tentang Allah. Karena menghormati Allah mereka lebih suka tidak menggunakan nama Allah. Dan sebagainya, daripada mengatakan \"Allah,\" orang-orang Yahudi mungkin mengatakan \"surga.\" Itulah sebabnya istilah \"kerajaan surga\" berarti yang sama dengan \"kerajaan Allah.\" \n\nKata untuk surga dalam bahasa Ibrani (#t227), bahasa Perjanjian Lama, adalah jamak, atau berarti lebih dari satu. Kita mendengarnya sebagai \"surga.\" Oleh karena itu kadang-kadang saudara akan melihat kata \"surga\" dalam terjemahan, dan kadang-kadang saudara akan melihat kata \"-surga-surga.\" Tetapi ini berarti hal yang sama. Itu tidak berarti bahwa ada lebih dari satu surga.",
+     "textWordCount": 325,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "ind",
+      "nameEnglish": "Indonesian"
+     }
+    },
+    {
+     "id": "por-t63-v1",
+     "translatedTerm": "céu",
+     "alternates": null,
+     "descriptionHint": "o céu visível ou o lugar onde Deus vive",
+     "textAsMarkdown": "A palavra __céu__ às vezes significa o céu visível: o lugar onde os pássaros estão voando, onde podemos ver as nuvens e onde podemos ver as estrelas à noite.\n\nNa maioria das vezes, no entanto, a palavra “céu” refere-se ao lugar onde Deus vive com seus [anjos](#t4). Esse céu não está em algum lugar deste universo; não é um lugar para o qual os humanos podem viajar. Mas Deus pode enviar seus anjos para a terra para fazer sua obra, e Jesus veio do céu para a terra. Depois que Jesus morreu e se tornou vivo novamente, ele voltou para o céu. Ele voltará um dia para estabelecer o [Reino de Deus](#t82) para sempre. O livro de Apocalipse nos diz que, quando Jesus voltar, haverá um novo céu e uma nova terra. Mas eles não serão mais separados um do outro — com Deus no céu e as pessoas na terra. Em vez disso, Deus viverá no meio de seu povo.\n\nÀs vezes não fica claro se, em uma certa passagem, a palavra “céu” significa o céu visível ou o lugar onde Deus vive. Às vezes ambos os significados podem ser verdadeiros ao mesmo tempo. Por exemplo, “chuva do céu” pode significar chuva que vem do céu (visível), mas também pode significar chuva que é enviada por Deus.\n\nÀs vezes os [judeus](#t77) usavam o termo “o céu mais alto” para deixar claro que eles não estavam falando sobre o céu visível, mas sobre o lugar onde Deus vivia.\n\nPorque o céu é o lugar onde Deus vive, os judeus muitas vezes usavam o termo “céu” quando eles estavam falando sobre Deus. Por respeito a Deus, eles preferiam não usar o nome de Deus. E assim, em vez de dizer “Deus”, os judeus poderiam dizer “céu”. É por isso que o termo “o Reino dos céus” significa o mesmo que “o Reino de Deus”.\n\nA palavra para céu em [hebraico](#t227), o idioma do Antigo Testamento, é plural, ou significa mais do que um. A ouvimos como “céus”. Portanto, você às vezes verá o “céu” nas traduções, e às vezes você verá os “céus”. Mas isso significa a mesma coisa. Não significa que há mais do que um céu.",
+     "textPlain": "A palavra céu às vezes significa o céu visível: o lugar onde os pássaros estão voando, onde podemos ver as nuvens e onde podemos ver as estrelas à noite.\n\nNa maioria das vezes, no entanto, a palavra “céu” refere-se ao lugar onde Deus vive com seus anjos (#t4). Esse céu não está em algum lugar deste universo; não é um lugar para o qual os humanos podem viajar. Mas Deus pode enviar seus anjos para a terra para fazer sua obra, e Jesus veio do céu para a terra. Depois que Jesus morreu e se tornou vivo novamente, ele voltou para o céu. Ele voltará um dia para estabelecer o Reino de Deus (#t82) para sempre. O livro de Apocalipse nos diz que, quando Jesus voltar, haverá um novo céu e uma nova terra. Mas eles não serão mais separados um do outro — com Deus no céu e as pessoas na terra. Em vez disso, Deus viverá no meio de seu povo.\n\nÀs vezes não fica claro se, em uma certa passagem, a palavra “céu” significa o céu visível ou o lugar onde Deus vive. Às vezes ambos os significados podem ser verdadeiros ao mesmo tempo. Por exemplo, “chuva do céu” pode significar chuva que vem do céu (visível), mas também pode significar chuva que é enviada por Deus.\n\nÀs vezes os judeus (#t77) usavam o termo “o céu mais alto” para deixar claro que eles não estavam falando sobre o céu visível, mas sobre o lugar onde Deus vivia.\n\nPorque o céu é o lugar onde Deus vive, os judeus muitas vezes usavam o termo “céu” quando eles estavam falando sobre Deus. Por respeito a Deus, eles preferiam não usar o nome de Deus. E assim, em vez de dizer “Deus”, os judeus poderiam dizer “céu”. É por isso que o termo “o Reino dos céus” significa o mesmo que “o Reino de Deus”.\n\nA palavra para céu em hebraico (#t227), o idioma do Antigo Testamento, é plural, ou significa mais do que um. A ouvimos como “céus”. Portanto, você às vezes verá o “céu” nas traduções, e às vezes você verá os “céus”. Mas isso significa a mesma coisa. Não significa que há mais do que um céu.",
+     "textWordCount": 364,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "por",
+      "nameEnglish": "Portuguese"
+     }
+    },
+    {
+     "id": "rus-t63-v1",
+     "translatedTerm": "Небеса",
+     "alternates": null,
+     "descriptionHint": null,
+     "textAsMarkdown": null,
+     "textPlain": null,
+     "textWordCount": null,
+     "audioUrlVbr4": "https://s3.amazonaws.com/cbbt-er.public/terms/audio/rus/t63/v1/vbr4.mp3",
+     "audioSizeVbr4": 1059190,
+     "language": {
+      "id": "rus",
+      "nameEnglish": "Russian"
+     }
+    }
+   ]
+  },
+  {
+   "id": "173",
+   "uniqueIdentifier": "generations",
+   "pericopes": [
+    "gen-p2",
+    "gen-p5",
+    "gen-p7",
+    "gen-p8",
+    "gen-p12",
+    "gen-p14",
+    "gen-p15",
+    "gen-p21",
+    "gen-p23",
+    "gen-p36",
+    "gen-p37",
+    "gen-p54a",
+    "gen-p55"
+   ],
+   "translations": [
+    {
+     "id": "cmn-t173-v1",
+     "translatedTerm": "世代、后代",
+     "alternates": null,
+     "descriptionHint": "生活在同一时期、年龄大致相同的一群人",
+     "textAsMarkdown": "一个__世代__指的是生活在同一时期、年龄大致相同的一群人。在一个社区中，可以同时居住三个世代的人：祖父母、父母和子女。这些人中的每个人都属于不同的世代。\n\n有时神或耶稣会提到\"这世代的人\"。这表示所有在该特定时间还活著的人。\n\n在旧约中，\"这些是这个人的后代……\"这句话是用来介绍一系列关于这个人的故事。在这种情况下，它的意思类似于\"这是这个人的历史\"。",
+     "textPlain": "一个世代指的是生活在同一时期、年龄大致相同的一群人。在一个社区中，可以同时居住三个世代的人：祖父母、父母和子女。这些人中的每个人都属于不同的世代。\n\n有时神或耶稣会提到\"这世代的人\"。这表示所有在该特定时间还活著的人。\n\n在旧约中，\"这些是这个人的后代……\"这句话是用来介绍一系列关于这个人的故事。在这种情况下，它的意思类似于\"这是这个人的历史\"。",
+     "textWordCount": 2,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "cmn",
+      "nameEnglish": "Mandarin Chinese"
+     }
+    },
+    {
+     "id": "eng-t173-v1",
+     "translatedTerm": "generations",
+     "alternates": null,
+     "descriptionHint": "a group of people who are living at the same time and belong to about the same age group",
+     "textAsMarkdown": "A __generation__ refers to a group of people who are living at the same time and belong to about the same age group. In a community, three generations of people can be living at the same time: grandparents, parents, and children. Each of these people belong to a different generation.\n\nSometimes God, or Jesus, talks about \"the people of this generation.\" This means all the people who are alive at that particular time.\n\nIn the Old Testament, the phrase \"these are the generations of this person...\" is used to introduce a series of stories about this person. In this case, it means something like \"this is the history of this person.\"",
+     "textPlain": "A generation refers to a group of people who are living at the same time and belong to about the same age group. In a community, three generations of people can be living at the same time: grandparents, parents, and children. Each of these people belong to a different generation.\n\nSometimes God, or Jesus, talks about \"the people of this generation.\" This means all the people who are alive at that particular time.\n\nIn the Old Testament, the phrase \"these are the generations of this person...\" is used to introduce a series of stories about this person. In this case, it means something like \"this is the history of this person.\"",
+     "textWordCount": 111,
+     "audioUrlVbr4": "https://s3.amazonaws.com/cbbt-er.public/terms/audio/eng/t173/v1/vbr4.mp3",
+     "audioSizeVbr4": 554372,
+     "language": {
+      "id": "eng",
+      "nameEnglish": "English"
+     }
+    },
+    {
+     "id": "fra-t173-v1",
+     "translatedTerm": "générations",
+     "alternates": null,
+     "descriptionHint": "groupe de personnes vivant à la même époque et ayant à peu près le même âge",
+     "textAsMarkdown": "Une __génération__ désigne un groupe de personnes qui vivent à une même époque et qui ont à peu près le même âge. En général, dans une communauté, jusqu'à trois générations de personnes vivent en même temps : les grands-parents, les parents et les enfants. Chacune de ces personnes appartient à une génération donnée.\n\nParfois, Dieu ou Jésus parle des « gens de cette génération ». Cela désigne alors toutes les personnes qui sont en vie à une époque en particulier.\n\nDans l'Ancien Testament, l'expression « voici la postérité de » telle personne est utilisée pour introduire une série d'histoires à propos de cette personne. Dans cette expression, le mot « postérité » désigne les générations qui suivent la personne en question. Dans ce cas, cela signifie quelque chose comme : « Voici l'histoire de cette personne ».",
+     "textPlain": "Une génération désigne un groupe de personnes qui vivent à une même époque et qui ont à peu près le même âge. En général, dans une communauté, jusqu'à trois générations de personnes vivent en même temps : les grands-parents, les parents et les enfants. Chacune de ces personnes appartient à une génération donnée.\n\nParfois, Dieu ou Jésus parle des « gens de cette génération ». Cela désigne alors toutes les personnes qui sont en vie à une époque en particulier.\n\nDans l'Ancien Testament, l'expression « voici la postérité de » telle personne est utilisée pour introduire une série d'histoires à propos de cette personne. Dans cette expression, le mot « postérité » désigne les générations qui suivent la personne en question. Dans ce cas, cela signifie quelque chose comme : « Voici l'histoire de cette personne ».",
+     "textWordCount": 122,
+     "audioUrlVbr4": "https://s3.amazonaws.com/cbbt-er.public/terms/audio/fra/t173/v1/vbr4.mp3",
+     "audioSizeVbr4": 706796,
+     "language": {
+      "id": "fra",
+      "nameEnglish": "French"
+     }
+    },
+    {
+     "id": "ind-t173-v1",
+     "translatedTerm": "generasi",
+     "alternates": null,
+     "descriptionHint": "sekelompok orang yang hidup pada waktu yang sama dan termasuk dalam kelompok usia yang sama ",
+     "textAsMarkdown": "Sebuah __generasi__ merujuk pada sekelompok orang yang hidup pada saat yang sama dan termasuk dalam kelompok usia yang sama. Dalam sebuah masyarakat, tiga generasi orang dapat hidup pada saat yang sama: kakek-nenek, orang tua, dan anak-anak. Masing-masing dari orang ini termasuk generasi yang berbeda. \n\nKadang-kadang Allah, atau Yesus, berbicara tentang \"orang-orang dari generasi ini.\" Ini berarti semua orang yang hidup pada saat itu. \n\nDalam Perjanjian Lama, ungkapan \"ini adalah generasi orang ini ...\" digunakan untuk memperkenalkan serangkaian kisah tentang orang ini. Dalam hal ini, itu berarti sesuatu seperti \"ini adalah sejarah orang ini.\"",
+     "textPlain": "Sebuah generasi merujuk pada sekelompok orang yang hidup pada saat yang sama dan termasuk dalam kelompok usia yang sama. Dalam sebuah masyarakat, tiga generasi orang dapat hidup pada saat yang sama: kakek-nenek, orang tua, dan anak-anak. Masing-masing dari orang ini termasuk generasi yang berbeda. \n\nKadang-kadang Allah, atau Yesus, berbicara tentang \"orang-orang dari generasi ini.\" Ini berarti semua orang yang hidup pada saat itu. \n\nDalam Perjanjian Lama, ungkapan \"ini adalah generasi orang ini ...\" digunakan untuk memperkenalkan serangkaian kisah tentang orang ini. Dalam hal ini, itu berarti sesuatu seperti \"ini adalah sejarah orang ini.\"",
+     "textWordCount": 92,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "ind",
+      "nameEnglish": "Indonesian"
+     }
+    },
+    {
+     "id": "por-t173-v1",
+     "translatedTerm": "gerações",
+     "alternates": null,
+     "descriptionHint": "um grupo de pessoas que estão vivendo ao mesmo tempo, e pertencem à mesma faixa etária",
+     "textAsMarkdown": "Uma __geração__ se refere a um grupo de pessoas que estão vivendo ao mesmo tempo, e pertencem à mesma faixa etária. Em uma comunidade, três gerações de pessoas podem estar vivendo ao mesmo tempo: avós, pais e filhos. Cada uma dessas pessoas pertence a uma geração diferente.\n\nÀs vezes Deus, ou Jesus, fala sobre “o povo desta geração”. Isso significa todas as pessoas que estão vivas naquele momento particular.\n\nNo Antigo Testamento, a frase “essas são as gerações desta pessoa…” é usada para introduzir uma série de histórias sobre essa pessoa. Nesse caso, significa algo como “essa é a história dessa pessoa”.",
+     "textPlain": "Uma geração se refere a um grupo de pessoas que estão vivendo ao mesmo tempo, e pertencem à mesma faixa etária. Em uma comunidade, três gerações de pessoas podem estar vivendo ao mesmo tempo: avós, pais e filhos. Cada uma dessas pessoas pertence a uma geração diferente.\n\nÀs vezes Deus, ou Jesus, fala sobre “o povo desta geração”. Isso significa todas as pessoas que estão vivas naquele momento particular.\n\nNo Antigo Testamento, a frase “essas são as gerações desta pessoa…” é usada para introduzir uma série de histórias sobre essa pessoa. Nesse caso, significa algo como “essa é a história dessa pessoa”.",
+     "textWordCount": 99,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "por",
+      "nameEnglish": "Portuguese"
+     }
+    }
+   ]
+  },
+  {
+   "id": "174",
+   "uniqueIdentifier": "yahweh",
+   "pericopes": [
+    "gen-p2",
+    "gen-p3",
+    "gen-p4a",
+    "gen-p4b",
+    "gen-p5",
+    "gen-p6",
+    "gen-p8",
+    "gen-p10",
+    "gen-p11",
+    "gen-p13",
+    "gen-p16",
+    "gen-p18",
+    "gen-p20",
+    "gen-p21",
+    "gen-p22",
+    "gen-p23",
+    "gen-p24",
+    "gen-p25",
+    "gen-p26",
+    "gen-p28",
+    "gen-p29",
+    "gen-p30",
+    "gen-p34a",
+    "gen-p34b",
+    "gen-p34c",
+    "gen-p34d",
+    "gen-p37",
+    "gen-p38",
+    "gen-p39a",
+    "gen-p39b",
+    "gen-p40",
+    "gen-p43",
+    "gen-p44",
+    "gen-p45",
+    "gen-p46b",
+    "gen-p47",
+    "gen-p57",
+    "gen-p58"
+   ],
+   "translations": [
+    {
+     "id": "eng-t174-v1",
+     "translatedTerm": "Yahweh",
+     "alternates": null,
+     "descriptionHint": "a very personal name for God",
+     "textAsMarkdown": "About 1200 to 1500 years before the birth of Jesus, when God called Moses to lead the [Israelites](#t259) out of slavery in Egypt, Moses asked God: \"But when the Israelites will ask me who has sent me, what should I say?\" Moses is asking here for the name of God. And God gives Moses a name for God that he can use: He tells Moses, \"You can tell the people that *Yahweh* has sent me.\" This name means something like \"I am,\" or \"I am who I am.\" When people hear this name of God, they remember that God created the world and everything in it. God never changes, he is a God who is forever, and a God who keeps his promises.\n\nThere are other names for God in the Bible, like \"the most high God,\" or \"the God of the heavenly armies,\" but when people hear this name of God, Yahweh, they think especially of the [covenant](#t29), the special promise, that God had made with the Israelites at the time of Moses. The name Yahweh was a very personal name for God that showed the close relationship that God had with the people of Israel.\n\nThe [Jews](#t77) were very careful with pronouncing this name of God. God was [holy](#t67), and therefore his name was holy. They did not want to offend God by using his name casually. Over time, the Jewish people used God's name less and less because they were afraid to offend God. Therefore, when the Jews were reading from their Scriptures, the books of the Bible that we now call the Old Testament, they did not pronounce the word Yahweh. Instead, every time that they saw the word Yahweh, they spoke a word that means master, or [lord](#t87). This was a sign of their respect for God.\n\nBecause of this, some Bible translations also write lord instead of Yahweh.\n\nSome Bible translations use the word Jehovah. This word is actually a misunderstanding; it is a mixture of the word Yahweh and the Hebrew word for lord. It is not a real word or name.\n\n**When you are translating \"Yahweh,\" be careful about the following things:**\n\n- You could say something that sounds like Yahweh. We actually do not know how this word was pronounced in Hebrew, so you can pronounce it in any way that is easy in your language.\n- You can also try to make a phrase that in your language means something like \"I am,\" \"the one who is,\" \"the one who is forever.\" However, this can sound a bit awkward sometimes.\n- Maybe there is a name in your language for a deity, someone that people in your community consider to be a god. In some cases, it might be possible to use this name for Yahweh. However, you will have to be careful with this. If the character of the deity has some similarities with the character of God, this may work. Using this name for the God in the Bible will help the people to learn that only the Bible tells them what their god really is like. However, this can also cause misunderstanding, confusion, or objection from the people in the wider community.\n- You can say \"lord\" instead of Yahweh, just as the Jews did. However, often the Bible also uses a word that really means lord, and sometimes speaks about \"the lord Yahweh.\" So, you will have to find a way to make clear when the word is a translation of the word lord, and when it is a translation of the word Yahweh.\n\nYou need to take time to make a decision, and you may have to change your decision again after some time. Translating the word Yahweh is difficult! Pray about it and talk about it with many people to hear what they think.",
+     "textPlain": "About 1200 to 1500 years before the birth of Jesus, when God called Moses to lead the Israelites (#t259) out of slavery in Egypt, Moses asked God: \"But when the Israelites will ask me who has sent me, what should I say?\" Moses is asking here for the name of God. And God gives Moses a name for God that he can use: He tells Moses, \"You can tell the people that Yahweh has sent me.\" This name means something like \"I am,\" or \"I am who I am.\" When people hear this name of God, they remember that God created the world and everything in it. God never changes, he is a God who is forever, and a God who keeps his promises.\n\nThere are other names for God in the Bible, like \"the most high God,\" or \"the God of the heavenly armies,\" but when people hear this name of God, Yahweh, they think especially of the covenant (#t29), the special promise, that God had made with the Israelites at the time of Moses. The name Yahweh was a very personal name for God that showed the close relationship that God had with the people of Israel.\n\nThe Jews (#t77) were very careful with pronouncing this name of God. God was holy (#t67), and therefore his name was holy. They did not want to offend God by using his name casually. Over time, the Jewish people used God's name less and less because they were afraid to offend God. Therefore, when the Jews were reading from their Scriptures, the books of the Bible that we now call the Old Testament, they did not pronounce the word Yahweh. Instead, every time that they saw the word Yahweh, they spoke a word that means master, or lord (#t87). This was a sign of their respect for God.\n\nBecause of this, some Bible translations also write lord instead of Yahweh.\n\nSome Bible translations use the word Jehovah. This word is actually a misunderstanding; it is a mixture of the word Yahweh and the Hebrew word for lord. It is not a real word or name.\n\nWhen you are translating \"Yahweh,\" be careful about the following things:\n\n- You could say something that sounds like Yahweh. We actually do not know how this word was pronounced in Hebrew, so you can pronounce it in any way that is easy in your language.\n- You can also try to make a phrase that in your language means something like \"I am,\" \"the one who is,\" \"the one who is forever.\" However, this can sound a bit awkward sometimes.\n- Maybe there is a name in your language for a deity, someone that people in your community consider to be a god. In some cases, it might be possible to use this name for Yahweh. However, you will have to be careful with this. If the character of the deity has some similarities with the character of God, this may work. Using this name for the God in the Bible will help the people to learn that only the Bible tells them what their god really is like. However, this can also cause misunderstanding, confusion, or objection from the people in the wider community.\n- You can say \"lord\" instead of Yahweh, just as the Jews did. However, often the Bible also uses a word that really means lord, and sometimes speaks about \"the lord Yahweh.\" So, you will have to find a way to make clear when the word is a translation of the word lord, and when it is a translation of the word Yahweh.\n\nYou need to take time to make a decision, and you may have to change your decision again after some time. Translating the word Yahweh is difficult! Pray about it and talk about it with many people to hear what they think.",
+     "textWordCount": 641,
+     "audioUrlVbr4": "https://s3.amazonaws.com/cbbt-er.public/terms/audio/eng/t174/v1/vbr4.mp3",
+     "audioSizeVbr4": 3361388,
+     "language": {
+      "id": "eng",
+      "nameEnglish": "English"
+     }
+    },
+    {
+     "id": "fra-t174-v1",
+     "translatedTerm": "Yahweh",
+     "alternates": null,
+     "descriptionHint": "un nom très personnel pour Dieu",
+     "textAsMarkdown": "Environ 1200 à 1500 ans avant la naissance de Jésus, quand Dieu a appelé Moïse à conduire les [Israélites](#t259) hors de l'esclavage en Égypte, Moïse a demandé à Dieu : « Mais quand les Israélites me demanderont qui m'a envoyé, que dois-je dire ? » Moïse demande ici le nom de Dieu. Et Dieu donne à Moïse un nom pour Dieu qu'il peut utiliser : il dit à Moïse : « Vous pouvez dire aux gens que *Yahvé* m'a envoyé ». Ce nom signifie quelque chose comme « je suis » ou « Je suis qui je suis ». Quand les gens entendent ce nom de Dieu, ils se rappellent que Dieu a créé le monde et tout ce qui s'y trouve. Dieu ne change jamais, il est un Dieu qui est pour toujours et un Dieu qui tient ses promesses.\n\nIl y a d'autres noms pour Dieu dans la Bible, comme « le Dieu très haut » ou « le Dieu des armées célestes », mais quand les gens entendent ce nom de Dieu, Yahvé, ils pensent spécialement à l'alliance, à la [promesse](#t29) spéciale que Dieu avait faite avec les Israélites à l'époque de Moïse. Le nom Yahvé était un nom très personnel pour Dieu qui a montré la relation étroite que Dieu avait avec le peuple d'Israël\n\nLes [Juifs](#t77) étaient très prudents en prononçant ce nom de Dieu. Dieu était [saint](#t67) et par conséquent son nom était saint. Ils n'ont pas voulu offenser en utilisant son nom de manière désinvolte. Au fil du temps, le peuple a utilisé le nom de Dieu de moins en moins parce qu'il avait peur d'offenser Dieu. Par conséquent, quand les Juifs lisaient dans leurs Écritures, les livres de la Bible que nous appelons maintenant l'Ancien Testament, ils n'ont pas prononcé le mot Yahweh. Au lieu de cela, chaque fois qu'ils ont vu le mot Yahweh, ils ont dit un mot qui signifie maître ou [seigneur](#t87). C'était un signe de leur respect pour Dieu.\n\nÀ cause de cela, certaines traductions de la Bible écrivent aussi seigneur au lieu de Yahweh.\n\nCertaines traductions de la Bible utilisent le mot Jéhovah. Ce mot est en fait un malentendu ; c'est un mélange du mot Yahvé et du mot hébreu pour seigneur. Ce n'est pas un vrai mot ou un vrai nom.\n\n**Pour traduire le mot « Yahweh », il faut faire attention aux choses suivantes :**\n\n- Vous pourriez dire quelque chose qui sonne comme Yahvé. Nous ne savons pas comment ce mot était prononcé en hébreu, vous pouvez donc, le prononcer de la manière qui est facile dans votre langue.\n- Vous pouvez aussi essayer de faire une expression qui dans votre langue signifie quelque chose comme « je suis », « celui qui est », « celui qui est pour toujours ». Cependant, cela peut sembler un peu gênant parfois.\n- Peut-être qu'il y a un nom dans votre langue pour une divinité, quelqu'un que les gens dans votre communauté considèrent comme un dieu. Dans certains cas, il pourrait être possible d'utiliser ce nom pour Yahvé Cependant, vous devrez être prudent avec cela. Si le personnage de la divinité a des similitudes avec le personnage de Dieu, cela peut fonctionner. Utiliser ce nom pour le Dieu dans la Bible aidera les gens à apprendre que seule la Bible leur dit ce que leur Dieu est vraiment. Cependant, cela peut aussi causer des malentendus, de la confusion ou des objections de la part des gens dans la communauté plus large.\n- Vous pouvez dire « seigneur » au lieu de Yahweh, tout comme les Juifs le faisaient. Cependant, souvent la Bible utilise aussi un mot qui signifie vraiment Seigneur. et parle parfois du « seigneur/Seigneur Yahvé ». Ainsi, vous devrez trouver un moyen de rendre clair quand le mot est une traduction du mot seigneur et quand c'est une traduction du mot Yahvé.\n\nVous devez prendre du temps pour prendre une décision et vous devrez peut-être changer votre décision à nouveau après un certain temps. Traduire le mot Yahvé est difficile ! Priez à ce sujet et parlez-en avec beaucoup de personnes pour entendre ce qu'elles pensent.",
+     "textPlain": "Environ 1200 à 1500 ans avant la naissance de Jésus, quand Dieu a appelé Moïse à conduire les Israélites (#t259) hors de l'esclavage en Égypte, Moïse a demandé à Dieu : « Mais quand les Israélites me demanderont qui m'a envoyé, que dois-je dire ? » Moïse demande ici le nom de Dieu. Et Dieu donne à Moïse un nom pour Dieu qu'il peut utiliser : il dit à Moïse : « Vous pouvez dire aux gens que Yahvé m'a envoyé ». Ce nom signifie quelque chose comme « je suis » ou « Je suis qui je suis ». Quand les gens entendent ce nom de Dieu, ils se rappellent que Dieu a créé le monde et tout ce qui s'y trouve. Dieu ne change jamais, il est un Dieu qui est pour toujours et un Dieu qui tient ses promesses.\n\nIl y a d'autres noms pour Dieu dans la Bible, comme « le Dieu très haut » ou « le Dieu des armées célestes », mais quand les gens entendent ce nom de Dieu, Yahvé, ils pensent spécialement à l'alliance, à la promesse (#t29) spéciale que Dieu avait faite avec les Israélites à l'époque de Moïse. Le nom Yahvé était un nom très personnel pour Dieu qui a montré la relation étroite que Dieu avait avec le peuple d'Israël\n\nLes Juifs (#t77) étaient très prudents en prononçant ce nom de Dieu. Dieu était saint (#t67) et par conséquent son nom était saint. Ils n'ont pas voulu offenser en utilisant son nom de manière désinvolte. Au fil du temps, le peuple a utilisé le nom de Dieu de moins en moins parce qu'il avait peur d'offenser Dieu. Par conséquent, quand les Juifs lisaient dans leurs Écritures, les livres de la Bible que nous appelons maintenant l'Ancien Testament, ils n'ont pas prononcé le mot Yahweh. Au lieu de cela, chaque fois qu'ils ont vu le mot Yahweh, ils ont dit un mot qui signifie maître ou seigneur (#t87). C'était un signe de leur respect pour Dieu.\n\nÀ cause de cela, certaines traductions de la Bible écrivent aussi seigneur au lieu de Yahweh.\n\nCertaines traductions de la Bible utilisent le mot Jéhovah. Ce mot est en fait un malentendu ; c'est un mélange du mot Yahvé et du mot hébreu pour seigneur. Ce n'est pas un vrai mot ou un vrai nom.\n\nPour traduire le mot « Yahweh », il faut faire attention aux choses suivantes :\n\n- Vous pourriez dire quelque chose qui sonne comme Yahvé. Nous ne savons pas comment ce mot était prononcé en hébreu, vous pouvez donc, le prononcer de la manière qui est facile dans votre langue.\n- Vous pouvez aussi essayer de faire une expression qui dans votre langue signifie quelque chose comme « je suis », « celui qui est », « celui qui est pour toujours ». Cependant, cela peut sembler un peu gênant parfois.\n- Peut-être qu'il y a un nom dans votre langue pour une divinité, quelqu'un que les gens dans votre communauté considèrent comme un dieu. Dans certains cas, il pourrait être possible d'utiliser ce nom pour Yahvé Cependant, vous devrez être prudent avec cela. Si le personnage de la divinité a des similitudes avec le personnage de Dieu, cela peut fonctionner. Utiliser ce nom pour le Dieu dans la Bible aidera les gens à apprendre que seule la Bible leur dit ce que leur Dieu est vraiment. Cependant, cela peut aussi causer des malentendus, de la confusion ou des objections de la part des gens dans la communauté plus large.\n- Vous pouvez dire « seigneur » au lieu de Yahweh, tout comme les Juifs le faisaient. Cependant, souvent la Bible utilise aussi un mot qui signifie vraiment Seigneur. et parle parfois du « seigneur/Seigneur Yahvé ». Ainsi, vous devrez trouver un moyen de rendre clair quand le mot est une traduction du mot seigneur et quand c'est une traduction du mot Yahvé.\n\nVous devez prendre du temps pour prendre une décision et vous devrez peut-être changer votre décision à nouveau après un certain temps. Traduire le mot Yahvé est difficile ! Priez à ce sujet et parlez-en avec beaucoup de personnes pour entendre ce qu'elles pensent.",
+     "textWordCount": 651,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "fra",
+      "nameEnglish": "French"
+     }
+    },
+    {
+     "id": "ind-t174-v1",
+     "translatedTerm": "Yahweh",
+     "alternates": null,
+     "descriptionHint": "satu nama yang sangat pribadi untuk Allah  ",
+     "textAsMarkdown": "Sekitar 1200 hingga 1500 tahun sebelum kelahiran Yesus, ketika Allah memanggil Musa untuk memimpin [orang-orang Israel](#t259) keluar dari perbudakan di Mesir, Musa bertanya kepada Allah: \"Jika orang-orang bertanya kepadaku siapa yang telah mengutus aku, apa yang harus aku katakan?\" Musa sedang menanyakan di sini untuk nama Allah. Lalu Allah memberi kepada Musa satu nama bagi Allah yang dapat ia gunakan: Dia mengatakan kepada Musa, \"Engkau dapat mengatakan kepada orang-orang bahwa *Yahweh* telah mengutus aku.\" Nama ini berarti sesuatu seperti \"Aku adalah,\" atau \"Aku adalah siapa Aku.\" Ketika orang-orang mendengar nama Allah ini, mereka ingat bahwa Allah yang menciptakan dunia dan semua yang ada di dalamnya. Allah tidak pernah berubah, Dia adalah Allah yang ada untuk selamanya, dan Allah yang menepati janji-Nya. \n\nAda nama-nama lain untuk Allah dalam Alkitab, seperti \"Allah yang Mahatinggi,\" atau \"Allah dari bala tentara surga,\" tetapi ketika orang-orang mendengar nama Allah ini, Yahweh, mereka berpikir secara khusus tentang [perjanjian](#t29), janji khusus, yang telah Allah buat dengan orang-orang Israel pada masa Musa. Nama Yahweh adalah nama yang sangat pribadi untuk Allah yang menunjukkan hubungan yang erat yang Allah miliki dengan bangsa Israel. \n\n[Orang-orang Yahudi](#t77) sangat berhati-hati dengan penyebutan nama Allah ini. Allah itu [kudus](#t67), dan oleh karena itu nama-Nya adalah kudus. Mereka tidak ingin menyinggung Allah dengan cara memakai nama-Nya secara sembarangan. Seiring waktu orang-orang Yahudi semakin sedikit menggunakan nama Allah karena mereka takut menyinggung Allah. Karena itu, ketika orang-orang Yahudi membaca dari Kitab Suci mereka, kitab-kitab dalam Alkitab yang sekarang kita sebut Perjanjian Lama, mereka tidak mengucapkan kata Yahweh. Sebaliknya, setiap kali mereka melihat kata Yahweh, mereka mengucapkan satu kata yang berarti [tuan](#t87) atau \"Tuhan\". Ini adalah satu tanda penghormatan mereka kepada Allah\n\nKarena itu, beberapa terjemahan Alkitab juga menulis tuan atau Tuhan dan bukannya Yahweh.\n\nBeberapa terjemahan Alkitab menggunakan kata Jehovah Kata ini sebenarnya adalah satu kesalahpahaman; itu adalah campuran dari kata Yahweh dan kata Ibrani untuk tuan Itu bukan kata atau nama yang sebenarnya. \n\n**Bilamana anda sedang menerjemahkan \"Yahweh,\" berhati-hatilah dengan hal-hal berikut ini:**\n\n- Anda bisa mengatakan sesuatu yang terdengar seperti Yahweh. Kita sebenarnya tidak tahu bagaimana kata ini diucapkan dalam bahasa Ibrani, jadi Anda dapat mengucapkannya dengan cara apa pun yang mudah dalam bahasa Anda. \n- Anda juga dapat mencoba membuat ungkapan yang dalam bahasa Anda berarti sesuatu seperti \"Aku adalah,\" \"Dia yang adalah,\" \"Dia yang ada selamanya.\" Namun, ini kadang-kadang dapat terdengar sedikit canggung.\n- Mungkin ada nama dalam bahasa Anda untuk seorang yang ilahi, seorang yang oleh orang-orang dalam komunitas Anda dianggap sebagai seorang allah Dalam beberapa kasus, ada kemungkinan untuk menggunakan nama ini untuk Yahweh. Namun, Anda harus berhati-hati dengan ini. Jika karakter dari pribadi ilahi tersebut memiliki beberapa kesamaan dengan karakter Allah, ini mungkin berhasil. Menggunakan nama ini untuk Allah dalam Alkitab akan membantu orang-orang belajar bahwa hanya Alkitab yang mengatakan kepada mereka seperti apa sebenarnya allah mereka. Namun, ini juga dapat menyebabkan kesalahpahaman, kebingungan, atau keberatan dari orang-orang dalam masyarakat yang lebih luas.\n- Anda dapat mengatakan \"tuan\" atau \"Tuhan\" sebagai pengganti Yahweh, seperti yang orang-orang Yahudi lakukan. Namun, Alkitab juga sering menggunakan kata yang benar-benar berarti tuan, dan kadang-kadang berbicara tentang \"Tuhan Yahweh.\" Jadi, Anda harus menemukan cara untuk memperjelas kapan kata itu adalah terjemahan dari kata tuan atau Tuhan dan kapan itu adalah terjemahan dari kata Yahweh.\n\nAnda perlu meluangkan waktu untuk membuat keputusan, dan Anda mungkin harus mengubah keputusan Anda lagi setelah beberapa waktu. Menerjemahkan kata Yahweh itu sulit! Berdoalah tentang hal itu dan bicarakan tentang hal itu dengan banyak orang untuk mendengar apa yang mereka pikirkan.",
+     "textPlain": "Sekitar 1200 hingga 1500 tahun sebelum kelahiran Yesus, ketika Allah memanggil Musa untuk memimpin orang-orang Israel (#t259) keluar dari perbudakan di Mesir, Musa bertanya kepada Allah: \"Jika orang-orang bertanya kepadaku siapa yang telah mengutus aku, apa yang harus aku katakan?\" Musa sedang menanyakan di sini untuk nama Allah. Lalu Allah memberi kepada Musa satu nama bagi Allah yang dapat ia gunakan: Dia mengatakan kepada Musa, \"Engkau dapat mengatakan kepada orang-orang bahwa Yahweh telah mengutus aku.\" Nama ini berarti sesuatu seperti \"Aku adalah,\" atau \"Aku adalah siapa Aku.\" Ketika orang-orang mendengar nama Allah ini, mereka ingat bahwa Allah yang menciptakan dunia dan semua yang ada di dalamnya. Allah tidak pernah berubah, Dia adalah Allah yang ada untuk selamanya, dan Allah yang menepati janji-Nya. \n\nAda nama-nama lain untuk Allah dalam Alkitab, seperti \"Allah yang Mahatinggi,\" atau \"Allah dari bala tentara surga,\" tetapi ketika orang-orang mendengar nama Allah ini, Yahweh, mereka berpikir secara khusus tentang perjanjian (#t29), janji khusus, yang telah Allah buat dengan orang-orang Israel pada masa Musa. Nama Yahweh adalah nama yang sangat pribadi untuk Allah yang menunjukkan hubungan yang erat yang Allah miliki dengan bangsa Israel. \n\nOrang-orang Yahudi (#t77) sangat berhati-hati dengan penyebutan nama Allah ini. Allah itu kudus (#t67), dan oleh karena itu nama-Nya adalah kudus. Mereka tidak ingin menyinggung Allah dengan cara memakai nama-Nya secara sembarangan. Seiring waktu orang-orang Yahudi semakin sedikit menggunakan nama Allah karena mereka takut menyinggung Allah. Karena itu, ketika orang-orang Yahudi membaca dari Kitab Suci mereka, kitab-kitab dalam Alkitab yang sekarang kita sebut Perjanjian Lama, mereka tidak mengucapkan kata Yahweh. Sebaliknya, setiap kali mereka melihat kata Yahweh, mereka mengucapkan satu kata yang berarti tuan (#t87) atau \"Tuhan\". Ini adalah satu tanda penghormatan mereka kepada Allah\n\nKarena itu, beberapa terjemahan Alkitab juga menulis tuan atau Tuhan dan bukannya Yahweh.\n\nBeberapa terjemahan Alkitab menggunakan kata Jehovah Kata ini sebenarnya adalah satu kesalahpahaman; itu adalah campuran dari kata Yahweh dan kata Ibrani untuk tuan Itu bukan kata atau nama yang sebenarnya. \n\nBilamana anda sedang menerjemahkan \"Yahweh,\" berhati-hatilah dengan hal-hal berikut ini:\n\n- Anda bisa mengatakan sesuatu yang terdengar seperti Yahweh. Kita sebenarnya tidak tahu bagaimana kata ini diucapkan dalam bahasa Ibrani, jadi Anda dapat mengucapkannya dengan cara apa pun yang mudah dalam bahasa Anda. \n- Anda juga dapat mencoba membuat ungkapan yang dalam bahasa Anda berarti sesuatu seperti \"Aku adalah,\" \"Dia yang adalah,\" \"Dia yang ada selamanya.\" Namun, ini kadang-kadang dapat terdengar sedikit canggung.\n- Mungkin ada nama dalam bahasa Anda untuk seorang yang ilahi, seorang yang oleh orang-orang dalam komunitas Anda dianggap sebagai seorang allah Dalam beberapa kasus, ada kemungkinan untuk menggunakan nama ini untuk Yahweh. Namun, Anda harus berhati-hati dengan ini. Jika karakter dari pribadi ilahi tersebut memiliki beberapa kesamaan dengan karakter Allah, ini mungkin berhasil. Menggunakan nama ini untuk Allah dalam Alkitab akan membantu orang-orang belajar bahwa hanya Alkitab yang mengatakan kepada mereka seperti apa sebenarnya allah mereka. Namun, ini juga dapat menyebabkan kesalahpahaman, kebingungan, atau keberatan dari orang-orang dalam masyarakat yang lebih luas.\n- Anda dapat mengatakan \"tuan\" atau \"Tuhan\" sebagai pengganti Yahweh, seperti yang orang-orang Yahudi lakukan. Namun, Alkitab juga sering menggunakan kata yang benar-benar berarti tuan, dan kadang-kadang berbicara tentang \"Tuhan Yahweh.\" Jadi, Anda harus menemukan cara untuk memperjelas kapan kata itu adalah terjemahan dari kata tuan atau Tuhan dan kapan itu adalah terjemahan dari kata Yahweh.\n\nAnda perlu meluangkan waktu untuk membuat keputusan, dan Anda mungkin harus mengubah keputusan Anda lagi setelah beberapa waktu. Menerjemahkan kata Yahweh itu sulit! Berdoalah tentang hal itu dan bicarakan tentang hal itu dengan banyak orang untuk mendengar apa yang mereka pikirkan.",
+     "textWordCount": 583,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "ind",
+      "nameEnglish": "Indonesian"
+     }
+    }
+   ]
+  },
+  {
+   "id": "187",
+   "uniqueIdentifier": "evil",
+   "pericopes": [
+    "gen-p2",
+    "gen-p10",
+    "gen-p57",
+    "gen-p64a"
+   ],
+   "translations": [
+    {
+     "id": "cmn-t187-v1",
+     "translatedTerm": "邪恶",
+     "alternates": null,
+     "descriptionHint": "良善的反义词",
+     "textAsMarkdown": "__邪恶__是良善的反义词。\n\n邪恶的人自愿做伤害他人的坏事。当人不再顺服神时，他们就开始做邪恶的事。\n\n因为人如此不顺服神，圣经教导我们，我们的心就变得邪恶。我们不想做善事，而是想做坏事。世界上很多问题，比如战争、贫穷和不公，都是因为人心中的邪恶而产生的。即使是疾病和死亡，最终也是邪恶的结果。\n\n神恨恶邪恶。只有神才能消灭邪恶，因为神是全然良善的。当神建立祂的[国度](#t157)，直到永远时，祂必定要消灭邪恶。邪恶的事物不能进入神的国度。在那之前，神仍然容许邪恶发生。然而，神的大能胜过所有的邪恶。",
+     "textPlain": "邪恶是良善的反义词。\n\n邪恶的人自愿做伤害他人的坏事。当人不再顺服神时，他们就开始做邪恶的事。\n\n因为人如此不顺服神，圣经教导我们，我们的心就变得邪恶。我们不想做善事，而是想做坏事。世界上很多问题，比如战争、贫穷和不公，都是因为人心中的邪恶而产生的。即使是疾病和死亡，最终也是邪恶的结果。\n\n神恨恶邪恶。只有神才能消灭邪恶，因为神是全然良善的。当神建立祂的国度 (#t157)，直到永远时，祂必定要消灭邪恶。邪恶的事物不能进入神的国度。在那之前，神仍然容许邪恶发生。然而，神的大能胜过所有的邪恶。",
+     "textWordCount": 2,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "cmn",
+      "nameEnglish": "Mandarin Chinese"
+     }
+    },
+    {
+     "id": "eng-t187-v1",
+     "translatedTerm": "evil",
+     "alternates": null,
+     "descriptionHint": "the opposite of good",
+     "textAsMarkdown": "__Evil__ is the opposite of good.\n\nA person who is evil willingly does bad things that hurt other people. When people stop obeying God they begin to do evil actions.\n\nBecause humans are so disobedient to God, the Bible teaches us that our hearts have become evil. Instead of wanting to do good things, we want to do bad things. Very many problems in the world like war, poverty, and injustice happen because of the evil inside people's hearts. Even sickness and death is ultimately a result of evil.\n\nGod hates evil. Only God can destroy evil, because God is all good. When God will establish his [kingdom](#t157) forever, he will destroy evil forever. Nothing that is evil will enter God's kingdom. Until that time, God still allows evil to happen. However, God is more powerful than all evil.",
+     "textPlain": "Evil is the opposite of good.\n\nA person who is evil willingly does bad things that hurt other people. When people stop obeying God they begin to do evil actions.\n\nBecause humans are so disobedient to God, the Bible teaches us that our hearts have become evil. Instead of wanting to do good things, we want to do bad things. Very many problems in the world like war, poverty, and injustice happen because of the evil inside people's hearts. Even sickness and death is ultimately a result of evil.\n\nGod hates evil. Only God can destroy evil, because God is all good. When God will establish his kingdom (#t157) forever, he will destroy evil forever. Nothing that is evil will enter God's kingdom. Until that time, God still allows evil to happen. However, God is more powerful than all evil.",
+     "textWordCount": 140,
+     "audioUrlVbr4": "https://s3.amazonaws.com/cbbt-er.public/terms/audio/eng/t187/v1/vbr4.mp3",
+     "audioSizeVbr4": 743732,
+     "language": {
+      "id": "eng",
+      "nameEnglish": "English"
+     }
+    },
+    {
+     "id": "fra-t187-v1",
+     "translatedTerm": "mal",
+     "alternates": null,
+     "descriptionHint": "contraire du bien",
+     "textAsMarkdown": "Le __mal__ est le contraire du bien.\n\nUne personne qui est mauvaise fait volontairement de mauvaises choses qui font du mal à d'autres personnes. Quand les gens arrêtent d'obéir à Dieu, ils commencent à faire de mauvaises choses.\n\nLes êtres humains sont extrêmement désobéissants à Dieu, et la Bible nous enseigne que leur cœur est devenu mauvais. Au lieu de vouloir faire de bonnes choses, nous voulons en faire de mauvaises. De très nombreux problèmes dans le monde, comme la guerre, la pauvreté et l'injustice, sont causés par le mal dans le cœur des gens. Même la maladie et la mort sont en fin de compte le résultat du mal.\n\nDieu déteste le mal. Lui seul peut le détruire. En effet, Dieu est tout à fait bon. Quand il établira son [royaume](#t157) pour toujours, il détruira aussi le mal pour toujours. Rien de mauvais n'entrera dans son royaume. Jusque-là, Dieu permettra encore le mal. Cependant, il est plus puissant que tout mal.",
+     "textPlain": "Le mal est le contraire du bien.\n\nUne personne qui est mauvaise fait volontairement de mauvaises choses qui font du mal à d'autres personnes. Quand les gens arrêtent d'obéir à Dieu, ils commencent à faire de mauvaises choses.\n\nLes êtres humains sont extrêmement désobéissants à Dieu, et la Bible nous enseigne que leur cœur est devenu mauvais. Au lieu de vouloir faire de bonnes choses, nous voulons en faire de mauvaises. De très nombreux problèmes dans le monde, comme la guerre, la pauvreté et l'injustice, sont causés par le mal dans le cœur des gens. Même la maladie et la mort sont en fin de compte le résultat du mal.\n\nDieu déteste le mal. Lui seul peut le détruire. En effet, Dieu est tout à fait bon. Quand il établira son royaume (#t157) pour toujours, il détruira aussi le mal pour toujours. Rien de mauvais n'entrera dans son royaume. Jusque-là, Dieu permettra encore le mal. Cependant, il est plus puissant que tout mal.",
+     "textWordCount": 158,
+     "audioUrlVbr4": "https://s3.amazonaws.com/cbbt-er.public/terms/audio/fra/t187/v1/vbr4.mp3",
+     "audioSizeVbr4": 849620,
+     "language": {
+      "id": "fra",
+      "nameEnglish": "French"
+     }
+    },
+    {
+     "id": "ind-t187-v1",
+     "translatedTerm": "kejahatan jahat",
+     "alternates": null,
+     "descriptionHint": "kebalikan dari yang baik",
+     "textAsMarkdown": "__Kejahatan__ adalah kebalikan dari kebaikan.\n\nSeseorang yang jahat dengan sengaja melakukan hal-hal yang buruk yang menyakiti orang lain. Ketika orang-orang tidak lagi menaati Allah mereka mulai melakukan perbuatan-perbuatan yang jahat.\n\nKarena manusia sangat tidak taat kepada Allah Alkitab mengajarkan bahwa hati kita telah menjadi jahat. Dari pada ingin melakukan hal-hal yang baik, sebaliknya kita ingin melakukan hal-hal yang buruk. Sangat banyak masalah di dunia ini, seperti perang, kemiskinan, dan ketidakadilan, terjadi karena kejahatan yang ada di dalam hati manusia. Bahkan penyakit dan kematian pada akhirnya adalah akibat dari kejahatan. \n\nAllah membenci kejahatan. Hanya Allah yang dapat menghancurkan kejahatan, karena Allah itu baik. Ketika Allah nanti mendirikan kerajaan-[Nya](#t157) untuk selamanya, Ia akan menghancurkan kejahatan untuk selamanya. Tidak ada apa pun yang jahat yang akan masuk ke dalam kerajaan Allah. Sampai saat itu, Allah masih mengizinkan kejahatan terjadi. Namun, Allah lebih berkuasa dari semua kejahatan.",
+     "textPlain": "Kejahatan adalah kebalikan dari kebaikan.\n\nSeseorang yang jahat dengan sengaja melakukan hal-hal yang buruk yang menyakiti orang lain. Ketika orang-orang tidak lagi menaati Allah mereka mulai melakukan perbuatan-perbuatan yang jahat.\n\nKarena manusia sangat tidak taat kepada Allah Alkitab mengajarkan bahwa hati kita telah menjadi jahat. Dari pada ingin melakukan hal-hal yang baik, sebaliknya kita ingin melakukan hal-hal yang buruk. Sangat banyak masalah di dunia ini, seperti perang, kemiskinan, dan ketidakadilan, terjadi karena kejahatan yang ada di dalam hati manusia. Bahkan penyakit dan kematian pada akhirnya adalah akibat dari kejahatan. \n\nAllah membenci kejahatan. Hanya Allah yang dapat menghancurkan kejahatan, karena Allah itu baik. Ketika Allah nanti mendirikan kerajaan-Nya (#t157) untuk selamanya, Ia akan menghancurkan kejahatan untuk selamanya. Tidak ada apa pun yang jahat yang akan masuk ke dalam kerajaan Allah. Sampai saat itu, Allah masih mengizinkan kejahatan terjadi. Namun, Allah lebih berkuasa dari semua kejahatan.",
+     "textWordCount": 144,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "ind",
+      "nameEnglish": "Indonesian"
+     }
+    },
+    {
+     "id": "por-t187-v1",
+     "translatedTerm": "mal",
+     "alternates": null,
+     "descriptionHint": "o oposto do bom",
+     "textAsMarkdown": "__Mal__ é o oposto do bom.\n\nUma pessoa que é maligna faz voluntariamente coisas más que ferem outras pessoas. Quando as pessoas param de obedecer a Deus elas começam a fazer ações malignas.\n\nPorque os humanos são muito desobedientes a Deus, a Bíblia nos ensina que nossos corações se tornaram maus. Em vez de querer fazer coisas boas, queremos fazer coisas ruins. Muitos problemas no mundo como guerra, pobreza e injustiça acontecem por causa do mal dentro dos corações das pessoas. Mesmo a doença e a morte são, em última análise, um resultado do mal.\n\nDeus odeia o mal. Apenas Deus pode destruir o mal, porque Deus é totalmente bom. Quando Deus estabelecer seu [reino](#t157) para sempre, ele destruirá o mal para sempre. Nada que é maligno entrará no reino de Deus. Até esse momento, Deus ainda permite que o mal aconteça. No entanto, Deus é mais poderoso do que todos os males.",
+     "textPlain": "Mal é o oposto do bom.\n\nUma pessoa que é maligna faz voluntariamente coisas más que ferem outras pessoas. Quando as pessoas param de obedecer a Deus elas começam a fazer ações malignas.\n\nPorque os humanos são muito desobedientes a Deus, a Bíblia nos ensina que nossos corações se tornaram maus. Em vez de querer fazer coisas boas, queremos fazer coisas ruins. Muitos problemas no mundo como guerra, pobreza e injustiça acontecem por causa do mal dentro dos corações das pessoas. Mesmo a doença e a morte são, em última análise, um resultado do mal.\n\nDeus odeia o mal. Apenas Deus pode destruir o mal, porque Deus é totalmente bom. Quando Deus estabelecer seu reino (#t157) para sempre, ele destruirá o mal para sempre. Nada que é maligno entrará no reino de Deus. Até esse momento, Deus ainda permite que o mal aconteça. No entanto, Deus é mais poderoso do que todos os males.",
+     "textWordCount": 149,
+     "audioUrlVbr4": null,
+     "audioSizeVbr4": null,
+     "language": {
+      "id": "por",
+      "nameEnglish": "Portuguese"
+     }
+    }
+   ]
+  }
+ ]
+}

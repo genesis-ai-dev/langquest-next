@@ -1021,7 +1021,8 @@
     "offers": {
       "guides": "የ{{name}} የጥናት መመሪያዎች",
       "theBible": "{{name}}",
-      "guidesIn": "የ{{name}} የጥናት መመሪያዎች በ{{language}}"
+      "guidesIn": "የ{{name}} የጥናት መመሪያዎች በ{{language}}",
+      "wordsIn": "{{name}} በ{{language}}"
     },
     "languages": {
       "row": "ቋንቋዎች",
@@ -1362,7 +1363,21 @@
       "setHelp": "ቋንቋዎቹን ይከፍታል፦ ቡድኑ የትኛውን እንደሚያገኝ ይምረጡ፣ ወይም ያጥፉት።",
       "patternOnHelp": "ለእሱ በተመረጠው ቋንቋ ለቡድኑ ቀርቧል።",
       "all": "ሁሉም የማጣቀሻ ጽሑፎች",
-      "allHelp": "በድርጅቱ ቤተ መጻሕፍት ያለውን ሁሉ እና ለእያንዳንዱ ቋንቋ የቀረበውን ይከፍታል።"
+      "allHelp": "በድርጅቱ ቤተ መጻሕፍት ያለውን ሁሉ እና ለእያንዳንዱ ቋንቋ የቀረበውን ይከፍታል።",
+      "search": "መጽሐፍ ቅዱሶችን፣ መመሪያዎችን፣ ዋና ቃላትን ይፈልጉ…",
+      "searchHelp": "መጽሐፍ ቅዱሶችን፣ መመሪያዎችን፣ ዋና ቃላትንና ማስታወሻዎችን በስም፣ በመግለጫ፣ ባጋራቸው ወይም በቋንቋ ያገኛል።",
+      "searchHint": "ስሞች፣ መግለጫዎች፣ ያጋራው ማን እንደሆነና ቋንቋው፣ ከእርስዎ ጋር በሚያጋሩ ድርጅቶች ሁሉ ውስጥ።",
+      "goesWithFilter": "ከ{{name}} ጋር የሚሄዱ",
+      "familyNote": "ከ{{name}} ጋር የተያያዘ ሁሉ። ማንኛቸውንም ያጥፉ፣ ወይም ሁሉንም እንደገና ለማየት ፍለጋውን ያጽዱ።",
+      "clearGoesWith": "ሁሉንም እንደገና ያሳዩ",
+      "clearGoesWithHelp": "«ጋር የሚሄዱ» የሚለውን ያነሳል፣ ስለዚህ ዝርዝሩ በሙሉ እንደገና ይታያል።",
+      "relatedHelp": "ከእሱ ጋር የሚሄደውን ብቻ ያሳያል፤ እያንዳንዱ የራሱ ማብሪያ ማጥፊያ አለው።",
+      "notInLibrary": "እስካሁን በቤተ መጻሕፍትዎ ውስጥ የለም",
+      "turnedOnWith": "{{name}} እና {{related}} በርተዋል",
+      "wordSetChosen": "{{name}} አሁን በ{{language}} ናቸው",
+      "wordSetOff": "{{name}} ለዚህ ቡድን ጠፍተዋል",
+      "relatedOn_one": "{{count, number}} ተዛማጅ ምንጭ በርቷል",
+      "relatedOn_other": "{{count, number}} ተዛማጅ ምንጮች በርተዋል"
     },
     "page": {
       "title": "የሚረዳቸው",
@@ -2722,11 +2737,6 @@
       "latestBy": "የመጨረሻው በ{{name}}፣ {{when}}",
       "playExplanation": "ማብራሪያውን ያጫውቱ",
       "openVersion": "ስሪት {{n, number}}ን ይክፈቱ",
-      "whereUsed": "የሚጠቀሙበት ቦታ",
-      "versions_one": "{{count, number}} ስሪት",
-      "versions_other": "{{count, number}} ስሪቶች",
-      "usedTitle": "{{title}} · ስሪት {{n, number}}",
-      "changedHere": "እዚህ ተለውጧል",
       "adjustTitle": "{{language}} · «{{term}}»",
       "adjustSubTie": "እንደ {{passage}} አካል ተመዝግቦ ከረቂቅዎ ጋር ተያይዟል።",
       "adjustSub": "እያንዳንዱ ለውጥ ከምክንያትዎ ጋር ይመዘገባል።",
@@ -2739,8 +2749,6 @@
       "addRenderingHelp": "{{language}} እንዴት እንደሚለውና ለምን እንደሆነ ያክሉ። እያንዳንዱ ለውጥ ይቀመጣል።",
       "adjustHelp": "{{language}} እንዴት እንደሚለው ከምክንያትዎ ጋር ይቀይሩ ወይም ያክሉ። እያንዳንዱ ለውጥ ይቀመጣል።",
       "openVersionHelp": "ይህ ለውጥ የተደረገበትን ስሪት ይከፍታል።",
-      "usedHelp": "ቃሉን የሚጠቀመውን ይህን ስሪት ይከፍታል።",
-      "usedChangedHelp": "ይህን ስሪት ይከፍታል። እዚህ ተለውጧል፦ አተረጓጎሙ በዚህ ስሪት ጊዜ ተስተካክሏል።",
       "saveHelp": "ቡድኑ እንዲያየው ለውጡንና ምክንያትዎን ይመዘግባል።"
     }
   },
@@ -6066,7 +6074,8 @@
       "howManyHelp": "ምን ያህል ሰዎች እንዳዳመጡ ይናገሩ። ካስፈለገ።",
       "doneRecordedHelp": "{{what}}ን በክፍሉ መዝገብ ላይ ያሰፍራል።",
       "looksGoodOffline": "ጥሩ ነው። ይህ መሣሪያ ሲገናኝ {{name}} ያገኙታል።",
-      "feedbackOffline": "አስተያየቱ ተቀምጧል። ይህ መሣሪያ ሲገናኝ {{name}} ያገኙታል።"
+      "feedbackOffline": "አስተያየቱ ተቀምጧል። ይህ መሣሪያ ሲገናኝ {{name}} ያገኙታል።",
+      "helpWordsHelp": "በዚህ ክፍል ያሉትን ዋና ቃላት ይከፍታል፤ ለእያንዳንዱ የቡድኑን ቃል እና ይህ ስሪት ተጠቅሞበት እንደሆነ ያሳያል።"
     },
     "guest": {
       "previewSub": "ቅድመ እይታ · መተግበሪያው የሌለው ሰው የሚያየው",
@@ -6369,7 +6378,8 @@
       "guide": "የጥናት መመሪያ",
       "note": "ለተርጓሚዎች ማስታወሻ",
       "questions": "የጥያቄ ስብስብ",
-      "other": "ጽሑፍ"
+      "other": "ጽሑፍ",
+      "words": "ዋና ቃላት"
     },
     "facts": {
       "oldTestament": "ብሉይ ኪዳን",
@@ -6567,7 +6577,8 @@
       "kindAllHelp": "ሁሉንም ዓይነቶች ያሳያል።",
       "kindHelp": "ይህን ዓይነት ብቻ ያሳያል።",
       "languageHelp": "በዚህ ቋንቋ ያሉ ንጥሎችን ብቻ ያሳያል።",
-      "openHelp": "ይከፍተዋል፦ ምን እንደሚልና የት እንደተቀመጠ።"
+      "openHelp": "ይከፍተዋል፦ ምን እንደሚልና የት እንደተቀመጠ።",
+      "kindWords": "ዋና ቃላት"
     },
     "coverage": {
       "title": "ሽፋን",
@@ -6743,7 +6754,12 @@
       "keepHelp": "ይህን ቋንቋ ያቆያል፣ ይህንንም ይዘጋል።",
       "offHelp": "ቡድኑ እነዚህን መመሪያዎች ማግኘቱን ያቆማል።",
       "useHelp": "ቡድኑ እነዚህን መመሪያዎች በዚህ ቋንቋ ያገኛል።",
-      "rowHelp": "ለቡድኑ መመሪያዎች ይህን ቋንቋ ይመርጣል። መስመሩ ምን ያህል ክፍሎች መመሪያ እንዳላቸው ይናገራል።"
+      "rowHelp": "ለቡድኑ መመሪያዎች ይህን ቋንቋ ይመርጣል። መስመሩ ምን ያህል ክፍሎች መመሪያ እንዳላቸው ይናገራል።",
+      "wordsUseHelp": "ቡድኑ እነዚህን ዋና ቃላት በዚህ ቋንቋ ያገኛል።",
+      "wordsOffHelp": "ቡድኑ እነዚህን ዋና ቃላት ማግኘቱን ያቆማል።",
+      "wordsRowHelp": "ለቡድኑ ዋና ቃላት ይህን ቋንቋ ይመርጣል። መስመሩ ምን ያህል ቃላት እንዳሉት ይናገራል።",
+      "wordsGaps_one": "በ{{language}}፣ {{name}} {{count, number}} ቃል አለው። እያንዳንዱ ክፍል የሚጠቀምባቸውን ያሳያል።",
+      "wordsGaps_other": "በ{{language}}፣ {{name}} {{count, number}} ቃላት አሉት። እያንዳንዱ ክፍል የሚጠቀምባቸውን ያሳያል።"
     },
     "passageText": {
       "bar": "{{passage}} · {{bible}}",
@@ -6772,7 +6788,9 @@
       "writeNoteSub": "በሚመርጧቸው ቁጥሮች ላይ፣ በድምፅ ወይም በጽሑፍ",
       "fromLibrary": "ከቤተ መጻሕፍትዎ",
       "fromOwn": "ከድርጅትዎ ቤተ መጻሕፍት"
-    }
+    },
+    "words_one": "{{count, number}} ቃል",
+    "words_other": "{{count, number}} ቃላት"
   },
   "sources": {
     "listSeparator": "፣ ",
@@ -6936,7 +6954,9 @@
     "change": "ቀይር",
     "rowHelp": "ይህን ቋንቋ ለቡድኑ መጽሐፍ ቅዱሶችና መመሪያዎች ያክላል ወይም ያስወግዳል። መስመሩ ያለውን ይናገራል።",
     "listed": "መጽሐፍ ቅዱስ ወይም የጥናት መመሪያ ያላቸው ቋንቋዎች ብቻ ይታያሉ።",
-    "noMatch": "በዚህ ስም የሚጠራ ቋንቋ እስካሁን መጽሐፍ ቅዱስ ወይም የጥናት መመሪያ የለውም።"
+    "noMatch": "በዚህ ስም የሚጠራ ቋንቋ እስካሁን መጽሐፍ ቅዱስ ወይም የጥናት መመሪያ የለውም።",
+    "setWords_one": "{{name}} ({{count, number}} ቃል)",
+    "setWords_other": "{{name}} ({{count, number}} ቃላት)"
   },
   "checks": {
     "title": "ፍተሻዎች",
@@ -7147,6 +7167,105 @@
       "playHelp": "እንዴት እንደሚሉት ያጫውታል።",
       "suggest": "እዚህ ሌሎች ቋንቋዎች የሚጠቀሙት",
       "suggestHelp": "እዚህ በ{{languages}} ይጠቀሙበታል። ለማከል ይንኩ።"
+    },
+    "lists": {
+      "here": "እዚህ ያሉ ዋና ቃላት",
+      "from": "ከ{{name}} · {{language}}",
+      "inPassage": "በዚህ ክፍል",
+      "saidAs": "{{verses}} («{{form}}»)",
+      "openHelp": "ትርጉሙን ለማንበብ ወይም ለማዳመጥ ይከፍታል።",
+      "rowLabel": "{{term}}። {{gloss}}። {{refs}}",
+      "play": "የ{{term}}ን ትርጉም ያጫውቱ",
+      "pause": "የ{{term}}ን ትርጉም ለአፍታ ያቁሙ",
+      "playHelp": "{{name}} ስለ ትርጉሙ የቀረጸውን ያጫውታል።",
+      "words_one": "{{count, number}} ቃል",
+      "words_other": "{{count, number}} ቃላት"
+    },
+    "sheet": {
+      "sub": "የ{{name}} ዋና ቃል · {{language}}",
+      "hear": "የ{{name}}ን ማብራሪያ ያዳምጡ",
+      "hearHelp": "{{name}} ስለ ቃሉ ትርጉም የቀረጸውን ያጫውታል። ለአፍታ ለማቆም እንደገና ይንኩ።",
+      "pauseHear": "የ{{name}}ን ማብራሪያ ለአፍታ ያቁሙ",
+      "playVerse": "{{verse}} ያጫውቱ",
+      "means": "ትርጉሙ",
+      "meansHelp": "ትርጉሙን ለማየት የተሰመረበትን ቃል ይንኩ።",
+      "add": "ወደ ዋና ቃላታችን ያክሉ",
+      "addHelp": "ከ{{name}} ትርጉም ጋር ወደ {{language}} ዋና ቃላት ያክለዋል። ከዚያ በ{{language}} እንዴት እንደሚባል ይናገራሉ።",
+      "addThen": "ከዚያ በ{{language}} እንዴት እንደሚባል ይናገሩ",
+      "ours": "ከ{{language}} ዋና ቃላት አንዱ።",
+      "backTo": "ወደ {{term}} ይመለሱ",
+      "backToHelp": "የመጡበትን ቃል እንደገና ያሳያል።",
+      "minutes_one": "{{count, number}} ደቂቃ",
+      "minutes_other": "{{count, number}} ደቂቃ",
+      "everyPassage": "የሚገኝባቸው ክፍሎች ሁሉ",
+      "everyPassageHelp": "የቃሉን የራሱን ገጽ ይከፍታል፦ የሚገኝባቸውን ክፍሎች ሁሉ እና ቡድኑ በእያንዳንዱ ላይ ያለበትን ሁኔታ።"
+    },
+    "search": {
+      "help": "የእርስዎንና የእያንዳንዱን ዝርዝር ዋና ቃላት ያገኛል፦ በቃሉ፣ ከዚያ በአጭሩ ትርጉም፣ ከዚያ በሙሉ ትርጉሙ።",
+      "all": "ሁሉም",
+      "ours": "የእኛ",
+      "allHelp": "የቡድንዎን ዋና ቃላት እና የእያንዳንዱን ዝርዝር ያሳያል።",
+      "oursHelp": "የቡድንዎን ዋና ቃላት ብቻ ያሳያል።",
+      "listHelp": "የ{{name}}ን ዋና ቃላት ብቻ ያሳያል።",
+      "words": "ቃላት",
+      "inGloss": "በአጭር ትርጉም ውስጥ",
+      "inMeaning": "በሙሉ ትርጉም ውስጥ",
+      "moreHelp": "ሙሉ ትርጉማቸው ይህን የሚጠቅሱ ቃላትን ያሳያል።",
+      "ourWord": "የ{{language}} ቃል",
+      "openListHelp": "ከ{{name}} የመጣውን ትርጉሙን ይከፍታል።",
+      "more_one": "ሌላ {{count, number}} ቃል በሙሉ ትርጉሙ ይህን ይጠቅሳል",
+      "more_other": "ሌሎች {{count, number}} ቃላት በሙሉ ትርጉማቸው ይህን ይጠቅሳሉ",
+      "linkedIn_one": "በ{{book}} ውስጥ ከ{{count, number}} ክፍል ጋር ተያይዟል",
+      "linkedIn_other": "በ{{book}} ውስጥ ከ{{count, number}} ክፍሎች ጋር ተያይዟል",
+      "linked_one": "ከ{{count, number}} ክፍል ጋር ተያይዟል",
+      "linked_other": "ከ{{count, number}} ክፍሎች ጋር ተያይዟል"
+    },
+    "review": {
+      "title": "የ{{name}} ዋና ቃላት",
+      "titlePlain": "ዋና ቃላት",
+      "intro": "ስሪት {{n}} እያንዳንዱን እንዴት እንደሚለው ያዳምጡ። የ{{name}}ን ትርጉም ለማየት ቃሉን ይንኩ።",
+      "gone": "ይህ የዋና ቃላት ዝርዝር ከአሁን በኋላ በቤተ መጻሕፍቱ ውስጥ የለም።",
+      "none": "{{name}} በዚህ ክፍል ውስጥ ዋና ቃላት የሉትም።",
+      "openHelp": "{{name}} እንደሚያብራራው የቃሉን ትርጉም ይከፍታል።",
+      "used": "{{name}} ተጠቅመውበታል",
+      "notMarked": "በስሪት {{n}} ውስጥ ምልክት አልተደረገበትም",
+      "noWord": "እስካሁን የ{{language}} ቃል የለም",
+      "rowSub_one": "{{count, number}} እዚህ · {{have, number}} የ{{language}} ቃል አላቸው",
+      "rowSub_other": "{{count, number}} እዚህ · {{have, number}} የ{{language}} ቃል አላቸው"
+    },
+    "page": {
+      "all": "ሁሉም {{n, number}}",
+      "used": "ጥቅም ላይ የዋለ {{n, number}}",
+      "notMarked": "ምልክት ያልተደረገበት {{n, number}}",
+      "notRecorded": "ያልተቀረጸ {{n, number}}",
+      "recorded": "የተቀረጸ {{n, number}}",
+      "passages_one": "ክፍል · {{count, number}}",
+      "passages_other": "ክፍሎች · {{count, number}}",
+      "linkedBy_one": "{{name}} ከ{{count, number}} ክፍል ጋር ያያይዘዋል",
+      "linkedBy_other": "{{name}} ከ{{count, number}} ክፍሎች ጋር ያያይዘዋል",
+      "noPassages": "እስካሁን በየትኛውም ክፍል ውስጥ የለም።",
+      "filterHelp": "ቡድኑ በዚህ ሁኔታ ላይ ያለባቸውን ክፍሎች ብቻ ያሳያል።",
+      "openVersionHelp": "ያንን የክፍሉን ስሪት ይከፍታል።",
+      "openPassageHelp": "ክፍሉን ይከፍታል።",
+      "linkedByOne": "በ{{name}} ተያይዟል",
+      "markedHere": "እዚህ በአንድ ስሪት ምልክት ተደርጎበታል",
+      "versionUsed": "ስሪት {{n}} ተጠቅሞበታል",
+      "versionNotMarked": "ስሪት {{n}} ምልክት አላደረገበትም",
+      "recordedVersion": "ተቀርጿል · ስሪት {{n}}",
+      "notRecordedYet": "ገና አልተቀረጸም",
+      "notes_one": "ማስታወሻዎችና ግምገማዎች · {{count, number}}",
+      "notes_other": "ማስታወሻዎችና ግምገማዎች · {{count, number}}",
+      "openNoteHelp": "ማስታወሻው የተተወበትን ክፍል ይከፍታል።",
+      "noteOnWord": "ስለ ቃሉ ማስታወሻ",
+      "version": "ስሪት {{n}}",
+      "withReview": "ከግምገማ ጋር",
+      "replies_one": "{{count, number}} ምላሽ",
+      "replies_other": "{{count, number}} ምላሾች",
+      "playNote": "ማስታወሻውን ያጫውቱ",
+      "notOurs": "ገና ከ{{language}} ዋና ቃላት አንዱ አይደለም",
+      "fromList": "ከ{{name}}",
+      "fromListSub": "ትርጉሙና የ{{name}} ቀረጻ",
+      "fromListHelp": "{{name}} ቃሉ ምን ማለት እንደሆነ የሚለውን ከቀረጻው ጋር ይከፍታል።"
     }
   },
   "clusters": {

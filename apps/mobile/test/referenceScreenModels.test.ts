@@ -181,12 +181,16 @@ describe('the Guides and notes list', () => {
     item('memo', { format: 'material@1', kind: 'note', fields: [], links: [{ ref: 'GEN 2:1' }] } as unknown as LibraryDoc, 'note'),
     item('bible', source(), 'source'),
     item('gone', guide('GEN 1'), 'guide', { archived: true }),
-    item('qs', null, 'questions')
+    item('qs', null, 'questions'),
+    item('words', {
+      format: 'material@1', kind: 'key_terms', title: 'FIA key words (English)', language: 'eng', pattern: 'FIA', deps: [],
+      terms: [{ id: 't1', term: 'prophet', gloss: 'a person who gives messages from God' }, { id: 't2', term: 'bless', gloss: 'to do good for someone' }]
+    } as LibraryDoc, 'words')
   ];
   const f = { kind: 'all' as const, language: null, book: null, covers: false };
 
-  it('lists guides, notes and other material that are not archived', () => {
-    expect(guideItems(rows).map((r) => r.it.itemId)).toEqual(['zeta', 'alpha', 'memo']);
+  it('lists guides, notes, key-word lists and other material that are not archived', () => {
+    expect(guideItems(rows).map((r) => r.it.itemId)).toEqual(['zeta', 'alpha', 'memo', 'words']);
   });
 
   it('offers the books the items have', () => {
@@ -196,6 +200,7 @@ describe('the Guides and notes list', () => {
   it('filters by kind, book and what reaches a passage', () => {
     const items = guideItems(rows);
     expect(filterGuides(items, { ...f, kind: 'note' }, null).map((r) => r.it.itemId)).toEqual(['memo']);
+    expect(filterGuides(items, { ...f, kind: 'words' }, null).map((r) => r.it.itemId)).toEqual(['words']);
     expect(filterGuides(items, { ...f, book: 'GEN' }, null).map((r) => r.it.itemId)).toEqual(['zeta', 'memo']);
     const reach = new Map<string, Reach[]>([['alpha', [{ itemId: 'alpha', kind: 'guide', why: 'organization', match: 'verses' }]]]);
     expect(filterGuides(items, f, reach).map((r) => r.it.itemId)).toEqual(['alpha']);
@@ -209,7 +214,7 @@ describe('the Guides and notes list', () => {
   it('sorts recommended first, then by name', () => {
     const orgState = foldOrg([{ id: 'e1', orgId: 'o', streamId: '_org', actorId: 'a', deviceId: 'd', hlc: '000000000000001:000000:d', type: 'v1.ReferenceRecommended', payload: { itemId: 'zeta', recommended: true } } as AnyEvent]);
     const out = guideRows(guideItems(rows), orgState.recommendations, null, { kind: 'org' });
-    expect(out.map((x) => x.r.it.itemId)).toEqual(['zeta', 'alpha', 'memo']);
+    expect(out.map((x) => x.r.it.itemId)).toEqual(['zeta', 'alpha', 'memo', 'words']);
     expect(out[0]!.label).toBe(t('reference.rec.recommended'));
   });
 
@@ -220,8 +225,15 @@ describe('the Guides and notes list', () => {
     expect(guideLine(rows[0]!, null)).not.toContain(t('reference.guides.reaches', { count: 3 }));
   });
 
+  it('says how many words a key-word list has, and its language', () => {
+    const line = guideLine(rows.find((r) => r.it.itemId === 'words')!, null).split(' · ');
+    expect(line.slice(0, 3)).toEqual([t('reference.kind.words'), 'English', t('reference.words', { count: 2 })]);
+  });
+
   it('labels the kind filters', () => {
-    expect(KIND_FILTERS.map(kindFilterLabel)).toEqual([t('reference.guides.kindAll'), t('reference.guides.kindGuides'), t('reference.guides.kindNotes'), t('reference.guides.kindOther')]);
+    expect(KIND_FILTERS.map(kindFilterLabel)).toEqual([
+      t('reference.guides.kindAll'), t('reference.guides.kindGuides'), t('reference.guides.kindNotes'), t('reference.guides.kindWords'), t('reference.guides.kindOther')
+    ]);
   });
 });
 

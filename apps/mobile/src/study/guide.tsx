@@ -5,7 +5,7 @@
 // (tap for the meaning), pictures and maps as cards, and its callouts ("Stop
 // here." on amber). Any part takes a note or an answer (STUDY-7). Nothing
 // here depends on which method wrote the guide.
-import { keyTermsFor, type CalloutKind, type PassageNote } from '@langquest-next/core';
+import { keyTermsFor, type CalloutKind, type KeyWordDoc, type PassageNote } from '@langquest-next/core';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -30,6 +30,9 @@ import { Callout, MiniPlayer, StepNav, StepsSheet } from '../recording/blocks';
 import { styles as ps } from '../recording/blockStyles';
 import { guideLanguage } from './guideText';
 import { useNoteStep } from '../checks/useNoteStep';
+import { useKeyWordLists } from '../keyTerms/useKeyWordLists';
+import { guideTermWord, ownTermId, ownWordOf, shortName, type KeyWordList } from '../keyTerms/listsModel';
+import { AddWordSheet } from '../helps/reference';
 
 /** ‹ 2/6 Setting the stage ▾ ›, and the sheet of every step it opens. */
 export function GuideNav(props: { ctx: Ctx; sp: StudyProgress; index: number; onIndex: (i: number) => void; sheetFooter?: React.ReactNode }) {
@@ -91,12 +94,18 @@ export function GuideStep(props: {
     const r = guide.resources.find((x) => x.ref === ref);
     if (r) { audio.pause(); setResource(r); }
   };
+  // A glossary word the team's key-word list holds by the same id (FIA's guides and FIA's key words, decision 172).
+  const { lists } = useKeyWordLists(ctx);
+  const listWord = resource?.kind === 'term' ? guideTermWord(lists, guide.pattern, resource.ref) : null;
+  const [addingWord, setAddingWord] = useState<{ list: KeyWordList; word: KeyWordDoc } | null>(null);
   const term = (() => {
     const state = ctx.language.state;
     if (!state || resource?.kind !== 'term') return null;
+    const own = keyTermsFor(state);
     const name = resource.title.trim().toLowerCase();
-    return keyTermsFor(state).find((k) => k.term.trim().toLowerCase() === name) ?? null;
+    return (listWord ? ownWordOf(listWord.list, listWord.word, own) : null) ?? own.find((k) => k.term.trim().toLowerCase() === name) ?? null;
   })();
+  const canAdd = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
   const entry = resource?.kind === 'term' ? glossaryEntryOf(guide, resource.ref) : null;
   const lang = guideLanguage(guide);
 
@@ -139,7 +148,17 @@ export function GuideStep(props: {
       {resource && resource.kind !== 'term' ? <MediaSheet resource={resource} source={lang ? t('study.guide.mediaSourceLanguage', { language: lang }) : t('study.guide.mediaSource')} orgId={ctx.language.orgId} onClose={() => setResource(null)} /> : null}
       {resource && entry ? (
         <GlossarySheet entry={entry} source={lang ? t('study.guide.glossarySourceLanguage', { language: lang }) : t('study.guide.glossarySource')} orgId={ctx.language.orgId} hasKeyTerm={!!term && !!props.onTerm} onClose={() => setResource(null)}
-          onOpenTerm={() => { if (!term || !props.onTerm) return; setResource(null); props.onTerm(term.termId); }} />
+          onOpenTerm={() => { if (!term || !props.onTerm) return; setResource(null); props.onTerm(term.termId); }}
+          {...(listWord && !term && canAdd && props.canContribute ? {
+            add: {
+              language: v.language, help: t('keyTerms.sheet.addHelp', { language: v.language, name: shortName(listWord.list) }),
+              onPress: () => { setResource(null); setAddingWord(listWord); }
+            }
+          } : {})} />
+      ) : null}
+      {addingWord ? (
+        <AddWordSheet ctx={ctx} v={v} draftTakeId={v.p.draftTakeId} bibleName="" onClose={() => setAddingWord(null)}
+          prefill={{ term: addingWord.word.term, gloss: addingWord.word.gloss, taken: { termId: ownTermId(addingWord.list, addingWord.word), term: addingWord.word.term } }} />
       ) : null}
     </View>
   );

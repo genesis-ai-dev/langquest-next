@@ -277,19 +277,34 @@ function MapFullSize(props: { item: StudyMedia; url: string; orgId?: string | nu
 }
 
 /** A glossary term: its entry, read aloud when there is audio, and the language's key term when there is one. */
-export function GlossarySheet(props: { entry: GlossaryEntry; source: string; orgId?: string | null; hasKeyTerm: boolean; onOpenTerm: () => void; onClose: () => void }) {
+export function GlossarySheet(props: {
+  entry: GlossaryEntry; source: string; orgId?: string | null; hasKeyTerm: boolean; onOpenTerm: () => void; onClose: () => void;
+  /**
+   * Add to our key words, when a key-word list the team uses holds this word
+   * (FIA's guides and FIA's key words share its id) and the team has not made
+   * it its own (decision 172). `language` is the team's language.
+   */
+  add?: { onPress: () => void; language: string; help: string };
+}) {
   const e = props.entry;
   const words = (e.body ?? e.hint ?? '').split(/\s+/).filter(Boolean).length;
   const { uri: audioUri } = useStudyFileUri(props.orgId, e.audioFile, e.audioUrl);
   const audio = useStudyAudio(audioUri, Math.max(5, Math.round(words / 2.5)));
   useEffect(() => () => audio.pause(), []); // eslint-disable-line react-hooks/exhaustive-deps -- it reads only refs, so the first draw's copy is enough on unmount
+  const add = !props.hasKeyTerm ? props.add : undefined;
   return (
     <Sheet visible title={e.term} sub={t('study.glossary.sub', { source: props.source })} onClose={props.onClose}
-      footer={props.hasKeyTerm ? <PrimaryBtn label={t('study.glossary.openKeyTerm')} icon="book" onPress={props.onOpenTerm} /> : undefined}>
+      footer={props.hasKeyTerm ? <PrimaryBtn label={t('study.glossary.openKeyTerm')} icon="book" onPress={props.onOpenTerm} />
+        : add ? (
+          <View style={{ gap: space.xs }}>
+            <PrimaryBtn label={t('keyTerms.sheet.add')} icon="plus" help={add.help} onPress={add.onPress} />
+            <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('keyTerms.sheet.addThen', { language: add.language })}</Text>
+          </View>
+        ) : undefined}>
       {e.hint ? <Text style={[txt.body, { fontWeight: '600' }]}>{e.hint}</Text> : null}
       {e.audioUrl || e.audioFile ? <AudioBar audio={audio} label={t('study.glossary.listen', { term: e.term })} {...(audio.failed ? { sub: t('study.glossary.standIn') } : {})} /> : null}
       {e.body ? e.body.split(/\n{2,}/).map((para, i) => <Text key={i} style={txt.body}>{para.trim()}</Text>) : null}
-      {!props.hasKeyTerm ? <Text style={txt.xs}>{t('study.glossary.notKeyTerm')}</Text> : null}
+      {!props.hasKeyTerm && !add ? <Text style={txt.xs}>{t('study.glossary.notKeyTerm')}</Text> : null}
     </Sheet>
   );
 }

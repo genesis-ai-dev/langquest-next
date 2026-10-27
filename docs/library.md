@@ -16,7 +16,7 @@ An item is one of four kinds:
 | --- | --- | --- |
 | `template` | `template@1`, `template@2` (a Bible broken up book by book, decision 74) | Manage Content Templates |
 | `flow` | `flow@1` | Manage Review Flows |
-| `material` | `study@1`, `study@2`, `collection@1`, `material@1` | Manage Reference Material (guides: Write a guide) |
+| `material` | `study@1`, `study@2`, `collection@1`, `material@1` (a key-word list is `material@1` of kind `key_terms`, decision 172) | Manage Reference Material (guides: Write a guide) |
 | `versification` | `versification@1` (Copenhagen Alliance JSON) | Manage Content Templates |
 
 A version is an immutable JSON **document** named by the SHA-256 of its
@@ -157,7 +157,10 @@ by `_apply_org_event`), `library_documents` (hash, format, body, deps) and
 versifications, and the sources `scripts/library-seed.ts` turns into
 documents (templates, flows, question sets). FIA study material comes in
 through the FIA adapter (`scripts/fia-adapter.ts`) from the FIA API's
-pericope JSON. Sources to read and hear (`source@1`) are built by
+pericope JSON. FIA's key words come in through `scripts/fia-terms.ts` from
+the file FIA's `get_terms.py` writes (`--fia-terms <file>`; without it the
+Genesis 2 sample in `library/fia/terms.sample.json`): one key-word list per
+language, `langquest.fia-words.<lang>` (decision 172). Sources to read and hear (`source@1`) are built by
 `scripts/sources-seed.ts`: Bible Brain editions from FCBH's API (linked,
 nothing of theirs stored) and the BSB read by Frederick Surrey from its
 public-domain text (library/README.md). None of it ships in the app.

@@ -7,8 +7,8 @@ import {
   type AnyEvent, type CollectionDoc, type LibraryDoc, type LibraryItemView, type MaterialDoc
 } from '@langquest-next/core';
 import type { SharedItem } from '../src/library/model';
-import { chooseSetLanguage, chosenOnly, guideSets, hideSet, setReach, suggestedMember, type GuideSet } from '../src/reference/guideSets';
-import { biblesFor, languageChoices, memberIn, startingLanguage } from '../src/reference/languageChoices';
+import { chooseSetLanguage, chosenOnly, guideSets, hideSet, isWordSet, setKeyOf, setReach, suggestedMember, type GuideSet } from '../src/reference/guideSets';
+import { biblesFor, hasMaterial, languageChoices, memberIn, startingLanguage } from '../src/reference/languageChoices';
 import { docLanguage, languagesLine, readerLanguage, sameCodes, sameLanguage, teamLanguage } from '../src/reference/languages';
 import { helpsSummary, languageLabel } from '../src/admin/adminModel';
 
@@ -186,8 +186,8 @@ describe('the language a team’s reference material is in', () => {
     const questions = { format: 'material@1', kind: 'questions', title: 'Checks', language: 'amh', deps: [] } as LibraryDoc;
     const choices = languageChoices(sets, [bible, note, questions, null], ['amh', 'eng']);
     expect(choices.map((c) => c.language)).toEqual(['eng', 'fra', 'swh', 'amh']);
-    expect(choices[1]).toEqual({ language: 'fra', sets: [{ name: 'FIA study guides', passages: 12 }], bibles: 0, bibleIds: [], other: 1 });
-    expect(choices[3]).toEqual({ language: 'amh', sets: [], bibles: 0, bibleIds: [], other: 0 });
+    expect(choices[1]).toEqual({ language: 'fra', sets: [{ name: 'FIA study guides', passages: 12 }], words: [], bibles: 0, bibleIds: [], other: 1 });
+    expect(choices[3]).toEqual({ language: 'amh', sets: [], words: [], bibles: 0, bibleIds: [], other: 0 });
     // Swahili is one language whether FIA or Bible Brain wrote it.
     expect(languageChoices(sets, [bible], ['swa']).filter((c) => sameLanguage(c.language, 'swa'))).toHaveLength(1);
   });
@@ -223,5 +223,41 @@ describe('the language a team’s reference material is in', () => {
     expect(teamLanguage(org, foldLanguage([]), 'L1')).toBe('fra');
     expect(teamLanguage(org, foldLanguage([languageEnvelope('v1.ReferenceLanguageSet', { language: 'swa' })]), 'L1')).toBe('swa');
     expect(teamLanguage(null, null, 'L1')).toBe('eng');
+  });
+});
+
+describe('FIA\'s key words in several languages (decision 172)', () => {
+  const words = (language: string, count: number, extra: Partial<MaterialDoc> = {}): MaterialDoc => ({
+    format: 'material@1', kind: 'key_terms', title: `FIA key words (${language})`, language, pattern: 'FIA', deps: [],
+    terms: Array.from({ length: count }, (_, i) => ({ id: `t${i + 1}`, term: `word ${i + 1}`, gloss: '' })), ...extra
+  });
+
+  it('makes FIA\'s key words a set of their own beside its guides, chosen apart, counting words', () => {
+    const { own } = library();
+    const sets = guideSets(own, [
+      { s: shared('langquest.words.eng', 'FIA key words (English)'), doc: words('eng', 302) },
+      { s: shared('langquest.words.fra', 'FIA key words (French)'), doc: words('fra', 280) }
+    ]);
+    expect(sets.map((x) => [x.key, x.name, isWordSet(x)])).toEqual([
+      ['langquest|FIA', 'FIA study guides', false], ['langquest|FIA|words', 'FIA key words', true]
+    ]);
+    expect(sets[1]!.members.map((m) => [m.language, m.passages])).toEqual([['eng', 302], ['fra', 280]]);
+    expect(setKeyOf('langquest', words('eng', 3))).toBe('langquest|FIA|words');
+    // A key-word list without a method, or a note, is in no set.
+    expect(setKeyOf('langquest', words('eng', 3, { pattern: undefined }))).toBeNull();
+    expect(setKeyOf('langquest', { format: 'material@1', kind: 'note', title: 'FIA notes', language: 'eng', pattern: 'FIA', deps: [] })).toBeNull();
+  });
+
+  it('lists a language\'s key words by their words, never as passages of guides', () => {
+    const { own } = library();
+    const sets = guideSets(own, [
+      { s: shared('langquest.words.eng', 'FIA key words (English)'), doc: words('eng', 302) },
+      { s: shared('langquest.words.swa', 'FIA key words (Swahili)'), doc: words('swa', 120) }
+    ]);
+    const choices = languageChoices(sets, [], []);
+    expect(choices.find((c) => c.language === 'eng')).toMatchObject({ sets: [{ name: 'FIA study guides', passages: 30 }], words: [{ name: 'FIA key words', words: 302 }] });
+    const swa = choices.find((c) => c.language === 'swa')!;
+    expect(swa).toMatchObject({ sets: [], words: [{ name: 'FIA key words', words: 120 }] });
+    expect(hasMaterial(swa)).toBe(true);
   });
 });

@@ -275,6 +275,7 @@ export const EDGES: Edge[] = [
   e('key_terms', 'key_term_detail'), // tap term
   e('key_term_detail', 'key_terms', 'back'), // tap Back
   e('key_term_detail', 'version_detail'), // tap where it's used
+  e('key_term_detail', 'passage_record'), // tap a passage not recorded yet
   e('inbox_home', 'passage_record'), // tap update about a passage
   e('my_work', 'inbox_home'), // tap the bell (updates)
   e('settings_home', 'profile_edit'), // tap Edit Profile

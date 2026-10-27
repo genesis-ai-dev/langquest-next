@@ -26,10 +26,11 @@ import { useOfferedLanguageSearch } from './useOfferedLanguageSearch';
 import { biblesFor, type LanguageChoice } from './languageChoices';
 import { readerLanguage, sameCodes, sameLanguage } from './languages';
 
-/** "FIA guides for 294 passages · 21 Bibles", or that nothing is in it yet. */
+/** "FIA guides for 294 passages · FIA key words (302 words) · 21 Bibles", or that nothing is in it yet. */
 function whatIsThere(c: LanguageChoice, bibles: number): string {
   const parts = [
     ...c.sets.map((s) => t('referenceLanguage.setPassages', { name: guideShortName(s.name), count: s.passages })),
+    ...c.words.map((w) => t('referenceLanguage.setWords', { name: w.name, count: w.words })),
     ...(bibles ? [t('referenceLanguage.bibles', { count: bibles })] : []),
     ...(c.other ? [t('referenceLanguage.otherGuides', { count: c.other })] : [])
   ];

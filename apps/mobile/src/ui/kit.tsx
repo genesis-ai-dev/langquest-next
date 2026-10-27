@@ -755,13 +755,26 @@ export function Field(props: {
 const TYPE_HERE = () => undefined;
 
 export function SearchField(props: { value: string; onChangeText: (v: string) => void; placeholder: string; testID?: string;
-  /** What help mode says it finds, where the placeholder does not say it. */ help?: string }) {
+  /** What help mode says it finds, where the placeholder does not say it. */ help?: string;
+  /**
+   * A filter set from elsewhere on the screen, held in the bar as a chip
+   * with its own ✕ ("Goes with FIA study guides"); words typed narrow it.
+   */
+  filter?: { label: string; clearLabel: string; clearHelp: string; onClear: () => void } }) {
   const spot = useHelpSpot(props.placeholder, props.help ?? t('help.details.search'), TYPE_HERE);
   return (
-    <View style={styles.search}>
+    <View style={[styles.search, props.filter && styles.searchFiltered, (!!props.value || !!props.filter) && { borderColor: C.primary }]}>
       <Ico name="search" size={24} color={C.muted} />
-      <TextInput {...(props.testID ? { testID: props.testID } : {})} value={props.value} onChangeText={props.onChangeText} placeholder={props.placeholder} placeholderTextColor={C.faint}
-        editable={!spot.id} autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder} style={[styles.searchInput, inputDirection()]} />
+      {props.filter ? (
+        <View style={styles.searchChip}>
+          {/* The chip's words show in full, wrapping before they are cut off (decisions.md 139). */}
+          <Text style={styles.searchChipLabel}>{props.filter.label}</Text>
+          <IconBtn name="close" size={28} bg={C.card} color={C.primary} label={props.filter.clearLabel} help={props.filter.clearHelp} onPress={props.filter.onClear} />
+        </View>
+      ) : null}
+      <TextInput {...(props.testID ? { testID: props.testID } : {})} value={props.value} onChangeText={props.onChangeText} placeholder={props.filter ? undefined : props.placeholder} placeholderTextColor={C.faint}
+        editable={!spot.id} autoCapitalize="none" autoCorrect={false} returnKeyType="search" accessibilityLabel={props.placeholder}
+        style={[styles.searchInput, props.filter && styles.searchInputBeside, inputDirection()]} />
       {props.value ? <IconBtn name="close" label={t('shell.kit.clearSearch')} help={t('help.details.clearSearch')} onPress={() => props.onChangeText('')} bg="transparent" color={C.muted} /> : null}
       <HelpCover spot={spot} label={props.placeholder} />
     </View>
@@ -1136,6 +1149,10 @@ const styles = StyleSheet.create({
   field: { minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: space.lg, fontSize: T.base, color: C.dark },
   search: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, paddingLeft: space.lg, paddingRight: space.xs },
   searchInput: { flex: 1, fontSize: T.base, color: C.dark, paddingVertical: space.md },
+  searchFiltered: { paddingVertical: space.xs },
+  searchInputBeside: { minWidth: target.min },
+  searchChip: { flexDirection: 'row', alignItems: 'center', gap: space.xs, flexShrink: 1, minHeight: 36, borderRadius: radius.md, backgroundColor: C.light, paddingLeft: space.md, paddingRight: space.xs, paddingVertical: 2 },
+  searchChipLabel: { fontSize: T.sm, fontWeight: '700', color: C.primary, flexShrink: 1 },
   showMore: { minHeight: target.primary, borderRadius: radius.lg, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   badge: { borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'center', flexShrink: 1, maxWidth: '100%' },
   rowBadge: { flexShrink: 1, maxWidth: '40%' },
