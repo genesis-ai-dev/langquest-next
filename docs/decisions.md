@@ -1,39 +1,22 @@
 # Decisions
 
-The architecture decision record (ADR) log for this app. It is the only one:
-every architecture or design decision, from any developer or agent, is recorded
-here as it is made, so the log reads as the history of how the design got to
-where it is. Each entry has the reason and what would change our mind.
+The architecture decision record (ADR) log for this app, entries 1 to 175.
+Every architecture or design decision, from any developer or agent, is
+recorded as it is made, so the log reads as the history of how the design got
+to where it is. Each entry has the reason and what would change our mind.
 
-## How to write an entry
+Since 2026-10-27 each new decision is a file of its own in
+[decisions/](./decisions/), named by its date and a few words, so two branches
+never take the same number
+([2026-10-27-one-file-per-decision](./decisions/2026-10-27-one-file-per-decision.md)).
+[decisions/README.md](./decisions/README.md) says how to write one.
 
-Write one when a change is hard to reverse, would surprise a reader without
-context, and came from a real trade-off. Typical triggers: a new merge shape,
-partition, deployable, worker, queue or storage table; a dependency that
-carries lock-in; a change to authorization, sync, or what the app keeps
-offline; a deliberate departure from PLAN.md, the partner demo or an earlier
-entry. A bug fix, a refactor that keeps behaviour, or a new event that fits an
-existing merge shape does not need one.
-
-```md
-## 35. The decision, stated as a sentence
-
-Date: YYYY-MM-DD · By: Full Name · Status: accepted
-
-Reason: the context, what was chosen and why, naming the code that holds it.
-Reverse if: the evidence that would change our mind.
-```
-
-- Number entries in order and never renumber; code and docs cite them by
-  number ("decisions.md 34").
-- `By` is the developer who made the decision, not the agent that typed it.
-- `Status` is `accepted`, `superseded by N` or `partly superseded by N`.
-- Never rewrite a past entry's reasoning. If a decision changes, add a new
-  entry that says "Supersedes N" and set N's status. If it only narrows or
-  extends, append a dated paragraph to it:
-  `Amended (YYYY-MM-DD, Full Name): what changed and why.`
-- Land the entry in the same commit or PR as the change it explains.
-  `scripts/decisions.test.ts` checks the format.
+The entries below keep their numbers, which code and docs cite
+("decisions.md 34"). No entry is added here. One below changes in only two
+ways: its status (`superseded by N`, `partly superseded by N`, where N is a
+later number or a decision's file name without `.md`), and a dated paragraph
+appended to it: `Amended (YYYY-MM-DD, Full Name): what changed and why.`
+`scripts/decisions.test.ts` checks the format of both.
 
 ## 1. Event log over state replication
 
@@ -552,7 +535,7 @@ second work partition is a registry entry, not a new event.
 
 ## 35. This file is the one ADR log, and agents keep it for every developer
 
-Date: 2026-09-29 · By: Caleb Koster · Status: accepted
+Date: 2026-09-29 · By: Caleb Koster · Status: partly superseded by 2026-10-27-one-file-per-decision
 
 Reason: several developers, each working through their own agent sessions,
 were making design decisions, and only some of them reached this file. So
@@ -8410,46 +8393,3 @@ the item moved (its line says the new organization, with its blue check).
 Reverse if: an organization objects to its followers being moved without
 being asked (then the move would offer each follower the switch instead), or
 moves are wanted between organizations that cannot find each other.
-
-## 176. Coding threads run on Claude Code's cloud machines, which scripts/cloud-setup.sh makes ready for `npm run guardrails -- --all`; what only a phone shows goes to one thread on the Mac
-
-Date: 2026-10-27 · By: Caleb Koster · Status: accepted
-
-Reason: coding threads ran through Remote Control on Caleb's Mac. Past three
-or four at once, mostly through their iPhone simulators and Android
-emulators, the Mac overheated and could crash, so asks waited for a free
-slot. Claude Code's cloud machines (Linux, 4 CPUs, 16 GB, Docker; no charge
-beyond the plan's usage) run as many threads as are asked for, but they
-lacked what the guardrails need: Node 22 first on PATH where CI has 24, a
-shallow clone that `npm run server-calls` cannot read, Docker not running,
-Docker Hub refusing pulls (429 Too Many Requests on `node:24-slim`), and Edge
-Functions in the local stack that could not load their npm packages,
-because the machine's outbound HTTPS is re-signed by a proxy whose authority
-containers do not trust, so every P0 UI test that signs someone in failed.
-Caleb chose (2026-10-27) to move coding to cloud threads:
-
-- `scripts/cloud-setup.sh` makes a cloud machine ready: Node 24, the full
-  history, `npm ci`, Docker pulling Docker Hub's images through Google's copy
-  (mirror.gcr.io), the stack's images and the job container's, an edge
-  runtime image that trusts the machine's authorities (under its own name,
-  so the Supabase CLI runs it), and Playwright's three browsers. The
-  project's cloud environment runs it as its setup script (`--snapshot`), so
-  threads start from a machine that has all of it; a thread runs it again
-  first (AGENTS.md, Cloud threads), which then takes seconds.
-- `npm run guardrails` fetches the full history in a shallow clone. `--all`
-  starts the stack as CI does, on a Mac too: without the services the tests
-  do not use, and without the language list, which SETUP-074 expects to be
-  empty. On 4 cores or fewer it runs the P0 UI tests two browsers at a
-  time, as each CI shard does; with four, pages loaded past the tests'
-  waits.
-- Cloud threads check screens in the web build. A check that needs a phone
-  (native modules, gestures, the keyboard, permissions, audio, a store
-  build) goes to one phone-check thread on the Mac, one simulator at a time.
-- A cloud machine has no `.env.keys`, so decrypting env files, EAS, secrets
-  and hosted databases stay on the Mac.
-
-Reverse if: cloud threads use more of the plan than the time they save is
-worth; the cloud machines lose Docker or the hosts they reach; or phone
-checks queue behind the one Mac thread, when they move to GitHub Actions
-(an Android emulator on Linux runners, the iPhone simulator on macOS
-runners) or a hosted simulator service.
