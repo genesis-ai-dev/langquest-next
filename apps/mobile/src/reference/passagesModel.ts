@@ -198,7 +198,7 @@ export interface HelpRow {
   onSet?: (shown: boolean) => void;
   /** The key words to show as chips under this card, when it is the key words card. */
   terms?: Pick<KeyTermView, 'termId' | 'term'>[];
-  /** And the words of key-word lists the team uses that are on this passage (decision 149), after the team's. */
+  /** And the words of key-word lists the team uses that are on this passage (decision 172), after the team's. */
   words?: { key: string; term: string }[];
 }
 

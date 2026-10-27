@@ -75,7 +75,7 @@ describe('documents', () => {
     expect(validateDoc({ ...withDeps(t), bible: { ...t.bible!, passages: [{ ref: 'Ruth one' }] } })).toMatch(/readable ref/);
   });
 
-  it('carry a key-word list with each word\'s meaning, recording and verses (decision 149)', () => {
+  it('carry a key-word list with each word\'s meaning, recording and verses (decision 172)', () => {
     const list: MaterialDoc = withDeps({
       format: 'material@1', kind: 'key_terms', title: 'FIA key words (English)', language: 'eng', pattern: 'FIA', source: 'fia.bible', versification: H('e'),
       terms: [{ id: 't104', term: 'prophet', gloss: 'a person who gives messages from God', match: ['prophets'], body: 'Gives [messages](#t91).', audio: { url: 'https://example.org/t104.mp3' }, links: [{ ref: 'LUK 13:31-35' }] }],

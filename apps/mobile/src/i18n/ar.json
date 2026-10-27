@@ -61,7 +61,9 @@
     "hoursAgo_few": "منذ {{count, number}} ساعات",
     "hoursAgo_many": "منذ {{count, number}} ساعة",
     "hoursAgo_other": "منذ {{count, number}} ساعة",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "اليوم",
+    "yesterday": "أمس"
   },
   "units": {
     "kilobytes": "{{value}} كيلوبايت",
@@ -354,11 +356,14 @@
     "get_ready": "استعد",
     "settings_more": "إعدادات أخرى",
     "check_editor": "الفحص",
-    "cluster_home": "مجموعة"
+    "cluster_home": "مجموعة",
+    "global_viewer": "المُشاهِد العام"
   },
   "native": {
     "microphone": "يسجّل LangQuest صوتك لترجمة المقاطع.",
-    "camera": "يستخدم LangQuest الكاميرا لمسح رموز QR الخاصة بالدعوات."
+    "camera": "يستخدم LangQuest الكاميرا لمسح رموز QR الخاصة بالدعوات.",
+    "calculator": "الآلة الحاسبة",
+    "notes": "الملاحظات"
   },
   "library": {
     "sourceLine": {
@@ -3474,6 +3479,13 @@
       "elsewhereSub": "يعمل في علامة تبويب واحدة في كل مرة، لتبقى تسجيلاتك وتغييراتك في مكان واحد. استخدمه هنا، أو ارجع إلى علامة التبويب الأخرى.",
       "useHere": "استخدمه هنا",
       "useHereHelp": "ينقل LangQuest إلى علامة التبويب هذه. علامة التبويب الأخرى تحفظ عملها وتتنحّى."
+    },
+    "lock": {
+      "wait": "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.",
+      "wrong": "هذا النمط غير صحيح.",
+      "notMe": "ليست صورتي",
+      "notMeHelp": "يعود إلى الصور.",
+      "pictureHelp": "سجّلت الخروج من هذا الهاتف؟ المس صورتك، ثم ارسم نمطك. لا حاجة إلى اتصال."
     }
   },
   "account": {
@@ -3490,9 +3502,6 @@
       "ready": "التحديث جاهز — اضغط لإعادة التشغيل",
       "downloading": "جارٍ تنزيل التحديث…",
       "downloadingPercent": "جارٍ تنزيل التحديث… {{percent}}",
-      "offline": "بدون اتصال — اضغط لإعادة المحاولة",
-      "failed": "فشل التحديث: {{reason}} — اضغط لإعادة المحاولة",
-      "offlineLabel": "بدون اتصال: لا يمكن البحث عن تحديثات",
       "webReady": "نسخة جديدة من LangQuest جاهزة. أعد تحميل الصفحة لتستخدمها.",
       "storeBuild": "إصدار المتجر",
       "updateBuild": "التحديث {{id}}",
@@ -3807,11 +3816,9 @@
         "checking": "متصل، لكن القناة المباشرة متوقفة، لذا يتحقق هذا الجهاز من التغييرات كل بضع دقائق. «زامن الآن» يتحقق فورًا.",
         "offline": "لا يوجد اتصال. كل ما تفعله محفوظ على هذا الجهاز ويُرسل تلقائيًا عند عودتك إلى الاتصال.",
         "refused": "الخادم لا يقبل التغييرات من هذا الجهاز. عملك ما زال محفوظًا هنا.",
-        "toSend": "تغييرات وتسجيلات على هذا الجهاز لم يؤكدها الخادم بعد. إنها آمنة هنا وتُرسل عند توفر الاتصال.",
         "toReceive": "تسجيلات من الآخرين ما زال هذا الجهاز ينزّلها.",
         "refusedLine": "تغييرات لم يقبلها الخادم، غالبًا لأن صلاحية تغيّرت. تبقى على هذا الجهاز؛ افتح التفاصيل لرؤية كل واحد منها."
       },
-      "toSend": "للإرسال",
       "toReceive": "للاستلام",
       "refusedLine": "مرفوضة",
       "none": "لا شيء",
@@ -3820,6 +3827,17 @@
       "syncNowHelp": "يرسل ما ينتظر ويجلب ما هو جديد، فورًا.",
       "detailsHelp": "كل تغيير منتظر أو مرفوض، ونقل الصوت: لمن يصلح مشكلة.",
       "eventHelp": "يفتح المقطع الذي يتعلق به هذا التغيير."
+    },
+    "lock": {
+      "tooShort": "صِل {{n}} نقاط على الأقل.",
+      "patternsDiffer": "كان هذا نمطًا مختلفًا. ابدأ من جديد.",
+      "pictureTitle": "اختر صورتك",
+      "pictureHelp": "لتسجّل الدخول من جديد على هذا الهاتف، ستلمس صورتك ثم ترسم نمطك.",
+      "nextHelp": "ينتقل إلى رسم نمطك.",
+      "drawTitle": "ارسم نمطًا",
+      "drawAgain": "ارسمه مرة أخرى",
+      "newPattern": "ارسم نمطًا جديدًا",
+      "choosePatternHelp": "اختر صورة ونمطًا لتسجّل الدخول من جديد على هذا الهاتف، حتى دون اتصال."
     }
   },
   "study": {
@@ -4424,7 +4442,8 @@
       "openStudyHelp": "يفتح دليل الدراسة كاملًا لهذا المقطع.",
       "listeners": "المستمعون",
       "liveIn": "منشور في {{channel}} · {{version}}",
-      "listenerCount": "ملاحظات المستمعين: {{count, number}}"
+      "listenerCount": "ملاحظات المستمعين: {{count, number}}",
+      "askedOffline": "طُلب من {{target}}. يصلهم عندما يتصل هذا الجهاز."
     },
     "else": {
       "title": "شيء آخر؟",
@@ -4639,6 +4658,19 @@
       "partHelp": "يشغّل هذا الجزء وحده.",
       "deleteVersionHelp": "يحذف هذه النسخة للجميع. الفحوص التي تمّت عليها تبقى في السجل لكنها لم تعد تُحتسب.",
       "doneHelp": "يفتح النظرة الأخيرة على هذه المسودة، لتُنهيها وترسلها إلى فحصها التالي."
+    },
+    "partNotes": {
+      "title": "ملاحظات على {{part}}",
+      "mark_zero": "{{count, number}} ملاحظة على {{part}}",
+      "mark_one": "ملاحظة واحدة على {{part}}",
+      "mark_two": "ملاحظتان على {{part}}",
+      "mark_few": "{{count, number}} ملاحظات على {{part}}",
+      "mark_many": "{{count, number}} ملاحظة على {{part}}",
+      "mark_other": "{{count, number}} ملاحظة على {{part}}",
+      "markHelp": "يفتح ما قيل عن هذا الجزء في الفحوصات. يمكنك الرد."
+    },
+    "checkNotes": {
+      "title": "ملاحظات من {{check}}"
     }
   },
   "work": {
@@ -4706,7 +4738,8 @@
       "toSend_two": "{{count, number}} للإرسال",
       "toSend_few": "{{count, number}} للإرسال",
       "toSend_many": "{{count, number}} للإرسال",
-      "toSend_other": "{{count, number}} للإرسال"
+      "toSend_other": "{{count, number}} للإرسال",
+      "receiving": "يستقبل التسجيلات"
     },
     "join": {
       "wantsToJoin": "{{name}} يريد الانضمام",
@@ -4824,7 +4857,8 @@
     "toast": {
       "notSaved": "لم يُحفظ: {{reason}}",
       "notSavedCode": "لم يُحفظ. حدث خطأ ما (الرمز {{code}}).",
-      "dismissLabel": "{{message}} إخفاء"
+      "dismissLabel": "{{message}} إخفاء",
+      "goesWhenConnected": "{{message}} يصل إلى فريقك عندما يتصل هذا الجهاز."
     },
     "nav": {
       "cannotOpenHere": "لا يمكن فتح ذلك من هنا.",
@@ -4928,6 +4962,14 @@
       "term": {
         "title": "اختر مصطلحًا",
         "sub": "يُفتح معناه وترجماته هنا."
+      },
+      "language": {
+        "title": "اختر لغة",
+        "sub": "يُفتح تقدّمها هنا."
+      },
+      "manage": {
+        "title": "اختر ما تريد إدارته",
+        "sub": "تُفتح لغة أو الأعضاء أو الإعداد هنا."
       }
     },
     "license": {
@@ -4953,6 +4995,15 @@
       "readHelp": "يفتح نصه الكامل في المتصفح.",
       "rowHelp": "يفتح التراخيص وما يسمح به كل منها.",
       "yesOpenToHelp": "يُشارَك عملك بهذا الترخيص من الآن فصاعدًا. لا يمكن التراجع عن ذلك."
+    },
+    "pattern": {
+      "label": "النمط: صِل {{n}} نقاط على الأقل",
+      "help": "مرّر إصبعك على النقاط دون رفعه، أو المسها واحدة تلو الأخرى ثم تم. صِل {{n}} نقاط على الأقل.",
+      "dot": "النقطة {{n}}",
+      "picture": "الصورة {{n}}",
+      "again": "ابدأ من جديد",
+      "againHelp": "يمسح النقاط لتبدأ النمط من جديد.",
+      "doneHelp": "ينهي النمط بالنقاط التي لمستها."
     }
   },
   "help": {
@@ -4999,75 +5050,31 @@
       "checking": "النقطة الرمادية: يبحث عن اتصال. يبقى عملك على هذا الجهاز حتى يُرسل.",
       "offline": "النقطة البرتقالية: غير متصل. يبقى عملك على هذا الجهاز ويُرسل عندما تتصل.",
       "refused": "الأحمر: رفض الخادم شيئًا. اضغط لترى ما هو، وما يجب فعله.",
-      "withWaiting": "{{standing}} الرقم هو عدد الأشياء التي تنتظر الإرسال."
+      "withWaiting": "{{standing}} الرقم هو عدد الأشياء التي تنتظر الإرسال.",
+      "withReceiving": "{{standing}} تدور الحلقة بينما تُنزَّل تسجيلات الآخرين إلى هذا الجهاز. لا شيء ينتظر الإرسال."
     }
   },
   "offline": {
     "onDevice": "على هذا الجهاز",
     "downloading": "جارٍ التنزيل للعمل بدون اتصال",
-    "audioNotHere": "الصوت ليس على هذا الجهاز",
-    "notKept": "غير محفوظ على هذا الجهاز",
     "audioNotKept": "الصوت غير محفوظ على هذا الجهاز",
     "connectToFinish": "اتصل لتُكمل التنزيل قبل أن تسافر.",
     "stayConnected": "ابقَ متصلًا حتى ينتهي هذا.",
-    "keep": "احفظه على الجهاز",
-    "stopKeeping": "أوقف حفظه على الجهاز",
     "reason": {
       "asked": "محفوظ لأنه طُلب منك العمل عليه.",
       "worked": "محفوظ لأنك عملت عليه.",
       "chosen": "محفوظ لأنك اخترت حفظه."
     },
     "passage": {
-      "notSent_zero": "{{count, number}} تسجيل لم تُرسل بعد من الجهاز الذي صنعها.",
-      "notSent_one": "تسجيل واحد لم يُرسل بعد من الجهاز الذي صنعه.",
-      "notSent_two": "تسجيلان لم يُرسلا بعد من الجهاز الذي صنعهما.",
-      "notSent_few": "{{count, number}} تسجيلات لم تُرسل بعد من الجهاز الذي صنعها.",
-      "notSent_many": "{{count, number}} تسجيلًا لم تُرسل بعد من الجهاز الذي صنعها.",
-      "notSent_other": "{{count, number}} تسجيل لم تُرسل بعد من الجهاز الذي صنعها.",
-      "studyOnline": "صور الدراسة وصوت الدراسة تحتاج إلى اتصال في تطبيق الويب.",
-      "worksWithStudy": "نصه وصوته وصور دراسته تعمل بدون اتصال.",
-      "worksWithAudio": "نصه وصوته يعملان بدون اتصال.",
-      "worksTextOnly": "نصه يعمل بدون اتصال، والصوت الجديد يُنزَّل عند وصوله.",
-      "audioFilesHere_zero": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "audioFilesHere_one": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "audioFilesHere_two": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "audioFilesHere_few": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "audioFilesHere_many": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "audioFilesHere_other": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "audioFilesHereLeft_zero": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "audioFilesHereLeft_one": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "audioFilesHereLeft_two": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "audioFilesHereLeft_few": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "audioFilesHereLeft_many": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "audioFilesHereLeft_other": "الملفات الصوتية الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "studyFilesHere_zero": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "studyFilesHere_one": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "studyFilesHere_two": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "studyFilesHere_few": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "studyFilesHere_many": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "studyFilesHere_other": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}.",
-      "studyFilesHereLeft_zero": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "studyFilesHereLeft_one": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "studyFilesHereLeft_two": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "studyFilesHereLeft_few": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "studyFilesHereLeft_many": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
-      "studyFilesHereLeft_other": "ملفات الصوت والدراسة الموجودة هنا: {{here, number}} من {{count, number}}، وبقي {{size}} من الصوت.",
       "onlySomeHere_zero": "الملفات على هذا الجهاز: {{here, number}} فقط من {{count, number}}",
       "onlySomeHere_one": "الملفات على هذا الجهاز: {{here, number}} فقط من {{count, number}}",
       "onlySomeHere_two": "الملفات على هذا الجهاز: {{here, number}} فقط من {{count, number}}",
       "onlySomeHere_few": "الملفات على هذا الجهاز: {{here, number}} فقط من {{count, number}}",
       "onlySomeHere_many": "الملفات على هذا الجهاز: {{here, number}} فقط من {{count, number}}",
       "onlySomeHere_other": "الملفات على هذا الجهاز: {{here, number}} فقط من {{count, number}}",
-      "downloadingCount": "جارٍ التنزيل للعمل بدون اتصال · {{here, number}} من {{total, number}}",
-      "notAllHere": "ليس كله على هذا الجهاز بعد",
-      "readRecordAudioNeeds": "يمكنك قراءته والتسجيل، لكن صوته يحتاج إلى اتصال.",
-      "readRecordStudyNeeds": "يمكنك قراءته والتسجيل، لكن صوته وصور دراسته تحتاج إلى اتصال.",
-      "textHereAudioNeeds": "نصه هنا، لكن صوته يحتاج إلى اتصال. احفظه على الجهاز لتأخذه معك.",
-      "textHereStudyNeeds": "نصه هنا، لكن صوته وصور دراسته تحتاج إلى اتصال. احفظه على الجهاز لتأخذه معك.",
-      "barHelp": "يمتلئ كلما وصلت ملفاته إلى هذا الجهاز."
+      "downloadingCount": "جارٍ التنزيل للعمل بدون اتصال · {{here, number}} من {{total, number}}"
     },
     "toast": {
-      "kept": "محفوظ على هذا الجهاز. يُنزَّل وأنت متصل.",
       "notKept": "لم يعد محفوظًا. قد يُزال صوته لتوفير المساحة."
     },
     "summary": {
@@ -5118,8 +5125,8 @@
       "alwaysBody": "نص كل مقطع وحالته وسجله في {{language}}. وصوت المقاطع التي طُلب منك العمل عليها، أو عملت عليها، أو اخترت حفظها.",
       "alwaysBodyStudy": "نص كل مقطع وحالته وسجله في {{language}}. والصوت وصور الدراسة والخرائط وصوت الدراسة للمقاطع التي طُلب منك العمل عليها، أو عملت عليها، أو اخترت حفظها.",
       "needsTitle": "يحتاج إلى اتصال",
-      "needsNotKept": "صوت المقاطع التي لم تحفظها. افتح مقطعًا واضغط «احفظه على الجهاز» لتأخذه معك.",
-      "needsNotKeptStudy": "صوت المقاطع التي لم تحفظها ومواد دراستها. افتح مقطعًا واضغط «احفظه على الجهاز» لتأخذه معك.",
+      "needsNotDownloaded": "صوت المقاطع غير المنزّلة.",
+      "needsNotDownloadedStudy": "صوت المقاطع غير المنزّلة ومواد دراستها.",
       "needsFilms": "أفلام الدراسة.",
       "needsStudyWeb": "صور الدراسة والخرائط وصوت الدراسة، في تطبيق الويب.",
       "needsReports": "التقارير.",
@@ -5145,7 +5152,11 @@
       "body": "لا تزال نسخه ومراجعاته وسجله قيد التنزيل مع بقية هذه اللغة. اتصل بالإنترنت لتنزيله.",
       "latest": "الأحدث: النسخة {{n, number}}، بواسطة {{name}}.",
       "requests": "الطلبات المفتوحة: {{n, number}}."
-    }
+    },
+    "download": "نزّله للعمل بدون اتصال",
+    "needsConnection": "التنزيل يحتاج إلى اتصال",
+    "needsConnectionHelp": "ليس على هذا الجهاز. يمكن تنزيله عندما يتصل هذا الجهاز.",
+    "checkingHelp": "يحصي هذا الجهاز ما لديه من هذا المقطع."
   },
   "moderation": {
     "flagLabel": "أبلغ عن {{name}} أو احظره",
@@ -5632,7 +5643,6 @@
       "chapter": "الأصحاح {{n}}",
       "chapterHelp": "يفتح مقطعه. علامة الصح تعني مكتمل، والنقطة تعني بدأ.",
       "keyLabel": "علامة الصح تعني مكتمل، والنقطة تعني بدأ",
-      "keyLabelOffline": "علامة الصح تعني مكتمل، والنقطة تعني بدأ، والسحابة تعني محفوظ على هذا الجهاز",
       "barHelp": "يمتلئ الشريط كلما سُجّلت مقاطعه؛ والجزء الأخضر مكتمل.",
       "countHelp": "{{shown}} تعني أن {{recorded}} من {{total}} من مقاطعه مُسجَّلة.",
       "matchHelp": "الرقم هو عدد مقاطعه التي تطابق التصفية.",
@@ -5645,7 +5655,6 @@
     "key": {
       "done": "مكتمل",
       "started": "بدأ",
-      "onDevice": "على هذا الجهاز",
       "doneSub": "كل الفحوصات مكتملة",
       "startedSub": "بدأ التسجيل، أو سُجّل، أو عند المراجعين، أو هناك ملاحظات تنتظر",
       "notStarted": "لم يبدأ",
@@ -6862,7 +6871,12 @@
         "someTerm": "مصطلح",
         "version": "النسخة {{n}}",
         "aVersion": "نسخة",
-        "study": "الدراسة"
+        "study": "الدراسة",
+        "replyTo": "ردّ على {{name}}",
+        "reply": "ردّ",
+        "aPart": "جزء",
+        "help": "“{{help}}”",
+        "aHelp": "وسيلة مساعدة"
       }
     },
     "parts": {
@@ -7058,6 +7072,8 @@
       "helpNoteHelp": "يفتحها لتقرأها.",
       "howManyHelp": "قل كم شخصًا استمع. اختياري.",
       "doneRecordedHelp": "يضع {{what}} في سجل المقطع.",
+      "looksGoodOffline": "يبدو جيدًا. يصل إلى {{name}} عندما يتصل هذا الجهاز.",
+      "feedbackOffline": "حُفظت الملاحظات. تصل إلى {{name}} عندما يتصل هذا الجهاز.",
       "helpWordsHelp": "يفتح الكلمات الرئيسية في هذا المقطع، مع كلمة الفريق لكل منها، وهل استخدمتها هذه النسخة."
     },
     "guest": {
@@ -7216,6 +7232,23 @@
       "addStepDetail": "أضف فحصًا آخر، بعد الفحوصات الأخرى.",
       "legend": "= يجب أن ينجح قبل الخطوات التالية",
       "gripHelp": "اسحب إلى الأعلى أو الأسفل لتنقل هذه الخطوة."
+    },
+    "notesOn": {
+      "addOn": "أضف ملاحظة على {{what}}",
+      "addOnHelp": "يضيف ملاحظة على هذا، بالصوت أو بالكتابة. تُضاف مع مراجعتك.",
+      "noteOn": "ملاحظة على {{what}}",
+      "reply": "ردّ",
+      "replyHelp": "يرد على ملاحظة {{name}}. يظهر ردّك تحتها.",
+      "replyTitle": "الرد على {{name}}",
+      "withReview": "مع مراجعتك",
+      "removeFrom": "إزالة ملاحظتك: {{what}}",
+      "goWith_zero": "{{count, number}} ملاحظة تُرسل مع مراجعتك",
+      "goWith_one": "ملاحظة واحدة تُرسل مع مراجعتك",
+      "goWith_two": "ملاحظتان تُرسلان مع مراجعتك",
+      "goWith_few": "{{count, number}} ملاحظات تُرسل مع مراجعتك",
+      "goWith_many": "{{count, number}} ملاحظة تُرسل مع مراجعتك",
+      "goWith_other": "{{count, number}} ملاحظة تُرسل مع مراجعتك",
+      "added": "أُضيفت إلى مراجعتك."
     }
   },
   "backTranslation": {
@@ -7775,7 +7808,9 @@
       "addHint": "اترك ملاحظة على هذا المقطع، بالصوت أو بالكتابة.",
       "sheetSub": "تبقى مع المقطع. يراها المراجعون والمترجم التالي.",
       "added": "أُضيفت الملاحظة.",
-      "typeHelp": "اكتب ملاحظتك. يمكنك أن تقولها أيضًا."
+      "typeHelp": "اكتب ملاحظتك. يمكنك أن تقولها أيضًا.",
+      "onPart": "على {{part}}",
+      "onHelp": "على “{{help}}”"
     },
     "earlier": {
       "yours": "لك",
@@ -8600,6 +8635,136 @@
       "saved": "تم الحفظ. سيُرسل عندما تكون متصلًا.",
       "savedUntilSignIn": "تم الحفظ. سيُرسل بعد تسجيل الدخول.",
       "voiceTooLong": "طويلة جدًا: يمكن أن تصل الملاحظة الصوتية إلى دقيقتين."
+    }
+  },
+  "appVersion": {
+    "available": "يتوفر إصدار جديد",
+    "update": "تحديث",
+    "updateHelp": "يفتح صفحة المتجر لأحدث إصدار.",
+    "dismiss": "إغلاق",
+    "dismissHelp": "يُخفي هذا حتى يصدر إصدار أحدث.",
+    "required": "يُرجى تحديث التطبيق",
+    "keepWorking": "متابعة العمل",
+    "keepWorkingHelp": "يبقى عملك على هذا الهاتف ويُرسل بعد التحديث."
+  },
+  "globalViewer": {
+    "title": "المُشاهِد العام",
+    "viewingOrg": "تشاهد {{org}} بصفة المُشاهِد العام. لا يمكنك تغيير أي شيء.",
+    "lineSetUp": "أعدّ تطبيق المصادقة للبدء",
+    "lineCode": "أدخل الرمز من تطبيق المصادقة",
+    "lineOn": "ابحث عن أي منظمة لقراءتها",
+    "lineRevoked": "انتهى وصولك بصفة المُشاهِد العام",
+    "wayInHelp": "رمز تطبيق المصادقة، وكل منظمة للقراءة.",
+    "revokedTitle": "انتهى الوصول بصفة المُشاهِد العام",
+    "revokedBody": "اسأل LangQuest إذا كنت تظن أن هذا خطأ.",
+    "notOne": "هذا الحساب ليس حساب مُشاهِد عام.",
+    "codeLabel": "الرمز من تطبيق المصادقة",
+    "codeHelp": "الرمز المكوّن من 6 أرقام الذي يعرضه تطبيق المصادقة لـ LangQuest. يتغير كل 30 ثانية.",
+    "check": "تحقق من الرمز",
+    "checkHelp": "إذا كان الرمز صحيحًا، يمكنك قراءة كل منظمة حتى تسجّل الخروج.",
+    "codeWrong": "هذا الرمز غير صحيح. اكتب الرمز الذي يعرضه تطبيق المصادقة الآن.",
+    "noAuthenticator": "لا يوجد تطبيق مصادقة لهذا الحساب. اطلب من LangQuest إعادة ضبطه.",
+    "enterCode": "لقراءة المنظمات، أدخل الرمز من تطبيق المصادقة.",
+    "setUpIntro": "افعل هذا أثناء مكالمة مع الشخص الذي منحك الوصول. تحتاج إلى تطبيق مصادقة على هاتفك، مثل Google Authenticator أو Microsoft Authenticator.",
+    "setUp": "إعداد تطبيق المصادقة",
+    "setUpHelp": "ينشئ مفتاحًا جديدًا لتطبيق المصادقة ويعرضه هنا.",
+    "stepAdd": "1. أضف LangQuest إلى تطبيق المصادقة",
+    "scan": "امسح هذا الرمز بتطبيق المصادقة.",
+    "qrLabel": "رمز للمسح بتطبيق المصادقة",
+    "openApp": "افتح في تطبيق المصادقة",
+    "openAppHelp": "يضيف LangQuest إلى تطبيق المصادقة على هذا الهاتف.",
+    "noApp": "لم يُفتح أي تطبيق مصادقة. اكتب المفتاح أدناه فيه بدلًا من ذلك.",
+    "typeKey": "أو اكتب هذا المفتاح في التطبيق:",
+    "stepCode": "2. أدخل الرمز الذي يعرضه",
+    "onTitle": "يمكنك قراءة كل منظمة",
+    "onBody": "ترى ما يراه المُشاهِد. لا يمكنك تغيير أي شيء.",
+    "search": "منظمة أو لغة",
+    "openNowLabel": "{{name}}، مفتوحة الآن",
+    "openHelp": "يفتح هذه المنظمة للقراءة.",
+    "noneFound": "لا توجد منظمة مطابقة.",
+    "more": "عرض المزيد",
+    "hereLabel": "تشاهد الآن",
+    "otherLabel": "افتح منظمة أخرى",
+    "readOnly": "تشاهد بصفة المُشاهِد العام: لا يمكن تغيير أي شيء هنا.",
+    "linkHelp": "أين تشاهد، وما الذي يمكنك فعله هناك، وكل المنظمات الأخرى.",
+    "dashboard": "لوحة العمليات",
+    "dashboardBody": "خدمات LangQuest ومهام الخادم وتشخيصات الميدان. تُفتح في علامة تبويب جديدة.",
+    "dashboardHelp": "تفتح لوحة عمليات LangQuest في علامة تبويب جديدة، مسجّلًا الدخول باسمك."
+  },
+  "uploads": {
+    "barRecordings_zero": "{{count, number}} تسجيل بانتظار الرفع",
+    "barRecordings_one": "تسجيل واحد بانتظار الرفع",
+    "barRecordings_two": "تسجيلان بانتظار الرفع",
+    "barRecordings_few": "{{count, number}} تسجيلات بانتظار الرفع",
+    "barRecordings_many": "{{count, number}} تسجيلًا بانتظار الرفع",
+    "barRecordings_other": "{{count, number}} تسجيل بانتظار الرفع",
+    "barChanges_zero": "{{count, number}} تغيير بانتظار الرفع",
+    "barChanges_one": "تغيير واحد بانتظار الرفع",
+    "barChanges_two": "تغييران بانتظار الرفع",
+    "barChanges_few": "{{count, number}} تغييرات بانتظار الرفع",
+    "barChanges_many": "{{count, number}} تغييرًا بانتظار الرفع",
+    "barChanges_other": "{{count, number}} تغيير بانتظار الرفع",
+    "uploading": "جارٍ الرفع",
+    "allUploaded": "تم رفع كل شيء",
+    "barHelp": "يفتح ما هو محفوظ على هذا الجهاز وينتظر الرفع، ومتى رُفعت الأشياء.",
+    "savedHere": "محفوظ على هذا الجهاز",
+    "lastUpload": "آخر رفع {{when}}",
+    "waitingTitle": "بانتظار الرفع",
+    "uploadedTitle": "تم رفعه",
+    "recordingsUploaded_zero": "رُفع {{uploaded, number}} من {{count, number}} تسجيل",
+    "recordingsUploaded_one": "رُفع {{uploaded, number}} من تسجيل واحد",
+    "recordingsUploaded_two": "رُفع {{uploaded, number}} من تسجيلين",
+    "recordingsUploaded_few": "رُفع {{uploaded, number}} من {{count, number}} تسجيلات",
+    "recordingsUploaded_many": "رُفع {{uploaded, number}} من {{count, number}} تسجيلًا",
+    "recordingsUploaded_other": "رُفع {{uploaded, number}} من {{count, number}} تسجيل",
+    "changesWaiting_zero": "{{count, number}} تغيير ينتظر",
+    "changesWaiting_one": "تغيير واحد ينتظر",
+    "changesWaiting_two": "تغييران ينتظران",
+    "changesWaiting_few": "{{count, number}} تغييرات تنتظر",
+    "changesWaiting_many": "{{count, number}} تغييرًا ينتظر",
+    "changesWaiting_other": "{{count, number}} تغيير ينتظر",
+    "otherChanges": "تغييرات أخرى",
+    "recordings_zero": "{{count, number}} تسجيل",
+    "recordings_one": "تسجيل واحد",
+    "recordings_two": "تسجيلان",
+    "recordings_few": "{{count, number}} تسجيلات",
+    "recordings_many": "{{count, number}} تسجيلًا",
+    "recordings_other": "{{count, number}} تسجيل",
+    "changes_zero": "{{count, number}} تغيير",
+    "changes_one": "تغيير واحد",
+    "changes_two": "تغييران",
+    "changes_few": "{{count, number}} تغييرات",
+    "changes_many": "{{count, number}} تغييرًا",
+    "changes_other": "{{count, number}} تغيير"
+  },
+  "disguise": {
+    "row": "أيقونة التطبيق",
+    "rowHelp": "يجعل LangQuest يبدو كآلة حاسبة أو مفكرة على هذا الهاتف. لا يُفتح إلا برمز تختاره.",
+    "title": "أيقونة التطبيق",
+    "langquest": "LangQuest",
+    "ownHelp": "يعيد أيقونة LangQuest الأصلية. يُفتح دون رمز.",
+    "lookHelp": "يختار هذه الأيقونة. بعد ذلك تختار الرمز الذي يفتح LangQuest.",
+    "calculatorN": "آلة حاسبة {{n}}",
+    "notesN": "ملاحظات {{n}}",
+    "codeTitle": "اختر رمزًا",
+    "code": "الرمز",
+    "codeHelp": "من 4 إلى 12 رقمًا. في الآلة الحاسبة، اكتبه بالأزرار. في المفكرة، اكتبه وحده في سطر.",
+    "nextHelp": "يفتح الآلة الحاسبة أو المفكرة لتكتب رمزك عليها.",
+    "backHelp": "يعود خطوة إلى الوراء.",
+    "tryTitle": "اكتب رمزك",
+    "on": "يعرض هذا الهاتف الآن {{name}}.",
+    "off": "عادت أيقونة LangQuest الأصلية.",
+    "notesTitle": "الملاحظات",
+    "keys": {
+      "clear": "مسح الكل",
+      "delete": "حذف",
+      "percent": "نسبة مئوية",
+      "divide": "قسمة",
+      "times": "ضرب",
+      "minus": "ناقص",
+      "plus": "زائد",
+      "equals": "يساوي",
+      "point": "فاصلة عشرية"
     }
   }
 }

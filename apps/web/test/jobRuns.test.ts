@@ -20,6 +20,13 @@ describe('job runs (diag.jobs)', () => {
     });
   });
 
+  it('caps a duration at what Postgres takes, so a wrong one still leaves its run', async () => {
+    let body: Record<string, unknown> = {};
+    const sink = jobRunSink('https://x', 'k', async (_url, init) => { body = JSON.parse(init!.body as string); return new Response('1'); });
+    await sink({ ...run, startedAt: 0, ms: 1_761_480_000_000 });
+    expect(body['p_ms']).toBe(2_147_483_647);
+  });
+
   it('never fails or writes without a key: a lost run is never the job failing', async () => {
     await expect(jobRunSink('https://x', 'k', async () => { throw new TypeError('fetch failed'); })(run)).resolves.toBeUndefined();
     let called = false;
@@ -49,6 +56,13 @@ describe('the Worker request tally', () => {
     expect(routeClass('POST', '/api/v1/mcp')).toBe('mcp');
     expect(routeClass('GET', '/api/v1/languages')).toBe('agent_api');
     expect(routeClass('POST', '/api/internal/poke')).toBe('webhook');
+    expect(routeClass('POST', '/api/v1/device/code')).toBe('device');
+    expect(routeClass('POST', '/api/v1/device/token')).toBe('device');
+    expect(routeClass('GET', '/api/v1/links/abc')).toBe('links');
+    expect(routeClass('GET', '/r/abc')).toBe('other');
+    expect(routeClass('GET', '/ops-dashboard')).toBe('ops');
+    expect(routeClass('GET', '/ops-dashboard/x')).toBe('ops');
+    expect(routeClass('GET', '/ops/api/runs')).toBe('ops');
     expect(routeClass('GET', '/api/bible/x')).toBe('other');
     expect(routeClass('GET', '/index.html')).toBeNull();
   });
@@ -56,16 +70,51 @@ describe('the Worker request tally', () => {
   it('becomes a job run at most once a minute, counts only', () => {
     let now = 0;
     const tally = new RequestTally(() => now);
-    tally.add('blobs_put', 200);
+    tally.add('blobs_put', 200, 20);
     tally.add('r2_put', 502);
     now = 30_000;
     expect(tally.take()).toBeNull();
     now = 61_000;
-    expect(tally.take()).toEqual({ job: 'worker_requests', startedAt: 0, ms: 61_000, outcome: 'partial', n: { blobs_put_2xx: 1, r2_put_5xx: 1 } });
-    tally.add('reports', 304);
+    expect(tally.take()).toEqual({ job: 'worker_requests', startedAt: 0, ms: 61_000, outcome: 'partial', n: { blobs_put_2xx: 1, blobs_put_lt100ms: 1, r2_put_5xx: 1 } });
+    now = 70_000;
+    tally.add('reports', 304, 150);
     now = 90_000;
     expect(tally.take()).toBeNull();
-    now = 125_000;
-    expect(tally.take()).toMatchObject({ startedAt: 61_000, outcome: 'ok', n: { reports_3xx: 1 } });
+    now = 131_000;
+    expect(tally.take()).toMatchObject({ startedAt: 70_000, ms: 61_000, outcome: 'ok', n: { reports_3xx: 1, reports_lt1s: 1 } });
+    now = 500_000;
+    expect(tally.take()).toBeNull();
+  });
+
+  it('dates its counts from the first request, not from when the module made it', () => {
+    // A Worker's clock reads 0 at module scope; the first request sees the real time.
+    let now = 0;
+    const tally = new RequestTally(() => now);
+    now = 1_761_480_000_000;
+    tally.add('blobs_get', 200, 12);
+    now += 61_000;
+    expect(tally.take()).toMatchObject({ startedAt: 1_761_480_000_000, ms: 61_000 });
+  });
+
+  it('counts a refusal under its route too, and each request in one duration bucket', () => {
+    let now = 0;
+    const tally = new RequestTally(() => now);
+    tally.add('device', 429, 5);
+    tally.add('links', 429, 99);
+    tally.add('links', 200, 100);
+    tally.add('mcp', 200, 999);
+    tally.add('mcp', 200, 1_000);
+    tally.add('ops', 200, 9_999);
+    tally.add('ops', 500, 10_000);
+    now = 61_000;
+    expect(tally.take()).toEqual({
+      job: 'worker_requests', startedAt: 0, ms: 61_000, outcome: 'partial',
+      n: {
+        device_4xx: 1, device_429: 1, device_lt100ms: 1,
+        links_4xx: 1, links_429: 1, links_lt100ms: 1, links_2xx: 1, links_lt1s: 1,
+        mcp_2xx: 2, mcp_lt1s: 1, mcp_lt10s: 1,
+        ops_2xx: 1, ops_lt10s: 1, ops_5xx: 1, ops_over10s: 1
+      }
+    });
   });
 });

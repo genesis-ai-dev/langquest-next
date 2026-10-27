@@ -245,3 +245,22 @@ describe('through the API router', () => {
     expect((await handleApi(new Request(`${ORIGIN}/api/blobs/${key}`), { profileOf: deps.profileOf, reports: async () => null })).status).toBe(503);
   });
 });
+
+describe('blob reads by a Global Viewer', () => {
+  it('ask with the session level the token carries (decisions.md 158)', async () => {
+    // Why: a Global Viewer reads only on an aal2 session; the Worker asks
+    // blob_access with the service role, so it must say the token's level.
+    const { deps, bucket } = world();
+    bucket.objects.set(key, audio);
+    const levels: Record<string, string> = { 'tok-gv-1': 'aal1', 'tok-gv-2': 'aal2' };
+    const viewing: BlobDeps = {
+      ...deps,
+      identityOf: async (t) => (levels[t] ? { profileId: 'gv', aal: levels[t] } : null),
+      mayUse: async (_k, profileId, write, aal) => profileId === 'gv' && !write && aal === 'aal2'
+    };
+    const status = async (token: string) =>
+      (await handleBlobs(new Request(`${ORIGIN}/api/blob-urls/${key}`, { headers: { authorization: `Bearer ${token}` } }), viewing)).status;
+    expect(await status('tok-gv-1')).toBe(403);
+    expect(await status('tok-gv-2')).toBe(200);
+  });
+});

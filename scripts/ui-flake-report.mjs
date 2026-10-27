@@ -17,8 +17,10 @@
 // artifacts (by hand they default to the gh CLI's sign-in and repository); LINEAR_API_KEY files the issue unless --dry-run (the workflow
 // dry-runs off main).
 //
-// Counted: runs of the pull_request and push events that ended in success or
-// failure, newest first. A pull request that broke a test and fixed it in its
+// Counted: runs of the pull_request, merge_group and push events that ended
+// in success or failure, newest first. A push to main that the merge queue
+// passed runs no tests, so its merge queue run is the one counted
+// (decisions.md 164). A pull request that broke a test and fixed it in its
 // next push is counted as a failure: that is why the threshold is not 100%
 // and why a test must be seen in several runs (--min). A report in which more
 // than MANY tests failed is one cause (the stack down), not many flakes, and
@@ -34,7 +36,7 @@ import { below, tally } from './ui-flakes.mjs';
 export const UI_FLAKES = 'the web UI tests that do not pass every run';
 const WORKFLOW = 'guardrails.yml';
 const ARTIFACT = /^ui-web-p0-results-\d+$/;
-const EVENTS = ['pull_request', 'push'];
+const EVENTS = ['pull_request', 'merge_group', 'push'];
 
 // --- Reading the runs ---------------------------------------------------------
 

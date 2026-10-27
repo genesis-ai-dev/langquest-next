@@ -6,10 +6,11 @@
 // shell, Language); the sections and their parts are in src/reports/.
 import { NotSavedError } from '@langquest-next/sync';
 import {
-  clustersOf, dayPercents, mayViewLanguage, orgClusters, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
+  clustersOf, dayPercents, orgClusters, paceOf, percent, privilegesFor, recencyOf, TARGET_SCOPES,
   type LanguageReport, type LanguageRow, type TargetScope
 } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
+import { mayViewReports } from '../shell/session';
 import { Pressable, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
@@ -30,7 +31,9 @@ import { Activity, Alerts, FieldReport, Geography, Languages, Ledger, Overview, 
 import { openAlerts, sectionLabel, SECTIONS, type SectionId, sectionHelp } from '../reports/sectionsModel';
 import { AttentionPanel, Bar, Columns, CoverageRows, Freshness, HeadlineStats, ListLine, NoReports, Notice, Panel, ProgressPair, Stat, Stats, ToneBadge } from '../reports/ui';
 import { bookOf, dayYear, num, pctText, shortDate, signed, type Tone } from '../reports/format';
-import { canPrint, exportCsv, fileName, languageCsv, printPage } from '../reports/exportFiles';
+import { languageCsv } from '../reports/csvModel';
+import { canPrint, exportCsv, fileName, printPage } from '../reports/exportFiles';
+import { useOrgInChrome } from '../ui/useLayout';
 
 const COLUMN = measure.report;
 /** No rows yet: one list, so what is worked out from it is not worked out again on every draw. */
@@ -39,6 +42,8 @@ const NO_ROWS: LanguageRow[] = [];
 export function ReportsHome(ctx: Ctx) {
   const orgId = ctx.language.orgId;
   const orgName = ctx.org.state?.org?.value.name ?? '';
+  // The sidebar names the organization on a desktop; the subtitle then need not (downloads keep it).
+  const orgInChrome = useOrgInChrome();
   const reports = useReports(orgId);
   const [section, setSection] = useState<SectionId>(SECTIONS.some((s) => s.id === ctx.params['section']) ? ctx.params['section'] as SectionId : 'overview');
   const [country, setCountry] = useState(ctx.params['country'] ?? '');
@@ -75,7 +80,7 @@ export function ReportsHome(ctx: Ctx) {
     pickCluster: (clusterId) => { setCluster({ kind: 'cluster', clusterId }); setCountry(''); }
   };
   const header = (
-    <Header title={sectionLabel(section)} sub={[orgName, clusterName, t('reports.title')].filter(Boolean).join(' · ')} columnWidth={COLUMN}
+    <Header title={sectionLabel(section)} sub={[orgInChrome ? '' : orgName, clusterName, t('reports.title')].filter(Boolean).join(' · ')} columnWidth={COLUMN}
       action={<IconBtn name="restart" label={t('reports.home.catchUp')} help={t('reports.home.catchUpHelp')} onPress={reports.refresh} disabled={reports.status === 'ready' && reports.refreshing} />} />
   );
   return (
@@ -139,16 +144,18 @@ export function ReportsHome(ctx: Ctx) {
 export function ReportsLanguage(ctx: Ctx) {
   const orgId = ctx.language.orgId;
   const orgName = ctx.org.state?.org?.value.name ?? '';
+  // The sidebar names the organization on a desktop; the subtitle then need not (downloads keep it).
+  const orgInChrome = useOrgInChrome();
   const reports = useReports(orgId);
   const languageId = ctx.params['languageId'] ?? '';
   // The list was read when Reports opened; the organization's own record on
   // this device is newer when a role changed since, so a language the role no
   // longer covers is not shown from the old list (RPT-016).
-  const mayView = !ctx.org.state || mayViewLanguage(ctx.org.state, ctx.session.actorId, languageId);
+  const mayView = mayViewReports(ctx.session, ctx.org.state, languageId);
   const row = reports.status === 'ready' && mayView ? reports.rows.find((r) => r.languageId === languageId) : undefined;
   const title = row?.report.name ?? t('reports.language.fallbackTitle');
   const header = (
-    <Header title={title} sub={[orgName, ...clustersOf(ctx.org.state, languageId).map((c) => c.name)].filter(Boolean).join(' · ')} columnWidth={COLUMN}
+    <Header title={title} sub={[orgInChrome ? '' : orgName, ...clustersOf(ctx.org.state, languageId).map((c) => c.name)].filter(Boolean).join(' · ')} columnWidth={COLUMN}
       onBack={ctx.back} crumbs={[{ label: t('reports.title'), onPress: ctx.back }]}
       action={row ? (
         <View style={{ flexDirection: 'row', gap: space.sm }}>

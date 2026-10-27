@@ -8,10 +8,11 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { HelpLit, HelpRowAt, HelpSpot } from './helpContext';
 import { HelpClipContext, HelpContext, HelpHostContext, HelpLayerContext, HelpRowContext, useHelpOn } from './useHelpMode';
 
-/** Tell the help layer where the view holding this ref is, every frame while help is on. */
+/** Tell the help layer where the view holding this ref is: when it is laid out, and as often as help mode measures (measureModel.ts) while help is on. */
 function useLit(what: HelpLit | null, id: string) {
   const help = useContext(HelpContext);
   const ref = useRef<View>(null);
+  const measureNow = useRef<(() => void) | null>(null);
   const place = help?.place;
   const track = help?.track;
   const on = !!help?.on && !!what;
@@ -21,11 +22,12 @@ function useLit(what: HelpLit | null, id: string) {
     const measure = () => ref.current?.measureInWindow((x, y, width, height) => {
       if (width > 0 && height > 0) place(id, { x, y, width, height }, what);
     });
+    measureNow.current = measure;
     const stop = track(measure);
-    return () => { stop(); place(id, null, what); };
+    return () => { stop(); measureNow.current = null; place(id, null, what); };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` stands for `what`
   }, [on, place, track, id, key]);
-  return ref;
+  return { ref, onLayout: () => measureNow.current?.() };
 }
 
 /** Put inside a part that calls useHelpSpot: lights it and numbers it while help is on. `inset` puts the number just inside (a row in a card). */
@@ -36,8 +38,8 @@ export function HelpBadge(props: { spot: HelpSpot<unknown>; inset?: boolean }) {
   const part = props.spot.id;
   const what = useMemo<HelpLit | null>(() => (part ? { kind: 'part', part, mark: props.inset ? 'inset' : 'corner', ...(clip ? { clip } : {}), ...(rows ? { rows } : {}) } : null),
     [part, props.inset, clip, rows]);
-  const ref = useLit(what, id);
-  return part ? <View ref={ref} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
+  const lit = useLit(what, id);
+  return part ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
 }
 
 /** Keeps a control lit while help is on without numbering it: the ? that turns help off. */
@@ -46,8 +48,8 @@ export function HelpLit() {
   const on = useHelpOn();
   const clip = useContext(HelpClipContext);
   const what = useMemo<HelpLit | null>(() => (on ? { kind: 'lit', ...(clip ? { clip } : {}) } : null), [on, clip]);
-  const ref = useLit(what, id);
-  return what ? <View ref={ref} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
+  const lit = useLit(what, id);
+  return what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null;
 }
 
 /**
@@ -75,11 +77,11 @@ export function HelpClip(props: { style?: StyleProp<ViewStyle>; children: ReactN
   const id = useId();
   const on = useHelpOn();
   const what = useMemo<HelpLit | null>(() => (on ? { kind: 'clip' } : null), [on]);
-  const ref = useLit(what, id);
+  const lit = useLit(what, id);
   return (
     <View style={props.style}>
       <HelpClipContext.Provider value={id}>{props.children}</HelpClipContext.Provider>
-      {what ? <View ref={ref} collapsable={false} style={styles.box} pointerEvents="none" /> : null}
+      {what ? <View ref={lit.ref} onLayout={lit.onLayout} collapsable={false} style={styles.box} pointerEvents="none" /> : null}
     </View>
   );
 }

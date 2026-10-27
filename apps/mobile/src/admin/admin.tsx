@@ -5,8 +5,8 @@
 // play button, a lock toggle, and the invite code. Built from kit
 // primitives and theme tokens; every pressable goes through `useHelpSpot`
 // so help mode explains it instead of pressing it.
-import { FileText, Play, Route } from 'lucide-react-native';
-import { useEffect, type ReactNode } from 'react';
+import { FileText, Play, Route } from '../ui/icons';
+import { useContext, useEffect, type ReactNode } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import QRCode from 'react-native-qrcode-svg';
@@ -16,9 +16,11 @@ import { t } from '../i18n';
 import { formatNumber } from '../i18n/format';
 import { HelpInfo, Ico, type IconName } from '../ui/kit';
 import { markedParts } from '../ui/textMatch';
+import { HeaderExtraContext } from '../ui/headerExtra';
+import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { txt } from '../ui/textStyles';
 import { shadow } from '../ui/shadow';
-import { C, radius, space, target, TINT, type as T } from '../ui/theme';
+import { C, measure, radius, space, target, TINT, type as T } from '../ui/theme';
 import type { InviteState } from './useGroupInvite';
 
 // ---- icons ----------------------------------------------------------------------------
@@ -81,8 +83,16 @@ export function BigTop(props: {
   const back = useHelpSpot(t('common.back'), t('help.details.back'), props.onBack);
   const pencil = useHelpSpot(props.rename?.label ?? '', props.rename?.help ?? '', props.rename?.onPress);
   const up = useHelpSpot(props.up?.label ?? '', props.up?.help ?? '', props.up?.onPress);
+  // What the app shows in every header, such as a Global Viewer's link (ui/headerExtra.ts).
+  const extra = useContext(HeaderExtraContext);
+  // In a split, once: beside an open screen, a list pane leaves the ? to that screen's header.
+  const layout = useLayout();
+  const openBeside = useOpenDetail();
+  // On a wide window, the same white bar and centred column as every other header beside it (kit Header).
+  const wide = layout.kind !== 'phone';
   return (
-    <View style={styles.bigTop}>
+    <View style={wide ? styles.bigTopBarWide : null}>
+    <View style={[styles.bigTop, wide && styles.bigTopWide]}>
       <View style={styles.bigTopBar}>
         {props.onBack ? (
           <Pressable testID="header-back" onPress={back.onPress} accessibilityRole="button" accessibilityLabel={t('common.back')} style={({ pressed }) => [styles.round, pressed && styles.pressed]}>
@@ -97,7 +107,10 @@ export function BigTop(props: {
             <HelpBadge spot={up} />
           </Pressable>
         ) : <View />}
-        <HelpButton />
+        <View style={{ flexDirection: 'row', gap: space.sm }}>
+          {extra}
+          {layout.role === 'list' && openBeside ? null : <HelpButton />}
+        </View>
       </View>
       {props.over ? <Text style={styles.over}>{props.over}</Text> : null}
       <View style={styles.bigTitleLine}>
@@ -112,6 +125,7 @@ export function BigTop(props: {
       </View>
       {props.below}
       {props.status ? <Text style={[styles.status, { color: tone }]}>{props.status}</Text> : null}
+    </View>
     </View>
   );
 }
@@ -474,6 +488,8 @@ const styles = StyleSheet.create({
   tile: { backgroundColor: C.light, alignItems: 'center', justifyContent: 'center' },
   round: { width: target.min, height: target.min, borderRadius: target.min / 2, backgroundColor: C.card, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   bigTop: { paddingHorizontal: space.xl - 4, paddingTop: space.md, paddingBottom: space.xs, backgroundColor: C.bg },
+  bigTopBarWide: { backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
+  bigTopWide: { width: '100%', maxWidth: measure.column, alignSelf: 'center', backgroundColor: C.card, paddingHorizontal: space.lg, paddingBottom: space.md },
   bigTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.sm },
   over: { fontSize: 14, fontWeight: '700', color: C.muted },
   bigTitle: { fontSize: 28, fontWeight: '800', color: C.dark, marginTop: 2 },

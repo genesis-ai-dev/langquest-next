@@ -174,7 +174,6 @@ test('NAV-005 Pressing a tab resets its stack', async ({ browser }) => {
   const t = await device(browser, 'TRANS');
   await tab(t.page, 'map').click();
   await button(t.page, /^Luke\./).click();
-  await button(t.page, /^Chapter 15:/).click();
   await button(t.page, new RegExp(`^${label('P-CHECK')}\\.`)).click();
   await expect.poll(() => headerTitle(t.page)).toBe(label('P-CHECK'));
   await expect.poll(() => tabsShown(t.page)).toEqual([]);
@@ -274,7 +273,6 @@ test('NAV-008 Which tab is lit @wide', async ({ browser }) => {
   await tab(t.page, 'map').click();
   await button(t.page, /^Luke\./).click();
   await expect.poll(() => litTab(t.page), { message: 'chapters' }).toBe('map');
-  await button(t.page, /^Chapter 16:/).click();
   await button(t.page, new RegExp(`^${label('P-DONE')}\\.`)).click();
   await expect(text(t.page, 'Versions and history')).toBeVisible();
   await expect.poll(() => litTab(t.page), { message: 'passage from the map' }).toBe('map');
@@ -285,7 +283,6 @@ test('NAV-008 Which tab is lit @wide', async ({ browser }) => {
   await expect.poll(() => litTab(v.page)).toBe('map');
   await button(v.page, /^Luke\./).click();
   await expect.poll(() => litTab(v.page)).toBe('map');
-  await button(v.page, /^Chapter 16:/).click();
   await button(v.page, new RegExp(`^${label('P-DONE')}\\.`)).click();
   await expect(text(v.page, 'Versions and history')).toBeVisible();
   await expect.poll(() => litTab(v.page)).toBe('map');
@@ -609,7 +606,6 @@ for (const who of ['VIEW', 'ADMIN'] as const) {
     if (who === 'VIEW') await expect(button(page, /^Next: /)).toHaveCount(0);
     else await expect(button(page, /^Next: /)).toBeVisible();
     await button(page, /^Luke\./).click();
-    await button(page, /^Chapter 16:/).click();
     await button(page, new RegExp(`^${label('P-DONE')}\\.`)).click();
     await expect.poll(() => headerTitle(page)).toBe(label('P-DONE'));
     if (who === 'VIEW') await expect(primary(page)).toHaveCount(0);
@@ -751,7 +747,8 @@ test('NAV-095 The sync chip on My Work', async ({ page }) => {
   await open(page, 'TRANS');
   await page.context().setOffline(true);
   await syncNow(page).catch(() => undefined);
-  await expect(button(page, 'Offline')).toBeVisible({ timeout: 60_000 });
+  // Others' recordings may still be coming down: the icon then says so after the state (decision 165).
+  await expect(button(page, /^Offline(, receiving recordings)?$/)).toBeVisible({ timeout: 60_000 });
   await button(page, /^\d+ more for you$/).click();
   await text(page, label('P-NEW')).click();
   await text(page, 'Something else?').click();
@@ -761,11 +758,12 @@ test('NAV-095 The sync chip on My Work', async ({ page }) => {
   await expect(byId(page, 'toast')).toContainText('Note added');
   await toTabs(page);
   await expect.poll(() => headerTitle(page)).toBe('My Work');
-  await expect(button(page, '1 to send')).toBeVisible();
-  await button(page, '1 to send').click();
+  const chip = button(page, 'Offline, 1 to send');
+  await expect(chip).toBeVisible();
+  await chip.click();
   await expect.poll(() => headerTitle(page)).not.toBe('My Work');
   await back(page).click();
   await page.context().setOffline(false);
   await syncNow(page).catch(() => undefined);
-  await expect(page.getByRole('button', { name: /^(Offline|\d+ to send|Not syncing)$/ }).locator('visible=true')).toHaveCount(0, { timeout: 60_000 });
+  await expect(page.getByRole('button', { name: /^(Offline|Not syncing)|to send$/ }).locator('visible=true')).toHaveCount(0, { timeout: 60_000 });
 });

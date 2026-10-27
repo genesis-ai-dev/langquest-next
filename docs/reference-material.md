@@ -38,7 +38,7 @@ reference material review and design" (2026-10-05).
   a word's recording streams from its language's files when it is not on
   the phone.
 - **Key-word lists from the library sit under the team's own words**
-  (decision 149). FIA's key words, and any list in the same format, show on
+  (decision 172). FIA's key words, and any list in the same format, show on
   a passage when the list links a word to its verses or a Bible the team
   reads in the list's language says it; each word opens its meaning, FIA's
   recording and Add to our key words, which keeps FIA's id (`fia:t104`).
@@ -150,7 +150,7 @@ study guide's Edit for the organization's own and Copy to adapt for FIA's
 and other organizations') makes `study@2` documents with everything FIA's
 material has. Web first; on a phone it edits text and records step audio.
 
-- **Draft.** A pure reducer (`src/guides/draft.ts`) over details, steps,
+- **Draft.** A pure reducer (`src/guides/draftModel.ts`) over details, steps,
   media and glossary, saved on the device as it changes (`draftStore.ts`),
   one draft per guide per device. One person edits a guide at a time: two
   drafts never merge, and the later publish is simply the next version.

@@ -1,4 +1,4 @@
-// A key-word list on a check (decision 149; the agreed design's screen 5):
+// A key-word list on a check (decision 172; the agreed design's screen 5):
 // each of the list's words on the passage, with the team's word for it and
 // whether the translator marked it in the version being checked. Pure: no
 // React, so it is tested (test/keyWordListsModel.test.ts).

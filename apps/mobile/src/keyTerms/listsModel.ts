@@ -1,4 +1,4 @@
-// Key-word lists from the library (decision 149): FIA's key words, and any
+// Key-word lists from the library (decision 172): FIA's key words, and any
 // list an organization publishes in the same format (`material@1` of kind
 // `key_terms`). Which of a list's words show on a passage, which of them the
 // team has made its own, and what a search finds among the team's words and
@@ -120,7 +120,7 @@ const sameBook = (a: string, b: string) => a === b || ACROSS.has(`${a}|${b}`) ||
 const before = (a: { chapter: number; verse: number }, b: { chapter: number; verse: number }) => a.chapter < b.chapter || (a.chapter === b.chapter && a.verse <= b.verse);
 
 /**
- * The words of the lists that show on a passage (decision 149): those a list
+ * The words of the lists that show on a passage (decision 172): those a list
  * links to its verses (each side read in its own numbering, as guides are
  * matched), and those found in a Bible the team reads in the list's own
  * language. Words the team has made its own are left out: they show with

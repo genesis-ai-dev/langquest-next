@@ -268,6 +268,13 @@ export function reportInputs(state: LanguageState, asOf: number, idx: Indexes = 
   const flow = deriveFlow(state);
   const kinds = deriveKinds(state);
   const passages = idx.passages.map((unitId) => derivePassage(state, unitId, idx));
+  // Asked once per recorded card below: a new set of a passage's chapters each time, worked out once per passage here.
+  const chaptersByUnit = new Map<string, number[]>();
+  const chaptersOf = (unitId: string) => {
+    let c = chaptersByUnit.get(unitId);
+    if (!c) chaptersByUnit.set(unitId, (c = unitChapters(state, unitId)));
+    return c;
+  };
 
   const work = Object.fromEntries(PASSAGE_WORK.map((w) => [w, 0])) as Record<PassageWork, number>;
   const atStep = new Map<string, number>();
@@ -398,7 +405,7 @@ export function reportInputs(state: LanguageState, asOf: number, idx: Indexes = 
       let d = uploadDays.get(day);
       if (!d) uploadDays.set(day, d = { cards: 0, chapters: new Set() });
       d.cards += 1;
-      for (const c of unitChapters(state, rec.unitId)) d.chapters.add(c);
+      for (const c of chaptersOf(rec.unitId)) d.chapters.add(c);
       if (at >= logFrom) {
         const key = `${day}\u0000${rec.unitId}`;
         const entry = log.get(key) ?? {
@@ -415,7 +422,7 @@ export function reportInputs(state: LanguageState, asOf: number, idx: Indexes = 
   // A chapter counts once, in the month its first audio reached the server.
   const chapterFirst = new Map<number, number>();
   for (const [unitId, at] of unitFirstUpload) {
-    for (const c of unitChapters(state, unitId)) chapterFirst.set(c, Math.min(chapterFirst.get(c) ?? Infinity, at));
+    for (const c of chaptersOf(unitId)) chapterFirst.set(c, Math.min(chapterFirst.get(c) ?? Infinity, at));
   }
   const byMonth = new Map<string, Map<number, number>>();
   for (const [c, at] of chapterFirst) {

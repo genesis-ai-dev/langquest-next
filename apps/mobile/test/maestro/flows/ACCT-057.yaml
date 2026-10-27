@@ -1,0 +1,116 @@
+# docs/ui-test-suite/11-account-and-settings.md, ACCT-057: a phone in
+# disguise (decisions.md 171). More settings › App icon › a calculator and a
+# code, typed on that calculator to put it on; then the app opens on the
+# calculator, the code opens LangQuest, and LangQuest's own tile takes it off.
+# Android closes the app each time its launcher entry changes, so the flow
+# opens it again; iOS says the icon changed instead.
+appId: com.frontierrnd.langquestnext
+name: "ACCT-057 A disguised phone opens on its calculator, and the code opens LangQuest"
+tags:
+  - acct
+---
+- runFlow: ../common/launch.yaml
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: ${TRANS_EMAIL}
+      PASSWORD: ${TRANS_PASSWORD}
+- runFlow: ../common/welcome-skip.yaml
+- extendedWaitUntil:
+    visible:
+      id: "tab-me"
+    timeout: 60000
+- tapOn:
+    id: "tab-me"
+- tapOn: "More settings.*"
+- tapOn: "App icon.*"
+- tapOn: "Calculator 1"
+- tapOn:
+    id: "disguise-code"
+- inputText: "2468"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: "Choose a code"
+- tapOn:
+    id: "primary-action"
+- extendedWaitUntil:
+    visible: "Type your code"
+    timeout: 20000
+- tapOn: "2"
+- tapOn: "4"
+- tapOn: "6"
+- tapOn: "8"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: "OK"
+          timeout: 20000
+      - tapOn: "OK"
+      - extendedWaitUntil:
+          visible: "App icon.*Calculator.*"
+          timeout: 20000
+      - assertNotVisible: "Notifications.*"
+# Leave the app, and open it again from the icon it has now.
+- pressKey: Home
+- launchApp:
+    clearState: false
+    stopApp: false
+- extendedWaitUntil:
+    visible: "Equals"
+    timeout: 60000
+- assertNotVisible:
+    id: "tab-me"
+- assertNotVisible: "More settings.*"
+- tapOn: "2"
+- tapOn: "4"
+- tapOn: "6"
+- tapOn: "8"
+- extendedWaitUntil:
+    visible: "App icon.*|My Work|Next for you|Nothing is waiting on you"
+    timeout: 60000
+- runFlow:
+    when:
+      notVisible: "App icon.*"
+    commands:
+      - tapOn:
+          id: "tab-me"
+      - tapOn: "More settings.*"
+- tapOn: "App icon.*"
+- extendedWaitUntil:
+    visible: "LangQuest"
+    timeout: 20000
+- tapOn:
+    text: "LangQuest"
+    index: 0
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: "OK"
+          timeout: 20000
+      - tapOn: "OK"
+      - extendedWaitUntil:
+          visible: "App icon.*LangQuest.*"
+          timeout: 20000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - launchApp:
+          clearState: false
+          stopApp: false
+      - extendedWaitUntil:
+          visible:
+            id: "tab-me"
+          timeout: 60000
+      - assertNotVisible: "Equals"

@@ -1,9 +1,9 @@
-# MAP-031, marks for passages kept on this device (docs/ui-test-suite/04-map.md,
-# decision 61): TRANS's five requests in Luke 13 are kept, so chapter 13 gets
-# the corner mark and the key adds "On this device"; VIEW keeps nothing until
-# "Keep offline" on P-DONE, then chapter 16 is marked once its audio is in.
+# MAP-031, download buttons for passages kept on this device (docs/ui-test-suite/04-map.md,
+# decisions 61 and 166): TRANS's five requests in Luke 13 are kept, so their rows say
+# "On this device"; VIEW keeps nothing until it downloads P-DONE from the top of
+# the passage, then its row says so once its audio is in.
 appId: com.frontierrnd.langquestnext
-name: "MAP-031 Marks for passages kept on this device"
+name: "MAP-031 Download buttons for passages kept on this device"
 tags:
   - map
 ---
@@ -21,15 +21,18 @@ tags:
 - tapOn:
     id: "tab-map"
 - tapOn: "Luke.*"
-# Kept (asked of TRANS) and downloaded: the tile's spoken label says so, and the key adds the mark.
+# Kept (asked of TRANS) and downloaded: each row's download button, and its spoken label, say so.
+- scrollUntilVisible:
+    element: "${P_NEW}\\..*"
+    direction: DOWN
+    timeout: 60000
 - extendedWaitUntil:
-    visible: "Chapter 13: .*(all parts|5 of 5 parts) on this device.*"
+    visible: "${P_NEW}\\..*On this device.*"
     timeout: 180000
-- assertVisible: ".*[Oo]n this device.*"
-- assertVisible: "A tick means done, a dot means started, a cloud means kept on this device"
-- tapOn: "Chapter 13: .*"
-- assertVisible: "${P_NEW}.*[Oo]n this device.*"
-- assertVisible: "${P_Q4}.*[Oo]n this device.*"
+- scrollUntilVisible:
+    element: "${P_Q4}\\..*On this device.*"
+    direction: DOWN
+    timeout: 180000
 
 # VIEW keeps nothing at first.
 - runFlow: ../common/launch.yaml
@@ -44,25 +47,26 @@ tags:
     timeout: 60000
 - tapOn: "Alpha:.*"
 - tapOn: "Luke.*"
-- extendedWaitUntil:
-    visible: "Chapter 16: .*"
-    timeout: 30000
-- assertNotVisible: "On this device"
-- assertNotVisible: "Chapter 16: .*on this device.*"
-- tapOn: "Chapter 16: .*"
+- scrollUntilVisible:
+    element: "${P_DONE}\\..*"
+    direction: DOWN
+    timeout: 60000
+- assertVisible: "${P_DONE}\\..*Audio not kept on this device.*"
 - tapOn:
-    text: "${P_DONE}.*"
+    text: "${P_DONE}\\..*"
     index: 0
-- tapOn: "Something else\\?"
+# The line at the top of the passage is its download button.
 - tapOn:
-    text: "Keep offline"
-    waitToSettleTimeoutMs: 0
-- assertVisible: ".*Kept on this device. It downloads while you are connected..*"
-- tapOn:
-    id: "header-close"
+    id: "passage-offline"
+    text: "Download for offline"
+- extendedWaitUntil:
+    visible:
+      id: "passage-offline"
+      text: "On this device"
+    timeout: 180000
 - tapOn:
     id: "header-back"
-- extendedWaitUntil:
-    visible: "Chapter 16: .*on this device.*"
+- scrollUntilVisible:
+    element: "${P_DONE}\\..*On this device.*"
+    direction: DOWN
     timeout: 180000
-- assertVisible: ".*[Oo]n this device.*"

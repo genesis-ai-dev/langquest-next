@@ -1,6 +1,15 @@
 # Guardrails on every PR, so nothing depends on a local hook having run.
 #
-# checks:   the pre-push gate again (typecheck + unit and property tests).
+# scope:    which of server, web-smoke and ui-web the pull request's
+#           changed files need (scripts/ci-scope.mjs, decisions.md 150);
+#           none, when the commit already passed (decisions.md 164): a merge
+#           queue entry whose tree the pull request's own run tested within
+#           the hour, or a push of the commit that the merge queue passed.
+# checks:   typecheck, lint, the server calls of store builds, the push
+#           delivery bundle.
+# unit:     the unit, property and model tests, in three shards dealt by
+#           weight (scripts/unit-shards.ts); `coverage` merges their reports
+#           and holds the thresholds (decisions.md 163).
 # server:   the SQL smokes, SQL parity and client integration test against a
 #           local Supabase started here from the migrations.
 # web-smoke: the release web build in three browser engines (e2e/web-smoke).
@@ -14,11 +23,19 @@
 #           Linear (scripts/nightly-report.mjs; a dry run off main). The
 #           flake tracker reads the last runs' reports and files the tests
 #           that do not pass every time (scripts/ui-flake-report.mjs).
+# gate:     passes when checks, unit, coverage and every needed job passed;
+#           the one check that main requires (.github/rulesets/main.json), on
+#           the pull request and again in the merge queue. A green pull
+#           request run's gate names the tree it tested, for the queue.
+# warm-caches: on a push that runs no tests, fills the caches that pull
+#           requests read from main (decisions.md 164).
 #
-# The four PR jobs start together rather than after `checks`: a PR waits for
+# The PR jobs start together rather than after `checks`: a PR waits for
 # the slowest job, not for `checks` plus it (decisions.md 102, amended
-# 2026-10-15). A job that needs the local stack starts it in the background
-# and installs the browsers meanwhile.
+# 2026-10-15). The three that scope may leave out wait for it, about
+# 20 seconds. A job that needs the local stack starts it in the background,
+# loading the cached images first, and builds the web export and installs
+# the browsers meanwhile (scripts/ci-background.sh, decisions.md 163).
 #
 # What keeps these jobs from failing for reasons outside the code
 # (decisions.md 102, amended 2026-10-20):
@@ -27,12 +44,21 @@
 #    push to main no longer cancels it (run 39360456537 was cancelled so).
 #  - Registries: ECR Public and Docker Hub ration anonymous pulls per IP
 #    address, which a GitHub-hosted runner shares (runs 39473313915 and
-#    39360456537 failed with toomanyrequests). Each job that starts the stack
-#    restores the images from actions/cache first and saves them when the
-#    cache was not complete (.github/actions/docker-images), and a start the
-#    registry still turns away is retried (scripts/ci-retry-pull.sh). Optional
-#    secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN sign in to Docker Hub
-#    for a higher limit; without them pulls are anonymous.
+#    39360456537 failed with toomanyrequests). A start the registry turns
+#    away is retried (scripts/ci-retry-pull.sh), and the Supabase CLI pulls
+#    the same images from ghcr.io when ECR refuses. `server` and the nightly
+#    jobs also restore the images from actions/cache first and save them when
+#    the cache was not complete (.github/actions/docker-images); the browser
+#    jobs pull instead, which was a minute faster than loading the 1.2 GB
+#    archive (decisions.md 164). Optional secrets DOCKERHUB_USERNAME and
+#    DOCKERHUB_TOKEN sign in to Docker Hub for a higher limit; without them
+#    pulls are anonymous.
+#  - Package mirror: Playwright's browsers need system packages, and the
+#    runners' Ubuntu mirror has sent them at 20 kB/s (15 MB in 12 minutes on
+#    a ui-web shard, and web-smoke's whole 30 minutes on 2026-10-22). Each
+#    job installs them through .github/actions/playwright, which caches the
+#    browsers and the packages, and stops a slow try after 4 minutes and
+#    tries again (scripts/ci-playwright.sh).
 #  - Load: the stack is about a dozen containers, and wrangler dev, the job
 #    container and the browsers share a 4-vCPU runner. The stack leaves out
 #    what the tests do not use (SUPABASE_EXCLUDE), ui-web runs two browsers
@@ -45,6 +71,9 @@ name: guardrails
 
 on:
   pull_request:
+  # The merge queue: main as it will be with the pull requests ahead in the
+  # queue, before it merges (.github/rulesets/main.json).
+  merge_group:
   push:
     branches: [main, develop]
   schedule:
@@ -62,12 +91,13 @@ on:
 permissions:
   contents: read
 
-# A new push to a pull request, or to main, replaces the run it leaves behind.
+# A new push to a pull request, or to main, replaces the run it leaves behind
+# (a merge queue entry has a ref of its own, so nothing replaces it).
 # The scheduled and manual runs are a group of their own and are never
 # cancelled, so a push cannot cancel the nightly and the nightly cannot cancel
 # a push.
 concurrency:
-  group: guardrails-${{ contains(fromJSON('["pull_request","push"]'), github.event_name) && 'ci' || 'nightly' }}-${{ github.ref }}
+  group: guardrails-${{ contains(fromJSON('["pull_request","merge_group","push"]'), github.event_name) && 'ci' || 'nightly' }}-${{ github.ref }}
   cancel-in-progress: ${{ contains(fromJSON('["pull_request","push"]'), github.event_name) }}
 
 env:
@@ -75,33 +105,63 @@ env:
   # tests, and each is an image to pull and a container to run.
   SUPABASE_EXCLUDE: studio,imgproxy,vector,logflare,supavisor
 
+# main requires one check, `gate` (.github/rulesets/main.json, decisions.md
+# 150). `scope` says which of `server`, `web-smoke` and `ui-web` the pull
+# request's changed files need (scripts/ci-scope.mjs); the others are
+# skipped. `gate` passes only when `checks`, `unit`, `coverage` and every
+# needed job passed.
+# A job that runs on a pull request is in `gate`'s needs;
+# scripts/githubRules.test.ts fails until it is.
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Reads, to tell whether this commit already passed (scripts/ci-tested.mjs):
+    # the artifacts that name a tested tree, and the gate checks on a commit.
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    outputs:
+      server: ${{ steps.scope.outputs.server }}
+      web-smoke: ${{ steps.scope.outputs.web-smoke }}
+      ui-web: ${{ steps.scope.outputs.ui-web }}
+      # The run that already passed this tree or commit, or empty: then no job runs.
+      tested: ${{ steps.scope.outputs.tested }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - id: scope
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci-scope.mjs
+
   checks:
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.tested == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        # The server-calls step reads main's history since the oldest
+        # supported store build.
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run typecheck
       # What may import what (decisions.md 104, 105): eslint.config.mjs.
       - run: npm run lint
-      # The unit suite with coverage; core and client have thresholds (vitest.config.ts).
-      - run: npm run test:coverage
-      - name: Keep the coverage report
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: coverage
-          path: coverage/lcov.info
-          if-no-files-found: ignore
-      - name: Tell Linear (checks failed on main)
-        if: failure() && github.event_name == 'push'
-        continue-on-error: true
+      # Every server call that a supported store build or an OTA update sent
+      # to one makes is still there after this change (scripts/server-calls.mjs,
+      # decisions.md 151). With EXPO_TOKEN the builds come from EAS; without
+      # it, from apps/mobile/store-builds.json.
+      - name: Server calls that store builds make
         env:
-          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-        run: node scripts/linear-sync.mjs lane --name checks --status failed --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npm run --silent server-calls
       # Supabase deploys the committed push delivery bundle on merge (server/README.md,
       # Deploying); refuse one that is behind its source. The pre-commit and
       # post-merge hooks (.githooks, enabled by npm install) rebuild it, so
@@ -114,14 +174,77 @@ jobs:
             exit 1
           }
 
+  unit:
+    # The unit, property and model tests with coverage, in three shards that
+    # scripts/unit-shards.ts deals by weight. The suite is CPU-bound: 4.5
+    # minutes on one 4-vCPU runner, its slowest file (the organization folder's
+    # memory test) about a third of that. Each shard keeps a blob report with
+    # its coverage, and `coverage` merges them.
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.tested == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Unit tests (shard ${{ matrix.shard }} of 3)
+        env:
+          VITEST_COVERAGE_SHARD: '1'
+        run: npx vitest run --coverage --shard=${{ matrix.shard }}/3 --reporter=blob --reporter=default
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unit-blob-${{ matrix.shard }}
+          path: .vitest/blob/*
+          include-hidden-files: true
+          retention-days: 1
+
+  coverage:
+    # The shards' reports as one, and the coverage thresholds on the whole
+    # suite: core and sync have them (vitest.config.ts).
+    needs: [scope, unit]
+    if: ${{ !cancelled() && needs.scope.outputs.tested == '' && needs.unit.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: unit-blob-*
+          path: .vitest/blob
+          merge-multiple: true
+      - name: Coverage of the whole suite
+        run: npx vitest run --merge-reports --coverage
+      - name: Keep the coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+
   server:
     # The server against a local Supabase built from the migrations: the SQL
-    # smokes, the SQL parity check against core's folds (npm run db:test), and
-    # the client integration test (npm run test:integration).
+    # smokes, the SQL parity check against core's folds (npm run db:test), the
+    # client integration test (npm run test:integration), and, when the pull
+    # request changes a migration, the sync test from each store build's
+    # commit (npm run test:old-sync).
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.server == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        # The store builds' sync tests take their code out of main's history.
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
@@ -135,6 +258,15 @@ jobs:
         run: npm run db:test
       - name: Client integration test
         run: npm run test:integration
+      # Older store builds keep syncing with this pull request's database
+      # (scripts/old-sync-tests.mjs, decisions.md 152). Only a pull request
+      # (or a merge queue entry) that changes supabase/migrations runs them,
+      # about two minutes.
+      - name: Sync tests from the store builds
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npm run test:old-sync
       - uses: ./.github/actions/docker-images
         if: always()
         with: { phase: save }
@@ -144,6 +276,8 @@ jobs:
     # build, served by the Worker as in production, against a local Supabase,
     # in Chromium (desktop and phone width), Firefox and WebKit. Deterministic:
     # no model. The build also holds the bundle-size budget.
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.web-smoke == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -158,29 +292,34 @@ jobs:
         run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
       - name: Keep the stack's ports out of the outbound port range
         run: bash scripts/ci-reserve-ports.sh
-      - uses: ./.github/actions/docker-images
-        with: { phase: restore }
-      - name: Start Supabase in the background (applies every migration)
-        run: nohup bash -c 'bash scripts/ci-retry-pull.sh npx supabase start -x "$SUPABASE_EXCLUDE" > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
-      - run: npx playwright install --with-deps chromium firefox webkit
+      # The stack pulls its images and starts in the background, while the
+      # export builds and the browsers install (decisions.md 163). No image
+      # cache: pulling was faster than loading it (decisions.md 164).
+      - name: Start Supabase in the background (pulls its images, applies every migration)
+        run: bash scripts/ci-background.sh start stack bash scripts/ci-retry-pull.sh npx supabase start -x "$SUPABASE_EXCLUDE"
+      # The development export needs only the stack's URL and anon key, which
+      # are fixed and in apps/mobile/.env.development; e2e/export-web.sh keeps
+      # it only if the running stack agrees. The build holds the budget.
+      - name: Build the web export in the background
+        run: bash scripts/ci-background.sh start export env NO_SPEECH_MODEL=1 npm run export:web -w mobile -- development
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium firefox webkit }
+      - name: Wait for the web export
+        run: bash scripts/ci-background.sh wait export
       - name: Wait for Supabase
-        run: |
-          while [ ! -f "$RUNNER_TEMP/stack.exit" ]; do sleep 2; done
-          cat "$RUNNER_TEMP/stack.log"
-          exit "$(cat "$RUNNER_TEMP/stack.exit")"
+        run: bash scripts/ci-background.sh wait stack
       # A new language needs a template, and templates live in the LangQuest
       # library (docs/library.md), which migrations do not create.
       - name: Publish the LangQuest library
         run: npm run library:seed
       - name: Smoke-test the web app
         shell: bash
+        env:
+          WEB_EXPORTED: '1'
         run: source e2e/env.sh && npx playwright test -c e2e/web-smoke.config.ts
       - name: Keep the runner's load record
         if: always()
         run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/load
-      - uses: ./.github/actions/docker-images
-        if: always()
-        with: { phase: save }
       # What the page showed when a step failed (error-context.md), so a CI-only failure can be read.
       - name: Keep the smoke results
         if: failure()
@@ -209,6 +348,8 @@ jobs:
     # other): scripts/ui-shards.mjs deals spec files by their seconds in
     # scripts/ui-shard-weights.json, which is refreshed from the reports of
     # kept runs (its header says how).
+    needs: scope
+    if: ${{ !cancelled() && needs.scope.outputs.ui-web == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -229,22 +370,26 @@ jobs:
         run: bash scripts/ci-load.sh start "$RUNNER_TEMP/load"
       - name: Keep the stack's ports out of the outbound port range
         run: bash scripts/ci-reserve-ports.sh
-      - uses: ./.github/actions/docker-images
-        with:
-          phase: restore
-          job-images: 'true'
-          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Start the local stack in the background (migrations, library, push delivery)
-        run: nohup bash -c 'bash scripts/ci-retry-pull.sh npm run db:start > "$RUNNER_TEMP/stack.log" 2>&1; echo $? > "$RUNNER_TEMP/stack.exit"' > /dev/null 2>&1 &
-      - run: npx playwright install --with-deps chromium
+      # As in web-smoke: the job container's images (with retries) and the
+      # stack's are pulled and the stack starts in the background, while the
+      # export builds.
+      - name: Start the local stack in the background (pulls, migrations, library, push delivery)
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: bash scripts/ci-background.sh start stack bash -c 'bash scripts/ci-docker-images.sh warm && bash scripts/ci-retry-pull.sh npm run db:start'
+      - name: Build the web export in the background
+        run: bash scripts/ci-background.sh start export env NO_SPEECH_MODEL=1 npm run export:web -w mobile -- development
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
+      - name: Wait for the web export
+        run: bash scripts/ci-background.sh wait export
       - name: Wait for the local stack
-        run: |
-          while [ ! -f "$RUNNER_TEMP/stack.exit" ]; do sleep 2; done
-          cat "$RUNNER_TEMP/stack.log"
-          exit "$(cat "$RUNNER_TEMP/stack.exit")"
+        run: bash scripts/ci-background.sh wait stack
       - name: P0 web UI tests on the export (shard ${{ matrix.shard }} of 4)
         shell: bash
+        env:
+          WEB_EXPORTED: '1'
         run: |
           files="$(node scripts/ui-shards.mjs "${{ matrix.shard }}" "$SHARDS" --tag @p0)"
           npm run test:ui:web -- --grep @p0 --grep-invert @quarantine $files
@@ -262,9 +407,101 @@ jobs:
             e2e/results/ui/**/*.png
             e2e/results/ui/**/error-context.md
           if-no-files-found: ignore
+
+  gate:
+    # The one check that main requires. A job that the changed files do not
+    # need is skipped and counts as passed; a needed job must have passed.
+    # It runs whatever the others did (always()), so a failure or a cancel
+    # fails it instead of leaving it skipped, which GitHub would count as a
+    # pass.
+    needs: [scope, checks, unit, coverage, server, web-smoke, ui-web]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every needed job passed
+        id: verdict
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e '
+            const needs = JSON.parse(process.env.NEEDS);
+            const always = ["checks", "unit", "coverage"];
+            const tested = needs.scope.outputs.tested;
+            if (tested) console.log(`Already passed, so no job ran: ${tested}`);
+            const needed = (job) => !tested && (always.includes(job) || needs.scope.outputs[job] === "true");
+            let bad = needs.scope.result === "success" ? [] : [`scope ${needs.scope.result}`];
+            for (const [job, { result }] of Object.entries(needs)) {
+              if (job === "scope") continue;
+              if (needed(job) ? result !== "success" : !["success", "skipped"].includes(result)) bad.push(`${job} ${result}`);
+              else console.log(`${job}: ${result}${needed(job) ? "" : " (not needed)"}`);
+            }
+            const checksFailed = always.some((job) => needs[job].result === "failure");
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, `checks-failed=${checksFailed}\n`);
+            if (bad.length) { console.log(`::error::Not every needed job passed: ${bad.join(", ")}`); process.exit(1); }
+          '
+      # checks, unit or coverage failed on main: the deploy lanes wait on them (decisions.md 53).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: failure() && github.event_name == 'push' && steps.verdict.outputs.checks-failed == 'true'
+        with: { sparse-checkout: scripts }
+      - name: Tell Linear (checks failed on main)
+        if: failure() && github.event_name == 'push' && steps.verdict.outputs.checks-failed == 'true'
+        continue-on-error: true
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: node scripts/linear-sync.mjs lane --name checks --status failed --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+      # A green pull request run names the tree it tested (the pull request
+      # merged with main), so the merge queue can take this run for its
+      # entry when main has not moved since (scripts/ci-tested.mjs,
+      # decisions.md 164). A day is plenty: the queue takes it for an hour.
+      - name: The tree this run tested
+        id: tree
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tree="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq .tree.sha)"
+          printf '{"run":"%s","commit":"%s","tree":"%s"}\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" "$GITHUB_SHA" "$tree" > "$RUNNER_TEMP/tested-tree.json"
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+      - name: Name it for the merge queue
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tested-tree-${{ steps.tree.outputs.tree }}
+          path: ${{ runner.temp }}/tested-tree.json
+          retention-days: 1
+
+  warm-caches:
+    # A push that the merge queue already passed runs no tests (scope's
+    # `tested`), but caches saved on main are the only ones a pull request
+    # can read: a pull request's and a merge queue entry's are their own.
+    # Without this, a change to a cache's key (Playwright, the lockfile, the
+    # Supabase CLI or its config for `server`'s images) would make every pull
+    # request install from the slow package mirror, or `server` pull from the
+    # rationed registries, until the nightly ran (decisions.md 102, amended
+    # 2026-10-20; decisions.md 164). A cache that is there is only looked up,
+    # so this is about a minute on most pushes.
+    needs: scope
+    if: github.event_name == 'push' && needs.scope.outputs.tested != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # The npm cache, saved after the job when the lockfile changed.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium, warm: 'true' }
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium firefox webkit, warm: 'true' }
+      - name: Keep the stack's ports out of the outbound port range
+        run: bash scripts/ci-reserve-ports.sh
       - uses: ./.github/actions/docker-images
-        if: always()
-        with: { phase: save, job-images: 'true' }
+        with:
+          phase: warm
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
 
   nightly-ui-web:
     # The whole web UI suite, quarantine apart. Not blocking; its failures go to Linear.
@@ -291,7 +528,8 @@ jobs:
           job-images: 'true'
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
       - name: Start the local stack (migrations, library, push delivery)
         run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: The whole web UI suite
@@ -349,12 +587,14 @@ jobs:
           job-images: 'true'
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-token: ${{ secrets.DOCKERHUB_TOKEN }}
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with: { browsers: chromium }
       - name: Start the local stack (migrations, library, push delivery)
         run: bash scripts/ci-retry-pull.sh npm run db:start
       - name: Quarantined web UI tests
         shell: bash
-        run: npm run test:ui:web -- --grep @quarantine
+        # No test is quarantined most nights, which is no failure.
+        run: npm run test:ui:web -- --grep @quarantine --pass-with-no-tests
       - name: Keep the runner's load record
         if: always()
         run: bash scripts/ci-load.sh stop "$RUNNER_TEMP/load" e2e/results/ui/load
@@ -421,24 +661,55 @@ jobs:
           DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
         run: node scripts/nightly-report.mjs job --name nightly-fleet --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY
 
-  nightly-mutation:
+  nightly-mutation-shard:
     # Stryker over packages/core (docs/testing.md): a test would notice a
-    # line changing, not just that it ran. The score is in the report.
+    # line changing, not just that it ran. One run over all of core takes
+    # hours on a runner, so it goes in four shards of core's files, each
+    # with its own incremental file (scripts/mutation-shards.mjs,
+    # decisions.md 167); nightly-mutation puts their reports together.
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly)
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
-      # Stryker's incremental file, so a night only re-tests what changed (about 7 min from cold on 7 workers).
+      # The shard's incremental file, so a night only re-tests what changed in its files.
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: .stryker-tmp/incremental.json
-          key: stryker-core-${{ github.sha }}
-          restore-keys: stryker-core-
-      - run: npm run test:mutation
+          path: .stryker-tmp/incremental-${{ matrix.shard }}.json
+          key: stryker-core-${{ matrix.shard }}-of-4-${{ github.sha }}
+          restore-keys: stryker-core-${{ matrix.shard }}-of-4-
+      - run: node scripts/mutation-shards.mjs run ${{ matrix.shard }} 4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: mutation-core-${{ matrix.shard }}
+          path: reports/mutation
+          if-no-files-found: ignore
+
+  nightly-mutation:
+    # The shards' reports as one, with the score over all of core; the one
+    # Linear hears about.
+    needs: nightly-mutation-shard
+    if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.nightly))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: 24 }
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: mutation-core-*
+          path: reports/shards
+      - name: Merge the shards' reports
+        run: node scripts/mutation-shards.mjs merge reports/shards reports/mutation/mutation.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
@@ -449,6 +720,7 @@ jobs:
         if: always()
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-          JOB_STATUS: ${{ job.status }}
+          # Failed when a shard failed or was cancelled, or the merge did.
+          JOB_STATUS: ${{ needs.nightly-mutation-shard.result != 'success' && needs.nightly-mutation-shard.result || job.status }}
           DRY: ${{ github.ref != 'refs/heads/main' && '--dry-run' || '' }}
         run: node scripts/nightly-report.mjs job --name nightly-mutation --status "$JOB_STATUS" --sha "$GITHUB_SHA" --url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" $DRY

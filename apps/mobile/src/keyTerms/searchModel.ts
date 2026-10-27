@@ -1,5 +1,5 @@
 // What the Key words screen and a word's sheet ask of key-word lists
-// (decision 149): one search across the team's words and every list, the
+// (decision 172): one search across the team's words and every list, the
 // chips that narrow it, how many passages a word is linked to, and a word's
 // full meaning as paragraphs with its links to other words. Apart from
 // listsModel.ts so the recorder's first load does not carry them: the
@@ -92,7 +92,7 @@ export interface KeyWordResult<T> {
 }
 
 /**
- * One search across the team's words and every list (decision 149), as the
+ * One search across the team's words and every list (decision 172), as the
  * Key words screen shows it: the words found by the word or one of its forms,
  * then by the short meaning, then by the full meaning. A team's word made
  * from a list's word (or spelt the same) is one row with both. With nothing

@@ -263,14 +263,18 @@ test('STUDY-008 A note at a moment of the spoken step', async ({ page }) => {
   await openStudy(page);
   // The step's recording is the test voice, four seconds long: the note lands at 0:01 to 0:03, not at 0:20.
   await button(page, 'Play This step, spoken').click();
+  // Paused while the clip plays, so the note lands at that moment: the clip is four seconds, and once it has ended the
+  // moment is its end, or 0:00 where the web's player has gone back (CI, 2026-10-23 and 26). Looked for often.
+  await expect.poll(() => text(page, /^0:0[1-3]\b/).isVisible(), { intervals: [50] }).toBe(true);
+  await button(page, 'Pause').click();
   await expect(text(page, /^0:0[1-3]\b/)).toBeVisible();
   await button(page, 'Add a note here').click();
   await expect(button(page, 'Play This step, spoken')).toBeVisible();
   await expect(text(page, 'Add a note')).toBeVisible();
   await field(page, 'Or type it').fill('Ask the elders about the ring');
-  await button(page, 'Save').click();
-  await sawToast(page, /^Note added at 0:0[1-4]\. It stays with the study\.$/);
-  await expect(text(page, /^At 0:0[1-4]$/)).toBeVisible();
+  await button(page, 'Add a note').click(); // the sheet's one button; nothing needs saving (decision 111)
+  await sawToast(page, /^Note added at 0:0[1-3]\. It stays with the study\.$/);
+  await expect(text(page, /^At 0:0[1-3]$/)).toBeVisible();
   await expect(text(page, 'Ask the elders about the ring')).toBeVisible();
   await expectSent(page, world());
 });
@@ -342,7 +346,8 @@ test('STUDY-013 The guide from the workspace, and back', async ({ page }) => {
   await byId(page, 'header-close').click();
   await expect(text(page, /^Recording Version \d+$/)).toBeVisible();
   await expect(tabChip(page, 'Guide')).toHaveAttribute('aria-selected', 'true');
-  await expect(button(page, /^Parts 1–3, 3 parts/)).toBeVisible();
+  // While the parts are still the version they started from, the card is named for it (LAN-83, translate.tsx recorderGroupTitle).
+  await expect(button(page, /^(Parts 1–3|Version \d+), 3 parts/)).toBeVisible();
 });
 
 for (const who of ['COORD', 'LADMIN'] as const) {

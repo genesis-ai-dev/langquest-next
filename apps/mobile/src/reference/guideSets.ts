@@ -22,7 +22,7 @@ export function patternOf(doc: CollectionDoc | MaterialDoc): string | null {
   return doc.pattern || (doc.format === 'collection@1' && /\bFIA\b/.test(doc.title) ? 'FIA' : null);
 }
 
-/** A document that can be one language of a set: a guide collection, or a key-word list (decision 149). */
+/** A document that can be one language of a set: a guide collection, or a key-word list (decision 172). */
 type SetDoc = CollectionDoc | MaterialDoc;
 const setDoc = (doc: LibraryDoc | null | undefined): SetDoc | null =>
   doc?.format === 'collection@1' || (doc?.format === 'material@1' && doc.kind === 'key_terms') ? doc : null;

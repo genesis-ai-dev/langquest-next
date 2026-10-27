@@ -128,7 +128,7 @@ describe('LangQuest library seed', { timeout: 60_000 }, () => {
     expect(fra.entries.map((e) => e.ref)).toEqual(['GEN 2:4-25']);
   });
 
-  it("publishes FIA's key words as one list per language, placed on FIA's passages (decision 149)", () => {
+  it("publishes FIA's key words as one list per language, placed on FIA's passages (decision 172)", () => {
     const eng = doc(item('langquest.fia-words.eng').docHash) as MaterialDoc;
     expect(item('langquest.fia-words.eng').name).toBe('FIA key words (English)');
     expect(eng).toMatchObject({ format: 'material@1', kind: 'key_terms', language: 'eng', pattern: 'FIA', versification: item('langquest.versification.eng').docHash });

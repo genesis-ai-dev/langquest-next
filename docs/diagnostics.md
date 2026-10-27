@@ -25,7 +25,7 @@ of these kinds, each with a fixed list of fields (`DIAG_SCHEMA`):
 | `error` | A fault reaches `reportError` (`apps/mobile/src/diagnostics/report.ts`) | error class, where, the id shown to the person, fatal or not, a fixed code (a recorder's `nospace`, a SQLSTATE), stack frames |
 | `expected` | A failure already shown to the person (`noteExpected`), tallied per hour | where, error class, code; how many |
 | `audio` | Recording and playback, tallied per hour per language | takes and their total length, takes too short to keep, microphone refused, start, stop, save and compression failures, WAV kept, interruptions; plays, playback failures, taps on audio not yet on the phone, stream failures |
-| `auth` | Signing in and staying in | what was tried (`sign_in`, `sign_up`, `code`, `v2`, `redeem`, `join`, `renew`, `ended`, `courier`, `outbox`, `route`, `delete`, `org_list`), how it ended, an Auth error code, SQLSTATE or our own code; ms, HTTP status, attempt, ages; for a hand-over, how much another person's sign-in left to send, never who |
+| `auth` | Signing in and staying in | what was tried (`sign_in`, `sign_up`, `code`, `v2`, `redeem`, `join`, `renew`, `ended`, `courier`, `outbox`, `route`, `delete`, `org_list`), how it ended, an Auth error code, SQLSTATE or our own code; ms, HTTP status, attempt, ages; for a hand-over, how much another person's sign-in left to send, never who; a sign-in from the phone's lock (decisions.md 168) is `sign_in` with action `lock_pattern` or `lock_password` |
 
 Every delivery also sends the phone's context: install id, OS and version,
 model (Android), runtime version, EAS update id and channel, whether the
@@ -133,14 +133,32 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   include `maxPeakRssMb` and `maxHeapLimitMb` (named `max…` so the totals keep
   the largest, not a sum), and a run stopped early by a deploy says `sigterm`
   and exits 75; a run without a failure
-  names the language that raised its peak memory), the
+  names the language that raised its peak memory; it also samples what
+  arrived since its last run, since `public.events` has no index on
+  `received_at`: `newEvents`, `arrivalsSampled`, the upload delay
+  `maxUploadDelayP50Ms`, `maxUploadDelayP95Ms` and `maxUploadDelayMs`
+  (`received_at` against the HLC's wall clock), and `futureStamped` and
+  `futureStampedInstalls`, events stamped over 5 minutes ahead of the
+  server's clock, `server/arrivals.ts`), the nightly fold canary
+  (`fold_canary`: three random languages, the largest on Sundays, folded
+  afresh and compared with their stored snapshot and passage lines;
+  `languages`, `events`, `mismatched`, and the database's sizes from
+  `ops_sizes()`, `dbBytes`, `eventsBytes`, `eventsRows`, `snapshotsBytes`;
+  `mismatch` names the first language that differs, `server/foldCanary.ts`),
+  the nightly R2 check (`blob_reconcile`: `streams`, `objects`, `missing`,
+  recordings the log holds and R2 lacks, `orphaned`, files R2 had that the
+  log did not, `server/reconcileJob.ts`), each account deletion
+  (`account_delete`, written by `_delete_account` with no id at all), the
   Worker's job tick (`job_starts`: jobs started, found running, switched
   off, or that could not start), push delivery
   (`push_delivery`, every minute: claimed, sent, no token, failed by cause,
   receipts), the v2 import (`v2_import`), the app's Worker's cron
   (`worker_cron`), webhook delivery per batch (`webhook_dispatch`), the
   Worker's requests by route and status class, at most once a minute per
-  isolate (`worker_requests`), and invitation email (`invite_email`, from
+  isolate (`worker_requests`: `<route>_<2xx…5xx>`, `<route>_429` for a rate
+  limit's refusal, and the time taken as `<route>_lt100ms`, `_lt1s`,
+  `_lt10s` or `_over10s`; routes include `device` and `links`, the two
+  rate-limited ones, and `ops`, the ops dashboard), and invitation email (`invite_email`, from
   `send-invite`, with the email service's code).
 - `diag.job_schedule` says how often each runs; `diag.jobs()` gives each
   job's runs, failures, failure streak, last success and `stale` (no run
@@ -152,11 +170,25 @@ reports) and `20261016010000_diag_jobs.sql`, the server's own jobs:
   `push_last_error` (a fixed code), and `projection_marks` `projected_at`.
 - `diag.v2_import_status()`: the v2 import per project, running, cut off,
   failed or done, with its counts; no messages, no names.
+- The ops dashboard's report functions (migration
+  `20261023100000_ops_dashboard.sql`, `docs/ops-dashboard-plan.md`):
+  `diag.ops_people`, `ops_orgs`, `ops_org`, `ops_pipeline`, `ops_cron`,
+  `ops_database`, `ops_push`, `ops_integrations`, `ops_support`,
+  `ops_limits`, `ops_sizes`, `migrations_applied`, and `lookup_email`, which
+  answers an email with the profile id only. Counts, ids, timings, codes,
+  and organization and language names; never a person's name or email, a
+  report's reporter or details, or a command's text
+  (`server/opsDashboardSmoke.sql` holds them to it).
 
 `server/diag-smoke.sql` covers ingest, the allowlist, refusals, the report
 functions, the role boundaries, retention and job runs (`npm run db:test`).
 
 ## Reading it
+
+Staff can see it all in one page at `https://next.langquest.org/ops-dashboard`
+(`docs/admin.md`): the server's jobs, every install together, the
+database's RPC timings, the v2 import, and a box for an error code, an
+install id or a name. It reads as `diag_reader`, like the commands below.
 
 ```sh
 npm run diag -- find "Dinka"                       # org and language ids by name

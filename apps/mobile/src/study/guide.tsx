@@ -94,7 +94,7 @@ export function GuideStep(props: {
     const r = guide.resources.find((x) => x.ref === ref);
     if (r) { audio.pause(); setResource(r); }
   };
-  // A glossary word the team's key-word list holds by the same id (FIA's guides and FIA's key words, decision 149).
+  // A glossary word the team's key-word list holds by the same id (FIA's guides and FIA's key words, decision 172).
   const { lists } = useKeyWordLists(ctx);
   const listWord = resource?.kind === 'term' ? guideTermWord(lists, guide.pattern, resource.ref) : null;
   const [addingWord, setAddingWord] = useState<{ list: KeyWordList; word: KeyWordDoc } | null>(null);

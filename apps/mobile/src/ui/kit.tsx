@@ -4,16 +4,16 @@
 // named above the title, cards on a lavender ground, one main button per
 // screen, details behind one-line summaries (ADR-013), status in fixed
 // colours with an icon (ADR-010), and field-sized targets (ADR-008).
-import type { LucideIcon } from 'lucide-react-native';
+import type { LucideIcon } from './icons';
 import {
   ArrowLeftRight, ArrowRight, Ban, BookOpen, Briefcase, Building2, Camera, ChartColumn, Check, ChevronDown, ChevronLeft,
   ChevronRight, ChevronUp, CircleHelp, ClipboardList, Clock, Cloud, CloudCheck, CloudOff, Download, Filter, Flag, Folder, Globe, History,
-  House, Image, Inbox, LayoutTemplate, Link, Lock, Map as MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
+  House, Image, Inbox, LayoutTemplate, Link, Lock, MapIcon, MapPin, MessageCircle, MessageSquareText, Mic, Pause, Pencil,
   Play, Plus, QrCode, RotateCcw, Scissors, Search, Settings, Share2, SkipForward, Sparkles, Square, Star, StickyNote,
-  ThumbsUp, Trash2, Undo2, Redo2, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
-  ArrowLeft, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
-  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis
-} from 'lucide-react-native';
+  ThumbsUp, Trash2, Undo2, Redo2, Upload, User, Users, Video, Volume2, Workflow, X, Bell, Headphones, Layers, Info,
+  ArrowLeft, ArrowUp, ArrowDown, Send, KeyRound, List, Smartphone, GripVertical, SlidersHorizontal, CircleCheck, TriangleAlert,
+  ChevronsUpDown, FileText, Eye, EyeOff, Menu, Bug, Lightbulb, Ellipsis, MessageCirclePlus, Reply
+} from './icons';
 import { Fragment, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View,
@@ -30,11 +30,15 @@ import { HelpBadge, HelpClip, HelpHost, HelpLit, HelpRow } from '../helpMode/hel
 import { lift, shadow } from './shadow';
 import { markedParts } from './textMatch';
 import { C, measure, onColor, radius, space, target, TINT, type as T } from './theme';
-import { useLayout } from './useLayout';
+import { useLayout, useOpenDetail } from './useLayout';
+import { useReduceMotion } from './useReduceMotion';
 import { kindIcon } from './kindIcon';
 import { txt } from './textStyles';
 import { FooterHeightContext } from './useLayout';
 import { useHelpHost } from '../helpMode/useHelpMode';
+import { HeaderExtraContext } from './headerExtra';
+import { ModalCover } from './ModalCover';
+import { ScrollHoldContext } from './scrollHoldContext';
 
 // ---- icons -------------------------------------------------------------------------
 
@@ -47,14 +51,16 @@ const ICONS = {
   mic: Mic, note: StickyNote, notif: Bell, pause: Pause, people: Users, place: MapPin, play: Play, plus: Plus,
   progress: ChartColumn, qr: QrCode, restart: RotateCcw, right: ChevronRight, search: Search, settings: Settings,
   share: Share2, skip: SkipForward, sound: Volume2, sparkle: Sparkles, star: Star, stop: Square, swap: ArrowLeftRight,
-  template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, redo: Redo2, up: ChevronUp, user: User, video: Video,
+  template: LayoutTemplate, thumbUp: ThumbsUp, trash: Trash2, undo: Undo2, redo: Redo2, up: ChevronUp, arrowUp: ArrowUp, arrowDown: ArrowDown, upload: Upload, user: User, video: Video,
   work: Briefcase, inbox: Inbox, listen: Headphones, layers: Layers, info: Info, onPhone: CloudCheck, notOnPhone: CloudOff,
   arrowL: ArrowLeft, send: Send, key: KeyRound, list: List, phone: Smartphone, grip: GripVertical, handle: Menu, sliders: SlidersHorizontal, done: CircleCheck,
   warning: TriangleAlert, join: ChevronsUpDown, file: FileText, more: Ellipsis,
   // Show here / Hide here on a passage's helps (demo ADR-042).
   eye: Eye, eyeOff: EyeOff,
   // Feedback from help mode: a problem, an idea (decisions.md 145).
-  bug: Bug, idea: Lightbulb
+  bug: Bug, idea: Lightbulb,
+  // A note on what a check shows, and an answer to one (decisions.md 149).
+  noteOn: MessageCirclePlus, reply: Reply
 } satisfies Record<string, LucideIcon>;
 export type IconName = keyof typeof ICONS;
 
@@ -105,6 +111,8 @@ export function Screen(props: {
   // In help mode, Send feedback waits in a strip of its own at the foot of the screen
   // (decisions.md 145): the screen, its footer too, ends above it, so it covers nothing.
   const helpOn = useHelpOn();
+  // Something drawn on with a finger stops the body scrolling meanwhile (scrollHoldContext.ts).
+  const [held, setHeld] = useState(false);
   return (
     <KeyboardSafe style={[styles.screen, helpOn && { paddingBottom: HELP_FOOT_ROOM }]}>
       {props.header}
@@ -112,8 +120,9 @@ export function Screen(props: {
         {props.fixed ? (
           <View style={[{ flex: 1 }, column, props.bodyStyle]}>{props.children}</View>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            {props.children}
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.body, column, props.bodyStyle]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+            scrollEnabled={!held}>
+            <ScrollHoldContext.Provider value={setHeld}>{props.children}</ScrollHoldContext.Provider>
           </ScrollView>
         )}
       </HelpClip>
@@ -181,11 +190,16 @@ export function Header(props: {
   /** What help mode says Back does, where it is not the screen before (a card before, in a walk-through). */
   backHelp?: string;
 }) {
-  const wide = useLayout().kind !== 'phone';
+  const layout = useLayout();
+  const wide = layout.kind !== 'phone';
   // Ryder's header on a phone (demo ADR-032): a task screen centres its title between two round
   // buttons, Back (or ✕) and ?, on the screen's own ground; a tab's home keeps its big title at the left.
   const centred = !wide && !!props.onBack;
-  const helpBtn = useHelpMode() ? <HelpToggle testID="header-help" /> : null;
+  // In a split, once: beside an open screen, a list pane leaves the ? (help for the whole window) to that screen's header.
+  const openBeside = useOpenDetail();
+  const helpBtn = useHelpMode() && !(layout.role === 'list' && openBeside) ? <HelpToggle testID="header-help" /> : null;
+  // What the app shows in every header, such as a Global Viewer's link (headerExtra.ts).
+  const extra = useContext(HeaderExtraContext);
   // While help is on, Back explains itself like every other part; the ? is the way out.
   const back = useHelpSpot(props.close ? t('common.close') : t('common.back'), props.backHelp ?? (props.close ? t('help.details.close') : t('help.details.back')), props.onBack);
   const crumbs = props.crumbs && props.crumbs.length > 0 && wide ? (
@@ -224,6 +238,7 @@ export function Header(props: {
           {backBtn}
           <View style={{ flex: 1 }} />
           {action}
+          {extra}
           {helpBtn}
         </View>
         <View style={styles.headerUnder}>{centredTitle}</View>
@@ -235,6 +250,7 @@ export function Header(props: {
       {backBtn}
       {centredTitle}
       {action}
+      {extra}
       {helpBtn ?? <View style={{ width: 48 }} />}
     </>
   ) : (
@@ -252,6 +268,7 @@ export function Header(props: {
         {props.sub ? <Text style={[txt.xs, { marginTop: 2 }]}>{props.sub}</Text> : null}
       </View>
       {props.action}
+      {extra}
       {helpBtn}
     </>
   );
@@ -523,13 +540,13 @@ export function GhostBtn(props: { label: string; onPress: () => void; disabled?:
 
 /** A 48pt outlined button for actions inside a card. */
 export function SmallBtn(props: { label: string; onPress: () => void; icon?: IconName; tone?: 'primary' | 'plain' | 'dark'; disabled?: boolean;
-  /** What help mode says it does. */ help?: string }) {
+  /** What help mode says it does. */ help?: string; testID?: string }) {
   const filled = props.tone === 'primary' || props.tone === 'dark';
   const bg = props.tone === 'dark' ? C.dark : C.primary;
   const spot = useHelpSpot(props.label, props.help, props.onPress);
   const onPress = spot.onPress;
   return (
-    <Pressable onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
+    <Pressable testID={props.testID} onPress={onPress} disabled={props.disabled && !spot.id} accessibilityRole="button" accessibilityLabel={props.label}
       accessibilityState={{ disabled: !!props.disabled }}
       style={({ pressed }) => [styles.small, filled ? { backgroundColor: bg, borderColor: bg } : null, props.disabled && { opacity: 0.45 }, pressed && styles.pressed]}>
       {props.icon ? <Ico name={props.icon} size={18} color={filled ? C.white : C.primary} /> : null}
@@ -629,13 +646,32 @@ export function ChipWrap(props: { children: ReactNode }) {
   return <View style={styles.chipWrap}>{props.children}</View>;
 }
 
+/**
+ * On the web a Switch is an input, a focus stop. Drawn inside a Row that is the
+ * switch it would be a focusable element within a switch (axe nested-interactive,
+ * the language page's "Show on the public list"): the row alone is the stop.
+ * The web's Switch hands its ref to that input. Only a disabled input stops being
+ * focusable (axe counts tabindex -1 as focusable), and the `disabled` prop would
+ * grey the drawing, so the input itself is disabled, again after each render,
+ * since React sets it back whenever the prop changes.
+ */
+function unfocusable(el: unknown): void {
+  const input = el as { disabled?: boolean; setAttribute?: (name: string, value: string) => void } | null;
+  if (!input?.setAttribute) return;
+  input.disabled = true;
+  input.setAttribute('tabindex', '-1');
+}
+
 export function Toggle(props: { on: boolean; onToggle: () => void; label: string; disabled?: boolean; testID?: string;
   /** What help mode says it turns on. */ help?: string;
   /** Drawn inside a row that is the switch (Row's `role="switch"`): the row explains it. */ drawnOnly?: boolean }) {
   const spot = useHelpSpot(props.label, props.help ?? (props.on ? t('help.details.switchOn') : t('help.details.switchOff')), props.drawnOnly ? undefined : props.onToggle);
+  const input = useRef<Switch>(null);
+  const drawnOnWeb = !!props.drawnOnly && Platform.OS === 'web';
+  useEffect(() => { if (drawnOnWeb) unfocusable(input.current); });
   return (
     <View>
-      <Switch {...(props.testID ? { testID: props.testID } : {})} value={props.on} onValueChange={props.onToggle} disabled={props.disabled || !!spot.id} accessibilityLabel={props.label}
+      <Switch {...(props.testID ? { testID: props.testID } : {})} {...(drawnOnWeb ? { ref: input } : {})} value={props.on} onValueChange={props.onToggle} disabled={props.disabled || !!spot.id} accessibilityLabel={props.label}
         trackColor={{ true: C.primary, false: C.border }} thumbColor={C.white} ios_backgroundColor={C.border}
         // On the web an on switch's thumb is react-native-web's teal unless it is given its own colour.
         {...(Platform.OS === 'web' ? ({ activeThumbColor: C.white } as object) : {})} />
@@ -949,6 +985,7 @@ export function Sheet(props: { visible: boolean; title: string; sub?: string; on
         </View>
       </KeyboardSafe>
       </HelpHost>
+      <ModalCover />
     </Modal>
   );
 }
@@ -1022,16 +1059,19 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
   const toast = props.toast;
   const wide = useLayout().kind !== 'phone';
   const left = useRef(new Animated.Value(1)).current;
+  // With reduce motion on, no bar runs down (A11Y-8): the toast still goes by itself, and the screen stays still.
+  const still = useReduceMotion();
+  const bar = !!toast?.ms && !still;
   useEffect(() => {
     if (toast) AccessibilityInfo.announceForAccessibility(toast.message);
   }, [toast?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- announced once per toast: its words do not change for its id
   useEffect(() => {
-    if (!toast?.ms) return;
+    if (!bar) return;
     left.setValue(1);
     const run = Animated.timing(left, { toValue: 0, duration: toast.ms, easing: Easing.linear, useNativeDriver: false });
     run.start();
     return () => run.stop();
-  }, [toast?.id, toast?.ms, left]);
+  }, [toast?.id, toast?.ms, bar, left]);
   if (!toast) return null;
   return (
     <View style={[{ pointerEvents: 'box-none' }, styles.toastWrap, { bottom: props.bottom }]}>
@@ -1044,7 +1084,7 @@ export function ToastView(props: { toast: ToastSpec | null; onDismiss: () => voi
         </Pressable>
         {/* help-ignore: the toast's close, gone in a few seconds with the toast */}
         <IconBtn name="close" label={t('common.close')} onPress={props.onDismiss} bg="transparent" color={C.white} size={target.min} />
-        {toast.ms ? (
+        {bar ? (
           <View style={[styles.toastTrack, { pointerEvents: 'none' }]}>
             <Animated.View style={[styles.toastLeft, { width: left.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
           </View>

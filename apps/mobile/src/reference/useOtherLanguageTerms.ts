@@ -16,8 +16,8 @@ import type { Ctx } from '../shell/ctx';
 import { diagnostics } from '../diagnostics/diagnostics';
 import { noteExpected } from '../diagnostics/report';
 import type { LanguageTerms } from '../helps/helpsModel';
-import { getStore } from '../sync/store';
-import { serverTransport } from '../server/sync';
+import { getStore } from '../storage/store';
+import { serverTransport } from '../sync/serverTransport';
 
 interface Held { terms: KeyTermView[]; formats: Record<string, string> }
 const held = new Map<string, { mark: string } & Held>();

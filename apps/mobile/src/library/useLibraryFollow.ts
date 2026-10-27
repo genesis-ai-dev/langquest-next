@@ -27,7 +27,7 @@ export function useLibraryFollow(language: LanguageHandle, org: OrgHandle, sessi
 
   useEffect(() => {
     if (!key || busy.current || !language.state) return;
-    const mine = behind.filter((b) => session.can(b.kind === 'template' ? 'manage_templates' : 'manage_flows'));
+    const mine = behind.filter((b) => session.canChange(b.kind === 'template' ? 'manage_templates' : 'manage_flows'));
     if (mine.length === 0) return;
     busy.current = true;
     void (async () => {
@@ -82,7 +82,7 @@ export function useTranslatorReview(org: OrgHandle, session: Session): void {
   const upgrade = useMemo(() => translatorReviewUpgrade(org.state), [org.state]);
   const done = useRef(false);
   useEffect(() => {
-    if (!upgrade || done.current || !org.pulled || !session.can('manage_roles')) return;
+    if (!upgrade || done.current || !org.pulled || !session.canChange('manage_roles')) return;
     done.current = true;
     void org.append('v1.RoleDefined', upgrade).catch((e: unknown) => {
       done.current = false;

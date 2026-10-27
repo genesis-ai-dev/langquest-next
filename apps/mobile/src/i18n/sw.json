@@ -53,7 +53,9 @@
     "minutesAgo_other": "dakika {{count, number}} zilizopita",
     "hoursAgo_one": "saa {{count, number}} iliyopita",
     "hoursAgo_other": "saa {{count, number}} zilizopita",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Leo",
+    "yesterday": "Jana"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -346,11 +348,14 @@
     "get_ready": "Jiandae",
     "settings_more": "Mipangilio zaidi",
     "check_editor": "Ukaguzi",
-    "cluster_home": "Kundi"
+    "cluster_home": "Kundi",
+    "global_viewer": "Mtazamaji wa Kimataifa"
   },
   "native": {
     "microphone": "LangQuest hurekodi sauti yako ili kutafsiri vifungu.",
-    "camera": "LangQuest hutumia kamera kusoma misimbo ya QR ya mialiko."
+    "camera": "LangQuest hutumia kamera kusoma misimbo ya QR ya mialiko.",
+    "calculator": "Kikokotoo",
+    "notes": "Madokezo"
   },
   "library": {
     "sourceLine": {
@@ -3102,6 +3107,13 @@
       "elsewhereSub": "Inafanya kazi katika kichupo kimoja kwa wakati mmoja, ili rekodi na mabadiliko yako yabaki mahali pamoja. Itumie hapa, au rudi kwenye kichupo kingine.",
       "useHere": "Itumie hapa",
       "useHereHelp": "Huhamisha LangQuest kwenye kichupo hiki. Kichupo kingine kinahifadhi kazi yake na kukaa kando."
+    },
+    "lock": {
+      "wait": "Majaribio mengi mno. Subiri kidogo, kisha ujaribu tena.",
+      "wrong": "Mchoro huo si sahihi.",
+      "notMe": "Si picha yangu",
+      "notMeHelp": "Inarudi kwenye picha.",
+      "pictureHelp": "Ulitoka kwenye simu hii? Gusa picha yako, kisha uchore mchoro wako. Huhitaji mtandao."
     }
   },
   "account": {
@@ -3118,9 +3130,6 @@
       "ready": "Sasisho liko tayari — gusa ili kuanza upya",
       "downloading": "Inapakua sasisho…",
       "downloadingPercent": "Inapakua sasisho… {{percent}}",
-      "offline": "Nje ya mtandao — gusa ili kujaribu tena",
-      "failed": "Sasisho limeshindwa: {{reason}} — gusa ili kujaribu tena",
-      "offlineLabel": "Nje ya mtandao: masasisho hayawezi kuangaliwa",
       "webReady": "Toleo jipya la LangQuest liko tayari. Pakia upya ili kulitumia.",
       "storeBuild": "toleo la duka",
       "updateBuild": "sasisho {{id}}",
@@ -3399,11 +3408,9 @@
         "checking": "Imeunganishwa, lakini njia ya moja kwa moja haifanyi kazi, kwa hiyo kifaa hiki kinaangalia mabadiliko kila baada ya dakika chache. Sawazisha sasa huangalia mara moja.",
         "offline": "Hakuna mtandao. Kila unachofanya kinahifadhiwa kwenye kifaa hiki na kinatumwa chenyewe ukirudi mtandaoni.",
         "refused": "Seva haikubali mabadiliko kutoka kifaa hiki. Kazi yako bado imehifadhiwa hapa.",
-        "toSend": "Mabadiliko na rekodi za kifaa hiki ambazo seva bado haijathibitisha. Ziko salama hapa na zitatumwa kukiwa na mtandao.",
         "toReceive": "Rekodi za wengine ambazo kifaa hiki bado kinapakua.",
         "refusedLine": "Mabadiliko ambayo seva haikukubali, kwa kawaida kwa sababu ruhusa imebadilika. Yanabaki kwenye kifaa hiki; fungua Maelezo kuona kila moja."
       },
-      "toSend": "Za kutuma",
       "toReceive": "Za kupokea",
       "refusedLine": "Yamekataliwa",
       "none": "Hakuna",
@@ -3412,6 +3419,17 @@
       "syncNowHelp": "Hutuma kinachosubiri na kupata kilicho kipya, mara moja.",
       "detailsHelp": "Kila badiliko linalosubiri au lililokataliwa, na uhamishaji wa sauti: kwa mtu anayerekebisha tatizo.",
       "eventHelp": "Hufungua kifungu ambacho badiliko hili linahusu."
+    },
+    "lock": {
+      "tooShort": "Unganisha angalau nukta {{n}}.",
+      "patternsDiffer": "Huo ulikuwa mchoro tofauti. Anza upya.",
+      "pictureTitle": "Chagua picha yako",
+      "pictureHelp": "Ili kuingia tena kwenye simu hii, utagusa picha yako, kisha uchore mchoro wako.",
+      "nextHelp": "Inaendelea kuchora mchoro wako.",
+      "drawTitle": "Chora mchoro",
+      "drawAgain": "Uchore tena",
+      "newPattern": "Chora mchoro mpya",
+      "choosePatternHelp": "Chagua picha na mchoro wa kuingia tena kwenye simu hii, hata bila mtandao."
     }
   },
   "study": {
@@ -3944,7 +3962,8 @@
       "openStudyHelp": "Hufungua mwongozo mzima wa kujifunza wa kifungu hiki.",
       "listeners": "Wasikilizaji",
       "liveIn": "Imechapishwa kwenye {{channel}} · {{version}}",
-      "listenerCount": "Maoni ya wasikilizaji: {{count, number}}"
+      "listenerCount": "Maoni ya wasikilizaji: {{count, number}}",
+      "askedOffline": "Umemwomba {{target}}. Wataipata kifaa hiki kikiunganishwa."
     },
     "else": {
       "title": "Kitu kingine?",
@@ -4131,6 +4150,15 @@
       "partHelp": "Hucheza sehemu hii peke yake.",
       "deleteVersionHelp": "Hufuta toleo hili kwa kila mtu. Ukaguzi uliokwisha kufanywa unabaki kwenye historia lakini hauhesabiwi tena.",
       "doneHelp": "Hufungua mtazamo wa mwisho wa rasimu hii, ili uimalize na kuituma kwenye ukaguzi wake unaofuata."
+    },
+    "partNotes": {
+      "title": "Madokezo kwenye {{part}}",
+      "mark_one": "Dokezo {{count, number}} kwenye {{part}}",
+      "mark_other": "Madokezo {{count, number}} kwenye {{part}}",
+      "markHelp": "Hufungua kile ambacho kaguzi zilisema kuhusu sehemu hii. Unaweza kujibu."
+    },
+    "checkNotes": {
+      "title": "Madokezo ya {{check}}"
     }
   },
   "work": {
@@ -4182,7 +4210,8 @@
     },
     "sync": {
       "toSend_one": "{{count, number}} ya kutuma",
-      "toSend_other": "{{count, number}} za kutuma"
+      "toSend_other": "{{count, number}} za kutuma",
+      "receiving": "inapokea rekodi"
     },
     "join": {
       "wantsToJoin": "{{name}} anataka kujiunga",
@@ -4276,7 +4305,8 @@
     "toast": {
       "notSaved": "Haijahifadhiwa: {{reason}}",
       "notSavedCode": "Haijahifadhiwa. Kuna hitilafu (msimbo {{code}}).",
-      "dismissLabel": "{{message}} Ondoa"
+      "dismissLabel": "{{message}} Ondoa",
+      "goesWhenConnected": "{{message}} Timu yako itaipata kifaa hiki kikiunganishwa."
     },
     "nav": {
       "cannotOpenHere": "Hicho hakiwezi kufunguliwa kutoka hapa.",
@@ -4376,6 +4406,14 @@
       "term": {
         "title": "Chagua neno",
         "sub": "Maana yake na tafsiri zake zinafunguka hapa."
+      },
+      "language": {
+        "title": "Chagua lugha",
+        "sub": "Maendeleo yake yanafunguka hapa."
+      },
+      "manage": {
+        "title": "Chagua cha kusimamia",
+        "sub": "Lugha, wanachama au maandalizi yanafunguka hapa."
       }
     },
     "license": {
@@ -4401,6 +4439,15 @@
       "readHelp": "Hufungua maandishi yake kamili katika kivinjari.",
       "rowHelp": "Hufungua leseni na kile kila moja inaruhusu.",
       "yesOpenToHelp": "Kazi yako inashirikiwa chini ya leseni hii kuanzia sasa. Hili haliwezi kutenduliwa."
+    },
+    "pattern": {
+      "label": "Mchoro: unganisha angalau nukta {{n}}",
+      "help": "Pitisha kidole kwenye nukta bila kukiinua, au gusa moja moja kisha Nimemaliza. Unganisha angalau nukta {{n}}.",
+      "dot": "Nukta {{n}}",
+      "picture": "Picha {{n}}",
+      "again": "Anza upya",
+      "againHelp": "Inafuta nukta ili uanze mchoro upya.",
+      "doneHelp": "Inamaliza mchoro kwa nukta ulizogusa."
     }
   },
   "help": {
@@ -4447,51 +4494,27 @@
       "checking": "Nukta ya kijivu: inatafuta mtandao. Kazi yako inabaki kwenye kifaa hiki hadi itumwe.",
       "offline": "Nukta ya manjano: nje ya mtandao. Kazi yako inabaki kwenye kifaa hiki na inatumwa ukishaunganishwa.",
       "refused": "Nyekundu: seva imekataa kitu. Gusa ili kuona ni nini, na cha kufanya.",
-      "withWaiting": "{{standing}} Namba ni idadi ya vitu vinavyosubiri kutumwa."
+      "withWaiting": "{{standing}} Namba ni idadi ya vitu vinavyosubiri kutumwa.",
+      "withReceiving": "{{standing}} Pete inazunguka wakati rekodi za wengine zinapakuliwa kwenye kifaa hiki. Hakuna kinachosubiri kutumwa."
     }
   },
   "offline": {
     "onDevice": "Kwenye kifaa hiki",
     "downloading": "Inapakua kwa matumizi nje ya mtandao",
-    "audioNotHere": "Sauti haipo kwenye kifaa hiki",
-    "notKept": "Haihifadhiwi kwenye kifaa hiki",
     "audioNotKept": "Sauti haihifadhiwi kwenye kifaa hiki",
     "connectToFinish": "Unganisha ili kumaliza kabla ya kusafiri.",
     "stayConnected": "Baki umeunganishwa hadi hii ikamilike.",
-    "keep": "Hifadhi nje ya mtandao",
-    "stopKeeping": "Acha kuhifadhi nje ya mtandao",
     "reason": {
       "asked": "Imehifadhiwa kwa sababu uliombwa kuifanyia kazi.",
       "worked": "Imehifadhiwa kwa sababu umeifanyia kazi.",
       "chosen": "Imehifadhiwa kwa sababu ulichagua kuihifadhi."
     },
     "passage": {
-      "notSent_one": "Rekodi {{count, number}} bado haijatumwa kutoka kwenye kifaa kilichoitengeneza.",
-      "notSent_other": "Rekodi {{count, number}} bado hazijatumwa kutoka kwenye kifaa kilichozitengeneza.",
-      "studyOnline": "Picha za kujifunza na sauti za kujifunza zinahitaji mtandao katika programu ya wavuti.",
-      "worksWithStudy": "Maandishi yake, sauti na picha za kujifunza zinafanya kazi bila mtandao.",
-      "worksWithAudio": "Maandishi yake na sauti zinafanya kazi bila mtandao.",
-      "worksTextOnly": "Maandishi yake yanafanya kazi bila mtandao, na sauti mpya inapakuliwa inapofika.",
-      "audioFilesHere_one": "Faili {{here, number}} kati ya {{count, number}} za sauti ziko hapa.",
-      "audioFilesHere_other": "Faili {{here, number}} kati ya {{count, number}} za sauti ziko hapa.",
-      "audioFilesHereLeft_one": "Faili {{here, number}} kati ya {{count, number}} za sauti ziko hapa, zimebaki {{size}} za sauti.",
-      "audioFilesHereLeft_other": "Faili {{here, number}} kati ya {{count, number}} za sauti ziko hapa, zimebaki {{size}} za sauti.",
-      "studyFilesHere_one": "Faili {{here, number}} kati ya {{count, number}} za sauti na za kujifunza ziko hapa.",
-      "studyFilesHere_other": "Faili {{here, number}} kati ya {{count, number}} za sauti na za kujifunza ziko hapa.",
-      "studyFilesHereLeft_one": "Faili {{here, number}} kati ya {{count, number}} za sauti na za kujifunza ziko hapa, zimebaki {{size}} za sauti.",
-      "studyFilesHereLeft_other": "Faili {{here, number}} kati ya {{count, number}} za sauti na za kujifunza ziko hapa, zimebaki {{size}} za sauti.",
       "onlySomeHere_one": "Faili {{here, number}} tu kati ya {{count, number}} ziko kwenye kifaa hiki",
       "onlySomeHere_other": "Faili {{here, number}} tu kati ya {{count, number}} ziko kwenye kifaa hiki",
-      "downloadingCount": "Inapakua kwa matumizi nje ya mtandao · {{here, number}} kati ya {{total, number}}",
-      "notAllHere": "Bado si kila kitu kiko kwenye kifaa hiki",
-      "readRecordAudioNeeds": "Unaweza kukisoma na kurekodi, lakini sauti yake inahitaji mtandao.",
-      "readRecordStudyNeeds": "Unaweza kukisoma na kurekodi, lakini sauti yake na picha za kujifunza zinahitaji mtandao.",
-      "textHereAudioNeeds": "Maandishi yake yako hapa, lakini sauti yake inahitaji mtandao. Kihifadhi nje ya mtandao ili uende nacho.",
-      "textHereStudyNeeds": "Maandishi yake yako hapa, lakini sauti yake na picha za kujifunza zinahitaji mtandao. Kihifadhi nje ya mtandao ili uende nacho.",
-      "barHelp": "Hujaa kadiri faili zake zinavyofika kwenye kifaa hiki."
+      "downloadingCount": "Inapakua kwa matumizi nje ya mtandao · {{here, number}} kati ya {{total, number}}"
     },
     "toast": {
-      "kept": "Kimehifadhiwa kwenye kifaa hiki. Kinapakuliwa ukiwa umeunganishwa.",
       "notKept": "Hakihifadhiwi tena. Sauti yake inaweza kuondolewa ili kupata nafasi."
     },
     "summary": {
@@ -4518,8 +4541,8 @@
       "alwaysBody": "Maandishi, hali na historia ya kila kifungu katika {{language}}. Sauti ya vifungu ulivyoombwa kufanyia kazi, ulivyofanyia kazi, au ulivyochagua kuhifadhi.",
       "alwaysBodyStudy": "Maandishi, hali na historia ya kila kifungu katika {{language}}. Sauti, picha za kujifunza, ramani na sauti za kujifunza za vifungu ulivyoombwa kufanyia kazi, ulivyofanyia kazi, au ulivyochagua kuhifadhi.",
       "needsTitle": "Inahitaji mtandao",
-      "needsNotKept": "Sauti ya vifungu ambavyo hujavihifadhi. Fungua kifungu na uguse Hifadhi nje ya mtandao ili uende nacho.",
-      "needsNotKeptStudy": "Sauti na nyenzo za kujifunza za vifungu ambavyo hujavihifadhi. Fungua kifungu na uguse Hifadhi nje ya mtandao ili uende nacho.",
+      "needsNotDownloaded": "Sauti ya vifungu visivyopakuliwa.",
+      "needsNotDownloadedStudy": "Sauti na vifaa vya kujifunzia vya vifungu visivyopakuliwa.",
       "needsFilms": "Filamu za kujifunza.",
       "needsStudyWeb": "Picha za kujifunza, ramani na sauti za kujifunza, katika programu ya wavuti.",
       "needsReports": "Ripoti.",
@@ -4541,7 +4564,11 @@
       "body": "Matoleo yake, mapitio na historia bado vinapakuliwa pamoja na sehemu nyingine ya lugha hii. Unganisha ili kupakua.",
       "latest": "Ya karibuni: toleo {{n, number}}, la {{name}}.",
       "requests": "Maombi yaliyo wazi: {{n, number}}."
-    }
+    },
+    "download": "Pakua kwa matumizi nje ya mtandao",
+    "needsConnection": "Kupakua kunahitaji mtandao",
+    "needsConnectionHelp": "Haipo kwenye kifaa hiki. Inaweza kupakuliwa kifaa kikiunganishwa.",
+    "checkingHelp": "Kifaa hiki kinahesabu kiasi cha kifungu hiki kilicho nacho."
   },
   "moderation": {
     "flagLabel": "Ripoti au zuia {{name}}",
@@ -4980,7 +5007,6 @@
       "chapter": "Sura ya {{n}}",
       "chapterHelp": "Hufungua kifungu chake. Alama ya vema inamaanisha imekamilika, nukta inamaanisha imeanza.",
       "keyLabel": "Alama ya vema inamaanisha imekamilika, nukta inamaanisha imeanza",
-      "keyLabelOffline": "Alama ya vema inamaanisha imekamilika, nukta inamaanisha imeanza, wingu linamaanisha imehifadhiwa kwenye kifaa hiki",
       "barHelp": "Upau hujaa kadiri vifungu vyake vinavyorekodiwa; sehemu ya kijani imekamilika.",
       "countHelp": "{{shown}} inamaanisha vifungu {{recorded}} kati ya {{total}} vimerekodiwa.",
       "matchHelp": "Namba ni idadi ya vifungu vyake vinavyolingana na kichujio.",
@@ -4993,7 +5019,6 @@
     "key": {
       "done": "Imekamilika",
       "started": "Imeanza",
-      "onDevice": "Kwenye kifaa hiki",
       "doneSub": "Kila ukaguzi umekamilika",
       "startedSub": "Kurekodi kumeanza, kimerekodiwa, kiko kwa wakaguzi, au maoni yanasubiri",
       "notStarted": "Bado haijaanza",
@@ -5878,7 +5903,12 @@
         "someTerm": "neno",
         "version": "Toleo la {{n}}",
         "aVersion": "Toleo",
-        "study": "Somo"
+        "study": "Somo",
+        "replyTo": "Jibu kwa {{name}}",
+        "reply": "Jibu",
+        "aPart": "Sehemu",
+        "help": "“{{help}}”",
+        "aHelp": "Kisaidizi"
       }
     },
     "parts": {
@@ -6050,6 +6080,8 @@
       "helpNoteHelp": "Hulifungua ili ulisome.",
       "howManyHelp": "Sema wangapi walisikiliza. Si lazima.",
       "doneRecordedHelp": "Huweka {{what}} kwenye kumbukumbu za kifungu.",
+      "looksGoodOffline": "Ni nzuri. {{name}} ataipata kifaa hiki kikiunganishwa.",
+      "feedbackOffline": "Maoni yamehifadhiwa. {{name}} atayapata kifaa hiki kikiunganishwa.",
       "helpWordsHelp": "Hufungua maneno muhimu katika kifungu hiki, pamoja na neno la timu kwa kila moja na kama toleo hili lililitumia."
     },
     "guest": {
@@ -6196,6 +6228,19 @@
       "addStepDetail": "Ongeza ukaguzi mwingine, baada ya ile mingine.",
       "legend": "= lazima ipite kabla ya hatua zinazofuata",
       "gripHelp": "Buruta juu au chini ili kusogeza hatua hii."
+    },
+    "notesOn": {
+      "addOn": "Ongeza dokezo kwenye {{what}}",
+      "addOnHelp": "Huongeza dokezo kwenye kitu hiki, kwa sauti au kwa maandishi. Linaenda pamoja na ukaguzi wako.",
+      "noteOn": "Dokezo kwenye {{what}}",
+      "reply": "Jibu",
+      "replyHelp": "Hujibu dokezo la {{name}}. Jibu lako linaonekana chini yake.",
+      "replyTitle": "Jibu kwa {{name}}",
+      "withReview": "Pamoja na ukaguzi wako",
+      "removeFrom": "Ondoa dokezo lako: {{what}}",
+      "goWith_one": "Dokezo {{count, number}} linaenda pamoja na ukaguzi wako",
+      "goWith_other": "Madokezo {{count, number}} yanaenda pamoja na ukaguzi wako",
+      "added": "Limeongezwa kwenye ukaguzi wako."
     }
   },
   "backTranslation": {
@@ -6667,7 +6712,9 @@
       "addHint": "Acha dokezo kwenye kifungu hiki, kwa sauti au kwa maandishi.",
       "sheetSub": "Linabaki na kifungu. Wakaguzi na mtafsiri anayefuata wanaliona.",
       "added": "Dokezo limeongezwa.",
-      "typeHelp": "Andika dokezo lako. Unaweza pia kulisema."
+      "typeHelp": "Andika dokezo lako. Unaweza pia kulisema.",
+      "onPart": "kwenye {{part}}",
+      "onHelp": "kwenye “{{help}}”"
     },
     "earlier": {
       "yours": "Zako",
@@ -7344,6 +7391,112 @@
       "saved": "Imehifadhiwa. Itatumwa ukiunganishwa.",
       "savedUntilSignIn": "Imehifadhiwa. Itatumwa baada ya kuingia.",
       "voiceTooLong": "Ni ndefu mno: ujumbe wa sauti unaweza kuwa hadi dakika 2."
+    }
+  },
+  "appVersion": {
+    "available": "Toleo jipya linapatikana",
+    "update": "Sasisha",
+    "updateHelp": "Hufungua ukurasa wa duka wa toleo jipya zaidi.",
+    "dismiss": "Funga",
+    "dismissHelp": "Huficha hili hadi toleo jipya zaidi litoke.",
+    "required": "Tafadhali sasisha programu",
+    "keepWorking": "Endelea kufanya kazi",
+    "keepWorkingHelp": "Kazi yako inabaki kwenye simu hii na itatumwa baada ya kusasisha."
+  },
+  "globalViewer": {
+    "title": "Mtazamaji wa Kimataifa",
+    "viewingOrg": "Unatazama {{org}} kama Mtazamaji wa Kimataifa. Huwezi kubadilisha chochote.",
+    "lineSetUp": "Weka programu yako ya uthibitishaji ili kuanza",
+    "lineCode": "Weka msimbo kutoka programu yako ya uthibitishaji",
+    "lineOn": "Tafuta shirika lolote la kusoma",
+    "lineRevoked": "Ruhusa yako ya Mtazamaji wa Kimataifa imeisha",
+    "wayInHelp": "Msimbo wa programu yako ya uthibitishaji, na mashirika yote ya kusoma.",
+    "revokedTitle": "Ruhusa ya Mtazamaji wa Kimataifa imeisha",
+    "revokedBody": "Uliza LangQuest ukidhani ni kosa.",
+    "notOne": "Akaunti hii si ya Mtazamaji wa Kimataifa.",
+    "codeLabel": "Msimbo kutoka programu yako ya uthibitishaji",
+    "codeHelp": "Msimbo wa tarakimu 6 ambao programu yako ya uthibitishaji inaonyesha kwa LangQuest. Hubadilika kila sekunde 30.",
+    "check": "Hakiki msimbo",
+    "checkHelp": "Msimbo ukiwa sahihi, utaweza kusoma mashirika yote hadi utakapotoka.",
+    "codeWrong": "Msimbo huo si sahihi. Andika msimbo ambao programu yako ya uthibitishaji inaonyesha sasa.",
+    "noAuthenticator": "Akaunti hii haina programu ya uthibitishaji. Uliza LangQuest iiweke upya.",
+    "enterCode": "Ili kusoma mashirika, weka msimbo kutoka programu yako ya uthibitishaji.",
+    "setUpIntro": "Fanya hivi kwenye simu na mtu aliyekupa ruhusa. Unahitaji programu ya uthibitishaji kwenye simu yako, kama Google Authenticator au Microsoft Authenticator.",
+    "setUp": "Weka programu ya uthibitishaji",
+    "setUpHelp": "Hutengeneza ufunguo mpya wa programu yako ya uthibitishaji na kuuonyesha hapa.",
+    "stepAdd": "1. Ongeza LangQuest kwenye programu yako ya uthibitishaji",
+    "scan": "Skani msimbo huu kwa programu yako ya uthibitishaji.",
+    "qrLabel": "Msimbo wa kuskani kwa programu yako ya uthibitishaji",
+    "openApp": "Fungua kwenye programu ya uthibitishaji",
+    "openAppHelp": "Huongeza LangQuest kwenye programu ya uthibitishaji ya simu hii.",
+    "noApp": "Hakuna programu ya uthibitishaji iliyofunguka. Andika ufunguo ulio hapa chini ndani yake.",
+    "typeKey": "Au andika ufunguo huu kwenye programu:",
+    "stepCode": "2. Weka msimbo unaoonyesha",
+    "onTitle": "Unaweza kusoma mashirika yote",
+    "onBody": "Unaona anachoona Mtazamaji. Huwezi kubadilisha chochote.",
+    "search": "Shirika au lugha",
+    "openNowLabel": "{{name}}, imefunguliwa sasa",
+    "openHelp": "Hufungua shirika hili kusoma.",
+    "noneFound": "Hakuna shirika linalolingana.",
+    "more": "Onyesha zaidi",
+    "hereLabel": "Unatazama sasa",
+    "otherLabel": "Fungua shirika lingine",
+    "readOnly": "Unatazama kama Mtazamaji wa Kimataifa: hakuna kinachoweza kubadilishwa hapa.",
+    "linkHelp": "Unapotazama, unachoweza kufanya huko, na mashirika mengine yote.",
+    "dashboard": "Dashibodi ya uendeshaji",
+    "dashboardBody": "Huduma za LangQuest, kazi za seva na uchunguzi wa uwandani. Hufunguka kwenye kichupo kipya.",
+    "dashboardHelp": "Hufungua dashibodi ya uendeshaji ya LangQuest kwenye kichupo kipya, ukiwa umeingia kwa akaunti yako."
+  },
+  "uploads": {
+    "barRecordings_one": "Rekodi {{count, number}} inasubiri kupakiwa",
+    "barRecordings_other": "Rekodi {{count, number}} zinasubiri kupakiwa",
+    "barChanges_one": "Badiliko {{count, number}} linasubiri kupakiwa",
+    "barChanges_other": "Mabadiliko {{count, number}} yanasubiri kupakiwa",
+    "uploading": "Inapakia",
+    "allUploaded": "Vyote vimepakiwa",
+    "barHelp": "Hufungua kilichohifadhiwa kwenye kifaa hiki kikisubiri kupakiwa, na lini vitu vilipakiwa.",
+    "savedHere": "Imehifadhiwa kwenye kifaa hiki",
+    "lastUpload": "Upakiaji wa mwisho: {{when}}",
+    "waitingTitle": "Zinasubiri kupakiwa",
+    "uploadedTitle": "Vimepakiwa",
+    "recordingsUploaded_one": "Rekodi {{uploaded, number}} kati ya {{count, number}} imepakiwa",
+    "recordingsUploaded_other": "Rekodi {{uploaded, number}} kati ya {{count, number}} zimepakiwa",
+    "changesWaiting_one": "Badiliko {{count, number}} linasubiri",
+    "changesWaiting_other": "Mabadiliko {{count, number}} yanasubiri",
+    "otherChanges": "Mabadiliko mengine",
+    "recordings_one": "Rekodi {{count, number}}",
+    "recordings_other": "Rekodi {{count, number}}",
+    "changes_one": "Badiliko {{count, number}}",
+    "changes_other": "Mabadiliko {{count, number}}"
+  },
+  "disguise": {
+    "row": "Aikoni ya programu",
+    "rowHelp": "Hufanya LangQuest ionekane kama kikokotoo au daftari la madokezo kwenye simu hii. Hufunguka tu kwa msimbo unaouchagua.",
+    "title": "Aikoni ya programu",
+    "langquest": "LangQuest",
+    "ownHelp": "Hurudisha aikoni ya LangQuest yenyewe. Hufunguka bila msimbo.",
+    "lookHelp": "Huchagua aikoni hii. Kisha unachagua msimbo unaofungua LangQuest.",
+    "calculatorN": "Kikokotoo {{n}}",
+    "notesN": "Madokezo {{n}}",
+    "codeTitle": "Chagua msimbo",
+    "code": "Msimbo",
+    "codeHelp": "Tarakimu 4 hadi 12. Kwenye kikokotoo, uandike kwa vitufe. Kwenye daftari, uandike peke yake kwenye mstari.",
+    "nextHelp": "Hufungua kikokotoo au daftari ili uandike msimbo wako hapo.",
+    "backHelp": "Hurudi hatua moja nyuma.",
+    "tryTitle": "Andika msimbo wako",
+    "on": "Simu hii sasa inaonyesha {{name}}.",
+    "off": "Aikoni ya LangQuest yenyewe imerudi.",
+    "notesTitle": "Madokezo",
+    "keys": {
+      "clear": "Futa vyote",
+      "delete": "Futa",
+      "percent": "Asilimia",
+      "divide": "Gawanya",
+      "times": "Zidisha",
+      "minus": "Toa",
+      "plus": "Jumlisha",
+      "equals": "Sawa na",
+      "point": "Nukta ya desimali"
     }
   }
 }

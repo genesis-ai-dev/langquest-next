@@ -30,7 +30,7 @@ export interface HelpMode {
   register: (part: HelpPart) => () => void;
   /** Something lit while help is on says where it is drawn (`id` is its own); null when it goes. */
   place: (id: string, rect: HelpRect | null, what: HelpLit) => void;
-  /** Measure this every frame while help is on, so the lit places follow scrolling. Returns the stop. */
+  /** Measure this as help mode paces its rounds (measureModel.ts) while help is on, so the lit places follow scrolling. Returns the stop. */
   track: (measure: () => void) => () => void;
   /**
    * The sheet showing over the screen (its host id), or null for the screen

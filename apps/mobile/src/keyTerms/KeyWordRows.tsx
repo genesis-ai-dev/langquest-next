@@ -1,4 +1,4 @@
-// Rows for key-word lists' words (decision 149; the agreed design's screen
+// Rows for key-word lists' words (decision 172; the agreed design's screen
 // 2): on a passage, a list's word with its short meaning, the verses it is
 // in and ▶ for the list's recording of its meaning; and the team's word to
 // play. The Key words screen's rows are in KeyWordFinder.tsx.

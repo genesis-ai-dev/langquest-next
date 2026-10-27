@@ -1,7 +1,7 @@
 // Translating a template's section names (breakup/TranslateStep.tsx).
 import { emptyBooks, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import { useMemo, useState } from 'react';
-import { STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplates';
+import { STARTER_TEMPLATE, type LibraryChoice } from '../templates/contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
 import { useLibraryDocs } from '../library/useLibrary';
 import { QUIZ } from './numberingGuide';

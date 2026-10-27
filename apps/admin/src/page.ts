@@ -1,0 +1,849 @@
+/**
+ * The page: one HTML document, no build step, like the app Worker's
+ * /connect (apps/web/worker/agent/connectPage.ts). It signs in with
+ * Supabase from the browser, keeps the session in this tab only
+ * (sessionStorage), and loads each section from /ops/api/* on its own, so a slow
+ * or unconfigured source never holds up the rest. Everything it shows comes
+ * from the API as data and is escaped before it reaches the page.
+ */
+import { GROUP_HELP, HELP, HELP_PREFIXES, SECTION_HELP } from './pageHelp';
+import { GROUPS, OPS_IDS, OPS_SCRIPT, OPS_SECTIONS, OWN_CALL_IDS, PART_TITLES } from './pageOps';
+import { SQLSTATE } from './sources/supabase';
+
+export function page(cfg: { supabaseUrl: string; anonKey: string }, nonce: string): Response {
+  const config = JSON.stringify(cfg).replace(/</g, '\\u003c');
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>LangQuest operations</title>
+<style nonce="${nonce}">
+:root { --primary:#6B48C8; --bg:#F4F2FA; --card:#fff; --ink:#1E1636; --muted:#6E629E; --line:#E3DEF3; --red:#B42318; --redbg:#FDECEA; --amber:#9A5B00; --amberbg:#FFF4E0; --green:#1F7A4D; --greenbg:#E6F4EC; --grey:#8A82A8; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --primary:#A48BF0; --bg:#14101F; --card:#1E1830; --ink:#F1EEFA; --muted:#B4A9D8; --line:#332A4D; --red:#FF8A80; --redbg:#3A1C1F; --amber:#F5C26B; --amberbg:#352A14; --green:#7FD6A4; --greenbg:#15301F; --grey:#8F86AE; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar { max-width: 1280px; margin: 0 auto; padding: 12px 16px; display:flex; gap:12px; align-items:center; flex-wrap: wrap; }
+.bar h1 { font-size: 20px; margin: 0; flex: 1; min-width: 200px; }
+.bar small { color: var(--muted); }
+main { max-width: 1280px; margin: 0 auto; padding: 16px 16px 64px; }
+h2 { font-size: 17px; margin: 0; } h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); font-weight: 600; }
+p { margin: 6px 0; } .muted { color: var(--muted); } small { color: var(--muted); }
+section.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+.grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(min(520px, 100%), 1fr)); grid-auto-flow: dense; gap: 16px; align-items: start; }
+.nowrap { white-space: nowrap; }
+.head { display:flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.src { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { color: var(--green); background: var(--greenbg); } .pill.problem { color: var(--red); background: var(--redbg); }
+.pill.urgent { color: var(--card); background: var(--red); }
+.pill.watch { color: var(--amber); background: var(--amberbg); } .pill.off, .pill.wait { color: var(--muted); background: var(--bg); }
+.pill.error { color: var(--red); background: var(--redbg); }
+#attention { margin-bottom: 16px; }
+#attention ul { list-style: none; margin: 8px 0 0; padding: 0; }
+#attention li { display:flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+#attention li:first-child { border-top: 0; }
+.dot { flex: none; width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--grey); }
+.dot.problem { background: var(--red); } .dot.watch { background: var(--amber); } .dot.ok { background: var(--green); }
+.dot.urgent { background: var(--red); box-shadow: 0 0 0 3px var(--redbg); }
+#attention li.level { display: block; padding: 12px 0 2px; border-top: 0; font-size: 13px; font-weight: 600; }
+#attention li.level small { font-weight: 400; color: var(--muted); }
+.where { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.stats { display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
+.stat { flex: 1 1 90px; background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+.stat b { display:block; font-size: 20px; } .stat span { font-size: 12px; color: var(--muted); }
+.stat small { display: block; font-size: 11px; color: var(--grey); margin-top: 2px; }
+.stat.bad b { color: var(--red); } .stat.warn b { color: var(--amber); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: start; font-weight: 600; color: var(--muted); padding: 4px 6px; border-bottom: 1px solid var(--line); }
+td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+td.n, th.n { text-align: end; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.scroll { overflow-x: auto; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.bad { color: var(--red); } .warn { color: var(--amber); } .good { color: var(--green); }
+button, .button { min-height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+button.primary { min-height: 48px; background: var(--primary); border-color: var(--primary); color: #fff; }
+button.link { border: 0; background: none; color: var(--primary); padding: 0; min-height: 0; font-weight: 600; cursor: pointer; text-align: start; }
+form.signin { max-width: 420px; margin: 48px auto; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+label { display:block; font-weight:600; margin: 14px 0 6px; }
+input[type=email], input[type=password], input[type=search], input[type=text] { width:100%; min-height:44px; padding: 8px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
+.notice { padding: 12px 14px; border-radius: 10px; background: var(--bg); margin: 12px 0; }
+.notice.red { color: var(--red); background: var(--redbg); }
+.setup { white-space: pre-line; }
+pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padding: 10px; border-radius: 10px; font-size: 12px; max-height: 360px; overflow: auto; margin: 8px 0; }
+.fb { border-top: 1px solid var(--line); padding: 10px 0; } .fb:first-child { border-top: 0; }
+.fb img { max-width: 100%; max-height: 420px; border-radius: 8px; border: 1px solid var(--line); margin-top: 6px; display: block; }
+.tag { display:inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); margin-inline-end: 4px; }
+.tag.bad { color: var(--red); background: var(--redbg); } .tag.good { color: var(--green); background: var(--greenbg); }
+.wide { grid-column: 1 / -1; }
+.diag-inline { border-inline-start: 3px solid var(--line); padding-inline-start: 12px; margin: 6px 0 4px; }
+[hidden] { display: none !important; }
+h3.part { font-size: 15px; color: var(--ink); margin: 18px 0 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+.body > h3.part:first-child { border-top: 0; padding-top: 0; margin-top: 8px; }
+.card > .head { cursor: pointer; }
+.card.collapsed > .head { margin: 0; }
+.card.collapsed .src, .card.collapsed > .body { display: none; }
+.head button.toggle { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; border-radius: 6px; }
+.head button.toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.chev { display: inline-block; width: 12px; color: var(--muted); transition: transform .15s; }
+.card.collapsed .chev { transform: rotate(-90deg); }
+.card.collapsed { padding-top: 12px; padding-bottom: 12px; }
+.tools { display: flex; gap: 8px; }
+[data-help] { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: help; }
+#tip { position: fixed; z-index: 10; max-width: 340px; padding: 8px 10px; border-radius: 8px; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 400; line-height: 1.4; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <h1>LangQuest operations</h1>
+  <small id="checked"></small>
+  <span class="tools"><button id="expand-all" type="button" hidden>Expand all</button><button id="collapse-all" type="button" hidden>Collapse all</button></span>
+  <button id="refresh" type="button" hidden>Refresh</button>
+  <button id="signout" type="button" hidden>Sign out</button>
+</div></header>
+<main>
+  <div id="out" role="status" aria-live="polite"></div>
+  <form id="signin" class="signin" hidden>
+    <h2>Sign in</h2>
+    <p class="muted">With your Global Viewer account. Only LangQuest Global Viewers, on a session verified with their authenticator, can see this page.</p>
+    <label for="email">Email</label><input id="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+    <p><button class="primary" type="submit">Sign in</button></p>
+  </form>
+  <form id="mfa" class="signin" hidden>
+    <h2>Enter your code</h2>
+    <p class="muted">The 6-digit code from your authenticator app.</p>
+    <label for="code">Code</label><input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+    <p><button class="primary" type="submit">Continue</button></p>
+  </form>
+  <div id="board" hidden>
+    <section class="card" id="attention">
+      <div class="head"><h2>Needs attention</h2><span class="pill wait" id="attention-pill">Checking…</span></div>
+      <ul id="attention-list"></ul>
+    </section>
+    <section class="card wide" id="org" hidden></section>
+    <div class="grid" id="grid"></div>
+  </div>
+</main>
+<div id="tip" role="tooltip" hidden></div>
+<script nonce="${nonce}">
+const CFG = ${config};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const KEY = 'lq-admin-session';
+// The web app's own session on this host (apps/mobile/src/server/sessionKey.ts), used while it is
+// already verified with an authenticator and still fresh. Only read: renewing it here would spend the
+// app's refresh token and sign the app out.
+const APP_KEY = 'sb-' + new URL(CFG.supabaseUrl).hostname.split('.')[0] + '-auth-token';
+
+// ---- formatting ----------------------------------------------------------------
+const num = (n) => (n === null || n === undefined || n === '') ? '–' : Number(n).toLocaleString('en');
+const pct = (x) => (x === null || x === undefined) ? '–' : (x * 100).toFixed(x < 0.01 ? 2 : 1) + '%';
+const ms = (n) => n === null || n === undefined ? '–' : n >= 60000 ? (n / 60000).toFixed(1) + ' min' : n >= 1000 ? (n / 1000).toFixed(1) + ' s' : Math.round(n) + ' ms';
+const bytes = (b) => { if (b === null || b === undefined) return '–'; const u = ['B','KB','MB','GB','TB']; let i = 0; let v = Number(b); while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; } return v.toFixed(v >= 10 || i === 0 ? 0 : 1) + ' ' + u[i]; };
+function ago(iso) {
+  if (!iso) return 'never';
+  const s = (Date.now() - Date.parse(iso)) / 1000;
+  if (s < 0) return 'just now';
+  if (s < 90) return Math.round(s) + ' s ago';
+  if (s < 5400) return Math.round(s / 60) + ' min ago';
+  if (s < 172800) return Math.round(s / 3600) + ' h ago';
+  return Math.round(s / 86400) + ' days ago';
+}
+const when = (iso) => iso ? '<span title="' + esc(new Date(iso).toLocaleString()) + '">' + esc(ago(iso)) + '</span>' : 'never';
+/**
+ * One figure. 'span' is the time it covers, under its label (help is found by
+ * the label alone): 'last 24 h', 'since 3 Oct', 'now'. Every count says one
+ * unless its label already does.
+ */
+const stat = (value, label, tone, span) => '<div class="stat ' + (tone || '') + '"><b>' + value + '</b><span>' + esc(label) + '</span>' +
+  (span ? '<small>' + esc(span) + '</small>' : '') + '</div>';
+const LAST_DAY = 'last 24 h', LAST_WEEK = 'last 7 days', NOW = 'now', ALL_TIME = 'all time';
+const day = (iso) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
+/** A count since a known start, such as a counter's last reset; 'span unknown' when the start is not known. */
+const since = (iso) => iso ? 'since ' + day(iso) : 'span unknown';
+/** A queue's span: how long its oldest item has waited. */
+const oldest = (iso, none) => iso ? 'oldest ' + ago(iso) : (none || 'none waiting');
+const reviewSpan = (r) => r && r.count ? num(r.count) + ' reviews ' + since(r.since) : '';
+function table(cols, rows) {
+  if (!rows.length) return '<p class="muted">Nothing here.</p>';
+  return '<div class="scroll"><table><thead><tr>' + cols.map((c) => '<th' + (c.n ? ' class="n"' : '') + '>' + esc(c.h) + '</th>').join('') + '</tr></thead><tbody>' +
+    rows.map((r) => '<tr>' + cols.map((c) => '<td' + (c.n ? ' class="n"' : '') + '>' + c.v(r) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+}
+const short = (id) => id ? '<code title="' + esc(id) + '">' + esc(String(id).slice(0, 8)) + '</code>' : '–';
+
+// ---- the session ----------------------------------------------------------------
+function session() { try { return JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch { return null; } }
+function keep(s) { sessionStorage.setItem(KEY, JSON.stringify({ access_token: s.access_token, refresh_token: s.refresh_token, expires_at: s.expires_at })); }
+function say(text, tone) { $('out').innerHTML = text ? '<p class="notice ' + (tone || '') + '">' + esc(text) + '</p>' : ''; }
+
+async function auth(grant, body) {
+  const res = await fetch(CFG.supabaseUrl + '/auth/v1/token?grant_type=' + grant, {
+    method: 'POST', headers: { apikey: CFG.anonKey, 'content-type': 'application/json' }, body: JSON.stringify(body)
+  });
+  const s = await res.json().catch(() => ({}));
+  if (!res.ok || !s.access_token) throw new Error(s.error_description || s.msg || 'Sign-in failed (' + res.status + ')');
+  keep(s);
+  return s;
+}
+
+function claims(t) { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; } }
+function borrowed() {
+  try {
+    const s = JSON.parse(localStorage.getItem(APP_KEY) || 'null');
+    if (!s || !s.access_token || (s.expires_at || 0) * 1000 <= Date.now() + 60000) return null;
+    return claims(s.access_token).aal === 'aal2' ? s.access_token : null;
+  } catch { return null; }
+}
+
+/** A live access token: this tab's own, renewed with its refresh token when it is about to run out, else the app's while it lasts. */
+async function token() {
+  const s = session();
+  if (!s) return borrowed();
+  if ((s.expires_at || 0) * 1000 > Date.now() + 60000) return s.access_token;
+  try { return (await auth('refresh_token', { refresh_token: s.refresh_token })).access_token; }
+  catch { sessionStorage.removeItem(KEY); return null; }
+}
+
+async function api(path) {
+  const t = await token();
+  if (!t) { showSignIn(); throw new Error('Signed out'); }
+  // A part with no answer says so after a minute, rather than stay at Loading… for good.
+  let res;
+  try { res = await fetch(path, { headers: { authorization: 'Bearer ' + t }, signal: AbortSignal.timeout(60000) }); }
+  catch (err) { throw new Error(err && err.name === 'TimeoutError' ? 'No answer within 60 s.' : 'Could not reach the dashboard API: ' + (err && err.message)); }
+  if (res.status === 401) { sessionStorage.removeItem(KEY); showSignIn('Your sign-in ended. Sign in again.'); throw new Error('Signed out'); }
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 403 && body.need === 'code' && session()) { askCode(); throw new Error('Not an admin'); }
+  if (res.status === 403) { denied(body); throw new Error('Not an admin'); }
+  if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
+  return body;
+}
+
+function showSignIn(message) {
+  $('board').hidden = true; $('refresh').hidden = true; $('signout').hidden = true; $('mfa').hidden = true;
+  $('signin').hidden = false; say(message || '', message ? 'red' : '');
+}
+
+function askCode(message) {
+  $('board').hidden = true; $('signin').hidden = true; $('refresh').hidden = true; $('signout').hidden = false;
+  $('mfa').hidden = false; $('code').value = ''; say(message || '', message ? 'red' : '');
+  $('code').focus();
+}
+
+function denied(body) {
+  $('board').hidden = true; $('signin').hidden = true; $('mfa').hidden = true; $('refresh').hidden = true; $('signout').hidden = !session();
+  say(body.error || 'This account cannot open this page.', 'red');
+  // Someone the app signed in, who is not a Global Viewer here, may sign in with the account that is.
+  if (!session()) $('signin').hidden = false;
+}
+
+/** Steps this tab's session up to aal2 with the person's verified authenticator (Supabase Auth's factors API). */
+async function verifyCode(code) {
+  const t = await token();
+  const headers = { apikey: CFG.anonKey, authorization: 'Bearer ' + t, 'content-type': 'application/json' };
+  const user = await (await fetch(CFG.supabaseUrl + '/auth/v1/user', { headers })).json();
+  const factor = (user.factors || []).find((f) => f.factor_type === 'totp' && f.status === 'verified');
+  if (!factor) throw new Error('This account has no authenticator yet. Set one up in the app: Me, then Global Viewer.');
+  const challenge = await (await fetch(CFG.supabaseUrl + '/auth/v1/factors/' + factor.id + '/challenge', { method: 'POST', headers, body: '{}' })).json();
+  if (!challenge.id) throw new Error(challenge.msg || 'Could not ask for a code.');
+  const res = await fetch(CFG.supabaseUrl + '/auth/v1/factors/' + factor.id + '/verify', { method: 'POST', headers, body: JSON.stringify({ challenge_id: challenge.id, code }) });
+  const s = await res.json().catch(() => ({}));
+  if (!res.ok || !s.access_token) throw new Error(s.msg || s.error_description || 'That code did not work. Try the newest one.');
+  keep(s);
+}
+
+$('signin').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  say('Signing in…');
+  try {
+    await auth('password', { email: $('email').value.trim(), password: $('password').value });
+    $('password').value = '';
+    await start();
+  } catch (err) { say(err.message, 'red'); }
+});
+$('mfa').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  say('Checking…');
+  try { await verifyCode($('code').value.trim()); $('mfa').hidden = true; await start(); }
+  catch (err) { askCode(err.message); }
+});
+$('signout').addEventListener('click', async () => {
+  const t = (session() || {}).access_token;
+  sessionStorage.removeItem(KEY);
+  if (t) fetch(CFG.supabaseUrl + '/auth/v1/logout?scope=local', { method: 'POST', headers: { apikey: CFG.anonKey, authorization: 'Bearer ' + t } }).catch(() => {});
+  showSignIn();
+});
+$('refresh').addEventListener('click', () => load(true));
+
+// ---- the sections ----------------------------------------------------------------
+const BASE_SECTIONS = [
+  { id: 'jobs', title: 'Server jobs', src: 'diag.jobs: projections, push delivery, v2 import, the web Worker\\'s cron, webhooks, invite email' },
+  { id: 'code', title: 'Code and deploys', src: 'GitHub main, its Actions runs, and what next.langquest.org serves' },
+  { id: 'clients', title: 'Phones and browsers', src: 'Field diagnostics every install sends (docs/diagnostics.md)', wide: true },
+  { id: 'cloudflare', title: 'Cloudflare', src: 'Workers requests, errors, deploys and builds, last 24 h' },
+  { id: 'supabase', title: 'Supabase', src: 'Project health, Edge Functions and log counts, last 24 h' },
+  { id: 'database', title: 'Database', src: 'Size, connections and RPC timings (pg_stat_statements)' },
+  { id: 'expo', title: 'App builds and updates', src: 'EAS builds, store submissions and over-the-air updates' },
+  { id: 'googleplay', title: 'Google Play', src: 'Android vitals (crashes and ANRs) and reviews' },
+  { id: 'appstore', title: 'App Store', src: 'App Store Connect: versions in review, builds and reviews' },
+  { id: 'v2', title: 'v2 import', src: 'diag.v2_import_status: the latest transfer of each v2 project' },
+  { id: 'feedback', title: 'Feedback', src: 'What people sent from the help button, last 30 days', wide: true },
+  { id: 'lookup', title: 'Look up', src: 'An error code someone read out (E-…), an email or profile id, an install id, or an organization or language name' }
+];
+// The page's sections, each gathering the parts about one subject (pageOps.ts GROUPS); a part is what one source answers.
+const SECTIONS = ${JSON.stringify(GROUPS)};
+/** SQLSTATE names for the Supabase errors table (sources/supabase.ts). */
+const SQLSTATE = ${JSON.stringify(SQLSTATE)};
+const PART_TITLE = Object.assign(Object.fromEntries(BASE_SECTIONS.concat(${JSON.stringify(OPS_SECTIONS)}).map((s) => [s.id, s.title])), ${JSON.stringify(PART_TITLES)});
+const groupOf = (part) => SECTIONS.find((g) => g.parts.includes(part));
+const PARTS = SECTIONS.flatMap((g) => g.parts);
+const results = {};
+
+function layout() {
+  $('grid').innerHTML = SECTIONS.map((s) => '<section class="card' + (s.wide ? ' wide' : '') + '" id="card-' + s.id + '"><div class="head" data-toggle="' + s.id + '"><div><h2>' +
+    '<button type="button" class="toggle" id="toggle-' + s.id + '" aria-expanded="true" aria-controls="body-' + s.id + '"><span class="chev" aria-hidden="true">▾</span><span data-help-key="group:' + s.id + '">' + esc(s.title) + '</span></button>' +
+    '</h2><div class="src">' + esc(s.src) + '</div></div><span class="pill wait" id="pill-' + s.id + '">' + (s.id === 'lookup' ? '' : 'Loading…') + '</span></div><div class="body" id="body-' + s.id + '"></div></section>').join('');
+  for (const s of SECTIONS) applyOpen(s.id);
+  annotate($('grid'));
+  $('pill-lookup').hidden = true;
+  $('body-lookup').innerHTML = '<form id="lookup-form"><label for="q" hidden>Look up</label><input id="q" type="search" placeholder="E-7K2Q01, an email, an install id, or a name" required>' +
+    '<p><button type="submit">Look up</button></p></form><div id="lookup-out"></div>';
+  $('lookup-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('lookup-out').innerHTML = '<p class="muted">Looking…</p>';
+    try { renderLookup(await api('/ops/api/lookup?q=' + encodeURIComponent($('q').value.trim()))); }
+    catch (err) { $('lookup-out').innerHTML = '<p class="bad">' + esc(err.message) + '</p>'; }
+  });
+}
+
+/**
+ * How much each alert matters (section.ts Level), most first. An unreadable
+ * part is something to watch: the page cannot tell how bad it is.
+ */
+const LEVEL = {
+  urgent: { title: 'Act now', note: 'people are blocked or their work is at risk', count: (n) => n + ' urgent' },
+  problem: { title: 'Fix soon', note: 'broken, but nobody loses work while it waits', count: (n) => n + (n === 1 ? ' problem' : ' problems') },
+  watch: { title: 'Watch', note: 'worth a look; it may be nothing', count: (n) => n + ' to watch' }
+};
+const LEVELS = Object.keys(LEVEL);
+function counts(got) {
+  const c = { urgent: 0, problem: 0, watch: 0 };
+  for (const s of got) {
+    for (const a of s.alerts || []) c[a.level in c ? a.level : 'watch'] += 1;
+    if (s.state === 'error') c.watch += 1;
+  }
+  return c;
+}
+
+/** One status for a section from its parts': its most urgent level and how many at it; OK only when every part answered. */
+function pill(g) {
+  const got = g.parts.map((p) => results[p]).filter(Boolean);
+  const c = counts(got);
+  const top = LEVELS.find((l) => c[l] > 0);
+  if (top) return [top, LEVEL[top].count(c[top])];
+  if (got.length < g.parts.length) return ['wait', 'Loading…'];
+  if (got.every((s) => s.state === 'off')) return ['off', 'Not connected'];
+  return ['ok', 'OK'];
+}
+
+/** A part as it reads inside its section: its sub-heading when the section has others, then its body, or why there is none. */
+function partHtml(g, id) {
+  const s = results[id];
+  const head = g.parts.length > 1 ? '<h3 class="part"><span data-help-key="section:' + id + '">' + esc(PART_TITLE[id] || id) + '</span></h3>' : '';
+  if (!s) return head + '<p class="muted">Loading…</p>';
+  if (s.state === 'off') return head + '<p class="setup muted">Not connected. ' + esc(s.setup) + '</p>';
+  if (s.state === 'error') return head + '<p class="bad">Could not read: ' + esc(s.error) + '</p>';
+  try {
+    if (id === 'jobs') return head + renderJobs(s.data, results.container);
+    return head + (RENDER[id] || ((d) => '<pre>' + esc(JSON.stringify(d, null, 2)) + '</pre>'))(s.data);
+  } catch (err) { return head + '<p class="bad">Could not show this: ' + esc(err.message) + '</p>'; }
+}
+
+/** The jobs as diag records them, with whether each runs now (the job container's answer) in the same row. */
+function renderJobs(d, container) {
+  const now = container && container.state === 'ok' ? Object.fromEntries(container.data.jobs.map((j) => [j.job, j])) : {};
+  const note = !container ? '' : container.state === 'off' ? '<p class="setup muted">Running now: not connected. ' + esc(container.setup) + '</p>'
+    : container.state === 'error' ? '<p class="bad">Running now: could not read: ' + esc(container.error) + '</p>' : '';
+  return RENDER.jobs(d, now) + note + (Object.keys(now).length ? '<p class="muted">Run now starts a job its schedule would start anyway; a job already running is left alone. Each is recorded (Support).</p>' : '');
+}
+
+function show(id, s) {
+  results[id] = s;
+  const g = groupOf(id);
+  if (!g) return;
+  const [cls, text] = pill(g);
+  const el = $('pill-' + g.id); el.className = 'pill ' + cls; el.textContent = text;
+  // The container's answer lives in the Jobs table, not as a part of its own.
+  $('body-' + g.id).innerHTML = g.parts.filter((p) => p !== 'container').map((p) => partHtml(g, p)).join('');
+  if (g.parts.includes('feedback')) wireScreenshots();
+  annotate($('body-' + g.id));
+  applyOpen(g.id);
+  attention();
+}
+
+function attention() {
+  const items = [];
+  for (const g of SECTIONS) for (const part of g.parts) {
+    const s = results[part];
+    if (!s) continue;
+    for (const a of s.alerts || []) items.push({ level: a.level, text: a.text, where: g.title, id: g.id });
+    if (s.state === 'error') items.push({ level: 'watch', text: 'Could not read: ' + s.error, where: g.title, id: g.id });
+  }
+  const loading = PARTS.filter((p) => !results[p]).length;
+  const c = counts(SECTIONS.flatMap((g) => g.parts.map((p) => results[p]).filter(Boolean)));
+  const top = LEVELS.find((l) => c[l] > 0);
+  const el = $('attention-pill');
+  el.className = 'pill ' + (top || (loading ? 'wait' : 'ok'));
+  el.textContent = top ? LEVELS.filter((l) => c[l] > 0).map((l) => LEVEL[l].count(c[l])).join(', ') : loading ? 'Checking…' : 'All clear';
+  const item = (i) => '<li><span class="dot ' + i.level + '"></span><span>' + esc(tidy(i.text)) + ' <button type="button" class="link where" data-goto="' + esc(i.id) + '">' + esc(i.where) + '</button></span></li>';
+  $('attention-list').innerHTML = items.length
+    ? LEVELS.map((l) => {
+      const at = items.filter((i) => (i.level in LEVEL ? i.level : 'watch') === l);
+      return at.length ? '<li class="level">' + LEVEL[l].title + ' <small>' + LEVEL[l].note + '</small></li>' + at.map(item).join('') : '';
+    }).join('')
+    : (loading ? '' : '<li><span class="dot ok"></span><span>Nothing needs attention right now.</span></li>');
+}
+
+/** The CLI's alert wording names times as ISO and schedules as 00:10:00; this page says them as people do. */
+function tidy(text) {
+  return String(text)
+    .replace(/\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})/g, (iso) => ago(iso))
+    .replace(/every (\\d\\d):(\\d\\d):(\\d\\d)/g, (m, h, mi) => 'every ' + (Number(h) ? Number(h) + ' h' : Number(mi) + ' min'));
+}
+
+const RENDER = {
+  jobs(d, now = {}) {
+    const live = Object.keys(now).length > 0;
+    return table([
+      { h: 'Job', v: (j) => '<b>' + esc(j.job) + '</b><br><small>' + esc(j.runs_on) + '</small>' },
+      { h: 'Last run', v: (j) => when(j.last_at) + '<br><small class="' + (j.last_outcome === 'error' ? 'bad' : j.last_outcome === 'partial' ? 'warn' : '') + '">' + esc(j.last_outcome || '–') + (j.last_error_class ? ' · ' + esc(j.last_error_class) : '') + '</small>' },
+      { h: 'Runs 2 d', n: true, v: (j) => num(j.runs) },
+      { h: 'Failed', n: true, v: (j) => '<span class="' + (j.failures ? 'bad' : '') + '">' + num(j.failures) + '</span>' },
+      { h: 'p95', n: true, v: (j) => ms(j.p95_ms) },
+      ...(live ? [{ h: 'Now', v: (j) => { const n = now[j.job]; if (!n) return '–'; if (n.error) return '<span class="warn">' + esc(n.error) + '</span>';
+        return n.running ? '<span class="good">running</span><br><small>' + when(n.startedAt) + ' · limit ' + ms(n.timeLimitMs) + (n.all ? ' · whole read' : '') + '</small>' : 'idle'; } }] : []),
+      { h: '', v: (j) => j.stale ? '<span class="bad nowrap">stopped</span>' : j.streak >= 3 ? '<span class="bad nowrap">failing</span>' : '' },
+      ...(live ? [{ h: '', v: (j) => { const n = now[j.job]; return n && !n.running && !n.error ? '<button type="button" data-run="' + esc(n.key) + '">Run now</button>' : ''; } }] : [])
+    ], d.jobs);
+  },
+  clients(c) {
+    const sync = c.sync || {};
+    const syncs = Object.values(sync).reduce((a, x) => a + x.records, 0);
+    const errSync = (sync.error || { records: 0 }).records;
+    const errorsDay = c.errors.reduce((a, e) => a + e.day, 0);
+    const down = c.transfer.down || {}, up = c.transfer.up || {};
+    const fails = (t) => ['failOffline','failHttp4xx','failHttp5xx','failHash','failDisk','failOther','failAuth','failNotFound','failTooLarge','failBadDigest','failGone'].reduce((a, k) => a + (t[k] || 0), 0);
+    let h = '<div class="stats">' +
+      stat(num(c.installs.day), 'installs reported, last day') + stat(num(c.installs.week), 'this week') +
+      stat(num(syncs), 'syncs, last day') + stat(num(errSync), 'syncs ended in error', errSync ? 'warn' : '', LAST_DAY) +
+      stat(num(errorsDay), 'errors, last day', errorsDay ? 'bad' : '') +
+      stat(num(down.count) + ' / ' + num(fails(down)), 'downloads / failed', fails(down) ? 'warn' : '', LAST_DAY) +
+      stat(num(up.count) + ' / ' + num(fails(up)), 'uploads / failed', fails(up) ? 'warn' : '', LAST_DAY) + '</div>';
+    h += '<h3>Errors this week (newest first)</h3>' + table([
+      { h: 'Error', v: (e) => '<b>' + esc(e.name || 'Error') + '</b>' + (e.fatal ? ' <span class="tag bad">crash</span>' : '') + '<br><small>' + esc(e.where || '') + (e.code ? ' · ' + esc(e.code) : '') + '</small>' },
+      { h: 'Last', v: (e) => when(e.lastAt) },
+      { h: 'Day', n: true, v: (e) => num(e.day) },
+      { h: 'Week', n: true, v: (e) => num(e.records) },
+      { h: 'Installs', n: true, v: (e) => num(e.installs) },
+      { h: 'Latest code', v: (e) => e.errorId ? '<button class="link" data-q="' + esc(e.errorId) + '">' + esc(e.errorId) + '</button>' : '–' }
+    ], c.errors);
+    const outcomes = Object.entries(sync).sort((a, b) => b[1].records - a[1].records);
+    h += '<h3>Sync outcomes, last day</h3>' + table([
+      { h: 'Outcome', v: (r) => '<span class="' + (r[0] === 'ok' ? 'good' : r[0] === 'offline' ? '' : 'warn') + '">' + esc(r[0]) + '</span>' },
+      { h: 'Syncs', n: true, v: (r) => num(r[1].records) },
+      { h: 'Installs', n: true, v: (r) => num(r[1].installs) }
+    ], outcomes);
+    if (c.syncErrors.length) h += table([{ h: 'Sync error (phase:code)', v: (r) => '<code>' + esc(r.code) + '</code>' }, { h: 'Syncs', n: true, v: (r) => num(r.records) }, { h: 'Installs', n: true, v: (r) => num(r.installs) }], c.syncErrors);
+    const d = c.device;
+    const latest = 'latest of each, ' + LAST_WEEK;
+    h += '<h3>Phones (latest state of each, this week)</h3><div class="stats">' + stat(num(d.reporting), 'reporting', '', LAST_WEEK) +
+      stat(num(d.lostRecordings), 'lost recordings', d.lostRecordings ? 'bad' : '', latest) + stat(num(d.unsentOverDay), 'recording unsent > 1 day', d.unsentOverDay ? 'warn' : '', latest) +
+      stat(num(d.downloadStuckOverDay), 'download stuck > 1 day', d.downloadStuckOverDay ? 'warn' : '', latest) + stat(num(d.lowDisk), 'under 500 MB free', d.lowDisk ? 'warn' : '', latest) + '</div>';
+    if (c.auth.length) h += '<h3>Sign-in trouble this week</h3>' + table([
+      { h: 'Step', v: (a) => esc(a.op || '?') }, { h: 'Ended', v: (a) => esc(a.outcome || '?') + (a.code ? ' <code>' + esc(a.code) + '</code>' : '') },
+      { h: 'Times', n: true, v: (a) => num(a.records) }, { h: 'Installs', n: true, v: (a) => num(a.installs) }, { h: 'Last', v: (a) => when(a.lastAt) }
+    ], c.auth);
+    if (c.expected.length) h += '<h3>Failures already shown to people, this week</h3>' + table([
+      { h: 'Where', v: (x) => esc(x.where || '?') + '<br><small>' + esc(x.name || '') + (x.code ? ' · ' + esc(x.code) : '') + '</small>' },
+      { h: 'Times', n: true, v: (x) => num(x.count) }, { h: 'Installs', n: true, v: (x) => num(x.installs) }, { h: 'Last', v: (x) => when(x.lastAt) }
+    ], c.expected);
+    const a = c.audio || {};
+    h += '<h3>Recording, last day</h3><div class="stats">' + stat(num(a.takes), 'takes', '', LAST_DAY) + stat(num((a.saveFail || 0) + (a.startFail || 0) + (a.stopFail || 0) + (a.encodeFail || 0)), 'failed', (a.saveFail || a.startFail || a.stopFail || a.encodeFail) ? 'warn' : '', LAST_DAY) +
+      stat(num(a.micRefused), 'microphone refused', '', LAST_DAY) + stat(num(a.playFail), 'playback failed', a.playFail ? 'warn' : '', LAST_DAY) + '</div>';
+    h += '<p class="muted">Seen this week: ' + c.platforms.map((p) => esc(p.os) + ' ' + num(p.installs)).join(' · ') + ' · ' + num(c.installs.all) + ' installs known in all time</p>';
+    return h;
+  },
+  code(d) {
+    const live = d.live.build ? '<code>' + esc(d.live.build.slice(0, 8)) + '</code>' : '<span class="bad">no answer</span>';
+    // Commits that change nothing the web app is built from leave it on an older commit, as they should.
+    const stale = d.behind !== 0 && d.appChanged !== false;
+    let h = '<div class="stats">' + stat('<code>' + esc(d.main.sha.slice(0, 8)) + '</code>', 'main, ' + ago(d.main.at)) +
+      stat(live, new URL(d.live.url).host + ' serves', stale ? 'bad' : '', NOW) +
+      (d.appChanged === false && d.behind ? stat(num(d.behind), 'commits since, none for the web app')
+        : stat(d.behind === null ? '?' : num(d.behind), 'commits not deployed', d.behind ? 'bad' : '')) + '</div>';
+    h += '<p class="muted">' + esc(d.main.title) + '</p>';
+    h += '<h3>Latest run of each workflow on main</h3>' + table([
+      { h: 'Workflow', v: (r) => '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' + esc(r.workflow) + '</a><br><small>' + esc(r.event) + ' · <code>' + esc(r.sha) + '</code></small>' },
+      { h: 'Result', v: (r) => '<span class="' + (r.conclusion === 'success' ? 'good' : r.conclusion === 'failure' ? 'bad' : 'warn') + '">' + esc(r.conclusion || r.status) + '</span>' },
+      { h: 'When', v: (r) => when(r.at) }
+    ], d.runs);
+    return h;
+  },
+  cloudflare(d) {
+    let h = table([
+      { h: 'Worker', v: (w) => '<b>' + esc(w.name) + '</b>' },
+      { h: 'Requests', n: true, v: (w) => num(w.requests) },
+      { h: 'Errors', n: true, v: (w) => '<span class="' + (w.errors ? 'bad' : '') + '">' + num(w.errors) + '</span><br><small>' + pct(w.errorRate) + '</small>' },
+      { h: 'CPU p99', n: true, v: (w) => w.cpuP99 === null ? '–' : ms(w.cpuP99 / 1000) },
+      { h: 'Last build', v: (w) => w.lastBuild ? '<span class="' + (w.lastBuild.outcome === 'success' ? 'good' : w.lastBuild.outcome === 'fail' || w.lastBuild.outcome === 'failure' ? 'bad' : 'warn') + '">' + esc(w.lastBuild.outcome || w.lastBuild.status || '?') + '</span><br><small>' + when(w.lastBuild.at) + (w.lastBuild.commit ? ' · <code>' + esc(w.lastBuild.commit.slice(0, 8)) + '</code>' : '') + '</small>' : '–' }
+    ], d.workers);
+    h += '<p class="muted">Requests, errors and CPU over the last 24 h; the last build as it stands now.</p>';
+    const statuses = d.workers.flatMap((w) => Object.entries(w.statuses || {}).filter(([s]) => s !== 'success').map(([s, n]) => esc(w.name) + ': ' + esc(s) + ' ' + num(n)));
+    if (statuses.length) h += '<p class="muted">Not successful: ' + statuses.join(' · ') + '</p>';
+    if (d.notes && d.notes.length) h += '<p class="muted">' + d.notes.map(esc).join('<br>') + '</p>';
+    return h;
+  },
+  supabase(d) {
+    return d.projects.map((p) => {
+      let h = '<h3>' + esc(p.name) + ' <code>' + esc(p.ref) + '</code> · <span class="' + (p.status === 'ACTIVE_HEALTHY' ? 'good' : 'bad') + '">' + esc(p.status || '?') + '</span></h3>';
+      if (p.error) return h + '<p class="bad">' + esc(p.error) + '</p>';
+      if (p.health && p.health.length) h += '<p>' + p.health.map((s) => '<span class="tag ' + (s.healthy ? 'good' : 'bad') + '">' + esc(s.name) + ' ' + (s.healthy ? 'ok' : esc(s.status || 'unhealthy')) + '</span>').join('') + '</p>';
+      if (p.logs) {
+        h += '<div class="stats">' + stat(num(p.logs.gatewayTotal), 'API requests', '', LAST_DAY) + stat(num(p.logs.gateway5xx), 'API 5xx', p.logs.gateway5xx ? 'warn' : '', LAST_DAY) +
+          stat(num(p.logs.function5xx), 'Edge Function 5xx', p.logs.function5xx ? 'warn' : '', LAST_DAY) + stat(num(p.logs.postgresErrors), 'Postgres errors', p.logs.postgresErrors ? 'warn' : '', LAST_DAY) +
+          stat(num(p.logs.authErrors), 'Auth errors', p.logs.authErrors ? 'warn' : '', LAST_DAY) + '</div>';
+        // What the errors were, by code and what raised them; never a log message, which can quote what someone typed.
+        if (p.logs.errors && p.logs.errors.length) h += '<h3>Errors, last 24 h</h3>' + table([
+          { h: 'Where', v: (e) => esc(e.source) },
+          { h: 'Error', v: (e) => '<code>' + esc(e.code) + '</code>' + (SQLSTATE[e.code] ? '<br><small>' + esc(SQLSTATE[e.code]) + '</small>' : '') },
+          { h: 'Raised by', v: (e) => '<code>' + esc(e.what) + '</code>' },
+          { h: 'Times', n: true, v: (e) => num(e.n) }, { h: 'Last', v: (e) => when(e.lastAt) }
+        ], p.logs.errors);
+      }
+      if (p.logsError) h += '<p class="muted">Logs: ' + esc(p.logsError) + '</p>';
+      if (p.functions && p.functions.length) h += table([
+        { h: 'Edge Function', v: (f) => esc(f.slug) }, { h: 'Status', v: (f) => '<span class="' + (f.status === 'ACTIVE' ? 'good' : 'warn') + '">' + esc(f.status) + '</span>' },
+        { h: 'Version', n: true, v: (f) => num(f.version) }, { h: 'Updated', v: (f) => when(f.updatedAt) }
+      ], p.functions);
+      return h;
+    }).join('');
+  },
+  database(d) {
+    const s = d.stats || {};
+    let h = '<div class="stats">' +
+      stat(num(d.connections) + ' / ' + num(d.maxConnections), 'connections', d.connections >= d.maxConnections * 0.8 ? 'warn' : '', NOW) +
+      stat(s.hitRatio === null || s.hitRatio === undefined ? '–' : pct(s.hitRatio), 'cache hits', '', since(s.since)) + stat(num(s.deadlocks), 'deadlocks', s.deadlocks ? 'warn' : '', since(s.since)) + '</div>';
+    // The timings count from pg_stat_statements' own reset, not the database's.
+    h += '<h3>RPCs by total time</h3><p class="muted">' + (d.rpcSince ? 'Counted ' + esc(since(d.rpcSince)) + ' (' + esc(ago(d.rpcSince)) + '), when the timings were last reset.' : 'Counted since the timings were last reset (date not known).') + '</p>' + table([
+      { h: 'RPC', v: (r) => '<code>' + esc(r.rpc) + '</code>' }, { h: 'Calls', n: true, v: (r) => num(r.calls) },
+      { h: 'Mean', n: true, v: (r) => '<span class="' + (r.mean_ms > 500 ? 'bad' : '') + '">' + ms(r.mean_ms) + '</span>' },
+      { h: 'Max', n: true, v: (r) => ms(r.max_ms) }, { h: 'Total', n: true, v: (r) => num(r.total_s) + ' s' }
+    ], d.rpc.slice(0, 12));
+    return h;
+  },
+  expo(d) {
+    let h = '<h3>Latest builds</h3>' + table([
+      { h: 'Build', v: (b) => esc(b.platform) + ' · ' + esc(b.profile || '?') + '<br><small>' + esc(b.appVersion || '') + (b.runtime ? ' · runtime ' + esc(b.runtime) : '') + '</small>' },
+      { h: 'Status', v: (b) => '<span class="' + (b.status === 'FINISHED' ? 'good' : b.status === 'ERRORED' ? 'bad' : 'warn') + '">' + esc(b.status) + '</span>' },
+      { h: 'When', v: (b) => when(b.at) }
+    ], d.builds);
+    if (d.submissions && d.submissions.length) h += '<h3>Store submissions</h3>' + table([
+      { h: 'Submission', v: (x) => esc(x.platform) + (x.error ? '<br><small class="bad">' + esc(x.error) + '</small>' : '') },
+      { h: 'Status', v: (x) => '<span class="' + (x.status === 'FINISHED' ? 'good' : x.status === 'ERRORED' ? 'bad' : 'warn') + '">' + esc(x.status) + '</span>' },
+      { h: 'When', v: (x) => when(x.at) }
+    ], d.submissions);
+    h += '<h3>Latest updates</h3>' + table([
+      { h: 'Branch', v: (u) => esc(u.branch) + '<br><small>' + esc(u.platform || '') + (u.runtime ? ' · runtime ' + esc(u.runtime) : '') + '</small>' },
+      { h: 'Group', v: (u) => short(u.group) }, { h: 'When', v: (u) => when(u.at) }
+    ], d.updates);
+    return h;
+  },
+  googleplay(d) {
+    const rate = (m, line) => m ? '<span class="' + (m.userPerceived >= line ? 'bad' : m.userPerceived >= line / 2 ? 'warn' : '') + '">' + pct(m.userPerceived) + '</span>' : '–';
+    let h = '<div class="stats">' + stat(rate(d.crash, 0.0109), 'user-perceived crashes, 7 days') + stat(rate(d.anr, 0.0047), 'user-perceived ANRs, 7 days') +
+      stat(d.reviews ? num(d.reviews.lowWeek) : '–', '1–2 star reviews, 7 days', d.reviews && d.reviews.lowWeek ? 'warn' : '') +
+      stat(d.reviews && d.reviews.average !== null ? d.reviews.average.toFixed(1) + ' ★' : '–', 'average of recent reviews', '', reviewSpan(d.reviews)) + '</div>';
+    if (d.freshThrough) h += '<p class="muted">Vitals from Play run through ' + esc(d.freshThrough) + '. Bad behaviour starts at 1.09% crashes and 0.47% ANRs.</p>';
+    if (d.issues && d.issues.length) h += '<h3>Top crashes and ANRs, 7 days</h3>' + table([
+      { h: 'Issue', v: (i) => '<span class="tag ' + (i.type === 'CRASH' || i.type === 'ANR' ? 'bad' : '') + '">' + esc(i.type) + '</span>' + (i.uri ? '<a href="' + esc(i.uri) + '" target="_blank" rel="noopener">' + esc(i.cause || 'issue') + '</a>' : esc(i.cause || 'issue')) + '<br><small>' + esc(i.location || '') + '</small>' },
+      { h: 'Reports', n: true, v: (i) => num(i.reports) }, { h: 'Users', n: true, v: (i) => num(i.users) }, { h: 'Last', v: (i) => when(i.lastAt) }
+    ], d.issues);
+    if (d.reviews && d.reviews.recent.length) h += '<h3>Recent reviews</h3>' + d.reviews.recent.map((r) => '<p><b>' + '★'.repeat(r.stars) + '</b> <small>' + when(r.at) + (r.version ? ' · ' + esc(r.version) : '') + '</small><br>' + esc(r.text) + '</p>').join('');
+    if (d.notes && d.notes.length) h += '<p class="muted">' + d.notes.map(esc).join('<br>') + '</p>';
+    return h;
+  },
+  appstore(d) {
+    let h = '<h3>App Store versions</h3>' + table([
+      { h: 'Version', v: (v) => esc(v.version) + ' <small>' + esc(v.platform || '') + '</small>' },
+      { h: 'State', v: (v) => '<span class="' + (/REJECTED|INVALID/.test(v.state) ? 'bad' : v.state === 'READY_FOR_SALE' || v.state === 'READY_FOR_DISTRIBUTION' ? 'good' : 'warn') + '">' + esc(String(v.state).toLowerCase().replace(/_/g, ' ')) + '</span>' },
+      { h: 'Created', v: (v) => when(v.at) }
+    ], d.versions);
+    h += '<h3>Latest builds</h3>' + table([
+      { h: 'Build', v: (b) => esc(b.version || '?') + (b.build ? ' (' + esc(b.build) + ')' : '') },
+      { h: 'Processing', v: (b) => '<span class="' + (b.state === 'VALID' ? 'good' : b.state === 'PROCESSING' ? '' : 'bad') + '">' + esc(String(b.state).toLowerCase()) + '</span>' + (b.expired ? ' <small>expired</small>' : '') },
+      { h: 'Uploaded', v: (b) => when(b.uploadedAt) }
+    ], d.builds);
+    if (d.testflightCrashes) {
+      h += '<h3>TestFlight crash reports</h3><div class="stats">' + stat(num(d.testflightCrashes.week), 'from testers, 7 days', d.testflightCrashes.week ? 'warn' : '') + '</div>';
+      if (d.testflightCrashes.recent.length) h += table([{ h: 'Device', v: (c) => esc(c.device || '?') + ' <small>' + esc(c.os || '') + '</small>' }, { h: 'When', v: (c) => when(c.at) }], d.testflightCrashes.recent);
+    }
+    if (d.reviews) {
+      h += '<div class="stats">' + stat(num(d.reviews.lowWeek), '1–2 star reviews, 7 days', d.reviews.lowWeek ? 'warn' : '') +
+        stat(d.reviews.average !== null ? d.reviews.average.toFixed(1) + ' ★' : '–', 'average of recent reviews', '', reviewSpan(d.reviews)) + '</div>';
+      if (d.reviews.recent.length) h += d.reviews.recent.map((r) => '<p><b>' + '★'.repeat(r.stars) + '</b> <small>' + when(r.at) + (r.territory ? ' · ' + esc(r.territory) : '') + '</small><br>' + (r.title ? '<b>' + esc(r.title) + '</b> ' : '') + esc(r.text) + '</p>').join('');
+    }
+    if (d.notes && d.notes.length) h += '<p class="muted">' + d.notes.map(esc).join('<br>') + '</p>';
+    return h;
+  },
+  v2(d) {
+    const st = d.states || {};
+    // Projects, each by its latest transfer: a state now, not a count over time.
+    const each = 'projects, latest transfer';
+    let h = '<div class="stats">' + stat(num(st.done || 0), 'done', '', each) + stat(num(st.running || 0), 'running', '', each) +
+      stat(num(st.error || 0), 'failed', st.error ? 'warn' : '', each) + stat(num(st.cut_off || 0), 'stopped part way', st.cut_off ? 'warn' : '', each) + '</div>';
+    h += table([
+      { h: 'Project', v: (p) => short(p.project_id) }, { h: 'State', v: (p) => '<span class="' + (p.state === 'done' ? 'good' : p.state === 'running' ? '' : 'warn') + '">' + esc(p.state) + '</span>' + (p.step ? '<br><small>' + esc(p.step) + '</small>' : '') },
+      { h: 'Progress', n: true, v: (p) => p.total ? num(p.done) + ' / ' + num(p.total) : '–' },
+      { h: 'Started', v: (p) => when(p.started_at) }, { h: 'Failed 7 d', n: true, v: (p) => num(p.failed_7d) }
+    ], d.projects);
+    return h;
+  },
+  feedback(d) {
+    if (!d.items.length) return '<p class="muted">No feedback in the last 30 days.</p>';
+    return d.items.map((f) => '<div class="fb"><span class="tag ' + (f.kind === 'bug' ? 'bad' : 'good') + '">' + esc(f.kind) + '</span><span class="tag">' + esc(f.status || 'new') + '</span>' +
+      '<small>' + when(f.created_at) + (f.context && f.context.screen ? ' · ' + esc(f.context.screen) : '') + (f.context ? ' · ' + esc([f.context.os, f.context.appVersion, f.context.channel].filter(Boolean).join(' ')) : '') + '</small>' +
+      '<p>' + (f.body ? esc(f.body) : '<i class="muted">(voice note)</i>') + '</p>' +
+      (f.voice_format ? '<p><button class="link" data-voice="' + esc(f.id) + '">Play the voice note' + (f.voice_ms ? ' (' + ms(f.voice_ms) + ')' : '') + '</button></p>' : '') +
+      (f.shared_name || f.shared_email ? '<p><small>From ' + esc([f.shared_name, f.shared_email].filter(Boolean).join(', ')) + ' (shared by them)</small></p>' : '') +
+      (f.install_id ? '<p><button type="button" class="link" data-install="' + esc(f.install_id) + '" data-fb-id="' + esc(f.id) + '">Show this phone\\'s diagnostics</button></p><div class="diag-inline" id="diag-' + esc(f.id) + '" hidden></div>' : '') +
+      (f.has_screenshot ? '<p><button class="link" data-shot="' + esc(f.id) + '">Show screenshot</button></p>' : '') +
+      '<p>' + (f.status !== 'seen' && f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="seen">Seen</button> ' : '') +
+      (f.status !== 'done' ? '<button type="button" data-fb="' + esc(f.id) + '" data-status="done">Done</button>' : '<button type="button" data-fb="' + esc(f.id) + '" data-status="new">Open again</button>') + '</p></div>').join('');
+  }
+};
+
+function renderLookup(r) {
+  let h = '';
+  if (r.kind === 'error') {
+    const list = r.result || [];
+    if (!list.length) h = '<p class="muted">No error with that code.</p>';
+    for (const e of list) {
+      h += '<p><b>' + esc((e.t && e.t.name) || 'Error') + '</b> ' + esc((e.t && e.t.where) || '') + (e.t && e.t.code ? ' <code>' + esc(e.t.code) + '</code>' : '') + ' · ' + when(e.at) + ' · install ' +
+        '<button class="link" data-q="' + esc(e.installId) + '">' + esc(String(e.installId).slice(0, 8)) + '</button></p>' +
+        '<p class="muted">' + esc(e.context ? [e.context.os, e.context.osVersion, e.context.model, e.context.appVersion, e.context.channel, e.context.runtimeVersion].filter(Boolean).join(' · ') : '') + '</p>' +
+        (e.stack ? '<pre>' + esc(e.stack) + '</pre>' : '') +
+        (e.before && e.before.length ? '<h3>Just before</h3><pre>' + esc(e.before.map((b) => b.at + '  ' + b.kind + '  ' + JSON.stringify(b.t) + '  ' + JSON.stringify(b.n)).join('\\n')) + '</pre>' : '');
+    }
+  } else if (r.kind === 'person') {
+    h = renderPerson(r.result);
+  } else if (r.kind === 'install') {
+    h = installView(r.result);
+  } else {
+    const list = r.result || [];
+    h = list.length ? table([
+      { h: 'Kind', v: (f) => esc(f.kind) }, { h: 'Name', v: (f) => esc(f.name) }, { h: 'Organization', v: (f) => short(f.org_id) }, { h: 'Language', v: (f) => short(f.language_id) }
+    ], list) + '<p class="muted">npm run diag -- report &lt;org&gt; &lt;language&gt; gives the full report.</p>' : '<p class="muted">Nothing matches.</p>';
+  }
+  $('lookup-out').innerHTML = h;
+  annotate($('lookup-out'));
+}
+
+document.addEventListener('click', (e) => {
+  const q = e.target.closest && e.target.closest('[data-q]');
+  if (q) { setOpen('lookup', true); $('q').value = q.dataset.q; $('lookup-form').requestSubmit(); $('card-lookup').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+});
+
+function wireScreenshots() {
+  // Show and hide, under the button; the picture is fetched once and kept while the page is open.
+  for (const b of document.querySelectorAll('[data-shot]')) {
+    let img = null;
+    b.setAttribute('aria-expanded', 'false');
+    b.addEventListener('click', async () => {
+      if (img) {
+        img.hidden = !img.hidden;
+        b.textContent = img.hidden ? 'Show screenshot' : 'Hide screenshot';
+        b.setAttribute('aria-expanded', String(!img.hidden));
+        return;
+      }
+      b.disabled = true;
+      try {
+        const t = await token();
+        const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.shot) + '/screenshot', { headers: { authorization: 'Bearer ' + t } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        img = document.createElement('img');
+        img.alt = 'Screenshot sent with this feedback';
+        img.title = 'Click to hide';
+        img.src = URL.createObjectURL(await res.blob());
+        img.addEventListener('click', () => b.click());
+        b.closest('p').after(img);
+        b.textContent = 'Hide screenshot';
+        b.setAttribute('aria-expanded', 'true');
+      } catch (err) { b.textContent = 'Could not load the screenshot (' + err.message + ')'; }
+      b.disabled = false;
+    });
+  }
+  for (const b of document.querySelectorAll('[data-voice]')) {
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try {
+        const t = await token();
+        const res = await fetch('/ops/api/feedback/' + encodeURIComponent(b.dataset.voice) + '/voice', { headers: { authorization: 'Bearer ' + t } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = URL.createObjectURL(await res.blob());
+        b.replaceWith(audio);
+        audio.play().catch(() => {});
+      } catch (err) { b.textContent = 'Could not load the voice note (' + err.message + ')'; }
+    }, { once: true });
+  }
+}
+
+// ---- loading ----------------------------------------------------------------------
+// ---- sections open and closed ---------------------------------------------------
+// A section starts closed when it is fine or not connected, and open when something
+// needs a look; the viewer's own choice, once made, is kept in this browser.
+const OPEN_KEY = 'lq-ops-open';
+function savedOpen() { try { return JSON.parse(localStorage.getItem(OPEN_KEY) || '{}') || {}; } catch { return {}; } }
+function saveOpen(id, open) { try { const s = savedOpen(); s[id] = open; localStorage.setItem(OPEN_KEY, JSON.stringify(s)); } catch {} }
+function setOpen(id, open) {
+  const card = $('card-' + id); if (!card) return;
+  card.classList.toggle('collapsed', !open);
+  const b = $('toggle-' + id); if (b) b.setAttribute('aria-expanded', String(open));
+}
+function autoOpen(id) {
+  if (id === 'lookup') return true;
+  const g = SECTIONS.find((x) => x.id === id);
+  return !!g && g.parts.some((p) => { const s = results[p]; return !!s && (s.state === 'error' || (s.alerts || []).length > 0); });
+}
+function applyOpen(id) { const saved = savedOpen()[id]; setOpen(id, typeof saved === 'boolean' ? saved : autoOpen(id)); }
+document.addEventListener('click', (e) => {
+  const go = e.target.closest && e.target.closest('[data-goto]');
+  if (go) { setOpen(go.dataset.goto, true); saveOpen(go.dataset.goto, true); $('card-' + go.dataset.goto).scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+  const head = e.target.closest && e.target.closest('[data-toggle]');
+  if (!head || e.target.closest('.body')) return;
+  const id = head.dataset.toggle;
+  const open = $('card-' + id).classList.contains('collapsed');
+  setOpen(id, open); saveOpen(id, open);
+});
+$('expand-all').addEventListener('click', () => { for (const s of SECTIONS) { setOpen(s.id, true); saveOpen(s.id, true); } });
+$('collapse-all').addEventListener('click', () => { for (const s of SECTIONS) { setOpen(s.id, s.id === 'lookup'); saveOpen(s.id, s.id === 'lookup'); } });
+
+// ---- what each indicator means (pageHelp.ts), on hover or keyboard focus -----------------
+const SECTION_HELP = ${JSON.stringify(SECTION_HELP).replace(/</g, '\\u003c')};
+const GROUP_HELP = ${JSON.stringify(GROUP_HELP).replace(/</g, '\\u003c')};
+const HELP = ${JSON.stringify(HELP).replace(/</g, '\\u003c')};
+const HELP_PREFIXES = ${JSON.stringify(HELP_PREFIXES).replace(/</g, '\\u003c')};
+function helpFor(key) {
+  if (key.startsWith('section:')) return SECTION_HELP[key.slice(8)] || null;
+  if (key.startsWith('group:')) return GROUP_HELP[key.slice(6)] || null;
+  if (HELP[key]) return HELP[key];
+  const p = HELP_PREFIXES.find(([start]) => key.startsWith(start));
+  return p ? p[1] : null;
+}
+/** Marks every label under root that has a description; the tooltip below shows it. */
+function annotate(root) {
+  if (!root) return;
+  for (const el of root.querySelectorAll('[data-help-key], h3, th, .stat span')) {
+    const text = el.dataset.helpKey || el.textContent.trim();
+    const help = text && helpFor(text);
+    if (!help) continue;
+    el.setAttribute('data-help', help);
+    el.setAttribute('aria-description', help);
+    if (!el.closest('button')) el.tabIndex = 0;
+  }
+}
+function showTip(el) {
+  const tip = $('tip');
+  tip.textContent = el.dataset.help; tip.hidden = false;
+  const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect();
+  const left = Math.min(Math.max(8, r.left), window.innerWidth - t.width - 8);
+  const below = r.bottom + 6 + t.height <= window.innerHeight;
+  tip.style.left = left + 'px';
+  tip.style.top = (below ? r.bottom + 6 : r.top - t.height - 6) + 'px';
+}
+const hideTip = () => { $('tip').hidden = true; };
+document.addEventListener('mouseover', (e) => { const el = e.target.closest && e.target.closest('[data-help]'); if (el) showTip(el); });
+document.addEventListener('mouseout', (e) => { const el = e.target.closest && e.target.closest('[data-help]'); if (el && !el.contains(e.relatedTarget)) hideTip(); });
+document.addEventListener('focusin', (e) => { const el = e.target.closest && e.target.closest('[data-help]'); if (el) showTip(el); else hideTip(); });
+document.addEventListener('focusout', hideTip);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideTip(); });
+window.addEventListener('scroll', hideTip, { passive: true });
+
+${OPS_SCRIPT}
+
+let loading = false;
+async function load(fresh) {
+  if (loading) return;
+  loading = true;
+  $('refresh').disabled = true;
+  for (const k of Object.keys(results)) delete results[k];
+  for (const s of SECTIONS) if (s.id !== 'lookup') { const p = $('pill-' + s.id); p.className = 'pill wait'; p.textContent = 'Loading…'; }
+  attention();
+  const q = fresh ? '?fresh=1' : '';
+  const fail = (ids) => (err) => { if (err.message !== 'Signed out' && err.message !== 'Not an admin') for (const id of ids) show(id, { state: 'error', alerts: [], error: err.message }); };
+  const jobs = [
+    api('/ops/api/diag' + q).then((d) => { for (const id of ['jobs', 'clients', 'database', 'v2', 'feedback']) show(id, d[id]); }).catch(fail(['jobs', 'clients', 'database', 'v2', 'feedback'])),
+    api('/ops/api/ops' + q).then((d) => { for (const id of ${JSON.stringify(OPS_IDS)}) show(id, d[id]); }).catch(fail(${JSON.stringify(OPS_IDS)})),
+    ...['code', 'cloudflare', 'supabase', 'expo', 'googleplay', 'appstore', ...${JSON.stringify(OWN_CALL_IDS)}].map((id) => api('/ops/api/' + id + q).then((d) => show(id, d)).catch(fail([id])))
+  ];
+  await Promise.all(jobs);
+  $('checked').textContent = 'Checked ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  $('refresh').disabled = false;
+  loading = false;
+}
+
+async function start() {
+  const me = await api('/ops/api/me').catch(() => null);
+  if (!me) return;
+  $('signin').hidden = true; $('mfa').hidden = true; say('');
+  $('board').hidden = false; $('refresh').hidden = false; $('signout').hidden = false; $('expand-all').hidden = false; $('collapse-all').hidden = false;
+  if (!$('grid').children.length) layout();
+  const deep = /^\\/ops-dashboard\\/org\\/([^/]+)$/.exec(location.pathname);
+  if (deep) openOrg(decodeURIComponent(deep[1]), false);
+  await load(false);
+}
+
+// Every five minutes while the tab is in front.
+setInterval(() => { if (document.visibilityState === 'visible' && !$('board').hidden) load(false); }, 300000);
+if (session() || borrowed()) start(); else showSignIn();
+</script>
+</body>
+</html>`;
+  return new Response(html, {
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'content-security-policy': csp(cfg.supabaseUrl, nonce),
+      ...SECURITY_HEADERS
+    }
+  });
+}
+
+export const SECURITY_HEADERS = {
+  'strict-transport-security': 'max-age=31536000; includeSubDomains',
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'no-referrer',
+  'x-frame-options': 'DENY',
+  'permissions-policy': 'camera=(), microphone=(), geolocation=()'
+} as const;
+
+/** Only this page's own script and style, its own API and Supabase Auth; nothing else loads or frames it. */
+export function csp(supabaseUrl: string, nonce: string): string {
+  return [
+    "default-src 'none'",
+    `script-src 'nonce-${nonce}'`,
+    `style-src 'nonce-${nonce}'`,
+    "img-src 'self' blob:",
+    'media-src blob:',
+    `connect-src 'self' ${new URL(supabaseUrl).origin}`,
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'"
+  ].join('; ');
+}

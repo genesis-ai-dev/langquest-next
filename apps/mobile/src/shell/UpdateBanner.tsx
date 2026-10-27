@@ -1,17 +1,18 @@
-import { CloudOff } from 'lucide-react-native';
 import * as Updates from 'expo-updates';
 import { useCallback, useEffect } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import { t } from '../i18n';
 import { noteExpected } from '../diagnostics/report';
-import { C, onColor, radius, space, type as T } from '../ui/theme';
-import { updateStatus } from './updateStatus';
+import { C, radius, space, type as T } from '../ui/theme';
+import { updateFailure, updateStatus } from './updateStatus';
 
 /**
  * One line at the top of the app saying where an OTA update has got to, and
  * offering the restart that makes it take effect. Without it the download is
- * silent and the swap happens at an arbitrary later cold start.
+ * silent and the swap happens at an arbitrary later cold start. A check or
+ * download that failed shows nothing (decisions.md 166): diagnostics hear
+ * why, and the next return to the app looks again.
  *
  * It also re-checks when the app comes back to the foreground: a device that
  * lives in a pocket between sessions may go days without a cold start, which
@@ -21,6 +22,8 @@ export function UpdateBanner() {
   const u = Updates.useUpdates();
   const status = updateStatus(u);
   const pending = u.isUpdatePending;
+  const failure = updateFailure(u);
+  useEffect(() => { if (failure) noteExpected('update check', failure); }, [failure]);
 
   const check = useCallback(async () => {
     if (!Updates.isEnabled) return;
@@ -42,20 +45,11 @@ export function UpdateBanner() {
 
   const onPress = useCallback(() => {
     if (status?.action === 'restart') void Updates.reloadAsync().catch((e: unknown) => noteExpected('update reload', e));
-    if (status?.action === 'retry') void check().catch((e: unknown) => noteExpected('update check', e));
-  }, [status?.action, check]);
+  }, [status?.action]);
 
   if (!status) return null;
   const ready = status.kind === 'ready';
-  const offline = status.kind === 'offline';
-  // Offline is shown as a red bar with a struck-through cloud and no wording:
-  // the device simply cannot reach the server, and spelling that out as an
-  // update failure reads as though the app itself broke.
-  const body = offline ? (
-    <View style={[styles.banner, styles.offline]} accessible accessibilityLabel={t('account.update.offlineLabel')}>
-      <CloudOff size={18} color={C.white} />
-    </View>
-  ) : (
+  const body = (
     <View style={[styles.banner, ready ? styles.ready : styles.quiet]}>
       {status.kind === 'busy' ? <ActivityIndicator size="small" color={C.muted} /> : null}
       <Text style={[styles.text, ready && styles.readyText]}>
@@ -85,7 +79,6 @@ const styles = StyleSheet.create({
     borderColor: C.border
   },
   quiet: { backgroundColor: C.bg },
-  offline: { backgroundColor: onColor.red, borderColor: onColor.red, justifyContent: 'center' },
   ready: { backgroundColor: C.primary, borderColor: C.primary },
   text: { flex: 1, fontSize: T.xs, color: C.muted },
   readyText: { color: C.white, fontWeight: '600' }

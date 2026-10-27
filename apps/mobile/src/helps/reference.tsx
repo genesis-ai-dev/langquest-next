@@ -4,7 +4,7 @@
 // Bible (play, Back 10 s, a Bible picker, the verses with the one playing
 // lit, a note on a verse or a moment), key words (hear each, your word or
 // say yours, add a word), notes, and everything recorded so far.
-import { commands, keyTermsFor, RECORD_STEP, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
+import { commands, keyTermsFor, notePart, noteHelp, RECORD_STEP, replyOf, type KeyTermView, type KeyWordDoc, type NoteAnchor, type PassageNote, type PassageState } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -315,7 +315,7 @@ function voiceOf(term: KeyTermView): string | undefined {
  * plays it, "Say yours" records it (TERM-5, adjustKeyTermRendering). A tap
  * on the word opens it (renderings, why, Tie to your draft). Under the
  * team's words, a section per key-word list the team uses ("From FIA ·
- * English", decision 149): its words on this passage, each with its short
+ * English", decision 172): its words on this passage, each with its short
  * meaning, the verses it is in and ▶ for the list's recording; a tap opens
  * the word's sheet, where it can be made the team's own. A list's word the
  * team already has shows with the team's words.
@@ -398,7 +398,7 @@ export function KeyWordsPane(props: {
 
 /**
  * A key-word list's word in its sheet (keyTerms/KeyWordSheet.tsx), with Add
- * to our key words for someone who may edit key words (decision 149): the
+ * to our key words for someone who may edit key words (decision 172): the
  * sheet gives way to Add a key word with the word, its short meaning and
  * the list's id for it, so the team's word and the list's stay one word
  * (`ownTermId`: FIA's t104 becomes `fia:t104`). `place` is the passage it is
@@ -549,7 +549,7 @@ export type WordPlace = Pick<PassageView, 'languageId' | 'language'> & {
  * languages say it, before saying or typing this language's own. A word
  * taken from another language keeps that language's id, so the two stay
  * one key term. `prefill` opens it with a key-word list's word in it
- * (decision 149), its draft kept apart from a word typed from nothing.
+ * (decision 172), its draft kept apart from a word typed from nothing.
  */
 export function AddWordSheet(props: {
   ctx: Ctx; v: WordPlace; draftTakeId: string | undefined; bibleName: string; onClose: () => void;
@@ -683,9 +683,19 @@ export function RequestNote(props: { ctx: Ctx; request: Parameters<typeof Reques
   return <RequestBanner ctx={props.ctx} request={props.request} />;
 }
 
-/** Where a note's draft is kept: the verse it is on (at whatever moment, in whichever Bible), else what it is on. */
+/**
+ * Where a note's draft is kept: the note it answers, the verse it is on (at
+ * whatever moment, in whichever Bible), the part, help or key word it is on
+ * (decisions.md 149), else what it is on.
+ */
 function noteDraftAt(anchor: NoteAnchor): string {
-  return anchor.kind === 'verse' ? `verse:${anchor.verse}` : anchor.kind;
+  const reply = replyOf(anchor);
+  if (reply) return `reply:${reply}`;
+  const part = notePart(anchor);
+  if (part) return `part:${part.part}`;
+  const help = noteHelp(anchor);
+  if (help) return `help:${help}`;
+  return anchor.kind === 'verse' ? `verse:${anchor.verse}` : anchor.kind === 'term' ? `term:${anchor.termId}` : anchor.kind;
 }
 
 /**
@@ -693,13 +703,25 @@ function noteDraftAt(anchor: NoteAnchor): string {
  * or typed is kept as a draft only you see (decision 127): closing keeps it
  * for the next note there, Add a note puts it on the record and drops it.
  */
-export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; title: string; where: string; anchor: NoteAnchor; onClose: () => void; message?: string }) {
+export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; title: string; where: string; anchor: NoteAnchor; onClose: () => void; message?: string;
+  /** The line under the title, in place of where the note goes. */ sub?: string;
+  /**
+   * Keep the note in the review instead of putting it on the record (decisions.md
+   * 149): Add a note hands it over, and it is sent with the verdict.
+   */
+  onAdd?: (c: { text: string; hash: string | null }) => void }) {
   const { ctx } = props;
   const step = useNoteStep();
   const draft = useDraft(draftKey('note', ctx.session.actorId, ctx.language.languageId, props.v.unitId, noteDraftAt(props.anchor)), EMPTY_NOTE, isNoteDraft);
   const { text, hash } = draft.value;
   const [busy, setBusy] = useState(false);
   const add = async () => {
+    if (props.onAdd) {
+      props.onAdd({ text: text.trim(), hash });
+      await draft.clear();
+      props.onClose();
+      return;
+    }
     setBusy(true);
     const ok = await saveNote(ctx, props.v, props.anchor, { text, blobHash: hash }, props.message ?? t('reference.notes.added'), step);
     if (ok) await draft.clear();
@@ -707,7 +729,7 @@ export function NoteSheet(props: { ctx: Ctx; v: Pick<PassageView, 'unitId'>; tit
     if (ok) props.onClose();
   };
   return (
-    <Sheet visible title={props.title} sub={t('reference.notes.sheetSub')} onClose={props.onClose}
+    <Sheet visible title={props.title} sub={props.sub ?? t('reference.notes.sheetSub')} onClose={props.onClose}
       action={<SavedMark status={draft.status} help={t('saved.draftHelp')} />}
       footer={<PrimaryBtn label={t('common.addNote')} busy={busy} disabled={!text.trim() && !hash} onPress={() => void add()} />}>
       <View style={styles.where}><Text style={txt.smMuted}>{props.where}</Text></View>

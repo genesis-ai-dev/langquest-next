@@ -7,12 +7,17 @@ import base from './vitest.config';
 // 2. it selects tests with a name regex joined by ' ', while vitest 5 matches against
 //    names joined by ' > ', so every test is skipped and no mutant is ever killed.
 //    stryker-names.ts makes the match see ' ' instead.
+// linesVersion.test.ts hashes passage.ts as written, and the sandbox holds it instrumented,
+// so it fails the initial run and with it every nightly mutation run; it holds no mutant.
+// stryker.config.json leaves scripts/ out of the sandbox, all but scripts/unit-shards.ts,
+// which vitest.config.ts imports.
 // Used only by stryker.config.json. Drop it when the runner supports vitest 5.
 export default mergeConfig(
   base,
   defineConfig({
     test: {
-      setupFiles: [`./stryker-setup-${process.env.STRYKER_MUTATOR_WORKER ?? 0}.js`, './stryker-names.ts']
+      setupFiles: [`./stryker-setup-${process.env.STRYKER_MUTATOR_WORKER ?? 0}.js`, './stryker-names.ts'],
+      exclude: ['**/node_modules/**', 'packages/core/test/linesVersion.test.ts']
     }
   })
 );

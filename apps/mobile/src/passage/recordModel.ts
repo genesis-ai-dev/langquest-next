@@ -20,7 +20,7 @@ import type { PathInput, PathStep } from './pathModel';
 import {
   elseChoices, kindCleared, kindRowActions, kindRowSub, type listenersOf, openCheckFor, sendTargetLabel, stepSheetSub,
   type KindRowCan, type MineFn, type NameFn, type RowAction
-} from './record';
+} from './recordTextModel';
 import { usualTargetFor, type UsualTarget } from './sendTarget';
 
 export interface RecordCan extends KindRowCan {
@@ -40,6 +40,10 @@ function canGo(s: Session, to: ScreenId): boolean {
 
 /** What the person looking may do on a passage's record, from their privileges here. */
 export function recordCan(s: Session): RecordCan {
+  // Looking in, read-only (decisions.md 158): an admin's privileges still hold
+  // assign_work and override_checkpoints, but nothing here is offered, so no
+  // sheet, Something else? or Undo suggests a check could be asked, logged or moved past.
+  if (s.readOnly) return { record: false, review: false, ask: false, log: false, skip: false, override: false, undo: false, withdraw: false, note: false, keep: false };
   return {
     record: canGo(s, 'workspace'),
     review: canGo(s, 'review_capture'),
@@ -401,9 +405,19 @@ export function nextAfterDone(p: Pick<PassageState, 'steps'>, o: { publishing?: 
   return undefined;
 }
 
-/** The toast after sending a check on with one tap: to the team or to the person. */
-export function sentText(target: UsualTarget, label: string): string {
+/**
+ * The toast after sending a check on with one tap: to the team or to the
+ * person. Offline nothing has been sent yet, so it says when it will be
+ * (decisions.md 166).
+ */
+export function sentText(target: UsualTarget, label: string, offline = false): string {
+  if (offline) return t('passage.page.askedOffline', { target: label });
   return 'teamId' in target ? t('passage.page.sentToTeam', { target: label }) : t('passage.page.sentToPerson', { target: label });
+}
+
+/** A message about work made on this device, with when the team gets it when the device is offline (decisions.md 166). */
+export function goesWhenConnected(message: string, offline: boolean): string {
+  return offline ? t('shell.toast.goesWhenConnected', { message }) : message;
 }
 
 /** The ask page's main button: ask the usual people, or ask for the check by name. */

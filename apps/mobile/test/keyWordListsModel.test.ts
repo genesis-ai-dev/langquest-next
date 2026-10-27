@@ -1,4 +1,4 @@
-// Key-word lists (decision 149, keyTerms/listsModel.ts): the forms a word is
+// Key-word lists (decision 172, keyTerms/listsModel.ts): the forms a word is
 // found by, which words show on a passage (linked across numberings, or said
 // in a Bible in the list's language), the team's own left out, the ids that
 // keep the team's word and the list's one word, and one search across the

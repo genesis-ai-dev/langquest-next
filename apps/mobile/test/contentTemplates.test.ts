@@ -8,7 +8,7 @@ import {
   formChanged, formFromDoc, levelsForDivide, levelsForOutline, libraryChoices, moveNode, newTemplateForm, parseRange, partName, pluralOf,
   rangeOfLabel, rangeOfUnit, recordedCount, removeNode, renameNode, setAsideCount, siblingsOf, templateLine, templateOf, toSegments,
   verseKey, versesText, versificationBooks
-} from '../src/templates/contentTemplates';
+} from '../src/templates/contentTemplatesModel';
 import type { SharedItem } from '../src/library/model';
 
 const luke = bibleBook('luk')!;

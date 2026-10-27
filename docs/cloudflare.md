@@ -6,29 +6,36 @@ API, every recording and guide file the app moves, the access-token API,
 and runs the server's jobs in containers (decisions.md 43, 58, 69, 70,
 141). Until 2026-10-20 it was `langquest-next-dashboard`, from when it
 served only the reports dashboard (decision 144; "Renaming the app's
-Worker" below says how it moved). Merging to `main` deploys the production Workers, and
-merging to `develop` deploys their `-preview` copies (decisions.md 50,
-`docs/environments.md`). There is no GitHub Actions workflow and no API token
+Worker" below says how it moved). Workers Builds also deploys the staff
+ops dashboard, `langquest-next-admin` (`docs/admin.md`, decisions.md 160),
+which has no address of its own: the app's Worker hands it `/ops-dashboard`
+and `/ops/api/*` through a service binding.
+Merging to `main` deploys the production Workers, and merging to
+`develop` deploys their `-preview` copies (decisions.md 50,
+`docs/environments.md`); the admin page has none. There is no GitHub Actions workflow and no API token
 in GitHub. Cloudflare generates the build token. Builds have no secrets at
 all: a deploy carries code and public `vars`, and the Worker keeps the
 secrets `npm run secrets` set on it (decisions.md 51).
 
-| | Invite email | App | Invite email preview | App preview |
-| --- | --- | --- | --- | --- |
-| Worker name | `langquest-next-invite-email` | `langquest-next` | `langquest-next-invite-email-preview` | `langquest-next-preview` |
-| Root directory | repository root | repository root | repository root | repository root |
-| Production branch | `main` | `main` | `develop` | `develop` |
-| Non-production branch builds | off | off | off | off |
-| Build command | | | | |
-| Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` |
-| Build variables and secrets | none | none | none | none |
-| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as app |
+| | Invite email | App | Invite email preview | App preview | Admin |
+| --- | --- | --- | --- | --- | --- |
+| Worker name | `langquest-next-invite-email` | `langquest-next` | `langquest-next-invite-email-preview` | `langquest-next-preview` | `langquest-next-admin` |
+| Root directory | repository root | repository root | repository root | repository root | repository root |
+| Production branch | `main` | `main` | `develop` | `develop` | `main` |
+| Non-production branch builds | off | off | off | off | off |
+| Build command | | | | | |
+| Deploy command | `npm run email:deploy` | `npm run web:deploy` | `npm run email:deploy:preview` | `npm run web:deploy:preview` | `npm run admin:deploy` |
+| Build variables and secrets | none | none | none | none | none |
+| Include paths | `apps/invite-email/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` | `apps/web/*`, `apps/mobile/*`, `packages/core/*`, `packages/sync/*`, `server/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs`, `scripts/build-jobs.mjs` | as invite email | as app | `apps/admin/*`, `scripts/diagSignals.ts`, `packages/core/*`, `package.json`, `package-lock.json`, `scripts/cloudflare-deploy.mjs` |
 
 The app Worker's include paths cover `server/*` and `scripts/build-jobs.mjs`
 because the job image (The job runner, below) is built from them: without
 them a change to the pass alone would not rebuild the image. Set on
 2026-10-16 with decision 141; check it in the Cloudflare dashboard if a
-pass change does not reach the container.
+pass change does not reach the container. The ops dashboard reads the same
+list (`apps/admin/src/sources/github.ts` `APP_BUILD_PATHS`, held to this
+table by a test): a merge that changes none of these leaves the web app on
+an older commit, which is not a failed deploy. Change both together.
 
 Leave the default dependency install on. It is `npm clean-install` with the
 build image's npm, 10.9.2 since Cloudflare's 2026-10-14 image update, not
@@ -63,6 +70,7 @@ binding, add Email Sending edit to that token (My Profile > API Tokens).
 | --- | --- | --- |
 | invite email | `INVITE_FROM` | `INVITE_RELAY_SECRET` |
 | app | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
+| admin | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, which account, projects, team and app each section reads | optional provider tokens and keys (`ADMIN_*`); the database through the Hyperdrive binding `DIAG`, made from `DIAG_DATABASE_URL` |
 
 ## The job runner (containers)
 
@@ -71,7 +79,7 @@ Function (`docs/server-jobs.md`, decisions.md 141): the projection pass
 for every language (`server/projections.ts`) and the v2 import
 (`server/v2.ts`). `apps/web/jobs/Dockerfile` is the image: Node 24 and one
 bundle per job from `scripts/build-jobs.mjs` (`npm run build:jobs`, run by
-the Worker's build and by `npm run web:dev`), and psql for the import. No
+the Worker's build and by `npm run web:dev`), and psql and ffmpeg for the import. No
 npm package is installed, so the dependency tree is never beside the
 service key. `wrangler deploy` builds the image with Docker and pushes it
 to Cloudflare's registry, on Workers Builds as on a laptop. The Worker goes

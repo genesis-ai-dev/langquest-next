@@ -51,7 +51,9 @@
     "justNow": "Baru saja",
     "minutesAgo_other": "{{count, number}} mnt lalu",
     "hoursAgo_other": "{{count, number}} jam lalu",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Hari ini",
+    "yesterday": "Kemarin"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -344,11 +346,14 @@
     "get_ready": "Bersiap",
     "settings_more": "Pengaturan lain",
     "check_editor": "Pemeriksaan",
-    "cluster_home": "Rumpun"
+    "cluster_home": "Rumpun",
+    "global_viewer": "Pengamat Global"
   },
   "native": {
     "microphone": "LangQuest merekam suara Anda untuk menerjemahkan perikop.",
-    "camera": "LangQuest memakai kamera untuk memindai kode QR undangan."
+    "camera": "LangQuest memakai kamera untuk memindai kode QR undangan.",
+    "calculator": "Kalkulator",
+    "notes": "Catatan"
   },
   "library": {
     "sourceLine": {
@@ -3009,6 +3014,13 @@
       "elsewhereSub": "LangQuest hanya bekerja di satu tab dalam satu waktu, agar rekaman dan perubahan Anda tetap di satu tempat. Pakai di sini, atau kembali ke tab lain.",
       "useHere": "Pakai di sini",
       "useHereHelp": "Memindahkan LangQuest ke tab ini. Tab lain menyimpan pekerjaannya lalu mengalah."
+    },
+    "lock": {
+      "wait": "Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.",
+      "wrong": "Pola itu tidak benar.",
+      "notMe": "Bukan gambar saya",
+      "notMeHelp": "Kembali ke gambar-gambar.",
+      "pictureHelp": "Keluar dari ponsel ini? Ketuk gambar Anda, lalu gambar pola Anda. Tidak perlu koneksi."
     }
   },
   "account": {
@@ -3025,9 +3037,6 @@
       "ready": "Pembaruan siap — ketuk untuk memulai ulang",
       "downloading": "Mengunduh pembaruan…",
       "downloadingPercent": "Mengunduh pembaruan… {{percent}}",
-      "offline": "Offline — ketuk untuk mencoba lagi",
-      "failed": "Pembaruan gagal: {{reason}} — ketuk untuk mencoba lagi",
-      "offlineLabel": "Offline: pembaruan tidak dapat diperiksa",
       "webReady": "Versi baru LangQuest sudah siap. Muat ulang untuk memakainya.",
       "storeBuild": "versi toko aplikasi",
       "updateBuild": "pembaruan {{id}}",
@@ -3297,11 +3306,9 @@
         "checking": "Terhubung, tetapi saluran langsung terputus, jadi perangkat ini memeriksa perubahan setiap beberapa menit. Sinkronkan sekarang memeriksa saat itu juga.",
         "offline": "Tidak ada koneksi. Semua yang Anda lakukan disimpan di perangkat ini dan terkirim sendiri saat Anda kembali daring.",
         "refused": "Server tidak menerima perubahan dari perangkat ini. Pekerjaan Anda tetap tersimpan di sini.",
-        "toSend": "Perubahan dan rekaman di perangkat ini yang belum dikonfirmasi server. Semuanya aman di sini dan terkirim saat ada koneksi.",
         "toReceive": "Rekaman dari orang lain yang masih diunduh perangkat ini.",
         "refusedLine": "Perubahan yang tidak diterima server, biasanya karena izin berubah. Tetap ada di perangkat ini; buka Detail untuk melihat masing-masing."
       },
-      "toSend": "Akan dikirim",
       "toReceive": "Akan diterima",
       "refusedLine": "Ditolak",
       "none": "Tidak ada",
@@ -3310,6 +3317,17 @@
       "syncNowHelp": "Mengirim yang menunggu dan mengambil yang baru, saat ini juga.",
       "detailsHelp": "Setiap perubahan yang menunggu atau ditolak, dan transfer audio: untuk orang yang memperbaiki masalah.",
       "eventHelp": "Membuka perikop yang terkait dengan perubahan ini."
+    },
+    "lock": {
+      "tooShort": "Hubungkan setidaknya {{n}} titik.",
+      "patternsDiffer": "Itu pola yang berbeda. Mulai lagi.",
+      "pictureTitle": "Pilih gambar Anda",
+      "pictureHelp": "Untuk masuk kembali di ponsel ini, Anda akan mengetuk gambar Anda, lalu menggambar pola Anda.",
+      "nextHelp": "Lanjut ke menggambar pola Anda.",
+      "drawTitle": "Gambar pola",
+      "drawAgain": "Gambar sekali lagi",
+      "newPattern": "Gambar pola baru",
+      "choosePatternHelp": "Pilih gambar dan pola untuk masuk kembali di ponsel ini, bahkan tanpa koneksi."
     }
   },
   "study": {
@@ -3824,7 +3842,8 @@
       "openStudyHelp": "Membuka seluruh panduan studi untuk perikop ini.",
       "listeners": "Pendengar",
       "liveIn": "Terbit di {{channel}} · {{version}}",
-      "listenerCount": "Masukan pendengar: {{count, number}}"
+      "listenerCount": "Masukan pendengar: {{count, number}}",
+      "askedOffline": "Diminta kepada {{target}}. Mereka menerimanya saat perangkat ini terhubung."
     },
     "else": {
       "title": "Ada yang lain?",
@@ -4004,6 +4023,14 @@
       "partHelp": "Memutar bagian ini saja.",
       "deleteVersionHelp": "Menghapus versi ini untuk semua orang. Pemeriksaan yang sudah dilakukan tetap ada di riwayat, tetapi tidak dihitung lagi.",
       "doneHelp": "Membuka draf ini untuk dilihat sekali lagi, lalu diselesaikan dan dikirim ke pemeriksaan berikutnya."
+    },
+    "partNotes": {
+      "title": "Catatan pada {{part}}",
+      "mark_other": "{{count, number}} catatan pada {{part}}",
+      "markHelp": "Membuka apa yang dikatakan dalam pemeriksaan tentang bagian ini. Anda dapat membalas."
+    },
+    "checkNotes": {
+      "title": "Catatan dari {{check}}"
     }
   },
   "work": {
@@ -4051,7 +4078,8 @@
       "rowHelp": "Membuka perikop, untuk melihat keadaannya."
     },
     "sync": {
-      "toSend_other": "{{count, number}} akan dikirim"
+      "toSend_other": "{{count, number}} akan dikirim",
+      "receiving": "menerima rekaman"
     },
     "join": {
       "wantsToJoin": "{{name}} ingin bergabung",
@@ -4139,7 +4167,8 @@
     "toast": {
       "notSaved": "Tidak tersimpan: {{reason}}",
       "notSavedCode": "Tidak tersimpan. Terjadi kesalahan (kode {{code}}).",
-      "dismissLabel": "{{message}} Tutup"
+      "dismissLabel": "{{message}} Tutup",
+      "goesWhenConnected": "{{message}} Tim Anda menerimanya saat perangkat ini terhubung."
     },
     "nav": {
       "cannotOpenHere": "Itu tidak dapat dibuka dari sini.",
@@ -4238,6 +4267,14 @@
       "term": {
         "title": "Pilih istilah",
         "sub": "Arti dan padanannya terbuka di sini."
+      },
+      "language": {
+        "title": "Pilih bahasa",
+        "sub": "Kemajuannya terbuka di sini."
+      },
+      "manage": {
+        "title": "Pilih yang akan dikelola",
+        "sub": "Bahasa, anggota, atau pengaturan terbuka di sini."
       }
     },
     "license": {
@@ -4263,6 +4300,15 @@
       "readHelp": "Membuka teks lengkapnya di browser.",
       "rowHelp": "Membuka daftar lisensi dan apa yang diizinkan masing-masing.",
       "yesOpenToHelp": "Mulai sekarang karya Anda dibagikan dengan lisensi ini. Ini tidak dapat diurungkan."
+    },
+    "pattern": {
+      "label": "Pola: hubungkan setidaknya {{n}} titik",
+      "help": "Geser jari melewati titik-titik tanpa mengangkatnya, atau ketuk satu per satu lalu Selesai. Hubungkan setidaknya {{n}} titik.",
+      "dot": "Titik {{n}}",
+      "picture": "Gambar {{n}}",
+      "again": "Mulai lagi",
+      "againHelp": "Menghapus titik-titik untuk memulai pola lagi.",
+      "doneHelp": "Menyelesaikan pola dengan titik yang Anda ketuk."
     }
   },
   "help": {
@@ -4309,45 +4355,26 @@
       "checking": "Titik abu-abu: mencari koneksi. Pekerjaan Anda tetap di perangkat ini sampai terkirim.",
       "offline": "Titik kuning: offline. Pekerjaan Anda tetap di perangkat ini dan dikirim begitu Anda terhubung.",
       "refused": "Merah: server menolak sesuatu. Ketuk untuk melihat apa, dan apa yang perlu dilakukan.",
-      "withWaiting": "{{standing}} Angkanya menunjukkan berapa banyak yang menunggu dikirim."
+      "withWaiting": "{{standing}} Angkanya menunjukkan berapa banyak yang menunggu dikirim.",
+      "withReceiving": "{{standing}} Cincin berputar selama rekaman dari orang lain diunduh ke perangkat ini. Tidak ada yang menunggu dikirim."
     }
   },
   "offline": {
     "onDevice": "Di perangkat ini",
     "downloading": "Mengunduh untuk offline",
-    "audioNotHere": "Audio tidak ada di perangkat ini",
-    "notKept": "Tidak disimpan di perangkat ini",
     "audioNotKept": "Audio tidak disimpan di perangkat ini",
     "connectToFinish": "Sambungkan untuk menyelesaikannya sebelum Anda bepergian.",
     "stayConnected": "Tetap terhubung sampai ini selesai.",
-    "keep": "Simpan untuk offline",
-    "stopKeeping": "Berhenti simpan untuk offline",
     "reason": {
       "asked": "Disimpan karena Anda diminta mengerjakannya.",
       "worked": "Disimpan karena Anda sudah mengerjakannya.",
       "chosen": "Disimpan karena Anda memilih menyimpannya."
     },
     "passage": {
-      "notSent_other": "{{count, number}} rekaman belum dikirim dari perangkat yang membuatnya.",
-      "studyOnline": "Gambar studi dan audio studi memerlukan koneksi di aplikasi web.",
-      "worksWithStudy": "Teks, audio, dan gambar studinya bisa dipakai tanpa koneksi.",
-      "worksWithAudio": "Teks dan audionya bisa dipakai tanpa koneksi.",
-      "worksTextOnly": "Teksnya bisa dipakai tanpa koneksi, dan audio baru diunduh saat tersedia.",
-      "audioFilesHere_other": "{{here, number}} dari {{count, number}} file audio sudah ada di sini.",
-      "audioFilesHereLeft_other": "{{here, number}} dari {{count, number}} file audio sudah ada di sini, sisa {{size}} audio lagi.",
-      "studyFilesHere_other": "{{here, number}} dari {{count, number}} file audio dan studi sudah ada di sini.",
-      "studyFilesHereLeft_other": "{{here, number}} dari {{count, number}} file audio dan studi sudah ada di sini, sisa {{size}} audio lagi.",
       "onlySomeHere_other": "Hanya {{here, number}} dari {{count, number}} file di perangkat ini",
-      "downloadingCount": "Mengunduh untuk offline · {{here, number}} dari {{total, number}}",
-      "notAllHere": "Belum semuanya ada di perangkat ini",
-      "readRecordAudioNeeds": "Anda bisa membaca dan merekam, tetapi audionya memerlukan koneksi.",
-      "readRecordStudyNeeds": "Anda bisa membaca dan merekam, tetapi audio dan gambar studinya memerlukan koneksi.",
-      "textHereAudioNeeds": "Teksnya sudah ada di sini, tetapi audionya memerlukan koneksi. Simpan untuk offline agar bisa dibawa.",
-      "textHereStudyNeeds": "Teksnya sudah ada di sini, tetapi audio dan gambar studinya memerlukan koneksi. Simpan untuk offline agar bisa dibawa.",
-      "barHelp": "Terisi seiring file-filenya sampai di perangkat ini."
+      "downloadingCount": "Mengunduh untuk offline · {{here, number}} dari {{total, number}}"
     },
     "toast": {
-      "kept": "Disimpan di perangkat ini. Akan diunduh selama Anda terhubung.",
       "notKept": "Tidak lagi disimpan. Audionya mungkin dihapus untuk memberi ruang."
     },
     "summary": {
@@ -4368,8 +4395,8 @@
       "alwaysBody": "Teks, status, dan riwayat setiap perikop dalam {{language}}. Audio perikop yang Anda diminta kerjakan, sudah Anda kerjakan, atau Anda pilih untuk disimpan.",
       "alwaysBodyStudy": "Teks, status, dan riwayat setiap perikop dalam {{language}}. Audio, gambar studi, peta, dan audio studi perikop yang Anda diminta kerjakan, sudah Anda kerjakan, atau Anda pilih untuk disimpan.",
       "needsTitle": "Memerlukan koneksi",
-      "needsNotKept": "Audio perikop yang belum Anda simpan. Buka perikop dan ketuk Simpan untuk offline agar bisa dibawa.",
-      "needsNotKeptStudy": "Audio dan bahan studi perikop yang belum Anda simpan. Buka perikop dan ketuk Simpan untuk offline agar bisa dibawa.",
+      "needsNotDownloaded": "Audio perikop yang belum diunduh.",
+      "needsNotDownloadedStudy": "Audio dan bahan studi perikop yang belum diunduh.",
       "needsFilms": "Film studi.",
       "needsStudyWeb": "Gambar studi, peta, dan audio studi, di aplikasi web.",
       "needsReports": "Laporan.",
@@ -4390,7 +4417,11 @@
       "body": "Versi, tinjauan, dan riwayatnya masih diunduh bersama bagian lain bahasa ini. Sambungkan untuk mengunduh.",
       "latest": "Terbaru: versi {{n, number}}, oleh {{name}}.",
       "requests": "Permintaan terbuka: {{n, number}}."
-    }
+    },
+    "download": "Unduh untuk offline",
+    "needsConnection": "Mengunduh perlu koneksi",
+    "needsConnectionHelp": "Tidak ada di perangkat ini. Bisa diunduh setelah perangkat ini terhubung.",
+    "checkingHelp": "Perangkat ini sedang menghitung bagian perikop ini yang ada padanya."
   },
   "moderation": {
     "flagLabel": "Laporkan atau blokir {{name}}",
@@ -4817,7 +4848,6 @@
       "chapter": "Pasal {{n}}",
       "chapterHelp": "Membuka perikopnya. Tanda centang berarti selesai, titik berarti sudah dimulai.",
       "keyLabel": "Tanda centang berarti selesai, titik berarti sudah dimulai",
-      "keyLabelOffline": "Tanda centang berarti selesai, titik berarti sudah dimulai, awan berarti disimpan di perangkat ini",
       "barHelp": "Batang terisi seiring perikopnya direkam; bagian yang hijau sudah selesai.",
       "countHelp": "{{shown}} berarti {{recorded}} dari {{total}} perikopnya sudah direkam.",
       "matchHelp": "Angkanya menunjukkan berapa perikopnya yang cocok dengan saringan.",
@@ -4830,7 +4860,6 @@
     "key": {
       "done": "Selesai",
       "started": "Sudah dimulai",
-      "onDevice": "Di perangkat ini",
       "doneSub": "Semua pemeriksaan sudah selesai",
       "startedSub": "Mulai direkam, sudah direkam, sedang di pemeriksa, atau masukan menunggu",
       "notStarted": "Belum dimulai",
@@ -5632,7 +5661,12 @@
         "someTerm": "istilah",
         "version": "Versi {{n}}",
         "aVersion": "Sebuah versi",
-        "study": "Studi"
+        "study": "Studi",
+        "replyTo": "Balasan untuk {{name}}",
+        "reply": "Sebuah balasan",
+        "aPart": "Sebuah bagian",
+        "help": "“{{help}}”",
+        "aHelp": "Sebuah alat bantu"
       }
     },
     "parts": {
@@ -5798,6 +5832,8 @@
       "helpNoteHelp": "Membukanya untuk dibaca.",
       "howManyHelp": "Sebutkan berapa orang yang mendengarkan. Tidak wajib.",
       "doneRecordedHelp": "Memasukkan {{what}} ke riwayat perikop.",
+      "looksGoodOffline": "Sudah baik. {{name}} menerimanya saat perangkat ini terhubung.",
+      "feedbackOffline": "Masukan disimpan. {{name}} menerimanya saat perangkat ini terhubung.",
       "helpWordsHelp": "Membuka kata kunci dalam perikop ini, dengan kata tim untuk masing-masing, dan apakah versi ini memakainya."
     },
     "guest": {
@@ -5941,6 +5977,18 @@
       "addStepDetail": "Tambahkan pemeriksaan lain, setelah yang lain.",
       "legend": "= harus lulus sebelum tahap berikutnya",
       "gripHelp": "Tarik ke atas atau ke bawah untuk memindahkan tahap ini."
+    },
+    "notesOn": {
+      "addOn": "Tambah catatan pada {{what}}",
+      "addOnHelp": "Menambah catatan pada hal ini, diucapkan atau diketik. Catatan ini disertakan dengan pemeriksaan Anda.",
+      "noteOn": "Catatan pada {{what}}",
+      "reply": "Balas",
+      "replyHelp": "Membalas catatan {{name}}. Balasan Anda muncul di bawahnya.",
+      "replyTitle": "Balas {{name}}",
+      "withReview": "Bersama pemeriksaan Anda",
+      "removeFrom": "Hapus catatan Anda: {{what}}",
+      "goWith_other": "{{count, number}} catatan disertakan dengan pemeriksaan Anda",
+      "added": "Ditambahkan ke pemeriksaan Anda."
     }
   },
   "backTranslation": {
@@ -6390,7 +6438,9 @@
       "addHint": "Tinggalkan catatan pada perikop ini, dengan suara atau tulisan.",
       "sheetSub": "Catatan ini tetap bersama perikop. Pemeriksa dan penerjemah berikutnya melihatnya.",
       "added": "Catatan ditambahkan.",
-      "typeHelp": "Ketik catatan Anda. Anda juga dapat mengucapkannya."
+      "typeHelp": "Ketik catatan Anda. Anda juga dapat mengucapkannya.",
+      "onPart": "pada {{part}}",
+      "onHelp": "pada “{{help}}”"
     },
     "earlier": {
       "yours": "Milik Anda",
@@ -7030,6 +7080,106 @@
       "saved": "Tersimpan. Dikirim saat Anda terhubung.",
       "savedUntilSignIn": "Tersimpan. Dikirim setelah Anda masuk.",
       "voiceTooLong": "Terlalu panjang: catatan suara paling lama 2 menit."
+    }
+  },
+  "appVersion": {
+    "available": "Versi baru tersedia",
+    "update": "Perbarui",
+    "updateHelp": "Membuka halaman toko untuk versi terbaru.",
+    "dismiss": "Tutup",
+    "dismissHelp": "Menyembunyikan ini sampai versi yang lebih baru keluar.",
+    "required": "Harap perbarui aplikasi",
+    "keepWorking": "Tetap bekerja",
+    "keepWorkingHelp": "Pekerjaan Anda tetap di ponsel ini dan dikirim setelah Anda memperbarui."
+  },
+  "globalViewer": {
+    "title": "Pengamat Global",
+    "viewingOrg": "Melihat {{org}} sebagai Pengamat Global. Anda tidak bisa mengubah apa pun.",
+    "lineSetUp": "Siapkan aplikasi autentikator Anda untuk memulai",
+    "lineCode": "Masukkan kode dari aplikasi autentikator Anda",
+    "lineOn": "Cari organisasi mana pun untuk dibaca",
+    "lineRevoked": "Akses Pengamat Global Anda sudah berakhir",
+    "wayInHelp": "Kode aplikasi autentikator Anda, dan semua organisasi untuk dibaca.",
+    "revokedTitle": "Akses Pengamat Global sudah berakhir",
+    "revokedBody": "Tanyakan kepada LangQuest jika Anda merasa ini keliru.",
+    "notOne": "Akun ini bukan Pengamat Global.",
+    "codeLabel": "Kode dari aplikasi autentikator Anda",
+    "codeHelp": "Kode 6 digit yang ditampilkan aplikasi autentikator Anda untuk LangQuest. Kode berubah setiap 30 detik.",
+    "check": "Periksa kode",
+    "checkHelp": "Jika kodenya benar, Anda bisa membaca semua organisasi sampai Anda keluar.",
+    "codeWrong": "Kode itu tidak benar. Ketik kode yang sedang ditampilkan aplikasi autentikator Anda.",
+    "noAuthenticator": "Akun ini tidak punya aplikasi autentikator. Minta LangQuest untuk meresetnya.",
+    "enterCode": "Untuk membaca organisasi, masukkan kode dari aplikasi autentikator Anda.",
+    "setUpIntro": "Lakukan ini lewat panggilan dengan orang yang memberi Anda akses. Anda perlu aplikasi autentikator di ponsel, seperti Google Authenticator atau Microsoft Authenticator.",
+    "setUp": "Siapkan autentikator",
+    "setUpHelp": "Membuat kunci baru untuk aplikasi autentikator Anda dan menampilkannya di sini.",
+    "stepAdd": "1. Tambahkan LangQuest ke aplikasi autentikator Anda",
+    "scan": "Pindai kode ini dengan aplikasi autentikator Anda.",
+    "qrLabel": "Kode untuk dipindai dengan aplikasi autentikator Anda",
+    "openApp": "Buka di aplikasi autentikator",
+    "openAppHelp": "Menambahkan LangQuest ke aplikasi autentikator di ponsel ini.",
+    "noApp": "Tidak ada aplikasi autentikator yang terbuka. Ketik kunci di bawah ke dalam aplikasinya.",
+    "typeKey": "Atau ketik kunci ini ke dalam aplikasi:",
+    "stepCode": "2. Masukkan kode yang ditampilkan",
+    "onTitle": "Anda bisa membaca semua organisasi",
+    "onBody": "Anda melihat apa yang dilihat Pengamat. Anda tidak bisa mengubah apa pun.",
+    "search": "Organisasi atau bahasa",
+    "openNowLabel": "{{name}}, terbuka sekarang",
+    "openHelp": "Membuka organisasi ini untuk dibaca.",
+    "noneFound": "Tidak ada organisasi yang cocok.",
+    "more": "Tampilkan lebih banyak",
+    "hereLabel": "Sedang dilihat",
+    "otherLabel": "Buka organisasi lain",
+    "readOnly": "Anda melihat sebagai Pengamat Global: tidak ada yang bisa diubah di sini.",
+    "linkHelp": "Di mana Anda melihat, apa yang bisa Anda lakukan di sana, dan semua organisasi lainnya.",
+    "dashboard": "Dasbor operasional",
+    "dashboardBody": "Layanan LangQuest, tugas server, dan diagnostik lapangan. Terbuka di tab baru.",
+    "dashboardHelp": "Membuka dasbor operasional LangQuest di tab baru, dengan akun Anda."
+  },
+  "uploads": {
+    "barRecordings_other": "{{count, number}} rekaman menunggu diunggah",
+    "barChanges_other": "{{count, number}} perubahan menunggu diunggah",
+    "uploading": "Mengunggah",
+    "allUploaded": "Semua sudah diunggah",
+    "barHelp": "Membuka apa yang tersimpan di perangkat ini dan menunggu diunggah, serta kapan semuanya diunggah.",
+    "savedHere": "Tersimpan di perangkat ini",
+    "lastUpload": "Unggahan terakhir {{when}}",
+    "waitingTitle": "Menunggu diunggah",
+    "uploadedTitle": "Sudah diunggah",
+    "recordingsUploaded_other": "{{uploaded, number}} dari {{count, number}} rekaman diunggah",
+    "changesWaiting_other": "{{count, number}} perubahan menunggu",
+    "otherChanges": "Perubahan lain",
+    "recordings_other": "{{count, number}} rekaman",
+    "changes_other": "{{count, number}} perubahan"
+  },
+  "disguise": {
+    "row": "Ikon aplikasi",
+    "rowHelp": "Membuat LangQuest terlihat seperti kalkulator atau buku catatan di ponsel ini. Aplikasi hanya terbuka dengan kode yang Anda pilih.",
+    "title": "Ikon aplikasi",
+    "langquest": "LangQuest",
+    "ownHelp": "Mengembalikan ikon LangQuest sendiri. Terbuka tanpa kode.",
+    "lookHelp": "Memilih ikon ini. Selanjutnya Anda memilih kode yang membuka LangQuest.",
+    "calculatorN": "Kalkulator {{n}}",
+    "notesN": "Catatan {{n}}",
+    "codeTitle": "Pilih kode",
+    "code": "Kode",
+    "codeHelp": "4 sampai 12 angka. Di kalkulator, ketik dengan tombolnya. Di buku catatan, ketik di satu baris tersendiri.",
+    "nextHelp": "Membuka kalkulator atau buku catatan agar Anda mengetik kode Anda di sana.",
+    "backHelp": "Kembali satu langkah.",
+    "tryTitle": "Ketik kode Anda",
+    "on": "Ponsel ini sekarang menampilkan {{name}}.",
+    "off": "Ikon LangQuest sendiri sudah kembali.",
+    "notesTitle": "Catatan",
+    "keys": {
+      "clear": "Hapus semua",
+      "delete": "Hapus",
+      "percent": "Persen",
+      "divide": "Bagi",
+      "times": "Kali",
+      "minus": "Kurang",
+      "plus": "Tambah",
+      "equals": "Sama dengan",
+      "point": "Titik desimal"
     }
   }
 }

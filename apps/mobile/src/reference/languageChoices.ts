@@ -1,6 +1,6 @@
 // The languages a team's reference material can be in, and what is there in
 // each (decision 84): a guide set's passages (FIA), a key-word list's words
-// (decision 149), Bibles and other guides,
+// (decision 172), Bibles and other guides,
 // from the organization's library and what other organizations share, and
 // Bible Brain's Bibles beside the library's (`biblesFor`). The
 // reference language page lists them so an admin sees, before choosing,

@@ -230,6 +230,8 @@ function setup() {
   // Each language as the object reads it for the API: records kept in its store, never whole in memory (decisions.md 147).
   const keeper = new LanguageRecordsKeeper(log, ORG, async () => new EventMemoryStore(), { fillInBackground: false });
   const received: Received[] = [];
+  /** How the agent asked for each language: a write must see the log as it is, a read may not. */
+  const recordsAsked: { id: string; fresh: boolean }[] = [];
   // What the app's server answers; a status, or 'down' for no answer at all.
   let answerWith: number | 'down' = 200;
   const runs: JobRun[] = [];
@@ -255,7 +257,7 @@ function setup() {
     },
     now: () => now,
     webhooks: dispatcher,
-    records: (id) => keeper.records(id)
+    records: (id, fresh) => { recordsAsked.push({ id, fresh }); return keeper.records(id); }
   });
   const deps: AgentDeps = {
     store,
@@ -288,12 +290,26 @@ function setup() {
     return r.body.token as string;
   };
   return {
-    log, store, call, token, advance: (ms: number) => { now += ms; }, signed: () => signed,
+    log, store, call, token, recordsAsked, advance: (ms: number) => { now += ms; }, signed: () => signed,
     dispatcher, received, runs, answer: (a: number | 'down') => { answerWith = a; },
     /** What the alarm does after a poke: look, then send what is due. */
     tick: async () => { await dispatcher.scan(); await dispatcher.deliverDue(); }
   };
 }
+
+describe('how fresh a language is when it is read', () => {
+  it('lets a read use what the object checked a moment ago, and makes a write and its read-back see the log as it is', async () => {
+    const { call, token, recordsAsked } = setup();
+    const reviewer = await token('tr', { scopes: ['read', 'review'] });
+    await call('GET', '/api/v1/languages/din/passages', reviewer);
+    expect(recordsAsked.map((a) => a.fresh)).toEqual([false]);
+    recordsAsked.length = 0;
+    const written = await call('POST', '/api/v1/languages/din/passages/d2/reviews', reviewer, { kindId: 'peer', outcome: 'looks_good', reviewerId: 'partner' });
+    expect(written.status).toBe(200);
+    expect(recordsAsked.length).toBeGreaterThanOrEqual(2);
+    expect(recordsAsked.every((a) => a.fresh)).toBe(true);
+  });
+});
 
 describe('reading', () => {
   it('gives a read:published token approved passages only, with their audio in playing order', async () => {

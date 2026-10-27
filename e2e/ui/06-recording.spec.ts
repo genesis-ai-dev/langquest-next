@@ -271,17 +271,15 @@ test('REC-008 Parts cannot be deleted while recording', async ({ page }) => {
   await m.speak(false);
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
+  // While recording the pane is the recording view (LAN-83, decision 124): the parts list is not on screen, so no
+  // verse space, Play button or Delete of a recorded part can be reached; the view's ✕ throws the whole recording away and asks first.
   for (const n of [1, 2, 3]) {
-    await expect(verseSpace(page, n)).toHaveAttribute('aria-disabled', 'true');
-    await expect(button(page, `Play Part ${n}`)).toHaveAttribute('aria-disabled', 'true');
+    await expect(verseSpace(page, n)).toHaveCount(0);
+    await expect(button(page, `Play Part ${n}`)).toHaveCount(0);
+    await expect(button(page, `Delete Part ${n}`)).toHaveCount(0);
   }
+  await expect(button(page, 'Throw away this recording')).toBeVisible();
   await expect(publishButton(page)).toHaveCount(0);
-  // A hold on the space does nothing: no sheet, no toast.
-  const box = (await verseSpace(page, 1).boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down(); await page.waitForTimeout(700); /* sleep: the long-press threshold, the product's own */ await page.mouse.up();
-  await button(page, 'Play Part 1').click({ force: true });
-  await expect(page.getByRole('button', { name: 'Delete Part 1', exact: true })).toHaveCount(0);
   await expect(byId(page, 'toast')).toHaveCount(0);
   await leaveSession(page);
   await m.mode('file');
@@ -636,16 +634,25 @@ test('REC-025 Web: closing the tab while recording asks first', async ({ page, c
   const dialogs: string[] = [];
   // The first question is cancelled (step 3); any later one is let through, and counted.
   page.on('dialog', (d) => { dialogs.push(d.type()); void (dialogs.length === 1 ? d.dismiss() : d.accept()); });
-  // Close the tab while the voice file speaks (it plays on its own clock: wait for speech).
+  // Close the tab while a part is being said. The tone microphone speaks only when told to: the voice file plays on its own
+  // clock and says a part more on a slow machine, so a count of exactly one new part was never certain.
+  const m = mic(page);
+  await m.mode('tone');
+  // In syllables: the tone goes on through the reload's question, and a steady one long enough becomes the room (decision 125).
+  await m.syllables(true);
+  await m.speak(false);
   await recordButton(page).click();
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
+  await m.speak(true);
   await expect(text(page, 'Recording…')).toBeVisible({ timeout: 8_000 });
   // A reload while speaking (Playwright's page.close with beforeunload leaves the page unable to navigate after a cancel).
   await page.evaluate(() => { window.location.reload(); });
   await expect.poll(() => dialogs).toEqual(['beforeunload']);
   // Cancelled: the page stays and recording goes on; the part ends at the pause.
   await expect(recordButton(page)).toHaveAttribute('aria-label', 'Stop recording');
+  await say(page, 2500); // the part said, then the quiet that ends it
   await expectParts(page, before + 1, 8_000);
+  await m.syllables(false);
   await leaveSession(page);
   // Idle, with nothing left to send (else the leave guard asks, storageGate.tsx), a reload asks nothing.
   await expectUploaded(page, w);
@@ -661,9 +668,7 @@ test('REC-025 Web: closing the tab while recording asks first', async ({ page, c
   // is there when LangQuest opens again in the same browser
   // (recordingJournal.ts). A session not yet left lives in the page, which
   // asks before it goes (above); a phone keeps it in its journal (LAN-82).
-  await recordButton(page).click();
-  await expectParts(page, before + 2, 8_000);
-  await leaveSession(page);
+  await recordSaid(page, [3000]); // the microphone is the voice file again after the reload; recordSaid sets the tone
   await page.waitForTimeout(800); // sleep: the journal's write to browser storage, which shows nowhere on screen
   await page.close();
   const again = await context.newPage();
@@ -865,6 +870,14 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   const dBox = (await divider.boundingBox())!;
   expect(dBox.height, 'the divider\'s touch area').toBeGreaterThanOrEqual(48);
   const drag = async (toY: number) => {
+    // The divider glides to a new stop: a press taken mid-glide misses it on a slow machine, so wait for it to rest.
+    let lastY = Number.NaN;
+    await expect.poll(async () => {
+      const y = (await divider.boundingBox())?.y;
+      const resting = y === lastY;
+      lastY = y ?? Number.NaN;
+      return resting;
+    }).toBe(true);
     const b = (await divider.boundingBox())!;
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
     await page.mouse.down();
@@ -876,12 +889,15 @@ test('REC-040 The divider, its five stops and its one-line ends', async ({ page 
   await drag(0);
   await expect(divider).toHaveAttribute('aria-valuetext', 'Reference as one line');
   await expect(button(page, 'Open the reference')).toBeVisible();
-  await expect(text(page, 'Drag down for the guide, key words, notes and earlier recordings')).toBeVisible();
+  // This passage has Bible audio, so the one line is the Bible player; the hint to drag down is only for a passage without (LAN-81).
+  await expect(text(page, 'Drag down for the guide, key words, notes and earlier recordings')).toHaveCount(0);
   await button(page, 'Open the reference').click();
   await expect(divider).toHaveAttribute('aria-valuetext', 'Source 50%');
   // All the way down: the recorder is one line, with its own red button, and no footer.
   const parts = await partCount(page);
-  await drag(viewport.height);
+  // The last row on screen: a release at the viewport's height is past its edge, and Chromium may not deliver it, which
+  // left the drag unfinished and the divider back where it was (CI, 2026-10-24 to 26).
+  await drag(viewport.height - 1);
   await expect(divider).toHaveAttribute('aria-valuetext', 'Recorder as one line');
   await expect(text(page, `${parts} parts recorded`)).toBeVisible();
   await expect(publishButton(page)).toHaveCount(0);
@@ -926,6 +942,9 @@ test('REC-041 Tap a part\'s space to give it the next verse', async ({ page }) =
   await expect(byId(page, 'toast')).toHaveCount(0);
   await verseSpace(page, 2).click();
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, Verse 23');
+  // The label shows at once, but Undo's step is kept once the change is saved: on a slow machine an early Undo took back Part 1's
+  // mark instead. Undo names the step it takes back, so wait for it to name Part 2.
+  await expect(undoButton(page)).toHaveAttribute('aria-label', /Part 2/);
   await undoButton(page).click();
   await expect(verseSpace(page, 2)).toHaveAttribute('aria-label', 'Part 2, no verse yet');
   await expect(verseSpace(page, 1)).toHaveAttribute('aria-label', 'Part 1, Verse 22');
@@ -1179,7 +1198,8 @@ test('REC-056 Record between two parts with the mark on the line; Undo takes the
 /** Back to a screen with the tab bar (each tap goes back one screen). */
 async function toTabs(page: Page): Promise<void> {
   for (let i = 0; i < 5; i++) {
-    await expect(tab(page, 'map').or(back(page))).toBeVisible();
+    // A screen can show both (a pushed page over the tabs on a wide layout): either will do.
+    await expect(tab(page, 'map').or(back(page)).first()).toBeVisible();
     if (await tab(page, 'map').isVisible()) break;
     await back(page).click();
   }

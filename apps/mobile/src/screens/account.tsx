@@ -23,6 +23,8 @@ import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { formatAgo, formatDayTime, formatNumber, formatShortDate, formatTime } from '../i18n/format';
 import { FillBanner, OfflineCard } from '../sync/offline';
+import { SentList, UploadsCard, WaitingList } from '../sync/uploads';
+import { changeUnits } from '../sync/uploadsModel';
 import { useOfflineSummary } from '../sync/useOfflineSummary';
 import { useSyncStatus } from '../sync/useSyncStatus';
 import { offlineCount, moreSettingsSub } from '../account/meModel';
@@ -30,7 +32,7 @@ import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { reasonLabel, reportSummary, reportTitle, type ReportGroup } from '../moderation/model';
 import { decideRequest, type PendingRequest } from '../invites/invites';
-import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
+import { Badge, Banner, Card, Disclosure, EmptyState, Field, GhostBtn, Group, HelpTop, Header, Ico, LinkBtn, PrimaryBtn, ProgressBar, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, type IconName } from '../ui/kit';
 import { txt } from '../ui/textStyles';
 import { useLayout, useOpenDetail } from '../ui/useLayout';
 import { enableNotifications, tryUnregisterNotifications, unregisterNotifications, type RemoteNotification } from '../notifications/notifications';
@@ -39,15 +41,18 @@ import { personLook } from '../ui/people';
 import { noteExpected, failureMessage } from '../diagnostics/report';
 import { ReportActions } from '../moderation/reportSheet';
 import { contractsFor } from '../shell/screenContracts';
-import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../web/forgetBrowser';
+import { FORGETS_ON_SIGN_OUT } from '../web/forgetBrowser';
 import { HANDS_OVER, signOutHandingOver } from '../sync/handOver';
-import { choosePassword, signOutHere } from '../server/auth';
+import { isPattern, MIN_DOTS, PICTURES } from '../session/lockModel';
+import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
+import { useLockWays } from '../auth/useLockWays';
+import { LOCKS_ON_SIGN_OUT, lockAndSignOut, rememberPassword, setAccountPassword, setLockPattern, signOutThisDevice } from '../account/accountAuth';
 import { C, radius, space, target, tile, TINT, type as T } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
 import { runningBuildLabel } from '../shell/updateStatus';
 import { PersonAvatar } from '../ui/UserChip';
 import { standingTitle, syncStanding, type SyncStanding } from '../sync/syncStanding';
-import { LanguageRow } from '../i18n/uiLanguage';
+import { LanguageRow } from '../account/uiLanguage';
 import { inSeveral, refusedHere, remoteRowView, speed, syncSummary } from '../account/model';
 import { useSyncInspection } from '../account/useSyncInspection';
 import { useDiagnosticsSwitch } from '../account/useDiagnosticsSwitch';
@@ -57,6 +62,8 @@ import { useInviterName } from '../account/useInviterName';
 import { useOrganizations } from '../account/useOrganizations';
 import { useUnsent } from '../account/useUnsent';
 import { deleteThisAccount } from '../account/deleteThisAccount';
+import { DisguiseRow } from '../disguise/DisguiseRow';
+import { useDisguise } from '../disguise/useDisguise';
 
 // ---- Inbox (INBOX-1, INBOX-2) ---------------------------------------------------------------
 
@@ -359,7 +366,7 @@ export function SettingsHome(ctx: Ctx) {
         <Row icon="user" label={name} sub={t('account.me.nameSub')} help={t('account.me.nameHelp')} onPress={() => ctx.go('profile_edit')} />
         {inSeveral(orgs) ? <SwitchOrgRow ctx={ctx} orgName={orgName} several /> : null}
         {/* What comes along to the field, seen before a trip (decisions.md 61). */}
-        <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} help={t('account.me.offlineHelp')} onPress={() => ctx.go('sync_status')} />
+        <Row icon="download" label={t('account.me.offline')} sub={offlineCount(offline)} help={t('account.me.offlineHelp')} onPress={() => ctx.go('sync_status', { show: 'offline' })} />
         <Row icon="help" label={t('account.me.tour')} sub={t('account.me.tourSub')} help={t('account.me.tourHelp')} onPress={() => ctx.go('vision')} />
         <LanguageRow />
         <Row icon="settings" label={t('account.me.more')} sub={moreSub} help={t('account.me.moreHelp')} onPress={() => ctx.go('settings_more')}
@@ -416,13 +423,15 @@ export function SettingsMore(ctx: Ctx) {
   const name = useOwnName(ctx);
   const p = ctx.language;
   const status = useSyncStatus();
-  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending, lastSync: status.lastSync });
+  const syncSub = syncSummary({ refused: p.refused, live: p.live, online: p.online, pending: status.pending + status.orgPending, recordings: status.pendingUp, lastSync: status.lastSync });
   // Someone in several organizations switches on Me itself; anyone else finds it here, where it also starts a new one.
   const orgs = useOrganizations(s.actorId).rows;
   const switchHere = !inSeveral(orgs);
   const passwordRow = s.isManaged && hasPassword === false;
-  // No push on the web yet: requests and feedback still reach the Inbox there.
-  const notifications = Platform.OS !== 'web';
+  // No push on the web yet: requests and feedback still reach the Inbox there. A disguised phone
+  // gets none, since each would show LangQuest's name (decisions.md 171).
+  const disguised = useDisguise().look !== null;
+  const notifications = Platform.OS !== 'web' && !disguised;
   const blocked = ctx.blocks.ids.length;
   return (
     <Screen header={<Header title={t('account.me.more')} onBack={ctx.back} />}>
@@ -472,6 +481,8 @@ export function SettingsMore(ctx: Ctx) {
       <SectionLabel label={t('account.more.thisDevice')} />
       <Group>
         <Row icon="cloud" label={t('account.more.sync')} sub={syncSub} help={t('account.more.syncHelp')} badge={status.pending > 0 ? formatNumber(status.pending) : undefined} onPress={() => ctx.go('sync_status')} />
+        {/* A calculator or notepad in front of the app, opened with a code (decisions.md 171); phones only. */}
+        <DisguiseRow ctx={ctx} />
         {/* docs/diagnostics.md, decisions.md 39: on by default, off here. */}
         <Row icon="progress" label={t('account.more.diagnostics')} sub={t('account.more.diagnosticsSub')}
           role="switch" checked={diag.on === true} disabled={diag.on === null} onPress={diag.toggle} last={blocked === 0} />
@@ -576,12 +587,14 @@ export function ProfileEdit(ctx: Ctx) {
       // A too-short one is refused here and nothing is written, name included.
       if (managed && password) {
         if (passwordTooShort) { setError(t('account.profile.shortPassword')); return; }
-        const { error } = await choosePassword(password);
+        const { error } = await setAccountPassword(password);
         if (error) {
           noteExpected('set password', error);
           setError(authErrorText(error, t('account.profile.passwordFailed'), t('account.profile.passwordNeedsConnection')));
           return;
         }
+        // The new password also signs them back in here offline (decisions.md 168).
+        if (ctx.session.email) await rememberPassword(ctx.session.actorId, ctx.session.email, password);
         recheck();
       }
       await queueAccountAction(ctx.session.actorId, 'profile', { displayName: value.trim() });
@@ -678,6 +691,10 @@ export function OrgSwitcher(ctx: Ctx) {
  * stay in the local log and go out if this account signs in again here with
  * membership. An account change the server already turned down (shown in
  * the Inbox) cannot be delivered either, so it does not hold sign-out.
+ *
+ * A phone locks the sign-in as it signs out (decisions.md 168), so its owner
+ * comes back with their password or a pattern, online or not. Someone with
+ * neither here first chooses a picture and draws a pattern twice.
  */
 export function SignOutConfirm(ctx: Ctx) {
   const { online, refused } = ctx.language;
@@ -690,55 +707,127 @@ export function SignOutConfirm(ctx: Ctx) {
   const needsHelp = ctx.session.isManaged && hasPassword === false;
   // A phone hands unsent work over and sends it as you later (decisions.md 60); a browser waits for it.
   const handsOver = HANDS_OVER && waiting.length > 0;
+  const lock = useLockWays(ctx.session.actorId);
+  // A picture whose pattern opened an older key (a password changed since) is drawn again with its pattern.
+  const needsPattern = LOCKS_ON_SIGN_OUT && lock.ways !== null && (lock.ways.length === 0 || (lock.picture !== null && !lock.ways.includes('pattern')));
+  const [choosing, setChoosing] = useState<'picture' | 'pattern' | null>(null);
+  const [picture, setPicture] = useState<number | null>(null);
+  // The pattern drawn once, waiting to be drawn again; the pad clears when its key changes.
+  const [first, setFirst] = useState<number[] | null>(null);
+  const [padKey, setPadKey] = useState(0);
+  function choose() {
+    setPicture(lock.picture);
+    setFirst(null);
+    setError('');
+    setChoosing('picture');
+  }
+  async function leave() {
+    if (handsOver) {
+      const { orgId, languageId } = ctx.language;
+      await signOutHandingOver(ctx.session.actorId, (await ctx.language.blobs.unsent()).map((ref) => ({ orgId, languageId, ref })));
+      return;
+    }
+    if (HANDS_OVER) {
+      // Offline, the courier disconnects this phone's notifications later, as you (decision 87).
+      if (!await tryUnregisterNotifications()) { await signOutHandingOver(ctx.session.actorId, []); return; }
+    } else {
+      await unregisterNotifications();
+    }
+    // A phone keeps the session, locked, for your return (decision 168); this device only either way (decision 87).
+    if (LOCKS_ON_SIGN_OUT) { await lockAndSignOut(ctx.session.actorId); return; }
+    await signOutThisDevice();
+  }
   async function signOut() {
+    if (needsPattern) { choose(); return; }
     setBusy(true);
+    setError('');
+    try { await leave(); } catch (e) { setError(failure('sign out', e)); setBusy(false); }
+  }
+  /** Drawn once, then again to be sure; the second time saves it and signs out. */
+  async function drew(dots: number[]) {
+    setPadKey((k) => k + 1);
+    if (!isPattern(dots)) { setError(t('account.lock.tooShort', { n: MIN_DOTS })); return; }
+    if (first === null) { setFirst(dots); setError(''); return; }
+    if (first.join() !== dots.join()) { setFirst(null); setError(t('account.lock.patternsDiffer')); return; }
+    setBusy(true);
+    setError('');
     try {
-      if (handsOver) {
-        const { orgId, languageId } = ctx.language;
-        await signOutHandingOver(ctx.session.actorId, (await ctx.language.blobs.unsent()).map((ref) => ({ orgId, languageId, ref })));
-        return;
-      }
-      if (HANDS_OVER) {
-        // Offline, the courier disconnects this phone's notifications later, as you (decision 87).
-        if (!await tryUnregisterNotifications()) { await signOutHandingOver(ctx.session.actorId, []); return; }
-      } else {
-        await unregisterNotifications();
-      }
-      // This device only: your other devices stay signed in (decision 87).
-      await signOutHere();
-      await forgetThisBrowser();
+      // Someone took that picture meanwhile: choose again.
+      if ((await setLockPattern(ctx.session.actorId, dots, picture ?? -1)).kind !== 'ok') { setBusy(false); choose(); return; }
+      await leave();
     } catch (e) { setError(failure('sign out', e)); setBusy(false); }
   }
   const blocked = waiting.length > 0 && !handsOver;
   const helpLine = inviter ? t('account.signOut.helpLine', { name: inviter }) : t('account.signOut.helpLineNoName');
   const things = waiting.join(', ');
+  // On a phone the lock brings you back here, so a helper's code is only for another phone.
+  const askHelper = needsHelp && !LOCKS_ON_SIGN_OUT;
   // Two whole sentences side by side where both apply.
   const reason = handsOver
-    ? [t('account.signOut.handsOver', { things }), ...(needsHelp ? [helpLine] : [])].join(' ')
+    ? [t('account.signOut.handsOver', { things }), ...(askHelper ? [helpLine] : [])].join(' ')
     : blocked
       ? online === false ? t('account.signOut.blockedOffline', { things }) : t('account.signOut.blocked', { things })
       : refused
         ? t('account.signOut.refused')
-        : needsHelp
+        : askHelper
           ? `${helpLine} ${t('account.signOut.setPasswordFirst')}`
           : FORGETS_ON_SIGN_OUT
             ? t('account.signOut.forgets')
-            : online === false ? '' : t('account.signOut.anytime');
-  // Every way back in needs the server, so offline the screen says so.
-  const why = !blocked && online === false ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
+            : online === false && !LOCKS_ON_SIGN_OUT ? '' : t('account.signOut.anytime');
+  // A browser needs the server to let you back in, so offline it says so; a phone has the lock.
+  const why = !blocked && online === false && !LOCKS_ON_SIGN_OUT ? [reason, t('account.signOut.offlineBackIn')].filter(Boolean).join(' ') : reason;
+  if (choosing === 'picture') {
+    return (
+      <Screen header={<HelpTop />} bodyStyle={styles.centered}
+        footer={
+          <>
+            <PrimaryBtn label={t('common.next')} help={t('account.lock.nextHelp')} onPress={() => setChoosing('pattern')} disabled={picture === null} />
+            <GhostBtn label={t('common.back')} help={t('help.details.back')} onPress={() => setChoosing(null)} />
+          </>
+        }>
+        <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{t('account.lock.pictureTitle')}</Text>
+        <PictureGrid pictures={PICTURES.map((_, i) => i).filter((i) => !lock.taken.includes(i))} selected={picture} onPick={setPicture}
+          help={t('account.lock.pictureHelp')} />
+      </Screen>
+    );
+  }
+  if (choosing === 'pattern') {
+    return (
+      <Screen header={<HelpTop />} bodyStyle={styles.centered}
+        footer={<GhostBtn label={t('common.back')} help={t('help.details.back')} onPress={() => { setChoosing('picture'); setFirst(null); setError(''); }} disabled={busy} />}>
+        {picture !== null ? <ChosenPicture picture={picture} /> : null}
+        <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">
+          {busy ? t('account.signOut.signingOut') : first === null ? t('account.lock.drawTitle') : t('account.lock.drawAgain')}
+        </Text>
+        <PatternPad onDone={(dots) => void drew(dots)} disabled={busy} error={!!error} resetKey={padKey} />
+        {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
+      </Screen>
+    );
+  }
+  const mine = LOCKS_ON_SIGN_OUT && lock.picture !== null && lock.ways?.includes('pattern') ? lock.picture : null;
   return (
     <Screen header={<HelpTop />} bodyStyle={styles.centered}
       footer={
         <>
-          <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()} disabled={blocked || busy} />
+          <PrimaryBtn label={busy ? t('account.signOut.signingOut') : t('account.signOut.button')} tone="red" onPress={() => void signOut()}
+            disabled={blocked || busy || (LOCKS_ON_SIGN_OUT && lock.ways === null)} />
           <GhostBtn label={t('common.cancel')} help={t('help.details.cancel')} onPress={ctx.back} />
         </>
       }>
-      <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : TINT.red }]}>
-        <Ico name={waiting.length > 0 ? 'cloud' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : C.red} />
-      </View>
+      {mine !== null ? (
+        <ChosenPicture picture={mine} />
+      ) : (
+        <View style={[styles.bigTile, { backgroundColor: waiting.length > 0 ? TINT.amber : TINT.red }]}>
+          <Ico name={waiting.length > 0 ? 'cloud' : 'user'} size={32} color={waiting.length > 0 ? TINT.amberText : C.red} />
+        </View>
+      )}
       <Text style={[txt.h2, { textAlign: 'center' }]} accessibilityRole="header">{blocked ? t('account.signOut.notYet') : t('account.signOut.question')}</Text>
-      <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text>
+      {why ? <Text style={[txt.bodyMuted, { textAlign: 'center' }]}>{why}</Text> : null}
+      {/* Someone with a password may still want a pattern, and a pattern can be changed. */}
+      {LOCKS_ON_SIGN_OUT && lock.ways && !needsPattern ? (
+        <LinkBtn label={lock.ways.includes('pattern') ? t('account.lock.newPattern') : t('account.lock.drawTitle')}
+          help={t('account.lock.choosePatternHelp')} onPress={choose} />
+      ) : null}
       {error ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
     </Screen>
   );
@@ -808,6 +897,7 @@ export function SyncStatus(ctx: Ctx) {
   const pendingEvents = (ins?.pending.length ?? 0) + (orgIns?.pending.length ?? 0);
   const rejected = refusedHere(ins, orgIns, logged);
   const standing = syncStanding(language);
+  const offlineFirst = ctx.params['show'] === 'offline';
   const [details, setDetails] = useState(false);
   const syncNow = async () => {
     setBusy(true);
@@ -829,12 +919,14 @@ export function SyncStatus(ctx: Ctx) {
         {/* The server's refusal is English (its reason goes to the log): say what it means. */}
         {language.refused || language.tooOld ? <Text style={txt.smMuted}>{language.refused ? t('account.sync.refused') : t('account.sync.tooOld')}</Text> : null}
       </Card>
-      {/* Settings' "Ready for offline" opens here (decisions.md 61): what comes along comes first. */}
-      <FillBanner ctx={ctx} />
-      <OfflineCard ctx={ctx} s={offlineSummaryNow} />
+      {/* Settings' "Ready for offline" opens here with what comes along first (decisions.md 61); otherwise what waits to upload, by passage, and what went up (decision 166). */}
+      {offlineFirst ? <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></> : null}
+      <UploadsCard ctx={ctx} />
+      <WaitingList ctx={ctx} changes={changeUnits(ctx.language.state, ins?.pending ?? [], orgIns?.pending.length ?? 0)} />
+      <SentList ctx={ctx} />
+      {offlineFirst ? null : <><FillBanner ctx={ctx} /><OfflineCard ctx={ctx} s={offlineSummaryNow} /></>}
       <Card>
-        <SyncLine icon="up" label={t('account.sync.toSend')} value={pendingEvents + sync.pendingUp} rate={sync.pendingUp ? rates.up : 0} help={t('account.sync.help.toSend')} />
-        <SyncLine icon="download" label={t('account.sync.toReceive')} value={sync.pendingDown} rate={sync.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} />
+        <SyncLine icon="download" label={t('account.sync.toReceive')} value={sync.pendingDown} rate={sync.pendingDown ? rates.down : 0} help={t('account.sync.help.toReceive')} unknown={offline} />
         {rejected.length ? <SyncLine icon="flag" label={t('account.sync.refusedLine')} value={rejected.length} tone={TINT.redText} help={t('account.sync.help.refusedLine')} /> : null}
       </Card>
       <Disclosure testID="sync-details" icon="layers" title={t('account.sync.details')} summary={ins ? t('account.sync.events', { count: ins.total + ins.rejected.length }) : ''}
@@ -845,8 +937,8 @@ export function SyncStatus(ctx: Ctx) {
         <Stat id="confirmed" icon="check" color={C.green} value={Math.max(ins?.cursor ?? 0, logged?.cursor ?? 0)} label={t('account.sync.latestConfirmed')} />
         <Stat id="checkpoint" icon="layers" color={C.muted} value={ins?.checkpointSeq ?? 0} label={t('account.sync.localCheckpoint')} />
       </View>
-      <Transfer icon="up" pending={sync.pendingUp} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} />
-      <Transfer icon="download" pending={sync.pendingDown} peak={sync.peakDown} rate={rates.down} label={t('account.sync.audioDown')} />
+      <Transfer icon="up" pending={sync.pendingUp} peak={sync.peakUp} rate={rates.up} label={t('account.sync.audioUp')} offline={offline} />
+      <Transfer icon="download" pending={sync.pendingDown} peak={sync.peakDown} rate={rates.down} label={t('account.sync.audioDown')} offline={offline} />
       {ins && ins.pending.length ? (
         <>
           <SectionLabel label={t('account.sync.waitingCount', { n: ins.pending.length })} />
@@ -928,13 +1020,15 @@ function Info(props: { label: string; text: string }) {
 }
 
 /** One plain line: what is waiting, how many, and a sentence behind ⓘ. */
-function SyncLine(props: { icon: IconName; label: string; value: number; rate?: number; tone?: string; help: string }) {
-  const color = props.tone ?? (props.value ? C.primary : C.green);
-  const value = props.value ? formatNumber(props.value) : t('account.sync.none');
+function SyncLine(props: { icon: IconName; label: string; value: number; rate?: number; tone?: string; help: string;
+  /** Offline, "None" would be a guess: the server may have new work this device cannot know of (decisions.md 166). */ unknown?: boolean }) {
+  const unknown = !props.value && !!props.unknown;
+  const color = props.tone ?? (unknown ? TINT.amberText : props.value ? C.primary : C.green);
+  const value = props.value ? formatNumber(props.value) : unknown ? t('account.sync.standing.offline') : t('account.sync.none');
   return (
     <View style={[styles.profile, { flexWrap: 'wrap', paddingVertical: space.xs }]}>
       <View style={[styles.profile, { flex: 1 }]} accessible accessibilityLabel={`${props.label}: ${value}`}>
-        <Ico name={props.value ? props.icon : 'check'} size={20} color={color} />
+        <Ico name={props.value || unknown ? props.icon : 'check'} size={20} color={color} />
         <Text style={[txt.body, { flex: 1 }]}>{props.label}</Text>
         {props.rate ? <Text style={txt.xs}>{speed(props.rate)}</Text> : null}
         <Text style={[txt.body, { fontWeight: '700', color, fontVariant: ['tabular-nums'] }]}>{value}</Text>
@@ -957,20 +1051,23 @@ function Stat(props: { id: string; icon: IconName; color: string; value: number;
   );
 }
 
-function Transfer(props: { icon: IconName; pending: number; peak: number; rate: number; label: string }) {
+function Transfer(props: { icon: IconName; pending: number; peak: number; rate: number; label: string; offline: boolean }) {
   const total = Math.max(props.peak, props.pending);
   const done = total - props.pending;
   const idle = props.pending === 0;
   // The card itself is not focusable when it has no action (kit Card), so the words a screen reader hears sit on this group.
   return (
     <Card>
-      <View accessible accessibilityLabel={idle ? t('account.sync.transferIdle', { label: props.label })
+      <View accessible accessibilityLabel={props.offline ? t('shell.a11y.labelDetail', { label: props.label, detail: t('account.sync.standing.offline') })
+        : idle ? t('account.sync.transferIdle', { label: props.label })
         : t('account.sync.transferBusy', { label: props.label, done, total, speed: speed(props.rate) })} style={{ gap: space.sm }}>
         <View style={styles.profile}>
           <Ico name={props.icon} size={22} color={idle ? C.muted : C.primary} />
           <Text style={[txt.sm, { flex: 1, fontWeight: '600' }]}>{props.label}</Text>
           <View style={{ flexShrink: 1, maxWidth: '50%', alignItems: 'flex-end' }}>
-            {idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
+            {/* Offline nothing moves and nothing new is known: never "Up to date" then (decisions.md 166). */}
+            {props.offline ? <Badge label={t('account.sync.standing.offline')} tone="amber" />
+              : idle ? <Badge label={t('account.more.syncUpToDate')} tone="green" /> : <Text style={txt.xs}>{t('account.sync.left', { count: props.pending, speed: speed(props.rate) })}</Text>}
           </View>
         </View>
         {idle ? null : <ProgressBar value={total ? (done / total) * 100 : 100} />}

@@ -11,20 +11,25 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, NavigationContext, type RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Component, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
-import { AccessibilityInfo, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from './src/ui/text';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Ctx } from './src/shell/ctx';
 import { DevMenu } from './src/shell/DevMenu';
 import { UpdateBanner } from './src/shell/UpdateBanner';
-import { maySwitchPersona } from './src/auth/dev';
+import { useFirstLaunchUpdate } from './src/shell/useFirstLaunchUpdate';
+import { AppVersionPrompt } from './src/appVersion/AppVersionPrompt';
+import { useAppVersion } from './src/appVersion/useAppVersion';
+import { maySwitchPersona } from './src/session/dev';
 import { MAP_SCREENS, PASSAGE_READING, SCREEN_IDS, TAB_SCREENS, type ScreenId } from './src/shell/flow';
-import { chromeVisible, frame, layoutKind } from './src/ui/layout';
+import { frame, layoutKind } from './src/ui/layout';
+import { chromeVisible, showsGlobalViewerLink } from './src/shell/chromeModel';
 import { NavChrome } from './src/shell/NavChrome';
 import { lockPhonesToPortrait } from './src/shell/orientation';
 import { paneFor, type SplitSpec } from './src/shell/panes';
 import { LayoutContext, PaneSelectionContext, type Layout, type OpenDetail, FooterHeightContext } from './src/ui/useLayout';
 import { EmptyState, GhostBtn, ToastView, type ToastSpec } from './src/ui/kit';
+import { readToastTime, toastTime } from './src/ui/toastTime';
 import { FeedbackHost } from './src/feedback/FeedbackSheet';
 import { txt } from './src/ui/textStyles';
 import { installGlobalHandlers, reportError } from './src/diagnostics/report';
@@ -38,20 +43,27 @@ import * as MapScreens from './src/screens/map';
 import * as Onboarding from './src/screens/onboarding';
 import * as Passage from './src/screens/passage';
 import * as Review from './src/screens/review';
+import * as Ready from './src/screens/getReady';
 import * as Study from './src/screens/study';
 import * as Translate from './src/screens/translate';
 import * as Work from './src/screens/work';
 import { lazyScreen } from './src/shell/lazyScreens';
 import { StorageGate } from './src/web/storageGate';
 import { SyncEffects } from './src/sync/SyncEffects';
+import { UploadBar } from './src/sync/uploads';
 import { SyncStatusContext } from './src/sync/useSyncStatus';
 import { deriveSession, foldsSettled, homeScreenFor, tabsFor, type TabId } from './src/shell/session';
-import { SESSION_KEY, onAuthChange, serverConfigError } from './src/server/auth';
-import { afterAuthEvent, savedSession } from './src/auth/authState';
-import { noteAuthEvent, watchRenewals } from './src/auth/authDiag';
+import { onAuthChange, savedSignIn, serverConfigError } from './src/server/auth';
+import { onUnlocked, signedInHere } from './src/server/lock';
+import { afterAuthEvent, savedSession } from './src/session/authState';
+import { noteAuthEvent } from './src/diagnostics/authDiag';
+import { watchRenewals } from './src/server/renewalWatch';
 import { C, space } from './src/ui/theme';
 import { recordUserEvent } from './src/account/accountData';
 import { useAccountSync, useDisplayNames, useProfileName } from './src/account/useAccount';
+import { useGlobalViewer, useGlobalViewerNames } from './src/account/useGlobalViewer';
+import { GlobalViewerLink } from './src/account/GlobalViewerLink';
+import { HeaderExtraContext } from './src/ui/headerExtra';
 import { useBlocks } from './src/moderation/useModeration';
 import { PeopleContext } from './src/ui/usePerson';
 import { titleFor } from './src/web/webPaths';
@@ -79,18 +91,26 @@ import { useRouting } from './src/shell/useRouting';
 import { useRootBack } from './src/shell/useRootBack';
 import { useTestProbes } from './src/shell/useTestProbes';
 import { useWorkingLanguage } from './src/shell/useWorkingLanguage';
+import { useReadOnlyHandles } from './src/shell/useReadOnlyHandles';
+import { ReadOnlyContext } from './src/session/useReadOnly';
+import { wireBase } from './src/shell/wiring';
+import { DisguiseGate } from './src/disguise/DisguiseGate';
 
+// What the base folders need from folders above them (decisions.md 105), once, before anything draws.
+wireBase();
 const IS_DEV = __DEV__;
+/** Screens that record: the upload bar shows there, but tapping it does not leave mid-take. */
+const RECORDING_SCREENS: readonly ScreenId[] = ['workspace', 'review_capture', 'back_translation'];
 
 // Screens that load the first time they are opened (src/shell/lazyScreens.tsx): one loader per module.
 const loadChecks = () => import('./src/screens/checks');
 const loadConfig = () => import('./src/screens/config');
 const loadContent = () => import('./src/screens/content');
 const loadOrg = () => import('./src/screens/org');
-const loadReady = () => import('./src/screens/getReady');
 const loadReference = () => import('./src/screens/reference');
 const loadReports = () => import('./src/screens/reports');
 const loadSources = () => import('./src/screens/sources');
+const loadGlobalViewer = () => import('./src/screens/globalViewer');
 
 const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   sign_in: Entry.SignIn, terms_privacy: Entry.TermsPrivacy, explore_home: Entry.ExploreHome, create_account: Entry.CreateAccount,
@@ -117,8 +137,9 @@ const SCREENS: Record<ScreenId, (ctx: Ctx) => React.JSX.Element | null> = {
   reference_bibles: lazyScreen(loadReference, 'ReferenceBibles'), reference_source: lazyScreen(loadReference, 'ReferenceSource'), reference_guides: lazyScreen(loadReference, 'ReferenceGuides'),
   reference_coverage: lazyScreen(loadReference, 'ReferenceCoverage'), passage_reference: lazyScreen(loadReference, 'PassageReference'),
   bible_explore: lazyScreen(loadSources, 'BibleExplore'),
-  get_ready: lazyScreen(loadReady, 'GetReady'),
-  settings_more: Account.SettingsMore
+  get_ready: Ready.GetReady,
+  settings_more: Account.SettingsMore,
+  global_viewer: lazyScreen(loadGlobalViewer, 'GlobalViewer')
 };
 
 /**
@@ -308,6 +329,8 @@ export default function App() {
   const [wordsReady, setWordsReady] = useState(languageReady);
   useEffect(() => onLanguageReady(() => setWordsReady(true)), []);
   useEffect(() => { installGlobalHandlers(); lockPhonesToPortrait(); }, []);
+  // The first launch after install waits up to 5 s for the latest OTA update (decisions.md 153).
+  const updateLooked = useFirstLaunchUpdate();
   // Work people left unsent when they signed out of this phone goes as them (decisions.md 60).
   useHandOvers(auth === undefined ? undefined : auth?.user.id ?? null);
   // Who was signed in when supabase-js next speaks, for diagnostics of a sign-out the person did not choose.
@@ -320,22 +343,34 @@ export default function App() {
     // (authState.ts, decision 87): offline, supabase-js reports no one once
     // the token is an hour old, and took half a minute to say so.
     const fromStorage = (s: AuthSession | null) => { if (active) setAuth((now) => (now === undefined ? s : now)); };
-    AsyncStorage.getItem(SESSION_KEY).then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
+    savedSignIn().then((raw) => fromStorage(savedSession(raw)), () => fromStorage(null));
     const unsubscribe = onAuthChange((event, s) => {
       noteAuthEvent(event, authNow.current, s);
       setAuth((now) => afterAuthEvent(now, event, s));
+      // In by a password, a code or an invite: an older lock of theirs here is not theirs to come back to (decisions.md 168).
+      if (event === 'SIGNED_IN' && s) void signedInHere(s.user.id);
     });
+    // Back in from the lock on this phone: supabase-js has no event for that (decisions.md 168).
+    const offUnlocked = onUnlocked((s) => setAuth(s));
     const unwatch = watchRenewals();
-    return () => { active = false; unsubscribe(); unwatch(); };
+    return () => { active = false; unsubscribe(); offUnlocked(); unwatch(); };
   }, []);
+  // "New version available", and below the minimum version "Please update the app" with sync stopped (decisions.md 154).
+  const appVersion = useAppVersion(!!auth);
   return (
     <SafeAreaProvider>
+      {/* A disguised phone opens on its calculator or notepad, before sign-in and everything else (decisions.md 171). */}
+      <DisguiseGate>
       <SafeAreaView style={styles.root}>
         <StatusBar style="dark" />
         <UpdateBanner />
+        <AppVersionPrompt offer={appVersion.offer} onUpdate={appVersion.openStore} onDismiss={appVersion.dismiss} />
         {serverConfigError ? (
           <Fatal title={t('shell.errors.notConfigured')} detail={serverConfigError} />
-        ) : auth === undefined || !wordsReady ? null : (
+        ) : !updateLooked || auth === undefined || !wordsReady ? (
+          // Looking for an update, reading the saved sign-in or the words: the same spinner, not a blank screen.
+          <View style={styles.waiting}><ActivityIndicator size="large" color={C.muted} /></View>
+        ) : (
           <ErrorBoundary>
             {/* Help mode: a ? on every screen's header; while on, taps explain (demo ADR-038). */}
             <HelpModeProvider>
@@ -346,6 +381,7 @@ export default function App() {
           </ErrorBoundary>
         )}
       </SafeAreaView>
+      </DisguiseGate>
     </SafeAreaProvider>
   );
 }
@@ -390,26 +426,34 @@ function Workspace(props: { actorId: string; email: string | null; signedIn: boo
  */
 function OrgWork(props: { actorId: string; email: string | null; signedIn: boolean; fromV2: boolean;
   orgId: string; noOrganizations: boolean; org: OrgHandle; openOrganization: Ctx['openOrganization']; invite: InviteHandle; arrival: Arrival | null }) {
-  const org = props.org;
+  const liveOrg = props.org;
   const nav = useNav({ screen: 'sign_in' });
-  const { languageId, setLanguage, languages } = useWorkingLanguage(org.state, props.actorId, props.orgId, nav.current.params?.['languageId']);
-  const language = useLanguage(props.orgId, languageId, props.actorId, org.membershipEpoch);
-  usePassagesInMemory(language, nav.current.params?.['unitId']);
+  // A Global Viewer whose access is on reads every organization, as a Viewer (decisions.md 158).
+  const globalViewer = useGlobalViewer(props.actorId, props.signedIn).access;
+  const { languageId, setLanguage, languages } = useWorkingLanguage(liveOrg.state, props.actorId, props.orgId, nav.current.params?.['languageId'],
+    globalViewer === 'on');
+  const liveLanguage = useLanguage(props.orgId, languageId, props.actorId, liveOrg.membershipEpoch);
+  usePassagesInMemory(liveLanguage, nav.current.params?.['unitId']);
   useAccountSync(props.actorId);
   useProfileName(props.actorId, props.email);
   const blocks = useBlocks(props.actorId);
   // Read names again when someone joins, or a new member shows as a placeholder until restart.
   // Keyed on the state, not its members: the fold adds members in place (OrgHandle.state).
-  const memberIds = useMemo(() => Object.keys(org.state?.members ?? {}).sort().join(','), [org.state]);
+  const memberIds = useMemo(() => Object.keys(liveOrg.state?.members ?? {}).sort().join(','), [liveOrg.state]);
   const people = useDisplayNames(props.actorId, memberIds);
   const [devOpen, setDevOpen] = useState(false);
   const onboarding = useOnboarding(props.actorId, props.signedIn);
   // Someone from v2 is welcomed back to their work instead (demo ADR-043).
   const welcomeBack = useWelcomeBack(props.actorId, props.fromV2 && props.signedIn && onboarding.loaded && !onboarding.welcomed);
   const session = useMemo(
-    () => deriveSession(props.actorId, props.email, onboarding.welcomed, org.state, languageId, hasWelcome(welcomeBack.data)),
-    [props.actorId, props.email, onboarding.welcomed, org.state, languageId, welcomeBack.data]
+    () => deriveSession(props.actorId, props.email, onboarding.welcomed, liveOrg.state, languageId, hasWelcome(welcomeBack.data), globalViewer),
+    [props.actorId, props.email, onboarding.welcomed, liveOrg.state, languageId, welcomeBack.data, globalViewer]
   );
+  // A read-only session (a Global Viewer looking in) writes nothing, from any screen or hook (readOnly.ts).
+  const { readOnly } = session;
+  const { org, language } = useReadOnlyHandles(readOnly, liveOrg, liveLanguage);
+  // Members' names, which a Global Viewer's own directory does not hold.
+  const viewedNames = useGlobalViewerNames(props.orgId, session.viewingAsGlobalViewer);
   // Languages follow the library versions their template and flow are at (docs/library.md).
   useLibraryFollow(language, org, session);
   useTranslatorReview(org, session);
@@ -422,8 +466,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   // Names: the signed-in person is always "you" (CORE-6).
   const name = useCallback((id: string, lower = false) => {
     if (id === props.actorId) return lower ? t('shell.youInSentence') : t('common.you');
-    return people[id] ?? personLook(id).name;
-  }, [people, props.actorId]);
+    return people[id] ?? viewedNames[id] ?? personLook(id).name;
+  }, [people, viewedNames, props.actorId]);
   const inbox = useInbox({ language, actorId: props.actorId, orgId: props.orgId, session, blocks, signedIn: props.signedIn });
 
   const { goFrom, go, openPassage, openTask } = useNavActions({ nav, session, toast, remember });
@@ -493,6 +537,18 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const syncSources = useMemo(() => ({ language: language.syncStatus, org: org.syncStatus }), [language.syncStatus, org.syncStatus]);
 
   const screen = nav.current.screen;
+  // A Global Viewer looking in has a link in every header: where they are, and the way to another
+  // organization. It opens the Global Viewer screen as the tabs open theirs, as chrome (decision 71 amended).
+  // In an organization of their own too, and before the code is entered: it is also where the code goes.
+  const showLink = showsGlobalViewerLink(globalViewer, !!org.state?.org);
+  const viewingName = session.viewingAsGlobalViewer ? org.state?.org?.value.name ?? '' : '';
+  const navPush = nav.push;
+  // The upload bar opens Sync from wherever it is shown, as chrome, like a tab (decisions.md 166).
+  const openChrome = useCallback((screen: ScreenId) => { if (navRef.isReady() && navRef.getCurrentRoute()?.name !== screen) navPush({ screen }); }, [navPush]);
+  const openSync = useCallback(() => openChrome('sync_status'), [openChrome]);
+  const headerExtra = useMemo(() => (!showLink ? null : (
+    <GlobalViewerLink orgName={viewingName} onPress={() => openChrome('global_viewer')} />
+  )), [showLink, viewingName, openChrome]);
   // Phone, tablet or desktop by the window's width alone (decisions.md 55).
   const { width } = useWindowDimensions();
   const kind = layoutKind(width);
@@ -521,9 +577,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
   const split = found && listKey ? { ...found, list: { ...found.list, key: listKey } } : null;
   const box = frame(width, { chrome: wide && showTabs, split: !!split });
   const isSplit = !!split;
-  const stackLayout = useMemo((): Layout => ({ kind, contentWidth: box.detailWidth, role: isSplit ? 'detail' : 'single' }),
-    [kind, box.detailWidth, isSplit]);
-  const paneLayout = useMemo((): Layout => ({ kind, contentWidth: box.paneWidth, role: 'list' }), [kind, box.paneWidth]);
+  // A desktop's sidebar names the organization at its top, so headers beside it leave the name out.
+  const orgInChrome = kind === 'desktop' && showTabs;
+  const stackLayout = useMemo((): Layout => ({ kind, contentWidth: box.detailWidth, role: isSplit ? 'detail' : 'single', orgInChrome }),
+    [kind, box.detailWidth, isSplit, orgInChrome]);
+  const paneLayout = useMemo((): Layout => ({ kind, contentWidth: box.paneWidth, role: 'list', orgInChrome }), [kind, box.paneWidth, orgInChrome]);
   const splitKey = split?.list.key;
   const splitEmpty = split?.empty;
   const paneKey = useMemo(() => (splitKey !== undefined ? { key: splitKey, ...(splitEmpty ? { empty: splitEmpty } : {}) } : null),
@@ -550,9 +608,11 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 
   return (
     <View style={{ flex: 1 }}>
+      <ReadOnlyContext.Provider value={readOnly}>
       <SyncStatusContext.Provider value={syncSources}>
       <SyncEffects orgId={props.orgId} orgPulled={org.pulled} refused={language.refused} />
       <PeopleContext.Provider value={people}>
+      <HeaderExtraContext.Provider value={headerExtra}>
         <View style={{ flex: 1, flexDirection: 'row' }}>
           {wide && showTabs ? navChrome(kind === 'tablet' ? 'rail' : 'sidebar') : null}
           {split && paneCtx ? <PaneSlot key={split.list.key} route={split.list} ctx={paneCtx} layout={paneLayout} open={openDetail} /> : null}
@@ -564,6 +624,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
             {/* Its own box, so the native stack ends where the tab bar begins
                 rather than drawing screens underneath it. */}
             <View style={{ flex: 1, overflow: 'hidden' }}>
+            {/* What waits on this device to upload, over every screen but Sync itself (decisions.md 166). */}
+            {screen === 'sync_status' ? null : <UploadBar ctx={ctx} onOpen={RECORDING_SCREENS.includes(screen) ? null : openSync} />}
             <NavigationContainer ref={navRef} onReady={nav.onReady} onStateChange={nav.onStateChange}
               documentTitle={{ formatter: (_options, route) => (route ? titleFor(route.name as ScreenId) : 'LangQuest') }}>
               <Stack.Navigator
@@ -590,8 +652,10 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
           </LayoutContext.Provider>
         </View>
         {!wide && showTabs ? navChrome('bar') : null}
+      </HeaderExtraContext.Provider>
       </PeopleContext.Provider>
       </SyncStatusContext.Provider>
+      </ReadOnlyContext.Provider>
       {/* Files this device deleted behind the app's back (decisions.md 92): over every screen until seen. */}
       <LostFilesAlert state={language.state} whatWere={language.blobs.lost} />
       {canSwitchPersona ? (
@@ -604,7 +668,8 @@ function OrgWork(props: { actorId: string; email: string | null; signedIn: boole
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.card },
   pane: { borderRightWidth: StyleSheet.hairlineWidth, borderColor: C.border, backgroundColor: C.bg },
-  paneEmpty: { flex: 1, backgroundColor: C.bg, justifyContent: 'center' }
+  paneEmpty: { flex: 1, backgroundColor: C.bg, justifyContent: 'center' },
+  waiting: { flex: 1, alignItems: 'center', justifyContent: 'center' }
 });
 
 /**
@@ -616,8 +681,9 @@ const styles = StyleSheet.create({
 let showing: { message: string; until: number } | null = null;
 
 /**
- * Shows one toast at a time for 3.5 s, twice as long while a screen reader
- * is on. A toast only says what happened: it never offers Undo (decision 134).
+ * Shows one toast at a time for 3.5 s, or as long as Android's "Time to take
+ * action" asks (decision 159), twice as long while a screen reader is on. A
+ * toast only says what happened: it never offers Undo (decision 134).
  */
 function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void; bottom: number }) {
   const [spec, setSpec] = useState<ToastSpec | null>(() => {
@@ -631,6 +697,7 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     // react-native-web cannot tell and always answers yes, which doubled every toast on web.
     if (Platform.OS === 'web') return;
+    readToastTime();
     void AccessibilityInfo.isScreenReaderEnabled().then((on) => { reader.current = on; }, () => undefined);
     const sub = AccessibilityInfo.addEventListener('screenReaderChanged', (on) => { reader.current = on; });
     return () => sub.remove();
@@ -639,7 +706,7 @@ function ToastHost(props: { register: (show: (spec: ToastSpec) => void) => void;
   useEffect(() => {
     register((next) => {
       if (timer.current) clearTimeout(timer.current);
-      const ms = 3500 * (reader.current ? 2 : 1);
+      const ms = toastTime() * (reader.current ? 2 : 1);
       showing = { message: next.message, until: Date.now() + ms };
       setSpec({ ...next, ms });
       timer.current = setTimeout(() => setSpec((t) => (t?.id === next.id ? null : t)), ms);

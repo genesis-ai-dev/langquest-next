@@ -1,5 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
+import { WeightedSequencer } from './scripts/unit-shards';
+
+// One shard of the guardrails `unit` job (VITEST_COVERAGE_SHARD=1) covers a third of the code, so its
+// thresholds would fail; they are checked once, on the shards' merged report (the `coverage` job).
+const shard = process.env['VITEST_COVERAGE_SHARD'] === '1';
 
 export default defineConfig({
   resolve: {
@@ -14,6 +19,8 @@ export default defineConfig({
     // (2026-10-14). A test that truly hangs still fails, after 30 s.
     testTimeout: 30_000,
     include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts', 'scripts/**/*.test.ts', 'e2e/**/*.test.ts'],
+    // `--shard` splits by weight, so the slow files do not share a runner (scripts/unit-shards.ts).
+    sequence: { sequencer: WeightedSequencer },
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'json-summary', 'lcov'],
@@ -39,7 +46,7 @@ export default defineConfig({
         'scripts/fleet/**',
         'scripts/bench/**'
       ],
-      thresholds: {
+      thresholds: shard ? undefined : {
         'packages/core/src/**': { lines: 95, branches: 83, functions: 92, statements: 90 },
         'packages/sync/src/**': { lines: 95, branches: 85, functions: 91, statements: 92 },
         'packages/v2-import/src/**': { lines: 48, branches: 42, functions: 45, statements: 46 },

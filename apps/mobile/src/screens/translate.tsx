@@ -91,8 +91,8 @@ import { catalogVerses } from '../sources/model';
 import { QuietLink, RefChips, type ChipItem } from '../recording/blocks';
 import { checkName } from '../admin/adminModel';
 import { PublishScreen, type DoneAsk } from '../recording/publish';
-import { nextAfterDone, recordCan, sentText, usualTargets } from '../passage/recordModel';
-import { sendTargetLabel } from '../passage/record';
+import { goesWhenConnected, nextAfterDone, recordCan, sentText, usualTargets } from '../passage/recordModel';
+import { sendTargetLabel } from '../passage/recordTextModel';
 import { sendToInput } from '../passage/sendTarget';
 import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
@@ -107,6 +107,7 @@ import { studyProgress } from '../study/progress';
 import { C, radius, space, TINT, withAlpha } from '../ui/theme';
 import { useRecorder, type RecordedCard } from '../recording/useRecorder';
 import { NoteStepContext } from '../checks/noteStep';
+import { PartNotesProvider } from '../passage/PartNotes';
 import { anyFrom, fromFilter } from '../checks/showsModel';
 
 // ---- Workspace ---------------------------------------------------------------------
@@ -127,7 +128,12 @@ export function Workspace(ctx: Ctx) {
   // Each draft opened is its own workspace (decisions.md 83).
   const which = ['draftId', 'from', 'fresh'].map((k) => ctx.params[k] ?? '').join(':');
   // Notes written while recording are the recording's (decisions.md 130).
-  return <NoteStepContext.Provider value={RECORD_STEP}><WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} /></NoteStepContext.Provider>;
+  // A part the checks left notes on shows them where it is recorded (decisions.md 149).
+  return (
+    <NoteStepContext.Provider value={RECORD_STEP}>
+      <PartNotesProvider ctx={ctx} v={v}><WorkspaceBody key={`${v.unitId}:${v.languageId}:${which}`} ctx={ctx} v={v} /></PartNotesProvider>
+    </NoteStepContext.Provider>
+  );
 }
 
 function Missing(props: { ctx: Ctx; title: string; text?: string }) {
@@ -603,7 +609,8 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
     const commandId = Crypto.randomUUID();
     let specs: EventSpec[];
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
-    let message = t('translate.versionPublished', { n: nextN });
+    const offline = ctx.language.online === false;
+    let message = goesWhenConnected(t('translate.versionPublished', { n: nextN }), offline);
     try {
       const c = commands(state, idx);
       specs = c.publishVersion({
@@ -617,7 +624,7 @@ function WorkspaceBody({ ctx, v }: { ctx: Ctx; v: PassageView }) {
       if (ask && 'kindId' in ask && sendTo) {
         const asked = c.ask({ ...sendToInput({ commandId: Crypto.randomUUID(), unitId, kindId: ask.kindId, target: sendTo }), ...(ask.questions.length ? { questions: ask.questions } : {}) });
         specs = [...specs, ...asked];
-        message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name));
+        message = sentText(sendTo, sendTargetLabel(sendTo, ctx.name), offline);
       }
     } catch (e) {
       ctx.toast(t('translate.notPublished', { reason: failureMessage('workspace: publish', e) }));

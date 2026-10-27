@@ -1,5 +1,5 @@
 // Get ready, question 2: what can help a language's team, as one list, what
-// goes with what (FIA's guides and key words, decision 149) and what a search
+// goes with what (FIA's guides and key words, decision 172) and what a search
 // of it finds (src/reference/helpItemsModel.ts).
 import { describe, expect, it } from 'vitest';
 import {
@@ -118,7 +118,7 @@ describe('what can help a language\'s team', () => {
   });
 });
 
-// ---- FIA's key words beside its guides (decision 149) ------------------------------------------
+// ---- FIA's key words beside its guides (decision 172) ------------------------------------------
 
 const words = (language: string, count: number): MaterialDoc => ({
   format: 'material@1', kind: 'key_terms', title: `FIA key words (${language})`, language, pattern: 'FIA', deps: [],

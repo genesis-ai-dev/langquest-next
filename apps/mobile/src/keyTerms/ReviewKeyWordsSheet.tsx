@@ -1,4 +1,4 @@
-// A key-word list a check links (decision 149; the agreed design's screen
+// A key-word list a check links (decision 172; the agreed design's screen
 // 5), opened by the reviewer: each of the list's words on the passage, the
 // team's word to play, and whether the translator marked it in the version
 // being checked, or that the team has no word for it yet. A word opens its

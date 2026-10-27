@@ -53,7 +53,9 @@
     "minutesAgo_other": "ከ{{count, number}} ደቂቃ በፊት",
     "hoursAgo_one": "ከ{{count, number}} ሰዓት በፊት",
     "hoursAgo_other": "ከ{{count, number}} ሰዓት በፊት",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "ዛሬ",
+    "yesterday": "ትናንት"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -346,11 +348,14 @@
     "get_ready": "ይዘጋጁ",
     "settings_more": "ተጨማሪ ቅንብሮች",
     "check_editor": "ፍተሻ",
-    "cluster_home": "ቡድን"
+    "cluster_home": "ቡድን",
+    "global_viewer": "ዓለም አቀፍ ተመልካች"
   },
   "native": {
     "microphone": "LangQuest ክፍሎችን ለመተርጎም ድምፅዎን ይቀርጻል።",
-    "camera": "LangQuest የግብዣ QR ኮዶችን ለመቃኘት ካሜራውን ይጠቀማል።"
+    "camera": "LangQuest የግብዣ QR ኮዶችን ለመቃኘት ካሜራውን ይጠቀማል።",
+    "calculator": "ካልኩሌተር",
+    "notes": "ማስታወሻዎች"
   },
   "library": {
     "sourceLine": {
@@ -3102,6 +3107,13 @@
       "elsewhereSub": "ቀረጻዎችዎና ለውጦችዎ በአንድ ቦታ እንዲቆዩ በአንድ ጊዜ በአንድ ትር ብቻ ይሠራል። እዚህ ይጠቀሙት፣ ወይም ወደ ሌላኛው ትር ይመለሱ።",
       "useHere": "እዚህ ይጠቀሙት",
       "useHereHelp": "LangQuestን ወደዚህ ትር ያዛውራል። ሌላኛው ትር ሥራውን አስቀምጦ ቦታውን ይለቃል።"
+    },
+    "lock": {
+      "wait": "በጣም ብዙ ሙከራዎች። ትንሽ ቆይተው እንደገና ይሞክሩ።",
+      "wrong": "ይህ ስርዓተ-ጥለት ትክክል አይደለም።",
+      "notMe": "የእኔ ስዕል አይደለም",
+      "notMeHelp": "ወደ ስዕሎቹ ይመልሳል።",
+      "pictureHelp": "ከዚህ ስልክ ወጥተዋል? ስዕልዎን ይንኩ፣ ከዚያ ስርዓተ-ጥለትዎን ይሳሉ። ግንኙነት አያስፈልግም።"
     }
   },
   "account": {
@@ -3118,9 +3130,6 @@
       "ready": "ዝማኔው ዝግጁ ነው — እንደገና ለማስጀመር ይንኩ",
       "downloading": "ዝማኔውን በማውረድ ላይ…",
       "downloadingPercent": "ዝማኔውን በማውረድ ላይ… {{percent}}",
-      "offline": "ከመስመር ውጭ — እንደገና ለመሞከር ይንኩ",
-      "failed": "ዝማኔው አልተሳካም፦ {{reason}} — እንደገና ለመሞከር ይንኩ",
-      "offlineLabel": "ከመስመር ውጭ፦ ዝማኔዎችን መፈተሽ አይቻልም",
       "webReady": "አዲስ የLangQuest ስሪት ዝግጁ ነው። ለመጠቀም ገጹን እንደገና ይጫኑ።",
       "storeBuild": "የመደብር ስሪት",
       "updateBuild": "ዝማኔ {{id}}",
@@ -3399,11 +3408,9 @@
         "checking": "ተገናኝቷል፣ ግን የቀጥታ ቻናሉ ተቋርጧል፣ ስለዚህ ይህ መሣሪያ በጥቂት ደቂቃዎች ልዩነት ለውጦችን ይፈትሻል። አሁን አሰምር ወዲያውኑ ይፈትሻል።",
         "offline": "ግንኙነት የለም። የሚያደርጉት ሁሉ በዚህ መሣሪያ ላይ ይቀመጣል፣ እንደገና መስመር ላይ ሲሆኑ ራሱ ይላካል።",
         "refused": "አገልጋዩ ከዚህ መሣሪያ ለውጦችን እየተቀበለ አይደለም። ሥራዎ አሁንም እዚህ ተቀምጧል።",
-        "toSend": "በዚህ መሣሪያ ላይ የተደረጉ እና አገልጋዩ ገና ያላረጋገጣቸው ለውጦችና ቅጂዎች። እዚህ ደህና ናቸው፣ ግንኙነት ሲኖር ይላካሉ።",
         "toReceive": "ይህ መሣሪያ አሁንም እያወረዳቸው ያሉ የሌሎች ቅጂዎች።",
         "refusedLine": "አገልጋዩ ያልተቀበላቸው ለውጦች፣ ብዙውን ጊዜ ፈቃድ ስለተቀየረ። በዚህ መሣሪያ ላይ ይቆያሉ፤ እያንዳንዱን ለማየት ዝርዝሮችን ይክፈቱ።"
       },
-      "toSend": "የሚላኩ",
       "toReceive": "የሚቀበሉ",
       "refusedLine": "ውድቅ የተደረጉ",
       "none": "የለም",
@@ -3412,6 +3419,17 @@
       "syncNowHelp": "የሚጠብቀውን ወዲያውኑ ይልካል፣ አዲሱንም ያመጣል።",
       "detailsHelp": "የሚጠብቅ ወይም ውድቅ የተደረገ እያንዳንዱ ለውጥ፣ የድምፅ ዝውውሮችም፦ ችግር ለሚያስተካክል ሰው።",
       "eventHelp": "ይህ ለውጥ የሚመለከተውን ክፍል ይከፍታል።"
+    },
+    "lock": {
+      "tooShort": "ቢያንስ {{n}} ነጥቦችን ያገናኙ።",
+      "patternsDiffer": "የተለየ ስርዓተ-ጥለት ነበር። እንደገና ይጀምሩ።",
+      "pictureTitle": "ስዕልዎን ይምረጡ",
+      "pictureHelp": "በዚህ ስልክ ላይ ተመልሰው ለመግባት ስዕልዎን ይነካሉ፣ ከዚያ ስርዓተ-ጥለትዎን ይሳሉ።",
+      "nextHelp": "ስርዓተ-ጥለትዎን ወደ መሳል ይቀጥላል።",
+      "drawTitle": "ስርዓተ-ጥለት ይሳሉ",
+      "drawAgain": "እንደገና ይሳሉት",
+      "newPattern": "አዲስ ስርዓተ-ጥለት ይሳሉ",
+      "choosePatternHelp": "ግንኙነት ባይኖርም በዚህ ስልክ ላይ ተመልሰው ለመግባት ስዕል እና ስርዓተ-ጥለት ይምረጡ።"
     }
   },
   "study": {
@@ -3944,7 +3962,8 @@
       "openStudyHelp": "ለዚህ ክፍል ሙሉውን የጥናት መመሪያ ይከፍታል።",
       "listeners": "አድማጮች",
       "liveIn": "በ{{channel}} ላይ ታትሟል · {{version}}",
-      "listenerCount": "የአድማጮች አስተያየት፦ {{count, number}}"
+      "listenerCount": "የአድማጮች አስተያየት፦ {{count, number}}",
+      "askedOffline": "{{target}} ተጠይቀዋል። ይህ መሣሪያ ሲገናኝ ይደርሳቸዋል።"
     },
     "else": {
       "title": "ሌላ ነገር?",
@@ -4131,6 +4150,15 @@
       "partHelp": "ይህን ቁራጭ ብቻውን ያጫውታል።",
       "deleteVersionHelp": "ይህን ስሪት ለሁሉም ይሰርዛል። ቀድሞ የተደረጉ ፍተሻዎች በታሪክ ውስጥ ይቆያሉ፣ ግን ከእንግዲህ አይቆጠሩም።",
       "doneHelp": "ለመጨረስና ወደ ቀጣዩ ፍተሻው ለመላክ የዚህን ረቂቅ የመጨረሻ እይታ ይከፍታል።"
+    },
+    "partNotes": {
+      "title": "በ{{part}} ላይ ያሉ ማስታወሻዎች",
+      "mark_one": "በ{{part}} ላይ {{count, number}} ማስታወሻ",
+      "mark_other": "በ{{part}} ላይ {{count, number}} ማስታወሻዎች",
+      "markHelp": "በፍተሻዎቹ ስለዚህ ቁራጭ የተባለውን ይከፍታል። ምላሽ መስጠት ይችላሉ።"
+    },
+    "checkNotes": {
+      "title": "{{check}} ማስታወሻዎች"
     }
   },
   "work": {
@@ -4182,7 +4210,8 @@
     },
     "sync": {
       "toSend_one": "{{count, number}} የሚላክ",
-      "toSend_other": "{{count, number}} የሚላኩ"
+      "toSend_other": "{{count, number}} የሚላኩ",
+      "receiving": "ቅጂዎችን በመቀበል ላይ"
     },
     "join": {
       "wantsToJoin": "{{name}} መቀላቀል ይፈልጋል",
@@ -4276,7 +4305,8 @@
     "toast": {
       "notSaved": "አልተቀመጠም፦ {{reason}}",
       "notSavedCode": "አልተቀመጠም። የሆነ ችግር ተፈጥሯል (ኮድ {{code}})።",
-      "dismissLabel": "{{message}} ይዝጉ"
+      "dismissLabel": "{{message}} ይዝጉ",
+      "goesWhenConnected": "{{message}} ይህ መሣሪያ ሲገናኝ ቡድንዎ ያገኘዋል።"
     },
     "nav": {
       "cannotOpenHere": "ያ ከዚህ ሊከፈት አይችልም።",
@@ -4376,6 +4406,14 @@
       "term": {
         "title": "ቃል ይምረጡ",
         "sub": "ትርጉሙና አተረጓጎሞቹ እዚህ ይከፈታሉ።"
+      },
+      "language": {
+        "title": "ቋንቋ ይምረጡ",
+        "sub": "ሂደቱ እዚህ ይከፈታል።"
+      },
+      "manage": {
+        "title": "የሚያስተዳድሩትን ይምረጡ",
+        "sub": "ቋንቋ፣ አባላት ወይም ማዋቀሪያ እዚህ ይከፈታል።"
       }
     },
     "license": {
@@ -4401,6 +4439,15 @@
       "readHelp": "ሙሉ ጽሑፉን በአሳሹ ውስጥ ይከፍታል።",
       "rowHelp": "ፈቃዶቹንና እያንዳንዱ የሚፈቅደውን ይከፍታል።",
       "yesOpenToHelp": "ከአሁን ጀምሮ ሥራዎ በዚህ ፈቃድ ሥር ይጋራል። ሊቀለበስ አይችልም።"
+    },
+    "pattern": {
+      "label": "ስርዓተ-ጥለት፦ ቢያንስ {{n}} ነጥቦችን ያገናኙ",
+      "help": "ጣትዎን ሳያነሱ በነጥቦቹ ላይ ይሳሉ፣ ወይም አንድ በአንድ ይንኩና ከዚያ ተከናውኗል ይንኩ። ቢያንስ {{n}} ነጥቦችን ያገናኙ።",
+      "dot": "ነጥብ {{n}}",
+      "picture": "ስዕል {{n}}",
+      "again": "እንደገና ይጀምሩ",
+      "againHelp": "ስርዓተ-ጥለቱን እንደገና ለመጀመር ነጥቦቹን ያጠፋል።",
+      "doneHelp": "በነኳቸው ነጥቦች ስርዓተ-ጥለቱን ይጨርሳል።"
     }
   },
   "help": {
@@ -4447,51 +4494,27 @@
       "checking": "ግራጫ ነጥብ፦ ግንኙነት በመፈለግ ላይ። ሥራዎ እስኪላክ ድረስ በዚህ መሣሪያ ላይ ይቆያል።",
       "offline": "ወርቃማ ነጥብ፦ ከመስመር ውጭ። ሥራዎ በዚህ መሣሪያ ላይ ይቆያል፣ ኢንተርኔት እንደተገናኙም ይላካል።",
       "refused": "ቀይ፦ አገልጋዩ አንድ ነገር እምቢ ብሏል። ምን እንደሆነና ምን ማድረግ እንዳለብዎ ለማየት ይንኩ።",
-      "withWaiting": "{{standing}} ቁጥሩ ለመላክ የሚጠብቁ ነገሮችን ብዛት ያሳያል።"
+      "withWaiting": "{{standing}} ቁጥሩ ለመላክ የሚጠብቁ ነገሮችን ብዛት ያሳያል።",
+      "withReceiving": "{{standing}} የሌሎች ቅጂዎች ወደዚህ መሣሪያ እየወረዱ ሳለ ቀለበቱ ይዞራል። የሚላክ ምንም የለም።"
     }
   },
   "offline": {
     "onDevice": "በዚህ መሣሪያ ላይ",
     "downloading": "ከመስመር ውጭ ለመጠቀም በማውረድ ላይ",
-    "audioNotHere": "ድምፁ በዚህ መሣሪያ ላይ የለም",
-    "notKept": "በዚህ መሣሪያ ላይ አልተቀመጠም",
     "audioNotKept": "ድምፁ በዚህ መሣሪያ ላይ አልተቀመጠም",
     "connectToFinish": "ከመጓዝዎ በፊት ለመጨረስ ከኢንተርኔት ጋር ይገናኙ።",
     "stayConnected": "ይህ እስኪያልቅ ድረስ ከኢንተርኔት እንደተገናኙ ይቆዩ።",
-    "keep": "ከመስመር ውጭ ያቆዩ",
-    "stopKeeping": "ከመስመር ውጭ ማቆየት ያቁሙ",
     "reason": {
       "asked": "እንዲሠሩበት ስለተጠየቁ ተቀምጧል።",
       "worked": "ስለሠሩበት ተቀምጧል።",
       "chosen": "ለማቆየት ስለመረጡ ተቀምጧል።"
     },
     "passage": {
-      "notSent_one": "{{count, number}} ቀረጻ ከሠራው መሣሪያ ገና አልተላከም።",
-      "notSent_other": "{{count, number}} ቀረጻዎች ከሠሯቸው መሣሪያዎች ገና አልተላኩም።",
-      "studyOnline": "የጥናት ስዕሎችና የጥናት ድምፅ በድር መተግበሪያው ላይ ግንኙነት ይፈልጋሉ።",
-      "worksWithStudy": "ጽሑፉ፣ ድምፁና የጥናት ስዕሎቹ ያለ ግንኙነት ይሠራሉ።",
-      "worksWithAudio": "ጽሑፉና ድምፁ ያለ ግንኙነት ይሠራሉ።",
-      "worksTextOnly": "ጽሑፉ ያለ ግንኙነት ይሠራል፣ አዲስ ድምፅ ደግሞ ሲደርስ ይወርዳል።",
-      "audioFilesHere_one": "ከ{{count, number}} የድምፅ ፋይል {{here, number}} እዚህ አለ።",
-      "audioFilesHere_other": "ከ{{count, number}} የድምፅ ፋይሎች {{here, number}} እዚህ አሉ።",
-      "audioFilesHereLeft_one": "ከ{{count, number}} የድምፅ ፋይል {{here, number}} እዚህ አለ፣ {{size}} ድምፅ ይቀራል።",
-      "audioFilesHereLeft_other": "ከ{{count, number}} የድምፅ ፋይሎች {{here, number}} እዚህ አሉ፣ {{size}} ድምፅ ይቀራል።",
-      "studyFilesHere_one": "ከ{{count, number}} የድምፅና የጥናት ፋይል {{here, number}} እዚህ አለ።",
-      "studyFilesHere_other": "ከ{{count, number}} የድምፅና የጥናት ፋይሎች {{here, number}} እዚህ አሉ።",
-      "studyFilesHereLeft_one": "ከ{{count, number}} የድምፅና የጥናት ፋይል {{here, number}} እዚህ አለ፣ {{size}} ድምፅ ይቀራል።",
-      "studyFilesHereLeft_other": "ከ{{count, number}} የድምፅና የጥናት ፋይሎች {{here, number}} እዚህ አሉ፣ {{size}} ድምፅ ይቀራል።",
       "onlySomeHere_one": "በዚህ መሣሪያ ላይ ከ{{count, number}} ፋይል {{here, number}} ብቻ",
       "onlySomeHere_other": "በዚህ መሣሪያ ላይ ከ{{count, number}} ፋይሎች {{here, number}} ብቻ",
-      "downloadingCount": "ከመስመር ውጭ ለመጠቀም በማውረድ ላይ · {{here, number}} ከ{{total, number}}",
-      "notAllHere": "ሁሉም ገና በዚህ መሣሪያ ላይ የለም",
-      "readRecordAudioNeeds": "ማንበብና መቅረጽ ይችላሉ፣ ድምፁ ግን ግንኙነት ይፈልጋል።",
-      "readRecordStudyNeeds": "ማንበብና መቅረጽ ይችላሉ፣ ድምፁና የጥናት ስዕሎቹ ግን ግንኙነት ይፈልጋሉ።",
-      "textHereAudioNeeds": "ጽሑፉ እዚህ አለ፣ ድምፁ ግን ግንኙነት ይፈልጋል። ይዘውት ለመሄድ ከመስመር ውጭ ያቆዩት።",
-      "textHereStudyNeeds": "ጽሑፉ እዚህ አለ፣ ድምፁና የጥናት ስዕሎቹ ግን ግንኙነት ይፈልጋሉ። ይዘውት ለመሄድ ከመስመር ውጭ ያቆዩት።",
-      "barHelp": "ፋይሎቹ ወደዚህ መሣሪያ ሲደርሱ ይሞላል።"
+      "downloadingCount": "ከመስመር ውጭ ለመጠቀም በማውረድ ላይ · {{here, number}} ከ{{total, number}}"
     },
     "toast": {
-      "kept": "በዚህ መሣሪያ ላይ ተቀምጧል። ከኢንተርኔት ጋር ሲገናኙ ይወርዳል።",
       "notKept": "ከአሁን በኋላ አይቀመጥም። ቦታ ለማስለቀቅ ድምፁ ሊወገድ ይችላል።"
     },
     "summary": {
@@ -4518,8 +4541,8 @@
       "alwaysBody": "በ{{language}} ያለ የእያንዳንዱ ክፍል ጽሑፍ፣ ሁኔታና ታሪክ። እንዲሠሩባቸው የተጠየቁባቸው፣ የሠሩባቸው ወይም ለማቆየት የመረጧቸው ክፍሎች ድምፅ።",
       "alwaysBodyStudy": "በ{{language}} ያለ የእያንዳንዱ ክፍል ጽሑፍ፣ ሁኔታና ታሪክ። እንዲሠሩባቸው የተጠየቁባቸው፣ የሠሩባቸው ወይም ለማቆየት የመረጧቸው ክፍሎች ድምፅ፣ የጥናት ስዕሎች፣ ካርታዎችና የጥናት ድምፅ።",
       "needsTitle": "ግንኙነት ያስፈልገዋል",
-      "needsNotKept": "ያላቆዩዋቸው ክፍሎች ድምፅ። ይዘውት ለመሄድ ክፍል ከፍተው «ከመስመር ውጭ ያቆዩ»ን ይንኩ።",
-      "needsNotKeptStudy": "ያላቆዩዋቸው ክፍሎች ድምፅና የጥናት ጽሑፍ። ይዘውት ለመሄድ ክፍል ከፍተው «ከመስመር ውጭ ያቆዩ»ን ይንኩ።",
+      "needsNotDownloaded": "ያልወረዱ ምንባቦች ድምፅ።",
+      "needsNotDownloadedStudy": "ያልወረዱ ምንባቦች ድምፅና የጥናት ቁሳቁስ።",
       "needsFilms": "የጥናት ፊልሞች።",
       "needsStudyWeb": "የጥናት ስዕሎች፣ ካርታዎችና የጥናት ድምፅ፣ በድር መተግበሪያው ላይ።",
       "needsReports": "ሪፖርቶች።",
@@ -4541,7 +4564,11 @@
       "body": "ቅጂዎቹ፣ ግምገማዎቹ እና ታሪኩ ከሌላው የዚህ ቋንቋ ክፍል ጋር ገና እየወረዱ ነው። ለማውረድ ይገናኙ።",
       "latest": "የቅርብ ጊዜ፦ ቅጂ {{n, number}}፣ በ{{name}}።",
       "requests": "ክፍት ጥያቄዎች፦ {{n, number}}።"
-    }
+    },
+    "download": "ከመስመር ውጭ ለመጠቀም አውርድ",
+    "needsConnection": "ለማውረድ ግንኙነት ያስፈልጋል",
+    "needsConnectionHelp": "በዚህ መሣሪያ ላይ የለም። መሣሪያው ሲገናኝ ሊወርድ ይችላል።",
+    "checkingHelp": "ይህ መሣሪያ የዚህን ምንባብ ምን ያህል እንዳለው እየቆጠረ ነው።"
   },
   "moderation": {
     "flagLabel": "{{name}}ን ሪፖርት ያድርጉ ወይም ያግዱ",
@@ -4980,7 +5007,6 @@
       "chapter": "ምዕራፍ {{n}}",
       "chapterHelp": "ክፍሉን ይከፍታል። ምልክት ተከናውኗል ማለት ነው፣ ነጥብ ተጀምሯል ማለት ነው።",
       "keyLabel": "ምልክት ተከናውኗል ማለት ነው፣ ነጥብ ተጀምሯል ማለት ነው",
-      "keyLabelOffline": "ምልክት ተከናውኗል ማለት ነው፣ ነጥብ ተጀምሯል ማለት ነው፣ ደመና በዚህ መሣሪያ ላይ ተቀምጧል ማለት ነው",
       "barHelp": "ክፍሎቹ ሲቀረጹ አሞሌው ይሞላል፤ አረንጓዴው ቦታ ተከናውኗል ማለት ነው።",
       "countHelp": "{{shown}} ማለት ከ{{total}} ክፍሎቹ {{recorded}} ተቀርጸዋል ማለት ነው።",
       "matchHelp": "ቁጥሩ ከክፍሎቹ ምን ያህሉ ከማጣሪያው ጋር እንደሚዛመዱ ያሳያል።",
@@ -4993,7 +5019,6 @@
     "key": {
       "done": "ተከናውኗል",
       "started": "ተጀምሯል",
-      "onDevice": "በዚህ መሣሪያ ላይ",
       "doneSub": "ሁሉም ፍተሻዎች ተጠናቀዋል",
       "startedSub": "ቀረጻ ተጀምሯል፣ ተቀርጿል፣ በገምጋሚዎች ዘንድ ነው፣ ወይም አስተያየት እየጠበቀ ነው",
       "notStarted": "አልተጀመረም",
@@ -5878,7 +5903,12 @@
         "someTerm": "ቃል",
         "version": "ስሪት {{n}}",
         "aVersion": "አንድ ስሪት",
-        "study": "ጥናት"
+        "study": "ጥናት",
+        "replyTo": "ለ{{name}} ምላሽ",
+        "reply": "አንድ ምላሽ",
+        "aPart": "አንድ ቁራጭ",
+        "help": "«{{help}}»",
+        "aHelp": "አንድ አጋዥ"
       }
     },
     "parts": {
@@ -6050,6 +6080,8 @@
       "helpNoteHelp": "ለማንበብ ይከፍተዋል።",
       "howManyHelp": "ምን ያህል ሰዎች እንዳዳመጡ ይናገሩ። ካስፈለገ።",
       "doneRecordedHelp": "{{what}}ን በክፍሉ መዝገብ ላይ ያሰፍራል።",
+      "looksGoodOffline": "ጥሩ ነው። ይህ መሣሪያ ሲገናኝ {{name}} ያገኙታል።",
+      "feedbackOffline": "አስተያየቱ ተቀምጧል። ይህ መሣሪያ ሲገናኝ {{name}} ያገኙታል።",
       "helpWordsHelp": "በዚህ ክፍል ያሉትን ዋና ቃላት ይከፍታል፤ ለእያንዳንዱ የቡድኑን ቃል እና ይህ ስሪት ተጠቅሞበት እንደሆነ ያሳያል።"
     },
     "guest": {
@@ -6196,6 +6228,19 @@
       "addStepDetail": "ከሌሎቹ በኋላ ሌላ ፍተሻ ያክሉ።",
       "legend": "= ከቀጣዮቹ ደረጃዎች በፊት ማለፍ አለበት",
       "gripHelp": "ይህን ደረጃ ለማንቀሳቀስ ወደ ላይ ወይም ወደ ታች ይጎትቱ።"
+    },
+    "notesOn": {
+      "addOn": "በ{{what}} ላይ ማስታወሻ ያክሉ",
+      "addOnHelp": "በዚህ ላይ በድምፅ ወይም በጽሑፍ ማስታወሻ ያክላል። ከግምገማዎ ጋር ይሄዳል።",
+      "noteOn": "በ{{what}} ላይ ማስታወሻ",
+      "reply": "ምላሽ ይስጡ",
+      "replyHelp": "የ{{name}}ን ማስታወሻ ይመልሳል። ምላሽዎ ከሥሩ ይታያል።",
+      "replyTitle": "ለ{{name}} ምላሽ ይስጡ",
+      "withReview": "ከግምገማዎ ጋር",
+      "removeFrom": "ማስታወሻዎን ያስወግዱ፦ {{what}}",
+      "goWith_one": "{{count, number}} ማስታወሻ ከግምገማዎ ጋር ይሄዳል",
+      "goWith_other": "{{count, number}} ማስታወሻዎች ከግምገማዎ ጋር ይሄዳሉ",
+      "added": "ወደ ግምገማዎ ታክሏል።"
     }
   },
   "backTranslation": {
@@ -6667,7 +6712,9 @@
       "addHint": "በዚህ ክፍል ላይ በድምፅ ወይም በጽሑፍ ማስታወሻ ይተዉ።",
       "sheetSub": "ከክፍሉ ጋር ይቆያል። ገምጋሚዎችና ቀጣዩ ተርጓሚ ያዩታል።",
       "added": "ማስታወሻ ታክሏል።",
-      "typeHelp": "ማስታወሻዎን ይጻፉ። በድምፅም መናገር ይችላሉ።"
+      "typeHelp": "ማስታወሻዎን ይጻፉ። በድምፅም መናገር ይችላሉ።",
+      "onPart": "በ{{part}} ላይ",
+      "onHelp": "በ«{{help}}» ላይ"
     },
     "earlier": {
       "yours": "የእርስዎ",
@@ -7344,6 +7391,112 @@
       "saved": "ተቀምጧል። ከኢንተርኔት ጋር ሲገናኙ ይላካል።",
       "savedUntilSignIn": "ተቀምጧል። ከገቡ በኋላ ይላካል።",
       "voiceTooLong": "በጣም ረጅም ነው፦ የድምፅ ማስታወሻ እስከ 2 ደቂቃ ሊሆን ይችላል።"
+    }
+  },
+  "appVersion": {
+    "available": "አዲስ ስሪት አለ",
+    "update": "አዘምን",
+    "updateHelp": "የቅርብ ጊዜውን ስሪት የመደብር ገጽ ይከፍታል።",
+    "dismiss": "ዝጋ",
+    "dismissHelp": "አዲስ ስሪት እስኪወጣ ድረስ ይህን ይደብቃል።",
+    "required": "እባክዎ መተግበሪያውን ያዘምኑ",
+    "keepWorking": "መስራት ቀጥል",
+    "keepWorkingHelp": "ሥራዎ በዚህ ስልክ ላይ ይቆያል፤ ካዘመኑ በኋላ ይላካል።"
+  },
+  "globalViewer": {
+    "title": "ዓለም አቀፍ ተመልካች",
+    "viewingOrg": "{{org}}ን እንደ ዓለም አቀፍ ተመልካች እየተመለከቱ ነው። ምንም መቀየር አይችሉም።",
+    "lineSetUp": "ለመጀመር የማረጋገጫ መተግበሪያዎን ያዘጋጁ",
+    "lineCode": "ከማረጋገጫ መተግበሪያዎ የሚያገኙትን ኮድ ያስገቡ",
+    "lineOn": "ለማንበብ ማንኛውንም ድርጅት ይፈልጉ",
+    "lineRevoked": "የዓለም አቀፍ ተመልካች መዳረሻዎ አብቅቷል",
+    "wayInHelp": "የማረጋገጫ መተግበሪያዎ ኮድ፣ እና ለማንበብ ሁሉም ድርጅቶች።",
+    "revokedTitle": "የዓለም አቀፍ ተመልካች መዳረሻ አብቅቷል",
+    "revokedBody": "ስህተት ነው ብለው ካሰቡ LangQuestን ይጠይቁ።",
+    "notOne": "ይህ መለያ የዓለም አቀፍ ተመልካች አይደለም።",
+    "codeLabel": "ከማረጋገጫ መተግበሪያዎ የሚገኝ ኮድ",
+    "codeHelp": "የማረጋገጫ መተግበሪያዎ ለLangQuest የሚያሳየው ባለ 6 አሃዝ ኮድ። በየ30 ሰከንዱ ይቀየራል።",
+    "check": "ኮዱን ይፈትሹ",
+    "checkHelp": "ኮዱ ትክክል ከሆነ እስከሚወጡ ድረስ ሁሉንም ድርጅቶች ማንበብ ይችላሉ።",
+    "codeWrong": "ያ ኮድ ትክክል አይደለም። የማረጋገጫ መተግበሪያዎ አሁን የሚያሳየውን ኮድ ይጻፉ።",
+    "noAuthenticator": "ይህ መለያ የማረጋገጫ መተግበሪያ የለውም። LangQuestን እንዲያስጀምረው ይጠይቁ።",
+    "enterCode": "ድርጅቶችን ለማንበብ ከማረጋገጫ መተግበሪያዎ የሚያገኙትን ኮድ ያስገቡ።",
+    "setUpIntro": "ይህን መዳረሻ ከሰጥዎት ሰው ጋር በስልክ እየተነጋገሩ ያድርጉ። በስልክዎ ላይ እንደ Google Authenticator ወይም Microsoft Authenticator ያለ የማረጋገጫ መተግበሪያ ያስፈልግዎታል።",
+    "setUp": "የማረጋገጫ መተግበሪያ ያዘጋጁ",
+    "setUpHelp": "ለማረጋገጫ መተግበሪያዎ አዲስ ቁልፍ ሠርቶ እዚህ ያሳያል።",
+    "stepAdd": "1. LangQuestን ወደ ማረጋገጫ መተግበሪያዎ ያክሉ",
+    "scan": "ይህን ኮድ በማረጋገጫ መተግበሪያዎ ይቃኙ።",
+    "qrLabel": "በማረጋገጫ መተግበሪያ የሚቃኝ ኮድ",
+    "openApp": "በማረጋገጫ መተግበሪያ ውስጥ ክፈት",
+    "openAppHelp": "LangQuestን በዚህ ስልክ ላይ ወዳለው የማረጋገጫ መተግበሪያ ያክላል።",
+    "noApp": "ምንም የማረጋገጫ መተግበሪያ አልተከፈተም። ከታች ያለውን ቁልፍ በመተግበሪያው ውስጥ ይጻፉ።",
+    "typeKey": "ወይም ይህን ቁልፍ በመተግበሪያው ውስጥ ይጻፉ፦",
+    "stepCode": "2. የሚያሳየውን ኮድ ያስገቡ",
+    "onTitle": "ሁሉንም ድርጅቶች ማንበብ ይችላሉ",
+    "onBody": "ተመልካች የሚያየውን ያያሉ። ምንም መቀየር አይችሉም።",
+    "search": "ድርጅት ወይም ቋንቋ",
+    "openNowLabel": "{{name}}፣ አሁን ክፍት ነው",
+    "openHelp": "ይህን ድርጅት ለማንበብ ይከፍታል።",
+    "noneFound": "ምንም የሚመሳሰል ድርጅት የለም።",
+    "more": "ተጨማሪ አሳይ",
+    "hereLabel": "አሁን በመታየት ላይ",
+    "otherLabel": "ሌላ ድርጅት ይክፈቱ",
+    "readOnly": "እንደ ዓለም አቀፍ ተመልካች እየተመለከቱ ነው፤ እዚህ ምንም መቀየር አይቻልም።",
+    "linkHelp": "የሚመለከቱበት ቦታ፣ እዚያ ምን ማድረግ እንደሚችሉ፣ እና ሌሎች ሁሉም ድርጅቶች።",
+    "dashboard": "የአሠራር ዳሽቦርድ",
+    "dashboardBody": "የLangQuest አገልግሎቶች፣ የአገልጋይ ሥራዎች እና የመስክ ምርመራዎች። በአዲስ ትር ይከፈታል።",
+    "dashboardHelp": "የLangQuest የአሠራር ዳሽቦርድን በአዲስ ትር በእርስዎ መለያ ይከፍታል።"
+  },
+  "uploads": {
+    "barRecordings_one": "{{count, number}} ቀረጻ ለመስቀል በመጠበቅ ላይ",
+    "barRecordings_other": "{{count, number}} ቀረጻዎች ለመስቀል በመጠበቅ ላይ",
+    "barChanges_one": "{{count, number}} ለውጥ ለመስቀል በመጠበቅ ላይ",
+    "barChanges_other": "{{count, number}} ለውጦች ለመስቀል በመጠበቅ ላይ",
+    "uploading": "በመስቀል ላይ",
+    "allUploaded": "ሁሉም ተሰቅሏል",
+    "barHelp": "በዚህ መሣሪያ ላይ የተቀመጠውንና ለመስቀል የሚጠብቀውን፣ እንዲሁም ነገሮች መቼ እንደተሰቀሉ ይከፍታል።",
+    "savedHere": "በዚህ መሣሪያ ላይ ተቀምጧል",
+    "lastUpload": "የመጨረሻ ሰቀላ {{when}}",
+    "waitingTitle": "ለመስቀል በመጠበቅ ላይ",
+    "uploadedTitle": "የተሰቀሉ",
+    "recordingsUploaded_one": "{{uploaded, number}} ከ{{count, number}} ቀረጻ ተሰቅሏል",
+    "recordingsUploaded_other": "{{uploaded, number}} ከ{{count, number}} ቀረጻዎች ተሰቅለዋል",
+    "changesWaiting_one": "{{count, number}} ለውጥ በመጠበቅ ላይ",
+    "changesWaiting_other": "{{count, number}} ለውጦች በመጠበቅ ላይ",
+    "otherChanges": "ሌሎች ለውጦች",
+    "recordings_one": "{{count, number}} ቀረጻ",
+    "recordings_other": "{{count, number}} ቀረጻዎች",
+    "changes_one": "{{count, number}} ለውጥ",
+    "changes_other": "{{count, number}} ለውጦች"
+  },
+  "disguise": {
+    "row": "የመተግበሪያ አዶ",
+    "rowHelp": "LangQuest በዚህ ስልክ ላይ ካልኩሌተር ወይም ማስታወሻ ደብተር እንዲመስል ያደርጋል። የሚከፈተው እርስዎ በሚመርጡት ኮድ ብቻ ነው።",
+    "title": "የመተግበሪያ አዶ",
+    "langquest": "LangQuest",
+    "ownHelp": "የLangQuest የራሱን አዶ ይመልሳል። ያለ ኮድ ይከፈታል።",
+    "lookHelp": "ይህን አዶ ይመርጣል። ቀጥሎ LangQuestን የሚከፍተውን ኮድ ይመርጣሉ።",
+    "calculatorN": "ካልኩሌተር {{n}}",
+    "notesN": "ማስታወሻዎች {{n}}",
+    "codeTitle": "ኮድ ይምረጡ",
+    "code": "ኮድ",
+    "codeHelp": "ከ4 እስከ 12 አሃዞች። በካልኩሌተሩ ላይ በቁልፎቹ ይተይቡት። በማስታወሻው ላይ ለብቻው በአንድ መስመር ይተይቡት።",
+    "nextHelp": "ኮድዎን እንዲተይቡበት ካልኩሌተሩን ወይም ማስታወሻውን ይከፍታል።",
+    "backHelp": "አንድ ደረጃ ወደ ኋላ ይመለሳል።",
+    "tryTitle": "ኮድዎን ይተይቡ",
+    "on": "ይህ ስልክ አሁን {{name}} ያሳያል።",
+    "off": "የLangQuest የራሱ አዶ ተመልሷል።",
+    "notesTitle": "ማስታወሻዎች",
+    "keys": {
+      "clear": "ሁሉንም አጽዳ",
+      "delete": "ሰርዝ",
+      "percent": "መቶኛ",
+      "divide": "ማካፈል",
+      "times": "ማባዛት",
+      "minus": "መቀነስ",
+      "plus": "መደመር",
+      "equals": "እኩል ነው",
+      "point": "የአስርዮሽ ነጥብ"
     }
   }
 }

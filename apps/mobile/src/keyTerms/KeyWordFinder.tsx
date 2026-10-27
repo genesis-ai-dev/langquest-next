@@ -1,5 +1,5 @@
 // The Key words screen's search across the team's words and every key-word
-// list the team uses (decision 149; the agreed design's screen 8): chips
+// list the team uses (decision 172; the agreed design's screen 8): chips
 // for All, Ours and each list by its short name; what is typed found by the
 // word (or another form of it), then by the short meaning, and a last row
 // that opens the words whose full meaning mentions it. With nothing typed,
@@ -18,7 +18,7 @@ import { txt } from '../ui/textStyles';
 import { C, space, target, TINT } from '../ui/theme';
 import { styles as ps } from '../recording/blockStyles';
 import { languageLabel } from '../admin/adminModel';
-import { bookNameOf } from '../templates/contentTemplates';
+import { bookNameOf } from '../templates/contentTemplatesModel';
 import { shortName, type KeyWordList } from './listsModel';
 import { keyWordResults, linkedPassages, listChips, type KeyWordFilter, type KeyWordResult } from './searchModel';
 import { OurWord } from './KeyWordRows';

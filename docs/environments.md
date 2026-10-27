@@ -40,10 +40,14 @@ not the app.
 | Worker public config, plain | `vars` in each `wrangler.jsonc` (top level is production, `env.preview` is preview) | every deploy |
 | Hosted Supabase project refs, plain | `[remotes.<env>] project_id` in `supabase/config.toml` | read by scripts; the app Worker's `SUPABASE_URL` var must match (a test checks) |
 | Secrets, encrypted | `.env.preview`, `.env.production` at the repository root | `npm run secrets -- <env>` |
+| Hosted Auth settings (`[auth*]`, such as `[auth.mfa.totp]`), plain | `supabase/config.toml` | `npx supabase config push` by hand, below; merging does not apply them |
 
 The secrets file holds `INVITE_RELAY_SECRET` and `PUSH_DELIVERY_SECRET`,
 and production also `DIAG_DATABASE_URL` (read on a laptop by
-`npm run diag -- --hosted`, never pushed). It may also hold
+`npm run diag -- --hosted`, and by the admin page's Worker through the
+Hyperdrive config `npm run secrets` makes from it). Production may
+also hold the ops dashboard's `ADMIN_*` keys: one read-only token per
+provider, each optional (`docs/admin.md`). It may also hold
 `BIBLE_BRAIN_ACCESS_KEY`, Faith Comes By Hearing's key for the Worker's
 Bible routes (`docs/reference-material.md`). That one is optional: it is not
 in the Worker's `secrets.required`, so a deploy never waits for it, and
@@ -62,9 +66,11 @@ declares:
 | --- | --- |
 | app's Worker | `SUPABASE_SERVICE_ROLE_KEY`, read from Supabase each run, never stored in the repo; `BIBLE_BRAIN_ACCESS_KEY`, `WEBHOOK_POKE_SECRET`, `V2_SUPABASE_ANON_KEY` and `V2_DATABASE_URL` when the file has them. Its job containers get them from the Worker at each start: the projection pass the database's, the v2 import v2's too (`docs/server-jobs.md`) |
 | invite-email Worker | `INVITE_RELAY_SECRET` |
+| admin Worker (production only) | each provider token or key (`ADMIN_*`) when the file has them (`docs/admin.md`). Never the service-role key |
+| Hyperdrive `langquest-next-diag` (production only) | `DIAG_DATABASE_URL`, as the config's connection; the first run makes the config and writes its id into `apps/admin/wrangler.jsonc` to commit (`docs/admin.md`) |
 | Edge Function secrets | `INVITE_RELAY_SECRET`, `PUSH_DELIVERY_SECRET` (once `PROJECTION_WORKER_SECRET`, which this unsets), `INVITE_RELAY_URL` (public, derived from the Worker's name) |
 | Vault | `langquest_project_url`, `langquest_push_delivery_secret`; with `WEBHOOK_POKE_SECRET`, also `langquest_webhook_poke_secret` and `langquest_dashboard_url` (public, the app's Worker's route) |
-| pg_cron | the push-delivery job: its migration (`20261020170000_push_delivery_secret.sql`) schedules it only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
+| pg_cron | the push-delivery job: its migration (`20261026170400_push_delivery_when_waiting.sql`) schedules it, calling the function only when something is waiting, only where Vault already has the secrets, and leaves the projection pass to the Worker's job container, so this runs that migration again |
 
 Worker secrets stay on the Worker across deploys, and wrangler refuses a
 deploy while one in `secrets.required` is missing, so a forgotten secret
@@ -101,6 +107,24 @@ never deploys over preview or production.
 | Deploy a Worker by hand | `npm run web:deploy[:preview]`, `npm run email:deploy[:preview]` |
 | Create the R2 buckets the Worker binds | `npm run r2:buckets -- <env>` |
 | Check this machine | `npm run env:doctor` |
+
+### Auth settings
+
+Merging applies migrations but not `supabase/config.toml`'s Auth settings,
+so a change under `[auth*]` reaches a hosted project only when someone runs
+`config push` by hand (decided 2026-10-20, decisions.md 158). After such a
+change is on `main`, for preview and then production:
+
+```bash
+npx supabase link --project-ref <ref from [remotes.<env>]>
+npx supabase config push
+```
+
+It shows what it would change and asks. Say yes only when the diff is the
+change on `main`: anything more means the hosted project was changed in its
+dashboard, and the repository file is put right first (`infrastructure-as-code`).
+The first push turns on authenticator codes (`[auth.mfa.totp]`), which
+Global Viewers need (docs/global-viewers.md).
 
 `npm run secrets` compares Supabase values by digest. Worker secrets cannot be
 read back, so it only checks that they exist, and sets them again on every

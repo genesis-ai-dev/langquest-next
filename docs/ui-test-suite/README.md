@@ -29,19 +29,19 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 04 | [04-map.md](04-map.md) | All languages, a language's map, books, chapters, search, filter | `MAP` | 21 |
 | 05 | [05-passage-record.md](05-passage-record.md) | The passage record, Something else?, Ask someone, Already happened, versions and history, set aside, checkpoints, Undo and Withdraw in History | `PASS` | 64 |
 | 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Done, interruptions | `REC` | 51 |
-| 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 49 |
+| 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 50 |
 | 08 | [08-study-and-reference.md](08-study-and-reference.md) | The study, key words, Bibles beside a passage, reference for one passage | `STUDY` | 36 |
 | 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 68 |
 | 10 | [10-people-and-roles.md](10-people-and-roles.md) | Members, invites, join requests, editing members, roles, review teams, the limits on granting | `PEOPLE` | 48 |
-| 11 | [11-account-and-settings.md](11-account-and-settings.md) | Me, More settings, profile, notifications, switching organization, app language, help mode, signing out, deleting an account | `ACCT` | 51 |
-| 12 | [12-sync-and-offline.md](12-sync-and-offline.md) | The Sync screen, offline work, Ready for offline, handing over, two devices, refused work, the update banner | `SYNC` | 32 |
+| 11 | [11-account-and-settings.md](11-account-and-settings.md) | Me, More settings, profile, notifications, switching organization, app language, help mode, signing out, deleting an account, Global Viewers, the app icon disguise | `ACCT` | 57 |
+| 12 | [12-sync-and-offline.md](12-sync-and-offline.md) | The Sync screen, offline work, Ready for offline, handing over, two devices, refused work, the update banner | `SYNC` | 34 |
 | 13 | [13-moderation.md](13-moderation.md) | Reporting, blocking, hidden content, removal, reports in the Inbox | `MOD` | 24 |
 | 14 | [14-reports.md](14-reports.md) | The Reports section on wide windows | `RPT` | 22 |
 | 15 | [15-web-and-wide.md](15-web-and-wide.md) | Wide layouts, panes, one tab at a time, browser history, forgetting the browser | `WEB` | 28 |
 | 16 | [16-role-journeys.md](16-role-journeys.md) | Whole jobs per role, and the passage lifecycle across every role | `JRN` | 14 |
 | 17 | [17-accessibility-and-field-use.md](17-accessibility-and-field-use.md) | Screen readers, target sizes, text size, colour, RTL, outdoor and low-end use | `A11Y` | 24 |
 
-**660 tests in all.**
+**669 tests in all.**
 
 ## How a test is written
 
@@ -376,14 +376,27 @@ npm run test:ui:phone -- --platform ios --voice --tags smoke
   (the header's sync ring during a transfer) is never idle, so a check came
   after the toast had gone or a short clip had finished. React Native reads
   the zero transition scale as Reduce Motion, which the app honours.
+- On Android, the runner also sets accessibility's "Time to take action" to
+  10 s for the run and puts it back afterwards. A toast lasts as long as that
+  setting asks, and under reduce motion runs no bar down (decision 159): the
+  bar kept the screen moving, so a Back or tap waited out the whole toast
+  before Maestro read the screen. On iOS the runner turns the simulator's
+  Reduce Motion on for the run and puts it back, for the same reason.
+- On Android, a cold start can be killed as it begins, right after Maestro
+  clears the app's data and sets its permissions, leaving a blank window
+  (`am_kill … remove task`, then `am_process_start_timeout` in the events
+  log). `common/launch.yaml` starts the app again when no first screen shows
+  within 20 s; a healthy cold start shows one in under 8 s.
 - On Android, airplane mode does not cut `adb reverse`, so the runner runs
   `adb root` and, while airplane mode is on, rejects the phone's loopback
   traffic to the local stack (ports 54421 and 8787) with `iptables`. It
   removes the rules when it exits; `adb shell iptables -L OUTPUT` should
   show none afterwards.
 - iOS merges a card or row into one accessibility label, so flows match
-  most text as `.*words.*`. A toast lives about 3.5 s, so a tap before a
-  toast check uses `waitToSettleTimeoutMs: 0`.
+  most text as `.*words.*`. A toast lives about 3.5 s on iOS, so a tap before a
+  toast check uses `waitToSettleTimeoutMs: 0`, and a flow that only needs what
+  the act left checks that instead (the row, History, the kept mark), as
+  MAP-031 and JRN-006 do; the web suite checks the toast's words.
 
 **Web results (2026-10-14, the release export, 4 workers):** 666 tests, 654
 passed, 5 open, 7 skipped, in 12.9 minutes; median test 1.2 s. The five
@@ -461,7 +474,10 @@ the world under the tests after it: the world is kept for the whole run
   `else-reference` for its tiles); `person-<profileId>` on a member's row;
   `toggle-must-pass`, `toggle-same-time` and `toggle-required` on the checks
   setup switches; `sync-tile-<waiting|refused|confirmed|checkpoint>` on the
-  Sync screen's tiles.
+  Sync screen's tiles; `invite-role-<title>` on a role's card in Invite
+  someone and `invite-role-<title>-invite` on its Invite (phone
+  accessibility trees list the button beside the card, so Maestro's
+  `childOf` cannot find it).
 - Entering: the web's addresses name sections only (`pathTo` in `support.ts`,
   `openAs(..., { path })`). A passage's record has none, so a test that only
   reads one calls `openRecord` (`05-passage-helpers.ts`), which uses the

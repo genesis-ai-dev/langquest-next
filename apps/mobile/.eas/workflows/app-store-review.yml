@@ -1,0 +1,26 @@
+# Every hour: when Apple's review of the last iPhone build has ended,
+# send the newest build waiting in TestFlight to App Review
+# (scripts/app-store-review.mjs, decisions.md 157). A merge into main that
+# makes a new iPhone build runs the same step right after its TestFlight
+# upload (deploy-to-testers.yml); this schedule catches the builds that
+# waited while a review was open. It never cancels a review.
+name: Send the newest iPhone build to App Review
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+
+defaults:
+  tools:
+    node: '24'
+
+jobs:
+  review_ios:
+    name: Send to App Review when no review is open
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - name: Send the newest build to App Review, or let it wait in TestFlight
+        run: |
+          cd ../..
+          node scripts/app-store-review.mjs

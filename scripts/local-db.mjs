@@ -7,9 +7,13 @@
  *   npm run dev         db:start, then the web Worker on :8787 until Ctrl-C
  *
  * The rest: push delivery every minute on the local Edge Function
- * `push-delivery`, as on a hosted database (decisions.md 68), and the
- * LangQuest library seeded when the database has none of its items. Both
- * are gone after a reset, which is why reset does them again.
+ * `push-delivery`, as on a hosted database (decisions.md 68), the
+ * LangQuest library seeded when the database has none of its items, and the
+ * language list (Glottolog's languoids, docs/languoids.md) loaded when its
+ * tables are empty. All are gone after a reset, which is why reset does them
+ * again. The languoids are left out on CI (a 110 MB fetch no test needs);
+ * locally the release is fetched once and cached (GLOTTOLOG_CACHE), and a
+ * load that fails only warns: the database works without the list.
  *
  * The projection pass is not scheduled here: it runs in the app's Worker's
  * job container, as on a hosted project, while `npm run web:dev` fires the
@@ -18,7 +22,7 @@
  * listings and no server snapshots; `npm run dev` starts both.
  *
  * `npm run db:test` resets with `supabase db reset` directly, so no push job
- * runs under its smokes; a web Worker left running would still project
+ * runs and no language list is loaded under its smokes; a web Worker left running would still project
  * (they count snapshots and Inbox rows), so stop it first.
  * `npm run guardrails -- --all` runs db:start after it, before the UI tests.
  * Nothing here is in `seed.sql`, which preview branches run too.
@@ -50,6 +54,8 @@ const KEY = 'PUSH_DELIVERY_SECRET';
 /** Its name before 2026-10-20 (decisions.md 148): a stack made earlier keeps its value under the new name. */
 const OLD_KEY = 'PROJECTION_WORKER_SECRET';
 const WEB_PORT = 8787;
+/** The Glottolog release the local language list is loaded from (scripts/languoids.ts). */
+const GLOTTOLOG_RELEASE = 'v5.3';
 const mode = process.argv[2];
 /**
  * Services `supabase start` leaves out: CI sets SUPABASE_EXCLUDE=studio,imgproxy,...
@@ -82,7 +88,7 @@ function ensureSecret() {
   return { secret, fresh: true };
 }
 
-/** What a reset drops: push delivery's Vault values and job, and the library. */
+/** What a reset drops: push delivery's Vault values and job, the library, and the language list. */
 function prepare(secret) {
   psql(vaultSql({ langquest_project_url: FROM_DB, langquest_push_delivery_secret: secret }));
   // Also unschedules the Edge pass an older checkout scheduled here (decisions.md 148).
@@ -92,6 +98,25 @@ function prepare(secret) {
   // LangQuest's own items: the server smokes leave other orgs' rows behind.
   if (Number(psql("select count(*) from public.library_items where org_id = 'langquest';").trim()) === 0) sh('npx', ['tsx', 'scripts/library-seed.ts']);
   else console.log('✓ library already seeded');
+  loadLanguoids();
+}
+
+/** The language list people link their languages to, when it is empty (docs/languoids.md). */
+function loadLanguoids() {
+  if (process.env.CI) {
+    console.log('- language list left out on CI');
+    return;
+  }
+  if (Number(psql('select count(*) from public.languoid;').trim()) > 0) {
+    console.log('✓ language list already loaded');
+    return;
+  }
+  console.log(`→ loading the language list from Glottolog ${GLOTTOLOG_RELEASE} (the first time fetches about 110 MB)`);
+  try {
+    sh('npx', ['tsx', 'scripts/languoids.ts', 'apply', '--release', GLOTTOLOG_RELEASE]);
+  } catch (err) {
+    console.warn(`! language list not loaded (${err instanceof Error ? err.message : err}); load it with npm run languoids -- apply`);
+  }
 }
 
 /** Is something already listening on the port (another session's Worker)? */

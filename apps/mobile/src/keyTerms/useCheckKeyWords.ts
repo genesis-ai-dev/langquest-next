@@ -1,5 +1,5 @@
 // The key-word lists' words on a passage as a check shows them (decision
-// 149): every list word there, the team's own included, found in the Bible
+// 172): every list word there, the team's own included, found in the Bible
 // this person reads (the one chosen last for the language) as well as by
 // the lists' own links, so each word can say its verses.
 import type { Ctx } from '../shell/ctx';

@@ -1,4 +1,4 @@
-import { liveChunkDone, liveDrop, liveEdge, liveFrame, livePartEnd, livePartStart, liveSeam, liveStart, type LiveState } from './livePartsModel';
+import { framePublishDue, liveChunkDone, liveDrop, liveEdge, liveFrame, livePartEnd, livePartStart, liveSeam, liveStart, type LiveState } from './livePartsModel';
 
 /**
  * One recording session's parts (LAN-82), from the moment recording starts
@@ -6,21 +6,32 @@ import { liveChunkDone, liveDrop, liveEdge, liveFrame, livePartEnd, livePartStar
  * box, and the edges the person moved or the parts they dropped once
  * recording stopped (livePartsModel.ts). The microphone's frames arrive about
  * twenty times a second and land here, not in a screen's state, so only the
- * waveform redraws for each (`subscribe`); a screen that shows the count or
+ * waveform redraws for them (`subscribe`); a screen that shows the count or
  * the next part's number listens for the parts alone (`onParts`).
+ *
+ * The waveform is told about frames at about ten a second (FRAME_PUBLISH_MS),
+ * not twenty: the eye cannot tell, and the bars cost a render each. Every
+ * frame is still kept at once (`state`), so a part that starts or ends lands
+ * on the right frame; anything but a frame publishes straight away, with
+ * the frames heard so far.
  */
 export class RecordingSession {
+  /** Everything heard so far. */
   private state: LiveState;
+  /** What the waveform was last told; behind `state` by under FRAME_PUBLISH_MS of frames. */
+  private shown: LiveState;
+  private shownAt: number | null = null;
   private readonly frames = new Set<() => void>();
   private readonly partsChanged: () => void;
 
   constructor(firstPart: number, onParts: () => void) {
     this.state = liveStart(firstPart);
+    this.shown = this.state;
     this.partsChanged = onParts;
   }
 
   /** The state as it stands (for useSyncExternalStore). */
-  readonly snapshot = (): LiveState => this.state;
+  readonly snapshot = (): LiveState => this.shown;
 
   readonly subscribe = (listener: () => void): (() => void) => {
     this.frames.add(listener);
@@ -30,8 +41,14 @@ export class RecordingSession {
   private set(next: LiveState, parts: boolean) {
     if (next === this.state) return;
     this.state = next;
-    for (const l of this.frames) l();
+    this.publish();
     if (parts) this.partsChanged();
+  }
+
+  private publish() {
+    if (this.shown === this.state) return;
+    this.shown = this.state;
+    for (const l of this.frames) l();
   }
 
   /** Where the count starts: the place the screen records into. Only before the first part, so parts already boxed keep their numbers. */
@@ -40,7 +57,12 @@ export class RecordingSession {
     if (s.first !== n && !s.open && s.parts.length === 0) this.set({ ...s, first: n }, true);
   }
 
-  frame(energy: number, quiet: number | undefined, at: number) { this.set(liveFrame(this.state, energy, quiet, at), false); }
+  frame(energy: number, quiet: number | undefined, at: number) {
+    this.state = liveFrame(this.state, energy, quiet, at);
+    if (!framePublishDue(this.shownAt, at)) return;
+    this.shownAt = at;
+    this.publish();
+  }
   seam() { this.set(liveSeam(this.state), false); }
   partStart(headMs: number | undefined) { this.set(livePartStart(this.state, headMs), true); }
   partEnd(kept: Parameters<typeof livePartEnd>[1]) { this.set(livePartEnd(this.state, kept), true); }

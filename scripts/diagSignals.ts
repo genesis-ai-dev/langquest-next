@@ -108,6 +108,22 @@ export interface Member {
 
 export interface RpcStat { rpc: string; calls: number; mean_ms: number; max_ms: number; total_s: number; rows_per_call: number }
 
+/**
+ * RPCs only the server's own jobs call (granted to service_role alone, a
+ * test holds it): nobody waits on them, and put_snapshot writing a big
+ * language's snapshot takes seconds by design.
+ */
+export const BACKGROUND_RPCS: ReadonlySet<string> = new Set(['put_snapshot', 'stage_snapshot_units', 'put_passage_lines',
+  'diag_job_ingest', 'record_notification_pushes', 'refresh_org_notifications']);
+/** An RPC called fewer times than this has no average worth an alert yet. */
+export const RPC_MIN_CALLS = 20;
+/** Mean time past which a person waiting on an RPC notices. */
+export const RPC_SLOW_MS = 500;
+
+/** The RPCs people wait on that are slow on average, over enough calls to say so. */
+export const slowRpcs = (rpc: readonly RpcStat[]): RpcStat[] =>
+  rpc.filter((r) => !BACKGROUND_RPCS.has(r.rpc) && r.calls >= RPC_MIN_CALLS && r.mean_ms > RPC_SLOW_MS);
+
 interface Signal {
   level: 'problem' | 'watch' | 'info';
   /** Install the signal is about, or null for the language or the server. */
@@ -304,8 +320,8 @@ export function signals(health: LanguageHealth | null, members: Member[], summar
     }
   }
 
-  for (const r of rpc) {
-    if (r.mean_ms > 500) add('problem', null, `Server: ${r.rpc} averages ${r.mean_ms} ms over ${r.calls} calls (max ${r.max_ms} ms), across all orgs.`);
+  for (const r of slowRpcs(rpc)) {
+    add('problem', null, `Server: ${r.rpc} averages ${r.mean_ms} ms over ${r.calls} calls (max ${r.max_ms} ms), across all orgs.`);
   }
 
   const rank = { problem: 0, watch: 1, info: 2 };

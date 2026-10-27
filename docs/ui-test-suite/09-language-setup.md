@@ -2098,7 +2098,7 @@ Expected:
   checks, Final approval at the end of the checks again ("Alpha's checks
   saved"), and FIA passages (English).
 - The Content template page lists only the organization's own templates
-  under the one in use (no "Bible chapters (English)"): using another
+  under the one in use (no LangQuest template such as "By chapter"): using another
   organization's would follow it, a library write (decision 138).
 - Sync shows "refused by the server" at 0: these are Alpha's own events,
   which LADMIN may write at Alpha.

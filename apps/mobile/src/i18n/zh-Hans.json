@@ -51,7 +51,9 @@
     "justNow": "刚刚",
     "minutesAgo_other": "{{count, number}} 分钟前",
     "hoursAgo_other": "{{count, number}} 小时前",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "今天",
+    "yesterday": "昨天"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -344,11 +346,14 @@
     "get_ready": "准备工作",
     "settings_more": "更多设置",
     "check_editor": "检查",
-    "cluster_home": "语言群"
+    "cluster_home": "语言群",
+    "global_viewer": "全局查看者"
   },
   "native": {
     "microphone": "LangQuest 会录下你的声音，用来翻译经段。",
-    "camera": "LangQuest 使用相机扫描邀请二维码。"
+    "camera": "LangQuest 使用相机扫描邀请二维码。",
+    "calculator": "计算器",
+    "notes": "备忘录"
   },
   "library": {
     "sourceLine": {
@@ -3009,6 +3014,13 @@
       "elsewhereSub": "它一次只能在一个标签页中运行，这样你的录音和更改都保存在同一个地方。可以在这里使用，或者回到另一个标签页。",
       "useHere": "在这里使用",
       "useHereHelp": "把 LangQuest 移到这个标签页。另一个标签页会保存它的工作，然后让出位置。"
+    },
+    "lock": {
+      "wait": "尝试次数太多。请稍等一会儿再试。",
+      "wrong": "图案不对。",
+      "notMe": "不是我的图片",
+      "notMeHelp": "回到图片。",
+      "pictureHelp": "在这部手机上退出过登录？ 点你的图片，然后画出你的图案。不需要网络。"
     }
   },
   "account": {
@@ -3025,9 +3037,6 @@
       "ready": "更新已就绪——点按重新启动",
       "downloading": "正在下载更新……",
       "downloadingPercent": "正在下载更新……{{percent}}",
-      "offline": "离线——点按重试",
-      "failed": "更新失败：{{reason}}——点按重试",
-      "offlineLabel": "离线：无法检查更新",
       "webReady": "LangQuest 的新版本已就绪。重新加载即可使用。",
       "storeBuild": "应用商店版本",
       "updateBuild": "更新 {{id}}",
@@ -3297,11 +3306,9 @@
         "checking": "已连接，但实时通道中断，所以本设备每隔几分钟检查一次更改。“立即同步”会马上检查。",
         "offline": "没有网络连接。你所做的一切都保存在本设备上，重新联网后会自动发送。",
         "refused": "服务器不接受本设备的更改。你的工作仍保存在这里。",
-        "toSend": "本设备上服务器尚未确认的更改和录音。它们在这里很安全，有网络时就会发送。",
         "toReceive": "本设备仍在下载的他人录音。",
         "refusedLine": "服务器未接受的更改，通常是因为权限有变。它们留在本设备上；打开“详细信息”查看每一项。"
       },
-      "toSend": "待发送",
       "toReceive": "待接收",
       "refusedLine": "被拒绝",
       "none": "无",
@@ -3310,6 +3317,17 @@
       "syncNowHelp": "立即发送等待中的内容，并获取新内容。",
       "detailsHelp": "每一项等待中或被拒绝的更改，以及音频传输：供排查问题的人查看。",
       "eventHelp": "打开这项更改所涉及的经段。"
+    },
+    "lock": {
+      "tooShort": "至少连接 {{n}} 个点。",
+      "patternsDiffer": "两次图案不一样。请重新开始。",
+      "pictureTitle": "选择你的图片",
+      "pictureHelp": "要在这部手机上重新登录，你需要点你的图片，然后画出你的图案。",
+      "nextHelp": "接着画你的图案。",
+      "drawTitle": "绘制图案",
+      "drawAgain": "再画一次",
+      "newPattern": "绘制新图案",
+      "choosePatternHelp": "选一张图片和一个图案，用来在这部手机上重新登录，即使没有网络也行。"
     }
   },
   "study": {
@@ -3824,7 +3842,8 @@
       "openStudyHelp": "打开这个经段的完整学习指南。",
       "listeners": "听众",
       "liveIn": "已在 {{channel}} 发布 · {{version}}",
-      "listenerCount": "听众反馈：{{count, number}}"
+      "listenerCount": "听众反馈：{{count, number}}",
+      "askedOffline": "已请 {{target}}。本设备联网后对方才会收到。"
     },
     "else": {
       "title": "其他情况？",
@@ -4004,6 +4023,14 @@
       "partHelp": "单独播放这一段。",
       "deleteVersionHelp": "为所有人删除这个版本。已经做过的检查仍留在记录里，但不再计算。",
       "doneHelp": "打开这份草稿最后看一遍，完成它并送去下一项检查。"
+    },
+    "partNotes": {
+      "title": "{{part}}的备注",
+      "mark_other": "{{part}}有 {{count, number}} 条备注",
+      "markHelp": "打开各项检查对这一段的备注。你可以回复。"
+    },
+    "checkNotes": {
+      "title": "{{check}}的备注"
     }
   },
   "work": {
@@ -4051,7 +4078,8 @@
       "rowHelp": "打开这个经段，查看它的进展。"
     },
     "sync": {
-      "toSend_other": "{{count, number}} 项待发送"
+      "toSend_other": "{{count, number}} 项待发送",
+      "receiving": "正在接收录音"
     },
     "join": {
       "wantsToJoin": "{{name}}想加入",
@@ -4139,7 +4167,8 @@
     "toast": {
       "notSaved": "未保存：{{reason}}",
       "notSavedCode": "未保存。出了点问题（代码 {{code}}）。",
-      "dismissLabel": "{{message}}关闭"
+      "dismissLabel": "{{message}}关闭",
+      "goesWhenConnected": "{{message}} 本设备联网后你的团队才会收到。"
     },
     "nav": {
       "cannotOpenHere": "这里无法打开它。",
@@ -4238,6 +4267,14 @@
       "term": {
         "title": "选择一个术语",
         "sub": "它的意思和译法会在这里打开。"
+      },
+      "language": {
+        "title": "选择一种语言",
+        "sub": "它的进度会在这里打开。"
+      },
+      "manage": {
+        "title": "选择要管理的内容",
+        "sub": "语言、成员或设置会在这里打开。"
       }
     },
     "license": {
@@ -4263,6 +4300,15 @@
       "readHelp": "在浏览器中打开它的全文。",
       "rowHelp": "打开各种许可协议，以及每种允许什么。",
       "yesOpenToHelp": "从现在起，你的作品按这个许可协议分享。此操作无法撤销。"
+    },
+    "pattern": {
+      "label": "图案：至少连接 {{n}} 个点",
+      "help": "手指不离开屏幕划过各点，或逐个点按后点“完成”。至少连接 {{n}} 个点。",
+      "dot": "第 {{n}} 个点",
+      "picture": "图片 {{n}}",
+      "again": "重新开始",
+      "againHelp": "清除这些点，重新开始画图案。",
+      "doneHelp": "用你点过的点完成图案。"
     }
   },
   "help": {
@@ -4309,45 +4355,26 @@
       "checking": "灰点：正在寻找网络连接。你的工作会保存在本设备上，直到发送出去。",
       "offline": "黄点：离线。你的工作保存在本设备上，联网后就会发送。",
       "refused": "红色：服务器拒绝了某些内容。点按查看是什么，以及该怎么做。",
-      "withWaiting": "{{standing}}数字表示有多少项等待发送。"
+      "withWaiting": "{{standing}}数字表示有多少项等待发送。",
+      "withReceiving": "{{standing}} 他人的录音下载到此设备时，圆环会转动。没有等待发送的内容。"
     }
   },
   "offline": {
     "onDevice": "在本设备上",
     "downloading": "正在下载以便离线使用",
-    "audioNotHere": "音频不在本设备上",
-    "notKept": "未保存在本设备上",
     "audioNotKept": "音频未保存在本设备上",
     "connectToFinish": "出行前请联网完成下载。",
     "stayConnected": "请保持联网，直到完成。",
-    "keep": "离线保存",
-    "stopKeeping": "停止离线保存",
     "reason": {
       "asked": "已保存，因为有人请你做这项工作。",
       "worked": "已保存，因为你做过这项工作。",
       "chosen": "已保存，因为你选择了保存。"
     },
     "passage": {
-      "notSent_other": "有 {{count, number}} 段录音还没有从录制它们的设备上发送出来。",
-      "studyOnline": "在网页版中，学习图片和学习音频需要联网。",
-      "worksWithStudy": "它的文字、音频和学习图片不联网也能用。",
-      "worksWithAudio": "它的文字和音频不联网也能用。",
-      "worksTextOnly": "它的文字不联网也能用，新的音频到达时会自动下载。",
-      "audioFilesHere_other": "{{count, number}} 个音频文件中已有 {{here, number}} 个在这里。",
-      "audioFilesHereLeft_other": "{{count, number}} 个音频文件中已有 {{here, number}} 个在这里，还剩 {{size}} 音频。",
-      "studyFilesHere_other": "{{count, number}} 个音频和学习文件中已有 {{here, number}} 个在这里。",
-      "studyFilesHereLeft_other": "{{count, number}} 个音频和学习文件中已有 {{here, number}} 个在这里，还剩 {{size}} 音频。",
       "onlySomeHere_other": "本设备上只有 {{here, number}}/{{count, number}} 个文件",
-      "downloadingCount": "正在下载以便离线使用 · {{here, number}}/{{total, number}}",
-      "notAllHere": "还没有全部下载到本设备上",
-      "readRecordAudioNeeds": "你可以阅读和录音，但它的音频需要联网。",
-      "readRecordStudyNeeds": "你可以阅读和录音，但它的音频和学习图片需要联网。",
-      "textHereAudioNeeds": "它的文字已在这里，但音频需要联网。离线保存后就可以随身带着。",
-      "textHereStudyNeeds": "它的文字已在这里，但音频和学习图片需要联网。离线保存后就可以随身带着。",
-      "barHelp": "文件下载到本设备时，进度条会逐渐填满。"
+      "downloadingCount": "正在下载以便离线使用 · {{here, number}}/{{total, number}}"
     },
     "toast": {
-      "kept": "已保存在本设备上。联网时会自动下载。",
       "notKept": "不再保存。它的音频可能会被删除以腾出空间。"
     },
     "summary": {
@@ -4368,8 +4395,8 @@
       "alwaysBody": "{{language}}中每个经段的文字、状态和历史记录。有人请你做的、你做过的或你选择保存的经段的音频。",
       "alwaysBodyStudy": "{{language}}中每个经段的文字、状态和历史记录。有人请你做的、你做过的或你选择保存的经段的音频、学习图片、地图和学习音频。",
       "needsTitle": "需要联网",
-      "needsNotKept": "你没有保存的经段的音频。打开一个经段，点按“离线保存”就可以随身带着。",
-      "needsNotKeptStudy": "你没有保存的经段的音频和学习资料。打开一个经段，点按“离线保存”就可以随身带着。",
+      "needsNotDownloaded": "未下载段落的音频。",
+      "needsNotDownloadedStudy": "未下载段落的音频和学习资料。",
       "needsFilms": "学习影片。",
       "needsStudyWeb": "网页版中的学习图片、地图和学习音频。",
       "needsReports": "报告。",
@@ -4390,7 +4417,11 @@
       "body": "它的版本、审阅和历史记录仍在与此语言的其余部分一起下载。请连接网络以下载。",
       "latest": "最新：第 {{n, number}} 版，由 {{name}} 录制。",
       "requests": "待处理的请求：{{n, number}}。"
-    }
+    },
+    "download": "下载以便离线使用",
+    "needsConnection": "下载需要网络连接",
+    "needsConnectionHelp": "不在本设备上。设备联网后即可下载。",
+    "checkingHelp": "本设备正在清点它有这一段落的哪些内容。"
   },
   "moderation": {
     "flagLabel": "举报或屏蔽{{name}}",
@@ -4817,7 +4848,6 @@
       "chapter": "第 {{n}} 章",
       "chapterHelp": "打开它的经段。勾表示已完成，圆点表示已开始。",
       "keyLabel": "勾表示已完成，圆点表示已开始",
-      "keyLabelOffline": "勾表示已完成，圆点表示已开始，云朵表示已保存在本设备上",
       "barHelp": "经段录音后，横条会逐渐填满；绿色部分是已完成的。",
       "countHelp": "{{shown}}表示它的 {{total}} 个经段中已有 {{recorded}} 个录音。",
       "matchHelp": "数字表示它有多少个经段符合筛选条件。",
@@ -4830,7 +4860,6 @@
     "key": {
       "done": "已完成",
       "started": "已开始",
-      "onDevice": "在本设备上",
       "doneSub": "所有检查都已完成",
       "startedSub": "已开始录音、已录好、在审核人那里，或有反馈等待处理",
       "notStarted": "未开始",
@@ -5632,7 +5661,12 @@
         "someTerm": "术语",
         "version": "第 {{n}} 版",
         "aVersion": "一个版本",
-        "study": "学习"
+        "study": "学习",
+        "replyTo": "回复{{name}}",
+        "reply": "一条回复",
+        "aPart": "一段",
+        "help": "“{{help}}”",
+        "aHelp": "一份帮助资料"
       }
     },
     "parts": {
@@ -5798,6 +5832,8 @@
       "helpNoteHelp": "打开它进行阅读。",
       "howManyHelp": "说明有多少人听了。选填。",
       "doneRecordedHelp": "把{{what}}写进经段记录。",
+      "looksGoodOffline": "没问题。本设备联网后 {{name}} 才会收到。",
+      "feedbackOffline": "反馈已保存。本设备联网后 {{name}} 才会收到。",
       "helpWordsHelp": "打开这个经段的关键词，显示团队对每个词的说法，以及这个版本有没有用它。"
     },
     "guest": {
@@ -5941,6 +5977,18 @@
       "addStepDetail": "在其他检查之后再添加一项检查。",
       "legend": "= 必须通过后才能进行下一步",
       "gripHelp": "上下拖动可以移动这一步。"
+    },
+    "notesOn": {
+      "addOn": "对{{what}}添加备注",
+      "addOnHelp": "对这一项添加一条语音或文字备注。它会和你的审核放在一起。",
+      "noteOn": "{{what}}的备注",
+      "reply": "回复",
+      "replyHelp": "回复{{name}}的备注。你的回复会显示在它下面。",
+      "replyTitle": "回复{{name}}",
+      "withReview": "和你的审核一起",
+      "removeFrom": "移除你的备注：{{what}}",
+      "goWith_other": "{{count, number}} 条备注会和你的审核一起发出",
+      "added": "已添加到你的审核。"
     }
   },
   "backTranslation": {
@@ -6390,7 +6438,9 @@
       "addHint": "对这个经段留一条语音或文字备注。",
       "sheetSub": "它会留在经段上。审核人和下一位译者都会看到。",
       "added": "已添加备注。",
-      "typeHelp": "输入你的备注。也可以说出来。"
+      "typeHelp": "输入你的备注。也可以说出来。",
+      "onPart": "针对{{part}}",
+      "onHelp": "针对“{{help}}”"
     },
     "earlier": {
       "yours": "你的",
@@ -7030,6 +7080,106 @@
       "saved": "已保存。联网后会发送。",
       "savedUntilSignIn": "已保存。登录后会发送。",
       "voiceTooLong": "太长了：语音留言最长 2 分钟。"
+    }
+  },
+  "appVersion": {
+    "available": "有新版本",
+    "update": "更新",
+    "updateHelp": "打开最新版本的应用商店页面。",
+    "dismiss": "关闭",
+    "dismissHelp": "隐藏此提示，直到有更新的版本。",
+    "required": "请更新应用",
+    "keepWorking": "继续工作",
+    "keepWorkingHelp": "你的工作会保留在这部手机上，更新后再发送。"
+  },
+  "globalViewer": {
+    "title": "全局查看者",
+    "viewingOrg": "你正以全局查看者身份查看{{org}}。你不能更改任何内容。",
+    "lineSetUp": "先设置你的身份验证器",
+    "lineCode": "输入身份验证器上的验证码",
+    "lineOn": "查找任何要阅读的机构",
+    "lineRevoked": "你的全局查看者权限已结束",
+    "wayInHelp": "你的身份验证器验证码，以及所有可阅读的机构。",
+    "revokedTitle": "全局查看者权限已结束",
+    "revokedBody": "如果你觉得这是个错误，请询问 LangQuest。",
+    "notOne": "这个账号不是全局查看者。",
+    "codeLabel": "身份验证器上的验证码",
+    "codeHelp": "你的身份验证器应用为 LangQuest 显示的 6 位验证码。它每 30 秒变一次。",
+    "check": "检查验证码",
+    "checkHelp": "验证码正确的话，在你退出登录之前都可以阅读所有机构。",
+    "codeWrong": "验证码不对。请输入你的身份验证器现在显示的验证码。",
+    "noAuthenticator": "这个账号没有身份验证器。请让 LangQuest 重置。",
+    "enterCode": "要阅读机构，请输入身份验证器应用上的验证码。",
+    "setUpIntro": "请在与给你权限的人通话时进行。你的手机上需要一个身份验证器应用，例如 Google Authenticator 或 Microsoft Authenticator。",
+    "setUp": "设置身份验证器",
+    "setUpHelp": "为你的身份验证器应用生成一个新密钥，并显示在这里。",
+    "stepAdd": "1. 把 LangQuest 添加到你的身份验证器",
+    "scan": "用你的身份验证器应用扫描这个码。",
+    "qrLabel": "用身份验证器应用扫描的码",
+    "openApp": "在身份验证器应用中打开",
+    "openAppHelp": "把 LangQuest 添加到这部手机的身份验证器应用。",
+    "noApp": "没有打开任何身份验证器应用。请改为把下面的密钥输入应用。",
+    "typeKey": "或者把这个密钥输入应用：",
+    "stepCode": "2. 输入它显示的验证码",
+    "onTitle": "你可以阅读所有机构",
+    "onBody": "你看到的和查看者看到的一样。你不能更改任何内容。",
+    "search": "机构或语言",
+    "openNowLabel": "{{name}}，现已打开",
+    "openHelp": "打开这个机构来阅读。",
+    "noneFound": "没有匹配的机构。",
+    "more": "显示更多",
+    "hereLabel": "正在查看",
+    "otherLabel": "打开其他机构",
+    "readOnly": "你正以全局查看者的身份查看：这里的任何内容都不能更改。",
+    "linkHelp": "你正在查看的地方、在那里能做什么，以及所有其他机构。",
+    "dashboard": "运营仪表板",
+    "dashboardBody": "LangQuest 的服务、服务器任务和现场诊断。在新标签页中打开。",
+    "dashboardHelp": "在新标签页中打开 LangQuest 的运营仪表板，使用你当前的登录。"
+  },
+  "uploads": {
+    "barRecordings_other": "{{count, number}} 段录音等待上传",
+    "barChanges_other": "{{count, number}} 项更改等待上传",
+    "uploading": "正在上传",
+    "allUploaded": "已全部上传",
+    "barHelp": "打开保存在本设备上等待上传的内容，以及各项上传的时间。",
+    "savedHere": "已保存在本设备上",
+    "lastUpload": "上次上传：{{when}}",
+    "waitingTitle": "等待上传",
+    "uploadedTitle": "已上传",
+    "recordingsUploaded_other": "已上传 {{uploaded, number}}/{{count, number}} 段录音",
+    "changesWaiting_other": "{{count, number}} 项更改等待中",
+    "otherChanges": "其他更改",
+    "recordings_other": "{{count, number}} 段录音",
+    "changes_other": "{{count, number}} 项更改"
+  },
+  "disguise": {
+    "row": "应用图标",
+    "rowHelp": "让 LangQuest 在这部手机上看起来像计算器或记事本。只有输入你选的密码才能打开。",
+    "title": "应用图标",
+    "langquest": "LangQuest",
+    "ownHelp": "换回 LangQuest 自己的图标。打开时不需要密码。",
+    "lookHelp": "选择这个图标。接着你要选一个用来打开 LangQuest 的密码。",
+    "calculatorN": "计算器 {{n}}",
+    "notesN": "备忘录 {{n}}",
+    "codeTitle": "选择密码",
+    "code": "密码",
+    "codeHelp": "4 到 12 位数字。在计算器上，用按键输入。在记事本上，单独输入在一行里。",
+    "nextHelp": "打开计算器或记事本，让你在上面输入密码。",
+    "backHelp": "返回上一步。",
+    "tryTitle": "输入你的密码",
+    "on": "这部手机现在显示为{{name}}。",
+    "off": "已换回 LangQuest 自己的图标。",
+    "notesTitle": "备忘录",
+    "keys": {
+      "clear": "全部清除",
+      "delete": "删除",
+      "percent": "百分比",
+      "divide": "除",
+      "times": "乘",
+      "minus": "减",
+      "plus": "加",
+      "equals": "等于",
+      "point": "小数点"
     }
   }
 }

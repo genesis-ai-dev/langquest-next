@@ -2,7 +2,7 @@
 // parts, which are recorded, the words under each verse, and the chapter
 // jump grid. Pure: no React, no I/O (decision 105; TPL-5, ADR-027).
 import { languageLines, languageName, type Indexes, type LanguageState, type OrgState, type PassageLines } from '@langquest-next/core';
-import { bookRows, bookSegments, fiaStarts, type BibleBook, type Segment } from './contentTemplates';
+import { bookRows, bookSegments, fiaStarts, type BibleBook, type Segment } from './contentTemplatesModel';
 import { bookName } from '../i18n/coreText';
 import { t } from '../i18n';
 import { readingsFor } from '../passage/scripture';

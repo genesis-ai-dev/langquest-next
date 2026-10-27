@@ -16,6 +16,7 @@ import { useHelpHost } from '../helpMode/useHelpMode';
 import { txt } from '../ui/textStyles';
 import { t } from '../i18n';
 import { Text } from '../ui/text';
+import { ModalCover } from '../ui/ModalCover';
 import { C, onColor, radius, space, TINT, type as T, withAlpha } from '../ui/theme';
 import { lostFilesWords, type LostFilesWords } from './lostFilesWords';
 
@@ -105,6 +106,7 @@ export function LostFilesCard(props: { words: LostFilesWords; onSeen: () => void
         </View>
       </View>
       </HelpHost>
+      <ModalCover />
     </Modal>
   );
 }

@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { File, UploadType } from 'expo-file-system';
 import { Platform } from 'react-native';
-import { BlobStore, mimeOf, type StoredFile } from '../sync/blobs';
+import type { BlobStore } from '../sync/blobs';
+import { hashOf, mimeOf, type StoredFile } from '../storage/storedFile';
 import { timedTransfer, type TransferTimings } from '../diagnostics/diagnostics';
 import { supabase } from './supabase';
 
@@ -101,7 +102,7 @@ export async function downloadBlob(orgId: string, streamId: string, ref: StoredF
   await File.downloadFileAsync(url, staged);
   timings.fetchMs = lap();
   const bytes = await staged.bytes();
-  const actual = await BlobStore.hashOf(bytes);
+  const actual = await hashOf(bytes);
   timings.verifyMs = lap();
   if (actual !== ref.hash) {
     staged.delete();
@@ -136,7 +137,7 @@ async function downloadOnWeb(signedUrl: string, ref: StoredFile, store: BlobStor
   if (!res.ok) throw new Error(`Download failed (${res.status})`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   timings.fetchMs = lap();
-  const actual = await BlobStore.hashOf(bytes);
+  const actual = await hashOf(bytes);
   timings.verifyMs = lap();
   if (actual !== ref.hash) throw new Error(`hash mismatch for ${ref.hash}: got ${actual}`);
   await store.putVerified(ref, bytes);

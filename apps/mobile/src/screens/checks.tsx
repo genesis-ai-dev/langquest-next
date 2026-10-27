@@ -46,7 +46,7 @@ function roleIn(org: OrgState | null, profileId: string, languageId: string): st
   return m ? org.roles[m.roleId.value]!.name.value : '';
 }
 
-/** A help as a row: its name and what it is; a key-word list (decision 149) by its key. */
+/** A help as a row: its name and what it is; a key-word list (decision 172) by its key. */
 function helpLabel(state: LanguageState, lib: ReturnType<typeof useLibrary>, h: CheckHelp, get: (hash: string | null | undefined) => LibraryDoc | null): { name: string; kind: string; icon: 'note' | 'book' | 'sparkle' | 'key' } {
   if ('materialId' in h) {
     const m = state.materials[h.materialId];
@@ -343,7 +343,7 @@ function OneCheck({ ctx }: { ctx: Ctx }) {
           })}
           {mayWrite ? <Row icon="plus" label={t('checks.writeNote')} help={t('checks.writeNoteHelp')} onPress={() => { setHelping(false); setWriting({ title: '', text: '' }); }} last /> : null}
         </Group>
-        {/* Key-word lists (decision 149): a reviewer sees the list's words on the passage beside the team's. */}
+        {/* Key-word lists (decision 172): a reviewer sees the list's words on the passage beside the team's. */}
         {library.some((x) => x.kind === 'words') ? (
           <>
             <SectionLabel label={t('reference.kind.words')} />

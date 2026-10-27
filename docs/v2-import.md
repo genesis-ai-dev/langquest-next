@@ -81,8 +81,21 @@ who opens it sees the same thing.
   one, and its admins link it in Next (Language › link, decision 78). A
   suggestion is never linked by itself: **Use** it, or the project comes
   over unlinked. A project that has come over cannot move
-  to another organization (its events carry the organization); **Sync**
-  reads it again now instead of waiting for the next scheduled pass.
+  to another organization on the board (its events carry the organization);
+  **Sync** reads it again now instead of waiting for the next scheduled pass.
+- **Coming over again.** `npm run v2 -- move --project <v2 id> --to <org id>`
+  (with `--production` for the hosted projects) brings a project that has
+  come over into another organization as a new language there, with a new
+  id (decisions.md 94, amended 2026-10-24; Every Language's BIRAT
+  RAJBANSHI). The next pass reads it whole into that language, under a
+  ledger of its own, and stores its recordings again for it. The first copy
+  stays where it was, no longer kept up to date, until it is removed;
+  `v2_import.moves` records where it is. Once the new copy is confirmed,
+  `npm run v2 -- close --org <org id> --language <language id>` makes the
+  first copy inaccessible: the import takes back the memberships it gave
+  there (the language's members, and the organization's admins when it
+  holds nothing else). Nothing is deleted, and it refuses a copy the import
+  still keeps up to date.
 - **Language:** a project's details show what is known (its name and
   description, the languages v2 links to it, the languages its recordings
   are tagged with, and the suggestion with its reason) beside a search of
@@ -210,6 +223,19 @@ the rest.
   for on every pass for its first hour, since a phone's upload can trail
   its rows, then only by the whole read or a transfer someone starts, for
   a week (decisions.md 94).
+- **Audio phones may not play.** v2 took any file a team uploaded, and
+  some Every Language teams uploaded whole chapters as MP3 (573 files in
+  33 projects on 2026-10-23, 16 of them WebM). A recording here is
+  WAV or M4A (decisions.md 58), so the import converts such a file with
+  ffmpeg (`server/audioConvert.ts`; the job image has it): AAC in M4A,
+  mono, at a phone's 128 kb/s or the source's rate when lower, and lower
+  still if that is what keeps it under the Worker's 50 MB. The file map
+  keeps the M4A's hash, size and length. ffmpeg's output is bit-exact, so
+  a cloned project's copy converts to the same hash; one that comes out
+  different (a newer ffmpeg) is not stored for that language and the log
+  says so. Where there is no ffmpeg (a laptop without it), such a file is
+  left unrecorded for a run that has it, and a file in v2's storage that
+  is not audio is reported as unreadable rather than missing.
 - **Where it runs.** The dashboard runs a transfer on the computer it is
   open on; `npm run v2 -- sync` does one pass from the command line; and
   the job container behind the app's Worker runs a pass every 15
@@ -280,7 +306,9 @@ does; until then it is what they see on opening the app.
 ## 8. What a pass reports
 
 Per project: rows read, events appended by type, facts withdrawn, files
-copied, files missing in v2, versions waiting for audio, and what was left
+copied and how many of them were converted to M4A, files missing in v2,
+files v2 has that are not audio, files left for a run with ffmpeg, versions
+waiting for audio, and what was left
 out (tags, text without audio if not imported, and so on). The board shows
 the last pass per project.
 

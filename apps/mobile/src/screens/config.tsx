@@ -11,7 +11,7 @@
 // followed ones, plus what other organizations share; the in-app catalog is
 // no longer offered. Key terms search the team's words and every key-word
 // list it uses (FIA's key words), and a word made from a list's shows the
-// list's meaning (decision 149).
+// list's meaning (decision 172).
 // Requirements ORG-3, ORG-4, ORG-8, TERM-1..6, FLOW-1..4.
 // ADR-002 (one model for reference), ADR-004 (done is read from the record),
 // ADR-005 (kinds arranged by the flow designer), ADR-016 (parallel kinds).
@@ -83,13 +83,14 @@ import {
   materialChanges, materialFieldIds, materialReady, materialScopeName, partOfUnit, questionTypes, sortQuestionSets, templatePartChoices,
   versificationChoices, type VersificationChoice
 } from '../reference/materialModel';
+import { newRoleId, adjustKeyTermEvents, copyFlowEvents, defineKeyTermEvents, defineMaterialEvents, defineRole, linkKeyTermEvents, lockMaterialEvents, newMaterialId, setMaterialFieldsEvents, planQuestionSetReviews, recommendReference } from '../config/configCommands';
 import { privilegesOn, roleDefinition, roleDirty } from '../roles/model';
 import { SwitchRow } from '../admin/admin';
 import { flipSwitch, languageLabel, ROLE_SWITCHES, sameChecks, stepTitle, switchState } from '../admin/adminModel';
 import {
   fieldLabel, flowDocFrom, flowLabel, flowUse, holdersOf, isFiaTerm,
   levelLabel, libraryMaterialLine, libraryQuestions, materialDocFrom, materialItemId, moveStep, newKindId,
-  nextFieldId, parseRefLinks, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, questionSetToReviews,
+  nextFieldId, parseRefLinks, PRIVILEGE_INFO, questionCount, questionCountLabel, questionDrafts, type questionSetToReviews,
   referenceKinds, referenceKindName, referenceView, roleRows, scopeName, setKindName, termsInPassage, viewLevelFrom,
   type DraftStep, type QuestionDraft
 } from '../config/model';
@@ -245,7 +246,7 @@ export function RoleEditor(ctx: Ctx) {
   const level = viewLevelFrom(ctx.params, ctx.session.adminScope);
   const requested = ctx.params['roleId'] ?? 'new';
   const isNew = requested === 'new';
-  const [newId] = useState(() => `role-${Crypto.randomUUID()}`);
+  const [newId] = useState(newRoleId);
   const roleId = isNew ? newId : requested;
   const org = ctx.org.state;
   const existing = isNew ? undefined : org?.roles[roleId];
@@ -273,7 +274,7 @@ export function RoleEditor(ctx: Ctx) {
     const next = roleDefinition(roleId, label, privileges);
     setBusy(true);
     try {
-      await ctx.org.append('v1.RoleDefined', next);
+      await defineRole(ctx.org, next);
       ctx.toast(isNew ? t('config.roleEditor.created', { name: next.name }) : t('config.roleEditor.saved', { name: next.name }));
       ctx.back();
     } catch (e) {
@@ -579,7 +580,7 @@ export function FlowsHome(ctx: Ctx) {
       const doc = docs.get<FlowDoc>(hash);
       if (!doc) throw new CommandError(t('config.errors.flowHasNoVersion'));
       name = 'shared' in target ? target.shared.name : lib.item(target.itemId)?.name ?? doc.name;
-      specs = copyFlowSpecs(state, { commandId: Crypto.randomUUID(), name, doc, kinds });
+      specs = copyFlowEvents(state, { name, doc, kinds });
     } catch (e) {
       ctx.toast(t('common.notSaved', { reason: libraryFailure('use flow', e) })); // i18n-ignore: log label
       setBusy(false);
@@ -1094,13 +1095,12 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     if (!ready) return;
     if (toLibrary) return saveToLibrary();
     const s = state!;
-    const id = existing?.materialId ?? `${materialKind}-${Crypto.randomUUID()}`;
-    const c = commands(s, indexesFor(s));
+    const id = existing?.materialId ?? newMaterialId(materialKind);
     const fields = fieldWrites(changes);
     setBusy(true);
     const saved = await actCommand(ctx, 'save material', () => (isNew // i18n-ignore: log label
-      ? c.defineMaterial(defineMaterialInput({ commandId: Crypto.randomUUID(), materialId: id, materialKind, title, changes, isQuestions, reviewKind }))
-      : c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: id, fields })),
+      ? defineMaterialEvents(s, { materialId: id, materialKind, title, changes, isQuestions, reviewKind })
+      : setMaterialFieldsEvents(s, id, fields)),
     isNew ? t('config.material.added', { title: title.trim() }) : t('config.material.saved'));
     if (!saved) { setBusy(false); return; }
     await draft.clear();
@@ -1114,7 +1114,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     setBusy(true);
     const saved = await libraryAct(ctx, 'save material', async () => { // i18n-ignore: log label
       const { itemId } = await lib.publish({ kind: 'material', name, description: referenceKindName(materialKind), doc });
-      await ctx.org.append('v1.ReferenceRecommended', { itemId, recommended: true });
+      await recommendReference(ctx.org, itemId);
     }, t('config.material.inLibraryRecommended', { name }));
     if (!saved) { setBusy(false); return; }
     await draft.clear();
@@ -1124,8 +1124,7 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
   function toggleLock() {
     if (!existing || !canManage) return;
     const to = !locked;
-    const c = commands(state!, indexesFor(state!));
-    void actCommand(ctx, 'lock material', () => c.lockMaterial({ commandId: Crypto.randomUUID(), materialId: existing.materialId, locked: to }), // i18n-ignore: log label
+    void actCommand(ctx, 'lock material', () => lockMaterialEvents(state!, existing.materialId, to), // i18n-ignore: log label
       to ? t('config.material.lockedToast') : t('config.material.unlockedToast'));
   }
 
@@ -1144,9 +1143,8 @@ function AppMaterialEditor({ ctx }: { ctx: Ctx }) {
     if (!existing || !canManage || busy) return;
     setBusy(true);
     if (changes.length) {
-      const c = commands(state!, indexesFor(state!));
       const written = await actCommand(ctx, 'save material', // i18n-ignore: log label
-        () => c.setMaterialFields({ commandId: Crypto.randomUUID(), materialId: existing.materialId, fields: fieldWrites(changes) }), t('config.material.saved'));
+        () => setMaterialFieldsEvents(state!, existing.materialId, fieldWrites(changes)), t('config.material.saved'));
       if (!written) { setBusy(false); return; }
       draft.set(null);
       await draft.clear();
@@ -1400,7 +1398,7 @@ function LibraryMaterialEditor({ ctx }: { ctx: Ctx }) {
     if (!it || !material || busy) return;
     let plan: ReturnType<typeof questionSetToReviews>;
     try {
-      plan = questionSetToReviews(state!, { commandId: Crypto.randomUUID(), itemId: it.itemId, doc: material });
+      plan = planQuestionSetReviews(state!, it.itemId, material);
     } catch (e) {
       ctx.toast(failure('use question set', e));
       return;
@@ -1566,7 +1564,7 @@ export function KeyTerms(ctx: Ctx) {
   const terms = useMemo(() => (state ? keyTermsFor(state) : []), [state]);
   const here = useMemo(() => (state && unitId && state.units[unitId] ? termsInPassage(state, terms, unitId, sourceText(state, unitId)) : new Set<string>()), [state, terms, unitId]);
   const canAdd = ctx.session.can('fill_reference') || ctx.session.can('manage_reference');
-  // One search across the team's words and every key-word list it uses (decision 149).
+  // One search across the team's words and every key-word list it uses (decision 172).
   const { lists } = useKeyWordLists(ctx);
   const [filter, setFilter] = useState<KeyWordFilter>('all');
   const [opened, setOpened] = useState<{ list: KeyWordList; word: KeyWordDoc } | null>(null);
@@ -1586,12 +1584,10 @@ export function KeyTerms(ctx: Ctx) {
 
   async function add() {
     if (!state || busy || !termDraftReady(draft)) return;
-    const termId = `kt-${Crypto.randomUUID()}`;
     setBusy(true);
     // TERM-6: the concept, its first rendering, and that as its first adjustment (who, when, which passage).
-    const saved = await actCommand(ctx, 'add key term', () => commands(state, indexesFor(state)).defineKeyTerm( // i18n-ignore: log label
-      defineTermInput(state, draft, unitId, { commandId: Crypto.randomUUID(), termId })
-    ), t('config.keyTerms.added', { term: draft.term.trim() }));
+    const saved = await actCommand(ctx, 'add key term', () => defineKeyTermEvents(state, draft, unitId), // i18n-ignore: log label
+     t('config.keyTerms.added', { term: draft.term.trim() }));
     if (saved) {
       setDraft(EMPTY_TERM_DRAFT);
       await termDraft.clear();
@@ -1683,7 +1679,7 @@ export function KeyTermDetail(ctx: Ctx) {
   const bible = useBible(ctx, passage ? passage.unitId : null, languageId, {});
   const others = useOtherLanguageTerms(ctx, !!term);
   const say = useMemo(() => (term ? othersSay(others.languages, term) : []), [others.languages, term]);
-  // A word the team made from a key-word list's word shows the list's meaning too (decision 149).
+  // A word the team made from a key-word list's word shows the list's meaning too (decision 172).
   const { lists } = useKeyWordLists(ctx);
   const [listWord, setListWord] = useState<KeyWordDoc | null>(null);
 
@@ -1703,7 +1699,7 @@ export function KeyTermDetail(ctx: Ctx) {
   async function tie() {
     if (!draftTakeId || isLinked || busy) return;
     setBusy(true);
-    await actCommand(ctx, 'tie key term', () => commands(state!, indexesFor(state!)).linkKeyTerms({ commandId: Crypto.randomUUID(), takeId: draftTakeId, termIds: [termId] }), // i18n-ignore: log label
+    await actCommand(ctx, 'tie key term', () => linkKeyTermEvents(state!, draftTakeId, [termId]), // i18n-ignore: log label
       t('config.keyTerm.tied', { term: term!.term }));
     setBusy(false);
   }
@@ -1712,8 +1708,8 @@ export function KeyTermDetail(ctx: Ctx) {
     if (!canEdit || busy || !adjustmentReady(note, hash)) return;
     const duringTakeId = adjustDuringTake(draftTakeId, passage);
     setBusy(true);
-    const saved = await actCommand(ctx, 'adjust key term', () => commands(state!, indexesFor(state!)).adjustKeyTermRendering({ // i18n-ignore: log label
-      commandId: Crypto.randomUUID(), termId, rendering, context, note,
+    const saved = await actCommand(ctx, 'adjust key term', () => adjustKeyTermEvents(state!, { // i18n-ignore: log label
+      termId, rendering, context, note,
       ...(hash ? { blobHash: hash } : {}), ...(duringTakeId ? { duringTakeId } : {}),
       // TERM-5: an adjustment made while drafting ties the term to the draft.
       ...(canTie && !isLinked && draftTakeId ? { tieToTakeId: draftTakeId } : {})

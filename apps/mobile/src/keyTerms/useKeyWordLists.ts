@@ -1,4 +1,4 @@
-// The key-word lists the open language's team uses (decision 149): of FIA's
+// The key-word lists the open language's team uses (decision 172): of FIA's
 // lists, the language its team chose (`listsReaching`, as FIA's guides);
 // any other list in the organization's library that the language has not
 // hidden, as any guide or note reaches a team (reference/offered.ts).

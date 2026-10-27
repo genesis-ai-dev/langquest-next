@@ -1003,6 +1003,9 @@ to closed testing, `alpha`), or a feature needs audio to keep playing or
 recording in the background (turn the plugin option back on and make the
 declaration).
 
+Amended (2026-10-22, Caleb Koster): Android builds now go to the production
+track for production review, not to internal testing (decisions.md 157).
+
 ## 46. Deleting an account removes the person and keeps the organization's work
 
 Date: 2026-09-30 · By: Caleb Koster · Status: accepted
@@ -1298,6 +1301,10 @@ issue reaches Live when its code ships dark, and a follow-up issue tracks the
 rollout and removing the flag. Reverse if: a flag must change what is
 synced, or we need percentage rollouts that organizations cannot override.
 
+Amended (2026-10-22, Caleb Koster): small changes still go to `main` on
+their own, but through a pull request whose guardrails checks are green;
+`main` takes no direct push (decisions.md 150).
+
 ## 54. Getting in is a key the phone holds, and an account without email has a steward
 
 Date: 2026-10-01 · By: Caleb Koster · Status: partly superseded by 59
@@ -1394,6 +1401,25 @@ implementation), which this change leaves alone.
 Reverse if: tablet testers find the shifting panes confusing; remounts or lost
 state in the chain become a real problem; or React Navigation gains a split
 view that keeps the edge checks.
+
+Amended (2026-10-23, Carl Sauder): Map and Manage now handle the panes the
+same way, which Carl asked for after comparing them on a desktop window.
+In Manage, the organization's page and a language's page are lists too
+(`SPLITS` in `panes.ts`), so the pane always shows the screen you came from
+and the right side what it opened, one level at a time, as Map's Progress,
+language and book do: the organization's page beside Members, Members beside
+a member, a language's page beside Roles, Roles beside a role. Before,
+anything a language's page opened, and anything but a language the
+organization's page opened, took the pane over and the page left the
+screen. Both hubs (Progress and the organization's page) start beside a
+placeholder ("Pick a language", "Pick something to manage") rather than
+full width, so the layout does not jump when something opens. The admin
+pages' header (`BigTop`) takes the white bar and centred column every other
+header has on a wide window. Beside a desktop's sidebar, which names the
+organization at its top, headers leave the name out of their subtitles, and
+the organization's page is titled Manage, as Progress is titled for Map
+(`orgInChrome` on `Layout`). In a split, the list pane leaves the Global
+Viewer link and help's ? to the screen open beside it, so each shows once.
 
 ## 56. One main action per screen, the passage path runs top to bottom, and recording splits the screen with the source
 
@@ -1683,6 +1709,13 @@ every request, so values are kept in memory once read; an entry the Keystore
 can no longer read counts as signed out. Test
 `apps/mobile/test/secureStorage.test.ts`.
 
+Amended (2026-10-26, Caleb Koster): with a lock on the phone (168), the
+session a hand-over keeps is sealed for its owner too. When the courier has
+sent everything it no longer ends that session: it seals the newest copy and
+drops the key, so the person can still come back to this phone offline.
+Coming back from the lock takes the session back from the courier without
+ending it, after any delivery under way stops (`takeBackHandOver`).
+
 ## 61. Every passage says whether it is on this phone, and Settings says how ready the phone is for offline
 
 Date: 2026-10-05 · By: Caleb Koster · Status: accepted
@@ -1916,6 +1949,14 @@ organization by its name or any language it lists
 matches. Offline, the saved list is searched as before. The UI test suite
 found this (JRN-005) once the local database listed more than 500.
 
+Amended (2026-10-26, Carl Sauder): an organization's name is read from the
+table `org_names` (the latest `v1.OrgCreated` or `v1.OrgRenamed` by hlc and
+id, kept by a trigger on `events` and filled from the log by migration
+`20261026170700_org_names.sql`), not found by sorting its name events for
+every organization in a listing. `org_name()`, `listed_organizations`,
+`listed_organizations_search` (now by trigram index) and
+`global_viewer_organizations` (158) read it; their results are unchanged.
+
 ## 67. Whoever holds Invite may invite and admit people, with or without an email of their own
 
 Date: 2026-10-07 · By: Carl Sauder · Status: accepted
@@ -2017,6 +2058,17 @@ Amended (2026-10-20, Carl Sauder): a local stack no longer keeps the Edge
 pass: it runs the pass in the job container too, its tick fired every
 minute by `npm run web:dev`, and push delivery's function is
 `push-delivery` (148).
+
+Amended (2026-10-26, Carl Sauder): the pass no longer folds a language again
+because its organization's stream moved. A mark keeps a fingerprint of what
+the language's projection reads from the organization (who may open it, its
+name and code, the licence: `orgFingerprint` in `server/projectionWorker.ts`,
+`projection_marks.org_fp`); an organization event that leaves it equal (an
+invite, a role nobody holds, a join decided for another language) only
+moves the mark's `org_seq`. A projection that starts to read something more
+from the organization must put it in the fingerprint or bump
+`PROJECTION_VERSION`. The pass also reads one snapshot row per stream
+(`snapshot_heads_page`) and only the listed languages' visibility rows.
 
 ## 69. Recordings and guide media live in Cloudflare R2, behind the app's Worker
 
@@ -2400,6 +2452,18 @@ summarises the four questions as They record, What helps them, Checks and
 People with the rest under More. It names each thing as the organization's
 page does (Content template, Reference material, Review flow), with seven
 rows and no More; see 138.
+
+Amended (2026-10-21, Carl Sauder): a Global Viewer looking in on an
+organization (decision 158) has an eye in every screen's header ("Global
+Viewer" beside it on a wide window) that opens the Global Viewer screen:
+the organization they are in, then every other one to open instead. It is
+chrome, put in the header by the shell (`HeaderExtraContext`), and opens the
+screen as the tabs open theirs, so `flow.ts` stays the authority for moving
+between screens (decision 20). Their tabs are an admin's without Work and
+the Inbox, where nothing ever arrives for them. Carl chose the header link
+over a strip across every screen (it cost height and said nothing a header
+could not) and over a tab of its own (on a wide window it sat beside a
+sidebar line that did the same, and a phone had only the tab).
 
 ## 72. Apps, agents and review links take part through reviews and releases; outside reviews never clear a checkpoint
 
@@ -3292,6 +3356,15 @@ Reverse if: a phone keeps acting for an account the server has ended
 (then end it on the first refusal of its requests), or Supabase Auth
 starts answering a lasting refusal with a status this treats as passing.
 
+Amended (2026-10-26, Caleb Koster): app start read the saved sign-in from
+AsyncStorage, where it no longer is once 60 (amended 2026-10-15) moved it to
+the Keychain and Keystore; from then on a phone opened offline an hour after
+its last connection showed Sign In. It now reads it where supabase-js keeps
+it (`savedSignIn`, test `apps/mobile/test/savedSignIn.test.ts`). On a phone,
+signing out no longer ends the session on the server and the sign-out screen
+no longer says signing back in needs a connection: the session is locked on
+the phone instead (168). A browser keeps both as before.
+
 ## 88. A language's server snapshot is written after 200 new events or an hour, and the one before stays for 24 hours
 
 Date: 2026-10-12 · By: Carl Sauder · Status: accepted
@@ -3707,6 +3780,56 @@ every pass, since a phone's upload can trail its rows; up to a week, only
 by the whole read or a transfer someone starts for its project, so about
 once a day; older, never, as before (`looksFor` in `pass.ts`).
 
+Amended (2026-10-24, Caleb Koster): v2 audio phones may not play comes over
+converted to M4A. Some Every Language teams uploaded whole chapters as MP3,
+which v2 took as it was: 573 files in 33 projects, 13 of them Every
+Language's, every one in v2's storage (16 are a browser's WebM). The import
+read only WAV and M4A, so it wrote each down as not in v2's storage, and
+Central Thai SPV, Pwo Eastern Karen and nine more came over with no audio
+(Every Language noticed, 2026-10-23). Caleb chose converting over adding
+MP3 to what a recording may be, since 58 keeps `wav | m4a` and the app, the
+database and the API would all change. ffmpeg, installed in the job image
+(141), converts in `server/audioConvert.ts`: AAC in M4A, mono, at a phone's
+128 kb/s (106) or the source's rate when that is lower, and lower still if
+that is what keeps it under the Worker's 50 MB. It is bit-exact, so a cloned
+project's copy converts to the same hash; a copy that comes out different
+is not stored there, since R2 refuses bytes that do not hash to their name,
+and the log says so instead of the project stopping on every pass. A run
+with no ffmpeg leaves such a file out of the file map for one that has it;
+a file v2 has that is not audio is reported as unreadable, not as missing.
+Migration `20261024013000` forgets the missing marks of files that were
+never WAV or M4A, so the next whole read converts them.
+Reverse if: teams hear what the re-encode loses, or recordings must keep
+v2's own bytes; then add `mp3` to 58's formats instead.
+
+Amended (2026-10-24, Caleb Koster): a project that has come over can come
+over again into another organization, as a new language there. Every
+Language asked for BIRAT RAJBANSHI, which had come over into its owners'
+own organization because the Every Language account was switched off on it
+in v2; Caleb: "It needs to be in the everylanguage organization." A
+language still cannot move, since its events carry its organization, so
+`npm run v2 -- move --project <id> --to <org>` (`v2_import_move`, migration
+`20261024053000`) gives the placement the new organization and a new
+language id, and records the first copy in `v2_import.moves`. The next pass
+reads the project whole into the new language under a ledger scoped by that
+id, so its events have ids of their own, and stores its recordings again
+for it. The first copy is no longer kept up to date; once the new one is
+confirmed and nothing new has appeared in the first, it is removed or made
+inaccessible (Caleb). Welcome back names the new language. The board still
+never moves a project that has come over.
+
+Amended (2026-10-24, Caleb Koster): a first copy left behind is made
+inaccessible by taking back every membership the import gave there, since
+Next has no way to delete or archive a language. Caleb, once BIRAT
+RAJBANSHI's Every Language copy was confirmed: "please make the old copy
+inaccessible". `npm run v2 -- close --org <org> --language <language>`
+(`close.ts`) removes the language's members, and the organization's admins
+when it holds no other language, signed by one of those admins, who goes
+last. It is the service role's append, which no grant rule stops, so the
+organization may be left with no admin. The language, its work and its
+audio stay, and the memberships can be given again. It refuses a copy the
+import still keeps up to date.
+
 ## 95. The app's UI tests run on Maestro on phones and Playwright on the web; Jev stays for journeys judged by outcome
 
 Date: 2026-10-12 · By: Carl Sauder · Status: partly superseded by 102
@@ -4067,6 +4190,13 @@ load files show four shards of two browsers are still starved (then larger
 runners, which cost money), or the cache costs more than the pulls it
 saves.
 
+Amended (2026-10-23, Carl Sauder): for the browser jobs the cache did cost
+more than the pulls it saved. Warm, it made a pull request's run about a
+minute longer than pulling (425 seconds against 352 and 374), and the CLI
+now takes the images from `ghcr.io` when ECR refuses them. `web-smoke` and
+`ui-web` pull, retried by `ci-retry-pull.sh`; `server` and the nightly jobs
+keep the cache (decision 164 has the numbers).
+
 ## 103. Large languages are projected by a scheduled GitHub job; the Edge pass leaves them out
 
 Date: 2026-10-14 · By: Caleb Koster · Status: superseded by 141
@@ -4152,6 +4282,24 @@ Reverse if: a second app needs a different outbound policy than the phone
 (the queues would split back into the apps behind a shared interface), or
 the server-side jobs grow their own dependencies that the phone must not
 carry, which would argue for a separate server package.
+
+Amended (2026-10-26, Carl Sauder): sync has a second entry,
+`@langquest-next/sync/server` (`packages/sync/src/server.ts`), for what only
+servers run: the snapshot worker, the blob reconciler, the Worker's R2
+files, the stream list, the per-unit cut and `foldStream`. The phone and
+the web app import `@langquest-next/sync` and no longer carry them. A
+separation-of-concerns audit found the single entry had pushed server code
+to copy sync instead of importing it: `server/reconcileJob.ts` kept its own
+`foldStream`, reconciler wiring and a "missing" count by a different rule
+than the reconciler repairs by, so as not to grow the web app's first
+visit, and three server jobs imported `packages/sync/src/*` by path. The
+reconciler now counts what is missing with core's `isStored` and can stop
+early, and the job only builds its deps. ESLint now also reads `server/`,
+`apps/web/worker`, `apps/web/jobs`, `apps/admin/src` and
+`packages/v2-import/src`, with one rule: packages by their entry, and
+nothing from `apps/mobile/src` (shared code goes in core). This is still
+one package, not the separate server package the reverse-if names: the
+server entry imports only what sync already may.
 
 ## 105. In `apps/mobile`, server calls live in `src/server/`, logic outside screens, and folders by feature
 
@@ -4280,6 +4428,46 @@ cleanup, or because a key made of the inputs stands for them; each says why
 after `--` on its disable comment, which lint now requires
 (`@eslint-community/eslint-comments/require-description`), and a disable
 that no longer excuses anything is an error.
+
+Amended (2026-10-26, Carl Sauder): the reversal condition ("feature folders
+start importing each other in a cycle") came true: 34 of the 41 folders in
+`apps/mobile/src` formed one import cycle, because the folders every feature
+stands on (`i18n`, `ui`, `helpMode`, `diagnostics`, `server`) imported
+features back: `i18n` held a sheet drawn with `ui`, `helpMode` reported to
+`diagnostics` and played through `audio`, `diagnostics` read the store in
+`sync` and called `server`, and `server` used `auth`, `sync` and
+`appVersion`. Carl chose a base layer below the features, held by lint
+(`BASE_LAYERS` in `eslint.config.mjs`); feature folders may still import
+each other. Lowest first: L0 `i18n`, `build` (the build id and whether it is
+a test build); L1 `ui`, `helpMode`; L2 `session` (auth state, sign-out cause,
+outcomes, the dev persona, the read-only flag) and `storage` (the on-device
+store, stored files: formats, media type, hash); L3 `diagnostics`; L4
+`server`. A base folder imports values only from its own level or below
+(types from anywhere); features import any of them. What a lower layer needs
+from a higher one is handed in once at start (`shell/wiring.ts`: how
+diagnostics reach the server, how help audio reports) or sits lower:
+`registerPlayback` is `ui/playback.ts` (audio re-exports it), the gate
+around the transport is `sync/serverTransport.ts`, `watchRenewals` is
+`server/renewalWatch.ts`, `inviteOutcome` is `invites/inviteOutcome.ts`, the
+language sheet is `account/uiLanguage.tsx`, and which chrome a screen shows
+is `shell/chromeModel.ts`, so `ui` imports no screen id as a value. The
+layer is held, not only measured: no base folder is in an import cycle with
+a feature folder; `ui` and `helpMode` still import each other, as the design
+system's help badges always have. The phone lock's models
+(`lockModel.ts`, `sealModel.ts`, decision 168) sit in `session/`, not
+`auth/`, because `server/lock.ts` reads them.
+
+Amended (2026-10-26, Carl Sauder): a screen may not import `src/server`
+either. The role rules kept components from the server but not screens,
+so `screens/globalViewer.tsx` verified codes, mapped their refusals and
+paged organizations itself, and `entry.tsx` repeated sign-in's
+diagnostics-and-terms tail in three handlers. Screens now reach the
+server through hooks and modules (`auth/signInFlow.ts` and
+`auth/useSignIn.ts`, `account/useGlobalViewer.ts`), and a screen that
+builds an event goes through a named command (`org/orgCommands.ts`,
+`config/configCommands.ts`) with the rules in a model. The same audit
+gave server refusals one classifier (`diagnostics/refusalModel.ts`), so
+callers stop re-reading `error.code`, the reverse-if above.
 
 ## 106. A phone records every take with the microphone module, keeps a part going down to half the cutoff, and keeps AAC
 
@@ -4663,7 +4851,7 @@ Reverse if: a client must issue invites or decide requests offline; then
 
 ## 115. An event is at most 64 KB, and an account creates at most 5 organizations a day and 20 in all
 
-Date: 2026-10-15 · By: Carl Sauder · Status: accepted
+Date: 2026-10-15 · By: Carl Sauder · Status: partly superseded by 169
 
 Reason: a security audit found that `append_events` limited a push to 500
 events (invariant 12) but not their size, so one member could push notes
@@ -4826,6 +5014,18 @@ step to take through the repo's Supabase config (`docs/cloudflare.md`).
 Reverse if: a removal must cut access at once (a takedown, say); then drop
 the access cache, or clear it from the event that removes the member.
 
+Amended (2026-10-26, Carl Sauder): three more answers are kept per isolate,
+on the same terms (performance-audit-2026-10-26.md item 10). The agent API's
+token records, keyed by the token's hash, for 15 s, so a revoked token can
+still be used for up to 15 s from an isolate that already read it, and the
+last-used write no longer holds up the response (`ctx.waitUntil`). A
+person's organizations, for the reports route only, for 30 s, so someone
+removed from an organization may read its reports for up to 30 s; /connect
+and links still ask each time. Agent reads trust the organization's stream
+heads for up to 3 s and pull only when a head moved past what the object
+holds; writes and the read after a write still pull. Reverse if: as above,
+or an agent must see another writer's work within a second.
+
 ## 122. Inactive Inbox rows are deleted 30 days after they went inactive
 
 Date: 2026-10-15 · By: Carl Sauder · Status: accepted
@@ -4876,6 +5076,16 @@ language (`countryName()` is synchronous; they now ride in the Reports
 file). Reverse if: a lazy screen's first open is slow enough for people to
 notice on the slowest partner phone, or the web's background fetch competes
 with a first sync on slow links; then move that screen back, or fetch later.
+
+Amended (2026-10-26, Carl Sauder): both budgets lowered, to 3.9 MiB for a
+first visit and 4.75 MiB in all. lucide's entry re-exports every one of its
+1,800-odd icons and Metro does not shake out the ones no file uses, so the
+main file carried 1.5 MB of icons for the 91 the app draws. Icons now come
+one file each through `apps/mobile/src/ui/icons.ts`, and lint refuses the
+package's entry elsewhere (`noIconBarrel`, `eslint.config.mjs`). A first
+visit went from 5.70 to 3.71 MiB and every file together from 6.54 to 4.54
+(performance-audit-2026-10-26.md item 1). The budgets keep about 5% of
+room, as above, so the space is spent on purpose rather than by drift.
 
 ## 124. You choose where the next part is recorded, a whole thing asks before it is deleted, and a deleted version is a tombstone
 
@@ -5976,6 +6186,11 @@ Amended (2026-10-20, Carl Sauder): a local stack runs the pass in the
 container as well, and the Edge Function, renamed `push-delivery`, keeps
 push delivery alone (148).
 
+Amended (2026-10-24, Caleb Koster): ffmpeg joins psql as the image's system
+packages, for the v2 import's conversion of MP3 and WebM to M4A (94). Built
+locally, the image grows from about 320 MB to 710 MB; with half a CPU it
+converts a 20-minute chapter in about 27 seconds.
+
 ## 142. The projection pass stores what each language's report is made from, and the dashboard renders reports from it without folding
 
 Date: 2026-10-19 · By: Carl Sauder · Status: accepted
@@ -6550,6 +6765,25 @@ Putting an entry twice is a join, so a passage that also read those rows
 from disk loses nothing. `keptFill.test.ts` holds the write open while the
 passage opens.
 
+Amended (2026-10-26, Carl Sauder): three storage changes, none of which
+changes what a phone receives (migration
+`20261026170800_snapshot_cut_storage.sql`). `put_snapshot` counts each
+passage's rows once and keeps them on the snapshot (`snapshots.unit_counts`),
+so `get_snapshot_head` reads them instead of counting every unit row on a
+cold open (a cut from before is counted as it was until its next snapshot;
+the migration fills the existing ones). `snapshot_units_staged` is
+unlogged: its rows live minutes and are written again into `snapshot_units`,
+so keeping them out of the WAL takes about a third off a snapshot's write;
+a crash empties it and the next visit stages the cut again. Lines keep a
+digest (`passage_lines.digest`) and the pass sends only the lines whose
+digest differs from the stored one, and the ids of passages that have none
+(`passage_line_digests`, `put_passage_lines_delta`); `put_passage_lines`
+remains for a pass that cannot read the digests, and now finds the lines to
+drop by a join rather than a scan per stored line. Not changed: the staged
+rows are still inserted into `snapshot_units` and the old ones deleted, since
+the table is keyed by the snapshot's seq and a new seq is a new row;
+decision 88's retention is as it was.
+
 ## 148. A local stack runs the projection pass in the job container too, and the Edge Function is push-delivery
 
 Date: 2026-10-20 · By: Carl Sauder · Status: accepted
@@ -6616,7 +6850,1311 @@ refused and is delivered the next minute. A local stack's
 `supabase/functions/.env` keeps its value under the new name
 (`scripts/local-db.mjs`).
 
-## 149. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
+Amended (2026-10-26, Carl Sauder): the push delivery job no longer calls the
+Edge Function every minute whatever is queued. Each minute it asks
+`push_work_waiting()` (a notification a claim could take, or a push receipt
+old enough to read) and posts only if so, so `diag.job_schedule` gives it no
+schedule (it runs when there is work, like the webhook dispatch). Another
+daily job drops `cron.job_run_details` rows over seven days old. The claim
+is driven from the people who have a push token (index
+`notifications_push_person`) instead of walking past every notification of
+someone without one. The schedule is now
+`20261026170400_push_delivery_when_waiting.sql`, which `npm run secrets`
+runs again. Audit: `docs/performance-audit-2026-10-26.md` item 11.
+
+## 149. A reviewer notes a moment of the recording, a help, a key word, a verse or a note, and every note goes with the review and its verdict
+
+Date: 2026-10-20 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (2026-10-20) whether reviewers can comment on a
+segment of the recording, or on the resources a check makes available, and
+said "if not, we really should". On main a reviewer could note a Bible
+verse (Background, Passage), on the record at once, and a study step. The
+player's Note recorded a voice clip at a time in the whole version, sent as
+one of the review's recordings (`artifacts` with `atMs`), and the
+translator heard all of them as one clip, with no time or part. Team notes,
+key words and the check's helps were read only. A first build listed every
+part with its own note button; Caleb found that too cluttered and chose
+(2026-10-20):
+- Comments stay at moments of the whole recording: the player's Note,
+  said or typed. Underneath, each is tied to the part its moment falls in
+  and how far into that part, so whoever fixes the passage records over
+  that part. The parts are listed only when they have verses, as before.
+- The check's helps and Background's key words get a note button (an
+  amber bubble with a plus, 48 pt), team notes in Background get Reply,
+  and a verse keeps its Note.
+- Everything noted while reviewing is part of the one review: it waits in
+  the review's draft (decision 127), listed together under the player in a
+  dashed amber box "With your review", each with Remove, and the sheets say
+  the note goes with the review. Decide and "What should change?" say how
+  many notes go with it. Nothing is sent, and nobody sees a note, until the
+  verdict is sent; then the notes go in the verdict's batch.
+- A sent note is the passage note there already was (`v1.NoteAdded`),
+  written at the check (`kindId`, decision 130), with the review it went
+  with (`reviewId`). Taking the review back takes its notes back
+  (`withdrawReviews` adds a `v1.NoteWithdrawn` for each); only their author
+  may (decision 111). History lists them with their review, not as entries
+  of their own.
+- Where a note points is new optional fields on the anchors there already
+  were, not a new kind or event: `{ kind: 'version', takeId, part, at }`
+  (`part` is the part's audio hash, `at` how far into it, "0:04");
+  `{ kind: 'passage', help }` for one of the check's helps (`item:<id>` or
+  `material:<id>`, `checks.ts` `helpKey`); `replyTo` on any anchor for a
+  reply, which keeps its note's anchor. The server checks only a note's
+  kind, its required field and the fields it checked before, so it needs no
+  migration, and an app from before this shows such a note on its version
+  or the whole passage. Core reads the new fields only when they are
+  strings (`notePart`, `noteHelp`, `replyOf`, `noteReview`) and finds notes
+  with `partNotesFor`, `helpNotesFor`, `termNotesFor`, `repliesTo` and
+  `reviewNotesFor`.
+- A note on a part follows the part's audio: a later version that kept the
+  part still has it, a part recorded again starts clean. Notes never force
+  a review (decision 128).
+- The translator: "Hear the feedback" lists "Notes from <check>", the
+  review's notes, each saying what it is on ("Part 2 · 0:04", a verse, a
+  help, a key word), with Reply. In the recorder a part a check noted has
+  an amber count beside its length that opens its notes
+  (`passage/PartNotes.tsx`). The recorder's Notes chip names them ("on Part
+  2 · 0:04", "on “What to listen for”", "Reply to Rita").
+- Help mode says what each new button does.
+Cost: a reviewer's notes reach nobody until the verdict, so a review left
+unsent keeps them on that phone only. The web app's cap on all its
+JavaScript rose from 6.5 to 6.55 MB (`export-web.mjs`): with this it is
+6.51 MB, of which the new lines in 15 languages are about 15 KB; the first
+visit stays under its 5.7 MB. Notes on Earlier's versions and feedback are
+not offered: Earlier is history, and the version being checked is the one
+notes are for.
+Reverse if: teams need a reviewer's notes before the verdict (a long
+consultant session); then a note could be sent on its own, still carrying
+its part and its check.
+
+## 150. A pull request is merged into main only when the checks that its changed files need are green, and main takes no direct push
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: main had no branch protection and no ruleset, so a pull request
+could be merged into main while a guardrails check was red, and every merge
+into main deploys (decisions 42, 43, 45). The rule now lives in the repository
+as `.github/rulesets/main.json`: a GitHub ruleset on `refs/heads/main` that
+requires one check, the guardrails `gate` job, reported by the GitHub Actions
+app. Nobody can bypass the ruleset, so a repository admin cannot merge past a
+red check either. GitHub applies a required check to pushes as well, and a
+pushed commit has no checks yet, so main takes no direct push: every change
+reaches main through a pull request, and so does every commit that the
+pipeline makes. Caleb chose this over letting admins bypass the ruleset,
+because a bypass would also let an admin merge a red pull request.
+
+Caleb also asked (2026-10-22) that a pull request run only the checks that its
+changed files need: a pull request that changes only `docs/decisions.md`
+does not need the UI tests. A new `scope` job (`scripts/ci-scope.mjs`) reads
+the files that the pull request changes since it met main, and says which of
+`server`, `web-smoke` and `ui-web` they need; the jobs that are not needed
+are skipped. `checks` always runs (about 2.5 minutes), because it holds the
+decision log's test and every other unit test. The shared code
+(`packages/core`, `packages/sync`), `supabase` (migrations and functions),
+`library`, `scripts`, `.github`, `.githooks`, any `package.json` or lockfile,
+`vitest.config.ts`, the root `tsconfig` files and any file that no rule names
+run every job. The docs, the skills and Markdown files run `checks` alone;
+`apps/mobile`, `apps/web`, `e2e` and `app.json` run the two browser jobs; the
+SQL smokes in `server` run the `server` job. When `scope` cannot tell, it runs
+every job, and a push to main, the nightly run and a manual run run every job.
+The jobs still test the pull request merged with main. A required check that
+never starts leaves a pull request waiting forever, and GitHub counts a
+skipped job as passed, so main requires the `gate` job instead of the jobs
+themselves: `gate` runs whatever happened to the others (`if: always()`) and
+passes only when `scope` and `checks` passed and every job that `scope` named
+passed. `scripts/githubRules.test.ts` fails when a job that runs on a pull
+request is missing from `gate`'s needs, so a new job cannot fail without
+holding a merge. Of the last 60 pull requests merged into main, 27 would have
+skipped `server` and none would have skipped the browser jobs; no `server`
+job failed on main in the last 60 runs on main.
+
+This builds on an earlier change that never reached main (branch
+`caleb/light-decisions-ci`, 2026-10-20): a push that only merged main and
+renumbered its decision, after a run that passed, would run only typecheck,
+lint and the decision log's test. That design skipped the full tests of a
+code change on top of the newest main, the last such run before a merge
+that deploys to production, and that concern still holds, so this change
+leaves it out. Choosing jobs by the pull request's whole change does not
+have that cost: a pull request that changes code runs the code's jobs on
+every push, and a pull request that changes only the docs changes nothing
+that the other jobs test.
+
+The ruleset does not require a branch to be up to date with main before the
+merge, because guardrails already runs on the pull request merged with main,
+and requiring it would rerun up to 12 minutes of checks on every open pull
+request after each merge. `npm run github:rules` (`scripts/github-rules.mjs`)
+compares each file in `.github/rulesets` with the ruleset of the same name on
+GitHub and says what it would change; `npm run github:rules -- --apply` makes
+the change and needs a repository admin. Amends 53: small changes still go to
+main on their own, but through a pull request.
+Reverse if: a fix that cannot wait for the checks is held up often enough to
+matter (then add a bypass for a named team with `bypass_mode: pull_request`
+and record who may use it); main's run fails in a job that `scope` skipped on
+the pull request (then move the file that caused it to a rule that runs that
+job); or merges pass checks that were green against an older main and break
+it (then turn on `strict_required_status_checks_policy` or a merge queue).
+
+Amended (2026-10-23, Caleb Koster): pull requests merge through GitHub's
+merge queue. Two pull requests that were each green against main could still
+break it together, for example by taking the same decision number, and the
+run on main found that only after the merge. In the queue, `gate` runs again
+on main as it will be with the pull requests ahead (the `merge_group`
+trigger in guardrails.yml), and a pull request merges only when that run is
+green. `scope` measures the files that the queued pull requests change on
+main, so a change to the decision log still skips the browser jobs. The
+queue tests and merges one pull request at a time, with a merge commit as
+before (`.github/rulesets/main.json`): the release-branch job (decision 155)
+copies the one merge that a push to main brings, and keeps only one run
+waiting, so merges pushed together or seconds apart would leave a copy out.
+A pull request waits for the ones ahead of it, about ten minutes each. The strict
+up-to-date rule was the other way: it needs no code, but every merge would
+make every open pull request update and run its checks again.
+
+Amended (2026-10-23, Carl Sauder): a queue entry runs no job when the pull
+request's own green run of the last hour tested the same tree, and a push
+to main runs no tests for the commit that the queue passed; `checks` is
+three jobs, `checks`, `unit` and `coverage` (decisions 163, 164).
+
+## 151. A pull request may not take away a server call that a supported store build makes
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: people keep a store build for a long time, and the server and the
+app's Worker change on every merge into main (decisions 42, 43), days before
+a new build passes store review. Android build 24, built by hand on
+2026-10-20 from code of 2026-10-01, called `issue_invite`, which the server
+had not had since 2026-10-06. `npm run server-calls` (`scripts/server-calls.mjs`)
+now runs in the guardrails `checks` job and in `npm run guardrails`. It reads
+the server calls that phones may make: the database functions
+(`.rpc('name')`), tables and views (`.from('name')`), Edge Functions
+(`functions.invoke('name')`) and the Worker's routes (`/api/<name>`) named in
+`apps/mobile/src` and `packages/sync/src`, in each supported store build's
+own commit and on every line added on main since the oldest of them. Every
+merge into main that changes the app reaches phones as an OTA update or a new
+build, so a call named on main since then is a call that some phone may
+make. It then checks that each call is still on the server after the pull
+request: the migrations, read in order, still create the function, table or
+view and do not drop or rename it; the Edge Function's folder is still in
+`supabase/functions`; and `apps/web/worker` still names the route. A failure
+names the build and the call, for example "Build 25 (Android) still uses the
+database function preview_invite". It reads files and git history only, and
+takes about 3 seconds for 21 builds. To change a call, add a new one next to
+it (a new function name, such as `issue_sign_in_code_v2`) and leave the old
+one in place for as long as a supported build uses it. An old call may be
+removed once every build that uses it is below the minimum app version,
+which the pipeline raises every three weeks to the newest build that has
+been public on both stores for at least three weeks (the release pipeline's
+"Please update the app" change); a phone below the minimum stops syncing,
+so it no longer makes the call.
+
+The store builds and their commits come from EAS, which records the commit of
+every build, when the repository secret `EXPO_TOKEN` is set (a token for a
+robot user with the Viewer role). Until then they come from
+`apps/mobile/store-builds.json`, which lists every finished production build
+as EAS had it on 2026-10-22. That file also says which builds are supported:
+Android from build 13 and iPhone from build 33, without Android build 24 and
+iPhone build 41. The older builds and those two hand builds already fail
+against today's server, and newer builds replaced all of them: Android 8
+and iPhone 29 and older call functions or tables that the server no longer
+has (`issue_invite`, `redeem_invite`, `accept_join_request`,
+`org_member_emails`, `set_project_visibility`, `project_visibility` and
+`public_projects`), and the sync test of Android 9 to 12 and iPhone 30 to 32
+(built 2026-10-06 and 07) finds that today's server refuses their
+`v1.MemberAdded` and their recording uploads to Supabase Storage, which
+moved to the Worker afterwards. The minimum app version will take the
+place of these two numbers.
+
+The check does not see a changed argument, column or response shape; the sync
+test from each store build's commit (change 4) runs against the new database
+for that. Two more things follow from the gap between the server and phones
+on an older build. The server must keep accepting what those phones send, so
+validation for an event that a supported build sends never becomes stricter;
+a new event version is added instead. And a phone on an older build skips an
+event type that its reducer does not know, so it keeps working but cannot
+show that work until it gets the reducer change, by a new build or an OTA
+update.
+Reverse if: the check stops a change often enough that keeping old calls
+costs more than asking people to update (then raise the minimum app version
+sooner), or a call that phones make is missed because it is built at run
+time (then name it in a list that the check reads).
+
+## 152. A pull request that changes the database runs the sync test from every supported store build's commit against it
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: a migration can keep every server call's name and still break how an
+older build syncs, by refusing an event that the build sends or a file that
+it uploads, and people keep store builds for a long time. So the guardrails
+`server` job, after this checkout's own integration test, runs
+`npm run test:old-sync` (`scripts/old-sync-tests.mjs`) when the pull request
+changes `supabase/migrations`. For each commit of a supported store build
+(the builds and their commits from `storeBuilds()` in
+`scripts/server-calls.mjs`, from EAS with `EXPO_TOKEN`, otherwise
+`apps/mobile/store-builds.json`), it takes that commit's packages, its
+`server` and its Worker code out of git into `.old-sync/<commit>`, and runs
+that commit's sync integration test (`packages/sync`, or `packages/client`
+before 2026-10-14) with this checkout's dependencies against the database
+that the job built from the pull request's migrations. A test that the old
+file skips counts as a failure, so a test that did not reach the database
+never passes quietly. A failure names the builds, for example "Build 25
+(Android) (commit 683289d9): its sync test 1 of 7 tests failed against this
+database". The 12 commits took under two minutes locally, in the job that
+already holds the stack, so a pull request is no slower than its slowest job
+was. It runs only on pull requests, not on main's own run.
+The first run, against main on 2026-10-22, found that today's server already
+refuses the `v1.MemberAdded` events and the recording uploads to Supabase
+Storage of Android builds 9 to 12 and iPhone builds 30 to 32, so the
+supported builds start at Android 13 and iPhone 33.
+The old test also drives the server code of its own commit (the projection
+worker, the Worker's blob routes), which main replaced since; a failure
+there is still a finding about that build's test, and is fixed by raising
+the supported builds or by keeping the old behaviour.
+Reverse if: the old tests fail often for reasons that phones never meet
+(then run only the parts of each test that phones run), or the run grows
+past the `server` job's other steps (then run the commits in parallel jobs).
+
+## 153. The first launch after install waits up to 5 seconds for the latest OTA update
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: `app.json` sets expo-updates' `fallbackToCacheTimeout` to 0, so a new
+install opens on the code built into the store build, which can be weeks
+older than main, and gets the latest OTA update only on its second launch.
+Someone who installs the app at a workshop then meets bugs that were fixed
+long ago. Raising `fallbackToCacheTimeout` would make every launch wait, and
+people often open the app with no connection for months. So only the first
+launch after install waits (`apps/mobile/src/shell/useFirstLaunchUpdate.ts`,
+the rules in `firstLaunchModel.ts`): on a phone running the code built into
+the app, with no `first-launch-update:looked` mark in its storage, the app
+sets the mark, then looks for the latest OTA update and downloads it, for at
+most `FIRST_LAUNCH_WAIT_MS` (5 seconds). The person sees a spinner and no
+words while it waits. When the update arrives in time, the app restarts into
+it once; when the phone is offline the check fails at once and the app opens
+on its built-in code; when the connection is slow, the app opens at the
+5-second limit and the download goes on, and the update banner offers the
+restart when it is ready. The mark is set before the app looks, so a launch
+killed mid-wait never waits again, and an account's deletion leaves it.
+Browsers and development builds never wait. The wait is in the app's code,
+so it reaches a new install only in a build whose built-in code has it: the
+next new build.
+Reverse if: first launches on slow connections time out often enough that
+the wait only delays people (then shorten it), or expo-updates gains a
+setting that waits on the first launch only (then use that instead).
+
+## 154. The app tells people when a newer version is in the store, and below the minimum version it stops syncing until they update
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: Expo does not tell people that a new build is in the stores, and in
+LangQuest v2 a database flag went up before the store had approved the
+build, so people were sent to an update that did not exist yet. Now the
+server records a version only once it is live (`public.app_releases`,
+migration `20261022200000_app_releases.sql`): the Worker's ten-minute cron,
+once an hour, reads the live App Store version from Apple's public lookup
+and the live Google Play version from Play's public app page, which list a
+version only once people can download it, and writes each with
+`record_app_release` (`apps/web/worker/storeReleases.ts`). The app reads
+`app_versions()` (`src/server/appVersions.ts`) when someone is signed in, at
+most once an hour, and keeps the last answer on the phone
+(`src/appVersion/useAppVersion.ts`, rules in `appVersionModel.ts`):
+- On an older version than the newest live one, a bar says "New version
+  available" with Update, which opens the store page, and a close button
+  that hides the bar until a newer version comes out.
+- Below the lowest version that may still sync (`server_config`
+  `min_version_ios` and `min_version_android`, '0' today, raised only on
+  purpose), the phone sends its waiting work first, then stops: every
+  stream's transport still sends (`append`, and recordings through their own
+  transport), and refuses everything that downloads other people's changes
+  as the server does for a client too old (LQ001,
+  `src/appVersion/syncGate.ts`). The sync client sends before it downloads,
+  so someone back after months offline gets their work to the team even if
+  they never update. Caleb chose this (2026-10-22) over stopping all sync
+  at once. A send that fails, for example because a server call that the old
+  build uses is gone, throws instead of refusing the events, so the work
+  stays on the phone marked to send (PLAN.md invariant 1) and goes after the
+  update. The whole screen says "Please update the app" with the same
+  button; Keep working closes it for that launch, and Account's "Update the
+  app to sync." stays.
+Versions are compared as numbers, part by part: every store build has a
+higher version than the one before (the release pipeline's production
+review change gives each the time of its merge), and 1.0.0 is older than all
+of them. The app reads its own version with `expo-application`, which every
+build already had through `expo-notifications`, so this code ships as an OTA
+update. A browser always runs the newest version and is never told.
+
+Android works the same way. Google Play's public app page shows the version
+that people can download now, and only once Google has approved it; the
+check reads it as update-check libraries such as react-native-version-check
+do. Google's Play Developer API cannot say this: it reports a production
+release as completed from the moment it is sent, before review
+(issuetracker.google.com/208842993). Google's In-App Updates library would
+tell the phone itself, but it sends Google device details and the app
+version whether diagnostics is on or off, which may change Data safety
+answers (`docs/play-store-declarations.md`), so it is not used. If Google
+changes the page and the version cannot be found, nothing is recorded and
+the cron's job run says so; the app never says an update is there when it
+is not. This is beyond the partner demo, which has no update prompt.
+Reverse if: people dismiss the bar and stay on old versions long enough to
+matter (then show it again after some days), or the In-App Updates question
+is settled, or Google's page stops showing the version (then Android asks
+the phone, with In-App Updates).
+
+## 155. While a new build is in store review, the public build keeps getting every merge as an OTA update from a release branch
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: once a merge into main changes a platform's native fingerprint, a
+new store build of that platform goes to review, and OTA updates from main
+reach only that new build. Until Google or Apple approves it, which can take
+days, the public build would get no fixes. Caleb chose (2026-10-22) that the
+pipeline, not a person, decides when this happens and copies the merges,
+and Carl asked how the branches are made and filled. So
+(`scripts/release-branches.mjs`, `.github/workflows/release-branches.yml`):
+- After each merge into main, a GitHub Action compares each platform's
+  fingerprint before and after the merge, the same fingerprint that the EAS
+  workflow uses to choose between an OTA update and a new build. When it
+  changed and no release branch exists, the Action starts
+  `release/<platform>` from the commit before the merge, which is the code
+  of the last OTA update that the public build got, and tags the merge
+  `rebuild/<platform>/<commit>`.
+- Every later merge into main that does not change that fingerprint is
+  copied onto the release branch. The pipeline cannot tell a fix from a
+  feature, so it copies every one. Each copy is a pull request that merges
+  itself (GitHub auto-merge) once its checks pass; no person merges it. A
+  copy with a conflict is labelled `copy-conflict`, and Anthropic's Claude
+  GitHub Action (`.github/workflows/release-copy-conflict.yml`) copies it,
+  keeping the release branch's code where main's change needs code that the
+  public build does not have.
+- Every merge into a release branch publishes an OTA update on the
+  production channel for that platform
+  (`apps/mobile/.eas/workflows/deploy-release-branch.yml`). Its runtime comes
+  from the branch's own code, so it reaches the public build and never the
+  build in review.
+- Every hour the Action deletes a release branch whose new build is public:
+  the store's live version, from Apple's public lookup for iPhone and from
+  Google Play's public app page for Android (the signals that the app's own
+  store check uses), is that build's version or a newer one (each store
+  build's version is the time of its merge). A store that cannot be read
+  keeps the branch, which only sends the public build fixes that it would
+  get anyway. When a later new
+  build is already in review, the newly public build gets its own branch,
+  started from the commit before that later build, with the merges since
+  copied onto it.
+- `.github/rulesets/release.json` requires the guardrails `gate` on
+  `release/*`, so a copy merges only when green.
+A change that needs a new build is never copied, because the public build
+cannot run it. It all stays off until the repository variable
+`RELEASE_BRANCHES` is `on`, which needs a GitHub App installed on this
+repository with Contents and Pull requests write (secrets `RELEASE_APP_ID`
+and `RELEASE_APP_PRIVATE_KEY`; a pull request that the built-in token opens
+starts no checks), "Allow auto-merge" turned on, and the secret
+`ANTHROPIC_API_KEY` for the conflict step.
+Reverse if: copies go wrong on the public build often enough that a person
+should approve each one (then turn off auto-merge), or a store page stops
+showing its live version (then read it from the store's API where one can
+say so).
+
+Amended (2026-10-22, Caleb Koster): the conflict step runs without an
+Anthropic key too. This repository has none yet, and a key in another
+repository cannot be shared. Without `ANTHROPIC_API_KEY`, the step tries the
+copy again, comments once on the copy pull request naming the files in
+conflict and the steps to finish it, and leaves it open for a person or a
+Claude session; nothing fails. With the key, Claude finishes it as before.
+
+Amended (2026-10-23, Caleb Koster): the hourly cleanup now finds the newest
+new build that is live. When it is the newest of all, the branch goes and no
+other starts; only when an older one went live while a newer one is still in
+review does a new branch start, from just before the newer one. Before, it
+would have started a branch for a build that was never public. The
+repository variable `RELEASE_BRANCH_PLATFORMS` ("android" for now) names
+the platforms that keep a branch: no public iPhone build takes OTA updates
+from main yet (build 36, 1.0, runs code of 2026-10-16), so an iPhone branch
+would only feed TestFlight.
+
+
+## 156. Store builds come only from the EAS workflow on merges into main
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: Android build 24 and iPhone build 41 were built by hand on
+2026-10-20 from code of 2026-10-01, and build 24 reached Play internal
+testing in place of build 23. Testers saw a blank screen, most likely
+because its code called a database function that the server had not had
+since 2026-10-06. A
+store build has to be made from main, where the checks ran, by the pipeline
+that the rest of the release plan builds on. So the ways to make or upload a
+store build by hand are gone: `npm run android:play` (an `eas build` on the
+`production` profile with `--auto-submit`), `npm run ship -- --prod` (which
+published OTA updates and iOS builds on production), and
+`apps/mobile/scripts/testflight.sh` (an iOS build on a Mac, uploaded to
+TestFlight with altool). `npm run ship` now works on `preview` only, and
+says so when it is given `--prod`. A person can still type `eas build
+--profile production`, so an EAS build hook stops that build:
+`apps/mobile/scripts/store-build-guard.mjs`, the app's
+`eas-build-pre-install` script, refuses a `production` build unless
+`LQ_STORE_BUILD_REF` is `refs/heads/main`, and only the build jobs of
+`.eas/workflows/deploy-to-testers.yml`, which runs on merges into main, set
+it. `scripts/storeBuildGuard.test.ts` holds the guard, the hook, and the
+two build jobs that pass the ref. `apps/mobile/scripts/ship-eas-ipa.sh`
+stays: it uploads a build that EAS already made, and EAS now makes store
+builds from main only.
+Reverse if: a store build has to be made from somewhere else, such as a
+release branch for a build that cannot wait (then let the workflow pass that
+branch's ref and add it to the guard), or EAS gives a setting that limits a
+build profile to a workflow, which would do the guard's job without a hook.
+
+## 157. New builds go to production review on their own, and each is public as soon as Google or Apple approves it
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: a person promoted each Android build from internal testing to
+production, and submitted and released each iPhone build by hand, so a new
+build reached people only when someone remembered, and builds were sent
+from the wrong place (decision 45 sent Android builds to internal testing
+only). Now every new build that a merge into main makes
+(`.eas/workflows/deploy-to-testers.yml`) goes to production review, and is
+public on the day that the store approves it, with no staged rollout:
+- Android: `eas.json` submits to the `production` track with
+  `releaseStatus: completed`. A newer build replaces the release that waits
+  for review, which is how Play treats a new release on a track. Managed
+  publishing stays off in Play Console, so an approved build goes public at
+  once. Play takes a version code only once, so a build no longer goes to
+  internal testing too; internal testers get it with everyone else.
+- iPhone: the build goes to TestFlight as before, and then
+  `scripts/app-store-review.mjs` sends it to App Review with release on
+  approval. Apple reviews one version at a time, and a version taken out of
+  review loses its place in line, so the script never cancels a review or
+  changes the build of a version in review: while a review is waiting or
+  under way, or a version is approved and not yet out (pending developer or
+  Apple release, or processing for the App Store), the build waits in
+  TestFlight and is tried again on the next run. A version not yet released
+  that can still change (a rejected 1.0) takes the newest build and its
+  version number, since Apple keeps one unreleased version at a time.
+  `.eas/workflows/app-store-review.yml` runs the same script every hour and
+  sends only the newest waiting build once the review ends; a rejected
+  version is sent again with the newest build. It fills in "What's New"
+  where it is empty ("Bug fixes and improvements.").
+- Apple takes one App Store version per version number, so every build
+  that goes to review needs a higher one. `apps/mobile/app.config.js` sets
+  the version of each store build from the time of the merge commit, which
+  the workflow passes as `LQ_STORE_VERSION_TIME`: 2026-10-22T18:30:00Z is
+  2026.1022.1830. Other builds keep `app.json`'s 1.0.0. The native
+  fingerprint leaves the version out (`apps/mobile/fingerprint.config.js`),
+  so a new version number alone never asks for a rebuild. EAS clones only
+  the latest commit for a build, so a count of commits was not possible.
+The App Store step needs an App Store Connect API key with the App Manager
+role, kept as the EAS production secrets `ASC_KEY_ID`, `ASC_ISSUER_ID` and
+`ASC_PRIVATE_KEY`; EAS's own submit key only uploads to TestFlight. Until
+that key is there, the step says "no App Store Connect key yet" and
+succeeds, so iPhone builds stop at TestFlight for a person to send to
+review, as before, and the pipeline stays green; Android goes to production
+review either way. The
+Android step needs the Play service account that EAS submits with to hold
+"Release to production, exclude devices, and use Play App Signing".
+Amends 45: Android builds go to production review, not internal testing.
+Reverse if: a build that passed review hurts people often enough that a
+staged rollout or a wait in internal testing is worth the delay (then send
+to internal testing first and promote after a set time), or Apple starts
+taking a newer build into a version under review without losing its place.
+
+## 158. Global Viewers read every organization, read-only, and only on a session verified with an authenticator
+
+Date: 2026-10-22 · By: Carl Sauder · Status: accepted
+
+Reason: LangQuest's support people need to see any organization to help
+it, and until now saw one only by being invited into it (Carl Sauder,
+2026-10-14). A Global Viewer may open every organization and read what a
+Viewer there would: every stream but people's own, member names, files.
+Who is one is the server's own state, not an event: a row in
+`public.global_viewers` (migration `20261022210000_global_viewers.sql`),
+like a suspension, since a role in every organization's stream would be
+pulled by every member's phone and an organization stream holds only that
+organization (decision 63). The one read gate, `can_read_stream`, takes it
+(`_can_read_stream_at`), so pulls, snapshots and their pieces follow; the
+Worker passes the token's `aal` to `blob_access` for files (an unsaid level
+refuses a Global Viewer, so a path that forgets it keeps them out), and
+`global_viewer_organizations` and `global_viewer_directory` list
+organizations and names. Read-only, not a Global Admin: `may_emit` never
+asks about Global Viewers, so every write is still explained by the
+organization's own log (invariant 9) and decision 98 stays as it is.
+Support changing an organization is not part of this (see the amendment).
+Named Global Viewer, not admin, because in
+this app admin means someone who can change things (Carl, 2026-10-15).
+Access works only on an aal2 session (Carl, 2026-10-14): TOTP is switched
+on for the project (`[auth.mfa.totp]`), only Global Viewers are shown how
+to set it up, and a password alone, a sign-in code or a hand-over gives an
+aal1 session that sees nothing; `may_help_sign_in` refuses a Global Viewer
+target anyway. A Global Viewer may belong to organizations, where their
+own role applies, so support and Frontier staff use their own accounts
+(Carl, 2026-10-21); it costs Global Viewer access riding on an everyday
+account, signed in on more devices. Accounts are granted on a call
+(`npm run global-viewer`, docs/global-viewers.md): emails are on any
+domain (Carl, 2026-10-20) and sign-up proves nothing about owning one, so
+what counts is that the person, known to the operator, signs in on the
+call and sets up an authenticator while the operator watches `list`.
+`grant` takes any account with no authenticator, however old (Carl,
+2026-10-21: the call, not the account's age, shows whose it is). `revoke`
+keeps the row and ends every sign-in, and the account is then an ordinary
+one; granting it again clears its old authenticators and sign-ins first,
+so nothing from before is trusted. `reset-mfa`, for a lost authenticator,
+is run after a call with the person, never on an email. No log of what a Global Viewer opens (Carl, 2026-10-14): the
+protection is few accounts, the authenticator and revoking at once.
+`supabase config push` brings the auth setting to hosted projects and is
+run by hand (Carl, 2026-10-20; docs/environments.md). The Worker may still
+answer a file check from its one-minute cache after a revoke (decision
+121). No new event type.
+Reverse if: a partner or a privacy review needs every look logged (then
+log `global_viewer_*` reads and opens of an organization); more than a
+handful of people need it (then a staff screen with its own checks, not a
+script); or an authenticator proves too weak for the reach (then passkeys,
+or a fresh code before each organization).
+
+Amended (2026-10-21, Carl Sauder): a Global Viewer reads an organization as
+its admins see it, not only as a Viewer: support questions are mostly about
+setup (roles, members, templates, review flows), which a Viewer never sees.
+The session shows an Organization Admin's privileges and is read-only: the
+organization's and the language's handles refuse every append
+(`src/shell/readOnly.ts`), the hooks that write by themselves skip it, and
+a server refusing a write says so (Carl chose this over hiding each edit
+control screen by screen: one guard covers every screen, including later
+ones, at the cost of controls that look live and say nothing can change).
+The library's read check, `_library_member`, lets a Global Viewer whose
+access is on pass (migration `20261022220000_global_viewers_manage.sql`);
+its one write, `library_adopt`, still needs a privilege they never hold.
+Letting support change things in an organization, as a membership that ends
+by itself, was planned and is not built (Carl, 2026-10-21): it needed a new
+versioned event and a clock in every privilege check. Support talks an admin
+through a change, and the admin can invite the support person's ordinary
+account if hands-on help is ever needed. Reverse if: support often needs to change
+things themselves (then a membership with an end, from a join request and a
+server timer that removes it, rather than a new event).
+
+Amended (2026-10-23, Carl Sauder): a read-only session no longer gets the
+privileges for doing the work (Translate, Review, Fill reference, Send to
+reviewers), only an admin's management ones, so a passage offers a Global
+Viewer no Edit, Record, review or note. Carl's reason: the one write guard
+kept nothing that was recorded, but letting someone record a take that is
+then thrown away is bad. The recorder also refuses to open the microphone
+in a read-only session (`isReadOnlySession` in `src/shell/readOnly.ts`,
+read by `useRecorder`), for any record control left elsewhere. That guard
+loads with the recorder, so a first visit's web budget rose to 5.75 MB
+(`apps/mobile/scripts/export-web.mjs`).
+
+Amended (2026-10-23, Carl Sauder): a passage's record offers a read-only
+session nothing at all (`recordCan` in `src/passage/recordModel.ts`), though
+an admin's management privileges still hold Assign work and Override
+checkpoints. So a Global Viewer gets no check's sheet (ask someone, already
+happened, not now, move past), no Undo or Withdraw in the history, no "Something
+else?" way forward beyond what helps and keeping it offline, and no report flag
+(`ReportFlag`). Carl's reason: the review screens should not give the
+impression that a Global Viewer can take review actions. Manage keeps its
+controls under the one write guard, as decided on 2026-10-21.
+
+## 159. A toast lasts as long as Android's "Time to take action" asks and runs no bar down under reduce motion; the phone tests set 10 seconds
+
+Date: 2026-10-22 · By: Carl Sauder · Status: accepted
+
+Reason: a toast showed a fixed 3.5 s (7 s with a screen reader) with a bar
+that ran down across it, and the phone flows that check one (NAV-061's "Press
+Back again to leave", PASS-068's offline acts) failed on the Android
+emulator. Maestro reads the screen once it is idle, and the bar, animated on
+the JavaScript side, changed the screen every frame, so a Back or a tap that
+waits for the screen to settle waited out the whole toast and then found it
+gone (frame captures and logs, 2026-10-21; the app behaved). Two changes, both
+settings people already have:
+- Reduce motion: the toast draws no bar when it is on (`ToastView` in
+  `ui/kit.tsx`, A11Y-8), with the hook the recorder used, now
+  `ui/useReduceMotion.ts`. The runner's zero animation scales read as reduce
+  motion on Android, and it turns Reduce Motion on in the iOS simulator for
+  the run (XCUITest also waits for the app to be idle), so a screen with a
+  toast is still.
+- "Time to take action" (Android Accessibility, WCAG 2.2.1): `ui/toastTime.ts`
+  asks `AccessibilityInfo.getRecommendedTimeoutMillis(3500)` once when the
+  toast host mounts, and ToastHost (App.tsx) shows each toast that long,
+  still doubled for a screen reader. The second Back that leaves the app
+  counts for the same time (`backModel.ts` `leavesNow`). iOS has no such
+  setting and keeps 3.5 s. `npm run test:ui:phone` sets both of Android's UI
+  timeouts to 10 s while it runs and puts them back afterwards, as it does
+  with the animation scales, so a slow emulator still reads a toast in time.
+Cost: a test run's toasts stay 10 s, so a flow can find one over what it taps
+next; it closes the toast ("Close") or waits for it. A person who chose a long
+"Time to take action" sees toasts that long too, and one with reduce motion
+on sees no countdown, which is what those settings ask for.
+Reverse if: toasts that stay longer get in people's way more than they help
+(reports of toasts covering work), or people with reduce motion on miss the
+countdown; then the runner's settings can go and the app's stay.
+
+## 160. Staff see LangQuest's operations on one signed-in page, a Worker of its own that reads diagnostics as diag_reader
+
+Date: 2026-10-22 · By: Caleb Koster · Status: accepted
+
+Reason: Caleb asked (2026-10-19) for one web page, behind credentials,
+that shows everything going on with LangQuest's operations: client issues
+and every service involved, Cloudflare, Supabase, Vercel and the rest.
+Field diagnostics (39) and the server's job runs (112) already held most of
+it, but only `npm run diag` on a laptop could read them, and no one looked
+at the services' own dashboards together: every Workers Build failed from
+2026-10-16 to 10-19, and no page showed it. Chosen:
+- **A Worker of its own**, `langquest-next-admin` on `admin.langquest.org`
+  (`apps/admin`, `docs/admin.md`), not routes on the app's Worker: the
+  read tokens and keys it holds for Cloudflare, Supabase, Vercel, GitHub,
+  Expo, Google Play and App Store Connect never sit on the Worker that
+  answers the public, and the app Worker's
+  static assets answer `/` on every host before the Worker runs. It has no
+  preview copy.
+- **It reads `diag` as `diag_reader`** (its existing login,
+  `DIAG_DATABASE_URL`) over a Postgres connection, one read-only
+  transaction per statement, with the `postgres` driver (no dependencies;
+  the Worker is its only user). Not the service-role key: diag_reader can
+  read `diag` and call its report functions and nothing else, so the page
+  cannot write or see content, and no migration was needed.
+- **Who may open it**: a LangQuest sign-in, checked with Supabase Auth on
+  every call, whose profile id is in `ADMIN_PROFILE_IDS`. The list is kept
+  encrypted in `.env.production` with the provider tokens (the repository
+  is public); each token is optional and named `ADMIN_*` so none stands in
+  for a CLI's own login. A section without its token says what to add.
+- **The content rule of 39 holds**: ids, counts, timings and codes; no
+  names, emails or usernames from any service, and logs only counted.
+  Store reviews are shown without the reviewer's name, being public.
+Reverse if: staff need to act from the page (mark feedback, retry a job),
+which needs a writer's key and its own decision; or the list of staff
+grows past a few people, when it belongs in the database or behind
+Cloudflare Access instead of a secret.
+
+Amended (2026-10-22, Carl Sauder): the page is served at
+`next.langquest.org/ops-dashboard`, its API at `/ops/api/*`, not on
+`admin.langquest.org`. Carl wanted it beside the app, on its host, under a
+name nobody takes for a public status page (`/status` was weighed and
+dropped for that reason). It stays a Worker of its own, for the reason
+above, but without an address of its own: the app's Worker hands it those
+paths through a service binding (`OPS`, `apps/web/worker/ops.ts`) and lists
+them in `run_worker_first`, so the app's page never answers them, and the
+admin Worker cannot be reached any other way. A Workers route on the app's
+host would have done it without touching the app's Worker, but it relies on
+routes running before a custom domain, which nothing in the repository
+states. Still no preview copy: preview has no database of its own for it to
+read, and the app's preview Worker answers 503 there. Plan:
+`docs/ops-dashboard-plan.md`.
+
+Amended (2026-10-22, Carl Sauder): who may open it is Global Viewers (158)
+on a session verified with their authenticator, not `ADMIN_PROFILE_IDS`.
+Carl chose it (2026-10-21) because Global Viewers already are LangQuest's
+staff accounts: granted on a call by `npm run global-viewer`, with a second
+factor and a revoke that signs them out everywhere, where the list was a
+secret that needed a commit and a secrets push for each person and let in a
+password alone. Each API call asks the database, as the person,
+`get_user_state()` and lets in only `globalViewer: 'on'`, remembered for 30
+seconds per isolate. The page asks for the authenticator code itself, and
+reads (never renews) the web app's session on the same host when it is
+already `aal2`. This supersedes the reverse-if about the list growing.
+
+Amended (2026-10-23, Carl Sauder): the Worker reaches the database through
+Cloudflare Hyperdrive (the `DIAG` binding, config `langquest-next-diag`,
+caching off), not with `DIAG_DATABASE_URL` as its own secret. In
+production every database section stayed on "Loading…": the Workers
+runtime could not finish TLS with Supabase's pooler or its direct host,
+with `postgres` or `pg`, while the same login answered from a laptop in
+under two seconds. Hyperdrive holds the TLS connection outside the
+Worker, which talks to it in plain text inside Cloudflare; it is included
+in the Workers Paid plan. Caching is off because the page shows live
+counts. The login now lives in the Hyperdrive config, which cannot be read
+back: `npm run secrets -- production` makes or updates it from
+`DIAG_DATABASE_URL` and writes its id into `apps/admin/wrangler.jsonc`
+(not a secret). Each request also gives up after 25 seconds on the
+server and 60 in the page, so a database that does not answer shows an
+error instead of Loading. Locally the binding's `localConnectionString`
+is the local database, so the page uses the same path everywhere.
+
+Amended (2026-10-26, Carl Sauder): the web app's Global Viewer screen links
+to the page ("Operations dashboard", above the organization search), opening
+it in a new tab on the same host, where it reads the web app's verified
+session. Carl asked for it (2026-10-26) now that the page is in place; the
+staff who may open it are the Global Viewers. Phones do not show the link, since their browser would not share the app's
+session.
+
+## 161. The ops dashboard counts what the server already sees, adds four counts of its own, and reads job state through one read-only entrypoint
+
+Date: 2026-10-22 · By: Carl Sauder · Status: accepted
+
+Reason: Carl asked (2026-10-21) for the indicators listed in
+`docs/ops-dashboard-plan.md` section 5 on the ops dashboard (160): work the
+server refused, upload delay, clock skew, a fold canary, backups,
+crash-free rate per update, time to a usable Map, version drift, expiry
+dates, Global Viewers and limits, moderation and deletions, capacity and
+cost, latency per route, webhooks and the agent API. Decided:
+- **Read, never collect anew from phones.** Everything comes from what the
+  server already receives, read as `diag_reader` through report functions
+  that return counts, ids, timings, codes and organization and language
+  names (migration `20261023100000_ops_dashboard.sql`); `DIAG_SCHEMA` and
+  the Play answers are unchanged. An email lookup answers with the profile
+  id only (`diag.lookup_email`), so the page never lists people.
+- **Four counts the server did not keep**, each written where the thing
+  happens: the projection pass samples what arrived since its last run for
+  upload delay and clock skew (`server/arrivals.ts`), because
+  `public.events` has no index on `received_at` and adding one would lock
+  the log while it builds; the request tally adds time buckets and a `429`
+  count per route, with `device`, `links` and `ops` as routes of their own;
+  `_delete_account` writes an `account_delete` run with no id, since nothing
+  is left to count afterwards; and two nightly jobs in the job container
+  (141), the fold canary, which folds three languages afresh and compares
+  them with their stored snapshot and passage lines, and the R2 check,
+  which runs the reconciler without hashing. The container may now run
+  four instances, since four jobs can overlap.
+- **Job state through one call.** The app's Worker exports a `JobStatus`
+  entrypoint with one method, `jobs()`, reading each `JobRunner`'s state
+  without touching its container or alarm; the admin Worker binds to that
+  entrypoint only (`APP_JOBS`), not to the object class, so it still cannot
+  start or stop anything. It never calls an organization's Durable Object
+  (132): those numbers come from Postgres.
+Reverse if: the arrivals sample misses too much (a language that is never
+sampled because it fails every pass), when the log gets a `received_at`
+index built concurrently; or the canary's cost in the container grows past
+its 60 minutes, when it takes fewer or smaller languages.
+
+Amended (2026-10-26, Carl Sauder): the dashboard no longer restates rules it
+counts. `diag.ops_pipeline` takes the snapshot schedule from its caller,
+which passes sync's `SNAPSHOT_SCHEDULE`, so "overdue" is what the snapshot
+worker does, and `ops_limits` reads the diagnostics day cap from
+`diag._ingest_day_cap()`, whose agreement with `diag_ingest` the ops smoke
+checks. The Worker's actions ask `_gv_on` at the session's real level
+rather than checking aal2 itself, so that rule is SQL's alone, and they
+verify a token through the same helper as every other Worker route
+(`apps/web/worker/identity.ts`).
+
+## 162. Staff may mark feedback and run a server job from the ops dashboard, through the app Worker, which checks them again and records every attempt
+
+Date: 2026-10-22 · By: Carl Sauder · Status: accepted
+
+Reason: 160 kept the ops dashboard read-only and said acting from it needs
+its own decision. Carl chose (2026-10-21) read-only first, then a few
+actions safe to take from a browser: marking feedback seen, done or open
+again (the step `docs/diagnostics.md` left to "the admin page"), and running
+a server job now (the projection pass, the v2 import, the fold canary, the
+R2 check). Decided:
+- **The admin Worker still holds no writer's key.** It passes the action and
+  the person's own token over a service binding to the app Worker's
+  `OpsActions` entrypoint (`apps/web/worker/opsActions.ts`), whose one method
+  checks the token itself (verified claims, a live session (118), `aal2`,
+  `_gv_on`) and only then acts with the service role. A bug in the admin
+  Worker cannot act without a Global Viewer's live, verified session.
+- **A closed list.** `parseAction` takes the two kinds with their arguments
+  checked (a feedback id and status; a job key from `JOBS`); anything else
+  is refused before anyone is asked. Running a job goes through its
+  `JobRunner`, which leaves a run already going alone.
+- **Every attempt is recorded.** `ops.actions` (migration
+  `20261023110000_ops_actions.sql`) holds who (profile id), what, the
+  target, the result and a code, refused attempts too; written only by the
+  service role through `ops_record_action`, read by `diag_reader` through
+  `diag.ops_actions`, kept a year.
+- **Not from the page:** suspending or deleting accounts, moderation,
+  Global Viewer grants and anything that changes an organization's work.
+  Those stay in the command-line scripts, run on a call.
+Reverse if: staff need another action often enough that the command line
+is in the way; each one is added to the list here, never as a generic
+"run this" call.
+
+Amended (2026-10-22, Carl Sauder): the Vercel section is removed. LangQuest
+Next runs nothing on Vercel (its web app, API, files and jobs are on
+Cloudflare, and the privacy pages left Vercel under 46); the section
+watched other FrontierRND projects (the website, the v2 web app, the dev
+docs, the partner demo) that support and devops do not look after here.
+Vercel has no read-only token, so `ADMIN_VERCEL_TOKEN` would have been a
+token that can change the whole team's projects, on a Worker that
+otherwise holds only read tokens. If the website needs watching, an
+uptime check on its address does it without a token.
+
+## 163. A pull request's guardrails run in about the time of its slowest test job, not of its setup
+
+Date: 2026-10-23 · By: Carl Sauder · Status: accepted
+
+Reason: every guardrails run on a pull request took about 6 minutes, and
+three jobs each took about that long, so no single fix made a run shorter.
+Carl asked for the run to be cut down (2026-10-23), from the timings of the
+last 40 runs.
+- **`checks` split three ways.** The unit suite was 190 to 285 seconds of the
+  job's 4.5 to 6.7 minutes. It is CPU-bound: 38 seconds on a laptop's 15
+  cores, 4.5 minutes of CPU. `checks` keeps typecheck, lint, the store
+  builds' server calls and the push delivery bundle; `unit` runs the suite
+  in three shards on three runners, each with coverage and a blob report;
+  `coverage` merges the reports (`vitest --merge-reports --coverage`) and
+  holds the thresholds, which a shard skips (`VITEST_COVERAGE_SHARD`,
+  `vitest.config.ts`). Vitest's own `--shard` deals files by a hash of their
+  path and put the memory and fleet tests in one shard (39 seconds against
+  5 on a laptop); `scripts/unit-shards.ts` deals them by weight, slow files
+  first, so the organization folder's memory test runs alone and sets the
+  shard's length. `gate` needs all three, and a failure in any of them on
+  main tells Linear that `checks` failed, as `checks` did.
+- **Setup in the background.** `web-smoke` loaded its 787 MB of cached
+  images in the foreground (about 75 seconds) before the stack could start,
+  and both browser jobs built the web export only once the stack was up
+  (40 to 60 seconds), because `e2e/env.sh` reads its settings from
+  `supabase status`. The development export needs only the stack's URL and
+  anon key, which are the CLI's fixed local values and are already in
+  `apps/mobile/.env.development`. Now each job starts the stack in the
+  background (`scripts/ci-background.sh`; it pulls its images, decision
+  164), builds the export in the background beside it, and installs the
+  browsers meanwhile.
+  `e2e/export-web.sh` keeps that export (`WEB_EXPORTED=1`) only when the
+  running stack has the same URL and key, and builds it again otherwise.
+- **Two smoke workers.** The eight smoke tests ran one at a time, 3 minutes,
+  the first 83 seconds while the Worker warmed up. They run two at a time
+  (`e2e/web-smoke.config.ts`); each signs up its own account.
+Reverse if: `unit` and `coverage` together take longer than the old
+`checks` did (three runners setting up for 30 seconds each), or a merged
+report covers less than one run of the whole suite does; the early export
+is built again often (the CLI's local keys changed, so update
+`.env.development`); or the smoke tests fail two at a time and not alone.
+
+## 164. A commit that already passed guardrails is not tested again: the merge queue takes the pull request's run of the same tree, and the push takes the queue's
+
+Date: 2026-10-23 · By: Carl Sauder · Status: accepted
+
+Reason: a merge took about 12 minutes after its pull request was green, and
+none of it tested anything new. The queue merges one pull request at a time
+with a merge commit (decision 150), so when main has not moved since the
+pull request's last run, the queue's entry has the same files as the commit
+that run tested (refs/pull/N/merge). Then the queue pushes that same commit
+to main, and the push run tested it a third time, on 9 runners. Carl asked
+(2026-10-23) to skip both, with a time limit on the first. Amends 150.
+- **The queue.** A green pull request run's `gate` uploads an artifact named
+  for the tree it tested, `tested-tree-<tree>`, kept a day. In the queue,
+  `scope` (`scripts/ci-tested.mjs`) looks for one named for the entry's
+  tree, from a guardrails `pull_request` run whose head is the entry's
+  second parent (the pull request's head), made in the last 60 minutes.
+  Found, `scope` says `tested` and every job, `checks`, `unit` and
+  `coverage` too, is skipped; `gate` passes and names that run. The head
+  must match, not only the tree: any branch could hold the same files and
+  a workflow that skips its tests. The limit is there because some checks
+  read things outside the tree: `server-calls` and `test:old-sync` read the
+  store builds from EAS, which change without a commit.
+- **The push.** A push whose commit has a green `gate` from a guardrails
+  `merge_group` or `push` run of that same commit runs no tests. A pull
+  request run's `gate` does not count: GitHub puts it on the pull request's
+  head, but it tested the head merged with main, so a branch fast-forwarded
+  to that head (develop) is tested. Any other push runs every job, as before.
+- **Caches.** A pull request can read only its own caches and main's; the
+  queue's are its own. The push run was what saved main's Docker images,
+  Playwright browsers and npm cache after a key changed. `warm-caches` does
+  that on a push that runs no tests: it looks each cache up, and only when
+  one is missing pulls and saves it (`.github/actions/docker-images` phase
+  `warm`, `.github/actions/playwright` `warm`). The Docker cache key moved
+  to `v2`: the v1 job images' cache held only `node:24-slim`, so every
+  `ui-web` shard pulled the stack from a registry. When ECR turns the CLI
+  away, it pulls the same images from `ghcr.io` (or Docker Hub), and `save`
+  looked only for ECR's names (seen in run 39994259704, this change's first).
+  `ci-docker-images.sh save` now gives each such copy ECR's name, the one the
+  CLI looks for first, and keeps nothing without the database image.
+- **No image cache in the browser jobs.** Measured on this change's pull
+  request (run 39996890150): with the cache cold and the CLI pulling, the
+  runs took 352 and 374 seconds; with it warm, 425. Fetching the 1.2 GB
+  archive took 26 to 54 seconds in the foreground, and loading it left the
+  `ui-web` shards waiting 76 to 98 seconds for the stack, against 22 to 68
+  when they pulled. ECR rate-limited both cold runs, and the CLI took every
+  image from `ghcr.io` without a failure. Carl chose (2026-10-23) to drop the
+  cache from `web-smoke` and `ui-web`, which set a pull request's length,
+  and rely on the CLI's pulls and `scripts/ci-retry-pull.sh`. `server` keeps
+  it: it ends minutes before the browser jobs, so the load costs no wall
+  time there. So do the nightly jobs, which nobody waits for and which would
+  lose a night's results to a refused pull. `warm-caches` keeps both
+  caches filled for them.
+- **What else read the push run.** The flake tracker counts merge queue runs
+  too (`scripts/ui-flake-report.mjs`). `gate` still tells Linear when
+  `checks`, `unit` or `coverage` failed on a push that ran them.
+Building several queue entries at once was weighed and left out: merges
+seconds apart would lose release-branch copies (decision 150, amended
+2026-10-23; decision 155), and `scripts/githubRules.test.ts` holds one.
+Reverse if: a merge into main breaks main though its queue entry took a
+pull request's run (then the tree is not the whole input, and the queue
+runs every job again); pull requests miss main's caches after a key
+change (then `warm-caches` is not filling them); or a browser job fails
+because both ECR and `ghcr.io` refused its pulls (then the browser jobs
+restore the image cache again, loading it in the background).
+
+## 165. The sync icon's number counts only what this device has to send; its ring also turns while others' recordings download
+
+Date: 2026-10-23 · By: Carl Sauder · Status: accepted
+
+Reason: the header's sync icon (d5515aae) counted events, uploads and
+downloads in one number, and named it "N to send". A phone with one note
+waiting said "Offline, 26 to send" while 25 recordings came down, which is
+untrue, and the nightly UI suite caught it (NAV-095, WEB-027; LAN-96).
+Counting sends only would have hidden downloads from the header: a phone
+still receiving would look idle, and someone could go offline before their
+team's recordings had arrived. Carl chose (2026-10-23):
+- **The number and the spoken name** count events (language and
+  organization) and recordings not yet uploaded: "Live, 2 to send"
+  (`iconCounts` in `apps/mobile/src/sync/syncStanding.ts`).
+- **The ring** turns for anything in flight, recordings coming down too.
+  With nothing to send and recordings coming down, the name says
+  "Live, receiving recordings" and help mode says the ring is downloads.
+- **The Sync screen** keeps "To send" and "To receive" apart, as before.
+Reverse if: people read a turning ring with no number as stuck, or ask how
+many recordings are still coming (then the icon gets a second count).
+
+## 166. What is on the device and what waits to upload is shown by passage: a download button on every passage, an upload bar while anything waits, and the Sync screen by passage with a record of what went up
+
+Date: 2026-10-25 · By: Caleb Koster · Status: accepted
+
+Reason: a tester asked whether translators can work fully offline and then
+sync, after the app "would not load" with the phone offline (a build from
+before decision 87). Caleb found the app's answers hard to read: a tiny cloud
+mark on chapter tiles said a passage was kept, keeping one was under
+"Something else?", a book divided into passages showed chapter tiles although
+a passage can run across chapters, nothing said plainly that recordings made
+offline wait on the phone or how many, the Sync screen listed event names
+("TakeComposed · Luke 13:1–9"), nothing said when work went up, and an update
+check that failed offline showed Android's own error ("Unable to resolve host
+u.expo.dev"). So:
+- **Download buttons.** Every passage's row and every chapter's tile has a
+  round download button (`DownloadButton`, sync/offline.tsx): an outline to
+  download, an arrow wave moving down while it does (`WaveArrow`,
+  sync/transit.tsx), amber when offline and not all here, green once it is. The top of a passage is the same button as a line
+  ("Download for offline", "Downloading for offline · 3 of 5", "On this
+  device"); the card under "Something else?" is gone. A book says how many of
+  its passages are ready on this device. Tapping keeps the passage, stops
+  keeping one the person chose, or says why it is kept (asked of them, worked
+  on). Decision 61's per-unit choice stands; the cloud marks and the map key's
+  "On this device" go.
+- **Passages, not chapters.** A book whose passages are not its chapters one
+  each (`chaptersAreWhole`, map/mapModel.ts) shows its passages as rows, 25 at
+  a time, instead of chapter tiles. Chapter tiles are four across on a phone
+  (five before), big enough for a thumb and their download button.
+- **The upload bar.** While recordings or changes wait to upload, a bar over
+  every screen says how many ("3 recordings waiting to upload", changes only
+  when no recording waits), and "Offline" or "Uploading"; it says "All
+  uploaded" for four seconds when the last went. While they go up, its arrow
+  waves upward. It opens the Sync screen as
+  chrome, like a tab or the Global Viewer link (decision 158), not along a
+  flow edge, and does not open it from a recording screen.
+- **The Sync screen by passage.** It starts with recordings as packages
+  between a phone and a cloud (`TransitScene`, sync/transit.tsx), with how
+  many wait to go up and to come down: online they leave the phone's belt
+  for the cloud and arrive from it; offline the front one rises to a
+  no-signal line and drops back (Caleb's idea, 2026-10-25). Then how much
+  waits (or "All uploaded" and when the last upload was), then "Waiting to
+  upload" by passage ("0 of 3 recordings uploaded", one box per recording
+  turning green as it goes, from each passage's most recordings since its
+  queue was last empty), then "Uploaded": what this device sent, by day,
+  passage and time. The event list stays under Details, for support. The
+  motion is transforms and opacity on the native driver and stops under
+  reduce motion.
+- **A record of what went up.** The language session keeps a short log on
+  the device (`packages/sync/src/sentLog.ts`, the store's meta table): files
+  as each upload finishes and changes as the server accepts them
+  (`SyncClientOptions.onSent`), by passage, a sitting's worth joined into one
+  line, at most 300 lines. It is for people to read and drives nothing. It
+  starts empty on each device with this build.
+- **No update errors.** A failed update check or download shows nothing;
+  diagnostics get the reason, and the next return to the app looks again.
+  Only "Downloading update…" and "Update ready — tap to restart" show.
+Reverse if: people miss the event list (then plain names for each kind join
+the passage rows), the bar over every screen crowds small phones (then it
+moves into the headers), or teams want a whole book downloaded at once (then
+a book gets its own button, which decision 61 left out).
+
+Amended (2026-10-25, Caleb Koster): every line says only what this device
+knows. Caleb, after the first build: offline, a passage he had not
+downloaded still offered "Download for offline", and tapping it said "Kept
+on this device" at once; "Above all, these indicators … must tell the
+truth. They cannot assume anything." The old app's false flags had caused
+partners and users real trouble. So:
+- **Offline is the phone's word as well as the server's.** `ctx.language.online`
+  is false as soon as the operating system says there is no network
+  (expo-network, `saysOffline`), not only after the next sync attempt fails.
+- **Online is only the server's word.** Caleb: some checks "show that the
+  phone is online … even if the user has a VPN turned on and they have no
+  internet connection". The operating system's "connected" says nothing
+  about a VPN with no internet behind it, a hotspot's sign-in page or a SIM
+  out of data, and a sync then hangs with no answer while the last result
+  still says online. So the app counts what the server itself said
+  (`sync/reachModel.ts`, `useServerReach`): each sync it answered
+  (`LanguageSessionOptions.onAnswered`), each answer to the live channel's
+  heartbeat (every 15 s, `server/supabase.ts`), and, when neither has come
+  for 20 s while the app is on screen, a check of its own
+  (`server/reachability.ts`: `/auth/v1/health`, counted only when the
+  server's own JSON comes back within 8 s). An unanswered check says
+  "Offline" at once, unless something answered after it was asked; the
+  next answer of any kind clears it and syncs. With the live channel up
+  the heartbeat answers, so the check seldom runs; it costs one small
+  request every 20 s otherwise, and none off screen or with no network.
+  SYNC-034.
+- **No download is offered offline.** A passage not kept says "Download
+  needs a connection" and does nothing. Keeping one shows no toast: the
+  line itself says what happens.
+- **"On this device" only once counted.** A passage says it only when the
+  session's own count of its files says every one is here (decision 147:
+  rows as well as audio); until the count has it, "Checking this device…".
+  Kept but not all here: "Only {here} of {total} files on this device".
+- **Moving only while moving.** The session publishes which passages have a
+  file going up or coming down right now (`uploading`, `downloading`).
+  "Uploading", "Downloading for offline", the arrow waves and the packages'
+  flights show only then. Work merely waiting is "Saved on this device".
+- **"All uploaded" means everywhere.** A phone syncs the language it has
+  open, so other languages' work waits on the device: their changes come
+  from the event log (`pendingStreamsBy`) and their recordings from each
+  session's last count (`files-waiting:<org>/<language>` in the store's
+  meta). They count in the bar and show as rows on the Sync screen.
+- **Nothing new is not known offline.** "To receive" and the transfers say
+  "Offline" there, not "None" or "Up to date"; the top count shows only when
+  something is known to wait. Settings' sync line says recordings waiting,
+  and offline before "Live".
+- **Sent means sent.** Offline, asking someone, a review and a published
+  version say who gets it when the device is connected.
+
+## 167. The nightly mutation run is four shards of core's files, dealt by what each costs, and one merged score
+
+Date: 2026-10-26 · By: Carl Sauder · Status: accepted
+
+Reason: Stryker over all of `packages/core` never finished at night (LAN-97).
+Core grew from about 10,700 mutants (2026-10-14, 7 minutes on a laptop) to
+20,158, and the job ran 7 workers on a 4-core runner, so its own timeouts
+killed mutants: on 2026-10-23 it had tested 12% when the job's 40 minutes
+ran out, and since the incremental file is written only at the end, no
+night ever started further on. Carl chose (2026-10-26) to shard it.
+- **Dealt by cost.** `scripts/mutation-shards.mjs` deals core's files to
+  four shards, the slowest first, each to the lightest shard so far. A
+  file's cost is its mutants times the tests each one runs, measured once
+  and listed in `SLOW_SECONDS` (as `scripts/unit-shards.ts` does for the
+  unit suite); neither lines nor bytes stood for it (`catalogData.ts` is
+  139 kB of static data that Stryker leaves alone).
+- **Four, not eight.** A file cannot be split, and `passage.ts` and
+  `validate.ts` each take about ten minutes alone on a laptop, so no shard
+  ends sooner than they do: eight shards would end no earlier than four,
+  on twice the runners. The rest of core fits in the other two.
+- **Each shard** runs four workers, has its own incremental file and cache
+  key, and 90 minutes. `nightly-mutation` merges their reports into one
+  `mutation-core` artifact and one score, and is the job Linear hears about.
+- `npm run test:mutation` still runs all of core at once, for a laptop.
+Reverse if: a shard runs out of time (then measure again and split the
+slow file's tests, or give it its own runner), or Stryker learns to keep
+partial results, so one job could carry on from where the last night
+stopped.
+
+## 168. Signing out of a phone locks the sign-in on it, and a picture and pattern, or the password, opens it again offline
+
+Date: 2026-10-26 · By: Caleb Koster · Status: accepted
+
+Reason: amends 60 and 87. Every way into the app needed the server (a
+password, a helper's code, an invite), so someone who signed out offline
+could not get back in, or reach the work kept on the phone, until it was
+online, which in the field can be months; on a shared phone nobody else
+could get in either. Caleb said (2026-10-12) that signing out and back in
+must both work offline: field users will tap Sign Out, and in countries
+where Christians are persecuted they may do so on purpose before a phone is
+taken. Of the options put to him then he chose an encrypted lock with no
+names on Sign In, a swipe pattern rather than digits, and a picture for each
+person to find themselves by. That work (pull request 90) was merged into a
+branch that had already reached main, so it never shipped; Caleb asked
+(2026-10-26) for it on main, with nothing lost and nobody signed out. Little
+research covers low-literacy users: less-literate smartphone users already
+lock their phones with a PIN or a pattern; patterns are faster and liked,
+PINs give fewer errors; text-free designs suit non-literate users. A pattern
+needs no reading and no numbers, in any language. Chosen:
+- On a phone, Sign Out seals the person's session (AES-256-GCM) with a
+  random data key the phone keeps for them while they are signed in, and
+  keeps that key only wrapped under their password and, if they drew one, a
+  pattern (PBKDF2-SHA256, 10,000 rounds stored per wrap; `@noble/hashes`,
+  `@noble/ciphers`) (`apps/mobile/src/auth/sealModel.ts`,
+  `apps/mobile/src/server/lock.ts`; the web build takes `lock.web.ts`, which
+  does nothing). The lock, the key and the sealed session
+  live in the Keychain or Keystore with the session (60, amended
+  2026-10-15). It asks the server nothing and no longer ends the session
+  there. Neither the password nor the pattern is stored; an email or sign-in
+  name is kept only as a hash salted per phone. The rounds are few on
+  purpose: plain JavaScript is slow at them (50,000 took 15 seconds on the
+  simulator's debug build, 10,000 took 3), and against a copied lock the
+  patterns fall whatever the count. The stretching pauses on a timer, so
+  "Signing in…" shows and the screen does not freeze.
+- The password wrap is made on every online sign-in with a password and
+  when a password is set (`rememberPassword`); the same password typed
+  again brings back the key it wrapped, so a pattern stays good. Someone
+  with no password here (a QR join, a helper's code, or signed in before
+  this build) chooses a picture and draws a pattern twice when they first
+  sign out; anyone may add or change one there. Two people on one phone
+  never share a picture (sixteen things known everywhere, drawn by the
+  phone's emoji font); they may share a pattern, since the picture says
+  whose lock to open.
+- A pattern joins at least five of nine dots, as on the Android lock screen
+  (`apps/mobile/src/auth/patternPad.tsx`): dragging and lifting finishes it;
+  tapping the dots one at a time and then Done works too, which is also how
+  a screen reader enters one.
+- Sign In tries a typed password against the lock before the server. While
+  someone here can come back with a pattern it shows their pictures, never
+  names: tap yours, then draw (`signBackIn`). Wrong guesses count for that
+  person's lock: four are free, then each try waits twice as long, from a
+  minute up to an hour. Words that explain any of this are in help mode,
+  not on the screen.
+- Unsent work stays as 60 has it: a hand-over still sends it as its author
+  when the phone is online, and its kept session is sealed too. Coming back
+  takes the session back from the courier (`takeBackHandOver`); after the
+  courier is done the session stays sealed for its owner instead of being
+  ended. A session the server ended takes the lock's copy with it.
+- Signing in again here by any other way drops an older sealed session of
+  theirs (`signedInHere`). A browser forgets everything on sign-out (11), as
+  before.
+What it guards against: the next person on a shared phone, and someone who
+takes the phone and tries patterns in the app. Someone who gets past the
+Keychain or Keystore and copies the lock can try all of about 390,000
+patterns as fast as their computer allows, so a pattern then holds for
+hours, a long password much longer; a pattern is also easier to see over a
+shoulder than a PIN. A helper marking the phone lost (59) ends the session
+on the server the next time the phone is online. Nothing new leaves the
+phone, so no store answer changes (`docs/play-store-declarations.md`).
+Tests `apps/mobile/test/lockModel.test.ts`, `lockFlow.test.ts`,
+`handOverSend.test.ts`.
+Reverse if: people forget their pattern more often than they come back with
+it (then offer a helper's code first), or a locked phone is opened by
+someone it does not belong to (then a larger grid, or a server-held key).
+
+## 169. An account writes at most 20,000 events or 100 MB dated any one day, a person's stream holds each event once, and a language's member reads only their languages' templates
+
+Date: 2026-10-26 · By: Carl Sauder · Status: accepted
+
+Reason: a security audit (2026-10-26) found that decision 115 bounded each
+event but not how many, so any account (sign-up is open and confirms no
+email) could fill a log that never sheds an event, through `append_events`
+or `record_user_event` with ids of its own choosing. 115 turned down a quota
+on events per day because it would refuse a phone pushing weeks of offline
+work at once; this one is counted by the day on each event's own clock, so
+that work goes up when it reaches the server. Carl chose (2026-10-26):
+- **The allowance.** A signed-in account writes at most 20,000 organization
+  and language events, or 100 MB of their payloads, dated any one UTC day
+  (`append_allowance`, `_append_allowance_refusal`, migration
+  20261026200000). In the local data, v2's history included, a person's
+  busiest day is about 9,300 events and 1.9 MB, and the 99th percentile
+  about 1,150. A day is never earlier than the day the account was made, so
+  a new account cannot date events into the past to write more: an abuser
+  gets 20,000 events a day of the account's age. Only what was taken
+  counts, not duplicates or refusals, and the service role's imports and
+  seeds are not counted.
+- **An event over it is refused on its own**, `may not emit <type>: this
+  account has written 20000 events dated <day>`, which the phone keeps and
+  shows (invariant 1, `NOT_ALLOWED`), and the rest of the push goes on.
+  Failing the whole push, so the phone would try again, was the first
+  choice, made while the allowance was counted by the day the server
+  received events; counted by the event's day, an allowance that is used up
+  stays used up, so a failed push would have held back that language's
+  uploads for good.
+- **A person's stream holds each event once.** `VisionSeen` and
+  `WalkthroughDone` are kept once, with an empty payload; `TermsAccepted`
+  once a version, with only the version, and at most 100 versions. A repeat
+  is answered as done, so a phone that sends one again sees no error.
+- **`invitecheck:` is the server's.** `redeem_invite_for` puts the person
+  joining on the invite's check teams with ids that begin `invitecheck:`,
+  which `_server_event_id` did not reserve, so a member who knew the
+  invite's id could take one first and the person would quietly not join
+  the team.
+- **`library_template_users` names only the languages the caller may read**
+  (`can_read_stream`), as `language_book_names` does; a language's member
+  saw every language's template. Defining or publishing a library item
+  takes an organization-wide role, which reads every language, so the
+  app's choice between a new version and a copy (`breakup/model.ts`
+  `planChange`) is the same for everyone who can make it.
+- **Kept on purpose:** `register_push_token` and `diag_ingest` move a push
+  token or an install id to whoever registers it. On a shared phone the next
+  person must take over the phone's token when the hand-over could not
+  unregister it offline, and knowing either id takes the device.
+Reverse if: real work dates more than 20,000 events or 100 MB to one day
+for one person (then raise the allowance, or count by language), or phones
+with clocks set far back start being refused (then measure how far, and
+count their events on the day received).
+
+## 170. Reading a language's work and seeing its report are two rules on purpose, and core holds both against SQL
+
+Date: 2026-10-26 · By: Carl Sauder · Status: accepted
+
+Reason: a separation-of-concerns audit found read access written twice with
+different answers and nothing comparing them. SQL `_can_read_stream_at`
+(and `blob_access` through it) lets anyone with any privilege on a language
+read its stream and files; core's `mayViewLanguage`, which the Worker uses
+for reports and agent views, needs `view_status`. Every seeded role has
+`view_status`, so they disagree only for a custom role without it, but the
+file-write rule in `blob_access` existed only in SQL, and
+`scripts/record-parity-sql.ts` checked writes of events alone. Carl chose
+(2026-10-26) to keep both rules and pin them:
+
+- Reading the work (the stream, its files) needs any privilege on the
+  language, or for the organization stream any membership; seeing its
+  report needs `view_status`. A custom role without `view_status` may
+  record and review a language yet not see its report.
+- Core says both: `mayReadLanguage` and `mayWriteFiles` (`org.ts`) mirror
+  `_can_read_stream_at` (a person who is not a Global Viewer) and the write
+  branch of `blob_access`, beside `mayViewLanguage`, and say why they
+  differ.
+- `scripts/record-parity-sql.ts` (the `server` guardrail) generates roles,
+  memberships and languages and compares the SQL answers with core's, as it
+  already did for `role_may_emit_event`.
+- No call site changed: the Worker still asks SQL for files and core's
+  `mayViewLanguage` for reports.
+
+Reverse if: a role should read a language without being able to see its
+progress for a reason the team does not accept, when the report rule
+becomes the read rule; or the two rules are found to confuse people (work
+visible, report refused), when the screens say why.
+
+## 171. A phone can wear a disguise: a calculator or notepad icon, and in front of the app a calculator or notepad that the person's code opens
+
+Date: 2026-10-26 · By: Caleb Koster · Status: accepted
+
+Reason: some translators work where being found with a Bible translation app
+is a danger. The old app had a disguise (v2, July 2026, PRs 900 to 907) and
+Caleb asked for it in this one. It works as v2's did, with these choices:
+- **Where.** Me → More settings → App icon (`src/disguise/DisguiseRow.tsx`),
+  phones only: LangQuest's own icon, or one of five calculators or five
+  notepads, our own drawings (`assets/disguise`). The row is called App
+  icon, as v2's was, not Disguise.
+- **Icon and code together.** Choosing a calculator or notepad asks for a
+  code of 4 to 12 digits, then opens that calculator or notepad full screen
+  to type it. The disguise goes on only once it has been typed there, so the
+  try teaches how the app will open, with no text explaining it. v2 had the
+  icon and an App lock switch apart; an icon without the lock opened
+  LangQuest from "Calculator", and a lock without the icon was a calculator
+  behind LangQuest's own icon, so here there is one choice. LangQuest's own
+  tile takes it off.
+- **What opens.** A disguised phone opens on a calculator that works or a
+  notepad that keeps its note (`src/disguise/faces.tsx`), before sign-in and
+  before anything of the app starts (`DisguiseGate`, around everything in
+  App.tsx), so nothing of LangQuest shows, asks or sounds. The calculator
+  opens the app as the code's last digit is typed, with no = to press; the
+  notepad, on a line that is only the code, which then leaves the note. A
+  wrong code does what a calculator or notepad would. Android's Back leaves
+  it as it would a calculator.
+- **Locks when left.** v2 locked again only when the app was closed. Here
+  leaving the app (the app going to the background) puts the disguise back,
+  so a phone handed over with LangQuest open behind another app opens on the
+  calculator. The app stays as it was under it, so the code brings back the
+  same screen, sheet or recording. Every modal draws the disguise over itself
+  (`ModalCover`, `src/ui/coverContext.ts`), since a modal is above the app's
+  own view. The cost: Android counts a permission prompt or the share sheet
+  as leaving, so the code is typed again after one.
+- **On the phone only.** Which look is kept in the app's key-value store,
+  read at once at start; the code only as a salted SHA-256 in the Keychain or
+  Keystore (`src/disguise/disguise.ts`). Nothing is sent and no connection is
+  needed. Turning it on disconnects this phone's notifications (each would
+  say LangQuest), tried again each time the app opens until the server has
+  heard, and More settings offers none while it is on.
+- **Icons need a store build.** `expo-alternate-app-icons` changes the icon;
+  `./plugins/withDisguiseIcons` names each Android alias "Calculator" or
+  "Notes" in the phone's language (`native.calculator`, `native.notes`) and
+  gives each the app's link filters, since the usual launcher entry is
+  turned off while a disguise is on. iOS cannot rename an app, so an iPhone
+  shows the new icon over "LangQuest Next", and iOS says that the icon
+  changed. A build made before this has no other icons and offers no App
+  icon row.
+- **Told, not hidden.** v2 hid the feature's names in its public source
+  behind an XOR encoding. Apple now removes apps for hidden or undocumented
+  features (App Review Guidelines 2.5.19, added 2026-10-16), so this code
+  names it plainly, and the App Review notes describe it
+  (docs/play-store-declarations.md). Google's Deceptive Behavior policy allows
+  a home-screen change the person makes and can undo.
+Reverse if: Apple or Google turns a build down for it (then the calculator
+and notepad stay and the icon goes, or the reverse), people lose their codes
+(then a way back through sign-in is needed, which the disguise must not show),
+or typing the code after every permission prompt or share drives people to
+turn it off (then leaving for a few seconds does not lock).
+
+## 172. FIA's key words are a key-word list per language, picked apart from FIA's guides, shown where a passage links or says them, and every reference list can be searched
 
 Date: 2026-10-20 · By: Caleb Koster · Status: accepted
 

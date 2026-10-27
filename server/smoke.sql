@@ -371,12 +371,25 @@ do $$ declare n int; begin
   if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u2') <> 12 then raise exception 'a changed line is rewritten'; end if;
   if exists (select 1 from public.passage_lines where stream_id = 'L1' and unit_id = 'u3') then raise exception 'a line no longer written goes'; end if;
   if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = '') <> 12 then raise exception 'the lines hold at the newest pass'; end if;
+  -- The head's counts were kept when the rows moved in; the lines carry digests only from the delta write.
+  if (select unit_counts from public.snapshots where stream_id = 'L1' and server_seq = 11) <> '[["u1",3],["u2",1]]'::jsonb then raise exception 'put_snapshot keeps the head counts'; end if;
+  if public.passage_line_digests('org1', 'L1', 1) <> '{"u1":null,"u2":null}'::jsonb then raise exception 'lines written whole have no digest'; end if;
+  perform public.put_passage_lines_delta('org1', 'L1', 1, 13, '[{"unitId":"u1","x":1},{"unitId":"u2","x":6},{"unitId":"u4","x":4}]'::jsonb,
+    '{"u1":"d1","u2":"d2","u4":"d4"}'::jsonb, '[]'::jsonb);
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u1') <> 11 then raise exception 'a delta line equal to the stored one keeps its seq'; end if;
+  if (select server_seq from public.passage_lines where stream_id = 'L1' and unit_id = 'u2') <> 13 then raise exception 'a delta line that changed is rewritten'; end if;
+  perform public.put_passage_lines_delta('org1', 'L1', 1, 14, '[]'::jsonb, '{}'::jsonb, '["u4"]'::jsonb);
+  if exists (select 1 from public.passage_lines where stream_id = 'L1' and unit_id = 'u4') then raise exception 'a removed passage loses its line'; end if;
+  if public.passage_line_digests('org1', 'L1', 1) <> '{"u1":"d1","u2":"d2"}'::jsonb then raise exception 'digests wrong'; end if;
+  -- The whole write puts the lines as the pass last worked them (u2 back to 5), and clears the digest of the one it changed.
+  perform public.put_passage_lines('org1', 'L1', 1, 15, '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb);
+  if public.passage_line_digests('org1', 'L1', 1) <> '{"u1":"d1","u2":null}'::jsonb then raise exception 'a changed line loses its digest'; end if;
 end $$;
 select set_config('request.jwt.claim.sub', 'lead', false);
 do $$ declare h jsonb; p jsonb; begin
   h := public.get_snapshot_head('org1', 'L1', 1, 1);
   if h->>'server_seq' <> '11' or h->'units' <> '[["u1",3],["u2",1]]'::jsonb or h->'shared' <> '{"units":{}}'::jsonb
-     or h->'lines'->>'seq' <> '12' or h->'lines'->'lines' <> '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb then
+     or h->'lines'->>'seq' <> '15' or h->'lines'->'lines' <> '[{"unitId":"u1","x":1},{"unitId":"u2","x":5}]'::jsonb then
     raise exception 'head wrong: %', h;
   end if;
   if public.get_snapshot_head('org1', 'L1', 1, 1, false) ? 'shared' and public.get_snapshot_head('org1', 'L1', 1, 1, false)->'shared' <> 'null'::jsonb then
@@ -987,7 +1000,7 @@ do $$ declare v text; begin
     and p.proname not in ('preview_invite');
   if v is not null then raise exception 'anon may run security definer functions: %', v; end if;
   select string_agg(f, ', ') into v
-  from unnest(array['put_snapshot', 'stage_snapshot_units', 'put_passage_lines', 'list_streams', 'list_streams_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
+  from unnest(array['put_snapshot', 'stage_snapshot_units', 'put_passage_lines', 'put_passage_lines_delta', 'passage_line_digests', 'list_streams', 'list_streams_page', 'snapshot_heads_page', 'record_blob', 'invalidate_blob', 'org_privileges', 'blob_access',
                      '_library_media_readable', 'may_emit']) f
   where exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = f
     and has_function_privilege('authenticated', p.oid, 'execute'));
@@ -1102,5 +1115,49 @@ do $$ begin
   if not public.is_managed_account('24000000-0000-0000-0000-00000000000b') then raise exception 'an account join made is looked-after'; end if;
 end $$;
 delete from auth.users where id in ('24000000-0000-0000-0000-00000000000a', '24000000-0000-0000-0000-00000000000b');
+
+-- 25. A v2 project that has come over comes over again into another
+-- organization as a new language (decisions.md 94, amended 2026-10-24); the
+-- board itself still never moves one, and the first copy is remembered.
+insert into v2_import.orgs (org_id, name, admins) values ('org-v2-smoke-a', 'Smoke A', '{}'), ('org-v2-smoke-b', 'Smoke B', '{}');
+insert into v2_import.placements (project_id, org_id, confirmed_by, confirmed_at) values ('v2-smoke-p', 'org-v2-smoke-a', 'smoke', now());
+insert into v2_import.placements (project_id, org_id) values ('v2-smoke-q', 'org-v2-smoke-a');
+do $$ declare p v2_import.placements; m v2_import.moves; begin
+  begin
+    perform public.v2_import_move('v2-smoke-q', 'org-v2-smoke-b', 'lang-new-q', 'smoke');
+    raise exception 'a project that has not come over cannot come over again';
+  exception when check_violation then null;
+  end;
+  begin
+    perform public.v2_import_move('v2-smoke-p', 'org-v2-smoke-a', 'lang-new', 'smoke');
+    raise exception 'coming over again into the same organization should be refused';
+  exception when check_violation then null;
+  end;
+  begin
+    perform public.v2_import_move('v2-smoke-p', 'org-v2-smoke-b', 'v2-smoke-p', 'smoke');
+    raise exception 'the new language needs an id of its own';
+  exception when unique_violation then null;
+  end;
+  begin
+    perform public.v2_import_save_plan('[]', '[{"project_id": "v2-smoke-p", "org_id": "org-v2-smoke-b", "confirmed": true}]', 'smoke');
+    raise exception 'the board must not move a project that has come over';
+  exception when check_violation then null;
+  end;
+  perform public.v2_import_move('v2-smoke-p', 'org-v2-smoke-b', 'lang-new', 'smoke');
+  select * into p from v2_import.placements where project_id = 'v2-smoke-p';
+  if p.org_id <> 'org-v2-smoke-b' or p.language_id <> 'lang-new' or p.moved_at is null then raise exception 'the placement did not take the move: %', p; end if;
+  select * into m from v2_import.moves where project_id = 'v2-smoke-p';
+  if m.from_org <> 'org-v2-smoke-a' or m.from_language <> 'v2-smoke-p' or m.to_language <> 'lang-new' then raise exception 'the first copy is not remembered: %', m; end if;
+  -- The board, saving the project where it now is, keeps its new language.
+  perform public.v2_import_save_plan('[]', '[{"project_id": "v2-smoke-p", "org_id": "org-v2-smoke-b", "name": "Renamed", "confirmed": true}]', 'smoke');
+  select * into p from v2_import.placements where project_id = 'v2-smoke-p';
+  if p.language_id <> 'lang-new' or p.name <> 'Renamed' then raise exception 'saving the board lost the new language: %', p; end if;
+  if (public.v2_import_plan()->'placements') @> '[{"project_id": "v2-smoke-p", "language_id": "lang-new"}]' is not true then
+    raise exception 'the plan does not carry the language id';
+  end if;
+end $$;
+delete from v2_import.moves where project_id = 'v2-smoke-p';
+delete from v2_import.placements where project_id in ('v2-smoke-p', 'v2-smoke-q');
+delete from v2_import.orgs where org_id in ('org-v2-smoke-a', 'org-v2-smoke-b');
 
 select 'smoke ok' as result;

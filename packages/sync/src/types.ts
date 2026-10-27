@@ -61,6 +61,14 @@ export interface EventStore {
   get(id: string): Promise<LocalEvent | undefined>;
   /** Rejected events for a stream, oldest first, so the UI can show them and the client can retry them. */
   rejected(orgId: string, streamId: string): Promise<LocalEvent[]>;
+  /** How many `rejected` would return, without reading them: the session counts after every append. */
+  rejectedCount?(orgId: string, streamId: string): Promise<number>;
+  /**
+   * The rejected events whose reason contains `text` (any case): push puts
+   * not-listed refusals back on every run, and a backlog of other refusals
+   * need not be read and parsed each time to find none.
+   */
+  rejectedWith?(orgId: string, streamId: string, text: string): Promise<LocalEvent[]>;
   /** Pending events for a stream, oldest first. The sync status screen reads this; push reads pages. */
   pending(orgId: string, streamId: string): Promise<LocalEvent[]>;
   /**
@@ -104,6 +112,8 @@ export interface EventStore {
   keptAll(orgId: string, streamId: string, kind: KeptKind): Promise<KeptRecord[]>;
   /** Passages holding a kept record of these kinds; with `ref`, only records with that second key (a person's recordings). */
   keptUnits(orgId: string, streamId: string, kinds: readonly KeptKind[], ref?: string): Promise<string[]>;
+  /** Which of these passages hold a kept record of these kinds: a batch's question, not the whole language's. */
+  keptUnitsAmong(orgId: string, streamId: string, kinds: readonly KeptKind[], unitIds: readonly string[]): Promise<string[]>;
   /** How many records of one kind a stream keeps. */
   keptCount(orgId: string, streamId: string, kind: KeptKind): Promise<number>;
   /** Small device-level key/value state: device id, persisted clocks. */
@@ -205,12 +215,15 @@ export interface SnapshotMeta {
  */
 export type RejectCode = 'NOT_MEMBER' | 'NOT_ALLOWED' | 'NOT_LISTED' | 'INVALID' | 'CLOCK_AHEAD' | 'UNKNOWN';
 
+/** What the server's not-listed refusal says; `requeue` asks the store for it by this text. */
+export const NOT_LISTED_TEXT = 'language not listed';
+
 export function rejectCodeOf(reason: string | undefined): RejectCode {
   const r = reason ?? '';
   if (/clock ahead/i.test(r)) return 'CLOCK_AHEAD';
   // A language's events reached the server before the organization stream
   // listed it (two streams, two outboxes): retried on every push.
-  if (/language not listed/i.test(r)) return 'NOT_LISTED';
+  if (r.toLowerCase().includes(NOT_LISTED_TEXT)) return 'NOT_LISTED';
   if (/not a member/i.test(r)) return 'NOT_MEMBER';
   if (/may not emit/i.test(r)) return 'NOT_ALLOWED';
   if (/invalid payload|malformed|does not match/i.test(r)) return 'INVALID';

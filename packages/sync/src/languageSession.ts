@@ -1,10 +1,11 @@
 import {
-  audioFormatsFor, concerning, decodeHlc, filePlanOf, languageLines, updatesFor, uploadWorkOf,
-  type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
+  audioFormatsFor, changesByPassage, concerning, decodeHlc, filePlanOf, languageLines, updatesFor, uploadWorkOf,
+  type AnyEvent, type BlobRef, type EventPayloads, type EventSpec, type EventType, type LanguageState,
   type LostFilesView, type OfflineSummary, type PassageLine, type PassageLines, type UnitOffline, type Update
 } from '@langquest-next/core';
 import { RECORD_KINDS } from './keptLanguage';
 import { LanguageFiles } from './languageFiles';
+import { noteSent, readSentLog, sameUploads, uploadsByPassage, type PassageUploads, type SentEntry } from './sentLog';
 import { SyncClient, type SyncClientOptions, type SyncResult } from './syncClient';
 import { SyncScheduler } from './syncScheduler';
 import { DOWNLOAD_DEFAULTS, TransferWorker, UPLOAD_DEFAULTS, type TransferBudget } from './transferWorker';
@@ -22,6 +23,7 @@ export interface LocalFiles {
   presentView?(): ReadonlySet<string>;
   /** Changes whenever the set of files does: lets a copy be skipped when nothing changed. */
   readonly version?: number;
+  /** Sizes of the files here, possibly the live map: read at once, never kept or changed. */
   sizes(): ReadonlyMap<string, number>;
   sizeOf(hash: string): number | undefined;
   /** The format a file was stored in, which can differ from the one asked for (WAV on a browser without MP4). */
@@ -81,6 +83,20 @@ export interface LanguageStatus {
    * "Downloading this language". Null when every passage is here.
    */
   fill: { filled: number; total: number } | null;
+  /**
+   * Recordings waiting to upload, by passage, with how many there were since
+   * the passage's queue was last empty: "7 of 9 uploaded" (decisions.md 166).
+   */
+  uploads: ReadonlyMap<string, PassageUploads>;
+  /** What this device sent of the language, newest first: the Sync screen's "Uploaded" (sentLog.ts). */
+  sent: readonly SentEntry[];
+  /**
+   * Passages with a file going up or coming down at this moment: a screen
+   * says "Uploading" or shows a download moving only while one is
+   * (decisions.md 166), never because work is merely waiting.
+   */
+  uploading: ReadonlySet<string>;
+  downloading: ReadonlySet<string>;
 }
 
 export interface LanguageSessionOptions {
@@ -111,6 +127,13 @@ export interface LanguageSessionOptions {
    * syncing again will not change. Never offline, never with more to pull.
    */
   onSettled?: (o: { blobsWanted: number }) => void;
+  /**
+   * The server answered a sync, at `at` (the client's `now`). Every time,
+   * though nothing else changed: how recently it answered is what says the
+   * device is still online (decisions.md 166), and a status change per sync
+   * would redraw every screen.
+   */
+  onAnswered?: (at: number) => void;
   /** Poll interval and backoff for the scheduler; its defaults otherwise. */
   scheduler?: { pollMs?: number };
   /**
@@ -130,6 +153,11 @@ const INBOX_PASSAGES_PER_READ = 25;
 export const FILE_NEWS_MS = 500;
 
 const keepKey = (orgId: string, languageId: string) => `keep:${orgId}/${languageId}`;
+const sentKey = (orgId: string, languageId: string) => `sent:${orgId}/${languageId}`;
+/** Recordings of a language still to upload, as its session last counted them: what other languages' screens say is waiting there. */
+export const filesWaitingKey = (orgId: string, languageId: string) => `files-waiting:${orgId}/${languageId}`;
+/** How long what went up gathers before the log is written to the store. */
+const SENT_SAVE_MS = 1000;
 
 /**
  * One language's stream on this device, kept and moved (decisions.md 37,
@@ -155,6 +183,11 @@ export class LanguageSession {
   private recountAt: ReturnType<typeof setTimeout> | undefined;
   /** The upload worker's last work list: what `probe` reports for a language kept on disk. */
   private lastUnsent: BlobRef[] = [];
+  /** Files sent this session that the server has not confirmed yet: uploaded, though still on the upload list. */
+  private readonly sentFiles = new Set<string>();
+  /** Each passage's most recordings waiting since its queue was last empty. */
+  private readonly upPeaks = new Map<string, number>();
+  private sentSaveTimer: ReturnType<typeof setTimeout> | null = null;
   /** Trailing timers: the file set shown to screens, and reclaim after file changes. */
   private presentTimer: ReturnType<typeof setTimeout> | null = null;
   private reclaimTimer: ReturnType<typeof setTimeout> | null = null;
@@ -176,12 +209,14 @@ export class LanguageSession {
       transport: o.transport,
       ...(o.isDeferred ? { deferCheckpoint: o.isDeferred } : {}),
       ...(o.keepOnDisk ? { keepOnDisk: true } : {}),
-      ...(o.build ? { build: o.build } : {})
+      ...(o.build ? { build: o.build } : {}),
+      onSent: (events) => session?.changesSent(events)
     });
     await client.trackOpen();
     await client.load('open');
     const kept = new Set<string>(JSON.parse((await o.store.meta(keepKey(o.orgId, o.languageId))) || '[]') as string[]);
-    session = new LanguageSession(o, client, kept);
+    const sent = readSentLog(await o.store.meta(sentKey(o.orgId, o.languageId)));
+    session = new LanguageSession(o, client, kept, sent);
     return session;
   }
 
@@ -191,12 +226,13 @@ export class LanguageSession {
     return [...this.current.scope, ...this.current.keptUnits, ...concerning(lines, this.o.actorId)];
   }
 
-  private constructor(private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>) {
+  private constructor(private readonly o: LanguageSessionOptions, readonly client: SyncClient, kept: ReadonlySet<string>, sent: readonly SentEntry[]) {
     this.current = {
       revision: client.publishedRevision, pending: 0, refusedEvents: 0, lastSync: 'never',
       online: null, tooOld: false, refused: null, pulled: false, live: false,
       pendingUp: 0, pendingDown: 0, peakUp: 0, peakDown: 0, present: o.files.snapshot(), keptUnits: kept,
-      keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines(), fill: client.fillProgress()
+      keptOffline: null, offlineSummary: null, scope: new Set(), lines: client.passageLines(), fill: client.fillProgress(),
+      uploads: new Map(), sent, uploading: new Set(), downloading: new Set()
     };
     this.publishedVersion = o.files.version;
     const files = o.files;
@@ -214,8 +250,13 @@ export class LanguageSession {
       ...UPLOAD_DEFAULTS,
       ...common,
       // Size from the confirmation versus the file here: a mismatch reopens the upload.
-      work: async () => { const list = await plan.upload(this.here(), files.sizes()); this.lastUnsent = list; return list; },
-      transfer: o.upload,
+      work: async () => { const list = await plan.upload(this.here(), files.sizes()); this.lastUnsent = list; this.countUploads(); return list; },
+      transfer: async (ref) => {
+        await this.moving('uploading', ref, () => o.upload(ref));
+        this.sentFiles.add(ref.hash);
+        this.noteSent({ unitId: ref.unitId || null, files: 1 });
+        this.countUploads();
+      },
       onChange: (n) => this.set({ pendingUp: n, peakUp: n === 0 ? 0 : Math.max(this.current.peakUp, n) })
     });
     this.down = new TransferWorker({
@@ -224,7 +265,7 @@ export class LanguageSession {
       // Rule 10: by scope, never the whole language. Scope is the actor's
       // own units plus what they explicitly chose to keep offline.
       work: async () => plan.download(this.here(), await this.scope()),
-      transfer: o.download,
+      transfer: (ref) => this.moving('downloading', ref, () => o.download(ref)),
       onChange: (n) => this.set({ pendingDown: n, peakDown: n === 0 ? 0 : Math.max(this.current.peakDown, n) })
     });
     // Sync on a poke from the server, after a local append, and on a
@@ -278,6 +319,7 @@ export class LanguageSession {
     this.scheduler.stop();
     if (this.presentTimer) clearTimeout(this.presentTimer);
     if (this.reclaimTimer) clearTimeout(this.reclaimTimer);
+    if (this.sentSaveTimer) { clearTimeout(this.sentSaveTimer); this.sentSaveTimer = null; void this.saveSent(); }
     this.presentTimer = this.reclaimTimer = null;
     this.listeners.clear();
   }
@@ -331,6 +373,7 @@ export class LanguageSession {
               ? 'up to date'
               : `pushed ${r.pushed}, pulled ${r.pulled}, rejected ${r.rejected}`
       });
+      if (!r.offline) o.onAnswered?.(o.client?.now?.() ?? Date.now());
       // Diagnostics go after this device's own work has had its turn: the
       // outbox empty and every waiting upload tried. An upload that fails
       // every time (they retry forever) must not hold them back for good: it
@@ -571,12 +614,14 @@ export class LanguageSession {
       void (async () => {
         // The window's published copy of the files here (`presentSoon`), not another copy per recount.
         const present = this.current.present;
-        const own = await this.plan.scope(this.o.actorId);
-        const kept = await this.scope();
+        // The scope once, not four times (each a pass over every line and a query): the marks and the summary share it.
+        const why = await this.plan.reasons(this.o.actorId);
+        const own = why.mine;
         const chosen = this.current.keptUnits;
+        const kept = new Set([...own, ...chosen]);
         const [counted, summary] = await Promise.all([
-          this.plan.byUnit([...kept], present, this.o.actorId, chosen),
-          this.plan.summary(present, this.o.actorId, chosen)
+          this.plan.byUnit([...kept], present, this.o.actorId, chosen, why),
+          this.plan.summary(present, this.o.actorId, chosen, why)
         ]);
         // "On this device" is a passage's rows as well as its audio (decisions.md 147): one a first download has not reached is not ready.
         let waiting = 0;
@@ -639,6 +684,61 @@ export class LanguageSession {
     this.set({ revision: this.client.publishedRevision });
     void this.client.pendingCount().then((pending) => this.set({ pending })).catch(() => {});
     void this.client.refusedCount().then((refusedEvents) => this.set({ refusedEvents })).catch(() => {});
+  }
+
+  /** Files in flight by passage, so "Uploading" and a moving download are said only while one moves. */
+  private readonly inFlight = { uploading: new Map<string, number>(), downloading: new Map<string, number>() };
+
+  private async moving(way: 'uploading' | 'downloading', ref: BlobRef, transfer: () => Promise<void>): Promise<void> {
+    const counts = this.inFlight[way];
+    const unit = ref.unitId || '';
+    counts.set(unit, (counts.get(unit) ?? 0) + 1);
+    this.set({ [way]: new Set(counts.keys()) } as Partial<LanguageStatus>);
+    try {
+      await transfer();
+    } finally {
+      const left = (counts.get(unit) ?? 1) - 1;
+      if (left > 0) counts.set(unit, left);
+      else counts.delete(unit);
+      this.set({ [way]: new Set(counts.keys()) } as Partial<LanguageStatus>);
+    }
+  }
+
+  /** Recordings waiting by passage, from the last upload list less what went up since (decisions.md 166). */
+  private countUploads(): void {
+    const listed = new Set(this.lastUnsent.map((r) => r.hash));
+    // Confirmed: off the list, so no longer counted as sent and waiting for the server.
+    for (const h of [...this.sentFiles]) if (!listed.has(h)) this.sentFiles.delete(h);
+    const uploads = uploadsByPassage(this.lastUnsent, this.sentFiles, this.upPeaks);
+    for (const unitId of [...this.upPeaks.keys()]) if (!uploads.has(unitId)) this.upPeaks.delete(unitId);
+    for (const [unitId, u] of uploads) this.upPeaks.set(unitId, u.of);
+    if (!sameUploads(uploads, this.current.uploads)) this.set({ uploads });
+    // Kept for other languages' screens: work waiting here is still waiting when someone opens another.
+    let files = 0;
+    for (const u of uploads.values()) files += u.waiting;
+    if (files !== this.filesWaitingSaved) {
+      this.filesWaitingSaved = files;
+      void this.o.store.setMeta(filesWaitingKey(this.o.orgId, this.o.languageId), String(files)).catch(() => {});
+    }
+  }
+  private filesWaitingSaved = -1;
+
+  /** The server accepted these events of this device's: noted by passage, as far as memory says which. */
+  private changesSent(events: readonly AnyEvent[]): void {
+    const state = this.client.getState();
+    const byUnit = changesByPassage(state, events);
+    for (const [unitId, changes] of byUnit) this.noteSent({ unitId, changes });
+  }
+
+  private noteSent(sent: { unitId: string | null; files?: number; changes?: number }): void {
+    if (this.closed) return;
+    this.set({ sent: noteSent(this.current.sent, { at: Date.now(), ...sent }) });
+    if (this.sentSaveTimer) return;
+    this.sentSaveTimer = setTimeout(() => { this.sentSaveTimer = null; void this.saveSent(); }, SENT_SAVE_MS);
+  }
+
+  private async saveSent(): Promise<void> {
+    await this.o.store.setMeta(sentKey(this.o.orgId, this.o.languageId), JSON.stringify(this.current.sent)).catch(() => {});
   }
 
   /** Change the status and tell subscribers, only when something changed. */

@@ -27,6 +27,21 @@ describe('job runner', () => {
     expect(entrypointFor('projection', true)).toEqual(['node', 'projections.mjs']);
   });
 
+  it('starts the fold canary at 04:05 UTC and the R2 reconciliation at 04:35, each once a day', () => {
+    expect(jobsDue(Date.UTC(2026, 9, 19, 4, 5))).toEqual([{ key: 'projection' }, { key: 'fold-canary' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 4, 35))).toEqual([{ key: 'projection' }, { key: 'blob-reconcile' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 5, 5))).toEqual([{ key: 'projection' }]);
+    expect(jobsDue(Date.UTC(2026, 9, 19, 16, 35))).toEqual([{ key: 'projection' }]);
+    expect(JOBS['fold-canary']).toMatchObject({ job: 'fold_canary', entrypoint: ['node', 'canary.mjs'], timeLimitMs: 60 * 60_000 });
+    expect(JOBS['blob-reconcile']).toMatchObject({ job: 'blob_reconcile', entrypoint: ['node', 'reconcile.mjs'], timeLimitMs: 120 * 60_000 });
+  });
+
+  it('hands the canary the database alone and the reconciliation the Worker\'s address too, refusing without it', () => {
+    expect(jobEnv('fold-canary', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'fold-canary', NODE_OPTIONS: '--max-old-space-size=3072' } });
+    expect(jobEnv('blob-reconcile', v2)).toEqual({ env: { ...db, LANGQUEST_JOB: 'blob-reconcile', NODE_OPTIONS: '--max-old-space-size=3072', API_URL: 'https://next.langquest.org' } });
+    expect(jobEnv('blob-reconcile', { ...v2, API_URL: undefined })).toEqual({ refuse: expect.stringContaining('API_URL') });
+  });
+
   it('keeps each run inside its time limit, and every limit inside the platform\'s six hours', () => {
     expect(JOBS.projection.timeLimitMs).toBe(45 * 60_000);
     expect(JOBS['v2-import'].timeLimitMs).toBe(340 * 60_000);

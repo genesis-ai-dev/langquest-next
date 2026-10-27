@@ -55,7 +55,9 @@
     "hoursAgo_one": "il y a {{count, number}} h",
     "hoursAgo_many": "il y a {{count, number}} h",
     "hoursAgo_other": "il y a {{count, number}} h",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Aujourd’hui",
+    "yesterday": "Hier"
   },
   "units": {
     "kilobytes": "{{value}} Ko",
@@ -348,11 +350,14 @@
     "get_ready": "Se préparer",
     "settings_more": "Autres réglages",
     "check_editor": "Vérification",
-    "cluster_home": "Groupe"
+    "cluster_home": "Groupe",
+    "global_viewer": "Observateur global"
   },
   "native": {
     "microphone": "LangQuest enregistre votre voix pour traduire des passages.",
-    "camera": "LangQuest utilise l’appareil photo pour scanner les codes QR d’invitation."
+    "camera": "LangQuest utilise l’appareil photo pour scanner les codes QR d’invitation.",
+    "calculator": "Calculatrice",
+    "notes": "Notes"
   },
   "library": {
     "sourceLine": {
@@ -3195,6 +3200,13 @@
       "elsewhereSub": "Il fonctionne dans un seul onglet à la fois, pour que vos enregistrements et modifications restent au même endroit. Utilisez-le ici, ou retournez à l’autre onglet.",
       "useHere": "L’utiliser ici",
       "useHereHelp": "Fait passer LangQuest dans cet onglet. L’autre onglet sauvegarde son travail et se met en retrait."
+    },
+    "lock": {
+      "wait": "Trop d'essais. Attendez un peu, puis réessayez.",
+      "wrong": "Ce schéma n'est pas le bon.",
+      "notMe": "Ce n'est pas mon image",
+      "notMeHelp": "Revient aux images.",
+      "pictureHelp": "Déconnecté de ce téléphone ? Touchez votre image, puis dessinez votre schéma. Pas besoin de connexion."
     }
   },
   "account": {
@@ -3211,9 +3223,6 @@
       "ready": "Mise à jour prête — touchez pour redémarrer",
       "downloading": "Téléchargement de la mise à jour…",
       "downloadingPercent": "Téléchargement de la mise à jour… {{percent}}",
-      "offline": "Hors ligne — touchez pour réessayer",
-      "failed": "Échec de la mise à jour : {{reason}} — touchez pour réessayer",
-      "offlineLabel": "Hors ligne : impossible de vérifier les mises à jour",
       "webReady": "Une nouvelle version de LangQuest est prête. Rechargez la page pour l’utiliser.",
       "storeBuild": "version de la boutique",
       "updateBuild": "mise à jour {{id}}",
@@ -3501,11 +3510,9 @@
         "checking": "Connecté, mais le canal en direct est coupé : cet appareil vérifie les modifications toutes les quelques minutes. Synchroniser maintenant vérifie tout de suite.",
         "offline": "Pas de connexion. Tout ce que vous faites est gardé sur cet appareil et part tout seul quand vous êtes de nouveau en ligne.",
         "refused": "Le serveur n’accepte pas les modifications de cet appareil. Votre travail reste gardé ici.",
-        "toSend": "Modifications et enregistrements faits sur cet appareil que le serveur n’a pas encore confirmés. Ils sont en sécurité ici et partent dès qu’il y a une connexion.",
         "toReceive": "Enregistrements d’autres personnes que cet appareil télécharge encore.",
         "refusedLine": "Modifications que le serveur n’a pas acceptées, souvent parce qu’une permission a changé. Elles restent sur cet appareil ; ouvrez Détails pour les voir."
       },
-      "toSend": "À envoyer",
       "toReceive": "À recevoir",
       "refusedLine": "Refusés",
       "none": "Aucun",
@@ -3514,6 +3521,17 @@
       "syncNowHelp": "Envoie ce qui attend et reçoit ce qui est nouveau, tout de suite.",
       "detailsHelp": "Chaque modification en attente ou refusée, et les transferts audio : pour quelqu’un qui résout un problème.",
       "eventHelp": "Ouvre le passage concerné par cette modification."
+    },
+    "lock": {
+      "tooShort": "Reliez au moins {{n}} points.",
+      "patternsDiffer": "C'était un autre schéma. Recommencez.",
+      "pictureTitle": "Choisissez votre image",
+      "pictureHelp": "Pour vous reconnecter sur ce téléphone, vous toucherez votre image, puis dessinerez votre schéma.",
+      "nextHelp": "Passe au dessin de votre schéma.",
+      "drawTitle": "Dessinez un schéma",
+      "drawAgain": "Dessinez-le à nouveau",
+      "newPattern": "Dessiner un nouveau schéma",
+      "choosePatternHelp": "Choisissez une image et un schéma pour vous reconnecter sur ce téléphone, même sans connexion."
     }
   },
   "study": {
@@ -4064,7 +4082,8 @@
       "openStudyHelp": "Ouvre tout le guide d’étude de ce passage.",
       "listeners": "Auditeurs",
       "liveIn": "En ligne dans {{channel}} · {{version}}",
-      "listenerCount": "Retours d'auditeurs : {{count, number}}"
+      "listenerCount": "Retours d'auditeurs : {{count, number}}",
+      "askedOffline": "Demandé à {{target}}. Ils le reçoivent quand cet appareil sera connecté."
     },
     "else": {
       "title": "Autre chose ?",
@@ -4258,6 +4277,16 @@
       "partHelp": "Fait entendre cette partie seule.",
       "deleteVersionHelp": "Supprime cette version pour tous. Les vérifications déjà faites restent dans l’historique mais ne comptent plus.",
       "doneHelp": "Ouvre ce brouillon une dernière fois, pour le terminer et l’envoyer à sa prochaine vérification."
+    },
+    "partNotes": {
+      "title": "Notes sur {{part}}",
+      "mark_one": "{{count, number}} note sur {{part}}",
+      "mark_many": "{{count, number}} notes sur {{part}}",
+      "mark_other": "{{count, number}} notes sur {{part}}",
+      "markHelp": "Ouvre ce qui a été dit sur cette partie pendant les vérifications. Vous pouvez répondre."
+    },
+    "checkNotes": {
+      "title": "Notes : {{check}}"
     }
   },
   "work": {
@@ -4313,7 +4342,8 @@
     "sync": {
       "toSend_one": "{{count, number}} à envoyer",
       "toSend_many": "{{count, number}} à envoyer",
-      "toSend_other": "{{count, number}} à envoyer"
+      "toSend_other": "{{count, number}} à envoyer",
+      "receiving": "réception d’enregistrements"
     },
     "join": {
       "wantsToJoin": "{{name}} veut rejoindre",
@@ -4413,7 +4443,8 @@
     "toast": {
       "notSaved": "Non sauvegardé : {{reason}}",
       "notSavedCode": "Non sauvegardé. Un problème est survenu (code {{code}}).",
-      "dismissLabel": "{{message}} Fermer"
+      "dismissLabel": "{{message}} Fermer",
+      "goesWhenConnected": "{{message}} Votre équipe le reçoit quand cet appareil sera connecté."
     },
     "nav": {
       "cannotOpenHere": "Impossible de l’ouvrir d’ici.",
@@ -4514,6 +4545,14 @@
       "term": {
         "title": "Choisissez un terme",
         "sub": "Son sens et ses équivalents s’ouvrent ici."
+      },
+      "language": {
+        "title": "Choisissez une langue",
+        "sub": "Sa progression s’ouvre ici."
+      },
+      "manage": {
+        "title": "Choisissez quoi gérer",
+        "sub": "Une langue, les membres ou la configuration s’ouvre ici."
       }
     },
     "license": {
@@ -4539,6 +4578,15 @@
       "readHelp": "Ouvre son texte complet dans le navigateur.",
       "rowHelp": "Ouvre les licences et ce que chacune permet.",
       "yesOpenToHelp": "Votre travail est désormais partagé sous cette licence. Cela ne peut pas être annulé."
+    },
+    "pattern": {
+      "label": "Schéma : reliez au moins {{n}} points",
+      "help": "Passez sur les points sans lever le doigt, ou touchez-les un par un puis Terminé. Reliez au moins {{n}} points.",
+      "dot": "Point {{n}}",
+      "picture": "Image {{n}}",
+      "again": "Recommencer",
+      "againHelp": "Efface les points pour recommencer le schéma.",
+      "doneHelp": "Termine le schéma avec les points touchés."
     }
   },
   "help": {
@@ -4585,57 +4633,28 @@
       "checking": "Point gris : recherche d’une connexion. Votre travail reste sur cet appareil jusqu’à ce qu’il soit envoyé.",
       "offline": "Point orange : hors ligne. Votre travail reste sur cet appareil et sera envoyé dès que vous serez connecté.",
       "refused": "Rouge : le serveur a refusé quelque chose. Touchez pour voir quoi, et que faire.",
-      "withWaiting": "{{standing}} Le nombre indique combien d’éléments attendent d’être envoyés."
+      "withWaiting": "{{standing}} Le nombre indique combien d’éléments attendent d’être envoyés.",
+      "withReceiving": "{{standing}} L’anneau tourne pendant que les enregistrements des autres se téléchargent sur cet appareil. Rien n’attend d’être envoyé."
     }
   },
   "offline": {
     "onDevice": "Sur cet appareil",
     "downloading": "Téléchargement pour le hors-ligne",
-    "audioNotHere": "Audio absent de cet appareil",
-    "notKept": "Pas gardé sur cet appareil",
     "audioNotKept": "Audio pas gardé sur cet appareil",
     "connectToFinish": "Connectez-vous pour terminer avant de partir.",
     "stayConnected": "Restez connecté jusqu’à la fin.",
-    "keep": "Garder hors ligne",
-    "stopKeeping": "Ne plus garder hors ligne",
     "reason": {
       "asked": "Gardé parce qu’on vous a demandé d’y travailler.",
       "worked": "Gardé parce que vous y avez travaillé.",
       "chosen": "Gardé parce que vous avez choisi de le garder."
     },
     "passage": {
-      "notSent_one": "{{count, number}} enregistrement n’a pas encore été envoyé par l’appareil qui l’a fait.",
-      "notSent_many": "{{count, number}} enregistrements n’ont pas encore été envoyés par l’appareil qui les a faits.",
-      "notSent_other": "{{count, number}} enregistrements n’ont pas encore été envoyés par l’appareil qui les a faits.",
-      "studyOnline": "Dans l’application web, les images et l’audio d’étude ont besoin d’une connexion.",
-      "worksWithStudy": "Son texte, son audio et ses images d’étude fonctionnent sans connexion.",
-      "worksWithAudio": "Son texte et son audio fonctionnent sans connexion.",
-      "worksTextOnly": "Son texte fonctionne sans connexion, et le nouvel audio se télécharge à mesure qu’il arrive.",
-      "audioFilesHere_one": "{{here, number}} fichier audio sur {{count, number}} est ici.",
-      "audioFilesHere_many": "{{here, number}} fichiers audio sur {{count, number}} sont ici.",
-      "audioFilesHere_other": "{{here, number}} fichiers audio sur {{count, number}} sont ici.",
-      "audioFilesHereLeft_one": "{{here, number}} fichier audio sur {{count, number}} est ici, encore {{size}} d’audio à recevoir.",
-      "audioFilesHereLeft_many": "{{here, number}} fichiers audio sur {{count, number}} sont ici, encore {{size}} d’audio à recevoir.",
-      "audioFilesHereLeft_other": "{{here, number}} fichiers audio sur {{count, number}} sont ici, encore {{size}} d’audio à recevoir.",
-      "studyFilesHere_one": "{{here, number}} fichier audio et d’étude sur {{count, number}} est ici.",
-      "studyFilesHere_many": "{{here, number}} fichiers audio et d’étude sur {{count, number}} sont ici.",
-      "studyFilesHere_other": "{{here, number}} fichiers audio et d’étude sur {{count, number}} sont ici.",
-      "studyFilesHereLeft_one": "{{here, number}} fichier audio et d’étude sur {{count, number}} est ici, encore {{size}} d’audio à recevoir.",
-      "studyFilesHereLeft_many": "{{here, number}} fichiers audio et d’étude sur {{count, number}} sont ici, encore {{size}} d’audio à recevoir.",
-      "studyFilesHereLeft_other": "{{here, number}} fichiers audio et d’étude sur {{count, number}} sont ici, encore {{size}} d’audio à recevoir.",
       "onlySomeHere_one": "Seulement {{here, number}} fichier sur {{count, number}} sur cet appareil",
       "onlySomeHere_many": "Seulement {{here, number}} fichiers sur {{count, number}} sur cet appareil",
       "onlySomeHere_other": "Seulement {{here, number}} fichiers sur {{count, number}} sur cet appareil",
-      "downloadingCount": "Téléchargement pour le hors-ligne · {{here, number}} sur {{total, number}}",
-      "notAllHere": "Tout n’est pas encore sur cet appareil",
-      "readRecordAudioNeeds": "Vous pouvez le lire et enregistrer, mais son audio a besoin d’une connexion.",
-      "readRecordStudyNeeds": "Vous pouvez le lire et enregistrer, mais son audio et ses images d’étude ont besoin d’une connexion.",
-      "textHereAudioNeeds": "Son texte est ici, mais son audio a besoin d’une connexion. Gardez-le hors ligne pour l’emporter.",
-      "textHereStudyNeeds": "Son texte est ici, mais son audio et ses images d’étude ont besoin d’une connexion. Gardez-le hors ligne pour l’emporter.",
-      "barHelp": "Se remplit à mesure que ses fichiers arrivent sur cet appareil."
+      "downloadingCount": "Téléchargement pour le hors-ligne · {{here, number}} sur {{total, number}}"
     },
     "toast": {
-      "kept": "Gardé sur cet appareil. Il se télécharge pendant que vous êtes connecté.",
       "notKept": "N’est plus gardé. Son audio peut être retiré pour faire de la place."
     },
     "summary": {
@@ -4668,8 +4687,8 @@
       "alwaysBody": "Le texte, l’état et l’historique de chaque passage en {{language}}. L’audio des passages sur lesquels on vous a demandé de travailler, sur lesquels vous avez travaillé, ou que vous avez choisi de garder.",
       "alwaysBodyStudy": "Le texte, l’état et l’historique de chaque passage en {{language}}. L’audio, les images d’étude, les cartes et l’audio d’étude des passages sur lesquels on vous a demandé de travailler, sur lesquels vous avez travaillé, ou que vous avez choisi de garder.",
       "needsTitle": "A besoin d’une connexion",
-      "needsNotKept": "L’audio des passages que vous n’avez pas gardés. Ouvrez un passage et touchez Garder hors ligne pour l’emporter.",
-      "needsNotKeptStudy": "L’audio et les documents d’étude des passages que vous n’avez pas gardés. Ouvrez un passage et touchez Garder hors ligne pour l’emporter.",
+      "needsNotDownloaded": "L’audio des passages non téléchargés.",
+      "needsNotDownloadedStudy": "L’audio et le matériel d’étude des passages non téléchargés.",
       "needsFilms": "Les films d’étude.",
       "needsStudyWeb": "Les images, les cartes et l’audio d’étude, dans l’application web.",
       "needsReports": "Les rapports.",
@@ -4692,7 +4711,11 @@
       "body": "Ses versions, ses relectures et son historique sont encore en cours de téléchargement avec le reste de cette langue. Connectez-vous pour le télécharger.",
       "latest": "Dernière : version {{n, number}}, par {{name}}.",
       "requests": "Demandes ouvertes : {{n, number}}."
-    }
+    },
+    "download": "Télécharger pour le hors-ligne",
+    "needsConnection": "Le téléchargement demande une connexion",
+    "needsConnectionHelp": "Pas sur cet appareil. Il pourra être téléchargé une fois l’appareil connecté.",
+    "checkingHelp": "Cet appareil compte ce qu’il a de ce passage."
   },
   "moderation": {
     "flagLabel": "Signaler ou bloquer {{name}}",
@@ -5143,7 +5166,6 @@
       "chapter": "Chapitre {{n}}",
       "chapterHelp": "Ouvre son passage. Une coche signifie terminé, un point signifie commencé.",
       "keyLabel": "Une coche signifie terminé, un point signifie commencé",
-      "keyLabelOffline": "Une coche signifie terminé, un point signifie commencé, un nuage signifie gardé sur cet appareil",
       "barHelp": "La barre se remplit à mesure que ses passages sont enregistrés ; la partie verte est terminée.",
       "countHelp": "{{shown}} signifie que {{recorded}} de ses {{total}} passages sont enregistrés.",
       "matchHelp": "Le nombre indique combien de ses passages correspondent au filtre.",
@@ -5156,7 +5178,6 @@
     "key": {
       "done": "Terminé",
       "started": "Commencé",
-      "onDevice": "Sur cet appareil",
       "doneSub": "Toutes les vérifications sont faites",
       "startedSub": "Enregistrement commencé, enregistré, chez les réviseurs, ou remarques en attente",
       "notStarted": "Pas commencé",
@@ -6124,7 +6145,12 @@
         "someTerm": "terme",
         "version": "Version {{n}}",
         "aVersion": "Une version",
-        "study": "Étude"
+        "study": "Étude",
+        "replyTo": "Réponse à {{name}}",
+        "reply": "Une réponse",
+        "aPart": "Une partie",
+        "help": "« {{help}} »",
+        "aHelp": "Une aide"
       }
     },
     "parts": {
@@ -6302,6 +6328,8 @@
       "helpNoteHelp": "L’ouvre pour la lire.",
       "howManyHelp": "Dites combien de personnes ont écouté. Facultatif.",
       "doneRecordedHelp": "Met la {{what}} dans l’historique du passage.",
+      "looksGoodOffline": "C’est bon. {{name}} le reçoit quand cet appareil sera connecté.",
+      "feedbackOffline": "Retour enregistré. {{name}} le reçoit quand cet appareil sera connecté.",
       "helpWordsHelp": "Ouvre les mots clés de ce passage, avec le mot de l’équipe pour chacun et si cette version l’a utilisé."
     },
     "guest": {
@@ -6451,6 +6479,20 @@
       "addStepDetail": "Ajouter une autre vérification, après les autres.",
       "legend": "= à valider avant les étapes suivantes",
       "gripHelp": "Faites glisser vers le haut ou le bas pour déplacer cette étape."
+    },
+    "notesOn": {
+      "addOn": "Ajouter une note sur {{what}}",
+      "addOnHelp": "Ajoute une note sur cet élément, dite ou écrite. Elle accompagne votre révision.",
+      "noteOn": "Note sur {{what}}",
+      "reply": "Répondre",
+      "replyHelp": "Répond à la note de {{name}}. Votre réponse s’affiche en dessous.",
+      "replyTitle": "Répondre à {{name}}",
+      "withReview": "Avec votre révision",
+      "removeFrom": "Retirer votre note : {{what}}",
+      "goWith_one": "{{count, number}} note accompagne votre révision",
+      "goWith_many": "{{count, number}} notes accompagnent votre révision",
+      "goWith_other": "{{count, number}} notes accompagnent votre révision",
+      "added": "Ajoutée à votre révision."
     }
   },
   "backTranslation": {
@@ -6944,7 +6986,9 @@
       "addHint": "Laissez une note sur ce passage, à voix haute ou par écrit.",
       "sheetSub": "Elle reste avec le passage. Les réviseurs et le traducteur suivant la voient.",
       "added": "Note ajoutée.",
-      "typeHelp": "Tapez votre note. Vous pouvez aussi la dire."
+      "typeHelp": "Tapez votre note. Vous pouvez aussi la dire.",
+      "onPart": "sur {{part}}",
+      "onHelp": "sur « {{help}} »"
     },
     "earlier": {
       "yours": "Les vôtres",
@@ -7658,6 +7702,118 @@
       "saved": "Sauvegardé. C’est envoyé quand vous êtes connecté.",
       "savedUntilSignIn": "Sauvegardé. C’est envoyé après votre connexion.",
       "voiceTooLong": "Trop long : une note vocale peut durer jusqu’à 2 minutes."
+    }
+  },
+  "appVersion": {
+    "available": "Nouvelle version disponible",
+    "update": "Mettre à jour",
+    "updateHelp": "Ouvre la page de la boutique pour la dernière version.",
+    "dismiss": "Fermer",
+    "dismissHelp": "Masque ce message jusqu’à la sortie d’une version plus récente.",
+    "required": "Veuillez mettre à jour l’application",
+    "keepWorking": "Continuer à travailler",
+    "keepWorkingHelp": "Votre travail reste sur ce téléphone et sera envoyé après la mise à jour."
+  },
+  "globalViewer": {
+    "title": "Observateur global",
+    "viewingOrg": "Vous consultez {{org}} en tant qu’Observateur global. Vous ne pouvez rien modifier.",
+    "lineSetUp": "Configurez votre application d’authentification pour commencer",
+    "lineCode": "Saisissez le code de votre application d’authentification",
+    "lineOn": "Trouvez une organisation à consulter",
+    "lineRevoked": "Votre accès d’Observateur global a pris fin",
+    "wayInHelp": "Le code de votre application d’authentification, et toutes les organisations à consulter.",
+    "revokedTitle": "L’accès d’Observateur global a pris fin",
+    "revokedBody": "Demandez à LangQuest si vous pensez que c’est une erreur.",
+    "notOne": "Ce compte n’est pas un Observateur global.",
+    "codeLabel": "Code de votre application d’authentification",
+    "codeHelp": "Le code à 6 chiffres que votre application d’authentification affiche pour LangQuest. Il change toutes les 30 secondes.",
+    "check": "Vérifier le code",
+    "checkHelp": "Si le code est bon, vous pourrez consulter toutes les organisations jusqu’à votre déconnexion.",
+    "codeWrong": "Ce code n’est pas bon. Saisissez le code que votre application d’authentification affiche maintenant.",
+    "noAuthenticator": "Ce compte n’a pas d’application d’authentification. Demandez à LangQuest de la réinitialiser.",
+    "enterCode": "Pour consulter les organisations, saisissez le code de votre application d’authentification.",
+    "setUpIntro": "Faites-le lors d’un appel avec la personne qui vous a donné l’accès. Il vous faut une application d’authentification sur votre téléphone, comme Google Authenticator ou Microsoft Authenticator.",
+    "setUp": "Configurer l’application d’authentification",
+    "setUpHelp": "Crée une nouvelle clé pour votre application d’authentification et l’affiche ici.",
+    "stepAdd": "1. Ajoutez LangQuest à votre application d’authentification",
+    "scan": "Scannez ce code avec votre application d’authentification.",
+    "qrLabel": "Code à scanner avec votre application d’authentification",
+    "openApp": "Ouvrir dans l’application d’authentification",
+    "openAppHelp": "Ajoute LangQuest à l’application d’authentification de ce téléphone.",
+    "noApp": "Aucune application d’authentification ne s’est ouverte. Saisissez plutôt la clé ci-dessous dedans.",
+    "typeKey": "Ou saisissez cette clé dans l’application :",
+    "stepCode": "2. Saisissez le code qu’elle affiche",
+    "onTitle": "Vous pouvez consulter toutes les organisations",
+    "onBody": "Vous voyez ce que voit un Observateur. Vous ne pouvez rien modifier.",
+    "search": "Organisation ou langue",
+    "openNowLabel": "{{name}}, ouverte maintenant",
+    "openHelp": "Ouvre cette organisation pour la consulter.",
+    "noneFound": "Aucune organisation ne correspond.",
+    "more": "Afficher plus",
+    "hereLabel": "En cours de consultation",
+    "otherLabel": "Ouvrir une autre organisation",
+    "readOnly": "Vous consultez en tant qu’Observateur global : rien ici ne peut être modifié.",
+    "linkHelp": "Où vous consultez, ce que vous pouvez y faire, et toutes les autres organisations.",
+    "dashboard": "Tableau de bord des opérations",
+    "dashboardBody": "Services de LangQuest, tâches du serveur et diagnostics de terrain. S’ouvre dans un nouvel onglet.",
+    "dashboardHelp": "Ouvre le tableau de bord des opérations de LangQuest dans un nouvel onglet, avec votre session."
+  },
+  "uploads": {
+    "barRecordings_one": "{{count, number}} enregistrement en attente d’envoi",
+    "barRecordings_many": "{{count, number}} enregistrements en attente d’envoi",
+    "barRecordings_other": "{{count, number}} enregistrements en attente d’envoi",
+    "barChanges_one": "{{count, number}} modification en attente d’envoi",
+    "barChanges_many": "{{count, number}} modifications en attente d’envoi",
+    "barChanges_other": "{{count, number}} modifications en attente d’envoi",
+    "uploading": "Envoi en cours",
+    "allUploaded": "Tout est envoyé",
+    "barHelp": "Ouvre ce qui est gardé sur cet appareil en attente d’envoi, et quand chaque chose a été envoyée.",
+    "savedHere": "Gardé sur cet appareil",
+    "lastUpload": "Dernier envoi : {{when}}",
+    "waitingTitle": "En attente d’envoi",
+    "uploadedTitle": "Envoyé",
+    "recordingsUploaded_one": "{{uploaded, number}} enregistrement sur {{count, number}} envoyé",
+    "recordingsUploaded_many": "{{uploaded, number}} enregistrements sur {{count, number}} envoyés",
+    "recordingsUploaded_other": "{{uploaded, number}} enregistrements sur {{count, number}} envoyés",
+    "changesWaiting_one": "{{count, number}} modification en attente",
+    "changesWaiting_many": "{{count, number}} modifications en attente",
+    "changesWaiting_other": "{{count, number}} modifications en attente",
+    "otherChanges": "Autres modifications",
+    "recordings_one": "{{count, number}} enregistrement",
+    "recordings_many": "{{count, number}} enregistrements",
+    "recordings_other": "{{count, number}} enregistrements",
+    "changes_one": "{{count, number}} modification",
+    "changes_many": "{{count, number}} modifications",
+    "changes_other": "{{count, number}} modifications"
+  },
+  "disguise": {
+    "row": "Icône de l’app",
+    "rowHelp": "Donne à LangQuest l’apparence d’une calculatrice ou d’un bloc-notes sur ce téléphone. Il ne s’ouvre qu’avec un code que vous choisissez.",
+    "title": "Icône de l’app",
+    "langquest": "LangQuest",
+    "ownHelp": "Remet l’icône de LangQuest. Il s’ouvre sans code.",
+    "lookHelp": "Choisit cette icône. Ensuite, vous choisissez le code qui ouvre LangQuest.",
+    "calculatorN": "Calculatrice {{n}}",
+    "notesN": "Notes {{n}}",
+    "codeTitle": "Choisissez un code",
+    "code": "Code",
+    "codeHelp": "De 4 à 12 chiffres. Sur la calculatrice, tapez-le avec les touches. Sur le bloc-notes, tapez-le seul sur une ligne.",
+    "nextHelp": "Ouvre la calculatrice ou le bloc-notes pour y taper votre code.",
+    "backHelp": "Revient d’une étape.",
+    "tryTitle": "Tapez votre code",
+    "on": "Ce téléphone affiche maintenant {{name}}.",
+    "off": "L’icône de LangQuest est revenue.",
+    "notesTitle": "Notes",
+    "keys": {
+      "clear": "Tout effacer",
+      "delete": "Effacer",
+      "percent": "Pour cent",
+      "divide": "Diviser",
+      "times": "Multiplier",
+      "minus": "Moins",
+      "plus": "Plus",
+      "equals": "Égal",
+      "point": "Virgule décimale"
     }
   }
 }

@@ -129,6 +129,50 @@ describe('LanguageSession: one language kept and moved (decisions.md 104)', () =
     session.close();
   });
 
+  it('says a passage is uploading only while its file is going up, and keeps what waits for other screens (decisions.md 166)', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    const { files, store, open } = phone({ upload: async () => { await gate; } });
+    const session = await open();
+    session.start();
+    files.put('h1', 10);
+    await session.append('v1.UnitAdded', unit('Luke 1'));
+    await session.append('v1.RecordingAdded', { recordingId: 'r1', unitId: 'Luke 1', kind: 'target', cards: [{ hash: 'h1', durationMs: 1000, format: 'm4a' }] });
+    expect(session.status.uploading.size).toBe(0);
+    session.triggerUpload();
+    await until(() => session.status.uploading.has('Luke 1'));
+    expect(session.status.uploads.get('Luke 1')).toEqual({ waiting: 1, of: 1 });
+    expect(await store.meta('files-waiting:org1/luke')).toBe('1');
+    release();
+    await until(() => session.status.uploading.size === 0);
+    await until(() => session.status.uploads.size === 0);
+    await until(() => session.status.sent.some((e) => e.unitId === 'Luke 1' && e.files === 1));
+    let saved: string | null = null;
+    await until(() => { void store.meta('files-waiting:org1/luke').then((v) => { saved = v ?? null; }); return saved === '0'; });
+    session.close();
+  });
+
+  it('says each time the server answers a sync, and not when it does not (decisions.md 166)', async () => {
+    let now = 5_000;
+    let ids = 0;
+    const answered: number[] = [];
+    // The app's clock (`now`) says when; the event clock only orders events.
+    const { server, open } = phone({
+      client: { clock: new HlcClock('phone', () => (ids += 1)), newId: () => `e${(ids += 1)}`, now: () => now },
+      onAnswered: (at) => answered.push(at)
+    });
+    const session = await open();
+    await session.sync();
+    now = 7_000;
+    // Nothing new: still told, since how recently it answered is the point.
+    await session.sync();
+    now = 9_000;
+    server.offline = true;
+    await session.sync();
+    expect(answered).toEqual([5_000, 7_000]);
+    session.close();
+  });
+
   it('after close nothing more is said', async () => {
     const { open } = phone();
     const session = await open();

@@ -2,7 +2,7 @@ import type { Scope } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
 import { functionRefusal, type InvitePreview } from './heldInvite';
 import { parseInvite } from './inviteCode';
-import { RpcError } from '../auth/authOutcome';
+import { RpcError } from '../session/authOutcome';
 import { noteExpected } from '../diagnostics/report';
 import { profileNames } from '../server/account';
 import * as server from '../server/invites';

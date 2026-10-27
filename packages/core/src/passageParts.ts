@@ -248,6 +248,46 @@ export function passageInMemory(state: LanguageState, of: PassageOf | null): str
   return studyMarkUnit(state.units, of.studyKey);
 }
 
+/**
+ * Where an event that creates something later events hang on places it: a
+ * take, departure, request or note in a passage, or a review on a take.
+ * `eventPassage` names what a later event hangs on; this says what the
+ * creating event settles, so a page of events can answer for the events
+ * that follow it before its entries are folded (decision 143). A new
+ * creating event type must be added here: `passageParts.test.ts` fails
+ * until it is.
+ */
+export type EventPlace =
+  | { kind: 'take' | 'departure' | 'request' | 'note'; id: string; unitId: string }
+  | { kind: 'review'; id: string; takeId: string };
+
+export function eventPlace(e: AnyEvent): EventPlace | null {
+  switch (e.type) {
+    case 'v1.TakeComposed': return { kind: 'take', id: e.payload.takeId, unitId: e.payload.unitId };
+    case 'v1.DepartureRecorded': return { kind: 'departure', id: e.payload.departureId, unitId: e.payload.unitId };
+    case 'v1.RequestMade': return { kind: 'request', id: e.payload.requestId, unitId: e.payload.unitId };
+    case 'v1.NoteAdded': return { kind: 'note', id: e.payload.noteId, unitId: e.payload.unitId };
+    case 'v1.ReviewRecorded': return { kind: 'review', id: e.payload.reviewId, takeId: e.payload.takeId };
+    default: return null;
+  }
+}
+
+/**
+ * How many of a batch of events are about each passage, as far as memory
+ * says which: a passage's id, or null for an event about no passage, one
+ * whose passage is not in memory, and `settings` events (which change how
+ * every passage reads).
+ */
+export function changesByPassage(state: LanguageState, events: readonly AnyEvent[]): Map<string | null, number> {
+  const out = new Map<string | null, number>();
+  for (const e of events) {
+    const of = eventPassage(e);
+    const unitId = of === 'settings' ? null : passageInMemory(state, of);
+    out.set(unitId, (out.get(unitId) ?? 0) + 1);
+  }
+  return out;
+}
+
 /** What `of` hangs on, as a row kind and id to look up on disk; null when its passage is in the entry or a key. */
 export function hangsOn(of: PassageOf | null): { kind: string; id: string } | null {
   if (!of) return null;

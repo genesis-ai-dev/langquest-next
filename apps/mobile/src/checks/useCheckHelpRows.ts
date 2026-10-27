@@ -1,5 +1,5 @@
 // The help rows a check shows (checks/parts.tsx).
-import { checkHelps, type LanguageState } from '@langquest-next/core';
+import { checkHelps, helpKey, type LanguageState } from '@langquest-next/core';
 import { useMemo } from 'react';
 import type { Ctx } from '../shell/ctx';
 import type { IconName } from '../ui/kit';
@@ -7,9 +7,11 @@ import { useLibrary, useLibraryDocs } from '../library/useLibrary';
 import { refKindOf } from '../reference/model';
 import { referenceKindName } from '../config/model';
 
-/** A help on a check, as a reviewer opens it: a note or document, a study guide, a Bible, or a key-word list (decision 149). */
+/** A help on a check, as a reviewer opens it: a note or document, a study guide, a Bible, or a key-word list (decision 172). */
 export interface HelpRow {
   key: string;
+  /** The help as a note names it (`item:<id>`, `material:<id>`; decisions.md 149). */
+  help: string;
   name: string;
   sub?: string;
   icon: IconName;
@@ -26,14 +28,14 @@ export function useCheckHelpRows(ctx: Ctx, state: LanguageState | null | undefin
     if ('materialId' in h) {
       const m = state.materials[h.materialId];
       if (!m) return [];
-      return [{ key: h.materialId, name: m.title, sub: referenceKindName(m.kind), icon: 'note', open: { screen: 'material_editor', params: { materialId: h.materialId, languageId: ctx.language.languageId } } }];
+      return [{ key: h.materialId, help: helpKey(h), name: m.title, sub: referenceKindName(m.kind), icon: 'note', open: { screen: 'material_editor', params: { materialId: h.materialId, languageId: ctx.language.languageId } } }];
     }
     const it = lib.item(h.itemId);
     if (!it) return [];
     const kind = refKindOf(docs.get(it.current));
-    if (kind === 'source') return [{ key: h.itemId, name: it.name, icon: 'book', open: { bible: h.itemId } }];
-    if (kind === 'guide') return [{ key: h.itemId, name: it.name, icon: 'sparkle', open: { screen: 'study_guide' } }];
-    if (kind === 'words') return [{ key: h.itemId, name: it.name, icon: 'key', open: { words: h.itemId } }];
-    return [{ key: h.itemId, name: it.name, ...(it.description ? { sub: it.description } : {}), icon: 'note', open: { screen: 'material_editor', params: { itemId: h.itemId } } }];
+    if (kind === 'source') return [{ key: h.itemId, help: helpKey(h), name: it.name, icon: 'book', open: { bible: h.itemId } }];
+    if (kind === 'guide') return [{ key: h.itemId, help: helpKey(h), name: it.name, icon: 'sparkle', open: { screen: 'study_guide' } }];
+    if (kind === 'words') return [{ key: h.itemId, help: helpKey(h), name: it.name, icon: 'key', open: { words: h.itemId } }];
+    return [{ key: h.itemId, help: helpKey(h), name: it.name, ...(it.description ? { sub: it.description } : {}), icon: 'note', open: { screen: 'material_editor', params: { itemId: h.itemId } } }];
   });
 }

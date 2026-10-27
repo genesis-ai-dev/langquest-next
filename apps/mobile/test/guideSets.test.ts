@@ -226,7 +226,7 @@ describe('the language a team’s reference material is in', () => {
   });
 });
 
-describe('FIA\'s key words in several languages (decision 149)', () => {
+describe('FIA\'s key words in several languages (decision 172)', () => {
   const words = (language: string, count: number, extra: Partial<MaterialDoc> = {}): MaterialDoc => ({
     format: 'material@1', kind: 'key_terms', title: `FIA key words (${language})`, language, pattern: 'FIA', deps: [],
     terms: Array.from({ length: count }, (_, i) => ({ id: `t${i + 1}`, term: `word ${i + 1}`, gloss: '' })), ...extra

@@ -4,7 +4,7 @@
 // changes, there when the editor opens again; Done publishes it.
 import { useMemo, useState } from 'react';
 import { templateBooks, withBookBrokenUp, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
-import { docFromForm, formChanged, type TemplateForm } from './contentTemplates';
+import { docFromForm, formChanged, type TemplateForm } from './contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
 import type { Draft } from '../drafts/useDraft';
 import { draftBehind, editorDraft, type TemplateDraft } from '../drafts/editorDrafts';

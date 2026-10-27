@@ -97,15 +97,21 @@ for (const name of fs.readdirSync(catalogs).filter((f) => f.endsWith('.json') &&
 // together (6.21 MB then). That cap rose to 6.5 MB when main's security fixes
 // and field diagnostics merged with the split (6.26 MB in all, a first visit
 // 5.46 MB): it catches growth that runs away, and what a visit pays is held
-// by the first-visit budget (decision 123). Get ready (New language's questions
-// for a language already made) joined the split with FIA's key words (decision
-// 149), which put it 10 KB over: it is opened from a card, never at launch.
-// The cap on all chunks rose to 6.6 MB with FIA's key words (decision 149):
-// the lists on a passage, a word's sheet, a check's key words and every
-// reference list's search came to 6.55 MB in all, the first visit back under
-// 5.7 MB.
-const TOTAL_BUDGET_BYTES = 6.6 * 1024 * 1024;
-const FIRST_VISIT_BUDGET_BYTES = 5.7 * 1024 * 1024;
+// by the first-visit budget (decision 123). 6.55 MB since notes on what a
+// check shows (decision 149) took it to 6.51 MB, 15 KB of that their lines
+// in 15 languages after six were merged into two. 6.6 MB since uploads and
+// downloads shown by passage, with their moving packages (decision 166), took
+// it 5 KB past 6.55 MB; a first visit stays under its own budget.
+// Lowered to 4.75 MB when icons came one file each (src/ui/icons.ts) instead
+// of through lucide's entry, which brought all 1,800-odd: 6.54 MB to 4.54 MB
+// in all (performance-audit-2026-10-26.md item 1, decision 123 amended).
+const TOTAL_BUDGET_BYTES = 4.75 * 1024 * 1024;
+// A first visit's cap rose to 5.75 MB when Global Viewers' read-only guard on
+// the recorder (decisions.md 158) took it past 5.7 MB by a few hundred bytes
+// (5.70 MB then): main had 50 bytes left, and a guard that refuses before the
+// microphone opens has to be loaded with the recorder.
+// Lowered to 3.9 MB with the icons above: 5.70 MB to 3.71 MB.
+const FIRST_VISIT_BUDGET_BYTES = 3.9 * 1024 * 1024;
 
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 let moved = 0;

@@ -24,13 +24,13 @@ describe('which runs are counted', () => {
   const run = (id: number, event: string, conclusion: string) => ({ id, event, conclusion });
   const pages = [
     { workflow_runs: [run(1, 'pull_request', 'success'), run(2, 'schedule', 'failure'), run(3, 'push', 'cancelled'), run(4, 'push', 'failure')] },
-    { workflow_runs: [run(5, 'pull_request', 'success'), run(6, 'workflow_dispatch', 'success')] },
+    { workflow_runs: [run(5, 'pull_request', 'success'), run(6, 'workflow_dispatch', 'success'), run(7, 'merge_group', 'failure')] },
     { workflow_runs: [] }
   ];
   const get = async (path: string) => pages[Number(/&page=(\d+)/.exec(path)![1]) - 1];
 
-  it('takes pull request and push runs that succeeded or failed, newest first', async () => {
-    expect((await recentRuns(get, 'o/r', 10)).map((r: { id: number }) => r.id)).toEqual([1, 4, 5]);
+  it('takes pull request, merge queue and push runs that succeeded or failed, newest first', async () => {
+    expect((await recentRuns(get, 'o/r', 10)).map((r: { id: number }) => r.id)).toEqual([1, 4, 5, 7]);
   });
 
   it('stops at the number asked for', async () => {

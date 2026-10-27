@@ -101,7 +101,7 @@ export function recMessage(name: string, action: RecAction, level: Level): strin
 
 export type RefKind = 'source' | 'guide' | 'note' | 'questions' | 'words' | 'other';
 
-/** What a document is to a translator: a Bible, a guide, a note, a question set, a key-word list (decision 149) or other material. */
+/** What a document is to a translator: a Bible, a guide, a note, a question set, a key-word list (decision 172) or other material. */
 export function refKindOf(doc: LibraryDoc | null | undefined): RefKind | null {
   if (!doc) return null;
   switch (doc.format) {

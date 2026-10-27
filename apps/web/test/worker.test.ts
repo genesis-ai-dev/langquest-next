@@ -89,6 +89,8 @@ describe('OrgFolder', () => {
     expect(languages(await folder.reportsFor('admin'))).toEqual(['din', 'nus']);
     expect(languages(await folder.reportsFor('dinka'))).toEqual(['din']);
     expect(await folder.reportsFor('stranger')).toBeNull();
+    // A Global Viewer, whom the route has checked: every language (decisions.md 158).
+    expect(languages(await folder.reportsFor('stranger', false, true))).toEqual(['din', 'nus']);
     expect(folder.knows('stranger')).toBe(false);
     expect(folder.knows('dinka')).toBe(true);
   });
@@ -561,6 +563,19 @@ describe('the reports API', () => {
     expect(d.calls).toEqual([]);
   });
 
+  it('answers a Global Viewer whose access is on for any organization, every language (decisions.md 158)', async () => {
+    const d = deps({ globalViewerOn: async (token) => token === 'good' });
+    expect((await handleApi(get('/api/orgs/someone-else/reports', 'good'), d)).status).toBe(200);
+    expect(d.calls).toEqual([['someone-else', 'p1', false, true]]);
+    // A member is answered as a member, with only their own languages.
+    expect((await handleApi(get('/api/orgs/o/reports', 'good'), d)).status).toBe(200);
+    expect(d.calls[1]).toEqual(['o', 'p1', false]);
+    // Access off (no aal2 session, or revoked): no.
+    const off = deps({ globalViewerOn: async () => false });
+    expect((await handleApi(get('/api/orgs/someone-else/reports', 'good'), off)).status).toBe(403);
+    expect(off.calls).toEqual([]);
+  });
+
   it('tells a stranger no, and a failure apart from a refusal', async () => {
     expect((await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => null }))).status).toBe(403);
     const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -573,6 +588,21 @@ describe('the reports API', () => {
     const d = deps({ reports: async () => ({ rows: [{ languageId: 'din', report: summary as never }], asOf: body.asOf }) });
     const res = await handleApi(get('/api/orgs/o/reports?view=summary', 'good'), d);
     expect(await res.json()).toEqual({ rows: [{ languageId: 'din', name: 'Dinka', progress: summary.progress }], asOf: body.asOf });
+  });
+
+  it('writes the rows once, and keeps the validator phones already hold: a digest of the rows alone, or of rows and preparing', async () => {
+    const digest = async (text: string) => `"${[...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))).slice(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('')}"`;
+    const plain = { rows: [{ languageId: 'din', report: { attention: { overdueRequests: 5 } } as never }], asOf: body.asOf };
+    const res = await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => plain }));
+    const sent = await res.json() as { rows: { report: { attention: { overdueRequests: number } } }[]; asOf: string };
+    expect(sent.asOf).toBe(body.asOf);
+    expect(sent.rows[0]!.report.attention.overdueRequests).toBe(0);
+    expect(res.headers.get('etag')).toBe(await digest(JSON.stringify(sent.rows)));
+    const preparing = [{ languageId: 'nus', name: 'Nuer' }];
+    const waiting = await handleApi(get('/api/orgs/o/reports', 'good'), deps({ reports: async () => ({ ...plain, preparing } as never) }));
+    const again = await waiting.json() as { rows: unknown; preparing: unknown };
+    expect(again.preparing).toEqual(preparing);
+    expect(waiting.headers.get('etag')).toBe(await digest(JSON.stringify({ rows: again.rows, preparing })));
   });
 
   it('answers an unchanged request with a 304 that still says how fresh it is', async () => {

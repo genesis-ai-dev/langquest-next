@@ -5,7 +5,7 @@
 // likely answer already picked:
 //   1 What will they record?   the language's content template (as New Language and its Content template page apply it)
 //   2 What will help them?     Bibles, study guides and key words offered to its team (the recommendations reference_bibles/guides write),
-//                              searched from a bar at the top, and what goes with what (FIA's guides and key words, decision 149)
+//                              searched from a bar at the top, and what goes with what (FIA's guides and key words, decision 172)
 //   3 Who checks the recordings? its review flow (chosen as flows_home chooses it; "I'll choose the steps" opens the flow editor)
 //   4 Invite your translators  a group code to scan (the invite RPC Invite by QR uses)
 // Params: `languageId` (opens that language) and `step`: none for the
@@ -22,7 +22,7 @@ import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { Text } from '../ui/text';
-import type { LibraryChoice } from '../templates/contentTemplates';
+import type { LibraryChoice } from '../templates/contentTemplatesModel';
 import { deriveKinds } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { useHelpMode } from '../helpMode/useHelpMode';
@@ -236,7 +236,7 @@ function RecordStep({ ctx, lang, header, next, only }: StepProps) {
  * guides, key words and notes, and the Bibles, guides and key words (in the
  * language its team reads) that other organizations share. On means
  * recommended to this language, as Bibles and Guides and Notes write it.
- * Turning one on turns on what goes with it (decision 149).
+ * Turning one on turns on what goes with it (decision 172).
  */
 function useHelpItems(ctx: Ctx) {
   const lib = useLibrary(ctx);
@@ -264,7 +264,7 @@ function useHelpItems(ctx: Ctx) {
   /** Its item in the library: another organization's is followed first, with automatic updates (copied when it may not be followed). */
   const take = async (x: { itemId: string | null; shared: SharedItem | null }) =>
     x.itemId ?? (x.shared!.subscribable ? await lib.subscribe(x.shared!, true) : await lib.copy(x.shared!));
-  /** The says that turn on what goes with something turned on (decision 149): a set in the language `turnOnWith` chose, anything else as its switch would. */
+  /** The says that turn on what goes with something turned on (decision 172): a set in the language `turnOnWith` chose, anything else as its switch would. */
   async function withSays(plan: readonly TurnOn[]): Promise<ReferenceSay[]> {
     const level = { kind: 'language' as const, languageId };
     const now = ctx.language.state;
@@ -320,7 +320,7 @@ function useHelpItems(ctx: Ctx) {
   }
   /**
    * Offer a guide set (or FIA's key words) in one language: taken into the library first when it is another organization's,
-   * then the team's only language of it. Turned on, what goes with it comes on too, in this language as far as it can (decision 149).
+   * then the team's only language of it. Turned on, what goes with it comes on too, in this language as far as it can (decision 172).
    */
   async function chooseLanguage(h: HelpItem, m: SetMember) {
     if (busy || !may || !languageId || !h.set) return;
@@ -510,7 +510,7 @@ interface GoesWith { family: string; key: string; name: string }
 const NO_LINKS: ReadonlyMap<string, number> = new Map();
 
 /**
- * The search bar over a list of helps (decision 149): words typed, and a
+ * The search bar over a list of helps (decision 172): words typed, and a
  * "Goes with" filter a row's related link puts in it; the two combine.
  * Either one looks through everything, past the team's language, with what
  * the organization does not have yet listed last (`helpSections`).
@@ -665,7 +665,7 @@ function HelpsList({ ctx, lang, header, next, onLanguage }: StepProps & { onLang
 
 /**
  * Reference material, on a ready language: every kind of help with a switch each, Add more, and the organization's whole shelf (decision 138),
- * searched from a bar at the top, the team's own key terms beside the key-word lists (decision 149).
+ * searched from a bar at the top, the team's own key terms beside the key-word lists (decision 172).
  */
 function HelpsPage({ ctx }: { ctx: Ctx }) {
   const state = ctx.language.state!;

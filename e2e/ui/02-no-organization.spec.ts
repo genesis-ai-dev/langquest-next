@@ -184,7 +184,7 @@ test('NOORG-005 On the web, sign-out waits for account changes still to send', a
   await askRow(page, org()).click();
   await button(page, 'Done').click();
   await button(page, 'Sign out').click();
-  await expect(text(page, 'Still to send: 1 account change. Sign out once they have synced so they are not stranded here.')).toBeVisible();
+  await expect(text(page, 'Still to send: 1 account change. This device is offline. Sign out once they have synced so they are not stranded here.')).toBeVisible();
   // The confirm is its own screen. Cancel stays signed in; the ask is on the screen under it.
   await button(page, 'Cancel').click();
   await expect(text(page, `Asked ${org()}`)).toBeVisible();

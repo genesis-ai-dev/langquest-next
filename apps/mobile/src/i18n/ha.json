@@ -53,7 +53,9 @@
     "minutesAgo_other": "minti {{count, number}} da suka wuce",
     "hoursAgo_one": "sa'a {{count, number}} da ta wuce",
     "hoursAgo_other": "sa'o'i {{count, number}} da suka wuce",
-    "clock": "{{minutes}}:{{seconds}}"
+    "clock": "{{minutes}}:{{seconds}}",
+    "today": "Yau",
+    "yesterday": "Jiya"
   },
   "units": {
     "kilobytes": "{{value}} KB",
@@ -346,11 +348,14 @@
     "get_ready": "Ku shirya",
     "settings_more": "Ƙarin saituna",
     "check_editor": "Dubawa",
-    "cluster_home": "Rukuni"
+    "cluster_home": "Rukuni",
+    "global_viewer": "Mai Kallo na Duniya"
   },
   "native": {
     "microphone": "LangQuest yana naɗar muryarku don fassara nassosi.",
-    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata."
+    "camera": "LangQuest yana amfani da kyamara don karanta lambobin QR na gayyata.",
+    "calculator": "Kalkuleta",
+    "notes": "Bayanai"
   },
   "library": {
     "sourceLine": {
@@ -3102,6 +3107,13 @@
       "elsewhereSub": "Yana aiki a shafi ɗaya a lokaci guda, don naɗe-naɗenku da canje-canjenku su kasance a wuri ɗaya. Ku yi amfani da shi a nan, ko ku koma ɗayan shafin.",
       "useHere": "Yi amfani da shi a nan",
       "useHereHelp": "Yana kawo LangQuest zuwa wannan shafi. Ɗayan shafin yana ajiye aikinsa ya koma gefe."
+    },
+    "lock": {
+      "wait": "Gwaje-gwaje sun yi yawa. Ku jira kaɗan, sannan ku sake gwadawa.",
+      "wrong": "Wannan zanen ba daidai ba ne.",
+      "notMe": "Ba hotona ba ne",
+      "notMeHelp": "Yana komawa ga hotunan.",
+      "pictureHelp": "Kun fita daga wannan waya? Taɓa hotonku, sannan ku zana zanenku. Ba a buƙatar intanet."
     }
   },
   "account": {
@@ -3118,9 +3130,6 @@
       "ready": "Sabuntawa ta shirya — taɓa don sake kunnawa",
       "downloading": "Ana sauke sabuntawa…",
       "downloadingPercent": "Ana sauke sabuntawa… {{percent}}",
-      "offline": "Babu intanet — taɓa don sake gwadawa",
-      "failed": "Sabuntawa ta kasa: {{reason}} — taɓa don sake gwadawa",
-      "offlineLabel": "Babu intanet: ba za a iya duba sabuntawa ba",
       "webReady": "Sabuwar sigar LangQuest ta shirya. Ku sake loda shafin don amfani da ita.",
       "storeBuild": "ginin shago",
       "updateBuild": "sabuntawa {{id}}",
@@ -3399,11 +3408,9 @@
         "checking": "An haɗa, amma hanyar kai tsaye ba ta aiki, don haka wannan na'ura tana duba canje-canje bayan 'yan mintuna. Daidaita yanzu yana dubawa nan take.",
         "offline": "Babu haɗi. Duk abin da kake yi ana ajiye shi a wannan na'ura kuma zai tafi da kansa idan ka dawo kan intanet.",
         "refused": "Sabar ba ta karɓar canje-canje daga wannan na'ura. Aikinka yana nan a ajiye.",
-        "toSend": "Canje-canje da rikodin da aka yi a wannan na'ura waɗanda sabar ba ta tabbatar ba tukuna. Suna nan lafiya kuma za su tafi idan an samu haɗi.",
         "toReceive": "Rikodin wasu da wannan na'ura har yanzu take saukewa.",
         "refusedLine": "Canje-canjen da sabar ta ƙi karɓa, yawanci saboda izini ya canza. Suna nan a wannan na'ura; buɗe Cikakkun bayanai don ganin kowanne."
       },
-      "toSend": "Don aikawa",
       "toReceive": "Don karɓa",
       "refusedLine": "An ƙi",
       "none": "Babu",
@@ -3412,6 +3419,17 @@
       "syncNowHelp": "Yana aika abin da ke jira, ya samo abin da yake sabo, nan take.",
       "detailsHelp": "Kowane canji da ke jira ko aka ƙi, da tura sauti: don wanda ke gyara matsala.",
       "eventHelp": "Yana buɗe nassin da wannan canji ya shafa."
+    },
+    "lock": {
+      "tooShort": "Haɗa aƙalla ɗigo {{n}}.",
+      "patternsDiffer": "Wannan wani zane ne daban. Sake farawa.",
+      "pictureTitle": "Zaɓi hotonku",
+      "pictureHelp": "Don sake shiga a wannan waya, za ku taɓa hotonku, sannan ku zana zanenku.",
+      "nextHelp": "Yana ci gaba zuwa zana zanenku.",
+      "drawTitle": "Zana zane",
+      "drawAgain": "Sake zana shi",
+      "newPattern": "Zana sabon zane",
+      "choosePatternHelp": "Zaɓi hoto da zane don sake shiga a wannan waya, ko babu intanet."
     }
   },
   "study": {
@@ -3944,7 +3962,8 @@
       "openStudyHelp": "Yana buɗe dukan jagorar nazari ta wannan nassi.",
       "listeners": "Masu saurare",
       "liveIn": "Ana samu a {{channel}} · {{version}}",
-      "listenerCount": "Ra'ayoyin masu saurare: {{count, number}}"
+      "listenerCount": "Ra'ayoyin masu saurare: {{count, number}}",
+      "askedOffline": "An roƙi {{target}}. Za su samu idan wannan na'ura ta samu intanet."
     },
     "else": {
       "title": "Wani abu daban?",
@@ -4131,6 +4150,15 @@
       "partHelp": "Yana kunna wannan sashe shi kaɗai.",
       "deleteVersionHelp": "Yana goge wannan siga ga kowa. Binciken da aka riga aka yi a kanta yana nan a tarihi amma ba a ƙirga shi kuma.",
       "doneHelp": "Yana buɗe kallo na ƙarshe na wannan daftari, don ku gama shi ku aika shi zuwa dubawarsa ta gaba."
+    },
+    "partNotes": {
+      "title": "Bayanai a kan {{part}}",
+      "mark_one": "Bayani {{count, number}} a kan {{part}}",
+      "mark_other": "Bayanai {{count, number}} a kan {{part}}",
+      "markHelp": "Yana buɗe abin da aka faɗa a dubawar game da wannan sashe. Kuna iya amsawa."
+    },
+    "checkNotes": {
+      "title": "Bayanai daga {{check}}"
     }
   },
   "work": {
@@ -4182,7 +4210,8 @@
     },
     "sync": {
       "toSend_one": "{{count, number}} da za a aika",
-      "toSend_other": "{{count, number}} da za a aika"
+      "toSend_other": "{{count, number}} da za a aika",
+      "receiving": "ana karɓar rikodi"
     },
     "join": {
       "wantsToJoin": "{{name}} na son shiga",
@@ -4276,7 +4305,8 @@
     "toast": {
       "notSaved": "Ba a ajiye ba: {{reason}}",
       "notSavedCode": "Ba a ajiye ba. Wani abu bai yi daidai ba (lamba {{code}}).",
-      "dismissLabel": "{{message}} Kawar"
+      "dismissLabel": "{{message}} Kawar",
+      "goesWhenConnected": "{{message}} Ƙungiyarka za ta samu idan wannan na'ura ta samu intanet."
     },
     "nav": {
       "cannotOpenHere": "Ba za a iya buɗe wannan daga nan ba.",
@@ -4376,6 +4406,14 @@
       "term": {
         "title": "Zaɓi kalma",
         "sub": "Ma'anarta da yadda aka fassara ta za su buɗe a nan."
+      },
+      "language": {
+        "title": "Zaɓi harshe",
+        "sub": "Ci gabansa zai buɗe a nan."
+      },
+      "manage": {
+        "title": "Zaɓi abin da za a gudanar",
+        "sub": "Harshe, membobi ko tsari zai buɗe a nan."
       }
     },
     "license": {
@@ -4401,6 +4439,15 @@
       "readHelp": "Yana buɗe cikakken rubutunsa a burauza.",
       "rowHelp": "Yana buɗe lasisi daban-daban da abin da kowanne ya yarda da shi.",
       "yesOpenToHelp": "Daga yanzu za a raba aikinku a ƙarƙashin wannan lasisi. Ba za a iya janye wannan ba."
+    },
+    "pattern": {
+      "label": "Zane: haɗa aƙalla ɗigo {{n}}",
+      "help": "Ja yatsa kan ɗigogin ba tare da ɗaga shi ba, ko taɓa su ɗaya bayan ɗaya sannan An gama. Haɗa aƙalla ɗigo {{n}}.",
+      "dot": "Ɗigo {{n}}",
+      "picture": "Hoto {{n}}",
+      "again": "Sake farawa",
+      "againHelp": "Yana goge ɗigogin don sake fara zanen.",
+      "doneHelp": "Yana kammala zanen da ɗigogin da kuka taɓa."
     }
   },
   "help": {
@@ -4447,51 +4494,27 @@
       "checking": "Ɗigo toka: ana neman haɗi. Aikinku yana zama a wannan na'ura har sai an aika shi.",
       "offline": "Ɗigo ruwan ɗorawa: babu intanet. Aikinku yana zama a wannan na'ura, kuma za a aika shi da zarar an haɗa.",
       "refused": "Ja: sabar ta ƙi wani abu. Taɓa don ganin mene ne, da abin da za a yi.",
-      "withWaiting": "{{standing}} Lambar ita ce yawan abubuwan da ke jiran a aika."
+      "withWaiting": "{{standing}} Lambar ita ce yawan abubuwan da ke jiran a aika.",
+      "withReceiving": "{{standing}} Zoben yana juyawa yayin da ake sauke rikodin wasu zuwa wannan na’urar. Babu abin da ke jiran a aika."
     }
   },
   "offline": {
     "onDevice": "A wannan na'ura",
     "downloading": "Ana saukewa don amfani ba intanet",
-    "audioNotHere": "Sauti ba ya kan wannan na'ura",
-    "notKept": "Ba a adana a wannan na'ura ba",
     "audioNotKept": "Ba a adana sauti a wannan na'ura ba",
     "connectToFinish": "Ku haɗa intanet don kammalawa kafin ku yi tafiya.",
     "stayConnected": "Ku zauna a haɗe har sai wannan ya kammala.",
-    "keep": "Adana a na'ura",
-    "stopKeeping": "Daina adanawa a na'ura",
     "reason": {
       "asked": "An adana saboda an roƙe ku ku yi aiki a kansa.",
       "worked": "An adana saboda kun yi aiki a kansa.",
       "chosen": "An adana saboda kun zaɓi adana shi."
     },
     "passage": {
-      "notSent_one": "Naɗi {{count, number}} bai aiku ba tukuna daga na'urar da ta yi shi.",
-      "notSent_other": "Naɗe-naɗe {{count, number}} ba su aiku ba tukuna daga na'urar da ta yi su.",
-      "studyOnline": "Hotunan nazari da sautin nazari suna buƙatar intanet a manhajar yanar gizo.",
-      "worksWithStudy": "Rubutunsa, sautinsa da hotunan nazari suna aiki ba tare da intanet ba.",
-      "worksWithAudio": "Rubutunsa da sautinsa suna aiki ba tare da intanet ba.",
-      "worksTextOnly": "Rubutunsa yana aiki ba tare da intanet ba, kuma sabon sauti yana saukowa idan ya iso.",
-      "audioFilesHere_one": "Fayilolin sauti {{here, number}} cikin {{count, number}} suna nan.",
-      "audioFilesHere_other": "Fayilolin sauti {{here, number}} cikin {{count, number}} suna nan.",
-      "audioFilesHereLeft_one": "Fayilolin sauti {{here, number}} cikin {{count, number}} suna nan, saura sauti {{size}}.",
-      "audioFilesHereLeft_other": "Fayilolin sauti {{here, number}} cikin {{count, number}} suna nan, saura sauti {{size}}.",
-      "studyFilesHere_one": "Fayilolin sauti da na nazari {{here, number}} cikin {{count, number}} suna nan.",
-      "studyFilesHere_other": "Fayilolin sauti da na nazari {{here, number}} cikin {{count, number}} suna nan.",
-      "studyFilesHereLeft_one": "Fayilolin sauti da na nazari {{here, number}} cikin {{count, number}} suna nan, saura sauti {{size}}.",
-      "studyFilesHereLeft_other": "Fayilolin sauti da na nazari {{here, number}} cikin {{count, number}} suna nan, saura sauti {{size}}.",
       "onlySomeHere_one": "Fayiloli {{here, number}} kaɗai cikin {{count, number}} ne a wannan na'ura",
       "onlySomeHere_other": "Fayiloli {{here, number}} kaɗai cikin {{count, number}} ne a wannan na'ura",
-      "downloadingCount": "Ana saukewa don amfani ba intanet · {{here, number}} cikin {{total, number}}",
-      "notAllHere": "Ba duka ba ne a wannan na'ura tukuna",
-      "readRecordAudioNeeds": "Kuna iya karanta shi da naɗawa, amma sautinsa yana buƙatar intanet.",
-      "readRecordStudyNeeds": "Kuna iya karanta shi da naɗawa, amma sautinsa da hotunan nazari suna buƙatar intanet.",
-      "textHereAudioNeeds": "Rubutunsa yana nan, amma sautinsa yana buƙatar intanet. Ku adana shi a na'ura don ku tafi da shi.",
-      "textHereStudyNeeds": "Rubutunsa yana nan, amma sautinsa da hotunan nazari suna buƙatar intanet. Ku adana shi a na'ura don ku tafi da shi.",
-      "barHelp": "Yana cika yayin da fayilolinsa suke isowa wannan na'ura."
+      "downloadingCount": "Ana saukewa don amfani ba intanet · {{here, number}} cikin {{total, number}}"
     },
     "toast": {
-      "kept": "An adana a wannan na'ura. Yana saukowa yayin da kuke da intanet.",
       "notKept": "Ba a adana shi yanzu. Ana iya cire sautinsa don samar da wuri."
     },
     "summary": {
@@ -4518,8 +4541,8 @@
       "alwaysBody": "Rubutu, matsayi da tarihin kowane nassi a {{language}}. Sautin nassosin da aka roƙe ku ku yi aiki a kansu, ko kuka yi aiki a kansu, ko kuka zaɓi adanawa.",
       "alwaysBodyStudy": "Rubutu, matsayi da tarihin kowane nassi a {{language}}. Sauti, hotunan nazari, taswirori da sautin nazari na nassosin da aka roƙe ku ku yi aiki a kansu, ko kuka yi aiki a kansu, ko kuka zaɓi adanawa.",
       "needsTitle": "Yana buƙatar intanet",
-      "needsNotKept": "Sautin nassosin da ba ku adana ba. Ku buɗe nassi ku taɓa Adana a na'ura don ku tafi da shi.",
-      "needsNotKeptStudy": "Sauti da kayan nazari na nassosin da ba ku adana ba. Ku buɗe nassi ku taɓa Adana a na'ura don ku tafi da shi.",
+      "needsNotDownloaded": "Sautin sassan da ba a sauke ba.",
+      "needsNotDownloadedStudy": "Sauti da kayan nazari na sassan da ba a sauke ba.",
       "needsFilms": "Fina-finan nazari.",
       "needsStudyWeb": "Hotunan nazari, taswirori da sautin nazari, a manhajar yanar gizo.",
       "needsReports": "Rahotanni.",
@@ -4541,7 +4564,11 @@
       "body": "Ana ci gaba da sauke juzu'oinsa, bita da tarihinsa tare da sauran wannan harshe. Ka haɗa don saukewa.",
       "latest": "Na ƙarshe: juzu'i {{n, number}}, na {{name}}.",
       "requests": "Buƙatun da ke buɗe: {{n, number}}."
-    }
+    },
+    "download": "Sauke don amfani ba intanet",
+    "needsConnection": "Saukewa na bukatar intanet",
+    "needsConnectionHelp": "Ba ya a wannan na'ura. Za a iya sauke shi idan na'urar ta samu intanet.",
+    "checkingHelp": "Wannan na'ura tana ƙidaya abin da take da shi na wannan sashe."
   },
   "moderation": {
     "flagLabel": "Kai ƙara ko toshe {{name}}",
@@ -4980,7 +5007,6 @@
       "chapter": "Babi na {{n}}",
       "chapterHelp": "Yana buɗe nassinsa. Alamar ✓ tana nufin an gama, ɗigo yana nufin an fara.",
       "keyLabel": "Alamar ✓ tana nufin an gama, ɗigo yana nufin an fara",
-      "keyLabelOffline": "Alamar ✓ tana nufin an gama, ɗigo yana nufin an fara, gajimare yana nufin an adana a wannan na'ura",
       "barHelp": "Sandan yana cika yayin da ake naɗa nassosinsa; ɓangaren kore an gama shi.",
       "countHelp": "{{shown}} yana nufin an naɗa {{recorded}} cikin nassosinsa {{total}}.",
       "matchHelp": "Lambar ita ce yawan nassosinsa da suka dace da tacewa.",
@@ -4993,7 +5019,6 @@
     "key": {
       "done": "An gama",
       "started": "An fara",
-      "onDevice": "A wannan na'ura",
       "doneSub": "An kammala kowane duba",
       "startedSub": "An fara naɗawa, an naɗa, yana wurin masu bita, ko sharhi yana jira",
       "notStarted": "Ba a fara ba",
@@ -5878,7 +5903,12 @@
         "someTerm": "kalma",
         "version": "Siga ta {{n}}",
         "aVersion": "Wata siga",
-        "study": "Nazari"
+        "study": "Nazari",
+        "replyTo": "Amsa wa {{name}}",
+        "reply": "Wata amsa",
+        "aPart": "Wani sashe",
+        "help": "“{{help}}”",
+        "aHelp": "Wani abin taimako"
       }
     },
     "parts": {
@@ -6050,6 +6080,8 @@
       "helpNoteHelp": "Yana buɗe shi don karantawa.",
       "howManyHelp": "Ku faɗi yawan waɗanda suka saurara. Ba dole ba.",
       "doneRecordedHelp": "Yana sa {{what}} a tarihin nassin.",
+      "looksGoodOffline": "Yana da kyau. {{name}} zai samu idan wannan na'ura ta samu intanet.",
+      "feedbackOffline": "An adana ra'ayin. {{name}} zai samu idan wannan na'ura ta samu intanet.",
       "helpWordsHelp": "Yana buɗe muhimman kalmomin wannan nassi, tare da kalmar tawagar ga kowacce da kuma ko wannan siga ta yi amfani da ita."
     },
     "guest": {
@@ -6196,6 +6228,19 @@
       "addStepDetail": "Ƙara wata dubawa, bayan sauran.",
       "legend": "= dole a wuce kafin matakai na gaba",
       "gripHelp": "Ku ja sama ko ƙasa don matsar da wannan mataki."
+    },
+    "notesOn": {
+      "addOn": "Ƙara bayani a kan {{what}}",
+      "addOnHelp": "Yana ƙara bayani a kan wannan, da murya ko rubutu. Yana tafiya tare da bitarku.",
+      "noteOn": "Bayani a kan {{what}}",
+      "reply": "Amsa",
+      "replyHelp": "Yana amsa bayanin {{name}}. Amsarku tana bayyana a ƙarƙashinsa.",
+      "replyTitle": "Amsa wa {{name}}",
+      "withReview": "Tare da bitarku",
+      "removeFrom": "Cire bayaninku: {{what}}",
+      "goWith_one": "Bayani {{count, number}} yana tafiya tare da bitarku",
+      "goWith_other": "Bayanai {{count, number}} suna tafiya tare da bitarku",
+      "added": "An ƙara a bitarku."
     }
   },
   "backTranslation": {
@@ -6667,7 +6712,9 @@
       "addHint": "Bar bayani a kan wannan nassi, da murya ko rubutu.",
       "sheetSub": "Yana zama tare da nassin. Masu bita da mai fassara na gaba suna ganinsa.",
       "added": "An ƙara bayani.",
-      "typeHelp": "Ku rubuta bayaninku. Kuna iya faɗinsa ma."
+      "typeHelp": "Ku rubuta bayaninku. Kuna iya faɗinsa ma.",
+      "onPart": "a kan {{part}}",
+      "onHelp": "a kan “{{help}}”"
     },
     "earlier": {
       "yours": "Naku",
@@ -7344,6 +7391,112 @@
       "saved": "An ajiye. Za a aika idan kuna da intanet.",
       "savedUntilSignIn": "An ajiye. Za a aika bayan kun shiga.",
       "voiceTooLong": "Ya yi tsawo: saƙon murya zai iya kai har minti 2."
+    }
+  },
+  "appVersion": {
+    "available": "Akwai sabon sigar",
+    "update": "Sabunta",
+    "updateHelp": "Yana buɗe shafin shago na sabon sigar.",
+    "dismiss": "Rufe",
+    "dismissHelp": "Yana ɓoye wannan har sai sabon sigar ya fito.",
+    "required": "Da fatan za a sabunta manhajar",
+    "keepWorking": "Ci gaba da aiki",
+    "keepWorkingHelp": "Aikinka yana nan a wannan wayar, kuma za a aika shi bayan ka sabunta."
+  },
+  "globalViewer": {
+    "title": "Mai Kallo na Duniya",
+    "viewingOrg": "Kuna kallon {{org}} a matsayin Mai Kallo na Duniya. Ba za ku iya canza komai ba.",
+    "lineSetUp": "Ku saita manhajar tabbatarwarku don farawa",
+    "lineCode": "Ku shigar da lambar daga manhajar tabbatarwarku",
+    "lineOn": "Ku nemi kowace ƙungiya don karantawa",
+    "lineRevoked": "Izinin ku na Mai Kallo na Duniya ya ƙare",
+    "wayInHelp": "Lambar manhajar tabbatarwarku, da dukkan ƙungiyoyin da za ku karanta.",
+    "revokedTitle": "Izinin Mai Kallo na Duniya ya ƙare",
+    "revokedBody": "Ku tambayi LangQuest idan kuna tsammanin kuskure ne.",
+    "notOne": "Wannan asusun ba na Mai Kallo na Duniya ba ne.",
+    "codeLabel": "Lamba daga manhajar tabbatarwarku",
+    "codeHelp": "Lambar lambobi 6 da manhajar tabbatarwarku ke nuna wa LangQuest. Tana canzawa kowane daƙiƙa 30.",
+    "check": "Duba lamba",
+    "checkHelp": "Idan lambar daidai ce, za ku iya karanta dukkan ƙungiyoyi har sai kun fita.",
+    "codeWrong": "Lambar nan ba daidai ba ce. Ku rubuta lambar da manhajar tabbatarwarku ke nunawa yanzu.",
+    "noAuthenticator": "Wannan asusun ba shi da manhajar tabbatarwa. Ku roƙi LangQuest ta sake saita ta.",
+    "enterCode": "Don karanta ƙungiyoyi, ku shigar da lambar daga manhajar tabbatarwarku.",
+    "setUpIntro": "Ku yi wannan a kiran waya da wanda ya ba ku izini. Kuna buƙatar manhajar tabbatarwa a wayarku, kamar Google Authenticator ko Microsoft Authenticator.",
+    "setUp": "Saita manhajar tabbatarwa",
+    "setUpHelp": "Yana yin sabon maɓalli don manhajar tabbatarwarku, ya nuna shi a nan.",
+    "stepAdd": "1. Ku ƙara LangQuest a manhajar tabbatarwarku",
+    "scan": "Ku duba wannan lambar da manhajar tabbatarwarku.",
+    "qrLabel": "Lambar da za a duba da manhajar tabbatarwarku",
+    "openApp": "Buɗe a manhajar tabbatarwa",
+    "openAppHelp": "Yana ƙara LangQuest a manhajar tabbatarwar wannan waya.",
+    "noApp": "Babu manhajar tabbatarwa da ta buɗe. Ku rubuta maɓallin da ke ƙasa a cikinta.",
+    "typeKey": "Ko ku rubuta wannan maɓalli a manhajar:",
+    "stepCode": "2. Ku shigar da lambar da take nunawa",
+    "onTitle": "Kuna iya karanta dukkan ƙungiyoyi",
+    "onBody": "Kuna ganin abin da Mai Kallo ke gani. Ba za ku iya canza komai ba.",
+    "search": "Ƙungiya ko harshe",
+    "openNowLabel": "{{name}}, a buɗe yanzu",
+    "openHelp": "Yana buɗe wannan ƙungiya don karantawa.",
+    "noneFound": "Babu ƙungiyar da ta dace.",
+    "more": "Nuna ƙari",
+    "hereLabel": "Ana kallo yanzu",
+    "otherLabel": "Buɗe wata ƙungiya",
+    "readOnly": "Kuna kallo a matsayin Mai Kallo na Duniya: ba za a iya canza komai a nan ba.",
+    "linkHelp": "Inda kuke kallo, abin da za ku iya yi a can, da dukan sauran ƙungiyoyi.",
+    "dashboard": "Allon ayyuka",
+    "dashboardBody": "Ayyukan LangQuest, aikin sabar da binciken filin aiki. Yana buɗewa a sabon shafi.",
+    "dashboardHelp": "Yana buɗe allon ayyukan LangQuest a sabon shafi, da asusunka."
+  },
+  "uploads": {
+    "barRecordings_one": "Naɗi {{count, number}} yana jiran ɗorawa",
+    "barRecordings_other": "Naɗe-naɗe {{count, number}} suna jiran ɗorawa",
+    "barChanges_one": "Canji {{count, number}} yana jiran ɗorawa",
+    "barChanges_other": "Canje-canje {{count, number}} suna jiran ɗorawa",
+    "uploading": "Ana ɗorawa",
+    "allUploaded": "An ɗora komai",
+    "barHelp": "Yana buɗe abin da aka adana a wannan na'ura yana jiran ɗorawa, da lokacin da aka ɗora abubuwa.",
+    "savedHere": "An adana a wannan na'ura",
+    "lastUpload": "Ɗorawa ta ƙarshe: {{when}}",
+    "waitingTitle": "Yana jiran ɗorawa",
+    "uploadedTitle": "An ɗora",
+    "recordingsUploaded_one": "An ɗora {{uploaded, number}} cikin naɗi {{count, number}}",
+    "recordingsUploaded_other": "An ɗora {{uploaded, number}} cikin naɗe-naɗe {{count, number}}",
+    "changesWaiting_one": "Canji {{count, number}} yana jira",
+    "changesWaiting_other": "Canje-canje {{count, number}} suna jira",
+    "otherChanges": "Wasu canje-canje",
+    "recordings_one": "Naɗi {{count, number}}",
+    "recordings_other": "Naɗe-naɗe {{count, number}}",
+    "changes_one": "Canji {{count, number}}",
+    "changes_other": "Canje-canje {{count, number}}"
+  },
+  "disguise": {
+    "row": "Alamar manhaja",
+    "rowHelp": "Yana sa LangQuest ya yi kama kalkuleta ko littafin rubutu a wannan waya. Yana buɗewa ne kawai da lambar da ka zaɓa.",
+    "title": "Alamar manhaja",
+    "langquest": "LangQuest",
+    "ownHelp": "Yana mayar da ainihin alamar LangQuest. Yana buɗewa ba tare da lamba ba.",
+    "lookHelp": "Yana zaɓar wannan alamar. Bayan haka za ka zaɓi lambar da ke buɗe LangQuest.",
+    "calculatorN": "Kalkuleta {{n}}",
+    "notesN": "Bayanai {{n}}",
+    "codeTitle": "Zaɓi lamba",
+    "code": "Lamba",
+    "codeHelp": "Lambobi 4 zuwa 12. A kalkuleta, rubuta ta da maɓallai. A littafin rubutu, rubuta ta ita kaɗai a layi.",
+    "nextHelp": "Yana buɗe kalkuleta ko littafin rubutu don ka rubuta lambarka a kai.",
+    "backHelp": "Yana komawa mataki ɗaya baya.",
+    "tryTitle": "Rubuta lambarka",
+    "on": "Wannan waya yanzu tana nuna {{name}}.",
+    "off": "Ainihin alamar LangQuest ta dawo.",
+    "notesTitle": "Bayanai",
+    "keys": {
+      "clear": "Share duka",
+      "delete": "Goge",
+      "percent": "Kashi cikin ɗari",
+      "divide": "Raba",
+      "times": "Ninka",
+      "minus": "Rage",
+      "plus": "Ƙara",
+      "equals": "Daidai da",
+      "point": "Digo"
     }
   }
 }

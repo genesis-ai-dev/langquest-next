@@ -12,7 +12,9 @@ import { orgLanguages, privilegesFor, type OrgState } from '@langquest-next/core
 export function openLanguage(
   org: OrgState | null,
   actorId: string,
-  wanted: { param?: string | undefined; saved?: string | null | undefined }
+  wanted: { param?: string | undefined; saved?: string | null | undefined },
+  /** A Global Viewer whose access is on reads every language (decisions.md 158). */
+  readsAll = false
 ): string | null {
   const languages = orgLanguages(org);
   const added = new Set(languages.map((l) => l.languageId));
@@ -20,7 +22,7 @@ export function openLanguage(
   // anyone without a privilege there (can_read_stream), and opening it left
   // the session with none at all, as if they belonged to no organization.
   // Someone who may read none (not a member yet) keeps the old order.
-  const readable = (id: string) => !org || privilegesFor(org, actorId, id).size > 0;
+  const readable = (id: string) => !org || readsAll || privilegesFor(org, actorId, id).size > 0;
   const anyReadable = languages.some((l) => readable(l.languageId));
   const ok = (id: string | null | undefined): id is string => !!id && added.has(id) && (!anyReadable || readable(id));
   const mine = Object.values(org?.members[actorId] ?? {})

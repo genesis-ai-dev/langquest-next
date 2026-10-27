@@ -8,9 +8,9 @@
 // Each test opens a fresh browser (a fresh install), so before going offline
 // it waits until the device has caught up with the server (`caughtUp`), as a
 // person's device would have before they set out.
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import {
-  button, expect, expectNothingRefused, expectSent, expectSyncIdle, openAs, screenText, syncNow, tab, test, text, useWorld
+  button, byId, expect, expectNothingRefused, expectSent, expectSyncIdle, openAs, screenText, syncNow, tab, test, text, useWorld
 } from './support';
 import {
   addNote, caughtUp, deviceAs, keptHere, noteAs, openByLabel, openRecord, openSync, passageAs, quietReloads, recordAndPublish, serverHasAudio, setOffline, SYNC_CLEAR, syncChip, tile, tileLocator, toTab
@@ -176,7 +176,8 @@ test('SYNC-009 A translator records and publishes offline @p0', async ({ page, c
   await expect(text(page, /^Published/)).toBeVisible();
   await openSync(page);
   await expect.poll(() => tile(page, 'waiting to upload')).toBeGreaterThan(0);
-  await expect(text(page, /^\d+ left · /)).toBeVisible();
+  // Offline nothing moves, so the row says Offline rather than a speed (decision 166).
+  await expect(page.getByLabel('Audio uploading. Offline', { exact: true }).locator('visible=true')).toBeVisible();
   // Step 3 (kill and reopen offline) is phone-only: a browser needs a connection to load the page (decision 58, WEB-027).
   await setOffline(context, false);
   await expect.poll(() => tile(page, 'waiting to upload'), { timeout: 30_000 }).toBe(0);
@@ -206,7 +207,7 @@ test('SYNC-010 A reviewer reviews offline @p0', async ({ page, context, browser 
   await button(page, /^Do the peer (check|review)$/).click();
   await button(page, 'Next: decide').click();
   await button(page, 'Looks good').click();
-  await expect(page.getByTestId('toast').locator('visible=true')).toContainText(/^Looks good · /);
+  await expect(page.getByTestId('toast').locator('visible=true')).toContainText(/^Looks good\. .+ gets it when this device is connected\./);
   await expect(button(page, /^Peer check, looks good/)).toBeVisible();
   await setOffline(context, false);
   await expectSent(page, w);
@@ -236,7 +237,6 @@ test('SYNC-011 A coordinator asks someone offline', async ({ page, context, brow
   await button(page, 'Something else?').click();
   await button(page, /^Someone else should do this/).click();
   await page.getByRole('radio', { name: /^Trevor Both/ }).locator('visible=true').first().click();
-  await button(page, 'In a week').click();
   await button(page, /^Ask /).click();
   await expect(text(page, /Trevor Both/, false)).toBeVisible();
   await setOffline(context, false);
@@ -324,4 +324,57 @@ test('SYNC-032 The web offers a reload for a new version', async ({ page }) => {
   const reloaded = page.waitForEvent('load');
   await banner.click();
   await reloaded;
+});
+
+// Decision 166: offline, every line says only what this device knows.
+test('SYNC-033 Offline, nothing claims a download, an upload or that nothing is new @p0', async ({ page, context }) => {
+  const w = world();
+  await openAs(page, w, 'TRANS');
+  await caughtUp(page, w, 'TRANS');
+  await setOffline(context, true);
+  // Luke 1:1–4: nobody asked TRANS for it and TRANS never worked on it, so it is not kept.
+  await openByLabel(page, 'Luke 1:1–4');
+  const line = byId(page, 'passage-offline');
+  await expect(line).toHaveAttribute('aria-label', 'Download needs a connection');
+  await line.click({ force: true });
+  await page.waitForTimeout(800); // sleep: nothing observable says a tap did nothing
+  await expect(line).toHaveAttribute('aria-label', 'Download needs a connection');
+  await expect(page.getByTestId('toast').locator('visible=true')).toHaveCount(0);
+  // Recorded offline: the bar says it waits, offline; never "Uploading". P-Q4: no other test here records on it.
+  await recordAndPublish(page, w, 'P-Q4', 1);
+  await expect(byId(page, 'toast')).toContainText('Your team gets it when this device is connected.');
+  await expect(byId(page, 'upload-bar')).toHaveAttribute('aria-label', /waiting to upload, Offline$/);
+  // Sync: what is new on the server cannot be known offline. Files this
+  // device already knows it must fetch are counted; never "None".
+  await openSync(page);
+  await expect(page.getByLabel(/^To receive: (Offline|[\d,]+)$/).locator('visible=true')).toBeVisible();
+  await expect(page.getByLabel('Audio downloading. Offline', { exact: true }).locator('visible=true')).toBeVisible();
+  await expect(text(page, 'All uploaded')).toHaveCount(0);
+});
+
+test('SYNC-034 Connected but the server does not answer: Offline, and back once it answers @p0', async ({ page, context }) => {
+  const w = world();
+  // A VPN with no internet behind it: the browser still says it is online,
+  // and nothing it sends reaches the server. The live channel goes through
+  // here so its answers can be held back too.
+  let cut = false;
+  await context.routeWebSocket(/\/realtime\/v1\/websocket/, (ws) => {
+    const server = ws.connectToServer();
+    server.onMessage((m) => { if (!cut) ws.send(m); });
+  });
+  await openAs(page, w, 'TRANS');
+  await caughtUp(page, w, 'TRANS');
+  await openSync(page);
+  await expect(text(page, LIVE)).toBeVisible({ timeout: 30_000 });
+  const held: Route[] = [];
+  const server = `${w.supabaseUrl}/**`;
+  cut = true;
+  await context.route(server, (r) => { held.push(r); });
+  // The app asks the server after 20 seconds of silence and waits 8 for an answer.
+  await expect(text(page, OFFLINE)).toBeVisible({ timeout: 45_000 });
+  await expect(text(page, LIVE)).toHaveCount(0);
+  cut = false;
+  await context.unroute(server);
+  for (const r of held.splice(0)) await r.continue().catch(() => undefined);
+  await expect(text(page, OFFLINE)).toHaveCount(0, { timeout: 45_000 });
 });

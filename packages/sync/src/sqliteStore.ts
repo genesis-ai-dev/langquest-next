@@ -92,7 +92,7 @@ export class SqliteStore implements EventStore {
 
   async commit(batch: WriteBatch): Promise<void> {
     const write = async (tx: SqlDriver) => {
-      for (const l of batch.events ?? []) await this.putOn(tx, l);
+      await this.putOn(tx, batch.events ?? []);
       if (batch.cursor) await this.setCursorOn(tx, batch.cursor.orgId, batch.cursor.streamId, batch.cursor.seq);
       for (const [k, v] of Object.entries(batch.meta ?? {})) await this.setMetaOn(tx, k, v);
       if (batch.prune) await this.pruneOn(tx, batch.prune.orgId, batch.prune.streamId, batch.prune.uptoSeq);
@@ -127,28 +127,29 @@ export class SqliteStore implements EventStore {
     await this.commit({ events: [local] });
   }
 
-  private async putOn(db: SqlDriver, local: LocalEvent): Promise<void> {
-    const e = local.event;
-    await db.run(
-      `insert into events (id, org_id, stream_id, status, reject_reason, hlc, server_seq, json)
-       values (?, ?, ?, ?, ?, ?, ?, ?)
-       on conflict(id) do update set
-         hlc = excluded.hlc,
-         status = excluded.status,
-         reject_reason = excluded.reject_reason,
-         server_seq = excluded.server_seq,
-         json = excluded.json`,
-      [
-        e.id,
-        e.orgId,
-        e.streamId,
-        local.status,
-        local.rejectReason ?? null,
-        e.hlc,
-        e.serverSeq ?? null,
-        JSON.stringify(e)
-      ]
-    );
+  /**
+   * Upsert events, a few hundred a statement handed over as one JSON array,
+   * as kept rows are: a pull page of 500 was 500 awaited statements, each a
+   * round trip to the native side (performance-audit-2026-10-26.md). Rows
+   * apply in order, so an id given twice ends as its last.
+   */
+  private async putOn(db: SqlDriver, locals: readonly LocalEvent[]): Promise<void> {
+    for (let i = 0; i < locals.length; i += EVENTS_PER_STATEMENT) {
+      const rows = locals.slice(i, i + EVENTS_PER_STATEMENT).map(({ event: e, status, rejectReason }) =>
+        [e.id, e.orgId, e.streamId, status, rejectReason ?? null, e.hlc, e.serverSeq ?? null, JSON.stringify(e)]);
+      await db.run(
+        `insert into events (id, org_id, stream_id, status, reject_reason, hlc, server_seq, json)
+         select value ->> 0, value ->> 1, value ->> 2, value ->> 3, value ->> 4, value ->> 5, value ->> 6, value ->> 7
+           from json_each(?) where true
+         on conflict(id) do update set
+           hlc = excluded.hlc,
+           status = excluded.status,
+           reject_reason = excluded.reject_reason,
+           server_seq = excluded.server_seq,
+           json = excluded.json`,
+        [JSON.stringify(rows)]
+      );
+    }
   }
 
   async putMany(locals: LocalEvent[]): Promise<void> {
@@ -281,6 +282,20 @@ export class SqliteStore implements EventStore {
    * statement, whatever the list's length, since a Durable Object's SQLite
    * takes far fewer bound parameters than a phone's (decisions.md 147).
    */
+  async keptUnitsAmong(orgId: string, streamId: string, kinds: readonly KeptKind[], unitIds: readonly string[]): Promise<string[]> {
+    const out: string[] = [];
+    if (kinds.length === 0) return out;
+    for (let i = 0; i < unitIds.length; i += KEPT_SLICE) {
+      const rows = await this.db.all<{ unit_id: string }>(
+        `select distinct unit_id from kept_rows where org_id = ? and stream_id = ?
+           and kind in (select value from json_each(?)) and unit_id in (select value from json_each(?))`,
+        [orgId, streamId, JSON.stringify(kinds), JSON.stringify(unitIds.slice(i, i + KEPT_SLICE))]
+      );
+      for (const r of rows) out.push(r.unit_id);
+    }
+    return out;
+  }
+
   private async keptWhere(column: 'unit_id' | 'id' | 'ref', orgId: string, streamId: string, kinds: readonly KeptKind[], values: readonly string[]): Promise<KeptRecord[]> {
     const out: KeptRecord[] = [];
     if (kinds.length === 0) return out;
@@ -361,10 +376,29 @@ export class SqliteStore implements EventStore {
     );
     return rows.map(toLocal);
   }
+
+  async rejectedCount(orgId: string, streamId: string): Promise<number> {
+    const rows = await this.db.all<{ n: number }>(
+      `select count(*) as n from events where org_id = ? and stream_id = ? and status = 'rejected'`,
+      [orgId, streamId]
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+
+  async rejectedWith(orgId: string, streamId: string, text: string): Promise<LocalEvent[]> {
+    // like is case-blind for ASCII, as rejectCodeOf's patterns are; % and _ are not in the texts asked for.
+    const rows = await this.db.all<Row>(
+      `select * from events where org_id = ? and stream_id = ? and status = 'rejected' and reject_reason like ? order by hlc`,
+      [orgId, streamId, `%${text}%`]
+    );
+    return rows.map(toLocal);
+  }
 }
 
 /** Ids per lookup. */
 const KEPT_SLICE = 1_000;
+/** Events written per statement. */
+const EVENTS_PER_STATEMENT = 500;
 /** Kept rows written per statement. */
 const KEPT_ROWS_PER_STATEMENT = 1_000;
 

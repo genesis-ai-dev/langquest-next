@@ -1,4 +1,4 @@
-// A list word's meaning read aloud (decision 149): FIA's recordings stay on
+// A list word's meaning read aloud (decision 172): FIA's recordings stay on
 // FIA's server and play from there when tapped, as guide audio does
 // (study/useStudyAudio.ts); a list that keeps its recordings in the blob
 // store has them fetched on the first tap, not before, to spare field data.

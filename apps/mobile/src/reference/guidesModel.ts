@@ -27,7 +27,7 @@ export function kindFilterLabel(k: KindFilter): string {
 /** The filters on the list: what kind, in which language, about which book, and whether it reaches the open language's passages. */
 export interface GuideFilters { kind: KindFilter; language: string | null; book: string | null; covers: boolean }
 
-/** The items the screen lists: guides, notes, key-word lists (decision 149) and other material that are not archived. */
+/** The items the screen lists: guides, notes, key-word lists (decision 172) and other material that are not archived. */
 export function guideItems(rows: RefItem[]): RefItem[] {
   return rows.filter((r) => r.kind === 'guide' || r.kind === 'note' || r.kind === 'words' || r.kind === 'other').filter((r) => !r.it.archived);
 }

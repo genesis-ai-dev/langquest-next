@@ -7,8 +7,8 @@
  */
 import { writeFileSync } from 'node:fs';
 import {
-  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, privilegeAllows, privilegeFor, privilegesOfFixedRole,
-  validateEvent, type AnyEvent, type Role
+  EVENT_PAYLOAD_MAX_BYTES, EVENT_PRIVILEGE, LIBRARY_EVENT_TYPES, ORG_EVENT_TYPES, PRIVILEGES, emptyOrgState, entityKeyOf, eventSizeError, jsonbTextBytes, languageOfOrgEvent, mayReadLanguage, mayWriteFiles, privilegeAllows, privilegeFor, privilegesOfFixedRole,
+  validateEvent, type AnyEvent, type OrgState, type Privilege, type Role
 } from '@langquest-next/core';
 import { buildFixture, buildOrgFixture, buildRecordFixture, buildStep11Fixture } from '../packages/core/test/fixtures';
 
@@ -245,6 +245,52 @@ const sizes = [...events, ...near.map((payload) => ({ ...events[0]!, payload }) 
   { ...events[0]!, deviceId: 'd'.repeat(256) }, { ...events[0]!, deviceId: 'd'.repeat(257) }]
   .map((e) => ({ ev: e, ok: eventSizeError(e) === null }));
 
+// Who may read a language's work and write its files (the second rule beside
+// mayViewLanguage, which asks view_status): organizations built both as core's
+// OrgState and as the rows the server keeps, for every role, scope and
+// removal, then asked of `_can_read_stream_at` (not a Global Viewer, aal1) and
+// of `blob_access` (writing).
+const ACCESS_ORG = 'parity-access';
+const reg = <T>(value: T) => ({ value, hlc: '1', eventId: 'e' });
+const accessRoles: { id: string; privileges: Privilege[]; retired: boolean }[] = [
+  ...PRIVILEGES.map((p) => ({ id: `only_${p}`, privileges: [p], retired: false })),
+  { id: 'translate_view', privileges: ['translate', 'view_status'], retired: false },
+  { id: 'template_view', privileges: ['manage_templates', 'view_status'], retired: false },
+  { id: 'retired_owner', privileges: ['manage_roles', 'translate'], retired: true },
+  { id: 'nothing', privileges: [], retired: false }
+];
+const accessLanguages = [{ id: 'L1', listed: true }, { id: 'L2', listed: false }];
+const accessStreams = ['_org', 'L1', 'L2', 'L3'];
+interface AccessMember { profile: string; scope: 'org' | string; roleId: string; removed: boolean }
+const accessMembers: AccessMember[] = accessRoles.flatMap((r): AccessMember[] => [
+  { profile: `org:${r.id}`, scope: 'org', roleId: r.id, removed: false },
+  { profile: `l1:${r.id}`, scope: 'L1', roleId: r.id, removed: false },
+  { profile: `l2:${r.id}`, scope: 'L2', roleId: r.id, removed: false },
+  { profile: `gone:${r.id}`, scope: 'org', roleId: r.id, removed: true },
+  { profile: `goneL1:${r.id}`, scope: 'L1', roleId: r.id, removed: true },
+  { profile: `both:${r.id}`, scope: 'org', roleId: r.id, removed: false },
+  { profile: `both:${r.id}`, scope: 'L1', roleId: 'only_view_status', removed: false }
+]);
+const accessOrg: OrgState = emptyOrgState();
+for (const r of accessRoles) accessOrg.roles[r.id] = { name: reg(r.id), privileges: reg(r.privileges), retired: r.retired } as unknown as OrgState['roles'][string];
+for (const l of accessLanguages) {
+  accessOrg.languages[l.id] = { added: l.listed ? { name: l.id, code: 'x', sourceCode: 'eng', ...reg(null) } : null, renamed: null, codeSet: null, country: null, target: null } as unknown as OrgState['languages'][string];
+}
+for (const m of accessMembers) {
+  (accessOrg.members[m.profile] ??= {})[m.scope === 'org' ? 'org' : `language:${m.scope}`] = {
+    roleId: reg(m.roleId), removed: reg(m.removed), scope: m.scope === 'org' ? { level: 'org' } : { level: 'language', languageId: m.scope }
+  } as unknown as OrgState['members'][string][string];
+}
+const accessProfiles = [...new Set([...accessMembers.map((m) => m.profile), 'nobody'])];
+const access = accessProfiles.flatMap((profile) => accessStreams.map((stream) => ({
+  profile, stream, read: mayReadLanguage(accessOrg, profile, stream), write: mayWriteFiles(accessOrg, profile, stream)
+})));
+const accessRows = {
+  roles: accessRoles.map((r) => ({ id: r.id, privileges: r.privileges, retired: r.retired })),
+  languages: accessLanguages,
+  members: accessMembers
+};
+
 writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r jsonb; begin
   for r in select * from jsonb_array_elements(${sql(rows)}) loop
     if (public.validate_payload(r->>'type', r->'payload') is null) is distinct from (r->>'valid')::boolean then
@@ -282,6 +328,32 @@ writeFileSync(process.argv[2] ?? '/tmp/record-parity.sql', `do $$ declare r json
     end if;
   end loop;
 end $$;
+begin;
+do $$ declare r jsonb; m jsonb; begin
+  for r in select * from jsonb_array_elements(${sql(accessRows.roles)}) loop
+    insert into public.org_roles (org_id, role_id, name, privileges, retired)
+      values ('${ACCESS_ORG}', r->>'id', r->>'id', array(select jsonb_array_elements_text(r->'privileges')), (r->>'retired')::boolean);
+  end loop;
+  for r in select * from jsonb_array_elements(${sql(accessRows.languages)}) loop
+    insert into public.languages (org_id, language_id, added_hlc)
+      values ('${ACCESS_ORG}', r->>'id', case when (r->>'listed')::boolean then '1' else '' end);
+  end loop;
+  for r in select * from jsonb_array_elements(${sql(accessRows.members)}) loop
+    insert into public.org_memberships (org_id, profile_id, scope_key, scope_level, language_id, role_id, removed)
+      values ('${ACCESS_ORG}', r->>'profile', case when r->>'scope' = 'org' then 'org' else 'language:' || (r->>'scope') end,
+        case when r->>'scope' = 'org' then 'org' else 'language' end, case when r->>'scope' = 'org' then null else r->>'scope' end,
+        r->>'roleId', (r->>'removed')::boolean);
+  end loop;
+  for r in select * from jsonb_array_elements(${sql(access)}) loop
+    if public._can_read_stream_at('${ACCESS_ORG}', r->>'stream', r->>'profile', 'aal1') is distinct from (r->>'read')::boolean then
+      raise exception '_can_read_stream_at disagrees with mayReadLanguage: % (sql says %)', r, not (r->>'read')::boolean;
+    end if;
+    if public.blob_access('${ACCESS_ORG}/' || (r->>'stream') || '/f', r->>'profile', true) is distinct from (r->>'write')::boolean then
+      raise exception 'blob_access (write) disagrees with mayWriteFiles: % (sql says %)', r, not (r->>'write')::boolean;
+    end if;
+  end loop;
+end $$;
+rollback;
 select ${rows.length} as payload_checks, ${perms.length + single.length} as permission_checks, ${scopedLanguage.length} as scope_checks,
-  ${entities.length} as entity_checks, ${sizes.length} as size_checks;
+  ${entities.length} as entity_checks, ${sizes.length} as size_checks, ${access.length} as access_checks;
 `);

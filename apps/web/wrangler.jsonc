@@ -24,12 +24,13 @@
   // /connect (the access-token page, agent/connectPage.ts) reach the Worker
   // first; every other path the page does not have is
   // the page (single-page app). Its source maps are written elsewhere and
-  // never served.
+  // never served. The ops dashboard's paths (worker/ops.ts) go to its own
+  // Worker through the OPS binding below.
   "assets": {
     "directory": "../mobile/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/connect", "/r/*"]
+    "run_worker_first": ["/api/*", "/connect", "/r/*", "/ops-dashboard", "/ops-dashboard/*", "/ops/api/*"]
   },
   // Public settings (docs/environments.md). The project ref must match
   // [remotes.production] in supabase/config.toml (a test checks it). Local
@@ -74,9 +75,16 @@
   // a run alone for its first 90 minutes (rollout_active_grace_period), then
   // sends SIGTERM and allows 15 more, so the nightly whole v2 read (40 to 70
   // minutes) finishes instead of starting over at every evening merge.
+  // One instance per job (projection, v2-import, fold-canary, blob-reconcile): the nightly canary and
+  // reconciliation must not wait for a free slot, or be refused, while the others run.
   "containers": [
-    { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
+    { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 4, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
   ],
+  // The ops dashboard (worker/ops.ts, docs/admin.md, decisions.md 160): its
+  // own Worker, with no address of its own, reached only through this
+  // binding, so its read tokens never sit on this one. Production only: the
+  // preview stack has no database of its own for it to read yet.
+  "services": [{ "binding": "OPS", "service": "langquest-next-admin" }],
   // Recordings and guide media (worker/blobs.ts, decisions.md 69). Private:
   // no public access and no r2.dev address; everything goes through
   // /api/blobs. Created by scripts/r2-buckets.mjs; `wrangler dev` keeps a
@@ -106,7 +114,7 @@
         ]
       },
       "containers": [
-        { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 2, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
+        { "class_name": "JobRunner", "image": "./jobs/Dockerfile", "instance_type": "standard-1", "max_instances": 4, "constraints": { "regions": ["ENAM"] }, "rollout_active_grace_period": 5400 }
       ],
       "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "langquest-next-blobs-preview" }],
       "ratelimits": [

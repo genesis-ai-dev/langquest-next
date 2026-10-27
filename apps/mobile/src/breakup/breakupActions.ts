@@ -2,7 +2,7 @@
 // publish a change, and who uses each (breakup/useBreakup.ts holds the hooks).
 import { CommandError, languageName, orgLanguages, privilegesFor, selectTemplateSpecs, templateBooks, type EventSpec, type LibraryItemView, type TemplateDoc, type VersificationDoc } from '@langquest-next/core';
 import * as Crypto from 'expo-crypto';
-import type { LibraryChoice } from '../templates/contentTemplates';
+import type { LibraryChoice } from '../templates/contentTemplatesModel';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
 import { appendToLanguage } from '../sync/languageWriter';

@@ -1,6 +1,7 @@
 import { DeliveryError, type AccountAction } from '@langquest-next/sync';
 import { supabase } from './supabase';
 import { sendingAs } from './handOver';
+import { refusalKind } from '../diagnostics/refusalModel';
 
 /** The organizations this account belongs to. */
 export function myOrganizations() {
@@ -92,7 +93,9 @@ export async function deliverAccountAction(actorId: string, action: AccountActio
               p_id: action.id, p_type: p.type, p_payload: p.payload
             });
   if (error) {
-    const permanent = ['22023', '42501', '23514'].includes(error.code);
+    // Permanent: the server said no or the request itself is wrong (22023, 42501, 23514); retrying cannot help.
+    const kind = refusalKind(error);
+    const permanent = kind === 'not_allowed' || kind === 'invalid';
     throw new DeliveryError(error.message, !permanent, error.code || undefined);
   }
 }

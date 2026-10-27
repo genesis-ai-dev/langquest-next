@@ -321,6 +321,31 @@ describe('a language that keeps its recordings on disk', () => {
     });
   }
 
+  it('reading passage after passage on a quiet language lets go of them, and keeps any work not yet sent', async () => {
+    // Why: memory lets go of passages only at a checkpoint, which a quiet language never pulls enough to take, so
+    // a reader's memory grew with every passage opened, and what memory names was worked out again over all of
+    // it at each open (performance-audit-2026-10-26.md item 13).
+    const server = new FakeServer();
+    await language(server, 80);
+    server.makeSnapshot('org1', 'p1');
+    const { client, store } = phone(server, 'dB', 'r1', { keepOnDisk: true });
+    await client.load();
+    await client.pull();
+    for (let i = 0; i < 70; i++) await client.loadUnits([`u${i}`]);
+    // Twelve open, and at most four times that taken in since the last time memory let go.
+    expect(Object.keys(client.getState().recordings).length).toBeLessThanOrEqual(12 * 4 + 1);
+    expect(Object.keys(client.getState().recordings)).toEqual(expect.arrayContaining(['r69', 'r58']));
+    expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState())));
+    // With work not sent, memory holds on: only a checkpoint of the confirmed fold may let go, and that one sheds nothing.
+    server.offline = true;
+    await client.append('v1.RecordingAdded', { recordingId: 'mine', unitId: 'u2', kind: 'target', cards: [{ hash: 'hm', durationMs: 9 }] });
+    for (let i = 0; i < 70; i++) await client.loadUnits([`u${(i + 10) % 80}`]);
+    expect(client.getState().recordings['mine']).toBeDefined();
+    server.offline = false;
+    await client.sync();
+    expect(comparable(await whole(client, store))).toEqual(comparable(foldLanguage(server.stream('org1', 'p1'), emptyLanguageState())));
+  });
+
   it('a checkpoint taken with work not yet sent keeps the passages on disk and the unsent work in the log', async () => {
     // Why: with events still to send, the live state is not the confirmed fold, so a checkpoint folds the
     // confirmed log onto the last checkpoint instead (the slow path). For a language kept on disk that state

@@ -3,7 +3,7 @@
 // own language picked when the set has it, else English. Each language says
 // how many passages it covers, so the gaps show before anyone chooses. FIA's
 // key words are chosen the same way, each language saying how many words it
-// has (decision 149).
+// has (decision 172).
 import { useState } from 'react';
 import { Text } from '../ui/text';
 import { t } from '../i18n';

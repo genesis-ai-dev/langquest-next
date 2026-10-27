@@ -6,7 +6,7 @@ import { DEFAULT_LICENSE, licenseRank, type License } from './license';
 import type { Register } from './state';
 import { validateEvent } from './validate';
 import { later } from './ties';
-import { PRIVILEGES, MANAGE_PRIVILEGES, type Privilege, type TargetScope } from './orgTerms';
+import { ORG_STREAM, PRIVILEGES, MANAGE_PRIVILEGES, type Privilege, type TargetScope } from './orgTerms';
 
 export * from './orgTerms';
 
@@ -698,6 +698,40 @@ export function privilegesFor(state: OrgState, profileId: string, languageId?: s
     for (const p of role.privileges.value ?? []) out.add(p);
   }
   return out;
+}
+
+/**
+ * May this person read a language's work (its stream and its files)? Any
+ * privilege on it, even one that does not show its report. This is the
+ * SQL `_can_read_stream_at` for a person who is not a Global Viewer: for
+ * the organization stream (`_org`) any non-removed membership, whatever
+ * its role, else `cardinality(org_privileges(...)) > 0`.
+ *
+ * It differs from `mayViewLanguage` (reports.ts) on purpose: seeing a
+ * report needs `view_status`; reading the work needs only some privilege,
+ * so a custom role without `view_status` may read and not view the report.
+ */
+export function mayReadLanguage(org: OrgState, profileId: string, languageId: string): boolean {
+  if (languageId === ORG_STREAM) {
+    return Object.values(org.members[profileId] ?? {}).some((m) => m.removed.value === false);
+  }
+  return privilegesFor(org, profileId, languageId).size > 0;
+}
+
+/**
+ * May this person write files (blobs) under a stream? The write branch of
+ * the SQL `blob_access`. Never in a person stream; in the organization
+ * stream (`_org`) with a manage privilege for templates, flows, reference
+ * or structure at org scope; in a language the organization lists, with
+ * any privilege on it other than `view_status`.
+ */
+export function mayWriteFiles(org: OrgState, profileId: string, streamId: string): boolean {
+  if (streamId === ORG_STREAM) {
+    const mine = privilegesFor(org, profileId);
+    return (['manage_templates', 'manage_flows', 'manage_reference', 'manage_structure'] as const).some((p) => mine.has(p));
+  }
+  if (!org.languages[streamId]?.added) return false;
+  return [...privilegesFor(org, profileId, streamId)].some((p) => p !== 'view_status');
 }
 
 /**

@@ -5,7 +5,7 @@ import {
   type LanguageProgress, type LanguageState, type OrgState, type PassageGlance, type PassageLines, type UnitPlace
 } from '@langquest-next/core';
 import {
-  bookMatches, canonBook, canonBooks, chapterTone, matchesFilter, parseQuery, placeMatches,
+  bookMatches, canonBook, canonBooks, chapterTone, matchesFilter, parseQuery, placeMatchesParsed,
   type CanonBook, type ChapterTone, type MapFilter, type Testament
 } from '../reference/canon';
 import { deriveKinds, stepName } from '../i18n/coreText';
@@ -31,8 +31,10 @@ const fmt = (n: number) => formatNumber(n);
  * organization: no tabs and no home (NAV-042). Progress and the Map's
  * language chips list only these.
  */
-export function openableLanguages<L extends { languageId: string }>(org: OrgState | null, actorId: string, languages: readonly L[]): L[] {
+export function openableLanguages<L extends { languageId: string }>(org: OrgState | null, actorId: string, languages: readonly L[], readsAll = false): L[] {
   if (!org) return [];
+  // A Global Viewer looking in may open every language (decisions.md 158).
+  if (readsAll) return [...languages];
   return languages.filter((l) => privilegesFor(org, actorId, l.languageId).size > 0);
 }
 
@@ -342,7 +344,7 @@ export function mapSearch(query: string, books: readonly BookSummary[], entries:
   return {
     searching, byChapter,
     bookHits: searching && !byChapter ? books.filter((b) => b.book && bookMatches(b.book, search.book)) : [],
-    passageHits: searching && byChapter ? entries.filter((e) => placeMatches(e.place, query)) : []
+    passageHits: searching && byChapter ? entries.filter((e) => placeMatchesParsed(e.place, search)) : []
   };
 }
 
@@ -411,6 +413,22 @@ export function chapterTiles(book: CanonBook, entries: readonly Entry[], forYou:
     return { n, list, tone: chapterTone(ss), steps, cleared, mine: list.some((e) => forYou.has(e.unitId)),
       matches: filter === 'all' || ss.some((s) => matchesFilter(s, filter)) };
   });
+}
+
+/**
+ * Whether a book's passages are its chapters, one each: then it shows as
+ * chapter tiles. A book divided into passages shows them as rows instead,
+ * since a passage may run across chapters (decisions.md 166).
+ */
+export function chaptersAreWhole(entries: readonly Entry[]): boolean {
+  const seen = new Set<number>();
+  for (const e of entries) {
+    if (e.place.chapters.length !== 1) return false;
+    const n = e.place.chapters[0]!;
+    if (seen.has(n)) return false;
+    seen.add(n);
+  }
+  return true;
 }
 
 /** The tiles in rows of `cols`, the last one short. */

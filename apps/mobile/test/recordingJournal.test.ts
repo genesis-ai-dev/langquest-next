@@ -142,7 +142,7 @@ const disk = vi.hoisted(() => ({
   fail: false,
   reads: 0
 }));
-vi.mock('../src/sync/store', () => ({ getStore: async () => ({
+vi.mock('../src/storage/store', () => ({ getStore: async () => ({
   meta: async () => { disk.reads++; await Promise.resolve(); return disk.value; },
   setMeta: async (_key: string, value: string) => {
     if (disk.fail) throw new Error('disk full');

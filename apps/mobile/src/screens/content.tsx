@@ -39,7 +39,7 @@ import { RedoSheet } from '../breakup/parts';
 import { TranslateQuestion } from '../breakup/TranslateStep';
 import { useTranslate } from '../breakup/useTranslate';
 import { useWays } from '../breakup/useBreakup';
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as Crypto from 'expo-crypto';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
@@ -49,7 +49,7 @@ import {
   levelsForOutline, libraryChoices, moveNode, newTemplateForm, partWords, recordedCount, removeNode, renameNode,
   setAsideCount, siblingsOf, findNode, STARTER_TEMPLATE, templateLine, templateOf, versesText, versificationBooks,
   type BibleBook, type Block, type LibraryChoice, type Segment, type TemplateForm
-} from '../templates/contentTemplates';
+} from '../templates/contentTemplatesModel';
 import { bookName } from '../i18n/coreText';
 import type { Ctx } from '../shell/ctx';
 import { t } from '../i18n';
@@ -57,7 +57,7 @@ import { indexesFor } from '../sync/indexes';
 import { Banner, Card, Chip, ChipRow, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, PrimaryBtn, QuietLinks, Row, Screen, SearchField, SectionLabel, SmallBtn, Sheet, ShowMore, Toggle } from '../ui/kit';
 import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
-import { useOpenDetail } from '../ui/useLayout';
+import { useOpenDetail, useOrgInChrome } from '../ui/useLayout';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { mayWriteLibrary, sourceLine, type SharedItem } from '../library/model';
@@ -94,6 +94,8 @@ const levelOf = (ctx: Ctx) => templatesLevel(ctx.params, ctx.session.adminScope,
 const isOpen = (ctx: Ctx, languageId: string | null | undefined): languageId is string => isOpenLanguage(ctx.language.languageId, languageId);
 
 const NO_VERSES: readonly number[] = [];
+const NO_FIA = new Set<number>();
+const chapterKey = (c: number) => String(c);
 
 const orgName = (ctx: Ctx) => orgNameOf(ctx.org.state);
 
@@ -529,8 +531,10 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   const backOut = () => { if ((tq.page === 'find' && !tq.numbering) || tq.page === 'what' || !tq.retreat()) setBible(false); };
   // A phone's Back does the same as the header's arrow (decision 137).
   useHardwareBack(bible && !start, backOut);
+  // The sidebar names the organization on a desktop; the subtitle then need not.
+  const sub = useOrgInChrome() ? undefined : orgName(ctx);
   if (start) return <TemplateEditorForm ctx={ctx} lib={lib} item={null} initial={start} draft={draft} />;
-  if (!draft.loaded) return <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={ctx.back} />}>{null}</Screen>;
+  if (!draft.loaded) return <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>{null}</Screen>;
 
   const scripture = () => { tq.setWhat('bible'); tq.setPage(tq.numbering ? 'numbered' : 'find'); setBible(true); };
   const begin = () => {
@@ -541,7 +545,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
 
   if (bible) {
     return (
-      <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={backOut} />}
+      <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={backOut} />}
         footer={tq.showContinue && tq.page !== 'what' ? (
           <PrimaryBtn label={t('org.continue')} icon="right" disabled={tq.page === 'ways' ? !tq.ready : !tq.canContinue} help={t('content.newTemplate.continueHelp')} onPress={() => { if (!tq.advance()) begin(); }} />
         ) : undefined}>
@@ -551,7 +555,7 @@ function NewTemplate({ ctx }: { ctx: Ctx }) {
   }
 
   return (
-    <Screen header={<Header title={t('content.newTemplate.title')} sub={orgName(ctx)} onBack={ctx.back} />}>
+    <Screen header={<Header title={t('content.newTemplate.title')} {...(sub ? { sub } : {})} onBack={ctx.back} />}>
       <Text style={txt.body}>{t('content.newTemplate.what')}</Text>
       <Card onPress={scripture} accessibilityLabel={t('content.newTemplate.scripture')} help={t('content.newTemplate.scriptureHelp')}>
         <View style={styles.head}>
@@ -986,6 +990,14 @@ export function BookStructure(ctx: Ctx) {
   }, [state, ctx.language.lines, open, languageId, book, ctx.org.state]);
   const textOf = useCallback((c: number, v: number) => data?.textOf(c, v) ?? (bookText.byAt.get(atOf(c, v)) || undefined), [data, bookText.byAt]);
   const sourceName = bookText.option ? sourceChip(bookText.option, bookText.options) : undefined;
+  // The chapters are a long list; each is drawn again only when something it shows changes, so what it is given stays the same between renders.
+  const chapters = useMemo(() => (book ? chapterNumbers(book) : []), [book]);
+  const partWord = partWords(doc).one;
+  const fia = canShape && data ? data.fia : NO_FIA;
+  const renderChapter = useCallback(({ item: c }: { item: number }) => (book && data ? (
+    <ChapterView book={book} c={c} segments={data.segments} fia={fia} text={textOf} part={partWord}
+      translation={data.translation.get(c) ?? sourceName} recorded={data.recorded} />
+  ) : null), [book, data, fia, textOf, partWord, sourceName]);
 
   if (!state) return <Loading title={t('content.book.title')} onBack={ctx.back} />;
   if (!book || !data || !languageId) {
@@ -1015,8 +1027,6 @@ export function BookStructure(ctx: Ctx) {
   const words = partWords(doc);
   const part = words.one;
   const parts = lower(words.many);
-  const chapters = chapterNumbers(book);
-  const fia = canShape ? data.fia : new Set<number>();
   const jump = (c: number) => list.current?.scrollToIndex({ index: c - 1, animated: true });
 
   return (
@@ -1034,7 +1044,7 @@ export function BookStructure(ctx: Ctx) {
       <FlatList
         ref={list}
         data={chapters}
-        keyExtractor={(c) => String(c)}
+        keyExtractor={chapterKey}
         initialNumToRender={2}
         windowSize={5}
         contentContainerStyle={{ paddingBottom: space.xxl }}
@@ -1053,10 +1063,7 @@ export function BookStructure(ctx: Ctx) {
             ) : null}
           </View>
         }
-        renderItem={({ item: c }) => (
-          <ChapterView book={book} c={c} segments={data.segments} fia={fia} text={textOf} part={part}
-            translation={data.translation.get(c) ?? sourceName} recorded={data.recorded} />
-        )}
+        renderItem={renderChapter}
       />
       <Sheet visible={picking} title={data.label} sub={t('content.book.jump')} onClose={() => setPicking(false)}>
         <View style={styles.grid}>
@@ -1086,7 +1093,7 @@ function ChapterTile(props: { c: number; n: number; part: string; parts: string;
 }
 
 /** One chapter read like a Bible: cards where parts start, FIA's suggestions, gaps, and the verses (ADR-027). */
-function ChapterView(props: {
+const ChapterView = memo(function ChapterView(props: {
   book: BibleBook; c: number; segments: Segment[]; fia: Set<number>; text: (c: number, v: number) => string | undefined;
   part: string; translation?: string; recorded: Set<string>;
 }) {
@@ -1103,7 +1110,7 @@ function ChapterView(props: {
       {blocks.map((b, i) => <BlockView key={i} block={b} c={c} part={part} recorded={props.recorded} />)}
     </View>
   );
-}
+});
 
 function BlockView(props: { block: Block; c: number; part: string; recorded: Set<string> }) {
   const b = props.block;

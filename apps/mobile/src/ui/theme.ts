@@ -36,7 +36,7 @@ export const TINT = {
   grayText: '#6B6785',
   note: '#FFFBEA',
   noteBorder: '#F5E6B0',
-  /** Behind the letters a search found in a row's name (Get ready's search, decision 149). */
+  /** Behind the letters a search found in a row's name (Get ready's search, decision 172). */
   match: '#FFF3C4'
 } as const;
 
@@ -70,7 +70,7 @@ export const breakpoint = { tablet: 768, desktop: 1100 } as const;
 
 /** Widths on wide windows: the content column, a sheet shown as a dialog, footer actions, nav chrome, the list pane. */
 export const measure = {
-  column: 720, sheet: 560, action: 360, toast: 480, rail: 88, sidebar: 248, paneMin: 320, paneMax: 400, chapterTile: 72,
+  column: 720, sheet: 560, action: 360, toast: 480, rail: 88, sidebar: 248, paneMin: 320, paneMax: 400, chapterTile: 96,
   /** Reports read across a wide window: tables and charts side by side. */
   report: 1120
 } as const;

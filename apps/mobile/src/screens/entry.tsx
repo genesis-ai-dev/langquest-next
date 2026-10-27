@@ -16,21 +16,27 @@ import {
   cachedListedOrganizations, cachedPublicLanguages, listedOrganizations, publicLanguages, queueAccountAction, TERMS_VERSION,
   type ListedOrganization
 } from '../account/accountData';
-import { authErrorText, firstName, outboxErrorText, signInCodeErrorText, VISION_STEPS } from '../account/accountText';
+import { firstName, outboxErrorText, VISION_STEPS } from '../account/accountText';
 import { signInName } from '../auth/accounts';
+import { globalViewerLine } from '../account/globalViewerText';
+import { useGlobalViewer } from '../account/useGlobalViewer';
 import { licenseText } from '../i18n/coreText';
 import { t, Trans } from '../i18n';
 import { formatPercent } from '../i18n/format';
-import { recordHelp } from '../auth/signInHelp';
 import { inviteCard, scanVerdict } from '../invites/heldInvite';
 import { parseKey } from '../invites/inviteCode';
 import type { Ctx } from '../shell/ctx';
-import { recreateDevAccount } from '../server/personas';
+import { createAccountWithEmail, signInWithEmail, signInWithKey } from '../auth/signInFlow';
+import { queueJoinRequest } from '../auth/joinRequest';
+import { useAuthStep } from '../auth/useSignIn';
 import { createAccountReady, MIN_PASSWORD } from '../auth/model';
-import { signIn, signInReady } from '../auth/signIn';
+import { signInReady } from '../auth/signIn';
+import { isPattern, patternSecret } from '../session/lockModel';
+import { ChosenPicture, PatternPad, PictureGrid } from '../auth/patternPad';
+import { signBackIn } from '../auth/signBackIn';
+import { usePatternPeople } from '../auth/usePatternPeople';
 import { useInvitePreview } from '../auth/useInvitePreview';
 import { useOrganizationSearch } from '../auth/useOrganizationSearch';
-import { redeemSignInCode } from '../invites/invites';
 import { useRequestOutcome } from '../invites/useInviteRequests';
 import { latestRequest } from '../invites/requestOutcome';
 import { Badge, Banner, Card, EmptyState, Field, GhostBtn, Group, HelpTop, Header, HelpInfo, Ico, LinkBtn, OrDivider, PrimaryBtn, ProgressBar, QuietLinks, Row, Screen, SearchField, SectionLabel, Segments, ShowMore, SmallBtn, type IconName } from '../ui/kit';
@@ -38,19 +44,16 @@ import { useHardwareBack } from '../ui/useHardwareBack';
 import { txt } from '../ui/textStyles';
 import { PRIVACY_URL } from '../auth/legal';
 import { LicenseRow, LicenseSheet } from '../org/licenseSheet';
+import { forgettingThisBrowser } from '../web/forgetBrowser';
 import { noteExpected, reportError, failureMessage } from '../diagnostics/report';
-import { recordAuth, recordAuthFailure, since } from '../auth/authDiag';
-import { inviteOutcome } from '../auth/authOutcome';
 import { createOrganization } from '../org/createOrg';
 import { navRef } from '../shell/nav';
 import { contractsFor } from '../shell/screenContracts';
 import { FORGETS_ON_SIGN_OUT, forgetThisBrowser } from '../web/forgetBrowser';
-import { setSession, signInWithPassword, signUp } from '../server/auth';
-import { signInWithV2Account } from '../server/v2';
 import { lift } from '../ui/shadow';
 import { C, TINT, radius, space, tile, type as T, withAlpha } from '../ui/theme';
 import { useAccountActions, useDisplayNames } from '../account/useAccount';
-import { LanguageChip } from '../i18n/uiLanguage';
+import { LanguageChip } from '../account/uiLanguage';
 import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { useHelpSpot } from '../helpMode/useHelpMode';
 
@@ -70,49 +73,15 @@ const failure = failureMessage;
 export function SignIn(ctx: Ctx) {
   const [email, setEmail] = useState(ctx.isDev ? (process.env.EXPO_PUBLIC_DEV_EMAIL ?? '') : '');
   const [password, setPassword] = useState(ctx.isDev ? (process.env.EXPO_PUBLIC_DEV_PASSWORD ?? '') : '');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  async function submit() {
-    setBusy(true);
-    setError('');
-    const started = Date.now();
-    try {
-      const outcome = await signIn(email, password, {
-        signInWithPassword, setSession, signInWithV2Account, ...(ctx.isDev ? { recreateDevAccount } : {})
-      });
-      // A wrong password or no connection: the server's answer, said in the language showing.
-      if (outcome.kind === 'refused') {
-        noteExpected(outcome.where, outcome.raw);
-        recordAuthFailure('sign_in', outcome.reason, { ms: since(started) });
-        setError(authErrorText(outcome.reason, t('entry.signIn.failed')));
-        return;
-      }
-      recordAuth('sign_in', 'ok', { n: { ms: since(started) } });
-      // Signing in accepts the terms (AUTH-1). The session this screen was
-      // given belongs to the guest, so record it for the account that just
-      // signed in; the account outbox delivers (and retries) it once the new
-      // session is up.
-      if (outcome.userId) await recordTerms(outcome.userId);
-    } catch (e) {
-      recordAuthFailure('sign_in', e, { ms: since(started) });
-      setError(failure('sign in', e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /** Queue the terms for this account; a failure to queue is a fault, reported, never a reason to block sign-in. */
-  async function recordTerms(userId: string) {
-    try {
-      await ctx.acceptTerms(userId);
-    } catch (e) {
-      ctx.toast(failure('accept terms', e));
-    }
-  }
+  const { busy, error, run } = useAuthStep();
+  const host = { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev };
+  const submit = () => run(() => signInWithEmail(email, password, host));
 
   const ready = signInReady(email, password);
   const joining = ctx.invite.held?.claim.kind === 'next-account';
+  const patternPeople = usePatternPeople();
+  // Signing out of a browser: the page reloads once the browser has forgotten everything, so a Sign In now would be emptied.
+  if (forgettingThisBrowser()) return <Screen><EmptyState icon="lock" title={t('account.signOut.signingOut')} /></Screen>;
   return (
     <Screen header={<HelpTop />} bodyStyle={styles.signInBody}>
       <LanguageChip />
@@ -123,6 +92,12 @@ export function SignIn(ctx: Ctx) {
         <Text style={[txt.smMuted, { textAlign: 'center' }]}>{t('entry.signIn.tagline')}</Text>
       </View>
       {joining ? <Banner icon="people" title={t('entry.signIn.joinTitle')} body={t('entry.signIn.joinBody')} /> : null}
+      {patternPeople.length > 0 ? (
+        <>
+          <PatternSignIn people={patternPeople} />
+          <OrDivider />
+        </>
+      ) : null}
       {/* Two ways in that never combine (the demo's ADR-031): the fields, or a code. */}
       <Card>
         <Field value={email} onChangeText={setEmail} placeholder={t('entry.signIn.namePlaceholder')} keyboardType="email-address" autoCapitalize="none" />
@@ -144,6 +119,50 @@ export function SignIn(ctx: Ctx) {
         <LinkBtn label={t('entry.signIn.switchPersona')} color={C.muted} help={t('account.more.personaSub')} onPress={ctx.openDev} style={{ alignSelf: 'center' }} />
       ) : null}
     </Screen>
+  );
+}
+
+/**
+ * Someone who signed out of this phone taps their picture, draws their
+ * pattern and is back in, with no connection (decisions.md 168). Nobody is
+ * named: a phone that is taken shows how many signed out here, never who.
+ */
+function PatternSignIn(props: { people: { actorId: string; picture: number }[] }) {
+  const [who, setWho] = useState<{ actorId: string; picture: number } | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [padKey, setPadKey] = useState(0);
+  async function drew(dots: number[]) {
+    if (!who) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = isPattern(dots) ? await signBackIn('pattern', patternSecret(dots), { actorId: who.actorId }) : { kind: 'wrong' as const };
+      // In: App opens the app as them, and this screen goes.
+      if (result.kind === 'ok') return;
+      setError(result.kind === 'wait' ? t('entry.lock.wait') : t('entry.lock.wrong'));
+    } catch (e) {
+      setError(failure('sign in with pattern', e));
+    } finally {
+      setBusy(false);
+      setPadKey((k) => k + 1);
+    }
+  }
+  return (
+    <Card>
+      {who ? (
+        <>
+          <ChosenPicture picture={who.picture} />
+          <PatternPad onDone={(dots) => void drew(dots)} disabled={busy} error={!!error} resetKey={padKey} />
+          {busy ? <Text style={[txt.smMuted, { textAlign: 'center' }]} accessibilityLiveRegion="polite">{t('entry.shared.signingIn')}</Text> : null}
+          {error && !busy ? <Text style={[txt.error, { textAlign: 'center' }]} accessibilityRole="alert">{error}</Text> : null}
+          <LinkBtn label={t('entry.lock.notMe')} help={t('entry.lock.notMeHelp')} onPress={() => { setWho(null); setError(''); }} style={{ alignSelf: 'center' }} />
+        </>
+      ) : (
+        <PictureGrid pictures={props.people.map((p) => p.picture)} onPick={(picture) => setWho(props.people.find((p) => p.picture === picture) ?? null)}
+          help={t('entry.lock.pictureHelp')} />
+      )}
+    </Card>
   );
 }
 
@@ -379,44 +398,9 @@ function EmailAccount(ctx: Ctx) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [checkEmail, setCheckEmail] = useState(false);
+  const { busy, error, checkEmail, run } = useAuthStep();
   const ready = createAccountReady(email, password, confirm);
-
-  async function create() {
-    setBusy(true);
-    setError('');
-    const started = Date.now();
-    try {
-      const { data, error } = await signUp(email.trim(), password);
-      if (error) {
-        noteExpected('sign up', error);
-        recordAuthFailure('sign_up', error, { ms: since(started) });
-        setError(authErrorText(error, t('entry.createAccount.failed')));
-        return;
-      }
-      recordAuth('sign_up', 'ok', { n: { ms: since(started) } });
-      // Creating the account accepts the terms (AUTH-1). With a session they
-      // are recorded now (the account outbox retries until delivered) and the
-      // app routes on by itself; without one the address has to be confirmed
-      // first, and signing in records them.
-      if (data.session && data.user) {
-        try {
-          await ctx.acceptTerms(data.user.id);
-        } catch (e) {
-          ctx.toast(failure('accept terms', e));
-        }
-      } else {
-        setCheckEmail(true);
-      }
-    } catch (e) {
-      recordAuthFailure('sign_up', e, { ms: since(started) });
-      setError(failure('sign up', e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const create = () => run(() => createAccountWithEmail(email, password, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev }));
 
   if (checkEmail) {
     return (
@@ -632,8 +616,7 @@ export function ScanQr(ctx: Ctx) {
  */
 function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
   const { ctx } = props;
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { busy, error, run } = useAuthStep();
   if (!ctx.session.isGuest) {
     return (
       <>
@@ -642,36 +625,7 @@ function SignInKey(props: { ctx: Ctx; code: string; onCancel: () => void }) {
       </>
     );
   }
-  async function go() {
-    setBusy(true);
-    setError('');
-    const started = Date.now();
-    try {
-      const help = await redeemSignInCode(props.code);
-      const { data, error } = await setSession(help.session);
-      if (error) {
-        noteExpected('sign in with code', error);
-        recordAuthFailure('code', error, { ms: since(started) });
-        setError(authErrorText(error, t('entry.signInKey.failed')));
-        return;
-      }
-      recordAuth('code', 'ok', { n: { ms: since(started) } });
-      if (data.user) {
-        await recordHelp(data.user.id, help.helper).catch((e: unknown) => { reportError('record sign-in help', e); });
-        await ctx.acceptTerms(data.user.id).catch((e: unknown) => { reportError('accept terms', e); });
-      }
-      ctx.toast(help.oldPhoneSignedOut ? t('entry.signInKey.signedInOldPhone')
-        : help.helper ? t('entry.signInKey.signedInWith', { name: help.helper }) : t('entry.signInKey.signedIn'));
-    } catch (e) {
-      noteExpected('sign-in code', e);
-      // The function says "expired or already used" in its reply, as an invite does.
-      recordAuthFailure('code', e, { ms: since(started) }, inviteOutcome);
-      // The function's reply is English: say it in the language showing.
-      setError(e instanceof Error ? signInCodeErrorText(e.message) : t('common.tryWhenConnected'));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const go = () => run(() => signInWithKey(props.code, { acceptTerms: ctx.acceptTerms, toast: ctx.toast, isDev: ctx.isDev }));
   return (
     <>
       <Banner icon="lock" title={t('entry.signInKey.title')} body={t('entry.signInKey.body')} />
@@ -723,11 +677,17 @@ export function IntentChooser(ctx: Ctx) {
   // phone hands it over (NOORG-004, decision 60).
   const me = useDisplayNames(ctx.session.actorId)[ctx.session.actorId];
   const first = me?.split(/\s+/)[0];
+  // A Global Viewer's way in comes first; they may join or start an organization too (decisions.md 158).
+  const globalViewer = useGlobalViewer(ctx.session.actorId, !ctx.session.isGuest).access;
+  const gvActive = globalViewer !== null && globalViewer !== 'revoked';
+  const lead = !waiting && !gvActive;
   const main = intents().filter((o) => o.to !== 'explore_home');
   return (
     <Screen header={<Header title={waiting && !declined ? askedLine : t('entry.intent.title')} {...(first && !waiting ? { sub: t('entry.welcome.greeting', { name: first }) } : {})} />}
       footer={<QuietLinks items={[{ label: t('entry.intent.lookTitle'), icon: 'globe', help: t('entry.intent.lookHelp'), onPress: () => ctx.go('explore_home') }]} />}>
       {/* An invite being used right now, or waiting for a connection (docs/invites-and-accounts.md). */}
+      {/* A revoked Global Viewer account is an ordinary one (decisions.md 158): say why Global Viewer is gone. */}
+      {globalViewer === 'revoked' ? <Banner icon="eye" title={t('globalViewer.revokedTitle')} /> : null}
       {ctx.invite.status.kind === 'joining' ? <Banner icon="people" title={t('entry.intent.joiningInvite')} /> : null}
       {ctx.invite.status.kind === 'waiting' ? (
         <Banner icon="cloud" title={t('entry.intent.inviteSavedTitle')} body={t('entry.intent.inviteSavedBody')} />
@@ -752,11 +712,24 @@ export function IntentChooser(ctx: Ctx) {
           <SectionLabel label={t('entry.intent.meanwhile')} />
         </>
       ) : null}
+      {/* A Global Viewer's own way on comes first (decisions.md 158). */}
+      {gvActive ? (
+        <Card onPress={() => ctx.go('global_viewer')} accessibilityLabel={t('globalViewer.title')} help={t('globalViewer.wayInHelp')} current>
+          <View style={styles.optionRow}>
+            <View style={[styles.tile, { backgroundColor: C.primary }]}><Ico name="eye" size={24} color={C.white} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={[txt.body, { fontWeight: '700', fontSize: 19 }]}>{t('globalViewer.title')}</Text>
+              <Text style={txt.smMuted}>{globalViewerLine(globalViewer)}</Text>
+            </View>
+            <Ico name="right" size={22} color={C.muted} />
+          </View>
+        </Card>
+      ) : null}
       {/* help-each: each choice goes somewhere different */}
       {main.map((o, i) => (
-        <Card key={o.to} onPress={() => ctx.go(o.to)} accessibilityLabel={o.label} help={o.help} current={i === 0 && !waiting}>
+        <Card key={o.to} onPress={() => ctx.go(o.to)} accessibilityLabel={o.label} help={o.help} current={i === 0 && lead}>
           <View style={styles.optionRow}>
-            <View style={[styles.tile, i === 0 && !waiting && { backgroundColor: C.primary }]}><Ico name={o.icon} size={24} color={i === 0 && !waiting ? C.white : C.primary} /></View>
+            <View style={[styles.tile, i === 0 && lead && { backgroundColor: C.primary }]}><Ico name={o.icon} size={24} color={i === 0 && lead ? C.white : C.primary} /></View>
             <View style={{ flex: 1 }}>
               <Text style={[txt.body, { fontWeight: '700', fontSize: 19 }]}>{o.label}</Text>
               <Text style={txt.smMuted}>{o.sub}</Text>
@@ -882,7 +855,7 @@ export function RequestAccess(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', { orgId: o.org_id, message: '', orgName: o.name, askedAt: Date.now() }));
+      setRequestId(await queueJoinRequest(ctx.session.actorId, { orgId: o.org_id, message: '', orgName: o.name }));
     } catch (e) {
       setError(failure('request access', e));
     } finally {
@@ -893,9 +866,7 @@ export function RequestAccess(ctx: Ctx) {
     setBusy(true);
     setError('');
     try {
-      setRequestId(await queueAccountAction(ctx.session.actorId, 'join_request', {
-        orgId, message: message.trim(), ...(orgName ? { orgName } : {}), askedAt: Date.now()
-      }));
+      setRequestId(await queueJoinRequest(ctx.session.actorId, { orgId, message, orgName }));
     } catch (e) {
       setError(failure('request access', e));
     } finally {

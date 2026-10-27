@@ -220,81 +220,66 @@ Expected:
   label says "1 with feedback" once.
 - Fixed (2026-10-12): with the feedback filter set, Luke's spoken label said
   "1 with feedback" twice (`map.tsx` `BookRow`).
-- Luke's chapters open with the filter set. Chapters with no match are
-  dimmed, but can still be tapped.
+- Luke's passages open with the filter set: only the passages that match
+  are listed (P-NEEDS, not P-NEW).
 - ✕ clears the filter and every book shows again.
 - A filter with no match anywhere shows "Nothing here matches this filter."
 
-## A book's chapters
+## A book's passages and chapters
 
-### MAP-020 Chapters in three states
+### MAP-020 A book divided into passages lists them, each with its download button
 Roles: TRANS, VIEW · Priority: P0 · Platforms: iOS, Android, Web · Run: Auto
 
 Preconditions (in addition to the global ones):
-- One chapter of Luke has every passage done. If the fixture has none, take
-  every passage of one short chapter through all four steps (JRN-09). The
-  automated test finishes Luke 3 (three passages) through the server.
+- Luke 3's passages are done. If the fixture has none, take every passage of
+  one short chapter through all four steps (JRN-09). The automated test
+  finishes Luke 3 (three passages) through the server.
 
 Steps:
 1. On Alpha's map, tap "Luke".
-2. Read the header, the grid and the line under it.
+2. Read the header, the line under it and the list.
 
 Expected:
 - The header is "Luke", with the sub "{recorded} of {n} passages" ("9 of 97
   passages" once Luke 3 is done), and Back. On a wide window, crumbs "Alpha"
   › "Luke" show above the title (the kit draws crumbs only there).
-- The grid is 5 tiles across on a phone, one per chapter (24 for Luke).
-- The done chapter (3) is green with ✓. Chapters 14, 15 and 16 have the
-  brand colour with •. Chapter 13 and the rest are white. A chapter no passage
-  covers is gray and cannot be tapped.
-- Each state is marked as well as coloured: ✓, •, or plain.
-- Under the grid, the short key reads "✓ Done • Started", spoken as "A tick
-  means done, a dot means started".
+- The fixture's template divides Luke into FIA's passages, which can run
+  across chapters, so Luke lists its 97 passages as rows, not chapter tiles
+  (decision 166). A passage across two chapters (Luke 7:36–8:3) is one row.
+- The line over the list reads "{ready} of 97 passages ready on this
+  device", with the green download mark.
+- Each row has the passage's disc (dashed mic, steps, ✓ when done), its
+  title and where it stands, and its download button at the end: an outline
+  ("Download for offline"), an arrow wave while it downloads ("Downloading
+  for offline · {here} of {total}"), green when it is here ("On this
+  device").
+- A book whose passages are its chapters one each still shows chapter tiles,
+  four across on a phone, each with its download button.
 
-### MAP-021 The full key and the old tones, one tap deeper
+### MAP-021 A book of passages: the filters one tap deeper, and each row says where it stands
 Roles: TRANS · Priority: P2 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. On Luke's chapters, tap "Filter".
-2. Read the "Key" section.
-3. With a screen reader on, move to chapters 13, 14 and 15.
+1. On Luke's passages, tap "Filter".
+2. Read the sheet, then close it.
+3. With a screen reader on, move to P-NEEDS, P-NEW and P-DRAFT.
 
 Expected:
-- "Key" lists "Done — Every check is complete", "Started — Recording begun,
-  recorded, with reviewers, or feedback waiting", "Not started — Nobody has
-  recorded it yet", "No passage — This chapter has no passage in this
-  language" (only when a chapter has none), and "Kept on this device for
-  offline".
-- The old seven tones live on in each tile's spoken label, not in colour.
-  For example, "Chapter 14: Feedback waiting, 3 parts, for you, …" or
-  "Chapter 15: Recorded, in review ({cleared} of 4 steps), 2 parts, …",
-  where {cleared} is the fewest steps complete among its passages (0 with
-  the fixture). The words
-  used are "Done", "Feedback waiting", "Recorded, in review", "Recording
-  started", "Not recorded" and "No passage".
-- Fixed (2026-10-13): decision 71 (docs/decisions.md, "the
-  seven-tone key one tap deeper") still describes the old key. The app
-  shows three stages and a five-line key, and the tones are spoken only.
-  An amendment to decision 71 is proposed (reported; the log is not edited
-  by test work), or the tones come back.
+- The sheet has the filters, and no "Key" (the key is the chapter tiles').
+- Each row's spoken label says where it stands: P-NEEDS "Feedback for you to
+  answer. For you", P-NEW "… For you", P-DRAFT "Recording in progress".
 
-### MAP-022 A chapter with several passages
+### MAP-022 A passage opens from its row, and Back comes to the book
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
 Steps:
-1. On Luke's chapters, tap chapter 14.
-2. Read the sheet.
-3. Tap "Luke 14:15-24".
+1. On Luke's passages, find Luke 14's.
+2. Tap P-NEEDS, then Back.
 
 Expected:
-- A sheet opens, titled "Luke 14", with the sub "3 parts — pick one".
-- It lists the three passages:
-  - P-DRAFT has a brand-coloured dashed mic disc.
-  - P-NEEDS has an amber chat disc, an amber dot, and the badge "For you".
-  - P-BT shows "{cleared}/{steps}" ("0/4": its Back Translation is still
-    asked).
-- Tapping a passage closes the sheet and opens its record.
-- A chapter with one passage opens its record straight away, with no sheet.
+- P-BT shows "{cleared}/{steps}" ("0/4": its Back Translation is still
+  asked).
+- Tapping a row opens its record; Back comes to Luke's passages.
 
 ### MAP-023 A book not broken up yet
 Roles: ADMIN, COORD, LADMIN, TRANS, REV, VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -385,36 +370,28 @@ Expected:
 - "ps" lists the matching books ("Psalms" among them) as book rows, not
   passages.
 
-### MAP-031 Marks for passages kept on this device
+### MAP-031 Download buttons for passages kept on this device
 Roles: TRANS, VIEW · Priority: P1 · Platforms: iOS, Android · Run: Auto
 
 Steps:
 1. TRANS: wait until Sync shows nothing left to download. Open Luke's
-   chapters.
-2. Read chapter 13's tile, the key line and the spoken label.
-3. Tap chapter 13 and read the rows' discs.
-4. VIEW: open Luke's chapters.
-5. VIEW: open P-DONE, tap "Something else?", then "Keep offline". Go back to
-   the chapters.
+   passages.
+2. Read Luke 13's rows and their spoken labels.
+3. VIEW: open Luke's passages, then P-DONE, and tap its line "Download for
+   offline". Go back to the list.
 
 Expected:
-- TRANS's five requests on chapter 13 are kept (asked of them). Chapter 13
-  has a small corner mark, green when every kept passage is ready and brand
-  coloured while downloading.
-- The key line under the grid adds "On this device" with the phone icon. It
-  is spoken as "A tick means done, a dot means started, a cloud means kept
-  on this device".
-- Chapter 13's spoken label adds "all parts on this device", or "{kept} of 5
-  parts on this device (downloading)" until all are in.
-- In the chapter sheet, each kept passage's disc carries the same small mark.
-  Its spoken label ends "On this device" or "Downloading for offline".
-  Others end "Audio not kept on this device".
-- VIEW at first: no marks and no "On this device" in the key.
-- After "Keep offline": the toast "Kept on this device. It downloads while
-  you are connected.", and chapter 16 gets the mark once the audio is in.
-- Web: the web app keeps nothing offline (decision 58). Recorded
-  2026-10-12: the web shows the marks anyway, for example "Chapter 13: …,
-  all parts on this device" and "On this device" in the key.
+- TRANS's five requests in Luke 13 are kept (asked of them): their download
+  buttons are green once every file is here, an arrow wave while they
+  download. Their spoken labels end "On this device" or "Downloading for
+  offline". Others end "Audio not kept on this device", with an outline
+  button.
+- VIEW at first: P-DONE's row says "Audio not kept on this device".
+- After "Download for offline": the toast "Kept on this device. It downloads
+  while you are connected.", the line turns green "On this device" once the
+  audio is in, and the row's button is green.
+- Web: the web app keeps nothing offline (decision 58), though it shows the
+  buttons.
 
 ### MAP-032 Bravo, a language that is not ready
 Roles: COORD, ADMIN · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto

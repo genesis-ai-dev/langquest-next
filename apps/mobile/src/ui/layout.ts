@@ -5,7 +5,6 @@
  * centres a column; a desktop-wide one gets a labelled sidebar and shows a
  * list beside what it opened (panes.ts).
  */
-import { PASSAGE_READING, TAB_SCREENS, type ScreenId } from '../shell/flow';
 import { breakpoint, measure, space } from './theme';
 
 export type LayoutKind = 'phone' | 'tablet' | 'desktop';
@@ -38,41 +37,13 @@ export function frame(width: number, opts: { chrome: boolean; split: boolean }):
 }
 
 /**
- * Chapters across in a book's grid: the demo's five on a phone; on a wider
+ * Chapters across in a book's grid: four on a phone (the demo had five); on a wider
  * column, as many tiles of about `chapterTile` as fit, so they stay tile-sized.
  */
 export function chapterColumns(contentWidth: number, kind: LayoutKind): number {
-  if (kind === 'phone') return 5;
+  // Four across on a phone: each tile big enough for a thumb and its download button (decisions.md 166).
+  if (kind === 'phone') return 4;
   const inner = Math.min(contentWidth, measure.column) - 2 * space.lg;
   const fit = Math.floor((inner + space.sm) / (measure.chapterTile + space.sm));
-  return Math.min(10, Math.max(5, fit));
-}
-
-/**
- * Drill-downs under Manage and Settings that keep the rail or sidebar on a
- * wide window, so it does not vanish while a list and its editor sit side by
- * side. Task screens (recording, reviewing, asking, signing in) still hide it
- * at any width (ADR-021).
- */
-export const WIDE_CHROME: readonly ScreenId[] = [
-  'members_list', 'edit_member', 'invite_member', 'invite_qr', 'new_language', 'check_editor',
-  'roles_home', 'role_editor', 'flows_home', 'flow_editor', 'templates_home', 'template_editor', 'book_structure',
-  'reference_home', 'material_editor', 'guide_editor', 'key_terms', 'key_term_detail', 'profile_edit', 'org_switcher', 'sync_status', 'settings_more',
-  'reference_bibles', 'reference_source', 'reference_guides', 'reference_coverage',
-  // The Reports tab exists only on a wide window (decisions.md 57).
-  'reports_home', 'reports_language'
-];
-
-/**
- * A passage and what you read under it are tasks on a phone, as Ryder drew
- * them (decision 71): the footer holds the one main button, with no tab bar
- * under it; Back returns to the list it came from.
- */
-const PHONE_TASKS: readonly ScreenId[] = ['passage_record', ...PASSAGE_READING];
-
-/** Whether the tabs (bar, rail or sidebar) show on this screen. On a phone, the demo's tab screens but a passage's own. */
-export function chromeVisible(kind: LayoutKind, screen: ScreenId): boolean {
-  if (kind === 'phone' && PHONE_TASKS.includes(screen)) return false;
-  if (TAB_SCREENS.includes(screen)) return true;
-  return kind !== 'phone' && WIDE_CHROME.includes(screen);
+  return Math.min(8, Math.max(4, fit));
 }

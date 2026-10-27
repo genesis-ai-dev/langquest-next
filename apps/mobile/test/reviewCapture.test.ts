@@ -5,7 +5,7 @@ import {
 } from '@langquest-next/core';
 import {
   canLeave, cleanAnswers, cleanSkips, clockMs, earlierReviews, firstOpenAt, footHint, isGroupKind, kindLabel, listenLine,
-  noteAnchorText, nextLabel, openRequired, questionSource, readiness, requestFor, reviewCapture, reviewStages,
+  clockToMs, momentIn, noteAnchorText, nextLabel, openRequired, partAt, questionSource, readiness, replyAnchor, requestFor, reviewCapture, reviewStages,
   stageAt, stageBack, summaryLine, toCompareFor, verdictQuestion, versionFor
 } from '../src/reviewing/capture';
 
@@ -226,5 +226,43 @@ describe('one question per screen (SIMPLE-10)', () => {
   it('nothing said aloud adds nothing', () => {
     expect(reviewCapture({ questions: [q('a', false)], answers: { a: 'ok' }, voice: {}, moments: [], evidence: null }))
       .toEqual({ answers: { a: 'ok' }, artifacts: [] });
+  });
+});
+
+describe('notes on what a check shows (decisions.md 149)', () => {
+  const look = { term: () => 'shepherd', versionN: () => 2, partN: (_t: string, h: string) => (h === 'c2' ? 2 : undefined), help: () => 'What to listen for', author: () => 'Akol' };
+
+  it('the player\'s note goes on the part playing, at that moment in it', () => {
+    expect(partAt([3000, 3000, 3000], 4200)).toEqual({ index: 1, atMs: 1200 });
+    expect(partAt([3000, 3000, 3000], 0)).toEqual({ index: 0, atMs: 0 });
+    // Past the end: the last part, at its end.
+    expect(partAt([3000, 3000], 9000)).toEqual({ index: 1, atMs: 3000 });
+    // Lengths not known yet: the first part.
+    expect(partAt([0, 0], 2500)).toEqual({ index: 0, atMs: 2500 });
+  });
+
+  it('says what each note is on', () => {
+    expect(noteAnchorText({ kind: 'version', takeId: 't', part: 'c2', at: '0:04' }, look)).toBe('Part 2 · 0:04');
+    expect(noteAnchorText({ kind: 'version', takeId: 't', part: 'gone' }, look)).toBe('A part');
+    expect(noteAnchorText({ kind: 'passage', help: 'material:m' }, look)).toBe('“What to listen for”');
+    expect(noteAnchorText({ kind: 'term', termId: 'k', replyTo: 'note:n' }, look)).toBe('Reply to Akol');
+    expect(noteAnchorText({ kind: 'version', takeId: 't' }, look)).toBe('Version 2');
+  });
+
+  it('a note on a part reads back as the moment in the whole version the reviewer heard', () => {
+    const lengths = new Map([['p1', 3000], ['p2', 3000], ['p3', 3000]]);
+    expect(clockToMs('0:04')).toBe(4000);
+    expect(clockToMs('1:02:05')).toBe(3_725_000);
+    expect(clockToMs('soon')).toBeNull();
+    expect(momentIn(['p1', 'p2', 'p3'], lengths, 'p2', '0:01')).toBe(4000);
+    expect(momentIn(['p1', 'p2', 'p3'], lengths, 'p3', undefined)).toBe(6000);
+    expect(momentIn(['p1', 'p2'], lengths, 'p3', '0:01')).toBeNull();
+    // And back: the player's moment is the part and the time in it.
+    const at = partAt([3000, 3000, 3000], 4000);
+    expect(momentIn(['p1', 'p2', 'p3'], lengths, ['p1', 'p2', 'p3'][at.index]!, clockMs(at.atMs))).toBe(4000);
+  });
+
+  it('a reply is on what its note is on, answering that note', () => {
+    expect(replyAnchor({ id: 'note:b', anchor: { kind: 'verse', verse: '3:16', replyTo: 'note:a' } })).toEqual({ kind: 'verse', verse: '3:16', replyTo: 'note:b' });
   });
 });

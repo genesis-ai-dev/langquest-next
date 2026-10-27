@@ -17,7 +17,8 @@
 /** The jobs `diag.job_schedule` knows; the database refuses any other. */
 export type JobName =
   | 'projection' | 'push_delivery' | 'v2_import' | 'job_starts'
-  | 'webhook_dispatch' | 'invite_email' | 'worker_requests' | 'worker_cron';
+  | 'webhook_dispatch' | 'invite_email' | 'worker_requests' | 'worker_cron'
+  | 'fold_canary' | 'blob_reconcile' | 'account_delete';
 
 export interface JobRun {
   job: JobName;
@@ -37,6 +38,8 @@ export interface JobRun {
 export type JobRunSink = (run: JobRun) => Promise<void>;
 
 const WRITE_TIMEOUT_MS = 3000;
+/** diag_job_ingest's `p_ms` is a Postgres integer: past this the whole row is refused, so a wrong duration is capped instead. */
+const MAX_MS = 2_147_483_647;
 
 /** Does nothing: where a job has no database to write to (a test, an environment without the key). */
 export const noJobRuns: JobRunSink = async () => {};
@@ -57,7 +60,7 @@ export function jobRunSink(url: string | undefined, serviceKey: string | undefin
         body: JSON.stringify({
           p_job: run.job,
           p_started_at: new Date(run.startedAt).toISOString(),
-          p_ms: Math.max(0, Math.round(run.ms)),
+          p_ms: Math.min(MAX_MS, Math.max(0, Math.round(run.ms))),
           p_outcome: run.outcome,
           p_n: numbersOnly(run.n ?? {}),
           p_error_class: run.errorClass ?? null,

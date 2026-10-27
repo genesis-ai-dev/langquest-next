@@ -84,7 +84,7 @@ Expected rating: about Teen / 12+ with "Users Interact".
 | --- | --- |
 | Collects or shares required data types | Yes |
 | Encrypted in transit | Yes: Supabase, the app's Cloudflare Worker (reports, decisions.md 44; recordings and guide media, kept in Cloudflare R2, decisions.md 69), Bible text and audio (Bible Brain's CDN, OpenBible) over HTTPS; no cleartext allowed |
-| Account creation | Username, password and other authentication: an email and password (someone with a LangQuest v2 account signs in with that account's email and password, which our server checks with LangQuest v2, our own app, once; decisions.md 94); or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); no OAuth |
+| Account creation | Username, password and other authentication: an email and password (someone with a LangQuest v2 account signs in with that account's email and password, which our server checks with LangQuest v2, our own app, once; decisions.md 94); or, for someone joining by invite with no email, the invite itself (a one-time QR code) makes the account, and they get back in with a one-time code from someone who can invite them, or with their sign-in name and a password if they set one (docs/invites-and-accounts.md, decisions.md 59); no OAuth. LangQuest's own Global Viewer accounts (support staff, decisions.md 158) also enter a code from an authenticator app; no user of the app is asked for one, and nothing new is collected from users |
 | Account deletion URL | https://next.langquest.org/delete-account |
 | Delete some data without deleting the account | No. Account data is deleted with the account; an organization's work belongs to it, and requests about it go to its admins |
 
@@ -150,6 +150,15 @@ no Android permission and no biometrics (`faceIDPermission` is off), so no
 Play Console answer changes. "Encrypted in transit" and the data types are
 unchanged.
 
+Signing out of a phone locks the person's sign-in on it (decisions.md 168) so
+they can sign back in with no connection: their session is encrypted on the
+phone under their password or a pattern they draw, using `@noble/hashes` and
+`@noble/ciphers` (code inside the app, no network), and kept in the Keychain
+or Keystore with the session itself. The password and pattern are checked on
+the phone and never stored or sent; an email or sign-in name is kept only as
+a hash salted per phone. Nothing new leaves the phone, so no data type
+changes, and account creation and sign-in methods are unchanged.
+
 Recordings (decisions.md 106) are kept and uploaded as AAC (`.m4a`) on a
 phone instead of WAV: the same voice recordings in a smaller file, so the
 "Voice or sound recordings" answer is unchanged.
@@ -191,6 +200,45 @@ own window, needs no permission, reads no other app or file and sends nothing
 itself. On the web `html-to-image` draws the page instead, loaded only when
 feedback is sent. No Play Console answer changes.
 
+Telling people to update (decisions.md 154): `expo-application` reads the
+app's own version on the phone, so the app can compare it with the newest
+version in the store and the lowest version that may still sync, which it
+reads from our server (`app_versions()`). The version is compared on the
+phone and is not sent anywhere. `expo-application` was already in every
+build (`expo-notifications` depends on it), so no native code changes. The
+Update button opens the App Store or Google Play page as a link. The server
+learns which version is live from Apple's public lookup and Google Play's
+public app page, which send no user data. Nothing is collected or sent, and no Play Console answer
+changes.
+
+A phone's disguise (decisions.md 171): under Me → More settings → App icon,
+someone may give the app one of ten icons, five calculators and five
+notepads, and a code of 4 to 12 digits. From then on the app opens on a
+working calculator or notepad, and the code typed there opens LangQuest.
+`expo-alternate-app-icons` changes the icon: on Android it turns one of ten
+`<activity-alias>` launcher entries on and the usual one off (labelled
+"Calculator" or "Notes" in the phone's language by `./plugins/withDisguiseIcons`,
+which also copies the app's link filters onto each). It needs no permission,
+and only the person changes it, from inside the app, and can change it back
+there (Deceptive Behavior: changes to the home screen with the user's
+knowledge and consent, easily reversed). The code is kept on the phone as a
+salted hash in the Keystore (`expo-secure-store`, `expo-crypto`), the
+notepad's text in app storage; neither is sent. Turning it on disconnects
+the phone's notifications through the existing call, since each would say
+LangQuest. Nothing new is collected or sent, so no Play Console answer
+changes. Apple forbids features that review is not told of (App Review
+Guidelines 2.3.1(a) and 2.5.19), so the App Review notes in App Store Connect
+say how to turn it on and off before an iPhone build with it goes to review.
+
+Not used, on purpose: Google Play's In-App Updates library (Play Core). It
+would tell an Android phone itself when a newer version is live, but Google's own
+data safety section for it (developer.android.com/guide/playcore/in-app-updates,
+"Data safety") says that it sends Google the device's metadata, the app's
+version and its installed modules, whether diagnostics is on or off, and
+leaves the Data safety answers to the developer. That may change the "App
+info and performance" and "Device or other IDs" answers, so it waits for the
+developer's decision.
+
 Not collected: location, financial info, health, files, calendar, contacts,
 web browsing, app interactions beyond diagnostics, other personal info.
 
@@ -223,7 +271,9 @@ this block.
   "androidPermissions": ["android.permission.MODIFY_AUDIO_SETTINGS", "android.permission.RECORD_AUDIO"],
   "blockedPermissions": [],
   "plugins": [
+    "./plugins/withDisguiseIcons",
     "./plugins/withSceneLifecycle",
+    "expo-alternate-app-icons {\"0\":{\"name\":\"Calculator1\",\"ios\":\"./assets/disguise/calculator1/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator1/adaptive.png\",\"backgroundColor\":\"#202226\"}},\"1\":{\"name\":\"Calculator2\",\"ios\":\"./assets/disguise/calculator2/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator2/adaptive.png\",\"backgroundColor\":\"#DBEAFE\"}},\"2\":{\"name\":\"Calculator3\",\"ios\":\"./assets/disguise/calculator3/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator3/adaptive.png\",\"backgroundColor\":\"#F97316\"}},\"3\":{\"name\":\"Calculator4\",\"ios\":\"./assets/disguise/calculator4/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator4/adaptive.png\",\"backgroundColor\":\"#111111\"}},\"4\":{\"name\":\"Calculator5\",\"ios\":\"./assets/disguise/calculator5/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/calculator5/adaptive.png\",\"backgroundColor\":\"#16A34A\"}},\"5\":{\"name\":\"Notes1\",\"ios\":\"./assets/disguise/notes1/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes1/adaptive.png\",\"backgroundColor\":\"#FFFFFF\"}},\"6\":{\"name\":\"Notes2\",\"ios\":\"./assets/disguise/notes2/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes2/adaptive.png\",\"backgroundColor\":\"#2563EB\"}},\"7\":{\"name\":\"Notes3\",\"ios\":\"./assets/disguise/notes3/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes3/adaptive.png\",\"backgroundColor\":\"#FFFFFF\"}},\"8\":{\"name\":\"Notes4\",\"ios\":\"./assets/disguise/notes4/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes4/adaptive.png\",\"backgroundColor\":\"#1E293B\"}},\"9\":{\"name\":\"Notes5\",\"ios\":\"./assets/disguise/notes5/icon.png\",\"android\":{\"foregroundImage\":\"./assets/disguise/notes5/adaptive.png\",\"backgroundColor\":\"#E11D48\"}}}",
     "expo-audio {\"enableBackgroundPlayback\":false,\"microphonePermission\":\"LangQuest records your voice to translate passages.\"}",
     "expo-camera {\"cameraPermission\":\"LangQuest uses the camera to scan invite QR codes.\"}",
     "expo-localization {\"supportedLocales\":[\"en\",\"es\",\"pt-BR\",\"fr\",\"ar\",\"sw\",\"ha\",\"am\",\"hi\",\"bn\",\"ne\",\"id\",\"zh-Hans\",\"th\",\"my\"]}",
@@ -232,10 +282,10 @@ this block.
     "expo-sqlite"
   ],
   "mobileDependencies": [
-    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync",
+    "@expo/metro-runtime", "@langquest-next/core", "@langquest-next/sync", "@noble/ciphers", "@noble/hashes",
     "@react-native-async-storage/async-storage", "@react-navigation/native",
     "@react-navigation/native-stack", "@supabase/supabase-js", "d3-geo", "expo", "expo-audio",
-    "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
+    "expo-alternate-app-icons", "expo-application", "expo-camera", "expo-crypto", "expo-dev-client", "expo-file-system", "expo-keep-awake", "expo-localization", "expo-network",
     "expo-notifications", "expo-screen-orientation", "expo-secure-store", "expo-sqlite", "expo-status-bar", "expo-updates",
     "html-to-image", "i18n-iso-countries", "i18next", "lucide-react-native", "onnxruntime-web", "react", "react-dom", "react-i18next", "react-native", "react-native-qrcode-svg",
     "react-native-safe-area-context", "react-native-screens", "react-native-svg",

@@ -29,6 +29,14 @@ describe('list and detail panes (decisions.md 55)', () => {
     expect(shape([r('inbox_home'), r('passage_record')])).toEqual({ list: 'inbox_home', detail: 'passage_record' });
     expect(shape([r('inbox_home'), r('members_list'), r('edit_member')])).toEqual({ list: 'members_list', detail: 'edit_member' });
     expect(shape([r('org_home'), r('language_home')])).toEqual({ list: 'org_home', detail: 'language_home' });
+    // Manage goes one level at a time as Map does: where you came from beside what it opened.
+    expect(shape([r('org_home'), r('members_list')])).toEqual({ list: 'org_home', detail: 'members_list' });
+    expect(shape([r('org_home'), r('members_list'), r('edit_member')])).toEqual({ list: 'members_list', detail: 'edit_member' });
+    expect(shape([r('org_home'), r('language_home'), r('roles_home')])).toEqual({ list: 'language_home', detail: 'roles_home' });
+    expect(shape([r('org_home'), r('language_home'), r('roles_home'), r('role_editor')])).toEqual({ list: 'roles_home', detail: 'role_editor' });
+    // A hub starts beside its placeholder, not full width.
+    expect(shape([r('status_home')])).toEqual({ list: 'status_home', detail: null });
+    expect(shape([r('org_home')])).toEqual({ list: 'org_home', detail: null });
     expect(shape([r('roles_home'), r('role_editor')])).toEqual({ list: 'roles_home', detail: 'role_editor' });
   });
 
@@ -36,8 +44,6 @@ describe('list and detail panes (decisions.md 55)', () => {
     expect(paneFor([])).toBeNull();
     expect(shape([r('my_work'), r('passage_record')])).toBeNull();
     expect(shape([r('map_home'), r('book_map'), r('passage_record'), r('version_detail')])).toBeNull();
-    expect(shape([r('org_home')])).toBeNull();
-    expect(shape([r('status_home')])).toBeNull();
     expect(shape([r('passage_record'), r('workspace')])).toBeNull();
   });
 

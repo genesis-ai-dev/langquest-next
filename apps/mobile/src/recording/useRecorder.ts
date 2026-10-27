@@ -1,4 +1,4 @@
-import type { BlobRef } from '@langquest-next/core';
+import { RECORDING_BITRATE, type BlobRef } from '@langquest-next/core';
 import type { RecordingFile } from '../sync/blobs';
 import { AudioModule, RecordingPresets, useAudioRecorder } from 'expo-audio';
 import { holdMicrophone, setSessionAudioMode, stopAudioPlayback } from '../audio/audioSession';
@@ -11,9 +11,10 @@ import MicrophoneEnergy from '../../modules/microphone-energy';
 import { preferredRecordingType } from '../audio/audioFormat';
 import { getBlobStore } from '../sync/blobs';
 import { t } from '../i18n';
+import { useReadOnly } from '../session/useReadOnly';
 import { getRecordingJournal, liveParts } from './recordingJournal';
 import { RecordingSession } from './recordingSession';
-import { liveKept, liveKeptCount, liveNext } from './livePartsModel';
+import { framePublishDue, liveKept, liveKeptCount, liveNext } from './livePartsModel';
 import { cutWav, deleteRecorderFile } from '../audio/wavCut';
 import { barsOfFile } from '../audio/barsOfFile';
 import { barsFromLevels } from '../audio/barsModel';
@@ -40,7 +41,7 @@ const WEB_TYPE = WEB && typeof MediaRecorder !== 'undefined' ? preferredRecordin
 function useBrowserTakeRecorder() {
   return useAudioRecorder({
     ...RecordingPresets.HIGH_QUALITY, directory: 'document',
-    ...(WEB_TYPE ? { web: { mimeType: WEB_TYPE, bitsPerSecond: 128000 } } : {})
+    ...(WEB_TYPE ? { web: { mimeType: WEB_TYPE, bitsPerSecond: RECORDING_BITRATE } } : {})
   });
 }
 const useTakeRecorder: () => ReturnType<typeof useAudioRecorder> | null = WEB ? useBrowserTakeRecorder : () => null;
@@ -102,6 +103,7 @@ function deleteQuietly(uri: string) {
  */
 export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget, language?: AudioLanguage | null) {
   const recorder = useTakeRecorder();
+  const readOnly = useReadOnly();
   const [vadOn, setVadOn] = useState(false);
   const [vadPaused, setVadPaused] = useState(false);
   const [vadCapturing, setVadCapturing] = useState(false);
@@ -234,6 +236,8 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
         vadActive.current || vadStarting.current || !mounted.current) {
       return Promise.resolve();
     }
+    // Nothing recorded could be kept (a Global Viewer looking in, decisions.md 158): never open the microphone.
+    if (readOnly) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
     wanted.current = true;
     stopAudioPlayback();
     setError('');
@@ -277,7 +281,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     })();
     starting.current = start;
     return start;
-  }, [fail, recorder, self, work]);
+  }, [fail, readOnly, recorder, self, work]);
 
   const manualUp = useCallback((): Promise<void> => {
     wanted.current = false;
@@ -378,6 +382,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     if (vadActive.current || vadStarting.current) return stopVad();
     if (starting.current || stopping.current || active.current ||
         vadStopping.current || !mounted.current) return Promise.resolve();
+    if (readOnly) { setError(t('globalViewer.readOnly')); return Promise.resolve(); }
     stopAudioPlayback();
     setError('');
     work(1);
@@ -417,7 +422,7 @@ export function useRecorder(onCard: RecorderCardHandler, target?: JournalTarget,
     })();
     vadStarting.current = start;
     return start;
-  }, [fail, self, stopVad, vadConfig, work]);
+  }, [fail, readOnly, self, stopVad, vadConfig, work]);
 
   /** A part's box as it stands, written down so a crash before the session is left loses nothing said (phones, a passage's parts). */
   const notePart = useCallback((index: number) => {
@@ -636,10 +641,16 @@ export function useEnergyHistory(captured: boolean, bars = 60) {
   const capturedRef = useRef(captured);
   capturedRef.current = captured;
   useEffect(() => {
+    // Every event is kept, but the meter is told at about ten a second (the same pace as the waveform).
+    let heard = Array.from({ length: bars }, () => ({ energy: 0, captured: false }));
+    let shownAt: number | null = null;
     const sub = MicrophoneEnergy.addListener('onEnergyResult', (e) => {
-      setHistory((h) => [...h.slice(1), { energy: e.energy, captured: capturedRef.current }]);
+      heard = [...heard.slice(1), { energy: e.energy, captured: capturedRef.current }];
+      if (!framePublishDue(shownAt, e.timestamp)) return;
+      shownAt = e.timestamp;
+      setHistory(heard);
     });
     return () => sub.remove();
-  }, []);
+  }, [bars]);
   return history;
 }

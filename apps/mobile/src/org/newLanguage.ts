@@ -25,7 +25,7 @@ export interface ClusterTarget { clusterId: string; name?: string; existing?: re
 /** Something a new language's team is offered from the start: an item here, or one another organization shares. */
 export interface Offer { itemId: string | null; shared: SharedItem | null; name: string; label: string; set?: GuideSet; member?: SetMember }
 
-/** One thing New language can give a new team, on its Reference material step (decision 146): a Bible, a set of study guides, key words (decision 149), a note. */
+/** One thing New language can give a new team, on its Reference material step (decision 146): a Bible, a set of study guides, key words (decision 172), a note. */
 export type MaterialChoice = Offer & { key: string; kind: 'source' | 'guide' | 'words' | 'note'; sub: string };
 
 /**

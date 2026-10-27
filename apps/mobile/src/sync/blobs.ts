@@ -1,10 +1,10 @@
 import type { FileLedger, LostFile } from '@langquest-next/sync';
 import type { BlobRef } from '@langquest-next/core';
-import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { readDirectoryAsync } from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
-import { getFileLedger } from './store';
+import { getFileLedger } from '../storage/store';
+import { hashOf, isStoredFormat, mimeOf, type StoredFile, type StoredFormat } from '../storage/storedFile';
 import { onWake } from './wake';
 import { webFiles, type WebFiles } from '../web/webFiles';
 import { noteExpected } from '../diagnostics/report';
@@ -48,29 +48,7 @@ export type BlobFile = { hash: string; format: BlobRef['format'] | 'mp3' };
 /** A recording's file: always one of the formats the recorder makes. */
 export type RecordingFile = Pick<BlobRef, 'hash' | 'format'>;
 
-/**
- * Every kind of file the store keeps: recordings (wav, m4a), and the audio,
- * pictures and films of guides an organization writes (study@2, the guide
- * editor). The extension is part of the name, as for recordings.
- */
-const STORED_FORMATS = ['wav', 'm4a', 'mp3', 'ogg', 'aac', 'jpg', 'png', 'webp', 'gif', 'mp4', 'webm'] as const;
-export type StoredFormat = (typeof STORED_FORMATS)[number];
-export type StoredFile = { hash: string; format: StoredFormat };
-
-export function isStoredFormat(v: unknown): v is StoredFormat {
-  return typeof v === 'string' && (STORED_FORMATS as readonly string[]).includes(v);
-}
-
 const WEB = Platform.OS === 'web';
-const MIME: Record<StoredFormat, string> = {
-  wav: 'audio/wav', m4a: 'audio/mp4', mp3: 'audio/mpeg', ogg: 'audio/ogg', aac: 'audio/aac',
-  jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', mp4: 'video/mp4', webm: 'video/webm'
-};
-
-/** The media type a stored file is uploaded and played as. */
-export function mimeOf(format: StoredFormat): string {
-  return MIME[format];
-}
 /** Object URLs kept for playback on the web, most recently used last. */
 const URLS_KEPT = 64;
 /**
@@ -181,9 +159,14 @@ export class BlobStore {
     }
   }
 
-  /** Byte sizes of present files, for the size check against confirmations. */
+  /**
+   * Byte sizes of present files, for the size check against confirmations:
+   * the live map, read at once and never kept or changed. The work lists and
+   * reclaim ask after every file that lands, and a copy of 61,000 entries each
+   * time made a download quadratic (performance-audit-2026-10-26.md item 3).
+   */
   sizes(): ReadonlyMap<string, number> {
-    return new Map(this.sizeByHash);
+    return this.sizeByHash;
   }
 
   sizeOf(hash: string): number | undefined {
@@ -213,11 +196,8 @@ export class BlobStore {
   }
 
   /** SHA-256 hex of bytes: the name a file must have to be trusted. */
-  static async hashOf(bytes: Uint8Array): Promise<string> {
-    // expo-crypto wants a plain ArrayBuffer-backed view.
-    const view = new Uint8Array(bytes.byteLength);
-    view.set(bytes);
-    return Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, view).then(toHex);
+  static hashOf(bytes: Uint8Array): Promise<string> {
+    return hashOf(bytes);
   }
 
   has(hash: string): boolean {
@@ -539,7 +519,7 @@ export class BlobStore {
   }
 
   private keepUrl(ref: StoredFile, bytes: Uint8Array<ArrayBuffer>): void {
-    if (!this.urls.has(ref.hash)) this.urls.set(ref.hash, URL.createObjectURL(new Blob([bytes], { type: MIME[ref.format] })));
+    if (!this.urls.has(ref.hash)) this.urls.set(ref.hash, URL.createObjectURL(new Blob([bytes], { type: mimeOf(ref.format) })));
     while (this.urls.size > URLS_KEPT) {
       const [oldest, url] = this.urls.entries().next().value!;
       URL.revokeObjectURL(url);
@@ -628,12 +608,6 @@ export class BlobStore {
     this.listeners.add(l);
     return () => this.listeners.delete(l);
   }
-}
-
-function toHex(buf: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
 }
 
 let store: Promise<BlobStore> | undefined;

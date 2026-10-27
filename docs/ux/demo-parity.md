@@ -113,7 +113,7 @@ Demo-only tools are out of scope (see above). Beyond those:
 **Needs data the app does not have**
 - Recorded prompts for Listen (ONB-1, ONB-2): no Listen buttons.
 - Glossary entries on key terms the team wrote itself (FIA's key words now
-  carry FIA's meaning and recording outside a study guide, decision 149).
+  carry FIA's meaning and recording outside a study guide, decision 172).
 - Audio for the BSB/WEB/KJV readings and the Luke 15 and John 3 study steps
   (the reader follows a simulated clock, and says so); passage text beyond
   Genesis 1-3, Luke 14-16, John 2-4 and the guide passages.
@@ -132,7 +132,7 @@ Demo-only tools are out of scope (see above). Beyond those:
   `v1.LanguageAdded` (New Language lists the language in the organization,
   then picks its template and flow in the language's own stream, decision 63).
 - Structure: `src/orgAdmin.ts` (review teams, adding a language),
-  `src/contentTemplates.ts` (template selection and its units), and the dev
+  `src/templates/contentTemplatesModel.ts` (template selection and its units), and the dev
   seed.
 
 **Known rough edges**

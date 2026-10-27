@@ -222,6 +222,8 @@ test('PASS-021 REV What a step offers', async ({ browser }) => {
 
 test('PASS-026 TRANS Something else? on a passage nobody has recorded', async ({ browser }) => {
   const page = await recordAs(browser, world(), 'TRANS', 'P-NEW');
+  // Whether it comes along offline is at the top of the passage now, not under Something else? (decisions.md 166).
+  await expect(byId(page, 'passage-offline')).toHaveAttribute('aria-label', /^(On this device|Download for offline|Downloading for offline|Only \d+ of \d+ files|Not on this device yet|Checking this device…)/);
   await somethingElse(page);
   const all = await screenText(page);
   expect(all).toContain(`Something else? ${label('P-NEW')} · Record`);
@@ -230,7 +232,7 @@ test('PASS-026 TRANS Something else? on a passage nobody has recorded', async ({
   for (const gone of ['We already did this', 'Not now', 'Record a new version']) expect(all, gone).not.toContain(gone);
   expect(all).toContain('Add a note');
   expect(all).toContain('What helps here');
-  expect(all, 'the offline card').toMatch(/On this device|Not kept on this device|Downloading for offline/);
+  expect(all, 'no offline card here').not.toMatch(/Keep offline|Not kept on this device/);
   expect(all).toContain('Each check under "Then the team" has its own options too: tap it on the path.');
   expect(all).toContain('Say it instead A voice note on this passage. Your team hears it here.');
 });

@@ -151,7 +151,8 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
     await page.getByRole('tab', { name: 'Map' }).click();
     await button(page, /^Dinka:/).click();
     await button(page, /^Matthew\./).click();
-    await button(page, /^Chapter 3: Not recorded$/).click();
+    // A book of FIA passages lists them as rows (decisions.md 166).
+    await button(page, /^Matthew 3:1–17\. Not started/).click();
     // The passage's path: Record is its main button (decision 71).
     await button(page, 'Record').click();
     // The workspace's big red button (decision 71).
@@ -208,4 +209,34 @@ test('a new organization on the web, from sign-up to sign-out', async ({ browser
 
   expect(await csp(), 'Content Security Policy refusals').toEqual([]);
   await done();
+});
+
+// A private Safari window cannot keep LangQuest's files. The storage screen
+// says so with one code to pass on; reporting the failure must not fail
+// again and give it a new code over and over.
+test('storage that will not open shows one code that stays', async ({ page }) => {
+  const reports: string[] = [];
+  page.on('console', (m) => { if (m.text().includes('] open storage:')) reports.push(m.text()); });
+  // The SQLite worker refuses every open, a task later, as a browser without an origin file system does.
+  await page.addInitScript(() => {
+    class NoStorage extends EventTarget {
+      postMessage(m: { id: number }) {
+        setTimeout(() => this.dispatchEvent(new MessageEvent('message', { data: { id: m.id, error: 'UnknownError: no origin file system' } })));
+      }
+      terminate() {}
+    }
+    (window as unknown as { Worker: unknown }).Worker = NoStorage;
+  });
+  await page.goto('/');
+  const code = page.getByText(/^Code for your team: /);
+  await expect(code).toBeVisible({ timeout: 60_000 });
+  const first = await code.innerText();
+  // Each failed open answers a task later: let a few dozen tasks go by, so a repeat would have shown.
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    let n = 0;
+    const next = () => (++n < 50 ? setTimeout(next) : resolve());
+    next();
+  }));
+  expect(await code.innerText()).toBe(first);
+  expect(reports).toHaveLength(1);
 });

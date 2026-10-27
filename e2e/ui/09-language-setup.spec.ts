@@ -235,8 +235,8 @@ test('SETUP-008 Link a language to the language list', async ({ page }) => {
   await text(page, 'They translate into').click();
   await expectOnScreen(page, 'Link Bravo', 'Find it by any of its names or its code. It keeps the name Bravo here, and takes the list\'s code.');
   await field(page, 'Its name or code').fill('bra');
-  // The local language list is empty (the languoid tables are not seeded locally): nothing is found.
-  // Picking an entry, the toast and "Linked to …" need a seeded list (preview environment).
+  // The language list is loaded on a developer's stack (db:start) but not on CI, so it may answer or not.
+  // Picking an entry, the toast and "Linked to …" need a loaded list.
   await expect.poll(() => screenText(page), { timeout: 30_000 })
     .toMatch(/Is it one of these\?|Not there\? Try another of its names, or its code\.|Connect to the internet to search it\./);
   const found = /Is it one of these\?/.test(await screenText(page));
@@ -766,11 +766,15 @@ test('SETUP-040 Divide a book that waits, for this language', async ({ page }) =
   await primary(page).click();
   await expectToast(page, /^Oscar translates/);
   await byId(page, 'header-close').click();
-  // Oscar is not ready yet, so its page is the checklist: the book is divided from the map (decision 107).
-  await page.goto('/');
-  await waitForApp(page);
-  await tab(page, 'map').click();
-  await text(page, 'Oscar').click().catch(() => undefined);
+  // Oscar is not ready yet, so its page is the checklist: the book is divided from the map (decision 107). A reload
+  // here was aborted by the app's own navigation, and a Map tapped while it routed was undone, so 'Oscar' was then
+  // tapped on Manage (CI, 2026-10-23): tap Map from the checklist's tab bar until it holds.
+  await expect(async () => {
+    await tab(page, 'map').click({ timeout: 5_000 });
+    await expect(tab(page, 'map')).toHaveAttribute('aria-selected', 'true', { timeout: 5_000 });
+    await expect(text(page, 'Old Testament').or(text(page, 'Oscar')).first()).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 60_000 });
+  if (!(await text(page, 'Old Testament').isVisible())) await text(page, 'Oscar').click();
   await text(page, 'Old Testament').click();
   await text(page, 'Proverbs').click();
   await button(page, 'Break up Proverbs').click();

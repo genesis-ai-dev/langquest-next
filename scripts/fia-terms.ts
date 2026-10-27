@@ -1,5 +1,5 @@
 /**
- * FIA's key words into key-word lists (docs/library.md, decision 149).
+ * FIA's key words into key-word lists (docs/library.md, decision 172).
  *
  * FIA's Master Glossary names each word once, with its translation in each
  * language (the word, other forms, a short meaning, the full meaning in

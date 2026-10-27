@@ -1,5 +1,5 @@
 import {
-  eventPassage, hangsOn, keptVerdict, LINES_VERSION, markChanged, PART_OF_KIND, passageInMemory, putEntry,
+  eventPassage, eventPlace, hangsOn, keptVerdict, LINES_VERSION, markChanged, PART_OF_KIND, passageInMemory, putEntry, referencedBlobs,
   type AnyEvent, type LanguageState, type PassageLine, type PassageOf
 } from '@langquest-next/core';
 import { entryRows, FILE, type KeptLanguage } from './keptLanguage';
@@ -73,6 +73,16 @@ export interface FillMeta {
 export class KeptFill {
   private meta: FillMeta | null = null;
   private total = 0;
+  /**
+   * Is `todo` on disk under its own key? It is one pair per passage and never
+   * changes during a fill, so it is written once, not with every page: at
+   * 30,000 passages it was 1.5 MB stringified per page of rows
+   * (performance-audit-2026-10-26.md item 4). A fill begun by an earlier
+   * build kept it inside the meta; it moves out on the first save.
+   */
+  private todoStored = false;
+  /** Rows per passage, made once per `todo` rather than per page. */
+  private counts: { of: FillMeta['todo']; rows: Map<string, number> } | null = null;
 
   constructor(
     private readonly store: EventStore,
@@ -98,10 +108,25 @@ export class KeptFill {
     return `fill:${this.orgId}/${this.streamId}`;
   }
 
+  private todoKey(): string {
+    return `${this.key()}:todo`;
+  }
+
+  /** The meta as written: `todo` under its own key, only when it is not there yet. */
+  private encode(meta: FillMeta): Record<string, string> {
+    const { todo, ...rest } = meta;
+    return { [this.key()]: JSON.stringify(rest), ...(this.todoStored ? {} : { [this.todoKey()]: JSON.stringify(todo) }) };
+  }
+
   /** Read what is filled and what is still to fill, with the checkpoint. */
   async open(): Promise<void> {
     let meta: FillMeta | null = null;
-    try { meta = JSON.parse((await this.store.meta(this.key())) || 'null') as FillMeta | null; } catch { meta = null; }
+    try {
+      const stored = JSON.parse((await this.store.meta(this.key())) || 'null') as (Omit<FillMeta, 'todo'> & { todo?: FillMeta['todo'] }) | null;
+      this.todoStored = !!stored && !Array.isArray(stored.todo);
+      if (stored && !Array.isArray(stored.todo)) stored.todo = JSON.parse((await this.store.meta(this.todoKey())) || 'null') as FillMeta['todo'];
+      meta = stored && Array.isArray(stored.todo) ? stored as FillMeta : null;
+    } catch { meta = null; }
     this.meta = meta;
     if (!meta) {
       this.kept.setUnfilled([]);
@@ -161,7 +186,8 @@ export class KeptFill {
       todo: head.units.map((u) => [u.unitId, u.rows]), rowsSeq: 0, stale: null,
       ...(startedAt !== undefined ? { startedAt } : {})
     };
-    return { [this.key()]: JSON.stringify(meta) };
+    this.todoStored = false;
+    return this.encode(meta);
   }
 
   /** Forget the fill: the checkpoint it belongs to is gone. Written by the caller in the same commit. */
@@ -169,7 +195,7 @@ export class KeptFill {
     this.meta = null;
     this.kept.setUnfilled([]);
     this.total = 0;
-    return { [this.key()]: '' };
+    return { [this.key()]: '', [this.todoKey()]: '' };
   }
 
   /**
@@ -188,11 +214,10 @@ export class KeptFill {
     const inPage = new Map<string, string>();
     const reviewTake = new Map<string, string>();
     for (const e of page) {
-      if (e.type === 'v1.TakeComposed') inPage.set(`take\u0000${e.payload.takeId}`, e.payload.unitId);
-      else if (e.type === 'v1.DepartureRecorded') inPage.set(`departure\u0000${e.payload.departureId}`, e.payload.unitId);
-      else if (e.type === 'v1.RequestMade') inPage.set(`request\u0000${e.payload.requestId}`, e.payload.unitId);
-      else if (e.type === 'v1.NoteAdded') inPage.set(`note\u0000${e.payload.noteId}`, e.payload.unitId);
-      else if (e.type === 'v1.ReviewRecorded') reviewTake.set(e.payload.reviewId, e.payload.takeId);
+      const place = eventPlace(e);
+      if (!place) continue;
+      if (place.kind === 'review') reviewTake.set(place.id, place.takeId);
+      else inPage.set(`${place.kind}\u0000${place.id}`, place.unitId);
     }
     const units = new Set<string>();
     const look: { kind: string; id: string }[] = [];
@@ -265,7 +290,9 @@ export class KeptFill {
 
   /** The next passages to fill: about a page of rows, the most wanted first. */
   private next(first: () => Iterable<string>): string[] {
-    const counts = new Map(this.meta!.todo);
+    const todo = this.meta!.todo;
+    if (this.counts?.of !== todo) this.counts = { of: todo, rows: new Map(todo) };
+    const counts = this.counts.rows;
     const out: string[] = [];
     let rows = 0;
     const seen = new Set<string>();
@@ -329,32 +356,40 @@ export class KeptFill {
       const prior = priors.get(`${row.kind}\u0000${row.id}`);
       if (row.kind === FILE) {
         const v = value as Verdict;
-        out.push({ kind: FILE, id: row.id, unitId: '', ref: '', json: JSON.stringify(prior ? keptVerdict(JSON.parse(prior) as Verdict, v) : v) });
+        out.push({ kind: FILE, id: row.id, unitId: '', ref: '', json: prior ? JSON.stringify(keptVerdict(JSON.parse(prior) as Verdict, v)) : row.json });
         verdicts.push({ hash: row.id, verdict: v });
         continue;
       }
       const part = PART_OF_KIND.get(row.kind);
       if (!part) continue;
-      out.push(...entryRows(part, row.id, row.unitId, prior === undefined ? value : part.merge(JSON.parse(prior), value)));
+      // With nothing kept before, the row is written as the server's text: no second stringify per row.
+      out.push(...(prior === undefined ? entryRows(part, row.id, row.unitId, value, row.json) : entryRows(part, row.id, row.unitId, part.merge(JSON.parse(prior), value))));
       placed.push({ part, id: row.id, unitId: row.unitId, value });
     }
     for (const u of complete) out.push({ kind: FILLED, id: u, unitId: u, ref: '', json: '1' });
     const meta = { ...this.meta!, rowsSeq };
-    await this.commit({ kept: { orgId: this.orgId, streamId: this.streamId, upsert: out }, meta: { [this.key()]: JSON.stringify(meta) } });
+    await this.commit({ kept: { orgId: this.orgId, streamId: this.streamId, upsert: out }, meta: this.encode(meta) });
+    this.todoStored = true;
     // Memory takes the rows once they are written, for the passages it holds now, before any reads as filled. Decided
     // before the write, a passage a screen opened during it read the disk too early and was then told it was filled,
     // its records in neither place (REV-017, REC-011 on CI, 2026-10-20). Putting an entry twice is a join, so a passage
     // that read these rows from disk as well loses nothing.
     const live = this.live();
     let memory = false;
-    for (const { hash, verdict } of verdicts) {
-      // A file memory names: its verdict there too.
-      const here = live.blobs[hash];
-      if (here) { live.blobs[hash] = keptVerdict(here, verdict); memory = true; }
-    }
     for (const p of placed) {
       // A passage held whole in memory takes the row there too, so memory still holds all the disk does.
       if (this.kept.isHeld(p.unitId)) { putEntry(live, p.part, p.id, p.value); memory = true; }
+    }
+    // A file memory names, the rows just put there included: its verdict there too. Asked only of memory's
+    // verdicts before, a passage a screen opened before its rows arrived had none, so its files read as not
+    // on the server until it was opened again. Memory is marked changed first: what it names is worked out
+    // once per revision.
+    if (memory) markChanged(live);
+    const named = verdicts.some(({ hash }) => !live.blobs[hash]) ? referencedBlobs(live) : null;
+    for (const { hash, verdict } of verdicts) {
+      const here = live.blobs[hash];
+      if (here) { live.blobs[hash] = keptVerdict(here, verdict); memory = true; }
+      else if (named?.has(hash)) { live.blobs[hash] = verdict; memory = true; }
     }
     this.meta = meta;
     this.kept.stored(placed);
@@ -379,12 +414,14 @@ export class KeptFill {
     if (!lines || lines.seq < meta.linesSeq || lines.seq > cursor) return;
     const rows = this.lines.replaceUnfilled(lines.lines as PassageLine[]);
     const next: FillMeta = { ...meta, linesSeq: lines.seq, linesVersion: LINES_VERSION, stale: meta.stale !== null && meta.stale > lines.seq ? meta.stale : null };
-    await this.commit({ meta: { [this.key()]: JSON.stringify(next) }, ...(rows.length ? { kept: { orgId: this.orgId, streamId: this.streamId, upsert: rows } } : {}) });
+    await this.commit({ meta: this.encode(next), ...(rows.length ? { kept: { orgId: this.orgId, streamId: this.streamId, upsert: rows } } : {}) });
+    this.todoStored = true;
     this.meta = next;
   }
 
   private async saveMeta(meta: FillMeta): Promise<void> {
-    await this.commit({ meta: { [this.key()]: JSON.stringify(meta) } });
+    await this.commit({ meta: this.encode(meta) });
+    this.todoStored = true;
     this.meta = meta;
   }
 }

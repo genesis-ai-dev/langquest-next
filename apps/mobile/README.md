@@ -2,7 +2,7 @@
 
 Expo 57 app, run as a development build (the native recorder module does not load in Expo Go). Owns exactly three things:
 
-1. `src/sync/store.ts`: the expo-sqlite driver behind `SqliteStore` from
+1. `src/storage/store.ts`: the expo-sqlite driver behind `SqliteStore` from
    `@langquest-next/sync`. The store logic itself lives in the sync
    package and is contract-tested there against node:sqlite.
 2. `src/usePartition.ts`: one `SyncClient` on the open language's partition
@@ -54,7 +54,7 @@ No sync logic lives here. Screens read `state` through core derivations
 (`derivePassage`, `highlightsFor`, `languageProgress` and the rest in
 `packages/core/src/passage.ts`) and write through core `commands()`. A few
 screen models build org-partition events core has no commands for
-(`src/org/orgAdmin.ts`, `src/config/model.ts`, `src/templates/contentTemplates.ts`);
+(`src/org/orgAdmin.ts`, `src/config/model.ts`, `src/templates/contentTemplatesModel.ts`);
 they are listed in `docs/ux/demo-parity.md`.
 
 Run: the app's env files are committed and plain (they hold only public
@@ -94,14 +94,20 @@ Two ways, both from `apps/mobile`:
 
 ## Shipping a change
 
-**Merging to `main` ships to testers** on both platforms, TestFlight on iOS
-and Google Play's internal testing track on Android (decisions.md 45),
-through the EAS workflow in `.eas/workflows/deploy-to-testers.yml`, on
-Expo's servers: the typecheck and unit tests run, then, per platform, a
-change whose native fingerprint matches an existing production build goes
-out as an over-the-air update on the `production` channel (installed builds
-take it on next launch), and any other change builds a new binary and
-submits it. It needs the GitHub repository connected to the EAS project
+**Merging to `main` ships to people** on both platforms, through the EAS
+workflow in `.eas/workflows/deploy-to-testers.yml`, on Expo's servers: the
+typecheck and unit tests run, then, per platform, a change whose native
+fingerprint matches an existing production build goes out as an
+over-the-air update on the `production` channel (installed builds take it on
+next launch), and any other change builds a new binary and sends it to
+production review (decisions.md 157). On Android the build goes straight to
+the production track with a full rollout, and a newer build replaces one
+that waits for review. On iOS the build goes to TestFlight, and then to App
+Review when no review is open (`scripts/app-store-review.mjs`); while a
+review is open, it waits in TestFlight, and `.eas/workflows/app-store-review.yml`
+sends the newest waiting build every hour once the review ends. Apple and
+Google release a build as soon as they approve it. Each store build's version
+number is the time of its merge (`app.config.js`). It needs the GitHub repository connected to the EAS project
 once, with its base directory set to `apps/mobile` (expo.dev, project
 settings, GitHub). The manual commands below remain for other channels and
 for shipping by hand.
@@ -142,7 +148,8 @@ Console.
    has one, that Google service account can be given access to this app
    too (Play Console, Users and permissions).
 4. The next merge to `main` builds the production AAB and submits it to
-   internal testing; `npm run android:play` does the same by hand. If Play
+   internal testing. Store builds come only from that workflow (decisions.md
+   150). If Play
    refuses it because the app is still a draft, upload that one AAB by hand
    in Play Console (Testing, Internal testing, Create release) and roll it
    out; every later release goes through EAS.
@@ -178,7 +185,10 @@ guessed:
   with the runtime version each landed on, which is where a push that seems
   to have reached nobody shows itself.
 
-Add `--prod` to any of them for `production` (`npm run ship -- --prod -m "…"`).
+There is no `--prod`: production builds and OTA updates come only from
+merges into `main`, through `.eas/workflows/deploy-to-testers.yml`, and an EAS
+build hook (`scripts/store-build-guard.mjs`) stops a production build that
+the workflow did not start from `main` (decisions.md 156).
 They run from `apps/mobile` (`scripts/ship.mjs`), and the repository root
 forwards `npm run ship` with its arguments.
 

@@ -65,6 +65,37 @@ describe('blob reconciler', () => {
     expect((await reconcileBlobs(d, { verify: false })).confirmed).toBe(0);
   });
 
+  it('counts files the log holds as stored that the bucket does not list, by the rule it repairs with', async () => {
+    const server = new FakeServer();
+    await language(server);
+    server.serviceEvent('v1.BlobStored', { hash: sha('other'), size: 7 });
+    const d = deps(server, [{ orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'wav', size: 4 }]);
+    const report = await reconcileBlobs(d, { verify: false, countMissing: true });
+    expect(report.missing).toBe(1);
+    expect(report.confirmed).toBe(1);
+  });
+
+  it('counts a stream whose files are all gone when asked, and skips a stream with no files otherwise', async () => {
+    const server = new FakeServer();
+    await language(server);
+    server.serviceEvent('v1.BlobStored', { hash: sha('other'), size: 7 });
+    const d = deps(server, []);
+    expect((await reconcileBlobs(d, { verify: false, countMissing: true })).missing).toBe(1);
+    const quick = await reconcileBlobs(d, { verify: false });
+    expect(quick.missing).toBe(0);
+    expect(quick.objects).toBe(0);
+  });
+
+  it('stops before the next stream when told to, keeping the counts so far in the report it was given', async () => {
+    const server = new FakeServer();
+    await language(server);
+    const d = { ...deps(server, []), streams: async () => [{ orgId: 'org1', streamId: 'p1' }, { orgId: 'org1', streamId: 'p2' }] };
+    const report = { streams: 0, objects: 0, missing: 0, confirmed: 0, verified: 0, invalidated: 0, unreadable: [] as string[] };
+    let calls = 0;
+    await reconcileBlobs(d, { verify: false, report, shouldStop: () => calls++ > 0 });
+    expect(report.streams).toBe(1);
+  });
+
   it('with verify on, bytes that do not hash to their name are removed and invalidated', async () => {
     const server = new FakeServer();
     const client = await language(server);
@@ -145,6 +176,48 @@ describe('blob reconciler caution', () => {
       { orgId: 'org1', streamId: 'p1', hash: sha('other'), format: 'wav', size: 7 }
     ]);
     expect((await reconcileBlobs(d, { verify: false, pageSize: 1 })).confirmed).toBe(0);
+  });
+});
+
+describe('blob reconciler work saved', () => {
+  it('folds no stream that has no files, and none whose log holds no BlobStored', async () => {
+    // Why: performance-audit-2026-10-26.md C5. Every stream, organization and person streams too, was folded each pass.
+    const server = new FakeServer();
+    await language(server);
+    let folded = 0;
+    const d = deps(server, []);
+    const pull = d.transport.pull.bind(d.transport);
+    d.transport = { ...d.transport, pull: async (...a: Parameters<typeof pull>) => { folded += 1; return pull(...a); } } as typeof d.transport;
+    expect(await reconcileBlobs(d, { verify: false })).toMatchObject({ streams: 1, objects: 0, confirmed: 0 });
+    expect(folded).toBe(0);
+
+    // With files but no BlobStored in the log: confirmed without reading the stream.
+    const objects = [{ orgId: 'org1', streamId: 'p1', hash: sha('good'), format: 'wav', size: 4 }];
+    const none = deps(server, objects);
+    none.hasStoredBlobs = async () => false;
+    none.transport = d.transport;
+    expect((await reconcileBlobs(none, { verify: false })).confirmed).toBe(1);
+    expect(folded).toBe(0);
+  });
+
+  it('confirms the unconfirmed objects a few at a time, and a refusal stops the stream', async () => {
+    const server = new FakeServer();
+    await language(server);
+    const objects = Array.from({ length: 10 }, (_, i) => ({ orgId: 'org1', streamId: 'p1', hash: sha(`f${i}`), format: 'wav', size: 1 }));
+    const d = deps(server, objects);
+    let inFlight = 0;
+    let most = 0;
+    const record = d.recordBlob;
+    d.recordBlob = async (...a) => { inFlight += 1; most = Math.max(most, inFlight); await new Promise((r) => setTimeout(r, 1)); await record(...a); inFlight -= 1; };
+    expect((await reconcileBlobs(d, { verify: false })).confirmed).toBe(10);
+    expect(most).toBeGreaterThan(1);
+    expect(most).toBeLessThanOrEqual(4);
+
+    const fresh = new FakeServer();
+    await language(fresh);
+    const refusing = deps(fresh, objects);
+    refusing.recordBlob = async () => { throw new Error('nope'); };
+    await expect(reconcileBlobs(refusing, { verify: false })).rejects.toThrow('nope');
   });
 });
 

@@ -54,7 +54,14 @@ export async function referenceMaterial(page: Page): Promise<void> {
 /** The organization's reference material, as a language sees it: Reference material › All reference material (decision 138). */
 export async function referenceLibrary(page: Page): Promise<void> {
   await referenceMaterial(page);
-  await text(page, 'All reference material').click();
+  // Like reviewFlows: the page redraws as the language arrives and a tap can be lost; SETUP-064 stayed on
+  // Reference material in CI on three nights. Tap until the row has gone (the library has no such row).
+  const all = text(page, 'All reference material');
+  await expect(async () => {
+    if (!(await all.isVisible())) return;
+    await all.click({ timeout: 5_000 });
+    await expect(all).toBeHidden({ timeout: 4_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 /** A ready language's Review flow page: its checks, the ready-made flows, All review flows (decision 138). */
@@ -66,7 +73,14 @@ export async function reviewFlow(page: Page): Promise<void> {
 /** The organization's review flows, with the open language's: Review flow › All review flows (decision 138). */
 export async function reviewFlows(page: Page): Promise<void> {
   await reviewFlow(page);
-  await text(page, 'All review flows').click();
+  // Review flow redraws as the language arrives, and a tap during a redraw can be lost: it stayed on Review flow
+  // once in CI (SETUP-044, 2026-10-22). Tap until the list's title shows; a tap that opened it is not repeated.
+  const title = page.getByRole('heading', { name: 'Review flows', exact: true }).locator('visible=true').first();
+  await expect(async () => {
+    if (await title.isVisible()) return;
+    await text(page, 'All review flows').click({ timeout: 5_000 });
+    await expect(title).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 30_000 });
 }
 
 /** A language's own checks, to change: Review flow › Edit (decision 138). */

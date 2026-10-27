@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUTH_TTL_MS, cachedBlobAccess, cachedProfileOf, DENIAL_TTL_MS, MAX_ENTRIES, TtlCache } from '../worker/isolateCache';
+import { AUTH_TTL_MS, cachedBlobAccess, cachedOrgsOf, ORGS_TTL_MS, cachedGlobalViewerOn, cachedIdentityOf, cachedProfileOf, DENIAL_TTL_MS, MAX_ENTRIES, TtlCache } from '../worker/isolateCache';
 
 describe('TtlCache', () => {
   it('forgets an entry once its time has come', () => {
@@ -87,7 +87,26 @@ describe('cachedProfileOf', () => {
   });
 });
 
+describe('cachedIdentityOf', () => {
+  it('gives the session level with the person, from the cache too (decisions.md 158)', async () => {
+    let calls = 0;
+    const identityOf = cachedIdentityOf(async () => { calls++; return { sub: 'p1', aal: 'aal2' }; }, () => 0);
+    expect(await identityOf('tok')).toEqual({ profileId: 'p1', aal: 'aal2' });
+    expect(await identityOf('tok')).toEqual({ profileId: 'p1', aal: 'aal2' });
+    expect(calls).toBe(1);
+  });
+});
+
 describe('cachedBlobAccess', () => {
+  it('asks again for another session level, so an aal1 refusal never answers for aal2', async () => {
+    const asked: (string | undefined)[] = [];
+    const may = cachedBlobAccess(async (_k, _p, _w, aal) => { asked.push(aal); return aal === 'aal2'; }, () => 0);
+    expect(await may('o/l1/a.m4a', 'gv', false, 'aal1')).toBe(false);
+    expect(await may('o/l1/a.m4a', 'gv', false, 'aal2')).toBe(true);
+    expect(await may('o/l1/b.m4a', 'gv', false, 'aal2')).toBe(true);
+    expect(asked).toEqual(['aal1', 'aal2']);
+  });
+
   it('asks once per person, stream and mode', async () => {
     const asked: string[] = [];
     const may = cachedBlobAccess(async (key, p, w) => { asked.push(`${key}|${p}|${w}`); return true; }, () => 0);
@@ -128,5 +147,45 @@ describe('cachedBlobAccess', () => {
     await expect(may('o/l/a.m4a', 'p', false)).rejects.toThrow('db down');
     answer = true;
     expect(await may('o/l/a.m4a', 'p', false)).toBe(true);
+  });
+});
+
+describe('cachedGlobalViewerOn', () => {
+  it('asks only for an aal2 session, once a minute for a yes', async () => {
+    let t = 0;
+    const asked: string[] = [];
+    const on = cachedGlobalViewerOn(async (p) => { asked.push(p); return p === 'gv'; }, () => t);
+    expect(await on('gv', 'aal1')).toBe(false);
+    expect(asked).toEqual([]);
+    expect(await on('gv', 'aal2')).toBe(true);
+    expect(await on('gv', 'aal2')).toBe(true);
+    expect(asked).toEqual(['gv']);
+    t = AUTH_TTL_MS;
+    await on('gv', 'aal2');
+    expect(asked).toEqual(['gv', 'gv']);
+    expect(await on('someone', 'aal2')).toBe(false);
+  });
+});
+
+
+describe('cachedOrgsOf', () => {
+  it('asks once per person within 30 s, and again after', async () => {
+    let t = 0;
+    let asked = 0;
+    const orgsOf = cachedOrgsOf(async (p) => { asked += 1; return [`org-of-${p}`]; }, () => t);
+    expect(await orgsOf('a')).toEqual(['org-of-a']);
+    expect(await orgsOf('a')).toEqual(['org-of-a']);
+    expect(await orgsOf('b')).toEqual(['org-of-b']);
+    expect(asked).toBe(2);
+    t = ORGS_TTL_MS;
+    await orgsOf('a');
+    expect(asked).toBe(3);
+  });
+
+  it('does not remember a failure', async () => {
+    let asked = 0;
+    const orgsOf = cachedOrgsOf(async () => { asked += 1; if (asked === 1) throw new Error('down'); return ['o']; }, () => 0);
+    await expect(orgsOf('a')).rejects.toThrow('down');
+    expect(await orgsOf('a')).toEqual(['o']);
   });
 });

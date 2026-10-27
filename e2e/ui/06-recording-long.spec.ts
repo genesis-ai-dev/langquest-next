@@ -30,6 +30,7 @@ test('REC-030 A five-minute part, and a five-minute session of many parts', asyn
   await openWorkspace(page, w, 'P-Q4', 'Record');
   const m = mic(page);
   await m.mode('tone');
+  await m.syllables(true); // a steady tone is learned as the room and ends the part (decision 125); a voice has gaps shorter than a pause
   // 5:20 of speech with no pause, then 2 seconds of quiet, then stop.
   await recordButton(page).click();
   await m.speak(true);

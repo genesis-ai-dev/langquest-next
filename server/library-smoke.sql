@@ -335,6 +335,17 @@ do $$ declare n int; r record; begin
   if r.name <> '1. Mose' then raise exception 'latest book name not returned: %', r.name; end if;
   if exists (select 1 from public.language_book_names('libA', 'EXO')) then raise exception 'a book nobody named was returned'; end if;
 end $$;
+-- A member of one language sees that language's template, not the others' (decisions.md 169).
+select set_config('request.jwt.claim.sub', '', false);
+select pg_temp.push(jsonb_build_array(
+  pg_temp.ev('libA-tu-r', 'libA', 'alice', 'v1.RoleDefined', '{"roleId":"viewer","name":"Viewer","privileges":["view_status"]}'),
+  pg_temp.ev('libA-tu-m', 'libA', 'alice', 'v1.MemberAdded', '{"profileId":"lena","roleId":"viewer","scope":{"level":"language","languageId":"tu-one"}}')));
+select set_config('request.jwt.claim.sub', 'lena', false);
+do $$ begin
+  if (select array_agg(language_id) from public.library_template_users('libA')) is distinct from array['tu-one'] then
+    raise exception 'a language member read another language''s template: %', (select array_agg(language_id) from public.library_template_users('libA'));
+  end if;
+end $$;
 select set_config('request.jwt.claim.sub', 'mallory', false);
 do $$ begin
   begin perform * from public.library_template_users('libA'); raise exception 'stranger read template users';

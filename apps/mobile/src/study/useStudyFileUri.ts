@@ -7,7 +7,8 @@
 import { ORG_STREAM } from '@langquest-next/core';
 import { classifyTransferFailure } from '@langquest-next/sync';
 import { useEffect, useState } from 'react';
-import { getBlobStore, isStoredFormat, type BlobStore, type StoredFile } from '../sync/blobs';
+import { getBlobStore, type BlobStore } from '../sync/blobs';
+import { isStoredFormat, type StoredFile } from '../storage/storedFile';
 import { downloadBlob } from '../server/blobTransport';
 import { noteExpected } from '../diagnostics/report';
 import { timedTransfer } from '../diagnostics/diagnostics';

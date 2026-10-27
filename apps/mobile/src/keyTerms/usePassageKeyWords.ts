@@ -1,4 +1,4 @@
-// The key-word lists' words on one passage (decision 149): the passage's
+// The key-word lists' words on one passage (decision 172): the passage's
 // verses in its template's numbering, a Bible's verses the caller already
 // has (and the language they are in), and `wordsOnPassage`. The recorder's
 // Key words tab, a passage's helps and a check's key words all ask this.

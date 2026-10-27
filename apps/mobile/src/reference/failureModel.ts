@@ -5,6 +5,7 @@ import { CommandError } from '@langquest-next/core';
 import { commandErrorText } from '../i18n/coreText';
 import { t } from '../i18n';
 import { failureMessage } from '../diagnostics/report';
+import { refusalKind } from '../diagnostics/refusalModel';
 import { BibleError } from '../sources/bibleBrain';
 import type { Level } from './model';
 
@@ -28,6 +29,6 @@ export function referenceFailure(where: string, e: unknown): string {
 /** A refusal from the server (Supabase), in the person's words: not connected, not allowed, or a general one. Its own message is English. */
 export function serverRefusal(error: { message: string; code?: string }): CommandError {
   if (NETWORK.test(error.message)) return new CommandError(t('common.notConnected'));
-  if (error.code === '42501') return new CommandError(t('reference.errors.notAllowed'));
+  if (refusalKind(error) === 'not_allowed') return new CommandError(t('reference.errors.notAllowed'));
   return new CommandError(t('reference.errors.serverRefused'));
 }

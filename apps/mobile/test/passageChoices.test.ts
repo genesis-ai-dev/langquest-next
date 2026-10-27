@@ -2,7 +2,7 @@ import {
   commands, deriveKinds, derivePassage, emptyLanguageState, flowTemplate, foldLanguage, HlcClock, instantiateFlow, recordTimeline,
   type AnyEvent, type EventPayloads, type EventType
 } from '@langquest-next/core';
-import { describeEntry, elseChoices, kindCleared, openCheckFor } from '../src/passage/record';
+import { describeEntry, elseChoices, kindCleared, openCheckFor } from '../src/passage/recordTextModel';
 import { teamSteps, type PathInput } from '../src/passage/pathModel';
 
 /**

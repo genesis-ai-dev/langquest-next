@@ -158,9 +158,11 @@ export class OrgFolder {
 
   /**
    * The caller's languages, caught up if the snapshot is stale or `fresh` is
-   * asked for; null when they are not in the organization at all.
+   * asked for; null when they are not in the organization at all. With
+   * `everyLanguage` (a Global Viewer, whom the route has checked), every
+   * language, member or not.
    */
-  async reportsFor(profileId: string, fresh = false): Promise<OrgReportsResponse | null> {
+  async reportsFor(profileId: string, fresh = false, everyLanguage = false): Promise<OrgReportsResponse | null> {
     await this.refresh(fresh);
     const org = this.org!.state;
     const rows: OrgReportsResponse['rows'] = [];
@@ -169,13 +171,13 @@ export class OrgFolder {
     let asOf = this.refreshedAt;
     for (const { languageId, name } of orgLanguages(org)) {
       const summary = this.summaries.get(languageId);
-      if (!summary || !mayViewLanguage(org, profileId, languageId)) continue;
+      if (!summary || !(everyLanguage || mayViewLanguage(org, profileId, languageId))) continue;
       if (summary.report) {
         rows.push({ languageId, report: summary.report });
         asOf = Math.min(asOf, summary.asOf ?? this.refreshedAt);
       } else if (summary.preparing) preparing.push({ languageId, name });
     }
-    if (rows.length === 0 && preparing.length === 0 && !this.knows(profileId)) return null;
+    if (rows.length === 0 && preparing.length === 0 && !everyLanguage && !this.knows(profileId)) return null;
     return { rows, asOf: new Date(asOf).toISOString(), ...(preparing.length ? { preparing } : {}) };
   }
 

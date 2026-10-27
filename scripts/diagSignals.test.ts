@@ -1,4 +1,5 @@
-import { jobSignals, signals, type InstallSummary, type JobStat, type LanguageHealth } from './diagSignals';
+import { readdirSync, readFileSync } from 'node:fs';
+import { BACKGROUND_RPCS, jobSignals, signals, slowRpcs, type InstallSummary, type JobStat, type LanguageHealth } from './diagSignals';
 
 // The hypotheses a report leads with. Each case is a cause we expect to
 // meet in the field, stated as the numbers it leaves behind.
@@ -159,5 +160,24 @@ describe('diagnostic signals', () => {
     expect(t[0]).toMatch(/^problem: Server job projection has not run successfully since T0 .* \(57014\)/);
     expect(t[1]).toBe('problem: Server job v2_import failed its last 4 runs (TypeError).');
     expect(t[2]).toBe('watch: Push delivery sent 5 of 40 notifications it claimed (30 with no push token, 5 failed).');
+  });
+});
+
+describe('slow RPCs', () => {
+  const rpc = (name: string, calls: number, mean: number) => ({ rpc: name, calls, mean_ms: mean, max_ms: mean, total_s: 0, rows_per_call: 1 });
+
+  it('counts only RPCs people wait on, over enough calls', () => {
+    expect(slowRpcs([rpc('pull_events', 40, 812), rpc('put_snapshot', 2082, 798), rpc('v2_welcome', 3, 2371), rpc('stream_heads', 900, 5)]).map((r) => r.rpc))
+      .toEqual(['pull_events']);
+  });
+
+  it('calls an RPC background only when no signed-in person can call it', () => {
+    // The last grant of each in the migrations must leave it to service_role alone.
+    const sql = readdirSync('supabase/migrations').sort().map((f) => readFileSync(`supabase/migrations/${f}`, 'utf8')).join('\n');
+    for (const name of BACKGROUND_RPCS) {
+      const grants = [...sql.matchAll(new RegExp(`(grant|revoke)[^;]*on function public\\.${name}\\b[^;]*;`, 'gi'))].map((m) => m[0]);
+      expect(grants.some((g) => /^revoke/i.test(g) && /\bauthenticated\b/.test(g)), name).toBe(true);
+      expect(grants.filter((g) => /^grant/i.test(g)).every((g) => !/\b(authenticated|anon|public)\b(?!\.)/i.test(g.replace(/on function public\.\w+/i, ''))), name).toBe(true);
+    }
   });
 });

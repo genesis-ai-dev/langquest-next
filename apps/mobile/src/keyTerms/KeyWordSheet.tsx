@@ -1,4 +1,4 @@
-// A key-word list's word, opened (decision 149; the agreed design's screen
+// A key-word list's word, opened (decision 172; the agreed design's screen
 // 3): the word, whose list it is and in what language, its short meaning,
 // the list's recording of what it means ("Hear FIA explain it", its length
 // once the recording says it), the verses of the open passage it is in, its

@@ -8,9 +8,8 @@ import type { Tone } from './format';
 
 /**
  * Words and tones for the report's bands, as the old web dashboard had them
- * (decision 41), in the language showing. Core's report data is English
- * (`SCOPE_LABEL`, `milestoneText`, alert texts, stage names); the app says
- * them from their ids here instead.
+ * (decision 41), in the language showing. Core's report data carries ids
+ * (scopes, alerts, stages); the app says them here.
  */
 
 export function workLabel(w: PassageWork): string {
@@ -87,7 +86,7 @@ export function recencyDaysLabel(band: Exclude<RecencyBand, 'not_started'>): str
   return Number.isFinite(hi) ? t('reports.recency.daysRange', { from: lo, count: hi }) : t('reports.recency.daysFrom', { count: lo });
 }
 
-/** Core's `SCOPE_LABEL`: "Gospels", "New Testament", ... */
+/** "Gospels", "New Testament", ... */
 export function scopeLabel(scope: TargetScope): string {
   switch (scope) {
     case 'gospels': return t('reports.scope.gospels');
@@ -106,7 +105,7 @@ export function scopeShort(scope: Exclude<TargetScope, 'bible'>): string {
   }
 }
 
-/** Core's `milestoneText`: "Dinka: 50% of the New Testament recorded". */
+/** "Dinka: 50% of the New Testament recorded". */
 export function milestoneText(m: Milestone & { row: LanguageRow }): string {
   const name = m.row.report.name;
   const scope = scopeLabel(m.scope);

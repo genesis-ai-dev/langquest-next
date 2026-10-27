@@ -1,6 +1,7 @@
 import { setAudioModeAsync } from 'expo-audio';
+// Which players are playing lives in ui/playback.ts, below help mode, which speaks too; audio re-exports it.
+export { registerPlayback, stopAudioPlayback } from '../ui/playback';
 
-const stops = new Set<() => void>();
 let modeChange: Promise<void> = Promise.resolve();
 let microphoneHeld = false;
 
@@ -28,13 +29,4 @@ export function setSessionAudioMode(
   const next = modeChange.then(() => (microphoneHeld && !mode.allowsRecording ? undefined : setAudioModeAsync(mode)));
   modeChange = next.catch(() => {});
   return next;
-}
-
-export function registerPlayback(stop: () => void): () => void {
-  stops.add(stop);
-  return () => { stops.delete(stop); };
-}
-
-export function stopAudioPlayback() {
-  for (const stop of stops) stop();
 }

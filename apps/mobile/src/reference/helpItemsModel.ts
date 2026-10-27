@@ -1,7 +1,7 @@
 // What can help a language's team, as one list (Get ready, question 2): the
 // organization's Bibles, guides, key words and notes, and what other
 // organizations share; which of them go together (FIA's guides and FIA's key
-// words, decision 149), and what a search of the list finds. Pure, so it is
+// words, decision 172), and what a search of the list finds. Pure, so it is
 // tested (test/helpItemsModel.test.ts); the screen's hook only gathers the
 // inputs.
 import type { LanguageState, LibraryDoc, LibraryItemView, OrgState } from '@langquest-next/core';
@@ -31,7 +31,7 @@ export interface HelpItem {
   /**
    * Where it comes from and the method it follows ("langquest|FIA"): items
    * with the same family go together, as FIA's guides and FIA's key words
-   * do (decision 149). Absent for anything that follows no method.
+   * do (decision 172). Absent for anything that follows no method.
    */
   family?: string;
 }
@@ -124,7 +124,7 @@ export function helpItems(i: HelpItemsInput): HelpItem[] {
 }
 
 /**
- * What goes with an item (decision 149): the rest of its family, so FIA's
+ * What goes with an item (decision 172): the rest of its family, so FIA's
  * key words for FIA's guides, and FIA's guides for its key words. The item
  * itself is not in the list.
  */
@@ -249,7 +249,7 @@ export function relatedMember(set: GuideSet, language: string | null, reader: st
 export interface TurnOn { item: HelpItem; member: SetMember | null }
 
 /**
- * What turning `h` on turns on with it (decision 149): each related item
+ * What turning `h` on turns on with it (decision 172): each related item
  * that is off, a set in `language` (the language `h` is turned on in) as
  * far as it has it. Nothing when `h` is on already (choosing another
  * language for it); turning something off never touches the others.

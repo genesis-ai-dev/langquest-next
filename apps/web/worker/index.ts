@@ -1,22 +1,26 @@
 import { handleApi } from './api';
-import { connectPage } from './agent/connectPage';
-import { reviewPage } from './agent/reviewPage';
-import { pageLanguage } from './i18n/pages';
 import type { OrgStub } from './agent/http';
 import { supabaseAgentStore } from './agent/store';
 import { sha256Hex } from './agent/tokens';
 import { r2Bucket } from './r2';
 import { serviceClient, type Env } from './env';
+import { claimsVerifier, sessionLiveCheck } from './identity';
 import { publishLangQuestTimings } from './timings';
 import { RequestTally, routeClass } from './requestTally';
 import { errorClassOf, jobRunSink, type JobRun } from '../../../server/jobRuns';
 import { ownsResponse, withSecurityHeaders } from './securityHeaders';
 import { liveSessions } from './liveSessions';
-import { cachedBlobAccess, cachedProfileOf } from './isolateCache';
+import { cachedBlobAccess, cachedGlobalViewerOn, cachedIdentityOf, cachedOrgsOf, MAX_ENTRIES, TtlCache, type Identity } from './isolateCache';
+import type { TokenRecord } from './agent/store';
 import { JOB_TICK, jobsDue } from './jobsModel';
+import { checkStores, storeCheckDue } from './storeReleases';
+import { isOpsPath, toOps } from './ops';
+import { pokeInBatches } from './batches';
 
 export { OrgSnapshot } from './orgSnapshot';
 export { JobRunner } from './jobs';
+export { JobStatus } from './jobStatus';
+export { OpsActions } from './opsActions';
 
 /**
  * A job tick: start each job due (jobsModel.ts jobsDue), never waiting for a
@@ -62,22 +66,26 @@ function flushTally(env: Env, ctx: ExecutionContext): void {
 /** One per isolate, so its answers outlive a request. */
 let sessionLive: ((sessionId: string) => Promise<boolean>) | null = null;
 /** This isolate's token and file-access caches (isolateCache.ts); an isolate's secrets do not change, so the first request's env serves them all. */
-let profileOfCached: ((token: string) => Promise<string | null>) | null = null;
-let blobAccessCached: ((key: string, profileId: string, write: boolean) => Promise<boolean>) | null = null;
+let identityOfCached: ((token: string) => Promise<Identity | null>) | null = null;
+let globalViewerOnCached: ((profileId: string, aal: string | undefined) => Promise<boolean>) | null = null;
+let orgsOfCached: ((profileId: string) => Promise<string[]>) | null = null;
+const tokenCache = new TtlCache<TokenRecord>(MAX_ENTRIES);
+let blobAccessCached: ((key: string, profileId: string, write: boolean, aal?: string) => Promise<boolean>) | null = null;
 
 /** The app's Worker: `/api/*` here, everything else is the built page. */
 export default {
   async fetch(request, env, ctx) {
     const route = routeClass(request.method, new URL(request.url).pathname);
     let response: Response;
+    const began = Date.now();
     try {
       response = await serve(request, env, ctx);
     } catch (e) {
-      if (route) tally.add(route, 500);
+      if (route) tally.add(route, 500, Date.now() - began);
       flushTally(env, ctx);
       throw e;
     }
-    if (route) tally.add(route, response.status);
+    if (route) tally.add(route, response.status, Date.now() - began);
     flushTally(env, ctx);
     // The built page gets its headers from the `_headers` file; what the Worker answers itself (the routes in
     // wrangler's run_worker_first) never passes through it, so it is given the same three here.
@@ -87,8 +95,9 @@ export default {
   // starts the server's heavy jobs in their container (jobs.ts, decisions.md
   // 141): the projection pass each time, the v2 import every 15 minutes. The
   // other, every ten, publishes verse timings asked for LangQuest's own
-  // sources (worker/timings.ts), deletes expired device grants and catches up
-  // webhooks. Each part's failure is caught on its own, so one does not stop
+  // sources (worker/timings.ts), deletes expired device grants, catches up
+  // webhooks, and once an hour records the app version live in the stores
+  // (worker/storeReleases.ts). Each part's failure is caught on its own, so one does not stop
   // the others, and each tick leaves a job run (diag.jobs `job_starts`,
   // `worker_cron`) saying which failed and how.
   async scheduled(event, env, ctx) {
@@ -98,7 +107,7 @@ export default {
       return;
     }
     const startedAt = Date.now();
-    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0 };
+    const n = { timingJobs: 0, timingsPublished: 0, timingsFailed: 0, grantCleanupFailed: 0, webhookOrgs: 0, webhookCatchupFailed: 0, storeVersions: 0, storeCheckFailed: 0, appleStatus: 0, applePageStatus: 0, appleFound: 0, appleSource: 0, playStatus: 0, playRedirected: 0, playFound: 0 };
     const errors: unknown[] = [];
     const failed = (key: keyof typeof n, what: string) => (e: unknown) => {
       n[key] = 1;
@@ -117,12 +126,20 @@ export default {
     const catchUp = supabaseAgentStore(serviceClient(env)).webhookOrgs()
       .then((orgs) => {
         n.webhookOrgs = orgs.length;
-        return Promise.all(orgs.map((orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId)));
+        return pokeInBatches(orgs, (orgId) => env.ORG_SNAPSHOTS.get(env.ORG_SNAPSHOTS.idFromName(orgId)).webhookPoke(orgId));
       })
       .catch(failed('webhookCatchupFailed', 'webhook catch-up'));
-    const run = Promise.all([timings, cleanup, catchUp]).then((): JobRun => ({
+    // Which app version is live in the stores, once an hour (storeReleases.ts, decisions.md 154).
+    const stores = storeCheckDue(event.scheduledTime)
+      ? checkStores(serviceClient(env)).then(({ live, counts, problems }) => {
+          n.storeVersions = live.length;
+          Object.assign(n, counts);
+          if (problems.length) throw new Error(problems.join('; '));
+        }).catch(failed('storeCheckFailed', 'store check'))
+      : Promise.resolve();
+    const run = Promise.all([timings, cleanup, catchUp, stores]).then((): JobRun => ({
       job: 'worker_cron', startedAt, ms: Date.now() - startedAt, n,
-      outcome: errors.length === 0 ? 'ok' : errors.length < 3 ? 'partial' : 'error',
+      outcome: errors.length === 0 ? 'ok' : errors.length < 4 ? 'partial' : 'error',
       ...(errors.length ? { errorClass: errorClassOf(errors[0]) } : {})
     }));
     ctx.waitUntil(run.then(jobRunSink(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)));
@@ -133,12 +150,19 @@ export default {
 /** Everything but the tally: `/api/*` here, everything else is the built page. */
 async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
+  // The ops dashboard, a Worker of its own reached through the binding (ops.ts).
+  if (isOpsPath(url.pathname)) return toOps(request, env.OPS);
   if (url.pathname === '/connect' && request.method === 'GET') {
+    // The pages' words (about 195 KB of JSON) are read only when a page is asked for, not on every cold start.
+    const [{ connectPage }, { pageLanguage }] = await Promise.all([import('./agent/connectPage'), import('./i18n/pages')]);
     return connectPage({ supabaseUrl: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY ?? '' }, pageLanguage(request));
   }
   // A shared review link (agent/links.ts); the page checks the code with the API.
   const review = /^\/r\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname);
-  if (review && request.method === 'GET') return reviewPage(review[1]!, pageLanguage(request));
+  if (review && request.method === 'GET') {
+    const [{ reviewPage }, { pageLanguage }] = await Promise.all([import('./agent/reviewPage'), import('./i18n/pages')]);
+    return reviewPage(review[1]!, pageLanguage(request));
+  }
   if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
   // The database says an organization's log moved (decisions.md 101); its object looks a few seconds later.
   if (url.pathname === '/api/internal/poke' && request.method === 'POST') {
@@ -152,18 +176,10 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   // asymmetric ones (the keys are fetched once and cached); otherwise
   // supabase-js asks Auth, as getUser did.
   // A session signed out since (a lost phone, a deleted account) no longer counts (liveSessions.ts).
-  sessionLive ??= liveSessions(async (sessionId) => {
-    const { data, error } = await serviceClient(env).rpc('session_is_live', { p_session: sessionId });
-    if (error) throw new Error(`session_is_live: ${error.message}`);
-    return data === true;
-  });
+  sessionLive ??= liveSessions(sessionLiveCheck(serviceClient(env)));
   // A verified token is remembered for up to a minute (decisions.md 121); its session is asked about every time (118).
-  const profileOf = profileOfCached ??= cachedProfileOf(async (token) => {
-    const { data, error } = await serviceClient(env).auth.getClaims(token);
-    if (error || !data?.claims.sub) return null;
-    const sessionId = data.claims['session_id'];
-    return { sub: data.claims.sub, exp: data.claims.exp, sessionId: typeof sessionId === 'string' ? sessionId : undefined };
-  }, Date.now, (sessionId) => sessionLive!(sessionId));
+  const identityOf = identityOfCached ??= cachedIdentityOf(claimsVerifier(serviceClient(env)), Date.now, (sessionId) => sessionLive!(sessionId));
+  const profileOf = async (token: string) => (await identityOf(token))?.profileId ?? null;
   const recordBlob = async (orgId: string, streamId: string, hash: string, size: number) => {
     const { error } = await serviceClient(env).rpc('record_blob', { p_org: orgId, p_stream: streamId, p_hash: hash, p_size: size });
     if (error) throw new Error(`record_blob: ${error.message}`);
@@ -172,8 +188,19 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
   const agentStore = supabaseAgentStore(serviceClient(env));
   return handleApi(request, {
     profileOf,
-    orgsOf: (profileId) => agentStore.orgsOf(profileId),
-    reports: (orgId, profileId, fresh) => orgObject(orgId).reports(orgId, profileId, fresh),
+    orgsOf: (orgsOfCached ??= cachedOrgsOf((profileId) => agentStore.orgsOf(profileId))),
+    reports: (orgId, profileId, fresh, everyLanguage) => orgObject(orgId).reports(orgId, profileId, fresh, everyLanguage),
+    // A Global Viewer reads every organization's reports, on an aal2 session only (decisions.md 158).
+    globalViewerOn: async (token) => {
+      const who = await identityOf(token);
+      if (!who) return false;
+      globalViewerOnCached ??= cachedGlobalViewerOn(async (profileId) => {
+        const { data, error } = await serviceClient(env).rpc('_gv_on', { p_profile: profileId, p_aal: 'aal2' });
+        if (error) throw new Error(`_gv_on: ${error.message}`);
+        return data === true;
+      });
+      return globalViewerOnCached(who.profileId, who.aal);
+    },
     bible: { key: env.BIBLE_BRAIN_ACCESS_KEY, cache: caches.default, waitUntil: (p) => ctx.waitUntil(p) },
     languoids: {
       load: async () => {
@@ -188,8 +215,14 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
       bucket: r2Bucket(env.BLOBS),
       serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
       // Remembered per person, stream and mode for a minute (decisions.md 121).
-      mayUse: blobAccessCached ??= cachedBlobAccess(async (key, profileId, write) => {
-        const { data, error } = await serviceClient(env).rpc('blob_access', { p_name: key, p_profile: profileId, p_write: write });
+      identityOf,
+      // A Global Viewer reads only on aal2 (decisions.md 158), so the level goes with the question. Only
+      // aal2 is sent: any other level answers as an unknown one does, and the call keeps working on a
+      // database the Worker reaches before the migration that added p_aal.
+      mayUse: blobAccessCached ??= cachedBlobAccess(async (key, profileId, write, aal) => {
+        const { data, error } = await serviceClient(env).rpc('blob_access', {
+          p_name: key, p_profile: profileId, p_write: write, ...(aal === 'aal2' ? { p_aal: aal } : {})
+        });
         if (error) throw new Error(`blob_access: ${error.message}`);
         return data === true;
       }),
@@ -198,6 +231,8 @@ async function serve(request: Request, env: Env, ctx: ExecutionContext): Promise
     },
     agent: {
       store: agentStore,
+      tokenCache,
+      waitUntil: (p) => ctx.waitUntil(p),
       profileOf,
       org: (orgId): OrgStub => {
         const object = orgObject(orgId);

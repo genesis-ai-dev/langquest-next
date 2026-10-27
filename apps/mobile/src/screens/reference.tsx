@@ -691,7 +691,7 @@ export function PassageReference(ctx: Ctx) {
   // The language's key words in these verses, as the recorder finds them.
   const terms = useMemo(() => (state && passage ? keyTermsForUnit(state, unitId) : []), [state, passage, unitId]);
   const verseText = bible.rows?.map((r) => r.text).join(' ') ?? '';
-  // And the words of the key-word lists the team uses that are on this passage (decision 149).
+  // And the words of the key-word lists the team uses that are on this passage (decision 172).
   const fromLists = usePassageKeyWords(ctx, passage ? unitId : null, { rows: bible.rows, rowsLanguage: bible.option?.language ?? null });
   const [openedWord, setOpenedWord] = useState<WordHere | null>(null);
   const termsHere = useMemo(() => {

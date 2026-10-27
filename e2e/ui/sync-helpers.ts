@@ -5,7 +5,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Browser, BrowserContext, Locator, Page } from '@playwright/test';
 import { commands, derivePassage, ORG_STREAM, SEED_ROLES, type EventSpec, type LanguageState, type OrgState, type Scope } from '@langquest-next/core';
-import { blobKey, MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/sync';
+import { MemoryStore, SupabaseTransport, SyncClient } from '@langquest-next/sync';
+import { blobKey } from '@langquest-next/sync/server';
 import { setupBlobs } from './blob-upload';
 import { clientAs, send, signIn } from './fixture';
 import { back, button, byId, expect, expectSyncIdle, expectToast, openAs, openPassage, primary, tab, text, type AccountKey, type PassageKey, type UiWorld } from './support';
@@ -326,5 +327,8 @@ export function syncChip(page: Page): Locator {
   return page.getByTestId('sync-indicator').locator('visible=true').first();
 }
 
-/** The sync icon's name when nothing is waiting and the server takes this device's work. */
-export const SYNC_CLEAR = /^(Live|Connected)$/;
+/**
+ * The sync icon's name when nothing waits to send and the server takes this device's work. Others'
+ * recordings may still be coming down: the ring turns and the name says so, but nothing is to send.
+ */
+export const SYNC_CLEAR = /^(Live|Connected)(, receiving recordings)?$/;

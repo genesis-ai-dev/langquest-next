@@ -1,5 +1,6 @@
 // What this phone has for use without a connection, said where people look:
-// on each passage, as a mark on the Map, and in Settings (decisions.md 61).
+// a download button on each passage's row and tile and at the top of the
+// passage, and in Settings (decisions.md 61, 166).
 // Text, status and history of the open language are here once its first
 // download has filled every passage in (decisions.md 147; until then the Map
 // says it is downloading, and a passage not reached yet shows its line); audio
@@ -10,45 +11,44 @@
 import { languageName, offlineByUnit, unitTitle, type UnitOffline } from '@langquest-next/core';
 import { deriveKinds, passageSummary } from '../i18n/coreText';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../ui/text';
 import type { Ctx } from '../shell/ctx';
-import { Card, Header, HelpInfo, Ico, ProgressBar, Screen, SmallBtn, type IconName } from '../ui/kit';
+import { Card, Header, HelpInfo, Ico, ProgressBar, Screen, type IconName } from '../ui/kit';
+import { HelpBadge } from '../helpMode/helpBadge';
+import { isOffline } from './uploadsModel';
+import { useHelpSpot } from '../helpMode/useHelpMode';
 import { txt } from '../ui/textStyles';
 import { endsSentence } from '../helpMode/helpContext';
 import { t } from '../i18n';
-import { formatBytes } from '../i18n/format';
+import { formatNumber } from '../i18n/format';
 import { STUDY_FILES_OFFLINE } from '../study/studyFiles';
-import { C, onColor, space, TINT } from '../ui/theme';
-import { offlineLine, type KeptOffline, type OfflineOverview, withStudy } from './offlineText';
+import { C, onColor, radius, space, TINT } from '../ui/theme';
+import { keptOfflineMap, offlineLine, type KeptOffline, type OfflineOverview } from './offlineText';
+import { offlineLook, type OfflineLook } from './offlineModel';
 import { useStudyRevision } from './useOfflineSummary';
+import { WaveArrow } from './transit';
 import { useSyncStatus } from './useSyncStatus';
 
 /**
- * Offline counts for these passages, recomputed when files arrive, leave,
- * or a passage is kept. A kept passage's come from the counts worked out
- * from the phone's table (useLanguage); another is on screen, so its
- * recordings are in memory (decisions.md 143).
+ * Where one passage stands, from what this device has counted and nothing
+ * else (decisions.md 166): the session's count of every passage it keeps
+ * (useLanguage, worked out from the phone's table), or "checking" until that
+ * count has this passage in it. A passage the count leaves out is not kept.
  */
-function useOfflineUnits(ctx: Ctx, unitIds: readonly string[]): Map<string, KeptOffline> {
-  const state = ctx.language.state;
-  const { present } = useSyncStatus();
-  const { keptUnits, keptOffline } = ctx.language.blobs;
-  const me = ctx.session.actorId;
-  const rev = useStudyRevision();
-  const key = unitIds.join(',');
-  return useMemo(() => {
-    const out = new Map<string, KeptOffline>();
-    if (!state) return out;
-    const counted = unitIds.filter((id) => keptOffline?.has(id));
-    for (const id of counted) out.set(id, withStudy(keptOffline!.get(id)!, id));
-    const rest = unitIds.filter((id) => !out.has(id));
-    if (rest.length) for (const [id, u] of offlineByUnit(state, rest, present, me, keptUnits)) out.set(id, withStudy(u, id));
-    return out;
-  },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- unitIds is read through its key, so a new array with the same passages does not recompute
-    [state, present, keptUnits, keptOffline, me, key, rev]);
+function useOffline(ctx: Ctx, unitId: string): KeptOffline | 'checking' {
+  const counted = keptOfflineMap(ctx);
+  const { keptOffline, keptUnits } = ctx.language.blobs;
+  useStudyRevision();
+  if (!keptOffline) return 'checking';
+  const u = counted.get(unitId);
+  if (u) return u;
+  // Just kept: the count has not caught up with it yet.
+  return keptUnits.has(unitId) ? 'checking' : NOT_KEPT;
 }
+
+/** Whole sentences, one after another. */
+const sentences = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
 
 /** Why a passage is kept on this device. */
 function reasonText(reason: NonNullable<UnitOffline['reason']>): string {
@@ -59,93 +59,101 @@ function reasonText(reason: NonNullable<UnitOffline['reason']>): string {
   }
 }
 
-/** Whole sentences, one after another. */
-const sentences = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ');
-
-/** Where one passage stands: on this phone, coming, or not kept; with the words for each. */
-function passageOfflineView(u: KeptOffline, offline: boolean, hasStudy: boolean) {
-  const notSent = u.notSent ? t('offline.passage.notSent', { count: u.notSent }) : null;
-  // The web app opens online only (decisions.md 58), so its study media stay on the web.
-  const studyOnline = hasStudy && !STUDY_FILES_OFFLINE ? t('offline.passage.studyOnline') : null;
-  const here = u.here + u.studyHere;
-  const total = u.audio + u.studyTotal;
-  if (u.reason && u.ready) {
-    const works = u.studyTotal ? t('offline.passage.worksWithStudy') : u.audio ? t('offline.passage.worksWithAudio') : t('offline.passage.worksTextOnly');
-    return {
-      icon: 'onPhone' as IconName, tint: onColor.green, bg: TINT.green, short: t('offline.onDevice'),
-      label: t('offline.onDevice'),
-      sub: sentences(works, reasonText(u.reason), notSent, studyOnline)
-    };
+/** What tapping the download button does: keep a passage, stop keeping one chosen, or say why it is kept. */
+function useKeepToggle(ctx: Ctx, unitId: string, u: KeptOffline | 'checking', offline: boolean): { onPress: (() => void) | undefined; help: string } {
+  if (u === 'checking') return { help: t('offline.checkingHelp'), onPress: undefined };
+  if (!u.reason) {
+    // Offline nothing can come down: no download is offered (decisions.md 166).
+    if (offline) return { help: t('offline.needsConnectionHelp'), onPress: undefined };
+    // No toast: the button itself says what happens, as it happens.
+    return { help: t('offline.keepHelp'), onPress: () => { void ctx.language.blobs.keepOffline(unitId, true); } };
   }
-  if (u.reason) {
-    const size = u.bytesToFetch ? formatBytes(u.bytesToFetch) : null;
-    const filesHere = u.studyTotal
-      ? (size ? t('offline.passage.studyFilesHereLeft', { here, count: total, size }) : t('offline.passage.studyFilesHere', { here, count: total }))
-      : (size ? t('offline.passage.audioFilesHereLeft', { here, count: total, size }) : t('offline.passage.audioFilesHere', { here, count: total }));
-    return {
-      icon: 'download' as IconName, tint: offline ? TINT.amberText : C.primary, bg: offline ? TINT.amber : C.light,
-      short: offline ? t('offline.passage.onlySomeHere', { here, count: total }) : t('offline.passage.downloadingCount', { here, total }),
-      label: offline ? t('offline.passage.notAllHere') : t('offline.downloading'),
-      sub: sentences(filesHere, offline ? t('offline.connectToFinish') : t('offline.stayConnected'), reasonText(u.reason), notSent, studyOnline)
-    };
+  if (u.reason === 'chosen') {
+    return { help: t('offline.stopKeepingHelp'), onPress: () => { void ctx.language.blobs.keepOffline(unitId, false); ctx.toast(t('offline.toast.notKept')); } };
   }
-  const study = hasStudy && STUDY_FILES_OFFLINE;
-  return {
-    icon: 'notOnPhone' as IconName, tint: TINT.amberText, bg: TINT.amber,
-    short: offline ? t('offline.audioNotHere') : t('offline.notKept'),
-    label: offline ? t('offline.audioNotHere') : t('offline.notKept'),
-    sub: sentences(
-      offline
-        ? (study ? t('offline.passage.readRecordStudyNeeds') : t('offline.passage.readRecordAudioNeeds'))
-        : (study ? t('offline.passage.textHereStudyNeeds') : t('offline.passage.textHereAudioNeeds')),
-      studyOnline)
-  };
+  const why = reasonText(u.reason);
+  return { help: why, onPress: () => ctx.toast(why) };
 }
 
-/** One line at the top of a passage, so nobody has to scroll to learn it will not come along. */
-export function PassageOfflineLine(props: { ctx: Ctx; unitId: string }) {
-  const u = useOfflineUnits(props.ctx, [props.unitId]).get(props.unitId);
-  if (!u) return null;
-  const v = passageOfflineView(u, props.ctx.language.online === false, false);
+const DISC = 34;
+
+/** The round download mark: an outline to download, an arrow wave while it does (amber offline), green once it is all here. */
+function DownloadDisc(props: { look: OfflineLook; size?: number }) {
+  const { look } = props;
+  const size = props.size ?? DISC;
+  const ready = look.kind === 'ready';
+  const amber = look.kind === 'partial';
+  const quiet = look.kind === 'checking' || look.kind === 'noConnection';
+  const tint = ready ? C.white : amber ? TINT.amberText : quiet ? C.faint : C.primary;
   return (
-    <View style={styles.line} accessible accessibilityLabel={v.short}>
-      <Ico name={v.icon} size={16} color={v.tint} />
-      <Text style={[txt.xsStrong, { color: v.tint, flex: 1 }]}>{v.short}</Text>
+    <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2 },
+      ready ? { backgroundColor: onColor.green, borderColor: onColor.green }
+        : look.kind === 'none' ? { borderColor: C.primary }
+        : quiet ? { borderColor: C.border }
+        : { borderColor: 'transparent', backgroundColor: amber ? TINT.amber : C.light }]}>
+      {look.kind === 'downloading'
+        ? <WaveArrow direction="down" color={C.primary} size={Math.round(size * 0.3)} />
+        : <Ico name={look.kind === 'noConnection' ? 'notOnPhone' : 'download'} size={Math.round(size * 0.5)} color={tint} strokeWidth={ready ? 2.75 : 2.25} />}
     </View>
   );
 }
 
-/** The passage's offline card: what is here, why, and the one action that changes it. */
-export function PassageOffline(props: { ctx: Ctx; unitId: string; hasStudy: boolean }) {
+/**
+ * A passage's download button, on its row of a list and its chapter's
+ * tile (decisions.md 166): what the tiny cloud mark used to say, as a
+ * button that keeps the passage on this device.
+ */
+export function DownloadButton(props: { ctx: Ctx; unitId: string; testID?: string; size?: number }) {
   const { ctx, unitId } = props;
-  const u = useOfflineUnits(ctx, [unitId]).get(unitId);
-  if (!u) return null;
-  const v = passageOfflineView(u, ctx.language.online === false, props.hasStudy);
-  const keep = (on: boolean) => {
-    void ctx.language.blobs.keepOffline(unitId, on);
-    ctx.toast(on ? t('offline.toast.kept') : t('offline.toast.notKept'));
-  };
+  const u = useOffline(ctx, unitId);
+  const offline = isOffline(ctx.language.online);
+  const look = offlineLook(u, { offline, downloading: useSyncStatus().downloading.has(unitId) });
+  const keep = useKeepToggle(ctx, unitId, u, offline);
+  const spot = useHelpSpot(look.label, keep.help, keep.onPress);
   return (
-    <Card accessibilityLabel={t('shell.a11y.labelDetail', { label: v.label, detail: v.sub })}>
-      <Block icon={v.icon} tint={v.tint} bg={v.bg} title={v.label} body={v.sub} />
-      {u.reason && !u.ready ? (
-        <HelpInfo label={v.label} detail={t('offline.passage.barHelp')}>
-          <ProgressBar value={u.audio + u.studyTotal ? ((u.here + u.studyHere) / (u.audio + u.studyTotal)) * 100 : 0} />
-        </HelpInfo>
-      ) : null}
-      {!u.reason ? <View style={styles.action}><SmallBtn label={t('offline.keep')} icon="download" help={t('offline.keepHelp')} onPress={() => keep(true)} /></View> : null}
-      {u.reason === 'chosen' ? <View style={styles.action}><SmallBtn label={t('offline.stopKeeping')} help={t('offline.stopKeepingHelp')} onPress={() => keep(false)} /></View> : null}
-    </Card>
+    <Pressable {...(props.testID ? { testID: props.testID } : {})} onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
+      accessibilityState={{ disabled: !keep.onPress }} hitSlop={4} style={({ pressed }) => [styles.discTap, pressed && { opacity: 0.6 }]}>
+      <DownloadDisc look={look} {...(props.size ? { size: props.size } : {})} />
+      <HelpBadge spot={spot} />
+    </Pressable>
   );
 }
 
-/** A small mark on a Map row's disc: on this phone, or still downloading. Not kept shows nothing. */
-export function OfflineMark(props: { u: KeptOffline | undefined; corner?: boolean }) {
-  const u = props.u;
-  if (!u?.reason) return null;
+const NOT_KEPT: KeptOffline = { reason: null, audio: 0, here: 0, toFetch: 0, bytesToFetch: 0, notSent: 0, ready: false, studyHere: 0, studyTotal: 0 };
+
+/**
+ * The top of a passage: whether its audio is on this device, and the
+ * button that changes it, where nobody has to look for it (decisions.md
+ * 61, 166). The whole line is the button.
+ */
+export function PassageOfflineBar(props: { ctx: Ctx; unitId: string }) {
+  const { ctx, unitId } = props;
+  const u = useOffline(ctx, unitId);
+  const offline = isOffline(ctx.language.online);
+  const look = offlineLook(u, { offline, downloading: useSyncStatus().downloading.has(unitId) });
+  const keep = useKeepToggle(ctx, unitId, u, offline);
+  const spot = useHelpSpot(look.label, keep.help, keep.onPress);
+  const tone = look.kind === 'ready' ? { bg: TINT.green, fg: TINT.greenText } : look.kind === 'partial' ? { bg: TINT.amber, fg: TINT.amberText }
+    : look.kind === 'checking' || look.kind === 'noConnection' ? { bg: C.card, fg: C.muted } : { bg: C.card, fg: C.primary };
   return (
-    <View style={[styles.mark, props.corner && styles.corner, { backgroundColor: u.ready ? onColor.green : C.primary }]}>
-      <Ico name={u.ready ? 'onPhone' : 'download'} size={11} color={C.white} />
+    <Pressable testID="passage-offline" onPress={spot.onPress} disabled={!keep.onPress && !spot.id} accessibilityRole="button" accessibilityLabel={look.label}
+      accessibilityState={{ disabled: !keep.onPress }}
+      style={({ pressed }) => [styles.bar, { backgroundColor: tone.bg, borderColor: look.kind === 'none' ? C.border : tone.bg }, pressed && { opacity: 0.7 }]}>
+      <DownloadDisc look={look} size={30} />
+      <Text style={[txt.sm, { flex: 1, fontWeight: '700', color: tone.fg }]}>{look.label}</Text>
+      <HelpBadge spot={spot} />
+    </Pressable>
+  );
+}
+
+/** Over a book's passages: how many of them are on this device, once the device has counted (decisions.md 166). */
+export function BookOfflineLine(props: { ready: number; count: number; checking: boolean }) {
+  if (props.count === 0) return null;
+  const label = props.checking ? t('offline.summary.checking') : t('map.me.ready', { ready: formatNumber(props.ready), count: props.count });
+  return (
+    <View style={styles.bookLine} accessible accessibilityLabel={label}>
+      <DownloadDisc look={{ kind: props.ready ? 'ready' : 'none', label }} size={22} />
+      <Text style={[txt.sm, { flex: 1, fontWeight: '600', color: props.ready ? TINT.greenText : C.muted }]}>{label}</Text>
     </View>
   );
 }
@@ -158,7 +166,7 @@ export function OfflineMark(props: { u: KeptOffline | undefined; corner?: boolea
 export function FillBanner(props: { ctx: Ctx }) {
   const fill = props.ctx.language.fill;
   if (!fill || fill.total === 0) return null;
-  const offline = props.ctx.language.online === false;
+  const offline = isOffline(props.ctx.language.online);
   const count = t('offline.fill.count', { filled: fill.filled, total: fill.total });
   const body = sentences(count, offline ? t('offline.connectToFinish') : t('offline.stayConnected'));
   return (
@@ -204,7 +212,7 @@ export function PassageNotHere(props: { ctx: Ctx; unitId: string }) {
 /** The Sync screen's card: how ready this phone is, and what never comes along. */
 export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
   const { ctx, s } = props;
-  const offline = ctx.language.online === false;
+  const offline = isOffline(ctx.language.online);
   const ready = !!s && s.kept > 0 && s.ready === s.kept;
   const language = ctx.languageId ? languageName(ctx.org.state, ctx.languageId) : t('offline.card.thisLanguage');
   const head = ready
@@ -227,7 +235,7 @@ export function OfflineCard(props: { ctx: Ctx; s: OfflineOverview | null }) {
         body={STUDY_FILES_OFFLINE ? t('offline.card.alwaysBodyStudy', { language }) : t('offline.card.alwaysBody', { language })} />
       <Block icon="cloud" tint={TINT.amberText} bg={TINT.amber} title={t('offline.card.needsTitle')}
         body={[
-          STUDY_FILES_OFFLINE ? t('offline.card.needsNotKeptStudy') : t('offline.card.needsNotKept'),
+          STUDY_FILES_OFFLINE ? t('offline.card.needsNotDownloadedStudy') : t('offline.card.needsNotDownloaded'),
           STUDY_FILES_OFFLINE ? t('offline.card.needsFilms') : t('offline.card.needsStudyWeb'),
           t('offline.card.needsReports'),
           t('offline.card.needsOtherLanguages')
@@ -252,10 +260,11 @@ function Block(props: { icon: IconName; tint: string; bg: string; title: string;
 }
 
 const styles = StyleSheet.create({
-  line: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   tile: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  action: { alignItems: 'flex-start', paddingLeft: 44 + space.md },
-  corner: { right: undefined, bottom: undefined, top: 5, left: 5 },
-  mark: { position: 'absolute', right: -3, bottom: -3, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.card }
+  disc: { alignItems: 'center', justifyContent: 'center', borderWidth: 2, backgroundColor: C.card },
+  discTap: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 48, paddingHorizontal: space.md, paddingVertical: space.xs,
+    borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
+  bookLine: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xs }
 });

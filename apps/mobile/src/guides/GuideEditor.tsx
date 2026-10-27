@@ -23,7 +23,7 @@ import {
   CALLOUT_KINDS, LICENSES, isLicense, orgLicense, subscriptionItemId, unitPrefixOf, unitTitle,
   type CalloutKind, type MediaRef, type StudyDoc, type StudyDoc2, type VersificationDoc
 } from '@langquest-next/core';
-import { Bold, List, TextQuote, type LucideIcon } from 'lucide-react-native';
+import { Bold, List, TextQuote, type LucideIcon } from '../ui/icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Image, Pressable, StyleSheet, TextInput, View, type NativeSyntheticEvent, type TextInputSelectionChangeEventData } from 'react-native';
 import { Text } from '../ui/text';
@@ -59,9 +59,9 @@ import { VoiceNote } from '../audio/voiceNote';
 import {
   boldText, buildDoc, calloutText, draftFromDoc, draftProblems, draftReducer, linkText, listText, newDraft, nextId, untitledResource,
   type DraftAction, type DraftMedia, type DraftPanel, type DraftProblem, type DraftResource, type DraftStep, type DraftTerm, type GuideDraft, type Selection
-} from './draft';
+} from './draftModel';
 import { draftKey, dropDraft, guideHistoryKey, loadDraft, parseGuideHistory, saveDraft, unownedDraftKey } from './draftStore';
-import { editKey } from './draft';
+import { editKey } from './draftModel';
 import { canPickFiles, FileProblem, keepPicked, mediaKindFor, pickFile, uploadDraftFiles, type PickKind } from './files';
 import { BLANK_METHOD, FIA_METHOD, methodFromDoc, type Method } from './methods';
 

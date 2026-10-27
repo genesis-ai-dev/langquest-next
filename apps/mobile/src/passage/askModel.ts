@@ -7,7 +7,7 @@ import { checkPeople, questionsForKind, type Commands, type OrgState, type Passa
 import { checkName } from '../admin/adminModel';
 import { t } from '../i18n';
 import type { PassageView } from './passageView';
-import { sendTargetLabel, type NameFn } from './record';
+import { sendTargetLabel, type NameFn } from './recordTextModel';
 import { usualTargetFor, type UsualTarget } from './sendTarget';
 
 /** The ask screen's choice of a check's whole team (decision 91), beside one person's id. */
@@ -81,9 +81,10 @@ export function askModel(o: {
   return { isRecord, kindId, check, title, usual, others, team, teamPeople, chosen, asked, outside, target, ready, buttonLabel };
 }
 
-/** The toast after asking: who it went to, with Undo to withdraw it. */
-export function askDoneText(m: Pick<AskModel, 'outside' | 'target'>): string {
-  return m.outside ? t('passage.ask.doneOutside', { name: m.target }) : t('passage.ask.doneTeam', { name: m.target });
+/** The toast after asking: who it went to; offline, that they get it once the device is connected (decisions.md 166). */
+export function askDoneText(m: Pick<AskModel, 'outside' | 'target'>, offline = false): string {
+  if (m.outside) return t('passage.ask.doneOutside', { name: m.target });
+  return offline ? t('passage.page.askedOffline', { target: m.target }) : t('passage.ask.doneTeam', { name: m.target });
 }
 
 /** The ask command's input: to the outsider, the check's team or one person; the questions only on a check. */

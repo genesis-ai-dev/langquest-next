@@ -74,7 +74,8 @@ Steps:
 
 Expected:
 - While loading: "Loading reports…".
-- Then the header "Overview", with "UI Test Org · Reports" under it, and an
+- Then the header "Overview", with "Reports" under it (the sidebar names the
+  organization), and an
   icon button "Catch up with the server" at the right.
 - A row of chips: "Overview" (on), "Recent activity", "Languages",
   "Geography", "Field report", "Monthly ledger", "Pace", "Alerts".

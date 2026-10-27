@@ -320,7 +320,7 @@ export function buildLibrary(opts: { fiaDirs?: string[]; fiaTerms?: string; exam
     } satisfies CollectionDoc);
   }
 
-  // 5. FIA's key words, one list per language (decision 149), placed on FIA's passages.
+  // 5. FIA's key words, one list per language (decision 172), placed on FIA's passages.
   const passageAt = new Map(fiaPassageList().map((p, order) => [p.id, { ref: p.ref, order }]));
   const termsJson = readJson(opts.fiaTerms ?? DEFAULT_FIA_TERMS);
   for (const lang of fiaTermLanguages(termsJson)) {

@@ -29,7 +29,7 @@ import { indexesFor } from '../sync/indexes';
 import { Badge, Card, Chip, ChipWrap, Disclosure, EmptyState, Field, GhostBtn, Group, Header, HelpInfo, Ico, IconBtn, KindIcon, LinkBtn, NoteCard, PrimaryBtn, QuietLinks, ReasonSheet, Row, Screen, SectionLabel, Sheet, ShowMore, SmallBtn, StateMark, type IconName } from '../ui/kit';
 import { kindIcon } from '../ui/kindIcon';
 import { txt } from '../ui/textStyles';
-import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/record';
+import { anchorLabel, askCandidates, channelLabel, currentStepId, describeEntry, gridKindIds, guestMessage, historySummary, listenersOf, nextQuestionType, questionTypeLabel, reviewMark, reviewsSummary, sendTargetLabel, versionReviewsSummary, type EntryText, type RowAction } from '../passage/recordTextModel';
 import { PassagePath } from '../passage/path';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
 import { askInput, askDoneText, askModel, TEAM, type AskPicks } from '../passage/askModel';
@@ -47,6 +47,7 @@ import { ConfirmDelete } from '../ui/ConfirmDelete';
 import { cardDurations } from '../recording/workspaceModel';
 import { mmss, totalMs } from '../recording/model';
 import { VersionRecording } from '../passage/versionParts';
+import { CheckNotes } from '../passage/checkNotes';
 import { useVersesHeld } from '../passage/useVerses';
 import { pathSteps, teamSteps, type PathStep, type TeamStep } from '../passage/pathModel';
 import {
@@ -61,7 +62,7 @@ import { HelpBadge, HelpRow } from '../helpMode/helpBadge';
 import { requestIsMine, sendToInput, teamNameIn } from '../passage/sendTarget';
 import { feedbackSource, isJustNow, kindInSentence, outcomeText, passageCrumbs, versionTitle, viaText, when, type PassageView } from '../passage/passageView';
 import { usePassage } from '../passage/usePassage';
-import { PassageOffline, PassageOfflineLine } from '../sync/offline';
+import { PassageOfflineBar } from '../sync/offline';
 import { noteExpected, reportError } from '../diagnostics/report';
 import { Authored, ReportFlag } from '../moderation/reportSheet';
 import { authoredText, recordTarget } from '../moderation/reportTargets';
@@ -288,7 +289,7 @@ export function PassageRecord(ctx: Ctx) {
     setOpenStepId(null);
     const label = sendTargetLabel(target, ctx.name);
     void perform(ctx, (c) => c.ask({ ...sendToInput({ commandId: newId(), unitId, kindId, target }), ...(questions.length ? { questions } : {}) }),
-      sentText(target, label));
+      sentText(target, label, ctx.language.online === false));
   };
   /** Carry out a move the record's models decided (recordModel.ts `RecordMove`). */
   const doMove = (mv: RecordMove) => {
@@ -415,9 +416,7 @@ export function PassageRecord(ctx: Ctx) {
             {can.note ? <SmallOption testID="else-note" icon="chat" label={t('common.addNote')} help={t('passage.else.addNoteHelp')} onPress={() => setNoting('note')} /> : null}
             <SmallOption testID="else-reference" icon="book" label={t('passage.else.whatHelps')} help={t('passage.else.whatHelpsHelp')} onPress={() => go('passage_reference')} />
           </View>
-          {/* What comes along without a connection (decisions.md 61). */}
-          <PassageOffline ctx={ctx} unitId={unitId} hasStudy={!!guide} />
-          <Text style={txt.xs}>{t('passage.else.teamOptions', { section: t('passage.path.thenTheTeam') })}</Text>
+          {canAct ? <Text style={txt.xs}>{t('passage.else.teamOptions', { section: t('passage.path.thenTheTeam') })}</Text> : null}
         </View>
         {sheets}
       </Screen>
@@ -556,8 +555,8 @@ export function PassageRecord(ctx: Ctx) {
   );
   return (
     <Screen header={<Header title={v.title} sub={v.language} onBack={ctx.back} />} footer={footer}>
-      {/* Whether this passage comes along without a connection, without scrolling (decisions.md 61). */}
-      <PassageOfflineLine ctx={ctx} unitId={unitId} />
+      {/* Whether this passage comes along without a connection, and the button that takes it along, first (decisions.md 61, 166). */}
+      <PassageOfflineBar ctx={ctx} unitId={unitId} />
       {waiting ? <Text style={[txt.sm, { color: TINT.amberText }]}>{waiting}</Text> : null}
       <EarlierNote ctx={ctx} unitId={unitId} languageId={languageId} />
       <PassagePath ctx={ctx} steps={steps} team={team} peopleOf={(kindId) => checkPeople(v.state, kindId)} onStep={onStep} onTeamStep={onTeamStep} extraFor={extraFor} />
@@ -1082,6 +1081,8 @@ export function ReviewDetail(ctx: Ctx) {
             {feedbackIsEmpty(review) ? <Text style={txt.smMuted}>{t('passage.review.noWords')}</Text> : null}
           </View>
         </Authored>
+        {/* Which part, help or verse it was about (decisions.md 149). */}
+        <CheckNotes ctx={ctx} v={v} reviewId={review.id} kindId={review.kindId} />
         {answers.length > 0 ? (
           <Disclosure icon="help" title={t('passage.review.theirAnswers')} summary={t('passage.review.answers', { count: answers.length })}
             {...ctx.details(`review:${unitId}:${languageId}:${review.id}:questions`)}>
@@ -1157,6 +1158,7 @@ export function ReviewDetail(ctx: Ctx) {
         </Card>
       ) : null}
       {!makes && artifacts ? <Authored ctx={ctx} by={review.by}>{artifacts}</Authored> : null}
+      <CheckNotes ctx={ctx} v={v} reviewId={review.id} kindId={review.kindId} />
       {answers.length > 0 || skipped.length > 0 ? (
         <Disclosure icon="help" title={t('passage.review.answersTitle')}
           summary={answersSummary(answers.length, skipped.length)}
@@ -1244,7 +1246,7 @@ export function AskSomeone(ctx: Ctx) {
     if (!ready) return;
     setBusy(true);
     const ok = await perform(ctx, (c) => c.ask(askInput({ commandId: newId(), unitId: v.unitId, what, model, picks, channel, note, noteHash, questions })),
-    askDoneText(model));
+    askDoneText(model, ctx.language.online === false));
     setBusy(false);
     if (ok) ctx.go('passage_record', { unitId: v.unitId, languageId: v.languageId, asked: String(Date.now()) });
   };
