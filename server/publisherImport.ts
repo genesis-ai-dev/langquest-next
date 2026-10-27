@@ -264,9 +264,12 @@ export async function sourceNews(deps: ImportDeps, job: CheckJob): Promise<Found
  */
 export async function checkImports(sb: SupabaseClient, deps: ImportDeps, staleSeconds = CHECK_EVERY_SECONDS): Promise<{ checked: number; errors: number }> {
   let checked = 0, errors = 0;
+  const seen = new Set<string>();
   for (let i = 0; i < CHECKS_PER_SCHEDULE; i++) {
     const job = await rpc<CheckJob | null>(sb, 'import_check_next', { p_stale_seconds: staleSeconds });
-    if (!job) break;
+    // Each source once a pass, however short `staleSeconds` is.
+    if (!job || seen.has(`${job.orgId} ${job.importer}`)) break;
+    seen.add(`${job.orgId} ${job.importer}`);
     try {
       await rpc(sb, 'import_check_save', { p_org: job.orgId, p_importer: job.importer, p_found: await sourceNews(deps, job) });
       checked++;

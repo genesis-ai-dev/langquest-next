@@ -112,7 +112,7 @@ describe('publisher import steps', () => {
 
   it('looks at the source of each published import and saves what is new; a language the source dropped finds nothing', async () => {
     const job = (orgId: string, parts: Record<string, string[]>): CheckJob => ({ orgId, importer: 'fia', source: 'BibleAquifer', parts });
-    const db = fakeDb(null, [job('org-wc', { eng: ['eng-jhn-p1-v0'], xyz: ['xyz-jhn-p1-v1'] }), job('org-b', { eng: ['eng-jhn-p1-v1'] })]);
+    const db = fakeDb(null, [job('org-wc', { eng: ['eng-jhn-p1-v0'], xyz: ['xyz-jhn-p1-v1'] }), job('org-b', { eng: ['eng-jhn-p1-v1'] }), job('org-wc', { eng: [] })]);
     const out = await checkImports(db.sb, { fetch: fakeGitHub().fetch });
     expect(out).toEqual({ checked: 2, errors: 0 });
     const saved = db.calls.filter((c) => c.fn === 'import_check_save').map((c) => c.args);
