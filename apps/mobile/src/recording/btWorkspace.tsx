@@ -44,11 +44,11 @@ import { useDraft } from '../drafts/useDraft';
 import { draftKey } from '../drafts/draftModel';
 import { SavedMark } from '../ui/SavedMark';
 import { useSaveStatus } from '../ui/useSaveStatus';
-import { goesWhenConnected, nextAfterDone, recordCan, sentText, usualTargets, askButtonLabel } from '../passage/recordModel';
-import { sendTargetLabel } from '../passage/recordTextModel';
+import { doCheckButton, goesWhenConnected, nextAfterDone, recordCan, sentText, usualTargets, askButtonLabel } from '../passage/recordModel';
+import { nobodyElseReviews, sendTargetLabel } from '../passage/recordTextModel';
 import { sendToInput, type UsualTarget } from '../passage/sendTarget';
 import { AskCheckCard } from '../passage/askParts';
-import type { DoneAsk } from './publish';
+import type { DoneAsk, DoneNext } from './publish';
 import { RecordButton, SaveProblem } from './parts';
 import { SplitPane } from './SplitPane';
 import { loopRecording, MIN_BOTTOM, MIN_BOTTOM_RECORDING } from './splitModel';
@@ -235,6 +235,9 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
   const nextUp = useMemo(() => (askCan ? nextAfterDone(p, { recordedKindId: kind.id }) : undefined), [p, askCan, kind.id]);
   const lines = ctx.language.lines;
   const targets = useMemo(() => (nextUp ? usualTargets(state, orgState, { p, languageId, me, asker: true, lines }) : {}), [nextUp, state, orgState, p, languageId, me, lines]);
+  // Nobody else here could check it: Done does the next check now (decisions.md 176).
+  const reviewCan = recordCan(ctx.session).review;
+  const selfCheck = useMemo(() => !!nextUp && reviewCan && nobodyElseReviews(state, orgState, { languageId, me, lines }), [nextUp, reviewCan, state, orgState, languageId, me, lines]);
   async function publish(extra: string, ask: DoneAsk) {
     const note = noteText(notes, extra);
     const sendTo = ask && 'kindId' in ask ? targets[ask.kindId] : undefined;
@@ -271,9 +274,10 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
     await said.clear();
     setSaving(false);
     setConfirming(false);
-    // Back to the record, where who was asked shows; Someone else opens there with the check chosen.
+    // Back to the record, where who was asked shows; Someone else, or the check done now, opens there with the check chosen.
     const someone = ask && 'someoneElse' in ask ? ask.someoneElse : ask && 'kindId' in ask && !sendTo ? ask.kindId : undefined;
-    ctx.go('passage_record', { unitId, languageId, ...(someone ? { askSomeone: someone } : { asked: `bt:${Date.now()}` }) });
+    const checkNow = ask && 'checkNow' in ask ? ask.checkNow : undefined;
+    ctx.go('passage_record', { unitId, languageId, ...(checkNow ? { checkNow } : someone ? { askSomeone: someone } : { asked: `bt:${Date.now()}` }) });
   }
   const savedStatus = useSaveStatus(rec.busy || said.status === 'saving', pieces.length > 0 || notes.length > 0, rec.failureCount > 0 || !!drafts.problem || said.status === 'failed');
 
@@ -395,7 +399,7 @@ export function BackTranslationBody({ ctx, v, kind, of }: { ctx: Ctx; v: Passage
       {confirming ? (
         <PublishSheet ctx={ctx} v={v} what={produces.what} of={of} parts={parts} notes={notes} busy={saving}
           hash={noteHash} spokenTaken={voiceInMoment} onHash={setNoteHash} extra={said.value.extra} onExtra={(x) => said.set((d) => ({ ...d, extra: x }))}
-          next={nextUp ? { kinds: nextUp.kinds, targets } : null} saved={said.status}
+          next={nextUp ? { kinds: nextUp.kinds, targets, selfCheck } : null} saved={said.status}
           onClose={() => setConfirming(false)} onPublish={(extra, ask) => void publish(extra, ask)} />
       ) : null}
     </Screen>
@@ -512,7 +516,7 @@ function MomentSheet(props: {
 function PublishSheet(props: {
   ctx: Ctx; v: PassageView; what: string; of: Version; parts: BackPart[]; notes: MomentNote[]; busy: boolean;
   hash: string | null; spokenTaken: boolean; onHash: (h: string | null) => void; extra: string; onExtra: (x: string) => void;
-  next: { kinds: KindStatus[]; targets: Record<string, UsualTarget | undefined> } | null; saved: SaveStatus;
+  next: DoneNext | null; saved: SaveStatus;
   onClose: () => void; onPublish: (extra: string, ask: DoneAsk) => void;
 }) {
   const { ctx, v } = props;
@@ -522,7 +526,18 @@ function PublishSheet(props: {
   const next = kinds.find((k) => k.kindId === kindId) ?? kinds[0];
   const nextTarget = next ? props.next?.targets[next.kindId] : undefined;
   const finish = (ask: DoneAsk) => { if (!props.busy) props.onPublish(props.extra, ask); };
-  const footer = next ? (
+  // Nobody else could be asked: Done does the next check now, and asking stays one tap away (decisions.md 176).
+  const checkNow = next && !nextTarget && props.next?.selfCheck ? doCheckButton(v.kind(next.kindId), v.kinds) : null;
+  const footer = next && checkNow ? (
+    <View style={{ gap: space.xs }}>
+      <PrimaryBtn label={checkNow.label} icon={checkNow.icon} busy={props.busy}
+        help={t('backTranslation.checkNowHelp', { what: props.what })} onPress={() => finish({ checkNow: next.kindId })} />
+      <QuietLinks items={[
+        { label: t('passage.record.actions.askSomeone'), icon: 'people' as const, help: t('passage.page.actionHelp.ask'), onPress: () => finish({ someoneElse: next.kindId }) },
+        { label: t('recording.publish.sendLater'), icon: 'clock' as const, help: t('backTranslation.sendLaterHelp', { what: props.what }), onPress: () => finish(null) }
+      ]} />
+    </View>
+  ) : next ? (
     <View style={{ gap: space.xs }}>
       <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: next.kindId, kinds: v.kinds, name: ctx.name })} icon="send" busy={props.busy}
         help={nextTarget ? t('backTranslation.sendHelp', { what: props.what }) : t('backTranslation.askHelp', { what: props.what })}

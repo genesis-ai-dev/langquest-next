@@ -255,29 +255,35 @@ interface KindRowActions {
  * depends on who is looking: whoever recorded the latest version sends it
  * to whoever usually does it (`sendTo`, "the Community team" or a name),
  * with Send to someone else beside it, or asks someone when nobody usually
- * does; a reviewer, or someone who was asked, does it now.
+ * does; a reviewer, or someone who was asked, does it now. Whoever recorded
+ * it may also review it themselves (decisions.md 176): "Review it myself"
+ * after the asking, and first when nobody else here could be asked.
  */
 export function kindRowActions(o: {
   status: KindStatus; kind: KindDef; step: FlowStepStatus; can: KindRowCan; isAuthor: boolean; me: string;
   /** Who this kind usually goes to here, as the button says it. */
   sendTo?: string;
   mine?: MineFn;
+  /** Nobody else here holds Review (`askCandidates` is empty): the author's own review leads. */
+  alone?: boolean;
 }): KindRowActions {
   const s = o.status.state;
   const mine = o.mine ?? namesMe(o.me);
   const askedMe = s === 'asked' && !!o.status.request && mine(o.status.request);
   const cleared = kindCleared(o.status, o.step);
-  // Nobody checks their own version unless they were asked to (the role matrix: Review, "not their own version unless asked").
-  const doIt: RowAction | undefined = o.can.review && (!o.isAuthor || askedMe)
-    ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : t('passage.record.actions.reviewNow') } : undefined;
+  // Its author may check their own version too (decisions.md 176); the record says who did.
+  const mineToCheck = o.isAuthor && !askedMe;
+  const doIt: RowAction | undefined = o.can.review
+    ? { id: 'do', label: o.kind.produces ? o.kind.produces.action : mineToCheck ? t('passage.record.actions.reviewMyself') : t('passage.record.actions.reviewNow') } : undefined;
   const send: RowAction | undefined = o.can.ask && s !== 'asked' && s !== 'addressed' && o.isAuthor && o.sendTo
     ? { id: 'send', label: t('passage.record.actions.sendTo', { target: o.sendTo }) } : undefined;
   const ask: RowAction | undefined = o.can.ask && s !== 'asked'
     ? { id: 'ask', label: s === 'addressed' ? t('passage.record.actions.askAgain') : send ? t('passage.record.actions.sendElsewhere') : t('passage.record.actions.askSomeone') } : undefined;
   const log: RowAction | undefined = o.can.log ? { id: 'log', label: t('passage.record.actions.alreadyHappened') } : undefined;
   const skip: RowAction | undefined = o.can.skip && !o.step.step.checkpoint ? { id: 'skip', label: t('passage.record.actions.setAside') } : undefined;
-  const primary = askedMe ? doIt : s === 'asked' ? undefined : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
-  const second = s === 'asked' ? undefined : send && primary === send ? ask : log;
+  const selfFirst = mineToCheck && !!o.alone && !!doIt;
+  const primary = askedMe ? doIt : s === 'asked' ? undefined : selfFirst ? doIt : o.isAuthor || !doIt ? send ?? ask ?? doIt : doIt;
+  const second = s === 'asked' ? undefined : send && primary === send ? ask : selfFirst && ask ? ask : log;
   const rest = [doIt, ask, log, skip].filter((a): a is RowAction => !!a && a !== primary && a !== second);
   const undo: RowAction | undefined = o.status.review?.by === o.me ? { id: 'undo', label: t('passage.page.undo') } : undefined;
   return {
@@ -288,13 +294,14 @@ export function kindRowActions(o: {
 
 /**
  * A check someone may do without being asked: the next one on someone else's
- * version, not yet done. None while feedback waits on the translator (the
- * next check is best done on the version they keep), and none on a check
- * whose feedback needs changes (the step sheet offers it nothing either).
+ * version, not yet done, or on their own when nobody else here could do it
+ * (`alone`, decisions.md 176). None while feedback waits on the translator
+ * (the next check is best done on the version they keep), and none on a
+ * check whose feedback needs changes (the step sheet offers it nothing either).
  */
-export function openCheckFor(p: PassageState, o: { isAuthor: boolean; canReview: boolean }): KindStatus | undefined {
+export function openCheckFor(p: PassageState, o: { isAuthor: boolean; canReview: boolean; alone?: boolean }): KindStatus | undefined {
   const next = p.next;
-  if (o.isAuthor || !o.canReview || !p.recorded || !next || p.awaitingResponse.length > 0) return undefined;
+  if ((o.isAuthor && !o.alone) || !o.canReview || !p.recorded || !next || p.awaitingResponse.length > 0) return undefined;
   return next.kinds.find((k) => !kindCleared(k, next) && k.state !== 'locked' && k.state !== 'suggestions');
 }
 
@@ -578,6 +585,16 @@ export function askCandidates(
     out.push({ profileId: id, sub: why ? `${role} · ${why}` : role, usual: onCheck.has(id) || !!why, onCheck: onCheck.has(id) });
   }
   return out.map((c, i) => [c, i] as const).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([c]) => c);
+}
+
+/**
+ * Nobody here but the person looking holds Review: Ask someone would list
+ * nobody on the team, so their own review comes first (decisions.md 176).
+ */
+export function nobodyElseReviews(
+  state: LanguageState, org: OrgState | null, o: { languageId: string; me: string; lines: PassageLines }
+): boolean {
+  return askCandidates(state, org, { ...o, what: 'review' }).length === 0;
 }
 
 export function questionTypeLabel(type: QuestionSpec['type']): string {

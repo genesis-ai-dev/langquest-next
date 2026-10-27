@@ -618,7 +618,7 @@ test('REV-024 Leaving a review keeps it; opening it again brings it back', async
 
 const REVIEW_ACTIONS = /^(Do the .+|Back-translate it|Review it now)$/;
 
-test('REV-027 A translator is not offered Review it on their own versions', async ({ page }) => {
+test('REV-027 A translator checks their own version only from the check, after asking', async ({ page }) => {
   await open(page, world(), 'TRANS');
   await expect(text(page, 'Next for you')).toBeVisible();
   await expect(text(page, /^Check Luke/)).toHaveCount(0);
@@ -626,6 +626,11 @@ test('REV-027 A translator is not offered Review it on their own versions', asyn
     await openRecord(page, world(), k);
     await expect(visible(page.getByRole('button', { name: REVIEW_ACTIONS }))).toHaveCount(0);
   }
+  // On the check itself (decisions.md 176): "Review it myself", after the asking, never "Review it now".
+  await openTeamRow(page, 'Consultant check');
+  await expect(visible(sheet(page).getByRole('button', { name: 'Review it myself', exact: true }))).toBeVisible();
+  await expect(visible(sheet(page).getByRole('button', { name: 'Review it now', exact: true }))).toHaveCount(0);
+  await closeSheet(page);
 });
 
 test('REV-028 A viewer sees no record or review controls', async ({ page }) => {

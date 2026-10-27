@@ -1,6 +1,6 @@
 import { languageLines } from '@langquest-next/core';
 import { describe, expect, it } from 'vitest';
-import { askCandidates, currentStepId } from '../src/passage/recordTextModel';
+import { askCandidates, currentStepId, nobodyElseReviews } from '../src/passage/recordTextModel';
 import { pathSteps, teamSteps } from '../src/passage/pathModel';
 import {
   currentCheck, elseOptions, recordCan, recordModel, recordPathInput, rowButtons, stepSheet, teamStepsOpen, usualTargets, waitingOnAnswer
@@ -35,19 +35,20 @@ function record(who: WorldRole, k: WorldPassage) {
   const teamName = teamNameIn(w.state);
   const isAuthor = !!p.latest && p.latest.by === me;
   const targets = usualTargets(w.state, w.org, { p, languageId: w.languageId, me, asker: isAuthor, lines: languageLines(w.state) });
+  const alone = nobodyElseReviews(w.state, w.org, { languageId: w.languageId, me, lines: languageLines(w.state) });
   const input = recordPathInput({ p, kinds, me, name: nameFn, teamName });
   const steps = pathSteps(input);
-  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker: isAuthor, isAuthor });
+  const model = recordModel({ p, kinds, kind: v.kind, me, can, steps, mine, asker: isAuthor, isAuthor, alone });
   const lit = steps.find((st) => st.state === 'current');
   const sheetOf = (kindId: string) => {
     const step = p.steps.find((st) => st.kinds.some((x) => x.kindId === kindId))!;
-    const sh = stepSheet({ p, kinds, kind: v.kind, step, can, isAuthor, me, mine, name: nameFn, teamName, targets });
+    const sh = stepSheet({ p, kinds, kind: v.kind, step, can, isAuthor, me, mine, name: nameFn, teamName, targets, alone });
     const buttons = [...sh.rows.flatMap((r) => rowButtons(r.acts).map((a) => a.label)), ...(sh.movePast ? [t('passage.page.movePastThis')] : [])];
     const text = [sh.title, sh.sub, ...sh.rows.flatMap((r) => [r.name, r.sub, ...rowButtons(r.acts).map((a) => a.label)]), ...(sh.movePast ? [t('passage.page.movePastThis')] : [])]
       .filter(Boolean).join(' ');
     return { text, buttons };
   };
-  const options = elseOptions({ p, kinds, can, current: currentCheck(p, currentStepId(p)), answersMine: model.answersMine, myDraft: model.myDraft });
+  const options = elseOptions({ p, kinds, can, current: currentCheck(p, currentStepId(p)), answersMine: model.answersMine, myDraft: model.myDraft, isAuthor, alone });
   return {
     can,
     main: model.main?.label ?? null,
@@ -205,7 +206,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
     const bt = 'Back translation A bilingual speaker records it in English — new content, not a verdict · the Consultant check reviews it';
     const rev = name('REV');
     const want: Record<string, string> = {
-      TRANS: `Peer check and back translation Peer check Waiting on ${rev} Already happened Set aside ${bt} Send to the Back translation team Send to someone else Already happened Set aside`,
+      TRANS: `Peer check and back translation Peer check Waiting on ${rev} Review it myself Already happened Set aside ${bt} Send to the Back translation team Send to someone else Back-translate it Already happened Set aside`,
       KEPT: `Peer check and back translation Peer check Waiting on ${rev} Review it now Already happened Set aside ${bt} Back-translate it Already happened Ask someone Set aside`,
       REV: `Peer check and back translation Peer check ${name('TRANS')} asked you Review it now Already happened Set aside ${bt} Back-translate it Already happened Set aside`,
       TREV: `Peer check and back translation Peer check Waiting on ${rev} Review it now Already happened Set aside ${bt} Back-translate it Already happened Ask someone Set aside`
@@ -232,7 +233,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
   });
 
   it('PASS-027 Something else? on a recorded passage', () => {
-    const got = { someone: [] as string[], already: [] as string[], notNow: [] as string[], newVersion: [] as string[], movePast: [] as string[] };
+    const got = { someone: [] as string[], myself: [] as string[], already: [] as string[], notNow: [] as string[], newVersion: [] as string[], movePast: [] as string[] };
     for (const who of ['TRANS', 'KEPT', 'REV', 'TREV', 'COORD', 'LADMIN', 'VIEW'] as const) {
       const r = record(who, 'P-BT');
       // No lit step: the sub-title is the passage alone.
@@ -240,6 +241,8 @@ describe('the passage record, per role (05-passage-record.md)', () => {
       const all = r.else.options.join('\n');
       // Fixed (2026-10-12): the Back translation is already asked of REV, so nobody is offered a second request.
       if (all.includes('Someone else should do this')) got.someone.push(who);
+      // Only its author is offered doing it themselves (decisions.md 176).
+      if (all.includes("I'll do this myself Back translation: record it now")) got.myself.push(who);
       if (all.includes('We already did this Say when and how the back translation happened')) got.already.push(who);
       if (all.includes('Not now Set the back translation aside. Say why')) got.notNow.push(who);
       if (all.includes('Record a new version Reviews so far stay with the version they heard')) got.newVersion.push(who);
@@ -247,6 +250,7 @@ describe('the passage record, per role (05-passage-record.md)', () => {
     }
     expect(got).toEqual({
       someone: [],
+      myself: ['TRANS'],
       already: ['TRANS', 'KEPT', 'REV', 'TREV', 'COORD', 'LADMIN'],
       notNow: ['TRANS', 'KEPT', 'REV', 'TREV', 'COORD', 'LADMIN'],
       newVersion: ['TRANS', 'KEPT', 'TREV', 'COORD', 'LADMIN'],

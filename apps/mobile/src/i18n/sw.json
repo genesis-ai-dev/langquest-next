@@ -3652,7 +3652,8 @@
         "sendElsewhere": "Tuma kwa mtu mwingine",
         "askSomeone": "Omba mtu",
         "alreadyHappened": "Tayari imefanyika",
-        "setAside": "Weka kando"
+        "setAside": "Weka kando",
+        "reviewMyself": "Nikague mwenyewe"
       },
       "sub": {
         "reviewsIt": "{{kind}} inakikagua",
@@ -3976,7 +3977,10 @@
       "teamOptions": "Kila ukaguzi chini ya \"{{section}}\" una chaguo zake pia: uguse kwenye njia.",
       "sayInsteadHelp": "Hufungua ujumbe wa sauti kwa kifungu hiki. Timu yako inausikia hapa.",
       "addNoteHelp": "Acha dokezo kwenye kifungu hiki, kwa sauti au kwa maandishi. Timu yako inaliona hapa.",
-      "whatHelpsHelp": "Hufungua Biblia, miongozo na visaidizi vingine vya kifungu hiki."
+      "whatHelpsHelp": "Hufungua Biblia, miongozo na visaidizi vingine vya kifungu hiki.",
+      "myself": "Nitafanya hili mwenyewe",
+      "myselfSub": "{{kind}}: sikiliza na uamue sasa",
+      "myselfMakesSub": "{{kind}}: irekodi sasa"
     },
     "published": {
       "askTitle": "Omba ukaguzi",
@@ -4869,7 +4873,8 @@
       "askHelp": "Humaliza {{version}}, kisha unachagua wa kumwomba.",
       "sendLater": "Tuma baadaye",
       "sendLaterHelp": "Humaliza {{version}} bila kumwomba mtu yeyote bado. Timu inaweza kulisikia.",
-      "nextCheck": "Ukaguzi unaofuata"
+      "nextCheck": "Ukaguzi unaofuata",
+      "checkNowHelp": "Humaliza {{version}}, kisha hufungua ukaguzi unaofuata ili uufanye mwenyewe sasa."
     },
     "tray": {
       "help": "Msaada",
@@ -6301,7 +6306,8 @@
     "sendLaterHelp": "Humaliza {{what}} bila kumwomba mtu yeyote bado. Timu inaweza kuisikia.",
     "chips": {
       "version": "Toleo la {{n}}"
-    }
+    },
+    "checkNowHelp": "Humaliza {{what}}, kisha hufungua ukaguzi unaofuata ili uufanye mwenyewe sasa."
   },
   "translate": {
     "missing": "Kifungu hiki bado hakipo kwenye kifaa hiki.",

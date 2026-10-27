@@ -639,11 +639,11 @@ Steps:
 Expected:
 - Each role sees only what the README role matrix allows:
 
-  | Role | "Record" or "Record a new version" | "Review it now" | "Ask someone" or "Send to …" | "Already happened" | "Move past this checkpoint…" |
+  | Role | "Record" or "Record a new version" | "Review it now" or "Review it myself" | "Ask someone" or "Send to …" | "Already happened" | "Move past this checkpoint…" |
   | --- | --- | --- | --- | --- | --- |
   | ADMIN, COORD | yes | yes | yes | yes | yes |
   | LADMIN | yes | yes | yes | yes | no |
-  | TRANS | yes | no (their own version, not asked) | yes | yes | no |
+  | TRANS | yes | yes: "Review it myself", their own version (decisions.md 176) | yes | yes | no |
   | KEPT | yes | yes (Translator has Review, decision 91) | yes | yes | no |
   | REV | no | yes | no | yes | no |
   | TREV | yes | yes | yes | yes | no |

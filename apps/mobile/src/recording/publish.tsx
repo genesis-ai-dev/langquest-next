@@ -19,7 +19,7 @@ import { SavedMark } from '../ui/SavedMark';
 import { txt } from '../ui/textStyles';
 import { feedbackSource, versionTitle, type PassageView } from '../passage/passageView';
 import { AskCheckCard, TheyAnswer } from '../passage/askParts';
-import { askButtonLabel } from '../passage/recordModel';
+import { askButtonLabel, doCheckButton } from '../passage/recordModel';
 import type { UsualTarget } from '../passage/sendTarget';
 import { C, radius, space, target, TINT, type as T } from '../ui/theme';
 import { VoiceNote } from '../audio/voiceNote';
@@ -30,8 +30,15 @@ import { isNoteDraft, type NoteDraft } from '../drafts/draftModel';
 import { mmss } from './model';
 import { styles as ps } from './blockStyles';
 
-/** How a finished version goes on: to the usual people for a check, to someone else, or nowhere yet. */
-export type DoneAsk = { kindId: string; questions: QuestionSpec[] } | { someoneElse: string } | null;
+/**
+ * How a finished version goes on: to the usual people for a check, to
+ * someone else, to its maker doing the check now (nobody else could,
+ * decisions.md 176), or nowhere yet.
+ */
+export type DoneAsk = { kindId: string; questions: QuestionSpec[] } | { someoneElse: string } | { checkNow: string } | null;
+
+/** The checks a finished version can go to next, with whoever usually does each, and whether its maker does them (nobody else could). */
+export interface DoneNext { kinds: KindStatus[]; targets: Record<string, UsualTarget | undefined>; selfCheck?: boolean }
 
 export function PublishScreen(props: {
   ctx: Ctx; v: PassageView; n: number; first: boolean; cards: string[]; totalMs: number | undefined; bible: string | undefined;
@@ -39,7 +46,7 @@ export function PublishScreen(props: {
   /** Where what is said here is kept until it is done (drafts/draftModel.ts). */
   draftKey: string | null;
   /** The checks it can go to next (recordModel `nextAfterDone`), with whoever usually does each. */
-  next: { kinds: KindStatus[]; targets: Record<string, UsualTarget | undefined> } | null;
+  next: DoneNext | null;
   onClose: () => void;
   /** Finish it; resolves true once it is on the record. */
   onDone: (note: string, hash: string | null, ask: DoneAsk) => Promise<boolean>;
@@ -68,7 +75,18 @@ export function PublishScreen(props: {
   const done = (ask: DoneAsk) => {
     void props.onDone(text, hash, ask).then((ok) => { if (ok) void draft.clear(); });
   };
-  const footer = next ? (
+  // Nobody else could be asked: Done does the next check now, and asking stays one tap away (decisions.md 176).
+  const checkNow = next && !nextTarget && props.next?.selfCheck ? doCheckButton(v.kind(next.kindId), v.kinds) : null;
+  const footer = next && checkNow ? (
+    <View style={{ gap: space.xs }}>
+      <PrimaryBtn label={checkNow.label} icon={checkNow.icon} busy={props.busy} disabled={blocked}
+        help={t('recording.publish.checkNowHelp', { version: title })} onPress={() => done({ checkNow: next.kindId })} />
+      <QuietLinks items={[
+        { label: t('passage.record.actions.askSomeone'), icon: 'people' as const, help: t('passage.page.actionHelp.ask'), onPress: () => { if (!blocked && !props.busy) done({ someoneElse: next.kindId }); } },
+        { label: t('recording.publish.sendLater'), icon: 'clock' as const, help: t('recording.publish.sendLaterHelp', { version: title }), onPress: () => { if (!blocked && !props.busy) done(null); } }
+      ]} />
+    </View>
+  ) : next ? (
     <View style={{ gap: space.xs }}>
       <PrimaryBtn label={askButtonLabel({ target: nextTarget, kindId: next.kindId, kinds: v.kinds, name: ctx.name })} icon="send" busy={props.busy} disabled={blocked}
         help={nextTarget ? t('recording.publish.sendHelp', { version: title }) : t('recording.publish.askHelp', { version: title })}

@@ -131,6 +131,8 @@ export function recordModel(o: {
   askKindId?: string | null;
   isAuthor: boolean;
   earlier?: boolean;
+  /** Nobody else here holds Review (`askCandidates` is empty): its author does the next check (decisions.md 176). */
+  alone?: boolean;
 }): RecordModel {
   const { p, kinds, me, can } = o;
   const nameOf = (kindId: string) => checkName(kindId, kinds);
@@ -147,14 +149,10 @@ export function recordModel(o: {
     .find(({ k }) => k.request && k.request.status === 'open' && !isCompleteState(k.state) && o.mine(k.request));
   // A check this person may do without being asked (the next one, on someone else's version): none while
   // feedback waits on the translator, since the next check is best done on the version they keep.
-  const openCheck = openCheckFor(p, { isAuthor: o.isAuthor, canReview: can.review });
+  const openCheck = openCheckFor(p, { isAuthor: o.isAuthor, canReview: can.review, alone: !!o.alone });
   const check = (kindId: string, requestId?: string): RecordMain => {
     const produces = !!o.kind(kindId).produces;
-    return {
-      id: 'check', kindId, produces, ...(requestId ? { requestId } : {}),
-      label: produces ? t('passage.page.main.backTranslate') : t('passage.page.main.doCheck', { check: kindInSentence(nameOf(kindId)) }),
-      icon: produces ? 'globe' : 'check'
-    };
+    return { id: 'check', kindId, produces, ...(requestId ? { requestId } : {}), ...doCheckButton(o.kind(kindId), kinds) };
   };
 
   let main: RecordMain | null = null;
@@ -166,6 +164,9 @@ export function recordModel(o: {
     main = { id: 'study', label: t('passage.page.main.study'), icon: 'star' };
   } else if (lit?.kind === 'record' && can.record) {
     main = { id: 'record', label: myDraft ? t('passage.page.continueRecording') : t('passage.page.main.record'), icon: 'mic' };
+  } else if (o.isAuthor && o.alone && openCheck) {
+    // Nobody else could be asked: the author does it, and asking stays under Something else? (decisions.md 176).
+    main = check(openCheck.kindId);
   } else if (nextKind && can.ask) {
     main = { id: 'ask', label: t('passage.page.askFor', { check: kindInSentence(nameOf(nextKind.kindId)) }), icon: 'send', kindId: nextKind.kindId };
   } else if (openCheck) {
@@ -173,6 +174,13 @@ export function recordModel(o: {
   }
   if (o.earlier) main = null;
   return { answersMine, feedbackReview, myDraft, nextKinds, nextKind, main };
+}
+
+/** The button that does a check now: "Do the peer check", or "Back-translate it" for a check that records. */
+export function doCheckButton(kind: KindDef, kinds: KindDef[]): { label: string; icon: IconName } {
+  return kind.produces
+    ? { label: t('passage.page.main.backTranslate'), icon: 'globe' }
+    : { label: t('passage.page.main.doCheck', { check: kindInSentence(checkName(kind.id, kinds)) }), icon: 'check' };
 }
 
 /** "Waiting on Tom to answer the Peer check feedback.", for everyone but whoever answers it. */
@@ -197,18 +205,22 @@ export function currentCheck(p: PassageState, currentStepId: string | undefined)
   return step && kind ? { step, kind } : undefined;
 }
 
-export type ElseOptionId = 'recordSomeone' | 'checkSomeone' | 'already' | 'notNow' | 'newVersion' | 'movePast';
-export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon: IconName; kindId?: string; stepId?: string }
+export type ElseOptionId = 'recordSomeone' | 'checkSomeone' | 'myself' | 'already' | 'notNow' | 'newVersion' | 'movePast';
+export interface ElseOption { id: ElseOptionId; label: string; sub: string; icon: IconName; kindId?: string; stepId?: string; produces?: boolean }
 
 /**
  * The ways forward on "Something else?" (demo a-else), top to bottom: someone
- * else records it, or does the current check; it already happened; not now;
- * a new version; move past the checkpoint the passage is at. Notes and What
- * helps here follow as tiles.
+ * else records it, or does the current check; its author does it themselves
+ * (decisions.md 176); it already happened; not now; a new version; move past
+ * the checkpoint the passage is at. Notes and What helps here follow as tiles.
  */
 export function elseOptions(o: {
   p: PassageState; kinds: KindDef[]; can: RecordCan; current: { step: FlowStepStatus; kind: KindStatus } | undefined;
   answersMine: boolean; myDraft: boolean;
+  /** The person looking recorded the latest version. */
+  isAuthor?: boolean;
+  /** Nobody else here holds Review: the main button already does the check, so it is not offered again here. */
+  alone?: boolean;
 }): ElseOption[] {
   const { p, can, current } = o;
   const nameOf = (kindId: string) => checkName(kindId, o.kinds);
@@ -219,6 +231,12 @@ export function elseOptions(o: {
   }
   if (current && offers.ask && can.ask) {
     out.push({ id: 'checkSomeone', icon: 'people', label: t('passage.else.someoneElse'), sub: t('passage.else.someoneElseCheck', { kind: nameOf(current.kind.kindId) }), kindId: current.kind.kindId });
+  }
+  // Doing it yourself: offered to its author, whose main button asks someone (decisions.md 176).
+  if (current && offers.log && can.review && o.isAuthor && !o.alone) {
+    const produces = !!o.kinds.find((k) => k.id === current.kind.kindId)?.produces;
+    out.push({ id: 'myself', icon: produces ? 'globe' : 'check', label: t('passage.else.myself'),
+      sub: t(produces ? 'passage.else.myselfMakesSub' : 'passage.else.myselfSub', { kind: nameOf(current.kind.kindId) }), kindId: current.kind.kindId, produces });
   }
   if (current && offers.log && can.log) {
     out.push({ id: 'already', icon: 'check', label: t('passage.else.alreadyDid'), sub: t('passage.else.alreadyDidSub', { check: kindInSentence(nameOf(current.kind.kindId)) }), kindId: current.kind.kindId });
@@ -274,6 +292,8 @@ export function rowBar(acts: SheetRow['acts'], compact: boolean): { others: numb
 export function stepSheet(o: {
   p: PassageState; kinds: KindDef[]; kind: (id: string) => KindDef; step: FlowStepStatus; can: RecordCan; isAuthor: boolean; me: string;
   mine: MineFn; name: NameFn; teamName: (teamId: string) => string | undefined; targets: Record<string, UsualTarget | undefined>;
+  /** Nobody else here holds Review: the author's own review leads each row (decisions.md 176). */
+  alone?: boolean;
 }): { title: string; sub: string; rows: SheetRow[]; movePast: boolean } {
   const { p, step, kinds } = o;
   const nameOf = (kindId: string) => checkName(kindId, kinds);
@@ -285,7 +305,7 @@ export function stepSheet(o: {
     const target = o.targets[status.kindId];
     const waitFor = fbKindIds.length && !fbKindIds.includes(status.kindId) ? fbNames : undefined;
     const checkedBy = kind.produces ? nameOf(kind.produces.checkedBy) : undefined;
-    const acts = kindRowActions({ status, kind, step, can: o.can, isAuthor: o.isAuthor, me: o.me, mine: o.mine, ...(target ? { sendTo: sendTargetLabel(target, o.name) } : {}) });
+    const acts = kindRowActions({ status, kind, step, can: o.can, isAuthor: o.isAuthor, me: o.me, mine: o.mine, alone: !!o.alone, ...(target ? { sendTo: sendTargetLabel(target, o.name) } : {}) });
     const sub = kindRowSub({
       status, kind, step, me: o.me, name: o.name, mine: o.mine, teamName: o.teamName,
       ...(checkedBy ? { checkedBy } : {}), ...(waitFor ? { waitFor } : {}), ...(lockedName ? { lockedName } : {})
@@ -360,6 +380,7 @@ export type ElseMove = RecordMove | { id: 'skip'; kindId: string; stepId: string
 export function elseMove(o: ElseOption): ElseMove {
   if (o.id === 'recordSomeone') return goTo('ask_someone', { what: 'record' });
   if (o.id === 'checkSomeone') return goTo('ask_someone', { what: 'review', kindId: o.kindId! });
+  if (o.id === 'myself') return goTo(o.produces ? 'back_translation' : 'review_capture', { kindId: o.kindId! });
   if (o.id === 'already') return goTo('add_record', { kindId: o.kindId! });
   if (o.id === 'notNow') return { id: 'skip', kindId: o.kindId!, stepId: o.stepId! };
   if (o.id === 'newVersion') return { id: 'recordOrPick' };

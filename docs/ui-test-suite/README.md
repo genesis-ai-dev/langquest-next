@@ -29,7 +29,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 04 | [04-map.md](04-map.md) | All languages, a language's map, books, chapters, search, filter | `MAP` | 21 |
 | 05 | [05-passage-record.md](05-passage-record.md) | The passage record, Something else?, Ask someone, Already happened, versions and history, set aside, checkpoints, Undo and Withdraw in History | `PASS` | 64 |
 | 06 | [06-recording.md](06-recording.md) | The recording workspace, voice detection, parts, Done, interruptions | `REC` | 51 |
-| 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 50 |
+| 07 | [07-reviewing.md](07-reviewing.md) | Review it, questions, verdicts, feedback, back translation, answering feedback | `REV` | 51 |
 | 08 | [08-study-and-reference.md](08-study-and-reference.md) | The study, key words, Bibles beside a passage, reference for one passage | `STUDY` | 36 |
 | 09 | [09-language-setup.md](09-language-setup.md) | New language and clusters, Get ready, templates, dividing books, review flows, reference material, the guide editor, licence | `SETUP` | 68 |
 | 10 | [10-people-and-roles.md](10-people-and-roles.md) | Members, invites, join requests, editing members, roles, review teams, the limits on granting | `PEOPLE` | 48 |
@@ -41,7 +41,7 @@ screens follow the simple redesign (decision 71 and its amendments) and
 | 16 | [16-role-journeys.md](16-role-journeys.md) | Whole jobs per role, and the passage lifecycle across every role | `JRN` | 14 |
 | 17 | [17-accessibility-and-field-use.md](17-accessibility-and-field-use.md) | Screen readers, target sizes, text size, colour, RTL, outdoor and low-end use | `A11Y` | 24 |
 
-**669 tests in all.**
+**670 tests in all.**
 
 ## How a test is written
 
@@ -274,7 +274,7 @@ files rely on it.
 | Map tab opens | All languages | All languages | All languages | LANG-A's map | LANG-A's map | LANG-A's map | All languages | LANG-A's map | — |
 | Manage opens | Org home | Org home | LANG-A's page | — | — | — | — | — | — |
 | Record, publish (Translate) | yes | yes | yes | yes | no | yes | no | yes | — |
-| Review it, back-translate (Review) | yes | yes | yes | yes (not their own version unless asked) | yes | yes | no | yes | — |
+| Review it, back-translate (Review) | yes | yes | yes | yes (their own version as "Review it myself", decisions.md 176) | yes | yes | no | yes | — |
 | Ask someone (Send to reviewers or Assign) | yes | yes | yes | yes | no | yes | no | yes | — |
 | Already happened (Translate or Review) | yes | yes | yes | yes | yes | yes | no | yes | — |
 | Override a checkpoint | yes | yes | no | no | no | no | no | no | — |

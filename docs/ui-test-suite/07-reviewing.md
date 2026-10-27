@@ -548,24 +548,25 @@ Expected:
 
 ## Who may review
 
-### REV-027 A translator is not offered Review it on their own versions
+### REV-027 A translator checks their own version only from the check, after asking
 Roles: TRANS · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
 
-Since decision 91 the Translator role holds Review, so TRANS may be on a check and review a teammate's version. TRANS's own versions are still not TRANS's to check.
+Since decision 91 the Translator role holds Review, so TRANS may be on a check and review a teammate's version. Since decision 176 TRANS may also check their own version, by choice: on a team, asking someone comes first.
 
 Preconditions:
 - P-SUBMITTED, P-CHECK and P-BT as in the fixture (each is TRANS's Version 1).
 
 Steps:
 1. Open each of P-SUBMITTED, P-CHECK and P-BT.
-2. Open each step's sheet (tap the team steps).
+2. On P-CHECK, tap the "Consultant check" card.
 3. Look at My Work.
 
 Expected:
-- No record offers "Do the peer check", "Do the consultant check", "Back-translate it", or "Review it now".
-- No step sheet offers a review action. "Ask someone" and "Already happened" may show (TRANS holds Send to reviewers and Translate).
+- No record's main button is a review action: no "Do the peer check", "Do the consultant check", "Back-translate it", or "Review it now". The team has other reviewers, so asking leads.
+- The Consultant check's sheet offers "Review it myself" after "Ask someone" and "Already happened", and never "Review it now" (nobody asked TRANS).
 - My Work offers TRANS no review of these passages.
-- No screen in this run reaches Review it or Back translation (G10.6).
+
+Changed (2026-10-27, decision 176): before, no step sheet offered the author a review action.
 
 ### REV-028 A viewer sees no record or review controls
 Roles: VIEW · Priority: P1 · Platforms: iOS, Android, Web · Run: Auto
@@ -617,6 +618,21 @@ Expected:
 - Step 4 shows the toast "Looks good · on the record".
 - The record shows Peer check "looks good" by TREV.
 - Resets: P-T's Peer check is "looks good".
+
+### REV-051 Alone in the organization, finishing a recording checks it
+Roles: one Organization Admin with nobody else in the organization · Priority: P1 · Platforms: iOS, Android, Web · Run: Manual
+
+Decision 176. The fixture world has a team, so this runs on an organization of one (a fresh sign-up, a language from New language with the Standard Bible Flow).
+
+Steps:
+1. Record a passage and tap "Done".
+2. Tap "Do the peer check", listen, tap "Next: decide", then "Looks good".
+3. On the record, tap the next check's card, then "Something else?".
+
+Expected:
+- Step 1: Done's main button reads "Do the peer check", with "Ask someone" and "Send later" under it.
+- Step 2: the version is published and the review opens on it: "Version 1 · recorded by you". The toast reads "Looks good · on the record", and the record shows the Peer check "looks good".
+- Step 3: the record's main button does the next check ("Back-translate it"); its sheet offers that first, with "Ask someone" beside it. "Something else?" does not offer "I'll do this myself" again.
 
 ---
 
