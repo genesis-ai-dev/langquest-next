@@ -209,7 +209,7 @@ await page.addInitScript(installPlaybackTap, '__tutorialHeard');
 if (!tutorial.signedOut) {
   await page.addInitScript((entries) => {
     for (const [k, v] of Object.entries(entries)) if (localStorage.getItem(k) === null) localStorage.setItem(k, v);
-  }, browserStateFor(world, tutorial.as, 'A'));
+  }, browserStateFor(world, tutorial.as, tutorial.language ?? 'A'));
 }
 
 const say = (n: number): Promise<number> =>

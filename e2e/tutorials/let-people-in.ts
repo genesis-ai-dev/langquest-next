@@ -40,7 +40,7 @@ export const letPeopleIn: Tutorial = {
     },
     {
       screen: 'edit_member',
-      part: (page) => [words(page, 'Bravo'), words(page, 'All of them')],
+      part: (page) => [words(page, 'Kitara'), words(page, 'All of them')],
       say: 'And in which language, or in all of them.'
     },
     {

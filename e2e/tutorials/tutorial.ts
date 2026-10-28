@@ -4,7 +4,7 @@
 // the screen it lights (as help mode lights a part), what the voice says, and
 // what the finger does. film.ts plays the steps against the web export.
 import type { Locator, Page } from 'playwright';
-import type { AccountKey, UiWorld, WorldNames } from '../ui/fixture';
+import type { AccountKey, LanguageKey, UiWorld, WorldNames } from '../ui/fixture';
 
 export interface Step {
   /** The app's screen, by its id in apps/mobile/src/shell/flow.ts. */
@@ -49,6 +49,8 @@ export interface Tutorial {
   title: string;
   /** Who is signed in, from the UI tests' world. */
   as: AccountKey;
+  /** The language the app opens in (A, the world's first, when not said). */
+  language?: LanguageKey;
   /** Nobody is signed in when the app opens: the video signs in, or makes an account. */
   signedOut?: boolean;
   names: WorldNames;
